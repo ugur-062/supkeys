@@ -34,6 +34,16 @@ describe("extractErrorMessage", () => {
     );
   });
 
+  it("alan etiketi verilirse hata alan adıyla basılır (arayüz testi D-054)", () => {
+    const errors = { aboutText: "En fazla 2000 karakter olabilir", "services.3": "Çok uzun", other: "X" };
+    expect(
+      extractErrorMessage(axiosErr({ message: "Doğrulama hatası", errors }), "yedek", {
+        aboutText: "Hakkında",
+        services: "Hizmetler",
+      }),
+    ).toBe("Hakkında: En fazla 2000 karakter olabilir · Hizmetler: Çok uzun · X");
+  });
+
   it("bilinmeyen değerde fallback", () => {
     expect(extractErrorMessage("string", "yedek")).toBe("yedek");
     expect(extractErrorMessage(null, "yedek")).toBe("yedek");

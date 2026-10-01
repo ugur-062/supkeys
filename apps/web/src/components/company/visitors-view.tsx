@@ -5,6 +5,7 @@ import type { Locale } from "@rothern/i18n";
 import { formatNumber } from "@/i18n/format";
 import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { VisitsVisibilityCard } from "@/components/company/visits-visibility-card";
+import { UpgradeActions } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/company/company-logo";
 import { PeriodSelect } from "@/components/company/period-select";
@@ -158,9 +159,8 @@ function LockedList({ count }: { count: number }) {
             {count > 0 ? t("firmaProfiliniziInceledi", { n: count }) : t("kimlikliZiyaretciListesiSilverVe")}
           </p>
           <p className="mt-1 text-sm text-amber-800">{t("firmaAdiSehirFaaliyetTipi")}</p>
-          <Link href="/company/premium" className="mt-4 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
-            {t("paketleriGor")}
-          </Link>
+          {/* Doğrulanmamış firmada birincil eylem doğrulama (arayüz testi D-194). */}
+          <UpgradeActions ctaLabel={t("paketleriGor")} className="justify-center" />
         </div>
       </div>
     </section>

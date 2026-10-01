@@ -13,6 +13,7 @@ vi.mock("@/hooks/use-company-views", () => ({
   useVisitors: () => ({ data: h.data, isLoading: h.isLoading, isError: h.isError }),
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { VisitorsView } from "../visitors-view";
 
 const base = (over: Partial<VisitorsResponse> = {}): VisitorsResponse => ({
@@ -56,6 +57,21 @@ describe("VisitorsView", () => {
     // sayfasına gider; Ayarlar hub'ı da pazarlama sayfası da doğru yer değil.
     expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
     expect(screen.queryByText("Ziyaretçi A")).toBeNull();
+  });
+
+  it("Standart + doğrulanmamış firma: birincil eylem doğrulama, paketler ikincil (arayüz testi D-194)", () => {
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "UNVERIFIED" } as never } as never);
+    try {
+      h.data = base({ locked: true, items: [] });
+      render(<VisitorsView />);
+      expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
+    } finally {
+      useCompanyAuthStore.setState({ company: null } as never);
+    }
   });
 
   it("boş dönem: tek eylem Profili tamamla", () => {

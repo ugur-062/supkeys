@@ -1,6 +1,8 @@
 import {
   COMPANY_ACTIVITY_CODES,
+  COMPANY_PROFILE_LIMITS,
   COMPANY_SERVICE_MAX_LENGTH,
+  COMPANY_SERVICES_MAX,
   MAX_COMPANY_ACTIVITIES,
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
@@ -34,7 +36,7 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(100)
+  @MaxLength(COMPANY_PROFILE_LIMITS.industry)
   industry?: string;
 
   /**
@@ -50,7 +52,7 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(200)
+  @MaxLength(COMPANY_PROFILE_LIMITS.website)
   website?: string;
 
   @IsOptional()
@@ -86,7 +88,7 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(2000)
+  @MaxLength(COMPANY_PROFILE_LIMITS.aboutText)
   aboutText?: string;
 
   @IsOptional()
@@ -111,12 +113,12 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(150)
+  @MaxLength(COMPANY_PROFILE_LIMITS.linkedinUrl)
   linkedinUrl?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(150)
+  @MaxLength(COMPANY_PROFILE_LIMITS.instagramUrl)
   instagramUrl?: string;
 
   @IsOptional()
@@ -126,8 +128,8 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsInt()
-  @Min(1800)
-  @Max(2100)
+  @Min(COMPANY_PROFILE_LIMITS.foundedYearMin)
+  @Max(COMPANY_PROFILE_LIMITS.foundedYearMax)
   foundedYear?: number;
 
   // Kurumsal kimlik — düzenlenebilir kalemler (Faz 4). IBAN/KEP geçerliliği
@@ -173,7 +175,7 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(COMPANY_SERVICES_MAX)
   @IsString({ each: true })
   @MaxLength(COMPANY_SERVICE_MAX_LENGTH, { each: true })
   services?: string[];

@@ -18864,6 +18864,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.company.profileEditor.aiIleGuclendirmeIslemYetkisi": {
+    "hash": "5d4410d7dc",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.company.profileEditor.aiIleGuclendirmeSilverVeUzeri": {
     "hash": "fc7e553149",
     "status": "reviewed",
@@ -18873,6 +18878,11 @@
     "hash": "8495d36088",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.company.profileEditor.alanCokUzun": {
+    "hash": "7d705f9bd7",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.company.profileEditor.alicilarinSiziBulmasiIcin": {
     "hash": "9f1170cc6d",
@@ -18889,6 +18899,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.company.profileEditor.buCipZatenEkli": {
+    "hash": "1c4552ce20",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.company.profileEditor.calisan": {
     "hash": "e094a14b2d",
     "status": "reviewed",
@@ -18898,6 +18913,11 @@
     "hash": "82aaee5403",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.company.profileEditor.cipSayaci": {
+    "hash": "50e7911494",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.company.profileEditor.devam": {
     "hash": "1b63a288b8",
@@ -18934,6 +18954,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.company.profileEditor.enFazlaCip": {
+    "hash": "c80fc1c035",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.company.profileEditor.eskiKayit": {
     "hash": "744347bbac",
     "status": "reviewed",
@@ -18964,6 +18989,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.company.profileEditor.faaliyetTipi": {
+    "hash": "a594473e28",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.company.profileEditor.firmaBilgileriUnvanAdresVkn": {
     "hash": "23344a6737",
     "status": "reviewed",
@@ -18979,10 +19009,10 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.company.profileEditor.firmaTuru": {
-    "hash": "47f1ce841a",
+  "web.panel.company.profileEditor.firmaSayfanizSaltOkur": {
+    "hash": "d450176ece",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.company.profileEditor.gecersizBaglantiYalnizHttpHttps": {
     "hash": "1048ea3146",
@@ -19094,10 +19124,10 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.company.profileEditor.karakter": {
-    "hash": "c06c54cf4f",
+  "web.panel.company.profileEditor.karakterSayaci": {
+    "hash": "ab0f3d4e4e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.company.profileEditor.kaydedilemedi": {
     "hash": "9b108c4df0",
@@ -19133,6 +19163,11 @@
     "hash": "7cf9c36bed",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.company.profileEditor.kurulusYiliAraligi": {
+    "hash": "6b4110d8df",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.company.profileEditor.linkedin": {
     "hash": "6b6390a441",
@@ -24444,6 +24479,11 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "web.panel.requests.page.buTalebiYonetmeYetkinizYok": {
+    "hash": "d2fd8132e3",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.page.buTeklifTumKalemleriFiyatlamadi": {
     "hash": "6ae6ddb291",
     "status": "reviewed",
@@ -24488,6 +24528,11 @@
     "hash": "5c8531072d",
     "status": "reviewed",
     "at": "2026-09-29"
+  },
+  "web.panel.requests.page.dogrulamaIncelemedeOnaylanincaYayinlayipKazandirabilirsiniz": {
+    "hash": "99c9524a07",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.dogrulanmamisFirma": {
     "hash": "5a6a1416b2",

@@ -13,7 +13,17 @@ import { companySeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { cityDisplayName, countryDisplayName, useActivityLabel, useSeoT } from "@/i18n/domain";
 import { useLocale, useTranslations } from "next-intl";
-import { COMPANY_SERVICE_MAX_LENGTH, companySeoReadiness, generateSlug, tierAtLeast } from "@rothern/shared";
+import {
+  COMPANY_PROFILE_LIMITS,
+  COMPANY_SERVICE_MAX_LENGTH,
+  COMPANY_SERVICES_MAX,
+  companySeoReadiness,
+  generateSlug,
+  tierAtLeast,
+} from "@rothern/shared";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { hasAnySeatPermission } from "@/lib/company/permissions";
+import { accessiblePortals } from "@/lib/company/portals";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
@@ -30,6 +40,7 @@ import {
   useUpdateCompanyProfile,
   useUploadProfileImage,
   type CompanyProfile,
+  type CompanyProfileUpdate,
 } from "@/hooks/use-company-profile";
 import { companyApi } from "@/lib/company-auth/api";
 import { PROFILE_IMAGE_LIMITS, resizeImageFile } from "@/lib/image-resize";
@@ -42,12 +53,16 @@ import { toast } from "sonner";
 
 const IMG_MIME = ["image/jpeg", "image/png", "image/webp"];
 const MAX_GALLERY = 12;
-const MAX_CHIPS = 20;
+const LIMITS = COMPANY_PROFILE_LIMITS;
 
-/** Editörün taslak alanları — PATCH /company/profile ile birebir (public profil alanları). */
+/**
+ * Editörün taslak alanları — PATCH /company/profile'ın public profil alanları.
+ * `visitsVisible` BİLİNÇLİ YOK (arayüz testi O-103): anahtar Ziyaret Edenler
+ * sayfasında (`VisitsVisibilityCard`); burada kontrolü olmayan alanı yüklemedeki
+ * değerle göndermek, başka sekmede/başka yöneticinin kapattığı ayarı geri açıyordu.
+ */
 interface Draft {
   publicEnabled: boolean;
-  visitsVisible: boolean;
   logoUrl: string;
   coverImageUrl: string;
   industry: string;
@@ -65,7 +80,6 @@ interface Draft {
 function toDraft(p: CompanyProfile): Draft {
   return {
     publicEnabled: p.publicEnabled,
-    visitsVisible: p.visitsVisible ?? true,
     logoUrl: p.logoUrl ?? "",
     coverImageUrl: p.coverImageUrl ?? "",
     industry: p.industry ?? "",
@@ -82,6 +96,21 @@ function toDraft(p: CompanyProfile): Draft {
 }
 
 const same = (a: Draft, b: Draft) => JSON.stringify(a) === JSON.stringify(b);
+const sameField = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Sunucudan yeni profil gelince taslağı YENİDEN TABANLA: kullanıcının
+ * dokunmadığı alan (taslak = eski kayıt) yeni sunucu değerini alır, dokunduğu
+ * alan korunur. Eskiden kirli taslak bütünüyle eski kalıyor ve Kaydet
+ * başka sekmede değişen alanları da eski değerle eziyordu (arayüz testi O-103).
+ */
+function rebaseDraft(cur: Draft, prev: Draft, next: Draft): Draft {
+  const out = { ...cur } as Record<keyof Draft, unknown>;
+  for (const k of Object.keys(next) as (keyof Draft)[]) {
+    if (sameField(cur[k], prev[k])) out[k] = next[k];
+  }
+  return out as unknown as Draft;
+}
 
 /**
  * Profilim — YERİNDE düzenleme (2026-08-22). Önizleme/Düzenle sekmeleri
@@ -108,13 +137,13 @@ export function ProfileEditor({
   savedRef.current = saved;
   const draftRef = useRef(draft);
   draftRef.current = draft;
-  // Sunucudan yeni veri gelince (kayıt sonrası / başka sekme) taslak kirli
-  // değilse senkronla; kirliyse kullanıcının değişikliği korunur.
+  // Sunucudan yeni veri gelince (kayıt sonrası / başka sekme) taslağı
+  // yeniden tabanla: kullanıcının değiştirdiği alanlar korunur, gerisi yenilenir.
   useEffect(() => {
     const next = toDraft(profile);
-    const wasClean = same(draftRef.current, savedRef.current);
+    const prev = savedRef.current;
     setSaved(next);
-    if (wasClean) setDraft(next);
+    setDraft(rebaseDraft(draftRef.current, prev, next));
   }, [profile]);
   const dirty = useMemo(() => !same(draft, saved), [draft, saved]);
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
@@ -129,41 +158,80 @@ export function ProfileEditor({
     return () => window.removeEventListener("beforeunload", h);
   }, [dirty]);
 
+  /** Alan anahtarı → etiket: istemci ve sunucu hataları alan adıyla basılır (D-054). */
+  const fieldLabels: Record<string, string> = {
+    industry: t("sektor"),
+    aboutText: t("hakkinda"),
+    website: t("webSitesi"),
+    linkedinUrl: t("linkedin"),
+    instagramUrl: t("instagram"),
+    foundedYear: t("kurulusYili"),
+    employeeCount: t("calisanSayisi"),
+    services: t("hizmet"),
+    publicEnabled: t("herkeseAcikProfil"),
+  };
+
   const save = async () => {
-    const normWebsite = draft.website.trim() ? safeExternalUrl(draft.website) : "";
-    const normLinkedin = draft.linkedinUrl.trim() ? safeExternalUrl(draft.linkedinUrl) : "";
-    const normInstagram = draft.instagramUrl.trim() ? safeExternalUrl(draft.instagramUrl) : "";
-    if (normWebsite === null || normLinkedin === null || normInstagram === null) {
-      toast.error(t("gecersizBaglantiYalnizHttpHttps"));
+    // YALNIZ DEĞİŞEN ALANLAR gider (O-103): başka sekmede/başka yöneticinin
+    // değiştirdiği, burada dokunulmamış alan eski değerle ezilmesin.
+    const changed = (k: keyof Draft) => !sameField(draft[k], saved[k]);
+    const body: CompanyProfileUpdate = {};
+    const tooLong: [string, number][] = [];
+    const text = (k: "industry" | "aboutText", max: number) => {
+      if (!changed(k)) return;
+      if (draft[k].length > max) tooLong.push([fieldLabels[k]!, max]);
+      body[k] = draft[k];
+    };
+    text("industry", LIMITS.industry);
+    text("aboutText", LIMITS.aboutText);
+    const links = [
+      ["website", LIMITS.website],
+      ["linkedinUrl", LIMITS.linkedinUrl],
+      ["instagramUrl", LIMITS.instagramUrl],
+    ] as const;
+    for (const [k, max] of links) {
+      if (!changed(k)) continue;
+      const norm = draft[k].trim() ? safeExternalUrl(draft[k]) : "";
+      if (norm === null) {
+        toast.error(t("gecersizBaglantiYalnizHttpHttps"));
+        return;
+      }
+      if (norm.length > max) tooLong.push([fieldLabels[k]!, max]);
+      body[k] = norm;
+    }
+    if (tooLong.length > 0) {
+      const [label, max] = tooLong[0]!;
+      toast.error(t("alanCokUzun", { label, max }));
       return;
     }
-    const year = draft.foundedYear.trim();
-    if (year && !/^\d{4}$/.test(year)) {
-      toast.error(t("kurulusYili4HaneliOlmali"));
-      return;
+    if (changed("foundedYear")) {
+      const year = draft.foundedYear.trim();
+      if (year && !/^\d{4}$/.test(year)) {
+        toast.error(t("kurulusYili4HaneliOlmali"));
+        return;
+      }
+      if (year && (Number(year) < LIMITS.foundedYearMin || Number(year) > LIMITS.foundedYearMax)) {
+        toast.error(
+          t("kurulusYiliAraligi", { min: String(LIMITS.foundedYearMin), max: String(LIMITS.foundedYearMax) }),
+        );
+        return;
+      }
+      // Boş yıl `null` (temizle): `undefined` JSON'dan düşüyor, servis
+      // alanı hiç yazmıyor ve refetch eski yılı geri getiriyordu.
+      body.foundedYear = year ? Number(year) : null;
     }
+    if (changed("publicEnabled")) body.publicEnabled = draft.publicEnabled;
+    if (changed("logoUrl")) body.logoUrl = draft.logoUrl;
+    if (changed("coverImageUrl")) body.coverImageUrl = draft.coverImageUrl;
+    if (changed("employeeCount")) body.employeeCount = draft.employeeCount;
+    if (changed("services")) body.services = draft.services;
     try {
-      await update.mutateAsync({
-        publicEnabled: draft.publicEnabled,
-        visitsVisible: draft.visitsVisible,
-        logoUrl: draft.logoUrl,
-        coverImageUrl: draft.coverImageUrl,
-        industry: draft.industry,
-        aboutText: draft.aboutText,
-        website: normWebsite,
-        linkedinUrl: normLinkedin,
-        instagramUrl: normInstagram,
-        employeeCount: draft.employeeCount,
-        // Boş yıl `null` (temizle): `undefined` JSON'dan düşüyor, servis
-        // alanı hiç yazmıyor ve refetch eski yılı geri getiriyordu.
-        foundedYear: year ? Number(year) : null,
-        services: draft.services,
-      });
+      if (Object.keys(body).length > 0) await update.mutateAsync(body);
       // Başarıda taslak = kayıtlı (çubuk hemen kapanır; refetch gelince de aynı kalır).
       setSaved(draft);
       toast.success(t("profilKaydedildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi"), fieldLabels));
     }
   };
   const discard = () => setDraft(saved);
@@ -213,6 +281,16 @@ export function ProfileEditor({
 
   const completeness = completenessOf(draft, profile);
   const seoEnrich = useAiSeoEnrich();
+  const { user } = useCompanyAuth();
+  // AI güçlendirme = API `assertAiAccess`in aynası: paket (Silver+) VE koltuk
+  // (herhangi bir işlem izni). Yönetici hazır seti işlem izni taşımaz → düğme
+  // açık görünüp 403 veriyordu (arayüz testi O-105). Rol kontrolü paket
+  // kontrolünün İÇİNDE; neden ayrı metinle söylenir.
+  const enrichTierOk = tierAtLeast(profile.tier, "SILVER");
+  const enrichSeatOk = hasAnySeatPermission(user);
+  // Ürünlerim kartı yalnız satış paneline girebilene (D-053: Satın Almacı
+  // "Ürünleri yönet"e basıp "Satış paneline erişim yetkiniz yok"a düşüyordu).
+  const canSeeSales = accessiblePortals(user).includes("satis");
   // Alıcının sizi BULMASI için gerekenler — kapı değil, rehber (backend'de
   // içerik kapısı yok; yayın anahtarı her pakete açık — 2026-09-06).
   const findability = {
@@ -225,14 +303,14 @@ export function ProfileEditor({
   if (!canEdit) {
     return (
       <div className="space-y-4">
-        <EditorHeader profile={profile} publicEnabled={saved.publicEnabled} onTogglePublic={undefined} />
+        <EditorHeader profile={profile} publicEnabled={saved.publicEnabled} onTogglePublic={undefined} canEdit={false} />
         <div className={FRAME}>
           <div className="min-w-0">
             <CompanyProfileView profile={viewData} layout="stacked" />
           </div>
           <aside className={RAIL}>
             <StatusCard pct={completeness.pct} missingKeys={completeness.missingKeys} findability={findability} />
-            <MyProductsCard />
+            {canSeeSales ? <MyProductsCard /> : null}
           </aside>
         </div>
         <p className="text-xs text-zinc-400">{t("duzenlemeIcinFirmaYonetimiYetkisi")}</p>
@@ -260,6 +338,7 @@ export function ProfileEditor({
           value={draft.industry}
           placeholder={t("sektorOrElektrikMalzemeleri")}
           onChange={(e) => set({ industry: e.target.value })}
+          maxLength={LIMITS.industry}
           className="!w-64"
         />
         <span>
@@ -278,6 +357,7 @@ export function ProfileEditor({
           <Input
             aria-label={t("kurulusYili")}
             inputMode="numeric"
+            maxLength={4}
             value={draft.foundedYear}
             placeholder="2015"
             onChange={(e) => set({ foundedYear: e.target.value })}
@@ -312,6 +392,7 @@ export function ProfileEditor({
             aria-label={t("webSitesi")}
             value={draft.website}
             placeholder={t("ornekfirmaCom")}
+            maxLength={LIMITS.website}
             onChange={(e) => set({ website: e.target.value })}
           />
         </MiniField>
@@ -320,6 +401,7 @@ export function ProfileEditor({
             aria-label={t("linkedin")}
             value={draft.linkedinUrl}
             placeholder={t("linkedinComCompany")}
+            maxLength={LIMITS.linkedinUrl}
             onChange={(e) => set({ linkedinUrl: e.target.value })}
           />
         </MiniField>
@@ -328,6 +410,7 @@ export function ProfileEditor({
             aria-label={t("instagram")}
             value={draft.instagramUrl}
             placeholder={t("instagramCom")}
+            maxLength={LIMITS.instagramUrl}
             onChange={(e) => set({ instagramUrl: e.target.value })}
           />
         </MiniField>
@@ -350,6 +433,7 @@ export function ProfileEditor({
         empty={t("henuzHizmetEklenmediNeYaptiginizi")}
         onChange={(services) => set({ services })}
         maxLength={COMPANY_SERVICE_MAX_LENGTH}
+        maxItems={COMPANY_SERVICES_MAX}
       />
     ),
     // Galeri/Fotoğraflar slotu KALDIRILDI (2026-09-10, kullanıcı kararı).
@@ -361,6 +445,7 @@ export function ProfileEditor({
         profile={profile}
         publicEnabled={draft.publicEnabled}
         onTogglePublic={(v) => set({ publicEnabled: v })}
+        canEdit
       />
 
       {/* YENİ DÜZEN (2026-09-10, kullanıcı kararı: "profil çok aşağıda
@@ -425,8 +510,10 @@ export function ProfileEditor({
               }, { locale, t: seoT }).metadata,
             )}
             enrich={{
-              available: tierAtLeast(profile.tier, "SILVER"),
-              unavailableReason: t("aiIleGuclendirmeSilverVeUzeri"),
+              available: enrichTierOk && enrichSeatOk,
+              unavailableReason: enrichTierOk
+                ? t("aiIleGuclendirmeIslemYetkisi")
+                : t("aiIleGuclendirmeSilverVeUzeri"),
               run: () =>
                 seoEnrich.mutateAsync({
                   kind: "company",
@@ -448,7 +535,7 @@ export function ProfileEditor({
             }}
           />
 
-          <MyProductsCard />
+          {canSeeSales ? <MyProductsCard /> : null}
 
           {/* Gizlilik anahtarı Ziyaret Edenler sayfasına TAŞINDI (2026-09-19,
               kullanıcı: "profil kısmında saçma duruyor") — `VisitsVisibilityCard`. */}
@@ -488,10 +575,13 @@ function EditorHeader({
   profile,
   publicEnabled,
   onTogglePublic,
+  canEdit,
 }: {
   profile: CompanyProfile;
   publicEnabled: boolean;
   onTogglePublic?: (v: boolean) => void;
+  /** Salt-okur kullanıcı (company:manage yok): düzenleme dili ve Firma Bilgileri bağlantısı çizilmez (D-052). */
+  canEdit: boolean;
 }) {
   const t = useTranslations("web.panel.company.profileEditor");
   return (
@@ -499,20 +589,23 @@ function EditorHeader({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{t("profilim")}</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          {t("firmaSayfanizBaskalarininGorduguHali")}
+          {canEdit ? t("firmaSayfanizBaskalarininGorduguHali") : t("firmaSayfanizSaltOkur")}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {/* Ticari kayıt (unvan/adres/VKN) AYRI sayfada ve KYC kilidine tabi
             (profile/settings split). Eskiden bu ayrım sayfanın en altındaki
             uzun bir notla anlatılıyordu; kullanıcı unvanını değiştirmek için
-            nereye gideceğini bulamıyordu. Başlıkta ikincil bağlantı. */}
-        <Link
-          href="/company/ayarlar/firma"
-          className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
-        >
-          {t("firmaBilgileriUnvanAdresVkn")}
-        </Link>
+            nereye gideceğini bulamıyordu. Başlıkta ikincil bağlantı. Sayfa
+            `company:manage` kapılı → salt-okur kullanıcıya çizilmez (D-052). */}
+        {canEdit ? (
+          <Link
+            href="/company/ayarlar/firma"
+            className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
+          >
+            {t("firmaBilgileriUnvanAdresVkn")}
+          </Link>
+        ) : null}
         {/* ÖNİZLEME PANEL İÇİNDE (2026-09-17, kullanıcı: "önizleme yapınca
             sistemden çıkıp anasayfaya dönüyor"): eskiden herkese açık
             /firma/<slug> yeni sekmede açılıyordu — pazarlama üst çubuğu
@@ -946,10 +1039,17 @@ function AboutEditor({
         rows={5}
         value={value}
         placeholder={t("firmaniziKisacaTanitinNeUretir")}
+        maxLength={LIMITS.aboutText}
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-zinc-500">{t("karakter", { n: value.length })}</span>
+        {/* Tavan DTO'yla aynı sabit (D-054). AI taslağı tavanı aşabilir (maxLength
+            yalnız yazmayı keser) → sayaç kırmızıya döner, Kaydet alan adıyla uyarır. */}
+        <span
+          className={cn("text-xs tabular-nums", value.length > LIMITS.aboutText ? "text-rose-700" : "text-zinc-500")}
+        >
+          {t("karakterSayaci", { n: value.length, max: LIMITS.aboutText })}
+        </span>
       </div>
       {logoCandidate && !hasLogo ? (
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
@@ -970,6 +1070,7 @@ function ChipEditor({
   onChange,
   variant = "chips",
   maxLength,
+  maxItems,
 }: {
   ariaLabel: string;
   values: string[];
@@ -979,15 +1080,29 @@ function ChipEditor({
   variant?: "chips" | "list";
   /** Çip başına karakter tavanı — kayıt DTO'suyla aynı sabit (derin denetim S069). */
   maxLength?: number;
+  /** Çip adedi tavanı — DTO `@ArrayMaxSize` ile aynı sabit. */
+  maxItems: number;
 }) {
   const t = useTranslations("web.panel.company.profileEditor");
   const [draft, setDraft] = useState("");
+  // Eklenmeyen çip SESSİZ kalmaz (arayüz testi D-294): tekrar ve tavan ipucu.
+  const [notice, setNotice] = useState<string | null>(null);
+  const full = values.length >= maxItems;
   const add = () => {
     const v = draft.trim();
-    if (!v || values.includes(v) || values.length >= MAX_CHIPS) return;
+    if (!v) return;
+    if (full) {
+      setNotice(t("enFazlaCip", { max: maxItems }));
+      return;
+    }
+    if (values.some((x) => x.toLowerCase() === v.toLowerCase())) {
+      setNotice(t("buCipZatenEkli", { v }));
+      return;
+    }
     if (maxLength != null && v.length > maxLength) return;
     onChange([...values, v]);
     setDraft("");
+    setNotice(null);
   };
   return (
     <div className="space-y-2">
@@ -1023,7 +1138,11 @@ function ChipEditor({
           value={draft}
           placeholder={placeholder}
           maxLength={maxLength}
-          onChange={(e) => setDraft(e.target.value)}
+          disabled={full}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setNotice(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -1031,10 +1150,16 @@ function ChipEditor({
             }
           }}
         />
-        <Button outline type="button" onClick={add} disabled={!draft.trim()}>
+        <Button outline type="button" onClick={add} disabled={!draft.trim() || full}>
           <Plus data-slot="icon" />
           {t("ekle")}
         </Button>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <p role="status" className="text-amber-700">
+          {notice ?? (full ? t("enFazlaCip", { max: maxItems }) : null)}
+        </p>
+        <span className="tabular-nums text-zinc-500">{t("cipSayaci", { n: values.length, max: maxItems })}</span>
       </div>
     </div>
   );
@@ -1205,7 +1330,7 @@ function MyProductsCard() {
 }
 
 /**
- * Firma türü + faaliyet kategorileri — Profilim'de SALT OKUNUR özet.
+ * Faaliyet tipi + faaliyet kategorileri — Profilim'de SALT OKUNUR özet.
  * Veri Firma Bilgileri'ndekiyle aynı kayıttan; düzenleme oraya gider.
  * "Eksik: Faaliyet kategorileri" de aynı veriden beslenir.
  */
@@ -1229,7 +1354,9 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-xs font-medium text-zinc-500">{t("firmaTuru")}</p>
+        {/* Faaliyet tipi (üretici/toptancı…) — onboarding'deki "Firma türü"
+            (hukuki yapı) DEĞİL (arayüz testi D-088). */}
+        <p className="text-xs font-medium text-zinc-500">{t("faaliyetTipi")}</p>
         {profile.activities?.length ? (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {profile.activities.map((code) => (

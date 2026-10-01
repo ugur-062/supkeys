@@ -44,6 +44,25 @@ export const MAX_LISTING_HORIZON_MS = 2 * 365 * 24 * 60 * 60 * 1000;
  */
 export const COMPANY_SERVICE_MAX_LENGTH = 60;
 
+/** Profil hizmet çipi adedi (DTO `@ArrayMaxSize` ve web ChipEditor sayacı). */
+export const COMPANY_SERVICES_MAX = 20;
+
+/**
+ * Profilim'in serbest metin alanlarının uzunluk tavanları — PATCH
+ * /company/profile DTO'su ve web profil düzenleyicisi (`maxLength`, sayaç,
+ * alan adlı hata) aynı sabiti okur (arayüz testi D-054: istemcide sınır yoktu,
+ * sunucu hatası hangi alan olduğunu söylemiyordu).
+ */
+export const COMPANY_PROFILE_LIMITS = {
+  industry: 100,
+  aboutText: 2000,
+  website: 200,
+  linkedinUrl: 150,
+  instagramUrl: 150,
+  foundedYearMin: 1800,
+  foundedYearMax: 2100,
+} as const;
+
 /**
  * Talep gövdesindeki davet listesi tavanı — API `CreateListingDto.invitations`
  * ve web talep formu aynı sabiti okur. "Bağlantılarım" kipinde liste alıcının

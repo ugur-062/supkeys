@@ -34,14 +34,27 @@ export function extractFieldErrors(
 /** Toast'a sığacak kadar alan hatası (fazlası "+N alan daha"). */
 const MAX_FIELD_ERRORS_IN_TOAST = 3;
 
-export function extractErrorMessage(err: unknown, fallback: string): string {
+/**
+ * `fieldLabels` (isteğe bağlı): DTO alan anahtarı → kullanıcıya görünen etiket.
+ * Verilirse eşleşen hata "Etiket: mesaj" basılır — class-validator mesajı alan
+ * adını taşımıyor ("En fazla 100 karakter olabilir"), birden çok metin alanlı
+ * formda hangi alanın reddedildiği anlaşılmıyordu (arayüz testi D-054).
+ */
+export function extractErrorMessage(
+  err: unknown,
+  fallback: string,
+  fieldLabels?: Record<string, string>,
+): string {
   if (axios.isAxiosError(err)) {
     // #3: alan hataları varsa GENEL mesaj yerine onları göster — kullanıcı
     // hangi alanı düzelteceğini bilsin. (RHF formları `extractFieldErrors`
     // ile alanlara basabilir; bu dal imperatif formlar ve toast'lar için.)
     const fields = extractFieldErrors(err);
     if (fields) {
-      const entries = Object.values(fields);
+      const entries = Object.entries(fields).map(([key, msg]) => {
+        const label = fieldLabels?.[key] ?? fieldLabels?.[key.split(".")[0]!];
+        return label ? `${label}: ${msg}` : msg;
+      });
       const shown = entries.slice(0, MAX_FIELD_ERRORS_IN_TOAST).join(" · ");
       const extra = entries.length - MAX_FIELD_ERRORS_IN_TOAST;
       return extra > 0 ? `${shown} (${tRuntime("common.errors.moreFields", { n: extra })})` : shown;

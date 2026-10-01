@@ -41,7 +41,22 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
+import { toast } from "sonner";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { ProfileEditor } from "../profile-editor";
+
+/** Kurucu benzeri oturum: yönetim + satış/satınalma görüntüleme + koltuk izni. */
+const OWNER_USER = {
+  isOwner: true,
+  roles: ["SAHIP"],
+  permissions: ["company:manage", "buy:view", "sell:view", "sell:product:manage"],
+};
+function setUser(user: Record<string, unknown> | null) {
+  useCompanyAuthStore.setState({
+    user: user as never,
+    company: user ? ({ tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never) : null,
+  } as never);
+}
 
 const PROFILE: CompanyProfile = {
   id: "c1",
@@ -94,6 +109,7 @@ const PROFILE: CompanyProfile = {
 describe("ProfileEditor — yerinde düzenleme", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setUser(OWNER_USER);
     h.update.mockResolvedValue(PROFILE);
     h.get.mockImplementation((url: string) =>
       url.includes("/company/items")
@@ -138,20 +154,15 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByText(/Kaydedilmemiş değişiklikler/)).not.toBeInTheDocument();
   });
 
-  it("hakkında değişince anında kirli → Kaydet PATCH'i tüm profil alanlarıyla çağırır; Vazgeç geri alır", async () => {
+  it("hakkında değişince anında kirli → Kaydet PATCH'i YALNIZ değişen alanı taşır; Vazgeç geri alır (arayüz testi O-103)", async () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "Yeni tanıtım" } });
     expect(screen.getByText(/Kaydedilmemiş değişiklikler/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
-    expect(h.update.mock.calls[0]![0]).toMatchObject({
-      aboutText: "Yeni tanıtım",
-      publicEnabled: true,
-      services: ["Kablo", "Pano"],
-      foundedYear: 2015,
-      // safeExternalUrl normalize eder (sondaki /) — eski formla aynı davranış.
-      website: "https://demo.com/",
-    });
+    // Dokunulmayan alanlar (yayın anahtarı, hizmetler, site…) ve kontrolü
+    // burada olmayan `visitsVisible` GİTMEZ — başka sekmedeki değişikliği ezmesin.
+    expect(h.update.mock.calls[0]![0]).toEqual({ aboutText: "Yeni tanıtım" });
 
     // Vazgeç: yeni değişiklik geri alınır
     fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "Geçici" } });
@@ -171,6 +182,61 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
     expect(h.update.mock.calls[0]![0]).not.toHaveProperty("photos");
+  });
+
+  it("değişen web sitesi normalize edilerek gider", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    fireEvent.change(screen.getByLabelText("Web sitesi"), { target: { value: "yeni.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update.mock.calls[0]![0]).toEqual({ website: "https://yeni.com/" });
+  });
+
+  it("başka sekmede kapatılan ziyaret gizliliği Kaydet'le geri AÇILMAZ; sunucudan gelen yeni değer dokunulmamış alana yansır (arayüz testi O-103)", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const wrap = (p: CompanyProfile) => (
+      <QueryClientProvider client={qc}>
+        <ProfileEditor profile={p} canEdit />
+      </QueryClientProvider>
+    );
+    const { rerender } = rtlRender(wrap(PROFILE));
+    fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "Yeni tanıtım" } });
+    // Başka sekme: ziyaret gizliliği kapandı + sektör değişti → refetch.
+    rerender(wrap({ ...PROFILE, visitsVisible: false, industry: "Makine" }));
+    expect((screen.getByLabelText("Sektör") as HTMLInputElement).value).toBe("Makine");
+    expect((screen.getByLabelText("Hakkında") as HTMLTextAreaElement).value).toBe("Yeni tanıtım");
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    const body = h.update.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty("visitsVisible");
+    expect(body).not.toHaveProperty("industry");
+    expect(body).toEqual({ aboutText: "Yeni tanıtım" });
+  });
+
+  it("alan uzunluk tavanları istemcide: maxLength + Hakkında sayacı + alan adlı hata (arayüz testi D-054)", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    expect(screen.getByLabelText("Sektör")).toHaveAttribute("maxLength", "100");
+    expect(screen.getByLabelText("Hakkında")).toHaveAttribute("maxLength", "2000");
+    expect(screen.getByLabelText("Web sitesi")).toHaveAttribute("maxLength", "200");
+    expect(screen.getByLabelText("LinkedIn")).toHaveAttribute("maxLength", "150");
+    expect(screen.getByLabelText("Instagram")).toHaveAttribute("maxLength", "150");
+    expect(screen.getByLabelText("Kuruluş yılı")).toHaveAttribute("maxLength", "4");
+    expect(screen.getByText("18/2.000 karakter")).toBeInTheDocument();
+    // AI taslağı gibi tavanı aşan metin: Kaydet alan adıyla uyarır, istek gitmez.
+    fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "x".repeat(2001) } });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Hakkında: en fazla 2.000 karakter olabilir."),
+    );
+    expect(h.update).not.toHaveBeenCalled();
+  });
+
+  it("kuruluş yılı DTO aralığı dışında kaydetmez (arayüz testi D-054)", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    fireEvent.change(screen.getByLabelText("Kuruluş yılı"), { target: { value: "1500" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Kuruluş yılı 1800–2100 arasında olmalı."));
+    expect(h.update).not.toHaveBeenCalled();
   });
 
   it("geçersiz bağlantıyla kaydetmez (javascript:)", async () => {
@@ -208,10 +274,13 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(h.upload).not.toHaveBeenCalled();
   });
 
-  it("firma türü / faaliyet kategorileri SALT OKUNUR; düzenleme Firma Bilgileri'ne gider", () => {
+  it("faaliyet tipi / faaliyet kategorileri SALT OKUNUR; düzenleme Firma Bilgileri'ne gider", () => {
     // Kategori beyanı TEK yerde düzenlenir (v2 4c) — Profilim gösterir.
     render(<ProfileEditor profile={PROFILE} canEdit />);
-    expect(screen.queryByRole("group", { name: "Firma türü" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Faaliyet tipi" })).toBeNull();
+    // Etiket "Faaliyet tipi" — onboarding'deki "Firma türü" (hukuki yapı) değil (D-088).
+    expect(screen.getByText("Faaliyet tipi")).toBeInTheDocument();
+    expect(screen.queryByText("Firma türü")).toBeNull();
     expect(screen.getByRole("link", { name: /Düzenle → Firma Bilgileri/ })).toHaveAttribute(
       "href",
       "/company/ayarlar/firma#kategoriler",
@@ -271,6 +340,23 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.getByText("Faaliyet kategorileri (2)")).toBeInTheDocument();
   });
 
+  it("tekrarlanan hizmet ve tavan sessiz kalmaz: ipucu + sayaç, tavanda pasif (arayüz testi D-294)", () => {
+    const { unmount } = render(<ProfileEditor profile={PROFILE} canEdit />);
+    expect(screen.getByText("2/20")).toBeInTheDocument();
+    const input = screen.getByLabelText("Hizmet ekle");
+    fireEvent.change(input, { target: { value: "kablo" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByText("Bu hizmet zaten ekli: kablo")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Kablo$/)).toHaveLength(1);
+    unmount();
+
+    const full = Array.from({ length: 20 }, (_, i) => `Hizmet ${i + 1}`);
+    render(<ProfileEditor profile={{ ...PROFILE, services: full }} canEdit />);
+    expect(screen.getByText("20/20")).toBeInTheDocument();
+    expect(screen.getByLabelText("Hizmet ekle")).toBeDisabled();
+    expect(screen.getByText("En fazla 20 hizmet eklenebilir.")).toBeInTheDocument();
+  });
+
   it("hizmet çipi kayıt DTO'sunun uzunluk tavanını aşamaz (derin denetim S069)", () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     const input = screen.getByLabelText("Hizmet ekle");
@@ -302,6 +388,45 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByLabelText("Hakkında")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Logoyu değiştir")).not.toBeInTheDocument();
     expect(screen.getByText(/yetkisi gerekir/)).toBeInTheDocument();
+    // D-052: company:manage kapılı Firma Bilgileri bağlantısı ve "üstünde
+    // düzenleyin, sonra Kaydet" dili salt-okura çizilmez.
+    expect(screen.queryByRole("link", { name: /Firma bilgileri/ })).toBeNull();
+    expect(screen.queryByText(/sonra Kaydet/)).toBeNull();
+    expect(screen.getByText("Firma sayfanız — başkalarının gördüğü hâli.")).toBeInTheDocument();
+  });
+
+  it("düzenleyebilen kullanıcıya Firma bilgileri bağlantısı çizilir", () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    expect(screen.getByRole("link", { name: /Firma bilgileri/ })).toHaveAttribute("href", "/company/ayarlar/firma");
+  });
+
+  it("satış paneline giremeyen (sell:view yok) kullanıcıya Ürünlerim kartı çizilmez (arayüz testi D-053)", () => {
+    setUser({ isOwner: false, roles: ["SATIN_ALMACI"], permissions: ["buy:view", "buy:listing:manage"] });
+    render(<ProfileEditor profile={PROFILE} canEdit={false} />);
+    expect(screen.queryByRole("region", { name: "Ürünlerim" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ürünleri yönet" })).toBeNull();
+  });
+
+  describe("AI ile açıklamayı güçlendir — paket VE koltuk (arayüz testi O-105)", () => {
+    const button = () => screen.getByRole("button", { name: /AI ile açıklamayı güçlendir/ });
+
+    it("Yönetici hazır seti (işlem izni yok) → pasif + rol nedeni", () => {
+      setUser({ isOwner: false, roles: ["YONETICI"], permissions: ["company:manage", "users:manage", "buy:view", "sell:view"] });
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      expect(button()).toBeDisabled();
+      expect(screen.getByText(/işlem yetkisi gerekir/)).toBeInTheDocument();
+    });
+
+    it("koltuk izni var ama paket STANDART → pasif + paket nedeni", () => {
+      render(<ProfileEditor profile={{ ...PROFILE, tier: "STANDART" }} canEdit />);
+      expect(button()).toBeDisabled();
+      expect(screen.getByText(/Silver ve üzeri/)).toBeInTheDocument();
+    });
+
+    it("Silver+ ve koltuk izni → etkin", () => {
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      expect(button()).toBeEnabled();
+    });
   });
 
   /**
