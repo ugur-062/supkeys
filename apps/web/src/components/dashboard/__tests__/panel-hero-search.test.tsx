@@ -216,6 +216,32 @@ describe("PanelHeroSearch — mobil, kapsam ve klavye (arayüz testi O-081 / D-2
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("fareyle geçilen öneri listeden çıkınca etkin kalmaz; Enter yazılan metni arar (D-235)", () => {
+    push.mockClear();
+    render(
+      <PanelHeroSearch
+        title="T"
+        lead="x"
+        placeholder="p"
+        action="/company/satinalma/urunler"
+        suggestions={[{ label: "Ürünler", rows: [{ key: "a", label: "Konveyör bant", href: "/u/a" }] }]}
+      />,
+    );
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "konveyö" } });
+    const opt = screen.getByRole("option", { name: "Konveyör bant" });
+    fireEvent.mouseEnter(opt);
+    expect(opt).toHaveAttribute("aria-selected", "true");
+    fireEvent.mouseLeave(screen.getByRole("listbox"));
+    expect(opt).toHaveAttribute("aria-selected", "false");
+    expect(box).not.toHaveAttribute("aria-activedescendant");
+    // Enter engellenmez (tarayıcı formu gönderir) ve öneriye gidilmez.
+    expect(fireEvent.keyDown(box, { key: "Enter" })).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.submit(screen.getByRole("search"));
+    expect(push).toHaveBeenLastCalledWith("/company/satinalma/urunler?q=konvey%C3%B6");
+  });
+
   it("son aramalar açık portal prop'una yazılır — AI'sız tedarikçi yüzü satışa (D-312)", () => {
     localStorage.clear();
     const { unmount } = render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/talepler" portal="satis" />);

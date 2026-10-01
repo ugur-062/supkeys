@@ -733,6 +733,9 @@ export function PanelHeroSearch({
               id={listId}
               role="listbox"
               aria-label={t("oneriler")}
+              // Fare listeden çıkınca vurgu düşer — yoksa Enter yazılan metni
+              // aramak yerine fareyle geçilen öneriye gider (D-235).
+              onMouseLeave={() => setActive(-1)}
               className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-2xl bg-white text-left shadow-xl ring-1 ring-zinc-950/10"
             >
               {sugGroups.map((g, gi) => {
