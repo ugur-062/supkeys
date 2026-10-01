@@ -26,7 +26,10 @@ describe("sözleşme onayı kapısı", () => {
     const admin = new AdminCompanyUsersService(
       prisma as never,
       new AuditService(prisma as never),
-      { requestForCompany: jest.fn().mockResolvedValue({ success: true }) } as never,
+      {
+        requestForCompany: jest.fn().mockResolvedValue({ success: true }),
+        requestAccountSetup: jest.fn().mockResolvedValue({ sent: true }),
+      } as never,
       {} as never,
       {
         createUser: jest.fn().mockResolvedValue({ authId: "auth-terms-1" }),

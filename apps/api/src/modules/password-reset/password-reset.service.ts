@@ -2,6 +2,7 @@ import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { localizeAppPath } from "../../common/company/app-routes";
 import { localeOf } from "../notifications/notification.service";
 import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import * as crypto from "node:crypto";
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -12,6 +13,12 @@ import { resolveWebUrl } from "../../common/config/web-url";
 import { maskEmail } from "../../common/logging/mask-email";
 
 const PASSWORD_RESET_TTL_MINUTES = 60;
+/**
+ * Admin eliyle açılan hesabın "şifrenizi belirleyin" bağlantısı (arayüz testi
+ * O-124): yeni üye e-postayı hemen görmeyebilir — 60 dk'lık sıfırlama süresi
+ * yerine 72 saat. Aynı token sistemi, aynı /reset-password sayfası.
+ */
+const ACCOUNT_SETUP_TTL_HOURS = 72;
 
 type ResetOwner = { companyUserId: string };
 
@@ -124,13 +131,91 @@ export class PasswordResetService {
     return { success: true };
   }
 
-  private async issue(
+  /**
+   * Admin'in doğrudan eklediği üyeye "hesabınız açıldı, şifrenizi belirleyin"
+   * e-postası (arayüz testi O-124). Eskiden şifre sıfırlama e-postası gidiyordu
+   * ("sıfırlama talebinde bulundunuz … siz yapmadıysanız yok sayın") — yeni
+   * üyeyi e-postayı yok saymaya yönlendiriyordu. Firma adıyla, 72 saat geçerli.
+   * Gönderim sonucu döner (çağıran yanıtına yazabilir); hata yutulur, loglanır.
+   */
+  async requestAccountSetup(companyUserId: string): Promise<{ sent: boolean }> {
+    const cu = await this.prisma.companyUser.findFirst({
+      where: { id: companyUserId, isActive: true, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        authId: true,
+        locale: true,
+        company: { select: { name: true } },
+      },
+    });
+    if (!cu?.authId) return { sent: false };
+    const locale = localeOf(cu.locale);
+    const resetUrl = await this.createTokenUrl(
+      { companyUserId: cu.id },
+      ACCOUNT_SETUP_TTL_HOURS * 60,
+      locale,
+    );
+    const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+      tApi(key, values, locale);
+    const company = cu.company.name;
+    const subject = t("api.notifications.companyUsers.accountSetup.subject", { company });
+    try {
+      const res = await this.email.send({
+        to: { email: cu.email, name: cu.firstName || cu.email },
+        locale,
+        templateData: {
+          template: "notification",
+          data: {
+            subject,
+            heading: t("api.notifications.companyUsers.accountSetup.heading"),
+            paragraphs: [
+              t("api.notifications.common.greeting"),
+              t("api.notifications.companyUsers.accountSetup.intro", { company }),
+              t("api.notifications.companyUsers.accountSetup.setPassword"),
+            ],
+            infoRows: [
+              {
+                label: t("api.notifications.companyUsers.invite.rowCompany"),
+                value: company,
+              },
+              {
+                label: t("api.notifications.companyUsers.accountSetup.rowAccount"),
+                value: cu.email,
+              },
+              {
+                label: t("api.notifications.companyUsers.invite.rowValidity"),
+                value: t("api.notifications.companyUsers.accountSetup.validityHours", {
+                  hours: ACCOUNT_SETUP_TTL_HOURS,
+                }),
+              },
+            ],
+            ctaLabel: t("api.notifications.companyUsers.accountSetup.cta"),
+            ctaUrl: resetUrl,
+            footerNote: t("api.notifications.companyUsers.accountSetup.footer"),
+          },
+        },
+        // Aynı tek-kullanımlık sır sınıfı: kritik (Sentry) + payload maskeli.
+        context: { type: "password_reset", id: cu.id },
+      });
+      return { sent: res.sent };
+    } catch (err) {
+      this.logger.error(
+        `Account setup email could not be sent (${maskEmail(cu.email)}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return { sent: false };
+    }
+  }
+
+  /** Tek aktif token politikası + yeni token; dil ön ekli bağlantıyı döner. */
+  private async createTokenUrl(
     owner: ResetOwner,
-    email: string,
-    firstName: string,
-    // Alıcı KAYITLI bir kullanıcı: e-posta ve bağlantı onun dilinde üretilir.
-    locale: Locale = DEFAULT_LOCALE,
-  ): Promise<void> {
+    ttlMinutes: number,
+    locale: Locale,
+  ): Promise<string> {
     // Tek aktif token politikası — bu kullanıcının kullanılmamış token'larını sil.
     await this.prisma.passwordResetToken.deleteMany({
       where: { ...owner, usedAt: null },
@@ -141,9 +226,7 @@ export class PasswordResetService {
       .createHash("sha256")
       .update(plainToken)
       .digest("hex");
-    const expiresAt = new Date(
-      Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
-    );
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
 
     await this.prisma.passwordResetToken.create({
       data: { ...owner, tokenHash, expiresAt },
@@ -152,7 +235,21 @@ export class PasswordResetService {
     const baseUrl = (
       resolveWebUrl(this.config)
     ).replace(/\/$/, "");
-    const resetUrl = `${baseUrl}${localizeAppPath(`/reset-password?token=${plainToken}`, locale)}`;
+    return `${baseUrl}${localizeAppPath(`/reset-password?token=${plainToken}`, locale)}`;
+  }
+
+  private async issue(
+    owner: ResetOwner,
+    email: string,
+    firstName: string,
+    // Alıcı KAYITLI bir kullanıcı: e-posta ve bağlantı onun dilinde üretilir.
+    locale: Locale = DEFAULT_LOCALE,
+  ): Promise<void> {
+    const resetUrl = await this.createTokenUrl(
+      owner,
+      PASSWORD_RESET_TTL_MINUTES,
+      locale,
+    );
 
     try {
       await this.email.send({

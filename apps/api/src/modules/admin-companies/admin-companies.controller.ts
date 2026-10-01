@@ -427,9 +427,11 @@ export class AdminCompaniesController {
 
   // ":id"den ÖNCE — aksi halde "stats" bir firma id'si sanılırdı.
   @Get("companies/stats")
-  @AllowAnyAdminRole() // yalnız agregat sayaç, PII yok — tüm rollere açık
-  stats() {
-    return this.service.stats();
+  @AllowAnyAdminRole() // agregat sayaçlar tüm rollere açık
+  stats(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    // Firma satırları (bitmek üzere üyelik arama listesi) satış verisidir:
+    // salt-okuma SUPPORT yalnız SAYIYI görür (arayüz testi D-182).
+    return this.service.stats({ rowsAllowed: admin.role !== "SUPPORT" });
   }
 
   @Get("companies/:id")

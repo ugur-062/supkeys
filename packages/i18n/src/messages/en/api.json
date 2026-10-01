@@ -1387,6 +1387,16 @@
         "cta": "Accept invitation",
         "footer": "If you were not expecting this invitation, you can ignore this email."
       },
+      "accountSetup": {
+        "subject": "Your Rothern account for {company} has been created",
+        "heading": "Your account has been created",
+        "intro": "The Rothern support team has created a user account for you on the {company} team.",
+        "setPassword": "To start using your account, click the button below and set your password. The link can only be used once.",
+        "rowAccount": "Account",
+        "validityHours": "{hours, plural, one {# hour} other {# hours}}",
+        "cta": "Set my password",
+        "footer": "If you were not expecting this account, please contact your company administrator or the Rothern support team."
+      },
       "role": {
         "SAHIP": "Founder",
         "YONETICI": "Manager",
@@ -1674,9 +1684,9 @@
       "ilanKapatildiBaslik": "Your request was closed by an administrator",
       "ilanKapatildiGovde": "Your request \"{baslik}\" was closed to quotes by a platform administrator. Reason: {gerekce}",
       "ilanUzatildiBaslik": "Request closing date extended",
-      "ilanUzatildiGovde": "At your support request, the closing date of your request \"{baslik}\" has been updated to {tarih}.",
+      "ilanUzatildiGovde": "The platform administrator has updated the closing date of your request \"{baslik}\" to {tarih}.",
       "ilanYenidenAcildiBaslik": "Your request has been reopened",
-      "ilanYenidenAcildiGovde": "At your support request, your request \"{baslik}\" has been reopened for quotes. New closing date: {tarih}.",
+      "ilanYenidenAcildiGovde": "The platform administrator has reopened your request \"{baslik}\" for quotes. New closing date: {tarih}.",
       "siparisIptalBaslik": "Order canceled by an administrator",
       "siparisIptalNumarali": "Order {numara} was canceled by a platform administrator. Reason: {gerekce}",
       "siparisIptalGenel": "The related order was canceled by a platform administrator. Reason: {gerekce}",

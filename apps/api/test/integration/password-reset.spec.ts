@@ -80,6 +80,31 @@ describe("PasswordResetService", () => {
     });
   });
 
+  it("O-124: admin eklenen üyeye 'hesabınız açıldı' e-postası — firma adıyla, 72 sa geçerli token, sıfırlama metni YOK", async () => {
+    const { service, email } = rig();
+    const owner = await userWithAuth();
+    const before = Date.now();
+    const res = await service.requestAccountSetup(owner.user.id);
+    expect(res).toEqual({ sent: true });
+    const tok = await prisma.passwordResetToken.findFirstOrThrow({
+      where: { companyUserId: owner.user.id, usedAt: null },
+    });
+    const ttlH = (tok.expiresAt.getTime() - before) / 3_600_000;
+    expect(ttlH).toBeGreaterThan(71);
+    expect(ttlH).toBeLessThanOrEqual(72.01);
+    const arg = email.send.mock.calls[0]![0];
+    expect(arg.templateData.template).toBe("notification");
+    expect(arg.context).toEqual({ type: "password_reset", id: owner.user.id });
+    const data = arg.templateData.data as {
+      subject: string;
+      paragraphs: string[];
+      ctaUrl: string;
+    };
+    expect(data.subject).toContain(owner.company.name);
+    expect(data.ctaUrl).toMatch(/reset-password\?token=[0-9a-f]{64}$/);
+    expect(JSON.stringify(data)).not.toMatch(/sıfırlama talebinde/);
+  });
+
   it("request: YOK olan e-posta → success ama token/e-posta YOK (enumeration-safe)", async () => {
     const { service, email } = rig();
     const res = await service.requestForCompany("yok@firma.com");

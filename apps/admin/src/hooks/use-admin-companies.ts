@@ -92,6 +92,11 @@ export interface AdminCompanyStats {
     rothernId: string | null;
     membershipEndAt: string;
   }[];
+  /**
+   * Bitmek üzere üyeliklerin toplam sayısı. SUPPORT rolünde
+   * `expiringMemberships` boş gelir (firma satırı satış verisi), yalnız bu sayı.
+   */
+  expiringMembershipsCount?: number;
   oldestPendingSince: string | null;
   /** Kayıt hunisi: kayıt → onboarding → KYC belgeleri → doğrulandı. */
   funnel: {

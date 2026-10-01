@@ -9,6 +9,7 @@ import {
 import { Prisma, type CompanyOrderStatus } from "@rothern/db";
 import { encodeSystemText } from "@rothern/shared";
 import { dateParam } from "../../common/notifications/notification-params";
+import { maskEmail } from "../../common/logging/mask-email";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { MAX_LISTING_HORIZON_MS } from "../../common/constants/money";
 import { AuditService } from "../audit/audit.service";
@@ -276,6 +277,7 @@ export class AdminInspectionService {
       action: "admin.listing.closed",
       actorType: "admin",
       actorId: adminId,
+      tenantId: l.companyId,
       entityType: "listing",
       entityId: id,
       metadata: { reason },
@@ -334,6 +336,7 @@ export class AdminInspectionService {
       action: "admin.listing.extended",
       actorType: "admin",
       actorId: adminId,
+      tenantId: l.companyId,
       entityType: "listing",
       entityId: id,
       metadata: { from: l.closesAt, to: closesAt },
@@ -390,7 +393,9 @@ export class AdminInspectionService {
     this.assertClosesAtBounds(closesAt, l.bidsOpenAt);
     const done = await this.prisma.listing.updateMany({
       where: { id, status: { in: ["CLOSED", "IN_AWARD"] } },
-      data: { status: "OPEN", closesAt, closingReminderSentAt: null },
+      // Moderasyon kapatmasının gerekçesi (cancelReason) temizlenir — açık
+      // talepte eski "Kapatma gerekçesi" bandı kalmasın (arayüz testi D-140).
+      data: { status: "OPEN", closesAt, closingReminderSentAt: null, cancelReason: null },
     });
     if (done.count !== 1) {
       throw new BadRequestException(
@@ -401,6 +406,7 @@ export class AdminInspectionService {
       action: "admin.listing.reopened",
       actorType: "admin",
       actorId: adminId,
+      tenantId: l.companyId,
       entityType: "listing",
       entityId: id,
       metadata: { closesAt },
@@ -660,11 +666,17 @@ export class AdminInspectionService {
     // cümlenin ÖZNESİ değiştiği için iki ayrı anahtar (çeviride sözcük sırası
     // değişebilir, parça birleştirmek yanlış olurdu).
     const numarali = !!order.number;
-    for (const companyId of [order.buyerCompanyId, order.sellerCompanyId]) {
+    // Taraf başına metin (arayüz testi D-164): "talebin canlı siparişi kalmadı,
+    // yeni tedarikçiyle devam…" tavsiyesi YALNIZ alıcıya gider — satıcıya
+    // alıcı tavsiyesi ve "satın alma talebi" terimi gitmez.
+    for (const side of ["buyer", "seller"] as const) {
+      const companyId =
+        side === "buyer" ? order.buyerCompanyId : order.sellerCompanyId;
+      const buyerStranded = stranded && side === "buyer";
       void this.companies.notifyCompany(companyId, {
         type: "admin_order_cancelled",
         subjectKey: "api.notifications.adminInspection.siparisIptalBaslik",
-        bodyKey: stranded
+        bodyKey: buyerStranded
           ? numarali
             ? "api.notifications.adminInspection.siparisIptalGovdeNumaraliSahipsiz"
             : "api.notifications.adminInspection.siparisIptalGovdeSahipsiz"
@@ -675,7 +687,7 @@ export class AdminInspectionService {
           numarali
             ? "api.notifications.adminInspection.siparisIptalNumarali"
             : "api.notifications.adminInspection.siparisIptalGenel",
-          stranded && "api.notifications.adminInspection.siparisIptalSahipsizTalep",
+          buyerStranded && "api.notifications.adminInspection.siparisIptalSahipsizTalep",
         ],
         params: { numara: order.number ?? "", gerekce: reason.trim() },
       });
@@ -685,7 +697,11 @@ export class AdminInspectionService {
 
   // ── BAĞLANTILAR + DAVETLER ─────────────────────────────────
 
-  async listConnections(companyId: string) {
+  /**
+   * `maskEmails`: salt-okuma SUPPORT rolü üçüncü kişilerin (davet edilen,
+   * henüz üye olmayan) e-posta adreslerini MASKELİ görür (arayüz testi D-182).
+   */
+  async listConnections(companyId: string, opts: { maskEmails?: boolean } = {}) {
     const [connections, referrals] = await Promise.all([
       this.prisma.companyConnection.findMany({
         where: {
@@ -730,12 +746,23 @@ export class AdminInspectionService {
         other:
           c.inviterCompanyId === companyId ? c.invitee : c.inviter,
       })),
-      referralInvites: referrals,
+      referralInvites: opts.maskEmails
+        ? referrals.map((r) => ({ ...r, email: maskEmail(r.email) }))
+        : referrals,
     };
   }
 
   /** Bekleyen bağlantı davetini iptal et (ACTIVE bağlantıya dokunulmaz). */
   async revokeConnectionInvite(id: string, adminId: string) {
+    // Olmayan kimlik 404 (arayüz testi D-183) — 400 yalnız BEKLEYEN olmayan
+    // (ör. ACTIVE) gerçek kayıt için.
+    const exists = await this.prisma.companyConnection.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!exists) {
+      throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
+    }
     const done = await this.prisma.companyConnection.deleteMany({
       where: { id, status: "PENDING" },
     });
@@ -760,6 +787,13 @@ export class AdminInspectionService {
     // iptal (B5-4) ve paket düşüşüyle aynı kural. Silme, cascade ile gönderilmiş
     // dış talep davetlerini ve adres başına 7 gün freni / günlük tavan
     // geçmişini de götürüyordu. Kuyruktaki talep davetleri de iptal edilir.
+    const exists = await this.prisma.companyReferralInvite.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!exists) {
+      throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
+    }
     const [done] = await this.prisma.$transaction([
       this.prisma.companyReferralInvite.updateMany({
         where: { id, status: "PENDING" },

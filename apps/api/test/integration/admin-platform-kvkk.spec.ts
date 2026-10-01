@@ -414,6 +414,41 @@ describe("KVKK — export + silme/anonimleştirme", () => {
     expect(user.deletedAt).not.toBeNull();
     expect(user.isActive).toBe(false);
   });
+
+  it("D-143/D-216: siparişsiz ama üyelik geçmişli firma — yanıt gerçek nedeni döner; ürünler vitrinden ve onay kuyruğundan düşer", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    await prisma.companyMembershipEvent.create({
+      data: { companyId: co.company.id, action: "GRANT", months: 1 },
+    });
+    const mkItem = (slug: string, extra: Record<string, unknown>) =>
+      prisma.companyItem.create({
+        data: {
+          companyId: co.company.id,
+          createdById: co.user.id,
+          name: slug,
+          unit: "adet",
+          slug,
+          ...extra,
+        },
+      });
+    const pending = await mkItem("bekleyen", { reviewStatus: "PENDING", submittedAt: new Date() });
+    const live = await mkItem("yayinda", { reviewStatus: "APPROVED", isPublic: true });
+    const res = await service.deleteOrAnonymize(
+      co.company.id,
+      "admin-1",
+      jest.fn().mockResolvedValue(undefined),
+    );
+    expect(res.mode).toBe("anonymized");
+    expect(res).toMatchObject({ retainedBecause: { membershipEvents: 1 } });
+    expect(
+      (res as { retainedBecause?: Record<string, number> }).retainedBecause,
+    ).not.toHaveProperty("ordersAsBuyer");
+    for (const id of [pending.id, live.id]) {
+      const it = await prisma.companyItem.findUniqueOrThrow({ where: { id } });
+      expect(it).toMatchObject({ isPublic: false, isActive: false, reviewStatus: "DRAFT" });
+    }
+  });
 });
 
 describe("e-posta suppression aklama (append-only marker)", () => {

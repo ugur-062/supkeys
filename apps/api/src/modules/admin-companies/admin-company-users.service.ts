@@ -73,21 +73,26 @@ export class AdminCompanyUsersService {
     }));
   }
 
-  /** Şifre sıfırlama e-postası gönder (mevcut reset akışı — link 30 dk). */
+  /** Şifre sıfırlama e-postası gönder (mevcut reset akışı — link 60 dk). */
   async sendPasswordReset(companyId: string, userId: string, adminId: string) {
     const user = await this.requireMember(companyId, userId);
     await this.passwordReset.requestForCompany(user.email);
-    await this.log("admin.user.password_reset_sent", userId, adminId, {
+    await this.log(companyId, "admin.user.password_reset_sent", userId, adminId, {
       email: user.email,
     });
     return { ok: true };
   }
 
-  /** Doğrulama kodunu yeniden gönder — yalnız doğrulanmamış kullanıcıya. */
+  /**
+   * Doğrulama kodunu yeniden gönder — yalnız doğrulanmamış kullanıcıya.
+   * Saatlik kod tavanı doluysa 429, gönderim başarısızsa 503 fırlar (arayüz
+   * testi O-064: eskiden sonuç atılıp her durumda "gönderildi" + audit
+   * yazılıyordu, e-posta gitmiyordu). Audit YALNIZ başarıda yazılır.
+   */
   async resendVerification(companyId: string, userId: string, adminId: string) {
     await this.requireMember(companyId, userId);
     await this.companyAuth.adminResendVerificationCode(userId);
-    await this.log("admin.user.verification_resent", userId, adminId);
+    await this.log(companyId, "admin.user.verification_resent", userId, adminId);
     return { ok: true };
   }
 
@@ -139,6 +144,7 @@ export class AdminCompanyUsersService {
       });
     }
     await this.log(
+      companyId,
       active ? "admin.user.activated" : "admin.user.deactivated",
       userId,
       adminId,
@@ -153,7 +159,7 @@ export class AdminCompanyUsersService {
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
     });
-    await this.log("admin.user.sessions_dropped", userId, adminId);
+    await this.log(companyId, "admin.user.sessions_dropped", userId, adminId);
     return { ok: true };
   }
 
@@ -195,7 +201,7 @@ export class AdminCompanyUsersService {
         tokenVersion: { increment: 1 },
       },
     });
-    await this.log("admin.user.email_changed", userId, adminId, {
+    await this.log(companyId, "admin.user.email_changed", userId, adminId, {
       from: user.email,
       to: email,
     });
@@ -204,7 +210,8 @@ export class AdminCompanyUsersService {
 
   /**
    * Doğrudan üye ekleme — davet akışını beklemeden admin eliyle hesap açılır;
-   * kullanıcıya şifre belirleme (reset) e-postası gider. SAHIP atanamaz.
+   * kullanıcıya "hesabınız açıldı, şifrenizi belirleyin" e-postası gider.
+   * SAHIP atanamaz.
    */
   async addUser(
     companyId: string,
@@ -284,13 +291,16 @@ export class AdminCompanyUsersService {
       });
       throw err;
     }
-    await this.passwordReset.requestForCompany(email);
-    await this.log("admin.user.created", user.id, adminId, {
+    // Sıfırlama değil "hesabınız açıldı, şifrenizi belirleyin" e-postası
+    // (arayüz testi O-124) — firma adıyla, 72 saat geçerli bağlantı.
+    const { sent } = await this.passwordReset.requestAccountSetup(user.id);
+    await this.log(companyId, "admin.user.created", user.id, adminId, {
       email,
       role: input.role,
       companyId,
+      setupEmailSent: sent,
     });
-    return { ok: true, userId: user.id };
+    return { ok: true, userId: user.id, emailSent: sent };
   }
 
   private async requireMember(companyId: string, userId: string) {
@@ -312,7 +322,12 @@ export class AdminCompanyUsersService {
     return { ...user, isOwner: user.id === user.company.ownerUserId };
   }
 
+  /**
+   * `tenantId` = firma (arayüz testi D-205): firma detayındaki Denetim sekmesi
+   * kullanıcı işlemlerini firma kimliğiyle bulur (entityId kullanıcıdır).
+   */
   private async log(
+    companyId: string,
     action: string,
     userId: string,
     adminId: string,
@@ -322,6 +337,7 @@ export class AdminCompanyUsersService {
       action,
       actorType: "admin",
       actorId: adminId,
+      tenantId: companyId,
       entityType: "company_user",
       entityId: userId,
       metadata: metadata ?? null,

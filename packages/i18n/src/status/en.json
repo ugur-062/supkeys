@@ -1279,6 +1279,11 @@
     "status": "reviewed",
     "at": "2026-09-29"
   },
+  "api.companyApprovals.firmaDogrulamasiGecerliDegilOnayUygulanamaz": {
+    "hash": "4e7585a1e5",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.companyApprovals.gecersizVeyaPasifOnayciKullanici": {
     "hash": "a5b6542fec",
     "status": "reviewed",
@@ -2168,6 +2173,16 @@
     "hash": "09f724c27a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyListings.actionEditListing": {
+    "hash": "58561b06df",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.companyListings.actionExtendClosing": {
+    "hash": "e7b70dbff9",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.companyListings.actionInviteSupplier": {
     "hash": "aa6399d014",
@@ -5415,9 +5430,9 @@
     "at": "2026-09-30"
   },
   "api.notifications.adminInspection.ilanUzatildiGovde": {
-    "hash": "8e4637454b",
+    "hash": "247866bbff",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.notifications.adminInspection.ilanYenidenAcildiBaslik": {
     "hash": "d147213d64",
@@ -5425,9 +5440,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminInspection.ilanYenidenAcildiGovde": {
-    "hash": "5f844788fd",
+    "hash": "7cab7fbd63",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.notifications.adminInspection.siparisIptalBaslik": {
     "hash": "960f117024",
@@ -5818,6 +5833,46 @@
     "hash": "2ff720200a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.notifications.companyUsers.accountSetup.cta": {
+    "hash": "d92448708e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.accountSetup.footer": {
+    "hash": "a8e0e25327",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.accountSetup.heading": {
+    "hash": "dbe7227bf2",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.accountSetup.intro": {
+    "hash": "2c5cd6ab22",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.accountSetup.rowAccount": {
+    "hash": "43a3d4f515",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.accountSetup.setPassword": {
+    "hash": "2a3ae6589d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.accountSetup.subject": {
+    "hash": "680505d460",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.accountSetup.validityHours": {
+    "hash": "7025cfd22a",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.companyUsers.invite.cta": {
     "hash": "65e54c7022",
@@ -6229,6 +6284,16 @@
     "status": "reviewed",
     "at": "2026-09-29"
   },
+  "api.notifications.listings.aiMatchLocked.bodyPaidPending": {
+    "hash": "131756d0f1",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.listings.aiMatchLocked.bodyPaidVerify": {
+    "hash": "99b054d6ee",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.notifications.listings.aiMatchLocked.bodySilver": {
     "hash": "1bad77fc75",
     "status": "reviewed",
@@ -6243,6 +6308,16 @@
     "hash": "158249e162",
     "status": "reviewed",
     "at": "2026-09-28"
+  },
+  "api.notifications.listings.aiMatchLocked.inAppBodyPaidPending": {
+    "hash": "ab129f0ad1",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.listings.aiMatchLocked.inAppBodyPaidVerify": {
+    "hash": "5941418607",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.listings.aiMatchLocked.inAppBodySilver": {
     "hash": "9985ec4977",
@@ -26269,11 +26344,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.requests.requestDefaultsForm.kapaliZarf": {
-    "hash": "55887b47b3",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.requests.requestDefaultsForm.kapaliZarfTedarikcilerBirbirininTeklifini": {
     "hash": "2dac82d3f3",
     "status": "reviewed",
@@ -27626,16 +27696,6 @@
   },
   "web.panel.requests.tenderActionsMenu.yukleniyor": {
     "hash": "3a5e96d474",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.requests.termsPanel.acik": {
-    "hash": "6785074591",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.requests.termsPanel.acikTeklifKurali": {
-    "hash": "34fd890ff5",
     "status": "reviewed",
     "at": "2026-09-24"
   },

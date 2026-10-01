@@ -1387,6 +1387,16 @@
         "cta": "Daveti Kabul Et",
         "footer": "Bu daveti siz beklemiyorsanız e-postayı yok sayabilirsiniz."
       },
+      "accountSetup": {
+        "subject": "{company} için Rothern hesabınız açıldı",
+        "heading": "Hesabınız açıldı",
+        "intro": "Rothern destek ekibi, {company} firmasının ekibine sizin için bir kullanıcı hesabı açtı.",
+        "setPassword": "Hesabınızı kullanmaya başlamak için aşağıdaki butona tıklayıp şifrenizi belirleyin. Bağlantı yalnızca bir kez kullanılabilir.",
+        "rowAccount": "Hesap",
+        "validityHours": "{hours} saat",
+        "cta": "Şifremi Belirle",
+        "footer": "Bu hesabın açılmasını beklemiyorsanız firmanızın yöneticisiyle ya da Rothern destek ekibiyle iletişime geçin."
+      },
       "role": {
         "SAHIP": "Kurucu",
         "YONETICI": "Yönetici",
@@ -1674,9 +1684,9 @@
       "ilanKapatildiBaslik": "Talebiniz yönetici tarafından kapatıldı",
       "ilanKapatildiGovde": "\"{baslik}\" talebiniz platform yöneticisi tarafından teklife kapatıldı. Gerekçe: {gerekce}",
       "ilanUzatildiBaslik": "Talebinizin kapanış süresi uzatıldı",
-      "ilanUzatildiGovde": "\"{baslik}\" talebinizin kapanış tarihi destek talebiniz üzerine {tarih} olarak güncellendi.",
+      "ilanUzatildiGovde": "\"{baslik}\" talebinizin kapanış tarihi platform yöneticisi tarafından {tarih} olarak güncellendi.",
       "ilanYenidenAcildiBaslik": "Talebiniz yeniden açıldı",
-      "ilanYenidenAcildiGovde": "\"{baslik}\" talebiniz destek talebiniz üzerine yeniden teklife açıldı. Yeni kapanış: {tarih}.",
+      "ilanYenidenAcildiGovde": "\"{baslik}\" talebiniz platform yöneticisi tarafından yeniden teklife açıldı. Yeni kapanış: {tarih}.",
       "siparisIptalBaslik": "Sipariş yönetici tarafından iptal edildi",
       "siparisIptalNumarali": "{numara} numaralı sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: {gerekce}",
       "siparisIptalGenel": "İlgili sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: {gerekce}",

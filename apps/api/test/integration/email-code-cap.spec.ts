@@ -180,6 +180,23 @@ describe("derin denetim LU-06", () => {
     expect((capped as { getStatus: () => number }).getStatus()).toBe(429);
   });
 
+  it("admin doğrulama kodu (O-064): gönderim başarısızsa 503, saatlik tavan doluysa 429", async () => {
+    const { service, email, user } = await signupUser();
+    await expect(service.adminResendVerificationCode(user.id)).resolves.toBeUndefined();
+
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false });
+    const failed = await service.adminResendVerificationCode(user.id).catch((e: unknown) => e);
+    expect((failed as { getStatus: () => number }).getStatus()).toBe(503);
+
+    // signup + 2 kod (biri gönderilemedi ama üretildi) → 2 kod daha = tavan.
+    await service.adminResendVerificationCode(user.id);
+    await service.adminResendVerificationCode(user.id);
+    const sentBefore = email.send.mock.calls.length;
+    const capped = await service.adminResendVerificationCode(user.id).catch((e: unknown) => e);
+    expect((capped as { getStatus: () => number }).getStatus()).toBe(429);
+    expect(email.send.mock.calls.length).toBe(sentBefore); // e-posta YOK
+  });
+
   it("updateMe: phone null numarayı siler (500 değil)", async () => {
     const { service, user } = await signupUser();
     await service.updateMe(user.id, { phone: null });

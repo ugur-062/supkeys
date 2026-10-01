@@ -203,6 +203,11 @@ export class AuditService {
         { actorEmail: { contains: term, mode: "insensitive" } },
         { action: { contains: term, mode: "insensitive" } },
         { entityId: { contains: term, mode: "insensitive" } },
+        // Firma detayı Denetim sekmesi firma id'siyle arar: firmaya bağlı
+        // varlıklara (kullanıcı, ilan, ürün) yapılan ADMIN işlemleri
+        // `tenantId`=firma ile yazılır (arayüz testi D-205). Yalnız admin
+        // aktörü — firmanın kendi etkinliği bu görünümü boğmasın.
+        { tenantId: term, actorType: "admin" },
       ];
     }
 

@@ -199,11 +199,22 @@ describe("ilan müdahaleleri", () => {
       status: "CLOSED",
       closesAt: new Date(Date.now() - 86_400_000),
     });
+    // Moderasyon kapatmasının gerekçesi (D-140: açılınca temizlenmeli).
+    await prisma.listing.update({
+      where: { id: l.id },
+      data: { cancelReason: "şikayet üzerine kapatıldı" },
+    });
     await service.reopenListing(l.id, FUTURE.toISOString(), "admin-1");
     const after = await prisma.listing.findUniqueOrThrow({
       where: { id: l.id },
     });
     expect(after.status).toBe("OPEN");
+    expect(after.cancelReason).toBeNull();
+    // D-205: admin müdahalesi firma kimliğiyle (tenantId) yazılır.
+    const log = await prisma.auditLog.findFirst({
+      where: { action: "admin.listing.reopened", entityId: l.id },
+    });
+    expect(log?.tenantId).toBe(co.company.id);
 
     // Kazandırılmış (awardedAt dolu) ilan yeniden açılamaz.
     const awarded = await makeListing(prisma, {
@@ -346,6 +357,45 @@ describe("sipariş iptali", () => {
     expect(companies.notifyCompany).toHaveBeenCalledTimes(2);
   });
 
+  it("D-164: talep siparişsiz kalınca tavsiye YALNIZ alıcıya; satıcıya nötr metin", async () => {
+    const { service, companies } = rig();
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const l = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      closesAt: FUTURE,
+    });
+    const order = await prisma.companyOrder.create({
+      data: {
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        listingId: l.id,
+        number: "SIP-1",
+        amount: 1000,
+        currency: "TRY",
+        status: "PENDING",
+      },
+    });
+    await service.cancelOrder(order.id, "taraflar anlaşamadı, destek #43", "admin-1");
+    const calls = companies.notifyCompany.mock.calls as [
+      string,
+      { bodyKey: string; paragraphKeys: (string | false)[] },
+    ][];
+    const toBuyer = calls.find(([id]) => id === buyer.company.id)![1];
+    const toSeller = calls.find(([id]) => id === seller.company.id)![1];
+    expect(toBuyer.bodyKey).toBe(
+      "api.notifications.adminInspection.siparisIptalGovdeNumaraliSahipsiz",
+    );
+    expect(toBuyer.paragraphKeys).toContain(
+      "api.notifications.adminInspection.siparisIptalSahipsizTalep",
+    );
+    expect(toSeller.bodyKey).toBe("api.notifications.adminInspection.siparisIptalNumarali");
+    expect(toSeller.paragraphKeys.filter(Boolean)).toEqual([
+      "api.notifications.adminInspection.siparisIptalNumarali",
+    ]);
+  });
+
   it("onaylı ödemesi olan sipariş iptal EDİLEMEZ; DELIVERED da edilemez", async () => {
     const { service } = rig();
     const buyer = await makeCompanyWithUser(prisma, {});
@@ -406,6 +456,34 @@ describe("davet iptalleri", () => {
     await expect(
       service.revokeConnectionInvite(active.id, "admin-1"),
     ).rejects.toThrow(/BEKLEYEN/);
+  });
+
+  it("D-183: olmayan bağlantı/referans daveti 404", async () => {
+    const { service } = rig();
+    const c1 = await service
+      .revokeConnectionInvite("olmayan-id", "admin-1")
+      .catch((e: unknown) => e);
+    expect((c1 as { getStatus: () => number }).getStatus()).toBe(404);
+    const c2 = await service
+      .revokeReferralInvite("olmayan-id", "admin-1")
+      .catch((e: unknown) => e);
+    expect((c2 as { getStatus: () => number }).getStatus()).toBe(404);
+  });
+
+  it("D-182: maskEmails ile referans davet e-postaları maskeli döner", async () => {
+    const { service } = rig();
+    const a = await makeCompanyWithUser(prisma, {});
+    await prisma.companyReferralInvite.create({
+      data: {
+        inviterCompanyId: a.company.id,
+        email: "ucuncu.kisi@tedarikci.com",
+        invitedById: a.user.id,
+      },
+    });
+    const full = await service.listConnections(a.company.id);
+    expect(full.referralInvites[0]!.email).toBe("ucuncu.kisi@tedarikci.com");
+    const masked = await service.listConnections(a.company.id, { maskEmails: true });
+    expect(masked.referralInvites[0]!.email).toBe("u***@tedarikci.com");
   });
 
   it("referans daveti SİLİNMEZ, CANCELLED olur; kuyruktaki talep davetleri iptal, gönderilmişler kalır (derin denetim MU-04)", async () => {

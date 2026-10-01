@@ -255,6 +255,7 @@ describe("deleteOrAnonymize — SEO tazelemesi", () => {
       },
       companyKycRevision: { deleteMany: jest.fn(async () => ({})) },
       companyBankAccount: { deleteMany: jest.fn(async () => ({})) },
+      companyItem: { updateMany: jest.fn(async () => ({ count: 0 })) },
       companyUserInvitation: { deleteMany: jest.fn(async () => ({})) },
       contentTranslation: { deleteMany: jest.fn(async () => ({})) },
       companyAddress: { updateMany: jest.fn(async () => ({})) },

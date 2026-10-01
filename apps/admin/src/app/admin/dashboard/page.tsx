@@ -157,7 +157,9 @@ function DashboardContent() {
             <p className="text-admin-text-muted p-6 text-center text-sm">
               {statsQ.isLoading
                 ? "Yükleniyor…"
-                : "30 gün içinde bitecek üyelik yok"}
+                : (s?.expiringMembershipsCount ?? 0) > 0
+                  ? `30 gün içinde bitecek ${s?.expiringMembershipsCount} üyelik var`
+                  : "30 gün içinde bitecek üyelik yok"}
             </p>
           ) : (
             (s?.expiringMemberships ?? []).map((c) => {

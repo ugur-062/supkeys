@@ -12,6 +12,7 @@ import { permissionsForRoles } from "@rothern/shared";
 function rig() {
   const passwordReset = {
     requestForCompany: jest.fn().mockResolvedValue({ success: true }),
+    requestAccountSetup: jest.fn().mockResolvedValue({ sent: true }),
   };
   const companyAuth = {
     adminResendVerificationCode: jest.fn().mockResolvedValue(undefined),
@@ -52,6 +53,43 @@ describe("kurtarma aksiyonları", () => {
       where: { action: "admin.user.password_reset_sent", entityId: co.user.id },
     });
     expect(log?.actorId).toBe("admin-1");
+  });
+
+  it("O-064: doğrulama kodu gönderilemezse (tavan/hata) hata yükselir ve audit YAZILMAZ", async () => {
+    const { service, companyAuth } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const capped = Object.assign(new Error("too many"), { status: 429 });
+    companyAuth.adminResendVerificationCode.mockRejectedValueOnce(capped);
+    await expect(
+      service.resendVerification(co.company.id, co.user.id, "admin-1"),
+    ).rejects.toBe(capped);
+    expect(
+      await prisma.auditLog.count({
+        where: { action: "admin.user.verification_resent", entityId: co.user.id },
+      }),
+    ).toBe(0);
+    // Başarıda audit firma kimliğiyle (tenantId) yazılır.
+    await service.resendVerification(co.company.id, co.user.id, "admin-1");
+    const log = await prisma.auditLog.findFirst({
+      where: { action: "admin.user.verification_resent", entityId: co.user.id },
+    });
+    expect(log?.tenantId).toBe(co.company.id);
+  });
+
+  it("D-205: kullanıcı işlemleri firma kimliğiyle yazılır, firma id'siyle aramada bulunur", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const other = await makeCompanyWithUser(prisma, {});
+    await service.dropSessions(co.company.id, co.user.id, "admin-1");
+    await service.dropSessions(other.company.id, other.user.id, "admin-1");
+    const audit = new AuditService(prisma as never);
+    const res = await audit.query({ search: co.company.id });
+    const actions = res.items.map((i) => [i.action, i.entityId]);
+    expect(actions).toContainEqual(["admin.user.sessions_dropped", co.user.id]);
+    expect(actions).not.toContainEqual([
+      "admin.user.sessions_dropped",
+      other.user.id,
+    ]);
   });
 
   it("başka firmanın kullanıcısına işlem yapılamaz (scope)", async () => {
@@ -167,9 +205,10 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
       "admin-1",
     );
     expect(supabase.createUser).toHaveBeenCalled();
-    expect(passwordReset.requestForCompany).toHaveBeenCalledWith(
-      "eklenen@firma.com",
-    );
+    // O-124: sıfırlama değil "hesabınız açıldı" e-postası (yeni kullanıcı id'si).
+    expect(passwordReset.requestAccountSetup).toHaveBeenCalledWith(res.userId);
+    expect(passwordReset.requestForCompany).not.toHaveBeenCalled();
+    expect(res.emailSent).toBe(true);
     const user = await prisma.companyUser.findUniqueOrThrow({
       where: { id: res.userId },
       select: {

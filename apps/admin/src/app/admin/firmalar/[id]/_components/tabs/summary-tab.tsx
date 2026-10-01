@@ -6,6 +6,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
 import { api, toastApiError } from "@/lib/api";
 import { countryLabel } from "@/lib/country";
+import { anonymizedMessage } from "@/lib/retention-reasons";
 import { safeFormat } from "@/lib/date";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -86,13 +87,14 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
   const destroy = async () => {
     setBusy(true);
     try {
-      const { data: res } = await api.delete<{ mode: string }>(
-        `/admin/companies/${data.id}`,
-      );
+      const { data: res } = await api.delete<{
+        mode: string;
+        retainedBecause?: Record<string, number>;
+      }>(`/admin/companies/${data.id}`);
       toast.success(
         res.mode === "deleted"
           ? "Firma kalıcı olarak silindi"
-          : "Firma anonimleştirildi (siparişli — finansal kayıt korundu)",
+          : anonymizedMessage(res.retainedBecause),
       );
       // Liste/KPI önbelleği (staleTime 60 sn) silinen firmayı eski adıyla
       // göstermesin; detay önbelleği de atılır (derin denetim LU-12).
@@ -118,9 +120,11 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
       </div>
       <div className="mt-4 border-t border-red-200 pt-3">
         <p className="text-xs text-red-800">
-          <strong>Firmayı sil:</strong> siparişi yoksa KALICI silinir; siparişi
-          varsa finansal kayıt korunur, kimlik <strong>anonimleştirilir</strong>{" "}
-          (geri alınamaz). Onay için firma kodunu yazın:{" "}
+          <strong>Firmayı sil:</strong> platformda hiç izi yoksa KALICI
+          silinir; sipariş, teklif, talep, mesaj, değerlendirme, şikayet, davet
+          ya da üyelik geçmişi varsa bu kayıtlar korunur, kimlik{" "}
+          <strong>anonimleştirilir</strong> (geri alınamaz). Onay için firma
+          kodunu yazın:{" "}
           <code className="rounded bg-white px-1 font-mono">{expected}</code>
         </p>
         <div className="mt-2 flex items-center gap-2">

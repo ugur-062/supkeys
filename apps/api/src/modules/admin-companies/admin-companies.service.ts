@@ -467,7 +467,12 @@ export class AdminCompaniesService {
    * 200-limitli listeden `.length`/`.filter` ile sayıyordu → 200 firma sonrası
    * yanlış/eksik sayılıyordu.
    */
-  async stats() {
+  /**
+   * `rowsAllowed: false` (SUPPORT): firma satırı dönmez — `expiringMemberships`
+   * boş, yalnız `expiringMembershipsCount` (arayüz testi D-182).
+   */
+  async stats(opts: { rowsAllowed?: boolean } = {}) {
+    const rowsAllowed = opts.rowsAllowed ?? true;
     const now = new Date();
     const d30 = new Date(now.getTime() - 30 * 86_400_000);
     const in30 = new Date(now.getTime() + 30 * 86_400_000);
@@ -488,6 +493,7 @@ export class AdminCompaniesService {
       listingsByType,
       totalBids,
       pendingRevisionCompanies,
+      expiringCount,
     ] = await Promise.all([
       this.prisma.company.count(),
       this.prisma.company.groupBy({
@@ -561,6 +567,14 @@ export class AdminCompaniesService {
           kycRevisions: { some: { status: "PENDING" } },
         },
       }),
+      // Bitmek üzere üyeliklerin TAMAMI (liste ilk 10 satır) — SUPPORT yalnız
+      // bu sayıyı görür (D-182).
+      this.prisma.company.count({
+        where: {
+          tier: { in: [...PAID_TIERS] },
+          membershipEndAt: { not: null, gte: now, lte: in30 },
+        },
+      }),
     ]);
     // Kuyruğa giriş anı: firma başına EN SON `company.docs.submitted` izi
     // (bkz. yukarıdaki not); iz yoksa (legacy) o firmanın `updatedAt`'i. Kuyruk
@@ -625,7 +639,8 @@ export class AdminCompaniesService {
         newListings: new30Listings,
         newOrders: new30Orders,
       },
-      expiringMemberships: expiring,
+      expiringMemberships: rowsAllowed ? expiring : [],
+      expiringMembershipsCount: expiringCount,
       oldestPendingSince: oldestPendingSince,
       /** Kayıt hunisi: kayıt → onboarding → KYC belgeleri → doğrulandı. */
       funnel: {
@@ -3101,6 +3116,18 @@ export class AdminCompaniesService {
       //    ile bu satirlara bakar), kisi/vergi alanlari ve acik adres
       //    karartilir; ulke/sehir gibi kaba konum kalir.
       this.prisma.companyBankAccount.deleteMany({ where: { companyId: id } }),
+      //  - Urunler (arayuz testi D-216): vitrinden cekilir ve onay kuyrugundan
+      //    duser (DRAFT + pasif). Satirlar SILINMEZ: siparis/bilgi talebi
+      //    gecmisi urune bakabilir.
+      this.prisma.companyItem.updateMany({
+        where: { companyId: id },
+        data: {
+          isPublic: false,
+          isActive: false,
+          reviewStatus: "DRAFT",
+          submittedAt: null,
+        },
+      }),
       this.prisma.companyUserInvitation.deleteMany({ where: { companyId: id } }),
       this.prisma.contentTranslation.deleteMany({
         where: { entityType: "COMPANY", entityId: id },
@@ -3143,6 +3170,12 @@ export class AdminCompaniesService {
       cityId: company.cityId,
       country: company.country,
     });
+    // Neden sert silinmedi — hangi izler tuttu (Dalga A2, P12 #1/#2). Yanıtta
+    // da döner: admin ekranı "siparişli" varsayımı yerine gerçek nedenleri
+    // gösterir (arayüz testi D-143).
+    const retainedBecause = Object.fromEntries(
+      Object.entries(retentionCounts).filter(([, n]) => n > 0),
+    );
     await this.audit.log({
       action: "admin.company.anonymized",
       actorType: "admin",
@@ -3152,18 +3185,14 @@ export class AdminCompaniesService {
       metadata: {
         name: company.name,
         rothernId: company.rothernId,
-        // Neden sert silinmedi — hangi izler tuttu (Dalga A2, P12 #1/#2).
-        // Eskiden yalnız "sipariş var" ima ediliyordu; artık gerekçe açık.
-        retainedBecause: Object.fromEntries(
-          Object.entries(retentionCounts).filter(([, n]) => n > 0),
-        ),
+        retainedBecause,
       },
       // #10: geri alınamaz aksiyon.
       critical: true,
     });
     // #9: geri alınamaz dış temizlik ancak DB + audit kesinleştikten sonra.
     await purgeExternal();
-    return { ok: true, mode: "anonymized" as const };
+    return { ok: true, mode: "anonymized" as const, retainedBecause };
   }
 
   private async requireCompany(id: string) {

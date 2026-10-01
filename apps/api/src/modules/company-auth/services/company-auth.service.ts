@@ -382,13 +382,27 @@ export class CompanyAuthService {
     if (user.emailVerifiedAt) {
       throw new BadRequestException(i18nMessage("api.companyAuth.ePostaZatenDogrulanmis"));
     }
-    await this.issueEmailCode(
+    const { sent, capped } = await this.issueEmailCode(
       userId,
       user.email,
       user.firstName,
       "verify",
       localeOf(user.locale),
     );
+    // Failure-aware (arayüz testi O-064): eskiden sonuç atılıyordu — tavan
+    // doluyken admin "gönderildi" görüyor, destek kullanıcıya yanlış bilgi
+    // veriyordu. Tavan → dürüst 429, gönderim hatası/bastırma → 503.
+    if (!sent && capped) {
+      throw new HttpException(
+        i18nMessage("api.companyAuth.cokFazlaKodIstendi", undefined, "EMAIL_CODE_CAPPED"),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (!sent) {
+      throw new ServiceUnavailableException(
+        i18nMessage("api.companyAuth.dogrulamaKoduSuAndaGonderilemediLutfen"),
+      );
+    }
   }
 
   /**
