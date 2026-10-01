@@ -3822,6 +3822,15 @@ export class CompanyListingsService {
       canBid,
       roleAllowsBid,
       invited: isInvited,
+      // KYC kapısı UI'a da yansısın (arayüz testi D-028): placeBid'in
+      // INV-KYC-1 kuralıyla birebir — davetsiz ∧ bağlantısız teklifçi
+      // VERIFIED değilse gönderim 403 alır; form bunu baştan söyler, yalnız
+      // taslağa izin verir.
+      bidRequiresVerification:
+        !isInvited && !connected && user.companyVerificationStatus !== "VERIFIED",
+      // Teklifçinin alıcıya mesaj yolu (arayüz testi D-280): alıcı adı bu dalda
+      // zaten görünür; satıcı talepleri listesi de `owner.id` döndürür.
+      ownerCompanyId: listing.companyId,
       english: englishForBidder,
       auctionView,
       nextBidConstraint,
