@@ -20,10 +20,11 @@ import {
 } from "@/hooks/use-company-orders";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
-import { extractErrorMessage } from "@/lib/tenders/error";
+import { errorToastedGlobally, extractErrorMessage } from "@/lib/tenders/error";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 /**
@@ -40,6 +41,8 @@ export function OrderCancelRequestPanel({
   order: CompanyOrderDetail;
 }) {
   const t = useTranslations("web.panel.trade.orderCancelRequestPanel");
+  // D-281: ihtilaf ipucu üst çubuktaki GERÇEK düğme adını söyler (tek kaynak).
+  const tPage = useTranslations("web.panel.trade.siparisIdPage");
   const locale = useLocale() as Locale;
   const isSeller = order.role === "seller";
   // F7: karar/geri-çekme butonları tarafın işlem rolünü ister (assertOrderRole
@@ -58,6 +61,9 @@ export function OrderCancelRequestPanel({
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  // Çift tık ikinci istek atmaz; pencere kapanırken düğme kilitli (FX-00).
+  const approveLock = useDialogSubmitLock(approveOpen);
+  const rejectLock = useDialogSubmitLock(rejectOpen);
 
   if (!pending && !disputed) return null;
 
@@ -65,27 +71,39 @@ export function OrderCancelRequestPanel({
   const reason = order.cancelRequestReason;
   const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
 
+  /** true = başarılı. D-255: pencere YALNIZ başarıda kapanır; 5xx/ağ
+   *  hatasında genel toast'ı interceptor zaten gösterdi → ikinci toast yok. */
   const run = async (p: Promise<unknown>, ok: string) => {
     try {
       await p;
       toast.success(ok);
+      return true;
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("islemBasarisiz")));
+      if (!errorToastedGlobally(err)) {
+        toast.error(extractErrorMessage(err, t("islemBasarisiz")));
+      }
+      return false;
     }
   };
 
   const doWithdraw = () =>
     run(withdraw.mutateAsync(), t("iptalTalebiGeriCekildi"));
   const doApprove = async () => {
-    await run(approve.mutateAsync(undefined), t("iptalOnaylandiSiparisIptalEdildi"));
-    setApproveOpen(false);
+    if (await run(approve.mutateAsync(undefined), t("iptalOnaylandiSiparisIptalEdildi"))) {
+      setApproveOpen(false);
+    }
   };
   const doReject = async () => {
-    await run(
+    const ok = await run(
       reject.mutateAsync({ note: rejectNote.trim() || undefined }),
       t("iptalTalebiReddedildiSiparisIhtilafli"),
     );
-    setRejectOpen(false);
+    if (ok) setRejectOpen(false);
+  };
+  // D-257: red penceresi her açılışta boş gerekçeyle başlar.
+  const openReject = () => {
+    setRejectNote("");
+    setRejectOpen(true);
   };
 
   return (
@@ -137,7 +155,7 @@ export function OrderCancelRequestPanel({
                 {pending ? (
                   <Button
                     outline
-                    onClick={() => setRejectOpen(true)}
+                    onClick={openReject}
                     disabled={reject.isPending}
                   >
                     {t("reddet")}
@@ -149,7 +167,10 @@ export function OrderCancelRequestPanel({
             {/* SATICI — DISPUTED'da sevk yönlendirmesi (buton üstteki ana aksiyonda). */}
             {isSeller && disputed ? (
               <p className="text-xs text-zinc-500">
-                {t.rich("malBulunduysaYukaridanSiparisiGonder", { strong })}
+                {t.rich("malBulunduysaYukaridanSiparisiGonder", {
+                  strong,
+                  button: tPage("siparisiTamamla"),
+                })}
               </p>
             ) : null}
           </div>
@@ -176,7 +197,10 @@ export function OrderCancelRequestPanel({
           <Button plain onClick={() => setApproveOpen(false)}>
             {t("vazgec")}
           </Button>
-          <Button onClick={doApprove} disabled={approve.isPending}>
+          <Button
+            onClick={() => void approveLock.run(doApprove).catch(() => {})}
+            disabled={approve.isPending || approveLock.locked}
+          >
             {t("iptaliOnayla")}
           </Button>
         </DialogActions>
@@ -203,7 +227,10 @@ export function OrderCancelRequestPanel({
           <Button plain onClick={() => setRejectOpen(false)}>
             {t("vazgec")}
           </Button>
-          <Button onClick={doReject} disabled={reject.isPending}>
+          <Button
+            onClick={() => void rejectLock.run(doReject).catch(() => {})}
+            disabled={reject.isPending || rejectLock.locked}
+          >
             {t("reddetIhtilafli")}
           </Button>
         </DialogActions>

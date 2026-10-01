@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { useBidDeliveryTimeLabel, useNavLabel, useRoleLabel, useQuantityLabel, useUnitLabel, usePlaceLabel } from "@/i18n/domain";
+import { useBidDeliveryTimeLabel, useFormatPaymentPlan, useNavLabel, useRoleLabel, useQuantityLabel, useUnitLabel, usePlaceLabel } from "@/i18n/domain";
 import { formatNumber } from "@/i18n/format";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
@@ -37,7 +37,7 @@ import { formatDate } from "@/lib/format-date";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
 import { routeLabel } from "@/lib/company/terms";
-import { extractErrorMessage } from "@/lib/tenders/error";
+import { errorToastedGlobally, extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
 import { sellerShipsGoods } from "@rothern/shared";
 import { LcStepPanel } from "./_components/lc-step-panel";
@@ -93,11 +93,12 @@ export default function OrderDetailPage() {
   const unitLabel = useUnitLabel();
   const quantity = useQuantityLabel();
   const deliveryTimeLabel = useBidDeliveryTimeLabel();
+  const formatPlan = useFormatPaymentPlan();
   const locale = useLocale() as Locale;
   const { money: formatMoney } = useFormatMoney();
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
   const { data: o, isLoading, isError, error, refetch } = useOrder(id);
   const ship = useShipOrder(id);
   const receive = useReceiveOrder(id);
@@ -163,7 +164,8 @@ export default function OrderDetailPage() {
     order: t("print.siparis"),
     buyer: t("print.alici"),
     seller: t("print.satici"),
-    request: t("print.satinAlmaTalebi"),
+    // D-005: tedarikçiye "alım talebi" (satıcı terimi), alıcıya "satın alma talebi".
+    request: isSeller ? t("print.alimTalebi") : t("print.satinAlmaTalebi"),
     status: t("print.durum"),
     item: t("print.kalem"),
     quantity: t("print.miktar"),
@@ -177,6 +179,9 @@ export default function OrderDetailPage() {
     offered: t("print.teklifEdilen"),
     requested: t("print.istenen"),
     notSpecified: t("print.belirtilmedi"),
+    deliveryAddress: t("print.teslimAdresi"),
+    paymentTerms: t("print.odemeSarti"),
+    invoiceNo: t("print.faturaNo"),
   };
   const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
   const ordersHref = isSeller
@@ -278,7 +283,8 @@ export default function OrderDetailPage() {
       toast.success(ok);
       close();
     } catch (err) {
-      toast.error(extractErrorMessage(err, fallback));
+      // D-255: 5xx/ağ hatasının genel toast'ı interceptor'da — ikinci toast yok.
+      if (!errorToastedGlobally(err)) toast.error(extractErrorMessage(err, fallback));
     }
   };
 
@@ -314,7 +320,13 @@ export default function OrderDetailPage() {
   const handlePrint = () => {
     if (!o) return;
     const w = window.open("", "_blank", "width=800,height=900");
-    if (!w) return;
+    // D-111: açılır pencere engellendiyse sessizce bitmesin — kullanıcıya söyle.
+    if (!w) {
+      toast.error(t("yazdirmaPenceresiAcilamadi"));
+      return;
+    }
+    const addr = o.deliveryAddress;
+    const addrPlace = addr ? placeLabel(addr) : "";
     // GÜVENLİK: HTML string'i saf builder üretir + karşı-taraf alanlarını
     // escapeHtml'den geçirir (stored XSS kapandı). Bkz. order-print.ts.
     w.document.write(
@@ -326,6 +338,12 @@ export default function OrderDetailPage() {
         locale,
         deliveryTimeLabel,
         quantityLabel: (n, u) => quantity(n, u),
+        // D-111: iki taraf, teslim adresi ve ödeme şartı çıktıda da.
+        ownCompanyName: company?.name ?? null,
+        deliveryAddress: addr
+          ? `${addr.title} — ${addr.addressLine}${addrPlace ? `, ${addrPlace}` : ""}`
+          : null,
+        paymentTerms: formatPlan(o),
       }),
     );
     w.document.close();
@@ -383,6 +401,25 @@ export default function OrderDetailPage() {
       {/* YAŞAM DÖNGÜSÜ AYRIMI: operasyonel bitiş ≠ ödeme; borç ayrı. */}
       {fullyPaid ? (
         <Text className="text-sm text-emerald-700">{t("odemeTamamlandi")}</Text>
+      ) : isSeller ? (
+        // D-123: satıcıya alıcıya yönelik "kaydedebilirsiniz" / "satıcının
+        // onayı bekleniyor" denmez — satıcının bakış açısıyla.
+        <Text className="text-sm text-amber-700">
+          {paymentAwaitingConfirmation
+            ? t("saticiAliciOdemeBildirdiOnaylayin", {
+                amount: formatMoney(confirmedPaid, o.currency),
+              })
+            : isLc
+              ? t("saticiOdemeAkreditifIsaretleyin")
+              : o.paymentDueDate
+                ? t("saticiAlicininOdemesiBekleniyorVade", {
+                    amount: formatMoney(remainingDue, o.currency),
+                    date: formatDate(o.paymentDueDate, "short", locale),
+                  })
+                : t("saticiAlicininOdemesiBekleniyor", {
+                    amount: formatMoney(remainingDue, o.currency),
+                  })}
+        </Text>
       ) : paymentAwaitingConfirmation ? (
         <Text className="text-sm text-amber-700">
           {t("odemeBildirildiSaticininOnayiBekleniyor", {
@@ -683,7 +720,7 @@ export default function OrderDetailPage() {
               <div className="mb-3 flex items-center gap-2">
                 <Gavel className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
-                  {t("bagliSatinAlmaTalebi")}
+                  {isSeller ? t("bagliAlimTalebi") : t("bagliSatinAlmaTalebi")}
                 </h2>
               </div>
               {o.listingId ? (
@@ -696,13 +733,13 @@ export default function OrderDetailPage() {
                       {o.listingNumber ?? "—"}
                       {o.listingType ? (
                         <span className="ml-2 font-sans">
-                          {t("satinAlmaTalebi")}
+                          {isSeller ? t("alimTalebi") : t("satinAlmaTalebi")}
                         </span>
                       ) : null}
                     </p>
                   </div>
                   <Button outline href={`/company/ilan/${o.listingId}`}>
-                    {t("satinAlmaTalebineGit")}
+                    {isSeller ? t("alimTalebineGit") : t("satinAlmaTalebineGit")}
                   </Button>
                 </div>
               ) : (
@@ -807,19 +844,32 @@ export default function OrderDetailPage() {
                   <TableRow>
                     <TableHeader>{t("kalem")}</TableHeader>
                     <TableHeader className="text-right">{t("miktar")}</TableHeader>
-                    <TableHeader className="text-right">
+                    {/* D-285: dar ekranda teslim ve birim fiyat ad hücresinin
+                        altına iner — tablo yatay kaydırmasız sığar. */}
+                    <TableHeader className="hidden text-right sm:table-cell">
                       {t("teslimTarihi")}
                     </TableHeader>
-                    <TableHeader className="text-right">
+                    <TableHeader className="hidden text-right sm:table-cell">
                       {t("birimFiyat")}
                     </TableHeader>
                     <TableHeader className="text-right">{t("tutar")}</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {o.items.map((it) => (
+                  {o.items.map((it) => {
+                    const deliveryCell = itemDeliveryLabel(
+                      it.deliveryDate,
+                      o.expectedDeliveryDate,
+                      it.deliveryTime,
+                      printLabels.general,
+                      deliveryTimeLabel,
+                      locale,
+                    );
+                    return (
                     <TableRow key={it.id}>
-                      <TableCell className="font-medium text-zinc-900">
+                      {/* D-285: uzun kalem adı SARILIR (tablo whitespace-nowrap;
+                          tek satır ad Tutar sütununu kart dışına itiyordu). */}
+                      <TableCell className="min-w-40 whitespace-normal font-medium text-zinc-900 [overflow-wrap:anywhere]">
                         {it.name}
                         {/* O-003: muadil beyanı / istenen marka-parça no siparişte
                             de bağlayıcı kayıt (award snapshot'ı). */}
@@ -841,21 +891,18 @@ export default function OrderDetailPage() {
                             {it.note}
                           </span>
                         ) : null}
+                        <span className="mt-0.5 block text-xs font-normal text-zinc-500 sm:hidden">
+                          {t("teslimTarihi")}: {deliveryCell} · {t("birimFiyat")}:{" "}
+                          <span className="tabular-nums">{formatMoney(it.unitPrice, o.currency)}</span>
+                        </span>
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">
                         {quantity(it.quantity, it.unit)}
                       </TableCell>
-                      <TableCell className="text-right text-zinc-600">
-                        {itemDeliveryLabel(
-                          it.deliveryDate,
-                          o.expectedDeliveryDate,
-                          it.deliveryTime,
-                          printLabels.general,
-                          deliveryTimeLabel,
-                          locale,
-                        )}
+                      <TableCell className="hidden text-right text-zinc-600 sm:table-cell">
+                        {deliveryCell}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-zinc-600">
+                      <TableCell className="hidden text-right tabular-nums text-zinc-600 sm:table-cell">
                         {formatMoney(it.unitPrice, o.currency)}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums text-zinc-900">
@@ -865,7 +912,8 @@ export default function OrderDetailPage() {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </section>

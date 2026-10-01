@@ -24,6 +24,20 @@ import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
  * kapanırken senkron kilitlidir (çift tık ikinci istek atmaz — arayüz testi FX-00).
  */
 
+/**
+ * Pencereler sayfada hep bağlı; her AÇILIŞTA alanlar sıfırlanır (arayüz testi
+ * D-257: Vazgeç sonrası yeniden açılan iptal penceresi eski gerekçeyi
+ * taşıyordu). Sıfırlama render sırasında (React'in "prop değişince durumu
+ * ayarla" deseni) — efektle yapılsa açılış karesinde eski metin görünürdü.
+ */
+function useResetOnOpen(open: boolean, reset: () => void) {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) reset();
+  }
+}
+
 export function AcceptOrderModal({
   open,
   onClose,
@@ -56,6 +70,10 @@ export function AcceptOrderModal({
   // null = kullanıcı henüz seçmedi (zorunlu modda varsayılana düşer); "" =
   // isteğe bağlı modda bilinçli "hesap eklenmesin".
   const [accountId, setAccountId] = useState<string | null>(null);
+  useResetOnOpen(open, () => {
+    setNote("");
+    setAccountId(null);
+  });
   const defaultId =
     accounts.data?.find((a) => a.isDefault)?.id ?? accounts.data?.[0]?.id ?? "";
   const effectiveAccountId = isLetterOfCredit ? "" : (accountId ?? defaultId);
@@ -202,6 +220,10 @@ export function ShipOrderModal({
   const t = useTranslations("web.panel.trade.orderActionModals");
   const [invoice, setInvoice] = useState("");
   const [note, setNote] = useState("");
+  useResetOnOpen(open, () => {
+    setInvoice("");
+    setNote("");
+  });
   const lock = useDialogSubmitLock(open);
 
   const submit = () => {
@@ -292,6 +314,7 @@ export function ReasonModal({
 }) {
   const t = useTranslations("web.panel.trade.orderActionModals");
   const [reason, setReason] = useState("");
+  useResetOnOpen(open, () => setReason(""));
   const tooShort = reason.trim().length < minLength;
   const lock = useDialogSubmitLock(open);
 
@@ -346,6 +369,7 @@ export function NoteModal({
 }) {
   const t = useTranslations("web.panel.trade.orderActionModals");
   const [note, setNote] = useState("");
+  useResetOnOpen(open, () => setNote(""));
   const lock = useDialogSubmitLock(open);
 
   return (

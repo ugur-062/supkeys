@@ -78,6 +78,7 @@ interface OrderPrintOrder {
   listingNumber?: string | null;
   amount: number | string;
   expectedDeliveryDate: string | null;
+  invoiceNumber?: string | null;
   items?: OrderPrintItem[] | null;
 }
 
@@ -106,6 +107,10 @@ export interface OrderPrintLabels {
   offered: string;
   requested: string;
   notSpecified: string;
+  /** Arayüz testi D-111: teslim adresi, ödeme şartı, fatura no satırları. */
+  deliveryAddress: string;
+  paymentTerms: string;
+  invoiceNo: string;
 }
 
 /**
@@ -131,9 +136,20 @@ export function buildOrderPrintHtml(
     deliveryTimeLabel?: (code: string | null | undefined) => string | null;
     /** Miktar + birim okuyucunun dilinde, çoğul kuralıyla (`useQuantityLabel`); verilmezse sayı + kayıtlı ad. */
     quantityLabel?: (qty: number, unit: string) => string;
+    /** Okuyucunun kendi firması — çıktıda İKİ taraf da yazılır (D-111). */
+    ownCompanyName?: string | null;
+    /** Teslim adresi tek satır (sayfa biçimler; okuyucunun dilinde yer adları). */
+    deliveryAddress?: string | null;
+    /** Ödeme şartı cümlesi (`useFormatPaymentPlan`). */
+    paymentTerms?: string | null;
   },
 ): string {
   const { isSeller, currency, statusLabel, labels, locale, deliveryTimeLabel, quantityLabel } = ctx;
+  const own = ctx.ownCompanyName?.trim() || null;
+  const buyerName = isSeller ? o.counterparty : own;
+  const sellerName = isSeller ? own : o.counterparty;
+  const metaLine = (label: string, value: string | null | undefined) =>
+    value ? `<strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}<br>` : "";
   // Para HER ZAMAN 2 ondalık (ekrandaki `formatMoney` ile aynı kural): seçeneksiz
   // toLocaleString 0-3 ondalık basıyordu ("12,5 ₺", "1.000 ₺").
   const moneyFmt = new Intl.NumberFormat(intlLocale(locale), MONEY_FRACTION);
@@ -168,9 +184,8 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 <h1>${escapeHtml(labels.order)} ${escapeHtml(o.number ?? "")}</h1>
 <div class="muted">Rothern · ${escapeHtml(formatDate(o.createdAt, "datetime", dateLocale))}</div>
 <div class="meta">
-<strong>${escapeHtml(isSeller ? labels.buyer : labels.seller)}:</strong> ${escapeHtml(o.counterparty)}<br>
-<strong>${escapeHtml(labels.request)}:</strong> ${escapeHtml(o.listingTitle ?? "—")} (${escapeHtml(o.listingNumber ?? "—")})<br>
-<strong>${escapeHtml(labels.status)}:</strong> ${escapeHtml(statusLabel)}
+${metaLine(labels.buyer, buyerName)}${metaLine(labels.seller, sellerName)}<strong>${escapeHtml(labels.request)}:</strong> ${escapeHtml(o.listingTitle ?? "—")} (${escapeHtml(o.listingNumber ?? "—")})<br>
+${metaLine(labels.paymentTerms, ctx.paymentTerms)}${metaLine(labels.invoiceNo, o.invoiceNumber)}${metaLine(labels.deliveryAddress, ctx.deliveryAddress)}<strong>${escapeHtml(labels.status)}:</strong> ${escapeHtml(statusLabel)}
 </div>
 <table><thead><tr><th>${escapeHtml(labels.item)}</th><th style="text-align:right">${escapeHtml(labels.quantity)}</th><th style="text-align:right">${escapeHtml(labels.delivery)}</th><th style="text-align:right">${escapeHtml(labels.unit)}</th><th style="text-align:right">${escapeHtml(labels.amount)}</th></tr></thead>
 <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#a1a1aa">${escapeHtml(labels.noItems)}</td></tr>`}</tbody></table>

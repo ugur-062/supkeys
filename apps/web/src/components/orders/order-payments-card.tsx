@@ -307,9 +307,11 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           </Field>
           <Field>
             <Label>{tr("notOpsiyonel")}</Label>
+            {/* D-256: API tavanı (order-payment.dto note MaxLength 500) alanda. */}
             <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              maxLength={500}
               placeholder={tr("dekontNoAciklama")}
             />
           </Field>

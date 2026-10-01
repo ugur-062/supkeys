@@ -70,6 +70,19 @@ export function extractErrorMessage(
 }
 
 /**
+ * Axios interceptor'ları (lib/api + lib/company-auth/api) 5xx ve ağ hatasında
+ * GENEL bir toast'ı ("Sunucu hatası", "Bağlantı hatası") zaten gösterir; çağıran
+ * aynı hatayı kendi `extractErrorMessage` toast'ıyla basarsa metinler farklı
+ * olduğundan tekilleştirme yakalamaz ve kullanıcı iki hata görür (arayüz testi
+ * D-255). Çağıran bu durumda kendi toast'ını atlar.
+ */
+export function errorToastedGlobally(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  if (!err.response) return true;
+  return err.response.status >= 500;
+}
+
+/**
  * `responseType: "blob"` istekleri için hata mesajı çıkarımı. Hata gövdesi
  * Blob olarak gelir (JSON değil); text'e çevirip `message` alanını ayıkla.
  * PDF indirme gibi blob endpoint'lerinde kullanılır.

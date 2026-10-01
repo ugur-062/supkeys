@@ -50,7 +50,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 12;
 
@@ -197,6 +197,53 @@ const RANGE_DAYS: Record<RangeKey, number | null> = {
   "12m": 365,
 };
 
+/**
+ * Liste durumu ADRES ÇUBUĞUNDA (arayüz testi D-011): siparişe girip Geri'ye
+ * basınca sayfa, süzgeç ve arama kaybolup 1. sayfaya dönülüyordu. Yalnız
+ * listenin kendi anahtarları okunur/yazılır; diğer parametreler korunur.
+ * `status` aynı zamanda KPI drill-down girişidir (`?status=DELIVERED`, virgüllü çoklu).
+ */
+export interface OrdersUrlState {
+  q: string;
+  status: string[];
+  sort: string;
+  range: RangeKey;
+  cp: string;
+  page: number;
+}
+
+export function parseOrdersUrl(get: (key: string) => string | null): OrdersUrlState {
+  const sort = get("sort") ?? "";
+  const range = get("range") ?? "";
+  const page = Number.parseInt(get("page") ?? "", 10);
+  return {
+    q: get("q") ?? "",
+    status: (get("status") ?? "")
+      .split(",")
+      .filter((v) => STATUS_FILTERS.some((s) => s.value === v)),
+    sort: SORT_OPTIONS.some((o) => o.value === sort) ? sort : "newest",
+    range: RANGE_OPTIONS.some((o) => o.value === range) ? (range as RangeKey) : "all",
+    cp: get("cp") ?? "",
+    page: Number.isFinite(page) && page > 1 ? page : 1,
+  };
+}
+
+/** Varsayılan değerler adrese yazılmaz (temiz URL). */
+export function writeOrdersUrl(params: URLSearchParams, st: OrdersUrlState): URLSearchParams {
+  const out = new URLSearchParams(params);
+  const set = (key: string, value: string | null) => {
+    if (value) out.set(key, value);
+    else out.delete(key);
+  };
+  set("q", st.q || null);
+  set("status", st.status.length > 0 ? st.status.join(",") : null);
+  set("sort", st.sort !== "newest" ? st.sort : null);
+  set("range", st.range !== "all" ? st.range : null);
+  set("cp", st.cp || null);
+  set("page", st.page > 1 ? String(st.page) : null);
+  return out;
+}
+
 function matchesSearch(o: CompanyOrder, q: string) {
   if (!q) return true;
   // Katlanmış karşılaştırma (`q` da katlı gelir) — `tr` küçültme Latin "I"yı
@@ -291,7 +338,9 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
         </div>
 
         {/* SAĞ — durum · tutar · ödeme */}
-        <div className="flex shrink-0 flex-row items-center justify-between gap-3 sm:w-52 sm:flex-col sm:items-end sm:gap-1">
+        {/* O-051: dar ekranda (EN/RU uzun ödeme metni) satır SARILIR — 390 px'te
+            yatay taşma vardı; tek satır kuralı yalnız sm ve üstünde. */}
+        <div className="flex min-w-0 shrink-0 flex-row flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:w-52 sm:flex-col sm:flex-nowrap sm:items-end sm:gap-1">
           <StatusBadge tone={meta.tone}>{statusLabel(o.status, sellerShips)}</StatusBadge>
           {/* P1 (denetim §8.1): tek para formatı — kuruş görünür, sembol sonda. */}
           <p className="whitespace-nowrap text-lg font-semibold tabular-nums text-zinc-950">
@@ -300,17 +349,17 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
           {showPayment ? (
             overdueDays != null && overdueDays > 0 ? (
               /* P0: VADESİ GEÇMİŞ ödeme normal bekleyenle aynı görünmesin. */
-              <p className="whitespace-nowrap text-xs font-semibold text-red-700">
+              <p className="text-xs font-semibold text-red-700 sm:whitespace-nowrap">
                 {t("odemeGeciktiGun", { overdueDays: overdueDays })}
               </p>
             ) : (
-              <p className="whitespace-nowrap text-xs text-amber-700">
+              <p className="text-xs text-amber-700 sm:whitespace-nowrap">
                 {t("odemeBekliyor")}
                 {o.paymentDueDate ? ` ${t("vade", { formatDate: fmtDate(o.paymentDueDate) })}` : ""}
               </p>
             )
           ) : o.paymentSettled === true ? (
-            <p className="whitespace-nowrap text-xs text-emerald-700">{t("odemeTamam")}</p>
+            <p className="text-xs text-emerald-700 sm:whitespace-nowrap">{t("odemeTamam")}</p>
           ) : null}
         </div>
       </div>
@@ -373,17 +422,37 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const isSeller = role === "seller";
   const partyPlural = isSeller ? t("alicilar") : t("tedarikciler");
 
-  const [search, setSearch] = useState("");
-  // Faz 4.2 — KPI drill-down: ?status=DELIVERED gibi başlangıç filtresi.
-  // `?status=DELIVERED` ya da virgüllü (çoklu seçim).
-  const urlStatus = useSearchParams().get("status");
-  const [status, setStatus] = useState<string[]>(() =>
-    (urlStatus ?? "").split(",").filter((v) => STATUS_FILTERS.some((s) => s.value === v)),
-  );
-  const [sort, setSort] = useState("newest");
-  const [range, setRange] = useState<RangeKey>("all");
-  const [counterparty, setCounterparty] = useState("");
-  const [page, setPage] = useState(1);
+  // D-011: başlangıç durumu adresten (Faz 4.2 KPI drill-down `?status=` dahil);
+  // `useSearchParams` sunucu-öncesi render ve testte NULL dönebilir.
+  const sp = useSearchParams();
+  const [initial] = useState(() => parseOrdersUrl((k) => sp?.get(k) ?? null));
+  const [search, setSearch] = useState(initial.q);
+  const [status, setStatus] = useState<string[]>(initial.status);
+  const [sort, setSort] = useState(initial.sort);
+  const [range, setRange] = useState<RangeKey>(initial.range);
+  const [counterparty, setCounterparty] = useState(initial.cp);
+  const [page, setPage] = useState(initial.page);
+
+  // Durum değişince adres çubuğuna yaz — geçmiş girdisi AÇMADAN (replaceState):
+  // detaydan Geri bu adrese, yani kalınan sayfa ve süzgeçlere döner.
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const next = writeOrdersUrl(u.searchParams, {
+        q: search,
+        status,
+        sort,
+        range,
+        cp: counterparty,
+        page,
+      }).toString();
+      if (next === u.searchParams.toString()) return;
+      u.search = next ? `?${next}` : "";
+      window.history.replaceState(window.history.state, "", u.toString());
+    } catch {
+      /* adres yazılamadı — liste yine çalışır */
+    }
+  }, [search, status, sort, range, counterparty, page]);
   const [view, setView] = useListView(
     isSeller ? "rothern-view-satislar" : "rothern-view-siparisler",
   );
@@ -496,7 +565,8 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
               value: s.value,
               label: `${filterLabel(s, s.value)}${counts[s.value] ? ` (${counts[s.value]})` : ""}`,
             }))}
-            allLabel={t("tumu", { length: all.length })}
+            // D-259: veri yokken (yükleme/hata) "Tümü (0)" sayacı basılmaz.
+            allLabel={data ? t("tumu", { length: all.length }) : t("tumuSayisiz")}
             ariaLabel={t("durumFiltresi")}
           />
           <FilterSelect
@@ -518,13 +588,18 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             ariaLabel={t("karsiTarafFiltresi")}
             active={counterparty !== ""}
           />
-          <ResultCount
-            total={filtered.length}
-            isFiltered={isFiltered}
-            kind="siparis"
-            isLoading={isLoading}
-            className="ml-auto"
-          />
+          {isError && !data ? (
+            // D-259: hata ekranının üstünde "0 sipariş" yazmasın.
+            <span className="ml-auto" />
+          ) : (
+            <ResultCount
+              total={filtered.length}
+              isFiltered={isFiltered}
+              kind="siparis"
+              isLoading={isLoading}
+              className="ml-auto"
+            />
+          )}
           <ViewToggle view={view} onChange={setView} />
         </div>
         <ActiveFilterChips

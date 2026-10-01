@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
     isError: false,
     refetch: vi.fn(),
   },
+  sp: new URLSearchParams(),
 }));
 
 vi.mock("@/hooks/use-company-orders", () => ({
@@ -18,10 +19,10 @@ vi.mock("@/hooks/use-company-orders", () => ({
 }));
 // Faz 4.2 — OrdersList başlangıç filtresi için URL okur (drill-down).
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => h.sp,
 }));
 
-import { OrdersList, byCurrencyThenAmount } from "../orders-list";
+import { OrdersList, byCurrencyThenAmount, parseOrdersUrl, writeOrdersUrl } from "../orders-list";
 
 let seq = 0;
 function order(over: Partial<CompanyOrder> = {}): CompanyOrder {
@@ -47,6 +48,8 @@ function order(over: Partial<CompanyOrder> = {}): CompanyOrder {
 beforeEach(() => {
   vi.clearAllMocks();
   seq = 0;
+  h.sp = new URLSearchParams();
+  window.history.replaceState(null, "", "/");
   h.orders = {
     data: undefined,
     isLoading: false,
@@ -273,5 +276,42 @@ describe("OrdersList — ödeme etiketi (arayüz testi D-127)", () => {
     h.orders = { ...h.orders, data: [order({ status: "DISPUTED" })] };
     render(<OrdersList role="buyer" />);
     expect(screen.getByText(/ihtilaflı/i)).toBeInTheDocument();
+  });
+});
+
+describe("OrdersList — liste durumu adreste (arayüz testi D-011)", () => {
+  it("parse/write: geçersiz değerler varsayılana düşer; varsayılanlar adrese yazılmaz, yabancı parametre korunur", () => {
+    const st = parseOrdersUrl((k) =>
+      new URLSearchParams("status=PENDING,XX&sort=bogus&range=30d&page=3&cp=Acme&q=boru").get(k),
+    );
+    expect(st).toEqual({ q: "boru", status: ["PENDING"], sort: "newest", range: "30d", cp: "Acme", page: 3 });
+    const out = writeOrdersUrl(new URLSearchParams("tab=x&page=9"), { ...st, page: 1, sort: "newest" });
+    expect(out.get("tab")).toBe("x");
+    expect(out.get("page")).toBeNull();
+    expect(out.get("sort")).toBeNull();
+    expect(out.get("status")).toBe("PENDING");
+  });
+
+  it("adresteki sayfa ve süzgeçle açılır; sayfa değişimi adrese yazılır (Geri ile geri gelir)", async () => {
+    h.orders.data = Array.from({ length: 30 }, () => order({ status: "ACCEPTED" }));
+    h.sp = new URLSearchParams("page=2&status=ACCEPTED");
+    render(<OrdersList role="buyer" />);
+    // 12'lik sayfalar: 2. sayfa 13-24. kayıtlar (en yeni önce → İlan 13 … İlan 24).
+    expect(screen.getByText("İlan 13")).toBeInTheDocument();
+    expect(screen.queryByText("İlan 1")).not.toBeInTheDocument();
+    await waitFor(() => {
+      const u = new URL(window.location.href);
+      expect(u.searchParams.get("page")).toBe("2");
+      expect(u.searchParams.get("status")).toBe("ACCEPTED");
+    });
+  });
+});
+
+describe("OrdersList — hata ekranında sayaç yok (arayüz testi D-259)", () => {
+  it("veri yokken hata: 'Tümü (0)' ve '0 sipariş' basılmaz", () => {
+    h.orders = { data: undefined, isLoading: false, isError: true, refetch: vi.fn() };
+    render(<OrdersList role="buyer" />);
+    expect(screen.queryByText(/Tümü \(0\)/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/0 sipariş/)).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractErrorMessage } from "../error";
+import { errorToastedGlobally, extractErrorMessage } from "../error";
 
 const axiosErr = (data: unknown) => ({
   isAxiosError: true,
@@ -47,5 +47,17 @@ describe("extractErrorMessage", () => {
   it("bilinmeyen değerde fallback", () => {
     expect(extractErrorMessage("string", "yedek")).toBe("yedek");
     expect(extractErrorMessage(null, "yedek")).toBe("yedek");
+  });
+});
+
+describe("errorToastedGlobally (arayüz testi D-255)", () => {
+  it("5xx ve ağ hatası interceptor'da toast'lanmış sayılır", () => {
+    expect(errorToastedGlobally({ isAxiosError: true, response: { status: 500, data: {} } })).toBe(true);
+    expect(errorToastedGlobally({ isAxiosError: true, response: undefined })).toBe(true);
+  });
+
+  it("4xx ve axios dışı hata çağıranda gösterilir", () => {
+    expect(errorToastedGlobally({ isAxiosError: true, response: { status: 409, data: {} } })).toBe(false);
+    expect(errorToastedGlobally(new Error("x"))).toBe(false);
   });
 });

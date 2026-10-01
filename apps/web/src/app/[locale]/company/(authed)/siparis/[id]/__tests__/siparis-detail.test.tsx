@@ -3,7 +3,8 @@ import type {
   CompanyOrderDetail,
   CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import { toast } from "sonner";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -159,18 +160,22 @@ describe("OrderDetailPage — yükleme/bulunamadı", () => {
     );
   });
 
-  it("veri yoksa 'Sipariş bulunamadı.'", () => {
+  it("veri yoksa nötr 'bulunamadı ya da yetkiniz yok' (D-162)", () => {
     h.order = undefined;
     h.isLoading = false;
     render(<OrderDetailPage />);
-    expect(screen.getByText("Sipariş bulunamadı.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sipariş bulunamadı ya da bu siparişi görüntüleme yetkiniz yok."),
+    ).toBeInTheDocument();
   });
 
-  it("404 → 'Sipariş bulunamadı.' (yeniden deneme yok)", () => {
+  it("404 → nötr 'bulunamadı ya da yetkiniz yok' (yeniden deneme yok, D-162)", () => {
     h.isError = true;
     h.error = { response: { status: 404 } };
     render(<OrderDetailPage />);
-    expect(screen.getByText("Sipariş bulunamadı.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sipariş bulunamadı ya da bu siparişi görüntüleme yetkiniz yok."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tekrar dene" })).not.toBeInTheDocument();
   });
 
@@ -178,7 +183,7 @@ describe("OrderDetailPage — yükleme/bulunamadı", () => {
     h.isError = true;
     h.error = { response: { status: 500 } };
     render(<OrderDetailPage />);
-    expect(screen.queryByText("Sipariş bulunamadı.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sipariş bulunamadı/)).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
     expect(h.refetch).toHaveBeenCalled();
@@ -545,5 +550,82 @@ describe("OrderDetailPage — arayüz testi webB-07", () => {
     expect(screen.getByText("Muadil")).toBeInTheDocument();
     expect(screen.getByText("Teklif edilen: FAG · 6204-2Z-C3")).toBeInTheDocument();
     expect(screen.getByText("İstenen: SKF · 6204-2RS")).toBeInTheDocument();
+  });
+});
+
+describe("OrderDetailPage — arayüz testi webB-08", () => {
+  it("D-005: tedarikçi 'Alım Talebi' görür, alıcı 'Satın Alma Talebi'", () => {
+    h.order = order("ACCEPTED", "seller");
+    const { unmount } = render(<OrderDetailPage />);
+    expect(screen.getByText("Bağlı Alım Talebi")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Alım Talebine Git" })).toBeInTheDocument();
+    expect(screen.queryByText(/Satın Alma Talebi/)).not.toBeInTheDocument();
+    unmount();
+    h.order = order("ACCEPTED", "buyer");
+    render(<OrderDetailPage />);
+    expect(screen.getByText("Bağlı Satın Alma Talebi")).toBeInTheDocument();
+  });
+
+  it("D-123: tamamlanmış açık hesap siparişte satıcıya alıcının ödemesi bekleniyor (kaydedebilirsiniz DEĞİL)", () => {
+    h.order = order("COMPLETED", "seller", { paymentSettled: false });
+    const { unmount } = render(<OrderDetailPage />);
+    expect(screen.getByText(/Alıcının ödemesi bekleniyor/)).toBeInTheDocument();
+    expect(screen.queryByText(/kaydedebilirsiniz/)).not.toBeInTheDocument();
+    unmount();
+    h.order = order("COMPLETED", "seller", {
+      paymentTotals: { confirmed: "0", pending: "1000", remaining: "0" },
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/onaylayın veya reddedin/)).toBeInTheDocument();
+    expect(screen.queryByText(/satıcının onayı bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("D-111: açılır pencere engellenince sessiz kalmaz — toast", async () => {
+    h.order = order("COMPLETED", "buyer");
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/Yazdırma penceresi açılamadı/),
+    );
+    open.mockRestore();
+  });
+
+  it("D-255: iptal onayı 500 alınca pencere AÇIK kalır, bileşen ikinci toast basmaz", async () => {
+    h.order = order("ACCEPTED", "buyer", {
+      cancelRequestedAt: new Date().toISOString(),
+      cancelRequestReason: "Stok tükendi, gönderemiyoruz.",
+    });
+    h.mutate.mockRejectedValueOnce({ isAxiosError: true, response: { status: 500, data: {} } });
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "İptali Onayla" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "İptali Onayla" }));
+    expect(h.mutate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("D-257 + D-258: red penceresi her açılışta boş; açıklamada ham enum yok", async () => {
+    h.order = order("ACCEPTED", "buyer", {
+      cancelRequestedAt: new Date().toISOString(),
+    });
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Reddet" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/DISPUTED/)).not.toBeInTheDocument();
+    await userEvent.type(within(dialog).getByRole("textbox"), "eski metin");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Vazgeç" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reddet" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("textbox")).toHaveValue("");
+  });
+
+  it("D-281: ihtilaf ipucu ekrandaki düğme adını ('Siparişi Tamamla') söyler", () => {
+    h.order = order("DISPUTED", "seller", { defectNotifiedAt: null });
+    render(<OrderDetailPage />);
+    const hint = screen.getByText(/ile ihtilafı çözebilirsiniz/);
+    expect(hint.textContent).toContain("Siparişi Tamamla");
+    expect(hint.textContent).not.toContain("Siparişi Gönder");
   });
 });

@@ -330,3 +330,31 @@ describe("çift gönderim kilidi (arayüz testi FX-00 D-020)", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("yeniden açılışta temiz pencere (arayüz testi D-257)", () => {
+  const props = {
+    onClose: vi.fn(),
+    onSubmit: vi.fn(),
+    pending: false,
+    title: "Siparişi İptal Et",
+    description: "Gerekçe",
+    confirmLabel: "Siparişi İptal Et",
+  };
+
+  it("ReasonModal: kapatılıp açılınca eski gerekçe silinir", async () => {
+    const { rerender } = render(<ReasonModal open {...props} />);
+    await userEvent.type(screen.getByRole("textbox"), "yarım kalan gerekçe");
+    rerender(<ReasonModal open={false} {...props} />);
+    rerender(<ReasonModal open {...props} />);
+    expect(await screen.findByRole("textbox")).toHaveValue("");
+  });
+
+  it("ShipOrderModal: fatura no ve not sıfırlanır", async () => {
+    const ship = { onClose: vi.fn(), onSubmit: vi.fn(), pending: false };
+    const { rerender } = render(<ShipOrderModal open {...ship} />);
+    await userEvent.type(screen.getByLabelText("Fatura Numarası *"), "FTR-1");
+    rerender(<ShipOrderModal open={false} {...ship} />);
+    rerender(<ShipOrderModal open {...ship} />);
+    expect(await screen.findByLabelText("Fatura Numarası *")).toHaveValue("");
+  });
+});

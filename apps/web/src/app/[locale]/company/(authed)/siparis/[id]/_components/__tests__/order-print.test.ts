@@ -34,6 +34,9 @@ const labels: OrderPrintLabels = {
   offered: "Teklif edilen",
   requested: "İstenen",
   notSpecified: "belirtilmedi",
+  deliveryAddress: "Teslim adresi",
+  paymentTerms: "Ödeme şartı",
+  invoiceNo: "Fatura no",
 };
 const ctx = { isSeller: false, currency: "TRY", statusLabel: "Onaylandı", labels, locale: "tr" };
 
@@ -133,5 +136,33 @@ describe("buildOrderPrintHtml — muadil kalem (arayüz testi O-003)", () => {
     expect(itemBrandLine({ isAlternative: true }, labels)).toBe(
       "Muadil — Teklif edilen: belirtilmedi",
     );
+  });
+});
+
+describe("buildOrderPrintHtml — iki taraf, adres, ödeme şartı, fatura no (arayüz testi D-111)", () => {
+  it("alıcı okurken: kendi firması alıcı, karşı taraf satıcı; ek satırlar escape'li", () => {
+    const html = buildOrderPrintHtml(
+      { ...baseOrder, invoiceNumber: "FTR-<1>" },
+      {
+        ...ctx,
+        ownCompanyName: "Alıcı A.Ş.",
+        deliveryAddress: "Merkez Depo — Organize Sanayi 3. Cad., Ankara",
+        paymentTerms: "Teslimden sonra 30 gün vadeli",
+      },
+    );
+    expect(html).toContain("<strong>Alıcı:</strong> Alıcı A.Ş.");
+    expect(html).toContain("<strong>Satıcı:</strong> Test Firma");
+    expect(html).toContain("<strong>Ödeme şartı:</strong> Teslimden sonra 30 gün vadeli");
+    expect(html).toContain("<strong>Fatura no:</strong> FTR-&lt;1&gt;");
+    expect(html).toContain("<strong>Teslim adresi:</strong> Merkez Depo");
+  });
+
+  it("satıcı okurken taraflar yer değiştirir; boş alanların satırı basılmaz", () => {
+    const html = buildOrderPrintHtml(baseOrder, { ...ctx, isSeller: true, ownCompanyName: "Satıcı Ltd." });
+    expect(html).toContain("<strong>Alıcı:</strong> Test Firma");
+    expect(html).toContain("<strong>Satıcı:</strong> Satıcı Ltd.");
+    expect(html).not.toContain("Fatura no");
+    expect(html).not.toContain("Teslim adresi");
+    expect(html).not.toContain("Ödeme şartı");
   });
 });
