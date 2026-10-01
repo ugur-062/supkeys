@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { AxiosError } from "axios";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +10,7 @@ const h = vi.hoisted(() => ({
   resendAsync: vi.fn(),
   changeEmailAsync: vi.fn(),
   search: "",
+  storeUser: null as { id: string } | null,
   setAuth: vi.fn(),
   replace: vi.fn(),
   toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() },
@@ -23,7 +25,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) =>
-    sel({ user: null, isHydrated: true }),
+    sel({ user: h.storeUser, isHydrated: true }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanySignup: () => ({ mutateAsync: h.signupAsync, isPending: false }),
@@ -60,6 +62,8 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   vi.clearAllMocks();
   h.search = "";
+  h.storeUser = null;
+  sessionStorage.clear();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -251,5 +255,81 @@ describe("CompanySignupClient — doğrulama aşaması", () => {
     // Kod adımına yeni adresle döner.
     expect(await screen.findByText("E-postanı doğrula")).toBeInTheDocument();
     expect(screen.getByText(/ada@firma\.com\.tr/)).toBeInTheDocument();
+  });
+});
+
+describe("CompanySignupClient — arayüz testi webA-02", () => {
+  async function reachVerify(user: ReturnType<typeof userEvent.setup>) {
+    h.signupAsync.mockResolvedValue({ email: "ada@firma.com" });
+    render(<CompanySignupClient />);
+    await fillValidForm(user);
+    await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
+    await screen.findByText("E-postanı doğrula");
+  }
+
+  it("O-113: zaten girişli kullanıcı `redirect`e gider (talep bağlamı korunur)", () => {
+    h.storeUser = { id: "u1" };
+    h.search = "intent=teklif&redirect=%2Fcompany%2Fsatis%3Fq%3DROT-000001%23acik-talepler";
+    render(<CompanySignupClient />);
+    expect(h.replace).toHaveBeenCalledWith("/company/satis?q=ROT-000001#acik-talepler");
+  });
+
+  it("O-113: girişli kullanıcı, site dışı `redirect` → yoksayılır, niyet yoksa `/company`", () => {
+    h.storeUser = { id: "u1" };
+    h.search = "redirect=%2F%2Fkotu.example";
+    render(<CompanySignupClient />);
+    expect(h.replace).toHaveBeenCalledWith("/company");
+  });
+
+  it("D-090 + D-351: yapıştırılan koddan rakamlar ayıklanır, Enter gönderir", async () => {
+    const user = userEvent.setup();
+    h.verifyAsync.mockResolvedValue({ token: "jwt", user: { id: "u1" }, company: { id: "c1" } });
+    await reachVerify(user);
+    const input = screen.getByLabelText("Doğrulama kodu");
+    fireEvent.change(input, { target: { value: "Kod: 123 456" } });
+    expect(input).toHaveValue("123456");
+    fireEvent.change(input, { target: { value: "12ab34cd5678" } });
+    expect(input).toHaveValue("123456");
+    await user.type(input, "{Enter}");
+    expect(h.verifyAsync).toHaveBeenCalledWith({ email: "ada@firma.com", code: "123456" });
+  });
+
+  it("Y-08: doğrulamada niyet + dönüş adresi saklanır, form `/company`ye gider", async () => {
+    const user = userEvent.setup();
+    h.search = "intent=teklif&redirect=%2Fcompany%2Filan%2Fl1";
+    h.verifyAsync.mockResolvedValue({ token: "jwt", user: { id: "u1" }, company: { id: "c1" } });
+    await reachVerify(user);
+    await user.type(screen.getByLabelText("Doğrulama kodu"), "123456{Enter}");
+    expect(sessionStorage.getItem("rothern.signup-redirect")).toBe("/company/ilan/l1");
+    expect(h.replace).toHaveBeenCalledWith("/company");
+  });
+
+  it("D-066: kod adımında dil seçici yok (form adımında var)", async () => {
+    const user = userEvent.setup();
+    h.signupAsync.mockResolvedValue({ email: "ada@firma.com" });
+    render(<CompanySignupClient />);
+    expect(screen.getByRole("button", { name: "Dil" })).toBeInTheDocument();
+    await fillValidForm(user);
+    await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
+    await screen.findByText("E-postanı doğrula");
+    expect(screen.queryByRole("button", { name: "Dil" })).toBeNull();
+  });
+
+  it("D-066: e-posta zaten kayıtlı (409) → hata yanında giriş bağlantısı", async () => {
+    const user = userEvent.setup();
+    h.signupAsync.mockRejectedValue(
+      new AxiosError("conflict", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 409,
+        data: { message: "Bu e-posta ile zaten bir hesap var." },
+        statusText: "Conflict",
+        headers: {},
+        config: {} as never,
+      } as never),
+    );
+    render(<CompanySignupClient />);
+    await fillValidForm(user);
+    await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
+    const link = await screen.findByRole("link", { name: /Giriş yapın; e-postanız doğrulanmadıysa/ });
+    expect(link).toHaveAttribute("href", "/company/login");
   });
 });

@@ -11,6 +11,7 @@ import {
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
 import { setCompanyRemember } from "@/lib/company-auth/store";
+import { normalizeOtpCode, OTP_LENGTH } from "@/lib/company-auth/otp-code";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
@@ -69,6 +70,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -93,6 +95,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         setTwoFactor(true);
         // E-posta yönteminde backend kodu zaten gönderdi; UI mesajını uyarlar.
         setTwoFactorMethod(res.method ?? "authenticator");
+        // Kod az önce gitti — "yeniden gönder" 60 sn sonra açılır.
+        if (res.method === "email") setCooldown(60);
         return;
       }
       // Cookie (API) + istemci snapshot'ı aynı "hatırla" tercihine göre.
@@ -165,9 +169,34 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     }
   };
 
+  // E-posta 2FA kodunu YENİDEN gönder (arayüz testi D-346): kodsuz giriş
+  // isteği sunucuda yeni kod üretip gönderir — ayrı uç yok, aynı kapı (hız
+  // sınırı + şifre kontrolü) geçerli.
+  const resendTwoFactor = () => lock.run(doResendTwoFactor);
+  const doResendTwoFactor = async () => {
+    if (cooldown > 0) return;
+    setFormError(null);
+    try {
+      const res = await login.mutateAsync({ ...getValues(), code: undefined, rememberMe: remember });
+      if ("twoFactorRequired" in res) {
+        setCooldown(60);
+        toast.success(tc("newCodeSent"));
+      }
+    } catch (err) {
+      setFormError(extractErrorMessage(err, tc("codeSendFailed")));
+    }
+  };
+
   if (needsVerify) {
     return (
-      <div className="space-y-4">
+      // `<form>`: Enter kodu gönderir (arayüz testi D-090).
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (verifyCode.length === OTP_LENGTH) void submitVerify();
+        }}
+      >
         <p className="text-sm text-zinc-600">
           {tc.rich("codeSentTo", { email: verifyEmail, b: (chunks) => <strong>{chunks}</strong> })}
         </p>
@@ -176,10 +205,9 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           <Input
             inputMode="numeric"
             autoComplete="one-time-code"
-            maxLength={6}
             placeholder={tc("codePlaceholder")}
             value={verifyCode}
-            onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setVerifyCode(normalizeOtpCode(e.target.value))}
           />
         </Field>
         {formError ? (
@@ -188,9 +216,9 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           </div>
         ) : null}
         <Button
+          type="submit"
           className="w-full"
-          disabled={verifyCode.length !== 6 || verify.isPending || lock.locked}
-          onClick={() => void submitVerify()}
+          disabled={verifyCode.length !== OTP_LENGTH || verify.isPending || lock.locked}
         >
           {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
         </Button>
@@ -206,7 +234,20 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
               ? tc("sending")
               : tc("resend")}
         </button>
-      </div>
+        {/* Geri dönüş (D-346): yanlış adresle girildiyse doğrulama modunda
+            sıkışılmaz — giriş formuna, başka e-postaya. */}
+        <button
+          type="button"
+          onClick={() => {
+            setNeedsVerify(false);
+            setVerifyCode("");
+            setFormError(null);
+          }}
+          className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"
+        >
+          {t("useAnotherEmail")}
+        </button>
+      </form>
     );
   }
 
@@ -242,6 +283,16 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           <p className="mt-1 text-xs text-zinc-500">
             {twoFactorMethod === "email" ? t("hintEmail") : t("hintAuthenticator")}
           </p>
+          {twoFactorMethod === "email" ? (
+            <button
+              type="button"
+              disabled={login.isPending || cooldown > 0 || lock.locked}
+              onClick={() => void resendTwoFactor()}
+              className="mt-1 text-xs font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+            >
+              {cooldown > 0 ? tc("resendIn", { s: cooldown }) : tc("resend")}
+            </button>
+          ) : null}
         </Field>
       ) : null}
 

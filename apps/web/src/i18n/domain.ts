@@ -1,5 +1,5 @@
 import { closingUrgency as closingUrgencyClass, daysUntil } from "@/lib/tenders/seller-state";
-import { companyActivityLabel, countryName as countryNameTr, parseSystemText, paymentMethodCode, provinceDisplayName } from "@rothern/shared";
+import { COUNTRY_NAMES_I18N, companyActivityLabel, countryName as countryNameTr, parseSystemText, paymentMethodCode, provinceDisplayName } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDate, type DateVariant } from "@/lib/format-date";
@@ -13,27 +13,18 @@ import { moneyInputError } from "@/lib/money-input";
  * Alan sözlükleri — dil farkında (i18n Faz 1). Paylaşılan paketteki Türkçe
  * yardımcılar (`companyActivityLabel`, `scopeLabel`, `closingUrgency`) API ve
  * panel için tek kaynak olarak kalır; web'in dil bilen yüzeyleri bu hook'ları
- * kullanır. Ülke adı ISO kodlarında `Intl.DisplayNames`tan gelir (245 ülkeyi
- * üç dilde elle yazmadan); Türkçe ad paylaşılan tam listeden (statik — sunucu
- * ile tarayıcının ICU farkı hidrasyon uyuşmazlığı üretmesin). KKTC (`XN`)
- * ISO'da yok, `Intl` tanımaz → elle.
+ * kullanır. Ülke adı üç dilde de STATİK tablodan: Türkçe `COUNTRY_TABLE`,
+ * İngilizce/Rusça `COUNTRY_NAMES_I18N` (`@rothern/shared`). Eskiden EN/RU
+ * `Intl.DisplayNames`ten geliyordu; sunucu (Node ICU) ile tarayıcı farklı ad
+ * basıyordu ("Hong Kong SAR China" / "Hong Kong") ve telefon ülke listesi
+ * EN/RU kayıt sayfasında her yüklemede hidrasyon hatası veriyordu (arayüz
+ * testi O-019). Tabloda olmayan kod Türkçe ada (o da yoksa koda) düşer.
  */
 
-const NON_ISO_NAMES: Partial<Record<Locale, Record<string, string>>> = {
-  en: { XN: "Northern Cyprus" },
-  ru: { XN: "Северный Кипр" },
-};
-
 export function countryDisplayName(code: string, locale: Locale): string {
-  const override = NON_ISO_NAMES[locale]?.[code];
-  if (override) return override;
-  if (locale !== DEFAULT_LOCALE && /^[A-Z]{2}$/.test(code) && code !== "XN") {
-    try {
-      const name = new Intl.DisplayNames([locale], { type: "region" }).of(code);
-      if (name && name !== code) return name;
-    } catch {
-      // eski çalışma zamanı — Türkçe ada düş
-    }
+  if (locale !== DEFAULT_LOCALE) {
+    const names = COUNTRY_NAMES_I18N[code];
+    if (names) return locale === "ru" ? names[1] : names[0];
   }
   return countryNameTr(code);
 }

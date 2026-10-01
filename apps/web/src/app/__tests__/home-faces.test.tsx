@@ -202,6 +202,8 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(teklif).toHaveLength(3);
     // Tedarikçi yüzünde YEŞİL dolgulu düğme (2026-09-18, kullanıcı).
     expect(teklif[0]!.className).toContain("bg-emerald-600");
+    // Dönüş PANEL karşılığına (O-113): herkese açık talep sayfası değil.
+    expect(teklif[0]!.getAttribute("href")).toContain("intent=teklif&redirect=%2Fcompany%2Fsatis%3Fq%3D");
   });
 
   it("TEDARİKÇİ gövdesi: üye verisi (KPI, sağlık kartları, uygunluk) YOK", () => {

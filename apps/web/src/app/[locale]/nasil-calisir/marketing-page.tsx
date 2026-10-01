@@ -1108,8 +1108,15 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
+                {/* Ücretli planda seçilen paket kayıt niyetiyle taşınır: kayıt +
+                    onboarding sonrası (ya da zaten girişliyse hemen) o paketin
+                    satın alma ekranına düşer (arayüz testi D-062). */}
                 <Link
-                  href="/company/kayit"
+                  href={
+                    tier.price === null
+                      ? signupHref()
+                      : signupHref(undefined, `/company/premium/satin-al?paket=${tier.slug}`)
+                  }
                   className={
                     tier.price === null
                       ? "mt-8 flex items-center justify-center gap-2 rounded-lg px-3.5 py-3 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"

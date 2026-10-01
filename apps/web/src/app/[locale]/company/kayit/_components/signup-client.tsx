@@ -3,6 +3,7 @@
 import {
   parseSignupIntent,
   rememberSignupIntent,
+  signupIntentTarget,
   type SignupIntent,
 } from "@/lib/company/signup-intent";
 
@@ -22,6 +23,7 @@ import {
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
 import { usePasswordRules } from "@/lib/company-auth/password-rules";
+import { normalizeOtpCode } from "@/lib/company-auth/otp-code";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { api } from "@/lib/api";
@@ -31,7 +33,8 @@ import { isValidPhoneNumber } from "@rothern/shared";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
@@ -111,10 +114,21 @@ export function CompanySignupClient() {
   // değişir (derin denetim LU-22).
   const [newEmail, setNewEmail] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  // Kayıtta e-posta zaten kayıtlı (409): hata yanında giriş bağlantısı —
+  // doğrulanmamış hesap girişte kod adımına geçer (arayüz testi D-066).
+  const [accountExists, setAccountExists] = useState(false);
+  // Kod doğrulandı, oturum bu formda AÇILDI: yönlendirme `doSubmitCode`un
+  // (`/company` kökü niyeti onboarding'den sonra okur); aşağıdaki "zaten
+  // girişli" kestirmesi devreye girip onboarding'i atlatmasın.
+  const justVerified = useRef(false);
 
+  // ZATEN GİRİŞLİ ziyaretçi (arayüz testi O-113): "Teklif ver" / "Bilgi iste"
+  // gibi kayıt CTA'larından geldiyse `redirect`e (yoksa niyetin hedefine)
+  // gider; eskiden hep `/company`ye atılıyor, tıkladığı talep kayboluyordu.
   useEffect(() => {
-    if (isHydrated && user) router.replace("/company");
-  }, [isHydrated, user, router]);
+    if (!isHydrated || !user || justVerified.current) return;
+    router.replace(signupIntentTarget(intent, redirect) ?? "/company");
+  }, [isHydrated, user, router, intent, redirect]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -152,6 +166,7 @@ export function CompanySignupClient() {
   const submitForm = () => lock.run(doSubmitForm);
   const doSubmitForm = async () => {
     setError(null);
+    setAccountExists(false);
     try {
       const res = await signup.mutateAsync({
         firstName: form.firstName.trim(),
@@ -179,6 +194,7 @@ export function CompanySignupClient() {
         toast.success(t("codeSent"));
       }
     } catch (err) {
+      setAccountExists(axios.isAxiosError(err) && err.response?.status === 409);
       setError(extractErrorMessage(err, t("failed")));
     }
   };
@@ -194,8 +210,9 @@ export function CompanySignupClient() {
         router.replace("/company/login");
         return;
       }
-      setAuth({ user: res.user, company: res.company });
+      justVerified.current = true;
       rememberSignupIntent(intent, redirect);
+      setAuth({ user: res.user, company: res.company });
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, tc("codeVerifyFailed")));
@@ -242,7 +259,7 @@ export function CompanySignupClient() {
 
   if (step === "verify" && newEmail != null) {
     return (
-      <AuthShell title={t("changeEmailTitle")} subtitle={t("changeEmailSubtitle")} footer={null}>
+      <AuthShell title={t("changeEmailTitle")} subtitle={t("changeEmailSubtitle")} footer={null} hideLanguageSwitcher>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -297,17 +314,24 @@ export function CompanySignupClient() {
         title={t("verifyTitle")}
         subtitle={t("verifySubtitle", { email: form.email })}
         footer={null}
+        hideLanguageSwitcher
       >
-        <div className="space-y-4">
+        {/* `<form>`: Enter kodu gönderir (arayüz testi D-090). */}
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (code.length === 6) void submitCode();
+          }}
+        >
           <Field>
             <Label>{tc("code")}</Label>
             <Input
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
               placeholder={tc("codePlaceholder")}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setCode(normalizeOtpCode(e.target.value))}
             />
           </Field>
           {error ? (
@@ -316,9 +340,9 @@ export function CompanySignupClient() {
             </div>
           ) : null}
           <Button
+            type="submit"
             className="w-full"
             disabled={code.length !== 6 || verify.isPending || lock.locked}
-            onClick={() => void submitCode()}
           >
             {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
           </Button>
@@ -344,7 +368,7 @@ export function CompanySignupClient() {
           >
             {t("changeEmail")}
           </button>
-        </div>
+        </form>
       </AuthShell>
     );
   }
@@ -428,6 +452,14 @@ export function CompanySignupClient() {
         {error ? (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
+            {accountExists ? (
+              <>
+                {" "}
+                <Link href="/company/login" className="font-semibold underline underline-offset-2">
+                  {t("accountExistsLogin")}
+                </Link>
+              </>
+            ) : null}
           </div>
         ) : null}
 

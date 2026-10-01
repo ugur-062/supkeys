@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format-date";
 import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
-import { signupHref } from "@/lib/public/visibility";
+import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { useActivityLabel, useCityLabel, useClosingUrgency, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
@@ -155,7 +155,10 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         ),
       },
     ],
-    action: state === "open" ? { label: t("quote"), href: signupHref("teklif", href) } : null,
+    // Dönüş PANEL karşılığına (arayüz testi O-113): herkese açık talep sayfası
+    // aynı kayıt düğmesini yeniden gösteriyordu; girişli kullanıcıyı kayıt
+    // sayfası bu adrese geçirir.
+    action: state === "open" ? { label: t("quote"), href: signupHref("teklif", PANEL_TARGET.listing(l.number)) } : null,
   };
 
   return <ListingCard variant="row" data={data} />;

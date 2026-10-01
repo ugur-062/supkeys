@@ -23,6 +23,11 @@ import { LanguageSwitcher } from "./language-switcher";
  * sıfırlama bu kabukta; pazarlama üst çubuğu yok. Seçici olmadan davetli
  * kabul etmeden önce dili değiştiremiyordu (hesap kabul sayfasının dilinde
  * doğar). Aynı bileşen: aynı sayfa, yeni dilin ön ekiyle.
+ *
+ * `hideLanguageSwitcher` (arayüz testi D-066): kayıtın KOD adımında hesap
+ * zaten açılmış ve dili belli; dil değiştirmek sayfayı yeni ön ekle yeniden
+ * yüklüyor, bellekteki adım kayboluyor ve aynı bilgilerle yeniden kayıt 409
+ * veriyordu. O adımda seçici çizilmez.
  */
 
 export function AuthShell({
@@ -30,11 +35,13 @@ export function AuthShell({
   subtitle,
   children,
   footer,
+  hideLanguageSwitcher = false,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   footer: ReactNode;
+  hideLanguageSwitcher?: boolean;
 }) {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 py-6">
@@ -70,9 +77,11 @@ export function AuthShell({
         className="rt-float-slow absolute bottom-0 left-1/3 -z-10 size-[28rem] rounded-full bg-violet-400/10 blur-[100px]"
       />
 
-      <div className="absolute top-4 right-4 z-10">
-        <LanguageSwitcher />
-      </div>
+      {hideLanguageSwitcher ? null : (
+        <div className="absolute top-4 right-4 z-10">
+          <LanguageSwitcher />
+        </div>
+      )}
 
       {/* ortadaki kart */}
       <div className="relative w-full max-w-md">

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
-import { signupHref } from "@/lib/public/visibility";
+import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
 import { useActivityLabel, useCityLabel, useQuantityLabel, useScopeLabel } from "@/i18n/domain";
 import { useFormatter, useTranslations } from "next-intl";
@@ -130,7 +130,9 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-5">
           <span className="tnum text-xs font-medium text-zinc-500">{l.number}</span>
-          <Button href={signupHref("teklif", href)} className="relative z-10">
+          {/* Dönüş PANEL karşılığına: herkese açık sayfa aynı kayıt düğmesini
+              yeniden gösteriyordu (arayüz testi O-113). */}
+          <Button href={signupHref("teklif", PANEL_TARGET.listing(l.number))} className="relative z-10">
             {t("quote")}
           </Button>
         </div>

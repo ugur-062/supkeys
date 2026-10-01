@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -159,5 +159,75 @@ describe("CompanyLoginForm", () => {
     expect(
       await screen.findByRole("button", { name: "Giriş Yap" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("CompanyLoginForm — arayüz testi webA-02", () => {
+  async function reachVerifyMode(user: ReturnType<typeof userEvent.setup>) {
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    await screen.findByText(/gönderilen 6 haneli kodu girin/i);
+  }
+
+  it("D-090 + D-351: doğrulama modunda yapıştırılan kod ayıklanır, Enter gönderir", async () => {
+    const user = userEvent.setup();
+    h.verifyAsync.mockResolvedValue({ token: "jwt", user: { id: "u1" }, company: { id: "c1" } });
+    await reachVerifyMode(user);
+    const input = screen.getByLabelText("Doğrulama kodu");
+    fireEvent.change(input, { target: { value: "Kod: 123456" } });
+    expect(input).toHaveValue("123456");
+    await user.type(input, "{Enter}");
+    expect(h.verifyAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "ada@firma.com", code: "123456" }),
+    );
+  });
+
+  it("D-346: doğrulama modundan başka e-postayla girişe dönülür", async () => {
+    const user = userEvent.setup();
+    await reachVerifyMode(user);
+    await user.click(screen.getByRole("button", { name: /Başka bir e-postayla giriş yap/ }));
+    expect(await screen.findByRole("button", { name: "Giriş Yap" })).toBeInTheDocument();
+    expect(screen.queryByText(/gönderilen 6 haneli kodu girin/i)).toBeNull();
+  });
+
+  it("D-346: e-posta 2FA adımında kod yeniden gönderilir (kodsuz giriş), 60 sn bekleme", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      h.loginAsync.mockResolvedValue({ twoFactorRequired: true, method: "email" });
+      render(<CompanyLoginForm nextPath="/company" />);
+      await login(user);
+      // İlk kod az önce gitti → düğme geri sayımda.
+      const btn = await screen.findByRole("button", { name: /Yeniden gönder \(\d+sn\)/ });
+      expect(btn).toBeDisabled();
+      // Geri sayım saniyede bir zincirli zamanlayıcı → saniye saniye ilerlet.
+      for (let i = 0; i < 61; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+      h.loginAsync.mockClear();
+      await user.click(await screen.findByRole("button", { name: "Kodu yeniden gönder" }));
+      expect(h.loginAsync).toHaveBeenCalledWith({
+        email: "ada@firma.com",
+        password: "parola123",
+        code: undefined,
+        rememberMe: true,
+      });
+      expect(h.toast.success).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("authenticator 2FA adımında 'yeniden gönder' YOK", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockResolvedValue({ twoFactorRequired: true, method: "authenticator" });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    await screen.findByText(/iki adımlı doğrulama açık/i);
+    expect(screen.queryByRole("button", { name: /yeniden gönder/i })).toBeNull();
   });
 });

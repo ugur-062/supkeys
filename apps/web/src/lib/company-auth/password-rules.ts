@@ -24,15 +24,25 @@ const TESTS: ReadonlyArray<Pick<PasswordRule, "key" | "test">> = [
   { key: "special", test: (p) => PASSWORD_SPECIAL_RE.test(p) },
 ];
 
+/**
+ * Güç etiketinin kademesi (0..5). Kuralların HEPSİ zorunlu: biri eksikken
+ * şifre gönderilemez, o yüzden etiket "Orta"yı (s2) aşmaz — eskiden 4/5 kural
+ * "Güçlü" diyordu ama gönder düğmesi pasifti (arayüz testi D-087).
+ */
+export function strengthLevel(score: number, total: number = TESTS.length): number {
+  if (score >= total) return 5;
+  return Math.max(0, Math.min(2, score));
+}
+
 export function usePasswordRules(): {
   rules: PasswordRule[];
-  /** 0..rules.length → "Çok Zayıf" … "Çok Güçlü" */
+  /** 0..rules.length → "Çok Zayıf" … "Çok Güçlü" (eksik zorunlu kuralda en çok "Orta") */
   strength: (score: number) => string;
 } {
   const t = useTranslations("web.auth.pwRules");
   const ts = useTranslations("web.auth.strength");
   return {
     rules: TESTS.map((r) => ({ ...r, label: t(r.key) })),
-    strength: (score) => ts(`s${Math.max(0, Math.min(5, score))}` as never),
+    strength: (score) => ts(`s${strengthLevel(score)}` as never),
   };
 }

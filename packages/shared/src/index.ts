@@ -18,6 +18,7 @@ export * from "./helpers/system-text";
 export * from "./constants/limits";
 export * from "./data/turkey-locations";
 export * from "./data/countries";
+export * from "./data/country-names-i18n";
 export * from "./data/country-profiles";
 export * from "./data/phone-codes";
 export * from "./data/iban-countries";

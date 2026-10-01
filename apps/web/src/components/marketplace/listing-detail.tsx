@@ -286,6 +286,7 @@ export function ListingDetail({
                   label={t("gateLabel")}
                   hint={t("gateHint")}
                   redirect={PANEL_TARGET.listing(listing.number)}
+                  signup={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
                 />
               </section>
             ) : null}
@@ -380,9 +381,10 @@ export function ListingDetail({
                     {/* Yalnız belirli ülkelere açık talepte kimin teklif
                         verebileceği KAYITTAN ÖNCE söylenir (2026-09-27). */}
                     <ListingEligibilityNote targetCountries={listing.targetCountries} />
-                    {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
+                    {/* Kayıt sonrası AYNI talebin PANEL karşılığına döner
+                        (intent=teklif + redirect; arayüz testi O-113). */}
                     <AccentLink
-                      href={signupHref("teklif", listingHref(listing))}
+                      href={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
                       className="block rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition"
                     >
                       {t("signupCta")}

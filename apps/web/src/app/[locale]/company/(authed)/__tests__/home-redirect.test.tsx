@@ -35,6 +35,7 @@ import CompanyHome from "../page";
 beforeEach(() => {
   vi.clearAllMocks();
   h.canAct = false;
+  h.auth = { user: { roles: [] }, company: { tier: "GOLD" } };
   h.me = { data: { company: { onboardingCompletedAt: "2026-09-01T00:00:00Z" } }, isError: false };
   sessionStorage.clear();
 });
@@ -78,5 +79,24 @@ describe("/company kök yönlendirme", () => {
     view.rerender(<CompanyHome />);
     expect(h.replace).toHaveBeenCalledWith("/company/ilan/l1");
     expect(sessionStorage.getItem("rothern.signup-redirect")).toBeNull();
+  });
+
+  it("niyet varken `/me` ikinci kez yazılsa da TEK yönlendirme, niyetin adresine (Y-08)", () => {
+    sessionStorage.setItem("rothern.signup-redirect", "/company/ilan/l9");
+    h.auth.user = { roles: ["SATISCI"] };
+    const view = render(<CompanyHome />);
+    // Aynı turda kullanıcı ve `/me` YENİ nesnelerle yeniden yazılır → efekt
+    // yeniden çalışır; ikinci çalışma boş niyetle `/company/satis`e gitmemeli.
+    h.auth = { ...h.auth, user: { roles: ["SATISCI"] } };
+    h.me = { data: { company: { onboardingCompletedAt: "2026-09-02T00:00:00Z" } }, isError: false };
+    view.rerender(<CompanyHome />);
+    expect(h.replace).toHaveBeenCalledTimes(1);
+    expect(h.replace).toHaveBeenCalledWith("/company/ilan/l9");
+  });
+
+  it("Silver firmada yalnız Satın Almacı → satınalma paneline (paket kapısı), Ayarlar'a değil (D-179)", () => {
+    h.auth = { user: { roles: ["SATIN_ALMACI"] }, company: { tier: "SILVER" } };
+    render(<CompanyHome />);
+    expect(h.replace).toHaveBeenCalledWith("/company/satinalma");
   });
 });

@@ -64,6 +64,18 @@ export function rememberSignupIntent(intent: SignupIntent, redirect?: string | n
   }
 }
 
+/**
+ * Niyetin hedefi — `redirect` (site içi) niyetin kendi hedefinden ÖNCE gelir.
+ * Zaten girişli ziyaretçi kayıt sayfasına bir CTA'dan geldiğinde buraya
+ * gider (arayüz testi O-113); kayıt sonrası aynı kural `consumeSignupIntent`.
+ */
+export function signupIntentTarget(
+  intent: SignupIntent | null,
+  redirect?: string | null,
+): string | null {
+  return safe(redirect) ?? (intent ? SIGNUP_INTENTS[intent].href : null);
+}
+
 /** Okur ve SİLER — tek kullanımlık. `redirect` niyet hedefinden ÖNCE gelir. */
 export function consumeSignupIntent(): string | null {
   try {
@@ -71,7 +83,7 @@ export function consumeSignupIntent(): string | null {
     const intent = parseSignupIntent(sessionStorage.getItem(KEY));
     sessionStorage.removeItem(KEY);
     sessionStorage.removeItem(REDIRECT_KEY);
-    return redirect ?? (intent ? SIGNUP_INTENTS[intent].href : null);
+    return signupIntentTarget(intent, redirect);
   } catch {
     return null;
   }

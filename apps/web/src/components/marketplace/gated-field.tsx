@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { loginHref } from "@/lib/public/visibility";
+import { loginHref, signupHref } from "@/lib/public/visibility";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { LockClosedIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -17,6 +17,7 @@ import { Link } from "@/i18n/navigation";
 export function GatedField({
   label,
   redirect,
+  signup,
   size = "inline",
   hint,
   className,
@@ -25,6 +26,12 @@ export function GatedField({
   label: string;
   /** Giriş sonrası düşülecek panel yolu. */
   redirect?: string;
+  /**
+   * Box'taki kayıt bağlantısı (niyet + dönüş, `signupHref`). Verilmezse
+   * kayıt da `redirect`e döner — eskiden çıplak `/company/kayit`ti, niyet ve
+   * dönüş adresi kayboluyordu (arayüz testi D-332).
+   */
+  signup?: string;
   size?: "inline" | "box";
   /** Box: ikinci satır açıklama. */
   hint?: string;
@@ -49,7 +56,7 @@ export function GatedField({
           >
             {t("login")}
           </AccentLink>
-          <Link href="/company/kayit" className="font-medium text-zinc-700 hover:underline">
+          <Link href={signup ?? signupHref(undefined, redirect)} className="font-medium text-zinc-700 hover:underline">
             {t("signup")}
           </Link>
         </div>

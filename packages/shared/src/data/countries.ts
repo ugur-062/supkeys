@@ -11,7 +11,8 @@
  *
  * VERİ STATİK, bilinçli: ad `Intl.DisplayNames`ten türetilseydi sunucu (Node
  * ICU) ile tarayıcı farklı ad basıp hidrasyon uyuşmazlığı üretebilirdi. EN/RU
- * adları gösterimde `Intl` ile gelir (`countryDisplayName`); Türkçe ad buradan.
+ * adları da statik: `country-names-i18n.ts` (`countryDisplayName` okur; arayüz
+ * testi O-019). Türkçe ad buradan. Yeni kod = iki tabloya da satır.
  *
  * Telefon kodu: tek alan kodlu NANP ada ülkeleri kendi alan koduyla (1268,
  * 1876…) — "+1" tek başına ABD/Kanada; ortak kodlarda ayrıştırıcı birincil
