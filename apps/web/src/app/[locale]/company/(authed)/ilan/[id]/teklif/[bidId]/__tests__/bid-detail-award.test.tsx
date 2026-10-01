@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   preview: vi.fn(),
   confirm: vi.fn(),
   perms: ["buy:listing:manage", "buy:award"] as string[],
+  company: null as Record<string, unknown> | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -27,7 +28,7 @@ vi.mock("@/components/providers/confirm-dialog", () => ({
   useConfirm: () => h.confirm,
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useCompanyAuth: () => ({ user: { id: "u1" }, company: null }),
+  useCompanyAuth: () => ({ user: { id: "u1" }, company: h.company }),
   useHasCompanyPermission: (p: string) => h.perms.includes(p),
 }));
 vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
@@ -84,6 +85,7 @@ const DAY = 86_400_000;
 beforeEach(() => {
   vi.clearAllMocks();
   h.perms = ["buy:listing:manage", "buy:award"];
+  h.company = null;
   h.award.mockResolvedValue({ pendingApproval: false, number: "ORD-2026-0001" });
   h.preview.mockResolvedValue({ requiresApproval: false });
   h.confirm.mockResolvedValue(true);
@@ -138,6 +140,17 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Kazandır" }));
     await waitFor(() => expect(h.preview).toHaveBeenCalled());
     expect(h.award).not.toHaveBeenCalled();
+  });
+
+  it("doğrulanmamış alıcıda Kazandır pasif + doğrulama ipucu (arayüz testi D-044)", () => {
+    h.company = { id: "c1", tier: "GOLD", companyVerificationStatus: "UNVERIFIED" };
+    h.detail = detail();
+    render(<BidDetailPage />);
+    expect(screen.getByRole("button", { name: "Kazandır" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Doğrulamayı tamamlayın" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
   });
 
   it("buy:award izni yoksa Kazandır gösterilmez, Ele kalır (derin denetim LU-21)", () => {

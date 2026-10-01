@@ -32,7 +32,9 @@ export function ShareListing({ publicPath, title, compact = false }: { publicPat
       await navigator.clipboard.writeText(url);
       toast.success(t("copied"));
     } catch {
-      // pano izni yok — sessiz
+      // Pano izni yok / desteklenmiyor — sessiz kalmak tıklamayı boşa
+      // düşürüyordu (arayüz testi D-253).
+      toast.error(t("copyFailed"));
     }
   };
   return (

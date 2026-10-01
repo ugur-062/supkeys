@@ -3774,7 +3774,17 @@ export class CompanyListingsService {
         this.prisma.companyOrder.findMany({
           where: { listingId: id, buyerCompanyId: user.companyId },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          select: { id: true, number: true, status: true },
+          // Arayüz testi O-028: kalem bazlı kazandırmada bir sipariş reddedilince
+          // talep AWARDED kalır (öteki sipariş sürüyor) — sahip hangi kalemlerin
+          // tedariksiz kaldığını ve satıcının gerekçesini görmeli.
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            sellerCompanyId: true,
+            rejectedReason: true,
+            items: { select: { name: true }, orderBy: { id: "asc" } },
+          },
         }),
       ]);
       // A2 fix: sahip-detay teklif sıralaması TEK KAYNAK — yetkili karşılaştırıcı
@@ -3827,7 +3837,14 @@ export class CompanyListingsService {
         myOrder: orders[0]
           ? { id: orders[0].id, number: orders[0].number, status: orders[0].status }
           : null,
-        orders: orders.map((o) => ({ id: o.id, number: o.number, status: o.status })),
+        orders: orders.map((o) => ({
+          id: o.id,
+          number: o.number,
+          status: o.status,
+          sellerCompanyId: o.sellerCompanyId,
+          rejectedReason: o.status === "REJECTED" ? o.rejectedReason : null,
+          itemNames: o.items.map((it) => it.name),
+        })),
         invitations: invitations.map((iv) => ({
           companyName: iv.invitedCompany.name,
           rothernId: iv.invitedCompany.rothernId,
@@ -6285,6 +6302,11 @@ export class CompanyListingsService {
   private async buildItemGroups(
     listingId: string,
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+    // Arayüz testi D-104: kullanıcının girdiği kazandırma (önizleme + kazandır)
+    // kalem miktarını aşan kısmi miktarı 400 ile reddeder; eskiden sessizce
+    // kırpılıyordu. Onay sonrası yürütme (`runItemAward`) eski bekleyen
+    // istekleri bozmamak için kırpmayı sürdürür.
+    opts: { strictQuantity?: boolean } = {},
   ) {
     const items = await this.prisma.listingItem.findMany({
       where: { listingId },
@@ -6372,6 +6394,19 @@ export class CompanyListingsService {
         );
       }
       const fullQty = Number(li.quantity);
+      if (
+        opts.strictQuantity &&
+        a.awardedQuantity != null &&
+        a.awardedQuantity > fullQty
+      ) {
+        throw new BadRequestException(
+          i18nMessage(
+            "api.companyListings.kazandirilacakMiktarKalemMiktariniAsamaz",
+            { name: li.name },
+            "AWARD_QUANTITY_EXCEEDS_ITEM",
+          ),
+        );
+      }
       const qty =
         a.awardedQuantity != null && a.awardedQuantity > 0
           ? Math.min(a.awardedQuantity, fullQty)
@@ -6471,7 +6506,9 @@ export class CompanyListingsService {
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
     auctionSnap: unknown,
   ): Promise<Prisma.Decimal | null> {
-    const { groups } = await this.buildItemGroups(listingId, itemAwards);
+    const { groups } = await this.buildItemGroups(listingId, itemAwards, {
+      strictQuantity: true,
+    });
     let total = new Prisma.Decimal(0);
     for (const g of groups.values()) {
       const tv = this.toTryAmount(

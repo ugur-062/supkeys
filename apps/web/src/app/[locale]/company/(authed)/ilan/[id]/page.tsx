@@ -54,7 +54,7 @@ import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useListingDocuments } from "@/hooks/use-listing-documents";
 import { BUYING_TIER, foldSearchText, tierAtLeast } from "@rothern/shared";
-import { buyingGate } from "@/lib/public/member-gate";
+import { buyingGate, VERIFY_HREF } from "@/lib/public/member-gate";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { activePortalFromPath } from "@/lib/company/portals";
 import { usePortalStore } from "@/lib/company/portal-store";
@@ -70,7 +70,7 @@ import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { useFormatMoney } from "@/components/ui/money";
-import { formatPercent, intlLocale } from "@/i18n/format";
+import { formatNumber, formatPercent, intlLocale } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
 import { orderStatusMeta } from "@/lib/orders/order-status";
@@ -308,12 +308,24 @@ export default function ListingDetailPage() {
   // tablosunda "Kazandırma" verilmemiş üyeye Kazandır / Kalem bazlı
   // kazandır sunulmaz (derin denetim LU-21). Ele buy:listing:manage ile kalır.
   const hasAwardPermission = useHasCompanyPermission("buy:award");
+  // Onay isteğini iptal: API başlatan VEYA approvals:manage (arayüz testi D-252).
+  const hasApprovalsManage = useHasCompanyPermission("approvals:manage");
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
-  const [bidView, setBidView] = useState<"all" | "complete" | "incomplete">(
-    "all",
+  // Gelen Teklifler süzgeci ?teklifler= ile taşınır — teklif detayından geri
+  // dönünce seçim korunur (arayüz testi D-109; ?tab= ile aynı kalıp).
+  const rawBidView = searchParams.get("teklifler");
+  const [bidView, setBidViewState] = useState<"all" | "complete" | "incomplete">(
+    rawBidView === "complete" || rawBidView === "incomplete" ? rawBidView : "all",
   );
+  const setBidView = (v: "all" | "complete" | "incomplete") => {
+    setBidViewState(v);
+    const u = new URL(window.location.href);
+    if (v === "all") u.searchParams.delete("teklifler");
+    else u.searchParams.set("teklifler", v);
+    window.history.replaceState(null, "", u.toString());
+  };
   // Kalem araması — çok kalemli ihalede (>10) liste ve karşılaştırma tablosu
   // aramasız kullanılamaz hale geliyor; iki sekme ayrı kutu/ayrı durum taşır.
   const [itemSearch, setItemSearch] = useState("");
@@ -484,6 +496,11 @@ export default function ListingDetailPage() {
   const bidsForItem = (itemId: string) =>
     rankBidsForItem(l?.bids ?? [], itemId);
 
+  const itemQtyExceeds = (itemId: string, quantity: string | number) => {
+    const q = Number(itemQty[itemId]);
+    return Number.isFinite(q) && q > Number(quantity);
+  };
+
   const startItemAward = () => {
     const winners: Record<string, string> = {};
     for (const it of l?.items ?? []) {
@@ -524,6 +541,15 @@ export default function ListingDetailPage() {
 
   const handleAwardByItem = async () => {
     const items = l?.items ?? [];
+    // Kalem miktarını aşan kısmi miktar (arayüz testi D-104): sunucu 400
+    // verir; onay penceresi açılmadan alan üzerinde söylenir.
+    const overQty = items.find(
+      (it) => itemWinners[it.id] && itemQtyExceeds(it.id, it.quantity),
+    );
+    if (overQty) {
+      toast.error(t("kazandirilacakMiktarKalemMiktariniAsamaz", { name: overQty.name }));
+      return;
+    }
     const itemAwards = items
       .map((it) => {
         const q = Number(itemQty[it.id]);
@@ -680,8 +706,20 @@ export default function ListingDetailPage() {
       : !b.currency || b.currency === "TRY"
         ? Number(b.amount)
         : null;
+  // Kazandırılabilir teklif: canlı (SUBMITTED) ∧ geçerliliği dolmamış — kalem
+  // seçimi, hücre, "En iyi" rozeti ve tasarruf kıyası aynı kuralı okur
+  // (arayüz testi O-090; sunucu `bidValidUntilMs` ile 400 verir).
+  const isAwardableBid = (b: {
+    status: string;
+    submittedAt?: string | null;
+    validityDays?: number | null;
+  }) => b.status === "SUBMITTED" && !isBidExpired(b);
   // Yayında ve Değerlendirmede (IN_AWARD) kazandırma/eleme açık.
   const canDecide = l.status === "OPEN" || l.status === "IN_AWARD";
+  // Kazandırma doğrulanmış firma ister (API assertVerified; KYC tablosu).
+  // Firma yüklenmeden kilit basılmaz (sunucu zaten kapılı).
+  const companyVerified =
+    !company || company.companyVerificationStatus === "VERIFIED";
   // F7: durum uygun OLSA da yalnız izinli-yönetici kazandırma/eleme yapabilir.
   const canManage = canManageListing({
     hasManagePermission,
@@ -702,7 +740,8 @@ export default function ListingDetailPage() {
     | null => {
     const items = l.items ?? [];
     if (items.length < 2) return null; // tek kalemde dağıtım = toplu
-    const bids = (l.bids ?? []).filter((b) => b.status === "SUBMITTED");
+    // Geçerliliği dolmuş teklif kazandırılamaz → toplu kıyasa da girmez (O-090).
+    const bids = (l.bids ?? []).filter(isAwardableBid);
     if (bids.length === 0) return null;
 
     // Kalem bazlı taraf — kalemlerden biri fiyatsızsa kıyas yanıltıcı olur.
@@ -1007,7 +1046,7 @@ export default function ListingDetailPage() {
     (pricedCountById.get(bidId) ?? 0) >= (l.items?.length ?? 0);
   const bestTotalTry = (() => {
     const vals = allBids
-      .filter((b) => b.status === "SUBMITTED" && cmpFullCovered(b.id))
+      .filter((b) => isAwardableBid(b) && cmpFullCovered(b.id))
       .map((b) => totalTryById.get(b.id))
       .filter((x): x is number => x != null && x > 0);
     return vals.length ? Math.min(...vals) : null;
@@ -1020,7 +1059,7 @@ export default function ListingDetailPage() {
   const bestBidId = (() => {
     const subs = allBids.filter(
       (b) =>
-        b.status === "SUBMITTED" &&
+        isAwardableBid(b) &&
         amountTryOf(b) != null &&
         cmpFullCovered(b.id),
     );
@@ -1030,6 +1069,78 @@ export default function ListingDetailPage() {
     );
     return sorted[0]?.id ?? null;
   })();
+
+  // Kalem bazlı kazandırmada bir sipariş reddedildi ama öteki sürüyor →
+  // talep AWARDED kalır (CLAUDE.md §7 İ-1). Sahip reddedilen siparişi,
+  // gerekçeyi ve tedariksiz kalan kalemleri görmeli (arayüz testi O-028).
+  const rejectedOrders =
+    l.status === "AWARDED"
+      ? (l.orders ?? []).filter((o) => o.status === "REJECTED")
+      : [];
+  const liveOrderItemNames = new Set(
+    (l.orders ?? [])
+      .filter((o) => o.status !== "REJECTED" && o.status !== "CANCELLED")
+      .flatMap((o) => o.itemNames ?? []),
+  );
+  const unsuppliedItems = (l.items ?? []).filter(
+    (it) =>
+      rejectedOrders.some((o) => (o.itemNames ?? []).includes(it.name)) &&
+      !liveOrderItemNames.has(it.name),
+  );
+  const rejectedSellerName = (sellerCompanyId?: string | null) =>
+    (l.bids ?? []).find((b) => b.bidderCompanyId === sellerCompanyId)
+      ?.bidderName ?? t("tedarikci");
+  // Yeni talep Gold ∧ buy:listing:manage ister (paket kilidi buyLock aşağıda).
+  const canStartReorder =
+    hasManagePermission &&
+    !!company &&
+    buyingGate(user, company, "listing") === "ok";
+  const rejectedOrdersBand =
+    rejectedOrders.length > 0 ? (
+      <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="font-semibold">{t("siparisReddedildiKalemlerTedariksiz")}</p>
+        {rejectedOrders.map((o) => (
+          <p key={o.id}>
+            {t("siparisiReddetti", {
+              seller: rejectedSellerName(o.sellerCompanyId),
+              number: o.number ?? "—",
+            })}
+            {o.rejectedReason ? (
+              <span className="block text-amber-800">
+                {t("redGerekcesi", { reason: o.rejectedReason })}
+              </span>
+            ) : null}
+          </p>
+        ))}
+        {unsuppliedItems.length > 0 ? (
+          <p>
+            {t("tedariksizKalemler", {
+              items: unsuppliedItems.map((it) => it.name).join(", "),
+            })}
+          </p>
+        ) : null}
+        {canStartReorder && unsuppliedItems.length > 0 ? (
+          <Button
+            outline
+            href={`/company/satinalma/taleplerim/yeni?from=${encodeURIComponent(l.id)}&kalemler=${unsuppliedItems
+              .map((it) => encodeURIComponent(it.id))
+              .join(",")}`}
+          >
+            {t("buKalemlerleYeniTalepOlustur")}
+          </Button>
+        ) : null}
+      </div>
+    ) : null;
+
+  const visibleBids = (l.bids ?? []).filter((b) => {
+    const covered =
+      bidItemCount > 0 &&
+      (b.items?.filter((x) => Number(x.unitPrice) > 0).length ?? 0) >=
+        bidItemCount;
+    if (bidView === "complete") return covered;
+    if (bidView === "incomplete") return !covered;
+    return true;
+  });
 
   const ownerBidsSection = (
     <section className="space-y-3">
@@ -1060,14 +1171,33 @@ export default function ListingDetailPage() {
           {t("sorularinizIcinDestekIle")}
         </div>
       ) : l.status === "AWARDED" ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
-          {t("talepKazandirildiSiparisOlusturulduSiparisle")}
-        </div>
+        rejectedOrdersBand ?? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
+            {t("talepKazandirildiSiparisOlusturulduSiparisle")}
+          </div>
+        )
       ) : l.status === "CLOSED_NO_AWARD" ? (
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-700">
           {t("kazananOlmadanKapatildi")}{" "}
           {l.cancelReason ? t("sebep", { cancelReason: l.cancelReason }) : ""}
         </div>
+      ) : null}
+
+      {/* Doğrulaması olmayan alıcı: Kazandır düğmeleri pasif, neden burada
+          (arayüz testi D-044; API assertVerified 403 verirdi). */}
+      {canDecide && canManage && hasAwardPermission && !companyVerified ? (
+        <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-amber-600/20">
+          <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {t.rich("kazandirmakIcinFirmaDogrulamasiGerekir", {
+              link: (c) => (
+                <Link href={VERIFY_HREF} className="font-semibold underline">
+                  {c}
+                </Link>
+              ),
+            })}
+          </span>
+        </p>
       ) : null}
 
       {/* KPI kartları */}
@@ -1135,7 +1265,10 @@ export default function ListingDetailPage() {
                         key={b.id}
                         className="sticky top-0 z-10 bg-white text-right whitespace-normal shadow-table-top"
                       >
-                        {b.bidderName}
+                        {/* Firma adı özel addır — başlığın CSS büyük harfi
+                            EN/RU'da Türkçe harfleri bozuyordu ("TEDARIKÇI";
+                            arayüz testi D-108). */}
+                        <span className="normal-case">{b.bidderName}</span>
                         {/* Elenmiş teklif sütunu işaretli (derin denetim
                             LU-21) — fiyatları kıyasa girmez. */}
                         {b.status === "LOST" ? (
@@ -1187,7 +1320,9 @@ export default function ListingDetailPage() {
                     return {
                       bidId: b.id,
                       bidderName: b.bidderName,
-                      submitted: b.status === "SUBMITTED",
+                      // Kazandırılabilir (geçerliliği dolmamış) — seçim ve
+                      // en iyi vurgusu yalnız bunlarda (O-090).
+                      awardable: isAwardableBid(b),
                       price: v != null ? v : null,
                       priceTry: vTry != null ? vTry : null,
                       currency:
@@ -1202,7 +1337,7 @@ export default function ListingDetailPage() {
                   // teklifler kıyaslanır — elenmiş teklif "en iyi" diye
                   // boyanmaz; toplam satırı / "En iyi" rozetiyle tutarlı
                   // (derin denetim LU-21).
-                  const validTry = (canDecide ? cells.filter((c) => c.submitted) : cells)
+                  const validTry = (canDecide ? cells.filter((c) => c.awardable) : cells)
                     .map((c) => c.priceTry)
                     .filter((p): p is number => p != null && p > 0);
                   const minTry = validTry.length ? Math.min(...validTry) : null;
@@ -1228,7 +1363,7 @@ export default function ListingDetailPage() {
                         // state'i yazar — iki taraf senkron kalır).
                         const clickable =
                           itemAwardMode &&
-                          c.submitted &&
+                          c.awardable &&
                           c.price != null &&
                           c.price > 0;
                         const selected =
@@ -1282,7 +1417,7 @@ export default function ListingDetailPage() {
                     const isBest =
                       bestTotalTry != null &&
                       tTry != null &&
-                      b.status === "SUBMITTED" &&
+                      isAwardableBid(b) &&
                       cmpFullCovered(b.id) &&
                       tTry === bestTotalTry;
                     return (
@@ -1365,30 +1500,39 @@ export default function ListingDetailPage() {
             <div className="space-y-2">
               {l.items.map((it) => {
                 const opts = bidsForItem(it.id);
+                const qtyOver = itemQtyExceeds(it.id, it.quantity);
+                // Mobilde (390 px) satır dikey dizilir, seçici daralabilir —
+                // tek satırlık düzen sayfayı 555 px'e genişletiyordu (O-091).
                 return (
                   <div
                     key={it.id}
-                    className="flex items-center justify-between gap-3"
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                   >
-                    <span className="text-sm text-zinc-900">
+                    <span className="min-w-0 text-sm text-zinc-900">
                       {it.name}
-                      <span className="ml-1 text-xs text-zinc-400">
+                      <span className="ml-1 text-xs text-zinc-500">
                         ({quantity(it.quantity, it.unit, it.unitCode)})
                       </span>
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-col gap-1 sm:items-end">
+                    <div className="flex min-w-0 items-center gap-2">
                       <input
                         type="number"
                         min={0}
+                        max={Number(it.quantity)}
                         step="0.001"
                         placeholder={t("miktar")}
                         aria-label={t("icinKazandirilacakMiktarBosTam", { name: it.name })}
+                        aria-invalid={qtyOver || undefined}
                         title={t("kismiMiktarBosTam")}
                         value={itemQty[it.id] ?? ""}
                         onChange={(e) =>
                           setItemQty((q) => ({ ...q, [it.id]: e.target.value }))
                         }
-                        className="w-24 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
+                        className={cn(
+                          "w-24 shrink-0 rounded-md border px-2 py-1 text-right text-sm",
+                          qtyOver ? "border-red-500 text-red-700" : "border-zinc-300",
+                        )}
                       />
                       <SelectMenu
                         value={itemWinners[it.id] ?? ""}
@@ -1396,7 +1540,7 @@ export default function ListingDetailPage() {
                         onChange={(v) =>
                           setItemWinners((w) => ({ ...w, [it.id]: v }))
                         }
-                        className="min-w-48"
+                        className="min-w-0 flex-1 sm:w-auto sm:min-w-48 sm:flex-none"
                         options={[
                           { value: "", label: t("sec") },
                           ...opts.map((o) => ({
@@ -1406,6 +1550,14 @@ export default function ListingDetailPage() {
                         ]}
                       />
                     </div>
+                    {qtyOver ? (
+                      <p role="alert" className="text-xs text-red-600">
+                        {t("kazandirilacakMiktarEnFazla", {
+                          qty: quantity(it.quantity, it.unit, it.unitCode),
+                        })}
+                      </p>
+                    ) : null}
+                    </div>
                   </div>
                 );
               })}
@@ -1414,13 +1566,21 @@ export default function ListingDetailPage() {
               <Button plain onClick={() => setItemAwardMode(false)}>
                 {t("vazgec")}
               </Button>
-              <Button onClick={handleAwardByItem} disabled={awardByItem.isPending}>
+              <Button
+                onClick={handleAwardByItem}
+                disabled={awardByItem.isPending || !companyVerified}
+              >
                 {t("onaylaKazandir")}
               </Button>
             </div>
           </div>
           ) : hasAwardPermission ? (
-            <Button outline onClick={startItemAward}>
+            <Button
+              outline
+              onClick={startItemAward}
+              disabled={!companyVerified}
+              title={companyVerified ? undefined : t("kazandirmakIcinDogrulamaGerekirKisa")}
+            >
               {t("kalemBazliKazandir2")}
             </Button>
           ) : null}
@@ -1457,16 +1617,13 @@ export default function ListingDetailPage() {
               </button>
             ))}
           </div>
-          {l.bids
-            .filter((b) => {
-              const covered =
-                bidItemCount > 0 &&
-                (b.items?.filter((x) => Number(x.unitPrice) > 0).length ?? 0) >=
-                  bidItemCount;
-              if (bidView === "complete") return covered;
-              if (bidView === "incomplete") return !covered;
-              return true;
-            })
+          {visibleBids.length === 0 ? (
+            // Süzgece uyan teklif yok — boş alan metinsiz kalıyordu (D-109).
+            <p className="rounded-xl border border-dashed border-zinc-300 px-4 py-6 text-center text-sm text-zinc-500">
+              {t("buSuzgeceUyanTeklifYok")}
+            </p>
+          ) : null}
+          {visibleBids
             .map((b) => {
             // Geçerliliği dolmuş teklif kazandırılamaz (sunucu da reddeder);
             // rozetle aynı hesap. Pazarlıkta validityDays null → süresiz.
@@ -1531,8 +1688,16 @@ export default function ListingDetailPage() {
                   {b.currency && b.currency !== "TRY" && b.amountTry ? (
                     <span className="ml-1 text-xs font-normal text-zinc-500">
                       ≈ {fmtMoney(b.amountTry, "TRY")}
+                      {/* Kur arayüz dilinin ondalık ayracıyla (TR "49,0184";
+                          arayüz testi D-107). */}
                       {b.exchangeRateSnapshot
-                        ? t("kur", { exchangeRateSnapshot: b.exchangeRateSnapshot })
+                        ? ` ${t("kur", {
+                            exchangeRateSnapshot: formatNumber(
+                              Number(b.exchangeRateSnapshot),
+                              locale,
+                              { maximumFractionDigits: 4 },
+                            ),
+                          })}`
                         : ""}
                     </span>
                   ) : null}
@@ -1563,11 +1728,13 @@ export default function ListingDetailPage() {
                     {hasAwardPermission ? (
                       <Button
                         onClick={() => handleAward(b.id, b.bidderName)}
-                        disabled={award.isPending || bidExpired}
+                        disabled={award.isPending || bidExpired || !companyVerified}
                         title={
                           bidExpired
                             ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
-                            : undefined
+                            : !companyVerified
+                              ? t("kazandirmakIcinDogrulamaGerekirKisa")
+                              : undefined
                         }
                       >
                         {t("kazandir")}
@@ -1576,6 +1743,13 @@ export default function ListingDetailPage() {
                   </>
                 ) : null}
               </div>
+              {/* Süresi dolmuş teklifin nedeni yalnız title'daydı (mobilde
+                  görünmez) — satırda okunur not (arayüz testi D-251). */}
+              {bidExpired && canDecide && canManage && hasAwardPermission ? (
+                <p className="text-xs text-amber-700 sm:col-span-2">
+                  {t("teklifinGecerlilikSuresiDolmusTedarikciden")}
+                </p>
+              ) : null}
               {/* Teklif ekleri — satır başlığına sıkışmasın diye KENDİ
                   satırında (isim/rozet kümesinin içinde dosya çipi kafa
                   karıştırıyordu). Tam liste teklif detayında. */}
@@ -1749,10 +1923,13 @@ export default function ListingDetailPage() {
     </Tab>
   );
   // AI tedarikçi keşfi: API `company/ai/supplier-discovery` = buy:listing:manage
-  // + GOLD; taslak/yayındaki talepte anlamlı (kapanmışa davet gitmez).
+  // + GOLD; taslak/yayındaki talepte anlamlı (kapanmışa davet gitmez). Davet
+  // ucu talebi YÖNETENİ ister (assertListingManageRole) → talebi açmamış
+  // meslektaşa düğme gösterilip her davet 403 alıyordu (arayüz testi O-089);
+  // Kazandır ile aynı kapı.
   const canDiscover =
     !!l.isOwner &&
-    hasManagePermission &&
+    canManage &&
     (l.status === "DRAFT" || l.status === "OPEN");
   const discoverTierOk = !!company && tierAtLeast(company.tier, BUYING_TIER);
   // Paket kilidi (arayüz testi O-058, kullanıcı kararı T-06): Gold'u düşen /
@@ -1869,25 +2046,59 @@ export default function ListingDetailPage() {
     // 2026-09-10 düzeltmesiyle aynı: başlık kartı taşır, şerit kaydırınca devralır.
     // Yayınlama Gold ister (API publishWork) — kilitte düğme yok, menüdeki
     // paket notu nedenini ve CTA'yı söyler.
-    const canPublishNow = !!l.canPublish && !buyLock;
+    const canPublishNow = canManage && !!l.canPublish && !buyLock;
+    // Yayın doğrulanmış firma ister (API assertVerified) — Gold ama
+    // doğrulanmamış firmada düğme pasif + not (arayüz testi D-027; hızlı
+    // talep formuyla aynı kural).
+    const publishNeedsVerify = canPublishNow && !companyVerified;
+    // Onay isteğini başlatan (talebi yöneten) ya da onay akışı yöneticisi
+    // iptal eder — API cancelRequest ile aynı (arayüz testi D-252).
+    const canCancelApproval =
+      !!l.pendingApprovalId && (canManage || hasApprovalsManage);
     const ownerPrimaryActions =
-      canManage && (l.pendingApprovalId || canPublishNow) ? (
-        <div className="flex items-center gap-2">
-          {l.pendingApprovalId ? (
-            <Button
-              outline
-              onClick={handleCancelApproval}
-              disabled={cancelApproval.isPending}
-            >
-              {t("onayiIptalEt")}
-            </Button>
-          ) : null}
-          {canPublishNow ? (
-            <Button onClick={handlePublish} disabled={publish.isPending}>
-              {t("yayinla")}
-            </Button>
+      canCancelApproval || canPublishNow ? (
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            {canCancelApproval ? (
+              <Button
+                outline
+                onClick={handleCancelApproval}
+                disabled={cancelApproval.isPending}
+              >
+                {t("onayiIptalEt")}
+              </Button>
+            ) : null}
+            {canPublishNow ? (
+              <Button
+                onClick={handlePublish}
+                disabled={publish.isPending || publishNeedsVerify}
+              >
+                {t("yayinla")}
+              </Button>
+            ) : null}
+          </div>
+          {publishNeedsVerify ? (
+            <p className="text-right text-xs text-amber-800">
+              {t.rich("yayinIcinFirmaDogrulamasiGerekir", {
+                link: (c) => (
+                  <Link href={VERIFY_HREF} className="font-semibold underline">
+                    {c}
+                  </Link>
+                ),
+              })}
+            </p>
           ) : null}
         </div>
+      ) : null;
+    // Talebi yalnız açan kişi yönetir (assertListingManageRole; SAHİP
+    // istisnası yok) — başkası düğmesiz sayfada nedenini görmeli (D-110).
+    const manageOnlyCreatorNote =
+      !canManage &&
+      (l.status === "DRAFT" || l.status === "OPEN" || l.status === "IN_AWARD") ? (
+        <p className="mt-4 flex items-start gap-2 border-t border-zinc-950/5 pt-4 text-sm text-zinc-600">
+          <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-zinc-500" />
+          {t("buTalebiYalnizAcanKisiYonetebilir")}
+        </p>
       ) : null;
     return (
       <div className="space-y-5">
@@ -1942,6 +2153,7 @@ export default function ListingDetailPage() {
           {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
               tamamı backend'de assertListingManageRole ister → menü yalnız
               canManage'e görünür; etiket-only gözetim sayfayı yine görür. */}
+          {manageOnlyCreatorNote}
           {l.isOwner && l.publicPath ? (
             <div className="mt-4 border-t border-zinc-950/5 pt-4">
               <ShareListing publicPath={l.publicPath} title={l.title} compact />
@@ -2093,6 +2305,9 @@ export default function ListingDetailPage() {
                 listingId={l.id}
                 isOwner={!!l.isOwner}
                 canEdit={false}
+                // "Düzenle ekranından yönetilir" yalnız talep gerçekten
+                // düzenlenebilirken (arayüz testi D-250).
+                manageHint={canManage && !!l.canEdit && !buyLock}
               />
             </TabPanel>
           </TabPanels>

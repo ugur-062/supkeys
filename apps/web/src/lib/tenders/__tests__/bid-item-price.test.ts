@@ -115,4 +115,35 @@ describe("rankBidsForItem", () => {
   it("fiyatsız kalem listeye girmez", () => {
     expect(rankBidsForItem(bids, "yok")).toEqual([]);
   });
+
+  // Arayüz testi O-090: geçerliliği dolmuş en ucuz teklif ön-seçilip bütün
+  // kalem kazandırmasını 400'e düşürüyordu.
+  it("geçerliliği dolmuş teklif sıralamaya girmez (ön-seçilmez)", () => {
+    const now = Date.parse("2026-10-01T12:00:00+03:00");
+    const opts = rankBidsForItem(
+      [
+        {
+          id: "suresi-dolmus",
+          bidderName: "Ucuz",
+          status: "SUBMITTED",
+          currency: "TRY",
+          submittedAt: "2026-09-01T12:00:00+03:00",
+          validityDays: 7,
+          items: [{ itemId: "x", unitPrice: "10" }],
+        },
+        {
+          id: "gecerli",
+          bidderName: "Pahalı",
+          status: "SUBMITTED",
+          currency: "TRY",
+          submittedAt: "2026-09-28T12:00:00+03:00",
+          validityDays: 30,
+          items: [{ itemId: "x", unitPrice: "20" }],
+        },
+      ],
+      "x",
+      now,
+    );
+    expect(opts.map((o) => o.bidId)).toEqual(["gecerli"]);
+  });
 });

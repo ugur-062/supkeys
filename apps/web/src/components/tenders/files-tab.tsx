@@ -24,12 +24,16 @@ export function FilesTab({
   listingId,
   isOwner,
   canEdit = false,
+  manageHint = false,
 }: {
   listingId: string;
   isOwner: boolean;
   // İhale belgeleri yalnızca ilan düzenlenebilirken (TASLAK / teklifsiz AÇIK)
   // değiştirilebilir; kapandıktan sonra salt-okunur.
   canEdit?: boolean;
+  /** Burada düzenlenmiyor ama Düzenle ekranından yönetilebilir — ipucu yalnız
+   *  o zaman (arayüz testi D-250: teklif almış talepte de basılıyordu). */
+  manageHint?: boolean;
 }) {
   const t = useTranslations("web.panel.requests.filesTab");
   const locale = useLocale();
@@ -124,8 +128,8 @@ export function FilesTab({
               />
             </Button>
           </div>
-        ) : isOwner ? (
-          <Text className="text-xs text-zinc-400">
+        ) : isOwner && manageHint ? (
+          <Text className="text-xs text-zinc-500">
             {t("dosyalarDuzenleEkranindanYonetilir")}
           </Text>
         ) : null}

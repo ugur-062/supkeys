@@ -28,6 +28,9 @@ export default function YeniTalepPage() {
   const tr = useTranslations("web.panel.requests.page");
   const params = useSearchParams();
   const fromId = params.get("from") ?? "";
+  // Kopyada yalnız seçili kalemler (`?kalemler=id1,id2`): reddedilen siparişin
+  // tedariksiz kalan kalemleriyle yeni talep (arayüz testi O-028).
+  const keepItemsKey = (params.get("kalemler") ?? "").split(",").filter(Boolean).join(",");
   const fromAi = params.get("ai") === "1";
   const templateId = params.get("template") ?? "";
   const fromProduct = params.get("urun") === "1";
@@ -84,8 +87,12 @@ export default function YeniTalepPage() {
     if (!fromId || !source.data) return null;
     // Kopya yalnız KENDİ alım talebinden.
     if (!source.data.isOwner || source.data.type !== "ALIM") return null;
-    return mapDetailToForm(source.data, { forCopy: true });
-  }, [fromId, source.data]);
+    const keep = new Set(keepItemsKey ? keepItemsKey.split(",") : []);
+    const kept = (source.data.items ?? []).filter((it) => keep.has(it.id));
+    const detail =
+      keep.size > 0 && kept.length > 0 ? { ...source.data, items: kept } : source.data;
+    return mapDetailToForm(detail, { forCopy: true });
+  }, [fromId, source.data, keepItemsKey]);
 
   // `?q=` terimi: yarım taslak varsa SİLİNMEZ — terim taslağa kalem olarak
   // eklenir ve kart taslağı geri getirir (LU-30 gözden geçirme). sessionStorage

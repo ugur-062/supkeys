@@ -473,6 +473,16 @@ export interface ListingDetail {
   } | null;
   /** Bu ilandan doğan, çağıranın taraf olduğu sipariş (kazanan teklifçi). */
   myOrder?: { id: string; number: string | null; status: string } | null;
+  /** Sahip dalı: talepten doğan TÜM siparişler (kalem bazlıda birden çok).
+   *  Reddedilende satıcı gerekçesi; kalem adları tedariksiz kalanı bulur (O-028). */
+  orders?: {
+    id: string;
+    number: string | null;
+    status: string;
+    sellerCompanyId?: string;
+    rejectedReason?: string | null;
+    itemNames?: string[];
+  }[];
   // İngiliz Usulü (açık eksiltme):
   english?: {
     isEnglishAuction: true;

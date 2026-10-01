@@ -9,6 +9,8 @@
  * kalem kıyas dışı kalır (en ucuz sayılıp ön-seçilmez).
  */
 
+import { isBidExpired } from "@/lib/tenders/bid-expiry";
+
 export interface PricedBid {
   currency?: string | null;
   exchangeRateSnapshot?: string | null;
@@ -62,20 +64,25 @@ export interface ItemBidOption {
 }
 
 /**
- * Bir kalemi fiyatlamış SUBMITTED teklifler — TRY karşılığına göre artan
- * (en iyi önde → kalem kazandırmada ön-seçilen). Kıyaslanamayan (null)
- * satırlar listenin SONUNA gider, ön-seçilmez.
+ * Bir kalemi fiyatlamış, KAZANDIRILABİLİR (SUBMITTED ∧ geçerliliği dolmamış)
+ * teklifler — TRY karşılığına göre artan (en iyi önde → kalem kazandırmada
+ * ön-seçilen). Kıyaslanamayan (null) satırlar listenin SONUNA gider,
+ * ön-seçilmez. Geçerliliği dolmuş teklif HİÇ girmez (arayüz testi O-090):
+ * sunucu kazandırmada 400 verir, ön-seçilmesi bütün kalem kazandırmasını
+ * düşürüyordu.
  */
 export function rankBidsForItem<
   B extends PricedBid & {
     id: string;
     bidderName: string;
     status: string;
+    submittedAt?: string | null;
+    validityDays?: number | null;
     items?: (PricedBidItem & { itemId: string })[];
   },
->(bids: readonly B[], itemId: string): ItemBidOption[] {
+>(bids: readonly B[], itemId: string, now: number = Date.now()): ItemBidOption[] {
   return bids
-    .filter((b) => b.status === "SUBMITTED")
+    .filter((b) => b.status === "SUBMITTED" && !isBidExpired(b, now))
     .flatMap((b) => {
       const bi = b.items?.find((x) => x.itemId === itemId);
       const price = bi ? Number(bi.unitPrice) : 0;

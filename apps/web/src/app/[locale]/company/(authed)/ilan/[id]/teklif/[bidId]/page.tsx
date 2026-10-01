@@ -42,6 +42,7 @@ import {
   useHasCompanyPermission,
 } from "@/hooks/use-company-auth";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
+import { VERIFY_HREF } from "@/lib/public/member-gate";
 import { yesNoAnswerLabel } from "@/lib/tenders/yes-no-answer";
 import { toast } from "sonner";
 
@@ -66,7 +67,11 @@ export default function BidDetailPage() {
   const [approvalNoteOpen, setApprovalNoteOpen] = useState(false);
   // B4: ihale detayındaki kapının AYNISI (backend assertListingManageRole
   // aynası) — hook'lar koşulsuz çağrılmalı, bu yüzden erken dönüşlerden ÖNCE.
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
+  // Kazandırma doğrulanmış firma ister (API assertVerified) — arayüz testi
+  // D-044: "GERİ ALINAMAZ" onayından sonra 403 yerine önceden söylenir.
+  const companyVerified =
+    !company || company.companyVerificationStatus === "VERIFIED";
   const hasManagePermission = useHasCompanyPermission("buy:listing:manage");
   // Kazandırma ayrı izin (API award uçları `buy:award` ister) — yetki
   // tablosunda "Kazandırma" verilmemiş üyeye düğme gösterilmez (derin
@@ -254,11 +259,18 @@ export default function BidDetailPage() {
               {hasAwardPermission ? (
                 <Button
                   onClick={handleAward}
-                  disabled={award.isPending || awardPreview.isPending || bidExpired}
+                  disabled={
+                    award.isPending ||
+                    awardPreview.isPending ||
+                    bidExpired ||
+                    !companyVerified
+                  }
                   title={
                     bidExpired
                       ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
-                      : undefined
+                      : !companyVerified
+                        ? t("kazandirmakIcinDogrulamaGerekirKisa")
+                        : undefined
                   }
                 >
                   {t("kazandir")}
@@ -268,6 +280,17 @@ export default function BidDetailPage() {
             {bidExpired && hasAwardPermission ? (
               <Text className="text-right text-xs text-amber-700">
                 {t("teklifinGecerlilikSuresiDolmusTedarikciden")}
+              </Text>
+            ) : null}
+            {!companyVerified && hasAwardPermission && !bidExpired ? (
+              <Text className="text-right text-xs text-amber-700">
+                {t.rich("kazandirmakIcinFirmaDogrulamasiGerekir", {
+                  link: (c) => (
+                    <Link href={VERIFY_HREF} className="font-semibold underline">
+                      {c}
+                    </Link>
+                  ),
+                })}
               </Text>
             ) : null}
           </div>
