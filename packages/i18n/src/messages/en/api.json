@@ -1635,7 +1635,7 @@
       "paketTanimlandiBaslik": "Your plan has been activated",
       "paketTanimlandiGovde": "The {paket} plan has been assigned to your company account. You can start using your plan benefits right away.",
       "paketSilvereAlindiBaslik": "Your plan has been changed to Silver",
-      "paketSilvereAlindiGovde": "A platform administrator has moved your company to the Silver plan. The buying panel (opening new requests, inviting suppliers, evaluating quotes and awarding) is available with the Gold plan; you can still view and close your existing requests and complete ongoing orders. Supplier invitations waiting to be sent have been canceled. Your team's buying permissions have not been deleted; they do not take up seats on Silver and become active again when you return to Gold. All your selling rights continue.",
+      "paketSilvereAlindiGovde": "A platform administrator has moved your company to the Silver plan. Opening new requests, inviting new suppliers to existing requests, extending closing dates and editing requests are available with the Gold plan. You can still view your existing requests, evaluate and award the quotes you have received, close requests and complete ongoing orders. Supplier invitations waiting to be sent have been canceled. Your team's buying permissions have not been deleted; they do not take up seats on Silver and become active again when you return to Gold. All your selling rights continue.",
       "askiyaAlindiBaslik": "Your account has been suspended",
       "askiyaAlindiGerekce": "Your company account has been suspended by a platform administrator. Reason: {gerekce}",
       "askiyaAlindiItiraz": "To appeal or for more information, please contact our support team.",

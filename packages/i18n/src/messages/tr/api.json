@@ -1635,7 +1635,7 @@
       "paketTanimlandiBaslik": "Paketiniz tanımlandı",
       "paketTanimlandiGovde": "Firma hesabınıza {paket} paketi tanımlandı. Paket haklarınızı hemen kullanmaya başlayabilirsiniz.",
       "paketSilvereAlindiBaslik": "Paketiniz Silver'a alındı",
-      "paketSilvereAlindiGovde": "Firma paketiniz platform yöneticisi tarafından Silver pakete alındı. Satınalma paneli (yeni talep açma, tedarikçi davet etme, teklif değerlendirme ve kazandırma) Gold paketle açılır; mevcut taleplerinizi görüntüleyebilir, kapatabilir ve süren siparişlerinizi tamamlayabilirsiniz. Gönderilmeyi bekleyen tedarikçi davetleri iptal edildi. Ekibinizin satınalma yetkileri silinmedi; Silver'da koltuk saymaz ve Gold'a dönünce yeniden geçerli olur. Satış tarafındaki tüm haklarınız sürer.",
+      "paketSilvereAlindiGovde": "Firma paketiniz platform yöneticisi tarafından Silver pakete alındı. Yeni talep açma, mevcut taleplere yeni tedarikçi davet etme, kapanış tarihini uzatma ve talep düzenleme Gold paketle açılır. Mevcut taleplerinizi görüntüleyebilir, gelen teklifleri değerlendirip kazandırabilir, talebi kapatabilir ve süren siparişlerinizi tamamlayabilirsiniz. Gönderilmeyi bekleyen tedarikçi davetleri iptal edildi. Ekibinizin satınalma yetkileri silinmedi; Silver'da koltuk saymaz ve Gold'a dönünce yeniden geçerli olur. Satış tarafındaki tüm haklarınız sürer.",
       "askiyaAlindiBaslik": "Hesabınız askıya alındı",
       "askiyaAlindiGerekce": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce}",
       "askiyaAlindiItiraz": "İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
