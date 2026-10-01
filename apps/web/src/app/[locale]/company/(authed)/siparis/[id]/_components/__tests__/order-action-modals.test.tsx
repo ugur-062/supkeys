@@ -5,7 +5,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  bankAccounts: { data: undefined as CompanyBankAccount[] | undefined },
+  bankAccounts: {
+    data: undefined as CompanyBankAccount[] | undefined,
+    isLoading: false as boolean | undefined,
+  } as { data: CompanyBankAccount[] | undefined; isLoading?: boolean },
 }));
 
 vi.mock("@/hooks/use-company-bank-accounts", () => ({
@@ -21,7 +24,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  h.bankAccounts = { data: undefined };
+  h.bankAccounts = { data: undefined, isLoading: false };
 });
 
 describe("AcceptOrderModal", () => {
@@ -84,6 +87,53 @@ describe("AcceptOrderModal", () => {
     expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Onayla" }));
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe("AcceptOrderModal — arayüz testi webB-07", () => {
+  const account: CompanyBankAccount = {
+    id: "acc1",
+    title: "Ana Hesap",
+    accountHolder: "Firma A.Ş.",
+    iban: "TR330006100519786457841326",
+    accountNumber: null,
+    swiftBic: null,
+    bankCountry: "TR",
+    bankName: "Demo Bank",
+    isDefault: true,
+  };
+
+  it("O-029: akreditifte varsayılan hesap sessizce GÖNDERİLMEZ", async () => {
+    const onSubmit = vi.fn();
+    h.bankAccounts = { data: [account], isLoading: false };
+    render(
+      <AcceptOrderModal open onClose={vi.fn()} onSubmit={onSubmit} pending={false} bankOptional isLetterOfCredit />,
+    );
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Onayla" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ bankAccountId: undefined }));
+  });
+
+  it("vesaik mukabili: hesap isteğe bağlı, 'Hesap eklenmesin' seçilince gönderilmez", async () => {
+    const onSubmit = vi.fn();
+    h.bankAccounts = { data: [account], isLoading: false };
+    render(<AcceptOrderModal open onClose={vi.fn()} onSubmit={onSubmit} pending={false} bankOptional />);
+    await userEvent.selectOptions(screen.getByRole("combobox"), "");
+    await userEvent.click(screen.getByRole("button", { name: "Onayla" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ bankAccountId: undefined }));
+  });
+
+  it("D-153: '(varsayılan)' etiketinden önce boşluk var", () => {
+    h.bankAccounts = { data: [account], isLoading: false };
+    render(<AcceptOrderModal open onClose={vi.fn()} onSubmit={vi.fn()} pending={false} />);
+    expect(screen.getByRole("option").textContent).toMatch(/1326 \(varsayılan\)$/);
+  });
+
+  it("D-282: hesaplar yüklenirken 'banka hesabı gerekli' uyarısı çıkmaz", () => {
+    h.bankAccounts = { data: undefined, isLoading: true };
+    render(<AcceptOrderModal open onClose={vi.fn()} onSubmit={vi.fn()} pending={false} />);
+    expect(screen.queryByText(/banka hesabı gerekli/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
   });
 });
 

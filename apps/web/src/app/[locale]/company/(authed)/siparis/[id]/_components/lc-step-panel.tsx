@@ -11,6 +11,9 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useFormatPaymentPlan } from "@/i18n/domain";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { useFormatMoney } from "@/components/ui/money";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { Landmark } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,6 +22,10 @@ import { toast } from "sonner";
  * Akış: alıcı "Akreditif Açıldı" (beyan; belge yüklemesi yok) → satıcı "Akreditifi Kabul
  * Ettim" (gönderim kilidi açılır) → gönder/teslim → satıcı "Ödeme Bankadan
  * Alındı" (sistem onaylı tam-tutar kaydı üretir, sipariş tamamlanır).
+ *
+ * Üç adım da karşı tarafa giden BEYANDIR ve geri alma yolu yoktur → her biri
+ * onay penceresinden geçer; "Ödeme Bankadan Alındı" onaylı tam tutarlı ödeme
+ * kaydı yarattığı için GERİ ALINAMAZ uyarısı taşır (arayüz testi O-029).
  */
 export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
   const t = useTranslations("web.panel.trade.lcStepPanel");
@@ -31,6 +38,10 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
   const opened = useLcStep(id, "opened");
   const accept = useLcStep(id, "accept");
   const paid = useLcStep(id, "paid");
+  const confirm = useConfirm();
+  const { money: formatMoney } = useFormatMoney();
+  // Onay penceresi + istek boyunca tek uçuş (arayüz testi FX-00 kilidi).
+  const lock = useSubmitLock();
 
   if (order.paymentCategory !== "LETTER_OF_CREDIT") return null;
   // Sonlanmış siparişte panel gizlenir. COMPLETED **gizlenmez**: Madde 17 ile
@@ -44,14 +55,27 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
   // Onay öncesi (PENDING) LC adımı yok — önce satıcı siparişi kabul etmeli.
   if (order.status === "PENDING") return null;
 
-  const run = async (p: Promise<unknown>, ok: string) => {
-    try {
-      await p;
-      toast.success(ok);
-    } catch (err) {
-      toast.error(extractErrorMessage(err, t("islemBasarisiz")));
-    }
-  };
+  /** Onay penceresinden sonra adımı yürütür (vazgeçilirse istek atılmaz). */
+  const run = (
+    dialog: {
+      title: string;
+      description: string;
+      confirmLabel: string;
+      destructive?: boolean;
+    },
+    exec: () => Promise<unknown>,
+    ok: string,
+  ) =>
+    void lock.run(async () => {
+      const yes = await confirm(dialog);
+      if (!yes) return;
+      try {
+        await exec();
+        toast.success(ok);
+      } catch (err) {
+        toast.error(extractErrorMessage(err, t("islemBasarisiz")));
+      }
+    });
 
   const step = (() => {
     // ACCEPTED evresi — açılış + kabul. A1-DISPUTED (satıcının iptal talebi
@@ -72,7 +96,15 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
               button: {
                 label: t("akreditifAcildi"),
                 onClick: () =>
-                  run(opened.mutateAsync(), t("akreditifAcildiOlarakIsaretlendi")),
+                  run(
+                    {
+                      title: t("acildiOnayBaslik"),
+                      description: t("acildiOnayAciklama"),
+                      confirmLabel: t("acildiOnayDugme"),
+                    },
+                    () => opened.mutateAsync(),
+                    t("akreditifAcildiOlarakIsaretlendi"),
+                  ),
                 pending: opened.isPending,
               },
             };
@@ -85,7 +117,15 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
               button: {
                 label: t("akreditifiKabulEttim"),
                 onClick: () =>
-                  run(accept.mutateAsync(), t("akreditifKabulEdildi")),
+                  run(
+                    {
+                      title: t("kabulOnayBaslik"),
+                      description: t("kabulOnayAciklama"),
+                      confirmLabel: t("kabulOnayDugme"),
+                    },
+                    () => accept.mutateAsync(),
+                    t("akreditifKabulEdildi"),
+                  ),
                 pending: accept.isPending,
               },
             }
@@ -115,7 +155,18 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
               button: {
                 label: t("odemeBankadanAlindi"),
                 onClick: () =>
-                  run(paid.mutateAsync(), t("akreditifOdemesiAlindiOlarakIsaretlendi")),
+                  run(
+                    {
+                      title: t("odemeOnayBaslik"),
+                      description: t("odemeOnayAciklama", {
+                        amount: formatMoney(order.amount, order.currency),
+                      }),
+                      confirmLabel: t("odemeOnayDugme"),
+                      destructive: true,
+                    },
+                    () => paid.mutateAsync(),
+                    t("akreditifOdemesiAlindiOlarakIsaretlendi"),
+                  ),
                 pending: paid.isPending,
               },
             }
@@ -148,8 +199,10 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
     <section className={`rounded-2xl border p-5 ${toneCls}`}>
       <div className="mb-2 flex items-center gap-2">
         <Landmark className="h-4 w-4 text-zinc-700" />
+        {/* Başlık ödeme planının kendisi ("Akreditif (görüldüğünde ödemeli)") —
+            eski "Akreditif — {plan}" sözcüğü iki kez basıyordu (arayüz testi D-128). */}
         <h2 className="text-sm font-semibold text-zinc-900">
-          {t("akreditif", { plan: paymentPlan(order) })}
+          {paymentPlan(order)}
         </h2>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -157,7 +210,7 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
         {canAct && "button" in step && step.button ? (
           <Button
             onClick={step.button.onClick}
-            disabled={step.button.pending}
+            disabled={step.button.pending || lock.locked}
           >
             {step.button.label}
           </Button>

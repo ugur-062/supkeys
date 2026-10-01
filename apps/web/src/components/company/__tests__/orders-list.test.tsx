@@ -255,3 +255,23 @@ describe("byCurrencyThenAmount — tutar sıralaması para birimini yok saymaz (
     expect(out.map((r) => `${r.amount} ${r.currency}`)).toEqual(["5000 EUR", "7000 EUR", "100 RUB", "50000 RUB"]);
   });
 });
+
+describe("OrdersList — ödeme etiketi (arayüz testi D-127)", () => {
+  it("kabul öncesi (PENDING) siparişte 'Ödeme bekliyor' yazmaz; kabul edilende yazar", () => {
+    h.orders = {
+      ...h.orders,
+      data: [
+        order({ status: "PENDING", paymentSettled: false, listingTitle: "Bekleyen" }),
+        order({ status: "ACCEPTED", paymentSettled: false, listingTitle: "Onaylanan" }),
+      ],
+    };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getAllByText(/Ödeme bekliyor/)).toHaveLength(1);
+  });
+
+  it("DISPUTED satırı izleyici yerine ihtilaf notunu gösterir (O-030)", () => {
+    h.orders = { ...h.orders, data: [order({ status: "DISPUTED" })] };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText(/ihtilaflı/i)).toBeInTheDocument();
+  });
+});

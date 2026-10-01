@@ -35,6 +35,39 @@ interface OrderPrintItem {
   unitPrice: number | string;
   deliveryDate?: string | null;
   deliveryTime?: string | null;
+  requestedBrand?: string | null;
+  requestedMpn?: string | null;
+  isAlternative?: boolean;
+  offeredBrand?: string | null;
+  offeredMpn?: string | null;
+}
+
+const joinParts = (...parts: (string | null | undefined)[]) =>
+  parts
+    .map((p) => p?.trim())
+    .filter(Boolean)
+    .join(" · ");
+
+/**
+ * Kalemin marka / muadil satırı (arayüz testi O-003): muadilde "Muadil —
+ * Teklif edilen: FAG · 6204-2Z-C3 (İstenen: SKF · 6204-2RS)", değilse istenen
+ * marka · parça no; ikisi de yoksa null. Uyuşmazlıkta bağlayıcı belge.
+ */
+export function itemBrandLine(
+  it: Pick<
+    OrderPrintItem,
+    "requestedBrand" | "requestedMpn" | "isAlternative" | "offeredBrand" | "offeredMpn"
+  >,
+  labels: Pick<OrderPrintLabels, "alternative" | "offered" | "requested" | "notSpecified">,
+): string | null {
+  const requested = joinParts(it.requestedBrand, it.requestedMpn);
+  if (it.isAlternative) {
+    const offered = joinParts(it.offeredBrand, it.offeredMpn) || labels.notSpecified;
+    return `${labels.alternative} — ${labels.offered}: ${offered}${
+      requested ? ` (${labels.requested}: ${requested})` : ""
+    }`;
+  }
+  return requested || null;
 }
 
 interface OrderPrintOrder {
@@ -68,6 +101,11 @@ export interface OrderPrintLabels {
   total: string;
   /** Sipariş genelinden gelen teslim tarihinin notu — "(genel)". */
   general: string;
+  /** Muadil satırı: "Muadil", "Teklif edilen", "İstenen", "belirtilmedi". */
+  alternative: string;
+  offered: string;
+  requested: string;
+  notSpecified: string;
 }
 
 /**
@@ -112,7 +150,11 @@ export function buildOrderPrintHtml(
         deliveryTimeLabel,
         dateLocale,
       );
-      return `<tr><td>${escapeHtml(it.name)}</td><td style="text-align:right">${escapeHtml(quantityLabel ? quantityLabel(Number(it.quantity), it.unit) : `${Number(it.quantity).toLocaleString(locale)} ${it.unit}`)}</td><td style="text-align:right">${escapeHtml(dd)}</td><td style="text-align:right">${escapeHtml(money(Number(it.unitPrice)))}</td><td style="text-align:right">${escapeHtml(money(line))}</td></tr>`;
+      const brand = itemBrandLine(it, labels);
+      const nameCell = brand
+        ? `${escapeHtml(it.name)}<div class="muted" style="font-size:12px">${escapeHtml(brand)}</div>`
+        : escapeHtml(it.name);
+      return `<tr><td>${nameCell}</td><td style="text-align:right">${escapeHtml(quantityLabel ? quantityLabel(Number(it.quantity), it.unit) : `${Number(it.quantity).toLocaleString(locale)} ${it.unit}`)}</td><td style="text-align:right">${escapeHtml(dd)}</td><td style="text-align:right">${escapeHtml(money(Number(it.unitPrice)))}</td><td style="text-align:right">${escapeHtml(money(line))}</td></tr>`;
     })
     .join("");
   return `<!doctype html><html lang="${escapeHtml(locale)}"><head><meta charset="utf-8"><title>${escapeHtml(o.number ?? labels.order)}</title>

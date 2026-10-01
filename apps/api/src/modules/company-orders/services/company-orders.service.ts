@@ -2400,6 +2400,12 @@ export class CompanyOrdersService {
         deliveryDate: it.deliveryDate,
         deliveryTime: it.deliveryTime,
         note: it.note,
+        // Muadil / marka snapshot'ı (award anında; arayüz testi O-003).
+        requestedBrand: it.requestedBrand,
+        requestedMpn: it.requestedMpn,
+        isAlternative: it.isAlternative,
+        offeredBrand: it.offeredBrand,
+        offeredMpn: it.offeredMpn,
       })),
     };
   }

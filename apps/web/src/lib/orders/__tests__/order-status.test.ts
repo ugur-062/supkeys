@@ -30,4 +30,14 @@ describe("orderSteps / orderStageIndex", () => {
     expect(orderStageIndex("CANCELLED").terminated).toBe(true);
     expect(orderStageIndex("REJECTED").terminated).toBe(true);
   });
+
+  /* Arayüz testi O-030: ihtilaf sonlanmış sayılmaz — önceki durumun konumu
+     korunur, süren adım `disputed` (amber). */
+  it("DISPUTED → ihtilaf öncesi durumun konumu + disputed", () => {
+    expect(orderStageIndex("DISPUTED")).toEqual({ done: 1, current: 1, terminated: false, disputed: true });
+    expect(orderStageIndex("DISPUTED", null)).toEqual({ done: 1, current: 1, terminated: false, disputed: true });
+    expect(orderStageIndex("DISPUTED", "DELIVERED")).toEqual({ done: 3, current: 3, terminated: false, disputed: true });
+    // Tamamlanmışken ayıp ihbarı: son adım yeniden süren (amber).
+    expect(orderStageIndex("DISPUTED", "COMPLETED")).toEqual({ done: 3, current: 3, terminated: false, disputed: true });
+  });
 });

@@ -1532,6 +1532,15 @@ model CompanyOrderItem {
   // yoksa teklifin genel süresi award anında kopyalanır.
   deliveryTime BidDeliveryTime?
   note         String?
+  // Muadil / marka snapshot'ı (arayüz testi O-003) — award anında kalemin
+  // istenen marka/MPN'i ve kazanan teklif kaleminin muadil beyanı dondurulur;
+  // sipariş ve yazdırma çıktısı uyuşmazlıkta bağlayıcı kayıt olur. Eski
+  // siparişlerde boş (kalem↔kazanan ilişkisi saklanmadığı için backfill yok).
+  requestedBrand String?
+  requestedMpn   String?
+  isAlternative  Boolean          @default(false)
+  offeredBrand   String?
+  offeredMpn     String?
 
   @@index([orderId])
   @@map("company_order_items")

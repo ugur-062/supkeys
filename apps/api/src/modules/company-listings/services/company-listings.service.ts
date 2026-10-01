@@ -134,6 +134,10 @@ import {
   type AffinityReasons,
 } from "../../company-affinity/company-affinity.service";
 import { maskEmail } from "../../../common/logging/mask-email";
+import {
+  orderItemAlternativeSnapshot,
+  type OrderItemAlternativeSnapshot,
+} from "../../../common/company/order-item-snapshot";
 
 /**
  * Bildirim alıcısı — e-posta/isim + kullanıcı bildirim tercihleri + DİL.
@@ -5715,6 +5719,10 @@ export class CompanyListingsService {
             currency: true,
             fxToBase: true,
             note: true,
+            // Muadil beyanı siparişe snapshot'lanır (arayüz testi O-003).
+            isAlternative: true,
+            offeredBrand: true,
+            offeredMpn: true,
           },
         },
       },
@@ -5742,6 +5750,8 @@ export class CompanyListingsService {
         quantity: true,
         unit: true,
         unitCode: true,
+        brand: true,
+        mpn: true,
       },
     });
     const orderItems = listingItems
@@ -5760,6 +5770,8 @@ export class CompanyListingsService {
               deliveryDate: bi.deliveryDate,
               deliveryTime: bi.deliveryTime ?? bid.deliveryTime,
               note: bi.note,
+              // O-003: istenen marka/MPN + muadil beyanı (sipariş bağlayıcı kaydı).
+              ...orderItemAlternativeSnapshot(li, bi),
               // Madde 9 — kalem para birimi (null = teklifin ana birimi) +
               // ana birime çevrim damgası (nöbetçi yeniden hesaplaması için).
               currency: (bi.currency ?? bid.currency) as Currency,
@@ -5900,10 +5912,17 @@ export class CompanyListingsService {
               name: it.name,
               quantity: it.quantity,
               unit: it.unit,
+              // Plan kalemin kanonik birim kodunu taşıyordu ama yazılmıyordu.
+              unitCode: it.unitCode,
               unitPrice: it.unitPrice,
               deliveryDate: it.deliveryDate,
               deliveryTime: it.deliveryTime,
               note: it.note,
+              requestedBrand: it.requestedBrand,
+              requestedMpn: it.requestedMpn,
+              isAlternative: it.isAlternative,
+              offeredBrand: it.offeredBrand,
+              offeredMpn: it.offeredMpn,
             })),
           });
         }
@@ -6314,7 +6333,15 @@ export class CompanyListingsService {
   ) {
     const items = await this.prisma.listingItem.findMany({
       where: { listingId },
-      select: { id: true, name: true, quantity: true, unit: true },
+      select: {
+        id: true,
+        name: true,
+        quantity: true,
+        unit: true,
+        unitCode: true,
+        brand: true,
+        mpn: true,
+      },
     });
     if (items.length === 0) {
       throw new BadRequestException(i18nMessage("api.companyListings.buSatinAlmaTalebindeKalemYok"));
@@ -6356,6 +6383,10 @@ export class CompanyListingsService {
             currency: true,
             fxToBase: true,
             note: true,
+            // Muadil beyanı siparişe snapshot'lanır (arayüz testi O-003).
+            isAlternative: true,
+            offeredBrand: true,
+            offeredMpn: true,
           },
         },
       },
@@ -6368,18 +6399,19 @@ export class CompanyListingsService {
         // Madde 9: grup anahtarı firma+PARA BİRİMİ — çok-birimli tekliften
         // kazanan kalemler birim başına AYRI siparişe düşer (sipariş tek birim).
         bidderCompanyId: string;
-        orderItems: {
+        orderItems: ({
           name: string;
           // S8: order kalem precision — ham Prisma.Decimal (runFullAward
           // orderItems ile AYNI temsil; eskiden Number() → MAX_MONEY-ölçek
           // fiyatta fidelity farkı vardı).
           quantity: Prisma.Decimal;
           unit: string;
+          unitCode: string | null;
           unitPrice: Prisma.Decimal;
           deliveryDate: Date | null;
           deliveryTime: BidDeliveryTime | null;
           note: string | null;
-        }[];
+        } & OrderItemAlternativeSnapshot)[];
         amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7), KENDİ biriminde
         currency: Currency; // bu grubun (siparişin) birimi
         exchangeRateSnapshot: Prisma.Decimal | null; // birim→TRY damgası (X-CF-1)
@@ -6454,6 +6486,8 @@ export class CompanyListingsService {
         name: li.name,
         quantity: new Prisma.Decimal(qty),
         unit: li.unit,
+        unitCode: li.unitCode ?? null,
+        ...orderItemAlternativeSnapshot(li, bi),
         unitPrice: bi.unitPrice,
         deliveryDate: bi.deliveryDate,
         // Kalem süresi yoksa teklifin genel süresi snapshot'lanır.
@@ -6722,10 +6756,16 @@ export class CompanyListingsService {
                 name: it.name,
                 quantity: it.quantity,
                 unit: it.unit,
+                unitCode: it.unitCode,
                 unitPrice: it.unitPrice,
                 deliveryDate: it.deliveryDate,
                 deliveryTime: it.deliveryTime,
                 note: it.note,
+                requestedBrand: it.requestedBrand,
+                requestedMpn: it.requestedMpn,
+                isAlternative: it.isAlternative,
+                offeredBrand: it.offeredBrand,
+                offeredMpn: it.offeredMpn,
               })),
             },
           },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildOrderPrintHtml, type OrderPrintLabels } from "../order-print";
+import { buildOrderPrintHtml, itemBrandLine, type OrderPrintLabels } from "../order-print";
 
 const baseOrder = {
   number: "ORD-2026-0001",
@@ -30,6 +30,10 @@ const labels: OrderPrintLabels = {
   noItems: "Kalem yok",
   total: "Toplam",
   general: "(genel)",
+  alternative: "Muadil",
+  offered: "Teklif edilen",
+  requested: "İstenen",
+  notSpecified: "belirtilmedi",
 };
 const ctx = { isSeller: false, currency: "TRY", statusLabel: "Onaylandı", labels, locale: "tr" };
 
@@ -94,5 +98,40 @@ describe("buildOrderPrintHtml — para 2 ondalık (derin denetim LU-22)", () => 
     const html = buildOrderPrintHtml(baseOrder, ctx);
     expect(html).toContain("200,00 ₺");
     expect(html).toContain("1.000,00 ₺");
+  });
+});
+
+describe("buildOrderPrintHtml — muadil kalem (arayüz testi O-003)", () => {
+  it("muadil teklif edilen ve istenen marka/parça no çıktıda yazar (escape'li)", () => {
+    const html = buildOrderPrintHtml(
+      {
+        ...baseOrder,
+        items: [
+          {
+            ...baseOrder.items[0],
+            name: "Rulman 6204",
+            requestedBrand: "SKF",
+            requestedMpn: "6204-2RS",
+            isAlternative: true,
+            offeredBrand: "FAG",
+            offeredMpn: "6204-2Z-C3",
+          },
+        ],
+      },
+      ctx,
+    );
+    expect(html).toContain(
+      "Muadil — Teklif edilen: FAG · 6204-2Z-C3 (İstenen: SKF · 6204-2RS)",
+    );
+  });
+
+  it("muadil değilse istenen marka · parça no; ikisi de yoksa satır yok", () => {
+    expect(itemBrandLine({ requestedBrand: "SKF", requestedMpn: "6204-2RS" }, labels)).toBe(
+      "SKF · 6204-2RS",
+    );
+    expect(itemBrandLine({}, labels)).toBeNull();
+    expect(itemBrandLine({ isAlternative: true }, labels)).toBe(
+      "Muadil — Teklif edilen: belirtilmedi",
+    );
   });
 });

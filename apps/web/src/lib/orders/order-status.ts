@@ -57,11 +57,22 @@ export function orderSteps(sellerShips: boolean): {
  * Durum → izleyici konumu. `done` = biten adım sayısı, `current` = süren
  * adımın indeksi (hepsi bittiyse ve iptal/redde -1). Legacy CREATED,
  * ACCEPTED hizasında.
+ *
+ * DISPUTED sonlanmış DEĞİL (arayüz testi O-030): ihtilaf açıldığı andaki
+ * durumun (`disputePrevStatus`; satıcı iptal talebinin reddinde boş →
+ * ACCEPTED) konumu korunur, süren adım `disputed` ile amber çizilir. Eskiden
+ * iptal/ret gibi "0 adım" sayılıyor, gerçekleşmiş adımların hepsi griye
+ * dönüyordu. Tamamlanmış siparişte ayıp ihbarı son adımı (Tamamlandı)
+ * yeniden ihtilafta gösterir.
  */
-export function orderStageIndex(status: CompanyOrderStatus): {
+export function orderStageIndex(
+  status: CompanyOrderStatus,
+  disputePrevStatus?: CompanyOrderStatus | null,
+): {
   done: number;
   current: number;
   terminated: boolean;
+  disputed?: boolean;
 } {
   switch (status) {
     case "PENDING":
@@ -75,9 +86,19 @@ export function orderStageIndex(status: CompanyOrderStatus): {
       return { done: 3, current: 3, terminated: false };
     case "COMPLETED":
       return { done: 4, current: -1, terminated: false };
+    case "DISPUTED": {
+      const prev =
+        disputePrevStatus && disputePrevStatus !== "DISPUTED"
+          ? disputePrevStatus
+          : "ACCEPTED";
+      const base = orderStageIndex(prev);
+      if (base.terminated) return base;
+      // Tamamlanmışken açılan ihtilaf: son adım yeniden "süren" (amber).
+      if (base.current === -1) return { done: 3, current: 3, terminated: false, disputed: true };
+      return { ...base, disputed: true };
+    }
     case "REJECTED":
     case "CANCELLED":
-    case "DISPUTED":
       return { done: 0, current: -1, terminated: true };
     default:
       return { done: 0, current: 0, terminated: false };

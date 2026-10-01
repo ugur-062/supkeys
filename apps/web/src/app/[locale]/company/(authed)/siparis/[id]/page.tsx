@@ -17,7 +17,9 @@ import {
 import { Text } from "@/components/catalyst/text";
 import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
 import { useFormatMoney } from "@/components/ui/money";
+import { ErrorState } from "@/components/ui/error-state";
 import { Iban } from "@/components/ui/iban";
+import { AlternativeOfferNote } from "@/components/tenders/alternative-offer-note";
 import { MetaTag, StatusBadge } from "@/components/ui/status-badge";
 import {
   useAcceptOrder,
@@ -96,7 +98,7 @@ export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { user } = useCompanyAuth();
-  const { data: o, isLoading } = useOrder(id);
+  const { data: o, isLoading, isError, error, refetch } = useOrder(id);
   const ship = useShipOrder(id);
   const receive = useReceiveOrder(id);
   const complete = useCompleteOrder(id);
@@ -134,6 +136,12 @@ export default function OrderDetailPage() {
         </div>
       </div>
     );
+  // Arayüz testi O-092: "bulunamadı" YALNIZ gerçek 404'te; 500/ağ hatasında
+  // ayrı hata dalı + "Tekrar dene" (kullanıcı siparişin silindiğini sanıyordu).
+  const notFound =
+    (error as { response?: { status?: number } } | null)?.response?.status === 404;
+  if (!o && isError && !notFound)
+    return <ErrorState onRetry={() => void refetch()} />;
   if (!o)
     return <Text className="text-sm text-zinc-500">{t("siparisBulunamadi")}</Text>;
 
@@ -144,7 +152,8 @@ export default function OrderDetailPage() {
   // Teslim şekli: satıcı taşır mı (gönder) yoksa alıcı toplar mı (teslime hazır)?
   const sellerShips = sellerShipsGoods(o.deliveryTerm);
   const steps = stepsFor(sellerShips);
-  const stage = orderStageIndex(o.status);
+  // O-030: ihtilafta gerçekleşmiş adımlar korunur, süren adım amber.
+  const stage = orderStageIndex(o.status, o.disputePrevStatus);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
   const statusMeta = orderStatusMeta(o.status, sellerShips);
   const statusLabel = tStatus(statusMeta.labelKey as never);
@@ -164,6 +173,10 @@ export default function OrderDetailPage() {
     noItems: t("print.kalemYok"),
     total: t("print.toplam"),
     general: t("print.genel"),
+    alternative: t("print.muadil"),
+    offered: t("print.teklifEdilen"),
+    requested: t("print.istenen"),
+    notSpecified: t("print.belirtilmedi"),
   };
   const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
   const ordersHref = isSeller
@@ -177,6 +190,14 @@ export default function OrderDetailPage() {
   // epsilon YOK (eski `confirmed + 0.01 >= amount` 1 kuruş eksikte açıyordu).
   const confirmedPaid = Number(o.paymentTotals?.confirmed ?? 0);
   const remainingDue = Number(o.paymentTotals?.remaining ?? 0);
+  // Özet "Kalan" = ONAYLI ödemeye göre borç (arayüz testi D-127): backend
+  // `remaining` bekleyen bildirimi de düşer ("bildirilebilir kalan"), onaysız
+  // tam bildirimde "Kalan 0,00" yeşil yazıyordu. Kuruş tamsayısında hesaplanır.
+  const pendingPaid = Number(o.paymentTotals?.pending ?? 0);
+  const outstanding = Math.max(
+    0,
+    (Math.round(Number(o.amount) * 100) - Math.round(confirmedPaid * 100)) / 100,
+  );
   // Denetim P3 #6: `paymentTotals.remaining` bekleyen (onaysız) bildirimi de
   // düşer (S4/Madde 16 — "kalan bildirilebilir tutar"). "Borç kapandı mı"
   // sinyali YALNIZ backend'in `paymentSettled` alanıdır (liste ucuyla aynı
@@ -318,7 +339,20 @@ export default function OrderDetailPage() {
 
   // P2 (denetim §5): durum makinesinin AÇIKLAMA metni — birincil aksiyonun
   // kendisi sticky ActionBar'da (tek yerde); burası "sıradaki adım" anlatısı.
-  const nextStepHint = !canAct ? (
+  // Arayüz testi O-055: sonlanmış siparişte, peşin eşiğinde ve akreditif
+  // adımlarında sıradaki adım ALICININ — "karşı taraf bekleniyor" denmez.
+  const buyerPreShip =
+    !isSeller &&
+    (o.status === "ACCEPTED" ||
+      o.status === "CREATED" ||
+      (o.status === "DISPUTED" && !defectDisputed));
+  const nextStepHint = terminal ? (
+    <Text className="text-sm text-zinc-500">
+      {o.status === "REJECTED"
+        ? t("siparisReddedildiAdimYok")
+        : t("siparisIptalEdildiAdimYok")}
+    </Text>
+  ) : !canAct ? (
     <Text className="text-sm text-zinc-500">
       {t("buAdimlarRoluGerektirir", {
         role: roleLabel(isSeller ? "SATISCI" : "SATIN_ALMACI"),
@@ -372,6 +406,26 @@ export default function OrderDetailPage() {
         </Text>
       )}
     </div>
+  ) : buyerPreShip && !isLc && !advanceMet ? (
+    paymentAwaitingConfirmation ? (
+      <Text className="text-sm text-amber-700">
+        {t("pesinOdemeOnayBekliyor")}
+      </Text>
+    ) : (
+      <Text className="text-sm text-amber-700">
+        {t("pesinOdemeyiYapipBildirin", {
+          advance: formatMoney(advanceDue, o.currency),
+        })}
+      </Text>
+    )
+  ) : buyerPreShip && isLc && !o.lcOpenedAt ? (
+    <Text className="text-sm text-amber-700">
+      {t("akreditifiActirinIsaretleyin")}
+    </Text>
+  ) : buyerPreShip && isLc && !o.lcAcceptedAt ? (
+    <Text className="text-sm text-zinc-500">
+      {t("saticininAkreditifiKabulEtmesiBekleniyor")}
+    </Text>
   ) : advanceGate ? (
     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
       {t.rich("buSiparistePesinOdemeSarti", {
@@ -465,6 +519,9 @@ export default function OrderDetailPage() {
                 CONFIRMED guard) → buton görünüp 400 vermesin; gizle + not göster. */}
             {canAct &&
             !isSeller &&
+            // D-105: açık iptal talebinde karar paneli konuşur — "iptal
+            // edilemez" bandı "İptali Onayla"nın yanında çelişiyordu.
+            !pendingCancelRequest &&
             (o.status === "PENDING" ||
               o.status === "ACCEPTED" ||
               o.status === "CREATED") ? (
@@ -564,6 +621,7 @@ export default function OrderDetailPage() {
                 {steps.map((s, i) => {
                   const done = i < stage.done;
                   const current = i === stage.current;
+                  const disputedStep = current && !!stage.disputed;
                   return (
                     <div key={s.key} className="flex flex-1 items-start gap-2">
                       <div
@@ -574,9 +632,11 @@ export default function OrderDetailPage() {
                           className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
                             done
                               ? "border-emerald-500 bg-emerald-500 text-white"
-                              : current
-                                ? "border-blue-500 bg-blue-50 text-blue-700 ring-4 ring-blue-500/15"
-                                : "border-zinc-200 bg-white text-zinc-300"
+                              : disputedStep
+                                ? "border-amber-500 bg-amber-50 text-amber-700 ring-4 ring-amber-500/15"
+                                : current
+                                  ? "border-blue-500 bg-blue-50 text-blue-700 ring-4 ring-blue-500/15"
+                                  : "border-zinc-200 bg-white text-zinc-300"
                           }`}
                         >
                           {done ? (
@@ -591,9 +651,11 @@ export default function OrderDetailPage() {
                           className={`whitespace-nowrap text-center text-xs ${
                             done
                               ? "text-emerald-700"
-                              : current
-                                ? "font-semibold text-blue-700"
-                                : "text-zinc-400"
+                              : disputedStep
+                                ? "font-semibold text-amber-700"
+                                : current
+                                  ? "font-semibold text-blue-700"
+                                  : "text-zinc-500"
                           }`}
                         >
                           {stepLabel(s)}
@@ -759,6 +821,21 @@ export default function OrderDetailPage() {
                     <TableRow key={it.id}>
                       <TableCell className="font-medium text-zinc-900">
                         {it.name}
+                        {/* O-003: muadil beyanı / istenen marka-parça no siparişte
+                            de bağlayıcı kayıt (award snapshot'ı). */}
+                        {it.isAlternative ? (
+                          <AlternativeOfferNote
+                            bidItem={it}
+                            item={{ brand: it.requestedBrand, mpn: it.requestedMpn }}
+                          />
+                        ) : it.requestedBrand || it.requestedMpn ? (
+                          <span className="block text-xs font-normal text-zinc-500">
+                            {[it.requestedBrand, it.requestedMpn]
+                              .map((v) => v?.trim())
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        ) : null}
                         {it.note ? (
                           <span className="block text-xs font-normal text-zinc-400">
                             {it.note}
@@ -795,7 +872,10 @@ export default function OrderDetailPage() {
           ) : null}
 
           {/* Banka & Fatura */}
-          {o.bankAccountHolder || o.bankIban || o.bankAccountNumber || o.invoiceNumber ? (
+          {/* O-029: akreditifte ödeme banka kanalından — siparişe işlenmiş (eski
+              kayıtlarda varsayılan) hesap gösterilmez, yalnız fatura no. */}
+          {(!isLc && (o.bankAccountHolder || o.bankIban || o.bankAccountNumber)) ||
+          o.invoiceNumber ? (
             <section className="card p-5">
               <div className="mb-3 flex items-center gap-2">
                 <Banknote className="h-4 w-4 text-zinc-500" />
@@ -804,7 +884,7 @@ export default function OrderDetailPage() {
                 </h2>
               </div>
               <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-                {o.bankAccountHolder ? (
+                {!isLc && o.bankAccountHolder ? (
                   <div>
                     <dt className="text-xs text-zinc-500">{t("hesapSahibi")}</dt>
                     <dd className="font-medium text-zinc-900">
@@ -812,7 +892,7 @@ export default function OrderDetailPage() {
                     </dd>
                   </div>
                 ) : null}
-                {o.bankIban ? (
+                {!isLc && o.bankIban ? (
                   <div>
                     <dt className="text-xs text-zinc-500">IBAN</dt>
                     <dd className="text-zinc-900">
@@ -820,19 +900,19 @@ export default function OrderDetailPage() {
                     </dd>
                   </div>
                 ) : null}
-                {o.bankAccountNumber ? (
+                {!isLc && o.bankAccountNumber ? (
                   <div>
                     <dt className="text-xs text-zinc-500">{t("hesapNo")}</dt>
                     <dd className="tabular-nums text-zinc-900">{o.bankAccountNumber}</dd>
                   </div>
                 ) : null}
-                {o.bankSwiftBic ? (
+                {!isLc && o.bankSwiftBic ? (
                   <div>
                     <dt className="text-xs text-zinc-500">{t("swiftBic")}</dt>
                     <dd className="text-zinc-900">{o.bankSwiftBic}</dd>
                   </div>
                 ) : null}
-                {o.bankName ? (
+                {!isLc && o.bankName ? (
                   <div>
                     <dt className="text-xs text-zinc-500">{t("bankaAdi")}</dt>
                     <dd className="text-zinc-900">{o.bankName}</dd>
@@ -894,15 +974,26 @@ export default function OrderDetailPage() {
                   {formatMoney(confirmedPaid, o.currency)}
                 </span>
               </SummaryRow>
-              <SummaryRow label={t("kalan")}>
-                <span
-                  className={` tabular-nums ${
-                    remainingDue > 0 ? "text-amber-700" : "text-emerald-700"
-                  }`}
-                >
-                  {formatMoney(remainingDue, o.currency)}
-                </span>
-              </SummaryRow>
+              {/* D-127: bekleyen (onaysız) bildirim ayrı satırda; "Kalan" onaylı
+                  ödemeye göre borç. D-105: iptal/ret siparişte borç yok → gizli. */}
+              {!terminal && pendingPaid > 0 ? (
+                <SummaryRow label={t("onayBekleyenOdeme")}>
+                  <span className="tabular-nums text-amber-700">
+                    {formatMoney(pendingPaid, o.currency)}
+                  </span>
+                </SummaryRow>
+              ) : null}
+              {!terminal ? (
+                <SummaryRow label={t("kalan")}>
+                  <span
+                    className={` tabular-nums ${
+                      fullyPaid ? "text-emerald-700" : "text-amber-700"
+                    }`}
+                  >
+                    {formatMoney(outstanding, o.currency)}
+                  </span>
+                </SummaryRow>
+              ) : null}
               {o.paymentDueDate ? (
                 <SummaryRow label={t("odemeVadesi")}>
                   {formatDate(o.paymentDueDate, "short", locale)}
@@ -929,6 +1020,7 @@ export default function OrderDetailPage() {
         pending={accept.isPending}
         // S1: LC/vesaik mukabilinde ödeme banka kanalından → banka hesabı opsiyonel.
         bankOptional={isLc || o.paymentCategory === "CASH_AGAINST_DOCS"}
+        isLetterOfCredit={isLc}
       />
       <ShipOrderModal
         open={modal === "ship"}

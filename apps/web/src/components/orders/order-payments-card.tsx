@@ -85,6 +85,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const { user } = useCompanyAuth();
   const canAct = canActOnOrder(order.role, user);
   const isLc = order.paymentCategory === "LETTER_OF_CREDIT";
+  // İptal/ret: borç kalmaz → "Kalan" gösterilmez; onaylı ödeme varsa iade notu
+  // (arayüz testi D-105 — iptal edilen siparişte "KALAN 21.000 ₺" duruyordu).
+  const terminal = order.status === "CANCELLED" || order.status === "REJECTED";
   const record = useRecordPayment(order.id);
   const decide = usePaymentDecision(order.id);
   const confirm = useConfirm();
@@ -219,11 +222,20 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       </div>
 
       {/* Toplamlar */}
-      <div className="grid grid-cols-3 divide-x divide-zinc-950/5 border-b border-zinc-950/5">
+      <div
+        className={`grid divide-x divide-zinc-950/5 border-b border-zinc-950/5 ${terminal ? "grid-cols-2" : "grid-cols-3"}`}
+      >
         <Totals label={tr("onaylanan")} value={t.confirmed} tone="text-success-600" currency={cur} />
         <Totals label={tr("bekleyen")} value={t.pending} tone="text-warning-600" currency={cur} />
-        <Totals label={tr("kalan")} value={t.remaining} tone="text-zinc-900" currency={cur} />
+        {terminal ? null : (
+          <Totals label={tr("kalan")} value={t.remaining} tone="text-zinc-900" currency={cur} />
+        )}
       </div>
+      {terminal && Number(t.confirmed) > 0 ? (
+        <div className="border-b border-zinc-950/5 px-5 py-2 text-xs text-zinc-600">
+          {tr("iadeTaraflarArasinda")}
+        </div>
+      ) : null}
 
       {/* Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim sonrası hesaplanır.
           P0: vadesi GEÇMİŞ + borç açık → danger vurgusu ve gecikme gün sayısı. */}
@@ -251,8 +263,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         })()
       ) : null}
 
-      {/* Akreditif — manuel ödeme akışı kapalı bilgilendirmesi. */}
-      {isLc ? (
+      {/* Akreditif — manuel ödeme akışı kapalı bilgilendirmesi. Ödeme bankadan
+          alındı olarak işaretlendikten sonra (onaylı kayıt listede) bayatlar →
+          gizlenir (arayüz testi O-029). */}
+      {isLc && !order.lcPaidAt && !terminal ? (
         <div className="border-b border-zinc-950/5 bg-zinc-50 px-5 py-2 text-xs text-zinc-600">
           {tr.rich("odemeAkreditifKapsaminda", { strong: (c) => <strong>{c}</strong> })}
         </div>
@@ -315,7 +329,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       <div className="divide-y divide-zinc-950/5">
         {order.payments.length === 0 ? (
           <p className="px-5 py-6 text-center text-sm text-zinc-500">
-            {order.paymentOpen
+            {/* O-029/O-055: akreditifte alıcı kayıt eklemez (banka kanalı) —
+                "satıcı onayladıktan sonra eklenebilir" bayat metni yazılmaz. */}
+            {order.paymentOpen || isLc || terminal
               ? tr("henuzOdemeKaydiYok")
               : order.paymentTiming === "AFTER_DELIVERY"
                 ? tr("odemeBolumuSiparisTeslimAlindiktan")

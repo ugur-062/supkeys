@@ -241,8 +241,11 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
     o.paymentSettled === false && o.paymentDueDate
       ? Math.floor((Date.now() - new Date(o.paymentDueDate).getTime()) / 86_400_000)
       : null;
+  // Kabul öncesi (PENDING) ödeme etiketi yok: satıcı onaylamadan borç doğmaz
+  // (arayüz testi D-127 — açık hesap siparişinde "Ödeme bekliyor" yazıyordu).
   const showPayment =
-    o.paymentSettled === false && !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status);
+    o.paymentSettled === false &&
+    !["PENDING", "CANCELLED", "REJECTED", "DISPUTED"].includes(o.status);
 
   return (
     <Link
@@ -314,15 +317,17 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
 
       {/* ALT — aşama izleyici / son durum notu */}
       <div className="border-t border-zinc-950/5 px-4 py-3 sm:px-5">
-        {!isTerminated ? (
-          <StageStepper done={done} current={current} sellerShips={sellerShips} />
-        ) : o.status === "DISPUTED" ? (
+        {o.status === "DISPUTED" ? (
           // DISPUTED canlı ve geri dönebilir (A1: satıcı sevk edebilir; ayıp
           // ihbarı geri alınabilir) — "iptal edildi" demek yanlıştı (derin denetim S068).
+          // Liste ucu ihtilaf öncesi durumu taşımaz → izleyici yerine not (detay
+          // sayfası izleyiciyi `disputePrevStatus` ile çizer, arayüz testi O-030).
           <p className="flex items-center gap-2 text-xs font-medium text-amber-700">
             <AlertTriangle className="size-4 shrink-0" aria-hidden />
             {t("siparisIhtilafliSurecSuruyor")}
           </p>
+        ) : !isTerminated ? (
+          <StageStepper done={done} current={current} sellerShips={sellerShips} />
         ) : (
           <p
             className={cn(

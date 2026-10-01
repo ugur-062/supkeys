@@ -30,6 +30,7 @@ export function AcceptOrderModal({
   onSubmit,
   pending,
   bankOptional = false,
+  isLetterOfCredit = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -40,16 +41,28 @@ export function AcceptOrderModal({
   pending: boolean;
   /** S1: LC/vesaik mukabilinde ödeme banka kanalından gider → banka hesabı opsiyonel. */
   bankOptional?: boolean;
+  /**
+   * Akreditif: ödeme yalnız banka kanalından → siparişe hesap İŞLENMEZ (arayüz
+   * testi O-029: seçici yokken varsayılan hesap sessizce gönderiliyor, LC
+   * siparişinde IBAN görünüyordu). Vesaik mukabilinde hesap isteğe bağlı ve
+   * yalnız AÇIKÇA seçilen gönderilir.
+   */
+  isLetterOfCredit?: boolean;
 }) {
   const t = useTranslations("web.panel.trade.orderActionModals");
   const [note, setNote] = useState("");
   // Banka bilgisi elle girilmez — Ayarlar → Banka Hesapları'ndan seçilir.
   const accounts = useBankAccounts();
-  const [accountId, setAccountId] = useState("");
+  // null = kullanıcı henüz seçmedi (zorunlu modda varsayılana düşer); "" =
+  // isteğe bağlı modda bilinçli "hesap eklenmesin".
+  const [accountId, setAccountId] = useState<string | null>(null);
   const defaultId =
     accounts.data?.find((a) => a.isDefault)?.id ?? accounts.data?.[0]?.id ?? "";
-  const effectiveAccountId = accountId || defaultId;
+  const effectiveAccountId = isLetterOfCredit ? "" : (accountId ?? defaultId);
 
+  // Liste yüklenirken "hesap yok" uyarısı ve pasif Onayla yanıp sönmesin
+  // (arayüz testi D-282) — yükleme ayrı dal.
+  const accountsLoading = !!accounts.isLoading && !accounts.data;
   const hasAccounts = !!accounts.data && accounts.data.length > 0;
   const bankReady = bankOptional || !!effectiveAccountId;
   const lock = useDialogSubmitLock(open);
@@ -63,6 +76,13 @@ export function AcceptOrderModal({
       }),
     ).catch(() => {});
   };
+
+  const accountOptions = (accounts.data ?? []).map((a) => (
+    <option key={a.id} value={a.id}>
+      {a.title} · {accountTail(a)}
+      {a.isDefault ? ` ${t("varsayilan")}` : ""}
+    </option>
+  ));
 
   return (
     <Dialog open={open} onClose={onClose} size="lg">
@@ -78,29 +98,45 @@ export function AcceptOrderModal({
         }}
       >
       <DialogBody className="space-y-4">
-        {bankOptional ? (
+        {isLetterOfCredit ? (
           <Field>
             <Label>{t("odemeHesabi")}</Label>
             <p className="mt-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-              {t("akreditifVesaikMukabiliOdemeBanka")}
+              {t("akreditifOdemeBankaKanalindan")}
+            </p>
+          </Field>
+        ) : bankOptional ? (
+          <Field>
+            <Label>{t("odemeHesabi")}</Label>
+            {accountsLoading ? (
+              <div className="mt-1 h-9 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
+            ) : hasAccounts ? (
+              <Select
+                value={effectiveAccountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                aria-label={t("odemeHesabi3")}
+              >
+                <option value="">{t("hesapEklenmesin")}</option>
+                {accountOptions}
+              </Select>
+            ) : null}
+            <p className="mt-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+              {t("vesaikHesapOpsiyonel")}
             </p>
           </Field>
         ) : (
           <Field>
             <Label>{t("odemeHesabi2")}</Label>
-            {hasAccounts ? (
+            {accountsLoading ? (
+              <div className="mt-1 h-9 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
+            ) : hasAccounts ? (
               <>
                 <Select
                   value={effectiveAccountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   aria-label={t("odemeHesabi3")}
                 >
-                  {accounts.data!.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.title} · {accountTail(a)}
-                      {a.isDefault ? t("varsayilan") : ""}
-                    </option>
-                  ))}
+                  {accountOptions}
                 </Select>
                 <p className="mt-1 text-xs text-zinc-500">
                   {t("alicininOdemeYapacagiHesapSiparise")}
@@ -137,7 +173,10 @@ export function AcceptOrderModal({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button type="submit" disabled={pending || !bankReady || lock.locked}>
+        <Button
+          type="submit"
+          disabled={pending || !bankReady || lock.locked || (!bankOptional && accountsLoading)}
+        >
           {t("onayla")}
         </Button>
       </DialogActions>

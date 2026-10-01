@@ -37,6 +37,13 @@ export interface CompanyOrderItemRow {
   /** Kalem teslim SÜRESİ (BID_DELIVERY_TIMES; 2026-08-02 sonrası awardlar). */
   deliveryTime?: string | null;
   note?: string | null;
+  /** Award anında alıcının kalemde istediği marka / parça no (snapshot). */
+  requestedBrand?: string | null;
+  requestedMpn?: string | null;
+  /** Kazanan teklifin muadil beyanı (snapshot, arayüz testi O-003). */
+  isAlternative?: boolean;
+  offeredBrand?: string | null;
+  offeredMpn?: string | null;
 }
 
 export interface OrderPayment {
