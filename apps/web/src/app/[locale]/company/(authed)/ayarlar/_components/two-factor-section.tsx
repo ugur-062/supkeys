@@ -29,6 +29,9 @@ export function TwoFactorSection() {
   const enableEmail = useEnableEmail2fa();
 
   const enabled = !!user?.twoFactorEnabled;
+  // Açık 2FA'nın yöntemi (`/me`). Bilinmiyorsa (eski anlık görüntü) genel
+  // metin + e-posta düğmesi — e-posta kullanıcısı kapatma yolunu kaybetmesin.
+  const method = enabled ? (user?.twoFactorMethod ?? null) : null;
   const [qr, setQr] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -40,11 +43,18 @@ export function TwoFactorSection() {
   // (arayüz testi FX-00 Y-12; sunucu da koşullu yazar).
   const lock = useSubmitLock();
 
+  // Tavan doluyken API `{ sent:false, capped:true }` döner: yeni kod GİTMEZ,
+  // son kod geçerlidir — "kod gönderildi" demek yanlıştı (arayüz testi D-304).
+  const announceSent = (res: { sent: boolean; capped?: boolean }) => {
+    if (!res.sent && res.capped) toast.info(t("kodSiniriDoldu"));
+    else toast.success(t("ePostanizaDogrulamaKoduGonderildi"));
+  };
+
   const startEmailSetup = async () => {
     try {
-      await sendEmailCode.mutateAsync();
+      const res = await sendEmailCode.mutateAsync();
       setEmailMode(true);
-      toast.success(t("ePostanizaDogrulamaKoduGonderildi"));
+      announceSent(res);
     } catch (err) {
       toast.error(extractErrorMessage(err, t("kodGonderilemedi")));
     }
@@ -52,8 +62,7 @@ export function TwoFactorSection() {
 
   const sendDisableEmailCode = async () => {
     try {
-      await sendEmailCode.mutateAsync();
-      toast.success(t("ePostanizaDogrulamaKoduGonderildi"));
+      announceSent(await sendEmailCode.mutateAsync());
     } catch (err) {
       toast.error(extractErrorMessage(err, t("kodGonderilemedi")));
     }
@@ -65,6 +74,7 @@ export function TwoFactorSection() {
       toast.success(t("ePostaIleIkiAdimli"));
       setEmailMode(false);
       setCode("");
+      setRecoveryMethod("EMAIL");
       setRecoveryCodes(res.recoveryCodes ?? null);
     } catch (err) {
       toast.error(extractErrorMessage(err, t("kodDogrulanamadi")));
@@ -73,6 +83,8 @@ export function TwoFactorSection() {
   // Kurtarma kodları YALNIZCA enable yanıtında görünür — kullanıcı
   // kaydettim diyene kadar ekranda tutulur.
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  // Kurtarma kutusu metni az önce açılan yönteme göre (arayüz testi D-086).
+  const [recoveryMethod, setRecoveryMethod] = useState<"AUTHENTICATOR" | "EMAIL">("AUTHENTICATOR");
 
   const startSetup = async () => {
     try {
@@ -91,6 +103,7 @@ export function TwoFactorSection() {
       setQr(null);
       setSecret(null);
       setCode("");
+      setRecoveryMethod("AUTHENTICATOR");
       setRecoveryCodes(res.recoveryCodes ?? null);
     } catch (err) {
       toast.error(extractErrorMessage(err, t("kodDogrulanamadi")));
@@ -134,9 +147,16 @@ export function TwoFactorSection() {
     <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
       {/* Başlık SettingsShell'de — burada yalnız durum (2026-09-10). */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Text className="text-sm text-zinc-600">
-          {t("authenticatorUygulamasiGoogleAuthenticatorAu")}
-        </Text>
+        <div className="min-w-0">
+          <Text className="text-sm text-zinc-600">
+            {t("authenticatorUygulamasiGoogleAuthenticatorAu")}
+          </Text>
+          {method ? (
+            <Text className="mt-1 text-sm font-medium text-zinc-900">
+              {method === "EMAIL" ? t("aktifYontemEposta") : t("aktifYontemAuthenticator")}
+            </Text>
+          ) : null}
+        </div>
         <Badge color={enabled ? "green" : "zinc"}>
           {enabled ? t("acik") : t("kapali")}
         </Badge>
@@ -276,7 +296,9 @@ export function TwoFactorSection() {
             {t("kurtarmaKodlarinizSimdiKaydedinBir")}
           </p>
           <p className="text-xs text-amber-800">
-            {t("authenticatorCihaziniziKaybedersenizBuKodlar")}
+            {recoveryMethod === "EMAIL"
+              ? t("ePostaErisiminiziKaybedersenizBuKodlar")
+              : t("authenticatorCihaziniziKaybedersenizBuKodlar")}
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {recoveryCodes.map((c) => (
@@ -321,20 +343,36 @@ export function TwoFactorSection() {
                 />
               </Field>
               <Text className="text-xs text-zinc-500">
-                {t("authenticatorKullaniyorsanizUygulamadakiKodu")}
+                {method === "AUTHENTICATOR"
+                  ? t("kapatmaIpucuAuthenticator")
+                  : method === "EMAIL"
+                    ? t("kapatmaIpucuEposta")
+                    : t("authenticatorKullaniyorsanizUygulamadakiKodu")}
               </Text>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => void lock.run(confirmDisable)} disabled={disable.isPending || lock.locked || !code.trim()}>
                   {t("kapat")}
                 </Button>
+                {/* Authenticator yönteminde e-posta kodu KABUL EDİLMEZ — düğme
+                    yalnız hakkı boşa harcatıyordu (arayüz testi O-020). */}
+                {method !== "AUTHENTICATOR" ? (
+                  <Button
+                    plain
+                    onClick={() => void lock.run(sendDisableEmailCode)}
+                    disabled={sendEmailCode.isPending || lock.locked}
+                  >
+                    {t("ePostayaKodGonder")}
+                  </Button>
+                ) : null}
+                {/* Vazgeç yazılan kodu da siler — yeniden açınca eski kod
+                    dolu gelmesin (arayüz testi D-303). */}
                 <Button
                   plain
-                  onClick={() => void lock.run(sendDisableEmailCode)}
-                  disabled={sendEmailCode.isPending || lock.locked}
+                  onClick={() => {
+                    setDisableMode(false);
+                    setCode("");
+                  }}
                 >
-                  {t("ePostayaKodGonder")}
-                </Button>
-                <Button plain onClick={() => setDisableMode(false)}>
                   {t("vazgec")}
                 </Button>
               </div>

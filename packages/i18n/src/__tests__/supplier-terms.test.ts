@@ -20,6 +20,9 @@ const SUPPLIER_ONLY: Array<[Namespace, string]> = [
   ["web", "panel.requests.auctionBidWorkbench"],
   // İki tarafın ortak "Genel Bilgi" kartları — nötr "talep" der.
   ["web", "panel.requests.generalInfoTab"],
+  // Ayarlar › Bildirim Tercihleri: davet/hatırlatma/kapanış/kategori tedarikçi
+  // olayı; alıcı maddesi (onay) nötr (arayüz testi D-013).
+  ["web", "panel.settings.accountSettingsSection.notificationPref"],
   ["api", "companyListings.bidImport"],
   ["email", "tenderExternalInvite"],
   ["email", "tenderInviteDigest"],

@@ -5,6 +5,7 @@ import { RoleBadge } from "@/components/ui/role-badge";
 import { Button } from "@/components/catalyst/button";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Text } from "@/components/catalyst/text";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
@@ -18,8 +19,6 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
   Check,
-  Eye,
-  EyeOff,
   Mail,
   Pencil,
   Phone,
@@ -257,7 +256,6 @@ export function PasswordSection() {
   const t = useTranslations("web.panel.settings.accountSettingsSection");
   const changePassword = useChangePassword();
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
-  const [show, setShow] = useState({ current: false, next: false, confirm: false });
 
   const { rules: pwRules } = usePasswordRules();
   const strength = pwStrength(pw.next);
@@ -299,30 +297,15 @@ export function PasswordSection() {
         {fields.map((fld) => (
           <Field key={fld.key}>
             <Label>{fld.label}</Label>
-            <div className="relative">
-              <Input
-                type={show[fld.key] ? "text" : "password"}
-                autoComplete={fld.auto}
-                value={pw[fld.key]}
-                maxLength={72}
-                invalid={!!errors[fld.key]}
-                onChange={(e) => setPw({ ...pw, [fld.key]: e.target.value })}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => setShow({ ...show, [fld.key]: !show[fld.key] })}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700"
-                aria-label={show[fld.key] ? t("gizle") : t("goster")}
-              >
-                {show[fld.key] ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
+            {/* Ortak şifre alanı: göz düğmesi klavyeyle erişilir ve kutunun
+                içinde durur (arayüz testi D-306; kendi kopyası tabIndex=-1 idi). */}
+            <PasswordInput
+              autoComplete={fld.auto}
+              value={pw[fld.key]}
+              maxLength={72}
+              invalid={!!errors[fld.key]}
+              onChange={(e) => setPw({ ...pw, [fld.key]: e.target.value })}
+            />
 
             {errors[fld.key] ? <ErrorMessage>{errors[fld.key]}</ErrorMessage> : null}
             {/* Yeni şifre altında güç ölçer + gereksinimler */}

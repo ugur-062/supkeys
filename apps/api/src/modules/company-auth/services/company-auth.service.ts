@@ -280,7 +280,10 @@ export class CompanyAuthService {
     userId: string,
     email: string,
     firstName: string,
-    kind: "verify" | "login" = "verify",
+    /** verify: kayıt doğrulaması · login: giriş 2FA'sı · twoFactor: Ayarlar'da
+     *  2FA kurulum/kapatma (arayüz testi D-086 — "Giriş doğrulama kodunuz"
+     *  diyordu). */
+    kind: "verify" | "login" | "twoFactor" = "verify",
     /** ALICININ dili — verilmezse istek bağlamı (giriş/kayıt sayfasının dili). */
     locale: Locale = currentLocale(),
   ): Promise<{ sent: boolean; capped?: boolean }> {
@@ -310,14 +313,17 @@ export class CompanyAuthService {
         expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MIN * 60_000),
       },
     });
-    const isLogin = kind === "login";
+    // 2FA ayar kodu giriş koduyla aynı kritik bağlamda (login_2fa) gider.
+    const isLogin = kind === "login" || kind === "twoFactor";
     // Metin ALICININ dilinde (katalog anahtarı + ICU parametresi).
     const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
       tApi(key, values, locale);
     const subject = t(
-      isLogin
-        ? "api.notifications.companyAuth.girisKoduKonu"
-        : "api.notifications.companyAuth.dogrulamaKoduKonu",
+      kind === "twoFactor"
+        ? "api.notifications.companyAuth.ikiAdimliAyarKoduKonu"
+        : isLogin
+          ? "api.notifications.companyAuth.girisKoduKonu"
+          : "api.notifications.companyAuth.dogrulamaKoduKonu",
     );
     try {
       const res = await this.email.send({
@@ -336,9 +342,11 @@ export class CompanyAuthService {
             paragraphs: [
               t(NOTIFY_GREETING_KEY),
               t(
-                isLogin
-                  ? "api.notifications.companyAuth.girisKoduGovde"
-                  : "api.notifications.companyAuth.dogrulamaKoduGovde",
+                kind === "twoFactor"
+                  ? "api.notifications.companyAuth.ikiAdimliAyarKoduGovde"
+                  : isLogin
+                    ? "api.notifications.companyAuth.girisKoduGovde"
+                    : "api.notifications.companyAuth.dogrulamaKoduGovde",
                 { kod: code },
               ),
               t("api.notifications.companyAuth.kodGecerlilik", {
@@ -1737,14 +1745,28 @@ export class CompanyAuthService {
   async sendEmailTwoFactorCode(userId: string) {
     const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, firstName: true, locale: true },
+      select: {
+        email: true,
+        firstName: true,
+        locale: true,
+        twoFactorEnabled: true,
+        twoFactorMethod: true,
+      },
     });
     if (!user) throw new UnauthorizedException();
+    // Authenticator ile açık 2FA e-posta kodunu KABUL ETMEZ (checkTwoFactorCode
+    // yalnız TOTP + kurtarma kodu) — kod üretmek saatlik hakkı ve deneme
+    // hakkını boşa harcatıyordu (arayüz testi O-020).
+    if (user.twoFactorEnabled && user.twoFactorMethod !== "EMAIL") {
+      throw new BadRequestException(
+        i18nMessage("api.companyAuth.ePostaKoduBuYontemdeGecersiz"),
+      );
+    }
     const { sent, capped } = await this.issueEmailCode(
       userId,
       user.email,
       user.firstName,
-      "login",
+      "twoFactor",
       localeOf(user.locale),
     );
     // Giriş yoluyla aynı failure-aware kural (derin denetim LU-06: eskiden
@@ -2168,6 +2190,9 @@ export class CompanyAuthService {
       isOwner,
       permissions,
       twoFactorEnabled: user.twoFactorEnabled,
+      // Ayarlar 2FA ekranı yönteme göre metin/düğme gösterir (arayüz testi
+      // O-020, D-086). Kapalıyken sütun varsayılanı anlamsız → null.
+      twoFactorMethod: user.twoFactorEnabled ? user.twoFactorMethod : null,
       notificationPrefs:
         (user.notificationPrefs as Record<string, boolean> | null) ?? null,
       lastLoginAt: user.lastLoginAt,

@@ -23,6 +23,10 @@ import { forwardRef, useState, type ComponentPropsWithoutRef } from "react";
  *    geziliyor ve görünür odak halkası taşıyor.
  *
  * `forwardRef`: react-hook-form `register()` ref veriyor, kırılmamalı.
+ *
+ * Catalyst `Input` `className`'i SARMALAYICI span'e verir: `pr-10` oraya
+ * yazılınca dolgu kutunun dışında kalıyor, göz tuşu girişin yanında ayrı bir
+ * kutucukta görünüyordu (arayüz testi D-352). Dolgu iç `<input>`a gider.
  */
 type Props = Omit<ComponentPropsWithoutRef<typeof Input>, "type">;
 
@@ -40,7 +44,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
         ref={ref}
         type={gorunur ? "text" : "password"}
         /* Sağda tuş var — metin altına girmesin. */
-        className={cn("pr-10", className)}
+        className={cn("[&_input]:pr-10", className)}
         {...props}
       />
       <button

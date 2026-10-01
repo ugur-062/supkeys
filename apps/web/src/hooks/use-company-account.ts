@@ -99,11 +99,15 @@ export function useDisable2fa() {
   });
 }
 
-/** E-posta 2FA — kurulum/kapatma için e-postaya kod gönderir. */
+/**
+ * E-posta 2FA — kurulum/kapatma için e-postaya kod gönderir. `capped`: saatlik
+ * tavan dolu, yeni kod GİTMEDİ ama gelen kutusundaki son kod geçerli (tavan
+ * dolu + geçerli kod yoksa API 429 atar).
+ */
 export function useSendEmail2faCode() {
   return useMutation({
     mutationFn: async () => {
-      const { data } = await companyApi.post<{ sent: boolean }>(
+      const { data } = await companyApi.post<{ sent: boolean; capped?: boolean }>(
         "/company-auth/2fa/email/send-code",
       );
       return data;

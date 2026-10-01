@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,13 +20,15 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: h.replace, push: vi.fn() }),
   useSearchParams: () => new URLSearchParams("sekme=dil"),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
 
 import { LanguageSection } from "../language-section";
 
 beforeEach(() => {
   vi.clearAllMocks();
   h.user = { locale: "tr" };
+  sessionStorage.clear();
 });
 
 /**
@@ -46,6 +48,23 @@ describe("LanguageSection", () => {
     await user.selectOptions(select, "en");
     expect(h.mutateAsync).toHaveBeenCalledWith({ locale: "en" });
     expect(h.replace).toHaveBeenCalledWith("/company/ayarlar/hesap-bilgileri?sekme=dil", { locale: "en" });
+    // Onay yönlendirmeden ÖNCE eski dilde çıkmaz; yeni dilde sayfa açılınca çıkar.
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("rothern:locale-saved")).toBe("en");
+  });
+
+  it("yeni dilde açılan sayfa tek seferlik onay toast'ını gösterir (arayüz testi D-136)", async () => {
+    sessionStorage.setItem("rothern:locale-saved", "tr");
+    render(<LanguageSection />);
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Dil güncellendi"));
+    expect(sessionStorage.getItem("rothern:locale-saved")).toBeNull();
+  });
+
+  it("bayrak başka dil içinse toast göstermez", async () => {
+    sessionStorage.setItem("rothern:locale-saved", "en");
+    render(<LanguageSection />);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("aynı dil seçilirse istek atmaz", async () => {

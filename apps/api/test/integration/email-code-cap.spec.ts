@@ -204,3 +204,35 @@ describe("derin denetim LU-06", () => {
     expect(after.phone).toBeNull();
   });
 });
+
+describe("2FA ayar kodu yönteme göre (arayüz testi O-020, D-086)", () => {
+  it("kurulum kodu e-postası 2FA konusuyla gider (giriş kodu değil); /me yöntemi döner", async () => {
+    const { service, email, user } = await signupUser();
+    expect((await service.getMe(user.id)).user.twoFactorMethod).toBeNull();
+
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({ sent: true });
+    const call = email.send.mock.calls.at(-1)?.[0] as { subject: string };
+    expect(call.subject).toBe("İki adımlı doğrulama kodunuz");
+
+    await service.enableEmailTwoFactor(user.id, extractCode(email));
+    expect((await service.getMe(user.id)).user.twoFactorMethod).toBe("EMAIL");
+    // E-posta yönteminde kapatma kodu istenebilir.
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({ sent: true });
+  });
+
+  it("authenticator ile açık 2FA'da e-posta kodu üretilmez (400, e-posta yok, hak harcanmaz)", async () => {
+    const { service, email, user } = await signupUser();
+    await prisma.companyUser.update({
+      where: { id: user.id },
+      data: { twoFactorEnabled: true, twoFactorMethod: "AUTHENTICATOR", twoFactorSecret: "JBSWY3DPEHPK3PXP" },
+    });
+    expect((await service.getMe(user.id)).user.twoFactorMethod).toBe("AUTHENTICATOR");
+
+    const codesBefore = await prisma.emailVerificationCode.count({ where: { companyUserId: user.id } });
+    const sentBefore = email.send.mock.calls.length;
+    const err = await service.sendEmailTwoFactorCode(user.id).catch((e: unknown) => e);
+    expect((err as { getStatus: () => number }).getStatus()).toBe(400);
+    expect(await prisma.emailVerificationCode.count({ where: { companyUserId: user.id } })).toBe(codesBefore);
+    expect(email.send.mock.calls.length).toBe(sentBefore);
+  });
+});

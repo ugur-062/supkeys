@@ -47,6 +47,23 @@ describe("PasswordSection", () => {
     expect(h.mutateAsync).not.toHaveBeenCalled();
   });
 
+  it("göster/gizle düğmeleri klavyeyle erişilir, dolgu iç kutuda (arayüz testi D-306, D-352)", async () => {
+    const user = userEvent.setup();
+    render(<PasswordSection />);
+    const current = screen.getByLabelText("Mevcut Şifre");
+    expect(current).toHaveAttribute("type", "password");
+    await user.click(current);
+    await user.tab();
+    const toggle = screen.getAllByRole("button", { name: "Şifreyi göster" })[0];
+    expect(toggle).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(current).toHaveAttribute("type", "text");
+    // Dolgu sarmalayıcıya değil iç <input>'a (göz kutunun içinde kalır).
+    const wrapper = current.closest("[data-slot=control]");
+    expect(wrapper?.className).toContain("[&_input]:pr-10");
+    expect(wrapper?.className.split(/\s+/)).not.toContain("pr-10");
+  });
+
   it("politikaya uyan şifre gönderilir", async () => {
     h.mutateAsync.mockResolvedValue({ ok: true });
     await fill("Yeni!Sifre123");
