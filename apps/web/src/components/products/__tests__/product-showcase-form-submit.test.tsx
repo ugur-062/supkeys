@@ -267,6 +267,28 @@ describe("ProductShowcaseForm — yayın kapısı yayındaki üründe (arayüz t
   });
 });
 
+describe("ProductShowcaseForm — kalıtsal eksikli yayındaki ürün (arayüz testi O-009, gözden geçirme)", () => {
+  // Kapı sıkılaşmadan önce yayına çıkmış, açıklaması kısa ürün: API içerik dışı
+  // kaydı (fiyat/MOQ) yalnız YENİ eksik doğarsa reddeder — form da aynı kural.
+  const LEGACY: ProductShowcase = { ...COMPLETE, description: "kısa eski açıklama" };
+
+  it("yalnız MOQ değişince Kaydet AÇIK, eksik notu yok", async () => {
+    const user = userEvent.setup();
+    renderWith({ product: LEGACY });
+    await user.type(screen.getByLabelText(/Minimum sipariş miktarı/), "5");
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeEnabled();
+    expect(screen.queryByText(/Yayındaki ürün eksik içerikle kaydedilemez/)).not.toBeInTheDocument();
+  });
+
+  it("içerik değişince (ad) kalıtsal eksik de Kaydet'i KAPATIR", async () => {
+    const user = userEvent.setup();
+    renderWith({ product: LEGACY });
+    await user.type(screen.getByLabelText(/Ürün adı/), " X");
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    expect(screen.getByText(/Yayındaki ürün eksik içerikle kaydedilemez/)).toBeInTheDocument();
+  });
+});
+
 describe("ProductShowcaseForm — kayıt mesajı sonuca göre (arayüz testi D-125)", () => {
   it("yalnız MOQ değişip ürün onaylı kalırsa 'Kaydedildi'; sunucu incelemeye aldıysa yeniden inceleme mesajı", async () => {
     const user = userEvent.setup();

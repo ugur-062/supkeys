@@ -62,6 +62,50 @@ const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const INPUT =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
 
+/** Sunucu kaydının yayın kapısı girdisi — kayıttaki (kalıtsal) eksikler için. */
+function productLikeOf(p: ProductShowcase): ProductLike {
+  return {
+    name: p.name,
+    categoryId: p.categoryId,
+    description: p.description,
+    images: p.images,
+    keywords: p.keywords,
+    priceMode: p.priceMode,
+    priceAmount: p.priceAmount,
+    priceTiers: p.priceTiers,
+    moq: p.moq,
+    attributes: p.attributes,
+  };
+}
+
+/**
+ * İÇERİK alanlarının kanonik izi — API `product-content-diff.ts`
+ * (`PRODUCT_CONTENT_FIELDS`) ile aynı alanlar ve aynı indirgeme: kırpılmış
+ * metin, boş nitelik düşer, nitelik sırası önemsiz. Fiyat/MOQ/belge/video
+ * içerik sayılmaz.
+ */
+function contentKey(p: {
+  name: string;
+  description: string | null;
+  categoryId: string | null;
+  images: string[];
+  keywords: string[];
+  attributes: Record<string, string | string[]> | null;
+}): string {
+  const list = (a: string[]) => a.map((x) => x.trim()).filter(Boolean);
+  const attrs = Object.entries(p.attributes ?? {})
+    .filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return JSON.stringify([
+    p.name.trim(),
+    (p.description ?? "").trim(),
+    p.categoryId ?? "",
+    list(p.images),
+    [...new Set(list(p.keywords))],
+    attrs,
+  ]);
+}
+
 /**
  * ÜRÜN VİTRİN FORMU — tek sayfa, beş numaralı bölüm (2026-09-09 düzeni;
  * üstteki bölüm çipleri kullanıcı isteğiyle KALDIRILDI — sayfa düz akar).
@@ -380,9 +424,21 @@ export function ProductShowcaseForm({
   const publishLocked = !!publishLimitReached && !product.isPublic;
   // Tavan bilinmiyorken gönderim kapalı (D-287); kilit notu çizilmez — henüz dolu değil.
   const submitBlocked = publishLocked || (!!limitPending && !product.isPublic);
-  // YAYIN KAPISI (arayüz testi O-009): yayındaki ürün, raydaki "onaya
-  // göndermek için gerekli" eksiklerle KAYDEDİLEMEZ — API aynı 400'ü döner.
-  const publishedBlocked = status === "published" && live.blockers.length > 0;
+  // YAYIN KAPISI (arayüz testi O-009) — API `assertStaysPublishable` ile AYNI
+  // kural: içerik (ad/açıklama/kategori/görsel/etiket/nitelik) değiştiyse
+  // raydaki HER eksik kaydı keser; içerik dışı kayıt (fiyat/MOQ…) yalnız
+  // kayıtta OLMAYAN yeni bir eksik doğurursa kesilir. Kapı sıkılaşmadan önce
+  // yayına çıkmış eksik ürün (ör. kısa eski açıklama) fiyatını güncelleyebilir
+  // (gözden geçirme: eskiden her eksik Kaydet'i kapatıyordu, API izin verirken).
+  const savedBlockerCodes = useMemo(
+    () => new Set(productPublishBlockerCodes(productLikeOf(product)).map((b) => b.code)),
+    [product],
+  );
+  const contentChanged = contentKey(patch) !== contentKey(product);
+  const publishedBlocked =
+    status === "published" &&
+    live.blockers.length > 0 &&
+    (contentChanged || live.blockers.some((b) => !savedBlockerCodes.has(b.code)));
 
   // Kaydet / Onaya gönder tek uçuşta: çift tık aynı ürünü iki kez oluşturmaz
   // (arayüz testi FX-00 O-006).
