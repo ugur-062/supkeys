@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { REQUEST_DEFAULTS_FALLBACK, type RequestDefaults } from "@rothern/shared";
 import { DEFAULT_FORM_VALUES } from "../form-schema";
-import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, deliveryTermsFor, fallbackVisibilityFor, initialRequestFormValues, paymentCategoriesFor } from "../request-defaults";
+import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, deliveryTermsFor, fallbackVisibilityFor, initialRequestFormValues, normalizeRequestDefaults, paymentCategoriesFor } from "../request-defaults";
 
 const SAVED: RequestDefaults = {
   targetCountries: ["DE", "NL"],
@@ -144,5 +144,14 @@ describe("hızlı kart açılış değerleri (initialRequestFormValues)", () => 
     const f = initialRequestFormValues("blank", { title: "AI taslağı" }, PROFILE, now);
     expect(f).toEqual(applyRequestDefaults({ ...DEFAULT_FORM_VALUES, title: "AI taslağı" }, PROFILE, now));
     expect(f.visibility).toBe("PUBLIC");
+  });
+});
+
+describe("normalizeRequestDefaults (T-16)", () => {
+  it("sunucudan gelen eski isSealedBid=false profile geri yazılmaz, diğer alanlar korunur", () => {
+    const stale: RequestDefaults = { ...SAVED, isSealedBid: false };
+    const out = normalizeRequestDefaults(stale);
+    expect(out).toEqual({ ...SAVED, isSealedBid: true });
+    expect(stale.isSealedBid).toBe(false);
   });
 });

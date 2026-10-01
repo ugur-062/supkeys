@@ -98,6 +98,15 @@ export function fallbackVisibilityFor(visibility: string, connectionCount: numbe
   return visibility === "CONNECTIONS" && connectionCount === 0 ? "PUBLIC" : visibility;
 }
 
+/**
+ * Profile yazılmadan önce son normalleştirme: RFQ her zaman kapalı zarf (T-16).
+ * Sunucudan gelen profil (kayıtlı ya da son talepten türetilmiş) eski `false`
+ * değerini taşıyabilir; UI bu alanı hiçbir yoldan geri yazmaz.
+ */
+export function normalizeRequestDefaults(input: RequestDefaults): RequestDefaults {
+  return { ...input, isSealedBid: true };
+}
+
 export function defaultsFromForm(f: TenderFormData, closeDays: number): RequestDefaults {
   return {
     targetCountries: f.targetCountries ?? [],

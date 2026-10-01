@@ -85,6 +85,16 @@ function RuleChip({ active, label }: { active: boolean; label: string }) {
   );
 }
 
+/**
+ * "Kapalı zarf" kural çipi formata bağlıdır (T-16): RFQ her zaman kapalı,
+ * açık eksiltme hiçbir zaman. Kayıtlı bayrak güvenilmez (eski RFQ turlarında
+ * false, eksiltmede oluşturma varsayılanı / yeni tur true yazar) — yalnız
+ * format yoksa ona bakılır.
+ */
+export function sealedRuleActive(l: Pick<ListingDetail, "format" | "isSealedBid">): boolean {
+  return l.format ? l.format === "RFQ" : !!l.isSealedBid;
+}
+
 export function GeneralInfoTab({ l }: { l: ListingDetail }) {
   const t = useTranslations("web.panel.requests.generalInfoTab");
   const placeLabel = usePlaceLabel();
@@ -222,9 +232,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
       <Section title={t("satinAlmaTalebiKurallari")} icon={ShieldCheck}>
         <div className="flex flex-wrap gap-2">
           <RuleChip
-            // RFQ teklif toplama her zaman kapalı zarf (T-16): kayıtlı bayrak
-            // eski turlarda yanlış (false) olabilir — formata göre çizilir.
-            active={l.format === "RFQ" || !!l.isSealedBid}
+            active={sealedRuleActive(l)}
             label={t("kapaliZarfTedarikcilerArasiGizlilik")}
           />
           <RuleChip

@@ -19,7 +19,7 @@ import {
   TrashIcon,
   XCircleIcon,
 } from "@heroicons/react/20/solid";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * DAVET / GÖRÜNÜRLÜK SEÇİCİSİ (2026-09-19, kullanıcı mockup'ı + aynı gün
@@ -128,13 +128,20 @@ export function SupplierPicker({
   const toggleAll = () =>
     onChange(allVisibleOn ? value.filter((id) => !visibleIds.includes(id)) : [...new Set([...value, ...visibleIds])]);
   const groupRows = groupsEnabled ? (groups.data ?? []).filter((g) => g.memberCount > 0) : [];
+  // Grup isteği sürerken tablo açık kalır: kullanıcının o arada yaptığı seçim
+  // ezilmesin diye birleştirme await SONRASI güncel seçim/listeyle yapılır.
+  const latest = useRef({ value, allIds });
+  useEffect(() => {
+    latest.current = { value, allIds };
+  });
   const addGroup = async (groupId: string) => {
     if (!groupId || groupBusy) return;
     setGroupBusy(true);
     setGroupNote(null);
     try {
       const tpl = await fetchSupplierTemplate(groupId);
-      const r = mergeGroupMembers(value, tpl.members.map((m) => m.rothernId), allIds);
+      const now = latest.current;
+      const r = mergeGroupMembers(now.value, tpl.members.map((m) => m.rothernId), now.allIds);
       if (r.added.length > 0) onChange(r.next);
       setGroupNote(
         r.added.length === 0 && r.skipped === 0

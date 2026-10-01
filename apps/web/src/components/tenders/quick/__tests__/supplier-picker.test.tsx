@@ -159,6 +159,22 @@ describe("SupplierPicker", () => {
       expect(await screen.findByRole("status")).toHaveTextContent("“Makine tedarikçileri” grubundaki firmalar zaten seçili.");
     });
 
+    it("istek sürerken yapılan seçim ezilmez: birleştirme güncel seçimle yapılır", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      let resolve!: (v: unknown) => void;
+      g.fetch.mockReturnValue(new Promise((r) => { resolve = r; }));
+      const { rerender } = render(<SupplierPicker value={["ANAD-0001"]} onChange={onChange} />);
+      await user.selectOptions(screen.getByRole("combobox", { name: "Gruptan ekle" }), "g1");
+      // İstek beklerken kullanıcı Beta Kimya'yı seçer (üst bileşen değeri günceller).
+      await user.click(screen.getByRole("checkbox", { name: "Beta Kimya seç" }));
+      expect(onChange).toHaveBeenLastCalledWith(["ANAD-0001", "BETA-0001"]);
+      rerender(<SupplierPicker value={["ANAD-0001", "BETA-0001"]} onChange={onChange} />);
+      resolve({ id: "g1", name: "Makine tedarikçileri", isPublic: true, members: [{ id: "3", name: "Ege Makina", rothernId: "EGEM-0001", tier: "SILVER" }] });
+      expect(await screen.findByRole("status")).toHaveTextContent("“Makine tedarikçileri” grubundan 1 firma eklendi.");
+      expect(onChange).toHaveBeenLastCalledWith(["ANAD-0001", "BETA-0001", "EGEM-0001"]);
+    });
+
     it("GOLD değilse ya da buy:view yoksa denetim çizilmez ve istek atılmaz; boş grup listelenmez", () => {
       g.tier = "SILVER";
       const { unmount } = render(<SupplierPicker value={[]} onChange={() => {}} />);
