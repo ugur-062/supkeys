@@ -58,6 +58,29 @@ export function nextDateTimeLocal(value?: DateInput): string {
 }
 
 /**
+ * İlan kapanış ufku — backend `MAX_LISTING_HORIZON_MS` (@rothern/shared,
+ * 2 × 365 gün) ile BİREBİR; admin paketi @rothern/shared'a bağlı değil.
+ */
+export const LISTING_HORIZON_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
+/** Kapanış seçicisinin üst sınırı: şimdi + ufuk, dakikaya aşağı (D-211). */
+export function listingMaxDateTimeLocal(): string {
+  return format(startOfMinute(new Date(Date.now() + LISTING_HORIZON_MS)), "yyyy-MM-dd'T'HH:mm");
+}
+
+/**
+ * Süre uzatma alt sınırı — max(şimdi, mevcut kapanış) sonrası ilk dakika.
+ * Kapanışı geçmişte kalmış (cron henüz kapatmamış) ilanda yalnız kapanışa
+ * bakmak geçmiş bir tarihi seçilebilir bırakıyor, API "gelecekte olmalı"
+ * diye reddediyordu (arayüz testi D-211).
+ */
+export function extendMinDateTimeLocal(closesAt?: DateInput): string {
+  const c = toValidDate(closesAt);
+  const now = new Date();
+  return nextDateTimeLocal(c && c.getTime() > now.getTime() ? c : now);
+}
+
+/**
  * `<input type="date">` / rapor aralığı değeri — YEREL takvim günü
  * ("yyyy-MM-dd"). `toISOString().slice(0, 10)` UTC gününü verir; TR'de
  * 00:00-03:00 arası "bugün" bir önceki gün sayılıyor, ayın 1'i gecesi "Bu Ay"

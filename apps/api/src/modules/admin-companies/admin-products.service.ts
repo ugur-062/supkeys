@@ -98,7 +98,14 @@ export interface AdminProductRow {
     name: string;
     slug: string | null;
     city: string | null;
+    /** Ham DB kademesi — süresi geçmiş paketli firmada hâlâ SILVER/GOLD görünür. */
     tier: string;
+    /**
+     * EFEKTİF kademe (INV-TIER-1) — üyelik süresi geçmişse STANDART. Ekran
+     * bunu gösterir; onay tavanı da bununla hesaplanır (arayüz testi D-174).
+     */
+    effectiveTier: string;
+    membershipEndAt: string | null;
     verification: string;
     isBlocked: boolean;
   };
@@ -258,7 +265,7 @@ export class AdminProductsService {
     const now = new Date();
     const done = await this.markApproved(r, adminId, now);
     if (done.limit != null) {
-      throw new BadRequestException(i18nMessage("api.adminCompanies.firmaninUrunTavaniDolu", { limit: done.limit }));
+      throw new BadRequestException(i18nMessage(this.limitKey(r), { limit: done.limit }));
     }
     if (done.count !== 1) throw new BadRequestException(i18nMessage("api.adminCompanies.urunDurumuDegistiSayfayiYenileyin"));
     await this.audit.log({
@@ -316,6 +323,20 @@ export class AdminProductsService {
         tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
       )
       .join(", ");
+  }
+
+  /**
+   * Tavan hatası metni — paketi süresi geçmiş firmada (DB'de hâlâ SILVER/GOLD,
+   * efektif STANDART) "paket tavanı dolu (50)" yanıltıcıydı: admin başlıkta
+   * Silver görüp neden ücretsiz tavana takıldığını anlamıyordu (arayüz testi
+   * D-174). Bu durumda metin paket süresinin dolduğunu söyler.
+   */
+  private limitKey(
+    r: Row,
+  ): "api.adminCompanies.firmaninUrunTavaniDolu" | "api.adminCompanies.firmaninPaketiDolduUrunTavaniDolu" {
+    return effectiveTier(r.company.tier, r.company.membershipEndAt) !== r.company.tier
+      ? "api.adminCompanies.firmaninPaketiDolduUrunTavaniDolu"
+      : "api.adminCompanies.firmaninUrunTavaniDolu";
   }
 
   /**
@@ -415,7 +436,7 @@ export class AdminProductsService {
       }
       const done = await this.markApproved(r, adminId, now);
       if (done.limit != null) {
-        atlanan.push({ id, reason: tApi("api.adminCompanies.firmaninUrunTavaniDolu", { limit: done.limit }) });
+        atlanan.push({ id, reason: tApi(this.limitKey(r), { limit: done.limit }) });
         continue;
       }
       if (done.count !== 1) {
@@ -568,6 +589,8 @@ export class AdminProductsService {
         slug: r.company.slug,
         city: r.company.city,
         tier: r.company.tier,
+        effectiveTier: effectiveTier(r.company.tier, r.company.membershipEndAt),
+        membershipEndAt: r.company.membershipEndAt?.toISOString() ?? null,
         verification: r.company.companyVerificationStatus,
         isBlocked: r.company.isBlocked,
       },

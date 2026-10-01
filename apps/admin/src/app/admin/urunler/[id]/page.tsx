@@ -15,10 +15,31 @@ import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
-
-const WEB = process.env.NEXT_PUBLIC_WEB_URL ?? "https://www.rothern.com";
+import { safeHttpUrl, WEB_ORIGIN, webAssetUrl } from "@/lib/safe-url";
+import { companyTierText, metaOf, VERIFY_META } from "@/lib/terms";
 
 const PRICE_MODE: Record<string, string> = { FIXED: "Sabit fiyat", TIERED: "Kademeli", ON_REQUEST: "Teklif isteyin" };
+
+/**
+ * Fiyat — "11.5 TRY" yerine "₺11,50" (arayüz testi D-130). Bilinmeyen para
+ * birimi kodunda Intl hata atar; o zaman kod sonda yazılır.
+ */
+function fmtPrice(v: number | string | null | undefined, currency: string): string {
+  const n = typeof v === "string" ? Number(v) : v;
+  if (n == null || !Number.isFinite(n)) return "—";
+  try {
+    return new Intl.NumberFormat("tr-TR", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  } catch {
+    return `${n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+  }
+}
+
+/** Miktar — "1000.000" yerine "1.000". */
+function fmtQty(v: number | string | null | undefined): string {
+  const n = typeof v === "string" ? Number(v) : v;
+  if (n == null || !Number.isFinite(n)) return String(v ?? "—");
+  return n.toLocaleString("tr-TR", { maximumFractionDigits: 3 });
+}
 
 /**
  * ÜRÜN İNCELEME — ziyaretçinin göreceği her şey burada (görseller, açıklama,
@@ -64,7 +85,7 @@ function ProductReview({ id }: { id: string }) {
           <h1 className="text-admin-text text-xl font-semibold">{p.name}</h1>
           <p className="text-admin-text-muted mt-1 text-sm">
             <Link href={`/admin/firmalar/${p.company.id}`} className="hover:underline">{p.company.name}</Link>
-            {p.company.city ? ` · ${p.company.city}` : ""} · {p.company.tier} · {p.company.verification}
+            {p.company.city ? ` · ${p.company.city}` : ""} · {companyTierText(p.company)} · {metaOf(VERIFY_META, p.company.verification).label}
             {p.company.isBlocked ? " · ASKIDA" : ""}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -79,7 +100,7 @@ function ProductReview({ id }: { id: string }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {p.publicUrl && p.isPublic ? (
-            <a href={`${WEB}${p.publicUrl}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">
+            <a href={`${WEB_ORIGIN}${p.publicUrl}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">
               <ExternalLink className="h-4 w-4" /> Sitede aç
             </a>
           ) : null}
@@ -109,12 +130,20 @@ function ProductReview({ id }: { id: string }) {
               <p className="text-admin-text-muted text-sm">Görsel yok.</p>
             ) : (
               <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                {p.images.map((src) => (
-                  <li key={src} className="aspect-square overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="" className="size-full object-cover" /></a>
-                  </li>
-                ))}
+                {p.images.map((raw) => {
+                  // Göreli yol (`/categories/*.webp`) vitrin kökeninde çözülür (D-157).
+                  const src = webAssetUrl(raw);
+                  return (
+                    <li key={raw} className="aspect-square overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-950/10">
+                      {src ? (
+                        <a href={src} target="_blank" rel="noopener noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt="" className="size-full object-cover" />
+                        </a>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -151,21 +180,46 @@ function ProductReview({ id }: { id: string }) {
             <h2 className="text-admin-text mb-3 font-semibold">Ticari</h2>
             <dl className="space-y-2">
               <Row k="Kategori" v={p.categoryName ?? "—"} />
-              <Row k="Fiyat" v={`${PRICE_MODE[p.priceMode] ?? p.priceMode}${p.priceMode === "FIXED" && p.priceAmount ? ` · ${p.priceAmount} ${p.priceCurrency}/${p.unit}` : ""}`} />
+              <Row k="Fiyat" v={`${PRICE_MODE[p.priceMode] ?? p.priceMode}${p.priceMode === "FIXED" && p.priceAmount ? ` · ${fmtPrice(p.priceAmount, p.priceCurrency)}/${p.unit}` : ""}`} />
               {p.priceMode === "TIERED" && p.priceTiers?.length ? (
-                <Row k="Kademeler" v={p.priceTiers.map((t) => `${t.minQty}+ → ${t.unitPrice} ${p.priceCurrency}`).join(" · ")} />
+                <Row k="Kademeler" v={p.priceTiers.map((t) => `${fmtQty(t.minQty)}+ ${p.unit} → ${fmtPrice(t.unitPrice, p.priceCurrency)}`).join(" · ")} />
               ) : null}
-              <Row k="Min. sipariş" v={p.moq ? `${p.moq} ${p.unit}` : "—"} />
+              <Row k="Min. sipariş" v={p.moq ? `${fmtQty(p.moq)} ${p.unit}` : "—"} />
               <Row k="Marka / MPN" v={[p.brand, p.mpn].filter(Boolean).join(" / ") || "—"} />
               <Row k="Tamamlanma" v={`%${p.completionScore ?? 0}`} />
             </dl>
           </section>
           <section className="admin-card p-5 text-sm">
             <h2 className="text-admin-text mb-3 font-semibold">Ekler</h2>
+            {/* İnceleyen eki açıp kontrol edebilmeli; yalnız http(s) bağlantı olur (O-077). */}
             <dl className="space-y-2">
-              <Row k="Video" v={p.videoUrl ?? "—"} />
-              <Row k="Dış bağlantı" v={p.externalUrl ?? "—"} />
-              <Row k="Belgeler" v={p.documents?.length ? p.documents.map((d) => d.title).join(", ") : "—"} />
+              <Row k="Video" v={<ExtLink href={p.videoUrl} />} />
+              <Row k="Dış bağlantı" v={<ExtLink href={p.externalUrl} />} />
+              <div>
+                <dt className="text-admin-text-muted">Belgeler</dt>
+                {p.documents?.length ? (
+                  <dd className="mt-1">
+                    <ul className="space-y-1">
+                      {p.documents.map((d, i) => {
+                        const href = webAssetUrl(d.url);
+                        return (
+                          <li key={`${i}-${d.title}`} className="text-admin-text font-medium break-words">
+                            {href ? (
+                              <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline">
+                                {d.title || "Belge"} <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                              </a>
+                            ) : (
+                              d.title || "Belge"
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </dd>
+                ) : (
+                  <dd className="text-admin-text font-medium">—</dd>
+                )}
+              </div>
             </dl>
           </section>
           <p className="text-admin-text-muted text-xs/5">
@@ -194,7 +248,19 @@ function ProductReview({ id }: { id: string }) {
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+/** Dış adres — http(s) ise yeni sekmede açılan bağlantı, değilse düz metin. */
+function ExtLink({ href }: { href: string | null }) {
+  if (!href) return <>—</>;
+  const safe = safeHttpUrl(href);
+  if (!safe) return <>{href}</>;
+  return (
+    <a href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all text-blue-700 hover:underline">
+      {href} <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+    </a>
+  );
+}
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-3">
       <dt className="text-admin-text-muted shrink-0">{k}</dt>

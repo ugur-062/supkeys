@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  extendMinDateTimeLocal,
+  LISTING_HORIZON_MS,
+  listingMaxDateTimeLocal,
   nextDateTimeLocal,
   safeFormat,
   safeFormatDistance,
@@ -89,5 +92,23 @@ describe("toDateInput (derin denetim LU-13 — rapor aralığı yerel takvim gü
   it("boş/geçersiz girdide bugünü verir", () => {
     expect(toDateInput()).toBe(localDay(new Date()));
     expect(toDateInput("bozuk")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+// Arayüz testi D-211: Süre Uzat sınırları backend ile aynı.
+describe("extendMinDateTimeLocal / listingMaxDateTimeLocal", () => {
+  it("kapanış gelecekteyse kapanıştan, geçmişteyse şimdiden sonraki dakika", () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    expect(extendMinDateTimeLocal(future)).toBe(nextDateTimeLocal(future));
+    const past = new Date(Date.now() - 3_600_000).toISOString();
+    expect(new Date(extendMinDateTimeLocal(past)).getTime()).toBeGreaterThan(Date.now());
+    expect(new Date(extendMinDateTimeLocal(null)).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("üst sınır şimdi + 2 yılı aşmaz (backend MAX_LISTING_HORIZON_MS)", () => {
+    expect(LISTING_HORIZON_MS).toBe(2 * 365 * 24 * 60 * 60 * 1000);
+    const max = new Date(listingMaxDateTimeLocal()).getTime();
+    expect(max).toBeLessThanOrEqual(Date.now() + LISTING_HORIZON_MS);
+    expect(max).toBeGreaterThan(Date.now() + LISTING_HORIZON_MS - 120_000);
   });
 });

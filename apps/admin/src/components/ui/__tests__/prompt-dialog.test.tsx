@@ -213,6 +213,31 @@ describe("PromptDialog minLength (derin denetim MU-21)", () => {
     expect(onConfirm).toHaveBeenCalledWith("2026-10-02T09:30");
   });
 
+  // Arayüz testi D-211: üst sınırdan (ör. şimdi + 2 yıl) sonraki tarih onaylanmaz.
+  it("datetime-local: üst sınırdan sonraki değer onaylanamaz; sınırın kendisi onaylanır", () => {
+    render(
+      <PromptDialog
+        open
+        title="Süre Uzat"
+        label="Yeni kapanış"
+        type="datetime-local"
+        minDateTime="2026-10-01T18:00"
+        maxDateTime="2028-10-01T18:00"
+        defaultValue="2029-12-31T10:00"
+        required
+        confirmLabel="Uzat"
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />,
+    );
+    const input = screen.getByLabelText(/Yeni kapanış/);
+    expect(input).toHaveAttribute("max", "2028-10-01T18:00");
+    expect(screen.getByRole("button", { name: "Uzat" })).toBeDisabled();
+    expect(screen.getByText("Seçilen tarih izin verilen en geç tarihten sonra")).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "2028-10-01T18:00" } });
+    expect(screen.getByRole("button", { name: "Uzat" })).toBeEnabled();
+  });
+
   it("onaya çift tık / kapanış animasyonundaki tık ikinci kez onConfirm çağırmaz (arayüz testi FX-00 O-045)", async () => {
     const confirm = vi.fn();
     function Harness() {

@@ -29,8 +29,8 @@ import {
 } from "@/lib/payment-plan-label";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -49,6 +49,9 @@ const CANCELABLE = new Set(["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY"]);
 
 function OrderInspection({ id }: { id: string }) {
   const { data: o, isLoading, isError, refetch } = useAdminOrderDetail(id);
+  // Geri bağlantı gelinen yere döner (`?from=<firma id>` | `listing`);
+  // önceden her zaman ALICI firmaya gidiyordu (arayüz testi D-217).
+  const from = useSearchParams()?.get("from") ?? null;
   const cancel = useCancelOrder(id);
   const [dialog, setDialog] = useState(false);
   // İptal SUPER_ADMIN+SALES; sayfa SUPPORT'a da açık (okuma).
@@ -80,16 +83,22 @@ function OrderInspection({ id }: { id: string }) {
   // Backend onaylı (CONFIRMED) ödemesi olan siparişi her durumda reddeder →
   // düğme yerine not gösterilir; iade ayrı yürütülür (derin denetim LU-12).
   const hasConfirmedPayment = o.payments.some((p) => p.status === "CONFIRMED");
+  const back =
+    from === "listing" && o.listing
+      ? { href: `/admin/ilanlar/${o.listing.id}`, label: o.listing.number ?? "İlan" }
+      : from === o.seller.id
+        ? { href: `/admin/firmalar/${o.seller.id}?tab=siparisler`, label: `${o.seller.name} · Siparişler` }
+        : { href: `/admin/firmalar/${o.buyer.id}?tab=siparisler`, label: `${o.buyer.name} · Siparişler` };
 
   return (
     <div className="max-w-[1100px] space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
-            href={`/admin/firmalar/${o.buyer.id}?tab=siparisler`}
+            href={back.href}
             className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Siparişler
+            <ArrowLeft className="h-3.5 w-3.5" /> {back.label}
           </Link>
           <h1 className="text-admin-text text-2xl font-bold">
             {o.number ?? "Sipariş"}
@@ -255,8 +264,8 @@ function OrderInspection({ id }: { id: string }) {
         </Table>
       </section>
 
-      {/* Kalemler + belgeler */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Kalemler */}
+      <div className="grid grid-cols-1 gap-4">
         <section className="admin-card overflow-hidden">
           <div className="border-admin-border border-b px-5 py-3.5">
             <h3 className="text-admin-text text-sm font-semibold">
@@ -322,7 +331,9 @@ export default function AdminOrderPage() {
   const params = useParams<{ id: string }>();
   return (
     <AdminShell>
-      {params?.id ? <OrderInspection id={params.id} /> : null}
+      <Suspense fallback={null}>
+        {params?.id ? <OrderInspection id={params.id} /> : null}
+      </Suspense>
     </AdminShell>
   );
 }

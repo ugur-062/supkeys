@@ -13,9 +13,12 @@ import {
 } from "@/hooks/use-admin-products";
 import { safeFormat } from "@/lib/date";
 import { PRODUCT_REVIEW_STATUS } from "@/lib/status-labels";
+import { webAssetUrl } from "@/lib/safe-url";
+import { companyTierText } from "@/lib/terms";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { toast } from "sonner";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
@@ -23,6 +26,15 @@ import { toastApiError } from "@/lib/api";
 
 const PAGE_SIZE = 25;
 type Tab = "PENDING" | "REJECTED" | "APPROVED" | "ALL";
+const TABS: readonly Tab[] = ["PENDING", "REJECTED", "APPROVED", "ALL"];
+
+/**
+ * `?status=` İZİNLİ LİSTEYLE okunur — `DRAFT`/`x` gibi değer API'ye gidip 400
+ * ve "Veri alınamadı" üretiyordu; bilinmeyen değer varsayılana düşer (D-036).
+ */
+function parseTab(raw: string | null | undefined): Tab {
+  return TABS.includes(raw as Tab) ? (raw as Tab) : "PENDING";
+}
 
 /** Bekleme rozeti — SLA (1+ gün amber, 3+ gün kırmızı; ürün kuyruğu KYC'den hızlı akmalı). */
 function waitBadge(iso: string | null) {
@@ -39,7 +51,19 @@ function waitBadge(iso: string | null) {
  */
 function UrunlerView() {
   const sp = useSearchParams();
-  const [tab, setTab] = useState<Tab>((sp?.get("status") as Tab | null) ?? "PENDING");
+  const router = useRouter();
+  const pathname = usePathname();
+  const [tab, setTab] = useState<Tab>(() => parseTab(sp?.get("status")));
+  // Sekme URL'ye yazılır — yenileme/geri dönüşte korunur (D-036).
+  const changeTab = (next: Tab) => {
+    setTab(next);
+    setPage(1);
+    const params = new URLSearchParams(sp?.toString() ?? "");
+    if (next === "PENDING") params.delete("status");
+    else params.set("status", next);
+    const qs = params.toString();
+    router.replace(`${pathname ?? "/admin/urunler"}${qs ? `?${qs}` : ""}`, { scroll: false });
+  };
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   /**
@@ -91,11 +115,15 @@ function UrunlerView() {
     sifirla();
     if (r.skipped.length > 0) {
       // Atlananları SESSİZCE yutmak, admin'in onayladığını sandığı ürünün
-      // kuyrukta kalmasına yol açardı.
-      window.alert(
-        `${r.approved} ürün onaylandı. ${r.skipped.length} ürün atlandı: ` +
-          r.skipped.map((x) => x.reason).join(", "),
-      );
+      // kuyrukta kalmasına yol açardı. Engelleyici window.alert yerine kalıcı
+      // uyarı toast'ı (D-035).
+      toast.warning(`${r.approved} ürün onaylandı. ${r.skipped.length} ürün atlandı`, {
+        description: r.skipped.map((x) => x.reason).join(", "),
+        duration: Infinity,
+      });
+    } else {
+      // Başarılı toplu onay geri bildirim vermiyordu (D-035).
+      toast.success(`${r.approved} ürün onaylandı ve yayına alındı`);
     }
   };
 
@@ -107,24 +135,23 @@ function UrunlerView() {
   ];
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    // Genişlik sınırı yok: 1100 px'te "İncele" sütunu kartın yatay kaydırmasının
+    // arkasında kalıyordu (D-035).
+    <div className="space-y-6">
       <PageHeader
         title="Ürünler"
         description="Vitrine çıkmak isteyen ürünler — en eski gönderim önce. Onaylanan ürün anında yayına girer; reddedilen gerekçesiyle firmaya döner."
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist">
+        <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl bg-zinc-100 p-1" role="tablist">
           {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
               role="tab"
               aria-selected={tab === t.key}
-              onClick={() => {
-                setTab(t.key);
-                setPage(1);
-              }}
+              onClick={() => changeTab(t.key)}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 tab === t.key ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-950/5" : "text-zinc-500 hover:text-zinc-900"
               }`}
@@ -205,10 +232,17 @@ function UrunlerView() {
                 loading={query.isLoading}
                 error={query.isError}
                 onRetry={() => void query.refetch()}
-                empty={tab === "PENDING" ? "Kuyruk boş — onay bekleyen ürün yok" : "Kayıt yok"}
+                empty={
+                  q || firma
+                    ? "Eşleşen ürün yok — aramayı ya da süzgeci değiştirin"
+                    : tab === "PENDING"
+                      ? "Kuyruk boş — onay bekleyen ürün yok"
+                      : "Kayıt yok"
+                }
               />
             ) : (
               items.map((p) => {
+                const cover = webAssetUrl(p.cover);
                 const meta = PRODUCT_REVIEW_STATUS[p.reviewStatus] ?? { label: p.reviewStatus, color: "zinc" as const };
                 return (
                   <TableRow key={p.id}>
@@ -230,10 +264,10 @@ function UrunlerView() {
                       ) : null}
                     </TableCell>
                     <TableCell className="text-admin-text font-medium">
-                      <Link href={`/admin/urunler/${p.id}`} className="flex items-center gap-3 hover:underline">
-                        {p.cover ? (
+                      <Link href={`/admin/urunler/${p.id}`} className="flex max-w-[18rem] items-center gap-3 hover:underline">
+                        {cover ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.cover} alt="" className="size-10 shrink-0 rounded-md object-cover ring-1 ring-zinc-950/10" />
+                          <img src={cover} alt="" className="size-10 shrink-0 rounded-md object-cover ring-1 ring-zinc-950/10" />
                         ) : (
                           <span className="size-10 shrink-0 rounded-md bg-zinc-100 ring-1 ring-zinc-950/10" aria-hidden />
                         )}
@@ -243,7 +277,7 @@ function UrunlerView() {
                         </span>
                       </Link>
                     </TableCell>
-                    <TableCell className="text-admin-text text-sm">
+                    <TableCell className="text-admin-text min-w-[9rem] text-sm whitespace-normal">
                       <button
                         type="button"
                         title="Yalnız bu firmanın ürünlerini göster"
@@ -256,9 +290,12 @@ function UrunlerView() {
                       >
                         {p.company.name}
                       </button>
-                      <span className="text-admin-text-muted block text-xs">{p.company.city ?? "—"} · {p.company.tier}</span>
+                      <span className="text-admin-text-muted block text-xs">{p.company.city ?? "—"} · {companyTierText(p.company)}</span>
                     </TableCell>
-                    <TableCell className="text-admin-text-muted text-xs">{p.categoryName ?? "—"}</TableCell>
+                    {/* Uzun kategori adı satırı genişletmesin — sarılır, 2 satırda kesilir (D-035). */}
+                    <TableCell className="text-admin-text-muted min-w-[8rem] max-w-[14rem] text-xs whitespace-normal">
+                      <span className="line-clamp-2" title={p.categoryName ?? undefined}>{p.categoryName ?? "—"}</span>
+                    </TableCell>
                     <TableCell>
                       <Badge color={meta.color}>{meta.label}</Badge>
                       {p.reviewStatus === "PENDING" && p.isPublic ? (

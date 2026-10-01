@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { nextDateTimeLocal } from "@/lib/date";
+import { listingMaxDateTimeLocal, nextDateTimeLocal } from "@/lib/date";
 
 /**
  * Derin denetim LU-12: (a) kapat/uzat/yeniden aç düğmeleri SUPPORT'a da
@@ -29,7 +29,8 @@ vi.mock("@/hooks/use-admin-inspection", () => ({
 
 import AdminListingPage from "../page";
 
-const CLOSES_AT = "2026-10-01T15:00:00.000Z";
+// Gelecekte (görece) — kapanışı geçmiş ilan ayrı senaryo (D-211).
+const CLOSES_AT = new Date(Date.now() + 7 * 86_400_000).toISOString();
 
 function listing(over: Record<string, unknown> = {}) {
   return {
@@ -87,5 +88,29 @@ describe("/admin/ilanlar/[id] — müdahale düğmeleri", () => {
     await user.click(screen.getByRole("button", { name: "Süre Uzat" }));
     const input = await screen.findByLabelText(/Yeni kapanış/);
     expect(input).toHaveAttribute("min", nextDateTimeLocal(CLOSES_AT));
+  });
+
+  // Arayüz testi D-211: alt sınır max(şimdi, kapanış); üst sınır şimdi + 2 yıl.
+  it("kapanışı geçmiş ilanda alt sınır şimdiden sonraki dakika; 2 yıl ötesi ve geçmiş tarih Onayla'yı kapatır", async () => {
+    const user = userEvent.setup();
+    h.listing = listing({ closesAt: new Date(Date.now() - 3_600_000).toISOString() });
+    render(<AdminListingPage />);
+    await user.click(screen.getByRole("button", { name: "Süre Uzat" }));
+    const input = await screen.findByLabelText(/Yeni kapanış/);
+    const min = input.getAttribute("min")!;
+    expect(min >= nextDateTimeLocal()).toBe(true);
+    expect(input).toHaveAttribute("max", listingMaxDateTimeLocal());
+
+    const confirm = screen.getByRole("button", { name: "Uzat" });
+    fireEvent.change(input, { target: { value: "2099-12-31T10:00" } });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByText(/en geç tarihten sonra/)).toBeInTheDocument();
+    const anHourAgo = new Date(Date.now() - 3_600_000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const local = `${anHourAgo.getFullYear()}-${pad(anHourAgo.getMonth() + 1)}-${pad(anHourAgo.getDate())}T${pad(anHourAgo.getHours())}:${pad(anHourAgo.getMinutes())}`;
+    fireEvent.change(input, { target: { value: local } });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(input, { target: { value: min } });
+    expect(confirm).toBeEnabled();
   });
 });

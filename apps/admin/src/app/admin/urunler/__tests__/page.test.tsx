@@ -8,12 +8,21 @@ const h = vi.hoisted(() => ({
   lastParams: undefined as unknown,
   role: "SUPPORT" as string,
   toastApiError: vi.fn(),
+  search: "",
+  replace: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastWarning: vi.fn(),
 }));
 
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(h.search),
+  useRouter: () => ({ replace: h.replace }),
+  usePathname: () => "/admin/urunler",
+}));
+vi.mock("sonner", () => ({ toast: { success: h.toastSuccess, warning: h.toastWarning } }));
 vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ admin: { role: h.role } }),
 }));
@@ -56,6 +65,10 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     h.bulkApprove.mockReset();
     h.bulkApprove.mockResolvedValue({ approved: 0, skipped: [] });
     h.toastApiError.mockReset();
+    h.search = "";
+    h.replace.mockReset();
+    h.toastSuccess.mockReset();
+    h.toastWarning.mockReset();
     h.products = { data: { items: [row("1"), row("2", { isPublic: true })], total: 2, page: 1, pageSize: 25 }, isLoading: false, isError: false };
   });
 
@@ -98,5 +111,72 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     await waitFor(() => expect(h.toastApiError).toHaveBeenCalled());
     expect(h.bulkApprove).toHaveBeenCalledWith(["1"]);
     expect(screen.getByText("1 ürün seçildi")).toBeInTheDocument();
+  });
+
+  // Arayüz testi D-036: geçersiz ?status varsayılana düşer; sekme URL'ye yazılır.
+  it("geçersiz ?status varsayılana düşer, geçerli olan okunur; sekme URL'ye yazılır", () => {
+    h.search = "status=DRAFT";
+    const { unmount } = render(<AdminUrunlerPage />);
+    expect((h.lastParams as { status: string }).status).toBe("PENDING");
+    unmount();
+    h.search = "status=REJECTED";
+    render(<AdminUrunlerPage />);
+    expect((h.lastParams as { status: string }).status).toBe("REJECTED");
+    fireEvent.click(screen.getByRole("tab", { name: /Yayında/ }));
+    expect(h.replace).toHaveBeenLastCalledWith("/admin/urunler?status=APPROVED", { scroll: false });
+    fireEvent.click(screen.getByRole("tab", { name: /Onay bekleyen/ }));
+    expect(h.replace).toHaveBeenLastCalledWith("/admin/urunler", { scroll: false });
+  });
+
+  // Arayüz testi D-213: arama sonucu boşken "Kuyruk boş" değil.
+  it("arama eşleşmeyince 'Eşleşen ürün yok' yazar", () => {
+    h.products = { data: { items: [], total: 0, page: 1, pageSize: 25 }, isLoading: false, isError: false };
+    render(<AdminUrunlerPage />);
+    fireEvent.change(screen.getByPlaceholderText("Ürün ya da firma ara"), { target: { value: "yokboyle" } });
+    return waitFor(() => {
+      expect(screen.getByText(/Eşleşen ürün yok/)).toBeInTheDocument();
+      expect(screen.queryByText(/Kuyruk boş/)).not.toBeInTheDocument();
+    });
+  });
+
+  // Arayüz testi D-035: başarılı toplu onay geri bildirim verir; atlananlar alert değil toast.
+  it("toplu onay başarıda success, atlananlarda uyarı toast'ı basar (window.alert yok)", async () => {
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    h.bulkApprove.mockResolvedValue({ approved: 1, skipped: [] });
+    render(<AdminUrunlerPage />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ürün 1 seç" }));
+    fireEvent.click(screen.getByText("Seçilenleri onayla"));
+    await waitFor(() => expect(h.toastSuccess).toHaveBeenCalledWith("1 ürün onaylandı ve yayına alındı"));
+
+    h.bulkApprove.mockResolvedValue({ approved: 0, skipped: [{ id: "2", reason: "tavan dolu" }] });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ürün 2 seç" }));
+    fireEvent.click(screen.getByText("Seçilenleri onayla"));
+    await waitFor(() => expect(h.toastWarning).toHaveBeenCalled());
+    expect(h.toastWarning.mock.calls[0][1]).toMatchObject({ description: "tavan dolu" });
+    expect(alert).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
+  // Arayüz testi D-157 + D-174: göreli kapak vitrin kökeninde; efektif kademe gösterilir.
+  it("göreli kapak yolu vitrin kökenine bağlanır; süresi geçmiş paket efektif kademeyle yazılır", () => {
+    h.products = {
+      data: {
+        items: [
+          row("1", {
+            cover: "/categories/elektrik.webp",
+            company: { id: "c1", name: "Acme Metal", slug: "acme", city: "İzmir", tier: "SILVER", effectiveTier: "STANDART", membershipEndAt: "2026-10-01T09:00:00.000Z", verification: "VERIFIED", isBlocked: false },
+          }),
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 25,
+      },
+      isLoading: false,
+      isError: false,
+    };
+    const { container } = render(<AdminUrunlerPage />);
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toMatch(/^https?:\/\/[^/]+\/categories\/elektrik\.webp$/);
+    expect(screen.getByText(/Standart \(Silver süresi doldu 1 Eki 2026\)/)).toBeInTheDocument();
   });
 });

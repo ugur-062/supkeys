@@ -16,7 +16,12 @@ import {
   useAdminListingDetail,
   useListingIntervention,
 } from "@/hooks/use-admin-inspection";
-import { nextDateTimeLocal, safeFormat } from "@/lib/date";
+import {
+  extendMinDateTimeLocal,
+  listingMaxDateTimeLocal,
+  nextDateTimeLocal,
+  safeFormat,
+} from "@/lib/date";
 import { systemTextTr } from "@/lib/system-text";
 import {
   BID_STATUS,
@@ -280,7 +285,7 @@ function ListingInspection({ id }: { id: string }) {
                   className="flex items-center justify-between px-5 py-2.5"
                 >
                   <Link
-                    href={`/admin/siparisler/${o.id}`}
+                    href={`/admin/siparisler/${o.id}?from=listing`}
                     className="text-admin-text font-mono text-xs hover:underline"
                   >
                     {o.number ?? o.id.slice(0, 10)}
@@ -330,7 +335,8 @@ function ListingInspection({ id }: { id: string }) {
         title="Süre Uzat"
         label="Yeni kapanış (yalnız uzatma — kısaltma yapılamaz)"
         type="datetime-local"
-        minDateTime={nextDateTimeLocal(l.closesAt)}
+        minDateTime={extendMinDateTimeLocal(l.closesAt)}
+        maxDateTime={listingMaxDateTimeLocal()}
         required
         confirmLabel="Uzat"
         onConfirm={(v) => {
@@ -352,6 +358,7 @@ function ListingInspection({ id }: { id: string }) {
         label="Yeni kapanış tarihi"
         type="datetime-local"
         minDateTime={nextDateTimeLocal()}
+        maxDateTime={listingMaxDateTimeLocal()}
         required
         confirmLabel="Yeniden Aç"
         onConfirm={(v) => {

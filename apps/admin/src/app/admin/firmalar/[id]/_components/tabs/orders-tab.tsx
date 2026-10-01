@@ -50,7 +50,7 @@ export function OrdersTab({ companyId }: { companyId: string }) {
                 <TableRow key={o.id}>
                   <TableCell className="text-admin-text font-mono text-xs">
                     <Link
-                      href={`/admin/siparisler/${o.id}`}
+                      href={`/admin/siparisler/${o.id}?from=${companyId}`}
                       className="hover:underline"
                     >
                       {o.number ?? o.id.slice(0, 10)}
@@ -75,7 +75,7 @@ export function OrdersTab({ companyId }: { companyId: string }) {
                   </TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/admin/siparisler/${o.id}`}
+                      href={`/admin/siparisler/${o.id}?from=${companyId}`}
                       className="inline-flex items-center rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700"
                     >
                       İncele

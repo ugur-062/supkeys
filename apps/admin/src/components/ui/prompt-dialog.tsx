@@ -48,6 +48,12 @@ interface PromptDialogProps {
   /** datetime-local için alt sınır (geçmiş tarih seçilemesin). */
   minDateTime?: string;
   /**
+   * datetime-local için üst sınır (backend ufku ile birebir — ör. ilan
+   * kapanışı en fazla şimdi + 2 yıl). Sonrasındaki değerde Onayla kapalı
+   * (arayüz testi D-211).
+   */
+  maxDateTime?: string;
+  /**
    * İsteğe bağlı İKİNCİ metin alanı (opsiyonel, boş olabilir) — ör. şikayet
    * çözümünde iç "yönetici notu" + firmaya giden "askı gerekçesi" ayrı
    * sorulur (derin denetim MU-02). Değeri `onConfirm`'un 2. argümanıdır.
@@ -96,6 +102,7 @@ export function PromptDialog({
   maxLength,
   minLength,
   minDateTime,
+  maxDateTime,
   secondary,
   onConfirm,
   onClose,
@@ -139,8 +146,13 @@ export function PromptDialog({
     !!minDateTime &&
     trimmed !== "" &&
     trimmed < minDateTime;
+  const afterMax =
+    type === "datetime-local" &&
+    !!maxDateTime &&
+    trimmed !== "" &&
+    trimmed > maxDateTime;
   const invalid =
-    (required && trimmed === "") || tooShort || beforeMin || outOfRange || badEmail;
+    (required && trimmed === "") || tooShort || beforeMin || afterMax || outOfRange || badEmail;
   const lock = useDialogSubmitLock(open);
 
   const submit = () => {
@@ -169,7 +181,9 @@ export function PromptDialog({
               ? `En az ${minLength} karakter (${trimmed.length}/${minLength})`
               : beforeMin
                 ? "Seçilen tarih izin verilen en erken tarihten önce"
-                : outOfRange
+                : afterMax
+                  ? "Seçilen tarih izin verilen en geç tarihten sonra"
+                  : outOfRange
                   ? rangeMessage(min, max)
                   : badEmail
                     ? "Geçerli bir e-posta adresi girin"
@@ -183,7 +197,7 @@ export function PromptDialog({
             id="prompt-dialog-input"
             type={type}
             min={type === "datetime-local" ? minDateTime : min}
-            max={type === "number" ? max : undefined}
+            max={type === "number" ? max : type === "datetime-local" ? maxDateTime : undefined}
             maxLength={type === "text" || type === "email" ? maxLength : undefined}
             autoFocus
             value={value}

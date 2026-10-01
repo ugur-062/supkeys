@@ -11,10 +11,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   role: "SALES" as string,
   order: undefined as unknown,
+  search: "",
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
-vi.mock("next/navigation", () => ({ useParams: () => ({ id: "o1" }) }));
+vi.mock("next/navigation", () => ({
+  useParams: () => ({ id: "o1" }),
+  useSearchParams: () => new URLSearchParams(h.search),
+}));
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -77,6 +81,7 @@ function order(payments: { status: string; amount: number }[] = []) {
 beforeEach(() => {
   h.role = "SALES";
   h.order = order();
+  h.search = "";
 });
 
 describe("/admin/siparisler/[id] — iptal düğmesi", () => {
@@ -108,5 +113,31 @@ describe("/admin/siparisler/[id] — iptal düğmesi", () => {
     ]);
     render(<AdminOrderPage />);
     expect(screen.getByRole("button", { name: "Siparişi İptal Et" })).toBeInTheDocument();
+  });
+});
+
+// Arayüz testi D-217: "← Siparişler" her zaman alıcı firmaya gidiyordu.
+describe("/admin/siparisler/[id] — geri bağlantısı gelinen yere döner", () => {
+  const backLink = () => screen.getByRole("link", { name: /Siparişler|ROT-/ });
+
+  it("varsayılan ve alıcıdan gelişte alıcı firmanın siparişleri", () => {
+    render(<AdminOrderPage />);
+    expect(backLink()).toHaveAttribute("href", "/admin/firmalar/b1?tab=siparisler");
+    expect(backLink()).toHaveTextContent("Alıcı A.Ş. · Siparişler");
+  });
+
+  it("satıcı firmadan gelişte satıcının siparişleri", () => {
+    h.search = "from=s1";
+    render(<AdminOrderPage />);
+    expect(backLink()).toHaveAttribute("href", "/admin/firmalar/s1?tab=siparisler");
+    expect(backLink()).toHaveTextContent("Satıcı A.Ş. · Siparişler");
+  });
+
+  it("ilandan gelişte ilana döner", () => {
+    h.search = "from=listing";
+    h.order = { ...order(), listing: { id: "l1", title: "Çelik boru", number: "ROT-000001" } };
+    render(<AdminOrderPage />);
+    const back = screen.getAllByRole("link").find((a) => a.textContent === " ROT-000001" || a.textContent?.trim() === "ROT-000001");
+    expect(back).toHaveAttribute("href", "/admin/ilanlar/l1");
   });
 });

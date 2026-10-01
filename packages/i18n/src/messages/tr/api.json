@@ -156,6 +156,7 @@
     "urununUrlParcasiSlugYokFirma": "Ürünün URL parçası (slug) yok — firma yeniden göndermeli",
     "urunDurumuDegistiSayfayiYenileyin": "Ürün durumu değişti — sayfayı yenileyin",
     "firmaninUrunTavaniDolu": "Firmanın paketindeki yayında ürün tavanı dolu ({limit}) — ürün onaylanamaz",
+    "firmaninPaketiDolduUrunTavaniDolu": "Firmanın paket süresi dolduğu için ücretsiz paketin yayında ürün tavanı ({limit}) geçerli ve dolu — ürün onaylanamaz",
     "urunSecilmedi": "Ürün seçilmedi",
     "tekSeferdeEnFazlaUrunOnaylanabilir": "Tek seferde en fazla {BULKAPPROVEMAX} ürün onaylanabilir",
     "yalnizOnayBekleyenUrunReddedilebilir": "Yalnız onay bekleyen ürün reddedilebilir",

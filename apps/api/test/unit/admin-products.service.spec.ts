@@ -135,6 +135,22 @@ describe("AdminProductsService", () => {
       prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
       await expect(svc.approve("i1", "admin1")).rejects.toThrow(BadRequestException);
       expect(prisma.companyItem.updateMany).not.toHaveBeenCalled();
+      // Arayüz testi D-174: metin paket süresinin dolduğunu söyler (yalnız "tavan dolu" değil).
+      await expect(svc.approve("i1", "admin1")).rejects.toThrow(/paket süresi dolduğu/);
+      const r = rig(expired);
+      r.prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
+      const out = await r.svc.approveMany(["i1"], "admin1");
+      expect(out.skipped[0].reason).toMatch(/paket süresi dolduğu/);
+    });
+
+    it("liste/detay satırı efektif kademeyi ve üyelik bitişini döndürür (arayüz testi D-174)", async () => {
+      const end = new Date(Date.now() - 86_400_000);
+      const { svc } = rig({ ...BASE, company: { ...BASE.company, tier: "SILVER", membershipEndAt: end } });
+      const d = await svc.detail("i1");
+      expect(d.company).toMatchObject({ tier: "SILVER", effectiveTier: "STANDART", membershipEndAt: end.toISOString() });
+      const ok = rig(BASE);
+      const l = await ok.svc.list({ status: "PENDING" });
+      expect(l.items[0].company).toMatchObject({ tier: "SILVER", effectiveTier: "SILVER", membershipEndAt: null });
     });
 
     it("tavan altındaysa onaylanır; paketli kademede ve vitrindeki ürünün güncellemesinde sayım yapılmaz", async () => {
