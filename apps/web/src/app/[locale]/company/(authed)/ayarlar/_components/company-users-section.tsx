@@ -65,7 +65,7 @@ import {
   Users2,
 } from "lucide-react";
 import { useState } from "react";
-import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { useDialogSubmitLock, useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
 import { InviteUserDialog } from "./invite-user-dialog";
@@ -92,6 +92,8 @@ export function CompanyUsersSection({
   // Pasif Yap yan etkili (oturum kapanır, canlı talepler devredilir) → onaylı
   // (arayüz testi D-302); Tekrar Aktif Et onaysız kalır.
   const [deactivating, setDeactivating] = useState<CompanyTeamUser | null>(null);
+  // FX-00: senkron kilit — hızlı çift tıklama ikinci isteği göndermesin.
+  const deactivateLock = useDialogSubmitLock(Boolean(deactivating));
   // Faz K — kurucu koltuk seçimi (aşkın durum).
   const [seatSelOpen, setSeatSelOpen] = useState(false);
   const [keep, setKeep] = useState<SeatKeep[]>([]);
@@ -405,7 +407,11 @@ export function CompanyUsersSection({
           <Button plain onClick={() => setDeactivating(null)}>
             {t("vazgec")}
           </Button>
-          <Button color="red" onClick={() => void confirmDeactivate()} disabled={setActive.isPending}>
+          <Button
+            color="red"
+            onClick={() => void deactivateLock.run(confirmDeactivate)}
+            disabled={setActive.isPending || deactivateLock.locked}
+          >
             {t("pasifYap")}
           </Button>
         </DialogActions>
@@ -507,6 +513,8 @@ function PendingInvitations() {
   const reportDelivery = useInviteDeliveryToast();
   // Daveti iptal etmek onaylı (arayüz testi D-302): bağlantı çalışmaz olur.
   const [cancelling, setCancelling] = useState<{ id: string; email: string } | null>(null);
+  // FX-00: senkron kilit — hızlı çift tıklama ikinci isteği göndermesin.
+  const cancelLock = useDialogSubmitLock(Boolean(cancelling));
 
   if (!invitations || invitations.length === 0) return null;
 
@@ -605,7 +613,11 @@ function PendingInvitations() {
           <Button plain onClick={() => setCancelling(null)}>
             {t("vazgec")}
           </Button>
-          <Button color="red" onClick={() => void handleCancel()} disabled={cancel.isPending}>
+          <Button
+            color="red"
+            onClick={() => void cancelLock.run(handleCancel)}
+            disabled={cancel.isPending || cancelLock.locked}
+          >
             {t("davetiIptalEt")}
           </Button>
         </DialogActions>

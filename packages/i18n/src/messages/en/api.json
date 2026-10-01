@@ -754,7 +754,7 @@
     "enAzBirAktifYonetimYetkilisiKalmali": "The company must keep at least one active administrator (Founder/Manager)",
     "koltukDoluBekleyenDahil": "All seats are taken ({used, number} active + {pending, plural, one {# pending invitation} other {# pending invitations}} / {limit, number}) — upgrade your plan or free up a seat to grant purchasing/sales transaction permissions",
     "koltukDoluIslemYetkisi": "All seats are taken ({used}/{limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions",
-    "koltukDoluBekleyenDahilEnUstPaket": "All seats are taken ({used} active + {pending} pending invitations / {limit}) — to grant buying/sales transaction permissions, free up a seat: remove a user's transaction permissions or cancel a pending invitation",
+    "koltukDoluBekleyenDahilEnUstPaket": "All seats are taken ({used, number} active + {pending, plural, one {# pending invitation} other {# pending invitations}} / {limit, number}) — to grant buying/sales transaction permissions, free up a seat: remove a user's transaction permissions or cancel a pending invitation",
     "koltukDoluIslemYetkisiEnUstPaket": "All seats are taken ({used}/{limit}) — to grant buying/sales transaction permissions, free up a seat: remove a user's transaction permissions or cancel a pending invitation",
     "davetYenidenGonderimBekleyin": "This invitation was just sent. Wait {minutes, plural, one {# minute} other {# minutes}} before resending it."
   },

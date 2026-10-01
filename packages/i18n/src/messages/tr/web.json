@@ -1217,7 +1217,9 @@
         "aiIleBul": "AI ile bul",
         "ara": "Ara",
         "oneriler": "Öneriler",
-        "ornekIstanbulaTeslim": "Örnek: “İstanbul''a teslim, 50 adet 400 kVAr kompanzasyon panosu, doğrulanmış üretici” — AI süzgeçleri kurar, sonuçlar aşağıda listelenir."
+        "ornekIstanbulaTeslim": "Örnek: “İstanbul''a teslim, 50 adet 400 kVAr kompanzasyon panosu, doğrulanmış üretici” — AI süzgeçleri kurar, sonuçlar aşağıda listelenir.",
+        "aiRolKilidi": "AI ile arama, alım ya da satış yetkisi olan kullanıcılara açıktır.",
+        "aiEnAz3Karakter": "AI araması için en az 3 karakter yazın."
       },
       "homeCompanyList": {
         "firmalar": "Firmalar",
@@ -5913,7 +5915,7 @@
         "pasifYapilsinMi": "<strong>{name}</strong> ({email}) pasif yapılsın mı?",
         "pasifGirisYapamaz": "Kullanıcı sisteme giriş yapamaz ve panele erişimi kesilir",
         "pasifTaleplerDevredilir": "Açtığı canlı satın alma talepleri size ya da Kurucuya devredilir",
-        "pasifKoltukBosalir": "Koltuğu boşalır; tekrar aktif ettiğinizde boş koltuk varsa yetkileri geri gelir",
+        "pasifKoltukBosalir": "Koltuğu boşalır; yetkileri korunur, ancak tekrar aktif etmek için boş koltuk gerekir",
         "davetIptalEdilsinMi": "<strong>{email}</strong> adresine gönderilen davet iptal edilsin mi? Davet bağlantısı artık çalışmaz; ayırdığı koltuk varsa boşalır.",
         "yetkilerKaydedildiBilgilerKaydedilemedi": "Yetkiler kaydedildi, ancak kişi bilgileri kaydedilemedi: {error}"
       },

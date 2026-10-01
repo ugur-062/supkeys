@@ -1217,7 +1217,9 @@
         "aiIleBul": "Find with AI",
         "ara": "Search",
         "oneriler": "Suggestions",
-        "ornekIstanbulaTeslim": "Example: “Delivered to Istanbul, 50 units of 400 kVAr power factor correction panels, verified manufacturer” — the AI sets the filters and the results are listed below."
+        "ornekIstanbulaTeslim": "Example: “Delivered to Istanbul, 50 units of 400 kVAr power factor correction panels, verified manufacturer” — the AI sets the filters and the results are listed below.",
+        "aiRolKilidi": "AI search is available to users with buying or selling permissions.",
+        "aiEnAz3Karakter": "Enter at least 3 characters to search with AI."
       },
       "homeCompanyList": {
         "firmalar": "Companies",
@@ -5913,7 +5915,7 @@
         "pasifYapilsinMi": "Deactivate <strong>{name}</strong> ({email})?",
         "pasifGirisYapamaz": "The user can no longer log in or access the panel",
         "pasifTaleplerDevredilir": "Live buying requests they opened are handed over to you or to the Founder",
-        "pasifKoltukBosalir": "Their seat is freed; when you reactivate them, their permissions return if a seat is available",
+        "pasifKoltukBosalir": "Their seat is freed; their permissions are kept, but reactivating them needs a free seat",
         "davetIptalEdilsinMi": "Cancel the invitation sent to <strong>{email}</strong>? The invitation link will stop working and any seat it reserved is freed.",
         "yetkilerKaydedildiBilgilerKaydedilemedi": "Permissions were saved, but contact details could not be saved: {error}"
       },

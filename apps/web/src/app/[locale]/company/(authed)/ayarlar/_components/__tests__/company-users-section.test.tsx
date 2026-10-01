@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -319,6 +319,48 @@ describe("CompanyUsersSection", () => {
     await u.click(await screen.findByText("Pasif Yap"));
     await u.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Pasif Yap" }));
     expect(h.setActive).toHaveBeenCalledWith({ id: "u1", active: false });
+  });
+
+  it("Pasif Yap onayı: koltuk maddesi API davranışını yazar; hızlı çift tıklama tek istek atar (FX-00)", async () => {
+    const u = userEvent.setup();
+    let resolve!: (v: unknown) => void;
+    h.setActive.mockReturnValue(new Promise((r) => (resolve = r)));
+    render(<CompanyUsersSection canManage meId="owner" />);
+    await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+    await u.click(await screen.findByText("Pasif Yap"));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/yetkileri korunur/)).toBeInTheDocument();
+    const confirm = within(dialog).getByRole("button", { name: "Pasif Yap" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    expect(h.setActive).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ ok: true }));
+    expect(h.toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("Daveti iptal et onayı: hızlı çift tıklama tek istek atar (FX-00)", async () => {
+    let resolve!: (v: unknown) => void;
+    h.cancel.mockReturnValue(new Promise((r) => (resolve = r)));
+    h.invitations = [
+      {
+        id: "inv1",
+        email: "bekleyen@firma.com",
+        roles: ["SATISCI"],
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        invitedByName: "Umut",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    render(<CompanyUsersSection canManage meId="owner" />);
+    fireEvent.click(screen.getByRole("button", { name: "Daveti iptal et" }));
+    const dialog = await screen.findByRole("dialog");
+    const confirm = within(dialog).getByRole("button", { name: "Daveti iptal et" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    expect(h.cancel).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ ok: true }));
+    expect(h.toast.error).not.toHaveBeenCalled();
   });
 
   it("pasif kullanıcıyı tekrar aktif etmek onaysız (yan etkisi yok)", async () => {
