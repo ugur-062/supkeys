@@ -20,6 +20,25 @@ import { UpsertAddressDto } from "./dto/company-address.dto";
  * (teslimat adresi değişimi sevkiyat-yönlendirme delili); yalnız başarılı
  * mutasyon loglanır, silme-kilidi retleri loglanmaz. log() fail-safe.
  */
+/**
+ * Firma başına adres tavanı (arayüz testi D-135): tavansız defter 300+ adresle
+ * 21.000 px'lik listeye dönüşüyordu. Tavan yalnız YENİ adreste uygulanır —
+ * eskiden tavanı aşmış defter silinmez, düzenlenebilir kalır.
+ */
+export const MAX_ADDRESSES_PER_COMPANY = 200;
+
+/**
+ * Türkiye adresinde posta kodu 5 rakam (arayüz testi D-133; arayüz aynı kuralı
+ * yazarken uygular). Boş posta kodu serbest — alan isteğe bağlı. Diğer
+ * ülkelerin biçimi serbest (SW1A 1AA, 1012 AB…), DTO tavanı 20.
+ */
+export function assertPostalCode(country: string, postalCode: string | null | undefined) {
+  const v = postalCode?.trim();
+  if (country === "TR" && v && !/^\d{5}$/.test(v)) {
+    throw new BadRequestException(i18nMessage("api.companyAddresses.trPostaKodu5Hane"));
+  }
+}
+
 function cityFields(dto: { country?: string; city?: string | null; cityId?: number | null }) {
   const cityId = resolveCityId(normalizeAddressCountry(dto.country), dto.city, dto.cityId);
   return { cityId, city: storedCityName(cityId, dto.city) };
@@ -60,6 +79,17 @@ export class CompanyAddressesService {
 
   async create(user: AuthenticatedCompanyUser, dto: UpsertAddressDto) {
     const type = dto.type as CompanyAddressType;
+    assertPostalCode(normalizeAddressCountry(dto.country), dto.postalCode);
+    const count = await this.prisma.companyAddress.count({
+      where: { companyId: user.companyId },
+    });
+    if (count >= MAX_ADDRESSES_PER_COMPANY) {
+      throw new BadRequestException(
+        i18nMessage("api.companyAddresses.adresSiniriAsildi", {
+          max: MAX_ADDRESSES_PER_COMPANY,
+        }),
+      );
+    }
     const address = await runTenantTx(this.prisma, async (tx) => {
       const created = await tx.companyAddress.create({
         data: {
@@ -149,6 +179,15 @@ export class CompanyAddressesService {
       LOCKED_FIELDS.some(
         (k) => k !== "city" && (before[k] ?? null) !== incoming[k],
       );
+    // Posta kodu biçimi yalnız değişen değerde denetlenir: kuraldan önce
+    // kaydedilmiş hatalı kod, başlık/telefon düzeltmesini engellemesin.
+    const country = normalizeAddressCountry(dto.country);
+    if (
+      incoming.postalCode !== (before.postalCode ?? null) ||
+      country !== before.country
+    ) {
+      assertPostalCode(country, incoming.postalCode);
+    }
     if (locationChanged) {
       await this.assertNotInActiveUse(
         user.companyId,

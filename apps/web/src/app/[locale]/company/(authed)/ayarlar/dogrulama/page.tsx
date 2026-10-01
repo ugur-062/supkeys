@@ -7,6 +7,7 @@ import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import {
   useCompanyDocs,
   useDocLabels,
@@ -45,7 +46,11 @@ export default function DogrulamaPage() {
   const canManage = useHasCompanyPermission("company:manage");
   // Banka Hesapları sahibe özel — yetkisizde düz metin (arayüz testi D-300).
   const canBilling = useHasCompanyPermission("billing:manage");
-  const { data, isLoading } = useCompanyDocs();
+  const { data, isLoading, isError, refetch } = useCompanyDocs();
+  // Doğrulanmış başlığın metni pakete göre (D-175): Silver/Gold firmaya
+  // "artık paket satın alabilirsiniz" denmez. `/me` paketi efektiftir
+  // (süresi dolan paket STANDART — INV-TIER-1).
+  const tier = useCompanyAuthStore((s) => s.company?.tier);
   const upload = useUploadDoc();
   const submit = useSubmitDocs();
   const [busyKind, setBusyKind] = useState<DocKind | null>(null);
@@ -199,7 +204,22 @@ export default function DogrulamaPage() {
       page={SETTINGS_PAGES.dogrulama}
       description={t("dogrulamaUcretsizVePaketGerektirmez")}
     >
-      {isLoading || !data ? (
+      {/* Hata dalı (O-109): eskiden istek düşünce sonsuza dek "Yükleniyor…". */}
+      {isError && !data ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50/60 px-4 py-3 text-sm text-rose-800"
+        >
+          {t("dogrulamaBilgileriYuklenemedi")}{" "}
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="font-semibold underline underline-offset-2"
+          >
+            {t("yenidenDene")}
+          </button>
+        </div>
+      ) : isLoading || !data ? (
         <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>
       ) : (
         <div className="space-y-5">
@@ -229,7 +249,11 @@ export default function DogrulamaPage() {
             </div>
           ) : data.status === "VERIFIED" ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              {t("firmanizDogrulandiHerkeseAcik")}
+              {tier === "GOLD"
+                ? t("firmanizDogrulandiGold")
+                : tier === "SILVER"
+                  ? t("firmanizDogrulandiSilver")
+                  : t("firmanizDogrulandiHerkeseAcik")}
               {canManage ? (
                 <span className="mt-0.5 block text-xs text-emerald-700">
                   {t("onaylananBelgelerDegistirilemezBirBelge")}

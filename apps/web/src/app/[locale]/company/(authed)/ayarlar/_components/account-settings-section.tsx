@@ -159,6 +159,7 @@ export function AccountInfoSection() {
                 <Label>{t("ad")}</Label>
                 <Input
                   value={info.firstName}
+                  maxLength={80}
                   invalid={!!errors.firstName}
                   onChange={(e) =>
                     setInfo({ ...info, firstName: e.target.value })
@@ -170,6 +171,7 @@ export function AccountInfoSection() {
                 <Label>{t("soyad")}</Label>
                 <Input
                   value={info.lastName}
+                  maxLength={80}
                   invalid={!!errors.lastName}
                   onChange={(e) =>
                     setInfo({ ...info, lastName: e.target.value })

@@ -162,4 +162,55 @@ describe("AddressBookSection", () => {
     // confirm async çözüldükten sonra silme çağrılır.
     await vi.waitFor(() => expect(h.del).toHaveBeenCalledWith("a1"));
   });
+  it("TR posta kodu yalnız rakam ve 5 hane; eksikse satır içi hata, kayıt yok (D-133)", async () => {
+    const user = userEvent.setup();
+    render(<AddressBookSection canManage />);
+    await user.click(screen.getByRole("button", { name: "Adres Ekle" }));
+    await screen.findByText("Yeni Adres");
+    await user.type(screen.getByLabelText("Başlık"), "Şube");
+    await user.type(screen.getByLabelText("Açık adres"), "Deneme Cd. 5");
+    const postal = screen.getByLabelText("Posta kodu");
+    await user.type(postal, "AB34C0");
+    expect(postal).toHaveValue("340");
+    await user.click(screen.getByRole("button", { name: "Ekle" }));
+    expect(await screen.findByText(/posta kodu 5 haneli/)).toBeInTheDocument();
+    expect(h.save).not.toHaveBeenCalled();
+    await user.type(postal, "00");
+    // Enter formu gönderir (D-307).
+    await user.type(screen.getByLabelText("Başlık"), "{Enter}");
+    await vi.waitFor(() => expect(h.save).toHaveBeenCalledTimes(1));
+    expect(h.save.mock.calls[0][0].postalCode).toBe("34000");
+  });
+
+  it("alanlarda DTO tavanı maxLength olarak var (D-307)", async () => {
+    const user = userEvent.setup();
+    render(<AddressBookSection canManage />);
+    await user.click(screen.getByRole("button", { name: "Adres Ekle" }));
+    await screen.findByText("Yeni Adres");
+    expect(screen.getByLabelText("Başlık")).toHaveAttribute("maxLength", "120");
+    expect(screen.getByLabelText("Açık adres")).toHaveAttribute("maxLength", "500");
+  });
+
+  it("yabancı fatura adresinde 'VD: —' yok, yalnız vergi no (D-137)", () => {
+    h.addresses = [addr({ type: "FATURA", country: "DE", taxNumber: "DE123456789", taxOffice: null })];
+    render(<AddressBookSection canManage />);
+    expect(screen.getByText("Vergi no: DE123456789")).toBeInTheDocument();
+    expect(screen.queryByText(/VD:/)).not.toBeInTheDocument();
+  });
+
+  it("çok adreste arama ve sayfalı liste (D-135)", async () => {
+    const user = userEvent.setup();
+    h.addresses = Array.from({ length: 45 }, (_, i) =>
+      addr({ id: `a${i}`, title: `Depo ${i}`, city: i === 7 ? "Ankara" : "İstanbul" }),
+    );
+    render(<AddressBookSection canManage />);
+    expect(screen.getAllByText(/^Depo \d+$/)).toHaveLength(20);
+    await user.click(screen.getByRole("button", { name: /Daha fazla göster \(25 kaldı\)/ }));
+    expect(screen.getAllByText(/^Depo \d+$/)).toHaveLength(40);
+    await user.type(screen.getByRole("searchbox", { name: "Adreslerde ara" }), "ankara");
+    expect(screen.getAllByText(/^Depo \d+$/)).toHaveLength(1);
+    expect(screen.getByText("Depo 7")).toBeInTheDocument();
+    await user.type(screen.getByRole("searchbox", { name: "Adreslerde ara" }), "zzz");
+    expect(screen.getByText("Aramanızla eşleşen adres yok.")).toBeInTheDocument();
+  });
 });

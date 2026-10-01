@@ -7,7 +7,10 @@
 import { authenticator } from "otplib";
 import * as crypto from "node:crypto";
 import { AuditService } from "../../src/modules/audit/audit.service";
-import { CompanyAddressesService } from "../../src/modules/company-addresses/company-addresses.service";
+import {
+  CompanyAddressesService,
+  MAX_ADDRESSES_PER_COMPANY,
+} from "../../src/modules/company-addresses/company-addresses.service";
 import { CompanyJwtStrategy } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { makeCompanyWithUser, makeListing } from "./factories";
 import { extractCode, makeAuthService } from "./make-auth-service";
@@ -480,6 +483,45 @@ describe("adres defteri", () => {
     expect(
       await prisma.companyAddress.count({ where: { id: addr.id } }),
     ).toBe(0);
+  });
+
+  it("TR adresinde posta kodu 5 rakam; yabancıda serbest (arayüz testi D-133)", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const s = svc();
+    await expect(
+      s.create(auth, { type: "TESLIMAT", title: "Depo", addressLine: "Adres", country: "TR", postalCode: "ABCDE" } as never),
+    ).rejects.toThrow(/5 haneli/);
+    await expect(
+      s.create(auth, { type: "TESLIMAT", title: "Depo", addressLine: "Adres", postalCode: "3400" } as never),
+    ).rejects.toThrow(/5 haneli/);
+    const ok = await s.create(auth, { type: "TESLIMAT", title: "Depo", addressLine: "Adres", country: "TR", postalCode: "34000" } as never);
+    expect(ok.postalCode).toBe("34000");
+    const uk = await s.create(auth, { type: "TESLIMAT", title: "London", addressLine: "1 High St", country: "GB", postalCode: "SW1A 1AA" } as never);
+    expect(uk.postalCode).toBe("SW1A 1AA");
+    // Kuraldan önce kaydedilmiş hatalı kod: yalnız başlık düzeltmesi engellenmez,
+    // kodu yine hatalı bir değere değiştirmek reddedilir.
+    await prisma.companyAddress.update({ where: { id: ok.id }, data: { postalCode: "ABC" } });
+    const fixed = await s.update(auth, ok.id, { type: "TESLIMAT", title: "Ana Depo", addressLine: "Adres", country: "TR", postalCode: "ABC" } as never);
+    expect(fixed.title).toBe("Ana Depo");
+    await expect(
+      s.update(auth, ok.id, { type: "TESLIMAT", title: "Ana Depo", addressLine: "Adres", country: "TR", postalCode: "ABCD1" } as never),
+    ).rejects.toThrow(/5 haneli/);
+  });
+
+  it("firma başına adres tavanı: tavan dolunca yeni adres reddedilir (arayüz testi D-135)", async () => {
+    const { auth, company } = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.createMany({
+      data: Array.from({ length: MAX_ADDRESSES_PER_COMPANY }, (_, i) => ({
+        companyId: company.id,
+        type: "TESLIMAT" as const,
+        title: `Depo ${i}`,
+        addressLine: "Adres",
+        country: "TR",
+      })),
+    });
+    await expect(
+      svc().create(auth, { type: "TESLIMAT", title: "Bir fazla", addressLine: "Adres" } as never),
+    ).rejects.toThrow(new RegExp(`en fazla ${MAX_ADDRESSES_PER_COMPANY} adres`));
   });
 });
 

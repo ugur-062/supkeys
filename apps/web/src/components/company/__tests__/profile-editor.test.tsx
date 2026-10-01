@@ -393,6 +393,9 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByRole("link", { name: /Firma bilgileri/ })).toBeNull();
     expect(screen.queryByText(/sonra Kaydet/)).toBeNull();
     expect(screen.getByText("Firma sayfanız — başkalarının gördüğü hâli.")).toBeInTheDocument();
+    // D-138: salt-okurda yayın anahtarı yok (pasif gri anahtar "kapalı" gibi okunuyordu); yalnız durum.
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.getByText("Yayında")).toBeInTheDocument();
   });
 
   it("düzenleyebilen kullanıcıya Firma bilgileri bağlantısı çizilir", () => {

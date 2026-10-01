@@ -9,7 +9,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  data: {} as Record<string, unknown>,
+  data: {} as Record<string, unknown> | undefined,
+  isError: false,
+  refetch: vi.fn(),
   submit: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -22,12 +24,13 @@ vi.mock("@/hooks/use-company-docs", async (orig) => {
   const real = await orig<typeof import("@/hooks/use-company-docs")>();
   return {
     ...real,
-    useCompanyDocs: () => ({ data: h.data, isLoading: false }),
+    useCompanyDocs: () => ({ data: h.data, isLoading: false, isError: h.isError, refetch: h.refetch }),
     useUploadDoc: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useSubmitDocs: () => ({ mutateAsync: h.submit, isPending: false }),
   };
 });
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import DogrulamaPage from "../page";
 
 const TR_DOCS = ["taxPlate", "tradeRegistry", "signatureCircular", "activityCert", "idFront", "idBack"];
@@ -55,7 +58,10 @@ function docs(over: Record<string, unknown> = {}) {
 describe("DogrulamaPage", () => {
   beforeEach(() => {
     h.submit.mockReset();
+    h.refetch.mockReset();
+    h.isError = false;
     h.data = docs();
+    useCompanyAuthStore.setState({ company: null } as never);
   });
 
   it("UNVERIFIED: 'Belge bekleniyor' rozeti, alanlar açık, eksik listesi Gönder'i kapatır", () => {
@@ -165,5 +171,27 @@ describe("DogrulamaPage", () => {
     h.data = docs({ country: "CN", required: ["tradeRegistry", "idFront"] });
     render(<DogrulamaPage />);
     expect(screen.getAllByText(/营业执照/).length).toBeGreaterThanOrEqual(1);
+  });
+  it("istek başarısızsa sonsuz 'Yükleniyor…' değil hata ve Yeniden dene (O-109)", async () => {
+    const user = userEvent.setup();
+    h.data = undefined;
+    h.isError = true;
+    render(<DogrulamaPage />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Doğrulama bilgileri yüklenemedi.");
+    expect(screen.queryByText("Yükleniyor…")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Yeniden dene" }));
+    expect(h.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["STANDART", /Artık paket satın alabilirsiniz/],
+    ["SILVER", /Silver paketinizle herkese açık taleplere teklif/],
+    ["GOLD", /Gold paketinizle talep yayınlayabilir/],
+  ])("VERIFIED başlığı pakete göre: %s (D-175)", (tier, text) => {
+    useCompanyAuthStore.setState({ company: { tier } } as never);
+    h.data = docs({ status: "VERIFIED", mersisNo: "1234567890123456" });
+    render(<DogrulamaPage />);
+    expect(screen.getByText(text)).toBeInTheDocument();
+    if (tier !== "STANDART") expect(screen.queryByText(/Artık paket satın alabilirsiniz/)).not.toBeInTheDocument();
   });
 });

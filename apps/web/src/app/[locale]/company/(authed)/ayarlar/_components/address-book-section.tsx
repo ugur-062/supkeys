@@ -19,6 +19,7 @@ import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import { isValidPhone } from "@/lib/company/phone";
+import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
   useAddresses,
@@ -32,11 +33,16 @@ import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 const TYPE_ORDER: CompanyAddressType[] = ["FATURA", "TESLIMAT", "ILETISIM"];
+
+/** Liste ilk bu kadar kartı çizer, "Daha fazla göster" aynı adımla açar (D-135). */
+const PAGE_SIZE = 20;
+/** Bu sayının üstünde arama kutusu görünür — az adreste gürültü olmasın. */
+const SEARCH_MIN = 6;
 
 export function AddressBookSection({ canManage }: { canManage: boolean }) {
   const t = useTranslations("web.panel.settings.addressBookSection");
@@ -47,6 +53,29 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
   const del = useDeleteAddress();
   const confirm = useConfirm();
   const [editing, setEditing] = useState<CompanyAddress | "new" | null>(null);
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(PAGE_SIZE);
+
+  // Sıra: tip (Fatura → Teslimat → İletişim), tip içinde varsayılan önce.
+  // Arama istemcide (başlık, kişi, adres alanları, tip adı); tavan API'de (D-135).
+  const sorted = useMemo(
+    () =>
+      [...(addresses ?? [])].sort(
+        (a, b) =>
+          TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) ||
+          Number(b.isDefault) - Number(a.isDefault),
+      ),
+    [addresses],
+  );
+  const q = query.trim().toLocaleLowerCase(listLocale);
+  const filtered = q
+    ? sorted.filter((a) =>
+        [a.title, a.contactName, a.addressLine, a.district, a.city, a.stateRegion, a.postalCode, typeLabel(a.type)]
+          .filter(Boolean)
+          .some((v) => String(v).toLocaleLowerCase(listLocale).includes(q)),
+      )
+    : sorted;
+  const visible = filtered.slice(0, limit);
 
   const handleDelete = async (a: CompanyAddress) => {
     const ok = await confirm({
@@ -92,17 +121,33 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
           {t("henuzKayitliAdresYokFatura")}
         </Text>
       ) : (
-        // grid-cols-1 = minmax(0,1fr): örtük sütun en geniş içeriğe göre
-        // büyüyüp 375 px'te kartları taşırıyordu (yayın denetimi Bölüm 12).
+        <>
+        {addresses.length > SEARCH_MIN ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Input
+              type="search"
+              value={query}
+              aria-label={t("adresAra")}
+              placeholder={t("adresAra")}
+              maxLength={80}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setLimit(PAGE_SIZE);
+              }}
+              className="max-w-sm"
+            />
+            <Text className="text-xs text-zinc-500">
+              {t("adresSayisi", { count: filtered.length })}
+            </Text>
+          </div>
+        ) : null}
+        {filtered.length === 0 ? (
+          <Text className="mt-3 text-sm text-zinc-500">{t("aramaSonucYok")}</Text>
+        ) : null}
+        {/* grid-cols-1 = minmax(0,1fr): örtük sütun en geniş içeriğe göre
+            büyüyüp 375 px'te kartları taşırıyordu (yayın denetimi Bölüm 12). */}
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {/* Sıra: tip (Fatura → Teslimat → İletişim), tip içinde varsayılan önce. */}
-          {[...addresses]
-            .sort(
-              (a, b) =>
-                TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) ||
-                Number(b.isDefault) - Number(a.isDefault),
-            )
-            .map((a) => (
+          {visible.map((a) => (
             <div
               key={a.id}
               className="min-w-0 rounded-lg border border-zinc-200 p-4"
@@ -158,14 +203,28 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
                   .filter(Boolean)
                   .join(", ")}
               </div>
+              {/* Vergi dairesi Türkiye'ye özgü: yabancı adreste (ya da dairesiz
+                  kayıtta) "VD: —" değil yalnız vergi no (D-137). */}
               {a.type === "FATURA" && (a.taxOffice || a.taxNumber) ? (
                 <div className="mt-0.5 text-xs text-zinc-500">
-                  {t("vdVkn", { taxOffice: a.taxOffice ?? "—", taxNumber: a.taxNumber ?? "—" })}
+                  {a.country === "TR" && a.taxOffice
+                    ? t("vdVkn", { taxOffice: a.taxOffice, taxNumber: a.taxNumber ?? "—" })
+                    : a.taxNumber
+                      ? t("vkn", { taxNumber: a.taxNumber })
+                      : null}
                 </div>
               ) : null}
             </div>
-            ))}
+          ))}
         </div>
+        {filtered.length > visible.length ? (
+          <div className="mt-3 flex justify-center">
+            <Button plain onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+              {t("dahaFazlaGoster", { count: filtered.length - visible.length })}
+            </Button>
+          </div>
+        ) : null}
+        </>
       )}
 
       {editing ? (
@@ -216,7 +275,13 @@ function AddressDialog({
   const titleError = f.title.trim() ? null : t("baslikZorunlu");
   const addressError = f.addressLine.trim() ? null : t("acikAdresZorunlu");
   const phoneError = isValidPhone(f.phone) ? null : t("gecerliBirTelefonNumarasiGiriniz");
-  const hasError = Boolean(titleError || addressError || phoneError);
+  // TR posta kodu 5 rakam — API `assertPostalCode` ile aynı (D-133); boş serbest.
+  // API gibi yalnız DEĞİŞEN değerde: kuraldan önceki kayıt başlık düzeltmesini kilitlemesin.
+  const postalChanged =
+    !address || f.postalCode !== (address.postalCode ?? "") || f.country !== address.country;
+  const postalError =
+    isTR && postalChanged && isInvalidTrPostal(f.postalCode) ? t("postaKodu5Hane") : null;
+  const hasError = Boolean(titleError || addressError || phoneError || postalError);
 
   const submit = async () => {
     setTouched(true);
@@ -237,6 +302,14 @@ function AddressDialog({
   return (
     <Dialog open onClose={onClose} size="2xl">
       <DialogTitle>{address ? t("adresiDuzenle") : t("yeniAdres")}</DialogTitle>
+      {/* Form + Enter ile gönderim (arayüz testi D-307). */}
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void lock.run(submit);
+        }}
+      >
       <DialogBody className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field>
@@ -261,6 +334,7 @@ function AddressDialog({
               invalid={touched && Boolean(titleError)}
               onChange={(e) => set({ title: e.target.value })}
               placeholder={t("merkezDepo")}
+              maxLength={120}
             />
             {touched && titleError ? <ErrorMessage>{titleError}</ErrorMessage> : null}
           </Field>
@@ -268,6 +342,7 @@ function AddressDialog({
             <Label>{t("ilgiliKisi")}</Label>
             <Input
               value={f.contactName}
+              maxLength={120}
               onChange={(e) => set({ contactName: e.target.value })}
             />
           </Field>
@@ -281,7 +356,13 @@ function AddressDialog({
             <CountryCombobox
               value={f.country}
               ariaLabel={t("ulke")}
-              onChange={(country) => set(country === "TR" ? { country, stateRegion: "", city: "", cityId: null } : { country, taxOffice: "", district: "", city: "", cityId: null })}
+              onChange={(country) =>
+                set(
+                  country === "TR"
+                    ? { country, stateRegion: "", city: "", cityId: null, postalCode: cleanPostal(f.postalCode, true) }
+                    : { country, taxOffice: "", district: "", city: "", cityId: null },
+                )
+              }
             />
           </Field>
           <Field>
@@ -299,6 +380,7 @@ function AddressDialog({
               <Label>{t("ilce")}</Label>
               <Input
                 value={f.district}
+                maxLength={80}
                 onChange={(e) => set({ district: e.target.value })}
               />
             </Field>
@@ -318,6 +400,7 @@ function AddressDialog({
           <Textarea
             rows={2}
             value={f.addressLine}
+            maxLength={500}
             invalid={touched && Boolean(addressError)}
             onChange={(e) => set({ addressLine: e.target.value })}
           />
@@ -328,8 +411,12 @@ function AddressDialog({
             <Label>{t("postaKodu")}</Label>
             <Input
               value={f.postalCode}
-              onChange={(e) => set({ postalCode: e.target.value })}
+              inputMode={isTR ? "numeric" : undefined}
+              maxLength={isTR ? 5 : 20}
+              invalid={touched && Boolean(postalError)}
+              onChange={(e) => set({ postalCode: cleanPostal(e.target.value, isTR) })}
             />
+            {touched && postalError ? <ErrorMessage>{postalError}</ErrorMessage> : null}
           </Field>
           {f.type === "FATURA" ? (
             <>
@@ -339,6 +426,7 @@ function AddressDialog({
                   <Label>{t("vergiDairesi")}</Label>
                   <Input
                     value={f.taxOffice}
+                    maxLength={120}
                     onChange={(e) => set({ taxOffice: e.target.value })}
                   />
                 </Field>
@@ -368,10 +456,11 @@ function AddressDialog({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={() => void lock.run(submit)} disabled={save.isPending || lock.locked}>
+        <Button type="submit" disabled={save.isPending || lock.locked}>
           {save.isPending || lock.locked ? t("kaydediliyor") : address ? t("kaydet") : t("ekle")}
         </Button>
       </DialogActions>
+      </form>
     </Dialog>
   );
 }

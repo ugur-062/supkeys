@@ -15,10 +15,18 @@ import { AxiosError, AxiosHeaders } from "axios";
 const h = vi.hoisted(() => ({
   profile: {} as Record<string, unknown>,
   update: vi.fn(),
+  confirm: vi.fn(),
+  push: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: h.push, replace: vi.fn(), prefetch: vi.fn() }),
+}));
+vi.mock("@/components/providers/confirm-dialog", () => ({
+  useConfirm: () => h.confirm,
+}));
 vi.mock("@/hooks/use-company-profile", () => ({
   useCompanyProfile: () => ({ data: h.profile, isLoading: false, isError: false, refetch: vi.fn() }),
   useUpdateCompanyProfile: () => ({ mutateAsync: h.update, isPending: false }),
@@ -67,6 +75,8 @@ const saveButton = () => screen.getByRole("button", { name: "Kaydet" });
 describe("CompanyProfileSection", () => {
   beforeEach(() => {
     h.update.mockReset().mockResolvedValue({});
+    h.confirm.mockReset().mockResolvedValue(false);
+    h.push.mockReset();
     h.toast.success.mockReset();
     h.toast.error.mockReset();
     h.profile = baseProfile();
@@ -203,5 +213,44 @@ describe("CompanyProfileSection", () => {
     await user.type(screen.getByLabelText("Firma adı"), " Ltd");
     await user.click(saveButton());
     await waitFor(() => expect(h.toast.error).toHaveBeenCalledWith(expect.stringContaining("değiştirilemez")));
+  });
+  it("kaydedilmemiş değişiklikle uygulama içi bağlantı onay sorar; 'Kal' gezinmez (D-309)", async () => {
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    const link = screen.getAllByRole("link", { name: "Doğrulama Belgeleri" })[0]!;
+    await user.type(screen.getByLabelText("Firma adı"), " Ltd");
+    await user.click(link);
+    expect(h.confirm).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(h.push).not.toHaveBeenCalled());
+  });
+
+  it("TR posta kodu yalnız rakam; 5 haneden kısaysa satır içi hata, Kaydet pasif (D-133)", async () => {
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    const postal = screen.getByLabelText("Posta kodu");
+    expect(postal).toHaveAttribute("maxLength", "5");
+    await user.clear(postal);
+    await user.type(postal, "AB12C");
+    expect(postal).toHaveValue("12");
+    expect(screen.getByText(/posta kodu 5 haneli/)).toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("alanlarda DTO tavanı maxLength olarak var (D-307)", () => {
+    render(<CompanyProfileSection />);
+    expect(screen.getByLabelText("Firma adı")).toHaveAttribute("maxLength", "200");
+    expect(screen.getByLabelText("Yasal unvan")).toHaveAttribute("maxLength", "200");
+    expect(screen.getByLabelText("Açık adres")).toHaveAttribute("maxLength", "500");
+  });
+
+  it("yabancı firmada kimlik notu MERSİS anmaz; TR'de anar (D-137)", () => {
+    h.profile = baseProfile({ country: "CA", taxOffice: null, taxNumber: "123456789" });
+    const { unmount } = render(<CompanyProfileSection />);
+    expect(screen.queryByText(/MERSİS/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Sicil\/kayıt numarası/)).toBeInTheDocument();
+    unmount();
+    h.profile = baseProfile();
+    render(<CompanyProfileSection />);
+    expect(screen.getByText(/MERSİS/)).toBeInTheDocument();
   });
 });

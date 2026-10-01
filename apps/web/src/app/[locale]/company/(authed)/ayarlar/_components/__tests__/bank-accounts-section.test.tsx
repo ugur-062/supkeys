@@ -60,11 +60,12 @@ describe("BankAccountsSection", () => {
     return user;
   }
 
-  it("TR IBAN kontrol hanesi tutmuyorsa satır içi hata, Kaydet pasif", async () => {
+  it("TR IBAN kontrol hanesi tutmuyorsa satır içi hata, kayıt yok", async () => {
     const user = await openNew();
     await user.type(screen.getByLabelText("IBAN *"), "TR330006100519786457841327");
     expect(await screen.findByText(/Geçerli bir TR IBAN/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).not.toHaveBeenCalled();
   });
 
   it("yabancı IBAN da mod-97'den geçer (backend ile aynı); bozuksa hata", async () => {
@@ -93,7 +94,8 @@ describe("BankAccountsSection", () => {
     await user.type(field, "0001 12345-6");
     expect(screen.getByLabelText("SWIFT / BIC kodu *")).toBeInTheDocument();
     expect(screen.getByLabelText("Banka adı *")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).not.toHaveBeenCalled();
     await user.type(screen.getByLabelText("SWIFT / BIC kodu *"), "BRASBRRJ");
     await user.type(screen.getByLabelText("Banka adı *"), "Banco do Brasil");
     await user.click(screen.getByRole("button", { name: "Kaydet" }));
@@ -113,28 +115,31 @@ describe("BankAccountsSection", () => {
     );
   });
 
-  it("kısmi IBAN ülkesinde yanlış yazılmış IBAN hesap no sayılmaz: satır içi IBAN hatası, Kaydet pasif (derin denetim LU-10)", async () => {
+  it("kısmi IBAN ülkesinde yanlış yazılmış IBAN hesap no sayılmaz: satır içi IBAN hatası, kayıt yok (derin denetim LU-10)", async () => {
     useCompanyAuthStore.setState({ company: { country: "BR" } } as never);
     const user = await openNew();
     await user.type(screen.getByLabelText("IBAN ya da hesap numarası *"), "BR18 0036 0305 0000 1000 9795 494C 1");
     await user.type(screen.getByLabelText("SWIFT / BIC kodu *"), "BRASBRRJ");
     await user.type(screen.getByLabelText("Banka adı *"), "Banco do Brasil");
     expect(await screen.findByText(/kontrol hanesi tutmuyor/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).not.toHaveBeenCalled();
     expect(h.save).not.toHaveBeenCalled();
   });
 
-  it("yaptırım ülkesi: IR IBAN'ı ve İran SWIFT'i satır içi hata, Kaydet pasif (derin denetim MU-17)", async () => {
+  it("yaptırım ülkesi: IR IBAN'ı ve İran SWIFT'i satır içi hata, kayıt yok (derin denetim MU-17)", async () => {
     const user = await openNew();
     // Banka ülkesi TR iken mod-97'si tutan İran IBAN'ı.
     await user.type(screen.getByLabelText("IBAN *"), "IR270170000000100324200001");
     expect(await screen.findByText(/kayda kapalı bir ülkedeki bankaya ait/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).not.toHaveBeenCalled();
     await user.clear(screen.getByLabelText("IBAN *"));
     await user.type(screen.getByLabelText("IBAN *"), TR_OK);
     await user.type(screen.getByLabelText("SWIFT / BIC kodu (isteğe bağlı)"), "MELIIRTH");
     expect(await screen.findByText(/kayda kapalı bir ülkedeki bankaya ait/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).not.toHaveBeenCalled();
     expect(h.save).not.toHaveBeenCalled();
   });
 
@@ -142,5 +147,36 @@ describe("BankAccountsSection", () => {
     render(<BankAccountsSection canManage={false} />);
     expect(screen.queryByRole("button", { name: "Hesap Ekle" })).not.toBeInTheDocument();
     expect(screen.getByText(/yalnız Kurucu/)).toBeInTheDocument();
+  });
+  it("zorunlu alan boşken Kaydet tıklanabilir; her boş alanın altında neden yazar (D-308)", async () => {
+    const user = userEvent.setup();
+    render(<BankAccountsSection canManage />);
+    await user.click(screen.getByRole("button", { name: "Hesap Ekle" }));
+    await screen.findByText("Yeni Banka Hesabı");
+    const save = screen.getByRole("button", { name: "Kaydet" });
+    expect(save).toBeEnabled();
+    expect(screen.queryByText("Bu alan zorunlu")).not.toBeInTheDocument();
+    await user.click(save);
+    // Başlık, hesap sahibi, IBAN.
+    expect(await screen.findAllByText("Bu alan zorunlu")).toHaveLength(3);
+    expect(h.save).not.toHaveBeenCalled();
+    await user.type(screen.getByLabelText("Hesap Başlığı *"), "TL");
+    await user.type(screen.getByLabelText("Hesap Sahibi *"), "Demo A.Ş.");
+    await user.type(screen.getByLabelText("IBAN *"), TR_OK);
+    expect(screen.queryByText("Bu alan zorunlu")).not.toBeInTheDocument();
+    // Enter formu gönderir (D-307).
+    await user.type(screen.getByLabelText("IBAN *"), "{Enter}");
+    await vi.waitFor(() => expect(h.save).toHaveBeenCalledTimes(1));
+  });
+
+  it("varsayılan onay kutusu yazısına tıklamak kutuyu işaretler (O-120 kalıbı)", async () => {
+    const user = userEvent.setup();
+    render(<BankAccountsSection canManage />);
+    await user.click(screen.getByRole("button", { name: "Hesap Ekle" }));
+    await screen.findByText("Yeni Banka Hesabı");
+    const box = screen.getByRole("checkbox");
+    expect(box).not.toBeChecked();
+    await user.click(screen.getByText(/Varsayılan hesap/));
+    expect(box).toBeChecked();
   });
 });

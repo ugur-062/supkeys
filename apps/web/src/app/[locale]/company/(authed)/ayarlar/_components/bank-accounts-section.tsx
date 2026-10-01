@@ -186,6 +186,9 @@ function BankAccountModal({
   const [swift, setSwift] = useState(account?.swiftBic ?? "");
   const [bankName, setBankName] = useState(account?.bankName ?? "");
   const [isDefault, setIsDefault] = useState(account?.isDefault ?? false);
+  // Kaydet denemesinden sonra zorunlu alan hataları görünür (arayüz testi
+  // D-308): eskiden Kaydet nedensiz pasifti.
+  const [touched, setTouched] = useState(false);
 
   // Kural TEK KAYNAK `bankDetailsErrors` — backend `assertBankDetails` ile aynı
   // (2026-09-27): bankanın ülkesi IBAN'ı zorunlu tutuyorsa IBAN (TR katı,
@@ -229,7 +232,19 @@ function BankAccountModal({
         ? t("swiftInvalid")
         : null;
 
+  const required = t("zorunluAlan");
+  const titleError = touched && !title.trim() ? required : null;
+  const holderError = touched && !holder.trim() ? required : null;
+  const refRequired =
+    touched && (errors.includes("ibanRequired") || errors.includes("accountNumberRequired")) ? required : null;
+  const swiftRequired = touched && errors.includes("swiftRequired") ? required : null;
+  const bankNameError = touched && errors.includes("bankNameRequired") ? required : null;
+
+  const valid = Boolean(title.trim() && holder.trim() && errors.length === 0);
+
   const submit = async () => {
+    setTouched(true);
+    if (!valid) return;
     try {
       await save.mutateAsync({
         id: account?.id,
@@ -248,22 +263,30 @@ function BankAccountModal({
     }
   };
 
-  const valid = title.trim() && holder.trim() && errors.length === 0;
-
   return (
     <Dialog open onClose={onClose} size="lg">
       <DialogTitle>
         {account ? t("hesabiDuzenle") : t("yeniBankaHesabi")}
       </DialogTitle>
+      {/* Form + Enter ile gönderim (arayüz testi D-307). */}
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void lock.run(submit);
+        }}
+      >
       <DialogBody className="space-y-4">
         <Field>
           <Label>{t("hesapBasligi")}</Label>
           <Input
             value={title}
+            invalid={Boolean(titleError)}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("ornTlVadesizIsBankasi")}
             maxLength={120}
           />
+          {titleError ? <ErrorMessage>{titleError}</ErrorMessage> : null}
         </Field>
         <Field>
           <Label>{t("bankCountry")}</Label>
@@ -284,22 +307,29 @@ function BankAccountModal({
             <Label>{t("hesapSahibi")}</Label>
             <Input
               value={holder}
+              invalid={Boolean(holderError)}
               onChange={(e) => setHolder(e.target.value)}
               placeholder={t("firmaUnvani")}
               maxLength={140}
             />
-            <Text className="mt-1 text-xs text-zinc-500">
-              {t("vergiLevhasindakiUnvanlaAyniOlmali")}
-            </Text>
+            {holderError ? (
+              <ErrorMessage>{holderError}</ErrorMessage>
+            ) : (
+              <Text className="mt-1 text-xs text-zinc-500">
+                {t("vergiLevhasindakiUnvanlaAyniOlmali")}
+              </Text>
+            )}
           </Field>
           <Field>
             <Label>{usesIban || ibanEntered ? t("bankaAdi") : `${t("bankNameRequired")} *`}</Label>
             <Input
               value={bankName}
+              invalid={Boolean(bankNameError)}
               onChange={(e) => setBankName(e.target.value)}
               placeholder={usesIban || ibanEntered ? t("opsiyonel") : undefined}
               maxLength={120}
             />
+            {bankNameError ? <ErrorMessage>{bankNameError}</ErrorMessage> : null}
           </Field>
         </div>
         {usesIban ? (
@@ -307,38 +337,38 @@ function BankAccountModal({
             <Label>{t("iban")}</Label>
             <Input
               value={accountRef}
-              invalid={Boolean(ibanError)}
+              invalid={Boolean(ibanError ?? refRequired)}
               onChange={(e) => setAccountRef(e.target.value)}
               placeholder={ibanPlaceholder(bankCountry) ?? undefined}
               maxLength={40}
               className="tabular-nums"
             />
-            {ibanError ? <ErrorMessage>{ibanError}</ErrorMessage> : null}
+            {ibanError ?? refRequired ? <ErrorMessage>{ibanError ?? refRequired}</ErrorMessage> : null}
           </Field>
         ) : (
           <Field>
             <Label>{mode === "optional" ? t("ibanOrAccountNumber") : t("accountNumber")} *</Label>
             <Input
               value={accountRef}
-              invalid={Boolean(accountError)}
+              invalid={Boolean(accountError ?? refRequired)}
               onChange={(e) => setAccountRef(e.target.value)}
               placeholder={mode === "optional" ? (ibanPlaceholder(bankCountry) ?? undefined) : undefined}
               maxLength={40}
               className="tabular-nums"
             />
-            {accountError ? <ErrorMessage>{accountError}</ErrorMessage> : null}
+            {accountError ?? refRequired ? <ErrorMessage>{accountError ?? refRequired}</ErrorMessage> : null}
           </Field>
         )}
         <Field>
           <Label>{usesIban || ibanEntered ? t("swiftOptional") : `${t("swiftBic")} *`}</Label>
           <Input
             value={swift}
-            invalid={Boolean(swiftError)}
+            invalid={Boolean(swiftError ?? swiftRequired)}
             onChange={(e) => setSwift(normalizeSwift(e.target.value))}
             placeholder="DEUTDEFF"
             maxLength={20}
           />
-          {swiftError ? <ErrorMessage>{swiftError}</ErrorMessage> : null}
+          {swiftError ?? swiftRequired ? <ErrorMessage>{swiftError ?? swiftRequired}</ErrorMessage> : null}
         </Field>
         <CheckboxField>
           <Checkbox checked={isDefault} onChange={setIsDefault} />
@@ -349,10 +379,11 @@ function BankAccountModal({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={() => void lock.run(submit)} disabled={save.isPending || !valid || lock.locked}>
+        <Button type="submit" disabled={save.isPending || lock.locked}>
           {save.isPending || lock.locked ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </DialogActions>
+      </form>
     </Dialog>
   );
 }

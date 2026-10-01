@@ -39,6 +39,8 @@ import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
 import { toast } from "sonner";
 
 /**
@@ -163,15 +165,10 @@ export function CompanyProfileSection() {
   }, [form, initial]);
   const dirty = Object.keys(changed).length > 0;
 
-  // Kaydedilmemiş değişiklikle sayfadan çıkış uyarısı (ürün formuyla aynı kalıp).
-  useEffect(() => {
-    if (!dirty) return;
-    const h = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", h);
-    return () => window.removeEventListener("beforeunload", h);
-  }, [dirty]);
+  // Kaydedilmemiş değişiklikle sayfadan çıkış uyarısı — sekme kapatma VE
+  // uygulama içi bağlantı ("← Ayarlar", kenar çubuğu); ürün formuyla aynı
+  // ortak kanca (arayüz testi D-309: eskiden yalnız `beforeunload`).
+  useUnsavedChangesGuard(dirty);
 
   const kycLocked = isKycLocked(profile?.companyVerificationStatus);
   const isTR = isTurkey(profile?.country);
@@ -185,7 +182,13 @@ export function CompanyProfileSection() {
     form.kepAddress.trim().length > 0 && !KEP_RE.test(form.kepAddress.trim())
       ? t("gecerliBirKepAdresiGiriniz")
       : null;
-  const hasError = Boolean(nameError || kepError);
+  // TR posta kodu 5 rakam (D-133) — yalnız değiştirildiyse: eski hatalı kayıt
+  // başka alanın kaydını kilitlemesin.
+  const postalError =
+    isTR && changed.postalCode !== undefined && isInvalidTrPostal(form.postalCode)
+      ? t("postaKodu5Hane")
+      : null;
+  const hasError = Boolean(nameError || kepError || postalError);
 
   // Çift tık iki istek / iki toast / iki denetim kaydı üretmesin (arayüz testi FX-00 D-132).
   const saveLock = useSubmitLock();
@@ -318,7 +321,8 @@ export function CompanyProfileSection() {
           </DescriptionDetails>
         </DescriptionList>
         <p className="mt-4 text-xs text-zinc-500">
-          {t.rich("kimlikBilgilerindeHataVarsa", {
+          {/* MERSİS Türkiye'ye özgü — yabancı firmaya anılmaz (D-137). */}
+          {t.rich(isTR ? "kimlikBilgilerindeHataVarsa" : "kimlikBilgilerindeHataVarsaYabanci", {
             dogrulama: (c) => (
               <Link
                 href="/company/ayarlar/dogrulama"
@@ -368,6 +372,7 @@ export function CompanyProfileSection() {
             <Label>{t("firmaAdi")}</Label>
             <Input
               value={form.name}
+              maxLength={200}
               disabled={kycLocked}
               invalid={Boolean(nameError)}
               onChange={(e) => set({ name: e.target.value })}
@@ -384,6 +389,7 @@ export function CompanyProfileSection() {
             <Label>{t("yasalUnvan")}</Label>
             <Input
               value={form.legalName}
+              maxLength={200}
               disabled={kycLocked}
               onChange={(e) => set({ legalName: e.target.value })}
             />
@@ -396,6 +402,7 @@ export function CompanyProfileSection() {
               <Label>{t("kepAdresi")}</Label>
               <Input
                 value={form.kepAddress}
+                maxLength={120}
                 invalid={Boolean(kepError)}
                 placeholder={t("ornekHs01KepTr")}
                 onChange={(e) => set({ kepAddress: e.target.value })}
@@ -440,6 +447,7 @@ export function CompanyProfileSection() {
                 <Label>{t("ilce")}</Label>
                 <Input
                   value={form.district}
+                  maxLength={80}
                   onChange={(e) => set({ district: e.target.value })}
                 />
               </Field>
@@ -457,14 +465,21 @@ export function CompanyProfileSection() {
               <Label>{t("postaKodu")}</Label>
               <Input
                 value={form.postalCode}
-                onChange={(e) => set({ postalCode: e.target.value })}
+                inputMode={isTR ? "numeric" : undefined}
+                maxLength={isTR ? 5 : 20}
+                invalid={Boolean(postalError)}
+                onChange={(e) => set({ postalCode: cleanPostal(e.target.value, isTR) })}
               />
+              {postalError ? (
+                <p className="mt-1 text-xs text-red-600">{postalError}</p>
+              ) : null}
             </Field>
           </div>
           <Field>
             <Label>{t("acikAdres")}</Label>
             <Textarea
               rows={2}
+              maxLength={500}
               value={form.addressLine}
               onChange={(e) => set({ addressLine: e.target.value })}
             />

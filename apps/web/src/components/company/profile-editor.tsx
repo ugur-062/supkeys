@@ -620,17 +620,30 @@ function EditorHeader({
             {t("profilimiOnizle")}
           </Link>
         ) : null}
-        <label className="flex items-center gap-2 rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm">
-          <span className={publicEnabled ? "text-emerald-700" : "text-zinc-600"}>
+        {/* Salt-okurda anahtar ÇİZİLMEZ (D-138): pasif açık anahtar gri
+            görünüp "kapalı" gibi okunuyordu — yalnız durum yazısı. */}
+        {onTogglePublic ? (
+          <label className="flex items-center gap-2 rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm">
+            <span className={publicEnabled ? "text-emerald-700" : "text-zinc-600"}>
+              {publicEnabled ? t("yayinda") : t("yayindaDegil")}
+            </span>
+            <Switch
+              aria-label={t("herkeseAcikProfil")}
+              checked={publicEnabled}
+              onChange={(v: boolean) => onTogglePublic(v)}
+            />
+          </label>
+        ) : (
+          <span
+            className={
+              publicEnabled
+                ? "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700"
+                : "rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm text-zinc-600"
+            }
+          >
             {publicEnabled ? t("yayinda") : t("yayindaDegil")}
           </span>
-          <Switch
-            aria-label={t("herkeseAcikProfil")}
-            checked={publicEnabled}
-            disabled={!onTogglePublic}
-            onChange={(v: boolean) => onTogglePublic?.(v)}
-          />
-        </label>
+        )}
       </div>
     </div>
   );
@@ -869,10 +882,12 @@ function CoverControls({ value, onSave }: { value: string; onSave: (url: string)
           type="button"
           onClick={pick}
           disabled={busy}
-          className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-medium text-white/90 hover:bg-white/10"
+          // Telefonda yazı sağ üstte ve ipucusuz: ortalanmış uzun satır logoyla
+          // çakışıyordu (D-138); sm+ ortada, ipucuyla.
+          className="absolute inset-0 flex items-start justify-end gap-2 p-3 text-sm font-medium text-white/90 hover:bg-white/10 sm:items-center sm:justify-center sm:p-0"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-          {t("kapakGorseliEkle")} <span className="text-white/60">{t("genisGorselMaks5mb")}</span>
+          {t("kapakGorseliEkle")} <span className="hidden text-white/60 sm:inline">{t("genisGorselMaks5mb")}</span>
         </button>
       )}
     </>
