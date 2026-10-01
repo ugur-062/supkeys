@@ -4,7 +4,6 @@ import { AuditLogRow } from "@/components/audit/audit-log-row";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -17,15 +16,28 @@ import {
   Pagination,
   SearchInput,
 } from "@/components/list";
+import { TableStateRow } from "@/components/list/table-state";
 import { useAuditLogs } from "@/hooks/use-audit-logs";
+import { useListFilters } from "@/hooks/use-list-filters";
 import { ACTION_FILTERS } from "@/lib/audit-actions";
-import { useState } from "react";
+
+interface AuditFilters {
+  actorType?: string;
+  action?: string;
+  search?: string;
+  page?: number;
+  [key: string]: string | number | boolean | undefined;
+}
 
 function AuditView() {
-  const [actorType, setActorType] = useState("");
-  const [action, setAction] = useState("");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  // Süzgeçler ve sayfa URL'de: yenileyince/geri gelince 3. sayfa korunur
+  // (arayüz testi D-228). Süzgeç değişince sayfa 1'e döner (useListFilters).
+  const { filters, setFilters } = useListFilters<AuditFilters>();
+  const actorType = filters.actorType ?? "";
+  const action = filters.action ?? "";
+  const search = filters.search ?? "";
+  const page = filters.page ?? 1;
+  const setPage = (p: number) => setFilters({ page: p > 1 ? p : undefined });
 
   const query = useAuditLogs({
     actorType: actorType || undefined,
@@ -50,10 +62,7 @@ function AuditView() {
           ariaLabel="Aktör tipi"
           value={actorType}
           active={!!actorType}
-          onChange={(v) => {
-            setActorType(v);
-            setPage(1);
-          }}
+          onChange={(v) => setFilters({ actorType: v })}
           options={[
             { value: "", label: "Tüm aktörler" },
             { value: "company", label: "Firma" },
@@ -65,10 +74,7 @@ function AuditView() {
           ariaLabel="Eylem"
           value={action}
           active={!!action}
-          onChange={(v) => {
-            setAction(v);
-            setPage(1);
-          }}
+          onChange={(v) => setFilters({ action: v })}
           options={[
             { value: "", label: "Tüm eylemler" },
             ...ACTION_FILTERS,
@@ -76,10 +82,7 @@ function AuditView() {
         />
         <SearchInput
           value={search}
-          onChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
+          onChange={(v) => setFilters({ search: v })}
           placeholder="E-posta, eylem, varlık ID ara..."
         />
       </div>
@@ -98,15 +101,14 @@ function AuditView() {
           </TableHead>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-admin-text-muted py-8">
-                  {query.isError
-                    ? "Veri alınamadı — lütfen tekrar deneyin"
-                    : query.isLoading
-                      ? "Yükleniyor..."
-                      : "Kayıt bulunamadı"}
-                </TableCell>
-              </TableRow>
+              // Hata dalında "Tekrar dene" düğmesi (arayüz testi D-228).
+              <TableStateRow
+                colSpan={5}
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="Kayıt bulunamadı"
+              />
             ) : (
               items.map((it) => <AuditLogRow key={it.id} item={it} />)
             )}

@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma, type EmailStatus } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import {
+  INTERNAL_EMAIL_PROVIDER,
+  SUPPRESSION_CLEAR_MARKER_WHERE,
+  SUPPRESSION_CLEAR_TEMPLATE,
+} from "./suppression-marker";
 
 export interface SuppressionInfo {
   email: string;
@@ -62,10 +67,10 @@ export class EmailSuppressionService {
     const now = new Date();
     await this.prisma.emailLog.createMany({
       data: targets.map((toEmail) => ({
-        template: "suppression_clear",
+        template: SUPPRESSION_CLEAR_TEMPLATE,
         toEmail,
         subject: "suppression clear (admin)",
-        provider: "internal",
+        provider: INTERNAL_EMAIL_PROVIDER,
         status: "SENT" as const,
         sentAt: now,
         queuedAt: now,
@@ -109,7 +114,9 @@ export class EmailSuppressionService {
         ...(limit ? { take: limit } : {}),
       }),
       this.prisma.emailLog.findMany({
-        where: { ...scope, template: "suppression_clear" },
+        // Yalniz gecerli isaret (provider=internal, SENT) — ayni sablonlu
+        // FAILED bir satir aklamaz (arayuz testi O-078).
+        where: { ...scope, ...SUPPRESSION_CLEAR_MARKER_WHERE },
         select: { toEmail: true, queuedAt: true },
         orderBy: { queuedAt: "desc" },
       }),

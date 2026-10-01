@@ -55,9 +55,15 @@ function exportReportCsv(rows: MembershipReportRow[]) {
 function RaporView() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const query = useMembershipReport(from || undefined, to || undefined);
-  const rows = query.data?.rows ?? [];
-  const t = query.data?.totals;
+  // Ters aralık (başlangıç > bitiş) sessizce kabul edilip boş rapor
+  // gösteriyordu — uyarı verilir, istek atılmaz (arayüz testi D-145).
+  // "YYYY-MM-DD" metin karşılaştırması tarih sırasıyla aynıdır.
+  const inverted = !!from && !!to && from > to;
+  const query = useMembershipReport(from || undefined, to || undefined, {
+    enabled: !inverted,
+  });
+  const rows = inverted ? [] : (query.data?.rows ?? []);
+  const t = inverted ? undefined : query.data?.totals;
 
   const truncated = query.data?.truncated ?? false;
   const totalMatching = query.data?.totalMatching ?? rows.length;
@@ -142,6 +148,8 @@ function RaporView() {
           <Input
             type="date"
             value={from}
+            max={to || undefined}
+            aria-invalid={inverted || undefined}
             onChange={(e) => setFrom(e.target.value)}
           />
         </label>
@@ -152,6 +160,8 @@ function RaporView() {
           <Input
             type="date"
             value={to}
+            min={from || undefined}
+            aria-invalid={inverted || undefined}
             onChange={(e) => setTo(e.target.value)}
           />
         </label>
@@ -168,6 +178,12 @@ function RaporView() {
           </Button>
         ) : null}
       </div>
+
+      {inverted ? (
+        <p role="alert" className="text-sm text-red-700">
+          Başlangıç tarihi bitiş tarihinden sonra olamaz — aralığı düzeltin.
+        </p>
+      ) : null}
 
       {/* Toplamlar */}
       {t ? (
@@ -189,7 +205,7 @@ function RaporView() {
         Toplam kartları tüm evrenden hesaplandığı için doğru; kesilen yalnız
         aşağıdaki satır listesi (ve dolayısıyla CSV çıktısı).
       */}
-      {truncated ? (
+      {truncated && !inverted ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Bu aralıkta {totalMatching.toLocaleString("tr-TR")} hareket var; aşağıda
           (ve CSV&apos;de) yalnız en yeni {rows.length.toLocaleString("tr-TR")}{" "}
@@ -215,10 +231,14 @@ function RaporView() {
             {rows.length === 0 ? (
               <TableStateRow
                 colSpan={7}
-                loading={query.isLoading}
-                error={query.isError}
+                loading={!inverted && query.isLoading}
+                error={!inverted && query.isError}
                 onRetry={() => void query.refetch()}
-                empty="Bu aralıkta üyelik hareketi yok"
+                empty={
+                  inverted
+                    ? "Geçerli bir tarih aralığı seçin"
+                    : "Bu aralıkta üyelik hareketi yok"
+                }
               />
             ) : (
               rows.map((r) => (

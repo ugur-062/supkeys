@@ -7,6 +7,7 @@ import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import { StatCard } from "@/components/ui/stat-card";
 import { useGrowthReport } from "@/hooks/use-admin-growth";
+import { countryFlag, countryName } from "@/lib/country";
 import { useState } from "react";
 
 /**
@@ -38,7 +39,14 @@ const PROGRAM_LABEL: Record<string, string> = {
   lifecycle_weekly: "Haftalık görünürlük özeti",
 };
 
-const pct = (n: number, d: number) => (d > 0 ? `%${Math.round((n / d) * 1000) / 10}` : "—");
+/** Türkçe ondalık ("0,35") — nokta ondalık gösteriliyordu (arayüz testi D-227). */
+const trNum = (n: number, digits?: number) =>
+  n.toLocaleString("tr-TR", digits === undefined ? { maximumFractionDigits: 2 } : { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const pct = (n: number, d: number) => (d > 0 ? `%${trNum(Math.round((n / d) * 1000) / 10)}` : "—");
+/** Davet dili → ad; ülkesi bilinmeyen davet "Bilinmiyor" (ham "??"/kod yerine). */
+const LOCALE_LABEL: Record<string, string> = { tr: "Türkçe", en: "İngilizce", ru: "Rusça" };
+const countryCell = (code: string | null) =>
+  code && code !== "??" ? `${countryFlag(code)} ${countryName(code)}` : "Bilinmiyor";
 
 function GrowthView() {
   const [days, setDays] = useState(30);
@@ -89,8 +97,8 @@ function GrowthView() {
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <StatCard label="Bugünkü tavan" value={r.health.cap} />
               <StatCard label="Bugün gönderilen" value={r.health.sentToday} />
-              <StatCard label={`Şikâyet (7 gün) — eşik %0,1`} value={`%${r.health.complaintRatePct}`} />
-              <StatCard label={`Kalıcı geri dönme (7 gün) — eşik %2`} value={`%${r.health.bounceRatePct}`} />
+              <StatCard label={`Şikâyet (7 gün) — eşik %0,1`} value={`%${trNum(r.health.complaintRatePct)}`} />
+              <StatCard label={`Kalıcı geri dönme (7 gün) — eşik %2`} value={`%${trNum(r.health.bounceRatePct)}`} />
             </div>
             {r.health.braked ? (
               <Badge color="red">
@@ -152,8 +160,8 @@ function GrowthView() {
                 </TableHead>
                 <TableBody>
                   {r.byCountry.map((c) => (
-                    <TableRow key={c.country}>
-                      <TableCell>{c.country}</TableCell>
+                    <TableRow key={c.country ?? "unknown"}>
+                      <TableCell>{countryCell(c.country)}</TableCell>
                       <TableCell className="text-right tabular-nums">{c.invited}</TableCell>
                     </TableRow>
                   ))}
@@ -172,7 +180,7 @@ function GrowthView() {
                 <TableBody>
                   {r.byLocale.map((c) => (
                     <TableRow key={c.locale}>
-                      <TableCell>{c.locale}</TableCell>
+                      <TableCell>{LOCALE_LABEL[c.locale] ?? c.locale}</TableCell>
                       <TableCell className="text-right tabular-nums">{c.invited}</TableCell>
                     </TableRow>
                   ))}
@@ -186,7 +194,7 @@ function GrowthView() {
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <StatCard label="Tamamlanan tur" value={r.discovery.runs.DONE ?? 0} />
               <StatCard label="Başarısız tur" value={r.discovery.runs.FAILED ?? 0} />
-              <StatCard label="Platform maliyeti (USD)" value={r.discovery.costUsd.toFixed(2)} />
+              <StatCard label="Platform maliyeti (USD)" value={trNum(r.discovery.costUsd, 2)} />
               <StatCard label="Davet edilen aday" value={r.discovery.candidates.INVITED ?? 0} />
             </div>
           </section>

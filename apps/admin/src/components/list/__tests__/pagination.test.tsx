@@ -26,7 +26,15 @@ describe("Pagination sayfa taşması", () => {
     const onPageChange = vi.fn();
     render(<Pagination page={3} totalPages={1} total={0} pageSize={25} onPageChange={onPageChange} />);
     expect(onPageChange).not.toHaveBeenCalled();
-    expect(screen.getByText("Kayıt yok")).toBeTruthy();
+  });
+
+  it("kayıt yokken hiç çizilmez — boş tabloda çift mesaj ve tek '1' düğmesi yok (arayüz testi D-145)", () => {
+    const { container } = render(
+      <Pagination page={1} totalPages={1} total={0} pageSize={25} onPageChange={() => {}} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText("Kayıt yok")).toBeNull();
+    expect(screen.queryByRole("button", { name: "1" })).toBeNull();
   });
 
   it("geçerli sayfada dokunmaz", () => {

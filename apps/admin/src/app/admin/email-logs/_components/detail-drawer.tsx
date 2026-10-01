@@ -4,7 +4,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmailStatusBadge } from "@/components/ui/email-status-badge";
 import { useEmailLogDetail, useResendEmail } from "@/hooks/use-email-logs";
-import { EMAIL_EVENT_META, getTemplateLabel } from "@/lib/email-logs/status";
+import {
+  EMAIL_EVENT_META,
+  emailResendBlock,
+  getContextLabel,
+  getTemplateLabel,
+} from "@/lib/email-logs/status";
 import type { EmailEvent } from "@/lib/email-logs/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -58,6 +63,9 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   const detail = useEmailLogDetail(id);
   const item = detail.data;
   const resend = useResendEmail();
+  // İç kayıt (engel kaldırma işareti) ve gizli içerikli kayıt yeniden
+  // gönderilemez — API 400 verir; düğme hiç çizilmez (arayüz testi O-078).
+  const resendBlock = item ? emailResendBlock(item) : null;
 
   const onResend = () => {
     if (!id) return;
@@ -128,7 +136,18 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                     </div>
                     <EmailStatusBadge status={item.status} />
                   </div>
-                  {confirmResend ? (
+                  {resendBlock === "internal" ? (
+                    <p className="text-admin-text-muted text-xs">
+                      Sistemin iç kaydı — gerçek bir e-posta değildir, yeniden
+                      gönderilemez.
+                    </p>
+                  ) : resendBlock === "redacted" ? (
+                    <p className="text-admin-text-muted text-xs">
+                      Tek kullanımlık kod ya da davet bağlantısı taşıdığı için
+                      içeriği saklanmaz ve yeniden gönderilemez. Kullanıcı kodu
+                      veya daveti yeniden talep etmeli.
+                    </p>
+                  ) : confirmResend ? (
                     <div className="flex items-center gap-2">
                       <span className="text-admin-text-muted text-xs">
                         E-posta yeniden gönderilecek — emin misiniz?
@@ -169,11 +188,11 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                   <dl className="space-y-1.5 text-sm pt-1">
                     <div className="flex justify-between gap-4">
                       <dt className="text-admin-text-muted">Alıcı</dt>
-                      <dd className="text-admin-text text-right">
+                      <dd className="text-admin-text min-w-0 text-right break-words">
                         {item.toName ? (
                           <>
                             <div>{item.toName}</div>
-                            <div className="text-xs text-admin-text-muted">
+                            <div className="text-xs text-admin-text-muted break-all">
                               {item.toEmail}
                             </div>
                           </>
@@ -183,7 +202,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-admin-text-muted">Provider</dt>
+                      <dt className="text-admin-text-muted">Sağlayıcı</dt>
                       <dd className="text-admin-text font-mono text-xs">
                         {item.provider}
                       </dd>
@@ -199,10 +218,17 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                       <dd className="text-admin-text">{item.attemptCount}</dd>
                     </div>
                     {item.contextType && (
+                      // Okunur bağlam + kimlik ayrı satırda, mobilde sarar
+                      // (arayüz testi D-144 / D-229).
                       <div className="flex justify-between gap-4">
-                        <dt className="text-admin-text-muted">Bağlam</dt>
-                        <dd className="text-admin-text font-mono text-xs">
-                          {item.contextType}:{item.contextId}
+                        <dt className="text-admin-text-muted shrink-0">Bağlam</dt>
+                        <dd className="text-admin-text min-w-0 text-right">
+                          <div>{getContextLabel(item.contextType)}</div>
+                          {item.contextId ? (
+                            <div className="text-admin-text-muted font-mono text-[11px] break-all">
+                              {item.contextId}
+                            </div>
+                          ) : null}
                         </dd>
                       </div>
                     )}
@@ -241,20 +267,17 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                       Teslimat Geçmişi
                     </h3>
                     <p className="text-xs text-admin-text-muted">
-                      Henüz event yok. Resend webhook'u prod'da delivery
-                      güncellemeleriyle bu listeyi doldurur.
+                      Henüz teslimat olayı yok.
                     </p>
                   </section>
                 )}
 
-                <section className="admin-card p-4 space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
-                    Payload
-                  </h3>
-                  <pre className="text-xs text-admin-text whitespace-pre-wrap break-words bg-surface-muted p-3 rounded-md font-mono max-h-[300px] overflow-auto">
-                    {JSON.stringify(item.payload, null, 2)}
-                  </pre>
-                </section>
+                {resendBlock !== "internal" ? (
+                  <EmailPreviewSection
+                    payload={item.payload}
+                    redacted={resendBlock === "redacted"}
+                  />
+                ) : null}
 
                 <section className="text-xs text-admin-text-muted space-y-1 px-1">
                   <div>
@@ -311,6 +334,123 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
         </div>
       </div>
     </Dialog>
+  );
+}
+
+type PreviewInfoRow = { label: string; value: string };
+
+function asText(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v : null;
+}
+
+/**
+ * Okunur önizleme (arayüz testi D-144): bildirim şablonunda başlık,
+ * paragraflar, bilgi satırları ve düğme; diğer şablonlarda düz metin alanlar.
+ * Ham JSON yalnız katlanır "Ham veri" bölümünde.
+ */
+function EmailPreviewSection({
+  payload,
+  redacted,
+}: {
+  payload: unknown;
+  redacted: boolean;
+}) {
+  const data =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : null;
+  const heading = asText(data?.heading);
+  const paragraphs = Array.isArray(data?.paragraphs)
+    ? (data.paragraphs as unknown[]).flatMap((p) => asText(p) ?? [])
+    : [];
+  const infoRows = Array.isArray(data?.infoRows)
+    ? (data.infoRows as unknown[]).flatMap((r) => {
+        const row = r as Partial<PreviewInfoRow> | null;
+        const label = asText(row?.label);
+        const value = asText(row?.value);
+        return label && value ? [{ label, value }] : [];
+      })
+    : [];
+  const ctaLabel = asText(data?.ctaLabel);
+  const ctaUrl = asText(data?.ctaUrl);
+  const footerNote = asText(data?.footerNote);
+  const isNotification = !!heading || paragraphs.length > 0;
+  // Diğer şablonlar: yalnız düz metin/sayı alanları (iç içe yapılar ham
+  // veride kalır).
+  const plainFields = isNotification
+    ? []
+    : Object.entries(data ?? {}).flatMap(([k, v]) =>
+        typeof v === "string" || typeof v === "number"
+          ? [{ label: k, value: String(v) }]
+          : [],
+      );
+
+  return (
+    <section className="admin-card p-4 space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
+        Önizleme
+      </h3>
+      {redacted ? (
+        <p className="text-xs text-admin-text-muted">
+          İçerik güvenlik gereği saklanmaz (tek kullanımlık kod/bağlantı).
+        </p>
+      ) : isNotification ? (
+        <div className="space-y-2 rounded-md border border-admin-border bg-admin-surface p-3 text-sm text-admin-text break-words">
+          {heading ? <p className="font-semibold">{heading}</p> : null}
+          {paragraphs.map((p, i) => (
+            <p key={i} className="whitespace-pre-line">
+              {p}
+            </p>
+          ))}
+          {infoRows.length > 0 ? (
+            <dl className="space-y-1 text-xs">
+              {infoRows.map((r, i) => (
+                <div key={i} className="flex justify-between gap-3">
+                  <dt className="text-admin-text-muted shrink-0">{r.label}</dt>
+                  <dd className="min-w-0 text-right break-words">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          {ctaLabel ? (
+            <p className="text-xs">
+              <span className="inline-block rounded-md bg-zinc-900 px-2.5 py-1 font-medium text-white">
+                {ctaLabel}
+              </span>
+              {ctaUrl ? (
+                <span className="text-admin-text-muted mt-1 block break-all">
+                  {ctaUrl}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+          {footerNote ? (
+            <p className="text-admin-text-muted text-xs">{footerNote}</p>
+          ) : null}
+        </div>
+      ) : plainFields.length > 0 ? (
+        <dl className="space-y-1 text-xs">
+          {plainFields.map((f) => (
+            <div key={f.label} className="flex justify-between gap-3">
+              <dt className="text-admin-text-muted shrink-0 font-mono">{f.label}</dt>
+              <dd className="text-admin-text min-w-0 text-right break-all">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="text-xs text-admin-text-muted">Önizlenecek içerik yok.</p>
+      )}
+      {!redacted && data && Object.keys(data).length > 0 ? (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-admin-text-muted">
+            Ham veri (JSON)
+          </summary>
+          <pre className="mt-2 text-admin-text whitespace-pre-wrap break-words bg-surface-muted p-3 rounded-md font-mono max-h-[300px] overflow-auto">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </details>
+      ) : null}
+    </section>
   );
 }
 

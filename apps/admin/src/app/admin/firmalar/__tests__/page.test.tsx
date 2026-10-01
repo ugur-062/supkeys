@@ -15,6 +15,8 @@ const h = vi.hoisted(() => ({
   apiGet: vi.fn(),
   toastApiError: vi.fn(),
   downloadCsv: vi.fn(),
+  search: "",
+  companiesParams: [] as unknown[],
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -33,10 +35,13 @@ vi.mock("@/components/layout/admin-shell", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: h.replace, push: vi.fn() }),
   usePathname: () => "/admin/firmalar",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(h.search),
 }));
 vi.mock("@/hooks/use-admin-companies", () => ({
-  useAdminCompanies: () => h.companies,
+  useAdminCompanies: (p: unknown) => {
+    h.companiesParams.push(p);
+    return h.companies;
+  },
   useAdminCompanyStats: () => h.stats,
   useCompanyAction: () => ({ mutate: h.actMutate, isPending: false }),
   useSetCompanyTier: () => ({ mutateAsync: h.tierMutate, isPending: false }),
@@ -368,5 +373,19 @@ describe("CSV dışa aktarımı (derin denetim LU-12)", () => {
     await user.click(screen.getByRole("button", { name: /CSV/ }));
     await vi.waitFor(() => expect(h.downloadCsv).toHaveBeenCalledTimes(1));
     expect(h.toast.success).toHaveBeenCalledWith("1 firma CSV'ye aktarıldı");
+  });
+});
+
+describe("FirmalarPage — üyelik bitişi süzgeci (arayüz testi D-146)", () => {
+  it("?expiring=30 sorguya geçer ve süzgeç seçili görünür", () => {
+    h.search = "expiring=30";
+    h.companiesParams = [];
+    h.companies = { data: paged([]), isLoading: false, isError: false };
+    h.stats = { data: undefined, isLoading: false };
+    render(<AdminFirmalarPage />);
+    expect(h.companiesParams.at(-1)).toMatchObject({ expiring: "30" });
+    const select = screen.getByLabelText("Üyelik bitişi") as HTMLSelectElement;
+    expect(select.value).toBe("30");
+    h.search = "";
   });
 });

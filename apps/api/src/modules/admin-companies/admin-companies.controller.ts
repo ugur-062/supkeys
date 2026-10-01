@@ -75,6 +75,14 @@ class ListCompaniesDto {
   @IsIn(["newest", "oldest"])
   sort?: string;
 
+  /**
+   * "30" → 30 gün içinde bitecek PAKET üyelikler (pano "Süresi Yaklaşan
+   * Üyelikler" ile aynı tanım), bitişi en yakın önce (arayüz testi D-146).
+   */
+  @IsOptional()
+  @IsIn(["30"])
+  expiring?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -151,7 +151,9 @@ function DashboardContent() {
         <Panel
           title="Süresi Yaklaşan Üyelikler"
           titleIcon={CalendarClock}
-          moreHref={companyHref("/admin/firmalar")}
+          // Süzülmüş liste (aynı 30 gün tanımı) — süzgeçsiz firma listesine
+          // gidiyordu (arayüz testi D-146).
+          moreHref={companyHref("/admin/firmalar?expiring=30")}
         >
           {(s?.expiringMemberships ?? []).length === 0 ? (
             <p className="text-admin-text-muted p-6 text-center text-sm">

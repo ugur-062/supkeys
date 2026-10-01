@@ -65,7 +65,11 @@ export function Pagination({
     onPageChange(totalPages);
   }, [overflow, page, totalPages, onPageChange]);
 
-  const start = total === 0 ? 0 : (current - 1) * pageSize + 1;
+  // Kayıt yoksa sayfalayıcı çizilmez: tablonun boş durumu tek mesajdır
+  // ("Kayıt bulunamadı" + "Kayıt yok" + tek "1" düğmesi — arayüz testi D-145).
+  if (total === 0) return null;
+
+  const start = (current - 1) * pageSize + 1;
   const end = Math.min(current * pageSize, total);
   const pages = pageRange(current, totalPages);
 
@@ -79,9 +83,7 @@ export function Pagination({
       )}
     >
       <div className="text-sm text-zinc-500">
-        {total === 0
-          ? "Kayıt yok"
-          : `${total} kayıt içinden ${start}-${end} arası`}
+        {`${total} kayıt içinden ${start}-${end} arası`}
       </div>
 
       <nav className="flex items-center gap-1" aria-label="Sayfalama">

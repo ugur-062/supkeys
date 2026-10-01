@@ -128,7 +128,9 @@ export class AdminGrowthService {
       cancelled: Object.fromEntries(cancelled.map((c) => [c.cancelReason ?? "OTHER", c._count._all])),
       bySource: Object.fromEntries(bySource.map((c) => [c.source, c._count._all])),
       byCountry: byCountry
-        .map((c) => ({ country: c.country ?? "??", invited: c._count._all }))
+        // Ulkesi bilinmeyen davet `null` doner; arayuz "Bilinmiyor" yazar
+        // (eskiden ham "??" basiliyordu — arayuz testi D-227).
+        .map((c) => ({ country: c.country ?? null, invited: c._count._all }))
         .sort((a, b) => b.invited - a.invited)
         .slice(0, 20),
       byLocale: byLocale.map((c) => ({ locale: c.locale, invited: c._count._all })).sort((a, b) => b.invited - a.invited),

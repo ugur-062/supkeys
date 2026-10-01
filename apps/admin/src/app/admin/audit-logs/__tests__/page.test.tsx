@@ -1,16 +1,31 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  query: { data: undefined as unknown, isError: false, isLoading: false },
+  query: { data: undefined as unknown, isError: false, isLoading: false } as {
+    data: unknown;
+    isError: boolean;
+    isLoading: boolean;
+    refetch?: () => void;
+  },
   admin: { role: "SUPER_ADMIN" } as { role: string } | null,
   auditCalls: 0,
+  auditParams: [] as unknown[],
+  search: "",
+  replace: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: h.replace, push: vi.fn() }),
+  usePathname: () => "/admin/audit-logs",
+  useSearchParams: () => new URLSearchParams(h.search),
 }));
 
 vi.mock("@/hooks/use-audit-logs", () => ({
-  useAuditLogs: () => {
+  useAuditLogs: (p: unknown) => {
     h.auditCalls += 1;
+    h.auditParams.push(p);
     return h.query;
   },
 }));
@@ -28,6 +43,8 @@ beforeEach(() => {
   h.query = { data: undefined, isError: false, isLoading: false };
   h.admin = { role: "SUPER_ADMIN" };
   h.auditCalls = 0;
+  h.auditParams = [];
+  h.search = "";
 });
 
 describe("AuditLogsPage", () => {
@@ -153,10 +170,57 @@ describe("AuditLogsPage", () => {
     expect(screen.getByText("Kayıt bulunamadı")).toBeInTheDocument();
   });
 
-  it("hata durumu (isError) → 'Veri alınamadı'", () => {
-    h.query = { data: undefined, isError: true, isLoading: false };
+  it("hata durumu (isError) → 'Veri alınamadı' + Tekrar dene yeniden sorgular (arayüz testi D-228)", () => {
+    const refetch = vi.fn();
+    h.query = { data: undefined, isError: true, isLoading: false, refetch };
     render(<AuditLogsPage />);
     expect(screen.getByText(/Veri alınamadı/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("sayfa ve süzgeçler URL'den okunur; sayfa değişimi URL'ye yazılır (arayüz testi D-228)", () => {
+    h.search = "page=3&actorType=admin";
+    h.query = {
+      data: {
+        items: [],
+        pagination: { page: 3, pageSize: 20, total: 0, totalPages: 0 },
+      },
+      isError: false,
+      isLoading: false,
+    };
+    render(<AuditLogsPage />);
+    expect(h.auditParams.at(-1)).toMatchObject({ page: 3, actorType: "admin" });
+    expect((screen.getByLabelText("Aktör tipi") as HTMLSelectElement).value).toBe("admin");
+  });
+
+  it("sonraki sayfa URL'ye yazılır", () => {
+    h.search = "page=2";
+    h.query = {
+      data: {
+        items: [
+          {
+            id: "a1",
+            tenantId: null,
+            actorType: "admin",
+            actorId: "adm1",
+            actorEmail: "admin@rothern.com",
+            action: "auth.login",
+            entityType: null,
+            entityId: null,
+            metadata: null,
+            ip: null,
+            createdAt: "2026-01-15T10:00:00.000Z",
+          },
+        ],
+        pagination: { page: 2, pageSize: 20, total: 60, totalPages: 3 },
+      },
+      isError: false,
+      isLoading: false,
+    };
+    render(<AuditLogsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Sonraki sayfa" }));
+    expect(h.replace).toHaveBeenCalledWith("/admin/audit-logs?page=3", { scroll: false });
   });
 });
 

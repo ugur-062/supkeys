@@ -9,7 +9,8 @@ export interface GrowthReport {
   funnel: { invited: number; emailed: number; emails: number; delivered: number; clicked: number; signedUp: number; quoted: number };
   cancelled: Record<string, number>;
   bySource: Record<string, number>;
-  byCountry: Array<{ country: string; invited: number }>;
+  /** `country: null` → davet edilen adresin ülkesi bilinmiyor. */
+  byCountry: Array<{ country: string | null; invited: number }>;
   byLocale: Array<{ locale: string; invited: number }>;
   health: {
     cap: number;

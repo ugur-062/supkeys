@@ -129,3 +129,92 @@ export const EMAIL_TEMPLATE_LABELS: Record<string, string> = {
 export function getTemplateLabel(template: string): string {
   return EMAIL_TEMPLATE_LABELS[template] ?? template;
 }
+
+/**
+ * API `REDACTED_CONTEXT_TYPES` (apps/api email.service.ts) ile BİREBİR:
+ * tek kullanımlık kod/davet jetonu taşıyan türlerde payload maskeli saklanır,
+ * API yeniden gönderimi 400 ile reddeder — düğme hiç çizilmez.
+ */
+const REDACTED_CONTEXT_TYPES = new Set([
+  "password_reset",
+  "login_2fa",
+  "email_verify",
+  "referral_invite",
+  "tender_external_invite",
+  "company_user_invitation",
+  "public_inquiry_verify",
+]);
+
+export type EmailResendBlock = "internal" | "redacted" | null;
+
+/**
+ * Kayıt yeniden gönderilebilir mi? İç kayıt (engel kaldırma işareti,
+ * provider="internal") gerçek e-posta değildir; gizli içerikli kayıtta
+ * payload maskelidir (arayüz testi O-078). API aynı kuralla reddeder.
+ */
+export function emailResendBlock(log: {
+  provider: string;
+  template: string;
+  contextType: string | null;
+  payload: unknown;
+}): EmailResendBlock {
+  if (log.provider === "internal" || log.template === "suppression_clear") {
+    return "internal";
+  }
+  const redactedPayload =
+    !!log.payload &&
+    typeof log.payload === "object" &&
+    "__redacted" in (log.payload as Record<string, unknown>);
+  if (
+    redactedPayload ||
+    (log.contextType && REDACTED_CONTEXT_TYPES.has(log.contextType))
+  ) {
+    return "redacted";
+  }
+  return null;
+}
+
+/**
+ * EmailLog.contextType → okunur bağlam (arayüz testi D-144). Bildirim
+ * e-postalarında bağlam bildirim türüdür; bilinmeyen tür ham kodla gösterilir.
+ */
+export const EMAIL_CONTEXT_LABELS: Record<string, string> = {
+  password_reset: "Şifre sıfırlama",
+  login_2fa: "Giriş doğrulama kodu",
+  email_verify: "E-posta doğrulama kodu",
+  referral_invite: "Firma daveti (kayıtsız)",
+  tender_external_invite: "Talebe dış tedarikçi daveti",
+  company_user_invitation: "Ekip daveti",
+  company_ownership_transferred: "Firma sahipliği devri",
+  public_inquiry_verify: "Bilgi talebi — e-posta doğrulama",
+  public_inquiry_received: "Bilgi talebi alındı",
+  public_inquiry_reply: "Bilgi talebine yanıt",
+  message_received: "Yeni mesaj",
+  order_status_changed: "Sipariş durumu değişti",
+  membership_downgraded: "Üyelik sona erdi",
+  approval_pending: "Onay bekleniyor",
+  approval_decided: "Onay sonuçlandı",
+  listing_invitation: "Talebe davet",
+  listing_invitation_ai: "Talebe davet (AI önerisi)",
+  listing_category_match: "Kategori eşleşmesi",
+  listing_category_digest: "Akşam özeti (kategori)",
+  listing_zero_bid: "Teklifsiz talep hatırlatması",
+  listing_new_round: "Yeni teklif turu",
+  listing_closed: "Talep kapandı",
+  listing_closed_owner: "Talep kapandı (sahibine)",
+  listing_evaluation_reminder: "Değerlendirme hatırlatması",
+  bid_awarded: "Teklif kazandı",
+  bid_lost: "Teklif kazanamadı",
+  bid_eliminated: "Teklif elendi",
+  ai_supplier_suggestions: "AI tedarikçi önerisi",
+  lifecycle_profile: "Karşılama: profil",
+  lifecycle_first_product: "Karşılama: ilk ürün",
+  lifecycle_verify: "Karşılama: doğrulama",
+  lifecycle_market: "Karşılama: pazar",
+  lifecycle_weekly: "Haftalık görünürlük özeti",
+  suppression_clear: "Engel kaldırma (iç kayıt)",
+};
+
+export function getContextLabel(contextType: string): string {
+  return EMAIL_CONTEXT_LABELS[contextType] ?? contextType;
+}

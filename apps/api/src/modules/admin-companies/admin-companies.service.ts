@@ -432,6 +432,8 @@ export class AdminCompaniesService {
     pageSize?: number;
     /** "kyc" → başvuru kuyruğu: PENDING firmalar + bekleyen belge-revizyonlular. */
     queue?: string;
+    /** "30" → 30 gün içinde bitecek paket üyelikler (pano ile aynı tanım). */
+    expiring?: string;
   }) {
     const where: Record<string, unknown> = {};
     if (query.queue === "kyc") {
@@ -455,6 +457,22 @@ export class AdminCompaniesService {
     if (query.tier) {
       // DTO @IsIn ile 4 kademeye doğrulanmış.
       where.tier = query.tier as "STANDART" | "SILVER" | "GOLD";
+    }
+    const expiring = query.expiring === "30";
+    if (expiring) {
+      // Pano `stats().expiringMemberships` ile AYNI tanım: paket üyelik,
+      // bitişi şimdi ile 30 gün sonrası arasında (arayüz testi D-146). Ayrı
+      // bir kademe süzgeci verildiyse o da geçerli kalır (STANDART → boş).
+      const now = new Date();
+      where.membershipEndAt = {
+        not: null,
+        gte: now,
+        lte: new Date(now.getTime() + 30 * 86_400_000),
+      };
+      if (!query.tier) where.tier = { in: [...PAID_TIERS] };
+      else if (!(PAID_TIERS as readonly string[]).includes(query.tier)) {
+        where.tier = { in: [] };
+      }
     }
     if (query.q) {
       const q = query.q.trim();
@@ -552,8 +570,9 @@ export class AdminCompaniesService {
           // Dalga B: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
           // üretiyordu (aynı satır iki sayfada / hiç görünmüyor) → id ile
           // deterministik tie-break.
-          orderBy:
-            query.sort === "oldest"
+          orderBy: expiring
+            ? [{ membershipEndAt: "asc" }, { id: "asc" }]
+            : query.sort === "oldest"
               ? [{ updatedAt: "asc" }, { id: "asc" }]
               : [{ createdAt: "desc" }, { id: "desc" }],
           skip: (page - 1) * pageSize,

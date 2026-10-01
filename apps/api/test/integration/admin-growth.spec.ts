@@ -56,6 +56,8 @@ describe("AdminGrowthService.inviteReport", () => {
     expect(r.cancelled).toEqual({ OPTED_OUT: 1 });
     expect(r.bySource).toMatchObject({ AI_AUTO: 2, MANUAL: 1 });
     expect(r.byCountry[0]).toEqual({ country: "IT", invited: 2 });
+    // Ülkesi bilinmeyen davet ham "??" değil null döner (arayüz testi D-227).
+    expect(r.byCountry).toContainEqual({ country: null, invited: 1 });
     expect(r.health).toMatchObject({ cap: 150, sent7d: 2, complaints7d: 1, complaintRatePct: 50 });
     expect(r.discovery.costUsd).toBeCloseTo(0.12);
     // Kişisel veri yok.

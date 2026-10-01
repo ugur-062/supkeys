@@ -541,6 +541,7 @@
   "email": {
     "ePostaKaydiBulunamadi": "Email record not found",
     "buEPostaTekKullanimlikKod": "This email carries a one-time code/token, so its content is not stored — it cannot be resent. The user has to request the code or invitation again (password reset, verification code or resend invitation flow).",
+    "icKayitYenidenGonderilemez": "This entry is an internal system record (e.g. a suppression clear marker), not a real email — it cannot be resent.",
     "ePostaLoguBulunamadi": "Email log not found"
   },
   "companyActivity": {

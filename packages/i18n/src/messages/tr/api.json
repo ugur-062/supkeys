@@ -541,6 +541,7 @@
   "email": {
     "ePostaKaydiBulunamadi": "E-posta kaydı bulunamadı",
     "buEPostaTekKullanimlikKod": "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (şifre sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
+    "icKayitYenidenGonderilemez": "Bu kayıt sistemin iç kaydıdır (ör. engel kaldırma işareti), gerçek bir e-posta değildir — yeniden gönderilemez.",
     "ePostaLoguBulunamadi": "E-posta logu bulunamadı"
   },
   "companyActivity": {

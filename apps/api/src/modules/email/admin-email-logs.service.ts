@@ -10,6 +10,7 @@ import { isLocale } from "@rothern/i18n";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService, REDACTED_CONTEXT_TYPES } from "./email.service";
+import { isInternalEmailLog } from "./suppression-marker";
 import { ListEmailLogsDto } from "./dto/list-email-logs.dto";
 
 @Injectable()
@@ -34,9 +35,20 @@ export class AdminEmailLogsService {
         contextType: true,
         contextId: true,
         locale: true,
+        provider: true,
       },
     });
     if (!log) throw new NotFoundException(i18nMessage("api.email.ePostaKaydiBulunamadi"));
+
+    // Ic kayitlar (engel kaldirma isareti, provider="internal") gercek bir
+    // e-posta degildir: sablonu yoktur, render 500 veriyordu ve araya yazilan
+    // FAILED satir da `suppression_clear` sablonunu tasidigi icin yeniden
+    // engellenmis adresi sessizce akliyordu (arayuz testi O-078).
+    if (isInternalEmailLog(log)) {
+      throw new BadRequestException(
+        i18nMessage("api.email.icKayitYenidenGonderilemez"),
+      );
+    }
 
     // Denetim 2026-08-26 Parça 9 #2: tek-kullanımlık sır taşıyan tiplerde
     // `payload` DB'ye MASKELİ yazılır (`{__redacted:…}`) — bu payload'la

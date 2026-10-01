@@ -5204,6 +5204,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.email.icKayitYenidenGonderilemez": {
+    "hash": "cfca23f6ee",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.emailUnsubscribe.invalidLink": {
     "hash": "68830e6456",
     "status": "reviewed",

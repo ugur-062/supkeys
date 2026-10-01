@@ -107,6 +107,8 @@ interface Filters {
   country?: string;
   tier?: string;
   blocked?: string;
+  /** "30" → 30 gün içinde bitecek paket üyelikler (pano bağlantısı, D-146). */
+  expiring?: string;
   search?: string;
   page?: number;
   [key: string]: string | number | boolean | undefined;
@@ -125,6 +127,7 @@ function FirmalarView() {
     country: filters.country || undefined,
     tier: filters.tier || undefined,
     blocked: filters.blocked || undefined,
+    expiring: filters.expiring === "30" ? "30" : undefined,
     q: filters.search?.trim() || undefined,
     page: filters.page ?? 1,
     pageSize: PAGE_SIZE,
@@ -149,6 +152,7 @@ function FirmalarView() {
         country: filters.country || undefined,
         tier: filters.tier || undefined,
         blocked: filters.blocked || undefined,
+        expiring: filters.expiring === "30" ? "30" : undefined,
         q: filters.search?.trim() || undefined,
       });
       toast.success(`${n} firma CSV'ye aktarıldı`);
@@ -248,6 +252,16 @@ function FirmalarView() {
             { value: "GOLD", label: "Gold" },
             { value: "SILVER", label: "Silver" },
             { value: "STANDART", label: "Standart" },
+          ]}
+        />
+        <FilterSelect
+          ariaLabel="Üyelik bitişi"
+          value={filters.expiring === "30" ? "30" : ""}
+          active={filters.expiring === "30"}
+          onChange={(v) => setFilters({ expiring: v })}
+          options={[
+            { value: "", label: "Tüm bitiş tarihleri" },
+            { value: "30", label: "30 gün içinde bitecek" },
           ]}
         />
         <FilterSelect

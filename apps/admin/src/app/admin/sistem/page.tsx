@@ -16,6 +16,7 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorState } from "@/components/ui/error-state";
 import {
   useAdminSystem,
@@ -28,6 +29,7 @@ import {
   useUpdateTimeSavingsConfig,
   type TimeSavingsConfigRow,
 } from "@/hooks/use-admin-system";
+import { cronJobMeta } from "@/lib/cron-jobs";
 import { safeFormat } from "@/lib/date";
 import {
   Database,
@@ -67,7 +69,7 @@ const MANUAL_CURRENCIES = [
 ];
 
 /** Manuel kur formu — TCMB arızası acil durumu (yalnız SUPER_ADMIN, BE guard). */
-function ManualRateForm() {
+function ManualRateForm({ rates }: { rates?: Record<string, number> }) {
   const manual = useManualRate();
   const [currency, setCurrency] = useState("USD");
   const [rate, setRate] = useState("");
@@ -98,7 +100,11 @@ function ManualRateForm() {
           min="0"
           value={rate}
           onChange={(e) => setRate(e.target.value)}
-          placeholder="34.5000"
+          // Yer tutucu seçili birimin güncel kuru — eski sabit "34.5000"
+          // gerçeğe uzaktı (arayüz testi D-139).
+          placeholder={
+            rates?.[currency] ? rates[currency].toFixed(4) : undefined
+          }
           className="w-32"
         />
       </label>
@@ -135,6 +141,10 @@ function SuppressionsSection({ canClear }: { canClear: boolean }) {
   const list = useSuppressions();
   const clear = useClearSuppression();
   const rows = list.data ?? [];
+  // Engel kaldırma gerçek dış etki (adrese yeniden gönderim başlar) — onay
+  // penceresiyle; tek tıkla aklama yoktu (arayüz testi D-221). Kilit onay
+  // penceresinde (ConfirmDialog), açık pencere tek adrese bağlı.
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
   return (
     <section className="admin-card overflow-hidden">
       <div className="border-admin-border border-b px-5 py-4">
@@ -147,7 +157,16 @@ function SuppressionsSection({ canClear }: { canClear: boolean }) {
         </p>
       </div>
       <div className="divide-admin-border divide-y">
-        {rows.length === 0 ? (
+        {list.isError ? (
+          // API hatasında "Engellenen adres yok" denmez — liste bilinmiyor
+          // (arayüz testi D-221).
+          <ErrorState
+            className="m-4"
+            title="Engellenen adresler yüklenemedi"
+            message="Liste alınamadı; engelli adres olup olmadığı şu an bilinmiyor."
+            onRetry={() => void list.refetch()}
+          />
+        ) : rows.length === 0 ? (
           <p className="text-admin-text-muted px-5 py-6 text-center text-sm">
             {list.isLoading ? "Yükleniyor..." : "Engellenen adres yok"}
           </p>
@@ -158,7 +177,7 @@ function SuppressionsSection({ canClear }: { canClear: boolean }) {
               className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5"
             >
               <div className="min-w-0">
-                <p className="text-admin-text text-sm font-medium">{r.email}</p>
+                <p className="text-admin-text text-sm font-medium break-all">{r.email}</p>
                 <p className="text-admin-text-muted text-xs">
                   {r.status === "COMPLAINED" ? "Şikayet" : "Kalıcı bounce"}
                   {r.reason ? ` — ${r.reason}` : ""} ·{" "}
@@ -171,16 +190,7 @@ function SuppressionsSection({ canClear }: { canClear: boolean }) {
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={clear.isPending}
-                  onClick={() =>
-                    clear.mutate(
-                      { email: r.email },
-                      {
-                        onSuccess: () => toast.success("Engel kaldırıldı"),
-                        onError: (e: unknown) => toastApiError(e),
-                      },
-                    )
-                  }
+                  onClick={() => setConfirmEmail(r.email)}
                 >
                   Engeli Kaldır
                 </Button>
@@ -189,6 +199,32 @@ function SuppressionsSection({ canClear }: { canClear: boolean }) {
           ))
         )}
       </div>
+      <ConfirmDialog
+        open={confirmEmail !== null}
+        title="E-posta engelini kaldır"
+        confirmLabel="Engeli Kaldır"
+        danger
+        onConfirm={() => {
+          if (!confirmEmail) return;
+          return clear.mutateAsync({ email: confirmEmail }).then(
+            () => {
+              toast.success("Engel kaldırıldı");
+              setConfirmEmail(null);
+            },
+            (e: unknown) => toastApiError(e),
+          );
+        }}
+        onClose={() => setConfirmEmail(null)}
+      >
+        <p>
+          <span className="font-medium break-all">{confirmEmail}</span> adresine
+          e-posta gönderimi yeniden başlar.
+        </p>
+        <p className="text-admin-text-muted text-xs">
+          Adres hâlâ ulaşılamazsa yeni bir geri dönme ya da şikayet onu yeniden
+          engeller; işlem denetim kaydına girer.
+        </p>
+      </ConfirmDialog>
     </section>
   );
 }
@@ -305,14 +341,15 @@ function SistemView() {
           </div>
         ) : null}
         <p className="text-admin-text-muted mt-3 text-xs">
-          Kur bayatken (7+ gün) döviz ilanlarında taban kıyası güvenlik gereği
-          reddedilir — TCMB arızasında bu buton kilidi açar.
+          Kur bayatken (7+ gün) döviz cinsinden satın alma talebi yayınlanamaz,
+          dövizli teklifler reddedilir — TCMB arızasında kurları yenilemek ya da
+          manuel kur girmek kilidi açar.
         </p>
         {/* B2 (denetim 2026-08-26 Parça 10): bu üç bölüm SUPER_ADMIN'e kilitli
             uçlara yazıyor (backend fail-closed) ama UI'da hiç kapı yoktu →
             SUPPORT/SALES basılabilir düğmeler görüp 403 alıyordu ve
             "UI kilidi = API kilidi" garantisi bu ekranda yoktu. */}
-        {canManualRate ? <ManualRateForm /> : null}
+        {canManualRate ? <ManualRateForm rates={s?.exchangeRates.rates ?? undefined} /> : null}
       </section>
 
       {canListSuppressions ? <SuppressionsSection canClear={canClearSuppression} /> : null}
@@ -346,34 +383,39 @@ function SistemView() {
                 empty="Kayıtlı iş yok"
               />
             ) : (
-              (s?.crons ?? []).map((c) => (
+              (s?.crons ?? []).map((c) => {
+                const meta = cronJobMeta(c);
+                return (
                 <TableRow key={c.key}>
-                  <TableCell className="text-admin-text text-sm font-medium">
-                    {c.label}
+                  {/* Ad ve zamanlama sarar: tablo `whitespace-nowrap` olduğundan
+                      uzun adlar Durum/Çalışma sayısı sütunlarını kartın
+                      dışına itiyordu (arayüz testi D-139). */}
+                  <TableCell className="text-admin-text min-w-[14rem] text-sm font-medium whitespace-normal">
+                    {meta.label}
                     <span className="text-admin-text-muted block font-mono text-[11px]">
                       {c.key}
                     </span>
                   </TableCell>
-                  <TableCell className="text-admin-text-muted text-xs">
-                    {c.schedule}
+                  <TableCell className="text-admin-text-muted min-w-[8rem] text-xs whitespace-normal">
+                    {meta.schedule}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                     {c.lastRunAt
                       ? safeFormat(c.lastRunAt, "d MMM HH:mm:ss")
-                      : "son açılıştan beri çalışmadı"}
+                      : "Henüz çalışmadı"}
                   </TableCell>
                   <TableCell>
                     {c.lastStatus === null ? (
                       <Badge color="zinc">—</Badge>
                     ) : c.lastStatus === "ok" ? (
-                      <Badge color="green">OK</Badge>
+                      <Badge color="green">Başarılı</Badge>
                     ) : (
                       <Badge color="red" title={c.lastError ?? undefined}>
                         Hata
                       </Badge>
                     )}
                     {c.lastError ? (
-                      <span className="text-admin-text-muted ml-2 text-xs">
+                      <span className="text-admin-text-muted mt-1 block max-w-[16rem] text-xs break-words whitespace-normal">
                         {c.lastError}
                       </span>
                     ) : null}
@@ -382,7 +424,8 @@ function SistemView() {
                     {c.runCount}
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

@@ -237,6 +237,11 @@ function PersonelView() {
         <TempPasswordBanner password={tempPw} onClose={() => setTempPw(null)} />
       ) : null}
 
+      {/* Dar ekranda tablo yatay kayar; ipucusuz Rol/Durum/İşlemler sütunları
+          ekran dışında kalıyordu (arayüz testi D-229). */}
+      <p className="text-admin-text-muted text-xs sm:hidden">
+        Rol, durum ve işlemler için tabloyu yana kaydırın →
+      </p>
       <div className="admin-card overflow-hidden">
         <Table dense>
           <TableHead>
@@ -261,7 +266,9 @@ function PersonelView() {
                 const isSelf = s.id === admin?.id;
                 return (
                   <TableRow key={s.id}>
-                    <TableCell className="text-admin-text">
+                    {/* Uzun e-posta sarar: ilk sütun dar ekranı tek başına
+                        doldurmasın, sonraki sütun görünür kalsın (D-229). */}
+                    <TableCell className="text-admin-text max-w-[14rem] whitespace-normal sm:max-w-none">
                       <span className="font-medium">
                         {s.firstName} {s.lastName}
                       </span>
@@ -270,7 +277,7 @@ function PersonelView() {
                           Siz
                         </Badge>
                       ) : null}
-                      <span className="text-admin-text-muted block text-xs">
+                      <span className="text-admin-text-muted block text-xs break-all">
                         {s.email}
                       </span>
                     </TableCell>

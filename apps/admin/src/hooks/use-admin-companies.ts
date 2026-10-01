@@ -47,6 +47,8 @@ export interface AdminCompanyListParams {
   country?: string;
   tier?: string;
   sort?: "newest" | "oldest";
+  /** "30" → 30 gün içinde bitecek paket üyelikler (pano ile aynı tanım). */
+  expiring?: "30";
   page?: number;
   pageSize?: number;
 }
@@ -551,9 +553,15 @@ export interface MembershipReport {
   totalMatching?: number;
 }
 
-export function useMembershipReport(from?: string, to?: string) {
+export function useMembershipReport(
+  from?: string,
+  to?: string,
+  opts: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ["membership-report", from, to],
+    // Ters aralıkta (başlangıç > bitiş) istek atılmaz (arayüz testi D-145).
+    enabled: opts.enabled ?? true,
     queryFn: async () => {
       const { data } = await api.get<MembershipReport>(
         "/admin/membership/report",

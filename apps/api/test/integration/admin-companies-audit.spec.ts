@@ -6,7 +6,7 @@ import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-c
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompany, makeCompanyWithUser } from "./factories";
 
 function rig() {
   const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
@@ -404,6 +404,30 @@ describe("list — sayfalama + kuyruk sıralaması (Faz 1-2)", () => {
     // …ama duyuru segmenti / firma filtresi tüm ülkeleri alır.
     expect(stats.countryOptions).toHaveLength(12);
     expect(stats.countryOptions.map((c) => c.country).sort()).toEqual([...countries].sort());
+  });
+});
+
+describe("list — expiring=30 süzgeci (arayüz testi D-146)", () => {
+  it("yalnız 30 gün içinde bitecek paket üyelikler, bitişi en yakın önce; pano sayısıyla aynı", async () => {
+    const { service } = rig();
+    const day = 86_400_000;
+    const soon = await makeCompany(prisma, { tier: "GOLD", membershipEndAt: new Date(Date.now() + 20 * day) });
+    const sooner = await makeCompany(prisma, { tier: "SILVER", membershipEndAt: new Date(Date.now() + 3 * day) });
+    await makeCompany(prisma, { tier: "GOLD", membershipEndAt: new Date(Date.now() + 60 * day) });
+    await makeCompany(prisma, { tier: "GOLD", membershipEndAt: new Date(Date.now() - day) });
+    await makeCompany(prisma, { tier: "STANDART", membershipEndAt: new Date(Date.now() + 5 * day) });
+    await makeCompany(prisma, { tier: "GOLD", membershipEndAt: null });
+
+    const res = await service.list({ expiring: "30", page: 1, pageSize: 25 });
+    expect(res.items.map((r) => r.id)).toEqual([sooner.id, soon.id]);
+    expect(res.total).toBe(2);
+    expect((await service.stats()).expiringMembershipsCount).toBe(res.total);
+
+    // Kademe süzgeciyle birlikte: GOLD → yalnız 20 günlük; STANDART → boş.
+    const gold = await service.list({ expiring: "30", tier: "GOLD", page: 1, pageSize: 25 });
+    expect(gold.items.map((r) => r.id)).toEqual([soon.id]);
+    const std = await service.list({ expiring: "30", tier: "STANDART", page: 1, pageSize: 25 });
+    expect(std.total).toBe(0);
   });
 });
 

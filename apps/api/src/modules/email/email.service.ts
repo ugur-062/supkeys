@@ -24,6 +24,7 @@ import {
 } from "./email-streams";
 import { signUnsubscribeToken } from "./unsubscribe-token";
 import { maskEmail } from "../../common/logging/mask-email";
+import { SUPPRESSION_CLEAR_MARKER_WHERE } from "./suppression-marker";
 import {
   EmailSendThrottle,
   emailIdempotencyKey,
@@ -284,7 +285,9 @@ export class EmailService implements OnModuleInit {
     // bounce/complaint kayıtları suppression'ı tetiklemez, tarih yeniden
     // yazılmaz. Marker sonrası yeni bounce yeniden suppress eder.
     const clearMarker = await this.prisma.emailLog.findFirst({
-      where: { toEmail: input.to.email, template: "suppression_clear" },
+      // Yalniz servisin yazdigi gecerli isaret (provider=internal, SENT) —
+      // ayni sablonlu baska satir aklamaz (arayuz testi O-078).
+      where: { toEmail: input.to.email, ...SUPPRESSION_CLEAR_MARKER_WHERE },
       orderBy: { queuedAt: "desc" },
       select: { queuedAt: true },
     });

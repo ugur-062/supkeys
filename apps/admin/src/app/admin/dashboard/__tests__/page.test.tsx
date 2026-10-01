@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -148,6 +148,13 @@ describe("AdminDashboardPage — DashboardContent", () => {
 
     expect(screen.getByText("Bitecek A.Ş.")).toBeInTheDocument();
     expect(screen.getByText("10 gün")).toBeInTheDocument();
+    // "Tümünü Gör" süzülmüş listeye gider (arayüz testi D-146).
+    const panel = screen
+      .getByText("Süresi Yaklaşan Üyelikler")
+      .closest(".admin-card") as HTMLElement;
+    expect(
+      within(panel).getByRole("link", { name: "Tümünü Gör →" }).getAttribute("href"),
+    ).toBe("/admin/firmalar?expiring=30");
   });
 
   it("boş durum → 'Firma yok' + 'Açık şikayet yok' + üyelik boş mesajı", () => {
