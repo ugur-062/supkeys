@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -133,5 +133,17 @@ describe("AudienceProvider — alıcı yüzündeki çapalar (arayüz testi O-118
     await userEvent.setup().click(link);
     expect(screen.getByText("Kategori vitrini")).toBeVisible();
     expect(screen.getByText("Açık alım talepleri")).not.toBeVisible();
+  });
+
+  it("Ctrl/Cmd/Shift+tık (yeni sekme) mevcut sayfanın yüzünü değiştirmez", () => {
+    window.history.replaceState(null, "", "/");
+    render(<CategoryPage />);
+    const link = screen.getByRole("link", { name: "Kategoriler" });
+    link.addEventListener("click", (e) => e.preventDefault());
+    for (const mod of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }]) {
+      fireEvent.click(link, mod);
+    }
+    expect(screen.getByText("Kategori vitrini")).not.toBeVisible();
+    expect(screen.getByText("Açık alım talepleri")).toBeVisible();
   });
 });

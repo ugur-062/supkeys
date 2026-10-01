@@ -122,8 +122,12 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     /* Aynı sayfadaki `/#kategoriler` bağlantısı istemci yönlendiricisiyle
        (pushState) gider ve `hashchange` ATEŞLENMEZ — tıklama yakalanır. */
     const onClick = (e: MouseEvent) => {
+      // Yeni sekme/pencere (Ctrl/Cmd/Shift/Alt+tık, target="_blank") bu
+      // sekmede gezinme değildir — mevcut sayfa yüz değiştirmemeli.
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = (e.target as HTMLElement | null)?.closest?.("a");
       if (!a?.href) return;
+      if (a.target && a.target !== "_self") return;
       let url: URL;
       try {
         url = new URL(a.href, window.location.href);
