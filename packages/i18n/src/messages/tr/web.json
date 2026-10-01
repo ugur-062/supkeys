@@ -2408,7 +2408,8 @@
         "donemIciSiparislerCur": "dönem içi siparişler · {currency} karşılığı",
         "odenmemisSiparisBakiyesiCur": "ödenmemiş sipariş bakiyesi · {currency} karşılığı",
         "onumuzdeki30GununOdemeYukuCur": "Önümüzdeki 30 günün ödeme yükü (haftalık, {currency} karşılığı)",
-        "hedefFiyataGoreCur": "hedef fiyata göre · {currency} karşılığı"
+        "hedefFiyataGoreCur": "hedef fiyata göre · {currency} karşılığı",
+        "analitikAlinamadi": "Grafik verileri alınamadı"
       },
       "satisChartTabs": {
         "gelirTrendi": "Gelir Trendi",
@@ -2434,7 +2435,7 @@
         "musteriKonsantrasyonu": "Müşteri Konsantrasyonu",
         "musteriKonsantrasyonuPareto": "Müşteri konsantrasyonu Pareto",
         "konsantrasyonRiski": "⚠ Konsantrasyon riski",
-        "acikSatinAlmaTaleplerineGoz": "Açık satın alma taleplerine göz at",
+        "acikSatinAlmaTaleplerineGoz": "Açık taleplere göz at",
         "henuzMusteriGeliriYok": "Henüz müşteri geliri yok",
         "satislarinTamamlandikcaMusteriDagilimiBurada": "Satışların tamamlandıkça müşteri dağılımı burada görünecek.",
         "kategoriBazliKazanmaOrani": "Kategori Bazlı Kazanma Oranı",
@@ -2451,9 +2452,9 @@
         "teklifVerilmedenSuresiDolanDavetler": "Teklif verilmeden süresi dolan davetler (son 12 ay)",
         "kacirilanFirsatlar2": "Kaçırılan fırsatlar",
         "davetTeklifsizKapandi": "{n, plural, other {davet teklifsiz kapandı}}",
-        "tutarHesaplanamazTeklifVerilmedenKapanan": "Tutar hesaplanamaz — teklif verilmeden kapanan satın alma talebinin değeri bilinmez.",
+        "tutarHesaplanamazTeklifVerilmedenKapanan": "Tutar hesaplanamaz — teklif verilmeden kapanan alım talebinin değeri bilinmez.",
         "kacirilanFirsatYok": "Kaçırılan fırsat yok",
-        "son12AydaTeklifsizKapanan": "Son 12 ayda teklifsiz kapanan davetli satın alma talebiniz bulunmuyor.",
+        "son12AydaTeklifsizKapanan": "Son 12 ayda davet edildiğiniz ve teklifsiz kapanan alım talebi bulunmuyor.",
         "kaybedildi": "Kaybedildi",
         "beklemede": "Beklemede",
         "aylikGelirAlanYilbasindanBeriCur": "Aylık gelir (alan) + yılbaşından beri kümülatif (çizgi) — tüm satışlar, {currency} karşılığı",
@@ -2501,7 +2502,8 @@
         "tooltipCurrency": "Satın alma talebinin ana para birimine göre tasarruf oranı.",
         "enYuksekTasarruflu": "En yüksek tasarruflu satın alma talebi",
         "maliyetKiriliminda": "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
-        "aylikTasarrufBarKumulatifCizgiCur": "Aylık tasarruf (bar) + kümülatif (çizgi) — tüm satın alma talepleri, {currency} karşılığı; hedef verisi platformda yok"
+        "aylikTasarrufBarKumulatifCizgiCur": "Aylık tasarruf (bar) + kümülatif (çizgi) — tüm satın alma talepleri, {currency} karşılığı; hedef verisi platformda yok",
+        "top5Bos": "Bu dönemde tasarruf sağlanan satın alma talebi yok."
       },
       "tedarikciTab": {
         "donemdeEnCokSatinAlma": "Dönemde en çok satın alma talebinize teklif veren tedarikçiler. Ortalama sıralama düşükse o tedarikçi sürekli en iyi 1-2 fiyat veriyor demektir.",
@@ -2514,7 +2516,8 @@
         "sirada": "{rank}. sırada",
         "enRekabetciTalep": "En Rekabetçi Talep",
         "teklifVeren": "{bidderCount} Teklif Veren",
-        "talepTeklifVerenSayisi": "Talepteki Teklif Veren Sayısı: {bidderCount}"
+        "talepTeklifVerenSayisi": "Talepteki Teklif Veren Sayısı: {bidderCount}",
+        "yilVerisiGosteriliyor": "Tedarikçi verilerinde çeyrek ve özel aralık kırılımı henüz yok — bu yılın verisi gösteriliyor."
       },
       "todayBand": {
         "bugun": "Bugün"
@@ -3222,7 +3225,7 @@
         "kur": "(kur: {exchangeRateSnapshot})",
         "mesaj": "Mesaj",
         "ele": "Ele",
-        "teklifinGecerlilikSuresiDolmusTedarikciden": "Teklifin geçerlilik süresi dolmuş — tedarikçiden süre uzatması isteyin ya da yeni tur açın",
+        "teklifinGecerlilikSuresiDolmusTedarikciden": "Teklifin geçerlilik süresi dolmuş, kazandırılamaz. Süreyi tedarikçi uzatabilir: Mesaj ile isteyin ya da yeni tur açın.",
         "teklifEkleri": "Teklif ekleri:",
         "teklifBelgeleri": "Teklif Belgeleri ({length})",
         "teklifVer": "Teklif Ver",
@@ -3477,7 +3480,20 @@
         "talebiDuzenle": "Talebi düzenle",
         "talepBulunamadiAciklama": "Bu talep bulunamadı ya da kaldırılmış.",
         "duzenlemeYetkinizYok": "Düzenleme yetkiniz yok",
-        "yalnizTalebiAcanDuzenleyebilir": "Bu talebi yalnız açan kullanıcı düzenleyebilir; siz talebi görüntüleyebilirsiniz."
+        "yalnizTalebiAcanDuzenleyebilir": "Bu talebi yalnız açan kullanıcı düzenleyebilir; siz talebi görüntüleyebilirsiniz.",
+        "kazandirilacakMiktarKalemMiktariniAsamaz": "“{name}” kalemi için kazandırılacak miktar talep miktarını aşamaz.",
+        "kazandirilacakMiktarEnFazla": "En fazla {qty} kazandırılabilir.",
+        "kazandirmakIcinDogrulamaGerekirKisa": "Kazandırmak için firma doğrulaması gerekir",
+        "kazandirmakIcinFirmaDogrulamasiGerekir": "Kazandırma sipariş doğurur ve firma doğrulaması ister. <link>Doğrulamayı tamamlayın</link> (ücretsiz).",
+        "yayinIcinFirmaDogrulamasiGerekir": "Yayın için firma doğrulaması gerekir. <link>Doğrulamayı tamamlayın</link> (ücretsiz).",
+        "buTalebiYalnizAcanKisiYonetebilir": "Bu talebi yalnız açan kişi yönetebilir; yayınlama, kazandırma, eleme ve düzenleme düğmeleri ona görünür.",
+        "buSuzgeceUyanTeklifYok": "Bu süzgece uyan teklif yok.",
+        "siparisReddedildiKalemlerTedariksiz": "Bir sipariş tedarikçi tarafından reddedildi — bazı kalemler tedariksiz kaldı",
+        "siparisiReddetti": "{seller}, {number} numaralı siparişi reddetti.",
+        "redGerekcesi": "Gerekçe: {reason}",
+        "tedariksizKalemler": "Tedariksiz kalan kalemler: {items}",
+        "buKalemlerleYeniTalepOlustur": "Bu kalemlerle yeni talep oluştur",
+        "tedarikci": "Tedarikçi"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -4285,7 +4301,8 @@
         "copy": "Bağlantıyı kopyala",
         "copied": "Bağlantı kopyalandı",
         "text": "Alım talebi: {title} — Rothern'de teklif verin",
-        "emailSubject": "Alım talebi: {title}"
+        "emailSubject": "Alım talebi: {title}",
+        "copyFailed": "Bağlantı kopyalanamadı — tarayıcı pano iznini vermedi."
       },
       "memberInviteStatus": {
         "INVITED": "Talebe davet edildi",
@@ -4632,7 +4649,8 @@
         "ortancaSonGun": "ortanca · son {days, number} gün",
         "kabulEdildi": "{n} kabul edildi",
         "goruntulenmeSayisi": "<b>{n, number}</b> görüntülenme",
-        "firmaSayisi": "<b>{n, number}</b> firma"
+        "firmaSayisi": "<b>{n, number}</b> firma",
+        "saatAlti": "<1 sa"
       },
       "permissionTable": {
         "hazirSetler": "Hazır setler",
@@ -6191,9 +6209,9 @@
         "baglantiIstegiGonder": "Bağlantı İsteği Gönder",
         "baglantiIcinSilver": "Bağlantı İçin Silver'a Geçin",
         "dahaFazla": "Daha fazla",
-        "baglantiyiKaldir": "Bağlantıyı Kaldır",
+        "baglantiyiKaldir": "Bağlantıyı kaldır",
         "engelle": "Engelle",
-        "sikayetEt": "Şikayet Et",
+        "sikayetEt": "Şikayet et",
         "tumUrunlerVeHizmetler": "Tüm Ürünler ve Hizmetler ({count})",
         "bilgiIste": "Bilgi iste",
         "urunGosteriliyor": "{shown, number} / {total, number} ürün gösteriliyor.",
@@ -6209,13 +6227,16 @@
         "kapanis": "Kapanış",
         "teklifVer": "Teklif ver",
         "firmayiEngelle": "Firmayı Engelle",
-        "siziGoremezVeSizinleIslem": "\"{name}\" sizi göremez ve sizinle işlem yapamaz; mevcut bağlantı kaldırılır. Gerekçe kayda geçer.",
+        "siziGoremezVeSizinleIslem": "\"{name}\" sizi göremez ve sizinle işlem yapamaz; mevcut bağlantı kaldırılır. Gerekçe kayda geçer. Engeli Bağlantılar › Engellenenler'den kaldırabilirsiniz.",
         "hakkindakiSikayetinizPlatformYonetimineIleti": "\"{name}\" hakkındaki şikayetiniz platform yönetimine iletilir.",
         "sikayetiGonder": "Şikayeti Gönder",
         "geri": "Geri",
         "baglantilar": "Bağlantılar",
         "engellenemedi": "Engellenemedi",
-        "kalemBirimi": "<num>{n, number}</num> <unit>kalem</unit>"
+        "kalemBirimi": "<num>{n, number}</num> <unit>kalem</unit>",
+        "kilitliTaleplerBaslik": "Bu firmanın açık alım talepleri var",
+        "kilitliTaleplerSayi": "{n, number} açık alım talebi",
+        "kilitliTaleplerAciklama": "Herkese açık alım taleplerini görmek ve teklif vermek Silver paketle açılır. Firma sizi bir talebe davet ederse o talebi ücretsiz paketle de görürsünüz."
       },
       "page": {
         "yonlendiriliyor": "Yönlendiriliyor…"
@@ -6312,7 +6333,7 @@
         "baglantiKaldirildi": "Bağlantı kaldırıldı",
         "baglantiKaldirilamadi": "Bağlantı kaldırılamadı",
         "firmaEngellensinMi": "Firma engellensin mi?",
-        "siziGoremezVeSizinleIslem": "\"{name}\" sizi göremez ve sizinle işlem yapamaz.",
+        "siziGoremezVeSizinleIslem": "\"{name}\" sizi göremez ve sizinle işlem yapamaz. Engeli Bağlantılar › Engellenenler'den kaldırabilirsiniz.",
         "engelle": "Engelle",
         "firmaEngellendi": "Firma engellendi",
         "sikayetGonderildi": "Şikayet gönderildi",
@@ -6356,7 +6377,24 @@
         "adres": "{n}/{max} adres",
         "davetDili": "Davet dili",
         "davetDiliIpucu": "Kayıtlı olmayan firmaya davet e-postası bu dilde gider; varsayılan dil adresin uzantısından gelir.",
-        "davetDiliAdres": "{email} için davet dili"
+        "davetDiliAdres": "{email} için davet dili",
+        "engellenenler": "Engellenenler",
+        "engelliFirmaYok": "Engellediğiniz firma yok",
+        "engellediginizFirmalarBurada": "Engellediğiniz firmalar burada listelenir; engeli buradan kaldırabilirsiniz.",
+        "engellendiRozet": "Engellendi",
+        "engeliKaldir": "Engeli kaldır",
+        "engelKaldirilsinMi": "Engel kaldırılsın mı?",
+        "engelKaldirAciklama": "\"{name}\" sizi yeniden görebilir ve sizinle işlem yapabilir. Önceki bağlantınız geri gelmez.",
+        "engelKaldirildi": "Engel kaldırıldı",
+        "engelKaldirilamadi": "Engel kaldırılamadı",
+        "istekReddedilsinMi": "İstek reddedilsin mi?",
+        "istekReddedilsinAciklama": "\"{name}\" firmasının bağlantı isteği reddedilecek.",
+        "istekGeriCekilsinMi": "İstek geri çekilsin mi?",
+        "istekGeriCekilsinAciklama": "\"{name}\" firmasına gönderdiğiniz bağlantı isteği geri çekilecek.",
+        "davetIptalEdilsinMi": "Davet iptal edilsin mi?",
+        "davetIptalAciklama": "{email} adresine gönderdiğiniz davet iptal edilecek; bu adresle kayıt olan firma size otomatik bağlanmaz.",
+        "silverIleDavetEt": "Silver ile davet et",
+        "gelenIstekleriKabulEdebilirsiniz": "Size gelen bağlantı isteklerini buradan kabul edebilirsiniz. Bağlantı isteği göndermek ve e-postayla davet etmek Silver paketle açılır."
       },
       "profileEditor": {
         "gecersizBaglantiYalnizHttpHttps": "Geçersiz bağlantı — yalnız http/https adresleri kabul edilir",
@@ -7004,10 +7042,11 @@
         "mesajGonderilemedi": "Mesaj gönderilemedi",
         "henuzMesajYok": "Henüz mesaj yok",
         "ilkMesajiSenGonder": "İlk mesajı sen gönder",
-        "mesajYazEnterGonderShift": "Mesaj yaz… (Enter: gönder, Shift+Enter: yeni satır)",
         "gonder": "Gönder",
         "dun": "Dün {time}",
-        "mesajGondermekRoluGerektirir": "Mesaj göndermek {role} rolü gerektirir — konuşmayı görüntülüyorsunuz."
+        "mesajGondermekRoluGerektirir": "Mesaj göndermek {role} rolü gerektirir — konuşmayı görüntülüyorsunuz.",
+        "mesajYaz": "Mesaj yaz…",
+        "enterIpucu": "Enter: gönder, Shift+Enter: yeni satır"
       }
     },
     "verifyNudge": {

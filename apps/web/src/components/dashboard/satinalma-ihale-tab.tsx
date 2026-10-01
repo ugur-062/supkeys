@@ -30,6 +30,7 @@ import type {
   SatinalmaAnalytics,
   SatinalmaDashboard,
 } from "@/hooks/use-company-dashboard";
+import { ErrorState } from "@/components/ui/error-state";
 import { useFormatMoney } from "@/components/ui/money";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { formatDate } from "@/lib/format-date";
 import { calendarDaysBetween } from "@/lib/time-zone";
+import { BUYER_ORDER_HREF } from "@/lib/dashboard/strings";
 
 type SubTab = "own" | "company";
 
@@ -48,7 +50,7 @@ const FUNNEL_STAGE_HREF: Record<string, string> = {
   bids: "/company/satinalma/taleplerim",
   awarded: "/company/satinalma/taleplerim?status=AWARDED",
   orders: "/company/satinalma/siparisler",
-  delivered: "/company/satinalma/siparisler?status=DELIVERED",
+  delivered: BUYER_ORDER_HREF.delivered,
 };
 
 /** Satınalma panosu — İhale sekmesi (eski ihale-tab markup'ı, yeni veri). */
@@ -56,11 +58,17 @@ export function SatinalmaIhaleTab({
   data,
   analytics,
   showKpis = true,
+  analyticsError = false,
+  onRetryAnalytics,
 }: {
   data: SatinalmaDashboard;
   analytics?: SatinalmaAnalytics;
   /** Şirketim › Genel Bakış: sayılar ayrı bölümde — burada yalnız grafik/tablo. */
   showKpis?: boolean;
+  /** Analitik ucu hata verdi (veri yok): huni/döngü/nakit kartları "henüz veri
+   *  yok" boş durumu DEĞİL, tekrar-dene'li hata gösterir (arayüz testi O-102). */
+  analyticsError?: boolean;
+  onRetryAnalytics?: () => void;
 }) {
   const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
@@ -113,7 +121,7 @@ export function SatinalmaIhaleTab({
             label={t("n30GundeVadesiGelen")}
             value={formatCompactMoney(analytics.money.dueIn30d)}
             valueTitle={formatMoney(analytics.money.dueIn30d)}
-            href="/company/satinalma/siparisler?status=DELIVERED"
+            href={BUYER_ORDER_HREF.delivered}
             accent="blue"
             attention={analytics.money.dueIn30d > 0}
             hint={
@@ -173,7 +181,7 @@ export function SatinalmaIhaleTab({
         <KpiCard
           label={t("devamEdenSiparisler")}
           value={data.ongoingOrders}
-          href="/company/satinalma/siparisler"
+          href={BUYER_ORDER_HREF.ongoing}
           accent="blue"
           deltaPct={analytics?.deltas.orders}
           spark={analytics?.kpiSeries.orders}
@@ -184,6 +192,10 @@ export function SatinalmaIhaleTab({
         </>
       ) : null}
 
+      {!analytics && analyticsError ? (
+        <ErrorState title={t("analitikAlinamadi")} onRetry={onRetryAnalytics} />
+      ) : (
+        <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title={t("surecHunisi")}
@@ -224,7 +236,7 @@ export function SatinalmaIhaleTab({
         title={t("nakitTakvimi")}
         subtitle={t("onumuzdeki30GununOdemeYukuCur", { currency: cur })}
         ariaLabel={t("n30GunlukOdemeTakvimi")}
-        href="/company/satinalma/siparisler?status=DELIVERED"
+        href={BUYER_ORDER_HREF.delivered}
       >
         {analytics && analytics.cashCalendar.some((w) => w.amount > 0) ? (
           <div className="h-44">
@@ -245,6 +257,8 @@ export function SatinalmaIhaleTab({
           />
         )}
       </ChartCard>
+        </>
+      )}
 
       {/* Teklife Açık İhaleler paneli */}
       <section className="card">

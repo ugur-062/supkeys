@@ -12,7 +12,6 @@ import {
 } from "@/components/catalyst/table";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Trophy } from "lucide-react";
-import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -22,7 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import { InfoTooltip } from "./info-tooltip";
-import { PeriodToggle, type Period } from "./period-toggle";
+import type { Period } from "./period-toggle";
 
 export interface SupplierMetric {
   fromPool: number;
@@ -62,23 +61,31 @@ export interface TedarikciTabData {
 
 interface Props {
   data: TedarikciTabData;
+  /** Global dönem — sayfa başındaki TEK seçici (Tasarruf sekmesiyle aynı;
+   *  kart içi seçiciler kalktı). Uçta yalnız ay ve yıl kırılımı var: çeyrek
+   *  ve özel aralıkta YIL gösterilir ve bunu söyleyen not çıkar (arayüz testi
+   *  O-104; eskiden "Bu Çeyrek" sessizce yıl verisi gösteriyordu ve sekme
+   *  sayfanın dönemini yok sayıp "Bu Ay" açılıyordu). */
+  period: Period | "custom";
 }
 
 const MEDAL_BG = ["bg-amber-400", "bg-slate-300", "bg-orange-400"] as const;
 
-export function TedarikciTab({ data }: Props) {
+export function TedarikciTab({ data, period }: Props) {
   const t = useTranslations("web.panel.shell.tedarikciTab");
   const fmtNum = useFormatNumber();
-  const [topPeriod, setTopPeriod] = useState<Period>("month");
-  const [compPeriod, setCompPeriod] = useState<Period>("month");
+  const dataPeriod: "month" | "year" = period === "month" ? "month" : "year";
 
   const topSuppliers =
-    topPeriod === "month" ? data.topSuppliersMonth : data.topSuppliersYear;
+    dataPeriod === "month" ? data.topSuppliersMonth : data.topSuppliersYear;
   const competitive =
-    compPeriod === "month" ? data.competitiveMonth : data.competitiveYear;
+    dataPeriod === "month" ? data.competitiveMonth : data.competitiveYear;
 
   return (
     <div className="space-y-6">
+      {period !== "month" && period !== "year" ? (
+        <p className="text-xs text-zinc-400">{t("yilVerisiGosteriliyor")}</p>
+      ) : null}
       {/* Faz 6: Rekabet Skoru bilgisi ana tablonun "Rekabet" kolonuna,
           Nakit Takvimi anasayfa gövdesine (İhale sekmesi) taşındı — üçüncü
           sekmede saklı kalmıyorlar. */}
@@ -93,7 +100,6 @@ export function TedarikciTab({ data }: Props) {
                 {t("enSikTeklifVerenTedarikciler")}
               </h2>
             </div>
-            <PeriodToggle value={topPeriod} onChange={setTopPeriod} />
           </header>
 
           {topSuppliers.length === 0 ? (
@@ -155,7 +161,6 @@ export function TedarikciTab({ data }: Props) {
             <h2 className="text-sm font-semibold text-zinc-950">
               {t("enRekabetciTalep")}
             </h2>
-            <PeriodToggle value={compPeriod} onChange={setCompPeriod} />
           </header>
 
           <div className="relative h-40">

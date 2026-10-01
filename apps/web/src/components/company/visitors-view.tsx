@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { formatNumber } from "@/i18n/format";
-import { useActivityLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { VisitsVisibilityCard } from "@/components/company/visits-visibility-card";
 import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/company/company-logo";
@@ -11,6 +11,7 @@ import { PeriodSelect } from "@/components/company/period-select";
 import { MiniBars } from "@/components/company/ui/mini-bars";
 import { StatTile } from "@/components/company/ui/stat-tile";
 import { EmptyState, Pagination } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import { useVisitors, type ViewDays, type VisitorItem } from "@/hooks/use-company-views";
 import { pctChange } from "@/lib/dashboard/delta";
 import { formatDate } from "@/lib/format-date";
@@ -64,7 +65,7 @@ export function VisitorsView() {
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-2xl bg-zinc-100" />)}
         </div>
       ) : q.isError || !d ? (
-        <EmptyState icon={EyeIcon} title={t("ziyaretciVerisiAlinamadi")} description={t("birHataOlustuTekrarDeneyin")} variant="no-results" />
+        <ErrorState title={t("ziyaretciVerisiAlinamadi")} message={t("birHataOlustuTekrarDeneyin")} onRetry={() => void q.refetch()} />
       ) : (
         <>
           <section aria-label={t("ozet")} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -170,6 +171,7 @@ function VisitorRow({ v }: { v: VisitorItem }) {
   const t = useTranslations("web.panel.trade.visitorsView");
   const locale = useLocale() as Locale;
   const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const c = v.company;
   const href = c.rothernId ? `/company/firma/${c.rothernId}` : undefined;
   return (
@@ -196,7 +198,7 @@ function VisitorRow({ v }: { v: VisitorItem }) {
             {v.connected ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">{t("baglantili")}</span> : null}
           </p>
           <p className="mt-0.5 truncate text-xs text-zinc-500">
-            {[c.city, ...c.activities.slice(0, 2).map((a) => activityLabel(a))].filter(Boolean).join(" · ") || "—"}
+            {[c.city ? cityLabel(c.city) : null, ...c.activities.slice(0, 2).map((a) => activityLabel(a))].filter(Boolean).join(" · ") || "—"}
           </p>
         </div>
       </div>

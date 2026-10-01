@@ -2408,7 +2408,8 @@
         "donemIciSiparislerCur": "orders within the period · in {currency}",
         "odenmemisSiparisBakiyesiCur": "unpaid order balance · in {currency}",
         "onumuzdeki30GununOdemeYukuCur": "Payment load for the next 30 days (weekly, in {currency})",
-        "hedefFiyataGoreCur": "vs. target price · in {currency}"
+        "hedefFiyataGoreCur": "vs. target price · in {currency}",
+        "analitikAlinamadi": "Chart data could not be loaded"
       },
       "satisChartTabs": {
         "gelirTrendi": "Revenue trend",
@@ -2434,7 +2435,7 @@
         "musteriKonsantrasyonu": "Customer concentration",
         "musteriKonsantrasyonuPareto": "Customer concentration Pareto",
         "konsantrasyonRiski": "⚠ Concentration risk",
-        "acikSatinAlmaTaleplerineGoz": "Browse open buying requests",
+        "acikSatinAlmaTaleplerineGoz": "Browse open requests",
         "henuzMusteriGeliriYok": "No customer revenue yet",
         "satislarinTamamlandikcaMusteriDagilimiBurada": "As your sales are completed, the customer breakdown will appear here.",
         "kategoriBazliKazanmaOrani": "Win rate by category",
@@ -2451,9 +2452,9 @@
         "teklifVerilmedenSuresiDolanDavetler": "Invitations that expired without a quote (last 12 months)",
         "kacirilanFirsatlar2": "Missed opportunities",
         "davetTeklifsizKapandi": "{n, plural, one {invitation closed without a quote} other {invitations closed without a quote}}",
-        "tutarHesaplanamazTeklifVerilmedenKapanan": "Amount cannot be calculated — the value of a buying request closed without a quote is unknown.",
+        "tutarHesaplanamazTeklifVerilmedenKapanan": "Amount cannot be calculated — the value of a request closed without a quote is unknown.",
         "kacirilanFirsatYok": "No missed opportunities",
-        "son12AydaTeklifsizKapanan": "You have no invited buying requests that closed without a quote in the last 12 months.",
+        "son12AydaTeklifsizKapanan": "No requests you were invited to closed without a quote in the last 12 months.",
         "kaybedildi": "Lost",
         "beklemede": "Pending",
         "aylikGelirAlanYilbasindanBeriCur": "Monthly revenue (area) + year-to-date cumulative (line) — all sales, in {currency}",
@@ -2501,7 +2502,8 @@
         "tooltipCurrency": "Savings rate by the base currency of the buying request.",
         "enYuksekTasarruflu": "Buying request with the highest savings",
         "maliyetKiriliminda": "No quarterly data in the cost breakdown yet — showing yearly data.",
-        "aylikTasarrufBarKumulatifCizgiCur": "Monthly savings (bars) + cumulative (line) — all buying requests, in {currency}; no target data on the platform"
+        "aylikTasarrufBarKumulatifCizgiCur": "Monthly savings (bars) + cumulative (line) — all buying requests, in {currency}; no target data on the platform",
+        "top5Bos": "No buying requests with savings in this period."
       },
       "tedarikciTab": {
         "donemdeEnCokSatinAlma": "Suppliers that quoted on the most of your buying requests in the period. A low average rank means that supplier consistently quotes one of the best 1–2 prices.",
@@ -2514,7 +2516,8 @@
         "sirada": "Ranked #{rank}",
         "enRekabetciTalep": "Most competitive request",
         "teklifVeren": "{bidderCount, plural, one {# supplier quoted} other {# suppliers quoted}}",
-        "talepTeklifVerenSayisi": "Suppliers who quoted on the buying request: {bidderCount}"
+        "talepTeklifVerenSayisi": "Suppliers who quoted on the buying request: {bidderCount}",
+        "yilVerisiGosteriliyor": "Supplier data has no quarterly or custom-range breakdown yet — showing this year's data."
       },
       "todayBand": {
         "bugun": "Today"
@@ -3222,7 +3225,7 @@
         "kur": "(rate: {exchangeRateSnapshot})",
         "mesaj": "Message",
         "ele": "Eliminate",
-        "teklifinGecerlilikSuresiDolmusTedarikciden": "The quote validity has expired — ask the supplier for an extension or open a new round",
+        "teklifinGecerlilikSuresiDolmusTedarikciden": "The quote validity has expired, so it cannot be awarded. The supplier can extend it: ask via Message or open a new round.",
         "teklifEkleri": "Quote attachments:",
         "teklifBelgeleri": "Quote documents ({length})",
         "teklifVer": "Submit quote",
@@ -3477,7 +3480,20 @@
         "talebiDuzenle": "Edit request",
         "talepBulunamadiAciklama": "This request could not be found or has been removed.",
         "duzenlemeYetkinizYok": "You cannot edit this request",
-        "yalnizTalebiAcanDuzenleyebilir": "Only the user who opened this request can edit it; you can view it."
+        "yalnizTalebiAcanDuzenleyebilir": "Only the user who opened this request can edit it; you can view it.",
+        "kazandirilacakMiktarKalemMiktariniAsamaz": "The award quantity for “{name}” cannot exceed the requested quantity.",
+        "kazandirilacakMiktarEnFazla": "You can award at most {qty}.",
+        "kazandirmakIcinDogrulamaGerekirKisa": "Company verification is required to award",
+        "kazandirmakIcinFirmaDogrulamasiGerekir": "Awarding creates an order and requires company verification. <link>Complete verification</link> (free).",
+        "yayinIcinFirmaDogrulamasiGerekir": "Publishing requires company verification. <link>Complete verification</link> (free).",
+        "buTalebiYalnizAcanKisiYonetebilir": "Only the person who opened this request can manage it; publish, award, eliminate and edit actions are shown to them.",
+        "buSuzgeceUyanTeklifYok": "No quotes match this filter.",
+        "siparisReddedildiKalemlerTedariksiz": "A supplier rejected an order — some line items are left without a supplier",
+        "siparisiReddetti": "{seller} rejected order {number}.",
+        "redGerekcesi": "Reason: {reason}",
+        "tedariksizKalemler": "Line items without a supplier: {items}",
+        "buKalemlerleYeniTalepOlustur": "Create a new request with these line items",
+        "tedarikci": "Supplier"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -4285,7 +4301,8 @@
         "copy": "Copy link",
         "copied": "Link copied",
         "text": "Buying request: {title} — submit your quote on Rothern",
-        "emailSubject": "Buying request: {title}"
+        "emailSubject": "Buying request: {title}",
+        "copyFailed": "Couldn't copy the link — the browser denied clipboard access."
       },
       "memberInviteStatus": {
         "INVITED": "Invited to the request",
@@ -4632,7 +4649,8 @@
         "ortancaSonGun": "median · last {days, plural, one {# day} other {# days}}",
         "kabulEdildi": "{n} accepted",
         "goruntulenmeSayisi": "{n, plural, one {<b>#</b> view} other {<b>#</b> views}}",
-        "firmaSayisi": "{n, plural, one {<b>#</b> company} other {<b>#</b> companies}}"
+        "firmaSayisi": "{n, plural, one {<b>#</b> company} other {<b>#</b> companies}}",
+        "saatAlti": "<1 h"
       },
       "permissionTable": {
         "hazirSetler": "Presets",
@@ -6209,13 +6227,16 @@
         "kapanis": "Closing",
         "teklifVer": "Submit quote",
         "firmayiEngelle": "Block company",
-        "siziGoremezVeSizinleIslem": "“{name}” will not be able to see you or do business with you; the existing connection will be removed. The reason is recorded.",
+        "siziGoremezVeSizinleIslem": "“{name}” will not be able to see you or do business with you; the existing connection will be removed. The reason is recorded. You can unblock it under Connections › Blocked.",
         "hakkindakiSikayetinizPlatformYonetimineIleti": "Your report about “{name}” will be forwarded to platform management.",
         "sikayetiGonder": "Send report",
         "geri": "Back",
         "baglantilar": "Connections",
         "engellenemedi": "Could not block",
-        "kalemBirimi": "{n, plural, one {<num>#</num> <unit>line item</unit>} other {<num>#</num> <unit>line items</unit>}}"
+        "kalemBirimi": "{n, plural, one {<num>#</num> <unit>line item</unit>} other {<num>#</num> <unit>line items</unit>}}",
+        "kilitliTaleplerBaslik": "This company has open buying requests",
+        "kilitliTaleplerSayi": "{n, plural, one {# open buying request} other {# open buying requests}}",
+        "kilitliTaleplerAciklama": "Viewing and quoting on public buying requests is available with the Silver plan. If the company invites you to a request, you can see it on the free plan too."
       },
       "page": {
         "yonlendiriliyor": "Redirecting…"
@@ -6312,7 +6333,7 @@
         "baglantiKaldirildi": "Connection removed",
         "baglantiKaldirilamadi": "The connection could not be removed",
         "firmaEngellensinMi": "Block the company?",
-        "siziGoremezVeSizinleIslem": "\"{name}\" will not be able to see you or do business with you.",
+        "siziGoremezVeSizinleIslem": "\"{name}\" will not be able to see you or do business with you. You can unblock it under Connections › Blocked.",
         "engelle": "Block",
         "firmaEngellendi": "Company blocked",
         "sikayetGonderildi": "Report submitted",
@@ -6356,7 +6377,24 @@
         "adres": "{n}/{max} addresses",
         "davetDili": "Invitation language",
         "davetDiliIpucu": "Companies that are not yet registered receive the invitation email in this language; the default is based on the address’s domain.",
-        "davetDiliAdres": "Invitation language for {email}"
+        "davetDiliAdres": "Invitation language for {email}",
+        "engellenenler": "Blocked",
+        "engelliFirmaYok": "You haven't blocked any companies",
+        "engellediginizFirmalarBurada": "Companies you block are listed here; you can unblock them from here.",
+        "engellendiRozet": "Blocked",
+        "engeliKaldir": "Unblock",
+        "engelKaldirilsinMi": "Unblock this company?",
+        "engelKaldirAciklama": "\"{name}\" will be able to see you and do business with you again. Your previous connection will not be restored.",
+        "engelKaldirildi": "Company unblocked",
+        "engelKaldirilamadi": "Could not unblock the company",
+        "istekReddedilsinMi": "Reject the request?",
+        "istekReddedilsinAciklama": "The connection request from \"{name}\" will be rejected.",
+        "istekGeriCekilsinMi": "Withdraw the request?",
+        "istekGeriCekilsinAciklama": "The connection request you sent to \"{name}\" will be withdrawn.",
+        "davetIptalEdilsinMi": "Cancel the invitation?",
+        "davetIptalAciklama": "The invitation sent to {email} will be cancelled; a company that signs up with this address will not be connected to you automatically.",
+        "silverIleDavetEt": "Invite with Silver",
+        "gelenIstekleriKabulEdebilirsiniz": "You can accept connection requests sent to you here. Sending connection requests and email invitations is available with the Silver plan."
       },
       "profileEditor": {
         "gecersizBaglantiYalnizHttpHttps": "Invalid link — only http/https addresses are accepted",
@@ -7004,10 +7042,11 @@
         "mesajGonderilemedi": "Message could not be sent",
         "henuzMesajYok": "No messages yet",
         "ilkMesajiSenGonder": "Send the first message",
-        "mesajYazEnterGonderShift": "Write a message… (Enter: send, Shift+Enter: new line)",
         "gonder": "Send",
         "dun": "Yesterday {time}",
-        "mesajGondermekRoluGerektirir": "Sending messages requires the {role} role — you are only viewing this conversation."
+        "mesajGondermekRoluGerektirir": "Sending messages requires the {role} role — you are only viewing this conversation.",
+        "mesajYaz": "Write a message…",
+        "enterIpucu": "Enter: send, Shift+Enter: new line"
       }
     },
     "verifyNudge": {

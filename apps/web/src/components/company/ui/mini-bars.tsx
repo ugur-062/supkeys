@@ -23,9 +23,14 @@ export function MiniBars({
   const locale = useLocale() as Locale;
   const max = Math.max(1, ...data.map((d) => d.views));
   const n = Math.max(1, data.length);
-  const gap = 2;
   const w = 100;
-  const bw = Math.max(1, (w - gap * (n - 1)) / n);
+  // Çubuk yuvası görünüm genişliğinden türer; aralık yuvanın en çok %25'i.
+  // Sabit 2 birim aralık + 1 birim taban genişlikle 90 çubuk 100 birime
+  // sığmıyor, 34. çubuktan sonrası çizim alanının DIŞINA düşüyordu
+  // (arayüz testi O-042: "90 gün" grafiği boş görünüyordu).
+  const slot = w / n;
+  const gap = Math.min(2, slot * 0.25);
+  const bw = slot - gap;
   const fill = accent === "blue" ? "#2563eb" : accent === "emerald" ? "#059669" : "#71717a";
   const fmt = (iso: string) => {
     const d = new Date(`${iso}T00:00:00Z`);
@@ -45,7 +50,7 @@ export function MiniBars({
         return (
           <rect
             key={d.date}
-            x={i * (bw + gap)}
+            x={i * slot}
             y={height - h}
             width={bw}
             height={h}

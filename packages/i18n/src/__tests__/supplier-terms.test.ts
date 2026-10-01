@@ -4,12 +4,15 @@ import { rawMessages, type MessageTree, type Namespace } from "../messages";
 /**
  * CLAUDE.md § Ürün Dili: satış tarafına (tedarikçiye) "satın alma talebi"
  * denmez, "alım talebi" denir. Aşağıdaki alt ağaçlar YALNIZ tedarikçiye
- * görünür (teklif içe aktarma diyaloğu/API hataları, dış davet e-postaları ve
- * davet kapatma sayfası); TR kaynakta alıcı terimi geçmemeli.
+ * görünür (teklif içe aktarma diyaloğu/API hataları, dış davet e-postaları,
+ * davet kapatma sayfası ve satış grafik sekmeleri); TR kaynakta alıcı terimi
+ * geçmemeli.
  */
 const SUPPLIER_ONLY: Array<[Namespace, string]> = [
   ["web", "panel.trade.bidImportDialog"],
   ["web", "marketing.optOut"],
+  // Şirketim › Grafikler › Gelir / Müşteri (satış sekmeleri; arayüz testi O-106).
+  ["web", "panel.shell.satisChartTabs"],
   ["api", "companyListings.bidImport"],
   ["email", "tenderExternalInvite"],
   ["email", "tenderInviteDigest"],

@@ -87,8 +87,11 @@ export function TasarrufTab({ data, period, analytics }: Props) {
   const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
 
   const metrics = costPeriod === "month" ? data.month : data.year;
-  const topRows =
-    costPeriod === "month" ? data.topSavingsMonth : data.topSavingsYear;
+  // Tasarrufu olmayan (0,00) talep "en yüksek tasarruflu" sıralamasına girmez
+  // (arayüz testi D-297; uç da süzer — eski yanıta karşı burada da).
+  const topRows = (
+    costPeriod === "month" ? data.topSavingsMonth : data.topSavingsYear
+  ).filter((r) => r.amount > 0);
   const categoryRows =
     costPeriod === "month" ? data.categoryMonth : data.categoryYear;
   const currencyRows =
@@ -176,6 +179,9 @@ export function TasarrufTab({ data, period, analytics }: Props) {
           </span>
         </header>
 
+        {topRows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-zinc-500">{t("top5Bos")}</p>
+        ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Sol — sıralı liste */}
           <ul className="divide-y divide-slate-100">
@@ -249,6 +255,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
             </p>
           </div>
         </div>
+        )}
       </section>
 
       {/* 2 yatay-bar kart */}

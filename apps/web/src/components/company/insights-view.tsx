@@ -3,10 +3,12 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { formatNumber, intlLocale } from "@/i18n/format";
+import { useCityLabel } from "@/i18n/domain";
 import { PeriodSelect } from "@/components/company/period-select";
 import { RatioBar } from "@/components/company/ui/mini-bars";
 import { SectionHead } from "@/components/company/ui/stat-tile";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
+import { ErrorState } from "@/components/ui/error-state";
 import { useInsights, type ViewDays } from "@/hooks/use-company-views";
 import { pctChange } from "@/lib/dashboard/delta";
 import { ArrowLongRightIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -26,6 +28,11 @@ export function InsightsView() {
   const q = useInsights(days);
   const d = q.data;
   const periodLabel = t("oncekiGuneGore", { days: days });
+  const cityLabel = useCityLabel();
+  // 1 saatin altı "<1 sa" — yuvarlanmış "0 sa" yanıt verilmemiş gibi okunuyordu
+  // (arayüz testi O-041).
+  const formatReplyHours = (h: number | null) =>
+    h == null ? "—" : h < 1 ? t("saatAlti") : t("saat", { n: formatNumber(h, locale, { maximumFractionDigits: 1 }) });
   const spark = (key: "profile" | "product") =>
     d?.series.map((s) => ({ key: s.date, value: s[key], label: fmtDay(s.date, locale) })) ?? [];
 
@@ -46,7 +53,7 @@ export function InsightsView() {
           {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-zinc-100" />)}
         </div>
       ) : q.isError || !d ? (
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{t("isAnaliziVerisiAlinamadiTekrar")}</p>
+        <ErrorState message={t("isAnaliziVerisiAlinamadiTekrar")} onRetry={() => void q.refetch()} />
       ) : (
         <>
           <section aria-labelledby="gorunurluk" className="space-y-3">
@@ -90,7 +97,7 @@ export function InsightsView() {
             <RankCard
               title={t("ziyaretciSehirleri")}
               empty={t("ziyaretcilerinSehirBilgisiYok")}
-              rows={d.viewerCities.map((c) => ({ key: c.city, label: c.city, value: c.count, display: t.rich("firmaSayisi", { n: c.count, b: rankValue }) }))}
+              rows={d.viewerCities.map((c) => ({ key: c.city, label: cityLabel(c.city), value: c.count, display: t.rich("firmaSayisi", { n: c.count, b: rankValue }) }))}
               accent="blue"
               footer={{ href: "/company/sirketim/ziyaretciler", label: t("ziyaretEdenler") }}
             />
@@ -100,7 +107,7 @@ export function InsightsView() {
             <SectionHead id="alici-baglantilari" title={t("aliciBaglantilari")} lead={t("alicilarSizeNasilUlasiyorNe")} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard label={t("gelenBilgiTalebi")} value={d.inquiries.received} accent="emerald" href="/company/satis/bilgi-talepleri" hint={d.inquiries.received > 0 ? t("yanitlandi", { replied: d.inquiries.replied }) : t("urunSayfalarindanGelenSorular")} />
-              <KpiCard label={t("ilkYanitSuresi")} value={d.inquiries.medianFirstReplyHours != null ? t("saat", { n: formatNumber(d.inquiries.medianFirstReplyHours, locale, { maximumFractionDigits: 1 }) }) : "—"} accent="emerald" hint={d.inquiries.replyWindowDays ? t("ortancaSonGun", { days: d.inquiries.replyWindowDays }) : t("ortanca")} href="/company/satis/bilgi-talepleri" />
+              <KpiCard label={t("ilkYanitSuresi")} value={formatReplyHours(d.inquiries.medianFirstReplyHours)} accent="emerald" hint={d.inquiries.replyWindowDays ? t("ortancaSonGun", { days: d.inquiries.replyWindowDays }) : t("ortanca")} href="/company/satis/bilgi-talepleri" />
               <KpiCard label={t("gelenBaglantiDaveti")} value={d.connections.invitesReceived} accent="emerald" href="/company/satis/musterilerim" hint={d.connections.invitesReceived > 0 ? t("kabulEdildi", { n: d.connections.accepted }) : t("baglantiAginiziBuyutun")} />
               <KpiCard label={t("talepDaveti")} value={d.listingInvitations} accent="emerald" href="/company/satis#acik-talepler" hint={t("alicilarSiziTeklifeCagirdi")} />
             </div>

@@ -2408,7 +2408,8 @@
         "donemIciSiparislerCur": "заказы за период · в {currency}",
         "odenmemisSiparisBakiyesiCur": "неоплаченный остаток по заказам · в {currency}",
         "onumuzdeki30GununOdemeYukuCur": "Платёжная нагрузка на ближайшие 30 дней (по неделям, в {currency})",
-        "hedefFiyataGoreCur": "относительно целевой цены · в {currency}"
+        "hedefFiyataGoreCur": "относительно целевой цены · в {currency}",
+        "analitikAlinamadi": "Не удалось загрузить данные графиков"
       },
       "satisChartTabs": {
         "gelirTrendi": "Динамика выручки",
@@ -2434,7 +2435,7 @@
         "musteriKonsantrasyonu": "Концентрация клиентов",
         "musteriKonsantrasyonuPareto": "Парето концентрации клиентов",
         "konsantrasyonRiski": "⚠ Риск концентрации",
-        "acikSatinAlmaTaleplerineGoz": "Просмотреть открытые заявки на закупку",
+        "acikSatinAlmaTaleplerineGoz": "Просмотреть открытые запросы",
         "henuzMusteriGeliriYok": "Выручки от клиентов пока нет",
         "satislarinTamamlandikcaMusteriDagilimiBurada": "По мере завершения продаж здесь появится распределение по клиентам.",
         "kategoriBazliKazanmaOrani": "Доля выигрышей по категориям",
@@ -2451,9 +2452,9 @@
         "teklifVerilmedenSuresiDolanDavetler": "Приглашения, истёкшие без предложения (последние 12 месяцев)",
         "kacirilanFirsatlar2": "Упущенные возможности",
         "davetTeklifsizKapandi": "{n, plural, one {приглашение закрыто без предложения} few {приглашения закрыты без предложения} many {приглашений закрыто без предложения} other {приглашения закрыто без предложения}}",
-        "tutarHesaplanamazTeklifVerilmedenKapanan": "Сумму рассчитать невозможно — стоимость заявки на закупку, закрытой без предложения, неизвестна.",
+        "tutarHesaplanamazTeklifVerilmedenKapanan": "Сумму рассчитать невозможно — стоимость запроса, закрытого без предложения, неизвестна.",
         "kacirilanFirsatYok": "Упущенных возможностей нет",
-        "son12AydaTeklifsizKapanan": "За последние 12 месяцев у Вас нет заявок на закупку с приглашением, закрытых без предложения.",
+        "son12AydaTeklifsizKapanan": "За последние 12 месяцев нет запросов, на которые Вас пригласили и которые закрылись без предложения.",
         "kaybedildi": "Проиграно",
         "beklemede": "В ожидании",
         "aylikGelirAlanYilbasindanBeriCur": "Месячная выручка (область) + накопительный итог с начала года (линия) — все продажи, в {currency}",
@@ -2501,7 +2502,8 @@
         "tooltipCurrency": "Процент экономии по основной валюте заявки на закупку.",
         "enYuksekTasarruflu": "Заявка на закупку с наибольшей экономией",
         "maliyetKiriliminda": "В разбивке затрат пока нет данных за квартал — показаны данные за год.",
-        "aylikTasarrufBarKumulatifCizgiCur": "Ежемесячная экономия (столбцы) + накопительная (линия) — все заявки на закупку, в {currency}; данных о целевых показателях на платформе нет"
+        "aylikTasarrufBarKumulatifCizgiCur": "Ежемесячная экономия (столбцы) + накопительная (линия) — все заявки на закупку, в {currency}; данных о целевых показателях на платформе нет",
+        "top5Bos": "В этом периоде нет заявок на закупку с экономией."
       },
       "tedarikciTab": {
         "donemdeEnCokSatinAlma": "Поставщики, отправившие за период предложения по наибольшему числу Ваших заявок на закупку. Низкое среднее место означает, что поставщик стабильно предлагает одну из 1–2 лучших цен.",
@@ -2514,7 +2516,8 @@
         "sirada": "{rank}-е место",
         "enRekabetciTalep": "Самый конкурентный запрос",
         "teklifVeren": "{bidderCount, plural, one {# поставщик} few {# поставщика} many {# поставщиков} other {# поставщика}}",
-        "talepTeklifVerenSayisi": "Поставщиков, отправивших предложения по заявке на закупку: {bidderCount}"
+        "talepTeklifVerenSayisi": "Поставщиков, отправивших предложения по заявке на закупку: {bidderCount}",
+        "yilVerisiGosteriliyor": "Для данных о поставщиках пока нет разбивки по кварталу и произвольному периоду — показаны данные за этот год."
       },
       "todayBand": {
         "bugun": "Сегодня"
@@ -3222,7 +3225,7 @@
         "kur": "(курс: {exchangeRateSnapshot})",
         "mesaj": "Сообщение",
         "ele": "Исключить",
-        "teklifinGecerlilikSuresiDolmusTedarikciden": "Срок действия предложения истёк — запросите у поставщика продление или откройте новый раунд",
+        "teklifinGecerlilikSuresiDolmusTedarikciden": "Срок действия предложения истёк, присудить его нельзя. Поставщик может продлить срок: попросите об этом в сообщении или откройте новый раунд.",
         "teklifEkleri": "Вложения к предложению:",
         "teklifBelgeleri": "Документы предложения ({length})",
         "teklifVer": "Отправить предложение",
@@ -3477,7 +3480,20 @@
         "talebiDuzenle": "Редактирование заявки",
         "talepBulunamadiAciklama": "Эта заявка не найдена или была удалена.",
         "duzenlemeYetkinizYok": "Нет прав на редактирование",
-        "yalnizTalebiAcanDuzenleyebilir": "Редактировать эту заявку может только пользователь, который её открыл; Вы можете её просматривать."
+        "yalnizTalebiAcanDuzenleyebilir": "Редактировать эту заявку может только пользователь, который её открыл; Вы можете её просматривать.",
+        "kazandirilacakMiktarKalemMiktariniAsamaz": "Количество к присуждению по позиции «{name}» не может превышать запрошенное.",
+        "kazandirilacakMiktarEnFazla": "Можно присудить не более {qty}.",
+        "kazandirmakIcinDogrulamaGerekirKisa": "Для присуждения требуется верификация компании",
+        "kazandirmakIcinFirmaDogrulamasiGerekir": "Присуждение создаёт заказ и требует верификации компании. <link>Пройдите верификацию</link> (бесплатно).",
+        "yayinIcinFirmaDogrulamasiGerekir": "Для публикации требуется верификация компании. <link>Пройдите верификацию</link> (бесплатно).",
+        "buTalebiYalnizAcanKisiYonetebilir": "Управлять этим запросом может только его автор; кнопки публикации, присуждения, исключения и редактирования доступны только ему.",
+        "buSuzgeceUyanTeklifYok": "Нет предложений, соответствующих этому фильтру.",
+        "siparisReddedildiKalemlerTedariksiz": "Поставщик отклонил заказ — часть позиций осталась без поставщика",
+        "siparisiReddetti": "Заказ {number} отклонён поставщиком {seller}.",
+        "redGerekcesi": "Причина: {reason}",
+        "tedariksizKalemler": "Позиции без поставщика: {items}",
+        "buKalemlerleYeniTalepOlustur": "Создать новый запрос с этими позициями",
+        "tedarikci": "Поставщик"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "У Вас пока нет контактов. Выберите «Открыта для всех» или пригласите поставщиков из рекомендаций после публикации.",
@@ -4285,7 +4301,8 @@
         "copy": "Скопировать ссылку",
         "copied": "Ссылка скопирована",
         "text": "Заявка на закупку: {title} — отправьте предложение на Rothern",
-        "emailSubject": "Заявка на закупку: {title}"
+        "emailSubject": "Заявка на закупку: {title}",
+        "copyFailed": "Не удалось скопировать ссылку — браузер не дал доступ к буферу обмена."
       },
       "memberInviteStatus": {
         "INVITED": "Приглашена в запрос",
@@ -4632,7 +4649,8 @@
         "ortancaSonGun": "медиана · за последние {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}",
         "kabulEdildi": "{n} принято",
         "goruntulenmeSayisi": "{n, plural, one {<b>#</b> просмотр} few {<b>#</b> просмотра} many {<b>#</b> просмотров} other {<b>#</b> просмотра}}",
-        "firmaSayisi": "{n, plural, one {<b>#</b> компания} few {<b>#</b> компании} many {<b>#</b> компаний} other {<b>#</b> компании}}"
+        "firmaSayisi": "{n, plural, one {<b>#</b> компания} few {<b>#</b> компании} many {<b>#</b> компаний} other {<b>#</b> компании}}",
+        "saatAlti": "<1 ч"
       },
       "permissionTable": {
         "hazirSetler": "Готовые наборы",
@@ -6209,13 +6227,16 @@
         "kapanis": "Закрытие",
         "teklifVer": "Отправить предложение",
         "firmayiEngelle": "Заблокировать компанию",
-        "siziGoremezVeSizinleIslem": "«{name}» не сможет видеть Вас и работать с Вами; существующий контакт будет удалён. Причина будет зафиксирована.",
+        "siziGoremezVeSizinleIslem": "«{name}» не сможет видеть Вас и работать с Вами; существующий контакт будет удалён. Причина будет зафиксирована. Разблокировать компанию можно в разделе «Контакты» › «Заблокированные».",
         "hakkindakiSikayetinizPlatformYonetimineIleti": "Ваша жалоба на «{name}» будет передана администрации платформы.",
         "sikayetiGonder": "Отправить жалобу",
         "geri": "Назад",
         "baglantilar": "Контакты",
         "engellenemedi": "Не удалось заблокировать",
-        "kalemBirimi": "{n, plural, one {<num>#</num> <unit>позиция</unit>} few {<num>#</num> <unit>позиции</unit>} many {<num>#</num> <unit>позиций</unit>} other {<num>#</num> <unit>позиции</unit>}}"
+        "kalemBirimi": "{n, plural, one {<num>#</num> <unit>позиция</unit>} few {<num>#</num> <unit>позиции</unit>} many {<num>#</num> <unit>позиций</unit>} other {<num>#</num> <unit>позиции</unit>}}",
+        "kilitliTaleplerBaslik": "У этой компании есть открытые заявки на закупку",
+        "kilitliTaleplerSayi": "{n, plural, one {# открытая заявка на закупку} few {# открытые заявки на закупку} many {# открытых заявок на закупку} other {# открытой заявки на закупку}}",
+        "kilitliTaleplerAciklama": "Просмотр публичных заявок на закупку и подача предложений доступны на тарифе Silver. Если компания пригласит Вас в заявку, Вы увидите её и на бесплатном тарифе."
       },
       "page": {
         "yonlendiriliyor": "Перенаправление…"
@@ -6312,7 +6333,7 @@
         "baglantiKaldirildi": "Контакт удалён",
         "baglantiKaldirilamadi": "Не удалось удалить контакт",
         "firmaEngellensinMi": "Заблокировать компанию?",
-        "siziGoremezVeSizinleIslem": "Компания \"{name}\" не сможет видеть Вас и работать с Вами.",
+        "siziGoremezVeSizinleIslem": "Компания \"{name}\" не сможет видеть Вас и работать с Вами. Разблокировать её можно в разделе «Контакты» › «Заблокированные».",
         "engelle": "Заблокировать",
         "firmaEngellendi": "Компания заблокирована",
         "sikayetGonderildi": "Жалоба отправлена",
@@ -6356,7 +6377,24 @@
         "adres": "{n}/{max} адресов",
         "davetDili": "Язык приглашения",
         "davetDiliIpucu": "Незарегистрированная компания получит приглашение на этом языке; по умолчанию язык определяется по домену адреса.",
-        "davetDiliAdres": "Язык приглашения для {email}"
+        "davetDiliAdres": "Язык приглашения для {email}",
+        "engellenenler": "Заблокированные",
+        "engelliFirmaYok": "Вы не заблокировали ни одной компании",
+        "engellediginizFirmalarBurada": "Здесь отображаются заблокированные Вами компании; здесь же их можно разблокировать.",
+        "engellendiRozet": "Заблокирована",
+        "engeliKaldir": "Разблокировать",
+        "engelKaldirilsinMi": "Разблокировать компанию?",
+        "engelKaldirAciklama": "Компания «{name}» снова сможет видеть Вас и работать с Вами. Прежний контакт не восстановится.",
+        "engelKaldirildi": "Компания разблокирована",
+        "engelKaldirilamadi": "Не удалось разблокировать компанию",
+        "istekReddedilsinMi": "Отклонить запрос?",
+        "istekReddedilsinAciklama": "Запрос на добавление в контакты от компании «{name}» будет отклонён.",
+        "istekGeriCekilsinMi": "Отозвать запрос?",
+        "istekGeriCekilsinAciklama": "Запрос на добавление в контакты, отправленный компании «{name}», будет отозван.",
+        "davetIptalEdilsinMi": "Отменить приглашение?",
+        "davetIptalAciklama": "Приглашение, отправленное на {email}, будет отменено; компания, зарегистрировавшаяся с этим адресом, не будет автоматически добавлена в Ваши контакты.",
+        "silverIleDavetEt": "Пригласить с тарифом Silver",
+        "gelenIstekleriKabulEdebilirsiniz": "Здесь можно принять входящие запросы на добавление в контакты. Отправка запросов и приглашений по электронной почте доступна на тарифе Silver."
       },
       "profileEditor": {
         "gecersizBaglantiYalnizHttpHttps": "Недопустимая ссылка — принимаются только адреса http/https",
@@ -7004,10 +7042,11 @@
         "mesajGonderilemedi": "Не удалось отправить сообщение",
         "henuzMesajYok": "Сообщений пока нет",
         "ilkMesajiSenGonder": "Отправьте первое сообщение",
-        "mesajYazEnterGonderShift": "Напишите сообщение… (Enter — отправить, Shift+Enter — новая строка)",
         "gonder": "Отправить",
         "dun": "Вчера {time}",
-        "mesajGondermekRoluGerektirir": "Для отправки сообщений нужна роль {role} — Вы только просматриваете переписку."
+        "mesajGondermekRoluGerektirir": "Для отправки сообщений нужна роль {role} — Вы только просматриваете переписку.",
+        "mesajYaz": "Напишите сообщение…",
+        "enterIpucu": "Enter — отправить, Shift+Enter — новая строка"
       }
     },
     "verifyNudge": {

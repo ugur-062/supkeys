@@ -524,8 +524,12 @@ export class CompanyDashboardService {
         averageSavingsRate: Number(rate.toFixed(2)),
       };
     };
+    // Tasarrufu olmayan talep "en yüksek tasarruflu 5" listesine girmez —
+    // 0,00'lık satırlar boş grafik + anlamsız sıralama üretiyordu (arayüz
+    // testi D-297; analitiğin `topSavings`'i ile aynı kural).
     const top5 = (rows: Agg[]) =>
-      [...rows]
+      rows
+        .filter((r) => r.savings > 0)
         .sort((a, b) => b.savings - a.savings)
         .slice(0, 5)
         .map((r, i) => ({

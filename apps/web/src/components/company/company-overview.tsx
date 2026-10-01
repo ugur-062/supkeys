@@ -20,11 +20,12 @@ import { useOrders } from "@/hooks/use-company-orders";
 import { useVisitors } from "@/hooks/use-company-views";
 import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import { selectActiveOrders } from "@/lib/company/kpi-selectors";
+import { BUYER_ORDER_HREF } from "@/lib/dashboard/strings";
 import { COMPANY_AREA_BASE, accessiblePortals, type PortalKey } from "@/lib/company/portals";
 import { userHasPermission } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
 import { currencySymbol } from "@/lib/tenders/labels";
-import { tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { ChartBarIcon, EyeIcon } from "@heroicons/react/20/solid";
 import { INTL_LOCALE } from "@/i18n/format";
@@ -110,6 +111,10 @@ export function CompanyOverview() {
   // İzni olmayana bağlantı ÇİZİLMEZ ve sorgu atılmaz (2026-09-17: satınalma
   // kullanıcısı satış tarafının analiz sayfasına giriş görmemeli).
   const canInsights = userHasPermission(user, "insights:view");
+  // Tasarruf kartı → Satınalma raporu: paket kapısının İÇİNDE rol kontrolü
+  // (rapor düzeni `PurchasingReportGate` = Gold + "buy:reports:view"). İzni
+  // olmayana bağlantısız kart — tıklayınca yetki duvarı açılmaz (D-292).
+  const canSavingsReport = tierAtLeast(tier, BUYING_TIER) && userHasPermission(user, "buy:reports:view");
   const visitors = useVisitors(30, 1, canInsights);
 
   const [todayLabel, setTodayLabel] = useState("");
@@ -196,12 +201,12 @@ export function CompanyOverview() {
                   <KpiCard label={t("acikTaleplerim")} value={ihale.data.openCount} href="/company/satinalma/taleplerim?status=OPEN" accent="blue" />
                   <KpiCard label={t("gelenTeklifler")} value={ihale.data.bidsReceived} href="/company/satinalma/taleplerim?status=OPEN" accent="blue" />
                   <KpiCard label={t("kazandirilan")} value={ihale.data.awarded} href="/company/satinalma/taleplerim?status=AWARDED" accent="blue" />
-                  <KpiCard label={t("devamEdenSiparis")} value={ihale.data.ongoingOrders} href="/company/satinalma/siparisler" accent="blue" />
+                  <KpiCard label={t("devamEdenSiparis")} value={ihale.data.ongoingOrders} href={BUYER_ORDER_HREF.ongoing} accent="blue" />
                   <KpiCard
                     label={t("tasarruf")}
                     value={savingsMetrics ? formatCompactMoney(savingsMetrics.totalSavings, saCurrency) : "—"}
                     valueTitle={savingsMetrics ? formatMoney(savingsMetrics.totalSavings, saCurrency) : undefined}
-                    href={`${COMPANY_AREA_BASE}/raporlar/tasarruf`}
+                    href={canSavingsReport ? `${COMPANY_AREA_BASE}/raporlar/tasarruf` : undefined}
                     accent="blue"
                     hint={savingsMetrics ? t("tasarrufIpucuCur", { periodWord: period === "month" ? t("buAy") : t("buYil"), rate: Math.round(savingsMetrics.averageSavingsRate), currency: saCurrency }) : t("hesaplaniyor")}
                   />
@@ -273,11 +278,11 @@ export function CompanyOverview() {
                 <TabPanel key={item.value} className="outline-none">
                   {/* `value` VERİ (adres parametresi) — çevrilmez, katalog anahtarıyla karşılaştırılmaz. */}
                   {item.value === "satın alma talebi" ? (
-                    ihale.data ? <SatinalmaIhaleTab data={ihale.data} analytics={saAnalytics.data} showKpis={false} /> : ihale.isError ? <ErrorState title={t("veriAlinamadi")} onRetry={() => void ihale.refetch()} /> : <TabLoading />
+                    ihale.data ? <SatinalmaIhaleTab data={ihale.data} analytics={saAnalytics.data} showKpis={false} analyticsError={saAnalytics.isError} onRetryAnalytics={() => void saAnalytics.refetch()} /> : ihale.isError ? <ErrorState title={t("veriAlinamadi")} onRetry={() => void ihale.refetch()} /> : <TabLoading />
                   ) : item.value === "tasarruf" ? (
                     tasarruf.data ? <TasarrufTab data={tasarruf.data} period={period === "custom" ? "year" : period} analytics={saAnalytics.data} /> : tasarruf.isError ? <ErrorState title={t("veriAlinamadi")} onRetry={() => void tasarruf.refetch()} /> : <TabLoading />
                   ) : item.value === "tedarikci" ? (
-                    tedarikci.data ? <TedarikciTab data={tedarikci.data} /> : tedarikci.isError ? <ErrorState title={t("veriAlinamadi")} onRetry={() => void tedarikci.refetch()} /> : <TabLoading />
+                    tedarikci.data ? <TedarikciTab data={tedarikci.data} period={period} /> : tedarikci.isError ? <ErrorState title={t("veriAlinamadi")} onRetry={() => void tedarikci.refetch()} /> : <TabLoading />
                   ) : !stAnalytics.data && stAnalytics.isError ? (
                     // Gelir/Müşteri: hata dalı yoktu, sekme sonsuz iskelette kalıyordu (derin denetim LU-29).
                     <ErrorState title={t("veriAlinamadi")} onRetry={() => void stAnalytics.refetch()} />

@@ -90,7 +90,7 @@ export function SatisGelirTab({
             title={t("henuzGelirVerisiYok")}
             body={t("ilkSatisinSipariseDonustugundeAylik")}
             ctaLabel={t("acikTaleplereGozAt")}
-            ctaHref="/company/satis/acik-talepler"
+            ctaHref="/company/satis#acik-talepler"
           />
         )}
       </ChartCard>
@@ -148,6 +148,9 @@ export function SatisGelirTab({
               // Davet → teklif farklı evren (kohort değil) — oran yanıltır
               // (%900 gibi); yalnız karşılaştırılabilir adımlarda oran çıkar.
               noConversion: p.key === "submitted",
+              // Değerlendirmede ve Kazanıldı, Teklif Verildi'nin AYRIK alt
+              // kümeleri — Kazanıldı oranı Teklif Verildi'ye göre (O-041).
+              conversionFrom: p.key === "won" ? "submitted" : undefined,
             }))}
           />
         ) : (
@@ -155,7 +158,7 @@ export function SatisGelirTab({
             title={t("satisHunisiBos")}
             body={t("davetAlipTeklifVerdikceAsamalar")}
             ctaLabel={t("acikTaleplereGozAt")}
-            ctaHref="/company/satis/acik-talepler"
+            ctaHref="/company/satis#acik-talepler"
           />
         )}
       </ChartCard>
@@ -201,7 +204,7 @@ export function SatisMusteriTab({
                 {t("konsantrasyonRiski")}
               </span>
               <Link
-                href="/company/satis/acik-talepler"
+                href="/company/satis#acik-talepler"
                 className="whitespace-nowrap text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
               >
                 {t("acikSatinAlmaTaleplerineGoz")}
@@ -319,7 +322,7 @@ export function SatisMusteriTab({
         rangeBadge={tRange("son12Ay")}
         subtitle={t("teklifVerilmedenSuresiDolanDavetler")}
         ariaLabel={t("kacirilanFirsatlar2")}
-        href="/company/satis/acik-talepler"
+        href="/company/satis#acik-talepler"
       >
         {analytics.missed.count > 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-1">

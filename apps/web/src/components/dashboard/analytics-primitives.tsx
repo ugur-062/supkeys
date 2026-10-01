@@ -99,7 +99,9 @@ export function KpiCard({
 }: {
   label: string;
   value: string | number;
-  href: string;
+  /** Drill-down hedefi. Yoksa (ör. hedef sayfaya izin yok) kart bağlantısız
+   *  çizilir — tıklayınca yetki duvarı açan kart olmaz (arayüz testi D-292). */
+  href?: string;
   deltaPct?: number | null;
   /** Delta rozetinin dayanağı — "Geçen aya göre" (TrendBadge tooltip'i). */
   deltaPeriodLabel?: string;
@@ -120,15 +122,8 @@ export function KpiCard({
   const stroke =
     accent === "blue" ? "#2563eb" : accent === "emerald" ? "#059669" : "#64748b";
   const hasSpark = !!spark && spark.some((s) => s.value > 0);
-  return (
-    <Link
-      href={href}
-      className={cn(
-        DASH_CARD,
-        "group relative block overflow-hidden transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",
-        attention && "border-l-[3px] border-l-amber-500",
-      )}
-    >
+  const body = (
+    <>
       {hasSpark ? (
         /* Faz 4.3: dekoratif değil — gerçek 12 aylık seri + hover tooltip.
            TEMBEL: recharts yalnız seri VARSA iner (2026-09-03) — yeni pano
@@ -156,6 +151,23 @@ export function KpiCard({
           <p className="mt-1 truncate text-xs text-slate-500">{hint}</p>
         ) : null}
       </div>
+    </>
+  );
+  const frame = cn(
+    DASH_CARD,
+    "relative block overflow-hidden",
+    attention && "border-l-[3px] border-l-amber-500",
+  );
+  if (!href) return <div className={frame}>{body}</div>;
+  return (
+    <Link
+      href={href}
+      className={cn(
+        frame,
+        "group transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",
+      )}
+    >
+      {body}
     </Link>
   );
 }
@@ -279,6 +291,10 @@ export function FunnelChart({
     href?: string;
     /** Önceki aşamayla karşılaştırılabilir değilse (farklı evren) oran gizlenir. */
     noConversion?: boolean;
+    /** Oranın tabanı önceki aşama DEĞİLSE tabanın `key`'i — kardeş (ayrık)
+     *  aşamalarda önceki aşamaya bölmek %194 gibi imkansız oran üretir
+     *  (arayüz testi O-041: Değerlendirmede → Kazanıldı ayrık kümeler). */
+    conversionFrom?: string;
   }[];
   accent?: "blue" | "emerald";
   formatValue?: (n: number) => string;
@@ -290,7 +306,11 @@ export function FunnelChart({
   return (
     <ol className="space-y-2" aria-label={t("surecHunisi")}>
       {stages.map((s, i) => {
-        const prev = i > 0 ? stages[i - 1]!.count : null;
+        const prev = s.conversionFrom
+          ? (stages.find((x) => x.key === s.conversionFrom)?.count ?? null)
+          : i > 0
+            ? stages[i - 1]!.count
+            : null;
         const conv =
           !s.noConversion && prev != null && prev > 0
             ? Math.round((s.count / prev) * 100)
