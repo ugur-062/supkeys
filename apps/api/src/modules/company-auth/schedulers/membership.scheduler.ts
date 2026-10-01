@@ -203,6 +203,9 @@ export class MembershipScheduler implements OnModuleInit {
                       }),
                     ]
                   : []),
+                // Yukarıdaki iptal (bağlantı + referral + kuyruktaki talep
+                // davetleri) firmaya söylenir (arayüz testi D-173).
+                t("api.notifications.membership.sonaErdiDavetIptal"),
                 t("api.notifications.membership.sonaErdiYukseltme"),
               ],
               ctaLabel: t("api.notifications.membership.premiumaGec"),

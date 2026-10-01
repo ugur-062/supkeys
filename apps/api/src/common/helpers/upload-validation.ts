@@ -125,6 +125,65 @@ export async function assertUploadedObjectValid(
 }
 
 /**
+ * İçerik imzası (magic bytes) → gerçek tip. Yalnız KYC'nin kabul ettiği
+ * dört tip tanınır; tanınmayan içerik `null`.
+ */
+export function sniffDocumentType(head: Uint8Array): string | null {
+  const b = Buffer.from(head);
+  if (b.length >= 5 && b.subarray(0, 5).toString("latin1") === "%PDF-") {
+    return "application/pdf";
+  }
+  if (
+    b.length >= 8 &&
+    b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return "image/png";
+  }
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    b.length >= 12 &&
+    b.subarray(0, 4).toString("latin1") === "RIFF" &&
+    b.subarray(8, 12).toString("latin1") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+/** İmza denetimi için okunan bayt sayısı (en uzun imza: WEBP, 12 bayt). */
+const SIGNATURE_BYTES = 16;
+
+/**
+ * Yüklenen nesnenin İÇERİĞİ beyan edilen tiple uyuşuyor mu (arayüz testi
+ * D-014). HEAD'deki içerik tipi istemcinin beyanıdır: düz metin dosyası
+ * ".pdf" adıyla ve `application/pdf` tipiyle yüklenip KYC belgesi olarak
+ * incelemeye gidebiliyordu. İlk baytlar okunur; imza izinli bir tipe ve
+ * HEAD tipine uymuyorsa nesne SİLİNİR ve istek reddedilir.
+ * `assertUploadedObjectValid`'den SONRA çağrılır (varlık + tip zaten geçti).
+ */
+export async function assertUploadedSignature(
+  storage: StorageService,
+  bucket: BucketKind,
+  key: string,
+  allowedContentTypes: readonly string[],
+): Promise<void> {
+  const [head, prefix] = await Promise.all([
+    storage.checkExists(bucket, key),
+    storage.readObjectPrefix(bucket, key, SIGNATURE_BYTES),
+  ]);
+  const declared = (head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
+  const actual = sniffDocumentType(prefix);
+  if (!actual || !allowedContentTypes.includes(actual) || actual !== declared) {
+    await deleteRejectedObject(storage, bucket, key, `signature=${actual ?? "unknown"}`);
+    throw new BadRequestException(
+      i18nMessage("api.helpers.yuklenenDosyaninTuruKabulEdilmiyorDosyayi"),
+    );
+  }
+}
+
+/**
  * SAKLANAN public görsel değeri (logoUrl/coverImageUrl/photos[]/certificateImages[])
  * KENDİ tenant-profile deposundan mı? Upload akışını baypas edip PATCH ile harici/
  * `data:`/phishing URL enjekte edilmesini engeller (değer public profilde `<img src>`

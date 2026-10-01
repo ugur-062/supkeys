@@ -7,7 +7,11 @@ import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-c
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { CompanyDocsService } from "../../src/modules/company-docs/company-docs.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompany } from "./factories";
+import { makeCompany as makeCompanyBase } from "./factories";
+
+/** D-166: doğrulama yolları kurulumu (onboarding) bitmiş firma ister. */
+const makeCompany: typeof makeCompanyBase = (p, over = {}) =>
+  makeCompanyBase(p, { onboardingCompletedAt: new Date(), ...over });
 
 function storageMock() {
   return {
@@ -27,6 +31,8 @@ function storageMock() {
       size: 1024,
       contentType: "application/pdf",
     })),
+    // D-014: commit içerik imzasını (ilk baytlar) da denetler.
+    readObjectPrefix: jest.fn(async () => Buffer.from("%PDF-1.7\n%")),
   };
 }
 

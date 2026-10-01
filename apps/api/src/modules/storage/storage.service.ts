@@ -406,6 +406,28 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Nesnenin İLK `bytes` baytı (HTTP Range) — içerik imzası (magic bytes)
+   * denetimi için; tüm dosya indirilmez (arayüz testi D-014). Nesne
+   * `bytes`'tan kısaysa ne varsa o döner.
+   */
+  async readObjectPrefix(
+    bucket: BucketKind,
+    key: string,
+    bytes: number,
+  ): Promise<Buffer> {
+    this.assertKeyBucket(bucket, key);
+    const result = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucketName(bucket),
+        Key: key,
+        Range: `bytes=0-${Math.max(0, bytes - 1)}`,
+      }),
+    );
+    const data = await result.Body?.transformToByteArray();
+    return Buffer.from(data ?? new Uint8Array()).subarray(0, bytes);
+  }
+
+  /**
    * Sunucu-içi okuma (Faz AI-1) — nesne içeriğini Buffer olarak döner. AI
    * belge işleme gibi backend'in dosyayı KENDİSİNİN tüketmesi gereken akışlar
    * için; kullanıcıya indirme her zaman presigned GET ile.

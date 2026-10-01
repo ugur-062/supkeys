@@ -24,6 +24,7 @@ import {
   assertReportedSize,
   assertSafeFileName,
   assertUploadedObjectValid,
+  assertUploadedSignature,
   MAX_UPLOAD_BYTES,
 } from "../../common/helpers/upload-validation";
 
@@ -283,6 +284,8 @@ export class CompanyDocsService {
       MAX_UPLOAD_BYTES,
       ALLOWED_MIME,
     );
+    // D-014: beyan edilen tip değil İÇERİK imzası (ilk baytlar) belirleyici.
+    await assertUploadedSignature(this.storage, "private", key, ALLOWED_MIME);
     // KEY saklanır (public URL değil); okurken presigned GET üretilir. Yeniden
     // yüklenen (reddedilmiş) belge PENDING'e döner, red gerekçesi temizlenir.
     const previousKey = company[DOC_META[k].url] as string | null;
@@ -340,6 +343,8 @@ export class CompanyDocsService {
       MAX_UPLOAD_BYTES,
       ALLOWED_MIME,
     );
+    // D-014: beyan edilen tip değil İÇERİK imzası (ilk baytlar) belirleyici.
+    await assertUploadedSignature(this.storage, "private", key, ALLOWED_MIME);
     const pending = await this.prisma.companyKycRevision.findFirst({
       where: { companyId, kind, status: "PENDING" },
       // Denetim MU-19 (S026): ezilecek bekleyen revizyonun eski anahtari da
@@ -425,6 +430,18 @@ export class CompanyDocsService {
     } = {},
     actor?: AuthenticatedCompanyUser,
   ) {
+    // D-166: firma kurulumu (unvan, vergi no, adres) bitmeden doğrulamaya
+    // gönderilemez — eskiden yalnız API ile unvansız firma incelemeye
+    // gidip VERIFIED olabiliyordu.
+    const onboarding = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { onboardingCompletedAt: true },
+    });
+    if (onboarding && !onboarding.onboardingCompletedAt) {
+      throw new BadRequestException(
+        i18nMessage("api.companyDocs.onceFirmaKurulumunuTamamlayin"),
+      );
+    }
     const { docs, docStatus, status, required, country } =
       await this.get(companyId);
     const missing = required.filter((k) => !docs[k]);

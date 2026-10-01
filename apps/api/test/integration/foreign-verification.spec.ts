@@ -5,7 +5,11 @@
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyDocsService } from "../../src/modules/company-docs/company-docs.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompany } from "./factories";
+import { makeCompany as makeCompanyBase } from "./factories";
+
+/** D-166: doğrulama yolları kurulumu (onboarding) bitmiş firma ister. */
+const makeCompany: typeof makeCompanyBase = (p, over = {}) =>
+  makeCompanyBase(p, { onboardingCompletedAt: new Date(), ...over });
 import { makeAuthService } from "./make-auth-service";
 
 function docsService() {
@@ -25,6 +29,8 @@ function docsService() {
       size: 1024,
       contentType: "application/pdf",
     })),
+    // D-014: commit içerik imzasını (ilk baytlar) da denetler.
+    readObjectPrefix: jest.fn(async () => Buffer.from("%PDF-1.7\n%")),
   };
   return new CompanyDocsService(
     prisma as never,

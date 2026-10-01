@@ -20,6 +20,7 @@ import {
   maskNationalId,
   normalizeSwift,
   normalizeTaxId,
+  parseVerificationReason,
   type VerificationReasonCode,
 } from "@rothern/shared";
 import { assertBankDetails } from "../../common/company/bank-details";
@@ -60,6 +61,7 @@ import {
 } from "../notifications/notification.service";
 import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import {
+  dateParam,
   formatNotificationParams,
   type NotificationParams,
 } from "../../common/notifications/notification-params";
@@ -147,6 +149,13 @@ export interface AdminNotifyMessage {
   /** Düz metin İÇERİK paragrafları (selamlama OTOMATİK eklenir). */
   paragraphs?: string[];
   /**
+   * `paragraphKeys`'ten SONRA gelen, her biri KENDİ parametreleriyle çizilen
+   * e-posta satırları (ör. reddedilen her belge + gerekçesi, arayüz testi
+   * D-141). `keyParams` değerleri katalog anahtarıdır; alıcının dilinde
+   * çevrilip parametre olarak geçer (belge adı, gerekçe kodu metni).
+   */
+  lines?: readonly AdminNotifyLine[];
+  /**
    * Başlık + gövde + CTA anahtarlarının ORTAK ICU sözlüğü. Tarih/tutar TİPLİ
    * (`notification-params.ts`) — alıcının dilinde biçimlenir.
    */
@@ -154,6 +163,56 @@ export interface AdminNotifyMessage {
   /** Eylem düğmesi — `path` İÇ (Türkçe) yoldur, alıcının diline çevrilir. */
   cta?: { labelKey?: ApiMessageKey; label?: string; path: string };
 }
+
+/** Bkz. `AdminNotifyMessage.lines`. */
+export interface AdminNotifyLine {
+  key: ApiMessageKey;
+  params?: NotificationParams;
+  keyParams?: Record<string, ApiMessageKey>;
+}
+
+/**
+ * Saklanan kodlu red gerekçesi → e-posta satırı (alıcının dilinde): kod
+ * katalog metniyle, admin notu olduğu gibi. `prefix` satır ailesi —
+ * `redSatiri*` (belge adıyla) ya da `redGerekcesi*` (genel karar).
+ */
+function rejectReasonLine(
+  raw: string | null | undefined,
+  prefix: "redSatiri" | "redGerekcesi",
+  extraKeyParams: Record<string, ApiMessageKey> = {},
+): AdminNotifyLine | null {
+  const { code, note } = parseVerificationReason(raw);
+  const base = `api.notifications.adminCompanies.${prefix}`;
+  if (code) {
+    const gerekce =
+      `api.notifications.adminCompanies.redKodu.${code}` as ApiMessageKey;
+    return note
+      ? {
+          key: `${base}Notlu` as ApiMessageKey,
+          params: { not: note },
+          keyParams: { ...extraKeyParams, gerekce },
+        }
+      : { key: base as ApiMessageKey, keyParams: { ...extraKeyParams, gerekce } };
+  }
+  if (!note) return null;
+  return {
+    key: `${base}Serbest` as ApiMessageKey,
+    params: { not: note },
+    keyParams: extraKeyParams,
+  };
+}
+
+/** Belge türünün e-postadaki adı — TR firmasında yerel adlar, diğerlerinde genel. */
+function docLabelKey(kind: DocKind, country: string | null): ApiMessageKey {
+  const set = (country ?? "TR").toUpperCase() === "TR" ? "belgeTr" : "belge";
+  return `api.notifications.adminCompanies.${set}.${kind}` as ApiMessageKey;
+}
+
+/** Paket kodunun e-postadaki adı (marka adı; dile göre değişmez). */
+const TIER_DISPLAY: Record<"SILVER" | "GOLD", string> = {
+  SILVER: "Silver",
+  GOLD: "Gold",
+};
 
 /**
  * KODLU RED GEREKÇESİ (2026-09-27) — saklanan dize `formatVerificationReason`
@@ -304,6 +363,21 @@ export class AdminCompaniesService {
       ...(msg.paragraphKeys
         ? msg.paragraphKeys.filter((k): k is ApiMessageKey => !!k).map(t)
         : (msg.paragraphs ?? [])),
+      ...(msg.lines ?? []).map((line) =>
+        tApi(
+          line.key,
+          {
+            ...formatNotificationParams(line.params, locale),
+            ...Object.fromEntries(
+              Object.entries(line.keyParams ?? {}).map(([name, key]) => [
+                name,
+                tApi(key, undefined, locale),
+              ]),
+            ),
+          },
+          locale,
+        ),
+      ),
     ];
     const ctaLabel = msg.cta?.labelKey
       ? t(msg.cta.labelKey)
@@ -1246,6 +1320,7 @@ export class AdminCompaniesService {
       select: {
         country: true,
         companyVerificationStatus: true,
+        onboardingCompletedAt: true,
         mersisNo: true,
         tradeRegistryNo: true,
         iban: true,
@@ -1271,6 +1346,7 @@ export class AdminCompaniesService {
       );
     }
     if (status === "VERIFIED") {
+      this.assertOnboarded(c);
       for (const k of required) {
         if (!(c as Record<string, unknown>)[DOC_META[k].url]) {
           throw new BadRequestException(
@@ -1337,19 +1413,65 @@ export class AdminCompaniesService {
         },
       });
     } else {
-      void this.notifyCompany(id, {
-        type: "company_verification",
-        subjectKey: "api.notifications.adminCompanies.dogrulamaReddedildiBaslik",
-        paragraphKeys: [
-          "api.notifications.adminCompanies.dogrulamaReddedildiGovde",
-        ],
-        cta: {
-          labelKey: "api.notifications.common.belgeleriGuncelle",
-          path: "/company/ayarlar/dogrulama",
-        },
-      });
+      // Gerekçe e-postada (arayüz testi D-141); doğrulanmış firmada karar
+      // statü KAYBIDIR, etkisi ayrı metinle anlatılır (D-193).
+      const reasonLine = rejectReasonLine(rejectReason, "redGerekcesi");
+      void this.notifyCompany(
+        id,
+        c.companyVerificationStatus === "VERIFIED"
+          ? this.verificationRevokedMessage(reasonLine ? [reasonLine] : [])
+          : {
+              type: "company_verification",
+              subjectKey: "api.notifications.adminCompanies.dogrulamaReddedildiBaslik",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.dogrulamaReddedildiGovde",
+              ],
+              ...(reasonLine ? { lines: [reasonLine] } : {}),
+              cta: {
+                labelKey: "api.notifications.common.belgeleriGuncelle",
+                path: "/company/ayarlar/dogrulama",
+              },
+            },
+      );
     }
     return { ok: true };
+  }
+
+  /**
+   * D-166: firma kurulumu (unvan, vergi no, adres, rol) bitmemiş firma
+   * doğrulanamaz — eskiden yalnız API ile unvansız firma VERIFIED oluyordu.
+   */
+  private assertOnboarded(c: { onboardingCompletedAt: Date | null }): void {
+    if (!c.onboardingCompletedAt) {
+      throw new BadRequestException(
+        i18nMessage("api.adminCompanies.firmaKurulumuTamamlanmadiDogrulanamaz"),
+      );
+    }
+  }
+
+  /**
+   * Doğrulanmış firmanın doğrulaması geri alındı (D-193): genel "bazı
+   * belgeleriniz reddedildi" metni statü kaybını ve kapanan adımları
+   * söylemiyordu. `lines` reddedilen belgeler / gerekçe.
+   */
+  private verificationRevokedMessage(
+    lines: readonly AdminNotifyLine[],
+  ): AdminNotifyMessage {
+    return {
+      type: "company_verification",
+      subjectKey: "api.notifications.adminCompanies.dogrulamaGeriAlindiBaslik",
+      bodyKey: "api.notifications.adminCompanies.dogrulamaGeriAlindiGovde",
+      paragraphKeys: [
+        "api.notifications.adminCompanies.dogrulamaGeriAlindiEtki",
+        lines.length > 0 &&
+          "api.notifications.adminCompanies.reddedilenBelgelerBaslik",
+      ],
+      lines,
+      cta: {
+        labelKey: "api.notifications.common.belgeleriGuncelle",
+        path: "/company/ayarlar/dogrulama",
+      },
+    };
   }
 
   /**
@@ -1378,6 +1500,7 @@ export class AdminCompaniesService {
       select: {
         country: true,
         companyVerificationStatus: true,
+        onboardingCompletedAt: true,
         mersisNo: true,
         tradeRegistryNo: true,
         iban: true,
@@ -1434,7 +1557,10 @@ export class AdminCompaniesService {
       ? "REJECTED"
       : "VERIFIED";
     // Dalga B: belge kararları geçse bile kimlik alanları eksikse VERIFIED olmaz.
-    if (status === "VERIFIED") this.assertKycIdentityComplete(c);
+    if (status === "VERIFIED") {
+      this.assertOnboarded(c);
+      this.assertKycIdentityComplete(c);
+    }
     const wasSame = c.companyVerificationStatus === status;
     // #3 + #4 (denetim 2026-08-26 Parça 9): CAS. `where` hem okuduğumuz genel
     // durumu hem de İNCELENEN BELGE ANAHTARLARINI sabitler — admin ekranı
@@ -1497,17 +1623,37 @@ export class AdminCompaniesService {
         },
       });
     } else {
-      void this.notifyCompany(id, {
-        type: "company_verification",
-        subjectKey: "api.notifications.adminCompanies.baziBelgelerReddedildiBaslik",
-        paragraphKeys: [
-          "api.notifications.adminCompanies.baziBelgelerReddedildiGovde",
-        ],
-        cta: {
-          labelKey: "api.notifications.common.belgeleriGuncelle",
-          path: "/company/ayarlar/dogrulama",
-        },
-      });
+      // Hangi belge, neden (arayüz testi D-141): reddedilen her belge kendi
+      // gerekçesiyle ayrı satır. Doğrulanmış firmada karar statü kaybıdır
+      // (D-193) — etkisi ayrı metinle anlatılır.
+      const lines = required
+        .filter((k) => decisions[k]?.status === "REJECTED")
+        .map((k) =>
+          rejectReasonLine(data[DOC_META[k].reason] as string, "redSatiri", {
+            belge: docLabelKey(k, c.country),
+          }),
+        )
+        .filter((l): l is AdminNotifyLine => l !== null);
+      void this.notifyCompany(
+        id,
+        c.companyVerificationStatus === "VERIFIED"
+          ? this.verificationRevokedMessage(lines)
+          : {
+              type: "company_verification",
+              subjectKey: "api.notifications.adminCompanies.baziBelgelerReddedildiBaslik",
+              bodyKey: "api.notifications.adminCompanies.baziBelgelerReddedildiGovde",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.baziBelgelerReddedildiGovde",
+                lines.length > 0 &&
+                  "api.notifications.adminCompanies.reddedilenBelgelerBaslik",
+              ],
+              lines,
+              cta: {
+                labelKey: "api.notifications.common.belgeleriGuncelle",
+                path: "/company/ayarlar/dogrulama",
+              },
+            },
+      );
     }
     return { ok: true, status };
   }
@@ -1766,13 +1912,19 @@ export class AdminCompaniesService {
         params: { adet: trimmed.unpublished, limit: PRODUCT_LIMITS.STANDART ?? 0 },
       });
     } else if (tier !== "STANDART" && before.tier === "STANDART") {
+      // Paket adı ham kod değil marka adı + bitiş tarihi (arayüz testi D-210).
       void this.notifyCompany(id, {
         type: "membership_granted",
         subjectKey: "api.notifications.adminCompanies.paketTanimlandiBaslik",
         paragraphKeys: [
-          "api.notifications.adminCompanies.paketTanimlandiGovde",
+          membershipEndAt
+            ? "api.notifications.adminCompanies.paketTanimlandiGovdeBitisli"
+            : "api.notifications.adminCompanies.paketTanimlandiGovde",
         ],
-        params: { paket: tier },
+        params: {
+          paket: TIER_DISPLAY[tier],
+          ...(membershipEndAt ? { bitis: dateParam(membershipEndAt) } : {}),
+        },
       });
     }
     return { ok: true, tier, membershipEndAt };
@@ -2140,11 +2292,21 @@ export class AdminCompaniesService {
       actorId: adminId,
       entityType: "company",
       entityId: companyId,
+      // Silme kaydıyla eşleşsin (D-167): hangi notun eklendiği.
+      metadata: { noteId: note.id },
     });
     return { ok: true, id: note.id };
   }
 
   async deleteNote(noteId: string, adminId: string) {
+    // D-167: silinen notun firması ve metni denetime yazılır — eskiden yalnız
+    // not kimliği yazılıyordu; firma Denetim sekmesi (firma id'siyle arar)
+    // silmeyi göstermiyor, ne silindiği de izlenemiyordu.
+    const note = await this.prisma.companyAdminNote.findUnique({
+      where: { id: noteId },
+      select: { companyId: true, body: true },
+    });
+    if (!note) throw new NotFoundException(i18nMessage("api.adminCompanies.notBulunamadi"));
     const done = await this.prisma.companyAdminNote.deleteMany({
       where: { id: noteId },
     });
@@ -2153,8 +2315,10 @@ export class AdminCompaniesService {
       action: "admin.company.note_deleted",
       actorType: "admin",
       actorId: adminId,
+      tenantId: note.companyId,
       entityType: "company_note",
       entityId: noteId,
+      metadata: { companyId: note.companyId, body: note.body.slice(0, 1000) },
     });
     return { ok: true };
   }

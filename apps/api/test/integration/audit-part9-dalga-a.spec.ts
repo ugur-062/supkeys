@@ -7,7 +7,19 @@ import { AdminInspectionService } from "../../src/modules/admin-companies/admin-
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser, makeListing } from "./factories";
+import { makeCompanyWithUser as makeCompanyWithUserBase, makeListing } from "./factories";
+
+/** D-166: doğrulama yolları kurulumu (onboarding) bitmiş firma ister. */
+async function makeCompanyWithUser(
+  ...args: Parameters<typeof makeCompanyWithUserBase>
+): ReturnType<typeof makeCompanyWithUserBase> {
+  const made = await makeCompanyWithUserBase(...args);
+  await prisma.company.update({
+    where: { id: made.company.id },
+    data: { onboardingCompletedAt: new Date() },
+  });
+  return made;
+}
 
 function rig() {
   const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };

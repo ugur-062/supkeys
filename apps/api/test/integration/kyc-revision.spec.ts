@@ -31,6 +31,8 @@ function storageMock() {
       size: 1024,
       contentType: "application/pdf",
     })),
+    // D-014: commit içerik imzasını (ilk baytlar) da denetler.
+    readObjectPrefix: jest.fn(async () => Buffer.from("%PDF-1.7\n%")),
   };
 }
 

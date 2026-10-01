@@ -196,7 +196,8 @@
     "gecersizRedGerekcesiKodu": "Geçersiz red gerekçesi kodu",
     "buUlkeKaydaKapali": "Bu ülke kayda kapalı; firma bu ülkeye taşınamaz",
     "yerelHukukiYapiZorunlu": "Hukuki yapı \"Diğer\" iken yerel adı zorunlu (ör. GmbH, LLC)",
-    "ayniDuyuruAzOnceGonderildi": "Bu duyuru az önce gönderildi; tekrar göndermek için birkaç dakika bekleyin"
+    "ayniDuyuruAzOnceGonderildi": "Bu duyuru az önce gönderildi; tekrar göndermek için birkaç dakika bekleyin",
+    "firmaKurulumuTamamlanmadiDogrulanamaz": "Firma kurulumunu (unvan, vergi bilgileri, adres) tamamlamamış — doğrulanamaz."
   },
   "categories": {
     "gecersizKategoriId": "Geçersiz kategori ID: {join}",
@@ -351,7 +352,7 @@
     "buIlanKapatilamaz": "Bu ilan kapatılamaz",
     "ilanDurumuDegistiKazanansizKapatmaUygulanamadi": "İlan durumu değişti; kazanansız kapatma uygulanamadı",
     "sadeceAcikIlandaYapilabilir": "Sadece açık ilanda yapılabilir",
-    "buIlaniYonetmeYetkinizYok": "Bu ilanı yönetme yetkiniz yok — yalnız ilanı açan operatör yönetebilir",
+    "buIlaniYonetmeYetkinizYok": "Bu talebi yönetme yetkiniz yok — yalnız talebi açan kullanıcı yönetebilir",
     "actionPublish": "ilan yayınlayamazsınız",
     "actionBid": "teklif veremezsiniz",
     "actionAward": "kazandıramazsınız",
@@ -1006,7 +1007,8 @@
     "gecerliBirIbanGerekliKontrolHanesi": "Geçerli bir IBAN gerekli — kontrol hanesi tutmuyor.",
     "hesapSahibiGerekli": "Hesap sahibi gerekli.",
     "bankaHesapNumarasiGerekli": "Banka hesap numarası gerekli.",
-    "ibanGerekli": "IBAN gerekli."
+    "ibanGerekli": "IBAN gerekli.",
+    "onceFirmaKurulumunuTamamlayin": "Doğrulamaya göndermeden önce firma kurulumunu (unvan, vergi bilgileri, adres) tamamlayın."
   },
   "files": {
     "dosyaVerisiGecersiz": "Dosya verisi geçersiz",
@@ -1638,10 +1640,10 @@
       "belgeGuncellemesiReddedildiGovde": "Gönderdiğiniz yeni belge onaylanmadı; mevcut belgeniz geçerliliğini korumaktadır. Gerekçeyi görüp yeni bir belge yükleyebilirsiniz.",
       "paketSonlandirildiBaslik": "Paketiniz sonlandırıldı",
       "paketSonlandirildiAnaParagraf": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
-      "paketSonlandirildiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.",
-      "paketSonlandirildiDavetIptal": "Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
-      "paketSonlandirildiGovde": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
-      "paketSonlandirildiGovdeKirpildi": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz. Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
+      "paketSonlandirildiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi. Silver'a dönünce yeniden onaya gönderebilirsiniz; ürünler yönetici onayından sonra vitrine çıkar.",
+      "paketSonlandirildiDavetIptal": "Gönderdiğiniz bekleyen bağlantı davetleri ile taleplerinizde gönderim sırası bekleyen tedarikçi davetleri iptal edildi.",
+      "paketSonlandirildiGovde": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri ile taleplerinizde gönderim sırası bekleyen tedarikçi davetleri iptal edildi.",
+      "paketSonlandirildiGovdeKirpildi": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz. Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi. Silver'a dönünce yeniden onaya gönderebilirsiniz; ürünler yönetici onayından sonra vitrine çıkar. Gönderdiğiniz bekleyen bağlantı davetleri ile taleplerinizde gönderim sırası bekleyen tedarikçi davetleri iptal edildi.",
       "paketTanimlandiBaslik": "Paketiniz tanımlandı",
       "paketTanimlandiGovde": "Firma hesabınıza {paket} paketi tanımlandı. Paket haklarınızı hemen kullanmaya başlayabilirsiniz.",
       "paketSilvereAlindiBaslik": "Paketiniz Silver'a alındı",
@@ -1655,7 +1657,43 @@
       "askiyaAlindiGerekcesiz": "Firma hesabınız platform yöneticisi tarafından askıya alındı.",
       "askiyaAlindiGerekcesizGovde": "Firma hesabınız platform yöneticisi tarafından askıya alındı. İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
       "askiKaldirildiBaslik": "Hesabınızın askısı kaldırıldı",
-      "askiKaldirildiGovde": "Firma hesabınızın askısı kaldırıldı; platformu yeniden kullanabilirsiniz."
+      "askiKaldirildiGovde": "Firma hesabınızın askısı kaldırıldı; platformu yeniden kullanabilirsiniz.",
+      "dogrulamaGeriAlindiBaslik": "Firma doğrulamanız geri alındı",
+      "dogrulamaGeriAlindiEtki": "Firmanızın belgeleri yeniden incelendi ve doğrulanmış durumu geri alındı. Belgeleriniz yeniden onaylanana kadar \"Doğrulanmış\" rozeti profilinizde görünmez; talep yayınlama, teklif verme ve teklif kazandırma gibi doğrulama gerektiren adımlar kapalıdır. Mevcut siparişleriniz etkilenmez. Reddedilen belgeleri düzeltip yeniden gönderin.",
+      "dogrulamaGeriAlindiGovde": "Firma doğrulamanız geri alındı: belgeleriniz yeniden onaylanana kadar talep yayınlama, teklif verme ve teklif kazandırma kapalıdır. Reddedilen belgeleri düzeltip yeniden gönderin.",
+      "reddedilenBelgelerBaslik": "Reddedilen belgeler ve gerekçeleri:",
+      "redSatiri": "• {belge}: {gerekce}",
+      "redSatiriNotlu": "• {belge}: {gerekce} Not: {not}",
+      "redSatiriSerbest": "• {belge}: {not}",
+      "redGerekcesi": "Gerekçe: {gerekce}",
+      "redGerekcesiNotlu": "Gerekçe: {gerekce} Not: {not}",
+      "redGerekcesiSerbest": "Gerekçe: {not}",
+      "redKodu": {
+        "UNREADABLE": "Belge okunmuyor ya da bulanık — net bir tarama yükleyin.",
+        "WRONG_DOCUMENT": "Yanlış belge yüklenmiş — istenen belgeyi yükleyin.",
+        "OUTDATED": "Belge güncel değil — son 3 ay içinde alınmış bir belge yükleyin.",
+        "MISMATCH": "Belgedeki bilgiler firma bilgilerinizle uyuşmuyor.",
+        "MISSING_SIGNATURE": "İmza ya da kaşe eksik.",
+        "INCOMPLETE": "Belge eksik — tüm sayfaları yükleyin.",
+        "COUNTRY_CHANGED": "Kayıt ülkeniz değişti; yeni ülkenin zorunlu belgelerini tamamlayıp yeniden gönderin."
+      },
+      "belgeTr": {
+        "taxPlate": "Vergi Levhası",
+        "tradeRegistry": "Ticaret Sicil Gazetesi",
+        "signatureCircular": "İmza Sirküleri",
+        "activityCert": "Faaliyet Belgesi",
+        "idFront": "Yetkili Kimlik (Ön)",
+        "idBack": "Yetkili Kimlik (Arka)"
+      },
+      "belge": {
+        "taxPlate": "Vergi kayıt belgesi",
+        "tradeRegistry": "Şirket tescil belgesi",
+        "signatureCircular": "İmza sirküleri",
+        "activityCert": "Faaliyet belgesi",
+        "idFront": "Yetkili kimliği veya pasaportu",
+        "idBack": "Yetkili kimliği — arka yüz"
+      },
+      "paketTanimlandiGovdeBitisli": "Firma hesabınıza {paket} paketi tanımlandı; paketiniz {bitis} tarihine kadar geçerlidir. Paket haklarınızı hemen kullanmaya başlayabilirsiniz."
     },
     "adminProducts": {
       "yayinaAlindiBaslik": "Ürününüz yayına alındı",
@@ -1719,9 +1757,10 @@
     "membership": {
       "sonaErdiKonu": "Paketinizin süresi doldu",
       "sonaErdiAnaParagraf": "Paketinizin süresi doldu ve hesabınız ücretsiz Standart pakete geçirildi. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
-      "sonaErdiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.",
+      "sonaErdiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi. Silver'a dönünce yeniden onaya gönderebilirsiniz; ürünler yönetici onayından sonra vitrine çıkar.",
       "sonaErdiYukseltme": "Tekrar pakete geçmek için hesabınızdan yükseltme yapabilirsiniz.",
-      "premiumaGec": "Paketleri Gör"
+      "premiumaGec": "Paketleri Gör",
+      "sonaErdiDavetIptal": "Gönderdiğiniz bekleyen bağlantı davetleri ile taleplerinizde gönderim sırası bekleyen tedarikçi davetleri iptal edildi."
     },
     "ai": {
       "butceUyarisiBaslik": "AI bütçe uyarısı",

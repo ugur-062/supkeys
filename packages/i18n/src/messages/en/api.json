@@ -196,7 +196,8 @@
     "gecersizRedGerekcesiKodu": "Invalid rejection reason code",
     "buUlkeKaydaKapali": "Registration is closed for this country; the company cannot be moved to it",
     "yerelHukukiYapiZorunlu": "The local legal form is required when the legal structure is \"Other\" (e.g. GmbH, LLC)",
-    "ayniDuyuruAzOnceGonderildi": "This announcement was just sent; wait a few minutes before sending it again"
+    "ayniDuyuruAzOnceGonderildi": "This announcement was just sent; wait a few minutes before sending it again",
+    "firmaKurulumuTamamlanmadiDogrulanamaz": "The company has not completed its setup (legal name, tax details, address) — it cannot be verified."
   },
   "categories": {
     "gecersizKategoriId": "Invalid category ID: {join}",
@@ -351,7 +352,7 @@
     "buIlanKapatilamaz": "This request cannot be closed",
     "ilanDurumuDegistiKazanansizKapatmaUygulanamadi": "The request status changed; closing without an award could not be applied",
     "sadeceAcikIlandaYapilabilir": "This can be done only on an open request",
-    "buIlaniYonetmeYetkinizYok": "You do not have permission to manage this request — only the operator who opened it can manage it",
+    "buIlaniYonetmeYetkinizYok": "You do not have permission to manage this request — only the user who opened it can manage it",
     "actionPublish": "you cannot publish requests",
     "actionBid": "you cannot submit quotes",
     "actionAward": "you cannot award",
@@ -1006,7 +1007,8 @@
     "gecerliBirIbanGerekliKontrolHanesi": "A valid IBAN is required — the check digits do not match.",
     "hesapSahibiGerekli": "Account holder is required.",
     "bankaHesapNumarasiGerekli": "A bank account number is required.",
-    "ibanGerekli": "IBAN is required."
+    "ibanGerekli": "IBAN is required.",
+    "onceFirmaKurulumunuTamamlayin": "Complete your company setup (legal name, tax details, address) before submitting for verification."
   },
   "files": {
     "dosyaVerisiGecersiz": "The file data is invalid",
@@ -1638,10 +1640,10 @@
       "belgeGuncellemesiReddedildiGovde": "The new document you submitted was not approved; your current document remains valid. You can review the reason and upload a new document.",
       "paketSonlandirildiBaslik": "Your plan has ended",
       "paketSonlandirildiAnaParagraf": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
-      "paketSonlandirildiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver.",
-      "paketSonlandirildiDavetIptal": "The pending connection invitations you sent have been canceled.",
-      "paketSonlandirildiGovde": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. The pending connection invitations you sent have been canceled.",
-      "paketSonlandirildiGovdeKirpildi": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver. The pending connection invitations you sent have been canceled.",
+      "paketSonlandirildiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval.",
+      "paketSonlandirildiDavetIptal": "The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
+      "paketSonlandirildiGovde": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
+      "paketSonlandirildiGovdeKirpildi": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
       "paketTanimlandiBaslik": "Your plan has been activated",
       "paketTanimlandiGovde": "The {paket} plan has been assigned to your company account. You can start using your plan benefits right away.",
       "paketSilvereAlindiBaslik": "Your plan has been changed to Silver",
@@ -1655,7 +1657,43 @@
       "askiyaAlindiGerekcesiz": "Your company account has been suspended by a platform administrator.",
       "askiyaAlindiGerekcesizGovde": "Your company account has been suspended by a platform administrator. To appeal or for more information, please contact our support team.",
       "askiKaldirildiBaslik": "Your account suspension has been lifted",
-      "askiKaldirildiGovde": "Your company account suspension has been lifted; you can use the platform again."
+      "askiKaldirildiGovde": "Your company account suspension has been lifted; you can use the platform again.",
+      "dogrulamaGeriAlindiBaslik": "Your company verification has been revoked",
+      "dogrulamaGeriAlindiEtki": "Your company documents were reviewed again and your verified status has been revoked. Until your documents are approved again, the \"Verified\" badge does not appear on your profile and steps that require verification, such as publishing requests, submitting quotes and awarding quotes, are unavailable. Your existing orders are not affected. Correct the rejected documents and resubmit.",
+      "dogrulamaGeriAlindiGovde": "Your company verification has been revoked: until your documents are approved again, publishing requests, submitting quotes and awarding quotes are unavailable. Correct the rejected documents and resubmit.",
+      "reddedilenBelgelerBaslik": "Rejected documents and reasons:",
+      "redSatiri": "• {belge}: {gerekce}",
+      "redSatiriNotlu": "• {belge}: {gerekce} Note: {not}",
+      "redSatiriSerbest": "• {belge}: {not}",
+      "redGerekcesi": "Reason: {gerekce}",
+      "redGerekcesiNotlu": "Reason: {gerekce} Note: {not}",
+      "redGerekcesiSerbest": "Reason: {not}",
+      "redKodu": {
+        "UNREADABLE": "The document is unreadable or blurry — upload a clear scan.",
+        "WRONG_DOCUMENT": "The wrong document was uploaded — upload the requested document.",
+        "OUTDATED": "The document is out of date — upload one issued within the last 3 months.",
+        "MISMATCH": "The details on the document do not match your company details.",
+        "MISSING_SIGNATURE": "The signature or company stamp is missing.",
+        "INCOMPLETE": "The document is incomplete — upload all pages.",
+        "COUNTRY_CHANGED": "Your registration country has changed; complete the documents required for the new country and resubmit."
+      },
+      "belgeTr": {
+        "taxPlate": "Tax registration certificate",
+        "tradeRegistry": "Trade Registry Gazette",
+        "signatureCircular": "Signature circular",
+        "activityCert": "Certificate of activity",
+        "idFront": "Authorized signatory ID (front)",
+        "idBack": "Authorized signatory ID (back)"
+      },
+      "belge": {
+        "taxPlate": "Tax registration certificate",
+        "tradeRegistry": "Company registration certificate",
+        "signatureCircular": "Signature circular",
+        "activityCert": "Certificate of activity",
+        "idFront": "Authorized signatory ID or passport",
+        "idBack": "Authorized signatory ID — back"
+      },
+      "paketTanimlandiGovdeBitisli": "The {paket} plan has been assigned to your company account and is valid until {bitis}. You can start using your plan benefits right away."
     },
     "adminProducts": {
       "yayinaAlindiBaslik": "Your product has been published",
@@ -1719,9 +1757,10 @@
     "membership": {
       "sonaErdiKonu": "Your plan has expired",
       "sonaErdiAnaParagraf": "Your plan has expired and your account has been moved to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a paid plan), and up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
-      "sonaErdiKirpilanUrun": "{adet, plural, one {# product} other {# products}} over the limit {adet, plural, one {was} other {were}} moved to draft; nothing was deleted, and you can publish them again when you return to Silver.",
+      "sonaErdiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval.",
       "sonaErdiYukseltme": "To move to a plan again, you can upgrade from your account.",
-      "premiumaGec": "View plans"
+      "premiumaGec": "View plans",
+      "sonaErdiDavetIptal": "The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled."
     },
     "ai": {
       "butceUyarisiBaslik": "AI budget alert",
