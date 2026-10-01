@@ -1887,8 +1887,10 @@ export class CompanyOrdersService {
           }),
         );
       }
-      // Mükerrer bildirim (arayüz testi FX-00 O-002): aynı kişinin aynı tutar
-      // ve notla az önce açtığı, onay bekleyen kayıt varsa ikincisi açılmaz —
+      // Mükerrer bildirim (arayüz testi FX-00 O-002): aynı kişinin aynı tutar,
+      // not, yöntem ve çek bilgisiyle (create ile aynı normalizasyon) az önce
+      // açtığı, onay bekleyen kayıt varsa ikincisi açılmaz — aynı tutarlı
+      // vadeli çek serisi (farklı çek no / vade) mükerrer sayılmaz —
       // çift tık iki "onay bekliyor" kaydı ve satıcıya iki e-posta üretiyordu;
       // satıcı ikisini de onaylarsa peşin eşiği yanlışlıkla dolabilirdi. Sipariş
       // satırı kilitli olduğundan eşzamanlı ikinci istek ilkini görür.
@@ -1899,6 +1901,12 @@ export class CompanyOrdersService {
           recordedByUserId: user.userId,
           amount: inputDec,
           note: input.note?.trim() || null,
+          method: input.method?.trim() || null,
+          chequeNo: isCheque ? input.chequeNo?.trim() || null : null,
+          chequeDueDate:
+            isCheque && input.chequeDueDate
+              ? new Date(input.chequeDueDate)
+              : null,
           createdAt: { gte: new Date(Date.now() - PAYMENT_DUPLICATE_WINDOW_MS) },
         },
         select: { id: true },

@@ -215,6 +215,42 @@ describe("FX-00 O-002 — ödeme bildiriminin tekrarı mükerrer kayıt açmaz",
       }),
     ).toBe(2);
   });
+
+  it("aynı tutarlı vadeli çek serisi (farklı çek no / vade) mükerrer sayılmaz; birebir aynı çek 409", async () => {
+    const svc = orders();
+    const seller = await makeCompanyWithUser(prisma);
+    const buyer = await makeCompanyWithUser(prisma);
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 9000,
+        status: "DELIVERED",
+        paymentTiming: "AFTER_DELIVERY",
+        deliveredAt: new Date(),
+      },
+    });
+    const cheque = (no: string, due: string) => ({
+      amount: 1000,
+      method: "Çek",
+      chequeNo: no,
+      chequeBank: "Banka",
+      chequeDueDate: due,
+    });
+    await svc.recordPayment(buyer.auth, order.id, cheque("C-1", "2026-11-01") as never);
+    await svc.recordPayment(buyer.auth, order.id, cheque("C-2", "2026-12-01") as never);
+    await svc.recordPayment(buyer.auth, order.id, cheque("C-3", "2027-01-01") as never);
+    await expect(
+      svc.recordPayment(buyer.auth, order.id, cheque("C-3", "2027-01-01") as never),
+    ).rejects.toBeInstanceOf(ConflictException);
+    // Aynı tutar ama başka yöntem (havale) de ayrı bildirimdir.
+    await svc.recordPayment(buyer.auth, order.id, { amount: 1000, method: "Havale" } as never);
+    expect(
+      await prisma.companyOrderPayment.count({
+        where: { orderId: order.id, status: "AWAITING_CONFIRMATION" },
+      }),
+    ).toBe(4);
+  });
 });
 
 describe("FX-00 O-006/O-061/O-070 — ürün ve katalog yazımları firma kilidinde", () => {
@@ -421,6 +457,51 @@ describe("FX-00 O-007 — aynı duyurunun tekrarı reddedilir", () => {
     await expect(
       fresh.announce({ ...input, subject: "Başka konu" }, "admin-1"),
     ).resolves.toMatchObject({ delivered: 2 });
+  });
+
+  it("aynı konulu duyuru başka segmente / e-postalı gönderilebilir; hedef sorgusu hata verirse yeniden deneme 409 almaz", async () => {
+    const notifications = { pushToCompany: jest.fn().mockResolvedValue(1) };
+    const make = () =>
+      new AdminCompaniesService(
+        prisma as never,
+        {} as never,
+        { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
+        notifications as never,
+        { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+        new AuditService(prisma as never),
+        new EmailSuppressionService(prisma as never),
+      );
+    await makeCompanyWithUser(prisma, { tier: "GOLD", country: "TR" });
+    await makeCompanyWithUser(prisma, { tier: "GOLD", country: "DE" });
+    const base = { subject: "Kampanya", message: "Yeni dönem", tier: "GOLD" as const };
+    const service = make();
+    await expect(service.announce({ ...base, country: "TR" }, "admin-2")).resolves.toMatchObject({
+      delivered: 1,
+    });
+    // Aynı konu, farklı ülke → gerçek mükerrer değil (yeni örnek: süreç içi hak yok, yalnız denetim kaydı).
+    await expect(make().announce({ ...base, country: "DE" }, "admin-2")).resolves.toMatchObject({
+      delivered: 1,
+    });
+    // Aynı segment, bu kez e-postalı → ayrı duyuru.
+    await expect(
+      make().announce({ ...base, country: "TR", sendEmail: true }, "admin-2"),
+    ).resolves.toMatchObject({ delivered: 1 });
+    // Birebir tekrar hâlâ reddedilir.
+    await expect(make().announce({ ...base, country: "DE" }, "admin-2")).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+
+    // Gönderim hiçbir firmaya ulaşmadan hata verirse hak bırakılır.
+    const flaky = make();
+    const realFindMany = prisma.company.findMany.bind(prisma.company);
+    const spy = jest
+      .spyOn(prisma.company, "findMany")
+      .mockRejectedValueOnce(new Error("db down") as never);
+    const retryInput = { ...base, subject: "Yeniden deneme" };
+    await expect(flaky.announce(retryInput, "admin-2")).rejects.toThrow("db down");
+    spy.mockImplementation(realFindMany as never);
+    await expect(flaky.announce(retryInput, "admin-2")).resolves.toMatchObject({ delivered: 2 });
+    spy.mockRestore();
   });
 });
 

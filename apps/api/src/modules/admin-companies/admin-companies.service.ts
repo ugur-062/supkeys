@@ -2254,8 +2254,11 @@ export class AdminCompaniesService {
     // MÜKERRER KORUMA (arayüz testi FX-00 O-007): "Evet, Gönder"e çift tık iki
     // istek de başarılı olup segmentteki her firmaya iki e-posta + iki bildirim
     // gidiyordu. Hak SENKRON alınır (ilk await'ten önce — aynı süreçteki
-    // eşzamanlı istek göremeden geçemez); ayrıca son pencerede aynı konulu
-    // gönderim denetim kaydında varsa (başka örnek / sıralı tekrar) reddedilir.
+    // eşzamanlı istek göremeden geçemez); ayrıca son pencerede AYNI duyuru
+    // (yönetici + konu + mesaj + tier + ülke + e-posta → `dedupeKey`) denetim
+    // kaydında varsa (başka örnek / sıralı tekrar) reddedilir. Yalnız konuya
+    // bakmak, aynı konulu duyuruyu başka segmente gönderen yöneticiyi de
+    // engelliyordu.
     const claimKey = createHash("sha256")
       .update(
         JSON.stringify([
@@ -2284,7 +2287,7 @@ export class AdminCompaniesService {
           action: "admin.announcement.sent",
           actorId: adminId,
           createdAt: { gte: new Date(claimNow - ANNOUNCE_DEDUPE_MS) },
-          metadata: { path: ["subject"], equals: input.subject },
+          metadata: { path: ["dedupeKey"], equals: claimKey },
         },
         select: { id: true },
       });
@@ -2298,160 +2301,169 @@ export class AdminCompaniesService {
       this.announceClaims.delete(claimKey);
       throw e;
     }
-    // Perf (1000 firma): e-posta hedef alanları TEK sorguda çekilir (eski per-
-    // firma notifyCompany.findUnique N+1'i kalktı); gönderim SERİ değil, sınırlı
-    // paralel chunk'larda (5000 seri await → istek timeout riski kalktı).
-    const targets = (await this.prisma.company.findMany({
-      where,
-      select: {
-        id: true,
-        ...(input.sendEmail
-          ? {
-              name: true,
-              billingEmail: true,
-              users: {
-                where: { isActive: true, deletedAt: null },
-                // #15: alıcının duyuru tercihi (opt-out) okunur.
-                select: {
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  notificationPrefs: true,
-                  // E-posta kabuğunun/CTA'sının dili (notifyCompanyEmail).
-                  locale: true,
-                },
-                orderBy: { createdAt: "asc" },
-                take: 1,
-              },
-            }
-          : {}),
-      },
-      // Dalga B: sessiz tavan yasak — kesildiyse yanıt bunu SÖYLER.
-      take: ANNOUNCE_MAX_TARGETS + 1,
-    })) as {
-      id: string;
-      name: string;
-      billingEmail: string | null;
-      users: {
-        email: string;
-        firstName: string;
-        lastName: string;
-        notificationPrefs?: unknown;
-        locale?: string | null;
-      }[];
-    }[];
-    const truncated = targets.length > ANNOUNCE_MAX_TARGETS;
-    if (truncated) targets.length = ANNOUNCE_MAX_TARGETS;
-    const subject = input.subject.trim();
-    const message = input.message.trim();
-    const pushPayload = {
-      type: "admin_announcement",
-      // Yetki tablosu: duyuru yönetim ve koltuk sahiplerine; onaylayıcı-only
-      // üye yalnız onay bildirimi alır (kullanıcı kararı 2026-09-05).
-      audience: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
-      // Duyuru metni admin'in KENDİ yazdığı serbest metindir → çevrilmez.
-      // Yalnız CTA etiketi katalogdan (alıcının dilinde) gelir.
-      title: subject,
-      body: message,
-      ctaLabelKey: DEFAULT_CTA_KEY,
-      ctaPath: `${resolveWebUrl(this.config)}/company`,
-    };
-    const CHUNK = 25;
+    // Gönderim hiçbir firmaya ulaşmadan hata verirse (hedef sorgusu vb.) hak
+    // bırakılır — yeniden deneme 2 dakika 409 almasın. Kısmi gönderimden sonra
+    // tutulur (tekrar, ulaşmış firmalara ikinci kopya olurdu).
     let delivered = 0;
-    // E-POSTA (derin denetim Y-08/X18): eskiden `void email.send` ile 5000'e
-    // kadar gönderim aynı anda uçuyor, Resend 429'unda FAILED kalıyor ve DB
-    // havuzunu tüketiyordu. Artık her gönderim EmailService kuyruğundan
-    // (`bulk` öncelik, saniyelik hız + sınırlı eşzamanlılık + 429 yeniden
-    // deneme) geçer. İstek e-postaları BEKLEMEZ — hesabın saniyelik limitiyle
-    // 1000 e-posta dakikalar sürer, HTTP isteği zaman aşımına düşerdi; sonuç
-    // sayıları bitince ayrı audit satırına yazılır.
-    const emailJobs: Promise<"sent" | "skipped" | "failed">[] = [];
-    for (let i = 0; i < targets.length; i += CHUNK) {
-      const results = await Promise.allSettled(
-        targets.slice(i, i + CHUNK).map(async (t) => {
-          if (input.sendEmail) {
-            // notifyCompany paritesi: in-app push (swallow) + prefetch'li e-posta.
-            await this.notifications
-              .pushToCompany(t.id, pushPayload)
-              .catch((err) =>
-                this.logger.warn(
-                  `Admin bildirimi yazılamadı (${t.id}): ${
-                    err instanceof Error ? err.message : String(err)
-                  }`,
-                ),
-              );
-            // #15 (denetim 2026-08-26 Parça 9): duyuru artık kapatılabilir
-            // bir bildirim tipi (`admin_announcement` → `announcement`).
-            // Alıcı kullanıcının tercihine saygı gösterilir. NOT: firma
-            // `billingEmail`'ine giden kol tercihsizdir — bu, Parça 7'de
-            // yazılı karara bağlanmış mimari (fatura adresi kurumsaldır).
-            const prefUser = t.users[0];
-            const emailAllowed =
-              !prefUser ||
-              !!t.billingEmail ||
-              isNotificationEnabled(
-                prefUser.notificationPrefs as Record<string, boolean> | null,
-                "admin_announcement",
-              );
-            if (emailAllowed) {
-              emailJobs.push(
-                this.notifyCompanyEmail(
-                  t,
-                  {
-                    type: "admin_announcement",
-                    subject,
-                    body: message,
-                    paragraphs: [message],
+    try {
+      // Perf (1000 firma): e-posta hedef alanları TEK sorguda çekilir (eski per-
+      // firma notifyCompany.findUnique N+1'i kalktı); gönderim SERİ değil, sınırlı
+      // paralel chunk'larda (5000 seri await → istek timeout riski kalktı).
+      const targets = (await this.prisma.company.findMany({
+        where,
+        select: {
+          id: true,
+          ...(input.sendEmail
+            ? {
+                name: true,
+                billingEmail: true,
+                users: {
+                  where: { isActive: true, deletedAt: null },
+                  // #15: alıcının duyuru tercihi (opt-out) okunur.
+                  select: {
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    notificationPrefs: true,
+                    // E-posta kabuğunun/CTA'sının dili (notifyCompanyEmail).
+                    locale: true,
                   },
-                  { priority: "bulk" },
-                ),
-              );
+                  orderBy: { createdAt: "asc" },
+                  take: 1,
+                },
+              }
+            : {}),
+        },
+        // Dalga B: sessiz tavan yasak — kesildiyse yanıt bunu SÖYLER.
+        take: ANNOUNCE_MAX_TARGETS + 1,
+      })) as {
+        id: string;
+        name: string;
+        billingEmail: string | null;
+        users: {
+          email: string;
+          firstName: string;
+          lastName: string;
+          notificationPrefs?: unknown;
+          locale?: string | null;
+        }[];
+      }[];
+      const truncated = targets.length > ANNOUNCE_MAX_TARGETS;
+      if (truncated) targets.length = ANNOUNCE_MAX_TARGETS;
+      const subject = input.subject.trim();
+      const message = input.message.trim();
+      const pushPayload = {
+        type: "admin_announcement",
+        // Yetki tablosu: duyuru yönetim ve koltuk sahiplerine; onaylayıcı-only
+        // üye yalnız onay bildirimi alır (kullanıcı kararı 2026-09-05).
+        audience: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
+        // Duyuru metni admin'in KENDİ yazdığı serbest metindir → çevrilmez.
+        // Yalnız CTA etiketi katalogdan (alıcının dilinde) gelir.
+        title: subject,
+        body: message,
+        ctaLabelKey: DEFAULT_CTA_KEY,
+        ctaPath: `${resolveWebUrl(this.config)}/company`,
+      };
+      const CHUNK = 25;
+      // E-POSTA (derin denetim Y-08/X18): eskiden `void email.send` ile 5000'e
+      // kadar gönderim aynı anda uçuyor, Resend 429'unda FAILED kalıyor ve DB
+      // havuzunu tüketiyordu. Artık her gönderim EmailService kuyruğundan
+      // (`bulk` öncelik, saniyelik hız + sınırlı eşzamanlılık + 429 yeniden
+      // deneme) geçer. İstek e-postaları BEKLEMEZ — hesabın saniyelik limitiyle
+      // 1000 e-posta dakikalar sürer, HTTP isteği zaman aşımına düşerdi; sonuç
+      // sayıları bitince ayrı audit satırına yazılır.
+      const emailJobs: Promise<"sent" | "skipped" | "failed">[] = [];
+      for (let i = 0; i < targets.length; i += CHUNK) {
+        const results = await Promise.allSettled(
+          targets.slice(i, i + CHUNK).map(async (t) => {
+            if (input.sendEmail) {
+              // notifyCompany paritesi: in-app push (swallow) + prefetch'li e-posta.
+              await this.notifications
+                .pushToCompany(t.id, pushPayload)
+                .catch((err) =>
+                  this.logger.warn(
+                    `Admin bildirimi yazılamadı (${t.id}): ${
+                      err instanceof Error ? err.message : String(err)
+                    }`,
+                  ),
+                );
+              // #15 (denetim 2026-08-26 Parça 9): duyuru artık kapatılabilir
+              // bir bildirim tipi (`admin_announcement` → `announcement`).
+              // Alıcı kullanıcının tercihine saygı gösterilir. NOT: firma
+              // `billingEmail`'ine giden kol tercihsizdir — bu, Parça 7'de
+              // yazılı karara bağlanmış mimari (fatura adresi kurumsaldır).
+              const prefUser = t.users[0];
+              const emailAllowed =
+                !prefUser ||
+                !!t.billingEmail ||
+                isNotificationEnabled(
+                  prefUser.notificationPrefs as Record<string, boolean> | null,
+                  "admin_announcement",
+                );
+              if (emailAllowed) {
+                emailJobs.push(
+                  this.notifyCompanyEmail(
+                    t,
+                    {
+                      type: "admin_announcement",
+                      subject,
+                      body: message,
+                      paragraphs: [message],
+                    },
+                    { priority: "bulk" },
+                  ),
+                );
+              }
+            } else {
+              await this.notifications.pushToCompany(t.id, pushPayload);
             }
-          } else {
-            await this.notifications.pushToCompany(t.id, pushPayload);
-          }
-        }),
-      );
-      for (const r of results) {
-        if (r.status === "fulfilled") delivered++;
-        else
-          this.logger.warn(
-            `Duyuru gönderilemedi: ${
-              r.reason instanceof Error ? r.reason.message : String(r.reason)
-            }`,
-          );
+          }),
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled") delivered++;
+          else
+            this.logger.warn(
+              `Duyuru gönderilemedi: ${
+                r.reason instanceof Error ? r.reason.message : String(r.reason)
+              }`,
+            );
+        }
       }
-    }
-    await this.audit.log({
-      action: "admin.announcement.sent",
-      actorType: "admin",
-      actorId: adminId,
-      entityType: "announcement",
-      entityId: null,
-      metadata: {
-        subject: input.subject,
-        tier: input.tier ?? "all",
-        country: input.country ?? "all",
-        email: !!input.sendEmail,
+      await this.audit.log({
+        action: "admin.announcement.sent",
+        actorType: "admin",
+        actorId: adminId,
+        entityType: "announcement",
+        entityId: null,
+        metadata: {
+          subject: input.subject,
+          tier: input.tier ?? "all",
+          country: input.country ?? "all",
+          email: !!input.sendEmail,
+          dedupeKey: claimKey,
+          targets: targets.length,
+          delivered,
+          truncated,
+          ...(input.sendEmail ? { emailQueued: emailJobs.length } : {}),
+        },
+      });
+      if (emailJobs.length > 0) {
+        void this.recordAnnouncementEmailResult(emailJobs, {
+          adminId,
+          subject: input.subject,
+        });
+      }
+      return {
+        ok: true,
         targets: targets.length,
         delivered,
         truncated,
         ...(input.sendEmail ? { emailQueued: emailJobs.length } : {}),
-      },
-    });
-    if (emailJobs.length > 0) {
-      void this.recordAnnouncementEmailResult(emailJobs, {
-        adminId,
-        subject: input.subject,
-      });
+      };
+    } catch (e) {
+      if (delivered === 0) this.announceClaims.delete(claimKey);
+      throw e;
     }
-    return {
-      ok: true,
-      targets: targets.length,
-      delivered,
-      truncated,
-      ...(input.sendEmail ? { emailQueued: emailJobs.length } : {}),
-    };
   }
 
   /**
