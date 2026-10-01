@@ -301,7 +301,7 @@ export class CompanyDashboardService {
           select: {
             createdAt: true,
             submittedAt: true,
-            version: true,
+            submitCount: true,
             listing: { select: { id: true, number: true, title: true } },
           },
         }),
@@ -349,7 +349,9 @@ export class CompanyDashboardService {
         title: b.listing.title,
         subtitle: tApi("api.companyDashboard.activity.bidSubtitle", {
           number: b.listing.number ?? "—",
-          version: String(b.version),
+          // Revizyon numarası gönderim sayısıdır; `version` taslak
+          // kaydında da artan eşzamanlılık sayacıdır (O-036).
+          version: String(Math.max(1, b.submitCount)),
         }),
         at: b.submittedAt ?? b.createdAt,
         href: `/company/ilan/${b.listing.id}`,

@@ -155,7 +155,7 @@ function ListingInspection({ id }: { id: string }) {
               <TableHeader>Teklifçi</TableHeader>
               <TableHeader>Tutar</TableHeader>
               <TableHeader>Durum</TableHeader>
-              <TableHeader>Versiyon/Tur</TableHeader>
+              <TableHeader>Revizyon/Tur</TableHeader>
               <TableHeader>Gönderim</TableHeader>
               <TableHeader>Eleme gerekçesi</TableHeader>
             </TableRow>
@@ -193,7 +193,7 @@ function ListingInspection({ id }: { id: string }) {
                       <Badge color={bm.color}>{bm.label}</Badge>
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs">
-                      v{b.version} / tur {b.round}
+                      {b.submitCount > 0 ? `r${b.submitCount}` : "—"} / tur {b.round}
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                       {b.submittedAt

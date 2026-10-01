@@ -214,3 +214,32 @@ describe("satış panosu — taslak/embargolu talep davetliye sızmaz", () => {
     expect((await dashboard.satisAktivite(seller.auth, 20, 1)).total).toBe(2);
   });
 });
+
+describe("satış aktivite akışı — revizyon gönderim sayısından (O-036)", () => {
+  it("teklif alt başlığı taslak kayıtlarıyla artan version'ı değil submitCount'u basar", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    const seller = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    const listing = await openListing(buyer.company.id, buyer.user.id, { title: "Revizyonlu talep" });
+    await prisma.listingBid.create({
+      data: {
+        listingId: listing.id,
+        bidderCompanyId: seller.company.id,
+        createdById: seller.user.id,
+        amount: 100,
+        currency: "TRY",
+        status: "SUBMITTED",
+        submittedAt: new Date(),
+        version: 3,
+        submitCount: 1,
+      },
+    });
+    const dashboard = new CompanyDashboardService(
+      prisma as never,
+      { getRatesOnDates: jest.fn(async (_c: string, ds: Date[]) => ds.map(() => 1)) } as never,
+    );
+    const feed = await dashboard.satisAktivite(seller.auth, 20, 1);
+    const bidRow = feed.rows.find((r) => r.type === "bid");
+    expect(bidRow?.subtitle).toMatch(/v1$/);
+    expect(bidRow?.subtitle).not.toContain("v3");
+  });
+});

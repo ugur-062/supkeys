@@ -579,14 +579,18 @@ describe("davet iptalleri", () => {
         status: "SUBMITTED",
         createdById: bidder.id,
         submittedAt: new Date(),
+        // İki taslak kaydı + tek gönderim: eşzamanlılık sayacı 3, revizyon 1.
+        version: 3,
+        submitCount: 1,
       },
     });
     const listings = await service.listListings(a.company.id);
     expect(listings.items[0]!.bidCount).toBe(1);
     expect(listings.truncated).toBe(false);
     const detail = await service.listingDetail(l.id);
-    const bids = detail.bids as { amount: unknown; bidderCompany: { id: string } }[];
+    const bids = detail.bids as { amount: unknown; submitCount: number; bidderCompany: { id: string } }[];
     expect(bids).toHaveLength(1);
+    expect(bids[0]!.submitCount).toBe(1);
     expect(Number(bids[0]!.amount)).toBe(750);
     expect(bids[0]!.bidderCompany.id).toBe(b.company.id);
   });

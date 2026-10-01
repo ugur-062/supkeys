@@ -80,6 +80,8 @@ export interface AdminListingDetail {
     currency: string;
     status: string;
     version: number;
+    /** Gönderim (revizyon) sayısı; `version` eşzamanlılık sayacıdır. */
+    submitCount: number;
     round: number;
     submittedAt: string | null;
     deliveryDate: string | null;

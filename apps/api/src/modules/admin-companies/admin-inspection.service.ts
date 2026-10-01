@@ -229,6 +229,7 @@ export class AdminInspectionService {
             currency: true,
             status: true,
             version: true,
+            submitCount: true,
             round: true,
             submittedAt: true,
             deliveryDate: true,
