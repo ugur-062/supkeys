@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Description, Field, Label } from "@headlessui/react";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import type {
   PermissionCatalog,
@@ -268,31 +269,47 @@ export function PermissionTable({
                             : null;
                   return (
                     <li key={c.key}>
-                      <label
+                      {/* Headless Field: Label + Checkbox bağlı — satır yazısına
+                          tıklamak da kutuyu işaretler (yerel <label> Headless
+                          Checkbox'ı tetiklemiyordu, arayüz testi D-134). Ad
+                          kesilmez; sebep alt satırda (Description). */}
+                      <Field
+                        disabled={locked}
                         className={cn(
-                          "flex items-center gap-2 text-sm text-zinc-800",
-                          locked && "cursor-not-allowed opacity-60",
+                          "flex items-start gap-2 text-sm text-zinc-800",
+                          locked && "opacity-60",
                         )}
                       >
                         <Checkbox
+                          className="mt-0.5"
                           checked={checked}
                           disabled={locked}
                           onChange={(on) => toggle(c.key, on)}
-                          aria-label={permLabel(c)}
                         />
-                        <span className="min-w-0 flex-1 truncate">{permLabel(c)}</span>
+                        <span className="min-w-0 flex-1">
+                          <Label
+                            className={cn(
+                              "break-words",
+                              locked ? "cursor-not-allowed" : "cursor-pointer",
+                            )}
+                          >
+                            {permLabel(c)}
+                          </Label>
+                          {reason ? (
+                            <Description className="block text-[11px] leading-4 text-zinc-500">
+                              {reason}
+                            </Description>
+                          ) : null}
+                        </span>
                         {c.seat ? (
                           <span
-                            className="rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
+                            className="mt-0.5 shrink-0 rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
                             title={t("koltukTuketir")}
                           >
                             {t("koltuk")}
                           </span>
                         ) : null}
-                        {reason ? (
-                          <span className="text-[11px] text-zinc-400">{reason}</span>
-                        ) : null}
-                      </label>
+                      </Field>
                     </li>
                   );
                 })}

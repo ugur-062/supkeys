@@ -175,7 +175,7 @@ describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
 
     await expect(
       svc.invite(co.auth, { email: "yeni@x.com", roles: ["SATISCI"] } as never),
-    ).rejects.toThrow(/Koltuk dolu/);
+    ).rejects.toThrow(/Koltuk dolu.*paketi yükseltin/);
     await expect(
       svc.invite(co.auth, { email: "onay@x.com", roles: ["ONAYLAYICI"] } as never),
     ).resolves.toBeDefined();
@@ -230,6 +230,13 @@ describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
     await expect(
       svc.invite(co.auth, { email: "yedinci@x.com", roles: ["SATISCI"] } as never),
     ).rejects.toThrow(/Koltuk dolu/);
+    // GOLD en üst paket: "paketi yükseltin" denmez, koltuk boşaltma yolu
+    // söylenir (arayüz testi D-188).
+    const err = (await svc
+      .invite(co.auth, { email: "sekizinci@x.com", roles: ["SATISCI"] } as never)
+      .catch((e: unknown) => e)) as Error;
+    expect(err.message).toMatch(/koltuğu boşaltın/);
+    expect(err.message).not.toMatch(/yükselt/);
   });
 
   it("bekleyen koltuk davetleri grup bazında sayılır (davet-yağmuru kapalı)", async () => {

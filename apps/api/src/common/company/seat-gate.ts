@@ -127,14 +127,23 @@ export async function assertSeatAvailable(
     if (opts.context === "accept") {
       throw new ConflictException(i18nMessage("api.companyUsers.koltukDoluDavetSuAnKabul"));
     }
+    // GOLD en üst paket: "paketi yükseltin" denmez, yalnız koltuk boşaltma
+    // yolu söylenir (arayüz testi D-188).
+    const top = tierAtLeast(tier, "GOLD");
     throw new BadRequestException(
       opts.includePending && pendingSeatInvites > 0
-        ? i18nMessage("api.companyUsers.koltukDoluBekleyenDahil", {
-            used,
-            pending: pendingSeatInvites,
-            limit,
-          })
-        : i18nMessage("api.companyUsers.koltukDoluIslemYetkisi", { used, limit }),
+        ? i18nMessage(
+            top
+              ? "api.companyUsers.koltukDoluBekleyenDahilEnUstPaket"
+              : "api.companyUsers.koltukDoluBekleyenDahil",
+            { used, pending: pendingSeatInvites, limit },
+          )
+        : i18nMessage(
+            top
+              ? "api.companyUsers.koltukDoluIslemYetkisiEnUstPaket"
+              : "api.companyUsers.koltukDoluIslemYetkisi",
+            { used, limit },
+          ),
     );
   }
 }

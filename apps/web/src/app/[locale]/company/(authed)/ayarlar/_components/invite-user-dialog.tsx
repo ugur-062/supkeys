@@ -23,6 +23,8 @@ import {
   useSeats,
 } from "@/hooks/use-company-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { Link } from "@/i18n/navigation";
+import { PRICING_HREF } from "@/components/company/silver-lock-card";
 import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { useEffect, useRef, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
@@ -63,6 +65,9 @@ export function InviteUserDialog({
   // uyguluyor; buradaki yalnız aynası (kullanıcı kilidin sebebini görsün).
   const canGrantBuy = tierAtLeast(seats?.tier ?? "STANDART", BUYING_TIER);
   const seatsFull = freeSeats === 0;
+  // GOLD en üst paket: koltuk dolunca "yükseltin" denmez, koltuk boşaltılır
+  // (arayüz testi D-188; API seat-gate aynı ayrımı yapar).
+  const topTier = tierAtLeast(seats?.tier ?? "STANDART", "GOLD");
   const [email, setEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
   // Gerçek e-posta biçimi (eskiden yalnız "@" içeriyor mu diye bakılıyordu).
@@ -100,6 +105,21 @@ export function InviteUserDialog({
 
   const canSave = emailValid && perms.length > 0;
 
+  /** Formu boş/varsayılan hâline döndürür — gönderimde ve Vazgeç'te (D-310). */
+  const resetForm = () => {
+    setEmail("");
+    setEmailTouched(false);
+    // Varsayılana dön; taze `seats` gelince efekt yeniden hesaplar.
+    userEdited.current = false;
+    setPerms(defaultPerms());
+    setInviteLocale(uiLocale);
+  };
+  const handleClose = () => {
+    if (invite.isPending) return;
+    resetForm();
+    onClose();
+  };
+
   const handleSave = async () => {
     if (!canSave) return;
     try {
@@ -114,11 +134,7 @@ export function InviteUserDialog({
         email: res.email,
         successMessage: t("davetEPostasiGonderildi7"),
       });
-      setEmail("");
-      // Varsayılana dön; taze `seats` gelince efekt yeniden hesaplar.
-      userEdited.current = false;
-      setPerms(defaultPerms());
-      setInviteLocale(uiLocale);
+      resetForm();
       onClose();
     } catch (err) {
       toast.error(extractErrorMessage(err, t("davetGonderilemedi")));
@@ -126,7 +142,7 @@ export function InviteUserDialog({
   };
 
   return (
-    <Dialog open={open} onClose={() => !invite.isPending && onClose()} size="2xl">
+    <Dialog open={open} onClose={handleClose} size="2xl">
       <DialogTitle>{t("uyeDavetEt")}</DialogTitle>
       <DialogDescription>
         {t("davetliEPostasindakiLinktenAdini")}
@@ -167,7 +183,15 @@ export function InviteUserDialog({
             <p className="text-sm font-medium text-zinc-900">{t("yetkiler")}</p>
             {seatsFull ? (
               <p className="text-xs text-amber-700">
-                {t("kullaniciHakkiDoluIslemTikleri")}
+                {topTier
+                  ? t("kullaniciHakkiDoluKoltukBosaltin")
+                  : t.rich("kullaniciHakkiDoluPaketYukseltin", {
+                      link: (c) => (
+                        <Link href={PRICING_HREF} className="font-semibold underline underline-offset-2">
+                          {c}
+                        </Link>
+                      ),
+                    })}
               </p>
             ) : null}
           </div>
@@ -188,7 +212,7 @@ export function InviteUserDialog({
         </div>
       </DialogBody>
       <DialogActions>
-        <Button plain onClick={onClose} disabled={invite.isPending}>
+        <Button plain onClick={handleClose} disabled={invite.isPending}>
           {t("vazgec")}
         </Button>
         <Button onClick={() => void lock.run(handleSave)} disabled={!canSave || invite.isPending || lock.locked}>

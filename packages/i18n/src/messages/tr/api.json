@@ -754,6 +754,8 @@
     "enAzBirAktifYonetimYetkilisiKalmali": "Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı",
     "koltukDoluBekleyenDahil": "Koltuk dolu ({used} aktif + {pending} bekleyen davet / {limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın",
     "koltukDoluIslemYetkisi": "Koltuk dolu ({used}/{limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın",
+    "koltukDoluBekleyenDahilEnUstPaket": "Koltuk dolu ({used} aktif + {pending} bekleyen davet / {limit}) — satınalma/satış işlem yetkisi vermek için bir koltuğu boşaltın: bir kullanıcının işlem yetkisini kaldırın ya da bekleyen bir daveti iptal edin",
+    "koltukDoluIslemYetkisiEnUstPaket": "Koltuk dolu ({used}/{limit}) — satınalma/satış işlem yetkisi vermek için bir koltuğu boşaltın: bir kullanıcının işlem yetkisini kaldırın ya da bekleyen bir daveti iptal edin",
     "davetYenidenGonderimBekleyin": "Bu davet az önce gönderildi. Yeniden göndermek için {minutes, number} dakika bekleyin."
   },
   "companyQuestionTemplates": {

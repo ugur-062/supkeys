@@ -163,6 +163,19 @@ export class CompanyRequestDefaultsService {
       );
     }
     const data = await this.withValidAddress(user.companyId, this.normalize(parsed.data, user.country ?? null));
+    // Aktivite logu yalnız GERÇEKTEN değişen alanları yazar (arayüz testi
+    // O-107): önceden her kayıtta şartın bütün anahtarları "değişti" sayılıyordu.
+    const before = await this.prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { requestDefaults: true },
+    });
+    const prev = (before?.requestDefaults ?? null) as Record<string, unknown> | null;
+    const changedFields = Object.keys(data).filter(
+      (k) =>
+        !prev ||
+        JSON.stringify(prev[k] ?? null) !==
+          JSON.stringify((data as unknown as Record<string, unknown>)[k] ?? null),
+    );
     await this.prisma.company.update({
       where: { id: user.companyId },
       data: { requestDefaults: data as unknown as Prisma.InputJsonValue },
@@ -175,7 +188,7 @@ export class CompanyRequestDefaultsService {
       tenantId: user.companyId,
       entityType: "company",
       entityId: user.companyId,
-      metadata: { changedFields: Object.keys(data) },
+      metadata: { changedFields },
     });
     return { defaults: data, source: "saved" };
   }

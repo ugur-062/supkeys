@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   cancel: vi.fn(),
   resend: vi.fn(),
   update: vi.fn(),
+  setPermissions: vi.fn(),
   seats: undefined as unknown,
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
   permissionCatalog: {
@@ -52,7 +53,7 @@ vi.mock("@/hooks/use-company-users", () => ({
   useRemoveUser: () => ({ mutateAsync: h.removeUser, isPending: false }),
   useUpdateUser: () => ({ mutateAsync: h.update, isPending: false }),
   useUpdateUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useSetUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetUserPermissions: () => ({ mutateAsync: h.setPermissions, isPending: false }),
   // Yetki tablosu (Faz 4): davet dialogu kataloğun hazır setiyle dolar.
   // Referans SABİT (react-query verisi gibi): her render'da yeni nesne,
   // gerçekte olmayan bir kimlik değişimi üretir.
@@ -103,7 +104,8 @@ describe("CompanyUsersSection", () => {
     expect(screen.getByText("Kullanıcılar (2)")).toBeInTheDocument();
     expect(screen.getByText("ada@firma.com")).toBeInTheDocument();
     // Rol rozetleri Türkçe etiketle.
-    expect(screen.getByText("Satın Almacı")).toBeInTheDocument();
+    // Dar ekran kopyası (sm:hidden) da DOM'da (O-111).
+    expect(screen.getAllByText("Satın Almacı").length).toBeGreaterThanOrEqual(1);
     // Kurucu için rol rozeti "Kurucu".
     expect(screen.getAllByText("Kurucu").length).toBeGreaterThanOrEqual(1);
     // Aktif durum rozeti.
@@ -298,5 +300,114 @@ describe("CompanyUsersSection", () => {
     render(<CompanyUsersSection canManage meId="owner" />);
     await user2.click(screen.getByRole("button", { name: "Yeniden Gönder" }));
     expect(h.resend).toHaveBeenCalledWith("inv1");
+  });
+
+  it("Pasif Yap onay sorar ve yan etkisini yazar; Vazgeç istek atmaz, onay atar (arayüz testi D-302)", async () => {
+    const u = userEvent.setup();
+    h.setActive.mockResolvedValue({ ok: true });
+    render(<CompanyUsersSection canManage meId="owner" />);
+    const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
+    await u.click(menus[1]);
+    await u.click(await screen.findByText("Pasif Yap"));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/devredilir/)).toBeInTheDocument();
+    expect(h.setActive).not.toHaveBeenCalled();
+    await u.click(within(dialog).getByRole("button", { name: "Vazgeç" }));
+    expect(h.setActive).not.toHaveBeenCalled();
+
+    await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+    await u.click(await screen.findByText("Pasif Yap"));
+    await u.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Pasif Yap" }));
+    expect(h.setActive).toHaveBeenCalledWith({ id: "u1", active: false });
+  });
+
+  it("pasif kullanıcıyı tekrar aktif etmek onaysız (yan etkisi yok)", async () => {
+    const u = userEvent.setup();
+    h.setActive.mockResolvedValue({ ok: true });
+    h.users = [
+      user({ id: "owner", email: "sahip@firma.com", firstName: "Umut", isOwner: true, roles: ["SAHIP"] }),
+      user({ isActive: false }),
+    ];
+    render(<CompanyUsersSection canManage meId="owner" />);
+    await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+    await u.click(await screen.findByText("Tekrar Aktif Et"));
+    expect(h.setActive).toHaveBeenCalledWith({ id: "u1", active: true });
+  });
+
+  it("bekleyen daveti iptal etmek onay sorar (arayüz testi D-302)", async () => {
+    const u = userEvent.setup();
+    h.cancel.mockResolvedValue({ ok: true });
+    h.invitations = [
+      {
+        id: "inv1",
+        email: "bekleyen@firma.com",
+        roles: ["SATISCI"],
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        invitedByName: "Umut",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    render(<CompanyUsersSection canManage meId="owner" />);
+    await u.click(screen.getByRole("button", { name: "Daveti iptal et" }));
+    expect(h.cancel).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("bekleyen@firma.com")).toBeInTheDocument();
+    await u.click(within(dialog).getByRole("button", { name: "Daveti iptal et" }));
+    expect(h.cancel).toHaveBeenCalledWith("inv1");
+  });
+
+  it("düzenle: yetki isteği reddedilirse ad hiç gönderilmez — yarım kayıt yok (arayüz testi O-110)", async () => {
+    const u = userEvent.setup();
+    h.seats = seats("GOLD");
+    h.setPermissions.mockRejectedValue(new Error("Koltuk dolu"));
+    render(<CompanyUsersSection canManage meId="owner" />);
+    await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+    await u.click(await screen.findByText("Düzenle"));
+    const ad = screen.getByLabelText("Ad");
+    await u.clear(ad);
+    await u.type(ad, "Ayşe");
+    // Satır yazısına tıklamak kutuyu işaretler (D-134).
+    await u.click(screen.getByText("Onaylama"));
+    await u.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.setPermissions).toHaveBeenCalledTimes(1);
+    expect(h.setPermissions.mock.calls[0][0].permissions).toContain("approval:act");
+    expect(h.update).not.toHaveBeenCalled();
+    expect(h.toast.error).toHaveBeenCalledWith("Koltuk dolu");
+    expect(h.toast.success).not.toHaveBeenCalled();
+  });
+
+  it("düzenle: yetki kaydedilip kişi bilgisi düşerse bu açıkça söylenir", async () => {
+    const u = userEvent.setup();
+    h.seats = seats("GOLD");
+    h.setPermissions.mockResolvedValue({ ok: true });
+    h.update.mockRejectedValue(new Error("Ağ hatası"));
+    render(<CompanyUsersSection canManage meId="owner" />);
+    await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+    await u.click(await screen.findByText("Düzenle"));
+    const ad = screen.getByLabelText("Ad");
+    await u.clear(ad);
+    await u.type(ad, "Ayşe");
+    await u.click(screen.getByText("Onaylama"));
+    await u.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.setPermissions).toHaveBeenCalledTimes(1);
+    expect(h.update).toHaveBeenCalledTimes(1);
+    expect(h.toast.error).toHaveBeenCalledWith(
+      "Yetkiler kaydedildi, ancak kişi bilgileri kaydedilemedi: Ağ hatası",
+    );
+  });
+
+  it("koltuk seçimi: Gold altında satınalma koltuğu satırı listelenmez (O-069 diyalog kısmı)", async () => {
+    const u = userEvent.setup();
+    h.users = [
+      user({ id: "owner", email: "sahip@firma.com", firstName: "Umut", isOwner: true, roles: ["SAHIP", "SATIN_ALMACI", "SATISCI"] }),
+      user({ roles: ["SATIN_ALMACI", "SATISCI"] }),
+    ];
+    h.seats = { ...seats("SILVER", 5), overflow: 1 };
+    render(<CompanyUsersSection canManage meId="owner" />);
+    await u.click(screen.getByRole("button", { name: "Kalacak Koltukları Seç" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/Satınalma koltuğu/)).not.toBeInTheDocument();
+    expect(within(dialog).getAllByText(/Satış koltuğu/)).toHaveLength(2);
   });
 });

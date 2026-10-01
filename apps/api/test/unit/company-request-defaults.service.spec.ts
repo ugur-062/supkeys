@@ -121,6 +121,18 @@ describe("CompanyRequestDefaultsService", () => {
     expect(requestDefaultsSchema.safeParse({ ...VALID, closeDays: 0 }).success).toBe(false);
   });
 
+  it("save: aktivite loguna yalnız gerçekten değişen alanlar yazılır (arayüz testi O-107)", async () => {
+    const first = rig();
+    await first.svc.save(user, VALID);
+    const saved = first.prisma.company.update.mock.calls[0][0].data.requestDefaults;
+    const second = rig({ saved });
+    await second.svc.save(user, { ...VALID, closeDays: 14 });
+    expect(second.audit.log.mock.calls[0][0].metadata).toEqual({ changedFields: ["closeDays"] });
+    const third = rig({ saved });
+    await third.svc.save(user, VALID);
+    expect(third.audit.log.mock.calls[0][0].metadata).toEqual({ changedFields: [] });
+  });
+
   it("şema buildPaymentPlan aynası: yüzdesiz peşin, vadesiz usance ve CUSTOM reddedilir (MU-10)", async () => {
     const ok = (patch: Record<string, unknown>) => requestDefaultsSchema.safeParse({ ...VALID, ...patch }).success;
     expect(ok({ paymentCategory: "ADVANCE", paymentDays: null, advancePercent: null })).toBe(false);

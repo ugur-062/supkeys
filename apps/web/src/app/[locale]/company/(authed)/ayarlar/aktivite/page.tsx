@@ -78,8 +78,19 @@ export default function AktivitePage() {
     // C16: kazandırma SİPARİŞ BAŞINA iz yazar (INV-AUDIT-1) — numara olmadan
     // aynı saniyedeki kayıtlar "çift kayıt" gibi okunuyordu.
     if (typeof m.orderNumber === "string") parts.push(t("siparis", { n: m.orderNumber }));
+    // Alan adları API'nin iç adlarıdır ("postalCode") → katalog etiketi
+    // (`field.<ad>`; arayüz testi O-107). Katalogda olmayan ad ham kalır.
     if (Array.isArray(m.changedFields) && m.changedFields.length) {
-      parts.push(t("alanlar", { list: (m.changedFields as string[]).join(", ") }));
+      const fieldLabel = (f: string) => {
+        const k = `field.${f}`;
+        return t.has(k as never) ? t(k as never) : f;
+      };
+      parts.push(
+        // city + cityId gibi iç çiftler aynı etikete düşer → tekilleştirilir.
+        t("alanlar", {
+          list: [...new Set((m.changedFields as string[]).map(fieldLabel))].join(", "),
+        }),
+      );
     }
     if (typeof m.ibanMasked === "string") parts.push(m.ibanMasked);
     // Belge türü iç anahtardır ("taxPlate") — firmanın ülkesine göre katalog etiketi.
@@ -143,8 +154,10 @@ export default function AktivitePage() {
                   <TableRow>
                     <TableHeader>{t("tarih")}</TableHeader>
                     <TableHeader>{t("eylem")}</TableHeader>
-                    <TableHeader>{t("kisi")}</TableHeader>
-                    <TableHeader>{t("detay")}</TableHeader>
+                    {/* Dar ekranda (O-111) kişi ve detay eylem hücresinin
+                        altına iner; tablo yatay kaymaz. */}
+                    <TableHeader className="hidden sm:table-cell">{t("kisi")}</TableHeader>
+                    <TableHeader className="hidden sm:table-cell">{t("detay")}</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -155,28 +168,40 @@ export default function AktivitePage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (data?.items ?? []).map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="whitespace-nowrap text-xs text-zinc-500">
-                          {fmtDate(r.createdAt)}
-                        </TableCell>
-                        <TableCell
-                          className="text-sm text-zinc-900"
-                          title={actionKnown(r.action) ? undefined : r.action}
-                        >
-                          {auditAction(r.action)}
-                        </TableCell>
-                        <TableCell className="text-xs text-zinc-600">
-                          {r.actorEmail ?? t("sistem")}
-                        </TableCell>
-                        <TableCell
-                          className="max-w-[280px] truncate text-xs text-zinc-500"
-                          title={summarize(r)}
-                        >
-                          {summarize(r)}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    (data?.items ?? []).map((r) => {
+                      const detail = summarize(r);
+                      const actor = r.actorEmail ?? t("sistem");
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell className="whitespace-nowrap align-top text-xs text-zinc-500">
+                            {fmtDate(r.createdAt)}
+                          </TableCell>
+                          <TableCell
+                            className="whitespace-normal text-sm text-zinc-900"
+                            title={actionKnown(r.action) ? undefined : r.action}
+                          >
+                            {auditAction(r.action)}
+                            <span className="mt-0.5 block text-xs text-zinc-600 [overflow-wrap:anywhere] sm:hidden">
+                              {actor}
+                            </span>
+                            {detail ? (
+                              <span className="block text-xs text-zinc-500 [overflow-wrap:anywhere] sm:hidden">
+                                {detail}
+                              </span>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="hidden text-xs text-zinc-600 sm:table-cell">
+                            {actor}
+                          </TableCell>
+                          <TableCell
+                            className="hidden max-w-[280px] truncate text-xs text-zinc-500 sm:table-cell"
+                            title={detail}
+                          >
+                            {detail}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

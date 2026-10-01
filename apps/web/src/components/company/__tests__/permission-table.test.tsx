@@ -129,3 +129,26 @@ describe("PermissionTable — hazır set çipi paket/koltuk kapısından geçer 
     expect(screen.getByText("Gold pakette")).toBeInTheDocument();
   });
 });
+
+describe("PermissionTable — satır yazısı kutuyu işaretler (arayüz testi D-134)", () => {
+  it("izin adına tıklamak tiki açar; ad kesilmez (truncate yok)", () => {
+    const onChange = vi.fn();
+    render(
+      <PermissionTable catalog={catalog} value={[]} onChange={onChange} viewerIsOwner canGrantBuy />,
+    );
+    const name = screen.getByText("Teklif verme");
+    expect(name.className).not.toMatch(/truncate/);
+    fireEvent.click(name);
+    expect(onChange).toHaveBeenCalledWith(["sell:view", "sell:bid:submit"]);
+  });
+
+  it("kilitli satırın yazısına tıklamak bir şey değiştirmez", () => {
+    const onChange = vi.fn();
+    render(
+      <PermissionTable catalog={catalog} value={[]} onChange={onChange} viewerIsOwner canGrantBuy={false} />,
+    );
+    fireEvent.click(screen.getByText("Talep açma ve yönetme"));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+

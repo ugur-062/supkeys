@@ -64,7 +64,7 @@ import {
   Trash2,
   Users2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
@@ -89,6 +89,9 @@ export function CompanyUsersSection({
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyTeamUser | null>(null);
   const [deleting, setDeleting] = useState<CompanyTeamUser | null>(null);
+  // Pasif Yap yan etkili (oturum kapanır, canlı talepler devredilir) → onaylı
+  // (arayüz testi D-302); Tekrar Aktif Et onaysız kalır.
+  const [deactivating, setDeactivating] = useState<CompanyTeamUser | null>(null);
   // Faz K — kurucu koltuk seçimi (aşkın durum).
   const [seatSelOpen, setSeatSelOpen] = useState(false);
   const [keep, setKeep] = useState<SeatKeep[]>([]);
@@ -100,10 +103,19 @@ export function CompanyUsersSection({
     try {
       await setActive.mutateAsync({ id: u.id, active: !u.isActive });
       toast.success(u.isActive ? t("pasifYapildi") : t("tekrarAktifEdildi"));
+      return true;
     } catch (err) {
       toast.error(extractErrorMessage(err, t("islemBasarisiz")));
+      return false;
     }
   };
+  const confirmDeactivate = async () => {
+    if (!deactivating) return;
+    if (await handleToggleActive(deactivating)) setDeactivating(null);
+  };
+  // Satınalma koltuğu yalnız GOLD'da sayılır ve tutulabilir (O-069, API
+  // applySeatSelection aynası) — Gold altında koltuk seçiminde listelenmez.
+  const seatSelBuyAllowed = tierAtLeast(seats?.tier ?? "STANDART", BUYING_TIER);
 
   const handleDelete = async () => {
     if (!deleting) return;
@@ -192,19 +204,50 @@ export function CompanyUsersSection({
             <TableHead>
               <TableRow>
                 <TableHeader>{t("kullanici")}</TableHeader>
-                <TableHeader>{t("roller")}</TableHeader>
-                <TableHeader>{t("durum")}</TableHeader>
-                <TableHeader>{t("sonGiris")}</TableHeader>
-                <TableHeader className="text-right" />
+                {/* Dar ekranda (arayüz testi O-111) roller ve durum ad
+                    hücresinin altına iner, son giriş gizlenir; ⋮ eylemleri
+                    yatay kaydırma olmadan görünür kalır. */}
+                <TableHeader className="hidden sm:table-cell">{t("roller")}</TableHeader>
+                <TableHeader className="hidden sm:table-cell">{t("durum")}</TableHeader>
+                <TableHeader className="hidden md:table-cell">{t("sonGiris")}</TableHeader>
+                <TableHeader className="text-right">
+                  <span className="sr-only">{t("aksiyonlar")}</span>
+                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {(users ?? []).map((u) => {
                 const isMe = u.id === meId;
+                const roleBadges = (
+                  <>
+                    {u.roles.filter((r) => !(u.isOwner && r === "SAHIP")).length ? (
+                      // C49: Kurucu ad yanında rozet — listede tekrarlamaz.
+                      u.roles
+                        .filter((r) => !(u.isOwner && r === "SAHIP"))
+                        .map((r) => <RoleBadge key={r} role={r} />)
+                    ) : (u.permissions ?? []).length > 0 && !u.isOwner ? (
+                      <Badge color="zinc">{t("goruntuleyici")}</Badge>
+                    ) : u.isOwner ? null : (
+                      <span className="text-xs text-zinc-500">{t("yetkiYok")}</span>
+                    )}
+                    {u.custom ? (
+                      <Badge color="amber" title={t("hazirSettenFarkliKisiyeOzel")}>
+                        {t("ozel")}
+                      </Badge>
+                    ) : null}
+                  </>
+                );
+                const statusBadge = u.isActive ? (
+                  <Badge color="lime">{t("aktif")}</Badge>
+                ) : (
+                  <Badge color="zinc">{t("pasif")}</Badge>
+                );
                 return (
                   <TableRow key={u.id}>
                     <TableCell>
-                      <div className="flex min-w-0 items-center gap-3">
+                      {/* Dar ekranda genişlik sınırı İÇ kutuda (td'de max-width
+                          tarayıcılarda uygulanmaz) — ad/e-posta kesilir, ⋮ görünür. */}
+                      <div className="flex min-w-0 max-w-[calc(100vw-10rem)] items-center gap-3 sm:max-w-none">
                         <AvatarInitials
                           name={`${u.firstName} ${u.lastName}`}
                           size="sm"
@@ -226,38 +269,18 @@ export function CompanyUsersSection({
                           <p className="truncate text-xs text-zinc-500">
                             {u.email}
                           </p>
+                          <div className="mt-1 flex flex-wrap gap-1 whitespace-normal sm:hidden">
+                            {roleBadges}
+                            {statusBadge}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {u.roles.filter((r) => !(u.isOwner && r === "SAHIP")).length ? (
-                          // C49: Kurucu ad yanında rozet — listede tekrarlamaz.
-                          u.roles
-                            .filter((r) => !(u.isOwner && r === "SAHIP"))
-                            .map((r) => (
-                            <RoleBadge key={r} role={r} />
-                          ))
-                        ) : (u.permissions ?? []).length > 0 && !u.isOwner ? (
-                          <Badge color="zinc">{t("goruntuleyici")}</Badge>
-                        ) : u.isOwner ? null : (
-                          <span className="text-xs text-zinc-500">{t("yetkiYok")}</span>
-                        )}
-                        {u.custom ? (
-                          <Badge color="amber" title={t("hazirSettenFarkliKisiyeOzel")}>
-                            {t("ozel")}
-                          </Badge>
-                        ) : null}
-                      </div>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="flex flex-wrap gap-1">{roleBadges}</div>
                     </TableCell>
-                    <TableCell>
-                      {u.isActive ? (
-                        <Badge color="lime">{t("aktif")}</Badge>
-                      ) : (
-                        <Badge color="zinc">{t("pasif")}</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-zinc-500">
+                    <TableCell className="hidden sm:table-cell">{statusBadge}</TableCell>
+                    <TableCell className="hidden text-xs text-zinc-500 md:table-cell">
                       {u.lastLoginAt ? formatDate(u.lastLoginAt, "relative", locale) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
@@ -274,7 +297,11 @@ export function CompanyUsersSection({
                             {/* Yıkıcı aksiyonlar kendine ve kurucuya kapalı —
                                 backend setActive/remove self-guard'larının aynası. */}
                             {!u.isOwner && !isMe ? (
-                              <DropdownItem onClick={() => handleToggleActive(u)}>
+                              <DropdownItem
+                                onClick={() =>
+                                  u.isActive ? setDeactivating(u) : void handleToggleActive(u)
+                                }
+                              >
                                 {u.isActive ? (
                                   <>
                                     <PowerOff data-slot="icon" />
@@ -353,6 +380,37 @@ export function CompanyUsersSection({
         </DialogActions>
       </Dialog>
 
+      <Dialog open={Boolean(deactivating)} onClose={() => setDeactivating(null)} size="md">
+        <DialogTitle>{t("kullaniciyiPasifYap")}</DialogTitle>
+        <DialogDescription>{t("tekrarAktifEdebilirsiniz")}</DialogDescription>
+        <DialogBody>
+          {deactivating ? (
+            <>
+              <p className="text-sm text-zinc-700">
+                {t.rich("pasifYapilsinMi", {
+                  strong: (c) => <strong className="text-zinc-900">{c}</strong>,
+                  name: `${deactivating.firstName} ${deactivating.lastName}`,
+                  email: deactivating.email,
+                })}
+              </p>
+              <ul className="mt-3 list-disc space-y-1.5 pl-4 text-xs text-zinc-600">
+                <li>{t("pasifGirisYapamaz")}</li>
+                <li>{t("pasifTaleplerDevredilir")}</li>
+                <li>{t("pasifKoltukBosalir")}</li>
+              </ul>
+            </>
+          ) : null}
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setDeactivating(null)}>
+            {t("vazgec")}
+          </Button>
+          <Button color="red" onClick={() => void confirmDeactivate()} disabled={setActive.isPending}>
+            {t("pasifYap")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Faz K — kurucu koltuk seçimi: aşkın durumda kalacak SA/ST sahipleri. */}
       <Dialog
         open={seatSelOpen}
@@ -368,6 +426,7 @@ export function CompanyUsersSection({
             .filter((u) => u.isActive)
             .flatMap((u) =>
               (["buy", "sell"] as const)
+                .filter((g) => g === "sell" || seatSelBuyAllowed)
                 .filter((g) =>
                   u.roles.includes(g === "buy" ? "SATIN_ALMACI" : "SATISCI"),
                 )
@@ -379,9 +438,11 @@ export function CompanyUsersSection({
               const full =
                 !on && seats?.limit != null && keep.length >= seats.limit;
               return (
-                <label
+                // Headless Field: satıra tıklamak kutuyu işaretler (D-134).
+                <Field
                   key={keepKey(k)}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg p-2.5 text-sm ring-1 ${
+                  disabled={full}
+                  className={`flex items-center gap-3 rounded-lg p-2.5 text-sm ring-1 ${
                     on ? "bg-zinc-100 ring-2 ring-zinc-900" : "ring-zinc-950/10"
                   } ${full ? "opacity-50" : ""}`}
                 >
@@ -396,16 +457,16 @@ export function CompanyUsersSection({
                       )
                     }
                   />
-                  <span className="min-w-0">
+                  <Label className={`min-w-0 ${full ? "cursor-not-allowed" : "cursor-pointer"}`}>
                     <span className="font-semibold text-zinc-900">
                       {u.firstName} {u.lastName}
                       {u.isOwner ? ` ${t("kurucu")}` : ""}
                     </span>
-                    <span className="block truncate text-xs text-zinc-500">
+                    <span className="block truncate text-xs font-normal text-zinc-500">
                       {u.email} · {g === "buy" ? t("satinalmaKoltugu") : t("satisKoltugu")}
                     </span>
-                  </span>
-                </label>
+                  </Label>
+                </Field>
               );
             })}
         </DialogBody>
@@ -444,13 +505,17 @@ function PendingInvitations() {
   const cancel = useCancelInvitation();
   const resend = useResendInvitation();
   const reportDelivery = useInviteDeliveryToast();
+  // Daveti iptal etmek onaylı (arayüz testi D-302): bağlantı çalışmaz olur.
+  const [cancelling, setCancelling] = useState<{ id: string; email: string } | null>(null);
 
   if (!invitations || invitations.length === 0) return null;
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = async () => {
+    if (!cancelling) return;
     try {
-      await cancel.mutateAsync(id);
+      await cancel.mutateAsync(cancelling.id);
       toast.success(t("davetIptalEdildi"));
+      setCancelling(null);
     } catch (err) {
       toast.error(extractErrorMessage(err, t("iptalEdilemedi")));
     }
@@ -516,7 +581,7 @@ function PendingInvitations() {
                   plain
                   aria-label={t("davetiIptalEt")}
                   title={t("davetiIptalEt")}
-                  onClick={() => handleCancel(inv.id)}
+                  onClick={() => setCancelling({ id: inv.id, email: inv.email })}
                   disabled={cancel.isPending}
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />
@@ -526,6 +591,25 @@ function PendingInvitations() {
           );
         })}
       </ul>
+      <Dialog open={Boolean(cancelling)} onClose={() => setCancelling(null)} size="md">
+        <DialogTitle>{t("davetiIptalEt")}</DialogTitle>
+        <DialogDescription>
+          {cancelling
+            ? t.rich("davetIptalEdilsinMi", {
+                strong: (c) => <strong className="text-zinc-900">{c}</strong>,
+                email: cancelling.email,
+              })
+            : null}
+        </DialogDescription>
+        <DialogActions>
+          <Button plain onClick={() => setCancelling(null)}>
+            {t("vazgec")}
+          </Button>
+          <Button color="red" onClick={() => void handleCancel()} disabled={cancel.isPending}>
+            {t("davetiIptalEt")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
@@ -552,9 +636,10 @@ function EditUserModal({
   const [lastName, setLastName] = useState(user.lastName);
   const [phone, setPhone] = useState(user.phone ?? "");
   // Yetki tablosu: açılışta kişinin EFEKTİF izin listesi (Kurucuda örtükler dahil).
-  const initialPerms = useMemo(
+  // Kayıtlı taban state'te: yetki kaydı geçip kişi bilgisi düşerse taban
+  // güncellenir, pencere yalnız kaydedilemeyen kısmı kirli gösterir (O-110).
+  const [initialPerms, setInitialPerms] = useState<string[]>(
     () => user.permissions ?? user.rolePermissions,
-    [user],
   );
   const [perms, setPerms] = useState<string[]>(initialPerms);
   const freeSeats =
@@ -626,6 +711,18 @@ function EditUserModal({
   const doSave = async () => {
     setTouched(true);
     if (hasError || !dirty) return;
+    // Yarım kayıt olmasın (arayüz testi O-110): reddedilebilir istek (yetki —
+    // koltuk/paket/son yönetici kapıları) ÖNCE gider; düşerse ad/telefon hiç
+    // gönderilmez. Yetki geçip kişi bilgisi düşerse bu açıkça söylenir.
+    const sendPerms = permsChanged && !permsLocked;
+    try {
+      if (sendPerms) {
+        await setPermissions.mutateAsync({ id: user.id, permissions: perms });
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("guncellenemedi")));
+      return;
+    }
     try {
       if (infoChanged) {
         await update.mutateAsync({
@@ -635,14 +732,21 @@ function EditUserModal({
           phone: phone.trim(),
         });
       }
-      if (permsChanged && !permsLocked) {
-        await setPermissions.mutateAsync({ id: user.id, permissions: perms });
-      }
-      toast.success(t("kullaniciGuncellendi"));
-      onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("guncellenemedi")));
+      if (sendPerms) {
+        setInitialPerms(perms);
+        toast.error(
+          t("yetkilerKaydedildiBilgilerKaydedilemedi", {
+            error: extractErrorMessage(err, t("guncellenemedi")),
+          }),
+        );
+      } else {
+        toast.error(extractErrorMessage(err, t("guncellenemedi")));
+      }
+      return;
     }
+    toast.success(t("kullaniciGuncellendi"));
+    onClose();
   };
 
   const busy = update.isPending || setPermissions.isPending || saveLock.locked;

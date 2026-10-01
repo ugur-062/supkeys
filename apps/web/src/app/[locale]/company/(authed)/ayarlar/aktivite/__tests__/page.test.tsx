@@ -47,7 +47,8 @@ describe("AktivitePage — Detay sütunu (derin denetim LU-20)", () => {
   it("belge türü iç anahtarı yerine katalog etiketi basılır", () => {
     h.items = [row("company.docs.uploaded", { kind: "taxPlate" })];
     render(<AktivitePage />);
-    expect(screen.getByText("Vergi Levhası")).toBeInTheDocument();
+    // Dar ekran kopyası (sm:hidden) da DOM'da — en az bir eşleşme yeter.
+    expect(screen.getAllByText("Vergi Levhası").length).toBeGreaterThan(0);
     expect(screen.queryByText("taxPlate")).not.toBeInTheDocument();
   });
 
@@ -57,8 +58,28 @@ describe("AktivitePage — Detay sütunu (derin denetim LU-20)", () => {
       row("company.order.cancelled", { orderNumber: "SIP-1", reason: "Stok bitti" }),
     ];
     render(<AktivitePage />);
-    expect(screen.getByText("Yönetici yetkisi olmadan rol atama denemesi")).toBeInTheDocument();
+    expect(screen.getAllByText("Yönetici yetkisi olmadan rol atama denemesi").length).toBeGreaterThan(0);
     expect(screen.queryByText("not_admin_grant")).not.toBeInTheDocument();
-    expect(screen.getByText(/Stok bitti/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Stok bitti/).length).toBeGreaterThan(0);
+  });
+
+  it("alan adları katalog etiketiyle, iç çift (city/cityId) tek; koltuk seçimi sebebi çevrilir (arayüz testi O-107)", () => {
+    h.items = [
+      row("company.profile.updated", { changedFields: ["postalCode", "city", "cityId"] }),
+      row("company.user.roles_changed", { reason: "seat_selection" }),
+    ];
+    render(<AktivitePage />);
+    expect(screen.getAllByText("alanlar: Posta kodu, Şehir").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/postalCode/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Koltuk seçimiyle işlem yetkisi kaldırıldı").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/seat_selection/)).not.toBeInTheDocument();
+  });
+
+  it("kullanıcı yönetimi olayları 'Diğer işlem' değil kendi etiketiyle görünür", () => {
+    h.items = [row("company.user.invited", {}), row("company.user.invitation_accepted", {})];
+    render(<AktivitePage />);
+    expect(screen.getByText("Üye davet edildi")).toBeInTheDocument();
+    expect(screen.getByText("Üye daveti kabul edildi")).toBeInTheDocument();
+    expect(screen.queryByText("Diğer işlem")).not.toBeInTheDocument();
   });
 });

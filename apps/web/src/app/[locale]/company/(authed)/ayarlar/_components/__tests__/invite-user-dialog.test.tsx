@@ -139,4 +139,32 @@ describe("InviteUserDialog", () => {
     const [, opts] = h.toast.warning.mock.calls[0] as [string, { action?: unknown }];
     expect(opts.action).toBeUndefined();
   });
+
+  it("Vazgeç girilen e-postayı ve dili sıfırlar — yeniden açılınca boş form (arayüz testi D-310)", () => {
+    const onClose = vi.fn();
+    const { rerender } = render(<InviteUserDialog open onClose={onClose} />);
+    fireEvent.change(screen.getByPlaceholderText("kisi@firma.com"), { target: { value: "ali@firma.com" } });
+    fireEvent.change(screen.getByLabelText("Davet dili"), { target: { value: "ru" } });
+    fireEvent.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    rerender(<InviteUserDialog open={false} onClose={onClose} />);
+    rerender(<InviteUserDialog open onClose={onClose} />);
+    expect((screen.getByPlaceholderText("kisi@firma.com") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Davet dili") as HTMLSelectElement).value).toBe("tr");
+    expect(h.invite).not.toHaveBeenCalled();
+  });
+
+  it("GOLD (en üst paket) koltuk doluyken 'paketi yükseltin' denmez, koltuk boşaltma söylenir (arayüz testi D-188)", () => {
+    h.seats = { limit: 6, used: 6, pendingSeatInvites: 0, usedBuy: 3, usedSell: 3, tier: "GOLD" };
+    render(<InviteUserDialog open onClose={() => {}} />);
+    expect(screen.getByText(/bekleyen bir daveti iptal edin/)).toBeInTheDocument();
+    expect(screen.queryByText(/yükseltin/)).not.toBeInTheDocument();
+  });
+
+  it("alt pakette koltuk doluyken Paketler bağlantısı verilir", () => {
+    h.seats = { limit: 4, used: 4, pendingSeatInvites: 0, usedBuy: 0, usedSell: 4, tier: "SILVER" };
+    render(<InviteUserDialog open onClose={() => {}} />);
+    expect(screen.getByRole("link", { name: "paketi yükseltin" })).toHaveAttribute("href", "/company/premium");
+  });
 });
+
