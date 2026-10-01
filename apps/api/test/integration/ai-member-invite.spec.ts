@@ -278,6 +278,49 @@ describe("CompanyListingsService.notifyHiddenAiMatches — alıcıya gösterilme
     expect(await prisma.notification.count({ where: { type: "listing_ai_match_locked" } })).toBeGreaterThanOrEqual(2);
   });
 
+  it("arayüz testi O-056: paketli ama doğrulanmamış firmaya paket metni gitmez — incelemedekine talep bağlantısı, doğrulanmamışa doğrulama", async () => {
+    const { service, email } = makeService();
+    const { listing } = await setup({ visibility: "PUBLIC" });
+    const mk = async (name: string, status: "PENDING" | "UNVERIFIED") => {
+      const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name, companyVerificationStatus: status });
+      await prisma.company.update({
+        where: { id: s.company.id },
+        data: { sellerCategoryIds: ["31000000"], sellerSubCategoryIds: ["31161600"] },
+      });
+      return s;
+    };
+    const pending = await mk("İncelemede Silver AŞ", "PENDING");
+    const unverified = await mk("Belgesiz Silver AŞ", "UNVERIFIED");
+
+    const sent = await service.notifyHiddenAiMatches(listing.id, [pending.company.id, unverified.company.id]);
+    expect(sent).toBe(2);
+    await settle(() => email.send.mock.calls.length >= 2);
+    const byTo = new Map(email.send.mock.calls.map((c) => [c[0].to.email, c[0]]));
+    const p = JSON.stringify(byTo.get(pending.user.email).templateData);
+    const u = JSON.stringify(byTo.get(unverified.user.email).templateData);
+    for (const body of [p, u]) {
+      expect(body).not.toContain("Ücretsiz pakette");
+      expect(body).not.toContain("/company/premium");
+      expect(body).not.toContain("Alıcı Makina AŞ");
+    }
+    expect(p).toContain("incelemede");
+    expect(p).toContain(`/company/ilan/${listing.id}`);
+    expect(u).toContain("/company/ayarlar/dogrulama");
+    expect(u).not.toContain("/company/ilan/");
+
+    await settle(async () => (await prisma.notification.count({ where: { type: "listing_ai_match_locked" } })) >= 2);
+    const inApp = await prisma.notification.findMany({
+      where: { type: "listing_ai_match_locked", companyId: { in: [pending.company.id, unverified.company.id] } },
+      select: { companyId: true, body: true, ctaUrl: true },
+    });
+    const pIn = inApp.find((n) => n.companyId === pending.company.id)!;
+    const uIn = inApp.find((n) => n.companyId === unverified.company.id)!;
+    expect(pIn.body).not.toContain("Silver");
+    expect(pIn.ctaUrl).toContain(`/company/ilan/${listing.id}`);
+    expect(uIn.body).not.toContain("Silver");
+    expect(uIn.ctaUrl).toContain("/company/ayarlar/dogrulama");
+  });
+
   it("özel talepte gitmez; bu talep için kategori duyurusu almış adrese ikinci e-posta gitmez", async () => {
     const { service, email } = makeService();
     const { listing: priv } = await setup();

@@ -49,3 +49,25 @@ export const AI_RECOMMENDABLE_SELECT = {
   isActive: true,
   isBlocked: true,
 } as const;
+
+/**
+ * AI'ın bulduğu ama alıcıya GÖSTERİLMEYEN firmaya giden çağrının türü
+ * (`notifyHiddenAiMatches`). Neden önerilmediğine göre metin ve CTA değişir —
+ * yalnız doğrulama durumuna bakmak Silver+ ∧ incelemedeki firmaya "Ücretsiz
+ * pakettesiniz, talebi göremiyorsunuz, Silver'a geçin" diyordu (arayüz testi
+ * O-056). Paketli firma talebi ZATEN görür; ona yalnız doğrulama anlatılır.
+ *  - `verify`         : ücretsiz ∧ doğrulanmamış → önce ücretsiz doğrulama
+ *  - `upgrade`        : ücretsiz ∧ doğrulanmış/incelemede → Silver
+ *  - `paidPending`    : paketli ∧ doğrulama incelemede → talebi görebilir, onay bekliyor
+ *  - `paidVerify`     : paketli ∧ doğrulanmamış/reddedilmiş → talebi görebilir, doğrulansın
+ */
+export type AiHiddenMatchKind = "verify" | "upgrade" | "paidPending" | "paidVerify";
+
+export function aiHiddenMatchKind(
+  row: Pick<AiRecommendableRow, "tier" | "membershipEndAt" | "companyVerificationStatus">,
+): AiHiddenMatchKind {
+  const paid = tierAtLeast(effectiveTier(row.tier, row.membershipEndAt), "SILVER");
+  const status = row.companyVerificationStatus;
+  if (paid) return status === "PENDING" ? "paidPending" : "paidVerify";
+  return status === "VERIFIED" || status === "PENDING" ? "upgrade" : "verify";
+}

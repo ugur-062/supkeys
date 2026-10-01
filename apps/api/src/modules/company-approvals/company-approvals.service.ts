@@ -1081,6 +1081,27 @@ export class CompanyApprovalsService {
     const next = req.steps.find(
       (s) => s.order > step.order && s.status === "WAITING",
     );
+    // Arayüz testi O-013 (INV-KYC-1): kazandırma/yayın VERIFIED ister ama kapı
+    // yalnız isteği BAŞLATIRKEN çalışıyordu — doğrulaması sonradan geri alınan
+    // firmada son onay yine sipariş doğuruyordu. SON adımda firmanın GÜNCEL
+    // durumu yeniden okunur; geçerli değilse hiçbir şey yazılmadan onaycıya
+    // nedeni söylenir (istek beklemede kalır: doğrulama dönünce onaylanabilir
+    // ya da reddedilebilir).
+    if (!next) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: req.companyId },
+        select: { companyVerificationStatus: true },
+      });
+      if (company?.companyVerificationStatus !== "VERIFIED") {
+        throw new ForbiddenException(
+          i18nMessage(
+            "api.companyApprovals.firmaDogrulamasiGecerliDegilOnayUygulanamaz",
+            undefined,
+            "COMPANY_NOT_VERIFIED",
+          ),
+        );
+      }
+    }
     const outcome = await runTenantTx(this.prisma, async (tx) => {
       const cas = await tx.approvalRequestStep.updateMany({
         where: {
@@ -1169,6 +1190,13 @@ export class CompanyApprovalsService {
           err instanceof Error ? err.message : String(err)
         }`,
       );
+      // Doğrulama yarışı (O-013 ikinci hattı) onaycıya kendi nedeniyle gider.
+      if (
+        err instanceof ForbiddenException &&
+        (err.getResponse() as { code?: string } | undefined)?.code === "COMPANY_NOT_VERIFIED"
+      ) {
+        throw err;
+      }
       throw new BadRequestException(
         i18nMessage("api.companyApprovals.kazandirmaUygulanamadiTeklifDurumuDegismisOlabil"),
       );

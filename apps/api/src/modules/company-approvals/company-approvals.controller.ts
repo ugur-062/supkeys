@@ -117,8 +117,11 @@ export class CompanyApprovalsController {
   }
 
   /**
-   * Geçmiş + taleplerim — izin gerektirmez: kullanıcı yalnızca PARÇASI olduğu
-   * istekleri görür (başlattıkları + onaycısı olduğu sonuçlanmışlar).
+   * Geçmiş — `approval:act` İSTER (izinsiz üye 403; yalnız `buy:award` taşıyan
+   * Satın Almacı kendi başlattığı istekleri buradan listeleyemez — arayüz testi
+   * D-184, kullanıcı kararı T-20: davranış değişmedi, yorum düzeltildi). Sonuç
+   * yalnız çağıranın PARÇASI olduğu istekler: başlattıkları + onaycısı olduğu
+   * sonuçlanmışlar. Web bu ucu çağırmaz (Onaylar › "Tüm istekler" = `all`).
    */
   @Get("history")
   @RequireCompanyPermission("approval:act")

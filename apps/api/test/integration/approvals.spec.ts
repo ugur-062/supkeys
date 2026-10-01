@@ -977,3 +977,66 @@ describe("Derin denetim LU-06", () => {
     expect(await nameOf(c4.id)).toBe("Purchase approval — Копия");
   });
 });
+
+describe("Arayüz testi O-013 — doğrulaması geri alınan firmada son onay", () => {
+  it("son adımda firma VERIFIED değilse onay uygulanmaz: açık KYC mesajı, event yok, istek PENDING kalır", async () => {
+    const { approvals, awardApproved, listings } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { listing, res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    // İstek açıldıktan sonra admin belgeyi reddetti.
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "REJECTED" },
+    });
+
+    await expect(
+      approvals.decide(a1.auth, started.requestId!, "approve", {} as never),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "COMPANY_NOT_VERIFIED" }),
+    });
+    expect(awardApproved).toHaveLength(0);
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: started.requestId! },
+      include: { steps: true },
+    });
+    expect(req.status).toBe("PENDING");
+    expect(req.steps[0]!.status).toBe("PENDING");
+    // Onaycı yine REDDEDEBİLİR (istek takılı kalmaz).
+    const rej = await approvals.decide(a1.auth, started.requestId!, "reject", {} as never);
+    expect(rej.status).toBe("REJECTED");
+
+    // İkinci hat: olay yine de gelirse uygulayıcı sipariş yazmaz (fail-closed).
+    await expect(
+      listings.onAwardApproved({
+        listingId: listing.id,
+        payload: { kind: "full", bidId: "test-bid" },
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "COMPANY_NOT_VERIFIED" }),
+    });
+    expect(await prisma.companyOrder.count({ where: { listingId: listing.id } })).toBe(0);
+  });
+
+  it("doğrulama yerindeyse son onay her zamanki gibi uygulanır", async () => {
+    const { approvals, awardApproved } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      companyVerificationStatus: "VERIFIED",
+    });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res: started } = await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
+    const r = await approvals.decide(a1.auth, started.requestId!, "approve", {} as never);
+    expect(r.status).toBe("APPROVED");
+    expect(awardApproved).toHaveLength(1);
+  });
+});
