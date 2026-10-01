@@ -827,8 +827,10 @@ export default function ListingDetailPage() {
               <TableRow>
                 <TableHeader>#</TableHeader>
                 <TableHeader>{t("kalem")}</TableHeader>
-                <TableHeader className="text-right">{t("miktar")}</TableHeader>
-                <TableHeader className="text-right">
+                <TableHeader className="hidden text-right sm:table-cell">
+                  {t("miktar")}
+                </TableHeader>
+                <TableHeader className="hidden text-right sm:table-cell">
                   {t("hedefFiyat")}
                 </TableHeader>
                 {showMyPriceCol ? (
@@ -852,8 +854,16 @@ export default function ListingDetailPage() {
               {visibleItems.map((it) => (
                 <TableRow key={it.id}>
                   <TableCell className="text-zinc-400">{it.lineNo}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-normal sm:whitespace-nowrap">
                     <div className="font-medium text-zinc-900">{it.name}</div>
+                    {/* Mobilde miktar ve hedef fiyat sütunları gizli; ad altında
+                        gösterilir, kaydırılan tabloda kırpılmaz (D-122). */}
+                    <div className="mt-0.5 text-xs tabular-nums text-zinc-600 sm:hidden">
+                      {t("miktar")}: {quantity(it.quantity, it.unit, it.unitCode)}
+                      {it.targetPrice
+                        ? ` · ${t("hedefFiyat")}: ${fmtMoney(it.targetPrice, l.primaryCurrency ?? "TRY")}`
+                        : null}
+                    </div>
                     {it.materialCode ? (
                       <div className="tabular-nums text-xs text-zinc-500">
                         {it.materialCode}
@@ -873,10 +883,10 @@ export default function ListingDetailPage() {
                       </div>
                     ) : null}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-zinc-700">
+                  <TableCell className="hidden text-right tabular-nums text-zinc-700 sm:table-cell">
                     {quantity(it.quantity, it.unit, it.unitCode)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-zinc-700">
+                  <TableCell className="hidden text-right tabular-nums text-zinc-700 sm:table-cell">
                     {it.targetPrice
                       ? fmtMoney(it.targetPrice, l.primaryCurrency ?? "TRY")
                       : "—"}
