@@ -391,3 +391,60 @@ describe("Denetim 2026-08-23 LOW — setActive/remove'da yönetici-hedef korumas
   });
 });
 
+
+describe("Kuruculuk devri bildirimi (arayüz testi D-189)", () => {
+  it("devirde iki tarafa kendi dilinde e-posta + in-app bildirim gider; devir etiketi denetim kaydında", async () => {
+    const { NotificationService } = await import(
+      "../../src/modules/notifications/notification.service"
+    );
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const svc = new CompanyUsersService(
+      prisma as never,
+      { createUser: jest.fn(), deleteUser: jest.fn() } as never,
+      { createSession: jest.fn() } as never,
+      email as never,
+      { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+      new AuditService(prisma as never),
+      new NotificationService(prisma as never),
+    );
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
+    await prisma.companyUser.update({ where: { id: member.id }, data: { locale: "en" } });
+
+    await svc.updateUser(owner.auth, member.id, {
+      roles: [CompanyRole.SAHIP],
+      previousOwnerRoles: [CompanyRole.YONETICI],
+    });
+
+    const sends = email.send.mock.calls.map((c) => c[0] as {
+      to: { email: string };
+      locale: string;
+      context: { type: string };
+      templateData: { data: { subject: string } };
+    });
+    const transfer = sends.filter((s) => s.context.type === "company_ownership_transferred");
+    expect(transfer.map((s) => s.to.email).sort()).toEqual(
+      [owner.user.email, member.email].sort(),
+    );
+    const toNew = transfer.find((s) => s.to.email === member.email)!;
+    expect(toNew.locale).toBe("en");
+    expect(toNew.templateData.data.subject).toMatch(/transferred to you/);
+    const toPrev = transfer.find((s) => s.to.email === owner.user.email)!;
+    expect(toPrev.templateData.data.subject).toMatch(/kuruculuğunu devrettiniz/);
+
+    // Eski Kurucu da in-app bildirim alır (menüsü değişti → /me yenilenir).
+    expect(
+      await prisma.notification.count({
+        where: { companyUserId: owner.user.id, type: "permissions_changed" },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { companyUserId: member.id, type: "permissions_changed" },
+      }),
+    ).toBe(1);
+    await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.ownership.transferred", entityId: owner.company.id },
+    });
+  });
+});

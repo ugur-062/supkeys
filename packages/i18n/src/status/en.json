@@ -5204,6 +5204,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.notifications.adminCompanies.paketSilvereAlindiBaslik": {
+    "hash": "efa834cc4e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.paketSilvereAlindiGovde": {
+    "hash": "daa808d7a5",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.notifications.adminCompanies.paketSonlandirildiAnaParagraf": {
     "hash": "2d727c8ff7",
     "status": "reviewed",
@@ -5733,6 +5743,26 @@
     "hash": "2d088601a3",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.notifications.companyUsers.ownershipTransferred.toNewOwner.body": {
+    "hash": "69bfaa42b2",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.ownershipTransferred.toNewOwner.title": {
+    "hash": "efdea4f41d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.ownershipTransferred.toPreviousOwner.body": {
+    "hash": "fa2af7eceb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.companyUsers.ownershipTransferred.toPreviousOwner.title": {
+    "hash": "639f2cfa2f",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.companyUsers.permissionsChanged.body": {
     "hash": "3549a117be",
@@ -9584,6 +9614,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.domain.auditAction.company_membership_self_upgraded": {
+    "hash": "cb31e7f08b",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.domain.auditAction.company_order_accepted": {
     "hash": "286e56c447",
     "status": "reviewed",
@@ -9654,6 +9689,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.domain.auditAction.company_ownership_transferred": {
+    "hash": "9d9a0ad992",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.domain.auditAction.company_profile_enriched": {
     "hash": "f02d48561a",
     "status": "reviewed",
@@ -9683,6 +9723,11 @@
     "hash": "cbb3235a93",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.domain.auditAction.company_user_permissions_changed": {
+    "hash": "99bc2a79f5",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.domain.auditAction.company_user_permissions_overridden": {
     "hash": "46c803ab61",

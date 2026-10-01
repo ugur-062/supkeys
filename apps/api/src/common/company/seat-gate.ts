@@ -35,6 +35,14 @@ export async function lockCompanyRow(
 export async function readSeatUsage(
   db: Prisma.TransactionClient,
   companyId: string,
+  opts: {
+    /**
+     * Sayımdan hariç tutulacak davet — "Yeniden Gönder" kendi koltuğunu zaten
+     * tutuyor; hariç tutulmazsa son koltuktaki davet kendisiyle çakışıp
+     * "Koltuk dolu (1 aktif + 1 bekleyen / 2)" diye reddediliyordu (O-063).
+     */
+    excludeInvitationId?: string;
+  } = {},
 ) {
   const company = await db.company.findUnique({
     where: { id: companyId },
@@ -49,7 +57,12 @@ export async function readSeatUsage(
       select: { id: true, roles: true, permissions: true },
     }),
     db.companyUserInvitation.findMany({
-      where: { companyId, status: "PENDING", expiresAt: { gt: new Date() } },
+      where: {
+        companyId,
+        status: "PENDING",
+        expiresAt: { gt: new Date() },
+        ...(opts.excludeInvitationId ? { id: { not: opts.excludeInvitationId } } : {}),
+      },
       select: { roles: true, permissions: true },
     }),
   ]);
@@ -63,17 +76,26 @@ export async function readSeatUsage(
   const pending = countSeats(
     invites.map((i) => ({ permissions: i.permissions, roles: i.roles })),
   );
+  // ROL SAYIMI PAKET KAPISININ İÇİNDE (arayüz testi O-065/O-069, DN-04):
+  // satınalma koltuğu yalnız GOLD'da işe yarar (`BUYING_TIER`). Gold altında
+  // kayıtlı satınalma izinleri SİLİNMEZ (Gold'a dönünce yeniden geçerli olur)
+  // ama koltuk YEMEZ — eskiden GOLD→SILVER düşüşünde iki uykudaki satınalma
+  // koltuğu Silver'ın 4 satış koltuğunun ikisini tutuyordu.
+  const buyCounts = tierAtLeast(tier, BUYING_TIER);
+  const usedBuy = buyCounts ? active.buy : 0;
+  const pendingBuy = buyCounts ? pending.buy : 0;
+  const used = usedBuy + active.sell;
   return {
     limit,
     /** Efektif kademe — koltuk kapısı buy grubunu buna göre reddeder. */
     tier,
-    used: active.total,
-    usedBuy: active.buy,
+    used,
+    usedBuy,
     usedSell: active.sell,
-    pendingSeatInvites: pending.total,
-    pendingBuy: pending.buy,
+    pendingSeatInvites: pendingBuy + pending.sell,
+    pendingBuy,
     pendingSell: pending.sell,
-    overflow: limit == null ? 0 : Math.max(0, active.total - limit),
+    overflow: limit == null ? 0 : Math.max(0, used - limit),
   };
 }
 
@@ -85,11 +107,15 @@ export async function assertSeatAvailable(
     groups: ReadonlySet<SeatGroup>;
     includePending?: boolean;
     context: "invite" | "accept" | "assign";
+    /** Yeniden gönderilen davet — kendi koltuğu bekleyenlerden düşülür (O-063). */
+    excludeInvitationId?: string;
   },
 ): Promise<void> {
   const need = opts.groups.size;
   if (need <= 0) return;
-  const { limit, used, pendingSeatInvites, tier } = await readSeatUsage(db, companyId);
+  const { limit, used, pendingSeatInvites, tier } = await readSeatUsage(db, companyId, {
+    excludeInvitationId: opts.excludeInvitationId,
+  });
   if (opts.groups.has("buy") && !tierAtLeast(tier, BUYING_TIER)) {
     throw new BadRequestException(
       i18nMessage("api.companyUsers.satinalmaYetkisiYalnizGoldPaketteVerilebilir"),

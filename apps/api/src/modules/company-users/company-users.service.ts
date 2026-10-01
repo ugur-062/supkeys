@@ -20,9 +20,12 @@ import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
 import {
   ALL_SEAT_PERMISSIONS,
+  BUYING_TIER,
   BUY_SEAT_PERMISSIONS,
   SELL_SEAT_PERMISSIONS,
+  VIEWER_PRESET,
   seatGroupsOf,
+  tierAtLeast,
   type SeatGroup,
 } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -172,12 +175,17 @@ export class CompanyUsersService {
         permissions: u.permissions,
         roles: u.roles,
       });
-      // Eski düzenleyici uyumu: rol hazır setine göre +/- farkı.
-      const preset = new Set(permissionsForRoles(u.roles));
+      // Eski düzenleyici uyumu: rol hazır setine göre +/- farkı. Rolsüz
+      // kişinin hazır seti "Görüntüleyici"dir (boş küme değil) — aksi hâlde
+      // Görüntüleyici setiyle davet edilen herkes "Özel" rozeti alıyordu (D-305).
+      const rolePreset = permissionsForRoles(u.roles);
+      const preset = new Set(
+        u.roles.length > 0 ? rolePreset : normalizePermissions(VIEWER_PRESET),
+      );
       const stored = new Set(
         u.permissions.length > 0
           ? normalizePermissions(u.permissions)
-          : [...preset],
+          : rolePreset,
       );
       return {
         id: u.id,
@@ -418,6 +426,8 @@ export class CompanyUsersService {
       groups: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }),
       includePending: true,
       context: "invite",
+      // Davet kendi koltuğunu zaten tutuyor — iki kez sayılmasın (O-063).
+      excludeInvitationId: inv.id,
     });
     await this.assertInvitationMailBudget(actor.companyId, inv.id);
     await this.prisma.companyUserInvitation.update({
@@ -803,8 +813,14 @@ export class CompanyUsersService {
     });
     if (transferring) {
       await this.auditOwnershipTransfer(actor, targetId, undefined);
+      await this.notifyOwnershipTransfer(
+        actor.companyId,
+        company?.ownerUserId ?? null,
+        targetId,
+      );
+    } else {
+      await this.notifyPermissionChange(targetId);
     }
-    await this.notifyPermissionChange(targetId);
     return { ok: true };
   }
 
@@ -936,8 +952,14 @@ export class CompanyUsersService {
           targetId,
           dto.previousOwnerRoles as CompanyRole[] | undefined,
         );
+        await this.notifyOwnershipTransfer(
+          actor.companyId,
+          company?.ownerUserId ?? null,
+          targetId,
+        );
+      } else {
+        await this.notifyPermissionChange(targetId);
       }
-      await this.notifyPermissionChange(targetId);
     } else {
       await this.prisma.companyUser.update({ where: { id: targetId }, data });
     }
@@ -969,6 +991,103 @@ export class CompanyUsersService {
         previousOwnerRoles: previousOwnerRoles ?? ["YONETICI"],
       },
     });
+  }
+
+  /**
+   * KURUCULUK DEVRİ bildirimi (arayüz testi D-189): eskiden iki tarafa da
+   * e-posta gitmiyor, eski Kurucu hiçbir bildirim almıyor, yeni Kurucu yalnız
+   * genel "yetkileriniz güncellendi" satırını görüyordu. Her iki tarafa kendi
+   * dilinde e-posta + in-app satırı. In-app tipi `permissions_changed` —
+   * istemci bu tiple `/me`'yi yeniler (iki tarafın menüsü de değişti).
+   * Best-effort: devir commit edildi, bildirim hatası işlemi bozmaz.
+   */
+  private async notifyOwnershipTransfer(
+    companyId: string,
+    previousOwnerId: string | null,
+    newOwnerId: string,
+  ) {
+    try {
+      const ids = [newOwnerId, ...(previousOwnerId ? [previousOwnerId] : [])];
+      const [company, people] = await Promise.all([
+        this.prisma.company.findUnique({
+          where: { id: companyId },
+          select: { name: true },
+        }),
+        this.prisma.companyUser.findMany({
+          where: { id: { in: ids }, companyId, deletedAt: null },
+          select: { id: true, email: true, firstName: true, lastName: true, locale: true },
+        }),
+      ]);
+      if (!company) return;
+      const byId = new Map(people.map((p) => [p.id, p]));
+      const fullName = (p?: { firstName: string | null; lastName: string | null }) =>
+        `${p?.firstName ?? ""} ${p?.lastName ?? ""}`.trim();
+      const prev = previousOwnerId ? byId.get(previousOwnerId) : undefined;
+      const next = byId.get(newOwnerId);
+      const baseUrl = resolveWebUrl(this.config).replace(/\/$/, "");
+      const sides: {
+        user: typeof next;
+        side: "toNewOwner" | "toPreviousOwner";
+        other: string;
+      }[] = [
+        { user: next, side: "toNewOwner", other: fullName(prev) || (prev?.email ?? "") },
+        { user: prev, side: "toPreviousOwner", other: fullName(next) || (next?.email ?? "") },
+      ];
+      for (const { user, side, other } of sides) {
+        if (!user) continue;
+        const locale = localeOf(user.locale);
+        const params = { company: company.name, other };
+        const keys = {
+          title: `api.notifications.companyUsers.ownershipTransferred.${side}.title`,
+          body: `api.notifications.companyUsers.ownershipTransferred.${side}.body`,
+        } as const;
+        await this.notifications
+          ?.pushToUser(user.id, {
+            type: "permissions_changed",
+            titleKey: keys.title,
+            bodyKey: keys.body,
+            params,
+            ctaLabelKey: "api.notifications.companyUsers.permissionsChanged.cta",
+            ctaPath: "/company",
+          })
+          .catch((err: unknown) =>
+            this.logger.warn(
+              `Ownership transfer in-app notification failed (${user.id}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+          );
+        await this.email
+          .send({
+            to: { email: user.email },
+            locale,
+            templateData: {
+              template: "notification",
+              data: {
+                subject: tApi(keys.title, params, locale),
+                heading: tApi(keys.title, params, locale),
+                paragraphs: [tApi(keys.body, params, locale)],
+                ctaLabel: tApi("api.notifications.companyUsers.permissionsChanged.cta", undefined, locale),
+                ctaUrl: appRoutes.home(baseUrl, locale),
+              },
+            },
+            context: { type: "company_ownership_transferred", id: companyId },
+          })
+          .catch((err: unknown) =>
+            this.logger.warn(
+              `Ownership transfer email failed (${user.id}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+          );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Ownership transfer notification failed (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   /**
@@ -1077,7 +1196,10 @@ export class CompanyUsersService {
         rolesAfter: nextRoles,
       },
     });
-    if (added.length > 0 || removed.length > 0) {
+    // Kurucu kendi işlem tiklerini düzenlediğinde kendine "Firma yöneticiniz
+    // yetkilerinizi değiştirdi" demek yanlış (arayüz testi Y-13 notu); kendi
+    // ekranı /me'yi kendisi tazeler.
+    if ((added.length > 0 || removed.length > 0) && targetId !== actor.userId) {
       await this.notifyPermissionChange(targetId);
     }
     return { ok: true, permissions: next, roles: nextRoles };
@@ -1667,6 +1789,7 @@ export class CompanyUsersService {
       groups: ReadonlySet<SeatGroup>;
       includePending?: boolean;
       context: "invite" | "accept" | "assign";
+      excludeInvitationId?: string;
     },
   ) {
     // Kurallar (GOLD-dışı satınalma kapısı koltuk sayımından ÖNCE, (kişi, grup)
@@ -1692,7 +1815,11 @@ export class CompanyUsersService {
       );
     }
     const result = await this.lockedAdminTx(actor.companyId, async (tx) => {
-      const { limit } = await this.seatUsage(actor.companyId, tx);
+      const { limit, tier } = await this.seatUsage(actor.companyId, tx);
+      // Gold altında satınalma koltuğu sayılmaz ve seçilemez (O-069, DN-04):
+      // kayıtlı satınalma izinleri dokunulmadan kalır (Gold'a dönünce geçerli),
+      // seçim yalnız satış koltukları üzerinden yapılır.
+      const buyCounts = tierAtLeast(tier, BUYING_TIER);
       if (limit == null) {
         throw new BadRequestException(i18nMessage("api.companyUsers.buPaketteKoltukSiniriYok"));
       }
@@ -1706,14 +1833,15 @@ export class CompanyUsersService {
           select: { id: true, email: true, roles: true, permissions: true },
         })
       )
-        .map((h) => ({
-          ...h,
-          groups: seatGroupsOf({
+        .map((h) => {
+          const groups = seatGroupsOf({
             isOwner: company?.ownerUserId === h.id,
             permissions: h.permissions,
             roles: h.roles,
-          }),
-        }))
+          });
+          if (!buyCounts) groups.delete("buy");
+          return { ...h, groups };
+        })
         .filter((h) => h.groups.size > 0);
       // Seçimi (kişi, grup) çiftine indir.
       const keep = new Set<string>();
@@ -1727,6 +1855,11 @@ export class CompanyUsersService {
           }
           for (const g of h.groups) keep.add(`${k}:${g}`);
         } else {
+          if (k.group === "buy" && !buyCounts) {
+            throw new BadRequestException(
+              i18nMessage("api.companyUsers.satinalmaYetkisiYalnizGoldPaketteVerilebilir"),
+            );
+          }
           const h = holders.find((x) => x.id === k.userId);
           if (!h || !h.groups.has(k.group)) {
             throw new BadRequestException(
@@ -1860,6 +1993,18 @@ export class CompanyUsersService {
     // (YONETICI etiketi bundan türer). Eski satırlar (izin kolonu boş) için
     // etiket de sayılır — geçiş emniyeti.
     if (newRoles.includes("SAHIP") || newRoles.includes("YONETICI")) return;
+    // KURUCU HER ZAMAN YÖNETİCİDİR (arayüz testi Y-13): yönetim yetkisi onda
+    // ÖRTÜK ve kayıtlı listede tutulmaz — kendi işlem tiklerini düzenlemesi ya
+    // da koltuk seçimi satırına yalnız işlem izinlerini yazıyor, sonra izin
+    // listesine bakan sayım kurucuyu görmüyor ve her ekip düzenlemesi "en az
+    // bir aktif yönetim yetkilisi kalmalı" diye reddediliyordu. Hedef kurucu
+    // değilse ve kurucu aktifse garanti zaten sağlanır (kurucu pasifleştirilemez,
+    // çıkarılamaz; kuruculuğu yalnız devirle bırakır).
+    const company = await tx.company.findUnique({
+      where: { id: companyId },
+      select: { ownerUserId: true },
+    });
+    const ownerId = company?.ownerUserId ?? null;
     const otherActiveAdmins = await tx.companyUser.count({
       where: {
         companyId,
@@ -1867,6 +2012,7 @@ export class CompanyUsersService {
         isActive: true,
         id: { not: targetId },
         OR: [
+          ...(ownerId ? [{ id: ownerId }] : []),
           { permissions: { has: "users:manage" } },
           { permissions: { isEmpty: true }, roles: { hasSome: ["SAHIP", "YONETICI"] } },
         ],

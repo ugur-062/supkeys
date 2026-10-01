@@ -53,7 +53,9 @@ beforeEach(async () => {
 describe("completeOnboarding", () => {
   it("geçerli veri → firma güncellenir + onboardingCompletedAt + adresler + rol", async () => {
     const { service } = makeAuthService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    // Factory GOLD doğurur; GOLD firmada onboarding satınalma koltuğunu korur
+    // (D-165, aşağıda) — burada ücretsiz paketteki kayıt sınanıyor.
+    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
     const cat = await makeCategory();
 
     await service.completeOnboarding(
@@ -275,7 +277,7 @@ describe("completeOnboarding", () => {
 
   it("kurucu kayıtta YALNIZ satış koltuğu alır — satınalma koltuğu ücretsiz pakette yakılmaz", async () => {
     const { service } = makeAuthService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
     const cat = await makeCategory();
     await service.completeOnboarding(
       owner.user.id,
@@ -292,7 +294,7 @@ describe("completeOnboarding", () => {
 
   it("GOLD'a geçişte kurucunun satınalma koltuğu AÇILIR", async () => {
     const { service } = makeAuthService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
     const cat = await makeCategory();
     await service.completeOnboarding(
       owner.user.id,
@@ -312,6 +314,35 @@ describe("completeOnboarding", () => {
     expect(u.permissions).toContain("buy:listing:manage");
     // Satış koltuğu KAYBOLMAZ — ekleme, değiştirme değil.
     expect(u.permissions).toContain("sell:bid:submit");
+  });
+
+  it("paket onboarding'den ÖNCE tanımlandıysa kurucu satınalma yetkisini KAYBETMEZ (arayüz testi D-165)", async () => {
+    const { service } = makeAuthService();
+    // Admin, kurucu onboarding'i bitirmeden GOLD tanımladı (factory GOLD).
+    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto(cat.id) as never,
+    );
+    const u = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: owner.user.id },
+    });
+    expect(u.roles).toHaveLength(3);
+    expect(u.roles).toEqual(
+      expect.arrayContaining([
+        CompanyRole.SAHIP,
+        CompanyRole.SATIN_ALMACI,
+        CompanyRole.SATISCI,
+      ]),
+    );
+    expect(u.permissions).toEqual(
+      expect.arrayContaining(["buy:listing:manage", "sell:bid:submit"]),
+    );
+    // Sahibe-özel anahtarlar kayıtlı listeye yazılmaz (D-181).
+    expect(u.permissions).not.toContain("billing:manage");
+    expect(u.permissions).not.toContain("ownership:transfer");
   });
 
   it("STANDART kalırsa satınalma koltuğu AÇILMAZ — fail-safe", async () => {

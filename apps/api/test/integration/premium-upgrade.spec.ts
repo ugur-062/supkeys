@@ -78,3 +78,28 @@ describe("Y2 — upgradeToPremium feature flag", () => {
     expect(res).toMatchObject({ ok: true, tier: "GOLD" });
   });
 });
+
+describe("self-servis yükseltme iz bırakır (arayüz testi D-170)", () => {
+  it("GRANT üyelik olayı + denetim kaydı yazılır", async () => {
+    const { service, audit } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
+    const co = await eligibleCompany();
+    await service.upgradeToPremium(co.user.id, co.company.id);
+    const ev = await prisma.companyMembershipEvent.findFirstOrThrow({
+      where: { companyId: co.company.id },
+    });
+    expect(ev).toMatchObject({
+      action: "GRANT",
+      endAfter: null,
+      adminId: null,
+      reason: "self_service_upgrade",
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "company.membership.self_upgraded",
+        actorId: co.user.id,
+        entityId: co.company.id,
+        metadata: { tier: "GOLD", from: "STANDART" },
+      }),
+    );
+  });
+});

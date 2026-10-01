@@ -826,6 +826,18 @@ export class CompanyAuthService {
       throw e;
     });
 
+    // Paket onboarding'den ÖNCE tanımlandıysa (admin GOLD verdi, kurucu sonra
+    // tamamladı) yukarıdaki yazım, paket tanımında açılan satınalma koltuğunu
+    // ezip kurucuyu 403'e düşürüyordu (arayüz testi D-165). Aynı fail-safe
+    // yardımcı burada da koşar: GOLD değilse ya da koltuk varsa dokunmaz.
+    await ensureOwnerBuySeat(this.prisma, companyId).catch((err: unknown) =>
+      this.logger.warn(
+        `Owner buying seat could not be opened after onboarding (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+
     // AB firması: kaydedilen vergi no arka planda VIES'e sorulur (audit izi).
     this.scheduleOnboardingVies(companyId, userId, country, taxNumber);
 
@@ -1312,9 +1324,35 @@ export class CompanyAuthService {
     // açılmıyor ve ödeme devreye girdiğinde parası da alınmış oluyor.
     // Bugün süre yok (ücretsiz seam) → null = süresiz. Ödeme geldiğinde bu
     // satır dönem sonunu yazacak.
-    await this.prisma.company.update({
-      where: { id: companyId },
-      data: { tier: "GOLD", membershipEndAt: null },
+    // Üyelik geçmişi + denetim (arayüz testi D-170): admin yolları GRANT
+    // olayını aynı tx'te yazıyor; self-servis yükseltme geçmişte ve denetimde
+    // iz bırakmıyordu ("premium'um nereye gitti" + gelir raporu boşluğu).
+    await runTenantTx(this.prisma, async (tx) => {
+      await tx.company.update({
+        where: { id: companyId },
+        data: { tier: "GOLD", membershipEndAt: null },
+      });
+      await tx.companyMembershipEvent.create({
+        data: {
+          companyId,
+          action: "GRANT",
+          months: null,
+          endBefore: company.membershipEndAt,
+          endAfter: null,
+          reason: "self_service_upgrade",
+          adminId: null,
+        },
+      });
+    });
+    await this.audit.log({
+      action: "company.membership.self_upgraded",
+      actorType: "company",
+      actorId: userId,
+      tenantId: companyId,
+      entityType: "company",
+      entityId: companyId,
+      metadata: { tier: "GOLD", from: company.tier },
+      critical: true,
     });
     // Satınalma koltuğu BURADA açılır: kayıtta verilmiyor çünkü STANDART'ta
     // kullanılamıyor ve ücretsiz paketin koltuğunu boşuna yakıyordu.

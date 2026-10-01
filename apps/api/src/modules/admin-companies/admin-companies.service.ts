@@ -1709,6 +1709,15 @@ export class AdminCompaniesService {
     // (BUYING_TIER işi) iptal (derin denetim LU-07) — bağlantı/referral davetleri SILVER'da geçerli.
     if (tier === "SILVER" && before.tier === "GOLD") {
       await cancelQueuedListingInvites(this.prisma, [id]);
+      // Satınalma panelini kaybeden firmaya haber (arayüz testi O-065): eskiden
+      // bildirim yalnız STANDART'a düşüşte ve STANDART'tan çıkışta gidiyordu.
+      // Satınalma koltukları Gold altında sayılmaz (`readSeatUsage`); kayıtlı
+      // izinler silinmez, Gold'a dönünce yeniden geçerli olur (DN-04).
+      void this.notifyCompany(id, {
+        type: "membership_downgraded",
+        subjectKey: "api.notifications.adminCompanies.paketSilvereAlindiBaslik",
+        paragraphKeys: ["api.notifications.adminCompanies.paketSilvereAlindiGovde"],
+      });
     }
     // #6: elle REVOKE, otomatik süre-dolma yolunun (membership.scheduler)
     // temizliğini yapmıyordu. STANDART davet gönderemez; firmanın GÖNDERDİĞİ

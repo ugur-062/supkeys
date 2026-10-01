@@ -216,7 +216,13 @@ export function useSetUserPermissions() {
       }>(`/company/users/${id}/permissions`, { permissions });
       return data;
     },
-    onSuccess: () => invalidateUserCaches(qc),
+    onSuccess: () => {
+      invalidateUserCaches(qc);
+      // Kurucu KENDİ işlem tiklerini düzenleyebilir; sunucu kişinin kendi
+      // değişikliği için "Firma yöneticiniz yetkilerinizi değiştirdi"
+      // bildirimini artık yollamıyor (arayüz testi Y-13) → /me burada tazelenir.
+      qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+    },
   });
 }
 

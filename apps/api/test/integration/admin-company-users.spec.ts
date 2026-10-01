@@ -215,12 +215,14 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
 describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
   it("Aktifleştir: dolu firmada koltuk taşıyan pasif kişi geri açılamaz; koltuksuz kişi açılır", async () => {
     const { service } = rig();
-    // SILVER limit 4: Kurucu SA+ST (2) + iki satışçı (2) = 4/4.
+    // SILVER limit 4: Kurucu ST (1; satınalma koltuğu Gold altında sayılmaz)
+    // + üç satışçı (3) = 4/4.
     const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
     await prisma.company.update({
       where: { id: co.company.id },
       data: { membershipEndAt: new Date(Date.now() + 30 * 86400_000) },
     });
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
     await makeUser(prisma, co.company.id, ["SATISCI"]);
     await makeUser(prisma, co.company.id, ["SATISCI"]);
     const passive = await makeUser(prisma, co.company.id, ["SATISCI"], {

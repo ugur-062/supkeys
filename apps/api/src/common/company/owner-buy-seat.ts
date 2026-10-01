@@ -72,8 +72,11 @@ export async function ensureOwnerBuySeat(
   // İzin listesi DOĞRULUK KAYNAĞI (`CompanyUser.permissions`), roller etiket.
   // Kurucunun elle kısıtladığı izinleri EZMEMEK için mevcut liste korunur ve
   // üstüne yalnız satınalma setinin eksikleri eklenir.
+  // KAYITLI liste (isOwner:false) — kurucunun örtük/sahibe-özel anahtarları
+  // (`billing:manage`, `company:delete`, `ownership:transfer`…) satıra
+  // YAZILMAZ; onları her istekte `isOwner` verir (arayüz testi D-181).
   const mevcut = effectivePermissions({
-    isOwner: true,
+    isOwner: false,
     permissions: owner.permissions,
     roles,
   });
