@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 
-import { api, apiErrorMessage, toastApiError } from "../api";
+import { api, apiErrorMessage, apiErrorToastId, toastApiError } from "../api";
 
 /**
  * Derin denetim MU-21: sayfalar `e instanceof Error ? e.message : "Hata"` ile
@@ -104,6 +104,16 @@ describe("toastApiError + interceptor", () => {
     const e = await viaInterceptor(403, { message: "Yetkiniz yok" });
     toastApiError(e);
     expect(h.toast.error).toHaveBeenCalledTimes(1);
-    expect(h.toast.error).toHaveBeenCalledWith("Yetkiniz yok");
+    expect(h.toast.error).toHaveBeenCalledWith("Yetkiniz yok", expect.anything());
+  });
+
+  it("5xx yeniden denemesi ikinci toast açmaz: aynı hata aynı sabit kimlikle basılır (arayüz testi D-215)", async () => {
+    await viaInterceptor(500, {});
+    await viaInterceptor(500, {});
+    expect(h.toast.error).toHaveBeenCalledTimes(2);
+    const [first, second] = h.toast.error.mock.calls;
+    expect(first?.[1]).toEqual({ id: expect.any(String) });
+    expect(second?.[1]).toEqual(first?.[1]);
+    expect(first?.[1]).toEqual({ id: apiErrorToastId("Sunucu hatası, lütfen tekrar deneyin") });
   });
 });

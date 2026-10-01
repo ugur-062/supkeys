@@ -129,6 +129,50 @@ describe("GlobalSearch Enter yarışı (arayüz testi O-073)", () => {
     await new Promise((r) => setTimeout(r, 400));
     expect(h.push).not.toHaveBeenCalled();
   });
+
+  it("bekleyen Enter'dan sonra Escape: sonuç geç gelse de yönlendirme yok", async () => {
+    const user = userEvent.setup();
+    h.byQuery = {};
+    const { rerender } = render(<GlobalSearch />);
+    const box = screen.getByLabelText("Global arama");
+    await user.type(box, "beta{Enter}");
+    await user.type(box, "{Escape}");
+    h.byQuery.beta = {
+      data: { companies: [company("c-beta", "Beta Ltd")], users: [] },
+      isLoading: false,
+      isError: false,
+    };
+    rerender(<GlobalSearch />);
+    await new Promise((r) => setTimeout(r, 400));
+    expect(h.push).not.toHaveBeenCalled();
+  });
+
+  it("bekleyen Enter'dan sonra dışarı tıklama: sonuç geç gelse de yönlendirme yok", async () => {
+    const user = userEvent.setup();
+    h.byQuery = {};
+    const { rerender } = render(
+      <div>
+        <GlobalSearch />
+        <button type="button">dışarı</button>
+      </div>,
+    );
+    const box = screen.getByLabelText("Global arama");
+    await user.type(box, "beta{Enter}");
+    await user.click(screen.getByRole("button", { name: "dışarı" }));
+    h.byQuery.beta = {
+      data: { companies: [company("c-beta", "Beta Ltd")], users: [] },
+      isLoading: false,
+      isError: false,
+    };
+    rerender(
+      <div>
+        <GlobalSearch />
+        <button type="button">dışarı</button>
+      </div>,
+    );
+    await new Promise((r) => setTimeout(r, 400));
+    expect(h.push).not.toHaveBeenCalled();
+  });
 });
 
 describe("GlobalSearch kutu sınırı ve mobil düzen (arayüz testi D-212, D-031)", () => {

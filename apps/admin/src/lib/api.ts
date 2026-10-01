@@ -56,9 +56,19 @@ function markHandled(error: AxiosError<ApiErrorPayload>) {
   (error as unknown as Record<symbol, boolean>)[TOASTED] = true;
 }
 
+/**
+ * Sabit toast kimliği (arayüz testi D-215): 5xx/ağ hatasında sorgu bir kez
+ * yeniden denenir ve interceptor her denemede çalışır; aynı metin aynı
+ * kimlikle basılınca sonner ikinci toast açmaz, açık olanı günceller.
+ * Aynı anda düşen birden çok sorgunun aynı hatası da tek toast olur.
+ */
+export function apiErrorToastId(message: string): string {
+  return `api-error:${message}`;
+}
+
 function toastOnce(error: AxiosError<ApiErrorPayload>, message: string) {
   markHandled(error);
-  toast.error(message);
+  toast.error(message, { id: apiErrorToastId(message) });
 }
 
 function wasToasted(e: unknown): boolean {

@@ -45,9 +45,12 @@ export function GlobalSearch() {
 
   // Rota değişince panel kapansın (klavye/tarayıcı navigasyonu dahil).
   const pathname = usePathname();
+  // Bekleyen Enter da düşer: başka sayfadayken geç gelen sonuç beklenmedik
+  // bir yönlendirme yapmasın.
   useEffect(() => {
     setOpen(false);
     setMobileOpen(false);
+    setPendingEnter(null);
   }, [pathname]);
 
   useEffect(() => {
@@ -55,6 +58,7 @@ export function GlobalSearch() {
       if (!boxRef.current?.contains(e.target as Node)) {
         setOpen(false);
         setMobileOpen(false);
+        setPendingEnter(null);
       }
     };
     document.addEventListener("mousedown", onClick);
@@ -111,7 +115,11 @@ export function GlobalSearch() {
     >
       <button
         type="button"
-        onClick={() => setMobileOpen((v) => !v)}
+        onClick={() => {
+          // Mobil katmanı kapatmak bekleyen Enter'ı da iptal eder.
+          if (mobileOpen) setPendingEnter(null);
+          setMobileOpen((v) => !v);
+        }}
         aria-label="Aramayı aç"
         aria-expanded={mobileOpen}
         className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 sm:hidden"
@@ -139,8 +147,10 @@ export function GlobalSearch() {
             onFocus={() => setOpen(true)}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
+                // Vazgeçildi: bekleyen Enter da iptal (arayüz testi O-073).
                 setOpen(false);
                 setMobileOpen(false);
+                setPendingEnter(null);
                 (e.target as HTMLInputElement).blur();
               } else if (e.key === "Enter") {
                 // İlk sonuca git — hızlı akış. Sonuçlar bu girdiye ait değilse
