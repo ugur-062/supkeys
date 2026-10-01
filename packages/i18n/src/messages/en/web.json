@@ -726,6 +726,7 @@
       "optOut": "I don't want invitations",
       "closedTitle": "This request is closed for quotes",
       "closedBody": "Sign up for free to hear about similar requests.",
+      "closedBodyMember": "Log in to see similar requests.",
       "invalidTitle": "Invitation not found",
       "invalidBody": "This link is invalid or the invitation is no longer valid."
     }

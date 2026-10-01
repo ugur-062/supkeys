@@ -73,6 +73,7 @@ describe("Talep davet önizlemesi", () => {
     expect(cta.getAttribute("href")).toContain("ref=TOK123");
     expect(cta.getAttribute("href")).not.toContain("redirect=");
     expect(screen.queryByText(/teklif vermek ücretsizdir/)).toBeNull();
+    expect(screen.getByText("Benzer taleplerden haberdar olmak için ücretsiz kaydolabilirsiniz.")).toBeInTheDocument();
   });
 
   it("kapalı talep, kayıtlı adres: düz giriş, talebe dönüş yok", async () => {
@@ -80,6 +81,8 @@ describe("Talep davet önizlemesi", () => {
     render(<Page />);
     const cta = await screen.findByRole("link", { name: "Giriş yap" });
     expect(cta.getAttribute("href")).not.toContain("next=");
+    expect(screen.getByText("Benzer talepleri görmek için giriş yapın.")).toBeInTheDocument();
+    expect(screen.queryByText(/ücretsiz kaydolabilirsiniz/)).toBeNull();
   });
 
   it("geçersiz bağlantı", async () => {

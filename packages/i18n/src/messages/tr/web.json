@@ -726,6 +726,7 @@
       "optOut": "Davet almak istemiyorum",
       "closedTitle": "Bu talep teklife kapandı",
       "closedBody": "Benzer taleplerden haberdar olmak için ücretsiz kaydolabilirsiniz.",
+      "closedBodyMember": "Benzer talepleri görmek için giriş yapın.",
       "invalidTitle": "Davet bulunamadı",
       "invalidBody": "Bu bağlantı geçersiz ya da davet artık geçerli değil."
     }

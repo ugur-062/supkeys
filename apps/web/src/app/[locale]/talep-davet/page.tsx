@@ -181,7 +181,7 @@ function PreviewInner() {
       {d.closed ? (
         <div className="mt-6 rounded-xl bg-zinc-100 p-4">
           <p className="text-sm font-semibold text-zinc-900">{t("closedTitle")}</p>
-          <p className="mt-1 text-sm text-zinc-700">{t("closedBody")}</p>
+          <p className="mt-1 text-sm text-zinc-700">{t(d.accepted ? "closedBodyMember" : "closedBody")}</p>
         </div>
       ) : null}
 
