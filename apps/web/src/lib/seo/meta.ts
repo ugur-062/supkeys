@@ -22,6 +22,38 @@ import type { Metadata } from "next";
 
 export const SITE_NAME = "Rothern";
 
+/** Başlık tavanı (canlı SEO denetimi), kök düzenin soneki DAHİL. */
+export const TITLE_MAX = 75;
+
+/**
+ * Kök düzen başlığa `%s · Rothern` şablonunu UYGULUYOR ([locale]/layout.tsx).
+ * Tavan hesabı bu soneki saymazsa üretilen başlık 75'i aşar (2026-09-12: 83
+ * karakterlik ürün başlığı). Sonek burada düşülür — çağıranlara bırakılmaz.
+ */
+export const TITLE_SUFFIX = ` · ${SITE_NAME}`;
+
+const PAGE_SEP = " — ";
+
+/**
+ * Sayfanın KENDİ başlık metnine kalan yer: tavan − sonek − (N>1 ise
+ * ` — Sayfa N`). Sayfa eki kırpılmış başlığa SONRADAN eklendiği için uzun
+ * kategori adı 2+ sayfada tavanı yeniden aşıyordu (arayüz testi webA-13
+ * gözden geçirme); başlığı kuran çağıran (ör. kategori kuyruğu) bu bütçeyle
+ * kırpar ki önce kuyruk düşsün.
+ */
+export function titleRoom(page?: number, pageLabel?: string): number {
+  const paged = !!pageQuery(page) && !!pageLabel;
+  return TITLE_MAX - TITLE_SUFFIX.length - (paged ? PAGE_SEP.length + pageLabel!.length : 0);
+}
+
+/** Metni `max` karaktere sığdırır: kelime sınırında keser, `…` ekler. */
+export function fitTitle(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const atWord = cut.lastIndexOf(" ");
+  return `${(atWord > max * 0.6 ? cut.slice(0, atWord) : cut).trim()}…`;
+}
+
 /** Kanonik mutlak adres. Göreli yol verilir, base tek yerden çözülür. */
 export function absoluteUrl(path: string): string {
   const site = resolveSiteUrl();
@@ -202,7 +234,9 @@ export function buildMetadata({
   const ready = readyLocalesOf(locales);
   const query = pageQuery(page);
   const paged = !!query && !!pageLabel;
-  const title = paged ? `${baseTitle} — ${pageLabel}` : baseTitle;
+  // Ek, başlığı tavanın dışına itmesin: taban başlık ekin payı kadar kısalır
+  // (çağıran zaten `titleRoom` ile kırptıysa değişmez).
+  const title = paged ? `${fitTitle(baseTitle, titleRoom(page, pageLabel))}${PAGE_SEP}${pageLabel}` : baseTitle;
   const description = paged ? `${pageLabel} · ${baseDescription}` : baseDescription;
   // Sayfanın dili hazır değilse ve sayfa indekslenebilirse kanonik hazır dile
   // (sözleşme metinleri). `noindex` sayfa kendi adresini söyler — Google

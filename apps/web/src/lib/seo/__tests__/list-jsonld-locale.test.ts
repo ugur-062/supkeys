@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { breadcrumbNode, itemListNode, organizationNode, webSiteNode } from "../jsonld";
-import { LEGAL_DOC_LOCALES, buildMetadata, contentLangOf, ogCardPath, siteVerification } from "../meta";
+import { LEGAL_DOC_LOCALES, TITLE_MAX, TITLE_SUFFIX, buildMetadata, contentLangOf, ogCardPath, siteVerification, titleRoom } from "../meta";
+import { clampTitle } from "../entities";
 
 /* 2026-09-27 SEO denetimi: liste JSON-LD'si ve varsayılan OG kartı sayfanın
    DİLİNDE olmalı — EN/RU sayfada Türkçe adres yazmak kanonikle çelişir. */
@@ -112,6 +113,24 @@ describe("buildMetadata — hazır diller, sayfalama, sözleşmeler (2026-09-27)
     const p1 = buildMetadata({ title: "Products", description: "All products.", path: "/urunler", locale: "en", page: 1, pageLabel: "Page 1" });
     expect(p1.title).toBe("Products");
     expect(p1.description).toBe("All products.");
+  });
+
+  it("sayfalama: ` — Sayfa N` eki başlığı 75 tavanının dışına itmez (arayüz testi webA-13 gözden geçirme)", () => {
+    const name = "Endüstriyel Otomasyon ve Kontrol Sistemleri Yedek Parça ve Sarf Malzemeleri";
+    const tail = "1.234 ürün";
+    for (const [locale, label] of [["tr", "Sayfa 12"], ["en", "Page 12"], ["ru", "Страница 12"]] as const) {
+      const p1 = buildMetadata({ title: clampTitle(name, tail, titleRoom(1, label)), description: "d", path: "/urunler", locale, page: 1, pageLabel: label });
+      expect(String(p1.title).length + TITLE_SUFFIX.length).toBeLessThanOrEqual(TITLE_MAX);
+      // Kategori sayfası gibi bütçeyle kırpan çağıran: kuyruk düşer, ad kısalır, ek korunur.
+      const p12 = buildMetadata({ title: clampTitle(name, tail, titleRoom(12, label)), description: "d", path: "/urunler", locale, page: 12, pageLabel: label });
+      expect(String(p12.title).endsWith(` — ${label}`)).toBe(true);
+      expect(String(p12.title)).not.toContain(tail);
+      expect(String(p12.title).length + TITLE_SUFFIX.length).toBeLessThanOrEqual(TITLE_MAX);
+      // Bütçeyi bilmeyen çağıran: buildMetadata taban başlığı kendisi kısaltır.
+      const raw = buildMetadata({ title: clampTitle(name, tail), description: "d", path: "/urunler", locale, page: 12, pageLabel: label });
+      expect(String(raw.title).endsWith(` — ${label}`)).toBe(true);
+      expect(String(raw.title).length + TITLE_SUFFIX.length).toBeLessThanOrEqual(TITLE_MAX);
+    }
   });
 });
 

@@ -14,7 +14,7 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { segmentPhotoSrc } from "@/lib/public/category-photos";
 import { clampTitle } from "@/lib/seo/entities";
 import { canonicalProductListPage, queryStringOf } from "@/lib/seo/landing";
-import { buildMetadata } from "@/lib/seo/meta";
+import { buildMetadata, titleRoom } from "@/lib/seo/meta";
 import { resolveSegmentLanding } from "./category-data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -66,16 +66,18 @@ export async function generateMetadata({
   const count = cat.count;
   const page = canonicalProductListPage(await searchParams);
   const tui = await getTranslations({ locale, namespace: "web.shared.ui" });
+  const pageLabel = tui("pageN", { n: page });
   return buildMetadata({
     // 75 karakter tavanı (canlı denetim 2026-09-11: uzun kategori adı 86'ya
-    // taşıyordu) — kuyruk düşer, ad kelime sınırında kısalır.
-    title: clampTitle(cat.name, t("categoryTitleTail", { count })),
+    // taşıyordu) — kuyruk düşer, ad kelime sınırında kısalır. Bütçe 2+ sayfanın
+    // ` — Sayfa N` ekini de sayar (arayüz testi webA-13 gözden geçirme).
+    title: clampTitle(cat.name, t("categoryTitleTail", { count }), titleRoom(page, pageLabel)),
     description: t("categoryMetaDesc", { name: cat.name, count }),
     path: categoryHref(cat),
     // Sayfalanmış sayfa KENDİ kanoniği (`?sayfa=N`); başka süzgeç → taban.
     page,
     // 2+ sayfa kendi başlık/açıklamasını taşır (arayüz testi D-084).
-    pageLabel: tui("pageN", { n: page }),
+    pageLabel,
     images: segmentPhotoSrc([cat.id]) ? [segmentPhotoSrc([cat.id]) as string] : undefined,
     locale,
   });

@@ -2,7 +2,7 @@ import { provinceDisplayName } from "@rothern/shared";
 import { findUnitDef, intlLocale } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
-import { SITE_NAME } from "./meta";
+import { TITLE_SUFFIX, fitTitle } from "./meta";
 import { MARKETPLACE_ROUTES, categoryHref, listingHref } from "@/lib/public/marketplace";
 import { productPrice, type PriceLabels } from "@/lib/public/product-price";
 import { SITE_ID, breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
@@ -701,14 +701,6 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   };
 }
 
-/** "<ürün> — <firma>" en çok 75 karakter; sığmazsa firma düşer, sonra ürün adı kısalır. */
-/**
- * Kök düzen başlığa `%s · Rothern` şablonunu UYGULUYOR (layout.tsx). Tavan
- * hesabı bu soneki saymazsa üretilen başlık 75'i aşar ve canlı denetim
- * kırmızıya döner (2026-09-12: 83 karakterlik ürün başlığı). Sonek burada
- * düşülür — çağıranların hatırlamasına bırakılmaz.
- */
-const TITLE_SUFFIX = ` · ${SITE_NAME}`;
 
 /**
  * Firma başlığı "ad — sektör, şehir"; 75 karakter tavanına sığmazsa önce şehir,
@@ -724,6 +716,10 @@ export function companyTitle(name: string, industry?: string | null, city?: stri
   return clampTitle(name);
 }
 
+/**
+ * "<ürün> — <firma>" en çok 75 karakter (kök düzenin `· Rothern` soneki
+ * `TITLE_SUFFIX` ile düşülür); sığmazsa firma düşer, sonra ürün adı kısalır.
+ */
 export function clampTitle(
   name: string,
   brand?: string | null,
@@ -731,8 +727,5 @@ export function clampTitle(
 ): string {
   const full = joinParts([name, brand], " — ");
   if (full.length <= max) return full;
-  if (name.length <= max) return name;
-  const cut = name.slice(0, max - 1);
-  const atWord = cut.lastIndexOf(" ");
-  return `${(atWord > max * 0.6 ? cut.slice(0, atWord) : cut).trim()}…`;
+  return fitTitle(name, max);
 }
