@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { Field } from "@/components/ui/field";
+import { Field, useFieldContext } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -16,7 +16,7 @@ import {
 import { CURRENCIES, DELIVERY_TERMS } from "@/lib/tenders/labels";
 import type { LcSubType } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import { COUNTRIES, isRegistrationOpen, PAYMENT_CATEGORIES, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
+import { COUNTRIES, isRegistrationOpen, PAYMENT_CATEGORIES, REQUEST_ALLOWED_CURRENCIES_MAX, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
 import { createContext, useContext } from "react";
 
@@ -38,6 +38,25 @@ export function useVisibilityLabels(): Record<VisibilityCode, { label: string; h
   };
 }
 
+/** Vade günü gerektiren ödeme kurgusu mu (API `requestDefaultsSchema` aynası). */
+function needsPaymentDays(v: Pick<RequestDefaults, "paymentCategory" | "lcType">): boolean {
+  return ["DEFERRED", "CHEQUE", "SENET"].includes(v.paymentCategory) || (v.paymentCategory === "LETTER_OF_CREDIT" && v.lcType === "USANCE");
+}
+
+/**
+ * İstemci aralık denetimi (arayüz testi D-007): sayı kutularının `min/max`'ı
+ * form gönderimi olmadığı için uygulanmıyordu; -5 / 400 gün ya da %101 peşin
+ * kayıtta API'nin ham mesajıyla düşüyordu. Alan işaretlenir, kayıt engellenir.
+ */
+export function requestDefaultsFieldErrors(v: RequestDefaults): { paymentDays?: true; advancePercent?: true } {
+  const out: { paymentDays?: true; advancePercent?: true } = {};
+  const inRange = (n: number | null, min: number, max: number) => n != null && Number.isInteger(n) && n >= min && n <= max;
+  // Yalnız görünen alan denetlenir (gizli alanda işaretsiz hata kalmasın).
+  if (needsPaymentDays(v) && !inRange(v.paymentDays, 1, 365)) out.paymentDays = true;
+  if (v.paymentCategory === "ADVANCE" && !inRange(v.advancePercent, 1, 100)) out.advancePercent = true;
+  return out;
+}
+
 /**
  * TALEP ŞARTLARI FORMU — ticari profil (2026-09-09).
  *
@@ -55,10 +74,16 @@ export function RequestDefaultsForm({
   compact = false,
   only,
   bare = false,
+  readOnly = false,
 }: {
   value: RequestDefaults;
   onChange: (next: RequestDefaults) => void;
   compact?: boolean;
+  /**
+   * Kaydetme yetkisi yok (arayüz testi D-263): bütün kontroller pasif —
+   * değiştirilebilir görünüp sessizce kaybolan düzenleme olmasın.
+   */
+  readOnly?: boolean;
   /** Bölüm başlıklarını gizle — çağıran kendi etiketini yazıyor (hızlı kart). */
   bare?: boolean;
   /** Yalnız bu bölümler çizilir (hızlı kartta tek satır düzenleme). */
@@ -83,12 +108,15 @@ export function RequestDefaultsForm({
   const domesticTerms = allTerms.filter((t) => t.startsWith("DOMESTIC_"));
   const incoterms = allTerms.filter((t) => !t.startsWith("DOMESTIC_"));
 
-  const needsDays = ["DEFERRED", "CHEQUE", "SENET"].includes(value.paymentCategory) || (value.paymentCategory === "LETTER_OF_CREDIT" && value.lcType === "USANCE");
+  const needsDays = needsPaymentDays(value);
+  const fieldErrors = requestDefaultsFieldErrors(value);
+  const currencyLimitReached = value.allowedCurrencies.length >= REQUEST_ALLOWED_CURRENCIES_MAX;
   const gap = compact ? "space-y-5" : "space-y-8";
 
   return (
     <BareContext.Provider value={bare}>
-    <div className={gap}>
+    {/* `fieldset disabled` içindeki bütün düğme/seçim/girişleri pasifler. */}
+    <fieldset disabled={readOnly} className={cn("min-w-0", gap)}>
       {show("scope") ? (
         <Block title={tr("gorunurlukUlkesi")} hint={tr("talebiHangiUlkelerdekiTedarikcilerGorsun")}>
           <div className="grid grid-cols-2 gap-3">
@@ -210,9 +238,9 @@ export function RequestDefaultsForm({
           </select>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {value.paymentCategory === "ADVANCE" ? (
-              <Field hint={tr("n100TamPesinAltiKismi")}>
+              <Field hint={tr("n100TamPesinAltiKismi")} error={fieldErrors.advancePercent ? tr("pesinYuzdesiAraligi") : undefined}>
                 <Label htmlFor="tsart-pesin">{tr("pesinYuzdesi")}</Label>
-                <input id="tsart-pesin" type="number" min={1} max={100} value={value.advancePercent ?? ""} onChange={(e) => set({ advancePercent: Number(e.target.value) || null })} className={INPUT} />
+                <NumberInput id="tsart-pesin" min={1} max={100} value={value.advancePercent} onChange={(n) => set({ advancePercent: n })} />
               </Field>
             ) : null}
             {value.paymentCategory === "LETTER_OF_CREDIT" ? (
@@ -226,9 +254,9 @@ export function RequestDefaultsForm({
               </Field>
             ) : null}
             {needsDays ? (
-              <Field>
+              <Field error={fieldErrors.paymentDays ? tr("vadeGunAraligi") : undefined}>
                 <Label htmlFor="tsart-vade" required>{tr("vadeGun")}</Label>
-                <input id="tsart-vade" type="number" min={1} max={365} value={value.paymentDays ?? ""} onChange={(e) => set({ paymentDays: Number(e.target.value) || null })} className={INPUT} />
+                <NumberInput id="tsart-vade" min={1} max={365} value={value.paymentDays} onChange={(n) => set({ paymentDays: n })} />
               </Field>
             ) : null}
           </div>
@@ -245,7 +273,9 @@ export function RequestDefaultsForm({
                 value={value.primaryCurrency}
                 onChange={(e) => {
                   const c = e.target.value;
-                  set({ primaryCurrency: c, allowedCurrencies: value.allowedCurrencies.includes(c) ? value.allowedCurrencies : [c, ...value.allowedCurrencies] });
+                  // Tavandayken yeni ana birim eskisinin yerini alır (D-046).
+                  const rest = value.allowedCurrencies.length >= REQUEST_ALLOWED_CURRENCIES_MAX ? value.allowedCurrencies.filter((x) => x !== value.primaryCurrency) : value.allowedCurrencies;
+                  set({ primaryCurrency: c, allowedCurrencies: value.allowedCurrencies.includes(c) ? value.allowedCurrencies : [c, ...rest].slice(0, REQUEST_ALLOWED_CURRENCIES_MAX) });
                 }}
                 className={INPUT}
               >
@@ -257,24 +287,32 @@ export function RequestDefaultsForm({
             <div>
               {/* Çip grubu — tek kontrol yok, başlık olarak basılıp gruba bağlanır. */}
               <Label as="p" id="tsart-birimler-baslik">{tr("kabulEdilenBirimler")}</Label>
-              <div role="group" aria-labelledby="tsart-birimler-baslik" className="flex flex-wrap gap-1.5">
+              <div role="group" aria-labelledby="tsart-birimler-baslik" aria-describedby={currencyLimitReached ? "tsart-birimler-sinir" : undefined} className="flex flex-wrap gap-1.5">
                 {CURRENCIES.map((c) => {
                   const on = value.allowedCurrencies.includes(c);
                   const locked = c === value.primaryCurrency;
+                  // Üst sınırda seçilmemiş çip eklenemez (arayüz testi D-046;
+                  // API aynı sabitle reddeder).
+                  const full = !on && currencyLimitReached;
                   return (
                     <button
                       key={c}
                       type="button"
-                      disabled={locked}
+                      disabled={locked || full}
                       aria-pressed={on}
                       onClick={() => set({ allowedCurrencies: on ? value.allowedCurrencies.filter((x) => x !== c) : [...value.allowedCurrencies, c] })}
-                      className={cn("rounded-md px-2 py-1 text-xs font-medium ring-1 transition", on ? "bg-zinc-900 text-white ring-zinc-900" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50", locked && "opacity-70")}
+                      className={cn("rounded-md px-2 py-1 text-xs font-medium ring-1 transition", on ? "bg-zinc-900 text-white ring-zinc-900" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50", locked && "opacity-70", full && "cursor-not-allowed opacity-40 hover:bg-white")}
                     >
                       {c}
                     </button>
                   );
                 })}
               </div>
+              {currencyLimitReached ? (
+                <p id="tsart-birimler-sinir" className="mt-1.5 text-xs text-zinc-500">
+                  {tr("enFazlaBirim", { max: REQUEST_ALLOWED_CURRENCIES_MAX })}
+                </p>
+              ) : null}
             </div>
           </div>
         </Block>
@@ -354,8 +392,27 @@ export function RequestDefaultsForm({
           </div>
         </Block>
       ) : null}
-    </div>
+    </fieldset>
     </BareContext.Provider>
+  );
+}
+
+/** Sayı kutusu — Field bağlamından aria-invalid/aria-describedby okur. */
+function NumberInput({ id, min, max, value, onChange }: { id: string; min: number; max: number; value: number | null; onChange: (n: number | null) => void }) {
+  const field = useFieldContext();
+  return (
+    <input
+      id={id}
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      aria-invalid={field?.invalid || undefined}
+      aria-describedby={field?.describedBy}
+      className={cn(INPUT, field?.invalid && "border-red-500 focus:border-red-600 focus:ring-red-600/10")}
+    />
   );
 }
 

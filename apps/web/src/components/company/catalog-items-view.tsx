@@ -13,7 +13,6 @@ import { Text } from "@/components/catalyst/text";
 import { SearchInput } from "@/components/list";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useUnitLabel } from "@/i18n/domain";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -39,7 +38,9 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
   const unitLabel = useUnitLabel();
   const [q, setQ] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const debouncedQ = useDebouncedValue(q, 300);
+  // SearchInput zaten 300 ms geciktirip bildirir; ikinci gecikme isteği ~600
+  // ms'ye itiyordu (arayüz testi D-270).
+  const debouncedQ = q.trim();
   // Uç `templates:manage` VEYA `sell:product:manage` kabul eder; vitrine
   // dokunmuş ürün yalnız satış izniyle arşivlenir (derin denetim S066).
   const canManageTemplates = useHasCompanyPermission("templates:manage");
@@ -138,6 +139,16 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
           message={t("katalogYuklenemedi")}
           onRetry={() => void current.refetch()}
         />
+      ) : items.length === 0 && debouncedQ ? (
+        // Arama eşleşmedi ≠ boş katalog (arayüz testi D-047).
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
+          <PackageSearch className="mx-auto h-6 w-6 text-zinc-400" aria-hidden />
+          <Subheading className="mt-2">{t("eslesenKalemYok")}</Subheading>
+          <Text className="mt-1">{t("aramaniziDegistirin", { q: debouncedQ })}</Text>
+          <Button variant="secondary" size="sm" className="mt-3" onClick={() => setQ("")}>
+            {t("aramayiTemizle")}
+          </Button>
+        </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
           <PackageSearch className="mx-auto h-6 w-6 text-zinc-400" aria-hidden />

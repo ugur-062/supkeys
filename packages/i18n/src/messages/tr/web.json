@@ -361,7 +361,7 @@
         "q2": "Tedarikçiler birbirinin teklifini görür mü?",
         "a2": "Asla. Kapalı zarf: her tedarikçi yalnızca kendi teklifini görür. Talep sahibi tüm teklifleri görür ve en iyisini kazandırır.",
         "q3": "Standart üyelikle ne yapabilirim?",
-        "a3": "Profilinizi yayınlar, {n} ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri görmek ve teklif vermek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve “Doğrulanmış” rozeti Silver ile; kendi satın alma talebinizi açmak Gold ile gelir.",
+        "a3": "Profilinizi yayınlar, {n} ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri görmek ve teklif vermek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve firma dizininde öncelikli sıra Silver ile; kendi satın alma talebinizi açmak Gold ile gelir. Firma doğrulaması ve “Doğrulanmış” rozeti ücretsizdir.",
         "q4": "Platform paraya aracılık ediyor mu?",
         "a4": "Hayır. Ödeme taraflar arasında doğrudan yapılır; Rothern paraya aracılık etmez; ödeme yalnızca “ödendi” ya da “ödeme bekleniyor” olarak işaretlenir. Koltuk başına ücret yoktur.",
         "q5": "Siparişten sonra ne oluyor?",
@@ -1852,7 +1852,7 @@
     "inShowcaseOf": "{where} vitrininde"
   },
   "pricing": {
-    "note": "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme 6 aylık veya yıllık dönem için peşin alınır; aylık faturalama yoktur. 6 aylık dönemde aylık tutar farklıdır.",
+    "note": "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme yıllık dönem için peşin alınır; aylık faturalama yoktur.",
     "plans": {
       "standart": {
         "name": "Standart",
@@ -1868,13 +1868,13 @@
         "name": "Silver",
         "tagline": "Tedarikçi paketi: görün, davet al, teklif ver, ürünlerini sergile.",
         "cta": "Silver'a Başla",
-        "f1": "“Doğrulanmış” rozeti ve dizinde öncelikli sıra",
+        "f1": "Firma dizininde öncelikli sıra",
         "f2": "Sınırsız ürün, ürün belgesi (PDF) ve video",
         "f3": "Herkese açık satın alma taleplerine sınırsız teklif",
         "f4": "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
         "f5": "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
         "f6": "Ziyaret Edenler ve İş Analizi",
-        "f7": "Yapay zekâ: belgeden fiyatlama, AI ile talep arama",
+        "f7": "Yapay zekâ: belgeden fiyatlama, AI ile talep arama, sohbet asistanı",
         "f8": "4 satış koltuğu"
       },
       "gold": {
@@ -1884,7 +1884,7 @@
         "f1": "Silver'ın tamamı",
         "f2": "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
         "f3": "Kazandırma, onay akışları, raporlar & şablonlar",
-        "f4": "Yapay zekâ — belgeden talep taslağı, sohbet asistanı, tedarikçi keşfi",
+        "f4": "Yapay zekâ — belgeden talep taslağı, asistana belge ekleme, tedarikçi keşfi",
         "f5": "“Gold Üye” rozeti — profilde, firma dizininde ve ürünlerde güven işareti",
         "f6": "6 koltuk (satınalma ve satış)"
       }
@@ -2769,7 +2769,10 @@
             "hint": "Yalnız davet ettiğiniz firmalar görür."
           }
         },
-        "sonUlkeCikarilamaz": "Son ülke çıkarılamaz: önce başka bir ülke ekleyin ya da “Tüm ülkeler”i seçin."
+        "sonUlkeCikarilamaz": "Son ülke çıkarılamaz: önce başka bir ülke ekleyin ya da “Tüm ülkeler”i seçin.",
+        "vadeGunAraligi": "Vade günü 1 ile 365 arasında olmalı",
+        "pesinYuzdesiAraligi": "Peşin yüzdesi 1 ile 100 arasında olmalı",
+        "enFazlaBirim": "En fazla {max} birim seçilebilir; yenisini eklemek için birini kaldırın."
       },
       "ihalelerView": {
         "tedarikSurecleriniziYonetinAcinDavet": "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın.",
@@ -3551,7 +3554,8 @@
         "teklifErisimAciklama": "Teklif kaldırılmış, bağlantı hatalı ya da bu talebin tekliflerini görme yetkiniz olmayabilir.",
         "kaybetti": "Kaybetti",
         "kapandiTeklif": "Kapandı",
-        "markaParcaNo": "Marka / Parça no: {value}"
+        "markaParcaNo": "Marka / Parça no: {value}",
+        "isaretliAlanlariDuzeltin": "Kaydetmeden önce işaretli alanları düzeltin"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -4582,7 +4586,8 @@
         "soru": "{n} soru",
         "setiniSil": "{name} setini sil",
         "soruDaha": "+{n} soru daha",
-        "kalem": "{n} kalem"
+        "kalem": "{n} kalem",
+        "enFazlaSoru": "Bir sette en fazla {max} soru olabilir."
       },
       "ordersList": {
         "tamamlandi": "Tamamlandı",
@@ -4791,7 +4796,10 @@
         "arsivle": "Arşivle",
         "geriAl": "Geri al",
         "listeKisaltildiAramayiDaraltin": "Liste kısaltıldı — aramayı daraltın.",
-        "sikKullandiginizKalemleriSaklayin": "Sık kullandığınız kalemleri saklayın; talep açarken <strong>{add}</strong> ile saniyede listeleyin. Katalog, satın alma talebi detayındaki <strong>{save}</strong> ile kendiliğinden dolar."
+        "sikKullandiginizKalemleriSaklayin": "Sık kullandığınız kalemleri saklayın; talep açarken <strong>{add}</strong> ile saniyede listeleyin. Katalog, satın alma talebi detayındaki <strong>{save}</strong> ile kendiliğinden dolar.",
+        "eslesenKalemYok": "Eşleşen kalem yok",
+        "aramaniziDegistirin": "“{q}” aramasıyla eşleşen kalem bulunamadı. Aramayı değiştirin ya da temizleyin.",
+        "aramayiTemizle": "Aramayı temizle"
       },
       "companyActionCenter": {
         "bekleyenIslerYuklenemedi": "Bekleyen işler yüklenemedi",

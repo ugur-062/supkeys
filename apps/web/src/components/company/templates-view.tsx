@@ -54,6 +54,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { QUESTION_TEMPLATE_MAX_ITEMS, TEMPLATE_NAME_MAX_LENGTH } from "@rothern/shared";
 import { toast } from "sonner";
 
 /** Cevap türü seçenekleri — etiket `answerType.<KOD>` anahtarından. */
@@ -147,9 +148,13 @@ function GroupTemplateDialog({
 
   // Çift tık aynı grubu iki kez oluşturmasın (arayüz testi FX-00 O-031).
   const lock = useSubmitLock();
-  const pending = create.isPending || update.isPending || lock.locked;
+  // Düzenlemede ad + üyeler tohumlanana kadar Kaydet pasif (arayüz testi
+  // D-260): boş adla tıklanınca yanıltıcı "en az 2 karakter" çıkıyordu.
+  const seeding = !!editId && !seeded && !detail.isError && !connections.isError;
+  const pending = create.isPending || update.isPending || lock.locked || seeding;
   const submit = () => lock.run(doSubmit);
   const doSubmit = async () => {
+    if (seeding) return;
     if (name.trim().length < 2) {
       toast.error(t("grupAdiEnAz2"));
       return;
@@ -192,6 +197,8 @@ function GroupTemplateDialog({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("ornInsaatMalzemesiTedarikcileri")}
+            maxLength={TEMPLATE_NAME_MAX_LENGTH}
+            disabled={seeding}
           />
         </Field>
         <div>
@@ -292,6 +299,7 @@ function QuestionTemplateDialog({
     );
   }, [existing.data]);
 
+  const atQuestionLimit = rows.length >= QUESTION_TEMPLATE_MAX_ITEMS;
   const setRow = (i: number, patch: Partial<QuestionRow>) =>
     setRows((s) => s.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
@@ -340,24 +348,34 @@ function QuestionTemplateDialog({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("ornKaliteBelgeleriSorulari")}
+            maxLength={TEMPLATE_NAME_MAX_LENGTH}
           />
         </Field>
         <div>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-zinc-950">{t("sorular")}</span>
+            {/* Set başına soru tavanı (D-261): API aynı sabitle reddeder. */}
             <Button
               plain
+              disabled={atQuestionLimit}
+              aria-describedby={atQuestionLimit ? "question-limit-hint" : undefined}
               onClick={() =>
-                setRows((s) => [
-                  ...s,
-                  { text: "", answerType: "TEXT", required: false },
-                ])
+                setRows((s) =>
+                  s.length >= QUESTION_TEMPLATE_MAX_ITEMS
+                    ? s
+                    : [...s, { text: "", answerType: "TEXT", required: false }],
+                )
               }
             >
               <Plus data-slot="icon" />
               {t("soruEkle")}
             </Button>
           </div>
+          {atQuestionLimit ? (
+            <p id="question-limit-hint" className="mb-2 text-xs text-zinc-500">
+              {t("enFazlaSoru", { max: QUESTION_TEMPLATE_MAX_ITEMS })}
+            </p>
+          ) : null}
           <div className="space-y-2">
             {rows.map((r, i) => (
               <div
@@ -689,6 +707,9 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
   const tr = useTranslations("web.panel.trade.templatesView");
   // F7: şablon silme templates:manage ister.
   const canManageTpl = useHasCompanyPermission("templates:manage");
+  // "Talepte kullan" talep açar → buy:listing:manage (arayüz testi D-262):
+  // yetkisiz rol bağlantıyı görüp yetki duvarına çarpıyordu.
+  const canCreateListing = useHasCompanyPermission("buy:listing:manage");
   const listingTpls = useListingTemplates();
   const deleteListingTpl = useDeleteTemplate();
   const del = useDeleteWithConfirm();
@@ -747,12 +768,14 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
                   {/* C36: satırın birincil aksiyonu — şablon hızlı talepte açılır
                       (2026-09-19: sihirbaz kaldırıldı). */}
                   <div className="flex shrink-0 items-center gap-1">
-                    <Link
-                      href={`/company/satinalma/taleplerim/yeni?template=${t.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
-                    >
-                      {tr("talepteKullan")}
-                    </Link>
+                    {canCreateListing ? (
+                      <Link
+                        href={`/company/satinalma/taleplerim/yeni?template=${t.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+                      >
+                        {tr("talepteKullan")}
+                      </Link>
+                    ) : null}
                     {canManageTpl ? (
                       <Button
                         plain

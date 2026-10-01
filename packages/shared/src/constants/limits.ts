@@ -81,3 +81,11 @@ export const MAX_LISTING_INVITATIONS = 5000;
  * 8. görsel hiçbir yerde görünmüyordu).
  */
 export const MAX_PRODUCT_IMAGES = 8;
+
+/**
+ * Şablon (soru seti / tedarikçi grubu) ad uzunluğu ve soru seti soru adedi —
+ * API DTO'ları ve web şablon pencereleri (`maxLength`, pasif "Soru Ekle") aynı
+ * sabiti okur (arayüz testi D-261).
+ */
+export const TEMPLATE_NAME_MAX_LENGTH = 120;
+export const QUESTION_TEMPLATE_MAX_ITEMS = 20;

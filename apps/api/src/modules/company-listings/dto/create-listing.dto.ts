@@ -24,6 +24,7 @@ import {
   CURRENCY_ENUM,
   MAX_COMPANY_ACTIVITIES,
   MAX_LISTING_INVITATIONS,
+  REQUEST_ALLOWED_CURRENCIES_MAX,
   UNITS,
   type CurrencyCode,
 } from "@rothern/shared";
@@ -471,7 +472,7 @@ export class CreateListingDto {
   @IsOptional()
   @IsArray()
   @IsEnum(CurrencyDto, { each: true })
-  @ArrayMaxSize(8)
+  @ArrayMaxSize(REQUEST_ALLOWED_CURRENCIES_MAX)
   allowedCurrencies?: CurrencyDto[];
 
   // ── Teslim / ödeme ──

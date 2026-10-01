@@ -361,7 +361,7 @@
         "q2": "Can suppliers see each other's quotes?",
         "a2": "Never. Sealed bids: each supplier sees only its own quote. The request owner sees all quotes and awards the best one.",
         "q3": "What can I do on the Standard plan?",
-        "a3": "You publish your profile, open a showcase of up to {n} products, discover companies, and quote on requests from companies that invited you or are connected to you. Seeing and quoting on public requests, sending connection invitations, seeing the buyer's identity in incoming inquiries and replying, and the “Verified” badge come with Silver; posting your own buying requests comes with Gold.",
+        "a3": "You publish your profile, open a showcase of up to {n} products, discover companies, and quote on requests from companies that invited you or are connected to you. Seeing and quoting on public requests, sending connection invitations, seeing the buyer's identity in incoming inquiries and replying, and priority ranking in the company directory come with Silver; posting your own buying requests comes with Gold. Company verification and the “Verified” badge are free.",
         "q4": "Does the platform handle payments?",
         "a4": "No. Payment is made directly between the parties; Rothern does not handle money. Payment is only marked as “paid” or “payment pending”. There is no per-seat fee.",
         "q5": "What happens after the order?",
@@ -1852,7 +1852,7 @@
     "inShowcaseOf": "in the showcase of {where}"
   },
   "pricing": {
-    "note": "Prices are in USD and exclude VAT. Payment is taken upfront for a 6-month or annual period; there is no monthly billing. The monthly amount differs for the 6-month period.",
+    "note": "Prices are in USD and exclude VAT. Payment is taken upfront for an annual period; there is no monthly billing.",
     "plans": {
       "standart": {
         "name": "Standard",
@@ -1868,13 +1868,13 @@
         "name": "Silver",
         "tagline": "Supplier plan: be seen, get invited, quote, showcase your products.",
         "cta": "Start with Silver",
-        "f1": "“Verified” badge and priority ranking in the directory",
+        "f1": "Priority ranking in the company directory",
         "f2": "Unlimited products, product documents (PDF) and video",
         "f3": "Unlimited quotes on public buying requests",
         "f4": "Appear in buyers' AI supplier suggestions and get invited straight to requests",
         "f5": "Sending connection invitations and seeing the buyer's identity in inquiries",
         "f6": "Visitors and Business Insights",
-        "f7": "AI: pricing from documents, AI request search",
+        "f7": "AI: pricing from documents, AI request search, chat assistant",
         "f8": "4 sales seats"
       },
       "gold": {
@@ -1884,7 +1884,7 @@
         "f1": "Everything in Silver",
         "f2": "Posting buying requests — quote collection (RFQ) & negotiation/reverse auction",
         "f3": "Awarding, approval flows, reports & templates",
-        "f4": "AI — request draft from documents, chat assistant, supplier discovery",
+        "f4": "AI — request draft from documents, document attachments in the assistant, supplier discovery",
         "f5": "“Gold member” badge — a trust mark on your profile, in the company directory and on your products",
         "f6": "6 seats (buying and sales)"
       }
@@ -2769,7 +2769,10 @@
             "hint": "Only companies you invite can see it."
           }
         },
-        "sonUlkeCikarilamaz": "The last country can’t be removed: add another country first or choose “All countries”."
+        "sonUlkeCikarilamaz": "The last country can’t be removed: add another country first or choose “All countries”.",
+        "vadeGunAraligi": "Payment term days must be between 1 and 365",
+        "pesinYuzdesiAraligi": "Advance percentage must be between 1 and 100",
+        "enFazlaBirim": "You can select up to {max} currencies; remove one to add another."
       },
       "ihalelerView": {
         "tedarikSurecleriniziYonetinAcinDavet": "Manage your procurement processes — open, invite, award.",
@@ -3551,7 +3554,8 @@
         "teklifErisimAciklama": "The quote may have been removed, the link may be incorrect, or you may not have permission to view this request's quotes.",
         "kaybetti": "Lost",
         "kapandiTeklif": "Closed",
-        "markaParcaNo": "Brand / Part no.: {value}"
+        "markaParcaNo": "Brand / Part no.: {value}",
+        "isaretliAlanlariDuzeltin": "Fix the highlighted fields before saving"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -4582,7 +4586,8 @@
         "soru": "{n, plural, one {# question} other {# questions}}",
         "setiniSil": "Delete set {name}",
         "soruDaha": "+{n, plural, one {# more question} other {# more questions}}",
-        "kalem": "{n, plural, one {# line item} other {# line items}}"
+        "kalem": "{n, plural, one {# line item} other {# line items}}",
+        "enFazlaSoru": "A set can contain at most {max} questions."
       },
       "ordersList": {
         "tamamlandi": "Completed",
@@ -4791,7 +4796,10 @@
         "arsivle": "Archive",
         "geriAl": "Restore",
         "listeKisaltildiAramayiDaraltin": "The list was truncated — narrow your search.",
-        "sikKullandiginizKalemleriSaklayin": "Keep the line items you use often and list them in seconds with <strong>{add}</strong> when creating a request. The catalog fills itself through <strong>{save}</strong> in the buying request detail."
+        "sikKullandiginizKalemleriSaklayin": "Keep the line items you use often and list them in seconds with <strong>{add}</strong> when creating a request. The catalog fills itself through <strong>{save}</strong> in the buying request detail.",
+        "eslesenKalemYok": "No matching items",
+        "aramaniziDegistirin": "No items match “{q}”. Change or clear your search.",
+        "aramayiTemizle": "Clear search"
       },
       "companyActionCenter": {
         "bekleyenIslerYuklenemedi": "Pending tasks could not be loaded",

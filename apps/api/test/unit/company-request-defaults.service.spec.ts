@@ -121,6 +121,28 @@ describe("CompanyRequestDefaultsService", () => {
     expect(requestDefaultsSchema.safeParse({ ...VALID, closeDays: 0 }).success).toBe(false);
   });
 
+  it("save: aralık ihlalleri alana özgü Türkçe metinle döner, ham zod mesajı yok (arayüz testi D-007/D-046)", async () => {
+    const { svc, prisma } = rig();
+    const message = async (patch: Record<string, unknown>) => {
+      try {
+        await svc.save(user, { ...VALID, ...patch });
+      } catch (e) {
+        expect(e).toBeInstanceOf(BadRequestException);
+        return ((e as BadRequestException).getResponse() as { message: string }).message;
+      }
+      throw new Error("save should have rejected");
+    };
+    expect(await message({ paymentDays: -5 })).toMatch(/Vade günü 1 ile 365 arasında olmalı/);
+    expect(await message({ paymentDays: 400 })).toMatch(/Vade günü 1 ile 365/);
+    expect(await message({ paymentCategory: "ADVANCE", paymentDays: null, advancePercent: 101 })).toMatch(/Peşin yüzdesi 1 ile 100/);
+    const nine = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "CNY", "RUB", "AED"];
+    expect(await message({ allowedCurrencies: nine })).toMatch(/en fazla 8 kabul edilen para birimi/);
+    for (const m of [await message({ paymentDays: 400 }), await message({ allowedCurrencies: nine })]) {
+      expect(m).not.toMatch(/Number must|Array must/);
+    }
+    expect(prisma.company.update).not.toHaveBeenCalled();
+  });
+
   it("save: aktivite loguna yalnız gerçekten değişen alanlar yazılır (arayüz testi O-107)", async () => {
     const first = rig();
     await first.svc.save(user, VALID);

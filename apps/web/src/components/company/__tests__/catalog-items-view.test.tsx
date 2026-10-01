@@ -123,3 +123,16 @@ describe("CatalogItemsView — yükleme/hata boş katalog sanılmaz (derin denet
     expect(screen.getByText(/Katalog henüz boş/)).toBeInTheDocument();
   });
 });
+
+describe("CatalogItemsView — eşleşmeyen arama (arayüz testi D-047)", () => {
+  it("arama varken boş sonuç 'Katalog henüz boş' değil 'Eşleşen kalem yok' + temizle", async () => {
+    h.items = [];
+    renderView();
+    fireEvent.change(screen.getByPlaceholderText(/Kalem adı/), { target: { value: "zzqqxx" } });
+    expect(await screen.findByText("Eşleşen kalem yok")).toBeInTheDocument();
+    expect(screen.queryByText(/Katalog henüz boş/)).toBeNull();
+    const clear = screen.getAllByRole("button", { name: "Aramayı temizle" });
+    fireEvent.click(clear[clear.length - 1]!);
+    expect(await screen.findByText(/Katalog henüz boş/)).toBeInTheDocument();
+  });
+});

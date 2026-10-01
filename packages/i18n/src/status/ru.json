@@ -3614,10 +3614,20 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyQuestionTemplates.adEnFazla": {
+    "hash": "a322fc2861",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.companyQuestionTemplates.enAz1SoruGerekli": {
     "hash": "c63e85c0f2",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyQuestionTemplates.enFazlaSoru": {
+    "hash": "32cf9235ac",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.companyQuestionTemplates.sablonAdiZorunlu": {
     "hash": "f81695cf92",
@@ -4089,10 +4099,20 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyRequestDefaults.kabulEdilenBirimSayisi": {
+    "hash": "eca1f61702",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.companyRequestDefaults.ozelOdemeKaydedilemez": {
     "hash": "e000990cc0",
     "status": "reviewed",
     "at": "2026-09-29"
+  },
+  "api.companyRequestDefaults.pesinYuzdesiAraligi": {
+    "hash": "ad41645f51",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.companyRequestDefaults.pesinYuzdesiZorunlu": {
     "hash": "aaf82ffdfe",
@@ -4104,10 +4124,20 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyRequestDefaults.teklifSuresiAraligi": {
+    "hash": "4b56879a73",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.companyRequestDefaults.usanceVadeGunZorunlu": {
     "hash": "625eee8496",
     "status": "reviewed",
     "at": "2026-09-29"
+  },
+  "api.companyRequestDefaults.vadeGunAraligi": {
+    "hash": "e0353ec5bd",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.companyRequestDefaults.vadeGunSayisiZorunlu": {
     "hash": "05c84f05e7",
@@ -4138,6 +4168,11 @@
     "hash": "47f4fef891",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companySupplierTemplates.adEnFazla": {
+    "hash": "9b64c3e7b8",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.companySupplierTemplates.baglantinizOlmayanFirmaKayit": {
     "hash": "4d58705a37",
@@ -25259,6 +25294,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.isaretliAlanlariDuzeltin": {
+    "hash": "66da3c8b0c",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.page.islemBasarisiz": {
     "hash": "9fdb432318",
     "status": "reviewed",
@@ -27369,6 +27409,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.requestDefaultsForm.enFazlaBirim": {
+    "hash": "303d485267",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.requestDefaultsForm.faturaAdresiTeslimatAdresiyleAyni": {
     "hash": "95b9017a23",
     "status": "reviewed",
@@ -27438,6 +27483,11 @@
     "hash": "5f60dd00d2",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.requestDefaultsForm.pesinYuzdesiAraligi": {
+    "hash": "ad41645f51",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.requestDefaultsForm.seciliUlkeler": {
     "hash": "9201c147f6",
@@ -27538,6 +27588,11 @@
     "hash": "7776862d7c",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.requestDefaultsForm.vadeGunAraligi": {
+    "hash": "e0353ec5bd",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.requestDefaultsForm.varsayilanAdresHerTalepteDegistirilebilir": {
     "hash": "395c5a305f",
@@ -34949,6 +35004,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.catalogItemsView.aramaniziDegistirin": {
+    "hash": "60d5215deb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.catalogItemsView.aramayiTemizle": {
+    "hash": "484ea3e53e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.catalogItemsView.arsivBos": {
     "hash": "6549430f94",
     "status": "reviewed",
@@ -34973,6 +35038,11 @@
     "hash": "f1d1ea6686",
     "status": "reviewed",
     "at": "2026-09-25"
+  },
+  "web.panel.trade.catalogItemsView.eslesenKalemYok": {
+    "hash": "db052daab1",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.catalogItemsView.geriAl": {
     "hash": "78f0bc80e2",
@@ -39463,6 +39533,11 @@
     "hash": "418a21cef4",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.templatesView.enFazlaSoru": {
+    "hash": "09bfb1a6b9",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.templatesView.firmaTarih": {
     "hash": "4cd80860af",

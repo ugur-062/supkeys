@@ -714,7 +714,8 @@
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Компании, с которыми у Вас нет контакта: {length, plural, one {# запись} few {# записи} many {# записей} other {# записи}}",
-    "sablonBulunamadi": "Шаблон не найден"
+    "sablonBulunamadi": "Шаблон не найден",
+    "adEnFazla": "Название группы может содержать не более {max} символов"
   },
   "companyUsers": {
     "kuruculukDavetleVerilemezMevcutBirKullaniciya": "Роль Основателя нельзя выдать через приглашение; передайте её существующему пользователю",
@@ -765,7 +766,9 @@
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Шаблон не найден",
     "sablonAdiZorunlu": "Название шаблона обязательно",
-    "enAz1SoruGerekli": "Требуется как минимум 1 вопрос"
+    "enAz1SoruGerekli": "Требуется как минимум 1 вопрос",
+    "adEnFazla": "Название набора может содержать не более {max} символов",
+    "enFazlaSoru": "Набор вопросов может содержать не более {max} вопросов"
   },
   "companyBankAccounts": {
     "gecerliBirTrIbanGiriniz": "Введите корректный IBAN Турции",
@@ -1257,7 +1260,11 @@
     "akreditifAltTipiniSecin": "Выберите подтип аккредитива",
     "pesinYuzdesiZorunlu": "Необходимо указать процент предоплаты (1–100%)",
     "usanceVadeGunZorunlu": "Для аккредитива с отсрочкой (usance) необходимо указать количество дней",
-    "ozelOdemeKaydedilemez": "Особые условия оплаты нельзя сохранить в условиях запроса; выберите другие условия оплаты"
+    "ozelOdemeKaydedilemez": "Особые условия оплаты нельзя сохранить в условиях запроса; выберите другие условия оплаты",
+    "vadeGunAraligi": "Срок отсрочки должен быть от 1 до 365 дней",
+    "pesinYuzdesiAraligi": "Процент предоплаты должен быть от 1 до 100",
+    "kabulEdilenBirimSayisi": "Выберите от 1 до {max} допустимых валют",
+    "teklifSuresiAraligi": "Срок сбора предложений должен быть от 1 до {max} дней"
   },
   "notifications": {
     "common": {

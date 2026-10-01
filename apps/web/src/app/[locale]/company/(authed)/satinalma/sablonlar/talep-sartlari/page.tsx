@@ -1,7 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { RequestDefaultsForm } from "@/components/tenders/request-defaults-form";
+import { RequestDefaultsForm, requestDefaultsFieldErrors } from "@/components/tenders/request-defaults-form";
+import { Link } from "@/i18n/navigation";
+import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -30,6 +32,11 @@ export default function TalepSartlariPage() {
 
   const onSave = async () => {
     if (!draft) return;
+    // Alan hatası formda işaretli (D-007); API'ye gitmeden durdurulur.
+    if (Object.keys(requestDefaultsFieldErrors(draft)).length > 0) {
+      toast.error(t("isaretliAlanlariDuzeltin"));
+      return;
+    }
     try {
       await save.mutateAsync(draft);
       toast.success(t("talepSartlariKaydedildiYeniTalepler"));
@@ -41,6 +48,13 @@ export default function TalepSartlariPage() {
 
   return (
     <PageContainer>
+      {/* Diğer Şablonlar alt sayfalarıyla aynı geri bağlantısı (D-268). */}
+      <nav className="mb-3 text-sm text-zinc-500">
+        <Link href="/company/satinalma/sablonlar" className="inline-flex items-center gap-1 hover:text-zinc-800 hover:underline">
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+          {t("sablonlar")}
+        </Link>
+      </nav>
       <PageHeader
         title={t("talepSartlari")}
         description={t("teslimSekliOdemeKosuluPara")}
@@ -59,7 +73,7 @@ export default function TalepSartlariPage() {
                 {t("henuzTalepAcmamissinizPlatformVarsayilaniCur", { currency: draft.primaryCurrency })}
               </p>
             ) : null}
-            <RequestDefaultsForm value={draft} onChange={setDraft} />
+            <RequestDefaultsForm value={draft} onChange={setDraft} readOnly={!canEdit} />
           </div>
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">

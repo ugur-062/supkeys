@@ -11,6 +11,7 @@ import {
   type Prisma,
 } from "@rothern/db";
 import {
+  REQUEST_ALLOWED_CURRENCIES_MAX,
   REQUEST_CLOSE_DAYS_MAX,
   closeDaysBetween,
   REGISTRATION_BLOCKED,
@@ -47,7 +48,7 @@ export const requestDefaultsSchema = z
     advancePercent: z.number().int().min(1).max(100).nullable(),
     lcType: z.nativeEnum(LcType).nullable(),
     primaryCurrency: z.nativeEnum(Currency),
-    allowedCurrencies: z.array(z.nativeEnum(Currency)).min(1).max(8),
+    allowedCurrencies: z.array(z.nativeEnum(Currency)).min(1).max(REQUEST_ALLOWED_CURRENCIES_MAX),
     isSealedBid: z.boolean(),
     bidVisibility: z.nativeEnum(ListingBidVisibility),
     requireAllItems: z.boolean(),
@@ -79,6 +80,26 @@ export const requestDefaultsSchema = z
       ctx.addIssue({ code: "custom", path: ["paymentCategory"], message: tApi("api.companyRequestDefaults.ozelOdemeKaydedilemez") });
     }
   });
+
+/**
+ * Zod ihlali → katalog metni. `custom` ihlaller (superRefine) zaten istek
+ * dilinde `tApi` ile yazılır; aralık/tip ihlalleri alan adına göre çevrilir.
+ */
+function localizedIssue(issue: z.ZodIssue): string {
+  if (issue.code === "custom") return issue.message;
+  switch (String(issue.path[0] ?? "")) {
+    case "paymentDays":
+      return tApi("api.companyRequestDefaults.vadeGunAraligi");
+    case "advancePercent":
+      return tApi("api.companyRequestDefaults.pesinYuzdesiAraligi");
+    case "allowedCurrencies":
+      return tApi("api.companyRequestDefaults.kabulEdilenBirimSayisi", { max: REQUEST_ALLOWED_CURRENCIES_MAX });
+    case "closeDays":
+      return tApi("api.companyRequestDefaults.teklifSuresiAraligi", { max: REQUEST_CLOSE_DAYS_MAX });
+    default:
+      return tApi("api.validation.invalid");
+  }
+}
 
 @Injectable()
 export class CompanyRequestDefaultsService {
@@ -154,11 +175,12 @@ export class CompanyRequestDefaultsService {
   async save(user: AuthenticatedCompanyUser, input: unknown): Promise<RequestDefaultsResponse> {
     const parsed = requestDefaultsSchema.safeParse(input);
     if (!parsed.success) {
-      // Gövde zod şemasından gelir (mesajlar şemanın kendi metinleri); yalnız
-      // SABİT çerçeve katalogdan çevrilir.
+      // Her ihlal istek dilinde, alana özgü katalog metniyle (arayüz testi
+      // D-007/D-046): zod'un ham İngilizce aralık mesajları kullanıcıya gitmez.
+      const issues = [...new Set(parsed.error.issues.map(localizedIssue))];
       throw new BadRequestException(
         i18nMessage("api.companyRequestDefaults.talepSartlariGecersiz", {
-          issues: parsed.error.issues.map((i) => i.message).join(", "),
+          issues: issues.join(", "),
         }),
       );
     }

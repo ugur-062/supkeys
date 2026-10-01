@@ -41,6 +41,11 @@ export interface RequestDefaults {
 export const REQUEST_CLOSE_DAY_OPTIONS = [3, 7, 14] as const;
 export const REQUEST_CLOSE_DAYS_DEFAULT = 7;
 export const REQUEST_CLOSE_DAYS_MAX = 60;
+/**
+ * Kabul edilen para birimi üst sınırı (arayüz testi D-046): talep şartları
+ * şeması, talep DTO'su ve formdaki çipler aynı sayıyı kullanır.
+ */
+export const REQUEST_ALLOWED_CURRENCIES_MAX = 8;
 
 export type RequestDefaultsSource = "saved" | "last_listing" | "none";
 

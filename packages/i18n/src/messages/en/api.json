@@ -714,7 +714,8 @@
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Companies you are not connected to: {length, plural, one {# record} other {# records}}",
-    "sablonBulunamadi": "Template not found"
+    "sablonBulunamadi": "Template not found",
+    "adEnFazla": "The group name can be at most {max} characters"
   },
   "companyUsers": {
     "kuruculukDavetleVerilemezMevcutBirKullaniciya": "The Founder role cannot be granted by invitation; transfer it to an existing user",
@@ -765,7 +766,9 @@
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Template not found",
     "sablonAdiZorunlu": "Template name is required",
-    "enAz1SoruGerekli": "At least 1 question is required"
+    "enAz1SoruGerekli": "At least 1 question is required",
+    "adEnFazla": "The set name can be at most {max} characters",
+    "enFazlaSoru": "A question set can contain at most {max} questions"
   },
   "companyBankAccounts": {
     "gecerliBirTrIbanGiriniz": "Enter a valid TR IBAN",
@@ -1257,7 +1260,11 @@
     "akreditifAltTipiniSecin": "Select the letter of credit subtype",
     "pesinYuzdesiZorunlu": "Advance percentage (1-100%) is required",
     "usanceVadeGunZorunlu": "Number of days is required for a usance letter of credit",
-    "ozelOdemeKaydedilemez": "The custom payment term cannot be saved in Request Terms; choose another payment term"
+    "ozelOdemeKaydedilemez": "The custom payment term cannot be saved in Request Terms; choose another payment term",
+    "vadeGunAraligi": "Payment term days must be between 1 and 365",
+    "pesinYuzdesiAraligi": "Advance percentage must be between 1 and 100",
+    "kabulEdilenBirimSayisi": "Select between 1 and {max} accepted currencies",
+    "teklifSuresiAraligi": "The bid collection period must be between 1 and {max} days"
   },
   "notifications": {
     "common": {
