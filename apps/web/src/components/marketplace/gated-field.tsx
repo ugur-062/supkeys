@@ -5,6 +5,18 @@ import { LockClosedIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 
 /**
+ * Satır içi kilit için alan başına TAM cümle (arayüz testi D-083): genel
+ * "{label} için giriş yapın" kalıbı EN/RU'da cümle ortasında büyük harfli
+ * başlık ve iki nokta bırakıyordu ("Log in to see Company website",
+ * "Войдите, чтобы увидеть: Сайт компании").
+ */
+const SENTENCE_KEY = {
+  sellerSite: "loginForSellerSite",
+  contact: "loginForContact",
+} as const;
+export type GatedSentence = keyof typeof SENTENCE_KEY;
+
+/**
  * KAPILI ALAN — gizlenen değerin YERİNE basılır (görünürlük katmanı).
  *
  * Bulanıklaştırma YOK: bulanık değer "orada ama görmüyorsun" der ve
@@ -20,6 +32,7 @@ export function GatedField({
   signup,
   size = "inline",
   hint,
+  sentence,
   className,
 }: {
   /** "Fiyat", "Kalem listesi", "Değerlendirmeler" — cümle: "{label} için giriş yapın". */
@@ -35,10 +48,17 @@ export function GatedField({
   size?: "inline" | "box";
   /** Box: ikinci satır açıklama. */
   hint?: string;
+  /** Inline: genel kalıp yerine alanın kendi cümlesi (`<link>` taşır). */
+  sentence?: GatedSentence;
   className?: string;
 }) {
   const t = useTranslations("web.marketplace.gated");
   const href = loginHref(redirect);
+  const link = (chunks: React.ReactNode) => (
+    <Link href={href} className="font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950">
+      {chunks}
+    </Link>
+  );
   if (size === "box") {
     return (
       <div
@@ -67,14 +87,9 @@ export function GatedField({
     <span className={`inline-flex items-center gap-1.5 text-sm text-zinc-500 ${className ?? ""}`}>
       <LockClosedIcon aria-hidden className="size-3.5 text-zinc-400" />
       <span>
-        {t.rich("loginFor", {
-          label,
-          link: (chunks) => (
-            <Link href={href} className="font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950">
-              {chunks}
-            </Link>
-          ),
-        })}
+        {sentence
+          ? t.rich(SENTENCE_KEY[sentence], { link })
+          : t.rich("loginFor", { label, link })}
       </span>
     </span>
   );

@@ -52,7 +52,7 @@ function OptOutInner() {
     }
     let cancelled = false;
     api
-      .get<Described>("/public/referral-optout", { params: { token } })
+      .get<Described>("/public/referral-optout", { params: { token }, skipErrorToast: true })
       .then(({ data }) => {
         if (!cancelled) setState(data.optedOut ? { kind: "done" } : { kind: "ready", email: data.email });
       })
@@ -68,7 +68,7 @@ function OptOutInner() {
     setBusy(true);
     setFailed(false);
     try {
-      await api.post("/public/referral-optout", { token });
+      await api.post("/public/referral-optout", { token }, { skipErrorToast: true });
       setState({ kind: "done" });
     } catch {
       setFailed(true);

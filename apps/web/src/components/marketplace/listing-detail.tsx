@@ -30,6 +30,11 @@ import { AccentLink } from "@/components/ui/accent-fill";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 
+/** Tarih geçmiş mi (çizim dışı yardımcı; `Date.now` bileşen gövdesinde okunmaz). */
+function isPast(iso: string): boolean {
+  return new Date(iso).getTime() <= Date.now();
+}
+
 /**
  * Tekil alım talebi sayfası — SUNUCU bileşeni. (Satış ilanı 2026-09-04'te
  * kaldırıldı; tek tip ALIM.)
@@ -63,6 +68,11 @@ export function ListingDetail({
   const canonical = `${site}${listingHref(listing)}`;
   const indexBase = MARKETPLACE_ROUTES.demands;
   const indexLabel = tl("demands");
+  // Erken kapanan (değerlendirmedeki / kazandırılmış) talepte planlanan son
+  // teklif tarihi İLERİDE kalır; "Kapandı" rozetinin yanında "Son teklif
+  // tarihi 6 Eki" yanıltıyordu (arayüz testi D-073). Tarih yalnız açık
+  // talepte ya da gerçekten geçmişse gösterilir.
+  const showDeadline = !!listing.closesAt && (state === "open" || isPast(listing.closesAt));
 
   /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
      `listingSeo` hem sayfanın metasını hem bu grafiği üretir. Sahibin adı
@@ -76,7 +86,7 @@ export function ListingDetail({
 
   const facts: { label: string; value: string }[] = [
     { label: t("number"), value: listing.number },
-    ...(listing.closesAt
+    ...(showDeadline
       ? [
           {
             label: t("closesAtLabel"),
@@ -85,7 +95,7 @@ export function ListingDetail({
         ]
       : []),
     ...(listing.publishedAt
-      ? [{ label: t("published"), value: formatDate(listing.publishedAt, "long", locale) }]
+      ? [{ label: t("published"), value: formatDate(listing.publishedAt, "short", locale) }]
       : []),
     {
       label: t("visibility"),
@@ -175,7 +185,11 @@ export function ListingDetail({
                 {listing.categories.map((c) => (
                   <li key={c.id}>
                     <Link
-                      href={`${indexBase}?kategori=${c.id.slice(0, 2)}000000`}
+                      // Çip adıyla AYNI kategoriye gider (arayüz testi D-061):
+                      // eskiden segmente yuvarlanıyordu, "Vidalar" bütün
+                      // "Üretim Bileşenleri" segmentini açıyordu. Dizin yaprağı
+                      // önekle süzer; aktif çip adı facet'in `selectedCategory`sinden.
+                      href={`${indexBase}?kategori=${c.id}`}
                       className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200 transition hover:text-zinc-950 hover:ring-zinc-900/30"
                     >
                       {c.name}
@@ -200,7 +214,9 @@ export function ListingDetail({
                 label: t("closing"),
                 value: (
                   <>
-                    <span className="block">{listing.closesAt ? formatDate(listing.closesAt, "short", locale) : "—"}</span>
+                    <span className="block">
+                      {showDeadline ? formatDate(listing.closesAt, "short", locale) : state === "open" ? "—" : tstate(state)}
+                    </span>
                     {urgency ? (
                       <span
                         className={cn(
@@ -280,14 +296,20 @@ export function ListingDetail({
                     </li>
                   ))}
                 </ul>
-                <GatedField
-                  className="mt-4"
-                  size="box"
-                  label={t("gateLabel")}
-                  hint={t("gateHint")}
-                  redirect={PANEL_TARGET.listing(listing.number)}
-                  signup={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
-                />
+                {/* Kapanmış talepte teklif çağrısı yok (D-073): ipucu teklifsiz,
+                    dönüş adresi yok (panel karşılığı yalnız AÇIK talepleri arar). */}
+                {state === "open" ? (
+                  <GatedField
+                    className="mt-4"
+                    size="box"
+                    label={t("gateLabel")}
+                    hint={t("gateHint")}
+                    redirect={PANEL_TARGET.listing(listing.number)}
+                    signup={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
+                  />
+                ) : (
+                  <GatedField className="mt-4" size="box" label={t("gateLabel")} hint={t("gateHintClosed")} />
+                )}
               </section>
             ) : null}
 

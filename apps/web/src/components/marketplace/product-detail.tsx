@@ -112,7 +112,7 @@ export function ProductDetail({
           related={related}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
           sellerSite={
-            <GatedField label={t("sellerSite")} redirect={PANEL_TARGET.product(companySlug, product.slug)} />
+            <GatedField label={t("sellerSite")} sentence="sellerSite" redirect={PANEL_TARGET.product(companySlug, product.slug)} />
           }
           documentsLoginHref={loginHref(`${PANEL_TARGET.product(companySlug, product.slug)}#belgeler`)}
           cta={

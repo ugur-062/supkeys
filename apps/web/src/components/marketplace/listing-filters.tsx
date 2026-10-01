@@ -121,7 +121,7 @@ export function ListingActiveChips({ facets }: { facets: PublicFacets }) {
   const locale = useLocale();
   const { state, update, clear } = useFilters<ListingFilterState>();
   const chips: FilterChip[] = [];
-  if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? state.category, onRemove: () => update({ category: undefined }) });
+  if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? facets.selectedCategory?.name ?? state.category, onRemove: () => update({ category: undefined }) });
   for (const c of state.cities) chips.push({ key: `c:${c}`, label: facets.cities.find((f) => f.city === c)?.name ?? cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   if (state.within) chips.push({ key: "w", label: t("withinDays", { n: Number(state.within) }), onRemove: () => update({ within: undefined }) });
   if (state.country) chips.push({ key: "s", label: countryDisplayName(state.country, locale), onRemove: () => update({ country: undefined }) });

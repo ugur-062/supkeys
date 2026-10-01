@@ -83,8 +83,8 @@
     "reminderHeading": "The quote deadline is approaching",
     "reminderIntro": "<b>{inviterName}</b> is still waiting for your quote on the buying request they invited you to. The deadline is approaching:",
     "textReminderIntro": "Reminder: {inviterName} is waiting for your quote on the buying request \"{tenderTitle}\".",
-    "previewLink": "<link>View all line items of the request</link> without signing up.",
-    "textPreviewLink": "All line items of the request (no sign-up needed): {url}"
+    "previewLink": "<link>View the request's line items</link> without signing up.",
+    "textPreviewLink": "The request's line items (no sign-up needed): {url}"
   },
   "domain": {
     "qty": {

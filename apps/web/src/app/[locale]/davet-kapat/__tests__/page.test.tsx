@@ -24,10 +24,10 @@ describe("Davet kapatma sayfası", () => {
     h.post.mockResolvedValue({ data: { ok: true } });
     render(<Page />);
     expect(await screen.findByText("Adres: sa•••@firma.com")).toBeInTheDocument();
-    expect(h.get).toHaveBeenCalledWith("/public/referral-optout", { params: { token: "TOK1" } });
+    expect(h.get).toHaveBeenCalledWith("/public/referral-optout", { params: { token: "TOK1" }, skipErrorToast: true });
     expect(h.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Davet almak istemiyorum" }));
-    await waitFor(() => expect(h.post).toHaveBeenCalledWith("/public/referral-optout", { token: "TOK1" }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith("/public/referral-optout", { token: "TOK1" }, { skipErrorToast: true }));
     expect(await screen.findByText("Davetler kapatıldı")).toBeInTheDocument();
   });
 

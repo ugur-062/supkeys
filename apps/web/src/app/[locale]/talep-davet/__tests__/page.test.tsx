@@ -47,15 +47,39 @@ describe("Talep davet önizlemesi", () => {
     const cta = screen.getByRole("link", { name: "Ücretsiz kaydol ve teklif ver" });
     expect(cta.getAttribute("href")).toContain("ref=TOK123");
     expect(cta.getAttribute("href")).toContain(encodeURIComponent("/company/ilan/l1"));
-    expect(h.get).toHaveBeenCalledWith("/public/invite-preview", { params: { ref: "TOK123", l: "l1" } });
+    // Sayfa hatayı kendi kartında gösterir → global toast kapalı (D-058).
+    expect(h.get).toHaveBeenCalledWith("/public/invite-preview", { params: { ref: "TOK123", l: "l1" }, skipErrorToast: true });
+    expect(h.post).toHaveBeenCalledWith("/public/referral-visit", { token: "TOK123" }, { skipErrorToast: true });
+    // Görünen etiket <dt>; aynı etiket ikinci kez (sr-only) okunmaz (D-337).
+    expect(screen.getAllByText(/Son teklif tarihi/)).toHaveLength(1);
+    expect(screen.getByText(/Son teklif tarihi/).tagName).toBe("DT");
+    expect(screen.getByText("Kayıt olmak ve teklif vermek ücretsizdir.", { exact: false })).toBeInTheDocument();
     await waitFor(() => expect(sessionStorage.getItem("rothern:invite-prefill")).toContain("info@firma.com"));
   });
 
-  it("kayıtlı adres giriş CTA'sı; kapalı talep notu", async () => {
+  it("kayıtlı adres giriş CTA'sı talebe döner", async () => {
+    h.get.mockResolvedValue({ data: { ...preview, accepted: true } });
+    render(<Page />);
+    const cta = await screen.findByRole("link", { name: "Giriş yap ve teklif ver" });
+    expect(cta.getAttribute("href")).toContain(encodeURIComponent("/company/ilan/l1"));
+  });
+
+  it("kapalı talep: teklif çağrısı ve kapalı talebe dönüş yok (O-117)", async () => {
+    h.get.mockResolvedValue({ data: { ...preview, closed: true } });
+    render(<Page />);
+    expect(await screen.findByText("Bu talep teklife kapandı")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ücretsiz kaydol ve teklif ver" })).toBeNull();
+    const cta = screen.getByRole("link", { name: "Ücretsiz kaydol" });
+    expect(cta.getAttribute("href")).toContain("ref=TOK123");
+    expect(cta.getAttribute("href")).not.toContain("redirect=");
+    expect(screen.queryByText(/teklif vermek ücretsizdir/)).toBeNull();
+  });
+
+  it("kapalı talep, kayıtlı adres: düz giriş, talebe dönüş yok", async () => {
     h.get.mockResolvedValue({ data: { ...preview, accepted: true, closed: true } });
     render(<Page />);
-    expect(await screen.findByRole("link", { name: "Giriş yap ve teklif ver" })).toBeInTheDocument();
-    expect(screen.getByText("Bu talep teklife kapandı")).toBeInTheDocument();
+    const cta = await screen.findByRole("link", { name: "Giriş yap" });
+    expect(cta.getAttribute("href")).not.toContain("next=");
   });
 
   it("geçersiz bağlantı", async () => {

@@ -83,8 +83,8 @@
     "reminderHeading": "Teklif süresi yakında doluyor",
     "reminderIntro": "<b>{inviterName}</b>, sizi davet ettiği alım talebi için hâlâ teklifinizi bekliyor. Son teklif tarihi yaklaşıyor:",
     "textReminderIntro": "Hatırlatma: {inviterName}, \"{tenderTitle}\" alım talebi için teklifinizi bekliyor.",
-    "previewLink": "Kayıt olmadan <link>talebin tüm kalemlerini görüntüleyin</link>.",
-    "textPreviewLink": "Talebin tüm kalemleri (kayıt gerekmez): {url}"
+    "previewLink": "Kayıt olmadan <link>talebin kalemlerini görüntüleyin</link>.",
+    "textPreviewLink": "Talebin kalemleri (kayıt gerekmez): {url}"
   },
   "domain": {
     "qty": {

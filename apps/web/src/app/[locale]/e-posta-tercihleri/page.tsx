@@ -70,7 +70,7 @@ function EmailPrefsInner() {
     }
     let cancelled = false;
     api
-      .get<Described>("/public/email/unsubscribe", { params: { t: token } })
+      .get<Described>("/public/email/unsubscribe", { params: { t: token }, skipErrorToast: true })
       .then(({ data }) => {
         if (cancelled) return;
         if (isLocale(data.locale) && data.locale !== locale) {
@@ -104,7 +104,7 @@ function EmailPrefsInner() {
     setBusy(all ? "all" : "one");
     setFailed(false);
     try {
-      const { data } = await api.post<{ scope: Scope }>("/public/email/unsubscribe", { t: token, all });
+      const { data } = await api.post<{ scope: Scope }>("/public/email/unsubscribe", { t: token, all }, { skipErrorToast: true });
       setState({ kind: "done", scope: data.scope });
     } catch {
       setFailed(true);

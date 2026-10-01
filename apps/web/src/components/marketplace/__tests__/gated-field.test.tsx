@@ -27,3 +27,19 @@ describe("GatedField box — kayıt bağlantısı niyet + dönüş taşır (aray
     );
   });
 });
+
+describe("GatedField inline — alan başına tam cümle (arayüz testi D-083)", () => {
+  it("sentence verilince genel '{label} için' kalıbı yerine alanın cümlesi", () => {
+    const { container } = render(<GatedField label="Firmanın web sitesi" sentence="sellerSite" redirect="/company/firma/abc" />);
+    expect(container.textContent).toBe("Firmanın web sitesini görmek için giriş yapın");
+    expect(screen.getByRole("link", { name: "giriş yapın" })).toHaveAttribute(
+      "href",
+      "/company/login?next=%2Fcompany%2Ffirma%2Fabc",
+    );
+  });
+
+  it("sentence yoksa genel kalıp kalır", () => {
+    const { container } = render(<GatedField label="Puanlar" />);
+    expect(container.textContent).toBe("Puanlar için giriş yapın");
+  });
+});

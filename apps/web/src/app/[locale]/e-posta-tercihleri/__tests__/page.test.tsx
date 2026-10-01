@@ -27,7 +27,7 @@ describe("E-posta tercihleri sayfası", () => {
     expect(screen.getByText("kategorinize uyan yeni talepler")).toBeInTheDocument();
     expect(h.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Abonelikten çık" }));
-    await waitFor(() => expect(h.post).toHaveBeenCalledWith("/public/email/unsubscribe", { t: "TOKEN123", all: false }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith("/public/email/unsubscribe", { t: "TOKEN123", all: false }, { skipErrorToast: true }));
     expect(await screen.findByText("Abonelikten çıktınız")).toBeInTheDocument();
   });
 
@@ -36,7 +36,7 @@ describe("E-posta tercihleri sayfası", () => {
     h.post.mockResolvedValue({ data: { scope: "all" } });
     render(<Page />);
     fireEvent.click(await screen.findByRole("button", { name: "Tüm isteğe bağlı e-postalardan çık" }));
-    await waitFor(() => expect(h.post).toHaveBeenCalledWith("/public/email/unsubscribe", { t: "TOKEN123", all: true }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith("/public/email/unsubscribe", { t: "TOKEN123", all: true }, { skipErrorToast: true }));
   });
 
   it("zaten çıkmış adres doğrudan sonuç; geçersiz jeton hata kartı", async () => {

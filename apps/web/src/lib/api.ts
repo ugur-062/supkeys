@@ -25,6 +25,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// İstek başına toast kapatma (arayüz testi D-058): hatayı kendi kartında /
+// satır içinde gösteren sayfalar (davet önizlemesi, davet çıkışı, e-posta
+// tercihleri) `skipErrorToast: true` geçer — yoksa kartın üstüne bir de
+// global toast çıkıyor, başarısız gönderimde aynı hata iki kez görünüyordu.
+declare module "axios" {
+  interface AxiosRequestConfig {
+    skipErrorToast?: boolean;
+  }
+}
+
 interface ApiErrorPayload {
   message?: string | string[];
   /** Polish-3 — backend ValidationPipe `{ field: msg }` */
@@ -56,6 +66,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorPayload>) => {
     if (typeof window === "undefined") return Promise.reject(error);
+    if (error.config?.skipErrorToast) return Promise.reject(error);
 
     const status = error.response?.status;
     const data = error.response?.data;

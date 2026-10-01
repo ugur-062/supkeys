@@ -12,7 +12,8 @@ import { Suspense, useEffect, useState } from "react";
 /**
  * KAYIT OLMADAN TALEP ÖNİZLEMESİ (2026-09-27, Faz 3). Davet e-postasındaki
  * bağlantı (`?ref=<davet jetonu>&l=<talep>`) buraya düşer: davet eden firma,
- * talep başlığı, TÜM kalemler (ad + miktar), teslim yeri (şehir + ülke), son
+ * talep başlığı, kalemler (ad + miktar, en fazla 100; fazlası kayıt sonrası
+ * panelde), teslim yeri (şehir + ülke), son
  * tarih — davet e-postasıyla aynı beyaz liste; hedef fiyat, şartname, belge,
  * adres yok. Açılış ilgi sinyali bırakır ve kayıt formu için önceden doldurma
  * bilgisini saklar (bkz. signup-client).
@@ -58,12 +59,15 @@ function PreviewInner() {
     }
     let cancelled = false;
     api
-      .get<Preview>("/public/invite-preview", { params: { ref, ...(listingParam ? { l: listingParam } : {}) } })
+      .get<Preview>("/public/invite-preview", {
+        params: { ref, ...(listingParam ? { l: listingParam } : {}) },
+        skipErrorToast: true,
+      })
       .then(({ data }) => !cancelled && setState({ kind: "ok", data }))
       .catch(() => !cancelled && setState({ kind: "invalid" }));
     // İlgi sinyali + kayıt formu için önceden doldurma (sessiz).
     api
-      .post<InvitePrefill>("/public/referral-visit", { token: ref })
+      .post<InvitePrefill>("/public/referral-visit", { token: ref }, { skipErrorToast: true })
       .then(({ data }) => saveInvitePrefill(data))
       .catch(() => undefined);
     return () => {
@@ -92,9 +96,14 @@ function PreviewInner() {
   }
 
   const d = state.data;
-  const redirect = `/company/ilan/${d.listingId}`;
-  const signupHref = `/company/kayit?ref=${encodeURIComponent(ref)}&redirect=${encodeURIComponent(redirect)}`;
-  const loginHref = `/company/login?next=${encodeURIComponent(redirect)}`;
+  // Kapanmış talepte teklif çağrısı yok ve kapalı talebe dönüş yok (arayüz
+  // testi O-117): CTA yalnız "Ücretsiz kaydol" / "Giriş yap", hedef panel.
+  const redirect = d.closed ? null : `/company/ilan/${d.listingId}`;
+  const signupHref = `/company/kayit?ref=${encodeURIComponent(ref)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`;
+  const loginHref = redirect ? `/company/login?next=${encodeURIComponent(redirect)}` : "/company/login";
+  const ctaLabel = d.accepted
+    ? t(d.closed ? "loginClosedCta" : "loginCta")
+    : t(d.closed ? "signupClosedCta" : "signupCta");
   const more = Math.max(0, d.itemCount - d.items.length);
 
   return (
@@ -108,23 +117,23 @@ function PreviewInner() {
         {d.tenderNumber ? <p className="mt-0.5 text-xs text-zinc-600">{t("number", { number: d.tenderNumber })}</p> : null}
         <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           {d.closesAt ? (
-            <div className="flex items-start gap-2">
-              <dt className="sr-only">{t("deadline")}</dt>
-              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden />
-              <dd className="text-zinc-800">
-                <span className="text-zinc-600">{t("deadline")}: </span>
-                {d.closesAt}
-              </dd>
+            <div className="flex items-start gap-1.5">
+              {/* Görünen etiket <dt>'nin kendisi — ekran okuyucu bir kez okur (D-337). */}
+              <dt className="flex shrink-0 items-start gap-2 text-zinc-600">
+                <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden />
+                {t("deadline")}:
+              </dt>
+              <dd className="text-zinc-800">{d.closesAt}</dd>
             </div>
           ) : null}
           {d.deliveryPlace ? (
-            <div className="flex items-start gap-2">
-              <dt className="sr-only">{t("delivery")}</dt>
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden />
-              <dd className="text-zinc-800">
-                <span className="text-zinc-600">{t("delivery")}: </span>
-                {d.deliveryPlace}
-              </dd>
+            <div className="flex items-start gap-1.5">
+              {/* Görünen etiket <dt>'nin kendisi — ekran okuyucu bir kez okur (D-337). */}
+              <dt className="flex shrink-0 items-start gap-2 text-zinc-600">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden />
+                {t("delivery")}:
+              </dt>
+              <dd className="text-zinc-800">{d.deliveryPlace}</dd>
             </div>
           ) : null}
           {d.categories.length > 0 ? (
@@ -160,12 +169,14 @@ function PreviewInner() {
         </section>
       ) : null}
 
-      <p className="mt-6 flex items-start gap-2 text-sm text-zinc-700">
-        <Lock className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" aria-hidden />
-        <span>
-          {t("sealedBid")} {t("freeToQuote")}
-        </span>
-      </p>
+      {d.closed ? null : (
+        <p className="mt-6 flex items-start gap-2 text-sm text-zinc-700">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" aria-hidden />
+          <span>
+            {t("sealedBid")} {t("freeToQuote")}
+          </span>
+        </p>
+      )}
 
       {d.closed ? (
         <div className="mt-6 rounded-xl bg-zinc-100 p-4">
@@ -179,7 +190,7 @@ function PreviewInner() {
           href={d.accepted ? loginHref : signupHref}
           className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
         >
-          {d.accepted ? t("loginCta") : t("signupCta")}
+          {ctaLabel}
         </Link>
         <Link href={`/davet-kapat?token=${encodeURIComponent(ref)}`} className="text-sm text-zinc-600 hover:text-zinc-900 sm:ml-auto">
           {t("optOut")}

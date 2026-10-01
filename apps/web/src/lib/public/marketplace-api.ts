@@ -142,6 +142,8 @@ export interface PublicFacets {
   countries: { code: string; count: number }[];
   /** Kalan süre kovaları (bağlamsal; eski yanıtta yok → `?? 0` ile okunur). */
   within?: { "3": number; "7": number; "30": number };
+  /** Seçili kategori (yaprak dahil) okuyucu dilinde — aktif çip adı (D-061; eski yanıtta yok). */
+  selectedCategory?: { id: string; name: string; level: number } | null;
   truncated: boolean;
 }
 

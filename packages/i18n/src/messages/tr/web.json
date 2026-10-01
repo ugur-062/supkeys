@@ -721,6 +721,8 @@
       "freeToQuote": "Kayıt olmak ve teklif vermek ücretsizdir.",
       "signupCta": "Ücretsiz kaydol ve teklif ver",
       "loginCta": "Giriş yap ve teklif ver",
+      "signupClosedCta": "Ücretsiz kaydol",
+      "loginClosedCta": "Giriş yap",
       "optOut": "Davet almak istemiyorum",
       "closedTitle": "Bu talep teklife kapandı",
       "closedBody": "Benzer taleplerden haberdar olmak için ücretsiz kaydolabilirsiniz.",
@@ -852,7 +854,9 @@
       "login": "Giriş yapın",
       "signup": "Ücretsiz kaydolun",
       "loginFor": "{label} için <link>giriş yapın</link>",
-      "loginForText": "{label} için giriş yapın"
+      "loginForText": "{label} için giriş yapın",
+      "loginForSellerSite": "Firmanın web sitesini görmek için <link>giriş yapın</link>",
+      "loginForContact": "Rothern ID ve iletişim bilgilerini görmek için <link>giriş yapın</link>"
     },
     "filters": {
       "updating": "Güncelleniyor…",
@@ -1016,7 +1020,7 @@
       "companiesMetaDesc": "Rothern'deki doğrulanmış alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı, süzgeçler ve firmalarla iletişim ücretsiz üyelikle açılır.",
       "demandsMetaTitle": "{label} — dünyanın her yerinden açık alım talepleri",
       "demandsMetaDesc": "Firmaların yayımladığı açık alım taleplerini kategoriye ve şehre göre inceleyin. Teklif vermek için Rothern'e ücretsiz kaydolun.",
-      "demandsLead": "Firmaların herkese açık alım talepleri. Kalemleri ve alıcıyı görmek, teklif vermek için ücretsiz hesap.",
+      "demandsLead": "Firmaların herkese açık alım talepleri. Kalemler herkese açık; alıcıyı, şartnameyi ve belgeleri görmek, teklif vermek için ücretsiz hesap.",
       "categoryNotFoundTitle": "Kategori bulunamadı",
       "categoryNotFoundDesc": "Bu kategoride yayımlanmış ürün yok. Ürün dizininden diğer kategorilere göz atın.",
       "categoryTitleTail": "{count, number} ürün",
@@ -1113,6 +1117,7 @@
       "itemFallback": "Kalem {n}",
       "gateLabel": "Alıcı firma, şartname ve ekli belgeler",
       "gateHint": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için ücretsiz hesap — 2 dakika, kredi kartı yok.",
+      "gateHintClosed": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek için ücretsiz hesap — 2 dakika, kredi kartı yok.",
       "infoHeading": "Talep bilgileri",
       "membersNote": "Şartname metni, ödeme notu ve ekli belgeler yalnızca kayıtlı firmalara açıktır. Teklifler kapalı zarf esasıyla toplanır — gelen teklifleri yalnızca talep sahibi görür.",
       "buyer": "Alıcı",

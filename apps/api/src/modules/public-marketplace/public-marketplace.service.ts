@@ -353,6 +353,13 @@ export class PublicMarketplaceService {
     countries: { code: string; count: number }[];
     /** Kalan süre kovaları (3/7/30 gün) — diğer seçimlerle. */
     within: { "3": number; "7": number; "30": number };
+    /**
+     * Seçili kategorinin okuyucu dilindeki adı (arayüz testi D-061): talep
+     * sayfasındaki çip yaprağa (L2–L4) bağlanır; `categories` yalnız segment
+     * saydığı için aktif çip adını buradan okur (ürün facet'iyle aynı biçim).
+     * Seçim yoksa / kod yoksa null.
+     */
+    selectedCategory: { id: string; name: string; level: number } | null;
     truncated: boolean;
   }> {
     const now = new Date();
@@ -413,7 +420,8 @@ export class PublicMarketplaceService {
     for (const r of forScope) for (const c of r.targetCountries) countryCount.set(c, (countryCount.get(c) ?? 0) + 1);
     if (country && /^[A-Z]{2}$/.test(country) && !countryCount.has(country)) countryCount.set(country, 0);
 
-    const cats = await this.resolveCategories([...catCount.keys()]);
+    const cats = await this.resolveCategories([...catCount.keys(), ...(q.category ? [q.category] : [])]);
+    const selected = q.category ? cats.get(q.category) : undefined;
     return {
       categories: [...catCount.entries()]
         .map(([id, count]) => {
@@ -434,6 +442,7 @@ export class PublicMarketplaceService {
         "7": forWithin.filter((r) => withinDays(r, 7)).length,
         "30": forWithin.filter((r) => withinDays(r, 30)).length,
       },
+      selectedCategory: selected ? { id: selected.id, name: selected.name, level: selected.level } : null,
       truncated,
     };
   }

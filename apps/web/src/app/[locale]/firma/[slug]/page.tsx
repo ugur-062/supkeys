@@ -144,7 +144,7 @@ export default async function PublicCompanyProfile({
             </Link>
           }
           gate={{
-            stats: <GatedField label={t("gateStats")} redirect={panelHref} />,
+            stats: <GatedField label={t("gateStats")} sentence="contact" redirect={panelHref} />,
             aside: (
               <GatedField
                 size="box"

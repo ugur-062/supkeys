@@ -174,15 +174,15 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
-  "api.adminCompanies.firmaninUrunTavaniDolu": {
-    "hash": "14c06d3b21",
-    "status": "reviewed",
-    "at": "2026-09-29"
-  },
   "api.adminCompanies.firmaninPaketiDolduUrunTavaniDolu": {
     "hash": "3d3fd0823a",
     "status": "reviewed",
     "at": "2026-10-02"
+  },
+  "api.adminCompanies.firmaninUrunTavaniDolu": {
+    "hash": "14c06d3b21",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.adminCompanies.firmaninUyeligiAzOnceDegistiSayfayi": {
     "hash": "6843670c3d",
@@ -8675,9 +8675,9 @@
     "at": "2026-09-29"
   },
   "email.tenderExternalInvite.previewLink": {
-    "hash": "b657092867",
+    "hash": "4e24d25447",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-01"
   },
   "email.tenderExternalInvite.publicLink": {
     "hash": "46b7b2f59f",
@@ -8745,9 +8745,9 @@
     "at": "2026-09-24"
   },
   "email.tenderExternalInvite.textPreviewLink": {
-    "hash": "39b4602f96",
+    "hash": "1df6f3eab7",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "email.tenderExternalInvite.textPublicLink": {
     "hash": "229eedc14e",
@@ -14017,7 +14017,7 @@
   "web.marketing.inquiryVerify.sentBody": {
     "hash": "deccdde250",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketing.inquiryVerify.sentTitle": {
     "hash": "4b98bd33f1",
@@ -14104,6 +14104,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.marketing.invitePreview.loginClosedCta": {
+    "hash": "a7fbdadbc8",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketing.invitePreview.loginCta": {
     "hash": "689027a5bc",
     "status": "reviewed",
@@ -14133,6 +14138,11 @@
     "hash": "aedef11730",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.signupClosedCta": {
+    "hash": "9d2070a538",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketing.invitePreview.signupCta": {
     "hash": "0da0c7df48",
@@ -15854,6 +15864,16 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.gated.loginForContact": {
+    "hash": "062cea47b9",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.gated.loginForSellerSite": {
+    "hash": "e8e143f43f",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.gated.loginForText": {
     "hash": "37ff836e54",
     "status": "reviewed",
@@ -16092,7 +16112,7 @@
   "web.marketplace.inquiry.sentBody": {
     "hash": "a5116cb2b0",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.inquiry.sentNote": {
     "hash": "15fb15a784",
@@ -16203,6 +16223,11 @@
     "hash": "106b17af00",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.listing.gateHintClosed": {
+    "hash": "0e69e8fb40",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.listing.gateLabel": {
     "hash": "1a04b3ea0f",
@@ -16575,9 +16600,9 @@
     "at": "2026-09-27"
   },
   "web.marketplace.pages.demandsLead": {
-    "hash": "bd8a7e679f",
+    "hash": "5879c1a387",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.pages.demandsMetaDesc": {
     "hash": "c81eb403b0",

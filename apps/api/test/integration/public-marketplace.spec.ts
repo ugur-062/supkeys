@@ -449,6 +449,22 @@ describe("pazar yeri — süzgeç ve arama", () => {
     expect(res.items[0]?.title).toBe("Gıda alımı");
   });
 
+  it("facet seçili kategorinin adını döner — yaprak dahil (arayüz testi D-061)", async () => {
+    await prisma.category.createMany({
+      data: [
+        { id: "50000000", code: "50000000", nameTr: "Gıda", level: 1, isActive: true },
+        { id: "50131700", code: "50131700", nameTr: "Meyveler", nameEn: "Fruits", level: 3, isActive: true },
+      ] as never,
+    });
+    await seedPublicListing({ categoryIds: ["50131700"], title: "Meyve alımı" });
+    // Talep sayfası çipi yaprağa bağlanır; `categories` yalnız segment sayar,
+    // aktif çip adı `selectedCategory`den.
+    const leaf = await service().facets({ category: "50131700" });
+    expect(leaf.selectedCategory).toEqual({ id: "50131700", name: "Meyveler", level: 3 });
+    expect((await service().facets({})).selectedCategory).toBeNull();
+    expect((await service().facets({ category: "99999999" })).selectedCategory).toBeNull();
+  });
+
   it("şehir süzgeci firma kapısını EZMEZ", async () => {
     // Regresyon: `city` süzgeci `company` nesnesini spread ile ezerse
     // publicListingsEnabled/isActive kontrolü düşerdi.

@@ -85,8 +85,11 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         icon: "items",
         value: (
           <span className="flex flex-col items-start">
-            <span className="flex items-baseline gap-1">
-              <span>
+            {/* Dar sütunda sayı ile birim kelimesi ayrı satırlara düşmesin
+                (RU "1 / позиция"; arayüz testi D-082): her parça bölünmez,
+                toplam miktar sığmazsa alt satıra geçer. */}
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span className="whitespace-nowrap">
                 {t.rich("itemsCountRich", {
                   count: l.itemSummary.count,
                   n: (c) => <span className="font-semibold tabular-nums text-slate-900">{c}</span>,
@@ -94,7 +97,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
                 })}
               </span>
               {l.itemSummary.totalQuantity && l.itemSummary.unit ? (
-                <span className="ml-1 tabular-nums text-slate-600">
+                <span className="whitespace-nowrap tabular-nums text-slate-600">
                   {quantity(l.itemSummary.totalQuantity, l.itemSummary.unit)}
                 </span>
               ) : null}
