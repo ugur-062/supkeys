@@ -11,6 +11,7 @@ import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   awardedBidForItem,
+  awardedWinningTotalTry,
   itemUnitPriceTry,
   listingAmountTry,
   listingRateToTry,
@@ -85,6 +86,20 @@ const BID_SELECT = {
   bidderCompany: { select: { name: true } },
 } as const;
 
+/** Kalem birim fiyatının TRY karşılığı için gereken alanlar (`itemUnitPriceTry`). */
+const BID_ITEM_PRICE_SELECT = {
+  itemId: true,
+  unitPrice: true,
+  currency: true,
+  fxToBase: true,
+} as const;
+
+/** Kalemin FİİLEN kime verildiği siparişlerden çözülür (`awardedBidForItem`). */
+const AWARD_ORDER_SELECT = {
+  sellerCompanyId: true,
+  items: { select: { name: true, unitPrice: true } },
+} as const;
+
 /** TRY karşılığı — çoklu birimde adil kıyas; snapshot'sız yabancı → null. */
 function bidTry(b: {
   amount: unknown;
@@ -104,6 +119,18 @@ function bidTry(b: {
  * daraltın" uyarısı döndürür.
  */
 const MAX_REPORT_LISTINGS = 500;
+
+/**
+ * Ters tarih aralığı (bitiş < başlangıç) sıfırlarla dolu "boş" rapor
+ * üretiyordu; kullanıcı aralıkta hiç talep yok sanıyordu (arayüz testi D-113).
+ */
+function assertRangeOrder(rangeStart: string, rangeEnd: string) {
+  if (new Date(rangeStart).getTime() > new Date(rangeEnd).getTime()) {
+    throw new BadRequestException(
+      i18nMessage("api.companyReports.tarihAraligiTers", undefined, "REPORT_RANGE_INVERTED"),
+    );
+  }
+}
 
 /** Kuruş yuvarlaması (rapor tutarları). */
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -162,10 +189,13 @@ export class CompanyReportsService {
   async general(companyId: string, dto: GeneralReportInput) {
     const include = {
       invitations: { select: { id: true, invitedCompanyId: true } },
-      bids: { select: BID_SELECT },
+      // Kalem fiyatları + kazandırma siparişleri: "Kazanan" tutarı kalem
+      // bazında çözülür (`awardedWinningTotalTry`, arayüz testi Y-04).
+      bids: { select: { ...BID_SELECT, items: { select: BID_ITEM_PRICE_SELECT } } },
       items: {
-        select: { quantity: true, targetPrice: true },
+        select: { id: true, name: true, quantity: true, targetPrice: true, awardedQuantity: true },
       },
+      orders: { select: AWARD_ORDER_SELECT },
     } satisfies Prisma.ListingInclude;
 
     let listings;
@@ -184,6 +214,7 @@ export class CompanyReportsService {
       if (!dto.rangeStart || !dto.rangeEnd) {
         throw new BadRequestException(i18nMessage("api.companyReports.tarihAraligiZorunlu"));
       }
+      assertRangeOrder(dto.rangeStart, dto.rangeEnd);
       listings = await this.prisma.listing.findMany({
         where: {
           companyId,
@@ -261,11 +292,16 @@ export class CompanyReportsService {
         exchangeRateSnapshot: unknown | null;
         bidderCompanyId: string;
         bidderCompany: { name: string };
+        items: { itemId: string; unitPrice: unknown; currency: string | null; fxToBase: unknown }[];
       }>;
       items: Array<{
+        id: string;
+        name: string;
         quantity: unknown;
         targetPrice: unknown | null;
+        awardedQuantity: unknown | null;
       }>;
+      orders: { sellerCompanyId: string; items: { name: string; unitPrice: unknown }[] }[];
     },
     createdBy: string | null,
   ) {
@@ -278,8 +314,16 @@ export class CompanyReportsService {
     const tryAmounts = realBids
       .map(bidTry)
       .filter((v): v is number => v != null);
+    // Kazanan tutarı kalem bazında (Tasarruf raporuyla AYNI yardımcı) — kazanan
+    // teklif TOPLAMLARI toplanmaz: kalem bazlı kazandırmada tutar ~iki katına
+    // çıkıp negatif tasarruf üretiyordu (arayüz testi Y-04).
     const winningTotal = awardedBids.length
-      ? awardedBids.reduce((s, b) => s + (bidTry(b) ?? 0), 0)
+      ? awardedWinningTotalTry({
+          primaryCurrency: l.primaryCurrency,
+          items: l.items,
+          bids: awardedBids,
+          orders: l.orders,
+        })
       : null;
     const winnerName = awardedBids.length
       ? [...new Set(awardedBids.map((b) => b.bidderCompany.name))].join(", ")
@@ -385,6 +429,7 @@ export class CompanyReportsService {
     if (!dto.rangeStart || !dto.rangeEnd) {
       throw new BadRequestException(i18nMessage("api.companyReports.tarihAraligiZorunlu"));
     }
+    assertRangeOrder(dto.rangeStart, dto.rangeEnd);
     let listings = await this.prisma.listing.findMany({
       where: {
         companyId,
@@ -423,12 +468,7 @@ export class CompanyReportsService {
           },
         },
         // Kalemin FİİLEN kime verildiği siparişlerden çözülür (awardedBidForItem).
-        orders: {
-          select: {
-            sellerCompanyId: true,
-            items: { select: { name: true, unitPrice: true } },
-          },
-        },
+        orders: { select: AWARD_ORDER_SELECT },
         bids: {
           where: { status: { in: [...REAL_BID] } },
           select: {
@@ -538,8 +578,17 @@ export class CompanyReportsService {
         .filter((v): v is number => v != null);
       const highestBid = tryAmounts.length ? Math.max(...tryAmounts) : null;
       const lowestBid = tryAmounts.length ? Math.min(...tryAmounts) : null;
+      // Kazanan tutarı = kalem bazında FİİLEN kazandırılanların toplamı (Genel
+      // raporla AYNI yardımcı). Eskiden her kazanan teklifin TÜM tutarı
+      // toplanıyordu → kalem bazlı (kısmi) kazandırmada iki kat, negatif
+      // tasarruf (arayüz testi Y-04). Çözülemeyen kalem varsa boş (null).
       const winningTotal = awarded.length
-        ? awarded.reduce((s, b) => s + (bidTry(b) ?? 0), 0)
+        ? awardedWinningTotalTry({
+            primaryCurrency: l.primaryCurrency,
+            items: l.items,
+            bids: awarded,
+            orders: l.orders,
+          })
         : null;
       // Rekabet delta'sı: en yüksek − kazanan.
       const delta =
@@ -587,6 +636,12 @@ export class CompanyReportsService {
     }
     const grandHighest = rows.reduce((s, r) => s + (r.highestBid ?? 0), 0);
     const grandDelta = rows.reduce((s, r) => s + (r.delta ?? 0), 0);
+    // Yüzdenin paydası yalnız tasarrufu hesaplanabilen satırların en yüksek
+    // teklifi — kazanan tutarı çözülemeyen satır payda girip yüzdeyi küçültmesin.
+    const comparableHighest = rows.reduce(
+      (s, r) => s + (r.delta != null ? (r.highestBid ?? 0) : 0),
+      0,
+    );
 
     return {
       type: "ALIM" as const,
@@ -608,7 +663,7 @@ export class CompanyReportsService {
         grandTarget: rows.reduce((s, r) => s + r.targetTotal, 0),
         grandActual: rows.reduce((s, r) => s + r.actualTotal, 0),
         grandDelta,
-        grandDeltaPct: grandHighest > 0 ? (grandDelta / grandHighest) * 100 : 0,
+        grandDeltaPct: comparableHighest > 0 ? (grandDelta / comparableHighest) * 100 : 0,
         avgDeltaPct: withPct.length
           ? withPct.reduce((s, r) => s + r.deltaPct!, 0) / withPct.length
           : 0,
@@ -713,13 +768,20 @@ export class CompanyReportsService {
       ),
     }));
 
+    // ELENEN teklif = alıcının değerlendirme dışı bıraktığı (LOST ∧
+    // eliminatedAt). Kazandırmada kaybeden teklif de LOST'tur ama elenmemiştir —
+    // eskiden "en iyi fiyat" ve "önerilen kazanan" bütün LOST'ları dışlıyor,
+    // SIRA ise hiçbirini dışlamıyordu → ucuz kaybeden SIRA'da 1., vurguda yok
+    // (arayüz testi O-027). Artık iki hesap da YALNIZ elenenleri dışlar.
+    const isEliminated = (b: (typeof l.bids)[number]) =>
+      b.status === "LOST" && b.eliminatedAt != null;
+
     // Kalem bazında EN İYİ birim fiyat (en düşük).
     // P8: (a) kıyas TRY bazında (çevrimsiz ham kıyas yanlış kazanan öneriyordu),
-    // (b) ELENEN teklifler öneriye giremez — eleme, alıcının o teklifi
-    // değerlendirme dışı bıraktığı anlamına gelir.
+    // (b) ELENEN teklifler öneriye giremez.
     const bestByItem = new Map<string, { partyId: string; unitPrice: number }>();
     if (includePrice) {
-      const eligible = l.bids.filter((b) => b.status !== "LOST");
+      const eligible = l.bids.filter((b) => !isEliminated(b));
       for (const it of l.items) {
         let best: { partyId: string; unitPrice: number } | null = null;
         for (const b of eligible) {
@@ -797,6 +859,8 @@ export class CompanyReportsService {
         companyName: nameLookup.get(pid) ?? "(bilinmiyor)",
         submitted: !!bid,
         status: bid?.status ?? "NO_BID",
+        /** Alıcı bu teklifi eledi (kazandırmada kaybetmekten AYRI). */
+        eliminated: bid ? isEliminated(bid) : false,
         totalAmount: includePrice && bid ? Number(bid.amount) : null,
         // Ham `totalAmount`'un birimi (seçenekten bağımsız — birimsiz ham
         // tutar kıyasta yanıltıyordu; derin denetim Y-14).
@@ -867,9 +931,10 @@ export class CompanyReportsService {
       };
     });
 
-    // Sıralama: artan (en ucuz=1) — TRY ile.
+    // Sıralama: artan (en ucuz=1) — TRY ile; elenen teklif sıraya girmez
+    // ("en iyi fiyat" ile aynı küme — O-027).
     parties
-      .filter((p) => p.totalTry != null)
+      .filter((p) => p.totalTry != null && !p.eliminated)
       .sort((a, b) => a.totalTry! - b.totalTry!)
       .forEach((p, i) => {
         p.rank = i + 1;

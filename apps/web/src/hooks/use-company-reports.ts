@@ -150,6 +150,8 @@ export interface ComparisonParty {
   companyName: string;
   submitted: boolean;
   status: string;
+  /** Alıcı bu teklifi eledi (LOST ∧ eliminatedAt) — kazandırmada kaybetmekten ayrı. */
+  eliminated?: boolean;
   totalAmount: number | null;
   /** Ham `totalAmount`'un birimi (teklifin ana birimi). */
   totalCurrency?: string | null;

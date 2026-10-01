@@ -1,5 +1,6 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { tApi } from "../../common/i18n/i18n.service";
+import { appDayKey } from "../../common/time/app-calendar";
 import { DEFAULT_LOCALE } from "@rothern/i18n";
 import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import {
@@ -54,7 +55,9 @@ function xlsx(res: Response, filename: string, buffer: Buffer) {
   return new StreamableFile(buffer);
 }
 
-const stamp = () => new Date().toISOString().slice(0, 10);
+// Dosya adındaki gün İstanbul takvimiyle — sunucu UTC; 00:00-03:00 arası
+// indirilen rapor önceki günün tarihini taşıyordu (arayüz testi D-186).
+const stamp = () => appDayKey(new Date());
 
 const NAME_FOLD: Record<string, string> = {
   ç: "c",

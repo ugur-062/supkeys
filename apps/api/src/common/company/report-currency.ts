@@ -182,6 +182,43 @@ export function awardedBidForItem<
   return pick;
 }
 
+type AwardedListingInput = {
+  primaryCurrency: string;
+  items: { id: string; name?: string | null; quantity: unknown; targetPrice: unknown; awardedQuantity?: unknown }[];
+  bids: {
+    status?: string;
+    bidderCompanyId?: string;
+    currency: string;
+    exchangeRateSnapshot: unknown | null;
+    items: { itemId: string; unitPrice: unknown; currency?: string | null; fxToBase?: unknown }[];
+  }[];
+  orders?: AwardOrderSnapshot[] | null;
+};
+
+/**
+ * Kazandırılmış kalem satırları (ortak çekirdek): kalem başına FİİLEN kazanan
+ * TRY birim fiyatı × kazandırılan miktar. `unresolved` = bir kazananın
+ * fiyatladığı ama TRY'ye çevrilemeyen (damgasız) kalem sayısı.
+ */
+function awardedItemLines(l: AwardedListingInput) {
+  const winners = l.bids.filter(
+    (b) => b.status == null || b.status === "WON" || b.status === "AWARDED_PARTIAL",
+  );
+  const lines: { item: AwardedListingInput["items"][number]; price: number; qty: number }[] = [];
+  let unresolved = 0;
+  for (const it of l.items) {
+    const win = awardedBidForItem(it, winners, l.orders);
+    if (win == null) {
+      if (winners.some((b) => b.items.some((x) => x.itemId === it.id))) unresolved += 1;
+      continue;
+    }
+    const awarded = it.awardedQuantity != null ? Number(it.awardedQuantity) : NaN;
+    const qty = Number.isFinite(awarded) && awarded > 0 ? awarded : Number(it.quantity);
+    lines.push({ item: it, price: win.unitPriceTry, qty });
+  }
+  return { winners, lines, unresolved };
+}
+
 /**
  * Kazandırılmış talebin TASARRUF + HACİM hesabı (TRY) — TEK KAYNAK: Tasarruf
  * sekmesi (`satinalmaTasarruf`) ve pano analitiği aynı fonksiyonu kullanır
@@ -198,33 +235,30 @@ export function awardedBidForItem<
  * biriminin kuru kazanan teklif damgasından (`listingRateToTry`). Tasarruf
  * yalnız hedefin altındaki farktır (aşım 0).
  */
-export function awardedSavingsVolumeTry(l: {
-  primaryCurrency: string;
-  items: { id: string; name?: string | null; quantity: unknown; targetPrice: unknown; awardedQuantity?: unknown }[];
-  bids: {
-    status?: string;
-    bidderCompanyId?: string;
-    currency: string;
-    exchangeRateSnapshot: unknown | null;
-    items: { itemId: string; unitPrice: unknown; currency?: string | null; fxToBase?: unknown }[];
-  }[];
-  orders?: AwardOrderSnapshot[] | null;
-}): { savings: number; volume: number } {
-  const winners = l.bids.filter(
-    (b) => b.status == null || b.status === "WON" || b.status === "AWARDED_PARTIAL",
-  );
+export function awardedSavingsVolumeTry(l: AwardedListingInput): { savings: number; volume: number } {
+  const { winners, lines } = awardedItemLines(l);
   const listingRate = listingRateToTry({ primaryCurrency: l.primaryCurrency, bids: winners });
   let savings = 0;
   let volume = 0;
-  for (const it of l.items) {
-    const win = awardedBidForItem(it, winners, l.orders);
-    if (win == null) continue;
-    const price = win.unitPriceTry;
-    const awarded = it.awardedQuantity != null ? Number(it.awardedQuantity) : NaN;
-    const qty = Number.isFinite(awarded) && awarded > 0 ? awarded : Number(it.quantity);
+  for (const { item, price, qty } of lines) {
     volume += price * qty;
-    const ref = listingAmountTry(l.primaryCurrency, it.targetPrice, listingRate);
+    const ref = listingAmountTry(l.primaryCurrency, item.targetPrice, listingRate);
     if (ref != null && ref > price) savings += (ref - price) * qty;
   }
   return { savings, volume };
+}
+
+/**
+ * Raporların "Kazanan" TUTARI (TRY) — Genel ve Tasarruf raporu TEK KAYNAK
+ * (arayüz testi Y-04): kazanan tekliflerin TOPLAMLARI toplanmaz. Kalem bazlı
+ * kazandırmada her kısmi kazananın teklifi bütün kalemlerin fiyatını taşır →
+ * eski toplam yaklaşık iki katına çıkıp rapor negatif tasarruf gösteriyordu.
+ * Değer `awardedSavingsVolumeTry` hacmiyle AYNI hesaptır (kalem başına fiilen
+ * kazanan fiyat × miktar). Hiç kalem çözülemezse ya da bir kazananın fiyatladığı
+ * kalem damgasız kaldıysa null — eksik tutar tam ya da sahte 0 görünmesin.
+ */
+export function awardedWinningTotalTry(l: AwardedListingInput): number | null {
+  const { lines, unresolved } = awardedItemLines(l);
+  if (lines.length === 0 || unresolved > 0) return null;
+  return lines.reduce((s, x) => s + x.price * x.qty, 0);
 }

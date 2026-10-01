@@ -6,7 +6,7 @@ import { formatNumber, intlLocale } from "@/i18n/format";
 import { useUnitLabel } from "@/i18n/domain";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
@@ -29,9 +29,11 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { appDayRangeIso } from "@/lib/time-zone";
 import { ArrowLeft, ChevronDown, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
+import { MONEY_FRACTION } from "@/lib/line-amount";
+import { isDayValue, isInvertedRange, readReportQuery, writeReportQuery } from "./report-url-state";
 
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
@@ -40,6 +42,16 @@ function tl(n: number | null, locale: Locale, currency: string) {
   return n == null
     ? "—"
     : affixCurrency(n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 0 }), currency, locale);
+}
+
+/** Kalem birim fiyatı/tasarrufu — 2 ondalık, birim etiketli (D-295). */
+function money2(n: number, locale: Locale, currency: string) {
+  return affixCurrency(formatNumber(n, locale, MONEY_FRACTION), currency, locale);
+}
+
+/** Eksi tasarruf yeşil boyanmaz (kazanan en yüksek teklifin / hedefin üstünde). */
+function deltaTone(n: number | null) {
+  return n != null && n < 0 ? "text-red-700" : "text-emerald-700";
 }
 
 /**
@@ -60,6 +72,7 @@ export function SavingsReportView({
   // Yüzde bir ondalıkla, okuyucunun dilinde (ICU düz argümanı sayı biçimlemez).
   const pct1 = (n: number) =>
     n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 1 });
+  const pct0 = (n: number) => formatNumber(n, locale, { maximumFractionDigits: 0 });
   const isAlim = type === "ALIM";
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -68,24 +81,50 @@ export function SavingsReportView({
 
   const report = useSavingsReport();
   const download = useDownloadSavingsReport();
-  const canSubmit = rangeStart.length > 0 && rangeEnd.length > 0;
+  // Ters aralık (bitiş < başlangıç) satır içi hata + gönderim kapalı (D-113).
+  const rangeInverted = isInvertedRange(rangeStart, rangeEnd);
+  const canSubmit = rangeStart.length > 0 && rangeEnd.length > 0 && !rangeInverted;
 
   // Günler ürün saat diliminde (İstanbul) tam gün olarak okunur.
-  const payload = (): SavingsPayload | null => {
-    const range = appDayRangeIso(rangeStart, rangeEnd);
+  const buildPayload = (start: string, end: string, cur: string): SavingsPayload | null => {
+    if (isInvertedRange(start, end)) return null;
+    const range = appDayRangeIso(start, end);
     if (!range) return null;
-    return { type, ...range, currency: currency || undefined };
+    return { type, ...range, currency: cur || undefined };
   };
+  const payload = () => buildPayload(rangeStart, rangeEnd, currency);
 
-  const run = async () => {
-    const p = payload();
-    if (!p) return;
+  const generate = async (p: SavingsPayload) => {
     try {
       await report.mutateAsync(p);
     } catch (err) {
       toast.error(extractErrorMessage(err, t("raporOlusturulamadi")));
     }
   };
+
+  const run = async () => {
+    const p = payload();
+    if (!p) return;
+    // Kriterler adrese: talebe gidip Geri'ye basınca rapor geri gelir (D-293).
+    writeReportQuery({ start: rangeStart, end: rangeEnd, currency });
+    await generate(p);
+  };
+
+  // Açılışta adresteki kriterleri geri yükle ve raporu yeniden üret (D-293).
+  useEffect(() => {
+    const q = readReportQuery();
+    const start = q.get("start");
+    const end = q.get("end");
+    if (!isDayValue(start) || !isDayValue(end)) return;
+    const cur = q.get("currency") ?? "";
+    setRangeStart(start);
+    setRangeEnd(end);
+    setCurrency(cur);
+    const p = buildPayload(start, end, cur);
+    if (p) void generate(p);
+    // Yalnız açılışta bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const runDownload = async () => {
     const p = payload();
     if (!p) return;
@@ -123,6 +162,7 @@ export function SavingsReportView({
             <Input
               type="date"
               value={rangeStart}
+              max={rangeEnd || undefined}
               onChange={(e) => setRangeStart(e.target.value)}
             />
           </Field>
@@ -131,8 +171,13 @@ export function SavingsReportView({
             <Input
               type="date"
               value={rangeEnd}
+              min={rangeStart || undefined}
+              invalid={rangeInverted}
               onChange={(e) => setRangeEnd(e.target.value)}
             />
+            {rangeInverted ? (
+              <ErrorMessage>{t("bitisBaslangictanOnceOlamaz")}</ErrorMessage>
+            ) : null}
           </Field>
           <Field>
             <Label>{t("paraBirimiTalep")}</Label>
@@ -193,11 +238,11 @@ export function SavingsReportView({
                 [
                   [t("satinAlmaTalebi"), String(data.summary.totalListings)],
                   [t("kazananToplam"), tl(data.summary.grandActual, locale, data.baseCurrency ?? "TRY")],
-                  [t("toplamTasarruf"), tl(data.summary.grandDelta, locale, data.baseCurrency ?? "TRY"), true],
+                  [t("toplamTasarruf"), tl(data.summary.grandDelta, locale, data.baseCurrency ?? "TRY"), data.summary.grandDelta >= 0],
                   [
                     t("tasarrufYuzde"),
                     t("yuzde", { n: pct1(data.summary.grandDeltaPct) }),
-                    true,
+                    data.summary.grandDeltaPct >= 0,
                   ],
                   [
                     t("ortTasarrufYuzde"),
@@ -224,7 +269,7 @@ export function SavingsReportView({
                 <Badge color="green">
                   {t("enIyi", {
                     title: data.summary.best.title,
-                    pct: data.summary.best.deltaPct?.toFixed(0) ?? "-",
+                    pct: data.summary.best.deltaPct != null ? pct0(data.summary.best.deltaPct) : "-",
                   })}
                 </Badge>
               ) : null}
@@ -233,7 +278,7 @@ export function SavingsReportView({
                 <Badge color="amber">
                   {t("enZayif", {
                     title: data.summary.worst.title,
-                    pct: data.summary.worst.deltaPct?.toFixed(0) ?? "-",
+                    pct: data.summary.worst.deltaPct != null ? pct0(data.summary.worst.deltaPct) : "-",
                   })}
                 </Badge>
               ) : null}
@@ -278,22 +323,26 @@ export function SavingsReportView({
                         <TableCell className="text-right tabular-nums text-zinc-900">
                           {tl(r.winningTotal, locale, data.baseCurrency ?? "TRY")}
                         </TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
+                        <TableCell className={`text-right font-semibold tabular-nums ${deltaTone(r.delta)}`}>
                           {tl(r.delta, locale, data.baseCurrency ?? "TRY")}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-zinc-600">
                           {r.deltaPct != null
-                            ? t("yuzde", { n: r.deltaPct.toFixed(0) })
+                            ? t("yuzde", { n: pct0(r.deltaPct) })
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right">
+                          {/* Açıcı durumunu ve hangi talebin kalemlerini
+                              açtığını duyurur (D-295). */}
                           <button
                             type="button"
                             onClick={() =>
                               setOpenRow(openRow === r.id ? null : r.id)
                             }
-                            aria-label={t("kalemDetayi")}
-                            className="text-zinc-400 hover:text-zinc-700"
+                            aria-expanded={openRow === r.id}
+                            aria-controls={`savings-items-${r.id}`}
+                            aria-label={t("kalemDetayiTalep", { title: r.title })}
+                            className="text-zinc-500 hover:text-zinc-700"
                           >
                             <ChevronDown
                               className={`h-4 w-4 transition-transform ${
@@ -304,7 +353,7 @@ export function SavingsReportView({
                         </TableCell>
                       </TableRow>
                       {openRow === r.id ? (
-                        <TableRow key={`${r.id}-detail`}>
+                        <TableRow key={`${r.id}-detail`} id={`savings-items-${r.id}`}>
                           <TableCell colSpan={7} className="bg-zinc-50/60">
                             <div className="space-y-2 py-2">
                               <Subheading className="text-sm">
@@ -345,20 +394,20 @@ export function SavingsReportView({
                                       </TableCell>
                                       <TableCell className="text-right tabular-nums text-zinc-600">
                                         {it.referenceUnitPrice != null
-                                          ? formatNumber(it.referenceUnitPrice, locale)
+                                          ? money2(it.referenceUnitPrice, locale, data.baseCurrency ?? "TRY")
                                           : "—"}
                                       </TableCell>
                                       <TableCell className="text-right tabular-nums text-zinc-900">
                                         {it.winningUnitPrice != null
-                                          ? formatNumber(it.winningUnitPrice, locale)
+                                          ? money2(it.winningUnitPrice, locale, data.baseCurrency ?? "TRY")
                                           : "—"}
                                       </TableCell>
                                       <TableCell className="text-zinc-700">
                                         {it.winnerName ?? "—"}
                                       </TableCell>
-                                      <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
+                                      <TableCell className={`text-right font-semibold tabular-nums ${deltaTone(it.delta)}`}>
                                         {it.delta != null
-                                          ? formatNumber(it.delta, locale)
+                                          ? money2(it.delta, locale, data.baseCurrency ?? "TRY")
                                           : "—"}
                                       </TableCell>
                                     </TableRow>

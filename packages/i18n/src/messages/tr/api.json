@@ -53,6 +53,7 @@
     "buAdimZatenSonuclandirildi": "Bu adım zaten sonuçlandırıldı",
     "buIstekArtikBeklemedeDegil": "Bu istek artık beklemede değil",
     "kazandirmaUygulanamadiTeklifDurumuDegismisOlabil": "Kazandırma uygulanamadı — teklif durumu değişmiş olabilir. Lütfen tekrar deneyin.",
+    "firmaDogrulamasiGecerliDegilOnayUygulanamaz": "Firmanızın doğrulaması (KYC) şu anda geçerli değil; bu onay uygulanamaz ve sipariş oluşturulmadı. Doğrulama yeniden tamamlanınca onaylayabilir ya da isteği reddedebilirsiniz.",
     "buIstegiYalnizcaBaslatanVeyaYonetici": "Bu isteği yalnızca başlatan veya Yönetici iptal edebilir",
     "yalnizcaBekleyenIstekIptalEdilebilir": "Yalnızca bekleyen istek iptal edilebilir",
     "gecersizVeyaPasifOnayciKullanici": "Geçersiz veya pasif onaycı kullanıcı",
@@ -359,6 +360,8 @@
     "actionPublishWork": "İlan yayınlamak",
     "actionNewRound": "Yeni tur açmak",
     "actionInviteSupplier": "Satın Alma Talebine yeni tedarikçi davet etmek",
+    "actionEditListing": "Satın Alma Talebini düzenlemek",
+    "actionExtendClosing": "Talebin kapanış tarihini uzatmak",
     "excelDosyasiCokBuyukKarmasik": "Excel dosyası çok büyük/karmaşık — yalnız Kalemler sayfasını bırakıp 500 satırın altında yükleyin",
     "itemImport": {
       "column": {
@@ -546,6 +549,7 @@
     "satinAlmaTalebiNumarasiYaDa": "Satın Alma Talebi numarası ya da ID zorunlu",
     "satinAlmaTalebiBulunamadi": "Satın Alma Talebi bulunamadı",
     "tarihAraligiZorunlu": "Tarih aralığı zorunlu",
+    "tarihAraligiTers": "Bitiş tarihi başlangıç tarihinden önce olamaz",
     "olusturulmaTarih": "Oluşturulma: {tarih}",
     "aralikBaslangicBitis": "Aralık: {bas} – {bit}",
     "genelSatinAlmaTalebiRaporu": "Genel Satın Alma Talebi Raporu",
@@ -1399,6 +1403,16 @@
       "seatSelection": {
         "title": "İşlem yetkileriniz kaldırıldı",
         "body": "Paket küçültmesi nedeniyle bazı işlem yetkileriniz (koltuk) kaldırıldı. Hesabınız, görüntüleme ve diğer yetkileriniz aynen devam ediyor."
+      },
+      "ownershipTransferred": {
+        "toNewOwner": {
+          "title": "{company} kuruculuğu size devredildi",
+          "body": "{other}, {company} firmasının kuruculuğunu size devretti. Paket ve faturalandırma, firma silme ve kuruculuk devri dahil tüm yönetim yetkileri artık sizde; menünüz yeni yetkilere göre yenilendi."
+        },
+        "toPreviousOwner": {
+          "title": "{company} kuruculuğunu devrettiniz",
+          "body": "{company} firmasının kuruculuğu {other} adlı kullanıcıya devredildi. Paket ve faturalandırma, firma silme ve kuruculuk devri yetkileri artık yeni kurucuda; hesabınız devirde seçilen rolle devam ediyor. Bu işlemi siz yapmadıysanız yeni kurucuyla ya da destek ekibiyle iletişime geçin."
+        }
       }
     },
     "companyConnections": {
@@ -1592,6 +1606,10 @@
         "bodyVerify": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firmanız doğrulanmamış ve ücretsiz pakette olduğu için alıcıya önerilmediniz ve talebi göremiyorsunuz. Önce firmanızı ücretsiz doğrulayın — Silver pakete geçmenin tek şartı budur; Silver'la bu talebe teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
         "inAppBodySilver": "\"{title}\" talebi için AI firmanızı uygun buldu. Talebi görmek ve teklif vermek için Silver'a geçin.",
         "inAppBodyVerify": "\"{title}\" talebi için AI firmanızı uygun buldu. Önce firmanızı ücretsiz doğrulayın, sonra Silver ile teklif verin.",
+        "bodyPaidPending": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firma doğrulamanız incelemede olduğu için alıcıya henüz önerilmediniz. Talebi şimdiden görebilirsiniz; doğrulamanız onaylanınca teklif verebilir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
+        "bodyPaidVerify": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firmanız doğrulanmadığı için alıcıya önerilmediniz. Talebi görebilirsiniz; teklif vermek ve alıcıların AI tedarikçi önerilerinde çıkmak için firmanızı ücretsiz doğrulayın.",
+        "inAppBodyPaidPending": "\"{title}\" talebi için AI firmanızı uygun buldu. Talebi görebilirsiniz; doğrulamanız onaylanınca teklif verebilirsiniz.",
+        "inAppBodyPaidVerify": "\"{title}\" talebi için AI firmanızı uygun buldu. Teklif vermek için firmanızı ücretsiz doğrulayın.",
         "footer": "Bu bildirimi vitrininiz ve kategorileriniz bir alıcının aramasıyla eşleştiği için alıyorsunuz. Kategori bildirimlerini Ayarlar › Bildirimler'den kapatabilirsiniz."
       }
     },
@@ -1616,6 +1634,8 @@
       "paketSonlandirildiGovdeKirpildi": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz. Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
       "paketTanimlandiBaslik": "Paketiniz tanımlandı",
       "paketTanimlandiGovde": "Firma hesabınıza {paket} paketi tanımlandı. Paket haklarınızı hemen kullanmaya başlayabilirsiniz.",
+      "paketSilvereAlindiBaslik": "Paketiniz Silver'a alındı",
+      "paketSilvereAlindiGovde": "Firma paketiniz platform yöneticisi tarafından Silver pakete alındı. Satınalma paneli (yeni talep açma, tedarikçi davet etme, teklif değerlendirme ve kazandırma) Gold paketle açılır; mevcut taleplerinizi görüntüleyebilir, kapatabilir ve süren siparişlerinizi tamamlayabilirsiniz. Gönderilmeyi bekleyen tedarikçi davetleri iptal edildi. Ekibinizin satınalma yetkileri silinmedi; Silver'da koltuk saymaz ve Gold'a dönünce yeniden geçerli olur. Satış tarafındaki tüm haklarınız sürer.",
       "askiyaAlindiBaslik": "Hesabınız askıya alındı",
       "askiyaAlindiGerekce": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce}",
       "askiyaAlindiItiraz": "İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",

@@ -53,6 +53,7 @@
     "buAdimZatenSonuclandirildi": "This step has already been resolved",
     "buIstekArtikBeklemedeDegil": "This request is no longer pending",
     "kazandirmaUygulanamadiTeklifDurumuDegismisOlabil": "The award could not be applied — the quote status may have changed. Please try again.",
+    "firmaDogrulamasiGecerliDegilOnayUygulanamaz": "Your company’s verification (KYC) is not currently valid, so this approval cannot be applied and no order was created. You can approve once verification is completed again, or reject the request.",
     "buIstegiYalnizcaBaslatanVeyaYonetici": "Only the person who started this request or a Manager can cancel it",
     "yalnizcaBekleyenIstekIptalEdilebilir": "Only a pending request can be canceled",
     "gecersizVeyaPasifOnayciKullanici": "Invalid or inactive approver user",
@@ -359,6 +360,8 @@
     "actionPublishWork": "Publishing a request",
     "actionNewRound": "Opening a new round",
     "actionInviteSupplier": "Inviting new suppliers to a buying request",
+    "actionEditListing": "Editing a buying request",
+    "actionExtendClosing": "Extending a request’s closing date",
     "excelDosyasiCokBuyukKarmasik": "The Excel file is too large/complex — keep only the Kalemler sheet and upload it with fewer than 500 rows",
     "itemImport": {
       "column": {
@@ -546,6 +549,7 @@
     "satinAlmaTalebiNumarasiYaDa": "A buying request number or ID is required",
     "satinAlmaTalebiBulunamadi": "Buying request not found",
     "tarihAraligiZorunlu": "A date range is required",
+    "tarihAraligiTers": "The end date cannot be before the start date",
     "olusturulmaTarih": "Created: {tarih}",
     "aralikBaslangicBitis": "Range: {bas} – {bit}",
     "genelSatinAlmaTalebiRaporu": "General buying request report",
@@ -1399,6 +1403,16 @@
       "seatSelection": {
         "title": "Your action permissions have been removed",
         "body": "Because your plan was downgraded, some of your action permissions (seats) have been removed. Your account, view access and other permissions remain unchanged."
+      },
+      "ownershipTransferred": {
+        "toNewOwner": {
+          "title": "Ownership of {company} has been transferred to you",
+          "body": "{other} has transferred ownership of {company} to you. You now hold all management rights, including plan and billing, deleting the company and transferring ownership; your menu has been updated to match."
+        },
+        "toPreviousOwner": {
+          "title": "You transferred ownership of {company}",
+          "body": "Ownership of {company} has been transferred to {other}. Plan and billing, company deletion and ownership transfer rights now belong to the new owner; your account continues with the role chosen during the transfer. If you did not do this, contact the new owner or our support team."
+        }
       }
     },
     "companyConnections": {
@@ -1592,6 +1606,10 @@
         "bodyVerify": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because your company is unverified and on the free plan, you weren't suggested to the buyer and can't see the request. Verify your company for free first — it's the only requirement for upgrading to Silver; with Silver you can quote on this request and appear in buyers' AI supplier suggestions.",
         "inAppBodySilver": "AI found your company a good fit for the request \"{title}\". Upgrade to Silver to see it and submit a quote.",
         "inAppBodyVerify": "AI found your company a good fit for the request \"{title}\". Verify your company for free first, then quote with Silver.",
+        "bodyPaidPending": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because your company verification is still under review, you haven't been suggested to the buyer yet. You can already see the request; once your verification is approved, you can quote on it and appear in buyers' AI supplier suggestions.",
+        "bodyPaidVerify": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because your company is unverified, you weren't suggested to the buyer. You can see the request; verify your company for free to quote on it and appear in buyers' AI supplier suggestions.",
+        "inAppBodyPaidPending": "AI found your company a good fit for the request \"{title}\". You can see it now; you can quote once your verification is approved.",
+        "inAppBodyPaidVerify": "AI found your company a good fit for the request \"{title}\". Verify your company for free to submit a quote.",
         "footer": "You're receiving this because your showcase and categories matched a buyer's search. You can turn off category notifications in Settings › Notifications."
       }
     },
@@ -1616,6 +1634,8 @@
       "paketSonlandirildiGovdeKirpildi": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver. The pending connection invitations you sent have been canceled.",
       "paketTanimlandiBaslik": "Your plan has been activated",
       "paketTanimlandiGovde": "The {paket} plan has been assigned to your company account. You can start using your plan benefits right away.",
+      "paketSilvereAlindiBaslik": "Your plan has been changed to Silver",
+      "paketSilvereAlindiGovde": "A platform administrator has moved your company to the Silver plan. The buying panel (opening new requests, inviting suppliers, evaluating quotes and awarding) is available with the Gold plan; you can still view and close your existing requests and complete ongoing orders. Supplier invitations waiting to be sent have been canceled. Your team's buying permissions have not been deleted; they do not take up seats on Silver and become active again when you return to Gold. All your selling rights continue.",
       "askiyaAlindiBaslik": "Your account has been suspended",
       "askiyaAlindiGerekce": "Your company account has been suspended by a platform administrator. Reason: {gerekce}",
       "askiyaAlindiItiraz": "To appeal or for more information, please contact our support team.",

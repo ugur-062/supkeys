@@ -41,6 +41,23 @@ export function currencyNumFmt(currency: string): string {
   return `#,##0.00 "${currency.replace(/[^A-Za-z]/g, "")}"`;
 }
 
+/**
+ * Yüzde hücresi SAYI olarak yazılır (oran = yüzde / 100) ve `0.0%` biçimiyle
+ * gösterilir — ondalık ayırıcıyı ve % yerini okuyucunun Excel'i (bölge
+ * ayarı) belirler. Eskiden `${x.toFixed(2)}%` METNİ yazılıyordu: Türkçe Excel'de
+ * "0.00%" / "100%" İngilizce biçimde kalıyor, hücre hesaba girmiyordu
+ * (arayüz testi O-033).
+ */
+export const PERCENT_NUM_FMT = "0.0%";
+const pctValue = (pct: number | null | undefined): number | string =>
+  pct == null || !Number.isFinite(pct) ? "-" : pct / 100;
+function percentCells(row: ExcelJS.Row, cols: number[]) {
+  for (const c of cols) {
+    const cell = row.getCell(c);
+    if (typeof cell.value === "number") cell.numFmt = PERCENT_NUM_FMT;
+  }
+}
+
 const STATUS_KEYS: Record<string, MsgKey> = {
   DRAFT: "api.companyReports.durumTaslak",
   IN_APPROVAL: "api.companyReports.durumOnayBekliyor",
@@ -147,7 +164,7 @@ export class ReportsExcelService {
       msg("api.companyReports.basOlusturan"),
     ]);
     data.listings.forEach((t) => {
-      ws.addRow([
+      const row = ws.addRow([
         t.number ?? "-",
         t.title,
         t.format ? formatLabel(t.format) : "-",
@@ -159,7 +176,7 @@ export class ReportsExcelService {
           : "-",
         t.invitedCount,
         t.submittedBidCount,
-        t.responseRate != null ? `${t.responseRate}%` : "-",
+        pctValue(t.responseRate),
         t.estimatedTotal ?? "-",
         t.lowestTotal ?? "-",
         t.highestTotal ?? "-",
@@ -168,6 +185,7 @@ export class ReportsExcelService {
         t.delta ?? "-",
         t.createdBy ?? "-",
       ]);
+      percentCells(row, [10]);
     });
 
     const s = data.summary;
@@ -184,10 +202,7 @@ export class ReportsExcelService {
         [msg("api.companyReports.ozetIptal"), s.cancelledListings],
         [msg("api.companyReports.toplamDavet"), s.totalInvited],
         [msg("api.companyReports.toplamTeklif"), s.totalSubmittedBids],
-        [
-          msg("api.companyReports.yanitOrani"),
-          `${s.overallResponseRate}%`,
-        ],
+        [msg("api.companyReports.yanitOrani"), pctValue(s.overallResponseRate), true],
         [
           msg("api.companyReports.ortTeklifSatinAlmaTalebi"),
           s.avgBidsPerListing,
@@ -195,10 +210,11 @@ export class ReportsExcelService {
         [msg("api.companyReports.hedefToplamCur", { currency: data.baseCurrency }), s.totalEstimated],
         [msg("api.companyReports.kazananToplamCur", { currency: data.baseCurrency }), s.totalAwardedValue],
         [msg("api.companyReports.toplamTasarrufCur", { currency: data.baseCurrency }), s.totalDelta],
-      ] as Array<[string, string | number]>
-    ).forEach(([k, v]) => {
+      ] as Array<[string, string | number, boolean?]>
+    ).forEach(([k, v, isPct]) => {
       const r = ws.addRow([k, v]);
       r.getCell(1).font = { bold: true };
+      if (isPct) percentCells(r, [2]);
     });
 
     ws.addRow([]);
@@ -243,7 +259,7 @@ export class ReportsExcelService {
       msg("api.companyReports.basKazananTedarikciler"),
     ]);
     data.rows.forEach((r) => {
-      ws.addRow([
+      const row = ws.addRow([
         r.number ?? "-",
         r.title,
         r.currency,
@@ -252,9 +268,10 @@ export class ReportsExcelService {
         r.highestBid ?? "-",
         r.winningTotal ?? "-",
         r.delta ?? "-",
-        r.deltaPct != null ? `${r.deltaPct.toFixed(2)}%` : "-",
+        pctValue(r.deltaPct),
         r.winners.map((w) => w.name).join(", "),
       ]);
+      percentCells(row, [9]);
     });
 
     ws.addRow([]);
@@ -268,9 +285,10 @@ export class ReportsExcelService {
       sm.grandHighest,
       sm.grandActual,
       sm.grandDelta,
-      `${sm.grandDeltaPct.toFixed(2)}%`,
+      pctValue(sm.grandDeltaPct),
       "",
     ]);
+    percentCells(sumRow, [9]);
     sumRow.font = { bold: true };
     sumRow.eachCell((cell) => {
       cell.fill = {
@@ -281,22 +299,28 @@ export class ReportsExcelService {
     });
 
     ws.addRow([]);
-    ws.addRow([
-      msg("api.companyReports.ortalamaTasarrufYuzde"),
-      `${sm.avgDeltaPct.toFixed(2)}%`,
-    ]);
+    percentCells(
+      ws.addRow([msg("api.companyReports.ortalamaTasarrufYuzde"), pctValue(sm.avgDeltaPct)]),
+      [2],
+    );
     if (sm.best)
-      ws.addRow([
-        msg("api.companyReports.enIyi"),
-        `${sm.best.number ?? ""} — ${sm.best.title}`,
-        sm.best.deltaPct != null ? `${sm.best.deltaPct.toFixed(2)}%` : "-",
-      ]);
+      percentCells(
+        ws.addRow([
+          msg("api.companyReports.enIyi"),
+          `${sm.best.number ?? ""} — ${sm.best.title}`,
+          pctValue(sm.best.deltaPct),
+        ]),
+        [3],
+      );
     if (sm.worst)
-      ws.addRow([
-        msg("api.companyReports.enZayif"),
-        `${sm.worst.number ?? ""} — ${sm.worst.title}`,
-        sm.worst.deltaPct != null ? `${sm.worst.deltaPct.toFixed(2)}%` : "-",
-      ]);
+      percentCells(
+        ws.addRow([
+          msg("api.companyReports.enZayif"),
+          `${sm.worst.number ?? ""} — ${sm.worst.title}`,
+          pctValue(sm.worst.deltaPct),
+        ]),
+        [3],
+      );
     if (sm.byParty.length > 0) {
       ws.addRow([]);
       ws.addRow([msg("api.companyReports.tedarikciBazliKazanilanTutar")]).font =

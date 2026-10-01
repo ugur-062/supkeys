@@ -35,16 +35,48 @@ import { affixCurrency } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useState } from "react";
+import { MONEY_FRACTION } from "@/lib/line-amount";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { readReportQuery, writeReportQuery } from "./report-url-state";
 
 /**
- * Tutar + sembol — sayı okuyucunun dilinde; sembolün YERİ de dilden
- * (`affixCurrency`: İngilizcede önde "$1,200", TR/RU'da sonda "1.200 $").
+ * Tutar + sembol — sayı okuyucunun dilinde, HER ZAMAN 2 ondalık ("2,50 ₺";
+ * eskiden "2,5 ₺" — arayüz testi O-027); sembolün YERİ de dilden
+ * (`affixCurrency`: İngilizcede önde "$1,200.00", TR/RU'da sonda "1.200,00 $").
  */
 function money(n: number | null, currency: string, locale: Locale) {
-  return n == null ? "—" : affixCurrency(formatNumber(n, locale), currency, locale);
+  return n == null
+    ? "—"
+    : affixCurrency(formatNumber(n, locale, MONEY_FRACTION), currency, locale);
 }
+
+const CRITERIA = ["PRICE", "ANSWERS", "BOTH"] as const;
+type Criteria = (typeof CRITERIA)[number];
+
+/**
+ * Teklifin sonucu sütun başlığında (O-027): kazandırmada kaybeden teklif de
+ * LOST'tur ama elenmemiştir — "Kaybetti" ile "Elendi" ayrı okunur.
+ */
+type PartyOutcome = "won" | "partial" | "lost" | "eliminated";
+function partyOutcome(p: { status: string; eliminated?: boolean }): PartyOutcome | null {
+  if (p.status === "WON") return "won";
+  if (p.status === "AWARDED_PARTIAL") return "partial";
+  if (p.status === "LOST") return p.eliminated ? "eliminated" : "lost";
+  return null;
+}
+const OUTCOME_KEY = {
+  won: "sonucKazandi",
+  partial: "sonucKismenKazandi",
+  lost: "sonucKaybetti",
+  eliminated: "sonucElendi",
+} as const;
+const OUTCOME_COLOR = {
+  won: "green",
+  partial: "green",
+  lost: "zinc",
+  eliminated: "red",
+} as const;
 
 /**
  * Teklif Karşılaştırma Raporu — bir ihaleye gelen teklifleri kalem bazında
@@ -62,9 +94,7 @@ export function BidComparisonView({
   const locale = useLocale() as Locale;
   const isAlim = type === "ALIM";
   const [listingId, setListingId] = useState("");
-  const [criteria, setCriteria] = useState<"PRICE" | "ANSWERS" | "BOTH">(
-    "PRICE",
-  );
+  const [criteria, setCriteria] = useState<Criteria>("PRICE");
   const [includeNonBidders, setIncludeNonBidders] = useState(false);
   const [showBidCurrencies, setShowBidCurrencies] = useState(false);
   const [includeRoundHistory, setIncludeRoundHistory] = useState(false);
@@ -82,13 +112,51 @@ export function BidComparisonView({
     includeRoundHistory,
   });
 
-  const run = async () => {
+  const generate = async (p: BidComparisonPayload) => {
     try {
-      await report.mutateAsync(payload());
+      await report.mutateAsync(p);
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("raporOlusturulamadi")));
     }
   };
+  const run = async () => {
+    // Kriterler adrese: talebe gidip Geri'ye basınca rapor geri gelir (D-293).
+    writeReportQuery({
+      listing: listingId,
+      criteria,
+      nonBidders: includeNonBidders,
+      currencies: showBidCurrencies,
+      rounds: includeRoundHistory,
+    });
+    await generate(payload());
+  };
+
+  // Açılışta adresteki kriterleri geri yükle ve raporu yeniden üret (D-293).
+  useEffect(() => {
+    const q = readReportQuery();
+    const listing = q.get("listing");
+    if (!listing) return;
+    const c = q.get("criteria");
+    const restoredCriteria: Criteria = (CRITERIA as readonly string[]).includes(c ?? "")
+      ? (c as Criteria)
+      : "PRICE";
+    const p: BidComparisonPayload = {
+      type,
+      listingId: listing,
+      criteria: restoredCriteria,
+      includeNonBidders: q.get("nonBidders") === "1",
+      showBidCurrencies: q.get("currencies") === "1",
+      includeRoundHistory: q.get("rounds") === "1",
+    };
+    setListingId(listing);
+    setCriteria(restoredCriteria);
+    setIncludeNonBidders(!!p.includeNonBidders);
+    setShowBidCurrencies(!!p.showBidCurrencies);
+    setIncludeRoundHistory(!!p.includeRoundHistory);
+    void generate(p);
+    // Yalnız açılışta bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const runDownload = async () => {
     try {
       const { filename } = await download.mutateAsync(payload());
@@ -144,7 +212,7 @@ export function BidComparisonView({
             </p>
             <RadioGroup
               value={criteria}
-              onChange={(v) => setCriteria(v as typeof criteria)}
+              onChange={(v) => setCriteria(v as Criteria)}
               className="space-y-1.5"
             >
               <RadioField>
@@ -230,18 +298,25 @@ export function BidComparisonView({
                 <TableRow>
                   <TableHeader className="sticky left-0 z-10 bg-white">{tr("kalem")}</TableHeader>
                   <TableHeader className="text-right">{tr("hedef")}</TableHeader>
-                  {data.parties.map((p) => (
-                    <TableHeader key={p.companyId} className="text-right">
-                      <span className="block max-w-[140px] truncate">
-                        {p.companyName}
-                      </span>
-                      {!p.submitted ? (
-                        <span className="text-xs font-normal text-zinc-400">
-                          {tr("teklifYok")}
+                  {data.parties.map((p) => {
+                    const outcome = partyOutcome(p);
+                    return (
+                      <TableHeader key={p.companyId} className="text-right">
+                        <span className="block max-w-[140px] truncate">
+                          {p.companyName}
                         </span>
-                      ) : null}
-                    </TableHeader>
-                  ))}
+                        {!p.submitted ? (
+                          <span className="text-xs font-normal text-zinc-500">
+                            {tr("teklifYok")}
+                          </span>
+                        ) : outcome ? (
+                          <Badge color={OUTCOME_COLOR[outcome]} className="mt-0.5">
+                            {tr(OUTCOME_KEY[outcome])}
+                          </Badge>
+                        ) : null}
+                      </TableHeader>
+                    );
+                  })}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -283,7 +358,8 @@ export function BidComparisonView({
                                 <span className="ml-1 text-xs text-zinc-400">
                                   {tr("yuzdeFark", {
                                     sign: ip.deltaVsReferencePct > 0 ? "+" : "",
-                                    n: ip.deltaVsReferencePct,
+                                    // Okuyucunun ondalık ayırıcısıyla (ICU düz argümanı biçimlemez).
+                                    n: formatNumber(ip.deltaVsReferencePct, locale, { maximumFractionDigits: 1 }),
                                   })}
                                 </span>
                               ) : null}

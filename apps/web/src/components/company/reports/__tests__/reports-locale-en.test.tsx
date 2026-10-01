@@ -86,8 +86,8 @@ describe("BidComparisonView — EN", () => {
       roundHistory: [],
     };
     render(<BidComparisonView type="ALIM" basePath="/company/raporlar" />);
-    expect(screen.getByText("$1,000")).toBeInTheDocument();
-    expect(screen.getByText("₺40,000")).toBeInTheDocument();
+    expect(screen.getByText("$1,000.00")).toBeInTheDocument();
+    expect(screen.getByText("₺40,000.00")).toBeInTheDocument();
     expect(screen.queryByText("1,000 $")).not.toBeInTheDocument();
   });
 });
@@ -148,7 +148,7 @@ describe("SavingsReportView — EN", () => {
       },
     };
     render(<SavingsReportView type="ALIM" basePath="/company/raporlar" />);
-    await user.click(screen.getByRole("button", { name: "Line item detail" }));
+    await user.click(screen.getByRole("button", { name: /^Line item detail: / }));
     expect(screen.getByText("(piece)")).toBeInTheDocument();
     expect(screen.queryByText("(adet)")).not.toBeInTheDocument();
     expect(screen.getByText("1,500")).toBeInTheDocument();
