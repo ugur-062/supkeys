@@ -22,7 +22,7 @@ import {
 import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
-import { MessageSquare, Search } from "lucide-react";
+import { Lock, MessageSquare, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -84,8 +84,9 @@ export function CompanyInboxView() {
   );
   // YENİ konuşmanın açılabileceği yönler (arayüz testi O-123): alıcı yönü
   // satınalma panelidir → Gold. Gold altı firma eski alıcı konuşmalarını
-  // listede görür ve okur, ama yön seçicide/varsayılan yönde alıcı tarafı
-  // sunulmaz (API `send` aynı kuralla 403 TIER_REQUIRED verir).
+  // listede görür ve okur; varsayılan yön alıcı tarafı olmaz, yön seçicide
+  // alıcı tarafı kilitli görünür (API `send` aynı kuralla 403 TIER_REQUIRED
+  // verir — süren sipariş istisnası dışında).
   const newChatPortals = myPortals.filter((p) =>
     messagingDirectionOpen(p, company?.tier),
   );
@@ -397,7 +398,13 @@ export function CompanyInboxView() {
                         strong: (chunks) => <strong>{chunks}</strong>,
                       })}
                     </span>
-                    {newChatPortals.length === 2 ? (
+                    {/* Seçici iki işlem rolü olan HER pakette (gözden geçirme
+                        webA-08): Gold altında da kapalı yön (alıcı) kilitli
+                        görünür — seçilirse sohbet okunur ve Gold çağrısı çıkar.
+                        Gizlenseydi, firmayla yalnız alıcı yönlü konuşması olan
+                        kullanıcı (tek satıra sabit) her pakete açık satıcı
+                        yönüne geçemezdi. */}
+                    {myPortals.length === 2 ? (
                       <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
                         {PORTAL_ORDER.map((p) => (
                           <button
@@ -407,7 +414,7 @@ export function CompanyInboxView() {
                               setSelected({ id: selected.id, portal: p })
                             }
                             className={cn(
-                              "rounded-md px-2 py-0.5 text-xs font-semibold transition",
+                              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold transition",
                               activePortal === p
                                 ? "bg-white shadow-sm " +
                                     (p === "satinalma"
@@ -416,6 +423,13 @@ export function CompanyInboxView() {
                                 : "text-zinc-500 hover:text-zinc-800",
                             )}
                           >
+                            {newChatPortals.includes(p) ? null : (
+                              <Lock
+                                aria-hidden
+                                data-testid={`inbox-direction-locked-${p}`}
+                                className="size-3"
+                              />
+                            )}
                             {p === "satinalma" ? t("aliciOlarak") : t("saticiOlarak")}
                           </button>
                         ))}

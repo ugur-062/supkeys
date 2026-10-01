@@ -73,10 +73,19 @@ export function CompanyMessageThread({
   // düşen firma eski konuşmayı okur, composer yerine doğru CTA'yı görür
   // (doğrulanmamışsa önce doğrulama, değilse Gold'a geçiş).
   const { user, company } = useCompanyAuth();
-  const tierOpen = messagingDirectionOpen(portal, company?.tier);
+  // Süren sipariş istisnası (sunucu bildirir): paketi düşen alıcı o
+  // satıcıya yazmaya devam eder — Gold çağrısı gösterilmez.
+  const sendOpenByOrder = data?.sendOpenByOrder === true;
+  const tierOpen =
+    messagingDirectionOpen(portal, company?.tier) || sendOpenByOrder;
   const tierGate = tierOpen ? null : buyingGate(user, company, "listing");
   const tierGateHref = tierGate ? gateHref(tierGate) : null;
-  const canSend = canSendMessages(user, portal, company?.tier);
+  const canSend = canSendMessages(
+    user,
+    portal,
+    company?.tier,
+    sendOpenByOrder,
+  );
 
   const [content, setContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);

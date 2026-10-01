@@ -33,6 +33,11 @@ export interface ThreadResponse {
   thread: { id: string; lastMessageAt: string | null } | null;
   otherParty: { id: string; name: string };
   messages: ChatMessage[];
+  /**
+   * Paketi düşen alıcının istisnası: bu satıcıyla süren bir sipariş var →
+   * alıcı yönünde yazabilir (API `send` aynası; Gold'da / satıcı yönünde false).
+   */
+  sendOpenByOrder?: boolean;
 }
 
 const POLLING_MS = 5_000;

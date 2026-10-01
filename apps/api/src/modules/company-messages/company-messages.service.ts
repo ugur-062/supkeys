@@ -33,6 +33,21 @@ interface ThreadParties {
   sellerCompanyId: string;
 }
 
+/**
+ * Sonuçlanmamış (süren) sipariş durumları — alıcı yönü paket kapısının
+ * istisnası: paketi düşen alıcı, süren siparişin satıcısıyla yazışabilir
+ * (T-06: "mevcut siparişler erişilebilir kalır"). Tamamlanan / reddedilen /
+ * iptal edilen sipariş istisna açmaz.
+ */
+const OPEN_ORDER_STATUSES = [
+  "PENDING",
+  "ACCEPTED",
+  "CREATED",
+  "IN_DELIVERY",
+  "DELIVERED",
+  "DISPUTED",
+] as const;
+
 @Injectable()
 export class CompanyMessagesService {
   private readonly logger = new Logger(CompanyMessagesService.name);
@@ -302,6 +317,13 @@ export class CompanyMessagesService {
     }
 
     const parties = this.parties(user.companyId, portal, otherCompanyId);
+    // Paketi düşen alıcının süren sipariş istisnası (send() aynası) — web
+    // composer'ı Gold çağrısı yerine bununla açar. Gold'da / satıcı yönünde
+    // sorulmaz (kapı zaten açık), false döner.
+    const sendOpenByOrder =
+      portal === "satinalma" &&
+      !tierAtLeast(user.tier, BUYING_TIER) &&
+      (await this.buyerDirectionOpen(user, otherCompanyId));
     const thread = await this.prisma.messageThread.findUnique({
       where: {
         buyerCompanyId_sellerCompanyId: {
@@ -318,6 +340,7 @@ export class CompanyMessagesService {
         thread: null,
         otherParty: other,
         messages: [],
+        sendOpenByOrder,
       };
     }
 
@@ -342,7 +365,29 @@ export class CompanyMessagesService {
         mine: m.senderCompanyId === user.companyId,
         createdAt: m.createdAt,
       })),
+      sendOpenByOrder,
     };
+  }
+
+  /**
+   * ALICI yönünde yazma paketle açık mı: Gold (efektif) ya da bu satıcıyla
+   * süren bir sipariş var (paketi düşen alıcının istisnası). Yalnız
+   * çağıranın ALICI olduğu siparişler sayılır.
+   */
+  private async buyerDirectionOpen(
+    user: AuthenticatedCompanyUser,
+    sellerCompanyId: string,
+  ): Promise<boolean> {
+    if (tierAtLeast(user.tier, BUYING_TIER)) return true;
+    const open = await this.prisma.companyOrder.findFirst({
+      where: {
+        buyerCompanyId: user.companyId,
+        sellerCompanyId,
+        status: { in: [...OPEN_ORDER_STATUSES] },
+      },
+      select: { id: true },
+    });
+    return open !== null;
   }
 
   /** Mesaj gönder — thread yoksa oluşturur (find-or-create). */
@@ -358,7 +403,12 @@ export class CompanyMessagesService {
     // panelidir → Gold (BUYING_TIER, efektif — süresi biten Gold STANDART).
     // Paketi düşen firma eski alıcı konuşmalarını OKUR (listThreads/getThread
     // paket sormaz) ama yazamaz; satıcı yönü her pakete açık.
-    if (portal === "satinalma" && !tierAtLeast(user.tier, BUYING_TIER)) {
+    // İstisna: bu satıcıyla SÜREN bir sipariş varsa (T-06 — mevcut siparişler
+    // erişilebilir kalır; teslimat/ödeme yazışması kesilmesin).
+    if (
+      portal === "satinalma" &&
+      !(await this.buyerDirectionOpen(user, otherCompanyId))
+    ) {
       throw new ForbiddenException({
         ...i18nMessage(
           "api.companyMessages.aliciOlarakMesajGoldGerektirir",

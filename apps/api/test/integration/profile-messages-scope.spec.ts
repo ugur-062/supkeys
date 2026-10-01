@@ -232,5 +232,51 @@ describe("mesaj alıcı yönü paket kapısı (arayüz testi O-123)", () => {
     await expect(
       svc.send(downgraded, "satinalma", b.company.id, "tekrar"),
     ).rejects.toMatchObject({ status: 403 });
+    expect(thread.sendOpenByOrder).toBe(false);
+  });
+
+  // Gözden geçirme (webA-08): T-06 "mevcut siparişler erişilebilir kalır" —
+  // paketi düşen alıcı SÜREN siparişin satıcısına yazabilmeli (teslimat /
+  // ödeme yazışması). Sonuçlanan sipariş ya da başka firmanın siparişi
+  // istisna açmaz.
+  it("paketi düşen alıcı yalnız SÜREN siparişin satıcısına alıcı yönünde yazar", async () => {
+    const svc = makeMsgService();
+    const a = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    const sup = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const done = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const order = (seller: string, status: "IN_DELIVERY" | "COMPLETED") =>
+      prisma.companyOrder.create({
+        data: {
+          sellerCompanyId: seller,
+          buyerCompanyId: a.company.id,
+          amount: "100",
+          status,
+        },
+      });
+    await order(sup.company.id, "IN_DELIVERY");
+    await order(done.company.id, "COMPLETED");
+    // Ters yönlü sipariş (a SATICI) alıcı yönü istisnası açmaz.
+    await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: a.company.id,
+        buyerCompanyId: done.company.id,
+        amount: "50",
+        status: "ACCEPTED",
+      },
+    });
+
+    expect(
+      (await svc.getThread(a.auth, "satinalma", sup.company.id)).sendOpenByOrder,
+    ).toBe(true);
+    await expect(
+      svc.send(a.auth, "satinalma", sup.company.id, "teslimat ne zaman?"),
+    ).resolves.toMatchObject({ mine: true });
+
+    expect(
+      (await svc.getThread(a.auth, "satinalma", done.company.id)).sendOpenByOrder,
+    ).toBe(false);
+    await expect(
+      svc.send(a.auth, "satinalma", done.company.id, "merhaba"),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

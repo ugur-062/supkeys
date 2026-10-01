@@ -8,11 +8,15 @@ const h = vi.hoisted(() => ({
   roles: [] as string[],
   tier: "GOLD" as string,
   verification: "VERIFIED" as string,
+  sendOpenByOrder: undefined as boolean | undefined,
   send: null as null | ((content: string) => Promise<unknown>),
 }));
 
 vi.mock("@/hooks/use-company-messages", () => ({
-  useThreadMessages: () => ({ data: { messages: [] }, isLoading: false }),
+  useThreadMessages: () => ({
+    data: { messages: [], sendOpenByOrder: h.sendOpenByOrder },
+    isLoading: false,
+  }),
   useSendMessage: () => ({
     mutateAsync: (content: string) => (h.send ? h.send(content) : Promise.resolve()),
     isPending: false,
@@ -31,6 +35,7 @@ beforeEach(() => {
   h.roles = [];
   h.tier = "GOLD";
   h.verification = "VERIFIED";
+  h.sendOpenByOrder = undefined;
   h.send = null;
   // jsdom scrollIntoView yok — thread mount'ta çağırıyor.
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -155,6 +160,30 @@ describe("CompanyMessageThread — alıcı yönü paket kapısı (arayüz testi 
       "href",
       "/company/ayarlar/dogrulama",
     );
+  });
+
+  // Gözden geçirme (webA-08), T-06: süren siparişin satıcısına yazışma
+  // kesilmez — sunucu istisnayı bildirir, composer açılır (rol yine şart).
+  it("SILVER firmada süren sipariş istisnası: Gold CTA yerine composer", () => {
+    h.roles = ["SATIN_ALMACI"];
+    h.tier = "SILVER";
+    h.sendOpenByOrder = true;
+    render(
+      <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
+    );
+    expect(screen.getByRole("button", { name: "Gönder" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Gold'a geç" })).not.toBeInTheDocument();
+  });
+
+  it("süren sipariş istisnası rol kapısını aşmaz (etiket-only)", () => {
+    h.roles = ["SAHIP"];
+    h.tier = "SILVER";
+    h.sendOpenByOrder = true;
+    render(
+      <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
+    );
+    expect(screen.queryByRole("button", { name: "Gönder" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Satın Almacı.*rolü gerektirir/)).toBeInTheDocument();
   });
 
   it("satıcı yönü her pakete açık: ücretsiz pakette Satışçı yazabilir", () => {

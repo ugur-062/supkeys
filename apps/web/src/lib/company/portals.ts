@@ -404,14 +404,17 @@ export function messagingDirectionOpen(
  * Mesaj GÖNDERME = paket (alıcı yönü Gold) + işlem izni (API `send` aynası):
  * satınalmada "talep açma ve yönetme", satışta "teklif verme". Etiket-only ve
  * görüntüleyici gönderemez. Rol denetimi paket denetiminin İÇİNDE.
+ * `sendOpenByOrder`: sunucunun bildirdiği süren sipariş istisnası (paketi
+ * düşen alıcı o satıcıya yazabilir — T-06, mevcut siparişler erişilebilir).
  */
 export function canSendMessages(
   user: PermissionSubject | null | undefined,
   portal: PortalKey,
   tier: string | null | undefined,
+  sendOpenByOrder = false,
 ): boolean {
   return (
-    messagingDirectionOpen(portal, tier) &&
+    (messagingDirectionOpen(portal, tier) || sendOpenByOrder) &&
     userHasPermission(
       user,
       portal === "satinalma" ? "buy:listing:manage" : "sell:bid:submit",

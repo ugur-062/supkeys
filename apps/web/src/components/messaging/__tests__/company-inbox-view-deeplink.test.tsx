@@ -343,7 +343,7 @@ describe("CompanyInboxView — seçim adreste, erişilebilirlik, kesinti (arayü
 });
 
 describe("CompanyInboxView — alıcı yönü Gold (arayüz testi O-123)", () => {
-  it("SILVER firmada yön seçici yok; yeni sohbet satıcı yönünde açılır", () => {
+  it("SILVER firmada yeni sohbet satıcı yönünde açılır; alıcı yönü seçicide kilitli", () => {
     h.tier = "SILVER";
     h.permissions = ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"];
     h.connections = [{ company: { id: "c9", name: "Bağlı Firma" } }];
@@ -352,6 +352,48 @@ describe("CompanyInboxView — alıcı yönü Gold (arayüz testi O-123)", () =>
       isLoading: false,
       isError: false,
     });
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /Bağlı Firma/ }));
+    expect(screen.getByTestId("thread")).toHaveTextContent("satis|c9|Bağlı Firma");
+    expect(screen.getByRole("button", { name: "Alıcı olarak" })).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-direction-locked-satinalma")).toBeInTheDocument();
+    expect(screen.queryByTestId("inbox-direction-locked-satis")).not.toBeInTheDocument();
+  });
+
+  // Gözden geçirme (webA-08): konuşması olan firma tek satıra (o konuşmanın
+  // yönüne) sabitlenir; seçici Gold altında gizlenince yalnız ALICI yönlü
+  // konuşması olan firmayla her pakete açık SATICI yönüne geçilemiyordu.
+  it("SILVER firma, yalnız alıcı yönlü konuşmadan satıcı yönüne geçer", () => {
+    h.tier = "SILVER";
+    h.permissions = ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"];
+    h.connections = [{ company: { id: "x1", name: "X Firma" } }];
+    h.threads = {
+      isLoading: false,
+      data: [
+        {
+          portal: "satinalma",
+          threadId: "t3",
+          otherPartyId: "x1",
+          otherPartyName: "X Firma",
+          lastMessagePreview: "Teklif",
+          lastMessageAt: "2026-09-20T08:00:00.000Z",
+          unread: false,
+        },
+      ],
+    };
+    render(<CompanyInboxView />);
+    // Firma başına tek satır (bağlantı satırı konuşmayla tekilleşir).
+    expect(screen.getAllByRole("button", { name: /X Firma/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /X Firma/ }));
+    expect(screen.getByTestId("thread")).toHaveTextContent("satinalma|x1|X Firma");
+    fireEvent.click(screen.getByRole("button", { name: "Satıcı olarak" }));
+    expect(screen.getByTestId("thread")).toHaveTextContent("satis|x1|X Firma");
+  });
+
+  it("tek işlem rolü olan kullanıcıda seçici yok", () => {
+    h.tier = "SILVER";
+    h.permissions = ["sell:view", "sell:bid:submit"];
+    h.connections = [{ company: { id: "c9", name: "Bağlı Firma" } }];
     render(<CompanyInboxView />);
     fireEvent.click(screen.getByRole("button", { name: /Bağlı Firma/ }));
     expect(screen.getByTestId("thread")).toHaveTextContent("satis|c9|Bağlı Firma");
