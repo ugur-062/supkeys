@@ -15,6 +15,8 @@ export interface AdminCompanyRow {
   membershipEndAt: string | null;
   verification: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   isBlocked: boolean;
+  /** KVKK ile anonimleştirildi — askı/paket işlemleri kapalı (API 409). */
+  anonymized?: boolean;
   complaintCount: number;
   userCount: number;
   /** Faz Y: bekleyen belge-güncelleme revizyonu sayısı (A-modeli rozeti). */
@@ -244,6 +246,11 @@ export interface AdminCompanyDetail {
   isBlocked: boolean;
   blockedReason: string | null;
   blockedAt: string | null;
+  /**
+   * KVKK silme talebiyle anonimleştirildi (geri alınamaz) — askıyı kaldır,
+   * bildirim, düzenleme ve paket işlemleri kapalı; API de 409 döner (D-208).
+   */
+  anonymized?: boolean;
   createdAt: string;
   _count: { users: number; listings: number; complaintsReceived: number };
   openComplaints: number;
@@ -361,6 +368,14 @@ export function useCompanyDetail(id: string | null) {
   return useQuery({
     queryKey: ["admin-company-detail", id],
     enabled: !!id,
+    // 403/404 yeniden denemeyle düzelmez — ikinci istek ikinci "Kayıt
+    // bulunamadı" toast'ı basıyordu (arayüz testi D-206).
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } } | null)
+        ?.response?.status;
+      if (status === 403 || status === 404) return false;
+      return failureCount < 1;
+    },
     queryFn: async () => {
       const { data } = await api.get<AdminCompanyDetail>(
         `/admin/companies/${id}`,

@@ -140,8 +140,14 @@ export function EditProfileDialog({
       toast.info("Değişiklik yok");
       return;
     }
-    if (patch.country && !/^[A-Za-z]{2}$/.test(patch.country)) {
-      toast.error("Ülke kodu 2 harf olmalı (TR, DE...)");
+    // Anahtar VARLIĞINA bakılır (D-201): boşaltılan alan "" → falsy olduğu
+    // için kontrol atlanıyor, istek gidip alansız "Bu alan zorunlu" dönüyordu.
+    if ("name" in patch && !patch.name) {
+      toast.error("Firma adı boş bırakılamaz");
+      return;
+    }
+    if ("country" in patch && !/^[A-Za-z]{2}$/.test(patch.country ?? "")) {
+      toast.error("Ülke (kod) zorunlu — 2 harf olmalı (TR, DE...)");
       return;
     }
     // Fatura e-postası (derin denetim MU-02): API @IsEmail ile reddeder; burada

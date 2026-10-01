@@ -5,6 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   companies: { data: undefined as unknown, isLoading: false, isError: false },
   lastParams: undefined as unknown,
+  search: "",
+  replace: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: h.replace, push: vi.fn() }),
+  usePathname: () => "/admin/basvurular",
+  useSearchParams: () => new URLSearchParams(h.search),
 }));
 
 vi.mock("@/components/layout/admin-shell", () => ({
@@ -40,6 +48,7 @@ function pendingRow(id: string, daysWaiting: number, country = "TR") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.search = "";
   h.companies = {
     data: { items: [], total: 0, page: 1, pageSize: 25 },
     isLoading: false,
@@ -78,6 +87,21 @@ describe("Başvurular kuyruğu", () => {
     expect(links[0]).toHaveAttribute(
       "href",
       "/admin/firmalar/a?tab=belgeler&from=queue",
+    );
+  });
+
+  it("sayfa URL'den okunur ve firma bağlantısına taşınır; sayfa değişimi URL'ye yazılır (D-198)", async () => {
+    h.search = "page=2";
+    h.companies = {
+      data: { items: [pendingRow("a", 1)], total: 30, page: 2, pageSize: 25 },
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminBasvurularPage />);
+    expect(h.lastParams).toMatchObject({ page: 2 });
+    expect(screen.getByRole("link", { name: "İncele" })).toHaveAttribute(
+      "href",
+      "/admin/firmalar/a?tab=belgeler&from=queue&qp=2",
     );
   });
 });

@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   useReviewDocRevision,
   useReviewDocuments,
@@ -13,7 +14,7 @@ import {
 import { countryName } from "@/lib/country";
 import { Check, FileText, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   REJECT_REASONS,
@@ -141,63 +142,128 @@ export function DocsTab({
   // Başvurular kuyruğundan gelindiyse (?from=queue) karar sonrası kuyruğa
   // dönülür — inceleme temposu kesilmesin.
   const router = useRouter();
-  const fromQueue = useSearchParams().get("from") === "queue";
+  const searchParams = useSearchParams();
+  const fromQueue = searchParams.get("from") === "queue";
+  // Kuyruğun hangi sayfasından gelindi — karar sonrası oraya dönülür (D-198).
+  const queuePage = Number(searchParams.get("qp") ?? "1");
+  const queueHref =
+    Number.isInteger(queuePage) && queuePage > 1
+      ? `/admin/basvurular?page=${queuePage}`
+      : "/admin/basvurular";
   const [decisions, setDecisions] = useState<
     Partial<Record<DocKind, DocDecision>>
   >({});
+  // Adminin elle dokunduğu satırlar + o andaki belge anahtarı (D-032): sunucu
+  // verisi tazelenince (ör. üstte bir revizyon onaylandı) kaydedilmemiş
+  // kararlar silinmez; yalnız belgesi DEĞİŞEN satırın taslağı sıfırlanır.
+  const touched = useRef<Partial<Record<DocKind, string>>>({});
   // Sayfa içi önizleme — açık olan belge (yeni sekmeye gitmeden inceleme).
   const [previewKey, setPreviewKey] = useState<DocKind | null>(null);
+  // Doğrulanmış firmada red → doğrulama geri alınır; önce onay (D-191).
+  const [confirmUnverify, setConfirmUnverify] = useState(false);
 
   const required = useMemo(() => requiredKinds(data), [data]);
   const foreign = (data.country ?? "TR").toUpperCase() !== "TR";
+  const docIdentity = (k: DocKind): string => {
+    const meta = DOCS.find((d) => d.key === k)!;
+    return `${data.docKeys?.[k] ?? ""}|${data[meta.url] ? "1" : "0"}`;
+  };
+
+  // Firma değişince dokunulan kümesi sıfırlanır.
+  useEffect(() => {
+    touched.current = {};
+  }, [companyId]);
 
   // Mevcut belge durumlarını taslağa yükle (APPROVED/REJECTED ön-seçili).
-  // Saklanan gerekçe "[KOD] not" biçiminde → koda + nota ayrılır.
+  // Saklanan gerekçe "[KOD] not" biçiminde → koda + nota ayrılır. Admin'in
+  // dokunduğu ve belgesi aynı kalan satırlar korunur (D-032).
   useEffect(() => {
-    const init: Partial<Record<DocKind, DocDecision>> = {};
-    for (const d of DOCS) {
-      const st = data[d.status] as DocStatus;
-      if (st === "APPROVED") init[d.key] = { status: "APPROVED" };
-      else if (st === "REJECTED") {
-        const parsed = parseReason(data[d.reason] as string | null);
-        init[d.key] = {
-          status: "REJECTED",
-          reasonCode: parsed.code,
-          reason: parsed.note,
-        };
+    setDecisions((prev) => {
+      const init: Partial<Record<DocKind, DocDecision>> = {};
+      for (const d of DOCS) {
+        const mark = touched.current[d.key];
+        if (mark !== undefined) {
+          const identity = `${data.docKeys?.[d.key] ?? ""}|${data[d.url] ? "1" : "0"}`;
+          if (mark === identity) {
+            if (prev[d.key]) init[d.key] = prev[d.key];
+            continue;
+          }
+          delete touched.current[d.key];
+        }
+        const st = data[d.status] as DocStatus;
+        if (st === "APPROVED") init[d.key] = { status: "APPROVED" };
+        else if (st === "REJECTED") {
+          const parsed = parseReason(data[d.reason] as string | null);
+          init[d.key] = {
+            status: "REJECTED",
+            reasonCode: parsed.code,
+            reason: parsed.note,
+          };
+        }
       }
-    }
-    setDecisions(init);
+      return init;
+    });
   }, [data]);
 
-  const setDecision = (k: DocKind, d: DocDecision | undefined) =>
+  const setDecision = (k: DocKind, d: DocDecision | undefined) => {
+    touched.current[k] = docIdentity(k);
     setDecisions((prev) => ({ ...prev, [k]: d }));
+  };
+
+  // Yalnız YÜKLENMİŞ zorunlu belgeler (D-200): yüklenmemişi "onaylı"
+  // işaretlemek kaydette "Eksik belge" hatasına düşüyordu.
+  const uploaded = required.filter((k) => {
+    const meta = DOCS.find((d) => d.key === k)!;
+    return !!data[meta.url];
+  });
+  const missing = required.filter((k) => !uploaded.includes(k));
 
   const approveAll = () => {
     const next: Partial<Record<DocKind, DocDecision>> = {};
-    for (const k of required) next[k] = { status: "APPROVED" };
+    for (const k of uploaded) {
+      next[k] = { status: "APPROVED" };
+      touched.current[k] = docIdentity(k);
+    }
     setDecisions((prev) => ({ ...prev, ...next }));
   };
 
-  const save = () => {
+  // Kaydet: firma VERIFIED ve en az bir red varsa önce onay penceresi.
+  const requestSave = () => {
+    const willUnverify =
+      data.companyVerificationStatus === "VERIFIED" &&
+      required.some((k) => decisions[k]?.status === "REJECTED");
+    if (willUnverify && validate()) {
+      setConfirmUnverify(true);
+      return;
+    }
+    return save();
+  };
+
+  /** İstemci kontrolleri — hata varsa toast basıp false döner. */
+  const validate = (): boolean => {
     for (const k of required) {
       const meta = DOCS.find((d) => d.key === k)!;
       const label = docLabel(meta, foreign);
       if (!data[meta.url]) {
         toast.error(`Eksik belge: ${label}`);
-        return;
+        return false;
       }
       const dec = decisions[k];
       if (!dec) {
         toast.error(`Karar verilmemiş belge: ${label}`);
-        return;
+        return false;
       }
       // Kod VEYA ≥3 karakterlik not (API `composeRejectReason` ile aynı).
       if (dec.status === "REJECTED" && !hasRejectReason(dec)) {
         toast.error(`Red gerekçesi seçin ya da not yazın: ${label}`);
-        return;
+        return false;
       }
     }
+    return true;
+  };
+
+  const save = () => {
+    if (!validate()) return;
     const payload: Partial<Record<DocKind, DocDecision>> = {};
     for (const k of required) {
       const dec = decisions[k]!;
@@ -213,14 +279,20 @@ export function DocsTab({
     // isteği 409'a düşürmez (arayüz testi FX-00 D-199).
     return review.mutateAsync({ id: companyId, decisions: payload }).then(
       (res) => {
+        // Kaydedildi → taslak artık sunucu durumu.
+        touched.current = {};
+        setConfirmUnverify(false);
         toast.success(
           res.status === "VERIFIED"
             ? "Firma doğrulandı"
             : "Karar kaydedildi — bazı belgeler reddedildi",
         );
-        if (fromQueue) router.push("/admin/basvurular");
+        if (fromQueue) router.push(queueHref);
       },
-      (e: unknown) => toastApiError(e),
+      (e: unknown) => {
+        setConfirmUnverify(false);
+        toastApiError(e);
+      },
     );
   };
 
@@ -261,9 +333,17 @@ export function DocsTab({
           <button
             type="button"
             onClick={approveAll}
-            className="text-xs font-medium text-blue-600 hover:underline"
+            disabled={uploaded.length === 0}
+            title={
+              missing.length > 0
+                ? "Yalnız yüklenmiş belgeler işaretlenir"
+                : undefined
+            }
+            className="text-xs font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:text-zinc-400 disabled:no-underline"
           >
-            Hepsini Onayla
+            {missing.length > 0 && uploaded.length > 0
+              ? "Yüklenenleri Onayla"
+              : "Hepsini Onayla"}
           </button>
         </div>
         <ul className="divide-admin-border border-admin-border mt-3 divide-y rounded-xl border">
@@ -363,12 +443,45 @@ export function DocsTab({
             );
           })}
         </ul>
-        <div className="mt-4 flex justify-end">
-          <Button onClick={save} loading={review.isPending}>
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+          {missing.length > 0 ? (
+            <p className="text-admin-text-muted text-xs">
+              Eksik belge:{" "}
+              {missing
+                .map((k) => docLabel(DOCS.find((d) => d.key === k)!, foreign))
+                .join(", ")}
+              {" "}— firma tüm zorunlu belgeleri yükleyene dek karar kaydedilemez.
+            </p>
+          ) : null}
+          <Button
+            onClick={requestSave}
+            loading={review.isPending}
+            disabled={missing.length > 0}
+          >
             Kararı Kaydet
           </Button>
         </div>
       </section>
+
+      <ConfirmDialog
+        open={confirmUnverify}
+        title="Doğrulama geri alınacak"
+        confirmLabel="Reddet ve Kaydet"
+        danger
+        onConfirm={() => save()}
+        onClose={() => setConfirmUnverify(false)}
+      >
+        <p>
+          Firma şu an <strong>doğrulanmış</strong>. Bir belgeyi reddetmek
+          firmanın doğrulamasını geri alır (durum &quot;Reddedildi&quot; olur):
+          talep yayımlama, teklif verme ve kazandırma firma belgeyi yeniden
+          yükleyip onaylanana dek kapanır; firmaya bildirim gider.
+        </p>
+        <p className="text-admin-text-muted text-xs">
+          Belge güncellemesini reddetmek isterseniz üstteki &quot;Belge
+          Güncellemeleri&quot; bölümünü kullanın — orada eski belge geçerli kalır.
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }

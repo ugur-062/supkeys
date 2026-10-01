@@ -169,6 +169,11 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "api.adminCompanies.firmaKvkkIleAnonimlestirildi": {
+    "hash": "7f809a72c4",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.adminCompanies.firmaninUrunTavaniDolu": {
     "hash": "14c06d3b21",
     "status": "reviewed",

@@ -143,6 +143,7 @@
     "adresSiniriAsildi": "A company can save at most {max} addresses; delete addresses you no longer use before adding a new one"
   },
   "adminCompanies": {
+    "firmaKvkkIleAnonimlestirildi": "This company was anonymised under a data-deletion (KVKK) request — this action is not available",
     "firmaBulunamadi": "Company not found",
     "firmaSahibiDevreDisiBirakilamazOnce": "The company owner cannot be deactivated — transfer ownership first",
     "gecerliBirEPostaGirin": "Enter a valid email address",

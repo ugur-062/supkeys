@@ -118,4 +118,20 @@ describe("EditProfileDialog", () => {
       expect.anything(),
     );
   });
+
+  it("ülke ya da firma adı boşaltılınca istek gitmez, alanı söyleyen uyarı (D-201)", async () => {
+    const user = userEvent.setup();
+    render(<EditProfileDialog companyId="c1" data={data()} onClose={() => {}} />);
+    await user.clear(screen.getByLabelText("Ülke (kod)"));
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).not.toHaveBeenCalled();
+    expect(h.toast.error).toHaveBeenCalledWith(expect.stringMatching(/Ülke/));
+
+    await user.type(screen.getByLabelText("Ülke (kod)"), "TR");
+    await user.clear(screen.getByLabelText("Firma adı (görünen)"));
+    h.toast.error.mockClear();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).not.toHaveBeenCalled();
+    expect(h.toast.error).toHaveBeenCalledWith(expect.stringMatching(/Firma adı/));
+  });
 });

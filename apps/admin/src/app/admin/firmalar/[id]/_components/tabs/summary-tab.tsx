@@ -220,9 +220,12 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
           <h3 className="text-admin-text text-sm font-semibold">
             Kimlik Bilgileri
           </h3>
-          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Düzenle
-          </Button>
+          {/* KVKK ile anonimleştirilmiş kayıt düzenlenmez (D-208; API 409). */}
+          {data.anonymized ? null : (
+            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Düzenle
+            </Button>
+          )}
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Row label="Ünvan" value={data.legalName} />

@@ -36,6 +36,11 @@ import {
   TIER_LABEL,
 } from "@/lib/terms";
 import { canAdminDo } from "@/lib/admin-permissions";
+import {
+  remainingSentence,
+  revokeNotice,
+  tierGrantWarnings,
+} from "../tier-warnings";
 import { useState } from "react";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
@@ -53,6 +58,15 @@ const ACTION_META: Record<
 /** Ay + gerekçe isteyen küçük aksiyon dialog'u (tanımla/uzat). */
 type PaidTier = (typeof PAID_TIER_OPTIONS)[number];
 
+/** Ay alanı doğrulaması — backend @Min(1) @Max(60) ile birebir. */
+function monthsError(raw: string): string | null {
+  const n = Number(raw.trim());
+  if (raw.trim() === "" || !Number.isInteger(n) || n < 1 || n > 60) {
+    return "Ay 1-60 arası bir tam sayı olmalı";
+  }
+  return null;
+}
+
 function MonthsReasonDialog({
   title,
   confirmLabel,
@@ -60,18 +74,24 @@ function MonthsReasonDialog({
   onClose,
   withTierSelect = false,
   initialTier = "GOLD",
+  warningsFor,
 }: {
   title: string;
   confirmLabel: string;
-  onConfirm: (months: number, reason: string, tier: PaidTier) => void;
+  /** Promise dönerse diyalog başarıya dek açık kalır (çağıran kapatır). */
+  onConfirm: (months: number, reason: string, tier: PaidTier) => unknown;
   onClose: () => void;
   /** Faz T: paket tanımlarken kademe seçimi (Silver/Gold). */
   withTierSelect?: boolean;
   initialTier?: PaidTier;
+  /** Seçili kademeye göre onay öncesi uyarılar (D-191). */
+  warningsFor?: (tier: PaidTier) => string[];
 }) {
   const [months, setMonths] = useState("12");
   const [reason, setReason] = useState("");
   const [tier, setTier] = useState<PaidTier>(initialTier);
+  const warnings = warningsFor ? warningsFor(tier) : [];
+  const mErr = monthsError(months);
 
   return (
     <Dialog open onClose={onClose} size="sm" aria-label={title}>
@@ -94,7 +114,17 @@ function MonthsReasonDialog({
             </select>
           </Field>
         ) : null}
-        <Field>
+        {warnings.length > 0 ? (
+          <div
+            role="note"
+            className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+          >
+            {warnings.map((w) => (
+              <p key={w}>{w}</p>
+            ))}
+          </div>
+        ) : null}
+        <Field error={mErr ?? undefined}>
           <Label htmlFor="membership-months">Ay sayısı</Label>
           <Input
             id="membership-months"
@@ -102,6 +132,7 @@ function MonthsReasonDialog({
             min={1}
             max={60}
             value={months}
+            hasError={!!mErr}
             onChange={(e) => setMonths(e.target.value)}
           />
         </Field>
@@ -121,13 +152,11 @@ function MonthsReasonDialog({
           Vazgeç
         </Button>
         <Button
+          disabled={!!mErr}
           onClick={() => {
-            const n = Math.floor(Number(months));
-            if (!Number.isFinite(n) || n < 1 || n > 60) {
-              toast.error("Ay 1-60 arası olmalı");
-              return;
-            }
-            onConfirm(n, reason.trim(), tier);
+            if (mErr) return;
+            // Promise döner → Button iş bitene dek kilitli (FX-00).
+            return onConfirm(Number(months.trim()), reason.trim(), tier);
           }}
         >
           {confirmLabel}
@@ -165,6 +194,14 @@ export function MembershipTab({
     : null;
 
   const err = (e: unknown) => toastApiError(e);
+  // KVKK ile anonimleştirilmiş firmada paket işlemi yok (D-208; API 409).
+  const anonymized = !!data.anonymized;
+  // Süresiz paket uzatılamaz (API reddeder) — düğme yalnız bitiş varken (D-203).
+  const canExtend =
+    canAdminDo(role, "extendMembership") && !!data.membershipEndAt;
+  const remaining = remainingSentence(data.tier, data.membershipEndAt, (iso) =>
+    safeFormat(iso, "d MMMM yyyy"),
+  );
 
   return (
     <div className="space-y-4">
@@ -197,9 +234,13 @@ export function MembershipTab({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {data.tier !== "STANDART" ? (
+            {anonymized ? (
+              <span className="text-admin-text-muted text-xs">
+                KVKK ile anonimleştirildi — paket işlemi yapılamaz.
+              </span>
+            ) : data.tier !== "STANDART" ? (
               <>
-                {canAdminDo(role, "extendMembership") ? (
+                {canExtend ? (
                   <Button size="sm" onClick={() => setDialog("extend")}>
                     Süre Uzat
                   </Button>
@@ -234,6 +275,13 @@ export function MembershipTab({
         <p className="text-admin-text-muted mt-3 text-xs">
           <strong>Süre Uzat</strong> mevcut bitişe ay ekler (kalan süre yanmaz).
           <strong> Yeni Dönem Başlat</strong> bitişi bugünden yeniden hesaplar.
+          {data.tier !== "STANDART" && !data.membershipEndAt && !anonymized ? (
+            <>
+              {" "}
+              Bu paket <strong>süresiz</strong> — uzatılamaz; süre tanımlamak
+              için Yeni Dönem Başlat ile bitiş tarihli olarak yeniden verin.
+            </>
+          ) : null}
         </p>
       </section>
 
@@ -306,17 +354,21 @@ export function MembershipTab({
           initialTier={
             data.tier !== "STANDART" ? (data.tier as PaidTier) : "GOLD"
           }
-          onConfirm={(months, reason, tier) => {
-            tierAct.mutate(
-              { id: companyId, tier, months, reason: reason || undefined },
-              {
-                onSuccess: () =>
-                  toast.success(`${TIER_LABEL[tier]} paketi tanımlandı`),
-                onError: err,
-              },
-            );
-            setDialog(null);
-          }}
+          warningsFor={(t) =>
+            tierGrantWarnings(
+              { tier: data.tier, verification: data.companyVerificationStatus },
+              t,
+            )
+          }
+          onConfirm={(months, reason, tier) =>
+            // Başarıda kapanır; hata dalında girilen değerler kaybolmaz.
+            tierAct
+              .mutateAsync({ id: companyId, tier, months, reason: reason || undefined })
+              .then(() => {
+                toast.success(`${TIER_LABEL[tier]} paketi tanımlandı`);
+                setDialog(null);
+              }, err)
+          }
           onClose={() => setDialog(null)}
         />
       ) : null}
@@ -324,42 +376,42 @@ export function MembershipTab({
         <MonthsReasonDialog
           title="Süre Uzat (mevcut bitişe ekler)"
           confirmLabel="Uzat"
-          onConfirm={(months, reason) => {
-            extend.mutate(
-              { id: companyId, months, reason: reason || undefined },
-              {
-                onSuccess: (r) =>
-                  toast.success(
-                    `Uzatıldı — yeni bitiş ${safeFormat(r.membershipEndAt, "d MMMM yyyy")}`,
-                  ),
-                onError: err,
-              },
-            );
-            setDialog(null);
-          }}
+          onConfirm={(months, reason) =>
+            extend
+              .mutateAsync({ id: companyId, months, reason: reason || undefined })
+              .then((r) => {
+                toast.success(
+                  `Uzatıldı — yeni bitiş ${safeFormat(r.membershipEndAt, "d MMMM yyyy")}`,
+                );
+                setDialog(null);
+              }, err)
+          }
           onClose={() => setDialog(null)}
         />
       ) : null}
       <PromptDialog
         open={dialog === "revoke"}
         title="Paketi Kaldır"
+        notice={revokeNotice(remaining)}
         label="Gerekçe (opsiyonel — geçmişte görünür)"
         placeholder="Örn. iade talebi"
+        // Backend `reason` @MaxLength(500) — fazlası diyaloğu kapatıp metni
+        // siliyordu (arayüz testi D-202).
+        maxLength={500}
         confirmLabel="Kaldır"
-        onConfirm={(v) => {
-          tierAct.mutate(
-            {
+        onConfirm={(v) =>
+          // Başarıda kapanır; hata dalında gerekçe kaybolmaz.
+          tierAct
+            .mutateAsync({
               id: companyId,
               tier: "STANDART",
               reason: (v || "").trim() || undefined,
-            },
-            {
-              onSuccess: () => toast.success("Paket kaldırıldı (Standart)"),
-              onError: err,
-            },
-          );
-          setDialog(null);
-        }}
+            })
+            .then(() => {
+              toast.success("Paket kaldırıldı (Standart)");
+              setDialog(null);
+            }, err)
+        }
         onClose={() => setDialog(null)}
       />
     </div>

@@ -46,6 +46,11 @@ import { safeFormat } from "@/lib/date";
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
+import {
+  remainingSentence,
+  revokeNotice,
+  tierGrantWarnings,
+} from "./[id]/_components/tier-warnings";
 
 import {
   PAID_TIER_OPTIONS,
@@ -154,27 +159,30 @@ function FirmalarView() {
   };
 
   const [prompt, setPrompt] = useState<
-    | { kind: "tierMonths"; id: string; tier: "SILVER" | "GOLD" }
+    | { kind: "tierMonths"; row: AdminCompanyRow; tier: "SILVER" | "GOLD" }
+    | { kind: "revoke"; row: AdminCompanyRow }
     | { kind: "suspendReason"; id: string }
     | null
   >(null);
 
+  // Promise döner: diyalog yalnız başarıda kapanır (hata dalında girilen
+  // değer kaybolmaz) ve onay düğmesi iş bitene dek kilitli kalır.
   const runTier = (
     id: string,
     tier: "STANDART" | "SILVER" | "GOLD",
     months?: number,
+    reason?: string,
   ) =>
-    tierAct.mutate(
-      { id, tier, months },
-      {
-        onSuccess: () =>
-          toast.success(
-            tier !== "STANDART"
-              ? `${TIER_LABEL[tier]} paketi tanımlandı`
-              : "Paket kaldırıldı (Standart)",
-          ),
-        onError: (e: unknown) => toastApiError(e),
+    tierAct.mutateAsync({ id, tier, months, reason }).then(
+      () => {
+        toast.success(
+          tier !== "STANDART"
+            ? `${TIER_LABEL[tier]} paketi tanımlandı`
+            : "Paket kaldırıldı (Standart)",
+        );
+        setPrompt(null);
       },
+      (e: unknown) => toastApiError(e),
     );
 
   const runAction = (
@@ -353,7 +361,9 @@ function FirmalarView() {
                           >
                             İncele
                           </Link>
-                          {canAdminDo(role, "setTier") ? (
+                          {/* KVKK ile anonimleştirilmiş firmada paket/askı
+                              işlemi yok (D-208; API 409). */}
+                          {canAdminDo(role, "setTier") && !c.anonymized ? (
                           <Dropdown>
                             <DropdownButton
                               plain
@@ -369,7 +379,7 @@ function FirmalarView() {
                                   onClick={() =>
                                     setPrompt({
                                       kind: "tierMonths",
-                                      id: c.id,
+                                      row: c,
                                       tier: t,
                                     })
                                   }
@@ -379,9 +389,13 @@ function FirmalarView() {
                                   </DropdownLabel>
                                 </DropdownItem>
                               ))}
+                              {/* Detaydaki Üyelik sekmesiyle aynı: gerekçeli
+                                  onay penceresi (arayüz testi O-046). */}
                               {c.tier !== "STANDART" ? (
                                 <DropdownItem
-                                  onClick={() => runTier(c.id, "STANDART")}
+                                  onClick={() =>
+                                    setPrompt({ kind: "revoke", row: c })
+                                  }
                                 >
                                   <DropdownLabel>Paketi Kaldır</DropdownLabel>
                                 </DropdownItem>
@@ -435,8 +449,15 @@ function FirmalarView() {
       <PromptDialog
         open={prompt?.kind === "tierMonths"}
         title={`${prompt?.kind === "tierMonths" ? TIER_LABEL[prompt.tier] : ""} Paketi Tanımla`}
+        notice={
+          prompt?.kind === "tierMonths"
+            ? tierWarningNotice(prompt.row, prompt.tier)
+            : undefined
+        }
         label="Kaç ay verilsin?"
         type="number"
+        // Aralık PromptDialog'da doğrulanır (backend @Min(1) @Max(60)); dışı
+        // değer sessizce 12/60'a çevrilmez (arayüz testi O-074).
         min={1}
         max={60}
         defaultValue="12"
@@ -444,10 +465,31 @@ function FirmalarView() {
         confirmLabel="Tanımla"
         onConfirm={(v) => {
           if (prompt?.kind !== "tierMonths") return;
-          // Geçersiz/1 altı → varsayılan 12; üst sınır backend @Max(60) ile birebir.
-          const n = Math.floor(Number(v));
-          runTier(prompt.id, prompt.tier, n >= 1 ? Math.min(60, n) : 12);
-          setPrompt(null);
+          return runTier(prompt.row.id, prompt.tier, Number(v));
+        }}
+        onClose={() => setPrompt(null)}
+      />
+      <PromptDialog
+        open={prompt?.kind === "revoke"}
+        title="Paketi Kaldır"
+        notice={
+          prompt?.kind === "revoke"
+            ? revokeNotice(
+                remainingSentence(
+                  prompt.row.tier,
+                  prompt.row.membershipEndAt,
+                  (iso) => safeFormat(iso, "d MMMM yyyy"),
+                ),
+              )
+            : undefined
+        }
+        label="Gerekçe (opsiyonel — geçmişte görünür)"
+        placeholder="Örn. iade talebi"
+        maxLength={500}
+        confirmLabel="Kaldır"
+        onConfirm={(v) => {
+          if (prompt?.kind !== "revoke") return;
+          return runTier(prompt.row.id, "STANDART", undefined, v || undefined);
         }}
         onClose={() => setPrompt(null)}
       />
@@ -465,6 +507,25 @@ function FirmalarView() {
         }}
         onClose={() => setPrompt(null)}
       />
+    </div>
+  );
+}
+
+/** Satır menüsünden paket tanımlarken sonuç uyarıları (D-191). */
+function tierWarningNotice(
+  row: AdminCompanyRow,
+  tier: "SILVER" | "GOLD",
+): React.ReactNode {
+  const warnings = tierGrantWarnings(
+    { tier: row.tier, verification: row.verification },
+    tier,
+  );
+  if (warnings.length === 0) return undefined;
+  return (
+    <div className="space-y-1">
+      {warnings.map((w) => (
+        <p key={w}>{w}</p>
+      ))}
     </div>
   );
 }

@@ -21,9 +21,11 @@ function rig() {
   const notifications = { pushToCompany: jest.fn().mockResolvedValue(1) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const audit = new AuditService(prisma as never);
+  // Depo: yalnız detay önizleme imzası (D-208 testi `detail` çağırır).
+  const storage = { presignInlinePreview: jest.fn().mockResolvedValue(null) };
   const service = new AdminCompaniesService(
     prisma as never,
-    {} as never,
+    storage as never,
     email as never,
     notifications as never,
     config as never,
@@ -413,6 +415,49 @@ describe("KVKK — export + silme/anonimleştirme", () => {
     expect(user.email).toContain("@anon.rothern.local");
     expect(user.deletedAt).not.toBeNull();
     expect(user.isActive).toBe(false);
+  });
+
+  it("D-208: anonimleştirilmiş firma salt okunur — askı kaldırma/askı/bildirim/düzenleme/paket 409; detay ve liste 'anonymized' der", async () => {
+    const { service } = rig();
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    await prisma.companyOrder.create({
+      data: {
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        amount: 500,
+        currency: "TRY",
+        status: "COMPLETED",
+      },
+    });
+    const id = buyer.company.id;
+    await service.deleteOrAnonymize(id, "admin-1", jest.fn().mockResolvedValue(undefined));
+
+    await expect(service.unsuspend(id, "admin-1")).rejects.toMatchObject({ status: 409 });
+    await expect(service.suspend(id, "x", "admin-1")).rejects.toMatchObject({ status: 409 });
+    await expect(service.sendNotification(id, "Konu", "Mesaj", "admin-1")).rejects.toMatchObject({ status: 409 });
+    await expect(service.updateProfile(id, { name: "Yeni Ad" }, "admin-1")).rejects.toMatchObject({ status: 409 });
+    await expect(service.setTier(id, "GOLD", 12, "admin-1")).rejects.toMatchObject({ status: 409 });
+
+    // KVKK gerekçesi ve askı yerinde.
+    const after = await prisma.company.findUniqueOrThrow({ where: { id } });
+    expect(after.isBlocked).toBe(true);
+    expect(after.blockedReason).toContain("KVKK");
+    expect(after.tier).toBe("STANDART");
+
+    const detail = await service.detail(id);
+    expect(detail.anonymized).toBe(true);
+    expect(detail).not.toHaveProperty("isActive");
+    const list = await service.list({ page: 1, pageSize: 50 });
+    expect(list.items.find((r) => r.id === id)?.anonymized).toBe(true);
+    expect(list.items.find((r) => r.id === seller.company.id)?.anonymized).toBe(false);
+
+    // Normal firmada askı/kaldırma çalışmaya devam eder.
+    await service.suspend(seller.company.id, "", "admin-1");
+    await service.unsuspend(seller.company.id, "admin-1");
+    expect(
+      (await prisma.company.findUniqueOrThrow({ where: { id: seller.company.id } })).isBlocked,
+    ).toBe(false);
   });
 
   it("D-143/D-216: siparişsiz ama üyelik geçmişli firma — yanıt gerçek nedeni döner; ürünler vitrinden ve onay kuyruğundan düşer", async () => {

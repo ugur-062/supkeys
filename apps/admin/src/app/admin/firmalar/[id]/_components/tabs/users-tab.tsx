@@ -27,6 +27,7 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useAddCompanyUser,
@@ -207,6 +208,9 @@ export function UsersTab({
   const [dialog, setDialog] = useState<
     | { kind: "add" }
     | { kind: "email"; user: AdminCompanyUser }
+    // Tek tıkla uygulanıyordu — kısa onay (arayüz testi D-209).
+    | { kind: "deactivate"; user: AdminCompanyUser }
+    | { kind: "dropSessions"; user: AdminCompanyUser }
     | null
   >(null);
 
@@ -222,7 +226,7 @@ export function UsersTab({
     action: "password-reset" | "resend-verification" | "drop-sessions",
     msg: string,
   ) =>
-    void recoveryLock.run(() =>
+    recoveryLock.run(() =>
       recovery.mutateAsync({ userId, action }).then(() => toast.success(msg), err),
     );
 
@@ -307,7 +311,7 @@ export function UsersTab({
                           title="Şifre sıfırlama e-postası gönder"
                           disabled={recoveryBusy}
                           onClick={() =>
-                            runRecovery(
+                            void runRecovery(
                               u.id,
                               "password-reset",
                               "Şifre sıfırlama e-postası gönderildi",
@@ -329,7 +333,7 @@ export function UsersTab({
                               <DropdownItem
                                 disabled={recoveryBusy}
                                 onClick={() =>
-                                  runRecovery(
+                                  void runRecovery(
                                     u.id,
                                     "resend-verification",
                                     "Doğrulama kodu gönderildi",
@@ -345,11 +349,7 @@ export function UsersTab({
                             <DropdownItem
                               disabled={recoveryBusy}
                               onClick={() =>
-                                runRecovery(
-                                  u.id,
-                                  "drop-sessions",
-                                  "Oturumlar düşürüldü",
-                                )
+                                setDialog({ kind: "dropSessions", user: u })
                               }
                             >
                               <LogOut data-slot="icon" />
@@ -370,16 +370,7 @@ export function UsersTab({
                                 {u.isActive ? (
                                   <DropdownItem
                                     onClick={() =>
-                                      setActive.mutate(
-                                        { userId: u.id, active: false },
-                                        {
-                                          onSuccess: () =>
-                                            toast.success(
-                                              "Devre dışı bırakıldı — oturumları düşürüldü",
-                                            ),
-                                          onError: err,
-                                        },
-                                      )
+                                      setDialog({ kind: "deactivate", user: u })
                                     }
                                   >
                                     <DropdownLabel>
@@ -440,22 +431,69 @@ export function UsersTab({
             : "Yeni e-posta"
         }
         placeholder="yeni@firma.com"
+        // Biçim + uzunluk diyalogda doğrulanır; diyalog yalnız başarıda
+        // kapanır — hata dalında yazılan adres kaybolmaz (arayüz testi D-204).
+        type="email"
+        maxLength={200}
         required
         confirmLabel="Değiştir"
         onConfirm={(v) => {
           if (dialog?.kind !== "email") return;
-          changeEmail.mutate(
-            { userId: dialog.user.id, email: (v || "").trim() },
-            {
-              onSuccess: (r) =>
-                toast.success(`E-posta güncellendi: ${r.email}`),
-              onError: err,
-            },
-          );
-          setDialog(null);
+          return changeEmail
+            .mutateAsync({ userId: dialog.user.id, email: (v || "").trim() })
+            .then((r) => {
+              toast.success(`E-posta güncellendi: ${r.email}`);
+              setDialog(null);
+            }, err);
         }}
         onClose={() => setDialog(null)}
       />
+      <ConfirmDialog
+        open={dialog?.kind === "deactivate"}
+        title="Kullanıcıyı devre dışı bırak"
+        confirmLabel="Devre Dışı Bırak"
+        danger
+        onConfirm={() => {
+          if (dialog?.kind !== "deactivate") return;
+          return setActive
+            .mutateAsync({ userId: dialog.user.id, active: false })
+            .then(() => {
+              toast.success("Devre dışı bırakıldı — oturumları düşürüldü");
+              setDialog(null);
+            }, err);
+        }}
+        onClose={() => setDialog(null)}
+      >
+        <p>
+          <strong>
+            {dialog?.kind === "deactivate" ? dialog.user.email : ""}
+          </strong>{" "}
+          giriş yapamaz ve açık oturumları kapanır. İstediğinizde
+          &quot;Aktifleştir&quot; ile geri açabilirsiniz.
+        </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={dialog?.kind === "dropSessions"}
+        title="Oturumları düşür"
+        confirmLabel="Oturumları Düşür"
+        danger
+        onConfirm={() => {
+          if (dialog?.kind !== "dropSessions") return;
+          return runRecovery(
+            dialog.user.id,
+            "drop-sessions",
+            "Oturumlar düşürüldü",
+          ).then(() => setDialog(null));
+        }}
+        onClose={() => setDialog(null)}
+      >
+        <p>
+          <strong>
+            {dialog?.kind === "dropSessions" ? dialog.user.email : ""}
+          </strong>{" "}
+          tüm cihazlarda oturumdan çıkarılır; yeniden giriş yapması gerekir.
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }

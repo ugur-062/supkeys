@@ -17,18 +17,28 @@ interface PromptDialogProps {
   open: boolean;
   title: string;
   description?: string;
+  /**
+   * Alanın ÜSTÜNDE sarı uyarı kutusu — geri alınamaz/sonuçlu işlemin ne
+   * yapacağını onaydan önce söyler (ör. paket kaldırma: kalan süre silinir,
+   * firmaya e-posta gider — arayüz testi O-046/D-191).
+   */
+  notice?: React.ReactNode;
   label: string;
-  type?: "text" | "number" | "datetime-local";
+  type?: "text" | "number" | "datetime-local" | "email";
   defaultValue?: string;
   placeholder?: string;
   confirmLabel?: string;
   /** true → boş değere izin vermez. */
   required?: boolean;
-  /** number tipinde min (>= 1 vb.). */
+  /**
+   * number tipinde min (>= 1 vb.). Değer TAM SAYI ve [min, max] içinde
+   * olmalı; dışındaysa Onayla kapalı ve alan hatası görünür — sayfa değeri
+   * sessizce düzeltmez (arayüz testi O-074).
+   */
   min?: number;
   /** number tipinde max (backend @Max ile birebir). */
   max?: number;
-  /** text tipinde karakter sınırı (backend @MaxLength ile birebir). */
+  /** text/email tipinde karakter sınırı (backend @MaxLength ile birebir). */
   maxLength?: number;
   /**
    * text tipinde en az karakter (backend @MinLength ile birebir). Altındaki
@@ -57,6 +67,15 @@ interface PromptDialogProps {
   onClose: () => void;
 }
 
+function rangeMessage(min?: number, max?: number): string {
+  if (min !== undefined && max !== undefined) {
+    return `${min}-${max} arası bir tam sayı girin`;
+  }
+  if (min !== undefined) return `En az ${min} olmalı (tam sayı)`;
+  if (max !== undefined) return `En fazla ${max} olmalı (tam sayı)`;
+  return "Tam sayı girin";
+}
+
 /**
  * window.prompt yerine erişilebilir (focus-trap'li) + test edilebilir modal
  * girdi. Değer boşsa ve required değilse boş string döner (opsiyonel alanlar).
@@ -65,6 +84,7 @@ export function PromptDialog({
   open,
   title,
   description,
+  notice,
   label,
   type = "text",
   defaultValue = "",
@@ -97,6 +117,20 @@ export function PromptDialog({
     minLength !== undefined &&
     (required || trimmed !== "") &&
     trimmed.length < minLength;
+  // number: tam sayı + aralık (boşsa `required` karar verir).
+  const num = Number(trimmed);
+  const outOfRange =
+    type === "number" &&
+    trimmed !== "" &&
+    (!Number.isInteger(num) ||
+      (min !== undefined && num < min) ||
+      (max !== undefined && num > max));
+  // email: biçim (backend @IsEmail ile aynı kaba kural) — geçersiz adres
+  // gönderilip diyalog kapanmaz (arayüz testi D-204).
+  const badEmail =
+    type === "email" &&
+    trimmed !== "" &&
+    !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(trimmed);
   // datetime-local: tarayıcı `min`'i yalnız seçicide uygular, elle yazılan
   // değer geçebilir. Alt sınırdan önceki tarih gönderilmesin (derin denetim
   // LU-12) — aynı "yyyy-MM-dd'T'HH:mm" biçiminde sözlük sırası = zaman sırası.
@@ -105,7 +139,8 @@ export function PromptDialog({
     !!minDateTime &&
     trimmed !== "" &&
     trimmed < minDateTime;
-  const invalid = (required && trimmed === "") || tooShort || beforeMin;
+  const invalid =
+    (required && trimmed === "") || tooShort || beforeMin || outOfRange || badEmail;
   const lock = useDialogSubmitLock(open);
 
   const submit = () => {
@@ -119,6 +154,14 @@ export function PromptDialog({
     <Dialog open={open} onClose={onClose} size="sm">
       <DialogTitle>{title}</DialogTitle>
       <DialogBody>
+        {notice ? (
+          <div
+            role="note"
+            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+          >
+            {notice}
+          </div>
+        ) : null}
         <Field
           hint={description}
           error={
@@ -126,7 +169,11 @@ export function PromptDialog({
               ? `En az ${minLength} karakter (${trimmed.length}/${minLength})`
               : beforeMin
                 ? "Seçilen tarih izin verilen en erken tarihten önce"
-                : undefined
+                : outOfRange
+                  ? rangeMessage(min, max)
+                  : badEmail
+                    ? "Geçerli bir e-posta adresi girin"
+                    : undefined
           }
         >
           <Label htmlFor="prompt-dialog-input" required={required}>
@@ -137,7 +184,7 @@ export function PromptDialog({
             type={type}
             min={type === "datetime-local" ? minDateTime : min}
             max={type === "number" ? max : undefined}
-            maxLength={type === "text" ? maxLength : undefined}
+            maxLength={type === "text" || type === "email" ? maxLength : undefined}
             autoFocus
             value={value}
             placeholder={placeholder}

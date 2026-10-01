@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   reviewMutate: vi.fn(),
+  push: vi.fn(),
+  search: "",
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: h.push }),
+  useSearchParams: () => new URLSearchParams(h.search),
 }));
 vi.mock("@/hooks/use-admin-companies", () => ({
   useReviewDocuments: () => ({ mutate: h.reviewMutate, mutateAsync: (...a: unknown[]) => { (h.reviewMutate as (...x: unknown[]) => unknown)(...a); return Promise.resolve({ status: "VERIFIED" }); }, isPending: false }),
@@ -77,6 +79,7 @@ function detail(over: Partial<AdminCompanyDetail> = {}): AdminCompanyDetail {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.search = "";
 });
 
 describe("DocsTab — KYC belge inceleme", () => {
@@ -253,5 +256,97 @@ describe("DocsTab — KYC belge inceleme", () => {
     await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
     expect(h.toast.error).toHaveBeenCalled();
     expect(h.reviewMutate).not.toHaveBeenCalled();
+  });
+
+  it("sunucu verisi tazelenince (revizyon onayı) kaydedilmemiş red taslağı korunur (D-032)", async () => {
+    const user = userEvent.setup();
+    const first = detail({ docKeys: { taxPlate: "k-tax", idFront: "k-idf-1" } });
+    const { rerender } = render(<DocsTab companyId="c1" data={first} />);
+    await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
+    await user.type(screen.getByLabelText(/Vergi Levhası red notu/), "okunmuyor");
+    // Başka bir belgenin revizyonu onaylandı → yeni nesne (yeni anahtar).
+    rerender(
+      <DocsTab
+        companyId="c1"
+        data={detail({ docKeys: { taxPlate: "k-tax", idFront: "k-idf-2" } })}
+      />,
+    );
+    expect(screen.getByLabelText(/Vergi Levhası red notu/)).toHaveValue("okunmuyor");
+  });
+
+  it("belgesi değişen satırın taslağı sunucu durumuna döner (görülmeyen belgeye karar taşınmaz)", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <DocsTab companyId="c1" data={detail({ docKeys: { taxPlate: "k-tax-1" } })} />,
+    );
+    await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
+    expect(screen.getByLabelText(/Vergi Levhası red notu/)).toBeInTheDocument();
+    rerender(
+      <DocsTab companyId="c1" data={detail({ docKeys: { taxPlate: "k-tax-2" } })} />,
+    );
+    expect(screen.queryByLabelText(/Vergi Levhası red notu/)).not.toBeInTheDocument();
+  });
+
+  it("belgesiz firmada Hepsini Onayla ve Kararı Kaydet pasif, eksik belgeler yazılı (D-200)", () => {
+    render(
+      <DocsTab
+        companyId="c1"
+        data={detail({
+          docTaxPlateUrl: null,
+          docTradeRegistryUrl: null,
+          docSignatureCircularUrl: null,
+          docActivityCertUrl: null,
+          docIdFrontUrl: null,
+          docIdBackUrl: null,
+        })}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Hepsini Onayla" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Kararı Kaydet" })).toBeDisabled();
+    expect(screen.getByText(/Eksik belge: Vergi Levhası/)).toBeInTheDocument();
+  });
+
+  it("kısmen yüklü firmada yalnız yüklenenler işaretlenir", async () => {
+    const user = userEvent.setup();
+    render(<DocsTab companyId="c1" data={detail({ docIdBackUrl: null })} />);
+    await user.click(screen.getByRole("button", { name: "Yüklenenleri Onayla" }));
+    expect(screen.getByRole("button", { name: "Kararı Kaydet" })).toBeDisabled();
+  });
+
+  it("doğrulanmış firmada belge reddi önce onay penceresi açar; onayda kaydeder (D-191)", async () => {
+    const user = userEvent.setup();
+    render(
+      <DocsTab
+        companyId="c1"
+        data={detail({
+          companyVerificationStatus: "VERIFIED",
+          docTaxPlateStatus: "APPROVED",
+          docTradeRegistryStatus: "APPROVED",
+          docSignatureCircularStatus: "APPROVED",
+          docActivityCertStatus: "APPROVED",
+          docIdFrontStatus: "APPROVED",
+          docIdBackStatus: "APPROVED",
+        })}
+      />,
+    );
+    await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
+    await user.type(screen.getByLabelText(/Vergi Levhası red notu/), "süresi geçmiş");
+    await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/doğrulamasını geri alır/)).toBeInTheDocument();
+    expect(h.reviewMutate).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Reddet ve Kaydet" }));
+    expect(h.reviewMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("kuyruktan gelindiyse karar sonrası aynı kuyruk sayfasına döner (D-198)", async () => {
+    h.search = "from=queue&qp=3";
+    const user = userEvent.setup();
+    render(<DocsTab companyId="c1" data={detail()} />);
+    await user.click(screen.getByRole("button", { name: "Hepsini Onayla" }));
+    await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
+    await vi.waitFor(() =>
+      expect(h.push).toHaveBeenCalledWith("/admin/basvurular?page=3"),
+    );
   });
 });

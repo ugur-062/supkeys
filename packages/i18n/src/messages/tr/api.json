@@ -143,6 +143,7 @@
     "adresSiniriAsildi": "Bir firma en fazla {max} adres kaydedebilir; yeni adres eklemeden önce kullanmadığınız adresleri silin"
   },
   "adminCompanies": {
+    "firmaKvkkIleAnonimlestirildi": "Bu firma KVKK talebiyle anonimleştirildi — bu işlem yapılamaz",
     "firmaBulunamadi": "Firma bulunamadı",
     "firmaSahibiDevreDisiBirakilamazOnce": "Firma sahibi devre dışı bırakılamaz — önce sahipliği devredin",
     "gecerliBirEPostaGirin": "Geçerli bir e-posta girin",

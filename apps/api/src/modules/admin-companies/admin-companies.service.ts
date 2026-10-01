@@ -485,6 +485,7 @@ export class AdminCompaniesService {
           membershipEndAt: true,
           companyVerificationStatus: true,
           isBlocked: true,
+          isActive: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -524,6 +525,8 @@ export class AdminCompaniesService {
         membershipEndAt: c.membershipEndAt,
         verification: c.companyVerificationStatus,
         isBlocked: c.isBlocked,
+        // KVKK ile anonimlestirildi (D-208): askı/paket menusu kapanir.
+        anonymized: c.isActive === false,
         complaintCount: c._count.complaintsReceived,
         userCount: c._count.users,
         pendingRevisionCount: c._count.kycRevisions,
@@ -832,6 +835,7 @@ export class AdminCompaniesService {
         isBlocked: true,
         blockedReason: true,
         blockedAt: true,
+        isActive: true,
         createdAt: true,
         // Suppression rozeti: kullanıcı login adresleri + billingEmail'in
         // e-posta ALIP ALAMADIĞINI göster ("giriş yapamıyorum" destek çağrısı).
@@ -913,9 +917,12 @@ export class AdminCompaniesService {
       : null;
     // `users` yalnız suppression hesabı için çekildi — detay contract'ına ham
     // liste sızdırma (ayrı users endpoint'i var); yalnız suppressions dön.
-    const { users: _users, authorizedTckn, ...company } = c;
+    const { users: _users, authorizedTckn, isActive, ...company } = c;
     return {
       ...company,
+      // KVKK ile anonimlestirildi (D-208): admin ekrani askiyi kaldir /
+      // bildirim / duzenle / paket eylemlerini kapatir (API de 409 doner).
+      anonymized: isActive === false,
       // Yetkili kimlik no MASKELİ (KVKK veri-minimizasyonu; firma tarafıyla
       // aynı `maskNationalId`) — tanımaya yeter, kopyalamaya yetmez.
       authorizedTckn: authorizedTckn ? maskNationalId(authorizedTckn) : null,
@@ -1008,9 +1015,11 @@ export class AdminCompaniesService {
         ibanHolder: true,
         bankSwiftBic: true,
         bankName: true,
+        isActive: true,
       },
     });
     if (!before) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    this.assertNotAnonymized(before);
 
     // Yalnız gerçekten değişen alanları uygula ("" → null normalize).
     const changes: Record<string, { from: unknown; to: unknown }> = {};
@@ -1804,9 +1813,10 @@ export class AdminCompaniesService {
   ) {
     const before = await this.prisma.company.findUnique({
       where: { id },
-      select: { membershipEndAt: true, tier: true },
+      select: { membershipEndAt: true, tier: true, isActive: true },
     });
     if (!before) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    this.assertNotAnonymized(before);
     let membershipEndAt: Date | null = null;
     if (tier !== "STANDART") {
       // Takvim ayı (setMonth) — 30-gün çarpımı yılda ~5 gün drift ediyordu.
@@ -2117,7 +2127,7 @@ export class AdminCompaniesService {
   }
 
   async suspend(id: string, reason: string, adminId?: string) {
-    await this.requireCompany(id);
+    await this.requireCompany(id, { notAnonymized: true });
     // blockedReason yalnız admin panelinde görünen TR iç kayıttır. Firmaya
     // giden bildirimde gerekçe YOKSA bu sabit metin `{gerekce}` olarak EN/RU
     // şablona girmez; alıcının dilinde çözülen parametresiz anahtar gider
@@ -2168,7 +2178,7 @@ export class AdminCompaniesService {
   }
 
   async unsuspend(id: string, adminId?: string) {
-    await this.requireCompany(id);
+    await this.requireCompany(id, { notAnonymized: true });
     await this.prisma.company.update({
       where: { id },
       data: { isBlocked: false, blockedReason: null, blockedAt: null },
@@ -2385,7 +2395,7 @@ export class AdminCompaniesService {
     message: string,
     adminId: string,
   ) {
-    await this.requireCompany(companyId);
+    await this.requireCompany(companyId, { notAnonymized: true });
     // Admin'in KENDİ yazdığı metin: katalog anahtarı yok, çevrilmez.
     await this.notifyCompany(companyId, {
       type: "admin_message",
@@ -3359,11 +3369,30 @@ export class AdminCompaniesService {
     return { ok: true, mode: "anonymized" as const, retainedBecause };
   }
 
-  private async requireCompany(id: string) {
+  private async requireCompany(
+    id: string,
+    opts: { notAnonymized?: boolean } = {},
+  ) {
     const exists = await this.prisma.company.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
     if (!exists) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    if (opts.notAnonymized) this.assertNotAnonymized(exists);
+  }
+
+  /**
+   * KVKK ile anonimlestirilmis firma (arayuz testi D-208): `Company.isActive`
+   * yalniz `deleteOrAnonymize` tarafindan false yapilir ve geri acilmaz. Boyle
+   * bir firmada askiyi kaldirmak KVKK gerekcesini siliyor ve firmayi
+   * "Dogrulandi" gosteriyordu; bildirim/duzenleme/paket de anlamsiz. 409.
+   * `=== false`: eski/eksik select'te (undefined) kapi kapanmaz.
+   */
+  private assertNotAnonymized(c: { isActive?: boolean | null }) {
+    if (c.isActive === false) {
+      throw new ConflictException(
+        i18nMessage("api.adminCompanies.firmaKvkkIleAnonimlestirildi"),
+      );
+    }
   }
 }

@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   companies: { data: undefined as unknown, isLoading: false, isError: false },
   stats: { data: undefined as unknown, isLoading: false },
   actMutate: vi.fn(),
-  tierMutate: vi.fn(),
+  tierMutate: vi.fn((_v: unknown) => Promise.resolve()),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
   replace: vi.fn(),
   // Rol-tabanlı buton kapısı (canAdminDo): tier/suspend yalnız SUPER_ADMIN'e görünür.
@@ -39,7 +39,7 @@ vi.mock("@/hooks/use-admin-companies", () => ({
   useAdminCompanies: () => h.companies,
   useAdminCompanyStats: () => h.stats,
   useCompanyAction: () => ({ mutate: h.actMutate, isPending: false }),
-  useSetCompanyTier: () => ({ mutate: h.tierMutate, isPending: false }),
+  useSetCompanyTier: () => ({ mutateAsync: h.tierMutate, isPending: false }),
 }));
 
 import AdminFirmalarPage from "../page";
@@ -158,10 +158,12 @@ describe("FirmalarView — PAKET (tier) verme", () => {
     await user.clear(input);
     await user.type(input, "6");
     await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
-    expect(h.tierMutate).toHaveBeenCalledWith(
-      { id: "c1", tier: "GOLD", months: 6 },
-      expect.anything(),
-    );
+    expect(h.tierMutate).toHaveBeenCalledWith({
+      id: "c1",
+      tier: "GOLD",
+      months: 6,
+      reason: undefined,
+    });
   });
 
   it("varsayılan (12) korunursa months=12 ile mutate", async () => {
@@ -175,13 +177,17 @@ describe("FirmalarView — PAKET (tier) verme", () => {
     );
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
-    expect(h.tierMutate).toHaveBeenCalledWith(
-      { id: "c1", tier: "GOLD", months: 12 },
-      expect.anything(),
-    );
+    expect(h.tierMutate).toHaveBeenCalledWith({
+      id: "c1",
+      tier: "GOLD",
+      months: 12,
+      reason: undefined,
+    });
   });
 
-  it("geçersiz (n<1) → Number coercion fix ile months=12'ye düşer", async () => {
+  it.each(["0", "100", "2.5"])(
+    "geçersiz ay (%s) → alan hatası, Tanımla kapalı; sessizce 12/60'a çevrilmez (O-074)",
+    async (value) => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
     await user.click(
@@ -193,12 +199,69 @@ describe("FirmalarView — PAKET (tier) verme", () => {
     const dialog = await screen.findByRole("dialog");
     const input = screen.getByLabelText(/Kaç ay verilsin/);
     await user.clear(input);
-    await user.type(input, "0");
-    await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
-    expect(h.tierMutate).toHaveBeenCalledWith(
-      { id: "c1", tier: "GOLD", months: 12 },
-      expect.anything(),
-    );
+    await user.type(input, value);
+    expect(within(dialog).getByText(/1-60 arası bir tam sayı/)).toBeInTheDocument();
+    const btn = within(dialog).getByRole("button", { name: "Tanımla" });
+    expect(btn).toBeDisabled();
+    await user.click(btn);
+    expect(h.tierMutate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("Gold firmaya Silver tanımlarken düşürme uyarısı görünür (D-191)", async () => {
+    h.companies = {
+      data: paged([row({ tier: "GOLD", verification: "VERIFIED" })]),
+      isLoading: false,
+      isError: false,
+    };
+    const user = userEvent.setup();
+    render(<AdminFirmalarPage />);
+    await user.click(screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Silver Tanımla" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("note")).toHaveTextContent(/Gold → Silver/);
+  });
+});
+
+describe("FirmalarView — Paketi Kaldır (O-046)", () => {
+  it("anında silmez: gerekçeli onay penceresi açılır, onayda gerekçeyle STANDART", async () => {
+    const end = new Date(Date.now() + 365 * 86_400_000).toISOString();
+    h.companies = {
+      data: paged([row({ tier: "GOLD", membershipEndAt: end })]),
+      isLoading: false,
+      isError: false,
+    };
+    const user = userEvent.setup();
+    render(<AdminFirmalarPage />);
+    await user.click(screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Paketi Kaldır" }));
+    expect(h.tierMutate).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("note")).toHaveTextContent(/Kalan süre/);
+    const input = within(dialog).getByLabelText(/Gerekçe/);
+    expect(input).toHaveAttribute("maxLength", "500");
+    await user.type(input, "iade talebi");
+    await user.click(within(dialog).getByRole("button", { name: "Kaldır" }));
+    expect(h.tierMutate).toHaveBeenCalledWith({
+      id: "c1",
+      tier: "STANDART",
+      months: undefined,
+      reason: "iade talebi",
+    });
+  });
+});
+
+describe("FirmalarView — KVKK ile anonimleştirilmiş firma (D-208)", () => {
+  it("satırda paket/askı menüsü yok", () => {
+    h.companies = {
+      data: paged([row({ isBlocked: true, anonymized: true })]),
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminFirmalarPage />);
+    expect(
+      screen.queryByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    ).not.toBeInTheDocument();
   });
 });
 
