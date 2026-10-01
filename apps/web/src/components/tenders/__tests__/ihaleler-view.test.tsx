@@ -120,6 +120,16 @@ describe("IhalelerView", () => {
     expect(screen.getByRole("link", { name: /Satın Alma Talebi Aç/ })).toBeInTheDocument();
   });
 
+  it("O-086: hiç talep yokken KPI drill-down (?status=OPEN) 'eşleşen yok' değil oluşturma CTA'sı gösterir", () => {
+    h.rows = [];
+    window.history.replaceState(null, "", "/company/satinalma/taleplerim?status=OPEN,IN_AWARD");
+    render(<IhalelerView />);
+    expect(screen.getByText("Henüz satın alma talebi yok.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Satın Alma Talebi Aç/ })).toBeInTheDocument();
+    expect(screen.queryByText("Eşleşen satın alma talebi yok.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Filtreleri temizle" })).toBeNull();
+  });
+
   it("D-247: Şablonlar ve Raporlar tek bağlantı (içinde düğme yok)", () => {
     render(<IhalelerView />);
     for (const name of ["Şablonlar", "Raporlar"]) {

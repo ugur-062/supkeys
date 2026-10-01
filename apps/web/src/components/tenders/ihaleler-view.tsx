@@ -442,7 +442,10 @@ export function IhalelerView() {
         isError={list.isError}
         onRetry={() => list.refetch()}
         emptyCtaLabel={tr("satinAlmaTalebiAc")}
-        isFiltered={isFiltered}
+        /* Hiç talep yokken (KPI/aksiyon merkezinden `?status=OPEN` ile
+           gelen yeni firma) boşluğun sebebi süzgeç değil: "henüz yok +
+           oluştur" CTA'sı gösterilir (O-086 gözden geçirme). */
+        isFiltered={isFiltered && all.length > 0}
         onClearFilters={clearFilters}
       />
 
