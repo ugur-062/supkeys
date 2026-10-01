@@ -146,6 +146,25 @@ describe("ApprovalFlowsSection — onaycı seçici keşfedilebilirlik", () => {
   });
 });
 
+describe("ApprovalFlowsSection — yeni onaycı seçici varsayılanı (arayüz testi D-097)", () => {
+  it("seçici BOŞ açılır: giriş yapan kişi önceden seçilmez, 'kendinizi seçtiniz' uyarısı çıkmaz", async () => {
+    h.users = [user("me", ["KURUCU"]), user("u1", ["ONAYLAYICI"])];
+    render(<ApprovalFlowsSection canManage openNew />);
+    const nameInput = screen.queryByLabelText(/Akış adı|Akış Adı/i);
+    if (nameInput) fireEvent.change(nameInput, { target: { value: "Test" } });
+    const next = screen.queryByRole("button", { name: /İleri|Devam/i });
+    if (next) fireEvent.click(next);
+    fireEvent.click(await screen.findByRole("button", { name: "Onaycı Ekle" }));
+    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(document.body.textContent).not.toContain("Kendinizi");
+    expect(screen.getByRole("button", { name: "Ekle" })).toBeDisabled();
+    // Kendini bilinçli seçince uyarı yine görünür (INV-APPR-1).
+    fireEvent.change(select, { target: { value: "me" } });
+    expect(document.body.textContent).toMatch(/Kendinizi/);
+  });
+});
+
 describe("ApprovalFlowsSection — Gold kapısı (derin denetim LU-21)", () => {
   const flow = {
     id: "f1",

@@ -957,7 +957,9 @@ function StepEditorDialog({
   const fmtTl = useFmtTl();
   const { user } = useCompanyAuth();
   const [approverUserId, setApproverUserId] = useState(
-    initial?.approverUserId ?? approvers[0]?.id ?? "",
+    // D-097: yeni adımda seçici BOŞ açılır — ilk aday (çoğu zaman giriş
+    // yapan kurucu) önceden seçilip "kendinizi seçtiniz" uyarısı çıkmasın.
+    initial?.approverUserId ?? "",
   );
   // Ayarlar › Kullanıcılar yalnız users:manage'e açık — akış yetkili ama
   // kullanıcı yönetimi olmayan üyeye kapalı sayfaya link verilmez.

@@ -2237,7 +2237,9 @@
         "tumMesajlariGor": "Все сообщения",
         "aliciSiniz": "Вы — покупатель",
         "saticiSiniz": "Вы — продавец",
-        "mesajlarOkunmamis": "Сообщения (непрочитанных: {n})"
+        "mesajlarOkunmamis": "Сообщения (непрочитанных: {n})",
+        "yuklenemedi": "Не удалось загрузить сообщения.",
+        "tekrarDene": "Повторить"
       },
       "notificationBell": {
         "bildirimler": "Уведомления",
@@ -2245,7 +2247,9 @@
         "yukleniyor": "Загрузка…",
         "henuzBildiriminizYok": "У Вас пока нет уведомлений.",
         "tumBildirimleriGor": "Все уведомления",
-        "bildirimlerOkunmamis": "Уведомления (непрочитанных: {n})"
+        "bildirimlerOkunmamis": "Уведомления (непрочитанных: {n})",
+        "yuklenemedi": "Не удалось загрузить уведомления.",
+        "tekrarDene": "Повторить"
       },
       "portalGuard": {
         "yukleniyor": "Загрузка…",
@@ -2772,7 +2776,7 @@
         "sablonlar": "Шаблоны",
         "raporlar": "Отчёты",
         "enFazla500GosteriliyorDaha": "Показано не более 500 результатов ({unit}) — если их больше, сузьте список с помощью поиска и фильтров.",
-        "adiVeyaNumarasiAra": "{searchNoun}: поиск по названию или номеру…",
+        "adiVeyaNumarasiAra": "Поиск заявок на закупку по названию или номеру…",
         "siralama": "Сортировка",
         "tumDurumlar": "Все статусы ({length})",
         "durumFiltresi": "Фильтр по статусу",
@@ -3141,6 +3145,9 @@
         "birHataOlustuTekrarDeneyin": "Произошла ошибка — повторите попытку.",
         "tekrarDene": "Повторить",
         "henuzSatinAlmaTalebiYok": "Заявок на закупку пока нет.",
+        "eslesenTalepYok": "Подходящих заявок на закупку нет.",
+        "filtreleriDegistiripTekrarDene": "Измените поиск или фильтры и попробуйте снова.",
+        "filtreleriTemizle": "Сбросить фильтры",
         "ilkSatinAlmaTalebiniziBirkac": "Первую заявку на закупку можно создать за несколько минут — выберите приглашённых, введите позиции, опубликуйте.",
         "satinAlmaTalebiAcmaIslem": "Для создания заявки на закупку требуется операционная роль (Закупщик).",
         "satinAlmaTalebiListesi": "Список заявок на закупку",
@@ -4604,7 +4611,8 @@
         "tumuSayisiz": "Все",
         "durumFiltresi": "Фильтр по статусу",
         "tarihAraligi": "Диапазон дат",
-        "tum": "Все {partyPlural}",
+        "tumAlicilar": "Все покупатели",
+        "tumTedarikciler": "Все поставщики",
         "karsiTarafFiltresi": "Фильтр по контрагенту",
         "arama": "Поиск: «{search}»",
         "siparislerYuklenemediLutfenTekrarDeneyin": "Не удалось загрузить заказы. Пожалуйста, попробуйте ещё раз.",
@@ -4841,7 +4849,8 @@
           "PENDING": "Ожидает",
           "APPROVED": "Одобрено",
           "REJECTED": "Отклонено",
-          "SKIPPED": "Пропущено"
+          "SKIPPED": "Пропущено",
+          "NOT_NEEDED": "Не требуется"
         },
         "kalemKapsam": "{covered}/{total, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}}",
         "nKalem": "{n, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}}",
@@ -5714,7 +5723,13 @@
         "vdVkn": "Налоговая: {taxOffice} · Налоговый №: {taxNumber}",
         "sehir": "Город",
         "eyaletBolge": "Штат / регион",
-        "vergiNoYabanci": "ИНН / номер плательщика НДС"
+        "vergiNoYabanci": "ИНН / номер плательщика НДС",
+        "postaKodu5Hane": "В Турции почтовый индекс должен состоять из 5 цифр",
+        "vkn": "Налоговый №: {taxNumber}",
+        "adresAra": "Поиск по адресам",
+        "aramaSonucYok": "Нет адресов, соответствующих запросу.",
+        "dahaFazlaGoster": "Показать ещё (осталось {count})",
+        "adresSayisi": "{count, plural, one {# адрес} few {# адреса} many {# адресов} other {# адреса}}"
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Удалить банковский счёт?",
@@ -5760,7 +5775,8 @@
         "swiftInvalid": "Укажите корректный код SWIFT/BIC (8 или 11 символов)",
         "ibanOrAccountNumber": "IBAN или номер счёта",
         "optionalIbanHint": "В этой стране можно указать IBAN или местный номер счёта. При указании номера счёта также нужны код SWIFT/BIC и название банка.",
-        "bankCountryBlocked": "Этот счёт открыт в банке страны, счета из которой не принимаются; сохранить его нельзя"
+        "bankCountryBlocked": "Этот счёт открыт в банке страны, счета из которой не принимаются; сохранить его нельзя",
+        "zorunluAlan": "Это обязательное поле"
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "Название компании должно содержать не менее 2 символов",
@@ -5827,7 +5843,9 @@
         "kurucu": "Основатель",
         "il": "Провинция",
         "sehir": "Город",
-        "eyaletBolge": "Область / регион"
+        "eyaletBolge": "Область / регион",
+        "kimlikBilgilerindeHataVarsaYabanci": "Если в идентификационных данных есть ошибка, для изменения обратитесь в поддержку. Регистрационный номер и банковские реквизиты управляются на странице <dogrulama>Документы для проверки</dogrulama>; счета для получения оплаты по заказам — на странице <banka>Банковские счета</banka>.",
+        "postaKodu5Hane": "В Турции почтовый индекс должен состоять из 5 цифр"
       },
       "companyUsersSection": {
         "pasifYapildi": "Пользователь деактивирован",
@@ -6218,7 +6236,9 @@
         "bankName": "Название банка",
         "accountNumberInvalid": "Укажите корректный номер счёта (4–40 символов)",
         "idBothSidesHint": "Если это удостоверение личности, загрузите лицевую и оборотную стороны одним файлом (PDF или объединённое изображение).",
-        "bankCountryBlocked": "Этот счёт открыт в банке страны, счета из которой не принимаются; сохранить его нельзя"
+        "bankCountryBlocked": "Этот счёт открыт в банке страны, счета из которой не принимаются; сохранить его нельзя",
+        "firmanizDogrulandiSilver": "Ваша компания проверена. С тарифом Silver Вы можете отправлять предложения по публичным запросам; для публикации запросов перейдите на тариф Gold.",
+        "firmanizDogrulandiGold": "Ваша компания проверена. С тарифом Gold Вы можете публиковать запросы и отправлять предложения по публичным запросам."
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Для данных компании требуется право доступа",
@@ -7068,6 +7088,7 @@
       "onaylarPage": {
         "onayladi": "согласовал(а)",
         "atlandiButceEsigi": "пропущен (порог бюджета)",
+        "gerekKalmadi": "больше не требуется",
         "sirada": "в очереди",
         "not": "Примечание: {note}",
         "kayitlarYuklenemedi": "Не удалось загрузить записи",
@@ -7167,7 +7188,7 @@
         "usdKdvHaric": "USD, без НДС",
         "isleniyor": "Обработка…",
         "satinAl": "Купить",
-        "satinAlmaTalebiGonder": "Отправить запрос на покупку",
+        "satinAlmaTalebiGonder": "Написать нам для покупки",
         "paketiZatenFirmanizda": "У Вашей компании уже подключён тариф {name}",
         "mailKonu": "Покупка тарифа {name} — {company}",
         "mailGovde": "Здравствуйте,\n\nМы хотели бы приобрести тариф {name} для компании {company} с годовой оплатой.",
@@ -7233,7 +7254,9 @@
         "buKonusmadaAlicisiniz": "В этой переписке Вы <strong>покупатель</strong> — {name} продаёт Вам.",
         "buKonusmadaSaticisiniz": "В этой переписке Вы <strong>продавец</strong> — {name} покупает у Вас.",
         "sohbetAcilamadi": "Не удалось открыть переписку",
-        "sohbetAcilamadiAciklama": "Компания не найдена или у Вас нет прав на просмотр этой переписки. Вы можете выбрать другую компанию слева."
+        "sohbetAcilamadiAciklama": "Компания не найдена или у Вас нет прав на просмотр этой переписки. Вы можете выбрать другую компанию слева.",
+        "kisiAraEtiketi": "Поиск контактов",
+        "konusmalarYuklenemedi": "Не удалось загрузить переписки. Проверьте подключение и повторите попытку."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Не удалось отправить сообщение",
@@ -7243,7 +7266,11 @@
         "dun": "Вчера {time}",
         "mesajGondermekRoluGerektirir": "Для отправки сообщений нужна роль {role} — Вы только просматриваете переписку.",
         "mesajYaz": "Напишите сообщение…",
-        "enterIpucu": "Enter — отправить, Shift+Enter — новая строка"
+        "enterIpucu": "Enter — отправить, Shift+Enter — новая строка",
+        "aliciYonuGoldGerektirir": "Отправка сообщений в роли покупателя доступна в тарифе Gold — переписку можно просматривать.",
+        "onceUcretsizDogrulan": "Сначала пройдите бесплатную верификацию",
+        "goldaGec": "Перейти на Gold",
+        "karakterSayaci": "{n, number}/{max, plural, one {# символ} few {# символа} many {# символов} other {# символа}}"
       }
     },
     "verifyNudge": {

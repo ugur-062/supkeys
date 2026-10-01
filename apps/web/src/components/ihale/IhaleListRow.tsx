@@ -252,8 +252,10 @@ export function IhaleListRow({
         label: tr("yayin"),
         icon: "info",
         value: (
-          <span className="text-slate-500" title={fullDate(t.publishedAt ?? t.createdAt)}>
-            {shortDate(t.publishedAt ?? t.createdAt)}
+          // D-149: yayımlanmamış (taslak / onayda) talepte oluşturma tarihi
+          // "Yayın" gibi basılmaz — "—".
+          <span className="text-slate-500" title={t.publishedAt ? fullDate(t.publishedAt) : undefined}>
+            {shortDate(t.publishedAt)}
           </span>
         ),
       },
@@ -308,7 +310,7 @@ export function IhaleListRow({
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-4">
             {(
               [
-                [tr("yayin"), fullDate(t.publishedAt ?? t.createdAt) || "—"],
+                [tr("yayin"), fullDate(t.publishedAt)],
                 [tr("kapanis"), fullDate(t.bidsCloseAt) || "—"],
                 [tr("davetli"), String(t.invitationCount)],
                 [tr("teklif"), String(t.bidCount)],

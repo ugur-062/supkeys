@@ -2237,7 +2237,9 @@
         "tumMesajlariGor": "See all messages",
         "aliciSiniz": "You are the buyer",
         "saticiSiniz": "You are the seller",
-        "mesajlarOkunmamis": "Messages ({n} unread)"
+        "mesajlarOkunmamis": "Messages ({n} unread)",
+        "yuklenemedi": "Messages could not be loaded.",
+        "tekrarDene": "Try again"
       },
       "notificationBell": {
         "bildirimler": "Notifications",
@@ -2245,7 +2247,9 @@
         "yukleniyor": "Loading…",
         "henuzBildiriminizYok": "You have no notifications yet.",
         "tumBildirimleriGor": "See all notifications",
-        "bildirimlerOkunmamis": "Notifications ({n} unread)"
+        "bildirimlerOkunmamis": "Notifications ({n} unread)",
+        "yuklenemedi": "Notifications could not be loaded.",
+        "tekrarDene": "Try again"
       },
       "portalGuard": {
         "yukleniyor": "Loading…",
@@ -2772,7 +2776,7 @@
         "sablonlar": "Templates",
         "raporlar": "Reports",
         "enFazla500GosteriliyorDaha": "Showing at most 500 results ({unit}) — if there are more, narrow down with search and filters.",
-        "adiVeyaNumarasiAra": "Search by {searchNoun} name or number…",
+        "adiVeyaNumarasiAra": "Search buying requests by name or number…",
         "siralama": "Sort",
         "tumDurumlar": "All statuses ({length})",
         "durumFiltresi": "Status filter",
@@ -3141,6 +3145,9 @@
         "birHataOlustuTekrarDeneyin": "An error occurred — try again.",
         "tekrarDene": "Try again",
         "henuzSatinAlmaTalebiYok": "No buying requests yet.",
+        "eslesenTalepYok": "No matching buying requests.",
+        "filtreleriDegistiripTekrarDene": "Change your search or filters and try again.",
+        "filtreleriTemizle": "Clear filters",
         "ilkSatinAlmaTalebiniziBirkac": "You can create your first buying request in a few minutes — choose who to invite, enter the line items, publish.",
         "satinAlmaTalebiAcmaIslem": "Opening a buying request requires an action role (Purchaser).",
         "satinAlmaTalebiListesi": "Buying request list",
@@ -4604,7 +4611,8 @@
         "tumuSayisiz": "All",
         "durumFiltresi": "Status filter",
         "tarihAraligi": "Date range",
-        "tum": "All {partyPlural}",
+        "tumAlicilar": "All buyers",
+        "tumTedarikciler": "All suppliers",
         "karsiTarafFiltresi": "Counterparty filter",
         "arama": "Search: \"{search}\"",
         "siparislerYuklenemediLutfenTekrarDeneyin": "Orders could not be loaded. Please try again.",
@@ -4841,7 +4849,8 @@
           "PENDING": "Pending",
           "APPROVED": "Approved",
           "REJECTED": "Rejected",
-          "SKIPPED": "Skipped"
+          "SKIPPED": "Skipped",
+          "NOT_NEEDED": "Not needed"
         },
         "kalemKapsam": "{covered}/{total, plural, one {# line item} other {# line items}}",
         "nKalem": "{n, plural, one {# line item} other {# line items}}",
@@ -5714,7 +5723,13 @@
         "vdVkn": "Tax office: {taxOffice} · Tax no: {taxNumber}",
         "sehir": "City",
         "eyaletBolge": "State / region",
-        "vergiNoYabanci": "Tax / VAT number"
+        "vergiNoYabanci": "Tax / VAT number",
+        "postaKodu5Hane": "In Türkiye the postal code must be 5 digits",
+        "vkn": "Tax no: {taxNumber}",
+        "adresAra": "Search addresses",
+        "aramaSonucYok": "No addresses match your search.",
+        "dahaFazlaGoster": "Show more ({count} left)",
+        "adresSayisi": "{count, plural, one {# address} other {# addresses}}"
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Delete the bank account?",
@@ -5760,7 +5775,8 @@
         "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)",
         "ibanOrAccountNumber": "IBAN or account number",
         "optionalIbanHint": "In this country you can use an IBAN or a local account number. With an account number, the SWIFT/BIC code and bank name are also required.",
-        "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved"
+        "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved",
+        "zorunluAlan": "This field is required"
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "The company name must be at least 2 characters",
@@ -5827,7 +5843,9 @@
         "kurucu": "Founder",
         "il": "Province",
         "sehir": "City",
-        "eyaletBolge": "State / region"
+        "eyaletBolge": "State / region",
+        "kimlikBilgilerindeHataVarsaYabanci": "If there is an error in your identity details, contact support to have it changed. The registration number and bank account details are managed on the <dogrulama>Verification Documents</dogrulama> page; order collection accounts are managed on the <banka>Bank Accounts</banka> page.",
+        "postaKodu5Hane": "In Türkiye the postal code must be 5 digits"
       },
       "companyUsersSection": {
         "pasifYapildi": "Deactivated",
@@ -6218,7 +6236,9 @@
         "bankName": "Bank name",
         "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
         "idBothSidesHint": "If it is an ID card, upload the front and back in a single file (a PDF or a combined image).",
-        "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved"
+        "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved",
+        "firmanizDogrulandiSilver": "Your company is verified. With your Silver plan you can quote on public requests; upgrade to Gold to publish requests.",
+        "firmanizDogrulandiGold": "Your company is verified. With your Gold plan you can publish requests and quote on public requests."
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Company details require permission",
@@ -7068,6 +7088,7 @@
       "onaylarPage": {
         "onayladi": "approved",
         "atlandiButceEsigi": "skipped (budget threshold)",
+        "gerekKalmadi": "no longer needed",
         "sirada": "in queue",
         "not": "Note: {note}",
         "kayitlarYuklenemedi": "Could not load the records",
@@ -7167,7 +7188,7 @@
         "usdKdvHaric": "USD, excluding VAT",
         "isleniyor": "Processing…",
         "satinAl": "Buy",
-        "satinAlmaTalebiGonder": "Send purchase request",
+        "satinAlmaTalebiGonder": "Email us to purchase",
         "paketiZatenFirmanizda": "Your company already has the {name} plan",
         "mailKonu": "{name} plan purchase — {company}",
         "mailGovde": "Hello,\n\nWe would like to purchase the {name} plan for {company} with an annual term.",
@@ -7233,7 +7254,9 @@
         "buKonusmadaAlicisiniz": "In this conversation you are the <strong>buyer</strong> — {name} is selling to you.",
         "buKonusmadaSaticisiniz": "In this conversation you are the <strong>seller</strong> — {name} is buying from you.",
         "sohbetAcilamadi": "Could not open the conversation",
-        "sohbetAcilamadiAciklama": "The company was not found or you do not have permission to view this conversation. You can pick another company on the left."
+        "sohbetAcilamadiAciklama": "The company was not found or you do not have permission to view this conversation. You can pick another company on the left.",
+        "kisiAraEtiketi": "Search contacts",
+        "konusmalarYuklenemedi": "Conversations could not be loaded. Check your connection and try again."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Message could not be sent",
@@ -7243,7 +7266,11 @@
         "dun": "Yesterday {time}",
         "mesajGondermekRoluGerektirir": "Sending messages requires the {role} role — you are only viewing this conversation.",
         "mesajYaz": "Write a message…",
-        "enterIpucu": "Enter: send, Shift+Enter: new line"
+        "enterIpucu": "Enter: send, Shift+Enter: new line",
+        "aliciYonuGoldGerektirir": "Messaging as a buyer requires the Gold plan — you can still view this conversation.",
+        "onceUcretsizDogrulan": "Get verified for free first",
+        "goldaGec": "Upgrade to Gold",
+        "karakterSayaci": "{n, number}/{max, plural, one {# character} other {# characters}}"
       }
     },
     "verifyNudge": {

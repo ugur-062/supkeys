@@ -420,7 +420,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const accent = useButtonAccent();
   const { data, isLoading, isError, refetch } = useOrders();
   const isSeller = role === "seller";
-  const partyPlural = isSeller ? t("alicilar") : t("tedarikciler");
 
   // D-011: başlangıç durumu adresten (Faz 4.2 KPI drill-down `?status=` dahil);
   // `useSearchParams` sunucu-öncesi render ve testte NULL dönebilir.
@@ -582,7 +581,8 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             value={counterparty}
             onChange={reset(setCounterparty)}
             options={[
-              { value: "", label: t("tum", { partyPlural: partyPlural }) },
+              // D-152: tam ifade anahtarı — EN/RU'da cümle ortası büyük harf olmasın.
+              { value: "", label: isSeller ? t("tumAlicilar") : t("tumTedarikciler") },
               ...counterparties.map((c) => ({ value: c, label: c })),
             ]}
             ariaLabel={t("karsiTarafFiltresi")}

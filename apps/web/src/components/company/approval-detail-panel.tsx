@@ -8,6 +8,7 @@ import { ListSkeleton } from "@/components/list";
 import { useApprovalDetail } from "@/hooks/use-company-approvals";
 import { formatDate } from "@/lib/format-date";
 import { affixCurrency } from "@/lib/tenders/labels";
+import { displayStepStatus } from "@/lib/company/approval-steps";
 import { BadgeCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
@@ -18,6 +19,7 @@ const STEP_LABEL: Record<string, { key: string; color: "amber" | "green" | "rose
   APPROVED: { key: "step.APPROVED", color: "green" },
   REJECTED: { key: "step.REJECTED", color: "rose" },
   SKIPPED: { key: "step.SKIPPED", color: "zinc" },
+  NOT_NEEDED: { key: "step.NOT_NEEDED", color: "zinc" },
 };
 
 // Sayılar arayüz dilinin biçimiyle (`intl` = BCP-47; tr-TR sabitti).
@@ -212,13 +214,15 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
         </h4>
         <ol className="mt-1.5 space-y-1">
           {d.steps.map((s) => {
-            const st = STEP_LABEL[s.status] ?? STEP_LABEL.WAITING!;
+            // D-361: sonuçlanmış istekte karar verilmemiş adım "Gerek kalmadı".
+            const st = STEP_LABEL[displayStepStatus(s.status, d.status)] ?? STEP_LABEL.WAITING!;
             return (
               <li key={s.order} className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="tabular-nums text-zinc-400">{s.order}.</span>
                 <span className="font-medium text-zinc-950">
                   {s.approverName}
-                  {s.mine ? t("siz") : ""}
+                  {/* D-101: ad ile "(siz)" arasında boşluk. */}
+                  {s.mine ? ` ${t("siz")}` : ""}
                 </span>
                 {s.displayLabel ? <span className="text-zinc-500">{s.displayLabel}</span> : null}
                 <Badge color={st.color}>{t(st.key as never)}</Badge>

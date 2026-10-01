@@ -6,7 +6,7 @@ import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { cn } from "@/lib/utils";
-import { ClipboardList, Plus } from "lucide-react";
+import { CircleSlash, ClipboardList, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useEffect, useState } from "react";
@@ -26,12 +26,17 @@ export function IhaleListView({
   isError,
   onRetry,
   emptyCtaLabel,
+  isFiltered = false,
+  onClearFilters,
 }: {
   items: TenderListItem[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
   emptyCtaLabel?: string;
+  /** Arama/süzgeç etkin — boş sonuç "henüz yok" değil "eşleşen yok" (O-086). */
+  isFiltered?: boolean;
+  onClearFilters?: () => void;
 }) {
   const tr = useTranslations("web.panel.requests.ihalelistview");
   const ctaLabel = emptyCtaLabel ?? tr("satinAlmaTalebiAc");
@@ -100,6 +105,32 @@ export function IhaleListView({
           />
         ))}
       </div>
+    );
+  }
+
+  if (items.length === 0 && isFiltered) {
+    // O-086: süzgeç yüzünden boş — oluşturma CTA'sı değil, tek tık temizleme.
+    return (
+      <EmptyState
+        icon={CircleSlash}
+        title={tr("eslesenTalepYok")}
+        description={tr("filtreleriDegistiripTekrarDene")}
+        variant="no-results"
+        action={
+          onClearFilters ? (
+            <button
+              type="button"
+              onClick={onClearFilters}
+              className={cn(
+                "inline-flex items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50",
+                IHALE_VIEW_FOCUS,
+              )}
+            >
+              {tr("filtreleriTemizle")}
+            </button>
+          ) : undefined
+        }
+      />
     );
   }
 

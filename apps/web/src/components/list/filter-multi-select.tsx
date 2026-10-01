@@ -7,6 +7,19 @@ import { CheckIcon, ChevronDownIcon } from "@heroicons/react/16/solid";
 import type { ComponentType } from "react";
 import type { FilterSelectOption } from "./filter-select";
 
+/**
+ * "Tümü" satırının Listbox değeri (D-247): satır gerçek `ListboxOption` olsun
+ * ki ok/Home/End ile ulaşılsın. Dışarıya hiç sızmaz — `onChange` yalnız gerçek
+ * değerleri (ya da Tümü seçilince `[]`) verir.
+ */
+const ALL = "__filter_all__";
+
+/** Listbox'ın yeni seçimi → dış değer (saf; test edilir). */
+export function nextMultiValue(prev: string[], next: string[]): string[] {
+  const allPicked = next.includes(ALL) && prev.length > 0;
+  return allPicked ? [] : next.filter((v) => v !== ALL);
+}
+
 interface Props {
   /** Seçili değerler; BOŞ = süzgeç yok ("Tümü"). */
   value: string[];
@@ -47,7 +60,12 @@ export function FilterMultiSelect({
         ? (options.find((o) => o.value === value[0])?.label ?? value[0])
         : t("secili", { n: value.length });
   return (
-    <Listbox value={value} onChange={onChange} disabled={disabled} multiple>
+    <Listbox
+      value={active ? value : [ALL]}
+      onChange={(next: string[]) => onChange(nextMultiValue(value, next))}
+      disabled={disabled}
+      multiple
+    >
       <div className={cn("relative inline-flex", className)}>
         <ListboxButton
           aria-label={ariaLabel}
@@ -68,20 +86,15 @@ export function FilterMultiSelect({
           transition
           className="z-50 mt-1 min-w-[calc(var(--button-width)+2rem)] rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg ring-1 ring-zinc-950/5 transition focus:outline-none data-leave:duration-100 data-leave:ease-in data-closed:data-leave:opacity-0 [--anchor-gap:0.25rem]"
         >
-          {/* "Tümü" — seçimi temizler; Listbox değeri değil, düz düğme. */}
-          <button
-            type="button"
-            role="option"
-            aria-selected={!active}
-            onClick={() => onChange([])}
-            className={cn(
-              "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100",
-              !active && "font-semibold text-zinc-950",
-            )}
+          {/* "Tümü" — seçimi temizler. Klavyeyle ulaşılsın diye gerçek seçenek
+              (D-247; eskiden düz düğmeydi, ok/Home onu atlıyordu). */}
+          <ListboxOption
+            value={ALL}
+            className="group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-zinc-700 data-focus:bg-zinc-100 data-selected:font-semibold data-selected:text-zinc-950"
           >
-            <CheckIcon className={cn("size-4 shrink-0 text-zinc-950", active && "invisible")} aria-hidden />
+            <CheckIcon className="invisible size-4 shrink-0 text-zinc-950 group-data-selected:visible" aria-hidden />
             <span className="truncate">{allLabel}</span>
-          </button>
+          </ListboxOption>
           <div className="my-1 border-t border-zinc-950/5" aria-hidden />
           {options.map((o, i) => (
             <ListboxOption

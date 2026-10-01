@@ -19,9 +19,8 @@ import {
   type TenderListItem,
 } from "@/hooks/use-company-tenders";
 import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate, User as UserIcon } from "lucide-react";
-import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // Etiketler katalog anahtarı (`web.panel.requests.ihalelerView.sort.*` /
 // `.range.*`); çizim yerinde `tr(key)` ile çevrilir.
@@ -127,6 +126,60 @@ const STATUS_VALUES: Exclude<TabKey, "all">[] = [
 
 const PAGE_SIZE = 20;
 
+type ScopeKey = "all" | "open" | "limited";
+const SCOPE_VALUES: ScopeKey[] = ["all", "open", "limited"];
+
+/**
+ * Liste durumu ADRES ÇUBUĞUNDA (arayüz testi O-052): süzgeç seçip talebe
+ * girince Geri tuşu bütün listeye dönüyordu. Siparişler listesiyle aynı ilke
+ * (`orders-list.tsx` `parseOrdersUrl`): yalnız listenin kendi anahtarları
+ * okunur/yazılır, diğer parametreler korunur, varsayılanlar yazılmaz.
+ * `status` aynı zamanda KPI drill-down girişidir (`?status=OPEN`, virgüllü çoklu).
+ */
+export interface TendersUrlState {
+  q: string;
+  status: string[];
+  sort: string;
+  range: RangeKey;
+  scope: ScopeKey;
+  by: string;
+  page: number;
+}
+
+export function parseTendersUrl(get: (key: string) => string | null): TendersUrlState {
+  const sort = get("sort") ?? "";
+  const range = get("range") ?? "";
+  const scope = get("scope") ?? "";
+  const page = Number.parseInt(get("page") ?? "", 10);
+  return {
+    q: get("q") ?? "",
+    status: (get("status") ?? "")
+      .split(",")
+      .filter((v) => (STATUS_VALUES as string[]).includes(v)),
+    sort: SORT_OPTIONS.some((o) => o.value === sort) ? sort : DEFAULT_SORT,
+    range: RANGE_OPTIONS.some((o) => o.value === range) ? (range as RangeKey) : DEFAULT_RANGE,
+    scope: (SCOPE_VALUES as string[]).includes(scope) ? (scope as ScopeKey) : "all",
+    by: get("by") ?? "",
+    page: Number.isFinite(page) && page > 1 ? page : 1,
+  };
+}
+
+export function writeTendersUrl(params: URLSearchParams, st: TendersUrlState): URLSearchParams {
+  const out = new URLSearchParams(params);
+  const set = (key: string, value: string | null) => {
+    if (value) out.set(key, value);
+    else out.delete(key);
+  };
+  set("q", st.q || null);
+  set("status", st.status.length > 0 ? st.status.join(",") : null);
+  set("sort", st.sort !== DEFAULT_SORT ? st.sort : null);
+  set("range", st.range !== DEFAULT_RANGE ? st.range : null);
+  set("scope", st.scope !== "all" ? st.scope : null);
+  set("by", st.by || null);
+  set("page", st.page > 1 ? String(st.page) : null);
+  return out;
+}
+
 export function IhalelerView() {
   const tr = useTranslations("web.panel.requests.ihalelerView");
   const tn = useNavLabel();
@@ -137,24 +190,41 @@ export function IhalelerView() {
   const list = useTenders();
   const all = useMemo(() => list.data ?? [], [list.data]);
 
-  // Faz 4.2 — KPI drill-down: ?status=OPEN gibi bir başlangıç filtresi kabul
-  // edilir (yalnız ilk render; sonrası lokal state).
-  // `?status=OPEN` ya da virgüllü `?status=OPEN,IN_AWARD` (çoklu seçim).
-  const urlStatus = useSearchParams().get("status");
-  const [statuses, setStatuses] = useState<string[]>(() =>
-    (urlStatus ?? "")
-      .split(",")
-      .filter((v) => (STATUS_VALUES as string[]).includes(v)),
-  );
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<string>(DEFAULT_SORT);
-  // Drill-down'la gelindiyse tarih aralığı daraltılmaz — KPI sayısıyla liste
-  // sayısı tutmalı (varsayılan "Son 3 Ay" filtresi kartla çelişiyordu).
-  const [range, setRange] = useState<RangeKey>(urlStatus ? "all" : DEFAULT_RANGE);
-  const [createdById, setCreatedById] = useState("");
+  // Başlangıç durumu ADRESTEN (O-052) — Faz 4.2 KPI drill-down `?status=OPEN`
+  // (virgüllü çoklu) dahil. `useSearchParams` sunucu-öncesi render ve testte
+  // NULL dönebilir.
+  const sp = useSearchParams();
+  const [initial] = useState(() => parseTendersUrl((k) => sp?.get(k) ?? null));
+  const [statuses, setStatuses] = useState<string[]>(initial.status);
+  const [search, setSearch] = useState(initial.q);
+  const [sort, setSort] = useState<string>(initial.sort);
+  const [range, setRange] = useState<RangeKey>(initial.range);
+  const [createdById, setCreatedById] = useState(initial.by);
   // Görünürlük süzgeci (2026-09-21): kapsam yerine "tüm ülkelere açık / belirli ülkeler".
-  const [scope, setScope] = useState<"all" | "open" | "limited">("all");
-  const [page, setPage] = useState(1);
+  const [scope, setScope] = useState<ScopeKey>(initial.scope);
+  const [page, setPage] = useState(initial.page);
+
+  // Durum değişince adres çubuğuna yaz — geçmiş girdisi AÇMADAN (replaceState):
+  // detaydan Geri bu adrese, yani kalınan süzgeç ve sayfaya döner.
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const next = writeTendersUrl(u.searchParams, {
+        q: search,
+        status: statuses,
+        sort,
+        range,
+        scope,
+        by: createdById,
+        page,
+      }).toString();
+      if (next === u.searchParams.toString()) return;
+      u.search = next ? `?${next}` : "";
+      window.history.replaceState(window.history.state, "", u.toString());
+    } catch {
+      /* adres yazılamadı — liste yine çalışır */
+    }
+  }, [search, statuses, sort, range, scope, createdById, page]);
 
   // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
   // "Tümü (N)" etiketi görünen listeyle aynı evreni saysın.
@@ -241,6 +311,15 @@ export function IhalelerView() {
     setPage(1);
     setter(v);
   };
+  // O-086: süzgeç yüzünden boş listede tek tık temizleme (sıralama korunur).
+  const clearFilters = () => {
+    setSearch("");
+    setStatuses([]);
+    setRange(DEFAULT_RANGE);
+    setScope("all");
+    setCreatedById("");
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -252,18 +331,15 @@ export function IhalelerView() {
             {/* Sol menü sadeleştirmesi (2026-08-22): Şablonlar + Raporlar
                 menüden kalktı — tek giriş noktası bu sayfanın başlığı. Sayfalar
                 kendi kapılarını (rol/tier) kendileri uygular. */}
-            <Link href={secondary.sablonlar}>
-              <Button variant="secondary">
-                <LayoutTemplate className="h-4 w-4" />
-                {tr("sablonlar")}
-              </Button>
-            </Link>
-            <Link href={secondary.raporlar}>
-              <Button variant="secondary">
-                <BarChart3 className="h-4 w-4" />
-                {tr("raporlar")}
-              </Button>
-            </Link>
+            {/* D-247: bağlantı içinde düğme (`<a><button>`) değil, tek bağlantı. */}
+            <Button variant="secondary" href={secondary.sablonlar}>
+              <LayoutTemplate className="h-4 w-4" />
+              {tr("sablonlar")}
+            </Button>
+            <Button variant="secondary" href={secondary.raporlar}>
+              <BarChart3 className="h-4 w-4" />
+              {tr("raporlar")}
+            </Button>
             {/* Başlıkta "Yeni …" CTA'sı YOK (v2 3b): aynı eylem sol menüdeki
                 renkli düğmede — sayfa başına tek primary. Liste boşken boş
                 durum kendi CTA'sını gösterir (IhaleListView, F7 rol kapısıyla). */}
@@ -283,7 +359,7 @@ export function IhalelerView() {
           <SearchInput
             value={search}
             onChange={reset(setSearch)}
-            placeholder={tr("adiVeyaNumarasiAra", { searchNoun: t.searchNoun })}
+            placeholder={tr("adiVeyaNumarasiAra")}
             className="flex-1"
           />
           <FilterSelect
@@ -314,7 +390,7 @@ export function IhalelerView() {
           <FilterSelect
             icon={Globe}
             value={scope}
-            onChange={(v) => reset(setScope)(v as "all" | "open" | "limited")}
+            onChange={(v) => reset(setScope)(v as ScopeKey)}
             options={[
               { value: "all", label: tr("tumGorunurlukler") },
               { value: "open", label: tr("tumUlkelereAcik") },
@@ -366,6 +442,8 @@ export function IhalelerView() {
         isError={list.isError}
         onRetry={() => list.refetch()}
         emptyCtaLabel={tr("satinAlmaTalebiAc")}
+        isFiltered={isFiltered}
+        onClearFilters={clearFilters}
       />
 
       {totalPages > 1 ? (

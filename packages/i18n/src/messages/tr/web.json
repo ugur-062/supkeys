@@ -2237,7 +2237,9 @@
         "tumMesajlariGor": "Tüm mesajları gör",
         "aliciSiniz": "Alıcısınız",
         "saticiSiniz": "Satıcısınız",
-        "mesajlarOkunmamis": "Mesajlar ({n} okunmamış)"
+        "mesajlarOkunmamis": "Mesajlar ({n} okunmamış)",
+        "yuklenemedi": "Mesajlar yüklenemedi.",
+        "tekrarDene": "Tekrar dene"
       },
       "notificationBell": {
         "bildirimler": "Bildirimler",
@@ -2245,7 +2247,9 @@
         "yukleniyor": "Yükleniyor…",
         "henuzBildiriminizYok": "Henüz bildiriminiz yok.",
         "tumBildirimleriGor": "Tüm bildirimleri gör",
-        "bildirimlerOkunmamis": "Bildirimler ({n} okunmamış)"
+        "bildirimlerOkunmamis": "Bildirimler ({n} okunmamış)",
+        "yuklenemedi": "Bildirimler yüklenemedi.",
+        "tekrarDene": "Tekrar dene"
       },
       "portalGuard": {
         "yukleniyor": "Yükleniyor…",
@@ -2772,7 +2776,7 @@
         "sablonlar": "Şablonlar",
         "raporlar": "Raporlar",
         "enFazla500GosteriliyorDaha": "En fazla 500 {unit} gösteriliyor — daha fazlası varsa arama ve filtrelerle daraltın.",
-        "adiVeyaNumarasiAra": "{searchNoun} adı veya numarası ara…",
+        "adiVeyaNumarasiAra": "Satın alma talebi adı veya numarası ara…",
         "siralama": "Sıralama",
         "tumDurumlar": "Tüm Durumlar ({length})",
         "durumFiltresi": "Durum filtresi",
@@ -3141,6 +3145,9 @@
         "birHataOlustuTekrarDeneyin": "Bir hata oluştu — tekrar deneyin.",
         "tekrarDene": "Tekrar dene",
         "henuzSatinAlmaTalebiYok": "Henüz satın alma talebi yok.",
+        "eslesenTalepYok": "Eşleşen satın alma talebi yok.",
+        "filtreleriDegistiripTekrarDene": "Aramayı veya süzgeçleri değiştirip tekrar deneyin.",
+        "filtreleriTemizle": "Filtreleri temizle",
         "ilkSatinAlmaTalebiniziBirkac": "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın.",
         "satinAlmaTalebiAcmaIslem": "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir.",
         "satinAlmaTalebiListesi": "Satın Alma Talebi listesi",
@@ -4604,7 +4611,8 @@
         "tumuSayisiz": "Tümü",
         "durumFiltresi": "Durum filtresi",
         "tarihAraligi": "Tarih aralığı",
-        "tum": "Tüm {partyPlural}",
+        "tumAlicilar": "Tüm Alıcılar",
+        "tumTedarikciler": "Tüm Tedarikçiler",
         "karsiTarafFiltresi": "Karşı taraf filtresi",
         "arama": "Arama: \"{search}\"",
         "siparislerYuklenemediLutfenTekrarDeneyin": "Siparişler yüklenemedi. Lütfen tekrar deneyin.",
@@ -4841,7 +4849,8 @@
           "PENDING": "Bekliyor",
           "APPROVED": "Onaylandı",
           "REJECTED": "Reddedildi",
-          "SKIPPED": "Atlandı"
+          "SKIPPED": "Atlandı",
+          "NOT_NEEDED": "Gerek kalmadı"
         },
         "kalemKapsam": "{covered}/{total} kalem",
         "nKalem": "{n} kalem",
@@ -5714,7 +5723,13 @@
         "vdVkn": "VD: {taxOffice} · VKN: {taxNumber}",
         "sehir": "Şehir",
         "eyaletBolge": "Eyalet / bölge",
-        "vergiNoYabanci": "Vergi / KDV numarası"
+        "vergiNoYabanci": "Vergi / KDV numarası",
+        "postaKodu5Hane": "Türkiye'de posta kodu 5 haneli olmalıdır",
+        "vkn": "Vergi no: {taxNumber}",
+        "adresAra": "Adreslerde ara",
+        "aramaSonucYok": "Aramanızla eşleşen adres yok.",
+        "dahaFazlaGoster": "Daha fazla göster ({count} kaldı)",
+        "adresSayisi": "{count} adres"
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Banka hesabı silinsin mi?",
@@ -5760,7 +5775,8 @@
         "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)",
         "ibanOrAccountNumber": "IBAN ya da hesap numarası",
         "optionalIbanHint": "Bu ülkede IBAN ya da yerel hesap numarası kullanılabilir. Hesap numarasıyla birlikte SWIFT/BIC kodu ve banka adı da gerekli.",
-        "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez"
+        "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez",
+        "zorunluAlan": "Bu alan zorunlu"
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "Firma adı en az 2 karakter olmalı",
@@ -5827,7 +5843,9 @@
         "kurucu": "Kurucu",
         "il": "İl",
         "sehir": "Şehir",
-        "eyaletBolge": "Eyalet / bölge"
+        "eyaletBolge": "Eyalet / bölge",
+        "kimlikBilgilerindeHataVarsaYabanci": "Kimlik bilgilerinde hata varsa değişiklik için destek ile iletişime geçin. Sicil/kayıt numarası ve banka hesabı bilgileri <dogrulama>Doğrulama Belgeleri</dogrulama> sayfasından; sipariş tahsilat hesapları <banka>Banka Hesapları</banka> sayfasından yönetilir.",
+        "postaKodu5Hane": "Türkiye'de posta kodu 5 haneli olmalıdır"
       },
       "companyUsersSection": {
         "pasifYapildi": "Pasif yapıldı",
@@ -6218,7 +6236,9 @@
         "bankName": "Banka adı",
         "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
         "idBothSidesHint": "Kimlik kartıysa ön ve arka yüzünü tek dosyada (PDF ya da birleştirilmiş görsel) yükleyin.",
-        "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez"
+        "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez",
+        "firmanizDogrulandiSilver": "Firmanız doğrulandı. Silver paketinizle herkese açık taleplere teklif verebilirsiniz; talep yayınlamak için Gold pakete geçebilirsiniz.",
+        "firmanizDogrulandiGold": "Firmanız doğrulandı. Gold paketinizle talep yayınlayabilir ve herkese açık taleplere teklif verebilirsiniz."
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Firma Bilgileri yetki gerektirir",
@@ -7068,6 +7088,7 @@
       "onaylarPage": {
         "onayladi": "onayladı",
         "atlandiButceEsigi": "atlandı (bütçe eşiği)",
+        "gerekKalmadi": "gerek kalmadı",
         "sirada": "sırada",
         "not": "Not: {note}",
         "kayitlarYuklenemedi": "Kayıtlar yüklenemedi",
@@ -7167,7 +7188,7 @@
         "usdKdvHaric": "USD, KDV hariç",
         "isleniyor": "İşleniyor…",
         "satinAl": "Satın al",
-        "satinAlmaTalebiGonder": "Satın alma talebi gönder",
+        "satinAlmaTalebiGonder": "Satın almak için bize yazın",
         "paketiZatenFirmanizda": "{name} paketi zaten firmanızda",
         "mailKonu": "{name} paket satın alma — {company}",
         "mailGovde": "Merhaba,\n\n{company} için {name} paketini yıllık dönemle satın almak istiyoruz.\n\n",
@@ -7233,7 +7254,9 @@
         "buKonusmadaAlicisiniz": "Bu konuşmada <strong>alıcısınız</strong> — {name} size satış yapıyor.",
         "buKonusmadaSaticisiniz": "Bu konuşmada <strong>satıcısınız</strong> — {name} sizden alım yapıyor.",
         "sohbetAcilamadi": "Sohbet açılamadı",
-        "sohbetAcilamadiAciklama": "Firma bulunamadı ya da bu konuşmayı görüntüleme yetkiniz yok. Soldan başka bir firma seçebilirsiniz."
+        "sohbetAcilamadiAciklama": "Firma bulunamadı ya da bu konuşmayı görüntüleme yetkiniz yok. Soldan başka bir firma seçebilirsiniz.",
+        "kisiAraEtiketi": "Kişi ara",
+        "konusmalarYuklenemedi": "Konuşmalar yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Mesaj gönderilemedi",
@@ -7243,7 +7266,11 @@
         "dun": "Dün {time}",
         "mesajGondermekRoluGerektirir": "Mesaj göndermek {role} rolü gerektirir — konuşmayı görüntülüyorsunuz.",
         "mesajYaz": "Mesaj yaz…",
-        "enterIpucu": "Enter: gönder, Shift+Enter: yeni satır"
+        "enterIpucu": "Enter: gönder, Shift+Enter: yeni satır",
+        "aliciYonuGoldGerektirir": "Alıcı olarak mesaj göndermek Gold paketi gerektirir — konuşmayı görüntüleyebilirsiniz.",
+        "onceUcretsizDogrulan": "Önce ücretsiz doğrulanın",
+        "goldaGec": "Gold'a geç",
+        "karakterSayaci": "{n, number}/{max, number} karakter"
       }
     },
     "verifyNudge": {

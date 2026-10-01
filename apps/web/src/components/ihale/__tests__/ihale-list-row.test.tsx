@@ -94,4 +94,16 @@ describe("IhaleListRow", () => {
     await user.click(container.firstElementChild as HTMLElement);
     expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/company/ilan/l55"));
   });
+
+  it("D-149: yayımlanmamış taslakta Yayın sütunu oluşturma tarihini değil '—' gösterir", () => {
+    const draft = { ...ROW, status: "DRAFT", publishedAt: null } as unknown as TenderListItem;
+    render(<IhaleListRow t={draft} favorite={false} onToggleFavorite={vi.fn()} />);
+    const term = within(document.querySelector("dl")!)
+      .getAllByRole("term")
+      .find((dt) => dt.textContent?.trim() === "Yayın")!;
+    const value = term.nextElementSibling as HTMLElement;
+    expect(value.textContent?.trim()).toBe("—");
+    // Oluşturma tarihi (19 Ağu) Yayın hücresinde yok.
+    expect(value.textContent).not.toMatch(/19/);
+  });
 });

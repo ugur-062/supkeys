@@ -27,6 +27,7 @@ import { ListSkeleton, SearchInput } from "@/components/list";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
+import { displayStepStatus } from "@/lib/company/approval-steps";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -74,33 +75,45 @@ const REQ_STATUS_COLOR: Record<ApprovalHistoryItem["status"], "amber" | "green" 
 const money = (amount: number, currency: string, locale: Locale) =>
   affixCurrency(formatNumber(amount, locale), currency, locale);
 
-/** Adım zaman çizelgesi — kim, hangi sırada, ne karar verdi. */
-function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
+/**
+ * Adım zaman çizelgesi — kim, hangi sırada, ne karar verdi. İstek
+ * sonuçlandıysa karar verilmemiş adımlar "gerek kalmadı" (D-361).
+ */
+function StepsTimeline({
+  steps,
+  requestStatus,
+}: {
+  steps: ApprovalHistoryItem["steps"];
+  requestStatus: ApprovalHistoryItem["status"];
+}) {
   const t = useTranslations("web.panel.approvals.onaylarPage");
   const locale = useLocale() as Locale;
   return (
     <ol className="mt-2 space-y-1.5">
       {steps.map((s) => {
+        const status = displayStepStatus(s.status, requestStatus);
         const icon =
-          s.status === "APPROVED" ? (
+          status === "APPROVED" ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          ) : s.status === "REJECTED" ? (
+          ) : status === "REJECTED" ? (
             <XCircle className="h-4 w-4 text-rose-500" />
-          ) : s.status === "SKIPPED" ? (
+          ) : status === "SKIPPED" || status === "NOT_NEEDED" ? (
             <MinusCircle className="h-4 w-4 text-zinc-300" />
           ) : (
-            <Circle className={cn("h-4 w-4", s.status === "PENDING" ? "text-amber-500" : "text-zinc-300")} />
+            <Circle className={cn("h-4 w-4", status === "PENDING" ? "text-amber-500" : "text-zinc-300")} />
           );
         const verb =
-          s.status === "APPROVED"
+          status === "APPROVED"
             ? t("onayladi")
-            : s.status === "REJECTED"
+            : status === "REJECTED"
               ? t("reddetti")
-              : s.status === "SKIPPED"
+              : status === "SKIPPED"
                 ? t("atlandiButceEsigi")
-                : s.status === "PENDING"
-                  ? t("kararBekleniyor")
-                  : t("sirada");
+                : status === "NOT_NEEDED"
+                  ? t("gerekKalmadi")
+                  : status === "PENDING"
+                    ? t("kararBekleniyor")
+                    : t("sirada");
         return (
           <li key={s.order} className="flex items-start gap-2 text-xs">
             <span className="mt-0.5 shrink-0">{icon}</span>
@@ -325,7 +338,7 @@ function RequestCard({
             <ChevronDown aria-hidden className="size-4 transition group-open:rotate-180" />
             {t("adimlar", { decidedSteps: h.decidedSteps, totalSteps: h.totalSteps })}
           </summary>
-          <StepsTimeline steps={h.steps} />
+          <StepsTimeline steps={h.steps} requestStatus={h.status} />
         </details>
         {canCancel && h.status === "PENDING" ? (
           <Button plain onClick={() => onCancel(h)} disabled={cancelPending}>

@@ -17874,6 +17874,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.approvals.onaylarPage.gerekKalmadi": {
+    "hash": "2e382c3607",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.approvals.onaylarPage.icinIstegiOnaylansinMi": {
     "hash": "0120926725",
     "status": "reviewed",
@@ -23550,9 +23555,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.ihalelerView.adiVeyaNumarasiAra": {
-    "hash": "d2091365cd",
+    "hash": "b9b3b233b1",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.ihalelerView.belirliUlkeler": {
     "hash": "f5df3ce718",
@@ -23788,6 +23793,21 @@
     "hash": "e9213c1fa3",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.ihalelistview.eslesenTalepYok": {
+    "hash": "c61aca9d35",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.ihalelistview.filtreleriDegistiripTekrarDene": {
+    "hash": "9067246a75",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.ihalelistview.filtreleriTemizle": {
+    "hash": "42ee1c1ee6",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.ihalelistview.henuzSatinAlmaTalebiYok": {
     "hash": "4b5696de42",
@@ -34494,6 +34514,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.approvalDetailPanel.step.NOT_NEEDED": {
+    "hash": "1dbaaba89c",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.approvalDetailPanel.step.PENDING": {
     "hash": "bddfa0b57d",
     "status": "reviewed",
@@ -36839,10 +36864,15 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.ordersList.tum": {
-    "hash": "4c6af3b252",
+  "web.panel.trade.ordersList.tumAlicilar": {
+    "hash": "520eda0409",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.ordersList.tumTedarikciler": {
+    "hash": "7248d65334",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.ordersList.tumu": {
     "hash": "fd767d8d7f",

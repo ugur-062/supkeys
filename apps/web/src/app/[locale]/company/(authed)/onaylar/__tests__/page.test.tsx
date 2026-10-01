@@ -158,4 +158,30 @@ describe("OnaylarPage", () => {
     expect(screen.getByRole("tab", { name: /Sıra sizde/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel")).toBeInTheDocument();
   });
+
+  it("D-361: reddedilen/iptal edilen istekte karar verilmemiş adımlar 'sırada' / 'karar bekleniyor' değil 'gerek kalmadı'", () => {
+    const extra = [
+      {
+        ...ALL[1]!, id: "a3", requestNo: "ONY-0040", status: "REJECTED", mine: false,
+        listing: { id: "l3", number: "ROT-000040", title: "Reddedilen alım", type: "ALIM" },
+        totalSteps: 2, decidedSteps: 1, steps: [step(1, "REJECTED", "Veli"), step(2, "WAITING", "Can")],
+      },
+      {
+        ...ALL[1]!, id: "a4", requestNo: "ONY-0039", status: "CANCELLED", mine: false,
+        listing: { id: "l4", number: "ROT-000039", title: "İptal edilen alım", type: "ALIM" },
+        totalSteps: 1, decidedSteps: 0, steps: [step(1, "PENDING", "Ayşe K.")],
+      },
+    ];
+    ALL.push(...(extra as typeof ALL));
+    try {
+      render(<OnaylarPage />);
+      fireEvent.click(screen.getByRole("tab", { name: /Tüm istekler/ }));
+      expect(screen.getAllByText(/^gerek kalmadı$/)).toHaveLength(2);
+      // Yalnız hâlâ bekleyen a1'in adımları "karar bekleniyor" / "sırada" der.
+      expect(screen.getAllByText(/^karar bekleniyor$/)).toHaveLength(1);
+      expect(screen.getAllByText(/^sırada$/)).toHaveLength(1);
+    } finally {
+      ALL.splice(2);
+    }
+  });
 });
