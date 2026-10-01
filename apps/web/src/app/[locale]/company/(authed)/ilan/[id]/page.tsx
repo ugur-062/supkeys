@@ -59,6 +59,7 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { activePortalFromPath } from "@/lib/company/portals";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
+import { bidViewQuery, parseBidView, type BidView } from "@/lib/tenders/bid-view";
 import {
   bidItemCurrency,
   bidItemUnitPriceTry,
@@ -315,11 +316,10 @@ export default function ListingDetailPage() {
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
   // Gelen Teklifler süzgeci ?teklifler= ile taşınır — teklif detayından geri
   // dönünce seçim korunur (arayüz testi D-109; ?tab= ile aynı kalıp).
-  const rawBidView = searchParams.get("teklifler");
-  const [bidView, setBidViewState] = useState<"all" | "complete" | "incomplete">(
-    rawBidView === "complete" || rawBidView === "incomplete" ? rawBidView : "all",
+  const [bidView, setBidViewState] = useState<BidView>(() =>
+    parseBidView(searchParams.get("teklifler")),
   );
-  const setBidView = (v: "all" | "complete" | "incomplete") => {
+  const setBidView = (v: BidView) => {
     setBidViewState(v);
     const u = new URL(window.location.href);
     if (v === "all") u.searchParams.delete("teklifler");
@@ -720,6 +720,10 @@ export default function ListingDetailPage() {
   // Firma yüklenmeden kilit basılmaz (sunucu zaten kapılı).
   const companyVerified =
     !company || company.companyVerificationStatus === "VERIFIED";
+  // İncelemedeki (PENDING) firmaya "Doğrulamayı tamamlayın" denmez — düğme
+  // yine pasif, not bağlantısız "inceleniyor" der (buyingGate/SilverLockCard
+  // ile aynı kural).
+  const verificationPending = company?.companyVerificationStatus === "PENDING";
   // F7: durum uygun OLSA da yalnız izinli-yönetici kazandırma/eleme yapabilir.
   const canManage = canManageListing({
     hasManagePermission,
@@ -1189,13 +1193,15 @@ export default function ListingDetailPage() {
         <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-amber-600/20">
           <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
           <span>
-            {t.rich("kazandirmakIcinFirmaDogrulamasiGerekir", {
-              link: (c) => (
-                <Link href={VERIFY_HREF} className="font-semibold underline">
-                  {c}
-                </Link>
-              ),
-            })}
+            {verificationPending
+              ? t("dogrulamaIncelemedeOnaylanincaYayinlayipKazandirabilirsiniz")
+              : t.rich("kazandirmakIcinFirmaDogrulamasiGerekir", {
+                  link: (c) => (
+                    <Link href={VERIFY_HREF} className="font-semibold underline">
+                      {c}
+                    </Link>
+                  ),
+                })}
           </span>
         </p>
       ) : null}
@@ -1644,7 +1650,7 @@ export default function ListingDetailPage() {
                 ) : null}
                 {b.status === "LOST" ? <Badge color="zinc">{t("elendi")}</Badge> : null}
                 <Link
-                  href={`/company/ilan/${l.id}/teklif/${b.id}`}
+                  href={`/company/ilan/${l.id}/teklif/${b.id}${bidViewQuery(bidView)}`}
                   className="text-[15px] font-semibold text-zinc-950 hover:text-blue-700 hover:underline"
                 >
                   {b.bidderName}
@@ -2079,25 +2085,32 @@ export default function ListingDetailPage() {
           </div>
           {publishNeedsVerify ? (
             <p className="text-right text-xs text-amber-800">
-              {t.rich("yayinIcinFirmaDogrulamasiGerekir", {
-                link: (c) => (
-                  <Link href={VERIFY_HREF} className="font-semibold underline">
-                    {c}
-                  </Link>
-                ),
-              })}
+              {verificationPending
+                ? t("dogrulamaIncelemedeOnaylanincaYayinlayipKazandirabilirsiniz")
+                : t.rich("yayinIcinFirmaDogrulamasiGerekir", {
+                    link: (c) => (
+                      <Link href={VERIFY_HREF} className="font-semibold underline">
+                        {c}
+                      </Link>
+                    ),
+                  })}
             </p>
           ) : null}
         </div>
       ) : null;
     // Talebi yalnız açan kişi yönetir (assertListingManageRole; SAHİP
     // istisnası yok) — başkası düğmesiz sayfada nedenini görmeli (D-110).
+    // Talebi AÇAN ama rolünde buy:listing:manage olmayan kişiye "yalnız açan
+    // kişi" demek yanlış neden olur — ona yetki notu gösterilir.
+    const isCreator = !!l.createdById && l.createdById === user?.id;
     const manageOnlyCreatorNote =
       !canManage &&
       (l.status === "DRAFT" || l.status === "OPEN" || l.status === "IN_AWARD") ? (
         <p className="mt-4 flex items-start gap-2 border-t border-zinc-950/5 pt-4 text-sm text-zinc-600">
           <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-zinc-500" />
-          {t("buTalebiYalnizAcanKisiYonetebilir")}
+          {isCreator
+            ? t("buTalebiYonetmeYetkinizYok")
+            : t("buTalebiYalnizAcanKisiYonetebilir")}
         </p>
       ) : null;
     return (

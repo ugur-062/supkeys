@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({ detail: undefined as unknown }));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "l1", bidId: "b1" }),
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/components/providers/confirm-dialog", () => ({

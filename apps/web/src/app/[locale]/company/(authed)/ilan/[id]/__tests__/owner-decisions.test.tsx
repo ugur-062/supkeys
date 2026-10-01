@@ -157,6 +157,14 @@ describe("talebi açmamış meslektaş (O-089 / D-110)", () => {
     expect(screen.getByRole("button", { name: /AI ile tedarikçi bul/ })).toBeInTheDocument();
     expect(screen.queryByText(/Bu talebi yalnız açan kişi yönetebilir/)).toBeNull();
   });
+
+  it("talebi açan ama yönetim izni olmayan kişiye 'yalnız açan kişi' değil yetki notu", () => {
+    h.perms = ["buy:view"];
+    h.detail = detail();
+    renderPage();
+    expect(screen.queryByText(/Bu talebi yalnız açan kişi yönetebilir/)).toBeNull();
+    expect(screen.getByText(/rolünüzde talep yönetme yetkisi yok/)).toBeInTheDocument();
+  });
 });
 
 describe("doğrulanmamış Gold firma (D-027 / D-044)", () => {
@@ -179,6 +187,28 @@ describe("doğrulanmamış Gold firma (D-027 / D-044)", () => {
     renderPage();
     expect(screen.getByRole("button", { name: "Kazandır" })).toBeDisabled();
     expect(screen.getByText(/Kazandırma sipariş doğurur ve firma doğrulaması ister/)).toBeInTheDocument();
+  });
+});
+
+describe("doğrulaması incelemedeki Gold firma (PENDING)", () => {
+  beforeEach(() => {
+    h.company = { id: "c1", country: "TR", tier: "GOLD", companyVerificationStatus: "PENDING" };
+  });
+
+  it("Yayınla pasif; 'Doğrulamayı tamamlayın' yerine bağlantısız inceleme notu", () => {
+    h.detail = detail({ status: "DRAFT", canPublish: true, canEdit: true, bids: [] } as Partial<ListingDetail>);
+    renderPage();
+    expect(visible("Yayınla")[0]).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Doğrulamayı tamamlayın" })).toBeNull();
+    expect(screen.getAllByText(/Doğrulamanız inceleniyor/).length).toBeGreaterThan(0);
+  });
+
+  it("Kazandır pasif; inceleme notu, doğrulama bağlantısı yok", () => {
+    h.detail = detail();
+    renderPage();
+    expect(screen.getByRole("button", { name: "Kazandır" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Doğrulamayı tamamlayın" })).toBeNull();
+    expect(screen.getByText(/Doğrulamanız inceleniyor/)).toBeInTheDocument();
   });
 });
 
@@ -282,6 +312,16 @@ describe("Gelen Teklifler satırı (D-107 / D-108 / D-109)", () => {
     renderPage();
     expect(screen.getByRole("button", { name: "Eksik (0)" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Bu süzgece uyan teklif yok.")).toBeInTheDocument();
+  });
+
+  it("teklif detayı bağlantısı seçili süzgeci taşır", () => {
+    h.search = "teklifler=complete";
+    h.detail = detail();
+    renderPage();
+    expect(screen.getByRole("link", { name: "Canli Teklif" })).toHaveAttribute(
+      "href",
+      "/company/ilan/l1/teklif/b1?teklifler=complete",
+    );
   });
 });
 

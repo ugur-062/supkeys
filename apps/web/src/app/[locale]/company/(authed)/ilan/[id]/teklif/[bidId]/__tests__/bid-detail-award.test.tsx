@@ -17,11 +17,13 @@ const h = vi.hoisted(() => ({
   confirm: vi.fn(),
   perms: ["buy:listing:manage", "buy:award"] as string[],
   company: null as Record<string, unknown> | null,
+  search: "",
 }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "l1", bidId: "b1" }),
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(h.search),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/components/providers/confirm-dialog", () => ({
@@ -86,6 +88,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.perms = ["buy:listing:manage", "buy:award"];
   h.company = null;
+  h.search = "";
   h.award.mockResolvedValue({ pendingApproval: false, number: "ORD-2026-0001" });
   h.preview.mockResolvedValue({ requiresApproval: false });
   h.confirm.mockResolvedValue(true);
@@ -151,6 +154,32 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
       "href",
       "/company/ayarlar/dogrulama",
     );
+  });
+
+  it("incelemedeki (PENDING) firmada Kazandır pasif, bağlantısız inceleme notu", () => {
+    h.company = { id: "c1", tier: "GOLD", companyVerificationStatus: "PENDING" };
+    h.detail = detail();
+    render(<BidDetailPage />);
+    expect(screen.getByRole("button", { name: "Kazandır" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Doğrulamayı tamamlayın" })).toBeNull();
+    expect(screen.getByText(/Doğrulamanız inceleniyor/)).toBeInTheDocument();
+  });
+
+  it("geri bağlantısı Gelen Teklifler süzgecini (?teklifler=) korur (D-109)", () => {
+    h.search = "teklifler=incomplete";
+    h.detail = detail();
+    render(<BidDetailPage />);
+    expect(screen.getByRole("link", { name: "Rulman Alımı" })).toHaveAttribute(
+      "href",
+      "/company/ilan/l1?teklifler=incomplete",
+    );
+  });
+
+  it("geri bağlantısı bilinmeyen süzgeç değerini taşımaz", () => {
+    h.search = "teklifler=evil";
+    h.detail = detail();
+    render(<BidDetailPage />);
+    expect(screen.getByRole("link", { name: "Rulman Alımı" })).toHaveAttribute("href", "/company/ilan/l1");
   });
 
   it("buy:award izni yoksa Kazandır gösterilmez, Ele kalır (derin denetim LU-21)", () => {

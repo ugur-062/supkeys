@@ -35,13 +35,14 @@ import { useFormatMoney } from "@/components/ui/money";
 import { formatNumber } from "@/i18n/format";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   useCompanyAuth,
   useHasCompanyPermission,
 } from "@/hooks/use-company-auth";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
+import { bidViewQuery, parseBidView } from "@/lib/tenders/bid-view";
 import { VERIFY_HREF } from "@/lib/public/member-gate";
 import { yesNoAnswerLabel } from "@/lib/tenders/yes-no-answer";
 import { toast } from "sonner";
@@ -56,6 +57,10 @@ export default function BidDetailPage() {
   const { money: formatMoney } = useFormatMoney();
   const params = useParams<{ id: string; bidId: string }>();
   const { id, bidId } = params;
+  // Talep detayındaki Gelen Teklifler süzgeci (?teklifler=) geri bağlantısına
+  // taşınır — uygulama içi geri ok da seçimi korur (arayüz testi D-109).
+  const searchParams = useSearchParams();
+  const backHref = `/company/ilan/${id}${bidViewQuery(parseBidView(searchParams.get("teklifler")))}`;
   const { data: l, isLoading, isError, refetch } = useListingDetail(id);
   const confirm = useConfirm();
   const award = useAwardListing(id);
@@ -72,6 +77,9 @@ export default function BidDetailPage() {
   // D-044: "GERİ ALINAMAZ" onayından sonra 403 yerine önceden söylenir.
   const companyVerified =
     !company || company.companyVerificationStatus === "VERIFIED";
+  // İncelemedeki (PENDING) firmaya "Doğrulamayı tamamlayın" denmez — talep
+  // detayıyla aynı kural (buyingGate/SilverLockCard).
+  const verificationPending = company?.companyVerificationStatus === "PENDING";
   const hasManagePermission = useHasCompanyPermission("buy:listing:manage");
   // Kazandırma ayrı izin (API award uçları `buy:award` ister) — yetki
   // tablosunda "Kazandırma" verilmemiş üyeye düğme gösterilmez (derin
@@ -102,7 +110,7 @@ export default function BidDetailPage() {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <Link
-          href={`/company/ilan/${id}`}
+          href={backHref}
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
         >
           <ArrowLeftIcon className="h-4 w-4" />
@@ -195,7 +203,7 @@ export default function BidDetailPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
-        href={`/company/ilan/${id}`}
+        href={backHref}
         className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
       >
         <ArrowLeftIcon className="h-4 w-4" />
@@ -284,13 +292,15 @@ export default function BidDetailPage() {
             ) : null}
             {!companyVerified && hasAwardPermission && !bidExpired ? (
               <Text className="text-right text-xs text-amber-700">
-                {t.rich("kazandirmakIcinFirmaDogrulamasiGerekir", {
-                  link: (c) => (
-                    <Link href={VERIFY_HREF} className="font-semibold underline">
-                      {c}
-                    </Link>
-                  ),
-                })}
+                {verificationPending
+                  ? t("dogrulamaIncelemedeOnaylanincaYayinlayipKazandirabilirsiniz")
+                  : t.rich("kazandirmakIcinFirmaDogrulamasiGerekir", {
+                      link: (c) => (
+                        <Link href={VERIFY_HREF} className="font-semibold underline">
+                          {c}
+                        </Link>
+                      ),
+                    })}
               </Text>
             ) : null}
           </div>
