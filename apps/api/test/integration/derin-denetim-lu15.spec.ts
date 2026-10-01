@@ -447,7 +447,7 @@ describe("LU-15 — taslak canlandırma yalnız teklif alımı açıkken", () =>
       closesAt: new Date(Date.now() - 3600_000),
     });
     await expect(service.extendBidValidity(bidder.auth, listing.id, 1)).rejects.toThrow(
-      /İlan teklife kapalı/,
+      /Talep teklife kapalı/,
     );
     const b = await prisma.listingBid.findFirstOrThrow({ where: { listingId: listing.id } });
     expect(b.status).toBe("DRAFT");

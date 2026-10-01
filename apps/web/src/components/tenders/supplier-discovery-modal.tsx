@@ -102,6 +102,9 @@ export function SupplierDiscoveryModal({
   const invite = useInviteConnection();
   const inviteMembers = useInviteDiscoveredMembers();
   const [candidates, setCandidates] = useState<DiscoveryCandidate[]>([]);
+  // Öneri çağrısı hatası (403 paket kilidi dahil) BOŞ SONUÇ DEĞİLDİR — arayüz
+  // testi O-058: 403 "önerilebilecek yeni firma bulunamadı" diye gösteriliyordu.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [invited, setInvited] = useState<Set<string>>(new Set());
   const [inviting, setInviting] = useState<string | null>(null);
 
@@ -125,6 +128,7 @@ export function SupplierDiscoveryModal({
     if (!isOpen) return;
     setTab("platform");
     setCandidates([]);
+    setLoadError(null);
     setInvited(new Set());
     setExternalResults([]);
     setSelectedExt(new Set());
@@ -147,8 +151,13 @@ export function SupplierDiscoveryModal({
         itemNames: effItemNames.slice(0, 15),
         ...(listingId ? { listingId } : { targetCountries: targetCountries ?? [] }),
       })
-      .then(setCandidates)
-      .catch(() => toast.error(tr("onerilerYuklenemediTekrarDeneyin")));
+      .then((rows) => {
+        setLoadError(null);
+        setCandidates(rows);
+      })
+      // Hata gövdede kalıcı gösterilir (sunucunun nedeni: paket/izin/ağ);
+      // 403 için genel istemci zaten toast atar — ikinci toast yok.
+      .catch((err) => setLoadError(extractErrorMessage(err, tr("onerilerYuklenemediTekrarDeneyin"))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, catKey]);
 
@@ -308,7 +317,9 @@ export function SupplierDiscoveryModal({
                   {tr("dahaFazlaTedarikciyeEris")}
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-zinc-500">
-                  {tr("satinAlmaTalebiKategorilerinizeGore")}
+                  {/* Talepten açılışta bağlantı akışı anlatılmaz (D-098):
+                      üye doğrudan talebe, web'deki firma talebe özel e-postayla. */}
+                  {listingId ? tr("talepIcinAciklama") : tr("satinAlmaTalebiKategorilerinizeGore")}
                 </p>
               </div>
             </div>
@@ -522,6 +533,10 @@ export function SupplierDiscoveryModal({
                 <Loader2 className="h-5 w-5 animate-spin" />
                 {tr("eslesenFirmalarAraniyor")}
               </div>
+            ) : loadError ? (
+              <p role="alert" className="py-10 text-center text-sm text-red-700">
+                {loadError}
+              </p>
             ) : candidates.length === 0 ? (
               <p className="py-10 text-center text-sm text-zinc-500">
                 {tr("buKategorilerdeOnerilebilecekYeniFirma")}
@@ -612,9 +627,18 @@ export function SupplierDiscoveryModal({
           </div>
           )}
 
-          <div className="border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3 text-xs text-zinc-500">
-            {listingId && tab === "platform" ? tr("uyeDogrudanTalebeDavet") : tr("davetKabulEdilinceFirmaBaglantilariniza")}
-          </div>
+          {/* Altbilgi sekmenin GERÇEK akışını anlatır (D-098): talepte üye
+              doğrudan davet / web'deki firmaya talebe özel e-posta; talepsiz
+              açılışta platform sekmesi bağlantı daveti gönderir. */}
+          {listingId || tab === "platform" ? (
+            <div className="border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3 text-xs text-zinc-500">
+              {listingId
+                ? tab === "platform"
+                  ? tr("uyeDogrudanTalebeDavet")
+                  : tr("talebeOzelDisDavetNotu")
+                : tr("davetKabulEdilinceFirmaBaglantilariniza")}
+            </div>
+          ) : null}
         </DialogPanel>
       </div>
     </Dialog>

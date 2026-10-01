@@ -452,7 +452,7 @@ describe("adres defteri", () => {
       deliveryAddressId: addr.id,
     });
     await expect(s.remove(auth, addr.id)).rejects.toThrow(
-      /aktif ilanda kullanılıyor/i,
+      /aktif talepte kullanılıyor/i,
     );
   });
 

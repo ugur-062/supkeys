@@ -54,6 +54,7 @@ import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useListingDocuments } from "@/hooks/use-listing-documents";
 import { BUYING_TIER, foldSearchText, tierAtLeast } from "@rothern/shared";
+import { buyingGate } from "@/lib/public/member-gate";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { activePortalFromPath } from "@/lib/company/portals";
 import { usePortalStore } from "@/lib/company/portal-store";
@@ -1754,6 +1755,13 @@ export default function ListingDetailPage() {
     hasManagePermission &&
     (l.status === "DRAFT" || l.status === "OPEN");
   const discoverTierOk = !!company && tierAtLeast(company.tier, BUYING_TIER);
+  // Paket kilidi (arayüz testi O-058, kullanıcı kararı T-06): Gold'u düşen /
+  // süresi biten firmada yeni iş (yayın, düzenleme, davet, yeni tur, uzatma)
+  // kilitli; doğrulanmamışsa CTA doğrulama, değilse Gold. Firma yüklenmeden
+  // kilit basılmaz (paketli kullanıcıda yanıp sönmesin; sunucu zaten kapılı).
+  const ownerGate = company ? buyingGate(user, company, "listing") : "ok";
+  const buyLock =
+    ownerGate === "verify" || ownerGate === "upgrade" ? ownerGate : null;
 
   // P2 (denetim §10.4): OrderStatusStrip — kazandırma sonrası ihale detayı,
   // doğan siparişin durumuna bağlanır ("Tamamlandı / Kazandın / Teslime hazır"
@@ -1859,8 +1867,11 @@ export default function ListingDetailPage() {
     // — taslağı açan sahip ilk ekranda "Yayınla"yı hiç görmüyordu (kısa
     // sayfada/yüksek ekranda kaydırma olmadığı için HİÇ). Teklifçi dalındaki
     // 2026-09-10 düzeltmesiyle aynı: başlık kartı taşır, şerit kaydırınca devralır.
+    // Yayınlama Gold ister (API publishWork) — kilitte düğme yok, menüdeki
+    // paket notu nedenini ve CTA'yı söyler.
+    const canPublishNow = !!l.canPublish && !buyLock;
     const ownerPrimaryActions =
-      canManage && (l.pendingApprovalId || l.canPublish) ? (
+      canManage && (l.pendingApprovalId || canPublishNow) ? (
         <div className="flex items-center gap-2">
           {l.pendingApprovalId ? (
             <Button
@@ -1871,7 +1882,7 @@ export default function ListingDetailPage() {
               {t("onayiIptalEt")}
             </Button>
           ) : null}
-          {l.canPublish ? (
+          {canPublishNow ? (
             <Button onClick={handlePublish} disabled={publish.isPending}>
               {t("yayinla")}
             </Button>
@@ -1960,6 +1971,10 @@ export default function ListingDetailPage() {
               closesAt={l.closesAt}
               internalNotes={l.internalNotes ?? null}
               canEdit={l.canEdit}
+              buyLock={buyLock}
+              invitedCodes={(l.invitations ?? [])
+                .map((iv) => iv.rothernId)
+                .filter((c): c is string => !!c)}
               currency={l.primaryCurrency}
               allowedCurrencies={l.allowedCurrencies ?? []}
               carryableBidCount={

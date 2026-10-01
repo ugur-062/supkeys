@@ -143,3 +143,24 @@ describe("SupplierDiscoveryModal — dış davet", () => {
     expect(await screen.findAllByText("Talebe davetli")).toHaveLength(2);
   });
 });
+
+describe("SupplierDiscoveryModal — hata ve talep kipi metinleri (arayüz testi O-058, D-098)", () => {
+  it("öneri çağrısı reddedilince (403 paket kilidi) boş durum değil sunucunun nedeni görünür", async () => {
+    h.discovery.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 403, data: { message: "AI tedarikçi keşfi Gold paket gerektirir" } },
+    });
+    render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Gold paket gerektirir");
+    expect(screen.queryByText("Bu kategorilerde önerilebilecek yeni firma bulunamadı.")).toBeNull();
+  });
+
+  it("talepten açılışta giriş ve altbilgi bağlantı akışını anlatmaz", async () => {
+    render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
+    expect(screen.getByText(/Platformdaki üyeleri doğrudan talebe davet edin/)).toBeInTheDocument();
+    expect(screen.queryByText(/kabul edince satın alma talebinize davet edebilirsiniz/)).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /Web'de Ara/ }));
+    expect(screen.getByText(/bu talebe özel davet e-postası gider/)).toBeInTheDocument();
+    expect(screen.queryByText(/firma bağlantılarınıza eklenir/)).toBeNull();
+  });
+});

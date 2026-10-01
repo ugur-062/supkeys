@@ -193,7 +193,7 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     };
     render(<OrdersList role="buyer" />);
     const search = screen.getByPlaceholderText(
-      "Sipariş no, ilan veya karşı taraf…",
+      "Sipariş no, talep veya karşı taraf…",
     );
     await userEvent.type(search, "kablo");
 

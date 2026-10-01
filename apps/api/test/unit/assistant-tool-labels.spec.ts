@@ -54,7 +54,7 @@ describe("localizeToolCodes", () => {
       "ru",
     ) as Record<string, Record<string, unknown>>[];
     expect(out[0]!.status).toBe("Выиграно");
-    expect(out[0]!.listing).toMatchObject({ status: "Завершено", statusCode: "AWARDED" });
+    expect(out[0]!.listing).toMatchObject({ status: "Победитель выбран", statusCode: "AWARDED" });
   });
 
   it("sipariş: IN_DELIVERY teslim şekline duyarlı (alıcı topluyorsa Teslime Hazır)", () => {

@@ -6,6 +6,8 @@
  *    yayınlama düğmesini hiç görmüyordu. Başlık kartı da taşımalı.
  *  · X22: hızlı talep taslağında bekletilen davetler (sessionStorage)
  *    detaydan yayınlanınca da gönderilmeli.
+ *  · O-058 / T-06: yayınlama Gold ister — Gold olmayan firmada düğme yok,
+ *    paket notu doğru CTA'yı verir.
  */
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,6 +22,7 @@ const h = vi.hoisted(() => ({
   confirm: vi.fn(),
   post: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  company: {} as Record<string, unknown>,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -41,12 +44,12 @@ vi.mock("@/lib/company-auth/api", () => ({
   },
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useCompanyAuth: () => ({ user: { id: "u1" }, company: { id: "c1", country: "TR" } }),
+  useCompanyAuth: () => ({ user: { id: "u1" }, company: h.company }),
   useHasCompanyPermission: () => true,
 }));
 vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) =>
-    sel({ user: { id: "u1" }, company: { id: "c1", country: "TR" } }),
+    sel({ user: { id: "u1" }, company: h.company }),
 }));
 vi.mock("@/hooks/use-company-approvals", () => ({
   useCancelApproval: () => ({ mutateAsync: h.cancelApproval, isPending: false }),
@@ -112,6 +115,7 @@ function visibleButtons(name: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
+  h.company = { id: "c1", country: "TR", tier: "GOLD", companyVerificationStatus: "VERIFIED" };
   h.confirm.mockResolvedValue(true);
   h.publish.mockResolvedValue({});
   h.post.mockImplementation(async (url: string, body: { companyIds?: string[]; invites?: { email: string }[] }) => {
@@ -134,6 +138,15 @@ describe("Talep detayı (sahip) — Yayınla / Onayı iptal et (S059)", () => {
     h.detail = detail({ status: "IN_AWARD_APPROVAL", canPublish: false, pendingApprovalId: "ap1" } as Partial<ListingDetail>);
     renderPage();
     expect(visibleButtons("Onayı İptal Et")).toHaveLength(1);
+  });
+
+  it("Gold olmayan firmada taslakta Yayınla yok; paket notu Gold'a yönlendirir (T-06)", () => {
+    h.company = { id: "c1", country: "TR", tier: "SILVER", companyVerificationStatus: "VERIFIED" };
+    h.detail = detail();
+    renderPage();
+    expect(visibleButtons("Yayınla")).toHaveLength(0);
+    expect(screen.getByRole("note")).toHaveTextContent(/Gold paket gerektirir/);
+    expect(screen.getByRole("link", { name: "Gold'a geç" })).toHaveAttribute("href", "/company/premium");
   });
 
   it("yayınlanabilir değilse başlık kartında Yayınla yok", () => {

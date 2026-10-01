@@ -905,7 +905,19 @@ export function useDeleteListing() {
       const { data } = await companyApi.delete(`/company/listings/${id}`);
       return data;
     },
-    onSuccess: () => invalidateListingCaches(qc),
+    onSuccess: (_data, id) => {
+      // Arayüz testi D-100: silinen talebin detay (ve id'li alt) sorguları
+      // geçersiz kılınırsa açık detay sayfası yönlendirmeden önce onu yeniden
+      // çekip 404 alıyordu → önbellekten DÜŞÜR, kalanları tazele.
+      qc.removeQueries({
+        predicate: (q) => q.queryKey[0] === "company-listings" && q.queryKey.includes(id),
+      });
+      qc.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === "company-listings" && !q.queryKey.includes(id),
+      });
+      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+    },
   });
 }
 

@@ -22,6 +22,8 @@ import {
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { DateTimeInput } from "@/components/ui/date-time-input";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
+import { Lock } from "lucide-react";
+import { gateHref } from "@/lib/public/member-gate";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -43,7 +45,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { closesAtError } from "@/lib/tenders/closes-at";
 import { toLocalInput } from "@/lib/tenders/map-detail-to-form";
 import { parseAppWallClockInput } from "@/lib/time-zone";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
@@ -63,6 +65,18 @@ interface Props {
   /** Mevcut turda yeni tura taşınabilir (SUBMITTED/LOST) teklif sayısı —
    *  0 ise pazarlığa (açık eksiltme) aktarmada "taban fiyatsız başlar" uyarısı çıkar. */
   carryableBidCount?: number;
+  /** Zaten davetli firmaların Rothern kodları — davet diyaloğunda pasif +
+   *  "Davetli" rozeti (arayüz testi D-254). */
+  invitedCodes?: string[];
+  /**
+   * PAKET KİLİDİ (arayüz testi O-058, kullanıcı kararı T-06): firma artık
+   * Gold değilse (düşüş/süre bitimi) bu talepte YENİ İŞ — davet, AI keşfi,
+   * kopyalama, düzenleme, yayınlama, yeni tur/pazarlık, kapanış uzatma —
+   * kilitlidir (API aynı kapıyı uygular). Görüntüleme, değerlendirme,
+   * kapatma/iptal, iç notlar ve kapanışı öne çekme açık kalır.
+   * "verify" = doğrulanmamış firma (önce doğrulama CTA'sı), "upgrade" = Gold'a geçiş.
+   */
+  buyLock?: "verify" | "upgrade" | null;
 }
 
 
@@ -77,6 +91,8 @@ export function TenderActionsMenu({
   currency,
   allowedCurrencies = [],
   carryableBidCount = 0,
+  invitedCodes = [],
+  buyLock = null,
 }: Props) {
   const t = useTranslations("web.panel.requests.tenderActionsMenu");
   // Kapanış tarihi kuralının metni PAYLAŞILAN ad alanında (form şeması da onu okur).
@@ -93,6 +109,7 @@ export function TenderActionsMenu({
   const addInvitations = useAddInvitations(id);
   const connections = useConnections();
 
+  const locked = !!buyLock;
   const isDraft = status === "DRAFT";
   const isAuction = format === "ENGLISH_AUCTION";
   const isInEvaluation = status === "IN_AWARD";
@@ -105,15 +122,17 @@ export function TenderActionsMenu({
   // PAZARLIKTA AÇIKKEN DE serbest — BAFO akışının ana aracı turlardır: herkes
   // tek atışını yaptı, alıcı kapanışı beklemeden sonraki turu açabilmeli
   // (backend createNextRound OPEN'dan zaten izin veriyor).
+  // Paket kilidinde yeni tur / pazarlık / davet / kopyalama YOK (T-06).
   const canNewRound =
-    status === "CLOSED_NO_AWARD" ||
-    isInEvaluation ||
-    (isAuction && status === "OPEN");
-  const canInvite = status === "DRAFT" || status === "OPEN";
+    !locked &&
+    (status === "CLOSED_NO_AWARD" ||
+      isInEvaluation ||
+      (isAuction && status === "OPEN"));
+  const canInvite = !locked && (status === "DRAFT" || status === "OPEN");
   // Pazarlığa Geç: RFQ'yu açık eksiltme turuna aktarır (createNextRound
   // ENGLISH_AUCTION). Zaten pazarlıktaysa Yeni Tur devam turlarını yönetir.
   const canStartNegotiation =
-    !isAuction && (status === "OPEN" || canNewRound);
+    !locked && !isAuction && (status === "OPEN" || canNewRound);
 
   const handleDeleteDraft = async () => {
     if (
@@ -171,19 +190,41 @@ export function TenderActionsMenu({
     "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL"
   >("OWN_RANK");
 
+  /**
+   * Yeni tur / pazarlık diyaloğunu TEMİZ formla aç (arayüz testi O-025,
+   * D-249): vazgeçilen önceki denemenin tarih/saat/eleme/görünürlük seçimi
+   * taşınmaz; "free" kipte tip talebin MEVCUT formatıyla başlar — RFQ talepte
+   * varsayılan Pazarlık, fark edilmezse kapalı zarfı açık eksiltmeye çeviriyordu.
+   */
+  const openNextRound = (mode: "free" | "auction") => {
+    setNrType(
+      mode === "auction" || format === "ENGLISH_AUCTION" ? "ENGLISH_AUCTION" : "RFQ",
+    );
+    setNrClosing("");
+    setNrEliminate(false);
+    setVis("OWN_RANK");
+    setNextRoundMode(mode);
+    setNextRoundOpen(true);
+  };
+
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   // Davet ekleme form durumu
   const [inviteSel, setInviteSel] = useState<Set<string>>(new Set());
   const [inviteSearch, setInviteSearch] = useState("");
+  const invitedSet = useMemo(() => new Set(invitedCodes), [invitedCodes]);
+  const connectedCompanies = useMemo(
+    () =>
+      (connections.data ?? [])
+        .map((c) => c.company)
+        .filter((c) => c.rothernId),
+    [connections.data],
+  );
   const inviteCompanies = useMemo(() => {
-    const rows = (connections.data ?? [])
-      .map((c) => c.company)
-      .filter((c) => c.rothernId);
     const q = foldSearchText(inviteSearch);
     return q
-      ? rows.filter((c) => foldSearchText(c.name).includes(q))
-      : rows;
-  }, [connections.data, inviteSearch]);
+      ? connectedCompanies.filter((c) => foldSearchText(c.name).includes(q))
+      : connectedCompanies;
+  }, [connectedCompanies, inviteSearch]);
 
   const isOpen = status === "OPEN";
   // Diyalog onay düğmeleri: çift tık / kapanış animasyonundaki tık ikinci
@@ -290,8 +331,15 @@ export function TenderActionsMenu({
       toast.error(err);
       return;
     }
+    const next = parseAppWallClockInput(newClosing)!;
+    // T-06: paket kilidinde kapanış yalnız öne çekilir; uzatma Gold ister
+    // (API changeClosingTime aynı kuralı uygular — burada sürpriz 403 yerine).
+    if (locked && closesAt && next.getTime() > new Date(closesAt).getTime()) {
+      toast.error(t("kapanisUzatmaGoldGerektirir"));
+      return;
+    }
     try {
-      await changeClosing.mutateAsync(parseAppWallClockInput(newClosing)!.toISOString());
+      await changeClosing.mutateAsync(next.toISOString());
       toast.success(t("kapanisZamaniGuncellendi"));
       setClosingOpen(false);
     } catch (err) {
@@ -313,7 +361,7 @@ export function TenderActionsMenu({
     <>
       {/* Karma: önemli aksiyonlar görünür buton, kalanı ⋮ menüsünde (eski sistem) */}
       <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
+        {canEdit && !locked ? (
           <Button outline href={`/company/satinalma/taleplerim/${id}/duzenle`}>
             {t("satinAlmaTalebiniDuzenle")}
           </Button>
@@ -326,11 +374,7 @@ export function TenderActionsMenu({
         {canStartNegotiation ? (
           <Button
             outline
-            onClick={() => {
-              setNrType("ENGLISH_AUCTION");
-              setNextRoundMode("auction");
-              setNextRoundOpen(true);
-            }}
+            onClick={() => openNextRound("auction")}
           >
             {t("pazarligaGec")}
           </Button>
@@ -339,11 +383,7 @@ export function TenderActionsMenu({
         {isAuction && canNewRound ? (
           <Button
             outline
-            onClick={() => {
-              setNrType("ENGLISH_AUCTION");
-              setNextRoundMode("free");
-              setNextRoundOpen(true);
-            }}
+            onClick={() => openNextRound("free")}
           >
             {t("yeniTurAc")}
           </Button>
@@ -382,11 +422,13 @@ export function TenderActionsMenu({
             <DropdownItem onClick={() => setNotesOpen(true)}>
               <DropdownLabel>{t("icNotlar")}</DropdownLabel>
             </DropdownItem>
-            <DropdownItem
-              href={`/company/satinalma/taleplerim/yeni?from=${id}`}
-            >
-              <DropdownLabel>{t("satinAlmaTalebiniKopyala")}</DropdownLabel>
-            </DropdownItem>
+            {locked ? null : (
+              <DropdownItem
+                href={`/company/satinalma/taleplerim/yeni?from=${id}`}
+              >
+                <DropdownLabel>{t("satinAlmaTalebiniKopyala")}</DropdownLabel>
+              </DropdownItem>
+            )}
             {isAuction ? (
               <DropdownItem onClick={() => setHistoryOpen(true)}>
                 <DropdownLabel>{t("turGecmisi")}</DropdownLabel>
@@ -396,10 +438,7 @@ export function TenderActionsMenu({
                 yalnız RFQ (kapanmış/değerlendirme) durumunda göster. */}
             {canNewRound && !isAuction ? (
               <DropdownItem
-                onClick={() => {
-                  setNextRoundMode("free");
-                  setNextRoundOpen(true);
-                }}
+                onClick={() => openNextRound("free")}
               >
                 <DropdownLabel>{t("yeniTurOlustur")}</DropdownLabel>
               </DropdownItem>
@@ -436,6 +475,21 @@ export function TenderActionsMenu({
           </DropdownMenu>
         </Dropdown>
       </div>
+      {buyLock ? (
+        <div
+          role="note"
+          className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <p className="min-w-0 flex-1">{t("paketKilidiNotu")}</p>
+          <Link
+            href={gateHref(buyLock)!}
+            className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+          >
+            {buyLock === "verify" ? t("onceUcretsizDogrulan") : t("goldaGec")}
+          </Link>
+        </div>
+      ) : null}
 
       {/* Kapanış zamanını değiştir */}
       <SupplierDiscoveryModal
@@ -449,7 +503,12 @@ export function TenderActionsMenu({
         <DialogDescription>
           {t("yeniKapanisTarihSaatiniSecin")}
         </DialogDescription>
-        <DialogBody>
+        <DialogBody className="space-y-3">
+          {locked ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {t("kapanisYalnizOneCekilir")}
+            </p>
+          ) : null}
           <Field>
             <Label>{t("kapanis")}</Label>
             {/* Saat seçilmezse gün sonu (23:59) uygulanır. */}
@@ -550,8 +609,12 @@ export function TenderActionsMenu({
           ) : null}
           {/* Madde 13: "Önceki Teklifler" seçimi kaldırıldı — teklifler her
               zaman otomatik taşınır ve pazarlıkta geçerlilikleri süresizdir. */}
+          {/* Taşıma notu tipe göre (arayüz testi O-025): "süresiz geçerlilik"
+              yalnız pazarlıkta; RFQ turunda tedarikçinin geçerliliği korunur. */}
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-            {t.rich("mevcutTekliflerYeniTura", { strong: (c) => <strong>{c}</strong> })}
+            {nrType === "ENGLISH_AUCTION"
+              ? t.rich("mevcutTekliflerYeniTura", { strong: (c) => <strong>{c}</strong> })
+              : t.rich("mevcutTekliflerYeniTuraRfq", { strong: (c) => <strong>{c}</strong> })}
           </div>
           <Field>
             <Label>{t("yeniKapanis")}</Label>
@@ -683,20 +746,31 @@ export function TenderActionsMenu({
           <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-200">
             {inviteCompanies.length === 0 ? (
               <p className="p-4 text-center text-sm text-zinc-500">
-                {connections.isLoading ? t("yukleniyor") : t("bagliFirmaYok")}
+                {connections.isLoading
+                  ? t("yukleniyor")
+                  : connectedCompanies.length > 0
+                    ? t("eslesenFirmaYok")
+                    : t("bagliFirmaYok")}
               </p>
             ) : (
               inviteCompanies.map((c) => {
                 const code = c.rothernId!;
-                const checked = inviteSel.has(code);
+                // Zaten davetli: seçilemez, rozetle ayırt edilir (D-254).
+                const already = invitedSet.has(code);
+                const checked = !already && inviteSel.has(code);
                 return (
                   <label
                     key={c.id}
-                    className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-zinc-50"
+                    className={
+                      already
+                        ? "flex cursor-default items-center gap-2 px-3 py-2 text-sm opacity-60"
+                        : "flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-zinc-50"
+                    }
                   >
                     <input
                       type="checkbox"
                       checked={checked}
+                      disabled={already}
                       onChange={() =>
                         setInviteSel((prev) => {
                           const next = new Set(prev);
@@ -708,6 +782,11 @@ export function TenderActionsMenu({
                       className="h-4 w-4 rounded border-zinc-300"
                     />
                     <span className="font-medium text-zinc-900">{c.name}</span>
+                    {already ? (
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                        {t("davetli")}
+                      </span>
+                    ) : null}
                     <span className="ml-auto tabular-nums text-xs text-zinc-400">
                       {code}
                     </span>
