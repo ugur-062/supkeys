@@ -341,6 +341,8 @@ export interface ListingBidRow {
   validityDays?: number | null;
   /** Geçerlilik rozeti: son geçerlilik = submittedAt + validityDays. */
   submittedAt?: string | null;
+  /** Alıcı bu teklifi ELEDİ (LOST ∧ dolu) — kazandırmada kaybetmekten ayrı (arayüz testi D-102). */
+  eliminatedAt?: string | null;
   items?: ListingBidItemRow[];
   answers?: { questionId: string; value: string }[];
 }

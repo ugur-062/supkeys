@@ -888,6 +888,43 @@ describe("eliminate — state machine", () => {
     });
     expect(after.status).toBe("LOST");
   });
+
+  it("sahip detayı elenen teklifi eliminatedAt ile ayırır; kazandırmada kaybeden boş kalır (arayüz testi D-102)", async () => {
+    const { service, owner, bidder, listing, item } = await setupAlim();
+    const other = await makeCompanyWithUser(prisma, { country: "TR" });
+    const third = await makeCompanyWithUser(prisma, { country: "TR" });
+    const eliminated = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1200,
+      items: [{ itemId: item.id, unitPrice: 1200 }],
+    });
+    const winner = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: other.company.id,
+      createdById: other.user.id,
+      amount: 900,
+      items: [{ itemId: item.id, unitPrice: 900 }],
+    });
+    const loser = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: third.company.id,
+      createdById: third.user.id,
+      amount: 1000,
+      items: [{ itemId: item.id, unitPrice: 1000 }],
+    });
+    await service.eliminate(owner.auth, listing.id, eliminated.id, "uygun değil");
+    await service.award(owner.auth, listing.id, winner.id);
+    const res = (await service.getOne(owner.auth, listing.id)) as {
+      bids: { id: string; status: string; eliminatedAt?: string | null }[];
+    };
+    const byId = new Map(res.bids.map((b) => [b.id, b]));
+    expect(byId.get(eliminated.id)?.status).toBe("LOST");
+    expect(byId.get(eliminated.id)?.eliminatedAt).toEqual(expect.any(String));
+    expect(byId.get(loser.id)?.status).toBe("LOST");
+    expect(byId.get(loser.id)?.eliminatedAt).toBeNull();
+  });
 });
 
 describe("Faz 5 — kalem teslim tarihi award'da siparişe kopyalanır", () => {

@@ -13,6 +13,13 @@ const SUPPLIER_ONLY: Array<[Namespace, string]> = [
   ["web", "marketing.optOut"],
   // Şirketim › Grafikler › Gelir / Müşteri (satış sekmeleri; arayüz testi O-106).
   ["web", "panel.shell.satisChartTabs"],
+  // Satış paneli ana sayfası ve teklif verenin talep detayı (arayüz testi O-021).
+  ["web", "panel.shell.satisDashboardView"],
+  ["web", "panel.requests.myBidStatusPanel"],
+  ["web", "panel.requests.auctionLiveCard"],
+  ["web", "panel.requests.auctionBidWorkbench"],
+  // İki tarafın ortak "Genel Bilgi" kartları — nötr "talep" der.
+  ["web", "panel.requests.generalInfoTab"],
   ["api", "companyListings.bidImport"],
   ["email", "tenderExternalInvite"],
   ["email", "tenderInviteDigest"],

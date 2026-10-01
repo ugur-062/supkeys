@@ -9,16 +9,17 @@ import { cn } from "@/lib/utils";
 import { Gavel } from "lucide-react";
 import { useEffect, useState } from "react";
 
-/** ms → geri sayım parçaları ("1g 04:05:33" / "04:05:33"); süre dolduysa null. */
-function remainingParts(ms: number): { d: number; hh: string } | null {
+/** ms → geri sayım parçaları (gün/saat/dakika/saniye); süre dolduysa null. */
+function remainingParts(
+  ms: number,
+): { d: number; h: number; m: string; s: string } | null {
   if (ms <= 0) return null;
   const total = Math.floor(ms / 1000);
   const d = Math.floor(total / 86_400);
   const h = Math.floor((total % 86_400) / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const hh = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return { d, hh };
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return { d, h, m, s };
 }
 
 /** bidVisibility → katalog anahtarı (`web.panel.requests.auctionLiveCard`). */
@@ -90,13 +91,15 @@ export function AuctionLiveCard({
   const closesMs = l.closesAt ? new Date(l.closesAt).getTime() - now : null;
   const urgent = closesMs !== null && closesMs > 0 && closesMs < 5 * 60_000;
   const remaining = closesMs !== null ? remainingParts(closesMs) : null;
+  // Etiketli + birimli sayaç: çıplak "19:01:41" saat sanılıyordu (arayüz
+  // testi D-121). Gün varken saniye gürültüdür, yoksa saniye de görünür.
   const remainingText =
     closesMs === null
       ? null
       : remaining
         ? remaining.d > 0
-          ? tr("gunSaatGeriSayim", { d: remaining.d, time: remaining.hh })
-          : remaining.hh
+          ? tr("kalanGunSaat", { d: remaining.d, h: remaining.h, m: remaining.m })
+          : tr("kalanSaat", { h: remaining.h, m: remaining.m, s: remaining.s })
         : tr("kapandi");
   const visibilityKey = VISIBILITY_KEY[l.bidVisibility ?? ""];
   const view = l.auctionView;

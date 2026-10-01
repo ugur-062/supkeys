@@ -29,6 +29,7 @@ import {
   useListingDetail,
 } from "@/hooks/use-company-listings";
 import { isBidExpired } from "@/lib/tenders/bid-expiry";
+import { lostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
 import { formatDateTime } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useFormatMoney } from "@/components/ui/money";
@@ -61,7 +62,7 @@ export default function BidDetailPage() {
   // taşınır — uygulama içi geri ok da seçimi korur (arayüz testi D-109).
   const searchParams = useSearchParams();
   const backHref = `/company/ilan/${id}${bidViewQuery(parseBidView(searchParams.get("teklifler")))}`;
-  const { data: l, isLoading, isError, refetch } = useListingDetail(id);
+  const { data: l, isLoading, isError, error, refetch } = useListingDetail(id);
   const confirm = useConfirm();
   const award = useAwardListing(id);
   const awardPreview = useAwardPreview(id);
@@ -93,6 +94,24 @@ export default function BidDetailPage() {
 
   if (isLoading)
     return <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>;
+  // 404 = talep/teklif görülemiyor (kaldırılmış ya da bu üyenin satınalma
+  // görüntüleme yetkisi yok — sunucu sebep söylemez). "Tekrar dene" aynı 404'ü
+  // döndürür; nötr kart + panele dönüş (arayüz testi D-024).
+  if (
+    isError &&
+    (error as { response?: { status?: number } } | null)?.response?.status === 404
+  )
+    return (
+      <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center">
+        <Text className="text-sm font-medium text-zinc-900">
+          {t("teklifeUlasilamiyor")}
+        </Text>
+        <Text className="mt-1 text-sm text-zinc-500">{t("teklifErisimAciklama")}</Text>
+        <Button outline className="mt-3" href="/company">
+          {t("paneleDon")}
+        </Button>
+      </div>
+    );
   if (isError)
     return (
       <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
@@ -220,7 +239,17 @@ export default function BidDetailPage() {
               ) : bid.status === "AWARDED_PARTIAL" ? (
                 <Badge color="green">{t("kismenKazandi")}</Badge>
               ) : bid.status === "LOST" ? (
-                <Badge color="zinc">{t("elendi")}</Badge>
+                // Yalnız alıcının elediği "Elendi" (arayüz testi D-102).
+                <Badge color="zinc">
+                  {(() => {
+                    const outcome = lostBidOutcome(bid, l.status);
+                    return outcome === "eliminated"
+                      ? t("elendi")
+                      : outcome === "lost"
+                        ? t("kaybetti")
+                        : t("kapandiTeklif");
+                  })()}
+                </Badge>
               ) : (
                 <Badge color="blue">{t("degerlendirmede")}</Badge>
               )}

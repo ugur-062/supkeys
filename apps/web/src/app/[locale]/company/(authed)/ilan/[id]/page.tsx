@@ -98,6 +98,7 @@ import { useEffect, useState } from "react";
 import { useScrolledPast } from "@/hooks/use-scrolled-past";
 import { usePendingListingInvites } from "@/hooks/use-pending-listing-invites";
 import { isBidExpired } from "@/lib/tenders/bid-expiry";
+import { lostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
 import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
 import { ShareListing } from "@/components/tenders/share-listing";
 import { toast } from "sonner";
@@ -311,6 +312,10 @@ export default function ListingDetailPage() {
   const hasAwardPermission = useHasCompanyPermission("buy:award");
   // Onay isteğini iptal: API başlatan VEYA approvals:manage (arayüz testi D-252).
   const hasApprovalsManage = useHasCompanyPermission("approvals:manage");
+  // Satınalma görüntüleme izni olmayan üye KENDİ firmasının talebini açınca
+  // sunucu 404 döner (Faz O; sebep söylenmez) — kart bu olasılığı da anlatır
+  // (arayüz testi D-024).
+  const hasBuyView = useHasCompanyPermission("buy:view");
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
@@ -642,6 +647,11 @@ export default function ListingDetailPage() {
           <Text className="mt-1 text-sm text-zinc-500">
             {t("ilanKaldirilmisAdresHataliYa")}
           </Text>
+          {!hasBuyView ? (
+            <Text className="mt-2 text-sm text-zinc-600">
+              {t("kendiFirmaTalebiYetkiNotu")}
+            </Text>
+          ) : null}
           <Button outline className="mt-3" href="/company">
             {t("paneleDon")}
           </Button>
@@ -716,6 +726,16 @@ export default function ListingDetailPage() {
   }) => b.status === "SUBMITTED" && !isBidExpired(b);
   // Yayında ve Değerlendirmede (IN_AWARD) kazandırma/eleme açık.
   const canDecide = l.status === "OPEN" || l.status === "IN_AWARD";
+  // LOST teklifin etiketi: yalnız alıcının elediği "Elendi"; kazandırmada
+  // kaybeden "Kaybetti", kazanansız/iptal kapanan "Kapandı" (arayüz testi D-102).
+  const lostLabel = (b: { eliminatedAt?: string | null }) => {
+    const outcome = lostBidOutcome(b, l.status);
+    return outcome === "eliminated"
+      ? t("elendi")
+      : outcome === "lost"
+        ? t("kaybetti")
+        : t("kapandiTeklif");
+  };
   // Kazandırma doğrulanmış firma ister (API assertVerified; KYC tablosu).
   // Firma yüklenmeden kilit basılmaz (sunucu zaten kapılı).
   const companyVerified =
@@ -916,15 +936,53 @@ export default function ListingDetailPage() {
                     {it.description ? (
                       <div className="text-xs text-zinc-500">{it.description}</div>
                     ) : null}
-                    {it.questions && it.questions.length > 0 ? (
-                      <div className="mt-1 inline-flex">
-                        <Badge
-                          color="zinc"
-                          title={it.questions.map((q) => `• ${q.text}`).join("\n")}
-                        >
-                          {t("soru", { n: it.questions.length })}
-                        </Badge>
+                    {/* Alıcının kalem şartları (arayüz testi O-037): marka ·
+                        parça no, muadil izni ve istenen teslim tarihi detayda
+                        da görünür — teklif formuyla aynı anahtarlar. */}
+                    {it.brand || it.mpn ? (
+                      <div className="text-xs text-zinc-600">
+                        {t("markaParcaNo", {
+                          value: [it.brand, it.mpn].filter(Boolean).join(" · "),
+                        })}
                       </div>
+                    ) : null}
+                    {it.requiredByDate ? (
+                      <div className="text-xs text-zinc-600">
+                        {t("istenenTeslim", {
+                          date: formatDate(
+                            `${it.requiredByDate.slice(0, 10)}T12:00:00+03:00`,
+                            locale,
+                          ),
+                        })}
+                      </div>
+                    ) : null}
+                    {it.alternativeAllowed === false ? (
+                      <div className="mt-1 inline-flex">
+                        <Badge color="amber">{t("muadilKabulEdilmez")}</Badge>
+                      </div>
+                    ) : null}
+                    {/* Sorular dokunarak açılır (arayüz testi O-037/D-278):
+                        eskiden yalnız `title` ipucundaydı, mobilde okunamıyordu. */}
+                    {it.questions && it.questions.length > 0 ? (
+                      <details className="group mt-1 text-xs">
+                        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-700 hover:bg-zinc-200 [&::-webkit-details-marker]:hidden">
+                          {t("soru", { n: it.questions.length })}
+                          <ChevronRight
+                            aria-hidden
+                            className="size-3 transition-transform group-open:rotate-90"
+                          />
+                        </summary>
+                        <ul className="mt-1 max-w-md list-disc space-y-0.5 pl-4 whitespace-normal text-zinc-600">
+                          {it.questions.map((q) => (
+                            <li key={q.id}>
+                              {q.text}
+                              {q.required ? (
+                                <span className="ml-1 text-zinc-500">{t("zorunlu")}</span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     ) : null}
                   </TableCell>
                   <TableCell className="hidden text-right tabular-nums text-zinc-700 sm:table-cell">
@@ -1279,7 +1337,7 @@ export default function ListingDetailPage() {
                             LU-21) — fiyatları kıyasa girmez. */}
                         {b.status === "LOST" ? (
                           <span className="block text-xs font-medium text-zinc-500">
-                            {t("elendi")}
+                            {lostLabel(b)}
                           </span>
                         ) : null}
                         {/* 2026-09-01: davetli/bağlantılı firma BELGESİZ
@@ -1648,7 +1706,7 @@ export default function ListingDetailPage() {
                 {b.status === "AWARDED_PARTIAL" ? (
                   <Badge color="green">{t("kismenKazandi")}</Badge>
                 ) : null}
-                {b.status === "LOST" ? <Badge color="zinc">{t("elendi")}</Badge> : null}
+                {b.status === "LOST" ? <Badge color="zinc">{lostLabel(b)}</Badge> : null}
                 <Link
                   href={`/company/ilan/${l.id}/teklif/${b.id}${bidViewQuery(bidView)}`}
                   className="text-[15px] font-semibold text-zinc-950 hover:text-blue-700 hover:underline"
@@ -1847,7 +1905,9 @@ export default function ListingDetailPage() {
     <section className="space-y-3">
       {/* Doğrulama teşviki (2026-09-28) — teklif verebilen doğrulanmamış firma. */}
       {l.canBid && l.roleAllowsBid !== false && biddingOpen ? <VerifyNudge /> : null}
-      {!l.canBid ? (
+      {/* Paket/rol uyarıları yalnız teklif alımı açıkken — tamamlanmış talepte
+          "Satışçı rolü gerekir" yanıltıcıydı (arayüz testi D-195). */}
+      {!l.canBid && biddingOpen ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
             {t.rich("buIlanaTeklifVermekIcinSilverPaketi", {
@@ -1858,7 +1918,7 @@ export default function ListingDetailPage() {
             {t("paketleriGor")}
           </Button>
         </div>
-      ) : l.roleAllowsBid === false ? (
+      ) : l.roleAllowsBid === false && biddingOpen ? (
         // Rol kapısı: sessiz buton yokluğu yerine açık yönlendirme.
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
@@ -1906,9 +1966,13 @@ export default function ListingDetailPage() {
     </section>
   );
 
+  // "Kazandırma Onayı" alıcının İÇ onay adımıdır — teklif veren onu
+  // "Değerlendirmede" görür (arayüz testi D-278; seller-state ile aynı kural).
+  const shownStatus =
+    !l.isOwner && l.status === "IN_AWARD_APPROVAL" ? "IN_AWARD" : l.status;
   const statusMeta = {
-    label: listingStatusLabel(l.status),
-    color: LISTING_STATUS_COLOR[l.status] ?? ("zinc" as const),
+    label: listingStatusLabel(shownStatus),
+    color: LISTING_STATUS_COLOR[shownStatus] ?? ("zinc" as const),
   };
 
   // Dosyalar sekmesi: dosya varsa sayısı parantezde (2026-09-17, kullanıcı).
@@ -2433,8 +2497,11 @@ export default function ListingDetailPage() {
               kartı + büyük "Teklif Ver"; "Takip et" YOK (kullanıcı kararı). */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="min-w-0" ref={setHeaderEl}>{header}</div>
-            {biddingOpen && l.closesAt ? (
+            {/* Geri sayım kartı kapanış tarihine, CTA teklif hakkına bağlı —
+                kapanışsız (eski) açık talepte CTA kaybolmasın (arayüz testi D-176). */}
+            {biddingOpen && (l.closesAt || bidCta) ? (
               <div className="flex flex-col gap-3 lg:border-l lg:border-zinc-950/5 lg:pl-6">
+                {l.closesAt ? (
                 <div className="flex items-center gap-3 rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-950/5">
                   <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-zinc-700 ring-1 ring-zinc-950/10">
                     <Clock className="size-5" />
@@ -2445,6 +2512,7 @@ export default function ListingDetailPage() {
                     <p className="mt-0.5 text-xs text-zinc-500">{formatDateTime(l.closesAt, locale)}</p>
                   </div>
                 </div>
+                ) : null}
                 {/* BUG (2026-09-10, kullanıcı: "talebi görüyorum ama teklif
                     veremiyorum"): CTA yalnız yapışkan çubuktaydı ve çubuk
                     başlık görünürken `invisible` — kısa sayfada (birkaç kalem)

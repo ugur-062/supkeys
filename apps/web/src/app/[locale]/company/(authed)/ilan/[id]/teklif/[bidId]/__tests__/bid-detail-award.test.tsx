@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   perms: ["buy:listing:manage", "buy:award"] as string[],
   company: null as Record<string, unknown> | null,
   search: "",
+  error: null as unknown,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -38,9 +39,10 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   return {
     ...mod,
     useListingDetail: () => ({
-      data: h.detail,
+      data: h.error ? undefined : h.detail,
       isLoading: false,
-      isError: false,
+      isError: !!h.error,
+      error: h.error,
       refetch: vi.fn(),
     }),
     useAwardListing: () => ({ mutateAsync: h.award, isPending: false }),
@@ -89,6 +91,7 @@ beforeEach(() => {
   h.perms = ["buy:listing:manage", "buy:award"];
   h.company = null;
   h.search = "";
+  h.error = null;
   h.award.mockResolvedValue({ pendingApproval: false, number: "ORD-2026-0001" });
   h.preview.mockResolvedValue({ requiresApproval: false });
   h.confirm.mockResolvedValue(true);
@@ -188,5 +191,31 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     render(<BidDetailPage />);
     expect(screen.queryByRole("button", { name: "Kazandır" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ele" })).toBeInTheDocument();
+  });
+});
+
+describe("Teklif detayı — sonuç etiketi ve erişim (arayüz testi D-102 / D-024)", () => {
+  it("kazandırmada kaybeden teklif 'Kaybetti', elenen 'Elendi'", () => {
+    h.detail = { ...detail({ status: "LOST" }), status: "AWARDED" } as unknown as ListingDetail;
+    const { unmount } = render(<BidDetailPage />);
+    expect(screen.getByText("Kaybetti")).toBeInTheDocument();
+    expect(screen.queryByText("Elendi")).toBeNull();
+    unmount();
+    h.detail = detail({ status: "LOST", eliminatedAt: new Date().toISOString() });
+    render(<BidDetailPage />);
+    expect(screen.getByText("Elendi")).toBeInTheDocument();
+  });
+
+  it("404'te nötr kart; işe yaramayan 'Tekrar dene' yok", () => {
+    h.error = { response: { status: 404 } };
+    render(<BidDetailPage />);
+    expect(screen.getByText("Teklife ulaşılamıyor.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+  });
+
+  it("geçici hata (5xx) yeniden denemeyi korur", () => {
+    h.error = { response: { status: 500 } };
+    render(<BidDetailPage />);
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
   });
 });

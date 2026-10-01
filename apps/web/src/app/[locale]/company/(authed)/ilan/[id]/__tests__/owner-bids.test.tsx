@@ -92,7 +92,10 @@ function detail(): ListingDetail {
     targetCountries: [],
     closesAt: new Date(Date.now() + 86_400_000).toISOString(),
     items: [{ id: "i1", name: "Rulman", quantity: "10", unit: "adet" }],
-    bids: [bid("b1", "Ucuz Elenen", "LOST", "50"), bid("b2", "Canli Teklif", "SUBMITTED", "80")],
+    bids: [
+      { ...bid("b1", "Ucuz Elenen", "LOST", "50"), eliminatedAt: new Date().toISOString() },
+      bid("b2", "Canli Teklif", "SUBMITTED", "80"),
+    ],
     invitations: [],
   } as unknown as ListingDetail;
 }
@@ -126,6 +129,39 @@ describe("Talep detayı (sahip) — teklif sekmesi (LU-21)", () => {
     expect(lost.className).not.toMatch(/emerald/);
     expect(live.className).toMatch(/emerald/);
     expect(within(header).getByText("Elendi")).toBeInTheDocument();
+  });
+
+  it("kazandırmada kaybeden 'Kaybetti', kazanansız kapanan 'Kapandı'; 'Elendi' yalnız elenen (arayüz testi D-102)", () => {
+    const base = detail();
+    h.detail = {
+      ...base,
+      status: "AWARDED",
+      bids: [
+        { ...bid("b1", "Elenen Firma", "LOST", "50"), eliminatedAt: new Date().toISOString() },
+        bid("b2", "Kazanan Firma", "WON", "80"),
+        bid("b3", "Kaybeden Firma", "LOST", "90"),
+      ],
+    } as unknown as ListingDetail;
+    const { unmount } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ListingDetailPage />
+      </QueryClientProvider>,
+    );
+    expect(screen.getAllByText("Elendi").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Kaybetti").length).toBeGreaterThan(0);
+    unmount();
+    h.detail = {
+      ...base,
+      status: "CLOSED_NO_AWARD",
+      bids: [bid("b3", "Kaybeden Firma", "LOST", "90")],
+    } as unknown as ListingDetail;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ListingDetailPage />
+      </QueryClientProvider>,
+    );
+    expect(screen.getAllByText("Kapandı").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Elendi")).toBeNull();
   });
 
   it("buy:award yoksa Kazandır ve Kalem bazlı kazandır yok, Ele var", async () => {

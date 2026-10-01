@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useBidDeliveryTimeLabel, useSystemText, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { useBidDeliveryTimeLabel, useOrderStatusLabel, useSystemText, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { intlLocale } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
@@ -38,6 +38,11 @@ import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { lineAmount, MONEY_FRACTION } from "@/lib/line-amount";
+import { lostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
+import { AlternativeOfferNote } from "@/components/tenders/alternative-offer-note";
+import { yesNoAnswerLabel } from "@/lib/tenders/yes-no-answer";
+import { orderStatusMeta } from "@/lib/orders/order-status";
+import type { CompanyOrderStatus } from "@/hooks/use-company-orders";
 
 type Tone = "success" | "info" | "warning" | "danger";
 
@@ -67,6 +72,17 @@ const BID_STATUS_BADGE: Record<string, { key: string; color: "zinc" | "amber" | 
   LOST: { key: "kaybettiniz", color: "rose" },
   WITHDRAWN: { key: "geriCekildi", color: "zinc" },
 };
+
+/** LOST teklifin rozeti sonuca göre (arayüz testi D-102/D-117). */
+const LOST_BADGE: Record<ReturnType<typeof lostBidOutcome>, { key: string; color: "zinc" | "rose" }> = {
+  eliminated: { key: "elendi", color: "rose" },
+  lost: { key: "kaybettiniz", color: "rose" },
+  cancelled: { key: "iptalEdildi", color: "zinc" },
+  closed: { key: "kapandi", color: "zinc" },
+};
+
+/** Talep sonuçlandı/iptal — teklif geçerlilik geri sayımı anlamını yitirir. */
+const TERMINAL_LISTING = new Set(["AWARDED", "CLOSED_NO_AWARD", "CANCELLED"]);
 
 /** Teklif özeti kartı — statü / versiyon / toplam + geçerlilik + kalemler + not. */
 export function BidSummaryCard({ l }: { l: ListingDetail }) {
@@ -98,13 +114,23 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const itemName = new Map(
     (l.items ?? []).map((it) => [it.id, it] as const),
   );
-  const badge = BID_STATUS_BADGE[bid.status] ?? BID_STATUS_BADGE.SUBMITTED;
+  // Statü teklif + talep durumundan: elenen "Elendi" (yeniden teklif verebilir),
+  // kazandırmada kaybeden "Kaybettiniz", iptal/kazanansız kapanan nötr.
+  const badge =
+    bid.status === "LOST"
+      ? LOST_BADGE[lostBidOutcome(bid, l.status)]
+      : (BID_STATUS_BADGE[bid.status] ?? BID_STATUS_BADGE.SUBMITTED);
 
   // Geçerlilik: son gün = submittedAt + validityDays. Süresi dolan teklif
   // fiyat değişmeden uzatılabilir; taşımada taslağa düşmüşse uzatma onu
   // aynı fiyatla yeniden canlıya döndürür.
+  // Yalnız canlı (gönderilmiş/taslak) teklifte ve talep sonuçlanmamışken —
+  // iptal/sonuçlanmış talepte geri sayım sürmesin (arayüz testi D-117).
+  const validityRelevant =
+    (bid.status === "SUBMITTED" || bid.status === "DRAFT") &&
+    !TERMINAL_LISTING.has(l.status);
   const validUntil =
-    bid.submittedAt && bid.validityDays
+    validityRelevant && bid.submittedAt && bid.validityDays
       ? new Date(
           new Date(bid.submittedAt).getTime() +
             bid.validityDays * 86_400_000,
@@ -322,10 +348,14 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             {t("fiyatlandirilanKalemler", { length: bid.items.length })}
           </p>
           {(() => {
-            // Teslim kolonu yalnız en az bir kalemde süre/tarih girildiyse.
-            const hasDelivery = bid.items!.some(
-              (bi) => bi.deliveryTime || bi.deliveryDate,
-            );
+            // Teslim kolonu kalemde ya da teklifin GENEL süresinde değer
+            // varsa; kalemsiz satır genel süreye düşer (arayüz testi D-118).
+            const generalDelivery =
+              bidDeliveryTimeLabel(bid.deliveryTime) ??
+              (bid.deliveryDate ? formatDate(bid.deliveryDate, "short", locale) : null);
+            const hasDelivery =
+              !!generalDelivery ||
+              bid.items!.some((bi) => bi.deliveryTime || bi.deliveryDate);
             return (
               <Table dense>
                 <TableHead>
@@ -346,10 +376,28 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                 <TableBody>
                   {bid.items!.map((bi) => {
                     const item = itemName.get(bi.itemId);
+                    // Kalem sorularına verilen cevaplar (alıcının gördüğüyle aynı).
+                    const itemAnswers = (item?.questions ?? [])
+                      .map((q) => ({
+                        q,
+                        value: bid.answers?.find((a) => a.questionId === q.id)?.value,
+                      }))
+                      .filter((x) => x.value);
                     return (
                       <TableRow key={bi.itemId}>
                         <TableCell className="whitespace-normal text-zinc-900">
                           {item?.name ?? t("kalem")}
+                          <AlternativeOfferNote bidItem={bi} item={item} />
+                          {itemAnswers.map(({ q, value }) => (
+                            <span key={q.id} className="block text-xs text-zinc-500">
+                              {q.text}:{" "}
+                              <strong className="font-medium text-zinc-700">
+                                {q.answerType === "YES_NO" && value
+                                  ? yesNoAnswerLabel(value, { yes: t("evet"), no: t("hayir") })
+                                  : value}
+                              </strong>
+                            </span>
+                          ))}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
                           {item
@@ -367,7 +415,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                             {bidDeliveryTimeLabel(bi.deliveryTime) ??
                               (bi.deliveryDate
                                 ? formatDate(bi.deliveryDate, "short", locale)
-                                : "—")}
+                                : (generalDelivery ?? "—"))}
                           </TableCell>
                         ) : null}
                         <TableCell className="text-right font-medium whitespace-nowrap text-zinc-900 tabular-nums">
@@ -404,6 +452,16 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
         </div>
       ) : null}
 
+      {bid.deliveryTime || bid.deliveryDate ? (
+        <div className="mt-4 border-t border-zinc-100 pt-3">
+          <p className="mb-1 text-xs font-medium text-zinc-500">{t("genelTeslim")}</p>
+          <p className="text-sm text-zinc-700">
+            {bidDeliveryTimeLabel(bid.deliveryTime) ??
+              (bid.deliveryDate ? formatDate(bid.deliveryDate, "short", locale) : "—")}
+          </p>
+        </div>
+      ) : null}
+
       {bid.note ? (
         <div className="mt-4 border-t border-zinc-100 pt-3">
           <p className="mb-1 text-xs font-medium text-zinc-500">{t("genelNot")}</p>
@@ -422,6 +480,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
 export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   const t = useTranslations("web.panel.requests.myBidStatusPanel");
   const systemText = useSystemText();
+  const orderStatusLabel = useOrderStatusLabel();
   const locale = useLocale();
   const bid = l.myBid;
   const open = l.status === "OPEN";
@@ -453,11 +512,17 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     // P2 (denetim §10.4): kazanma banner'ı — üç başarı sembolü (Check+Trophy+
     // emoji) teke indi (Trophy amber), gradient zemin + "sırada ne var" 3 adım
     // + TEK birincil aksiyon. Kazanan SATICI (siparişi kendisi onaylar).
-    const steps = [
-      t("siparisOlusturulduOnayinBekleniyor"),
-      t("onaylaTeslimEtVeFatura"),
-      t("odemeyiSiparisSayfasindanIzle"),
-    ];
+    // "Sırada ne var" adımları yalnız sipariş satıcı onayını beklerken;
+    // ilerlemiş siparişte güncel durum yazılır (arayüz testi D-195).
+    const order = l.myOrder ?? null;
+    const steps =
+      !order || order.status === "PENDING"
+        ? [
+            t("siparisOlusturulduOnayinBekleniyor"),
+            t("onaylaTeslimEtVeFatura"),
+            t("odemeyiSiparisSayfasindanIzle"),
+          ]
+        : null;
     alerts.push(
       <div
         key="won"
@@ -473,11 +538,21 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
                 ? t("tebriklerTeklifinKazandi")
                 : t("tebriklerBaziKalemleriKazandiniz")}
             </p>
-            <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-emerald-800">
-              {steps.map((st) => (
-                <li key={st}>{st}</li>
-              ))}
-            </ol>
+            {steps ? (
+              <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-emerald-800">
+                {steps.map((st) => (
+                  <li key={st}>{st}</li>
+                ))}
+              </ol>
+            ) : order ? (
+              <p className="mt-2 text-sm text-emerald-800">
+                {t("siparisDurumu", {
+                  status: orderStatusLabel(
+                    orderStatusMeta(order.status as CompanyOrderStatus).labelKey,
+                  ),
+                })}
+              </p>
+            ) : null}
             <div className="mt-3">
               <Button href={ordersHref}>{ordersLabel}</Button>
             </div>
@@ -518,7 +593,15 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     );
   } else if (bid.status === "LOST") {
     alerts.push(
-      <StatusAlert key="lost" tone="info" title={t("satinAlmaTalebiSonuclandiTeklifiniz")}>
+      <StatusAlert
+        key="lost"
+        tone="info"
+        title={
+          !bid.eliminatedAt && l.status === "CLOSED_NO_AWARD"
+            ? t("alimTalebiKazananSecilmedenKapandi")
+            : t("satinAlmaTalebiSonuclandiTeklifiniz")
+        }
+      >
         {bid.eliminatedAt && bid.eliminationReason ? (
           <p>
             <span className="font-medium">{t("gerekce2")}</span> {systemText(bid.eliminationReason)}

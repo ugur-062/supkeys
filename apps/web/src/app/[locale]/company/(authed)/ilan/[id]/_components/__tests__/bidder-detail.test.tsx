@@ -155,6 +155,28 @@ describe("AuctionLiveCard", () => {
     expect(screen.getByText("#1 Tedarikçi")).toBeInTheDocument();
   });
 
+  it("geri sayım etiketli ve birimli — çıplak saat değil (arayüz testi D-121)", () => {
+    const { unmount } = render(
+      <AuctionLiveCard
+        l={detail({
+          english,
+          closesAt: new Date(Date.now() + (19 * 3600 + 61) * 1000 + 500).toISOString(),
+        })}
+      />,
+    );
+    expect(screen.getByText(/^Kalan: 19 sa 01 dk \d{2} sn$/)).toBeInTheDocument();
+    unmount();
+    render(
+      <AuctionLiveCard
+        l={detail({
+          english,
+          closesAt: new Date(Date.now() + (2 * 86_400 + 3 * 3600 + 300) * 1000 + 500).toISOString(),
+        })}
+      />,
+    );
+    expect(screen.getByText("Kalan: 2 g 3 sa 05 dk")).toBeInTheDocument();
+  });
+
   it("oto-uzatma notu gösterilir; english yoksa render edilmez", () => {
     const { unmount } = render(
       <AuctionLiveCard
@@ -184,7 +206,9 @@ describe("MyBidStatusPanel — durum makinesi", () => {
         })}
       />,
     );
-    expect(screen.getByText(/teklifin kazandı/)).toBeInTheDocument();
+    expect(screen.getByText(/teklifiniz kazandı/)).toBeInTheDocument();
+    // Sipariş henüz yok/onay bekliyor → "sırada ne var" adımları.
+    expect(screen.getByText(/onayınız bekleniyor/)).toBeInTheDocument();
     expect(
       // ALIM ihalesini kazanan teklifçi SATICI'dır → linki "Satışlarım"a gider.
       screen.getByRole("link", { name: "Satışlarımı Görüntüle" }),
@@ -243,6 +267,36 @@ describe("MyBidStatusPanel — durum makinesi", () => {
       />,
     );
     expect(screen.getByText(/Alım talebi sonuçlandı/)).toBeInTheDocument();
+  });
+
+  it("WON + ilerlemiş sipariş → eski 'onayınız bekleniyor' adımı yerine güncel durum (arayüz testi D-195)", () => {
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "AWARDED",
+          myBid: { amount: "1000", status: "WON", version: 1, note: null },
+          myOrder: { id: "o1", number: "ORD-2026-0001", status: "IN_DELIVERY" },
+        })}
+      />,
+    );
+    expect(screen.queryByText(/onayınız bekleniyor/)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Sipariş durumu: /)).toBeInTheDocument();
+  });
+
+  it("LOST + kazanansız kapanan talep → 'kazanan seçilmeden kapandı' (arayüz testi D-102)", () => {
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "CLOSED_NO_AWARD",
+          myBid: { amount: "1000", status: "LOST", version: 1, note: null },
+        })}
+      />,
+    );
+    expect(
+      screen.getByText("Alım talebi kazanan seçilmeden kapandı."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Kaybettiniz")).not.toBeInTheDocument();
+    expect(screen.queryByText("Elendi")).not.toBeInTheDocument();
   });
 
   it("SUBMITTED + açık → 'Teklifiniz alındı' (versiyon v1 gösterilmez)", () => {
@@ -427,6 +481,98 @@ describe("BidSummaryCard", () => {
         "Kalem fiyatları teklifin ana birimine (EUR) çevrilerek toplandı.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("statü teklif + talep durumundan: elenen 'Elendi', kazandırmada kaybeden 'Kaybettiniz', iptalde 'İptal edildi' (arayüz testi D-102/D-117)", () => {
+    const lost = { amount: "1500", status: "LOST" as const, version: 1, note: null };
+    const elim = render(
+      <BidSummaryCard
+        l={detail({
+          status: "OPEN",
+          myBid: { ...lost, eliminatedAt: new Date().toISOString() },
+        })}
+      />,
+    );
+    expect(screen.getByText("Elendi")).toBeInTheDocument();
+    expect(screen.queryByText("Kaybettiniz")).not.toBeInTheDocument();
+    elim.unmount();
+    const awarded = render(<BidSummaryCard l={detail({ status: "AWARDED", myBid: lost })} />);
+    expect(screen.getByText("Kaybettiniz")).toBeInTheDocument();
+    awarded.unmount();
+    render(<BidSummaryCard l={detail({ status: "CANCELLED", myBid: lost })} />);
+    expect(screen.getByText("İptal edildi")).toBeInTheDocument();
+  });
+
+  it("iptal edilen / sonuçlanan talepte geçerlilik geri sayımı gizli (arayüz testi D-117)", () => {
+    const { unmount } = render(
+      <BidSummaryCard l={detail({ status: "OPEN", myBid: submittedBid })} />,
+    );
+    expect(screen.getByText("Teklif Geçerliliği")).toBeInTheDocument();
+    unmount();
+    const cancelled = render(
+      <BidSummaryCard
+        l={detail({ status: "CANCELLED", myBid: { ...submittedBid, status: "LOST" } })}
+      />,
+    );
+    expect(screen.queryByText("Teklif Geçerliliği")).not.toBeInTheDocument();
+    expect(screen.queryByText(/gün kaldı/)).not.toBeInTheDocument();
+    cancelled.unmount();
+    render(<BidSummaryCard l={detail({ status: "AWARDED", myBid: { ...submittedBid, status: "WON" } })} />);
+    expect(screen.queryByText("Teklif Geçerliliği")).not.toBeInTheDocument();
+  });
+
+  it("özet genel teslim süresine düşer, muadil beyanı ve soru cevaplarını gösterir (arayüz testi D-118)", () => {
+    render(
+      <BidSummaryCard
+        l={detail({
+          items: [
+            {
+              id: "i1",
+              lineNo: 1,
+              name: "Çelik Boru",
+              description: null,
+              quantity: "10",
+              unit: "adet",
+              targetPrice: null,
+              brand: "Borusan",
+              alternativeAllowed: true,
+              questions: [
+                { id: "q1", text: "Sertifika var mı?", answerType: "YES_NO", required: true },
+                { id: "q2", text: "Menşei", answerType: "TEXT", required: false },
+              ],
+            },
+          ],
+          myBid: {
+            amount: "1500",
+            status: "SUBMITTED",
+            version: 1,
+            note: null,
+            currency: "TRY",
+            deliveryTime: "W1_2",
+            items: [
+              {
+                itemId: "i1",
+                unitPrice: "150",
+                isAlternative: true,
+                offeredBrand: "Kardemir",
+              },
+            ],
+            answers: [
+              { questionId: "q1", value: "Evet" },
+              { questionId: "q2", value: "Türkiye" },
+            ],
+          },
+        })}
+      />,
+    );
+    // Kalemde teslim yok → genel süreye düşer; ayrıca genel satırı.
+    expect(screen.getByText("Genel teslim süresi")).toBeInTheDocument();
+    expect(screen.getAllByText("1-2 hafta")).toHaveLength(2);
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
+    expect(screen.getByText("Muadil")).toBeInTheDocument();
+    expect(screen.getByText(/Kardemir/)).toBeInTheDocument();
+    expect(screen.getByText(/Sertifika var mı\?/)).toBeInTheDocument();
+    expect(screen.getByText("Türkiye")).toBeInTheDocument();
   });
 
   it("tek birimli teklifte çevrim notu görünmez", () => {

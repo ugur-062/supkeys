@@ -3892,6 +3892,10 @@ export class CompanyListingsService {
           validityDays: b.validityDays,
           // Geçerlilik rozeti için: son geçerlilik = submittedAt + validityDays.
           submittedAt: b.submittedAt ? b.submittedAt.toISOString() : null,
+          // Arayüz testi D-102: LOST iki ayrı sonuç — alıcının ELEDİĞİ teklif
+          // (eliminatedAt dolu) ile kazandırmada kaybeden/kazanansız kapanan.
+          // Web "Elendi"yi yalnız bununla basar.
+          eliminatedAt: b.eliminatedAt ? b.eliminatedAt.toISOString() : null,
           deliveryAddress: b.deliveryAddress,
           items: b.items.map((bi) => ({
             itemId: bi.itemId,
