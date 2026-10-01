@@ -23,9 +23,9 @@ import { Suspense, useEffect } from "react";
 const PAGE_SIZE = 25;
 
 /** Bekleme süresi rozeti — SLA görselleştirmesi (3+ gün amber, 7+ gün red). */
-function waitBadge(updatedAt: string) {
+function waitBadge(since: string) {
   const days = Math.floor(
-    (Date.now() - new Date(updatedAt).getTime()) / 86_400_000,
+    (Date.now() - new Date(since).getTime()) / 86_400_000,
   );
   const color = days >= 7 ? "red" : days >= 3 ? "amber" : "zinc";
   const label = days === 0 ? "bugün" : `${days} gün`;
@@ -89,7 +89,11 @@ function BasvurularView() {
                 empty="Kuyruk boş — bekleyen başvuru yok"
               />
             ) : (
-              items.map((c) => (
+              items.map((c) => {
+                // Kuyruğa giriş anı (belge gönderimi); `updatedAt` her
+                // düzenlemede değiştiği için yalnız eski API yedeği (O-075).
+                const since = c.submittedAt ?? c.updatedAt;
+                return (
                 <TableRow key={c.id}>
                   <TableCell className="text-admin-text font-medium">
                     <Link
@@ -119,9 +123,9 @@ function BasvurularView() {
                     ) : null}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
-                    {safeFormat(c.updatedAt, "d MMM yyyy HH:mm")}
+                    {safeFormat(since, "d MMM yyyy HH:mm")}
                   </TableCell>
-                  <TableCell>{waitBadge(c.updatedAt)}</TableCell>
+                  <TableCell>{waitBadge(since)}</TableCell>
                   <TableCell className="text-right">
                     <Link
                       href={detailHref(c.id)}
@@ -131,7 +135,8 @@ function BasvurularView() {
                     </Link>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

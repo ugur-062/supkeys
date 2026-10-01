@@ -37,7 +37,7 @@ const ACTION_META: Record<
 
 function exportReportCsv(rows: MembershipReportRow[]) {
   downloadCsv(
-    `uyelik-raporu-${new Date().toISOString().slice(0, 10)}.csv`,
+    `uyelik-raporu-${toDateInput()}.csv`, // yerel gün (D-142)
     ["Tarih", "Firma", "Kod", "İşlem", "Ay", "Yeni Bitiş", "Yapan", "Gerekçe"],
     rows.map((r) => [
       safeFormat(r.createdAt, "yyyy-MM-dd HH:mm"),

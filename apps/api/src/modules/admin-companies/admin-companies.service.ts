@@ -86,6 +86,12 @@ const ANNOUNCE_MAX_TARGETS = 5000;
  */
 const ANNOUNCE_DEDUPE_MS = 120_000;
 
+/**
+ * Başvuru kuyruğu bellekte sıralanırken taranan en çok firma — kuyruk
+ * (bekleyen başvurular) bunun çok altında kalır; tavan yalnız sigorta.
+ */
+const KYC_QUEUE_SCAN_CAP = 5000;
+
 /** CTA etiketi verilmeyen bildirimlerin varsayılan düğmesi. */
 const DEFAULT_CTA_KEY = "api.notifications.common.gitRothern" as ApiMessageKey;
 /** Her bildirim e-postasının ilk paragrafı. */
@@ -469,49 +475,92 @@ export class AdminCompaniesService {
     }
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
-    const [total, rows] = await this.prisma.$transaction([
-      this.prisma.company.count({ where }),
-      this.prisma.company.findMany({
-        where,
+    const select = {
+      id: true,
+      rothernId: true,
+      name: true,
+      taxNumber: true,
+      country: true,
+      stateRegion: true,
+      city: true,
+      tier: true,
+      membershipEndAt: true,
+      companyVerificationStatus: true,
+      isBlocked: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
         select: {
-          id: true,
-          rothernId: true,
-          name: true,
-          taxNumber: true,
-          country: true,
-          stateRegion: true,
-          city: true,
-          tier: true,
-          membershipEndAt: true,
-          companyVerificationStatus: true,
-          isBlocked: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: {
-              complaintsReceived: true,
-              // Dalga B: arama `deletedAt:null` süzerken sayaç süzmüyordu →
-              // ekranda silinmiş kullanıcılar da sayılıyordu.
-              users: { where: { deletedAt: null } },
-              // Faz Y: listede "Belge Güncellemesi" rozeti için.
-              kycRevisions: { where: { status: "PENDING" } },
-            },
-          },
+          complaintsReceived: true,
+          // Dalga B: arama `deletedAt:null` süzerken sayaç süzmüyordu →
+          // ekranda silinmiş kullanıcılar da sayılıyordu.
+          users: { where: { deletedAt: null } },
+          // Faz Y: listede "Belge Güncellemesi" rozeti için.
+          kycRevisions: { where: { status: "PENDING" } },
         },
-        // "oldest": KYC kuyruğu için en-eski-önce (updatedAt ≈ belgelerin
-        // yüklendiği/PENDING'e geçtiği an) — SLA'ya göre işlem sırası.
-        // Dalga B: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
-        // üretiyordu (aynı satır iki sayfada / hiç görünmüyor) → id ile
-        // deterministik tie-break.
-        orderBy:
-          query.sort === "oldest"
-            ? [{ updatedAt: "asc" }, { id: "asc" }]
-            : [{ createdAt: "desc" }, { id: "desc" }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
+      },
+    } satisfies Prisma.CompanySelect;
+    let total: number;
+    let rows: Prisma.CompanyGetPayload<{ select: typeof select }>[];
+    let submittedAt: Map<string, Date> | null = null;
+    if (query.queue === "kyc") {
+      // Başvuru kuyruğu: "Başvuru" tarihi ve en-eski-önce sırası kuyruğa
+      // GİRİŞ anından gelir (bkz. `kycQueueEnteredAt`). Eskiden `updatedAt`
+      // kullanılıyordu: admin firma bilgisini düzenleyince başvuru zamanı o
+      // ana atlıyor, firma kuyruğun sonuna düşüyordu (arayüz testi O-075).
+      // Türetilmiş alan DB'de sıralanamaz; kuyruk küçük (bekleyen başvurular)
+      // olduğu için kimlikler bellekte sıralanıp sayfa sonra çekilir.
+      const all = await this.prisma.company.findMany({
+        where,
+        select: { id: true, companyVerificationStatus: true, updatedAt: true },
+        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+        take: KYC_QUEUE_SCAN_CAP,
+      });
+      submittedAt = await this.kycQueueEnteredAt(all);
+      const at = submittedAt;
+      const dir = query.sort === "oldest" ? 1 : -1;
+      const ordered = [...all].sort((a, b) => {
+        const d = at.get(a.id)!.getTime() - at.get(b.id)!.getTime();
+        if (d !== 0) return d * dir;
+        return (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) * dir;
+      });
+      const pageIds = ordered
+        .slice((page - 1) * pageSize, page * pageSize)
+        .map((c) => c.id);
+      total =
+        all.length < KYC_QUEUE_SCAN_CAP
+          ? all.length
+          : await this.prisma.company.count({ where });
+      const pageRows = pageIds.length
+        ? await this.prisma.company.findMany({
+            where: { id: { in: pageIds } },
+            select,
+          })
+        : [];
+      const byId = new Map(pageRows.map((r) => [r.id, r]));
+      rows = pageIds.flatMap((id) => {
+        const r = byId.get(id);
+        return r ? [r] : [];
+      });
+    } else {
+      [total, rows] = await this.prisma.$transaction([
+        this.prisma.company.count({ where }),
+        this.prisma.company.findMany({
+          where,
+          select,
+          // Dalga B: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
+          // üretiyordu (aynı satır iki sayfada / hiç görünmüyor) → id ile
+          // deterministik tie-break.
+          orderBy:
+            query.sort === "oldest"
+              ? [{ updatedAt: "asc" }, { id: "asc" }]
+              : [{ createdAt: "desc" }, { id: "desc" }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ]);
+    }
     return {
       items: rows.map((c) => ({
         id: c.id,
@@ -532,11 +581,59 @@ export class AdminCompaniesService {
         pendingRevisionCount: c._count.kycRevisions,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
+        /**
+         * Yalnız başvuru kuyruğunda (`queue: "kyc"`): kuyruğa giriş anı —
+         * "Başvuru" tarihi ve bekleme rozeti bunu kullanır (O-075).
+         */
+        submittedAt: submittedAt?.get(c.id) ?? null,
       })),
       total,
       page,
       pageSize,
     };
+  }
+
+  /**
+   * Başvuru kuyruğuna giriş anı, firma başına:
+   * - ilk doğrulama (PENDING): EN SON `company.docs.submitted` izi (reddedilip
+   *   yeniden gönderen firmada güncel başvuru — panodaki kuyruk yaşıyla aynı
+   *   kaynak);
+   * - VERIFIED kalıp belge güncellemesi bekleyen: en eski PENDING revizyonun
+   *   oluşturulma anı.
+   * İz yoksa (eski kayıt) `updatedAt`'e düşülür.
+   */
+  private async kycQueueEnteredAt(
+    rows: { id: string; companyVerificationStatus: string; updatedAt: Date }[],
+  ): Promise<Map<string, Date>> {
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) return new Map();
+    const [submits, revisions] = await Promise.all([
+      this.prisma.auditLog.groupBy({
+        by: ["entityId"],
+        where: { action: "company.docs.submitted", entityId: { in: ids } },
+        _max: { createdAt: true },
+      }),
+      this.prisma.companyKycRevision.groupBy({
+        by: ["companyId"],
+        where: { companyId: { in: ids }, status: "PENDING" },
+        _min: { createdAt: true },
+      }),
+    ]);
+    const lastSubmit = new Map(
+      submits.map((g) => [g.entityId, g._max.createdAt]),
+    );
+    const firstRevision = new Map(
+      revisions.map((g) => [g.companyId, g._min.createdAt]),
+    );
+    const out = new Map<string, Date>();
+    for (const r of rows) {
+      const since =
+        r.companyVerificationStatus === "PENDING"
+          ? lastSubmit.get(r.id)
+          : firstRevision.get(r.id);
+      out.set(r.id, since ?? r.updatedAt);
+    }
+    return out;
   }
 
   /**

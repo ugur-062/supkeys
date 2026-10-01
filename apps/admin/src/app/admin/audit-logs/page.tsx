@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@/components/catalyst/badge";
+import { AuditLogRow } from "@/components/audit/audit-log-row";
 import {
   Table,
   TableBody,
@@ -17,23 +17,9 @@ import {
   Pagination,
   SearchInput,
 } from "@/components/list";
-import { useAuditLogs, type AuditLogItem } from "@/hooks/use-audit-logs";
-import { ACTION_FILTERS, ACTION_LABELS } from "@/lib/audit-actions";
-import { safeFormat } from "@/lib/date";
-import { ENTITY_TYPE_LABEL } from "@/lib/terms";
+import { useAuditLogs } from "@/hooks/use-audit-logs";
+import { ACTION_FILTERS } from "@/lib/audit-actions";
 import { useState } from "react";
-
-const ACTOR_META: Record<
-  string,
-  { label: string; color: "zinc" | "blue" | "amber" | "green" }
-> = {
-  admin: { label: "Admin", color: "blue" },
-  company: { label: "Firma", color: "green" },
-  // Eski aktör tipleri — yalnız geçmiş satırlar; süzgeçte sunulmaz.
-  tenant: { label: "Alıcı", color: "green" },
-  supplier: { label: "Tedarikçi", color: "amber" },
-  system: { label: "Sistem", color: "zinc" },
-};
 
 function AuditView() {
   const [actorType, setActorType] = useState("");
@@ -122,7 +108,7 @@ function AuditView() {
                 </TableCell>
               </TableRow>
             ) : (
-              items.map((it) => <AuditRow key={it.id} item={it} />)
+              items.map((it) => <AuditLogRow key={it.id} item={it} />)
             )}
           </TableBody>
         </Table>
@@ -140,51 +126,6 @@ function AuditView() {
         />
       ) : null}
     </div>
-  );
-}
-
-function AuditRow({ item }: { item: AuditLogItem }) {
-  const actor = ACTOR_META[item.actorType] ?? {
-    label: item.actorType,
-    color: "zinc" as const,
-  };
-  const metaStr = item.metadata
-    ? Object.entries(item.metadata)
-        .filter(([, v]) => v !== undefined && v !== null)
-        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(",") : String(v)}`)
-        .join(" · ")
-    : "";
-
-  return (
-    <TableRow>
-      <TableCell className="whitespace-nowrap text-xs text-admin-text-muted">
-        {safeFormat(item.createdAt, "d MMM yyyy HH:mm")}
-      </TableCell>
-      <TableCell>
-        <Badge color={actor.color}>{actor.label}</Badge>
-        <div className="text-xs text-admin-text-muted mt-1 truncate max-w-[160px]">
-          {item.actorEmail ?? item.actorId ?? "—"}
-        </div>
-      </TableCell>
-      <TableCell className="font-medium text-admin-text">
-        {ACTION_LABELS[item.action] ?? item.action}
-      </TableCell>
-      <TableCell className="text-xs text-admin-text-muted">
-        {item.entityType ? (
-          <>
-            {ENTITY_TYPE_LABEL[item.entityType] ?? item.entityType}
-            {item.entityId ? (
-              <span className="font-mono"> · {item.entityId.slice(0, 10)}</span>
-            ) : null}
-          </>
-        ) : (
-          "—"
-        )}
-      </TableCell>
-      <TableCell className="text-xs text-admin-text-muted max-w-[280px] truncate">
-        {metaStr || "—"}
-      </TableCell>
-    </TableRow>
   );
 }
 

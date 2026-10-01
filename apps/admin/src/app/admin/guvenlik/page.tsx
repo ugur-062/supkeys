@@ -14,6 +14,7 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader, Pagination } from "@/components/list";
 import { useAuditLogs } from "@/hooks/use-audit-logs";
+import { LOGIN_FAIL_REASON_LABEL, PORTAL_LABEL } from "@/lib/audit-format";
 import { safeFormat } from "@/lib/date";
 import { useState } from "react";
 
@@ -27,8 +28,11 @@ function GuvenlikView() {
   const items = query.data?.items ?? [];
   const pg = query.data?.pagination;
 
-  // Brute-force deseni: bu sayfadaki (son 100 kayıt) en çok deneme yapan
-  // IP'ler ve en çok hedeflenen e-postalar.
+  // Brute-force deseni: EN SON kayıtlardan (1. sayfa, son 100 kayıt) en çok
+  // deneme yapan IP'ler ve en çok hedeflenen e-postalar. Kartlar yalnız 1.
+  // sayfada: eskiden her sayfa kendi kayıtlarından hesaplanıyor, 2. sayfada
+  // "(son 16 kayıt)" başlığı en ESKİ kayıtları gösteriyordu (arayüz testi D-226).
+  const showTop = page === 1;
   const topOf = (key: (r: (typeof items)[number]) => string | null) => {
     const counts = new Map<string, number>();
     for (const r of items) {
@@ -51,7 +55,7 @@ function GuvenlikView() {
         description="Başarısız giriş denemeleri — şüpheli giriş etkinliği takibi."
       />
 
-      {topIps.length > 0 || topEmails.length > 0 ? (
+      {showTop && (topIps.length > 0 || topEmails.length > 0) ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="admin-card px-5 py-4">
             <h3 className="text-admin-text text-sm font-semibold">
@@ -118,6 +122,8 @@ function GuvenlikView() {
               <TableStateRow
                 colSpan={5}
                 loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
                 empty="Başarısız giriş denemesi kaydı yok"
               />
             ) : (
@@ -135,14 +141,19 @@ function GuvenlikView() {
                       <Badge
                         color={r.actorType === "admin" ? "red" : "blue"}
                       >
-                        {meta.portal ?? r.actorType}
+                        {/* Ham kod yerine etiket (D-019). */}
+                        {PORTAL_LABEL[meta.portal ?? r.actorType] ??
+                          meta.portal ??
+                          r.actorType}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-admin-text text-sm">
                       {r.actorEmail ?? "—"}
                     </TableCell>
-                    <TableCell className="text-admin-text-muted font-mono text-xs">
-                      {meta.reason ?? "—"}
+                    <TableCell className="text-admin-text-muted text-xs">
+                      {meta.reason
+                        ? (LOGIN_FAIL_REASON_LABEL[meta.reason] ?? meta.reason)
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-admin-text-muted font-mono text-xs">
                       {r.ip ?? "—"}

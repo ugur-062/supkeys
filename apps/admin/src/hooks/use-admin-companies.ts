@@ -22,8 +22,13 @@ export interface AdminCompanyRow {
   /** Faz Y: bekleyen belge-güncelleme revizyonu sayısı (A-modeli rozeti). */
   pendingRevisionCount: number;
   createdAt: string;
-  /** Kuyruk yaşı için — PENDING'e geçiş/belge yükleme yaklaşık anı. */
+  /** Son yazım anı — her düzenlemede değişir; kuyruk yaşı için KULLANMAYIN. */
   updatedAt: string;
+  /**
+   * Yalnız başvuru kuyruğunda (`queue: "kyc"`): kuyruğa giriş anı (belge
+   * gönderimi / bekleyen revizyon) — "Başvuru" tarihi ve bekleme rozeti (O-075).
+   */
+  submittedAt?: string | null;
 }
 
 export interface AdminCompanyListResponse {

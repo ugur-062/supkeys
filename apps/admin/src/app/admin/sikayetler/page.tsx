@@ -26,7 +26,7 @@ import {
   type AdminComplaint,
 } from "@/hooks/use-admin-companies";
 import { downloadCsv } from "@/lib/csv";
-import { safeFormat } from "@/lib/date";
+import { safeFormat, toDateInput } from "@/lib/date";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { Download } from "lucide-react";
@@ -45,7 +45,8 @@ const STATUS_META: Record<
 
 function exportComplaintsCsv(items: AdminComplaint[]) {
   downloadCsv(
-    `sikayetler-${new Date().toISOString().slice(0, 10)}.csv`,
+    // Yerel takvim günü — UTC gece yarısı-03:00 arası dünü veriyordu (D-142).
+    `sikayetler-${toDateInput()}.csv`,
     ["Tarih", "Şikayet Eden", "Hakkında", "Konu", "Detay", "Durum", "Yönetici Notu"],
     items.map((c) => [
       safeFormat(c.createdAt, "yyyy-MM-dd HH:mm"),
@@ -144,7 +145,8 @@ function SikayetlerView() {
         <FilterSelect
           ariaLabel="Durum"
           value={status}
-          active={!!status}
+          // Varsayılan "Açık"; koyu görünüm yalnız varsayılandan sapınca (D-214).
+          active={status !== "OPEN"}
           onChange={(v) => {
             setStatus(v);
             setPage(1);
@@ -217,7 +219,9 @@ function SikayetlerView() {
                         {c.against.name}
                       </CompanyLink>
                     </TableCell>
-                    <TableCell className="text-admin-text max-w-[280px]">
+                    {/* Tablo kapsayıcısı whitespace-nowrap — uzun konu Durum
+                        rozetinin ve düğmelerin üstüne taşıyordu (O-125). */}
+                    <TableCell className="text-admin-text max-w-[280px] min-w-[180px] whitespace-normal break-words">
                       <div className="font-medium">{c.reason}</div>
                       {c.detail ? (
                         <div

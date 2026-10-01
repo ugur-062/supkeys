@@ -134,6 +134,23 @@ export const ENTITY_TYPE_LABEL: Record<string, string> = {
   announcement: "Duyuru",
   email: "E-posta",
   system: "Sistem",
+  // Bugünkü yazım noktalarının tamamı — `__tests__/audit-actions.test.ts`
+  // API'deki `entityType: "…"` yazımlarını tarar (arayüz testi D-016).
+  company_order: "Sipariş",
+  company_order_payment: "Sipariş ödemesi",
+  company_user_invitation: "Kullanıcı daveti",
+  company_connection: "Bağlantı",
+  company_block: "Engelleme",
+  company_address: "Adres",
+  company_bank_account: "Banka hesabı",
+  company_item: "Katalog kalemi",
+  listing_bid: "Teklif",
+  listing_document: "İlan belgesi",
+  bid_document: "Teklif belgesi",
+  approval_flow: "Onay akışı",
+  approval_request: "Onay isteği",
+  audit_log: "Denetim kaydı",
+  email_log: "E-posta kaydı",
 };
 
 /** Haritada olmayan durum ham enum yerine tireli nötr etiket alır. */

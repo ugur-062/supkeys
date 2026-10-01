@@ -96,6 +96,27 @@ describe("Başvurular kuyruğu", () => {
     );
   });
 
+  it("Başvuru tarihi ve bekleme kuyruğa giriş anından (submittedAt) gelir, son düzenlemeden değil (arayüz testi O-075)", () => {
+    h.companies = {
+      data: {
+        items: [
+          {
+            ...pendingRow("a", 0),
+            submittedAt: new Date(Date.now() - 9 * 86_400_000).toISOString(),
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 25,
+      },
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminBasvurularPage />);
+    expect(screen.getByText("9 gün")).toBeInTheDocument();
+    expect(screen.queryByText("bugün")).not.toBeInTheDocument();
+  });
+
   it("sayfa URL'den okunur ve firma bağlantısına taşınır; sayfa değişimi URL'ye yazılır (D-198)", async () => {
     h.search = "page=2";
     h.companies = {

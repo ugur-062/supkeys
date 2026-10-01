@@ -105,6 +105,38 @@ describe("AuditLogsPage", () => {
     expect(within(row).getByText("İlan yayınlandı")).toBeInTheDocument();
   });
 
+  it("varlık ve detay etiketli; 2FA/AI/dış davet eylemleri Türkçe (arayüz testi D-016)", () => {
+    const base = {
+      tenantId: null,
+      actorType: "company",
+      actorId: "u1",
+      ip: null,
+      createdAt: "2026-01-15T10:00:00.000Z",
+    };
+    h.query = {
+      data: {
+        items: [
+          { ...base, id: "o1", actorEmail: "a@o.com", action: "admin.order.cancelled", entityType: "company_order", entityId: "ord1", metadata: { to: "CANCELLED", from: "DISPUTED" } },
+          { ...base, id: "o2", actorEmail: "b@o.com", action: "auth.2fa_enabled", entityType: "company_user", entityId: "u1", metadata: null },
+          { ...base, id: "o3", actorEmail: "c@o.com", action: "connection.external_tender_invite", entityType: "listing_bid", entityId: "b1", metadata: null },
+        ],
+        pagination: { page: 1, pageSize: 20, total: 3, totalPages: 1 },
+      },
+      isError: false,
+      isLoading: false,
+    };
+    render(<AuditLogsPage />);
+    const r1 = screen.getByText("a@o.com").closest("tr") as HTMLElement;
+    expect(within(r1).getByText(/^Sipariş/)).toBeInTheDocument();
+    expect(within(r1).getByText("sonra: İptal · önce: İhtilaflı")).toBeInTheDocument();
+    expect(within(r1).queryByText(/company_order/)).not.toBeInTheDocument();
+    const r2 = screen.getByText("b@o.com").closest("tr") as HTMLElement;
+    expect(within(r2).getByText("İki adımlı doğrulama açıldı")).toBeInTheDocument();
+    const r3 = screen.getByText("c@o.com").closest("tr") as HTMLElement;
+    expect(within(r3).getByText("Talebe dışarıdan e-postayla davet")).toBeInTheDocument();
+    expect(within(r3).getByText(/^Teklif/)).toBeInTheDocument();
+  });
+
   it("yükleniyor durumu → 'Yükleniyor...'", () => {
     h.query = { data: undefined, isError: false, isLoading: true };
     render(<AuditLogsPage />);

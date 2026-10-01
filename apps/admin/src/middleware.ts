@@ -15,6 +15,31 @@ import { NextRequest, NextResponse } from "next/server";
  * style-src 'unsafe-inline' bilinçli KALIR (Next/font + UI kütüphaneleri
  * nonce'suz inline <style> enjekte eder; stil-XSS riski script'e göre düşük).
  */
+/**
+ * frame-src — firma belgelerinin sayfa içi önizlemesi (Belgeler › "Önizle")
+ * R2 presigned URL'ini iframe'de açar. frame-src yokken `default-src 'self'`
+ * devreye giriyor, çerçeve hep boş kalıyordu (arayüz testi O-076). Yalnız R2
+ * S3 uç noktası (hesap ya da kova alt alan adı); özel bir uç nokta
+ * kullanılıyorsa kökeni `R2_ENDPOINT`ten eklenir. Yanıt tipini sunucu sabitler
+ * (`presignInlinePreview`: pdf/png/jpg/webp beyaz listesi) — çerçevede script
+ * çalışmaz.
+ */
+export const DOC_PREVIEW_FRAME_ORIGIN = "https://*.r2.cloudflarestorage.com";
+
+function frameSrc(): string {
+  const sources = ["'self'", DOC_PREVIEW_FRAME_ORIGIN];
+  const endpoint = process.env.R2_ENDPOINT;
+  if (endpoint) {
+    try {
+      const { protocol, origin } = new URL(endpoint);
+      if (protocol === "https:" && !sources.includes(origin)) sources.push(origin);
+    } catch {
+      // Bozuk değer — yalnız varsayılan R2 kökeni.
+    }
+  }
+  return `frame-src ${sources.join(" ")}`;
+}
+
 export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
@@ -28,6 +53,7 @@ export function middleware(request: NextRequest) {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self' https: http: ws: wss:",
+    frameSrc(),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

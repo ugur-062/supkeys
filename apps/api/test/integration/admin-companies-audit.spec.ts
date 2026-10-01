@@ -330,6 +330,56 @@ describe("list — sayfalama + kuyruk sıralaması (Faz 1-2)", () => {
     expect(res.items[0]!.updatedAt).toBeInstanceOf(Date);
   });
 
+  it("kuyruk (queue=kyc): Başvuru tarihi ve sıra belge gönderiminden gelir, sonraki düzenleme sırayı bozmaz (arayüz testi O-075)", async () => {
+    const { service } = rig();
+    const day = 86_400_000;
+    const first = await makeCompanyWithUser(prisma, { companyVerificationStatus: "PENDING" });
+    const second = await makeCompanyWithUser(prisma, { companyVerificationStatus: "PENDING" });
+    const revising = await makeCompanyWithUser(prisma, { companyVerificationStatus: "VERIFIED" });
+    const submitAt = (id: string, at: Date) =>
+      prisma.auditLog.create({
+        data: {
+          action: "company.docs.submitted",
+          actorType: "company",
+          entityType: "company",
+          entityId: id,
+          createdAt: at,
+        },
+      });
+    await submitAt(first.company.id, new Date(Date.now() - 5 * day));
+    await submitAt(second.company.id, new Date(Date.now() - 3 * day));
+    const revAt = new Date(Date.now() - 4 * day);
+    await prisma.companyKycRevision.create({
+      data: {
+        companyId: revising.company.id,
+        kind: "taxPlate",
+        key: `company-docs/${revising.company.id}/taxPlate-v2.pdf`,
+        status: "PENDING",
+        createdAt: revAt,
+      },
+    });
+    // Admin ilk firmanın bilgisini düzenledi → updatedAt şimdi.
+    await prisma.company.update({
+      where: { id: first.company.id },
+      data: { name: "Edited Name", updatedAt: new Date() },
+    });
+
+    const res = await service.list({ queue: "kyc", sort: "oldest", page: 1, pageSize: 10 });
+    expect(res.total).toBe(3);
+    expect(res.items.map((r) => r.id)).toEqual([
+      first.company.id,
+      revising.company.id,
+      second.company.id,
+    ]);
+    expect(Math.round((Date.now() - res.items[0]!.submittedAt!.getTime()) / day)).toBe(5);
+    expect(res.items[1]!.submittedAt!.getTime()).toBe(revAt.getTime());
+
+    // Sayfalama sırayı korur.
+    const p2 = await service.list({ queue: "kyc", sort: "oldest", page: 2, pageSize: 2 });
+    expect(p2.total).toBe(3);
+    expect(p2.items.map((r) => r.id)).toEqual([second.company.id]);
+  });
+
   it("stats funnel adımlarını döner", async () => {
     const { service } = rig();
     await makeCompanyWithUser(prisma, {});

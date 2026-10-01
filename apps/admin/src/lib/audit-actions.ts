@@ -18,6 +18,9 @@ export const ACTION_LABELS: Record<string, string> = {
   "auth.login": "Giriş",
   "auth.login_failed": "Başarısız giriş",
   "auth.password_changed": "Şifre değiştirildi",
+  "auth.2fa_enabled": "İki adımlı doğrulama açıldı",
+  "auth.2fa_disabled": "İki adımlı doğrulama kapatıldı",
+  "auth.2fa_recovery_used": "2FA kurtarma kodu kullanıldı",
 
   // Firma: kayıt ve profil
   "company.signup": "Firma kaydı",
@@ -107,6 +110,10 @@ export const ACTION_LABELS: Record<string, string> = {
   "company.connection.disconnected": "Bağlantı kesildi",
   "company.connection.blocked": "Firma engellendi",
   "company.connection.unblocked": "Firma engeli kaldırıldı",
+  "connection.external_tender_invite": "Talebe dışarıdan e-postayla davet",
+
+  // Firma: AI asistan
+  "ai.action_executed": "AI asistan eylemi yürütüldü",
 
   // Firma: onay akışları
   "company.approval_flow.created": "Onay akışı oluşturuldu",
@@ -154,6 +161,8 @@ export const ACTION_LABELS: Record<string, string> = {
   "admin.staff.activated": "Admin: personel aktifleştirildi",
   "admin.staff.password_reset": "Admin: personel şifresi sıfırlandı",
   "admin.self.password_changed": "Admin: kendi şifresini değiştirdi",
+  "admin.self.2fa_enabled": "Admin: iki adımlı doğrulamayı açtı",
+  "admin.self.2fa_disabled": "Admin: iki adımlı doğrulamayı kapattı",
 
   // Admin: ürün, ilan, sipariş
   "admin.product.approved": "Admin: ürün onaylandı",
@@ -224,6 +233,8 @@ export const ACTION_FILTERS: { value: string; label: string }[] = [
   { value: "company.product.", label: "Firma: ürünler" },
   { value: "company.catalog_item.", label: "Firma: katalog" },
   { value: "company.connection.", label: "Firma: bağlantılar" },
+  { value: "connection.", label: "Firma: dış e-posta davetleri" },
+  { value: "ai.", label: "Firma: AI asistan" },
   { value: "company.approval", label: "Firma: onay akışları" },
   { value: "company.docs.", label: "Firma: belgeler" },
   { value: "company.bank_account.", label: "Firma: banka hesapları" },

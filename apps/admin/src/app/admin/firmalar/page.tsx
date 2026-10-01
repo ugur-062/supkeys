@@ -43,7 +43,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useListFilters } from "@/hooks/use-list-filters";
 import { countryFlag, countryName, countryShort } from "@/lib/country";
-import { safeFormat } from "@/lib/date";
+import { safeFormat, toDateInput } from "@/lib/date";
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
@@ -82,7 +82,7 @@ async function exportCsv(params: Record<string, string | undefined>) {
     if (page * 100 >= data.total) break;
   }
   downloadCsv(
-    `firmalar-${new Date().toISOString().slice(0, 10)}.csv`,
+    `firmalar-${toDateInput()}.csv`, // yerel gün (D-142)
     ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "Doğrulama", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"],
     rows.map((c) => [
       c.name,

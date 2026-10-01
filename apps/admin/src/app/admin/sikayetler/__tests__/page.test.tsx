@@ -197,3 +197,27 @@ describe("SikayetlerView — çözüm aksiyonları (PromptDialog)", () => {
     expect(screen.queryByLabelText(/Askı gerekçesi/)).not.toBeInTheDocument();
   });
 });
+
+describe("Şikayetler — süzgeç ve hücre düzeni (arayüz testi D-214, O-125)", () => {
+  it("durum süzgeci varsayılanda (Açık) koyu değil, başka değerde koyu", async () => {
+    const user = userEvent.setup();
+    render(<AdminSikayetlerPage />);
+    const select = screen.getByRole("combobox", { name: "Durum" });
+    expect(select.parentElement!.className).not.toContain("bg-zinc-900");
+    await user.selectOptions(select, "");
+    expect(select.parentElement!.className).toContain("bg-zinc-900");
+  });
+
+  it("uzun konu hücresi sarılır (tablonun nowrap'ını ezer)", () => {
+    const long = "Uzun konu ".repeat(12).trim();
+    h.complaints = {
+      data: { items: [complaint({ reason: long })], total: 1, page: 1, pageSize: 25 },
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminSikayetlerPage />);
+    const cell = screen.getByText(long).closest("td")!;
+    expect(cell.className).toContain("whitespace-normal");
+    expect(cell.className).toContain("break-words");
+  });
+});

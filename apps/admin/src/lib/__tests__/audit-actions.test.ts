@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ACTION_FILTERS, ACTION_LABELS } from "../audit-actions";
+import { entityTypeLabel } from "../audit-format";
 
 /**
  * Derin denetim LU-11 (gözden geçirme): Denetim Kaydı'nda API'nin yazdığı her
@@ -12,11 +13,14 @@ import { ACTION_FILTERS, ACTION_LABELS } from "../audit-actions";
  * sabitleri.
  */
 const API_SRC = join(__dirname, "..", "..", "..", "..", "api", "src");
-const FAMILY = String.raw`(?:admin|auth|company|email)\.[a-z_]+(?:\.[a-z_]+)*`;
+// Parçalar rakamla başlayabilir (`auth.2fa_enabled`); `ai.` ve `connection.`
+// aileleri de yazılıyor — eski ifade bunları kaçırıyordu (arayüz testi D-016).
+const FAMILY = String.raw`(?:admin|ai|auth|company|connection|email)\.[a-z0-9_]+(?:\.[a-z0-9_]+)*`;
 const PATTERNS = [
   new RegExp(String.raw`action:\s*"(${FAMILY})"`, "g"),
   new RegExp(String.raw`action:\s*[\w.!=\s"]*?\?\s*"(${FAMILY})"\s*:\s*"(${FAMILY})"`, "g"),
-  new RegExp(String.raw`this\.log\(\s*(?:[\w.!\s]*\?\s*)?"(${FAMILY})"(?:\s*:\s*"(${FAMILY})")?`, "g"),
+  // `this.log(companyId, "admin.user.…", …)` — ilk argüman firma kimliği olabilir.
+  new RegExp(String.raw`this\.log\(\s*(?:[\w.]+,\s*)?(?:[\w.!\s]*\?\s*)?"(${FAMILY})"(?:\s*:\s*"(${FAMILY})")?`, "g"),
   new RegExp(String.raw`[A-Z_]+_ACTION\s*=\s*"(${FAMILY})"`, "g"),
 ];
 
@@ -56,6 +60,10 @@ describe("audit action dictionary", () => {
       "company.catalog_item.archived",
       "company.order.payment_rejected",
       "admin.announcement.email_completed",
+      "auth.2fa_enabled",
+      "admin.self.2fa_disabled",
+      "ai.action_executed",
+      "connection.external_tender_invite",
     ]) {
       expect(actions.has(a), a).toBe(true);
     }
@@ -73,6 +81,17 @@ describe("audit action dictionary", () => {
       (a) => !ACTION_FILTERS.some((f) => a.startsWith(f.value)),
     );
     expect(unreachable).toEqual([]);
+  });
+
+  it("every API-written entityType has a label (D-016)", () => {
+    const missing = new Set<string>();
+    for (const file of walk(API_SRC)) {
+      const text = readFileSync(file, "utf8");
+      for (const m of text.matchAll(/entityType:\s*"([A-Za-z_]+)"/g)) {
+        if (entityTypeLabel(m[1]!) === m[1]) missing.add(`${m[1]} (${relative(API_SRC, file)})`);
+      }
+    }
+    expect([...missing]).toEqual([]);
   });
 
   it("filter values and labels are unique", () => {
