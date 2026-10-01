@@ -86,15 +86,34 @@ export const PAGE_LIMIT = 200;
 export const PRICE_LIMIT = 1_000_000_000;
 const ATTR_PATTERN = /^[a-z0-9_]{1,40}:[^\n\r]{1,60}$/;
 const capped = (n: number | undefined, max: number) => (n == null ? undefined : Math.min(n, max));
+/**
+ * Fiyat sınırı 0 = SINIR YOK. Listelenen her fiyat > 0 olduğundan `fiyatMin=0`
+ * hiçbir şeyi daraltmaz; ama URL'de kalırsa min kutusu "0" gösteriyor, kutunun
+ * debounce'u 0'ı boş sayıp ikinci bir gezinmeyle siliyordu — `push` ile gezen
+ * dizinde Geri tuşu aynı adrese dönüp döngüye giriyordu (histogramın ilk
+ * çubuğu, 1'in altında fiyatlı katalogda `from=0` verir; S078 ile aynı tuzak).
+ * Ayrıştırıcı ve kurucu 0'ı yok sayar.
+ */
+const priceBound = (n: number | undefined) => (n != null && n > 0 ? Math.min(n, PRICE_LIMIT) : undefined);
 
-export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string): ProductFilterState {
+export function parseProductFilters(
+  sp: SearchParamsLike,
+  fixedCategory?: string,
+  /**
+   * Sayfa tavanı YÜZEYE özgü (gözden geçirme, D-056): herkese açık uç en çok
+   * 200. sayfayı kabul eder (`PublicProductQueryDto`), panelin
+   * `/company/items/discover` ucu sınırsız. Ortak ayrıştırıcı kırparsa panelde
+   * 201. sayfaya tıklayan 200. sayfaya geri düşerdi.
+   */
+  opts: { pageLimit?: number } = {},
+): ProductFilterState {
   const cat = fixedCategory ?? get(sp, "kategori");
   const sort = get(sp, "sirala");
   const price = get(sp, "fiyat");
   const page = num(get(sp, "sayfa"));
   // Ters aralık (min > max) yer değiştirir — sessizce boş liste vermesin (D-074).
-  let priceMin = capped(num(get(sp, "fiyatMin")), PRICE_LIMIT);
-  let priceMax = capped(num(get(sp, "fiyatMax")), PRICE_LIMIT);
+  let priceMin = priceBound(num(get(sp, "fiyatMin")));
+  let priceMax = priceBound(num(get(sp, "fiyatMax")));
   if (priceMin != null && priceMax != null && priceMin > priceMax) [priceMin, priceMax] = [priceMax, priceMin];
   const moqMax = capped(num(get(sp, "moqMax")), PRICE_LIMIT);
   return {
@@ -121,7 +140,7 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     fastReply: get(sp, "hizli") === "1",
     sort: sort === "yeni" || sort === "fiyat" || sort === "fiyat-azalan" ? sort : undefined,
     attrs: getAll(sp, "nitelik").filter((a) => ATTR_PATTERN.test(a)).slice(0, 6),
-    page: page && page > 1 ? Math.min(page, PAGE_LIMIT) : 1,
+    page: page && page > 1 ? Math.min(page, opts.pageLimit ?? Number.MAX_SAFE_INTEGER) : 1,
     perPage: isPerPage(num(get(sp, "adet"))) ? (num(get(sp, "adet")) as PerPage) : undefined,
     view: get(sp, "gorunum") === "liste" ? "liste" : undefined,
   };
@@ -197,11 +216,14 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.verified) sp.set("dogrulanmis", "1");
   if (f.price) sp.set("fiyat", f.price);
   if (f.currency) sp.set("para", f.currency);
-  if (f.priceMin != null) sp.set("fiyatMin", String(f.priceMin));
-  if (f.priceMax != null) sp.set("fiyatMax", String(f.priceMax));
+  // 0 sınır = sınır yok (bkz. `priceBound`) — `fiyatMin=0` yazılmaz.
+  const priceMin = priceBound(f.priceMin);
+  const priceMax = priceBound(f.priceMax);
+  if (priceMin != null) sp.set("fiyatMin", String(priceMin));
+  if (priceMax != null) sp.set("fiyatMax", String(priceMax));
   // Bayrak yalnız ARALIKLA anlamlı — aralık kalkınca URL'de görünmez artık
   // olarak kalıyordu (arayüz testi D-232).
-  if (f.priceUnpriced && (f.priceMin != null || f.priceMax != null)) sp.set("fiyatsizDahil", "1");
+  if (f.priceUnpriced && (priceMin != null || priceMax != null)) sp.set("fiyatsizDahil", "1");
   if (f.moqMax != null) sp.set("moqMax", String(f.moqMax));
   if (f.certs.length) sp.set("sertifika", f.certs.join(","));
   if (f.employees.length) sp.set("calisan", f.employees.join(","));

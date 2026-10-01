@@ -21,6 +21,7 @@ import { categoryHref } from "@/lib/public/marketplace";
 import { cityProductPath, countryProductPath, currencyForLocale } from "@rothern/shared";
 import {
   buildProductFilterQuery,
+  PAGE_LIMIT,
   productSearchCarry,
   parseProductFilters,
   toProductFacetParams,
@@ -81,6 +82,8 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
       ...(fixedCountry ? { ulke: fixedCountry } : {}),
     },
     category?.id,
+    // Herkese açık uç en çok 200. sayfayı kabul eder (panel ucu sınırsız).
+    { pageLimit: PAGE_LIMIT },
   );
   // Fiyat süzgecinin varsayılan birimi arayüz dilinden (tr TRY · ru RUB · en
   // USD) — AÇIKÇA gönderilir: uç kenar önbelleğinde, dile göre değişen örtük
@@ -250,7 +253,9 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         </FilterResults>
         <Pagination
           page={page.page}
-          total={page.total}
+          // Herkese açık uç 200. sayfadan ötesini kabul etmez: daha fazla
+          // sayfa gösterilirse 201. bağlantı 200. sayfayı açardı.
+          total={Math.min(page.total, PAGE_LIMIT * page.pageSize)}
           pageSize={page.pageSize}
           className="mt-10 border-t border-zinc-950/5 pt-6"
           // Açılış sayfasında (kategori/şehir/ülke) KANONİK yol korunur, sorgu

@@ -107,6 +107,59 @@ describe("fiyat süzgeci — para birimi", () => {
     }
   });
 
+  it("gözden geçirme O-016: 1'in altında fiyatlı katalogda ilk çubuk tek gezinme yapar, fiyatMin=0 yazılmaz", () => {
+    vi.useFakeTimers();
+    try {
+      const hist = {
+        min: 0,
+        max: 450,
+        quantiles: { p33: 20, p66: 100 },
+        buckets: [
+          { from: 0, to: 50, count: 2 },
+          { from: 50, to: 450, count: 1 },
+        ],
+      };
+      render(
+        <FilterShell basePath="/urunler" total={0} pushFilters>
+          <ProductFilters facets={facets({ priceHistogram: hist })} idPrefix="t" />
+        </FilterShell>,
+      );
+      act(() => {
+        fireEvent.click(screen.getByRole("button", { name: /^0 €–50 € aralığı/ }));
+      });
+      expect(nav.push).toHaveBeenCalledTimes(1);
+      expect(lastUrl()).toContain("fiyatMax=50");
+      expect(lastUrl()).not.toContain("fiyatMin");
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(nav.push).toHaveBeenCalledTimes(1);
+      expect(nav.replace).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gözden geçirme O-016: fiyatMin=0 adresi (Geri ile dönülen) debounce'la yeniden gezinme yapmaz", () => {
+    vi.useFakeTimers();
+    try {
+      nav.search = "para=EUR&fiyatMin=0&fiyatMax=50";
+      render(
+        <FilterShell basePath="/urunler" total={0} pushFilters>
+          <ProductFilters facets={facets()} idPrefix="t" />
+        </FilterShell>,
+      );
+      expect((screen.getByPlaceholderText("0") as HTMLInputElement).value).toBe("");
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(nav.push).not.toHaveBeenCalled();
+      expect(nav.replace).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("birim değişince aralık sıfırlanır ve yeni birim URL'e yazılır", () => {
     nav.search = "para=EUR&fiyatMin=100&fiyatMax=500";
     render(

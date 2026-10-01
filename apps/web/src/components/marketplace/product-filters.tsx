@@ -704,7 +704,9 @@ function PriceGroup({
           from={state.priceMin}
           to={state.priceMax}
           formatPrice={formatPrice}
-          onPick={(from, to) => setRange(from, to)}
+          // İlk çubuk 1'in altında fiyatlı katalogda `from=0` verir: alt
+          // sınır YOK demek, `fiyatMin=0` yazılmaz (bkz. `presetRanges`, S078).
+          onPick={(from, to) => setRange(from > 0 ? from : undefined, to)}
         />
       ) : null}
 

@@ -113,20 +113,38 @@ describe("ürün süzgeç URL şeması", () => {
   });
 
   it("arayüz testi D-056: değerler API doğrulama sınırlarına kırpılır (400 → sessiz boş liste olmasın)", () => {
-    const f = parseProductFilters({
-      q: "a".repeat(130),
-      sayfa: "201",
-      fiyatMax: "99999999999",
-      moqMax: "0",
-      yakin: "x".repeat(60),
-      nitelik: ["Malzeme:Celik", `a:${"b".repeat(70)}`, "malzeme:Çelik"],
-    });
+    const f = parseProductFilters(
+      {
+        q: "a".repeat(130),
+        sayfa: "201",
+        fiyatMax: "99999999999",
+        moqMax: "0",
+        yakin: "x".repeat(60),
+        nitelik: ["Malzeme:Celik", `a:${"b".repeat(70)}`, "malzeme:Çelik"],
+      },
+      undefined,
+      { pageLimit: 200 },
+    );
     expect(f.q).toHaveLength(120);
     expect(f.page).toBe(200);
     expect(f.priceMax).toBe(1_000_000_000);
     expect(f.moqMax).toBeUndefined();
     expect(f.near).toHaveLength(40);
     expect(f.attrs).toEqual(["malzeme:Çelik"]);
+  });
+
+  it("gözden geçirme D-056: sayfa tavanı yalnız isteyen yüzeyde (panel ucu sınırsız)", () => {
+    expect(parseProductFilters({ sayfa: "201" }).page).toBe(201);
+    expect(parseProductFilters({ sayfa: "201" }, undefined, { pageLimit: 200 }).page).toBe(200);
+  });
+
+  it("gözden geçirme O-016: fiyat sınırı 0 = sınır yok — fiyatMin=0 ne okunur ne yazılır", () => {
+    expect(parseProductFilters({ fiyatMin: "0", fiyatMax: "40" })).toMatchObject({ priceMin: undefined, priceMax: 40 });
+    expect(parseProductFilters({ fiyatMin: "5", fiyatMax: "0" })).toMatchObject({ priceMin: 5, priceMax: undefined });
+    const q = buildProductFilterQuery({ ...parseProductFilters({}), priceMin: 0, priceMax: 40, priceUnpriced: true });
+    expect(q).not.toContain("fiyatMin");
+    expect(q).toContain("fiyatMax=40");
+    expect(buildProductFilterQuery({ ...parseProductFilters({}), priceMin: 0, priceUnpriced: true })).toBe("");
   });
 
   it("arayüz testi O-080: sayaç parametreleri listeyle aynı süzgeçleri taşır (tek yardımcı)", () => {
