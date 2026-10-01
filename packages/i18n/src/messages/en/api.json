@@ -197,7 +197,8 @@
     "buUlkeKaydaKapali": "Registration is closed for this country; the company cannot be moved to it",
     "yerelHukukiYapiZorunlu": "The local legal form is required when the legal structure is \"Other\" (e.g. GmbH, LLC)",
     "ayniDuyuruAzOnceGonderildi": "This announcement was just sent; wait a few minutes before sending it again",
-    "firmaKurulumuTamamlanmadiDogrulanamaz": "The company has not completed its setup (legal name, tax details, address) — it cannot be verified."
+    "firmaKurulumuTamamlanmadiDogrulanamaz": "The company has not completed its setup (legal name, tax details, address) — it cannot be verified.",
+    "urunYayinKosullariniKarsilamiyor": "The product does not meet the publishing requirements — {join}. Ask the company for a correction."
   },
   "categories": {
     "gecersizKategoriId": "Invalid category ID: {join}",
@@ -1493,6 +1494,7 @@
         "reviewBids": "Review quotes",
         "placeBid": "Submit quote",
         "viewOrder": "View order",
+        "viewOrders": "View orders",
         "viewPlans": "View plans",
         "viewOpenRequests": "View open buying requests",
         "upgradeSilver": "Upgrade to Silver",
@@ -1520,7 +1522,11 @@
           "lockedInAppTitle": "A new buyer in your category — upgrade to Silver to quote",
           "lockedInAppBody": "A new buying request matching the categories you sell was published: \"{title}\". Upgrade to Silver to quote on it.",
           "lockedBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see what is requested below. On the free plan you cannot quote on public requests, and the only requirement for upgrading to Silver is verifying your company for free. Get verified first, then quote on this request and other open requests in your category with Silver. Requests your connections invite you to are always free.",
-          "lockedInAppBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\". To quote, verify your company for free first, then upgrade to Silver."
+          "lockedInAppBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\". To quote, verify your company for free first, then upgrade to Silver.",
+          "openBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see the requested line items below. To quote on public requests, first verify your company for free; once verification is complete, you can submit a quote on this request. Requests your connections invite you to do not require verification.",
+          "openInAppBodyUnverified": "New buying request matching the categories you sell: \"{title}\" ({number}). Verify your company for free first to submit a quote.",
+          "openBodyPending": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see the requested line items below. Your company verification is under review; once it is approved, you can submit a quote on this request.",
+          "openInAppBodyPending": "New buying request matching the categories you sell: \"{title}\" ({number}). You can submit a quote once your company verification is approved."
         }
       },
       "invitation": {
@@ -1547,8 +1553,8 @@
       "awarded": {
         "subject": "Congratulations — your quote won",
         "title": "Your quote won",
-        "body": "Your quote won a buying request and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created. You can track order details and next steps on Rothern.",
-        "bodyShort": "Your quote won a buying request and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created."
+        "body": "Your quote won the buying request \"{title}\" ({number}) and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created. You can track order details and next steps on Rothern.",
+        "bodyShort": "Your quote won the buying request \"{title}\" ({number}) and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created."
       },
       "lost": {
         "title": "Buying request concluded",
@@ -1559,7 +1565,8 @@
         "subject": "New round opened — your quote was carried over",
         "heading": "Your quote was carried over to the new round",
         "inAppTitle": "New round — your quote was carried over",
-        "body": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request \"{title}\" ({number}). Your quote of {amount} was carried over unchanged because it is still valid — you may lower your price if you wish."
+        "body": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request \"{title}\" ({number}). Your quote of {amount} was carried over unchanged because it is still valid — you may lower your price if you wish.",
+        "bodyMixed": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request \"{title}\" ({number}). Your multi-currency quote (approx. {amount} equivalent in total) was carried over unchanged because it is still valid — you may lower your price if you wish."
       },
       "nextRoundExpired": {
         "subject": "Your quote’s validity has expired — action required",
@@ -1990,7 +1997,7 @@
       "CLOSED": "Closed to quotes",
       "IN_AWARD": "Under evaluation",
       "IN_AWARD_APPROVAL": "Award approval",
-      "AWARDED": "Completed",
+      "AWARDED": "Awarded",
       "CLOSED_NO_AWARD": "Closed without award",
       "CANCELLED": "Canceled/Closed"
     },

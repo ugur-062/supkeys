@@ -29,6 +29,8 @@ export function ProductActionBar({
   unpublish,
   publicHref,
   publishLocked,
+  archive,
+  blockedNotice,
 }: {
   name: string;
   /** Durum KODU — etiket/renk okuyucunun dilinde `useProductStatusMeta` ile çizilir. */
@@ -46,11 +48,15 @@ export function ProductActionBar({
   unpublish?: () => void;
   publicHref?: string | null;
   publishLocked?: boolean;
+  /** "Arşivle" menü satırı (arayüz testi O-039); incelemedeki üründe verilmez. */
+  archive?: () => void;
+  /** Yayındaki ürün eksik içerikle kaydedilemez — birincil düğme kapalıyken neden (O-009). */
+  blockedNotice?: boolean;
 }) {
   const t = useTranslations("web.panel.trade.productActionBar");
   const statusMeta = useProductStatusMeta()(status);
   const accent = useButtonAccent();
-  const hasMenu = !!draftSave || !!unpublish || !!publicHref;
+  const hasMenu = !!draftSave || !!unpublish || !!publicHref || !!archive;
   return (
     <div className="sticky top-14 z-20 -mx-1 mb-6 rounded-2xl bg-white/95 px-4 py-3 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -64,6 +70,9 @@ export function ProductActionBar({
             <p className="mt-0.5 text-xs text-amber-800">
               {t("ucretsizPaketteYayindaOnaydaUrun")}
             </p>
+          ) : null}
+          {blockedNotice ? (
+            <p className="mt-0.5 text-xs text-amber-800">{t("yayindakiUrunEksik")}</p>
           ) : null}
         </div>
         {canManage ? (
@@ -99,6 +108,11 @@ export function ProductActionBar({
                   {unpublish ? (
                     <DropdownItem onClick={unpublish} disabled={busy}>
                       {t("vitrindenCek")}
+                    </DropdownItem>
+                  ) : null}
+                  {archive ? (
+                    <DropdownItem onClick={archive} disabled={busy}>
+                      {t("arsivle")}
                     </DropdownItem>
                   ) : null}
                 </DropdownMenu>

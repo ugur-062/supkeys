@@ -45,6 +45,9 @@ import {
 } from "@rothern/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { useProductArchive } from "./use-product-archive";
+import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/tenders/error";
 
@@ -53,6 +56,8 @@ const MAX_KEYWORDS = 15;
 const MAX_KEYWORD_LENGTH = 50;
 /** Katalog/teknik föy — Europages ürün kartındaki gibi az sayıda, seçilmiş. */
 const MAX_DOCUMENTS = 3;
+/** API `public-image-upload.ts` `MAX_DOCUMENT_BYTES` / `DOCUMENT_MIME` aynası. */
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
 const INPUT =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
@@ -83,6 +88,8 @@ export function ProductShowcaseForm({
   onCreated,
   onSaved,
   publishLimitReached,
+  limitPending,
+  onDirtyChange,
 }: {
   product: ProductShowcase;
   /** Kalemin ölçü birimi — fiyat ve MOQ satırlarında gösterilir. */
@@ -110,6 +117,16 @@ export function ProductShowcaseForm({
    * API aynası): "Onaya gönder" kilitlenir, taslak kaydetme serbest kalır.
    */
   publishLimitReached?: boolean;
+  /**
+   * Tavan bilgisi henüz gelmedi (liste yanıtı bekleniyor; `?yeni=1` doğrudan
+   * açılış): "Onaya gönder" bilinene kadar KİLİTLİ sayılır (arayüz testi D-287).
+   */
+  limitPending?: boolean;
+  /**
+   * Kaydedilmemiş değişiklik bayrağı üst bileşene — "Ürünlere dön" ve
+   * uygulama içi bağlantı koruması orada (`useUnsavedChangesGuard`, O-098).
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const t = useTranslations("web.panel.trade.productShowcaseForm");
   const unitLabelOf = useUnitLabel();
@@ -196,19 +213,18 @@ export function ProductShowcaseForm({
 
   /**
    * KAYDEDİLMEMİŞ DEĞİŞİKLİK: kayıttaki hâl ile formun anlık hâli ayrışınca
-   * sekme kapatma/yenileme tarayıcı uyarısı ister. Uygulama içi "Ürünlere
-   * dön" de aynı bayrağı okur (`onClose` öncesi onay).
+   * bayrak üst bileşene gider; sekme kapatma uyarısı, uygulama içi bağlantı
+   * onayı ve "Ürünlere dön" onayı orada tek korumada (arayüz testi O-098 —
+   * eskiden yalnız sekme kapatma uyarıyordu, bu yorum vaat ettiği hâlde).
    */
   const initial = useRef(JSON.stringify(patch));
   const dirty = JSON.stringify(patch) !== initial.current;
+  const dirtyCb = useRef(onDirtyChange);
+  dirtyCb.current = onDirtyChange;
   useEffect(() => {
-    if (!dirty) return;
-    const h = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", h);
-    return () => window.removeEventListener("beforeunload", h);
+    dirtyCb.current?.(dirty);
   }, [dirty]);
+  useEffect(() => () => dirtyCb.current?.(false), []);
 
   /**
    * CANLI tamamlanma + onay kapısı — sunucuyla AYNI kurallar
@@ -311,12 +327,22 @@ export function ProductShowcaseForm({
 
   const addDocument = async (file: File | undefined) => {
     if (!file || documents.length >= MAX_DOCUMENTS) return;
+    // Tür/boyut YÜKLEMEDEN ÖNCE (arayüz testi D-289): 11 MB'lık PDF eskiden
+    // depoya tamamen yüklenip sonra reddediliyordu, üstüne iki toast çıkıyordu.
+    if (file.type !== "application/pdf" || file.size > MAX_DOCUMENT_BYTES) {
+      toast.error(t("belgeYuklenemediYalnizPdfEn"));
+      if (docInput.current) docInput.current.value = "";
+      return;
+    }
     try {
       const url = await uploadDoc.mutateAsync(file);
       const title = file.name.replace(/\.pdf$/i, "").slice(0, 200) || t("belge");
       setDocuments((d) => [...d, { url, title }]);
-    } catch {
-      toast.error(t("belgeYuklenemediYalnizPdfEn"));
+    } catch (err) {
+      // Sunucu/ağ hatasının toast'ını küresel yakalayıcı basar (403 "yetkiniz
+      // yok" dahil); burada yalnız depo yüklemesi (PUT) gibi yakalayıcı dışı
+      // hatalar — "yalnız PDF" diye YANLIŞ neden de söylenmez (O-099).
+      if (!isAxiosError(err)) toast.error(t("belgeYuklenemedi"));
     } finally {
       if (docInput.current) docInput.current.value = "";
     }
@@ -350,6 +376,11 @@ export function ProductShowcaseForm({
   // PENDING ürün bu forma HİÇ gelmez (inceleme kilidi → `ProductPreview`);
   // API de 409 döner. Burada yalnız taslak / düzeltme istendi / yayında.
   const publishLocked = !!publishLimitReached && !product.isPublic;
+  // Tavan bilinmiyorken gönderim kapalı (D-287); kilit notu çizilmez — henüz dolu değil.
+  const submitBlocked = publishLocked || (!!limitPending && !product.isPublic);
+  // YAYIN KAPISI (arayüz testi O-009): yayındaki ürün, raydaki "onaya
+  // göndermek için gerekli" eksiklerle KAYDEDİLEMEZ — API aynı 400'ü döner.
+  const publishedBlocked = status === "published" && live.blockers.length > 0;
 
   // Kaydet / Onaya gönder tek uçuşta: çift tık aynı ürünü iki kez oluşturmaz
   // (arayüz testi FX-00 O-006).
@@ -364,6 +395,7 @@ export function ProductShowcaseForm({
       toast.error(t("ucretsizPaketTavaniDolduDaha"));
       return;
     }
+    if (thenSubmit && submitBlocked) return;
     try {
       // Yeni üründe kayıt TEK çağrıyla oluşur (create+vitrin); sonrasında
       // düzenleme moduna geçeriz — kullanıcı için bu tek bir "kaydet".
@@ -374,12 +406,16 @@ export function ProductShowcaseForm({
       if (!thenSubmit) {
         if (isNew) onCreated?.(saved);
         else onSaved?.(saved);
+        // Mesaj SONUCA göre (arayüz testi D-125): yalnız fiyat/MOQ değişen
+        // yayındaki ürün onaylı kalır — "yeniden incelenecek" demek yanlış.
         toast.success(
           isNew
             ? t("urunTaslakOlarakEklendi")
-            : product.isPublic
+            : saved.reviewStatus === "PENDING"
               ? t("kaydedildiIcerikDegisikligiYenidenIncelenece")
-              : t("taslakKaydedildi"),
+              : product.isPublic
+                ? t("kaydedildi")
+                : t("taslakKaydedildi"),
         );
         return;
       }
@@ -424,8 +460,15 @@ export function ProductShowcaseForm({
   const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // Uygulama içi çevrili onay (arayüz testi D-126; tarayıcının OK/Cancel'ı değil).
+  const confirm = useConfirm();
   const unpublish = async () => {
-    if (!window.confirm(t("urunVitrindenCekilecekVeTaslaga"))) return;
+    const ok = await confirm({
+      title: t("vitrindenCekOnayBaslik"),
+      description: t("vitrindenCekOnayAciklama"),
+      confirmLabel: t("vitrindenCek"),
+    });
+    if (!ok) return;
     // Derin denetim LU-31: hata yakalanmıyordu (işlenmemiş ret, toast yok);
     // başarıda da `product` güncellenmediği için form "Yayında" gösteriyordu.
     try {
@@ -436,6 +479,13 @@ export function ProductShowcaseForm({
     } catch (err) {
       toast.error(extractErrorMessage(err, t("vitrindenCekilemedi")));
     }
+  };
+
+  // ARŞİVLE (arayüz testi O-039): kayıtlı ve incelemede OLMAYAN üründe; arşivlenen
+  // ürün listeden (yayındaysa vitrinden) kalkar, Arşiv sekmesinden geri alınır.
+  const productArchive = useProductArchive();
+  const archive = async () => {
+    if (await productArchive.archive(product.id)) onClose();
   };
 
   /* DÜZEN (2026-09-19, kullanıcı kararı): üstte yapışkan eylem çubuğu; solda
@@ -455,11 +505,16 @@ export function ProductShowcaseForm({
         onPrimary={primaryAction}
         // Yayındaki üründe değişiklik yokken Kaydet KAPALI (2026-09-19, kullanıcı
         // bulgusu: değişmeden kaydedince yeniden incelemeye giriyordu).
-        primaryDisabled={((status === "draft" || status === "rejected") && publishLocked) || (status === "published" && !dirty)}
+        primaryDisabled={
+          ((status === "draft" || status === "rejected") && submitBlocked) ||
+          (status === "published" && (!dirty || publishedBlocked))
+        }
         draftSave={status === "draft" || status === "rejected" ? () => void handleSave(false) : undefined}
         unpublish={product.isPublic && !isNew ? () => void unpublish() : undefined}
+        archive={!isNew && product.reviewStatus !== "PENDING" ? () => void archive() : undefined}
         publicHref={publicHref}
         publishLocked={publishLocked}
+        blockedNotice={publishedBlocked && dirty}
       />
       {status === "rejected" && product.rejectReason ? (
         <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-600/20">
@@ -468,7 +523,10 @@ export function ProductShowcaseForm({
       ) : null}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0">
+        {/* İZİNSİZ (salt-okur) kullanıcıda alanlar KAPALI, yükleme kontrolleri
+            çizilmez (arayüz testi O-099) — eskiden form tam düzenlenebilir
+            açılıyor, yüklemeler 403 alıyordu. */}
+        <fieldset disabled={!canManage} className="min-w-0">
           <div className="space-y-10">
             {/* 1 ── TEMEL BİLGİLER */}
             <Section id="urun-temel" n={1} title={t("temelBilgiler")} lead={t("adKategoriVeAciklamaArama")}>
@@ -521,7 +579,7 @@ export function ProductShowcaseForm({
 
             {/* 2 ── GÖRSELLER */}
             <Section id="urun-gorsel" n={2} title={t("gorseller")} lead={t("ilkGorselKapakFarkliAcilar")}>
-              <ImageUploader images={images} onChange={setImages} />
+              <ImageUploader images={images} onChange={setImages} readOnly={!canManage} />
             </Section>
 
             {/* 3 ── ÖZELLİKLER */}
@@ -699,7 +757,7 @@ export function ProductShowcaseForm({
                         ))}
                       </ul>
                     ) : null}
-                    {documents.length < MAX_DOCUMENTS ? (
+                    {canManage && documents.length < MAX_DOCUMENTS ? (
                       <label className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
                         {uploadDoc.isPending ? t("yukleniyor") : t("pdfEkle")}
                         <input
@@ -731,7 +789,7 @@ export function ProductShowcaseForm({
               </Field>
             </Section>
           </div>
-        </div>
+        </fieldset>
 
         <aside className="min-w-0 lg:sticky lg:top-[7.5rem] lg:self-start">
           <EditorRail

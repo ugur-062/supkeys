@@ -34,9 +34,10 @@ const BASE = {
   name: "Dirsek",
   slug: "dirsek",
   code: null,
-  description: "x",
+  // Yayın kapısından geçen içerik (arayüz testi O-009: onay da kapıyı denetler).
+  description: "x".repeat(120),
   images: ["https://cdn/a.jpg"],
-  keywords: [],
+  keywords: ["dirsek"],
   attributes: { malzeme: "AISI 316" },
   brand: null,
   mpn: null,
@@ -163,6 +164,22 @@ describe("AdminProductsService", () => {
     expect(race.audit.log).not.toHaveBeenCalled();
   });
 
+  it("YAYIN KAPISI ONAYDA DA (arayüz testi O-009): eksik içerikli ürün onaylanmaz, toplu onayda gerekçeyle atlanır", async () => {
+    const eksik = { ...BASE, description: "Kısa.", keywords: [] };
+    const tek = rig(eksik);
+    await expect(tek.svc.approve("i1", "a")).rejects.toThrow(/yayın koşullarını karşılamıyor.*Açıklama.*anahtar kelime/);
+    expect(tek.prisma.companyItem.updateMany).not.toHaveBeenCalled();
+    expect(tek.audit.log).not.toHaveBeenCalled();
+
+    const r = rig(BASE);
+    r.prisma.companyItem.findUnique = jest.fn(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === "b" ? { ...eksik, id: "b" } : { ...BASE, id: where.id }),
+    ) as never;
+    const out = await r.svc.approveMany(["a", "b"], "adm1");
+    expect(out.approved).toBe(1);
+    expect(r.prisma.companyItem.updateMany).toHaveBeenCalledTimes(1);
+  });
+
   it("detail: nitelikler etiketlenir, herkese açık adres kurulur; list kuyruğu en eski önce", async () => {
     const { svc, prisma } = rig(BASE);
     prisma.categoryAttribute.findMany.mockResolvedValue([{ groupKey: "malzeme", nameTr: "Malzeme", unit: null, sortOrder: 0, categoryId: "39000000", type: "TEXT", options: [], isRequired: false, id: "a1" }]);
@@ -196,7 +213,7 @@ describe("AdminProductsService", () => {
       const r = coklu([
         { ...BASE, id: "a", name: "Dirsek", slug: "dirsek" },
         { ...BASE, id: "b", name: "Flanş", slug: "flans" },
-        { ...BASE, id: "c", name: "Vana", slug: "vana" },
+        { ...BASE, id: "c", name: "Küresel vana", slug: "kuresel-vana" },
       ]);
       const out = await r.svc.approveMany(["a", "b", "c"], "adm1");
 

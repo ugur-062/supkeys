@@ -849,7 +849,7 @@
       "removeFilter": "Remove the {label} filter"
     },
     "gated": {
-      "membersOnly": "{label} is for members",
+      "membersOnly": "{label}: members only",
       "login": "Log in",
       "signup": "Sign up free",
       "loginFor": "<link>Log in</link> to see {label}",
@@ -1431,7 +1431,7 @@
       "CLOSED": "Closed to quotes",
       "IN_AWARD": "Under evaluation",
       "IN_AWARD_APPROVAL": "Award approval",
-      "AWARDED": "Completed",
+      "AWARDED": "Awarded",
       "CLOSED_NO_AWARD": "Closed without award",
       "CANCELLED": "Canceled/Closed"
     },
@@ -2606,6 +2606,12 @@
           "paymentWindow": "{n, plural, one {<b>#</b> order awaiting payment} other {<b>#</b> orders awaiting payment}}",
           "messages": "{n, plural, one {<b>#</b> unread message} other {<b>#</b> unread messages}}"
         }
+      },
+      "unsavedChanges": {
+        "baslik": "Discard unsaved changes?",
+        "aciklama": "This form has changes you haven't saved. They will be lost if you leave.",
+        "ayril": "Leave",
+        "kal": "Stay on form"
       }
     },
     "nav": {
@@ -2765,6 +2771,8 @@
         "satinAlmaTalebiDegerlendirmeyeAlindi": "Buying request moved to evaluation",
         "degerlendirmeyeAlinamadi": "Could not move to evaluation",
         "kapanisZamaniGuncellendi": "Closing time updated",
+        "kapanisUzatmaGoldGerektirir": "Extending the closing time requires the Gold plan; you can only bring the closing time forward.",
+        "kapanisYalnizOneCekilir": "Because your company is not on the Gold plan, you can only bring the closing time forward; extending it requires Gold.",
         "guncellenemedi": "Could not update",
         "notlarKaydedildi": "Notes saved",
         "satinAlmaTalebiniDuzenle": "Edit buying request",
@@ -2780,6 +2788,9 @@
         "turGecmisi": "Round history",
         "yeniTurOlustur": "Create new round",
         "satinAlmaTalebiniIptalEt": "Cancel buying request",
+        "paketKilidiNotu": "Your company is not on the Gold plan: publishing, editing, inviting new suppliers, opening a new round and extending the closing time of this request require Gold. Viewing, evaluation, awarding, closing and cancelling remain available.",
+        "onceUcretsizDogrulan": "Get verified for free first",
+        "goldaGec": "Upgrade to Gold",
         "taslagiSil2": "Delete draft",
         "yeniKapanisTarihSaatiniSecin": "Select the new closing date/time. You can move it later or earlier.",
         "kapanis": "Closing",
@@ -2815,6 +2826,8 @@
         "firmaAra": "Search companies…",
         "yukleniyor": "Loading…",
         "bagliFirmaYok": "No connected companies.",
+        "eslesenFirmaYok": "No matching companies.",
+        "davetli": "Invited",
         "davetEt": "Invite ({size})",
         "silinemedi": "Could not delete",
         "davetEklenemedi": "Could not add invitation",
@@ -2826,6 +2839,7 @@
         "pazarlikTuruBaslarKapanir": "A negotiation round (open reverse auction) starts with the same line items and invitees; the current quote collection closes. Quotes may be carried over according to the rule.",
         "buTurdaTasinabilirTeklifYok": "There are no quotes to carry over in this round — the open reverse auction starts without a base price; participants submit their first quotes freely. Reduction rules apply to subsequent quotes.",
         "mevcutTekliflerYeniTura": "Existing quotes are <strong>carried over automatically</strong> to the new round and remain <strong>valid indefinitely</strong> throughout the negotiation. A carried-over quote does not count as the quote its owner may submit in this round — the company may still improve its price once during the round.",
+        "mevcutTekliflerYeniTuraRfq": "Existing quotes are <strong>carried over automatically</strong> to the new round and <strong>keep the validity period</strong> the supplier set. An expired quote returns to draft, and the supplier is asked to extend its validity or submit a new price.",
         "pazarlikKurallariMetni": "<b>Negotiation rules:</b> each company submits <strong>one quote</strong> per round, and its new quote must be lower than its previous one. A quote carried over from the previous round does not count as the quote its owner may submit in this round — the company may still improve its price once during the round.",
         "buModdaKatilimcilarTumTeklif": "In this mode participants see all quote amounts and the ranking; however, <strong>company names are never shown</strong> — identities remain fully anonymous.",
         "otomatikTasinir": "carried over automatically",
@@ -2988,6 +3002,7 @@
         "davetGonderilemedi": "Invitation could not be sent",
         "dahaFazlaTedarikciyeEris": "Reach more suppliers",
         "satinAlmaTalebiKategorilerinizeGore": "Companies on the platform that match your buying request categories and are not yet among your connections. Send an invitation — once they accept, you can invite them to your buying request.",
+        "talepIcinAciklama": "Companies that match the categories and line items of your buying request. Invite platform members straight to the request; send companies found on the web an invitation email for this request.",
         "kapat": "Close",
         "tedarikciKaynagi": "Supplier source",
         "platformda": "On the platform",
@@ -3022,7 +3037,8 @@
         "hepsiniTalebeDavetEt": "Invite all to the request ({n, number})",
         "talebeDavetli": "Invited to the request",
         "talebeDavetEt": "Invite to request",
-        "uyeDogrudanTalebeDavet": "Rothern members are invited straight to your request — they don't need to be your contacts; they're notified in the app and by email."
+        "uyeDogrudanTalebeDavet": "Rothern members are invited straight to your request — they don't need to be your contacts; they're notified in the app and by email.",
+        "talebeOzelDisDavetNotu": "Companies found on the web receive an invitation email for this request; once a company signs up, it joins your request as an invitee."
       },
       "ihaleitemspanel": {
         "kalemlerYuklenemedi": "Line items could not be loaded.",
@@ -3099,7 +3115,7 @@
         "status": {
           "open": "Published",
           "evaluating": "Under evaluation",
-          "awarded": "Completed",
+          "awarded": "Awarded",
           "draft": "Draft",
           "closed": "Closed"
         },
@@ -3119,7 +3135,7 @@
         "satinAlmaTalebiSablonlari": "Buying request templates",
         "tekrarlayanAlislariniziKalemlerAyarlarDahil": "Turn your recurring purchases (including line items + settings) into templates; start a new buying request from a template with one click.",
         "soruSetleri": "Question sets",
-        "sikSordugunuzKalemSorulariniSete": "Save the line item questions you ask often as a set; apply them with one click in the buying request wizard.",
+        "sikSordugunuzKalemSorulariniSete": "Save the line item questions you ask often as a set; apply them with one click in the buying request form.",
         "tedarikciGruplari": "Supplier groups",
         "birlikteDavetEttiginizTedarikciGruplarini": "Save the supplier groups you invite together as templates; save time when opening a buying request.",
         "yeniSatinAlmaTalebi": "New buying request",
@@ -3258,7 +3274,7 @@
         "talepSartlariKaydedildiYeniTalepler": "Request terms saved — new requests will start with them",
         "yukleniyor": "Loading…",
         "neredeKullanilir": "Where it is used",
-        "hizliTalepKartindaSartlarOzet": "In the quick request card the terms appear as a summary; to change a single line, choose “change” on the card. The wizard (detailed request) also starts with these values.",
+        "hizliTalepKartindaSartlarOzet": "In the quick request card the terms appear as a summary; to change a single line, choose “change” on the card. New requests start with these values.",
         "kaydediliyor": "Saving…",
         "sartlariKaydet": "Save terms",
         "duzenlemekIcinTalepYonetimiYetkisi": "Editing requires the request management permission.",
@@ -4448,17 +4464,17 @@
         "sablonlar": "Templates",
         "tedarikci": "Supplier",
         "gruplari": "{partyWord} groups",
-        "birlikteDavetEttiginizFirmalariGruplayin": "Group the companies you invite together — add them with one click in the invitation step of the wizard.",
+        "birlikteDavetEttiginizFirmalariGruplayin": "Group the companies you invite together — add them with one click using “Add from group” in the request form’s supplier picker.",
         "yeniGrup": "New group",
         "grubunuDuzenle": "Edit group {name}",
         "soruSetleri": "Question sets",
-        "kalemSorulariniSetOlarakKaydedin": "Save line item questions as a set — reuse them in the line item step of the wizard.",
+        "kalemSorulariniSetOlarakKaydedin": "Save line item questions as a set — reuse them in the request form with “Add question from template” in a line item’s questions window.",
         "yeniSet": "New set",
         "henuzSoruSetiYokMensei": "No question sets yet. Turn your standard questions — origin, warranty, certificates — into a set.",
         "setiniDuzenle": "Edit set {name}",
         "satinAlmaTalebiSablonlari": "Buying request templates",
-        "sihirbazdaSablonOlarakKaydetIle": "Created with \"Save as Template\" in the wizard; applied from the \"Load from Template\" menu in a new buying request.",
-        "henuzSablonYokSihirbazinUst": "No templates yet. Create your first template with “Save as Template” in the top bar of the wizard.",
+        "sihirbazdaSablonOlarakKaydetIle": "Created with “Save as template” in the request form; applied to a new buying request here with “Use in request”.",
+        "henuzSablonYokSihirbazinUst": "No templates yet. Create your first template with “Save as template” in the request form.",
         "talepteKullan": "Use in request",
         "sablonunuSil": "Delete template {name}",
         "sablonu": "template",
@@ -4806,7 +4822,6 @@
         "onayaGonderildiIncelemeBiteneKadar": "Submitted for approval — the product cannot be edited until the review is complete; preview only",
         "onayaGonder": "Submit for approval",
         "duzeltVeYenidenGonder": "Fix and resubmit",
-        "urunVitrindenCekilecekVeTaslaga": "The product will be removed from the showcase and returned to draft; it will need approval again before it can be published. Continue?",
         "urunVitrindenCekildi": "Product removed from the showcase",
         "duzeltmeGerekcesi": "Reason for the correction request:",
         "temelBilgiler": "Basic information",
@@ -4868,7 +4883,12 @@
         "oneri": "Suggestion:",
         "belgeBasligi": "Document {n} title",
         "anahtarKelimeCokUzun": "A keyword can be at most {max, plural, one {# character} other {# characters}} long; shorten it or split it with commas.",
-        "vitrindenCekilemedi": "Could not remove from showcase"
+        "vitrindenCekilemedi": "Could not remove from showcase",
+        "kaydedildi": "Saved",
+        "belgeYuklenemedi": "Could not upload the document",
+        "vitrindenCek": "Remove from showcase",
+        "vitrindenCekOnayBaslik": "Remove the product from your showcase?",
+        "vitrindenCekOnayAciklama": "The product returns to draft; publishing it again requires another review."
       },
       "productsView": {
         "urunAcilamadi": "Product could not be opened",
@@ -4905,7 +4925,6 @@
         "kategoriSecilmedi": "No category selected",
         "duzeltme": "· Revision: {rejectReason}",
         "min": "Min. {qty}",
-        "ac": "{name} — open",
         "priceMode": {
           "FIXED": "Fixed price",
           "TIERED": "Tiered",
@@ -4915,7 +4934,20 @@
         "ucretsizPaketteEnFazlaUrun": "On the free plan, up to {limit} products can be published or under review ({occupied}/{limit} used). Drafts are unlimited. <link>Unlimited products, documents and video with Silver</link>.",
         "fiyatBirim": "{amount} / {unit}",
         "fiyatBirimKademeli": "{amount} / {unit} (tiered)",
-        "dahaFazlaYukle": "Load more"
+        "dahaFazlaYukle": "Load more",
+        "arsiv": "Archive",
+        "arsivle": "Archive",
+        "geriAl": "Restore",
+        "acMenu": "Open",
+        "islemMenusu": "{name} — actions",
+        "arsivOnayBaslik": "Archive this product?",
+        "arsivOnayAciklama": "The product leaves the list and, if it is published, your showcase too. You can restore it from the Archive tab at any time.",
+        "arsivlendi": "Product archived",
+        "arsivlenemedi": "Could not archive the product",
+        "geriAlindi": "Product restored from the archive",
+        "geriAlinamadi": "Could not restore the product",
+        "arsivdeUrunYok": "No archived products.",
+        "arsivlenenUrunlerBuradaDurur": "Products you archive are kept here; “Restore” brings them back to the list."
       },
       "editorRail": {
         "tamamlanma": "Completion",
@@ -4949,10 +4981,11 @@
         "taslakOlarakKaydet": "Save as draft",
         "herkeseAcikSayfayiAc": "Open public page",
         "vitrindenCek": "Remove from showcase",
-        "kaydetmekIcinUrunVeVitrin": "Saving requires the “Manage products and showcase” permission."
+        "kaydetmekIcinUrunVeVitrin": "Saving requires the “Manage products and showcase” permission.",
+        "arsivle": "Archive",
+        "yayindakiUrunEksik": "A published product can't be saved with missing content — complete the fields required for review."
       },
       "productPreview": {
-        "urunVitrindenCekilecekVeTaslaga": "The product will be removed from the showcase and revert to a draft; it must be approved again before it goes live. Continue?",
         "urunVitrindenCekildi": "Product removed from showcase",
         "vitrindenCekilemedi": "Could not remove from showcase",
         "urunVitrindeDuzenlemekIcinDuzenle": "The product is live in the showcase. Click “Edit” to make changes; content changes are reviewed again once saved, and the product stays live in the meantime.",
@@ -4963,7 +4996,9 @@
         "gonderim": "submitted {date}",
         "onayaGonderilenUrunEkibimizKarar": "A product submitted for review cannot be changed until our team decides. If approved, it goes live in the showcase; if changes are needed, it comes back to you with the reason so you can edit and resubmit. Below is what buyers will see.",
         "alicininGorduguHal": "As the buyer sees it",
-        "incelemedeOnizleme": "Under review — preview"
+        "incelemedeOnizleme": "Under review — preview",
+        "vitrindenCekOnayBaslik": "Remove the product from your showcase?",
+        "vitrindenCekOnayAciklama": "The product returns to draft; publishing it again requires another review."
       },
       "imageUploader": {
         "enFazlaGorselEklenebilir": "{max, plural, one {Up to # image can be added} other {Up to # images can be added}}",

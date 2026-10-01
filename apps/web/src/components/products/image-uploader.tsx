@@ -31,8 +31,15 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export function ImageUploader({
   images,
   onChange,
+  readOnly = false,
 }: {
   images: string[];
+  /**
+   * Salt-okur (izinsiz kullanıcı, arayüz testi O-099): görseller görünür;
+   * ekleme kutucuğu, bırakma alanı, sıralama ve kapak/kaldır düğmeleri YOK —
+   * yükleme ucu zaten 403 döner.
+   */
+  readOnly?: boolean;
   /**
    * Fonksiyonel güncelleme de alır (üst bileşen `setImages` verir). Yükleme
    * sonucu HER ZAMAN güncel listeye eklenir — derin denetim LU-31: açılıştaki
@@ -137,14 +144,14 @@ export function ImageUploader({
       {/* BIRAKMA ALANI: dosyaları buraya sürükleyin — telefon/masaüstü fark etmez. */}
       <div
         onDragOver={(e) => {
-          if (e.dataTransfer.types.includes("Files")) {
+          if (!readOnly && e.dataTransfer.types.includes("Files")) {
             e.preventDefault();
             setDragOver(true);
           }
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
-          if (!e.dataTransfer.files?.length) return;
+          if (readOnly || !e.dataTransfer.files?.length) return;
           e.preventDefault();
           setDragOver(false);
           // Ekle düğmesi gibi: yükleme sürerken ikinci parti başlamaz (tavan
@@ -159,7 +166,7 @@ export function ImageUploader({
         {images.map((src, i) => (
           <li
             key={src}
-            draggable
+            draggable={!readOnly}
             onDragStart={(e) => {
               setDragIndex(i);
               e.dataTransfer.effectAllowed = "move";
@@ -175,8 +182,8 @@ export function ImageUploader({
               setDragIndex(null);
             }}
             onDragEnd={() => setDragIndex(null)}
-            title={t("surukleyerekSirala")}
-            className={`group relative aspect-square cursor-grab overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5 active:cursor-grabbing ${
+            title={readOnly ? undefined : t("surukleyerekSirala")}
+            className={`group relative aspect-square overflow-hidden ${readOnly ? "" : "cursor-grab active:cursor-grabbing"} rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5 ${
               dragIndex === i ? "opacity-50" : ""
             }`}
           >
@@ -187,6 +194,7 @@ export function ImageUploader({
                 {t("kapak")}
               </span>
             ) : null}
+            {readOnly ? null : (
             <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
               {i > 0 ? (
                 <button
@@ -211,10 +219,11 @@ export function ImageUploader({
                 <TrashIcon aria-hidden className="mx-auto size-3.5" />
               </button>
             </div>
+            )}
           </li>
         ))}
 
-        {images.length < MAX_IMAGES ? (
+        {!readOnly && images.length < MAX_IMAGES ? (
           <li>
             <button
               type="button"

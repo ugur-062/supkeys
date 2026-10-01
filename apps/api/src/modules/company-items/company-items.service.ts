@@ -390,8 +390,23 @@ export class CompanyItemsService {
     // arka kapısıydı. Artık AYNI kural: içerik değişince yeniden PENDING (vitrinde
     // kalır, red çeker). Şartname/marka/MPN de herkese açık sayfada göründüğü için
     // içerik sayılır (`catalogContentChanged`). Kod/birim/hedef fiyat içerik değil.
+    //
+    // Yalnız VİTRİNDEKİ (isPublic) onaylı ürün yeniden incelemeye girer (arayüz
+    // testi O-009): paket düşüşünde taslağa çekilmiş (APPROVED, isPublic=false)
+    // ürün ekranda "Taslak"tır; kaydı taslak kalır, kuyruğa `publish` ile
+    // (tavan + kapı denetimiyle) girer.
     const contentChanged =
-      before.reviewStatus === "APPROVED" && catalogContentChanged(before, patch);
+      before.isPublic && before.reviewStatus === "APPROVED" && catalogContentChanged(before, patch);
+    // YAYIN KAPISI (O-009): yayındaki ürün eksik içerikle kaydedilemez —
+    // `publish` ile AYNI 400. Eskiden yalnız `publish` denetliyordu; açıklaması
+    // silinmiş, anahtar kelimesiz ürün incelemeye girip vitrinde kalıyordu.
+    if (before.isPublic) {
+      this.assertStaysPublishable(
+        before,
+        this.toProductLike({ ...before, name: patch.name, description: patch.description, categoryId: patch.categoryId }),
+        contentChanged,
+      );
+    }
     // Arama metni ad/marka/mpn/etiketlerden türetilir (`normalizeShowcase` ile
     // aynı formül) — yenilenmezse ürün eski adıyla aranmaya devam ederdi.
     const searchText = foldSearchText(
@@ -1143,8 +1158,24 @@ export class CompanyItemsService {
     // Karşılaştırma kanonik (2026-09-19): eski JSON.stringify eşitliği DbNull
     // ve boş açıklamada yanlış pozitif veriyordu → değişmeyen kayıt bile
     // yeniden incelemeye düşüyordu. Tek kaynak `product-content-diff.ts`.
+    // Yalnız VİTRİNDEKİ onaylı ürün yeniden incelemeye girer (O-009; `update`
+    // ile aynı gerekçe — taslağa çekilmiş onaylı ürün taslak gibi kaydedilir).
     const contentChanged =
-      before.reviewStatus === "APPROVED" && showcaseContentChanged(before, patch);
+      before.isPublic && before.reviewStatus === "APPROVED" && showcaseContentChanged(before, patch);
+    // YAYIN KAPISI (arayüz testi O-009): birleşik sonuç `publish` kapısından
+    // geçmeli; taslak serbest.
+    if (before.isPublic) {
+      this.assertStaysPublishable(
+        before,
+        this.toProductLike({
+          ...before,
+          ...patch,
+          attributes: patch.attributes === Prisma.DbNull ? null : (patch.attributes as Prisma.JsonValue),
+          priceTiers: patch.priceTiers === Prisma.DbNull ? null : (patch.priceTiers as Prisma.JsonValue),
+        }),
+        contentChanged,
+      );
+    }
     const row = await this.prisma.companyItem
       .update({
         where: { id },
@@ -1245,14 +1276,7 @@ export class CompanyItemsService {
   async publish(user: AuthenticatedCompanyUser, id: string) {
     const row = await this.requireOwn(user.companyId, id);
     this.assertNotInReview(row);
-    const blockers = productPublishBlockerCodes(this.toProductLike(row));
-    if (blockers.length > 0) {
-      throw new BadRequestException(
-        i18nMessage("api.companyItems.onayaGonderilemedi", {
-          join: this.publishBlockerTexts(blockers).join(", "),
-        }),
-      );
-    }
+    this.assertPublishable(productPublishBlockerCodes(this.toProductLike(row)));
     // Ücretsiz pakette YAYINDA + ONAY BEKLEYEN ürün tavanı (`PRODUCT_LIMITS`,
     // 2026-09-06). Zaten yayında/bekleyen ürünü yeniden göndermek sayılmaz;
     // taslak sınırsız — kapı yalnız kuyruğa GİRİŞ anında.
@@ -1480,6 +1504,38 @@ export class CompanyItemsService {
     return blockers.map((b) =>
       tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
     );
+  }
+
+  /** Yayın kapısı eksikleri varsa `publish` ile AYNI 400 (tek metin). */
+  private assertPublishable(blockers: PublishBlocker[]) {
+    if (blockers.length > 0) {
+      throw new BadRequestException(
+        i18nMessage("api.companyItems.onayaGonderilemedi", {
+          join: this.publishBlockerTexts(blockers).join(", "),
+        }),
+      );
+    }
+  }
+
+  /**
+   * YAYINDAKİ ÜRÜNÜN KAYDI (arayüz testi O-009): içerik değiştiyse (ürün
+   * yeniden incelemeye girecek) birleşik sonuç kapıdan TAM geçmeli. İçerik
+   * dışı kayıt (fiyat/MOQ) yalnız YENİ bir eksik doğurursa reddedilir — kapı
+   * kuralları sıkılaşmadan önce yayına çıkmış eski ürün fiyatını yine
+   * güncelleyebilsin.
+   */
+  private assertStaysPublishable(
+    before: Parameters<typeof this.toProductLike>[0],
+    after: ProductLike,
+    contentChanged: boolean,
+  ) {
+    const blockers = productPublishBlockerCodes(after);
+    if (blockers.length === 0) return;
+    if (!contentChanged) {
+      const prev = new Set(productPublishBlockerCodes(this.toProductLike(before)).map((b) => b.code));
+      if (blockers.every((b) => prev.has(b.code))) return;
+    }
+    this.assertPublishable(blockers);
   }
 
   private toProductLike(r: {

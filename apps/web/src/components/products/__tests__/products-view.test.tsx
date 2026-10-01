@@ -11,11 +11,19 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn() }));
+const h = vi.hoisted(() => ({
+  get: vi.fn(),
+  patch: vi.fn(),
+  confirm: vi.fn(),
+  push: vi.fn(),
+  canManage: true,
+  search: new URLSearchParams(),
+  formProps: [] as Record<string, unknown>[],
+}));
 
 // Ürün ekleme düğmeleri "Ürün ve vitrin yönetimi" iznine kapılı (yetki tablosu).
 vi.mock("@/hooks/use-company-auth", () => ({
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: () => h.canManage,
   useCompanyAuth: () => ({ user: { roles: ["SATISCI"], permissions: ["sell:product:manage"] }, company: null }),
 }));
 vi.mock("@/lib/company-auth/api", () => ({
@@ -24,19 +32,35 @@ vi.mock("@/lib/company-auth/api", () => ({
 vi.mock("@/lib/api", () => ({
   api: { get: h.get },
 }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: h.push, replace: vi.fn(), prefetch: vi.fn() }),
+  useSearchParams: () => h.search,
+  usePathname: () => "/company/satis/urunlerim",
+}));
+vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => h.confirm }));
 vi.mock("../product-showcase-form", () => ({
   // Kaydetmeyi taklit eden düğme: sayfanın `onSaved` ile gelen SUNUCU kaydını
-  // ekrana işleyip işlemediği sınanır.
-  ProductShowcaseForm: (props: { product: { id: string }; onSaved?: (saved: unknown) => void }) => (
-    <div data-testid="form">
-      <button
-        type="button"
-        onClick={() => props.onSaved?.({ ...props.product, reviewStatus: "PENDING", isPublic: true })}
-      >
-        sahte-kaydet
-      </button>
-    </div>
-  ),
+  // ekrana işleyip işlemediği sınanır. "sahte-degistir" kirli bayrağı yukarı iletir.
+  ProductShowcaseForm: (props: {
+    product: { id: string };
+    onSaved?: (saved: unknown) => void;
+    onDirtyChange?: (dirty: boolean) => void;
+  }) => {
+    h.formProps.push(props as unknown as Record<string, unknown>);
+    return (
+      <div data-testid="form">
+        <button
+          type="button"
+          onClick={() => props.onSaved?.({ ...props.product, reviewStatus: "PENDING", isPublic: true })}
+        >
+          sahte-kaydet
+        </button>
+        <button type="button" onClick={() => props.onDirtyChange?.(true)}>
+          sahte-degistir
+        </button>
+      </div>
+    );
+  },
 }));
 vi.mock("../product-preview", () => ({
   ProductPreview: (props: { variant?: string; onEdit?: () => void }) => (
@@ -138,6 +162,12 @@ function statusMatches(i: { isPublic: boolean; reviewStatus: string }, status?: 
 beforeEach(() => {
   h.get.mockReset();
   h.patch.mockReset();
+  h.confirm.mockReset();
+  h.confirm.mockResolvedValue(true);
+  h.push.mockReset();
+  h.canManage = true;
+  h.search = new URLSearchParams();
+  h.formProps = [];
   h.get.mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
     // Vitrin okuma (`GET :id/showcase`) — düzenleyici/önizleme açılışı.
     const m = url.match(/\/company\/items\/(p\d)\/showcase$/);
@@ -306,5 +336,109 @@ describe("ProductsView", () => {
     expect(screen.getByRole("button", { name: "Yeni ürün" }).className).toContain("bg-emerald-600");
     // Excel şablonu görselsiz ürün üretiyordu, katalog çıkarımı çalışmıyordu.
     expect(screen.queryByRole("button", { name: /Toplu ekle/ })).toBeNull();
+  });
+  it("ücretsiz paket: sekme düz sayı gösterir (D-196), tavan notundaki bağlantı panel içi paketlere gider (O-040)", async () => {
+    h.get.mockImplementation((url: string) => {
+      if (url.includes("/categories/by-ids")) return Promise.resolve({ data: [] });
+      return Promise.resolve({
+        data: { items: [ITEMS[2]], total: 1, truncated: false, productLimit: 50, counts: { published: 0, draft: 0, pending: 50, rejected: 0, publishedInReview: 0 } },
+      });
+    });
+    wrap(<ProductsView />);
+    await screen.findByText("Sigorta kutusu");
+    const tabs = screen.getByRole("tablist");
+    expect(within(tabs).getByRole("tab", { name: /Yayında\s*0$/ })).toBeInTheDocument();
+    expect(screen.queryByText("0/50")).toBeNull();
+    expect(screen.getByText(/50\/50 kullanıldı/)).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Silver/ });
+    expect(link).toHaveAttribute("href", "/company/premium");
+  });
+
+  it("salt-okur kullanıcıya ?yeni=1 form AÇMAZ, liste görünür (O-099)", async () => {
+    h.canManage = false;
+    h.search = new URLSearchParams("yeni=1");
+    wrap(<ProductsView />);
+    expect(await screen.findByText("Dağıtım panosu")).toBeInTheDocument();
+    expect(screen.queryByTestId("form")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Yeni ürün" })).toBeNull();
+  });
+
+  it("?yeni=1: tavan bilgisi gelene kadar form limitPending alır (D-287)", async () => {
+    h.search = new URLSearchParams("yeni=1");
+    let resolveList: (v: unknown) => void = () => {};
+    h.get.mockImplementation((url: string) => {
+      if (url !== "/company/items") return Promise.resolve({ data: [] });
+      return new Promise((r) => {
+        resolveList = r;
+      });
+    });
+    wrap(<ProductsView />);
+    expect(await screen.findByTestId("form")).toBeInTheDocument();
+    expect(h.formProps.at(-1)).toMatchObject({ limitPending: true });
+    resolveList({ data: { items: [], total: 0, truncated: false, productLimit: 50, counts: { published: 0, draft: 0, pending: 0, rejected: 0 } } });
+    await vi.waitFor(() => expect(h.formProps.at(-1)).toMatchObject({ limitPending: false, publishLimitReached: false }));
+  });
+
+  it("kaydedilmemiş değişiklik: 'Ürünlere dön' onay sorar; vazgeçilirse formda kalınır, kenar çubuğu bağlantısı da korunur (O-098)", async () => {
+    const user = userEvent.setup();
+    h.search = new URLSearchParams("yeni=1");
+    wrap(
+      <>
+        <a href="/company/anasayfa">Anasayfa</a>
+        <ProductsView />
+      </>,
+    );
+    await screen.findByTestId("form");
+    // Kirli değilken onay sorulmaz.
+    await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
+    expect(h.confirm).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole("button", { name: "Yeni ürün" }));
+    await user.click(screen.getByRole("button", { name: "sahte-degistir" }));
+
+    h.confirm.mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
+    expect(h.confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("form")).toBeInTheDocument();
+
+    h.confirm.mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("link", { name: "Anasayfa" }));
+    expect(h.confirm).toHaveBeenCalledTimes(2);
+    expect(h.push).not.toHaveBeenCalled();
+    h.confirm.mockResolvedValueOnce(true);
+    await user.click(screen.getByRole("link", { name: "Anasayfa" }));
+    await vi.waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/anasayfa"));
+
+    h.confirm.mockResolvedValueOnce(true);
+    await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
+    expect(await screen.findByText("Dağıtım panosu")).toBeInTheDocument();
+    expect(screen.queryByTestId("form")).toBeNull();
+  });
+
+  it("satır ⋮ menüsü: Aç / Arşivle (incelemedekinde yok); Arşiv sekmesinde Geri al (O-039)", async () => {
+    const user = userEvent.setup();
+    h.patch.mockResolvedValue({ data: {} });
+    wrap(<ProductsView />);
+    await screen.findByText("Kablo kanalı");
+    // İncelemedeki ürünün menüsünde Arşivle yok.
+    await user.click(screen.getByRole("button", { name: "Sigorta kutusu — işlemler" }));
+    expect(await screen.findByRole("menuitem", { name: "Aç" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Arşivle" })).toBeNull();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "Kablo kanalı — işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Arşivle" }));
+    await vi.waitFor(() => expect(h.patch).toHaveBeenCalledWith("/company/items/p2/active", { isActive: false }));
+    expect(h.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Ürün arşivlensin mi?" }));
+    // Menü satırı açmadı.
+    expect(screen.queryByTestId("form")).toBeNull();
+
+    await user.click(within(screen.getByRole("tablist")).getByRole("tab", { name: /Arşiv/ }));
+    const listCalls = () => h.get.mock.calls.filter(([u]) => u === "/company/items");
+    await vi.waitFor(() =>
+      expect(listCalls().some(([, c]) => (c as { params?: { archived?: number } })?.params?.archived === 1)).toBe(true),
+    );
+    await user.click(await screen.findByRole("button", { name: "Dağıtım panosu — işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Geri al" }));
+    await vi.waitFor(() => expect(h.patch).toHaveBeenCalledWith("/company/items/p1/active", { isActive: true }));
   });
 });

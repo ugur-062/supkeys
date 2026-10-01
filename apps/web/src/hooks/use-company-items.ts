@@ -76,8 +76,11 @@ export function useCatalogItems(q: string, enabled = true) {
   });
 }
 
-/** Ürünlerim sekmesi — "all" dışındakiler SUNUCUDA süzülür (API `status`). */
-export type ShowcaseListTab = "all" | "published" | "pending" | "rejected" | "draft";
+/**
+ * Ürünlerim sekmesi — "all" dışındakiler SUNUCUDA süzülür (API `status`).
+ * `archived` = arşivlenmiş ürünler (API `archived=1`; arayüz testi O-039).
+ */
+export type ShowcaseListTab = "all" | "published" | "pending" | "rejected" | "draft" | "archived";
 const SHOWCASE_PAGE = 50;
 
 /**
@@ -98,7 +101,7 @@ export function useShowcaseItems(q: string, tab: ShowcaseListTab) {
           take: SHOWCASE_PAGE,
           skip: pageParam,
           ...(q ? { q } : {}),
-          ...(tab !== "all" ? { status: tab } : {}),
+          ...(tab === "archived" ? { archived: 1 } : tab !== "all" ? { status: tab } : {}),
         },
       });
       return data;
@@ -317,6 +320,24 @@ export function usePublishProduct() {
       const { data } = await companyApi.post<ProductShowcase>(
         `/company/items/${id}/${publish ? "publish" : "unpublish"}`,
       );
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: CATALOG_KEY });
+    },
+  });
+}
+
+/**
+ * ARŞİVLE / GERİ AL (arayüz testi O-039) — kalıcı silme bilinçli YOK; uç
+ * `PATCH :id/active`. Vitrine dokunmuş ürün yalnız satış izniyle arşivlenir,
+ * geri almada ücretsiz paket tavanı yeniden sayılır (API).
+ */
+export function useSetProductActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const { data } = await companyApi.patch<CatalogItem>(`/company/items/${id}/active`, { isActive });
       return data;
     },
     onSuccess: () => {

@@ -835,6 +835,11 @@ describe("R-4 — ürün değişikliği IndexNow'a ve web tazelemesine gider (ba
         name: `Çelik boru ${tag}`,
         unit: "adet",
         slug: `celik-boru-${tag}`,
+        // Yayın kapısından geçen içerik — admin onayı da kapıyı denetler (arayüz testi O-009).
+        categoryId: "39122215",
+        description: "x".repeat(120),
+        images: ["https://cdn.rothern.com/a.webp"],
+        keywords: ["boru"],
         isActive: true,
         isPublic: false,
         reviewStatus: "PENDING",

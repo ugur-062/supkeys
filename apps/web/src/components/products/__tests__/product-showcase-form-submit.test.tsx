@@ -11,12 +11,20 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn() }));
+const h = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  confirm: vi.fn(),
+  canManage: true,
+}));
 
 vi.mock("@/hooks/use-company-auth", () => ({
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: () => h.canManage,
   useCompanyAuth: () => ({ user: null, company: null }),
 }));
+// Uygulama içi onay diyaloğu (arayüz testi D-126) — tarayıcının window.confirm'ü değil.
+vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => h.confirm }));
 vi.mock("@/lib/company-auth/api", () => ({
   companyApi: { get: h.get, post: h.post, patch: h.patch },
 }));
@@ -78,8 +86,12 @@ beforeEach(() => {
   h.get.mockReset();
   h.post.mockReset();
   h.patch.mockReset();
+  h.confirm.mockReset();
+  h.confirm.mockResolvedValue(true);
+  h.canManage = true;
   h.get.mockResolvedValue({ data: [] });
   vi.mocked(toast.error).mockReset();
+  vi.mocked(toast.success).mockReset();
 });
 
 describe("ProductShowcaseForm — yeni ürün 'Onaya gönder'", () => {
@@ -146,8 +158,8 @@ describe("ProductShowcaseForm — vitrinden çek", () => {
     return onSaved;
   }
 
-  it("başarıda sunucu hâli üst bileşene iletilir (form 'Yayında' kalmaz)", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("başarıda sunucu hâli üst bileşene iletilir (form 'Yayında' kalmaz); onay uygulama içi diyalogla (D-126)", async () => {
+    const native = vi.spyOn(window, "confirm");
     const draft = { ...PUBLISHED, isPublic: false, reviewStatus: "DRAFT" as const };
     h.post.mockResolvedValue({ data: draft });
     const user = userEvent.setup();
@@ -156,10 +168,21 @@ describe("ProductShowcaseForm — vitrinden çek", () => {
     await user.click(await screen.findByRole("menuitem", { name: /Vitrinden çek/ }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(draft));
     expect(h.post).toHaveBeenCalledWith("/company/items/p1/unpublish");
+    expect(h.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Ürün vitrinden çekilsin mi?", confirmLabel: "Vitrinden çek" }));
+    expect(native).not.toHaveBeenCalled();
+  });
+
+  it("onay diyaloğunda vazgeçilirse istek atılmaz", async () => {
+    h.confirm.mockResolvedValue(false);
+    const user = userEvent.setup();
+    renderPublished();
+    await user.click(screen.getByRole("button", { name: "Diğer işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: /Vitrinden çek/ }));
+    await waitFor(() => expect(h.confirm).toHaveBeenCalled());
+    expect(h.post).not.toHaveBeenCalled();
   });
 
   it("hatada toast gösterir (işlenmemiş ret yok)", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     h.post.mockRejectedValue(new Error("network"));
     const user = userEvent.setup();
     const onSaved = renderPublished();
@@ -170,3 +193,120 @@ describe("ProductShowcaseForm — vitrinden çek", () => {
   });
 });
 
+
+/** Yayın kapısını geçen yayındaki ürün — O-009 / D-125 senaryolarının tabanı. */
+const COMPLETE: ProductShowcase = {
+  ...EMPTY,
+  id: "p1",
+  name: "Dağıtım panosu 400A",
+  slug: "dagitim-panosu-400a",
+  isPublic: true,
+  reviewStatus: "APPROVED",
+  categoryId: "39122215",
+  description: "x".repeat(120),
+  images: ["https://cdn.rothern.com/a.webp"],
+  keywords: ["pano"],
+};
+
+function renderWith(props: Partial<React.ComponentProps<typeof ProductShowcaseForm>> & { product: ProductShowcase }) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const onClose = vi.fn();
+  const onSaved = vi.fn();
+  render(
+    <QueryClientProvider client={qc}>
+      <ProductShowcaseForm unit="adet" onClose={onClose} onSaved={onSaved} {...props} />
+    </QueryClientProvider>,
+  );
+  return { onClose, onSaved };
+}
+
+describe("ProductShowcaseForm — yayın kapısı yayındaki üründe (arayüz testi O-009)", () => {
+  it("anahtar kelimeler silinince Kaydet KAPALI ve nedeni yazılı; geri eklenince açılır", async () => {
+    const user = userEvent.setup();
+    renderWith({ product: COMPLETE });
+    await user.type(screen.getByLabelText(/Minimum sipariş miktarı/), "5");
+    const save = screen.getByRole("button", { name: "Kaydet" });
+    expect(save).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /pano etiketini kaldır/i }));
+    expect(save).toBeDisabled();
+    expect(screen.getByText(/Yayındaki ürün eksik içerikle kaydedilemez/)).toBeInTheDocument();
+    const input = document.getElementById("urun-anahtar-kelime") as HTMLInputElement;
+    await user.type(input, "pano{Enter}");
+    expect(save).toBeEnabled();
+  });
+});
+
+describe("ProductShowcaseForm — kayıt mesajı sonuca göre (arayüz testi D-125)", () => {
+  it("yalnız MOQ değişip ürün onaylı kalırsa 'Kaydedildi'; sunucu incelemeye aldıysa yeniden inceleme mesajı", async () => {
+    const user = userEvent.setup();
+    h.patch.mockResolvedValueOnce({ data: { ...COMPLETE, moq: "5" } });
+    renderWith({ product: COMPLETE });
+    await user.type(screen.getByLabelText(/Minimum sipariş miktarı/), "5");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Kaydedildi"));
+
+    h.patch.mockResolvedValueOnce({ data: { ...COMPLETE, moq: "55", reviewStatus: "PENDING" } });
+    await user.type(screen.getByLabelText(/Minimum sipariş miktarı/), "5");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenLastCalledWith("Kaydedildi — içerik değişikliği yeniden incelenecek, ürün yayında kalıyor"),
+    );
+  });
+});
+
+describe("ProductShowcaseForm — tavan bilinmiyorken gönderim kilitli (arayüz testi D-287)", () => {
+  it("limitPending iken 'Onaya gönder' kapalı, kilit notu çizilmez; bilgi gelince açılır", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const ui = (limitPending: boolean) => (
+      <QueryClientProvider client={qc}>
+        <ProductShowcaseForm mode="new" product={EMPTY} unit="adet" onClose={vi.fn()} limitPending={limitPending} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(ui(true));
+    expect(screen.getAllByRole("button", { name: "Onaya gönder" })[0]).toBeDisabled();
+    expect(screen.queryByText(/tavanı doldu/)).toBeNull();
+    rerender(ui(false));
+    expect(screen.getAllByRole("button", { name: "Onaya gönder" })[0]).toBeEnabled();
+  });
+});
+
+describe("ProductShowcaseForm — belge yükleme (arayüz testi D-289)", () => {
+  it("10 MB üstü PDF YÜKLENMEDEN reddedilir; tek toast", async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    renderWith({ product: { ...EMPTY, id: "p2", name: "Pano" } });
+    const input = document.querySelector('input[type="file"][accept="application/pdf"]') as HTMLInputElement;
+    const big = new File(["x"], "katalog.pdf", { type: "application/pdf" });
+    Object.defineProperty(big, "size", { value: 11 * 1024 * 1024 });
+    await user.upload(input, big);
+    expect(h.post).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith("Belge yüklenemedi — yalnız PDF, en fazla 10 MB");
+  });
+});
+
+describe("ProductShowcaseForm — salt-okur kullanıcı (arayüz testi O-099)", () => {
+  it("alanlar kapalı, görsel/PDF yükleme kontrolleri çizilmez, kaydet yok", () => {
+    h.canManage = false;
+    renderWith({ product: { ...COMPLETE, isPublic: false, reviewStatus: "DRAFT" } });
+    expect(screen.getByLabelText(/Ürün adı/)).toBeDisabled();
+    expect(screen.getByLabelText(/^Açıklama/)).toBeDisabled();
+    expect(screen.queryByText("Görsel ekle")).toBeNull();
+    expect(screen.queryByText("PDF ekle")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Kaydet|Onaya gönder/ })).toBeNull();
+    expect(screen.getByText(/yetkisi gerekir/)).toBeInTheDocument();
+  });
+});
+
+describe("ProductShowcaseForm — arşivle (arayüz testi O-039)", () => {
+  it("editör menüsünde 'Arşivle' onay sorar, PATCH :id/active atar ve listeye döner", async () => {
+    h.patch.mockResolvedValue({ data: {} });
+    const user = userEvent.setup();
+    const { onClose } = renderWith({ product: { ...COMPLETE, isPublic: false, reviewStatus: "DRAFT" } });
+    await user.click(screen.getByRole("button", { name: "Diğer işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Arşivle" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(h.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Ürün arşivlensin mi?" }));
+    expect(h.patch).toHaveBeenCalledWith("/company/items/p1/active", { isActive: false });
+    expect(toast.success).toHaveBeenCalledWith("Ürün arşivlendi");
+  });
+});

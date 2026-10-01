@@ -2,7 +2,7 @@ import { i18nMessage } from "../../common/i18n/http-i18n";
 import { tApi } from "../../common/i18n/i18n.service";
 import { BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, type ProductReviewStatus } from "@rothern/db";
-import { PRODUCT_LIMITS, productPath } from "@rothern/shared";
+import { PRODUCT_LIMITS, productPath, productPublishBlockerCodes, type ProductLike } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { effectiveTier } from "../../common/company/effective-tier";
@@ -251,6 +251,10 @@ export class AdminProductsService {
     const r = await this.require(id);
     if (r.reviewStatus !== "PENDING") throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizOnayBekleyenUrunOnaylanabilir"));
     if (!r.slug) throw new BadRequestException(i18nMessage("api.adminCompanies.urununUrlParcasiSlugYokFirma"));
+    const blockers = this.blockerTexts(r);
+    if (blockers) {
+      throw new BadRequestException(i18nMessage("api.adminCompanies.urunYayinKosullariniKarsilamiyor", { join: blockers }));
+    }
     const now = new Date();
     const done = await this.markApproved(r, adminId, now);
     if (done.limit != null) {
@@ -284,6 +288,34 @@ export class AdminProductsService {
       cta: { labelKey: "api.notifications.adminProducts.urunuGor", path },
     });
     return { ok: true };
+  }
+
+  /**
+   * YAYIN KAPISI ONAYDA DA (arayüz testi O-009): firma tarafı kapıyı
+   * `publish`/`updateShowcase`te uygular; kapı sıkılaşmadan önce kuyruğa girmiş
+   * ya da başka yoldan eksik kalmış ürün onayla vitrine çıkmasın. Eksik yoksa
+   * null, varsa istek dilinde virgüllü metin.
+   */
+  private blockerTexts(r: Row): string | null {
+    const like: ProductLike = {
+      name: r.name,
+      categoryId: r.categoryId,
+      description: r.description,
+      images: r.images,
+      keywords: r.keywords,
+      priceMode: r.priceMode as ProductLike["priceMode"],
+      priceAmount: r.priceAmount,
+      priceTiers: r.priceTiers,
+      moq: r.moq,
+      attributes: (r.attributes as Record<string, unknown> | null) ?? null,
+    };
+    const blockers = productPublishBlockerCodes(like);
+    if (blockers.length === 0) return null;
+    return blockers
+      .map((b) =>
+        tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
+      )
+      .join(", ");
   }
 
   /**
@@ -374,6 +406,11 @@ export class AdminProductsService {
       }
       if (!r.slug) {
         atlanan.push({ id, reason: "URL parçası (slug) yok" });
+        continue;
+      }
+      const blockers = this.blockerTexts(r);
+      if (blockers) {
+        atlanan.push({ id, reason: tApi("api.adminCompanies.urunYayinKosullariniKarsilamiyor", { join: blockers }) });
         continue;
       }
       const done = await this.markApproved(r, adminId, now);

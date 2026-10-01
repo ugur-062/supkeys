@@ -11,6 +11,10 @@ import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
+import { PRICING_HREF } from "@/components/company/silver-lock-card";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from "@/components/catalyst/dropdown";
+import { useProductArchive } from "./use-product-archive";
 import { ProductShowcaseForm } from "./product-showcase-form";
 import { ProductPreview } from "./product-preview";
 import { PageContainer } from "@/components/list/page-container";
@@ -36,8 +40,8 @@ import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
-type ProductTab = "all" | "published" | "pending" | "rejected" | "draft";
-const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft"];
+type ProductTab = "all" | "published" | "pending" | "rejected" | "draft" | "archived";
+const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft", "archived"];
 
 /**
  * ÜRÜNLERİM — firmanın herkese açık vitrini.
@@ -103,9 +107,12 @@ export function ProductsView() {
   const canManage = useHasCompanyPermission("sell:product:manage");
   /**
    * Yeni ürün: AYNI tek-sayfa form, boş kayıtla. `?yeni=1` ile açılır —
-   * kayıt niyeti "Vitrin aç" ve pano CTA'sı buraya düşer.
+   * kayıt niyeti "Vitrin aç" ve pano CTA'sı buraya düşer. YALNIZ yönetim
+   * izniyle (arayüz testi O-099): salt-okur kullanıcıya `?yeni=1` boş,
+   * düzenlenebilir form açıyordu; istek izin gelene dek bekler, izinsizde liste.
    */
-  const [creating, setCreating] = useState(searchParams?.get("yeni") === "1");
+  const [createRequested, setCreating] = useState(searchParams?.get("yeni") === "1");
+  const creating = createRequested && canManage;
   const [editing, setEditing] = useState<{
     item: CatalogItem;
     showcase: ProductShowcase;
@@ -134,6 +141,17 @@ export function ProductsView() {
    */
   // Yayındaki ürün ÖNCE önizlemeyle açılır, "Düzenle" forma geçirir (2026-09-19).
   const [editorOpen, setEditorOpen] = useState(false);
+  /**
+   * KAYDEDİLMEMİŞ DEĞİŞİKLİK (arayüz testi O-098): bayrak formdan gelir; sekme
+   * kapatma, kenar çubuğu/üst çubuk bağlantıları ve "Ürünlere dön" aynı onayı
+   * sorar. Eskiden yalnız sekme kapatma uyarıyordu, veri sessizce kayboluyordu.
+   */
+  const [formDirty, setFormDirty] = useState(false);
+  const { confirmLeave } = useUnsavedChangesGuard(formDirty);
+  const backTo = (close: () => void) => async () => {
+    if (await confirmLeave()) close();
+  };
+  const productArchive = useProductArchive();
   const openEditor = async (item: CatalogItem) => {
     try {
       const showcase = await fetchProductShowcase(item.id);
@@ -153,6 +171,9 @@ export function ProductsView() {
   const pendingPublished = data?.counts.publishedInReview ?? 0;
   const occupied = publishedCount + Math.max(0, (data?.counts.pending ?? 0) - pendingPublished);
   const publishLimitReached = productLimit != null && occupied >= productLimit;
+  // Liste yanıtı gelmeden tavan BİLİNMİYOR → form "Onaya gönder"i kilitli tutar
+  // (arayüz testi D-287; `?yeni=1` doğrudan açılışta etkin geliyordu).
+  const limitPending = !data && !showcase.isError;
   // Vitrin kapısı profil yayınına bağlı (`publicProductWhere`): profil yayında
   // değilse yayımlanan ürün dizinde ve firma sayfasında GÖRÜNMEZ. Kullanıcı 10
   // ürün yayımlayıp kimsenin görmediğini fark etmesin — açıkça söyle.
@@ -164,7 +185,7 @@ export function ProductsView() {
       <PageContainer>
         <button
           type="button"
-          onClick={() => setCreating(false)}
+          onClick={backTo(() => setCreating(false))}
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
         >
           <ArrowLeftIcon aria-hidden className="size-4" />
@@ -177,6 +198,8 @@ export function ProductsView() {
             product={newProduct}
             unit="adet"
             publishLimitReached={publishLimitReached}
+            limitPending={limitPending}
+            onDirtyChange={setFormDirty}
             onClose={() => setCreating(false)}
             onCreated={(created) => {
               // Kayıt oluştu → düzenleme moduna geç: kullanıcı aynı formda
@@ -204,7 +227,7 @@ export function ProductsView() {
       <PageContainer>
         <button
           type="button"
-          onClick={() => setEditing(null)}
+          onClick={backTo(() => setEditing(null))}
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
         >
           <ArrowLeftIcon aria-hidden className="size-4" />
@@ -229,6 +252,8 @@ export function ProductsView() {
               product={editing.showcase}
               unit={editing.item.unit}
               publishLimitReached={publishLimitReached}
+              limitPending={limitPending}
+              onDirtyChange={setFormDirty}
               onClose={() => setEditing(null)}
               // Kaydın sunucu hâli ekrana işlenir: incelemeye düştüyse
               // yukarıdaki `inReview` dalı hemen önizlemeyi çizer.
@@ -255,6 +280,8 @@ export function ProductsView() {
     { key: "pending", label: statusMeta("pending").label, count: pendingOnly },
     { key: "rejected", label: statusMeta("rejected").label, count: counts?.rejected },
     { key: "draft", label: statusMeta("draft").label, count: counts?.draft },
+    // Arşiv (arayüz testi O-039): firma geneli sayaç yok — rozet çizilmez.
+    { key: "archived", label: tr("arsiv") },
   ];
 
   return (
@@ -311,14 +338,19 @@ export function ProductsView() {
                 )}
               >
                 {t.label}
-                <span
-                  className={cn(
-                    "tabular-nums rounded-full px-1.5 py-0.5 text-xs",
-                    active ? "bg-white/25 text-white" : t.count === 0 ? "bg-zinc-100 text-zinc-400" : "bg-zinc-100 text-zinc-700",
-                  )}
-                >
-                  {t.count == null ? "—" : t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
-                </span>
+                {/* Düz sayı (arayüz testi D-196): "Yayında 0/50" tavanı yalnız
+                    yayındakilerle ölçüyormuş gibi okunuyordu; tavan "yayında +
+                    onayda" ve aşağıdaki notta. */}
+                {t.key === "archived" ? null : (
+                  <span
+                    className={cn(
+                      "tabular-nums rounded-full px-1.5 py-0.5 text-xs",
+                      active ? "bg-white/25 text-white" : t.count === 0 ? "bg-zinc-100 text-zinc-400" : "bg-zinc-100 text-zinc-700",
+                    )}
+                  >
+                    {t.count == null ? "—" : t.count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -359,7 +391,8 @@ export function ProductsView() {
             limit: productLimit,
             occupied,
             link: (c) => (
-              <Link href="/nasil-calisir#fiyatlar" className="font-medium text-zinc-900 underline">
+              // Paket çağrısı paneli TERK ETMEZ (2026-09-15 kararı; arayüz testi O-040).
+              <Link href={PRICING_HREF} className="font-medium text-zinc-900 underline">
                 {c}
               </Link>
             ),
@@ -376,7 +409,9 @@ export function ProductsView() {
           title={
             q
               ? tr("eslesenUrunYok")
-              : tab === "published"
+              : tab === "archived"
+                ? tr("arsivdeUrunYok")
+                : tab === "published"
                 ? tr("yayindaUrunYok")
                 : tab === "pending"
                   ? tr("onayBekleyenUrunYok")
@@ -389,7 +424,9 @@ export function ProductsView() {
           description={
             q
               ? tr("aramayiDegistiripTekrarDeneyin")
-              : tab === "published"
+              : tab === "archived"
+                ? tr("arsivlenenUrunlerBuradaDurur")
+                : tab === "published"
                 ? tr("taslakUrunleriDuzenleyipOnayaGonder")
                 : tab === "pending"
                   ? tr("onayaGonderdiginizUrunlerIncelemeBoyunca")
@@ -412,7 +449,15 @@ export function ProductsView() {
           }
         />
       ) : (
-        <ProductRows items={visible} onOpen={(item) => void openEditor(item)} />
+        <ProductRows
+          items={visible}
+          archived={tab === "archived"}
+          canManage={canManage}
+          busy={productArchive.pending}
+          onOpen={(item) => void openEditor(item)}
+          onArchive={(item) => void productArchive.archive(item.id)}
+          onRestore={(item) => void productArchive.restore(item.id)}
+        />
       )}
 
       {showcase.hasNextPage ? (
@@ -440,10 +485,21 @@ export function ProductsView() {
  */
 function ProductRows({
   items,
+  archived,
+  canManage,
+  busy,
   onOpen,
+  onArchive,
+  onRestore,
 }: {
   items: CatalogItem[];
+  /** Arşiv sekmesi: satır açılmaz (arşivdeki ürün düzenlenmez), menüde yalnız "Geri al". */
+  archived: boolean;
+  canManage: boolean;
+  busy: boolean;
   onOpen: (item: CatalogItem) => void;
+  onArchive: (item: CatalogItem) => void;
+  onRestore: (item: CatalogItem) => void;
 }) {
   const t = useTranslations("web.panel.trade.productsView");
   const statusMeta = useProductStatusMeta();
@@ -487,28 +543,35 @@ function ProductRows({
         </thead>
         <tbody role="list" className="divide-y divide-zinc-950/5">
           {items.map((item) => {
-            const st = statusMeta(productStatusKey(item));
+            // Arşivdeki ürün vitrinde DEĞİL (publicProductWhere isActive ister) — "Yayında" yazmasın.
+            const st = archived ? { label: t("arsiv"), color: "zinc" as const } : statusMeta(productStatusKey(item));
             return (
               <tr
                 key={item.id}
                 role="listitem"
-                onClick={() => onOpen(item)}
-                className="cursor-pointer transition hover:bg-zinc-50"
+                onClick={archived ? undefined : () => onOpen(item)}
+                className={archived ? undefined : "cursor-pointer transition hover:bg-zinc-50"}
               >
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-3">
                     <Thumb src={item.thumbnailUrl} size="md" className="shrink-0" />
                     <div className="min-w-0">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpen(item);
-                        }}
-                        className="block max-w-[11rem] truncate text-left font-semibold text-zinc-950 hover:underline sm:max-w-[14rem] xl:max-w-[18rem]"
-                      >
-                        {item.name}
-                      </button>
+                      {archived ? (
+                        <span className="block max-w-[11rem] truncate font-semibold text-zinc-950 sm:max-w-[14rem] xl:max-w-[18rem]">
+                          {item.name}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpen(item);
+                          }}
+                          className="block max-w-[11rem] truncate text-left font-semibold text-zinc-950 hover:underline sm:max-w-[14rem] xl:max-w-[18rem]"
+                        >
+                          {item.name}
+                        </button>
+                      )}
                       <div className="max-w-[11rem] truncate text-xs text-zinc-500 sm:max-w-[14rem] xl:max-w-[18rem]">
                         {catName(item.categoryId) ?? t("kategoriSecilmedi")} · {priceModeLabel(item.priceMode)} · {unitLabel(item.unit)}
                         {item.reviewStatus === "REJECTED" && item.rejectReason ? t("duzeltme", { rejectReason: item.rejectReason }) : ""}
@@ -536,18 +599,34 @@ function ProductRows({
                 <td className="hidden px-3 py-3 whitespace-nowrap text-zinc-700 2xl:table-cell">
                   {formatDate(item.createdAt ?? item.updatedAt, "short", locale)}
                 </td>
-                <td className="px-3 py-3 text-right">
-                  <button
-                    type="button"
-                    aria-label={t("ac", { name: item.name })}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpen(item);
-                    }}
-                    className="rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
-                  >
-                    <EllipsisVerticalIcon className="size-5" />
-                  </button>
+                {/* ⋮ GERÇEK MENÜ (arayüz testi O-039): eskiden doğrudan ürünü
+                    açıyordu, arşivleme hiçbir yerde yoktu. Satır tıklaması
+                    menüye (portal dahil — React olayı ağaçta kabarır) sızmasın. */}
+                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  {archived && !canManage ? null : (
+                    <Dropdown>
+                      <DropdownButton plain aria-label={t("islemMenusu", { name: item.name })}>
+                        <EllipsisVerticalIcon className="size-5" />
+                      </DropdownButton>
+                      <DropdownMenu anchor="bottom end">
+                        {archived ? (
+                          <DropdownItem onClick={() => onRestore(item)} disabled={busy}>
+                            {t("geriAl")}
+                          </DropdownItem>
+                        ) : (
+                          <>
+                            <DropdownItem onClick={() => onOpen(item)}>{t("acMenu")}</DropdownItem>
+                            {/* İncelemedeki ürün kilitli — arşivle de verilmez. */}
+                            {canManage && item.reviewStatus !== "PENDING" ? (
+                              <DropdownItem onClick={() => onArchive(item)} disabled={busy}>
+                                {t("arsivle")}
+                              </DropdownItem>
+                            ) : null}
+                          </>
+                        )}
+                      </DropdownMenu>
+                    </Dropdown>
+                  )}
                 </td>
               </tr>
             );

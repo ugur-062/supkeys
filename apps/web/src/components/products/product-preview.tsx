@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { useMemo } from "react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 
 /**
  * Vitrin kaydı → herkese açık sayfanın veri şekli. Kilit önizlemesi
@@ -132,8 +133,15 @@ export function ProductPreview({
   const { view, company, companySlug } = useShowcaseView(product, item);
   const publicHref = product.isPublic && companySlug && product.slug ? productPath(companySlug, product.slug) : null;
 
+  // Uygulama içi çevrili onay (arayüz testi D-126; tarayıcının OK/Cancel'ı değil).
+  const confirm = useConfirm();
   const unpublish = async () => {
-    if (!window.confirm(t("urunVitrindenCekilecekVeTaslaga"))) return;
+    const ok = await confirm({
+      title: t("vitrindenCekOnayBaslik"),
+      description: t("vitrindenCekOnayAciklama"),
+      confirmLabel: t("vitrindenCek"),
+    });
+    if (!ok) return;
     try {
       await publish.mutateAsync({ id: product.id, publish: false });
       toast.success(t("urunVitrindenCekildi"));

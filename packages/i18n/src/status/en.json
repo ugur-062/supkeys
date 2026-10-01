@@ -324,6 +324,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.adminCompanies.urunYayinKosullariniKarsilamiyor": {
+    "hash": "800bdaa3ff",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.adminCompanies.uzatmaYalnizPaketliUyelikteOnceBir": {
     "hash": "9f77796010",
     "status": "reviewed",
@@ -1165,9 +1170,9 @@
     "at": "2026-09-24"
   },
   "api.companyAddresses.buAdresAktifIlandaKullaniliyorOnce": {
-    "hash": "33f1e2b236",
+    "hash": "9e5b8b8a8c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyAddresses.buAdresGonderilmisTeklifteKullaniliyorTeklif": {
     "hash": "99e725a807",
@@ -1175,9 +1180,9 @@
     "at": "2026-09-24"
   },
   "api.companyAddresses.buAdresYoneticiKapattigiIlandaKullaniliyor": {
-    "hash": "455d9c0f5c",
+    "hash": "2705f8c980",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-01"
   },
   "api.companyAddresses.silinemez": {
     "hash": "585dc6c0d2",
@@ -1205,9 +1210,9 @@
     "at": "2026-09-24"
   },
   "api.companyAffinity.reason.own.publishedListings": {
-    "hash": "c20458fefd",
+    "hash": "e350742517",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyAffinity.reason.own.wonOrders": {
     "hash": "daa742910c",
@@ -1235,9 +1240,9 @@
     "at": "2026-09-24"
   },
   "api.companyAffinity.reason.thirdParty.publishedListings": {
-    "hash": "4b09c339c6",
+    "hash": "a1c646c4be",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyAffinity.reason.thirdParty.wonOrders": {
     "hash": "441fee8b2e",
@@ -1260,9 +1265,9 @@
     "at": "2026-09-24"
   },
   "api.companyApprovals.buIlanIcinZatenBekleyenBir": {
-    "hash": "2b90f5450e",
+    "hash": "4ef812f9c9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyApprovals.buIstegiYalnizcaBaslatanVeyaYonetici": {
     "hash": "8ec2cc5d7a",
@@ -1615,9 +1620,9 @@
     "at": "2026-09-24"
   },
   "api.companyBidDocuments.ilanBulunamadi": {
-    "hash": "0c18de2bed",
+    "hash": "37d42705a6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyBidDocuments.onceTeklifVerinSonraBelgeEkleyin": {
     "hash": "c1d981d91e",
@@ -1745,9 +1750,9 @@
     "at": "2026-09-27"
   },
   "api.companyConnections.buSatinAlmaTalebiIcinDis": {
-    "hash": "5f2da8c649",
+    "hash": "5c6a553ff8",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.companyConnections.davetBulunamadi": {
     "hash": "9b438b0eeb",
@@ -2015,9 +2020,9 @@
     "at": "2026-10-01"
   },
   "api.companyItems.ilanBulunamadi": {
-    "hash": "0c18de2bed",
+    "hash": "37d42705a6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyItems.kalemAdiZorunlu": {
     "hash": "0539f62179",
@@ -2110,9 +2115,9 @@
     "at": "2026-09-24"
   },
   "api.companyListingDocuments.birIlanaEnFazlaBelgeEklenebilir": {
-    "hash": "ac023eb8e0",
+    "hash": "9771c83797",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListingDocuments.birKalemeEnFazlaBelgeEklenebilir": {
     "hash": "e7fc9eb15b",
@@ -2130,9 +2135,9 @@
     "at": "2026-09-24"
   },
   "api.companyListingDocuments.ilanBulunamadi": {
-    "hash": "0c18de2bed",
+    "hash": "37d42705a6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListingDocuments.kalemBulunamadi": {
     "hash": "943bd250e1",
@@ -2140,9 +2145,9 @@
     "at": "2026-09-24"
   },
   "api.companyListingDocuments.sadeceIlanSahibiDosyaEkleyebilir": {
-    "hash": "22d48a86e7",
+    "hash": "228096adba",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListingDocuments.sadecePdfGorselVeyaExcelYuklenebilir": {
     "hash": "a484da6f3d",
@@ -2205,14 +2210,14 @@
     "at": "2026-09-24"
   },
   "api.companyListings.actionPublish": {
-    "hash": "34b8bbd031",
+    "hash": "4ae7150801",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.actionPublishWork": {
-    "hash": "e1ff9656e1",
+    "hash": "1436dbc0a4",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.akreditifIcinAltTipSightUsance": {
     "hash": "85c384053f",
@@ -2220,9 +2225,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.alimIcinFormatSecin": {
-    "hash": "62490bcb39",
+    "hash": "f7a3cc62aa",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ayniKalemBirdenFazlaKezGirilemez": {
     "hash": "8cdf19900d",
@@ -2410,24 +2415,24 @@
     "at": "2026-09-24"
   },
   "api.companyListings.buIlanaArtikDavetEklenemez": {
-    "hash": "5bde8be21e",
+    "hash": "82ee40732d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.buIlandaTeklifinizYok": {
-    "hash": "6289d5a09d",
+    "hash": "a718c92729",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.buIlanIcinGecersizKalemPara": {
-    "hash": "69c049c899",
+    "hash": "02c4a22edb",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.buIlanIcinGecersizParaBirimi": {
-    "hash": "5d1144c0a4",
+    "hash": "99df51574f",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.buIlaniYonetmeYetkinizYok": {
     "hash": "2ceffe24c0",
@@ -2435,19 +2440,19 @@
     "at": "2026-10-01"
   },
   "api.companyListings.buIlanKapatilamaz": {
-    "hash": "b89f6e2b6a",
+    "hash": "7381b2746c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.buIlanYoneticiTarafindanTeklifeKapatildi": {
-    "hash": "93a3ab9d07",
+    "hash": "a87e8287d0",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.buIlanYoneticiTarafindanTeklifeKapatildi2": {
-    "hash": "26afd5bc48",
+    "hash": "3e8d66e711",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.buSatinAlmaTalebiKalemBazli": {
     "hash": "8ed59412fe",
@@ -2500,9 +2505,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.buTurdakiTeklifiniziVerdinizIlanSahibi": {
-    "hash": "1669295781",
+    "hash": "78fdac4851",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.cekIcinVadeGunSayisiZorunlu": {
     "hash": "cc5a39d1df",
@@ -2645,9 +2650,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.icinGoldPaketSatinalmaPaneliGerekir": {
-    "hash": "f87b6b6e9f",
+    "hash": "879b86ccad",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.icinGuncelTcmbKuruBulunamadiBu": {
     "hash": "9492e140e5",
@@ -2655,69 +2660,69 @@
     "at": "2026-09-24"
   },
   "api.companyListings.ilanBulunamadi": {
-    "hash": "0c18de2bed",
+    "hash": "37d42705a6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanBuSiradaGuncellendiDurumTur": {
-    "hash": "c1dbc9f210",
+    "hash": "3ddeb49cdd",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanDurumuDegistiIptalUygulanamadi": {
-    "hash": "d9862c63ba",
+    "hash": "b396ff1488",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanDurumuDegistiKapanisZamaniGuncellenemedi": {
-    "hash": "3cb706551f",
+    "hash": "24ba7967c1",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanDurumuDegistiKazanansizKapatmaUygulanamadi": {
-    "hash": "1b58398845",
+    "hash": "0fa191a462",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanDurumuDegistiKazandirmayiTekrarDeneyin": {
-    "hash": "9117f79baa",
+    "hash": "0870177b1b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanDurumuDegistiSayfayiYenileyin": {
-    "hash": "0c755bf241",
+    "hash": "282fd84ac0",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": {
-    "hash": "e0de486280",
+    "hash": "3b05cc587c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanDurumuDegistiYeniTurAcilamadi": {
-    "hash": "bea828837a",
+    "hash": "6706d268b8",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanKalemleriBuSiradaDegistiSayfayi": {
-    "hash": "8b990550bd",
+    "hash": "b7a1d2d1ff",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanTeklifeKapali": {
-    "hash": "36aa99727a",
+    "hash": "74cb20921c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanZatenKazandirilmis": {
-    "hash": "d95a37881e",
+    "hash": "00c91753ee",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ilanZatenKazandirilmisVeyaIptal": {
-    "hash": "bb886bb00d",
+    "hash": "bbdb5bf227",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.companyListings.itemImport.birimOndalik": {
     "hash": "83fea0ede7",
@@ -2920,9 +2925,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.izinVerilenParaBirimleriIlaninAna": {
-    "hash": "bbe6ed6c87",
+    "hash": "b794398514",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.kalemBazindaFarkliParaBirimiYalniz": {
     "hash": "5a6726cf81",
@@ -3000,14 +3005,14 @@
     "at": "2026-09-24"
   },
   "api.companyListings.ozelDavetliIlanEnAzBir": {
-    "hash": "942a113c84",
+    "hash": "1396269282",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ozelDavetliIlanYayinlamakIcinEn": {
-    "hash": "4ccd3ad673",
+    "hash": "3e51de1768",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.ozelOdemeSeklindeOdemeKosuluNotu": {
     "hash": "8f40849b4f",
@@ -3055,39 +3060,39 @@
     "at": "2026-09-24"
   },
   "api.companyListings.sadeceAcikIlandaYapilabilir": {
-    "hash": "52882591f6",
+    "hash": "d483f7437a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.sadeceAcikIlanIptalEdilebilir": {
-    "hash": "cbc9336b07",
+    "hash": "7215687df9",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.companyListings.sadeceIlanSahibiDavetEkleyebilir": {
-    "hash": "b4812298af",
+    "hash": "ae239d9b41",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.sadeceIlanSahibiElemeYapabilir": {
-    "hash": "66089592d1",
+    "hash": "823dc35956",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.sadeceIlanSahibiIptalEdebilir": {
-    "hash": "26fd288cea",
+    "hash": "c4dc032300",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.sadeceIlanSahibiKazandirabilir": {
-    "hash": "a227697711",
+    "hash": "4320a2d671",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.sadeceIlanSahibiYeniTurAcabilir": {
-    "hash": "fd17a697ea",
+    "hash": "f2a4e4356f",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.sadeceTaslakVeyaHenuzTeklifGelmemis": {
     "hash": "5b696da66d",
@@ -3255,14 +3260,14 @@
     "at": "2026-09-24"
   },
   "api.companyListings.yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": {
-    "hash": "f2a8439bce",
+    "hash": "1f3fb54afc",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.companyListings.yalnizcaTaslakIlanYayinlanabilir": {
-    "hash": "5da7ab41f6",
+    "hash": "fcf849dc47",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.yayinIcinGecerliBirKapanisTarihi": {
     "hash": "9b9026b33c",
@@ -3275,9 +3280,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.yeniTurYalnizcaAcikVeyaKapanmis": {
-    "hash": "b40ec5b6a0",
+    "hash": "3c2a0d47f9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.companyListings.zorunluKalemSorusuCevaplanmadi": {
     "hash": "636b9bef52",
@@ -4440,7 +4445,7 @@
     "at": "2026-09-30"
   },
   "api.domain.listingStatus.AWARDED": {
-    "hash": "0dbadb331f",
+    "hash": "381d7c961b",
     "status": "reviewed",
     "at": "2026-10-01"
   },
@@ -4850,9 +4855,9 @@
     "at": "2026-09-24"
   },
   "api.dto.createListing.gecersizIlanTipi": {
-    "hash": "673cd156ad",
+    "hash": "5bffea4b2d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.dto.createListing.gecersizOlcuBirimi": {
     "hash": "f574e3e7e3",
@@ -6505,14 +6510,14 @@
     "at": "2026-09-28"
   },
   "api.notifications.listings.awarded.body": {
-    "hash": "ffa845af35",
+    "hash": "36d2ccbdbd",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-01"
   },
   "api.notifications.listings.awarded.bodyShort": {
-    "hash": "3e391cf016",
+    "hash": "0632f501ea",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-01"
   },
   "api.notifications.listings.awarded.subject": {
     "hash": "783c1ce487",
@@ -6535,9 +6540,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.cancelled.body": {
-    "hash": "3d0086e371",
+    "hash": "73eaa4f6b2",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-01"
   },
   "api.notifications.listings.cancelled.title": {
     "hash": "81910562ad",
@@ -6584,10 +6589,30 @@
     "status": "reviewed",
     "at": "2026-09-29"
   },
+  "api.notifications.listings.categoryMatch.buy.openBodyPending": {
+    "hash": "d4e036cc7e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.listings.categoryMatch.buy.openBodyUnverified": {
+    "hash": "c85ae78d8d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.notifications.listings.categoryMatch.buy.openInAppBody": {
     "hash": "3321c45605",
     "status": "reviewed",
     "at": "2026-09-29"
+  },
+  "api.notifications.listings.categoryMatch.buy.openInAppBodyPending": {
+    "hash": "946431379a",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.listings.categoryMatch.buy.openInAppBodyUnverified": {
+    "hash": "7311f55559",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.listings.categoryMatch.buy.openSubject": {
     "hash": "3e19bc7de2",
@@ -6689,6 +6714,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.notifications.listings.cta.viewOrders": {
+    "hash": "d8aab720fd",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.notifications.listings.cta.viewPlans": {
     "hash": "624d5ed752",
     "status": "reviewed",
@@ -6788,6 +6818,11 @@
     "hash": "7e643376a1",
     "status": "reviewed",
     "at": "2026-09-29"
+  },
+  "api.notifications.listings.nextRoundCarried.bodyMixed": {
+    "hash": "396582eba8",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.listings.nextRoundCarried.heading": {
     "hash": "2416130322",
@@ -6900,9 +6935,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.orders.autoCompleted.body": {
-    "hash": "91ae087cb4",
+    "hash": "e1785a9689",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.notifications.orders.autoCompleted.heading": {
     "hash": "0f50862886",
@@ -6930,9 +6965,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.orders.cancelled.body": {
-    "hash": "adba7bba53",
+    "hash": "c32c3c1f76",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.notifications.orders.cancelled.heading": {
     "hash": "40088e8ffd",
@@ -6990,9 +7025,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.orders.completed.body": {
-    "hash": "f0d5e12c88",
+    "hash": "1391cc6b0c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.notifications.orders.completed.heading": {
     "hash": "0f50862886",
@@ -7450,9 +7485,9 @@
     "at": "2026-09-24"
   },
   "api.publicMarketplace.ilanBulunamadi": {
-    "hash": "0c18de2bed",
+    "hash": "37d42705a6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.publicProfile.profilBulunamadi": {
     "hash": "0de6e567ff",
@@ -10465,9 +10500,9 @@
     "at": "2026-09-24"
   },
   "web.domain.listingStatus.AWARDED": {
-    "hash": "0dbadb331f",
+    "hash": "381d7c961b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.domain.listingStatus.CANCELLED": {
     "hash": "cd4f5794ef",
@@ -14715,9 +14750,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.trustStrip.sealedBody": {
-    "hash": "ae1b3681ff",
+    "hash": "bf21ce8986",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketing.trustStrip.sealedTitle": {
     "hash": "6294ce84a8",
@@ -15552,7 +15587,7 @@
   "web.marketplace.gated.membersOnly": {
     "hash": "552dada18d",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.gated.signup": {
     "hash": "fe0537891f",
@@ -15915,9 +15950,9 @@
     "at": "2026-09-23"
   },
   "web.marketplace.listing.infoHeading": {
-    "hash": "149c9a6550",
+    "hash": "b5b67213ac",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.listing.itemFallback": {
     "hash": "e6f72e674c",
@@ -15945,14 +15980,14 @@
     "at": "2026-09-23"
   },
   "web.marketplace.listing.membersNote": {
-    "hash": "282c8b59f1",
+    "hash": "c69b072043",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.listing.number": {
-    "hash": "85578111df",
+    "hash": "134ce31f3f",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.listing.onlyCountriesCanBid": {
     "hash": "66849a5751",
@@ -16015,9 +16050,9 @@
     "at": "2026-09-27"
   },
   "web.marketplace.listing.trust1Body": {
-    "hash": "b78f81c4b5",
+    "hash": "c0c0c833cd",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.listing.trust1Title": {
     "hash": "55887b47b3",
@@ -16295,9 +16330,9 @@
     "at": "2026-09-23"
   },
   "web.marketplace.pages.listingNotFound": {
-    "hash": "0c18de2bed",
+    "hash": "37d42705a6",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.pages.loadingCompanies": {
     "hash": "3e149d4fcb",
@@ -19705,9 +19740,9 @@
     "at": "2026-09-24"
   },
   "web.panel.nav.extra.ilanDetayi": {
-    "hash": "88524dfc04",
+    "hash": "1c55f6507e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.nav.extra.onaylar": {
     "hash": "905babc77a",
@@ -23045,9 +23080,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.ihaleitemspanel.buIlandaKalemTanimlanmamis": {
-    "hash": "0a5cc4651f",
+    "hash": "dd1a6b8eeb",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.ihaleitemspanel.dahaAzGoster": {
     "hash": "d469f63f7d",
@@ -23275,9 +23310,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.ihalelistrow.status.awarded": {
-    "hash": "0dbadb331f",
+    "hash": "381d7c961b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.ihalelistrow.status.closed": {
     "hash": "6786696697",
@@ -24220,9 +24255,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.buIlanaTeklifVermekIcinSilverPaketi": {
-    "hash": "b3571d58fe",
+    "hash": "742b43b169",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.buIslemGeriAlinamazKazananFirmaBasina": {
     "hash": "4a06216b86",
@@ -24285,9 +24320,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.buTurdakiTeklifinizVerildiIlan": {
-    "hash": "22a24a5346",
+    "hash": "72f8daabe4",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.buTurdaTekTeklifHakkin": {
     "hash": "ed0935400e",
@@ -24610,9 +24645,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.hizliTalepKartindaSartlarOzet": {
-    "hash": "d32bbe71cb",
+    "hash": "1fcfffa6a3",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.icinKazananTeklif": {
     "hash": "6417faaee6",
@@ -24635,9 +24670,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.ilanBulunamadi": {
-    "hash": "f7144d6661",
+    "hash": "e16084e9a5",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.ilanKaldirilmisAdresHataliYa": {
     "hash": "df2f605e11",
@@ -24645,14 +24680,14 @@
     "at": "2026-09-27"
   },
   "web.panel.requests.page.ilanPlatformYoneticisiTarafindanTeklifeKapatildi": {
-    "hash": "03399affd3",
+    "hash": "9ec92e62b1",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.ilanYuklenemedi": {
-    "hash": "5445c3dcfb",
+    "hash": "65529ec88c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.indirim": {
     "hash": "543224b435",
@@ -25000,9 +25035,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.kendiIlaninizaTeklifVeremezsiniz": {
-    "hash": "6104aa06e2",
+    "hash": "4523d8a420",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.kismenKazandi": {
     "hash": "ca57863f0f",
@@ -25125,9 +25160,9 @@
     "at": "2026-09-27"
   },
   "web.panel.requests.page.onayIstegiIptalEdilsinMi": {
-    "hash": "3a3c4d83da",
+    "hash": "069f86de83",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.onayIsteginiIptalEt": {
     "hash": "cc2023f411",
@@ -25320,9 +25355,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.sikSordugunuzKalemSorulariniSete": {
-    "hash": "ef0c897e72",
+    "hash": "4517507b08",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.page.sil": {
     "hash": "353ad5e393",
@@ -27449,6 +27484,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.talepIcinAciklama": {
+    "hash": "900737f3cd",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.supplierDiscoveryModal.sec": {
     "hash": "425a4a9afd",
     "status": "reviewed",
@@ -27493,6 +27533,11 @@
     "hash": "535e64c089",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.requests.supplierDiscoveryModal.talebeOzelDisDavetNotu": {
+    "hash": "95fa0bafb8",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.supplierDiscoveryModal.webAramasiBasarisizTekrarDeneyin": {
     "hash": "ffb57cce33",
@@ -27690,19 +27735,29 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.tenderActionsMenu.ayniKalemVeDavetlilerleYeni": {
-    "hash": "bf2cf76bc6",
+    "hash": "a201129d9d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.bagliFirmalarindanBuSatinAlma": {
-    "hash": "ccba6ba9a3",
+    "hash": "a63d2e6871",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.bagliFirmaYok": {
     "hash": "0a886ea82a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.tenderActionsMenu.eslesenFirmaYok": {
+    "hash": "a7a3157842",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.tenderActionsMenu.davetli": {
+    "hash": "8d457f1255",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.buModdaKatilimcilarTumTeklif": {
     "hash": "65a4a07dc0",
@@ -27824,6 +27879,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.tenderActionsMenu.kapanisUzatmaGoldGerektirir": {
+    "hash": "e40cb8f54e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.tenderActionsMenu.kapanisYalnizOneCekilir": {
+    "hash": "6f5ad77944",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.tenderActionsMenu.kapanisZamaniniDegistir": {
     "hash": "eef2dd1426",
     "status": "reviewed",
@@ -27858,6 +27923,11 @@
     "hash": "68f78c6465",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.tenderActionsMenu.mevcutTekliflerYeniTuraRfq": {
+    "hash": "dc43dd3296",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.notlarKaydedildi": {
     "hash": "ac4d0772df",
@@ -27969,6 +28039,21 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.tenderActionsMenu.paketKilidiNotu": {
+    "hash": "577718410d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.tenderActionsMenu.onceUcretsizDogrulan": {
+    "hash": "d2acf441bb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.tenderActionsMenu.goldaGec": {
+    "hash": "37afcb60e5",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.tenderActionsMenu.satinAlmaTalebiniKopyala": {
     "hash": "26ee671b9d",
     "status": "reviewed",
@@ -28015,9 +28100,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.tenderActionsMenu.taslakIlanKaliciOlarakSilinsin": {
-    "hash": "e32b635a74",
+    "hash": "e8eb7c9cc4",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.taslakSilindi": {
     "hash": "2da4280e20",
@@ -33179,6 +33264,26 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.shell.unsavedChanges.aciklama": {
+    "hash": "38b3b57531",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.shell.unsavedChanges.ayril": {
+    "hash": "993c3b0d10",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.shell.unsavedChanges.baslik": {
+    "hash": "5c3cc7e270",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.shell.unsavedChanges.kal": {
+    "hash": "36b9dfd1bb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.shell.viewToggle.gorunum": {
     "hash": "3a3b14f75d",
     "status": "reviewed",
@@ -33765,9 +33870,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.catalogItemsView.sikKullandiginizKalemleriSaklayin": {
-    "hash": "9e05962b5b",
+    "hash": "911c27000d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.companyActionCenter.bekleyenIsler": {
     "hash": "9c0e3529bf",
@@ -35505,9 +35610,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.ordersList.siparisNoIlanVeyaKarsi": {
-    "hash": "9156e55c58",
+    "hash": "838b9e876e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.ordersList.siparisReddedildi": {
     "hash": "05e473ea8a",
@@ -36214,6 +36319,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.productActionBar.arsivle": {
+    "hash": "c3b2790f85",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.productActionBar.digerIslemler": {
     "hash": "d1fe6a4ef0",
     "status": "reviewed",
@@ -36258,6 +36368,11 @@
     "hash": "22fe0105fd",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productActionBar.yayindakiUrunEksik": {
+    "hash": "eb618d07ac",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.productActionBar.yeni": {
     "hash": "c58a8561e6",
@@ -36314,11 +36429,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.productPreview.urunVitrindenCekilecekVeTaslaga": {
-    "hash": "9e4f6612ec",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.trade.productPreview.vitrindenCek": {
     "hash": "22fe0105fd",
     "status": "reviewed",
@@ -36328,6 +36438,16 @@
     "hash": "dc13b23383",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productPreview.vitrindenCekOnayAciklama": {
+    "hash": "a3e65966a6",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productPreview.vitrindenCekOnayBaslik": {
+    "hash": "9af0425655",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.productShowcaseForm.ac": {
     "hash": "7205e64058",
@@ -36383,6 +36503,11 @@
     "hash": "bd5e87fae7",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productShowcaseForm.belgeYuklenemedi": {
+    "hash": "07976d73c2",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.productShowcaseForm.belgeYuklenemediYalnizPdfEn": {
     "hash": "66e97af275",
@@ -36488,6 +36613,11 @@
     "hash": "5de6b883fe",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productShowcaseForm.kaydedildi": {
+    "hash": "d3d6944512",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.productShowcaseForm.kaydedildiIcerikDegisikligiYenidenIncelenece": {
     "hash": "6153f5aa0e",
@@ -36659,11 +36789,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.productShowcaseForm.urunVitrindenCekilecekVeTaslaga": {
-    "hash": "9e4f6612ec",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.trade.productShowcaseForm.varyasyonlariAyriUrunOlarakAcmayin": {
     "hash": "8d5f2a06b8",
     "status": "reviewed",
@@ -36674,10 +36799,25 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.productShowcaseForm.vitrindenCek": {
+    "hash": "22fe0105fd",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.productShowcaseForm.vitrindenCekilemedi": {
     "hash": "dc13b23383",
     "status": "reviewed",
     "at": "2026-09-29"
+  },
+  "web.panel.trade.productShowcaseForm.vitrindenCekOnayAciklama": {
+    "hash": "a3e65966a6",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productShowcaseForm.vitrindenCekOnayBaslik": {
+    "hash": "9af0425655",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.productShowcaseForm.youtubeVeyaVimeoBaglantisiUrun": {
     "hash": "f9d7adc224",
@@ -36739,15 +36879,55 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.productsView.ac": {
-    "hash": "e0a5707657",
+  "web.panel.trade.productsView.acMenu": {
+    "hash": "7205e64058",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.productsView.aramayiDegistiripTekrarDeneyin": {
     "hash": "382c190098",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productsView.arsiv": {
+    "hash": "fe6b287618",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.arsivdeUrunYok": {
+    "hash": "b6b7cc11a0",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.arsivle": {
+    "hash": "c3b2790f85",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.arsivlendi": {
+    "hash": "aa9e900240",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.arsivlenemedi": {
+    "hash": "b84acfc648",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.arsivlenenUrunlerBuradaDurur": {
+    "hash": "984eaaa9cb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.arsivOnayAciklama": {
+    "hash": "cab18e1f9a",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.arsivOnayBaslik": {
+    "hash": "284f8bb1c1",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.productsView.dahaFazlaYukle": {
     "hash": "776858bd10",
@@ -36814,6 +36994,21 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.trade.productsView.geriAl": {
+    "hash": "78f0bc80e2",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.geriAlinamadi": {
+    "hash": "531dc36465",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.productsView.geriAlindi": {
+    "hash": "cde400a3a7",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.productsView.goruntulenme": {
     "hash": "6576b1721a",
     "status": "reviewed",
@@ -36828,6 +37023,11 @@
     "hash": "7c028e04a0",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productsView.islemMenusu": {
+    "hash": "cd0c02085e",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.productsView.kategori": {
     "hash": "b7964404a7",
@@ -37370,9 +37570,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.siparisIdPage.buIlandaTeminatMektubuSarti": {
-    "hash": "1ed8c9a611",
+    "hash": "ca69099134",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.siparisIdPage.buSiparisiUsttekiCubuktanOnayla": {
     "hash": "a02437c504",
@@ -37885,9 +38085,9 @@
     "at": "2026-09-29"
   },
   "web.panel.trade.templatesView.birlikteDavetEttiginizFirmalariGruplayin": {
-    "hash": "688a4f909c",
+    "hash": "56efc2af89",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.templatesView.cevapTuru": {
     "hash": "6a4067bd6d",
@@ -37970,9 +38170,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.templatesView.henuzSablonYokSihirbazinUst": {
-    "hash": "cf4fa66dd4",
+    "hash": "b51f02425c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.templatesView.henuzSoruSetiYokMensei": {
     "hash": "cdc5a398dd",
@@ -37985,9 +38185,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.templatesView.kalemSorulariniSetOlarakKaydedin": {
-    "hash": "2c07bd0e72",
+    "hash": "e9e7a0ea1f",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.templatesView.kaydedilemedi": {
     "hash": "9b108c4df0",
@@ -38050,9 +38250,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.templatesView.sihirbazdaSablonOlarakKaydetIle": {
-    "hash": "1737bd5936",
+    "hash": "35df906ade",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.templatesView.sil": {
     "hash": "353ad5e393",

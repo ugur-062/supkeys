@@ -45,7 +45,7 @@
     "copySuffix": "Kopya",
     "onayAkisiBulunamadi": "Onay akışı bulunamadı",
     "onayAkisindaSizdenBaskaUygunBir": "Onay akışında sizden başka uygun bir onaylayıcı yok — akışa bir onaylayıcı ekleyin veya firma sahibine başvurun.",
-    "buIlanIcinZatenBekleyenBir": "Bu ilan için zaten bekleyen bir onay isteği var",
+    "buIlanIcinZatenBekleyenBir": "Bu talep için zaten bekleyen bir onay isteği var",
     "onayIstegiBulunamadi": "Onay isteği bulunamadı",
     "buIstekBeklemedeDegil": "Bu istek beklemede değil",
     "buAdiminOnaycisiDegilsiniz": "Bu adımın onaycısı değilsiniz",
@@ -132,8 +132,8 @@
     "urunBulunamadi": "Ürün bulunamadı"
   },
   "companyAddresses": {
-    "buAdresAktifIlandaKullaniliyorOnce": "Bu adres {activeUse} aktif ilanda kullanılıyor — {what}; önce ilanlardaki adresi değiştirin",
-    "buAdresYoneticiKapattigiIlandaKullaniliyor": "Bu adres yönetici tarafından kapatılmış {closedUse} ilanda kullanılıyor — {what}; destek ekibiyle iletişime geçin",
+    "buAdresAktifIlandaKullaniliyorOnce": "Bu adres {activeUse} aktif talepte kullanılıyor — {what}; önce taleplerdeki adresi değiştirin",
+    "buAdresYoneticiKapattigiIlandaKullaniliyor": "Bu adres yönetici tarafından kapatılmış {closedUse} talepte kullanılıyor — {what}; destek ekibiyle iletişime geçin",
     "buAdresGonderilmisTeklifteKullaniliyorTeklif": "Bu adres {bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar {what}",
     "adresBulunamadi": "Adres bulunamadı",
     "silinemez": "silinemez",
@@ -197,7 +197,8 @@
     "buUlkeKaydaKapali": "Bu ülke kayda kapalı; firma bu ülkeye taşınamaz",
     "yerelHukukiYapiZorunlu": "Hukuki yapı \"Diğer\" iken yerel adı zorunlu (ör. GmbH, LLC)",
     "ayniDuyuruAzOnceGonderildi": "Bu duyuru az önce gönderildi; tekrar göndermek için birkaç dakika bekleyin",
-    "firmaKurulumuTamamlanmadiDogrulanamaz": "Firma kurulumunu (unvan, vergi bilgileri, adres) tamamlamamış — doğrulanamaz."
+    "firmaKurulumuTamamlanmadiDogrulanamaz": "Firma kurulumunu (unvan, vergi bilgileri, adres) tamamlamamış — doğrulanamaz.",
+    "urunYayinKosullariniKarsilamiyor": "Ürün yayın koşullarını karşılamıyor — {join}. Firmadan düzeltme isteyin."
   },
   "categories": {
     "gecersizKategoriId": "Geçersiz kategori ID: {join}",
@@ -207,7 +208,7 @@
     "yalnizBelirtilenSeviyeSecilebilir": "Sadece level {level} kategoriler seçilebilir."
   },
   "companyBidDocuments": {
-    "ilanBulunamadi": "İlan bulunamadı",
+    "ilanBulunamadi": "Talep bulunamadı",
     "satinAlmaTalebiTeklifeKapaliBelge": "Satın Alma Talebi teklife kapalı — belge eklenemez/silinemez",
     "teklifBelgeleriIcinTeklifVermeYetkisi": "Teklif belgeleri için ''Teklif verme'' yetkisi gerekir",
     "onceTeklifVerinSonraBelgeEkleyin": "Önce teklif verin, sonra belge ekleyin",
@@ -243,41 +244,41 @@
     "akreditifIcinAltTipSightUsance": "Akreditif için alt tip (Sight/Usance) seçin",
     "vadeliUsanceAkreditifIcinVadeGun": "Vadeli (Usance) akreditif için vade gün sayısı zorunlu",
     "ozelOdemeSeklindeOdemeKosuluNotu": "Özel ödeme şeklinde ödeme koşulu notu zorunlu",
-    "izinVerilenParaBirimleriIlaninAna": "İzin verilen para birimleri ilanın ana birimini içermeli",
+    "izinVerilenParaBirimleriIlaninAna": "İzin verilen para birimleri talebin ana birimini içermeli",
     "gecersizHedefUlkeKodu": "Geçersiz hedef ülke kodu: {c}",
     "hedefUlkeKayitKapali": "Kayda kapalı ülke hedeflenemez: {c}. Rothern bu ülkeden firma kaydı almıyor; ülkeyi görünürlük listesinden çıkarın.",
     "gecersizKategoriSecimi": "Geçersiz kategori seçimi",
-    "ozelDavetliIlanEnAzBir": "Özel (davetli) ilan en az bir davetli firma ile yayınlanabilir",
-    "icinGoldPaketSatinalmaPaneliGerekir": "{action} için Gold paket (satınalma paneli) gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.",
+    "ozelDavetliIlanEnAzBir": "Özel (davetli) talep en az bir davetli firma ile yayınlanabilir",
+    "icinGoldPaketSatinalmaPaneliGerekir": "{action} için Gold paket (satınalma paneli) gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni talep işi başlatamazsınız.",
     "firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl": "Firma doğrulamanız tamamlanmadan {action} — belgelerinizi Ayarlar → Doğrulama''dan yükleyip onaya gönderin.",
     "satinAlmaTalebiAcmakIcinGold": "Satın alma talebi açmak için Gold paket (satınalma paneli) gerekir.",
     "talepAcmakIcinTalepAcmaVe": "Talep açmak için ''Talep açma ve yönetme'' yetkisi gerekir",
     "satinAlmaTalebiIcinFormatSecin": "Satın alma talebi için format seçin (Teklif Toplama / Pazarlık)",
     "pazarlikDogrudanAcilamazTalebiTeklifToplama": "Pazarlık doğrudan açılamaz — talebi teklif toplama olarak açın, ''Pazarlığa Geç'' ile açık eksiltme turuna aktarın",
-    "ilanBulunamadi": "İlan bulunamadı",
+    "ilanBulunamadi": "Talep bulunamadı",
     "sadeceTaslakVeyaHenuzTeklifGelmemis": "Sadece taslak veya henüz teklif gelmemiş satın alma talepleri düzenlenebilir",
     "buSatinAlmaTalebineTeklifVerilmis": "Bu satın alma talebine teklif verilmiş; düzenleme yapılamaz",
     "satinAlmaTalebiFormatiDuzenlemeylePazarliga": "Satın Alma Talebi formatı düzenlemeyle pazarlığa çevrilemez — ''Pazarlığa Geç'' ile aktarın",
     "buSatinAlmaTalebineAzOnce": "Bu satın alma talebine az önce teklif verildi; düzenleme yapılamaz",
-    "yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": "Yalnızca taslak ilan silinebilir; yayınlanmış ilan iptal edilir",
-    "yalnizcaTaslakIlanYayinlanabilir": "Yalnızca taslak ilan yayınlanabilir",
+    "yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": "Yalnızca taslak talep silinebilir; yayınlanmış talep iptal edilir",
+    "yalnizcaTaslakIlanYayinlanabilir": "Yalnızca taslak talep yayınlanabilir",
     "yayinIcinGecerliBirKapanisTarihi": "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
-    "ozelDavetliIlanYayinlamakIcinEn": "Özel (davetli) ilan yayınlamak için en az bir firma davet edilmeli",
-    "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "İlan durumu değişti; yalnızca taslak yayınlanabilir",
+    "ozelDavetliIlanYayinlamakIcinEn": "Özel (davetli) talep yayınlamak için en az bir firma davet edilmeli",
+    "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "Talep durumu değişti; yalnızca taslak yayınlanabilir",
     "herkeseAcikTalepleriGormekVeTeklif": "Herkese açık talepleri görmek ve teklif vermek için Silver paketi gerekir. Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.",
     "icinGuncelTcmbKuruBulunamadiBu": "{cur} için güncel TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz",
     "gecersizTeslimatFaturaAdresi": "Geçersiz teslimat/fatura adresi",
     "kendiIlaninizaTeklifVeremezsiniz": "Kendi talebinize teklif veremezsiniz",
     "teklifVermekIcinTeklifVermeYetkisi": "Teklif vermek için ''Teklif verme'' yetkisi gerekir",
-    "ilanTeklifeKapali": "İlan teklife kapalı",
+    "ilanTeklifeKapali": "Talep teklife kapalı",
     "teklifVermeHenuzBaslamadiAcilisSaatini": "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
     "teklifSuresiDoldu": "Teklif süresi doldu",
     "geriCekilenTeklifYenidenVerilemez": "Geri çekilen teklif yeniden verilemez",
     "gonderilmisTeklifDuzenlenemezDegisiklikIcinAlici": "Gönderilmiş teklif düzenlenemez — değişiklik için alıcıyla iletişime geçin; alıcı teklifinizi elerse yeniden teklif verebilirsiniz",
     "acikEksiltmeArtirmadaGonderilmisTeklifTaslaga": "Açık eksiltme/artırmada gönderilmiş teklif taslağa çekilemez — yeni tutarı doğrudan gönderin",
-    "buIlanIcinGecersizParaBirimi": "Bu ilan için geçersiz para birimi",
+    "buIlanIcinGecersizParaBirimi": "Bu talep için geçersiz para birimi",
     "acikEksiltmeArtirmadaParaBirimiDegistirilemez": "Açık eksiltme/artırmada para birimi değiştirilemez — teklifinizi {currency} olarak verin",
-    "buTurdakiTeklifiniziVerdinizIlanSahibi": "Bu turdaki teklifinizi verdiniz — ilan sahibi yeni tur açarsa güncelleyebilirsiniz",
+    "buTurdakiTeklifiniziVerdinizIlanSahibi": "Bu turdaki teklifinizi verdiniz — talep sahibi yeni tur açarsa güncelleyebilirsiniz",
     "teklifGondermekIcinGecerlilikSuresiZorunlu": "Teklif göndermek için geçerlilik süresi zorunlu",
     "teslimSuresiZorunluSureGirmediginizKalemler": "Teslim süresi zorunlu (süre girmediğiniz kalemler için)",
     "teslimTarihiGecmisteOlamaz": "Teslim tarihi geçmişte olamaz",
@@ -288,7 +289,7 @@
     "buSatinAlmaTalebindeTumKalemlere": "Bu satın alma talebinde tüm kalemlere teklif vermelisiniz",
     "fiyatlananHerKaleminBirimFiyatiSifirdan": "Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı",
     "kalemBazindaFarkliParaBirimiYalniz": "Kalem bazında farklı para birimi yalnız kapalı zarf alım satın alma taleplerinde kullanılabilir",
-    "buIlanIcinGecersizKalemPara": "Bu ilan için geçersiz kalem para birimi: {c}",
+    "buIlanIcinGecersizKalemPara": "Bu talep için geçersiz kalem para birimi: {c}",
     "guncelKurBilgisiYokTcmbKalem": "Güncel kur bilgisi yok (TCMB {c}) — kalem bazlı farklı para birimi şu an kullanılamıyor; teklifi tek birimde verin veya daha sonra tekrar deneyin",
     "teklifToplamiSifirdanBuyukOlmali": "Teklif toplamı sıfırdan büyük olmalı",
     "gecersizSoruCevabi": "Geçersiz soru cevabı",
@@ -299,21 +300,21 @@
     "pazarliktaOncedenFiyatladiginizKalemBirakilamazI": "Pazarlıkta önceden fiyatladığınız kalem bırakılamaz — \"{name}\" için fiyat girin",
     "pazarlikOncekiTeklifinizinAltindaOlmali": "Pazarlık: {scopeNote} önceki teklifinizin ({amount}) altında olmalı",
     "acikArtirmaOncekiTeklifinizinUzerindeOlmali": "Açık artırma: {scopeNote} önceki teklifinizin ({amount}) üzerinde olmalı",
-    "ilanBuSiradaGuncellendiDurumTur": "İlan bu sırada güncellendi (durum/tur değişti) — sayfayı yenileyip teklifi tekrar gönderin",
-    "ilanKalemleriBuSiradaDegistiSayfayi": "İlan kalemleri bu sırada değişti — sayfayı yenileyip teklifi tekrar gönderin",
+    "ilanBuSiradaGuncellendiDurumTur": "Talep bu sırada güncellendi (durum/tur değişti) — sayfayı yenileyip teklifi tekrar gönderin",
+    "ilanKalemleriBuSiradaDegistiSayfayi": "Talep kalemleri bu sırada değişti — sayfayı yenileyip teklifi tekrar gönderin",
     "teklifinizBuSiradaDegistiSayfayi": "Teklifiniz bu sırada değişti (başka bir sekme ya da eşzamanlı gönderim) — sayfayı yenileyip teklifi tekrar gönderin",
     "muadilTeklifteMarkaVeyaParcaNoZorunlu": "\"{name}\" kalemine muadil ürün teklif ediyorsanız teklif ettiğiniz markayı veya parça numarasını girin",
-    "sadeceIlanSahibiKazandirabilir": "Sadece ilan sahibi kazandırabilir",
-    "ilanZatenKazandirilmisVeyaIptal": "İlan zaten kazandırılmış veya iptal",
+    "sadeceIlanSahibiKazandirabilir": "Sadece talep sahibi kazandırabilir",
+    "ilanZatenKazandirilmisVeyaIptal": "Talep zaten kazandırılmış veya iptal",
     "kazandirmaIcinYetkinizYok": "Kazandırma için yetkiniz yok",
     "gecersizTeklif": "Geçersiz teklif",
     "buSatinAlmaTalebiTeklifBelgesi": "Bu satın alma talebi teklif belgesi zorunlu kılıyor; kazanan teklifin belgesi yok",
-    "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "İlan durumu değişti; kazandırmayı tekrar deneyin",
+    "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "Talep durumu değişti; kazandırmayı tekrar deneyin",
     "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "Teklifin geçerlilik süresi dolmuş; tedarikçiden süre uzatması isteyin ya da yeni tur açın",
     "teklifVerenFirmaAskidaKazandirilamaz": "Teklif veren firmanın hesabı askıda ya da pasif; bu teklif kazandırılamaz",
     "teklifArtikGecerliDegilGeriCekilmis": "Teklif artık geçerli değil (geri çekilmiş veya elenmiş) — kazandırılamaz",
     "siparisTutariTutarsizligiKazandirmaGuvenlikNeden": "Sipariş tutarı tutarsızlığı — kazandırma güvenlik nedeniyle durduruldu (destek ekibiyle iletişime geçin)",
-    "ilanZatenKazandirilmis": "İlan zaten kazandırılmış",
+    "ilanZatenKazandirilmis": "Talep zaten kazandırılmış",
     "teklifArtikGecerliDegilElenmisVeya": "Teklif artık geçerli değil (elenmiş veya çekilmiş) — kazandırılamaz",
     "belgeZorunluKazananTeklifinYukluBelgesi": "Belge zorunlu — kazanan teklifin yüklü belgesi yok",
     "buSatinAlmaTalebindeKalemYok": "Bu satın alma talebinde kalem yok",
@@ -322,43 +323,43 @@
     "gecersizKalemTeklif": "Geçersiz kalem/teklif",
     "secilenTeklifinKalemiIcinFiyatiYok": "Seçilen teklifin \"{name}\" kalemi için fiyatı yok",
     "kazananTekliflerdenBiriArtikGecerliDegil": "Kazanan tekliflerden biri artık geçerli değil (elenmiş veya çekilmiş) — kazandırma uygulanamadı",
-    "sadeceIlanSahibiYeniTurAcabilir": "Sadece ilan sahibi yeni tur açabilir",
-    "buIlanYoneticiTarafindanTeklifeKapatildi": "Bu ilan yönetici tarafından teklife kapatıldı — yeni tur açılamaz, destek ile iletişime geçin",
-    "yeniTurYalnizcaAcikVeyaKapanmis": "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
-    "ilanDurumuDegistiYeniTurAcilamadi": "İlan durumu değişti; yeni tur açılamadı",
-    "buIlanYoneticiTarafindanTeklifeKapatildi2": "Bu ilan yönetici tarafından teklife kapatıldı — geçerlilik süresi uzatılamaz",
+    "sadeceIlanSahibiYeniTurAcabilir": "Sadece talep sahibi yeni tur açabilir",
+    "buIlanYoneticiTarafindanTeklifeKapatildi": "Bu talep yönetici tarafından teklife kapatıldı — yeni tur açılamaz, destek ile iletişime geçin",
+    "yeniTurYalnizcaAcikVeyaKapanmis": "Yeni tur yalnızca açık veya kapanmış talepte açılabilir",
+    "ilanDurumuDegistiYeniTurAcilamadi": "Talep durumu değişti; yeni tur açılamadı",
+    "buIlanYoneticiTarafindanTeklifeKapatildi2": "Bu talep yönetici tarafından teklife kapatıldı — geçerlilik süresi uzatılamaz",
     "satinAlmaTalebiSonuclandiGecerlilikSuresi": "Satın Alma Talebi sonuçlandı — geçerlilik süresi uzatılamaz",
-    "buIlandaTeklifinizYok": "Bu ilanda teklifiniz yok",
+    "buIlandaTeklifinizYok": "Bu talepte teklifiniz yok",
     "teklifGecerliliginiUzatmakIcinTeklifVerme": "Teklif geçerliliğini uzatmak için ''Teklif verme'' yetkisi gerekir",
     "buTeklifinGecerlilikSuresiUzatilamaz": "Bu teklifin geçerlilik süresi uzatılamaz",
     "uzatilacakGonderilmisBirTeklifYokTeklif": "Uzatılacak gönderilmiş bir teklif yok — teklif verme ekranını kullanın",
     "buTeklifGuncelTuraAitDegil": "Bu teklif güncel tura ait değil — lütfen yeni teklif verin",
     "uzatmaYetersizTeklifinSonGecerlilikGunu": "Uzatma yetersiz — teklifin son geçerlilik günü hâlâ geçmişte kalıyor, daha uzun bir süre girin",
-    "sadeceIlanSahibiDavetEkleyebilir": "Sadece ilan sahibi davet ekleyebilir",
-    "buIlanaArtikDavetEklenemez": "Bu ilana artık davet eklenemez",
+    "sadeceIlanSahibiDavetEkleyebilir": "Sadece talep sahibi davet ekleyebilir",
+    "buIlanaArtikDavetEklenemez": "Bu talebe artık davet eklenemez",
     "kapanisa2DakikadanAzKalaPazarlik": "Kapanışa 2 dakikadan az kala pazarlık satın alma talebine tedarikçi eklenemez",
-    "sadeceIlanSahibiElemeYapabilir": "Sadece ilan sahibi eleme yapabilir",
+    "sadeceIlanSahibiElemeYapabilir": "Sadece talep sahibi eleme yapabilir",
     "buDurumdaElemeYapilamaz": "Bu durumda eleme yapılamaz",
     "teklifDurumuDegistiElemeUygulanamadi": "Teklif durumu değişti; eleme uygulanamadı",
-    "sadeceIlanSahibiIptalEdebilir": "Sadece ilan sahibi iptal edebilir",
-    "sadeceAcikIlanIptalEdilebilir": "Sadece açık ilan iptal edilebilir",
-    "ilanDurumuDegistiIptalUygulanamadi": "İlan durumu değişti; iptal uygulanamadı",
+    "sadeceIlanSahibiIptalEdebilir": "Sadece talep sahibi iptal edebilir",
+    "sadeceAcikIlanIptalEdilebilir": "Sadece açık talep iptal edilebilir",
+    "ilanDurumuDegistiIptalUygulanamadi": "Talep durumu değişti; iptal uygulanamadı",
     "satinAlmaTalebiZatenDegerlendirmede": "Satın Alma Talebi zaten değerlendirmede",
     "yalnizcaAcikSatinAlmaTalebiDegerlendirmeye": "Yalnızca açık satın alma talebi değerlendirmeye alınabilir",
-    "ilanDurumuDegistiSayfayiYenileyin": "İlan durumu değişti — sayfayı yenileyin",
+    "ilanDurumuDegistiSayfayiYenileyin": "Talep durumu değişti — sayfayı yenileyin",
     "kapanisTarihiAcilisTarihindenSonraOlmali": "Kapanış tarihi açılış tarihinden sonra olmalı",
     "kapanisa2DakikadanAzKaldiAcik": "Kapanışa 2 dakikadan az kaldı — açık eksiltme/artırmada kapanış saati artık değiştirilemez",
-    "ilanDurumuDegistiKapanisZamaniGuncellenemedi": "İlan durumu değişti; kapanış zamanı güncellenemedi",
-    "buIlanKapatilamaz": "Bu ilan kapatılamaz",
-    "ilanDurumuDegistiKazanansizKapatmaUygulanamadi": "İlan durumu değişti; kazanansız kapatma uygulanamadı",
-    "sadeceAcikIlandaYapilabilir": "Sadece açık ilanda yapılabilir",
+    "ilanDurumuDegistiKapanisZamaniGuncellenemedi": "Talep durumu değişti; kapanış zamanı güncellenemedi",
+    "buIlanKapatilamaz": "Bu talep kapatılamaz",
+    "ilanDurumuDegistiKazanansizKapatmaUygulanamadi": "Talep durumu değişti; kazanansız kapatma uygulanamadı",
+    "sadeceAcikIlandaYapilabilir": "Sadece açık talepte yapılabilir",
     "buIlaniYonetmeYetkinizYok": "Bu talebi yönetme yetkiniz yok — yalnız talebi açan kullanıcı yönetebilir",
-    "actionPublish": "ilan yayınlayamazsınız",
+    "actionPublish": "talep yayınlayamazsınız",
     "actionBid": "teklif veremezsiniz",
     "actionAward": "kazandıramazsınız",
     "oncedenFiyatladiginizKalemlerinToplami": "önceden fiyatladığınız kalemlerin toplamı",
     "yeniTeklifiniz": "yeni teklifiniz",
-    "actionPublishWork": "İlan yayınlamak",
+    "actionPublishWork": "Talep yayınlamak",
     "actionNewRound": "Yeni tur açmak",
     "actionInviteSupplier": "Satın Alma Talebine yeni tedarikçi davet etmek",
     "actionEditListing": "Satın Alma Talebini düzenlemek",
@@ -452,7 +453,7 @@
     "cekIcinVadeGunSayisiZorunlu": "Çek için vade gün sayısı zorunlu",
     "senetIcinVadeGunSayisiZorunlu": "Senet için vade gün sayısı zorunlu",
     "vadeliOdemeIcinGunSayisiZorunlu": "Vadeli ödeme için gün sayısı zorunlu",
-    "alimIcinFormatSecin": "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)",
+    "alimIcinFormatSecin": "Alım talebi için format seçin (Teklif Toplama / Pazarlık)",
     "ozelTalebeYalnizDavetliFirmalar": "Bu özel satın alma talebine yalnızca davetli firmalar teklif verebilir",
     "tekliIcinPremiumUyelikGerekir": "Bu talebe teklif vermek için Silver paketi gerekir",
     "productMatch": {
@@ -463,13 +464,13 @@
     "teklifGecerliligiAzOnceUzatildi": "Teklifin geçerlilik süresi az önce güncellendi; sayfayı yenileyip kontrol edin"
   },
   "companyListingDocuments": {
-    "ilanBulunamadi": "İlan bulunamadı",
-    "sadeceIlanSahibiDosyaEkleyebilir": "Sadece ilan sahibi dosya ekleyebilir",
+    "ilanBulunamadi": "Talep bulunamadı",
+    "sadeceIlanSahibiDosyaEkleyebilir": "Sadece talep sahibi dosya ekleyebilir",
     "satinAlmaTalebiTeklifeKapaliBelgeler": "Satın Alma Talebi teklife kapalı; belgeler değiştirilemez",
     "buSatinAlmaTalebineTeklifVerilmis": "Bu satın alma talebine teklif verilmiş; belgeler değiştirilemez",
     "sadecePdfGorselVeyaExcelYuklenebilir": "Sadece PDF, görsel veya Excel yüklenebilir",
     "gecersizDosyaAnahtari": "Geçersiz dosya anahtarı",
-    "birIlanaEnFazlaBelgeEklenebilir": "Bir ilana en fazla {MAXDOCUMENTSPERLISTING} belge eklenebilir — önce eskilerden silin",
+    "birIlanaEnFazlaBelgeEklenebilir": "Bir talebe en fazla {MAXDOCUMENTSPERLISTING} belge eklenebilir — önce eskilerden silin",
     "kalemBulunamadi": "Kalem bulunamadı",
     "birKalemeEnFazlaBelgeEklenebilir": "Bir kaleme en fazla {MAXDOCUMENTSPERITEM} belge eklenebilir",
     "belgeBulunamadi": "Belge bulunamadı"
@@ -680,7 +681,7 @@
     "buEPostaAdresiDavetAlmak": "Bu e-posta adresi davet almak istemediğini bildirdi",
     "davetGondermekIcinBirPaketSilver": "Davet göndermek için bir paket (Silver+) gerekir.",
     "satinAlmaTalebiBulunamadi": "Satın Alma Talebi bulunamadı",
-    "buSatinAlmaTalebiIcinDis": "Bu satın alma talebi için dış davet gönderme yetkiniz yok — ilanı yöneten kullanıcı ve ilgili rol gerekir",
+    "buSatinAlmaTalebiIcinDis": "Bu satın alma talebi için dış davet gönderme yetkiniz yok — talebi yöneten kullanıcı ve ilgili rol gerekir",
     "yalnizTaslakAcikSatinAlmaTalebi": "Yalnız taslak/açık satın alma talebi için dış davet gönderilebilir",
     "gecerliEPostaAdresiVerilmedi": "Geçerli e-posta adresi verilmedi",
     "gecersizBaglanti": "Geçersiz bağlantı",
@@ -958,7 +959,7 @@
   },
   "companyItems": {
     "ucretsizPaketteEnFazlaUrunYayinda": "Ücretsiz pakette en fazla {limit} ürün yayında/onayda olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.",
-    "ilanBulunamadi": "İlan bulunamadı",
+    "ilanBulunamadi": "Talep bulunamadı",
     "urunBulunamadi": "Ürün bulunamadı",
     "urunIncelemedeEkibimizOnaylayanaYaDa": "Ürün incelemede — ekibimiz onaylayana ya da düzeltme isteyene kadar değiştirilemez.",
     "katalogKalemiBulunamadi": "Katalog kalemi bulunamadı",
@@ -984,7 +985,7 @@
     "buIslemIcinYetkinizYok": "Bu işlem için yetkiniz yok"
   },
   "publicMarketplace": {
-    "ilanBulunamadi": "İlan bulunamadı"
+    "ilanBulunamadi": "Talep bulunamadı"
   },
   "http": {
     "bulunamadi": "Bulunamadı",
@@ -1166,7 +1167,7 @@
     },
     "createListing": {
       "gecersizOlcuBirimi": "Geçersiz ölçü birimi",
-      "gecersizIlanTipi": "Geçersiz ilan tipi",
+      "gecersizIlanTipi": "Geçersiz talep tipi",
       "gecersizFormat": "Geçersiz format",
       "gecersizGorunurluk": "Geçersiz görünürlük",
       "baslikEnAz3KarakterOlmali": "Başlık en az 3 karakter olmalı",
@@ -1285,17 +1286,17 @@
       "autoCompleted": {
         "subject": "Sipariş teslim alındı ve tamamlandı",
         "heading": "Sipariş tamamlandı",
-        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişi alıcı tarafından teslim alındı ve tamamlandı."
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş alıcı tarafından teslim alındı ve tamamlandı."
       },
       "completed": {
         "subject": "Sipariş tamamlandı",
         "heading": "Sipariş tamamlandı",
-        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişi tamamlandı."
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş tamamlandı."
       },
       "cancelled": {
         "subject": "Sipariş iptal edildi",
         "heading": "Sipariş iptal edildi",
-        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişi alıcı tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş alıcı tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
       },
       "cancelRequested": {
         "subject": "Satıcı sipariş iptali talep etti",
@@ -1493,6 +1494,7 @@
         "reviewBids": "Teklifleri İncele",
         "placeBid": "Teklif Ver",
         "viewOrder": "Siparişi Gör",
+        "viewOrders": "Siparişleri Gör",
         "viewPlans": "Paketleri Gör",
         "viewOpenRequests": "Açık Alım Taleplerini Gör",
         "upgradeSilver": "Silver'a Geç",
@@ -1520,7 +1522,11 @@
           "lockedInAppTitle": "Kategorinizde yeni bir alıcı — teklif vermek için Silver'a geçin",
           "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\". Bu talebe teklif vermek için Silver pakete geçin.",
           "lockedBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçmenin tek şartı firmanızı ücretsiz doğrulamaktır. Önce doğrulanın, sonra Silver'la bu talebe ve kategorinizdeki diğer açık taleplere teklif verin. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
-          "lockedInAppBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\". Teklif vermek için önce firmanızı ücretsiz doğrulayın, sonra Silver'a geçin."
+          "lockedInAppBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\". Teklif vermek için önce firmanızı ücretsiz doğrulayın, sonra Silver'a geçin.",
+          "openBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\" ({number}). Talep edilen kalemleri aşağıda görebilirsiniz. Herkese açık taleplere teklif verebilmek için önce firmanızı ücretsiz doğrulayın; doğrulama tamamlanınca bu talebe teklif verebilirsiniz. Bağlantılarınızın sizi davet ettiği talepler doğrulama gerektirmez.",
+          "openInAppBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir alım talebi: \"{title}\" ({number}). Teklif vermek için önce firmanızı ücretsiz doğrulayın.",
+          "openBodyPending": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\" ({number}). Talep edilen kalemleri aşağıda görebilirsiniz. Firma doğrulamanız incelemede; onaylandığında bu talebe teklif verebilirsiniz.",
+          "openInAppBodyPending": "Sattığınız kategorilerle eşleşen yeni bir alım talebi: \"{title}\" ({number}). Firma doğrulamanız onaylanınca teklif verebilirsiniz."
         }
       },
       "invitation": {
@@ -1547,8 +1553,8 @@
       "awarded": {
         "subject": "Tebrikler — teklifiniz kazandı",
         "title": "Teklifiniz kazandı",
-        "body": "Bir alım talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu. Sipariş detaylarını ve sonraki adımları Rothern''den takip edebilirsiniz.",
-        "bodyShort": "Bir alım talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu."
+        "body": "\"{title}\" ({number}) alım talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu. Sipariş detaylarını ve sonraki adımları Rothern''den takip edebilirsiniz.",
+        "bodyShort": "\"{title}\" ({number}) alım talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu."
       },
       "lost": {
         "title": "Alım Talebi sonuçlandı",
@@ -1559,7 +1565,8 @@
         "subject": "Yeni tur açıldı — teklifiniz taşındı",
         "heading": "Teklifiniz yeni tura taşındı",
         "inAppTitle": "Yeni tur — teklifiniz taşındı",
-        "body": "\"{title}\" ({number}) alım talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı. {amount} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz."
+        "body": "\"{title}\" ({number}) alım talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı. {amount} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz.",
+        "bodyMixed": "\"{title}\" ({number}) alım talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı. Çok dövizli teklifiniz (toplam yaklaşık {amount} karşılığı) geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz."
       },
       "nextRoundExpired": {
         "subject": "Teklifinizin geçerlilik süresi doldu — işlem gerekli",
@@ -1573,7 +1580,7 @@
       },
       "cancelled": {
         "title": "Alım Talebi iptal edildi",
-        "body": "\"{title}\" ({number}) alım talebi ilan sahibi tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+        "body": "\"{title}\" ({number}) alım talebi sahibi tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
       },
       "closedNoAward": {
         "subject": "Alım Talebi kazanan olmadan kapatıldı",
@@ -1861,7 +1868,7 @@
         "bids": "Bu alanda daha önce teklif verdiniz",
         "catalogItems": "Kataloğunuzda bu alandan kalemler var",
         "invitations": "Bu alandaki taleplere davet edildiniz",
-        "publishedListings": "Bu alanda ilan yayınladınız",
+        "publishedListings": "Bu alanda talep yayınladınız",
         "declared": "Faaliyet alanlarınızda işaretli"
       },
       "thirdParty": {
@@ -1869,7 +1876,7 @@
         "bids": "Bu alanda daha önce teklif verdi",
         "catalogItems": "Kataloğunda bu alandan kalemler var",
         "invitations": "Bu alandaki taleplere davet edildi",
-        "publishedListings": "Bu alanda ilan yayınladı",
+        "publishedListings": "Bu alanda talep yayınladı",
         "declared": "Faaliyet alanlarında işaretli"
       }
     }
@@ -1990,7 +1997,7 @@
       "CLOSED": "Teklife Kapalı",
       "IN_AWARD": "Değerlendirmede",
       "IN_AWARD_APPROVAL": "Kazandırma Onayı",
-      "AWARDED": "Tamamlandı",
+      "AWARDED": "Kazandırıldı",
       "CLOSED_NO_AWARD": "Kazansız Kapandı",
       "CANCELLED": "İptal/Kapalı"
     },

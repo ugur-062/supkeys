@@ -19,9 +19,12 @@ vi.mock("@/hooks/use-company-profile", () => ({
 vi.mock("@/hooks/use-categories", () => ({
   useCategoriesByIds: () => ({ data: [{ id: "39121600", code: "39121600", nameTr: "Dağıtım panoları", level: 3, breadcrumb: "" }] }),
 }));
+const h = vi.hoisted(() => ({ confirm: vi.fn(), unpublish: vi.fn() }));
 vi.mock("@/hooks/use-company-items", () => ({
-  usePublishProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePublishProduct: () => ({ mutateAsync: h.unpublish, isPending: false }),
 }));
+// Uygulama içi onay diyaloğu (arayüz testi D-126).
+vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => h.confirm }));
 
 import { ProductPreview } from "../product-preview";
 import { EditorRail } from "../editor-rail";
@@ -76,6 +79,22 @@ describe("ProductPreview", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("button", { name: /Kaydet|Onaya gönder/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Vitrinden çek" })).toBeNull();
+  });
+
+  it("'Vitrinden çek' tarayıcının değil uygulamanın onay diyaloğunu sorar (arayüz testi D-126)", async () => {
+    const u = userEvent.setup();
+    const native = vi.spyOn(window, "confirm");
+    h.confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    h.unpublish.mockResolvedValue({});
+    const onClose = vi.fn();
+    wrap(<ProductPreview product={{ ...base, isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }} item={item} onClose={onClose} />);
+    await u.click(screen.getByRole("button", { name: "Vitrinden çek" }));
+    expect(h.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Ürün vitrinden çekilsin mi?" }));
+    expect(h.unpublish).not.toHaveBeenCalled();
+    await u.click(screen.getByRole("button", { name: "Vitrinden çek" }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(h.unpublish).toHaveBeenCalledWith({ id: "p3", publish: false });
+    expect(native).not.toHaveBeenCalled();
   });
 
   it("yayındaki ürünün yeniden incelemesinde 'Vitrinden çek' var (içerik değişikliği değil)", () => {
