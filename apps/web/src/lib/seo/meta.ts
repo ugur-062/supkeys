@@ -79,6 +79,13 @@ export interface PageMetaInput {
    * çağıran 1 geçer (süzgeçli varyant tabana işaret eder) — `canonicalListPage`.
    */
   page?: number;
+  /**
+   * Sayfa N>1 iken başlığa (` — Sayfa N`) ve açıklamaya eklenen yerelleştirilmiş
+   * etiket (`web.shared.ui.pageN`). Kanonik `?sayfa=N` olan her sayfa
+   * indekslenebilir; 1. sayfayla aynı başlık/açıklama yinelenen meta sayılıyordu
+   * (arayüz testi D-084). `page` ≤ 1 ise yok sayılır.
+   */
+  pageLabel?: string;
   /** og:image:alt / twitter:image:alt — verilmezse başlık (sayfanın dilinde). */
   imageAlt?: string;
 }
@@ -180,8 +187,8 @@ export function siteVerification(env: { google?: string; bing?: string; yandex?:
  * çağıran açıkça yol verir; sayfalama `page` ile.
  */
 export function buildMetadata({
-  title,
-  description,
+  title: baseTitle,
+  description: baseDescription,
   path,
   images,
   noindex,
@@ -189,10 +196,14 @@ export function buildMetadata({
   locale = DEFAULT_LOCALE,
   locales,
   page,
+  pageLabel,
   imageAlt,
 }: PageMetaInput): Metadata {
   const ready = readyLocalesOf(locales);
   const query = pageQuery(page);
+  const paged = !!query && !!pageLabel;
+  const title = paged ? `${baseTitle} — ${pageLabel}` : baseTitle;
+  const description = paged ? `${pageLabel} · ${baseDescription}` : baseDescription;
   // Sayfanın dili hazır değilse ve sayfa indekslenebilirse kanonik hazır dile
   // (sözleşme metinleri). `noindex` sayfa kendi adresini söyler — Google
   // noindex + başka kanonik birleşimini çelişkili sayar.

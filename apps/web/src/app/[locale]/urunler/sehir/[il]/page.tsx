@@ -108,6 +108,8 @@ export async function generateMetadata({
 
   // Sayfalanmış sayfa (yalnız `?sayfa=N`) KENDİ kanoniği; başka süzgeç → taban
   // (2026-09-27, Google önerisi — eski "her sayfa iniş adresine" kuralı kalktı).
+  const page = canonicalProductListPage(await searchParams);
+  const tui = await getTranslations({ locale, namespace: "web.shared.ui" });
   return buildMetadata({
     title: t("cityTitle", { name: city.shown }),
     description:
@@ -117,7 +119,9 @@ export async function generateMetadata({
     path: cityProductPath(city.slug),
     // Sayfanın kendi kartı (şehir/ülke adı + ürün sayısı), sayfanın dilinde.
     images: [ogCardPath(cityProductPath(city.slug), locale)],
-    page: canonicalProductListPage(await searchParams),
+    page,
+    // 2+ sayfa kendi başlık/açıklamasını taşır (arayüz testi D-084).
+    pageLabel: tui("pageN", { n: page }),
     // Eşiğin altındaki şehir: sayfa DURUR ama indekse girmez (ince içerik;
     // sitemap aynı `landingIndexable`ı okur).
     noindex: !landingIndexable(count),

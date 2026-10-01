@@ -103,6 +103,16 @@ describe("buildMetadata — hazır diller, sayfalama, sözleşmeler (2026-09-27)
     const p1 = buildMetadata({ title: "x", description: "y", path: "/urunler", page: 1 });
     expect(p1.alternates?.canonical).toBe(`${S}/urunler`);
   });
+
+  it("sayfalama: N>1 başlık ve açıklama yerelleştirilmiş sayfa eki taşır, 1. sayfa eksiz (arayüz testi D-084)", () => {
+    const p2 = buildMetadata({ title: "Products", description: "All products.", path: "/urunler", locale: "en", page: 2, pageLabel: "Page 2" });
+    expect(p2.title).toBe("Products — Page 2");
+    expect(p2.description).toBe("Page 2 · All products.");
+    expect(p2.openGraph?.title).toBe("Products — Page 2");
+    const p1 = buildMetadata({ title: "Products", description: "All products.", path: "/urunler", locale: "en", page: 1, pageLabel: "Page 1" });
+    expect(p1.title).toBe("Products");
+    expect(p1.description).toBe("All products.");
+  });
 });
 
 describe("içerik dili ve site düğümü (2026-09-27)", () => {

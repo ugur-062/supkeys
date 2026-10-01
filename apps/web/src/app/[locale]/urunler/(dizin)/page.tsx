@@ -44,12 +44,16 @@ export async function generateMetadata({
   const bos = await dizinBos("urunler");
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
   const tl = await getTranslations({ locale, namespace: "web.marketplace.labels" });
+  const page = canonicalProductListPage(await searchParams);
+  const tui = await getTranslations({ locale, namespace: "web.shared.ui" });
   return buildMetadata({
     locale,
     title: t("productsMetaTitle", { label: tl("products") }),
     description: t("productsMetaDesc"),
     path: MARKETPLACE_ROUTES.products,
-    page: canonicalProductListPage(await searchParams),
+    page,
+    // 2+ sayfa kendi başlık/açıklamasını taşır (arayüz testi D-084).
+    pageLabel: tui("pageN", { n: page }),
     noindex: bos,
   });
 }

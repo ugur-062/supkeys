@@ -22,6 +22,13 @@ describe("href — yol parçaları dile göre (2026-09-24)", () => {
     expect(stripLocale("/company/mesajlar")).toBe("/company/mesajlar");
   });
 
+  it("splitLocale: statik Türkçe sayfanın iç `/tr/...` yolu da soyulur (arayüz testi D-021)", () => {
+    expect(splitLocale("/tr/hakkimizda")).toEqual({ locale: "tr", path: "/hakkimizda" });
+    expect(splitLocale("/tr/iletisim?x=1")).toEqual({ locale: "tr", path: "/iletisim?x=1" });
+    expect(splitLocale("/tr")).toEqual({ locale: "tr", path: "/" });
+    expect(localizePath(stripLocale("/tr/hakkimizda"), "en")).toBe("/en/about");
+  });
+
   it("notificationHref: alıcı dilinde saklı mutlak CTA → İÇ yol (derin denetim Y-13, çift ön ek 404'ü)", () => {
     expect(notificationHref("https://www.rothern.com/en/company/request/abc", "/company")).toBe("/company/ilan/abc");
     expect(notificationHref("https://www.rothern.com/ru/kompaniya/zayavka/abc/predlozhenie", "/company")).toBe("/company/ilan/abc/teklif-ver");

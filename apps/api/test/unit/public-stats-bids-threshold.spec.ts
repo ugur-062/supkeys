@@ -31,3 +31,39 @@ describe("public stats — teklif sayısı eşiği", () => {
     expect((await serviceWith(PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS, 7).stats()).bidsLast24h).toBe(7);
   });
 });
+
+describe("public stats — ürünü olan kategori sayısı (arayüz testi D-077)", () => {
+  it("keşifteki tüm segmentleri değil, yayındaki ürünlerin segmentlerini sayar", async () => {
+    const categoryCount = jest.fn().mockResolvedValue(2);
+    const prisma = {
+      companyItem: {
+        count: jest.fn().mockResolvedValue(3),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ categoryId: "39121000" }, { categoryId: "39131700" }, { categoryId: "72101500" }, { categoryId: null }, { categoryId: "39" }]),
+      },
+      company: { count: jest.fn().mockResolvedValue(1) },
+      category: { count: categoryCount, findMany: jest.fn().mockResolvedValue([]) },
+      listing: { count: jest.fn().mockResolvedValue(0) },
+      listingBid: { count: jest.fn().mockResolvedValue(0) },
+    };
+    const st = await new PublicMarketplaceService(prisma as never).stats();
+    expect(st.categories).toBe(2);
+    expect(categoryCount).toHaveBeenCalledTimes(1);
+    const where = categoryCount.mock.calls[0][0].where;
+    expect([...where.id.in].sort()).toEqual(["39000000", "72000000"]);
+  });
+
+  it("yayında ürün yoksa sorgusuz 0", async () => {
+    const categoryCount = jest.fn().mockResolvedValue(29);
+    const prisma = {
+      companyItem: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      company: { count: jest.fn().mockResolvedValue(0) },
+      category: { count: categoryCount, findMany: jest.fn().mockResolvedValue([]) },
+      listing: { count: jest.fn().mockResolvedValue(0) },
+      listingBid: { count: jest.fn().mockResolvedValue(0) },
+    };
+    expect((await new PublicMarketplaceService(prisma as never).stats()).categories).toBe(0);
+    expect(categoryCount).not.toHaveBeenCalled();
+  });
+});

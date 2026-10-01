@@ -35,13 +35,17 @@ export async function generateMetadata({
   const bos = await dizinBos("talepler");
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
   const tl = await getTranslations({ locale, namespace: "web.marketplace.labels" });
+  const page = canonicalListingListPage(await searchParams);
+  const tui = await getTranslations({ locale, namespace: "web.shared.ui" });
   return buildMetadata({
     locale,
     title: t("demandsMetaTitle", { label: tl("demands") }),
     description: t("demandsMetaDesc"),
     path: MARKETPLACE_ROUTES.demands,
     // Yalnız `?sayfa=N` taşıyan sayfa kendi kanoniği; süzgeçli varyant tabana.
-    page: canonicalListingListPage(await searchParams),
+    page,
+    // 2+ sayfa kendi başlık/açıklamasını taşır (arayüz testi D-084).
+    pageLabel: tui("pageN", { n: page }),
     noindex: bos,
   });
 }

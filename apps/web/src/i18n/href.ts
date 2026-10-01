@@ -18,11 +18,15 @@ export function localizePath(path: string, locale: Locale): string {
 
 /**
  * DIŞ adres → dil + İÇ yol: `/en/products?x=1` → { locale: "en", path: "/urunler?x=1" };
- * ön eksiz → tr. Kanonik olmayan biçim (`/en/urunler`, `/ru/products`) de İÇ yola iner.
+ * ön eksiz ya da `/tr` ön ekli → tr. Kanonik olmayan biçim (`/en/urunler`, `/ru/products`) de İÇ yola iner.
  */
 export function splitLocale(pathname: string): { locale: Locale; path: string } {
+  // Varsayılan dilin ön eki de soyulur: statik üretilen Türkçe sayfalarda
+  // Next `usePathname` iç (yeniden yazılmış) `/tr/hakkimizda` yolunu döndürür;
+  // soyulmazsa dil seçicinin adresi `/en/tr/hakkimizda` (404) oluyordu
+  // (arayüz testi D-021).
   const m = /^\/([a-z]{2})(?=\/|$|\?)/.exec(pathname);
-  if (m && isLocale(m[1]) && m[1] !== DEFAULT_LOCALE) {
+  if (m && isLocale(m[1])) {
     const rest = pathname.slice(m[0].length);
     const outer = rest.startsWith("/") || rest === "" ? rest || "/" : `/${rest}`;
     return { locale: m[1], path: internalRoutePath(outer, m[1]) };

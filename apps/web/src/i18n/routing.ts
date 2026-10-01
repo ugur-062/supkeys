@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, LOCALES, LOCALE_COOKIE, ROUTE_PATHNAMES } from "@rothern/i18n";
+import { DEFAULT_LOCALE, LOCALES, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, ROUTE_PATHNAMES } from "@rothern/i18n";
 import { defineRouting } from "next-intl/routing";
 
 /**
@@ -19,13 +19,16 @@ import { defineRouting } from "next-intl/routing";
  *    yapar, 117 çağrı yeri dize kalır.
  *  · hreflang bağlantıları `buildMetadata` yazar; middleware'in `Link`
  *    başlığı KAPALI (iki kaynak olmasın).
+ *  · Dil çerezi her dilde AYNI süreli (1 yıl, `LOCALE_COOKIE_MAX_AGE`): Türkçe
+ *    bağlantı çerezi elle 1 yıllık yazarken next-intl EN/RU için oturum çerezi
+ *    yazıyordu (arayüz testi D-315).
  */
 export const routing = defineRouting({
   locales: LOCALES,
   defaultLocale: DEFAULT_LOCALE,
   localePrefix: "as-needed",
   localeDetection: false,
-  localeCookie: { name: LOCALE_COOKIE },
+  localeCookie: { name: LOCALE_COOKIE, maxAge: LOCALE_COOKIE_MAX_AGE },
   alternateLinks: false,
   pathnames: ROUTE_PATHNAMES,
 });

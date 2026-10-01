@@ -63,6 +63,8 @@ export async function generateMetadata({
   if (!cc) return { title: t("countryNotFound"), robots: { index: false } };
   const name = countryDisplayName(cc, locale);
   const count = await countryProductCount(cc);
+  const page = canonicalProductListPage(await searchParams);
+  const tui = await getTranslations({ locale, namespace: "web.shared.ui" });
   return buildMetadata({
     title: t("countryTitle", { name }),
     description: count > 0 ? t("countryMetaDescHas", { name, count }) : t("countryMetaDescNone", { name }),
@@ -70,7 +72,9 @@ export async function generateMetadata({
     // Sayfanın kendi kartı (şehir/ülke adı + ürün sayısı), sayfanın dilinde.
     images: [ogCardPath(countryProductPath(cc), locale)],
     // Sayfalanmış sayfa KENDİ kanoniği (`?sayfa=N`); başka süzgeç → taban.
-    page: canonicalProductListPage(await searchParams),
+    page,
+    // 2+ sayfa kendi başlık/açıklamasını taşır (arayüz testi D-084).
+    pageLabel: tui("pageN", { n: page }),
     // Eşiğin altındaki ülke: sayfa DURUR ama indekse girmez (ince içerik;
     // sitemap aynı `landingIndexable`ı okur).
     noindex: !landingIndexable(count),

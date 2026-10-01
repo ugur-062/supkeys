@@ -685,10 +685,9 @@ export class PublicMarketplaceService {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
     const dayAgo = new Date(now.getTime() - 86_400_000);
-    const [products, companies, categories, openDemands, catRows, productsThisWeek, bidsLast24h, verifiedCompanies] = await Promise.all([
+    const [products, companies, openDemands, catRows, productsThisWeek, bidsLast24h, verifiedCompanies] = await Promise.all([
       this.prisma.companyItem.count({ where: publicProductWhere() }),
       this.prisma.company.count({ where: PUBLIC_PROFILE_WHERE }),
-      this.prisma.category.count({ where: { inDiscovery: true, level: 1, ...hiddenCategoryWhere() } }),
       this.prisma.listing.count({ where: { ...marketplaceListingWhere(now), status: "OPEN", type: "ALIM" } }),
       this.prisma.companyItem.findMany({
         where: publicProductWhere(),
@@ -703,6 +702,22 @@ export class PublicMarketplaceService {
         where: { companyVerificationStatus: "VERIFIED", ...PUBLIC_PROFILE_WHERE },
       }),
     ]);
+    // "Ürünü olan kategori" sayısı (llms-full.txt envanteri): ürün facet'iyle
+    // AYNI kural — yayındaki ürünlerin gizli olmayan 8 haneli kodlarının
+    // segmenti (L1), kategori tablosunda var olanlar. Eskiden keşifteki TÜM
+    // L1 segmentler sayılıyordu (29), listede ise ürünlü 19 satır vardı
+    // (arayüz testi D-077).
+    const segments = [
+      ...new Set(
+        catRows
+          .map((r) => r.categoryId)
+          .filter((c): c is string => !!c && c.length === 8 && !isHiddenCategory(c))
+          .map((c) => `${c.slice(0, 2)}000000`),
+      ),
+    ];
+    const categories = segments.length
+      ? await this.prisma.category.count({ where: { id: { in: segments }, ...hiddenCategoryWhere() } })
+      : 0;
     // "Popüler aramalar" — arama logu YOK; yedek: ürün sayısı en yüksek 20
     // ALT kategori (L3 sınıf). Etiket web'de "Popüler kategoriler".
     const l3 = new Map<string, number>();

@@ -138,6 +138,29 @@ describe("companySeo", () => {
     expect(node.numberOfEmployees).toEqual({ "@type": "QuantitativeValue", name: "11-50" });
   });
 
+  it("Organization görsel/logo alanları mutlak adres (arayüz testi D-080)", () => {
+    expect(node.logo).toBe("https://cdn.rothern.com/logo.png");
+    const rel = companySeo({
+      slug: "acme",
+      name: "Acme",
+      industry: null,
+      city: null,
+      country: null,
+      aboutText: null,
+      logoUrl: "/uploads/logo.png",
+      coverImageUrl: "/categories/72000000.webp",
+      foundedYear: null,
+      employeeCount: null,
+      categories: [],
+      certifications: [],
+      verified: false,
+      productCount: 0,
+    } as unknown as CompanySeoInput);
+    const org = (rel.jsonLd["@graph"] as Record<string, unknown>[])[0];
+    expect(org.image).toBe("https://www.rothern.com/categories/72000000.webp");
+    expect(org.logo).toBe("https://www.rothern.com/uploads/logo.png");
+  });
+
   it("vitrin katalogu ürünleri taşır", () => {
     expect(raw).toContain("OfferCatalog");
     expect(raw).toContain("/firma/izmir-makina-endustri/urun/esanjor");

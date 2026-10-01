@@ -64,6 +64,8 @@ export async function generateMetadata({
     });
   }
   const count = cat.count;
+  const page = canonicalProductListPage(await searchParams);
+  const tui = await getTranslations({ locale, namespace: "web.shared.ui" });
   return buildMetadata({
     // 75 karakter tavanı (canlı denetim 2026-09-11: uzun kategori adı 86'ya
     // taşıyordu) — kuyruk düşer, ad kelime sınırında kısalır.
@@ -71,7 +73,9 @@ export async function generateMetadata({
     description: t("categoryMetaDesc", { name: cat.name, count }),
     path: categoryHref(cat),
     // Sayfalanmış sayfa KENDİ kanoniği (`?sayfa=N`); başka süzgeç → taban.
-    page: canonicalProductListPage(await searchParams),
+    page,
+    // 2+ sayfa kendi başlık/açıklamasını taşır (arayüz testi D-084).
+    pageLabel: tui("pageN", { n: page }),
     images: segmentPhotoSrc([cat.id]) ? [segmentPhotoSrc([cat.id]) as string] : undefined,
     locale,
   });

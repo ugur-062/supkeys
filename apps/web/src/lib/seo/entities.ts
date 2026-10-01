@@ -402,7 +402,11 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
     base.length >= 50 ? base : `${base} ${ts("web.seo.exploreTail")}`,
   );
 
-  const image = c.coverImageUrl ?? c.logoUrl;
+  // JSON-LD görsel/logo MUTLAK adres ister: kapak çoğu zaman göreli yedek
+  // (`/categories/72000000.webp`) — arayüz testi D-080.
+  const toAbs = (u: string) => (/^https?:\/\//.test(u) ? u : absoluteUrl(u));
+  const logo = c.logoUrl ? toAbs(c.logoUrl) : null;
+  const image = c.coverImageUrl ? toAbs(c.coverImageUrl) : logo;
   const companyId = entityId.company(c.slug);
   const title = companyTitle(c.name, c.industry, provinceDisplayName(c.city, locale));
 
@@ -412,7 +416,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
     name: c.name,
     url,
     description: c.aboutText ?? summary,
-    ...(c.logoUrl ? { logo: c.logoUrl } : {}),
+    ...(logo ? { logo } : {}),
     ...(image ? { image } : {}),
     ...(c.foundedYear ? { foundingDate: String(c.foundedYear) } : {}),
     /* `employeeCount` bir ARALIK ("11-50") — sayı değil. Şemaya sayı gibi
