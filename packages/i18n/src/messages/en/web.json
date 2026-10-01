@@ -6238,7 +6238,9 @@
         "idBothSidesHint": "If it is an ID card, upload the front and back in a single file (a PDF or a combined image).",
         "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved",
         "firmanizDogrulandiSilver": "Your company is verified. With your Silver plan you can quote on public requests; upgrade to Gold to publish requests.",
-        "firmanizDogrulandiGold": "Your company is verified. With your Gold plan you can publish requests and quote on public requests."
+        "firmanizDogrulandiGold": "Your company is verified. With your Gold plan you can publish requests and quote on public requests.",
+        "dogrulamaBilgileriYuklenemedi": "Verification details could not be loaded.",
+        "yenidenDene": "Try again"
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Company details require permission",

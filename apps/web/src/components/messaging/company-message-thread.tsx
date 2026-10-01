@@ -3,7 +3,9 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useRoleLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
-import { canSendMessages } from "@/lib/company/portals";
+import { canSendMessages, messagingDirectionOpen } from "@/lib/company/portals";
+import { buyingGate, gateHref } from "@/lib/public/member-gate";
+import { Link } from "@/i18n/navigation";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
@@ -14,7 +16,7 @@ import {
 } from "@/hooks/use-company-messages";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { format, isToday, isYesterday } from "date-fns";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Lock, Send } from "lucide-react";
 import {
   type KeyboardEvent,
   useEffect,
@@ -37,6 +39,11 @@ function useFormatTimestamp(): (date: Date) => string {
     return formatDate(date, "datetime", locale);
   };
 }
+
+/** Mesaj gövdesi tavanı — API `SendMessageDto` `@MaxLength(5000)` aynası (D-356). */
+export const MESSAGE_MAX_LENGTH = 5000;
+/** Sayaç bu uzunluktan sonra görünür (kısa mesajda gürültü olmasın). */
+const COUNTER_FROM = 4000;
 
 interface Props {
   portal: MessagePortal;
@@ -62,8 +69,14 @@ export function CompanyMessageThread({
   const sendMutation = useSendMessage(portal, otherPartyId);
   // F7: gönderme portal-yönlü işlem rolü ister (backend send() birebir:
   // satinalma→Satın Almacı, satis→Satışçı) — rolsüz okur, composer gizli.
-  const { user } = useCompanyAuth();
-  const canSend = canSendMessages(user, portal);
+  // O-123: alıcı yönü ayrıca Gold ister (paket kapısı rolün DIŞINDA): paketi
+  // düşen firma eski konuşmayı okur, composer yerine doğru CTA'yı görür
+  // (doğrulanmamışsa önce doğrulama, değilse Gold'a geçiş).
+  const { user, company } = useCompanyAuth();
+  const tierOpen = messagingDirectionOpen(portal, company?.tier);
+  const tierGate = tierOpen ? null : buyingGate(user, company, "listing");
+  const tierGateHref = tierGate ? gateHref(tierGate) : null;
+  const canSend = canSendMessages(user, portal, company?.tier);
 
   const [content, setContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,6 +102,9 @@ export function CompanyMessageThread({
     });
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME bileşimi (Japonca/Çince vb. aday seçimi) Enter'ı onaylamak için
+    // kullanır — o Enter mesajı GÖNDERMEZ (arayüz testi D-356).
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
@@ -135,8 +151,22 @@ export function CompanyMessageThread({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input — yalnız portal-yönlü işlem rolüne görünür */}
-      {!canSend ? (
+      {/* Input — paket (alıcı yönü Gold) + portal-yönlü işlem rolü */}
+      {tierGate && tierGateHref ? (
+        <div
+          role="note"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900"
+        >
+          <Lock aria-hidden className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">{t("aliciYonuGoldGerektirir")}</span>
+          <Link
+            href={tierGateHref}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:text-amber-950"
+          >
+            {tierGate === "verify" ? t("onceUcretsizDogrulan") : t("goldaGec")}
+          </Link>
+        </div>
+      ) : !canSend ? (
         <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
           {t("mesajGondermekRoluGerektirir", { role: roleLabel(portal === "satis" ? "SATISCI" : "SATIN_ALMACI") })}
         </div>
@@ -148,6 +178,7 @@ export function CompanyMessageThread({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={onKey}
+              maxLength={MESSAGE_MAX_LENGTH}
               // Kısa yer tutucu (D-008): uzun "Enter/Shift+Enter" metni 390 px'te
               // iki satıra bölünüp kesiliyordu; klavye ipucu yalnız geniş ekranda alt satırda.
               placeholder={t("mesajYaz")}
@@ -170,9 +201,20 @@ export function CompanyMessageThread({
             )}
           </button>
         </div>
-        <p id="company-message-enter-hint" className="mt-1 hidden px-0.5 text-xs text-zinc-500 sm:block">
-          {t("enterIpucu")}
-        </p>
+        <div className="mt-1 flex items-center justify-between gap-2 px-0.5">
+          <p id="company-message-enter-hint" className="hidden text-xs text-zinc-500 sm:block">
+            {t("enterIpucu")}
+          </p>
+          {content.length >= COUNTER_FROM ? (
+            <span
+              className={`ml-auto text-xs tabular-nums ${
+                content.length >= MESSAGE_MAX_LENGTH ? "text-rose-700" : "text-zinc-500"
+              }`}
+            >
+              {t("karakterSayaci", { n: content.length, max: MESSAGE_MAX_LENGTH })}
+            </span>
+          ) : null}
+        </div>
       </div>
       )}
     </div>

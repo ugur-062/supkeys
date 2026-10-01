@@ -5,6 +5,7 @@ import { upperForText } from "@/i18n/format";
 import { useTranslations } from "next-intl";
 import {
   useCompanyAuth,
+  useCompanyPermissionsSynced,
   useHasCompanyPermission,
 } from "@/hooks/use-company-auth";
 import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
@@ -48,6 +49,39 @@ const ACCENT = {
   },
 } as const;
 
+/**
+ * Kabuğun ETKİN portalı — sol menü, üst çubuk ve mobil çekmece başlığı AYNI
+ * kuralı okur. URL'deki portal yalnız kullanıcı onu GÖREBİLİYORSA (görüntüleme
+ * izni) etkindir (arayüz testi D-159): Gold firmada Satışçı `/company/satinalma`
+ * ret kartındayken menü satınalma bağlantılarını (hepsi aynı rete giden)
+ * gösteriyordu. Paket kilidi İSTİSNA: izni olup paketi yetmeyen satınalma
+ * etkin kalır (kilitli menü + PortalGuard paket ekranı — kullanıcı neyi
+ * kaçırdığını görür). Portal-nötr rotada son portal, yoksa ilk erişilebilir.
+ */
+export function resolveActivePortal(
+  pathname: string | null,
+  visiblePortals: readonly PortalKey[],
+  available: readonly PortalKey[],
+  lastPortal: PortalKey | null | undefined,
+): PortalKey {
+  const fromUrl = activePortalFromPath(pathname);
+  return (
+    (fromUrl && visiblePortals.includes(fromUrl) ? fromUrl : null) ??
+    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
+    available[0] ??
+    "satis"
+  );
+}
+
+/** Görüntüleme izni olan portallar (paket kilidi dahil — kilitli pil görünür). */
+export function viewablePortals(
+  user: Parameters<typeof userHasPermission>[0],
+): PortalKey[] {
+  return PORTAL_ORDER.filter((p) =>
+    userHasPermission(user, p === "satinalma" ? "buy:view" : "sell:view"),
+  );
+}
+
 /** Tekil nav satırı — daralınca etiket ray genişliğiyle kırpılır (animasyonlu). */
 function RailItem({
   href,
@@ -83,7 +117,9 @@ function RailItem({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       aria-label={label}
-      title={expanded ? undefined : label}
+      // Genişken de tam ad ipucu (arayüz testi D-147): RU'da uzun etiketler
+      // ("Мои запросы информации") ray genişliğinde kesiliyordu.
+      title={label}
       className={cn(
         "group/item relative flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm font-medium transition-colors",
         active
@@ -152,7 +188,9 @@ export function CompanySidebarContent({
   const tier = company?.tier ?? "STANDART";
 
   const canAct = useHasCompanyPermission("approval:act");
-  const { data: pendingCount } = usePendingApprovalCount(canAct);
+  // D-299: rozet isteği izinler /me ile tazelenince (bayat izinle 403 yok).
+  const permissionsSynced = useCompanyPermissionsSynced();
+  const { data: pendingCount } = usePendingApprovalCount(canAct && permissionsSynced);
   // Madde 19: ana menü "Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
   // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
@@ -161,16 +199,10 @@ export function CompanySidebarContent({
   // çizilir; izni olmayan portal menüde hiç yoktur (kilitli pil yok). Tek
   // istisna paket kapısı: satınalma izni var ama kademe < Silver → kilitli pil
   // (tıklayınca PortalGuard paket ekranını açar). Tek portal → pil satırı yok.
-  const visiblePortals: PortalKey[] = PORTAL_ORDER.filter((p) =>
-    userHasPermission(user, p === "satinalma" ? "buy:view" : "sell:view"),
-  );
+  const visiblePortals = viewablePortals(user);
   const lastPortal = usePortalStore((s) => s.lastPortal);
   // Portal-nötr rotalarda (/company/ilan, /company/onaylar…) SON portalda kal.
-  const active: PortalKey =
-    activePortalFromPath(pathname) ??
-    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
-    available[0] ??
-    "satis";
+  const active = resolveActivePortal(pathname, visiblePortals, available, lastPortal);
   const portal = PORTALS[active];
   // Minimal kabuk modu: hiç portal erişimi olmayan üye (ONAYLAYICI-only /
   // rolsüz) yalnız Onaylar + Ayarlar görür — panel nav'ı duvara götürür.

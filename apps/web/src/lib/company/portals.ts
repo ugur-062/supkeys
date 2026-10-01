@@ -388,16 +388,34 @@ export function canUseMessaging(
 }
 
 /**
- * Mesaj GÖNDERME = işlem izni (API `send` aynası): satınalmada "talep açma
- * ve yönetme", satışta "teklif verme". Etiket-only ve görüntüleyici gönderemez.
+ * Mesajlaşma YÖNÜ paketle açık mı? ALICI yönü (satinalma) satınalma panelidir
+ * → Gold (BUYING_TIER); satıcı yönü her pakete açık. Paketi düşen firma eski
+ * alıcı konuşmalarını OKUR (`canUseMessaging` paket sormaz) ama yeni alıcı
+ * konuşması açamaz, yazamaz (API `send` aynası, arayüz testi O-123).
+ */
+export function messagingDirectionOpen(
+  portal: PortalKey,
+  tier: string | null | undefined,
+): boolean {
+  return portal !== "satinalma" || tierAtLeast(tier ?? "STANDART", BUYING_TIER);
+}
+
+/**
+ * Mesaj GÖNDERME = paket (alıcı yönü Gold) + işlem izni (API `send` aynası):
+ * satınalmada "talep açma ve yönetme", satışta "teklif verme". Etiket-only ve
+ * görüntüleyici gönderemez. Rol denetimi paket denetiminin İÇİNDE.
  */
 export function canSendMessages(
   user: PermissionSubject | null | undefined,
   portal: PortalKey,
+  tier: string | null | undefined,
 ): boolean {
-  return userHasPermission(
-    user,
-    portal === "satinalma" ? "buy:listing:manage" : "sell:bid:submit",
+  return (
+    messagingDirectionOpen(portal, tier) &&
+    userHasPermission(
+      user,
+      portal === "satinalma" ? "buy:listing:manage" : "sell:bid:submit",
+    )
   );
 }
 

@@ -71,3 +71,23 @@ describe("CompanyTopbar — Şirketim girişi", () => {
     expect(sirketimLink()).toBeNull();
   });
 });
+
+describe("CompanyTopbar — dar ekran çakışması (arayüz testi O-049)", () => {
+  it("portal tuşu sarmalayıcısı daralmaz; dar ekranda yalnız logo işareti", () => {
+    h.auth.user = user(["buy:view", "sell:view"]);
+    const { container } = render(
+      <CompanyTopbar activePortal="satinalma" onOpenMobileNav={() => {}} />,
+    );
+    const btn = screen.getByRole("button", { name: /Panel değiştir/ });
+    // PortalSwitch kökü → üst çubuktaki orta sarmalayıcı.
+    const wrapper = btn.parentElement!.parentElement!;
+    expect(wrapper.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    expect(wrapper.className).not.toMatch(/min-w-0/);
+    const logos = container.querySelectorAll('header a[href="/company"] img');
+    expect(logos).toHaveLength(2);
+    expect(logos[0]!.getAttribute("class")).toMatch(/sm:hidden/);
+    expect(logos[1]!.getAttribute("class")).toMatch(/(^|\s)hidden(\s|$)/);
+    expect(logos[1]!.getAttribute("class")).toMatch(/sm:block/);
+  });
+});
+

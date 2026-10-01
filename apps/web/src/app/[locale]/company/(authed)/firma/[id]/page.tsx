@@ -20,6 +20,7 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { Text } from "@/components/catalyst/text";
+import { ErrorState } from "@/components/ui/error-state";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
@@ -56,7 +57,7 @@ export default function CompanyProfilePage() {
   const closingUrgency = useClosingUrgency();
   const params = useParams<{ id: string }>();
   const rothernId = params.id;
-  const { data, isLoading } = useCompanyProfile(rothernId);
+  const { data, isLoading, isError, error, refetch } = useCompanyProfile(rothernId);
   const invite = useInviteConnection();
   const block = useBlockCompany();
   const complaint = useFileComplaint();
@@ -83,6 +84,17 @@ export default function CompanyProfilePage() {
         <div className="h-5 w-28 animate-pulse rounded bg-zinc-100" />
         <div className="h-48 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+      </div>
+    );
+  }
+  // Kesinti ≠ yok (arayüz testi D-070): ağ hatası/5xx/429'da "Firma profili
+  // bulunamadı" yanıltıyordu; yalnız 4xx (404/403) gerçek "yok"tur.
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  if (!data && isError && (!status || status >= 500 || status === 429)) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <BackLink />
+        <ErrorState className="mt-6" onRetry={() => void refetch()} />
       </div>
     );
   }

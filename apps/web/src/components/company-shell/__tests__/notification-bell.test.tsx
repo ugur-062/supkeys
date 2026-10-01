@@ -7,6 +7,8 @@ const h = vi.hoisted(() => ({
   unread: 0,
   items: [] as unknown[],
   isLoading: false,
+  isError: false,
+  refetch: vi.fn(),
   markRead: vi.fn(),
   markAll: vi.fn(),
   push: vi.fn(),
@@ -17,7 +19,12 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/hooks/use-notifications", () => ({
   useUnreadCount: () => ({ data: h.unread }),
-  useNotifications: () => ({ data: h.items, isLoading: h.isLoading }),
+  useNotifications: () => ({
+    data: h.isError ? undefined : h.items,
+    isLoading: h.isLoading,
+    isError: h.isError,
+    refetch: h.refetch,
+  }),
   useMarkNotificationsRead: () => ({ mutate: h.markRead }),
   useMarkAllNotificationsRead: () => ({ mutate: h.markAll }),
 }));
@@ -29,6 +36,7 @@ beforeEach(() => {
   h.unread = 0;
   h.items = [];
   h.isLoading = false;
+  h.isError = false;
 });
 
 describe("NotificationBell", () => {
@@ -108,5 +116,16 @@ describe("NotificationBell", () => {
     render(<NotificationBell />);
     await user.click(screen.getByRole("button", { name: /Bildirimler/ }));
     expect(await screen.findByText(/Henüz bildiriminiz yok/)).toBeInTheDocument();
+  });
+
+  it("liste isteği düşerse boş durum yerine hata + Tekrar dene (arayüz testi D-070)", async () => {
+    const user = userEvent.setup();
+    h.isError = true;
+    render(<NotificationBell />);
+    await user.click(screen.getByRole("button", { name: "Bildirimler" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Bildirimler yüklenemedi.");
+    expect(screen.queryByText(/Henüz bildiriminiz yok/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.refetch).toHaveBeenCalledTimes(1);
   });
 });

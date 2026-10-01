@@ -6238,7 +6238,9 @@
         "idBothSidesHint": "Kimlik kartıysa ön ve arka yüzünü tek dosyada (PDF ya da birleştirilmiş görsel) yükleyin.",
         "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez",
         "firmanizDogrulandiSilver": "Firmanız doğrulandı. Silver paketinizle herkese açık taleplere teklif verebilirsiniz; talep yayınlamak için Gold pakete geçebilirsiniz.",
-        "firmanizDogrulandiGold": "Firmanız doğrulandı. Gold paketinizle talep yayınlayabilir ve herkese açık taleplere teklif verebilirsiniz."
+        "firmanizDogrulandiGold": "Firmanız doğrulandı. Gold paketinizle talep yayınlayabilir ve herkese açık taleplere teklif verebilirsiniz.",
+        "dogrulamaBilgileriYuklenemedi": "Doğrulama bilgileri yüklenemedi.",
+        "yenidenDene": "Yeniden dene"
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Firma Bilgileri yetki gerektirir",

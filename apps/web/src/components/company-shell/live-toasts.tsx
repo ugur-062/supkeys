@@ -6,7 +6,10 @@ import { notificationHref, stripLocale } from "@/i18n/href";
 
 import type { AppNotification } from "@/hooks/use-notifications";
 import type { ThreadSummary } from "@/hooks/use-company-messages";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  useCompanyAuth,
+  useCompanyPermissionsSynced,
+} from "@/hooks/use-company-auth";
 import { companyApi } from "@/lib/company-auth/api";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { connectRealtime } from "@/lib/realtime";
@@ -81,6 +84,7 @@ function PopupCard({
   title,
   body,
   chip,
+  closeLabel,
   onOpen,
   onClose,
 }: {
@@ -89,10 +93,16 @@ function PopupCard({
   title: string;
   body: string;
   chip?: string;
+  /**
+   * Kapat düğmesinin adı ÇAĞIRANDA çevrilir (arayüz testi D-012): kart kök
+   * `<Toaster>`ın içinde çizilir — orada `web.panel` mesajları YÜKLÜ DEĞİL
+   * (panel sağlayıcısı yalnız `(authed)` düzeninde), `useTranslations` burada
+   * MISSING_MESSAGE verip ham anahtarı basıyordu.
+   */
+  closeLabel: string;
   onOpen: () => void;
   onClose: () => void;
 }) {
-  const t = useTranslations("web.panel.shell.liveToasts");
   return (
     <div className="pointer-events-auto flex w-[22rem] items-start gap-3 rounded-xl border border-zinc-950/10 bg-white p-3.5 shadow-lg ring-1 ring-zinc-950/5">
       <span
@@ -127,7 +137,7 @@ function PopupCard({
       <button
         type="button"
         onClick={onClose}
-        aria-label={t("kapat")}
+        aria-label={closeLabel}
         className="shrink-0 rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
       >
         <X className="size-3.5" aria-hidden="true" />
@@ -140,11 +150,16 @@ export function LiveToasts() {
   const tr = useTranslations("web.panel.shell.liveToasts");
   const tn = useNavLabel();
   const { user } = useCompanyAuth();
+  // D-299: izinler /me ile tazelenmeden kalıcı anlık görüntünün (bayat)
+  // izinleriyle thread ucu çağrılmasın (403 tostu); tazelenince effect yeni
+  // `user` ile yeniden kurulur.
+  const synced = useCompanyPermissionsSynced();
   const qc = useQueryClient();
   const router = useRouter();
+  const closeLabel = tr("kapat");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !synced) return;
     const seen = storeFor(user.id);
     // Mesaj kartları yalnız işlem rolü olan portallardan (API aynası: rolsüz
     // portalın threads ucu 403 verir).
@@ -212,6 +227,7 @@ export function LiveToasts() {
                 );
               router.push(toPath(n.ctaUrl));
             }}
+            closeLabel={closeLabel}
             onClose={() => toast.dismiss(t)}
           />
         ),
@@ -234,6 +250,7 @@ export function LiveToasts() {
                 `/company/mesajlar?with=${t.otherPartyId}&portal=${portal}`,
               );
             }}
+            closeLabel={closeLabel}
             onClose={() => toast.dismiss(id)}
           />
         ),
@@ -257,6 +274,7 @@ export function LiveToasts() {
               toast.dismiss(t);
               router.push("/company/bildirimler");
             }}
+            closeLabel={closeLabel}
             onClose={() => toast.dismiss(t)}
           />
         ),
@@ -317,7 +335,7 @@ export function LiveToasts() {
       socket.off("notification.new", handleNotification);
       socket.off("message.new", handleMessage);
     };
-  }, [user, qc, router]);
+  }, [user, synced, qc, router, closeLabel]);
 
   return null;
 }

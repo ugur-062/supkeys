@@ -2,7 +2,8 @@
 
 import { reportClientError } from "@/lib/client-error";
 import { ErrorState } from "@/components/ui/error-state";
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { startTransition, useEffect } from "react";
 
 /**
  * Segment hata sınırı — root layout altındaki herhangi bir sayfa render/veri
@@ -15,6 +16,7 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
   useEffect(() => {
     console.error(error);
     // 2026-09-12: "Sentry kuruluysa yakalar" varsayımı YANLIŞTI — ön yüzde SDK
@@ -28,7 +30,20 @@ export default function AppError({
           durum koduyla gelir — hata sayfası indekslenmesin (React 19 <meta>'yı
           <head>'e taşır). */}
       <meta name="robots" content="noindex" />
-      <ErrorState onRetry={reset} className="max-w-md" />
+      {/* "Tekrar dene" (arayüz testi O-112): yalnız `reset()` sunucu bileşeni
+          hatasında önbellekteki BAŞARISIZ yükü yeniden çekmiyordu — API geri
+          gelse de kart kalıyor, yalnız tarayıcı yenilemesi kurtarıyordu.
+          `router.refresh()` rotayı sunucudan yeniden ister; ikisi aynı
+          geçişte (Next hata sınırı kalıbı). */}
+      <ErrorState
+        onRetry={() =>
+          startTransition(() => {
+            router.refresh();
+            reset();
+          })
+        }
+        className="max-w-md"
+      />
     </div>
   );
 }

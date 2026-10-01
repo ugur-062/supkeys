@@ -138,7 +138,9 @@
     "buAdresGonderilmisTeklifteKullaniliyorTeklif": "Bu adres {bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar {what}",
     "adresBulunamadi": "Adres bulunamadı",
     "silinemez": "silinemez",
-    "adresBilgileriDegistirilemez": "adres bilgileri değiştirilemez"
+    "adresBilgileriDegistirilemez": "adres bilgileri değiştirilemez",
+    "trPostaKodu5Hane": "Türkiye adresinde posta kodu 5 haneli olmalıdır",
+    "adresSiniriAsildi": "Bir firma en fazla {max} adres kaydedebilir; yeni adres eklemeden önce kullanmadığınız adresleri silin"
   },
   "adminCompanies": {
     "firmaBulunamadi": "Firma bulunamadı",
@@ -492,7 +494,8 @@
     "firmaBulunamadi": "Firma bulunamadı",
     "kendineMesajGonderemezsin": "Kendine mesaj gönderemezsin",
     "mesajlariGoruntulemekIcinYetkiGerekir": "Mesajları görüntülemek için ''{permission}'' yetkisi gerekir",
-    "mesajGondermekIcinYetkiGerekir": "Mesaj göndermek için ''{permission}'' yetkisi gerekir"
+    "mesajGondermekIcinYetkiGerekir": "Mesaj göndermek için ''{permission}'' yetkisi gerekir",
+    "aliciOlarakMesajGoldGerektirir": "Alıcı olarak mesaj göndermek Gold paketi gerektirir (satınalma paneli)."
   },
   "companyListingTemplates": {
     "sablonIcerigiCokBuyukMaks500": "Şablon içeriği çok büyük (maks 500 KB)",

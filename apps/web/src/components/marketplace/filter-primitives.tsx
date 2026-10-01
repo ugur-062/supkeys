@@ -168,7 +168,11 @@ export function Check({
             {icon}
           </span>
         ) : null}
-        <span className="line-clamp-1">{label}</span>
+        {/* İki satıra kadar sarar + tam ad ipucu (arayüz testi D-147): RU'da
+            "Совпадает с моими товарами" tek satırda kesiliyordu. */}
+        <span className="line-clamp-2 break-words" title={label}>
+          {label}
+        </span>
       </span>
       {count != null ? <span className="shrink-0 text-xs text-zinc-500">{count}</span> : null}
     </label>

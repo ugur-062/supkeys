@@ -27,6 +27,17 @@ export function useCompanyAuth() {
   };
 }
 
+/**
+ * İzinler bu sayfa yüklemesinde sunucudan tazelendi mi (arayüz testi D-299)?
+ * Kalıcı anlık görüntü (`store.ts`) anlık boyama içindir; izni kaldırılmış
+ * kullanıcıda bayat kalır. İzne bağlı İSTEK atan yüzeyler (panel içeriği,
+ * rozetler, canlı kartlar) bunu bekler; `/me` hata verirse true döner
+ * (anlık görüntü bilinen en iyi durum — sayfa kilitli kalmaz).
+ */
+export function useCompanyPermissionsSynced(): boolean {
+  return useCompanyAuthStore((s) => s.permissionsSynced);
+}
+
 /** Rol kontrolü — kullanıcının verilen role sahip olup olmadığı. */
 export function useHasRole(role: string): boolean {
   const user = useCompanyAuthStore((s) => s.user);
@@ -267,6 +278,9 @@ export function useCompleteOnboarding() {
 export function useCompanyMe(enabled = true) {
   const user = useCompanyAuthStore((s) => s.user);
   const setMe = useCompanyAuthStore((s) => s.setMe);
+  const markPermissionsSynced = useCompanyAuthStore(
+    (s) => s.markPermissionsSynced,
+  );
   const query = useQuery({
     queryKey: ["company-auth", "me"],
     queryFn: async () => {
@@ -285,6 +299,10 @@ export function useCompanyMe(enabled = true) {
     bindSessionOwner(query.data.user.id);
     setMe(query.data);
   }, [query.data, setMe]);
+  // D-299: /me düşerse (kesinti) izinli yüzeyler sonsuza dek beklemesin.
+  useEffect(() => {
+    if (query.isError) markPermissionsSynced();
+  }, [query.isError, markPermissionsSynced]);
   return query;
 }
 

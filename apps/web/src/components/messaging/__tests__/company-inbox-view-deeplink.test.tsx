@@ -18,6 +18,7 @@ interface ThreadRes {
 const h = vi.hoisted(() => ({
   search: "",
   permissions: [] as string[],
+  tier: "GOLD" as string,
   threads: { data: [] as unknown[], isLoading: false },
   connections: [] as unknown[],
   threadRes: (() => ({ isLoading: false, isError: false })) as (
@@ -30,7 +31,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(h.search),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useCompanyAuth: () => ({ user: { permissions: h.permissions } }),
+  useCompanyAuth: () => ({
+    user: { permissions: h.permissions },
+    company: { tier: h.tier },
+  }),
 }));
 vi.mock("@/hooks/use-company-connections", () => ({
   useConnections: () => ({ data: h.connections, isLoading: false }),
@@ -58,6 +62,8 @@ import { CompanyInboxView } from "../company-inbox-view";
 
 beforeEach(() => {
   h.search = "";
+  h.tier = "GOLD";
+  window.history.replaceState(null, "", "/company/mesajlar");
   h.permissions = ["buy:view", "buy:listing:manage"];
   h.threads = { data: [], isLoading: false };
   h.connections = [];
@@ -280,7 +286,7 @@ describe("CompanyInboxView — ?with= derin linki", () => {
     expect(screen.getByTestId("thread")).toHaveTextContent(
       "satinalma|connX|Xfirma",
     );
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "abc" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "abc" } });
     expect(screen.getByTestId("thread")).toHaveTextContent(
       "satinalma|connX|Xfirma",
     );
@@ -293,5 +299,93 @@ describe("CompanyInboxView — ?with= derin linki", () => {
     render(<CompanyInboxView />);
     expect(screen.queryByTestId("thread")).not.toBeInTheDocument();
     expect(screen.getByTestId("inbox-thread-skeleton")).toBeInTheDocument();
+  });
+});
+
+describe("CompanyInboxView — seçim adreste, erişilebilirlik, kesinti (arayüz testi D-355, D-267, D-070)", () => {
+  const row = {
+    portal: "satis",
+    threadId: "t1",
+    otherPartyId: "buyerA",
+    otherPartyName: "Alıcı A",
+    lastMessagePreview: "Merhaba",
+    lastMessageAt: "2026-09-29T08:00:00.000Z",
+    unread: false,
+  };
+
+  it("listeden seçilen konuşma ?with=&portal= olarak adrese yazılır; geri dönüş temizler", () => {
+    h.permissions = ["buy:view", "sell:view", "sell:bid:submit"];
+    h.threads = { isLoading: false, data: [row] };
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /Alıcı A/ }));
+    const q = new URLSearchParams(window.location.search);
+    expect(q.get("with")).toBe("buyerA");
+    expect(q.get("portal")).toBe("satis");
+    fireEvent.click(screen.getByRole("button", { name: "← Kişiler" }));
+    expect(window.location.search).toBe("");
+  });
+
+  it("arama kutusunun erişilebilir adı var", () => {
+    render(<CompanyInboxView />);
+    const box = screen.getByRole("searchbox", { name: "Kişi ara" });
+    expect(box).toHaveAttribute("type", "search");
+  });
+
+  it("konuşmalar yüklenemezse 'önce bağlantı kur' boş durumu yerine hata + Tekrar dene", () => {
+    const refetch = vi.fn();
+    h.threads = { isLoading: false, data: undefined, isError: true, refetch } as never;
+    render(<CompanyInboxView />);
+    expect(screen.queryByText(/önce bir firmayla bağlantı kur/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Konuşmalar yüklenemedi/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CompanyInboxView — alıcı yönü Gold (arayüz testi O-123)", () => {
+  it("SILVER firmada yön seçici yok; yeni sohbet satıcı yönünde açılır", () => {
+    h.tier = "SILVER";
+    h.permissions = ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"];
+    h.connections = [{ company: { id: "c9", name: "Bağlı Firma" } }];
+    h.threadRes = (_portal, id) => ({
+      data: { otherParty: { id, name: "Bağlı Firma" }, messages: [] },
+      isLoading: false,
+      isError: false,
+    });
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /Bağlı Firma/ }));
+    expect(screen.getByTestId("thread")).toHaveTextContent("satis|c9|Bağlı Firma");
+    expect(screen.queryByRole("button", { name: "Alıcı olarak" })).not.toBeInTheDocument();
+  });
+
+  it("SILVER firma eski alıcı konuşmasını listede görür ve açar (okuma serbest)", () => {
+    h.tier = "SILVER";
+    h.permissions = ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"];
+    h.threads = {
+      isLoading: false,
+      data: [
+        {
+          portal: "satinalma",
+          threadId: "t2",
+          otherPartyId: "sup1",
+          otherPartyName: "Eski Tedarikçi",
+          lastMessagePreview: "Teklif",
+          lastMessageAt: "2026-09-20T08:00:00.000Z",
+          unread: false,
+        },
+      ],
+    };
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /Eski Tedarikçi/ }));
+    expect(screen.getByTestId("thread")).toHaveTextContent("satinalma|sup1|Eski Tedarikçi");
+  });
+
+  it("GOLD firmada iki yönlü seçici durur", () => {
+    h.permissions = ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"];
+    h.connections = [{ company: { id: "c9", name: "Bağlı Firma" } }];
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /Bağlı Firma/ }));
+    expect(screen.getByRole("button", { name: "Alıcı olarak" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Satıcı olarak" })).toBeInTheDocument();
   });
 });

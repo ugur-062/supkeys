@@ -138,7 +138,9 @@
     "buAdresGonderilmisTeklifteKullaniliyorTeklif": "This address is used in {bidUse, plural, one {# submitted quote} other {# submitted quotes}} — {what} until the quote is finalized",
     "adresBulunamadi": "Address not found",
     "silinemez": "it cannot be deleted",
-    "adresBilgileriDegistirilemez": "the address details cannot be changed"
+    "adresBilgileriDegistirilemez": "the address details cannot be changed",
+    "trPostaKodu5Hane": "For an address in Türkiye the postal code must be 5 digits",
+    "adresSiniriAsildi": "A company can save at most {max} addresses; delete addresses you no longer use before adding a new one"
   },
   "adminCompanies": {
     "firmaBulunamadi": "Company not found",
@@ -492,7 +494,8 @@
     "firmaBulunamadi": "Company not found",
     "kendineMesajGonderemezsin": "You cannot send a message to yourself",
     "mesajlariGoruntulemekIcinYetkiGerekir": "The “{permission}” permission is required to view messages",
-    "mesajGondermekIcinYetkiGerekir": "The “{permission}” permission is required to send messages"
+    "mesajGondermekIcinYetkiGerekir": "The “{permission}” permission is required to send messages",
+    "aliciOlarakMesajGoldGerektirir": "Messaging as a buyer requires the Gold plan (buying panel)."
   },
   "companyListingTemplates": {
     "sablonIcerigiCokBuyukMaks500": "Template content is too large (max 500 KB)",

@@ -11,6 +11,7 @@ import {
   type NotificationPortal,
 } from "@/hooks/use-notifications";
 import { EmptyState, ListSkeleton } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import { Bell } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
@@ -124,6 +125,10 @@ export default function BildirimlerPage() {
         <div className="overflow-hidden card">
           <ListSkeleton rows={6} />
         </div>
+      ) : feed.isError && !feed.data ? (
+        // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "Henüz
+        // bildiriminiz yok" + tercihler CTA'sı yanıltıyordu.
+        <ErrorState onRetry={() => void feed.refetch()} />
       ) : items.length === 0 && !hasNextPage ? (
         <div className="card">
           <EmptyState

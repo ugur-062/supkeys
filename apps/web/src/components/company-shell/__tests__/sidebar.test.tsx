@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => h.auth,
   useHasCompanyPermission: () => h.canAct,
+  useCompanyPermissionsSynced: () => true,
 }));
 vi.mock("@/hooks/use-company-approvals", () => ({
   usePendingApprovalCount: () => ({ data: 0 }),
@@ -172,5 +173,39 @@ describe("CompanySidebarContent — sadeleştirilmiş düz menü (2026-08-22)", 
     // doğrulanıyor — iki giriş bırakmak aynı işi iki yerde yaşatırdı.
     expect(screen.queryByRole("link", { name: /paneline geç/ })).toBeNull();
     expect(screen.getByText("Ayarlar")).toBeInTheDocument();
+  });
+});
+
+describe("CompanySidebarContent — etkin portal izinden (arayüz testi D-159)", () => {
+  it("Gold firmada yalnız Satışçı /company/satinalma ret ekranında satış menüsünü görür", () => {
+    h.auth.user = { roles: [], permissions: ["sell:view", "sell:bid:submit"] } as never;
+    h.pathname = "/company/satinalma";
+    render(<CompanySidebarContent expanded />);
+    expect(screen.queryByText("Taleplerim")).not.toBeInTheDocument();
+    expect(screen.queryByText("Siparişlerim")).not.toBeInTheDocument();
+    expect(screen.getByText("Tekliflerim")).toBeInTheDocument();
+  });
+
+  it("paket kilidi istisna: izni olup paketi yetmeyen satınalma etkin kalır (kilitli menü)", () => {
+    h.auth.company = { tier: "SILVER" };
+    h.auth.user = {
+      roles: [],
+      permissions: ["buy:view", "buy:listing:manage", "sell:view"],
+    } as never;
+    h.pathname = "/company/satinalma";
+    render(<CompanySidebarContent expanded />);
+    expect(screen.getByText("Taleplerim")).toBeInTheDocument();
+  });
+});
+
+describe("CompanySidebarContent — uzun etiket ipucu (arayüz testi D-147)", () => {
+  it("genişken de menü satırı tam adı title olarak taşır", () => {
+    h.auth.user = { roles: [], permissions: ["buy:view", "buy:inquiry:send"] } as never;
+    h.pathname = "/company/satinalma";
+    render(<CompanySidebarContent expanded />);
+    expect(screen.getByRole("link", { name: "Bilgi Taleplerim" })).toHaveAttribute(
+      "title",
+      "Bilgi Taleplerim",
+    );
   });
 });

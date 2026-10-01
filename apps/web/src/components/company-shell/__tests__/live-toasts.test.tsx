@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   user: null as { id: string; roles: string[] } | null,
   tier: "GOLD" as "GOLD" | "STANDART",
+  synced: true,
   notifs: [] as unknown[],
   threads: {} as Record<string, unknown[]>,
   handlers: {} as Record<string, () => void>,
@@ -40,6 +41,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
     user: h.user,
     company: h.user ? { tier: h.tier } : null,
   }),
+  useCompanyPermissionsSynced: () => h.synced,
 }));
 vi.mock("@/lib/company-auth/api", () => ({
   companyApi: {
@@ -107,6 +109,7 @@ beforeEach(() => {
     roles: ["SAHIP", "SATIN_ALMACI", "SATISCI"],
   };
   h.tier = "GOLD";
+  h.synced = true;
   window.history.pushState({}, "", "/company/satinalma");
   h.get.mockImplementation((url: string, opts?: { params?: { portal?: string } }) => {
     if (url === "/notifications") return Promise.resolve({ data: h.notifs });
@@ -148,6 +151,27 @@ describe("LiveToasts", () => {
     render(renderCard("t1"));
     fireEvent.click(screen.getByText("Bildirim en1"));
     expect(h.push).toHaveBeenCalledWith("/company/ilan/abc");
+  });
+
+  it("kartın Kapat düğmesi çevrilmiş adı taşır — etiket çağırandan gelir (arayüz testi D-012)", async () => {
+    await renderSeeded();
+    h.notifs = [notif("k1")];
+    h.handlers["notification.new"]();
+    await waitFor(() => expect(h.toastCustom).toHaveBeenCalledTimes(1));
+    const renderCard = h.toastCustom.mock.calls[0][0] as (id: string) => ReactElement;
+    render(renderCard("t1"));
+    expect(screen.getByRole("button", { name: "Kapat" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /web\.panel/ })).not.toBeInTheDocument();
+  });
+
+  it("izinler /me ile tazelenmeden hiçbir uç çağrılmaz (arayüz testi D-299)", async () => {
+    h.synced = false;
+    const { rerender } = render(<LiveToasts />);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(h.get).not.toHaveBeenCalled();
+    h.synced = true;
+    rerender(<LiveToasts />);
+    await waitFor(() => expect(h.get.mock.calls.length).toBeGreaterThanOrEqual(3));
   });
 
   it("okunmuş veya daha önce görülen bildirim yeniden toast'lanmaz", async () => {

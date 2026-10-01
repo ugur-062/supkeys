@@ -42,7 +42,8 @@ function BellPanelContent({
   const ago = useRelativeTime("ago");
   // TEK kutu (kullanıcı isteği): portal filtresi yok — iki panelin
   // bildirimleri birlikte, satır başına panel rozetiyle.
-  const { data: items = [], isLoading } = useNotifications();
+  const { data, isLoading, isError, refetch } = useNotifications();
+  const items = data ?? [];
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
   const router = useRouter();
@@ -78,6 +79,19 @@ function BellPanelContent({
           <p className="px-4 py-6 text-center text-sm text-zinc-400">
             {t("yukleniyor")}
           </p>
+        ) : isError && !data ? (
+          // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "Henüz
+          // bildiriminiz yok" yanıltıyordu.
+          <div role="alert" className="px-4 py-8 text-center">
+            <p className="text-sm text-zinc-600">{t("yuklenemedi")}</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="mt-2 text-xs font-semibold text-blue-600 hover:underline"
+            >
+              {t("tekrarDene")}
+            </button>
+          </div>
         ) : recent.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-zinc-400">
             {t("henuzBildiriminizYok")}

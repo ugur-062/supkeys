@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@rothern/db";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
@@ -352,6 +353,22 @@ export class CompanyMessagesService {
     body: string,
   ) {
     const portal = this.assertPortal(portalRaw);
+    // PAKET kapısı rol kapısından ÖNCE (CLAUDE.md: rol denetimi paket
+    // denetiminin İÇİNDE; arayüz testi O-123): ALICI yönü satınalma
+    // panelidir → Gold (BUYING_TIER, efektif — süresi biten Gold STANDART).
+    // Paketi düşen firma eski alıcı konuşmalarını OKUR (listThreads/getThread
+    // paket sormaz) ama yazamaz; satıcı yönü her pakete açık.
+    if (portal === "satinalma" && !tierAtLeast(user.tier, BUYING_TIER)) {
+      throw new ForbiddenException({
+        ...i18nMessage(
+          "api.companyMessages.aliciOlarakMesajGoldGerektirir",
+          undefined,
+          "TIER_REQUIRED",
+        ),
+        statusCode: 403,
+        minTier: BUYING_TIER,
+      });
+    }
     // Ticari müzakere kapısı (salt-okunur garanti #4): mesaj karşı FİRMAYA
     // gider, e-posta tetikler, taahhüt izlenimi yaratır → yalnız işlem rolü.
     // Etiket-only (Kurucu/Yönetici) ve Onaylayıcı gönderemez; okuma uçları da

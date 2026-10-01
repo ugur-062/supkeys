@@ -2,13 +2,16 @@
 
 import { useNavLabel } from "@/i18n/domain";
 import { useTranslations } from "next-intl";
-import { useCompanyAuth, useCompanyMe } from "@/hooks/use-company-auth";
+import {
+  useCompanyAuth,
+  useCompanyMe,
+  useCompanyPermissionsSynced,
+} from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
   COMPANY_AREA,
   PORTALS,
   accessiblePortals,
-  activePortalFromPath,
   isCompanyAreaPath,
   type PortalKey,
 } from "@/lib/company/portals";
@@ -19,7 +22,11 @@ import { usePathname } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { noteNavigation } from "@/lib/nav-history";
 import { AssistantLauncher } from "./assistant/assistant-launcher";
-import { CompanySidebarContent } from "./sidebar";
+import {
+  CompanySidebarContent,
+  resolveActivePortal,
+  viewablePortals,
+} from "./sidebar";
 import { CompanyTopbar } from "./topbar";
 import { ButtonAccentProvider, accentForPortal } from "@/components/ui/button-accent";
 
@@ -39,12 +46,20 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const [hovered, setHovered] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // D-299: sayfa içeriği izinler /me ile tazelenince çizilir — kalıcı anlık
+  // görüntüdeki BAYAT izinlerle (ör. az önce kaldırılan satış izni) izinli
+  // sorgular atılıp 403 tostları çıkıyordu. Kabuk (üst çubuk, menü) anlık
+  // görüntüyle hemen boyanır; yalnız içerik bir /me turu bekler (SPA
+  // gezinmesinde bayrak zaten true). /me hata verirse beklenmez.
+  const permissionsSynced = useCompanyPermissionsSynced();
   const available = accessiblePortals(user, company?.tier);
-  const activePortal: PortalKey =
-    activePortalFromPath(pathname) ??
-    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
-    available[0] ??
-    "satis";
+  // Etkin portal sol menüyle AYNI kuraldan (D-159).
+  const activePortal: PortalKey = resolveActivePortal(
+    pathname,
+    viewablePortals(user),
+    available,
+    lastPortal,
+  );
 
   const expanded = pinned || hovered;
 
@@ -137,7 +152,15 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           id="icerik"
           className="mx-auto w-full max-w-[1320px] grow px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 xl:px-10"
         >
-          {children}
+          {permissionsSynced ? (
+            children
+          ) : (
+            <div className="space-y-4" aria-hidden data-testid="shell-permissions-pending">
+              <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
+              <div className="h-24 animate-pulse rounded-2xl bg-zinc-100" />
+              <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+            </div>
+          )}
         </div>
       </main>
 

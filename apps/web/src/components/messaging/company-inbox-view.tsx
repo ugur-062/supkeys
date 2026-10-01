@@ -14,7 +14,12 @@ import {
   type MessagePortal,
   type ThreadSummary,
 } from "@/hooks/use-company-messages";
-import { canUseMessaging, PORTAL_ORDER } from "@/lib/company/portals";
+import {
+  canUseMessaging,
+  messagingDirectionOpen,
+  PORTAL_ORDER,
+} from "@/lib/company/portals";
+import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
 import { MessageSquare, Search } from "lucide-react";
@@ -72,10 +77,17 @@ function pickDeepLinkPortal(
 export function CompanyInboxView() {
   const t = useTranslations("web.panel.inbox.companyInboxView");
   const locale = useLocale();
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
   // Kullanıcının mesajlaşabildiği taraflar (işlem rolü olan portallar).
   const myPortals = PORTAL_ORDER.filter((p) =>
     canUseMessaging(user, p),
+  );
+  // YENİ konuşmanın açılabileceği yönler (arayüz testi O-123): alıcı yönü
+  // satınalma panelidir → Gold. Gold altı firma eski alıcı konuşmalarını
+  // listede görür ve okur, ama yön seçicide/varsayılan yönde alıcı tarafı
+  // sunulmaz (API `send` aynı kuralla 403 TIER_REQUIRED verir).
+  const newChatPortals = myPortals.filter((p) =>
+    messagingDirectionOpen(p, company?.tier),
   );
   const allowed = myPortals.length > 0;
   const connections = useConnections();
@@ -96,6 +108,27 @@ export function CompanyInboxView() {
     return { id: withId, portal };
   });
   const [search, setSearch] = useState("");
+
+  // Seçim adres çubuğunda (arayüz testi D-355): listeden seçilen konuşma
+  // `?with=&portal=` olarak yazılır — yenileme/paylaşım aynı konuşmayı açar
+  // (derin link okuyucusu yukarıdaki başlangıç durumu). Yönü henüz çözülmemiş
+  // (portalsız) seçimde `portal` yazılmaz; sabitlenince eklenir. Next
+  // `history.replaceState`i yönlendiriciyle eşitler (gezinme/yeniden yükleme yok).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    if (selected) {
+      u.searchParams.set("with", selected.id);
+      if (selected.portal) u.searchParams.set("portal", selected.portal);
+      else u.searchParams.delete("portal");
+    } else {
+      u.searchParams.delete("with");
+      u.searchParams.delete("portal");
+    }
+    if (u.toString() !== window.location.href) {
+      window.history.replaceState(null, "", u.toString());
+    }
+  }, [selected]);
 
   const rows = useMemo<ThreadRow[]>(() => {
     const threadRows: ThreadRow[] = (threads.data ?? []).map((th) => ({
@@ -148,6 +181,7 @@ export function CompanyInboxView() {
       : threads.isLoading
         ? null
         : (pickDeepLinkPortal(threads.data ?? [], selected.id, myPortals) ??
+          newChatPortals[0] ??
           myPortals[0] ??
           "satinalma");
 
@@ -238,15 +272,26 @@ export function CompanyInboxView() {
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <input
+                type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                // Erişilebilir ad (arayüz testi D-267): yer tutucu ad değildir.
+                aria-label={t("kisiAraEtiketi")}
                 placeholder={t("kisiAra")}
                 className="w-full rounded-lg border border-surface-border bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
               />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {connections.isLoading || threads.isLoading ? (
+            {threads.isError && !threads.data ? (
+              // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "önce bağlantı
+              // kur" boş durumu yanıltıyordu.
+              <ErrorState
+                className="m-3"
+                message={t("konusmalarYuklenemedi")}
+                onRetry={() => void threads.refetch()}
+              />
+            ) : connections.isLoading || threads.isLoading ? (
               <div className="space-y-2 p-3" aria-hidden>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div
@@ -274,8 +319,9 @@ export function CompanyInboxView() {
                     onClick={() =>
                       setSelected({
                         id: r.id,
-                        // Yeni sohbette varsayılan yön: rolüm olan ilk taraf.
-                        portal: r.portal ?? myPortals[0]!,
+                        // Yeni sohbette varsayılan yön: paketin ve rolün
+                        // açtığı ilk taraf (Gold altında satıcı yönü, O-123).
+                        portal: r.portal ?? newChatPortals[0] ?? myPortals[0]!,
                       })
                     }
                     className={`flex w-full items-center gap-3 border-l-2 border-b border-zinc-950/5 px-3 py-3 text-left transition hover:bg-zinc-50 ${
@@ -351,7 +397,7 @@ export function CompanyInboxView() {
                         strong: (chunks) => <strong>{chunks}</strong>,
                       })}
                     </span>
-                    {myPortals.length === 2 ? (
+                    {newChatPortals.length === 2 ? (
                       <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
                         {PORTAL_ORDER.map((p) => (
                           <button

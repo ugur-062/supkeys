@@ -82,7 +82,7 @@ export function CompanyTopbar({
   );
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
+    <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-2 border-b border-zinc-950/10 bg-white px-3 sm:gap-3 sm:px-4">
       {/* A11y (denetim §7.2): klavye kullanıcısı nav'ı atlayıp içeriğe geçer. */}
       <a
         href="#icerik"
@@ -102,13 +102,20 @@ export function CompanyTopbar({
         </svg>
       </button>
 
-      {/* Logo — sol üst (açık-mod kilidi, plakasız) */}
+      {/* Logo — sol üst (açık-mod kilidi, plakasız). Dar ekranda yalnız
+          işaret (arayüz testi O-049): 360-390 px'te tam logo + portal tuşu +
+          sağ küme sığmıyor, portal tuşu Mesajlar'ın ALTINA taşıyordu. */}
       <Link href="/company" className="flex shrink-0 items-center">
+        <RothernLogo
+          variant="icon"
+          size="sm"
+          className="size-8 sm:hidden"
+        />
         <RothernLogo
           variant="full-light"
           size="sm"
           priority
-          className="h-8 w-auto"
+          className="hidden h-8 w-auto sm:block"
         />
       </Link>
 
@@ -117,7 +124,9 @@ export function CompanyTopbar({
           düğmeleriyle AYNI dili konuşur (h-12, ikon + 10 px etiket); portal
           tuşu aynı düzende ama renkli ikon + aç/kapa işareti + ayırıcıyla
           AYIRT EDİLİR (çerçeveli çip "çok farklı" bulundu). */}
-      <div className="ml-auto mr-1 flex min-w-0 items-center">
+      {/* shrink-0 (O-049): daralabilen sarmalayıcıda portal tuşu daralmayıp
+          sağ kümenin üstüne taşıyordu; yer logodan ve etiketlerden açılır. */}
+      <div className="ml-auto mr-1 flex shrink-0 items-center">
       {/* PORTAL DEĞİŞTİR — tek tuş, üstünde iki ikon ve değişim oku
           (2026-09-15, kullanıcı kararı). Sol menüdeki segmentli pilin YERİNE:
           aynı işe iki giriş bırakmak Ayarlar'daki Onay Akışları kartının
@@ -157,7 +166,7 @@ export function CompanyTopbar({
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
       <div className="flex shrink-0 items-center gap-1 sm:gap-1">
-        {canMessage ? <MessagesPopover portal={activePortal} /> : null}
+        {canMessage ? <MessagesPopover /> : null}
 
         {/* Zil TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte,
             satır başına panel rozetiyle. */}

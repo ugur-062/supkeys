@@ -51,11 +51,21 @@ interface CompanyAuthState {
   user: CompanyUserDto | null;
   company: CompanyProfile | null;
   isHydrated: boolean;
+  /**
+   * Bu sayfa yüklemesinde izinler sunucudan TAZE mi (arayüz testi D-299)?
+   * KALICI DEĞİL (partialize dışında): her tam yüklemede false başlar; giriş
+   * (`setAuth`) ya da `/me` (`setMe`) true yapar, `/me` hata verirse de
+   * anlık görüntü "bilinen en iyi" kabul edilir (`markPermissionsSynced`).
+   * İzinli sorgular bunu bekler — yoksa izni kaldırılmış kullanıcı ilk
+   * yüklemede bayat izinlerle istek atıp 403 tostları görüyordu.
+   */
+  permissionsSynced: boolean;
 
   setAuth: (data: { user: CompanyUserDto; company: CompanyProfile }) => void;
   setMe: (data: { user: CompanyUserDto; company: CompanyProfile }) => void;
   clear: () => void;
   setHydrated: () => void;
+  markPermissionsSynced: () => void;
 }
 
 export const useCompanyAuthStore = create<CompanyAuthState>()(
@@ -64,10 +74,12 @@ export const useCompanyAuthStore = create<CompanyAuthState>()(
       user: null,
       company: null,
       isHydrated: false,
-      setAuth: ({ user, company }) => set({ user, company }),
-      setMe: ({ user, company }) => set({ user, company }),
-      clear: () => set({ user: null, company: null }),
+      permissionsSynced: false,
+      setAuth: ({ user, company }) => set({ user, company, permissionsSynced: true }),
+      setMe: ({ user, company }) => set({ user, company, permissionsSynced: true }),
+      clear: () => set({ user: null, company: null, permissionsSynced: false }),
       setHydrated: () => set({ isHydrated: true }),
+      markPermissionsSynced: () => set({ permissionsSynced: true }),
     }),
     {
       name: "rothern-company-auth",

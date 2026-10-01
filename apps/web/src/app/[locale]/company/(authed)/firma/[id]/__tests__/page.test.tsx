@@ -8,6 +8,8 @@ import { markNavEntry, noteNavigation, resetNavHistoryForTest } from "@/lib/nav-
 
 const h = vi.hoisted(() => ({
   profile: null as unknown,
+  profileError: null as unknown,
+  refetch: vi.fn(),
   portal: "satinalma" as "satinalma" | "satis",
   replace: vi.fn(),
   block: vi.fn(),
@@ -22,7 +24,13 @@ vi.mock("@/i18n/navigation", () => ({
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-active-portal", () => ({ useActivePortal: () => h.portal }));
 vi.mock("@/hooks/use-company-directory", () => ({
-  useCompanyProfile: () => ({ data: h.profile, isLoading: false }),
+  useCompanyProfile: () => ({
+    data: h.profile,
+    isLoading: false,
+    isError: h.profileError != null,
+    error: h.profileError,
+    refetch: h.refetch,
+  }),
 }));
 vi.mock("@/hooks/use-company-connections", () => ({
   useInviteConnection: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -114,6 +122,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.portal = "satinalma";
   h.profile = profile();
+  h.profileError = null;
   resetNavHistoryForTest();
   window.history.replaceState(null, "", "/company/firma/RTH-OTHER");
 });
@@ -231,3 +240,23 @@ describe("Panel firma profili (arayüz testi webA-04)", () => {
     expect(await screen.findByRole("button", { name: "Geri" })).toBeInTheDocument();
   });
 });
+
+describe("Panel firma profili — kesinti ≠ yok (arayüz testi D-070)", () => {
+  it("5xx'te 'Firma profili bulunamadı' yerine hata + Tekrar dene", async () => {
+    const user = userEvent.setup();
+    h.profile = undefined;
+    h.profileError = { response: { status: 500 } };
+    render(<CompanyProfilePage />);
+    expect(screen.queryByText(/Firma profili bulunamadı/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("404'te 'bulunamadı' kalır", () => {
+    h.profile = undefined;
+    h.profileError = { response: { status: 404 } };
+    render(<CompanyProfilePage />);
+    expect(screen.getByText(/Firma profili bulunamadı/)).toBeInTheDocument();
+  });
+});
+

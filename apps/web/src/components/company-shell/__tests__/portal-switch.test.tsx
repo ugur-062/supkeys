@@ -106,4 +106,19 @@ describe("PortalSwitch", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("dar ekranda panel görünüm alanına sabitlenir, sm+ tuşa çapalı (arayüz testi O-053)", () => {
+    render(<PortalSwitch active="satis" visiblePortals={IKISI} available={IKISI} />);
+    fireEvent.click(screen.getByRole("button", { name: /Panel değiştir/ }));
+    const cls = screen.getByRole("dialog", { name: "Panel değiştir" }).className;
+    // Mobil: iki kenardan 8 px boşluklu, üst çubuğun hemen altında.
+    expect(cls).toMatch(/(^|\s)fixed(\s|$)/);
+    expect(cls).toMatch(/(^|\s)inset-x-2(\s|$)/);
+    // sm+: eski çapa (tuşun sağ kenarı, w-72).
+    expect(cls).toMatch(/sm:absolute/);
+    expect(cls).toMatch(/sm:right-0/);
+    expect(cls).toMatch(/sm:w-72/);
+    expect(cls).not.toMatch(/(^|\s)w-72(\s|$)/);
+  });
 });
+

@@ -138,7 +138,9 @@
     "buAdresGonderilmisTeklifteKullaniliyorTeklif": "Этот адрес используется в {bidUse, plural, one {# отправленном предложении} few {# отправленных предложениях} many {# отправленных предложениях} other {# отправленных предложениях}} — {what}, пока предложение не будет завершено",
     "adresBulunamadi": "Адрес не найден",
     "silinemez": "его нельзя удалить",
-    "adresBilgileriDegistirilemez": "данные адреса нельзя изменить"
+    "adresBilgileriDegistirilemez": "данные адреса нельзя изменить",
+    "trPostaKodu5Hane": "Для адреса в Турции почтовый индекс должен состоять из 5 цифр",
+    "adresSiniriAsildi": "Компания может сохранить не более {max} адресов; удалите неиспользуемые адреса, прежде чем добавлять новый"
   },
   "adminCompanies": {
     "firmaBulunamadi": "Компания не найдена",
@@ -492,7 +494,8 @@
     "firmaBulunamadi": "Компания не найдена",
     "kendineMesajGonderemezsin": "Вы не можете отправить сообщение самому себе",
     "mesajlariGoruntulemekIcinYetkiGerekir": "Для просмотра сообщений требуется разрешение «{permission}»",
-    "mesajGondermekIcinYetkiGerekir": "Для отправки сообщений требуется разрешение «{permission}»"
+    "mesajGondermekIcinYetkiGerekir": "Для отправки сообщений требуется разрешение «{permission}»",
+    "aliciOlarakMesajGoldGerektirir": "Отправка сообщений в роли покупателя доступна в тарифе Gold (панель закупок)."
   },
   "companyListingTemplates": {
     "sablonIcerigiCokBuyukMaks500": "Содержимое шаблона слишком большое (макс. 500 КБ)",

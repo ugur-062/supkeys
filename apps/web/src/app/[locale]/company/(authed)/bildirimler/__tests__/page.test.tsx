@@ -14,6 +14,8 @@ const h = vi.hoisted(() => ({
   fetchNextPage: vi.fn(),
   unread: 0 as number | undefined,
   markAll: vi.fn(),
+  isError: false,
+  refetch: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -25,8 +27,10 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 vi.mock("@/hooks/use-notifications", () => ({
   useNotificationFeed: () => ({
-    data: { pages: h.pages },
+    data: h.isError ? undefined : { pages: h.pages },
     isLoading: false,
+    isError: h.isError,
+    refetch: h.refetch,
     hasNextPage: h.hasNextPage,
     fetchNextPage: h.fetchNextPage,
     isFetchingNextPage: false,
@@ -58,6 +62,7 @@ beforeEach(() => {
   h.pages = [];
   h.hasNextPage = false;
   h.unread = 0;
+  h.isError = false;
 });
 
 describe("BildirimlerPage", () => {
@@ -104,3 +109,16 @@ describe("BildirimlerPage", () => {
     expect(screen.queryByRole("button", { name: "Daha fazla yükle" })).toBeNull();
   });
 });
+
+describe("Bildirimler — kesinti (arayüz testi D-070)", () => {
+  it("liste isteği düşerse 'Henüz bildiriminiz yok' yerine hata + Tekrar dene", async () => {
+    const user = userEvent.setup();
+    h.isError = true;
+    render(<BildirimlerPage />);
+    expect(screen.queryByText(/Henüz bildiriminiz yok/)).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
+    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.refetch).toHaveBeenCalledTimes(1);
+  });
+});
+

@@ -147,7 +147,10 @@ export function PortalSwitch({
         <div
           role="dialog"
           aria-label={t("panelDegistir")}
-          className="absolute top-full right-0 z-50 mt-1 w-72 overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg"
+          // Dar ekranda görünüm alanına sabit (arayüz testi O-053): tuşun sağ
+          // kenarına çapalı w-72 panel 390 px'te sol kenardan taşıyordu
+          // (başlık "ANEL DEĞİŞTİR", ikonlar dışarıda). Üst çubuk h-14 sabit.
+          className="fixed inset-x-2 top-14 z-50 mt-1 overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:w-72"
         >
           <p className="border-b border-zinc-950/5 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
             {t("panelDegistir")}

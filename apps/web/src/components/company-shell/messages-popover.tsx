@@ -11,6 +11,7 @@ import {
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 import { MessageSquare } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { useCompanyPermissionsSynced } from "@/hooks/use-company-auth";
 
 
 /** "Bu konuşmada ben kimim?" rozeti — birleşik kutu satırları. */
@@ -24,7 +25,7 @@ function RecentThreads({ close }: { close: () => void }) {
   const tr = useTranslations("web.panel.shell.messagesPopover");
   const ago = useRelativeTime("short");
   // Birleşik kutu (2026-08-02): iki tarafın konuşmaları birlikte.
-  const { data: threads, isLoading } = useThreads("all");
+  const { data: threads, isLoading, isError, refetch } = useThreads("all");
   const recent = (threads ?? []).slice(0, 6);
 
   if (isLoading) {
@@ -33,6 +34,22 @@ function RecentThreads({ close }: { close: () => void }) {
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-12 animate-pulse rounded-lg bg-zinc-100" />
         ))}
+      </div>
+    );
+  }
+  // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "Henüz mesajınız yok"
+  // yanıltıyordu.
+  if (isError && !threads) {
+    return (
+      <div role="alert" className="px-4 py-8 text-center">
+        <p className="text-sm text-zinc-600">{tr("yuklenemedi")}</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="mt-2 text-xs font-semibold text-blue-600 hover:underline"
+        >
+          {tr("tekrarDene")}
+        </button>
       </div>
     );
   }
@@ -104,11 +121,15 @@ function RecentThreads({ close }: { close: () => void }) {
  * Topbar mesaj önizlemesi — zil deseniyle aynı: son konuşmalar + okunmamış
  * rozeti; öğe tıklaması ilgili konuşmayı açar (?with=), altta "Tüm mesajlar".
  */
-export function MessagesPopover({ portal }: { portal: MessagePortal }) {
+export function MessagesPopover() {
   const t = useTranslations("web.panel.shell.messagesPopover");
-  // B18: rozet AKTİF portalın okunmamışı — ActionCenter ile aynı queryKey'i
-  // paylaşır (portal'sız "all" çağrısı aynı sayfada İKİNCİ istek üretiyordu).
-  const { data: unreadData } = useUnreadMessages(portal);
+  // Rozet İKİ tarafın toplamı (arayüz testi D-354): kutu birleşik, rozet de
+  // birleşik olmalı — B18'deki "aktif portal" rozeti öbür portala gelen
+  // okunmamışı gizliyordu. Portal'sız uç yalnız kullanıcının OKUYABİLDİĞİ
+  // tarafları sayar (API `unreadCount`). İzinler /me ile tazelenene dek
+  // istek atılmaz (D-299: bayat anlık görüntüyle 403 olmasın).
+  const synced = useCompanyPermissionsSynced();
+  const { data: unreadData } = useUnreadMessages(undefined, synced);
   const unread = unreadData?.count ?? 0;
 
   return (
@@ -129,7 +150,8 @@ export function MessagesPopover({ portal }: { portal: MessagePortal }) {
             </span>
           ) : null}
         </span>
-        <span className="text-[10px] leading-none font-semibold" aria-hidden>
+        {/* Dar ekranda etiket gizli (O-049) — ad aria-label'da. */}
+        <span className="hidden text-[10px] leading-none font-semibold sm:block" aria-hidden>
           {t("mesajlar")}
         </span>
       </PopoverButton>

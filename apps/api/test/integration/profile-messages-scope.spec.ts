@@ -170,3 +170,67 @@ describe("mesaj gönderme rol kapısı (salt-okunur garanti #4)", () => {
     expect(await svc.listThreads(withRoles([]), "all")).toHaveLength(0);
   });
 });
+
+describe("mesaj alıcı yönü paket kapısı (arayüz testi O-123)", () => {
+  function makeMsgService() {
+    const blocks = new CompanyBlocksService(
+      prisma as never,
+      new AuditService(prisma as never),
+    );
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    return new CompanyMessagesService(
+      prisma as never,
+      blocks,
+      email as never,
+      config as never,
+    );
+  }
+
+  it.each(["SILVER", "STANDART"] as const)(
+    "%s firma ALICI yönünde yazamaz (403 TIER_REQUIRED, izni olsa da); satıcı yönü açık",
+    async (tier) => {
+      const svc = makeMsgService();
+      const a = await makeCompanyWithUser(prisma, { tier });
+      const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      // Kurucu SA+ST işlem rolleriyle kurulur → izin kapısı geçer; ret paketten.
+      const err = await svc
+        .send(a.auth, "satinalma", b.company.id, "merhaba")
+        .catch((e: unknown) => e);
+      expect(err).toMatchObject({ status: 403 });
+      expect((err as { getResponse: () => unknown }).getResponse()).toMatchObject({
+        code: "TIER_REQUIRED",
+        minTier: "GOLD",
+      });
+      expect(String((err as Error).message)).toMatch(/Gold/);
+      expect(await prisma.messageThread.count()).toBe(0);
+      // Satıcı yönü her pakete açık (STANDART: mesaj ücretsiz).
+      await expect(
+        svc.send(a.auth, "satis", b.company.id, "merhaba"),
+      ).resolves.toMatchObject({ mine: true });
+    },
+  );
+
+  it("paketi düşen firma eski ALICI konuşmasını okur ama yazamaz", async () => {
+    const svc = makeMsgService();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await svc.send(a.auth, "satinalma", b.company.id, "Gold iken yazdım");
+    await svc.send(b.auth, "satis", a.company.id, "yanıt");
+
+    // Paket düştü (efektif tier JWT stratejisinde hesaplanır → auth.tier).
+    const downgraded = { ...a.auth, tier: "SILVER" } as typeof a.auth;
+    const rows = await svc.listThreads(downgraded, "all");
+    expect(rows.find((r) => r.portal === "satinalma")).toMatchObject({
+      otherPartyId: b.company.id,
+    });
+    const thread = await svc.getThread(downgraded, "satinalma", b.company.id);
+    expect(thread.messages.map((m) => m.body)).toEqual([
+      "Gold iken yazdım",
+      "yanıt",
+    ]);
+    await expect(
+      svc.send(downgraded, "satinalma", b.company.id, "tekrar"),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+});
