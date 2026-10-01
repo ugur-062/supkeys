@@ -144,8 +144,9 @@ export function ProductCard({
   /**
    * Kapağın sağ üstünde "Karşılaştır" kutusu (yalnız `tile`). Durum şimdilik
    * KARTIN İÇİNDE; karşılaştırma tablosu bağlanınca `onCompare` ile dışarı
-   * taşınır. Varsayılan KAPALI — işlevi henüz olmayan bir kontrolü her
-   * yüzeye basmamak için yalnız dizin/arama sonuçlarında açılır.
+   * taşınır. Varsayılan KAPALI ve şu an HİÇBİR çağıran açmıyor (arayüz
+   * testi O-017): tablo bağlanmadan görünen kutu işaretleniyor ama hiçbir şey
+   * yapmıyordu. Karşılaştırma tablosu gelince `onCompare` ile birlikte açılır.
    */
   compare?: boolean;
   /** "Karşılaştır" değişimi — ileride karşılaştırma tablosunun girişi. */

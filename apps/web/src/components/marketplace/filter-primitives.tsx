@@ -120,6 +120,7 @@ export function Check({
   count,
   checked,
   onChange,
+  onUncheck,
   type = "checkbox",
   name,
 }: {
@@ -130,6 +131,12 @@ export function Check({
   count?: number;
   checked: boolean;
   onChange: (v: boolean) => void;
+  /**
+   * İşaretli RADYOYA tıklanınca (arayüz testi D-320). Tarayıcı işaretli
+   * radyoda `change` üretmez; seçimi kaldırılabilen radyo listeleri
+   * (kategori) bunu verir, yoksa satıra tıklamak hiçbir şey yapmıyordu.
+   */
+  onUncheck?: () => void;
   type?: "checkbox" | "radio";
   name?: string;
 }) {
@@ -151,6 +158,7 @@ export function Check({
           checked={checked}
           disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
+          onClick={type === "radio" && checked && onUncheck ? () => onUncheck() : undefined}
           className={`size-4 shrink-0 rounded border-zinc-300 ${
             accent === "blue" ? "text-blue-600 focus:ring-blue-600" : "text-zinc-950 focus:ring-zinc-950"
           }`}
@@ -243,6 +251,10 @@ export function ShowMoreRadio({
           count={i.count}
           checked={selected === i.key}
           onChange={() => onSelect(i.key)}
+          // Seçili satıra yeniden tıklamak seçimi kaldırır (çağıranın
+          // `onSelect`i aynı anahtarda temizler) — işaretli radyo `change`
+          // üretmediği için eskiden hiçbir şey olmuyordu.
+          onUncheck={() => onSelect(i.key)}
         />
       ))}
       {items.length > SHOW ? (

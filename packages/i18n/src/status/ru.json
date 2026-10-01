@@ -15104,6 +15104,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.filters.certification": {
+    "hash": "8d3304ae0d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.filters.certifications": {
     "hash": "0659662c63",
     "status": "reviewed",
@@ -15253,6 +15258,11 @@
     "hash": "730ca7e986",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.filters.groupChip": {
+    "hash": "a7e7a25f7a",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.filters.hasProducts": {
     "hash": "91dbb36664",
@@ -15438,6 +15448,11 @@
     "hash": "c18b56cd1d",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.filters.radiusKm": {
+    "hash": "9a77f49d4e",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.filters.remaining": {
     "hash": "326aebbd3f",

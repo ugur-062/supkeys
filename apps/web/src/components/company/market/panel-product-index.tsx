@@ -17,6 +17,7 @@ import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   buildProductFilterQuery,
   parseProductFilters,
+  toProductFacetParams,
   toProductListParams,
   type PerPage,
   type ProductFilterState,
@@ -108,16 +109,9 @@ export function PanelProductFilters({ idPrefix }: { idPrefix: string }) {
   const t = useTranslations("web.panel.market.panelProductIndex");
   const { state } = useFilters();
   const p = toProductListParams(state);
-  const facets = useDiscoverProductFacets({
-    category: p.category,
-    q: p.q,
-    city: p.city,
-    activity: p.activity,
-    verified: p.verified,
-    price: p.price,
-    // Histogram birimi — seçilmediyse sunucu firma ülkesinden çözer.
-    currency: p.currency,
-  });
+  // Sayaçlar listeyle AYNI süzgeçleri görür (arayüz testi O-080); histogram
+  // birimi seçilmediyse sunucu firma ülkesinden çözer.
+  const facets = useDiscoverProductFacets(toProductFacetParams(p));
   if (!facets.data) return <p className="text-sm text-zinc-500">{t("suzgeclerYukleniyor")}</p>;
   return <ProductFilters facets={facets.data} idPrefix={idPrefix} />;
 }
@@ -139,16 +133,7 @@ function Inner({
   const tn = useNavLabel();
   const { update } = useFilters<ProductFilterState>();
   const p = toProductListParams(state);
-  const facets = useDiscoverProductFacets({
-    category: p.category,
-    q: p.q,
-    city: p.city,
-    activity: p.activity,
-    verified: p.verified,
-    price: p.price,
-    // Histogram birimi — seçilmediyse sunucu firma ülkesinden çözer.
-    currency: p.currency,
-  });
+  const facets = useDiscoverProductFacets(toProductFacetParams(p));
   const data = result.data;
   const total = data?.total ?? 0;
   /* SEKME ROZETİ: aynı arama/kategoriyle KAÇ TEDARİKÇİ var. Alıcı bazen
@@ -240,7 +225,6 @@ function Inner({
                 features={item.features}
                 cta={canInquire ? t("bilgiIste") : undefined}
                 accent="blue"
-                compare
                 priority={i < 3}
                 badge={
                   item.matchesProfile ? (

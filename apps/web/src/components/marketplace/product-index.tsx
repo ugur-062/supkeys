@@ -3,7 +3,7 @@ import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./f
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
 import { OpenRequestLink } from "./member-cta";
-import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "./product-filters";
+import { ActiveFilterChips, ProductFilters, SortControl, ViewPreferenceSync, ViewToggle } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
 import { PublicSearchTabs } from "./public-search-tabs";
@@ -23,6 +23,7 @@ import {
   buildProductFilterQuery,
   productSearchCarry,
   parseProductFilters,
+  toProductFacetParams,
   toProductListParams,
   type SearchParamsLike,
 } from "@/lib/public/product-filter-params";
@@ -94,21 +95,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     fetchProducts(params),
     // Facet sayımı listeyle AYNI süzgeçleri görür (2026-09-27: ülke, "Yakınımda",
     // sertifika, çalışan ve hızlı yanıt eskiden facet çağrısına hiç gitmiyordu).
-    fetchProductFacets({
-      category: params.category,
-      q: params.q,
-      city: params.city,
-      country: params.country,
-      activity: params.activity,
-      verified: params.verified,
-      price: params.price,
-      cert: params.cert,
-      employees: params.employees,
-      near: params.near,
-      radius: params.radius,
-      fastReply: params.fastReply,
-      currency: params.currency,
-    }),
+    fetchProductFacets(toProductFacetParams(params)),
     // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
     // (yalnız arama varken istek atılır).
     crossCounts(state.q, "products"),
@@ -184,6 +171,9 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         dillerde de". Özet cümle JSON-LD `ItemList` ve meta açıklamasında
         yaşamaya devam eder; sayfada tekrar çizilmez. */}
     <FilterShell basePath={basePath} fixedCategory={category?.id} fixedCity={fixedCity} fixedCountry={fixedCountry} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
+      {/* Kayıtlı ızgara/liste tercihini URL'e taşır (arayüz testi D-318: tercih
+          yazılıyor ama herkese açık dizinde hiç okunmuyordu). */}
+      <ViewPreferenceSync />
       <PublicListPage
           tabs={
             <PublicSearchTabs active="products" q={state.q} counts={{ ...otherCounts, products: page.total }} />
@@ -252,7 +242,6 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
                   company={p.company}
                   product={p}
                   cta={t("inquire")}
-                  compare
                   priority={i < 3}
                 />
               ))}

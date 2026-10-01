@@ -3,7 +3,7 @@
  * AKTİF SÜZGEÇ ÇİPİ — nitelik (derin denetim S078): çip, kenar çubuğuyla
  * aynı okuyucu-dili etiketini basar; URL'deki kanonik değer yalnız yedek.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const nav = vi.hoisted(() => ({ pathname: "/urunler", search: "", push: vi.fn(), replace: vi.fn() }));
@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { FilterShell } from "../filter-shell";
-import { ActiveFilterChips } from "../product-filters";
+import { ActiveFilterChips, ProductFilters } from "../product-filters";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 
 const facets: ProductFacets = {
@@ -45,8 +45,88 @@ describe("ActiveFilterChips — nitelik", () => {
         <ActiveFilterChips facets={facets} />
       </FilterShell>,
     );
-    expect(screen.getByText("Stainless steel")).toBeTruthy();
-    expect(screen.queryByText("Paslanmaz celik")).toBeNull();
-    expect(screen.getByText("Aluminyum")).toBeTruthy();
+    // Grup önekli (arayüz testi D-317): aynı değer başka grupta da olabilir.
+    expect(screen.getByText("Malzeme: Stainless steel")).toBeTruthy();
+    expect(screen.queryByText(/Paslanmaz celik/)).toBeNull();
+    expect(screen.getByText("Malzeme: Aluminyum")).toBeTruthy();
+  });
+});
+
+describe("ActiveFilterChips — etiketler (arayüz testi D-317)", () => {
+  it("facet'te olmayan şehir ham adres değil adıyla; sertifika ve nitelik 'CE' ayırt edilir", () => {
+    nav.search = "sehir=istanbul&sertifika=CE&nitelik=malzeme%3ACE";
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ActiveFilterChips
+          facets={{
+            ...facets,
+            attributes: [{ key: "malzeme", nameTr: "Uygunluk", unit: null, values: [{ value: "CE", count: 1 }] }],
+          }}
+        />
+      </FilterShell>,
+    );
+    expect(screen.getByText("İstanbul")).toBeTruthy();
+    expect(screen.queryByText("istanbul")).toBeNull();
+    expect(screen.getByText("Sertifika: CE")).toBeTruthy();
+    expect(screen.getByText("Uygunluk: CE")).toBeTruthy();
+  });
+});
+
+describe("ActiveFilterChips — fiyat aralığı (arayüz testi D-232)", () => {
+  it("aralık çipi kaldırılınca 'fiyatsızlar dahil' bayrağı da URL'den gider", () => {
+    nav.search = "fiyatMin=10&fiyatMax=50&fiyatsizDahil=1&para=TRY";
+    nav.replace.mockClear();
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ActiveFilterChips facets={facets} />
+      </FilterShell>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /10.*50.*süzgecini kaldır/ }));
+    expect(nav.replace.mock.calls.at(-1)![0]).toBe("/urunler?para=TRY");
+  });
+});
+
+describe("ProductFilters — Konum ve Kategori grupları", () => {
+  const railFacets: ProductFacets = { ...facets, attributes: [], categories: [{ id: "31000000", name: "Makine", level: 1, count: 3 }] };
+
+  it("arayüz testi D-321: yalnız 'Yakınımda' seçiliyken Konum grubunda sayaç ve Temizle var", () => {
+    nav.search = "yakin=istanbul&mesafe=100";
+    nav.replace.mockClear();
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ProductFilters facets={railFacets} />
+      </FilterShell>,
+    );
+    const legend = screen.getByText("Konum").closest("legend")!;
+    expect(legend.textContent).toContain("(1)");
+    const group = legend.closest("fieldset")!;
+    fireEvent.click(Array.from(group.querySelectorAll("button")).find((b) => b.textContent === "Temizle")!);
+    expect(nav.replace.mock.calls.at(-1)![0]).toBe("/urunler");
+  });
+
+  it("arayüz testi D-320: listede olmayan seçili kategori satırına tıklayınca seçim kalkar", () => {
+    nav.search = "kategori=31160000";
+    nav.replace.mockClear();
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ProductFilters facets={railFacets} />
+      </FilterShell>,
+    );
+    const radio = document.getElementById("f-cat-31160000") as HTMLInputElement;
+    expect(radio.checked).toBe(true);
+    fireEvent.click(radio);
+    expect(nav.replace.mock.calls.at(-1)![0]).toBe("/urunler");
+  });
+
+  it("arayüz testi D-320: listedeki seçili kategoriye yeniden tıklamak da seçimi kaldırır", () => {
+    nav.search = "kategori=31000000";
+    nav.replace.mockClear();
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ProductFilters facets={railFacets} />
+      </FilterShell>,
+    );
+    fireEvent.click(document.getElementById("f-cat-31000000")!);
+    expect(nav.replace.mock.calls.at(-1)![0]).toBe("/urunler");
   });
 });

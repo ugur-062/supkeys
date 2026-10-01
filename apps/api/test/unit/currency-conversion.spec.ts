@@ -195,6 +195,28 @@ describe("ürün dizini — kurla çevrilmiş süzgeç/sıralama/histogram", () 
     expect(h.min).toBe(100);
     expect(h.max).toBe(10_000);
   });
+
+  it("arayüz testi O-016: USD'de çubuk sayısı = tıklama süzgecinin sonucu (1'in altı ilk kovaya YIĞILMAZ)", () => {
+    setFxRates({ USD: 40 });
+    const row = (base: number): ProductFacetRow => ({
+      categoryId: "39121000",
+      priceMode: "FIXED",
+      priceAmountBase: base,
+      company: { city: null, activities: [] },
+    });
+    // 0,1 $ – 250 $ arası; çoğu 1 $'ın altında ya da 1–2 $ bandında.
+    const usd = [0.1, 0.2, 0.3, 0.5, 0.8, 0.9, 1, 1.2, 1.5, 1.8, 2, 2.5, 3, 4, 6, 9, 15, 30, 80, 250];
+    const rows = usd.map((u) => row(u * 40));
+    const h = priceHistogram(rows, "USD")!;
+    expect(h.min).toBe(0);
+    expect(h.max).toBe(250);
+    for (const b of h.buckets) {
+      // `productIndexWhere`: gte from·kur, lte to·kur (kapalı aralık, TRY tabanında).
+      const listed = rows.filter((r) => r.priceAmountBase! >= b.from * 40 && r.priceAmountBase! <= b.to * 40).length;
+      expect(b.count).toBe(listed);
+    }
+    expect(h.buckets.reduce((a, b) => a + b.count, 0)).toBe(rows.length);
+  });
 });
 
 describe("rapor para birimi", () => {

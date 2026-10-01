@@ -269,6 +269,8 @@ export function SearchTypeahead({
             <input
               type="search"
               name="q"
+              // API arama sınırı (arayüz testi D-056).
+              maxLength={120}
               value={q}
               autoFocus={autoFocus}
               onChange={(e) => setQ(e.target.value)}

@@ -42,9 +42,16 @@ const ui = () => (
 
 const box = () => screen.getByRole("textbox", { name: /Yakınımda/ }) as HTMLInputElement;
 
+// Gerçek Next gibi: süzgeç gezinmesi yeni URL gelene dek BEKLER (kabuk o
+// sürede iyimser durumu gösterir — arayüz testi O-014). Test URL'i
+// `rerender` ile teslim ederken bekleyen gezinmeyi de bitirir.
+const inFlight: Array<() => void> = [];
+const deliver = () => inFlight.splice(0).forEach((f) => f());
+
 beforeEach(() => {
   nav.push.mockClear();
-  nav.replace.mockClear();
+  nav.replace.mockReset();
+  nav.replace.mockImplementation(() => new Promise<void>((r) => inFlight.push(r)));
   nav.search = "";
 });
 
@@ -61,6 +68,7 @@ describe("Yakınımda kutusu", () => {
     nav.search = "";
     await act(async () => {
       rerender(ui());
+      deliver();
     });
     expect(box().value).toBe("Burs");
   });

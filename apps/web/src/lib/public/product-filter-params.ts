@@ -1,5 +1,5 @@
 import { isCompanyActivity, isCurrencyCode, isEmployeeBucketKey, isRadiusOption } from "@rothern/shared";
-import type { ProductListParams } from "./marketplace-api";
+import type { ProductFacetParams, ProductListParams } from "./marketplace-api";
 import {
   getAllParams as getAll,
   getParam as get,
@@ -75,13 +75,30 @@ export const PER_PAGE_OPTIONS = [24, 48, 96] as const;
 export type PerPage = (typeof PER_PAGE_OPTIONS)[number];
 const isPerPage = (n?: number): n is PerPage => !!n && (PER_PAGE_OPTIONS as readonly number[]).includes(n);
 
+/**
+ * API doğrulama SINIRLARI (`PublicProductQueryDto`) — ayrıştırma bunlara
+ * kırpar (arayüz testi D-056). Eskiden 130 karakterlik arama, `?sayfa=201`
+ * ya da 99 milyarlık "Max fiyat" API'den 400 alıyor ve kullanıcı sessizce
+ * "ürün bulunamadı" görüyordu — oysa 99 milyar bütün ürünleri kapsar.
+ */
+export const SEARCH_MAX_LENGTH = 120;
+export const PAGE_LIMIT = 200;
+export const PRICE_LIMIT = 1_000_000_000;
+const ATTR_PATTERN = /^[a-z0-9_]{1,40}:[^\n\r]{1,60}$/;
+const capped = (n: number | undefined, max: number) => (n == null ? undefined : Math.min(n, max));
+
 export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string): ProductFilterState {
   const cat = fixedCategory ?? get(sp, "kategori");
   const sort = get(sp, "sirala");
   const price = get(sp, "fiyat");
   const page = num(get(sp, "sayfa"));
+  // Ters aralık (min > max) yer değiştirir — sessizce boş liste vermesin (D-074).
+  let priceMin = capped(num(get(sp, "fiyatMin")), PRICE_LIMIT);
+  let priceMax = capped(num(get(sp, "fiyatMax")), PRICE_LIMIT);
+  if (priceMin != null && priceMax != null && priceMin > priceMax) [priceMin, priceMax] = [priceMax, priceMin];
+  const moqMax = capped(num(get(sp, "moqMax")), PRICE_LIMIT);
   return {
-    q: get(sp, "q")?.trim() || undefined,
+    q: get(sp, "q")?.trim().slice(0, SEARCH_MAX_LENGTH).trim() || undefined,
     category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
     cities: list(get(sp, "sehir") ?? get(sp, "il")),
     countries: list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
@@ -89,21 +106,22 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     verified: get(sp, "dogrulanmis") === "1",
     price: price === "var" || price === "teklif" ? price : undefined,
     currency: isCurrencyCode(get(sp, "para")?.toUpperCase()) ? get(sp, "para")!.toUpperCase() : undefined,
-    priceMin: num(get(sp, "fiyatMin")),
-    priceMax: num(get(sp, "fiyatMax")),
+    priceMin,
+    priceMax,
     priceUnpriced: get(sp, "fiyatsizDahil") === "1",
-    moqMax: num(get(sp, "moqMax")),
+    // API en az 1 ister; 0 "tavan yok" demek değil, geçersiz.
+    moqMax: moqMax && moqMax >= 1 ? moqMax : undefined,
     certs: list(get(sp, "sertifika")),
     // Bilinmeyen kova anahtarı düşer — URL elle düzenlenmiş olabilir.
     employees: list(get(sp, "calisan")).map(Number).filter(isEmployeeBucketKey),
     // İkisi birlikte anlamlı: yalnız biri varsa süzgeç uygulanmaz (ve URL'e
     // de yazılmaz) — yarım bir kısıt listeyi sessizce boşaltırdı.
-    near: get(sp, "yakin")?.trim() || undefined,
+    near: get(sp, "yakin")?.trim().slice(0, 40) || undefined,
     radius: isRadiusOption(num(get(sp, "mesafe")) ?? 0) ? num(get(sp, "mesafe")) : undefined,
     fastReply: get(sp, "hizli") === "1",
     sort: sort === "yeni" || sort === "fiyat" || sort === "fiyat-azalan" ? sort : undefined,
-    attrs: getAll(sp, "nitelik").filter((a) => a.includes(":")).slice(0, 6),
-    page: page && page > 1 ? page : 1,
+    attrs: getAll(sp, "nitelik").filter((a) => ATTR_PATTERN.test(a)).slice(0, 6),
+    page: page && page > 1 ? Math.min(page, PAGE_LIMIT) : 1,
     perPage: isPerPage(num(get(sp, "adet"))) ? (num(get(sp, "adet")) as PerPage) : undefined,
     view: get(sp, "gorunum") === "liste" ? "liste" : undefined,
   };
@@ -143,6 +161,31 @@ export function toProductListParams(
   };
 }
 
+/**
+ * Liste parametreleri → facet (sayaç) parametreleri — TEK yardımcı (arayüz
+ * testi O-080). Herkese açık dizin 2026-09-27'de ülke/Yakınımda/sertifika/
+ * çalışan/hızlı yanıtı eklemişti, panelin iki kopyası atlanmıştı: liste 47
+ * ürün gösterirken ray "Doğrulanmış 161" diyordu. Fiyat aralığı, MOQ ve
+ * nitelik bilerek YOK (bkz. `ProductFacetParams`).
+ */
+export function toProductFacetParams(p: ProductListParams): ProductFacetParams {
+  return {
+    category: p.category,
+    q: p.q,
+    city: p.city,
+    country: p.country,
+    activity: p.activity,
+    verified: p.verified,
+    price: p.price,
+    cert: p.cert,
+    employees: p.employees,
+    near: p.near,
+    radius: p.radius,
+    fastReply: p.fastReply,
+    currency: p.currency,
+  };
+}
+
 /** Durum → URL sorgusu ("?..." ya da ""). Sayfa 1 ve boş alanlar yazılmaz. */
 export function buildProductFilterQuery(f: ProductFilterState): string {
   const sp = new URLSearchParams();
@@ -156,7 +199,9 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.currency) sp.set("para", f.currency);
   if (f.priceMin != null) sp.set("fiyatMin", String(f.priceMin));
   if (f.priceMax != null) sp.set("fiyatMax", String(f.priceMax));
-  if (f.priceUnpriced) sp.set("fiyatsizDahil", "1");
+  // Bayrak yalnız ARALIKLA anlamlı — aralık kalkınca URL'de görünmez artık
+  // olarak kalıyordu (arayüz testi D-232).
+  if (f.priceUnpriced && (f.priceMin != null || f.priceMax != null)) sp.set("fiyatsizDahil", "1");
   if (f.moqMax != null) sp.set("moqMax", String(f.moqMax));
   if (f.certs.length) sp.set("sertifika", f.certs.join(","));
   if (f.employees.length) sp.set("calisan", f.employees.join(","));

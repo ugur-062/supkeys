@@ -5,6 +5,7 @@ import { avatarInitials, avatarHash, AVATAR_PASTELS } from "@/lib/avatar-utils";
 import { Avatar } from "../avatar";
 import { Badge } from "../badge";
 import { Breadcrumb } from "../breadcrumb";
+import { Chip } from "../chip";
 import { pageSlots } from "../pagination";
 
 describe("pageSlots — 7 yuva", () => {
@@ -62,5 +63,23 @@ describe("Badge / Breadcrumb", () => {
     render(<Breadcrumb items={[{ label: "Anasayfa", href: "/" }, { label: "Ürünler", href: "/urunler" }, { label: "Pano" }]} />);
     expect(screen.getByText("Pano").getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Ürünler" }).getAttribute("href")).toBe("/urunler");
+  });
+});
+
+describe("Chip — dar ekranda uzun etiket (arayüz testi O-114)", () => {
+  it("çip kapsayıcıyı aşamaz, metin kısalır ve tam ad `title`da; × düğmesi küçülmez", () => {
+    const long = "Elektrik Sistemleri, Aydınlatma, Bileşenleri ve Aksesuarları ile Elektrik Malzemeleri";
+    render(
+      <Chip onRemove={() => {}} removeLabel="kaldır">
+        {long}
+      </Chip>,
+    );
+    const label = screen.getByText(long);
+    expect(label.className).toContain("truncate");
+    expect(label.getAttribute("title")).toBe(long);
+    const chip = label.parentElement!;
+    expect(chip.className).toContain("max-w-full");
+    expect(chip.className).toContain("min-w-0");
+    expect(screen.getByRole("button", { name: "kaldır" }).className).toContain("shrink-0");
   });
 });

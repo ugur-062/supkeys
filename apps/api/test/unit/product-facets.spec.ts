@@ -2,6 +2,7 @@ import {
   contextualFacetCounts,
   employeeValuesFor,
   priceHistogram,
+  productIndexWhere,
   type ProductFacetRow,
 } from "../../src/common/company/product-index";
 import { FAST_REPLY_HOURS, medianFirstReplyHours, roundReplyHours } from "../../src/common/company/reply-time";
@@ -162,6 +163,42 @@ describe("priceHistogram", () => {
     expect(h.quantiles.p33).toBeLessThan(h.quantiles.p66);
     expect(h.quantiles.p66).toBeLessThan(h.max);
     expect(h.quantiles.p66).toBeLessThan(1000);
+  });
+
+  it("arayüz testi O-016: her çubuğun sayısı = o çubuğa tıklayınca gelen liste (aykırı uçlar dahil)", () => {
+    // p5–p95 dışındaki uçlar: eskiden ilk/son kovaya sayılıyor ama kovanın
+    // sınırı kırpılmış aralıkta kalıyordu ("16 ürün" → 12 ürün).
+    const prices = [1.5, 3, 9, 9.5, 12, 14, 17, 18, 20, 25, 33, 40, 55, 70, 90, 120, 140, 200, 300, 5_000, 80_000];
+    const rows = prices.map((p) => row({ priceAmount: p }));
+    const h = priceHistogram(rows)!;
+    expect(h.min).toBe(1);
+    expect(h.max).toBe(80_000);
+    const where = (from: number, to: number) => productIndexWhere({ priceMin: from, priceMax: to });
+    for (const b of h.buckets) {
+      // Süzgeç kapalı aralık: `productIndexWhere` aynı sınırları gte/lte yazar.
+      expect(JSON.stringify(where(b.from, b.to))).toContain(`"gte":${b.from}`);
+      expect(JSON.stringify(where(b.from, b.to))).toContain(`"lte":${b.to}`);
+      const listed = prices.filter((p) => p >= b.from && p <= b.to).length;
+      expect(b.count).toBe(listed);
+    }
+    // Sınırlar artan, tam sayı; hiçbir ürün iki çubukta sayılmaz.
+    expect(h.buckets.every((b, i) => Number.isInteger(b.from) && b.to > b.from && (i === 0 || b.from === h.buckets[i - 1]!.to))).toBe(true);
+    expect(h.buckets.reduce((a, b) => a + b.count, 0)).toBe(prices.length);
+  });
+
+  it("arayüz testi D-074: ters aralık (min > max) yer değiştirir, boş liste vermez", () => {
+    const json = JSON.stringify(productIndexWhere({ priceMin: 5000, priceMax: 100 }));
+    expect(json).toContain('"gte":100');
+    expect(json).toContain('"lte":5000');
+  });
+
+  it("iç kova sınırına TAM denk gelen fiyat iki çubukta birden sayılmaz", () => {
+    // 100..290 (10'ar) dizisinde log sınırlarından biri 140'a yuvarlanıyor.
+    const prices = [...Array(20)].map((_, i) => 100 + i * 10);
+    const h = priceHistogram(prices.map((p) => row({ priceAmount: p })))!;
+    const inner = h.buckets.slice(1).map((b) => b.from);
+    expect(inner.some((e) => prices.includes(e))).toBe(false);
+    expect(h.buckets.reduce((a, b) => a + b.count, 0)).toBe(prices.length);
   });
 
   it("fiyatsız (ON_REQUEST) ürünler histograma girmez", () => {

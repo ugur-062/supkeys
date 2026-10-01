@@ -36,7 +36,9 @@ export function Chip({
 }) {
   const t = useTranslations("web.shared.ui");
   const base = cn(
-    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition",
+    // `max-w-full min-w-0`: uzun etiket kapsayıcıyı taşırmasın, içteki
+    // `truncate` çalışsın (arayüz testi O-114: mobilde × ekran dışına düşüyordu).
+    "inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition",
     selected
       ? "border-zinc-950 bg-zinc-950 text-white"
       : "border-zinc-300 bg-white text-zinc-800 hover:border-zinc-500",
@@ -45,7 +47,9 @@ export function Chip({
   );
   const inner = (
     <>
-      <span className="truncate">{children}</span>
+      <span className="min-w-0 truncate" title={typeof children === "string" ? children : undefined}>
+        {children}
+      </span>
       {count != null ? (
         <span className={cn("tnum text-xs", selected ? "text-zinc-300" : "text-zinc-500")}>{count}</span>
       ) : null}
@@ -60,7 +64,7 @@ export function Chip({
           onClick={onRemove}
           aria-label={removeLabel ?? t("remove")}
           className={cn(
-            "-mr-1.5 flex size-5 items-center justify-center rounded-full",
+            "-mr-1.5 flex size-5 shrink-0 items-center justify-center rounded-full",
             selected ? "hover:bg-white/15" : "hover:bg-zinc-100",
           )}
         >

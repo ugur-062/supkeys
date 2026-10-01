@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeFilterCount, buildProductFilterQuery, clearProductFilters, parseProductFilters, productSearchCarry, toProductListParams } from "./product-filter-params";
+import { activeFilterCount, buildProductFilterQuery, clearProductFilters, parseProductFilters, productSearchCarry, toProductFacetParams, toProductListParams } from "./product-filter-params";
 
 describe("ürün süzgeç URL şeması", () => {
   it("Türkçe sorguyu ayrıştırır: çoklu şehir/faaliyet, aralık, sıralama", () => {
@@ -100,5 +100,41 @@ describe("ürün süzgeç URL şeması", () => {
     const f = parseProductFilters({ fiyatsizDahil: "1" });
     expect(f.priceUnpriced).toBe(true);
     expect(activeFilterCount(f)).toBe(0);
+  });
+
+  it("arayüz testi D-232: aralık yokken 'fiyatsızlar dahil' URL'e yazılmaz", () => {
+    const f = parseProductFilters({ fiyatMin: "10", fiyatMax: "50", fiyatsizDahil: "1" });
+    expect(buildProductFilterQuery(f)).toContain("fiyatsizDahil=1");
+    expect(buildProductFilterQuery({ ...f, priceMin: undefined, priceMax: undefined })).toBe("");
+  });
+
+  it("arayüz testi D-074: ters fiyat aralığı yer değiştirir", () => {
+    expect(parseProductFilters({ fiyatMin: "5000", fiyatMax: "100" })).toMatchObject({ priceMin: 100, priceMax: 5000 });
+  });
+
+  it("arayüz testi D-056: değerler API doğrulama sınırlarına kırpılır (400 → sessiz boş liste olmasın)", () => {
+    const f = parseProductFilters({
+      q: "a".repeat(130),
+      sayfa: "201",
+      fiyatMax: "99999999999",
+      moqMax: "0",
+      yakin: "x".repeat(60),
+      nitelik: ["Malzeme:Celik", `a:${"b".repeat(70)}`, "malzeme:Çelik"],
+    });
+    expect(f.q).toHaveLength(120);
+    expect(f.page).toBe(200);
+    expect(f.priceMax).toBe(1_000_000_000);
+    expect(f.moqMax).toBeUndefined();
+    expect(f.near).toHaveLength(40);
+    expect(f.attrs).toEqual(["malzeme:Çelik"]);
+  });
+
+  it("arayüz testi O-080: sayaç parametreleri listeyle aynı süzgeçleri taşır (tek yardımcı)", () => {
+    const f = parseProductFilters({ sertifika: "ISO 9001", calisan: "10", hizli: "1", yakin: "izmir", mesafe: "50", ulke: "DE,IT", fiyatMin: "10", moqMax: "100" });
+    const facet = toProductFacetParams(toProductListParams(f));
+    expect(facet).toMatchObject({ cert: "ISO 9001", employees: "10", fastReply: true, near: "izmir", radius: 50, country: "DE,IT" });
+    // Aralık ve MOQ bilerek facet'e gitmez (kenar önbelleği anahtarı).
+    expect(facet).not.toHaveProperty("priceMin");
+    expect(facet).not.toHaveProperty("moqMax");
   });
 });

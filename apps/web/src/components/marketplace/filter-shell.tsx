@@ -7,7 +7,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/20/solid";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import {
   activeFilterCount,
   buildProductFilterQuery,
@@ -32,7 +32,12 @@ import {
  */
 interface Ctx<S> {
   state: S;
-  update: (patch: Partial<S> | ((s: S) => S)) => void;
+  /**
+   * `opts.replace`: geçmişe YAZMADAN değiştir — kullanıcının değil sistemin
+   * yaptığı değişim için (kayıtlı görünüm tercihini URL'e taşımak gibi);
+   * yoksa "geri" tuşu kullanıcıyı tercihsiz adrese atıp aynı yere döndürürdü.
+   */
+  update: (patch: Partial<S> | ((s: S) => S), opts?: { replace?: boolean }) => void;
   clear: () => void;
   isPending: boolean;
   total: number;
@@ -111,25 +116,51 @@ export function FilterShellCore<S extends { page: number }>({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   /**
+   * BEKLEYEN DURUM (arayüz testi O-014). Süzgeç yazımı bir GEÇİŞ: URL ve
+   * dolayısıyla `state`, sunucu yanıtı gelene dek ESKİ kalır. Eskiden ikinci
+   * tık da eski URL'den kuruluyordu — "Üretici"yi işaretleyip 150 ms sonra
+   * "Distribütör"ü işaretleyen kullanıcının ilk seçimi sessizce düşüyordu.
+   * Gönderilen son durum ref'te tutulur (art arda gelen olaylar render
+   * beklemeden okur), sonraki güncellemeler onun üstüne kurulur ve kutucuklar
+   * da onu gösterir (iyimser). Geçiş bitince (URL yetişti ya da gezinme
+   * başka yerde sonlandı) yeniden URL kaynak olur.
+   */
+  const pendingRef = useRef<S | null>(null);
+  const [pending, setPending] = useState<S | null>(null);
+  useEffect(() => {
+    if (!isPending && pendingRef.current) {
+      pendingRef.current = null;
+      setPending(null);
+    }
+  }, [isPending]);
+
+  /**
    * SÜZGEÇ değişimi `replace` (her tık geçmişe girmesin — "geri" tuşu on
    * kutucuk geri gitmemeli), SAYFA değişimi `push` (2. sayfadan "geri"
    * 1. sayfaya dönmeli). İkisi de `scroll: false`: konumu sayfalama
    * kendi yönetir, süzgeçte sayfa başına zıplamak istenmiyor.
    */
-  const navigate = (next: S, mode: "replace" | "push" = "replace") =>
+  const navigate = (next: S, mode: "replace" | "push" = "replace") => {
+    pendingRef.current = next;
+    setPending(next);
     startTransition(() => router[mode](toUrl(next), { scroll: false }));
-  const update: Ctx<S>["update"] = (patch) => {
-    const next = typeof patch === "function" ? patch(state) : { ...state, ...patch };
+  };
+  const update: Ctx<S>["update"] = (patch, opts) => {
+    const base = pendingRef.current ?? state;
+    const next = typeof patch === "function" ? patch(base) : { ...base, ...patch };
     // Süzgeç değişince 1. sayfaya dönülür; sayfa YALNIZ açıkça istenince
     // korunur (eskiden `update({ page })` da 1'e düşüyordu — panel ürün
     // dizininde "Sonraki" çalışmıyordu).
-    const explicitPage = typeof patch === "function" ? next.page !== state.page : "page" in patch;
-    navigate(explicitPage ? next : { ...next, page: 1 }, explicitPage || pushFilters ? "push" : "replace");
+    const explicitPage = typeof patch === "function" ? next.page !== base.page : "page" in patch;
+    navigate(
+      explicitPage ? next : { ...next, page: 1 },
+      !opts?.replace && (explicitPage || pushFilters) ? "push" : "replace",
+    );
   };
-  const clear = () => navigate(clearState(state));
+  const clear = () => navigate(clearState(pendingRef.current ?? state));
 
   const value: Ctx<S> = {
-    state,
+    state: pending ?? state,
     update,
     clear,
     isPending,

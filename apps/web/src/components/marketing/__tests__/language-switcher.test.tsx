@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -33,5 +33,17 @@ describe("LanguageSwitcher (inline)", () => {
     const button = screen.getByRole("button", { name: /Dil|Language/ });
     expect(button).toHaveAttribute("aria-haspopup", "menu");
     expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("arayüz testi D-055: aynı yolda değişen sorgu (süzgeç/sıralama) etkileşim anında bağlantıya girer", () => {
+    window.history.replaceState(null, "", "/hakkimizda");
+    render(<LanguageSwitcher variant="inline" />);
+    const english = screen.getByRole("link", { name: "English" });
+    expect(english.getAttribute("href")).toBe("/hakkimizda");
+    // Süzgeç `router.replace` ile yalnız sorguyu değiştirir — yol aynı kalır.
+    window.history.replaceState(null, "", "/hakkimizda?sirala=yeni");
+    fireEvent.pointerDown(english);
+    expect(screen.getByRole("link", { name: "English" }).getAttribute("href")).toBe("/hakkimizda?sirala=yeni");
+    window.history.replaceState(null, "", "/");
   });
 });

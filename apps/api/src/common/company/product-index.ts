@@ -269,6 +269,12 @@ export function productIndexWhere(
   const certs = multi(q.cert);
   const employeeKeys = employeeKeysOf(q.employees);
   const near = nearCityIds(q);
+  // Ters aralık (min > max) yer değiştirir — eskiden sessizce 0 ürün dönüyordu
+  // (arayüz testi D-074; web ayrıştırıcısı da aynı kuralı uygular).
+  const [priceMin, priceMax] =
+    q.priceMin != null && q.priceMax != null && q.priceMin > q.priceMax
+      ? [q.priceMax, q.priceMin]
+      : [q.priceMin, q.priceMax];
   const and: Prisma.CompanyItemWhereInput[] = [
     ...productSearchClauses(q.q),
     // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
@@ -304,14 +310,14 @@ export function productIndexWhere(
     // düşük kademe) karşılaştırılır. Eskiden ham `priceAmount` para birimine
     // bakmadan kıyaslanıyordu: "en çok 500" diyen Alman alıcıya 450 EUR'luk
     // ürünle 490 TRY'lik ürün karışıyordu.
-    ...(q.priceMin != null || q.priceMax != null
+    ...(priceMin != null || priceMax != null
       ? [
           {
             OR: [
               {
                 priceAmountBase: {
-                  ...(q.priceMin != null ? { gte: q.priceMin * currencyRate(q.currency) } : {}),
-                  ...(q.priceMax != null ? { lte: q.priceMax * currencyRate(q.currency) } : {}),
+                  ...(priceMin != null ? { gte: priceMin * currencyRate(q.currency) } : {}),
+                  ...(priceMax != null ? { lte: priceMax * currencyRate(q.currency) } : {}),
                 },
               },
               ...(q.priceUnpriced ? [{ priceMode: "ON_REQUEST" as const }] : []),
@@ -532,33 +538,55 @@ export function priceHistogram(rows: ProductFacetRow[], currency?: string): {
   buckets: { from: number; to: number; count: number }[];
 } | null {
   const rate = currencyRate(currency);
-  const prices = rows
-    .map((r) => (r.priceAmountBase != null ? r.priceAmountBase / rate : null))
-    .filter((p): p is number => p != null && p > 0)
+  const bases = rows
+    .map((r) => r.priceAmountBase)
+    .filter((b): b is number => b != null && b > 0)
     .sort((a, b) => a - b);
+  const prices = bases.map((b) => b / rate);
   if (prices.length < 2) return null;
   const at = (q: number) => prices[Math.min(prices.length - 1, Math.max(0, Math.round(q * (prices.length - 1))))]!;
   const lo = Math.max(1, at(0.05));
   const hi = at(0.95);
   if (!(hi > lo)) return null;
-  // Log ölçek: kova sınırları lo·(hi/lo)^(i/n).
+  /*
+   * KOVA = TIKLAMA SÜZGECİ (arayüz testi O-016). Çubuğa tıklamak
+   * `priceMin=from&priceMax=to` gönderir ve liste `productIndexWhere`'in
+   * KAPALI aralığıyla (`from·kur ≤ taban ≤ to·kur`) süzülür; çubuğun sayısı
+   * da TAM bu kuralla sayılır. Eskiden p5–p95 dışındaki fiyatlar ilk/son
+   * kovaya sayılıyor ama kova sınırı kırpılmış aralıkta kalıyordu ("16 ürün"
+   * yazan çubuk 12 ürün getiriyordu); USD/EUR'da 1'in altındaki her fiyat
+   * ilk kovaya yığılıyordu. Şimdi:
+   *  · iç sınırlar log ölçekte p5–p95 arasında (okunur dağılım), TAM SAYI
+   *    (URL ve API tam sayı alır);
+   *  · dış sınırlar GERÇEK uçlara genişler (⌊min⌋ … ⌈max⌉);
+   *  · bir fiyat iç sınıra TAM denk gelirse sınır bir kaydırılır — kapalı
+   *    aralıkta o ürün iki çubukta birden sayılırdı.
+   */
   const ratio = Math.log(hi / lo) / PRICE_HISTOGRAM_BUCKETS;
-  const edge = (i: number) => lo * Math.exp(ratio * i);
-  const buckets = Array.from({ length: PRICE_HISTOGRAM_BUCKETS }, (_, i) => ({
-    from: Math.round(edge(i)),
-    to: Math.round(edge(i + 1)),
-    count: 0,
-  }));
-  for (const p of prices) {
-    const i = Math.min(
-      PRICE_HISTOGRAM_BUCKETS - 1,
-      Math.max(0, Math.floor(Math.log(p / lo) / ratio)),
-    );
-    buckets[i]!.count++;
+  const baseSet = new Set(bases);
+  const onEdge = (e: number) => baseSet.has(e * rate);
+  const first = Math.floor(prices[0]! + 1e-9);
+  const last = Math.ceil(prices[prices.length - 1]! - 1e-9);
+  const edges = [first];
+  for (let i = 1; i < PRICE_HISTOGRAM_BUCKETS; i++) {
+    const prev = edges[edges.length - 1]!;
+    const ideal = Math.round(lo * Math.exp(ratio * i));
+    let e = ideal;
+    for (const d of [1, -1, 2, -2, 3, -3]) {
+      if (!onEdge(e)) break;
+      e = ideal + d;
+    }
+    if (e > prev && e < last) edges.push(e);
   }
+  edges.push(last);
+  const buckets = edges.slice(0, -1).map((from, i) => {
+    const to = edges[i + 1]!;
+    const count = bases.filter((b) => b >= from * rate && b <= to * rate).length;
+    return { from, to, count };
+  });
   return {
-    min: Math.round(prices[0]!),
-    max: Math.round(prices[prices.length - 1]!),
+    min: first,
+    max: last,
     quantiles: { p33: Math.round(at(1 / 3)), p66: Math.round(at(2 / 3)) },
     buckets,
   };

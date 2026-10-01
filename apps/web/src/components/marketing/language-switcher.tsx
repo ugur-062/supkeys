@@ -34,6 +34,15 @@ export function LanguageSwitcher({
   const pathname = usePathname();
   const t = useTranslations("web.marketing.nav");
   const [search, setSearch] = useState("");
+  // Sorgu YALNIZ yol değişince okunuyordu: süzgeç/sıralama aynı yolda URL'yi
+  // değiştirince (router.replace/push) bağlantı bayat kalıyor, dil geçişi
+  // süzgeçleri düşürüyordu (arayüz testi D-055). Etkileşim anında (menü
+  // açılırken, bağlantıya basılırken/odaklanırken) yeniden okunur — ayrık
+  // olayda React güncellemeyi tıklamadan ÖNCE işler.
+  const refresh = () => {
+    const next = window.location.search;
+    setSearch((prev) => (prev === next ? prev : next));
+  };
   useEffect(() => {
     setSearch(window.location.search);
   }, [pathname]);
@@ -41,7 +50,12 @@ export function LanguageSwitcher({
 
   if (variant === "inline") {
     return (
-      <nav aria-label={t("language")} className={cn("flex flex-wrap items-center gap-x-4 gap-y-1", className)}>
+      <nav
+        aria-label={t("language")}
+        onPointerDownCapture={refresh}
+        onFocusCapture={refresh}
+        className={cn("flex flex-wrap items-center gap-x-4 gap-y-1", className)}
+      >
         {LOCALES.map((code) => (
           <Link
             key={code}
@@ -66,6 +80,9 @@ export function LanguageSwitcher({
     <Menu as="div" className={cn("relative", className)}>
       <MenuButton
         aria-label={t("language")}
+        onPointerDown={refresh}
+        onKeyDown={refresh}
+        onFocus={refresh}
         className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 data-open:bg-zinc-100"
       >
         <GlobeAltIcon aria-hidden className="size-5" />

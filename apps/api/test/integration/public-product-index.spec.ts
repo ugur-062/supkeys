@@ -518,7 +518,9 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
       const f = await service().productFacets({ currency: "EUR" });
       expect(f.currency).toBe("EUR");
       expect(f.priceHistogram!.max).toBe(450);
-      expect(f.priceHistogram!.min).toBe(10);
+      // 490 TRY ≈ 9,8 EUR: alt uç AŞAĞI yuvarlanır (arayüz testi O-016) — ilk
+      // çubuğun `priceMin`i en ucuz ürünü de kapsamalı (eskiden 10, 9,8'i dışarıda bırakıyordu).
+      expect(f.priceHistogram!.min).toBe(9);
     } finally {
       resetFxRates();
     }

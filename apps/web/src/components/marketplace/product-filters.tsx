@@ -4,13 +4,13 @@ import { countryDisplayName, useActivityLabel, useCityLabel } from "@/i18n/domai
 import type { Locale } from "@rothern/i18n";
 import { citySlug, foldSearchText } from "@rothern/shared";
 import { searchGeoCities, type GeoCity } from "@/lib/public/geo-client";
-import { useGeoCityName } from "./use-geo-city-name";
+import { useGeoCityName, useGeoCityNames } from "./use-geo-city-name";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { useFilterAccent, useFilters } from "./filter-shell";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
-import { activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
+import { PRICE_LIMIT, activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
 import { readViewPreference, writeViewPreference } from "@/lib/public/view-preference";
 import { ListBulletIcon, MagnifyingGlassIcon, Squares2X2Icon, XMarkIcon } from "@heroicons/react/20/solid";
 import {
@@ -248,7 +248,15 @@ function LocationGroup({
     .filter((c) => !q || fold(c.city).includes(fold(q)) || fold(label(c)).includes(fold(q)) || state.cities.includes(c.city))
     .map((c) => ({ key: c.city, label: label(c), count: c.count }));
   return (
-    <Group title={t("location")} icon={<MapPin className="size-4" />} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
+    // "Yakınımda" da bu grubun süzgeci (arayüz testi D-321): yalnız o seçiliyken
+    // başlıkta sayaç ve "Temizle" yoktu.
+    <Group
+      title={t("location")}
+      icon={<MapPin className="size-4" />}
+      count={state.cities.length + (state.near && state.radius ? 1 : 0)}
+      onClear={() => update({ cities: [], near: undefined, radius: undefined })}
+      storageKey="sehir"
+    >
       {facets.cities.length > SHOW ? (
         <FilterSearch id={`${idPrefix}-city-q`} value={q} onChange={setQ} placeholder={t("citySearch")} />
       ) : null}
@@ -377,7 +385,7 @@ function NearbyControls({
         <p className="mt-1 text-[11px] text-amber-700">{t("nearNotFound")}</p>
       ) : null}
       <label className="mt-2 block text-[11px] text-zinc-500" htmlFor={`${idPrefix}-radius`}>
-        {t("radius")} <span className="tnum font-medium text-zinc-700">{radius} km</span>
+        {t("radius")} <span className="tnum font-medium text-zinc-700">{t("radiusKm", { radius })}</span>
       </label>
       <input
         id={`${idPrefix}-radius`}
@@ -584,7 +592,17 @@ function CategoryGroup({
         </div>
       ) : null}
       {state.category && !items.some((c) => c.id === state.category) ? (
-        <Check id={`${idPrefix}-cat-${state.category}`} label={selectedName ?? state.category} checked onChange={() => update({ category: undefined, attrs: [] })} type="radio" name={`${idPrefix}-cat`} />
+        // İşaretli radyoya tıklamak `change` üretmez — kaldırma `onUncheck`
+        // ile (arayüz testi D-320: satır tıklanınca hiçbir şey olmuyordu).
+        <Check
+          id={`${idPrefix}-cat-${state.category}`}
+          label={selectedName ?? state.category}
+          checked
+          onChange={() => update({ category: undefined, attrs: [] })}
+          onUncheck={() => update({ category: undefined, attrs: [] })}
+          type="radio"
+          name={`${idPrefix}-cat`}
+        />
       ) : null}
       <ShowMoreRadio
         items={items.map((c) => ({ key: c.id, label: c.name, count: c.count }))}
@@ -638,9 +656,17 @@ function PriceGroup({
   // 400 ms debounce — her tuşta sunucuya gitmesin.
   useEffect(() => {
     const t = setTimeout(() => {
-      const n = (v: string) => (v.trim() === "" ? undefined : Math.max(0, Math.trunc(Number(v))) || undefined);
-      const pm = n(min);
-      const px = n(max);
+      const n = (v: string) =>
+        v.trim() === "" ? undefined : Math.min(PRICE_LIMIT, Math.max(0, Math.trunc(Number(v)))) || undefined;
+      let pm = n(min);
+      let px = n(max);
+      // Ters aralık (min > max) sessizce boş liste veriyordu (arayüz testi
+      // D-074): sınırlar yer değiştirir, kutular da yeni sırayı gösterir.
+      if (pm != null && px != null && pm > px) {
+        [pm, px] = [px, pm];
+        setMin(String(pm));
+        setMax(String(px));
+      }
       if (pm !== state.priceMin || px !== state.priceMax) setRange(pm, px);
     }, 400);
     return () => clearTimeout(t);
@@ -661,7 +687,7 @@ function PriceGroup({
         <span>{t("currency")}</span>
         <select
           value={currency}
-          onChange={(e) => update({ currency: e.target.value, priceMin: undefined, priceMax: undefined })}
+          onChange={(e) => update({ currency: e.target.value, priceMin: undefined, priceMax: undefined, priceUnpriced: false })}
           className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
         >
           {CURRENCIES.map((c) => (
@@ -712,11 +738,11 @@ function PriceGroup({
       <div className="mb-2 grid grid-cols-2 gap-2 px-2">
         <label className="text-xs text-zinc-500">
           {t("minCurrency", { currency: sym })}
-          <input inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ""))} placeholder="0" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
+          <input inputMode="numeric" maxLength={10} value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ""))} placeholder="0" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
         </label>
         <label className="text-xs text-zinc-500">
           {t("maxCurrency", { currency: sym })}
-          <input inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))} placeholder="∞" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
+          <input inputMode="numeric" maxLength={10} value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))} placeholder="∞" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
         </label>
       </div>
 
@@ -772,13 +798,14 @@ export function presetRanges(hist: {
 /** Aktif süzgeç çipleri — sticky şerit (grid'in üstünde). */
 export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   const t = useTranslations("web.marketplace.filters");
-  const cityLabel = useCityLabel();
   const chipLocale = useLocale() as Locale;
-  const { state: chipState } = useFilters();
-  const nearName = useGeoCityName(chipState.near);
+  const { state, update, clear } = useFilters();
+  const nearName = useGeoCityName(state.near);
+  // Şehir adı: facet'te yoksa (daraltılmış liste) Türk il listesi ya da
+  // API'den — çipte ham adres ("istanbul") yazıyordu (arayüz testi D-317).
+  const cityNames = useGeoCityNames(state.cities, (c) => facets.cities.find((f) => f.city === c)?.name);
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
-  const { state, update, clear } = useFilters();
   const chips: FilterChip[] = [];
   if (state.category)
     chips.push({
@@ -792,8 +819,7 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
       onRemove: () => update({ category: undefined, attrs: [] }),
     });
   for (const c of state.cities) {
-    const known = facets.cities.find((f) => f.city === c)?.name;
-    chips.push({ key: `c:${c}`, label: known ?? cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+    chips.push({ key: `c:${c}`, label: cityNames[c] ?? c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   }
   for (const c of state.countries) chips.push({ key: `u:${c}`, label: countryDisplayName(c, chipLocale), onRemove: () => update((s) => ({ ...s, countries: s.countries.filter((x) => x !== c) })) });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
@@ -805,16 +831,20 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
     chips.push({
       key: "pr",
       label: `${price(state.priceMin ?? 0)} – ${state.priceMax != null ? price(state.priceMax) : "∞"}`,
-      onRemove: () => update({ priceMin: undefined, priceMax: undefined }),
+      // Aralıkla birlikte "fiyatsızlar dahil" de gider (arayüz testi D-232):
+      // bayrak yalnız aralıkla anlamlı, URL'de görünmez biçimde kalıyordu.
+      onRemove: () => update({ priceMin: undefined, priceMax: undefined, priceUnpriced: false }),
     });
   }
   if (state.moqMax != null) chips.push({ key: "moq", label: t("moqChip", { n: fmt.number(state.moqMax) }), onRemove: () => update({ moqMax: undefined }) });
-  for (const c of state.certs) chips.push({ key: `cert:${c}`, label: c, onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
+  // Sertifika ve nitelik çipleri GRUP ÖNEKLİ (arayüz testi D-317): "CE"
+  // sertifikası ile "CE" nitelik değeri yan yana iki aynı çip basıyordu.
+  for (const c of state.certs) chips.push({ key: `cert:${c}`, label: t("groupChip", { group: t("certification"), value: c }), onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
   if (state.fastReply) chips.push({ key: "fast", label: t("fastReply"), onRemove: () => update({ fastReply: false }) });
   if (state.near && state.radius) {
     chips.push({
       key: "near",
-      label: `${nearName} · ${state.radius} km`,
+      label: `${nearName} · ${t("radiusKm", { radius: state.radius })}`,
       onRemove: () => update({ near: undefined, radius: undefined }),
     });
   }
@@ -825,7 +855,9 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
     const i = a.indexOf(":");
     const key = a.slice(0, i);
     const value = a.slice(i + 1);
-    return facets.attributes.find((f) => f.key === key)?.values.find((v) => v.value === value)?.label ?? value;
+    const facet = facets.attributes.find((f) => f.key === key);
+    const label = facet?.values.find((v) => v.value === value)?.label ?? value;
+    return facet ? t("groupChip", { group: facet.nameTr, value: label }) : label;
   };
   for (const a of state.attrs) chips.push({ key: `attr:${a}`, label: attrLabel(a), onRemove: () => update((s) => ({ ...s, attrs: s.attrs.filter((x) => x !== a) })) });
   return <FilterChipBar chips={chips} activeCount={activeFilterCount(state)} onClearAll={clear} />;
@@ -895,7 +927,9 @@ export function ViewPreferenceSync() {
     setDone(true);
     if (sp?.has("gorunum") || state.page !== 1) return;
     const pref = readViewPreference();
-    if (pref && pref !== state.view) update({ view: pref });
+    // Geçmişe yazılmaz: kullanıcının değil tercihin değişimi ("geri" tuşu
+    // tercihsiz adrese dönüp aynı yere geri getirmesin).
+    if (pref && pref !== state.view) update({ view: pref }, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done]);
   return null;

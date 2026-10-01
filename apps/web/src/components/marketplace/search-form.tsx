@@ -70,6 +70,8 @@ export function SearchForm({
           <input
             type="search"
             name="q"
+            // API arama sınırı (arayüz testi D-056) — aşan metin 400 alıp boş liste gösteriyordu.
+            maxLength={120}
             defaultValue={defaultValue}
             placeholder={placeholder ?? t("placeholder")}
             aria-label={t("ariaLabel")}
