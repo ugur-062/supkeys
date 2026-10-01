@@ -17,6 +17,15 @@ import {
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
+ * Token'la çalışan herkese açık ön-oturum uçları (oturum çerezi okumaz).
+ * Yol global "/api" önekiyle gelir (testlerde öneksiz) → iki uçtan sabitli.
+ */
+const PRE_SESSION_PUBLIC_PATHS: readonly RegExp[] = [
+  /^(?:\/api)?\/auth\/password-reset\/confirm$/,
+  /^(?:\/api)?\/company\/invitations\/[^/]+\/accept$/,
+];
+
+/**
  * CSRF çift-gönderim (double-submit) guard'ı. Yalnız COOKIE ile kimlik
  * doğrulanan mutating isteklerde `X-CSRF-Token` header'ı = `rk_csrf` cookie'si
  * şartını arar. Muaf:
@@ -60,6 +69,14 @@ export class CsrfGuard implements CanActivate {
       isAuthController &&
       PRE_SESSION_SUFFIXES.some((s) => path.endsWith(s))
     ) {
+      return true;
+    }
+    // Auth controller DIŞINDAKİ herkese açık ön-oturum uçları: kimliği e-posta
+    // bağlantısındaki tek kullanımlık TOKEN taşır, oturum çerezi hiç okunmaz →
+    // CSRF'in koruyacağı bir oturum yok. Bayat `rk_company` (+ `rk_csrf` yok)
+    // olan tarayıcıda şifre sıfırlama / davet kabulü 403 "CSRF doğrulaması
+    // başarısız" ile düşüyordu (arayüz testi D-349).
+    if (PRE_SESSION_PUBLIC_PATHS.some((re) => re.test(path))) {
       return true;
     }
 

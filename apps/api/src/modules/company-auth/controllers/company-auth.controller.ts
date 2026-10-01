@@ -34,7 +34,9 @@ import {
   VerifyEmailDto,
 } from "../dto/company-signup.dto";
 import { CompleteOnboardingDto, ViesCheckDto } from "../dto/onboarding.dto";
+import { RequireCompanyPermission } from "../decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../guards/company-jwt-auth.guard";
+import { CompanyPermissionsGuard } from "../guards/company-permissions.guard";
 import { CompanyAuthService } from "../services/company-auth.service";
 import { PasswordResetService } from "../../password-reset/password-reset.service";
 import { CompanyForgotPasswordDto } from "../dto/company-forgot-password.dto";
@@ -129,8 +131,12 @@ export class CompanyAuthController {
     return this.service.upgradeToPremium(user.userId, user.companyId);
   }
 
+  // Firma kaydına (audit) yazan sorgu → firma yönetim izni (arayüz testi
+  // D-187: onaylayıcı/görüntüleyici de çağırıp denetim izine satır düşürüyordu).
+  // Onboarding'i yalnız Kurucu yapar; Kurucu company:manage'ı örtük taşır.
   @Post("vies-check")
-  @UseGuards(CompanyJwtAuthGuard)
+  @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
+  @RequireCompanyPermission("company:manage")
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   viesCheck(
