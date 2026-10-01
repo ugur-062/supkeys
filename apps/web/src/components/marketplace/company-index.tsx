@@ -5,7 +5,9 @@ import { PublicSearchTabs } from "@/components/marketplace/public-search-tabs";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchPublicDirectory } from "@/lib/public/marketplace-api";
-import { loginHref, signupHref } from "@/lib/public/visibility";
+import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
+import { MEMBER_DIRECTORY_PATH } from "@/lib/public/member-gate";
+import { SessionSwap } from "./member-cta";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
 import { ArrowRightIcon, LockClosedIcon } from "@heroicons/react/20/solid";
@@ -23,8 +25,12 @@ import { Link } from "@/i18n/navigation";
  *    paketli önce), süzgeç/arama/sayfalama YOK;
  *  · hiçbir yerde SAYI yok — başlıkta, sekmede, JSON-LD'de (`totalItems`
  *    verilmez), llms dosyalarında;
- *  · altında "tamamını görmek için üye olun" kartı → kayıt (niyet `firma`)
- *    ya da giriş → panel dizini (`/company/satinalma/firmalar`).
+ *  · altında "tamamını görmek için üye olun" kartı → kayıt ya da giriş →
+ *    üyenin firma dizini iniş adresi (`/company/firma-dizini`: Gold ∧
+ *    satınalma yetkisi → satınalma dizini, diğerleri → satış dizini; eskiden
+ *    sabit `/company/satinalma/firmalar` ücretsiz/Silver üyeyi Gold duvarına
+ *    düşürüyordu — arayüz testi Y-03). Oturumlu üyeye doğrudan "Firma
+ *    dizinine git".
  * Panel dizini (`PanelCompanyIndex`) ve firma profil sayfaları
  * (`/firma/<slug>`, sitemap `companies.xml`) ETKİLENMEDİ — SEO profil
  * sayfalarından gelir, bu sayfa yalnız kapı.
@@ -79,7 +85,10 @@ export async function CompanyIndex({
                 key={c.slug}
                 company={c}
                 variant="wide"
-                cta={{ label: t("inquire"), href: signupHref("teklif", `/firma/${c.slug}`) }}
+                /* Firma düzeyinde bilgi talebi YOK (talep ürüne gönderilir ve
+                   Gold ister) — "Bilgi iste" sözü verilmez; üye firmayı panelde
+                   inceler (T-02, Y-03). */
+                cta={{ label: t("viewCompany"), href: signupHref("teklif", PANEL_TARGET.company(c.slug as string)) }}
               />
             ))}
           </div>
@@ -103,19 +112,31 @@ export async function CompanyIndex({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            <Link
-              href={signupHref("ikisi", "/company/satinalma/firmalar")}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            <SessionSwap
+              member={
+                <Link
+                  href={MEMBER_DIRECTORY_PATH}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                >
+                  {t("goToDirectory")}
+                  <ArrowRightIcon aria-hidden className="size-4" />
+                </Link>
+              }
             >
-              {t("joinFree")}
-              <ArrowRightIcon aria-hidden className="size-4" />
-            </Link>
-            <Link
-              href={loginHref("/company/satinalma/firmalar")}
-              className="text-sm font-semibold text-zinc-700 hover:text-zinc-950"
-            >
-              {t("login")}
-            </Link>
+              <Link
+                href={signupHref("ikisi", MEMBER_DIRECTORY_PATH)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                {t("joinFree")}
+                <ArrowRightIcon aria-hidden className="size-4" />
+              </Link>
+              <Link
+                href={loginHref(MEMBER_DIRECTORY_PATH)}
+                className="text-sm font-semibold text-zinc-700 hover:text-zinc-950"
+              >
+                {t("login")}
+              </Link>
+            </SessionSwap>
           </div>
         </section>
       </div>

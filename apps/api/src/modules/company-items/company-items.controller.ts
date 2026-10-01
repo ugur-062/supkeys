@@ -22,10 +22,22 @@ import {
   Min,
   MinLength,
   ArrayMaxSize,
+  Validate,
+  ValidateIf,
   ValidateNested,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { MAX_MONEY, MIN_MONEY, UNITS, PRODUCT_MEDIA_TIER } from "@rothern/shared";
+import {
+  MAX_MONEY,
+  MAX_PRODUCT_IMAGES,
+  MIN_MONEY,
+  UNITS,
+  PRODUCT_MEDIA_TIER,
+  isHttpsUrl,
+  productVideoEmbedUrl,
+} from "@rothern/shared";
 import { Currency } from "@rothern/db";
 import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
@@ -68,6 +80,26 @@ class PriceTierDto {
   @Max(MAX_MONEY) unitPrice!: number;
 }
 
+/**
+ * Video adresi İZİNLİ LİSTEDE olmalı (YouTube/Vimeo, https) — web yalnız
+ * bunları gömer; eskiden yalnız uzunluk denetleniyordu, `javascript:` bile
+ * kaydediliyordu (arayüz testi Y-11). Tek kaynak `productVideoEmbedUrl`.
+ */
+@ValidatorConstraint({ name: "productVideoUrl" })
+class ProductVideoUrlConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    return typeof value === "string" && productVideoEmbedUrl(value) !== null;
+  }
+}
+
+/** Dış bağlantı yalnız https (Y-11). */
+@ValidatorConstraint({ name: "httpsUrl" })
+class HttpsUrlConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    return typeof value === "string" && isHttpsUrl(value);
+  }
+}
+
 class ProductDocDto {
   @Trim() @IsString() @MaxLength(500) url!: string;
   @Trim() @IsString() @MaxLength(200) title!: string;
@@ -97,13 +129,18 @@ class ShowcaseDto {
   @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: () => tApi("api.dto.companyItems.gecersizOlcuBirimi") })
   unitCode?: string;
 
-  /** İLKİ KAPAK. Tavan 8 — daha fazlası kart/galeri düzenini bozar. */
-  @IsOptional() @IsArray() @ArrayMaxSize(8)
+  /** İLKİ KAPAK. Tavan `MAX_PRODUCT_IMAGES` (8) — galeri de aynı sabiti okur (O-100). */
+  @IsOptional() @IsArray() @ArrayMaxSize(MAX_PRODUCT_IMAGES)
   @IsString({ each: true }) @MaxLength(500, { each: true })
   images?: string[];
 
-  @IsOptional() @Trim() @IsString() @MaxLength(500) videoUrl?: string;
-  @IsOptional() @Trim() @IsString() @MaxLength(500) externalUrl?: string;
+  // Boş metin = alanı temizle (null gibi); dolu değer izinli listeden geçmeli.
+  @IsOptional() @ValidateIf((_, v) => v !== "") @Trim() @IsString() @MaxLength(500)
+  @Validate(ProductVideoUrlConstraint, { message: () => tApi("api.dto.companyItems.gecersizVideoBaglantisi") })
+  videoUrl?: string;
+  @IsOptional() @ValidateIf((_, v) => v !== "") @Trim() @IsString() @MaxLength(500)
+  @Validate(HttpsUrlConstraint, { message: () => tApi("api.dto.companyItems.gecersizDisBaglanti") })
+  externalUrl?: string;
 
   @IsOptional() @IsArray() @ArrayMaxSize(5)
   @ValidateNested({ each: true }) @Type(() => ProductDocDto)

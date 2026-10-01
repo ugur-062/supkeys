@@ -3,7 +3,7 @@ import { signupHref } from "@/lib/public/visibility";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { ArrowRightIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { ClipboardList, Lock, Table2 } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { MemberCta } from "./member-cta";
 
 /**
  * "TALEP AÇ" BANNERI — Europages RFQ bannerı. Her zaman görünür; ürün
@@ -11,6 +11,7 @@ import { Link } from "@/i18n/navigation";
  * stok fotoğraf yok.
  */
 const POINT_ICONS = [ClipboardList, Lock, Table2] as const;
+const CTA_CLS = "inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition";
 
 /**
  * İKİ YÜZ (2026-09-08): herkese açık sayfada KAYIT hunisi (monokrom),
@@ -32,10 +33,12 @@ export function RfqBanner({
     { icon: POINT_ICONS[2], t: t("point3") },
   ];
   const panelHref = `/company/satinalma/taleplerim/yeni${prefill ? `?q=${encodeURIComponent(prefill)}` : ""}`;
-  const href =
-    variant === "panel"
-      ? panelHref
-      : signupHref("talep", prefill ? panelHref : undefined);
+  /* Herkese açık yüz kayda DÖNÜŞ ADRESİ TAŞIMAZ (arayüz testi Y-03): yeni
+     firma STANDART doğar, satınalma sihirbazı Gold ister — `talep` niyetinin
+     bilinçli olarak yönlendirmesiz olması (signup-intent.ts) burada `redirect`
+     ile deliniyordu ve kayıt sonrası ilk ekran Gold duvarı oluyordu. Oturumlu
+     üyeye kapıyı `MemberCta` söyler (Gold ∧ yetki → doğrudan sihirbaz). */
+  const href = variant === "panel" ? panelHref : signupHref("talep");
   const blue = variant === "panel";
   return (
     <section className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -73,13 +76,29 @@ export function RfqBanner({
               </li>
             ))}
           </ul>
-          <AccentLink
-            href={href}
-            className="mt-6 inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition"
-          >
-            {t("cta")}
-            <ArrowRightIcon aria-hidden className="size-4" />
-          </AccentLink>
+          {variant === "panel" ? (
+            <AccentLink href={href} className={`mt-6 ${CTA_CLS}`}>
+              {t("cta")}
+              <ArrowRightIcon aria-hidden className="size-4" />
+            </AccentLink>
+          ) : (
+            <div className="mt-6 max-w-md">
+              <MemberCta
+                action="listing"
+                member={
+                  <AccentLink href={panelHref} className={CTA_CLS}>
+                    {t("cta")}
+                    <ArrowRightIcon aria-hidden className="size-4" />
+                  </AccentLink>
+                }
+              >
+                <AccentLink href={href} className={CTA_CLS}>
+                  {t("cta")}
+                  <ArrowRightIcon aria-hidden className="size-4" />
+                </AccentLink>
+              </MemberCta>
+            </div>
+          )}
         </div>
       </div>
     </section>

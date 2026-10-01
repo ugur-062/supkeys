@@ -13,6 +13,7 @@ import {
 } from "@/components/marketplace/product-filters";
 import { useDiscoverProductFacets, useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { useCompanySearch } from "@/hooks/use-company-directory";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   buildProductFilterQuery,
   parseProductFilters,
@@ -156,6 +157,12 @@ function Inner({
   const companies = useCompanySearch({ q: state.q, category: state.category });
   const pageSize = data?.pageSize ?? state.perPage ?? DEFAULT_PER_PAGE;
   const talepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
+  // Eylem düğmeleri İZNE bağlı (arayüz testi O-079, D-038): sayfayı buy:view
+  // açar ama talep açmak buy:listing:manage, bilgi istemek buy:inquiry:send
+  // ister — Yönetici/görüntüleyici düğmeye basıp "yetki gerekir" sayfasına
+  // düşüyordu. Paket zaten Gold (satınalma kabuğu).
+  const canOpenRequest = useHasCompanyPermission("buy:listing:manage");
+  const canInquire = useHasCompanyPermission("buy:inquiry:send");
   // Izgara ↔ liste: aynı kartlar, farklı yoğunluk (`gorunum` URL'de).
   const Wrap = state.view === "liste" ? MarketList : MarketGrid;
 
@@ -211,12 +218,14 @@ function Inner({
           <MarketEmpty
             title={t("buKriterlerleUrunYok")}
             action={
-              <Link
-                href={talepHref}
-                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
-              >
-                {t("talepAcTedarikcilerTeklifVersin")}
-              </Link>
+              canOpenRequest ? (
+                <Link
+                  href={talepHref}
+                  className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
+                >
+                  {t("talepAcTedarikcilerTeklifVersin")}
+                </Link>
+              ) : undefined
             }
           />
         ) : (
@@ -229,7 +238,7 @@ function Inner({
                 company={item.company}
                 href={panelProductPath(item.company.slug, item.slug)}
                 features={item.features}
-                cta={t("bilgiIste")}
+                cta={canInquire ? t("bilgiIste") : undefined}
                 accent="blue"
                 compare
                 priority={i < 3}

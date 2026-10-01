@@ -1,4 +1,6 @@
 import { Prisma } from "@rothern/db";
+import { PRODUCT_MEDIA_TIER, tierAtLeast } from "@rothern/shared";
+import { effectiveTier } from "../../../common/company/effective-tier";
 
 /**
  * HERKESE AÇIK ÜRÜN YANSITMASI — beyaz liste (Faz 2).
@@ -54,6 +56,12 @@ export const PUBLIC_PRODUCT_SELECT = {
   priceMode: true,
   publishedAt: true,
   updatedAt: true,
+  /* Satıcının EFEKTİF paketi — belge/video Silver+ (`PRODUCT_MEDIA_TIER`).
+     Mapper yanıta YAZMAZ; yalnız medyayı süzmek için okur (arayüz testi
+     D-192: paketi düşen firmanın videosu/belgeleri servis edilmeye devam
+     ediyordu). Seçim projeksiyonda durduğu için bu beyaz listeyi kullanan
+     her uç (herkese açık ürün, panel ürün keşfi) kuralı kendiliğinden alır. */
+  company: { select: { tier: true, membershipEndAt: true } },
 } satisfies Prisma.CompanyItemSelect;
 
 export type PublicProductRow = Prisma.CompanyItemGetPayload<{
@@ -100,7 +108,34 @@ export type PublicProductCard = Pick<
   | "categoryId"
 > & { excerpt: string | null };
 
-export function toPublicProduct(r: PublicProductRow): PublicProduct {
+/**
+ * Medya (video + belge) bu satırda servis edilebilir mi: satıcının efektif
+ * paketi `PRODUCT_MEDIA_TIER` (Silver) ve üstü. Kayıt SİLİNMEZ — paket geri
+ * gelince medya yeniden görünür (fail-closed ama yıkıcı değil).
+ */
+function mediaAllowed(r: PublicProductRow): boolean {
+  const c = r.company as { tier: string; membershipEndAt: Date | null } | undefined;
+  if (!c) return false;
+  return tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), PRODUCT_MEDIA_TIER);
+}
+
+/**
+ * Belgeler — `anonymous` (herkese açık uç) iken YALNIZ ad döner; indirme
+ * adresi üyeye (görünürlük tablosu `documentDownload: "member"`, kullanıcı
+ * kararı T-18 / arayüz testi D-331). Gizlenen alan yanıta HİÇ yazılmaz.
+ */
+function projectDocuments(docs: unknown, anonymous: boolean): unknown {
+  if (!anonymous || !Array.isArray(docs)) return docs;
+  return docs
+    .filter((d): d is { title?: unknown } => !!d && typeof d === "object")
+    .map((d) => ({ title: typeof d.title === "string" ? d.title : "" }));
+}
+
+export function toPublicProduct(
+  r: PublicProductRow,
+  opts: { anonymous?: boolean } = {},
+): PublicProduct {
+  const media = mediaAllowed(r);
   return {
     slug: r.slug ?? "",
     name: r.name,
@@ -112,9 +147,9 @@ export function toPublicProduct(r: PublicProductRow): PublicProduct {
     unitCode: r.unitCode,
     categoryId: r.categoryId,
     images: r.images,
-    videoUrl: r.videoUrl,
+    videoUrl: media ? r.videoUrl : null,
     externalUrl: r.externalUrl,
-    documents: r.documents,
+    documents: media ? projectDocuments(r.documents, opts.anonymous === true) : null,
     keywords: r.keywords,
     attributes: r.attributes,
     priceMode: r.priceMode,

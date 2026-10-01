@@ -497,7 +497,11 @@ export interface PublicProduct extends Omit<PublicProductCard, "excerpt">, Conte
   unitCode: string | null;
   videoUrl: string | null;
   externalUrl: string | null;
-  documents: { url: string; title: string }[] | null;
+  /**
+   * Herkese açık uçta yalnız `title` gelir (indirme üyeye — T-18 / D-331);
+   * panel ucu `url`i de verir. Satıcının paketi Silver altına düştüyse null.
+   */
+  documents: { url?: string; title: string }[] | null;
   keywords: string[];
   attributes: Record<string, string | string[]> | null;
   /**

@@ -234,3 +234,68 @@ describe("brandIsSeller", () => {
     expect(brandIsSeller("Siemens", "")).toBe(false);
   });
 });
+
+/**
+ * Arayüz testi 2026-10-01: kademe fiyatı başlıkla aynı biçimde (D-057), ürün
+ * videosu izinli listeden gömülür (Y-11), belge indirme üyeye (D-331, T-18).
+ */
+describe("ProductDetailBody — fiyat biçimi, video, belgeler", () => {
+  it("kademe satırı '{sayı} {kod}' değil başlıkla aynı biçim (sembol dilden)", () => {
+    render(
+      Body({
+        product: {
+          ...product,
+          priceMode: "TIERED",
+          priceAmount: null,
+          priceTiers: [
+            { minQty: 1, unitPrice: 9.8 },
+            { minQty: 100, unitPrice: 8.4 },
+          ],
+        } as unknown as PublicProduct,
+      }),
+    );
+    expect(screen.getAllByText("9,8 ₺").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/9,8 TRY/)).toBeNull();
+  });
+
+  it("YouTube videosu çerezsiz oynatıcıyla gömülür; izinsiz adres çizilmez", async () => {
+    const u = userEvent.setup();
+    const { unmount } = render(
+      Body({ product: { ...product, videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } as PublicProduct }),
+    );
+    await u.click(screen.getByRole("tab", { name: "Video" }));
+    const frame = document.querySelector("iframe");
+    expect(frame?.getAttribute("src")).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    unmount();
+    render(Body({ product: { ...product, videoUrl: "javascript:alert(1)" } as PublicProduct }));
+    expect(screen.queryByRole("tab", { name: "Video" })).toBeNull();
+  });
+
+  it("adressiz belge (herkese açık uç) indirme bağlantısı değil, giriş çağrısı", async () => {
+    const u = userEvent.setup();
+    render(
+      Body({
+        product: { ...product, documents: [{ title: "Katalog" }] } as unknown as PublicProduct,
+        documentsLoginHref: "/company/login?next=%2Fcompany%2Furun%2Fa%2Fb%23belgeler",
+      }),
+    );
+    await u.click(screen.getByRole("tab", { name: "Belgeler" }));
+    expect(screen.getByText("Katalog").closest("a")).toBeNull();
+    expect(screen.getByRole("link", { name: "Belgeyi indirmek için giriş yapın" })).toHaveAttribute(
+      "href",
+      "/company/login?next=%2Fcompany%2Furun%2Fa%2Fb%23belgeler",
+    );
+  });
+
+  it("adresli belge (üye) indirme bağlantısıdır", async () => {
+    const u = userEvent.setup();
+    render(
+      Body({
+        product: { ...product, documents: [{ title: "Katalog", url: "https://cdn.example.com/k.pdf" }] } as unknown as PublicProduct,
+      }),
+    );
+    await u.click(screen.getByRole("tab", { name: "Belgeler" }));
+    expect(screen.getByRole("link", { name: "Katalog" })).toHaveAttribute("href", "https://cdn.example.com/k.pdf");
+  });
+});
+

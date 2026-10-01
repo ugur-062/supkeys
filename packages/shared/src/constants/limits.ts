@@ -54,3 +54,11 @@ export const COMPANY_SERVICE_MAX_LENGTH = 60;
  * alıyordu). 5000 × kısa kod ≈ 60 KB — 5 MB gövde sınırının çok altında.
  */
 export const MAX_LISTING_INVITATIONS = 5000;
+
+/**
+ * Ürün görseli tavanı — API vitrin DTO'su (`images` `@ArrayMaxSize`), web
+ * görsel yükleyici ve herkese açık galeri AYNI sayıyı okur (arayüz testi
+ * O-100: yükleyici ve API 8'e izin verirken galeri ilk 6'yı kesiyordu, 7. ve
+ * 8. görsel hiçbir yerde görünmüyordu).
+ */
+export const MAX_PRODUCT_IMAGES = 8;

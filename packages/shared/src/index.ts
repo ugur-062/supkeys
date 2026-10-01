@@ -15,6 +15,7 @@ export * from "./helpers/delivery-term";
 export * from "./helpers/listing-scope";
 export * from "./helpers/bid-delivery-time";
 export * from "./helpers/system-text";
+export * from "./helpers/product-video";
 export * from "./constants/limits";
 export * from "./data/turkey-locations";
 export * from "./data/countries";

@@ -40,6 +40,16 @@ export interface PriceLabels {
   fromQty: (minQty: number, unit: string, unitCode?: string | null) => string;
 }
 
+/**
+ * Tutar + para birimi — başlık, kademe tablosu ve kart AYNI biçimi kullanır
+ * (sembolün yeri dilden, `affixCurrency`). Kademe satırı eskiden
+ * `{sayı} {kod}` basıyordu ("9,8 TRY" başlıktaki "8,4 ₺"nin yanında —
+ * arayüz testi D-057).
+ */
+export function formatProductPrice(amount: number, currency: string, locale: string): string {
+  return fmt(amount, currency, locale);
+}
+
 function fmt(amount: number, currency: string, locale: string): string {
   return affixCurrency(
     amount.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),

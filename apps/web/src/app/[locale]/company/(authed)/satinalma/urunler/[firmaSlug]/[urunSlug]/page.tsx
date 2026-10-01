@@ -10,7 +10,9 @@ import {
 import { PanelInquiryDialog } from "@/components/inquiries/panel-inquiry-dialog";
 import { RfqBanner } from "@/components/marketplace/rfq-banner";
 import { useRelatedProducts, usePublicProduct } from "@/hooks/use-portal-discovery";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useScrollToHash } from "@/hooks/use-scroll-to-hash";
+import { isHiddenCategory } from "@rothern/shared";
 import { safeExternalUrl } from "@/lib/safe-url";
 import { ArrowTopRightOnSquareIcon, DocumentTextIcon } from "@heroicons/react/20/solid";
 import { ArrowLeft } from "lucide-react";
@@ -33,16 +35,23 @@ import { useState } from "react";
  */
 export default function PanelProductPage() {
   const t = useTranslations("web.panel.market.firmaslugUrunSlugPage");
+  const tg = useTranslations("web.marketplace.memberGate");
   const params = useParams<{ firmaSlug: string; urunSlug: string }>();
   const [inquiryOpen, setInquiryOpen] = useState(false);
   // POST /company/inquiries `buy:inquiry:send` ister (yalnız Satın Almacı
   // koltuğu). buy:view ile giren Yönetici/görüntüleyici formu doldurup 403
   // almasın: düğme yerine gereken yetkiyi söyleyen not (derin denetim LU-22).
   const canInquire = useHasCompanyPermission("buy:inquiry:send");
+  // Talep açma bandı yalnız yetkiliye (arayüz testi O-079).
+  const canOpenRequest = useHasCompanyPermission("buy:listing:manage");
+  const { company: own } = useCompanyAuth();
   const firmaSlug = params?.firmaSlug ?? "";
   const urunSlug = params?.urunSlug ?? "";
   const { data, isLoading, isError } = usePublicProduct(firmaSlug, urunSlug);
   const related = useRelatedProducts(firmaSlug, urunSlug);
+  // Veri istemcide gelir; kart/e-posta "Bilgi iste"si `#bilgi-iste` çapasıyla
+  // açılır ama tarayıcı öğeyi ilk boyamada bulamıyordu (arayüz testi D-022).
+  useScrollToHash(!!data);
 
   if (isLoading) {
     return (
@@ -73,6 +82,9 @@ export default function PanelProductPage() {
   }
 
   const { product, company } = data;
+  // Kendi firmanın ürünü: API bilgi talebini 400 ile reddeder — düğme yerine
+  // not (arayüz testi D-230).
+  const ownProduct = !!own?.slug && company.slug === own.slug;
   // Firma sayfası panelin KENDİ dizin sayfasıdır (bağlantı kur / mesaj gönder
   // eylemleri orada). Uç artık slug'ı da çözüyor, rothernId aramaya gerek yok.
   const companyHref = `/company/firma/${firmaSlug}`;
@@ -91,7 +103,9 @@ export default function PanelProductPage() {
           /* Kategori adımı KENDİ SAYFASINA gider (`/kategori/<kod>-<ad>`),
              süzgeçli listeye değil: her kategorinin bir adresi var ve
              paylaşılabilir olan o. */
-          ...(product.category
+          /* Gizli segmentteki (eski veri) kategorinin sayfası 404 verir →
+             adım hiç çizilmez (arayüz testi D-023). */
+          ...(product.category && !isHiddenCategory(product.category.id)
             ? [{ label: product.category.name, href: panelCategoryPath(product.category.id, product.category.name) }]
             : []),
           { label: company.name, href: companyHref },
@@ -126,7 +140,9 @@ export default function PanelProductPage() {
              kartın altında ikinci bir düğme olarak değil.
              Kimlik SORULMAZ: kullanıcı zaten giriş yapmış; misafir formu
              burada yanlış olurdu (o uç `MARKETPLACE_LIVE` kapalıyken 404). */
-          canInquire ? (
+          ownProduct ? (
+            <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">{tg("ownProduct")}</p>
+          ) : canInquire ? (
             <button
               type="button"
               onClick={() => setInquiryOpen(true)}
@@ -144,7 +160,7 @@ export default function PanelProductPage() {
       />
 
       <PanelInquiryDialog
-        open={canInquire && inquiryOpen}
+        open={canInquire && !ownProduct && inquiryOpen}
         onClose={() => setInquiryOpen(false)}
         companySlug={firmaSlug}
         productSlug={urunSlug}
@@ -171,9 +187,11 @@ export default function PanelProductPage() {
           bulamayan ya da fiyat karşılaştırmak isteyen alıcı için sayfanın
           sonundaki tek çıkış. Panel varyantı doğrudan sihirbaza gider
           (kayıt hunisi değil) ve MAVİ. */}
-      <div className="mt-4">
-        <RfqBanner variant="panel" prefill={product.name} />
-      </div>
+      {canOpenRequest ? (
+        <div className="mt-4">
+          <RfqBanner variant="panel" prefill={product.name} />
+        </div>
+      ) : null}
     </PageContainer>
   );
 }

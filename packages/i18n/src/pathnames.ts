@@ -75,6 +75,9 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/company/mesajlar": P("/company/mesajlar", "/company/messages", "/kompaniya/soobshcheniya"),
   "/company/onaylar": P("/company/onaylar", "/company/approvals", "/kompaniya/soglasovaniya"),
   "/company/firma/[id]": P("/company/firma/[id]", "/company/companies/[id]", "/kompaniya/kompanii/[id]"),
+  // Üyenin paket bilmeyen iniş adresleri (arayüz testi Y-03): ürün ve firma dizini.
+  "/company/urun/[firmaSlug]/[urunSlug]": P("/company/urun/[firmaSlug]/[urunSlug]", "/company/product/[firmaSlug]/[urunSlug]", "/kompaniya/tovar/[firmaSlug]/[urunSlug]"),
+  "/company/firma-dizini": P("/company/firma-dizini", "/company/company-directory", "/kompaniya/katalog-kompaniy"),
   "/company/ilan/[id]": P("/company/ilan/[id]", "/company/request/[id]", "/kompaniya/zayavka/[id]"),
   "/company/ilan/[id]/teklif-ver": P("/company/ilan/[id]/teklif-ver", "/company/request/[id]/bid", "/kompaniya/zayavka/[id]/predlozhenie"),
   "/company/ilan/[id]/teklif/[bidId]": P("/company/ilan/[id]/teklif/[bidId]", "/company/request/[id]/bids/[bidId]", "/kompaniya/zayavka/[id]/predlozheniya/[bidId]"),

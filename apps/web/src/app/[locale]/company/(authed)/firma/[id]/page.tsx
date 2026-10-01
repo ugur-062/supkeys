@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { tierAtLeast } from "@rothern/shared";
+import { buyingGate, memberProductHref } from "@/lib/public/member-gate";
 import { PRICING_HREF } from "@/components/company/silver-lock-card";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { useRouter } from "@/i18n/navigation";
@@ -68,7 +69,11 @@ export default function CompanyProfilePage() {
   const canManageConn = useHasCompanyPermission("connections:manage");
   // Bağlantı daveti Silver+ (API invite aynası; connections-view `isPaid` ile
   // aynı kural) — ücretsiz pakette düğme yerine Paketler'e giden kilitli CTA.
-  const { company: myCompany } = useCompanyAuth();
+  const { user: me, company: myCompany } = useCompanyAuth();
+  // Ürün kartının "Bilgi iste" düğmesi yalnız eylem gerçekten açıksa (Gold ∧
+  // buy:inquiry:send); kart her pakette üyenin ürün sayfasını açar — Gold
+  // olmayana orada Gold uyarısı (arayüz testi Y-03, D-038).
+  const canInquire = buyingGate(me, myCompany, "inquiry") === "ok";
   const isPaid = tierAtLeast(myCompany?.tier ?? "STANDART", "SILVER");
   const router = useRouter();
 
@@ -230,8 +235,8 @@ export default function CompanyProfilePage() {
             <ProductCard
               key={pr.slug}
               product={pr}
-              href={`/company/satinalma/urunler/${pr.company.slug}/${pr.slug}`}
-              cta={t("bilgiIste")}
+              href={memberProductHref(me, myCompany, pr.company.slug, pr.slug)}
+              cta={canInquire ? t("bilgiIste") : undefined}
               accent="blue"
             />
           ))}

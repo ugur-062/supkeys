@@ -2,6 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
+import { MAX_PRODUCT_IMAGES } from "@rothern/shared";
+import { createPortal } from "react-dom";
 import { CategoryImage } from "./category-image";
 import { cn } from "@/lib/utils";
 import { ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassPlusIcon, XMarkIcon } from "@heroicons/react/20/solid";
@@ -34,7 +36,9 @@ export function ProductGallery({
   const t = useTranslations("web.marketplace.gallery");
   const [active, setActive] = useState(0);
   const [zoom, setZoom] = useState(false);
-  const list = images.slice(0, 6);
+  // Yükleyici ve API ile AYNI tavan (O-100: galeri 6'da kesiyordu, 7. ve 8.
+  // görsel hiçbir yerde görünmüyordu).
+  const list = images.slice(0, MAX_PRODUCT_IMAGES);
   const current = list[active] ?? list[0];
   const step = (d: 1 | -1) => setActive((i) => (list.length ? (i + d + list.length) % list.length : 0));
 
@@ -115,30 +119,40 @@ export function ProductGallery({
         </div>
       ) : null}
 
-      {zoom && current ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={alt}
-          onClick={() => setZoom(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4"
-        >
-          <button
-            type="button"
-            aria-label={t("close")}
-            className="absolute top-4 right-4 inline-flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-800"
-          >
-            <XMarkIcon aria-hidden className="size-5" />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={current}
-            alt={alt}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] max-w-full rounded-xl object-contain"
-          />
-        </div>
-      ) : null}
+      {/* PORTAL (arayüz testi O-015): galeri `lg:sticky` sarmalayıcıda; sticky
+          kendi katman bağlamını kurduğu için portalsız katman o bağlamda
+          hapsoluyor, sabit üst çubuk katmanın ÜSTÜNDE çiziliyor ve masaüstünde
+          Kapat (X) tıklanamıyordu (z-index yükseltmek yetmez). `body`ye
+          taşınan katman sayfanın tamamını örter. Açılış yalnız tıklamayla
+          olduğu için `document` her zaman var (SSR'da zoom kapalı). */}
+      {zoom && current
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={alt}
+              onClick={() => setZoom(false)}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/80 p-4"
+            >
+              <button
+                type="button"
+                aria-label={t("close")}
+                onClick={() => setZoom(false)}
+                className="absolute top-4 right-4 inline-flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-800"
+              >
+                <XMarkIcon aria-hidden className="size-5" />
+              </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={current}
+                alt={alt}
+                onClick={(e) => e.stopPropagation()}
+                className="max-h-[90vh] max-w-full rounded-xl object-contain"
+              />
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

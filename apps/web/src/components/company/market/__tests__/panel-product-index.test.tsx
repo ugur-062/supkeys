@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   lastParams: undefined as unknown,
   companyTotal: 20,
   selectedCategory: null as { id: string; name: string; level: number } | null,
+  perms: ["buy:view", "buy:listing:manage", "buy:inquiry:send"] as string[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -35,6 +36,9 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
       attributes: [],
     },
   }),
+}));
+vi.mock("@/hooks/use-company-auth", () => ({
+  useHasCompanyPermission: (p: string) => h.perms.includes(p),
 }));
 vi.mock("@/hooks/use-company-directory", () => ({
   useCompanySearch: () => ({ data: { items: [], total: h.companyTotal, page: 1, pageSize: 20 } }),
@@ -63,6 +67,7 @@ beforeEach(() => {
   h.search = "";
   h.selectedCategory = null;
   h.companyTotal = 20;
+  h.perms = ["buy:view", "buy:listing:manage", "buy:inquiry:send"];
   h.result = {
     data: {
       items: [product(1, { matchesProfile: true, features: ["Güç: 400 kVAr"] }), product(2, { matchesProfile: false })],
@@ -211,5 +216,25 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     h.search = "q=yok&dogrulanmis=1";
     render(<PanelProductIndex />);
     expect(screen.getByRole("button", { name: "Filtreleri temizle" })).toBeInTheDocument();
+  });
+
+  it("eylemler İZNE bağlı: talep açma ve bilgi isteme yetkisi yoksa düğmeler çizilmez (arayüz testi O-079, D-038)", () => {
+    h.perms = ["buy:view"];
+    const { unmount } = render(<PanelProductIndex />);
+    expect(screen.queryAllByRole("link", { name: /Bilgi iste/ })).toHaveLength(0);
+    unmount();
+
+    h.search = "q=yok";
+    h.result = { data: { items: [], total: 0, page: 1, pageSize: 24 }, isLoading: false };
+    render(<PanelProductIndex />);
+    expect(screen.queryByRole("link", { name: /Talep aç/ })).toBeNull();
+  });
+
+  it("liste görünümünde de 'Bilgi iste' AYRI hedeftir (#bilgi-iste), düz metin değil (D-038)", () => {
+    h.search = "gorunum=liste";
+    render(<PanelProductIndex />);
+    const ctas = screen.getAllByRole("link", { name: /Bilgi iste/ });
+    expect(ctas.length).toBeGreaterThan(0);
+    expect(ctas[0]).toHaveAttribute("href", expect.stringContaining("#bilgi-iste"));
   });
 });

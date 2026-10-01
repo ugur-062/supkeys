@@ -327,10 +327,16 @@ export function ProductCard({
                 </span>
               ) : null}
             </span>
-            {cta ? (
-              <span className={cn("inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold", ctaCls)}>
+            {cta && target ? (
+              <Link
+                href={ctaHref ?? `${target}#bilgi-iste`}
+                {...NEW_TAB}
+                onClick={(e) => e.stopPropagation()}
+                className={cn("relative z-10 inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold", ctaCls)}
+              >
                 {cta}
-              </span>
+                <NewTabHint />
+              </Link>
             ) : null}
           </div>
         </div>
@@ -346,10 +352,19 @@ export function ProductCard({
           <p className="tnum mt-0.5 text-xs text-zinc-500">
             {product.moq ? t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) }) : "\u00A0"}
           </p>
-          {cta ? (
-            <span className={cn("mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}>
+          {/* Liste görünümünde de AYRI hedef (arayüz testi D-038): eskiden düz
+              `<span>`dı, tıklama kartın kendisine gidip bilgi kutusunu değil
+              sayfanın başını açıyordu. Izgara kartıyla aynı kural. */}
+          {cta && target ? (
+            <Link
+              href={ctaHref ?? `${target}#bilgi-iste`}
+              {...NEW_TAB}
+              onClick={(e) => e.stopPropagation()}
+              className={cn("relative z-10 mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}
+            >
               {cta}
-            </span>
+              <NewTabHint />
+            </Link>
           ) : null}
         </div>
       </article>

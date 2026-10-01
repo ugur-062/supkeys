@@ -1,0 +1,68 @@
+import { describe, expect, it } from "vitest";
+import {
+  GOLD_HREF,
+  VERIFY_HREF,
+  buyingGate,
+  gateHref,
+  memberDirectoryTarget,
+  memberProductHref,
+  memberProductPath,
+} from "../member-gate";
+import { PANEL_TARGET } from "../visibility";
+
+/**
+ * Arayüz testi Y-03 / kullanıcı kararı T-02: satın alma eylemlerinde paket
+ * kapısı ÖNCE, izin SONRA (rol denetimi paket denetiminin içinde); Gold
+ * olmayana doğrulanmamışsa önce doğrulama, değilse Gold'a geçiş.
+ */
+const buyer = { permissions: ["buy:view", "buy:inquiry:send", "buy:listing:manage"] };
+const viewer = { permissions: ["buy:view"] };
+const seller = { permissions: ["sell:view", "sell:bid:submit"] };
+
+describe("buyingGate", () => {
+  it("oturum yok → misafir", () => {
+    expect(buyingGate(null, null, "inquiry")).toBe("guest");
+  });
+
+  it("Gold ∧ izin → ok; Gold ∧ izin yok → noPermission", () => {
+    const gold = { tier: "GOLD", companyVerificationStatus: "VERIFIED" };
+    expect(buyingGate(buyer, gold, "inquiry")).toBe("ok");
+    expect(buyingGate(buyer, gold, "listing")).toBe("ok");
+    expect(buyingGate(viewer, gold, "inquiry")).toBe("noPermission");
+    expect(buyingGate(viewer, gold, "browse")).toBe("ok");
+  });
+
+  it("Gold değil: izin olsa bile kapı paket — doğrulanmamış/reddedilmiş önce doğrulama, diğerleri yükseltme", () => {
+    expect(buyingGate(buyer, { tier: "SILVER", companyVerificationStatus: "UNVERIFIED" }, "inquiry")).toBe("verify");
+    expect(buyingGate(buyer, { tier: "STANDART", companyVerificationStatus: "REJECTED" }, "inquiry")).toBe("verify");
+    expect(buyingGate(viewer, { tier: "STANDART", companyVerificationStatus: "PENDING" }, "listing")).toBe("upgrade");
+    expect(buyingGate(seller, { tier: "SILVER", companyVerificationStatus: "VERIFIED" }, "inquiry")).toBe("upgrade");
+  });
+
+  it("kapalı kapının hedefi", () => {
+    expect(gateHref("verify")).toBe(VERIFY_HREF);
+    expect(gateHref("upgrade")).toBe(GOLD_HREF);
+    expect(gateHref("ok")).toBeNull();
+  });
+});
+
+describe("üye iniş adresleri", () => {
+  it("herkese açık ürünün panel karşılığı paket bilmeyen üye adresidir (satınalma DEĞİL)", () => {
+    expect(PANEL_TARGET.product("abc", "urun-x")).toBe("/company/urun/abc/urun-x");
+    expect(memberProductPath("abc", "urun-x")).toBe("/company/urun/abc/urun-x");
+  });
+
+  it("panel kartı: Gold alıcı doğrudan satınalma sayfasına, diğerleri üye adresine", () => {
+    expect(memberProductHref(viewer, { tier: "GOLD" }, "abc", "x")).toBe("/company/satinalma/urunler/abc/x");
+    expect(memberProductHref(viewer, { tier: "SILVER" }, "abc", "x")).toBe("/company/urun/abc/x");
+    expect(memberProductHref(seller, { tier: "GOLD" }, "abc", "x")).toBe("/company/urun/abc/x");
+  });
+
+  it("firma dizini: Gold ∧ buy:view satınalma, satış görüntüleme satış dizini", () => {
+    expect(memberDirectoryTarget(viewer, { tier: "GOLD" })).toBe("/company/satinalma/firmalar");
+    expect(memberDirectoryTarget({ permissions: ["buy:view", "sell:view"] }, { tier: "SILVER" })).toBe(
+      "/company/satis/firmalar",
+    );
+    expect(memberDirectoryTarget(seller, { tier: "GOLD" })).toBe("/company/satis/firmalar");
+  });
+});

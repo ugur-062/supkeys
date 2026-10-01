@@ -1,0 +1,145 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { LockClosedIcon } from "@heroicons/react/20/solid";
+import type { ReactNode } from "react";
+import { Link } from "@/i18n/navigation";
+import { useHydrated } from "@/hooks/use-hydrated";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { buyingGate, gateHref, type BuyingAction, type BuyingGate } from "@/lib/public/member-gate";
+import { cn } from "@/lib/utils";
+
+/**
+ * Oturumdaki üyenin satın alma eylemi kapısı (istemci). Herkese açık sayfalar
+ * statik/ISR ve oturum tanımaz; kimlik httpOnly çerezde, UI anlık görüntüsü
+ * (`user`/`company`) depoda. Kapı YALNIZ hidrasyondan sonra okunur — sunucu
+ * HTML'i her zaman misafir hâlidir (SEO ve #418 güvenli).
+ */
+export function useBuyingGate(action: BuyingAction): BuyingGate {
+  const hydrated = useHydrated();
+  const storeHydrated = useCompanyAuthStore((s) => s.isHydrated);
+  const user = useCompanyAuthStore((s) => s.user);
+  const company = useCompanyAuthStore((s) => s.company);
+  if (!hydrated || !storeHydrated) return "guest";
+  return buyingGate(user, company, action);
+}
+
+/**
+ * HERKESE AÇIK CTA ADACIĞI (arayüz testi Y-03, kullanıcı kararı T-02):
+ * "Bilgi iste" / "Talep aç" düğmeleri oturumu olan ama Gold olmayan üyeye
+ * Gold gerektiğini TIKLAMADAN ÖNCE söyler (doğrulanmamışa önce ücretsiz
+ * doğrulama, değilse Gold'a geçiş). Misafir mevcut akışı (giriş/kayıt) aynen
+ * görür.
+ *
+ * - misafir / hidrasyon öncesi → `children` (sunucunun bastığı misafir CTA'sı)
+ * - Gold ∧ izin → `member` (verilmezse `children`; giriş bağlantısı oturumlu
+ *   kullanıcıyı `next`e geçirir)
+ * - Gold değil → `compact` ise kilitli bağlantı, değilse açıklamalı kutu
+ * - izin yok → izin notu (`compact`ta hiç çizilmez)
+ */
+export function MemberCta({
+  action,
+  children,
+  member,
+  compact = false,
+  compactClassName,
+  compactLabel,
+}: {
+  action: Exclude<BuyingAction, "browse">;
+  children: ReactNode;
+  member?: ReactNode;
+  /** Yüzen düğme/satır içi bağlantı gibi dar yerler: kutu yerine kilitli bağlantı. */
+  compact?: boolean;
+  compactClassName?: string;
+  /** Kilitli bağlantının etiketi (ör. "Talep aç") — sonuna "· Gold" eklenir. */
+  compactLabel?: string;
+}) {
+  const gate = useBuyingGate(action);
+  if (gate === "guest") return <>{children}</>;
+  if (gate === "ok") return <>{member ?? children}</>;
+  if (compact) {
+    return gate === "noPermission" ? null : (
+      <LockedGateLink gate={gate} action={action} className={compactClassName} label={compactLabel} />
+    );
+  }
+  return <BuyingGateNotice gate={gate} action={action} />;
+}
+
+function LockedGateLink({
+  gate,
+  action,
+  className,
+  label,
+}: {
+  gate: BuyingGate;
+  action: Exclude<BuyingAction, "browse">;
+  className?: string;
+  label?: string;
+}) {
+  const t = useTranslations("web.marketplace.memberGate");
+  const href = gateHref(gate);
+  if (!href) return null;
+  return (
+    <Link href={href} className={cn("inline-flex items-center gap-1.5", className)} title={action === "inquiry" ? t("inquiryTitle") : t("listingTitle")}>
+      <LockClosedIcon aria-hidden className="size-4" />
+      {label ? t("lockedLabel", { label }) : t("upgradeCta")}
+    </Link>
+  );
+}
+
+/**
+ * Kapalı satın alma eyleminin açıklaması — herkese açık ürün sayfası ve
+ * üyenin panel ürün sayfası aynı kutuyu çizer (ad alanı `web.marketplace`:
+ * herkese açık yüzey `web.panel` okuyamaz).
+ */
+export function BuyingGateNotice({
+  gate,
+  action,
+  className,
+}: {
+  gate: BuyingGate;
+  action: Exclude<BuyingAction, "browse">;
+  className?: string;
+}) {
+  const t = useTranslations("web.marketplace.memberGate");
+  if (gate === "guest" || gate === "ok") return null;
+  if (gate === "noPermission") {
+    return (
+      <p className={cn("rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-600", className)}>
+        {action === "inquiry" ? t("noPermissionInquiry") : t("noPermissionListing")}
+      </p>
+    );
+  }
+  const href = gateHref(gate) as string;
+  return (
+    <div
+      role="note"
+      className={cn("rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-600/20", className)}
+    >
+      <p className="flex items-center gap-2 font-semibold">
+        <LockClosedIcon aria-hidden className="size-4 shrink-0 text-amber-700" />
+        {action === "inquiry" ? t("inquiryTitle") : t("listingTitle")}
+      </p>
+      <p className="mt-1 text-xs/5 text-amber-900">{t("body")}</p>
+      {gate === "verify" ? <p className="mt-1 text-xs/5 text-amber-900">{t("verifyNote")}</p> : null}
+      <Link
+        href={href}
+        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+      >
+        {gate === "verify" ? t("verifyCta") : t("upgradeCta")}
+      </Link>
+    </div>
+  );
+}
+
+/**
+ * Oturum var mı (hidrasyondan sonra) — misafir CTA'sını üyenin hedefiyle
+ * değiştirir (ör. `/firmalar` "Ücretsiz üye ol / Giriş yap" → üyeye "Firma
+ * dizinine git"). Paket kararı hedef sayfada (`/company/firma-dizini`).
+ */
+export function SessionSwap({ member, children }: { member: ReactNode; children: ReactNode }) {
+  const hydrated = useHydrated();
+  const storeHydrated = useCompanyAuthStore((s) => s.isHydrated);
+  const user = useCompanyAuthStore((s) => s.user);
+  return <>{hydrated && storeHydrated && user ? member : children}</>;
+}

@@ -12,6 +12,7 @@ import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
@@ -92,10 +93,18 @@ export class CompanyInquiryController {
    * izni; Kurucu/Yönetici etiketi tek başına yetmez — Faz R). KYC istenmiyor —
    * bu bir para taahhüdü değil, mesaj sınıfından bir eylem (CLAUDE.md KYC
    * kapısı tablosu).
+   *
+   * PAKET: GOLD (kullanıcı kararı 2026-10-01, arayüz testi T-02/Y-03). Bilgi
+   * talebi göndermek satınalma panelinin özelliğidir; izin yalnız Gold'da
+   * verilebilir ama paketi düşen ya da süresi biten firmanın üyesinde izin
+   * listede kalabiliyordu — rol denetimi paket denetiminin İÇİNDE durur.
+   * Efektif kademe JWT stratejisinden (süresi biten Gold = STANDART).
    */
   @Post()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @RequireCompanyPermission("buy:inquiry:send")
+  @RequireTier("GOLD")
+  @UseGuards(CompanyPaidTierGuard)
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CreateCompanyInquiryDto,

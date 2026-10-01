@@ -1050,6 +1050,25 @@ describe("ücretsiz satıcı — anonim gelen talep", () => {
     const readGuards = (Reflect.getMetadata("__guards__", CompanyInquiryController.prototype.received) ?? []) as unknown[];
     expect(readGuards).not.toContain(CompanyPaidTierGuard);
   });
+
+  it("kayıtlı alıcının talep ucu GOLD kapılı — izin paketin İÇİNDE (T-02, arayüz testi Y-03)", async () => {
+    const { CompanyInquiryController } = await import("../../src/modules/public-inquiry/company-inquiry.controller");
+    const { CompanyPaidTierGuard } = await import("../../src/modules/company-auth/guards/company-paid-tier.guard");
+    const { COMPANY_TIER_KEY } = await import("../../src/modules/company-auth/decorators/require-tier.decorator");
+    const createGuards = (Reflect.getMetadata("__guards__", CompanyInquiryController.prototype.create) ?? []) as unknown[];
+    expect(createGuards).toContain(CompanyPaidTierGuard);
+    expect(Reflect.getMetadata(COMPANY_TIER_KEY, CompanyInquiryController.prototype.create)).toBe("GOLD");
+  });
+
+  it("misafir talep ucu BİLİNÇLİ AÇIK: pazar yeri anahtarı + sıkı hız sınırı (O-059, karar T-02)", async () => {
+    const { PublicInquiryController } = await import("../../src/modules/public-inquiry/public-inquiry.controller");
+    const { MarketplaceLiveGuard } = await import("../../src/common/http/marketplace-live.guard");
+    const classGuards = (Reflect.getMetadata("__guards__", PublicInquiryController) ?? []) as unknown[];
+    expect(classGuards).toContain(MarketplaceLiveGuard);
+    const keys = Reflect.getMetadataKeys(PublicInquiryController.prototype.create) as string[];
+    const limitKey = keys.find((k) => String(k).includes("LIMIT"));
+    expect(limitKey && Reflect.getMetadata(limitKey, PublicInquiryController.prototype.create)).toBe(5);
+  });
 });
 
 // DİL (2026-09-27): misafirin dili satıra yazılır. Eskiden doğrulama bağlantısı

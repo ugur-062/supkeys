@@ -61,3 +61,15 @@ describe("llms dil sürümleri ve yanıt başlıkları (2026-09-27)", () => {
     }
   });
 });
+
+describe("CSP frame-src — ürün videosu (arayüz testi Y-11)", () => {
+  it("yalnız izinli oynatıcıları açar; liste shared PRODUCT_VIDEO_FRAME_HOSTS ile aynı", async () => {
+    const { PRODUCT_VIDEO_FRAME_HOSTS } = await import("@rothern/shared");
+    // next-intl burada sahte → yalnız intl'e girmeyen yol sınanır; CSP iki profilde aynı yönergeleri taşır.
+    for (const path of ["/llms.txt", "/en/llms-full.txt"]) {
+      const csp = middleware(new NextRequest(`http://localhost${path}`)).headers.get("content-security-policy") ?? "";
+      const frame = csp.split(";").map((d) => d.trim()).find((d) => d.startsWith("frame-src")) ?? "";
+      expect(frame.split(/\s+/).slice(1).sort()).toEqual(["'self'", ...PRODUCT_VIDEO_FRAME_HOSTS].sort());
+    }
+  });
+});

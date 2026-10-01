@@ -380,7 +380,8 @@ export class PublicProfileService {
         : null,
     ]);
     const product = {
-      ...toPublicProduct(row),
+      // Anonim yüzey: belge indirme adresi üyeye (T-18 / D-331) — yalnız ad.
+      ...toPublicProduct(row, { anonymous: true }),
       attributeList: labelAttributes(row.attributes, attributeDefs),
       // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
       category: category ? { id: category.id, name: categoryName(category) } : null,

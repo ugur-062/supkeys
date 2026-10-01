@@ -1,6 +1,6 @@
 import { useActivityLabel, useCityLabel, usePriceLabels, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { foldSearchText } from "@rothern/shared";
+import { useLocale, useTranslations } from "next-intl";
+import { foldSearchText, productVideoEmbedUrl } from "@rothern/shared";
 import { PublicLayout } from "./public-layout";
 import { ProductGallery } from "./product-gallery";
 import { Badge } from "@/components/catalyst/badge";
@@ -14,7 +14,7 @@ import { AutoTranslatedNote } from "./auto-translated-note";
 import { productSeo } from "@/lib/seo/entities";
 import { contentLangOf } from "@/lib/seo/meta";
 import type { Locale } from "@rothern/i18n";
-import { productPrice } from "@/lib/public/product-price";
+import { formatProductPrice, productPrice } from "@/lib/public/product-price";
 import type {
   ProductIndexCard,
   ProductPriceFields,
@@ -25,6 +25,7 @@ import type {
 import { categoryHref } from "@/lib/public/marketplace";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
+import { MemberCta } from "./member-cta";
 import { ProductCard } from "./product-card";
 import { ActivityIcon } from "./activity-icons";
 import { CardCarousel } from "./card-carousel";
@@ -33,6 +34,7 @@ import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
   DocumentTextIcon,
+  LockClosedIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -112,32 +114,49 @@ export function ProductDetail({
           sellerSite={
             <GatedField label={t("sellerSite")} redirect={PANEL_TARGET.product(companySlug, product.slug)} />
           }
+          documentsLoginHref={loginHref(`${PANEL_TARGET.product(companySlug, product.slug)}#belgeler`)}
           cta={
             <>
-              {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası panelin
-                  ürün sayfasına döner, oradaki form kimlik sormaz. Misafir
-                  formu kalktı — kimlik zaten oturumdan geliyor. */}
+              {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası üyenin
+                  ürün sayfasına döner (paket bilmeyen iniş adresi — Gold
+                  satınalma sayfasına geçer, diğerlerine Gold uyarısı). */}
               {company.freeMember ? (
                 <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
                   {t("freeMemberNote")}
                 </p>
               ) : null}
-              <Link
-                href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
-                className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+              {/* Oturumlu ama Gold olmayan üye Gold gerektiğini TIKLAMADAN
+                  önce görür (kullanıcı kararı T-02, arayüz testi Y-03). */}
+              <MemberCta
+                action="inquiry"
+                member={
+                  <Link
+                    href={`${PANEL_TARGET.product(companySlug, product.slug)}#bilgi-iste`}
+                    className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    {t("inquire")}
+                  </Link>
+                }
               >
-                {t("inquire")}
-              </Link>
-              <p className="mt-2 text-center text-xs text-zinc-500">
-                {t("noAccount")}{" "}
                 <Link
-                  href={signupHref("teklif", PANEL_TARGET.product(companySlug, product.slug))}
-                  className="font-medium text-zinc-700 hover:underline"
+                  href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
+                  className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
-                  {t("signupFree")}
-                </Link>{" "}
-                {t("twoMinutes")}
-              </p>
+                  {t("inquire")}
+                </Link>
+                <p className="mt-2 text-center text-xs text-zinc-500">
+                  {t("noAccount")}{" "}
+                  <Link
+                    href={signupHref("teklif", PANEL_TARGET.product(companySlug, product.slug))}
+                    className="font-medium text-zinc-700 hover:underline"
+                  >
+                    {t("signupFree")}
+                  </Link>{" "}
+                  {t("twoMinutes")}
+                </p>
+                {/* Ücretsiz üyelik bilgi talebini AÇMAZ — sözü dürüst tut. */}
+                <p className="mt-2 text-center text-xs text-zinc-500">{t("inquiryGoldNote")}</p>
+              </MemberCta>
             </>
           }
         />
@@ -200,6 +219,7 @@ export function ProductDetailBody({
   sellerSite,
   related,
   hrefFor,
+  documentsLoginHref,
   // Sekme vurgusu HER YERDE MAVİ (2026-09-19, kullanıcı: "Ürün Özellikleri /
   // Sertifikalar seçilince mavi olsun, siyah değil") — herkese açık sayfada
   // da monokrom seçili sekme istenmedi.
@@ -224,11 +244,15 @@ export function ProductDetailBody({
   hrefFor?: (c: ProductIndexCard) => string;
   /** Sekme vurgusu — panel satınalmada `blue`, public monokrom. */
   accent?: "default" | "blue";
+  /**
+   * Belge İNDİRME adresi gelmediğinde (herkese açık uç yalnız adı verir —
+   * görünürlük tablosu `documentDownload: "member"`) basılacak giriş bağlantısı.
+   */
+  documentsLoginHref?: string;
 }) {
   const t = useTranslations("web.marketplace.product");
   const unitLabel = useUnitLabel();
   const quantity = useQuantityLabel();
-  const fmt = useFormatter();
   // Ürün metni bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak) ad,
   // açıklama, şartname ve anahtar kelimeler kaynağın `lang`ını taşır.
   const contentLang = contentLangOf(product, useLocale() as Locale);
@@ -242,6 +266,11 @@ export function ProductDetailBody({
   }, priceLabels);
   // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
   const attrs = product.attributeList ?? [];
+  // Video İZİNLİ LİSTEDEN gömülür (YouTube çerezsiz alan / Vimeo); başka adres
+  // çizilmez. API paketi düşen satıcının videosunu zaten boş döner (Y-11, D-192).
+  const videoEmbed = productVideoEmbedUrl(product.videoUrl);
+  const documents = (product.documents ?? []) as { url?: string; title: string }[];
+  const docsLocked = documents.some((d) => !d.url);
 
   return (
     <>
@@ -345,7 +374,7 @@ export function ProductDetailBody({
                             ≥ {quantity(tier.minQty, product.unit, product.unitCode)}
                           </td>
                           <td className="tnum py-1.5 text-right font-medium text-zinc-950">
-                            {fmt.number(tier.unitPrice)} {product.priceCurrency}
+                            {formatProductPrice(tier.unitPrice, product.priceCurrency ?? "TRY", priceLabels.locale)}
                           </td>
                         </tr>
                       ))}
@@ -433,25 +462,62 @@ export function ProductDetailBody({
             ),
           },
           {
+            id: "video",
+            label: t("tabVideo"),
+            hidden: !videoEmbed,
+            content: videoEmbed ? (
+              <div className="aspect-video w-full max-w-3xl overflow-hidden rounded-xl bg-zinc-950">
+                <iframe
+                  src={videoEmbed}
+                  title={t("videoTitle", { product: product.name })}
+                  loading="lazy"
+                  allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                  className="size-full border-0"
+                />
+              </div>
+            ) : null,
+          },
+          {
             id: "belgeler",
             label: t("tabDocs"),
-            hidden: (product.documents ?? []).length === 0,
+            hidden: documents.length === 0,
             content: (
-              <ul className="max-w-3xl space-y-2">
-                {(product.documents ?? []).map((d) => (
-                  <li key={d.url}>
-                    <a
-                      href={d.url}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
-                    >
-                      <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                      {d.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <div className="max-w-3xl">
+                <ul className="space-y-2">
+                  {documents.map((d, i) => (
+                    <li key={`${i}-${d.title}`}>
+                      {d.url ? (
+                        <a
+                          href={d.url}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
+                        >
+                          <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
+                          {d.title}
+                        </a>
+                      ) : (
+                        /* Ad herkese açık, indirme üyeye (T-18 / D-331). */
+                        <span className="inline-flex items-center gap-2 text-sm font-medium text-zinc-700">
+                          <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
+                          {d.title}
+                          <LockClosedIcon aria-hidden className="size-3.5 text-zinc-400" />
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {docsLocked && documentsLoginHref ? (
+                  <p className="mt-4 text-sm text-zinc-600">
+                    {t("docsLockedNote")}{" "}
+                    <Link href={documentsLoginHref} className="font-semibold text-blue-700 hover:underline">
+                      {t("docsLocked")}
+                    </Link>
+                  </p>
+                ) : null}
+              </div>
             ),
           },
           {

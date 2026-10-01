@@ -1,3 +1,5 @@
+import { memberProductPath } from "./member-gate";
+
 /**
  * GÖRÜNÜRLÜK KATMANI v2 — herkese açık yüzeyde kim neyi görür (2026-09-04,
  * Europages kalıbı; önceki tabloyu değiştirir).
@@ -117,8 +119,10 @@ export function signupHref(intent?: string, redirect?: string): string {
 
 /** Panel karşılıkları — GatedField hedefleri buradan. */
 export const PANEL_TARGET = {
-  product: (companySlug: string, productSlug: string) =>
-    `/company/satinalma/urunler/${companySlug}/${productSlug}`,
+  /* Ürün: paket bilmeyen üye iniş adresi (`member-gate.ts`). Eskiden doğrudan
+     `/company/satinalma/urunler/…`ydı — giriş/kayıt sonrası ücretsiz ve Silver
+     üye Gold duvarına düşüyordu (arayüz testi Y-03). */
+  product: (companySlug: string, productSlug: string) => memberProductPath(companySlug, productSlug),
   company: (companySlug: string) => `/company/firma/${companySlug}`,
   /** Panel talep sayfası cuid ister; numarayla açık talepler listesinde aranır. */
   listing: (number: string) =>

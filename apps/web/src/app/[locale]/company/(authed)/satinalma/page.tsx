@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { hasAnySeatPermission } from "@/lib/company/permissions";
+import { hasAnySeatPermission, userHasPermission } from "@/lib/company/permissions";
 import { BUYER_OBJECTS, BUYER_WIDGETS } from "@/lib/company/hero-decor";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
@@ -64,6 +64,7 @@ export default function SatinalmaDashboardPage() {
     writeHeroScope("satinalma", s);
   };
   const { company, user } = useCompanyAuth();
+  const canOpenRequest = userHasPermission(user, "buy:listing:manage");
   const router = useRouter();
 
   // AI ile ara: yorum → ürün süzgeci (URL) + bant. Silver+ ∧ koltuk rolü
@@ -165,12 +166,18 @@ export default function SatinalmaDashboardPage() {
         onScopeChange={setScope}
         accent="blue"
         /* Sayı bandı KALKTI (kullanıcı kararı): yerine tek satırlık çıkış —
-           "bulamadıysan talep aç". */
-        ctaNote={{
-          text: t("aradiginizUrunuBulamadinizMi"),
-          label: t("talepAc"),
-          href: "/company/satinalma/taleplerim/yeni",
-        }}
+           "bulamadıysan talep aç". Yalnız talep açma yetkisi olana (arayüz
+           testi O-079: Yönetici/görüntüleyici "yetki gerekir" sayfasına
+           düşüyordu; kenar çubuğundaki aynı düğme zaten gizliydi). */
+        ctaNote={
+          canOpenRequest
+            ? {
+                text: t("aradiginizUrunuBulamadinizMi"),
+                label: t("talepAc"),
+                href: "/company/satinalma/taleplerim/yeni",
+              }
+            : undefined
+        }
         backdrop
         widgets={BUYER_WIDGETS}
         objects={BUYER_OBJECTS}

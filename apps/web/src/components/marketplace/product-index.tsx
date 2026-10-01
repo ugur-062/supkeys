@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
+import { MemberCta } from "./member-cta";
 import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
@@ -135,7 +136,12 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     });
   const crumbs = category ? [{ name: category.name, path: landingPath }] : (trail ?? []);
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
-  const talepHref = signupHref("talep", state.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(state.q)}` : undefined);
+  // Misafir kaydı DÖNÜŞ ADRESİ TAŞIMAZ (Y-03): yeni firma STANDART doğar,
+  // satınalma sihirbazı Gold ister. Oturumlu üyeye kapıyı `MemberCta` söyler.
+  const talepHref = signupHref("talep");
+  const panelTalepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
+  const floatCls =
+    "fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700";
 
   /* ITEMLIST (2026-09-09, Parça 2): liste sayfası onsuz motorlar için
      "bir sürü bağlantı"dır — ne listelediğini söylemez. Sıra numarası
@@ -269,12 +275,21 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           hrefBuilder={(p) => `${landingPath}${landingQuery(p)}`}
         />
         {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil. */}
-        <Link
-          href={talepHref}
-          className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700"
+        <MemberCta
+          action="listing"
+          compact
+          compactClassName={floatCls}
+          compactLabel={t("openRequest")}
+          member={
+            <Link href={panelTalepHref} className={floatCls}>
+              {t("openRequest")}
+            </Link>
+          }
         >
-          {t("openRequest")}
-        </Link>
+          <Link href={talepHref} className={floatCls}>
+            {t("openRequest")}
+          </Link>
+        </MemberCta>
       </PublicListPage>
     </FilterShell>
     {/* Şehir şeridi VARSAYILAN (2026-09-09, Parça 3): şehir sayfalarına iç

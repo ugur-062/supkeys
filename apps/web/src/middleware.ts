@@ -71,6 +71,11 @@ function buildCsp(nonce: string | null, isDev: boolean): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self' https: http: ws: wss:",
+    // Ürün videosu (arayüz testi Y-11): YALNIZ izinli oynatıcılar gömülür —
+    // liste `@rothern/shared` `PRODUCT_VIDEO_FRAME_HOSTS` ile aynı (edge
+    // paketine shared'in tamamını çekmemek için burada yazılı; sözleşme
+    // `middleware.test.ts`). default-src 'self' iframe'i de kapatıyordu.
+    "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

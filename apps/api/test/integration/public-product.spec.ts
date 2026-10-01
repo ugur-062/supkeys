@@ -184,6 +184,46 @@ describe("ürün vitrini — sızıntı", () => {
   });
 });
 
+// T-18 / D-331 / D-192 (arayüz testi 2026-10-01): belge ADI herkese açık,
+// İNDİRME adresi üyeye; video ve belgeler Silver+ satıcının (efektif paket).
+describe("ürün vitrini — belge ve video (paket + üyelik)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  const media = {
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    documents: [{ url: "https://cdn.example.com/katalog.pdf", title: "Katalog" }],
+  };
+
+  it("Silver satıcı: video döner, belge yalnız ADIYLA (indirme adresi anonim yanıtta YOK)", async () => {
+    const { company, product } = await seedCompanyWithProduct({ tier: "SILVER" }, media);
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    expect(one.product.videoUrl).toBe(media.videoUrl);
+    expect(one.product.documents).toEqual([{ title: "Katalog" }]);
+    expect(JSON.stringify(one)).not.toContain("katalog.pdf");
+  });
+
+  it("STANDART'a düşen satıcının videosu ve belgeleri servis edilmez (kayıt korunur)", async () => {
+    const { company, product } = await seedCompanyWithProduct({ tier: "STANDART" }, media);
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    expect(one.product.videoUrl).toBeNull();
+    expect(one.product.documents).toBeNull();
+    const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: product.id } });
+    expect(row.videoUrl).toBe(media.videoUrl);
+  });
+
+  it("süresi dolmuş Gold = STANDART: medya gizlenir", async () => {
+    const { company, product } = await seedCompanyWithProduct(
+      { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) },
+      media,
+    );
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    expect(one.product.videoUrl).toBeNull();
+    expect(one.product.documents).toBeNull();
+  });
+});
+
 describe("ürün vitrini — arama ve sitemap", () => {
   beforeEach(async () => {
     await truncateAll();
