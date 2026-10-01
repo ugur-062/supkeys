@@ -67,6 +67,19 @@ function UrunlerView() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   /**
+   * URL → sekme eşitlemesi: sekme sayfa açıkken DIŞARIDAN değişen URL'yi de
+   * izler (kenar menüdeki "Ürünler", tarayıcı geri/ileri). Yalnız ilk render'da
+   * okumak URL "Onay bekleyen" derken ekranda "Tümü"yü bırakıyordu. Render
+   * sırasında ayarlanır — eski sekmeyle bir sorgu daha atılmaz.
+   */
+  const urlStatus = sp?.get("status") ?? null;
+  const [syncedStatus, setSyncedStatus] = useState(urlStatus);
+  if (urlStatus !== syncedStatus) {
+    setSyncedStatus(urlStatus);
+    setTab(parseTab(urlStatus));
+    setPage(1);
+  }
+  /**
    * TEK FİRMA KUYRUĞU — ücretsiz pakette ürün tavanı 50 (2026-09-14). Bir
    * firmanın ürünlerini sayfa sayfa avlamak yerine adına tıklayıp hepsini tek
    * görünüme toplamak, toplu onayın gerçek çalışma biçimi.

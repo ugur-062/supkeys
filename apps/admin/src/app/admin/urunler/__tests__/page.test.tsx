@@ -128,6 +128,23 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     expect(h.replace).toHaveBeenLastCalledWith("/admin/urunler", { scroll: false });
   });
 
+  // Gözden geçirme (D-036): sayfa açıkken URL dışarıdan değişirse (kenar menü,
+  // geri/ileri) sekme ve sorgu URL'yi izler.
+  it("URL dışarıdan değişince sekme ve sorgu URL'yi izler", () => {
+    h.search = "status=ALL";
+    const { rerender } = render(<AdminUrunlerPage />);
+    expect((h.lastParams as { status: string }).status).toBe("ALL");
+    expect(screen.getByRole("tab", { name: /Tümü/ })).toHaveAttribute("aria-selected", "true");
+    h.search = "";
+    rerender(<AdminUrunlerPage />);
+    expect((h.lastParams as { status: string }).status).toBe("PENDING");
+    expect(screen.getByRole("tab", { name: /Onay bekleyen/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Tümü/ })).toHaveAttribute("aria-selected", "false");
+    h.search = "status=REJECTED";
+    rerender(<AdminUrunlerPage />);
+    expect((h.lastParams as { status: string }).status).toBe("REJECTED");
+  });
+
   // Arayüz testi D-213: arama sonucu boşken "Kuyruk boş" değil.
   it("arama eşleşmeyince 'Eşleşen ürün yok' yazar", () => {
     h.products = { data: { items: [], total: 0, page: 1, pageSize: 25 }, isLoading: false, isError: false };
