@@ -35,7 +35,8 @@ export interface SellerTenderRow {
   /** Talebi açan firma bağlantım mı (aktif iş ilişkisi) — sıralama sinyali. */
   connected: boolean;
   myBidStatus: string | null;
-  myBidVersion: number | null;
+  /** Gönderim sayısı ("· v2" eki; taslak saymaz — arayüz testi O-036). */
+  myBidSubmitCount: number | null;
   categoryMatch: boolean;
   /** Alıcının aradığı tedarikçi tipi bende var mı — sıralama basamağı. */
   activityMatch?: boolean;

@@ -1558,7 +1558,12 @@ model ListingBid {
   createdById    String // CompanyUser (teklifi veren kişi)
 
   // Zenginleştirme (eski Bid ile paralel).
-  version              Int              @default(1) // taslak güncellemede artar
+  // Eşzamanlılık sayacı: HER yazımda (taslak kaydı dahil) artar — revizyon
+  // sayısı olarak gösterilmez (arayüz testi O-036).
+  version              Int              @default(1)
+  // Gönderim sayısı: yalnız SUBMITTED'a yazımda artar (taslak saymaz).
+  // Arayüzdeki "Revizyon N" ve zaman kazancı revizyon sayımı bundan.
+  submitCount          Int              @default(0)
   submittedAt          DateTime? // SUBMITTED'a geçiş anı
   // Satıcının taahhüt ettiği teslim tarihi. LEGACY (2026-08-02'den önce) —
   // yeni teklifler süre girer.

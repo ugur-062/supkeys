@@ -27,7 +27,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     invited: false,
     connected: false,
     myBidStatus: null,
-    myBidVersion: null,
+    myBidSubmitCount: null,
     categoryMatch: false,
     categories: [{ code: "39121501", name: "Kablo" }],
     extraCategoryCount: 0,
@@ -136,6 +136,17 @@ describe("requestFacets — bağlamsal sayaçlar", () => {
     expect(fx.period).toEqual({ 7: 1, 30: 1, 90: 2 });
     expect(fx.fit).toEqual({ davet: 0, baglanti: 0, urun: 0, kategori: 0, teklif: 0 });
     expect(fx.format).toEqual({ teklif: 2, pazarlik: 0 });
+  });
+
+  it("gizli segment (segment listesinde yok) kategori yüzünde ham kodla GÖRÜNMEZ (arayüz testi D-009)", () => {
+    const rows = [
+      row({ categories: [{ code: "39121501", name: "Kablo" }] }),
+      // 10 = gizli segment (canlı hayvan) — eski test verisi.
+      row({ categories: [{ code: "10101501", name: "Canlı hayvan" }] }),
+    ];
+    const fx = requestFacets(rows, F({ status: "tumu" }), NAMES, NOW);
+    expect(fx.categories).toEqual([{ key: "39000000", label: "Elektrik", count: 1 }]);
+    expect(fx.categories.some((c) => c.label === "10000000")).toBe(false);
   });
 });
 

@@ -943,7 +943,14 @@
       "notFoundBuyingRequest": "Заявки на закупку не найдены",
       "notFoundOpenRequest": "Открытые запросы не найдены",
       "currency": "Валюта",
-      "currencyHint": "Цены в других валютах для сравнения пересчитываются по ежедневному курсу ЦБ Турции."
+      "currencyHint": "Цены в других валютах для сравнения пересчитываются по ежедневному курсу ЦБ Турции.",
+      "foundPastRequest": "Найдено: {total, plural, one {# прошедший запрос} few {# прошедших запроса} many {# прошедших запросов} other {# прошедшего запроса}}",
+      "foundRequest": "Найдено: {total, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}}",
+      "notFoundPastRequest": "Прошедшие запросы не найдены",
+      "notFoundRequest": "Запросы не найдены",
+      "foundOpenRequestAtLeast": "Найдено: {total, number}+ открытых запросов",
+      "foundPastRequestAtLeast": "Найдено: {total, number}+ прошедших запросов",
+      "foundRequestAtLeast": "Найдено: {total, number}+ запросов"
     },
     "index": {
       "breadcrumb": "Навигация",
@@ -3038,7 +3045,9 @@
         "kalemLower": "поз.",
         "artiNKategori": "+{n, plural, one {# категория} few {# категории} many {# категорий} other {# категории}}",
         "paraBirimi": "Валюта",
-        "usul": "Процедура"
+        "usul": "Процедура",
+        "geriCekildi": "Отозвано",
+        "teklifVar": "Есть"
       },
       "ihalelistview": {
         "veriAlinamadi": "Не удалось получить данные.",
@@ -3422,7 +3431,11 @@
         "istenenTeslim": "Требуемая поставка: {date}",
         "gecerlilikSuresiAralik": "Срок действия должен быть целым числом от 1 до 365 дней.",
         "gonderimIcinDogrulamaGerekir": "Чтобы отправить предложение по этому запросу, нужна проверка компании — пока Вы можете сохранить его как черновик.",
-        "tutarBirimli": "Сумма ({effectiveCurrency})"
+        "tutarBirimli": "Сумма ({effectiveCurrency})",
+        "talebiDuzenle": "Редактирование заявки",
+        "talepBulunamadiAciklama": "Эта заявка не найдена или была удалена.",
+        "duzenlemeYetkinizYok": "Нет прав на редактирование",
+        "yalnizTalebiAcanDuzenleyebilir": "Редактировать эту заявку может только пользователь, который её открыл; Вы можете её просматривать."
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "У Вас пока нет контактов. Выберите «Открыта для всех» или пригласите поставщиков из рекомендаций после публикации.",
@@ -3509,7 +3522,11 @@
       },
       "addressPicker": {
         "varsayilan": "по умолчанию",
-        "yeniAdres": "+ Новый адрес"
+        "yeniAdres": "+ Новый адрес",
+        "tumAdresler": "Все адреса ({n})",
+        "dahaAzGoster": "Свернуть",
+        "adresAra": "Поиск адреса…",
+        "eslesenAdresYok": "Подходящих адресов нет"
       },
       "quickRequest": {
         "belgedenOkunamayanAlanlar": "Поля, которые не удалось распознать в документе: {join}",
@@ -3656,7 +3673,10 @@
         "uyeDavetEdildi": "{n, plural, one {# участник Rothern приглашён} few {# участника Rothern приглашены} many {# участников Rothern приглашены} other {# участника Rothern приглашены}} в запрос",
         "bekleyenUyeDavetleri": "Участники Rothern, которые будут приглашены прямо в запрос ({n, number})",
         "bekleyenUyeDavetleriAciklama": "После публикации запроса эти компании будут приглашены в него и получат уведомление в системе и по электронной почте. Им не обязательно быть Вашими контактами.",
-        "uyeDavetiniKaldir": "Убрать приглашение для {name}"
+        "uyeDavetiniKaldir": "Убрать приглашение для {name}",
+        "belirliTarihSaat": "или точные дата и время:",
+        "kapanisGunu": "Дата закрытия",
+        "kapanisSaati": "Время закрытия"
       },
       "publishedPanel": {
         "talebinizYayinda": "Ваш запрос опубликован",
@@ -3787,7 +3807,9 @@
         "mb": "{toFixed} МБ",
         "kaldir": "Удалить",
         "dosyasiniKaldir": "Удалить файл {name}",
-        "dosyalarKaydedilirkenTaslakVeyaYayin": "Файлы загружаются, когда {shortLower} сохраняется (как черновик или при публикации)."
+        "dosyalarKaydedilirkenTaslakVeyaYayin": "Файлы загружаются, когда {shortLower} сохраняется (как черновик или при публикации).",
+        "kb": "{n} КБ",
+        "dosyaTuruDesteklenmiyor": "«{name}» не добавлен — принимаются только файлы PDF, PNG, JPG, WEBP и Excel"
       },
       "itemQuestionModal": {
         "onceEnAzBirSoru": "Сначала добавьте хотя бы один вопрос",
@@ -4106,7 +4128,7 @@
         "questionTextRequired": "Текст вопроса обязателен",
         "itemNameRequired": "Наименование позиции обязательно",
         "quantityRequired": "Укажите количество",
-        "quantityMin": "Количество не может быть меньше 0.001",
+        "quantityMin": "Количество не может быть меньше {min, number}",
         "quantityTooLarge": "Количество слишком велико",
         "maxThreeDecimals": "Не более 3 знаков после запятой",
         "unitRequired": "Единица измерения обязательна",
@@ -4303,7 +4325,8 @@
         "filtreleriTemizle": "Сбросить фильтры",
         "satisKategorileriniDuzenle": "Изменить категории продаж",
         "listesi": "Список: {noun}",
-        "bilinmeyenAlici": "Покупатель"
+        "bilinmeyenAlici": "Покупатель",
+        "gecmisEnYeni200Gosteriliyor": "Показаны 200 последних прошедших запросов — более ранние предложения доступны в разделе «Мои предложения»."
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Для согласований требуются права доступа",
@@ -4315,7 +4338,7 @@
       },
       "myBidsList": {
         "acikTalep": "Открытый запрос",
-        "alici": "Покупатель:",
+        "alici": "Покупатель: {name}",
         "tur": "Раунд {round}",
         "revizyon": "Ревизия {version}",
         "buTeklifinRevizyonu": "Ревизия {version} этого предложения",
@@ -4363,7 +4386,8 @@
         "taahhutTeslim": "Заявленный срок поставки: {value}",
         "verildi": "Отправлено {date}",
         "kapanisa": "До закрытия",
-        "ozet": "<b>{active}</b> в ожидании решения · <b>{won}</b> выиграно (включая частичные)"
+        "ozet": "<b>{active}</b> в ожидании решения · <b>{won}</b> выиграно (включая частичные)",
+        "kararBekleyen": "Ожидает решения"
       },
       "templatesView": {
         "grupAdiEnAz2": "Название группы должно содержать не менее 2 символов",
@@ -7076,7 +7100,7 @@
     },
     "unitSelect": {
       "sikKullanilan": "Часто используемые",
-      "listedeYok": "Нет в списке…",
+      "listedeYok": "Другое…",
       "birimListedeYok": "Единица (нет в списке)",
       "ornBobin": "напр., бобина",
       "buBirimKatalogdaYok": "Этой единицы нет в каталоге — в отчётах её нельзя будет сгруппировать с другими единицами."

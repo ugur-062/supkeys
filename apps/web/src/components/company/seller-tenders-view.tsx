@@ -31,6 +31,14 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
+/**
+ * API tarama tavanları (`sellerTenders`): açık talepler `SELLER_SCAN_CAP` (300),
+ * katıldığım geçmiş talepler en yeni 200. Tavana dayanan kapsamda sayaç "N+"
+ * yazar ve bant gösterilir (arayüz testi D-116 — "200 açık talep bulundu"
+ * kesin sayı gibi okunuyordu).
+ */
+const OPEN_SCAN_CAP = 300;
+const PAST_SCAN_CAP = 200;
 /** Liste satış ANASAYFASINDA yaşar; süzgeç durumu bu yolun sorgusunda. */
 const BASE = "/company/satis";
 
@@ -85,6 +93,15 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
     () => sortRequests(all.filter((r) => passes(r, state, now)), state.sort),
     [all, key, now], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // Kapsam başına tavan: açık ve geçmiş ayrı sorgulardan gelir, ayrı kırpılır.
+  const openCount = useMemo(() => all.filter((r) => r.status === "OPEN").length, [all]);
+  const pastCount = all.length - openCount;
+  const openAtCap = state.status !== "gecmis" && openCount >= OPEN_SCAN_CAP;
+  const pastAtCap = state.status !== "aktif" && pastCount >= PAST_SCAN_CAP;
+  const scopeCount =
+    state.status === "aktif" ? openCount : state.status === "gecmis" ? pastCount : all.length;
+  // Süzgeç daraltmadıysa sayı tavandaki kümenin TAMAMI → alt sınır ("200+").
+  const countAtLeast = (openAtCap || pastAtCap) && filtered.length === scopeCount;
 
   return (
     <FilterShellCore
@@ -101,7 +118,9 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
         facets={facets}
         banner={banner}
         locked={locked}
-        atCap={all.length >= 300}
+        atCap={openAtCap}
+        pastAtCap={pastAtCap}
+        countAtLeast={countAtLeast}
         isLoading={tenders.isLoading}
         isError={tenders.isError}
         refetch={() => void tenders.refetch()}
@@ -117,6 +136,8 @@ function RequestList({
   banner,
   locked,
   atCap,
+  pastAtCap,
+  countAtLeast,
   isLoading,
   isError,
   refetch,
@@ -127,7 +148,12 @@ function RequestList({
   banner?: ReactNode;
   /** Ücretsiz üyenin kilit özeti (paketliye null). */
   locked: Extract<LockedRequestsSummary, { locked: true }> | null;
+  /** Açık talepler tarama tavanında (yalnız açık kapsamı görünürken). */
   atCap: boolean;
+  /** Geçmiş talepler tavanında (yalnız geçmiş kapsamı görünürken). */
+  pastAtCap: boolean;
+  /** Sayaç tavandaki kümenin tamamı → "N+". */
+  countAtLeast: boolean;
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
@@ -161,6 +187,11 @@ function RequestList({
           {tr("enFazla300GosteriliyorDaha", { unit: t.unit })}
         </div>
       ) : null}
+      {pastAtCap ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          {tr("gecmisEnYeni200Gosteriliyor")}
+        </div>
+      ) : null}
 
       {/* AI arama bandı — "AI şöyle anladı" + çipler (sayfa verir). */}
       {banner}
@@ -183,7 +214,12 @@ function RequestList({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount kind="openRequest" />
+              {/* Durum süzgecine göre metin (D-116): geçmişte "açık talep"
+                  demek çelişkiydi. */}
+              <ResultCount
+                kind={state.status === "gecmis" ? "pastRequest" : state.status === "tumu" ? "request" : "openRequest"}
+                atLeast={countAtLeast}
+              />
             </span>
             <RequestSortControl />
           </div>

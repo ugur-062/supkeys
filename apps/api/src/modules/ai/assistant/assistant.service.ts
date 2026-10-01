@@ -601,7 +601,13 @@ export class AssistantService {
         }
         case TOOL_NAMES.listMyBids: {
           if (!canListMyBids(portals)) return { ...NEUTRAL_ERROR };
-          return trimList(labeled(await this.listings.listMyBids(user.companyId), "bid"));
+          // Uç sayfalı (arayüz testi O-005): en yeni 30 teklif + GERÇEK toplam.
+          const res = await this.listings.listMyBids(user.companyId, { pageSize: 30 });
+          return {
+            items: labeled(res.items, "bid"),
+            total: res.total,
+            truncated: res.total > res.items.length,
+          };
         }
         case TOOL_NAMES.getTenderDetail: {
           const id = String(call.args.id ?? "");

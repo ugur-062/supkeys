@@ -267,14 +267,42 @@ export function FilterResults({ children }: { children: ReactNode }) {
  * gözle görülmeli.
  */
 /** Sayılan şey — "N … bulundu" cümlesi dil başına ICU çoğuluyla tek mesajda. */
-export type ResultCountKind = "product" | "company" | "buyingRequest" | "openRequest";
+export type ResultCountKind =
+  | "product"
+  | "company"
+  | "buyingRequest"
+  | "openRequest"
+  /** Satış paneli Açık Talepler › Durum: Geçmiş (arayüz testi D-116). */
+  | "pastRequest"
+  /** Satış paneli Açık Talepler › Durum: Tümü. */
+  | "request";
 
 const FOUND_KEY = {
   product: "foundProduct",
   company: "foundCompany",
   buyingRequest: "foundBuyingRequest",
   openRequest: "foundOpenRequest",
+  pastRequest: "foundPastRequest",
+  request: "foundRequest",
 } as const satisfies Record<ResultCountKind, string>;
+
+/**
+ * Liste tarama tavanına dayandığında sayı ALT SINIRDIR ("200+") — tavanlı
+ * kaynağı olan türler (D-116: geçmiş talepler 200'de kırpılıyordu, metin
+ * kesin sayı gibi okunuyordu).
+ */
+const FOUND_AT_LEAST_KEY = {
+  openRequest: "foundOpenRequestAtLeast",
+  pastRequest: "foundPastRequestAtLeast",
+  request: "foundRequestAtLeast",
+} as const satisfies Partial<Record<ResultCountKind, string>>;
+
+function foundKey(kind: ResultCountKind, atLeast: boolean) {
+  if (atLeast && kind in FOUND_AT_LEAST_KEY) {
+    return FOUND_AT_LEAST_KEY[kind as keyof typeof FOUND_AT_LEAST_KEY];
+  }
+  return FOUND_KEY[kind];
+}
 
 /** "… bulunamadı" da tür başına TAM cümle — isim parçası cümleye eklenmez (RU/EN çekimi tutmaz). */
 const NOT_FOUND_KEY = {
@@ -282,16 +310,21 @@ const NOT_FOUND_KEY = {
   company: "notFoundCompany",
   buyingRequest: "notFoundBuyingRequest",
   openRequest: "notFoundOpenRequest",
+  pastRequest: "notFoundPastRequest",
+  request: "notFoundRequest",
 } as const satisfies Record<ResultCountKind, string>;
 
 export function ResultCount({
   kind,
   loading = false,
   quiet = false,
+  atLeast = false,
 }: {
   kind: ResultCountKind;
   loading?: boolean;
   quiet?: boolean;
+  /** Sayı tarama tavanında — "N+" yazılır. */
+  atLeast?: boolean;
 }) {
   const t = useTranslations("web.marketplace.filters");
   const { total, isPending } = useFilters();
@@ -301,7 +334,7 @@ export function ResultCount({
       {busy
         ? t("updating")
         : total > 0
-          ? t(FOUND_KEY[kind], { total })
+          ? t(foundKey(kind, atLeast), { total })
           : t(NOT_FOUND_KEY[kind])}
     </p>
   );

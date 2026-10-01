@@ -80,7 +80,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     invited: true,
     connected: false,
     myBidStatus: null,
-    myBidVersion: null,
+    myBidSubmitCount: null,
     categoryMatch: false,
     categories: [{ code: "10000000", name: "Canlı Hayvanlar" }],
     extraCategoryCount: 0,
@@ -120,7 +120,7 @@ beforeEach(() => {
 describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () => {
   it("satır: durum rozeti + FİRMA + kapanış + teklifim; rozetler genişletmede", async () => {
     const user = userEvent.setup();
-    h.rows = [row({ categoryMatch: true, myBidVersion: 2, myBidStatus: "SUBMITTED" })];
+    h.rows = [row({ categoryMatch: true, myBidSubmitCount: 2, myBidStatus: "SUBMITTED" })];
     render(<SellerTendersView />);
 
     expect(screen.getByRole("heading", { name: "Açık Talepler" })).toBeInTheDocument();
@@ -196,6 +196,35 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getAllByText("Kazandınız").length).toBeGreaterThanOrEqual(1);
     // Aktif çip + "Tümünü temizle".
     expect(screen.getByRole("button", { name: /Durum: Geçmiş/ })).toBeInTheDocument();
+  });
+
+  it("geçmişte sayaç 'geçmiş talep' der; 200 tavanında '200+' ve bant (arayüz testi D-116)", () => {
+    h.search = "durum=gecmis";
+    h.rows = [
+      row({ title: "Açık olan" }),
+      ...Array.from({ length: 200 }, () => row({ status: "AWARDED", myBidStatus: "LOST" })),
+    ];
+    const { unmount } = render(<SellerTendersView />);
+    expect(screen.getByText("200+ geçmiş talep bulundu")).toBeInTheDocument();
+    expect(screen.queryByText(/açık talep bulundu/)).toBeNull();
+    expect(screen.getByText(/Geçmiş taleplerin en yeni 200'ü gösteriliyor/)).toBeInTheDocument();
+    // Açık kapsamın tavanı (300) değil — o bant çıkmaz.
+    expect(screen.queryByText(/En fazla 300/)).toBeNull();
+    unmount();
+
+    // Tavan altında kesin sayı, bant yok; "Tümü" genel "talep" der.
+    h.search = "durum=tumu";
+    h.rows = [row(), row({ status: "AWARDED", myBidStatus: "LOST" })];
+    render(<SellerTendersView />);
+    expect(screen.getByText("2 talep bulundu")).toBeInTheDocument();
+    expect(screen.queryByText(/en yeni 200/)).toBeNull();
+  });
+
+  it("eski WITHDRAWN teklif ham kodla değil 'Geri çekildi' etiketiyle görünür (arayüz testi D-275)", () => {
+    h.rows = [row({ myBidStatus: "WITHDRAWN" })];
+    render(<SellerTendersView />);
+    expect(screen.getAllByText("Geri çekildi").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/WITHDRAWN/)).toBeNull();
   });
 
   it("alıcı süzgeci veriden türetilir (sayaçlı) ve URL ile uygulanır", async () => {

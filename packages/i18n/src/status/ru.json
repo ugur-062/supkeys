@@ -164,6 +164,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.adminCompanies.firmaKurulumuTamamlanmadiDogrulanamaz": {
+    "hash": "5aa66d89a5",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.adminCompanies.firmaninUrunTavaniDolu": {
     "hash": "14c06d3b21",
     "status": "reviewed",
@@ -1988,6 +1993,11 @@
     "hash": "3556152cb9",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyDocs.onceFirmaKurulumunuTamamlayin": {
+    "hash": "c73ca0133c",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.companyDocs.sadecePdfVeyaGorselYuklenebilir": {
     "hash": "bc6ad8602a",
@@ -5304,6 +5314,36 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.notifications.adminCompanies.belge.activityCert": {
+    "hash": "5d0f6ac957",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belge.idBack": {
+    "hash": "920b1d2886",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belge.idFront": {
+    "hash": "d52b534e2f",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belge.signatureCircular": {
+    "hash": "cd6f9dc000",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belge.taxPlate": {
+    "hash": "999990c7b3",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belge.tradeRegistry": {
+    "hash": "adc6b9a0cc",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.notifications.adminCompanies.belgeGuncellemesiOnaylandiBaslik": {
     "hash": "d6e82a76f5",
     "status": "reviewed",
@@ -5323,6 +5363,51 @@
     "hash": "dc2349f8e5",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.notifications.adminCompanies.belgeTr.activityCert": {
+    "hash": "e6bb7bcd39",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belgeTr.idBack": {
+    "hash": "8613f53fad",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belgeTr.idFront": {
+    "hash": "4fe57806ec",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belgeTr.signatureCircular": {
+    "hash": "4aac0b6e2b",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belgeTr.taxPlate": {
+    "hash": "bd62709232",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.belgeTr.tradeRegistry": {
+    "hash": "6fbe93caeb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.dogrulamaGeriAlindiBaslik": {
+    "hash": "9384295473",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.dogrulamaGeriAlindiEtki": {
+    "hash": "2c73c83d60",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.dogrulamaGeriAlindiGovde": {
+    "hash": "951adda598",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.dogrulamaOnaylandiBaslik": {
     "hash": "3dd6b51d84",
@@ -5365,24 +5450,24 @@
     "at": "2026-09-27"
   },
   "api.notifications.adminCompanies.paketSonlandirildiDavetIptal": {
-    "hash": "a5a9e8f3a5",
+    "hash": "4de5489683",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.paketSonlandirildiGovde": {
-    "hash": "414520f40d",
+    "hash": "f25e69969e",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.paketSonlandirildiGovdeKirpildi": {
-    "hash": "31793692c2",
+    "hash": "f1f4784de1",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.paketSonlandirildiKirpilanUrun": {
-    "hash": "74be63ff82",
+    "hash": "3fcb19a161",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.paketTanimlandiBaslik": {
     "hash": "28cd2ea338",
@@ -5393,6 +5478,81 @@
     "hash": "5161e984e0",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.notifications.adminCompanies.paketTanimlandiGovdeBitisli": {
+    "hash": "6f3bb201ed",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.reddedilenBelgelerBaslik": {
+    "hash": "1ffb1acc2a",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redGerekcesi": {
+    "hash": "a0bc81b97c",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redGerekcesiNotlu": {
+    "hash": "ed45c5944b",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redGerekcesiSerbest": {
+    "hash": "f2fcccb65a",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redKodu.COUNTRY_CHANGED": {
+    "hash": "7c50761965",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redKodu.INCOMPLETE": {
+    "hash": "ac47991946",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redKodu.MISMATCH": {
+    "hash": "ba43fd1260",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redKodu.MISSING_SIGNATURE": {
+    "hash": "e9c695d8ea",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redKodu.OUTDATED": {
+    "hash": "e81e90c640",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redKodu.UNREADABLE": {
+    "hash": "8932328b81",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redKodu.WRONG_DOCUMENT": {
+    "hash": "e22d044201",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redSatiri": {
+    "hash": "999dd9d497",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redSatiriNotlu": {
+    "hash": "c228cdf4da",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.notifications.adminCompanies.redSatiriSerbest": {
+    "hash": "2f07d74e18",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.sikayetUzerineAskiyaAlindiGerekce": {
     "hash": "f21dd3baa4",
@@ -6694,10 +6854,15 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "api.notifications.membership.sonaErdiKirpilanUrun": {
-    "hash": "74be63ff82",
+  "api.notifications.membership.sonaErdiDavetIptal": {
+    "hash": "4de5489683",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
+  },
+  "api.notifications.membership.sonaErdiKirpilanUrun": {
+    "hash": "3fcb19a161",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.notifications.membership.sonaErdiKonu": {
     "hash": "8cad3c96d7",
@@ -14994,10 +15159,35 @@
     "status": "reviewed",
     "at": "2026-09-25"
   },
+  "web.marketplace.filters.foundOpenRequestAtLeast": {
+    "hash": "ca83baf339",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.filters.foundPastRequest": {
+    "hash": "e6ed1f25ca",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.filters.foundPastRequestAtLeast": {
+    "hash": "d37e21bc12",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.filters.foundProduct": {
     "hash": "7ea39abb1d",
     "status": "reviewed",
     "at": "2026-09-25"
+  },
+  "web.marketplace.filters.foundRequest": {
+    "hash": "cc81bec2af",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.filters.foundRequestAtLeast": {
+    "hash": "c556aa7d5f",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.filters.goldMember": {
     "hash": "2ff468f6f1",
@@ -15144,10 +15334,20 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.marketplace.filters.notFoundPastRequest": {
+    "hash": "1648ef61ea",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.filters.notFoundProduct": {
     "hash": "196f2e08ee",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.marketplace.filters.notFoundRequest": {
+    "hash": "37d42705a6",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.filters.onRequest": {
     "hash": "644efe871c",
@@ -21629,6 +21829,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.browsetenderrow.geriCekildi": {
+    "hash": "6d31ceb41e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.browsetenderrow.gizliFirma": {
     "hash": "2f94121155",
     "status": "reviewed",
@@ -21733,6 +21938,11 @@
     "hash": "4c72099b2d",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.browsetenderrow.teklifVar": {
+    "hash": "fb93a7ed5b",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.browsetenderrow.teklifVer": {
     "hash": "d57149c5f0",
@@ -34225,9 +34435,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.myBidsList.alici": {
-    "hash": "f5b721c928",
+    "hash": "954fb40a0e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.myBidsList.arama": {
     "hash": "d1d75c288c",
@@ -34273,6 +34483,11 @@
     "hash": "be544209fd",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.myBidsList.kararBekleyen": {
+    "hash": "e829217d4f",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.myBidsList.ozet": {
     "hash": "5aaf4da2bc",
@@ -36793,6 +37008,11 @@
     "hash": "42ee1c1ee6",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.sellerTendersView.gecmisEnYeni200Gosteriliyor": {
+    "hash": "22ad8c0c51",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.sellerTendersView.henuzYok": {
     "hash": "1fd6fea3b4",

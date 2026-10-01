@@ -943,7 +943,14 @@
       "notFoundBuyingRequest": "No buying requests found",
       "notFoundOpenRequest": "No open requests found",
       "currency": "Currency",
-      "currencyHint": "Prices in other currencies are converted at the daily CBRT rate for comparison."
+      "currencyHint": "Prices in other currencies are converted at the daily CBRT rate for comparison.",
+      "foundPastRequest": "{total, plural, one {# past request found} other {# past requests found}}",
+      "foundRequest": "{total, plural, one {# request found} other {# requests found}}",
+      "notFoundPastRequest": "No past requests found",
+      "notFoundRequest": "No requests found",
+      "foundOpenRequestAtLeast": "{total, number}+ open requests found",
+      "foundPastRequestAtLeast": "{total, number}+ past requests found",
+      "foundRequestAtLeast": "{total, number}+ requests found"
     },
     "index": {
       "breadcrumb": "Breadcrumb",
@@ -3038,7 +3045,9 @@
         "kalemLower": "items",
         "artiNKategori": "+{n, plural, one {# category} other {# categories}}",
         "paraBirimi": "Currency",
-        "usul": "Procedure"
+        "usul": "Procedure",
+        "geriCekildi": "Withdrawn",
+        "teklifVar": "On file"
       },
       "ihalelistview": {
         "veriAlinamadi": "Data could not be retrieved.",
@@ -3422,7 +3431,11 @@
         "istenenTeslim": "Requested delivery: {date}",
         "gecerlilikSuresiAralik": "Validity period must be a whole number between 1 and 365 days.",
         "gonderimIcinDogrulamaGerekir": "Company verification is required to submit a quote on this request — you can save it as a draft for now.",
-        "tutarBirimli": "Amount ({effectiveCurrency})"
+        "tutarBirimli": "Amount ({effectiveCurrency})",
+        "talebiDuzenle": "Edit request",
+        "talepBulunamadiAciklama": "This request could not be found or has been removed.",
+        "duzenlemeYetkinizYok": "You cannot edit this request",
+        "yalnizTalebiAcanDuzenleyebilir": "Only the user who opened this request can edit it; you can view it."
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -3509,7 +3522,11 @@
       },
       "addressPicker": {
         "varsayilan": "default",
-        "yeniAdres": "+ New address"
+        "yeniAdres": "+ New address",
+        "tumAdresler": "All addresses ({n})",
+        "dahaAzGoster": "Show less",
+        "adresAra": "Search addresses…",
+        "eslesenAdresYok": "No matching address"
       },
       "quickRequest": {
         "belgedenOkunamayanAlanlar": "Fields that could not be read from the document: {join}",
@@ -3656,7 +3673,10 @@
         "uyeDavetEdildi": "{n, plural, one {# Rothern member} other {# Rothern members}} invited to the request",
         "bekleyenUyeDavetleri": "Rothern members to invite straight to the request ({n, number})",
         "bekleyenUyeDavetleriAciklama": "Once the request is published, these companies are invited to it and notified in the app and by email. They don't need to be your contacts.",
-        "uyeDavetiniKaldir": "Remove invitation for {name}"
+        "uyeDavetiniKaldir": "Remove invitation for {name}",
+        "belirliTarihSaat": "or a specific date and time:",
+        "kapanisGunu": "Closing date",
+        "kapanisSaati": "Closing time"
       },
       "publishedPanel": {
         "talebinizYayinda": "Your request is live",
@@ -3787,7 +3807,9 @@
         "mb": "{toFixed} MB",
         "kaldir": "Remove",
         "dosyasiniKaldir": "Remove file {name}",
-        "dosyalarKaydedilirkenTaslakVeyaYayin": "Files are uploaded when the {shortLower} is saved (as a draft or published)."
+        "dosyalarKaydedilirkenTaslakVeyaYayin": "Files are uploaded when the {shortLower} is saved (as a draft or published).",
+        "kb": "{n} KB",
+        "dosyaTuruDesteklenmiyor": "\"{name}\" was not added — only PDF, PNG, JPG, WEBP and Excel files are accepted"
       },
       "itemQuestionModal": {
         "onceEnAzBirSoru": "Add at least one question first",
@@ -4106,7 +4128,7 @@
         "questionTextRequired": "Question text is required",
         "itemNameRequired": "Line item name is required",
         "quantityRequired": "Quantity is required",
-        "quantityMin": "Quantity cannot be less than 0.001",
+        "quantityMin": "Quantity cannot be less than {min, number}",
         "quantityTooLarge": "Quantity is too large",
         "maxThreeDecimals": "At most 3 decimal places",
         "unitRequired": "Unit is required",
@@ -4303,7 +4325,8 @@
         "filtreleriTemizle": "Clear filters",
         "satisKategorileriniDuzenle": "Edit sales categories",
         "listesi": "{noun} list",
-        "bilinmeyenAlici": "Buyer"
+        "bilinmeyenAlici": "Buyer",
+        "gecmisEnYeni200Gosteriliyor": "Showing the 200 most recent past requests — find older quotes under My Quotes."
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Approvals require permission",
@@ -4315,7 +4338,7 @@
       },
       "myBidsList": {
         "acikTalep": "Open Request",
-        "alici": "Buyer:",
+        "alici": "Buyer: {name}",
         "tur": "Round {round}",
         "revizyon": "Revision {version}",
         "buTeklifinRevizyonu": "Revision {version} of this quote",
@@ -4363,7 +4386,8 @@
         "taahhutTeslim": "Committed delivery: {value}",
         "verildi": "Submitted {date}",
         "kapanisa": "Closes in",
-        "ozet": "<b>{active}</b> awaiting decision · <b>{won}</b> won (including partial)"
+        "ozet": "<b>{active}</b> awaiting decision · <b>{won}</b> won (including partial)",
+        "kararBekleyen": "Awaiting decision"
       },
       "templatesView": {
         "grupAdiEnAz2": "Group name must be at least 2 characters",
@@ -7076,7 +7100,7 @@
     },
     "unitSelect": {
       "sikKullanilan": "Frequently used",
-      "listedeYok": "Not in the list…",
+      "listedeYok": "Other…",
       "birimListedeYok": "Unit (not in list)",
       "ornBobin": "e.g. coil",
       "buBirimKatalogdaYok": "This unit is not in the catalog — it cannot be grouped with other units in reports."

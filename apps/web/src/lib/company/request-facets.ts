@@ -289,10 +289,16 @@ export function requestFacets(
       kategori: count(fit, (r) => rowFits(r, "kategori")),
       teklif: count(fit, (r) => rowFits(r, "teklif")),
     },
+    // Yalnız GÖRÜNÜR segmentler sayılır (arayüz testi D-009): gizli segment
+    // (`HIDDEN_SEGMENTS`) `categories/segments` listesinde yok → adı bulunamayıp
+    // ham kod ("10000000 — 16") basılıyordu. Ürün facet'iyle aynı kural.
     categories: tally(
       rowsFor("categories"),
-      (r) => rowSegments(r).map((key) => ({ key, label: segmentNames.get(key) ?? key })),
-      f.categories,
+      (r) =>
+        rowSegments(r)
+          .filter((key) => segmentNames.has(key))
+          .map((key) => ({ key, label: segmentNames.get(key) ?? key })),
+      f.categories.filter((k) => segmentNames.has(k)),
       (k) => segmentNames.get(k) ?? k,
     ),
     closing: Object.fromEntries(

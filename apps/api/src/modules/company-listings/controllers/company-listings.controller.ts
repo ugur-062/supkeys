@@ -29,6 +29,7 @@ import {
   InternalNotesDto,
   ListingReasonDto,
 } from "../dto/owner-action.dto";
+import { MyBidsQueryDto } from "../dto/my-bids-query.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 import { CompanyListingsService } from "../services/company-listings.service";
 import type { Response } from "express";
@@ -44,11 +45,17 @@ export class CompanyListingsController {
     return this.service.listMine(user.companyId);
   }
 
-  /** Firmanın başka ilanlara verdiği tüm teklifler (Tekliflerim ekranı). */
+  /**
+   * Firmanın başka ilanlara verdiği teklifler (Tekliflerim ekranı) — sayfalı,
+   * sunucu tarafı süzgeçli; `counts` süzgeçten bağımsız (arayüz testi O-005).
+   */
   @Get("my-bids")
   @RequireCompanyPermission("sell:view")
-  listMyBids(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.listMyBids(user.companyId);
+  listMyBids(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query() query: MyBidsQueryDto,
+  ) {
+    return this.service.listMyBids(user.companyId, query);
   }
 
   /** Taleplerim listesi — zengin. (`type` yalnız ALIM; satış ilanı kaldırıldı.) */

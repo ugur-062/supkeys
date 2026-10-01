@@ -65,7 +65,9 @@ export function BrowseTenderRow({
           ? "border-l-amber-500"
           : "border-l-emerald-500";
 
-  // Benim teklifim → kısa etiket (sağ uç metrik); sürüm eki "· v2".
+  // Benim teklifim → kısa etiket (sağ uç metrik); gönderim eki "· v2".
+  // Bilinmeyen/legacy kod ham basılmaz (eski WITHDRAWN "Teklifim: WITHDRAWN"
+  // görünüyordu — arayüz testi D-275): çevrilmiş etiket, yoksa nötr "Teklif var".
   const myBase = !t.myBidStatus
     ? null
     : t.myBidStatus === "SUBMITTED"
@@ -76,10 +78,14 @@ export function BrowseTenderRow({
           ? tr("kaybedildi")
           : t.myBidStatus === "DRAFT"
             ? tr("taslak")
-            : t.myBidStatus;
+            : t.myBidStatus === "WITHDRAWN"
+              ? tr("geriCekildi")
+              : tr("teklifVar");
+  // Sürüm eki GÖNDERİM sayısından (O-036): `version` eşzamanlılık sayacıdır,
+  // taslak kaydında da artar — ilk gönderim "v2/v3" görünüyordu.
   const my =
-    myBase && t.myBidVersion && t.myBidVersion > 1
-      ? tr("teklifSurumu", { label: myBase, version: t.myBidVersion })
+    myBase && t.myBidSubmitCount && t.myBidSubmitCount > 1
+      ? tr("teklifSurumu", { label: myBase, version: t.myBidSubmitCount })
       : myBase;
   const hiddenOwner = !t.owner;
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();

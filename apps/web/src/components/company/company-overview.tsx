@@ -19,7 +19,7 @@ import { useMyBids } from "@/hooks/use-company-listings";
 import { useOrders } from "@/hooks/use-company-orders";
 import { useVisitors } from "@/hooks/use-company-views";
 import { useDashboardParams } from "@/hooks/use-dashboard-params";
-import { selectActiveOffers, selectActiveOrders, selectWonOffers } from "@/lib/company/kpi-selectors";
+import { selectActiveOrders } from "@/lib/company/kpi-selectors";
 import { COMPANY_AREA_BASE, accessiblePortals, type PortalKey } from "@/lib/company/portals";
 import { userHasPermission } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
@@ -102,7 +102,9 @@ export function CompanyOverview() {
   const tedarikci = useSatinalmaTedarikci(hasSa);
   const saAnalytics = useSatinalmaAnalytics(periodQuery, hasSa);
   const stAnalytics = useSatisAnalytics(periodQuery, hasSt);
-  const bids = useMyBids(hasSt);
+  // Yalnız sayaçlar (süzgeçten bağımsız, sunucuda sayılır — arayüz testi
+  // O-005): eskiden en yeni 200 teklifin listesi çekilip istemcide sayılıyordu.
+  const bids = useMyBids({ pageSize: 1 }, hasSt);
   const orders = useOrders(hasSt);
   // Ziyaret Edenler / İş Analizi = "insights:view" (API `company/views/*` aynası).
   // İzni olmayana bağlantı ÇİZİLMEZ ve sorgu atılmaz (2026-09-17: satınalma
@@ -224,8 +226,8 @@ export function CompanyOverview() {
                     attention={(stAnalytics.data?.actions.unansweredInvites ?? 0) > 0}
                     hint={(stAnalytics.data?.actions.unansweredInvites ?? 0) > 0 ? t("teklifiniziBekliyor") : undefined}
                   />
-                  <KpiCard label={t("aktifTekliflerim")} value={selectActiveOffers(bids.data).length} href="/company/satis/tekliflerim" accent="emerald" deltaPct={stAnalytics.data?.deltas.bidsSubmitted} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.bidsSubmitted} />
-                  <KpiCard label={t("kazandigimIsler")} value={selectWonOffers(bids.data).length} href="/company/satis/tekliflerim?status=WON" accent="emerald" hint={t("kismiKazanimDahil")} spark={stAnalytics.data?.kpiSeries.won} />
+                  <KpiCard label={t("aktifTekliflerim")} value={bids.data.counts.active} href="/company/satis/tekliflerim?pending=1" accent="emerald" deltaPct={stAnalytics.data?.deltas.bidsSubmitted} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.bidsSubmitted} />
+                  <KpiCard label={t("kazandigimIsler")} value={bids.data.counts.won} href="/company/satis/tekliflerim?status=WON" accent="emerald" hint={t("kismiKazanimDahil")} spark={stAnalytics.data?.kpiSeries.won} />
                   <KpiCard label={t("aktifSiparis")} value={selectActiveOrders(orders.data, "seller").length} href="/company/satis/siparisler" accent="emerald" deltaPct={stAnalytics.data?.deltas.orders} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.orders} />
                   <KpiCard
                     label={t("gelir")}

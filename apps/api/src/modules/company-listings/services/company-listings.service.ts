@@ -14,7 +14,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { hiddenCategoryWhere, isHiddenCategory, listingPath } from "@rothern/shared";
+import { foldSearchText, hiddenCategoryWhere, isHiddenCategory, listingPath } from "@rothern/shared";
 import {
   CompanyRole,
   ListingType,
@@ -109,6 +109,7 @@ import {
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
+import { MY_BIDS_MAX_PAGE_SIZE, type MyBidsQueryDto } from "../dto/my-bids-query.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { hasReadContext } from "../../../common/company/full-read-context";
 import { isConnectionValid } from "../../../common/company/valid-connection";
@@ -174,6 +175,12 @@ const CLOSING_REMINDER_MINUTES = 60;
  * fazlasını söylerdi.
  */
 const SELLER_SCAN_CAP = 300;
+/**
+ * Teklif "karar bekleyen" sayılır: SUBMITTED ve ilan henüz karara
+ * bağlanmamış. Tekliflerim özeti + Şirketim "Aktif Tekliflerim" KPI'ı bu
+ * kümeyi sunucudan okur (eskiden web `kpi-selectors` kesik listede sayıyordu).
+ */
+const MY_BID_UNDECIDED_LISTING = ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] as const;
 
 /**
  * Bildirim ilgi eşiği. Skorlar firma başına 100 puanlık bütçeye normalize —
@@ -2481,12 +2488,124 @@ export class CompanyListingsService {
   }
 
   /**
-   * Firmanın başka firmaların ilanlarına verdiği TÜM teklifler — Tekliflerim
+   * Firmanın başka firmaların ilanlarına verdiği teklifler — Tekliflerim
    * ekranı. İlan özeti (başlık/no/tür/durum/kapanış) ile birlikte döner.
+   *
+   * Arayüz testi O-005: SAYFALI + sunucu tarafı süzgeç/sıralama + durum
+   * sayaçları. Eskiden sabit `take: 200` ile kesiliyor, süzme ve sayaçlar
+   * istemcide bu kesik listeden hesaplanıyordu: 200'ü aşan firmada sayılar
+   * yanlış, en yeni 200'ün dışındaki teklifler (karar bekleyenler dahil)
+   * hiç görünmüyordu. `counts` süzgeçten BAĞIMSIZ — liste başlığı özeti ve
+   * Şirketim KPI'ları aynı sayımı okur (tek kaynak burası).
    */
-  async listMyBids(companyId: string) {
+  async listMyBids(companyId: string, query: MyBidsQueryDto = {}) {
+    const pageSize = Math.min(
+      Math.max(query.pageSize ?? 10, 1),
+      MY_BIDS_MAX_PAGE_SIZE,
+    );
+    const sort = query.sort ?? "newest";
+    const base: Prisma.ListingBidWhereInput = { bidderCompanyId: companyId };
+    const where: Prisma.ListingBidWhereInput = {
+      ...base,
+      ...(query.status?.length ? { status: { in: query.status } } : {}),
+      // `counts.active` ile AYNI küme (KPI → liste drill-down, D-120). Durum
+      // süzgeciyle birlikte AND'lenir (status: SUBMITTED dışı → boş sonuç).
+      ...(query.pending
+        ? {
+            AND: [
+              { status: "SUBMITTED" as const },
+              { listing: { status: { in: [...MY_BID_UNDECIDED_LISTING] } } },
+            ],
+          }
+        : {}),
+      ...(query.days
+        ? { createdAt: { gte: new Date(Date.now() - query.days * 86_400_000) } }
+        : {}),
+    };
+    // Arama KATLANMIŞ karşılaştırma (İ/ı, aksan) — DB ILIKE bunu yapamaz.
+    // Firmanın KENDİ teklifleri üzerinde hafif bir projeksiyon yeterli.
+    const needle = query.q ? foldSearchText(query.q) : "";
+    if (needle) {
+      const candidates = await this.prisma.listingBid.findMany({
+        where,
+        select: {
+          id: true,
+          listing: {
+            select: {
+              title: true,
+              number: true,
+              company: { select: { name: true } },
+            },
+          },
+        },
+      });
+      where.id = {
+        in: candidates
+          .filter(
+            (c) =>
+              foldSearchText(c.listing.title).includes(needle) ||
+              foldSearchText(c.listing.number ?? "").includes(needle) ||
+              foldSearchText(c.listing.company.name).includes(needle),
+          )
+          .map((c) => c.id),
+      };
+    }
+
+    const [total, byStatus, active] = await Promise.all([
+      this.prisma.listingBid.count({ where }),
+      this.prisma.listingBid.groupBy({
+        by: ["status"],
+        where: base,
+        _count: { _all: true },
+      }),
+      // "Karar bekleyen": gönderilmiş ve ilan henüz karara bağlanmamış.
+      this.prisma.listingBid.count({
+        where: {
+          ...base,
+          status: "SUBMITTED",
+          listing: { status: { in: [...MY_BID_UNDECIDED_LISTING] } },
+        },
+      }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(Math.max(query.page ?? 1, 1), totalPages);
+    const skip = (page - 1) * pageSize;
+
+    // Tutar sıralaması TRY karşılığıyla (INV-FX-1 tek baz) — hesaplanan
+    // değer olduğundan DB'de sıralanamaz: hafif projeksiyonda sırala, sayfanın
+    // kimliklerini al.
+    let pageIds: string[] | null = null;
+    if (sort === "amount") {
+      const rows = await this.prisma.listingBid.findMany({
+        where,
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          exchangeRateSnapshot: true,
+          createdAt: true,
+          listing: { select: { auctionRateSnapshot: true } },
+        },
+      });
+      pageIds = rows
+        .map((r) => ({
+          id: r.id,
+          at: r.createdAt.getTime(),
+          v:
+            this.auctionTryValue(
+              r.amount,
+              r.currency,
+              r.exchangeRateSnapshot,
+              r.listing.auctionRateSnapshot,
+            ) ?? r.amount,
+        }))
+        .sort((a, b) => b.v.comparedTo(a.v) || b.at - a.at)
+        .slice(skip, skip + pageSize)
+        .map((r) => r.id);
+    }
+
     const bids = await this.prisma.listingBid.findMany({
-      where: { bidderCompanyId: companyId },
+      where: pageIds ? { ...base, id: { in: pageIds } } : where,
       include: {
         listing: {
           select: {
@@ -2502,9 +2621,16 @@ export class CompanyListingsService {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
-      take: 200,
+      orderBy: [
+        { createdAt: sort === "oldest" ? "asc" : "desc" },
+        { id: "asc" },
+      ],
+      ...(pageIds ? {} : { skip, take: pageSize }),
     });
+    if (pageIds) {
+      const pos = new Map(pageIds.map((id, i) => [id, i] as const));
+      bids.sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0));
+    }
 
     // Kazanan tekliflerin siparişleri — karttan "Siparişe Git" için.
     // ALIM'da satıcıyım, SATIS'ta alıcıyım; her iki rolü tek sorguda kapsar.
@@ -2526,7 +2652,9 @@ export class CompanyListingsService {
         : [];
     const orderByListing = new Map(orders.map((o) => [o.listingId, o.id]));
 
-    return bids.map((b) => ({
+    const countOf = (s: ListingBidStatus) =>
+      byStatus.find((g) => g.status === s)?._count._all ?? 0;
+    const items = bids.map((b) => ({
       id: b.id,
       amount: b.amount.toString(),
       currency: b.currency,
@@ -2544,7 +2672,10 @@ export class CompanyListingsService {
               ?.toFixed(2) ?? null,
       status: b.status,
       round: b.round,
+      // Eşzamanlılık sayacı (her yazımda artar) — revizyon DEĞİL.
       version: b.version,
+      // Gönderim sayısı (taslak kaydı saymaz) — "Revizyon N" bundan (O-036).
+      submitCount: b.submitCount,
       createdAt: b.createdAt,
       deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
       deliveryTime: b.deliveryTime,
@@ -2559,6 +2690,17 @@ export class CompanyListingsService {
         ownerName: b.listing.company.name,
       },
     }));
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      counts: {
+        all: byStatus.reduce((n, g) => n + g._count._all, 0),
+        active,
+        won: countOf("WON") + countOf("AWARDED_PARTIAL"),
+      },
+    };
   }
 
   /**
@@ -2888,7 +3030,7 @@ export class CompanyListingsService {
     const [myBids, myInvites, categories] = await Promise.all([
       this.prisma.listingBid.findMany({
         where: { listingId: { in: ids }, bidderCompanyId: companyId },
-        select: { listingId: true, status: true, version: true },
+        select: { listingId: true, status: true, submitCount: true },
       }),
       this.prisma.listingInvitation.findMany({
         where: { listingId: { in: ids }, invitedCompanyId: companyId },
@@ -2999,7 +3141,9 @@ export class CompanyListingsService {
         // altında, kategori eşleşenin üstünde önceliklenir.
         connected,
         myBidStatus: bid?.status ?? null,
-        myBidVersion: bid?.version ?? null,
+        // Gönderim sayısı ("· v2" eki) — `version` eşzamanlılık sayacıdır,
+        // taslak kayıtlarında da artar (arayüz testi O-036).
+        myBidSubmitCount: bid?.submitCount ?? null,
         categoryMatch: matchesMyCategories(l.categoryIds),
         activityMatch: matchesMyActivity(l.preferredActivities ?? []),
         // Aynı ülke: görünürlük kuralı değil SIRA sinyali (2026-09-21) — talep
@@ -5056,6 +5200,8 @@ export class CompanyListingsService {
           createdById: user.userId,
           status,
           submittedAt: isDraft ? null : new Date(),
+          // Gönderim sayacı — taslak saymaz (arayüz testi O-036).
+          submitCount: isDraft ? 0 : 1,
           round: listing.currentRound,
           // Gönderim tur hakkını kullanır (taslak kullanmaz) — pazarlıkta
           // "turda tek gönderim", RFQ'da "taşınan teklif turda bir kez
@@ -5072,7 +5218,10 @@ export class CompanyListingsService {
           deliveryAddressId,
           note: dto.note?.trim() || null,
           status,
+          // `version` eşzamanlılık sayacı (her yazımda); revizyon sayısı
+          // `submitCount` — yalnız gönderimde artar (arayüz testi O-036).
           version: { increment: 1 },
+          ...(!isDraft ? { submitCount: { increment: 1 } } : {}),
           // Yeniden teklif (elenmişken tekrar SUBMITTED) → eski eleme izini temizle
           // ki myBid'de "elendi" bilgisi canlı teklifle çelişmesin.
           // Denetim 2026-08-23 P2 #2: taslak güncellemesi eski gönderim damgasını
@@ -5137,8 +5286,10 @@ export class CompanyListingsService {
           currency: bid.currency,
           round: listing.currentRound,
           version: bid.version,
-          // version>1 → elenmiş/önceki teklifin üzerine yeniden gönderim.
-          resubmission: bid.version > 1,
+          submitCount: bid.submitCount,
+          // submitCount>1 → önceki gönderimin üzerine yeniden gönderim
+          // (version taslak kayıtlarında da artar — revizyon sayılmaz, O-036).
+          resubmission: bid.submitCount > 1,
         },
       });
     }

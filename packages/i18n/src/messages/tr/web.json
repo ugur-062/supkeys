@@ -943,7 +943,14 @@
       "notFoundBuyingRequest": "Alım talebi bulunamadı",
       "notFoundOpenRequest": "Açık talep bulunamadı",
       "currency": "Para birimi",
-      "currencyHint": "Farklı para birimindeki fiyatlar günlük TCMB kuruyla çevrilerek karşılaştırılır."
+      "currencyHint": "Farklı para birimindeki fiyatlar günlük TCMB kuruyla çevrilerek karşılaştırılır.",
+      "foundPastRequest": "{total, number} geçmiş talep bulundu",
+      "foundRequest": "{total, number} talep bulundu",
+      "notFoundPastRequest": "Geçmiş talep bulunamadı",
+      "notFoundRequest": "Talep bulunamadı",
+      "foundOpenRequestAtLeast": "{total, number}+ açık talep bulundu",
+      "foundPastRequestAtLeast": "{total, number}+ geçmiş talep bulundu",
+      "foundRequestAtLeast": "{total, number}+ talep bulundu"
     },
     "index": {
       "breadcrumb": "Konum",
@@ -3038,7 +3045,9 @@
         "kalemLower": "kalem",
         "artiNKategori": "+{n} kategori",
         "paraBirimi": "Para birimi",
-        "usul": "Usul"
+        "usul": "Usul",
+        "geriCekildi": "Geri çekildi",
+        "teklifVar": "Kayıtlı"
       },
       "ihalelistview": {
         "veriAlinamadi": "Veri alınamadı.",
@@ -3422,7 +3431,11 @@
         "istenenTeslim": "İstenen teslim: {date}",
         "gecerlilikSuresiAralik": "Geçerlilik süresi 1–365 gün arasında tam sayı olmalı.",
         "gonderimIcinDogrulamaGerekir": "Bu talebe teklif göndermek için firma doğrulaması gerekir — şimdilik taslak olarak kaydedebilirsiniz.",
-        "tutarBirimli": "Tutar ({effectiveCurrency})"
+        "tutarBirimli": "Tutar ({effectiveCurrency})",
+        "talebiDuzenle": "Talebi düzenle",
+        "talepBulunamadiAciklama": "Bu talep bulunamadı ya da kaldırılmış.",
+        "duzenlemeYetkinizYok": "Düzenleme yetkiniz yok",
+        "yalnizTalebiAcanDuzenleyebilir": "Bu talebi yalnız açan kullanıcı düzenleyebilir; siz talebi görüntüleyebilirsiniz."
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -3509,7 +3522,11 @@
       },
       "addressPicker": {
         "varsayilan": "varsayılan",
-        "yeniAdres": "+ Yeni adres"
+        "yeniAdres": "+ Yeni adres",
+        "tumAdresler": "Tüm adresler ({n})",
+        "dahaAzGoster": "Daha az göster",
+        "adresAra": "Adres ara…",
+        "eslesenAdresYok": "Eşleşen adres yok"
       },
       "quickRequest": {
         "belgedenOkunamayanAlanlar": "Belgeden okunamayan alanlar: {join}",
@@ -3656,7 +3673,10 @@
         "uyeDavetEdildi": "{n, plural, other {# Rothern üyesi}} talebe davet edildi",
         "bekleyenUyeDavetleri": "Talebe doğrudan davet edilecek Rothern üyeleri ({n, number})",
         "bekleyenUyeDavetleriAciklama": "Talep yayınlanınca bu firmalar talebinize davetli olur ve uygulamada ve e-postayla haberdar edilir. Bağlantınız olmaları gerekmez.",
-        "uyeDavetiniKaldir": "{name} davetini kaldır"
+        "uyeDavetiniKaldir": "{name} davetini kaldır",
+        "belirliTarihSaat": "ya da belirli tarih ve saat:",
+        "kapanisGunu": "Kapanış günü",
+        "kapanisSaati": "Kapanış saati"
       },
       "publishedPanel": {
         "talebinizYayinda": "Talebiniz yayında",
@@ -3787,7 +3807,9 @@
         "mb": "{toFixed} MB",
         "kaldir": "Kaldır",
         "dosyasiniKaldir": "{name} dosyasını kaldır",
-        "dosyalarKaydedilirkenTaslakVeyaYayin": "Dosyalar {shortLower} kaydedilirken (taslak veya yayın) yüklenir."
+        "dosyalarKaydedilirkenTaslakVeyaYayin": "Dosyalar {shortLower} kaydedilirken (taslak veya yayın) yüklenir.",
+        "kb": "{n} KB",
+        "dosyaTuruDesteklenmiyor": "\"{name}\" eklenemedi — yalnız PDF, PNG, JPG, WEBP ve Excel dosyaları kabul edilir"
       },
       "itemQuestionModal": {
         "onceEnAzBirSoru": "Önce en az bir soru ekle",
@@ -4106,7 +4128,7 @@
         "questionTextRequired": "Soru metni zorunlu",
         "itemNameRequired": "Kalem adı zorunlu",
         "quantityRequired": "Miktar girilmeli",
-        "quantityMin": "Miktar 0.001''den küçük olamaz",
+        "quantityMin": "Miktar {min, number}''den küçük olamaz",
         "quantityTooLarge": "Miktar çok büyük",
         "maxThreeDecimals": "En fazla 3 ondalık",
         "unitRequired": "Birim zorunlu",
@@ -4303,7 +4325,8 @@
         "filtreleriTemizle": "Filtreleri temizle",
         "satisKategorileriniDuzenle": "Satış kategorilerini düzenle",
         "listesi": "{noun} listesi",
-        "bilinmeyenAlici": "Alıcı"
+        "bilinmeyenAlici": "Alıcı",
+        "gecmisEnYeni200Gosteriliyor": "Geçmiş taleplerin en yeni 200'ü gösteriliyor — daha eski tekliflerinize Tekliflerim'den ulaşabilirsiniz."
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Onaylar yetki gerektirir",
@@ -4315,7 +4338,7 @@
       },
       "myBidsList": {
         "acikTalep": "Açık Talep",
-        "alici": "Alıcı:",
+        "alici": "Alıcı: {name}",
         "tur": "Tur {round}",
         "revizyon": "Revizyon {version}",
         "buTeklifinRevizyonu": "Bu teklifin {version}. revizyonu",
@@ -4363,7 +4386,8 @@
         "taahhutTeslim": "Taahhüt teslim: {value}",
         "verildi": "Verildi {date}",
         "kapanisa": "Kapanışa",
-        "ozet": "<b>{active}</b> karar bekleyen · <b>{won}</b> kazanılan (kısmi dahil)"
+        "ozet": "<b>{active}</b> karar bekleyen · <b>{won}</b> kazanılan (kısmi dahil)",
+        "kararBekleyen": "Karar bekleyen"
       },
       "templatesView": {
         "grupAdiEnAz2": "Grup adı en az 2 karakter olmalı",
@@ -7076,7 +7100,7 @@
     },
     "unitSelect": {
       "sikKullanilan": "Sık kullanılan",
-      "listedeYok": "Listede yok…",
+      "listedeYok": "Diğer…",
       "birimListedeYok": "Birim (listede yok)",
       "ornBobin": "örn. bobin",
       "buBirimKatalogdaYok": "Bu birim katalogda yok — raporlarda diğer birimlerle gruplanamayacak."

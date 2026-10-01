@@ -3,6 +3,7 @@
 import { companyApi } from "@/lib/company-auth/api";
 import type { PaymentCategoryValue } from "@/lib/tenders/form-schema";
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -169,7 +170,10 @@ export interface MyBid {
     | "AWARDED_PARTIAL"
     | "LOST";
   round: number;
+  /** Eşzamanlılık sayacı (taslak kaydında da artar) — revizyon DEĞİL. */
   version: number;
+  /** Gönderim sayısı (taslak saymaz) — "Revizyon N" bundan (arayüz testi O-036). */
+  submitCount: number;
   createdAt: string;
   /** Taahhüt edilen teslim tarihi (LEGACY). */
   deliveryDate: string | null;
@@ -189,17 +193,66 @@ export interface MyBid {
   };
 }
 
-/** Firmanın verdiği tüm teklifler — Tekliflerim ekranı. */
-export function useMyBids(enabled = true) {
+export type MyBidSort = "newest" | "oldest" | "amount";
+
+/** Tekliflerim sorgusu — süzme/sıralama/sayfalama SUNUCUDA (arayüz testi O-005). */
+export interface MyBidsQuery {
+  status?: MyBid["status"][];
+  /** Yalnız karar bekleyenler (`counts.active` kümesi). */
+  pending?: boolean;
+  q?: string;
+  /** Son N gün. */
+  days?: number;
+  sort?: MyBidSort;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface MyBidsPage {
+  items: MyBid[];
+  /** Süzgece uyan toplam. */
+  total: number;
+  /** Sunucunun uyguladığı (aralığa sıkıştırılmış) sayfa. */
+  page: number;
+  pageSize: number;
+  /**
+   * Süzgeçten BAĞIMSIZ sayaçlar — liste özeti ve Şirketim KPI'ları aynı
+   * sunucu sayımını okur (eskiden istemci en yeni 200 teklifte sayıyordu).
+   */
+  counts: {
+    all: number;
+    /** Karar bekleyen: gönderilmiş ve ilan karara bağlanmamış. */
+    active: number;
+    /** Kazanılan — kısmi kazanım dahil. */
+    won: number;
+  };
+}
+
+/**
+ * Firmanın verdiği teklifler — Tekliflerim ekranı (sayfalı). Anahtar
+ * `["company-my-bids", …]`: mevcut önek geçersiz kılmaları hepsini tazeler.
+ */
+export function useMyBids(query: MyBidsQuery = {}, enabled = true) {
+  const params: Record<string, string> = {};
+  if (query.status?.length) params.status = query.status.join(",");
+  if (query.pending) params.pending = "1";
+  if (query.q) params.q = query.q;
+  if (query.days) params.days = String(query.days);
+  if (query.sort && query.sort !== "newest") params.sort = query.sort;
+  if (query.page && query.page > 1) params.page = String(query.page);
+  if (query.pageSize) params.pageSize = String(query.pageSize);
   return useQuery({
-    queryKey: ["company-my-bids"],
+    queryKey: ["company-my-bids", params],
     enabled,
     queryFn: async () => {
-      const { data } = await companyApi.get<MyBid[]>(
+      const { data } = await companyApi.get<MyBidsPage>(
         "/company/listings/my-bids",
+        { params },
       );
       return data;
     },
+    // Süzgeç/sayfa değişirken eski sayfa ekranda kalsın (iskelet titremesi yok).
+    placeholderData: keepPreviousData,
     // Eleme/kazanma gibi durum değişiklikleri yenilemeden görünsün.
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
