@@ -404,7 +404,9 @@ export class PublicInquiryService {
           verifiedAt: true,
           claimedAt: true,
           claimedCompanyId: true,
-          product: { select: { name: true, slug: true } },
+          // `id`: firmanın KENDİ ürünü — panelde ürünü doğrudan açan bağlantı
+          // için (arayüz testi D-131/D-284).
+          product: { select: { id: true, name: true, slug: true } },
           replies: {
             select: { id: true, body: true, createdAt: true },
             orderBy: { createdAt: "asc" },

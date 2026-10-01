@@ -404,6 +404,8 @@ describe("satıcı tarafı — okuma, yanıtlama, hesaba bağlama", () => {
     const list = await svc.listForCompany(company.id);
     expect(list.total).toBe(1);
     expect(list.items[0].name).toBe(VALID.name);
+    // Ürün kimliği döner: panel bağlantısı ürünün kendisini açar (arayüz testi D-131).
+    expect(list.items[0].product.id).toBe(product.id);
   });
 
   it("ziyaretçinin E-POSTASI ve TELEFONU satıcıya DÖNMEZ", async () => {

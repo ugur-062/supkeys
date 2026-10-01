@@ -110,42 +110,56 @@ export function PriceModeField({
           </p>
           <ul className="mt-3 space-y-2">
             {tiers.map((t, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <input
-                  aria-label={tr("kademeBaslangicMiktari", { n: i + 1 })}
-                  type="number"
-                  min={1}
-                  value={t.minQty}
-                  onChange={(e) => {
-                    const next = [...tiers];
-                    next[i] = { ...t, minQty: Number(e.target.value) };
-                    onChange({ tiers: next });
-                  }}
-                  className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                />
-                <span className="text-sm text-zinc-500">{tr("veUzeri", { unit: unit })}</span>
-                <input
-                  aria-label={tr("kademeBirimFiyat", { n: i + 1 })}
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  value={t.unitPrice}
-                  onChange={(e) => {
-                    const next = [...tiers];
-                    next[i] = { ...t, unitPrice: Number(e.target.value) };
-                    onChange({ tiers: next });
-                  }}
-                  className="w-32 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                />
-                <span className="text-sm text-zinc-500">{currency}</span>
-                <button
-                  type="button"
-                  onClick={() => onChange({ tiers: tiers.filter((_, x) => x !== i) })}
-                  className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                  aria-label={tr("kademeyiSil")}
-                >
-                  <TrashIcon aria-hidden className="size-4" />
-                </button>
+              // SARILAN satır (arayüz testi D-051): 390 px'te tek satır kartı
+              // aşıyor, sil düğmesi kartın dışına taşıyor ve sayfa kayıyordu.
+              <li key={i}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-2">
+                    <input
+                      aria-label={tr("kademeBaslangicMiktari", { n: i + 1 })}
+                      type="number"
+                      min={1}
+                      value={numberInputValue(t.minQty)}
+                      onChange={(e) => {
+                        const next = [...tiers];
+                        next[i] = { ...t, minQty: parseNumberInput(e.target.value) };
+                        onChange({ tiers: next });
+                      }}
+                      className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    />
+                    <span className="whitespace-nowrap text-sm text-zinc-500">{tr("veUzeri", { unit: unit })}</span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <input
+                      aria-label={tr("kademeBirimFiyat", { n: i + 1 })}
+                      type="number"
+                      min={0.01}
+                      step="0.01"
+                      value={numberInputValue(t.unitPrice)}
+                      aria-invalid={isTierComplete(t) ? undefined : true}
+                      onChange={(e) => {
+                        const next = [...tiers];
+                        next[i] = { ...t, unitPrice: parseNumberInput(e.target.value) };
+                        onChange({ tiers: next });
+                      }}
+                      className={`w-32 rounded-lg border px-3 py-2 text-sm outline-none focus:border-zinc-900 ${
+                        isTierComplete(t) ? "border-zinc-300" : "border-amber-500"
+                      }`}
+                    />
+                    <span className="text-sm text-zinc-500">{currency}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ tiers: tiers.filter((_, x) => x !== i) })}
+                    className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                    aria-label={tr("kademeyiSil")}
+                  >
+                    <TrashIcon aria-hidden className="size-4" />
+                  </button>
+                </div>
+                {isTierComplete(t) ? null : (
+                  <p className="mt-1 text-xs text-amber-700">{tr("kademeEksik")}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -156,9 +170,12 @@ export function PriceModeField({
                 onChange({
                   tiers: [
                     ...tiers,
+                    // Fiyat BOŞ başlar (arayüz testi D-050): eskiden 0 ya da
+                    // önceki satırın fiyatı kopyalanıyordu; 0 fiyat taslak
+                    // kaydını bile 400'e düşürüyordu.
                     {
-                      minQty: (tiers.at(-1)?.minQty ?? 0) + 100,
-                      unitPrice: tiers.at(-1)?.unitPrice ?? 0,
+                      minQty: lastFiniteQty(tiers) + 100,
+                      unitPrice: Number.NaN,
                     },
                   ],
                 })
@@ -179,6 +196,29 @@ export function PriceModeField({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Kademe alanları BOŞ olabilir (arayüz testi D-050): boş değer `NaN` olarak
+ * tutulur ve kutuda boş görünür — eskiden `Number("")` 0'a dönüyor, silinen
+ * fiyat "0" olarak geri geliyordu.
+ */
+function numberInputValue(n: number): number | "" {
+  return Number.isFinite(n) ? n : "";
+}
+
+function parseNumberInput(v: string): number {
+  return v.trim() === "" ? Number.NaN : Number(v);
+}
+
+function lastFiniteQty(tiers: PriceTier[]): number {
+  const q = tiers.at(-1)?.minQty;
+  return q != null && Number.isFinite(q) ? q : 0;
+}
+
+/** API kuralıyla aynı: miktar ≥ 1, fiyat > 0 (`PriceTierDto`). */
+export function isTierComplete(t: PriceTier): boolean {
+  return Number.isFinite(t.minQty) && t.minQty >= 1 && Number.isFinite(t.unitPrice) && t.unitPrice > 0;
 }
 
 // Tüm desteklenen birimler (eskiden yalnız TRY/USD/EUR/GBP — AZN/SEK/KRW

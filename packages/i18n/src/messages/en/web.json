@@ -207,7 +207,7 @@
         "q1": "Is the product showcase free?",
         "a1": "Yes. With the free Standard plan you can create a company profile, appear in the directory and publish up to {n} products; company verification and the “Verified” badge are free as well. What paid plans add is standing out, not being visible: priority ranking in the directory, unlimited products, product documents and video, and access to public requests.",
         "q2": "Why do some products have no price?",
-        "a2": "A price can take three forms: a fixed price, tiered pricing by quantity, or “request a quote”. The third is not missing data but the seller's deliberate choice, and the platform does not penalize it — otherwise sellers would type an unreal price just to fill the field. Prices exclude VAT and are the seller's declaration.",
+        "a2": "A price can take three forms: a fixed price, tiered pricing by quantity, or “price on request”. The third is not missing data but the seller's deliberate choice, and the platform does not penalize it — otherwise sellers would type an unreal price just to fill the field. Prices exclude VAT and are the seller's declaration.",
         "q3": "What does the “Verified” badge mean?",
         "a3": "It means the company's documents covering its trade registry, tax and authorized-person details were reviewed and accepted by Rothern. Verification is done by a person without exception; there is no automatic approval path. The badge concerns the company's identity — it is not a statement about product or service quality.",
         "q4": "How are products categorized?",
@@ -641,7 +641,7 @@
       "ruleItems": "**Line item details.** The public page shows line item names, their number and quantities; technical specifications, brand/description and attached files are available to registered users only.",
       "ruleContact": "**Company contact details.** Phone numbers, email addresses and social media accounts are not shown on the public profile.",
       "hFields": "Fields that must be read correctly",
-      "fieldPrice": "**A price can take three forms:** a fixed price, tiered pricing by quantity, or \"request a quote for the price\". The third is not missing data but the supplier's deliberate choice.",
+      "fieldPrice": "**A price can take three forms:** a fixed price, tiered pricing by quantity, or \"price on request\". The third is not missing data but the supplier's deliberate choice.",
       "fieldVerified": "**The \"Verified\" badge** means Rothern has reviewed the company's business documents; it is not a statement about the quality of its products or services.",
       "fieldTax": "**Prices are as declared by the supplier** (the currency is the supplier's choice). Taxes are determined by the rules of the supplier's country and the agreement between the parties; do not assume that a price includes or excludes a particular country's tax (e.g. VAT). Rothern does not handle payments for goods or services between the parties.",
       "fieldProduct": "**A product page lives under its company:** {productPattern}. When citing a product, mention it together with its company.",
@@ -1628,7 +1628,7 @@
       },
       "commerce": {
         "label": "Price mode and minimum order",
-        "hint": "\"Request a quote\" also earns full points — don’t leave it blank, pick one."
+        "hint": "\"Price on request\" also earns full points — don’t leave it blank, pick one."
       },
       "about": {
         "label": "About: at least {n} characters and 3 sentences",
@@ -4958,9 +4958,9 @@
         "kategoriyeOzelOzellikler": "Category-specific attributes",
         "once1BolumdeKategoriSecin": "First select a category in section 1 — technical attribute fields come from the category.",
         "buKategorideTanimliNitelikYok": "This category has no defined attributes; put the size, material and standard in the description.",
-        "buAlanlarSegmentindenVeAlt": "These fields come from the “{segment}” segment and its subcategories. Optional; the attribute table appears in filters and structured data.",
+        "buAlanlarKategoridenGelir": "These fields come from the category you selected and its parent categories. They are not required for publishing; fields marked with an asterisk (*) affect the completion score. The attribute table appears in filters and structured data.",
         "fiyatVeSiparis": "Price and order",
-        "teklifIsteyinDeGecerliBir": "\"Request a quote\" is also a valid option — choose it instead of leaving the price blank.",
+        "teklifIsteyinDeGecerliBir": "\"Price on request\" is also a valid option — choose it instead of leaving the price blank.",
         "fiyatVeMinimumSiparisBu": "Price and minimum order are read in this unit.",
         "satisBirimi": "Sales unit",
         "minimumSiparisMiktari": "Minimum order quantity",
@@ -5036,7 +5036,7 @@
         "priceMode": {
           "FIXED": "Fixed price",
           "TIERED": "Tiered",
-          "ON_REQUEST": "Request a quote"
+          "ON_REQUEST": "Price on request"
         },
         "firmaProfilinizHenuzHerkeseAcikDegil": "Your company profile is not public yet: your products will not appear in the directory or on your company page until the profile is published. <link>Publish profile</link>.",
         "ucretsizPaketteEnFazlaUrun": "On the free plan, up to {limit} products can be published or under review ({occupied}/{limit} used). Drafts are unlimited. <link>Unlimited products, documents and video with Silver</link>.",
@@ -5073,9 +5073,9 @@
           "description": "Description (at least {minDescription} characters)",
           "images": "At least 1 image",
           "keywords": "At least 1 keyword",
-          "price": "Price information (fixed, tiered or ''request a quote'')",
+          "price": "Price information (fixed, tiered or ''price on request'')",
           "moq": "Minimum order quantity",
-          "attributes": "Required category-specific attributes"
+          "attributes": "Category-specific attributes marked with an asterisk (*)"
         }
       },
       "productActionBar": {
@@ -5116,6 +5116,8 @@
         "surukleyerekSirala": "Drag to reorder",
         "kapak": "Cover",
         "kapakYap": "Set as cover",
+        "solaTasi": "Move left",
+        "sagaTasi": "Move right",
         "kaldir": "Remove",
         "yukleniyor": "Uploading…",
         "gorselEkle": "Add image",
@@ -5135,6 +5137,7 @@
         "veUzeri": "{unit} and above",
         "kademeyiSil": "Delete tier",
         "kademeEkle": "Add tier",
+        "kademeEksik": "Enter a quantity and a price above 0 for this tier; incomplete tiers are not saved.",
         "paraBirimi": "Currency",
         "mode": {
           "FIXED": {
@@ -5146,14 +5149,14 @@
             "body": "Unit price drops as quantity grows — the most realistic option in B2B."
           },
           "ON_REQUEST": {
-            "title": "Request a quote for pricing",
+            "title": "Price on request",
             "body": "Choose this if you do not want to publish a price. It does not cost you any points."
           }
         },
         "birimFiyatYerTutucu": "0.00",
         "kademeBaslangicMiktari": "Tier {n}: starting quantity",
         "kademeBirimFiyat": "Tier {n}: unit price",
-        "urunSayfasindaFiyatIcinTeklifIsteyinYazacak": "The product page will show <strong>“Request a quote for pricing”</strong>. This is not a gap but a clear statement — the buyer knows the price is negotiable."
+        "urunSayfasindaFiyatIcinTeklifIsteyinYazacak": "The product page will show <strong>“Price on request”</strong>. This is not a gap but a clear statement — the buyer knows the price is negotiable."
       },
       "attributeFields": {
         "tamamlanmaSkorunuEtkiler": "Affects the completion score",
@@ -5191,7 +5194,7 @@
         "henuzBilgiTalebiYok": "No inquiries yet.",
         "gonderdiginizTalepYok": "You have not sent any inquiries.",
         "urunleriniziVitrineCikardiginizdaAlicilarBur": "Once your products are in the showcase, buyers can ask questions here.",
-        "birUruneGiripBilgiTeklif": "Open a product and send a question with ''Request info / quote''; replies collect here.",
+        "birUruneGiripBilgiTeklif": "Open a product and send a question with ''Request info''; replies collect here.",
         "suzgec": "Filter",
         "tumu": "All",
         "yanitBekleyen": "Awaiting reply",
@@ -5202,6 +5205,8 @@
         "firmaUrunYaDaMesaj": "Search company, product or message",
         "bilgiTaleplerindeAra": "Search inquiries",
         "buSuzgecteTalepYok": "No inquiries match this filter.",
+        "yalnizYuklenenlerdeAranir": "Search and filters only cover the {loaded, number}/{total, number} inquiries loaded so far; load older ones below.",
+        "yanitYetkisiYok": "You can view this inquiry; replying requires the “Reply to inquiries” permission. Ask your company administrator for it.",
         "bilgiTalepleri2": "Inquiries",
         "birTalepSecin": "Select an inquiry.",
         "aliciKimligiGizli": "Buyer identity hidden",

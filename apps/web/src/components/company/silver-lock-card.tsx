@@ -5,6 +5,7 @@ import { Lock } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type { ReactNode } from "react";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 
 /** Doğrulama sayfası — paket satın almanın tek şartı. */
 export const VERIFY_HREF = "/company/ayarlar/dogrulama";
@@ -52,6 +53,9 @@ export function UpgradeActions({
 }) {
   const t = useTranslations("web.panel.trade.silverLockCard");
   const verifyFirst = useVerifyFirst();
+  // Birincil düğme PORTAL RENGİNDE (2026-09-17 kararı; arayüz testi D-284 —
+  // kilit kartlarında siyah kalmıştı).
+  const fill = accentFillClass(useButtonAccent());
   return (
     <>
       {verifyFirst ? <p className="mt-3 text-sm text-zinc-700">{t("onceDogrulanNot")}</p> : null}
@@ -60,7 +64,7 @@ export function UpgradeActions({
           <>
             <Link
               href={VERIFY_HREF}
-              className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold text-white transition ${fill}`}
             >
               {t("onceUcretsizDogrulan")}
             </Link>
@@ -71,7 +75,7 @@ export function UpgradeActions({
         ) : (
           <Link
             href={PRICING_HREF}
-            className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold text-white transition ${fill}`}
           >
             {ctaLabel ?? t("silverPaketineGec")}
           </Link>
@@ -97,6 +101,7 @@ export function SilverLockCard({
   meta,
   children,
   ctaLabel,
+  footnote,
   className = "",
 }: {
   title: string;
@@ -106,9 +111,15 @@ export function SilverLockCard({
   /** Bulanık örnek satırlar gibi ek içerik (dekoratif; aria-hidden çağıranda). */
   children?: ReactNode;
   ctaLabel?: string;
+  /**
+   * Düğmelerin yanındaki dipnot. Verilmezse alım talebi notu (kartın ilk
+   * kullanım yeri); `null` → dipnot yok (ör. bilgi talepleri, arayüz testi D-284).
+   */
+  footnote?: ReactNode | null;
   className?: string;
 }) {
   const t = useTranslations("web.panel.trade.silverLockCard");
+  const note = footnote === undefined ? t("baglantiDavetiyleGelenTalepleriUcretsiz") : footnote;
   return (
     <section
       aria-label={title}
@@ -126,9 +137,7 @@ export function SilverLockCard({
       </div>
       {children}
       <UpgradeActions ctaLabel={ctaLabel}>
-        <span className="text-xs text-zinc-500">
-          {t("baglantiDavetiyleGelenTalepleriUcretsiz")}
-        </span>
+        {note ? <span className="text-xs text-zinc-500">{note}</span> : null}
       </UpgradeActions>
     </section>
   );

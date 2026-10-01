@@ -85,8 +85,16 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 
 /** Katalog boyutu tavanı — sınırsız büyüme depolama/arama maliyeti üretir. */
 const MAX_CATALOG_ITEMS = 5000;
-/** Tek seferde kataloğa alınabilecek kalem sayısı (ihaleden içe aktarma). */
+/** Tek çağrıda işlenecek kimlik sayısı (`mark-used`; DTO tavanıyla aynı). */
 const MAX_BULK_IMPORT = 200;
+/**
+ * İlandan kataloğa tek seferde eklenebilecek YENİ kalem — ilan kalem tavanı
+ * (500, `create-listing.dto.ts`) ile aynı: tek basış ilanın tamamını alır.
+ * Eskiden 200'dü ve tekilleştirmeden ÖNCE kesiliyordu: 205 kalemli ilanda
+ * +200 eklenip 5'i sessizce düşüyor, ikinci basış "zaten var" diyordu
+ * (arayüz testi D-248).
+ */
+const MAX_LISTING_IMPORT = 500;
 /** Aynı kişinin aynı adlı taslak/onaydaki ürünü bu pencerede mükerrer sayılır (FX-00 O-006). */
 const PRODUCT_DUPLICATE_WINDOW_MS = 30_000;
 
@@ -384,6 +392,9 @@ export class CompanyItemsService {
     input: Partial<CatalogItemInput>,
   ) {
     const before = await this.requireOwn(user.companyId, id);
+    // Uç `templates:manage` de kabul eder (D-185); vitrine dokunmuş ürün yalnız
+    // satış izniyle değişir — `setActive` ile aynı kural.
+    this.assertCanTouchShowcase(user, before);
     this.assertNotInReview(before);
     const patch = this.normalize({ ...this.toInput(before), ...input });
     // MODERASYON (derin denetim Y-07, 2026-09-29): bu uç eskiden yalnız PENDING
@@ -448,6 +459,21 @@ export class CompanyItemsService {
   }
 
   /**
+   * Vitrine dokunmuş ürün (yayında / onayda / onaylı / reddedilmiş) yalnız
+   * `sell:product:manage` ile değişir; kalem uçları `templates:manage` de
+   * kabul ettiği için (satınalma Kalem Kataloğu) servis ayrıca denetler.
+   */
+  private assertCanTouchShowcase(
+    user: AuthenticatedCompanyUser,
+    before: { isPublic: boolean; reviewStatus: string },
+  ) {
+    const isShowcaseProduct = before.isPublic || before.reviewStatus !== "DRAFT";
+    if (isShowcaseProduct && !hasCompanyPermission(user, "sell:product:manage")) {
+      throw new ForbiddenException(i18nMessage("api.business.forbidden"));
+    }
+  }
+
+  /**
    * Silme YOK — pasifleştirme. Geçmiş ilanlar kopya taşıdığı için etkilenmez;
    * kullanıcı yanlışlıkla kaldırdığını geri alabilmeli.
    */
@@ -457,10 +483,7 @@ export class CompanyItemsService {
     // kabul eder (derin denetim S066). Vitrine dokunmus bir urun (yayinda /
     // onayda / onayli / reddedilmis) yalniz satis izniyle arsivlenir: satinalma
     // tarafi katalogu temizlerken yayindaki vitrini dusurmemeli.
-    const isShowcaseProduct = before.isPublic || before.reviewStatus !== "DRAFT";
-    if (isShowcaseProduct && !hasCompanyPermission(user, "sell:product:manage")) {
-      throw new ForbiddenException(i18nMessage("api.business.forbidden"));
-    }
+    this.assertCanTouchShowcase(user, before);
     // Ücretsiz paket tavanı ARŞİVDEN GERİ ALMADA da geçerli (denetim 2026-09-06
     // #2): arşivlenen ürün isPublic'i korur; tavan yalnız publish'te olsaydı
     // "10 yayımla → arşivle → 10 daha → geri al" 20 yayında ürün üretirdi.
@@ -542,7 +565,7 @@ export class CompanyItemsService {
       },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyItems.ilanBulunamadi"));
-    const source = listing.items.slice(0, MAX_BULK_IMPORT);
+    const source = listing.items;
     if (source.length === 0) {
       return { added: 0, skipped: 0, truncated: 0 };
     }
@@ -550,7 +573,7 @@ export class CompanyItemsService {
     // iki isteği de boş kataloğu okuyup kalemleri iki kez yazıyordu (malzeme
     // kodu olmayan kalemi tekil anahtar korumuyor); eşzamanlı içe aktarmalar
     // 5000 tavanını da aşabiliyordu.
-    const { toCreate, skipped } = await this.withCompanyItemLock(user.companyId, async (tx) => {
+    const { toCreate, skipped, truncated } = await this.withCompanyItemLock(user.companyId, async (tx) => {
       const existing = await tx.companyItem.findMany({
         where: { companyId: user.companyId },
         select: { code: true, name: true },
@@ -588,6 +611,10 @@ export class CompanyItemsService {
           targetPrice: it.targetPrice,
         });
       }
+      // Tavan TEKİLLEŞTİRMEDEN SONRA (D-248): zaten katalogda olanlar yer tutmaz;
+      // kesilen yeni kalem sayısı `truncated` ile döner (sessiz kayıp yok).
+      const truncated = Math.max(0, toCreate.length - MAX_LISTING_IMPORT);
+      if (truncated > 0) toCreate.length = MAX_LISTING_IMPORT;
       await this.assertCapacity(user.companyId, toCreate.length, tx);
       if (toCreate.length > 0) {
         await tx.companyItem.createMany({
@@ -595,7 +622,7 @@ export class CompanyItemsService {
           skipDuplicates: true,
         });
       }
-      return { toCreate, skipped };
+      return { toCreate, skipped, truncated };
     });
     void this.audit.log({
       action: "company.catalog_item.bulk_imported",
@@ -610,7 +637,7 @@ export class CompanyItemsService {
     return {
       added: toCreate.length,
       skipped,
-      truncated: listing.items.length - source.length,
+      truncated,
     };
   }
 

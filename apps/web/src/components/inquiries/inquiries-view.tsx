@@ -25,6 +25,8 @@ import { Inbox, Send } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
+import { accentFillClass } from "@/components/ui/button-accent";
 
 /**
  * BİLGİ TALEPLERİ — gelen kutusu düzeni (2026-09-09 yeniden tasarım).
@@ -152,6 +154,9 @@ export function InquiriesView({
                 : tr("gelenSorulariGorursunuzKimSordugu")
             }
             description={tr("ucretsizUyelikteAlicininSorusunuAdedini")}
+            // Kartın varsayılan dipnotu alım taleplerinden söz eder; bilgi
+            // talebinde yanıltıcıydı (arayüz testi D-284).
+            footnote={null}
           />
         </div>
       ) : null}
@@ -176,7 +181,9 @@ export function InquiriesView({
         <>
           {/* Araç çubuğu: süzgeç çipleri + arama. Renk portaldan. */}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist" aria-label={tr("suzgec")}>
+            {/* Süzgeç DÜĞME GRUBU (arayüz testi D-238): sekme paneli yok —
+                `tablist` rolü ekran okuyucuya var olmayan paneller vaat ediyordu. */}
+            <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="group" aria-label={tr("suzgec")}>
               {(
                 [
                   { key: "all", label: tr("tumu"), count: totalCount },
@@ -187,8 +194,7 @@ export function InquiriesView({
                 <button
                   key={f.key}
                   type="button"
-                  role="tab"
-                  aria-selected={filter === f.key}
+                  aria-pressed={filter === f.key}
                   onClick={() => setFilter(f.key)}
                   className={cn(
                     "rounded-lg px-3 py-1.5 text-sm font-semibold transition",
@@ -236,6 +242,13 @@ export function InquiriesView({
               )}
               {canLoadMore ? (
                 <div className="border-t border-zinc-950/5 p-3 text-center">
+                  {/* Arama/süzgeç yalnız YÜKLENEN sayfalarda (arayüz testi D-112):
+                      eski talep "Bu süzgeçte talep yok" diye kayboluyordu. */}
+                  {term || filter !== "all" ? (
+                    <p className="mb-2 text-xs text-zinc-500">
+                      {tr("yalnizYuklenenlerdeAranir", { loaded: threads.length, total: totalCount })}
+                    </p>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => void paged.fetchNextPage()}
@@ -277,7 +290,7 @@ interface Thread {
   /** Karşı taraf — anonimde null (ücretsiz satıcı). */
   title: string | null;
   subtitle: string | null;
-  product: { name: string; slug: string | null };
+  product: { id?: string; name: string; slug: string | null };
   message: string;
   quantity: string | null;
   at: string | null;
@@ -367,11 +380,15 @@ function ThreadPane({
   const cityLabel = useCityLabel();
   const r = t.kind === "received" ? (t.raw as ReceivedInquiry) : null;
   const s = t.kind === "sent" ? (t.raw as SentInquiry) : null;
+  // Satıcıda ürünün KENDİSİ açılır (`?urun=<id>`, arayüz testi D-131/D-284);
+  // eskiden genel Ürünlerim listesine gidiyordu. Kimliksiz eski yanıtta liste.
   const productHref =
     t.product.slug && (s?.seller.slug ?? null)
       ? `/company/satinalma/urunler/${s!.seller.slug}/${t.product.slug}`
       : isSeller
-        ? "/company/satis/urunlerim"
+        ? t.product.id
+          ? `/company/satis/urunlerim?urun=${encodeURIComponent(t.product.id)}`
+          : "/company/satis/urunlerim"
         : null;
   const meta = r
     ? [r.buyerCity ? cityLabel(r.buyerCity) : null, ...(r.buyerActivities ?? []).map((a) => activityLabel(a))].filter(Boolean).join(" · ")
@@ -489,7 +506,14 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
       </p>
     );
   }
-  if (!canReply) return null;
+  // Salt-okur kullanıcı neden yanıt kutusu görmediğini bilsin (arayüz testi D-284).
+  if (!canReply) {
+    return (
+      <p className="border-t border-zinc-950/5 bg-zinc-50 px-5 py-3 text-xs text-zinc-600">
+        {t("yanitYetkisiYok")}
+      </p>
+    );
+  }
 
   const send = async () => {
     if (body.trim().length < 2 || sendingRef.current) return;
@@ -498,8 +522,11 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
       await reply.mutateAsync({ id: inquiry.id, body });
       setBody("");
       toast.success(t("yanitinizGonderildi"));
-    } catch {
-      toast.error(t("yanitGonderilemedi"));
+    } catch (err) {
+      // Sunucu hatasının toast'ını küresel yakalayıcı basar (403 dahil);
+      // burada yalnız onun susturduğu durumlar — eskiden iki toast çıkıyordu
+      // (arayüz testi D-284).
+      if (!isAxiosError(err) || isSilencedByInterceptor(err)) toast.error(t("yanitGonderilemedi"));
     } finally {
       sendingRef.current = false;
     }
@@ -531,7 +558,8 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
           disabled={reply.isPending || body.trim().length < 2}
           className={cn(
             "inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50",
-            accent === "blue" ? "bg-blue-600 hover:bg-blue-700" : "bg-zinc-950 hover:bg-zinc-800",
+            // Satış portalı YEŞİL (2026-09-17 kararı; siyah birincil düğme yok).
+            accentFillClass(accent === "blue" ? "blue" : "emerald"),
           )}
         >
           <PaperAirplaneIcon aria-hidden className="size-4" />
@@ -540,4 +568,17 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
       </div>
     </div>
   );
+}
+
+/**
+ * Küresel yakalayıcının (`lib/company-auth/api.ts`) toast ATMADIĞI hatalar:
+ * paket kilidi / ülke kapısı 403'ü ve alan hatalı 400. Diğer hepsini o basar.
+ */
+function isSilencedByInterceptor(err: unknown): boolean {
+  if (!isAxiosError(err)) return false;
+  const status = err.response?.status;
+  const data = err.response?.data as { code?: string; errors?: Record<string, unknown> } | undefined;
+  if (status === 403) return data?.code === "TIER_REQUIRED" || data?.code === "COUNTRY_NOT_ELIGIBLE";
+  if (status === 400) return !!data?.errors && Object.keys(data.errors).length > 0;
+  return false;
 }

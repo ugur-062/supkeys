@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useUploadProductImage } from "@/hooks/use-company-items";
 import { resizeImageFile, ImageProcessingError } from "@/lib/image-resize";
-import { PhotoIcon, StarIcon, TrashIcon } from "@heroicons/react/20/solid";
+import { ChevronLeftIcon, ChevronRightIcon, PhotoIcon, StarIcon, TrashIcon } from "@heroicons/react/20/solid";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +12,8 @@ const MIN_EDGE = 800;
 const MAX_IMAGES = 8;
 /** Kural metniyle aynı sayı; üstü reddedilmez, küçültülür (uyarıyla). */
 const MAX_BYTES = 5 * 1024 * 1024;
+const TILE_BUTTON =
+  "flex-1 rounded-md bg-white/90 py-1 text-zinc-700 outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-zinc-900";
 
 /**
  * ÜRÜN GÖRSELLERİ — ilki KAPAK.
@@ -195,7 +197,22 @@ export function ImageUploader({
               </span>
             ) : null}
             {readOnly ? null : (
-            <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
+            // KLAVYE/DOKUNMATİK (arayüz testi D-288): düğmeler eskiden yalnız
+            // fareyle (hover) görünüyordu; Tab ile odaklanınca ve hover'sız
+            // (dokunmatik) cihazda da görünür. Sıralama sürükle-bırakın yanında
+            // sola/sağa taşı düğmeleriyle de yapılır.
+            <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+              {i > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => move(i, i - 1)}
+                  title={t("solaTasi")}
+                  aria-label={t("solaTasi")}
+                  className={TILE_BUTTON}
+                >
+                  <ChevronLeftIcon aria-hidden className="mx-auto size-3.5" />
+                </button>
+              ) : null}
               {i > 0 ? (
                 <button
                   type="button"
@@ -205,16 +222,29 @@ export function ImageUploader({
                     onChange([src, ...next]);
                   }}
                   title={t("kapakYap")}
-                  className="flex-1 rounded-md bg-white/90 py-1 text-zinc-700 hover:bg-white"
+                  aria-label={t("kapakYap")}
+                  className={TILE_BUTTON}
                 >
                   <StarIcon aria-hidden className="mx-auto size-3.5" />
+                </button>
+              ) : null}
+              {i < images.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => move(i, i + 1)}
+                  title={t("sagaTasi")}
+                  aria-label={t("sagaTasi")}
+                  className={TILE_BUTTON}
+                >
+                  <ChevronRightIcon aria-hidden className="mx-auto size-3.5" />
                 </button>
               ) : null}
               <button
                 type="button"
                 onClick={() => onChange(images.filter((_, x) => x !== i))}
                 title={t("kaldir")}
-                className="flex-1 rounded-md bg-white/90 py-1 text-zinc-700 hover:bg-white"
+                aria-label={t("kaldir")}
+                className={TILE_BUTTON}
               >
                 <TrashIcon aria-hidden className="mx-auto size-3.5" />
               </button>

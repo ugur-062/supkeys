@@ -35335,9 +35335,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.editorRail.missing.attributes": {
-    "hash": "d98d5ae278",
+    "hash": "168c9f9ba7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.editorRail.missing.category": {
     "hash": "421a0f8970",
@@ -35464,6 +35464,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.imageUploader.sagaTasi": {
+    "hash": "28d6dded53",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.trade.imageUploader.solaTasi": {
+    "hash": "3b653c60ba",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.imageUploader.surukleyerekSirala": {
     "hash": "9e5551c5ff",
     "status": "reviewed",
@@ -35540,9 +35550,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.inquiriesView.birUruneGiripBilgiTeklif": {
-    "hash": "caf2d51ee4",
+    "hash": "73c23c5b5a",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-10-01"
   },
   "web.panel.trade.inquiriesView.buSuzgecteTalepYok": {
     "hash": "2db9686f31",
@@ -35649,6 +35659,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.inquiriesView.yalnizYuklenenlerdeAranir": {
+    "hash": "39cdf2c928",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.inquiriesView.yanitBekleniyor": {
     "hash": "cbef1ff4a4",
     "status": "reviewed",
@@ -35708,6 +35723,11 @@
     "hash": "78c3a4976c",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.inquiriesView.yanitYetkisiYok": {
+    "hash": "3d89fa9688",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.inquiriesView.yukleniyor": {
     "hash": "3a5e96d474",
@@ -37679,6 +37699,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.priceModeField.kademeEksik": {
+    "hash": "44d9661647",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.trade.priceModeField.kademeler": {
     "hash": "5bf2a69b70",
     "status": "reviewed",
@@ -37929,10 +37954,10 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.productShowcaseForm.buAlanlarSegmentindenVeAlt": {
-    "hash": "1f96fad74d",
+  "web.panel.trade.productShowcaseForm.buAlanlarKategoridenGelir": {
+    "hash": "982c4511c1",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.trade.productShowcaseForm.buKategorideTanimliNitelikYok": {
     "hash": "3ddd2f5633",

@@ -34,7 +34,8 @@ export interface ReceivedInquiry {
   receivedAt: string | null;
   /** Ziyaretçi kaydoldu mu — kaydolduysa panelden de ulaşılabilir. */
   hasAccount: boolean;
-  product: { name: string; slug: string | null };
+  /** `id`: satıcının kendi ürünü — panelde ürünü doğrudan açmak için (D-131). */
+  product: { id?: string; name: string; slug: string | null };
   replies: InquiryReply[];
 }
 

@@ -12,7 +12,7 @@ import { useSeoT, useUnitLabel } from "@/i18n/domain";
 import { useLocale, useTranslations } from "next-intl";
 import { productStatusKey } from "@/lib/company/product-status";
 import { ImageUploader } from "./image-uploader";
-import { PriceModeField } from "./price-mode-field";
+import { PriceModeField, isTierComplete } from "./price-mode-field";
 import { ProductActionBar } from "./product-action-bar";
 import { EditorRail } from "./editor-rail";
 import { productPath } from "@rothern/shared";
@@ -243,7 +243,9 @@ export function ProductShowcaseForm({
       attributes,
       priceMode,
       priceAmount: priceMode === "FIXED" && priceAmount ? Number(priceAmount) : null,
-      priceTiers: priceMode === "TIERED" ? priceTiers : [],
+      // Eksik kademe (boş/0 fiyat) GÖNDERİLMEZ — satırda uyarı çizilir;
+      // eskiden taslak kaydı bile 400 alıyordu (arayüz testi D-050).
+      priceTiers: priceMode === "TIERED" ? priceTiers.filter(isTierComplete) : [],
       priceCurrency,
       moq: moq ? Number(moq) : null,
       externalUrl: externalUrl.trim() || null,
@@ -285,7 +287,9 @@ export function ProductShowcaseForm({
       keywords,
       priceMode,
       priceAmount: patch.priceAmount,
-      priceTiers: patch.priceTiers,
+      // HAM kademeler: boş/0 fiyatlı satır gönderilmese de rayda fiyat
+      // eksiği olarak görünmeli (arayüz testi D-050).
+      priceTiers: priceMode === "TIERED" ? priceTiers : [],
       moq: patch.moq,
       attributes,
     };
@@ -295,7 +299,7 @@ export function ProductShowcaseForm({
       }),
       blockers: productPublishBlockerCodes(like),
     };
-  }, [patch, images, keywords, priceMode, attributes, attributeDefs]);
+  }, [patch, images, keywords, priceMode, priceTiers, attributes, attributeDefs]);
 
   /* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8): puan + Google parçacığı + AI taslağı.
      Parçacık sayfanın GERÇEK şablonundan (`productSeo`) — ayrı metin yok. */
@@ -335,7 +339,7 @@ export function ProductShowcaseForm({
           moq: patch.moq != null ? String(patch.moq) : null,
           priceMode,
           priceAmount: patch.priceAmount != null ? String(patch.priceAmount) : null,
-          priceTiers: priceMode === "TIERED" ? priceTiers : null,
+          priceTiers: priceMode === "TIERED" ? patch.priceTiers : null,
           priceCurrency,
           category: categoryId && categoryName ? { id: categoryId, name: categoryName } : null,
           keywords,
@@ -356,7 +360,7 @@ export function ProductShowcaseForm({
       return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.map(show).join(", ") : show(v)}`;
     });
     return { readiness, snippet, facts };
-  }, [patch, images, keywords, attributes, attributeDefs, priceMode, priceTiers, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
+  }, [patch, images, keywords, attributes, attributeDefs, priceMode, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
 
   /** Anahtar kelime ÖNERİLERİ: kategori adı + ürün adındaki anlamlı sözcükler. */
@@ -719,7 +723,9 @@ export function ProductShowcaseForm({
                 ) : (
                   <>
                     <p className="mt-1 mb-4 text-xs text-zinc-500">
-                      {t("buAlanlarSegmentindenVeAlt", { segment: attributeDefs[0]?.definedAt.slice(0, 2) })}
+                      {/* Ham segment kodu ("“40” segmentinden") basılmaz; yıldızın anlamı
+                          (tamamlanma puanı) burada söylenir (arayüz testi D-129, D-290). */}
+                      {t("buAlanlarKategoridenGelir")}
                     </p>
                     <AttributeFields defs={attributeDefs} values={attributes} onChange={setAttributes} />
                   </>

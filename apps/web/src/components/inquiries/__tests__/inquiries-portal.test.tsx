@@ -12,12 +12,15 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), push: vi.fn() }));
+const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), push: vi.fn(), canReply: true, toastError: vi.fn() }));
 
 // Yanıt kutusu "Bilgi taleplerini yanıtlama" iznine kapılı (API aynası).
 vi.mock("@/hooks/use-company-auth", () => ({
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: () => h.canReply,
   useCompanyAuth: () => ({ user: null, company: null }),
+}));
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: h.toastError, info: vi.fn(), warning: vi.fn() },
 }));
 vi.mock("@/lib/company-auth/api", () => ({
   companyApi: { get: h.get, post: h.post },
@@ -69,6 +72,8 @@ const RECEIVED = {
 };
 
 beforeEach(() => {
+  h.canReply = true;
+  h.toastError.mockReset();
   h.get.mockReset();
   h.post.mockReset();
   h.push.mockReset();
@@ -139,8 +144,8 @@ describe("InquiriesView — gelen kutusu düzeni (2026-09-09)", () => {
     expect(await screen.findByText("Stok var mı?")).toBeInTheDocument(); // balon
     // Liste satırı "Kim: mesaj" biçiminde — balonla aynı dize değil.
     expect(screen.getByText("Ayşe Demir: Stok var mı?")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Yanıt bekleyen/ })).toHaveTextContent("1");
-    expect(screen.getByRole("tab", { name: /Yanıtlanan/ })).toHaveTextContent("0");
+    expect(screen.getByRole("button", { name: /^Yanıt bekleyen/ })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: /^Yanıtlanan/ })).toHaveTextContent("0");
     expect(screen.getByPlaceholderText("Yanıtınızı yazın…")).toBeInTheDocument();
     expect(screen.getByText("Kayıtlı kullanıcı")).toBeInTheDocument();
 
@@ -179,9 +184,9 @@ describe("InquiriesView — gelen talepler sayfalı (derin denetim MU-25)", () =
     expect(await screen.findByText("Ayşe Demir: Soru 1")).toBeInTheDocument();
     expect(screen.queryByText("Ayşe Demir: Soru 21")).toBeNull();
     // Sayaçlar yüklü 20 satırdan değil sunucu toplamından.
-    expect(screen.getByRole("tab", { name: /Tümü/ })).toHaveTextContent("21");
-    expect(screen.getByRole("tab", { name: /Yanıt bekleyen/ })).toHaveTextContent("18");
-    expect(screen.getByRole("tab", { name: /Yanıtlanan/ })).toHaveTextContent("3");
+    expect(screen.getByRole("button", { name: /^Tümü/ })).toHaveTextContent("21");
+    expect(screen.getByRole("button", { name: /^Yanıt bekleyen/ })).toHaveTextContent("18");
+    expect(screen.getByRole("button", { name: /^Yanıtlanan/ })).toHaveTextContent("3");
 
     await user.click(screen.getByRole("button", { name: /Daha eski talepleri yükle/ }));
     expect(await screen.findByText("Ayşe Demir: Soru 21")).toBeInTheDocument();
@@ -213,9 +218,9 @@ describe("InquiriesView — gonderilen talepler sayfali (derin denetim MU-25, go
     wrap(<InquiriesView portal="satinalma" />);
     expect(await screen.findByText("Siz: Gonderilen 1")).toBeInTheDocument();
     expect(screen.queryByText("Siz: Gonderilen 21")).toBeNull();
-    expect(screen.getByRole("tab", { name: /Tümü/ })).toHaveTextContent("21");
-    expect(screen.getByRole("tab", { name: /Yanıt bekleniyor/ })).toHaveTextContent("15");
-    expect(screen.getByRole("tab", { name: /Yanıt gelen/ })).toHaveTextContent("6");
+    expect(screen.getByRole("button", { name: /^Tümü/ })).toHaveTextContent("21");
+    expect(screen.getByRole("button", { name: /^Yanıt bekleniyor/ })).toHaveTextContent("15");
+    expect(screen.getByRole("button", { name: /^Yanıt gelen/ })).toHaveTextContent("6");
 
     await user.click(screen.getByRole("button", { name: /Daha eski talepleri yükle/ }));
     expect(await screen.findByText("Siz: Gonderilen 21")).toBeInTheDocument();
@@ -319,3 +324,86 @@ describe("InquiriesView — hata ve çift gönderim (derin denetim LU-29)", () =
     expect(h.post).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("InquiriesView — arayüz testi D-112/D-131/D-238/D-284", () => {
+  it("süzgeç düğme grubu: tablist/tab değil aria-pressed (D-238)", async () => {
+    const user = userEvent.setup();
+    wrap(<InquiriesView portal="satis" />);
+    await screen.findByText("Stok var mı?");
+    expect(screen.queryByRole("tablist")).toBeNull();
+    const open = screen.getByRole("button", { name: /^Yanıt bekleyen/ });
+    expect(open).toHaveAttribute("aria-pressed", "false");
+    await user.click(open);
+    expect(open).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("boş durum gerçek düğme adını söyler: 'Bilgi iste' (D-238)", async () => {
+    h.get.mockImplementation(() => Promise.resolve({ data: { total: 0, items: [] } }));
+    wrap(<InquiriesView portal="satinalma" />);
+    expect(await screen.findByText(/'Bilgi iste' ile soru gönderin/)).toBeInTheDocument();
+  });
+
+  it("satıcıda ürün bağlantısı ürünün kendisini açar (?urun=<id>) (D-131/D-284)", async () => {
+    h.get.mockImplementation((url: string) =>
+      url.includes("received")
+        ? Promise.resolve({
+            data: { ...RECEIVED, items: [{ ...RECEIVED.items[0], product: { id: "prod-1", name: "Dağıtım Panosu", slug: "pano" } }] },
+          })
+        : Promise.resolve({ data: SENT }),
+    );
+    wrap(<InquiriesView portal="satis" />);
+    expect(await screen.findByRole("link", { name: "Dağıtım Panosu" })).toHaveAttribute(
+      "href",
+      "/company/satis/urunlerim?urun=prod-1",
+    );
+  });
+
+  it("yanıt izni olmayan kullanıcıya açıklama basılır, yanıt kutusu yok (D-284)", async () => {
+    h.canReply = false;
+    wrap(<InquiriesView portal="satis" />);
+    expect(await screen.findByText(/yanıtlamak için “Bilgi taleplerini yanıtlama” izni gerekir/)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Yanıtınızı yazın…")).toBeNull();
+  });
+
+  it("sunucu hatasında tek toast: yerel toast yakalayıcının bastığını tekrarlamaz (D-284)", async () => {
+    const user = userEvent.setup();
+    const err = Object.assign(new Error("403"), {
+      isAxiosError: true,
+      response: { status: 403, data: { message: "Yetkiniz yok" } },
+    });
+    h.post.mockRejectedValue(err);
+    wrap(<InquiriesView portal="satis" />);
+    await user.type(await screen.findByPlaceholderText("Yanıtınızı yazın…"), "Stok var.");
+    await user.click(screen.getByRole("button", { name: "Yanıtla" }));
+    await waitFor(() => expect(h.post).toHaveBeenCalled());
+    expect(h.toastError).not.toHaveBeenCalled();
+  });
+
+  it("kilit kartında alım talebi dipnotu yok (D-284)", async () => {
+    h.get.mockImplementation((url: string) =>
+      url.includes("received")
+        ? Promise.resolve({ data: { ...RECEIVED, locked: true, items: [{ ...RECEIVED.items[0], name: null, companyName: null, anonymous: true }] } })
+        : Promise.resolve({ data: SENT }),
+    );
+    wrap(<InquiriesView portal="satis" />);
+    expect(await screen.findByRole("link", { name: "Silver paketine geç" })).toBeInTheDocument();
+    expect(screen.queryByText(/Bağlantı davetiyle gelen talepleri/)).toBeNull();
+  });
+
+  it("arama yalnız yüklenenlerde: eski kayıtlar yüklenmediyse ipucu basılır (D-112)", async () => {
+    const mk = (n: number) => ({ ...RECEIVED.items[0], id: `r${n}`, message: `Soru ${n}` });
+    h.get.mockImplementation((url: string) =>
+      url.includes("received")
+        ? Promise.resolve({ data: { total: 40, openCount: 40, items: Array.from({ length: 20 }, (_, i) => mk(i + 1)) } })
+        : Promise.resolve({ data: SENT }),
+    );
+    const user = userEvent.setup();
+    wrap(<InquiriesView portal="satis" />);
+    await screen.findByText("Ayşe Demir: Soru 1");
+    expect(screen.queryByText(/yalnız yüklenen/)).toBeNull();
+    await user.type(screen.getByLabelText("Bilgi taleplerinde ara"), "en eski");
+    expect(screen.getByText("Bu süzgeçte talep yok.")).toBeInTheDocument();
+    expect(screen.getByText(/yalnız yüklenen 20\/40 talepte/)).toBeInTheDocument();
+  });
+});
+

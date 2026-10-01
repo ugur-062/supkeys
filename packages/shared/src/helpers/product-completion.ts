@@ -56,10 +56,22 @@ export interface CompletionContext {
 
 /** Fiyat modunun kendi zorunlu alanları dolu mu. */
 function priceComplete(p: ProductLike): boolean {
-  if (p.priceMode === "FIXED") return p.priceAmount != null;
+  // Fiyat > 0 — API `@Min(MIN_MONEY)` kuralının aynası (arayüz testi D-050):
+  // eskiden 0 fiyatlı kademe rayda "tamam" görünüp kayıtta 400 alıyordu.
+  if (p.priceMode === "FIXED") return p.priceAmount != null && Number(p.priceAmount) > 0;
   if (p.priceMode === "TIERED")
-    return Array.isArray(p.priceTiers) && p.priceTiers.length > 0;
+    return (
+      Array.isArray(p.priceTiers) &&
+      p.priceTiers.length > 0 &&
+      p.priceTiers.every(tierComplete)
+    );
   return true; // ON_REQUEST — ek alan istemez, tam puan
+}
+
+function tierComplete(t: unknown): boolean {
+  if (!t || typeof t !== "object") return false;
+  const { minQty, unitPrice } = t as { minQty?: unknown; unitPrice?: unknown };
+  return Number(minQty) >= 1 && Number(unitPrice) > 0;
 }
 
 const RULES: Rule[] = [
@@ -107,7 +119,7 @@ const RULES: Rule[] = [
   },
   {
     key: "attributes",
-    label: "Kategoriye özel zorunlu nitelikler",
+    label: "Kategoriye özel yıldızlı (*) nitelikler",
     points: 10,
     // Kategoride zorunlu nitelik TANIMLI DEĞİLSE tam puan: matris henüz o
     // segmente yazılmadı diye kullanıcı puan kaybetmemeli.

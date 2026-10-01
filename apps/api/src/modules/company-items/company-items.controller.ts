@@ -183,8 +183,13 @@ class MarkUsedDto {
  * zaten ihale açamıyor (tier kapısı orada); kataloğu ayrıca kapatmak yalnız
  * kullanıcıyı zorlaştırırdı.
  *
- * Okuma her role açık, yazma `templates:manage` ister — şablon modülleriyle
- * aynı kural (kullanıcı için tek bir zihinsel model).
+ * Okuma her role açık. KALEM yazma (`POST /`, `PATCH :id`, arşivle/geri al)
+ * `sell:product:manage` VEYA `templates:manage` kabul eder — satınalmadaki
+ * Kalem Kataloğu şablon izniyle yönetilir (arayüz testi D-185, DN-12: yorum
+ * bunu vaat ederken uç yalnız satış iznini istiyor, şablon yetkilisi 403
+ * alıyordu). Vitrine dokunmuş ürünü (yayında/onayda/onaylı/reddedilmiş)
+ * değiştirmek servis katmanında AYRICA `sell:product:manage` ister. Vitrin
+ * uçları (`product`, `:id/showcase`, yayın, görsel/belge) yalnız satış izniyle.
  */
 @Controller("company/items")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
@@ -482,7 +487,7 @@ export class CompanyItemsController {
   }
 
   @Post()
-  @RequireCompanyPermission("sell:product:manage")
+  @RequireCompanyPermission(["sell:product:manage", "templates:manage"])
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CatalogItemDto,
@@ -491,7 +496,7 @@ export class CompanyItemsController {
   }
 
   @Patch(":id")
-  @RequireCompanyPermission("sell:product:manage")
+  @RequireCompanyPermission(["sell:product:manage", "templates:manage"])
   update(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

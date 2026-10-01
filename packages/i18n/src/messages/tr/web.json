@@ -4958,7 +4958,7 @@
         "kategoriyeOzelOzellikler": "Kategoriye özel özellikler",
         "once1BolumdeKategoriSecin": "Önce 1. bölümde kategori seçin — teknik nitelik alanları kategoriden gelir.",
         "buKategorideTanimliNitelikYok": "Bu kategoride tanımlı nitelik yok; ölçü, malzeme ve standardı açıklamaya yazın.",
-        "buAlanlarSegmentindenVeAlt": "Bu alanlar “{segment}” segmentinden ve alt kategorilerinden gelir. Zorunlu değil; nitelik tablosu süzgeçte ve yapılandırılmış veride görünür.",
+        "buAlanlarKategoridenGelir": "Bu alanlar seçtiğiniz kategoriden ve üst kategorilerinden gelir. Yayımlamak için zorunlu değildir; yıldızlı (*) alanlar tamamlanma puanını etkiler. Nitelik tablosu süzgeçte ve yapılandırılmış veride görünür.",
         "fiyatVeSiparis": "Fiyat ve sipariş",
         "teklifIsteyinDeGecerliBir": "\"Teklif isteyin\" de geçerli bir seçenektir — boş bırakmak yerine seçin.",
         "fiyatVeMinimumSiparisBu": "Fiyat ve minimum sipariş bu birimle okunur.",
@@ -5075,7 +5075,7 @@
           "keywords": "En az 1 anahtar kelime",
           "price": "Fiyat bilgisi (sabit, kademeli veya ''teklif isteyin'')",
           "moq": "Minimum sipariş miktarı",
-          "attributes": "Kategoriye özel zorunlu nitelikler"
+          "attributes": "Kategoriye özel yıldızlı (*) nitelikler"
         }
       },
       "productActionBar": {
@@ -5116,6 +5116,8 @@
         "surukleyerekSirala": "Sürükleyerek sırala",
         "kapak": "Kapak",
         "kapakYap": "Kapak yap",
+        "solaTasi": "Sola taşı",
+        "sagaTasi": "Sağa taşı",
         "kaldir": "Kaldır",
         "yukleniyor": "Yükleniyor…",
         "gorselEkle": "Görsel ekle",
@@ -5135,6 +5137,7 @@
         "veUzeri": "{unit} ve üzeri",
         "kademeyiSil": "Kademeyi sil",
         "kademeEkle": "Kademe ekle",
+        "kademeEksik": "Bu kademenin miktarını ve 0’dan büyük fiyatını girin; eksik kademe kaydedilmez.",
         "paraBirimi": "Para birimi",
         "mode": {
           "FIXED": {
@@ -5191,7 +5194,7 @@
         "henuzBilgiTalebiYok": "Henüz bilgi talebi yok.",
         "gonderdiginizTalepYok": "Gönderdiğiniz talep yok.",
         "urunleriniziVitrineCikardiginizdaAlicilarBur": "Ürünlerinizi vitrine çıkardığınızda alıcılar buradan soru sorabilir.",
-        "birUruneGiripBilgiTeklif": "Bir ürüne girip ''Bilgi / teklif iste'' ile soru gönderin; yanıtlar burada birikir.",
+        "birUruneGiripBilgiTeklif": "Bir ürüne girip ''Bilgi iste'' ile soru gönderin; yanıtlar burada birikir.",
         "suzgec": "Süzgeç",
         "tumu": "Tümü",
         "yanitBekleyen": "Yanıt bekleyen",
@@ -5202,6 +5205,8 @@
         "firmaUrunYaDaMesaj": "Firma, ürün ya da mesaj ara",
         "bilgiTaleplerindeAra": "Bilgi taleplerinde ara",
         "buSuzgecteTalepYok": "Bu süzgeçte talep yok.",
+        "yalnizYuklenenlerdeAranir": "Arama ve süzgeç yalnız yüklenen {loaded, number}/{total, number} talepte çalışır; daha eskileri için aşağıdan yükleyin.",
+        "yanitYetkisiYok": "Bu talebi görüntüleyebilirsiniz; yanıtlamak için “Bilgi taleplerini yanıtlama” izni gerekir. İzni firma yöneticinizden isteyin.",
         "bilgiTalepleri2": "Bilgi talepleri",
         "birTalepSecin": "Bir talep seçin.",
         "aliciKimligiGizli": "Alıcı kimliği gizli",

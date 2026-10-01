@@ -95,3 +95,24 @@ describe("ImageUploader — yükleme sürerken değişiklikler", () => {
     expect(latest).toEqual(["https://cdn/a.jpg"]);
   });
 });
+
+describe("ImageUploader — klavye/dokunmatik sıralama (arayüz testi D-288)", () => {
+  it("sola/sağa taşı düğmeleri sırayı değiştirir; uçlarda gereksiz düğme yok", () => {
+    render(<Harness initial={["https://cdn/a.jpg", "https://cdn/b.jpg", "https://cdn/c.jpg"]} />);
+    // İlk görselde "sola taşı", sonuncuda "sağa taşı" yok.
+    expect(screen.getAllByRole("button", { name: "Sola taşı" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Sağa taşı" })).toHaveLength(2);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Sağa taşı" })[0]!);
+    expect(latest).toEqual(["https://cdn/b.jpg", "https://cdn/a.jpg", "https://cdn/c.jpg"]);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Sola taşı" })[1]!);
+    expect(latest).toEqual(["https://cdn/b.jpg", "https://cdn/c.jpg", "https://cdn/a.jpg"]);
+  });
+
+  it("düğmeler odakta da görünür (yalnız hover değil)", () => {
+    render(<Harness initial={["https://cdn/a.jpg", "https://cdn/b.jpg"]} />);
+    const bar = screen.getAllByRole("button", { name: "Kaldır" })[0]!.parentElement!;
+    expect(bar.className).toContain("group-focus-within:opacity-100");
+  });
+});

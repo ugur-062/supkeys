@@ -38,7 +38,8 @@ import { Thumb } from "@/components/ui/thumb";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 type ProductTab = "all" | "published" | "pending" | "rejected" | "draft" | "archived";
 const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft", "archived"];
@@ -102,7 +103,15 @@ export function ProductsView() {
   // `?sekme=rejected` — "düzeltme istendi" e-postasındaki CTA doğrudan o sekmeye açar.
   const searchParams = useSearchParams();
   const initialTab = searchParams?.get("sekme") as ProductTab | null;
-  const [tab, setTab] = useState<ProductTab>(initialTab && TAB_KEYS.includes(initialTab) ? initialTab : "all");
+  const [tab, setTabState] = useState<ProductTab>(initialTab && TAB_KEYS.includes(initialTab) ? initialTab : "all");
+  // Sekme URL'de (`?sekme=`) — yenileme/Geri sonrası aynı sekme (arayüz testi D-131).
+  const setTab = (next: ProductTab) => {
+    setTabState(next);
+    const u = new URL(window.location.href);
+    if (next === "all") u.searchParams.delete("sekme");
+    else u.searchParams.set("sekme", next);
+    window.history.replaceState(null, "", u.toString());
+  };
   // Ürün ekleme/yayın = "Ürün ve vitrin yönetimi" işlem izni (API aynası).
   const canManage = useHasCompanyPermission("sell:product:manage");
   /**
@@ -119,7 +128,9 @@ export function ProductsView() {
   } | null>(null);
   // Sekme süzgeci ve "en yeni üstte" SUNUCUDA, 50'şer sayfa (yayın denetimi
   // 2026-09-28 Bölüm 6); sayaçlar ilk sayfada ve firma geneli.
-  const showcase = useShowcaseItems(q, tab);
+  // Arama GECİKMELİ (arayüz testi D-286): her tuş ayrı istek atıyordu.
+  const debouncedQ = useDebouncedValue(q.trim(), 300);
+  const showcase = useShowcaseItems(debouncedQ, tab);
   const { isLoading } = showcase;
   const data = showcase.data?.pages[0];
   const items = useMemo(() => showcase.data?.pages.flatMap((p) => p.items) ?? [], [showcase.data]);
@@ -152,15 +163,89 @@ export function ProductsView() {
     if (await confirmLeave()) close();
   };
   const productArchive = useProductArchive();
+
+  /**
+   * AÇIK ÜRÜN URL'DE (`?urun=<id>`, arayüz testi D-131): ürün açılınca adres
+   * değişmiyordu — tarayıcının Geri'si Ürünlerim'den tamamen çıkarıyor, bilgi
+   * talebinden ürüne derin bağlantı verilemiyordu. Açılış `pushState` (Geri
+   * listeye döner), kapanış bizim eklediğimiz kaydı geri alır; doğrudan
+   * `?urun=` ile gelindiyse adres yerinde temizlenir.
+   */
+  const pushedUrlRef = useRef(false);
+  const setUrlParam = (key: "urun" | "yeni", value: string | null, push = false) => {
+    const u = new URL(window.location.href);
+    if (value) u.searchParams.set(key, value);
+    else u.searchParams.delete(key);
+    if (u.toString() === window.location.href) return;
+    if (push) {
+      window.history.pushState(null, "", u.toString());
+      pushedUrlRef.current = true;
+    } else {
+      window.history.replaceState(null, "", u.toString());
+    }
+  };
+  const closeProduct = () => {
+    setEditing(null);
+    if (pushedUrlRef.current) {
+      pushedUrlRef.current = false;
+      window.history.back();
+    } else {
+      setUrlParam("urun", null);
+    }
+  };
   const openEditor = async (item: CatalogItem) => {
     try {
       const showcase = await fetchProductShowcase(item.id);
       setEditorOpen(false);
       setEditing({ item, showcase });
+      setUrlParam("urun", item.id, true);
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("urunAcilamadi")));
     }
   };
+
+  // Adresteki ürün DEĞİŞİNCE (derin bağlantı, Geri/İleri) görünüm izler.
+  // Yalnız URL değişimine tepki verir: açılışta durum adresten önce güncellenir.
+  const urlProductId = searchParams?.get("urun") ?? null;
+  const lastUrlProductId = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (lastUrlProductId.current === urlProductId) return;
+    const previous = lastUrlProductId.current;
+    lastUrlProductId.current = urlProductId;
+    if (!urlProductId) {
+      // İlk çizim ya da kapanışı biz yaptık (`closeProduct` durumu önce temizler).
+      if (previous === undefined || !editing) return;
+      pushedUrlRef.current = false;
+      // Geri'ye basıldı: kaydedilmemiş değişiklik varsa önce sor; kalırsa
+      // adres geri yazılır.
+      void confirmLeave().then((leave) => {
+        if (leave) {
+          setFormDirty(false);
+          setEditing(null);
+        } else if (previous) {
+          setUrlParam("urun", previous, true);
+        }
+      });
+      return;
+    }
+    if (editing?.item.id === urlProductId) return;
+    let cancelled = false;
+    fetchProductShowcase(urlProductId)
+      .then((sc) => {
+        if (cancelled) return;
+        setEditorOpen(false);
+        setEditing({ item: { id: sc.id, name: sc.name, unit: sc.unit } as CatalogItem, showcase: sc });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toast.error(extractErrorMessage(err, tr("urunAcilamadi")));
+        setUrlParam("urun", null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız adres değişimi
+  }, [urlProductId]);
 
   // Ücretsiz paket YAYINDA ürün tavanı (API `productLimit`, `PRODUCT_LIMITS`
   // aynası): sayaç "N/10", form "Kaydet ve yayınla"yı kilitler. null = limitsiz.
@@ -185,7 +270,10 @@ export function ProductsView() {
       <PageContainer>
         <button
           type="button"
-          onClick={backTo(() => setCreating(false))}
+          onClick={backTo(() => {
+            setCreating(false);
+            setUrlParam("yeni", null);
+          })}
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
         >
           <ArrowLeftIcon aria-hidden className="size-4" />
@@ -200,11 +288,17 @@ export function ProductsView() {
             publishLimitReached={publishLimitReached}
             limitPending={limitPending}
             onDirtyChange={setFormDirty}
-            onClose={() => setCreating(false)}
+            onClose={() => {
+              setCreating(false);
+              setUrlParam("yeni", null);
+            }}
             onCreated={(created) => {
               // Kayıt oluştu → düzenleme moduna geç: kullanıcı aynı formda
-              // kalır, ikinci kaydetme artık güncelleme olur.
+              // kalır, ikinci kaydetme artık güncelleme olur. Adres de ürünün
+              // kendisine döner (`?yeni=1` → `?urun=<id>`).
               setCreating(false);
+              setUrlParam("yeni", null);
+              setUrlParam("urun", created.id);
               setEditing({
                 item: {
                   id: created.id,
@@ -227,7 +321,7 @@ export function ProductsView() {
       <PageContainer>
         <button
           type="button"
-          onClick={backTo(() => setEditing(null))}
+          onClick={backTo(closeProduct)}
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
         >
           <ArrowLeftIcon aria-hidden className="size-4" />
@@ -238,13 +332,13 @@ export function ProductsView() {
         ) : null}
         <div className={inReview ? "mt-8" : "mt-2"}>
           {inReview ? (
-            <ProductPreview product={editing.showcase} item={editing.item} onClose={() => setEditing(null)} />
+            <ProductPreview product={editing.showcase} item={editing.item} onClose={closeProduct} />
           ) : publishedPreview ? (
             <ProductPreview
               variant="published"
               product={editing.showcase}
               item={editing.item}
-              onClose={() => setEditing(null)}
+              onClose={closeProduct}
               onEdit={() => setEditorOpen(true)}
             />
           ) : (
@@ -254,7 +348,7 @@ export function ProductsView() {
               publishLimitReached={publishLimitReached}
               limitPending={limitPending}
               onDirtyChange={setFormDirty}
-              onClose={() => setEditing(null)}
+              onClose={closeProduct}
               // Kaydın sunucu hâli ekrana işlenir: incelemeye düştüyse
               // yukarıdaki `inReview` dalı hemen önizlemeyi çizer.
               onSaved={(saved) =>

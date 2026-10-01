@@ -441,4 +441,48 @@ describe("ProductsView", () => {
     await user.click(await screen.findByRole("menuitem", { name: "Geri al" }));
     await vi.waitFor(() => expect(h.patch).toHaveBeenCalledWith("/company/items/p1/active", { isActive: true }));
   });
+
+  it("açık ürün adreste (?urun=<id>): açılış yazar, 'Ürünlere dön' geri alır (arayüz testi D-131)", async () => {
+    window.history.replaceState(null, "", "/company/satis/urunlerim");
+    const user = userEvent.setup();
+    wrap(<ProductsView />);
+    await user.click(await screen.findByText("Sigorta kutusu"));
+    expect(await screen.findByTestId("preview")).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get("urun")).toBe("p3");
+
+    await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
+    await vi.waitFor(() => expect(new URLSearchParams(window.location.search).get("urun")).toBeNull());
+  });
+
+  it("derin bağlantı ?urun=<id> ürünü doğrudan açar (bilgi talebinden gelen bağlantı)", async () => {
+    window.history.replaceState(null, "", "/company/satis/urunlerim?urun=p2");
+    h.search = new URLSearchParams("urun=p2");
+    wrap(<ProductsView />);
+    expect(await screen.findByTestId("form")).toBeInTheDocument();
+    expect(h.get.mock.calls.some(([u]) => u === "/company/items/p2/showcase")).toBe(true);
+    expect((h.formProps.at(-1)!.product as { id: string }).id).toBe("p2");
+  });
+
+  it("sekme adrese yazılır (?sekme=)", async () => {
+    window.history.replaceState(null, "", "/company/satis/urunlerim");
+    const user = userEvent.setup();
+    wrap(<ProductsView />);
+    await screen.findByText("Dağıtım panosu");
+    await user.click(within(screen.getByRole("tablist")).getByRole("tab", { name: /Taslak/ }));
+    expect(new URLSearchParams(window.location.search).get("sekme")).toBe("draft");
+    await user.click(within(screen.getByRole("tablist")).getByRole("tab", { name: /Tümü/ }));
+    expect(new URLSearchParams(window.location.search).get("sekme")).toBeNull();
+  });
+
+  it("arama gecikmeli: hızlı yazımda tek istek (arayüz testi D-286)", async () => {
+    const user = userEvent.setup();
+    wrap(<ProductsView />);
+    await screen.findByText("Dağıtım panosu");
+    await user.type(screen.getByPlaceholderText(/Ürünlerde ara/i), "Çelik");
+    const withQ = () =>
+      h.get.mock.calls.filter(([u, c]) => u === "/company/items" && (c as { params?: { q?: string } })?.params?.q);
+    await vi.waitFor(() => expect(withQ().length).toBeGreaterThan(0));
+    expect(withQ()).toHaveLength(1);
+    expect((withQ()[0]![1] as { params: { q: string } }).params.q).toBe("Çelik");
+  });
 });
