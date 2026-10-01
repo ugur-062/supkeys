@@ -7,7 +7,7 @@
  */
 import "reflect-metadata";
 import { CompanyRole, Prisma } from "@rothern/db";
-import { ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { AiBudgetService, AiBudgetExceededException } from "../../src/modules/ai/ai-budget.service";
 import { AiService } from "../../src/modules/ai/ai.service";
 import type { AiConfig } from "../../src/modules/ai/ai.config";
@@ -214,6 +214,15 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
     expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
   });
 
+  it("arayüz testi O-067: boş mesaj 403 değil 400 (girdi hatası), oturum açılmaz", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await expect(svc.message(co.auth, { message: "   " })).rejects.toThrow(BadRequestException);
+    expect(provider.calls).toHaveLength(0);
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+
   it("bütçe dolu → çağrı öncesi reddedilir (feature=assistant)", async () => {
     const provider = new FakeProvider();
     const { svc } = build(makeCfg(), provider);
@@ -292,7 +301,7 @@ describe("hayalet oturum (derin denetim LU-04)", () => {
 
 describe("Faz AI-2 — araç kümesi (bağlayıcı yazma YOK)", () => {
   it("DOĞRUDAN yazma aracı YOK; yazma yalnız onay-kartılı request_* önerileriyle", () => {
-    const defs = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI] }));
+    const defs = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI] }), "GOLD");
     const names = defs.map((d) => d.name);
     // AI-4 sonrası da değişmez: model hiçbir işlemi doğrudan yürütemez —
     // place_bid/create/award gibi araçlar asla sunulmaz. request_* araçları
@@ -665,10 +674,52 @@ describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
   });
 
   it("propose_tender_draft yalnız SA/ST portallı kullanıcıya sunulur", () => {
-    const withSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI] })).map((d) => d.name);
+    const withSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI] }), "GOLD").map((d) => d.name);
     expect(withSeat).toContain("propose_tender_draft");
     // Portal yok (etiket-only — pratikte AI erişimi de yok) → taslak aracı da yok.
-    const noSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [] })).map((d) => d.name);
+    const noSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [] }), "GOLD").map((d) => d.name);
     expect(noSeat).not.toContain("propose_tender_draft");
+  });
+
+  it("arayüz testi O-054: taslak/yayın/davet araçları yalnız satınalma portalı + GOLD; eleme/kazandırma yalnız satınalma portalı", () => {
+    const BUY_DRAFT = ["propose_tender_draft", "request_publish_tender", "request_send_invites"];
+    const OWNER_SIDE = ["request_eliminate_bid", "request_award_tender"];
+    const names = (roles: CompanyRole[], tier: string) =>
+      toolDefsForUser(allowedPortals({ isOwner: false, roles }), tier).map((d) => d.name);
+
+    const buyerGold = names([CompanyRole.SATIN_ALMACI], "GOLD");
+    expect(buyerGold).toEqual(expect.arrayContaining([...BUY_DRAFT, ...OWNER_SIDE]));
+
+    // Silver (satınalma paneli yok) ya da süresi dolmuş Gold (efektif STANDART).
+    for (const tier of ["SILVER", "STANDART"]) {
+      const buyerLow = names([CompanyRole.SATIN_ALMACI], tier);
+      for (const n of BUY_DRAFT) expect(buyerLow).not.toContain(n);
+      expect(buyerLow).toEqual(expect.arrayContaining(OWNER_SIDE));
+    }
+
+    // Gold firmanın yalnız Satışçısı: satın alma araçlarının hiçbiri yok.
+    const sellerGold = names([CompanyRole.SATISCI], "GOLD");
+    for (const n of [...BUY_DRAFT, ...OWNER_SIDE]) expect(sellerGold).not.toContain(n);
+    expect(sellerGold).toContain("request_place_bid");
+  });
+
+  it("arayüz testi O-054: sunulmayan taslak aracını model uydursa da taslak oluşmaz (Satışçı)", async () => {
+    const provider = new FakeProvider();
+    provider.steps = [
+      { toolCalls: [{ name: "propose_tender_draft", args: { title: "Boru alımı" } }] },
+      { text: "Satın alma talebi açmak için satın alma yetkisi ve Gold paket gerekir." },
+    ];
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATISCI] });
+    const seller = authFor(co.user, co.company.id, [CompanyRole.SATISCI]);
+
+    const reply = await svc.message(seller, { message: "talep açmak istiyorum" });
+    expect(reply.tenderDraft).toBeUndefined();
+    expect(reply.toolsUsed).not.toContain("propose_tender_draft");
+    expect(toolResponses(provider.calls[1]!)).toContainEqual({ error: "unavailable" });
+    const s = await prisma.aiChatSession.findFirstOrThrow({ where: { companyId: co.company.id } });
+    expect(s.tenderDraft).toBeNull();
+    // Model de bu kullanıcıya taslak aracını görmedi.
+    expect((provider.calls[0]!.tools ?? []).map((t) => t.name)).not.toContain("propose_tender_draft");
   });
 });

@@ -222,8 +222,12 @@ export function CompanyInboxView() {
         description={t("satinalmaVeSatisKonusmalarinizTek")}
       />
 
-      {/* C44: standart düzen — konuşma listesi SOLDA, sohbet SAĞDA. */}
-      <div className="grid h-[calc(100vh-13rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[340px_minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)]">
+      {/* C44: standart düzen — konuşma listesi SOLDA, sohbet SAĞDA.
+          Arayüz testi Y-07: kutu ekranın altına kadar uzanınca sağ-alttaki
+          sabit AI Asistan düğmesi (bottom-8, 56px) Gönder düğmesini
+          örtüyordu; sayfa kaymadığı için kabuğun pb-24 payı da işlemiyordu.
+          Alt kenar düğmenin üstünde kalacak kadar kısaltıldı (17rem). */}
+      <div className="grid h-[calc(100vh-17rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[340px_minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)]">
         {/* Sol: kontak listesi */}
         <div
           className={`flex flex-col border-zinc-950/10 bg-white sm:order-1 sm:border-r ${

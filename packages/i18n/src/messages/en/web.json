@@ -1485,7 +1485,10 @@
       "company_connection_unblocked": "Block removed",
       "company_profile_updated": "Company profile updated",
       "company_profile_enriched": "Company profile enriched with AI",
-      "company_signup": "Company registration"
+      "company_signup": "Company registration",
+      "company_ownership_transferred": "Ownership transferred",
+      "company_user_permissions_changed": "User permissions changed",
+      "company_membership_self_upgraded": "Plan upgraded"
     },
     "auditActionOther": "Other action",
     "listingDocKind": {
@@ -2071,7 +2074,9 @@
         "merhaba": "Hello, {firstName}.",
         "merhaba2": "Hello.",
         "aiAsistan": "AI Assistant",
-        "yardimMetni": "How can I help you? I can create a buying request, read documents, or answer your questions."
+        "yardimMetni": "How can I help you? I can create a buying request, read documents, or answer your questions.",
+        "yardimMetniSatis": "How can I help you? I can search open buying requests, summarise your quotes and orders, or answer your questions.",
+        "yardimMetniGenel": "How can I help you? I can summarise your orders and connections, or answer your questions."
       },
       "assistantPanel": {
         "suAnYanitVeremedimLutfen": "I could not respond just now — please try again.",
@@ -2135,7 +2140,14 @@
         "kapanis": "Closing:",
         "kalem": "{n, plural, one {# line item} other {# line items}}",
         "talepTaslagi": "Buying request draft",
-        "onayinizGerekiyor": "Your confirmation is required"
+        "onayinizGerekiyor": "Your confirmation is required",
+        "altMetinSatis": "Search open buying requests, or ask about your quotes and orders.",
+        "altMetinGenel": "Ask about your orders and connections.",
+        "birSeySorun": "Ask something…",
+        "oneriTekliflerimiGoster": "Show my quotes",
+        "oneriBaglantilarim": "Show my connections",
+        "silinsinMi": "Delete?",
+        "silOnayla": "Yes, delete"
       },
       "comingSoon": {
         "yakinda": "Coming soon"
@@ -3291,7 +3303,6 @@
         "kalemSuresiGirmediginizKalemlerIcin": "Applies to line items without their own delivery time.",
         "gun": "{validityDays, plural, one {# day} other {# days}}",
         "acikEksiltmedeParaBirimiIlk": "In an open reverse auction the currency is locked with the first quote.",
-        "kalemOzelTeslimTarihiGirilmeyen": "The general delivery date applies to line items without a line-specific delivery date.",
         "teklifNotu": "Quote note",
         "aliciyaIletmekIstediginizNotOpsiyonel": "Note you want to pass on to the buyer (optional)",
         "zorunlu": "(required)",
@@ -3320,7 +3331,7 @@
         "indirim": "Reduction: {money} ✓",
         "oncekindenDusukOlmali": "Must be lower than the previous one",
         "teklifiRevizeEt": "Revise quote",
-        "karmaBirimliTeklifKarsilastirmaToplami": "Mixed-currency quote: the comparison total is converted by the system to the main currency ({effectiveCurrency}) at the current CBRT rate.",
+        "karmaBirimliTeklifKarsilastirmaToplami": "Your quote uses a currency other than the main currency: the comparison total is converted by the system to the main currency ({effectiveCurrency}) at the current CBRT rate.",
         "buTurdaTekTeklifHakkin": "You can submit only one quote in this round.",
         "gonderilenTeklifDuzenlenemezVeGeri": "A submitted quote cannot be edited or withdrawn; if the buyer eliminates it, you can quote again with a new version.",
         "gonderiliyor": "Submitting…",
@@ -3403,7 +3414,14 @@
         "suresiz": "indefinitely",
         "secmekIcinTiklayin": "click to select",
         "karsiligiylaCur": "({currency} equivalent)",
-        "henuzTalepAcmamissinizPlatformVarsayilaniCur": "You have not opened a request yet; the platform default is shown (all countries, delivered to your address, open account, {currency}, 7 days, sealed bid)."
+        "henuzTalepAcmamissinizPlatformVarsayilaniCur": "You have not opened a request yet; the platform default is shown (all countries, delivered to your address, open account, {currency}, 7 days, sealed bid).",
+        "aliciyaMesajGonder": "Message the buyer",
+        "acikTaleplereDon": "Back to open requests",
+        "muadilKabulEdilmez": "No alternatives accepted",
+        "istenenTeslim": "Requested delivery: {date}",
+        "gecerlilikSuresiAralik": "Validity period must be a whole number between 1 and 365 days.",
+        "gonderimIcinDogrulamaGerekir": "Company verification is required to submit a quote on this request — you can save it as a draft for now.",
+        "tutarBirimli": "Amount ({effectiveCurrency})"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -3962,7 +3980,8 @@
         "tumune": "To all",
         "secililere": "To selected",
         "oncedenFiyatladiginizKalemlerinToplamiOnceki": "Compared with the previous quote, the total of the line items you priced before",
-        "oncekinden": "Compared with the previous quote, the total"
+        "oncekinden": "Compared with the previous quote, the total",
+        "secimDisi": "Not selected"
       },
       "myBidStatusPanel": {
         "gecerlilikUzatildiTeklifinizAyniFiyatla": "Validity extended — your quote is active again at the same price",
@@ -5094,7 +5113,8 @@
         "eslesmedi": "Not matched",
         "sablonuIndirinAdim": "<strong>1.</strong> Download the quote template for this request (line items are prefilled; you fill in price/delivery)",
         "uygulaAria": "Apply {itemName}",
-        "kalemBirimiKullanilamaz": "The row is priced in {currency}; this quote cannot use a different currency per line item ({main}). Convert the price to {main} and enter it manually."
+        "kalemBirimiKullanilamaz": "The row is priced in {currency}; this quote cannot use a different currency per line item ({main}). Convert the price to {main} and enter it manually.",
+        "desteklenmeyenDosyaTuru": "{names} is not supported — you can only upload these types: {allowed}"
       },
       "siparisIdPage": {
         "siparisBulunamadi": "Order not found.",
@@ -6475,6 +6495,10 @@
         "raporuOlustur": "Generate report",
         "hedefToplam": "Target total: {total}",
         "teklifYok": "no quote",
+        "sonucKazandi": "Won",
+        "sonucKismenKazandi": "Partly won",
+        "sonucKaybetti": "Lost",
+        "sonucElendi": "Eliminated",
         "siraEnUcuz1": "RANK (cheapest = 1)",
         "onerilenKazanan": "Suggested winner",
         "kalemBazindaEnDusukBirimFiyat": "(lowest unit price per line item)",
@@ -6493,6 +6517,7 @@
         "secin": "— Select —",
         "baslangic": "Start",
         "bitis": "End",
+        "bitisBaslangictanOnceOlamaz": "The end date cannot be before the start date.",
         "usul": "Procedure",
         "tumu": "All",
         "teklifToplama": "Quote collection",
@@ -6535,6 +6560,7 @@
         "kazandirilanSatinAlmaTaleplerindeRekabetin": "The amount competition saved you on awarded buying requests (highest quote − winner), plus line item detail against the target price.",
         "baslangic": "Start",
         "bitis": "End",
+        "bitisBaslangictanOnceOlamaz": "The end date cannot be before the start date.",
         "tumu": "All",
         "excelIndir": "Download Excel",
         "satinAlmaTalebi": "Buying request",
@@ -6545,6 +6571,7 @@
         "kazanan": "Winner",
         "kalemDetayi": "Line item detail",
         "kalemDetayi2": "Line item detail",
+        "kalemDetayiTalep": "Line item detail: {title}",
         "kalem": "Line item",
         "adet": "Quantity",
         "hedefBirim": "Target unit price",
@@ -6893,7 +6920,11 @@
     "verifyNudge": {
       "title": "Buyers will see your quote as coming from an “Unverified company”",
       "body": "Verified companies earn buyers' trust and stand out in their lists. Verification is free, takes a few minutes and is the only requirement for upgrading to Silver.",
-      "cta": "Get verified for free"
+      "cta": "Get verified for free",
+      "requiredTitle": "Company verification is required to submit a quote",
+      "requiredBody": "You have no connection with or invitation from the buyer of this public request; only verified companies can submit quotes on such requests. Save your quote as a draft now and submit it once verification is complete. Verification is free.",
+      "requiredPendingBody": "Your verification documents are under review. You can save your quote for this request as a draft and submit it once verification is approved.",
+      "requiredPendingCta": "Verification status"
     }
   },
   "shared": {

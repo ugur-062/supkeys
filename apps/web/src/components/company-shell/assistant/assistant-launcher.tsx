@@ -1,16 +1,18 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { hasAnySeatPermission } from "@/lib/company/permissions";
+import { usePathname } from "@/i18n/navigation";
+import {
+  hasAnySeatPermission,
+  hasBuySeatPermission,
+  hasSellSeatPermission,
+} from "@/lib/company/permissions";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { useButtonAccent } from "@/components/ui/button-accent";
-import { tierAtLeast } from "@rothern/shared";
-import {
-  Dialog,
-} from "@headlessui/react";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { Sparkles, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
 /**
@@ -32,6 +34,83 @@ const GREET_SEEN_KEY = "ai-assistant-greeted";
 const GREET_HIDE_MS = 6_000;
 
 /**
+ * YAPIŞKAN ALT ÇUBUKLAR (arayüz testi Y-01): mobil teklif formu, hızlı talep
+ * ve profil kaydet çubuğu ekranın altına `fixed inset-x-0 bottom-0` ile
+ * yapışır; yuvarlak düğme bunların birincil düğmesini (Teklif Gönder /
+ * Yayınla) örtüyordu. Düğme, görünür bir alt çubuk varsa onun ÜSTÜNE kalkar.
+ * Çubuğu çizen sayfalara dokunmadan algılanır; yeni çubuklar açıkça
+ * `data-sticky-cta` ile de işaretlenebilir.
+ */
+const BOTTOM_BAR_SELECTOR = ".fixed.inset-x-0.bottom-0, [data-sticky-cta]";
+/** Çubuk ile düğme arasındaki boşluk (px). */
+const BAR_GAP_PX = 16;
+/** Karşılama balonu düğmenin üstünde durur (düğme 56px + boşluk). */
+const GREET_ABOVE_FAB_PX = 80;
+
+/**
+ * Karşılama balonunun KENDİLİĞİNDEN açılmadığı sayfalar (arayüz testi D-099,
+ * Y-07): form ve yazışma ekranlarında balon ~6sn boyunca sağ raydaki
+ * satırları ya da Gönder düğmesini örtüyordu. Düğme yine görünür.
+ */
+const QUIET_ROUTE = /\/(yeni|duzenle|teklif-ver|mesajlar)(\/|$)/;
+/** lg kırılımı — altında balon kendiliğinden açılmaz (dar ekran). */
+const WIDE_MIN_PX = 1024;
+
+/** Görünür alt çubukların ekran altından kapladığı en büyük yükseklik (px). */
+function useBottomBarHeight(enabled: boolean): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let raf = 0;
+    let observed: Element[] = [];
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => schedule())
+        : null;
+    const measure = () => {
+      raf = 0;
+      const bars = Array.from(
+        document.querySelectorAll<HTMLElement>(BOTTOM_BAR_SELECTOR),
+      );
+      let max = 0;
+      for (const el of bars) {
+        const r = el.getBoundingClientRect();
+        // lg:hidden çubuk masaüstünde 0 boyutludur; ekran altına yapışmayan
+        // öğe çubuk sayılmaz.
+        if (r.width <= 0 || r.height <= 0) continue;
+        if (r.bottom < window.innerHeight - 2) continue;
+        max = Math.max(max, window.innerHeight - r.top);
+      }
+      setHeight(Math.round(max));
+      // Yalnız çubuk kümesi değişince yeniden gözlenir (observe ilk geri
+      // çağrıyı tetikler; her ölçümde yeniden bağlamak döngü kurardı).
+      if (
+        ro &&
+        (bars.length !== observed.length || bars.some((b, i) => b !== observed[i]))
+      ) {
+        ro.disconnect();
+        bars.forEach((b) => ro.observe(b));
+        observed = bars;
+      }
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(measure);
+    };
+    measure();
+    const mo = new MutationObserver(schedule);
+    mo.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      mo.disconnect();
+      ro?.disconnect();
+      window.removeEventListener("resize", schedule);
+    };
+  }, [enabled]);
+  return enabled ? height : 0;
+}
+
+/**
  * Faz AI-2 — sağ-alt floating launcher + sağdan slide-over asistan paneli.
  * Yalnız Silver+ ∧ SA/ST kullanıcıda görünür (AI-0 erişim kapısıyla aynı; asıl
  * güvenlik backend'de — bu UX katmanı). Panel açık değilken içerik mount edilmez.
@@ -40,6 +119,7 @@ export function AssistantLauncher() {
   const t = useTranslations("web.panel.shell.assistantLauncher");
   const accent = useButtonAccent();
   const { user, company } = useCompanyAuth();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // §4.4: genişletme seçeneği — dar sohbet / geniş okuma.
   const [wide, setWide] = useState(false);
@@ -58,28 +138,71 @@ export function AssistantLauncher() {
     !!company &&
     tierAtLeast(company.tier, "SILVER") &&
     hasAnySeatPermission(user);
-
-  // İlk girişte karşılama balonu — kısa gecikmeyle belirir, 12sn sonra gider.
-  // "Görüldü" işareti balon fiilen GÖSTERİLİNCE yazılır (StrictMode'un çift
-  // effect koşusu balonu hiç göstermeden işaretlemesin).
+  const barHeight = useBottomBarHeight(eligible);
+  const barHeightRef = useRef(barHeight);
   useEffect(() => {
-    if (!eligible || sessionStorage.getItem(GREET_SEEN_KEY)) return;
+    barHeightRef.current = barHeight;
+  }, [barHeight]);
+  // Karşılama metni role ve pakete göre (arayüz testi O-054/D-099): satın
+  // alma talebi açmayı yalnız alım koltuğu + satınalma paketi (GOLD) olan
+  // kullanıcıya vaat eder; asistan panelindeki kapıyla aynı türetme.
+  const canBuy =
+    !!company &&
+    hasBuySeatPermission(user) &&
+    tierAtLeast(company.tier, BUYING_TIER);
+  const canSell = hasSellSeatPermission(user);
+  const quietRoute = QUIET_ROUTE.test(pathname ?? "");
+
+  // İlk girişte karşılama balonu — kısa gecikmeyle belirir, 6sn sonra gider.
+  // "Görüldü" işareti balon fiilen GÖSTERİLİNCE yazılır (StrictMode'un çift
+  // effect koşusu balonu hiç göstermeden işaretlemesin). Dar ekranda, form/
+  // yazışma sayfasında ya da yapışkan alt çubuk varken balon AÇILMAZ ve
+  // işaret yazılmaz — kullanıcı uygun bir sayfaya geçince gösterilir.
+  useEffect(() => {
+    if (!eligible || quietRoute) return;
+    try {
+      if (sessionStorage.getItem(GREET_SEEN_KEY)) return;
+    } catch {
+      return;
+    }
+    let hide: ReturnType<typeof setTimeout> | undefined;
     const show = setTimeout(() => {
-      sessionStorage.setItem(GREET_SEEN_KEY, "1");
+      if (window.innerWidth < WIDE_MIN_PX || barHeightRef.current > 0) return;
+      try {
+        sessionStorage.setItem(GREET_SEEN_KEY, "1");
+      } catch {
+        /* depolama kapalı — balon yine bir kez gösterilir */
+      }
       setGreet(true);
+      hide = setTimeout(() => setGreet(false), GREET_HIDE_MS);
     }, 800);
-    const hide = setTimeout(() => setGreet(false), 800 + GREET_HIDE_MS);
     return () => {
       clearTimeout(show);
-      clearTimeout(hide);
+      if (hide) clearTimeout(hide);
     };
-  }, [eligible]);
+  }, [eligible, quietRoute]);
+
+  // Sessiz sayfaya geçilince açık balon kapanır.
+  useEffect(() => {
+    if (quietRoute || barHeight > 0) setGreet(false);
+  }, [quietRoute, barHeight]);
 
   // Escape ile kapat — modal olmadığı için Headless'ın kapatma davranışı yok.
+  // Arayüz testi D-359: asistan açıkken bir diyalogda (Şikayet Et vb.)
+  // Escape yalnız diyaloğu kapatmalı. Açık bir modal varsa ya da olay başka
+  // bir bileşen tarafından işlenmişse (menü/liste kapatma) panel kapanmaz.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (
+        document.querySelector(
+          '[role="dialog"][aria-modal="true"], [role="alertdialog"]',
+        )
+      ) {
+        return;
+      }
+      setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -98,7 +221,14 @@ export function AssistantLauncher() {
           MOUNT edilir — gizliyken DOM'da odaklanabilir görünmez butonlar
           bırakıyordu ve viewport sağ-altındaki tıklamaları yutabiliyordu. */}
       {greet && !open ? (
-        <div className="fixed bottom-24 right-5 z-40 max-w-[260px]">
+        <div
+          className="fixed bottom-24 right-5 z-40 max-w-[260px]"
+          style={
+            barHeight > 0
+              ? { bottom: barHeight + BAR_GAP_PX + GREET_ABOVE_FAB_PX }
+              : undefined
+          }
+        >
           <div className="relative rounded-2xl rounded-br-sm border border-brand-200 bg-white p-3.5 shadow-xl shadow-brand-900/10">
             <button
               type="button"
@@ -119,7 +249,11 @@ export function AssistantLauncher() {
               </p>
               <p className="mt-1 pr-3 text-sm text-zinc-600">
                 {user.firstName ? t("merhaba", { firstName: user.firstName }) : t("merhaba2")}{" "}
-                {t("yardimMetni")}
+                {canBuy
+                  ? t("yardimMetni")
+                  : canSell
+                    ? t("yardimMetniSatis")
+                    : t("yardimMetniGenel")}
               </p>
             </button>
           </div>
@@ -130,6 +264,8 @@ export function AssistantLauncher() {
         type="button"
         aria-label={t("aiAsistan")}
         onClick={openPanel}
+        // Y-01: yapışkan alt çubuk varken düğme çubuğun üstüne kalkar.
+        style={barHeight > 0 ? { bottom: barHeight + BAR_GAP_PX } : undefined}
         className={cn(
           "group fixed z-40 flex items-center justify-center rounded-full",
           // Portal rengi (2026-09-17): siyah yuvarlak düğme istenmiyor —

@@ -1,4 +1,10 @@
-import { BUY_SEAT_PERMISSIONS, CURRENCY_CODES, SELL_SEAT_PERMISSIONS } from "@rothern/shared";
+import {
+  BUY_SEAT_PERMISSIONS,
+  BUYING_TIER,
+  CURRENCY_CODES,
+  SELL_SEAT_PERMISSIONS,
+  tierAtLeast,
+} from "@rothern/shared";
 import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
 import type { AiToolDef } from "../providers/ai-provider.interface";
 
@@ -39,6 +45,15 @@ export function canSearchOpen(portals: Set<Portal>, _type: "ALIM" = "ALIM"): boo
 }
 export function canListMyBids(portals: Set<Portal>): boolean {
   return portals.has("satis"); // teklif verme satış operasyonu
+}
+/**
+ * Satın alma talebi taslağı/yayını/daveti — satınalma portalı (alım koltuğu)
+ * VE satınalma paketi (GOLD; süresi dolmuş Gold efektif STANDART'tır). Rol
+ * kapısı paket kapısının içinde (arayüz testi O-054): Satışçıya ya da Silver
+ * kurucuya "talep açabilirim" denip Gold'a özel forma gönderilmiyordu.
+ */
+export function canDraftTender(portals: Set<Portal>, tier: string | null | undefined): boolean {
+  return portals.has("satinalma") && tierAtLeast(tier ?? "STANDART", BUYING_TIER);
 }
 
 /** Araç adları (beyaz-liste — bunun dışında hiçbir araç yürütülmez). */
@@ -119,7 +134,10 @@ const TENDER_DRAFT_PARAMS = {
  * kullanıcıya list_my_bids sunulmaz (satış aracı); ama type-param'lı araçlar tek
  * tanım kalır ve yürütücü yönü ayrıca doğrular (defense-in-depth).
  */
-export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
+export function toolDefsForUser(
+  portals: Set<Portal>,
+  tier: string | null | undefined,
+): AiToolDef[] {
   const defs: AiToolDef[] = [
     {
       name: TOOL_NAMES.listMyTenders,
@@ -176,9 +194,11 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       parameters: { type: "object", properties: {} },
     });
   }
-  // AI-3: kullanıcı ihale açmak isterse taslak toplama (yalnız SA/ST portalında
-  // anlamlı; oluşturma DEĞİL — kullanıcı formda tamamlar).
-  if (portals.size > 0) {
+  // AI-3: kullanıcı satın alma talebi açmak isterse taslak toplama (oluşturma
+  // DEĞİL — kullanıcı formda tamamlar). Yalnız satınalma portalı + GOLD
+  // (canDraftTender; arayüz testi O-054): taslağın el değiştirdiği form ve
+  // yayın/davet akışı Gold'a özel satınalma panelidir.
+  if (canDraftTender(portals, tier)) {
     defs.push({
       name: TOOL_NAMES.proposeTenderDraft,
       description:
@@ -273,8 +293,10 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       },
     });
   }
-  if (portals.size > 0) {
-    // Faz 2 — ihale sahibi tarafı: eleme (normal) + toplu kazandırma (kritik).
+  if (portals.has("satinalma")) {
+    // Faz 2 — talep sahibi tarafı: eleme (normal) + toplu kazandırma (kritik).
+    // Yalnız satınalma portalı (arayüz testi O-054): satış koltuğu kendi
+    // firmasının talebinde teklif eleyemez/kazandıramaz (buy:award).
     defs.push({
       name: TOOL_NAMES.requestEliminateBid,
       description:

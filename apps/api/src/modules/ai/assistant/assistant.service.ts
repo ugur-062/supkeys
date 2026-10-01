@@ -2,6 +2,7 @@ import { currentLocale } from "../../../common/i18n/locale-context";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { tApi } from "../../../common/i18n/i18n.service";
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -98,7 +99,8 @@ export class AssistantService {
     this.ai.assertAiAccess(user); // AI-0 kapısı: SA/ST + Silver+
     const text = (dto.message ?? "").trim().slice(0, MAX_TURN_MESSAGE_LEN);
     if (!text && !(dto.fileKeys && dto.fileKeys.length > 0)) {
-      throw new ForbiddenException(i18nMessage("api.ai.mesajBosOlamaz"));
+      // Boş mesaj yetki değil girdi hatasıdır (arayüz testi O-067: 403 dönüyordu).
+      throw new BadRequestException(i18nMessage("api.ai.mesajBosOlamaz"));
     }
 
     // Belge eki kapıları oturum AÇILMADAN önce (derin denetim A4): reddedilen
@@ -171,7 +173,12 @@ export class AssistantService {
     const plan = planWindow(stored, session.summary, session.summarizedThroughSeq);
 
     const portals = allowedPortals(user);
-    const toolDefs = toolDefsForUser(portals);
+    const toolDefs = toolDefsForUser(portals, user.tier);
+    // Beyaz-liste kullanıcıya göre (arayüz testi O-054): bu kullanıcıya
+    // SUNULMAYAN bir araç adı (taslak/yayın/eleme önerisi dahil) model
+    // uydursa da yürütülmez — öneri fonksiyonu kendi rol/paket kapısını
+    // taşımadığı için kapı burada.
+    const offeredTools = new Set(toolDefs.map((d) => d.name));
 
     // i18n Faz 3: asistan İSTEK DİLİNDE yanıtlar (Accept-Language → ALS;
     // başlık yoksa JWT'deki kullanıcı dili). Dil adı prompt'a açıkça yazılır.
@@ -289,6 +296,12 @@ export class AssistantService {
         });
         const responseParts = [];
         for (const call of result.toolCalls) {
+          if (!offeredTools.has(call.name)) {
+            responseParts.push({
+              functionResponse: { name: call.name, response: { ...NEUTRAL_ERROR } },
+            });
+            continue;
+          }
           toolsUsed.push(call.name);
           // AI-3: taslak toplama aracı — yürütme YOK, argümanlar sanitize edilip
           // taslağa dönüşür (BAĞLAYICI DEĞİL; ihale açılmaz).

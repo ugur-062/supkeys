@@ -12,10 +12,15 @@ import {
   useSendAssistantMessage,
 } from "@/hooks/use-ai-assistant";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  hasBuySeatPermission,
+  hasSellSeatPermission,
+} from "@/lib/company/permissions";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { useButtonAccent, type ButtonAccent } from "@/components/ui/button-accent";
 import {
+  BUYING_TIER,
   tierAtLeast,
   type AiChatMessageDto,
   type AiPendingAction,
@@ -27,6 +32,7 @@ import {
   Check,
   FileText,
   Gavel,
+  Handshake,
   History,
   Info,
   Maximize2,
@@ -136,12 +142,33 @@ function TypewriterMarkdown({
 }
 
 // Metinler aynen korunur (submit'e aynı string gider) — yalnız ikon eşleşir.
-const SUGGESTIONS = [
-  { label: "oneriTaleplerimiGoster", icon: Gavel },
-  { label: "oneriYeniTalep", icon: Plus },
-  { label: "oneriSonSiparislerim", icon: Package },
-  { label: "oneriAcikTalepleriAra", icon: Search },
-] as const;
+// Arayüz testi O-054/O-067: öneriler kullanıcının yapabildiklerine göre
+// seçilir — satın alma önerileri yalnız alım koltuğu + satınalma paketi
+// (GOLD), satış önerileri yalnız satış koltuğu; en fazla 4 çip.
+type Suggestion = {
+  label:
+    | "oneriTaleplerimiGoster"
+    | "oneriYeniTalep"
+    | "oneriSonSiparislerim"
+    | "oneriAcikTalepleriAra"
+    | "oneriTekliflerimiGoster"
+    | "oneriBaglantilarim";
+  icon: typeof Gavel;
+};
+function suggestionsFor(canBuy: boolean, canSell: boolean): Suggestion[] {
+  const out: Suggestion[] = [];
+  if (canBuy) {
+    out.push({ label: "oneriTaleplerimiGoster", icon: Gavel });
+    out.push({ label: "oneriYeniTalep", icon: Plus });
+  }
+  out.push({ label: "oneriSonSiparislerim", icon: Package });
+  if (canSell) {
+    out.push({ label: "oneriAcikTalepleriAra", icon: Search });
+    out.push({ label: "oneriTekliflerimiGoster", icon: FileText });
+  }
+  if (!canBuy && !canSell) out.push({ label: "oneriBaglantilarim", icon: Handshake });
+  return out.slice(0, 4);
+}
 const TOOL_LABEL: Record<string, string> = {
   list_my_tenders: "tool.list_my_tenders",
   search_open_tenders: "tool.search_open_tenders",
@@ -190,9 +217,17 @@ export function AssistantPanel({
   const formatDate = useFormatDate();
   const missingLabel = useAiMissingFieldLabel();
   const { user, company } = useCompanyAuth();
-  // Belge eki = belgeden satın alma talebi taslağı (talep AI'ı, GOLD). Sunucu
-  // da TenderExtractService.extract'te GOLD ister; alt pakete ataç çizilmez.
-  const canAttachDoc = tierAtLeast(company?.tier ?? "STANDART", "GOLD");
+  // Satın alma yeteneği = alım koltuğu + satınalma paketi (GOLD) — rol kapısı
+  // paket kapısının İÇİNDE (arayüz testi O-054/O-067). Belge eki = belgeden
+  // satın alma talebi taslağı: sunucu da satın alma portalı + GOLD ister
+  // (AssistantService.message + TenderExtractService.extract); Satışçıya ya
+  // da alt pakete ataç çizilmez.
+  const canBuy =
+    hasBuySeatPermission(user) &&
+    tierAtLeast(company?.tier ?? "STANDART", BUYING_TIER);
+  const canSell = hasSellSeatPermission(user);
+  const canAttachDoc = canBuy;
+  const suggestions = suggestionsFor(canBuy, canSell);
   const router = useRouter();
   const t = tone(useButtonAccent());
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -200,6 +235,9 @@ export function AssistantPanel({
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  // Arayüz testi D-360: geçmiş sohbet silme iki adımlı (kalıcı silme onaysız
+  // yapılmaz) — onay bekleyen satırın kimliği.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [suggestNew, setSuggestNew] = useState(false);
   // GEÇMİŞTEN yükleme flag'i: sadece kullanıcı bir sohbeti geçmişten SEÇİNCE
   // mesajları backend'den doldur. Aktif sohbette (yeni mesaj) optimistic akışı
@@ -556,29 +594,58 @@ export function AssistantPanel({
                       {tr("yazisma", { n: s.turnCount })}
                     </p>
                   </button>
-                  <button
-                    type="button"
-                    aria-label={tr("sil")}
-                    onClick={() =>
-                      // Sonuç beklenir, hata yutulur (derin denetim S071):
-                      // `void mutateAsync` reddi unhandled rejection'dı ve
-                      // aktif sohbet silme başarısızken de temizleniyordu.
-                      // Hata toast'ını companyApi interceptor'ı gösterir.
-                      // Çağrı başına promise: `mutate(id, { onSuccess })`
-                      // geri çağrıları TanStack v5'te yalnız SON mutate için
-                      // çalışır; A'yı silerken B silinirse A'nın temizliği
-                      // kaçardı (gözden geçirme).
-                      del
-                        .mutateAsync(s.id)
-                        .then(() => {
-                          if (sessionIdRef.current === s.id) startNew();
-                        })
-                        .catch(() => {})
-                    }
-                    className="text-zinc-400 opacity-0 transition-opacity hover:text-danger-500 focus-visible:opacity-100 group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {confirmDeleteId === s.id ? (
+                    <div
+                      role="group"
+                      aria-label={tr("silinsinMi")}
+                      className="flex shrink-0 items-center gap-1.5"
+                    >
+                      <span className="text-xs text-zinc-500">{tr("silinsinMi")}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmDeleteId(null);
+                          // Sonuç beklenir, hata yutulur (derin denetim S071):
+                          // `void mutateAsync` reddi unhandled rejection'dı ve
+                          // aktif sohbet silme başarısızken de temizleniyordu.
+                          // Hata toast'ını companyApi interceptor'ı gösterir.
+                          // Çağrı başına promise: `mutate(id, { onSuccess })`
+                          // geri çağrıları TanStack v5'te yalnız SON mutate için
+                          // çalışır; A'yı silerken B silinirse A'nın temizliği
+                          // kaçardı (gözden geçirme).
+                          del
+                            .mutateAsync(s.id)
+                            .then(() => {
+                              if (sessionIdRef.current === s.id) startNew();
+                            })
+                            .catch(() => {});
+                        }}
+                        className="rounded-md bg-danger-600 px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-danger-700"
+                      >
+                        {tr("silOnayla")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-zinc-600 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50"
+                      >
+                        {tr("vazgec")}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={tr("sil")}
+                      title={tr("sil")}
+                      onClick={() => setConfirmDeleteId(s.id)}
+                      // Dokunmatikte hover yok: düğme yalnız ince işaretçili
+                      // (fare) cihazda üzerine gelince belirir, dokunmatikte
+                      // hep görünür (D-360).
+                      className="text-zinc-400 transition-opacity hover:text-danger-500 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -608,10 +675,14 @@ export function AssistantPanel({
               {tr("sizeNasilYardimciOlabilirim")}
             </p>
             <p className="mt-1 max-w-xs text-sm text-zinc-500">
-              {tr("satinAlmaTalepleriniziSorunBelge")}
+              {canBuy
+                ? tr("satinAlmaTalepleriniziSorunBelge")
+                : canSell
+                  ? tr("altMetinSatis")
+                  : tr("altMetinGenel")}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s.label}
                   type="button"
@@ -928,7 +999,7 @@ export function AssistantPanel({
                   }
                 }}
                 rows={1}
-                placeholder={tr("birSeySorunVeyaSatin")}
+                placeholder={canBuy ? tr("birSeySorunVeyaSatin") : tr("birSeySorun")}
                 disabled={send.isPending}
                 className="max-h-56 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-zinc-400 focus:outline-none"
               />

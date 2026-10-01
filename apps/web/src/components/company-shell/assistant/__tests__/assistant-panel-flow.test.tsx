@@ -138,6 +138,9 @@ describe("AssistantPanel — sohbet akışı (S071)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Geçmiş sohbetler" }));
     fireEvent.click(screen.getByRole("button", { name: "Sil" }));
+    // D-360: silme onaysız yapılmaz.
+    expect(h.del).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Evet, sil" }));
     expect(h.del).toHaveBeenCalledWith("S");
     // Sonuç gelmeden temizlenmez.
     expect(screen.getByText("Selam")).toBeInTheDocument();
@@ -157,8 +160,9 @@ describe("AssistantPanel — sohbet akışı (S071)", () => {
     await screen.findByText("Merhaba");
 
     fireEvent.click(screen.getByRole("button", { name: "Geçmiş sohbetler" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sil" }));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Sil" }));
+      fireEvent.click(screen.getByRole("button", { name: "Evet, sil" }));
     });
     expect(screen.getByText("Selam")).toBeInTheDocument();
   });
@@ -179,7 +183,9 @@ describe("AssistantPanel — sohbet akışı (S071)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Geçmiş sohbetler" }));
     const [delS, delT] = screen.getAllByRole("button", { name: "Sil" });
     fireEvent.click(delS!);
+    fireEvent.click(screen.getByRole("button", { name: "Evet, sil" }));
     fireEvent.click(delT!);
+    fireEvent.click(screen.getByRole("button", { name: "Evet, sil" }));
     expect(h.del.mock.calls.map((c) => c[0])).toEqual(["S", "T"]);
     await act(async () => {
       dT.resolve();
@@ -187,6 +193,18 @@ describe("AssistantPanel — sohbet akışı (S071)", () => {
       await Promise.all([dS.promise, dT.promise]);
     });
     expect(screen.queryByText("Selam")).toBeNull();
+  });
+
+  it("arayüz testi D-360: Sil onay ister; Vazgeç silmez ve satır yerinde kalır", () => {
+    h.sessions = [{ id: "S", title: "Sohbetim", lastMessageAt: "2026-09-30T10:00:00+03:00", turnCount: 1 }];
+    render(<AssistantPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Geçmiş sohbetler" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sil" }));
+    expect(screen.getByRole("group", { name: "Silinsin mi?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(h.del).not.toHaveBeenCalled();
+    expect(screen.getByText("Sohbetim")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sil" })).toBeInTheDocument();
   });
 
   it("geçmişten yükleme arka plan tazelemesi bitmeden yazılmaz", () => {

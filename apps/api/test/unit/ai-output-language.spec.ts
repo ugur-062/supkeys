@@ -24,6 +24,15 @@ describe("asistan istemi", () => {
     expect(p).not.toContain("(teklif verme, kazandırma, sipariş aksiyonu) için ilgili sayfaya YÖNLENDİR");
     expect(p).toContain("Teklif verme, toplu kazandırma ve teslim alma için araç VAR");
   });
+
+  it("iç durum kodlarını göstermez, sunulmayan taslak aracını vaat etmez (arayüz testi D-357, O-054)", () => {
+    const p = assistantSystemPrompt("tr");
+    expect(p).toContain("İÇ KODLAR");
+    expect(p).toContain('"Açık (OPEN)" YANLIŞ');
+    expect(p).toContain("propose_tender_draft` YOKSA");
+    // Yanıt dili kuralı kayıt numaralarını korur ama "kodları koru" demez.
+    expect(p).not.toContain("ÖZEL ADLAR ve kodlar");
+  });
 });
 
 describe("AI arama istemi", () => {
