@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import {
   FilterSelect,
   PageHeader,
@@ -534,9 +535,11 @@ export default function AdminFirmalarPage() {
   return (
     <AdminShell>
       {/* useSearchParams (URL-senkron filtreler) Suspense sınırı ister. */}
-      <Suspense fallback={null}>
-        <FirmalarView />
-      </Suspense>
+      <AdminRoleGate action="listCompanies">
+        <Suspense fallback={null}>
+          <FirmalarView />
+        </Suspense>
+      </AdminRoleGate>
     </AdminShell>
   );
 }

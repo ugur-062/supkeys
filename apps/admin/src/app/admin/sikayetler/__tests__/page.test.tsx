@@ -65,6 +65,22 @@ describe("SikayetlerView — rol kapısı (canAdminDo resolveComplaint)", () => 
     render(<AdminSikayetlerPage />);
     expect(screen.getByRole("button", { name: "Çöz" })).toBeInTheDocument();
   });
+
+  it("SUPPORT: firma adları 403 veren firma detayına bağlantı DEĞİL (karar T-09)", () => {
+    h.admin = { role: "SUPPORT" };
+    render(<AdminSikayetlerPage />);
+    expect(screen.getByText("Şikayetçi A.Ş.").closest("a")).toBeNull();
+    expect(screen.getByText("Hakkında Ltd.").closest("a")).toBeNull();
+  });
+
+  it("SALES: firma adları firma detayına bağlantı", () => {
+    h.admin = { role: "SALES" };
+    render(<AdminSikayetlerPage />);
+    expect(screen.getByText("Hakkında Ltd.").closest("a")).toHaveAttribute(
+      "href",
+      "/admin/firmalar/c2?tab=sikayetler",
+    );
+  });
 });
 
 describe("SikayetlerView — durum tablosu", () => {

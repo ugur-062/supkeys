@@ -52,3 +52,14 @@ describe("SearchInput dış değer senkronu", () => {
     expect(input().value).toBe("beta");
   });
 });
+
+describe("SearchInput üst sınır (arayüz testi D-212)", () => {
+  it("varsayılan maxLength 120 (API DTO sınırı) — uzun aramada 400 yok", () => {
+    render(<SearchInput value="" onChange={vi.fn()} />);
+    expect(input().maxLength).toBe(120);
+  });
+  it("çağıran farklı sınır verebilir", () => {
+    render(<SearchInput value="" onChange={vi.fn()} maxLength={40} />);
+    expect(input().maxLength).toBe(40);
+  });
+});

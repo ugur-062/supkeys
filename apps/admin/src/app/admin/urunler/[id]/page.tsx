@@ -1,5 +1,6 @@
 "use client";
 
+import { CompanyLink } from "@/components/ui/company-link";
 import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,7 @@ function ProductReview({ id }: { id: string }) {
           </Link>
           <h1 className="text-admin-text text-xl font-semibold">{p.name}</h1>
           <p className="text-admin-text-muted mt-1 text-sm">
-            <Link href={`/admin/firmalar/${p.company.id}`} className="hover:underline">{p.company.name}</Link>
+            <CompanyLink href={`/admin/firmalar/${p.company.id}`} className="hover:underline">{p.company.name}</CompanyLink>
             {p.company.city ? ` · ${p.company.city}` : ""} · {companyTierText(p.company)} · {metaOf(VERIFY_META, p.company.verification).label}
             {p.company.isBlocked ? " · ASKIDA" : ""}
           </p>

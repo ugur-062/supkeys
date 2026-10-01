@@ -4,10 +4,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   query: { data: undefined as unknown, isError: false, isLoading: false },
+  admin: { role: "SUPER_ADMIN" } as { role: string } | null,
+  auditCalls: 0,
 }));
 
 vi.mock("@/hooks/use-audit-logs", () => ({
-  useAuditLogs: () => h.query,
+  useAuditLogs: () => {
+    h.auditCalls += 1;
+    return h.query;
+  },
+}));
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: h.admin }),
 }));
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -18,6 +26,8 @@ import AuditLogsPage from "../page";
 beforeEach(() => {
   vi.clearAllMocks();
   h.query = { data: undefined, isError: false, isLoading: false };
+  h.admin = { role: "SUPER_ADMIN" };
+  h.auditCalls = 0;
 });
 
 describe("AuditLogsPage", () => {
@@ -115,5 +125,14 @@ describe("AuditLogsPage", () => {
     h.query = { data: undefined, isError: true, isLoading: false };
     render(<AuditLogsPage />);
     expect(screen.getByText(/Veri alınamadı/)).toBeInTheDocument();
+  });
+});
+
+describe("AuditLogsPage — rol kapısı (arayüz testi T-09 / D-033)", () => {
+  it("SUPPORT adresle açınca denetim sorgusu atılmaz, yetki kartı çizilir", () => {
+    h.admin = { role: "SUPPORT" };
+    render(<AuditLogsPage />);
+    expect(h.auditCalls).toBe(0);
+    expect(screen.getByText("Bu sayfaya erişim yetkiniz yok.")).toBeInTheDocument();
   });
 });

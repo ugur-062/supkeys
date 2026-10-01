@@ -17,6 +17,9 @@ import { AdminStaffController } from "../../src/modules/admin-auth/admin-staff.c
 import { AdminSystemController } from "../../src/modules/admin-system/admin-system.controller";
 import { AdminInspectionController } from "../../src/modules/admin-companies/admin-inspection.controller";
 import { AdminProductsController } from "../../src/modules/admin-companies/admin-products.controller";
+import { AdminAuditController } from "../../src/modules/admin-audit/admin-audit.controller";
+import { AdminEmailLogsController } from "../../src/modules/email/admin-email-logs.controller";
+import { AdminGrowthController } from "../../src/modules/admin-growth/admin-growth.controller";
 
 const SUPER = ["SUPER_ADMIN"];
 const KYC = ["SUPER_ADMIN", "SALES"];
@@ -78,6 +81,11 @@ const EXPECTED: Record<string, Spec> = {
   "reviewProduct:bulkApprove": { kind: "method", ctrl: AdminProductsController, method: "bulkApprove", roles: PRODUCT_REVIEW },
   "reviewProduct:reject": { kind: "method", ctrl: AdminProductsController, method: "reject", roles: PRODUCT_REVIEW },
   refreshRates: { kind: "method", ctrl: AdminSystemController, method: "refreshRates", roles: KYC },
+  // Arayüz testi T-09: admin menüsü ve sayfa kapıları da matristen beslenir.
+  viewAuditLogs: { kind: "method", ctrl: AdminAuditController, method: "list", roles: KYC },
+  viewEmailLogs: { kind: "method", ctrl: AdminEmailLogsController, method: "list", roles: KYC },
+  viewGrowth: { kind: "method", ctrl: AdminGrowthController, method: "invites", roles: KYC },
+  viewMembershipReport: { kind: "method", ctrl: AdminCompaniesController, method: "membershipReport", roles: KYC },
 };
 
 describe("admin-action-roles DRIFT NÖBETÇİSİ (matris ↔ backend @RequireAdminRole)", () => {

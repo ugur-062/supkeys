@@ -1,6 +1,9 @@
 "use client";
 
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminNoAccess } from "@/components/layout/admin-role-gate";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { PageHeader } from "@/components/list";
 import { useEmailLogs } from "@/hooks/use-email-logs";
 import { EMAIL_STATUS_ORDER } from "@/lib/email-logs/status";
@@ -141,5 +144,14 @@ function EmailLogsContent() {
 }
 
 export function EmailLogsView() {
+  // Sayfa kapısı (T-09): izinsiz rolde liste sorgusu hiç başlamaz.
+  const { admin } = useAdminAuth();
+  if (!canAdminDo(admin?.role, "viewEmailLogs")) {
+    return (
+      <AdminShell>
+        <AdminNoAccess action="viewEmailLogs" />
+      </AdminShell>
+    );
+  }
   return <EmailLogsContent />;
 }

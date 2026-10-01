@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { CompanyDetailView } from "./_components/company-detail-view";
@@ -21,9 +22,11 @@ function DetailWithTab() {
 export default function AdminCompanyDetailPage() {
   return (
     <AdminShell>
-      <Suspense fallback={null}>
-        <DetailWithTab />
-      </Suspense>
+      <AdminRoleGate action="listCompanies">
+        <Suspense fallback={null}>
+          <DetailWithTab />
+        </Suspense>
+      </AdminRoleGate>
     </AdminShell>
   );
 }

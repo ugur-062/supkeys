@@ -12,8 +12,7 @@ import {
 } from "@/components/catalyst/dropdown";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
-import { canAdminDo } from "@/lib/admin-permissions";
-import type { AdminRole } from "@/lib/auth/types";
+import { canAdminDo, type AdminAction } from "@/lib/admin-permissions";
 import { ADMIN_ROLE_LABEL } from "@/lib/terms";
 import { cn } from "@/lib/utils";
 import {
@@ -57,8 +56,13 @@ interface NavLeaf {
   icon: React.ComponentType<{ className?: string }>;
   /** Pathname'in match olacağı prefix; verilmezse exact href */
   activeMatch?: string;
-  /** Görecek roller — verilmezse herkes. BE guard asıl sınır; bu UX. */
-  roles?: AdminRole[];
+  /**
+   * Sayfanın ana sorgusunun matris aksiyonu — rol buna izinli değilse öğe
+   * gizlenir; verilmezse herkes görür. Tek kaynak `ADMIN_ACTION_ROLES`
+   * (sayfa kapısı `AdminRoleGate` de aynı aksiyonu kullanır). BE guard asıl
+   * sınır; bu UX (arayüz testi T-09).
+   */
+  action?: AdminAction;
 }
 
 interface NavSection {
@@ -81,13 +85,16 @@ const NAV_SECTIONS: NavSection[] = [
         icon: Inbox,
         activeMatch: "/admin/basvurular",
         // Doğrulama detayı (PII) Destek rolüne kapalı — kuyruk da gizlenir.
-        roles: ["SUPER_ADMIN", "SALES"],
+        action: "listCompanies",
       },
       {
         label: "Firmalar",
         href: "/admin/firmalar",
         icon: Building2,
         activeMatch: "/admin/firmalar",
+        // GET admin/companies KYC PII → Destek rolüne kapalı (karar T-09:
+        // menüde gizli, API 403 kalır).
+        action: "listCompanies",
       },
       {
         // Ürün moderasyonu (2026-09-09): her ürün vitrine çıkmadan onaydan geçer.
@@ -107,21 +114,21 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/uyelik-raporu",
         icon: BadgeDollarSign,
         activeMatch: "/admin/uyelik-raporu",
-        roles: ["SUPER_ADMIN", "SALES"],
+        action: "viewMembershipReport",
       },
       {
         label: "Büyüme",
         href: "/admin/buyume",
         icon: TrendingUp,
         activeMatch: "/admin/buyume",
-        roles: ["SUPER_ADMIN", "SALES"],
+        action: "viewGrowth",
       },
       {
         label: "Duyuru",
         href: "/admin/duyuru",
         icon: Megaphone,
         activeMatch: "/admin/duyuru",
-        roles: ["SUPER_ADMIN"],
+        action: "announce",
       },
     ],
   },
@@ -135,28 +142,28 @@ const NAV_SECTIONS: NavSection[] = [
         activeMatch: "/admin/email-logs",
         // Backend `@RequireAdminRole("SUPER_ADMIN","SALES")` — SUPPORT'a
         // gösterilince 5 sn'de bir 403 toast'ı yağıyordu (derin denetim LU-13).
-        roles: ["SUPER_ADMIN", "SALES"],
+        action: "viewEmailLogs",
       },
       {
         label: "Denetim Kaydı",
         href: "/admin/audit-logs",
         icon: ScrollText,
         activeMatch: "/admin/audit-logs",
-        roles: ["SUPER_ADMIN", "SALES"],
+        action: "viewAuditLogs",
       },
       {
         label: "Güvenlik",
         href: "/admin/guvenlik",
         icon: ShieldAlert,
         activeMatch: "/admin/guvenlik",
-        roles: ["SUPER_ADMIN", "SALES"],
+        action: "viewAuditLogs",
       },
       {
         label: "Personel",
         href: "/admin/personel",
         icon: UserCog,
         activeMatch: "/admin/personel",
-        roles: ["SUPER_ADMIN"],
+        action: "manageStaff",
       },
       {
         label: "Sistem Sağlığı",
@@ -247,8 +254,7 @@ function AdminSidebarContent({
   const visibleSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(
-      (item) =>
-        !item.roles || (admin?.role && item.roles.includes(admin.role)),
+      (item) => !item.action || canAdminDo(admin?.role, item.action),
     ),
   })).filter((s) => s.items.length > 0);
 
@@ -372,8 +378,10 @@ function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
 
       {/* Orta: global arama — GET admin/search yalnız SUPER_ADMIN/SALES
           (derin denetim MU-21: SUPPORT'ta her tuş 403 toast'ı üretiyordu).
-          Kutu gizlense de flex alanı kalır (hesap menüsü sağda kalsın). */}
-      <div className="flex flex-1 justify-center px-2">
+          Kutu gizlense de flex alanı kalır (hesap menüsü sağda kalsın).
+          Mobilde yalnız büyüteç düğmesi (sağa yaslı); kutu üst çubuğun
+          altında tam genişlik açılır (arayüz testi D-031). */}
+      <div className="flex min-w-0 flex-1 justify-end px-1 sm:justify-center sm:px-2">
         {canAdminDo(admin?.role, "globalSearch") ? <GlobalSearch /> : null}
       </div>
 

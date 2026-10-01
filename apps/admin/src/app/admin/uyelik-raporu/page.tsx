@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
@@ -262,7 +263,9 @@ function RaporView() {
 export default function AdminUyelikRaporuPage() {
   return (
     <AdminShell>
-      <RaporView />
+      <AdminRoleGate action="viewMembershipReport">
+        <RaporView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

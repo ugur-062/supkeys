@@ -3,12 +3,16 @@ import { toast } from "sonner";
 import { useAdminAuthStore } from "./auth/store";
 import { readCsrfToken } from "./csrf";
 import { resolveApiBaseUrl } from "./resolve-api-url";
+import type { AuthAdmin } from "./auth/types";
 
 // Oturum httpOnly cookie'de (withCredentials); Bearer taşımıyoruz.
+// Admin paneli yalnız Türkçe: API hata metinleri tarayıcı diline göre
+// İngilizce/Rusça dönüyordu (arayüz testi D-030) → dil sabit `tr`.
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
   headers: {
     "Content-Type": "application/json",
+    "Accept-Language": "tr",
   },
   withCredentials: true,
 });
@@ -95,6 +99,39 @@ export function toastApiError(e: unknown, fallback = "İşlem başarısız"): vo
   toast.error(apiErrorMessage(e, fallback));
 }
 
+/** 403 sonrası /me tazelemesinin en sık aralığı (ms). */
+export const ROLE_REFRESH_MIN_INTERVAL_MS = 5000;
+let lastRoleRefreshAt = 0;
+
+/**
+ * 403 → rol snapshot'ı bayat olabilir (arayüz testi D-224): personelin rolü
+ * oturum açıkken düşürülünce menü sayfa yenilenene kadar eski rolle çiziliyor,
+ * her tıklama 403 toast'ı veriyordu. /me yeniden çekilip store güncellenir;
+ * menü ve sayfa kapıları (`AdminRoleGate`) yeni rolle anında yeniden çizilir.
+ * Auth uçlarının kendi 403'ü (2FA kurulumu vb.) döngü yaratmasın diye atlanır.
+ */
+function refreshAdminSnapshotAfter403(url: string): void {
+  if (url.includes("/admin/auth/")) return;
+  const { admin, setAdmin } = useAdminAuthStore.getState();
+  if (!admin) return;
+  const now = Date.now();
+  if (now - lastRoleRefreshAt < ROLE_REFRESH_MIN_INTERVAL_MS) return;
+  lastRoleRefreshAt = now;
+  void api
+    .get<AuthAdmin>("/admin/auth/me")
+    .then(({ data }) => {
+      if (data && useAdminAuthStore.getState().admin) setAdmin(data);
+    })
+    .catch(() => {
+      // 401 → interceptor oturumu kapatır; diğerlerinde snapshot kalır.
+    });
+}
+
+/** Testler için: 403 tazeleme aralığını sıfırlar. */
+export function __resetRoleRefreshForTests(): void {
+  lastRoleRefreshAt = 0;
+}
+
 // Polish-3 — global toast handler. Web tarafıyla aynı kurallar.
 api.interceptors.response.use(
   (response) => response,
@@ -122,6 +159,7 @@ api.interceptors.response.use(
 
     if (status === 403) {
       toastOnce(error, pickMessage(data, "Bu işlem için yetkiniz yok"));
+      refreshAdminSnapshotAfter403(error.config?.url ?? "");
       return Promise.reject(error);
     }
 

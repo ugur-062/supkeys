@@ -1,5 +1,6 @@
 "use client";
 
+import { CompanyLink, useCanOpenCompany } from "@/components/ui/company-link";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -49,6 +50,8 @@ function ListingInspection({ id }: { id: string }) {
   // Kapat/uzat/yeniden aç SUPER_ADMIN+SALES; sayfa SUPPORT'a da açık (okuma).
   const { admin } = useAdminAuth();
   const canIntervene = canAdminDo(admin?.role, "listingIntervention");
+  // Firma detayı Destek rolüne kapalı → geri bağlantı düz metin (T-09).
+  const canOpenCompany = useCanOpenCompany();
 
   if (isLoading) {
     return (
@@ -85,12 +88,18 @@ function ListingInspection({ id }: { id: string }) {
       {/* Başlık + müdahale */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <Link
-            href={`/admin/firmalar/${l.company.id}?tab=ilanlar`}
-            className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> {l.company.name}
-          </Link>
+          {canOpenCompany ? (
+            <Link
+              href={`/admin/firmalar/${l.company.id}?tab=ilanlar`}
+              className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {l.company.name}
+            </Link>
+          ) : (
+            <p className="text-admin-text-muted mb-2 text-xs font-medium">
+              {l.company.name}
+            </p>
+          )}
           <h1 className="text-admin-text text-2xl font-bold">{l.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge color={meta.color}>{meta.label}</Badge>
@@ -184,12 +193,12 @@ function ListingInspection({ id }: { id: string }) {
                 return (
                   <TableRow key={b.id}>
                     <TableCell className="text-admin-text text-sm font-medium">
-                      <Link
+                      <CompanyLink
                         href={`/admin/firmalar/${b.bidderCompany.id}`}
                         className="hover:underline"
                       >
                         {b.bidderCompany.name}
-                      </Link>
+                      </CompanyLink>
                     </TableCell>
                     <TableCell className="text-admin-text text-sm font-semibold tabular-nums">
                       {fmtMoney(b.amount, b.currency)}
@@ -263,12 +272,12 @@ function ListingInspection({ id }: { id: string }) {
                 key={inv.id}
                 className="flex items-center justify-between px-5 py-2.5"
               >
-                <Link
+                <CompanyLink
                   href={`/admin/firmalar/${inv.invitedCompany.id}`}
                   className="text-admin-text text-sm hover:underline"
                 >
                   {inv.invitedCompany.name}
-                </Link>
+                </CompanyLink>
                 <span className="text-admin-text-muted text-xs">
                   {safeFormat(inv.createdAt, "d MMM")}
                 </span>

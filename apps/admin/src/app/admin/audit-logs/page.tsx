@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import {
   FilterSelect,
   PageHeader,
@@ -190,7 +191,9 @@ function AuditRow({ item }: { item: AuditLogItem }) {
 export default function AuditLogsPage() {
   return (
     <AdminShell>
-      <AuditView />
+      <AdminRoleGate action="viewAuditLogs">
+        <AuditView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

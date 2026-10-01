@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/catalyst/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAdminCompanyStats } from "@/hooks/use-admin-companies";
@@ -258,7 +259,9 @@ function DuyuruView() {
 export default function AdminDuyuruPage() {
   return (
     <AdminShell>
-      <DuyuruView />
+      <AdminRoleGate action="announce">
+        <DuyuruView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

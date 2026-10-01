@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   lastParams: undefined as unknown,
   search: "",
   replace: vi.fn(),
+  admin: { role: "SUPER_ADMIN" } as { role: string } | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -15,6 +16,9 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(h.search),
 }));
 
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: h.admin }),
+}));
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -48,6 +52,8 @@ function pendingRow(id: string, daysWaiting: number, country = "TR") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.admin = { role: "SUPER_ADMIN" };
+  h.lastParams = undefined;
   h.search = "";
   h.companies = {
     data: { items: [], total: 0, page: 1, pageSize: 25 },
@@ -103,5 +109,24 @@ describe("Başvurular kuyruğu", () => {
       "href",
       "/admin/firmalar/a?tab=belgeler&from=queue&qp=2",
     );
+  });
+});
+
+describe("Başvurular — rol kapısı (arayüz testi T-09 / D-033)", () => {
+  it("SUPPORT adresle açınca kuyruk sorgusu HİÇ atılmaz, yetki kartı çizilir", () => {
+    h.admin = { role: "SUPPORT" };
+    render(<AdminBasvurularPage />);
+    expect(h.lastParams).toBeUndefined();
+    expect(screen.getByText("Bu sayfaya erişim yetkiniz yok.")).toBeInTheDocument();
+    expect(screen.getByText(/Süper Admin ve Satış rollerine açık/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Tekrar dene/i })).not.toBeInTheDocument();
+  });
+
+  it("SALES kuyruğu görür", () => {
+    h.admin = { role: "SALES" };
+    h.companies = { data: { items: [], total: 0 }, isLoading: false, isError: false };
+    render(<AdminBasvurularPage />);
+    expect(h.lastParams).toBeDefined();
+    expect(screen.queryByText("Bu sayfaya erişim yetkiniz yok.")).not.toBeInTheDocument();
   });
 });

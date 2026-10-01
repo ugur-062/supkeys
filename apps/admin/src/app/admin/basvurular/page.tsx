@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader, Pagination } from "@/components/list";
 import { useAdminCompanies } from "@/hooks/use-admin-companies";
 import { useListFilters } from "@/hooks/use-list-filters";
@@ -150,9 +151,11 @@ export default function AdminBasvurularPage() {
   return (
     <AdminShell>
       {/* useSearchParams (URL-senkron sayfa) Suspense sınırı ister. */}
-      <Suspense fallback={null}>
-        <BasvurularView />
-      </Suspense>
+      <AdminRoleGate action="listCompanies">
+        <Suspense fallback={null}>
+          <BasvurularView />
+        </Suspense>
+      </AdminRoleGate>
     </AdminShell>
   );
 }

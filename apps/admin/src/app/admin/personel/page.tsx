@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import {
   Dialog,
@@ -22,7 +23,6 @@ import {
 } from "@/components/catalyst/dialog";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { canAdminDo } from "@/lib/admin-permissions";
 import {
   useCreateStaff,
   useStaff,
@@ -218,16 +218,8 @@ function PersonelView() {
   const rows = staff.data ?? [];
 
   // F7: personel yönetimi yalnız SUPER_ADMIN (manageStaff). SALES/SUPPORT
-  // deep-link'te tüm UI yerine yetki-yok mesajı (nav zaten gizli; BE 403).
-  if (!canAdminDo(admin?.role, "manageStaff")) {
-    return (
-      <div className="max-w-[1100px] py-16 text-center">
-        <p className="text-admin-text-muted text-sm">
-          Bu sayfaya erişim yetkiniz yok (yalnızca Süper Admin).
-        </p>
-      </div>
-    );
-  }
+  // deep-link'te sayfa kapısı (`AdminRoleGate`, aşağıda) bu görünümü HİÇ
+  // mount etmez → personel sorgusu atılmaz, 403 toast'ı çıkmaz (T-09).
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -494,7 +486,9 @@ function PersonelView() {
 export default function AdminPersonelPage() {
   return (
     <AdminShell>
-      <PersonelView />
+      <AdminRoleGate action="manageStaff">
+        <PersonelView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

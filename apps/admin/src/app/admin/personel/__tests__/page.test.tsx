@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   // manageStaff (personel yönetimi) yalnız SUPER_ADMIN.
   admin: { role: "SUPER_ADMIN" } as { role: string; id?: string } | null,
   actMutate: vi.fn(),
+  staffCalls: 0,
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -19,7 +20,10 @@ vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ admin: h.admin }),
 }));
 vi.mock("@/hooks/use-admin-staff", () => ({
-  useStaff: () => h.staff,
+  useStaff: () => {
+    h.staffCalls += 1;
+    return h.staff;
+  },
   useCreateStaff: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(() => Promise.resolve({ ok: true, id: "n", tempPassword: "x" })), isPending: false }),
   useStaffAction: () => ({ mutate: h.actMutate, mutateAsync: (...a: unknown[]) => { (h.actMutate as (...x: unknown[]) => unknown)(...a); return Promise.resolve({}); }, isPending: false }),
 }));
@@ -30,6 +34,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.admin = { role: "SUPER_ADMIN" };
   h.staff = { data: [], isLoading: false, isError: false };
+  h.staffCalls = 0;
 });
 
 describe("PersonelView — rol kapısı (canAdminDo manageStaff)", () => {
@@ -46,6 +51,13 @@ describe("PersonelView — rol kapısı (canAdminDo manageStaff)", () => {
     h.admin = { role: "SUPPORT" };
     render(<AdminPersonelPage />);
     expect(screen.getByText(/erişim yetkiniz yok/i)).toBeInTheDocument();
+  });
+
+  it("SALES/SUPPORT: personel sorgusu HİÇ atılmaz (403 toast'ı yok — T-09)", () => {
+    h.admin = { role: "SALES" };
+    render(<AdminPersonelPage />);
+    expect(h.staffCalls).toBe(0);
+    expect(screen.getByText(/yalnızca Süper Admin rolüne açık/)).toBeInTheDocument();
   });
 
   it("SUPER_ADMIN: sayfa açık — 'Personel Ekle' görünür", () => {

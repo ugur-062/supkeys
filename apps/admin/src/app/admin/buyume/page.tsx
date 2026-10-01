@@ -3,6 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import { StatCard } from "@/components/ui/stat-card";
 import { useGrowthReport } from "@/hooks/use-admin-growth";
@@ -221,7 +222,9 @@ function GrowthView() {
 export default function AdminBuyumePage() {
   return (
     <AdminShell>
-      <GrowthView />
+      <AdminRoleGate action="viewGrowth">
+        <GrowthView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

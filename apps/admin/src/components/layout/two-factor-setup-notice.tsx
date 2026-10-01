@@ -2,6 +2,8 @@
 
 import { useAdminAuth, useAdminMe } from "@/hooks/use-admin-auth";
 import { ShieldAlert } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 /**
  * 2FA zorunluluğu (derin denetim MU-01) — /me tazeleyici. Admin layout'unda
@@ -10,7 +12,17 @@ import { ShieldAlert } from "lucide-react";
  * RequireAdminAuth paneli Ayarlar'a kilitler. Hiçbir şey çizmez.
  */
 export function AdminMeRefresher() {
-  useAdminMe();
+  const me = useAdminMe();
+  // Sayfa geçişinde snapshot bayatsa (staleTime aşıldı) /me yeniden çekilir:
+  // rolü oturum açıkken düşürülen personel menüyü yenilemeden güncel rolle
+  // görür (arayüz testi D-224; 403 sonrası anında tazeleme lib/api.ts'te).
+  const pathname = usePathname();
+  const { isStale, isFetching, refetch } = me;
+  useEffect(() => {
+    if (isStale && !isFetching) void refetch?.();
+    // Yalnız rota değişiminde; isStale değişimi kendi başına tetiklemesin.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
   return null;
 }
 

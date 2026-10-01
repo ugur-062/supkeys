@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader, Pagination } from "@/components/list";
 import { useAuditLogs } from "@/hooks/use-audit-logs";
 import { safeFormat } from "@/lib/date";
@@ -169,7 +170,9 @@ function GuvenlikView() {
 export default function AdminGuvenlikPage() {
   return (
     <AdminShell>
-      <GuvenlikView />
+      <AdminRoleGate action="viewAuditLogs">
+        <GuvenlikView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

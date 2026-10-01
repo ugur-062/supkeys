@@ -1,5 +1,6 @@
 "use client";
 
+import { CompanyLink } from "@/components/ui/company-link";
 import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
@@ -29,7 +30,6 @@ import { safeFormat } from "@/lib/date";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { Download } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
@@ -202,20 +202,20 @@ function SikayetlerView() {
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="text-admin-text">
-                      <Link
+                      <CompanyLink
                         href={`/admin/firmalar/${c.complainant.id}`}
                         className="hover:underline"
                       >
                         {c.complainant.name}
-                      </Link>
+                      </CompanyLink>
                     </TableCell>
                     <TableCell className="text-admin-text font-medium">
-                      <Link
+                      <CompanyLink
                         href={`/admin/firmalar/${c.against.id}?tab=sikayetler`}
                         className="hover:underline"
                       >
                         {c.against.name}
-                      </Link>
+                      </CompanyLink>
                     </TableCell>
                     <TableCell className="text-admin-text max-w-[280px]">
                       <div className="font-medium">{c.reason}</div>

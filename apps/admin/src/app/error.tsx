@@ -1,10 +1,12 @@
 "use client";
 
-import { ErrorState } from "@/components/ui/error-state";
-import { reportClientError } from "@/lib/client-error";
-import { useEffect } from "react";
+import { RouteErrorFallback } from "@/components/layout/route-error-fallback";
 
-/** Admin segment hata sınırı. */
+/**
+ * Kök segment hata sınırı — admin layout'unun kendisi (oturum kapısı) hata
+ * verirse buraya düşer; kabuk çizilmez. Admin sayfalarının hataları
+ * `app/admin/error.tsx`'te kabukla birlikte gösterilir.
+ */
 export default function AdminError({
   error,
   reset,
@@ -12,14 +14,5 @@ export default function AdminError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    console.error(error);
-    reportClientError(error, { kind: "boundary", digest: error.digest });
-  }, [error]);
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-admin-bg p-6">
-      <ErrorState onRetry={reset} className="max-w-md" />
-    </div>
-  );
+  return <RouteErrorFallback error={error} reset={reset} withShell={false} />;
 }

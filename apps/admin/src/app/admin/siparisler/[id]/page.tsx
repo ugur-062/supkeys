@@ -1,5 +1,6 @@
 "use client";
 
+import { CompanyLink, useCanOpenCompany } from "@/components/ui/company-link";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -57,6 +58,8 @@ function OrderInspection({ id }: { id: string }) {
   // İptal SUPER_ADMIN+SALES; sayfa SUPPORT'a da açık (okuma).
   const { admin } = useAdminAuth();
   const canCancel = canAdminDo(admin?.role, "cancelOrder");
+  // Firma detayı Destek rolüne kapalı → 403'e giden geri bağlantı verilmez (T-09).
+  const canOpenCompany = useCanOpenCompany();
 
   if (isLoading) {
     return (
@@ -86,20 +89,24 @@ function OrderInspection({ id }: { id: string }) {
   const back =
     from === "listing" && o.listing
       ? { href: `/admin/ilanlar/${o.listing.id}`, label: o.listing.number ?? "İlan" }
-      : from === o.seller.id
-        ? { href: `/admin/firmalar/${o.seller.id}?tab=siparisler`, label: `${o.seller.name} · Siparişler` }
-        : { href: `/admin/firmalar/${o.buyer.id}?tab=siparisler`, label: `${o.buyer.name} · Siparişler` };
+      : !canOpenCompany
+        ? null
+        : from === o.seller.id
+          ? { href: `/admin/firmalar/${o.seller.id}?tab=siparisler`, label: `${o.seller.name} · Siparişler` }
+          : { href: `/admin/firmalar/${o.buyer.id}?tab=siparisler`, label: `${o.buyer.name} · Siparişler` };
 
   return (
     <div className="max-w-[1100px] space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link
-            href={back.href}
-            className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> {back.label}
-          </Link>
+          {back ? (
+            <Link
+              href={back.href}
+              className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {back.label}
+            </Link>
+          ) : null}
           <h1 className="text-admin-text text-2xl font-bold">
             {o.number ?? "Sipariş"}
           </h1>
@@ -143,23 +150,23 @@ function OrderInspection({ id }: { id: string }) {
           <Row
             label="Alıcı"
             value={
-              <Link
+              <CompanyLink
                 href={`/admin/firmalar/${o.buyer.id}`}
                 className="hover:underline"
               >
                 {o.buyer.name}
-              </Link>
+              </CompanyLink>
             }
           />
           <Row
             label="Satıcı"
             value={
-              <Link
+              <CompanyLink
                 href={`/admin/firmalar/${o.seller.id}`}
                 className="hover:underline"
               >
                 {o.seller.name}
-              </Link>
+              </CompanyLink>
             }
           />
           <Row

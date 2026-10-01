@@ -13,7 +13,15 @@ interface Props {
   placeholder?: string;
   className?: string;
   debounceMs?: number;
+  /**
+   * Admin arama DTO'ları `@MaxLength(120)` — sınırsız kutuda uzun metin 400 +
+   * "Veri alınamadı" veriyordu (arayüz testi D-212).
+   */
+  maxLength?: number;
 }
+
+/** Admin liste arama uçlarının ortak üst sınırı (API DTO'larıyla aynı). */
+export const SEARCH_MAX_LENGTH = 120;
 
 /**
  * Liste sayfaları için debounced search — Catalyst InputGroup + Input.
@@ -24,6 +32,7 @@ export function SearchInput({
   placeholder = "Ara...",
   className,
   debounceMs = 300,
+  maxLength = SEARCH_MAX_LENGTH,
 }: Props) {
   const [local, setLocal] = useState(value);
   // Gönderilip henüz dışarıdan (URL/state) geri gelmemiş değerler, sırayla.
@@ -68,6 +77,7 @@ export function SearchInput({
         <Input
           type="text"
           value={local}
+          maxLength={maxLength}
           onChange={(e) => handleChange(e.target.value)}
           placeholder={placeholder}
           className={local ? "[&_input]:pr-9" : undefined}
