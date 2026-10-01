@@ -22,6 +22,11 @@ import {
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { clearInvitePrefill, readInvitePrefill } from "@/lib/company-auth/invite-prefill";
+import {
+  clearOnboardingDraft,
+  saveOnboardingDraft,
+  takeOnboardingDraft,
+} from "@/lib/company-auth/onboarding-draft";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
   MAX_COMPANY_MAIN_CATEGORIES,
@@ -118,6 +123,7 @@ export function OnboardingClient() {
   const locale = useLocale();
   const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
   const authUser = useCompanyAuthStore((s) => s.user);
+  const userId = authUser?.id ?? "";
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const me = useCompanyMe(!!authUser);
   const complete = useCompleteOnboarding();
@@ -182,7 +188,12 @@ export function OnboardingClient() {
     // firma bilgisi formu başlatır — ad, site, ülke, şehir; kullanıcı düzeltebilir.
     const invite = readInvitePrefill();
     const inviteCountry = invite?.country && isRegistrationOpen(invite.country) ? invite.country.toUpperCase() : null;
-    setF((s) => {
+    // Dil değişiminden önce saklanan taslak (sihirbaz yeniden bağlandı) geri
+    // gelir — yalnız bilinen alanlar, aynı türdeyse (onboarding-draft.ts).
+    const draft = takeOnboardingDraft(userId);
+    if (draft) setStep(Math.min(Math.max(Math.trunc(draft.step), 0), 2));
+    setF((prev) => {
+      const s = draft ? mergeDraft(prev, draft.f) : prev;
       const country = s.country || inviteCountry || initial;
       // TR'de şehir il listesinden seçilir: ön doldurulan ad listeye eşlenir,
       // eşleşmezse boş kalır (D-344).
@@ -196,7 +207,7 @@ export function OnboardingClient() {
       };
     });
     setCountryReady(true);
-  }, [countryReady, me.data, locale]);
+  }, [countryReady, me.data, locale, userId]);
   /**
    * Ana ve alt kategori TEK yazmada güncellenir: seçici ikisini birlikte
    * üretiyor (segment, seçilen yapraklardan türetiliyor) ve iki ayrı `set`
@@ -312,6 +323,7 @@ export function OnboardingClient() {
       });
       toast.success(t("completed"));
       clearInvitePrefill();
+      clearOnboardingDraft(userId);
       window.location.href = localizePath("/company", runtimeLocale());
     } catch (err) {
       setError(extractErrorMessage(err, t("saveFailed")));
@@ -356,7 +368,7 @@ export function OnboardingClient() {
   }
 
   return (
-    <OnboardingShell>
+    <OnboardingShell onBeforeLocaleSwitch={() => saveOnboardingDraft(userId, { step, f })}>
       <h1 className="text-2xl font-bold text-zinc-900">{t("title")}</h1>
       <p className="mt-1 text-sm text-zinc-500">{t("lead")}</p>
 
@@ -824,7 +836,14 @@ export function OnboardingClient() {
  * kapat". Eskiden yalın kapsayıcıydı — ortak bilgisayarda ya da yanlış
  * hesapla kaydolan kurucu onboarding bitene kadar çıkamıyordu.
  */
-function OnboardingShell({ children }: { children: ReactNode }) {
+function OnboardingShell({
+  children,
+  onBeforeLocaleSwitch,
+}: {
+  children: ReactNode;
+  /** Dil değişimi sihirbazı yeniden bağlar — girilenler önce saklanır. */
+  onBeforeLocaleSwitch?: () => void;
+}) {
   const t = useTranslations("web.auth.onboarding");
   const logout = useCompanyLogout();
   return (
@@ -834,7 +853,7 @@ function OnboardingShell({ children }: { children: ReactNode }) {
         <RothernLogo variant="icon" size="sm" className="sm:hidden" />
         <RothernLogo variant="full-light" size="sm" className="hidden sm:block" />
         <div className="flex items-center gap-2">
-          <OnboardingLanguageSelect />
+          <OnboardingLanguageSelect onBeforeSwitch={onBeforeLocaleSwitch} />
           <Button plain onClick={() => void logout()}>
             {t("logout")}
           </Button>
@@ -849,9 +868,11 @@ function OnboardingShell({ children }: { children: ReactNode }) {
  * Dil seçimi ÖNCE hesaba yazılır (`PATCH /company-auth/me`), sonra oturum
  * anlık görüntüsü güncellenir; `LocaleUrlSync` sayfayı yeni dilde açar.
  * Yalnız adresi değiştirmek işe yaramaz — LocaleUrlSync hesabın kayıtlı diline
- * geri döndürür (kasıtlı).
+ * geri döndürür (kasıtlı). Yönlendirme `[locale]` bölümünü değiştirip
+ * sihirbazı yeniden bağladığı için girilenler yönlendirmeden ÖNCE saklanır
+ * (`onBeforeSwitch`); hesap güncellenemezse saklanmaz.
  */
-function OnboardingLanguageSelect() {
+function OnboardingLanguageSelect({ onBeforeSwitch }: { onBeforeSwitch?: () => void }) {
   const t = useTranslations("web.auth.onboarding");
   const current = useLocale();
   const updateMe = useUpdateMe();
@@ -859,6 +880,7 @@ function OnboardingLanguageSelect() {
     if (next === current) return;
     try {
       await updateMe.mutateAsync({ locale: next });
+      onBeforeSwitch?.();
       const st = useCompanyAuthStore.getState();
       if (st.user && st.company) st.setMe({ user: { ...st.user, locale: next }, company: st.company });
     } catch (err) {
@@ -880,6 +902,27 @@ function OnboardingLanguageSelect() {
       ))}
     </Select>
   );
+}
+
+/**
+ * Saklanan taslağı forma katar: yalnız formda olan alanlar, aynı türdeyse
+ * (bozuk/eski kayıt formu bozmasın). Başlangıcı null olan alanlar
+ * (`cityId`, `number | null`) null ya da sayı kabul eder.
+ */
+export function mergeDraft<F extends Record<string, unknown>>(base: F, draft: Record<string, unknown>): F {
+  const out: Record<string, unknown> = { ...base };
+  for (const k of Object.keys(base)) {
+    if (!(k in draft)) continue;
+    const v = draft[k];
+    const cur = base[k];
+    const ok = Array.isArray(cur)
+      ? Array.isArray(v) && v.every((x) => typeof x === "string")
+      : cur === null
+        ? v === null || typeof v === "number"
+        : typeof v === typeof cur;
+    if (ok) out[k] = v;
+  }
+  return out as F;
 }
 
 function Summary({ label, value }: { label: string; value?: string | null }) {

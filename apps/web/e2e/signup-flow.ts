@@ -55,7 +55,7 @@ export async function kayitFormu(
   // Headless UI kutusu native <input> değil (role=checkbox span) → check()
   // çalışmaz; tıklanır ve durum aria-checked'den doğrulanır.
   for (const etiket of [
-    "Kullanıcı sözleşmesini kabul ediyorum",
+    "Kullanıcı sözleşmesini okudum ve kabul ediyorum",
     "Platform aracılık ve kullanım sözleşmesini kabul ediyorum",
     "KVKK Aydınlatma Metni bilgilendirmesini okudum",
   ]) {

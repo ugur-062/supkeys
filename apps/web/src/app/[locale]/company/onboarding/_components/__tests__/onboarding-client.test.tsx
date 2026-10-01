@@ -67,6 +67,7 @@ import {
   formatOnboardingAddress,
   initialOnboardingCountry,
   matchTurkeyProvince,
+  mergeDraft,
 } from "../onboarding-client";
 
 // LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
@@ -522,5 +523,59 @@ describe("OnboardingClient — arayüz testi webA-09", () => {
     expect(box).toHaveAttribute("aria-checked", "true");
     await user.click(screen.getByText("Fatura adresini teslimat adresi olarak kullan"));
     expect(box).toHaveAttribute("aria-checked", "false");
+  });
+});
+
+/**
+ * Gözden geçirme (webA-09): dil değişimi `[locale]` bölümünü değiştirir ve
+ * sihirbazı yeniden bağlar — girilenler ve adım taslaktan geri gelmeli.
+ */
+describe("OnboardingClient — dil değişiminde taslak korunur", () => {
+  it("2. adımda dil değişince girilenler ve adım yeniden bağlanınca geri gelir; taslak tek kullanımlık", async () => {
+    const user = userEvent.setup();
+    h.updateMeAsync.mockResolvedValue({});
+    const first = render(<OnboardingClient />);
+    await fillStep1TR(user);
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Dil" }), "en");
+    expect(h.updateMeAsync).toHaveBeenCalledWith({ locale: "en" });
+    expect(sessionStorage.getItem("rothern:onboarding-draft:u1")).not.toBeNull();
+
+    // LocaleUrlSync yönlendirmesi = yeniden bağlanma.
+    first.unmount();
+    render(<OnboardingClient />);
+    expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveValue("10000000146");
+    expect(sessionStorage.getItem("rothern:onboarding-draft:u1")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Geri" }));
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("Örnek Ltd.");
+    expect(screen.getByLabelText("İlçe *")).toHaveValue("Kadıköy");
+  });
+
+  it("hesap güncellenemezse taslak yazılmaz; başka kullanıcının taslağı okunmaz", async () => {
+    const user = userEvent.setup();
+    h.updateMeAsync.mockRejectedValue(new Error("x"));
+    sessionStorage.setItem(
+      "rothern:onboarding-draft:u2",
+      JSON.stringify({ step: 1, f: { legalName: "Başkası A.Ş." } }),
+    );
+    render(<OnboardingClient />);
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Dil" }), "en");
+    expect(sessionStorage.getItem("rothern:onboarding-draft:u1")).toBeNull();
+  });
+
+  it("mergeDraft: yalnız bilinen ve aynı türdeki alanları alır", () => {
+    const base = { legalName: "", cityId: null as number | null, mainCategoryIds: [] as string[], declarationAccepted: false };
+    expect(
+      mergeDraft(base, {
+        legalName: "A Ltd.",
+        cityId: 5,
+        mainCategoryIds: ["c1", 2],
+        declarationAccepted: "yes",
+        extra: "x",
+      }),
+    ).toEqual({ legalName: "A Ltd.", cityId: 5, mainCategoryIds: [], declarationAccepted: false });
+    expect(mergeDraft(base, { legalName: null, cityId: "5" })).toEqual(base);
   });
 });
