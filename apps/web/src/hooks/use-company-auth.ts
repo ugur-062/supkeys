@@ -220,6 +220,7 @@ export interface AcceptInvitationInput {
 }
 
 export function useAcceptInvitation(token: string) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: AcceptInvitationInput) => {
       const { data } = await companyApi.post<CompanyLoginResponse>(
@@ -227,6 +228,14 @@ export function useAcceptInvitation(token: string) {
         input,
       );
       return data;
+    },
+    // Kabul oturum açar → girişle aynı hijyen (arayüz testi D-348): bu
+    // tarayıcıda başka bir hesap açıksa onun önbelleği ve taslakları yeni
+    // hesaba taşınmasın. (Yeni hesabın dili isteğin Accept-Language'ından,
+    // yani davet sayfasında seçili dilden doğar — ayrıca yazmaya gerek yok.)
+    onSuccess: (data) => {
+      if (data.user?.id) bindSessionOwner(data.user.id);
+      queryClient.clear();
     },
   });
 }

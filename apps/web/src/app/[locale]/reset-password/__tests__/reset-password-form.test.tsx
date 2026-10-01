@@ -115,4 +115,43 @@ describe("ResetPasswordForm", () => {
     // Form ekranda kalır — kullanıcı yeni bağlantı isteyebilir.
     expect(screen.getByLabelText("Yeni Şifre")).toBeInTheDocument();
   });
+
+  // Arayüz testi D-085: kesik/kullanılmış bağlantı ham doğrulama metni ya da
+  // form içi hata yerine "geçersiz bağlantı" kartı + yeni bağlantı yolu.
+  it("kesik token (deadbeef): form yerine geçersiz bağlantı kartı", () => {
+    h.token = "deadbeef";
+    render(<ResetPasswordForm />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Geçersiz bağlantı");
+    expect(screen.getByRole("link", { name: "Yeni bağlantı iste" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Yeni Şifre")).toBeNull();
+  });
+
+  it("403 (kullanılmış bağlantı): sunucu nedeniyle geçersiz bağlantı kartı", async () => {
+    const user = userEvent.setup();
+    h.post.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 403, data: { message: "Bu bağlantı zaten kullanılmış" } },
+    });
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Bu bağlantı zaten kullanılmış");
+    expect(screen.getByRole("link", { name: "Yeni bağlantı iste" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Yeni Şifre")).toBeNull();
+  });
+
+  it("400 token alan hatası da bağlantı kartına gider", async () => {
+    const user = userEvent.setup();
+    h.post.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 400, data: { message: "Doğrulama hatası", errors: { token: "Geçersiz veya kullanılmış bağlantı" } } },
+    });
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Geçersiz veya kullanılmış bağlantı");
+    expect(screen.queryByLabelText("Yeni Şifre")).toBeNull();
+  });
 });

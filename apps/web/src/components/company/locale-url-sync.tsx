@@ -13,7 +13,13 @@ import { useEffect } from "react";
  * değerde hiçbir şey yapmaz → döngü yok. Kimliksiz ya da eski anlık
  * görüntüde (`locale` yok) dokunmaz. Otomatik dil tespiti kapalı olduğu için
  * (routing.ts) panelin dili YALNIZ buradan kullanıcıyı izler.
+ *
+ * Token'lı herkese açık sayfalar (ekip daveti) bu kuralın DIŞINDA (arayüz
+ * testi D-348): sayfa başka bir kişiye aittir; tarayıcıda açık kalmış başka
+ * bir hesabın dili davetlinin dil seçimini geri alıyordu.
  */
+const TOKEN_PAGE_PREFIXES = ["/company/davet/"];
+
 export function LocaleUrlSync() {
   const userLocale = useCompanyAuthStore((s) => s.user?.locale);
   const current = useLocale();
@@ -21,6 +27,7 @@ export function LocaleUrlSync() {
   const searchParams = useSearchParams();
   const router = useRouter();
   useEffect(() => {
+    if (TOKEN_PAGE_PREFIXES.some((p) => pathname?.startsWith(p))) return;
     const wanted = pickLocale(userLocale);
     if (!wanted || wanted === current) return;
     const qs = searchParams?.toString();

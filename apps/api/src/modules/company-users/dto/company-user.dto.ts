@@ -18,6 +18,7 @@ import {
 } from "class-validator";
 
 import { tApi } from "../../../common/i18n/i18n.service";
+import { IsIntlPhone, NormalizePhone } from "../../company-auth/dto/phone.validator";
 
 export enum CompanyRoleDto {
   // SAHIP yalnız DEVİR (updateRoles/updateUser) için geçerli; davet servis
@@ -83,9 +84,14 @@ export class AcceptCompanyInvitationDto {
   @MaxLength(80)
   lastName!: string;
 
+  // Kayıt ve hesap bilgileriyle AYNI kural (arayüz testi O-121): ülke koduna
+  // göre ulusal uzunluk, tek kaynak `isValidPhoneNumber`. Eski "10-20
+  // karakter" düzenli ifadesi "+90 532123" gibi eksik numarayı kabul ediyordu.
   @IsOptional()
+  @NormalizePhone()
   @IsString()
-  @Matches(/^[0-9+\s()]{10,20}$/, { message: () => tApi("api.dto.companyUser.gecerliBirTelefonGiriniz") })
+  @MaxLength(30)
+  @IsIntlPhone({ allowEmpty: true }, { message: () => tApi("api.dto.companyUser.gecerliBirTelefonGiriniz") })
   phone?: string;
 
   @IsString()

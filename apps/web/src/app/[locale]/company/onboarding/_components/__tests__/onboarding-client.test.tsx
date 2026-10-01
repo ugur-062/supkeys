@@ -21,6 +21,9 @@ const h = vi.hoisted(() => ({
   },
   toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() },
   logout: vi.fn(),
+  meError: false,
+  meRefetch: vi.fn(),
+  updateMeAsync: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -38,7 +41,13 @@ vi.mock("@/hooks/use-categories", () => ({
   useCategorySearchTree: () => ({ data: undefined, isLoading: false }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useCompanyMe: () => ({ data: h.meData, isLoading: false }),
+  useCompanyMe: () => ({
+    data: h.meError ? undefined : h.meData,
+    isLoading: false,
+    isError: h.meError,
+    isFetching: false,
+    refetch: h.meRefetch,
+  }),
   useCompleteOnboarding: () => ({
     mutateAsync: h.completeAsync,
     isPending: false,
@@ -47,9 +56,18 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyLogout: () => h.logout,
 }));
 
+vi.mock("@/hooks/use-company-account", () => ({
+  useUpdateMe: () => ({ mutateAsync: h.updateMeAsync, isPending: false }),
+}));
+
 vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => []) }));
 
-import { OnboardingClient, initialOnboardingCountry } from "../onboarding-client";
+import {
+  OnboardingClient,
+  formatOnboardingAddress,
+  initialOnboardingCountry,
+  matchTurkeyProvince,
+} from "../onboarding-client";
 
 // LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
 async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
@@ -64,6 +82,7 @@ async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
+  h.meError = false;
   h.meData = {
     user: { firstName: "Ada", lastName: "Yılmaz" },
     company: { onboardingCompletedAt: null },
@@ -407,5 +426,101 @@ describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", 
     await fillStep1TR(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
     expect(screen.getByText("Ürünü kendi tesisinde imal ediyor")).toBeInTheDocument();
+  });
+});
+
+/** Arayüz testi webA-09 (onboarding). */
+describe("OnboardingClient — arayüz testi webA-09", () => {
+  it("O-122: kurucu sihirbazında 'Oturumu kapat' ve dil seçici var", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    expect(screen.getByRole("combobox", { name: "Dil" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Oturumu kapat" }));
+    expect(h.logout).toHaveBeenCalled();
+  });
+
+  it("O-122: dil önce hesaba yazılır", async () => {
+    const user = userEvent.setup();
+    h.updateMeAsync.mockResolvedValue({});
+    render(<OnboardingClient />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Dil" }), "en");
+    expect(h.updateMeAsync).toHaveBeenCalledWith({ locale: "en" });
+  });
+
+  it("D-347: /me düşerse sihirbaz yerine hata kartı + tekrar dene", async () => {
+    const user = userEvent.setup();
+    h.meError = true;
+    render(<OnboardingClient />);
+    expect(screen.getByText("Hesap bilgileriniz yüklenemedi")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Firma Unvanı *")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.meRefetch).toHaveBeenCalled();
+  });
+
+  it("D-065: aynı ülkeyi yeniden seçmek il/ilçe/vergi dairesini silmez; ülke değişince vergi no temizlenir", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await fillStep1TR(user);
+    await pickCountry(user, "Türk", "Türkiye");
+    expect(screen.getByLabelText("İl *")).toHaveValue("İstanbul");
+    expect(screen.getByLabelText("İlçe *")).toHaveValue("Kadıköy");
+    expect(screen.getByLabelText("Vergi Dairesi *")).toHaveValue("Kadıköy VD");
+    expect(screen.getByLabelText("Vergi No / TCKN *")).toHaveValue("1234567890");
+    await pickCountry(user, "Alman", "Almanya");
+    expect(screen.getByLabelText("KDV no (VAT) ya da vergi no *")).toHaveValue("");
+  });
+
+  it("D-344: ön doldurulan şehir Türkçe duyarsız eşlenir, eşleşmezse il boş ve ilçe kapalı", async () => {
+    expect(matchTurkeyProvince("Istanbul")).toBe("İstanbul");
+    expect(matchTurkeyProvince("IZMIR")).toBe("İzmir");
+    expect(matchTurkeyProvince("Gotham")).toBe("");
+    sessionStorage.setItem(
+      "rothern:invite-prefill",
+      JSON.stringify({ email: "a@b.com.tr", companyName: "X AŞ", country: "TR", city: "Gotham" }),
+    );
+    render(<OnboardingClient />);
+    expect(await screen.findByLabelText("İl *")).toHaveValue("");
+    expect(screen.getByLabelText("İlçe *")).toBeDisabled();
+  });
+
+  it("D-091: özet adresi ülkeye göre biçimlenir, posta kodu dahil", () => {
+    expect(
+      formatOnboardingAddress({
+        isTR: false,
+        addressLine: "Marienplatz 1",
+        postalCode: "80331",
+        city: "Munich",
+        stateRegion: "Bayern",
+      }),
+    ).toBe("Marienplatz 1, 80331 Munich, Bayern");
+    expect(
+      formatOnboardingAddress({
+        isTR: true,
+        neighborhood: "Caferağa",
+        addressLine: "Moda Cad. No:1",
+        postalCode: "34710",
+        district: "Kadıköy",
+        city: "İstanbul",
+      }),
+    ).toBe("Caferağa, Moda Cad. No:1, 34710 Kadıköy / İstanbul");
+  });
+
+  it("D-342 / D-353: alanlar DTO sınırlarını taşır; 'Hukuki yapı' kendi adıyla", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveAttribute("maxLength", "150");
+    expect(screen.getByLabelText("Açık Adres *")).toHaveAttribute("maxLength", "500");
+    await user.selectOptions(screen.getByLabelText("Firma Türü *"), "OTHER");
+    expect(screen.getAllByLabelText("Firma Türü *")).toHaveLength(1);
+    expect(screen.getByLabelText("Hukuki yapı (yerel adıyla)")).toHaveAttribute("maxLength", "80");
+  });
+
+  it("O-120: onay kutusunun yazısına tıklamak kutuyu işaretler", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    const box = screen.getByRole("checkbox", { name: /teslimat adresi olarak kullan/i });
+    expect(box).toHaveAttribute("aria-checked", "true");
+    await user.click(screen.getByText("Fatura adresini teslimat adresi olarak kullan"));
+    expect(box).toHaveAttribute("aria-checked", "false");
   });
 });

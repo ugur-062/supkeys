@@ -44,8 +44,9 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Telefon"), "5551112233");
   await user.type(screen.getByLabelText("Şifre", { exact: true }), "Guclu!Parola9");
   await user.type(screen.getByLabelText("Şifre (tekrar)"), "Guclu!Parola9");
+  // Erişilebilir ad görünen metnin kendisi (arayüz testi O-120, Field/Label).
   await user.click(
-    screen.getByRole("checkbox", { name: "Kullanıcı sözleşmesini kabul ediyorum" }),
+    screen.getByRole("checkbox", { name: "Kullanıcı sözleşmesini okudum ve kabul ediyorum" }),
   );
   await user.click(
     screen.getByRole("checkbox", {
@@ -54,7 +55,7 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   );
   await user.click(
     screen.getByRole("checkbox", {
-      name: "KVKK Aydınlatma Metni bilgilendirmesini okudum",
+      name: /^KVKK Aydınlatma Metni bilgilendirmesini okudum/,
     }),
   );
 }

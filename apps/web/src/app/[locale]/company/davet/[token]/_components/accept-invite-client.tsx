@@ -5,7 +5,7 @@ import { ConsentRows, type Consents } from "@/components/auth/consent-rows";
 import { PasswordStrength } from "@/components/auth/password-strength";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthShell } from "@/components/marketing/auth-shell";
@@ -15,11 +15,13 @@ import {
   useSetCompanyAuth,
 } from "@/hooks/use-company-auth";
 import { usePasswordRules } from "@/lib/company-auth/password-rules";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { isValidPhoneNumber } from "@rothern/shared";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 
 /**
@@ -36,6 +38,9 @@ export function AcceptInviteClient({ token }: { token: string }) {
     useInvitationPreview(token);
   const accept = useAcceptInvitation(token);
   const setAuth = useSetCompanyAuth();
+  // Bu tarayıcıda açık başka bir oturum (arayüz testi D-348): kabul, oturumu
+  // davetli hesaba geçirir — kullanıcı bunu önceden bilsin.
+  const sessionUser = useCompanyAuthStore((s) => s.user);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -52,6 +57,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
     profile: false,
   });
   const [error, setError] = useState<string | null>(null);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -63,9 +69,14 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const pwOk = pwScore === PW_RULES.length;
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
+  // Telefon isteğe bağlı; yazıldıysa kayıt formuyla AYNI kural (ülkeye göre
+  // ulusal uzunluk, tek kaynak `isValidPhoneNumber`; API DTO'su da aynı) —
+  // eksik numara sessizce kaydediliyordu (arayüz testi O-121).
+  const phoneValid = !form.phone.trim() || isValidPhoneNumber(form.phone);
   const formValid =
     form.firstName.trim().length >= 1 &&
     form.lastName.trim().length >= 1 &&
+    phoneValid &&
     pwOk &&
     confirmOk &&
     consents.terms &&
@@ -77,6 +88,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const lock = useSubmitLock();
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phoneValid) setPhoneTouched(true);
     if (!formValid) return;
     lock.run(doAccept, { keepOnSuccess: true }).catch(() => {});
   };
@@ -104,6 +116,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
   /* Rol adları ürün sözlüğüdür (CLAUDE.md); bilinmeyen rol kodu olduğu gibi çizilir. */
   const roleLabel = (r: string) => (t.has(`roles.${r}` as never) ? t(`roles.${r}` as never) : r);
+  const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
 
   if (isLoading) {
     return (
@@ -166,6 +179,12 @@ export function AcceptInviteClient({ token }: { token: string }) {
           <p className="mt-1 text-xs text-zinc-500">{preview.email}</p>
         </div>
 
+        {sessionUser && sessionUser.email.toLowerCase() !== preview.email.toLowerCase() ? (
+          <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {t.rich("otherSession", { current: sessionUser.email, invited: preview.email, b })}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <Label>{tc("firstName")}</Label>
@@ -188,7 +207,15 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
         <Field>
           <Label>{t("phoneOptional")}</Label>
-          <PhoneInput value={form.phone} onChange={set("phone")} />
+          <div
+            onBlur={(e) => {
+              // Ülke seçiciden numara kutusuna geçiş "alandan çıkış" sayılmaz.
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPhoneTouched(true);
+            }}
+          >
+            <PhoneInput value={form.phone} onChange={set("phone")} invalid={phoneTouched && !phoneValid} />
+          </div>
+          {phoneTouched && !phoneValid ? <ErrorMessage>{t("phoneInvalid")}</ErrorMessage> : null}
         </Field>
 
         <Field>

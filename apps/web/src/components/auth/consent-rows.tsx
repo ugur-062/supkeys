@@ -1,6 +1,7 @@
 "use client";
 
-import { Checkbox } from "@/components/catalyst/checkbox";
+import { Checkbox, CheckboxField } from "@/components/catalyst/checkbox";
+import { Label } from "@/components/catalyst/fieldset";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -15,9 +16,15 @@ export interface Consents {
 
 /**
  * Sözleşme onay satırları — kayıt ve davet kabul formlarının ORTAK parçası.
- * Metin katalogdan (`web.auth.consents`); erişilebilir adlar ayrı anahtar
- * (Headless Checkbox <input> render etmez → native <label> ilişkisi kurmaz,
- * ekran okuyucular için açık aria-label şart).
+ * Metin katalogdan (`web.auth.consents`). Erişilebilir ad görünen metnin
+ * kendisidir (Field/Label ilişkisi); eski ayrı kısa aria-label görünen
+ * metni tam içermiyordu (WCAG "label in name").
+ *
+ * Satır Catalyst `CheckboxField` + `Label` (arayüz testi O-120): Headless
+ * Checkbox gerçek <input> çizmediği için eski native <label> sarmalayıcısı
+ * metne tıklamayı kutuya iletmiyordu — yalnız 16 px'lik kutu çalışıyordu.
+ * Headless `Label` tıklamayı kutuya iletir; metindeki bağlantıya tıklama
+ * etkileşimli öğe olduğu için iletilmez (sözleşme açılır, kutu değişmez).
  */
 export function ConsentRows({
   consents,
@@ -33,7 +40,7 @@ export function ConsentRows({
   const link = (href: string) =>
     function LinkChunk(chunks: ReactNode) {
       return (
-        <Link href={href} target="_blank" className="underline">
+        <Link href={href} target="_blank" rel="noopener noreferrer" className="underline">
           {chunks}
         </Link>
       );
@@ -41,21 +48,21 @@ export function ConsentRows({
   const setKey = (k: keyof Consents) => (v: boolean) => onChange({ ...consents, [k]: v });
   return (
     <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
-      <CheckRow checked={consents.terms} ariaLabel={t("termsAria")} onChange={setKey("terms")}>
+      <CheckRow checked={consents.terms} onChange={setKey("terms")}>
         {t.rich("terms", { a: link("/sozlesmeler/kullanici") })}
       </CheckRow>
-      <CheckRow checked={consents.mediation} ariaLabel={t("mediationAria")} onChange={setKey("mediation")}>
+      <CheckRow checked={consents.mediation} onChange={setKey("mediation")}>
         {t.rich("mediation", { a: link("/sozlesmeler/aracilik") })}
       </CheckRow>
-      <CheckRow checked={consents.kvkk} ariaLabel={t("kvkkAria")} onChange={setKey("kvkk")}>
+      <CheckRow checked={consents.kvkk} onChange={setKey("kvkk")}>
         {t.rich("kvkk", { a: link("/sozlesmeler/kvkk") })}
         {showProviders ? <> {t("kvkkProviders")}</> : null}
       </CheckRow>
-      <div className="border-t border-zinc-200/70 pt-2">
-        <CheckRow checked={consents.profile} ariaLabel={t("profile")} onChange={setKey("profile")}>
+      <div className="space-y-2 border-t border-zinc-200/70 pt-2">
+        <CheckRow checked={consents.profile} onChange={setKey("profile")}>
           <span className="text-zinc-500">{t("profile")}</span>
         </CheckRow>
-        <CheckRow checked={consents.marketing} ariaLabel={t("marketing")} onChange={setKey("marketing")}>
+        <CheckRow checked={consents.marketing} onChange={setKey("marketing")}>
           <span className="text-zinc-500">{t("marketing")}</span>
         </CheckRow>
       </div>
@@ -66,18 +73,16 @@ export function ConsentRows({
 function CheckRow({
   checked,
   onChange,
-  ariaLabel,
   children,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
-  ariaLabel: string;
   children: ReactNode;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-700">
-      <Checkbox checked={checked} onChange={onChange} aria-label={ariaLabel} className="mt-0.5" />
-      <span>{children}</span>
-    </label>
+    <CheckboxField className="gap-x-2!">
+      <Checkbox checked={checked} onChange={onChange} />
+      <Label className="cursor-pointer text-xs/5! text-zinc-700!">{children}</Label>
+    </CheckboxField>
   );
 }

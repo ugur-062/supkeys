@@ -5,13 +5,15 @@ import { localizePath } from "@/i18n/href";
 import { runtimeLocale } from "@/i18n/runtime";
 
 import { Button } from "@/components/catalyst/button";
-import { Checkbox } from "@/components/catalyst/checkbox";
+import { Checkbox, CheckboxField } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
 import { CompanyActivityPicker } from "@/components/categories/company-activity-picker";
 import { CompanyCategoryPicker } from "@/components/categories/company-category-picker";
+import { RothernLogo } from "@/components/brand/logo";
 import { useRoots } from "@/hooks/use-categories";
+import { useUpdateMe } from "@/hooks/use-company-account";
 import {
   useCompanyLogout,
   useCompanyMe,
@@ -27,6 +29,7 @@ import {
   isValidTaxIdForCountry,
   isValidTckn,
   EU_VAT_COUNTRIES,
+  foldSearchText,
   isRegistrationOpen,
   normalizeTaxId,
   parsePhone,
@@ -36,6 +39,7 @@ import {
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { Check } from "lucide-react";
+import { LOCALES, LOCALE_LABELS, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
@@ -65,6 +69,46 @@ export function initialOnboardingCountry(phone: string | null | undefined, local
 /** Posta kodu: TR'de 5 rakam; diğer ülkelerde harf/rakam/boşluk/tire (SW1A 1AA, 1012 AB, K1A 0B1). */
 function cleanPostal(v: string, tr: boolean): string {
   return tr ? v.replace(/\D/g, "") : v.toUpperCase().replace(/[^A-Z0-9 -]/g, "");
+}
+
+/**
+ * Ön doldurulan (davet/AI keşfi) şehri Türkiye il listesine eşler — Türkçe
+ * harf ve büyük/küçük harf duyarsız ("Istanbul", "ISTANBUL" → "İstanbul").
+ * Eşleşmezse BOŞ döner: listede olmayan değer İl'i "Seçin…" gösterirken
+ * İlçe'yi boş listeyle açık bırakıyordu (arayüz testi D-344).
+ */
+export function matchTurkeyProvince(raw: string | null | undefined): string {
+  const key = foldSearchText(raw ?? "");
+  if (!key) return "";
+  return TURKEY_LOCATIONS.find((l) => foldSearchText(l.il) === key)?.il ?? "";
+}
+
+/**
+ * Özet adımındaki adres satırı ülkeye göre (arayüz testi D-091): Türkiye'de
+ * "mahalle, açık adres, posta kodu ilçe / il"; yurt dışında uluslararası
+ * kalıp "açık adres, posta kodu şehir, eyalet" (Marienplatz 1, 80331 Munich,
+ * Bayern). Eskiden TR kalıbı her ülkeye uygulanıyor ("Bayern / Munich"),
+ * posta kodu hiç basılmıyordu.
+ */
+export function formatOnboardingAddress(a: {
+  isTR: boolean;
+  addressLine: string;
+  neighborhood?: string;
+  postalCode?: string;
+  district?: string;
+  city?: string;
+  stateRegion?: string;
+}): string {
+  const clean = (v?: string) => (v ?? "").trim();
+  const join = (parts: string[], sep: string) => parts.filter(Boolean).join(sep);
+  if (a.isTR) {
+    const locality = join([clean(a.postalCode), join([clean(a.district), clean(a.city)], " / ")], " ");
+    return join([clean(a.neighborhood), clean(a.addressLine), locality], ", ");
+  }
+  return join(
+    [clean(a.addressLine), join([clean(a.postalCode), clean(a.city)], " "), clean(a.stateRegion)],
+    ", ",
+  );
 }
 
 export function OnboardingClient() {
@@ -138,13 +182,19 @@ export function OnboardingClient() {
     // firma bilgisi formu başlatır — ad, site, ülke, şehir; kullanıcı düzeltebilir.
     const invite = readInvitePrefill();
     const inviteCountry = invite?.country && isRegistrationOpen(invite.country) ? invite.country.toUpperCase() : null;
-    setF((s) => ({
-      ...s,
-      country: s.country || inviteCountry || initial,
-      legalName: s.legalName || invite?.companyName || "",
-      website: s.website || invite?.website || "",
-      city: s.city || invite?.city || "",
-    }));
+    setF((s) => {
+      const country = s.country || inviteCountry || initial;
+      // TR'de şehir il listesinden seçilir: ön doldurulan ad listeye eşlenir,
+      // eşleşmezse boş kalır (D-344).
+      const prefillCity = country === "TR" ? matchTurkeyProvince(invite?.city) : invite?.city || "";
+      return {
+        ...s,
+        country,
+        legalName: s.legalName || invite?.companyName || "",
+        website: s.website || invite?.website || "",
+        city: s.city || prefillCity,
+      };
+    });
     setCountryReady(true);
   }, [countryReady, me.data, locale]);
   /**
@@ -276,6 +326,25 @@ export function OnboardingClient() {
     );
   }
 
+  // /me düştüyse (5xx/ağ) boş alanlı sihirbaz AÇILMAZ — kurucu mu, onboarding
+  // zaten bitti mi bilinmiyor; özet "Yetkili: undefined undefined" basıyordu
+  // (arayüz testi D-347). Hata kartı + tekrar dene + çıkış.
+  if (me.isError && !me.data) {
+    return (
+      <OnboardingShell>
+        <div role="alert" className="card p-6 text-center">
+          <h1 className="text-lg font-semibold text-zinc-900">{t("meFailedTitle")}</h1>
+          <p className="mt-2 text-sm text-zinc-600">{t("meFailedBody")}</p>
+          <div className="mt-5 flex justify-center">
+            <Button onClick={() => void me.refetch()} disabled={me.isFetching}>
+              {t("retry")}
+            </Button>
+          </div>
+        </div>
+      </OnboardingShell>
+    );
+  }
+
   const user = me.data?.user;
 
   // Derin denetim LU-31: şirket bilgilerini YALNIZ Kurucu tamamlar (API 403).
@@ -287,7 +356,7 @@ export function OnboardingClient() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
+    <OnboardingShell>
       <h1 className="text-2xl font-bold text-zinc-900">{t("title")}</h1>
       <p className="mt-1 text-sm text-zinc-500">{t("lead")}</p>
 
@@ -323,7 +392,7 @@ export function OnboardingClient() {
           <div className="space-y-3">
             <Field>
               <Label>{t("legalName")}</Label>
-              <Input value={f.legalName} onChange={(e) => set("legalName")(e.target.value)} />
+              <Input value={f.legalName} maxLength={150} onChange={(e) => set("legalName")(e.target.value)} />
             </Field>
             <Field>
               <Label>{t("country")}</Label>
@@ -333,10 +402,13 @@ export function OnboardingClient() {
                 ariaLabel={t("country")}
                 onChange={(code) =>
                   // Ülke değişince ülkeye-özel alanları temizle (TR il/ilçe/vergi
-                  // dairesi ↔ yabancı şehir/eyalet karışmasın).
-                  setF((s) => ({
+                  // dairesi ↔ yabancı şehir/eyalet karışmasın). Aynı ülkeyi
+                  // yeniden seçmek hiçbir şeyi silmez; vergi no da ülkeye özgü
+                  // biçimde olduğundan ülke değişince temizlenir (D-065).
+                  setF((s) => code === s.country ? s : ({
                     ...s,
                     country: code,
+                    taxNumber: "",
                     city: "",
                     cityId: null,
                     district: "",
@@ -353,28 +425,34 @@ export function OnboardingClient() {
               />
             </Field>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field>
-                <Label>{t("companyTypeLabel")}</Label>
-                <Select value={f.companyType} onChange={(e) => set("companyType")(e.target.value)}>
-                  {companyTypes.map((ct) => (
-                    <option key={ct.value} value={ct.value}>{ct.label}</option>
-                  ))}
-                </Select>
+              <div>
+                <Field>
+                  <Label>{t("companyTypeLabel")}</Label>
+                  <Select value={f.companyType} onChange={(e) => set("companyType")(e.target.value)}>
+                    {companyTypes.map((ct) => (
+                      <option key={ct.value} value={ct.value}>{ct.label}</option>
+                    ))}
+                  </Select>
+                </Field>
+                {/* Ayrı Field: aynı Field içinde Headless ikinci kontrolü de
+                    "Firma Türü" etiketine bağlıyordu (D-353). */}
                 {f.companyType === "OTHER" ? (
-                  <Input
-                    className="mt-2"
-                    aria-label={t("legalFormLocal")}
-                    value={f.legalFormLocal}
-                    maxLength={80}
-                    placeholder={t("legalFormLocalPlaceholder")}
-                    onChange={(e) => set("legalFormLocal")(e.target.value)}
-                  />
+                  <Field className="mt-2">
+                    <Label className="sr-only">{t("legalFormLocal")}</Label>
+                    <Input
+                      value={f.legalFormLocal}
+                      maxLength={80}
+                      placeholder={t("legalFormLocalPlaceholder")}
+                      onChange={(e) => set("legalFormLocal")(e.target.value)}
+                    />
+                  </Field>
                 ) : null}
-              </Field>
+              </div>
               <Field>
                 <Label>{isTR ? t("taxTr") : `${tTax(`label.${taxKey}` as never)} *`}</Label>
                 <Input
                   value={f.taxNumber}
+                  maxLength={40}
                   onChange={(e) =>
                     set("taxNumber")(
                       isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
@@ -411,7 +489,7 @@ export function OnboardingClient() {
             {isTR ? (
               <Field>
                 <Label>{t("taxOffice")}</Label>
-                <Input value={f.taxOffice} onChange={(e) => set("taxOffice")(e.target.value)} />
+                <Input value={f.taxOffice} maxLength={60} onChange={(e) => set("taxOffice")(e.target.value)} />
               </Field>
             ) : null}
             {/* WEB SİTESİ — ZORUNLU DEĞİL, TEŞVİKLİ (2026-09-15, kullanıcı
@@ -424,6 +502,7 @@ export function OnboardingClient() {
               <Label>{t("website")}</Label>
               <Input
                 value={f.website}
+                maxLength={200}
                 placeholder={t("websitePlaceholder")}
                 onChange={(e) => set("website")(e.target.value)}
               />
@@ -442,7 +521,7 @@ export function OnboardingClient() {
                 </Field>
                 <Field>
                   <Label>{t("district")}</Label>
-                  <Select value={f.district} disabled={!f.city} onChange={(e) => set("district")(e.target.value)}>
+                  <Select value={f.district} disabled={ilceler.length === 0} onChange={(e) => set("district")(e.target.value)}>
                     <option value="">{t("select")}</option>
                     {ilceler.map((d) => (
                       <option key={d} value={d}>{d}</option>
@@ -463,7 +542,7 @@ export function OnboardingClient() {
                 </Field>
                 <Field>
                   <Label>{t("stateRegion")}</Label>
-                  <Input value={f.stateRegion} onChange={(e) => set("stateRegion")(e.target.value)} />
+                  <Input value={f.stateRegion} maxLength={100} onChange={(e) => set("stateRegion")(e.target.value)} />
                 </Field>
               </div>
             )}
@@ -472,7 +551,7 @@ export function OnboardingClient() {
               {isTR ? (
                 <Field>
                   <Label>{t("neighborhood")}</Label>
-                  <Input value={f.neighborhood} onChange={(e) => set("neighborhood")(e.target.value)} />
+                  <Input value={f.neighborhood} maxLength={100} onChange={(e) => set("neighborhood")(e.target.value)} />
                 </Field>
               ) : null}
               <Field>
@@ -482,12 +561,13 @@ export function OnboardingClient() {
             </div>
             <Field>
               <Label>{t("addressLine")}</Label>
-              <Input value={f.addressLine} onChange={(e) => set("addressLine")(e.target.value)} />
+              <Input value={f.addressLine} maxLength={500} onChange={(e) => set("addressLine")(e.target.value)} />
             </Field>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
-              <Checkbox aria-label={t("sameAsBilling")} checked={f.deliverySameAsBilling} onChange={(v) => set("deliverySameAsBilling")(v)} />
-              {t("sameAsBilling")}
-            </label>
+            {/* CheckboxField + Label: metne tıklamak da kutuyu değiştirir (O-120). */}
+            <CheckboxField>
+              <Checkbox checked={f.deliverySameAsBilling} onChange={(v) => set("deliverySameAsBilling")(v)} />
+              <Label className="cursor-pointer">{t("sameAsBilling")}</Label>
+            </CheckboxField>
             {!f.deliverySameAsBilling && (
               <div className="space-y-3 rounded-lg border border-zinc-200 p-3">
                 <p className="text-sm font-medium text-zinc-700">{t("deliveryAddress")}</p>
@@ -512,7 +592,7 @@ export function OnboardingClient() {
                       <Label>{t("deliveryDistrict")}</Label>
                       <Select
                         value={f.deliveryDistrict}
-                        disabled={!f.deliveryCity}
+                        disabled={deliveryIlceler.length === 0}
                         onChange={(e) => set("deliveryDistrict")(e.target.value)}
                       >
                         <option value="">{t("select")}</option>
@@ -549,7 +629,7 @@ export function OnboardingClient() {
                   {isTR ? (
                     <Field>
                       <Label>{t("neighborhood")}</Label>
-                      <Input value={f.deliveryNeighborhood} onChange={(e) => set("deliveryNeighborhood")(e.target.value)} />
+                      <Input value={f.deliveryNeighborhood} maxLength={100} onChange={(e) => set("deliveryNeighborhood")(e.target.value)} />
                     </Field>
                   ) : null}
                   <Field>
@@ -559,7 +639,7 @@ export function OnboardingClient() {
                 </div>
                 <Field>
                   <Label>{t("addressLine")}</Label>
-                  <Input value={f.deliveryAddressLine} onChange={(e) => set("deliveryAddressLine")(e.target.value)} />
+                  <Input value={f.deliveryAddressLine} maxLength={500} onChange={(e) => set("deliveryAddressLine")(e.target.value)} />
                 </Field>
               </div>
             )}
@@ -663,15 +743,24 @@ export function OnboardingClient() {
               {isTR ? <Summary label={t("sumTaxOffice")} value={f.taxOffice} /> : null}
               <Summary
                 label={t("sumAddress")}
-                value={`${[isTR ? f.neighborhood.trim() : "", f.addressLine].filter(Boolean).join(", ")}, ${[f.district, f.stateRegion, f.city]
-                  .filter(Boolean)
-                  .join(" / ")}`}
+                value={formatOnboardingAddress({
+                  isTR,
+                  addressLine: f.addressLine,
+                  neighborhood: f.neighborhood,
+                  postalCode: f.postalCode,
+                  district: f.district,
+                  city: f.city,
+                  stateRegion: f.stateRegion,
+                })}
               />
               <Summary
                 label={t("sumCountry")}
                 value={f.country ? countryDisplayName(f.country, locale) : null}
               />
-              <Summary label={t("sumAuthorized")} value={`${user?.firstName} ${user?.lastName}`} />
+              <Summary
+                label={t("sumAuthorized")}
+                value={[user?.firstName, user?.lastName].filter(Boolean).join(" ")}
+              />
               {/* Satınalma koltuğu BURADA YAZILMAZ: talep açmak Gold paket
                   ister, yeni firma STANDART doğar. Eskiden "Kurucu · satınalma
                   koltuğu · satış koltuğu" yazıyordu — kullanılamayan bir yetkiyi
@@ -695,10 +784,10 @@ export function OnboardingClient() {
               <p className="font-medium">{t("nextTitle")}</p>
               <p className="mt-1">{t.rich("nextBody", { b })}</p>
             </div>
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-sm text-zinc-700">
-              <Checkbox aria-label={t("declarationAria")} checked={f.declarationAccepted} onChange={(v) => set("declarationAccepted")(v)} className="mt-0.5" />
-              {t("declaration")}
-            </label>
+            <CheckboxField className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
+              <Checkbox aria-label={t("declarationAria")} checked={f.declarationAccepted} onChange={(v) => set("declarationAccepted")(v)} />
+              <Label className="cursor-pointer">{t("declaration")}</Label>
+            </CheckboxField>
           </div>
         ) : null}
 
@@ -726,15 +815,79 @@ export function OnboardingClient() {
           )}
         </div>
       </div>
+    </OnboardingShell>
+  );
+}
+
+/**
+ * Sihirbazın üst çubuğu (arayüz testi O-122): logo, dil seçici ve "Oturumu
+ * kapat". Eskiden yalın kapsayıcıydı — ortak bilgisayarda ya da yanlış
+ * hesapla kaydolan kurucu onboarding bitene kadar çıkamıyordu.
+ */
+function OnboardingShell({ children }: { children: ReactNode }) {
+  const t = useTranslations("web.auth.onboarding");
+  const logout = useCompanyLogout();
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8">
+      <header className="mb-6 flex items-center justify-between gap-3">
+        {/* Telefonda yalnız ikon: dil seçici + çıkış düğmesiyle tek satıra sığsın. */}
+        <RothernLogo variant="icon" size="sm" className="sm:hidden" />
+        <RothernLogo variant="full-light" size="sm" className="hidden sm:block" />
+        <div className="flex items-center gap-2">
+          <OnboardingLanguageSelect />
+          <Button plain onClick={() => void logout()}>
+            {t("logout")}
+          </Button>
+        </div>
+      </header>
+      {children}
     </div>
   );
 }
 
-function Summary({ label, value }: { label: string; value?: string | null }) {
+/**
+ * Dil seçimi ÖNCE hesaba yazılır (`PATCH /company-auth/me`), sonra oturum
+ * anlık görüntüsü güncellenir; `LocaleUrlSync` sayfayı yeni dilde açar.
+ * Yalnız adresi değiştirmek işe yaramaz — LocaleUrlSync hesabın kayıtlı diline
+ * geri döndürür (kasıtlı).
+ */
+function OnboardingLanguageSelect() {
+  const t = useTranslations("web.auth.onboarding");
+  const current = useLocale();
+  const updateMe = useUpdateMe();
+  const onChange = async (next: Locale) => {
+    if (next === current) return;
+    try {
+      await updateMe.mutateAsync({ locale: next });
+      const st = useCompanyAuthStore.getState();
+      if (st.user && st.company) st.setMe({ user: { ...st.user, locale: next }, company: st.company });
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("languageFailed")));
+    }
+  };
   return (
-    <div>
+    <Select
+      aria-label={t("language")}
+      className="w-auto!"
+      value={current}
+      disabled={updateMe.isPending}
+      onChange={(e) => void onChange(e.target.value as Locale)}
+    >
+      {LOCALES.map((code) => (
+        <option key={code} value={code} lang={code}>
+          {LOCALE_LABELS[code]}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
+function Summary({ label, value }: { label: string; value?: string | null }) {
+  // min-w-0 + break-words: boşluksuz uzun unvan kartın dışına taşmasın (D-343).
+  return (
+    <div className="min-w-0">
       <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="font-medium text-zinc-900">{value || "—"}</dd>
+      <dd className="font-medium break-words text-zinc-900">{value || "—"}</dd>
     </div>
   );
 }

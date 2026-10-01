@@ -5,8 +5,9 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { companyApi } from "@/lib/company-auth/api";
 import { PASSWORD_MIN_LENGTH, PASSWORD_SPECIAL_RE } from "@/lib/company-auth/password-rules";
-import { extractErrorMessage } from "@/lib/tenders/error";
+import { extractErrorMessage, extractFieldErrors } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
 import { AlertCircle, Check } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -41,6 +42,11 @@ function makeSchema(tp: (key: "min" | "max" | "lower" | "upper" | "digit" | "spe
 
 type FormValues = z.infer<ReturnType<typeof makeSchema>>;
 
+/** Sunucunun ürettiği token 64 hex; DTO 40–80 karakter kabul eder. */
+function tokenLooksValid(token: string): boolean {
+  return token.length >= 40 && token.length <= 80;
+}
+
 export function ResetPasswordForm() {
   const t = useTranslations("web.auth.reset");
   const tp = useTranslations("web.auth.password");
@@ -51,6 +57,12 @@ export function ResetPasswordForm() {
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Bağlantı kullanılamaz (arayüz testi D-085): kesik, kullanılmış ya da
+   * süresi dolmuş bağlantıda hata kutusu yerine "geçersiz bağlantı" kartı ve
+   * yeni bağlantı isteme yolu. Değer sunucunun nedenidir (boşsa genel metin).
+   */
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const {
     register,
@@ -58,14 +70,14 @@ export function ResetPasswordForm() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  if (!token) {
+  if (!token || !tokenLooksValid(token) || linkError !== null) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-5" role="alert">
         <div className="flex items-start gap-2">
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
           <div>
             <p className="font-semibold text-red-900">{t("invalidTitle")}</p>
-            <p className="mt-1 text-sm text-red-800">{t("invalidBody")}</p>
+            <p className="mt-1 text-sm text-red-800">{linkError || t("invalidBody")}</p>
             <Link
               href="/company/sifremi-unuttum"
               className="mt-3 inline-block text-sm font-semibold text-zinc-900 underline"
@@ -112,7 +124,15 @@ export function ResetPasswordForm() {
       toast.success(t("toastChanged"));
       setSubmitted(true);
     } catch (err) {
-      setError(extractErrorMessage(err, t("errFallback")));
+      // 403 = bağlantı geçersiz/kullanılmış/süresi dolmuş (servis); 400'de
+      // `token` alan hatası = bozuk bağlantı. İkisi de bağlantı kartına gider.
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      const tokenError = extractFieldErrors(err)?.token;
+      if (status === 403 || tokenError) {
+        setLinkError(tokenError ?? extractErrorMessage(err, ""));
+      } else {
+        setError(extractErrorMessage(err, t("errFallback")));
+      }
     } finally {
       setPending(false);
     }

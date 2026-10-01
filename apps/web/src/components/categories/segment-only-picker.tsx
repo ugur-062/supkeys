@@ -361,7 +361,9 @@ export function SegmentOnlyModal({
           <Button variant="ghost" onClick={onClose}>
             {tr("vazgec")}
           </Button>
-          <Button onClick={handleConfirm} disabled={draftIds.length === 0}>
+          {/* Başlangıçta seçim varsa boş seçim de onaylanabilir — "Tümünü temizle"
+              sonrası düğme kapalı kalıyor, temizleme kaydedilemiyordu (arayüz testi D-345). */}
+          <Button onClick={handleConfirm} disabled={draftIds.length === 0 && value.length === 0}>
             {draftIds.length > 0 ? tr("onaylaN", { n: draftIds.length }) : tr("onayla")}
           </Button>
         </div>

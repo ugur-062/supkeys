@@ -2000,11 +2000,8 @@
       "accountExistsLogin": "Giriş yapın; e-postanız doğrulanmadıysa yeni kod gönderilir."
     },
     "consents": {
-      "termsAria": "Kullanıcı sözleşmesini kabul ediyorum",
       "terms": "<a>Kullanıcı sözleşmesini</a> okudum ve kabul ediyorum",
-      "mediationAria": "Platform aracılık ve kullanım sözleşmesini kabul ediyorum",
       "mediation": "<a>Platform aracılık ve kullanım sözleşmesini</a> kabul ediyorum",
-      "kvkkAria": "KVKK Aydınlatma Metni bilgilendirmesini okudum",
       "kvkk": "<a>KVKK Aydınlatma Metni</a> bilgilendirmesini okudum",
       "kvkkProviders": "(yurt dışı sağlayıcılar: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
       "profile": "Profil ve hizmet iyileştirme (opsiyonel)",
@@ -2046,7 +2043,9 @@
         "SATISCI": "Satışçı",
         "ONAYLAYICI": "Onaylayıcı",
         "VIEWER": "Görüntüleyici"
-      }
+      },
+      "phoneInvalid": "Seçili ülke için geçerli bir telefon numarası girin ya da alanı boş bırakın.",
+      "otherSession": "Bu tarayıcıda <b>{current}</b> olarak oturum açık. Daveti kabul ederseniz o oturum kapanır ve <b>{invited}</b> hesabıyla devam edersiniz."
     },
     "onboarding": {
       "metaTitle": "Şirket bilgileri",
@@ -2127,7 +2126,12 @@
       "legalFormLocalRequired": "Hukuki yapınızı yazın",
       "ownerOnlyTitle": "Şirket bilgileri Kurucu tarafından tamamlanmalı",
       "ownerOnlyBody": "Firmanızın şirket bilgilerini yalnız hesabın Kurucusu tamamlayabilir. Kurucu bu adımı bitirdiğinde panele giriş yapabilirsiniz.",
-      "ownerOnlyLogout": "Oturumu kapat"
+      "ownerOnlyLogout": "Oturumu kapat",
+      "logout": "Oturumu kapat",
+      "language": "Dil",
+      "languageFailed": "Dil kaydedilemedi",
+      "meFailedTitle": "Hesap bilgileriniz yüklenemedi",
+      "meFailedBody": "Bağlantıda geçici bir sorun olabilir. Biraz sonra tekrar deneyin; sorun sürerse oturumu kapatıp yeniden giriş yapın."
     }
   },
   "panel": {

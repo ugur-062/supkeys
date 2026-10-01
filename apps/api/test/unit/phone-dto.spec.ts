@@ -2,6 +2,8 @@ import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
 import { CompanySignupDto } from "../../src/modules/company-auth/dto/company-signup.dto";
 import { UpdateMeDto } from "../../src/modules/company-auth/dto/account.dto";
+import { AcceptCompanyInvitationDto } from "../../src/modules/company-users/dto/company-user.dto";
+import { ConfirmPasswordResetDto } from "../../src/modules/password-reset/dto/confirm-password-reset.dto";
 
 /**
  * Telefon DTO kuralı (2026-09-27): ülke koduna göre ulusal uzunluk, tek kaynak
@@ -39,5 +41,29 @@ describe("telefon DTO — ülke uzunluğu", () => {
     expect(phoneErrors(UpdateMeDto, {}).errors).toHaveLength(0);
     expect(phoneErrors(UpdateMeDto, { phone: "+49 30 1234567" }).errors).toHaveLength(0);
     expect(phoneErrors(UpdateMeDto, { phone: "+49 1" }).errors).toHaveLength(1);
+  });
+
+  // Arayüz testi O-121: davet kabulü eski "10-20 karakter" kuralındaydı —
+  // "+90 532123" (eksik numara) kabul ediliyordu.
+  it("davet kabulü: kayıtla aynı kural; boş/yok = numara verilmedi", () => {
+    expect(phoneErrors(AcceptCompanyInvitationDto, { phone: "+90 532123" }).errors).toHaveLength(1);
+    expect(phoneErrors(AcceptCompanyInvitationDto, { phone: "+90 532" }).errors).toHaveLength(1);
+    expect(phoneErrors(AcceptCompanyInvitationDto, { phone: "+90 532 123 45 67" }).errors).toHaveLength(0);
+    expect(phoneErrors(AcceptCompanyInvitationDto, { phone: "+376 312345" }).errors).toHaveLength(0);
+    expect(phoneErrors(AcceptCompanyInvitationDto, { phone: "" }).errors).toHaveLength(0);
+    expect(phoneErrors(AcceptCompanyInvitationDto, {}).errors).toHaveLength(0);
+  });
+});
+
+// Arayüz testi D-085: kesik sıfırlama bağlantısı ham "en az 40 karakter"
+// yerine geçersiz bağlantı metni döner.
+describe("şifre sıfırlama — kesik token", () => {
+  it("kısa token alan hatası 'geçersiz bağlantı' metnidir", () => {
+    const dto = plainToInstance(ConfirmPasswordResetDto, { token: "deadbeef", newPassword: "Guclu!Sifre9" });
+    const errs = validateSync(dto as object).filter((e) => e.property === "token");
+    expect(errs).toHaveLength(1);
+    const messages = Object.values(errs[0]!.constraints ?? {});
+    expect(messages.join(" ")).not.toMatch(/40/);
+    expect(messages[0]).toMatch(/bağlantı/i);
   });
 });

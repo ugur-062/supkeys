@@ -2000,11 +2000,8 @@
       "accountExistsLogin": "Log in; if your email isn't verified yet, we'll send a new code."
     },
     "consents": {
-      "termsAria": "I accept the user agreement",
       "terms": "I have read and accept the <a>user agreement</a>",
-      "mediationAria": "I accept the platform intermediation and use agreement",
       "mediation": "I accept the <a>platform intermediation and use agreement</a>",
-      "kvkkAria": "I have read the KVKK privacy notice",
       "kvkk": "I have read the <a>KVKK privacy notice</a>",
       "kvkkProviders": "(processors outside Türkiye: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
       "profile": "Profile and service improvement (optional)",
@@ -2046,7 +2043,9 @@
         "SATISCI": "Salesperson",
         "ONAYLAYICI": "Approver",
         "VIEWER": "Viewer"
-      }
+      },
+      "phoneInvalid": "Enter a valid phone number for the selected country, or leave the field empty.",
+      "otherSession": "You are signed in as <b>{current}</b> in this browser. If you accept the invitation, that session ends and you continue as <b>{invited}</b>."
     },
     "onboarding": {
       "metaTitle": "Company details",
@@ -2127,7 +2126,12 @@
       "legalFormLocalRequired": "Enter your legal form",
       "ownerOnlyTitle": "Company details must be completed by the Founder",
       "ownerOnlyBody": "Only your company's Founder can complete the company details. Once the Founder finishes this step, you can log in to the dashboard.",
-      "ownerOnlyLogout": "Log out"
+      "ownerOnlyLogout": "Log out",
+      "logout": "Log out",
+      "language": "Language",
+      "languageFailed": "Could not save the language",
+      "meFailedTitle": "Your account details could not be loaded",
+      "meFailedBody": "There may be a temporary connection problem. Try again in a moment; if it persists, log out and sign in again."
     }
   },
   "panel": {

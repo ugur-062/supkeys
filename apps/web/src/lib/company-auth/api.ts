@@ -76,10 +76,13 @@ companyApi.interceptors.response.use(
     // Auth formları (giriş/kayıt/doğrulama) hatayı kendi inline kutularında
     // gösterir → interceptor toast atmasın (çift gösterimi önle).
     const reqUrl = error.config?.url ?? "";
+    // Şifre sıfırlama onayı da kendi kutusunda/kartında gösterir (arayüz testi
+    // D-085: kullanılmış bağlantıda hata hem kutuda hem toast'ta çıkıyordu).
     if (
       /\/company-auth\/(login|signup|verify-email|resend-email-code|forgot-password|onboarding|upgrade-premium|vies-check)/.test(
         reqUrl,
-      )
+      ) ||
+      /\/auth\/password-reset\/confirm/.test(reqUrl)
     ) {
       return Promise.reject(error);
     }

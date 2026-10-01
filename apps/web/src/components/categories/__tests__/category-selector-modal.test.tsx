@@ -91,3 +91,24 @@ describe("CategorySelectorModal — validate", () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+// Arayüz testi D-345: "Tümünü temizle" sonrası "Onayla" kapalı kalıyor,
+// temizleme kaydedilemiyordu.
+describe("CategorySelectorModal — boş seçimi onaylama", () => {
+  it("başlangıçta seçim varsa temizleyip boş onaylanabilir", async () => {
+    const user = userEvent.setup();
+    h.byIds = { data: [A], isPlaceholderData: false };
+    const onConfirm = vi.fn();
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[A.id]} onConfirm={onConfirm} />);
+    await user.click(screen.getByRole("button", { name: "Tümünü temizle" }));
+    const confirm = screen.getByRole("button", { name: "Onayla" });
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    expect(onConfirm).toHaveBeenCalledWith([]);
+  });
+
+  it("hiç seçim yokken onay kapalı kalır", () => {
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
+    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
+  });
+});
