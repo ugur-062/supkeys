@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AudienceOnly, AudienceProvider, AudienceSwitch } from "../audience-switch";
 
@@ -59,5 +59,79 @@ describe("AudienceSwitch", () => {
     render(<Page />);
     // Gizli taraf DOM'da var, yalnız `hidden`.
     expect(screen.getByText("Ürünler bölümü")).toBeTruthy();
+  });
+});
+
+describe("AudienceSwitch — klavye (arayüz testi D-313)", () => {
+  it("grup tek sekme durağı; ok tuşları seçimi ve odağı taşır", async () => {
+    const u = userEvent.setup();
+    render(<Page />);
+    const supplier = screen.getByRole("radio", { name: "Tedarikçiyim" });
+    const buyer = screen.getByRole("radio", { name: "Alıcıyım" });
+    expect(supplier).toHaveAttribute("tabindex", "0");
+    expect(buyer).toHaveAttribute("tabindex", "-1");
+
+    await u.tab();
+    expect(supplier).toHaveFocus();
+    await u.keyboard("{ArrowRight}");
+    expect(buyer).toHaveFocus();
+    expect(buyer).toHaveAttribute("aria-checked", "true");
+    expect(buyer).toHaveAttribute("tabindex", "0");
+    expect(screen.getByText("Ürünler bölümü")).toBeVisible();
+
+    // Sondan başa sarar.
+    await u.keyboard("{ArrowRight}");
+    expect(supplier).toHaveFocus();
+    expect(supplier).toHaveAttribute("aria-checked", "true");
+    await u.keyboard("{ArrowLeft}");
+    expect(buyer).toHaveFocus();
+    await u.keyboard("{Home}");
+    expect(supplier).toHaveFocus();
+  });
+});
+
+describe("AudienceProvider — alıcı yüzündeki çapalar (arayüz testi O-118)", () => {
+  function CategoryPage() {
+    return (
+      <AudienceProvider>
+        <a href="/#kategoriler">Kategoriler</a>
+        <AudienceOnly side="buyer">
+          <div id="kategoriler">Kategori vitrini</div>
+        </AudienceOnly>
+        <AudienceOnly side="supplier">
+          <p>Açık alım talepleri</p>
+        </AudienceOnly>
+      </AudienceProvider>
+    );
+  }
+  let scrolled: string[] = [];
+  beforeEach(() => {
+    scrolled = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this.id);
+    });
+  });
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("`/#kategoriler` ile gelince yüz alıcıya geçer ve vitrin kaydırılır; tercih değişmez", async () => {
+    window.history.replaceState(null, "", "/#kategoriler");
+    render(<CategoryPage />);
+    expect(await screen.findByText("Kategori vitrini")).toBeVisible();
+    await act(() => new Promise((r) => requestAnimationFrame(() => r(null))));
+    expect(scrolled).toContain("kategoriler");
+    expect(window.localStorage.getItem("rothern.audience")).toBeNull();
+  });
+
+  it("aynı sayfadaki `/#kategoriler` bağlantısına basınca tedarikçi yüzünden alıcıya geçer", async () => {
+    window.history.replaceState(null, "", "/");
+    render(<CategoryPage />);
+    expect(screen.getByText("Kategori vitrini")).not.toBeVisible();
+    const link = screen.getByRole("link", { name: "Kategoriler" });
+    link.addEventListener("click", (e) => e.preventDefault());
+    await userEvent.setup().click(link);
+    expect(screen.getByText("Kategori vitrini")).toBeVisible();
+    expect(screen.getByText("Açık alım talepleri")).not.toBeVisible();
   });
 });

@@ -32,3 +32,17 @@ describe("sözleşme sayfaları", () => {
     expect(src).toContain('description: t("metaDesc")');
   });
 });
+
+describe("LegalDoc kabuğu (arayüz testi O-119)", () => {
+  const src = readFileSync(path.resolve(__dirname, "../legal-doc.tsx"), "utf8");
+
+  it("site kabuğuyla (üst çubuk + altbilgi) çizilir, kayda özel geri bağlantısı yok", () => {
+    expect(src).toContain("<PublicLayout>");
+    expect(src).not.toContain('href="/company/kayit"');
+  });
+
+  it("numaralı başlıklar `madde-N` çapası, e-postalar mailto bağlantısı taşır", () => {
+    expect(src).toContain("madde-${n}");
+    expect(src).toContain("mailto:${part}");
+  });
+});

@@ -7,6 +7,7 @@ import { breadcrumbNode, faqNode, graph } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
 
 /**
  * SIK SORULAN SORULAR (2026-09-09, Parça 4: GEO).
@@ -76,14 +77,25 @@ export default async function Page({ params }: { params: LocaleParams }) {
             <h2 className="text-sm font-semibold tracking-wide text-zinc-500 uppercase">
               {group.heading}
             </h2>
-            <dl className="mt-4 divide-y divide-zinc-950/5 border-y border-zinc-950/5">
+            {/* AKORDEON (arayüz testi D-338): 13 cevap hep açıktı. Yerel
+                `<details>` — JS'siz, sunucu bileşeninde çalışır; cevap metni
+                kapalıyken de HTML'de durur (arama motoru ve FAQPage şeması
+                aynı metni görür), tarayıcının sayfa içi araması kapalı
+                cevabı bulup açar. */}
+            <div className="mt-4 divide-y divide-zinc-950/5 border-y border-zinc-950/5">
               {group.items.map((item) => (
-                <div key={item.q} className="py-5">
-                  <dt className="text-base font-semibold text-zinc-950">{item.q}</dt>
-                  <dd className="mt-2 text-sm/6 text-zinc-600">{item.a}</dd>
-                </div>
+                <details key={item.q} className="group py-1">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md py-4 text-base font-semibold text-zinc-950 [&::-webkit-details-marker]:hidden">
+                    <span>{item.q}</span>
+                    <ChevronDownIcon
+                      aria-hidden="true"
+                      className="size-5 shrink-0 text-zinc-500 transition group-open:rotate-180 motion-reduce:transition-none"
+                    />
+                  </summary>
+                  <p className="pb-5 text-sm/6 text-zinc-600">{item.a}</p>
+                </details>
               ))}
-            </dl>
+            </div>
           </section>
         ))}
 

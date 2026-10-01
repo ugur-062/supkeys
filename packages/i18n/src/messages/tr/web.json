@@ -224,7 +224,6 @@
       }
     },
     "legal": {
-      "backToSignup": "← Kayıt ekranına dön",
       "lastUpdated": "Son güncelleme: {date}",
       "notice": "Bu metin yalnız Türkçe yayımlanır; uyuşmazlık hâlinde Türkçe metin esastır.",
       "kullanici": {
@@ -391,7 +390,7 @@
         "amountA": "12.500 ₺",
         "amountB": "11.900 ₺",
         "amountC": "13.200 ₺",
-        "buy": "Al",
+        "buy": "Satın al",
         "note": "Tedarikçiler birbirinin teklifini görmez."
       },
       "showcase": {

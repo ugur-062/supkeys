@@ -4,6 +4,8 @@ import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import { usePricingPlans } from "@/lib/pricing/use-plans";
+import { formatUsd } from "@/lib/pricing/plans";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import {
   Disclosure,
   DisclosureButton,
@@ -47,7 +49,7 @@ import {
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { signupHref } from "@/lib/public/visibility";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -58,6 +60,12 @@ import { useEffect, useRef, useState } from "react";
  * METİN KATALOGDA (i18n Faz 1): `web.marketing.howItWorks.*`. Önizleme
  * kartlarındaki örnek veriler (firma adları, tutarlar, tarihler) de dile
  * göre değişir — İngilizce sayfada Türkçe sahte panel görünmesin.
+ *
+ * ÖNİZLEME KARTLARI MAKETTİR (arayüz testi D-340): içlerindeki "düğmeler"
+ * tıklanmaz, sahte firma adları ve tutarlar gövde metni değildir. Her kartın
+ * kökü `aria-hidden` — ekran okuyucu kartın altındaki başlık + açıklamayı
+ * okur, maketin içini değil. Dar ekranda (390 px) satırlar sarar/kırpılır,
+ * kart dışına taşmaz (arayüz testi D-063).
  */
 
 /* Mockup (2026-09-18): üç kart, ortadaki Silver "En popüler" (mavi çerçeve
@@ -116,7 +124,7 @@ function ListingWizardPreview() {
   // Mockup (2026-09-18): kart başlığı ikon rozetli, sağda adım sayacı;
   // seçili seçenekler mavi çerçeve — Yurtiçi'nde BAYRAK YOK (kullanıcı).
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -127,7 +135,7 @@ function ListingWizardPreview() {
             <div className="text-xs text-zinc-500">{t("steps")}</div>
           </div>
         </div>
-        <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">{t("counter")}</span>
+        <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-zinc-600">{t("counter")}</span>
       </div>
       <div className="mt-5 space-y-4">
         <div>
@@ -172,7 +180,7 @@ function BidsPreview() {
     { n: t("firmC"), a: t("amountC"), best: false },
   ];
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center gap-3 border-b border-zinc-100 bg-blue-50/50 px-6 py-4">
         <span className="flex size-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
           <ShoppingCartIcon className="size-6" />
@@ -183,9 +191,9 @@ function BidsPreview() {
         </div>
       </div>
       <div className="p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-semibold text-zinc-900">{t("incoming")}</div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
+          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs whitespace-nowrap text-zinc-600">
             <LockClosedIcon className="size-3.5" /> {t("sealed")}
           </span>
         </div>
@@ -193,25 +201,25 @@ function BidsPreview() {
           {bids.map((b) => (
             <div
               key={b.n}
-              className={`flex items-center justify-between rounded-xl border px-3 py-3 ${
+              className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-3 ${
                 b.best ? "border-emerald-300 bg-emerald-50" : "border-zinc-200"
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <span className={`flex size-8 items-center justify-center rounded-lg ${b.best ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={`hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex ${b.best ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
                   {b.best ? <TrophyIcon className="size-4" /> : <BuildingOfficeIcon className="size-4" />}
                 </span>
                 {b.best ? (
-                  <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-[11px] font-semibold text-white">{t("best")}</span>
+                  <span className="shrink-0 rounded bg-emerald-700 px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-white">{t("best")}</span>
                 ) : null}
-                <span className="text-sm font-medium text-zinc-800">{b.n}</span>
+                <span className="truncate text-sm font-medium text-zinc-800">{b.n}</span>
               </div>
-              <div className="flex items-center gap-2.5">
-                <span className="text-sm font-semibold tabular-nums text-zinc-900">{b.a}</span>
+              <div className="flex shrink-0 items-center gap-2.5">
+                <span className="text-sm font-semibold whitespace-nowrap tabular-nums text-zinc-900">{b.a}</span>
                 {b.best ? (
-                  <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">{t("buy")}</span>
+                  <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold whitespace-nowrap text-emerald-700">{t("buy")}</span>
                 ) : null}
-                <ChevronRightIcon className="size-4 text-zinc-400" />
+                <ChevronRightIcon className="hidden size-4 text-zinc-400 sm:block" />
               </div>
             </div>
           ))}
@@ -233,7 +241,7 @@ function ShowcasePreview() {
     { n: t("buyerY"), t: t("inquiryY"), when: t("agoY"), fresh: true },
   ];
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center gap-3 border-b border-zinc-100 bg-emerald-50/50 px-6 py-4">
         <span className="flex size-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
           <BuildingStorefrontIcon className="size-6" />
@@ -244,41 +252,42 @@ function ShowcasePreview() {
         </div>
       </div>
       <div className="p-6">
-        <div className="flex gap-4">
+        {/* Dar ekranda fiyat/min. sipariş kutuları görselin ALTINA, tam
+            genişliğe iner; sm+ görselin yanında (eskiden 390 px'te kutular
+            görselin yanında sıkışıp kelime kelime kırılıyordu). */}
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
           {/* Ürün görseli: CC0 kategori fotoğrafı (metal blok — 11000000). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/categories/11000000.webp" alt="" className="size-28 shrink-0 rounded-xl object-cover ring-1 ring-zinc-950/5" />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{t("product")}</div>
-                <div className="text-sm font-semibold text-zinc-900">{t("productName")}</div>
-              </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                <span className="size-1.5 rounded-full bg-emerald-500" /> {t("live")}
-              </span>
+          <img src="/categories/11000000.webp" alt="" className="size-20 rounded-xl object-cover ring-1 ring-zinc-950/5 sm:row-span-2 sm:size-28" />
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{t("product")}</div>
+              <div className="text-sm font-semibold text-zinc-900">{t("productName")}</div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 ring-1 ring-zinc-100">
-                <CircleStackIcon className="size-5 text-zinc-500" />
-                <div>
-                  <div className="text-[11px] text-zinc-500">{t("price")}</div>
-                  <div className="text-sm font-semibold tabular-nums text-zinc-900">{t("priceValue")}</div>
-                </div>
+            <span className="inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" /> <span className="truncate">{t("live")}</span>
+            </span>
+          </div>
+          <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-1 sm:col-start-2">
+            <div className="flex min-w-0 items-center gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 ring-1 ring-zinc-100">
+              <CircleStackIcon className="size-5 shrink-0 text-zinc-500" />
+              <div className="min-w-0">
+                <div className="truncate text-[11px] text-zinc-500">{t("price")}</div>
+                <div className="text-sm font-semibold whitespace-nowrap tabular-nums text-zinc-900">{t("priceValue")}</div>
               </div>
-              <div className="flex items-center gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 ring-1 ring-zinc-100">
-                <CubeIcon className="size-5 text-zinc-500" />
-                <div>
-                  <div className="text-[11px] text-zinc-500">{t("moq")}</div>
-                  <div className="text-sm font-semibold tabular-nums text-zinc-900">{t("moqValue")}</div>
-                </div>
+            </div>
+            <div className="flex min-w-0 items-center gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 ring-1 ring-zinc-100">
+              <CubeIcon className="size-5 shrink-0 text-zinc-500" />
+              <div className="min-w-0">
+                <div className="truncate text-[11px] text-zinc-500">{t("moq")}</div>
+                <div className="text-sm font-semibold whitespace-nowrap tabular-nums text-zinc-900">{t("moqValue")}</div>
               </div>
             </div>
           </div>
         </div>
-        <div className="mt-5 flex items-center justify-between">
-          <div className="text-sm font-semibold text-zinc-900">{t("inquiries")}</div>
-          <span className="text-xs font-medium text-emerald-700">{t("seeAll")}</span>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <div className="min-w-0 text-sm font-semibold text-zinc-900">{t("inquiries")}</div>
+          <span className="shrink-0 text-xs font-medium whitespace-nowrap text-emerald-700">{t("seeAll")}</span>
         </div>
         <div className="mt-2 space-y-2">
           {inquiries.map((q) => (
@@ -293,12 +302,12 @@ function ShowcasePreview() {
                   <BuildingOfficeIcon className="size-4" />
                 </span>
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-zinc-900">{q.n}</div>
+                  <div className="truncate text-xs font-semibold text-zinc-900">{q.n}</div>
                   <div className="truncate text-xs text-zinc-500">{q.t}</div>
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <span className="text-xs text-zinc-500">{q.when}</span>
+                <span className="hidden text-xs whitespace-nowrap text-zinc-500 sm:inline">{q.when}</span>
                 {q.fresh ? (
                   <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">
                     <ChatBubbleLeftIcon className="size-3.5" /> {t("reply")}
@@ -323,7 +332,7 @@ function OrderTimelinePreview() {
     { t: t("completed"), d: "—", state: "todo" },
   ];
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -379,7 +388,7 @@ function DiscoverPreview() {
     { n: t("firm3"), s: t("firm3Sub"), m: 1 },
   ];
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -426,7 +435,7 @@ function ConnectionsPreview() {
     { n: t("prospects"), icon: UserPlusIcon },
   ];
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center gap-3">
         <span className="flex size-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
           <UsersIcon className="size-6" />
@@ -467,7 +476,7 @@ function PublicProfilePreview() {
   ];
   const tags = [t("tag1"), t("tag2"), t("tag3"), t("tag4")];
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10">
       <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-4 py-3">
         <span className="size-3 rounded-full bg-red-400" />
         <span className="size-3 rounded-full bg-amber-400" />
@@ -519,7 +528,7 @@ function SignupPreview() {
   // çipleri (Yönetici seçili, mavi), mavi "Davet Gönder".
   const roles = [t("roleAdmin"), t("roleBuy"), t("roleSell"), t("roleApprover")];
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+    <div aria-hidden="true" className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center gap-3">
         <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
           <UserPlusIcon className="size-6" />
@@ -642,7 +651,7 @@ function FormatCard({
 }) {
   return (
     <div className="flex flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
-      <div className="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-100">{children}</div>
+      <div aria-hidden="true" className="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-100">{children}</div>
       <span className={`mt-5 inline-flex w-fit rounded-lg px-2.5 py-1 text-xs font-semibold ${TONE_BADGE[tagTone]}`}>{tag}</span>
       <h3 className="mt-3 text-xl font-bold text-zinc-950">{title}</h3>
       <p className="mt-1.5 text-sm/6 text-zinc-600">{body}</p>
@@ -717,6 +726,7 @@ const HERO_STEP_TONES = ["bg-blue-50 text-blue-700", "bg-emerald-50 text-emerald
 
 export default function HomePage() {
   const t = useTranslations("web.marketing.howItWorks");
+  const locale = useLocale();
   const { plans, note } = usePricingPlans();
   const pricingTiers = plans.map((p) => ({
     slug: p.slug,
@@ -780,8 +790,10 @@ export default function HomePage() {
             {t("hero.lead")}
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+            {/* Yayın anahtarı kapalıyken `/urunler` 404 — alıcı CTA'sı kayda
+                gider (arayüz testi O-004). */}
             <Link
-              href="/urunler"
+              href={MARKETPLACE_LIVE ? "/urunler" : signupHref()}
               className="rounded-lg bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               {t("hero.ctaBuyer")}
@@ -1091,7 +1103,7 @@ export default function HomePage() {
                     <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">{t("plans.free")}</span>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">${tier.price}</span>
+                      <span className="text-4xl font-bold tracking-tight whitespace-nowrap text-zinc-950 sm:text-5xl">{formatUsd(tier.price, locale)}</span>
                       <span className="text-base text-zinc-500">{t("plans.perMonth")}</span>
                     </>
                   )}

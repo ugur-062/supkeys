@@ -1,6 +1,6 @@
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import type { CompanyTier } from "@/lib/company-auth/types";
-import { formatNumber } from "@/i18n/format";
+import { formatNumber, intlLocale } from "@/i18n/format";
 
 /**
  * PAKET KATALOĞU — TEK KAYNAK (2026-09-15).
@@ -99,7 +99,15 @@ export function planByTier(tier: CompanyTier): PricingPlan {
   return PRICING_PLANS.find((p) => p.tier === tier) ?? PRICING_PLANS[0]!;
 }
 
-/** "$1.920" (TR) / "$1,920" (EN) — arayüz dilinin binlik ayracı, USD. */
+/**
+ * "$1.920" (TR) / "$1,920" (EN) / "1 920 $" (RU) — USD, arayüz dilinin yerel
+ * biçimiyle: binlik ayracı da simgenin yeri de dile göre. Sabit `$${n}`
+ * şablonu Rusçada "$160" basıyordu (arayüz testi D-078). Simge yeri ELLE
+ * (Intl `currency` biçimi değil): sayfa sunucuda da çizilir, sunucu/tarayıcı
+ * ICU boşluk farkı hidrasyon uyuşmazlığı üretmesin (bkz. `i18n/format.ts`).
+ */
+const USD_SUFFIX_LOCALES = new Set(["ru-RU"]);
 export function formatUsd(amount: number, locale: string): string {
-  return `$${formatNumber(amount, locale)}`;
+  const n = formatNumber(amount, locale, { maximumFractionDigits: 2 });
+  return USD_SUFFIX_LOCALES.has(intlLocale(locale)) ? `${n}\u00a0$` : `$${n}`;
 }

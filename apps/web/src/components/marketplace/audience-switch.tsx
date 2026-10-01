@@ -4,7 +4,16 @@ import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 /**
  * ALICIYIM / TEDARİKÇİYİM — anasayfanın yüzünü seçen anahtar (kullanıcı
@@ -76,14 +85,73 @@ const Ctx = createContext<{
   setAudience: () => {},
 });
 
+/**
+ * YALNIZ ALICI YÜZÜNDE DURAN ÇAPALAR. Altbilgi ve boş durum "Kategoriler"i
+ * `/#kategoriler`e gönderir; vitrin alıcı yüzünde olduğu için varsayılan
+ * (tedarikçi) yüzde hedef `hidden` kalıyor ve hiçbir yere kaymıyordu (arayüz
+ * testi O-118). Böyle bir çapayla gelinince yüz alıcıya geçer (kayıtlı tercih
+ * DEĞİŞMEZ — ziyaretçinin seçimi değil, bağlantının hedefi) ve hedef
+ * görünür olduktan sonra kaydırılır.
+ */
+const BUYER_ANCHORS = new Set(["kategoriler"]);
+function buyerAnchor(hash: string): string | null {
+  const id = decodeURIComponent(hash.replace(/^#/, ""));
+  return BUYER_ANCHORS.has(id) ? id : null;
+}
+
 export function AudienceProvider({ children }: { children: ReactNode }) {
   const [audience, set] = useState<Audience>(DEFAULT_AUDIENCE);
+  const [scrollTo, setScrollTo] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
-    const saved = readSavedAudience();
-    set(saved);
-    publishAudience(saved);
+    const anchor = buyerAnchor(window.location.hash);
+    const initial = anchor ? "buyer" : readSavedAudience();
+    set(initial);
+    publishAudience(initial);
+    if (anchor) setScrollTo({ id: anchor });
+
+    const goTo = (id: string) => {
+      set("buyer");
+      publishAudience("buyer");
+      setScrollTo({ id });
+    };
+    const onHash = () => {
+      const id = buyerAnchor(window.location.hash);
+      if (id) goTo(id);
+    };
+    /* Aynı sayfadaki `/#kategoriler` bağlantısı istemci yönlendiricisiyle
+       (pushState) gider ve `hashchange` ATEŞLENMEZ — tıklama yakalanır. */
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a");
+      if (!a?.href) return;
+      let url: URL;
+      try {
+        url = new URL(a.href, window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) return;
+      const id = buyerAnchor(url.hash);
+      if (id) goTo(id);
+    };
+    window.addEventListener("hashchange", onHash);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      document.removeEventListener("click", onClick, true);
+    };
   }, []);
+
+  // Hedef ancak alıcı yüzü çizildikten sonra görünür; tarayıcının kendi çapa
+  // kaydırması gizli öğede boşa düşer, burada açıkça kaydırılır.
+  useEffect(() => {
+    if (!scrollTo || audience !== "buyer") return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(scrollTo.id)?.scrollIntoView?.({ block: "start" });
+      setScrollTo(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [scrollTo, audience]);
 
   const setAudience = (a: Audience) => {
     set(a);
@@ -128,6 +196,21 @@ export function AudienceSwitch({ className }: { className?: string }) {
       on: "bg-white text-blue-700 shadow-sm",
     },
   ];
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  /* RADYO KALIBI (arayüz testi D-313): grup TEK sekme durağıdır (seçili olan);
+     ok tuşları seçimi kaydırır ve odağı taşır, Home/End uçlara gider. */
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const last = OPTIONS.length - 1;
+    let next: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = index === last ? 0 : index + 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = index === 0 ? last : index - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    if (next === null) return;
+    e.preventDefault();
+    setAudience(OPTIONS[next]!.key);
+    refs.current[next]?.focus();
+  };
   return (
     <div
       role="radiogroup"
@@ -141,16 +224,21 @@ export function AudienceSwitch({ className }: { className?: string }) {
         className,
       )}
     >
-      {OPTIONS.map((o) => {
+      {OPTIONS.map((o, i) => {
         const on = o.key === audience;
         return (
           <button
             key={o.key}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={on}
+            tabIndex={on ? 0 : -1}
             title={o.hint}
             onClick={() => setAudience(o.key)}
+            onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
               "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition",
               on ? o.on : "text-zinc-600 hover:text-zinc-950",

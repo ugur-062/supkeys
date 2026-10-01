@@ -1,11 +1,12 @@
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { getLocale, getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
+import { PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
 import { formatDate } from "@/lib/format-date";
 import { localizePath } from "@/i18n/href";
 import { SITE_ID, breadcrumbNode, graph } from "@/lib/seo/jsonld";
 import { absoluteUrl } from "@/lib/seo/meta";
+import type { ReactNode } from "react";
 
 export interface LegalSection {
   heading?: string;
@@ -20,9 +21,38 @@ export interface LegalSection {
  *
  * SÖZLEŞME METİNLERİ YALNIZ TÜRKÇE (i18n Faz 1, docs/plan-i18n.md): hukuki
  * metin çevrilmez; İngilizce/Rusça sayfada üstte "Türkçe metin esastır" notu
- * çıkar, gövde ve `inLanguage` Türkçe kalır. Yalnız kabuk (geri bağlantısı,
- * güncelleme tarihi, kırıntı) çevrilir.
+ * çıkar, gövde ve `inLanguage` Türkçe kalır. Yalnız kabuk (güncelleme
+ * tarihi, kırıntı) çevrilir.
+ *
+ * SİTE KABUĞU İÇİNDE (arayüz testi O-119): eskiden üst çubuk/altbilgi yoktu ve
+ * tek çıkış "Kayıt ekranına dön"dü — altbilgiden gelen ziyaretçi çıkmaz
+ * sokakta kalıyor, kayıt formundan yeni sekmede açılınca ikinci bir kayıt
+ * sekmesi doğuyordu. Artık `PublicLayout` (logo, menü, altbilgi) sarar; kayda
+ * özel geri bağlantısı KALKTI. Numaralı başlıklar `#madde-N` çapası taşır,
+ * metindeki e-posta adresleri tıklanabilir.
  */
+const EMAIL_RE = /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g;
+
+/** Düz metindeki e-posta adreslerini `mailto:` bağlantısına çevirir. */
+function withMailto(text: string): ReactNode {
+  const parts = text.split(EMAIL_RE);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <a key={i} href={`mailto:${part}`} className="text-blue-700 underline hover:text-blue-800">
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
+/** "3. Aktivasyon Sonrası" → `madde-3`; numarasız başlık → `bolum-<sıra>`. */
+function sectionId(heading: string, index: number): string {
+  const n = heading.match(/^\s*(\d+)[.)]/)?.[1];
+  return n ? `madde-${n}` : `bolum-${index + 1}`;
+}
 export async function LegalDoc({
   title,
   updatedAt,
@@ -41,67 +71,63 @@ export async function LegalDoc({
   const t = await getTranslations("web.marketing.legal");
   const tm = await getTranslations("web.marketing");
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12">
-      {path ? (
-        <JsonLd
-          data={graph([
-            // Sayfa düğümü BU sayfanın adresi (dilin ön ekiyle; eskiden EN/RU
-            // sayfada Türkçe adres yazıyordu). Gövde Türkçe → `inLanguage`
-            // tr-TR; kanonik ise Türkçe sürüm (`LEGAL_DOC_LOCALES`, metada).
-            {
-              "@type": "WebPage",
-              "@id": absoluteUrl(localizePath(path, locale as Locale)),
-              url: absoluteUrl(localizePath(path, locale as Locale)),
-              name: title,
-              inLanguage: "tr-TR",
-              isPartOf: { "@id": SITE_ID() },
-            },
-            breadcrumbNode(
-              [
-                { name: tm("breadcrumbHome"), path: "/" },
-                { name: title, path },
-              ],
-              locale,
-            ),
-          ])}
-        />
-      ) : null}
-      <Link
-        href="/company/kayit"
-        className="text-sm text-zinc-500 hover:text-zinc-900"
-      >
-        {t("backToSignup")}
-      </Link>
-      {locale !== DEFAULT_LOCALE ? (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" lang={locale}>
-          {t("notice")}
-        </p>
-      ) : null}
-      <h1 className="mt-4 text-2xl font-bold text-zinc-900" lang="tr">{title}</h1>
-      <p className="mt-1 text-xs text-zinc-400">{t("lastUpdated", { date: formatDate(updatedAt, "long", locale) })}</p>
-      <div className="mt-6 space-y-6 text-sm leading-relaxed text-zinc-700" lang="tr">
-        {sections.map((s, i) => (
-          <section key={i}>
-            {s.heading ? (
-              <h2 className="mb-2 text-base font-semibold text-zinc-900">
-                {s.heading}
-              </h2>
-            ) : null}
-            <div className="space-y-3">
-              {(s.paragraphs ?? []).map((p, j) => (
-                <p key={j}>{p}</p>
-              ))}
-              {s.list ? (
-                <ul className="list-disc space-y-1.5 pl-5">
-                  {s.list.map((li, j) => (
-                    <li key={j}>{li}</li>
-                  ))}
-                </ul>
+    <PublicLayout>
+      <article className="mx-auto max-w-3xl px-6 pt-28 pb-16">
+        {path ? (
+          <JsonLd
+            data={graph([
+              // Sayfa düğümü BU sayfanın adresi (dilin ön ekiyle; eskiden EN/RU
+              // sayfada Türkçe adres yazıyordu). Gövde Türkçe → `inLanguage`
+              // tr-TR; kanonik ise Türkçe sürüm (`LEGAL_DOC_LOCALES`, metada).
+              {
+                "@type": "WebPage",
+                "@id": absoluteUrl(localizePath(path, locale as Locale)),
+                url: absoluteUrl(localizePath(path, locale as Locale)),
+                name: title,
+                inLanguage: "tr-TR",
+                isPartOf: { "@id": SITE_ID() },
+              },
+              breadcrumbNode(
+                [
+                  { name: tm("breadcrumbHome"), path: "/" },
+                  { name: title, path },
+                ],
+                locale,
+              ),
+            ])}
+          />
+        ) : null}
+        {locale !== DEFAULT_LOCALE ? (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" lang={locale}>
+            {t("notice")}
+          </p>
+        ) : null}
+        <h1 className="text-2xl font-bold text-zinc-900" lang="tr">{title}</h1>
+        <p className="mt-1 text-xs text-zinc-400">{t("lastUpdated", { date: formatDate(updatedAt, "long", locale) })}</p>
+        <div className="mt-6 space-y-6 text-sm leading-relaxed text-zinc-700" lang="tr">
+          {sections.map((s, i) => (
+            <section key={i} id={s.heading ? sectionId(s.heading, i) : undefined} className="scroll-mt-24">
+              {s.heading ? (
+                <h2 className="mb-2 text-base font-semibold text-zinc-900">
+                  {s.heading}
+                </h2>
               ) : null}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+              <div className="space-y-3">
+                {(s.paragraphs ?? []).map((p, j) => (
+                  <p key={j}>{withMailto(p)}</p>
+                ))}
+                {s.list ? (
+                  <ul className="list-disc space-y-1.5 pl-5">
+                    {s.list.map((li, j) => (
+                      <li key={j}>{withMailto(li)}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </section>
+          ))}
+        </div>
+      </article>
+    </PublicLayout>
   );
 }

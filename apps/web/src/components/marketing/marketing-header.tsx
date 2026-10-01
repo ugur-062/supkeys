@@ -7,6 +7,7 @@ import { stripLocale } from "@/i18n/href";
 import { RothernLogo } from "@/components/brand/logo";
 import { Sheet } from "@/components/ui/sheet";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
@@ -65,10 +66,16 @@ const PRICING_HREF = "/nasil-calisir#fiyatlar";
 export function MarketingHeader() {
   const t = useTranslations("web.marketing.nav");
   const tl = useTranslations("web.marketplace.labels");
+  // Yayın anahtarı kapalıyken pazar yeri rotaları 404 döner (geri dönüş
+  // senaryosu) — altbilgi gibi menü de o satırları HİÇ basmaz (arayüz testi O-004).
   const NAV = [
-    { name: tl("products"), href: MARKETPLACE_ROUTES.products },
-    { name: tl("companies"), href: MARKETPLACE_ROUTES.companies },
-    { name: tl("demands"), href: MARKETPLACE_ROUTES.demands },
+    ...(MARKETPLACE_LIVE
+      ? [
+          { name: tl("products"), href: MARKETPLACE_ROUTES.products },
+          { name: tl("companies"), href: MARKETPLACE_ROUTES.companies },
+          { name: tl("demands"), href: MARKETPLACE_ROUTES.demands },
+        ]
+      : []),
     { name: t("howItWorks"), href: "/nasil-calisir" },
     { name: t("pricing"), href: PRICING_HREF },
   ];
@@ -166,6 +173,8 @@ export function MarketingHeader() {
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
+            aria-expanded={menuOpen}
+            aria-haspopup="dialog"
             className="ml-auto inline-flex size-10 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100 lg:hidden"
           >
             <span className="sr-only">{t("openMenu")}</span>
@@ -202,23 +211,27 @@ export function MarketingHeader() {
           </div>
         }
       >
-        <nav
-          className="flex flex-col"
+        {/* Herhangi bir bağlantıya basınca çekmece kapanır — dil seçici DAHİL:
+            o anki dile basmak aynı adrese gider, rota değişmediği için çekmece
+            açık kalıyordu (arayüz testi D-339). */}
+        <div
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("a")) setMenuOpen(false);
           }}
         >
-          {NAV.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="-mx-2 rounded-lg px-2 py-2.5 text-base font-semibold text-zinc-900 hover:bg-zinc-50"
-            >
-              {item.name}
-            </Link>
-          ))}
-        </nav>
-        <LanguageSwitcher variant="inline" className="mt-6 border-t border-zinc-100 pt-4" />
+          <nav aria-label={t("siteMenu")} className="flex flex-col">
+            {NAV.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="-mx-2 rounded-lg px-2 py-2.5 text-base font-semibold text-zinc-900 hover:bg-zinc-50"
+              >
+                {item.name}
+              </Link>
+            ))}
+          </nav>
+          <LanguageSwitcher variant="inline" className="mt-6 border-t border-zinc-100 pt-4" />
+        </div>
       </Sheet>
     </header>
   );

@@ -177,7 +177,8 @@ export function UiGallery() {
 
       <Section title="Tooltip">
         <Tooltip label="Teklifler birbirini görmez">
-          <span className="inline-flex items-center gap-1 text-sm text-zinc-700">
+          {/* Odaklanabilir: ipucu klavyeyle de açılır (arayüz testi D-341). */}
+          <span tabIndex={0} className="inline-flex items-center gap-1 rounded text-sm text-zinc-700">
             <Lock aria-hidden className="size-4" /> Kapalı zarf
           </span>
         </Tooltip>
