@@ -156,7 +156,7 @@ describe("IhaleItemsPanel", () => {
     renderPanel();
 
     expect(
-      await screen.findByText("Bu ilanda kalem tanımlanmamış."),
+      await screen.findByText("Bu talepte kalem tanımlanmamış."),
     ).toBeInTheDocument();
   });
 

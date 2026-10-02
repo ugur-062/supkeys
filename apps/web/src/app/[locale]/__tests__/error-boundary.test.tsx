@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("@/lib/client-error", () => ({ reportClientError: vi.fn() }));
 
 import AppError from "../error";
@@ -15,5 +18,13 @@ describe("segment hata sınırı", () => {
     render(<AppError error={new Error("api down")} reset={() => {}} />);
     const meta = document.head.querySelector('meta[name="robots"]');
     expect(meta?.getAttribute("content")).toBe("noindex");
+  });
+
+  it("Tekrar dene: rotayı sunucudan yeniden ister ve sınırı sıfırlar (arayüz testi O-112)", async () => {
+    const reset = vi.fn();
+    render(<AppError error={new Error("api down")} reset={reset} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /Tekrar dene/i }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(reset).toHaveBeenCalledTimes(1);
   });
 });
