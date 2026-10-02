@@ -155,6 +155,33 @@ describe("SupplierDiscoveryModal — hata ve talep kipi metinleri (arayüz testi
     expect(screen.queryByText("Bu kategorilerde önerilebilecek yeni firma bulunamadı.")).toBeNull();
   });
 
+  it("403 TIER_REQUIRED: hata + Gold CTA'sı; davet akışını anlatan altbilgi yok (webB-04 yeniden doğrulama)", async () => {
+    h.discovery.mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 403,
+        data: { message: "Bu özellik Gold paket gerektirir.", code: "TIER_REQUIRED" },
+      },
+    });
+    render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Gold paket gerektirir");
+    expect(screen.getByRole("link", { name: "Gold'a geç" })).toHaveAttribute("href", "/company/premium");
+    expect(screen.queryByText(/doğrudan talebinize davet edilir/)).toBeNull();
+  });
+
+  it("paket dışı hata: CTA yok, altbilgi yine gizli; başarıda altbilgi görünür", async () => {
+    h.discovery.mockRejectedValueOnce({ isAxiosError: true, response: { status: 500, data: {} } });
+    const { rerender } = render(
+      <SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Öneriler yüklenemedi");
+    expect(screen.queryByRole("link", { name: "Gold'a geç" })).toBeNull();
+    expect(screen.queryByText(/doğrudan talebinize davet edilir/)).toBeNull();
+    rerender(<SupplierDiscoveryModal isOpen={false} onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
+    rerender(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
+    expect(await screen.findByText(/doğrudan talebinize davet edilir/)).toBeInTheDocument();
+  });
+
   it("talepten açılışta giriş ve altbilgi bağlantı akışını anlatmaz", async () => {
     render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
     expect(screen.getByText(/Platformdaki üyeleri doğrudan talebe davet edin/)).toBeInTheDocument();

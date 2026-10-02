@@ -27,7 +27,10 @@ import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { countryDisplayName } from "@/i18n/domain";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { GOLD_HREF } from "@/lib/public/member-gate";
 import { cn } from "@/lib/utils";
+import axios from "axios";
+import { Link } from "@/i18n/navigation";
 import {
   Building2,
   Check,
@@ -105,6 +108,10 @@ export function SupplierDiscoveryModal({
   // Öneri çağrısı hatası (403 paket kilidi dahil) BOŞ SONUÇ DEĞİLDİR — arayüz
   // testi O-058: 403 "önerilebilecek yeni firma bulunamadı" diye gösteriliyordu.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // 403 TIER_REQUIRED (sayfa açıkken Gold düştü / süresi bitti): hata metninin
+  // altında Gold CTA'sı; istemcideki firma verisi bayat olabileceği için karar
+  // sunucunun koduna göre verilir (arayüz testi webB-04 yeniden doğrulama).
+  const [tierLocked, setTierLocked] = useState(false);
   const [invited, setInvited] = useState<Set<string>>(new Set());
   const [inviting, setInviting] = useState<string | null>(null);
 
@@ -129,6 +136,7 @@ export function SupplierDiscoveryModal({
     setTab("platform");
     setCandidates([]);
     setLoadError(null);
+    setTierLocked(false);
     setInvited(new Set());
     setExternalResults([]);
     setSelectedExt(new Set());
@@ -153,11 +161,19 @@ export function SupplierDiscoveryModal({
       })
       .then((rows) => {
         setLoadError(null);
+        setTierLocked(false);
         setCandidates(rows);
       })
       // Hata gövdede kalıcı gösterilir (sunucunun nedeni: paket/izin/ağ);
       // 403 için genel istemci zaten toast atar — ikinci toast yok.
-      .catch((err) => setLoadError(extractErrorMessage(err, tr("onerilerYuklenemediTekrarDeneyin"))));
+      .catch((err) => {
+        setTierLocked(
+          axios.isAxiosError(err) &&
+            err.response?.status === 403 &&
+            (err.response.data as { code?: string } | undefined)?.code === "TIER_REQUIRED",
+        );
+        setLoadError(extractErrorMessage(err, tr("onerilerYuklenemediTekrarDeneyin")));
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, catKey]);
 
@@ -534,9 +550,20 @@ export function SupplierDiscoveryModal({
                 {tr("eslesenFirmalarAraniyor")}
               </div>
             ) : loadError ? (
-              <p role="alert" className="py-10 text-center text-sm text-red-700">
-                {loadError}
-              </p>
+              <div className="flex flex-col items-center gap-3 py-10 text-center">
+                <p role="alert" className="text-sm text-red-700">
+                  {loadError}
+                </p>
+                {tierLocked ? (
+                  <Link
+                    href={GOLD_HREF}
+                    onClick={onClose}
+                    className="text-sm font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-800"
+                  >
+                    {tr("goldaGec")}
+                  </Link>
+                ) : null}
+              </div>
             ) : candidates.length === 0 ? (
               <p className="py-10 text-center text-sm text-zinc-500">
                 {tr("buKategorilerdeOnerilebilecekYeniFirma")}
@@ -629,8 +656,10 @@ export function SupplierDiscoveryModal({
 
           {/* Altbilgi sekmenin GERÇEK akışını anlatır (D-098): talepte üye
               doğrudan davet / web'deki firmaya talebe özel e-posta; talepsiz
-              açılışta platform sekmesi bağlantı daveti gönderir. */}
-          {listingId || tab === "platform" ? (
+              açılışta platform sekmesi bağlantı daveti gönderir. Öneriler
+              yüklenemediyse (paket kilidi dahil) kullanıcının yürütemeyeceği
+              bir davet akışı anlatılmaz. */}
+          {(listingId || tab === "platform") && !(tab === "platform" && loadError) ? (
             <div className="border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3 text-xs text-zinc-500">
               {listingId
                 ? tab === "platform"

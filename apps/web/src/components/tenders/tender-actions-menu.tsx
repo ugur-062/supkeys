@@ -491,6 +491,9 @@ export function TenderActionsMenu({
           className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
         >
           <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />
+          {/* Dar ekranda CTA metnin ALTINA iner (metin tam genişlik kullanır;
+              yan sütunda metin ~125px'e sıkışıyordu — webB-04 yeniden doğrulama).
+              pl-7 = ikon (16px) + gap-x-3 (12px): CTA metinle hizalı. */}
           {/* Doğrulanmamış firmada kazandırma da kapalı (API assertVerified) —
               ortak metin "kazandırma açık kalır" demesin. */}
           <p className="min-w-0 flex-1">
@@ -500,7 +503,7 @@ export function TenderActionsMenu({
           </p>
           <Link
             href={gateHref(buyLock)!}
-            className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+            className="shrink-0 basis-full pl-7 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950 sm:basis-auto sm:pl-0"
           >
             {buyLock === "verify" ? t("onceUcretsizDogrulan") : t("goldaGec")}
           </Link>

@@ -17,7 +17,8 @@
       "openMenu": "Menüyü aç",
       "menu": "Menü",
       "siteMenu": "Site menüsü",
-      "language": "Dil"
+      "language": "Dil",
+      "goToPanel": "Panele git"
     },
     "footer": {
       "marketplace": "Pazar yeri",
@@ -1117,15 +1118,15 @@
       "itemsHeading": "Kalemler ({count})",
       "itemFallback": "Kalem {n}",
       "gateLabel": "Alıcı firma, şartname ve ekli belgeler",
-      "gateHint": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için ücretsiz hesap — 2 dakika, kredi kartı yok.",
-      "gateHintClosed": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek için ücretsiz hesap — 2 dakika, kredi kartı yok.",
+      "gateHint": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek Silver paketiyle açılır (davetli tedarikçiler ücretsiz üyelikte de görür). Kayıt ücretsiz — 2 dakika, kredi kartı yok.",
+      "gateHintClosed": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek Silver paketiyle açılır (davetli tedarikçiler ücretsiz üyelikte de görür).",
       "infoHeading": "Talep bilgileri",
       "membersNote": "Şartname metni, ödeme notu ve ekli belgeler yalnızca kayıtlı firmalara açıktır. Teklifler kapalı zarf esasıyla toplanır — gelen teklifleri yalnızca talep sahibi görür.",
       "buyer": "Alıcı",
       "verifiedBuyer": "Doğrulanmış alıcı",
       "buyerCompany": "Alıcı firma",
       "identityNote": "Firma kimliği yalnız kayıtlı kullanıcılara açıktır.",
-      "signupCta": "Bu talebe teklif vermek için ücretsiz kaydol",
+      "signupCta": "Teklif vermek için kaydol",
       "twoMinutes": "2 dakika · kredi kartı yok",
       "perk1": "Alıcı adı, şartname ve ekli belgeler",
       "perk2": "Kapalı zarf teklif — rakipler görmez",
@@ -1141,7 +1142,8 @@
       "trust3Title": "Komisyon yok",
       "trust3Body": "Platform alım-satım bedelinden pay almaz.",
       "similar": "Benzer açık talepler",
-      "onlyCountriesCanBid": "{n, plural, other {Yalnız {countries} merkezli tedarikçiler teklif verebilir.}}"
+      "onlyCountriesCanBid": "{n, plural, other {Yalnız {countries} merkezli tedarikçiler teklif verebilir.}}",
+      "silverNote": "Kayıt ücretsizdir. Herkese açık taleplere teklif ve alıcı kimliği Silver paketiyle açılır; tek şartı ücretsiz firma doğrulamasıdır."
     },
     "inquiry": {
       "failed": "Talep gönderilemedi",
@@ -1263,6 +1265,19 @@
       "notFound": "Ürün bulunamadı",
       "backToPanel": "Panele dön",
       "directoryRedirect": "Firma dizinine yönlendiriliyor…"
+    },
+    "bidGate": {
+      "title": "Herkese açık taleplere teklif Silver paketiyle verilir",
+      "body": "Ücretsiz üyelikte yalnız bağlantı davetiyle gelen taleplere teklif verebilirsiniz. Herkese açık taleplerin tamamı, alıcı kimliği ve teklif verme Silver paketiyle açılır.",
+      "verifyNote": "Silver paketine geçmenin tek şartı ücretsiz firma doğrulamasıdır.",
+      "verifyCta": "Önce ücretsiz doğrulan",
+      "upgradeCta": "Silver paketine geç",
+      "bidInPanel": "Panelde teklif ver",
+      "openInPanel": "Talebi panelde aç",
+      "invitedInPanel": "Bu talebe davetliyseniz panelde teklif verin",
+      "noPermission": "Teklif vermek için teklif verme yetkisi gerekir.",
+      "compactLocked": "Ayrıntılar ve teklif Silver paketiyle açılır.",
+      "lockedLabel": "{label} · Silver"
     }
   },
   "domain": {
@@ -2011,7 +2026,8 @@
       "sendToNewEmail": "Kodu yeni adrese gönder",
       "cancelChangeEmail": "Vazgeç",
       "changeEmailFailed": "E-posta adresi değiştirilemedi",
-      "accountExistsLogin": "Giriş yapın; e-postanız doğrulanmadıysa yeni kod gönderilir."
+      "accountExistsLogin": "Giriş yapın; e-postanız doğrulanmadıysa yeni kod gönderilir.",
+      "accountExists": "Bu e-posta adresiyle zaten bir hesap var."
     },
     "consents": {
       "terms": "<a>Kullanıcı sözleşmesini</a> okudum ve kabul ediyorum",
@@ -4484,7 +4500,9 @@
         "satisKategorileriniDuzenle": "Satış kategorilerini düzenle",
         "listesi": "{noun} listesi",
         "bilinmeyenAlici": "Alıcı",
-        "gecmisEnYeni200Gosteriliyor": "Geçmiş taleplerin en yeni 200'ü gösteriliyor — daha eski tekliflerinize Tekliflerim'den ulaşabilirsiniz."
+        "gecmisEnYeni200Gosteriliyor": "Geçmiş taleplerin en yeni 200'ü gösteriliyor — daha eski tekliflerinize Tekliflerim'den ulaşabilirsiniz.",
+        "kilitliSonucYok": "Bu aramada size açık talep yok",
+        "kilitliSonucYokAciklama": "Ücretsiz üyelikte yalnız bağlantı davetiyle gelen talepler listelenir. Aradığınız talep herkese açıksa Silver paketiyle görünür; yukarıdaki karttan doğrulamaya ya da paketlere geçebilirsiniz."
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Onaylar yetki gerektirir",

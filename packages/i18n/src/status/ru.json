@@ -9729,6 +9729,46 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.reset.setupDoneBody": {
+    "hash": "bfc1cc1fec",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.reset.setupDoneTitle": {
+    "hash": "75fedb6ede",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.reset.setupHaveAccount": {
+    "hash": "bbe650df8b",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.reset.setupMetaTitle": {
+    "hash": "0d4664fcab",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.reset.setupSubmit": {
+    "hash": "d92448708e",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.reset.setupSubmitting": {
+    "hash": "4422d3482b",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.reset.setupSubtitle": {
+    "hash": "d4b4db79b0",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.reset.setupTitle": {
+    "hash": "24ba4f0949",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.auth.reset.subtitle": {
     "hash": "e72165dfd6",
     "status": "reviewed",
@@ -28253,6 +28293,11 @@
     "hash": "af6697fe08",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.requests.supplierDiscoveryModal.goldaGec": {
+    "hash": "37afcb60e5",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.requests.supplierDiscoveryModal.gonderildi": {
     "hash": "98791819cc",

@@ -17,7 +17,8 @@
       "openMenu": "Open menu",
       "menu": "Menu",
       "siteMenu": "Site menu",
-      "language": "Language"
+      "language": "Language",
+      "goToPanel": "Go to panel"
     },
     "footer": {
       "marketplace": "Marketplace",
@@ -1117,15 +1118,15 @@
       "itemsHeading": "Items ({count})",
       "itemFallback": "Item {n}",
       "gateLabel": "Buyer company, specification and attached documents",
-      "gateHint": "A free account lets you see the buyer's name, the technical specification and attached documents, and submit a quote — 2 minutes, no credit card.",
-      "gateHintClosed": "A free account lets you see the buyer's name, the technical specification and attached documents — 2 minutes, no credit card.",
+      "gateHint": "Seeing the buyer's name, the technical specification and attached documents, and quoting, open with the Silver plan (invited suppliers see them on the free plan too). Signing up is free — 2 minutes, no credit card.",
+      "gateHintClosed": "Seeing the buyer's name, the technical specification and attached documents opens with the Silver plan (invited suppliers see them on the free plan too).",
       "infoHeading": "Request details",
       "membersNote": "The specification text, payment note and attached documents are visible to registered companies only. Quotes are collected as sealed bids — only the request owner sees the quotes received.",
       "buyer": "Buyer",
       "verifiedBuyer": "Verified buyer",
       "buyerCompany": "Buyer company",
       "identityNote": "Company identity is visible to registered users only.",
-      "signupCta": "Sign up free to quote on this request",
+      "signupCta": "Sign up to quote on this request",
       "twoMinutes": "2 minutes · no credit card",
       "perk1": "Buyer name, specification and attached documents",
       "perk2": "Sealed-bid quotes — competitors never see them",
@@ -1141,7 +1142,8 @@
       "trust3Title": "No commission",
       "trust3Body": "The platform takes no share of the transaction value.",
       "similar": "Similar open requests",
-      "onlyCountriesCanBid": "{n, plural, one {Only suppliers based in {countries} can submit quotes.} other {Only suppliers based in {countries} can submit quotes.}}"
+      "onlyCountriesCanBid": "{n, plural, one {Only suppliers based in {countries} can submit quotes.} other {Only suppliers based in {countries} can submit quotes.}}",
+      "silverNote": "Signing up is free. Quoting on public requests and the buyer's identity open with the Silver plan; the only requirement is free company verification."
     },
     "inquiry": {
       "failed": "The inquiry could not be sent",
@@ -1263,6 +1265,19 @@
       "notFound": "Product not found",
       "backToPanel": "Back to panel",
       "directoryRedirect": "Redirecting to the company directory…"
+    },
+    "bidGate": {
+      "title": "Quoting on public requests requires the Silver plan",
+      "body": "On the free plan you can quote only on requests you're invited to through a connection. All public requests, the buyer's identity and quoting open with the Silver plan.",
+      "verifyNote": "The only requirement for the Silver plan is free company verification.",
+      "verifyCta": "Get verified for free first",
+      "upgradeCta": "Upgrade to Silver",
+      "bidInPanel": "Quote in your panel",
+      "openInPanel": "Open the request in your panel",
+      "invitedInPanel": "Invited to this request? Quote in your panel",
+      "noPermission": "Submitting quotes requires the quoting permission.",
+      "compactLocked": "Details and quoting open with the Silver plan.",
+      "lockedLabel": "{label} · Silver"
     }
   },
   "domain": {
@@ -2011,7 +2026,8 @@
       "sendToNewEmail": "Send code to new address",
       "cancelChangeEmail": "Cancel",
       "changeEmailFailed": "Couldn't change the email address",
-      "accountExistsLogin": "Log in; if your email isn't verified yet, we'll send a new code."
+      "accountExistsLogin": "Log in; if your email isn't verified yet, we'll send a new code.",
+      "accountExists": "An account with this email address already exists."
     },
     "consents": {
       "terms": "I have read and accept the <a>user agreement</a>",
@@ -4484,7 +4500,9 @@
         "satisKategorileriniDuzenle": "Edit sales categories",
         "listesi": "{noun} list",
         "bilinmeyenAlici": "Buyer",
-        "gecmisEnYeni200Gosteriliyor": "Showing the 200 most recent past requests — find older quotes under My Quotes."
+        "gecmisEnYeni200Gosteriliyor": "Showing the 200 most recent past requests — find older quotes under My Quotes.",
+        "kilitliSonucYok": "No requests open to you for this search",
+        "kilitliSonucYokAciklama": "On the free plan only requests you're invited to through a connection are listed. If the request you're looking for is public, it becomes visible with the Silver plan; use the card above to get verified or see the plans."
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Approvals require permission",
