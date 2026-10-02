@@ -94,6 +94,7 @@ describe("AudienceProvider — alıcı yüzündeki çapalar (arayüz testi O-118
   function CategoryPage() {
     return (
       <AudienceProvider>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- testin konusu yerel çapa tıklaması; next/link burada router bağlamı ister */}
         <a href="/#kategoriler">Kategoriler</a>
         <AudienceOnly side="buyer">
           <div id="kategoriler">Kategori vitrini</div>

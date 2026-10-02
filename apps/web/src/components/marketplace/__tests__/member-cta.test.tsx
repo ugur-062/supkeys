@@ -18,8 +18,10 @@ function signIn(tier: string | null, status = "VERIFIED", permissions: string[] 
   });
 }
 
+/* eslint-disable @next/next/no-html-link-for-pages -- yalnızca yer tutucu düğümler; MemberCta yalnızca hangisinin çizildiğine bakar */
 const guest = <a href="/company/login">Bilgi iste (misafir)</a>;
 const member = <a href="/company/urun/a/b#bilgi-iste">Bilgi iste (üye)</a>;
+/* eslint-enable @next/next/no-html-link-for-pages */
 
 beforeEach(() => signIn(null));
 

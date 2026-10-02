@@ -384,6 +384,7 @@ describe("ProductsView", () => {
     h.search = new URLSearchParams("yeni=1");
     wrap(
       <>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- kenar çubuğu bağlantısını taklit eden düz çapa; next/link router bağlamı ister */}
         <a href="/company/anasayfa">Anasayfa</a>
         <ProductsView />
       </>,
