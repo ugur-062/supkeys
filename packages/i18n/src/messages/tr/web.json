@@ -4981,6 +4981,7 @@
         "urunAdiZorunlu": "Ürün adı zorunlu",
         "ucretsizPaketTavaniDolduDaha": "Ücretsiz paket tavanı doldu — daha fazla ürün için Silver paketine geçin.",
         "urunTaslakOlarakEklendi": "Ürün taslak olarak eklendi",
+        "eksikKademeKaydedilmedi": "{n, plural, other {# eksik kademe}} kaydedilmedi — miktarı ve 0’dan büyük fiyatı olmayan satırlar formdan çıkarıldı.",
         "kaydedildiIcerikDegisikligiYenidenIncelenece": "Kaydedildi — içerik değişikliği yeniden incelenecek, ürün yayında kalıyor",
         "onayaGonderilemedi": "Onaya gönderilemedi — {reasons}",
         "onayaGonderildiIncelemeBiteneKadar": "Onaya gönderildi — inceleme bitene kadar ürün değiştirilemez, yalnız önizlenir",

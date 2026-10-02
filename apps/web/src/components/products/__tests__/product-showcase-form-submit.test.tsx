@@ -35,7 +35,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => "/company/satis/urunlerim",
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }));
 
 import { toast } from "sonner";
 import { ProductShowcaseForm } from "../product-showcase-form";
@@ -97,6 +97,7 @@ beforeEach(() => {
   h.get.mockResolvedValue({ data: [] });
   vi.mocked(toast.error).mockReset();
   vi.mocked(toast.success).mockReset();
+  vi.mocked(toast.warning).mockReset();
 });
 
 describe("ProductShowcaseForm — yeni ürün 'Onaya gönder'", () => {
@@ -388,5 +389,47 @@ describe("ProductShowcaseForm — arşivle (arayüz testi O-039)", () => {
     expect(h.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Ürün arşivlensin mi?" }));
     expect(h.patch).toHaveBeenCalledWith("/company/items/p1/active", { isActive: false });
     expect(toast.success).toHaveBeenCalledWith("Ürün arşivlendi");
+  });
+});
+
+// Arayüz testi D-050 (yeniden doğrulama): eksik kademe gönderilmez; form sunucu
+// kopyasından yeniden kurulunca satır kaybolur — kayıt bunu AÇIKÇA söyler.
+describe("ProductShowcaseForm — eksik kademe taslak kaydında", () => {
+  const draftSave = async (priceTiers: { minQty: number; unitPrice: number }[]) => {
+    h.post.mockResolvedValue({ data: { ...EMPTY, id: "p9", name: "Vida" } });
+    const user = userEvent.setup();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const onCreated = vi.fn();
+    render(
+      <QueryClientProvider client={qc}>
+        <ProductShowcaseForm
+          mode="new"
+          product={{ ...EMPTY, name: "Vida", priceMode: "TIERED", priceTiers }}
+          unit="adet"
+          onClose={vi.fn()}
+          onCreated={onCreated}
+        />
+      </QueryClientProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Diğer işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Taslak olarak kaydet" }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    return h.post.mock.calls[0]![1] as { priceTiers: unknown[] };
+  };
+
+  it("eksik satır gönderilmez ve uyarı toast'ı kaç kademenin kaydedilmediğini söyler", async () => {
+    const body = await draftSave([
+      { minQty: 100, unitPrice: 12.5 },
+      { minQty: 200, unitPrice: Number.NaN },
+    ]);
+    expect(body.priceTiers).toEqual([{ minQty: 100, unitPrice: 12.5 }]);
+    expect(toast.success).toHaveBeenCalledWith("Ürün taslak olarak eklendi");
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("1 eksik kademe kaydedilmedi"));
+  });
+
+  it("tüm kademeler tamamsa uyarı yok", async () => {
+    const body = await draftSave([{ minQty: 100, unitPrice: 12.5 }]);
+    expect(body.priceTiers).toHaveLength(1);
+    expect(toast.warning).not.toHaveBeenCalled();
   });
 });

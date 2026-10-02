@@ -462,6 +462,7 @@ export function ProductShowcaseForm({
       return;
     }
     if (thenSubmit && submitBlocked) return;
+    const droppedTiers = priceMode === "TIERED" ? priceTiers.length - patch.priceTiers.length : 0;
     try {
       // Yeni üründe kayıt TEK çağrıyla oluşur (create+vitrin); sonrasında
       // düzenleme moduna geçeriz — kullanıcı için bu tek bir "kaydet".
@@ -469,6 +470,10 @@ export function ProductShowcaseForm({
         ? await create.mutateAsync({ ...patch, unit })
         : await save.mutateAsync({ id: product.id, patch });
       initial.current = JSON.stringify(patch);
+      // Eksik kademe gönderilmedi; form sunucu kopyasından yeniden kurulunca
+      // satır kaybolur — sessizce değil, açıkça söylenir (arayüz testi D-050,
+      // yeniden doğrulama).
+      if (droppedTiers > 0) toast.warning(t("eksikKademeKaydedilmedi", { n: droppedTiers }));
       if (!thenSubmit) {
         if (isNew) onCreated?.(saved);
         else onSaved?.(saved);

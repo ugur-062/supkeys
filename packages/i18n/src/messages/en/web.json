@@ -4981,6 +4981,7 @@
         "urunAdiZorunlu": "Product name is required",
         "ucretsizPaketTavaniDolduDaha": "Free plan limit reached — switch to the Silver plan for more products.",
         "urunTaslakOlarakEklendi": "Product added as a draft",
+        "eksikKademeKaydedilmedi": "{n, plural, one {# incomplete tier was} other {# incomplete tiers were}} not saved — rows without a quantity and a price above 0 were removed from the form.",
         "kaydedildiIcerikDegisikligiYenidenIncelenece": "Saved — the content change will be reviewed again; the product stays published",
         "onayaGonderilemedi": "Could not submit for review — {reasons}",
         "onayaGonderildiIncelemeBiteneKadar": "Submitted for approval — the product cannot be edited until the review is complete; preview only",
