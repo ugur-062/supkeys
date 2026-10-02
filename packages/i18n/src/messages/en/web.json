@@ -3607,7 +3607,8 @@
         "kapandiTeklif": "Closed",
         "markaParcaNo": "Brand / Part no.: {value}",
         "isaretliAlanlariDuzeltin": "Fix the highlighted fields before saving",
-        "siparisReddedildi": "Order rejected"
+        "siparisReddedildi": "Order rejected",
+        "tryKarsiligiTitle": "TRY equivalent at the bid’s exchange rate"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -6204,6 +6205,7 @@
         "eklenenIzinler": "permissions added: {list}",
         "kaldirilanIzinler": "permissions removed: {list}",
         "yeniIzinler": "permissions: {list}",
+        "koltukSecimi": "seat limit: {limit} · seats kept: {kept} · trading permissions removed: {dropped, plural, one {# person} other {# people}}",
         "reason": {
           "not_admin_grant": "Role assignment attempted without manager permission",
           "not_admin": "Unauthorized attempt to change a manager's role",
@@ -6525,6 +6527,7 @@
         "sizeIstekGonderdiYanitla": "Sent you a request — Reply",
         "baglantiIstegiGonder": "Send connection request",
         "baglantiIcinSilver": "Upgrade to Silver to connect",
+        "baglantiIcinOnceDogrulanin": "Get verified first to connect",
         "dahaFazla": "More",
         "baglantiyiKaldir": "Remove connection",
         "engelle": "Block",
@@ -7062,7 +7065,8 @@
         "enZayif": "Weakest: {title} ({pct}%)",
         "paraBirimiTalep": "Currency (request)",
         "yuzde": "{n}%",
-        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Amounts are totaled as the TRY equivalent at the CBRT rate at the time of the quote; line item detail is also the TRY equivalent.} other {Amounts are converted to TRY at the CBRT rate at the time of the quote, then to {currency} at the current rate and totaled; line item detail is also in {currency}.}}"
+        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Amounts are totaled as the TRY equivalent at the CBRT rate at the time of the quote; line item detail is also the TRY equivalent.} other {Amounts are converted to TRY at the CBRT rate at the time of the quote, then to {currency} at the current rate and totaled; line item detail is also in {currency}.}}",
+        "raporIcinTarihAraligiSecin": "Select a start and end date to generate the report."
       },
       "reportsSummaryCharts": {
         "performansOzeti": "Performance summary",

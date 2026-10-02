@@ -123,3 +123,19 @@ describe("AktivitePage — Detay sütunu (derin denetim LU-20)", () => {
     expect(screen.queryByText("Diğer işlem")).not.toBeInTheDocument();
   });
 });
+
+// Arayüz testi son tur api-2: koltuk seçimi satırı toast/kullanıcılar
+// sayfasıyla aynı adı taşır ve Detay'da sınır/kalan/kaldırılan özeti yazar.
+describe("AktivitePage — koltuk seçimi satırı", () => {
+  it("'Koltuk seçimi uygulandı' + sınır/kalan/kaldırılan özeti", () => {
+    h.items = [
+      row("company.seats.selection_applied", { limit: 2, keptCount: 2, droppedCount: 1 }),
+    ];
+    render(<AktivitePage />);
+    expect(screen.getAllByText("Koltuk seçimi uygulandı").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("koltuk sınırı: 2 · kalan koltuk: 2 · işlem yetkisi kaldırılan: 1 kişi")
+        .length,
+    ).toBeGreaterThan(0);
+  });
+});

@@ -1527,7 +1527,7 @@
       "company_user_permissions_overridden": "Kullanıcı izinleri düzenlendi",
       "company_user_role_change_denied": "Rol değişikliği reddedildi (yetkisiz deneme)",
       "company_user_last_admin_denied": "Son yönetici kaldırılamaz (engellendi)",
-      "company_seats_selection_applied": "Kullanıcı hakkı seçimi uygulandı",
+      "company_seats_selection_applied": "Koltuk seçimi uygulandı",
       "company_bank_account_created": "Banka hesabı eklendi",
       "company_bank_account_updated": "Banka hesabı güncellendi (IBAN maskeli)",
       "company_bank_account_deleted": "Banka hesabı silindi",
@@ -3607,7 +3607,8 @@
         "kapandiTeklif": "Kapandı",
         "markaParcaNo": "Marka / Parça no: {value}",
         "isaretliAlanlariDuzeltin": "Kaydetmeden önce işaretli alanları düzeltin",
-        "siparisReddedildi": "Sipariş reddedildi"
+        "siparisReddedildi": "Sipariş reddedildi",
+        "tryKarsiligiTitle": "Teklifin kur damgasıyla TRY karşılığı"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -6204,6 +6205,7 @@
         "eklenenIzinler": "eklenen izinler: {list}",
         "kaldirilanIzinler": "kaldırılan izinler: {list}",
         "yeniIzinler": "izinler: {list}",
+        "koltukSecimi": "koltuk sınırı: {limit} · kalan koltuk: {kept} · işlem yetkisi kaldırılan: {dropped} kişi",
         "reason": {
           "not_admin_grant": "Yönetici yetkisi olmadan rol atama denemesi",
           "not_admin": "Yönetici rolüne yetkisiz müdahale denemesi",
@@ -6525,6 +6527,7 @@
         "sizeIstekGonderdiYanitla": "Size istek gönderdi — Yanıtla",
         "baglantiIstegiGonder": "Bağlantı İsteği Gönder",
         "baglantiIcinSilver": "Bağlantı İçin Silver'a Geçin",
+        "baglantiIcinOnceDogrulanin": "Bağlantı İçin Önce Doğrulanın",
         "dahaFazla": "Daha fazla",
         "baglantiyiKaldir": "Bağlantıyı kaldır",
         "engelle": "Engelle",
@@ -7062,7 +7065,8 @@
         "enZayif": "En zayıf: {title} (%{pct})",
         "paraBirimiTalep": "Para Birimi (talep)",
         "yuzde": "%{n}",
-        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak toplanır; kalem detayı da TRY karşılığıdır.} other {Tutarlar teklif anındaki TCMB kuruyla TRY'ye, oradan güncel kurla {currency} karşılığına çevrilip toplanır; kalem detayı da {currency} karşılığıdır.}}"
+        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak toplanır; kalem detayı da TRY karşılığıdır.} other {Tutarlar teklif anındaki TCMB kuruyla TRY'ye, oradan güncel kurla {currency} karşılığına çevrilip toplanır; kalem detayı da {currency} karşılığıdır.}}",
+        "raporIcinTarihAraligiSecin": "Raporu oluşturmak için başlangıç ve bitiş tarihini seçin."
       },
       "reportsSummaryCharts": {
         "performansOzeti": "Performans Özeti",

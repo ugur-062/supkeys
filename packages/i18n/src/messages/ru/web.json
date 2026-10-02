@@ -3607,7 +3607,8 @@
         "kapandiTeklif": "Закрыто",
         "markaParcaNo": "Марка / Артикул: {value}",
         "isaretliAlanlariDuzeltin": "Исправьте отмеченные поля перед сохранением",
-        "siparisReddedildi": "Заказ отклонён"
+        "siparisReddedildi": "Заказ отклонён",
+        "tryKarsiligiTitle": "Эквивалент в TRY по курсу предложения"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "У Вас пока нет контактов. Выберите «Открыта для всех» или пригласите поставщиков из рекомендаций после публикации.",
@@ -6204,6 +6205,7 @@
         "eklenenIzinler": "добавлены права: {list}",
         "kaldirilanIzinler": "сняты права: {list}",
         "yeniIzinler": "права: {list}",
+        "koltukSecimi": "лимит мест: {limit} · оставлено мест: {kept} · сняты права на операции: {dropped, plural, one {# пользователь} few {# пользователя} many {# пользователей} other {# пользователя}}",
         "reason": {
           "not_admin_grant": "Попытка назначить роль без прав руководителя",
           "not_admin": "Попытка без прав изменить роль руководителя",
@@ -6525,6 +6527,7 @@
         "sizeIstekGonderdiYanitla": "Вам отправлен запрос — Ответить",
         "baglantiIstegiGonder": "Отправить запрос на контакт",
         "baglantiIcinSilver": "Перейти на Silver для контакта",
+        "baglantiIcinOnceDogrulanin": "Пройдите проверку для контакта",
         "dahaFazla": "Ещё",
         "baglantiyiKaldir": "Удалить контакт",
         "engelle": "Заблокировать",
@@ -7062,7 +7065,8 @@
         "enZayif": "Худший: {title} ({pct}%)",
         "paraBirimiTalep": "Валюта (запрос)",
         "yuzde": "{n}%",
-        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Суммы суммируются в пересчёте на TRY по курсу ЦБ Турции на момент подачи предложения; детализация по позициям также в TRY.} other {Суммы пересчитываются в TRY по курсу ЦБ Турции на момент подачи предложения, затем в {currency} по текущему курсу и суммируются; детализация по позициям также в {currency}.}}"
+        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Суммы суммируются в пересчёте на TRY по курсу ЦБ Турции на момент подачи предложения; детализация по позициям также в TRY.} other {Суммы пересчитываются в TRY по курсу ЦБ Турции на момент подачи предложения, затем в {currency} по текущему курсу и суммируются; детализация по позициям также в {currency}.}}",
+        "raporIcinTarihAraligiSecin": "Выберите дату начала и окончания, чтобы сформировать отчёт."
       },
       "reportsSummaryCharts": {
         "performansOzeti": "Сводка по эффективности",

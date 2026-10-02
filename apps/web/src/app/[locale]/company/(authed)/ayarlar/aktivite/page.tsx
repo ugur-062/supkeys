@@ -134,6 +134,19 @@ export default function AktivitePage() {
           : t("yeniRoller", { list: after.map(roleLabel).join(", ") || "—" }),
       );
     }
+    // Koltuk seçimi: paket sınırı, kalan koltuk ve işlem yetkisi kaldırılan
+    // kişi sayısı — admin Denetim sekmesiyle aynı özet; Detay boş kalıyordu
+    // (arayüz testi son tur api-2).
+    if (
+      row.action === "company.seats.selection_applied" &&
+      typeof m.limit === "number" &&
+      typeof m.keptCount === "number" &&
+      typeof m.droppedCount === "number"
+    ) {
+      parts.push(
+        t("koltukSecimi", { limit: m.limit, kept: m.keptCount, dropped: m.droppedCount }),
+      );
+    }
     // Red kayıtlarının `reason`'ı makine kodudur ("not_admin_grant") → katalog
     // etiketi; katalogda yoksa serbest metindir (ör. sipariş iptal gerekçesi).
     if (typeof m.reason === "string") {
