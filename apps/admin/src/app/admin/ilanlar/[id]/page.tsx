@@ -13,6 +13,7 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { isNotFoundError, NotFoundState } from "@/components/ui/not-found-state";
 import {
   useAdminListingDetail,
   useListingIntervention,
@@ -41,7 +42,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 
 function ListingInspection({ id }: { id: string }) {
-  const { data: l, isLoading, isError, refetch } = useAdminListingDetail(id);
+  const { data: l, isLoading, isError, error, refetch } = useAdminListingDetail(id);
   const act = useListingIntervention(id);
   const [dialog, setDialog] = useState<"close" | "extend" | "reopen" | null>(
     null,
@@ -59,6 +60,19 @@ function ListingInspection({ id }: { id: string }) {
       <div className="flex items-center justify-center py-24">
         <Loader2 className="text-admin-text-muted h-6 w-6 animate-spin" />
       </div>
+    );
+  }
+  // Var olmayan ilan: "Tekrar dene" yine 404 verir (arayüz testi D-215).
+  // Ayrı liste sayfası yok — ilana firma detayından gelinir; firma
+  // detayını göremeyen rol (Destek) panele döner (T-09).
+  if (isError && isNotFoundError(error)) {
+    return (
+      <NotFoundState
+        title="İlan bulunamadı."
+        message="Bağlantı hatalı olabilir ya da ilan silinmiş olabilir."
+        backHref={canOpenCompany ? "/admin/firmalar" : "/admin/dashboard"}
+        backLabel={canOpenCompany ? "Firmalar listesine dön" : "Panele dön"}
+      />
     );
   }
   if (isError || !l) {

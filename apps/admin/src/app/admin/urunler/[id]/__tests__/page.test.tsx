@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * tıklanabilir (yalnız http(s)), etiketler ham enum değil, fiyat biçimli,
  * göreli görsel vitrin kökeninde, kademe efektif.
  */
-const h = vi.hoisted(() => ({ product: undefined as unknown }));
+const h = vi.hoisted(() => ({ product: undefined as unknown, error: null as unknown }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ id: "p1" }) }));
@@ -17,7 +17,7 @@ vi.mock("@/components/layout/admin-shell", () => ({
 vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ admin: { role: "SUPPORT" } }) }));
 vi.mock("@/lib/api", () => ({ toastApiError: vi.fn() }));
 vi.mock("@/hooks/use-admin-products", () => ({
-  useAdminProductDetail: () => ({ data: h.product, isLoading: false, isError: false, refetch: vi.fn() }),
+  useAdminProductDetail: () => ({ data: h.product, isLoading: false, isError: !!h.error, error: h.error, refetch: vi.fn() }),
   useProductReview: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
@@ -79,6 +79,7 @@ function product(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   h.product = product();
+  h.error = null;
 });
 
 describe("/admin/urunler/[id] — ürün incelemesi", () => {
@@ -114,5 +115,25 @@ describe("/admin/urunler/[id] — ürün incelemesi", () => {
     const srcs = [...container.querySelectorAll("img")].map((i) => i.getAttribute("src"));
     expect(srcs[0]).toMatch(/^https?:\/\/[^/]+\/categories\/elektrik\.webp$/);
     expect(srcs[1]).toBe("https://cdn.example.com/a.jpg");
+  });
+});
+
+describe("/admin/urunler/[id] — hata durumu (arayüz testi D-215)", () => {
+  it("404: 'bulunamadı' + kuyruğa dönüş; işe yaramayan 'Tekrar dene' yok", () => {
+    h.product = undefined;
+    h.error = { response: { status: 404 } };
+    render(<AdminUrunDetayPage />);
+    expect(screen.getByText("Ürün bulunamadı.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Ürün kuyruğuna dön/ }).getAttribute("href")).toBe("/admin/urunler");
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+    expect(screen.queryByText("Ürün yüklenemedi.")).toBeNull();
+  });
+
+  it("ağ/5xx hatasında 'yüklenemedi' + 'Tekrar dene' kalır", () => {
+    h.product = undefined;
+    h.error = { response: { status: 500 } };
+    render(<AdminUrunDetayPage />);
+    expect(screen.getByText("Ürün yüklenemedi.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeTruthy();
   });
 });

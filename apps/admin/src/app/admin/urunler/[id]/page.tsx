@@ -5,6 +5,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { isNotFoundError, NotFoundState } from "@/components/ui/not-found-state";
 import { useAdminProductDetail, useProductReview } from "@/hooks/use-admin-products";
 import { safeFormat } from "@/lib/date";
 import { PRODUCT_REVIEW_STATUS } from "@/lib/status-labels";
@@ -50,7 +51,7 @@ function fmtQty(v: number | string | null | undefined): string {
  * 2026-09-10) — düzeltme isteği kilidi açar, firma düzenleyip yeniden gönderir.
  */
 function ProductReview({ id }: { id: string }) {
-  const { data: p, isLoading, isError, refetch } = useAdminProductDetail(id);
+  const { data: p, isLoading, isError, error, refetch } = useAdminProductDetail(id);
   const act = useProductReview(id);
   const [rejectOpen, setRejectOpen] = useState(false);
   const err = (e: unknown) => toastApiError(e);
@@ -63,6 +64,17 @@ function ProductReview({ id }: { id: string }) {
       <div className="flex items-center justify-center py-24">
         <Loader2 className="text-admin-text-muted h-6 w-6 animate-spin" />
       </div>
+    );
+  }
+  // Var olmayan ürün: "Tekrar dene" yine 404 verir (arayüz testi D-215).
+  if (isError && isNotFoundError(error)) {
+    return (
+      <NotFoundState
+        title="Ürün bulunamadı."
+        message="Bağlantı hatalı olabilir ya da ürün silinmiş olabilir."
+        backHref="/admin/urunler"
+        backLabel="Ürün kuyruğuna dön"
+      />
     );
   }
   if (isError || !p) {

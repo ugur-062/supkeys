@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   role: "SALES" as string,
   order: undefined as unknown,
+  error: null as unknown,
   search: "",
 }));
 
@@ -26,7 +27,7 @@ vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ admin: { role: h.role } }),
 }));
 vi.mock("@/hooks/use-admin-inspection", () => ({
-  useAdminOrderDetail: () => ({ data: h.order, isLoading: false, isError: false, refetch: vi.fn() }),
+  useAdminOrderDetail: () => ({ data: h.order, isLoading: false, isError: !!h.error, error: h.error, refetch: vi.fn() }),
   useCancelOrder: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
@@ -80,6 +81,7 @@ function order(payments: { status: string; amount: number }[] = []) {
 
 beforeEach(() => {
   h.role = "SALES";
+  h.error = null;
   h.order = order();
   h.search = "";
 });
@@ -139,5 +141,33 @@ describe("/admin/siparisler/[id] — geri bağlantısı gelinen yere döner", ()
     render(<AdminOrderPage />);
     const back = screen.getAllByRole("link").find((a) => a.textContent === " ROT-000001" || a.textContent?.trim() === "ROT-000001");
     expect(back).toHaveAttribute("href", "/admin/ilanlar/l1");
+  });
+});
+
+describe("/admin/siparisler/[id] — hata durumu (arayüz testi D-215)", () => {
+  it("404: 'bulunamadı' + firmalar listesine dönüş; 'Tekrar dene' yok", () => {
+    h.order = undefined;
+    h.error = { response: { status: 404 } };
+    render(<AdminOrderPage />);
+    expect(screen.getByText("Sipariş bulunamadı.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Firmalar listesine dön/ }).getAttribute("href")).toBe("/admin/firmalar");
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+  });
+
+  it("404 + Destek rolü: firmalar (403) yerine panele dönüş (T-09)", () => {
+    h.role = "SUPPORT";
+    h.order = undefined;
+    h.error = { response: { status: 404 } };
+    render(<AdminOrderPage />);
+    expect(screen.getByRole("link", { name: /Panele dön/ }).getAttribute("href")).toBe("/admin/dashboard");
+    expect(screen.queryByRole("link", { name: /Firmalar listesine dön/ })).toBeNull();
+  });
+
+  it("ağ/5xx hatasında 'yüklenemedi' + 'Tekrar dene' kalır", () => {
+    h.order = undefined;
+    h.error = { response: { status: 500 } };
+    render(<AdminOrderPage />);
+    expect(screen.getByText("Sipariş yüklenemedi.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeTruthy();
   });
 });

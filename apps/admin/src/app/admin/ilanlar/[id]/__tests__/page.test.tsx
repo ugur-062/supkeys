@@ -12,6 +12,7 @@ import { listingMaxDateTimeLocal, nextDateTimeLocal } from "@/lib/date";
 const h = vi.hoisted(() => ({
   role: "SALES" as string,
   listing: undefined as unknown,
+  error: null as unknown,
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -23,7 +24,7 @@ vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ admin: { role: h.role } }),
 }));
 vi.mock("@/hooks/use-admin-inspection", () => ({
-  useAdminListingDetail: () => ({ data: h.listing, isLoading: false, isError: false, refetch: vi.fn() }),
+  useAdminListingDetail: () => ({ data: h.listing, isLoading: false, isError: !!h.error, error: h.error, refetch: vi.fn() }),
   useListingIntervention: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
@@ -58,6 +59,7 @@ function listing(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   h.role = "SALES";
+  h.error = null;
   h.listing = listing();
 });
 
@@ -132,5 +134,33 @@ describe("/admin/ilanlar/[id] — kapalı zarf rozeti", () => {
     render(<AdminListingPage />);
     expect(screen.getByText("Kapalı zarf")).toBeInTheDocument();
     expect(screen.getByText(/kapalı zarf kuralı taraflar arasında geçerlidir/)).toBeInTheDocument();
+  });
+});
+
+describe("/admin/ilanlar/[id] — hata durumu (arayüz testi D-215)", () => {
+  it("404: 'bulunamadı' + firmalar listesine dönüş; 'Tekrar dene' yok", () => {
+    h.listing = undefined;
+    h.error = { response: { status: 404 } };
+    render(<AdminListingPage />);
+    expect(screen.getByText("İlan bulunamadı.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Firmalar listesine dön/ }).getAttribute("href")).toBe("/admin/firmalar");
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+  });
+
+  it("404 + Destek rolü: firmalar (403) yerine panele dönüş (T-09)", () => {
+    h.role = "SUPPORT";
+    h.listing = undefined;
+    h.error = { response: { status: 404 } };
+    render(<AdminListingPage />);
+    expect(screen.getByRole("link", { name: /Panele dön/ }).getAttribute("href")).toBe("/admin/dashboard");
+    expect(screen.queryByRole("link", { name: /Firmalar listesine dön/ })).toBeNull();
+  });
+
+  it("ağ/5xx hatasında 'yüklenemedi' + 'Tekrar dene' kalır", () => {
+    h.listing = undefined;
+    h.error = { response: { status: 500 } };
+    render(<AdminListingPage />);
+    expect(screen.getByText("İlan yüklenemedi.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeTruthy();
   });
 });

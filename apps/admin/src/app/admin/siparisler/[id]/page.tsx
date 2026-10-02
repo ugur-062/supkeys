@@ -13,6 +13,7 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { isNotFoundError, NotFoundState } from "@/components/ui/not-found-state";
 import {
   useAdminOrderDetail,
   useCancelOrder,
@@ -49,7 +50,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 const CANCELABLE = new Set(["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY"]);
 
 function OrderInspection({ id }: { id: string }) {
-  const { data: o, isLoading, isError, refetch } = useAdminOrderDetail(id);
+  const { data: o, isLoading, isError, error, refetch } = useAdminOrderDetail(id);
   // Geri bağlantı gelinen yere döner (`?from=<firma id>` | `listing`);
   // önceden her zaman ALICI firmaya gidiyordu (arayüz testi D-217).
   const from = useSearchParams()?.get("from") ?? null;
@@ -66,6 +67,19 @@ function OrderInspection({ id }: { id: string }) {
       <div className="flex items-center justify-center py-24">
         <Loader2 className="text-admin-text-muted h-6 w-6 animate-spin" />
       </div>
+    );
+  }
+  // Var olmayan sipariş: "Tekrar dene" yine 404 verir (arayüz testi D-215).
+  // Ayrı liste sayfası yok — siparişe firma detayından gelinir; firma
+  // detayını göremeyen rol (Destek) panele döner (T-09).
+  if (isError && isNotFoundError(error)) {
+    return (
+      <NotFoundState
+        title="Sipariş bulunamadı."
+        message="Bağlantı hatalı olabilir ya da sipariş silinmiş olabilir."
+        backHref={canOpenCompany ? "/admin/firmalar" : "/admin/dashboard"}
+        backLabel={canOpenCompany ? "Firmalar listesine dön" : "Panele dön"}
+      />
     );
   }
   if (isError || !o) {
