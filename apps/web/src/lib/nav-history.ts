@@ -5,42 +5,46 @@
  * (SPA) gezinmede referrer DEĞİŞMEZ → yeni sekmede Firmalar'dan bir firmaya
  * tıklayan kullanıcı "Geri" yerine sabit "← Bağlantılar" görüyordu.
  *
- * Kural: oturumun GİRİŞ adresi (sekmede ilk açılan panel adresi) kaydedilir;
- * şu anki adres girişten farklıysa ya da giriş sonrasında başka bir adrese
- * gidilmişse kullanıcı uygulamanın içinden gelmiştir → `router.back()` güvenli.
- * Kabuk (`markNavEntry` + `noteNavigation`) her adres değişiminde çağırır;
- * kabuktan önce çizilen çocuk bileşen (çocuk efektleri ebeveynden önce koşar)
- * `cameFromInApp()` içinde girişi kendisi işaretler — doğrudan açılan sayfada
- * giriş = kendisi olur.
+ * Kural: oturumun GİRİŞİNDE (sekmede ilk açılan panel sayfası) tarayıcı
+ * geçmişinin uzunluğu kaydedilir; geçmiş o andan sonra BÜYÜDÜYSE (push) bu
+ * belgenin içinde geri dönülecek bir panel girdisi vardır → `router.back()`
+ * güvenli. Adres karşılaştırması YETMEZ: `router.replace` (dil yönlendirmesi
+ * `/en/company/companies/X` → `/company/firma/X`, filtre/sorgu eşitlemesi)
+ * adresi değiştirir ama geçmişe girdi EKLEMEZ — adres farkına bakınca "Geri"
+ * sekmenin önceki girdisine (başka site / about:blank) çıkarıyordu (arayüz
+ * testi webA-04 yeniden doğrulama). Tersi yönde yanılma (ileri geçmişi
+ * kesen push uzunluğu büyütmez) güvenli tarafa düşer: sabit Bağlantılar
+ * bağlantısı.
+ *
+ * Kabuk (`noteNavigation`) her adres değişiminde çağırır; kabuktan önce
+ * çizilen çocuk bileşen (çocuk efektleri ebeveynden önce koşar)
+ * `cameFromInApp()` içinde girişi kendisi işaretler.
  */
-let entry: string | null = null;
-let navigated = false;
+let entryLength: number | null = null;
 
-function currentHref(): string | null {
+function historyLength(): number | null {
   if (typeof window === "undefined") return null;
-  return window.location.pathname + window.location.search;
+  return window.history.length;
 }
 
 /** Girişi bir kez kaydeder (idempotent). */
 export function markNavEntry(): void {
-  if (entry === null) entry = currentHref();
+  if (entryLength === null) entryLength = historyLength();
 }
 
-/** Adres değişince çağrılır: girişten farklı bir adrese gidildiyse işaretler. */
+/** Adres değişince çağrılır (kabuk): girişin kaydedildiğinden emin olur. */
 export function noteNavigation(): void {
   markNavEntry();
-  const here = currentHref();
-  if (entry !== null && here !== null && here !== entry) navigated = true;
 }
 
 /** Bu sayfaya uygulamanın içinden mi gelindi (tarayıcı geçmişinde geri dönülecek panel adresi var mı)? */
 export function cameFromInApp(): boolean {
   markNavEntry();
-  return navigated || (entry !== null && currentHref() !== entry);
+  const now = historyLength();
+  return entryLength !== null && now !== null && now > entryLength;
 }
 
 /** Yalnız testler için. */
 export function resetNavHistoryForTest(): void {
-  entry = null;
-  navigated = false;
+  entryLength = null;
 }

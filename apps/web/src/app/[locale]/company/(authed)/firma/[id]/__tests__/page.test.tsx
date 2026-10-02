@@ -230,6 +230,17 @@ describe("Panel firma profili (arayüz testi webA-04)", () => {
       "/company/satinalma/tedarikcilerim",
     );
     unmount();
+    // Doğrudan açılış + dil yönlendirmesi (router.replace): adres değişir ama
+    // geçmişe girdi eklenmez → "Geri" sekmeden çıkarırdı; Bağlantılar kalır.
+    resetNavHistoryForTest();
+    window.history.replaceState(null, "", "/en/company/companies/RTH-OTHER");
+    markNavEntry();
+    window.history.replaceState(null, "", "/company/firma/RTH-OTHER");
+    noteNavigation();
+    const second = render(<CompanyProfilePage />);
+    expect(await screen.findByRole("link", { name: "Bağlantılar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Geri" })).not.toBeInTheDocument();
+    second.unmount();
     // Sekme Firmalar'da açıldı, firmaya istemci tarafında gidildi (referrer değişmez).
     resetNavHistoryForTest();
     window.history.replaceState(null, "", "/company/satinalma/firmalar");
