@@ -17,7 +17,13 @@ import { RequestActiveChips, RequestFilters, RequestSortControl } from "@/compon
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
 import { LockedRequestsCard } from "@/components/company/locked-requests-card";
 import { useLockedRequestsSummary, useSellerTenders, type LockedRequestsSummary, type SellerTenderRow } from "@/hooks/use-seller-tenders";
-import { passes, requestFacets, sortRequests, type RequestFacets } from "@/lib/company/request-facets";
+import {
+  passes,
+  REQUEST_SCAN_CAPS,
+  requestFacets,
+  sortRequests,
+  type RequestFacets,
+} from "@/lib/company/request-facets";
 import {
   activeRequestFilterCount,
   buildRequestFilterQuery,
@@ -32,13 +38,13 @@ import { useMemo, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
 /**
- * API tarama tavanları (`sellerTenders`): açık talepler `SELLER_SCAN_CAP` (300),
- * katıldığım geçmiş talepler en yeni 200. Tavana dayanan kapsamda sayaç "N+"
- * yazar ve bant gösterilir (arayüz testi D-116 — "200 açık talep bulundu"
- * kesin sayı gibi okunuyordu).
+ * API tarama tavanları (`REQUEST_SCAN_CAPS`): tavana dayanan kapsamda sayaç
+ * "N+" yazar ve bant gösterilir (arayüz testi D-116 — "200 açık talep bulundu"
+ * kesin sayı gibi okunuyordu). Başlık ve durum facet'i aynı alt sınır kararını
+ * (`facets.statusAtLeast`) okur.
  */
-const OPEN_SCAN_CAP = 300;
-const PAST_SCAN_CAP = 200;
+const OPEN_SCAN_CAP = REQUEST_SCAN_CAPS.open;
+const PAST_SCAN_CAP = REQUEST_SCAN_CAPS.past;
 /** Liste satış ANASAYFASINDA yaşar; süzgeç durumu bu yolun sorgusunda. */
 const BASE = "/company/satis";
 
@@ -98,10 +104,9 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   const pastCount = all.length - openCount;
   const openAtCap = state.status !== "gecmis" && openCount >= OPEN_SCAN_CAP;
   const pastAtCap = state.status !== "aktif" && pastCount >= PAST_SCAN_CAP;
-  const scopeCount =
-    state.status === "aktif" ? openCount : state.status === "gecmis" ? pastCount : all.length;
-  // Süzgeç daraltmadıysa sayı tavandaki kümenin TAMAMI → alt sınır ("200+").
-  const countAtLeast = (openAtCap || pastAtCap) && filtered.length === scopeCount;
+  // Süzgeç daraltmadıysa sayı tavandaki kümenin TAMAMI → alt sınır ("200+");
+  // durum facet'iyle aynı karar (iki sayı aynı ekranda ayrışmasın).
+  const countAtLeast = facets.statusAtLeast[state.status];
 
   return (
     <FilterShellCore

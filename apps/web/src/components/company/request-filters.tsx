@@ -72,6 +72,7 @@ export function RequestFilters({ facets, idPrefix = "t" }: { facets: RequestFace
             id={`${idPrefix}-status-${o.key}`}
             label={t(`status.${o.key}` as never)}
             count={facets.status[o.key]}
+            countAtLeast={facets.statusAtLeast[o.key]}
             checked={state.status === o.key}
             onChange={() => update({ status: o.key })}
             type="radio"

@@ -11,6 +11,7 @@ import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { ErrorState } from "@/components/ui/error-state";
 import { useInsights, type ViewDays } from "@/hooks/use-company-views";
 import { pctChange } from "@/lib/dashboard/delta";
+import { MY_BIDS_WON_KPI_HREF } from "@/lib/company/my-bids-links";
 import { ArrowLongRightIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
@@ -117,7 +118,7 @@ export function InsightsView() {
             <SectionHead id="teklifler" title={t("teklifler")} lead={t("donemdeVerdiginizTekliflerVeKazanma")} href="/company/satis/tekliflerim" cta={t("tekliflerim")} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard label={t("verilenTeklif")} value={d.bids.submitted} accent="slate" href="/company/satis/tekliflerim" />
-              <KpiCard label={t("kazanilan")} value={d.bids.won} accent="slate" href="/company/satis/tekliflerim?status=WON" hint={d.bids.submitted > 0 ? t("kazanmaOrani", { round: Math.round((d.bids.won / d.bids.submitted) * 100) }) : undefined} />
+              <KpiCard label={t("kazanilan")} value={d.bids.won} accent="slate" href={MY_BIDS_WON_KPI_HREF} hint={d.bids.submitted > 0 ? t("kazanmaOrani", { round: Math.round((d.bids.won / d.bids.submitted) * 100) }) : undefined} />
             </div>
           </section>
         </>

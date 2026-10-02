@@ -150,6 +150,31 @@ describe("requestFacets — bağlamsal sayaçlar", () => {
   });
 });
 
+describe("requestFacets — tarama tavanı (D-116, yeniden doğrulama)", () => {
+  const CAPS = { open: 3, past: 2 };
+  const rows = () => [
+    row({ ownerCity: "Bursa" }),
+    row({ ownerCity: "Bursa" }),
+    row({ ownerCity: "İzmir" }),
+    row({ status: "AWARDED", ownerCity: "Bursa" }),
+    row({ status: "AWARDED", ownerCity: "İzmir" }),
+  ];
+
+  it("tavandaki kapsamın tamamı sayılıyorsa durum sayacı alt sınırdır (başlıkla aynı karar)", () => {
+    const fx = requestFacets(rows(), F({ status: "gecmis" }), NAMES, NOW, {}, CAPS);
+    expect(fx.status).toEqual({ aktif: 3, gecmis: 2, tumu: 5 });
+    expect(fx.statusAtLeast).toEqual({ aktif: true, gecmis: true, tumu: true });
+  });
+
+  it("süzgeç kapsamı daraltınca sayı kesin; tavan altındaki kapsam hiç '+' almaz", () => {
+    const narrowed = requestFacets(rows(), F({ cities: ["Bursa"] }), NAMES, NOW, {}, CAPS);
+    expect(narrowed.status).toEqual({ aktif: 2, gecmis: 1, tumu: 3 });
+    expect(narrowed.statusAtLeast).toEqual({ aktif: false, gecmis: false, tumu: false });
+    const below = requestFacets(rows(), F(), NAMES, NOW, {}, { open: 10, past: 10 });
+    expect(below.statusAtLeast).toEqual({ aktif: false, gecmis: false, tumu: false });
+  });
+});
+
 describe("şehir ve alıcı ülkesi (2026-09-27)", () => {
   const COUNTRY: Record<string, string> = { TR: "Турция", DE: "Германия", GB: "Великобритания", CA: "Канада" };
   const labels = { country: (c: string) => COUNTRY[c] ?? c, city: (raw: string) => (raw === "İzmir" ? "Измир" : raw) };

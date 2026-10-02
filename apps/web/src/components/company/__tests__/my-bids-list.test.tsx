@@ -86,8 +86,8 @@ describe("MyBidsList — sunucu tarafı sayfa/süzgeç (O-005)", () => {
     expect(ozet).toHaveTextContent("113 karar bekleyen · 214 kazanılan");
   });
 
-  it("URL süzgeci sorguya gider: ?status=WON kısmi kazanımı da seçer, sayfa/sıralama/aralık taşınır", () => {
-    h.search = "status=WON&page=3&sort=amount&range=30&q=boru";
+  it("URL süzgeci sorguya gider: KPI ?status=WON,AWARDED_PARTIAL, sayfa/sıralama/aralık taşınır", () => {
+    h.search = "status=WON,AWARDED_PARTIAL&page=3&sort=amount&range=30&q=boru";
     h.page = pageOf([bid()], { total: 45, page: 3 });
     render(<MyBidsList />);
     expect(lastCall()).toMatchObject({
@@ -110,6 +110,13 @@ describe("MyBidsList — sunucu tarafı sayfa/süzgeç (O-005)", () => {
     await user.click(screen.getByRole("button", { name: "Karar bekleyen filtresini kaldır" }));
     expect(lastCall()).toMatchObject({ pending: false });
     expect(window.location.search).toBe("");
+  });
+
+  it("yalnız 'Kazandı' süzgeci geri dönüşte aynen gelir — Kısmen Kazandı eklenmez (D-120)", () => {
+    h.search = "status=WON&page=2";
+    h.page = pageOf([bid()], { total: 25, page: 2 });
+    render(<MyBidsList />);
+    expect(lastCall()).toMatchObject({ status: ["WON"], page: 2 });
   });
 
   it("sayfa değişimi URL'ye yazılır; detay bağlantısı süzgeçli listeye döner", async () => {

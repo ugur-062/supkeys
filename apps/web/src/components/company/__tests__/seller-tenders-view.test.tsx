@@ -207,6 +207,15 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     const { unmount } = render(<SellerTendersView />);
     expect(screen.getByText("200+ geçmiş talep bulundu")).toBeInTheDocument();
     expect(screen.queryByText(/açık talep bulundu/)).toBeNull();
+    // Durum facet'i başlıkla AYNI alt sınırı yazar: Geçmiş 200+, Tümü 201+;
+    // Aktif (1, tavan altı) kesin (yeniden doğrulama: facet "Geçmiş 200" diyordu).
+    const pastRadio = screen.getAllByRole("radio", { name: /Geçmiş/ })[0]!;
+    expect(pastRadio.closest("label")).toHaveTextContent(/200\+$/);
+    const allRadio = screen.getAllByRole("radio", { name: /Tümü/ })[0]!;
+    expect(allRadio.closest("label")).toHaveTextContent(/201\+$/);
+    const activeRadio = screen.getAllByRole("radio", { name: /Aktif/ })[0]!;
+    expect(activeRadio.closest("label")).toHaveTextContent(/1$/);
+    expect(activeRadio.closest("label")).not.toHaveTextContent("+");
     expect(screen.getByText(/Geçmiş taleplerin en yeni 200'ü gösteriliyor/)).toBeInTheDocument();
     // Açık kapsamın tavanı (300) değil — o bant çıkmaz.
     expect(screen.queryByText(/En fazla 300/)).toBeNull();
@@ -218,6 +227,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     render(<SellerTendersView />);
     expect(screen.getByText("2 talep bulundu")).toBeInTheDocument();
     expect(screen.queryByText(/en yeni 200/)).toBeNull();
+    expect(screen.getAllByRole("radio", { name: /Tümü/ })[0]!.closest("label")).not.toHaveTextContent("+");
   });
 
   it("eski WITHDRAWN teklif ham kodla değil 'Geri çekildi' etiketiyle görünür (arayüz testi D-275)", () => {

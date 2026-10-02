@@ -30,6 +30,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { ChartBarIcon, EyeIcon } from "@heroicons/react/20/solid";
 import { INTL_LOCALE } from "@/i18n/format";
 import { APP_TIME_ZONE } from "@/lib/time-zone";
+import { MY_BIDS_PENDING_KPI_HREF, MY_BIDS_WON_KPI_HREF } from "@/lib/company/my-bids-links";
 import dynamic from "next/dynamic";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
@@ -231,8 +232,8 @@ export function CompanyOverview() {
                     attention={(stAnalytics.data?.actions.unansweredInvites ?? 0) > 0}
                     hint={(stAnalytics.data?.actions.unansweredInvites ?? 0) > 0 ? t("teklifiniziBekliyor") : undefined}
                   />
-                  <KpiCard label={t("aktifTekliflerim")} value={bids.data.counts.active} href="/company/satis/tekliflerim?pending=1" accent="emerald" deltaPct={stAnalytics.data?.deltas.bidsSubmitted} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.bidsSubmitted} />
-                  <KpiCard label={t("kazandigimIsler")} value={bids.data.counts.won} href="/company/satis/tekliflerim?status=WON" accent="emerald" hint={t("kismiKazanimDahil")} spark={stAnalytics.data?.kpiSeries.won} />
+                  <KpiCard label={t("aktifTekliflerim")} value={bids.data.counts.active} href={MY_BIDS_PENDING_KPI_HREF} accent="emerald" deltaPct={stAnalytics.data?.deltas.bidsSubmitted} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.bidsSubmitted} />
+                  <KpiCard label={t("kazandigimIsler")} value={bids.data.counts.won} href={MY_BIDS_WON_KPI_HREF} accent="emerald" hint={t("kismiKazanimDahil")} spark={stAnalytics.data?.kpiSeries.won} />
                   <KpiCard label={t("aktifSiparis")} value={selectActiveOrders(orders.data, "seller").length} href="/company/satis/siparisler" accent="emerald" deltaPct={stAnalytics.data?.deltas.orders} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.orders} />
                   <KpiCard
                     label={t("gelir")}

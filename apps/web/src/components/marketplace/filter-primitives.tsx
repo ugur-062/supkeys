@@ -120,6 +120,7 @@ export function Check({
   label,
   icon,
   count,
+  countAtLeast = false,
   checked,
   onChange,
   onUncheck,
@@ -131,6 +132,8 @@ export function Check({
   /** Seçeneğin ikonu (ör. tedarikçi türü) — süsleme, etiket metni taşır. */
   icon?: ReactNode;
   count?: number;
+  /** Sayı tarama tavanında (alt sınır) — "200+" yazılır, başlık sayacıyla aynı (D-116). */
+  countAtLeast?: boolean;
   checked: boolean;
   onChange: (v: boolean) => void;
   /**
@@ -176,7 +179,12 @@ export function Check({
           {label}
         </span>
       </span>
-      {count != null ? <span className="shrink-0 text-xs text-zinc-500">{count}</span> : null}
+      {count != null ? (
+        <span className="shrink-0 text-xs text-zinc-500">
+          {count}
+          {countAtLeast ? "+" : null}
+        </span>
+      ) : null}
     </label>
   );
 }

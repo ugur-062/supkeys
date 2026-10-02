@@ -198,8 +198,25 @@ export interface FacetItem {
   label: string;
   count: number;
 }
+/**
+ * API tarama tavanları (`sellerTenders`): açık talepler `SELLER_SCAN_CAP`
+ * (300), katıldığım geçmiş talepler en yeni 200. Tavana dayanan kapsamın
+ * sayısı ALT SINIRDIR ("200+", arayüz testi D-116).
+ */
+export interface RequestScanCaps {
+  open: number;
+  past: number;
+}
+export const REQUEST_SCAN_CAPS: RequestScanCaps = { open: 300, past: 200 };
+
 export interface RequestFacets {
   status: Record<"aktif" | "gecmis" | "tumu", number>;
+  /**
+   * Durum sayacı tarama tavanında mı — `true` ise sayı alt sınır, "N+" yazılır.
+   * Başlıktaki "N+ … bulundu" sayacı da buradan okur; aynı ekrandaki iki sayı
+   * ayrışmasın (yeniden doğrulama: başlık "200+", facet "Geçmiş 200" diyordu).
+   */
+  statusAtLeast: Record<"aktif" | "gecmis" | "tumu", boolean>;
   fit: Record<RequestFit, number>;
   categories: FacetItem[];
   closing: Record<ClosingWindow, number>;
@@ -255,6 +272,7 @@ export function requestFacets(
   segmentNames: ReadonlyMap<string, string>,
   now: number,
   labels: RequestFacetLabels = {},
+  caps: RequestScanCaps = REQUEST_SCAN_CAPS,
 ): RequestFacets {
   const rowsFor = (dim: RequestDim) => all.filter((r) => passes(r, f, now, dim));
   const count = (rows: SellerTenderRow[], pred: (r: SellerTenderRow) => boolean) =>
@@ -276,11 +294,25 @@ export function requestFacets(
     return r ? cityLabelOf(r) : rawCity(k);
   };
 
+  const status = {
+    aktif: count(st, (r) => r.status === "OPEN"),
+    gecmis: count(st, (r) => r.status !== "OPEN"),
+    tumu: st.length,
+  };
+  // Kapsam başına tavan: açık ve geçmiş ayrı sorgulardan gelir, ayrı kırpılır.
+  // Sayı ancak süzgeçler o kapsamı daraltmadıysa (tavandaki kümenin TAMAMI)
+  // alt sınırdır; daraltılmış sayı gösterilen veride kesindir.
+  const openTotal = count(all, (r) => r.status === "OPEN");
+  const pastTotal = all.length - openTotal;
+  const aktifAtLeast = openTotal >= caps.open && status.aktif === openTotal;
+  const gecmisAtLeast = pastTotal >= caps.past && status.gecmis === pastTotal;
+
   return {
-    status: {
-      aktif: count(st, (r) => r.status === "OPEN"),
-      gecmis: count(st, (r) => r.status !== "OPEN"),
-      tumu: st.length,
+    status,
+    statusAtLeast: {
+      aktif: aktifAtLeast,
+      gecmis: gecmisAtLeast,
+      tumu: aktifAtLeast || gecmisAtLeast,
     },
     fit: {
       davet: count(fit, (r) => rowFits(r, "davet")),

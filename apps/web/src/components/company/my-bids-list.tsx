@@ -260,19 +260,24 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   );
 }
 
-/** `?status=` değerinden başlangıç süzgeci; bilinmeyen kodlar atılır. */
+/**
+ * `?status=` değerinden başlangıç süzgeci; bilinmeyen kodlar atılır. URL'deki
+ * küme OLDUĞU GİBİ geri yüklenir (arayüz testi D-120): eskiden `WON` her zaman
+ * `AWARDED_PARTIAL` ile genişletiliyordu, yalnız "Kazandı" seçip teklife girip
+ * dönen kullanıcı "Kazandı + Kısmen Kazandı" görüyordu. "Kısmi kazanım dahil"
+ * KPI'ları bunun yerine `MY_BIDS_WON_KPI_HREF` (lib/company/my-bids-links) ile iki kodu açıkça taşır.
+ */
 export function parseStatusParam(raw: string | null): MyBid["status"][] {
   const picked = (raw ?? "")
     .split(",")
     .filter((v): v is MyBid["status"] => STATUS_FILTER_OPTIONS.some((o) => o.value === v));
-  if (picked.includes("WON") && !picked.includes("AWARDED_PARTIAL")) picked.push("AWARDED_PARTIAL");
   return [...new Set(picked)];
 }
 
 /**
  * Tekliflerim süzgeç durumu — URL'de yaşar (arayüz testi D-120): teklife girip
  * geri dönünce ya da adresi paylaşınca süzgeç/sıralama/sayfa korunur; Şirketim
- * KPI'ları (`?status=WON`, `?pending=1`) buraya doğrudan bağlanır.
+ * KPI'ları (`?status=WON,AWARDED_PARTIAL`, `?pending=1`) buraya doğrudan bağlanır.
  */
 export interface MyBidsUrlState {
   status: MyBid["status"][];
@@ -317,8 +322,8 @@ export function MyBidsList() {
   const t = useTranslations("web.panel.trade.myBidsList");
   const tn = useNavLabel();
   const accent = useButtonAccent();
-  // KPI drill-down (Şirketim / İş Analizi): `?status=WON` (kısmi kazanım da
-  // seçilir) ya da `?pending=1` — süzgeç, sıralama ve sayfa URL'de.
+  // KPI drill-down (Şirketim / İş Analizi): `?status=WON,AWARDED_PARTIAL`
+  // (MY_BIDS_WON_KPI_HREF) ya da `?pending=1` — süzgeç, sıralama ve sayfa URL'de.
   const sp = useSearchParams();
   const [state, setState] = useState<MyBidsUrlState>(() =>
     parseMyBidsUrl(new URLSearchParams(sp?.toString() ?? "")),
