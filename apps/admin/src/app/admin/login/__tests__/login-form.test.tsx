@@ -107,6 +107,20 @@ describe("AdminLoginForm", () => {
     expect(screen.getByRole("button", { name: "Şifreyi gizle" })).toBeInTheDocument();
   });
 
+  it("göz düğmesi şifre kutusunun içinde: sağ dolgu iç input'a verilir, sarmalayıcıya değil", () => {
+    render(<AdminLoginForm />);
+    const pw = screen.getByLabelText("Şifre", { exact: false, selector: "input" });
+    // Catalyst Input: className dış span[data-slot=control]'a gider. Düz "pr-10"
+    // orada çerçeveli input'u daraltıp düğmeyi kutunun dışında bırakıyordu.
+    const wrapper = pw.closest('[data-slot="control"]') as HTMLElement;
+    expect(wrapper).not.toBeNull();
+    expect(wrapper.className.split(/\s+/)).toContain("[&_input]:pr-10");
+    expect(wrapper.className.split(/\s+/)).not.toContain("pr-10");
+    // Düğme ile input aynı konumlandırma kabında → düğme input'un üstünde durur.
+    const toggle = screen.getByRole("button", { name: "Şifreyi göster" });
+    expect(toggle.parentElement).toBe(wrapper.parentElement);
+  });
+
   it("axios hatası → sunucu mesajıyla toast.error, yönlendirme yok", async () => {
     const user = userEvent.setup();
     h.mutate.mockImplementation((_values, opts) =>

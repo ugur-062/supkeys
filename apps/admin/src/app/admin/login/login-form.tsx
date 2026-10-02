@@ -109,7 +109,10 @@ export function AdminLoginForm() {
             placeholder="••••••••"
             autoComplete="current-password"
             hasError={!!errors.password}
-            className="pr-10"
+            // className Catalyst'in dış sarmalayıcı span'ına gider; düz "pr-10"
+            // çerçeveli <input>'u 40px daraltıp göz düğmesini kutunun dışına
+            // itiyordu. Dolgu iç input'a verilir (InputGroup ile aynı kalıp).
+            className="[&_input]:pr-10"
             {...register("password")}
           />
           <button
