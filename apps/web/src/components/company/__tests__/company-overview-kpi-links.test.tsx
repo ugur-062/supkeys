@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   user: { isOwner: false, permissions: ["buy:view"] as string[] },
+  tier: "GOLD",
   period: "quarter" as "month" | "quarter" | "year" | "custom",
   tab: "tedarikci",
   tedarikciProps: null as null | Record<string, unknown>,
@@ -19,7 +20,7 @@ const h = vi.hoisted(() => ({
 const q = (data: unknown) => ({ data, isError: false, isLoading: false, refetch: vi.fn() });
 
 vi.mock("@/hooks/use-company-auth", () => ({
-  useCompanyAuth: () => ({ company: { name: "Alıcı AŞ", tier: "GOLD" }, user: h.user }),
+  useCompanyAuth: () => ({ company: { name: "Alıcı AŞ", tier: h.tier }, user: h.user }),
 }));
 vi.mock("@/hooks/use-company-dashboard", () => ({
   useSatinalmaDashboard: () => q({ openCount: 1, bidsReceived: 2, awarded: 3, ongoingOrders: 4, invitedPending: 0, openTendersOwn: [], openTendersCompany: [] }),
@@ -49,6 +50,7 @@ import { CompanyOverview } from "../company-overview";
 
 beforeEach(() => {
   h.user = { isOwner: false, permissions: ["buy:view"] };
+  h.tier = "GOLD";
   h.period = "quarter";
   h.tab = "tedarikci";
   h.tedarikciProps = null;
@@ -76,5 +78,42 @@ describe("CompanyOverview — KPI bağlantıları", () => {
       document.querySelector('a[href="/company/satinalma/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY,DELIVERED"]'),
     ).not.toBeNull();
     expect(h.tedarikciProps?.period).toBe("quarter");
+  });
+});
+
+describe("CompanyOverview — portal erişimi olmayan kişiye kısayollar (arayüz testi webC-06 NEW-1)", () => {
+  const hrefs = () =>
+    Array.from(document.querySelectorAll('section[aria-labelledby="size-acik-sayfalar"] a')).map((a) => a.getAttribute("href"));
+
+  it("Silver'da yalnız buy:reports:view: Raporlar kısayolu; Satınalma/Satış özeti yok", () => {
+    h.tier = "SILVER";
+    h.user = { isOwner: false, permissions: ["buy:reports:view"] };
+    render(<CompanyOverview />);
+    expect(screen.getByRole("heading", { name: "Size açık sayfalar" })).toBeInTheDocument();
+    expect(hrefs()).toEqual(["/company/sirketim/raporlar"]);
+    expect(screen.queryByText("Sayılar")).toBeNull();
+  });
+
+  it("yalnız users:manage: Kullanıcı Yönetimi (Profil değil — API profil ucu bu izni kabul etmez)", () => {
+    h.tier = "SILVER";
+    h.user = { isOwner: false, permissions: ["users:manage"] };
+    render(<CompanyOverview />);
+    expect(hrefs()).toEqual(["/company/ayarlar/kullanicilar"]);
+  });
+
+  it("Gold altında satınalma izinli: Profil + açık kalan Taleplerim/Siparişlerim", () => {
+    h.tier = "STANDART";
+    h.user = { isOwner: false, permissions: ["buy:view", "buy:listing:manage"] };
+    render(<CompanyOverview />);
+    expect(hrefs()).toEqual([
+      "/company/sirketim/profil",
+      "/company/satinalma/taleplerim",
+      "/company/satinalma/siparisler",
+    ]);
+  });
+
+  it("portal erişimi varsa kısayol bölümü çizilmez", () => {
+    render(<CompanyOverview />);
+    expect(screen.queryByRole("heading", { name: "Size açık sayfalar" })).toBeNull();
   });
 });

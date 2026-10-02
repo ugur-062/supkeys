@@ -198,6 +198,41 @@ describe("CompanySidebarContent — etkin portal izinden (arayüz testi D-159)",
   });
 });
 
+describe("CompanySidebarContent — Gold altındaki satınalma (arayüz testi webC-06 NEW-2)", () => {
+  const svgCount = (name: string) =>
+    screen.getByRole("link", { name }).querySelectorAll("svg").length;
+
+  it("yalnız satınalma izinli kişi: açık kalan listeler menüde ve kilitsiz, öteki satırlar kilitli", () => {
+    h.auth.company = { tier: "STANDART" };
+    h.auth.user = { roles: [], permissions: ["buy:view", "buy:listing:manage"] } as never;
+    h.pathname = "/company/satinalma/taleplerim";
+    render(<CompanySidebarContent expanded />);
+    // İkon + kilit = 2 svg; kilitsiz satırda yalnız ikon.
+    expect(svgCount("Taleplerim")).toBe(1);
+    expect(svgCount("Siparişlerim")).toBe(1);
+    expect(svgCount("Anasayfa")).toBe(2);
+    expect(svgCount("Bilgi Taleplerim")).toBe(2);
+    // Yeni iş Gold'da: ana CTA çizilmez.
+    expect(screen.queryByText("Satın Alma Talebi Aç")).not.toBeInTheDocument();
+  });
+
+  it("portal-nötr rotada (talep detayı) da satınalma menüsü çizilir — satış menüsü değil", () => {
+    h.auth.company = { tier: "SILVER" };
+    h.auth.user = { roles: [], permissions: ["buy:view"] } as never;
+    h.pathname = "/company/ilan/abc";
+    render(<CompanySidebarContent expanded />);
+    expect(screen.getByRole("link", { name: "Taleplerim" })).toBeInTheDocument();
+    expect(screen.queryByText("Tekliflerim")).not.toBeInTheDocument();
+  });
+
+  it("Gold firmada satınalma satırları kilitsiz (regresyon)", () => {
+    h.auth.user = { roles: [], permissions: ["buy:view", "buy:listing:manage"] } as never;
+    h.pathname = "/company/satinalma/taleplerim";
+    render(<CompanySidebarContent expanded />);
+    expect(svgCount("Anasayfa")).toBe(1);
+  });
+});
+
 describe("CompanySidebarContent — uzun etiket ipucu (arayüz testi D-147)", () => {
   it("genişken de menü satırı tam adı title olarak taşır", () => {
     h.auth.user = { roles: [], permissions: ["buy:view", "buy:inquiry:send"] } as never;

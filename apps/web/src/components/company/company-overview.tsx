@@ -21,13 +21,22 @@ import { useVisitors } from "@/hooks/use-company-views";
 import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import { selectActiveOrders } from "@/lib/company/kpi-selectors";
 import { BUYER_ORDER_HREF, BUYER_TENDER_HREF, SELLER_ORDER_HREF } from "@/lib/dashboard/strings";
-import { COMPANY_AREA_BASE, accessiblePortals, type PortalKey } from "@/lib/company/portals";
-import { userHasPermission } from "@/lib/company/permissions";
+import {
+  BUYING_WIND_DOWN_PATHS,
+  COMPANY_AREA,
+  COMPANY_AREA_BASE,
+  MODULE_LABELS,
+  accessiblePortals,
+  type PortalKey,
+} from "@/lib/company/portals";
+import { SETTINGS_PAGES, useSettingsPage } from "@/lib/company/settings-pages";
+import { useNavLabel } from "@/i18n/domain";
+import { userHasPermission, type PermissionSubject } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { ChartBarIcon, EyeIcon } from "@heroicons/react/20/solid";
+import { ChartBarIcon, ChevronRightIcon, ClipboardDocumentListIcon, EyeIcon, ShoppingBagIcon, UsersIcon } from "@heroicons/react/20/solid";
 import { INTL_LOCALE } from "@/i18n/format";
 import { APP_TIME_ZONE } from "@/lib/time-zone";
 import { MY_BIDS_PENDING_KPI_HREF, MY_BIDS_WON_KPI_HREF } from "@/lib/company/my-bids-links";
@@ -181,6 +190,11 @@ export function CompanyOverview() {
         </div>
       </header>
 
+      {/* Portal erişimi yoksa (tek izinli kişi: yalnız rapor / ziyaretçi /
+          kullanıcı yönetimi ya da paketi yetmeyen satınalma) iş özeti boş
+          kalırdı → yetkisiyle açabileceği sayfalar (arayüz testi webC-06 NEW-1). */}
+      {portals.length === 0 ? <OverviewShortcuts user={user} /> : null}
+
       {/* 2 · Bekleyen işler */}
       {portals.length > 0 ? <CompanyActionCenter portals={portals} /> : null}
 
@@ -301,6 +315,58 @@ export function CompanyOverview() {
 
       {/* 5 · Zaman tasarrufu şeridi KALDIRILDI (2026-09-10, kullanıcı kararı). */}
     </div>
+  );
+}
+
+type ShortcutIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+
+/**
+ * Genel Bakış'ın portal erişimi olmayan kişiye gösterdiği kısayollar: Şirketim
+ * menüsünün öteki satırları (aynı izin listesi), paketi yetmeyen satınalmada
+ * açık kalan listeler (T-06) ve Kullanıcı Yönetimi. Alan kapısı
+ * (`COMPANY_AREA_PERMISSIONS`) en az birini garanti eder.
+ */
+function OverviewShortcuts({ user }: { user: PermissionSubject | null | undefined }) {
+  const t = useTranslations("web.panel.company.companyOverview");
+  const tn = useNavLabel();
+  const usersPage = useSettingsPage("kullanicilar");
+  const links: { href: string; label: string; icon: ShortcutIcon }[] = [
+    ...COMPANY_AREA.nav
+      .filter((item) => item.href !== COMPANY_AREA_BASE)
+      .filter((item) => !item.permission || userHasPermission(user, item.permission))
+      .map((item) => ({ href: item.href, label: tn(item.label), icon: item.icon as ShortcutIcon })),
+    ...(userHasPermission(user, "buy:view")
+      ? [
+          { href: BUYING_WIND_DOWN_PATHS[0]!, label: tn(MODULE_LABELS.satinalma.ihalelerim), icon: ClipboardDocumentListIcon },
+          { href: BUYING_WIND_DOWN_PATHS[1]!, label: tn(MODULE_LABELS.satinalma.siparisler), icon: ShoppingBagIcon },
+        ]
+      : []),
+    ...(userHasPermission(user, "users:manage")
+      ? [{ href: SETTINGS_PAGES.kullanicilar.href, label: usersPage.title, icon: UsersIcon }]
+      : []),
+  ];
+  if (links.length === 0) return null;
+  return (
+    <section aria-labelledby="size-acik-sayfalar" className="space-y-4">
+      <div>
+        <h2 id="size-acik-sayfalar" className="text-lg font-semibold tracking-tight text-zinc-950">{t("sizeAcikSayfalar")}</h2>
+        <p className="mt-1 text-sm text-zinc-500">{t("sizeAcikSayfalarAciklama")}</p>
+      </div>
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {links.map(({ href, label, icon: Icon }) => (
+          <li key={href}>
+            <Link
+              href={href}
+              className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-950/5 transition hover:bg-zinc-50"
+            >
+              <Icon aria-hidden className="size-5 shrink-0 text-zinc-500" />
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-zinc-500" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

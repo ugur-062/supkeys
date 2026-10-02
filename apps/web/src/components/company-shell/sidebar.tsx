@@ -12,6 +12,7 @@ import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { userHasPermission } from "@/lib/company/permissions";
 import {
+  BUYING_WIND_DOWN_PATHS,
   COMPANY_AREA,
   PORTALS,
   PORTAL_ORDER,
@@ -69,6 +70,9 @@ export function resolveActivePortal(
     (fromUrl && visiblePortals.includes(fromUrl) ? fromUrl : null) ??
     (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
     available[0] ??
+    // Paketi yetmeyen görüntüleme izni (Gold altındaki satınalma) — portal-
+    // nötr rotada da o portalın menüsü (açık kalan listeler) çizilir.
+    visiblePortals[0] ??
     "satis"
   );
 }
@@ -204,11 +208,16 @@ export function CompanySidebarContent({
   // Portal-nötr rotalarda (/company/ilan, /company/onaylar…) SON portalda kal.
   const active = resolveActivePortal(pathname, visiblePortals, available, lastPortal);
   const portal = PORTALS[active];
-  // Minimal kabuk modu: hiç portal erişimi olmayan üye (ONAYLAYICI-only /
-  // rolsüz) yalnız Onaylar + Ayarlar görür — panel nav'ı duvara götürür.
-  // YONETICI/SAHIP etiketi accessiblePortals'ın manager dalıyla panel aldığı
-  // için salt-okunur gözetim (Faz R) DEĞİŞMEZ.
-  const minimal = available.length === 0;
+  // Minimal kabuk modu: hiçbir portalı GÖRÜNTÜLEME izni olmayan üye
+  // (ONAYLAYICI-only / rolsüz) yalnız Onaylar + Ayarlar görür — panel nav'ı
+  // duvara götürür. Satınalma izni olup paketi yetmeyen üye minimal DEĞİL:
+  // Gold altındaki firmada Taleplerim/Siparişlerim açık kalır (T-06) ve menüde
+  // görünür; öteki satırlar kilitli (arayüz testi webC-06 NEW-2 — yalnız
+  // satınalma izinli kişide menü boştu).
+  const minimal = visiblePortals.length === 0;
+  // Etkin portal görünüyor ama paketi yetmiyor (yalnız satınalma < Gold):
+  // açık kalan listeler dışındaki satırlar kilit taşır.
+  const portalTierLocked = !minimal && !available.includes(active);
   // ŞİRKETİM alanı (2026-09-05): üst çubuktaki firma adından girilir; sol menü
   // firma menüsüne döner, portal geçişi üstte KALIR (panele tek tıkla dönüş).
   const inCompanyArea = isCompanyAreaPath(pathname);
@@ -286,7 +295,12 @@ export function CompanySidebarContent({
               }
               accent={inCompanyArea ? "zinc" : portal.accent}
               expanded={expanded}
-              locked={isNavItemLocked(item, user, tier)}
+              locked={
+                isNavItemLocked(item, user, tier) ||
+                (!inCompanyArea &&
+                  portalTierLocked &&
+                  !BUYING_WIND_DOWN_PATHS.includes(item.href))
+              }
               onClick={onNavigate}
             />
           ))}

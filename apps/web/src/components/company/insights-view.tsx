@@ -9,7 +9,9 @@ import { RatioBar } from "@/components/company/ui/mini-bars";
 import { SectionHead } from "@/components/company/ui/stat-tile";
 import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { ErrorState } from "@/components/ui/error-state";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useInsights, type ViewDays } from "@/hooks/use-company-views";
+import { userHasPermission } from "@/lib/company/permissions";
 import { pctChange } from "@/lib/dashboard/delta";
 import { MY_BIDS_WON_KPI_HREF } from "@/lib/company/my-bids-links";
 import { ArrowLongRightIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -30,6 +32,13 @@ export function InsightsView() {
   const d = q.data;
   const periodLabel = t("oncekiGuneGore", { days: days });
   const cityLabel = useCityLabel();
+  // Satış paneline giden bağlantılar yalnız satış görüntüleme izninde
+  // (rol kontrolü paket kontrolünün İÇİNDE): sayfa yalnız "Ziyaret edenler ve
+  // iş analizi" tikli kişiye de açık; ona "Satış paneline erişim yetkiniz
+  // yok" ekranına giden bağlantı çizilmez (arayüz testi webC-06 NEW-3).
+  const { user } = useCompanyAuth();
+  const canSell = userHasPermission(user, "sell:view");
+  const sellHref = (href: string) => (canSell ? href : undefined);
   // 1 saatin altı "<1 sa" — yuvarlanmış "0 sa" yanıt verilmemiş gibi okunuyordu
   // (arayüz testi O-041).
   const formatReplyHours = (h: number | null) =>
@@ -93,7 +102,7 @@ export function InsightsView() {
               empty={t("buDonemdeUrunGoruntulenmesiYok")}
               rows={d.topProducts.map((p) => ({ key: p.id, label: p.name, value: p.views, display: t.rich("goruntulenmeSayisi", { n: p.views, b: rankValue }) }))}
               accent="emerald"
-              footer={{ href: "/company/satis/urunlerim", label: t("urunlerim") }}
+              footer={canSell ? { href: "/company/satis/urunlerim", label: t("urunlerim") } : undefined}
             />
             <RankCard
               title={t("ziyaretciSehirleri")}
@@ -107,18 +116,18 @@ export function InsightsView() {
           <section aria-labelledby="alici-baglantilari" className="space-y-3">
             <SectionHead id="alici-baglantilari" title={t("aliciBaglantilari")} lead={t("alicilarSizeNasilUlasiyorNe")} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard label={t("gelenBilgiTalebi")} value={d.inquiries.received} accent="emerald" href="/company/satis/bilgi-talepleri" hint={d.inquiries.received > 0 ? t("yanitlandi", { replied: d.inquiries.replied }) : t("urunSayfalarindanGelenSorular")} />
-              <KpiCard label={t("ilkYanitSuresi")} value={formatReplyHours(d.inquiries.medianFirstReplyHours)} accent="emerald" hint={d.inquiries.replyWindowDays ? t("ortancaSonGun", { days: d.inquiries.replyWindowDays }) : t("ortanca")} href="/company/satis/bilgi-talepleri" />
-              <KpiCard label={t("gelenBaglantiDaveti")} value={d.connections.invitesReceived} accent="emerald" href="/company/satis/musterilerim" hint={d.connections.invitesReceived > 0 ? t("kabulEdildi", { n: d.connections.accepted }) : t("baglantiAginiziBuyutun")} />
-              <KpiCard label={t("talepDaveti")} value={d.listingInvitations} accent="emerald" href="/company/satis#acik-talepler" hint={t("alicilarSiziTeklifeCagirdi")} />
+              <KpiCard label={t("gelenBilgiTalebi")} value={d.inquiries.received} accent="emerald" href={sellHref("/company/satis/bilgi-talepleri")} hint={d.inquiries.received > 0 ? t("yanitlandi", { replied: d.inquiries.replied }) : t("urunSayfalarindanGelenSorular")} />
+              <KpiCard label={t("ilkYanitSuresi")} value={formatReplyHours(d.inquiries.medianFirstReplyHours)} accent="emerald" hint={d.inquiries.replyWindowDays ? t("ortancaSonGun", { days: d.inquiries.replyWindowDays }) : t("ortanca")} href={sellHref("/company/satis/bilgi-talepleri")} />
+              <KpiCard label={t("gelenBaglantiDaveti")} value={d.connections.invitesReceived} accent="emerald" href={sellHref("/company/satis/musterilerim")} hint={d.connections.invitesReceived > 0 ? t("kabulEdildi", { n: d.connections.accepted }) : t("baglantiAginiziBuyutun")} />
+              <KpiCard label={t("talepDaveti")} value={d.listingInvitations} accent="emerald" href={sellHref("/company/satis#acik-talepler")} hint={t("alicilarSiziTeklifeCagirdi")} />
             </div>
           </section>
 
           <section aria-labelledby="teklifler" className="space-y-3">
-            <SectionHead id="teklifler" title={t("teklifler")} lead={t("donemdeVerdiginizTekliflerVeKazanma")} href="/company/satis/tekliflerim" cta={t("tekliflerim")} />
+            <SectionHead id="teklifler" title={t("teklifler")} lead={t("donemdeVerdiginizTekliflerVeKazanma")} href={sellHref("/company/satis/tekliflerim")} cta={t("tekliflerim")} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard label={t("verilenTeklif")} value={d.bids.submitted} accent="slate" href="/company/satis/tekliflerim" />
-              <KpiCard label={t("kazanilan")} value={d.bids.won} accent="slate" href={MY_BIDS_WON_KPI_HREF} hint={d.bids.submitted > 0 ? t("kazanmaOrani", { round: Math.round((d.bids.won / d.bids.submitted) * 100) }) : undefined} />
+              <KpiCard label={t("verilenTeklif")} value={d.bids.submitted} accent="slate" href={sellHref("/company/satis/tekliflerim")} />
+              <KpiCard label={t("kazanilan")} value={d.bids.won} accent="slate" href={sellHref(MY_BIDS_WON_KPI_HREF)} hint={d.bids.submitted > 0 ? t("kazanmaOrani", { round: Math.round((d.bids.won / d.bids.submitted) * 100) }) : undefined} />
             </div>
           </section>
         </>
@@ -146,7 +155,8 @@ function RankCard({
   rows: { key: string; label: string; value: number; display: React.ReactNode }[];
   empty: string;
   accent: "blue" | "emerald";
-  footer: { href: string; label: string };
+  /** Yoksa alt bağlantı çizilmez (izinsiz hedef). */
+  footer?: { href: string; label: string };
 }) {
   const max = Math.max(0, ...rows.map((r) => r.value));
   return (
@@ -170,10 +180,12 @@ function RankCard({
           ))}
         </ol>
       )}
-      <Link href={footer.href} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-zinc-900 hover:text-zinc-600">
-        {footer.label}
-        <ArrowRightIcon aria-hidden className="size-3.5" />
-      </Link>
+      {footer ? (
+        <Link href={footer.href} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-zinc-900 hover:text-zinc-600">
+          {footer.label}
+          <ArrowRightIcon aria-hidden className="size-3.5" />
+        </Link>
+      ) : null}
     </section>
   );
 }
