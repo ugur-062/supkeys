@@ -54,21 +54,23 @@ describe("ActiveFilterChips — nitelik", () => {
 
 describe("ActiveFilterChips — etiketler (arayüz testi D-317)", () => {
   it("facet'te olmayan şehir ham adres değil adıyla; sertifika ve nitelik 'CE' ayırt edilir", () => {
-    nav.search = "sehir=istanbul&sertifika=CE&nitelik=malzeme%3ACE";
+    // Gerçek senaryo (yeniden doğrulama): niteliğin ADI da "Sertifika" —
+    // firma sertifikası çipi ayrı önek taşımalı, yoksa iki çip aynı yazılır.
+    nav.search = "sehir=istanbul&sertifika=CE&nitelik=sertifika%3ACE";
     render(
       <FilterShell basePath="/urunler" total={0}>
         <ActiveFilterChips
           facets={{
             ...facets,
-            attributes: [{ key: "malzeme", nameTr: "Uygunluk", unit: null, values: [{ value: "CE", count: 1 }] }],
+            attributes: [{ key: "sertifika", nameTr: "Sertifika", unit: null, values: [{ value: "CE", count: 1 }] }],
           }}
         />
       </FilterShell>,
     );
     expect(screen.getByText("İstanbul")).toBeTruthy();
     expect(screen.queryByText("istanbul")).toBeNull();
+    expect(screen.getByText("Firma sertifikası: CE")).toBeTruthy();
     expect(screen.getByText("Sertifika: CE")).toBeTruthy();
-    expect(screen.getByText("Uygunluk: CE")).toBeTruthy();
   });
 });
 

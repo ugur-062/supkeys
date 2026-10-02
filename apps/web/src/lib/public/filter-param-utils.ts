@@ -56,3 +56,20 @@ export function pageParam(v?: string): number {
   const n = numParam(v);
   return n && n > 1 ? n : 1;
 }
+
+/**
+ * SON SAYFANIN ÖTESİ (arayüz testi webA-05, yeniden doğrulama): `?sayfa=N`
+ * son sayfadan büyükse uç boş liste döner ama toplam doludur. Boş durum
+ * "Bu kriterlerle ... bulunamadı" demesin — kriterler eşleşiyor, yalnız bu
+ * sayfa boş. Böyle bir sayfada gidilecek SON sayfa numarasını, değilse
+ * `null` döner. `pageLimit` herkese açık ucun kabul ettiği en büyük sayfa.
+ */
+export function pastEndLastPage(
+  page: { itemCount: number; total: number; page: number; pageSize: number },
+  pageLimit?: number,
+): number | null {
+  if (page.itemCount > 0 || page.total <= 0 || page.pageSize <= 0) return null;
+  const last = Math.ceil(page.total / page.pageSize);
+  const capped = pageLimit ? Math.min(last, pageLimit) : last;
+  return page.page > capped ? Math.max(1, capped) : null;
+}

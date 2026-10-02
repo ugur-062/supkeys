@@ -52,6 +52,24 @@ describe("Group — erişilebilir ad (D-326)", () => {
     );
     expect(screen.getByRole("group", { name: "Kategori" })).toBeInTheDocument();
   });
+
+  it("uzun başlık + sayı + Temizle raydan taşmaz: fieldset min-w-0, satır sarar (arayüz testi webA-05)", () => {
+    render(
+      <Shell>
+        <Group title="Местоположение" count={1} onClear={() => {}} storageKey="t-loc">
+          <span>içerik</span>
+        </Group>
+      </Shell>,
+    );
+    // jsdom yerleşim yapmaz; sınıflar taşmayı önleyen sözleşmedir:
+    // fieldset'in varsayılan min-content genişliği kartı rayın dışına itiyordu.
+    const fieldset = screen.getByRole("group", { name: "Местоположение" });
+    expect(fieldset.className).toContain("min-w-0");
+    const header = fieldset.firstElementChild as HTMLElement;
+    expect(header.className).toContain("flex-wrap");
+    const clear = within(header).getByRole("button", { name: "Temizle" });
+    expect(clear.className).toContain("whitespace-nowrap");
+  });
 });
 
 describe("ShowMore — facet'te olmayan seçili seçenek (D-336)", () => {

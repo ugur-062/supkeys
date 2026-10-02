@@ -21,7 +21,7 @@ import { canonicalListingListPage } from "@/lib/seo/landing";
 import { pageQuery } from "@/lib/seo/meta";
 import { MARKETPLACE_ROUTES, listingHref, type PublicListingType } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
-import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
+import { pastEndLastPage, type SearchParamsLike } from "@/lib/public/filter-param-utils";
 
 /**
  * ALIM TALEBİ DİZİNİ — süzgeç v4 (PROMPT 4, 2026-09-06): ürün dizinindeki
@@ -38,6 +38,7 @@ interface Props {
 
 export async function ListingIndex({ title, lead, searchParams }: Props) {
   const t = await getTranslations("web.marketplace.index");
+  const te = await getTranslations("web.marketplace.empty");
   const locale = await getLocale();
   const state = parseListingFilters(searchParams);
   const params = toListingListParams(state);
@@ -54,6 +55,8 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
     crossCounts(state.q, "listings"),
   ]);
   const hasFilter = activeListingFilterCount(state) > 0 || !!state.q;
+  // Son sayfanın ötesi: "bulunamadı" değil, son sayfaya bağlantı (arayüz testi webA-05).
+  const lastPage = pastEndLastPage({ itemCount: page.items.length, total: page.total, page: page.page, pageSize: page.pageSize });
 
   /* ITEMLIST — liste sayfasının ne listelediğini söyler; başlıklar zaten
      herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır;
@@ -113,7 +116,12 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
               fotoğrafı" yanılgısı üretiyordu. Anasayfayla ve satış panelindeki
               Açık Talepler'le AYNI satır (`ListingTeaserRow` →
               `ListingCard variant="row"`, kind "talep" → asla görsel). */}
-          {page.items.length === 0 ? (
+          {lastPage != null ? (
+            <PublicEmptyState
+              title={te("pageEmpty")}
+              extra={{ label: te("lastPage"), href: `${basePath}${buildListingFilterQuery({ ...state, page: lastPage })}` }}
+            />
+          ) : page.items.length === 0 ? (
             <PublicEmptyState
               title={hasFilter ? t("listingEmptyFilteredTitle") : t("listingEmptyTitle")}
               clearHref={hasFilter ? basePath : undefined}

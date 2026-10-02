@@ -84,26 +84,38 @@ export function Group({
        Grubun ADI `aria-labelledby` ile (arayüz testi D-326): başlık daraltma
        düğmesinin içinde; düğmenin içindeki <legend> fieldset'in ilk çocuğu
        olmadığı için tarayıcı onu ad saymıyor, grup adsız okunuyordu. */
-    <fieldset aria-labelledby={titleId} className="rounded-lg border border-zinc-200 bg-white px-3 py-3">
-      <div className="flex items-center justify-between gap-2">
+    /* BAŞLIK RAYA SIĞAR (arayüz testi webA-05, yeniden doğrulama): RU'da
+       "МЕСТОПОЛОЖЕНИЕ (1) ⌄ Сбросить" tek satıra sığmıyor; fieldset'in
+       varsayılan `min-inline-size: min-content`i kartı 256 px rayın dışına
+       itiyor, şehir sayaçları ve yarıçap ölçeği kırpılıyordu. Satır SARAR
+       ("Temizle" alt satıra, sağa yaslı geçer), fieldset `min-w-0` ile raydan
+       geniş olamaz, başlık yine sığmazsa kelimeden bölünür. */
+    <fieldset aria-labelledby={titleId} className="min-w-0 rounded-lg border border-zinc-200 bg-white px-3 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <button
           type="button"
           aria-expanded={open}
           aria-controls={id}
           onClick={() => setOpen(!open)}
-          className="flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
+          className="flex min-w-0 flex-auto items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
         >
           {icon ? (
-            <span aria-hidden className="mr-1 inline-flex text-zinc-400">
+            <span aria-hidden className="mr-1 inline-flex shrink-0 text-zinc-400">
               {icon}
             </span>
           ) : null}
-          <span id={titleId}>{title}</span>
-          {count > 0 ? <span className="ml-1 normal-case text-zinc-950">({count})</span> : null}
-          <ChevronDownIcon aria-hidden className={`ml-auto size-4 transition ${open ? "" : "-rotate-90"}`} />
+          <span id={titleId} className="min-w-0 break-words">
+            {title}
+          </span>
+          {count > 0 ? <span className="ml-1 shrink-0 normal-case text-zinc-950">({count})</span> : null}
+          <ChevronDownIcon aria-hidden className={`ml-auto size-4 shrink-0 transition ${open ? "" : "-rotate-90"}`} />
         </button>
         {count > 0 ? (
-          <button type="button" onClick={onClear} className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
+          <button
+            type="button"
+            onClick={onClear}
+            className="ml-auto shrink-0 text-xs whitespace-nowrap text-zinc-500 underline underline-offset-2 hover:text-zinc-950"
+          >
             {t("clear")}
           </button>
         ) : null}

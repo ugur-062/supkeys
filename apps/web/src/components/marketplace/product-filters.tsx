@@ -846,6 +846,9 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   if (state.moqMax != null) chips.push({ key: "moq", label: t("moqChip", { n: fmt.number(state.moqMax) }), onRemove: () => update({ moqMax: undefined }) });
   // Sertifika ve nitelik çipleri GRUP ÖNEKLİ (arayüz testi D-317): "CE"
   // sertifikası ile "CE" nitelik değeri yan yana iki aynı çip basıyordu.
+  // Sertifika süzgeci FİRMANIN beyanını sorgular; öneki "Firma sertifikası"
+  // — kategoride "Sertifika" adlı bir ürün niteliği de var, düz "Sertifika"
+  // öneki onunla yine aynı çipi basıyordu (yeniden doğrulama).
   for (const c of state.certs) chips.push({ key: `cert:${c}`, label: t("groupChip", { group: t("certification"), value: c }), onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
   if (state.fastReply) chips.push({ key: "fast", label: t("fastReply"), onRemove: () => update({ fastReply: false }) });
   if (state.near && state.radius) {

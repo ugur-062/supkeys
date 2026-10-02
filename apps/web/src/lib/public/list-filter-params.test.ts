@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cityListParam } from "./filter-param-utils";
+import { cityListParam, pastEndLastPage } from "./filter-param-utils";
 import { parseProductFilters } from "./product-filter-params";
 import {
   activeCompanyFilterCount,
@@ -49,5 +49,20 @@ describe("firma dizini süzgeç URL şeması", () => {
   });
   it("eski `il` parametresi okunur", () => {
     expect(parseCompanyFilters({ il: "Bursa" }).cities).toEqual(["bursa"]);
+  });
+});
+
+describe("pastEndLastPage — son sayfanın ötesi (arayüz testi webA-05)", () => {
+  it("toplam dolu, sayfa boş ve son sayfadan büyükse son sayfayı verir", () => {
+    expect(pastEndLastPage({ itemCount: 0, total: 166, page: 200, pageSize: 24 })).toBe(7);
+    expect(pastEndLastPage({ itemCount: 0, total: 166, page: 8, pageSize: 24 }, 200)).toBe(7);
+  });
+  it("son sayfa herkese açık sınırla kırpılır", () => {
+    expect(pastEndLastPage({ itemCount: 0, total: 10_000, page: 201, pageSize: 24 }, 200)).toBe(200);
+  });
+  it("gerçek boş sonuçta ve dolu sayfada null (normal boş durum / liste)", () => {
+    expect(pastEndLastPage({ itemCount: 0, total: 0, page: 3, pageSize: 24 })).toBeNull();
+    expect(pastEndLastPage({ itemCount: 5, total: 29, page: 2, pageSize: 24 })).toBeNull();
+    expect(pastEndLastPage({ itemCount: 0, total: 30, page: 1, pageSize: 24 })).toBeNull();
   });
 });

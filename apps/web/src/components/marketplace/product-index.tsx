@@ -28,6 +28,7 @@ import {
   toProductListParams,
   type SearchParamsLike,
 } from "@/lib/public/product-filter-params";
+import { pastEndLastPage } from "@/lib/public/filter-param-utils";
 import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
@@ -74,6 +75,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   const tl = await getTranslations("web.marketplace.labels");
   const tt = await getTranslations("web.marketplace.typeahead");
   const tm = await getTranslations("web.marketing");
+  const te = await getTranslations("web.marketplace.empty");
   const locale = await getLocale();
   const state = parseProductFilters(
     {
@@ -125,6 +127,12 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     });
   const crumbs = category ? [{ name: category.name, path: landingPath }] : (trail ?? []);
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
+  // Son sayfanın ötesi: kriterler eşleşiyor, yalnız bu sayfa boş — "bulunamadı"
+  // yerine son sayfaya bağlantı (arayüz testi webA-05, yeniden doğrulama).
+  const lastPage = pastEndLastPage(
+    { itemCount: page.items.length, total: page.total, page: page.page, pageSize: page.pageSize },
+    PAGE_LIMIT,
+  );
   // "Talep aç" (boş durum + yüzen düğme) `OpenRequestLink`: misafir kaydı
   // DÖNÜŞ ADRESİ TAŞIMAZ (Y-03), oturumlu üyeye Gold kapısını önceden söyler.
   // Telefonda KÜÇÜK ve köşeye yakın (arayüz testi D-071): 390 px'te tam boy
@@ -228,7 +236,12 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         }
       >
         <FilterResults>
-          {page.items.length === 0 ? (
+          {lastPage != null ? (
+            <PublicEmptyState
+              title={te("pageEmpty")}
+              extra={{ label: te("lastPage"), href: `${landingPath}${landingQuery(lastPage)}` }}
+            />
+          ) : page.items.length === 0 ? (
             <PublicEmptyState
               title={t("productsEmptyTitle")}
               clearHref={hasFilter || category ? basePath : undefined}
