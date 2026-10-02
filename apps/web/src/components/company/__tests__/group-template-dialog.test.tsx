@@ -89,3 +89,40 @@ describe("GroupTemplateDialog — bağlantısı kopan üye", () => {
     expect([...body.memberCompanyIds].sort()).toEqual(["a", "b"]);
   });
 });
+
+describe("GroupTemplateDialog — tohumlama sürerken (webB-10 yeniden doğrulama)", () => {
+  it("detay gelene kadar üye kutuları çizilmez; gelince tohumlanmış seçim görünür", async () => {
+    const user = userEvent.setup();
+    let release!: () => void;
+    const base = h.get.getMockImplementation()!;
+    h.get.mockImplementation((url: string) => {
+      if (url === "/company/supplier-templates/g1") {
+        return new Promise((resolve) => {
+          release = () => resolve(base(url));
+        });
+      }
+      return base(url);
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <ConfirmProvider>
+          <GroupTemplatesView basePath="/company/satinalma/sablonlar" />
+        </ConfirmProvider>
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: /Çelik.*düzenle/i }));
+    // Bağlantılar geldi ama detay beklemede: kutu yok, "0 seçili" yok, Kaydet pasif.
+    await waitFor(() => expect(h.get).toHaveBeenCalledWith("/company/connections"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(screen.queryByText(/0 seçili/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+
+    release();
+    expect(await screen.findByText(/2 seçili/)).toBeInTheDocument();
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes).toHaveLength(2);
+    for (const b of boxes) expect(b).toBeChecked();
+  });
+});

@@ -61,3 +61,19 @@ describe("RequestDefaultsForm — salt okunur (D-263)", () => {
     for (const b of screen.getAllByRole("switch")) expect(b).toBeDisabled();
   });
 });
+
+describe("RequestDefaultsForm — iki örnek aynı sayfada (webB-10 yeniden doğrulama)", () => {
+  it("id'ler örnek başına benzersiz; her etiket kendi girişini işaret eder", () => {
+    const { container } = render(
+      <>
+        <Harness init={{ paymentCategory: "DEFERRED", paymentDays: 30 }} only={["payment"]} />
+        <Harness init={{ paymentCategory: "DEFERRED", paymentDays: 45 }} only={["payment"]} />
+      </>,
+    );
+    const ids = Array.from(container.querySelectorAll("[id]")).map((e) => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const inputs = screen.getAllByLabelText(/Vade/);
+    expect(inputs).toHaveLength(2);
+    expect(inputs.map((i) => (i as HTMLInputElement).value)).toEqual(["30", "45"]);
+  });
+});

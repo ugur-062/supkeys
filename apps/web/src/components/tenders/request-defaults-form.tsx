@@ -18,7 +18,7 @@ import type { LcSubType } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { COUNTRIES, isRegistrationOpen, PAYMENT_CATEGORIES, REQUEST_ALLOWED_CURRENCIES_MAX, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useId } from "react";
 
 const INPUT =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
@@ -112,6 +112,11 @@ export function RequestDefaultsForm({
   const fieldErrors = requestDefaultsFieldErrors(value);
   const currencyLimitReached = value.allowedCurrencies.length >= REQUEST_ALLOWED_CURRENCIES_MAX;
   const gap = compact ? "space-y-5" : "space-y-8";
+  // Örnek başına benzersiz id (arayüz testi webB-10 yeniden doğrulama): hızlı
+  // talep sayfası formu iki kez çiziyor (ödeme kartı + şartlar paneli); sabit
+  // "tsart-*" id'leri çakışıyor, ikinci etiket ilk girişi işaret ediyordu.
+  const uid = useId();
+  const fid = (k: string) => `${uid}-${k}`;
 
   return (
     <BareContext.Provider value={bare}>
@@ -185,8 +190,8 @@ export function RequestDefaultsForm({
 
       {show("delivery") ? (
         <Field>
-          <Label htmlFor="tsart-teslim">{tr("teslimSekli")}</Label>
-          <select id="tsart-teslim" value={value.deliveryTerm ?? ""} onChange={(e) => set({ deliveryTerm: e.target.value || null })} className={INPUT}>
+          <Label htmlFor={fid("teslim")}>{tr("teslimSekli")}</Label>
+          <select id={fid("teslim")} value={value.deliveryTerm ?? ""} onChange={(e) => set({ deliveryTerm: e.target.value || null })} className={INPUT}>
             <option value="">{tr("secin")}</option>
             <optgroup label={tr("adreseYurticiTeslim")}>
               {domesticTerms.map((t) => (
@@ -239,14 +244,14 @@ export function RequestDefaultsForm({
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {value.paymentCategory === "ADVANCE" ? (
               <Field hint={tr("n100TamPesinAltiKismi")} error={fieldErrors.advancePercent ? tr("pesinYuzdesiAraligi") : undefined}>
-                <Label htmlFor="tsart-pesin">{tr("pesinYuzdesi")}</Label>
-                <NumberInput id="tsart-pesin" min={1} max={100} value={value.advancePercent} onChange={(n) => set({ advancePercent: n })} />
+                <Label htmlFor={fid("pesin")}>{tr("pesinYuzdesi")}</Label>
+                <NumberInput id={fid("pesin")} min={1} max={100} value={value.advancePercent} onChange={(n) => set({ advancePercent: n })} />
               </Field>
             ) : null}
             {value.paymentCategory === "LETTER_OF_CREDIT" ? (
               <Field>
-                <Label htmlFor="tsart-lc">{tr("akreditifTipi")}</Label>
-                <select id="tsart-lc" value={value.lcType ?? "SIGHT"} onChange={(e) => set({ lcType: e.target.value })} className={INPUT}>
+                <Label htmlFor={fid("lc")}>{tr("akreditifTipi")}</Label>
+                <select id={fid("lc")} value={value.lcType ?? "SIGHT"} onChange={(e) => set({ lcType: e.target.value })} className={INPUT}>
                   {(["SIGHT", "USANCE"] as LcSubType[]).map((t) => (
                     <option key={t} value={t}>{lcTypeLabel(t)}</option>
                   ))}
@@ -255,8 +260,8 @@ export function RequestDefaultsForm({
             ) : null}
             {needsDays ? (
               <Field error={fieldErrors.paymentDays ? tr("vadeGunAraligi") : undefined}>
-                <Label htmlFor="tsart-vade" required>{tr("vadeGun")}</Label>
-                <NumberInput id="tsart-vade" min={1} max={365} value={value.paymentDays} onChange={(n) => set({ paymentDays: n })} />
+                <Label htmlFor={fid("vade")} required>{tr("vadeGun")}</Label>
+                <NumberInput id={fid("vade")} min={1} max={365} value={value.paymentDays} onChange={(n) => set({ paymentDays: n })} />
               </Field>
             ) : null}
           </div>
@@ -267,9 +272,9 @@ export function RequestDefaultsForm({
         <Block title={tr("paraBirimi")} hint={tr("anaBirimTeklifKarsilastirmasininTabanidir")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field>
-              <Label htmlFor="tsart-para">{tr("anaParaBirimi")}</Label>
+              <Label htmlFor={fid("para")}>{tr("anaParaBirimi")}</Label>
               <select
-                id="tsart-para"
+                id={fid("para")}
                 value={value.primaryCurrency}
                 onChange={(e) => {
                   const c = e.target.value;
@@ -286,8 +291,8 @@ export function RequestDefaultsForm({
             </Field>
             <div>
               {/* Çip grubu — tek kontrol yok, başlık olarak basılıp gruba bağlanır. */}
-              <Label as="p" id="tsart-birimler-baslik">{tr("kabulEdilenBirimler")}</Label>
-              <div role="group" aria-labelledby="tsart-birimler-baslik" aria-describedby={currencyLimitReached ? "tsart-birimler-sinir" : undefined} className="flex flex-wrap gap-1.5">
+              <Label as="p" id={fid("birimler-baslik")}>{tr("kabulEdilenBirimler")}</Label>
+              <div role="group" aria-labelledby={fid("birimler-baslik")} aria-describedby={currencyLimitReached ? fid("birimler-sinir") : undefined} className="flex flex-wrap gap-1.5">
                 {CURRENCIES.map((c) => {
                   const on = value.allowedCurrencies.includes(c);
                   const locked = c === value.primaryCurrency;
@@ -309,7 +314,7 @@ export function RequestDefaultsForm({
                 })}
               </div>
               {currencyLimitReached ? (
-                <p id="tsart-birimler-sinir" className="mt-1.5 text-xs text-zinc-500">
+                <p id={fid("birimler-sinir")} className="mt-1.5 text-xs text-zinc-500">
                   {tr("enFazlaBirim", { max: REQUEST_ALLOWED_CURRENCIES_MAX })}
                 </p>
               ) : null}
@@ -357,8 +362,8 @@ export function RequestDefaultsForm({
         <Block title={tr("teklifKurallari")} hint={tr("kapaliZarfTedarikcilerBirbirininTeklifini")}>
           <div className="space-y-3">
             <Field>
-              <Label htmlFor="tsart-gorunur">{tr("tedarikciNeGorur")}</Label>
-              <select id="tsart-gorunur" value={value.bidVisibility} onChange={(e) => set({ bidVisibility: e.target.value })} className={INPUT}>
+              <Label htmlFor={fid("gorunur")}>{tr("tedarikciNeGorur")}</Label>
+              <select id={fid("gorunur")} value={value.bidVisibility} onChange={(e) => set({ bidVisibility: e.target.value })} className={INPUT}>
                 {BID_VISIBILITY_CODES.map((v) => (
                   <option key={v} value={v}>{tr(`bidVisibility.${v}`)}</option>
                 ))}

@@ -204,16 +204,20 @@ function GroupTemplateDialog({
         <div>
           <p className="mb-2 text-sm font-medium text-zinc-950">
             {t("uyeler")}{" "}
-            <span className="font-normal text-zinc-400">
-              {t("baglantilarinizdanSecili", { size: selected.size })}
-            </span>
+            {!seeding && (
+              <span className="font-normal text-zinc-400">
+                {t("baglantilarinizdanSecili", { size: selected.size })}
+              </span>
+            )}
           </p>
           {droppedCount > 0 && (
             <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
               {t("baglantisiKopanUyelerCikarildi", { count: droppedCount })}
             </p>
           )}
-          {connections.isLoading ? (
+          {/* Üyeler tohumlanana kadar liste yerine iskelet (arayüz testi webB-10
+              yeniden doğrulama): erken işaretlenen kutu tohumlamada eziliyordu. */}
+          {connections.isLoading || seeding ? (
             <ListSkeleton rows={3} />
           ) : rows.length === 0 ? (
             <EmptyHint>
