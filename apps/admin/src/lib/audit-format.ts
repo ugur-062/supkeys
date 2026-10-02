@@ -158,7 +158,9 @@ const KEY_LABEL: Record<string, string> = {
   decisions: "kararlar",
   rejected: "red var",
   changes: "değişiklikler",
-  resetDocs: "yeniden istenen belgeler",
+  // Gönderimde onaylı olmayan (incelemeye giren) belgeler — ilk gönderimde de
+  // dolu; "yeniden istenen" ilk başvuruyu yanlış anlatıyordu (son tur).
+  resetDocs: "incelemeye gönderilen belgeler",
   revived: "yeniden canlandı",
   rowCounts: "kayıt sayıları",
   rothernId: "Rothern kodu",

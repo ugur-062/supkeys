@@ -286,6 +286,17 @@ describe("audit-format", () => {
       ).toBe("değişen alanlar: ad, soyad, telefon");
     });
 
+    it("belge gönderimi: resetDocs ilk gönderimde de nötr etiketle", () => {
+      const s = formatAuditMetadata("company.docs.submitted", {
+        kycFields: ["mersisNo"],
+        resetDocs: ["taxPlate", "tradeRegistry"],
+      });
+      expect(s).toBe(
+        "doğrulama alanları: MERSİS no · incelemeye gönderilen belgeler: Vergi levhası, Ticaret sicil gazetesi",
+      );
+      expect(s).not.toMatch(/yeniden istenen/);
+    });
+
     it("iç içe sayım nesneleri, e-posta şablonu, zaman tasarrufu ve tur aktarımı", () => {
       expect(
         formatAuditMetadata("admin.company.exported", {
