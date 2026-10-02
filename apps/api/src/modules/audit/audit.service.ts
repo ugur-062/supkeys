@@ -235,6 +235,14 @@ export class AuditService {
         // `tenantId`=firma ile yazılır (arayüz testi D-205). Yalnız admin
         // aktörü — firmanın kendi etkinliği bu görünümü boğmasın.
         { tenantId: term, actorType: "admin" },
+        // Iki firmali admin mudahalesi (siparis iptali, baglanti daveti):
+        // ikinci taraf `metadata.counterpartyCompanyId` ile yazilir — o
+        // firmanin sekmesinde de gorunur (arayuz testi api2-02 yeniden
+        // dogrulama).
+        {
+          actorType: "admin",
+          metadata: { path: ["counterpartyCompanyId"], equals: term },
+        },
       ];
     }
 

@@ -662,9 +662,14 @@ export class AdminInspectionService {
       action: "admin.order.cancelled",
       actorType: "admin",
       actorId: adminId,
+      // Firma Denetim sekmesi firma kimligiyle arar: alici tenantId, satici
+      // `counterpartyCompanyId` (AuditService.query) — mudahale iki tarafin
+      // sekmesinde de gorunur (arayuz testi api2-02 yeniden dogrulama).
+      tenantId: order.buyerCompanyId,
       entityType: "order",
       entityId: id,
       metadata: {
+        counterpartyCompanyId: order.sellerCompanyId,
         reason,
         listingId: order.listingId ?? null,
         // "Bu iptalle ilan canlı siparişsiz kaldı" — destek/uyum izi.
@@ -772,7 +777,7 @@ export class AdminInspectionService {
     // (ör. ACTIVE) gerçek kayıt için.
     const exists = await this.prisma.companyConnection.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, inviterCompanyId: true, inviteeCompanyId: true },
     });
     if (!exists) {
       throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
@@ -789,8 +794,12 @@ export class AdminInspectionService {
       action: "admin.connection_invite.revoked",
       actorType: "admin",
       actorId: adminId,
+      // Iki tarafin Denetim sekmesi: davet eden tenantId, davet edilen
+      // counterpartyCompanyId (siparis iptaliyle ayni kural).
+      tenantId: exists.inviterCompanyId,
       entityType: "connection",
       entityId: id,
+      metadata: { counterpartyCompanyId: exists.inviteeCompanyId },
     });
     return { ok: true };
   }
@@ -803,7 +812,7 @@ export class AdminInspectionService {
     // geçmişini de götürüyordu. Kuyruktaki talep davetleri de iptal edilir.
     const exists = await this.prisma.companyReferralInvite.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, inviterCompanyId: true },
     });
     if (!exists) {
       throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
@@ -831,6 +840,8 @@ export class AdminInspectionService {
       action: "admin.referral_invite.revoked",
       actorType: "admin",
       actorId: adminId,
+      // Davet eden firmanin Denetim sekmesinde gorunur.
+      tenantId: exists.inviterCompanyId,
       entityType: "referral_invite",
       entityId: id,
     });

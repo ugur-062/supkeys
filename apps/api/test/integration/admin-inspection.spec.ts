@@ -480,6 +480,47 @@ describe("davet iptalleri", () => {
     ).rejects.toThrow(/BEKLEYEN/);
   });
 
+  it("api2-02 yeniden doğrulama: sipariş iptali ve davet iptalleri iki tarafın Denetim aramasında bulunur", async () => {
+    const { service } = rig();
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const outsider = await makeCompanyWithUser(prisma, {});
+    const order = await makeOrder(buyer.company.id, seller.company.id);
+    await service.cancelOrder(order.id, "takılmış sipariş gerekçesi", "admin-1");
+    const conn = await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: buyer.company.id,
+        inviteeCompanyId: seller.company.id,
+        status: "PENDING",
+        invitedById: buyer.user.id,
+      },
+    });
+    await service.revokeConnectionInvite(conn.id, "admin-1");
+    const ref = await prisma.companyReferralInvite.create({
+      data: {
+        inviterCompanyId: buyer.company.id,
+        email: "dis@tedarikci.com",
+        invitedById: buyer.user.id,
+      },
+    });
+    await service.revokeReferralInvite(ref.id, "admin-1");
+
+    const audit = new AuditService(prisma as never);
+    const actionsFor = async (companyId: string) =>
+      (await audit.query({ search: companyId })).items.map((i) => [i.action, i.entityId]);
+    const forBuyer = await actionsFor(buyer.company.id);
+    expect(forBuyer).toContainEqual(["admin.order.cancelled", order.id]);
+    expect(forBuyer).toContainEqual(["admin.connection_invite.revoked", conn.id]);
+    expect(forBuyer).toContainEqual(["admin.referral_invite.revoked", ref.id]);
+    const forSeller = await actionsFor(seller.company.id);
+    expect(forSeller).toContainEqual(["admin.order.cancelled", order.id]);
+    expect(forSeller).toContainEqual(["admin.connection_invite.revoked", conn.id]);
+    expect(forSeller).not.toContainEqual(["admin.referral_invite.revoked", ref.id]);
+    expect(await actionsFor(outsider.company.id)).toEqual([]);
+    // Firma yüzü aktivite logu admin.* kayıtlarını göstermez (company.* öneki).
+    expect((await audit.queryForTenant(buyer.company.id)).items).toEqual([]);
+  });
+
   it("D-183: olmayan bağlantı/referans daveti 404", async () => {
     const { service } = rig();
     const c1 = await service
