@@ -502,6 +502,57 @@ describe("CategoryService.searchTree — alaka sırası (O-022)", () => {
   });
 });
 
+/**
+ * Yeniden doğrulama (O-022): en iyi tek puan çok sık eşitleniyordu ve eşitlik
+ * KOD sırasına düşüyordu — "kablo"da Madencilik (20…) Elektrik kablosunun
+ * (26…) önünde, "rulman"da tek ad eşleşmeli segmentin eş anlamlı kardeşleri
+ * "Rulmanlar ve yataklar"ın önündeydi.
+ */
+describe("CategoryService.searchTree — segment/sınıf ağırlığı (O-022 yeniden doğrulama)", () => {
+  it("adı eşleşen satırı ÇOK olan segment, kodda önce gelen tek eşleşmeli segmentin önünde", async () => {
+    // Segment 20: tek "Kablo saplayıcılar" + yalnız eş anlamlıdan gelen kardeş.
+    await makeCategory({ code: "20000000", nameTr: "Madencilik makineleri", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "20100000", nameTr: "Madencilik ekipmanı", level: 2, parentId: "20000000", sortOrder: 0 });
+    await makeCategory({ code: "20101800", nameTr: "Tahkimat sistemleri", level: 3, parentId: "20100000", sortOrder: 0 });
+    await makeCategory({ code: "20101801", nameTr: "Kablo saplayıcılar", level: 4, parentId: "20101800", sortOrder: 0 });
+    await makeCategory({ code: "20101802", nameTr: "Tavan direkleri", level: 4, parentId: "20101800", sortOrder: 1, keywords: "kablo" });
+    // Segment 26: "Kablo tesisatı" sınıfı (kendi adı) + çok "… kablosu" emtiası.
+    await makeCategory({ code: "26000000", nameTr: "Güç dağıtımı", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "26120000", nameTr: "Elektrik teli ve kablosu", level: 2, parentId: "26000000", sortOrder: 0 });
+    await makeCategory({ code: "26121600", nameTr: "Elektrik kablosu ve aksesuarları", level: 3, parentId: "26120000", sortOrder: 0 });
+    for (const [i, n] of ["Kablo aksesuarları", "Kontrol kablosu", "Sinyal kablosu", "Ağ kablosu"].entries()) {
+      await makeCategory({ code: `2612160${i + 1}`, nameTr: n, level: 4, parentId: "26121600", sortOrder: i });
+    }
+    await makeCategory({ code: "26121700", nameTr: "Kablo tesisatı", level: 3, parentId: "26120000", sortOrder: 1 });
+
+    const res = await service().searchHierarchical("kablo");
+
+    expect(res.segments.map((s) => s.code)).toEqual(["26000000", "20000000"]);
+    // Sınıfta önce KENDİ adı: "Kablo tesisatı" yüz emtialı sınıfın altında gömülmez.
+    expect(res.segments[0]!.families[0]!.classes.map((c) => c.code)).toEqual([
+      "26121700",
+      "26121600",
+    ]);
+    // Yalnız eş anlamlıdan gelen kardeş kendi sınıfında ad eşleşmesinin ARKASINDA.
+    expect(res.segments[1]!.families[0]!.classes[0]!.commodities.map((c) => c.code)).toEqual([
+      "20101801",
+      "20101802",
+    ]);
+  });
+
+  it("aynı segmentte ad eşleşmeli aile, yalnız eş anlamlı aileden önce", async () => {
+    await makeCategory({ code: "27000000", nameTr: "Aletler", level: 1 });
+    await makeCategory({ code: "27110000", nameTr: "El aletleri", level: 2, parentId: "27000000", sortOrder: 0 });
+    await makeCategory({ code: "27113100", nameTr: "Çekme aletleri", level: 3, parentId: "27110000", keywords: "rulman" });
+    await makeCategory({ code: "27120000", nameTr: "Yatak aletleri", level: 2, parentId: "27000000", sortOrder: 1 });
+    await makeCategory({ code: "27121500", nameTr: "Rulman presleri", level: 3, parentId: "27120000" });
+
+    const res = await service().searchHierarchical("rulman");
+
+    expect(res.segments[0]!.families.map((f) => f.code)).toEqual(["27120000", "27110000"]);
+  });
+});
+
 describe("CategoryService.searchTree — kodla arama (O-048)", () => {
   async function chain31() {
     await makeCategory({ code: "31000000", nameTr: "Üretim bileşenleri", level: 1 });
@@ -524,6 +575,25 @@ describe("CategoryService.searchTree — kodla arama (O-048)", () => {
       const cls = res.segments.flatMap((s) => s.families.flatMap((f) => f.classes));
       expect(cls.find((c) => c.code === "31161600")?.isMatch).toBe(true);
     }
+  });
+
+  it("gizli segmentteki kod: sonuç yok + hiddenSegment (admin nedenini söyler)", async () => {
+    await makeCategory({ code: "43000000", nameTr: "Bilişim", level: 1 });
+    await makeCategory({ code: "43230000", nameTr: "Yazılım", level: 2, parentId: "43000000" });
+    await makeCategory({ code: "43231500", nameTr: "İş yazılımları", level: 3, parentId: "43230000" });
+    const res = await service().searchHierarchical("43230000");
+    expect(res).toEqual({ segments: [], truncated: false, hiddenSegment: "43" });
+    expect(await prisma.categorySearchMiss.count()).toBe(0);
+    // Görünür segmentte sonuçsuz kod: hiddenSegment YOK.
+    expect((await service().searchHierarchical("99990000")).hiddenSegment).toBeUndefined();
+  });
+
+  it("ondalık ölçü ('2.5') kod öneki sayılmaz — segment 25 dönmez (NEW-1)", async () => {
+    await makeCategory({ code: "25000000", nameTr: "Araçlar", level: 1 });
+    await makeCategory({ code: "25100000", nameTr: "Motorlu taşıtlar", level: 2, parentId: "25000000" });
+    await makeCategory({ code: "25101500", nameTr: "Binek araçlar", level: 3, parentId: "25100000" });
+    expect((await service().searchHierarchical("2.5")).segments).toEqual([]);
+    expect((await service().searchHierarchical("25")).segments.map((s) => s.code)).toEqual(["25000000"]);
   });
 
   it("sonuçsuz kod araması kürasyon kuyruğuna YAZILMAZ", async () => {

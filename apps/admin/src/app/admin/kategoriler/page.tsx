@@ -203,7 +203,10 @@ function KategorilerView() {
     queryKey: ["admin-category-search", debounced],
     enabled: debounced.trim().length >= 2,
     queryFn: async () => {
-      const { data } = await api.get<{ segments: SegmentNode[] }>(
+      const { data } = await api.get<{
+        segments: SegmentNode[];
+        hiddenSegment?: string;
+      }>(
         "/categories/search-tree",
         { params: { q: debounced } },
       );
@@ -213,6 +216,7 @@ function KategorilerView() {
   });
 
   const segments = query.data?.segments ?? [];
+  const hiddenSegment = query.data?.hiddenSegment;
 
   return (
     <div className="max-w-[900px] space-y-6">
@@ -226,14 +230,16 @@ function KategorilerView() {
       <SearchInput
         value={q}
         onChange={setQ}
-        placeholder="Kategori adı veya 8 haneli kod ara (en az 2 karakter)..."
+        placeholder="Kategori adı veya kodu ara (en az 2 karakter)..."
       />
 
       {debounced.trim().length < 2 ? (
         <div className="admin-card text-admin-text-muted flex flex-col items-center gap-2 px-6 py-16 text-center text-sm">
           <FolderTree className="h-7 w-7" aria-hidden="true" />
+          {/* Örnekler GÖRÜNÜR segmentlerden (O-048): eski "yazılım" /
+              "43230000" gizli segment 43'teydi, arama ikisini de bulmuyordu. */}
           Aramak için en az 2 karakter yazın — ör. &quot;çelik&quot;,
-          &quot;yazılım&quot;, &quot;43230000&quot;.
+          &quot;rulman&quot;, &quot;31171500&quot;.
         </div>
       ) : query.isLoading ? (
         <p className="text-admin-text-muted text-sm">Aranıyor...</p>
@@ -250,7 +256,9 @@ function KategorilerView() {
         </div>
       ) : segments.length === 0 ? (
         <div className="admin-card text-admin-text-muted px-6 py-10 text-center text-sm">
-          Sonuç yok
+          {hiddenSegment
+            ? `Sonuç yok — ${hiddenSegment} segmenti katalog sadeleştirmesiyle gizli; bu koddaki kategoriler seçicilerde ve aramada görünmez.`
+            : "Sonuç yok"}
         </div>
       ) : (
         <div className="space-y-3">

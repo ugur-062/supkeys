@@ -42,7 +42,7 @@ export function SatisGelirTab({
 }) {
   const t = useTranslations("web.panel.shell.satisChartTabs");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
-  const { money: formatMoney } = useFormatMoney();
+  const { money: formatMoney, compact } = useFormatMoney();
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -73,7 +73,15 @@ export function SatisGelirTab({
               <ComposedChart data={analytics.revenueTrend}>
                 <CartesianGrid vertical={false} stroke="#e2e8f0" />
                 <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
-                <RYAxis tickLine={false} axisLine={false} width={56} tick={AXIS} />
+                {/* Tutar ekseni KISALTILIR ("12 Mn ₺"): ham 8 haneli değer 56 px'e
+                    sığmayıp soldan kırpılıyordu ("2000000"). */}
+                <RYAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={64}
+                  tick={AXIS}
+                  tickFormatter={(v: number) => compact(Number(v), analytics.currency ?? "TRY")}
+                />
                 <RTooltip
                   formatter={(v, n) => [
                     formatMoney(Number(v ?? 0), analytics.currency ?? "TRY"),

@@ -74,12 +74,32 @@ export function categoryMatchScore(
 }
 
 /**
- * Kodla arama (arayüz testi O-048): yalnız rakam (boşluk/nokta atılır), 2-8
- * hane. Sondaki "00" çiftleri düşülür → "43230000" ailesi "4323" önekiyle
- * aranır, "31161603" tam kodla. Rakam dışı sorguda null.
+ * Bir satırın, bulunduğu segment/aile/sınıf sıralamasına katkısı (O-022,
+ * yeniden doğrulama). Karesi alınır: adı kelimeyle BAŞLAYAN dört satır (4²·4 =
+ * 64), sözcük İÇİNDE geçen elli satırı (1·50) geçer — sözcük içi tesadüfi
+ * eşleşme seli segmenti öne çekemez. Yalnız eş anlamlıdan gelen (0) katkı
+ * vermez. Kod eşleşmesi (≥100) sıralamayı katalog sırasına bırakır: hepsi
+ * aynı önekte, adet anlamsız.
+ */
+export function relevanceWeight(score: number): number {
+  if (score <= 0 || score >= 100) return 0;
+  return score * score;
+}
+
+/**
+ * Kodla arama (arayüz testi O-048): yalnız rakam, 2-8 hane (ayırıcısız tek
+ * grupta tek sayılı önek de olur: "311"). Boşluk/nokta yalnız ÇİFT haneli
+ * grupları ayırabilir ("43.23.00.00", "4323 0000"); "2.5" / "1.5" gibi
+ * ondalık ölçü kod sayılmaz (yoksa "2.5" → "25" önekiyle bütün Araçlar
+ * segmentini döndürüyordu). Sondaki "00" çiftleri düşülür → "43230000"
+ * ailesi "4323" önekiyle aranır, "31161603" tam kodla. Kod olmayan sorguda
+ * null.
  */
 export function categoryCodePrefix(query: string): string | null {
-  const digits = query.replace(/[\s.]/g, "");
+  const groups = query.trim().split(/[\s.]+/);
+  const grouped = groups.length > 1;
+  if (!groups.every((g) => (grouped ? /^(?:\d\d)+$/ : /^\d+$/).test(g))) return null;
+  const digits = groups.join("");
   if (!/^\d{2,8}$/.test(digits)) return null;
   let p = digits;
   while (p.length > 2 && p.length % 2 === 0 && p.endsWith("00")) p = p.slice(0, -2);

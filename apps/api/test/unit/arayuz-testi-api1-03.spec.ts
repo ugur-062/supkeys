@@ -21,6 +21,7 @@ import { CompanyDashboardController } from "../../src/modules/company-dashboard/
 import {
   categoryCodePrefix,
   categoryMatchScore,
+  relevanceWeight,
 } from "../../src/modules/categories/services/category-search-rank";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -178,5 +179,34 @@ describe("O-048 — kod öneki", () => {
     expect(categoryCodePrefix("6205 rulman")).toBeNull();
     expect(categoryCodePrefix("4")).toBeNull();
     expect(categoryCodePrefix("123456789")).toBeNull();
+  });
+
+  // Yeniden doğrulama (NEW-1): "2.5" noktası atılıp "25" önekiyle bütün
+  // Araçlar segmentini getiriyordu. Ayırıcı yalnız ÇİFT haneli grupları böler.
+  it.each(["2.5", "1.5", "12.5", "0.25", "2 5", "3116.5"])(
+    "ondalık ölçü %s kod sayılmaz",
+    (q) => {
+      expect(categoryCodePrefix(q)).toBeNull();
+    },
+  );
+
+  it.each([
+    ["43.23.00.00", "4323"],
+    ["4323 0000", "4323"],
+    ["311", "311"],
+  ])("biçimli / yazılırken kod %s → %s", (q, p) => {
+    expect(categoryCodePrefix(q)).toBe(p);
+  });
+});
+
+describe("O-022 (yeniden doğrulama) — sıralama ağırlığı", () => {
+  it("eş anlamlı (0) ve kod eşleşmesi (≥100) ağırlık vermez", () => {
+    expect(relevanceWeight(0)).toBe(0);
+    expect(relevanceWeight(100)).toBe(0);
+    expect(relevanceWeight(150)).toBe(0);
+  });
+
+  it("adı kelimeyle başlayan dört satır, sözcük içi elli satırı geçer", () => {
+    expect(4 * relevanceWeight(4)).toBeGreaterThan(50 * relevanceWeight(1));
   });
 });

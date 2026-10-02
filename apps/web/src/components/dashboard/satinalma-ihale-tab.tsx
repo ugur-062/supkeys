@@ -244,7 +244,14 @@ export function SatinalmaIhaleTab({
               <BarChart data={analytics.cashCalendar}>
                 <CartesianGrid vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <YAxis tickLine={false} axisLine={false} width={52} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                {/* Tutar ekseni kısaltılır — ham değer dar eksende kırpılıyordu. */}
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={64}
+                  tick={{ fontSize: 11, fill: "#94a3b8" }}
+                  tickFormatter={(v: number) => formatCompactMoney(Number(v))}
+                />
                 <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), t("odeme")]} />
                 <Bar dataKey="amount" fill="#2563eb" radius={[3, 3, 0, 0]} />
               </BarChart>

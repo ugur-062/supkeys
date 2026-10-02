@@ -9,12 +9,17 @@ import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows 
 import {
   categoryCatalogWhere,
   hiddenCategoryWhere,
+  isHiddenCategory,
   foldSearchText,
   tokenizeQuery,
   type CategoryCatalog,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { categoryCodePrefix, categoryMatchScore } from "./category-search-rank";
+import {
+  categoryCodePrefix,
+  categoryMatchScore,
+  relevanceWeight,
+} from "./category-search-rank";
 
 /**
  * 4 seviye kategori servisi (kaynak: Ariba kataloğu, birebir).
@@ -204,6 +209,12 @@ export class CategoryService {
     }>;
     /** 200 sonuç tavanına takıldı — kullanıcıya "aramayı daraltın" gösterilir. */
     truncated: boolean;
+    /**
+     * Sonuçsuz KOD aramasında kod gizli bir segmentin altındaysa o segmentin
+     * iki hanesi (O-048, yeniden doğrulama) — admin kategori tarayıcısı "Sonuç
+     * yok" yerine nedenini söyler. Diğer durumlarda yok.
+     */
+    hiddenSegment?: string;
   }> {
     // Kimliksiz uç: sorgu uzunluğu ve token sayısı SINIRLI. Sınırsızken
     // ~16 KB'lık "er er er ..." tek istekte ~10.000 ILIKE yüklemli sorgu
@@ -381,7 +392,11 @@ export class CategoryService {
       // log drain'de "Kategori araması sonuçsuz" ile toplanır.
       // Kod araması kürasyon kuyruğuna YAZILMAZ: eş anlamlı ekleyerek
       // çözülecek bir terim değil (O-048 — sahte kayıt düşüyordu).
-      if (codePrefix) return { segments: [], truncated: false };
+      if (codePrefix) {
+        return isHiddenCategory(codePrefix)
+          ? { segments: [], truncated: false, hiddenSegment: codePrefix.slice(0, 2) }
+          : { segments: [], truncated: false };
+      }
       this.logger.log(`Kategori araması sonuçsuz: "${q.slice(0, 80)}"`);
       await this.recordSearchMiss(q, folded);
       return { segments: [], truncated: false };
@@ -396,6 +411,10 @@ export class CategoryService {
       isMatch: boolean;
       /** En iyi alaka puanı (kendisi ya da altındaki emtia) — sıralama. */
       score: number;
+      /** Alt ağaçtaki ad eşleşmelerinin toplam ağırlığı (`relevanceWeight`). */
+      weight: number;
+      /** Sınıfın KENDİ adının puanı (eşleşmediyse 0). */
+      ownScore: number;
       commodities: Map<
         string,
         {
@@ -406,6 +425,7 @@ export class CategoryService {
           sortOrder: number;
           isMatch: boolean;
           score: number;
+          weight: number;
         }
       >;
     }
@@ -416,6 +436,7 @@ export class CategoryService {
       level: number;
       sortOrder: number;
       score: number;
+      weight: number;
       classes: Map<string, ClassAcc>;
     }
     interface SegmentAcc {
@@ -426,6 +447,7 @@ export class CategoryService {
       segmentLetter: string | null;
       sortOrder: number;
       score: number;
+      weight: number;
       families: Map<string, FamilyAcc>;
     }
 
@@ -482,6 +504,7 @@ export class CategoryService {
           segmentLetter: segment.segmentLetter,
           sortOrder: segment.sortOrder,
           score: 0,
+          weight: 0,
           families: new Map(),
         };
         segmentMap.set(segment.id, segAcc);
@@ -496,12 +519,16 @@ export class CategoryService {
           level: family.level,
           sortOrder: family.sortOrder,
           score: 0,
+          weight: 0,
           classes: new Map(),
         };
         segAcc.families.set(family.id, famAcc);
       }
+      const rowWeight = relevanceWeight(rowScore);
       segAcc.score = Math.max(segAcc.score, rowScore);
       famAcc.score = Math.max(famAcc.score, rowScore);
+      segAcc.weight += rowWeight;
+      famAcc.weight += rowWeight;
 
       let clsAcc = famAcc.classes.get(cls.id);
       if (!clsAcc) {
@@ -511,15 +538,20 @@ export class CategoryService {
           nameTr: categoryName(cls),
           level: cls.level,
           sortOrder: cls.sortOrder,
-          isMatch: cat.level === 3 && cat.id === cls.id,
+          isMatch: false,
           score: 0,
+          weight: 0,
+          ownScore: 0,
           commodities: new Map(),
         };
         famAcc.classes.set(cls.id, clsAcc);
-      } else if (cat.level === 3 && cat.id === cls.id) {
+      }
+      if (cat.level === 3 && cat.id === cls.id) {
         clsAcc.isMatch = true;
+        clsAcc.ownScore = rowScore;
       }
       clsAcc.score = Math.max(clsAcc.score, rowScore);
+      clsAcc.weight += rowWeight;
 
       if (commodity) {
         if (!clsAcc.commodities.has(commodity.id)) {
@@ -531,6 +563,7 @@ export class CategoryService {
             sortOrder: commodity.sortOrder,
             isMatch: true,
             score: rowScore,
+            weight: rowWeight,
           });
         }
       }
@@ -552,6 +585,7 @@ export class CategoryService {
           segmentLetter: segment.segmentLetter,
           sortOrder: segment.sortOrder,
           score: 0,
+          weight: 0,
           families: new Map(),
         };
         segmentMap.set(segment.id, segAcc);
@@ -565,12 +599,15 @@ export class CategoryService {
           level: fam.level,
           sortOrder: fam.sortOrder,
           score: 0,
+          weight: 0,
           classes: new Map(),
         };
         segAcc.families.set(fam.id, famAcc);
       }
       segAcc.score = Math.max(segAcc.score, famScore);
       famAcc.score = Math.max(famAcc.score, famScore);
+      segAcc.weight += relevanceWeight(famScore);
+      famAcc.weight += relevanceWeight(famScore);
       for (const cls of fam.children) {
         if (!famAcc.classes.has(cls.id)) {
           famAcc.classes.set(cls.id, {
@@ -581,19 +618,37 @@ export class CategoryService {
             sortOrder: cls.sortOrder,
             isMatch: false,
             score: 0,
+            weight: 0,
+            ownScore: 0,
             commodities: new Map(),
           });
         }
       }
     }
 
-    // Segment/aile/sınıf en iyi çocuğunun puanıyla dizilir (O-022); eşitte
-    // katalog sırası.
-    const sortByOrder = <T extends { sortOrder: number; score: number }>(a: T, b: T) =>
+    // SIRALAMA (O-022, yeniden doğrulama). Segment ve aile alt ağaçlarındaki
+    // ad eşleşmelerinin AĞIRLIĞIYLA dizilir: en iyi tek puan çok sık eşitleniyor
+    // ("kablo"da 11 segmentin hepsinde adı "Kablo …" ile başlayan bir satır var)
+    // ve eşitlik kod sırasına düşünce Madencilik (20…) Elektrik kablosunun
+    // (26…) önüne geçiyordu; "rulman"da tek "Rulman ayırıcı"lı El aletleri
+    // segmenti, yalnız eş anlamlıdan gelen kardeşleriyle birlikte, "Rulmanlar
+    // ve yataklar" sınıfının önünde kalıyordu. Ağırlık yalnız ADDA geçen
+    // satırları sayar (eş anlamlı = 0), dolayısıyla eş anlamlı seli segment
+    // öne çekemez; yalnız eş anlamlıdan gelen kardeşler kendi düzeylerinde en
+    // sona düşer. Sınıflarda önce sınıfın KENDİ adı ("kablo": "Kablo tesisatı"
+    // sınıfı, yüz "… kablosu" emtiası olan "Elektrik kablosu ve aksesuarları"
+    // sınıfının altında gömülmesin), sonra ağırlık (onlarca "… vana" emtiası
+    // olan "Valflar", tek "Vana kutusu" emtiası olan sınıfın önünde); emtia
+    // yaprakları kendi puanıyla. Eşitte katalog sırası.
+    const byWeight = <T extends { sortOrder: number; score: number; weight: number }>(
+      a: T,
+      b: T,
+    ) => b.weight - a.weight || b.score - a.score || a.sortOrder - b.sortOrder;
+    const byScore = <T extends { sortOrder: number; score: number }>(a: T, b: T) =>
       b.score - a.score || a.sortOrder - b.sortOrder;
 
     const segments = Array.from(segmentMap.values())
-      .sort(sortByOrder)
+      .sort(byWeight)
       .map((seg) => ({
         id: seg.id,
         code: seg.code,
@@ -601,14 +656,14 @@ export class CategoryService {
         level: seg.level,
         segmentLetter: seg.segmentLetter,
         families: Array.from(seg.families.values())
-          .sort(sortByOrder)
+          .sort(byWeight)
           .map((fam) => ({
             id: fam.id,
             code: fam.code,
             nameTr: categoryName(fam),
             level: fam.level,
             classes: Array.from(fam.classes.values())
-              .sort(sortByOrder)
+              .sort((a, b) => b.ownScore - a.ownScore || byWeight(a, b))
               .map((cls) => ({
                 id: cls.id,
                 code: cls.code,
@@ -616,7 +671,7 @@ export class CategoryService {
                 level: cls.level,
                 isMatch: cls.isMatch,
                 commodities: Array.from(cls.commodities.values())
-                  .sort(sortByOrder)
+                  .sort(byScore)
                   .map((com) => ({
                     id: com.id,
                     code: com.code,
