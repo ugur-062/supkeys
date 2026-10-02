@@ -197,7 +197,11 @@ export function SavingsReportView({
           </Field>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4">
-          <Button onClick={run} disabled={!canSubmit || report.isPending}>
+          <Button
+            onClick={run}
+            disabled={!canSubmit || report.isPending}
+            aria-describedby={!canSubmit && !rangeInverted ? "savings-range-hint" : undefined}
+          >
             {report.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" data-slot="icon" />
             ) : null}
@@ -211,6 +215,13 @@ export function SavingsReportView({
             <FileSpreadsheet data-slot="icon" />
             {t("excelIndir")}
           </Button>
+          {/* Düğmeler neden pasif? (arayüz testi son tur S-BUY: ilk açılışta
+              gri düğme açıklamasızdı). Ters aralıkta satır içi hata zaten var. */}
+          {!canSubmit && !rangeInverted ? (
+            <span id="savings-range-hint" className="text-xs text-zinc-500">
+              {t("raporIcinTarihAraligiSecin")}
+            </span>
+          ) : null}
         </div>
       </section>
 

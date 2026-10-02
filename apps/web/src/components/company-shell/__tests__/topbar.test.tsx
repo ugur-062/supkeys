@@ -6,10 +6,13 @@
  * kişi portalsız minimal kabukta da Şirketim'e bir bağlantı görür; alanı
  * açamayan (yalnız onaylayıcı) görmez.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
+  mutateAsync: vi.fn(),
+  replace: vi.fn(),
   auth: {
     user: null as Record<string, unknown> | null,
     company: { tier: "GOLD", name: "Acme" } as { tier?: string; name?: string },
@@ -23,9 +26,12 @@ vi.mock("@/hooks/use-company-auth", () => ({
 vi.mock("@/lib/company/portal-store", () => ({
   usePortalStore: (sel: (s: unknown) => unknown) => sel({ setLastPortal: vi.fn() }),
 }));
+vi.mock("@/hooks/use-company-account", () => ({
+  useUpdateMe: () => ({ mutateAsync: h.mutateAsync, isPending: false }),
+}));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/company",
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: h.replace, prefetch: vi.fn() }),
 }));
 vi.mock("../messages-popover", () => ({ MessagesPopover: () => null }));
 vi.mock("../notification-bell", () => ({ NotificationBell: () => null }));
@@ -91,3 +97,42 @@ describe("CompanyTopbar — dar ekran çakışması (arayüz testi O-049)", () =
   });
 });
 
+
+/**
+ * Panel içi dil seçici (arayüz testi son tur S-BUY): üst çubukta dil yoktu;
+ * `/en/...` adresi kayıtlı dile geri sekiyordu. Hesap menüsündeki seçim
+ * Ayarlar › Dil ile AYNI kaydı yapar (`PATCH me { locale }`) ve sayfayı yeni
+ * dilin ön ekiyle açar — LocaleUrlSync geri sekmez.
+ */
+describe("CompanyTopbar — dil seçici", () => {
+  beforeEach(() => {
+    h.mutateAsync.mockReset().mockResolvedValue({});
+    h.replace.mockReset();
+    sessionStorage.clear();
+  });
+
+  it("hesap menüsünde üç dil; seçilen dil hesaba kaydedilir ve sayfa o dille açılır", async () => {
+    const ue = userEvent.setup();
+    h.auth.user = { ...user(["buy:view"]), locale: "tr" };
+    render(<CompanyTopbar activePortal="satinalma" onOpenMobileNav={() => {}} />);
+    await ue.click(screen.getByRole("button", { name: "Hesap menüsü" }));
+    const tr = screen.getByRole("menuitem", { name: "Türkçe" });
+    expect(tr).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("menuitem", { name: "Русский" })).toBeInTheDocument();
+    await ue.click(screen.getByRole("menuitem", { name: "English" }));
+    await waitFor(() => expect(h.mutateAsync).toHaveBeenCalledWith({ locale: "en" }));
+    await waitFor(() =>
+      expect(h.replace).toHaveBeenCalledWith("/company", { locale: "en" }),
+    );
+    expect(sessionStorage.getItem("rothern:locale-saved")).toBe("en");
+  });
+
+  it("kayıtlı dil yeniden seçilirse istek atmaz", async () => {
+    const ue = userEvent.setup();
+    h.auth.user = { ...user(["buy:view"]), locale: "tr" };
+    render(<CompanyTopbar activePortal="satinalma" onOpenMobileNav={() => {}} />);
+    await ue.click(screen.getByRole("button", { name: "Hesap menüsü" }));
+    await ue.click(screen.getByRole("menuitem", { name: "Türkçe" }));
+    expect(h.mutateAsync).not.toHaveBeenCalled();
+  });
+});

@@ -12,10 +12,14 @@ import {
   Dropdown,
   DropdownButton,
   DropdownDivider,
+  DropdownHeading,
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
+  DropdownSection,
 } from "@/components/catalyst/dropdown";
+import { useAccountLocale, useLocaleSavedToast } from "@/hooks/use-account-locale";
+import { LOCALES, LOCALE_LABELS } from "@rothern/i18n";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
 import {
   COMPANY_AREA,
@@ -30,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ArrowRightStartOnRectangleIcon,
+  CheckIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
   BuildingOffice2Icon,
@@ -57,7 +62,13 @@ export function CompanyTopbar({
   onOpenMobileNav: () => void;
 }) {
   const t = useTranslations("web.panel.shell.topbar");
+  const tl = useTranslations("web.settings.language");
   const tn = useNavLabel();
+  // Panel içi dil seçici (arayüz testi son tur S-BUY): panelin dili kayıtlı
+  // hesap dilini izler (`LocaleUrlSync`), bu yüzden seçim Ayarlar › Dil ile
+  // AYNI kaydı yapar; onay toast'ı yeni dilde, yönlendirmeden sonra.
+  const accountLocale = useAccountLocale();
+  useLocaleSavedToast();
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
   // Birleşik mesaj kutusu (2026-08-02): ikon, HERHANGİ bir işlem rolü
@@ -225,6 +236,26 @@ export function CompanyTopbar({
                 <Cog6ToothIcon data-slot="icon" />
                 <DropdownLabel>{t("ayarlar")}</DropdownLabel>
               </DropdownItem>
+              <DropdownDivider />
+              {/* Etiketler dilin KENDİ adıyla, çevrilmez (yanlış dilde kalan
+                  kullanıcı kendi dilini tanısın — LanguageSwitcher ile aynı). */}
+              <DropdownSection aria-label={tl("label")}>
+                <DropdownHeading>{tl("label")}</DropdownHeading>
+                {LOCALES.map((code) => (
+                  <DropdownItem
+                    key={code}
+                    lang={code}
+                    disabled={accountLocale.isPending}
+                    aria-current={code === accountLocale.value ? "true" : undefined}
+                    onClick={() => void accountLocale.switchTo(code)}
+                  >
+                    <DropdownLabel>{LOCALE_LABELS[code]}</DropdownLabel>
+                    {code === accountLocale.value ? (
+                      <CheckIcon className="col-start-5 row-start-1 size-4 justify-self-end text-zinc-500 group-data-focus:text-white" aria-hidden />
+                    ) : null}
+                  </DropdownItem>
+                ))}
+              </DropdownSection>
               <DropdownDivider />
               <DropdownItem onClick={() => void logout()}>
                 <ArrowRightStartOnRectangleIcon data-slot="icon" />

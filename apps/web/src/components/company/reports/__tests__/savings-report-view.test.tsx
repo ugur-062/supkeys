@@ -103,6 +103,8 @@ describe("SavingsReportView", () => {
     expect(screen.getByText("Tasarruf Raporu")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Raporu Oluştur/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Excel İndir/ })).toBeDisabled();
+    // Arayüz testi son tur S-BUY: pasif düğmenin nedeni yazılı.
+    expect(screen.getByText("Raporu oluşturmak için başlangıç ve bitiş tarihini seçin.")).toBeInTheDocument();
   });
 
   it("tarih aralığı girilince Raporu Oluştur mutasyonu tetiklenir", async () => {
@@ -116,6 +118,7 @@ describe("SavingsReportView", () => {
 
     const submit = screen.getByRole("button", { name: /Raporu Oluştur/ });
     expect(submit).toBeEnabled();
+    expect(screen.queryByText("Raporu oluşturmak için başlangıç ve bitiş tarihini seçin.")).toBeNull();
     await user.click(submit);
 
     expect(h.reportMutate).toHaveBeenCalledTimes(1);

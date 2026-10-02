@@ -8,7 +8,7 @@ import { Textarea } from "@/components/catalyst/textarea";
 import { StarRating, useRatingLabel } from "@/components/ui/star-rating";
 import { useOrderReview, useUpsertReview } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export function OrderReviewCard({
@@ -42,16 +42,23 @@ export function OrderReviewCard({
     }
   }, [existing]);
 
+  // Çift tık kilidi (arayüz testi son tur S-BUY): `upsert.isPending` bir
+  // sonraki çizimde gelir; aynı karede ikinci tık ikinci POST atıyordu.
+  const inFlight = useRef(false);
   const save = async () => {
     if (rating < 1) {
       toast.error(t("lutfen15ArasiPuan"));
       return;
     }
+    if (inFlight.current) return;
+    inFlight.current = true;
     try {
       await upsert.mutateAsync({ rating, comment: comment.trim() || undefined, showName });
       toast.success(t("degerlendirmenizKaydedildi"));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("kaydedilemedi")));
+    } finally {
+      inFlight.current = false;
     }
   };
 

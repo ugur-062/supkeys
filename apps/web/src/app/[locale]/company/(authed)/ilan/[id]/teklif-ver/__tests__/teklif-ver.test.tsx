@@ -783,3 +783,18 @@ describe("TeklifVerPage — arayüz testi webC-01", () => {
     });
   });
 });
+
+describe("TeklifVerPage — özet kartı para birimleri (arayüz testi son tur S-BUY)", () => {
+  it("çok birimli talepte kart kabul edilen birimlerin tamamını gösterir (yalnız 'TRY' değil)", () => {
+    h.detail = baseDetail({ allowedCurrencies: ["TRY", "USD", "EUR"] });
+    render(<TeklifVerPage />);
+    const dt = screen.getByText("Para Birimleri", { selector: "dt" });
+    expect(dt.nextElementSibling).toHaveTextContent("TRY, USD, EUR");
+  });
+
+  it("tek birimli talepte 'Para Birimi: TRY' ve alıcı notu kalır", () => {
+    render(<TeklifVerPage />);
+    const dt = screen.getByText("Para Birimi", { selector: "dt" });
+    expect(dt.nextElementSibling).toHaveTextContent("TRY");
+  });
+});

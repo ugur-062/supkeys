@@ -1282,10 +1282,22 @@ export default function TeklifVerPage() {
                   <dd className="font-medium text-zinc-900">{items.length}</dd>
                 </div>
               ) : null}
+              {/* Çok birimli talepte kabul edilen birimlerin TAMAMI (ana önce):
+                  kart yalnız "TRY" diyordu, kalem seçicileri USD/EUR sunarken
+                  (arayüz testi son tur S-BUY). Teklifin kendi birimi formda. */}
               <div>
-                <dt className="text-xs text-zinc-500">{tr("paraBirimi")}</dt>
+                <dt className="text-xs text-zinc-500">
+                  {(l.allowedCurrencies?.length ?? 0) > 1 ? tr("paraBirimleri") : tr("paraBirimi")}
+                </dt>
                 <dd className="font-medium text-zinc-900">
-                  {effectiveCurrency}
+                  {(l.allowedCurrencies?.length ?? 0) > 1
+                    ? [
+                        l.primaryCurrency ?? "TRY",
+                        ...(l.allowedCurrencies ?? []).filter(
+                          (c) => c !== (l.primaryCurrency ?? "TRY"),
+                        ),
+                      ].join(", ")
+                    : effectiveCurrency}
                 </dd>
               </div>
             </dl>
