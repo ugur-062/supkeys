@@ -65,7 +65,12 @@ import { useEffect, useRef, useState } from "react";
  * tıklanmaz, sahte firma adları ve tutarlar gövde metni değildir. Her kartın
  * kökü `aria-hidden` — ekran okuyucu kartın altındaki başlık + açıklamayı
  * okur, maketin içini değil. Dar ekranda (390 px) satırlar sarar/kırpılır,
- * kart dışına taşmaz (arayüz testi D-063).
+ * kart dışına taşmaz (arayüz testi D-063). Satırdaki eylem kümesi (fiyat +
+ * "Satın al", "Bağlan", seçenek düğmeleri) sığmadığında ALT SATIRA iner —
+ * metni tek harfe sıkıştırmaz, üstüne binmez: satır `flex-wrap`, metin
+ * tarafı `flex-[1_1_8rem]` (Keşfet'te 10rem; bu genişliğin altına düşmeden
+ * sarar), eylem `ml-auto`.
+ * Uzun RU etiketleri ("Добавить в контакты", "Международный") buna göre.
  */
 
 /* Mockup (2026-09-18): üç kart, ortadaki Silver "En popüler" (mavi çerçeve
@@ -119,7 +124,7 @@ function Reveal({
   );
 }
 
-function ListingWizardPreview() {
+export function ListingWizardPreview() {
   const t = useTranslations("web.marketing.howItWorks.wizard");
   // Mockup (2026-09-18): kart başlığı ikon rozetli, sağda adım sayacı;
   // seçili seçenekler mavi çerçeve — Yurtiçi'nde BAYRAK YOK (kullanıcı).
@@ -140,26 +145,26 @@ function ListingWizardPreview() {
       <div className="mt-5 space-y-4">
         <div>
           <div className="text-xs font-medium text-zinc-600">{t("scope")}</div>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2 rounded-lg border-2 border-blue-500 bg-blue-50/60 px-3 py-2.5 text-sm font-medium text-blue-700">
-              <MapPinIcon className="size-4" />
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            <div className="flex flex-auto items-center gap-2 rounded-lg border-2 border-blue-500 bg-blue-50/60 px-3 py-2.5 text-sm font-medium text-blue-700">
+              <MapPinIcon className="size-4 shrink-0" />
               {t("domestic")}
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500">
-              <GlobeAltIcon className="size-4" />
+            <div className="flex flex-auto items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500">
+              <GlobeAltIcon className="size-4 shrink-0" />
               {t("international")}
             </div>
           </div>
         </div>
         <div>
           <div className="text-xs font-medium text-zinc-600">{t("type")}</div>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2 rounded-lg border-2 border-blue-500 bg-blue-50/60 px-3 py-2.5 text-sm font-medium text-blue-700">
-              <ShoppingCartIcon className="size-4" />
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            <div className="flex flex-auto items-center gap-2 rounded-lg border-2 border-blue-500 bg-blue-50/60 px-3 py-2.5 text-sm font-medium text-blue-700">
+              <ShoppingCartIcon className="size-4 shrink-0" />
               {t("buy")}
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500">
-              <TagIcon className="size-4" />
+            <div className="flex flex-auto items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500">
+              <TagIcon className="size-4 shrink-0" />
               {t("sell")}
             </div>
           </div>
@@ -172,7 +177,7 @@ function ListingWizardPreview() {
   );
 }
 
-function BidsPreview() {
+export function BidsPreview() {
   const t = useTranslations("web.marketing.howItWorks.bids");
   const bids = [
     { n: t("firmB"), a: t("amountB"), best: true },
@@ -201,11 +206,11 @@ function BidsPreview() {
           {bids.map((b) => (
             <div
               key={b.n}
-              className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-3 ${
+              className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl border px-3 py-3 ${
                 b.best ? "border-emerald-300 bg-emerald-50" : "border-zinc-200"
               }`}
             >
-              <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex min-w-0 flex-[1_1_8rem] items-center gap-2.5">
                 <span className={`hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex ${b.best ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
                   {b.best ? <TrophyIcon className="size-4" /> : <BuildingOfficeIcon className="size-4" />}
                 </span>
@@ -214,7 +219,7 @@ function BidsPreview() {
                 ) : null}
                 <span className="truncate text-sm font-medium text-zinc-800">{b.n}</span>
               </div>
-              <div className="flex shrink-0 items-center gap-2.5">
+              <div className="ml-auto flex shrink-0 items-center gap-2.5">
                 <span className="text-sm font-semibold whitespace-nowrap tabular-nums text-zinc-900">{b.a}</span>
                 {b.best ? (
                   <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold whitespace-nowrap text-emerald-700">{t("buy")}</span>
@@ -380,7 +385,7 @@ function OrderTimelinePreview() {
   );
 }
 
-function DiscoverPreview() {
+export function DiscoverPreview() {
   const t = useTranslations("web.marketing.howItWorks.discover");
   const firms = [
     { n: t("firm1"), s: t("firm1Sub"), m: 3 },
@@ -399,12 +404,12 @@ function DiscoverPreview() {
             <div className="text-xs text-zinc-500">{t("subtitle")}</div>
           </div>
         </div>
-        <span className="text-xs font-medium text-blue-600">{t("seeAll")}</span>
+        <span className="shrink-0 text-xs font-medium whitespace-nowrap text-blue-600">{t("seeAll")}</span>
       </div>
       <div className="mt-5 space-y-2">
         {firms.map((f) => (
-          <div key={f.n} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 px-3 py-3">
-            <div className="flex min-w-0 items-center gap-2.5">
+          <div key={f.n} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-zinc-200 px-3 py-3">
+            <div className="flex min-w-0 flex-[1_1_10rem] items-center gap-2.5">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
                 <BuildingOfficeIcon className="size-4" />
               </span>
@@ -416,8 +421,8 @@ function DiscoverPreview() {
                 </div>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">{t("connect")}</span>
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              <span className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white">{t("connect")}</span>
               <ChevronRightIcon className="size-4 text-zinc-400" />
             </div>
           </div>
@@ -995,7 +1000,9 @@ export default function HomePage() {
                   <div key={b.v} className="flex flex-col items-center gap-2">
                     <div className="relative flex h-24 w-full items-end">
                       {b.now ? (
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-md bg-orange-100 px-2 py-1 text-[11px] font-semibold whitespace-nowrap text-orange-700">
+                        // Son (güncel) sütunun SAĞ kenarına hizalı: ortalanınca uzun
+                        // RU etiketi kutunun dışına taşıyordu (arayüz testi D-063).
+                        <span className="absolute -top-8 right-0 rounded-md bg-orange-100 px-2 py-1 text-[11px] font-semibold whitespace-nowrap text-orange-700">
                           {t("formats.current")}
                         </span>
                       ) : null}
