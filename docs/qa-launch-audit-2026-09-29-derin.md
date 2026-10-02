@@ -4,7 +4,8 @@
 > **Boşluk taraması (2026-09-30):** 7 alan tarandı (eski dallar, yeni çeviriler, canlı DNS/TLS/başlıklar, test kalitesi, e-posta çizimi, staging yedeğiyle migration provası, yerel tam yığın e2e). 6 düzeltme biriminin (GA1…GB3) hepsi ✅. Yeni operatör maddeleri O-46…O-55 ve kararlar 73, 74 (§ Boşluk taraması).
 > **Canlı AI doğrulaması (2026-09-30):** gerçek Gemini ile 2 mevcut LIVE spec + genişletilmiş smoke 7/7 PASS (toplam 0,1027 USD); asistan onay kartında 5 bulgu düzeltildi + 1 onarım (b2ccae74, d9595dda, 60b84cca), canlı kart testi TR/EN geçti (§ Canlı AI doğrulaması).
 > **Son tam regresyon (HEAD 53c572fc, 2026-09-30):** paket derlemeleri, typecheck 7/7, lint 0 hata, i18n en/ru %100 (7.714 anahtar), API jest 284 dosya / 3.170 test, web 247 / 1.430, admin 43 / 202, i18n 9 / 44, Playwright `--list` 26 dosya / 112 test, api/web/admin derlemeleri yeşil, git temiz. **583 test dosyası / 4.846 test (4.844 geçti, 2 LIVE atlandı, 0 kırmızı).**
-> **Push yapılmadı.** Operatör adımları `docs/qa-launch-audit-2026-09-28.md` §14.2 O-17…O-55; kullanıcı kararı bekleyenler 1…74.
+> **Arayüz testi (2026-09-30/10-01, kod HEAD adcc8cd0):** tarayıcıyla 110 sayfa, TR/EN/RU, masaüstü + mobil, 15.666 kontrol + rol × paket hücresi; doğrulanmış 501 kusur (Engelleyici 0 · Yüksek 13 · Orta 126 · Düşük 362). 47 düzeltme biriminde (129 commit, `3ab11a9d..adcc8cd0`) 492'si düzeltildi, 2'si zaten düzelmişti, 1'i kısmen (D-194), 6'sı ertelendi; tarayıcıda yeniden doğrulamada kalan 22 madde ve 100 yeni bulgu ikinci turda kapandı, T3 rol × paket matrisinin 17 bulgusu adcc8cd0 ile düzeltildi. Son kapı yeşil: **690 test dosyası / 6.047 test (2 LIVE atlandı, 0 kırmızı)**, i18n 8.344 anahtar en/ru %100. Madde madde durum, kararlar T-01…T-20 ve kalan riskler: `docs/qa-ui-test-2026-10-01.md`. Yeni operatör maddeleri O-56…O-63, yeni kararlar 75…144.
+> **Push yapılmadı.** Operatör adımları `docs/qa-launch-audit-2026-09-28.md` §14.2 O-17…O-63; kullanıcı kararı bekleyenler 1…144.
 
 > Kullanıcı: "Sistemi baştan aşağı hiçbir şey atlamadan en ince ayrıntısına kadar parça parça kontrol etmelisin. Canlıya çıkacağız, her şeyi kontrol et."
 >
@@ -142,7 +143,7 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 
 63. **Moderasyonla kapatılmış (CLOSED) ilanın adresi** (LU-05 S021): *Varsayılan:* adres silinemez, yeri değiştirilemez; hata metni kullanıcıyı desteğe yönlendirir (`buAdresYoneticiKapattigiIlandaKullaniliyor`). Tek çıkış admin'in ilanı yeniden açması ya da iptal etmesi; admin ilanı hiç ele almazsa kilit süresiz kalır. CLOSED'dan bir süre sonra kilidin kalkması ürün kararı.
 64. **Referral 7 gün freni adres bazlı ortak mı olsun** (LU-07 S025): *Varsayılan:* fren davet eden firmaya göre işler; başka firmanın aynı adrese gönderdiği davet bu firmayı engellemez. Adres bazlı ortak fren ayrı ürün kararı.
-65. **SUPPORT rolünde Firmalar menüsü** (LU-11): menü SUPPORT'a görünüyor, ama `GET admin/companies` ve `companies/:id` SUPPORT'a kapalı, sayfa 403 veriyor. *Varsayılan:* dokunulmadı. Seçenekler: menüyü SUPPORT'tan gizlemek ya da SUPPORT'a salt okunur, PII'siz firma görünümü açmak (`recoverAccount` tüm rollere açık, ama bulunduğu detay sayfası SUPPORT'ta yüklenmiyor).
+65. ~~**SUPPORT rolünde Firmalar menüsü** (LU-11): menü SUPPORT'a görünüyor, ama `GET admin/companies` ve `companies/:id` SUPPORT'a kapalı, sayfa 403 veriyor. *Varsayılan:* dokunulmadı. Seçenekler: menüyü SUPPORT'tan gizlemek ya da SUPPORT'a salt okunur, PII'siz firma görünümü açmak (`recoverAccount` tüm rollere açık, ama bulunduğu detay sayfası SUPPORT'ta yüklenmiyor).~~ **KAPANDI (kullanıcı kararı T-09, 2026-10-01):** menü ve 403'e giden bağlantılar SUPPORT'tan gizlendi, API 403 kalır (arayüz testi webC-13).
 66. **`/public/stats` teklif sayısı eşiği** (LU-18 X16): *Varsayılan:* açık PUBLIC talep 10'un altındayken `bidsLast24h` 0 döner (`PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS`; rapor 20 örneğini vermişti). Farklı k-anonimlik eşiği ya da metriğin kaldırılması tek sabit değişikliği.
 67. **Engel ilişkisinde bilgi talepleri** (LU-18 X11; karar 32'nin yerine geçer): *Varsayılan:* iki tarafın listesinden ve Aksiyon Merkezi'nden gizli, yanıt 404; misafir talepleri (claimedCompanyId null) etkilenmez. Engelden önceki talebin satıcıda görünür kalması istenirse `listForCompany`/`listClaimed` süzgeçleri kaldırılır, reply 404 kapısı kalır.
 68. **Doğrulanmamış yarım kayıtların temizliği** (LU-22, business-rules Y6): *Varsayılan:* iş eklenmedi. Kod adımındaki yeni e-posta düzeltme ucu yanlış adresi çözüyor, ama sayfayı kapatıp gidenin hesabı (emailVerifiedAt=null) yetim kalıyor. N gün sonra silen iş istenirse N seçilmeli.
@@ -155,6 +156,79 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 
 73. **İşlem e-postalarında KVKK aydınlatma bağlantısı** (GA2, G5): aydınlatma bağlantısı artık çıkış bağlantısı olmayan iki ilk temas e-postasına da basılıyor. Bunlar ekip daveti (`company_user_invitation`; adres davet eden firmadan geliyor, veri ilgilisinden toplanmıyor) ve misafir bilgi talebi doğrulaması (`public_inquiry_verify`). *Varsayılan:* güvenli taraf olarak uygulandı. Avukat teyidi bekleniyor. Gereksiz bulunursa `apps/api/src/modules/email/email-streams.ts` içindeki `PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES` listesi daraltılır. Üye olmayan adrese giden yeni bir işlem e-postası eklenirse bu listeye girer.
 74. **Keşif bildiriminde "AI" markası** (GA3): başlık ve metin artık "AI" demiyor ("Uygun tedarikçiler bulundu"), çünkü tur AI kapalıyken de yalnız platform üyeleriyle sonuç üretebiliyor. *Varsayılan:* nötr metin. Web adayı varken AI markası geri istenirse ICU select dalı eklenir (`{source, select, ai {…} other {…}}`).
+
+**Arayüz testi (2026-10-01; ayrıntı `docs/qa-ui-test-2026-10-01.md`):**
+
+75. **Şahıs firmasının doğrulama belgeleri** (T-08, D-089): *Varsayılan:* davranış değişmedi; SOLE_PROPRIETOR'dan da Ltd./A.Ş. seti (MERSİS, ticari sicil no, Ticaret Sicil Gazetesi) isteniyor, esnaf kaydındaki firma doğrulanamayabilir.
+76. **Ürün ve firma dizini sıralaması** (T-17, D-168): *Varsayılan:* değişmedi. Ürün dizini ham `tier`i okur (süresi dolmuş Gold gece cron'una kadar üstte) ve GOLD'u SILVER'ın önüne koyar; firma dizini efektif paketi okur ve ikisini eşit sayar.
+77. **Onaylayıcı firmadaki bütün onay isteklerini görüyor** (T-10): *Varsayılan:* kasıtlı (Onaylar sayfası tasarımı), dokunulmadı. Seçenek: yalnız kendi adımları.
+78. **SUPER_ADMIN başka SUPER_ADMIN'in şifresini sıfırlayıp 2FA'sını silebiliyor** (T-11): *Varsayılan:* dokunulmadı; D-025'ten beri geçici şifre yalnız şifre değiştirmeye izin veriyor. İkinci onay ya da denetim uyarısı ayrı iş.
+79. **SALES süresi dolmuş paketi 'Süre Uzat' ile yeniden açabiliyor, toplam süre sınırsız** (T-12): *Varsayılan:* dokunulmadı (kayıtlı rol kuralı).
+80. **STANDART firmanın ilişkisiz firmaya mesaj atması** (T-13): *Varsayılan:* dokunulmadı; satıcı yönü her pakette açık, alıcı yönü artık Gold (O-123).
+81. **Çıkışta sunucu oturumu iptali** (T-14; karar 55'in devamı): *Varsayılan:* dokunulmadı (kısa ömürlü token tasarımı).
+82. **2FA zorunlu roldeki admin kendi 2FA'sını kapatabiliyor** (T-15; karar 13): *Varsayılan:* dokunulmadı; en azından uyarı metni istenebilir.
+83. **Yasal sayfalardaki 6 aylık dönem ifadesi** (T-07, D-001, DN-08): `sozlesmeler/iade` ve `sozlesmeler/mesafeli-satis` hâlâ 6 aylık seçenekten söz ediyor. *Varsayılan:* T-07 gereği düzenlenmedi; yalnız fiyat notu ve ödeme ekranı düzeltildi. 6 aylık fiyat açıklanınca `plans.ts`, not ve ödeme ekranı birlikte değişir.
+84. **Sunucu mükerrer pencereleri** (FX-00, O-002/O-006/O-007): *Varsayılan:* aynı kişi + tutar + not (+ yöntem/çek no/vade) ile 60 sn içindeki ikinci ödeme bildirimi, aynı adla 30 sn içindeki ikinci yeni ürün, aynı içerik + segment + e-posta ile 2 dk içindeki ikinci duyuru 409. Süreler servislerdeki sabitler.
+85. **Mobilde toast konumu** (FX-00 yeniden doğrulama NEW-4): *Varsayılan:* ≤600 px'te üstte (`AppToaster`), masaüstünde sağ-alt. Mobil konum onaylanmalı.
+86. **Ödeme kartının üçüncü hücresi 'Bildirilmemiş'** (FX-00 NEW-5): *Varsayılan:* tutar − onaylı − bekleyen; Özet'teki 'Kalan' (tutar − onaylı) ayrı. Alternatif: hücreyi borç olarak göstermek (o zaman üç hücre toplamı sipariş tutarını vermez).
+87. **Doğrulaması geri alınınca bekleyen kazandırma onayları** (O-013): *Varsayılan:* otomatik iptal yok; istek PENDING kalır, onaycı 403 `COMPANY_NOT_VERIFIED` nedenini görür, reddeder ya da doğrulama dönünce onaylar.
+88. **Gizli AI eşleşmesinde PENDING + ücretsiz firma** (O-056): *Varsayılan:* 'Silver'a geç' metni sürüyor (doğrulanmış/incelemedekine Silver kuralı). PENDING'de paket satın alınamadığı için (O-068) 'doğrulama bekleniyor' varyantına çevrilmesi önerilir.
+89. **Teklifsiz talep hatırlatmasının asgari yayın süresi** (D-154): *Varsayılan:* 24 saat (`sendZeroBidReminders` tek satır).
+90. **Çok dövizli taşınan teklifin bildirimi** (D-006): *Varsayılan:* döviz kırılımı yerine 'toplam yaklaşık X ₺ karşılığı'.
+91. **Admin kategori tarayıcısında gizli segmentler** (O-048): *Varsayılan:* aranmıyor; sonuçsuz kod aramasında neden ('43 segmenti gizli') gösteriliyor, örnekler görünür kodlara çevrildi. Admin'in tam katalogda araması istenirse ayrı admin arama ucu gerekir.
+92. **Gold altında satınalma koltukları** (DN-04, O-065/O-069): *Varsayılan:* sayılmıyor, koltuk seçiminde seçilemiyor, kayıtlı satınalma izinleri SİLİNMİYOR (Gold'a dönünce geçerli); GOLD→SILVER düşüşünde 'Paketiniz Silver'a alındı' bildirimi. Ürün sahibi onayı gerekiyor.
+93. **Gold altında yalnız satınalma izinli pasif kullanıcının yeniden aktifleştirilmesi**: *Varsayılan:* mevcut davranış, paket kapısı reddediyor (koltuk saymasa da). Uykudaki satınalma grubu yok sayılabilir.
+94. **Admin eliyle açılan hesabın şifre belirleme bağlantısı** (O-124): *Varsayılan:* 72 saat (`ACCOUNT_SETUP_TTL_HOURS`).
+95. **Yalnız askıdaki (isBlocked) firmanın bekleyen ürünleri admin kuyruğunda**: *Varsayılan:* kuyrukta kalıyor (herkese açık sayfalar zaten gizliyor); kuyruktan gizlemek moderasyon politikası.
+96. **Doğrulama geri alma / red e-postasının alıcıları** (D-193): *Varsayılan:* tek alıcı (billingEmail ya da en eski aktif kullanıcı). Kurucu ve company:manage üyelerine de gitsin mi?
+97. **Admin serbest notu e-postada** (D-141/D-193): *Varsayılan:* EN/RU alıcıya da olduğu gibi gösteriliyor (2026-09-27 gerekçe kararıyla tutarlı).
+98. **Herkese açık talep sayfasında misafir metni** (webA-02 yeniden doğrulama): *Varsayılan:* 'Teklif vermek için kaydol' + 'Kayıt ücretsizdir. Herkese açık taleplere teklif ve alıcı kimliği Silver paketiyle açılır; tek şartı ücretsiz firma doğrulamasıdır.' Pazarlama tonu için `web.marketplace.listing.*`.
+99. **Anasayfa talep satırında davetli ücretsiz üye**: *Varsayılan:* 'Teklif ver · Silver' doğrulama/paket sayfasına gider; davet kısayolu yalnız detay sayfasında (istemci davet durumunu bilmiyor).
+100. **Misafir bilgi talebi ucu** (O-059, DN-01): *Varsayılan:* `POST /api/public/inquiries` açık (T-02 'misafir akışı korunur'), web'den çizilmiyor. Kapatılsın mı / 410 mu? Kapanırsa `inquiry-dialog.tsx` silinebilir.
+101. **Ürün görsel tavanı** (O-100, DN-03): *Varsayılan:* 8 (`MAX_PRODUCT_IMAGES`); ürün kararı 6 ise tek sabitten düşer.
+102. **/firmalar kartındaki CTA** (Y-03): *Varsayılan:* 'Bilgi iste' yerine 'Firmayı incele' (firma düzeyinde bilgi talebi yok); metin onayı.
+103. **Gold dışı üyenin ürün görünümü** (Y-03): *Varsayılan:* `/company/urun/...` ürünü panel kabuğunda (fiyat, belge, video) gösteriyor, yalnız bilgi talebi Gold. Onay gerekiyor.
+104. **Ürün dış bağlantısı (externalUrl)** (Y-11): *Varsayılan:* API https doğruluyor ama hiçbir sayfada çizilmiyor. Üyeye gösterilsin mi?
+105. **Ürün belgesi indirme yalnız oturum** (D-331/T-18 devamı): *Varsayılan:* her oturumlu üye (satış, görüntüleyici, onaylayıcı) indirebilir; engel ilişkisinde 404. Belirli izinlere daraltılmasın mı?
+106. **'Şikayetlerim' listesi ve ölü uçlar** (D-160, DN-02): *Varsayılan:* `GET /company/complaints` + `useMyComplaints` hazır, bağlanmadı; raporun listelediği diğer ölü uçlar silinmedi.
+107. **Ürün karşılaştırma** (O-017, DN-09): *Varsayılan:* tablo gelene dek iki dizinden kaldırıldı; `ProductCard compare/onCompare` desteği duruyor.
+108. **Firma kartındaki 'Ana kategoriler' satırları** (D-072): *Varsayılan:* bağlantı değil. Firmanın o kategorideki ürünlerine bağlanabilir (API destekliyor, sayfa parametreyi okumuyor).
+109. **Herkese açık hero araması typeahead** (D-002, DN-06): *Varsayılan:* bağlanmadı; ölü `search-typeahead.tsx` ve `marketplace/hero.tsx` silinmedi.
+110. **Satış 'Firma' kapsamında öneri** (O-095): *Varsayılan:* öneri gösterilmiyor; istenirse satış firma dizini ucundan eklenir.
+111. **RU menü etiketi 'Мои запросы информации'** (D-147): *Varsayılan:* değişmedi, genişletilmiş rayda kesiliyor (title ile tam ad). Daha kısa karşılık dil kararı.
+112. **Tam sayfa yüklemesinde panel içeriği bir /me turu bekliyor** (D-299): *Varsayılan:* bayat izinle 403'ü önlemek için ~1 istek turu gecikme kabul edildi; alternatif sayfa bazlı izinli sorgu kapıları.
+113. **Paketi düşen alıcının mesajlaşması** (O-123 + webA-08 onarımı): *Varsayılan:* eski alıcı konuşmalarını okur, yazamaz; istisna: SÜREN siparişin (PENDING/ACCEPTED/CREATED/IN_DELIVERY/DELIVERED/DISPUTED) satıcısına yazabilir. Kapsam farklıysa `OPEN_ORDER_STATUSES` / `buyerDirectionOpen`.
+114. **SSS araması ve sözleşme içindekiler tablosu** (D-338, O-119): *Varsayılan:* SSS yalnız akordeon; sözleşmelerde yalnız `#madde-N` çapaları.
+115. **Kayıtlı şartı 'Bağlantılarım' olan bağlantısız firma** (D-246, DN-05): *Varsayılan:* PUBLIC'e çekilmiyor ('kimse görmez' uyarısıyla açılıyor); PUBLIC varsayılanı yalnız platform varsayılanında.
+116. **'Tedarikçi ne görür' (bidVisibility) RFQ'da etkisiz**: *Varsayılan:* seçenek formda duruyor, yalnız özet metinleri düzeltildi. T-16 gibi kaldırılsın mı?
+117. **Eski RFQ'larda `isSealedBid=false` ve yeni turun false yazması**: *Varsayılan:* veri göçü yok, arayüz okumuyor (gösterge formattan). Veri temizliği için karar/göç.
+118. **Kapanış çiplerinin saati** (D-095, DN-10): *Varsayılan:* isteğe bağlı gün + saat seçici eklendi, çipler 'şimdi + N gün'. Sabit saate (17:00) yuvarlama ayrı karar.
+119. **Paket kilidinde 'Satın Alma Talebini Kopyala'**: *Varsayılan:* gizli (kilitli + CTA'lı gösterilmiyor).
+120. **Admin API mesajlarında 'ilan'** (D-045): *Varsayılan:* admin geleneği gereği 'ilan' kaldı; admin'de de 'talep'e geçilsin mi?
+121. **Gold dışı firmada talep düzenleme sayfası**: *Varsayılan:* PortalGuard'ın PremiumGate'i (doğrulama kararı satın al tıklamasında); doğrulama-öncelikli ayrı kilit kartı ayrı iş.
+122. **Eski siparişlerin muadil/marka snapshot'ı** (O-003, DN-11): *Varsayılan:* backfill yok (kalem ↔ kazanan teklif ilişkisi saklanmadığı için uydurulmadı); ad + fiyat eşleşmesiyle betik istenebilir.
+123. **Vesaik mukabilinde banka hesabı önseçimi** (O-029): *Varsayılan:* önseçili kaldı (görünür, 'Hesap eklenmesin' seçilebilir); akreditife hiç hesap işlenmiyor.
+124. **Next.js geri tuşu yarışı** (D-283, DN-07): sipariş detayından ~0-70 ms içinde Geri'de adres değişiyor, detay ekranda kalıyor. *Varsayılan:* uygulama değişikliği yok; Next sürüm yükseltmesi ya da üst akış bildirimi.
+125. **Sonuçlanan onay isteğinde kalan adımlar** (D-361): *Varsayılan:* yalnız görüntüde 'gerek kalmadı'; sunucu WAITING/PENDING bırakıyor. SKIPPED/NOT_NEEDED yazımı ayrı iş.
+126. **Pazarlıkta 10 kat sapma freni** (Y-10): *Varsayılan:* eklenmedi (kök neden `type=number` düzeltildi).
+127. **Eski revize tekliflerin 'Revizyon' etiketi** (O-036, DN-11): *Varsayılan:* `submitCount` backfill'i gönderilmiş satırlara 1 yazdı; geçmiş yeniden gönderim sayısı bilinmediği için etiket kayboldu (uydurulmadı).
+128. **Açık Talepler tavanları** (D-116): *Varsayılan:* API açık 300 / geçmiş 200 korundu, web 'N+'. Gerçek sayfalama ayrı iş.
+129. **Bilinmeyen teklif kodu etiketi** (D-275): *Varsayılan:* 'Kayıtlı' / 'On file' / 'Есть'.
+130. **Arşivden geri alınan YAYINDAKİ ürün**: *Varsayılan:* `isPublic` korunur, incelemesiz vitrine döner (ücretsiz tavan yeniden sayılır). Yeniden onay istenip istenmeyeceği ürün kararı.
+131. **'Gelen Teklifler' KPI'ı teklif, hedef liste talep sayıyor** (O-035): *Varsayılan:* hedef `?status=OPEN&bids=1`; sayılar doğası gereği eşit değil. KPI'ı 'teklif gelen talep' sayısına çevirmek ya da ayrı liste ürün kararı.
+132. **Satış 'Aktif Sipariş' eski CREATED siparişleri de sayıyor**: liste süzgecinde CREATED yok. *Varsayılan:* dokunulmadı (yeni akış CREATED üretmiyor).
+133. **Tedarikçi sekmesinde çeyrek / özel aralık** (O-104): *Varsayılan:* uç yalnız ay ve yıl döndürüyor, yıl verisi açık notla gösteriliyor; gerçek çeyrek için API'ye dönem parametresi.
+134. **Firma sayfasındaki 'Bağlantı İçin Silver'a Geçin'** (D-194 kalanı): `firma/[id]/page.tsx` doğrulanmamış firmayı doğrudan `/company/premium`a götürüyor. *Varsayılan:* açık; `useVerifyFirst`/`VERIFY_HREF`e bağlanmalı (küçük iş).
+135. **'Gold altında açık kalan listeler' bandı** (O-008): *Varsayılan:* hiç Gold olmamış STANDART/SILVER firmada da (buy:view varsa) görünüyor; yalnız eski Gold'lara göstermek için API'de 'önceki paket' bilgisi gerekir.
+136. **Adres tavanı ve ödeme ekranı e-posta düğmesi** (D-135, D-137): *Varsayılan:* firma başına 200 adres (yalnız yeni adreste), düğme 'Satın almak için bize yazın'.
+137. **PENDING firmada paket satın alma** (O-068): *Varsayılan:* doğrulama sayfasına yönlendirmek yerine düğme pasif + 'inceleniyor — onaylanınca satın alabilirsiniz' + 'Durumu gör'; ödeme ekranı yerinde açıklar (CLAUDE.md güncellendi). Eski davranış istenirse geri alınır.
+138. **Üyelik bitişi şeridi** (D-029): *Varsayılan:* bitiş Firma Bilgileri ve Paketler'de; panel kabuğunda 30 günlük genel şerit yok.
+139. **KVKK anonim işareti** (D-208, DN-11): *Varsayılan:* ayrı `anonymizedAt` yerine `Company.isActive=false` (bugün yalnız anonimleştirme yazıyor). Başka bir pasifleştirme yolu eklenirse ayrı kolona geçilmeli.
+140. **Admin güvenlik sayfasındaki 'En çok deneme yapan' kartları** (D-226): *Varsayılan:* yalnız 1. sayfa (son 100 kayıt); zaman pencereli sunucu özeti ayrı sorgu.
+141. **Kalem kataloğuna şablon izniyle yazım** (D-185, DN-12 + T3): *Varsayılan:* POST/PATCH/active `templates:manage` ile de açık ama satış izni yoksa GOLD ister; vitrine dokunmuş ürün yalnız satış izniyle değişir. Onay ya da geri alma.
+142. **Bilgi talebi araması sunucuda değil** (D-112): *Varsayılan:* yalnız yüklenen kayıtlarda, ipucuyla (ücretsiz satıcıda alıcı adıyla arama kimlik sızdırır).
+143. **Admin geçici şifresi** (D-025, DN-11): *Varsayılan:* `mustChangePassword` backfill'siz; mevcut personel kilitlenmez, zorunlu değişim yalnız yeni geçici şifrelerde. Ayrı süre sınırı (ör. 72 saat) yok. Geçici şifreyle kalan hesap varsa O-59.
+144. **Yalnız 'Bağlantılar' izni olan üyeye örtük satış görüntülemesi** (T3): *Varsayılan:* `connections:manage` tek başınaysa `sell:view` gelir (Müşterilerim her pakette açık). Alternatif: kayıtta en az bir görüntüleme zorunlu (400) ya da satınalma görüntülemesi.
 
 ### Regresyon
 
