@@ -126,6 +126,29 @@ describe("AssistantLauncher — yapışkan alt çubuk (Y-01)", () => {
     expect(screen.getByRole("button", { name: "AI Asistan" }).style.bottom).toBe("88px");
   });
 
+  it("margin-bottom ile yukarı itilmiş alt çubuk da algılanır (webC-01)", () => {
+    setWidth(390);
+    const bar = document.createElement("div");
+    bar.className = "fixed inset-x-0 bottom-0 z-20";
+    bar.style.marginBottom = "20px";
+    bar.getBoundingClientRect = () =>
+      ({ top: window.innerHeight - 89, bottom: window.innerHeight - 20, width: 390, height: 69 }) as DOMRect;
+    document.body.appendChild(bar);
+    render(<AssistantLauncher />);
+    expect(screen.getByRole("button", { name: "AI Asistan" }).style.bottom).toBe("105px");
+  });
+
+  it("ekran altına yapışmayan öğe çubuk sayılmaz", () => {
+    setWidth(390);
+    const bar = document.createElement("div");
+    bar.className = "fixed inset-x-0 bottom-0 z-20";
+    bar.getBoundingClientRect = () =>
+      ({ top: window.innerHeight - 200, bottom: window.innerHeight - 120, width: 390, height: 80 }) as DOMRect;
+    document.body.appendChild(bar);
+    render(<AssistantLauncher />);
+    expect(screen.getByRole("button", { name: "AI Asistan" }).style.bottom).toBe("");
+  });
+
   it("çubuk yoksa (ya da lg:hidden ile 0 boyutluysa) varsayılan konum", () => {
     const bar = document.createElement("div");
     bar.className = "fixed inset-x-0 bottom-0 lg:hidden";

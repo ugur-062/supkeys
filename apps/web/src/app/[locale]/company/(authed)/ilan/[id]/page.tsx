@@ -1903,8 +1903,12 @@ export default function ListingDetailPage() {
 
   const sellerBidSection = (
     <section className="space-y-3">
-      {/* Doğrulama teşviki (2026-09-28) — teklif verebilen doğrulanmamış firma. */}
-      {l.canBid && l.roleAllowsBid !== false && biddingOpen ? <VerifyNudge /> : null}
+      {/* Doğrulama teşviki (2026-09-28) — teklif verebilen doğrulanmamış firma.
+          Gönderim doğrulama İSTİYORSA (D-028) teklif formundaki engelleyici
+          kartın aynısı (yeniden doğrulama webC-01). */}
+      {l.canBid && l.roleAllowsBid !== false && biddingOpen ? (
+        <VerifyNudge required={!!l.bidRequiresVerification} />
+      ) : null}
       {/* Paket/rol uyarıları yalnız teklif alımı açıkken — tamamlanmış talepte
           "Satışçı rolü gerekir" yanıltıcıydı (arayüz testi D-195). */}
       {!l.canBid && biddingOpen ? (

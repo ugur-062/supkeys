@@ -546,7 +546,7 @@ export function ProfileEditor({
       {dirty ? (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 shadow-2xl backdrop-blur sm:pl-72"
+          className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 px-4 py-3 shadow-2xl backdrop-blur sm:pl-72"
         >
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 pr-16">
             <span className="text-sm text-zinc-700">{t("kaydedilmemisDegisikliklerVar")}</span>

@@ -246,7 +246,7 @@ describe("TeklifVerPage — form", () => {
     render(<TeklifVerPage />);
 
     await user.click(
-      screen.getByRole("button", { name: /Bu kaleme teklif vermiyorum/ }),
+      screen.getByRole("button", { name: "Çelik Boru kalemine teklif vermiyorum" }),
     );
     expect(
       screen.getByText("Bu kaleme teklif verilmeyecek."),
@@ -665,6 +665,27 @@ describe("TeklifVerPage — arayüz testi webC-01", () => {
     render(<TeklifVerPage />);
     expect(screen.getByText("Tutar (TRY)")).toBeInTheDocument();
     expect(screen.queryByText("Kalem")).toBeNull();
+  });
+
+  it("yeniden doğrulama: kalemsiz talepte teslim süresi uyarısı kalemlerden söz etmez", () => {
+    h.detail = baseDetail({ items: [] });
+    render(<TeklifVerPage />);
+    expect(screen.getByText(/^• Teslim süresi zorunlu\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/süre girmediğiniz kalemler/)).toBeNull();
+  });
+
+  it("yeniden doğrulama: kalem opt-out düğmelerinin erişilebilir adı kalem adını taşır", () => {
+    const first = baseDetail().items![0]!;
+    h.detail = baseDetail({
+      items: [first, { ...first, id: "i2", lineNo: 2, name: "Flanş", questions: [] }],
+    });
+    render(<TeklifVerPage />);
+    expect(
+      screen.getByRole("button", { name: "Çelik Boru kalemine teklif vermiyorum" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Flanş kalemine teklif vermiyorum" }),
+    ).toBeInTheDocument();
   });
 
   it("D-122: bulunamayan talepte düğme açık taleplere gider ve öyle adlanır", () => {

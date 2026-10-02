@@ -78,7 +78,11 @@ function useBottomBarHeight(enabled: boolean): number {
         // lg:hidden çubuk masaüstünde 0 boyutludur; ekran altına yapışmayan
         // öğe çubuk sayılmaz.
         if (r.width <= 0 || r.height <= 0) continue;
-        if (r.bottom < window.innerHeight - 2) continue;
+        // `bottom-0` çubuk bir `space-y-*` kabının son olmayan çocuğuysa
+        // margin-bottom alır ve ekran altından o kadar yukarıda durur
+        // (yeniden doğrulama webC-01): alt boşluk margin ile birlikte ölçülür.
+        const mb = parseFloat(window.getComputedStyle(el).marginBottom) || 0;
+        if (r.bottom + mb < window.innerHeight - 2) continue;
         max = Math.max(max, window.innerHeight - r.top);
       }
       setHeight(Math.round(max));

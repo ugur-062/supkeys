@@ -49,3 +49,17 @@ describe("VerifyNudge", () => {
     expect(screen.getByRole("link", { name: "Doğrulama durumu" })).toBeInTheDocument();
   });
 });
+
+// Yeniden doğrulama webC-01: dar ekranda düğme metnin yanına sıkışıp metni
+// ~120px'lik sütuna kırmasın — metin sütunu asgari genişlik ister, düğme
+// alt satıra iner (flex-wrap + basis).
+describe("VerifyNudge — dar ekran yerleşimi", () => {
+  it.each([true, false])("required=%s → metin sütunu asgari genişlikte, kart sarılır", (required) => {
+    h.company = { companyVerificationStatus: "UNVERIFIED" };
+    const { container } = render(<VerifyNudge required={required} />);
+    const section = container.querySelector("section")!;
+    expect(section.className).toContain("flex-wrap");
+    const textCol = section.querySelector("div")!;
+    expect(textCol.className).toContain("basis-56");
+  });
+});

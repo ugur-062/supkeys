@@ -976,7 +976,11 @@ export default function TeklifVerPage() {
     // yeniden istenmez (backend de mevcut değeri korur).
     if (!isAuctionRebid && !everyBidItemHasDelivery && !deliveryTime)
       problems.push(
-        tr("teslimSuresiZorunluSureGirmediginiz"),
+        // Kalemsiz talepte "süre girmediğiniz kalemler" ibaresi anlamsız
+        // (yeniden doğrulama webC-01).
+        hasItems
+          ? tr("teslimSuresiZorunluSureGirmediginiz")
+          : tr("teslimSuresiZorunluKalemsiz"),
       );
     // Madde 15: pazarlıkta geçerlilik sorulmaz — teklif süresizdir.
     // 1–365 tam gün (place-bid DTO ile aynı; arayüz testi D-010 — 400 gün
@@ -1413,6 +1417,9 @@ export default function TeklifVerPage() {
                                 onClick={() =>
                                   setItem(it.id, { price: null })
                                 }
+                                // Kalem adını taşıyan erişilebilir ad: her
+                                // kalemin düğmesi ayırt edilsin (webC-01).
+                                aria-label={tr("kalemeTeklifVermiyorumAria", { name: it.name })}
                                 className="mt-7 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600"
                               >
                                 <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1862,7 +1869,7 @@ export default function TeklifVerPage() {
       </div>
 
       {/* Mobil yapışkan CTA — toplam + gönder (masaüstünde sağ kolon var) */}
-      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-20 mb-0 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
         <div>
           <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
             {tr("toplamTeklif")}

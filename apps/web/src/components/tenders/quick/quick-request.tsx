@@ -1286,7 +1286,7 @@ export function QuickRequest({
 
       {/* MOBİL YAPIŞKAN ÇUBUK */}
       {canManage ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || tr("kalemEkleyin")}</p>
             <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={isLiveEdit ? tr("degisiklikleriKaydetMobil") : tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
