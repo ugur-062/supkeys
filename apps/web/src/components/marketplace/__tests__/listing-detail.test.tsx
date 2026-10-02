@@ -66,15 +66,15 @@ describe("ListingDetail", () => {
     const info = screen.getByRole("heading", { name: "Talep bilgileri" }).parentElement as HTMLElement;
     expect(within(info).getByText("Son teklif tarihi")).toBeInTheDocument();
     expect(within(info).getByText("11 Eyl 2026")).toBeInTheDocument();
-    expect(screen.getByText(/teklif vermek için ücretsiz hesap/)).toBeInTheDocument();
+    expect(screen.getByText(/teklif vermek Silver paketiyle açılır/)).toBeInTheDocument();
   });
 
   it("erken kapanmış talep: ileri tarihli son teklif tarihi ve teklif çağrısı yok", () => {
     render(<ListingDetail listing={{ ...base, status: "AWARDED" }} />);
     const info = screen.getByRole("heading", { name: "Talep bilgileri" }).parentElement as HTMLElement;
     expect(within(info).queryByText("Son teklif tarihi")).toBeNull();
-    expect(screen.queryByText(/teklif vermek için ücretsiz hesap/)).toBeNull();
-    expect(screen.getByText(/belgeleri görmek için ücretsiz hesap/)).toBeInTheDocument();
+    expect(screen.queryByText(/teklif vermek Silver paketiyle/)).toBeNull();
+    expect(screen.getByText(/belgeleri görmek Silver paketiyle açılır/)).toBeInTheDocument();
     expect(screen.getByText("Bu talep teklife kapalı.")).toBeInTheDocument();
   });
 });

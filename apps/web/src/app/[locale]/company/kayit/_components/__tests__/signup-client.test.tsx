@@ -321,7 +321,8 @@ describe("CompanySignupClient — arayüz testi webA-02", () => {
     h.signupAsync.mockRejectedValue(
       new AxiosError("conflict", "ERR_BAD_REQUEST", undefined, undefined, {
         status: 409,
-        data: { message: "Bu e-posta ile zaten bir hesap var." },
+        // API iletisi noktasız biter (gerçek yanıt) — istemci tam cümle basar.
+        data: { message: "Bu e-posta ile zaten bir hesap var" },
         statusText: "Conflict",
         headers: {},
         config: {} as never,
@@ -332,5 +333,7 @@ describe("CompanySignupClient — arayüz testi webA-02", () => {
     await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
     const link = await screen.findByRole("link", { name: /Giriş yapın; e-postanız doğrulanmadıysa/ });
     expect(link).toHaveAttribute("href", "/company/login");
+    // İleti ile bağlantı arasında cümle sonu var (webA-02 yeniden doğrulama).
+    expect(screen.getByRole("alert").textContent).toMatch(/^Bu e-posta adresiyle zaten bir hesap var\. Giriş yapın;/);
   });
 });

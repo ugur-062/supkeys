@@ -12,6 +12,7 @@ import { Bars3Icon } from "@heroicons/react/24/outline";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
 import { useAudienceValue } from "@/components/marketplace/audience-switch";
+import { SessionSwap } from "@/components/marketplace/member-cta";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "./language-switcher";
 import { useEffect, useState } from "react";
@@ -153,21 +154,38 @@ export function MarketingHeader() {
 
           <div className="hidden items-center gap-4 lg:flex">
             <LanguageSwitcher />
-            <Link
-              href="/company/login"
-              className="text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
+            {/* Oturumlu üyeye misafir CTA'ları (Giriş Yap / Ücretsiz Kaydol)
+                yerine panel bağlantısı — yalnız hidrasyondan sonra (arayüz
+                testi webA-02 yeniden doğrulama). */}
+            <SessionSwap
+              member={
+                <Link
+                  href="/company"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition",
+                    signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
+                  )}
+                >
+                  {t("goToPanel")}
+                </Link>
+              }
             >
-              {t("login")}
-            </Link>
-            <Link
-              href="/company/kayit"
-              className={cn(
-                "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition",
-                signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
-              )}
-            >
-              {t("signup")}
-            </Link>
+              <Link
+                href="/company/login"
+                className="text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
+              >
+                {t("login")}
+              </Link>
+              <Link
+                href="/company/kayit"
+                className={cn(
+                  "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition",
+                  signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
+                )}
+              >
+                {t("signup")}
+              </Link>
+            </SessionSwap>
           </div>
 
           <button
@@ -191,23 +209,38 @@ export function MarketingHeader() {
         title={t("menu")}
         footer={
           <div className="flex flex-col gap-2">
-            <Link
-              href="/company/kayit"
-              onClick={() => setMenuOpen(false)}
-              className={cn(
-                "rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white",
-                signupGreen ? "bg-emerald-600" : "bg-blue-600",
-              )}
+            <SessionSwap
+              member={
+                <Link
+                  href="/company"
+                  onClick={() => setMenuOpen(false)}
+                  className={cn(
+                    "rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white",
+                    signupGreen ? "bg-emerald-600" : "bg-blue-600",
+                  )}
+                >
+                  {t("goToPanel")}
+                </Link>
+              }
             >
-              {t("signup")}
-            </Link>
-            <Link
-              href="/company/login"
-              onClick={() => setMenuOpen(false)}
-              className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-zinc-900 ring-1 ring-zinc-950/10 ring-inset"
-            >
-              {t("login")}
-            </Link>
+              <Link
+                href="/company/kayit"
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  "rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white",
+                  signupGreen ? "bg-emerald-600" : "bg-blue-600",
+                )}
+              >
+                {t("signup")}
+              </Link>
+              <Link
+                href="/company/login"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-zinc-900 ring-1 ring-zinc-950/10 ring-inset"
+              >
+                {t("login")}
+              </Link>
+            </SessionSwap>
           </div>
         }
       >

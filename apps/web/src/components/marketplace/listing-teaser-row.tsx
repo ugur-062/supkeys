@@ -12,6 +12,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { usePublicBidAction } from "./listing-bid-cta";
 
 const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
   open: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -50,6 +51,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   // hidrasyondan SONRA; öncesinde aynı yükseklikte görünmez yer tutucu
   // (`urgency`nin varlığı durum + closesAt'e bağlı, saatten bağımsız).
   const hydrated = useHydrated();
+  const bid = usePublicBidAction(l.number, t("quote"), signupHref("teklif", PANEL_TARGET.listing(l.number)));
   const urgency = closingUrgency(l.status, l.closesAt);
   const days = daysUntil(l.closesAt) ?? 99;
   const activity = l.company.activities[0];
@@ -161,7 +163,8 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
     // Dönüş PANEL karşılığına (arayüz testi O-113): herkese açık talep sayfası
     // aynı kayıt düğmesini yeniden gösteriyordu; girişli kullanıcıyı kayıt
     // sayfası bu adrese geçirir.
-    action: state === "open" ? { label: t("quote"), href: signupHref("teklif", PANEL_TARGET.listing(l.number)) } : null,
+    // Oturumlu üyede paket kapısı önceden söylenir (Silver değil → "· Silver").
+    action: state === "open" ? { label: bid.label, href: bid.href } : null,
   };
 
   return <ListingCard variant="row" data={data} />;

@@ -4,6 +4,7 @@ import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { useTranslations } from "next-intl";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Link } from "@/i18n/navigation";
+import { SessionSwap } from "./member-cta";
 
 /**
  * Public sayfaların ortak alt bilgisi — SUNUCU bileşeni.
@@ -102,12 +103,21 @@ export function MarketplaceFooter() {
           </div>
           <LanguageSwitcher variant="inline" />
           <div className="flex gap-4">
-            <Link href="/company/login" className="hover:text-zinc-950">
-              {t("login")}
-            </Link>
-            <Link href="/company/kayit" className="hover:text-zinc-950">
-              {t("signup")}
-            </Link>
+            {/* Oturumlu üyeye misafir bağlantıları yerine panel (üst çubukla aynı). */}
+            <SessionSwap
+              member={
+                <Link href="/company" className="hover:text-zinc-950">
+                  {tn("goToPanel")}
+                </Link>
+              }
+            >
+              <Link href="/company/login" className="hover:text-zinc-950">
+                {t("login")}
+              </Link>
+              <Link href="/company/kayit" className="hover:text-zinc-950">
+                {t("signup")}
+              </Link>
+            </SessionSwap>
           </div>
         </div>
       </div>

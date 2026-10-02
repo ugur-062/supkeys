@@ -9784,10 +9784,20 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.reset.toastSetupDone": {
+    "hash": "a58419a7f8",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.auth.signup.accountExists": {
+    "hash": "b65259c993",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.auth.signup.accountExistsLogin": {
     "hash": "ef3895b0f7",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-02"
   },
   "web.auth.signup.alreadyVerified": {
     "hash": "7af0b7161f",
@@ -14549,6 +14559,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.marketing.nav.goToPanel": {
+    "hash": "392719f5c9",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.marketing.nav.howItWorks": {
     "hash": "e57a9865fb",
     "status": "reviewed",
@@ -15088,6 +15103,61 @@
     "hash": "8ace4ed098",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.bidGate.bidInPanel": {
+    "hash": "5179c9c939",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.body": {
+    "hash": "e0a30d53d6",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.compactLocked": {
+    "hash": "c9837da971",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.invitedInPanel": {
+    "hash": "526706b7b0",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.lockedLabel": {
+    "hash": "d54896abb8",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.noPermission": {
+    "hash": "4a5294bf30",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.openInPanel": {
+    "hash": "8b6044c4bc",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.title": {
+    "hash": "fc67dc6d03",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.upgradeCta": {
+    "hash": "6c89b0d350",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.verifyCta": {
+    "hash": "d2acf441bb",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.bidGate.verifyNote": {
+    "hash": "389483ef54",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.marketplace.card.bidPrivacy": {
     "hash": "3e553d3fe2",
@@ -16280,14 +16350,14 @@
     "at": "2026-09-23"
   },
   "web.marketplace.listing.gateHint": {
-    "hash": "106b17af00",
+    "hash": "8e8c8c82b2",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-02"
   },
   "web.marketplace.listing.gateHintClosed": {
-    "hash": "0e69e8fb40",
+    "hash": "fafd72d4a3",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-02"
   },
   "web.marketplace.listing.gateLabel": {
     "hash": "1a04b3ea0f",
@@ -16395,9 +16465,14 @@
     "at": "2026-09-23"
   },
   "web.marketplace.listing.signupCta": {
-    "hash": "05b8e98340",
+    "hash": "d639b2ba26",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-02"
+  },
+  "web.marketplace.listing.silverNote": {
+    "hash": "fb2028942c",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.marketplace.listing.similar": {
     "hash": "c65420a904",
@@ -38998,6 +39073,16 @@
     "hash": "1e5574ea3a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.sellerTendersView.kilitliSonucYok": {
+    "hash": "2fbeb1308c",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.sellerTendersView.kilitliSonucYokAciklama": {
+    "hash": "a287be3803",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.sellerTendersView.listesi": {
     "hash": "f40a295498",

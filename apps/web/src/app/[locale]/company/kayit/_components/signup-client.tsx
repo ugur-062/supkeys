@@ -194,8 +194,12 @@ export function CompanySignupClient() {
         toast.success(t("codeSent"));
       }
     } catch (err) {
-      setAccountExists(axios.isAxiosError(err) && err.response?.status === 409);
-      setError(extractErrorMessage(err, t("failed")));
+      const exists = axios.isAxiosError(err) && err.response?.status === 409;
+      setAccountExists(exists);
+      // 409'da tam cümle istemcinin kataloğundan: API iletisi noktasız
+      // biter ve arkasına eklenen giriş bağlantısıyla tek cümle gibi
+      // okunuyordu ("…already exists Log in; …", webA-02 yeniden doğrulama).
+      setError(exists ? t("accountExists") : extractErrorMessage(err, t("failed")));
     }
   };
 

@@ -7,6 +7,7 @@ import {
   memberDirectoryTarget,
   memberProductHref,
   memberProductPath,
+  publicBidGate,
 } from "../member-gate";
 import { PANEL_TARGET } from "../visibility";
 
@@ -64,5 +65,28 @@ describe("üye iniş adresleri", () => {
       "/company/satis/firmalar",
     );
     expect(memberDirectoryTarget(seller, { tier: "GOLD" })).toBe("/company/satis/firmalar");
+  });
+});
+
+/**
+ * Herkese açık talebe teklif (webA-02 yeniden doğrulama): PUBLIC talebe
+ * tanımadan teklif Silver ister; önce paket, sonra `sell:bid:submit`.
+ */
+describe("publicBidGate", () => {
+  it("oturum yok → misafir", () => {
+    expect(publicBidGate(null, null)).toBe("guest");
+  });
+
+  it("ücretsiz: doğrulanmamış → doğrulama, doğrulanmış/incelemede → paket (izin olsa bile)", () => {
+    expect(publicBidGate(seller, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" })).toBe("verify");
+    expect(publicBidGate(seller, { tier: "STANDART", companyVerificationStatus: "VERIFIED" })).toBe("upgrade");
+    expect(publicBidGate(seller, { tier: "STANDART", companyVerificationStatus: "PENDING" })).toBe("upgrade");
+    expect(gateHref(publicBidGate(seller, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" }))).toBe(VERIFY_HREF);
+  });
+
+  it("Silver ve Gold ∧ teklif izni → ok; teklif izni yok → noPermission", () => {
+    expect(publicBidGate(seller, { tier: "SILVER", companyVerificationStatus: "VERIFIED" })).toBe("ok");
+    expect(publicBidGate(seller, { tier: "GOLD", companyVerificationStatus: "VERIFIED" })).toBe("ok");
+    expect(publicBidGate(buyer, { tier: "SILVER", companyVerificationStatus: "VERIFIED" })).toBe("noPermission");
   });
 });

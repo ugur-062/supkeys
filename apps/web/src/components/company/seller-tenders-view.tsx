@@ -254,14 +254,23 @@ function RequestList({
               <EmptyState
                 icon={ClipboardList}
                 title={
-                  isFiltered
+                  /* Ücretsiz üyede boş arama süzgecin değil paketin sonucu
+                     olabilir: herkese açık talep (ör. "Teklif ver"den gelen
+                     ?q=ROT-…) listeye hiç girmez. Süzgeci suçlamak yerine
+                     kilit kartına bağlanır (arayüz testi webA-02 yeniden
+                     doğrulama). */
+                  isFiltered && locked
+                    ? tr("kilitliSonucYok")
+                    : isFiltered
                     ? tr("sonucBulunamadi")
                     : state.status === "aktif"
                       ? tr("aktifYok", { unit: t.unit })
                       : tr("henuzYok", { unit: t.unit })
                 }
                 description={
-                  isFiltered
+                  isFiltered && locked
+                    ? tr("kilitliSonucYokAciklama")
+                    : isFiltered
                     ? tr("suzgecleriniziDegistirerekTekrarDeneyin")
                     : state.status === "aktif"
                       ? tr("kapananlarIcinDurumGecmis")

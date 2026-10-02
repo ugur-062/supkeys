@@ -165,6 +165,31 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     }
   });
 
+  it("ücretsiz üye + arama (\"Teklif ver\"den ?q=ROT-…) boş: süzgeci değil paketi söyler (webA-02 yeniden doğrulama)", () => {
+    h.locked = { locked: true, total: 32, inMyCategories: 0, thisWeek: 29, itemCount: 77, samples: [] };
+    h.search = "q=ROT-000478";
+    try {
+      render(<SellerTendersView />);
+      expect(screen.getByText("Bu aramada size açık talep yok")).toBeInTheDocument();
+      expect(screen.getByText(/Aradığınız talep herkese açıksa Silver paketiyle görünür/)).toBeInTheDocument();
+      expect(screen.queryByText("Süzgeçlerinizi değiştirerek tekrar deneyin.")).toBeNull();
+    } finally {
+      h.locked = { locked: false };
+      h.search = "";
+    }
+  });
+
+  it("paketli üye + arama boş: süzgeç boş durumu aynen", () => {
+    h.search = "q=ROT-000478";
+    try {
+      render(<SellerTendersView />);
+      expect(screen.getByText("Süzgeçlerinizi değiştirerek tekrar deneyin.")).toBeInTheDocument();
+      expect(screen.queryByText("Bu aramada size açık talep yok")).toBeNull();
+    } finally {
+      h.search = "";
+    }
+  });
+
   it("paketli üye: kilit kartı çizilmez", () => {
     h.rows = [row({})];
     render(<SellerTendersView />);

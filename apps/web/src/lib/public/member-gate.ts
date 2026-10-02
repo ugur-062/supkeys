@@ -1,4 +1,4 @@
-import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, PAID_TIER, tierAtLeast } from "@rothern/shared";
 import { userHasPermission, type PermissionSubject } from "@/lib/company/permissions";
 
 /**
@@ -52,13 +52,37 @@ export function buyingGate(
   action: BuyingAction,
 ): BuyingGate {
   if (!user) return "guest";
-  if (!tierAtLeast(company?.tier ?? "STANDART", BUYING_TIER)) {
-    // SilverLockCard ile aynı kural: incelemedeki (PENDING) firmaya yeniden
-    // doğrulama denmez; paket sayfası gerisini söyler.
-    const status = company?.companyVerificationStatus;
-    return status && status !== "VERIFIED" && status !== "PENDING" ? "verify" : "upgrade";
-  }
+  if (!tierAtLeast(company?.tier ?? "STANDART", BUYING_TIER)) return lockedGate(company);
   return userHasPermission(user, BUYING_ACTION_PERMISSION[action]) ? "ok" : "noPermission";
+}
+
+/** Paket dışı kapının dalı (Gold için de Silver için de aynı kural). */
+function lockedGate(company: GateCompany | null | undefined): "verify" | "upgrade" {
+  // SilverLockCard ile aynı kural: incelemedeki (PENDING) firmaya yeniden
+  // doğrulama denmez; paket sayfası gerisini söyler.
+  const status = company?.companyVerificationStatus;
+  return status && status !== "VERIFIED" && status !== "PENDING" ? "verify" : "upgrade";
+}
+
+/** Herkese açık talebe teklifin API izni. */
+export const PUBLIC_BID_PERMISSION = "sell:bid:submit";
+
+/**
+ * HERKESE AÇIK TALEBE TEKLİF KAPISI (arayüz testi webA-02 yeniden doğrulama):
+ * PUBLIC talebi görmek ve ona tanımadan teklif vermek Silver ister (CLAUDE.md
+ * paket tablosu; API `listingBidEligibility` ücretsiz firmaya bağsız/davetsiz
+ * PUBLIC talebi hiç göstermez). Herkese açık "Teklif ver" düğmeleri oturumlu
+ * ama Silver olmayan üyeye bunu TIKLAMADAN önce söyler — eskiden "ücretsiz
+ * kaydol, teklif ver" deyip paneldeki Silver kilidine düşürüyordu. Sıra
+ * aynı: önce paket (Silver), sonra izin (`sell:bid:submit`).
+ */
+export function publicBidGate(
+  user: PermissionSubject | null | undefined,
+  company: GateCompany | null | undefined,
+): BuyingGate {
+  if (!user) return "guest";
+  if (!tierAtLeast(company?.tier ?? "STANDART", PAID_TIER)) return lockedGate(company);
+  return userHasPermission(user, PUBLIC_BID_PERMISSION) ? "ok" : "noPermission";
 }
 
 /** Kapalı kapının birincil eylemi (verify → doğrulama, upgrade → paketler). */

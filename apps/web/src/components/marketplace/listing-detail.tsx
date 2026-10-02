@@ -14,6 +14,7 @@ import type { PublicListingCard, PublicListingDetail } from "@/lib/public/market
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { ListingTeaserRow } from "./listing-teaser-row";
 import { ListingEligibilityNote } from "./listing-eligibility-note";
+import { ListingBidCta } from "./listing-bid-cta";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { currencySymbol } from "@/lib/tenders/labels";
 import {
@@ -299,14 +300,18 @@ export function ListingDetail({
                 {/* Kapanmış talepte teklif çağrısı yok (D-073): ipucu teklifsiz,
                     dönüş adresi yok (panel karşılığı yalnız AÇIK talepleri arar). */}
                 {state === "open" ? (
-                  <GatedField
-                    className="mt-4"
-                    size="box"
-                    label={t("gateLabel")}
-                    hint={t("gateHint")}
-                    redirect={PANEL_TARGET.listing(listing.number)}
-                    signup={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
-                  />
+                  /* Oturumlu üyeye kayıt/giriş kutusu yerine paket kapısı
+                     (Silver değilse tek satır; tam açıklama kenar kartında). */
+                  <ListingBidCta number={listing.number} compact className="mt-4">
+                    <GatedField
+                      className="mt-4"
+                      size="box"
+                      label={t("gateLabel")}
+                      hint={t("gateHint")}
+                      redirect={PANEL_TARGET.listing(listing.number)}
+                      signup={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
+                    />
+                  </ListingBidCta>
                 ) : (
                   <GatedField className="mt-4" size="box" label={t("gateLabel")} hint={t("gateHintClosed")} />
                 )}
@@ -403,32 +408,39 @@ export function ListingDetail({
                     {/* Yalnız belirli ülkelere açık talepte kimin teklif
                         verebileceği KAYITTAN ÖNCE söylenir (2026-09-27). */}
                     <ListingEligibilityNote targetCountries={listing.targetCountries} />
-                    {/* Kayıt sonrası AYNI talebin PANEL karşılığına döner
-                        (intent=teklif + redirect; arayüz testi O-113). */}
-                    <AccentLink
-                      href={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
-                      className="block rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition"
-                    >
-                      {t("signupCta")}
-                    </AccentLink>
-                    <p className="mt-2 text-center text-xs text-zinc-500">{t("twoMinutes")}</p>
-                    <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
-                      {[t("perk1"), t("perk2"), t("perk3")].map((perk) => (
-                        <li key={perk} className="flex gap-2">
-                          <CheckBadgeIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-                          {perk}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-3 text-center text-xs text-zinc-500">
-                      {t("haveAccount")}{" "}
-                      <Link
-                        href={loginHref(PANEL_TARGET.listing(listing.number))}
-                        className="font-medium text-zinc-700 hover:underline"
+                    {/* Oturumlu üye kayıt çağrısı yerine paket kapısını görür:
+                        PUBLIC talebe teklif Silver ister (arayüz testi webA-02
+                        yeniden doğrulama); misafir kayıt akışını aynen görür. */}
+                    <ListingBidCta number={listing.number}>
+                      {/* Kayıt sonrası AYNI talebin PANEL karşılığına döner
+                          (intent=teklif + redirect; arayüz testi O-113). */}
+                      <AccentLink
+                        href={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
+                        className="block rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition"
                       >
-                        {t("login")}
-                      </Link>
-                    </p>
+                        {t("signupCta")}
+                      </AccentLink>
+                      <p className="mt-2 text-center text-xs text-zinc-500">{t("twoMinutes")}</p>
+                      {/* Ücretsiz kayıt teklif SÖZÜ vermez: tanımadan teklif Silver. */}
+                      <p className="mt-2 text-center text-xs/5 text-zinc-500">{t("silverNote")}</p>
+                      <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
+                        {[t("perk1"), t("perk2"), t("perk3")].map((perk) => (
+                          <li key={perk} className="flex gap-2">
+                            <CheckBadgeIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                            {perk}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-3 text-center text-xs text-zinc-500">
+                        {t("haveAccount")}{" "}
+                        <Link
+                          href={loginHref(PANEL_TARGET.listing(listing.number))}
+                          className="font-medium text-zinc-700 hover:underline"
+                        >
+                          {t("login")}
+                        </Link>
+                      </p>
+                    </ListingBidCta>
                   </>
                 ) : (
                   <>
