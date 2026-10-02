@@ -186,3 +186,35 @@ describe("formatMoneyDisplay — dilin ayraçları", () => {
     }
   });
 });
+
+/**
+ * Miktar alanları (`maxDecimals` = 3, DB Decimal(18,3)) — arayüz testi son tur
+ * S-BUY: `type="number"` Türkçe tarayıcıda "1.500"ü 1,5 · "1.250,5"i 1,2505
+ * okuyor, katalog seçicide "2." ara durumu alanı 0'a sıfırlıyordu ("2.5" → 5).
+ */
+describe("parseMoneyDisplay — miktar (3 ondalık)", () => {
+  it("TR: nokta binlik, virgül ondalık", () => {
+    expect(parseMoneyDisplay("1.500", "tr", 3)).toBe("1500");
+    expect(parseMoneyDisplay("1.250,5", "tr", 3)).toBe("1250.5");
+    expect(parseMoneyDisplay("12,5", "tr", 3)).toBe("12.5");
+    expect(parseMoneyDisplay("0,125", "tr", 3)).toBe("0.125");
+  });
+
+  it("TR: başka alışkanlıkla yazılan nokta-ondalık da doğru okunur", () => {
+    expect(parseMoneyDisplay("2.5", "tr", 3)).toBe("2.5");
+    expect(parseMoneyDisplay("2.", "tr", 3)).toBe("2.");
+    expect(parseMoneyDisplay("0.125", "tr", 3)).toBe("0.125");
+    expect(parseMoneyDisplay("1.2505", "tr", 3)).toBe("1.250");
+  });
+
+  it("EN: virgül binlik, nokta ondalık; 3 ondalık korunur", () => {
+    expect(parseMoneyDisplay("1,500", "en", 3)).toBe("1500");
+    expect(parseMoneyDisplay("12.125", "en", 3)).toBe("12.125");
+    expect(parseMoneyDisplay("1,250.5", "en", 3)).toBe("1250.5");
+  });
+
+  it("para (varsayılan 2 hane) davranışı değişmez", () => {
+    expect(parseMoneyDisplay("1.2345")).toBe("12345");
+    expect(parseMoneyDisplay("0.125", "en")).toBe("0.12");
+  });
+});

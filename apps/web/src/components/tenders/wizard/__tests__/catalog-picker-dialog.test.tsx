@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -55,7 +56,7 @@ describe("CatalogPickerDialog", () => {
     fireEvent.change(search, { target: { value: "vida" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Vida M6 seç" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Vida M8 seç" }));
-    fireEvent.change(screen.getByRole("spinbutton", { name: "Vida M8 miktarı" }), { target: { value: "25" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Vida M8 miktarı" }), { target: { value: "25" } });
 
     fireEvent.change(search, { target: { value: "somun" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Somun M6 seç" }));
@@ -74,14 +75,35 @@ describe("CatalogPickerDialog", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Katalogda ara" }), { target: { value: "vida" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Vida M6 seç" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Vida M8 seç" }));
-    const q6 = screen.getByRole("spinbutton", { name: "Vida M6 miktarı" });
+    const q6 = screen.getByRole("textbox", { name: "Vida M6 miktarı" });
     fireEvent.change(q6, { target: { value: "" } });
     fireEvent.blur(q6);
-    expect(q6).toHaveValue(1);
+    expect(q6).toHaveValue("1");
     // Alandan çıkmadan doğrudan "Ekle" de 0 göndermez.
-    fireEvent.change(screen.getByRole("spinbutton", { name: "Vida M8 miktarı" }), { target: { value: "0" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Vida M8 miktarı" }), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: "2 kalemi ekle" }));
     const picked = onPick.mock.calls[0][0] as { catalogId: string; quantity: number }[];
     expect(picked.every((p) => p.quantity === 1)).toBe(true);
   });
+
+  it.each([
+    ["2.5", 2.5],
+    ["2,5", 2.5],
+    ["1.500", 1500],
+  ])(
+    "arayüz testi son tur S-BUY: Türkçe arayüzde '%s' yazmak %s'dir (alan 0'a sıfırlanmaz)",
+    async (typed, expected) => {
+      const user = userEvent.setup();
+      const onPick = vi.fn();
+      render(<CatalogPickerDialog open onClose={() => undefined} onPick={onPick} />);
+      fireEvent.change(screen.getByRole("textbox", { name: "Katalogda ara" }), { target: { value: "vida" } });
+      fireEvent.click(screen.getByRole("checkbox", { name: "Vida M6 seç" }));
+      const q = screen.getByRole("textbox", { name: "Vida M6 miktarı" });
+      await user.clear(q);
+      await user.keyboard(typed);
+      fireEvent.click(screen.getByRole("button", { name: "1 kalemi ekle" }));
+      const picked = onPick.mock.calls[0][0] as { catalogId: string; quantity: number }[];
+      expect(picked[0]?.quantity).toBe(expected);
+    },
+  );
 });

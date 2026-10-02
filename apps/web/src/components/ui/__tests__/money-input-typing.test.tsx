@@ -147,3 +147,41 @@ describe("MoneyInputNumber — başta ondalık ayraç", () => {
     expect(box().value).toBe(",5");
   });
 });
+
+function QtyHarness() {
+  const [v, setV] = useState<number | undefined>(1);
+  return (
+    <>
+      <MoneyInputNumber aria-label="Miktar" maxDecimals={3} value={v} onChange={setV} />
+      <output data-testid="qty">{String(v)}</output>
+    </>
+  );
+}
+
+/** Arayüz testi son tur S-BUY: katalog seçici / talep kalemi miktarı. */
+describe("MoneyInputNumber — miktar (3 ondalık, TR)", () => {
+  it.each([
+    ["2.5", "2.5"],
+    ["2,5", "2.5"],
+    ["1.500", "1500"],
+    ["1.250,5", "1250.5"],
+    ["0,125", "0.125"],
+  ])("'%s' yazmak %s'dir (0'a sıfırlanmaz)", async (typed, expected) => {
+    const user = userEvent.setup();
+    render(<QtyHarness />);
+    const input = screen.getByLabelText("Miktar") as HTMLInputElement;
+    await user.clear(input);
+    await user.keyboard(typed);
+    expect(screen.getByTestId("qty").textContent).toBe(expected);
+  });
+
+  it("odaktan çıkınca dilin biçimine oturur (yorum görünür: 2.5 → 2,5)", async () => {
+    const user = userEvent.setup();
+    render(<QtyHarness />);
+    const input = screen.getByLabelText("Miktar") as HTMLInputElement;
+    await user.clear(input);
+    await user.keyboard("2.5");
+    await user.tab();
+    expect(input.value).toBe("2,5");
+  });
+});

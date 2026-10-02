@@ -21,8 +21,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { FileSpreadsheet } from "lucide-react";
 import { ExcelImportDialog } from "@/components/tenders/excel-import/excel-import-dialog";
-import type { ItemImportItem } from "@rothern/shared";
+import { QUANTITY_DECIMALS, type ItemImportItem } from "@rothern/shared";
+import { MoneyInputNumber } from "@/components/ui/money-input";
 import {
+  Controller,
   useFieldArray,
   useFormContext,
   useWatch,
@@ -310,15 +312,24 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             <Label htmlFor={`items.${index}.quantity`} required>
               {t("miktar")}
             </Label>
-            <Input
-              id={`items.${index}.quantity`}
-              type="number"
-              min={0.0001}
-              step="any"
-              hasError={!!itemErrors?.quantity}
-              {...register(`items.${index}.quantity`, {
-                valueAsNumber: true,
-              })}
+            {/* Dilin ondalık biçimi: `type="number"` Türkçe tarayıcıda
+                "1.500"ü 1,5 · "1.250,5"i 1,2505 okuyordu (arayüz testi son tur
+                S-BUY). Boş/yarım değer NaN → şemanın "miktar gerekli" iletisi. */}
+            <Controller
+              control={control}
+              name={`items.${index}.quantity`}
+              render={({ field }) => (
+                <MoneyInputNumber
+                  id={`items.${index}.quantity`}
+                  name={field.name}
+                  ref={field.ref}
+                  maxDecimals={QUANTITY_DECIMALS}
+                  hasError={!!itemErrors?.quantity}
+                  value={field.value}
+                  onChange={(v) => field.onChange(v ?? Number.NaN)}
+                  onBlur={field.onBlur}
+                />
+              )}
             />
           </Field>
 

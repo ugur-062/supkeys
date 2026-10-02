@@ -14,6 +14,8 @@ import {
 } from "@/components/catalyst/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/catalyst/checkbox";
+import { MoneyInputNumber } from "@/components/ui/money-input";
+import { QUANTITY_DECIMALS } from "@rothern/shared";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   useCatalogItems,
@@ -67,7 +69,11 @@ export function CatalogPickerDialog({
   // Seçim kalemin KENDİSİNİ taşır: arama değişince liste değişse de önceki
   // aramada işaretlenen kalem eklenir (derin denetim S084 — eskiden yalnız o
   // anki sonuç süzülüyor, önceki seçimler sessizce düşüyordu).
-  const [selected, setSelected] = useState<Record<string, { item: CatalogItem; qty: number }>>({});
+  // `qty` boş/yarım yazımda `undefined` (0'a sıfırlanıp sonraki rakamın arkasına
+  // eklenmesin — arayüz testi son tur S-BUY: "2.5" → 5).
+  const [selected, setSelected] = useState<
+    Record<string, { item: CatalogItem; qty: number | undefined }>
+  >({});
 
   const items = list.data?.items ?? [];
   const selectedCount = useMemo(
@@ -92,7 +98,7 @@ export function CatalogPickerDialog({
       unitCode: it.unitCode,
       materialCode: it.code,
       // Boşaltılan/0 miktar kalemi 0 ile eklemez (arayüz testi D-242): 1'e döner.
-      quantity: Number.isFinite(qty) && qty > 0 ? qty : 1,
+      quantity: qty != null && Number.isFinite(qty) && qty > 0 ? qty : 1,
       targetPrice: it.targetPrice == null ? null : Number(it.targetPrice),
       images: it.thumbnailUrl ? [it.thumbnailUrl] : [],
     }));
@@ -161,23 +167,23 @@ export function CatalogPickerDialog({
                       </p>
                     </div>
                     {isOn ? (
-                      <Input
-                        type="number"
-                        min={0.001}
-                        step="any"
+                      // Dilin ondalık biçimi (TR "2,5" / "1.500"); `type="number"`
+                      // Türkçe tarayıcıda "2." ara durumunu boş döndürüyordu.
+                      <MoneyInputNumber
+                        maxDecimals={QUANTITY_DECIMALS}
                         className="!w-28"
                         aria-label={t("miktari", { name: it.name })}
                         value={selected[it.id]?.qty}
-                        onChange={(e) =>
+                        onChange={(v) =>
                           setSelected((prev) => ({
                             ...prev,
-                            [it.id]: { item: it, qty: Number(e.target.value) || 0 },
+                            [it.id]: { item: it, qty: v },
                           }))
                         }
                         onBlur={() =>
                           setSelected((prev) => {
                             const cur = prev[it.id];
-                            if (!cur || cur.qty > 0) return prev;
+                            if (!cur || (cur.qty != null && cur.qty > 0)) return prev;
                             return { ...prev, [it.id]: { ...cur, qty: 1 } };
                           })
                         }

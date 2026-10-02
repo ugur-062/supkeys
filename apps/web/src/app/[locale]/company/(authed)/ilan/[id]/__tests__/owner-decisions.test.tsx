@@ -298,7 +298,7 @@ describe("kalem bazlı kazandırma (O-090 / D-104)", () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Kalem-bazlı Kazandır" }));
     await user.type(
-      screen.getByRole("spinbutton", { name: "Rulman için kazandırılacak miktar (boş = tam)" }),
+      screen.getByRole("textbox", { name: "Rulman için kazandırılacak miktar (boş = tam)" }),
       "400",
     );
     expect(screen.getByRole("alert")).toHaveTextContent(/En fazla/);
@@ -321,6 +321,26 @@ describe("Gelen Teklifler satırı (D-107 / D-108 / D-109)", () => {
     } as unknown as Partial<ListingDetail>);
     renderPage();
     expect(screen.getByText(/ \(kur: 49,0184\)/)).toBeInTheDocument();
+  });
+
+  it("karşılaştırmada yabancı birimli kalem fiyatının TRY karşılığı hücrede (arayüz testi son tur S-BUY)", () => {
+    h.detail = detail({
+      bids: [
+        bid("b1", "Dolar Teklif", { i1: "10" }, {
+          currency: "USD",
+          amountTry: "4901.84",
+          exchangeRateSnapshot: "49.0184",
+        }),
+        bid("b2", "Lira Teklif", { i1: "450" }),
+      ],
+    } as unknown as Partial<ListingDetail>);
+    renderPage();
+    const eq = screen.getByText("≈ 490,18 ₺");
+    expect(eq).toHaveAttribute("title", "Teklifin kur damgasıyla TRY karşılığı");
+    expect(eq.closest("td")).toHaveTextContent("10,00 $");
+    // TRY hücresinde karşılık satırı yok.
+    const tryCell = screen.getAllByText("450,00 ₺").find((e) => e.closest("td"))!.closest("td")!;
+    expect(tryCell.textContent).not.toMatch(/≈/);
   });
 
   it("karşılaştırma başlığında firma adı büyük harfe çevrilmez", () => {

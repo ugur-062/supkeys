@@ -59,7 +59,10 @@ export function AlternativeOfferNote({
       <span
         className={
           compact
-            ? "ml-1 inline-block max-w-[12rem] truncate align-middle font-medium"
+            ? // Dar ekranda rozetin ALTINDA ve daha dar (arayüz testi son tur
+              // S-BUY, 390 px): yan yana ~16rem fiyat sütununu şişirip
+              // karşılaştırmada ilk tedarikçiyi ekran dışına itiyordu.
+              "block max-w-[8rem] truncate align-middle font-medium sm:ml-1 sm:inline-block sm:max-w-[12rem]"
             : "ml-1.5 font-medium"
         }
         title={compact ? offeredText : undefined}

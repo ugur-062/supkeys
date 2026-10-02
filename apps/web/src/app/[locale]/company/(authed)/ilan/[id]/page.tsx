@@ -53,7 +53,8 @@ import {
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useListingDocuments } from "@/hooks/use-listing-documents";
-import { BUYING_TIER, foldSearchText, tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, QUANTITY_DECIMALS, foldSearchText, tierAtLeast } from "@rothern/shared";
+import { MoneyInput } from "@/components/ui/money-input";
 import { buyingGate, VERIFY_HREF } from "@/lib/public/member-gate";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { activePortalFromPath } from "@/lib/company/portals";
@@ -1410,7 +1411,10 @@ export default function ListingDetailPage() {
                   const minTry = validTry.length ? Math.min(...validTry) : null;
                   return (
                     <TableRow key={it.id}>
-                      <TableCell className="sticky left-0 z-[1] bg-white whitespace-normal text-zinc-900">
+                      {/* Dar ekranda kalem sütunu sınırlı (arayüz testi son
+                          tur S-BUY, 390 px): ad 4 satıra sarıyor, fiyatlar ilk
+                          görünümün dışında kalıyordu; sütun yapışkan kalır. */}
+                      <TableCell className="sticky left-0 z-[1] max-w-[10rem] min-w-[7.5rem] bg-white whitespace-normal break-words text-zinc-900 sm:max-w-none">
                         {it.name}{" "}
                         <span className="text-xs whitespace-nowrap text-zinc-400">
                           ({quantity(it.quantity, it.unit, it.unitCode)})
@@ -1466,6 +1470,21 @@ export default function ListingDetailPage() {
                             ) : (
                               priceText
                             )}
+                            {/* Yabancı birimli fiyatın TRY karşılığı (arayüz
+                                testi son tur S-BUY): toplamlar ve dağıtım
+                                şeridi TRY'yken hücrede yalnız "8,50 $" vardı;
+                                kalem kalem kıyas elle kur çevirmeyi istiyordu. */}
+                            {c.price != null &&
+                            c.priceTry != null &&
+                            c.currency &&
+                            c.currency !== "TRY" ? (
+                              <span
+                                className="block text-xs font-normal text-zinc-500"
+                                title={t("tryKarsiligiTitle")}
+                              >
+                                ≈ {withCur(c.priceTry.toLocaleString(intl, MONEY_FRACTION), "TRY")}
+                              </span>
+                            ) : null}
                             <AlternativeOfferNote bidItem={c.bidItem} compact />
                           </TableCell>
                         );
@@ -1583,23 +1602,21 @@ export default function ListingDetailPage() {
                     </span>
                     <div className="flex min-w-0 flex-col gap-1 sm:items-end">
                     <div className="flex min-w-0 items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={Number(it.quantity)}
-                        step="0.001"
+                      {/* Dilin ondalık biçimi (TR "1.500" = bin); `type="number"`
+                          Türkçe tarayıcıda noktayı ondalık okuyordu (arayüz testi
+                          son tur S-BUY). */}
+                      <MoneyInput
+                        maxDecimals={QUANTITY_DECIMALS}
                         placeholder={t("miktar")}
                         aria-label={t("icinKazandirilacakMiktarBosTam", { name: it.name })}
                         aria-invalid={qtyOver || undefined}
+                        hasError={qtyOver}
                         title={t("kismiMiktarBosTam")}
                         value={itemQty[it.id] ?? ""}
-                        onChange={(e) =>
-                          setItemQty((q) => ({ ...q, [it.id]: e.target.value }))
+                        onChange={(raw) =>
+                          setItemQty((q) => ({ ...q, [it.id]: raw }))
                         }
-                        className={cn(
-                          "w-24 shrink-0 rounded-md border px-2 py-1 text-right text-sm",
-                          qtyOver ? "border-red-500 text-red-700" : "border-zinc-300",
-                        )}
+                        className="!w-24 shrink-0 text-right"
                       />
                       <SelectMenu
                         value={itemWinners[it.id] ?? ""}
@@ -2363,6 +2380,9 @@ export default function ListingDetailPage() {
               }
               value={currencyListLabel(l)}
               title={currencyListLabel(l)}
+              // Çok birimli liste ("TRY, USD, EUR") 390 px'te kesiliyordu;
+              // tam değer yalnız dokunmatikte açılmayan `title`daydı (son tur S-BUY).
+              multiline
             />
             <MetaItem
               icon={CalendarClock}
@@ -2617,6 +2637,9 @@ export default function ListingDetailPage() {
               }
               value={currencyListLabel(l)}
               title={currencyListLabel(l)}
+              // Çok birimli liste ("TRY, USD, EUR") 390 px'te kesiliyordu;
+              // tam değer yalnız dokunmatikte açılmayan `title`daydı (son tur S-BUY).
+              multiline
             />
             <MetaItem
               icon={CalendarClock}

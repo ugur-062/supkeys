@@ -65,7 +65,11 @@ function isGrouped(cleaned: string, sep: "." | ","): boolean {
  *     yazılmış ondalık ("1500.50", "12,5"); 3+ hane → binlik ("12,500",
  *     "1.500", "1.234.567").
  */
-export function parseMoneyDisplay(display: string, locale: Locale | string = DEFAULT_LOCALE): string {
+export function parseMoneyDisplay(
+  display: string,
+  locale: Locale | string = DEFAULT_LOCALE,
+  maxDecimals: number = MONEY_DECIMALS,
+): string {
   const { decimal } = numberSeparators(locale);
   const cleaned = normalizeInput(display).replace(/[^0-9.,]/g, "");
   if (!cleaned) return "";
@@ -84,14 +88,21 @@ export function parseMoneyDisplay(display: string, locale: Locale | string = DEF
       if (count === 1 || !isGrouped(cleaned, sep)) decimalAt = at; // (3)
     } else if (digitsAfter <= MONEY_DECIMALS) {
       decimalAt = at; // (4)
+    } else if (
+      maxDecimals > MONEY_DECIMALS &&
+      (!isGrouped(cleaned, sep) || /^0[.,]/.test(cleaned))
+    ) {
+      // (4b) Miktar gibi 3+ ondalıklı alanlar: düzgün binlik kalıbı değilse
+      // ("1.2505") ya da tam kısım 0 ise ("0.125") ondalıktır; "1.500" binlik.
+      decimalAt = at;
     }
   }
 
   const digitsOnly = (v: string) => v.replace(/[^0-9]/g, "");
   if (decimalAt === -1) return digitsOnly(cleaned);
   const int = digitsOnly(cleaned.slice(0, decimalAt));
-  // Fazla ondalık yazarken kırpılır (DB Decimal(18,2)).
-  const dec = digitsOnly(cleaned.slice(decimalAt + 1)).slice(0, MONEY_DECIMALS);
+  // Fazla ondalık yazarken kırpılır (para DB Decimal(18,2), miktar 18,3).
+  const dec = digitsOnly(cleaned.slice(decimalAt + 1)).slice(0, maxDecimals);
   return `${int}.${dec}`;
 }
 
@@ -113,6 +124,13 @@ type Props = Omit<
   /** Ham normalize değer ("100000.50" | ""). */
   value: string;
   onChange: (raw: string) => void;
+  /**
+   * En fazla ondalık hane — varsayılan 2 (para). Miktar alanları 3 geçer
+   * (`QUANTITY_DECIMALS`, DB Decimal(18,3)); `type="number"` Türkçe tarayıcıda
+   * "1.500"ü 1,5 okuyor, "2." ara durumunu boş döndürüp kontrollü alanı 0'a
+   * sıfırlıyordu (arayüz testi son tur S-BUY).
+   */
+  maxDecimals?: number;
 };
 
 /**
@@ -123,13 +141,13 @@ type Props = Omit<
  * ondalık/yabancı ayraç yazıldıysa kullanıcının metni aynen durur ve odaktan
  * çıkınca dilin biçimine oturur.
  */
-export function MoneyInput({ value, onChange, onBlur, ...props }: Props) {
+export function MoneyInput({ value, onChange, onBlur, maxDecimals, ...props }: Props) {
   const locale = useLocale();
   // Düzenlenirken kullanıcının yazdığı metin; null → ham değerin biçimli hâli.
   const [text, setText] = useState<string | null>(null);
   useEffect(() => {
     // Dışarıdan gelen değer (sıfırlama, "tamamını öde") yazılan metni geçersiz kılar.
-    if (text !== null && parseMoneyDisplay(text, locale) !== value) setText(null);
+    if (text !== null && parseMoneyDisplay(text, locale, maxDecimals) !== value) setText(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, locale]);
   return (
@@ -139,7 +157,7 @@ export function MoneyInput({ value, onChange, onBlur, ...props }: Props) {
       value={text ?? formatMoneyDisplay(value, locale)}
       onChange={(e) => {
         const typed = sanitizeTyped(e.target.value);
-        const raw = parseMoneyDisplay(typed, locale);
+        const raw = parseMoneyDisplay(typed, locale, maxDecimals);
         setText(!raw.includes(".") && onlyDigitsAndGroup(typed, locale) ? formatMoneyDisplay(raw, locale) : typed);
         onChange(raw);
       }}
