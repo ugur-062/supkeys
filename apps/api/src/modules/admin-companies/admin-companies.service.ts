@@ -177,6 +177,12 @@ export interface AdminNotifyMessage {
    * vermez (her iki panelde görünmeli).
    */
   portal?: NotificationPortal;
+  /**
+   * Bildirimin ait olduğu talep — in-app satırın `listingId`'si (talep
+   * bazlı süzme/okundu eşlemesi). Talebe dair müdahalede `cta.path` de
+   * talebe gider (arayüz testi son tur: "Rothern'e Git" → /company idi).
+   */
+  listingId?: string;
 }
 
 /** Bkz. `AdminNotifyMessage.lines`. */
@@ -294,6 +300,7 @@ export class AdminCompaniesService {
         ctaLabel: msg.cta?.label,
         ctaPath: `${baseUrl}${msg.cta?.path ?? "/company"}`,
         portal: msg.portal,
+        listingId: msg.listingId ?? null,
       })
       .catch((err) =>
         this.logger.warn(

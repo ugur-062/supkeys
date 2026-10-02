@@ -28,6 +28,22 @@ function ownerPortalOf(type: ListingType): NotificationPortal {
 }
 
 /**
+ * Talebe dair müdahale bildiriminin bağlantısı: sahip, etkilenen talebin
+ * detayına ("Alım Talebini Gör" → /company/ilan/<id>) gider ve in-app satır
+ * talebe bağlanır. Önceden CTA genel "Rothern'e Git" → /company idi ve
+ * listingId boş kalıyordu (arayüz testi son tur).
+ */
+function ownerListingLink(listingId: string) {
+  return {
+    listingId,
+    cta: {
+      labelKey: "api.notifications.listings.cta.viewRequest" as const,
+      path: `/company/ilan/${listingId}`,
+    },
+  };
+}
+
+/**
  * Admin inceleme + müdahale (Faz 5) — "satın alma talebimde ne oldu / siparişim takıldı"
  * destek çağrıları. Admin platform sahibidir: kapalı-zarf kuralı TARAFLAR
  * arasında geçerlidir, admin tüm teklifleri tutarlarıyla görür. Müdahaleler
@@ -304,6 +320,7 @@ export class AdminInspectionService {
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_closed",
       portal: ownerPortalOf(l.type),
+      ...ownerListingLink(id),
       subjectKey: "api.notifications.adminInspection.ilanKapatildiBaslik",
       paragraphKeys: [
         "api.notifications.adminInspection.ilanKapatildiGovde",
@@ -364,6 +381,7 @@ export class AdminInspectionService {
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_extended",
       portal: ownerPortalOf(l.type),
+      ...ownerListingLink(id),
       subjectKey: "api.notifications.adminInspection.ilanUzatildiBaslik",
       paragraphKeys: [
         "api.notifications.adminInspection.ilanUzatildiGovde",
@@ -437,6 +455,7 @@ export class AdminInspectionService {
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_reopened",
       portal: ownerPortalOf(l.type),
+      ...ownerListingLink(id),
       subjectKey: "api.notifications.adminInspection.ilanYenidenAcildiBaslik",
       paragraphKeys: [
         "api.notifications.adminInspection.ilanYenidenAcildiGovde",

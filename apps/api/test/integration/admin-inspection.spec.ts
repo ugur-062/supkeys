@@ -322,6 +322,34 @@ describe("derin denetim LU-03 — admin kapanış kuralları, SEO, kesme bayrağ
     ]);
   });
 
+  // Arayüz testi son tur: müdahale bildirimi talebe bağlanır — CTA "Alım
+  // Talebini Gör" → /company/ilan/<id>, listingId dolu (önce "Rothern'e Git"
+  // → /company, listingId boştu).
+  it("kapat/uzat/yeniden aç sahip bildirimi talebe bağlanır (CTA + listingId)", async () => {
+    const { service, companies } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const l = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+    await service.extendListing(l.id, FURTHER.toISOString(), "admin-1");
+    await service.closeListing(l.id, "moderasyon", "admin-1");
+    await service.reopenListing(l.id, FURTHER.toISOString(), "admin-1");
+    const msgs = companies.notifyCompany.mock.calls as unknown as [
+      string,
+      { listingId?: string; cta?: { labelKey?: string; path: string } },
+    ][];
+    expect(msgs).toHaveLength(3);
+    for (const [, m] of msgs) {
+      expect(m.listingId).toBe(l.id);
+      expect(m.cta).toEqual({
+        labelKey: "api.notifications.listings.cta.viewRequest",
+        path: `/company/ilan/${l.id}`,
+      });
+    }
+  });
+
   it("ilan/sipariş listesi 100'ü aşınca sessiz kesilmez: truncated bayrağı döner", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, {});
