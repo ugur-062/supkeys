@@ -183,7 +183,20 @@ function ProductReview({ id }: { id: string }) {
               <Row k="Kategori" v={p.categoryName ?? "—"} />
               <Row k="Fiyat" v={`${PRICE_MODE[p.priceMode] ?? p.priceMode}${p.priceMode === "FIXED" && p.priceAmount ? ` · ${fmtPrice(p.priceAmount, p.priceCurrency)}/${p.unit}` : ""}`} />
               {p.priceMode === "TIERED" && p.priceTiers?.length ? (
-                <Row k="Kademeler" v={p.priceTiers.map((t) => `${fmtQty(t.minQty)}+ ${p.unit} → ${fmtPrice(t.unitPrice, p.priceCurrency)}`).join(" · ")} />
+                // Her kademe kendi satırında ve bölünmeden — tek dizeye "·" ile
+                // birleştirince sağa yaslı hücrede kademe ortasından sarılıyordu.
+                <Row
+                  k="Kademeler"
+                  v={
+                    <ul className="space-y-0.5">
+                      {p.priceTiers.map((t, i) => (
+                        <li key={`${i}-${t.minQty}`} data-testid="price-tier" className="whitespace-nowrap">
+                          {`${fmtQty(t.minQty)}+ ${p.unit} → ${fmtPrice(t.unitPrice, p.priceCurrency)}`}
+                        </li>
+                      ))}
+                    </ul>
+                  }
+                />
               ) : null}
               <Row k="Min. sipariş" v={p.moq ? `${fmtQty(p.moq)} ${p.unit}` : "—"} />
               <Row k="Marka / MPN" v={[p.brand, p.mpn].filter(Boolean).join(" / ") || "—"} />

@@ -95,6 +95,14 @@ describe("/admin/urunler/[id] — ürün incelemesi", () => {
     expect(tiers.textContent).not.toMatch(/11\.5 TRY/);
   });
 
+  it("her kademe ayrı ve bölünmez satırda (tek dizeye birleşmez)", () => {
+    h.product = product({ priceTiers: [{ minQty: 1, unitPrice: 15 }, { minQty: 1000, unitPrice: 11.5 }] });
+    render(<AdminUrunDetayPage />);
+    const rows = screen.getAllByTestId("price-tier");
+    expect(rows.map((r) => r.textContent)).toEqual(["1+ adet → ₺15,00", "1.000+ adet → ₺11,50"]);
+    for (const r of rows) expect(r).toHaveClass("whitespace-nowrap");
+  });
+
   it("video ve belgeler bağlantı; javascript: adresi bağlantı olmaz; göreli yollar vitrin kökeninde", () => {
     const { container } = render(<AdminUrunDetayPage />);
     expect(screen.getByRole("link", { name: /youtube\.com/ })).toHaveAttribute("href", "https://youtube.com/watch?v=abc");
