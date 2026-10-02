@@ -232,10 +232,14 @@ describe("Talep detayı (sahip) — meta şeridi Kapanış (G1)", () => {
     expect(value.className).toMatch(/\bmin-w-0\b/);
   });
 
-  it("tek satırlı değerler (para birimi) truncate + title korur", () => {
+  it("para birimi değeri kırpılmaz (multiline) ama title korunur", () => {
     h.detail = detail({ status: "OPEN" });
     renderPage();
+    // Çok birimli liste ("TRY, USD, EUR") 390 px'te kesiliyordu ve tam değer
+    // yalnız dokunmatikte açılmayan title'daydı → değer artık sarar.
     const value = screen.getByTitle("TRY");
-    expect(value.className).toMatch(/\btruncate\b/);
+    expect(value.className).not.toMatch(/\btruncate\b/);
+    expect(value.className).toMatch(/\bmin-w-0\b/);
+    expect(value).toHaveTextContent("TRY");
   });
 });
