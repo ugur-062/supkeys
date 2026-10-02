@@ -72,6 +72,10 @@ describe("PasswordResetService", () => {
       }),
     ).toBe(1);
     expect(email.send).toHaveBeenCalled();
+    // Sıfırlama bağlantısı hesap kurulum ipucu taşımaz.
+    expect(email.send.mock.calls[0]![0].templateData.data.resetUrl).toMatch(
+      /reset-password\?token=[0-9a-f]{64}$/,
+    );
     // Derin denetim X09: bağlam kimliği adres değil kullanıcı id'si (EmailLog +
     // kritik alarmda Sentry extra.contextId'e düşer).
     expect(email.send.mock.calls[0]![0].context).toEqual({
@@ -101,7 +105,8 @@ describe("PasswordResetService", () => {
       ctaUrl: string;
     };
     expect(data.subject).toContain(owner.company.name);
-    expect(data.ctaUrl).toMatch(/reset-password\?token=[0-9a-f]{64}$/);
+    // `setup=1`: sayfa "Şifreni belirle" metnini gösterir (yeniden doğrulama).
+    expect(data.ctaUrl).toMatch(/reset-password\?token=[0-9a-f]{64}&setup=1$/);
     expect(JSON.stringify(data)).not.toMatch(/sıfırlama talebinde/);
   });
 

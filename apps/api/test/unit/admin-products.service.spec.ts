@@ -205,6 +205,8 @@ describe("AdminProductsService", () => {
     expect(d.categoryName).toBe("Elektrik");
     await svc.list({ status: "PENDING" });
     expect(prisma.companyItem.findMany.mock.calls[0][0].orderBy[0]).toEqual({ submittedAt: "asc" });
+    // D-216: KVKK ile anonimleşmiş firmanın ürünü kuyrukta yer almaz.
+    expect(prisma.companyItem.findMany.mock.calls[0][0].where.company).toEqual({ isActive: true });
     const s = await svc.stats();
     expect(s.pending).toBe(1);
   });

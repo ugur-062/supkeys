@@ -161,6 +161,11 @@ export class AdminProductsService {
     const term = q.q?.trim();
     const where: Prisma.CompanyItemWhereInput = {
       isActive: true,
+      // KVKK ile anonimlestirilmis firmanin (Company.isActive=false) urunu
+      // kuyrukta/listede yer almaz (arayuz testi D-216): anonimlestirme
+      // urunleri DRAFT+pasif yapar; bu suzgec duzeltmeden ONCE anonimlesmis
+      // firmalarin artiklarina karsi ikinci kilit (veri duzeltmesi gocte).
+      company: { isActive: true },
       ...(status ? { reviewStatus: status } : { reviewStatus: { not: "DRAFT" } }),
       // FİRMA SÜZGECİ (2026-09-14): ücretsiz pakette ürün tavanı 50'ye çıktı.
       // Bir firmanın 50 ürününü sayfa sayfa avlamak yerine tek görünümde
@@ -200,13 +205,13 @@ export class AdminProductsService {
 
   async stats() {
     const [pending, oldest, rejected] = await Promise.all([
-      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "PENDING" } }),
+      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "PENDING", company: { isActive: true } } }),
       this.prisma.companyItem.findFirst({
-        where: { isActive: true, reviewStatus: "PENDING" },
+        where: { isActive: true, reviewStatus: "PENDING", company: { isActive: true } },
         select: { submittedAt: true },
         orderBy: { submittedAt: "asc" },
       }),
-      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "REJECTED" } }),
+      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "REJECTED", company: { isActive: true } } }),
     ]);
     return { pending, rejected, oldestPendingSince: oldest?.submittedAt?.toISOString() ?? null };
   }

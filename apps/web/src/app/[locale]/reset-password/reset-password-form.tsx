@@ -54,6 +54,8 @@ export function ResetPasswordForm() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") ?? "";
+  /** Hesap kurulum bağlantısı (`setup=1`): "belirle" metinleri — akış aynı. */
+  const setup = params.get("setup") === "1";
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,8 +101,12 @@ export function ResetPasswordForm() {
         <div className="flex items-start gap-2">
           <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600" />
           <div>
-            <p className="font-semibold text-emerald-900">{t("changedTitle")}</p>
-            <p className="mt-1 text-sm text-emerald-800">{t("changedBody")}</p>
+            <p className="font-semibold text-emerald-900">
+              {setup ? t("setupDoneTitle") : t("changedTitle")}
+            </p>
+            <p className="mt-1 text-sm text-emerald-800">
+              {setup ? t("setupDoneBody") : t("changedBody")}
+            </p>
             <Button
               className="mt-3"
               onClick={() => router.push("/company/login")}
@@ -121,7 +127,7 @@ export function ResetPasswordForm() {
         token,
         newPassword: values.newPassword,
       });
-      toast.success(t("toastChanged"));
+      toast.success(setup ? t("toastSetupDone") : t("toastChanged"));
       setSubmitted(true);
     } catch (err) {
       // 403 = bağlantı geçersiz/kullanılmış/süresi dolmuş (servis); 400'de
@@ -180,7 +186,13 @@ export function ResetPasswordForm() {
       </Field>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? t("changing") : t("change")}
+        {setup
+          ? pending
+            ? t("setupSubmitting")
+            : t("setupSubmit")
+          : pending
+            ? t("changing")
+            : t("change")}
       </Button>
     </form>
   );

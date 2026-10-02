@@ -7,13 +7,14 @@ const h = vi.hoisted(() => ({
   post: vi.fn(),
   push: vi.fn(),
   token: "a".repeat(64) as string | null,
+  setup: null as string | null,
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: h.push }),
   useSearchParams: () => ({
-    get: (k: string) => (k === "token" ? h.token : null),
+    get: (k: string) => (k === "token" ? h.token : k === "setup" ? h.setup : null),
   }),
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -26,6 +27,7 @@ import { ResetPasswordForm } from "../reset-password-form";
 beforeEach(() => {
   vi.clearAllMocks();
   h.token = "a".repeat(64);
+  h.setup = null;
 });
 
 describe("ResetPasswordForm", () => {
@@ -97,6 +99,25 @@ describe("ResetPasswordForm", () => {
     );
     await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
     expect(h.push).toHaveBeenCalledWith("/company/login");
+  });
+
+  it("hesap kurulum bağlantısı (setup=1): 'Şifremi Belirle' düğmesi ve 'belirlendi' ekranı; oturum kapatma metni yok", async () => {
+    const user = userEvent.setup();
+    h.setup = "1";
+    h.post.mockResolvedValue({ data: { success: true } });
+    render(<ResetPasswordForm />);
+    expect(screen.queryByRole("button", { name: "Şifreyi Değiştir" })).toBeNull();
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(screen.getByRole("button", { name: "Şifremi Belirle" }));
+    expect(h.post).toHaveBeenCalledWith("/auth/password-reset/confirm", {
+      token: "a".repeat(64),
+      newPassword: "Guclu!Parola1",
+    });
+    expect(h.toast.success).toHaveBeenCalledWith("Şifre belirlendi");
+    const done = screen.getByRole("status");
+    expect(done).toHaveTextContent("Şifreniz belirlendi");
+    expect(done).not.toHaveTextContent("oturumlarınız kapatıldı");
   });
 
   it("backend hatası (süresi dolmuş token) alert olarak gösterilir", async () => {

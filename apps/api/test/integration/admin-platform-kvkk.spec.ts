@@ -3,7 +3,10 @@
  * Kural: siparişsiz firma HARD delete; siparişli firma ANONİMLEŞTİRİLİR
  * (finansal kayıt korunur). Aklama append-only marker'dır.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
+import { AdminProductsService } from "../../src/modules/admin-companies/admin-products.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { prisma, truncateAll } from "./test-db";
@@ -493,6 +496,93 @@ describe("KVKK — export + silme/anonimleştirme", () => {
       const it = await prisma.companyItem.findUniqueOrThrow({ where: { id } });
       expect(it).toMatchObject({ isPublic: false, isActive: false, reviewStatus: "DRAFT" });
     }
+  });
+});
+
+describe("D-216 yeniden doğrulama — düzeltmeden ÖNCE anonimleşmiş firmanın ürün artıkları", () => {
+  // Eski anonimleştirme ürünlere dokunmuyordu: firma isActive=false +
+  // isBlocked, ürünleri PENDING (onaylanabilir) ve APPROVED+isPublic kaldı.
+  async function legacyAnonymized() {
+    const co = await makeCompanyWithUser(prisma, {});
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { isActive: false, isBlocked: true, name: "Silinmiş Firma (TEST)" },
+    });
+    const mk = (slug: string, extra: Record<string, unknown>) =>
+      prisma.companyItem.create({
+        data: {
+          companyId: co.company.id,
+          createdById: co.user.id,
+          name: slug,
+          unit: "adet",
+          slug,
+          ...extra,
+        },
+      });
+    const pending = await mk("artik-bekleyen", { reviewStatus: "PENDING", submittedAt: new Date() });
+    const live = await mk("artik-yayinda", { reviewStatus: "APPROVED", isPublic: true });
+    return { co, pending, live };
+  }
+
+  it("admin ürün kuyruğu/istatistiği anonim firmanın artığını göstermez; canlı firmanınki görünür", async () => {
+    const { pending } = await legacyAnonymized();
+    const alive = await makeCompanyWithUser(prisma, {});
+    const ok = await prisma.companyItem.create({
+      data: {
+        companyId: alive.company.id,
+        createdById: alive.user.id,
+        name: "canli-bekleyen",
+        unit: "adet",
+        slug: "canli-bekleyen",
+        reviewStatus: "PENDING",
+        submittedAt: new Date(),
+      },
+    });
+    const svc = new AdminProductsService(
+      prisma as never,
+      new AuditService(prisma as never),
+      { notifyCompany: jest.fn() } as never,
+    );
+    const queue = await svc.list({ status: "PENDING" });
+    expect(queue.items.map((i) => i.id)).toEqual([ok.id]);
+    expect(queue.total).toBe(1);
+    const all = await svc.list({});
+    expect(all.items.map((i) => i.id)).not.toContain(pending.id);
+    expect((await svc.stats()).pending).toBe(1);
+  });
+
+  it("veri düzeltme göçü artıkları vitrinden ve kuyruktan düşürür; canlı firmaya dokunmaz; idempotent", async () => {
+    const { pending, live } = await legacyAnonymized();
+    const alive = await makeCompanyWithUser(prisma, {});
+    const keep = await prisma.companyItem.create({
+      data: {
+        companyId: alive.company.id,
+        createdById: alive.user.id,
+        name: "canli-yayinda",
+        unit: "adet",
+        slug: "canli-yayinda",
+        reviewStatus: "APPROVED",
+        isPublic: true,
+      },
+    });
+    const sql = readFileSync(
+      join(
+        __dirname,
+        "../../../../packages/db/prisma/migrations/20261002130000_anonymized_company_items_backfill/migration.sql",
+      ),
+      "utf8",
+    );
+    expect(await prisma.$executeRawUnsafe(sql)).toBe(2);
+    for (const id of [pending.id, live.id]) {
+      const it = await prisma.companyItem.findUniqueOrThrow({ where: { id } });
+      expect(it).toMatchObject({ isPublic: false, isActive: false, reviewStatus: "DRAFT", submittedAt: null });
+    }
+    expect(await prisma.companyItem.findUniqueOrThrow({ where: { id: keep.id } })).toMatchObject({
+      isPublic: true,
+      isActive: true,
+      reviewStatus: "APPROVED",
+    });
+    expect(await prisma.$executeRawUnsafe(sql)).toBe(0);
   });
 });
 

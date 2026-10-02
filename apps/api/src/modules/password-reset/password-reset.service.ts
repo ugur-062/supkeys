@@ -156,6 +156,10 @@ export class PasswordResetService {
       { companyUserId: cu.id },
       ACCOUNT_SETUP_TTL_HOURS * 60,
       locale,
+      // Sayfa "Şifreni sıfırla / Hatırladın mı?" yerine yeni hesaba uygun
+      // "Şifreni belirle" metnini gösterir (arayüz testi api2-02 yeniden
+      // doğrulama). Yalnız görünüm ipucu: yetki token'dadır.
+      { setup: true },
     );
     const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
       tApi(key, values, locale);
@@ -215,6 +219,7 @@ export class PasswordResetService {
     owner: ResetOwner,
     ttlMinutes: number,
     locale: Locale,
+    opts: { setup?: boolean } = {},
   ): Promise<string> {
     // Tek aktif token politikası — bu kullanıcının kullanılmamış token'larını sil.
     await this.prisma.passwordResetToken.deleteMany({
@@ -235,7 +240,8 @@ export class PasswordResetService {
     const baseUrl = (
       resolveWebUrl(this.config)
     ).replace(/\/$/, "");
-    return `${baseUrl}${localizeAppPath(`/reset-password?token=${plainToken}`, locale)}`;
+    const setup = opts.setup ? "&setup=1" : "";
+    return `${baseUrl}${localizeAppPath(`/reset-password?token=${plainToken}${setup}`, locale)}`;
   }
 
   private async issue(

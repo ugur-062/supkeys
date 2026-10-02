@@ -12,27 +12,53 @@ import { ResetPasswordForm } from "./reset-password-form";
  */
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+type ResetSearchParams = Promise<{ setup?: string | string[] }>;
+
+/**
+ * Admin'in açtığı hesabın kurulum bağlantısı `setup=1` taşır (API
+ * PasswordResetService.requestAccountSetup): aynı token akışı, ama metin
+ * "Şifreni sıfırla / Hatırladın mı?" yerine yeni hesaba uygun "Şifreni
+ * belirle" (arayüz testi api2-02 yeniden doğrulama). Yalnız görünüm ipucu.
+ */
+async function isSetup(searchParams: ResetSearchParams): Promise<boolean> {
+  const v = (await searchParams).setup;
+  return (Array.isArray(v) ? v[0] : v) === "1";
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: LocaleParams;
+  searchParams: ResetSearchParams;
+}): Promise<Metadata> {
   const locale = await localeFromParams(params);
   const t = await getTranslations({ locale, namespace: "web.auth.reset" });
   return {
-    title: t("metaTitle"),
+    title: (await isSetup(searchParams)) ? t("setupMetaTitle") : t("metaTitle"),
     // Jeton taşıyan işlem sayfası — aramaya girmez (2026-09-22).
     robots: { index: false, follow: false },
   };
 }
 
 /** Şifre sıfırlama — diğer auth ekranlarıyla aynı kabuk (AuthShell). */
-export default async function ResetPasswordPage({ params }: { params: LocaleParams }) {
+export default async function ResetPasswordPage({
+  params,
+  searchParams,
+}: {
+  params: LocaleParams;
+  searchParams: ResetSearchParams;
+}) {
   setRequestLocale(await localeFromParams(params));
   const t = await getTranslations("web.auth.reset");
+  const setup = await isSetup(searchParams);
   return (
     <AuthShell
-      title={t("title")}
-      subtitle={t("subtitle")}
+      title={setup ? t("setupTitle") : t("title")}
+      subtitle={setup ? t("setupSubtitle") : t("subtitle")}
       footer={
         <>
-          {t("remembered")}{" "}
+          {setup ? t("setupHaveAccount") : t("remembered")}{" "}
           <Link
             href="/company/login"
             className="font-semibold text-zinc-900 hover:underline"
