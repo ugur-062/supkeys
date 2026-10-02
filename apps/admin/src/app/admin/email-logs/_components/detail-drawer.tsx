@@ -127,12 +127,19 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                 <section className="admin-card p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
+                      {/* İç kaydın konusu API'nin makine metnidir ("suppression
+                          clear (admin)") — başlıkta şablon etiketi gösterilir
+                          (arayüz testi webC-15 yeniden doğrulama). */}
                       <h2 className="font-display font-bold text-base text-admin-text truncate">
-                        {item.subject}
+                        {resendBlock === "internal"
+                          ? getTemplateLabel(item.template)
+                          : item.subject}
                       </h2>
-                      <p className="text-xs text-admin-text-muted mt-0.5">
-                        {getTemplateLabel(item.template)}
-                      </p>
+                      {resendBlock !== "internal" ? (
+                        <p className="text-xs text-admin-text-muted mt-0.5">
+                          {getTemplateLabel(item.template)}
+                        </p>
+                      ) : null}
                     </div>
                     <EmailStatusBadge status={item.status} />
                   </div>

@@ -243,11 +243,7 @@ function PersonelView() {
         <TempPasswordBanner password={tempPw} onClose={() => setTempPw(null)} />
       ) : null}
 
-      {/* Dar ekranda tablo yatay kayar; ipucusuz Rol/Durum/İşlemler sütunları
-          ekran dışında kalıyordu (arayüz testi D-229). */}
-      <p className="text-admin-text-muted text-xs sm:hidden">
-        Rol, durum ve işlemler için tabloyu yana kaydırın →
-      </p>
+      {/* Dar ekran kaydırma ipucu ortak <Table>'da (arayüz testi D-229). */}
       <div className="admin-card overflow-hidden">
         <Table dense>
           <TableHead>

@@ -124,9 +124,15 @@ describe("DetailDrawer — iç ve gizli kayıtlar (arayüz testi O-078)", () => 
       status: "SENT",
       contextType: "suppression_clear",
       contextId: "admin-1",
+      subject: "suppression clear (admin)",
     };
     render(<DetailDrawer id="log1" onClose={() => {}} />);
     expect(await screen.findByText(/Sistemin iç kaydı/)).toBeInTheDocument();
+    // Ham İngilizce konu başlıkta görünmez; şablon etiketi başlıktır.
+    expect(screen.queryByText("suppression clear (admin)")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Engel kaldırma (iç kayıt)" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Yeniden Gönder" })).not.toBeInTheDocument();
     expect(screen.queryByText("Önizleme")).not.toBeInTheDocument();
   });
