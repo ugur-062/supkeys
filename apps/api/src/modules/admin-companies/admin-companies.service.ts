@@ -1554,7 +1554,7 @@ export class AdminCompaniesService {
       void this.notifyCompany(
         id,
         c.companyVerificationStatus === "VERIFIED"
-          ? this.verificationRevokedMessage(reasonLine ? [reasonLine] : [])
+          ? this.verificationRevokedMessage(reasonLine ? [reasonLine] : [], false)
           : {
               type: "company_verification",
               subjectKey: "api.notifications.adminCompanies.dogrulamaReddedildiBaslik",
@@ -1587,10 +1587,14 @@ export class AdminCompaniesService {
   /**
    * Doğrulanmış firmanın doğrulaması geri alındı (D-193): genel "bazı
    * belgeleriniz reddedildi" metni statü kaybını ve kapanan adımları
-   * söylemiyordu. `lines` reddedilen belgeler / gerekçe.
+   * söylemiyordu. `lines` reddedilen belgeler / gerekçe. "Reddedilen belgeler
+   * ve gerekçeleri:" başlığı yalnız satırlar BELGE satırıysa basılır — tek tık
+   * red (setVerification) belge saymaz, tek "Gerekçe: …" satırı verir; başlık
+   * altında belge yokmuş gibi görünüyordu (yeniden doğrulama NEW-2).
    */
   private verificationRevokedMessage(
     lines: readonly AdminNotifyLine[],
+    linesAreDocuments = true,
   ): AdminNotifyMessage {
     return {
       type: "company_verification",
@@ -1598,7 +1602,8 @@ export class AdminCompaniesService {
       bodyKey: "api.notifications.adminCompanies.dogrulamaGeriAlindiGovde",
       paragraphKeys: [
         "api.notifications.adminCompanies.dogrulamaGeriAlindiEtki",
-        lines.length > 0 &&
+        linesAreDocuments &&
+          lines.length > 0 &&
           "api.notifications.adminCompanies.reddedilenBelgelerBaslik",
       ],
       lines,

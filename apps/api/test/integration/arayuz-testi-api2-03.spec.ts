@@ -330,7 +330,11 @@ describe("D-141 / D-193 — red e-postası belgeyi, gerekçeyi ve etkisini söyl
     await verified.svc.setVerification(b.company.id, "REJECTED", "adm1", "sahte belge");
     const mailB = await sentMail(verified.email);
     expect(mailB.subject).toBe("Firma doğrulamanız geri alındı");
-    expect(mailB.templateData.data.paragraphs.join("\n")).toContain("Gerekçe: sahte belge");
+    const bodyB = mailB.templateData.data.paragraphs.join("\n");
+    expect(bodyB).toContain("Gerekçe: sahte belge");
+    // Tek tık red belge saymaz → "Reddedilen belgeler…" başlığı altı boş
+    // kalıyordu (yeniden doğrulama NEW-2): başlık yok, yalnız gerekçe satırı.
+    expect(bodyB).not.toContain("Reddedilen belgeler ve gerekçeleri:");
   });
 
   it("İngilizce alıcıda belge adı ve gerekçe kodu İngilizce, admin notu olduğu gibi", async () => {
@@ -379,6 +383,16 @@ describe("D-210 — paket tanımlandı e-postası", () => {
     expect(body).not.toContain("GOLD");
     const year = String(res.membershipEndAt!.getFullYear());
     expect(body).toContain(`${year} tarihine kadar`);
+  });
+
+  it("Rusça alıcıda tarih 'г.' ile biter, cümle çift noktayla bitmez (yeniden doğrulama NEW-1)", async () => {
+    const { svc, email } = adminRig();
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await prisma.companyUser.update({ where: { id: co.user.id }, data: { locale: "ru" } });
+    await svc.setTier(co.company.id, "GOLD", 12, undefined);
+    const body = (await sentMail(email)).templateData.data.paragraphs.join("\n");
+    expect(body).toMatch(/назначен тариф Gold \(действует до \d{1,2} \S+ \d{4} г\.\)\. Вы можете/);
+    expect(body).not.toContain("..");
   });
 });
 
