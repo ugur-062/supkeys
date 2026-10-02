@@ -109,4 +109,26 @@ describe("OrderPaymentsCard — arayüz testi webB-07", () => {
     );
     expect(screen.queryByText(/banka kanalından/)).not.toBeInTheDocument();
   });
+
+  it("NEW-4: teslim sonrası ayıp ihbarlı DISPUTED'ta 'teslim alındıktan sonra açılır' yazmaz; neden söylenir", () => {
+    render(
+      <OrderPaymentsCard
+        order={order({
+          status: "DISPUTED",
+          paymentTiming: "AFTER_DELIVERY",
+          deliveredAt: new Date().toISOString(),
+          defectNotifiedAt: new Date().toISOString(),
+        } as Partial<CompanyOrderDetail>)}
+      />,
+    );
+    expect(screen.queryByText(/teslim alındıktan sonra açılır/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Ayıp ihbarı açıkken ödeme kaydı yapılamaz/)).toBeInTheDocument();
+    expect(screen.getByText("Henüz ödeme kaydı yok.")).toBeInTheDocument();
+  });
+
+  it("NEW-4: teslim öncesi vadeli siparişte eski metin korunur", () => {
+    render(<OrderPaymentsCard order={order({ paymentTiming: "AFTER_DELIVERY" })} />);
+    expect(screen.getByText(/teslim alındıktan sonra açılır/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ayıp ihbarı açıkken/)).not.toBeInTheDocument();
+  });
 });

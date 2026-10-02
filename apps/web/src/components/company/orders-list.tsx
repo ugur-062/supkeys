@@ -368,7 +368,9 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
                 {o.paymentDueDate ? ` ${t("vade", { formatDate: fmtDate(o.paymentDueDate) })}` : ""}
               </p>
             )
-          ) : o.paymentSettled === true ? (
+          ) : o.paymentSettled === true && !["CANCELLED", "REJECTED"].includes(o.status) ? (
+            /* Sonlanmış (iptal/ret) siparişte yeşil "Ödeme tamam" yok — detay
+               sayfası orada iade notu gösterir (arayüz testi webB-07 NEW-5). */
             <p className="text-xs text-emerald-700 sm:whitespace-nowrap">{t("odemeTamam")}</p>
           ) : null}
         </div>

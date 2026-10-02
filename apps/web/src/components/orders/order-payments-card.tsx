@@ -88,6 +88,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   // İptal/ret: borç kalmaz → "Kalan" gösterilmez; onaylı ödeme varsa iade notu
   // (arayüz testi D-105 — iptal edilen siparişte "KALAN 21.000 ₺" duruyordu).
   const terminal = order.status === "CANCELLED" || order.status === "REJECTED";
+  // Ayıp ihbarlı DISPUTED (TTK 23): API ödeme penceresini kapatır (isPaymentOpen)
+  // — "teslim alındıktan sonra açılır" demek mal teslim alınmışken yanlıştı
+  // (arayüz testi webB-07 NEW-4); ihbar geri çekilince pencere yeniden açılır.
+  const defectDisputed = order.status === "DISPUTED" && !!order.defectNotifiedAt;
   const record = useRecordPayment(order.id);
   const decide = usePaymentDecision(order.id);
   const confirm = useConfirm();
@@ -272,6 +276,12 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         </div>
       ) : null}
 
+      {defectDisputed ? (
+        <div className="border-b border-zinc-950/5 bg-amber-50 px-5 py-2 text-xs text-amber-800">
+          {tr("ayipIhbariAcikkenOdemeKaydiYapilamaz")}
+        </div>
+      ) : null}
+
       {/* Kayıt formu — POP-UP (madde 16: inline şerit yerine diyalog). */}
       <Dialog open={open && isBuyer} onClose={resetForm} size="md">
         <DialogTitle>{tr("odemeyiBildir")}</DialogTitle>
@@ -333,7 +343,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           <p className="px-5 py-6 text-center text-sm text-zinc-500">
             {/* O-029/O-055: akreditifte alıcı kayıt eklemez (banka kanalı) —
                 "satıcı onayladıktan sonra eklenebilir" bayat metni yazılmaz. */}
-            {order.paymentOpen || isLc || terminal
+            {order.paymentOpen || isLc || terminal || defectDisputed
               ? tr("henuzOdemeKaydiYok")
               : order.paymentTiming === "AFTER_DELIVERY"
                 ? tr("odemeBolumuSiparisTeslimAlindiktan")

@@ -553,6 +553,73 @@ describe("OrderDetailPage — arayüz testi webB-07", () => {
   });
 });
 
+describe("OrderDetailPage — arayüz testi webB-07 yeniden doğrulama", () => {
+  it("NEW-1: açık satıcı iptal talebinde alıcının sıradaki adımı karar vermek (karşı taraf DEĞİL)", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      cancelRequestedAt: new Date().toISOString(),
+      cancelRequestReason: "Stok tükendi.",
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/karar sizde: İptal talebi bölümünden İptali Onayla veya Reddet seçin/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("NEW-1: peşin eşiği dolmamışken de açık iptal talebi önce karar ister", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      paymentCategory: "ADVANCE",
+      advancePercent: 100,
+      advanceDue: "1000.00",
+      paymentTiming: "BEFORE_DELIVERY",
+      cancelRequestedAt: new Date().toISOString(),
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/karar sizde/)).toBeInTheDocument();
+  });
+
+  it("NEW-1: iptal talebi reddedildi (A1-DISPUTED), alıcı → iki yönlü çıkış metni", () => {
+    h.order = order("DISPUTED", "buyer", {
+      defectNotifiedAt: null,
+      cancelRequestedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Sipariş ihtilaflı: satıcı malı bulursa siparişi gönderebilir/)).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("NEW-1: satıcı açık iptal talebinde alıcı karar metnini görmez", () => {
+    h.order = order("ACCEPTED", "seller", { cancelRequestedAt: new Date().toISOString() });
+    render(<OrderDetailPage />);
+    expect(screen.queryByText(/karar sizde/)).not.toBeInTheDocument();
+  });
+
+  it.each(["IN_DELIVERY", "DELIVERED"] as const)(
+    "NEW-2: akreditifli %s siparişte satıcının sıradaki adımı banka ödemesini işaretlemek",
+    (status) => {
+      h.order = order(status, "seller", {
+        paymentCategory: "LETTER_OF_CREDIT",
+        lcOpenedAt: new Date().toISOString(),
+        lcAcceptedAt: new Date().toISOString(),
+      } as Partial<CompanyOrderDetail>);
+      render(<OrderDetailPage />);
+      expect(screen.getByText(/ödemeyi aldığınızda Akreditif bölümünden işaretleyin/)).toBeInTheDocument();
+      expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+    },
+  );
+
+  it("NEW-2: akreditif ödemesi işaretlendikten sonra satıcı alıcıyı bekler", () => {
+    h.order = order("IN_DELIVERY", "seller", {
+      paymentCategory: "LETTER_OF_CREDIT",
+      lcOpenedAt: new Date().toISOString(),
+      lcAcceptedAt: new Date().toISOString(),
+      lcPaidAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Karşı tarafın işlemi bekleniyor/)).toBeInTheDocument();
+  });
+});
+
 describe("OrderDetailPage — arayüz testi webB-08", () => {
   it("D-005: tedarikçi 'Alım Talebi' görür, alıcı 'Satın Alma Talebi'", () => {
     h.order = order("ACCEPTED", "seller");

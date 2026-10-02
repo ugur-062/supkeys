@@ -272,6 +272,19 @@ describe("OrdersList — ödeme etiketi (arayüz testi D-127)", () => {
     expect(screen.getAllByText(/Ödeme bekliyor/)).toHaveLength(1);
   });
 
+  it("iptal/ret edilen siparişte onaylı ödeme olsa da yeşil 'Ödeme tamam' yazmaz (webB-07 NEW-5)", () => {
+    h.orders = {
+      ...h.orders,
+      data: [
+        order({ status: "CANCELLED", paymentSettled: true, listingTitle: "İptal" }),
+        order({ status: "REJECTED", paymentSettled: true, listingTitle: "Ret" }),
+        order({ status: "COMPLETED", paymentSettled: true, listingTitle: "Biten" }),
+      ],
+    };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getAllByText("Ödeme tamam")).toHaveLength(1);
+  });
+
   it("DISPUTED satırı izleyici yerine ihtilaf notunu gösterir (O-030)", () => {
     h.orders = { ...h.orders, data: [order({ status: "DISPUTED" })] };
     render(<OrdersList role="buyer" />);

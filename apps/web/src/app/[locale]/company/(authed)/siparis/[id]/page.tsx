@@ -89,6 +89,8 @@ export default function OrderDetailPage() {
   // `lib/orders/order-status` ton + konum kaynağı olarak kalır (anahtar yoksa TR adı).
   const tStatus = useTranslations("web.domain.orderStatus");
   const tStep = useTranslations("web.domain.orderStep");
+  // Sıradaki-adım metni iptal paneli düğmelerinin GERÇEK adını söyler (tek kaynak).
+  const tCancel = useTranslations("web.panel.trade.orderCancelRequestPanel");
   const roleLabel = useRoleLabel();
   const unitLabel = useUnitLabel();
   const quantity = useQuantityLabel();
@@ -443,6 +445,14 @@ export default function OrderDetailPage() {
         </Text>
       )}
     </div>
+  ) : !isSeller && pendingCancelRequest ? (
+    // Arayüz testi webB-07 NEW-1: açık satıcı iptal talebinde karar ALICININ.
+    <Text className="text-sm text-amber-700">
+      {t("saticiIptalTalepEttiKararSizde", {
+        approve: tCancel("iptaliOnayla"),
+        reject: tCancel("reddet"),
+      })}
+    </Text>
   ) : buyerPreShip && !isLc && !advanceMet ? (
     paymentAwaitingConfirmation ? (
       <Text className="text-sm text-amber-700">
@@ -463,6 +473,14 @@ export default function OrderDetailPage() {
     <Text className="text-sm text-zinc-500">
       {t("saticininAkreditifiKabulEtmesiBekleniyor")}
     </Text>
+  ) : !isSeller && o.status === "DISPUTED" && !defectDisputed ? (
+    // NEW-1: iptal talebi reddedildi (A1-DISPUTED) — satıcı sevk edebilir ya
+    // da alıcı iptali sonradan onaylayabilir (iki yönlü çıkış).
+    <Text className="text-sm text-amber-700">
+      {t("ihtilafSaticiGonderebilirVeyaIptaliOnaylayin", {
+        approve: tCancel("iptaliOnayla"),
+      })}
+    </Text>
   ) : advanceGate ? (
     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
       {t.rich("buSiparistePesinOdemeSarti", {
@@ -480,6 +498,15 @@ export default function OrderDetailPage() {
       (o.status === "DISPUTED" && !defectDisputed)) ? (
     <Text className="text-sm text-zinc-500">
       {t("akreditifAdimlariSoldaKabulEdildikten")}
+    </Text>
+  ) : isSeller &&
+    isLc &&
+    !o.lcPaidAt &&
+    (o.status === "IN_DELIVERY" || o.status === "DELIVERED") ? (
+    // NEW-2: gönderilmiş akreditifli siparişte banka ödemesini işaretlemek
+    // SATICININ adımı (Akreditif bölümü "Ödeme Bankadan Alındı").
+    <Text className="text-sm text-amber-700">
+      {t("saticiOdemeAkreditifIsaretleyin")}
     </Text>
   ) : isSeller && defectDisputed ? (
     <Text className="text-sm text-amber-700">

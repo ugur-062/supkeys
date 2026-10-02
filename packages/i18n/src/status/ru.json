@@ -18489,6 +18489,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.company.companyOverview.sizeAcikSayfalar": {
+    "hash": "faccaee2a1",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.company.companyOverview.sizeAcikSayfalarAciklama": {
+    "hash": "223345439b",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.company.companyOverview.tamamlananSiparisCur": {
     "hash": "4088352ff4",
     "status": "reviewed",
