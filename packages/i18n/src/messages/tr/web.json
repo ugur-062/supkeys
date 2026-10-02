@@ -5813,7 +5813,8 @@
         "adresAra": "Adreslerde ara",
         "aramaSonucYok": "Aramanızla eşleşen adres yok.",
         "dahaFazlaGoster": "Daha fazla göster ({count} kaldı)",
-        "adresSayisi": "{count} adres"
+        "adresSayisi": "{count} adres",
+        "adresTavaniDoldu": "Adres sınırına ulaşıldı: bir firma en fazla {max} adres kaydedebilir. Yeni adres eklemek için kullanmadığınız adresleri silin."
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Banka hesabı silinsin mi?",

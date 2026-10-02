@@ -213,4 +213,23 @@ describe("AddressBookSection", () => {
     await user.type(screen.getByRole("searchbox", { name: "Adreslerde ara" }), "zzz");
     expect(screen.getByText("Aramanızla eşleşen adres yok.")).toBeInTheDocument();
   });
+
+  it("adres tavanı doluyken 'Adres Ekle' baştan kapalı ve nedeni yazılı; düzenle açık kalır (webC-09)", async () => {
+    const user = userEvent.setup();
+    h.addresses = Array.from({ length: 200 }, (_, i) => addr({ id: `a${i}`, title: `Depo ${i}` }));
+    render(<AddressBookSection canManage />);
+    const add = screen.getByRole("button", { name: "Adres Ekle" });
+    expect(add).toBeDisabled();
+    const note = screen.getByText(/en fazla 200 adres kaydedebilir/);
+    expect(add).toHaveAttribute("aria-describedby", note.id);
+    await user.click(screen.getAllByRole("button", { name: "Düzenle" })[0]!);
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("tavanın altında 'Adres Ekle' açık, not yok", () => {
+    h.addresses = Array.from({ length: 199 }, (_, i) => addr({ id: `a${i}`, title: `Depo ${i}` }));
+    render(<AddressBookSection canManage />);
+    expect(screen.getByRole("button", { name: "Adres Ekle" })).toBeEnabled();
+    expect(screen.queryByText(/en fazla 200 adres/)).not.toBeInTheDocument();
+  });
 });

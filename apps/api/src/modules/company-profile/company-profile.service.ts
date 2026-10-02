@@ -33,6 +33,7 @@ import {
   MAX_IMAGE_BYTES,
 } from "../../common/helpers/upload-validation";
 import { AuditService } from "../audit/audit.service";
+import { assertPostalCode } from "../company-addresses/company-addresses.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { CategoryService } from "../categories/services/category.service";
@@ -415,6 +416,7 @@ export class CompanyProfileService {
         bankSwiftBic: true,
         bankName: true,
         country: true,
+        postalCode: true,
       },
     });
     const kycLocked =
@@ -490,6 +492,16 @@ export class CompanyProfileService {
       data.bankSwiftBic = sw || null;
     }
     if (dto.bankName !== undefined) data.bankName = dto.bankName.trim() || null;
+    // Merkez adresi posta kodu: adres defteriyle AYNI kural (TR'de 5 rakam).
+    // Yalnız arayüz denetliyordu; PATCH 'ABCDE' kaydediyordu (arayüz testi
+    // webC-09 yeniden doğrulama). Adres defteri gibi yalnız DEĞİŞEN değerde:
+    // kuraldan önce kaydedilmiş hatalı kod başka alanın kaydını engellemesin.
+    if (
+      dto.postalCode !== undefined &&
+      (dto.postalCode.trim() || null) !== (kycBefore?.postalCode ?? null)
+    ) {
+      assertPostalCode(kycBefore?.country ?? "TR", dto.postalCode);
+    }
     // Şehir → dünya şehir listesi kaydı (2026-09-27; şehir sayfası/süzgeç).
     if (dto.city !== undefined || dto.cityId !== undefined) {
       data.cityId = resolveCityId(kycBefore?.country ?? "TR", dto.city ?? null, dto.cityId);

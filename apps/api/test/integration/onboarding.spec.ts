@@ -380,6 +380,37 @@ describe("completeOnboarding", () => {
     ).rejects.toThrow();
   });
 
+  it("TR posta kodu 5 rakam (fatura ve ayrı teslimat); yabancıda serbest (arayüz testi webC-09)", async () => {
+    const { service } = makeAuthService();
+    const cat = await makeCategory();
+    const a = await makeCompanyWithUser(prisma, { country: "TR" });
+    await expect(
+      service.completeOnboarding(a.user.id, a.company.id, dto(cat.id, { postalCode: "ABCDE" }) as never),
+    ).rejects.toThrow(/5 haneli/);
+    await expect(
+      service.completeOnboarding(
+        a.user.id,
+        a.company.id,
+        dto(cat.id, { deliverySameAsBilling: false, deliveryCity: "İstanbul", deliveryPostalCode: "347" }) as never,
+      ),
+    ).rejects.toThrow(/5 haneli/);
+    const b = await makeCompanyWithUser(prisma, { country: "TR" });
+    await service.completeOnboarding(b.user.id, b.company.id, {
+      ...dto(cat.id),
+      country: "KZ",
+      companyType: "LIMITED",
+      taxNumber: "123456789012",
+      taxOffice: undefined,
+      district: undefined,
+      neighborhood: undefined,
+      city: "Almaty",
+      authorizedTckn: undefined,
+      postalCode: "A15E3K",
+    } as never);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: b.company.id } });
+    expect(c.postalCode).toBe("A15E3K");
+  });
+
   it("TR'de yetkili TCKN yoksa reddedilir", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

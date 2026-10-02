@@ -43,6 +43,13 @@ const TYPE_ORDER: CompanyAddressType[] = ["FATURA", "TESLIMAT", "ILETISIM"];
 const PAGE_SIZE = 20;
 /** Bu sayının üstünde arama kutusu görünür — az adreste gürültü olmasın. */
 const SEARCH_MIN = 6;
+/**
+ * Firma başına adres tavanı — API `MAX_ADDRESSES_PER_COMPANY` ile AYNI (D-135).
+ * Tavan doluyken "Adres Ekle" baştan kapalı ve nedeni yazılı; kullanıcı formu
+ * doldurup gönderince öğreniyordu (arayüz testi webC-09 yeniden doğrulama).
+ * Tavanı aşmış eski defter düzenlenebilir/silinebilir kalır.
+ */
+const MAX_ADDRESSES_PER_COMPANY = 200;
 
 export function AddressBookSection({ canManage }: { canManage: boolean }) {
   const t = useTranslations("web.panel.settings.addressBookSection");
@@ -76,6 +83,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
       )
     : sorted;
   const visible = filtered.slice(0, limit);
+  const atCap = (addresses?.length ?? 0) >= MAX_ADDRESSES_PER_COMPANY;
 
   const handleDelete = async (a: CompanyAddress) => {
     const ok = await confirm({
@@ -103,9 +111,20 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
           </Text>
         </div>
         {canManage ? (
-          <Button onClick={() => setEditing("new")}>{t("adresEkle")}</Button>
+          <Button
+            disabled={atCap}
+            aria-describedby={atCap ? "address-cap-note" : undefined}
+            onClick={() => setEditing("new")}
+          >
+            {t("adresEkle")}
+          </Button>
         ) : null}
       </div>
+      {canManage && atCap ? (
+        <Text id="address-cap-note" className="mt-3 text-sm text-amber-800">
+          {t("adresTavaniDoldu", { max: MAX_ADDRESSES_PER_COMPANY })}
+        </Text>
+      ) : null}
 
       {isLoading ? (
         <Text className="mt-3 text-sm text-zinc-500">{t("yukleniyor")}</Text>

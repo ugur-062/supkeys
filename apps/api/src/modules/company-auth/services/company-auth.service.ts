@@ -48,6 +48,7 @@ import {
 } from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
+import { assertPostalCode } from "../../company-addresses/company-addresses.service";
 import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService, isSupabaseAuthAccessError } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
@@ -696,6 +697,11 @@ export class CompanyAuthService {
         throw new BadRequestException(i18nMessage("api.companyAuth.ilceZorunlu"));
       }
     }
+
+    // Posta kodu: adres defteriyle AYNI kural (TR'de 5 rakam) — kayıt ikisini
+    // de adres defterine yazar, kural yalnız arayüzdeydi (arayüz testi webC-09).
+    assertPostalCode(country, dto.postalCode);
+    if (dto.deliverySameAsBilling === false) assertPostalCode(country, dto.deliveryPostalCode);
 
     const { mainIds, subIds } = await validateCategorySelection(
       this.prisma,

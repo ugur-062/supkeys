@@ -61,7 +61,11 @@ export function CountryCombobox({
       disabled={disabled}
       immediate
     >
-      <div className={cn("relative w-full", className)}>
+      {/* `data-slot="control"` + Catalyst `Input` dolgusu: `<Field>` etiketle
+          kutu arasına komşu alanlarla aynı boşluğu (mt-3) koyar, yükseklik
+          aynıdır — Ülke kutusu İl kutusundan 12 px yukarıda ve 6 px daha
+          yüksek duruyordu (arayüz testi webC-09 yeniden doğrulama, D-311). */}
+      <div data-slot="control" className={cn("relative w-full", className)}>
         <ComboboxInput
           id={id}
           aria-label={ariaLabel}
@@ -69,7 +73,7 @@ export function CountryCombobox({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("placeholder")}
           autoComplete="off"
-          className="block w-full rounded-lg border border-zinc-950/10 bg-white py-2 pr-9 pl-3 text-base/6 text-zinc-950 placeholder:text-zinc-500 focus:border-zinc-950/20 focus:outline-none disabled:opacity-50 sm:text-sm/6"
+          className="block w-full rounded-lg border border-zinc-950/10 bg-white py-[calc(--spacing(2.5)-1px)] pr-9 pl-[calc(--spacing(3.5)-1px)] sm:py-[calc(--spacing(1.5)-1px)] sm:pl-[calc(--spacing(3)-1px)] text-base/6 text-zinc-950 placeholder:text-zinc-500 focus:border-zinc-950/20 focus:outline-none disabled:opacity-50 sm:text-sm/6"
         />
         <ComboboxButton className="absolute inset-y-0 right-0 flex items-center px-2.5" aria-label={t("open")}>
           <ChevronDownIcon className="size-4 fill-zinc-500" aria-hidden="true" />

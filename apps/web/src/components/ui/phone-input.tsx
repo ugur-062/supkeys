@@ -142,7 +142,12 @@ export function PhoneInput({
   };
 
   return (
+    // `data-slot="control"`: Catalyst `<Field>` etiketle kutu arasına komşu
+    // alanlarla aynı boşluğu (mt-3) koyar; numara kutusunun dolgusu Catalyst
+    // `Input` ile aynı (36 px masaüstü / 44 px mobil) — Telefon kutusu İlgili
+    // kişi kutusundan 12 px yukarıda duruyordu (arayüz testi webC-09, D-311).
     <div
+      data-slot="control"
       className={[
         "flex items-stretch overflow-hidden rounded-lg border bg-white shadow-sm",
         "focus-within:ring-2 focus-within:ring-zinc-950",
@@ -201,7 +206,7 @@ export function PhoneInput({
         disabled={disabled}
         value={draft ?? parsed.national}
         onChange={(e) => setNational(e.target.value)}
-        className="w-full bg-transparent px-3 py-2.5 text-base text-zinc-900 outline-none placeholder:text-zinc-400 sm:py-2 sm:text-sm"
+        className="w-full bg-transparent px-3 py-[calc(--spacing(2.5)-1px)] text-base/6 text-zinc-900 outline-none placeholder:text-zinc-400 sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6"
       />
     </div>
   );

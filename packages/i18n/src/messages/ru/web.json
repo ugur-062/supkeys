@@ -5813,7 +5813,8 @@
         "adresAra": "Поиск по адресам",
         "aramaSonucYok": "Нет адресов, соответствующих запросу.",
         "dahaFazlaGoster": "Показать ещё (осталось {count})",
-        "adresSayisi": "{count, plural, one {# адрес} few {# адреса} many {# адресов} other {# адреса}}"
+        "adresSayisi": "{count, plural, one {# адрес} few {# адреса} many {# адресов} other {# адреса}}",
+        "adresTavaniDoldu": "Достигнут лимит адресов: компания может сохранить не более {max} адресов. Чтобы добавить новый, удалите неиспользуемые адреса."
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Удалить банковский счёт?",

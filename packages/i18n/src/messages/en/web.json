@@ -5813,7 +5813,8 @@
         "adresAra": "Search addresses",
         "aramaSonucYok": "No addresses match your search.",
         "dahaFazlaGoster": "Show more ({count} left)",
-        "adresSayisi": "{count, plural, one {# address} other {# addresses}}"
+        "adresSayisi": "{count, plural, one {# address} other {# addresses}}",
+        "adresTavaniDoldu": "Address limit reached: a company can save at most {max} addresses. Delete addresses you no longer use to add a new one."
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Delete the bank account?",
