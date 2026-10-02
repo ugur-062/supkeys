@@ -23,6 +23,7 @@ const h = vi.hoisted(() => ({
   logout: vi.fn(),
   meError: false,
   meRefetch: vi.fn(),
+  meArgs: vi.fn(),
   updateMeAsync: vi.fn(),
 }));
 
@@ -41,13 +42,16 @@ vi.mock("@/hooks/use-categories", () => ({
   useCategorySearchTree: () => ({ data: undefined, isLoading: false }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useCompanyMe: () => ({
-    data: h.meError ? undefined : h.meData,
-    isLoading: false,
-    isError: h.meError,
-    isFetching: false,
-    refetch: h.meRefetch,
-  }),
+  useCompanyMe: (...args: unknown[]) => {
+    h.meArgs(...args);
+    return {
+      data: h.meError ? undefined : h.meData,
+      isLoading: false,
+      isError: h.meError,
+      isFetching: false,
+      refetch: h.meRefetch,
+    };
+  },
   useCompleteOnboarding: () => ({
     mutateAsync: h.completeAsync,
     isPending: false,
@@ -456,6 +460,9 @@ describe("OnboardingClient — arayüz testi webA-09", () => {
     expect(screen.queryByLabelText("Firma Unvanı *")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
     expect(h.meRefetch).toHaveBeenCalled();
+    // Hata yalnız kartta: /me isteği global "Sunucu hatası" toast'ını kapatır
+    // (arayüz testi webA-09 yeniden doğrulama — kart + toast çift mesajdı).
+    expect(h.meArgs).toHaveBeenCalledWith(true, { skipErrorToast: true });
   });
 
   it("D-065: aynı ülkeyi yeniden seçmek il/ilçe/vergi dairesini silmez; ülke değişince vergi no temizlenir", async () => {

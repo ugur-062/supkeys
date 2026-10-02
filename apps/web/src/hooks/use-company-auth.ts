@@ -300,7 +300,16 @@ export function useCompleteOnboarding() {
   });
 }
 
-export function useCompanyMe(enabled = true) {
+/**
+ * `skipErrorToast`: /me hatasını kendi kartında gösteren yüzey (onboarding
+ * sihirbazı) global "Sunucu hatası" toast'ını kapatır — tek hata, tek mesaj
+ * (arayüz testi webA-09 yeniden doğrulama; D-085 ile aynı ilke). Panel kabuğu
+ * kart basmadığı için orada toast kalır.
+ */
+export function useCompanyMe(
+  enabled = true,
+  { skipErrorToast = false }: { skipErrorToast?: boolean } = {},
+) {
   const user = useCompanyAuthStore((s) => s.user);
   const setMe = useCompanyAuthStore((s) => s.setMe);
   const markPermissionsSynced = useCompanyAuthStore(
@@ -311,6 +320,7 @@ export function useCompanyMe(enabled = true) {
     queryFn: async () => {
       const { data } = await companyApi.get<CompanyMeResponse>(
         "/company-auth/me",
+        skipErrorToast ? { skipErrorToast: true } : undefined,
       );
       return data;
     },

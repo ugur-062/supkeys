@@ -125,7 +125,8 @@ export function OnboardingClient() {
   const authUser = useCompanyAuthStore((s) => s.user);
   const userId = authUser?.id ?? "";
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
-  const me = useCompanyMe(!!authUser);
+  // Hata kendi kartında (aşağıda) → global toast yok (tek hata, tek mesaj).
+  const me = useCompanyMe(!!authUser, { skipErrorToast: true });
   const complete = useCompleteOnboarding();
   const vies = useViesCheck();
   // Çift tık iki VIES isteği / iki denetim kaydı üretmesin (arayüz testi FX-00 D-350).
