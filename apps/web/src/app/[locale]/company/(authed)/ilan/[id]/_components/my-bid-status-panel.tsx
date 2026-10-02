@@ -645,6 +645,8 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   } else if (bid.status === "DRAFT" && open && bid.submittedAt) {
     // Daha önce GÖNDERİLMİŞ ama taşımada taslağa düşmüş teklif (geçerlilik
     // dolumu ya da LAZY taşıma) — kullanıcı iki seçeneğini de bilsin.
+    // Uzatma düğmesi teklif hakkı / KYC kapısıyla gizleniyorsa (BidSummaryCard
+    // canExtend, O-071/O-072) metin uzatmayı önermez, nedenini söyler.
     alerts.push(
       <StatusAlert
         key="draft-carried"
@@ -652,7 +654,11 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
         title={t("oncekiTeklifinizBuTuraTaslak")}
       >
         <p>
-          {t("devamEtmekIcinYeniFiyat")}
+          {l.canBid === false
+            ? t("taslakTasindiTeklifHakkiYok")
+            : l.bidRequiresVerification
+              ? t("taslakTasindiDogrulamaGerekir")
+              : t("devamEtmekIcinYeniFiyat")}
         </p>
       </StatusAlert>,
     );

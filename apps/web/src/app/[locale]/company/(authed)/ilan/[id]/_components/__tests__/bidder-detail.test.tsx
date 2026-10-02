@@ -395,6 +395,34 @@ describe("MyBidStatusPanel — durum makinesi", () => {
     expect(screen.getByText(/önce firma doğrulaması gerekir/)).toBeInTheDocument();
     expect(screen.queryByText(/göndermeyi unutmayın/)).toBeNull();
   });
+
+  // Yeniden doğrulama api1-02: taşınan taslak bandı, uzatma düğmesi teklif
+  // hakkı / KYC kapısıyla gizliyken "geçerlilik süresini uzatın" demez.
+  it("taşınan TASLAK bandı uzatmayı yalnız uzatma mümkünken önerir", () => {
+    const carried = {
+      amount: "500",
+      status: "DRAFT" as const,
+      version: 1,
+      note: null,
+      submittedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    };
+    const ok = render(<MyBidStatusPanel l={detail({ canBid: true, myBid: carried })} />);
+    expect(screen.getByText(/geçerlilik süresini uzatın/)).toBeInTheDocument();
+    ok.unmount();
+
+    const noRight = render(<MyBidStatusPanel l={detail({ canBid: false, myBid: carried })} />);
+    expect(screen.getByText(/şu anda teklif veremiyorsunuz/)).toBeInTheDocument();
+    expect(screen.queryByText(/geçerlilik süresini uzatın/)).toBeNull();
+    noRight.unmount();
+
+    render(
+      <MyBidStatusPanel
+        l={detail({ canBid: true, bidRequiresVerification: true, myBid: carried })}
+      />,
+    );
+    expect(screen.getByText(/firma doğrulamanızın tamamlanması gerekir/)).toBeInTheDocument();
+    expect(screen.queryByText(/geçerlilik süresini uzatın/)).toBeNull();
+  });
 });
 
 describe("BidSummaryCard", () => {
