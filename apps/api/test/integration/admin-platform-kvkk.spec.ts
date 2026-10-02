@@ -441,9 +441,19 @@ describe("KVKK — export + silme/anonimleştirme", () => {
     await expect(service.sendNotification(id, "Konu", "Mesaj", "admin-1")).rejects.toMatchObject({ status: 409 });
     await expect(service.updateProfile(id, { name: "Yeni Ad" }, "admin-1")).rejects.toMatchObject({ status: 409 });
     await expect(service.setTier(id, "GOLD", 12, "admin-1")).rejects.toMatchObject({ status: 409 });
+    // Yeniden doğrulama webC-11: ikinci sil/anonimleştir de 409 — anonimleştirme
+    // tarihi (blockedAt) ezilmez, mükerrer kritik audit yazılmaz.
+    const firstBlockedAt = (await prisma.company.findUniqueOrThrow({ where: { id } })).blockedAt;
+    const supabaseDelete = jest.fn().mockResolvedValue(undefined);
+    await expect(service.deleteOrAnonymize(id, "admin-1", supabaseDelete)).rejects.toMatchObject({ status: 409 });
+    expect(supabaseDelete).not.toHaveBeenCalled();
+    expect(
+      await prisma.auditLog.count({ where: { entityId: id, action: "admin.company.anonymized" } }),
+    ).toBe(1);
 
     // KVKK gerekçesi ve askı yerinde.
     const after = await prisma.company.findUniqueOrThrow({ where: { id } });
+    expect(after.blockedAt).toEqual(firstBlockedAt);
     expect(after.isBlocked).toBe(true);
     expect(after.blockedReason).toContain("KVKK");
     expect(after.tier).toBe("STANDART");

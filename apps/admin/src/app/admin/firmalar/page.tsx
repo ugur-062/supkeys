@@ -63,6 +63,13 @@ import {
 const PAGE_SIZE = 25;
 
 /**
+ * KVKK ile anonimleştirilmiş firma (D-208) detayda "Doğrulandı"/"Askıda"
+ * yerine bu rozetle görünür; liste de aynı dili konuşur (yeniden doğrulama
+ * webC-11 — liste satırı doğrulanmış + askıdaki bir firma gibi görünüyordu).
+ */
+const KVKK_ANON_LABEL = "KVKK ile anonimleştirildi";
+
+/**
  * Filtreli TÜM sonucu sayfa sayfa çekip CSV indir (tavan 2000 kayıt —
  * sunucu pageSize=100 sınırıyla 20 istek).
  */
@@ -92,7 +99,9 @@ async function exportCsv(params: Record<string, string | undefined>) {
       [c.stateRegion, c.city].filter(Boolean).join(" / "),
       TIER_LABEL[c.tier] ?? c.tier,
       c.membershipEndAt ? safeFormat(c.membershipEndAt, "yyyy-MM-dd") : "",
-      VERIFY_META[c.verification]?.label ?? c.verification,
+      c.anonymized
+        ? KVKK_ANON_LABEL
+        : (VERIFY_META[c.verification]?.label ?? c.verification),
       c.isBlocked ? "Evet" : "",
       c.complaintCount,
       c.userCount,
@@ -325,7 +334,11 @@ function FirmalarView() {
                       >
                         {c.name}
                       </Link>
-                      {c.isBlocked ? (
+                      {c.anonymized ? (
+                        <Badge color="zinc" className="ml-2">
+                          {KVKK_ANON_LABEL}
+                        </Badge>
+                      ) : c.isBlocked ? (
                         <Badge color="red" className="ml-2">
                           Askıda
                         </Badge>
@@ -353,7 +366,11 @@ function FirmalarView() {
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <Badge color={meta.color}>{meta.label}</Badge>
+                      {c.anonymized ? (
+                        <span className="text-admin-text-muted">—</span>
+                      ) : (
+                        <Badge color={meta.color}>{meta.label}</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-admin-text">
                       {c.complaintCount > 0 ? (

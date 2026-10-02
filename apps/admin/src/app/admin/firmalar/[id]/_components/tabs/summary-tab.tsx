@@ -118,33 +118,44 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
           <Download className="mr-1.5 h-3.5 w-3.5" /> Veri Export (JSON)
         </Button>
       </div>
-      <div className="mt-4 border-t border-red-200 pt-3">
-        <p className="text-xs text-red-800">
-          <strong>Firmayı sil:</strong> platformda hiç izi yoksa KALICI
-          silinir; sipariş, teklif, talep, mesaj, değerlendirme, şikayet, davet
-          ya da üyelik geçmişi varsa bu kayıtlar korunur, kimlik{" "}
-          <strong>anonimleştirilir</strong> (geri alınamaz). Onay için firma
-          kodunu yazın:{" "}
-          <code className="rounded bg-white px-1 font-mono">{expected}</code>
+      {/* Zaten anonimleştirilmiş kayıtta sil/anonimleştir yok (D-208; API 409)
+          — üstteki "işlem yapılamaz" bandıyla çelişmesin (yeniden doğrulama
+          webC-11). Saklanan geçmişin export'u açık kalır. */}
+      {data.anonymized ? (
+        <p className="mt-4 border-t border-red-200 pt-3 text-xs text-red-800">
+          Bu firma KVKK silme talebiyle zaten anonimleştirildi; kimlik
+          bilgileri silindi. Yeniden silme/anonimleştirme yapılamaz — yasal
+          saklama kapsamındaki geçmiş korunur.
         </p>
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder={expected}
-            aria-label="Silme onayı — firma kodu"
-            className="w-40 rounded-lg border border-red-300 bg-white px-3 py-1.5 font-mono text-sm"
-          />
-          <Button
-            variant="danger"
-            size="sm"
-            disabled={busy || confirmText.trim() !== expected}
-            onClick={destroy}
-          >
-            Kalıcı Olarak Sil / Anonimleştir
-          </Button>
+      ) : (
+        <div className="mt-4 border-t border-red-200 pt-3">
+          <p className="text-xs text-red-800">
+            <strong>Firmayı sil:</strong> platformda hiç izi yoksa KALICI
+            silinir; sipariş, teklif, talep, mesaj, değerlendirme, şikayet, davet
+            ya da üyelik geçmişi varsa bu kayıtlar korunur, kimlik{" "}
+            <strong>anonimleştirilir</strong> (geri alınamaz). Onay için firma
+            kodunu yazın:{" "}
+            <code className="rounded bg-white px-1 font-mono">{expected}</code>
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={expected}
+              aria-label="Silme onayı — firma kodu"
+              className="w-40 rounded-lg border border-red-300 bg-white px-3 py-1.5 font-mono text-sm"
+            />
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={busy || confirmText.trim() !== expected}
+              onClick={destroy}
+            >
+              Kalıcı Olarak Sil / Anonimleştir
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

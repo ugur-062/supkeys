@@ -3203,6 +3203,10 @@ export class AdminCompaniesService {
         slug: true,
         cityId: true,
         country: true,
+        // Zaten anonimlestirilmis firma (yeniden dogrulama webC-11): ikinci
+        // calisma blockedAt'i (anonimlestirme tarihi) ezip mukerrer kritik
+        // audit yaziyordu; temizlenecek bir sey de kalmaz. 409.
+        isActive: true,
         users: { select: { id: true, authId: true } },
         // Dalga A2 (denetim P12 #1/#2): SERT SİLME kapısı eskiden YALNIZ
         // siparişe bakıyordu. Sipariş FK'ları `Restrict` (doğru), ama iki
@@ -3260,6 +3264,7 @@ export class AdminCompaniesService {
       },
     });
     if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    this.assertNotAnonymized(company);
     const c = company._count;
     /**
      * Sert silmeyi engelleyen izler. Her biri ya KARŞI TARAFIN kaydını

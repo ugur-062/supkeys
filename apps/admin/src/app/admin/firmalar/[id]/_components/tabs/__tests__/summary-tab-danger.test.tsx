@@ -54,3 +54,13 @@ describe("SummaryTab — KVKK silme", () => {
     expect(h.push).toHaveBeenCalledWith("/admin/firmalar");
   });
 });
+
+describe("SummaryTab — KVKK ile anonimleştirilmiş firma (D-208, yeniden doğrulama webC-11)", () => {
+  it("sil/anonimleştir girdisi ve düğmesi yok, nedeni yazılı; veri export'u açık", () => {
+    render(<SummaryTab data={{ ...(data as object), anonymized: true } as never} />);
+    expect(screen.queryByLabelText("Silme onayı — firma kodu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Kalıcı Olarak Sil/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/zaten anonimleştirildi/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Veri Export/ })).toBeInTheDocument();
+  });
+});

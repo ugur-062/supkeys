@@ -268,6 +268,34 @@ describe("FirmalarView — KVKK ile anonimleştirilmiş firma (D-208)", () => {
       screen.queryByRole("button", { name: "Acme A.Ş. işlemleri" }),
     ).not.toBeInTheDocument();
   });
+
+  it("satır detayla aynı dili konuşur: KVKK rozeti var, 'Askıda' ve 'Doğrulandı' yok (yeniden doğrulama webC-11)", () => {
+    h.companies = {
+      data: paged([
+        row({ isBlocked: true, anonymized: true, verification: "VERIFIED" }),
+      ]),
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminFirmalarPage />);
+    const tr = screen.getByRole("link", { name: "Acme A.Ş." }).closest("tr")!;
+    expect(within(tr).getByText("KVKK ile anonimleştirildi")).toBeInTheDocument();
+    expect(within(tr).queryByText("Askıda")).not.toBeInTheDocument();
+    expect(within(tr).queryByText("Doğrulandı")).not.toBeInTheDocument();
+  });
+
+  it("anonimleştirilmemiş askıdaki doğrulanmış firma rozetlerini korur", () => {
+    h.companies = {
+      data: paged([row({ isBlocked: true, anonymized: false, verification: "VERIFIED" })]),
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminFirmalarPage />);
+    const tr = screen.getByRole("link", { name: "Acme A.Ş." }).closest("tr")!;
+    expect(within(tr).getByText("Askıda")).toBeInTheDocument();
+    expect(within(tr).getByText("Doğrulandı")).toBeInTheDocument();
+    expect(within(tr).queryByText("KVKK ile anonimleştirildi")).not.toBeInTheDocument();
+  });
 });
 
 describe("FirmalarView — rol kapısı (canAdminDo)", () => {
