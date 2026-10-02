@@ -2761,6 +2761,10 @@ export class CompanyListingsService {
       createdAt: b.createdAt,
       deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
       deliveryTime: b.deliveryTime,
+      // LOST'un sebebi: dolu = alıcı eledi ("Elendi"); boş = kazandırmada
+      // kaybetti / kazanansız kapandı (arayüz testi D-102). Teklif sahibinin
+      // kendi teklifi — detay panelinde zaten görünür.
+      eliminatedAt: b.eliminatedAt ? b.eliminatedAt.toISOString() : null,
       orderId: orderByListing.get(b.listingId) ?? null,
       listing: {
         id: b.listing.id,

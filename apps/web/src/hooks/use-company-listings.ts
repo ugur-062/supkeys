@@ -179,6 +179,8 @@ export interface MyBid {
   deliveryDate: string | null;
   /** Teslim SÜRESİ (BID_DELIVERY_TIMES; 2026-08-02 sonrası teklifler). */
   deliveryTime?: string | null;
+  /** LOST'ta dolu = alıcı eledi; boş = kazandırmada kaybetti / kapandı (D-102). */
+  eliminatedAt?: string | null;
   /** Kazanan teklifin oluşturduğu sipariş (WON/AWARDED_PARTIAL). */
   orderId: string | null;
   listing: {

@@ -107,6 +107,42 @@ describe("çok-kiracılı scope", () => {
     expect(mineOwner.counts.all).toBe(0);
   });
 
+  it("listMyBids LOST sebebini taşır: elenen eliminatedAt dolu, kazandırmada kaybeden boş (arayüz testi D-102)", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const me = await makeCompanyWithUser(prisma, { country: "TR" });
+    const mk = (status: "AWARDED" | "OPEN") =>
+      makeListing(prisma, {
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        type: "ALIM",
+        status,
+        closesAt: FUTURE,
+      });
+    const awarded = await mk("AWARDED");
+    const open = await mk("OPEN");
+    const lost = await makeBid(prisma, {
+      listingId: awarded.id,
+      bidderCompanyId: me.company.id,
+      createdById: me.user.id,
+      amount: 100,
+      status: "LOST",
+    });
+    const eliminated = await makeBid(prisma, {
+      listingId: open.id,
+      bidderCompanyId: me.company.id,
+      createdById: me.user.id,
+      amount: 100,
+      status: "LOST",
+    });
+    const at = new Date("2026-09-30T10:00:00.000Z");
+    await prisma.listingBid.update({ where: { id: eliminated.id }, data: { eliminatedAt: at } });
+    const res = await service.listMyBids(me.company.id);
+    const byId = new Map(res.items.map((i) => [i.id, i] as const));
+    expect(byId.get(lost.id)?.eliminatedAt).toBeNull();
+    expect(byId.get(eliminated.id)?.eliminatedAt).toBe(at.toISOString());
+  });
+
   it("listMyBids SAYFALI: 200 tavanı yok, sayaçlar süzgeçten bağımsız, süzgeç/arama/sıralama sunucuda (arayüz testi O-005)", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

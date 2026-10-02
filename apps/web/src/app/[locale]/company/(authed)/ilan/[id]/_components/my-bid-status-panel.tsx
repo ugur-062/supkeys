@@ -363,7 +363,9 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>{t("kalem")}</TableHeader>
+                    {/* Kalem sütunu daralmasın: cevap/muadil satırları dar
+                        ekranda kelime kelime kırılıyordu; tablo zaten yatay kayar. */}
+                    <TableHeader className="min-w-48">{t("kalem")}</TableHeader>
                     <TableHeader className="text-right">{t("miktar")}</TableHeader>
                     <TableHeader className="text-right">
                       {t("birimFiyat")}
@@ -388,7 +390,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                       .filter((x) => x.value);
                     return (
                       <TableRow key={bi.itemId}>
-                        <TableCell className="whitespace-normal text-zinc-900">
+                        <TableCell className="min-w-48 whitespace-normal text-zinc-900">
                           {item?.name ?? t("kalem")}
                           <AlternativeOfferNote bidItem={bi} item={item} />
                           {itemAnswers.map(({ q, value }) => (

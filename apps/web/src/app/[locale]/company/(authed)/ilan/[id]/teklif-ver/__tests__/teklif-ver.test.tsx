@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   /** useBidDocuments verisi (mevcut belgeler). */
   docs: [] as unknown[],
   push: vi.fn(),
+  refetch: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
@@ -32,7 +33,7 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   const React = await import("react");
   return {
     ...mod,
-    useListingDetail: () => ({ data: h.detail, isLoading: h.isLoading, error: h.error }),
+    useListingDetail: () => ({ data: h.detail, isLoading: h.isLoading, error: h.error, refetch: h.refetch }),
     // Gerçek useMutation gibi durumlu: mutateAsync başarıyla dönünce
     // isSuccess true KALIR (reset yok) — Y-15 takılma senaryosu için şart.
     usePlaceBid: function usePlaceBidMock() {
@@ -83,6 +84,7 @@ vi.mock("@/hooks/use-bid-documents", () => ({
   },
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import TeklifVerPage from "../page";
 
 function baseDetail(over: Partial<ListingDetail> = {}): ListingDetail {
@@ -695,6 +697,48 @@ describe("TeklifVerPage — arayüz testi webC-01", () => {
       "href",
       "/company/satis",
     );
+  });
+
+  it("D-024: 404 → nötr 'ulaşılamıyor' kartı, 'bulunamadı'/Tekrar dene yok; buy:view yoksa kendi firma notu", () => {
+    h.detail = undefined;
+    h.error = { response: { status: 404 } };
+    try {
+      render(<TeklifVerPage />);
+      expect(screen.getByRole("heading", { name: "Talebe ulaşılamıyor." })).toBeInTheDocument();
+      expect(screen.queryByText(/bulunamadı/)).toBeNull();
+      expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+      expect(screen.getByText(/Talep kendi firmanıza aitse/)).toBeInTheDocument();
+    } finally {
+      h.error = null;
+    }
+  });
+
+  it("D-024: buy:view yetkili kullanıcıya kendi firma notu gösterilmez", () => {
+    h.detail = undefined;
+    h.error = { response: { status: 404 } };
+    useCompanyAuthStore.setState({ user: { permissions: ["buy:view", "sell:bid"], roles: [], isOwner: false } } as never);
+    try {
+      render(<TeklifVerPage />);
+      expect(screen.getByRole("heading", { name: "Talebe ulaşılamıyor." })).toBeInTheDocument();
+      expect(screen.queryByText(/Talep kendi firmanıza aitse/)).toBeNull();
+    } finally {
+      h.error = null;
+      useCompanyAuthStore.setState({ user: null } as never);
+    }
+  });
+
+  it("D-024: sunucu/ağ hatası → 'Talep yüklenemedi.' + Tekrar dene yeniden çeker", async () => {
+    const user = userEvent.setup();
+    h.detail = undefined;
+    h.error = { response: { status: 500 } };
+    try {
+      render(<TeklifVerPage />);
+      expect(screen.getByRole("heading", { name: "Talep yüklenemedi." })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+      expect(h.refetch).toHaveBeenCalledTimes(1);
+    } finally {
+      h.error = null;
+    }
   });
 
   it("D-280: gönderilmiş teklif ekranında alıcıya mesaj yolu var", () => {

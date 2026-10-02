@@ -158,6 +158,20 @@ describe("teklif veren başlık kartı", () => {
     expect(screen.getAllByText("Değerlendirmede").length).toBeGreaterThan(0);
   });
 
+  it("yapışkan çubukta kapanış tarihi metne girer — çıplak 'Kapanış' değil (yeniden doğrulama)", () => {
+    h.detail = detail({ closesAt: "2026-11-04T09:30:00.000Z" } as Partial<ListingDetail>);
+    renderPage();
+    expect(screen.getByText(/^Kapanış: .*2026/)).toBeInTheDocument();
+  });
+
+  it("değerlendirmedeki talepte 'Teklif alımı kapandı' hapı ızgarada gerilmez (yeniden doğrulama)", () => {
+    h.detail = detail({ status: "IN_AWARD" });
+    renderPage();
+    const pill = screen.getByText(/Teklif alımı kapandı/);
+    expect(pill.className).toContain("self-start");
+    expect(pill.className).toContain("justify-self-start");
+  });
+
   it("tamamlanmış talepte teklif rolü uyarısı gösterilmez (D-195)", () => {
     h.perms = ["sell:view"];
     h.detail = detail({

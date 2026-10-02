@@ -2237,7 +2237,7 @@ export default function ListingDetailPage() {
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
               {biddingOpen && l.closesAt ? (
                 <span className="truncate text-xs text-zinc-500">
-                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt, locale) })}
+                  {t("kapanisZaman", { dateTime: formatDateTime(l.closesAt, locale) })}
                 </span>
               ) : null}
             </div>
@@ -2510,7 +2510,7 @@ export default function ListingDetailPage() {
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
               {biddingOpen && l.closesAt ? (
                 <span className="truncate text-xs text-zinc-500">
-                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt, locale) })}
+                  {t("kapanisZaman", { dateTime: formatDateTime(l.closesAt, locale) })}
                 </span>
               ) : null}
             </div>
@@ -2577,7 +2577,8 @@ export default function ListingDetailPage() {
               </div>
             ) : l.status === "IN_AWARD" ||
               l.status === "IN_AWARD_APPROVAL" ? (
-              <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600">
+              // Izgara öğesi gerilmesin (dev gri oval) — hap boyunda kalır.
+              <span className="inline-flex shrink-0 items-center self-start justify-self-start rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600">
                 {t("teklifAlimiKapandiDegerlendirmeAsamasinda")}
               </span>
             ) : null}

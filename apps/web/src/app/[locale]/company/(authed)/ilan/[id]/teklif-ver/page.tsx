@@ -57,7 +57,7 @@ import {
   X,
 } from "lucide-react";
 import { BidImportDialog, type BidImportApplyRow, type BidImportVariant } from "@/components/bids/bid-import-dialog";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { VerifyNudge } from "@/components/company/verify-nudge";
 import { tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
@@ -236,6 +236,9 @@ export default function TeklifVerPage() {
   const id = params.id;
   const router = useRouter();
   const detail = useListingDetail(id);
+  // Satınalma görüntüleme yetkisi olmayan kullanıcı kendi firmasının talebini
+  // 404 olarak alır (API kasıtlı) — not bunu söyler (arayüz testi D-024).
+  const hasBuyView = useHasCompanyPermission("buy:view");
   const placeBid = usePlaceBid(id);
   const bidDocs = useBidDocuments(id);
   const uploadDoc = useUploadBidDoc(id);
@@ -572,13 +575,39 @@ export default function TeklifVerPage() {
         </div>
       );
     }
-    // Talep yüklenemedi — nötr hedef (açık talepler), etiketi de ona göre (D-122).
+    // 404 (silinmiş, adres hatalı, erişim yok — ya da yetkisiz kullanıcının
+    // KENDİ firma talebi): "bulunamadı" demek yanlış olabilir; talep
+    // detayıyla aynı nötr kart, yeniden deneme yok (arayüz testi D-024).
+    // Ağ/sunucu hatasında ise "yüklenemedi" + Tekrar dene. Hedef nötr
+    // (açık talepler), etiketi de ona göre (D-122).
+    if (detail.error && err?.status !== 404) {
+      return (
+        <div className="mx-auto max-w-xl px-4 py-16 text-center">
+          <AlertTriangle className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
+          <Heading className="mt-3">{tr("ilanYuklenemedi")}</Heading>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <Button onClick={() => void detail.refetch()}>{tr("tekrarDene")}</Button>
+            <Button href="/company/satis" outline>
+              {tr("acikTaleplereDon")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
     return (
-      <Blocked
-        title={tr("alimTalebiBulunamadi")}
-        detailHref="/company/satis"
-        backLabel={tr("acikTaleplereDon")}
-      />
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
+        <Heading className="mt-3">{tr("satinAlmaTalebineUlasilamiyor")}</Heading>
+        <Text className="mt-2 text-sm text-zinc-500">{tr("ilanKaldirilmisAdresHataliYa")}</Text>
+        {!hasBuyView ? (
+          <Text className="mt-2 text-sm text-zinc-600">{tr("kendiFirmaTalebiYetkiNotu")}</Text>
+        ) : null}
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <Button href="/company/satis" outline>
+            {tr("acikTaleplereDon")}
+          </Button>
+        </div>
+      </div>
     );
   }
 

@@ -146,6 +146,25 @@ describe("MyBidCard", () => {
   });
 });
 
+describe("MyBidCard — LOST sebebi (arayüz testi D-102)", () => {
+  it("yalnız elenen 'Elendi'; kazandırmada kaybeden 'Kaybetti', kazanansız kapanan 'Kapandı', iptal 'İptal edildi'", () => {
+    const closed = { closesAt: null } as const;
+    h.page = pageOf([
+      bid({ id: "e", status: "LOST", eliminatedAt: "2026-09-30T10:00:00.000Z", listing: { ...bid().listing, id: "le", title: "Elenen" } }),
+      bid({ id: "a", status: "LOST", eliminatedAt: null, listing: { ...bid().listing, ...closed, id: "la", title: "Kazandırılan", status: "AWARDED" } }),
+      bid({ id: "n", status: "LOST", eliminatedAt: null, listing: { ...bid().listing, ...closed, id: "ln", title: "Kazanansız", status: "CLOSED_NO_AWARD" } }),
+      bid({ id: "c", status: "LOST", eliminatedAt: null, listing: { ...bid().listing, ...closed, id: "lc", title: "İptal", status: "CANCELLED" } }),
+    ]);
+    render(<MyBidsList />);
+    const badgeOf = (title: string) =>
+      screen.getByRole("link", { name: title }).closest("div.group")?.querySelector("span.rounded-full")?.textContent;
+    expect(badgeOf("Elenen")).toBe("Elendi");
+    expect(badgeOf("Kazandırılan")).toBe("Kaybetti");
+    expect(badgeOf("Kazanansız")).toBe("Kapandı");
+    expect(badgeOf("İptal")).toBe("İptal edildi");
+  });
+});
+
 describe("URL ayrıştırıcı / üretici", () => {
   it("bilinmeyen değerler atılır, varsayılanlar adrese yazılmaz", () => {
     const s = parseMyBidsUrl(new URLSearchParams("status=BOGUS,LOST&sort=x&range=12&page=-1"));

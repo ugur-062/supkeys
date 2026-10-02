@@ -19,6 +19,7 @@ import { useMyBids, type MyBid, type MyBidSort } from "@/hooks/use-company-listi
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ErrorState } from "@/components/ui/error-state";
 import { closingUrgency } from "@/lib/tenders/seller-state";
+import { lostBidOutcome, type LostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
 import { useFormatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import {
@@ -61,6 +62,15 @@ const STATUS_STRIP: Record<string, string> = {
   LOST: "bg-gradient-to-b from-zinc-400 to-zinc-300",
   WITHDRAWN: "bg-gradient-to-b from-zinc-400 to-zinc-300",
 };
+// LOST tek durumda üç olayı saklar: yalnız alıcının elediği "Elendi";
+// kazandırmada kaybeden "Kaybetti", kazanansız/iptal kapanan ayrı (arayüz
+// testi D-102 — talep detayı ve teklif paneliyle aynı `lostBidOutcome`).
+const LOST_OUTCOME_KEY: Record<LostBidOutcome, string> = {
+  eliminated: "lostOutcome.eliminated",
+  lost: "lostOutcome.lost",
+  cancelled: "lostOutcome.cancelled",
+  closed: "lostOutcome.closed",
+};
 // Bilinmeyen statü listeyi ÇÖKERTMESİN (eskiden DRAFT'ta beyaz ekran).
 const STATUS_FALLBACK = { key: "status.UNKNOWN", color: "zinc" as const };
 
@@ -96,6 +106,10 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   const formatDate = useFormatDate();
   const { money: formatMoney } = useFormatMoney();
   const st = STATUS[b.status] ?? STATUS_FALLBACK;
+  const statusKey =
+    b.status === "LOST"
+      ? LOST_OUTCOME_KEY[lostBidOutcome(b, b.listing.status)]
+      : st.key;
   const won = b.status === "WON" || b.status === "AWARDED_PARTIAL";
   const canRebid = b.status === "LOST" && b.listing.status === "OPEN";
   const urgency =
@@ -143,7 +157,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               st.color === "zinc" && "bg-zinc-100 text-zinc-600",
             )}
           >
-            {t(st.key as never)}
+            {t(statusKey as never)}
           </span>
         </div>
         <h3

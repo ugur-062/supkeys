@@ -36489,8 +36489,28 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.myBidsList.status.LOST": {
+  "web.panel.trade.myBidsList.lostOutcome.eliminated": {
     "hash": "0698e7c49f",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.lostOutcome.lost": {
+    "hash": "ce0e84e067",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.lostOutcome.cancelled": {
+    "hash": "e15ad036b1",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.lostOutcome.closed": {
+    "hash": "4f562429bc",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.status.LOST": {
+    "hash": "19bb40d35a",
     "status": "reviewed",
     "at": "2026-09-24"
   },
