@@ -58,6 +58,7 @@ import { EmailSuppressionService } from "../email/email-suppression.service";
 import {
   NotificationService,
   localeOf,
+  type NotificationPortal,
 } from "../notifications/notification.service";
 import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import {
@@ -168,6 +169,14 @@ export interface AdminNotifyMessage {
   params?: NotificationParams;
   /** Eylem düğmesi — `path` İÇ (Türkçe) yoldur, alıcının diline çevrilir. */
   cta?: { labelKey?: ApiMessageKey; label?: string; path: string };
+  /**
+   * In-app satırın portalı. Firmanın KENDİ talebine dair müdahale (kapatma/
+   * uzatma/yeniden açma) satın alma tarafına aittir — verilmezse satır
+   * portal-nötr yazılır ve Satış süzgecinde rozetsiz görünür (arayüz testi
+   * api1-02 yeniden doğrulama, D-115 ailesi). Hesap/doğrulama bildirimleri
+   * vermez (her iki panelde görünmeli).
+   */
+  portal?: NotificationPortal;
 }
 
 /** Bkz. `AdminNotifyMessage.lines`. */
@@ -270,7 +279,7 @@ export class AdminCompaniesService {
   async notifyCompany(companyId: string, msg: AdminNotifyMessage) {
     const baseUrl =
       resolveWebUrl(this.config);
-    // In-app (portal-nötr → her iki panelde görünür). Metin ANAHTAR olarak
+    // In-app (`portal` verilmezse nötr → her iki panelde görünür). Metin ANAHTAR olarak
     // geçer; her alıcı için kendi diliyle `renderPayload` üretir.
     await this.notifications
       .pushToCompany(companyId, {
@@ -284,6 +293,7 @@ export class AdminCompaniesService {
           msg.cta?.labelKey ?? (msg.cta?.label ? undefined : DEFAULT_CTA_KEY),
         ctaLabel: msg.cta?.label,
         ctaPath: `${baseUrl}${msg.cta?.path ?? "/company"}`,
+        portal: msg.portal,
       })
       .catch((err) =>
         this.logger.warn(

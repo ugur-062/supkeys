@@ -23,7 +23,7 @@ function rig() {
     audit,
     new EmailSuppressionService(prisma as never),
   );
-  return { service };
+  return { service, notifications };
 }
 
 const DAY = 86_400_000;
@@ -110,5 +110,26 @@ describe("updateProfile taxNumber", () => {
     await prisma.company.update({ where: { id: co.company.id }, data: { taxNumber: "811569869" } });
     const res = await service.updateProfile(co.company.id, { taxNumber: "DE811569869" }, "admin-1");
     expect(res.changed).toEqual([]);
+  });
+});
+
+// Yeniden doğrulama api1-02 (D-115 ailesi): notifyCompany portalı in-app
+// satıra taşır; verilmezse portal-nötr kalır (hesap/doğrulama bildirimleri).
+describe("notifyCompany portal", () => {
+  it("portal verilirse in-app yükte aynen geçer, verilmezse boş kalır", async () => {
+    const { service, notifications } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    await service.notifyCompany(co.company.id, {
+      type: "admin_listing_closed",
+      subject: "x",
+      portal: "satinalma",
+    });
+    await service.notifyCompany(co.company.id, { type: "company_verified", subject: "y" });
+    expect(notifications.pushToCompany).toHaveBeenNthCalledWith(
+      1,
+      co.company.id,
+      expect.objectContaining({ type: "admin_listing_closed", portal: "satinalma" }),
+    );
+    expect(notifications.pushToCompany.mock.calls[1][1].portal).toBeUndefined();
   });
 });

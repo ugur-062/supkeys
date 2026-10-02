@@ -267,7 +267,7 @@ describe("DiscoveryRunsService", () => {
     await runs.tick(new Date(Date.now() + 11 * 60_000));
     expect(notifications.pushToUser).toHaveBeenCalledWith(
       owner.user.id,
-      expect.objectContaining({ type: "ai_supplier_suggestions", ctaPath: `/company/ilan/${l.id}?ai-davet=1` }),
+      expect.objectContaining({ type: "ai_supplier_suggestions", ctaPath: `/company/ilan/${l.id}?ai-davet=1`, portal: "satinalma" }),
     );
     expect(email.send).toHaveBeenCalledWith(
       expect.objectContaining({ context: { type: "ai_supplier_suggestions", id: l.id } }),

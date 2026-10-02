@@ -1819,7 +1819,9 @@
       "invitationSubject": "Bugün {n, plural, other {# talebe}} daha davet edildiniz",
       "invitationBody": "Günlük anlık bildirim sınırına ulaşıldığı için bugünkü diğer talep davetlerini tek e-postada topladık:",
       "invitationCta": "Davetleri gör",
-      "bodyLockedUnverified": "Kategorinizde bugün açılan diğer talepler aşağıda. Bu talepleri görmek ve teklif vermek için Silver gerekir; Silver'a geçmenin tek şartı firmanızı ücretsiz doğrulamaktır."
+      "bodyLockedUnverified": "Kategorinizde bugün açılan diğer talepler aşağıda. Bu talepleri görmek ve teklif vermek için Silver gerekir; Silver'a geçmenin tek şartı firmanızı ücretsiz doğrulamaktır.",
+      "bodyUnverified": "Günlük anlık bildirim sınırına ulaşıldığı için bugün açılan diğer talepleri tek e-postada topladık. Herkese açık taleplere teklif verebilmek için önce firmanızı ücretsiz doğrulayın; bağlantılarınızın sizi davet ettiği talepler doğrulama gerektirmez.",
+      "bodyPending": "Günlük anlık bildirim sınırına ulaşıldığı için bugün açılan diğer talepleri tek e-postada topladık. Firma doğrulamanız incelemede; onaylandığında bağlantınız olmayan alıcıların bu taleplerine teklif verebilirsiniz."
     },
     "lifecycle": {
       "profile": {

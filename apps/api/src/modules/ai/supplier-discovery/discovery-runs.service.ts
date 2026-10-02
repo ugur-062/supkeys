@@ -465,6 +465,9 @@ export class DiscoveryRunsService {
       params,
       ctaPath: path,
       listingId,
+      // Kendi alım talebine tedarikçi önerisi → satın alma tarafı (arayüz testi
+      // api1-02 yeniden doğrulama; portalsız satır Satış süzgecinde çıkıyordu).
+      portal: "satinalma",
     });
     if (!this.email) return;
     const user = await this.bypass.companyUser.findUnique({

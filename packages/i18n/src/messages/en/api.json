@@ -1819,7 +1819,9 @@
       "invitationSubject": "You were invited to {n, plural, one {# more request} other {# more requests}} today",
       "invitationBody": "You reached today's limit for instant alerts, so we've collected today's other request invitations in one email:",
       "invitationCta": "View invitations",
-      "bodyLockedUnverified": "Here are the other requests opened in your categories today. You need Silver to view them and submit quotes, and the only requirement for Silver is verifying your company for free."
+      "bodyLockedUnverified": "Here are the other requests opened in your categories today. You need Silver to view them and submit quotes, and the only requirement for Silver is verifying your company for free.",
+      "bodyUnverified": "You reached today's limit for instant alerts, so we've collected the other requests opened today in one email. To quote on public requests, first verify your company for free; requests your connections invite you to don't require verification.",
+      "bodyPending": "You reached today's limit for instant alerts, so we've collected the other requests opened today in one email. Your company verification is under review; once it's approved, you can quote on these requests from buyers you aren't connected with."
     },
     "lifecycle": {
       "profile": {

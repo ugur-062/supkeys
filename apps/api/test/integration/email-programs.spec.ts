@@ -9,7 +9,7 @@
  */
 import { EmailProgramsService } from "../../src/modules/email-programs/email-programs.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser, makeListing } from "./factories";
+import { connect, makeCompanyWithUser, makeListing } from "./factories";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -169,6 +169,56 @@ describe("kilitli özet — doğrulanmamış ücretsiz firma (2026-09-28)", () =
     const data = (email.send.mock.calls[0][0] as { templateData: { data: { ctaUrl: string; ctaLabel: string } } }).templateData.data;
     expect(data.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
     expect(data.ctaLabel).toBe("Ücretsiz Doğrulan");
+  });
+});
+
+// Yeniden doğrulama api1-02: anlık e-postadaki D-163 doğrulama ipucu akşam
+// özetinde de verilir — ücretli ama doğrulanmamış/incelemedeki firma bağlantısız
+// alıcının talebine doğrulamasız teklif veremez.
+describe("kilitsiz özet — ücretli doğrulanmamış / incelemedeki firma", () => {
+  type DigestData = { paragraphs: string[]; ctaUrl: string; ctaLabel: string };
+  const dataOf = (email: { send: jest.Mock }) =>
+    (email.send.mock.calls[0][0] as { templateData: { data: DigestData } }).templateData.data;
+  async function seed(status: "UNVERIFIED" | "PENDING" | "VERIFIED", connected = false) {
+    const seller = await makeCompanyWithUser(prisma, { tier: "SILVER", companyVerificationStatus: status });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    if (connected) await connect(prisma, buyer.company.id, seller.company.id, buyer.user.id);
+    const l = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
+    await prisma.emailDigestItem.create({
+      data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, createdAt: new Date(Date.now() - 25 * HOUR) },
+    });
+  }
+
+  it("doğrulanmamış (bağlantısız) → doğrulama ipucu + Ücretsiz Doğrulan", async () => {
+    const { svc, email } = makeService();
+    await seed("UNVERIFIED");
+    await svc.sendDigests(new Date());
+    const data = dataOf(email);
+    expect(data.paragraphs[1]).toMatch(/önce firmanızı ücretsiz doğrulayın/);
+    expect(data.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
+    expect(data.ctaLabel).toBe("Ücretsiz Doğrulan");
+  });
+
+  it("incelemede → onaydan sonra teklif açılır; düğme açık taleplere", async () => {
+    const { svc, email } = makeService();
+    await seed("PENDING");
+    await svc.sendDigests(new Date());
+    const data = dataOf(email);
+    expect(data.paragraphs[1]).toMatch(/doğrulamanız incelemede/);
+    expect(data.ctaUrl).toBe("http://localhost:3000/company/satis");
+  });
+
+  it("tüm talep sahipleriyle bağlantılı ya da doğrulanmış → ipucu yok", async () => {
+    const a = makeService();
+    await seed("UNVERIFIED", true);
+    await a.svc.sendDigests(new Date());
+    expect(dataOf(a.email).paragraphs[1]).not.toMatch(/doğrula/);
+    expect(dataOf(a.email).ctaUrl).toBe("http://localhost:3000/company/satis");
+    await truncateAll();
+    const b = makeService();
+    await seed("VERIFIED");
+    await b.svc.sendDigests(new Date());
+    expect(dataOf(b.email).paragraphs[1]).not.toMatch(/doğrula/);
   });
 });
 

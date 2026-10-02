@@ -10,6 +10,7 @@ import { listingTitleParam } from "../../common/notifications/notification-param
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { looksLikeProse, tierAtLeast } from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
+import { isConnectionValid } from "../../common/company/valid-connection";
 import { timeZoneForCountry } from "../../common/time/country-time-zone";
 import {
   digestDue,
@@ -117,6 +118,7 @@ export class EmailProgramsService {
         .filter((c) => c.companyVerificationStatus !== "VERIFIED" && c.companyVerificationStatus !== "PENDING")
         .map((c) => c.id),
     );
+    const verificationOf = new Map(companyRows.map((c) => [c.id, c.companyVerificationStatus]));
 
     const emails = [...new Set(items.map((i) => i.email))];
     // Günde TEK özet (derin denetim MU-14): adres × tür başına son gönderilen
@@ -165,7 +167,7 @@ export class EmailProgramsService {
       }
       const listings = await this.prisma.listing.findMany({
         where: { id: { in: group.map((g) => g.listingId) }, status: "OPEN" },
-        select: { id: true, title: true, number: true, closesAt: true },
+        select: { id: true, title: true, number: true, closesAt: true, companyId: true },
         orderBy: { closesAt: "asc" },
       });
       if (listings.length === 0) {
@@ -181,6 +183,17 @@ export class EmailProgramsService {
         : shown.map((l) => ({ title: l.title }));
       const allLocked = !isInvite && group.every((g) => g.locked);
       const verifyFirst = allLocked && unverifiedIds.has(group[0]!.companyId);
+      // Kilitsiz (ücretli ya da bağlantılı) ama doğrulanmamış / incelemedeki
+      // firma: anlık e-postadaki D-163 ipucu özette de verilir — bağlantısız
+      // alıcının talebine teklif KYC ister (yeniden doğrulama api1-02).
+      const paidKyc =
+        !isInvite && !group.some((g) => g.locked)
+          ? await this.digestKycHint(
+              group[0]!.companyId,
+              verificationOf.get(group[0]!.companyId),
+              listings.map((l) => l.companyId),
+            )
+          : null;
       const t = (key: ApiMessageKey, p?: Record<string, string | number>) => tApi(key, p, locale);
       const subject = t(isInvite ? "api.notifications.digest.invitationSubject" : "api.notifications.digest.subject", {
         n: listings.length,
@@ -204,7 +217,11 @@ export class EmailProgramsService {
                       ? "api.notifications.digest.bodyLockedUnverified"
                       : allLocked
                         ? "api.notifications.digest.bodyLocked"
-                        : "api.notifications.digest.body",
+                        : paidKyc === "unverified"
+                          ? "api.notifications.digest.bodyUnverified"
+                          : paidKyc === "pending"
+                            ? "api.notifications.digest.bodyPending"
+                            : "api.notifications.digest.body",
                 ),
               ],
               infoRows: shown.map((l, i) => ({
@@ -216,14 +233,18 @@ export class EmailProgramsService {
               ctaLabel: t(
                 isInvite
                   ? "api.notifications.digest.invitationCta"
-                  : verifyFirst
+                  : verifyFirst || paidKyc === "unverified"
                     ? "api.notifications.listings.cta.verifyFree"
                     : allLocked
                       ? "api.notifications.listings.cta.upgradeSilver"
                       : "api.notifications.digest.cta",
               ),
               ctaUrl: `${this.web}${localizeAppPath(
-                verifyFirst ? "/company/ayarlar/dogrulama" : allLocked ? "/company/premium" : "/company/satis",
+                verifyFirst || paidKyc === "unverified"
+                  ? "/company/ayarlar/dogrulama"
+                  : allLocked
+                    ? "/company/premium"
+                    : "/company/satis",
                 locale,
               )}`,
               footerNote: t("api.notifications.digest.footer"),
@@ -238,6 +259,42 @@ export class EmailProgramsService {
       }
     }
     return sent;
+  }
+
+  /**
+   * Kilitsiz kategori özetinde doğrulama ipucu (anlık e-postanın paidKyc
+   * aynası, CompanyListingsService.notifyCategoryMatch): firma doğrulanmamış /
+   * incelemedeyse ve özetteki taleplerden en az birinin sahibiyle GEÇERLİ
+   * bağlantısı yoksa (bağlantılı alıcıya teklif KYC'den muaf) ipucu döner.
+   */
+  private async digestKycHint(
+    companyId: string,
+    status: string | undefined,
+    ownerIds: string[],
+  ): Promise<"unverified" | "pending" | null> {
+    if (!status || status === "VERIFIED" || ownerIds.length === 0) return null;
+    const rows = await this.prisma.companyConnection.findMany({
+      where: {
+        status: "ACTIVE",
+        OR: [
+          { inviterCompanyId: companyId, inviteeCompanyId: { in: ownerIds } },
+          { inviteeCompanyId: companyId, inviterCompanyId: { in: ownerIds } },
+        ],
+      },
+      select: {
+        inviterCompanyId: true,
+        inviteeCompanyId: true,
+        origin: true,
+        inviter: { select: { tier: true, membershipEndAt: true } },
+      },
+    });
+    const connected = new Set(
+      rows
+        .filter((r) => isConnectionValid(r))
+        .map((r) => (r.inviterCompanyId === companyId ? r.inviteeCompanyId : r.inviterCompanyId)),
+    );
+    if (ownerIds.every((id) => connected.has(id))) return null;
+    return status === "PENDING" ? "pending" : "unverified";
   }
 
   // ------------------------------------------------------------ karşılama serisi

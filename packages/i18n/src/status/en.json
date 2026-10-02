@@ -6309,6 +6309,16 @@
     "status": "reviewed",
     "at": "2026-09-28"
   },
+  "api.notifications.digest.bodyPending": {
+    "hash": "87fe3ccb33",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "api.notifications.digest.bodyUnverified": {
+    "hash": "cd350a059f",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "api.notifications.digest.closesRow": {
     "hash": "b143d84518",
     "status": "reviewed",
@@ -24608,6 +24618,16 @@
     "hash": "25f1fe1f49",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.myBidStatusPanel.taslakTasindiDogrulamaGerekir": {
+    "hash": "130126899c",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.requests.myBidStatusPanel.taslakTasindiTeklifHakkiYok": {
+    "hash": "804760b8cc",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.requests.myBidStatusPanel.taslakTeklifinizVarDogrulamaGerekir": {
     "hash": "402d164b14",
