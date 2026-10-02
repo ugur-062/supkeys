@@ -389,6 +389,14 @@ describe("Arayüz testi O-026 — RFQ yeni turu: geçerlilik ve elenen teklif", 
         eliminationReason: "teknik uygunsuz",
       });
       expect(after.eliminatedAt).not.toBeNull();
+      // Teklifçi detayı teklifin turunu döner — panel "önceki turda elendi"
+      // diyebilsin (arayüz testi api1-01 yeniden doğrulama).
+      const view = (await service.getOne(valid.auth, listing.id)) as {
+        currentRound: number;
+        myBid: { status: string; round: number } | null;
+      };
+      expect(view.currentRound).toBe(2);
+      expect(view.myBid).toMatchObject({ status: "LOST", round: 1 });
       // Elenmemiş teklif taşındı (pazarlıkta süresiz, RFQ'da süresi dolduğu için taslak).
       const other = await bidOf(listing.id, expired.company.id);
       expect(other.round).toBe(2);

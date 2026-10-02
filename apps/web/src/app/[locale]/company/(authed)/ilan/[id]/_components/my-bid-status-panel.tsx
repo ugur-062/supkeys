@@ -188,7 +188,10 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const handleExtend = () => void extendLock.run(doExtend);
   const doExtend = async () => {
     try {
-      const res = await extend.mutateAsync(extendDaysNum);
+      const res = await extend.mutateAsync({
+        additionalDays: extendDaysNum,
+        expectedValidityDays: bid.validityDays ?? undefined,
+      });
       toast.success(
         res.revived
           ? t("gecerlilikUzatildiTeklifinizAyniFiyatla")
@@ -496,6 +499,10 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   }
 
   const alerts: React.ReactNode[] = [];
+  // Elenen teklif yeni tura taşınmaz (O-026): eski turda LOST kalır. Yeni tur
+  // açıldıysa metin "bu turda" değil "önceki turda elendi" demeli.
+  const eliminatedEarlierRound =
+    bid.round != null && l.currentRound != null && bid.round < l.currentRound;
   // İptal her sonucu ezer — iptalde teklifler LOST'a çekildiğinden "kazanamadın"
   // mesajı yanıltıcı olurdu.
   if (l.status === "CANCELLED") {
@@ -562,14 +569,26 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     );
   } else if (bid.status === "LOST" && open) {
     alerts.push(
-      <StatusAlert key="lost-open" tone="warning" title={t("teklifinizBuTurdaElendi")}>
+      <StatusAlert
+        key="lost-open"
+        tone="warning"
+        title={
+          eliminatedEarlierRound
+            ? t("teklifinizOncekiTurdaElendi", { round: bid.round! })
+            : t("teklifinizBuTurdaElendi")
+        }
+      >
         {bid.eliminationReason ? (
           <p>
             <span className="font-medium">{t("gerekce2")}</span> {systemText(bid.eliminationReason)}
           </p>
         ) : null}
         <p className="mt-1">
-          {t("satinAlmaTalebiHalaAcik")}
+          {eliminatedEarlierRound
+            ? t("yeniTurAcikYenidenTeklifVerebilirsiniz", {
+                currentRound: l.currentRound,
+              })
+            : t("satinAlmaTalebiHalaAcik")}
         </p>
       </StatusAlert>,
     );
@@ -582,7 +601,15 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     // Talep henüz sonuçlanmadı (yeni tur açılabilir) — "sonuçlandı" demek
     // yanlış olur; gerekçe de burada görünmeli (derin denetim LU-21).
     alerts.push(
-      <StatusAlert key="lost-review" tone="warning" title={t("teklifinizElendi")}>
+      <StatusAlert
+        key="lost-review"
+        tone="warning"
+        title={
+          eliminatedEarlierRound
+            ? t("teklifinizOncekiTurdaElendi", { round: bid.round! })
+            : t("teklifinizElendi")
+        }
+      >
         {bid.eliminationReason ? (
           <p>
             <span className="font-medium">{t("gerekce2")}</span> {systemText(bid.eliminationReason)}
@@ -630,11 +657,18 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       </StatusAlert>,
     );
   } else if (bid.status === "DRAFT" && open) {
+    // Davetsiz ∧ bağlantısız ∧ doğrulanmamış teklifçi taslağı GÖNDEREMEZ
+    // (INV-KYC-1, API `bidRequiresVerification`) — "göndermeyi unutmayın"
+    // yerine doğrulama şartı söylenir (yeniden doğrulama webC-01).
     alerts.push(
       <StatusAlert
         key="draft"
         tone="warning"
-        title={t("taslakTeklifinizVarKapanistanOnce")}
+        title={
+          l.bidRequiresVerification
+            ? t("taslakTeklifinizVarDogrulamaGerekir")
+            : t("taslakTeklifinizVarKapanistanOnce")
+        }
       />,
     );
   } else if (bid.status === "DRAFT") {

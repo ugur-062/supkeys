@@ -4145,6 +4145,9 @@ export class CompanyListingsService {
             note: myBid.note,
             status: myBid.status,
             version: myBid.version,
+            // Teklifin ait olduğu tur: elenen teklif yeni tura taşınmaz (O-026),
+            // teklifçi metni "önceki turda elendi" diyebilsin diye.
+            round: myBid.round,
             submittedAt: myBid.submittedAt
               ? myBid.submittedAt.toISOString()
               : null,
@@ -7432,6 +7435,7 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listingId: string,
     additionalDays: number,
+    expectedValidityDays?: number,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -7515,6 +7519,14 @@ export class CompanyListingsService {
     if (bid.status === "DRAFT" && bid.round !== listing.currentRound) {
       throw new BadRequestException(
         i18nMessage("api.companyListings.buTeklifGuncelTuraAitDegil"),
+      );
+    }
+    // İstemci uzatmayı hangi süreye göre istediyse o süre hâlâ geçerli olmalı:
+    // yeniden deneme ya da ikinci sekme aynı uzatmayı bir daha eklemesin
+    // (arayüz testi FX-00 yeniden doğrulama — ardışık iki çağrı 7→14→21).
+    if (expectedValidityDays != null && expectedValidityDays !== bid.validityDays) {
+      throw new ConflictException(
+        i18nMessage("api.companyListings.teklifGecerliligiAzOnceUzatildi", undefined, "BID_VALIDITY_CHANGED"),
       );
     }
     const newValidityDays = bid.validityDays + additionalDays;

@@ -517,7 +517,9 @@ export function TenderActionsMenu({
       <Dialog open={closingOpen} onClose={() => setClosingOpen(false)}>
         <DialogTitle>{t("kapanisZamaniniDegistir")}</DialogTitle>
         <DialogDescription>
-          {t("yeniKapanisTarihSaatiniSecin")}
+          {/* Paket kilidinde "ileri alabilirsiniz" denmez — alttaki not yalnız
+              öne çekmeye izin verildiğini söyler (T-06). */}
+          {locked ? t("yeniKapanisSecin") : t("yeniKapanisTarihSaatiniSecin")}
         </DialogDescription>
         <DialogBody className="space-y-3">
           {locked ? (

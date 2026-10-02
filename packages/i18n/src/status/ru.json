@@ -24649,6 +24649,16 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.myBidStatusPanel.teklifinizOncekiTurdaElendi": {
+    "hash": "017726e3c9",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.requests.myBidStatusPanel.yeniTurAcikYenidenTeklifVerebilirsiniz": {
+    "hash": "5dcdf2fa4e",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.requests.myBidStatusPanel.teklifinizDegerlendiriliyor": {
     "hash": "80fe2246a1",
     "status": "reviewed",
@@ -28954,6 +28964,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.tenderActionsMenu.yeniKapanisSecin": {
+    "hash": "b97d0f090b",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.requests.tenderActionsMenu.yeniTurAc": {
     "hash": "83784a7826",
     "status": "reviewed",
@@ -29864,6 +29879,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarAktivitePage.eklenenIzinler": {
+    "hash": "aa7ac3acd8",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.settings.ayarlarAktivitePage.eylem": {
     "hash": "67d35f5b5d",
     "status": "reviewed",
@@ -30194,10 +30214,20 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.settings.ayarlarAktivitePage.hedef": {
+    "hash": "beb7cf0d1d",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.settings.ayarlarAktivitePage.henuzKayitYok": {
     "hash": "890d494019",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.ayarlarAktivitePage.kaldirilanIzinler": {
+    "hash": "a39289c0b6",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.settings.ayarlarAktivitePage.kisi": {
     "hash": "4e45e032a0",
@@ -30328,6 +30358,11 @@
     "hash": "7ba41f54b2",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.ayarlarAktivitePage.yeniIzinler": {
+    "hash": "b62bec70ef",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.settings.ayarlarAktivitePage.yeniRoller": {
     "hash": "0b178d9de9",

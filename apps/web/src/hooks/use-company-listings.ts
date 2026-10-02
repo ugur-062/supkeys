@@ -460,6 +460,8 @@ export interface ListingDetail {
     note: string | null;
     status: string;
     version?: number;
+    /** Teklifin ait olduğu tur — elenen teklif yeni tura taşınmaz (O-026). */
+    round?: number;
     submittedAt?: string | null;
     eliminationReason?: string | null;
     eliminatedAt?: string | null;
@@ -775,16 +777,19 @@ export function useStartEvaluation(id: string) {
 export function useExtendBidValidity(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (additionalDays: number) => {
+    // `expectedValidityDays`: ekranda görülen süre — sunucu, süre o arada
+    // değiştiyse (yeniden deneme, ikinci sekme) uzatmayı ikinci kez eklemez.
+    mutationFn: async (input: { additionalDays: number; expectedValidityDays?: number }) => {
       const { data } = await companyApi.post<{
         ok: boolean;
         validityDays: number;
         validUntil: string;
         revived: boolean;
-      }>(`/company/listings/${id}/bids/extend-validity`, { additionalDays });
+      }>(`/company/listings/${id}/bids/extend-validity`, input);
       return data;
     },
-    onSuccess: () => {
+    // 409 (süre az önce değişti) dahil her sonuçta güncel süre çekilsin.
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
       // `revived: true` teklifi DRAFT'tan SUBMITTED'a taşıyabiliyor →
       // Tekliflerim listesi de tazelenmeli (denetim 2026-08-26 Parça 10).

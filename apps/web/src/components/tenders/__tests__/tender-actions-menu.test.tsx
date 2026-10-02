@@ -88,6 +88,23 @@ describe("TenderActionsMenu — paket kilidi (T-06)", () => {
     expect(within(note).getByRole("link")).toHaveAttribute("href", "/company/premium");
   });
 
+  it("Gold değilse kapanış diyaloğu 'ileri alabilirsiniz' demez; yalnız öne çekme notu (api1-01 yeniden doğrulama)", async () => {
+    render(<TenderActionsMenu {...base} status="OPEN" buyLock="upgrade" />);
+    fireEvent.click(screen.getByRole("button", { name: "Kapanış Zamanını Değiştir" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Yeni kapanış tarih/saatini seçin.");
+    expect(dialog).not.toHaveTextContent(/İleri alabilir/);
+    expect(dialog).toHaveTextContent(/yalnız öne çekebilirsiniz/);
+  });
+
+  it("Gold'da kapanış diyaloğu ileri/öne çekmeye izin verdiğini söyler", async () => {
+    render(<TenderActionsMenu {...base} status="OPEN" />);
+    fireEvent.click(screen.getByRole("button", { name: "Kapanış Zamanını Değiştir" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent(/İleri alabilir veya öne çekebilirsiniz/);
+    expect(dialog).not.toHaveTextContent(/yalnız öne çekebilirsiniz/);
+  });
+
   it("doğrulanmamış firmada CTA önce doğrulama", () => {
     render(<TenderActionsMenu {...base} status="OPEN" buyLock="verify" />);
     const link = within(screen.getByRole("note")).getByRole("link", { name: "Önce ücretsiz doğrulan" });

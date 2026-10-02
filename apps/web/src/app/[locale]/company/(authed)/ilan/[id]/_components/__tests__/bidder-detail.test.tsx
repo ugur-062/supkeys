@@ -235,6 +235,51 @@ describe("MyBidStatusPanel — durum makinesi", () => {
     expect(screen.getByText(/yeniden verebilirsiniz/)).toBeInTheDocument();
   });
 
+  it("önceki turda elenen teklif, yeni tur açıkken 'bu turda' değil 'önceki turda elendi' der (arayüz testi api1-01)", () => {
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "OPEN",
+          currentRound: 2,
+          myBid: {
+            amount: "1000",
+            status: "LOST",
+            version: 1,
+            round: 1,
+            note: null,
+            eliminationReason: "Teslim süresi uygun değil",
+            eliminatedAt: new Date().toISOString(),
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Teklifiniz önceki turda (Tur 1) elendi")).toBeInTheDocument();
+    expect(screen.queryByText(/bu turda elendi/)).not.toBeInTheDocument();
+    expect(screen.getByText("Teslim süresi uygun değil")).toBeInTheDocument();
+    expect(screen.getByText(/yeni tur \(Tur 2\) açık/)).toBeInTheDocument();
+  });
+
+  it("aynı turda elenen teklif 'bu turda elendi' der", () => {
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "OPEN",
+          currentRound: 2,
+          myBid: {
+            amount: "1000",
+            status: "LOST",
+            version: 1,
+            round: 2,
+            note: null,
+            eliminatedAt: new Date().toISOString(),
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Teklifiniz bu turda elendi")).toBeInTheDocument();
+    expect(screen.queryByText(/önceki turda/)).not.toBeInTheDocument();
+  });
+
   it("LOST + değerlendirmede (IN_AWARD) elenen → 'elendi' + gerekçe, 'sonuçlandı' denmez (derin denetim LU-21)", () => {
     render(
       <MyBidStatusPanel
@@ -334,6 +379,21 @@ describe("MyBidStatusPanel — durum makinesi", () => {
     expect(
       screen.getByText("Bu alım talebine teklif vermediniz."),
     ).toBeInTheDocument();
+  });
+
+  // Yeniden doğrulama webC-01: davetsiz ∧ bağlantısız ∧ doğrulanmamış
+  // teklifçi taslağı gönderemez — "göndermeyi unutmayın" değil doğrulama şartı.
+  it("DRAFT + bidRequiresVerification → taslak uyarısı doğrulama şartını söyler", () => {
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          bidRequiresVerification: true,
+          myBid: { amount: "500", status: "DRAFT", version: 1, note: null },
+        })}
+      />,
+    );
+    expect(screen.getByText(/önce firma doğrulaması gerekir/)).toBeInTheDocument();
+    expect(screen.queryByText(/göndermeyi unutmayın/)).toBeNull();
   });
 });
 
