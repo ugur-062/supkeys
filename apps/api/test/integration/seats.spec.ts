@@ -578,20 +578,30 @@ describe("Kurucu ekip yönetiminden kilitlenmez (arayüz testi Y-13)", () => {
     const svc = await svcWithNotifications();
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // tek yönetici: kurucu
     const sellers = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       sellers.push(await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]));
     }
     await prisma.company.update({
       where: { id: co.company.id },
       data: { tier: "SILVER", membershipEndAt: new Date(Date.now() + 86_400_000) },
     });
-    // Kurucu kendi satış koltuğunu bırakıp dört satışçıyı seçer.
+    // Kurucu kendi satış koltuğunu bırakıp ilk dört satışçıyı seçer (beşinci düşer).
     await svc.applySeatSelection(
       co.auth,
-      sellers.map((s) => ({ userId: s.id, group: "sell" as const })),
+      sellers.slice(0, 4).map((s) => ({ userId: s.id, group: "sell" as const })),
     );
     const ownerRow = await prisma.companyUser.findUniqueOrThrow({ where: { id: co.user.id } });
     expect(ownerRow.permissions).not.toContain("users:manage"); // örtük — saklanmaz
+    // Kendi koltuğunu bırakan kurucuya "işlem yetkileriniz kaldırıldı"
+    // bildirimi gitmez (arayüz testi api2-01 yeniden doğrulama). Bildirim
+    // best-effort (void) — diğer düşen kişininki yazılana dek beklenir.
+    const seatNotices = (id: string) =>
+      prisma.notification.count({ where: { companyUserId: id, type: "seat_selection" } });
+    for (let i = 0; i < 40 && (await seatNotices(sellers[4]!.id)) === 0; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(await seatNotices(sellers[4]!.id)).toBe(1); // düşen diğer kişi bilgilenir
+    expect(await seatNotices(co.user.id)).toBe(0);
     await expect(
       svc.setPermissions(co.auth, sellers[0]!.id, ["sell:view", "sell:bid:submit"]),
     ).resolves.toMatchObject({ ok: true });

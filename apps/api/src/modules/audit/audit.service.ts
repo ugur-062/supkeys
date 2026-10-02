@@ -171,9 +171,36 @@ export class AuditService {
         },
       }),
     ]);
+    // Hedef kişi: kullanıcı yönetimi kayıtları (rol/izin/aktiflik) yalnız
+    // `entityId` taşır; Detay'da "kimin" değiştiği görünmüyordu (arayüz testi
+    // api2-01 yeniden doğrulama). Yalnız AYNI firmanın kullanıcıları çözülür —
+    // başka tenant'ın kişisi ad olarak sızmaz; silinmiş kişi null kalır.
+    const userIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.entityType === "company_user" && r.entityId)
+          .map((r) => r.entityId as string),
+      ),
+    ];
+    const people = userIds.length
+      ? await this.prisma.companyUser.findMany({
+          where: { id: { in: userIds }, companyId: tenantId },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        })
+      : [];
+    const labelById = new Map(
+      people.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim() || u.email]),
+    );
     return {
       // JsonValue tip-referansı dışa sızmasın (TS2742) — metadata unknown.
-      items: rows.map((r) => ({ ...r, metadata: r.metadata as unknown })),
+      items: rows.map((r) => ({
+        ...r,
+        metadata: r.metadata as unknown,
+        entityLabel:
+          r.entityType === "company_user" && r.entityId
+            ? (labelById.get(r.entityId) ?? null)
+            : null,
+      })),
       pagination: {
         page,
         pageSize,

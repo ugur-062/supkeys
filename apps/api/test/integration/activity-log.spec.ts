@@ -106,6 +106,35 @@ describe("Faz O — aktivite logu", () => {
     expect(row).not.toHaveProperty("tenantId");
   });
 
+  it("kullanıcı yönetimi kaydı hedef kişinin adını taşır; başka firmanın kişisi çözülmez (arayüz testi api2-01)", async () => {
+    const svc = service();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const member = await makeUser(prisma, a.company.id, [CompanyRole.SATISCI]);
+    await prisma.companyUser.update({
+      where: { id: member.id },
+      data: { firstName: "Ayse", lastName: "Yilmaz" },
+    });
+    await seedLog(a.company.id, "company.user.permissions_changed", {
+      entityType: "company_user",
+      entityId: member.id,
+    });
+    // A'nın günlüğüne B'nin kullanıcısını gösteren (bozuk/eski) kayıt: ad sızmaz.
+    await seedLog(a.company.id, "company.user.removed", {
+      entityType: "company_user",
+      entityId: b.user.id,
+    });
+    await seedLog(a.company.id, "company.listing.published");
+
+    const out = await svc.list(a.auth, {});
+    const byAction = new Map(
+      out.items.map((i) => [(i as { action: string }).action, i as Record<string, unknown>]),
+    );
+    expect(byAction.get("company.user.permissions_changed")!.entityLabel).toBe("Ayse Yilmaz");
+    expect(byAction.get("company.user.removed")!.entityLabel).toBeNull();
+    expect(byAction.get("company.listing.published")!.entityLabel).toBeNull();
+  });
+
   it("module filtresi + sayfalama", async () => {
     const svc = service();
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });

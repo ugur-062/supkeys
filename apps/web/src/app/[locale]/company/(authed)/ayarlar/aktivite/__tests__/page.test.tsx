@@ -87,6 +87,34 @@ describe("AktivitePage — Detay sütunu (derin denetim LU-20)", () => {
     expect(screen.queryByText(/seat_selection/)).not.toBeInTheDocument();
   });
 
+  it("izin değişimi ham anahtar ve 'yeni roller' yerine hedef kişi + izin etiketleriyle; detay kesilmez (arayüz testi api2-01)", () => {
+    h.items = [
+      {
+        ...row("company.user.permissions_changed", {
+          before: ["sell:view"],
+          after: ["sell:view", "sell:bid:submit", "sell:order:manage"],
+          added: ["sell:bid:submit", "sell:order:manage"],
+          removed: [],
+        }),
+        entityType: "company_user",
+        entityId: "u1",
+        entityLabel: "Ayşe Yılmaz",
+      },
+      row("company.user.roles_changed", { before: ["SATISCI"], after: ["YONETICI"] }),
+    ];
+    render(<AktivitePage />);
+    const detail = "kullanıcı: Ayşe Yılmaz · eklenen izinler: Teklif verme, Satış siparişi işlemleri";
+    expect(screen.getAllByText(detail).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/sell:bid:submit/)).not.toBeInTheDocument();
+    // Rol değişimi rol etiketiyle kalır.
+    expect(screen.getAllByText(/^yeni roller: /).length).toBeGreaterThan(0);
+    // Masaüstü detay hücresi tek satıra kırpılmaz (truncate yok, sarar).
+    const cell = screen.getAllByText(detail).find((el) => el.tagName === "TD");
+    expect(cell).toBeDefined();
+    expect(cell!.className).not.toMatch(/\btruncate\b/);
+    expect(cell!.className).toMatch(/whitespace-normal/);
+  });
+
   it("kullanıcı yönetimi olayları 'Diğer işlem' değil kendi etiketiyle görünür", () => {
     h.items = [row("company.user.invited", {}), row("company.user.invitation_accepted", {})];
     render(<AktivitePage />);

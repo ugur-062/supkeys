@@ -56,6 +56,7 @@ const MODULES: { value: string; key: string }[] = [
 export default function AktivitePage() {
   const t = useTranslations("web.panel.settings.ayarlarAktivitePage");
   const td = useTranslations("web.domain");
+  const tp = useTranslations("web.panel.trade.permissionTable.perm");
   const locale = useLocale() as Locale;
   const auditAction = useAuditActionLabel();
   const roleLabel = useRoleLabel();
@@ -74,10 +75,25 @@ export default function AktivitePage() {
   const actionKnown = (action: string) =>
     td.has(`auditAction.${action.replace(/\./g, "_")}` as never);
 
+  /**
+   * İzin anahtarı ("sell:bid:submit") → yetki tablosunun etiketi. Rol
+   * sözlüğünden geçirilince ham anahtar "yeni roller" başlığıyla basılıyordu
+   * (arayüz testi api2-01 yeniden doğrulama). Katalogda yoksa ham kalır.
+   */
+  const permLabel = (k: string) => {
+    const key = k.replace(/:/g, "_");
+    return tp.has(key as never) ? tp(key as never) : k;
+  };
+  const isPermKey = (k: unknown) => typeof k === "string" && k.includes(":");
+  const strList = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
   /** Metadata'dan kısa, değersiz özet (alan adları / maskeli referanslar). */
   const summarize = (row: ActivityLogRow): string => {
     const m = row.metadata ?? {};
     const parts: string[] = [];
+    // Kullanıcı yönetimi kayıtlarında işlemin HEDEFİ (API aynı firmadan çözer).
+    if (row.entityLabel) parts.push(t("hedef", { name: row.entityLabel }));
     // C16: kazandırma SİPARİŞ BAŞINA iz yazar (INV-AUDIT-1) — numara olmadan
     // aynı saniyedeki kayıtlar "çift kayıt" gibi okunuyordu.
     if (typeof m.orderNumber === "string") parts.push(t("siparis", { n: m.orderNumber }));
@@ -99,10 +115,25 @@ export default function AktivitePage() {
     // Belge türü iç anahtardır ("taxPlate") — firmanın ülkesine göre katalog etiketi.
     if (typeof m.kind === "string" && (DOC_KINDS as readonly string[]).includes(m.kind))
       parts.push(docLabels(company?.country, [m.kind as DocKind])[0].label);
-    if (Array.isArray(m.after))
+    // İzin değişimi (permissions_changed / _overridden): tam liste yerine
+    // yalnız fark — kısa ve okunur; roller (roles_changed) eskisi gibi.
+    const added = strList(m.added);
+    const removed = strList(m.removed);
+    const after = strList(m.after);
+    const permDiff =
+      (Array.isArray(m.added) || Array.isArray(m.removed)) &&
+      [...added, ...removed].every(isPermKey);
+    if (permDiff) {
+      if (added.length) parts.push(t("eklenenIzinler", { list: added.map(permLabel).join(", ") }));
+      if (removed.length)
+        parts.push(t("kaldirilanIzinler", { list: removed.map(permLabel).join(", ") }));
+    } else if (Array.isArray(m.after)) {
       parts.push(
-        t("yeniRoller", { list: (m.after as string[]).map(roleLabel).join(", ") || "—" }),
+        after.some(isPermKey)
+          ? t("yeniIzinler", { list: after.map(permLabel).join(", ") || "—" })
+          : t("yeniRoller", { list: after.map(roleLabel).join(", ") || "—" }),
       );
+    }
     // Red kayıtlarının `reason`'ı makine kodudur ("not_admin_grant") → katalog
     // etiketi; katalogda yoksa serbest metindir (ör. sipariş iptal gerekçesi).
     if (typeof m.reason === "string") {
@@ -196,10 +227,9 @@ export default function AktivitePage() {
                           <TableCell className="hidden text-xs text-zinc-600 sm:table-cell">
                             {actor}
                           </TableCell>
-                          <TableCell
-                            className="hidden max-w-[280px] truncate text-xs text-zinc-500 sm:table-cell"
-                            title={detail}
-                          >
+                          {/* Detay sarar (kesilmez): tek satıra kırpılınca
+                              tablo kenarında yarım kalıyordu. */}
+                          <TableCell className="hidden min-w-48 max-w-[22rem] whitespace-normal text-xs text-zinc-500 [overflow-wrap:anywhere] sm:table-cell">
                             {detail}
                           </TableCell>
                         </TableRow>

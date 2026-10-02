@@ -10,6 +10,8 @@ export interface ActivityLogRow {
   actorEmail: string | null;
   entityType: string | null;
   entityId: string | null;
+  /** Hedef kullanıcının adı (entityType "company_user"; API aynı firmadan çözer). */
+  entityLabel?: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }

@@ -29,6 +29,7 @@ import {
   type MembershipEvent,
 } from "@/hooks/use-admin-companies";
 import { safeFormat } from "@/lib/date";
+import { membershipEventActor, membershipEventReason } from "@/lib/membership-event";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import {
   PAID_TIER_OPTIONS,
@@ -330,10 +331,10 @@ export function MembershipTab({
                     {e.endAfter ? safeFormat(e.endAfter, "d MMM yyyy") : "—"}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs">
-                    {e.adminEmail ?? "sistem"}
+                    {membershipEventActor(e)}
                   </TableCell>
                   <TableCell className="text-admin-text-muted max-w-[240px] truncate text-xs">
-                    {e.reason ?? "—"}
+                    {membershipEventReason(e.reason) ?? "—"}
                   </TableCell>
                 </TableRow>
               ))

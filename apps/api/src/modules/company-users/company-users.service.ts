@@ -1936,6 +1936,10 @@ export class CompanyUsersService {
           droppedGroups: d.droppedGroups,
         },
       });
+      // Seçimi yapan kendi koltuğunu bıraktıysa kendine "işlem yetkileriniz
+      // kaldırıldı" bildirimi gitmez — kararı kendisi verdi, sonucu toast'ta
+      // görüyor (setPermissions'taki Y-13 öz-düzenleme kuralıyla aynı).
+      if (d.id === actor.userId) continue;
       void this.notifications
         ?.pushToUser(d.id, {
           type: "seat_selection",

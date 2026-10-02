@@ -22,6 +22,7 @@ import {
 } from "@/hooks/use-admin-companies";
 import { downloadCsv } from "@/lib/csv";
 import { safeFormat, toDateInput } from "@/lib/date";
+import { membershipEventActor, membershipEventReason } from "@/lib/membership-event";
 import { Download } from "lucide-react";
 import { useState } from "react";
 
@@ -46,8 +47,8 @@ function exportReportCsv(rows: MembershipReportRow[]) {
       ACTION_META[r.action].label,
       r.months ?? "",
       r.endAfter ? safeFormat(r.endAfter, "yyyy-MM-dd") : "",
-      r.adminEmail ?? "sistem",
-      r.reason ?? "",
+      membershipEventActor(r),
+      membershipEventReason(r.reason) ?? "",
     ]),
   );
 }
@@ -264,10 +265,10 @@ function RaporView() {
                     {r.endAfter ? safeFormat(r.endAfter, "d MMM yyyy") : "—"}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs">
-                    {r.adminEmail ?? "sistem"}
+                    {membershipEventActor(r)}
                   </TableCell>
                   <TableCell className="text-admin-text-muted max-w-[220px] truncate text-xs">
-                    {r.reason ?? "—"}
+                    {membershipEventReason(r.reason) ?? "—"}
                   </TableCell>
                 </TableRow>
               ))
