@@ -30,8 +30,19 @@ export function AuditLogRow({
       </TableCell>
       <TableCell>
         <Badge color={actor.color}>{actor.label}</Badge>
-        <div className="text-xs text-admin-text-muted mt-1 truncate max-w-[160px]">
-          {item.actorEmail ?? item.actorId ?? "—"}
+        {/* E-postası yazılmamış eski satırlarda kimlik ham ve uzun basılıyordu
+            (yeniden doğrulama webC-14): kısa kimlik, tamamı ipucunda — varlık
+            sütunuyla aynı biçim. */}
+        <div
+          className="text-xs text-admin-text-muted mt-1 truncate max-w-[160px]"
+          title={item.actorEmail ?? item.actorId ?? undefined}
+        >
+          {item.actorEmail ??
+            (item.actorId ? (
+              <span className="font-mono">{item.actorId.slice(0, 10)}</span>
+            ) : (
+              "—"
+            ))}
         </div>
       </TableCell>
       <TableCell className="font-medium text-admin-text">

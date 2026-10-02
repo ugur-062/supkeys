@@ -74,6 +74,19 @@ export class AuditService {
     }
   }
 
+  /** `CompanyUser.id` → e-posta; aynı fail-safe sözleşme. */
+  private async resolveCompanyUserEmail(userId: string): Promise<string | null> {
+    try {
+      const user = await this.prisma.companyUser.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      return user?.email ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async log(entry: AuditEntry): Promise<void> {
     try {
       // Dalga B (denetim 2026-08-26 Parça 9): admin aksiyonlarının izi yalnız
@@ -81,11 +94,16 @@ export class AuditService {
       // kararların sahibi geriye dönük olarak isimsizleşiyordu. Çağıranların
       // 17 ayrı noktada e-posta taşımasını beklemek yerine burada TEK yerde
       // çözülür (çağıran açıkça verirse ona dokunulmaz).
+      // Firma aktörü de aynı: e-postasız yazan noktalar (VIES sorgusu,
+      // onay akışıyla kazandırma, paket yükseltme) admin Denetim Kaydı'nda ham
+      // kullanıcı kimliği gösteriyordu (arayüz testi webC-14, yeniden doğrulama).
       const actorEmail =
         entry.actorEmail ??
         (entry.actorType === "admin" && entry.actorId
           ? await this.resolveAdminEmail(entry.actorId)
-          : null);
+          : entry.actorType === "company" && entry.actorId
+            ? await this.resolveCompanyUserEmail(entry.actorId)
+            : null);
       await this.prisma.auditLog.create({
         data: {
           action: entry.action,

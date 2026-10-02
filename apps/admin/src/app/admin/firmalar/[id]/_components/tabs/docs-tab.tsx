@@ -356,9 +356,11 @@ export function DocsTab({
             const label = docLabel(d, foreign);
             return (
               <li key={d.key} className="flex flex-col gap-2 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-admin-text flex items-center gap-2 text-sm">
-                    <FileText className="text-admin-text-muted h-4 w-4" />
+                {/* Dar ekranda (390px) eylem bağlantıları kartın dışına
+                    taşıyordu: satır sarılır, bağlantılar başlığın altına iner. */}
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className="text-admin-text flex min-w-0 flex-wrap items-center gap-2 text-sm">
+                    <FileText className="text-admin-text-muted h-4 w-4 shrink-0" />
                     {label}
                     {url ? (
                       <Badge color={DOC_BADGE[st].color}>
@@ -369,7 +371,7 @@ export function DocsTab({
                     )}
                   </span>
                   {url ? (
-                    <span className="flex shrink-0 items-center gap-3">
+                    <span data-testid={`doc-actions-${d.key}`} className="flex shrink-0 items-center gap-3 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() =>
@@ -537,13 +539,13 @@ function RevisionRow({
 
   return (
     <li className="flex flex-col gap-2 px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <FileText className="text-admin-text-muted h-4 w-4 shrink-0" />
           <span className="text-admin-text text-sm font-medium">{label}</span>
           <Badge color="purple">Yeni belge</Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {rev.url ? (
             <a
               href={rev.url}

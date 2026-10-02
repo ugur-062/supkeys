@@ -237,6 +237,18 @@ describe("DocsTab — KYC belge inceleme", () => {
     expect(screen.getByLabelText(/Vergi Levhası red notu/)).toHaveValue("kaşe yok");
   });
 
+  it("dar ekranda Önizle/Görüntüle kartın dışına taşmaz: satır sarılır (yeniden doğrulama webC-14)", () => {
+    render(<DocsTab companyId="c1" data={detail()} />);
+    const actions = screen.getByTestId("doc-actions-taxPlate");
+    const row = actions.parentElement!;
+    expect(row.className).toContain("flex-wrap");
+    expect(actions.className).toContain("whitespace-nowrap");
+    // Başlık tarafı küçülebilir (min-w-0) ve kendi içinde sarılır.
+    const title = row.firstElementChild!;
+    expect(title.className).toContain("min-w-0");
+    expect(title.className).toContain("flex-wrap");
+  });
+
   it("Önizle → sayfa içi iframe açılır, tekrar tıklayınca kapanır", async () => {
     const user = userEvent.setup();
     render(<DocsTab companyId="c1" data={detail()} />);

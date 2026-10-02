@@ -4,8 +4,15 @@
  * sekmesi ham eylem kodu, ham aktör tipi ve ham JSON basıyordu (arayüz testi
  * O-047); genel sayfa da varlık ve detay sütununda ham kod gösteriyordu
  * (D-016). Bilinmeyen anahtar/değer ham haliyle görünür (bilgi kaybolmaz).
+ *
+ * Yeniden doğrulama (webC-14): iç kimlikler (`listingId`, `sessionId`, …),
+ * depolama yolları (`keys`), ISO zaman damgaları ve kaynak/eylem kodları
+ * (`AI_AUTO`, `send_invites`) artık okunur yazılır: kimlikler gizlenir (varlık
+ * sütunu kaydın nesnesini zaten gösterir), tarihler İstanbul biçiminde,
+ * belge türleri ve değişen alanlar Türkçe adla.
  */
 
+import { safeFormat } from "./date";
 import { BID_STATUS, LISTING_STATUS, ORDER_STATUS, PAYMENT_STATUS } from "./status-labels";
 import {
   ADMIN_ROLE_LABEL,
@@ -137,7 +144,146 @@ const KEY_LABEL: Record<string, string> = {
   buyerReason: "alıcı gerekçesi",
   rate: "kur",
   date: "tarih",
+  // Yeniden doğrulama (webC-14) — denetim kayıtlarında görülen kalan anahtarlar.
+  version: "sürüm",
+  submitCount: "gönderim sayısı",
+  resubmission: "yeniden gönderim",
+  closesAt: "kapanış",
+  keys: "belgeler",
+  decisions: "kararlar",
+  rejected: "red var",
+  changes: "değişiklikler",
+  resetDocs: "yeniden istenen belgeler",
+  revived: "yeniden canlandı",
+  rowCounts: "kayıt sayıları",
+  rothernId: "Rothern kodu",
+  retainedBecause: "saklama nedeni",
+  bulk: "toplu",
+  reReview: "yeniden inceleme",
+  code: "kod",
+  slug: "profil adresi",
+  entities: "kayıt",
+  enabled: "açık",
+  enqueued: "kuyruğa alınan",
+  started: "başladı",
+  failed: "başarısız",
+  truncated: "kesildi",
+  emailQueued: "kuyruğa alınan e-posta",
+  body: "metin",
+  setupEmailSent: "kurulum e-postası gönderildi",
+  twoFactorSetupRequired: "2FA kurulumu gerekli",
+  bidAmount: "teklif tutarı",
+  bidCurrency: "teklif para birimi",
+  newBidStatus: "yeni teklif durumu",
+  previousBidStatus: "önceki teklif durumu",
+  byItem: "kalem bazında",
+  viaApproval: "onay akışıyla",
+  lost: "kaybeden",
+  reopened: "yeniden açıldı",
+  restored: "geri alınan",
+  carryBids: "teklif aktarımı",
+  eliminateNonBidders: "teklif vermeyenler elendi",
+  newFormat: "yeni biçim",
+  needed: "gerekli yetki",
+  invited: "davet edilen",
+  autoCompleted: "otomatik tamamlandı",
+  unavailable: "servis yanıt vermedi",
+  address: "adres",
+  template: "şablon",
+  droppedGroups: "kapanan alanlar",
+  roleChanges: "rol değişiklikleri",
+  labelChanges: "etiket değişiklikleri",
+  droppedCount: "kapanan",
+  keptCount: "kalan",
+  limit: "sınır",
+  usingSearch: "web aramasıyla",
+  website: "web sitesi",
+  query: "sorgu",
+  success: "başarılı",
+  origin: "kaynak",
+  listingLeftWithoutLiveOrder: "ilan canlı siparişsiz kaldı",
+  previousOwnerRoles: "önceki sahibin rolleri",
+  city: "şehir",
 };
+
+/**
+ * Detayda GÖSTERİLMEYEN anahtarlar: iç kimlikler (cuid/uuid) yöneticiye bilgi
+ * vermez, satırın nesnesi varlık sütunundadır. `rothernId` firmanın herkese
+ * açık kodudur — görünür kalır.
+ */
+const HIDDEN_KEYS = new Set(["dedupeKey"]);
+function isHiddenKey(k: string): boolean {
+  if (k === "rothernId") return false;
+  return HIDDEN_KEYS.has(k) || /[a-z](Id|Ids)$/.test(k);
+}
+
+/** Firma doğrulama belgeleri (admin Belgeler sekmesiyle aynı adlar). */
+const DOC_KIND_LABEL: Record<string, string> = {
+  taxPlate: "Vergi levhası",
+  tradeRegistry: "Ticaret sicil gazetesi",
+  signatureCircular: "İmza sirküleri",
+  activityCert: "Faaliyet belgesi",
+  idFront: "Yetkili kimlik (ön)",
+  idBack: "Yetkili kimlik (arka)",
+};
+
+/** İlan belgesi türleri (web `listingDocKind` ile aynı adlar). */
+const LISTING_DOC_KIND_LABEL: Record<string, string> = {
+  IDARI_SARTNAME: "İdari şartname",
+  TEKNIK_SARTNAME: "Teknik şartname",
+  SOZLESME: "Sözleşme taslağı",
+  EK: "Ek / çizim",
+  NUMUNE: "Numune / görsel",
+  DIGER: "Diğer",
+};
+
+/** Anahtara özgü değer sözlükleri — kaynak, kanal, AI eylem türü vb. kodlar. */
+const VALUE_BY_KEY: Record<string, Record<string, string>> = {
+  source: {
+    MANUAL: "Elle",
+    manual: "Elle",
+    AI_FORM: "AI (talep formu)",
+    AI_AUTO: "AI (otomatik)",
+    onboarding: "Kayıt sırasında",
+    letter_of_credit: "Akreditif",
+  },
+  via: { ai_assistant: "AI asistan", complaint: "Şikayet" },
+  actionType: {
+    send_invites: "Davet gönderme",
+    publish_tender: "Talep yayınlama",
+    eliminate_bid: "Teklif eleme",
+    award_tender: "Kazanan seçme",
+    place_bid: "Teklif verme",
+    mark_order_received: "Teslim alındı işaretleme",
+  },
+  origin: { INVITE: "Davet", PREMIUM: "Premium keşif", ADMIN: "Platform" },
+  carryBids: { AUTO: "Otomatik", LAZY: "Tedarikçi onayıyla" },
+  newFormat: { RFQ: "Teklif toplama (kapalı zarf)", ENGLISH_AUCTION: "Açık eksiltme" },
+  kind: { ...DOC_KIND_LABEL, ...LISTING_DOC_KIND_LABEL },
+  tier: { all: "Tümü" },
+  reason: {
+    seat_selection: "Koltuk seçimi",
+    missing_permission: "Yetki eksik",
+    not_admin: "Yönetici değil",
+    not_admin_grant: "Yönetici olmayan yetki veremez",
+  },
+};
+
+/** Takvim günü taşıyan anahtarlar — saat gösterilmez. */
+const DATE_ONLY_KEYS = new Set(["expectedDeliveryDate", "date"]);
+const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function formatDateValue(key: string, v: string): string | null {
+  if (ISO_DATE.test(v) || (DATE_ONLY_KEYS.has(key) && ISO_DATE_TIME.test(v))) {
+    // Takvim günü UTC bileşenlerinden okunur (gece yarısı UTC = o gün).
+    const d = new Date(ISO_DATE.test(v) ? `${v}T00:00:00Z` : v);
+    if (Number.isNaN(d.getTime())) return null;
+    return safeFormat(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), "d MMM yyyy", "") || null;
+  }
+  if (ISO_DATE_TIME.test(v)) return safeFormat(v, "d MMM yyyy HH:mm", "") || null;
+  return null;
+}
 
 /** Değişen alan adları (changedFields/kycFields değerleri). */
 const FIELD_LABEL: Record<string, string> = {
@@ -176,7 +322,46 @@ const FIELD_LABEL: Record<string, string> = {
   categoryIds: "kategoriler",
   employeeCount: "çalışan sayısı",
   foundedYear: "kuruluş yılı",
+  industry: "sektör",
+  billingEmail: "fatura e-postası",
+  aboutText: "hakkında",
+  activities: "faaliyetler",
+  services: "hizmetler",
+  buyerCategoryIds: "alım kategorileri",
+  buyerSubCategoryIds: "alım alt kategorileri",
+  sellerCategoryIds: "satış kategorileri",
+  sellerSubCategoryIds: "satış alt kategorileri",
+  coverImageUrl: "kapak görseli",
+  instagramUrl: "Instagram",
+  linkedinUrl: "LinkedIn",
+  kepAddress: "KEP adresi",
+  publicEnabled: "herkese açık profil",
+  slug: "profil adresi",
+  visitsVisible: "ziyaret sayısı görünür",
+  // Talep varsayılanları (company.request_defaults.updated)
+  advancePercent: "avans oranı",
+  allowedCurrencies: "izinli para birimleri",
+  bidVisibility: "teklif görünürlüğü",
+  billingSameAsDelivery: "fatura adresi teslimatla aynı",
+  closeDays: "kapanış süresi (gün)",
+  deliveryAddressId: "teslim adresi",
+  deliveryTerm: "teslim şekli",
+  isInternational: "uluslararası",
+  isSealedBid: "kapalı zarf (eski ayar)",
+  lcType: "akreditif türü",
+  paymentCategory: "ödeme şekli",
+  paymentDays: "vade (gün)",
+  primaryCurrency: "ana para birimi",
+  requireAllItems: "tüm kalemler zorunlu",
+  requireBidDocument: "teklif belgesi zorunlu",
+  targetCountries: "hedef ülkeler",
+  visibility: "görünürlük",
 };
+
+const fieldLabel = (f: string) => FIELD_LABEL[f] ?? DOC_KIND_LABEL[f] ?? f;
+const keyLabel = (k: string) => KEY_LABEL[k] ?? DOC_KIND_LABEL[k] ?? k;
+/** Değeri alan/belge adı listesi olan anahtarlar. */
+const FIELD_LIST_KEYS = new Set(["changedFields", "kycFields", "resetDocs", "droppedGroups"]);
 
 const LISTING_TYPE_LABEL: Record<string, string> = {
   ALIM: "Alım talebi",
@@ -226,22 +411,45 @@ function formatValue(
   if (typeof v === "string") {
     if (key === "portal") return PORTAL_LABEL[v] ?? v;
     if (key === "reason" && LOGIN_FAIL_REASON_LABEL[v]) return LOGIN_FAIL_REASON_LABEL[v];
+    const byKey = VALUE_BY_KEY[key]?.[v];
+    if (byKey) return byKey;
+    const date = formatDateValue(key, v);
+    if (date) return date;
     if (/^[A-Z][A-Z0-9_]*$/.test(v)) {
       for (const d of dicts) if (d[v]) return d[v];
     }
     return v;
   }
   if (Array.isArray(v)) {
-    const isField = key === "changedFields" || key === "kycFields" || key === "keys";
+    if (v.length === 0) return "—";
+    const isField = FIELD_LIST_KEYS.has(key) || key === "keys";
     return v
       .map((x) =>
         isField && typeof x === "string"
-          ? (FIELD_LABEL[x] ?? x)
+          ? fieldLabel(x)
           : formatValue(key, x, dicts, depth + 1),
       )
       .join(", ");
   }
   if (typeof v === "object") {
+    const obj = v as Record<string, unknown>;
+    // `keys`: belge türü → depolama yolu. Yol yöneticiye bilgi vermez (ve iç
+    // depolama düzenini sızdırır) — yalnız belge adları.
+    if (key === "keys") {
+      const kinds = Object.keys(obj);
+      return kinds.length ? kinds.map(fieldLabel).join(", ") : "—";
+    }
+    // `changes`: alan → { from, to } — "sektör (— → Yeni)" biçiminde.
+    if (key === "changes") {
+      const parts = Object.entries(obj).map(([f, c]) => {
+        if (c && typeof c === "object" && !Array.isArray(c) && ("from" in c || "to" in c)) {
+          const cc = c as { from?: unknown; to?: unknown };
+          return `${fieldLabel(f)} (${formatValue(f, cc.from, dicts, depth + 1)} → ${formatValue(f, cc.to, dicts, depth + 1)})`;
+        }
+        return `${fieldLabel(f)} (${formatValue(f, c, dicts, depth + 1)})`;
+      });
+      return parts.length ? parts.join(", ") : "—";
+    }
     if (depth >= 2) return "…";
     const inner = formatPairs(v as Record<string, unknown>, dicts, depth + 1);
     return inner ? `(${inner})` : "—";
@@ -255,8 +463,8 @@ function formatPairs(
   depth: number,
 ): string {
   return Object.entries(meta)
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `${KEY_LABEL[k] ?? k}: ${formatValue(k, v, dicts, depth)}`)
+    .filter(([k, v]) => v !== undefined && v !== null && !isHiddenKey(k))
+    .map(([k, v]) => `${keyLabel(k)}: ${formatValue(k, v, dicts, depth)}`)
     .join(" · ");
 }
 

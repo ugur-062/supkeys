@@ -488,6 +488,31 @@ describe("Dalga B — audit satırı admin e-postasını taşır", () => {
     });
     expect(row.actorEmail).toBe("denetci@rothern.com");
   });
+
+  it("firma aktörünün e-postası da CompanyUser'dan çözülür; bilinmeyen kimlik yazımı bozmaz (webC-14)", async () => {
+    const audit = new AuditService(prisma as never);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await audit.log({
+      action: "company.vies_checked",
+      actorType: "company",
+      actorId: co.user.id,
+      entityType: "company",
+      entityId: co.company.id,
+      metadata: { countryCode: "DE", valid: false },
+    });
+    await audit.log({
+      action: "company.vies_checked",
+      actorType: "company",
+      actorId: "missing-user",
+      entityType: "company",
+      entityId: co.company.id,
+    });
+    const rows = await prisma.auditLog.findMany({
+      where: { action: "company.vies_checked", entityId: co.company.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(rows.map((r) => r.actorEmail)).toEqual([co.user.email, null]);
+  });
 });
 
 describe("Dalga B — son aktif SUPER_ADMIN korunur (atomik)", () => {
