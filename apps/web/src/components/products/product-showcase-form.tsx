@@ -19,6 +19,7 @@ import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import {
   useCategoryAttributes,
   useCreateProduct,
@@ -463,6 +464,15 @@ export function ProductShowcaseForm({
     }
     if (thenSubmit && submitBlocked) return;
     const droppedTiers = priceMode === "TIERED" ? priceTiers.length - patch.priceTiers.length : 0;
+    // Eksik kademe notu AYRI toast değil, sonuç toast'ının açıklaması: iki
+    // toast'ta Sonner uyarıyı başarı toast'ının ARKASINA yığıyordu (yalnız
+    // ~13px şerit görünüyordu, arayüz testi son tur webC-4). Not varken sonuç
+    // sarı (uyarı) çizilir ve okunacak kadar uzun kalır.
+    const tierNote = droppedTiers > 0 ? t("eksikKademeKaydedilmedi", { n: droppedTiers }) : null;
+    const notifySaved = (message: string) => {
+      if (tierNote) toast.warning(message, { description: tierNote, duration: 8000 });
+      else toast.success(message);
+    };
     try {
       // Yeni üründe kayıt TEK çağrıyla oluşur (create+vitrin); sonrasında
       // düzenleme moduna geçeriz — kullanıcı için bu tek bir "kaydet".
@@ -470,16 +480,18 @@ export function ProductShowcaseForm({
         ? await create.mutateAsync({ ...patch, unit })
         : await save.mutateAsync({ id: product.id, patch });
       initial.current = JSON.stringify(patch);
-      // Eksik kademe gönderilmedi; form sunucu kopyasından yeniden kurulunca
-      // satır kaybolur — sessizce değil, açıkça söylenir (arayüz testi D-050,
-      // yeniden doğrulama).
-      if (droppedTiers > 0) toast.warning(t("eksikKademeKaydedilmedi", { n: droppedTiers }));
+      // Eksik kademe gönderilmedi — form da sunucu kopyasıyla AYNI olsun diye
+      // satır formdan çıkarılır ve bu açıkça söylenir (arayüz testi D-050).
+      // Eskiden yalnız yeni üründe (üst bileşen formu sunucu kopyasından
+      // yeniden kurunca) kayboluyordu; düzenlemede satır formda kalırken not
+      // "formdan çıkarıldı" diyordu (son tur webC-4).
+      if (droppedTiers > 0) setPriceTiers(patch.priceTiers);
       if (!thenSubmit) {
         if (isNew) onCreated?.(saved);
         else onSaved?.(saved);
         // Mesaj SONUCA göre (arayüz testi D-125): yalnız fiyat/MOQ değişen
         // yayındaki ürün onaylı kalır — "yeniden incelenecek" demek yanlış.
-        toast.success(
+        notifySaved(
           isNew
             ? t("urunTaslakOlarakEklendi")
             : saved.reviewStatus === "PENDING"
@@ -498,7 +510,9 @@ export function ProductShowcaseForm({
       // ürünün bayat "Taslak" formunda kalıyordu (tekrar gönderim → 409).
       if (saved.publishBlockers.length > 0) {
         if (isNew) onCreated?.(saved);
-        toast.error(t("onayaGonderilemedi", { reasons: saved.publishBlockers.join(", ") }));
+        const blocked = t("onayaGonderilemedi", { reasons: saved.publishBlockers.join(", ") });
+        if (tierNote) toast.error(blocked, { description: tierNote });
+        else toast.error(blocked);
         return;
       }
       try {
@@ -507,7 +521,7 @@ export function ProductShowcaseForm({
         if (isNew) onCreated?.(saved);
         throw err;
       }
-      toast.success(t("onayaGonderildiIncelemeBiteneKadar"));
+      notifySaved(t("onayaGonderildiIncelemeBiteneKadar"));
       onClose();
     } catch (err) {
       // 409 PRODUCT_IN_REVIEW dahil: sunucu mesajı kullanıcıya aynen.
@@ -777,16 +791,16 @@ export function ProductShowcaseForm({
                 <Field>
                   <Label htmlFor="urun-moq">{t("minimumSiparisMiktari")}</Label>
                   <div className="flex items-center gap-2">
-                    <input
-                      id="urun-moq"
-                      type="number"
-                      min={0}
-                      max={1_000_000_000}
-                      step="0.001"
-                      value={moq}
-                      onChange={(e) => setMoq(e.target.value)}
-                      className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    />
+                    {/* Yerel biçimli miktar (arayüz testi son tur S-SELL):
+                        `type=number` Türkçe "1.000"i 1 okuyabiliyordu. */}
+                    <div className="w-40">
+                      <MoneyInput
+                        id="urun-moq"
+                        maxDecimals={3}
+                        value={moq}
+                        onChange={setMoq}
+                      />
+                    </div>
                     <span className="text-sm text-zinc-500">{unitLabel}</span>
                   </div>
                 </Field>

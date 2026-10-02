@@ -12,11 +12,16 @@
  * belge türleri ve değişen alanlar Türkçe adla.
  */
 
+import { countryName } from "./country";
 import { safeFormat } from "./date";
+import { EMAIL_TEMPLATE_LABELS } from "./email-logs/status";
 import { BID_STATUS, LISTING_STATUS, ORDER_STATUS, PAYMENT_STATUS } from "./status-labels";
 import {
   ADMIN_ROLE_LABEL,
+  COMPANY_PERMISSION_LABEL,
   COMPANY_ROLE_LABEL,
+  COMPLAINT_STATUS_META,
+  CONNECTION_STATUS_META,
   DOC_STATUS_META,
   ENTITY_TYPE_LABEL,
   TIER_LABEL,
@@ -204,6 +209,36 @@ const KEY_LABEL: Record<string, string> = {
   listingLeftWithoutLiveOrder: "ilan canlı siparişsiz kaldı",
   previousOwnerRoles: "önceki sahibin rolleri",
   city: "şehir",
+  // Son tur (webC-4) — iç içe sayım nesneleri (KVKK dökümü `rowCounts`,
+  // anonimleştirme `retainedBecause`) ve zaman tasarrufu ayarları.
+  users: "kullanıcı",
+  listings: "ilan",
+  bidsPlaced: "verilen teklif",
+  ordersAsBuyer: "alım siparişi",
+  ordersAsSeller: "satış siparişi",
+  bankAccounts: "banka hesabı",
+  adminNotes: "admin notu",
+  messagesSent: "gönderilen mesaj",
+  reviewsGiven: "verilen değerlendirme",
+  reviewsReceived: "alınan değerlendirme",
+  complaintsMade: "yaptığı şikayet",
+  complaintsReceived: "hakkındaki şikayet",
+  membershipEvents: "üyelik kaydı",
+  threadsAsBuyer: "alıcı yazışması",
+  threadsAsSeller: "satıcı yazışması",
+  listingInvitations: "talep daveti",
+  publicInquiries: "bilgi talebi",
+  rfqMailPrepMin: "RFQ maili (dk)",
+  followupMin: "hatırlatma (dk)",
+  bidToExcelMin: "teklif→Excel (dk)",
+  bidItemFactor: "kalem katsayısı",
+  comparisonTableMin: "karşılaştırma tablosu (dk)",
+  revisionRoundMin: "revizyon turu (dk)",
+  approvalLoopMin: "onay döngüsü (dk)",
+  poPrepMin: "PO hazırlama (dk)",
+  hourlyLaborCost: "saatlik maliyet (₺)",
+  targetCountries: "hedef ülkeler",
+  bankCountry: "banka ülkesi",
 };
 
 /**
@@ -257,7 +292,14 @@ const VALUE_BY_KEY: Record<string, Record<string, string>> = {
     mark_order_received: "Teslim alındı işaretleme",
   },
   origin: { INVITE: "Davet", PREMIUM: "Premium keşif", ADMIN: "Platform" },
-  carryBids: { AUTO: "Otomatik", LAZY: "Tedarikçi onayıyla" },
+  carryBids: { AUTO: "Otomatik", LAZY: "Tedarikçi onayıyla", NONE: "Aktarılmaz" },
+  visibility: {
+    PUBLIC: "Herkese açık",
+    CONNECTIONS: "Bağlantılara açık",
+    PRIVATE: "Yalnız davetliler",
+  },
+  template: EMAIL_TEMPLATE_LABELS,
+  droppedGroups: { buy: "satınalma", sell: "satış" },
   newFormat: { RFQ: "Teklif toplama (kapalı zarf)", ENGLISH_AUCTION: "Açık eksiltme" },
   kind: { ...DOC_KIND_LABEL, ...LISTING_DOC_KIND_LABEL },
   tier: { all: "Tümü" },
@@ -266,8 +308,12 @@ const VALUE_BY_KEY: Record<string, Record<string, string>> = {
     missing_permission: "Yetki eksik",
     not_admin: "Yönetici değil",
     not_admin_grant: "Yönetici olmayan yetki veremez",
+    not_creator: "Talebi açan kişi değil",
   },
 };
+
+/** ISO ülke kodu taşıyan anahtarlar — Türkçe ülke adıyla yazılır. */
+const COUNTRY_KEYS = new Set(["country", "countryCode", "bankCountry", "targetCountries"]);
 
 /** Takvim günü taşıyan anahtarlar — saat gösterilmez. */
 const DATE_ONLY_KEYS = new Set(["expectedDeliveryDate", "date"]);
@@ -293,6 +339,8 @@ const FIELD_LABEL: Record<string, string> = {
   website: "web sitesi",
   phone: "telefon",
   email: "e-posta",
+  firstName: "ad",
+  lastName: "soyad",
   country: "ülke",
   stateRegion: "bölge",
   city: "şehir",
@@ -361,7 +409,7 @@ const FIELD_LABEL: Record<string, string> = {
 const fieldLabel = (f: string) => FIELD_LABEL[f] ?? DOC_KIND_LABEL[f] ?? f;
 const keyLabel = (k: string) => KEY_LABEL[k] ?? DOC_KIND_LABEL[k] ?? k;
 /** Değeri alan/belge adı listesi olan anahtarlar. */
-const FIELD_LIST_KEYS = new Set(["changedFields", "kycFields", "resetDocs", "droppedGroups"]);
+const FIELD_LIST_KEYS = new Set(["changedFields", "kycFields", "resetDocs"]);
 
 const LISTING_TYPE_LABEL: Record<string, string> = {
   ALIM: "Alım talebi",
@@ -379,6 +427,28 @@ const ORDER_VALUES = { ...labelsOf(ORDER_STATUS), ...labelsOf(PAYMENT_STATUS) };
 const LISTING_VALUES = { ...labelsOf(LISTING_STATUS), ...LISTING_TYPE_LABEL };
 const BID_VALUES = labelsOf(BID_STATUS);
 const VERIFY_VALUES = { ...labelsOf(VERIFY_META), ...labelsOf(DOC_STATUS_META) };
+/** Onay akışı/isteği: tür (ApprovalType) ve akış durumu (ApprovalFlowStatus). */
+const APPROVAL_TYPE_LABEL: Record<string, string> = {
+  LISTING_PUBLISH: "Talep yayını onayı",
+  LISTING_AWARD: "Kazandırma onayı",
+};
+const APPROVAL_VALUES: Record<string, string> = {
+  ...APPROVAL_TYPE_LABEL,
+  DRAFT: "Taslak",
+  ACTIVE: "Aktif",
+  PASSIVE: "Pasif",
+  PENDING: "Bekliyor",
+  APPROVED: "Onaylandı",
+  REJECTED: "Reddedildi",
+  CANCELLED: "İptal edildi",
+};
+const COMPLAINT_VALUES = labelsOf(COMPLAINT_STATUS_META);
+const CONNECTION_VALUES = labelsOf(CONNECTION_STATUS_META);
+const ADDRESS_TYPE_LABEL: Record<string, string> = {
+  FATURA: "Fatura",
+  ILETISIM: "İletişim",
+  TESLIMAT: "Teslimat",
+};
 const GENERIC_VALUES: Record<string, string> = {
   ...BID_VALUES,
   ...LISTING_VALUES,
@@ -388,9 +458,21 @@ const GENERIC_VALUES: Record<string, string> = {
   ...ADMIN_ROLE_LABEL,
   ...TIER_LABEL,
   ...LISTING_TYPE_LABEL,
+  // Benzersiz kodlar — aile eşleşmese de (ör. firma detayı) çevrilir.
+  ...APPROVAL_TYPE_LABEL,
+  ...ADDRESS_TYPE_LABEL,
+  DISMISSED: "Reddedildi",
+  RESOLVED: "Çözüldü",
+  PASSIVE: "Pasif",
 };
 
 function valueDict(action: string): Record<string, string>[] {
+  // Onay akışı ailesi önce: DRAFT/ACTIVE/PASSIVE akış durumudur, ilan durumu
+  // değil (eskiden "sonra: ACTIVE · önce: Taslak" yarım çevriliyordu).
+  if (/\.approval/.test(action)) return [APPROVAL_VALUES, LISTING_VALUES, GENERIC_VALUES];
+  if (/complaint/.test(action)) return [COMPLAINT_VALUES, GENERIC_VALUES];
+  if (/\.connection\./.test(action)) return [CONNECTION_VALUES, GENERIC_VALUES];
+  if (/\.address\./.test(action)) return [ADDRESS_TYPE_LABEL, GENERIC_VALUES];
   if (/\.order\./.test(action)) return [ORDER_VALUES, GENERIC_VALUES];
   if (/\.bid/.test(action)) return [BID_VALUES, LISTING_VALUES, GENERIC_VALUES];
   if (/\.listing/.test(action)) return [LISTING_VALUES, GENERIC_VALUES];
@@ -413,6 +495,11 @@ function formatValue(
     if (key === "reason" && LOGIN_FAIL_REASON_LABEL[v]) return LOGIN_FAIL_REASON_LABEL[v];
     const byKey = VALUE_BY_KEY[key]?.[v];
     if (byKey) return byKey;
+    // İzin kodu ("sell:bid:submit") hangi anahtarda olursa olsun (izinler,
+    // önce/sonra, eklenen/çıkarılan, gerekli yetki) etiketiyle yazılır.
+    const perm = v.includes(":") ? COMPANY_PERMISSION_LABEL[v] : undefined;
+    if (perm) return perm;
+    if (COUNTRY_KEYS.has(key) && /^[A-Z]{2}$/.test(v)) return countryName(v);
     const date = formatDateValue(key, v);
     if (date) return date;
     if (/^[A-Z][A-Z0-9_]*$/.test(v)) {

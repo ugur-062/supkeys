@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { safeFormat } from "../date";
 import {
@@ -6,6 +8,7 @@ import {
   formatAuditMetadata,
   LOGIN_FAIL_REASON_LABEL,
 } from "../audit-format";
+import { COMPANY_PERMISSION_LABEL } from "../terms";
 
 /** Denetim satırı biçimleyicisi (arayüz testi O-047, D-016, D-019). */
 describe("audit-format", () => {
@@ -201,6 +204,140 @@ describe("audit-format", () => {
         return out !== "" && out.startsWith(`${k}:`);
       });
       expect(raw).toEqual([]);
+    });
+  });
+
+  // Son tur (webC-4): 143 eylemlik taramada kalan ham enum/anahtar örnekleri.
+  describe("son tur webC-4 — kalan ham kodlar", () => {
+    it("şikayet, bağlantı, görünürlük ve adres türü değerleri Türkçe", () => {
+      expect(
+        formatAuditMetadata("admin.complaint.resolved", { status: "DISMISSED", suspend: false }),
+      ).toBe("durum: Reddedildi · askı: hayır");
+      expect(
+        formatAuditMetadata("company.connection.auto_created", {
+          inviterCompanyId: "c1",
+          origin: "INVITE",
+          status: "PENDING",
+        }),
+      ).toBe("kaynak: Davet · durum: Bekliyor");
+      expect(
+        formatAuditMetadata("company.listing.published", {
+          listingType: "ALIM",
+          from: "DRAFT",
+          to: "OPEN",
+          visibility: "PUBLIC",
+        }),
+      ).toBe("ilan türü: Alım talebi · önce: Taslak · sonra: Açık · görünürlük: Herkese açık");
+      const addr = formatAuditMetadata("company.address.created", {
+        type: "TESLIMAT",
+        title: "Depo",
+        country: "TR",
+        isDefault: false,
+      });
+      expect(addr).toBe("tür: Teslimat · başlık: Depo · ülke: Türkiye · varsayılan: hayır");
+    });
+
+    it("onay akışı tür ve durumu tek satırda tutarlı çevrilir (yarım çeviri yok)", () => {
+      expect(
+        formatAuditMetadata("company.approval_flow.status_changed", {
+          from: "DRAFT",
+          to: "ACTIVE",
+          type: "LISTING_AWARD",
+          listingType: "ALIM",
+        }),
+      ).toBe("önce: Taslak · sonra: Aktif · tür: Kazandırma onayı · ilan türü: Alım talebi");
+      expect(
+        formatAuditMetadata("company.approval_flow.deleted", {
+          type: "LISTING_AWARD",
+          statusBefore: "PASSIVE",
+        }),
+      ).toBe("tür: Kazandırma onayı · önceki durum: Pasif");
+      expect(
+        formatAuditMetadata("company.approval.approved", {
+          type: "LISTING_PUBLISH",
+          listingId: "l1",
+          isFinal: true,
+        }),
+      ).toBe("tür: Talep yayını onayı · son adım: evet");
+    });
+
+    it("izin kodları her anahtarda etiketli; profil alanı Türkçe", () => {
+      const s = formatAuditMetadata("company.user.permissions_changed", {
+        before: ["buy:view", "templates:manage"],
+        after: ["sell:bid:submit"],
+        added: ["sell:bid:submit"],
+        removed: ["buy:view", "templates:manage"],
+        rolesBefore: ["YONETICI"],
+        rolesAfter: ["SATISCI"],
+      });
+      expect(s).toBe(
+        "önce: Satınalma görüntüleme, Şablonlar · sonra: Teklif verme · eklenen: Teklif verme · " +
+          "çıkarılan: Satınalma görüntüleme, Şablonlar · önceki roller: Yönetici · yeni roller: Satışçı",
+      );
+      expect(s).not.toMatch(/[a-z]+:[a-z]+/);
+      expect(
+        formatAuditMetadata("company.listing.manage_denied", {
+          needed: "buy:listing:manage",
+          reason: "not_creator",
+        }),
+      ).toBe("gerekli yetki: Talep açma ve yönetme · gerekçe: Talebi açan kişi değil");
+      expect(
+        formatAuditMetadata("company.user.profile_updated", { changedFields: ["firstName", "lastName", "phone"] }),
+      ).toBe("değişen alanlar: ad, soyad, telefon");
+    });
+
+    it("iç içe sayım nesneleri, e-posta şablonu, zaman tasarrufu ve tur aktarımı", () => {
+      expect(
+        formatAuditMetadata("admin.company.exported", {
+          rothernId: "76VR-K0A5",
+          rowCounts: { users: 2, listings: 0, adminNotes: 1, ordersAsBuyer: 0 },
+        }),
+      ).toBe(
+        "Rothern kodu: 76VR-K0A5 · kayıt sayıları: (kullanıcı: 2 · ilan: 0 · admin notu: 1 · alım siparişi: 0)",
+      );
+      expect(
+        formatAuditMetadata("admin.company.anonymized", {
+          retainedBecause: { membershipEvents: 1, complaintsReceived: 2 },
+        }),
+      ).toBe("saklama nedeni: (üyelik kaydı: 1 · hakkındaki şikayet: 2)");
+      expect(formatAuditMetadata("email.resent", { template: "suppression_clear", sent: false })).toBe(
+        "şablon: Engel kaldırma (iç kayıt) · gönderilen: hayır",
+      );
+      expect(
+        formatAuditMetadata("admin.system.time_savings_config_updated", {
+          poPrepMin: 10,
+          approvalLoopMin: 20,
+          hourlyLaborCost: null,
+        }),
+      ).toBe("PO hazırlama (dk): 10 · onay döngüsü (dk): 20");
+      expect(
+        formatAuditMetadata("company.listing.next_round_created", { carryBids: "NONE" }),
+      ).toBe("teklif aktarımı: Aktarılmaz");
+      expect(
+        formatAuditMetadata("company.user.roles_changed", { droppedGroups: ["buy", "sell"] }),
+      ).toBe("kapanan alanlar: satınalma, satış");
+    });
+
+    it("izin etiket aynası @rothern/shared kataloğuyla birebir", () => {
+      const src = readFileSync(
+        path.resolve(__dirname, "../../../../../packages/shared/src/constants/company-permissions.ts"),
+        "utf8",
+      );
+      const catalog = src.slice(
+        src.indexOf("COMPANY_PERMISSION_CATALOG"),
+        src.indexOf("] as const;", src.indexOf("COMPANY_PERMISSION_CATALOG")),
+      );
+      const pairs = [...catalog.matchAll(/key:\s*"([a-z:]+)",\s*label:\s*"([^"]+)"/g)].map((m) => [
+        m[1],
+        m[2],
+      ]);
+      expect(pairs.length).toBeGreaterThanOrEqual(15);
+      for (const [k, label] of pairs) expect(COMPANY_PERMISSION_LABEL[k]).toBe(label);
+      const ownerOnly = src.slice(src.indexOf("OWNER_ONLY_PERMISSIONS"));
+      for (const m of ownerOnly.slice(0, ownerOnly.indexOf("] as const")).matchAll(/"([a-z:]+)"/g)) {
+        expect(COMPANY_PERMISSION_LABEL).toHaveProperty([m[1]]);
+      }
+      expect(Object.keys(COMPANY_PERMISSION_LABEL)).toHaveLength(pairs.length + 3);
     });
   });
 });

@@ -68,6 +68,38 @@ export const COMPANY_ROLE_LABEL: Record<string, string> = {
   ONAYLAYICI: "Onaylayıcı",
 };
 
+// ── Firma içi izinler ──
+/**
+ * `@rothern/shared` `COMPANY_PERMISSION_CATALOG` + `OWNER_ONLY_PERMISSIONS`
+ * etiket AYNASI (admin paylaşılan pakete bağlı değil). Denetim kaydında izin
+ * listeleri ham kod ("buy:view, sell:bid:submit") basıyordu (arayüz testi son
+ * tur webC-4). Nöbetçi test katalogla birebirliği denetler.
+ */
+export const COMPANY_PERMISSION_LABEL: Record<string, string> = {
+  "buy:view": "Satınalma görüntüleme",
+  "buy:listing:manage": "Talep açma ve yönetme",
+  "buy:award": "Kazandırma",
+  "buy:order:manage": "Alım siparişi işlemleri",
+  "buy:inquiry:send": "Bilgi talebi gönderme",
+  "buy:reports:view": "Satınalma raporları",
+  "sell:view": "Satış görüntüleme",
+  "sell:bid:submit": "Teklif verme",
+  "sell:order:manage": "Satış siparişi işlemleri",
+  "sell:product:manage": "Ürün ve vitrin yönetimi",
+  "sell:inquiry:reply": "Bilgi taleplerini yanıtlama",
+  "approval:act": "Onaylama",
+  "approvals:manage": "Onay akışı tanımlama",
+  "company:manage": "Firma profili ve ayarlar",
+  "users:manage": "Kullanıcı ve yetki",
+  "connections:manage": "Bağlantılar, engelleme ve şikayet",
+  "templates:manage": "Şablonlar",
+  "addresses:manage": "Adres defteri",
+  "insights:view": "Ziyaret edenler ve iş analizi",
+  "billing:manage": "Faturalama (Kurucu)",
+  "company:delete": "Firmayı silme (Kurucu)",
+  "ownership:transfer": "Kurucu devri (Kurucu)",
+};
+
 // ── Belge inceleme durumu ──
 export const DOC_STATUS_META: Record<
   string,

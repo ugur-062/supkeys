@@ -423,13 +423,61 @@ describe("ProductShowcaseForm — eksik kademe taslak kaydında", () => {
       { minQty: 200, unitPrice: Number.NaN },
     ]);
     expect(body.priceTiers).toEqual([{ minQty: 100, unitPrice: 12.5 }]);
-    expect(toast.success).toHaveBeenCalledWith("Ürün taslak olarak eklendi");
-    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("1 eksik kademe kaydedilmedi"));
+    // Son tur webC-4: ayrı uyarı toast'ı başarı toast'ının ARKASINA yığılıp
+    // okunmuyordu — not artık TEK sonuç toast'ının açıklaması (öne çıkar).
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(toast.warning).toHaveBeenCalledWith("Ürün taslak olarak eklendi", {
+      description: expect.stringContaining("1 eksik kademe kaydedilmedi"),
+      duration: 8000,
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("düzenlemede de eksik satır formdan çıkarılır — not formla tutarlı (son tur webC-4)", async () => {
+    const product: ProductShowcase = {
+      ...EMPTY,
+      id: "p1",
+      name: "Vida",
+      priceMode: "TIERED",
+      priceTiers: [
+        { minQty: 100, unitPrice: 12.5 },
+        { minQty: 500, unitPrice: Number.NaN },
+      ],
+    };
+    h.patch.mockResolvedValue({
+      data: { ...product, priceTiers: [{ minQty: 100, unitPrice: 12.5 }] },
+    });
+    const onSaved = vi.fn();
+    const user = userEvent.setup();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <ProductShowcaseForm product={product} unit="adet" onClose={vi.fn()} onSaved={onSaved} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getAllByLabelText(/kademe: başlangıç miktarı/)).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: "Diğer işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Taslak olarak kaydet" }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const body = h.patch.mock.calls.find(([u]) => String(u).includes("/showcase"))![1] as {
+      priceTiers: unknown[];
+    };
+    expect(body.priceTiers).toEqual([{ minQty: 100, unitPrice: 12.5 }]);
+    // Satır formda KALMAZ (eskiden kalıyordu, not "formdan çıkarıldı" derken).
+    await waitFor(() =>
+      expect(screen.getAllByLabelText(/kademe: başlangıç miktarı/)).toHaveLength(1),
+    );
+    expect(toast.warning).toHaveBeenCalledWith("Taslak kaydedildi", {
+      description: expect.stringContaining("formdan çıkarıldı"),
+      duration: 8000,
+    });
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("tüm kademeler tamamsa uyarı yok", async () => {
     const body = await draftSave([{ minQty: 100, unitPrice: 12.5 }]);
     expect(body.priceTiers).toHaveLength(1);
     expect(toast.warning).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith("Ürün taslak olarak eklendi");
   });
 });
