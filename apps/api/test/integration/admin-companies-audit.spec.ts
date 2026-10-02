@@ -55,6 +55,23 @@ describe("Admin aksiyonları audit'lenir", () => {
     });
     expect(row).not.toBeNull();
     expect(row!.actorId).toBe("admin-9");
+    expect(row!.metadata).toMatchObject({ tier: "GOLD", from: "STANDART", months: 12 });
+  });
+
+  // Arayüz testi son tur api-2: paket kaldırma denetim satırı önceki hibenin
+  // ayını ("ay: 12") taşımaz — kaldırmada ay verilmez.
+  it("setTier STANDART (paket kaldırma) → metadata months taşımaz", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await service.setTier(co.company.id, "GOLD", 12, "admin-9");
+    await service.setTier(co.company.id, "STANDART", 12, "admin-9");
+    const rows = await prisma.auditLog.findMany({
+      where: { action: "admin.company.tier_set", entityId: co.company.id },
+      orderBy: { createdAt: "asc" },
+    });
+    const revoke = rows.find((r) => (r.metadata as { tier?: string }).tier === "STANDART");
+    expect(revoke).toBeDefined();
+    expect(revoke!.metadata).toMatchObject({ tier: "STANDART", from: "GOLD", months: null });
   });
 
   // Arayüz testi D-192 yeniden doğrulama: paket değişimi herkese açık firma ve

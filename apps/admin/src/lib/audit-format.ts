@@ -474,5 +474,11 @@ export function formatAuditMetadata(
   metadata: Record<string, unknown> | null | undefined,
 ): string {
   if (!metadata || typeof metadata !== "object") return "";
+  // Paket kaldırma (tier_set → STANDART) ay vermez; eski kayıtlar önceki
+  // hibenin "months: 12"sini taşıyordu (arayüz testi son tur api-2) — gizlenir.
+  if (action === "admin.company.tier_set" && metadata.tier === "STANDART" && "months" in metadata) {
+    const { months: _months, ...rest } = metadata;
+    return formatPairs(rest, valueDict(action), 0);
+  }
   return formatPairs(metadata, valueDict(action), 0);
 }

@@ -33,6 +33,10 @@ describe("audit-format", () => {
     expect(formatAuditMetadata("admin.company.tier_set", { tier: "GOLD", from: "STANDART" })).toBe(
       "paket: Gold · önce: Standart",
     );
+    // Paket kaldırma satırı ay göstermez (eski kayıt months: 12 taşısa da).
+    expect(
+      formatAuditMetadata("admin.company.tier_set", { from: "GOLD", tier: "STANDART", months: 12 }),
+    ).toBe("önce: Gold · paket: Standart");
   });
 
   it("portal, giriş hatası, mantıksal ve iç içe değerler; bilinmeyen ham kalır", () => {

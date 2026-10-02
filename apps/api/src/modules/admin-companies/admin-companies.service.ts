@@ -2010,7 +2010,10 @@ export class AdminCompaniesService {
       actorId: adminId ?? null,
       entityType: "company",
       entityId: id,
-      metadata: { tier, from: before.tier, months: months ?? 12 },
+      // Paket kaldırmada (STANDART) ay verilmez — eski "ay: 12" denetim
+      // satırında kaldırmayı bir yıllık hibe gibi okutuyordu (arayüz testi
+      // son tur api-2). Olay tablosundaki REVOKE ile aynı: months yok.
+      metadata: { tier, from: before.tier, months: tier !== "STANDART" ? (months ?? 12) : null },
       // #10: para/yetki aksiyonu — audit yazımı düşerse alarm.
       critical: true,
     });
