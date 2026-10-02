@@ -79,6 +79,8 @@ export interface CompanyOrder {
   // rozeti/KPI status yerine bunu kullanır. paymentDueDate = vade (varsa).
   paymentSettled?: boolean;
   paymentDueDate?: string | null;
+  /** Beklenen teslim tarihi (liste `?due=overdue` süzgeci, O-035). */
+  expectedDeliveryDate?: string | null;
   createdAt: string;
   items?: CompanyOrderItemRow[];
   /** Liste rozet/adım etiketi teslim şekline göre uyarlanır (sellerShipsGoods). */

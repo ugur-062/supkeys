@@ -21,6 +21,7 @@ import { SELLER_MARKET } from "@/lib/company/panel-market";
 import { HomeCompanyList } from "@/components/dashboard/home-company-list";
 import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
 import { useEffect, useMemo, useState } from "react";
+import { useScrollToHash } from "@/hooks/use-scroll-to-hash";
 
 /**
  * Satış panosu. Sıra yukarıdan aşağı:
@@ -71,8 +72,17 @@ export function SatisDashboardView() {
   const [scope, setScopeState] = useState<"products" | "suppliers">("products");
   useEffect(() => {
     const saved = readHeroScope("satis");
-    if (saved) setScopeState(saved);
+    // `#acik-talepler` bağlantısı açık talepleri ister: kayıtlı "Firma"
+    // kapsamı listeyi gizleyip bağlantıyı boşa düşürmesin.
+    if (saved && !(saved === "suppliers" && window.location.hash === "#acik-talepler")) {
+      setScopeState(saved);
+    }
   }, []);
+  // `/company/satis#acik-talepler` (Şirketim KPI'ları, bekleyen işler, boş
+  // durum CTA'ları): bölüm verisi istemcide geldiği için tarayıcının/Next'in
+  // çapa kaydırması ilk boyamada bölümü bulamıyor ya da düzen oturmadan
+  // kaydırıyordu (webC-04 yeniden doğrulama) → liste gelince bir kez kaydır.
+  useScrollToHash(!!tenders.data || tenders.isError);
   const setScope = (s: "products" | "suppliers") => {
     setScopeState(s);
     writeHeroScope("satis", s);

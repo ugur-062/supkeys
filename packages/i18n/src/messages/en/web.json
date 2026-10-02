@@ -2489,7 +2489,8 @@
         "odenmemisSiparisBakiyesiCur": "unpaid order balance · in {currency}",
         "onumuzdeki30GununOdemeYukuCur": "Payment load for the next 30 days (weekly, in {currency})",
         "hedefFiyataGoreCur": "vs. target price · in {currency}",
-        "analitikAlinamadi": "Chart data could not be loaded"
+        "analitikAlinamadi": "Chart data could not be loaded",
+        "saatAlti": "<1 hour"
       },
       "satisChartTabs": {
         "gelirTrendi": "Revenue trend",
@@ -2838,7 +2839,12 @@
           "m6": "Last 6 months",
           "m12": "Last 12 months",
           "all": "All"
-        }
+        },
+        "closingFilter": {
+          "nobids": "No quotes, closing within 3 days",
+          "soon": "Has quotes, closing within 2 days"
+        },
+        "bidsFilter": "Has quotes"
       },
       "tenderActionsMenu": {
         "taslagiSil": "Delete draft",
@@ -4712,7 +4718,10 @@
           "COMPLETE": "Completed",
           "PREPARE": "Preparation"
         },
-        "odemeBekliyor": "Awaiting payment"
+        "odemeBekliyor": "Awaiting payment",
+        "dueFilter": {
+          "overdue": "Past delivery date"
+        }
       },
       "lockedRequestsCard": {
         "silverIleAcilacakAcikTalep": "{total, plural, one {# open request} other {# open requests}} unlocked with Silver",

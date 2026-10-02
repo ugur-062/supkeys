@@ -52,4 +52,16 @@ describe("CycleTrendChart — birim ve tooltip katalogdan", () => {
     expect(screen.getByTestId("tooltip").textContent).toBe("12 saat | Ortalama");
     expect(document.body.textContent).not.toMatch(/\{n\}|satinalmaIhaleTab/);
   });
+
+  it("3 noktadan az + ortalama 1 saatin altında: '<1 saat' yazar, '0 saat' değil (webC-04 yeniden doğrulama)", () => {
+    // ~5 dk ve ~10 dk → ortalama ~7,5 dk = 0,005 gün.
+    render(<CycleTrendChart points={pts([0.0035, 0.007])} />);
+    expect(screen.getByText("<1 saat")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\b0 saat/);
+  });
+
+  it("3 noktadan az + 1 saatin üstü: saat sayısı yuvarlanarak yazılır", () => {
+    render(<CycleTrendChart points={pts([0.25, 0.25])} />);
+    expect(screen.getByText("6 saat")).toBeInTheDocument();
+  });
 });

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { OWNER_VISIBLE_BID_STATUSES } from "../../common/company/bid-items";
 import { inquiryNotFromBlockedWhere } from "../public-inquiry/public-inquiry.service";
 
 /**
@@ -101,8 +102,12 @@ export class ActionCenterService {
           where: { companyId, type: "ALIM", status: "OPEN" },
           select: {
             closesAt: true,
+            // Teklif varlığı Taleplerim listesinin `bidCount`'uyla AYNI
+            // kümeden (sahibin gördüğü teklifler): geri çekilen teklif
+            // "teklifli" saymaz — satırın bağlandığı `?closing=` süzgeci
+            // listeyle aynı sayıyı versin (arayüz testi O-035).
             bids: {
-              where: { status: { not: "DRAFT" } },
+              where: { status: { in: [...OWNER_VISIBLE_BID_STATUSES] } },
               select: { id: true },
               take: 1,
             },

@@ -573,7 +573,11 @@ export function CycleTrendChart({
   // prod'da ham ICU metni basılıyordu, "saat"/"Ortalama" sabit Türkçeydi).
   const unit = useHours ? t("birimSaat") : t("birimGun");
   const formatValue = (v: unknown) =>
-    useHours ? t("saat", { n: Number(v ?? 0) }) : t("gun", { n: Number(v ?? 0) });
+    useHours
+      ? Number(v ?? 0) < 1
+        ? t("saatAlti")
+        : t("saat", { n: Number(v ?? 0) })
+      : t("gun", { n: Number(v ?? 0) });
 
   return (
     <div>
@@ -602,11 +606,20 @@ export function CycleTrendChart({
   );
 }
 
-/** < 1 gün ortalamayı saate çevirerek yazar ("14 saat" / "1,4 gün") — dil bilen hook. */
+/**
+ * < 1 gün ortalamayı saate çevirerek yazar ("14 saat" / "1,4 gün") — dil bilen
+ * hook. 1 saatin altı "<1 saat": yuvarlanmış "0 saat" süre yokmuş gibi
+ * okunuyordu (arayüz testi O-041'in İş Analizi kuralı; webC-04 yeniden
+ * doğrulama).
+ */
 function useFormatDaysOrHours(): (days: number) => string {
   const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
   const locale = useLocale();
-  return (days) => (days < 1 ? t("saat", { n: Math.round(days * 24) }) : t("gun", { n: days.toLocaleString(locale, { maximumFractionDigits: 1 }) }));
+  return (days) => {
+    if (days >= 1) return t("gun", { n: days.toLocaleString(locale, { maximumFractionDigits: 1 }) });
+    const hours = Math.round(days * 24);
+    return hours < 1 ? t("saatAlti") : t("saat", { n: hours });
+  };
 }
 
 // Dalga B-2: yerel `formatDate` KALDIRILDI — paylaşılan formatDate'i

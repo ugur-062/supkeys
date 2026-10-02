@@ -20,7 +20,7 @@ import { useOrders } from "@/hooks/use-company-orders";
 import { useVisitors } from "@/hooks/use-company-views";
 import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import { selectActiveOrders } from "@/lib/company/kpi-selectors";
-import { BUYER_ORDER_HREF } from "@/lib/dashboard/strings";
+import { BUYER_ORDER_HREF, BUYER_TENDER_HREF, SELLER_ORDER_HREF } from "@/lib/dashboard/strings";
 import { COMPANY_AREA_BASE, accessiblePortals, type PortalKey } from "@/lib/company/portals";
 import { userHasPermission } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
@@ -199,9 +199,9 @@ export function CompanyOverview() {
             <KpiRow label={t("satinalma")} tone="blue">
               {ihale.data ? (
                 <>
-                  <KpiCard label={t("acikTaleplerim")} value={ihale.data.openCount} href="/company/satinalma/taleplerim?status=OPEN" accent="blue" />
-                  <KpiCard label={t("gelenTeklifler")} value={ihale.data.bidsReceived} href="/company/satinalma/taleplerim?status=OPEN" accent="blue" />
-                  <KpiCard label={t("kazandirilan")} value={ihale.data.awarded} href="/company/satinalma/taleplerim?status=AWARDED" accent="blue" />
+                  <KpiCard label={t("acikTaleplerim")} value={ihale.data.openCount} href={BUYER_TENDER_HREF.open} accent="blue" />
+                  <KpiCard label={t("gelenTeklifler")} value={ihale.data.bidsReceived} href={BUYER_TENDER_HREF.bidsReceived} accent="blue" />
+                  <KpiCard label={t("kazandirilan")} value={ihale.data.awarded} href={BUYER_TENDER_HREF.awarded} accent="blue" />
                   <KpiCard label={t("devamEdenSiparis")} value={ihale.data.ongoingOrders} href={BUYER_ORDER_HREF.ongoing} accent="blue" />
                   <KpiCard
                     label={t("tasarruf")}
@@ -234,7 +234,7 @@ export function CompanyOverview() {
                   />
                   <KpiCard label={t("aktifTekliflerim")} value={bids.data.counts.active} href={MY_BIDS_PENDING_KPI_HREF} accent="emerald" deltaPct={stAnalytics.data?.deltas.bidsSubmitted} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.bidsSubmitted} />
                   <KpiCard label={t("kazandigimIsler")} value={bids.data.counts.won} href={MY_BIDS_WON_KPI_HREF} accent="emerald" hint={t("kismiKazanimDahil")} spark={stAnalytics.data?.kpiSeries.won} />
-                  <KpiCard label={t("aktifSiparis")} value={selectActiveOrders(orders.data, "seller").length} href="/company/satis/siparisler" accent="emerald" deltaPct={stAnalytics.data?.deltas.orders} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.orders} />
+                  <KpiCard label={t("aktifSiparis")} value={selectActiveOrders(orders.data, "seller").length} href={SELLER_ORDER_HREF.active} accent="emerald" deltaPct={stAnalytics.data?.deltas.orders} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.orders} />
                   <KpiCard
                     label={t("gelir")}
                     value={revenue != null ? formatCompactMoney(revenue, stCurrency) : "—"}

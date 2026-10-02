@@ -68,6 +68,8 @@ describe("parseTendersUrl / writeTendersUrl (O-052)", () => {
     expect(st).toEqual({
       q: "boru",
       status: ["AWARDED"],
+      closing: null,
+      bids: false,
       sort: "createdAt:desc",
       range: "30d",
       scope: "open",
@@ -83,6 +85,52 @@ describe("parseTendersUrl / writeTendersUrl (O-052)", () => {
       page: 1,
     });
     expect(out.toString()).toBe("from=kpi&status=AWARDED");
+  });
+});
+
+describe("IhalelerView — Şirketim türetilmiş kümeleri (arayüz testi O-035, yeniden doğrulama)", () => {
+  const inH = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
+  const tender = (id: string, title: string, status: string, bidCount: number, closesInH: number) =>
+    ({ ...row(id, title, status), bidCount, bidsCloseAt: inH(closesInH) }) as TenderListItem;
+
+  beforeEach(() => {
+    h.rows = [
+      tender("1", "Teklifsiz yarın", "OPEN", 0, 24),
+      tender("2", "Teklifsiz 60 saat", "OPEN", 0, 60),
+      tender("3", "Teklifsiz 5 gün", "OPEN", 0, 120),
+      tender("4", "Teklifli yarın", "OPEN", 2, 24),
+      tender("5", "Teklifli 60 saat", "OPEN", 1, 60),
+      tender("6", "Kapandı teklifli", "AWARDED", 3, -24),
+    ];
+  });
+
+  it("?closing=nobids: teklifsiz ve 3 gün içinde kapanan açık talepler", () => {
+    window.history.replaceState(null, "", "/company/satinalma/taleplerim?closing=nobids");
+    render(<IhalelerView />);
+    expect(screen.getByText("Teklifsiz yarın")).toBeInTheDocument();
+    expect(screen.getByText("Teklifsiz 60 saat")).toBeInTheDocument();
+    for (const t of ["Teklifsiz 5 gün", "Teklifli yarın", "Teklifli 60 saat", "Kapandı teklifli"]) {
+      expect(screen.queryByText(t)).toBeNull();
+    }
+  });
+
+  it("?closing=soon: teklifli ve 2 gün içinde kapanan açık talepler; çipten kaldırılır", async () => {
+    window.history.replaceState(null, "", "/company/satinalma/taleplerim?closing=soon");
+    render(<IhalelerView />);
+    expect(screen.getByText("Teklifli yarın")).toBeInTheDocument();
+    for (const t of ["Teklifli 60 saat", "Teklifsiz yarın", "Kapandı teklifli"]) expect(screen.queryByText(t)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Teklifli, 2 gün içinde kapanıyor/ }));
+    expect(screen.getByText("Teklifsiz 5 gün")).toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).not.toContain("closing"));
+  });
+
+  it("?status=OPEN&bids=1 ('Gelen Teklifler'): teklif gelmiş açık talepler — 'Açık Taleplerim'den ayrı küme", () => {
+    window.history.replaceState(null, "", "/company/satinalma/taleplerim?status=OPEN&bids=1");
+    render(<IhalelerView />);
+    expect(screen.getByText("Teklifli yarın")).toBeInTheDocument();
+    expect(screen.getByText("Teklifli 60 saat")).toBeInTheDocument();
+    for (const t of ["Teklifsiz yarın", "Kapandı teklifli"]) expect(screen.queryByText(t)).toBeNull();
   });
 });
 

@@ -95,7 +95,9 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
   }),
 }));
 vi.mock("@/components/company/seller-tenders-view", () => ({
-  SellerTendersView: ({ banner }: { banner?: React.ReactNode }) => <div data-testid="seller-tenders">{banner}</div>,
+  SellerTendersView: ({ banner }: { banner?: React.ReactNode }) => (
+    <div data-testid="seller-tenders" id="acik-talepler">{banner}</div>
+  ),
 }));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
@@ -277,5 +279,39 @@ describe("SatisDashboardView", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
     expect(screen.queryByText("Son Aktiviteler")).not.toBeInTheDocument();
+  });
+
+  it("#acik-talepler ile açılınca liste gelince bölüme kaydırır; kayıtlı 'Firma' kapsamı listeyi gizlemez (webC-04 yeniden doğrulama)", () => {
+    h.stats = fullStats();
+    const scroll = vi.fn();
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    sessionStorage.setItem("rothern.hero-scope:satis", "suppliers");
+    window.history.replaceState(null, "", "/company/satis#acik-talepler");
+    try {
+      render(<SatisDashboardView />);
+      expect(screen.getByTestId("seller-tenders")).toBeInTheDocument();
+      expect(screen.queryByTestId("company-list")).toBeNull();
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(scroll.mock.contexts[0]).toBe(document.getElementById("acik-talepler"));
+    } finally {
+      Element.prototype.scrollIntoView = orig;
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("çapasız açılışta kaydırmaz, kayıtlı 'Firma' kapsamı geri gelir", () => {
+    h.stats = fullStats();
+    const scroll = vi.fn();
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    sessionStorage.setItem("rothern.hero-scope:satis", "suppliers");
+    try {
+      render(<SatisDashboardView />);
+      expect(screen.getByTestId("company-list")).toBeInTheDocument();
+      expect(scroll).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollIntoView = orig;
+    }
   });
 });

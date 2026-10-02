@@ -284,7 +284,7 @@ describe("OrdersList — liste durumu adreste (arayüz testi D-011)", () => {
     const st = parseOrdersUrl((k) =>
       new URLSearchParams("status=PENDING,XX&sort=bogus&range=30d&page=3&cp=Acme&q=boru").get(k),
     );
-    expect(st).toEqual({ q: "boru", status: ["PENDING"], sort: "newest", range: "30d", cp: "Acme", page: 3 });
+    expect(st).toEqual({ q: "boru", status: ["PENDING"], due: null, sort: "newest", range: "30d", cp: "Acme", page: 3 });
     const out = writeOrdersUrl(new URLSearchParams("tab=x&page=9"), { ...st, page: 1, sort: "newest" });
     expect(out.get("tab")).toBe("x");
     expect(out.get("page")).toBeNull();
@@ -304,6 +304,47 @@ describe("OrdersList — liste durumu adreste (arayüz testi D-011)", () => {
       expect(u.searchParams.get("page")).toBe("2");
       expect(u.searchParams.get("status")).toBe("ACCEPTED");
     });
+  });
+});
+
+describe("OrdersList — '?due=overdue' teslim tarihi geçmiş kümesi (arayüz testi O-035, yeniden doğrulama)", () => {
+  const past = new Date(Date.now() - 5 * 86_400_000).toISOString();
+  const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
+
+  it("alıcı: yalnız teslim edilmemiş ve tarihi geçmiş siparişler; çip kaldırınca tümü", async () => {
+    h.orders.data = [
+      order({ status: "IN_DELIVERY", expectedDeliveryDate: past, listingTitle: "Gecikmiş kargo" }),
+      order({ status: "PENDING", expectedDeliveryDate: past, listingTitle: "Gecikmiş onay" }),
+      order({ status: "ACCEPTED", expectedDeliveryDate: future, listingTitle: "Zamanında" }),
+      order({ status: "COMPLETED", expectedDeliveryDate: past, listingTitle: "Teslim alındı" }),
+      order({ status: "ACCEPTED", expectedDeliveryDate: null, listingTitle: "Tarihsiz" }),
+    ];
+    h.sp = new URLSearchParams("due=overdue");
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Gecikmiş kargo")).toBeInTheDocument();
+    expect(screen.getByText("Gecikmiş onay")).toBeInTheDocument();
+    for (const t of ["Zamanında", "Teslim alındı", "Tarihsiz"]) expect(screen.queryByText(t)).toBeNull();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("due")).toBe("overdue"));
+
+    await userEvent.click(screen.getByRole("button", { name: /Teslim tarihi geçmiş/ }));
+    expect(screen.getByText("Zamanında")).toBeInTheDocument();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("due")).toBeNull());
+  });
+
+  it("satıcı: henüz kabul edilmemiş (PENDING) sipariş gecikmiş sayılmaz (Aksiyon Merkezi satırıyla aynı küme)", () => {
+    h.orders.data = [
+      order({ role: "seller", status: "PENDING", expectedDeliveryDate: past, listingTitle: "Kabul bekliyor" }),
+      order({ role: "seller", status: "ACCEPTED", expectedDeliveryDate: past, listingTitle: "Geciken" }),
+    ];
+    h.sp = new URLSearchParams("due=overdue");
+    render(<OrdersList role="seller" />);
+    expect(screen.getByText("Geciken")).toBeInTheDocument();
+    expect(screen.queryByText("Kabul bekliyor")).toBeNull();
+  });
+
+  it("parse: bilinmeyen değer süzgeç kurmaz", () => {
+    expect(parseOrdersUrl((k) => new URLSearchParams("due=bogus").get(k)).due).toBeNull();
+    expect(writeOrdersUrl(new URLSearchParams(), { ...parseOrdersUrl(() => null), due: "overdue" }).get("due")).toBe("overdue");
   });
 });
 

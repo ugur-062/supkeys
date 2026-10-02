@@ -2489,7 +2489,8 @@
         "odenmemisSiparisBakiyesiCur": "ödenmemiş sipariş bakiyesi · {currency} karşılığı",
         "onumuzdeki30GununOdemeYukuCur": "Önümüzdeki 30 günün ödeme yükü (haftalık, {currency} karşılığı)",
         "hedefFiyataGoreCur": "hedef fiyata göre · {currency} karşılığı",
-        "analitikAlinamadi": "Grafik verileri alınamadı"
+        "analitikAlinamadi": "Grafik verileri alınamadı",
+        "saatAlti": "<1 saat"
       },
       "satisChartTabs": {
         "gelirTrendi": "Gelir Trendi",
@@ -2838,7 +2839,12 @@
           "m6": "Son 6 Ay",
           "m12": "Son 1 Yıl",
           "all": "Tümü"
-        }
+        },
+        "closingFilter": {
+          "nobids": "Teklifsiz, 3 gün içinde kapanıyor",
+          "soon": "Teklifli, 2 gün içinde kapanıyor"
+        },
+        "bidsFilter": "Teklif gelmiş"
       },
       "tenderActionsMenu": {
         "taslagiSil": "Taslağı sil",
@@ -4712,7 +4718,10 @@
           "COMPLETE": "Tamamlandı",
           "PREPARE": "Hazırlık"
         },
-        "odemeBekliyor": "Ödeme bekliyor"
+        "odemeBekliyor": "Ödeme bekliyor",
+        "dueFilter": {
+          "overdue": "Teslim tarihi geçmiş"
+        }
       },
       "lockedRequestsCard": {
         "silverIleAcilacakAcikTalep": "Silver ile açılacak {total} açık talep",

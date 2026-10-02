@@ -318,9 +318,16 @@ export class DashboardAnalyticsService {
       const orderedListingIds = new Set(
         liveOrders.filter((o) => o.listingId).map((o) => o.listingId!),
       );
+      // "Teslim Edildi" = sipariş DELIVERED/COMPLETED — aşamanın bağlandığı
+      // liste süzgeciyle (`BUYER_ORDER_HREF.delivered`) AYNI küme. Teslimden
+      // sonra ihtilafa düşen (DISPUTED, deliveredAt dolu) sipariş başarılı
+      // teslim sayılmaz (arayüz testi webC-04 yeniden doğrulama: huni 51,
+      // liste 49).
       const deliveredListingIds = new Set(
         liveOrders
-          .filter((o) => o.listingId && (o.deliveredAt ?? o.completedAt))
+          .filter(
+            (o) => o.listingId && (o.status === "DELIVERED" || o.status === "COMPLETED"),
+          )
           .map((o) => o.listingId!),
       );
       const cohort = pListings;

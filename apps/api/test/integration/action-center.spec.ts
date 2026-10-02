@@ -64,6 +64,32 @@ describe("ActionCenterService (DB)", () => {
     expect(byKey.zeroBidClosingSoon?.count).not.toBe(2);
   });
 
+  it("geri çekilen teklif 'teklifli' saymaz: talep zeroBidClosingSoon'a düşer (Taleplerim bidCount ile aynı küme, O-035)", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "OPEN",
+      closesAt: new Date(Date.now() + DAY_MS),
+    });
+    const item = await makeItem(prisma, listing.id);
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      status: "WITHDRAWN",
+      amount: 500,
+      submittedAt: new Date(),
+      items: [{ itemId: item.id, unitPrice: 50 }],
+    });
+
+    const { rows } = await service.satinalma(buyer.company.id);
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
+    expect(byKey.zeroBidClosingSoon?.count).toBe(1);
+    expect(byKey.closingSoon).toBeUndefined();
+  });
+
   it("satış: teklifsiz açık davet unansweredInvites'a düşer, son gün kritik olur", async () => {
     const buyer = await makeCompanyWithUser(prisma, {});
     const seller = await makeCompanyWithUser(prisma, {});

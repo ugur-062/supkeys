@@ -2167,6 +2167,9 @@ export class CompanyOrdersService {
         listingId: true,
         createdAt: true,
         deliveredAt: true,
+        // Şirketim "teslim tarihi geçti" satırının süzgeci (`?due=overdue`,
+        // arayüz testi O-035) listede client-side bu alanla çalışır.
+        expectedDeliveryDate: true,
         deliveryTerm: true,
         paymentCategory: true,
         paymentDays: true,
@@ -2225,6 +2228,7 @@ export class CompanyOrdersService {
           (o.listingId ? localizedTitles.get(o.listingId) : undefined) ?? base.listingTitle,
         paymentSettled: this.isFullyPaid(new Prisma.Decimal(o.amount), confirmed),
         paymentDueDate: due ? due.toISOString() : null,
+        expectedDeliveryDate: o.expectedDeliveryDate ? o.expectedDeliveryDate.toISOString() : null,
       };
     });
   }

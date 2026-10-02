@@ -12,7 +12,8 @@
  * Hedef = satırın kümesine SÜZÜLMÜŞ liste (arayüz testi O-035): listeler
  * `?status=` (virgüllü çoklu) okur; durum kümesi `ActionCenterService`'teki
  * satır süzgeciyle aynı. Gecikme/kapanış yaklaşan gibi türetilmiş kümeler
- * için durum süzgeci en dar ÜST kümedir (listelerde tarih süzgeci yok).
+ * kendi parametresiyle süzülür (`?due=overdue`, `?closing=nobids|soon` —
+ * tanımlar `derived-filters.ts`'te, backend satırıyla birebir).
  */
 export const ACTION_ROWS: Record<
   "satinalma" | "satis",
@@ -25,15 +26,15 @@ export const ACTION_ROWS: Record<
     },
     overdueDeliveries: {
       textKey: "satinalma.overdueDeliveries",
-      href: "/company/satinalma/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY",
+      href: "/company/satinalma/siparisler?due=overdue",
     },
     zeroBidClosingSoon: {
       textKey: "satinalma.zeroBidClosingSoon",
-      href: "/company/satinalma/taleplerim?status=OPEN",
+      href: "/company/satinalma/taleplerim?closing=nobids",
     },
     closingSoon: {
       textKey: "satinalma.closingSoon",
-      href: "/company/satinalma/taleplerim?status=OPEN",
+      href: "/company/satinalma/taleplerim?closing=soon",
     },
     aiSuggestions: {
       textKey: "satinalma.aiSuggestions",
@@ -67,7 +68,7 @@ export const ACTION_ROWS: Record<
   satis: {
     overdueDeliveries: {
       textKey: "satis.overdueDeliveries",
-      href: "/company/satis/siparisler?status=ACCEPTED,IN_DELIVERY",
+      href: "/company/satis/siparisler?due=overdue",
     },
     unansweredInvites: {
       textKey: "satis.unansweredInvites",
@@ -109,4 +110,24 @@ export const ACTION_ROWS: Record<
 export const BUYER_ORDER_HREF = {
   delivered: "/company/satinalma/siparisler?status=DELIVERED,COMPLETED",
   ongoing: "/company/satinalma/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY,DELIVERED",
+} as const;
+
+/**
+ * Satış siparişi listesinin KPI hedefi — "Aktif Sipariş" sayısıyla AYNI küme
+ * (`kpi-selectors.ts` `ORDER_ACTIVE`; listede seçilemeyen eski CREATED
+ * dışarıda kalır). Eskiden süzgeçsiz listeye gidiyordu (O-035).
+ */
+export const SELLER_ORDER_HREF = {
+  active: "/company/satis/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY,DELIVERED",
+} as const;
+
+/**
+ * Taleplerim KPI hedefleri. "Gelen Teklifler" teklif SAYAR, hedefi teklif
+ * gelmiş açık talepler (`?status=OPEN&bids=1`) — "Açık Taleplerim"den ayrı
+ * küme (O-035; eskiden ikisi aynı adresteydi).
+ */
+export const BUYER_TENDER_HREF = {
+  open: "/company/satinalma/taleplerim?status=OPEN",
+  bidsReceived: "/company/satinalma/taleplerim?status=OPEN&bids=1",
+  awarded: "/company/satinalma/taleplerim?status=AWARDED",
 } as const;

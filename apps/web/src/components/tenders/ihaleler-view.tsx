@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useListingStatusLabel, useListingTerms, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS, PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
 import {
+  ActiveFilterChips,
   FilterMultiSelect,
   FilterSelect,
   PageHeader,
@@ -21,6 +22,12 @@ import {
 import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate, User as UserIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import {
+  matchesTenderClosing,
+  matchesTenderHasBids,
+  parseTenderClosing,
+  type TenderClosingFilter,
+} from "@/lib/dashboard/derived-filters";
 
 // Etiketler katalog anahtarı (`web.panel.requests.ihalelerView.sort.*` /
 // `.range.*`); çizim yerinde `tr(key)` ile çevrilir.
@@ -135,10 +142,14 @@ const SCOPE_VALUES: ScopeKey[] = ["all", "open", "limited"];
  * (`orders-list.tsx` `parseOrdersUrl`): yalnız listenin kendi anahtarları
  * okunur/yazılır, diğer parametreler korunur, varsayılanlar yazılmaz.
  * `status` aynı zamanda KPI drill-down girişidir (`?status=OPEN`, virgüllü çoklu).
+ * `closing=nobids|soon` ve `bids=1` Şirketim satır/KPI kümeleridir (O-035;
+ * tanım `derived-filters.ts`); menüde seçeneği yok, çipten kaldırılır.
  */
 export interface TendersUrlState {
   q: string;
   status: string[];
+  closing?: TenderClosingFilter | null;
+  bids?: boolean;
   sort: string;
   range: RangeKey;
   scope: ScopeKey;
@@ -156,6 +167,8 @@ export function parseTendersUrl(get: (key: string) => string | null): TendersUrl
     status: (get("status") ?? "")
       .split(",")
       .filter((v) => (STATUS_VALUES as string[]).includes(v)),
+    closing: parseTenderClosing(get("closing")),
+    bids: get("bids") === "1",
     sort: SORT_OPTIONS.some((o) => o.value === sort) ? sort : DEFAULT_SORT,
     range: RANGE_OPTIONS.some((o) => o.value === range) ? (range as RangeKey) : DEFAULT_RANGE,
     scope: (SCOPE_VALUES as string[]).includes(scope) ? (scope as ScopeKey) : "all",
@@ -172,6 +185,8 @@ export function writeTendersUrl(params: URLSearchParams, st: TendersUrlState): U
   };
   set("q", st.q || null);
   set("status", st.status.length > 0 ? st.status.join(",") : null);
+  set("closing", st.closing ?? null);
+  set("bids", st.bids ? "1" : null);
   set("sort", st.sort !== DEFAULT_SORT ? st.sort : null);
   set("range", st.range !== DEFAULT_RANGE ? st.range : null);
   set("scope", st.scope !== "all" ? st.scope : null);
@@ -196,6 +211,8 @@ export function IhalelerView() {
   const sp = useSearchParams();
   const [initial] = useState(() => parseTendersUrl((k) => sp?.get(k) ?? null));
   const [statuses, setStatuses] = useState<string[]>(initial.status);
+  const [closing, setClosing] = useState<TenderClosingFilter | null>(initial.closing ?? null);
+  const [hasBids, setHasBids] = useState(initial.bids ?? false);
   const [search, setSearch] = useState(initial.q);
   const [sort, setSort] = useState<string>(initial.sort);
   const [range, setRange] = useState<RangeKey>(initial.range);
@@ -212,6 +229,8 @@ export function IhalelerView() {
       const next = writeTendersUrl(u.searchParams, {
         q: search,
         status: statuses,
+        closing,
+        bids: hasBids,
         sort,
         range,
         scope,
@@ -224,7 +243,7 @@ export function IhalelerView() {
     } catch {
       /* adres yazılamadı — liste yine çalışır */
     }
-  }, [search, statuses, sort, range, scope, createdById, page]);
+  }, [search, statuses, closing, hasBids, sort, range, scope, createdById, page]);
 
   // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
   // "Tümü (N)" etiketi görünen listeyle aynı evreni saysın.
@@ -232,7 +251,10 @@ export function IhalelerView() {
     const days = RANGE_DAYS[range];
     const minDate = days ? Date.now() - days * 86_400_000 : null;
     const q = foldSearchText(search);
+    const now = Date.now();
     return all.filter((t) => {
+      if (!matchesTenderClosing(t, closing, now)) return false;
+      if (!matchesTenderHasBids(t, hasBids)) return false;
       if (createdById && t.createdById !== createdById) return false;
       if (scope !== "all" && ((t.targetCountries ?? []).length === 0) !== (scope === "open"))
         return false;
@@ -245,7 +267,7 @@ export function IhalelerView() {
         return false;
       return true;
     });
-  }, [all, createdById, scope, range, search]);
+  }, [all, closing, hasBids, createdById, scope, range, search]);
   const stats = useMemo(() => {
     const c: Record<string, number> = {};
     for (const t of facetRows) c[t.status] = (c[t.status] ?? 0) + 1;
@@ -275,8 +297,11 @@ export function IhalelerView() {
     const days = RANGE_DAYS[range];
     const minDate = days ? Date.now() - days * 86_400_000 : null;
     const q = foldSearchText(search);
+    const now = Date.now();
     const rows = all.filter((t) => {
       if (statuses.length > 0 && !statuses.includes(t.status)) return false;
+      if (!matchesTenderClosing(t, closing, now)) return false;
+      if (!matchesTenderHasBids(t, hasBids)) return false;
       if (createdById && t.createdById !== createdById) return false;
       if (scope !== "all" && ((t.targetCountries ?? []).length === 0) !== (scope === "open"))
         return false;
@@ -290,7 +315,7 @@ export function IhalelerView() {
       return true;
     });
     return sortTenderRows(rows, sort, Date.now());
-  }, [all, statuses, createdById, scope, range, search, sort]);
+  }, [all, statuses, closing, hasBids, createdById, scope, range, search, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -301,6 +326,8 @@ export function IhalelerView() {
   const isFiltered =
     Boolean(search) ||
     statuses.length > 0 ||
+    closing !== null ||
+    hasBids ||
     range !== DEFAULT_RANGE ||
     scope !== "all" ||
     Boolean(createdById);
@@ -315,6 +342,8 @@ export function IhalelerView() {
   const clearFilters = () => {
     setSearch("");
     setStatuses([]);
+    setClosing(null);
+    setHasBids(false);
     setRange(DEFAULT_RANGE);
     setScope("all");
     setCreatedById("");
@@ -432,6 +461,35 @@ export function IhalelerView() {
             className="ml-auto"
           />
         </div>
+        {/* Şirketim satır/KPI kümeleri (O-035): menüde seçeneği olmayan
+            türetilmiş süzgeçler görünür ve tek tıkla kaldırılabilir. */}
+        <ActiveFilterChips
+          filters={[
+            ...(closing
+              ? [
+                  {
+                    key: "closing",
+                    label: tr(closing === "nobids" ? "closingFilter.nobids" : "closingFilter.soon"),
+                    onRemove: () => reset(setClosing)(null),
+                  },
+                ]
+              : []),
+            ...(hasBids
+              ? [
+                  {
+                    key: "bids",
+                    label: tr("bidsFilter"),
+                    onRemove: () => reset(setHasBids)(false),
+                  },
+                ]
+              : []),
+          ]}
+          onClearAll={() => {
+            setClosing(null);
+            setHasBids(false);
+            setPage(1);
+          }}
+        />
       </div>
 
       {/* Tek görünüm: yoğun satır listesi (kart görünümü + görünüm anahtarı

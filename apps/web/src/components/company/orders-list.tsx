@@ -51,6 +51,11 @@ import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import {
+  matchesOrderDue,
+  parseOrderDue,
+  type OrderDueFilter,
+} from "@/lib/dashboard/derived-filters";
 
 const PAGE_SIZE = 12;
 
@@ -202,10 +207,13 @@ const RANGE_DAYS: Record<RangeKey, number | null> = {
  * basınca sayfa, süzgeç ve arama kaybolup 1. sayfaya dönülüyordu. Yalnız
  * listenin kendi anahtarları okunur/yazılır; diğer parametreler korunur.
  * `status` aynı zamanda KPI drill-down girişidir (`?status=DELIVERED`, virgüllü çoklu).
+ * `due=overdue` Şirketim "teslim tarihi geçti" satırının kümesidir (O-035;
+ * tanım `derived-filters.ts`); menüde seçeneği yok, çipten kaldırılır.
  */
 export interface OrdersUrlState {
   q: string;
   status: string[];
+  due?: OrderDueFilter | null;
   sort: string;
   range: RangeKey;
   cp: string;
@@ -221,6 +229,7 @@ export function parseOrdersUrl(get: (key: string) => string | null): OrdersUrlSt
     status: (get("status") ?? "")
       .split(",")
       .filter((v) => STATUS_FILTERS.some((s) => s.value === v)),
+    due: parseOrderDue(get("due")),
     sort: SORT_OPTIONS.some((o) => o.value === sort) ? sort : "newest",
     range: RANGE_OPTIONS.some((o) => o.value === range) ? (range as RangeKey) : "all",
     cp: get("cp") ?? "",
@@ -237,6 +246,7 @@ export function writeOrdersUrl(params: URLSearchParams, st: OrdersUrlState): URL
   };
   set("q", st.q || null);
   set("status", st.status.length > 0 ? st.status.join(",") : null);
+  set("due", st.due ?? null);
   set("sort", st.sort !== "newest" ? st.sort : null);
   set("range", st.range !== "all" ? st.range : null);
   set("cp", st.cp || null);
@@ -427,6 +437,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const [initial] = useState(() => parseOrdersUrl((k) => sp?.get(k) ?? null));
   const [search, setSearch] = useState(initial.q);
   const [status, setStatus] = useState<string[]>(initial.status);
+  const [due, setDue] = useState<OrderDueFilter | null>(initial.due ?? null);
   const [sort, setSort] = useState(initial.sort);
   const [range, setRange] = useState<RangeKey>(initial.range);
   const [counterparty, setCounterparty] = useState(initial.cp);
@@ -440,6 +451,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       const next = writeOrdersUrl(u.searchParams, {
         q: search,
         status,
+        due,
         sort,
         range,
         cp: counterparty,
@@ -451,7 +463,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     } catch {
       /* adres yazılamadı — liste yine çalışır */
     }
-  }, [search, status, sort, range, counterparty, page]);
+  }, [search, status, due, sort, range, counterparty, page]);
   const [view, setView] = useListView(
     isSeller ? "rothern-view-satislar" : "rothern-view-siparisler",
   );
@@ -479,8 +491,10 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     const days = RANGE_DAYS[range];
     const minDate = days ? Date.now() - days * 86_400_000 : null;
     const q = foldSearchText(search);
+    const now = Date.now();
     const rows = all.filter((o) => {
       if (status.length > 0 && !status.includes(o.status)) return false;
+      if (!matchesOrderDue(o, due, now)) return false;
       if (counterparty && o.counterparty !== counterparty) return false;
       if (minDate && new Date(o.createdAt).getTime() < minDate) return false;
       if (q && !matchesSearch(o, q)) return false;
@@ -497,11 +511,12 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }
     return out;
-  }, [all, status, counterparty, range, search, sort]);
+  }, [all, status, due, counterparty, range, search, sort]);
 
   const isFiltered =
     search !== "" ||
     status.length > 0 ||
+    due !== null ||
     range !== "all" ||
     counterparty !== "";
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -618,6 +633,15 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
               label: filterLabel(STATUS_FILTERS.find((f) => f.value === s), s),
               onRemove: () => reset(setStatus)(status.filter((x) => x !== s)),
             })),
+            ...(due
+              ? [
+                  {
+                    key: "due",
+                    label: t("dueFilter.overdue"),
+                    onRemove: () => reset(setDue)(null),
+                  },
+                ]
+              : []),
             ...(range !== "all"
               ? [
                   {
@@ -640,6 +664,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
           onClearAll={() => {
             setSearch("");
             setStatus([]);
+            setDue(null);
             setRange("all");
             setCounterparty("");
             setPage(1);
@@ -676,6 +701,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   onClick={() => {
                     setSearch("");
                     setStatus([]);
+                    setDue(null);
                     setRange("all");
                     setCounterparty("");
                     setPage(1);

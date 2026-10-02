@@ -181,6 +181,38 @@ describe("DashboardAnalyticsService (DB)", () => {
     }
   });
 
+  it("funnel 'Teslim Edildi' yalnız DELIVERED/COMPLETED siparişi sayar; teslimden sonra DISPUTED olan sayılmaz (liste süzgeciyle aynı küme)", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const mk = async (status: "COMPLETED" | "DISPUTED") => {
+      const l = await makeListing(prisma, {
+        companyId: buyer.company.id,
+        createdById: buyer.user.id,
+        status: "AWARDED",
+      });
+      await prisma.listing.update({ where: { id: l.id }, data: { awardedAt: new Date() } });
+      await prisma.companyOrder.create({
+        data: {
+          buyerCompanyId: buyer.company.id,
+          sellerCompanyId: seller.company.id,
+          listingId: l.id,
+          amount: 100,
+          currency: "TRY",
+          status,
+          deliveredAt: new Date(),
+          ...(status === "COMPLETED" ? { completedAt: new Date() } : {}),
+        },
+      });
+    };
+    await mk("COMPLETED");
+    await mk("DISPUTED");
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    const byKey = Object.fromEntries(sa.funnel.map((f) => [f.key, f.count]));
+    expect(byKey.orders).toBe(2);
+    expect(byKey.delivered).toBe(1);
+  });
+
   it("money bloğu (Faz 4 + 2026-09-27): TÜM siparişler rapor birimine (TR → TRY) çevrilip toplanır", async () => {
     setFxRates({ USD: 40 });
     const buyer = await makeCompanyWithUser(prisma, {});

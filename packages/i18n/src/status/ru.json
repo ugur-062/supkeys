@@ -23849,6 +23849,21 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.ihalelerView.bidsFilter": {
+    "hash": "113212816d",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.requests.ihalelerView.closingFilter.nobids": {
+    "hash": "2546ae3658",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.requests.ihalelerView.closingFilter.soon": {
+    "hash": "a5cbeaa9f1",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.requests.ihalelerView.durumFiltresi": {
     "hash": "044a0e877d",
     "status": "reviewed",
@@ -34104,6 +34119,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.shell.satinalmaIhaleTab.saatAlti": {
+    "hash": "bd89ab9c44",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.shell.satinalmaIhaleTab.saglikli": {
     "hash": "a6b2801a97",
     "status": "reviewed",
@@ -37113,6 +37133,11 @@
     "hash": "8161062e11",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.ordersList.dueFilter.overdue": {
+    "hash": "c0a4eba3d0",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.ordersList.durum": {
     "hash": "1f8de55f0c",

@@ -61,7 +61,7 @@ vi.mock("@/i18n/domain", async (orig) => ({
 import { MiniBars } from "@/components/company/ui/mini-bars";
 import { InsightsView } from "@/components/company/insights-view";
 import { VisitorsView } from "@/components/company/visitors-view";
-import { ACTION_ROWS, BUYER_ORDER_HREF } from "@/lib/dashboard/strings";
+import { ACTION_ROWS, BUYER_ORDER_HREF, BUYER_TENDER_HREF, SELLER_ORDER_HREF } from "@/lib/dashboard/strings";
 import { FunnelChart, KpiCard } from "../analytics-primitives";
 import { SatinalmaIhaleTab } from "../satinalma-ihale-tab";
 import { SatisGelirTab, SatisMusteriTab } from "../satis-chart-tabs";
@@ -74,6 +74,13 @@ beforeEach(() => {
 });
 
 describe("bağlantılar süzülmüş listeye (O-032, O-035)", () => {
+  it("KPI hedefleri: 'Gelen Teklifler' ≠ 'Açık Taleplerim'; satış 'Aktif Sipariş' süzülmüş liste", () => {
+    expect(BUYER_TENDER_HREF.open).toBe("/company/satinalma/taleplerim?status=OPEN");
+    expect(BUYER_TENDER_HREF.bidsReceived).toBe("/company/satinalma/taleplerim?status=OPEN&bids=1");
+    expect(BUYER_TENDER_HREF.bidsReceived).not.toBe(BUYER_TENDER_HREF.open);
+    expect(SELLER_ORDER_HREF.active).toBe("/company/satis/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY,DELIVERED");
+  });
+
   it("teslim edilmiş = DELIVERED + COMPLETED; devam eden = sayımın durumları", () => {
     expect(BUYER_ORDER_HREF.delivered).toBe("/company/satinalma/siparisler?status=DELIVERED,COMPLETED");
     expect(BUYER_ORDER_HREF.ongoing).toBe("/company/satinalma/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY,DELIVERED");
@@ -85,7 +92,11 @@ describe("bağlantılar süzülmüş listeye (O-032, O-035)", () => {
         if (/\/(siparisler|taleplerim)$/.test(row.href)) throw new Error(`${portal}.${key} süzgeçsiz: ${row.href}`);
       }
     }
-    expect(ACTION_ROWS.satinalma.overdueDeliveries!.href).toBe("/company/satinalma/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY");
+    // Türetilmiş kümeler kendi parametresiyle (yeniden doğrulama): üst küme değil.
+    expect(ACTION_ROWS.satinalma.overdueDeliveries!.href).toBe("/company/satinalma/siparisler?due=overdue");
+    expect(ACTION_ROWS.satis.overdueDeliveries!.href).toBe("/company/satis/siparisler?due=overdue");
+    expect(ACTION_ROWS.satinalma.closingSoon!.href).toBe("/company/satinalma/taleplerim?closing=soon");
+    expect(ACTION_ROWS.satinalma.zeroBidClosingSoon!.href).toBe("/company/satinalma/taleplerim?closing=nobids");
     expect(ACTION_ROWS.satinalma.sellerApproval!.href).toBe("/company/satinalma/siparisler?status=PENDING");
     expect(ACTION_ROWS.satis.expiringBids!.href).toBe("/company/satis/tekliflerim?pending=1");
   });
