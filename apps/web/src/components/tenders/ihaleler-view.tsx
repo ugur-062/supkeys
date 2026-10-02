@@ -14,6 +14,7 @@ import {
   SearchInput,
 } from "@/components/list";
 import { IhaleListView } from "@/components/ihale/IhaleListView";
+import { TALEPLERIM_HREF } from "@/components/ihale/IhaleListRow";
 import { Button } from "@/components/ui/button";
 import {
   useTenders,
@@ -193,6 +194,16 @@ export function writeTendersUrl(params: URLSearchParams, st: TendersUrlState): U
   set("by", st.by || null);
   set("page", st.page > 1 ? String(st.page) : null);
   return out;
+}
+
+/**
+ * Satır → detay `from=` adresi: liste yolu + listenin KENDİ anahtarları
+ * (varsayılanlar yazılmaz). Detaydaki "← Taleplerim" bağlantısı da tarayıcı
+ * Geri tuşu gibi kalınan süzgeç/arama/sayfaya döner (O-052 yeniden doğrulama).
+ */
+export function tendersListHref(st: TendersUrlState): string {
+  const qs = writeTendersUrl(new URLSearchParams(), st).toString();
+  return qs ? `${TALEPLERIM_HREF}?${qs}` : TALEPLERIM_HREF;
 }
 
 export function IhalelerView() {
@@ -505,6 +516,17 @@ export function IhalelerView() {
            oluştur" CTA'sı gösterilir (O-086 gözden geçirme). */
         isFiltered={isFiltered && all.length > 0}
         onClearFilters={clearFilters}
+        fromHref={tendersListHref({
+          q: search,
+          status: statuses,
+          closing,
+          bids: hasBids,
+          sort,
+          range,
+          scope,
+          by: createdById,
+          page,
+        })}
       />
 
       {totalPages > 1 ? (

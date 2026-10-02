@@ -2868,7 +2868,9 @@ export class CompanyListingsService {
         },
         invitationCount: r._count.invitations,
         bidCount: r._count.bids,
-        publishedAt: r.publishedAt ?? r.createdAt,
+        // D-149: yayımlanmamış (taslak / onayda) talepte null — createdAt ayrı
+        // gönderilir; geri düşüş web/mobilde "Yayın <oluşturma>" basıyordu.
+        publishedAt: r.publishedAt,
         bidsCloseAt: r.closesAt,
         createdAt: r.createdAt,
       };

@@ -28,7 +28,12 @@ vi.mock("@/components/ihale/IhaleItemsPanel", () => ({
   IhaleItemsPanel: () => <div data-testid="items-panel" />,
 }));
 
-import { IhalelerView, parseTendersUrl, writeTendersUrl } from "../ihaleler-view";
+import {
+  IhalelerView,
+  parseTendersUrl,
+  tendersListHref,
+  writeTendersUrl,
+} from "../ihaleler-view";
 
 const row = (id: string, title: string, status: string) =>
   ({
@@ -146,6 +151,20 @@ describe("IhalelerView", () => {
     });
     await waitFor(() => expect(window.location.search).toContain("q=boru"));
     expect(window.location.search).toContain("status=AWARDED");
+  });
+
+  it("O-052 (yeniden doğrulama): satırın from= adresi listenin süzgeç/arama sorgusunu taşır", async () => {
+    window.history.replaceState(null, "", "/company/satinalma/taleplerim?status=AWARDED&q=boru");
+    render(<IhalelerView />);
+    const link = screen.getByRole("link", { name: /Çelik boru alımı/ });
+    const from = new URL(link.getAttribute("href")!, "http://x").searchParams.get("from");
+    expect(from).toBe("/company/satinalma/taleplerim?q=boru&status=AWARDED");
+  });
+
+  it("tendersListHref: varsayılan durumda sorgusuz liste yolu", () => {
+    const st = parseTendersUrl(() => null);
+    expect(tendersListHref(st)).toBe("/company/satinalma/taleplerim");
+    expect(tendersListHref({ ...st, page: 3 })).toBe("/company/satinalma/taleplerim?page=3");
   });
 
   it("O-086: süzgeç sonucu boşsa 'eşleşen yok' + 'Filtreleri temizle'; oluşturma CTA'sı yok", async () => {

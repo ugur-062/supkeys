@@ -136,7 +136,15 @@ export interface IhaleListRowProps {
   t: TenderListItem;
   favorite: boolean;
   onToggleFavorite: (id: string) => void;
+  /**
+   * Detaydaki "← Taleplerim" dönüş adresi — listenin O ANKİ süzgeç/arama
+   * sorgusunu taşır (arayüz testi O-052 yeniden doğrulama); verilmezse
+   * süzgeçsiz liste.
+   */
+  fromHref?: string;
 }
+
+export const TALEPLERIM_HREF = "/company/satinalma/taleplerim";
 
 /**
  * KENDİ ilanım/talebim — `ListingCard` row ADAPTÖRÜ (v2 denetimi). Düzen
@@ -148,6 +156,7 @@ export function IhaleListRow({
   t,
   favorite,
   onToggleFavorite,
+  fromHref = TALEPLERIM_HREF,
 }: IhaleListRowProps) {
   const tr = useTranslations("web.panel.requests.ihalelistrow");
   const te = useTranslations("web.domain.entity");
@@ -159,7 +168,6 @@ export function IhaleListRow({
   const expiredNote = useExpiredNote();
   const st = statusStyle(t.status);
 
-  const fromHref = "/company/satinalma/taleplerim";
   const fromLabel = MODULE_LABELS.satinalma.ihalelerim;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 

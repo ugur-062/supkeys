@@ -71,6 +71,31 @@ describe("çok-kiracılı scope", () => {
     expect(tenders.every((t) => t.type === "ALIM")).toBe(true);
   });
 
+  it("listTenders yayımlanmamış talepte publishedAt null döner, createdAt'e düşmez (D-149)", async () => {
+    const { service } = makeService();
+    const a = await makeCompanyWithUser(prisma, { country: "TR" });
+    const pub = new Date("2026-09-01T09:00:00Z");
+    const draft = await makeListing(prisma, {
+      companyId: a.company.id,
+      createdById: a.user.id,
+      status: "DRAFT",
+      publishedAt: null,
+    });
+    const open = await makeListing(prisma, {
+      companyId: a.company.id,
+      createdById: a.user.id,
+      status: "OPEN",
+      publishedAt: pub,
+      closesAt: FUTURE,
+    });
+    const tenders = await service.listTenders(a.company.id);
+    const d = tenders.find((t) => t.id === draft.id)!;
+    const o = tenders.find((t) => t.id === open.id)!;
+    expect(d.publishedAt).toBeNull();
+    expect(d.createdAt).toBeInstanceOf(Date);
+    expect(o.publishedAt?.toISOString()).toBe(pub.toISOString());
+  });
+
   it("listMyBids yalnızca firmanın verdiği teklifler", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

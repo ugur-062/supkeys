@@ -28,6 +28,7 @@ export function IhaleListView({
   emptyCtaLabel,
   isFiltered = false,
   onClearFilters,
+  fromHref,
 }: {
   items: TenderListItem[];
   isLoading: boolean;
@@ -37,6 +38,8 @@ export function IhaleListView({
   /** Arama/süzgeç etkin — boş sonuç "henüz yok" değil "eşleşen yok" (O-086). */
   isFiltered?: boolean;
   onClearFilters?: () => void;
+  /** Satır → detay dönüş adresi (süzgeç sorgusu dahil; bkz. IhaleListRow). */
+  fromHref?: string;
 }) {
   const tr = useTranslations("web.panel.requests.ihalelistview");
   const ctaLabel = emptyCtaLabel ?? tr("satinAlmaTalebiAc");
@@ -180,6 +183,7 @@ export function IhaleListView({
           t={t}
           favorite={favorites.has(t.id)}
           onToggleFavorite={toggleFavorite}
+          fromHref={fromHref}
         />
       ))}
     </section>
