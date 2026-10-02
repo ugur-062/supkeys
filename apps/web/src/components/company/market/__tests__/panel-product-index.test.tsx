@@ -245,6 +245,18 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     expect(screen.getByRole("button", { name: "Filtreleri temizle" })).toBeInTheDocument();
   });
 
+  it("son sayfanın ötesinde 'Bu kriterlerle ürün yok' DEMEZ — 'Bu sayfada sonuç yok' + son sayfaya git (arayüz testi son tur webA-2)", async () => {
+    // Başlık "169 ürün" derken gövde "bulunamadı" diyordu (herkese açık dizindeki webA-05 NEW-2 ile aynı çelişki).
+    const user = userEvent.setup();
+    h.search = "sayfa=9";
+    h.result = { data: { items: [], total: 169, page: 9, pageSize: 24 }, isLoading: false };
+    render(<PanelProductIndex />);
+    expect(screen.queryByText("Bu kriterlerle ürün yok.")).toBeNull();
+    expect(screen.getByText("Bu sayfada sonuç yok.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Son sayfaya gidin" }));
+    expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?sayfa=8", { scroll: false });
+  });
+
   it("eylemler İZNE bağlı: talep açma ve bilgi isteme yetkisi yoksa düğmeler çizilmez (arayüz testi O-079, D-038)", () => {
     h.perms = ["buy:view"];
     const { unmount } = render(<PanelProductIndex />);

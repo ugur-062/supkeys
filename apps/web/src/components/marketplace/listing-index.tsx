@@ -12,6 +12,7 @@ import { Pagination } from "@/components/ui/pagination";
 import {
   activeListingFilterCount,
   buildListingFilterQuery,
+  LISTING_PAGE_LIMIT,
   parseListingFilters,
   toListingListParams,
 } from "@/lib/public/listing-filter-params";
@@ -56,7 +57,12 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
   ]);
   const hasFilter = activeListingFilterCount(state) > 0 || !!state.q;
   // Son sayfanın ötesi: "bulunamadı" değil, son sayfaya bağlantı (arayüz testi webA-05).
-  const lastPage = pastEndLastPage({ itemCount: page.items.length, total: page.total, page: page.page, pageSize: page.pageSize });
+  // Sayfa ayrıştırmada uç tavanına (200) kırpılır; tavanın da ötesindeyse
+  // bağlantı tavana gider (arayüz testi son tur webA-2).
+  const lastPage = pastEndLastPage(
+    { itemCount: page.items.length, total: page.total, page: page.page, pageSize: page.pageSize },
+    LISTING_PAGE_LIMIT,
+  );
 
   /* ITEMLIST — liste sayfasının ne listelediğini söyler; başlıklar zaten
      herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır;
@@ -137,7 +143,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
         </FilterResults>
         <Pagination
           page={page.page}
-          total={page.total}
+          total={Math.min(page.total, LISTING_PAGE_LIMIT * page.pageSize)}
           pageSize={page.pageSize}
           className="mt-10 border-t border-zinc-950/5 pt-6"
           hrefBuilder={(p) => `${basePath}${buildListingFilterQuery({ ...state, page: p })}`}

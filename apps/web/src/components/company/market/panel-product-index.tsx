@@ -28,6 +28,7 @@ import {
   toPanelDirectoryParams,
   type CompanyFilterState,
 } from "@/lib/public/company-filter-params";
+import { pastEndLastPage } from "@/lib/public/filter-param-utils";
 import { PANEL_MARKET, panelCategoryPath, panelProductPath } from "@/lib/company/panel-market";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
@@ -165,6 +166,7 @@ function Inner({
   footer: boolean;
 }) {
   const t = useTranslations("web.panel.market.panelProductIndex");
+  const te = useTranslations("web.marketplace.empty");
   const tn = useNavLabel();
   const { update } = useFilters<ProductFilterState>();
   const p = toProductListParams(state);
@@ -178,6 +180,14 @@ function Inner({
      paylaşılıyor (aynı parametre dönüşümü). */
   const companies = useCompanySearch(toPanelDirectoryParams(companyFiltersOf(state)));
   const pageSize = data?.pageSize ?? state.perPage ?? DEFAULT_PER_PAGE;
+  /* SON SAYFANIN ÖTESİ (arayüz testi son tur webA-2): `?sayfa=9` son sayfadan
+     büyükse uç boş liste + dolu toplam döner. "Bu kriterlerle ürün yok"
+     başlıktaki "169 ürün" ile çelişirdi — kriterler eşleşiyor, yalnız bu sayfa
+     boş. Herkese açık dizinlerle aynı kural (`pastEndLastPage`, webA-05 NEW-2);
+     panel ucu sayfa tavanı koymaz. */
+  const lastPage = data
+    ? pastEndLastPage({ itemCount: data.items.length, total: data.total, page: data.page ?? state.page, pageSize })
+    : null;
   const talepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
   // Eylem düğmeleri İZNE bağlı (arayüz testi O-079, D-038): sayfayı buy:view
   // açar ama talep açmak buy:listing:manage, bilgi istemek buy:inquiry:send
@@ -243,6 +253,19 @@ function Inner({
       >
         {result.isLoading ? (
           <MarketGridSkeleton />
+        ) : lastPage != null ? (
+          <MarketEmpty
+            title={te("pageEmpty")}
+            action={
+              <button
+                type="button"
+                onClick={() => update({ page: lastPage })}
+                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
+              >
+                {te("lastPage")}
+              </button>
+            }
+          />
         ) : !data || data.items.length === 0 ? (
           <MarketEmpty
             title={t("buKriterlerleUrunYok")}

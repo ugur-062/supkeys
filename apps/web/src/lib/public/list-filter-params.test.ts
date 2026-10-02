@@ -28,6 +28,12 @@ describe("alım talebi süzgeç URL şeması", () => {
     expect(q).toBe("?sehir=istanbul%2Cbursa");
     expect(parseListingFilters(new URLSearchParams(q))).toEqual(f);
   });
+  it("uç sınırlarına kırpar: `?sayfa=201` 200'e, uzun arama 120 karaktere iner (arayüz testi son tur webA-2)", () => {
+    // Eskiden uç 400 dönüyor, ziyaretçi açık talepler varken "Alım talebi bulunamadı" görüyordu.
+    expect(parseListingFilters({ sayfa: "201" }).page).toBe(200);
+    expect(toListingListParams(parseListingFilters({ sayfa: "99999" })).page).toBe(200);
+    expect(parseListingFilters({ q: "a".repeat(130) }).q).toHaveLength(120);
+  });
 });
 
 describe("şehir değeri kalıcı adrese çevrilir (D-336, gözden geçirme)", () => {
