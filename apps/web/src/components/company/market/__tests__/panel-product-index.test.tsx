@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   result: { data: undefined as unknown, isLoading: false },
   lastParams: undefined as unknown,
   companyTotal: 20,
+  companyParams: undefined as unknown,
   selectedCategory: null as { id: string; name: string; level: number } | null,
   perms: ["buy:view", "buy:listing:manage", "buy:inquiry:send"] as string[],
 }));
@@ -41,7 +42,10 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useHasCompanyPermission: (p: string) => h.perms.includes(p),
 }));
 vi.mock("@/hooks/use-company-directory", () => ({
-  useCompanySearch: () => ({ data: { items: [], total: h.companyTotal, page: 1, pageSize: 20 } }),
+  useCompanySearch: (params: unknown) => {
+    h.companyParams = params;
+    return { data: { items: [], total: h.companyTotal, page: 1, pageSize: 20 } };
+  },
 }));
 
 import { PanelProductIndex } from "../panel-product-index";
@@ -104,6 +108,29 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
       "href",
       "/company/satinalma/firmalar?q=pano&kategori=39000000",
     );
+  });
+
+  it("sekme rozeti ve adresi FİRMA süzgeçlerini (şehir, ülke, faaliyet, doğrulanmış) de taşır — '0 ürün' yanında süzgeçsiz firma sayısı yok (webA-12 yeniden doğrulama)", () => {
+    // Ürün dizini şehir/ülke/faaliyet/doğrulanmış süzgecini satıcı FİRMA
+    // alanından uygular; firma dizini aynı adlarla okur. Eskiden rozet ve
+    // bağlantı yalnız q + kategori taşıyordu: İstanbul seçiliyken "0 ürün"
+    // yanında "Firmalar 3" yazıyor, geçişte şehir sessizce düşüyordu.
+    h.search = "q=vida&kategori=31000000&sehir=istanbul&ulke=TR&faaliyet=MANUFACTURER&dogrulanmis=1&fiyatMax=500";
+    render(<PanelProductIndex />);
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).getByRole("link", { name: /Firmalar/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/firmalar?q=vida&sehir=istanbul&ulke=TR&faaliyet=MANUFACTURER&kategori=31000000&dogrulanmis=1",
+    );
+    // Sayı, sekmenin götürdüğü listeyle AYNI parametrelerle istenir.
+    expect(h.companyParams).toMatchObject({
+      q: "vida",
+      city: "istanbul",
+      country: "TR",
+      activity: "MANUFACTURER",
+      category: "31000000",
+      verified: true,
+    });
   });
 
   it("başlıkta sonuç sayısı ve kartta ülke bayrağı; rayın sonunda 'Tüm filtreleri sıfırla'", async () => {

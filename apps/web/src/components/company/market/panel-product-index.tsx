@@ -22,6 +22,12 @@ import {
   type PerPage,
   type ProductFilterState,
 } from "@/lib/public/product-filter-params";
+import {
+  buildCompanyFilterQuery,
+  EMPTY_COMPANY_FILTERS,
+  toPanelDirectoryParams,
+  type CompanyFilterState,
+} from "@/lib/public/company-filter-params";
 import { PANEL_MARKET, panelCategoryPath, panelProductPath } from "@/lib/company/panel-market";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
@@ -32,18 +38,30 @@ import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketList, MarketListLayo
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
 
 /**
- * Ürün süzgecinden FİRMA dizini adresi — arama ve kategori taşınır
- * (`kategori` iki şemada da aynı ad; `company-filter-params` okuyor).
- * Diğer süzgeçler (fiyat, MOQ, nitelik) firma dizininde karşılıksız,
- * taşınmaz — taşısaydık orada sessizce düşer, kullanıcı "süzgecim kayboldu"
- * derdi.
+ * Ürün süzgecinin FİRMA dizininde karşılığı olan kısmı: arama, kategori ve
+ * satıcı firmaya ait süzgeçler (şehir, ülke, faaliyet, doğrulanmış). Ürün
+ * dizini bu süzgeçleri zaten FİRMA alanından uygular (API `product-index`
+ * `company.cityId/country/activities/companyVerificationStatus`), firma
+ * dizini aynı adlarla okur (`company-filter-params`). Sekme rozeti ve sekme
+ * adresi BU durumdan üretilir — "0 ürün" yanında "Firmalar 3" yazıp geçişte
+ * şehri sessizce düşürmesin (arayüz testi webA-12 yeniden doğrulama).
+ * Karşılığı olmayanlar (fiyat, MOQ, nitelik, yakınlık) taşınmaz — taşısaydık
+ * orada sessizce düşer, kullanıcı "süzgecim kayboldu" derdi.
  */
+export function companyFiltersOf(state: ProductFilterState): CompanyFilterState {
+  return {
+    ...EMPTY_COMPANY_FILTERS,
+    q: state.q,
+    cities: state.cities,
+    countries: state.countries,
+    activities: state.activities,
+    categories: state.category ? [state.category] : [],
+    verified: state.verified,
+  };
+}
+
 function companiesHref(state: ProductFilterState): string {
-  const sp = new URLSearchParams();
-  if (state.q) sp.set("q", state.q);
-  if (state.category) sp.set("kategori", state.category);
-  const qs = sp.toString();
-  return `${PANEL_MARKET.companies}${qs ? `?${qs}` : ""}`;
+  return `${PANEL_MARKET.companies}${buildCompanyFilterQuery(companyFiltersOf(state))}`;
 }
 
 /**
@@ -57,7 +75,7 @@ export interface PanelBandContext {
   facets?: ProductFacets;
   /** Aynı arama/kategorideki tedarikçi sayısı (yüklenene dek `undefined`). */
   companyCount?: number;
-  /** Etkin süzgeçlerle firma dizini adresi (`q` + `kategori`). */
+  /** Etkin süzgeçlerle firma dizini adresi (arama, kategori ve firma süzgeçleri — `companyFiltersOf`). */
   companiesHref: string;
   /** Geçerli süzgeç durumu — etkin sekmenin adresi süzgeçleri korusun. */
   state: ProductFilterState;
@@ -153,10 +171,12 @@ function Inner({
   const facets = useDiscoverProductFacets(toProductFacetParams(p));
   const data = result.data;
   const total = data?.total ?? 0;
-  /* SEKME ROZETİ: aynı arama/kategoriyle KAÇ TEDARİKÇİ var. Alıcı bazen
-     ürünü değil ÜRETİCİYİ arıyor; sayıyı tıklamadan görmeli. Sorgu ucuz ve
-     react-query önbelleğinde firma dizininkiyle paylaşılıyor. */
-  const companies = useCompanySearch({ q: state.q, category: state.category });
+  /* SEKME ROZETİ: aynı arama/kategori VE firma süzgeçleriyle (şehir, ülke,
+     faaliyet, doğrulanmış) KAÇ TEDARİKÇİ var — sekmenin götürdüğü listeyle
+     AYNI sayı. Alıcı bazen ürünü değil ÜRETİCİYİ arıyor; sayıyı tıklamadan
+     görmeli. Sorgu ucuz ve react-query önbelleğinde firma dizininkiyle
+     paylaşılıyor (aynı parametre dönüşümü). */
+  const companies = useCompanySearch(toPanelDirectoryParams(companyFiltersOf(state)));
   const pageSize = data?.pageSize ?? state.perPage ?? DEFAULT_PER_PAGE;
   const talepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
   // Eylem düğmeleri İZNE bağlı (arayüz testi O-079, D-038): sayfayı buy:view

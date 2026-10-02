@@ -20,8 +20,28 @@ const seen = new Set<string>();
 
 type ClientErrorContext = { kind?: string; digest?: string; componentStack?: string };
 
+/**
+ * Next'in AKIŞ SİNYALLERİ hata değildir: istemcide `notFound()` / `forbidden()`
+ * / `unauthorized()` (`NEXT_HTTP_ERROR_FALLBACK;404`) ve `redirect()`
+ * (`NEXT_REDIRECT;…`) atılan birer işarettir, sınır (boundary) yakalayıp 404
+ * sayfasını çizer. Ama React eşzamanlı (geçiş) çizimde atılan hatayı
+ * zaman uyumlu yeniden çizimle "kurtarınca" Next'in `onRecoverableError`ı
+ * bunu SÜZMEDEN `reportError`a verir (onCaughtError/onUncaughtError süzer):
+ * tarayıcı "Uncaught Error: NEXT_HTTP_ERROR_FALLBACK;404" basıyor, bu modül de
+ * Sentry'e yazıyordu (arayüz testi webA-12 yeniden doğrulama: `/en/…/kategori/
+ * 99999999-yok` dil eşitlemesiyle TR'ye geçerken 8 kez). Ölçüt Next'in
+ * `isNextRouterError`ıyla aynı: `digest` öneki.
+ */
+export function isNextControlFlowSignal(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const digest = (error as { digest?: unknown }).digest;
+  if (typeof digest !== "string") return false;
+  return /^NEXT_HTTP_ERROR_FALLBACK;\d{3}$/.test(digest) || digest.startsWith("NEXT_REDIRECT;");
+}
+
 export function reportClientError(error: unknown, context: ClientErrorContext = {}): void {
   if (typeof window === "undefined") return;
+  if (isNextControlFlowSignal(error)) return;
   if (sent >= MAX_PER_PAGE) return;
 
   const err = error instanceof Error ? error : new Error(String(error));
@@ -58,10 +78,20 @@ export function installGlobalErrorReporter(): void {
   if (installed || typeof window === "undefined") return;
   installed = true;
   window.addEventListener("error", (e) => {
+    // Next akış sinyali zaten bir sınırca işlendi (404 sayfası çizildi):
+    // `preventDefault` tarayıcının "Uncaught" konsol kaydını da susturur.
+    if (isNextControlFlowSignal(e.error)) {
+      e.preventDefault();
+      return;
+    }
     // Kaynak yükleme hatalarında (img/script) `error` yok — gürültü yapma.
     if (e.error) reportClientError(e.error, { kind: "window.error" });
   });
   window.addEventListener("unhandledrejection", (e) => {
+    if (isNextControlFlowSignal(e.reason)) {
+      e.preventDefault();
+      return;
+    }
     reportClientError(e.reason, { kind: "unhandledrejection" });
   });
 }
