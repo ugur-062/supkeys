@@ -1578,6 +1578,8 @@
       "company_signup_email_changed": "Адрес эл. почты при регистрации исправлен",
       "company_user_invitation_accepted": "Приглашение участника принято",
       "company_user_invited": "Участник приглашён",
+      "company_user_invitation_cancelled": "Приглашение участника отменено",
+      "company_user_profile_updated": "Данные пользователя обновлены",
       "company_user_terms_accepted": "Условия использования приняты",
       "company_vies_checked": "Номер НДС проверен в VIES"
     },
@@ -5495,7 +5497,7 @@
           "kalem": "Позиция",
           "miktar": "Количество",
           "teslim": "Поставка",
-          "birim": "Ед. изм.",
+          "birimFiyat": "Цена за ед.",
           "tutar": "Сумма",
           "kalemYok": "Нет позиций",
           "toplam": "Итого",
@@ -6192,6 +6194,8 @@
         "sistem": "система",
         "sayfaKayit": "Страница {page}/{totalPages} — {total, plural, one {# запись} few {# записи} many {# записей} other {# записи}}",
         "field": {
+          "firstName": "Имя",
+          "lastName": "Фамилия",
           "aboutText": "О компании",
           "activities": "Вид деятельности",
           "addressLine": "Адрес",

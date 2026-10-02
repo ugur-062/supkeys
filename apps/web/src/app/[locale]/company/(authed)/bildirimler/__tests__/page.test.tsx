@@ -75,6 +75,17 @@ describe("BildirimlerPage", () => {
     expect(h.markAll).toHaveBeenCalled();
   });
 
+  it("O-051: başlık satırı mobilde alt alta dizilir, düğme yalnız sm+ büzülmez", () => {
+    h.pages = [[n("a", null)]];
+    h.unread = 1;
+    render(<BildirimlerPage />);
+    const btn = screen.getByRole("button", { name: "Tümünü okundu işaretle" });
+    const row = btn.parentElement as HTMLElement;
+    expect(row.className).toMatch(/(^|\s)flex-col(\s|$)/);
+    expect(row.className).toMatch(/(^|\s)sm:flex-row(\s|$)/);
+    expect(btn.className).not.toMatch(/(^|\s)shrink-0(\s|$)/);
+  });
+
   it("okunmamış yoksa 'Tümünü okundu' gizli", () => {
     h.pages = [[n("a")]];
     render(<BildirimlerPage />);

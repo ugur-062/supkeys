@@ -39569,6 +39569,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.siparisIdPage.print.birimFiyat": {
+    "hash": "a600d5be39",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.trade.siparisIdPage.print.durum": {
     "hash": "1f8de55f0c",
     "status": "reviewed",

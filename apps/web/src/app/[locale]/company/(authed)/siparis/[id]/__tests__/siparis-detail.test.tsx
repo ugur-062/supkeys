@@ -696,3 +696,44 @@ describe("OrderDetailPage — arayüz testi webB-08", () => {
     expect(hint.textContent).not.toContain("Siparişi Gönder");
   });
 });
+
+describe("OrderDetailPage — arayüz testi webB-08 yeniden doğrulama", () => {
+  const item = {
+    id: "i1",
+    name: "Paslanmaz çelik küresel vana",
+    quantity: "100",
+    unit: "adet",
+    unitPrice: "12.5",
+    deliveryDate: null,
+  };
+
+  it("D-285: kalem tablosu kart genişliğine bağlı — teslim/birim fiyat yalnız @2xl kartta sütun", () => {
+    h.order = order("COMPLETED", "buyer", {
+      items: [item] as unknown as CompanyOrderDetail["items"],
+    });
+    render(<OrderDetailPage />);
+    const table = screen.getByRole("table");
+    expect(table.closest("section")?.className).toMatch(/(^|\s)@container(\s|$)/);
+    const headers = within(table).getAllByRole("columnheader");
+    const delivery = headers.find((th) => th.textContent === "Teslim Tarihi");
+    const unitPrice = headers.find((th) => th.textContent === "Birim Fiyat");
+    for (const th of [delivery, unitPrice]) {
+      expect(th?.className).toMatch(/(^|\s)@2xl:table-cell(\s|$)/);
+      expect(th?.className).not.toMatch(/(^|\s)sm:table-cell(\s|$)/);
+    }
+  });
+
+  it("NEW-2: baskı çıktısında 4. sütun 'Birim Fiyat' (ölçü birimi DEĞİL)", async () => {
+    h.order = order("COMPLETED", "seller", {
+      items: [item] as unknown as CompanyOrderDetail["items"],
+    });
+    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    const win = { document: doc, focus: vi.fn(), print: vi.fn(), opener: null };
+    const open = vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
+    const html = doc.write.mock.calls.map((c) => String(c[0])).join("");
+    expect(html).toMatch(/<th style="text-align:right">Birim Fiyat<\/th>/);
+    open.mockRestore();
+  });
+});

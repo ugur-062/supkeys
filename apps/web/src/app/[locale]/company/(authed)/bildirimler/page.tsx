@@ -85,8 +85,10 @@ export default function BildirimlerPage() {
   // ortalanmış kutu yalnız Ayarlar'da.
   return (
     <div className="w-full">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
+      {/* O-051: mobilde başlık ve "Tümünü okundu" ALT ALTA — RU'da uzun düğme
+          (shrink-0) tek satırda 390 px ekranı yana taşırıyordu. */}
+      <div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-zinc-900">{t("bildirimler")}</h1>
           <p className="text-sm text-zinc-500">
             {t("satinAlmaTalebiDavetleriKategori")}
@@ -97,7 +99,7 @@ export default function BildirimlerPage() {
             type="button"
             onClick={() => markAll.mutate(undefined)}
             disabled={markAll.isPending}
-            className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-zinc-300 disabled:opacity-50"
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium sm:shrink-0 text-zinc-700 hover:border-zinc-300 disabled:opacity-50"
           >
             {t("tumunuOkunduIsaretle")}
           </button>

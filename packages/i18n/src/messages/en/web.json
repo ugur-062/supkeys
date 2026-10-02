@@ -1578,6 +1578,8 @@
       "company_signup_email_changed": "Sign-up email corrected",
       "company_user_invitation_accepted": "Member invitation accepted",
       "company_user_invited": "Member invited",
+      "company_user_invitation_cancelled": "Member invitation cancelled",
+      "company_user_profile_updated": "User details updated",
       "company_user_terms_accepted": "Terms of use accepted",
       "company_vies_checked": "VIES VAT number checked"
     },
@@ -5495,7 +5497,7 @@
           "kalem": "Line item",
           "miktar": "Quantity",
           "teslim": "Delivery",
-          "birim": "Unit",
+          "birimFiyat": "Unit price",
           "tutar": "Amount",
           "kalemYok": "No line items",
           "toplam": "Total",
@@ -6192,6 +6194,8 @@
         "sistem": "system",
         "sayfaKayit": "Page {page}/{totalPages} — {total, plural, one {# record} other {# records}}",
         "field": {
+          "firstName": "First name",
+          "lastName": "Last name",
           "aboutText": "About",
           "activities": "Activity type",
           "addressLine": "Address",

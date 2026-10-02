@@ -1578,6 +1578,8 @@
       "company_signup_email_changed": "Kayıt e-postası düzeltildi",
       "company_user_invitation_accepted": "Üye daveti kabul edildi",
       "company_user_invited": "Üye davet edildi",
+      "company_user_invitation_cancelled": "Üye daveti iptal edildi",
+      "company_user_profile_updated": "Kullanıcı bilgileri güncellendi",
       "company_user_terms_accepted": "Kullanım koşulları kabul edildi",
       "company_vies_checked": "VIES vergi numarası sorgulandı"
     },
@@ -5495,7 +5497,7 @@
           "kalem": "Kalem",
           "miktar": "Miktar",
           "teslim": "Teslim",
-          "birim": "Birim",
+          "birimFiyat": "Birim Fiyat",
           "tutar": "Tutar",
           "kalemYok": "Kalem yok",
           "toplam": "Toplam",
@@ -6192,6 +6194,8 @@
         "sistem": "sistem",
         "sayfaKayit": "Sayfa {page}/{totalPages} — {total} kayıt",
         "field": {
+          "firstName": "Ad",
+          "lastName": "Soyad",
           "aboutText": "Hakkında",
           "activities": "Faaliyet tipi",
           "addressLine": "Adres",

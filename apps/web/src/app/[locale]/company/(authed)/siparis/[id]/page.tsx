@@ -172,7 +172,7 @@ export default function OrderDetailPage() {
     item: t("print.kalem"),
     quantity: t("print.miktar"),
     delivery: t("print.teslim"),
-    unit: t("print.birim"),
+    unit: t("print.birimFiyat"),
     amount: t("print.tutar"),
     noItems: t("print.kalemYok"),
     total: t("print.toplam"),
@@ -865,18 +865,21 @@ export default function OrderDetailPage() {
 
           {/* Sipariş kalemleri */}
           {o.items.length > 0 ? (
-            <section>
+            /* D-285: sütun kırılımı GÖRÜNTÜ ALANINA değil KARTIN genişliğine
+               bağlı (`@container`): lg iki sütunlu düzende kart ~460 px'e
+               iner; beş sütun yalnız kart beşini taşıyabildiğinde (@2xl). */
+            <section className="@container">
               <Table dense>
                 <TableHead>
                   <TableRow>
                     <TableHeader>{t("kalem")}</TableHeader>
                     <TableHeader className="text-right">{t("miktar")}</TableHeader>
-                    {/* D-285: dar ekranda teslim ve birim fiyat ad hücresinin
+                    {/* D-285: dar kartta teslim ve birim fiyat ad hücresinin
                         altına iner — tablo yatay kaydırmasız sığar. */}
-                    <TableHeader className="hidden text-right sm:table-cell">
+                    <TableHeader className="hidden text-right @2xl:table-cell">
                       {t("teslimTarihi")}
                     </TableHeader>
-                    <TableHeader className="hidden text-right sm:table-cell">
+                    <TableHeader className="hidden text-right @2xl:table-cell">
                       {t("birimFiyat")}
                     </TableHeader>
                     <TableHeader className="text-right">{t("tutar")}</TableHeader>
@@ -896,7 +899,7 @@ export default function OrderDetailPage() {
                     <TableRow key={it.id}>
                       {/* D-285: uzun kalem adı SARILIR (tablo whitespace-nowrap;
                           tek satır ad Tutar sütununu kart dışına itiyordu). */}
-                      <TableCell className="min-w-40 whitespace-normal font-medium text-zinc-900 [overflow-wrap:anywhere]">
+                      <TableCell className="min-w-28 whitespace-normal font-medium @md:min-w-40 text-zinc-900 [overflow-wrap:anywhere]">
                         {it.name}
                         {/* O-003: muadil beyanı / istenen marka-parça no siparişte
                             de bağlayıcı kayıt (award snapshot'ı). */}
@@ -918,7 +921,7 @@ export default function OrderDetailPage() {
                             {it.note}
                           </span>
                         ) : null}
-                        <span className="mt-0.5 block text-xs font-normal text-zinc-500 sm:hidden">
+                        <span className="mt-0.5 block text-xs font-normal text-zinc-500 @2xl:hidden">
                           {t("teslimTarihi")}: {deliveryCell} · {t("birimFiyat")}:{" "}
                           <span className="tabular-nums">{formatMoney(it.unitPrice, o.currency)}</span>
                         </span>
@@ -926,10 +929,10 @@ export default function OrderDetailPage() {
                       <TableCell className="text-right text-zinc-600">
                         {quantity(it.quantity, it.unit)}
                       </TableCell>
-                      <TableCell className="hidden text-right text-zinc-600 sm:table-cell">
+                      <TableCell className="hidden text-right text-zinc-600 @2xl:table-cell">
                         {deliveryCell}
                       </TableCell>
-                      <TableCell className="hidden text-right tabular-nums text-zinc-600 sm:table-cell">
+                      <TableCell className="hidden text-right tabular-nums text-zinc-600 @2xl:table-cell">
                         {formatMoney(it.unitPrice, o.currency)}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums text-zinc-900">
