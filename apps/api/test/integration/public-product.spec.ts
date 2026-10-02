@@ -182,6 +182,22 @@ describe("ürün vitrini — sızıntı", () => {
     expect(one.company.name).toBe(company.name);
     expect(one.company.slug).toBe(company.slug);
   });
+
+  it("web sitesi: yalnız VARLIĞI döner (hasWebsite), adresin kendisi ürün yanıtında YOK", async () => {
+    const withSite = await seedCompanyWithProduct({ website: "https://vitrin-ornek.example" });
+    const one = await service().getPublicProduct(withSite.company.slug as string, withSite.product.slug as string);
+    expect(one.company.hasWebsite).toBe(true);
+    expect(allKeys(one).has("website")).toBe(false);
+    expect(JSON.stringify(one)).not.toContain("vitrin-ornek.example");
+
+    // Sitesi olmayan (null ya da boşluk) firmada kapılı satır çizilmez.
+    const noSite = await seedCompanyWithProduct({ website: null });
+    const two = await service().getPublicProduct(noSite.company.slug as string, noSite.product.slug as string);
+    expect(two.company.hasWebsite).toBe(false);
+    const blank = await seedCompanyWithProduct({ website: "   " });
+    const three = await service().getPublicProduct(blank.company.slug as string, blank.product.slug as string);
+    expect(three.company.hasWebsite).toBe(false);
+  });
 });
 
 // T-18 / D-331 / D-192 (arayüz testi 2026-10-01): belge ADI herkese açık,

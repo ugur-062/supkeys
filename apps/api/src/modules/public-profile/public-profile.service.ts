@@ -468,6 +468,11 @@ export class PublicProfileService {
         foundedYear: company.foundedYear,
         employeeCount: company.employeeCount,
         certifications: company.certifications.slice(0, 4),
+        /* Kapılı "web sitesi için giriş yapın" satırı YALNIZ satıcının sitesi
+           varsa (arayüz testi son tur webA-1): sitesi olmayan firmada giriş
+           yapan üye panelde boş alanla karşılaşıyordu — tutulmayan söz.
+           Adresin kendisi değil, yalnız varlığı. */
+        hasWebsite: Boolean(company.website?.trim()),
     };
     const [seller] = this.translations
       ? await this.translations.localizeIndustry([sellerCard], [company.id], locale)
@@ -529,6 +534,9 @@ export class PublicProfileService {
         foundedYear: true,
         employeeCount: true,
         certifications: true,
+        // Ürün sayfasının kapılı "web sitesi" satırı yalnız VARSA çizilir
+        // (`hasWebsite`); adresin kendisi ürün yanıtına yazılmaz.
+        website: true,
       },
     });
     if (!c || !hasPublicProfile(c)) {

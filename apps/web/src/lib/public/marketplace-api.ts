@@ -545,6 +545,11 @@ export interface PublicProductCompany {
   certifications?: string[];
   /** Üye katmanı (panel) — public sayfada kapılı. */
   website?: string | null;
+  /**
+   * Herkese açık uç: satıcının web sitesi VAR mı (adres değil). Kapılı
+   * "web sitesi için giriş yapın" satırı yalnız `true` iken çizilir.
+   */
+  hasWebsite?: boolean;
 }
 
 /**

@@ -25,7 +25,7 @@ import type {
 import { categoryHref } from "@/lib/public/marketplace";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
-import { MemberCta } from "./member-cta";
+import { MemberCta, SessionSwap } from "./member-cta";
 import { ProductDocuments, type ProductDocument } from "./product-documents";
 import { ProductCard } from "./product-card";
 import { ActivityIcon } from "./activity-icons";
@@ -109,7 +109,9 @@ export function ProductDetail({
           related={related}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
           sellerSite={
-            <GatedField label={t("sellerSite")} sentence="sellerSite" redirect={PANEL_TARGET.product(companySlug, product.slug)} />
+            company.hasWebsite ? (
+              <SellerSiteGate label={t("sellerSite")} redirect={PANEL_TARGET.product(companySlug, product.slug)} />
+            ) : undefined
           }
           documentsLoginHref={loginHref(`${PANEL_TARGET.product(companySlug, product.slug)}#belgeler`)}
           cta={
@@ -171,6 +173,21 @@ export function ProductDetail({
   );
 }
 
+
+/**
+ * KAPILI WEB SİTESİ SATIRI — yalnız MİSAFİRE (arayüz testi son tur webA-1).
+ * Çağıran onu yalnız satıcının sitesi VARSA (`company.hasWebsite`) basar;
+ * oturumlu üyeye "giriş yapın" denmez (giriş bağlantısı onu sitesini
+ * göstermeyen üye sayfasına geçiriyordu — belge çağrısındaki döngünün eşi).
+ * Sunucu HTML'i misafir hâlidir; üye hidrasyondan sonra satırı görmez.
+ */
+export function SellerSiteGate({ label, redirect }: { label: string; redirect: string }) {
+  return (
+    <SessionSwap member={null}>
+      <GatedField label={label} sentence="sellerSite" redirect={redirect} />
+    </SessionSwap>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 

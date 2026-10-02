@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { ProductBreadcrumb, ProductDetailBody, RelatedRows, brandIsSeller } from "../product-detail";
+import { ProductBreadcrumb, ProductDetailBody, RelatedRows, SellerSiteGate, brandIsSeller } from "../product-detail";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
 
 /**
@@ -307,3 +308,28 @@ describe("ProductDetailBody — fiyat biçimi, video, belgeler", () => {
   });
 });
 
+
+/**
+ * Arayüz testi son tur (webA-1): "Firmanın web sitesini görmek için giriş
+ * yapın" satırı oturumlu üyeye de basılıyordu; giriş bağlantısı onu sitesi
+ * görünmeyen üye sayfasına geçiriyordu. Satır yalnız misafire (varlığı
+ * `hasWebsite` ile çağıranda süzülür).
+ */
+describe("SellerSiteGate", () => {
+  it("misafir giriş bağlantısını görür; oturumlu üye görmez", () => {
+    useCompanyAuthStore.setState({ isHydrated: true, user: null, company: null });
+    const { unmount } = render(<SellerSiteGate label="Web sitesi" redirect="/company/urun/a/b" />);
+    const link = screen.getByRole("link");
+    expect(link.getAttribute("href") ?? "").toContain("next=");
+    unmount();
+
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["buy:view"], roles: [] } as never,
+      company: { tier: "SILVER", companyVerificationStatus: "VERIFIED", slug: "alici" } as never,
+    });
+    const { container } = render(<SellerSiteGate label="Web sitesi" redirect="/company/urun/a/b" />);
+    expect(container).toBeEmptyDOMElement();
+    useCompanyAuthStore.setState({ isHydrated: true, user: null, company: null });
+  });
+});
