@@ -44,7 +44,7 @@ import {
 } from "@/hooks/use-company-profile";
 import { companyApi } from "@/lib/company-auth/api";
 import { PROFILE_IMAGE_LIMITS, resizeImageFile } from "@/lib/image-resize";
-import { linkInputMaxLength, safeExternalUrl } from "@/lib/safe-url";
+import { clampLinkInput, linkInputMaxLength, safeExternalUrl } from "@/lib/safe-url";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { Camera, GripVertical, ImagePlus, Loader2, Pencil, Plus, Sparkles, X } from "lucide-react";
@@ -393,7 +393,7 @@ export function ProfileEditor({
             value={draft.website}
             placeholder={t("ornekfirmaCom")}
             maxLength={linkInputMaxLength(draft.website, LIMITS.website)}
-            onChange={(e) => set({ website: e.target.value })}
+            onChange={(e) => set({ website: clampLinkInput(e.target.value, LIMITS.website) })}
           />
         </MiniField>
         <MiniField label={t("linkedin")}>
@@ -402,7 +402,7 @@ export function ProfileEditor({
             value={draft.linkedinUrl}
             placeholder={t("linkedinComCompany")}
             maxLength={linkInputMaxLength(draft.linkedinUrl, LIMITS.linkedinUrl)}
-            onChange={(e) => set({ linkedinUrl: e.target.value })}
+            onChange={(e) => set({ linkedinUrl: clampLinkInput(e.target.value, LIMITS.linkedinUrl) })}
           />
         </MiniField>
         <MiniField label={t("instagram")}>
@@ -411,7 +411,7 @@ export function ProfileEditor({
             value={draft.instagramUrl}
             placeholder={t("instagramCom")}
             maxLength={linkInputMaxLength(draft.instagramUrl, LIMITS.instagramUrl)}
-            onChange={(e) => set({ instagramUrl: e.target.value })}
+            onChange={(e) => set({ instagramUrl: clampLinkInput(e.target.value, LIMITS.instagramUrl) })}
           />
         </MiniField>
       </div>

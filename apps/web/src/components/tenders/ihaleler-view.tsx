@@ -16,6 +16,7 @@ import {
 import { IhaleListView } from "@/components/ihale/IhaleListView";
 import { TALEPLERIM_HREF } from "@/components/ihale/IhaleListRow";
 import { Button } from "@/components/ui/button";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   useTenders,
   type TenderListItem,
@@ -217,6 +218,11 @@ export function IhalelerView() {
   // Sayaç/arama metinleri kayıt tipi sözlüğünden (tek kaynak).
   const t = useListingTerms("ALIM");
   const secondary = PORTAL_SECONDARY_HREFS.satinalma;
+  // Raporlar hub'ında bu sayfanın işi satınalma raporlarıdır: izin yoksa hub
+  // "Size açık rapor yok" der — giriş noktası hiç çizilmez. İzin var, paket
+  // Gold altıysa hub kilitli Gold kartını gösterir (paket kilidi orada; arayüz
+  // testi son tur webC-2 NEW-1).
+  const canSeeBuyReports = useHasCompanyPermission("buy:reports:view");
   const list = useTenders();
   const all = useMemo(() => list.data ?? [], [list.data]);
 
@@ -380,16 +386,18 @@ export function IhalelerView() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Sol menü sadeleştirmesi (2026-08-22): Şablonlar + Raporlar
                 menüden kalktı — tek giriş noktası bu sayfanın başlığı. Sayfalar
-                kendi kapılarını (rol/tier) kendileri uygular. */}
+                kendi paket kapılarını uygular; izni olmayana Raporlar çizilmez. */}
             {/* D-247: bağlantı içinde düğme (`<a><button>`) değil, tek bağlantı. */}
             <Button variant="secondary" href={secondary.sablonlar}>
               <LayoutTemplate className="h-4 w-4" />
               {tr("sablonlar")}
             </Button>
-            <Button variant="secondary" href={secondary.raporlar}>
-              <BarChart3 className="h-4 w-4" />
-              {tr("raporlar")}
-            </Button>
+            {canSeeBuyReports ? (
+              <Button variant="secondary" href={secondary.raporlar}>
+                <BarChart3 className="h-4 w-4" />
+                {tr("raporlar")}
+              </Button>
+            ) : null}
             {/* Başlıkta "Yeni …" CTA'sı YOK (v2 3b): aynı eylem sol menüdeki
                 renkli düğmede — sayfa başına tek primary. Liste boşken boş
                 durum kendi CTA'sını gösterir (IhaleListView, F7 rol kapısıyla). */}

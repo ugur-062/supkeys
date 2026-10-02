@@ -252,6 +252,22 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("boş kutuya yapıştırılan şemasız uzun bağlantı kaydedilebilir uzunluğa kırpılır ve kaydedilir (arayüz testi son tur webC-05 NEW-3)", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    const box = screen.getByLabelText("LinkedIn") as HTMLInputElement;
+    expect(box).toHaveAttribute("maxLength", "150");
+    const prefix = "linkedin.com/company/";
+    // Boş kutunun maxLength'i 150: tarayıcı 150 karakterlik yapıştırmayı alır.
+    fireEvent.change(box, { target: { value: prefix + "a".repeat(150 - prefix.length) } });
+    expect(box.value).toHaveLength(142);
+    expect(box).toHaveAttribute("maxLength", "142");
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    const body = h.update.mock.calls[0]![0] as Record<string, unknown>;
+    expect((body.linkedinUrl as string).length).toBe(150);
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it("kuruluş yılı DTO aralığı dışında kaydetmez (arayüz testi D-054)", async () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     fireEvent.change(screen.getByLabelText("Kuruluş yılı"), { target: { value: "1500" } });

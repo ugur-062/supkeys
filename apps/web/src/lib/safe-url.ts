@@ -55,3 +55,24 @@ export function linkInputMaxLength(raw: string, max: number): number {
   // Baştaki/sondaki boşluklar kayıtta kırpılır; kutuda yer kaplamaları sınırı daraltmasın.
   return Math.max(0, max - overhead + (raw.length - t.length));
 }
+
+/**
+ * Bağlantı kutusuna gelen değeri kaydedilebilir uzunluğa kırpar. `maxLength`
+ * öznitelik olarak yalnız kutunun O ANKİ değerinden hesaplanır: boş kutu tam
+ * adres yapıştırılabilsin diye `max` kabul eder, bu yüzden şemasız uzun bir
+ * yapıştırma (ör. 150 karakter, kayıtta `https://` ile 158) kutuya sığıp
+ * Kaydet'te "çok uzun" diye takılıyordu (arayüz testi son tur webC-05 NEW-3).
+ * onChange'de bu fonksiyondan geçen değer, tarayıcının yazmada uyguladığı
+ * sınırla aynıdır: kutunun kabul ettiği her değer kaydedilir.
+ */
+export function clampLinkInput(raw: string, max: number): string {
+  let v = raw;
+  // Kırpma normalize payını değiştirebilir (ör. şema kesilirse `https://`
+  // eklenir); sabitlenene dek tekrarla — birkaç turda biter.
+  for (let i = 0; i < 4; i++) {
+    const allowed = linkInputMaxLength(v, max);
+    if (v.length <= allowed) return v;
+    v = v.slice(0, allowed);
+  }
+  return v;
+}

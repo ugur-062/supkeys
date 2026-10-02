@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { linkInputMaxLength, safeExternalUrl } from "../safe-url";
+import { clampLinkInput, linkInputMaxLength, safeExternalUrl } from "../safe-url";
 
 describe("safeExternalUrl", () => {
   it("javascript:/data:/vbscript: şemalarını DÜŞÜRÜR (null)", () => {
@@ -55,6 +55,34 @@ describe("linkInputMaxLength (arayüz testi D-054, yeniden doğrulama)", () => {
         let v = seed;
         while (v.length < linkInputMaxLength(v, max)) v += "b";
         expect(safeExternalUrl(v)!.length).toBeLessThanOrEqual(max);
+      }
+    }
+  });
+});
+
+describe("clampLinkInput (arayüz testi son tur webC-05 NEW-3)", () => {
+  it("boş kutuya yapıştırılan şemasız uzun değeri kaydedilebilir uzunluğa kırpar", () => {
+    const pasted = "linkedin.com/company/" + "a".repeat(150 - 21);
+    expect(pasted).toHaveLength(150);
+    const v = clampLinkInput(pasted, 150);
+    expect(v).toHaveLength(142);
+    expect(safeExternalUrl(v)).toHaveLength(150);
+  });
+
+  it("sınır içindeki ve tam adresli değere dokunmaz", () => {
+    expect(clampLinkInput("demo.com", 200)).toBe("demo.com");
+    const full = "https://linkedin.com/company/" + "a".repeat(150 - 29);
+    expect(full).toHaveLength(150);
+    expect(clampLinkInput(full, 150)).toBe(full);
+    expect(clampLinkInput("", 150)).toBe("");
+  });
+
+  it("kırpılan her değer normalize edildiğinde sınırı aşmaz", () => {
+    for (const max of [150, 200]) {
+      for (const seed of ["a", "demo.com/", "linkedin.com/company/", "https://x.com/", "  x.com/"]) {
+        const v = clampLinkInput(seed + "b".repeat(max + 20), max);
+        expect(safeExternalUrl(v)!.length).toBeLessThanOrEqual(max);
+        expect(v.length).toBeLessThanOrEqual(linkInputMaxLength(v, max));
       }
     }
   });

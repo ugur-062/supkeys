@@ -10,7 +10,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 
-const h = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const h = vi.hoisted(() => ({ rows: [] as unknown[], perms: null as string[] | null }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -22,7 +22,7 @@ vi.mock("@/hooks/use-company-tenders", () => ({
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({ user: { id: "u1" }, company: { tier: "GOLD" } }),
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: (p: string) => (h.perms ? h.perms.includes(p) : true),
 }));
 vi.mock("@/components/ihale/IhaleItemsPanel", () => ({
   IhaleItemsPanel: () => <div data-testid="items-panel" />,
@@ -59,6 +59,7 @@ const row = (id: string, title: string, status: string) =>
 
 beforeEach(() => {
   h.rows = [row("1", "Çelik boru alımı", "AWARDED"), row("2", "Kablo alımı", "OPEN")];
+  h.perms = null;
   window.history.replaceState(null, "", "/company/satinalma/taleplerim");
 });
 afterEach(() => {
@@ -212,6 +213,20 @@ describe("IhalelerView", () => {
     expect(screen.getByRole("link", { name: /Satın Alma Talebi Aç/ })).toBeInTheDocument();
     expect(screen.queryByText("Eşleşen satın alma talebi yok.")).toBeNull();
     expect(screen.queryByRole("button", { name: "Filtreleri temizle" })).toBeNull();
+  });
+
+  it("buy:reports:view olmayan satın almacıya başlıkta Raporlar çizilmez; izinliye çizilir (son tur webC-2 NEW-1)", () => {
+    h.perms = ["buy:view", "buy:listing:manage"];
+    const { unmount } = render(<IhalelerView />);
+    expect(screen.queryByRole("link", { name: "Raporlar" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Şablonlar" })).toBeInTheDocument();
+    unmount();
+    h.perms = ["buy:view", "buy:listing:manage", "buy:reports:view"];
+    render(<IhalelerView />);
+    expect(screen.getByRole("link", { name: "Raporlar" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/company/sirketim/raporlar"),
+    );
   });
 
   it("D-247: Şablonlar ve Raporlar tek bağlantı (içinde düğme yok)", () => {
