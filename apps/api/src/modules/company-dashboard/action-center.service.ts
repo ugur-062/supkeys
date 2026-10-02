@@ -1,4 +1,8 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@rothern/db";
+import { paymentDueDate, type PaymentCategory } from "@rothern/shared";
+import { PENDING_AI_SUGGESTION_RUN_WHERE } from "../../common/company/ai-suggestions";
+import { isOrderFullyPaid } from "../../common/company/order-payments";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { OWNER_VISIBLE_BID_STATUSES } from "../../common/company/bid-items";
 import { inquiryNotFromBlockedWhere } from "../public-inquiry/public-inquiry.service";
@@ -149,9 +153,9 @@ export class ActionCenterService {
             createdAt: true,
             amount: true,
             expectedDeliveryDate: true,
+            paymentCategory: true,
             paymentDays: true,
             deliveredAt: true,
-            completedAt: true,
           },
         }),
         this.prisma.companyOrderPayment.findMany({
@@ -161,37 +165,48 @@ export class ActionCenterService {
         // AI tedarikçi önerisi bekleyen açık talepler (2026-09-27, Faz 1):
         // bitmiş, kapatılmamış tur + henüz davet edilmemiş aday.
         this.prisma.supplierDiscoveryRun.findMany({
+          // Tanım Taleplerim `aiSuggestionsPending` ile ORTAK (satırın hedefi
+          // `?status=OPEN&ai=1`; arayüz testi O-035).
           where: {
+            ...PENDING_AI_SUGGESTION_RUN_WHERE,
             companyId,
-            state: "DONE",
-            dismissedAt: null,
-            trigger: { in: ["PUBLISH", "SECOND_ROUND"] },
             listing: { status: "OPEN" },
-            candidates: { some: { status: "SUGGESTED" } },
           },
           select: { listingId: true, finishedAt: true },
         }),
       ]);
 
-    // ── Ödeme vadesi (S7 kuralı: vade kolonu yok → teslim + paymentDays) ──
-    const confirmedByOrder = new Map<string, number>();
+    // ── Ödeme vadesi ve "ödenmedi" — sipariş listesiyle ORTAK kural ──
+    // Vade `paymentDueDate` (cron hatırlatması + liste `paymentDueDate` ile
+    // aynı: vadeli kategori + teslim + paymentDays), ödendi `isOrderFullyPaid`
+    // (liste `paymentSettled`, tam Decimal). Satırlar Siparişlerim
+    // `?payment=overdue|open` süzgecine bağlanır (web `derived-filters.ts`);
+    // eskiden burada `deliveredAt ?? completedAt` + kategorisiz vade ve 0,01
+    // toleranslı Number karşılaştırması vardı → "1 siparişin ödemesi gecikti"
+    // satırı listede 49 sipariş açıyordu (arayüz testi O-035).
+    const confirmedByOrder = new Map<string, Prisma.Decimal>();
     for (const p of payments) {
       confirmedByOrder.set(
         p.orderId,
-        (confirmedByOrder.get(p.orderId) ?? 0) + Number(p.amount),
+        (confirmedByOrder.get(p.orderId) ?? new Prisma.Decimal(0)).plus(p.amount),
       );
     }
     const unpaid = (o: (typeof orders)[number]) =>
-      Number(o.amount) - (confirmedByOrder.get(o.id) ?? 0) > 0.01;
-    const dueDateOf = (o: (typeof orders)[number]): Date | null => {
-      const base = o.deliveredAt ?? o.completedAt;
-      if (!base || o.paymentDays == null) return null;
-      return new Date(base.getTime() + o.paymentDays * DAY_MS);
-    };
+      !isOrderFullyPaid(
+        new Prisma.Decimal(o.amount),
+        confirmedByOrder.get(o.id) ?? new Prisma.Decimal(0),
+      );
+    const dueDateOf = (o: (typeof orders)[number]): Date | null =>
+      paymentDueDate(o.paymentCategory as PaymentCategory, o.paymentDays, o.deliveredAt);
+    // Ödeme satırlarının evreni: teslim edilmiş (DELIVERED) ya da teslim alınıp
+    // kapanmış (COMPLETED) sipariş — borç operasyonel bitişten bağımsız.
+    const paymentPhase = (o: (typeof orders)[number]) =>
+      o.status === "DELIVERED" || o.status === "COMPLETED";
 
     const overduePay = orders.filter((o) => {
+      if (!paymentPhase(o) || !unpaid(o)) return false;
       const due = dueDateOf(o);
-      return due && due < now && unpaid(o);
+      return !!due && due < now;
     });
     const overdueDel = orders.filter(
       (o) =>
@@ -217,12 +232,7 @@ export class ActionCenterService {
     const paymentWindow = orders.filter((o) => {
       // Madde 17: teslim alma siparişi COMPLETED yapıyor → yalnız DELIVERED'a
       // bakmak bu satırı ölü bırakıyordu (P8 HIGH ile aynı kök).
-      if (
-        (o.status !== "DELIVERED" && o.status !== "COMPLETED") ||
-        !unpaid(o)
-      ) {
-        return false;
-      }
+      if (!paymentPhase(o) || !unpaid(o)) return false;
       const due = dueDateOf(o);
       return !due || due >= now; // vadesi geçenler kırmızı satırda
     });

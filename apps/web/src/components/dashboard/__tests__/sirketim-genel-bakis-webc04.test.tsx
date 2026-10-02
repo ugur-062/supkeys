@@ -98,6 +98,10 @@ describe("bağlantılar süzülmüş listeye (O-032, O-035)", () => {
     expect(ACTION_ROWS.satinalma.closingSoon!.href).toBe("/company/satinalma/taleplerim?closing=soon");
     expect(ACTION_ROWS.satinalma.zeroBidClosingSoon!.href).toBe("/company/satinalma/taleplerim?closing=nobids");
     expect(ACTION_ROWS.satinalma.sellerApproval!.href).toBe("/company/satinalma/siparisler?status=PENDING");
+    // Son tur: ödeme ve AI satırları da türetilmiş küme — geniş durum listesi değil.
+    expect(ACTION_ROWS.satinalma.overduePayments!.href).toBe("/company/satinalma/siparisler?payment=overdue");
+    expect(ACTION_ROWS.satinalma.paymentWindow!.href).toBe("/company/satinalma/siparisler?payment=open");
+    expect(ACTION_ROWS.satinalma.aiSuggestions!.href).toBe("/company/satinalma/taleplerim?status=OPEN&ai=1");
     expect(ACTION_ROWS.satis.expiringBids!.href).toBe("/company/satis/tekliflerim?pending=1");
   });
 

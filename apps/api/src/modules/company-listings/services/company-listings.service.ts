@@ -77,6 +77,7 @@ import { currentLocale } from "../../../common/i18n/locale-context";
 import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
 import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
+import { PENDING_AI_SUGGESTION_RUN_WHERE } from "../../../common/company/ai-suggestions";
 import { geoIndex } from "../../../common/geo/geo-index";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -2844,6 +2845,21 @@ export class CompanyListingsService {
       : [];
     const cmap = new Map(cats.map((c) => [c.id, categoryName(c)]));
 
+    // AI tedarikçi önerisi bekleyen talepler — Şirketim "AI, N talebiniz için
+    // tedarikçi buldu" satırının kümesi (`?status=OPEN&ai=1`, arayüz testi
+    // O-035); tanım aksiyon merkeziyle ORTAK. Tek sorgu (N+1 yok).
+    const aiRuns = rows.length
+      ? await this.prisma.supplierDiscoveryRun.findMany({
+          where: {
+            ...PENDING_AI_SUGGESTION_RUN_WHERE,
+            companyId,
+            listingId: { in: rows.map((r) => r.id) },
+          },
+          select: { listingId: true },
+        })
+      : [];
+    const aiPending = new Set(aiRuns.map((a) => a.listingId));
+
     return rows.map((r) => {
       const u = umap.get(r.createdById);
       return {
@@ -2868,6 +2884,7 @@ export class CompanyListingsService {
         },
         invitationCount: r._count.invitations,
         bidCount: r._count.bids,
+        aiSuggestionsPending: aiPending.has(r.id),
         // D-149: yayımlanmamış (taslak / onayda) talepte null — createdAt ayrı
         // gönderilir; geri düşüş web/mobilde "Yayın <oluşturma>" basıyordu.
         publishedAt: r.publishedAt,

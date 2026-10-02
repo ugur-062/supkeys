@@ -79,7 +79,7 @@ describe("CompanyActionCenter", () => {
     expect(within(sec.querySelector("h2")!.parentElement!).getByText("2")).toBeInTheDocument();
     expect(within(sec).getByText(/Gecikmiş/)).toBeInTheDocument();
     expect(within(sec).getByText(/Bu hafta/)).toBeInTheDocument();
-    expect(within(sec).getByRole("link", { name: /siparişin ödemesi gecikti — 3 gün gecikti/ })).toHaveAttribute("href", "/company/satinalma/siparisler?status=DELIVERED,COMPLETED");
+    expect(within(sec).getByRole("link", { name: /siparişin ödemesi gecikti — 3 gün gecikti/ })).toHaveAttribute("href", "/company/satinalma/siparisler?payment=overdue");
     expect(within(sec).getByRole("link", { name: /davete henüz teklif vermediniz — yarın/ })).toHaveAttribute("href", "/company/satis#acik-talepler");
     expect(within(sec).getByText("Satınalma")).toBeInTheDocument();
     expect(within(sec).getByText("Satış")).toBeInTheDocument();

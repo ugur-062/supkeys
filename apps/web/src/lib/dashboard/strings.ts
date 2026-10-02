@@ -12,8 +12,9 @@
  * Hedef = satırın kümesine SÜZÜLMÜŞ liste (arayüz testi O-035): listeler
  * `?status=` (virgüllü çoklu) okur; durum kümesi `ActionCenterService`'teki
  * satır süzgeciyle aynı. Gecikme/kapanış yaklaşan gibi türetilmiş kümeler
- * kendi parametresiyle süzülür (`?due=overdue`, `?closing=nobids|soon` —
- * tanımlar `derived-filters.ts`'te, backend satırıyla birebir).
+ * kendi parametresiyle süzülür (`?due=overdue`, `?payment=overdue|open`,
+ * `?closing=nobids|soon`, `?ai=1` — tanımlar `derived-filters.ts`'te, backend
+ * satırıyla birebir).
  */
 export const ACTION_ROWS: Record<
   "satinalma" | "satis",
@@ -22,7 +23,7 @@ export const ACTION_ROWS: Record<
   satinalma: {
     overduePayments: {
       textKey: "satinalma.overduePayments",
-      href: "/company/satinalma/siparisler?status=DELIVERED,COMPLETED",
+      href: "/company/satinalma/siparisler?payment=overdue",
     },
     overdueDeliveries: {
       textKey: "satinalma.overdueDeliveries",
@@ -38,7 +39,7 @@ export const ACTION_ROWS: Record<
     },
     aiSuggestions: {
       textKey: "satinalma.aiSuggestions",
-      href: "/company/satinalma/taleplerim?status=OPEN",
+      href: "/company/satinalma/taleplerim?status=OPEN&ai=1",
     },
     awaitingDecision: {
       textKey: "satinalma.awaitingDecision",
@@ -58,7 +59,7 @@ export const ACTION_ROWS: Record<
     },
     paymentWindow: {
       textKey: "satinalma.paymentWindow",
-      href: "/company/satinalma/siparisler?status=DELIVERED,COMPLETED",
+      href: "/company/satinalma/siparisler?payment=open",
     },
     messages: {
       textKey: "satinalma.messages",

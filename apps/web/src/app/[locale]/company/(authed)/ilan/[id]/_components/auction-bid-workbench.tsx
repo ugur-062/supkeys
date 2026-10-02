@@ -360,8 +360,12 @@ export function AuctionBidWorkbench({
         {filterChip("LOCKED", t("secimDisi"), lockedIds.size)}
       </div>
 
-      {/* ── Kompakt kalem tablosu ── */}
-      <div className="overflow-x-auto rounded-xl border border-zinc-950/10 bg-white">
+      {/* ── Kompakt kalem tablosu ──
+          `relative`: tablo içindeki `sr-only` (position:absolute) metinlerin
+          kapsayıcısı bu kutu olsun — yoksa sayfaya göre konumlanıp 390 px
+          mobilde belgeyi ~300 px genişletiyor, bütün sayfa yana kayıyordu
+          (arayüz testi son tur webC-1 NEW-1). */}
+      <div className="relative overflow-x-auto rounded-xl border border-zinc-950/10 bg-white">
         <table className="min-w-full text-sm">
           <thead className="sticky top-0 z-[1] bg-zinc-50 text-left text-xs text-zinc-500">
             <tr>

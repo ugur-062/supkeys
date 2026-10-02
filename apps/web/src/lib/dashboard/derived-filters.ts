@@ -14,6 +14,13 @@
  * - Talep `?closing=soon`: OPEN, teklifli, kapanışa ≤ 2 gün (iki küme ayrık).
  * - Talep `?bids=1`: teklif gelmiş talepler ("Gelen Teklifler" KPI'ı; KPI
  *   teklif SAYAR, liste talep gösterir — sayılar bu yüzden eşit değildir).
+ * - Sipariş `?payment=overdue`: DELIVERED/COMPLETED, tam ödenmemiş
+ *   (`paymentSettled === false`), vade (`paymentDueDate`) geçmiş.
+ *   `?payment=open`: aynı evren, vadesi yok ya da henüz gelmemiş (iki küme
+ *   ayrık). Vade ve "ödendi" kuralı backend'de liste ile aksiyon merkezi
+ *   arasında ORTAK (`paymentDueDate`, `isOrderFullyPaid`).
+ * - Talep `?ai=1`: AI tedarikçi önerisi bekleyen talep (liste ucunun
+ *   `aiSuggestionsPending` alanı; backend `PENDING_AI_SUGGESTION_RUN_WHERE`).
  *
  * "Teklifli" = sahibin gördüğü teklif (`bidCount`, geri çekilen/taslak hariç)
  * — backend satırı da aynı kümeyi kullanır.
@@ -49,6 +56,29 @@ export function matchesOrderDue(
   );
 }
 
+export type OrderPaymentFilter = "overdue" | "open";
+export const ORDER_PAYMENT_VALUES: readonly OrderPaymentFilter[] = ["overdue", "open"];
+
+/** Ödeme satırlarının evreni (`ActionCenterService` paymentPhase). */
+const PAYMENT_PHASE: ReadonlySet<string> = new Set(["DELIVERED", "COMPLETED"]);
+
+export function parseOrderPayment(raw: string | null): OrderPaymentFilter | null {
+  return (ORDER_PAYMENT_VALUES as readonly string[]).includes(raw ?? "")
+    ? (raw as OrderPaymentFilter)
+    : null;
+}
+
+export function matchesOrderPayment(
+  o: { status: string; paymentSettled?: boolean; paymentDueDate?: string | null },
+  payment: OrderPaymentFilter | null,
+  now: number,
+): boolean {
+  if (!payment) return true;
+  if (!PAYMENT_PHASE.has(o.status) || o.paymentSettled !== false) return false;
+  const overdue = !!o.paymentDueDate && new Date(o.paymentDueDate).getTime() < now;
+  return payment === "overdue" ? overdue : !overdue;
+}
+
 export type TenderClosingFilter = "nobids" | "soon";
 export const TENDER_CLOSING_VALUES: readonly TenderClosingFilter[] = ["nobids", "soon"];
 
@@ -75,4 +105,11 @@ export function matchesTenderClosing(
 
 export function matchesTenderHasBids(t: { bidCount: number }, hasBids: boolean): boolean {
   return !hasBids || t.bidCount > 0;
+}
+
+export function matchesTenderAiPending(
+  t: { aiSuggestionsPending?: boolean },
+  aiPending: boolean,
+): boolean {
+  return !aiPending || t.aiSuggestionsPending === true;
 }

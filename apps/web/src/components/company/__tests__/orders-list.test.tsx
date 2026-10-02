@@ -297,7 +297,7 @@ describe("OrdersList — liste durumu adreste (arayüz testi D-011)", () => {
     const st = parseOrdersUrl((k) =>
       new URLSearchParams("status=PENDING,XX&sort=bogus&range=30d&page=3&cp=Acme&q=boru").get(k),
     );
-    expect(st).toEqual({ q: "boru", status: ["PENDING"], due: null, sort: "newest", range: "30d", cp: "Acme", page: 3 });
+    expect(st).toEqual({ q: "boru", status: ["PENDING"], due: null, payment: null, sort: "newest", range: "30d", cp: "Acme", page: 3 });
     const out = writeOrdersUrl(new URLSearchParams("tab=x&page=9"), { ...st, page: 1, sort: "newest" });
     expect(out.get("tab")).toBe("x");
     expect(out.get("page")).toBeNull();
@@ -358,6 +358,46 @@ describe("OrdersList — '?due=overdue' teslim tarihi geçmiş kümesi (arayüz 
   it("parse: bilinmeyen değer süzgeç kurmaz", () => {
     expect(parseOrdersUrl((k) => new URLSearchParams("due=bogus").get(k)).due).toBeNull();
     expect(writeOrdersUrl(new URLSearchParams(), { ...parseOrdersUrl(() => null), due: "overdue" }).get("due")).toBe("overdue");
+  });
+});
+
+describe("OrdersList — '?payment=overdue|open' ödeme kümeleri (arayüz testi O-035, son tur)", () => {
+  const past = new Date(Date.now() - 5 * 86_400_000).toISOString();
+  const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
+  const rows = () => [
+    order({ status: "COMPLETED", paymentSettled: false, paymentDueDate: past, listingTitle: "Vadesi geçmiş" }),
+    order({ status: "DELIVERED", paymentSettled: false, paymentDueDate: future, listingTitle: "Vadesi gelecek" }),
+    order({ status: "DELIVERED", paymentSettled: false, paymentDueDate: null, listingTitle: "Vadesiz açık" }),
+    order({ status: "COMPLETED", paymentSettled: true, paymentDueDate: past, listingTitle: "Ödenmiş" }),
+    order({ status: "IN_DELIVERY", paymentSettled: false, paymentDueDate: null, listingTitle: "Yolda" }),
+  ];
+
+  it("payment=overdue: yalnız teslim edilmiş, ödenmemiş ve vadesi geçmiş; çip kaldırınca tümü", async () => {
+    h.orders.data = rows();
+    h.sp = new URLSearchParams("payment=overdue");
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Vadesi geçmiş")).toBeInTheDocument();
+    for (const t of ["Vadesi gelecek", "Vadesiz açık", "Ödenmiş", "Yolda"]) expect(screen.queryByText(t)).toBeNull();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("payment")).toBe("overdue"));
+
+    await userEvent.click(screen.getByRole("button", { name: /Ödemesi gecikmiş/ }));
+    expect(screen.getByText("Yolda")).toBeInTheDocument();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("payment")).toBeNull());
+  });
+
+  it("payment=open: ödenmemiş, vadesi yok ya da gelmemiş (gecikmişle ayrık küme)", () => {
+    h.orders.data = rows();
+    h.sp = new URLSearchParams("payment=open");
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Vadesi gelecek")).toBeInTheDocument();
+    expect(screen.getByText("Vadesiz açık")).toBeInTheDocument();
+    for (const t of ["Vadesi geçmiş", "Ödenmiş", "Yolda"]) expect(screen.queryByText(t)).toBeNull();
+    expect(screen.getByRole("button", { name: /Ödeme bekleniyor/ })).toBeInTheDocument();
+  });
+
+  it("parse: bilinmeyen değer süzgeç kurmaz; yazılır", () => {
+    expect(parseOrdersUrl((k) => new URLSearchParams("payment=bogus").get(k)).payment).toBeNull();
+    expect(writeOrdersUrl(new URLSearchParams(), { ...parseOrdersUrl(() => null), payment: "open" }).get("payment")).toBe("open");
   });
 });
 

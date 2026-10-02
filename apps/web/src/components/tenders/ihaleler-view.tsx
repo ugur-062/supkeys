@@ -24,6 +24,7 @@ import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  matchesTenderAiPending,
   matchesTenderClosing,
   matchesTenderHasBids,
   parseTenderClosing,
@@ -143,7 +144,7 @@ const SCOPE_VALUES: ScopeKey[] = ["all", "open", "limited"];
  * (`orders-list.tsx` `parseOrdersUrl`): yalnız listenin kendi anahtarları
  * okunur/yazılır, diğer parametreler korunur, varsayılanlar yazılmaz.
  * `status` aynı zamanda KPI drill-down girişidir (`?status=OPEN`, virgüllü çoklu).
- * `closing=nobids|soon` ve `bids=1` Şirketim satır/KPI kümeleridir (O-035;
+ * `closing=nobids|soon`, `bids=1` ve `ai=1` Şirketim satır/KPI kümeleridir (O-035;
  * tanım `derived-filters.ts`); menüde seçeneği yok, çipten kaldırılır.
  */
 export interface TendersUrlState {
@@ -151,6 +152,7 @@ export interface TendersUrlState {
   status: string[];
   closing?: TenderClosingFilter | null;
   bids?: boolean;
+  ai?: boolean;
   sort: string;
   range: RangeKey;
   scope: ScopeKey;
@@ -170,6 +172,7 @@ export function parseTendersUrl(get: (key: string) => string | null): TendersUrl
       .filter((v) => (STATUS_VALUES as string[]).includes(v)),
     closing: parseTenderClosing(get("closing")),
     bids: get("bids") === "1",
+    ai: get("ai") === "1",
     sort: SORT_OPTIONS.some((o) => o.value === sort) ? sort : DEFAULT_SORT,
     range: RANGE_OPTIONS.some((o) => o.value === range) ? (range as RangeKey) : DEFAULT_RANGE,
     scope: (SCOPE_VALUES as string[]).includes(scope) ? (scope as ScopeKey) : "all",
@@ -188,6 +191,7 @@ export function writeTendersUrl(params: URLSearchParams, st: TendersUrlState): U
   set("status", st.status.length > 0 ? st.status.join(",") : null);
   set("closing", st.closing ?? null);
   set("bids", st.bids ? "1" : null);
+  set("ai", st.ai ? "1" : null);
   set("sort", st.sort !== DEFAULT_SORT ? st.sort : null);
   set("range", st.range !== DEFAULT_RANGE ? st.range : null);
   set("scope", st.scope !== "all" ? st.scope : null);
@@ -224,6 +228,7 @@ export function IhalelerView() {
   const [statuses, setStatuses] = useState<string[]>(initial.status);
   const [closing, setClosing] = useState<TenderClosingFilter | null>(initial.closing ?? null);
   const [hasBids, setHasBids] = useState(initial.bids ?? false);
+  const [aiPending, setAiPending] = useState(initial.ai ?? false);
   const [search, setSearch] = useState(initial.q);
   const [sort, setSort] = useState<string>(initial.sort);
   const [range, setRange] = useState<RangeKey>(initial.range);
@@ -242,6 +247,7 @@ export function IhalelerView() {
         status: statuses,
         closing,
         bids: hasBids,
+        ai: aiPending,
         sort,
         range,
         scope,
@@ -254,7 +260,7 @@ export function IhalelerView() {
     } catch {
       /* adres yazılamadı — liste yine çalışır */
     }
-  }, [search, statuses, closing, hasBids, sort, range, scope, createdById, page]);
+  }, [search, statuses, closing, hasBids, aiPending, sort, range, scope, createdById, page]);
 
   // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
   // "Tümü (N)" etiketi görünen listeyle aynı evreni saysın.
@@ -266,6 +272,7 @@ export function IhalelerView() {
     return all.filter((t) => {
       if (!matchesTenderClosing(t, closing, now)) return false;
       if (!matchesTenderHasBids(t, hasBids)) return false;
+      if (!matchesTenderAiPending(t, aiPending)) return false;
       if (createdById && t.createdById !== createdById) return false;
       if (scope !== "all" && ((t.targetCountries ?? []).length === 0) !== (scope === "open"))
         return false;
@@ -278,7 +285,7 @@ export function IhalelerView() {
         return false;
       return true;
     });
-  }, [all, closing, hasBids, createdById, scope, range, search]);
+  }, [all, closing, hasBids, aiPending, createdById, scope, range, search]);
   const stats = useMemo(() => {
     const c: Record<string, number> = {};
     for (const t of facetRows) c[t.status] = (c[t.status] ?? 0) + 1;
@@ -313,6 +320,7 @@ export function IhalelerView() {
       if (statuses.length > 0 && !statuses.includes(t.status)) return false;
       if (!matchesTenderClosing(t, closing, now)) return false;
       if (!matchesTenderHasBids(t, hasBids)) return false;
+      if (!matchesTenderAiPending(t, aiPending)) return false;
       if (createdById && t.createdById !== createdById) return false;
       if (scope !== "all" && ((t.targetCountries ?? []).length === 0) !== (scope === "open"))
         return false;
@@ -326,7 +334,7 @@ export function IhalelerView() {
       return true;
     });
     return sortTenderRows(rows, sort, Date.now());
-  }, [all, statuses, closing, hasBids, createdById, scope, range, search, sort]);
+  }, [all, statuses, closing, hasBids, aiPending, createdById, scope, range, search, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -339,6 +347,7 @@ export function IhalelerView() {
     statuses.length > 0 ||
     closing !== null ||
     hasBids ||
+    aiPending ||
     range !== DEFAULT_RANGE ||
     scope !== "all" ||
     Boolean(createdById);
@@ -355,6 +364,7 @@ export function IhalelerView() {
     setStatuses([]);
     setClosing(null);
     setHasBids(false);
+    setAiPending(false);
     setRange(DEFAULT_RANGE);
     setScope("all");
     setCreatedById("");
@@ -494,10 +504,20 @@ export function IhalelerView() {
                   },
                 ]
               : []),
+            ...(aiPending
+              ? [
+                  {
+                    key: "ai",
+                    label: tr("aiFilter"),
+                    onRemove: () => reset(setAiPending)(false),
+                  },
+                ]
+              : []),
           ]}
           onClearAll={() => {
             setClosing(null);
             setHasBids(false);
+            setAiPending(false);
             setPage(1);
           }}
         />
@@ -521,6 +541,7 @@ export function IhalelerView() {
           status: statuses,
           closing,
           bids: hasBids,
+        ai: aiPending,
           sort,
           range,
           scope,

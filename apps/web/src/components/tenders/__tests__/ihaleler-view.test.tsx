@@ -75,6 +75,7 @@ describe("parseTendersUrl / writeTendersUrl (O-052)", () => {
       status: ["AWARDED"],
       closing: null,
       bids: false,
+      ai: false,
       sort: "createdAt:desc",
       range: "30d",
       scope: "open",
@@ -136,6 +137,22 @@ describe("IhalelerView — Şirketim türetilmiş kümeleri (arayüz testi O-035
     expect(screen.getByText("Teklifli yarın")).toBeInTheDocument();
     expect(screen.getByText("Teklifli 60 saat")).toBeInTheDocument();
     for (const t of ["Teklifsiz yarın", "Kapandı teklifli"]) expect(screen.queryByText(t)).toBeNull();
+  });
+
+  it("?status=OPEN&ai=1 (AI önerisi satırı, son tur): yalnız öneri bekleyen açık talepler; çipten kaldırılır", async () => {
+    h.rows = [
+      { ...row("7", "AI önerili", "OPEN"), aiSuggestionsPending: true } as TenderListItem,
+      row("8", "Önerisiz açık", "OPEN"),
+      { ...row("9", "AI önerili kapandı", "AWARDED"), aiSuggestionsPending: true } as TenderListItem,
+    ];
+    window.history.replaceState(null, "", "/company/satinalma/taleplerim?status=OPEN&ai=1");
+    render(<IhalelerView />);
+    expect(screen.getByText("AI önerili")).toBeInTheDocument();
+    for (const t of ["Önerisiz açık", "AI önerili kapandı"]) expect(screen.queryByText(t)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /AI tedarikçi önerisi var/ }));
+    expect(screen.getByText("Önerisiz açık")).toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).not.toContain("ai="));
   });
 });
 
