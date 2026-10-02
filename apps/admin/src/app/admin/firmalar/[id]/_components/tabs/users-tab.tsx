@@ -58,6 +58,17 @@ const ROLE_LABELS: Record<string, string> = {
   ONAYLAYICI: "Onaylayıcı",
 };
 
+/**
+ * Rol sütunu — firma panelinin Kullanıcılar listesiyle aynı kural (D-305):
+ * rolsüz ama izinli üye Görüntüleyici hazır setidir; izinsiz olan "Yetki yok".
+ * Rolsüz kurucunun rozeti ad hücresinde — sütun "—" kalır.
+ */
+function roleText(u: Pick<AdminCompanyUser, "roles" | "permissions" | "isOwner">): string {
+  if (u.roles.length) return u.roles.map((r) => ROLE_LABELS[r] ?? r).join(", ");
+  if (u.isOwner) return "—";
+  return (u.permissions ?? []).length > 0 ? "Görüntüleyici" : "Yetki yok";
+}
+
 const ADDABLE_ROLES = [
   { value: "YONETICI", label: "Yönetici" },
   { value: "SATIN_ALMACI", label: "Satın Almacı" },
@@ -280,7 +291,7 @@ export function UsersTab({
                     </span>
                   </TableCell>
                   <TableCell className="text-admin-text text-sm">
-                    {u.roles.map((r) => ROLE_LABELS[r] ?? r).join(", ") || "—"}
+                    {roleText(u)}
                   </TableCell>
                   <TableCell>
                     {u.deletedAt ? (

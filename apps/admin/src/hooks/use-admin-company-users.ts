@@ -10,6 +10,8 @@ export interface AdminCompanyUser {
   lastName: string;
   phone: string | null;
   roles: string[];
+  /** Kişiye yazılı izinler — rolsüz üyede "Görüntüleyici"/"Yetki yok" ayrımı. */
+  permissions?: string[];
   isActive: boolean;
   emailVerifiedAt: string | null;
   twoFactorEnabled: boolean;

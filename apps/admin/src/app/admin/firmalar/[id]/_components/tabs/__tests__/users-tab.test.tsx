@@ -234,3 +234,23 @@ describe("UsersTab — kullanıcı kurtarma", () => {
     expect(within(screen.getByRole("dialog")).getByLabelText(/Yeni e-posta/)).toHaveValue("dolu@firma.com");
   });
 });
+
+// Arayüz testi son tur api-2 (D-305): rolsüz Görüntüleyici üye admin Rol
+// sütununda "—" değil, firma paneliyle aynı "Görüntüleyici" yazar.
+describe("UsersTab — rol sütunu", () => {
+  it("rolsüz izinli üye Görüntüleyici, izinsiz üye Yetki yok yazar", () => {
+    h.users = {
+      data: [
+        user("v1", { roles: [], permissions: ["buy:view", "sell:view", "buy:reports:view"] }),
+        user("n1", { roles: [], permissions: [] }),
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    render(<UsersTab companyId="c1" />);
+    const v = screen.getByText("v1@firma.com").closest("tr")!;
+    const n = screen.getByText("n1@firma.com").closest("tr")!;
+    expect(within(v).getByText("Görüntüleyici")).toBeTruthy();
+    expect(within(n).getByText("Yetki yok")).toBeTruthy();
+  });
+});

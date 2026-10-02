@@ -373,4 +373,18 @@ describe("list — telefon PII response'ta yok (fazla-açığa-çıkarma kırpı
     expect(u).toHaveProperty("firstName");
     expect(u).toHaveProperty("lastName");
   });
+
+  // Arayüz testi son tur api-2: rolsüz Görüntüleyici üyenin izinleri döner —
+  // admin Rol sütunu "—" yerine "Görüntüleyici" yazabilsin.
+  it("permissions döner (rolsüz görüntüleyici ayırt edilir)", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    await prisma.companyUser.update({
+      where: { id: co.user.id },
+      data: { roles: [], permissions: ["buy:view", "sell:view", "buy:reports:view"] },
+    });
+    const [u] = await service.list(co.company.id);
+    expect(u!.roles).toEqual([]);
+    expect(u!.permissions).toEqual(["buy:view", "sell:view", "buy:reports:view"]);
+  });
 });

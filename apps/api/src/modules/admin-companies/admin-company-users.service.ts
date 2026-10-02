@@ -58,6 +58,10 @@ export class AdminCompanyUsersService {
         // phone: bilinçli ÇIKARILDI — SUPPORT dahil tüm rollere açık bu liste
         // yalnız kullanıcı seçimi/e-posta kurtarma için; telefon gereksiz PII.
         roles: true,
+        // Rolsüz üye (Görüntüleyici hazır seti) Rol sütununda "—" çıkıyordu;
+        // firma panelindeki gibi izinlerden "Görüntüleyici" türetilir (arayüz
+        // testi son tur api-2, D-305).
+        permissions: true,
         isActive: true,
         emailVerifiedAt: true,
         twoFactorEnabled: true,
