@@ -111,9 +111,17 @@ function profile(over: Record<string, unknown> = {}) {
   };
 }
 
-function login(tier: string) {
+function login(tier: string, permissions = ["connections:manage", "buy:view", "sell:view", "sell:bid:submit"]) {
   useCompanyAuthStore.setState({
-    user: { isOwner: true, roles: ["SAHIP"], permissions: ["connections:manage", "buy:view", "sell:view"] },
+    user: { isOwner: true, roles: ["SAHIP"], permissions },
+    company: { tier, country: "TR" },
+  } as never);
+}
+
+/** Kurucu değil, tek izinli üye (arayüz testi T3 matrisi). */
+function loginMember(tier: string, permissions: string[]) {
+  useCompanyAuthStore.setState({
+    user: { isOwner: false, roles: [], permissions },
     company: { tier, country: "TR" },
   } as never);
 }
@@ -223,7 +231,8 @@ describe("Panel firma profili (arayüz testi webA-04)", () => {
   });
 
   it("geri bağlantısı: doğrudan açılışta 'Bağlantılar', uygulama içinden gelince 'Geri' (D-156)", async () => {
-    login("SILVER");
+    // Satınalma Bağlantılar'ı Gold'da açılır (Silver'da o portal erişilemez).
+    login("GOLD");
     const { unmount } = render(<CompanyProfilePage />);
     expect(await screen.findByRole("link", { name: "Bağlantılar" })).toHaveAttribute(
       "href",
@@ -249,6 +258,41 @@ describe("Panel firma profili (arayüz testi webA-04)", () => {
     noteNavigation();
     render(<CompanyProfilePage />);
     expect(await screen.findByRole("button", { name: "Geri" })).toBeInTheDocument();
+  });
+});
+
+describe("Panel firma profili — izin/portal tutarlılığı (arayüz testi T3)", () => {
+  it("yalnız satınalma görüntüleme: satış tarafı açık talepler ve 'Teklif ver' çizilmez", () => {
+    loginMember("STANDART", ["buy:view"]);
+    h.portal = "satis";
+    render(<CompanyProfilePage />);
+    expect(screen.queryByText("Çelik Alımı")).not.toBeInTheDocument();
+    expect(screen.queryByText("Teklif ver")).not.toBeInTheDocument();
+  });
+
+  it("satış görüntüleme var, teklif verme yok: talep görünür, 'Teklif ver' yok", () => {
+    loginMember("GOLD", ["sell:view"]);
+    h.portal = "satis";
+    render(<CompanyProfilePage />);
+    expect(screen.getByText("Çelik Alımı")).toBeInTheDocument();
+    expect(screen.queryByText("Teklif ver")).not.toBeInTheDocument();
+  });
+
+  it("Gold altında yalnız satınalma görüntüleyicisi: geri bağlantısı açamadığı Bağlantılar'a değil panel köküne", async () => {
+    loginMember("STANDART", ["buy:view"]);
+    h.portal = "satis";
+    render(<CompanyProfilePage />);
+    expect(await screen.findByRole("link", { name: "Geri" })).toHaveAttribute("href", "/company");
+    expect(screen.queryByRole("link", { name: "Bağlantılar" })).not.toBeInTheDocument();
+  });
+
+  it("gelen istek: 'Bağlantılar' yetkisi yoksa Yanıtla düğmesi yerine durum rozeti", () => {
+    loginMember("GOLD", ["sell:view"]);
+    h.portal = "satis";
+    h.profile = profile({ connectionStatus: "incoming" });
+    render(<CompanyProfilePage />);
+    expect(screen.queryByRole("link", { name: /Yanıtla/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Size istek gönderdi")).toBeInTheDocument();
   });
 });
 

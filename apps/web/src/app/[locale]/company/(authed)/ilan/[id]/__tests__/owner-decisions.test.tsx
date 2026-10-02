@@ -224,6 +224,30 @@ describe("onay isteğini iptal (D-252)", () => {
     expect(visible("Onayı İptal Et")).toHaveLength(1);
   });
 
+  it("isteği başlatan, talep yönetme izni olmasa da görür (API cancelRequest: başlatan ∨ approvals:manage; arayüz testi T3)", () => {
+    h.perms = ["buy:view"];
+    h.detail = detail({
+      createdById: "u2",
+      status: "IN_APPROVAL",
+      pendingApprovalId: "ap1",
+      pendingApprovalMine: true,
+    } as Partial<ListingDetail>);
+    renderPage();
+    expect(visible("Onayı İptal Et")).toHaveLength(1);
+  });
+
+  it("talebi yöneten ama isteği BAŞLATMAMIŞ kişi görmez (servis reddederdi; arayüz testi T3)", () => {
+    h.perms = ["buy:view", "buy:listing:manage"];
+    h.detail = detail({
+      createdById: "u1",
+      status: "IN_AWARD_APPROVAL",
+      pendingApprovalId: "ap1",
+      pendingApprovalMine: false,
+    } as Partial<ListingDetail>);
+    renderPage();
+    expect(visible("Onayı İptal Et")).toHaveLength(0);
+  });
+
   it("ikisi de yoksa görmez", () => {
     h.perms = ["buy:view", "buy:listing:manage"];
     h.detail = detail({

@@ -3230,6 +3230,8 @@
         "suresiDolduGunOnce": "Срок истёк · {n, plural, one {# день} few {# дня} many {# дней} other {# дня}} назад"
       },
       "page": {
+        "acikTalebeTeklifIcinTeklifVermeYetkisi": "Для подачи предложения на открытый запрос требуется право «Отправка предложений» — запросите его у администратора Вашей компании",
+        "buAcikTalebeTeklifVermekIcinTeklifVermeYetkisi": "Чтобы подать предложение по этому открытому запросу, Вашей учётной записи нужно право <strong>Отправка предложений</strong> — администратор компании может выдать его в разделе Настройки → Пользователи.",
         "sablonlar": "Шаблоны",
         "satinAlmaTalebiAcarkenTekrar": "Сохраните один раз в виде шаблона данные, которые Вы вводите снова и снова при создании заявки на закупку, и быстро применяйте их.",
         "talepSartlari": "Условия запроса",
@@ -3397,7 +3399,6 @@
         "kendiIlaninizaTeklifVeremezsiniz": "Вы не можете подать предложение на собственный запрос",
         "teklifIcinSilverPaketiGerekir": "Для подачи предложения требуется тариф Silver",
         "herkeseAcikSatinAlmaTaleplerine": "Подача предложений на открытые заявки на закупку входит в тариф Silver. На запросы, полученные по приглашению от контакта, Вы можете подавать предложения бесплатно.",
-        "acikTalebeTeklifIcinSatisci": "Для подачи предложения на открытый запрос требуется роль «Продавец» — запросите её у администратора Вашей компании",
         "teklifinGonderildiSatinAlmaTalebi": "Ваше предложение отправлено — возвращаемся к заявке на закупку…",
         "teklifinGonderiliyor": "Отправка предложения…",
         "buSatinAlmaTalebineArtik": "По этой заявке на закупку больше нельзя подавать предложения",
@@ -3522,7 +3523,6 @@
         "kalemBazliDagitimTasarruf": "Распределение по позициям: <strong>{itemized}</strong> · Самое низкое общее предложение: <strong>{bestTotal}</strong> → <strong>экономия {pct}</strong>",
         "eksik": "Неполные ({incompleteCount})",
         "buIlanaTeklifVermekIcinSilverPaketi": "Чтобы подать предложение по этому запросу, требуется <strong>тариф Silver</strong> (либо приглашение в контакты от компании, открывшей запрос).",
-        "buAcikTalebeTeklifVermekIcinSatisciRolu": "Чтобы подать предложение по этому открытому запросу, Вашей учётной записи нужна роль <strong>Продавец</strong> — администратор компании может назначить её в разделе Настройки → Пользователи.",
         "gonderilmisTeklifGeriCekilemez": "Поданное предложение нельзя отозвать или изменить — для внесения изменений свяжитесь с покупателем. Если покупатель отклонит Ваше предложение, Вы сможете подать новое.",
         "mevcutTeklifin": "Ваше текущее предложение: <strong>{money}</strong>",
         "dosyalar": "Файлы",
@@ -4794,6 +4794,8 @@
         "saatAlti": "<1 ч"
       },
       "permissionTable": {
+        "yonetimTikiIleBirlikteGelir": "Входит вместе с выбранной отметкой управления",
+        "islemTikleriGoldPakette": "· отметки действий — только в тарифе Gold",
         "hazirSetler": "Готовые наборы",
         "hazirSetUygulaniyorAsagidanKisiye": "Применён готовый набор; ниже его можно изменить индивидуально для сотрудника.",
         "kisiyeOzelYetkiKumesi": "Индивидуальный набор полномочий.",
@@ -5153,6 +5155,7 @@
         "eksikleriGoster": "Показать недостающее ({count})"
       },
       "productPreview": {
+        "urunVitrindeSaltOkunur": "Товар размещён на витрине. Для редактирования товаров нужно право «Управление товарами и витриной» — обратитесь к администратору компании.",
         "urunVitrindenCekildi": "Товар убран с витрины",
         "vitrindenCekilemedi": "Не удалось убрать с витрины",
         "urunVitrindeDuzenlemekIcinDuzenle": "Товар размещён на витрине. Нажмите «Редактировать», чтобы внести изменения; после сохранения изменений содержимого товар пройдёт повторную проверку, оставаясь при этом на витрине.",
@@ -6349,6 +6352,7 @@
         "buSayfaKullaniciVeYetki": "Для этой страницы требуется право «Пользователи и права доступа»."
       },
       "ayarlarPage": {
+        "silverIleAcilir": "Доступно с Silver",
         "acik": "Включено",
         "kapali": "Выключено",
         "ayarlar": "Настройки",
@@ -6491,6 +6495,7 @@
         "firmaSayfalariniBirPortaliGoruntuleme": "Страницы компаний видны пользователям, у которых есть право просмотра хотя бы одного портала."
       },
       "firmaIdPage": {
+        "sizeIstekGonderdi": "Вам отправлен запрос",
         "firmaProfiliBulunamadi": "Профиль компании не найден.",
         "baglantiIstegiGonderildi": "Запрос на контакт отправлен",
         "istekGonderilemedi": "Не удалось отправить запрос",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
+import { ALL_SEAT_PERMISSIONS, tierAtLeast } from "@rothern/shared";
 
 import { userHasPermission } from "@/lib/company/permissions";
 import { Heading } from "@/components/catalyst/heading";
@@ -22,6 +22,13 @@ interface SettingsCard extends SettingsPageMeta {
    * `layout.tsx` kapısıyla AYNI izin) — denetim 2026-08-26 Parça 10 B5.
    */
   permission?: string | readonly string[];
+  /**
+   * Sayfa bu paketle açılır (sayfadaki `PremiumOnly` ile aynı eşik). Kademe
+   * yetmiyorsa kart Raporlar hub'ı gibi "Silver ile açılır" rozeti taşır —
+   * paket kilidi izin kapısının İÇİNDE: izinsiz üye kartı hiç görmez
+   * (arayüz testi T3; eskiden tıklayınca sürpriz paket duvarı).
+   */
+  minTier?: "SILVER";
 }
 
 interface SettingsGroup {
@@ -59,12 +66,13 @@ export default function AyarlarPage() {
         { ...pages.banka, icon: Landmark, permission: "billing:manage" },
         { ...pages.kullanicilar, icon: UserPlus2, permission: "users:manage" },
         // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
-        { ...pages.aktivite, icon: Activity, permission: ["users:manage", "company:manage"] },
+        { ...pages.aktivite, icon: Activity, permission: ["users:manage", "company:manage"], minTier: "SILVER" },
         // Faz AI-0 — koltuklu herkes kendi kullanımını, K+Y firma kırılımını görür.
         {
           ...pages.ai,
           icon: Sparkles,
           permission: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
+          minTier: "SILVER",
         },
         { ...pages.dogrulama, icon: BadgeCheck, permission: "company:manage" },
       ],
@@ -132,6 +140,12 @@ export default function AyarlarPage() {
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-950">
                         {s.title}
+                        {s.minTier && company && !tierAtLeast(company.tier, s.minTier) ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                            <Lock className="size-3" aria-hidden />
+                            {t("silverIleAcilir")}
+                          </span>
+                        ) : null}
                         {(() => {
                           const badge = badgeFor(s.href);
                           return badge ? (

@@ -635,7 +635,7 @@ export default function TeklifVerPage() {
   if (l.roleAllowsBid === false) {
     return (
       <Blocked
-        title={tr("acikTalebeTeklifIcinSatisci")}
+        title={tr("acikTalebeTeklifIcinTeklifVermeYetkisi")}
         detailHref={detailHref}
       />
     );

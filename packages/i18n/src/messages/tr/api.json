@@ -225,6 +225,7 @@
     "buBelgeyiSilemezsiniz": "Bu belgeyi silemezsiniz"
   },
   "companyListings": {
+    "talepYonetmeIzniGerekir": "Bu talebi yönetme yetkiniz yok — rolünüzde ''Talep açma ve yönetme'' yetkisi gerekir; firma yöneticinize başvurun",
     "kendiSatinAlmaTalebinizeTeklifVeremezsiniz": "Kendi satın alma talebinize teklif veremezsiniz",
     "buSatinAlmaTalebindeKalemListesi": "Bu satın alma talebinde kalem listesi yok ya da görüntüleme yetkiniz yok — fiyat içe aktarma yalnız kalemli satın alma taleplerinde",
     "dosyaBos": "Dosya boş",

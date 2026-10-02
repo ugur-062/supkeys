@@ -18,7 +18,10 @@ export default function CompanyHome() {
   const { user, company } = useCompanyAuth();
   const router = useRouter();
   const lastPortal = usePortalStore((s) => s.lastPortal);
+  // Onaylar sayfasının kapısıyla AYNI kural (ApprovalsGate): yalnız akış
+  // yetkilisi (approvals:manage) de Onaylar'a düşer (arayüz testi T3).
   const canAct = useHasCompanyPermission("approval:act");
+  const canOpenApprovals = canAct || userHasPermission(user, "approvals:manage");
   // PortalGuard ile aynı kural (paket kapısı orada çizilir).
   const canViewBuying = userHasPermission(user, "buy:view");
   // TEK YÖNLENDİRME (arayüz testi Y-08): `/me` gelince kullanıcı nesnesi aynı
@@ -63,13 +66,13 @@ export default function CompanyHome() {
     router.replace(
       target
         ? `/company/${target}`
-        : canAct
+        : canOpenApprovals
           ? "/company/onaylar"
           : canViewBuying
             ? "/company/satinalma"
             : "/company/ayarlar",
     );
-  }, [user, company?.tier, lastPortal, canAct, canViewBuying, router, meReady, needsOnboarding]);
+  }, [user, company?.tier, lastPortal, canOpenApprovals, canViewBuying, router, meReady, needsOnboarding]);
 
   return <div className="p-8 text-sm text-zinc-400">{t("yonlendiriliyor")}</div>;
 }

@@ -39,8 +39,8 @@ import { PrismaService, PrismaBypassService } from "../../../common/prisma/prism
 import { bidderPermission } from "../bidder-op-role";
 import { connectedInvitees } from "../listing-invitees";
 import {
-  LISTING_MANAGE_DENY_KEY,
   listingManageDenial,
+  listingManageDenyKey,
 } from "../listing-manage-access";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import {
@@ -3746,7 +3746,7 @@ export class CompanyListingsService {
       const needsApproval =
         listing.status === "IN_APPROVAL" ||
         listing.status === "IN_AWARD_APPROVAL";
-      const [bids, invitations, pendingApprovalId, totalBidCount, orders] =
+      const [bids, invitations, pendingApproval, totalBidCount, orders] =
         await Promise.all([
         this.prisma.listingBid.findMany({
           where: {
@@ -3837,7 +3837,10 @@ export class CompanyListingsService {
         // Yayınlanabilir: yalnızca taslakken.
         canPublish: listing.status === "DRAFT",
         // Bekleyen onay isteği (iptal için).
-        pendingApprovalId,
+        pendingApprovalId: pendingApproval?.id ?? null,
+        // "Onayı İptal Et" yalnız başlatana (veya approvals:manage) — API
+        // `cancelRequest` kuralı (arayüz testi T3).
+        pendingApprovalMine: !!pendingApproval && pendingApproval.createdById === user.userId,
         english,
         internalNotes: listing.internalNotes,
         deliveryAddressId: listing.deliveryAddressId,
@@ -8970,7 +8973,7 @@ export class CompanyListingsService {
           reason: denial.reason,
         },
       });
-      throw new ForbiddenException(i18nMessage(LISTING_MANAGE_DENY_KEY));
+      throw new ForbiddenException(i18nMessage(listingManageDenyKey(denial.reason)));
     }
   }
 

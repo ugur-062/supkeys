@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/hooks/use-company-auth", () => ({
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: () => h.canManage,
   useCompanyAuth: () => ({ user: null, company: { name: "Acme", slug: "acme", tier: "SILVER", companyVerificationStatus: "VERIFIED" } }),
 }));
 vi.mock("@/hooks/use-company-profile", () => ({
@@ -19,7 +19,7 @@ vi.mock("@/hooks/use-company-profile", () => ({
 vi.mock("@/hooks/use-categories", () => ({
   useCategoriesByIds: () => ({ data: [{ id: "39121600", code: "39121600", nameTr: "Dağıtım panoları", level: 3, breadcrumb: "" }] }),
 }));
-const h = vi.hoisted(() => ({ confirm: vi.fn(), unpublish: vi.fn() }));
+const h = vi.hoisted(() => ({ confirm: vi.fn(), unpublish: vi.fn(), canManage: true }));
 vi.mock("@/hooks/use-company-items", () => ({
   usePublishProduct: () => ({ mutateAsync: h.unpublish, isPending: false }),
 }));
@@ -142,6 +142,25 @@ describe("ProductPreview published", () => {
     await user.click(screen.getByRole("button", { name: /Düzenle/ }));
     expect(onEdit).toHaveBeenCalled();
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("ürün yönetimi izni yoksa band 'Düzenle'ye basın demez; yetkinin adını söyler (arayüz testi T3)", () => {
+    h.canManage = false;
+    try {
+      wrap(
+        <ProductPreview
+          variant="published"
+          product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }}
+          onClose={() => {}}
+          onEdit={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /Düzenle/ })).toBeNull();
+      expect(screen.getByRole("status")).not.toHaveTextContent(/Düzenle”ye basın/);
+      expect(screen.getByRole("status")).toHaveTextContent("Ürün ve vitrin yönetimi");
+    } finally {
+      h.canManage = true;
+    }
   });
 });
 

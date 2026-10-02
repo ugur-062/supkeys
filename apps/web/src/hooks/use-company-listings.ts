@@ -409,6 +409,8 @@ export interface ListingDetail {
   canPublish?: boolean;
   // Bekleyen onay isteği id'si (IN_APPROVAL / IN_AWARD_APPROVAL'da).
   pendingApprovalId?: string | null;
+  // Bekleyen isteği bu kullanıcı mı başlattı (iptal kuralı: başlatan ∨ approvals:manage).
+  pendingApprovalMine?: boolean;
   // ihale zenginleştirme
   categoryIds?: string[];
   preferredActivities?: string[];

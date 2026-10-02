@@ -50,4 +50,17 @@ describe("AyarlarPage", () => {
     expect(screen.queryByText("Firma Profili")).toBeNull();
     expect(screen.getByText("Hesap Bilgileri")).toBeInTheDocument();
   });
+
+  it("Aktivite ve AI kartları Silver altında 'Silver ile açılır' rozeti taşır; Silver'da taşımaz (arayüz testi T3)", () => {
+    h.user = { ...h.user, permissions: ["company:manage", "sell:bid:submit"] };
+    h.company = { companyVerificationStatus: "VERIFIED", tier: "STANDART" };
+    const { unmount } = render(<AyarlarPage />);
+    expect(screen.getByRole("link", { name: /Aktivite Logu/ })).toHaveTextContent("Silver ile açılır");
+    expect(screen.getByRole("link", { name: /AI Kullanımı/ })).toHaveTextContent("Silver ile açılır");
+    expect(screen.getByRole("link", { name: /Firma Bilgileri/ })).not.toHaveTextContent("Silver ile açılır");
+    unmount();
+    h.company = { companyVerificationStatus: "VERIFIED", tier: "SILVER" };
+    render(<AyarlarPage />);
+    expect(screen.queryByText("Silver ile açılır")).toBeNull();
+  });
 });

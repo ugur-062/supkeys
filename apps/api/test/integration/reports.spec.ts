@@ -258,6 +258,25 @@ describe("Ters tarih aralığı (arayüz testi D-113)", () => {
   });
 });
 
+describe("Rapor talep seçicisi (arayüz testi T3)", () => {
+  it("yalnız firmanın kendi alım talepleri, seçim alanlarıyla; başka firmanınki gelmez", async () => {
+    const service = svc();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const outsider = await makeCompanyWithUser(prisma, { country: "TR" });
+    const { listing } = await awardedAlim(owner);
+    await awardedAlim(outsider);
+
+    const rows = await service.listingOptions(owner.company.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({
+      id: listing.id,
+      tenderNumber: listing.number ?? "—",
+      title: listing.title,
+      status: "AWARDED",
+    });
+  });
+});
+
 describe("Genel rapor", () => {
   it("SINGLE: numarayla çözer; satır katılım+tasarruf içerir; sahip-dışı 404", async () => {
     const service = svc();

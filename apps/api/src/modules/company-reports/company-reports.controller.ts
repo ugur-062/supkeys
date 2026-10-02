@@ -7,6 +7,7 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   Post,
   Res,
   StreamableFile,
@@ -100,12 +101,20 @@ function reportFile(key: Parameters<typeof tApi>[0]) {
 @RequireTier("GOLD")
 @RequireCompanyPermission(REPORTS_PERMISSION)
 // Raporlar premium özelliğidir — STANDARD firma erişemez (yalnız teklif verir).
-@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard, CompanyPaidTierGuard)
+// Sıra: paket → izin (rol kontrolü paket kontrolünün İÇİNDE; arayüz testi T3).
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class CompanyReportsController {
   constructor(
     private readonly service: CompanyReportsService,
     private readonly excel: ReportsExcelService,
   ) {}
+
+  /** Talep seçicisi (Genel tekil + Teklif Karşılaştırma) — rapor izni yeter. */
+  @Get("listings")
+  listingOptions(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    assertAllowed(user);
+    return this.service.listingOptions(user.companyId);
+  }
 
   /** Hub özet grafikleri (denetim §10.5) — kriter yok. */
   @Post("summary")

@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   Bar,
   BarChart,
@@ -71,6 +72,10 @@ export function SatinalmaIhaleTab({
   onRetryAnalytics?: () => void;
 }) {
   const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
+  // "Satın Alma Talebi Aç" yalnız talep açma izniyle — menü CTA'sıyla aynı
+  // kural (paket kapısı panoyu zaten Gold'a bağlar; rol kontrolü içinde).
+  // İzinsiz üye CTA'dan "yetki gerektirir" duvarına düşüyordu (arayüz testi T3).
+  const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
   const locale = useLocale();
   const { money: fm, compact: fcm } = useFormatMoney();
@@ -215,8 +220,8 @@ export function SatinalmaIhaleTab({
             <DashboardEmptyState
               title={t("henuzHuniVerisiYok")}
               body={t("ilkSatinAlmaTalebiniziAcip")}
-              ctaLabel={t("satinAlmaTalebiAc")}
-              ctaHref="/company/satinalma/taleplerim/yeni"
+              ctaLabel={canCreateBuyListing ? t("satinAlmaTalebiAc") : undefined}
+              ctaHref={canCreateBuyListing ? "/company/satinalma/taleplerim/yeni" : undefined}
             />
           )}
         </ChartCard>

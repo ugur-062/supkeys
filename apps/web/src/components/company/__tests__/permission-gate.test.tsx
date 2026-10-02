@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { PermissionGate } from "../permission-gate";
 
-afterEach(() => useCompanyAuthStore.setState({ user: null } as never));
+afterEach(() => useCompanyAuthStore.setState({ user: null, company: null } as never));
 
 describe("PermissionGate", () => {
   it("sahibe özel izin (billing:manage): kurucuya yönlendirir + geri bağlantısı", () => {
@@ -32,5 +32,28 @@ describe("PermissionGate", () => {
     );
     expect(screen.getByText(/firma yöneticinize başvurun/)).toBeInTheDocument();
     expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("tierFirst: paket yetmiyorsa izin notu yerine içerik (sayfanın paket kilidi) çizilir; paket yeterse izin notu (arayüz testi T3)", () => {
+    useCompanyAuthStore.setState({
+      user: { permissions: ["sell:view"], roles: [], isOwner: false },
+      company: { tier: "STANDART" },
+    } as never);
+    const { unmount } = render(
+      <PermissionGate tierFirst="SILVER" permission={["users:manage", "company:manage"]} description="x">
+        <div>PAKET KİLİDİ</div>
+      </PermissionGate>,
+    );
+    expect(screen.getByText("PAKET KİLİDİ")).toBeInTheDocument();
+    expect(screen.queryByText(/firma yöneticinize başvurun/)).toBeNull();
+    unmount();
+    useCompanyAuthStore.setState({ company: { tier: "SILVER" } } as never);
+    render(
+      <PermissionGate tierFirst="SILVER" permission={["users:manage", "company:manage"]} description="x">
+        <div>PAKET KİLİDİ</div>
+      </PermissionGate>,
+    );
+    expect(screen.queryByText("PAKET KİLİDİ")).toBeNull();
+    expect(screen.getByText(/firma yöneticinize başvurun/)).toBeInTheDocument();
   });
 });

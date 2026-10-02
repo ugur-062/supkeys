@@ -27,11 +27,11 @@ vi.mock("@/hooks/use-company-reports", () => ({
     mutateAsync: h.downloadMutate,
     isPending: h.downloadPending,
   }),
-}));
-vi.mock("@/hooks/use-company-tenders", () => ({
-  useTenders: () => ({ data: h.tenders }),
+  // Seçici rapor izniyle açılan uçtan (arayüz testi T3).
+  useReportListingOptions: () => ({ data: h.tenders }),
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { GeneralReportView } from "../general-report-view";
 
 function result(over: Record<string, unknown> = {}) {
@@ -84,6 +84,9 @@ function result(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useCompanyAuthStore.setState({
+    user: { permissions: ["buy:view", "buy:reports:view"], roles: [], isOwner: false },
+  } as never);
   window.history.replaceState(null, "", "/");
   h.reportPending = false;
   h.reportData = undefined;
@@ -151,6 +154,16 @@ describe("GeneralReportView", () => {
     // İhale satırı.
     expect(screen.getByRole("link", { name: "Çelik Alımı" })).toBeInTheDocument();
     expect(screen.getByText("Demir Ltd.")).toBeInTheDocument();
+  });
+
+  it("yalnız rapor yetkilisi (buy:view yok): talep adı bağlantı değil düz metin (arayüz testi T3)", () => {
+    useCompanyAuthStore.setState({
+      user: { permissions: ["buy:reports:view"], roles: [], isOwner: false },
+    } as never);
+    h.reportData = result();
+    render(<GeneralReportView {...base} />);
+    expect(screen.getByText("Çelik Alımı")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Çelik Alımı" })).toBeNull();
   });
 
   it("Türkçe özet şeridinde ondalık virgül: %77,3 ve 1,2 (arayüz testi O-033)", () => {

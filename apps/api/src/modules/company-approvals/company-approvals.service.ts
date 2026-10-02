@@ -1288,13 +1288,21 @@ export class CompanyApprovalsService {
   }
 
   /** Bekleyen istek var mı — ilan için (detayda 'İptal Et' için). */
-  async pendingForListing(companyId: string, listingId: string) {
+  /**
+   * İlanın bekleyen onay isteği — id + başlatan. Detay "Onayı İptal Et"i
+   * `cancelRequest` kuralıyla (başlatan ∨ approvals:manage) çizebilsin diye
+   * başlatan da döner (arayüz testi T3).
+   */
+  async pendingForListing(
+    companyId: string,
+    listingId: string,
+  ): Promise<{ id: string; createdById: string } | null> {
     const req = await this.prisma.approvalRequest.findFirst({
       where: { companyId, listingId, status: "PENDING" },
       orderBy: { createdAt: "desc" },
-      select: { id: true },
+      select: { id: true, createdById: true },
     });
-    return req?.id ?? null;
+    return req ?? null;
   }
 
   /** Günlük hatırlatma — bekleyen onayların sırası gelen onaycısına e-posta. */

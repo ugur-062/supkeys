@@ -195,6 +195,11 @@ export function CompanySidebarContent({
   // D-299: rozet isteği izinler /me ile tazelenince (bayat izinle 403 yok).
   const permissionsSynced = useCompanyPermissionsSynced();
   const { data: pendingCount } = usePendingApprovalCount(canAct && permissionsSynced);
+  // Onaylar girişi ApprovalsGate ile AYNI kural (approval:act ∨ approvals:manage):
+  // yalnız "Onay akışı tanımlama" izinli üye de sayfaya (Tüm istekler + akışlar)
+  // menüden ulaşır — eskiden yalnız adres yazılınca açılıyordu (arayüz testi T3).
+  // Bekleyen rozeti yalnız approval:act'te (pending ucu ona açık).
+  const canSeeApprovals = canAct || userHasPermission(user, "approvals:manage");
   // Madde 19: ana menü "Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
   // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
@@ -308,10 +313,10 @@ export function CompanySidebarContent({
         {/* Onaylar — panel nav'ından ayraçla ayrılır (yönetsel). ŞİRKETİM
             alanında ÇİZİLMEZ (2026-09-10, kullanıcı kararı): orası firma
             menüsü; Onaylar portal menüsünde ve minimal kabukta kalır. */}
-        {canAct && !minimal && !inCompanyArea ? (
+        {canSeeApprovals && !minimal && !inCompanyArea ? (
           <div className="mx-1 my-2 h-px bg-zinc-100" aria-hidden />
         ) : null}
-        {canAct && (!inCompanyArea || minimal) ? (
+        {canSeeApprovals && (!inCompanyArea || minimal) ? (
           <RailItem
             href="/company/onaylar"
             icon={ShieldCheckIcon}

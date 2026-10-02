@@ -3194,6 +3194,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.companyListings.talepYonetmeIzniGerekir": {
+    "hash": "6b5babd979",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "api.companyListings.teklifArtikGecerliDegilElenmisVeya": {
     "hash": "748c7b460d",
     "status": "reviewed",
@@ -19294,10 +19299,15 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.company.firmaIdPage.sizeIstekGonderdi": {
+    "hash": "01a14023ab",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.company.firmaIdPage.sizeIstekGonderdiYanitla": {
     "hash": "1f358e500a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.company.firmaIdPage.siziGoremezVeSizinleIslem": {
     "hash": "dd263fefb2",
@@ -24934,6 +24944,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.acikTalebeTeklifIcinTeklifVermeYetkisi": {
+    "hash": "71f769364b",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.requests.page.acikTalepler": {
     "hash": "7a4cf25b92",
     "status": "reviewed",
@@ -25078,6 +25093,11 @@
     "hash": "c00014fb21",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.buAcikTalebeTeklifVermekIcinTeklifVermeYetkisi": {
+    "hash": "e9a5a9cd6f",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.requests.page.buFirmaninBelgeDogrulamasiTamamlanmadi": {
     "hash": "1ae68ad97d",
@@ -30978,6 +30998,11 @@
     "hash": "51e7cb9454",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.ayarlarPage.silverIleAcilir": {
+    "hash": "dfa67a189a",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.settings.bankAccountsSection.accountNumber": {
     "hash": "5948cc6663",
@@ -37819,6 +37844,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.permissionTable.islemTikleriGoldPakette": {
+    "hash": "c126f383e6",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.trade.permissionTable.kisiyeOzelYetkiKumesi": {
     "hash": "c21225c595",
     "status": "reviewed",
@@ -37968,6 +37998,11 @@
     "hash": "948e15e094",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.permissionTable.yonetimTikiIleBirlikteGelir": {
+    "hash": "679fe3527f",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.priceModeField.birimFiyat": {
     "hash": "2e173f3d50",
@@ -38183,6 +38218,11 @@
     "hash": "e3b07af7b1",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productPreview.urunVitrindeSaltOkunur": {
+    "hash": "d95d2f6df8",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.productPreview.vitrindenCek": {
     "hash": "22fe0105fd",

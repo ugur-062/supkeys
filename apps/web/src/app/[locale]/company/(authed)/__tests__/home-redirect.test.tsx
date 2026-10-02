@@ -48,6 +48,13 @@ describe("/company kök yönlendirme", () => {
     expect(h.replace).toHaveBeenCalledWith("/company/onaylar");
   });
 
+  it("yalnız approvals:manage → Onaylar'a düşer (kapıyla aynı kural, arayüz testi T3)", () => {
+    h.auth.user = { roles: [], permissions: ["approvals:manage"] } as never;
+    h.canAct = false;
+    render(<CompanyHome />);
+    expect(h.replace).toHaveBeenCalledWith("/company/onaylar");
+  });
+
   it("rolsüz üye → Ayarlar'a düşer", () => {
     h.auth.user = { roles: [] };
     render(<CompanyHome />);

@@ -1077,6 +1077,21 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       await expect(service.updateListing(auth, listing.id, {} as never)).rejects.toThrow(DENY);
     });
 
+    it("talebi AÇAN ama izni olmayan kişiye 'yalnız açan yönetebilir' değil eksik izin söylenir (arayüz testi T3)", async () => {
+      const { service, company, listing } = await setup("ALIM");
+      const awarder = await makeUser(prisma, company.id, [], { permissions: ["buy:view", "buy:award"] });
+      await prisma.listing.update({ where: { id: listing.id }, data: { createdById: awarder.id } });
+      const auth = authFor(
+        company,
+        { id: awarder.id, email: awarder.email, roles: [] },
+        { permissions: ["buy:view", "buy:award"] },
+      );
+      const msg = await errOf(service.updateListing(auth, listing.id, {} as never));
+      expect(msg).toMatch(DENY);
+      expect(msg).toMatch(/Talep açma ve yönetme/);
+      expect(msg).not.toMatch(/yalnız talebi açan/);
+    });
+
     it("SAHİP başkasının açtığı ilanı YÖNETEMEZ — Kurucu salt-gözlemci (owner istisnası söküldü)", async () => {
       const { service, ownerAuth, listing } = await setup("ALIM");
       // ownerAuth op-rolleri (SA+ST) taşır → izin var; ama oluşturan değil.

@@ -25,11 +25,13 @@ import { Text } from "@/components/catalyst/text";
 import {
   useDownloadGeneralReport,
   useGeneralReport,
+  useReportListingOptions,
   type GeneralPayload,
   type ReportType,
 } from "@/hooks/use-company-reports";
-import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { userHasPermission } from "@/lib/company/permissions";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -122,7 +124,9 @@ export function GeneralReportView({
   const [status, setStatus] = useState("");
   const [currency, setCurrency] = useState("");
 
-  const myTenders = useTenders();
+  const myTenders = useReportListingOptions();
+  const { user } = useCompanyAuth();
+  const canOpenListing = userHasPermission(user, "buy:view");
   const report = useGeneralReport();
   const download = useDownloadGeneralReport();
 
@@ -426,12 +430,18 @@ export function GeneralReportView({
                 {data.listings.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="sticky left-0 z-10 bg-white">
-                      <Link
-                        href={`/company/ilan/${t.id}`}
-                        className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
-                      >
-                        {t.title}
-                      </Link>
+                      {/* Talep detayı buy:view ister — yalnız rapor yetkilisine
+                          bağlantı yetki duvarına götürürdü (arayüz testi T3). */}
+                      {canOpenListing ? (
+                        <Link
+                          href={`/company/ilan/${t.id}`}
+                          className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
+                        >
+                          {t.title}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-zinc-900">{t.title}</span>
+                      )}
                       <div className="tabular-nums text-xs text-zinc-400">
                         {t.number ?? "—"}
                         {t.closesAt

@@ -1,7 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 export type ReportType = "ALIM";
 
@@ -206,6 +206,31 @@ export interface BidComparisonResult {
   }[];
   /** Tur arşivi — tutar teklifin KENDİ biriminde (`currency`). */
   roundHistory: { round: number; bidderName: string; amount: number; currency?: string }[];
+}
+
+/* ── Talep seçicisi ── */
+
+export interface ReportListingOption {
+  id: string;
+  tenderNumber: string;
+  title: string;
+  status: string;
+}
+
+/**
+ * Rapor ekranlarının talep seçicisi — `GET company/reports/listings` rapor
+ * izniyle (buy:reports:view) açılır; Taleplerim listesi (buy:view) yalnız
+ * rapor yetkilisine 403 veriyordu (arayüz testi T3).
+ */
+export function useReportListingOptions() {
+  return useQuery<ReportListingOption[]>({
+    queryKey: ["company-report-listings"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ReportListingOption[]>("/company/reports/listings");
+      return data;
+    },
+    staleTime: 30_000,
+  });
 }
 
 /* ── Mutations ── */

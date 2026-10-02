@@ -161,6 +161,27 @@ export class CompanyReportsService {
   }
 
   /** Numara (ROT-…) ya da id → sahibin ilanının id'si (scope'ta değilse 404). */
+  /**
+   * Rapor ekranlarının talep seçicisi — firmanın kendi alım talepleri, yalnız
+   * seçim için gereken alanlar. Rapor izni (`buy:reports:view`) tek başına
+   * yeter: eskiden seçici `GET listings/tenders`'ı (buy:view) çağırıyor, yalnız
+   * rapor yetkilisinde 403 tostu + boş liste çıkıyordu (arayüz testi T3).
+   */
+  async listingOptions(companyId: string) {
+    const rows = await this.prisma.listing.findMany({
+      where: { companyId, type: "ALIM" },
+      select: { id: true, number: true, title: true, status: true },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      tenderNumber: r.number ?? "—",
+      title: r.title,
+      status: r.status,
+    }));
+  }
+
   private async resolveListingId(
     companyId: string,
     idOrNumber: string,

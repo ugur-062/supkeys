@@ -8,10 +8,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/hooks/use-company-tenders", () => ({
-  useTenders: () => ({ data: [], isLoading: false }),
-}));
 vi.mock("@/hooks/use-company-reports", () => ({
+  useReportListingOptions: () => ({ data: [], isLoading: false }),
   useBidComparisonReport: () => ({
     mutateAsync: h.reportMutate,
     isPending: false,

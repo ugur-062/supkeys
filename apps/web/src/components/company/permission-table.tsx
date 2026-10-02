@@ -9,6 +9,7 @@ import type {
 } from "@/hooks/use-company-users";
 import { useRoleLabel } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
+import { normalizePermissions } from "@rothern/shared";
 import { gatePreset } from "./permission-presets";
 import {
   ClipboardCheck,
@@ -112,13 +113,11 @@ export function PermissionTable({
     freeSeats - newGroupsTicked <= 0;
 
   const set = (next: Set<string>) => {
-    // İşlem tiki → grubun görüntülemesi örtük.
-    for (const c of catalog.catalog) {
-      if (c.seat && next.has(c.key)) {
-        const v = VIEW_OF[c.group];
-        if (v) next.add(v);
-      }
-    }
+    // İşlem tiki → grubun görüntülemesi örtük; Şablonlar/Bağlantılar da
+    // portal görüntülemesini getirir — kural TEK KAYNAK shared
+    // `normalizePermissions` (sunucu da aynısını yazar; arayüz testi T3).
+    const normalized = new Set(normalizePermissions([...next]));
+    for (const k of normalized) next.add(k);
     onChange(catalog.catalog.map((c) => c.key).filter((k) => next.has(k)));
   };
   const toggle = (key: string, on: boolean) => {
@@ -217,7 +216,7 @@ export function PermissionTable({
                 {isSeatGroup ? (
                   <span className="ml-1.5 font-medium normal-case text-zinc-500">
                     {g.key === "buy" && !canGrantBuy
-                      ? t("goldPaketteAcilir")
+                      ? t("islemTikleriGoldPakette")
                       : t("islemTikiKoltukSayar")}
                   </span>
                 ) : null}
@@ -234,8 +233,13 @@ export function PermissionTable({
                     !has(c.key);
                   // Paket kapısı koltuk kapısından AYRI: sorun "yer yok" değil,
                   // yetkinin o pakette karşılığı olmaması.
+                  // YALNIZ işlem (koltuk) tikleri: koltuksuz "Satınalma
+                  // görüntüleme" / "Satınalma raporları" her pakette verilebilir
+                  // — API (koltuk kapısı yalnız buy işlem iznine) ve Görüntüleyici
+                  // hazır seti de öyle; eskiden kilitliydi, çip işaretleyince
+                  // açılıp tik kaldırılınca geri verilemiyordu (arayüz testi T3).
                   const tierBlock =
-                    c.group === "buy" && !canGrantBuy && !has(c.key);
+                    c.group === "buy" && c.seat && !canGrantBuy && !has(c.key);
                   // İşaretli satınalma işlem tiki Gold dışı pakette kaldırılabilir
                   // kalır ama sebebi yine yazılır (kişi yeni koltuk açamaz).
                   const tierNote =
@@ -244,10 +248,19 @@ export function PermissionTable({
                     !canGrantBuy &&
                     has(c.key) &&
                     !hadGroups.buy;
-                  const viewImplied =
+                  const seatViewImplied =
                     !c.seat &&
                     VIEW_OF[c.group] === c.key &&
                     g.items.some((x) => x.seat && has(x.key));
+                  // Yönetim tikinin getirdiği görüntüleme (Şablonlar → satınalma,
+                  // yalnız Bağlantılar → satış): kaldırılsa normalize geri ekler.
+                  const mgmtViewImplied =
+                    !seatViewImplied &&
+                    !c.seat &&
+                    has(c.key) &&
+                    (c.key === "buy:view" || c.key === "sell:view") &&
+                    normalizePermissions(value.filter((k) => k !== c.key)).includes(c.key);
+                  const viewImplied = seatViewImplied || mgmtViewImplied;
                   const locked =
                     disabled ||
                     implicitOwner ||
@@ -264,9 +277,11 @@ export function PermissionTable({
                         ? t("goldPakette")
                         : seatBlock
                           ? t("koltukDolu")
-                          : viewImplied
+                          : seatViewImplied
                             ? t("islemTikiIleBirlikteGelir")
-                            : null;
+                            : mgmtViewImplied
+                              ? t("yonetimTikiIleBirlikteGelir")
+                              : null;
                   return (
                     <li key={c.key}>
                       {/* Headless Field: Label + Checkbox bağlı — satır yazısına

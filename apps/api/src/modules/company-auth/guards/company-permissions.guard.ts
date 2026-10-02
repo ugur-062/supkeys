@@ -9,6 +9,9 @@ import { Reflector } from "@nestjs/core";
 import type { AuthenticatedCompanyUser } from "../strategies/company-jwt.strategy";
 import { COMPANY_PERMISSION_KEY } from "../decorators/require-company-permission.decorator";
 import { hasCompanyPermission } from "../permissions/company-permissions.constants";
+import { tierAtLeast, type TierName } from "@rothern/shared";
+import { COMPANY_TIER_KEY } from "../decorators/require-tier.decorator";
+import { tierRequiredError } from "./company-paid-tier.guard";
 
 /**
  * CompanyJwtAuthGuard'dan SONRA çalışır (request.user dolu). Handler/class'taki
@@ -31,6 +34,16 @@ export class CompanyPermissionsGuard implements CanActivate {
     if (!user) throw new ForbiddenException(i18nMessage("api.companyAuth.yetkisiz"));
 
     if (!hasCompanyPermission(user, required)) {
+      // PAKET ÖNCE (rol kontrolü paket kontrolünün İÇİNDE; arayüz testi T3):
+      // uç @RequireTier taşıyorsa ve kademe yetmiyorsa izin hatası değil paket
+      // hatası döner — web de önce paket kilidini çizer. Sınıf düzeyindeki bu
+      // guard, handler düzeyindeki CompanyPaidTierGuard'dan ÖNCE koştuğu için
+      // sıra burada düzeltilir (guard dizilişine bağlı kalmaz).
+      const min = this.reflector.getAllAndOverride<TierName | undefined>(
+        COMPANY_TIER_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (min && !tierAtLeast(user.tier, min)) throw tierRequiredError(min);
       throw new ForbiddenException(i18nMessage("api.companyAuth.buIslemIcinYetkinizYok"));
     }
     return true;

@@ -164,7 +164,9 @@ export function ProductPreview({
               <Badge color={status.color}>{status.label}</Badge>
             </p>
             <p className="mt-0.5 text-xs/5 text-zinc-500">
-              {t("urunVitrindeDuzenlemekIcinDuzenle")}
+              {/* "Düzenle"ye basın yalnız düğmeyi görene; salt-okunur üyeye
+                  hangi yetkinin düzenlediği söylenir (arayüz testi T3). */}
+              {canManage ? t("urunVitrindeDuzenlemekIcinDuzenle") : t("urunVitrindeSaltOkunur")}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">

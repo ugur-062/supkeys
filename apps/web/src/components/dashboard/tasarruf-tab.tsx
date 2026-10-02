@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useFormatMoney } from "@/components/ui/money";
 import { useFormatPercent } from "@/i18n/domain";
 import {
@@ -73,6 +74,10 @@ interface Props {
 
 export function TasarrufTab({ data, period, analytics }: Props) {
   const t = useTranslations("web.panel.shell.tasarrufTab");
+  // "Satın Alma Talebi Aç" yalnız talep açma izniyle — menü CTA'sıyla aynı
+  // kural (paket kapısı panoyu zaten Gold'a bağlar; rol kontrolü içinde).
+  // İzinsiz üye CTA'dan "yetki gerektirir" duvarına düşüyordu (arayüz testi T3).
+  const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
   // Tutar/yüzde arayüz dilinin biçimiyle (tr-TR sabitti; kısaltma "Mr/M/K"
   // yerine dilin kısaltması — `formatCompactMoney`).
   const { money, compact } = useFormatMoney();
@@ -130,8 +135,8 @@ export function TasarrufTab({ data, period, analytics }: Props) {
             <DashboardEmptyState
               title={t("henuzTasarrufVerisiYok")}
               body={t("ilkSatinAlmaTalebiniziSonuclandirdiginizda")}
-              ctaLabel={t("satinAlmaTalebiAc")}
-              ctaHref="/company/satinalma/taleplerim/yeni"
+              ctaLabel={canCreateBuyListing ? t("satinAlmaTalebiAc") : undefined}
+              ctaHref={canCreateBuyListing ? "/company/satinalma/taleplerim/yeni" : undefined}
             />
           )}
         </ChartCard>

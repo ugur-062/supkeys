@@ -7,7 +7,8 @@
  * eşleme geri gelirse kırmızı olur.
  */
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type { SatinalmaAnalytics } from "@/hooks/use-company-dashboard";
 import { TasarrufTab, type TasarrufTabData } from "../tasarruf-tab";
 
@@ -55,5 +56,25 @@ describe("TasarrufTab — kategori tutarı satırdan", () => {
     const row = screen.getByText("Elektrik Malzemeleri").closest("li") as HTMLElement;
     expect(row.textContent).not.toMatch(/98\.765/);
     expect(row.textContent).toMatch(/25/);
+  });
+});
+
+describe("TasarrufTab — boş durum CTA'sı izne bağlı (arayüz testi T3)", () => {
+  afterEach(() => useCompanyAuthStore.setState({ user: null } as never));
+
+  it("talep açma izni yoksa 'Satın Alma Talebi Aç' çizilmez; izinliyse çizilir", () => {
+    useCompanyAuthStore.setState({ user: { permissions: ["buy:view"], roles: [], isOwner: false } } as never);
+    const { unmount } = render(<TasarrufTab data={data} period="year" analytics={analytics} />);
+    expect(screen.getByText("Henüz tasarruf verisi yok")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Satın Alma Talebi Aç" })).toBeNull();
+    unmount();
+    useCompanyAuthStore.setState({
+      user: { permissions: ["buy:view", "buy:listing:manage"], roles: [], isOwner: false },
+    } as never);
+    render(<TasarrufTab data={data} period="year" analytics={analytics} />);
+    expect(screen.getByRole("link", { name: "Satın Alma Talebi Aç" })).toHaveAttribute(
+      "href",
+      "/company/satinalma/taleplerim/yeni",
+    );
   });
 });

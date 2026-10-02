@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from "@nest
 import type { Prisma } from "@rothern/db";
 import {
   BUYING_TIER,
+  BUY_SEAT_PERMISSIONS,
   SEAT_LIMITS,
   countSeats,
   tierAtLeast,
@@ -99,6 +100,24 @@ export async function readSeatUsage(
   };
 }
 
+/**
+ * Önceki → sonraki izin listesinde YENİ eklenen satınalma işlem (koltuk) izni
+ * var mı. Grup bazlı koltuk hesabı yetmez: Gold'dayken buy koltuğu almış ve
+ * kademe düşünce koltuğu uykuya geçmiş kişiye yeni buy işlem izni (Kazandırma,
+ * Sipariş, Bilgi talebi) eklemek "yeni grup" sayılmıyor, paket kapısını
+ * atlıyordu (arayüz testi T3). Uykudaki mevcut izinler KALIR; yalnız yenisi
+ * reddedilir.
+ */
+export function addsBuySeatPermission(
+  before: readonly string[],
+  next: readonly string[],
+): boolean {
+  const had = new Set(before);
+  return next.some(
+    (k) => (BUY_SEAT_PERMISSIONS as readonly string[]).includes(k) && !had.has(k),
+  );
+}
+
 export async function assertSeatAvailable(
   db: Prisma.TransactionClient,
   companyId: string,
@@ -109,19 +128,24 @@ export async function assertSeatAvailable(
     context: "invite" | "accept" | "assign";
     /** Yeniden gönderilen davet — kendi koltuğu bekleyenlerden düşülür (O-063). */
     excludeInvitationId?: string;
+    /**
+     * Kişi buy grubunu zaten tutuyor ama YENİ bir buy işlem izni ekleniyor
+     * (`addsBuySeatPermission`) — koltuk istemez, paket kapısına girer.
+     */
+    addsBuyPermission?: boolean;
   },
 ): Promise<void> {
   const need = opts.groups.size;
-  if (need <= 0) return;
+  if (need <= 0 && !opts.addsBuyPermission) return;
   const { limit, used, pendingSeatInvites, tier } = await readSeatUsage(db, companyId, {
     excludeInvitationId: opts.excludeInvitationId,
   });
-  if (opts.groups.has("buy") && !tierAtLeast(tier, BUYING_TIER)) {
+  if ((opts.groups.has("buy") || opts.addsBuyPermission) && !tierAtLeast(tier, BUYING_TIER)) {
     throw new BadRequestException(
       i18nMessage("api.companyUsers.satinalmaYetkisiYalnizGoldPaketteVerilebilir"),
     );
   }
-  if (limit == null) return;
+  if (need <= 0 || limit == null) return;
   const occupied = used + (opts.includePending ? pendingSeatInvites : 0);
   if (occupied + need > limit) {
     if (opts.context === "accept") {

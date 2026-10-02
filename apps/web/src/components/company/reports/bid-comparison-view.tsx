@@ -25,11 +25,11 @@ import {
 import { Text } from "@/components/catalyst/text";
 import {
   useBidComparisonReport,
+  useReportListingOptions,
   useDownloadBidComparisonReport,
   type BidComparisonPayload,
   type ReportType,
 } from "@/hooks/use-company-reports";
-import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
@@ -99,7 +99,7 @@ export function BidComparisonView({
   const [showBidCurrencies, setShowBidCurrencies] = useState(false);
   const [includeRoundHistory, setIncludeRoundHistory] = useState(false);
 
-  const myTenders = useTenders();
+  const myTenders = useReportListingOptions();
   const report = useBidComparisonReport();
   const download = useDownloadBidComparisonReport();
 

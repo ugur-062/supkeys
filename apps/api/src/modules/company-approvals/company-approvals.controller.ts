@@ -164,9 +164,16 @@ export class CompanyApprovalsController {
     return this.service.decide(user, id, "reject", dto);
   }
 
-  /** İsteği başlatan (veya sahip) bekleyen onay isteğini iptal eder. */
+  /**
+   * İsteği başlatan (veya approvals:manage) bekleyen onay isteğini iptal eder —
+   * kural serviste (`cancelRequest`). Guard yalnız bağlamı ister: onay ya da
+   * satınalma tarafı. Eskiden [approvals:manage, buy:award] istiyordu; yayın
+   * onayını başlatan "Talep açma ve yönetme" yetkilisi (ya da izinleri sonradan
+   * daralan başlatan) kendi isteğini iptal edemiyordu, UI düğmeyi çizerken
+   * (arayüz testi T3). buy:view tüm satınalma işlem izinlerince örtüktür.
+   */
   @Post(":id/cancel")
-  @RequireCompanyPermission(["approvals:manage", "buy:award"])
+  @RequireCompanyPermission(["approvals:manage", "approval:act", "buy:view"])
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

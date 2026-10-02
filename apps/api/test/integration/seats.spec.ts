@@ -538,6 +538,35 @@ describe("Satınalma yetkisi paket kapısı", () => {
     ).resolves.toBeDefined();
   });
 
+  it("uykudaki buy koltuğu olan kişiye YENİ buy işlem izni Gold altında REDDEDİLİR; mevcutlar kalır (arayüz testi T3)", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP"] as never,
+    });
+    // Gold'dayken verilmiş, kademe düşünce uykuya geçmiş talep yönetme izni.
+    const kisi = await makeUser(prisma, co.company.id, [], {
+      permissions: ["buy:view", "buy:listing:manage"],
+    });
+    await expect(
+      svc.setPermissions(co.auth, kisi.id, ["buy:view", "buy:listing:manage", "buy:award"]),
+    ).rejects.toThrow(/Gold pakette/);
+    await expect(
+      svc.setPermissions(co.auth, kisi.id, [
+        "buy:view",
+        "buy:listing:manage",
+        "buy:order:manage",
+        "buy:inquiry:send",
+      ]),
+    ).rejects.toThrow(/Gold pakette/);
+    const row = await prisma.companyUser.findUniqueOrThrow({ where: { id: kisi.id } });
+    expect(row.permissions).not.toContain("buy:award");
+    // Mevcut uykudaki izin korunarak başka değişiklik yapılabilir.
+    await expect(
+      svc.setPermissions(co.auth, kisi.id, ["buy:view", "buy:listing:manage", "sell:view"]),
+    ).resolves.toBeDefined();
+  });
+
   it("GOLD: satınalma yetkisi verilebilir", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {

@@ -225,6 +225,7 @@
     "buBelgeyiSilemezsiniz": "You cannot delete this document"
   },
   "companyListings": {
+    "talepYonetmeIzniGerekir": "You do not have permission to manage this request — your role needs the ''Create and manage requests'' permission; ask your company administrator",
     "kendiSatinAlmaTalebinizeTeklifVeremezsiniz": "You cannot submit a quote to your own buying request",
     "buSatinAlmaTalebindeKalemListesi": "This buying request has no line item list, or you do not have permission to view it — price import is available only for buying requests with line items",
     "dosyaBos": "The file is empty",

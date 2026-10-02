@@ -93,6 +93,15 @@ describe("CompanySidebarContent — minimal kabuk modu", () => {
     expect(screen.getByText("Ayarlar")).toBeInTheDocument();
   });
 
+  it("yalnız approvals:manage (Onay akışı tanımlama): minimal kabukta Onaylar girişi VAR (arayüz testi T3)", () => {
+    h.auth.user = { roles: [], permissions: ["approvals:manage"] } as never;
+    h.canAct = false;
+    h.pathname = "/company/ayarlar";
+    render(<CompanySidebarContent expanded showPin={false} />);
+    expect(screen.getByText("Onaylar")).toBeInTheDocument();
+    expect(screen.queryByText("Taleplerim")).not.toBeInTheDocument();
+  });
+
   it("ONAYLAYICI+SATISCI: işlem rolü var → satış nav'ı görünür", () => {
     h.auth.user = { roles: ["ONAYLAYICI", "SATISCI"] };
     h.canAct = true;

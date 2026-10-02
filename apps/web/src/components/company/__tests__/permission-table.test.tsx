@@ -65,7 +65,12 @@ describe("PermissionTable — satınalma paket kapısı", () => {
   it("ücretsiz/Silver: satınalma işlem tiki KİLİTLİ ve sebebi yazar", () => {
     ciz(false);
     expect(kilitli("Talep açma ve yönetme")).toBe(true);
-    expect(screen.getByText(/Gold pakette açılır/)).toBeInTheDocument();
+    expect(screen.getByText(/işlem tikleri Gold pakette/)).toBeInTheDocument();
+  });
+
+  it("ücretsiz/Silver: koltuksuz 'Satınalma görüntüleme' tiki SERBEST — API ve Görüntüleyici seti verir (arayüz testi T3)", () => {
+    ciz(false);
+    expect(kilitli("Satınalma görüntüleme")).toBe(false);
   });
 
   it("ücretsiz/Silver: SATIŞ tiki serbest — kapı yalnız satınalmaya", () => {
@@ -76,7 +81,7 @@ describe("PermissionTable — satınalma paket kapısı", () => {
   it("Gold: satınalma tiki açılır", () => {
     ciz(true);
     expect(kilitli("Talep açma ve yönetme")).toBe(false);
-    expect(screen.queryByText(/Gold pakette açılır/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/işlem tikleri Gold pakette/)).not.toBeInTheDocument();
   });
 
   it("zaten verilmiş yetki kilitlenmez — mevcut yapılandırma sessizce bozulmaz", () => {
@@ -152,3 +157,59 @@ describe("PermissionTable — satır yazısı kutuyu işaretler (arayüz testi D
   });
 });
 
+describe("PermissionTable — yönetim tiki portal görüntülemesini getirir (arayüz testi T3)", () => {
+  const mgmtCatalog: PermissionCatalog = {
+    ...catalog,
+    catalog: [
+      ...catalog.catalog,
+      { key: "connections:manage", label: "Bağlantılar", group: "management", seat: false },
+      { key: "templates:manage", label: "Şablonlar", group: "management", seat: false },
+    ],
+  };
+
+  function cizMgmt(value: string[]) {
+    const onChange = vi.fn();
+    render(
+      <PermissionTable catalog={mgmtCatalog} value={value} onChange={onChange} viewerIsOwner canGrantBuy />,
+    );
+    return onChange;
+  }
+
+  it("Şablonlar tiki satınalma görüntülemesini ekler; o görüntüleme kilitli ve sebebini yazar", () => {
+    const onChange = cizMgmt([]);
+    fireEvent.click(screen.getByText("Şablonlar"));
+    expect(onChange).toHaveBeenCalledWith(["buy:view", "templates:manage"]);
+  });
+
+  it("yalnız Bağlantılar tiki satış görüntülemesini ekler (sayfa satış portalında açılır)", () => {
+    const onChange = cizMgmt([]);
+    fireEvent.click(screen.getByText("Bağlantılar, engelleme ve şikayet"));
+    expect(onChange).toHaveBeenCalledWith(["sell:view", "connections:manage"]);
+  });
+
+  it("getirilen görüntüleme kilitlidir; başka görüntüleme varken Bağlantılar'ınki serbest kalır", () => {
+    const { unmount } = render(
+      <PermissionTable
+        catalog={mgmtCatalog}
+        value={["buy:view", "templates:manage"]}
+        onChange={vi.fn()}
+        viewerIsOwner
+        canGrantBuy
+      />,
+    );
+    expect(kilitli("Satınalma görüntüleme")).toBe(true);
+    expect(screen.getByText("Seçili yönetim tikiyle birlikte gelir")).toBeInTheDocument();
+    unmount();
+    render(
+      <PermissionTable
+        catalog={mgmtCatalog}
+        value={["buy:view", "sell:view", "connections:manage"]}
+        onChange={vi.fn()}
+        viewerIsOwner
+        canGrantBuy
+      />,
+    );
+    expect(kilitli("Satış görüntüleme")).toBe(false);
+    expect(kilitli("Satınalma görüntüleme")).toBe(false);
+  });
+});

@@ -1926,7 +1926,7 @@ export default function ListingDetailPage() {
         // Rol kapısı: sessiz buton yokluğu yerine açık yönlendirme.
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
-            {t.rich("buAcikTalebeTeklifVermekIcinSatisciRolu", {
+            {t.rich("buAcikTalebeTeklifVermekIcinTeklifVermeYetkisi", {
               strong: (c) => <strong>{c}</strong>,
             })}
           </Text>
@@ -2160,10 +2160,13 @@ export default function ListingDetailPage() {
     // doğrulanmamış firmada düğme pasif + not (arayüz testi D-027; hızlı
     // talep formuyla aynı kural).
     const publishNeedsVerify = canPublishNow && !companyVerified;
-    // Onay isteğini başlatan (talebi yöneten) ya da onay akışı yöneticisi
-    // iptal eder — API cancelRequest ile aynı (arayüz testi D-252).
+    // Onay isteğini BAŞLATAN ya da onay akışı yöneticisi iptal eder — API
+    // cancelRequest ile aynı (arayüz testi D-252). Başlatan bilgisi sunucudan
+    // (`pendingApprovalMine`); talebi yönetmek başlatmakla aynı şey değil
+    // (arayüz testi T3). Eski yanıtta alan yoksa talep yöneticisine düşer.
+    const isApprovalRequester = l.pendingApprovalMine ?? canManage;
     const canCancelApproval =
-      !!l.pendingApprovalId && (canManage || hasApprovalsManage);
+      !!l.pendingApprovalId && (isApprovalRequester || hasApprovalsManage);
     const ownerPrimaryActions =
       canCancelApproval || canPublishNow ? (
         <div className="flex flex-col items-end gap-2">

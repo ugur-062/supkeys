@@ -31,6 +31,8 @@ import {
   MIN_MONEY,
   UNITS,
   PRODUCT_MEDIA_TIER,
+  BUYING_TIER,
+  tierAtLeast,
 } from "@rothern/shared";
 import { Currency } from "@rothern/db";
 import { Trim } from "../../common/decorators/trim.decorator";
@@ -38,7 +40,8 @@ import { CurrentCompanyUser } from "../company-auth/decorators/current-company-u
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
-import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
+import { CompanyPaidTierGuard, tierRequiredError } from "../company-auth/guards/company-paid-tier.guard";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { CompanyItemsService, SHOWCASE_LIST_STATUSES, type ShowcaseListStatus } from "./company-items.service";
@@ -176,12 +179,25 @@ class MarkUsedDto {
 }
 
 /**
+ * Kalem YAZMA yalnız `templates:manage` ile geliyorsa (satış ürün izni yok)
+ * bu Şablonlar › Kalem Kataloğu yoludur → Şablonlar'ın paket kuralı (GOLD,
+ * `listing-templates`/`supplier-templates`/`question-templates` ile aynı).
+ * Satış yolu (`sell:product:manage`) her pakette açık kalır. Eskiden Gold
+ * altında şablon yetkilisi API'den kalem ekleyip arşivleyebiliyordu, UI Gold
+ * duvarı çizerken (arayüz testi T3).
+ */
+function assertCatalogWriteTier(user: AuthenticatedCompanyUser): void {
+  if (hasCompanyPermission(user, "sell:product:manage")) return;
+  if (!tierAtLeast(user.tier, BUYING_TIER)) throw tierRequiredError(BUYING_TIER);
+}
+
+/**
  * Kalem Kataloğu (Faz 2).
  *
- * `CompanyPaidTierGuard` KULLANILMIYOR — tedarikçi şablonları premium bir
- * özellik, ama kalem kataloğu ihale AÇMANIN temel ergonomisi. Paketsiz firma
- * zaten ihale açamıyor (tier kapısı orada); kataloğu ayrıca kapatmak yalnız
- * kullanıcıyı zorlaştırırdı.
+ * Sınıf düzeyinde `CompanyPaidTierGuard` YOK — okuma her pakette açık, satış
+ * ürünleri ücretsiz pakette de yönetilir. Yalnız şablon izniyle (satış izni
+ * olmadan) kalem yazmak Şablonlar'ın paket kuralına (GOLD) girer:
+ * `assertCatalogWriteTier`.
  *
  * Okuma her role açık. KALEM yazma (`POST /`, `PATCH :id`, arşivle/geri al)
  * `sell:product:manage` VEYA `templates:manage` kabul eder — satınalmadaki
@@ -492,6 +508,7 @@ export class CompanyItemsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CatalogItemDto,
   ) {
+    assertCatalogWriteTier(user);
     return this.service.create(user, dto);
   }
 
@@ -502,6 +519,7 @@ export class CompanyItemsController {
     @Param("id") id: string,
     @Body() dto: CatalogItemDto,
   ) {
+    assertCatalogWriteTier(user);
     return this.service.update(user, id, dto);
   }
 
@@ -517,6 +535,7 @@ export class CompanyItemsController {
     @Param("id") id: string,
     @Body() dto: SetActiveDto,
   ) {
+    assertCatalogWriteTier(user);
     return this.service.setActive(user, id, dto.isActive);
   }
 

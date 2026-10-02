@@ -180,14 +180,16 @@ describe("teklif veren başlık kartı", () => {
       myBid: { amount: "1000", status: "WON", version: 1, note: null },
     } as Partial<ListingDetail>);
     renderPage();
-    expect(screen.queryByText(/Satışçı/)).toBeNull();
+    expect(screen.queryByText(/Teklif verme/)).toBeNull();
   });
 
-  it("açık talepte rol uyarısı yine görünür", () => {
+  it("açık talepte rol uyarısı yine görünür — rol etiketi değil eksik izni söyler (arayüz testi T3)", () => {
     h.perms = ["sell:view"];
     h.detail = detail({ roleAllowsBid: false });
     renderPage();
-    expect(screen.getByText(/Satışçı/)).toBeInTheDocument();
+    expect(screen.getByText("Teklif verme")).toBeInTheDocument();
+    expect(screen.getByText(/yetkisi gerekir/)).toBeInTheDocument();
+    expect(screen.queryByText(/Satışçı/)).toBeNull();
   });
 });
 

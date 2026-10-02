@@ -49,6 +49,7 @@ import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { deliverInvite } from "../../common/company/invite-delivery";
 import {
+  addsBuySeatPermission,
   assertSeatAvailable as assertSeatGate,
   readSeatUsage,
 } from "../../common/company/seat-gate";
@@ -805,6 +806,7 @@ export class CompanyUsersService {
           seatGroupsOf({ permissions: next.permissions }),
         ),
         context: "assign",
+        addsBuyPermission: this.addsBuyGrant(target, next.permissions),
       });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
       await tx.companyUser.update({
@@ -942,6 +944,7 @@ export class CompanyUsersService {
             seatGroupsOf({ permissions: grant.permissions }),
           ),
           context: "assign",
+          addsBuyPermission: this.addsBuyGrant(target, grant.permissions),
         });
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, grant.roles);
         await tx.companyUser.update({ where: { id: targetId }, data });
@@ -1196,10 +1199,13 @@ export class CompanyUsersService {
       seatGroupsOf({ permissions: next }),
     );
 
+    const addsBuyPermission = this.addsBuyGrant(target, next);
+
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
       await this.assertSeatAvailable(tx, actor.companyId, {
         groups: needSeats,
         context: "assign",
+        addsBuyPermission,
       });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
       await tx.companyUser.update({
@@ -1375,11 +1381,14 @@ export class CompanyUsersService {
       seatGroupsOf({ permissions: next }),
     );
 
+    const addsBuyPermission = this.addsBuyGrant(target, next);
+
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
       // Faz K/5: yeni koltuk grubu eklenirken kapı (tx + FOR UPDATE).
       await this.assertSeatAvailable(tx, actor.companyId, {
         groups: needSeats,
         context: "assign",
+        addsBuyPermission,
       });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
       await tx.companyUser.update({
@@ -1778,6 +1787,17 @@ export class CompanyUsersService {
 
   /** Yeni koltuk sayısı: `after` gruplarından `before`da olmayanlar. */
   /** `after`ta olup `before`ta olmayan koltuk grupları — yeni işgal edilenler. */
+  /** Hedefin mevcut efektif izinlerine göre YENİ buy işlem izni ekleniyor mu. */
+  private addsBuyGrant(
+    target: { permissions: string[]; roles: string[] },
+    next: readonly string[],
+  ): boolean {
+    return addsBuySeatPermission(
+      effectivePermissions({ isOwner: false, permissions: target.permissions, roles: target.roles }),
+      next,
+    );
+  }
+
   private newSeatGroups(
     before: ReadonlySet<SeatGroup>,
     after: ReadonlySet<SeatGroup>,
@@ -1824,6 +1844,8 @@ export class CompanyUsersService {
       includePending?: boolean;
       context: "invite" | "accept" | "assign";
       excludeInvitationId?: string;
+      /** Buy grubunu tutan kişiye YENİ buy işlem izni (paket kapısı, arayüz testi T3). */
+      addsBuyPermission?: boolean;
     },
   ) {
     // Kurallar (GOLD-dışı satınalma kapısı koltuk sayımından ÖNCE, (kişi, grup)

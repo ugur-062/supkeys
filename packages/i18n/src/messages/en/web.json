@@ -3230,6 +3230,8 @@
         "suresiDolduGunOnce": "Expired · {n, plural, one {# day} other {# days}} ago"
       },
       "page": {
+        "acikTalebeTeklifIcinTeklifVermeYetkisi": "The “Submit quotes” permission is required to quote on an open request — ask your company administrator for it",
+        "buAcikTalebeTeklifVermekIcinTeklifVermeYetkisi": "Submitting a quote for this open request requires the <strong>Submit quotes</strong> permission on your account — your company administrator can grant it under Settings → Users.",
         "sablonlar": "Templates",
         "satinAlmaTalebiAcarkenTekrar": "Turn the data you enter again and again when opening a buying request into a template once, then apply it in seconds.",
         "talepSartlari": "Request terms",
@@ -3397,7 +3399,6 @@
         "kendiIlaninizaTeklifVeremezsiniz": "You cannot submit a quote on your own request",
         "teklifIcinSilverPaketiGerekir": "The Silver plan is required to submit a quote",
         "herkeseAcikSatinAlmaTaleplerine": "Quoting on public buying requests comes with Silver. You can quote for free on requests that reach you through a connection invitation.",
-        "acikTalebeTeklifIcinSatisci": "The Salesperson role is required to quote on an open request — ask your company administrator for the role",
         "teklifinGonderildiSatinAlmaTalebi": "Your quote has been submitted — returning to the buying request details…",
         "teklifinGonderiliyor": "Submitting your quote…",
         "buSatinAlmaTalebineArtik": "Quotes can no longer be submitted for this buying request",
@@ -3522,7 +3523,6 @@
         "kalemBazliDagitimTasarruf": "Split by line item: <strong>{itemized}</strong> · Lowest total quote: <strong>{bestTotal}</strong> → <strong>{pct} savings</strong>",
         "eksik": "Incomplete ({incompleteCount})",
         "buIlanaTeklifVermekIcinSilverPaketi": "Submitting a quote for this request requires the <strong>Silver plan</strong> (or a connection invitation from the company that opened the request).",
-        "buAcikTalebeTeklifVermekIcinSatisciRolu": "Submitting a quote for this open request requires the <strong>Salesperson</strong> role on your account — your company administrator can grant it under Settings → Users.",
         "gonderilmisTeklifGeriCekilemez": "A submitted quote cannot be withdrawn or edited — contact the buyer for changes. If the buyer eliminates your quote, you can submit a new one.",
         "mevcutTeklifin": "Your current quote: <strong>{money}</strong>",
         "dosyalar": "Files",
@@ -4794,6 +4794,8 @@
         "saatAlti": "<1 h"
       },
       "permissionTable": {
+        "yonetimTikiIleBirlikteGelir": "Comes with the selected management tick",
+        "islemTikleriGoldPakette": "· action ticks on the Gold plan only",
         "hazirSetler": "Presets",
         "hazirSetUygulaniyorAsagidanKisiye": "A preset is applied; you can customize it for this person below.",
         "kisiyeOzelYetkiKumesi": "Custom permission set.",
@@ -5153,6 +5155,7 @@
         "eksikleriGoster": "Show missing ({count})"
       },
       "productPreview": {
+        "urunVitrindeSaltOkunur": "The product is live in the showcase. Editing products requires the “Manage products and showcase” permission — ask your company administrator.",
         "urunVitrindenCekildi": "Product removed from showcase",
         "vitrindenCekilemedi": "Could not remove from showcase",
         "urunVitrindeDuzenlemekIcinDuzenle": "The product is live in the showcase. Click “Edit” to make changes; content changes are reviewed again once saved, and the product stays live in the meantime.",
@@ -6349,6 +6352,7 @@
         "buSayfaKullaniciVeYetki": "This page requires the “Users and permissions” permission."
       },
       "ayarlarPage": {
+        "silverIleAcilir": "Unlocks with Silver",
         "acik": "On",
         "kapali": "Off",
         "ayarlar": "Settings",
@@ -6491,6 +6495,7 @@
         "firmaSayfalariniBirPortaliGoruntuleme": "Company pages are visible to users who may view at least one portal."
       },
       "firmaIdPage": {
+        "sizeIstekGonderdi": "Sent you a request",
         "firmaProfiliBulunamadi": "Company profile not found.",
         "baglantiIstegiGonderildi": "Connection request sent",
         "istekGonderilemedi": "Could not send the request",

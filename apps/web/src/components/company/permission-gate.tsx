@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { OWNER_ONLY_PERMISSIONS } from "@rothern/shared";
+import { OWNER_ONLY_PERMISSIONS, tierAtLeast } from "@rothern/shared";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { userHasPermission } from "@/lib/company/permissions";
@@ -23,6 +23,7 @@ export function PermissionGate({
   description,
   backHref,
   backLabel,
+  tierFirst,
   children,
 }: {
   permission: string | readonly string[];
@@ -32,16 +33,24 @@ export function PermissionGate({
   /** Kapı ekranında geri bağlantısı (ör. Ayarlar hub'ı). */
   backHref?: string;
   backLabel?: string;
+  /**
+   * Paket kapısı izin kapısından ÖNCE (rol kontrolü paket kontrolünün
+   * İÇİNDE; API de önce `TIER_REQUIRED` der): firma bu kademenin altındaysa
+   * izin notu çizilmez, içerik — sayfanın kendi `PremiumOnly` paket kilidi —
+   * gösterilir (arayüz testi T3). Yalnız içi PremiumOnly taşıyan sayfalarda.
+   */
+  tierFirst?: "SILVER" | "GOLD";
   children: React.ReactNode;
 }) {
   const t = useTranslations("web.panel.trade.permissionGate");
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
   const heading = title ?? t("buSayfaYetkiGerektirir");
   // Sahibe özel izin (banka, firma silme, devir) tabloda VERİLEMEZ: "firma
   // yöneticinize başvurun" yanlış yönlendirir — kurucuya yönlendir (D-301).
   const perms = typeof permission === "string" ? [permission] : permission;
   const ownerOnly = perms.length > 0 && perms.every((p) => OWNER_ONLY.has(p));
-  if (!userHasPermission(user, permission)) {
+  const packageLocked = !!tierFirst && !!company && !tierAtLeast(company.tier, tierFirst);
+  if (!packageLocked && !userHasPermission(user, permission)) {
     return (
       <div
         className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center"

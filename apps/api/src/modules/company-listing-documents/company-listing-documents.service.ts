@@ -16,8 +16,8 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import {
-  LISTING_MANAGE_DENY_KEY,
   listingManageDenial,
+  listingManageDenyKey,
 } from "../company-listings/listing-manage-access";
 import { StorageService } from "../storage/storage.service";
 import {
@@ -166,8 +166,9 @@ export class CompanyListingDocumentsService {
     // Belgeler ilanın İÇERİĞİDİR → updateListing ile AYNI yönetim kapısı
     // (listingManageDenial tek kaynak): izin ∧ oluşturan; SAHİP istisnası yok.
     // Rolsüz/etiket-only üye şartname/çizim ekleyemez-silemez.
-    if (listingManageDenial(user, listing)) {
-      throw new ForbiddenException(i18nMessage(LISTING_MANAGE_DENY_KEY));
+    const denial = listingManageDenial(user, listing);
+    if (denial) {
+      throw new ForbiddenException(i18nMessage(listingManageDenyKey(denial.reason)));
     }
     return listing;
   }

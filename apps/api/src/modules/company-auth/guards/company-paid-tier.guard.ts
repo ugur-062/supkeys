@@ -37,22 +37,28 @@ export class CompanyPaidTierGuard implements CanActivate {
         context.getHandler(),
         context.getClass(),
       ]) ?? PAID_TIER;
-    if (!tierAtLeast(user.tier, min)) {
-      // `TIER_REQUIRED` kodu (arayüz testi O-044): web yakalayıcısı bu kodla
-      // toast basmaz — paket kilitli sayfa zaten kilit kartını çiziyor; kodsuz
-      // 403 kartın üstüne gereksiz kırmızı hata toast'ı düşürüyordu.
-      throw new ForbiddenException({
-        ...(min === "GOLD"
-          ? i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir", undefined, "TIER_REQUIRED")
-          : i18nMessage(
-              "api.companyAuth.buOzellikPaketVeyaUzeriGerektirir",
-              { tier: TIER_LABEL[min] },
-              "TIER_REQUIRED",
-            )),
-        statusCode: 403,
-        minTier: min,
-      });
-    }
+    if (!tierAtLeast(user.tier, min)) throw tierRequiredError(min);
     return true;
   }
+}
+
+/**
+ * Paket kapısının 403'ü — `CompanyPermissionsGuard` da (paket önce kuralı)
+ * aynı gövdeyi atar.
+ * `TIER_REQUIRED` kodu (arayüz testi O-044): web yakalayıcısı bu kodla
+ * toast basmaz — paket kilitli sayfa zaten kilit kartını çiziyor; kodsuz
+ * 403 kartın üstüne gereksiz kırmızı hata toast'ı düşürüyordu.
+ */
+export function tierRequiredError(min: TierName): ForbiddenException {
+  return new ForbiddenException({
+    ...(min === "GOLD"
+      ? i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir", undefined, "TIER_REQUIRED")
+      : i18nMessage(
+          "api.companyAuth.buOzellikPaketVeyaUzeriGerektirir",
+          { tier: TIER_LABEL[min] },
+          "TIER_REQUIRED",
+        )),
+    statusCode: 403,
+    minTier: min,
+  });
 }

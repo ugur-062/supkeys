@@ -27,7 +27,8 @@ import { ListingCard, type ListingCardData } from "@/components/marketplace/list
 import { publicState } from "@/lib/public/marketplace";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { useActivePortal } from "@/hooks/use-active-portal";
-import type { PortalKey } from "@/lib/company/portals";
+import { accessiblePortals, type PortalKey } from "@/lib/company/portals";
+import { userHasPermission } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
@@ -76,6 +77,12 @@ export default function CompanyProfilePage() {
   // olmayana orada Gold uyarısı (arayüz testi Y-03, D-038).
   const canInquire = buyingGate(me, myCompany, "inquiry") === "ok";
   const isPaid = tierAtLeast(myCompany?.tier ?? "STANDART", "SILVER");
+  // Bu firmanın açık talepleri bizim SATIŞ tarafımızın işidir (davetli
+  // olduğumuz alım talepleri): bölüm satış görüntüleme izniyle, "Teklif ver"
+  // teklif verme izniyle çizilir. Yalnız satınalma izinli üye kartı açınca
+  // talep 404'üne düşüyordu (arayüz testi T3).
+  const canSeeSellSide = userHasPermission(me, "sell:view");
+  const canSubmitBid = userHasPermission(me, "sell:bid:submit");
   const router = useRouter();
 
   if (isLoading) {
@@ -186,9 +193,15 @@ export default function CompanyProfilePage() {
         <Badge color="amber">{t("istekGonderildi")}</Badge>
       ) : connectionStatus === "incoming" ? (
         // Gelen istekler görünümü doğrudan açılır (arayüz testi D-328).
-        <Button href={`${connectionsPathFor(activePortal)}?view=incoming`} outline>
-          {t("sizeIstekGonderdiYanitla")}
-        </Button>
+        // Yanıtlamak "Bağlantılar" yetkisi ister — yetkisiz üyeye eylem değil
+        // durum rozeti (Kabul/Ret orada çizilmiyor, API 403; arayüz testi T3).
+        canManageConn ? (
+          <Button href={`${connectionsPathFor(activePortal)}?view=incoming`} outline>
+            {t("sizeIstekGonderdiYanitla")}
+          </Button>
+        ) : (
+          <Badge color="amber">{t("sizeIstekGonderdi")}</Badge>
+        )
       ) : connectionStatus === "none" && canManageConn ? (
         isPaid ? (
           /* MAVİ: bu sayfaya satınalma pazarından geliniyor ve orada birincil
@@ -384,8 +397,12 @@ export default function CompanyProfilePage() {
                 },
               ],
               action:
-                // Kendi profilinde kendi talebine teklif verilmez.
-                activePortal === "satis" && state === "open" && connectionStatus !== "self"
+                // Kendi profilinde kendi talebine teklif verilmez; teklif
+                // verme izni yoksa CTA yok (talep detayı rol notunu söyler).
+                activePortal === "satis" &&
+                state === "open" &&
+                connectionStatus !== "self" &&
+                canSubmitBid
                   ? { label: t("teklifVer"), href }
                   : null,
             };
@@ -417,7 +434,7 @@ export default function CompanyProfilePage() {
         main={
           <>
             {productsBlock}
-            {tenders}
+            {canSeeSellSide ? tenders : null}
           </>
         }
       />
@@ -469,7 +486,13 @@ function connectionsPathFor(portal: PortalKey): string {
 function BackLink() {
   const t = useTranslations("web.panel.company.firmaIdPage");
   const router = useRouter();
-  const fallback = connectionsPathFor(useActivePortal());
+  const portal = useActivePortal();
+  const { user, company } = useCompanyAuth();
+  // Bağlantılar yalnız açılabilen portala; hiçbiri açılmıyorsa (ör. Gold
+  // altındaki yalnız satınalma görüntüleyicisi) panel köküne "Geri" — eskiden
+  // açamadığı /company/satis/musterilerim'e götürüyordu (arayüz testi T3).
+  const reachable = accessiblePortals(user, company?.tier).includes(portal);
+  const fallback = reachable ? connectionsPathFor(portal) : "/company";
   const [canGoBack, setCanGoBack] = useState(false);
   useEffect(() => {
     try {
@@ -493,7 +516,7 @@ function BackLink() {
   return (
     <Link href={fallback} className={cls}>
       <ArrowLeft className="h-4 w-4" />
-      {t("baglantilar")}
+      {reachable ? t("baglantilar") : t("geri")}
     </Link>
   );
 }
