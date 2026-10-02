@@ -2,6 +2,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
 
 const h = vi.hoisted(() => ({
   user: null as null | { email: string; twoFactorEnabled: boolean; twoFactorMethod?: "AUTHENTICATOR" | "EMAIL" | null },
@@ -84,5 +85,29 @@ describe("TwoFactorSection", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Authenticator cihazınızı kaybederseniz/)).not.toBeInTheDocument();
+  });
+
+  // Yeniden doğrulama (webC-08): yer tutucu "6 haneli kod ya da XXXX-XXXX"
+  // 240px tavanında mobilde/RU'da kesiliyordu.
+  it("kapatma kodu alanı yer tutucuyu kesecek 240px tavanı taşımaz", async () => {
+    const user = userEvent.setup();
+    render(<TwoFactorSection />);
+    await user.click(screen.getByRole("button", { name: "2FA'yı Kapat" }));
+    const input = screen.getByLabelText("Doğrulama kodu veya kurtarma kodu");
+    expect(input.getAttribute("placeholder")).toBe("6 haneli kod ya da XXXX-XXXX");
+    expect(input.outerHTML).not.toContain("max-w-[240px]");
+  });
+});
+
+// Yeniden doğrulama (webC-08): sayfa alt başlığı yöntemden bağımsız olmalı —
+// e-posta kodu da sunuluyor ve etkin yöntem olabilir (D-086).
+describe("2FA ayar sayfası açıklaması", () => {
+  it.each(["tr", "en", "ru"] as const)("%s: açıklama yalnız authenticator uygulamasından söz etmez", (locale) => {
+    const m = messagesFor(locale, WEB_NAMESPACES) as {
+      web: { panel: { settings: { settingsPages: { twoFactor: { description: string } } } } };
+    };
+    const d = m.web.panel.settings.settingsPages.twoFactor.description;
+    expect(d.length).toBeGreaterThan(0);
+    expect(d).not.toMatch(/authenticator|аутентификатор/i);
   });
 });

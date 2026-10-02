@@ -6384,7 +6384,7 @@
         },
         "twoFactor": {
           "title": "Two-factor authentication",
-          "description": "Extra login security with an authenticator app"
+          "description": "Require a verification code in addition to your password at sign-in"
         },
         "profil": {
           "title": "Company profile",

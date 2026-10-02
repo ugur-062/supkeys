@@ -339,7 +339,7 @@ export function TwoFactorSection() {
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder={t("n6HaneliKodYaDa")}
-                  className="max-w-[240px]"
+                  className="max-w-xs"
                 />
               </Field>
               <Text className="text-xs text-zinc-500">

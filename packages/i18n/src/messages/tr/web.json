@@ -6384,7 +6384,7 @@
         },
         "twoFactor": {
           "title": "İki Adımlı Doğrulama",
-          "description": "Authenticator uygulamasıyla ek giriş güvenliği"
+          "description": "Girişte şifrenize ek olarak doğrulama kodu isteyin"
         },
         "profil": {
           "title": "Firma Profili",
