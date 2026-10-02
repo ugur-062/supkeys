@@ -300,6 +300,28 @@ describe("derin denetim LU-03 — admin kapanış kuralları, SEO, kesme bayrağ
     expect(seo.listingChanged).toHaveBeenCalledWith(l.id);
   });
 
+  // Yeniden doğrulama api1-02 (D-115 ailesi): sahibe giden müdahale bildirimi
+  // satın alma portalına yazılır — portalsız satır Satış süzgecinde çıkıyordu.
+  it("kapat/uzat/yeniden aç sahip bildirimi satın alma portalına yazılır", async () => {
+    const { service, companies } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const l = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+    await service.extendListing(l.id, FURTHER.toISOString(), "admin-1");
+    await service.closeListing(l.id, "moderasyon", "admin-1");
+    await service.reopenListing(l.id, FURTHER.toISOString(), "admin-1");
+    const msgs = (companies.notifyCompany.mock.calls as unknown as [string, { type: string; portal?: string }][])
+      .map(([, m]) => [m.type, m.portal]);
+    expect(msgs).toEqual([
+      ["admin_listing_extended", "satinalma"],
+      ["admin_listing_closed", "satinalma"],
+      ["admin_listing_reopened", "satinalma"],
+    ]);
+  });
+
   it("ilan/sipariş listesi 100'ü aşınca sessiz kesilmez: truncated bayrağı döner", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, {});

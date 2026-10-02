@@ -6,7 +6,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { Prisma, type CompanyOrderStatus } from "@rothern/db";
+import { Prisma, type CompanyOrderStatus, type ListingType } from "@rothern/db";
 import { encodeSystemText } from "@rothern/shared";
 import { dateParam } from "../../common/notifications/notification-params";
 import { maskEmail } from "../../common/logging/mask-email";
@@ -17,6 +17,15 @@ import { SeoIndexService } from "../seo-index/seo-index.service";
 import { CompanyListingsService } from "../company-listings/services/company-listings.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { AdminCompaniesService } from "./admin-companies.service";
+import type { NotificationPortal } from "../notifications/notification.service";
+
+/**
+ * Talep SAHİBİNİN portalı (CompanyListingsService.ownerPortal aynası): ALIM
+ * talebine müdahale satın alma tarafının bildirimidir.
+ */
+function ownerPortalOf(type: ListingType): NotificationPortal {
+  return type === "ALIM" ? "satinalma" : "satis";
+}
 
 /**
  * Admin inceleme + müdahale (Faz 5) — "satın alma talebimde ne oldu / siparişim takıldı"
@@ -294,6 +303,7 @@ export class AdminInspectionService {
     });
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_closed",
+      portal: ownerPortalOf(l.type),
       subjectKey: "api.notifications.adminInspection.ilanKapatildiBaslik",
       paragraphKeys: [
         "api.notifications.adminInspection.ilanKapatildiGovde",
@@ -353,6 +363,7 @@ export class AdminInspectionService {
     });
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_extended",
+      portal: ownerPortalOf(l.type),
       subjectKey: "api.notifications.adminInspection.ilanUzatildiBaslik",
       paragraphKeys: [
         "api.notifications.adminInspection.ilanUzatildiGovde",
@@ -376,6 +387,7 @@ export class AdminInspectionService {
         companyId: true,
         title: true,
         status: true,
+        type: true,
         awardedAt: true,
         bidsOpenAt: true,
         _count: { select: { orders: true } },
@@ -424,6 +436,7 @@ export class AdminInspectionService {
     });
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_reopened",
+      portal: ownerPortalOf(l.type),
       subjectKey: "api.notifications.adminInspection.ilanYenidenAcildiBaslik",
       paragraphKeys: [
         "api.notifications.adminInspection.ilanYenidenAcildiGovde",
@@ -834,6 +847,7 @@ export class AdminInspectionService {
         status: true,
         closesAt: true,
         bidsOpenAt: true,
+        type: true,
       },
     });
     if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
