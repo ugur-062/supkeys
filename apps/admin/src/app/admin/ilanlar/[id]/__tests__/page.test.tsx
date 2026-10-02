@@ -114,3 +114,23 @@ describe("/admin/ilanlar/[id] — müdahale düğmeleri", () => {
     expect(confirm).toBeEnabled();
   });
 });
+
+// Arayüz testi webB-02 (T-16): "Kapalı zarf" rozeti kayıtlı isSealedBid'e değil
+// formata bağlı — açık eksiltmede (bayrak true olsa da) yok, eski RFQ'da
+// (bayrak false olsa da) var; uyarı metni de formata uyar.
+describe("/admin/ilanlar/[id] — kapalı zarf rozeti", () => {
+  it("açık eksiltme isSealedBid=true olsa da 'Kapalı zarf' göstermez", () => {
+    h.listing = listing({ format: "ENGLISH_AUCTION", isSealedBid: true });
+    render(<AdminListingPage />);
+    expect(screen.queryByText("Kapalı zarf")).not.toBeInTheDocument();
+    expect(screen.queryByText(/kapalı zarf kuralı/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Açık eksiltmede teklifçiler yalnız güncel en iyi tutarı görür/)).toBeInTheDocument();
+  });
+
+  it("eski RFQ isSealedBid=false olsa da 'Kapalı zarf' gösterir", () => {
+    h.listing = listing({ format: "RFQ", isSealedBid: false });
+    render(<AdminListingPage />);
+    expect(screen.getByText("Kapalı zarf")).toBeInTheDocument();
+    expect(screen.getByText(/kapalı zarf kuralı taraflar arasında geçerlidir/)).toBeInTheDocument();
+  });
+});

@@ -23,6 +23,7 @@ import {
   nextDateTimeLocal,
   safeFormat,
 } from "@/lib/date";
+import { isSealedListing } from "@/lib/listing-format";
 import { systemTextTr } from "@/lib/system-text";
 import {
   BID_STATUS,
@@ -71,6 +72,8 @@ function ListingInspection({ id }: { id: string }) {
     );
   }
 
+  // "Kapalı zarf" formata bağlı (T-16) — kayıtlı isSealedBid okunmaz.
+  const sealed = isSealedListing(l);
   const meta = LISTING_STATUS[l.status] ?? {
     label: l.status,
     color: "zinc" as const,
@@ -106,7 +109,7 @@ function ListingInspection({ id }: { id: string }) {
             <Badge color={l.type === "ALIM" ? "blue" : "green"}>
               {l.type === "ALIM" ? "Alış" : "Satış"}
             </Badge>
-            {l.isSealedBid ? <Badge color="zinc">Kapalı zarf</Badge> : null}
+            {sealed ? <Badge color="zinc">Kapalı zarf</Badge> : null}
             <span className="text-admin-text-muted font-mono text-xs">
               {l.number ?? "—"}
             </span>
@@ -149,11 +152,14 @@ function ListingInspection({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Kapalı-zarf uyarısı — adminin gördüğünü taraflar görmez */}
+      {/* Gizlilik uyarısı — adminin gördüğünü taraflar görmez. Metin formata
+          bağlı (T-16): açık eksiltmede güncel en iyi tutar herkese açıktır. */}
       <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-800">
-        Aşağıdaki teklif tutarlarını yalnız platform yönetimi görür — kapalı
-        zarf kuralı taraflar arasında geçerlidir. Bu bilgiyi teklifçilerle
-        paylaşmayın.
+        {sealed
+          ? "Aşağıdaki teklif tutarlarını yalnız platform yönetimi görür — kapalı zarf kuralı taraflar arasında geçerlidir. Bu bilgiyi teklifçilerle paylaşmayın."
+          : l.format === "ENGLISH_AUCTION"
+            ? "Açık eksiltmede teklifçiler yalnız güncel en iyi tutarı görür; aşağıdaki teklif ve teklifçi ayrıntılarını yalnız platform yönetimi görür. Bu bilgiyi teklifçilerle paylaşmayın."
+            : "Aşağıdaki teklif ayrıntılarını yalnız platform yönetimi görür. Bu bilgiyi teklifçilerle paylaşmayın."}
       </div>
 
       {/* Teklifler */}
