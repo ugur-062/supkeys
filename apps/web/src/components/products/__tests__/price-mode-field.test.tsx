@@ -40,7 +40,7 @@ describe("PriceModeField — kademeler", () => {
     await user.click(screen.getByRole("button", { name: "Kademe ekle" }));
 
     const price = screen.getByLabelText("2. kademe: birim fiyat");
-    expect(price).toHaveValue(null);
+    expect(price).toHaveValue("");
     expect(price).toHaveAttribute("aria-invalid", "true");
     expect(latest[1]!.minQty).toBe(101);
     expect(isTierComplete(latest[1]!)).toBe(false);
@@ -52,8 +52,52 @@ describe("PriceModeField — kademeler", () => {
     render(<Harness initial={[{ minQty: 1, unitPrice: 12.5 }]} />);
     const price = screen.getByLabelText("1. kademe: birim fiyat");
     await user.clear(price);
-    expect(price).toHaveValue(null);
+    expect(price).toHaveValue("");
     expect(Number.isNaN(latest[0]!.unitPrice)).toBe(true);
+  });
+
+  // Arayüz testi son tur S-SELL: `type=number` alanı Türkçe tarayıcıda
+  // "12,50"yi 1250 kaydediyordu (×100) ve ürün öyle yayımlanıyordu.
+  it("Türkçe ondalık virgül doğru okunur (12,50 → 12.5, ×100 değil)", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial={[{ minQty: 1, unitPrice: Number.NaN }]} />);
+    const price = screen.getByLabelText("1. kademe: birim fiyat");
+    expect(price).toHaveAttribute("type", "text");
+    await user.type(price, "12,50");
+    expect(latest[0]!.unitPrice).toBe(12.5);
+  });
+
+  it("kademe miktarında Türkçe binlik ayracı: 1.000 → 1000", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial={[{ minQty: Number.NaN, unitPrice: 10 }]} />);
+    await user.type(screen.getByLabelText("1. kademe: başlangıç miktarı"), "1.000");
+    expect(latest[0]!.minQty).toBe(1000);
+  });
+});
+
+describe("PriceModeField — sabit fiyat", () => {
+  it("Türkçe ondalık virgül ham '12.50' olarak yazılır", async () => {
+    const user = userEvent.setup();
+    let amount = "";
+    function Fixed() {
+      const [a, setA] = useState("");
+      amount = a;
+      return (
+        <PriceModeField
+          mode="FIXED"
+          amount={a}
+          tiers={[]}
+          currency="TRY"
+          unit="adet"
+          onChange={(n) => {
+            if (n.amount !== undefined) setA(n.amount);
+          }}
+        />
+      );
+    }
+    render(<Fixed />);
+    await user.type(screen.getByLabelText("Birim fiyat"), "1.250,50");
+    expect(amount).toBe("1250.50");
   });
 });
 

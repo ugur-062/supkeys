@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import type { PriceTier } from "@/hooks/use-company-items";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
+import { MoneyInput, MoneyInputNumber } from "@/components/ui/money-input";
 import { PlusIcon, TrashIcon } from "@heroicons/react/20/solid";
 import { CURRENCIES } from "@/lib/tenders/labels";
 
@@ -79,17 +80,16 @@ export function PriceModeField({
         <Field>
           <Label htmlFor="fiyat-birim">{tr("birimFiyat")}</Label>
           <div className="flex flex-wrap gap-2">
-            <input
-              id="fiyat-birim"
-              type="number"
-              inputMode="decimal"
-              min={0.01}
-              step="0.01"
-              value={amount}
-              onChange={(e) => onChange({ amount: e.target.value })}
-              placeholder={tr("birimFiyatYerTutucu")}
-              className="min-w-0 flex-1 basis-40 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-            />
+            {/* Yerel biçimli para girişi (arayüz testi son tur S-SELL):
+                `type=number` Türkçe "12,50"yi 1250 kaydediyordu (×100). */}
+            <div className="min-w-0 flex-1 basis-40">
+              <MoneyInput
+                id="fiyat-birim"
+                value={amount}
+                onChange={(raw) => onChange({ amount: raw })}
+                placeholder={tr("birimFiyatYerTutucu")}
+              />
+            </div>
             <CurrencySelect value={currency} onChange={(c) => onChange({ currency: c })} />
             <span className="flex items-center px-2 text-sm text-zinc-500">
               / {unit}
@@ -115,37 +115,37 @@ export function PriceModeField({
               <li key={i}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="flex items-center gap-2">
-                    <input
-                      aria-label={tr("kademeBaslangicMiktari", { n: i + 1 })}
-                      type="number"
-                      min={1}
-                      value={numberInputValue(t.minQty)}
-                      onChange={(e) => {
-                        const next = [...tiers];
-                        next[i] = { ...t, minQty: parseNumberInput(e.target.value) };
-                        onChange({ tiers: next });
-                      }}
-                      className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    />
+                    {/* Tam sayı miktar — Türkçe binlik "1.000" 1 okunmasın. */}
+                    <div className="w-28">
+                      <MoneyInputNumber
+                        aria-label={tr("kademeBaslangicMiktari", { n: i + 1 })}
+                        maxDecimals={0}
+                        value={t.minQty}
+                        onChange={(v) => {
+                          const next = [...tiers];
+                          next[i] = { ...t, minQty: v ?? Number.NaN };
+                          onChange({ tiers: next });
+                        }}
+                      />
+                    </div>
                     <span className="whitespace-nowrap text-sm text-zinc-500">{tr("veUzeri", { unit: unit })}</span>
                   </span>
                   <span className="flex items-center gap-2">
-                    <input
-                      aria-label={tr("kademeBirimFiyat", { n: i + 1 })}
-                      type="number"
-                      min={0.01}
-                      step="0.01"
-                      value={numberInputValue(t.unitPrice)}
-                      aria-invalid={isTierComplete(t) ? undefined : true}
-                      onChange={(e) => {
-                        const next = [...tiers];
-                        next[i] = { ...t, unitPrice: parseNumberInput(e.target.value) };
-                        onChange({ tiers: next });
-                      }}
-                      className={`w-32 rounded-lg border px-3 py-2 text-sm outline-none focus:border-zinc-900 ${
-                        isTierComplete(t) ? "border-zinc-300" : "border-amber-500"
-                      }`}
-                    />
+                    {/* Yerel biçimli para girişi (arayüz testi son tur
+                        S-SELL): `type=number` Türkçe "12,50"yi 1250
+                        kaydediyordu (×100) ve ürün öyle yayımlanıyordu. */}
+                    <div className="w-32">
+                      <MoneyInputNumber
+                        aria-label={tr("kademeBirimFiyat", { n: i + 1 })}
+                        value={t.unitPrice}
+                        hasError={!isTierComplete(t)}
+                        onChange={(v) => {
+                          const next = [...tiers];
+                          next[i] = { ...t, unitPrice: v ?? Number.NaN };
+                          onChange({ tiers: next });
+                        }}
+                      />
+                    </div>
                     <span className="text-sm text-zinc-500">{currency}</span>
                   </span>
                   <button
@@ -198,18 +198,9 @@ export function PriceModeField({
   );
 }
 
-/**
- * Kademe alanları BOŞ olabilir (arayüz testi D-050): boş değer `NaN` olarak
- * tutulur ve kutuda boş görünür — eskiden `Number("")` 0'a dönüyor, silinen
- * fiyat "0" olarak geri geliyordu.
- */
-function numberInputValue(n: number): number | "" {
-  return Number.isFinite(n) ? n : "";
-}
-
-function parseNumberInput(v: string): number {
-  return v.trim() === "" ? Number.NaN : Number(v);
-}
+// Kademe alanları BOŞ olabilir (arayüz testi D-050): boş değer `NaN` olarak
+// tutulur ve kutuda boş görünür (MoneyInputNumber NaN'ı boş basar) — eskiden
+// `Number("")` 0'a dönüyor, silinen fiyat "0" olarak geri geliyordu.
 
 function lastFiniteQty(tiers: PriceTier[]): number {
   const q = tiers.at(-1)?.minQty;
