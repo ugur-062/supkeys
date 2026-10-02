@@ -1092,6 +1092,7 @@
       "videoTitle": "{product} — product video",
       "docsLocked": "Log in to download documents",
       "docsLockedNote": "Document names are public; downloads are for members.",
+      "docsLoadError": "Documents couldn't be loaded right now. Refresh the page and try again.",
       "inquiryGoldNote": "Information requests are sent from the Gold plan's purchasing panel; signing up and browsing products are free."
     },
     "listing": {
@@ -5311,6 +5312,7 @@
         "bildir": "Report",
         "henuzOdemeKaydiYok": "No payment records yet.",
         "odemeBolumuSiparisTeslimAlindiktan": "The payment section opens after the order has been received.",
+        "ayipIhbariAcikkenOdemeKaydiYapilamaz": "Payments can't be recorded while a defect notice is open; the payment section reopens if the notice is withdrawn.",
         "odemeKaydiSaticiSiparisiOnayladiktan": "Payment records can be added after the seller confirms the order.",
         "vade": "· Due: {formatDate}",
         "tutarindakiOdemeyiAldimOlarakIsaretle": "Mark the payment of {amountLabel} as received",
@@ -5410,6 +5412,8 @@
         "kalanOdemeniziOdemelerBolumundenKaydedin": "Record your remaining payment in the Payments section — the order is completed automatically when the seller confirms.",
         "aliciOdemeBildirdiOdemelerBolumunden": "The buyer has reported a payment — confirm or reject it in the Payments section. The next step cannot be taken while a payment is awaiting confirmation.",
         "karsiTarafinIslemiBekleniyor": "Waiting for the other party…",
+        "saticiIptalTalepEttiKararSizde": "The seller has requested to cancel the order — it's your decision: choose {approve} or {reject} in the cancellation request section.",
+        "ihtilafSaticiGonderebilirVeyaIptaliOnaylayin": "The order is disputed: the seller can still ship it if the goods are found; if you accept the cancellation, choose {approve} in the cancellation request section.",
         "satisSiparisi": "Sales order",
         "alisSiparisi": "Purchase order",
         "siparis": "Order",
@@ -6572,7 +6576,9 @@
         "genelBakis": "Overview",
         "ziyaretEdenler": "Visitors",
         "tamamlananSiparisCur": "{periodWord} · completed orders · {currency}",
-        "tasarrufIpucuCur": "{periodWord} · {rate}% average · {currency}"
+        "tasarrufIpucuCur": "{periodWord} · {rate}% average · {currency}",
+        "sizeAcikSayfalar": "Pages available to you",
+        "sizeAcikSayfalarAciklama": "The business summary and charts fill in with access to the Purchasing or Sales panel. Pages you can open with your permissions:"
       },
       "connectionsView": {
         "baglantiKuruldu": "Connection established",

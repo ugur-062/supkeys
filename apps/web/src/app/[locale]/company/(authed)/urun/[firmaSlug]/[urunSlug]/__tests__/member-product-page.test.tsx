@@ -90,6 +90,28 @@ describe("Üyenin ürün sayfası", () => {
     );
   });
 
+  // webA-03 yeniden doğrulama: herkese açık "Belgeyi indirmek için giriş
+  // yapın" dönüşü `#belgeler` ile gelir; izinsiz üye döngüye girmez, belgeyi
+  // oturumla veren herkese açık sayfanın Belgeler sekmesine geçer.
+  it("satınalma görüntüleme yok + #belgeler: herkese açık sayfanın Belgeler sekmesine geçer", () => {
+    window.history.replaceState(null, "", "#belgeler");
+    try {
+      h.user = perms("sell:view", "sell:bid:submit");
+      h.company = { tier: "SILVER", companyVerificationStatus: "VERIFIED", slug: "me" };
+      render(<MemberProductPage />);
+      expect(h.replace).toHaveBeenCalledWith("/firma/abc/urun/urun-x#belgeler");
+    } finally {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  });
+
+  it("satınalma görüntüleme yok, çapa yok: yönlendirme yok", () => {
+    h.user = perms("sell:view");
+    h.company = { tier: "SILVER", companyVerificationStatus: "VERIFIED", slug: "me" };
+    render(<MemberProductPage />);
+    expect(h.replace).not.toHaveBeenCalled();
+  });
+
   it("kendi ürünü: uyarı yerine 'sizin firmanıza ait' notu", () => {
     h.user = perms("buy:view");
     h.company = { tier: "SILVER", companyVerificationStatus: "VERIFIED", slug: "abc" };

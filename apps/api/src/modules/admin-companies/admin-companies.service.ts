@@ -2007,6 +2007,10 @@ export class AdminCompaniesService {
       // #10: para/yetki aksiyonu — audit yazımı düşerse alarm.
       critical: true,
     });
+    // Paket herkese açık yüzeyi değiştirir (Gold rozeti, Silver+ ürün videosu
+    // ve belgeleri): firma ve ürün sayfaları tazelensin (arayüz testi D-192
+    // yeniden doğrulama — eskiden paket değişimi hiçbir tazeleme yaymıyordu).
+    if (tier !== before.tier) this.seo?.companyChanged(id);
     // GOLD → SILVER: satınalma paneli kapandı; kuyruktaki dış talep davetleri
     // (BUYING_TIER işi) iptal (derin denetim LU-07) — bağlantı/referral davetleri SILVER'da geçerli.
     if (tier === "SILVER" && before.tier === "GOLD") {

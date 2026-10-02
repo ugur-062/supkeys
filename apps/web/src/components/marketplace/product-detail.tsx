@@ -26,17 +26,14 @@ import { categoryHref } from "@/lib/public/marketplace";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
 import { MemberCta } from "./member-cta";
+import { ProductDocuments, type ProductDocument } from "./product-documents";
 import { ProductCard } from "./product-card";
 import { ActivityIcon } from "./activity-icons";
 import { CardCarousel } from "./card-carousel";
 import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
-import {
-  DocumentTextIcon,
-  LockClosedIcon,
-  MapPinIcon,
-} from "@heroicons/react/20/solid";
+import { MapPinIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -129,6 +126,7 @@ export function ProductDetail({
                   önce görür (kullanıcı kararı T-02, arayüz testi Y-03). */}
               <MemberCta
                 action="inquiry"
+                sellerSlug={companySlug}
                 member={
                   <Link
                     href={`${PANEL_TARGET.product(companySlug, product.slug)}#bilgi-iste`}
@@ -269,8 +267,7 @@ export function ProductDetailBody({
   // Video İZİNLİ LİSTEDEN gömülür (YouTube çerezsiz alan / Vimeo); başka adres
   // çizilmez. API paketi düşen satıcının videosunu zaten boş döner (Y-11, D-192).
   const videoEmbed = productVideoEmbedUrl(product.videoUrl);
-  const documents = (product.documents ?? []) as { url?: string; title: string }[];
-  const docsLocked = documents.some((d) => !d.url);
+  const documents = (product.documents ?? []) as ProductDocument[];
 
   return (
     <>
@@ -484,40 +481,12 @@ export function ProductDetailBody({
             label: t("tabDocs"),
             hidden: documents.length === 0,
             content: (
-              <div className="max-w-3xl">
-                <ul className="space-y-2">
-                  {documents.map((d, i) => (
-                    <li key={`${i}-${d.title}`}>
-                      {d.url ? (
-                        <a
-                          href={d.url}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
-                        >
-                          <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                          {d.title}
-                        </a>
-                      ) : (
-                        /* Ad herkese açık, indirme üyeye (T-18 / D-331). */
-                        <span className="inline-flex items-center gap-2 text-sm font-medium text-zinc-700">
-                          <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                          {d.title}
-                          <LockClosedIcon aria-hidden className="size-3.5 text-zinc-400" />
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {docsLocked && documentsLoginHref ? (
-                  <p className="mt-4 text-sm text-zinc-600">
-                    {t("docsLockedNote")}{" "}
-                    <Link href={documentsLoginHref} className="font-semibold text-blue-700 hover:underline">
-                      {t("docsLocked")}
-                    </Link>
-                  </p>
-                ) : null}
-              </div>
+              <ProductDocuments
+                documents={documents}
+                companySlug={company.slug ?? undefined}
+                productSlug={product.slug}
+                loginHref={documentsLoginHref}
+              />
             ),
           },
           {

@@ -31,6 +31,8 @@ const ALLOWLIST: Record<string, string> = {
     "kişinin KENDİ bildirim satırları (companyUserId ile sınırlı); içerik süzgeci Faz 2",
   CompanyInvitationsController:
     "davet önizleme/kabul — token ile ANONİM (oturum yok, guard yok)",
+  MemberProductDocumentsController:
+    "ürün belgesi indirme — görünürlük tablosu `documentDownload: member`: oturum yeter, paket/izin istemez (T-18, arayüz testi webA-03)",
 };
 
 /**

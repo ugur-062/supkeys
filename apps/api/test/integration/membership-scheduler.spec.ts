@@ -116,6 +116,35 @@ describe("MembershipScheduler.downgradeExpired", () => {
     expect(extAfter.cancelReason).toBe("INVITER_DOWNGRADED");
   });
 
+  // Arayüz testi D-192 yeniden doğrulama: süre dolumu herkese açık firma/ürün
+  // sayfalarını tazeler (Silver+ video ve belgeler önbellekte kalmasın);
+  // süresi geçmemiş firma için tazeleme yayılmaz.
+  it("düşen firma için SEO tazelemesi yayılır, düşmeyen için yayılmaz", async () => {
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const seo = { companyChanged: jest.fn() };
+    const scheduler = new MembershipScheduler(
+      prisma as never,
+      email as never,
+      config as never,
+      undefined,
+      seo as never,
+    );
+    const a = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+    });
+    const d = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: d.company.id },
+      data: { membershipEndAt: new Date(Date.now() + 86_400_000) },
+    });
+    await scheduler.downgradeExpired();
+    expect(seo.companyChanged).toHaveBeenCalledTimes(1);
+    expect(seo.companyChanged).toHaveBeenCalledWith(a.company.id);
+  });
+
   it("düşecek firma yoksa hiçbir şeye dokunmaz", async () => {
     const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };

@@ -1092,6 +1092,7 @@
       "videoTitle": "{product} — ürün videosu",
       "docsLocked": "Belgeyi indirmek için giriş yapın",
       "docsLockedNote": "Belge adları herkese açık; indirme üyelere açıktır.",
+      "docsLoadError": "Belgeler şu an yüklenemedi. Sayfayı yenileyip yeniden deneyin.",
       "inquiryGoldNote": "Bilgi talebi Gold paketinin satın alma panelinden gönderilir; kayıt ve ürün inceleme ücretsizdir."
     },
     "listing": {
@@ -5311,6 +5312,7 @@
         "bildir": "Bildir",
         "henuzOdemeKaydiYok": "Henüz ödeme kaydı yok.",
         "odemeBolumuSiparisTeslimAlindiktan": "Ödeme bölümü, sipariş teslim alındıktan sonra açılır.",
+        "ayipIhbariAcikkenOdemeKaydiYapilamaz": "Ayıp ihbarı açıkken ödeme kaydı yapılamaz; ihbar geri çekilirse ödeme bölümü yeniden açılır.",
         "odemeKaydiSaticiSiparisiOnayladiktan": "Ödeme kaydı, satıcı siparişi onayladıktan sonra eklenebilir.",
         "vade": "· Vade: {formatDate}",
         "tutarindakiOdemeyiAldimOlarakIsaretle": "{amountLabel} tutarındaki ödemeyi aldım olarak işaretle",
@@ -5410,6 +5412,8 @@
         "kalanOdemeniziOdemelerBolumundenKaydedin": "Kalan ödemenizi Ödemeler bölümünden kaydedin — satıcı onayladığında sipariş otomatik tamamlanır.",
         "aliciOdemeBildirdiOdemelerBolumunden": "Alıcı ödeme bildirdi — Ödemeler bölümünden onaylayın veya reddedin. Onay bekleyen ödeme varken sonraki adıma geçilmez.",
         "karsiTarafinIslemiBekleniyor": "Karşı tarafın işlemi bekleniyor…",
+        "saticiIptalTalepEttiKararSizde": "Satıcı siparişin iptalini talep etti — karar sizde: İptal talebi bölümünden {approve} veya {reject} seçin.",
+        "ihtilafSaticiGonderebilirVeyaIptaliOnaylayin": "Sipariş ihtilaflı: satıcı malı bulursa siparişi gönderebilir; iptali kabul ediyorsanız İptal talebi bölümünden {approve} seçin.",
         "satisSiparisi": "Satış siparişi",
         "alisSiparisi": "Alış siparişi",
         "siparis": "Sipariş",
@@ -6572,7 +6576,9 @@
         "genelBakis": "Genel Bakış",
         "ziyaretEdenler": "Ziyaret Edenler",
         "tamamlananSiparisCur": "{periodWord} · tamamlanan sipariş · {currency}",
-        "tasarrufIpucuCur": "{periodWord} · %{rate} ortalama · {currency}"
+        "tasarrufIpucuCur": "{periodWord} · %{rate} ortalama · {currency}",
+        "sizeAcikSayfalar": "Size açık sayfalar",
+        "sizeAcikSayfalarAciklama": "İş özeti ve grafikler Satınalma ya da Satış paneline erişimle dolar. Yetkinizle açabileceğiniz sayfalar:"
       },
       "connectionsView": {
         "baglantiKuruldu": "Bağlantı kuruldu",

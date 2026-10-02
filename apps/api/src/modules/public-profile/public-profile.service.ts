@@ -211,6 +211,44 @@ export class PublicProfileService {
     return this.related(companySlug, productSlug, { viewerCompanyId, blockedCompanyIds });
   }
 
+  /**
+   * ÜYENİN BELGE İNDİRMESİ (arayüz testi webA-03 yeniden doğrulama, T-18):
+   * görünürlük tablosu `documentDownload: "member"` — paket ya da izin değil,
+   * OTURUM ister. Herkese açık uç yalnız adı verir; panel ürün ucu
+   * (`discover/...`) `buy:view` istediği için satış koltuğu ve görüntüleyici
+   * hazır ayarı belgeyi hiçbir yerden indiremiyor, herkese açık sayfadaki
+   * "giriş yapın" bağlantısı oturumlu kullanıcıyı döngüye sokuyordu.
+   *
+   * Kapılar herkese açık ürünle AYNI (yayında ürün, açık profil, Silver+
+   * satıcı — `toPublicProduct` medya kapısı) + engel ilişkisi (iki yön) → 404.
+   */
+  async documentsForMember(viewerCompanyId: string, companySlug: string, productSlug: string) {
+    const company = await this.requirePublicCompany(companySlug);
+    const blocked = await this.prisma.companyBlock.findFirst({
+      where: {
+        OR: [
+          { blockerCompanyId: viewerCompanyId, blockedCompanyId: company.id },
+          { blockerCompanyId: company.id, blockedCompanyId: viewerCompanyId },
+        ],
+      },
+      select: { blockerCompanyId: true },
+    });
+    if (blocked) throw new NotFoundException(i18nMessage("api.publicProfile.urunBulunamadi"));
+    const row = await this.prisma.companyItem.findFirst({
+      where: { ...publicProductWhere(), companyId: company.id, slug: productSlug },
+      select: PUBLIC_PRODUCT_SELECT,
+    });
+    if (!row) throw new NotFoundException(i18nMessage("api.publicProfile.urunBulunamadi"));
+    const docs = toPublicProduct(row).documents;
+    const documents = Array.isArray(docs)
+      ? docs
+          .filter((d): d is { url?: unknown; title?: unknown } => !!d && typeof d === "object")
+          .filter((d) => typeof d.url === "string" && d.url.length > 0)
+          .map((d) => ({ url: d.url as string, title: typeof d.title === "string" ? d.title : "" }))
+      : [];
+    return { documents };
+  }
+
   /** Ürün sayfası ilişkili bloklar — panel ve public aynı fonksiyon. */
   async related(companySlug: string, productSlug: string, viewer: RelatedViewerScope = {}) {
     const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug, viewer);

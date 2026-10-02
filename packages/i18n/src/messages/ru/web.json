@@ -1092,6 +1092,7 @@
       "videoTitle": "{product} — видео о товаре",
       "docsLocked": "Войдите, чтобы скачать документы",
       "docsLockedNote": "Названия документов открыты всем, скачивание — для участников.",
+      "docsLoadError": "Сейчас не удалось загрузить документы. Обновите страницу и попробуйте снова.",
       "inquiryGoldNote": "Запросы информации отправляются из панели закупок тарифа Gold; регистрация и просмотр товаров бесплатны."
     },
     "listing": {
@@ -5311,6 +5312,7 @@
         "bildir": "Сообщить",
         "henuzOdemeKaydiYok": "Записей о платежах пока нет.",
         "odemeBolumuSiparisTeslimAlindiktan": "Раздел оплаты откроется после получения заказа.",
+        "ayipIhbariAcikkenOdemeKaydiYapilamaz": "Пока открыто уведомление о недостатках, платежи не регистрируются; если уведомление будет отозвано, раздел оплаты снова откроется.",
         "odemeKaydiSaticiSiparisiOnayladiktan": "Запись о платеже можно добавить после подтверждения заказа продавцом.",
         "vade": "· Срок оплаты: {formatDate}",
         "tutarindakiOdemeyiAldimOlarakIsaretle": "Отметить платёж на сумму {amountLabel} как полученный",
@@ -5410,6 +5412,8 @@
         "kalanOdemeniziOdemelerBolumundenKaydedin": "Зафиксируйте оставшийся платёж в разделе «Платежи» — после подтверждения продавцом заказ завершится автоматически.",
         "aliciOdemeBildirdiOdemelerBolumunden": "Покупатель сообщил об оплате — подтвердите или отклоните её в разделе «Платежи». Пока платёж ожидает подтверждения, перейти к следующему шагу нельзя.",
         "karsiTarafinIslemiBekleniyor": "Ожидается действие другой стороны…",
+        "saticiIptalTalepEttiKararSizde": "Продавец запросил отмену заказа — решение за вами: выберите «{approve}» или «{reject}» в разделе запроса на отмену.",
+        "ihtilafSaticiGonderebilirVeyaIptaliOnaylayin": "Заказ в споре: продавец может отправить его, если товар найдётся; если вы согласны на отмену, выберите «{approve}» в разделе запроса на отмену.",
         "satisSiparisi": "Заказ на продажу",
         "alisSiparisi": "Заказ на закупку",
         "siparis": "Заказ",
@@ -6572,7 +6576,9 @@
         "genelBakis": "Обзор",
         "ziyaretEdenler": "Посетители",
         "tamamlananSiparisCur": "{periodWord} · завершённые заказы · {currency}",
-        "tasarrufIpucuCur": "{periodWord} · в среднем {rate}% · {currency}"
+        "tasarrufIpucuCur": "{periodWord} · в среднем {rate}% · {currency}",
+        "sizeAcikSayfalar": "Доступные Вам страницы",
+        "sizeAcikSayfalarAciklama": "Сводка и графики заполняются при доступе к панели закупок или продаж. Страницы, которые Вы можете открыть с Вашими правами:"
       },
       "connectionsView": {
         "baglantiKuruldu": "Контакт установлен",

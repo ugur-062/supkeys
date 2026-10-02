@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { CategoryImage } from "./category-image";
 import { cn } from "@/lib/utils";
 import { ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassPlusIcon, XMarkIcon } from "@heroicons/react/20/solid";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
  * ÜRÜN GALERİSİ (PROMPT 7) — kare ana görsel + altında küçük resim şeridi.
@@ -41,6 +41,19 @@ export function ProductGallery({
   const list = images.slice(0, MAX_PRODUCT_IMAGES);
   const current = list[active] ?? list[0];
   const step = (d: 1 | -1) => setActive((i) => (list.length ? (i + d + list.length) % list.length : 0));
+  const stripRef = useRef<HTMLUListElement>(null);
+
+  // Seçili küçük resim şeritte görünür kalsın — yalnız ŞERİT yatay kayar
+  // (`scrollIntoView` sayfayı da dikey kaydırırdı).
+  useEffect(() => {
+    const strip = stripRef.current;
+    const item = strip?.children[active] as HTMLElement | undefined;
+    if (!strip || !item) return;
+    const left = item.offsetLeft;
+    const right = left + item.offsetWidth;
+    if (left < strip.scrollLeft) strip.scrollLeft = left;
+    else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth;
+  }, [active]);
 
   // Büyütme katmanı Esc ile kapanır; açıkken sayfa kaydırması durur.
   useEffect(() => {
@@ -97,9 +110,17 @@ export function ProductGallery({
       {list.length > 1 ? (
         <div className="mt-3 flex items-center gap-2">
           <ArrowBtn dir={-1} onClick={() => step(-1)} />
-        <ul className="grid flex-1 grid-cols-5 gap-3 sm:grid-cols-6">
+        {/* TEK SATIR (arayüz testi webA-03 yeniden doğrulama): tavan 8'e
+            çıkınca (O-100) 6 sütunluk ızgara 7.–8. görseli ikinci satıra
+            kaydırıyor, oklar iki satırın ortasında asılı kalıyordu. Küçük
+            resim boyu aynı (5 / sm 6 görünür), fazlası yatay kayar; seçili
+            olan görünür alana alınır. */}
+        <ul
+          ref={stripRef}
+          className="relative flex min-w-0 flex-1 snap-x gap-3 overflow-x-auto [scrollbar-width:none]"
+        >
           {list.map((src, i) => (
-            <li key={src}>
+            <li key={src} className="w-[calc((100%-3rem)/5)] shrink-0 snap-start sm:w-[calc((100%-3.75rem)/6)]">
               <button
                 type="button"
                 onClick={() => setActive(i)}

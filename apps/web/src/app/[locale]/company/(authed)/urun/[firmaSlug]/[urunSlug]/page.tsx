@@ -62,6 +62,19 @@ export default function MemberProductPage() {
 
   const publicHref = `/firma/${firmaSlug}/urun/${urunSlug}`;
 
+  // BELGE İNDİRME ÜYEYE (T-18; webA-03 yeniden doğrulama): herkese açık
+  // sayfanın "Belgeyi indirmek için giriş yapın" dönüşü `#belgeler` ile buraya
+  // gelir. Satınalma görüntüleme izni olmayan üye (satış koltuğu,
+  // görüntüleyici) burada ürünü göremez; eskiden "yetki gerekir" notuyla
+  // herkese açık sayfaya geri gönderiliyor, orada yine giriş isteniyordu
+  // (döngü). Herkese açık sayfa artık oturumlu üyeye indirme bağlantısını
+  // kendisi verir → doğrudan oraya, Belgeler sekmesine.
+  const noViewDocs = !!user && !goldBuyer && !canView;
+  useEffect(() => {
+    if (!noViewDocs || typeof window === "undefined" || window.location.hash !== "#belgeler") return;
+    router.replace(`${publicHref}#belgeler`);
+  }, [noViewDocs, publicHref, router]);
+
   if (!user || goldBuyer || (showProduct && isLoading)) {
     return (
       <PageContainer>

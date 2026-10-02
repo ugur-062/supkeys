@@ -14,6 +14,7 @@ import { resolveWebUrl } from "../../../common/config/web-url";
 import { appRoutes } from "../../../common/company/app-routes";
 import { enforceProductLimit } from "../../../common/company/product-limit";
 import { cancelOutgoingReferralInvites } from "../../../common/company/downgrade-invites";
+import { SeoIndexService } from "../../seo-index/seo-index.service";
 
 @Injectable()
 export class MembershipScheduler implements OnModuleInit {
@@ -25,6 +26,9 @@ export class MembershipScheduler implements OnModuleInit {
     private readonly config: ConfigService,
     // @Optional: testler scheduler'ı DI dışında elle `new`'ler.
     @Optional() private readonly cronRegistry?: CronRegistryService,
+    // Paket düşünce herkese açık firma/ürün sayfaları tazelenir (Silver+
+    // medya: video + belgeler — arayüz testi D-192 yeniden doğrulama).
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
   /**
@@ -163,6 +167,13 @@ export class MembershipScheduler implements OnModuleInit {
         );
       }
     }
+
+    // Herkese açık sayfa önbelleği (arayüz testi D-192 yeniden doğrulama):
+    // ürün sayfası Silver+ medyayı (video, belgeler) ve Gold rozetini taşır;
+    // `company:<slug>` etiketi firmanın ürün sayfalarını da yeniler. Eskiden
+    // düşüş hiçbir tazeleme yaymıyordu, sayfa önbellek süresi boyunca bayat
+    // kalıyordu. En iyi çaba: servis kendi hatasını yutar.
+    for (const id of ids) this.seo?.companyChanged(id);
 
     // Bilgilendirme e-postası (best-effort) — firma yetkisini kaybettiğini bilsin.
     const baseUrl =

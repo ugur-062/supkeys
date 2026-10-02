@@ -16949,6 +16949,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.product.docsLoadError": {
+    "hash": "e74f45197b",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.marketplace.product.docsLocked": {
     "hash": "b8de0e1d94",
     "status": "reviewed",
@@ -36414,6 +36419,26 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "web.panel.trade.myBidsList.lostOutcome.cancelled": {
+    "hash": "e15ad036b1",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.lostOutcome.closed": {
+    "hash": "4f562429bc",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.lostOutcome.eliminated": {
+    "hash": "0698e7c49f",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.lostOutcome.lost": {
+    "hash": "ce0e84e067",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.trade.myBidsList.ozet": {
     "hash": "5aaf4da2bc",
     "status": "reviewed",
@@ -36488,26 +36513,6 @@
     "hash": "25f1fe1f49",
     "status": "reviewed",
     "at": "2026-09-24"
-  },
-  "web.panel.trade.myBidsList.lostOutcome.eliminated": {
-    "hash": "0698e7c49f",
-    "status": "reviewed",
-    "at": "2026-10-02"
-  },
-  "web.panel.trade.myBidsList.lostOutcome.lost": {
-    "hash": "ce0e84e067",
-    "status": "reviewed",
-    "at": "2026-10-02"
-  },
-  "web.panel.trade.myBidsList.lostOutcome.cancelled": {
-    "hash": "e15ad036b1",
-    "status": "reviewed",
-    "at": "2026-10-02"
-  },
-  "web.panel.trade.myBidsList.lostOutcome.closed": {
-    "hash": "4f562429bc",
-    "status": "reviewed",
-    "at": "2026-10-02"
   },
   "web.panel.trade.myBidsList.status.LOST": {
     "hash": "19bb40d35a",
@@ -36848,6 +36853,11 @@
     "hash": "30cd3d524a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.orderPaymentsCard.ayipIhbariAcikkenOdemeKaydiYapilamaz": {
+    "hash": "ce7727bb5e",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.orderPaymentsCard.bekleyen": {
     "hash": "7d9cdf7ca2",
@@ -39339,6 +39349,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.siparisIdPage.ihtilafSaticiGonderebilirVeyaIptaliOnaylayin": {
+    "hash": "7332906bcd",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.trade.siparisIdPage.iptalEdildi": {
     "hash": "e15ad036b1",
     "status": "reviewed",
@@ -39663,6 +39678,11 @@
     "hash": "7e740468f7",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.siparisIdPage.saticiIptalTalepEttiKararSizde": {
+    "hash": "6290a424ed",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.siparisIdPage.saticininAkreditifiKabulEtmesiBekleniyor": {
     "hash": "9d61c21ef2",

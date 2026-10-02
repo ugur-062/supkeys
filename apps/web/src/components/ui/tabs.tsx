@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export interface TabItem {
   /** URL hash anahtarı (`#ozellikler`) — hashSync açıkken. */
@@ -41,14 +41,32 @@ export function Tabs({
 }) {
   const visible = items.filter((t) => !t.hidden);
   const [index, setIndex] = useState(defaultIndex);
+  const listRef = useRef<HTMLDivElement>(null);
+  // Çapadan seçilen sekmeye kaydırma bekliyor mu (arayüz testi webA-03
+  // yeniden doğrulama): `#belgeler` sekmeyi seçiyordu ama sayfa en üstte
+  // kalıyordu. Sekme paneli yalnız seçilince bağlanır (Headless `unmount`);
+  // tarayıcının çapa kaydırması da `useScrollToHash` da öğeyi henüz
+  // bulamıyordu. Kaydırma, seçim işlendikten SONRAKİ efektte yapılır.
+  const [scrollToSelected, setScrollToSelected] = useState(false);
 
   useEffect(() => {
     if (!hashSync) return;
-    const fromHash = window.location.hash.slice(1);
+    const fromHash = decodeURIComponent(window.location.hash.slice(1));
     const i = visible.findIndex((t) => t.id === fromHash);
-    if (i >= 0) setIndex(i);
+    if (i >= 0) {
+      setIndex(i);
+      setScrollToSelected(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız açılışta
   }, [hashSync]);
+
+  useEffect(() => {
+    if (!scrollToSelected) return;
+    setScrollToSelected(false);
+    // Sekme çubuğu görünsün diye ÇUBUĞA kaydırılır (sabit üst çubuk payı
+    // `scroll-mt-*` ile); seçili panel hemen altında.
+    listRef.current?.scrollIntoView?.({ block: "start" });
+  }, [scrollToSelected, index]);
 
   const onChange = (i: number) => {
     setIndex(i);
@@ -62,7 +80,7 @@ export function Tabs({
       {/* Sekme çubuğu (2026-09-08): seçili sekme KALIN + renkli alt çizgi,
           seçili olmayanlarda hover'da yumuşak zemin. Eskiden hepsi aynı
           ağırlıkta gri metindi ve çubuk "düz" duruyordu. */}
-      <TabList className="flex gap-1 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none]">
+      <TabList ref={listRef} className="flex scroll-mt-28 gap-1 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none]">
         {visible.map((t) => (
           <Tab
             key={t.id}

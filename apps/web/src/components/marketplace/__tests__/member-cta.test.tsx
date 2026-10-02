@@ -10,11 +10,16 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
  * "Talep aç" oturumlu ama Gold olmayan üyeye Gold gerektiğini TIKLAMADAN
  * önce söyler; misafir mevcut akışı aynen görür.
  */
-function signIn(tier: string | null, status = "VERIFIED", permissions: string[] = ["buy:view", "buy:inquiry:send"]) {
+function signIn(
+  tier: string | null,
+  status = "VERIFIED",
+  permissions: string[] = ["buy:view", "buy:inquiry:send"],
+  slug = "alici",
+) {
   useCompanyAuthStore.setState({
     isHydrated: true,
     user: tier ? ({ id: "u", permissions, roles: [] } as never) : null,
-    company: tier ? ({ tier, companyVerificationStatus: status } as never) : null,
+    company: tier ? ({ tier, companyVerificationStatus: status, slug } as never) : null,
   });
 }
 
@@ -44,6 +49,22 @@ describe("MemberCta", () => {
     expect(screen.getByText("Bilgi talebi Gold paketiyle gönderilir")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Gold paketine geç" })).toHaveAttribute("href", "/company/premium");
     expect(screen.queryByText("Bilgi iste (misafir)")).toBeNull();
+  });
+
+  // webA-03 yeniden doğrulama: herkese açık sayfa Silver satıcıya KENDİ ürünü
+  // için "Gold paketine geç" diyordu (panel ve üye sayfası D-230 notunu verir).
+  it("kendi ürünü: Gold uyarısı yerine 'sizin firmanıza ait' notu (paketten önce)", () => {
+    signIn("SILVER", "VERIFIED", ["buy:view"], "satici");
+    render(<MemberCta action="inquiry" sellerSlug="satici" member={member}>{guest}</MemberCta>);
+    expect(screen.getByText(/Bu ürün sizin firmanıza ait/)).toBeInTheDocument();
+    expect(screen.queryByText("Gold paketine geç")).toBeNull();
+    expect(screen.queryByText("Bilgi iste (misafir)")).toBeNull();
+  });
+
+  it("başka firmanın ürünü: sellerSlug kapıyı değiştirmez", () => {
+    signIn("GOLD", "VERIFIED", undefined, "alici");
+    render(<MemberCta action="inquiry" sellerSlug="satici" member={member}>{guest}</MemberCta>);
+    expect(screen.getByText("Bilgi iste (üye)")).toBeInTheDocument();
   });
 
   it("ücretsiz, doğrulanmamış: önce ücretsiz doğrulama", () => {

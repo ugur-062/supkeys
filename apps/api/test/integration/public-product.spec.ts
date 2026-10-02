@@ -213,6 +213,30 @@ describe("ürün vitrini — belge ve video (paket + üyelik)", () => {
     expect(row.videoUrl).toBe(media.videoUrl);
   });
 
+  // Yeniden doğrulama (webA-03): `buy:view` olmayan üye (satış koltuğu,
+  // görüntüleyici) belgeyi hiçbir yerden indiremiyordu — üye ucu oturumla açık.
+  it("üye ucu: oturumlu üye indirme adresini alır; Silver altı satıcıda boş, engelde 404", async () => {
+    const { company, product } = await seedCompanyWithProduct({ tier: "SILVER" }, media);
+    const viewer = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const got = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
+    expect(got).toEqual({ documents: [{ url: "https://cdn.example.com/katalog.pdf", title: "Katalog" }] });
+
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+    });
+    const expired = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
+    expect(expired).toEqual({ documents: [] });
+
+    await prisma.company.update({ where: { id: company.id }, data: { membershipEndAt: null } });
+    await prisma.companyBlock.create({
+      data: { blockerCompanyId: company.id, blockedCompanyId: viewer.company.id },
+    });
+    await expect(
+      service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it("süresi dolmuş Gold = STANDART: medya gizlenir", async () => {
     const { company, product } = await seedCompanyWithProduct(
       { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) },

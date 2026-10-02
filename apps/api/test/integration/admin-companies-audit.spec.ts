@@ -57,6 +57,28 @@ describe("Admin aksiyonları audit'lenir", () => {
     expect(row!.actorId).toBe("admin-9");
   });
 
+  // Arayüz testi D-192 yeniden doğrulama: paket değişimi herkese açık firma ve
+  // ürün sayfalarını (Gold rozeti, Silver+ video/belgeler) tazeler.
+  it("setTier paket değişince SEO tazelemesi yayar; aynı paket yeniden yazılınca yaymaz", async () => {
+    const seo = { companyChanged: jest.fn() };
+    const service = new AdminCompaniesService(
+      prisma as never,
+      {} as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
+      { pushToCompany: jest.fn().mockResolvedValue(1) } as never,
+      { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+      new AuditService(prisma as never),
+      new EmailSuppressionService(prisma as never),
+      seo as never,
+    );
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await service.setTier(co.company.id, "STANDART", undefined, "admin-1");
+    expect(seo.companyChanged).toHaveBeenCalledWith(co.company.id);
+    seo.companyChanged.mockClear();
+    await service.setTier(co.company.id, "STANDART", undefined, "admin-1");
+    expect(seo.companyChanged).not.toHaveBeenCalled();
+  });
+
   it("verification_set → audit_log", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });

@@ -2,6 +2,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ProductBreadcrumb, ProductDetailBody, RelatedRows, brandIsSeller } from "../product-detail";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
@@ -239,6 +240,11 @@ describe("brandIsSeller", () => {
  * Arayüz testi 2026-10-01: kademe fiyatı başlıkla aynı biçimde (D-057), ürün
  * videosu izinli listeden gömülür (Y-11), belge indirme üyeye (D-331, T-18).
  */
+/** Belgeler sekmesi oturumlu üyede indirme adresini sorgular (react-query). */
+function withQuery({ children }: { children: React.ReactNode }) {
+  return <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>;
+}
+
 describe("ProductDetailBody — fiyat biçimi, video, belgeler", () => {
   it("kademe satırı '{sayı} {kod}' değil başlıkla aynı biçim (sembol dilden)", () => {
     render(
@@ -278,6 +284,7 @@ describe("ProductDetailBody — fiyat biçimi, video, belgeler", () => {
         product: { ...product, documents: [{ title: "Katalog" }] } as unknown as PublicProduct,
         documentsLoginHref: "/company/login?next=%2Fcompany%2Furun%2Fa%2Fb%23belgeler",
       }),
+      { wrapper: withQuery },
     );
     await u.click(screen.getByRole("tab", { name: "Belgeler" }));
     expect(screen.getByText("Katalog").closest("a")).toBeNull();
@@ -293,6 +300,7 @@ describe("ProductDetailBody — fiyat biçimi, video, belgeler", () => {
       Body({
         product: { ...product, documents: [{ title: "Katalog", url: "https://cdn.example.com/k.pdf" }] } as unknown as PublicProduct,
       }),
+      { wrapper: withQuery },
     );
     await u.click(screen.getByRole("tab", { name: "Belgeler" }));
     expect(screen.getByRole("link", { name: "Katalog" })).toHaveAttribute("href", "https://cdn.example.com/k.pdf");

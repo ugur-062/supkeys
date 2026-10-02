@@ -26,6 +26,19 @@ export function useBuyingGate(action: BuyingAction): BuyingGate {
   return buyingGate(user, company, action);
 }
 
+/** Oturumdaki firmanın slug'ı (hidrasyondan sonra; öncesi `null`). */
+function useOwnCompanySlug(): string | null {
+  const hydrated = useHydrated();
+  const storeHydrated = useCompanyAuthStore((s) => s.isHydrated);
+  const slug = useCompanyAuthStore((s) => s.company?.slug ?? null);
+  return hydrated && storeHydrated ? slug : null;
+}
+
+function OwnProductNote() {
+  const t = useTranslations("web.marketplace.memberGate");
+  return <p className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-600">{t("ownProduct")}</p>;
+}
+
 /**
  * HERKESE AÇIK CTA ADACIĞI (arayüz testi Y-03, kullanıcı kararı T-02):
  * "Bilgi iste" / "Talep aç" düğmeleri oturumu olan ama Gold olmayan üyeye
@@ -38,11 +51,17 @@ export function useBuyingGate(action: BuyingAction): BuyingGate {
  *   kullanıcıyı `next`e geçirir)
  * - Gold değil → `compact` ise kilitli bağlantı, değilse açıklamalı kutu
  * - izin yok → izin notu (`compact`ta hiç çizilmez)
+ * - `sellerSlug` oturumdaki firmanın kendisi → "kendi ürününüz" notu (paket ve
+ *   izinden ÖNCE: kendi ürününe bilgi talebi hiçbir pakette gönderilmez; panel
+ *   ve üye ürün sayfasıyla aynı kural — arayüz testi D-230, webA-03 yeniden
+ *   doğrulama: herkese açık sayfa Silver satıcıya kendi ürünü için Gold
+ *   satıyordu)
  */
 export function MemberCta({
   action,
   children,
   member,
+  sellerSlug,
   compact = false,
   compactClassName,
   compactLabel,
@@ -50,6 +69,8 @@ export function MemberCta({
   action: Exclude<BuyingAction, "browse">;
   children: ReactNode;
   member?: ReactNode;
+  /** Eylemin hedef firması (ürünün satıcısı) — kendi firmasıysa eylem yok. */
+  sellerSlug?: string;
   /** Yüzen düğme/satır içi bağlantı gibi dar yerler: kutu yerine kilitli bağlantı. */
   compact?: boolean;
   compactClassName?: string;
@@ -57,7 +78,11 @@ export function MemberCta({
   compactLabel?: string;
 }) {
   const gate = useBuyingGate(action);
+  const own = useOwnCompanySlug();
   if (gate === "guest") return <>{children}</>;
+  if (sellerSlug && own === sellerSlug) {
+    return compact ? null : <OwnProductNote />;
+  }
   if (gate === "ok") return <>{member ?? children}</>;
   if (compact) {
     return gate === "noPermission" ? null : (
