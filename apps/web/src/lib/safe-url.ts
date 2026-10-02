@@ -35,3 +35,23 @@ export function safeExternalUrl(raw: string | null | undefined): string | null {
     return null;
   }
 }
+
+/**
+ * Bağlantı alanının `maxLength`'i: kayıtta `safeExternalUrl` şemasız girdiye
+ * `https://` ve çıplak alan adına `/` ekler; sınır normalize edilmiş adrese
+ * uygulanır. Kutu ham girdiyi `max`'a kadar kabul edip kayıtta "çok uzun"
+ * demesin diye ekin payı düşülür (arayüz testi D-054, yeniden doğrulama).
+ */
+export function linkInputMaxLength(raw: string, max: number): number {
+  const t = raw.trim();
+  // Boş kutu: yapıştırılan tam adres (`https://…`) kırpılmasın; pay ilk karakterle hesaplanır.
+  if (!t) return max;
+  const norm = safeExternalUrl(t);
+  const overhead = norm
+    ? Math.max(0, norm.length - t.length)
+    : /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(t)
+      ? 0
+      : "https://".length + 1;
+  // Baştaki/sondaki boşluklar kayıtta kırpılır; kutuda yer kaplamaları sınırı daraltmasın.
+  return Math.max(0, max - overhead + (raw.length - t.length));
+}

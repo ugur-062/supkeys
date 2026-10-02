@@ -44,7 +44,7 @@ import {
 } from "@/hooks/use-company-profile";
 import { companyApi } from "@/lib/company-auth/api";
 import { PROFILE_IMAGE_LIMITS, resizeImageFile } from "@/lib/image-resize";
-import { safeExternalUrl } from "@/lib/safe-url";
+import { linkInputMaxLength, safeExternalUrl } from "@/lib/safe-url";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { Camera, GripVertical, ImagePlus, Loader2, Pencil, Plus, Sparkles, X } from "lucide-react";
@@ -392,7 +392,7 @@ export function ProfileEditor({
             aria-label={t("webSitesi")}
             value={draft.website}
             placeholder={t("ornekfirmaCom")}
-            maxLength={LIMITS.website}
+            maxLength={linkInputMaxLength(draft.website, LIMITS.website)}
             onChange={(e) => set({ website: e.target.value })}
           />
         </MiniField>
@@ -401,7 +401,7 @@ export function ProfileEditor({
             aria-label={t("linkedin")}
             value={draft.linkedinUrl}
             placeholder={t("linkedinComCompany")}
-            maxLength={LIMITS.linkedinUrl}
+            maxLength={linkInputMaxLength(draft.linkedinUrl, LIMITS.linkedinUrl)}
             onChange={(e) => set({ linkedinUrl: e.target.value })}
           />
         </MiniField>
@@ -410,7 +410,7 @@ export function ProfileEditor({
             aria-label={t("instagram")}
             value={draft.instagramUrl}
             placeholder={t("instagramCom")}
-            maxLength={LIMITS.instagramUrl}
+            maxLength={linkInputMaxLength(draft.instagramUrl, LIMITS.instagramUrl)}
             onChange={(e) => set({ instagramUrl: e.target.value })}
           />
         </MiniField>

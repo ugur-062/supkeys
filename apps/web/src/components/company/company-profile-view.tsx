@@ -371,7 +371,9 @@ export function CompanyProfileView({
           {edit?.classification ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
-                {t("firmaTuruVeFaaliyetAlanlari")}
+                {/* Kart faaliyet tipi + kategorileri gösterir; onboarding'deki yasal
+                    "Firma türü" değil (arayüz testi D-088, yeniden doğrulama). */}
+                {t("faaliyetTipiVeKategorileri")}
               </h2>
               <div className="mt-3">{edit.classification}</div>
             </section>

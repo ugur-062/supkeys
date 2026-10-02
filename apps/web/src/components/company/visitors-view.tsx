@@ -144,8 +144,12 @@ export function VisitorsView() {
 function LockedList({ count }: { count: number }) {
   const t = useTranslations("web.panel.trade.visitorsView");
   return (
-    <section aria-label={t("kimlikliZiyaretciListesiKilitli")} className="relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-      <ul className="divide-y divide-zinc-950/5 select-none blur-[3px]" aria-hidden>
+    // Bulanık satırlar ve kilit kartı AYNI ızgara hücresinde üst üste: bölüm
+    // yüksekliği ikisinin büyüğü. Kart eskiden `absolute inset-0` ile üç satırın
+    // (~218px) içine sıkışıyor, doğrulama notu + iki eylem eklenince mobilde
+    // başlık ve düğmeler kırpılıyordu (arayüz testi D-194, yeniden doğrulama).
+    <section aria-label={t("kimlikliZiyaretciListesiKilitli")} className="grid overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      <ul className="divide-y divide-zinc-950/5 select-none blur-[3px] col-start-1 row-start-1" aria-hidden>
         {["Anadolu Metal San.", t("egeTekstilAS"), "Karadeniz Enerji Ltd."].map((n, i) => (
           <li key={n} className="flex items-center gap-4 px-5 py-4">
             <span className="size-10 rounded-xl bg-zinc-200" />
@@ -158,8 +162,9 @@ function LockedList({ count }: { count: number }) {
           </li>
         ))}
       </ul>
-      <div className="absolute inset-0 flex items-center justify-center bg-white/70 p-6">
-        <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
+      {/* `relative`: bulanık liste (filter) kendi katmanını açar; kart onun üstünde çizilsin. */}
+      <div data-testid="visitors-lock-overlay" className="relative flex items-center justify-center bg-white/70 p-4 col-start-1 row-start-1 sm:p-6">
+        <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center shadow-sm sm:p-6">
           <LockClosedIcon aria-hidden className="mx-auto mb-2 size-7 text-amber-500" />
           <p className="font-semibold text-amber-900">
             {count > 0 ? t("firmaProfiliniziInceledi", { n: count }) : t("kimlikliZiyaretciListesiSilverVe")}

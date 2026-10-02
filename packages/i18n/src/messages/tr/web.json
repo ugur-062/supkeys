@@ -1198,7 +1198,7 @@
       "reviews": "Değerlendirmeler",
       "ordersCount": "{n} sipariş",
       "kapakGorseli": "{name} kapak görseli",
-      "firmaTuruVeFaaliyetAlanlari": "Firma türü ve faaliyet alanları",
+      "faaliyetTipiVeKategorileri": "Faaliyet tipi ve kategorileri",
       "rothernId": "Rothern ID",
       "linkedin": "LinkedIn",
       "instagram": "Instagram",
@@ -4549,9 +4549,15 @@
           "SUBMITTED": "Değerlendirmede",
           "WON": "Kazandı",
           "AWARDED_PARTIAL": "Kısmen Kazandı",
-          "LOST": "Elendi",
+          "LOST": "Kazanamadı",
           "WITHDRAWN": "Geri çekildi",
           "UNKNOWN": "Bilinmiyor"
+        },
+        "lostOutcome": {
+          "eliminated": "Elendi",
+          "lost": "Kaybetti",
+          "cancelled": "İptal edildi",
+          "closed": "Kapandı"
         },
         "sort": {
           "newest": "En Yeni",

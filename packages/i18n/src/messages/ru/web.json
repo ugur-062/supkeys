@@ -1198,7 +1198,7 @@
       "reviews": "Отзывы",
       "ordersCount": "{n, plural, one {# заказ} few {# заказа} many {# заказов} other {# заказа}}",
       "kapakGorseli": "Обложка компании {name}",
-      "firmaTuruVeFaaliyetAlanlari": "Тип компании и направления деятельности",
+      "faaliyetTipiVeKategorileri": "Вид и категории деятельности",
       "rothernId": "Rothern ID",
       "linkedin": "LinkedIn",
       "instagram": "Instagram",
@@ -4552,6 +4552,12 @@
           "LOST": "Не выбрано",
           "WITHDRAWN": "Отозвано",
           "UNKNOWN": "Неизвестно"
+        },
+        "lostOutcome": {
+          "eliminated": "Исключено",
+          "lost": "Не выиграло",
+          "cancelled": "Отменено",
+          "closed": "Закрыто"
         },
         "sort": {
           "newest": "Сначала новые",

@@ -217,7 +217,8 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     expect(screen.getByLabelText("Sektör")).toHaveAttribute("maxLength", "100");
     expect(screen.getByLabelText("Hakkında")).toHaveAttribute("maxLength", "2000");
-    expect(screen.getByLabelText("Web sitesi")).toHaveAttribute("maxLength", "200");
+    // "https://demo.com" kayıtta "https://demo.com/" olur: 1 karakterlik pay düşülür.
+    expect(screen.getByLabelText("Web sitesi")).toHaveAttribute("maxLength", "199");
     expect(screen.getByLabelText("LinkedIn")).toHaveAttribute("maxLength", "150");
     expect(screen.getByLabelText("Instagram")).toHaveAttribute("maxLength", "150");
     expect(screen.getByLabelText("Kuruluş yılı")).toHaveAttribute("maxLength", "4");
@@ -229,6 +230,26 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       expect(toast.error).toHaveBeenCalledWith("Hakkında: en fazla 2.000 karakter olabilir."),
     );
     expect(h.update).not.toHaveBeenCalled();
+  });
+
+  it("şemasız bağlantı: kutu https:// payını düşer, kutunun kabul ettiği değer kaydedilir (arayüz testi D-054, yeniden doğrulama)", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    const box = screen.getByLabelText("LinkedIn");
+    // Boş kutu tam sınırı kabul eder (yapıştırılan `https://…` kırpılmasın).
+    expect(box).toHaveAttribute("maxLength", "150");
+    const prefix = "linkedin.com/company/";
+    fireEvent.change(box, { target: { value: prefix + "a" } });
+    // Kayıt `https://` (8) ekler; kutu 142'de durur.
+    expect(box).toHaveAttribute("maxLength", "142");
+    const atLimit = prefix + "a".repeat(142 - prefix.length);
+    fireEvent.change(box, { target: { value: atLimit } });
+    expect(box).toHaveAttribute("maxLength", "142");
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    const body = h.update.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body.linkedinUrl).toBe(`https://${atLimit}`);
+    expect((body.linkedinUrl as string).length).toBe(150);
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it("kuruluş yılı DTO aralığı dışında kaydetmez (arayüz testi D-054)", async () => {
@@ -281,6 +302,9 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     // Etiket "Faaliyet tipi" — onboarding'deki "Firma türü" (hukuki yapı) değil (D-088).
     expect(screen.getByText("Faaliyet tipi")).toBeInTheDocument();
     expect(screen.queryByText("Firma türü")).toBeNull();
+    // Kart başlığı da faaliyet tipi + kategorileri adlandırır (D-088, yeniden doğrulama).
+    expect(screen.getByRole("heading", { name: "Faaliyet tipi ve kategorileri" })).toBeInTheDocument();
+    expect(screen.queryByText(/Firma türü ve faaliyet/)).toBeNull();
     expect(screen.getByRole("link", { name: /Düzenle → Firma Bilgileri/ })).toHaveAttribute(
       "href",
       "/company/ayarlar/firma#kategoriler",

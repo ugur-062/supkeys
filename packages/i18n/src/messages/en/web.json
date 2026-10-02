@@ -1198,7 +1198,7 @@
       "reviews": "Reviews",
       "ordersCount": "{n, plural, one {# order} other {# orders}}",
       "kapakGorseli": "{name} cover image",
-      "firmaTuruVeFaaliyetAlanlari": "Company type and business areas",
+      "faaliyetTipiVeKategorileri": "Activity type and categories",
       "rothernId": "Rothern ID",
       "linkedin": "LinkedIn",
       "instagram": "Instagram",
@@ -4552,6 +4552,12 @@
           "LOST": "Not selected",
           "WITHDRAWN": "Withdrawn",
           "UNKNOWN": "Unknown"
+        },
+        "lostOutcome": {
+          "eliminated": "Eliminated",
+          "lost": "Lost",
+          "cancelled": "Canceled",
+          "closed": "Closed"
         },
         "sort": {
           "newest": "Newest",

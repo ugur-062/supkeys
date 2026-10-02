@@ -69,6 +69,14 @@ describe("VisitorsView", () => {
         "/company/ayarlar/dogrulama",
       );
       expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
+      // Kilit kartı akışta: bölüm yüksekliği kart kadar büyür, mobilde başlık/
+      // eylemler bulanık satırların sabit yüksekliğine kırpılmaz (yeniden doğrulama).
+      const overlay = screen.getByTestId("visitors-lock-overlay");
+      expect(overlay.className).not.toMatch(/\babsolute\b|\binset-0\b/);
+      expect(overlay.className).toMatch(/\bcol-start-1\b.*\brow-start-1\b/);
+      const section = screen.getByRole("region", { name: "Kimlikli ziyaretçi listesi (kilitli)" });
+      expect(section.className).toMatch(/\bgrid\b/);
+      expect(section).toContainElement(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" }));
     } finally {
       useCompanyAuthStore.setState({ company: null } as never);
     }

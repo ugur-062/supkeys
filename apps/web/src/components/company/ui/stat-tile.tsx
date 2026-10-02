@@ -48,13 +48,14 @@ export function StatTile({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           {Icon ? (
             <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", iconCls)}>
               <Icon aria-hidden className="size-4.5" />
             </span>
           ) : null}
-          <p className="text-sm font-medium text-zinc-600">{label}</p>
+          {/* Uzun tek sözcük (RU "Идентифицированные") dar kartta taşmasın: hecele, gerekirse kır. */}
+          <p className="min-w-0 text-sm font-medium break-words hyphens-auto text-zinc-600">{label}</p>
         </div>
         <TrendBadge pct={deltaPct} periodLabel={deltaLabel} />
       </div>
