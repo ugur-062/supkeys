@@ -7,10 +7,10 @@ import { clientMessages } from "@/i18n/client-messages";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { notFound } from "next/navigation";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { AppToaster } from "@/components/providers/app-toaster";
 import { OG_LOCALE, SITE_NAME, absoluteUrl, siteVerification } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
-import { Toaster } from "sonner";
 import "../globals.css";
 
 // Catalyst ile birebir: variable Inter (cv11 stylistic set globals.css'te aktif)
@@ -143,22 +143,9 @@ export default async function RootLayout({
           <I18nRuntimeBridge />
           <QueryProvider>
             {children}
-            {/* P0: sağ-alt — header'ı/aksiyonları örtmesin (canlı mesaj
-                kartlarıyla aynı köşe, tek bildirim bölgesi). */}
-            <Toaster
-              position="bottom-right"
-              // C13: alt boşluk AI launcher'ın (bottom-5 h-14) üstünde kalacak
-              // kadar — toast butonun üzerine binmesin.
-              offset={{ right: 24, bottom: 96 }}
-              mobileOffset={{ bottom: 88 }}
-              richColors
-              closeButton
-              toastOptions={{
-                style: {
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                },
-              }}
-            />
+            {/* Masaüstünde sağ-alt, mobilde üst (alttan açılan diyalogların
+                düğmelerini örtmesin) — ayrıntı `AppToaster`. */}
+            <AppToaster />
           </QueryProvider>
         </NextIntlClientProvider>
       </body>

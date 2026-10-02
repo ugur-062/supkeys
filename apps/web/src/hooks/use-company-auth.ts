@@ -193,17 +193,25 @@ export interface InvitationPreview {
   expiresAt: string;
 }
 
+const invitationPreviewKey = (token: string) => ["company-invitation", token] as const;
+
 export function useInvitationPreview(token: string) {
   return useQuery({
-    queryKey: ["company-invitation", token],
+    queryKey: invitationPreviewKey(token),
     queryFn: async () => {
+      // Sayfa geçersiz/kullanılmış daveti kendi kartında gösterir → global
+      // toast yok (kart + toast aynı hatayı iki kez gösteriyordu).
       const { data } = await companyApi.get<InvitationPreview>(
         `/company/invitations/${token}`,
+        { skipErrorToast: true },
       );
       return data;
     },
     enabled: !!token,
     retry: false,
+    // Tek kullanımlık davetin önizlemesi: yeniden çekmek bilgi katmaz, kabulden
+    // sonra ise "zaten kabul edilmiş" döner (arayüz testi FX-00 D-003).
+    staleTime: Infinity,
   });
 }
 
@@ -235,7 +243,15 @@ export function useAcceptInvitation(token: string) {
     // yani davet sayfasında seçili dilden doğar — ayrıca yazmaya gerek yok.)
     onSuccess: (data) => {
       if (data.user?.id) bindSessionOwner(data.user.id);
+      // Kabul sayfası yönlendirme bitene dek açık kalır: önizleme sorgusu
+      // önbellekten silinirse hâlâ bağlı olan gözlemci onu yeniden çeker →
+      // API "Bu davet zaten kabul edilmiş" (400) döner ve her kabulde panelde
+      // hata toast'ı çıkardı (arayüz testi FX-00 D-003). Önizleme davetlinin
+      // kendi verisi; temizlikten sonra geri konur, yeniden çekilmez.
+      const key = invitationPreviewKey(token);
+      const preview = queryClient.getQueryData<InvitationPreview>(key);
       queryClient.clear();
+      if (preview) queryClient.setQueryData(key, preview);
     },
   });
 }

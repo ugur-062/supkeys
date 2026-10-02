@@ -70,8 +70,24 @@ describe("OrderPaymentsCard — arayüz testi webB-07", () => {
         })}
       />,
     );
-    expect(screen.queryByText("Kalan")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bildirilmemiş")).not.toBeInTheDocument();
     expect(screen.getByText(/iadesi taraflar arasında/)).toBeInTheDocument();
+  });
+
+  // FX-00 yeniden doğrulama: kartın üçüncü hücresi (toplam − onaylı − bekleyen)
+  // da "Kalan" yazıyordu; Özet kartının "Kalan"ı ise onaylıya göre borç
+  // (D-127) — aynı etiket iki farklı tutar. Hücre artık "Bildirilmemiş".
+  it("bekleyen bildirim varken kartın üçüncü hücresi 'Kalan' değil 'Bildirilmemiş'", () => {
+    render(
+      <OrderPaymentsCard
+        order={order({
+          amount: "2000",
+          paymentTotals: { confirmed: "0", pending: "1200.5", remaining: "799.5" },
+        })}
+      />,
+    );
+    expect(screen.queryByText("Kalan")).not.toBeInTheDocument();
+    expect(screen.getByText("Bildirilmemiş")).toBeInTheDocument();
   });
 
   it("O-029: akreditifte bayat 'satıcı onayladıktan sonra eklenebilir' metni yok", () => {

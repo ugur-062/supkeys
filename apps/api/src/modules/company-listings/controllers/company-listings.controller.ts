@@ -202,7 +202,12 @@ export class CompanyListingsController {
     @Param("id") id: string,
     @Body() dto: ExtendBidValidityDto,
   ) {
-    return this.service.extendBidValidity(user, id, dto.additionalDays);
+    return this.service.extendBidValidity(
+      user,
+      id,
+      dto.additionalDays,
+      dto.expectedValidityDays,
+    );
   }
 
   @Post(":id/award")

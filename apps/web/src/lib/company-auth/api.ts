@@ -73,6 +73,10 @@ companyApi.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // İstek başına toast kapatma (`api.ts` ile aynı `skipErrorToast` bayrağı):
+    // hatayı kendi kartında gösteren sayfalar (ör. ekip daveti önizlemesi).
+    if (error.config?.skipErrorToast) return Promise.reject(error);
+
     // Auth formları (giriş/kayıt/doğrulama) hatayı kendi inline kutularında
     // gösterir → interceptor toast atmasın (çift gösterimi önle).
     const reqUrl = error.config?.url ?? "";

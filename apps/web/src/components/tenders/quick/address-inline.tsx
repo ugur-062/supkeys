@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { extractErrorMessage } from "@/lib/tenders/error";
 
 const INPUT = "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15";
 
@@ -44,8 +45,11 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
       const created = (await save.mutateAsync({ type: "TESLIMAT", title: title.trim(), city: city.trim() || undefined, cityId: cityId ?? undefined, addressLine: line.trim(), country })) as { id: string };
       onCreated(created.id);
       toast.success(t("adresEklendi"));
-    } catch {
-      toast.error(t("adresKaydedilemedi"));
+    } catch (err) {
+      // Sunucu nedeni (ör. 200 adres tavanı) global toast'la AYNI metinle →
+      // tekilleştirici ikinciyi yutar; genel metin yalnız neden yoksa
+      // (eskiden "Adres kaydedilemedi" + neden: iki toast).
+      toast.error(extractErrorMessage(err, t("adresKaydedilemedi")));
     }
   };
 

@@ -598,4 +598,43 @@ describe("FX-00 D-272 — teklif geçerliliği uzatması koşullu yazılır", ()
     const final = await prisma.listingBid.findUniqueOrThrow({ where: { id: bid.id } });
     expect(final.validityDays).toBe(44);
   });
+
+  it("istemci beklenen süreyi gönderirse yeniden deneme / ikinci sekme uzatmayı ikinci kez eklemez", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const bidder = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      visibility: "PUBLIC",
+      status: "OPEN",
+      closesAt: new Date(Date.now() + 5 * 86_400_000),
+    });
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 500,
+      status: "SUBMITTED",
+      submittedAt: new Date(Date.now() - 86_400_000),
+      validityDays: 7,
+    });
+    // Ekranda 7 gün görülürken üç kez "7 gün uzat" (ardışık: yeniden deneme).
+    const results = [];
+    for (let i = 0; i < 3; i++) {
+      results.push(
+        await service.extendBidValidity(bidder.auth, listing.id, 7, 7).then(
+          () => "ok",
+          (e: unknown) => (e instanceof ConflictException ? "409" : String(e)),
+        ),
+      );
+    }
+    expect(results).toEqual(["ok", "409", "409"]);
+    const after = await prisma.listingBid.findUniqueOrThrow({ where: { id: bid.id } });
+    expect(after.validityDays).toBe(14);
+    // Güncel süreyle (14) bilinçli yeni uzatma serbest.
+    await expect(service.extendBidValidity(bidder.auth, listing.id, 7, 14)).resolves.toMatchObject({
+      validityDays: 21,
+    });
+  });
 });
