@@ -72,7 +72,11 @@ export function AcceptInviteClient({ token }: { token: string }) {
   // Telefon isteğe bağlı; yazıldıysa kayıt formuyla AYNI kural (ülkeye göre
   // ulusal uzunluk, tek kaynak `isValidPhoneNumber`; API DTO'su da aynı) —
   // eksik numara sessizce kaydediliyordu (arayüz testi O-121).
-  const phoneValid = !form.phone.trim() || isValidPhoneNumber(form.phone);
+  // Ülkesiz yazılan numara (İngilizce arayüz) değeri BOŞ bırakır; boş
+  // sayılıp sessizce düşmesin, "önce ülke kodunu seçin" desin (arayüz testi
+  // son tur webA-1).
+  const [phoneNeedsCountry, setPhoneNeedsCountry] = useState(false);
+  const phoneValid = !phoneNeedsCountry && (!form.phone.trim() || isValidPhoneNumber(form.phone));
   const formValid =
     form.firstName.trim().length >= 1 &&
     form.lastName.trim().length >= 1 &&
@@ -213,9 +217,16 @@ export function AcceptInviteClient({ token }: { token: string }) {
               if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPhoneTouched(true);
             }}
           >
-            <PhoneInput value={form.phone} onChange={set("phone")} invalid={phoneTouched && !phoneValid} />
+            <PhoneInput
+              value={form.phone}
+              onChange={set("phone")}
+              onCountryMissingChange={setPhoneNeedsCountry}
+              invalid={phoneTouched && !phoneValid}
+            />
           </div>
-          {phoneTouched && !phoneValid ? <ErrorMessage>{t("phoneInvalid")}</ErrorMessage> : null}
+          {phoneTouched && !phoneValid ? (
+            <ErrorMessage>{phoneNeedsCountry ? tc("phoneCountryRequired") : t("phoneInvalid")}</ErrorMessage>
+          ) : null}
         </Field>
 
         <Field>

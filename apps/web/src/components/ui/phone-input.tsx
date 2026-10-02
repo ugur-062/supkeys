@@ -78,6 +78,7 @@ export function PhoneInput({
   invalid,
   ariaLabel,
   defaultCountry,
+  onCountryMissingChange,
 }: {
   value: string;
   onChange: (fullValue: string) => void;
@@ -89,6 +90,15 @@ export function PhoneInput({
   ariaLabel?: string;
   /** Firma ülkesi bilinmiyorsa boş alanda seçili gelecek ülke (ör. kayıtta). */
   defaultCountry?: string | null;
+  /**
+   * Ülke seçilmeden ulusal numara yazıldı mı (İngilizce arayüzde varsayılan
+   * ülke yok). Değer bu durumda BOŞ yayılır; form "boş alan" ile "ülkesiz
+   * numara"yı ayırıp doğru hatayı ("önce ülke kodunu seçin") yalnız bununla
+   * verebilir — eskiden "seçili ülke için geçerli numara" deniyordu, seçili
+   * ülke yokken (arayüz testi son tur webA-1). İsteğe bağlı alanda da numara
+   * sessizce düşmez.
+   */
+  onCountryMissingChange?: (missing: boolean) => void;
 }) {
   const t = useTranslations("web.shared.phoneInput");
   const locale = useLocale();
@@ -113,6 +123,7 @@ export function PhoneInput({
   const setCountry = (next: string) => {
     if (!next) return;
     setPendingCode(next);
+    onCountryMissingChange?.(false);
     // Ülkesiz yazılmış taslak numara seçilen ülkeyle birleşir.
     const typed = draft && !parseInternationalInput(draft, next) ? draft : null;
     setDraft(null);
@@ -123,11 +134,13 @@ export function PhoneInput({
     const intl = parseInternationalInput(raw, code);
     if (intl && "pending" in intl) {
       setDraft(raw);
+      onCountryMissingChange?.(false);
       return;
     }
     if (intl) {
       setDraft(null);
       setPendingCode(intl.code);
+      onCountryMissingChange?.(false);
       onChange(composePhone(intl.code, intl.national));
       return;
     }
@@ -135,8 +148,10 @@ export function PhoneInput({
       // Ülke seçilmeden ulusal numara: tahmin YOK (bkz. defaultPhoneCountry).
       setDraft(raw);
       onChange("");
+      onCountryMissingChange?.(raw.replace(/\D/g, "").length > 0);
       return;
     }
+    onCountryMissingChange?.(false);
     setDraft(null);
     onChange(composePhone(code, stripTrunkPrefix(code, raw)));
   };

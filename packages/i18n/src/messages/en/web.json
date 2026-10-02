@@ -1961,6 +1961,7 @@
       "firstName": "First name",
       "lastName": "Last name",
       "phone": "Phone",
+      "phoneCountryRequired": "Select a country code first, or type the number with its +code (e.g. +1 202 555 0143).",
       "code": "Verification code",
       "codePlaceholder": "000000",
       "verifying": "Verifying…",
@@ -2849,7 +2850,8 @@
           "nobids": "No quotes, closing within 3 days",
           "soon": "Has quotes, closing within 2 days"
         },
-        "bidsFilter": "Has quotes"
+        "bidsFilter": "Has quotes",
+        "aiFilter": "AI supplier suggestions"
       },
       "tenderActionsMenu": {
         "taslagiSil": "Delete draft",
@@ -3604,7 +3606,8 @@
         "kaybetti": "Lost",
         "kapandiTeklif": "Closed",
         "markaParcaNo": "Brand / Part no.: {value}",
-        "isaretliAlanlariDuzeltin": "Fix the highlighted fields before saving"
+        "isaretliAlanlariDuzeltin": "Fix the highlighted fields before saving",
+        "siparisReddedildi": "Order rejected"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -4258,7 +4261,9 @@
         "evet": "Yes",
         "hayir": "No",
         "siparisDurumu": "Order status: {status}",
-        "alimTalebiKazananSecilmedenKapandi": "The buying request was closed without a winner."
+        "alimTalebiKazananSecilmedenKapandi": "The buying request was closed without a winner.",
+        "siparisiReddettiniz": "You rejected the order",
+        "kazandiginizSiparisiReddettiniz": "You rejected the order you won on this request."
       },
       "auctionLiveCard": {
         "pazarlikAcikEksiltmeTur": "Negotiation (open reverse auction) · Round {currentRound}",
@@ -4562,7 +4567,8 @@
           "eliminated": "Eliminated",
           "lost": "Lost",
           "cancelled": "Canceled",
-          "closed": "Closed"
+          "closed": "Closed",
+          "orderRejected": "You rejected the order"
         },
         "sort": {
           "newest": "Newest",
@@ -4732,6 +4738,10 @@
         "odemeBekliyor": "Awaiting payment",
         "dueFilter": {
           "overdue": "Past delivery date"
+        },
+        "paymentFilter": {
+          "overdue": "Payment overdue",
+          "open": "Payment pending"
         }
       },
       "lockedRequestsCard": {
@@ -5525,7 +5535,10 @@
         "siparisIptalEdildiAdimYok": "The order was canceled — no further steps.",
         "siparisReddedildiAdimYok": "The seller rejected the order — no further steps.",
         "onayBekleyenOdeme": "Awaiting confirmation",
-        "pesinOdemeOnayBekliyor": "Your advance payment report is awaiting the seller's confirmation — once confirmed, the seller can ship the order."
+        "pesinOdemeOnayBekliyor": "Your advance payment report is awaiting the seller's confirmation — once confirmed, the seller can ship the order.",
+        "saticiIptalTalebinizKararBekliyor": "Your cancellation request is awaiting the buyer’s decision. If you change your mind, choose {withdraw} in the cancellation request section.",
+        "saticiIhtilafIptalReddedildiGonderebilirsiniz": "The order is disputed: the buyer rejected your cancellation request. If the goods are available, ship the order with {button} to resolve the dispute; the buyer can still approve the cancellation later.",
+        "aliciAyipIhbariAcikGeriCekebilirsiniz": "Your defect notice is open — resolution is between you and the seller. If the issue is resolved, you can withdraw the notice with {withdraw} in the defect notice section."
       },
       "siparisIdLayout": {
         "siparisDetayiYetkiGerektirir": "Order details require permission",

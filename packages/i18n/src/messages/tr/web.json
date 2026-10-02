@@ -1961,6 +1961,7 @@
       "firstName": "Ad",
       "lastName": "Soyad",
       "phone": "Telefon",
+      "phoneCountryRequired": "Önce ülke kodunu seçin ya da numarayı +kod ile yazın (ör. +1 202 555 0143).",
       "code": "Doğrulama kodu",
       "codePlaceholder": "000000",
       "verifying": "Doğrulanıyor…",
@@ -2849,7 +2850,8 @@
           "nobids": "Teklifsiz, 3 gün içinde kapanıyor",
           "soon": "Teklifli, 2 gün içinde kapanıyor"
         },
-        "bidsFilter": "Teklif gelmiş"
+        "bidsFilter": "Teklif gelmiş",
+        "aiFilter": "AI tedarikçi önerisi var"
       },
       "tenderActionsMenu": {
         "taslagiSil": "Taslağı sil",
@@ -3604,7 +3606,8 @@
         "kaybetti": "Kaybetti",
         "kapandiTeklif": "Kapandı",
         "markaParcaNo": "Marka / Parça no: {value}",
-        "isaretliAlanlariDuzeltin": "Kaydetmeden önce işaretli alanları düzeltin"
+        "isaretliAlanlariDuzeltin": "Kaydetmeden önce işaretli alanları düzeltin",
+        "siparisReddedildi": "Sipariş reddedildi"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -4258,7 +4261,9 @@
         "evet": "Evet",
         "hayir": "Hayır",
         "siparisDurumu": "Sipariş durumu: {status}",
-        "alimTalebiKazananSecilmedenKapandi": "Alım talebi kazanan seçilmeden kapandı."
+        "alimTalebiKazananSecilmedenKapandi": "Alım talebi kazanan seçilmeden kapandı.",
+        "siparisiReddettiniz": "Siparişi reddettiniz",
+        "kazandiginizSiparisiReddettiniz": "Bu talepte kazandığınız siparişi reddettiniz."
       },
       "auctionLiveCard": {
         "pazarlikAcikEksiltmeTur": "Pazarlık (Açık Eksiltme) · Tur {currentRound}",
@@ -4562,7 +4567,8 @@
           "eliminated": "Elendi",
           "lost": "Kaybetti",
           "cancelled": "İptal edildi",
-          "closed": "Kapandı"
+          "closed": "Kapandı",
+          "orderRejected": "Siparişi reddettiniz"
         },
         "sort": {
           "newest": "En Yeni",
@@ -4732,6 +4738,10 @@
         "odemeBekliyor": "Ödeme bekliyor",
         "dueFilter": {
           "overdue": "Teslim tarihi geçmiş"
+        },
+        "paymentFilter": {
+          "overdue": "Ödemesi gecikmiş",
+          "open": "Ödeme bekleniyor"
         }
       },
       "lockedRequestsCard": {
@@ -5525,7 +5535,10 @@
         "siparisIptalEdildiAdimYok": "Sipariş iptal edildi — başka adım yok.",
         "siparisReddedildiAdimYok": "Satıcı siparişi reddetti — başka adım yok.",
         "onayBekleyenOdeme": "Onay bekleyen",
-        "pesinOdemeOnayBekliyor": "Peşin ödeme bildiriminiz satıcının onayını bekliyor — onaylanınca satıcı siparişi gönderebilir."
+        "pesinOdemeOnayBekliyor": "Peşin ödeme bildiriminiz satıcının onayını bekliyor — onaylanınca satıcı siparişi gönderebilir.",
+        "saticiIptalTalebinizKararBekliyor": "İptal talebiniz alıcının kararını bekliyor. Vazgeçerseniz İptal talebi bölümünden {withdraw} seçebilirsiniz.",
+        "saticiIhtilafIptalReddedildiGonderebilirsiniz": "Sipariş ihtilaflı: alıcı iptal talebinizi reddetti. Mal bulunduysa {button} ile siparişi gönderip ihtilafı çözebilirsiniz; alıcı iptali sonradan da onaylayabilir.",
+        "aliciAyipIhbariAcikGeriCekebilirsiniz": "Ayıp ihbarınız açık — çözüm satıcıyla aranızda. Sorun çözüldüyse Ayıp ihbarı bölümünden {withdraw} ile ihbarı geri çekebilirsiniz."
       },
       "siparisIdLayout": {
         "siparisDetayiYetkiGerektirir": "Sipariş detayı yetki gerektirir",

@@ -8924,6 +8924,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.common.phoneCountryRequired": {
+    "hash": "bde34268a2",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.auth.common.resend": {
     "hash": "15d0ab719b",
     "status": "reviewed",
@@ -23884,6 +23889,11 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "web.panel.requests.ihalelerView.aiFilter": {
+    "hash": "940e8d1d05",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.requests.ihalelerView.belirliUlkeler": {
     "hash": "f5df3ce718",
     "status": "reviewed",
@@ -37288,6 +37298,16 @@
     "hash": "78c79122c8",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.ordersList.paymentFilter.open": {
+    "hash": "46f3948059",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.ordersList.paymentFilter.overdue": {
+    "hash": "3aa87799eb",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.ordersList.range.all": {
     "hash": "5127585aef",

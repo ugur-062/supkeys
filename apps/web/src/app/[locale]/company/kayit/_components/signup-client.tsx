@@ -147,6 +147,10 @@ export function CompanySignupClient() {
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
   const allConsents = consents.terms && consents.mediation && consents.kvkk;
+  // Ülke seçilmeden numara yazıldı (İngilizce arayüzde varsayılan ülke yok):
+  // hata "seçili ülke için geçerli numara" değil "önce ülke kodunu seçin"
+  // (arayüz testi son tur webA-1).
+  const [phoneNeedsCountry, setPhoneNeedsCountry] = useState(false);
   const phoneValid = isValidPhoneNumber(form.phone);
   const formValid =
     form.firstName.trim().length >= 1 &&
@@ -424,10 +428,13 @@ export function CompanySignupClient() {
             <PhoneInput
               value={form.phone}
               onChange={set("phone")}
+              onCountryMissingChange={setPhoneNeedsCountry}
               invalid={phoneTouched && !phoneValid}
             />
           </div>
-          {phoneTouched && !phoneValid ? <ErrorMessage>{t("phoneInvalid")}</ErrorMessage> : null}
+          {phoneTouched && !phoneValid ? (
+            <ErrorMessage>{phoneNeedsCountry ? tc("phoneCountryRequired") : t("phoneInvalid")}</ErrorMessage>
+          ) : null}
         </Field>
 
         <Field>
