@@ -182,7 +182,11 @@ export function PermissionTable({
                   aria-pressed={on}
                   onClick={() => applyPreset(p.key)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition",
+                    // Seçim rengi ANLIK değişir: `transition` arka planı 150 ms
+                    // soldururken alt yazı hemen "Kişiye özel" diyordu — tik
+                    // kaldırıldığı anda çip hâlâ seçili görünüyordu (arayüz
+                    // testi son tur api-2). Yalnız hover kenarlığı yumuşar.
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-[border-color]",
                     on
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 text-zinc-600 hover:border-zinc-400",

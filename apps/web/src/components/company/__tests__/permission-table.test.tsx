@@ -13,6 +13,7 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { PermissionTable } from "../permission-table";
 import type { PermissionCatalog } from "@/hooks/use-company-users";
 
@@ -211,5 +212,37 @@ describe("PermissionTable — yönetim tiki portal görüntülemesini getirir (a
     );
     expect(kilitli("Satış görüntüleme")).toBe(false);
     expect(kilitli("Satınalma görüntüleme")).toBe(false);
+  });
+});
+
+// Arayüz testi son tur api-2: hazır setten sapan tikten sonra çip seçili
+// kalmamalı (alt yazı "Kişiye özel" derken çip koyu görünüyordu). Seçim
+// durumu ve alt yazı aynı kaynaktan; renk geçişi animasyonsuz (anlık).
+describe("PermissionTable — hazır set çipi tikle senkron", () => {
+  const cat: PermissionCatalog = {
+    ...catalog,
+    catalog: [
+      ...catalog.catalog,
+      { key: "sell:inquiry:reply", label: "Bilgi taleplerini yanıtla", group: "sell", seat: true },
+    ],
+    presets: {
+      ...catalog.presets,
+      SATISCI: ["sell:view", "sell:bid:submit", "sell:inquiry:reply"],
+    },
+  };
+  function Kontrollu() {
+    const [v, setV] = useState<string[]>(["sell:view", "sell:bid:submit", "sell:inquiry:reply"]);
+    return <PermissionTable catalog={cat} value={v} onChange={setV} viewerIsOwner />;
+  }
+
+  it("Satışçı setinden bir tik kaldırılınca çip seçimi düşer, renk geçişi animasyonsuz", () => {
+    render(<Kontrollu />);
+    const chip = screen.getByRole("button", { name: /Satışçı/ });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByLabelText("Bilgi taleplerini yanıtlama"));
+    expect(chip).toHaveAttribute("aria-pressed", "false");
+    expect(chip.className).not.toContain("bg-zinc-900");
+    expect(chip.className.split(/\s+/)).not.toContain("transition");
+    expect(screen.getByText("Kişiye özel yetki kümesi.")).toBeInTheDocument();
   });
 });
