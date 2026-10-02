@@ -399,6 +399,19 @@ export class CompanyUsersService {
       data: { status: "CANCELLED" },
     });
     if (res.count === 0) throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
+    // INV-AUDIT-1: bekleyen yetki verilişinin geri alınması da iz bırakır
+    // (arayüz testi webC-07 NEW-2 — Aktivite Logu'nda görünmüyordu). E-posta
+    // (PII) metadata'ya yazılmaz; davet id yeter.
+    await this.audit.log({
+      action: "company.user.invitation_cancelled",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user_invitation",
+      entityId: id,
+      critical: true,
+    });
     return { ok: true };
   }
 
@@ -933,8 +946,8 @@ export class CompanyUsersService {
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, grant.roles);
         await tx.companyUser.update({ where: { id: targetId }, data });
       });
-      // INV-AUDIT-1: yalnız rol değişince yetki izi (profil-alanı düzenlemesi
-      // audit'lenmez). before = eski roller, after = yeni roller.
+      // INV-AUDIT-1: rol değişimi yetki izi bırakır (kişi bilgisi ayrı
+      // `profile_updated` kaydıdır, aşağıda). before = eski, after = yeni roller.
       await this.audit.log({
         action: "company.user.roles_changed",
         actorType: "company",
@@ -962,6 +975,24 @@ export class CompanyUsersService {
       }
     } else {
       await this.prisma.companyUser.update({ where: { id: targetId }, data });
+    }
+    // Kişi bilgisi düzenlemesi de Aktivite Logu'nda görünür (arayüz testi
+    // webC-07 NEW-2). Yalnız GERÇEKTEN değişen alanların ADI yazılır — değer
+    // (ad/telefon, PII) metadata'ya girmez.
+    const changedFields = (["firstName", "lastName", "phone"] as const).filter(
+      (k) => k in data && (data as Record<string, unknown>)[k] !== target[k],
+    );
+    if (changedFields.length > 0) {
+      await this.audit.log({
+        action: "company.user.profile_updated",
+        actorType: "company",
+        actorId: actor.userId,
+        actorEmail: actor.email,
+        tenantId: actor.companyId,
+        entityType: "company_user",
+        entityId: targetId,
+        metadata: { changedFields },
+      });
     }
     return { ok: true };
   }
@@ -1493,6 +1524,9 @@ export class CompanyUsersService {
         permissions: true,
         email: true,
         authId: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
       },
     });
     if (!u) throw new NotFoundException(i18nMessage("api.companyUsers.kullaniciBulunamadi"));

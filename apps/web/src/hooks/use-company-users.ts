@@ -209,11 +209,13 @@ export function useSetUserPermissions() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, permissions }: { id: string; permissions: string[] }) => {
+      // Tek çağıran (Kullanıcıyı Düzenle) hatayı kendi toast'unda bağlamıyla
+      // gösterir → global 400/409 toast'u ikinci kez basmasın (webC-07 NEW-1).
       const { data } = await companyApi.put<{
         ok: boolean;
         permissions: string[];
         roles: CompanyRole[];
-      }>(`/company/users/${id}/permissions`, { permissions });
+      }>(`/company/users/${id}/permissions`, { permissions }, { skipErrorToast: true });
       return data;
     },
     onSuccess: () => {
@@ -241,7 +243,12 @@ export function useUpdateUser() {
       // Kuruculuk devrinde eski Kurucu'nun yeni rolü.
       previousOwnerRoles?: CompanyRole[];
     }) => {
-      const { data } = await companyApi.patch(`/company/users/${id}`, payload);
+      // Çağıran (Kullanıcıyı Düzenle / kuruculuk devri) hatayı kendi toast'unda
+      // gösterir; kısmi başarıda ("yetkiler kaydedildi, ancak …") global
+      // interceptor ham mesajı ikinci toast olarak basıyordu (webC-07 NEW-1).
+      const { data } = await companyApi.patch(`/company/users/${id}`, payload, {
+        skipErrorToast: true,
+      });
       return data;
     },
     onSuccess: (_data, vars) => {

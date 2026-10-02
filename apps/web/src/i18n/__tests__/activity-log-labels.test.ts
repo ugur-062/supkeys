@@ -60,6 +60,8 @@ function changedFieldNames(): Set<string> {
   for (const rel of [
     "modules/company-addresses/company-addresses.service.ts",
     "modules/company-bank-accounts/company-bank-accounts.service.ts",
+    // Kullanıcı kişi bilgisi düzenlemesi (webC-07 NEW-2: company.user.profile_updated).
+    "modules/company-users/company-users.service.ts",
   ]) {
     const text = read(rel);
     const block = /const changedFields = \(\s*\[([\s\S]*?)\]\s*as const/.exec(text);
@@ -89,7 +91,13 @@ describe("Aktivite Logu etiketleri (arayüz testi O-107)", () => {
 
   it("tarayıcı API audit yazımlarını buluyor (sağlık)", () => {
     expect(actions.size).toBeGreaterThan(60);
-    for (const a of ["company.user.invited", "company.user.invitation_accepted", "company.profile.updated"]) {
+    for (const a of [
+      "company.user.invited",
+      "company.user.invitation_accepted",
+      "company.user.invitation_cancelled",
+      "company.user.profile_updated",
+      "company.profile.updated",
+    ]) {
       expect(actions.has(a), a).toBe(true);
     }
   });
@@ -105,6 +113,7 @@ describe("Aktivite Logu etiketleri (arayüz testi O-107)", () => {
     const fields = changedFieldNames();
     expect(fields.size).toBeGreaterThan(30);
     expect(fields.has("postalCode")).toBe(true);
+    expect(fields.has("firstName")).toBe(true);
     const missing = [...fields].filter((f) => !(f in tr.panel.settings.ayarlarAktivitePage.field));
     expect(missing).toEqual([]);
   });

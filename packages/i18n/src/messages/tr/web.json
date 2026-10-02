@@ -842,7 +842,9 @@
     },
     "empty": {
       "clear": "Filtreleri temizle",
-      "browse": "Kategorilere göz at"
+      "browse": "Kategorilere göz at",
+      "pageEmpty": "Bu sayfada sonuç yok.",
+      "lastPage": "Son sayfaya gidin"
     },
     "sort": {
       "label": "Sırala:",
@@ -897,7 +899,7 @@
       "radius": "Yarıçap:",
       "radiusHint": "{name} ve merkezleri {radius} km içindeki şehirler.",
       "radiusKm": "{radius} km",
-      "certification": "Sertifika",
+      "certification": "Firma sertifikası",
       "groupChip": "{group}: {value}",
       "certifications": "Sertifikalar",
       "certSearch": "Sertifika ara",

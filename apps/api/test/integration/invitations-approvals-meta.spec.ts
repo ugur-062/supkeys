@@ -4,6 +4,7 @@
  * snapshot'ı, Tüm Süreçler listesi, Yönetici iptal yetkisi, preview).
  */
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import { CompanyRole } from "@prisma/client";
 import { CompanyApprovalsService } from "../../src/modules/company-approvals/company-approvals.service";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
@@ -270,6 +271,69 @@ describe("token'lı davet-kabul", () => {
   // DAVET DİLİ (2026-09-27): Türk kurucu İngilizce konuşan çalışanını davet
   // eder → e-posta ve kabul adresi İngilizce; yeniden gönderim aynı dili korur;
   // hesap kabul sayfasının dilinde doğar.
+  it("Aktivite Logu: davet iptali ve kişi bilgisi düzenlemesi iz bırakır; PII yazılmaz, değişmeyen alan yazılmaz (arayüz testi webC-07 NEW-2)", async () => {
+    const { service } = makeUsersService();
+    const a = await makeCompanyWithUser(prisma);
+    const b = await makeCompanyWithUser(prisma);
+    const res = await service.invite(a.auth, {
+      email: "iptal-iz@firma.com",
+      roles: ["SATISCI"],
+    } as never);
+
+    // Başka firmanın iptal denemesi (404) iz bırakmaz.
+    await expect(service.cancelInvitation(b.auth, res.id)).rejects.toThrow(/bulunamadı/i);
+    await service.cancelInvitation(a.auth, res.id);
+    const cancelled = await prisma.auditLog.findMany({
+      where: { action: "company.user.invitation_cancelled" },
+    });
+    expect(cancelled).toHaveLength(1);
+    expect(cancelled[0]).toMatchObject({
+      tenantId: a.company.id,
+      actorId: a.user.id,
+      entityType: "company_user_invitation",
+      entityId: res.id,
+    });
+    expect(JSON.stringify(cancelled[0].metadata ?? {})).not.toContain("iptal-iz@firma.com");
+
+    const member = await makeUser(prisma, a.company.id, [CompanyRole.SATISCI], {
+      firstName: "Ayşe",
+      lastName: "Yılmaz",
+      phone: null,
+    });
+    // Soyad aynı (yalnız boşluk farkı) → yalnız ad ve telefon değişti sayılır.
+    await service.updateUser(a.auth, member.id, {
+      firstName: "Ayşegül",
+      lastName: " Yılmaz ",
+      phone: "+90 532 000 00 00",
+    });
+    const updated = await prisma.auditLog.findMany({
+      where: { action: "company.user.profile_updated" },
+    });
+    expect(updated).toHaveLength(1);
+    expect(updated[0]).toMatchObject({
+      tenantId: a.company.id,
+      entityType: "company_user",
+      entityId: member.id,
+      metadata: { changedFields: ["firstName", "phone"] },
+    });
+    expect(JSON.stringify(updated[0].metadata)).not.toMatch(/Ayşegül|532/);
+
+    // Hiçbir alan değişmediyse (aynı değerlerle kaydet) yeni iz yok.
+    await service.updateUser(a.auth, member.id, { firstName: "Ayşegül", phone: "+90 532 000 00 00" });
+    expect(
+      await prisma.auditLog.count({ where: { action: "company.user.profile_updated" } }),
+    ).toBe(1);
+
+    // Tenant listesinde (Aktivite Logu, kullanıcı modülü) hedef kişiyle görünür.
+    const log = await new AuditService(prisma as never).queryForTenant(a.company.id, {
+      module: "user",
+    });
+    const actions = log.items.map((r: { action: string }) => r.action);
+    expect(actions).toEqual(
+      expect.arrayContaining(["company.user.invitation_cancelled", "company.user.profile_updated"]),
+    );
+  });
+
   it("davet dili: seçilen dilde e-posta + kabul adresi, yeniden gönderimde korunur; dilsiz davet davet edenin dili", async () => {
     const { service, email } = makeUsersService();
     const owner = await makeCompanyWithUser(prisma); // kurucu Türkçe (varsayılan)

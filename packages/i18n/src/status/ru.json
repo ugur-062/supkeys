@@ -10434,6 +10434,11 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "web.domain.auditAction.company_user_invitation_cancelled": {
+    "hash": "1f638a7fde",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.domain.auditAction.company_user_invited": {
     "hash": "92a583df83",
     "status": "reviewed",
@@ -10453,6 +10458,11 @@
     "hash": "46c803ab61",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.domain.auditAction.company_user_profile_updated": {
+    "hash": "89f2edf5a3",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.domain.auditAction.company_user_removed": {
     "hash": "43da635885",
@@ -15454,6 +15464,16 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.empty.lastPage": {
+    "hash": "b3744159b1",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.marketplace.empty.pageEmpty": {
+    "hash": "77c9b4becb",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.marketplace.facets.removeFilter": {
     "hash": "d0507d9b1d",
     "status": "reviewed",
@@ -15490,14 +15510,14 @@
     "at": "2026-09-23"
   },
   "web.marketplace.filters.certification": {
-    "hash": "8d3304ae0d",
+    "hash": "c7efb952ef",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-02"
   },
   "web.marketplace.filters.certifications": {
     "hash": "0659662c63",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-02"
   },
   "web.marketplace.filters.certSearch": {
     "hash": "6ee2a0f5a0",
@@ -30189,6 +30209,11 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "web.panel.settings.ayarlarAktivitePage.field.firstName": {
+    "hash": "94b6931d19",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.settings.ayarlarAktivitePage.field.foundedYear": {
     "hash": "fff1966415",
     "status": "reviewed",
@@ -30228,6 +30253,11 @@
     "hash": "8e748c9601",
     "status": "reviewed",
     "at": "2026-10-01"
+  },
+  "web.panel.settings.ayarlarAktivitePage.field.lastName": {
+    "hash": "d697b0218f",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.settings.ayarlarAktivitePage.field.lcType": {
     "hash": "52ca96affe",

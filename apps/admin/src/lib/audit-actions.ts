@@ -44,6 +44,8 @@ export const ACTION_LABELS: Record<string, string> = {
   // Firma: kullanıcı ve rol
   "company.user.invited": "Kullanıcı davet edildi",
   "company.user.invitation_accepted": "Davet kabul edildi",
+  "company.user.invitation_cancelled": "Davet iptal edildi",
+  "company.user.profile_updated": "Kullanıcı bilgileri güncellendi",
   "company.user.removed": "Kullanıcı çıkarıldı",
   "company.user.active_changed": "Kullanıcı aktiflik durumu değişti",
   "company.user.roles_changed": "Kullanıcı rolleri değişti",

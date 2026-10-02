@@ -842,7 +842,9 @@
     },
     "empty": {
       "clear": "Clear filters",
-      "browse": "Browse categories"
+      "browse": "Browse categories",
+      "pageEmpty": "There are no results on this page.",
+      "lastPage": "Go to the last page"
     },
     "sort": {
       "label": "Sort:",
@@ -897,7 +899,7 @@
       "radius": "Radius:",
       "radiusHint": "{name} and cities whose centers are within {radius} km.",
       "radiusKm": "{radius} km",
-      "certification": "Certificate",
+      "certification": "Company certificate",
       "groupChip": "{group}: {value}",
       "certifications": "Certifications",
       "certSearch": "Search certifications",

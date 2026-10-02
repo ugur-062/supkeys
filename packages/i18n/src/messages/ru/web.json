@@ -842,7 +842,9 @@
     },
     "empty": {
       "clear": "Сбросить фильтры",
-      "browse": "Смотреть категории"
+      "browse": "Смотреть категории",
+      "pageEmpty": "На этой странице нет результатов.",
+      "lastPage": "Перейти на последнюю страницу"
     },
     "sort": {
       "label": "Сортировка:",
@@ -897,7 +899,7 @@
       "radius": "Радиус:",
       "radiusHint": "{name} и города, центры которых находятся в пределах {radius} км.",
       "radiusKm": "{radius} км",
-      "certification": "Сертификат",
+      "certification": "Сертификат компании",
       "groupChip": "{group}: {value}",
       "certifications": "Сертификаты",
       "certSearch": "Поиск сертификата",
