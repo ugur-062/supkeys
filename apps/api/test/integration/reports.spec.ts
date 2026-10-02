@@ -163,6 +163,89 @@ describe("Kalem bazlı (kısmi) kazandırma — kazanan tutarı iki kez sayılma
   });
 });
 
+describe("Kayan nokta gürültüsü — eşit tutarda yüzde '%-0' değil 0 (arayüz testi webB-01)", () => {
+  it("tek teklifli USD talep: kazanan = en yüksek; deltaPct, ortalama ve en zayıf tam 0 (+0)", async () => {
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const s1 = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "AWARDED",
+      awardedAt: new Date(),
+      primaryCurrency: "USD",
+    });
+    const i1 = await makeItem(prisma, listing.id, { name: "A", quantity: 1 } as never);
+    const i2 = await makeItem(prisma, listing.id, { name: "B", lineNo: 2, quantity: 1 } as never);
+    // 0.1×r + 0.2×r ≠ 0.3×r kayan noktada (-1.8e-15) → eski deltaPct -1.4e-14.
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: s1.company.id,
+      createdById: s1.user.id,
+      amount: "0.3",
+      currency: "USD",
+      status: "WON",
+      items: [
+        { itemId: i1.id, unitPrice: "0.1" },
+        { itemId: i2.id, unitPrice: "0.2" },
+      ],
+    });
+    await prisma.listingBid.update({
+      where: { id: bid.id },
+      data: { exchangeRateSnapshot: "41.0723" as never },
+    });
+
+    const r = await svc().savings(owner.company.id, { rangeStart: past(7), rangeEnd: future(1) });
+    const row = r.rows[0]!;
+    expect(row.delta).toBe(0);
+    expect(Object.is(row.delta, 0)).toBe(true);
+    expect(Object.is(row.deltaPct, 0)).toBe(true);
+    expect(Object.is(r.summary.avgDeltaPct, 0)).toBe(true);
+    expect(Object.is(r.summary.grandDeltaPct, 0)).toBe(true);
+    expect(Object.is(r.summary.worst!.deltaPct, 0)).toBe(true);
+
+    // Excel: yüzde hücresi -0 / -2e-16 değil tam 0 ("-0.0%" basılmaz).
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await new ReportsExcelService().savings(r)) as never);
+    const pcts: unknown[] = [];
+    wb.worksheets[0]!.eachRow((rw) => rw.eachCell((c) => {
+      if (c.numFmt === "0.0%") pcts.push(c.value);
+    }));
+    expect(pcts.length).toBeGreaterThan(0);
+    expect(pcts.every((v) => typeof v === "number" && Object.is(v, 0))).toBe(true);
+  });
+});
+
+describe("Genel rapor Excel'i — 'Değerlendirmede' durumu çevrilir (arayüz testi webB-01)", () => {
+  it("IN_AWARD satırı ve Durum Dağılımı ham 'IN_AWARD' yerine çevrilmiş etiket gösterir", async () => {
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "IN_AWARD",
+    });
+    const g = await svc().general(owner.company.id, {
+      mode: "RANGE",
+      rangeStart: past(7),
+      rangeEnd: future(1),
+    });
+    expect(g.listings.map((l) => l.status)).toEqual(["IN_AWARD"]);
+    for (const [locale, label] of [["tr", "Değerlendirmede"], ["en", "Under evaluation"]] as const) {
+      const buf = await runWithLocale(locale, () => new ReportsExcelService().general(g));
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buf as never);
+      const texts: string[] = [];
+      wb.worksheets[0]!.eachRow((rw) => rw.eachCell((c) => {
+        if (typeof c.value === "string") texts.push(c.value);
+      }));
+      expect(texts).not.toContain("IN_AWARD");
+      // Satırdaki Durum hücresi + Durum Dağılımı satırı.
+      expect(texts.filter((t) => t === label).length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+
 describe("Ters tarih aralığı (arayüz testi D-113)", () => {
   it("bitiş başlangıçtan önceyse Genel ve Tasarruf raporu 400 döner", async () => {
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

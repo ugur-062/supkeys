@@ -3869,6 +3869,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyReports.durumDegerlendirmede": {
+    "hash": "34b46bd982",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "api.companyReports.durumIptal": {
     "hash": "85e2d08742",
     "status": "reviewed",
@@ -24604,6 +24609,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.myBidStatusPanel.taslakTeklifinizVarDogrulamaGerekir": {
+    "hash": "402d164b14",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.requests.myBidStatusPanel.taslakTeklifinizVarKapanistanOnce": {
     "hash": "0ef1534b82",
     "status": "reviewed",
@@ -25438,6 +25448,11 @@
     "hash": "4df3abcc0e",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.kalemeTeklifVermiyorumAria": {
+    "hash": "37e6fcf96a",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.requests.page.kalemFiyatlari": {
     "hash": "e50dc03e53",
@@ -26458,6 +26473,11 @@
     "hash": "afc89a8051",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.teslimSuresiZorunluKalemsiz": {
+    "hash": "edaddf1834",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.requests.page.teslimSuresiZorunluSureGirmediginiz": {
     "hash": "8ef73f634e",

@@ -132,8 +132,16 @@ function assertRangeOrder(rangeStart: string, rangeEnd: string) {
   }
 }
 
-/** Kuruş yuvarlaması (rapor tutarları). */
-const round2 = (n: number) => Math.round(n * 100) / 100;
+/**
+ * Kuruş yuvarlaması (rapor tutarları). `+ 0` eksi sıfırı (-0) +0'a çevirir:
+ * Math.round(-1e-12) = -0 ve -0 arayüzde "%-0" / "-0 ₺" olarak basılıyordu.
+ */
+const round2 = (n: number) => Math.round(n * 100) / 100 + 0;
+/**
+ * Yüzde normalizasyonu: kur çarpımı/toplama kaynaklı kayan nokta gürültüsünü
+ * (ör. -2.18e-14) atar ve -0'ı +0 yapar (arayüz testi webB-01, "%-0").
+ */
+const roundPct = (n: number) => Math.round(n * 1e6) / 1e6 + 0;
 
 @Injectable()
 export class CompanyReportsService {
@@ -417,7 +425,7 @@ export class CompanyReportsService {
           : 0,
       totalEstimated: rows.reduce((s, r) => s + (r.estimatedTotal ?? 0), 0),
       totalAwardedValue: rows.reduce((s, r) => s + (r.winningTotal ?? 0), 0),
-      totalDelta: rows.reduce((s, r) => s + (r.delta ?? 0), 0),
+      totalDelta: round2(rows.reduce((s, r) => s + (r.delta ?? 0), 0)),
     };
   }
 
@@ -595,9 +603,17 @@ export class CompanyReportsService {
         winningTotal == null || highestBid == null
           ? null
           : highestBid - winningTotal;
-      const ref = highestBid;
+      // Yüzde, kullanıcıya gösterilen (kuruşa yuvarlanmış) tasarruf ve en
+      // yüksek tekliften hesaplanır: kazanan tutarı kalem×kur toplamı, en
+      // yüksek teklif ise teklif tutarı×kur olduğundan eşit tutarlar bit bit
+      // eşit çıkmayabilir (-2e-14) → "0 ₺ · %-0" ve "En zayıf" rozetinin
+      // gürültüye göre seçilmesi (arayüz testi webB-01).
+      const deltaOut = conv(delta);
+      const ref = conv(highestBid);
       const deltaPct =
-        delta != null && ref != null && ref > 0 ? (delta / ref) * 100 : null;
+        deltaOut != null && ref != null && ref > 0
+          ? roundPct((deltaOut / ref) * 100)
+          : null;
 
       return {
         id: l.id,
@@ -608,7 +624,7 @@ export class CompanyReportsService {
         highestBid: conv(highestBid),
         lowestBid: conv(lowestBid),
         winningTotal: conv(winningTotal),
-        delta: conv(delta),
+        delta: deltaOut,
         deltaPct,
         targetTotal: conv(targetTotal) ?? 0,
         actualTotal: conv(actualTotal) ?? 0,
@@ -635,7 +651,7 @@ export class CompanyReportsService {
       }
     }
     const grandHighest = rows.reduce((s, r) => s + (r.highestBid ?? 0), 0);
-    const grandDelta = rows.reduce((s, r) => s + (r.delta ?? 0), 0);
+    const grandDelta = round2(rows.reduce((s, r) => s + (r.delta ?? 0), 0));
     // Yüzdenin paydası yalnız tasarrufu hesaplanabilen satırların en yüksek
     // teklifi — kazanan tutarı çözülemeyen satır payda girip yüzdeyi küçültmesin.
     const comparableHighest = rows.reduce(
@@ -663,9 +679,9 @@ export class CompanyReportsService {
         grandTarget: rows.reduce((s, r) => s + r.targetTotal, 0),
         grandActual: rows.reduce((s, r) => s + r.actualTotal, 0),
         grandDelta,
-        grandDeltaPct: comparableHighest > 0 ? (grandDelta / comparableHighest) * 100 : 0,
+        grandDeltaPct: comparableHighest > 0 ? roundPct((grandDelta / comparableHighest) * 100) : 0,
         avgDeltaPct: withPct.length
-          ? withPct.reduce((s, r) => s + r.deltaPct!, 0) / withPct.length
+          ? roundPct(withPct.reduce((s, r) => s + r.deltaPct!, 0) / withPct.length)
           : 0,
         best: best
           ? { number: best.number, title: best.title, deltaPct: best.deltaPct }
@@ -898,11 +914,14 @@ export class CompanyReportsService {
                     unitTry != null &&
                     it.referenceUnitPrice != null &&
                     it.referenceUnitPrice > 0
-                      ? Math.round(
+                      ? // `+ 0`: -0 → 0 ("-0%" basılmasın)
+                        Math.round(
                           ((unitTry - it.referenceUnitPrice) /
                             it.referenceUnitPrice) *
                             1000,
-                        ) / 10
+                        ) /
+                          10 +
+                        0
                       : null,
                 };
               })

@@ -174,6 +174,24 @@ describe("SavingsReportView", () => {
     expect(screen.getByText("90,00 $")).toBeInTheDocument();
   });
 
+  it("kayan nokta gürültüsü (-1e-14) '%-0' değil '%0' basar (arayüz testi webB-01)", () => {
+    const r = { ...row(), winningTotal: 120000, delta: 0, deltaPct: -2.18e-14 };
+    const data = result([r]);
+    data.summary = {
+      ...data.summary,
+      grandDelta: 0,
+      grandDeltaPct: -1e-14,
+      avgDeltaPct: -1.09e-14,
+      best: { number: "IHL-1", title: "Çelik Alımı", deltaPct: -2.18e-14 },
+      worst: { number: "IHL-1", title: "Çelik Alımı", deltaPct: -2.18e-14 } as never,
+    };
+    h.reportData = data;
+    render(<SavingsReportView {...base} />);
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/-0(?![\d.,])/);
+    expect(text).toContain("%0");
+  });
+
   it("eksi tasarruf yeşil boyanmaz", () => {
     const r = { ...row(), delta: -5000, deltaPct: -4.2 };
     h.reportData = result([r]);

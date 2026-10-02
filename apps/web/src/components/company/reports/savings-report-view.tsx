@@ -70,9 +70,11 @@ export function SavingsReportView({
   // Birim Türkçe ad olarak saklanır ("adet") — EN/RU'da katalogdan çevrilir.
   const unitLabel = useUnitLabel();
   // Yüzde bir ondalıkla, okuyucunun dilinde (ICU düz argümanı sayı biçimlemez).
+  // Önce gösterilecek basamağa yuvarlanır ve `+ 0` ile -0 atılır: sıfıra
+  // yuvarlanan küçük eksi değer Intl'de "-0" basıyordu ("%-0"; arayüz testi webB-01).
   const pct1 = (n: number) =>
-    n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 1 });
-  const pct0 = (n: number) => formatNumber(n, locale, { maximumFractionDigits: 0 });
+    (Math.round(n * 10) / 10 + 0).toLocaleString(intlLocale(locale), { maximumFractionDigits: 1 });
+  const pct0 = (n: number) => formatNumber(Math.round(n) + 0, locale, { maximumFractionDigits: 0 });
   const isAlim = type === "ALIM";
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");

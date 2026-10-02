@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { ListingStatus } from "@rothern/db";
 import ExcelJS from "exceljs";
 import { tApi } from "../../common/i18n/i18n.service";
 import { currentLocale } from "../../common/i18n/locale-context";
@@ -58,18 +59,21 @@ function percentCells(row: ExcelJS.Row, cols: number[]) {
   }
 }
 
-const STATUS_KEYS: Record<string, MsgKey> = {
+// Exhaustive over ListingStatus: a new enum value fails typecheck instead of
+// leaking the raw value into the Excel (arayüz testi webB-01 IN_AWARD).
+const STATUS_KEYS: Record<ListingStatus, MsgKey> = {
   DRAFT: "api.companyReports.durumTaslak",
   IN_APPROVAL: "api.companyReports.durumOnayBekliyor",
   OPEN: "api.companyReports.durumYayinda",
   CLOSED: "api.companyReports.durumTeklifeKapali",
+  IN_AWARD: "api.companyReports.durumDegerlendirmede",
   IN_AWARD_APPROVAL: "api.companyReports.durumKazandirmaOnayi",
   AWARDED: "api.companyReports.durumTamamlandi",
   CANCELLED: "api.companyReports.durumIptal",
   CLOSED_NO_AWARD: "api.companyReports.durumKazansizKapatildi",
 };
 const statusLabel = (s: string) => {
-  const key = STATUS_KEYS[s];
+  const key = STATUS_KEYS[s as ListingStatus];
   return key ? msg(key) : s;
 };
 
