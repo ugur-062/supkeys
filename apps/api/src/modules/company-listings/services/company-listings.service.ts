@@ -3850,9 +3850,15 @@ export class CompanyListingsService {
           targetPrice: items[i].targetPrice?.toString() ?? null,
         })),
         // Arayüz testi D-043: kazandırılmış talepte "Siparişe git" şeridi.
-        myOrder: orders[0]
-          ? { id: orders[0].id, number: orders[0].number, status: orders[0].status }
-          : null,
+        // Kalem bazlıda reddedilen/iptal edilen sipariş en yeni olsa bile şerit
+        // CANLI siparişi göstermeli (yeniden doğrulama webB-05): önce canlı
+        // olanların en yenisi, hiç canlı yoksa en yenisi.
+        myOrder: (() => {
+          const o =
+            orders.find((x) => x.status !== "REJECTED" && x.status !== "CANCELLED") ??
+            orders[0];
+          return o ? { id: o.id, number: o.number, status: o.status } : null;
+        })(),
         orders: orders.map((o) => ({
           id: o.id,
           number: o.number,

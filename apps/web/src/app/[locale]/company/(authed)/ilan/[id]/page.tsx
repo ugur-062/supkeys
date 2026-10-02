@@ -2017,25 +2017,60 @@ export default function ListingDetailPage() {
   // P2 (denetim §10.4): OrderStatusStrip — kazandırma sonrası ihale detayı,
   // doğan siparişin durumuna bağlanır ("Tamamlandı / Kazandın / Teslime hazır"
   // üç kopuk ekranı birleşir). myOrder = çağıranın taraf olduğu sipariş.
-  const orderStrip = l.myOrder ? (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
-      <p className="text-sm text-emerald-900">
-        {t.rich("siparisNumarasi", {
-          number: l.myOrder.number ?? "—",
-          no: (c) => <span className="font-semibold tabular-nums">{c}</span>,
+  // Sahip dalında kalem bazlı kazandırma birden çok sipariş doğurur: şerit
+  // CANLI siparişlerin hepsini gösterir; reddedilen/iptal edilen sipariş yeşil
+  // "başarı" şeridinde öne çıkmaz (reddedilen ayrıca amber bantta). Hiç canlı
+  // sipariş yoksa en yenisi nötr tonla (yeniden doğrulama webB-05).
+  const isLiveOrder = (status: string) =>
+    status !== "REJECTED" && status !== "CANCELLED";
+  const stripOrders: { id: string; number: string | null; status: string }[] =
+    (() => {
+      if (l.isOwner && (l.orders?.length ?? 0) > 0) {
+        const all = l.orders ?? [];
+        const live = all.filter((o) => isLiveOrder(o.status));
+        return live.length > 0 ? live : all.slice(0, 1);
+      }
+      return l.myOrder ? [l.myOrder] : [];
+    })();
+  const orderStrip =
+    stripOrders.length > 0 ? (
+      <div className="space-y-2">
+        {stripOrders.map((o) => {
+          const live = isLiveOrder(o.status);
+          return (
+            <div
+              key={o.id}
+              data-testid="order-strip"
+              className={
+                live
+                  ? "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5"
+                  : "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5"
+              }
+            >
+              <p className={live ? "text-sm text-emerald-900" : "text-sm text-zinc-700"}>
+                {t.rich("siparisNumarasi", {
+                  number: o.number ?? "—",
+                  no: (c) => <span className="font-semibold tabular-nums">{c}</span>,
+                })}
+                <span className={live ? "mx-1.5 text-emerald-400" : "mx-1.5 text-zinc-400"}>·</span>
+                {orderStatusLabel(orderStatusMeta(o.status as CompanyOrderStatus).labelKey)}
+              </p>
+              <Link
+                href={`/company/siparis/${o.id}`}
+                className={
+                  live
+                    ? "inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 hover:underline"
+                    : "inline-flex items-center gap-1 text-sm font-semibold text-zinc-700 hover:underline"
+                }
+              >
+                {t("sipariseGit")}
+                <ArrowRightIcon className="h-4 w-4" aria-hidden />
+              </Link>
+            </div>
+          );
         })}
-        <span className="mx-1.5 text-emerald-400">·</span>
-        {orderStatusLabel(orderStatusMeta(l.myOrder.status as CompanyOrderStatus).labelKey)}
-      </p>
-      <Link
-        href={`/company/siparis/${l.myOrder.id}`}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 hover:underline"
-      >
-        {t("sipariseGit")}
-        <ArrowRightIcon className="h-4 w-4" aria-hidden />
-      </Link>
-    </div>
-  ) : null;
+      </div>
+    ) : null;
 
   const header = (
     <div className="space-y-3">

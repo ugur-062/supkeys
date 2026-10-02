@@ -167,13 +167,22 @@ describe("D-043 — sahip yanıtında sipariş şeridi", () => {
           createdAt,
         },
       });
-    await mk(s1.company.id, "ORD-2026-9001", new Date(Date.now() - 60_000));
+    const older = await mk(s1.company.id, "ORD-2026-9001", new Date(Date.now() - 60_000));
     const newest = await mk(s2.company.id, "ORD-2026-9002", new Date());
 
     const after = (await service.getOne(owner.auth, listing.id, before.etag)) as unknown as OwnerDetail;
     expect((after as unknown as { notModified?: boolean }).notModified).toBeUndefined();
     expect(after.myOrder).toMatchObject({ id: newest.id, number: "ORD-2026-9002" });
     expect(after.orders.map((o) => o.number)).toEqual(["ORD-2026-9002", "ORD-2026-9001"]);
+
+    // Yeniden doğrulama webB-05: en yeni sipariş reddedilince şerit canlı
+    // siparişe döner; ikisi de sonlanmışsa en yenisi kalır.
+    await prisma.companyOrder.update({ where: { id: newest.id }, data: { status: "REJECTED" } });
+    const rejected = (await service.getOne(owner.auth, listing.id)) as unknown as OwnerDetail;
+    expect(rejected.myOrder).toMatchObject({ id: older.id, status: "PENDING" });
+    await prisma.companyOrder.update({ where: { id: older.id }, data: { status: "CANCELLED" } });
+    const allDead = (await service.getOne(owner.auth, listing.id)) as unknown as OwnerDetail;
+    expect(allDead.myOrder).toMatchObject({ id: newest.id, status: "REJECTED" });
   });
 });
 

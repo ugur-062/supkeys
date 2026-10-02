@@ -2489,7 +2489,8 @@
         "odenmemisSiparisBakiyesiCur": "неоплаченный остаток по заказам · в {currency}",
         "onumuzdeki30GununOdemeYukuCur": "Платёжная нагрузка на ближайшие 30 дней (по неделям, в {currency})",
         "hedefFiyataGoreCur": "относительно целевой цены · в {currency}",
-        "analitikAlinamadi": "Не удалось загрузить данные графиков"
+        "analitikAlinamadi": "Не удалось загрузить данные графиков",
+        "saatAlti": "<1 часа"
       },
       "satisChartTabs": {
         "gelirTrendi": "Динамика выручки",
@@ -2838,7 +2839,12 @@
           "m6": "Последние 6 месяцев",
           "m12": "Последние 12 месяцев",
           "all": "Все"
-        }
+        },
+        "closingFilter": {
+          "nobids": "Без предложений, закрывается в течение 3 дней",
+          "soon": "С предложениями, закрывается в течение 2 дней"
+        },
+        "bidsFilter": "Есть предложения"
       },
       "tenderActionsMenu": {
         "taslagiSil": "Удалить черновик",
@@ -3582,7 +3588,7 @@
         "buTalebiYonetmeYetkinizYok": "Вы создали этот запрос, но в вашей роли нет права управлять запросами; чтобы публиковать, присуждать, исключать и редактировать, запросите доступ у администратора компании.",
         "buSuzgeceUyanTeklifYok": "Нет предложений, соответствующих этому фильтру.",
         "siparisReddedildiKalemlerTedariksiz": "Поставщик отклонил заказ — часть позиций осталась без поставщика",
-        "siparisiReddetti": "Заказ {number} отклонён поставщиком {seller}.",
+        "siparisiReddetti": "Поставщик {seller} отклонил заказ {number}.",
         "redGerekcesi": "Причина: {reason}",
         "tedariksizKalemler": "Позиции без поставщика: {items}",
         "buKalemlerleYeniTalepOlustur": "Создать новый запрос с этими позициями",
@@ -4712,7 +4718,10 @@
           "COMPLETE": "Завершение",
           "PREPARE": "Подготовка"
         },
-        "odemeBekliyor": "Ожидает оплаты"
+        "odemeBekliyor": "Ожидает оплаты",
+        "dueFilter": {
+          "overdue": "Срок поставки истёк"
+        }
       },
       "lockedRequestsCard": {
         "silverIleAcilacakAcikTalep": "Тариф Silver откроет {total, plural, one {# открытый запрос} few {# открытых запроса} many {# открытых запросов} other {# открытого запроса}}",

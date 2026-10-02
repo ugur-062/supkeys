@@ -350,5 +350,39 @@ describe("reddedilen sipariş (O-028)", () => {
       /taleplerim\/yeni\?from=l1&kalemler=i2$/,
     );
     expect(screen.queryByText(/Talep kazandırıldı — sipariş oluşturuldu/)).toBeNull();
+    // Yeniden doğrulama webB-05: üst şerit canlı siparişi gösterir; reddedilen
+    // sipariş yeşil şeritte öne çıkmaz.
+    const strips = screen.getAllByTestId("order-strip");
+    expect(strips).toHaveLength(1);
+    expect(strips[0].textContent).toContain("ORD-2026-0001");
+    expect(strips[0].className).toContain("emerald");
+    expect(strips[0].querySelector("a")?.getAttribute("href")).toMatch(/\/company\/siparis\/o1$/);
+  });
+
+  it("canlı sipariş kalmadıysa şerit en yenisini nötr tonla gösterir", () => {
+    h.detail = detail({
+      status: "AWARDED",
+      orders: [
+        { id: "o2", number: "ORD-2026-0002", status: "REJECTED", sellerCompanyId: "c-b1", rejectedReason: null, itemNames: ["Rulman"] },
+        { id: "o1", number: "ORD-2026-0001", status: "CANCELLED", sellerCompanyId: "c-b1", rejectedReason: null, itemNames: ["Rulman"] },
+      ],
+    } as unknown as Partial<ListingDetail>);
+    renderPage();
+    const strips = screen.getAllByTestId("order-strip");
+    expect(strips).toHaveLength(1);
+    expect(strips[0].textContent).toContain("ORD-2026-0002");
+    expect(strips[0].className).not.toContain("emerald");
+  });
+
+  it("iki canlı siparişin ikisi de şeritte", () => {
+    h.detail = detail({
+      status: "AWARDED",
+      orders: [
+        { id: "o2", number: "ORD-2026-0002", status: "ACCEPTED", sellerCompanyId: "c-b2", rejectedReason: null, itemNames: ["Conta"] },
+        { id: "o1", number: "ORD-2026-0001", status: "PENDING", sellerCompanyId: "c-b1", rejectedReason: null, itemNames: ["Rulman"] },
+      ],
+    } as unknown as Partial<ListingDetail>);
+    renderPage();
+    expect(screen.getAllByTestId("order-strip").map((el) => el.textContent?.includes("ORD-2026-000"))).toEqual([true, true]);
   });
 });
