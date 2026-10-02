@@ -59,3 +59,16 @@ describe("DateTimeInput — dilim ipucu", () => {
     expect(screen.getByText("GMT+3")).toBeTruthy();
   });
 });
+
+/**
+ * webB-03 yeniden doğrulama: yerel saat kutusu tarayıcı yerelini izler; 12
+ * saatlik tarayıcıda "05:00 PM" 96 px'lik (w-24) sarmalayıcıda kesiliyordu.
+ */
+describe("DateTimeInput — saat kutusu 12 saatlik biçime sığar", () => {
+  it("saat kutusu sarmalayıcısı w-24'ten geniş (w-32)", () => {
+    render(<DateTimeInput idPrefix="k" value="2026-10-01T17:00" onChange={() => {}} />);
+    const wrap = document.getElementById("k-time")!.closest("div.shrink-0")!;
+    expect(wrap.className).toContain("w-32");
+    expect(wrap.className).not.toContain("w-24");
+  });
+});

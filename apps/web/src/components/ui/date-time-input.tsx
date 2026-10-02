@@ -59,7 +59,7 @@ export function DateTimeInput({
   useEffect(() => setZoneDiffers(browserZoneDiffers()), []);
   const [datePart = "", timePart = ""] = value ? value.split("T") : [];
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {/* Kompakt sabit genişlik — "gg.aa.yyyy" + takvim ikonu sığar; alan
           genişliğini doldurup kocaman görünmesin (Catalyst Input w-full basar,
           o yüzden sınır sarmalayıcıda). */}
@@ -81,8 +81,11 @@ export function DateTimeInput({
         />
       </div>
       {/* Catalyst Input kendi span'ına w-full basar — genişliği sarmalayıcı
-          sınırlar, yoksa saat kutusu tarih kadar büyüyordu. */}
-      <div className="w-24 shrink-0">
+          sınırlar, yoksa saat kutusu tarih kadar büyüyordu. Yerel saat kutusu
+          SİTE dilini değil TARAYICI yerelini izler: 12 saatlik tarayıcıda
+          (en-US) "05:00 PM" + saat ikonu 96 px'e sığmıyor, saat kesiliyordu
+          ("00 PM") — w-32 her iki biçime de yeter (webB-03 yeniden doğrulama). */}
+      <div className="w-32 shrink-0">
         <Input
           id={`${idPrefix}-time`}
           type="time"

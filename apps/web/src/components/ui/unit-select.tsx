@@ -46,6 +46,7 @@ export function UnitSelect({
   hasError,
   disabled,
   showHint = true,
+  onFreeTextBlur,
 }: {
   /** Serbest metin birim (kaydedilen alan). */
   value: string;
@@ -62,6 +63,13 @@ export function UnitSelect({
    * `false` verip notu tam genişlik satırda `UnitNotInCatalogHint` ile basar.
    */
   showHint?: boolean;
+  /**
+   * Serbest birim kutusundan çıkılınca (olası kodlamadan SONRA) çağrılır —
+   * çağıran boş alanın hatasını burada gösterir. "Diğer…" seçilir seçilmez
+   * boş kutuya "Birim zorunlu" basılmasın (arayüz testi webB-03 yeniden
+   * doğrulama): hata yalnız alandan boş çıkılınca ya da kayıtta.
+   */
+  onFreeTextBlur?: () => void;
 }) {
   const t = useTranslations("web.shared.unitSelect");
   // Boyut başlığı katalogdan (`web.domain.unitDimension.<KOD>`); yeni bir boyut
@@ -72,6 +80,15 @@ export function UnitSelect({
   const [freeText, setFreeText] = useState(resolved ? "" : value);
   const [otherMode, setOtherMode] = useState(!resolved);
   const isOther = otherMode || !resolved;
+  // "Diğer…" kullanıcı seçimiyle açılınca boş kutu odak alır (yazmaya hazır);
+  // ilk çizimde/eski kayıtta odak çalınmaz.
+  const freeTextRef = useRef<HTMLInputElement>(null);
+  const focusFreeText = useRef(false);
+  useEffect(() => {
+    if (!isOther || !focusFreeText.current) return;
+    focusFreeText.current = false;
+    freeTextRef.current?.focus();
+  }, [isOther]);
   // Dışarıdan gelen değişiklik (satır sıfırlama, katalogdan kalem) modu yeniden
   // türetir; bileşenin kendi yazdığı değer türetmez (yoksa ilk harf yine kilitler).
   const emitted = useRef<string | null>(value);
@@ -109,6 +126,7 @@ export function UnitSelect({
         onChange={(e) => {
           const v = e.target.value;
           if (v === OTHER) {
+            focusFreeText.current = true;
             setOtherMode(true);
             emit({ unit: freeText || "", unitCode: null });
             return;
@@ -145,6 +163,7 @@ export function UnitSelect({
       {isOther ? (
         <>
           <Input
+            ref={freeTextRef}
             aria-label={t("birimListedeYok")}
             placeholder={t("ornBobin")}
             value={freeText}
@@ -161,10 +180,12 @@ export function UnitSelect({
               // Bilinen bir birim TAM yazıldıysa ("kg") listeden seçilmiş gibi kodla.
               const code = normalizeUnit(freeText);
               const u = code ? getUnit(code) : null;
-              if (!u) return;
-              setOtherMode(false);
-              setFreeText("");
-              emit({ unit: u.nameTr, unitCode: u.code });
+              if (u) {
+                setOtherMode(false);
+                setFreeText("");
+                emit({ unit: u.nameTr, unitCode: u.code });
+              }
+              onFreeTextBlur?.();
             }}
           />
           {showHint ? <UnitNotInCatalogHint /> : null}

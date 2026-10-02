@@ -64,3 +64,27 @@ describe("UnitSelect — Listede yok", () => {
     expect(select().value).not.toBe(OTHER);
   });
 });
+
+describe("UnitSelect — 'Diğer…' odak ve çıkış bildirimi (webB-03 yeniden doğrulama)", () => {
+  it("kullanıcı 'Diğer…' seçince boş kutu odak alır; eski serbest kayıtta odak çalınmaz", () => {
+    const { unmount } = render(<Harness />);
+    fireEvent.change(select(), { target: { value: OTHER } });
+    expect(screen.getByRole("textbox", { name: "Birim (listede yok)" })).toHaveFocus();
+    unmount();
+    render(<Harness initial={{ unit: "bobin", unitCode: null }} />);
+    expect(screen.getByRole("textbox", { name: "Birim (listede yok)" })).not.toHaveFocus();
+  });
+
+  it("kutudan çıkınca onFreeTextBlur çağrılır", () => {
+    const calls: Array<{ unit: string; unitCode: string | null }> = [];
+    function BlurHarness() {
+      const [v, setV] = useState<{ unit: string; unitCode: string | null }>({ unit: "", unitCode: null });
+      last = v;
+      return <UnitSelect value={v.unit} unitCode={v.unitCode} onChange={setV} onFreeTextBlur={() => calls.push(v)} />;
+    }
+    render(<BlurHarness />);
+    const box = screen.getByRole("textbox", { name: "Birim (listede yok)" });
+    fireEvent.blur(box);
+    expect(calls).toHaveLength(1);
+  });
+});

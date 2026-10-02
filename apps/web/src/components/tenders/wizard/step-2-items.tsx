@@ -229,6 +229,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
     register,
     control,
     setValue,
+    trigger,
     formState: { errors },
   } = useFormContext<TenderFormData>();
   // Faz 1: birim seçici kontrollü — `useWatch` ile okunur (P10 perf notu:
@@ -337,12 +338,17 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
               onChange={(next) => {
                 setValue(`items.${index}.unit`, next.unit, {
                   shouldDirty: true,
-                  shouldValidate: true,
+                  // "Diğer…" seçilince değer boş gelir — hemen doğrulamak boş
+                  // kutuya yazmadan "Birim zorunlu" basıyordu (webB-03 yeniden
+                  // doğrulama). Boş değer yalnız hata zaten görünüyorsa
+                  // doğrulanır; boş çıkış `onFreeTextBlur`'da, kalanı kayıtta.
+                  shouldValidate: next.unit.trim() !== "" || !!itemErrors?.unit,
                 });
                 setValue(`items.${index}.unitCode`, next.unitCode, {
                   shouldDirty: true,
                 });
               }}
+              onFreeTextBlur={() => void trigger(`items.${index}.unit`)}
             />
           </Field>
 
