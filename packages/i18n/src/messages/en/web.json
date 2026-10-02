@@ -3445,6 +3445,7 @@
         "oncekiTeklifinElemeGerekcesi": "Reason your previous quote was eliminated:",
         "alici": "Buyer",
         "paraBirimiAliciTarafindanBelirlendi": "The currency was set by the buyer.",
+        "kalemBirimleriAnaBirimeCevrildi": "Line item prices you quoted in another currency in your previous quote were converted to {currency} at your quote's recorded exchange rate. In this round all line items are priced in {currency}; unchanged prices do not go below your previous quote.",
         "kalemFiyatlari": "Line item prices",
         "haric": "Excluded",
         "hedef": "· Target: {money}",

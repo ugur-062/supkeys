@@ -4216,6 +4216,11 @@ export class CompanyListingsService {
                 : null,
               deliveryTime: bi.deliveryTime,
               currency: bi.currency,
+              // Kalem→ana birim damgası: kapalı zarftan pazarlığa taşınan
+              // karma birimli teklifte form yabancı kalemi bu damgayla ana
+              // birime çevirir (pazarlıkta tek birim — arayüz testi son tur
+              // S-SELL). Teklifçinin kendi verisi.
+              fxToBase: bi.fxToBase != null ? bi.fxToBase.toString() : null,
             })),
             answers: myBid.answers.map((a) => ({
               questionId: a.questionId,

@@ -240,6 +240,23 @@ describe("kalem bazlı para birimi — sahip kıyası/rapor kalem birimini taş�
     expect(tr.fxToBase).toBeNull();
   });
 
+  // Arayüz testi son tur S-SELL: kapalı zarftan pazarlığa taşınan karma
+  // birimli teklifte form yabancı kalemi bu damgayla ana birime çevirir —
+  // teklifçinin kendi projeksiyonu da damgayı taşımalı.
+  it("teklifçi detayı (myBid) kalem currency + fxToBase döner", async () => {
+    const { service, bidder, listing, item1, item2 } = await mixedBid();
+    const res = (await service.getOne(bidder.auth, listing.id)) as {
+      myBid: {
+        items: { itemId: string; currency: string | null; fxToBase: string | null }[];
+      } | null;
+    };
+    const eur = res.myBid!.items.find((i) => i.itemId === item2.id)!;
+    expect(eur.currency).toBe("EUR");
+    expect(Number(eur.fxToBase)).toBe(48);
+    const tr = res.myBid!.items.find((i) => i.itemId === item1.id)!;
+    expect(tr.fxToBase).toBeNull();
+  });
+
   it("teklif karşılaştırma raporu: itemPrices kalemin birimini, totalCurrency ana birimi taşır; Excel hücresi birimle biçimlenir", async () => {
     const { owner, listing, item1, item2 } = await mixedBid();
     const reports = new CompanyReportsService(prisma as never);

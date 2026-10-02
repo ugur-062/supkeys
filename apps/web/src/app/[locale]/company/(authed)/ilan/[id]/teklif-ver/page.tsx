@@ -42,6 +42,10 @@ import { YES_NO_STORED } from "@/lib/tenders/yes-no-answer";
 import { BID_DELIVERY_TIMES, MONEY_DECIMALS } from "@rothern/shared";
 import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
+import {
+  normalizeSeedPrice,
+  seedBidItemPrice,
+} from "@/lib/tenders/carried-bid-price";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import {
@@ -63,7 +67,7 @@ import { tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AuctionLiveCard } from "../_components/auction-live-card";
@@ -93,6 +97,8 @@ const BID_DOC_MIME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-excel",
 ]);
+/** Onay penceresi açıldıktan sonra perde/Escape kapatmasının yok sayıldığı süre (çift tık). */
+const CONFIRM_CLOSE_GUARD_MS = 500;
 const BID_DOC_ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls";
 
 /** Kalem başına form durumu. null fiyat = "bu kaleme teklif verme". */
@@ -257,7 +263,15 @@ export default function TeklifVerPage() {
   const [currency, setCurrency] = useState("");
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Onay penceresinin açıldığı an — "Teklif Gönder"e çift tıklamada ikinci
+  // tık yeni açılan pencerenin perdesine düşüp onu anında kapatıyordu, hiçbir
+  // şey olmamış gibi görünüyordu (arayüz testi son tur S-SELL). Açılıştan
+  // hemen sonraki perde/Escape kapatması yok sayılır; "Vazgeç" etkilenmez.
+  const confirmOpenedAtRef = useRef(0);
   const [seeded, setSeeded] = useState(false);
+  // Taşınan teklifteki yabancı birimli kalemler ana birime çevrildi mi (not).
+  const [convertedFromItemCurrency, setConvertedFromItemCurrency] =
+    useState(false);
   // Pazarlık çalışma masası: kilitli kalemler + taşınan (diff/Sıfırla) fiyatlar.
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
   // Fiyat içe aktarma dialog durumu + paket (hook'lar erken return'den ÖNCE).
@@ -299,6 +313,7 @@ export default function TeklifVerPage() {
     setStagedFiles([]);
     setLockedIds(new Set());
     setInitialPrices({});
+    setConvertedFromItemCurrency(false);
   }, [id]);
 
   // Mevcut tekliften tohumla (taslak devam / eleme sonrası / eksiltme yeni tur).
@@ -310,16 +325,29 @@ export default function TeklifVerPage() {
     const answerByQ = new Map(
       (bid?.answers ?? []).map((a) => [a.questionId, a.value] as const),
     );
+    // Kalem bazlı birim yalnız kapalı zarf + çok birimli talepte (aşağıdaki
+    // `canItemCurrency` ile aynı kural). Kullanılamıyorsa (ör. kapalı zarftan
+    // pazarlığa taşınan karma birimli teklif) yabancı kalem damgayla ana
+    // birime çevrilir — yoksa masa USD'yi ₺ sanıyor, gönderim 400 alıyordu
+    // (arayüz testi son tur S-SELL).
+    const allowItemCurrency =
+      (l.allowedCurrencies?.length ?? 0) > 1 && !l.english?.isEnglishAuction;
+    const bidCurrency = bid?.currency || l.primaryCurrency || "TRY";
+    let converted = false;
     for (const it of l.items ?? []) {
       const bi = bid?.items?.find((x) => x.itemId === it.id);
       const answers: Record<string, string> = {};
       for (const q of it.questions ?? []) {
         answers[q.id] = answerByQ.get(q.id) ?? "";
       }
+      const seed = bi
+        ? seedBidItemPrice(bi, { bidCurrency, allowItemCurrency })
+        : null;
+      if (seed?.converted) converted = true;
       next[it.id] = {
-        price: bi ? String(Number(bi.unitPrice)) : "",
+        price: seed?.price ?? "",
         deliveryTime: bi?.deliveryTime ?? "",
-        currency: bi?.currency ?? "",
+        currency: seed?.currency ?? "",
         answers,
         // Faz 3 — mevcut teklif düzenleniyorsa muadil beyanı geri yüklenir.
         isAlternative: bi?.isAlternative ?? false,
@@ -335,8 +363,9 @@ export default function TeklifVerPage() {
       if (stt.price) initP[iid] = stt.price;
     }
     setInitialPrices(initP);
+    setConvertedFromItemCurrency(converted);
     if (bid) {
-      if (!l.items?.length) setSingleAmount(String(Number(bid.amount)));
+      if (!l.items?.length) setSingleAmount(normalizeSeedPrice(bid.amount));
       if (bid.deliveryTime) setDeliveryTime(bid.deliveryTime);
       if (bid.validityDays) setValidityDays(String(bid.validityDays));
       if (bid.note) setNote(bid.note);
@@ -429,11 +458,18 @@ export default function TeklifVerPage() {
   const mixedCurrency =
     totalsByCurrency.size > 1 ||
     (totalsByCurrency.size === 1 && !totalsByCurrency.has(effectiveCurrency));
-  const totalLabel = mixedCurrency
-    ? [...totalsByCurrency.entries()]
-        .map(([c, v]) => money(v, c))
-        .join(" + ")
-    : money(total, effectiveCurrency);
+  // Her birimin tutarı BÖLÜNMEZ parça: dar alanda (mobil yapışkan çubuk,
+  // sağ kolon kartı) "1.550,00 €"nun sembolü tek başına alt satıra düşüyordu
+  // (arayüz testi son tur S-SELL); satır yalnız " + " ayracında kırılır.
+  const totalParts = mixedCurrency
+    ? [...totalsByCurrency.entries()].map(([c, v]) => money(v, c))
+    : [money(total, effectiveCurrency)];
+  const totalLabel = totalParts.map((part, i) => (
+    <Fragment key={i}>
+      {i > 0 ? " + " : null}
+      <span className="whitespace-nowrap">{part}</span>
+    </Fragment>
+  ));
 
   // ── Pazarlık çalışma masası hesapları ──
   // Minimum pay kaldırıldı (2026-07-13): tek kural "kendi öncekinden kesin
@@ -785,6 +821,17 @@ export default function TeklifVerPage() {
         </Button>
       </div>
     ) : null;
+
+  // Taşınan teklifteki yabancı birimli kalemler ana birime çevrildiyse
+  // tedarikçi fiyatların neden değiştiğini görsün (arayüz testi son tur S-SELL).
+  const convertedNote = convertedFromItemCurrency ? (
+    <div
+      role="note"
+      className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800"
+    >
+      {tr("kalemBirimleriAnaBirimeCevrildi", { currency: effectiveCurrency })}
+    </div>
+  ) : null;
 
   // Çalışma masası araçları: toplu fiyat yazımı + kalem kilidi.
   const applyPrices = (next: Record<string, string>) =>
@@ -1198,6 +1245,7 @@ export default function TeklifVerPage() {
       onSubmit={(e) => {
         e.preventDefault();
         if (problems.length === 0 && !busy) {
+          confirmOpenedAtRef.current = Date.now();
           setConfirmOpen(true);
         }
       }}
@@ -1335,6 +1383,7 @@ export default function TeklifVerPage() {
                   })}
                 </div>
               ) : null}
+              {convertedNote}
               <AuctionBidWorkbench
                 items={items}
                 prices={priceMap}
@@ -1359,6 +1408,7 @@ export default function TeklifVerPage() {
                 <Subheading>{tr("kalemFiyatlari")}</Subheading>
                 {bidImportButtons}
               </div>
+              {convertedNote}
               {l.requireAllItems ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   {tr.rich("buSatinAlmaTalebindeTumKalemlereTeklifZorunlu", {
@@ -1911,7 +1961,7 @@ export default function TeklifVerPage() {
 
       {/* Mobil yapışkan CTA — toplam + gönder (masaüstünde sağ kolon var) */}
       <div className="fixed inset-x-0 bottom-0 z-20 mb-0 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
             {tr("toplamTeklif")}
           </p>
@@ -1944,6 +1994,7 @@ export default function TeklifVerPage() {
           type="submit"
           color="emerald"
           disabled={problems.length > 0 || busy}
+          className="shrink-0 whitespace-nowrap"
         >
           {tr("teklifGonder")}
         </Button>
@@ -1952,7 +2003,13 @@ export default function TeklifVerPage() {
       <div className="h-16 lg:hidden" />
 
       {/* Gönderim onayı */}
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+      <Dialog
+        open={confirmOpen}
+        onClose={() => {
+          if (Date.now() - confirmOpenedAtRef.current < CONFIRM_CLOSE_GUARD_MS) return;
+          setConfirmOpen(false);
+        }}
+      >
         <DialogTitle>
           {isSubmittedRevision || isRebidAfterLoss
             ? tr("teklifiRevizeEt")

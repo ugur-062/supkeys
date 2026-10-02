@@ -798,3 +798,101 @@ describe("TeklifVerPage — özet kartı para birimleri (arayüz testi son tur S
     expect(dt.nextElementSibling).toHaveTextContent("TRY");
   });
 });
+
+describe("TeklifVerPage — arayüz testi son tur S-SELL", () => {
+  /** Kapalı zarftan pazarlığa taşınan karma birimli teklif (kalem 2 USD). */
+  function mixedAuctionDetail(): ListingDetail {
+    return baseDetail({
+      allowedCurrencies: ["TRY", "USD", "EUR"],
+      english: { isEnglishAuction: true },
+      items: [
+        { id: "i1", lineNo: 1, name: "Cıvata", description: null, quantity: "1000", unit: "adet", targetPrice: null, questions: [] },
+        { id: "i2", lineNo: 2, name: "Somun", description: null, quantity: "500", unit: "adet", targetPrice: null, questions: [] },
+      ],
+      myBid: {
+        amount: "1467705.03",
+        currency: "TRY",
+        status: "SUBMITTED",
+        version: 2,
+        note: null,
+        deliveryTime: "W1_2",
+        items: [
+          { itemId: "i1", unitPrice: "1400.25", currency: null },
+          { itemId: "i2", unitPrice: "2.75", currency: "USD", fxToBase: "49.123456789012" },
+        ],
+      },
+      nextBidConstraint: {
+        currencyLocked: true,
+        ownCurrency: "TRY",
+        ownLastTotal: "1467705.03",
+        canBidThisRound: true,
+      },
+    } as unknown as Partial<ListingDetail>);
+  }
+
+  it("pazarlıkta USD kalem damgayla ₺'ye çevrilir: masada ₺ fiyat, not görünür, gönderim kalem birimi taşımaz", async () => {
+    const user = userEvent.setup();
+    h.detail = mixedAuctionDetail();
+    h.mutateAsync.mockResolvedValue({ status: "SUBMITTED" });
+    render(<TeklifVerPage />);
+
+    // 2,75 $ × 49,1234… = 135,0895… → yukarı 135,09 ₺ (ham "2,75" DEĞİL).
+    const somun = screen.getByLabelText("Somun birim fiyat");
+    expect(somun).toHaveValue("135,09");
+    expect(screen.getByText(/karşılığına çevrildi/)).toBeInTheDocument();
+    // Fiyat değişmeden sahte "indirim" yok: 1.400.250 + 67.545 = 1.467.795 ≥ 1.467.705,03.
+    expect(screen.queryByText(/İndirim:/)).toBeNull();
+
+    // Somun'u 130 ₺'ye indir → gönderilebilir.
+    await user.clear(somun);
+    await user.type(somun, "130");
+    await user.click(screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!);
+    await user.click(await screen.findByRole("button", { name: "Teklifi Gönder" }));
+
+    const payload = h.mutateAsync.mock.calls[0]![0] as {
+      items: { itemId: string; unitPrice: number; currency?: string }[];
+    };
+    expect(payload.items).toEqual([
+      expect.objectContaining({ itemId: "i1", unitPrice: 1400.25 }),
+      expect.objectContaining({ itemId: "i2", unitPrice: 130 }),
+    ]);
+    expect(payload.items.every((it) => it.currency === undefined)).toBe(true);
+  });
+
+  it("eleme sonrası yeniden teklifte fiyat iki ondalıkla gelir (1.500,50 — '1.500,5' değil)", () => {
+    h.detail = baseDetail({
+      myBid: {
+        amount: "15005",
+        status: "LOST",
+        version: 1,
+        note: null,
+        items: [{ itemId: "i1", unitPrice: "1500.5" }],
+      },
+    } as Partial<ListingDetail>);
+    render(<TeklifVerPage />);
+    expect(screen.getByLabelText("Çelik Boru birim fiyat")).toHaveValue("1.500,50");
+  });
+
+  it("'Teklif Gönder'e çift tık onay penceresini açık bırakır", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+    await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+    const submit = screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!;
+    await user.click(submit);
+    expect(await screen.findByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
+    // Çift tıkın ikinci tıkı pencerenin perdesine düşer → Headless onClose.
+    // Aynı kapatma yolu Escape'le tetiklenir: açılıştan hemen sonra YOK
+    // sayılmalı (pencere açık kalır), biraz sonra yine kapatabilmeli.
+    await user.keyboard("{Escape}");
+    // Kapanış geçişi (100 ms) bitecek kadar bekle — pencere hâlâ açık olmalı.
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.getByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 300));
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Teklifi Gönder" })).toBeNull(),
+    );
+  });
+});

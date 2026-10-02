@@ -3445,6 +3445,7 @@
         "oncekiTeklifinElemeGerekcesi": "Önceki teklifinizin eleme gerekçesi:",
         "alici": "Alıcı",
         "paraBirimiAliciTarafindanBelirlendi": "Para birimi alıcı tarafından belirlendi.",
+        "kalemBirimleriAnaBirimeCevrildi": "Önceki teklifinizde farklı para biriminde verdiğiniz kalem fiyatları, teklifinizin kayıtlı kuruyla {currency} karşılığına çevrildi. Bu turda tüm kalemler {currency} ile fiyatlanır; değiştirmeden gönderilen fiyat önceki teklifinizin altına inmez.",
         "kalemFiyatlari": "Kalem Fiyatları",
         "haric": "Hariç",
         "hedef": "· Hedef: {money}",
