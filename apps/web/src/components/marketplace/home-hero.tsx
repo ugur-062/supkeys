@@ -153,7 +153,7 @@ export function HomeHero() {
    hero'nun bandı elden geçerse burası da elden geçmeli. */
 const BAND =
   "relative isolate -mt-6 flex min-h-[30rem] 2xl:min-h-[34rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-hidden bg-white bg-gradient-to-b from-emerald-50/80 via-white to-white " +
+  "ml-[calc(50%-50cqw)] overflow-x-clip bg-white bg-gradient-to-b from-emerald-50/80 via-white to-white " +
   "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
 
 /**

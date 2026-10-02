@@ -125,7 +125,7 @@ describe("arama formları dil önekini korur (Y-17)", () => {
     render(<PanelHeroSearch title="t" lead="l" placeholder="p" action="/urunler" />);
     const form = screen.getByRole("search");
     expect(form.getAttribute("action")).toBe("/en/products");
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "pipe" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "pipe" } });
     fireEvent.submit(form);
     // `@/i18n/navigation` router'ı ön eki kendisi ekler → İÇ yol beklenir.
     expect(push).toHaveBeenLastCalledWith("/urunler?q=pipe");

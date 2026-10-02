@@ -135,8 +135,14 @@ export function HeroDecor({
   const tDecor = useTranslations("web.marketing.heroDecor");
   const tx = (v: string) => (tDecor.has(v as never) ? tDecor(v as never) : v);
   const g = accent === "emerald";
+  // KIRPMA BURADA (arayüz testi webA-07, yeniden doğrulama): eskiden bandın
+  // kendisi `overflow-hidden` taşıyordu ve bandın altına inen öneri
+  // listesini de kesiyordu ("Firmalar" grubu görünmüyor, ↑ ile seçilen satır
+  // görünmez kalıyordu). Taşan yalnız dekor; onu kendi kutusunda kırpıyoruz.
+  // Kutu konumlu ama `z-index`siz — çocukların `-z-10/-z-20`si bandın
+  // istifleme bağlamında kalır (içeriğin arkasında, zeminin üstünde).
   return (
-    <>
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         {/* Referanstaki soluk geometrik zemin düzlemleri — çok açık gri,
             eğik, arkada; bant beyaz kalır. */}
         <div aria-hidden className={cn("pointer-events-none absolute -left-24 top-1/3 -z-20 hidden h-72 w-[26rem] -rotate-12 rounded-[3rem] 2xl:block", g ? "bg-emerald-100/60" : "bg-blue-100/60")} />
@@ -192,7 +198,7 @@ export function HeroDecor({
             </span>
           </div>
         ))}
-    </>
+    </div>
   );
 }
 
@@ -366,6 +372,10 @@ export function PanelHeroSearch({
     if (term) parts.push(`q=${encodeURIComponent(term)}`);
     router.push(parts.length ? `${targetAction}?${parts.join("&")}` : targetAction);
   };
+  // Öneri kaynağı yoksa (herkese açık anasayfa — typeahead ertelendi, D-002)
+  // kutu düz bir arama kutusudur: `role="combobox"` ekran okuyucuya hiç
+  // gelmeyecek önerileri vaat ediyordu (arayüz testi webA-07, yeniden doğrulama).
+  const typeahead = onQueryChange !== undefined || suggestions.length > 0;
   const hasSug = !aiActive && q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
   // Klavye gezinmesi (arayüz testi D-235, ARIA combobox kalıbı): gruplar
   // düz bir diziye açılır, ↓/↑ etkin satırı gezer, Enter etkin satıra gider,
@@ -459,9 +469,14 @@ export function PanelHeroSearch({
       /* BACKDROP modunda hero bir BANT: panel kenar boşluğunu negatif
          marjla iptal eder (tam genişlik), kendi boşluğunu geri verir ve
          gerçek bir yükseklik alır — köşe görselleri ancak böyle "sahne"
-         kurar. `overflow-hidden` yatay kaydırmayı keser. Sade modda
+         kurar. `overflow-x-clip` yatay kaydırmayı keser ama DİKEYDE
+         kırpmaz: öneri listesi bandın altına taşar (arayüz testi webA-07,
+         yeniden doğrulama — `overflow-hidden` listeyi kesiyordu; dekor
+         `HeroDecor`un kendi kutusunda kırpılır). Liste açıkken bant `z-10`
+         alır ki alttaki konumlu kartlar listenin üstüne binmesin. Sade modda
          (satış) eski kompakt hero. */
-      className={
+      className={cn(
+        listOpen && "z-10",
         backdrop
           /* `-mt-6 lg:-mt-8`: kabuğun içerik sarmalayıcısı `py-6 lg:py-8`
              taşıyor; bant onu da iptal eder ki fotoğraf üst çubuğun HEMEN
@@ -472,7 +487,7 @@ export function PanelHeroSearch({
              satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
              Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
           ? cn(
-              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
+              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-x-clip bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
               /* Köşe kartları varken bant biraz daha yüksek — kartlar arama
                  kutusunun satırına inmez (2xl'de ölçüldü). */
               widgets?.length
@@ -485,8 +500,8 @@ export function PanelHeroSearch({
                   )
                 : "min-h-[30rem]",
             )
-          : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
-      }
+          : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6",
+      )}
     >
       {/* ARKA PLAN YOK (2026-09-17, kullanıcı kararı: "arama kısmının
           arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
@@ -652,11 +667,15 @@ export function PanelHeroSearch({
                 <input
                   type="search"
                   name="q"
-                  role="combobox"
-                  aria-expanded={listOpen}
-                  aria-controls={listOpen ? listId : undefined}
-                  aria-autocomplete="list"
-                  aria-activedescendant={activeRow ? optionId(active) : undefined}
+                  {...(typeahead
+                    ? {
+                        role: "combobox",
+                        "aria-expanded": listOpen,
+                        "aria-controls": listOpen ? listId : undefined,
+                        "aria-autocomplete": "list" as const,
+                        "aria-activedescendant": activeRow ? optionId(active) : undefined,
+                      }
+                    : {})}
                   value={q}
                   onChange={(e) => {
                     setQ(e.target.value);

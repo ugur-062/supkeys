@@ -27,15 +27,15 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     const form = screen.getByRole("search");
     expect(form).toHaveAttribute("action", "/company/satinalma/urunler");
     expect(form).toHaveAttribute("method", "get");
-    expect(screen.getByRole("combobox")).toHaveAttribute("name", "q");
+    expect(screen.getByRole("searchbox")).toHaveAttribute("name", "q");
   });
 
   it("JS'de tam sayfa yenilemez: router.push ile ?q= (boş terimde sade sonuç sayfası)", () => {
     render(<PanelHeroSearch title="Ne arıyorsunuz?" lead="x" placeholder="p" action="/company/satinalma/urunler" />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "  çelik boru " } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "  çelik boru " } });
     fireEvent.submit(screen.getByRole("search"));
     expect(push).toHaveBeenLastCalledWith("/company/satinalma/urunler?q=%C3%A7elik%20boru");
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
     fireEvent.submit(screen.getByRole("search"));
     expect(push).toHaveBeenLastCalledWith("/company/satinalma/urunler");
   });
@@ -60,11 +60,11 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     h.pathname = "/company/satis";
     h.search = "durum=tumu&alici=c1&sayfa=3&q=eski";
     render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/company/satis" />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "kablo" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "kablo" } });
     fireEvent.submit(screen.getByRole("search"));
     expect(push).toHaveBeenLastCalledWith("/company/satis?durum=tumu&alici=c1&q=kablo");
     // Boş terim: q düşer, süzgeçler kalır.
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
     fireEvent.submit(screen.getByRole("search"));
     expect(push).toHaveBeenLastCalledWith("/company/satis?durum=tumu&alici=c1");
     h.pathname = "/company/satinalma";
@@ -150,8 +150,8 @@ describe("PanelHeroSearch — mobil, kapsam ve klavye (arayüz testi O-081 / D-2
     const submit = screen.getAllByRole("button", { name: /^Ara/ }).find((b) => b.getAttribute("type") === "submit") as HTMLElement;
     expect(submit.querySelector(".sr-only")?.textContent).toBe("Ara");
     // Yer tutucu dar ekranda küçük ve "…" ile biter (D-316).
-    expect(screen.getByRole("combobox").className).toMatch(/placeholder:text-sm/);
-    expect(screen.getByRole("combobox").className).toMatch(/text-ellipsis/);
+    expect(screen.getByRole("searchbox").className).toMatch(/placeholder:text-sm/);
+    expect(screen.getByRole("searchbox").className).toMatch(/text-ellipsis/);
   });
 
   it("'Firma' kapsamı seçiliyken AI açılınca kapsam birincile döner (D-234)", async () => {
@@ -245,7 +245,7 @@ describe("PanelHeroSearch — mobil, kapsam ve klavye (arayüz testi O-081 / D-2
   it("son aramalar açık portal prop'una yazılır — AI'sız tedarikçi yüzü satışa (D-312)", () => {
     localStorage.clear();
     const { unmount } = render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/talepler" portal="satis" />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "rulman" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "rulman" } });
     fireEvent.submit(screen.getByRole("search"));
     const saved = JSON.parse(localStorage.getItem("rothern.panel.recent-searches") ?? "{}");
     expect(saved.satis).toEqual(["rulman"]);
@@ -253,7 +253,7 @@ describe("PanelHeroSearch — mobil, kapsam ve klavye (arayüz testi O-081 / D-2
     unmount();
     // Prop yoksa eski davranış: AI portalı, o da yoksa satınalma.
     render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/urunler" />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "vana" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "vana" } });
     fireEvent.submit(screen.getByRole("search"));
     expect(JSON.parse(localStorage.getItem("rothern.panel.recent-searches") ?? "{}").satinalma).toEqual(["vana"]);
   });
@@ -331,7 +331,7 @@ describe("PanelHeroSearch — kapsam seçici (Ürün / Firma)", () => {
     expect(onScopeChange).toHaveBeenLastCalledWith("suppliers");
     expect(screen.getByPlaceholderText("Firma adı, sektör ya da sattığı ürün arayın")).toBeInTheDocument();
 
-    await user.type(screen.getByRole("combobox"), "medikal");
+    await user.type(screen.getByRole("searchbox"), "medikal");
     const submit = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
@@ -373,7 +373,7 @@ describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)"
     expect(band.className).not.toMatch(/from-transparent|gradient/);
     expect(band.className).toContain("min-h-[30rem]");
     // Arama kutusu ve başlık yerinde (yapı değişmedi).
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
   });
 
@@ -405,5 +405,56 @@ describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)"
       <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="emerald" />,
     );
     expect(container.querySelectorAll("img")).toHaveLength(0);
+  });
+});
+
+describe("PanelHeroSearch — öneri listesi ve combobox rolü (arayüz testi webA-07, yeniden doğrulama)", () => {
+  const sug = [
+    { label: "Ürünler", rows: [{ key: "a", label: "Konveyör bant", href: "/u/a" }] },
+    { label: "Firmalar", rows: [{ key: "c", label: "Konveyör AŞ", href: "/f/c" }] },
+  ];
+
+  it("öneri kaynağı yoksa (herkese açık anasayfa) kutu düz arama kutusudur — combobox vaadi yok", () => {
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/urunler" backdrop />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "rulman" } });
+    const box = screen.getByRole("searchbox");
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(box).not.toHaveAttribute("aria-autocomplete");
+    expect(box).not.toHaveAttribute("aria-expanded");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("çağıran öneri ucu bağladıysa (onQueryChange) öneri gelmeden de combobox'tır", () => {
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" onQueryChange={vi.fn()} />);
+    const box = screen.getByRole("combobox");
+    expect(box).toHaveAttribute("aria-autocomplete", "list");
+    expect(box).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("bant öneri listesini DİKEYDE kırpmaz; liste açıkken bant alttaki içeriğin üstüne çıkar, dekor kendi kutusunda kırpılır", () => {
+    const widgets = [{ icon: Sparkles, title: "AI ile tedarikçi bul", hint: "h", at: "tl" as const }];
+    const { container } = render(
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" backdrop widgets={widgets} objects={[{ src: "/hero/kutu.webp", at: "bl" }]} suggestions={sug} onQueryChange={vi.fn()} />,
+    );
+    const band = container.querySelector("section") as HTMLElement;
+    // `overflow-hidden` bandın altına inen listeyi kesiyordu ("Firmalar" grubu
+    // görünmüyor, ↑ ile seçilen satır görünmez kalıyordu).
+    expect(band.className).not.toMatch(/(^|\s)overflow-hidden(\s|$)/);
+    expect(band.className).toMatch(/(^|\s)overflow-x-clip(\s|$)/);
+    expect(band.className).not.toMatch(/(^|\s)z-10(\s|$)/);
+    // Taşan dekor (koli `-bottom-6`) bandın dışına sızmasın: kendi kırpma kutusu.
+    const obj = container.querySelector('img[src="/hero/kutu.webp"]') as HTMLElement;
+    const clip = obj.parentElement as HTMLElement;
+    expect(clip.className).toMatch(/(^|\s)absolute(\s|$)/);
+    expect(clip.className).toMatch(/(^|\s)inset-0(\s|$)/);
+    expect(clip.className).toMatch(/(^|\s)overflow-hidden(\s|$)/);
+    expect(clip.className).not.toMatch(/(^|\s)-?z-/);
+
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "konveyö" } });
+    expect(screen.getByRole("option", { name: "Konveyör AŞ" })).toBeInTheDocument();
+    expect(band.className).toMatch(/(^|\s)z-10(\s|$)/);
+    fireEvent.keyDown(box, { key: "Escape" });
+    expect(band.className).not.toMatch(/(^|\s)z-10(\s|$)/);
   });
 });
