@@ -1,21 +1,16 @@
 import { useTranslations } from "next-intl";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { PublicLayout } from "@/components/marketplace/public-layout";
+import { notFoundMetadata } from "@/lib/seo/not-found-meta";
 import { DEFAULT_LOCALE, pickLocale } from "@rothern/i18n";
 
-/**
- * 404 metası (arayüz testi D-081): başlık sayfanın dilinde ("Sayfa bulunamadı
- * · Rothern"; eskiden kök şablonun yedeği "Rothern" kalıyordu). `robots: null`
- * kök düzenin `index, follow` yönergesini SIFIRLAR — Next 404 yanıtına zaten
- * tek `noindex` basar; ikisi birlikte çelişen iki robots etiketi oluyordu.
- */
+/** 404 metası — tek kaynak `lib/seo/not-found-meta.ts` (arayüz testi D-081). */
 export async function generateMetadata(props: { params?: LocaleParams }): Promise<Metadata> {
   const locale = props?.params ? await localeFromParams(props.params) : (pickLocale(await getLocale()) ?? DEFAULT_LOCALE);
-  const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
-  return { title: t("notFoundTitle"), robots: null };
+  return notFoundMetadata(locale);
 }
 
 /**
