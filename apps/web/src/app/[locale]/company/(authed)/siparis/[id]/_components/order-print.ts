@@ -170,14 +170,18 @@ export function buildOrderPrintHtml(
       const nameCell = brand
         ? `${escapeHtml(it.name)}<div class="muted" style="font-size:12px">${escapeHtml(brand)}</div>`
         : escapeHtml(it.name);
-      return `<tr><td>${nameCell}</td><td style="text-align:right">${escapeHtml(quantityLabel ? quantityLabel(Number(it.quantity), it.unit) : `${Number(it.quantity).toLocaleString(locale)} ${it.unit}`)}</td><td style="text-align:right">${escapeHtml(dd)}</td><td style="text-align:right">${escapeHtml(money(Number(it.unitPrice)))}</td><td style="text-align:right">${escapeHtml(money(line))}</td></tr>`;
+      return `<tr><td>${nameCell}</td><td class="num">${escapeHtml(quantityLabel ? quantityLabel(Number(it.quantity), it.unit) : `${Number(it.quantity).toLocaleString(locale)} ${it.unit}`)}</td><td style="text-align:right">${escapeHtml(dd)}</td><td class="num">${escapeHtml(money(Number(it.unitPrice)))}</td><td class="num">${escapeHtml(money(line))}</td></tr>`;
     })
     .join("");
+  // `.num`: sayı/tutar hücreleri ve başlıkları tek satır — para sembolü alt
+  // satıra kırılmasın, uzun başlık bölünmesin; kalem adı sütunu sarar
+  // (arayüz testi son tur).
   return `<!doctype html><html lang="${escapeHtml(locale)}"><head><meta charset="utf-8"><title>${escapeHtml(o.number ?? labels.order)}</title>
 <style>body{font-family:system-ui,Arial,sans-serif;color:#18181b;padding:32px;max-width:720px;margin:auto}
 h1{font-size:20px;margin:0 0 4px}.muted{color:#71717a;font-size:13px}
 table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
 th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#71717a;font-size:11px;text-transform:uppercase}
+th.num,td.num{text-align:right;white-space:nowrap}
 .tot{text-align:right;font-size:16px;font-weight:700;margin-top:12px}
 .meta{margin-top:8px;font-size:13px;line-height:1.7}</style></head>
 <body>
@@ -187,7 +191,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 ${metaLine(labels.buyer, buyerName)}${metaLine(labels.seller, sellerName)}<strong>${escapeHtml(labels.request)}:</strong> ${escapeHtml(o.listingTitle ?? "—")} (${escapeHtml(o.listingNumber ?? "—")})<br>
 ${metaLine(labels.paymentTerms, ctx.paymentTerms)}${metaLine(labels.invoiceNo, o.invoiceNumber)}${metaLine(labels.deliveryAddress, ctx.deliveryAddress)}<strong>${escapeHtml(labels.status)}:</strong> ${escapeHtml(statusLabel)}
 </div>
-<table><thead><tr><th>${escapeHtml(labels.item)}</th><th style="text-align:right">${escapeHtml(labels.quantity)}</th><th style="text-align:right">${escapeHtml(labels.delivery)}</th><th style="text-align:right">${escapeHtml(labels.unit)}</th><th style="text-align:right">${escapeHtml(labels.amount)}</th></tr></thead>
+<table><thead><tr><th>${escapeHtml(labels.item)}</th><th class="num">${escapeHtml(labels.quantity)}</th><th style="text-align:right">${escapeHtml(labels.delivery)}</th><th class="num">${escapeHtml(labels.unit)}</th><th class="num">${escapeHtml(labels.amount)}</th></tr></thead>
 <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#a1a1aa">${escapeHtml(labels.noItems)}</td></tr>`}</tbody></table>
 <div class="tot">${escapeHtml(labels.total)}: ${escapeHtml(money(Number(o.amount)))}</div>
 </body></html>`;

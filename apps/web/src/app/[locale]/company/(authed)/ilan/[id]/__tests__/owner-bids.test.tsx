@@ -140,6 +140,9 @@ describe("Talep detayı (sahip) — teklif sekmesi (LU-21)", () => {
         { ...bid("b1", "Elenen Firma", "LOST", "50"), eliminatedAt: new Date().toISOString() },
         bid("b2", "Kazanan Firma", "WON", "80"),
         bid("b3", "Kaybeden Firma", "LOST", "90"),
+        // Satıcı kazandığı siparişi reddetti: eliminatedAt dolu ama alıcı
+        // ELEMEDİ → "Sipariş reddedildi" (arayüz testi son tur).
+        { ...bid("b4", "Reddeden Firma", "LOST", "70"), eliminatedAt: new Date().toISOString(), orderRejected: true },
       ],
     } as unknown as ListingDetail;
     const { unmount } = render(
@@ -149,6 +152,7 @@ describe("Talep detayı (sahip) — teklif sekmesi (LU-21)", () => {
     );
     expect(screen.getAllByText("Elendi").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Kaybetti").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Sipariş reddedildi").length).toBeGreaterThan(0);
     unmount();
     h.detail = {
       ...base,

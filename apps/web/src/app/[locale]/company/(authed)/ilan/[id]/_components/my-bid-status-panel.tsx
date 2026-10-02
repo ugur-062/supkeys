@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { lineAmount, MONEY_FRACTION } from "@/lib/line-amount";
 import { lostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
+import { parseSystemText } from "@rothern/shared";
 import { AlternativeOfferNote } from "@/components/tenders/alternative-offer-note";
 import { yesNoAnswerLabel } from "@/lib/tenders/yes-no-answer";
 import { orderStatusMeta } from "@/lib/orders/order-status";
@@ -75,6 +76,8 @@ const BID_STATUS_BADGE: Record<string, { key: string; color: "zinc" | "amber" | 
 
 /** LOST teklifin rozeti sonuca göre (arayüz testi D-102/D-117). */
 const LOST_BADGE: Record<ReturnType<typeof lostBidOutcome>, { key: string; color: "zinc" | "rose" }> = {
+  // Satıcı kazandığı siparişi kendisi reddetti — alıcı ELEMEDİ (arayüz testi son tur).
+  orderRejected: { key: "siparisiReddettiniz", color: "zinc" },
   eliminated: { key: "elendi", color: "rose" },
   lost: { key: "kaybettiniz", color: "rose" },
   cancelled: { key: "iptalEdildi", color: "zinc" },
@@ -568,6 +571,22 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
           </div>
         </div>
       </div>,
+    );
+  } else if (bid.status === "LOST" && lostBidOutcome(bid, l.status) === "orderRejected") {
+    // Kazandığı siparişi teklifçi (satıcı) KENDİSİ reddetti: ret yolu teklifi
+    // eliminatedAt + `[[ORDER_REJECTED]]` ile LOST'a düşürür, ama bu alıcının
+    // elemesi ya da "kazanamadınız" değildir (arayüz testi son tur). Gerekçe
+    // olarak satıcının kendi yazdığı metin gösterilir.
+    const ownReason = parseSystemText(bid.eliminationReason).text;
+    alerts.push(
+      <StatusAlert key="order-rejected" tone="info" title={t("kazandiginizSiparisiReddettiniz")}>
+        {ownReason ? (
+          <p>
+            <span className="font-medium">{t("gerekce2")}</span> {ownReason}
+          </p>
+        ) : null}
+        {open ? <p className="mt-1">{t("satinAlmaTalebiHalaAcik")}</p> : null}
+      </StatusAlert>,
     );
   } else if (bid.status === "LOST" && open) {
     alerts.push(

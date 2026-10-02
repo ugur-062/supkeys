@@ -1,4 +1,4 @@
-import { encodeSystemText, parseSystemText, parseVerificationReason, paymentMethodCode } from "@rothern/shared";
+import { encodeSystemText, isOrderRejectedReason, parseSystemText, parseVerificationReason, paymentMethodCode } from "@rothern/shared";
 
 /**
  * Sistemin yazdığı gerekçe/ödeme metinleri KOD olarak saklanır (2026-09-27,
@@ -14,6 +14,15 @@ describe("sistem metni — kodla sakla, dilde çiz", () => {
       code: "CANCEL_REQUEST_APPROVED",
       text: "",
     });
+  });
+
+  it("isOrderRejectedReason: satıcının sipariş reddi alıcı elemesinden ayrılır (arayüz testi son tur)", () => {
+    expect(isOrderRejectedReason(encodeSystemText("ORDER_REJECTED", "stok bitti"))).toBe(true);
+    expect(isOrderRejectedReason(encodeSystemText("ORDER_REJECTED"))).toBe(true);
+    expect(isOrderRejectedReason("Sipariş satıcı tarafından reddedildi: stok bitti")).toBe(true);
+    expect(isOrderRejectedReason("Fiyat yüksek")).toBe(false);
+    expect(isOrderRejectedReason(null)).toBe(false);
+    expect(isOrderRejectedReason(encodeSystemText("ADMIN", "x"))).toBe(false);
   });
 
   it("eski Türkçe kayıtlar tanınır", () => {

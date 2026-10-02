@@ -243,7 +243,9 @@ export default function BidDetailPage() {
                 <Badge color="zinc">
                   {(() => {
                     const outcome = lostBidOutcome(bid, l.status);
-                    return outcome === "eliminated"
+                    return outcome === "orderRejected"
+                      ? t("siparisReddedildi")
+                      : outcome === "eliminated"
                       ? t("elendi")
                       : outcome === "lost"
                         ? t("kaybetti")

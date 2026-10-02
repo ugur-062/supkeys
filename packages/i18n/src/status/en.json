@@ -41653,5 +41653,40 @@
     "hash": "d19300f4ff",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.siparisReddedildi": {
+    "hash": "05e473ea8a",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.requests.myBidStatusPanel.siparisiReddettiniz": {
+    "hash": "d7f80bd0fe",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.requests.myBidStatusPanel.kazandiginizSiparisiReddettiniz": {
+    "hash": "4ed1fbedaa",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.myBidsList.lostOutcome.orderRejected": {
+    "hash": "d7f80bd0fe",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.siparisIdPage.saticiIptalTalebinizKararBekliyor": {
+    "hash": "84ec32169c",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.siparisIdPage.saticiIhtilafIptalReddedildiGonderebilirsiniz": {
+    "hash": "31702a39cc",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.siparisIdPage.aliciAyipIhbariAcikGeriCekebilirsiniz": {
+    "hash": "d1839dd510",
+    "status": "reviewed",
+    "at": "2026-10-02"
   }
 }

@@ -302,6 +302,71 @@ describe("MyBidStatusPanel — durum makinesi", () => {
     expect(screen.queryByText(/sonuçlandı —/)).not.toBeInTheDocument();
   });
 
+  it("kazandığı siparişi KENDİSİ reddeden teklifçi: 'kazanamadı'/'Elendi' değil 'siparişi reddettiniz' (arayüz testi son tur)", () => {
+    const { unmount } = render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "AWARDED",
+          myBid: {
+            amount: "1000",
+            status: "LOST",
+            version: 1,
+            note: null,
+            eliminationReason: "[[ORDER_REJECTED]] stok bitti",
+            eliminatedAt: new Date().toISOString(),
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Bu talepte kazandığınız siparişi reddettiniz.")).toBeInTheDocument();
+    // Gerekçe satıcının kendi metni — "Sipariş satıcı tarafından reddedildi" öneki yok.
+    expect(screen.getByText("stok bitti")).toBeInTheDocument();
+    expect(screen.queryByText(/kazanamadı/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/elendi/i)).not.toBeInTheDocument();
+    unmount();
+
+    // Tek sipariş reddedildiyse talep değerlendirmeye döner (IN_AWARD) —
+    // "Teklifiniz elendi" de denmez.
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "IN_AWARD",
+          myBid: {
+            amount: "1000",
+            status: "LOST",
+            version: 1,
+            note: null,
+            eliminationReason: "[[ORDER_REJECTED]]",
+            eliminatedAt: new Date().toISOString(),
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Bu talepte kazandığınız siparişi reddettiniz.")).toBeInTheDocument();
+    expect(screen.queryByText(/elendi/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Gerekçe:")).not.toBeInTheDocument();
+  });
+
+  it("BidSummaryCard: sipariş reddiyle LOST teklifin rozeti 'Siparişi reddettiniz'", () => {
+    render(
+      <BidSummaryCard
+        l={detail({
+          status: "AWARDED",
+          myBid: {
+            amount: "1000",
+            status: "LOST",
+            version: 1,
+            note: null,
+            eliminationReason: "[[ORDER_REJECTED]] stok bitti",
+            eliminatedAt: new Date().toISOString(),
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Siparişi reddettiniz")).toBeInTheDocument();
+    expect(screen.queryByText("Elendi")).not.toBeInTheDocument();
+  });
+
   it("LOST + sonuçlanmış (AWARDED), kazandırmayla kaybeden → 'sonuçlandı', gerekçe yok", () => {
     render(
       <MyBidStatusPanel

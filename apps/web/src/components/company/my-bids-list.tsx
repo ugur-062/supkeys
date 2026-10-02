@@ -66,6 +66,7 @@ const STATUS_STRIP: Record<string, string> = {
 // kazandırmada kaybeden "Kaybetti", kazanansız/iptal kapanan ayrı (arayüz
 // testi D-102 — talep detayı ve teklif paneliyle aynı `lostBidOutcome`).
 const LOST_OUTCOME_KEY: Record<LostBidOutcome, string> = {
+  orderRejected: "lostOutcome.orderRejected",
   eliminated: "lostOutcome.eliminated",
   lost: "lostOutcome.lost",
   cancelled: "lostOutcome.cancelled",

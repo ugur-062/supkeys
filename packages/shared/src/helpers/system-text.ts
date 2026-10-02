@@ -60,6 +60,16 @@ export function parseSystemText(raw: string | null | undefined): { code: SystemT
   return { code: null, text: value };
 }
 
+/**
+ * Teklifin eleme gerekçesi "satıcı siparişi reddetti" mi? Ret yolu kazanan
+ * teklifi `eliminatedAt` + `[[ORDER_REJECTED]] …` ile LOST'a düşürür; bu
+ * alıcının elemesi DEĞİLDİR — etiketler ("Elendi") bunu ayırmalı (arayüz
+ * testi son tur). Eski Türkçe kayıtlar da tanınır.
+ */
+export function isOrderRejectedReason(raw: string | null | undefined): boolean {
+  return parseSystemText(raw).code === "ORDER_REJECTED";
+}
+
 /** Ödeme yöntemi kodu: akreditif (yeni kod ya da eski Türkçe ad) · çek · serbest metin → null. */
 export function paymentMethodCode(raw: string | null | undefined): "LETTER_OF_CREDIT" | "CHEQUE" | null {
   const v = raw?.trim();

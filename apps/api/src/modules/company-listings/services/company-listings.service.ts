@@ -14,7 +14,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { foldSearchText, hiddenCategoryWhere, isHiddenCategory, listingPath } from "@rothern/shared";
+import { foldSearchText, hiddenCategoryWhere, isHiddenCategory, isOrderRejectedReason, listingPath } from "@rothern/shared";
 import {
   CompanyRole,
   ListingType,
@@ -2766,6 +2766,10 @@ export class CompanyListingsService {
       // kaybetti / kazanansız kapandı (arayüz testi D-102). Teklif sahibinin
       // kendi teklifi — detay panelinde zaten görünür.
       eliminatedAt: b.eliminatedAt ? b.eliminatedAt.toISOString() : null,
+      // Kazanan teklif SATICI siparişi reddettiği için LOST oldu (ret yolu
+      // eliminatedAt + `[[ORDER_REJECTED]]` damgalar) — alıcı elemedi; web
+      // "Elendi" yerine "Siparişi reddettiniz" basar (arayüz testi son tur).
+      orderRejected: isOrderRejectedReason(b.eliminationReason),
       orderId: orderByListing.get(b.listingId) ?? null,
       listing: {
         id: b.listing.id,
@@ -3944,6 +3948,9 @@ export class CompanyListingsService {
           // (eliminatedAt dolu) ile kazandırmada kaybeden/kazanansız kapanan.
           // Web "Elendi"yi yalnız bununla basar.
           eliminatedAt: b.eliminatedAt ? b.eliminatedAt.toISOString() : null,
+          // Satıcı kazandığı siparişi reddetti (alıcı elemedi) — web
+          // "Sipariş reddedildi" basar (arayüz testi son tur).
+          orderRejected: isOrderRejectedReason(b.eliminationReason),
           deliveryAddress: b.deliveryAddress,
           items: b.items.map((bi) => ({
             itemId: bi.itemId,

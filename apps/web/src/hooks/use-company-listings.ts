@@ -181,6 +181,8 @@ export interface MyBid {
   deliveryTime?: string | null;
   /** LOST'ta dolu = alıcı eledi; boş = kazandırmada kaybetti / kapandı (D-102). */
   eliminatedAt?: string | null;
+  /** LOST'un sebebi satıcının kendi sipariş reddi (alıcı elemedi; arayüz testi son tur). */
+  orderRejected?: boolean;
   /** Kazanan teklifin oluşturduğu sipariş (WON/AWARDED_PARTIAL). */
   orderId: string | null;
   listing: {
@@ -345,6 +347,8 @@ export interface ListingBidRow {
   submittedAt?: string | null;
   /** Alıcı bu teklifi ELEDİ (LOST ∧ dolu) — kazandırmada kaybetmekten ayrı (arayüz testi D-102). */
   eliminatedAt?: string | null;
+  /** Satıcı kazandığı siparişi reddetti → LOST (eliminatedAt de dolu ama alıcı ELEMEDİ). */
+  orderRejected?: boolean;
   items?: ListingBidItemRow[];
   answers?: { questionId: string; value: string }[];
 }

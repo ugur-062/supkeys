@@ -728,9 +728,12 @@ export default function ListingDetailPage() {
   const canDecide = l.status === "OPEN" || l.status === "IN_AWARD";
   // LOST teklifin etiketi: yalnız alıcının elediği "Elendi"; kazandırmada
   // kaybeden "Kaybetti", kazanansız/iptal kapanan "Kapandı" (arayüz testi D-102).
-  const lostLabel = (b: { eliminatedAt?: string | null }) => {
+  // Satıcının kendi sipariş reddi "Elendi" değil "Sipariş reddedildi" (son tur).
+  const lostLabel = (b: { eliminatedAt?: string | null; orderRejected?: boolean }) => {
     const outcome = lostBidOutcome(b, l.status);
-    return outcome === "eliminated"
+    return outcome === "orderRejected"
+      ? t("siparisReddedildi")
+      : outcome === "eliminated"
       ? t("elendi")
       : outcome === "lost"
         ? t("kaybetti")

@@ -594,6 +594,39 @@ describe("OrderDetailPage — arayüz testi webB-07 yeniden doğrulama", () => {
     expect(screen.queryByText(/karar sizde/)).not.toBeInTheDocument();
   });
 
+  it("son tur: satıcının KENDİ iptal talebi açıkken sıradaki adım 'gönder' değil, alıcının kararı + geri çekme", () => {
+    h.order = order("ACCEPTED", "seller", { cancelRequestedAt: new Date().toISOString() });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/İptal talebiniz alıcının kararını bekliyor. Vazgeçerseniz İptal talebi bölümünden İptal Talebini Geri Çek seçebilirsiniz/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Siparişi gönderdiğinde fatura no ile işaretle/)).not.toBeInTheDocument();
+  });
+
+  it("son tur: alıcı satıcının iptal talebini reddetti (A1-DISPUTED), satıcı → ihtilaf + Siparişi Tamamla ile çözüm", () => {
+    h.order = order("DISPUTED", "seller", {
+      defectNotifiedAt: null,
+      cancelRequestedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/Sipariş ihtilaflı: alıcı iptal talebinizi reddetti. Mal bulunduysa Siparişi Tamamla ile/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Siparişi gönderdiğinde fatura no ile işaretle/)).not.toBeInTheDocument();
+  });
+
+  it("son tur: ayıp ihbarlı DISPUTED, alıcı → ihbar açık + İhbarı Geri Çek (karşı taraf DEĞİL)", () => {
+    h.order = order("DISPUTED", "buyer", {
+      defectNotifiedAt: new Date().toISOString(),
+      disputePrevStatus: "COMPLETED",
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/Ayıp ihbarınız açık — çözüm satıcıyla aranızda. Sorun çözüldüyse Ayıp ihbarı bölümünden İhbarı Geri Çek ile/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
   it.each(["IN_DELIVERY", "DELIVERED"] as const)(
     "NEW-2: akreditifli %s siparişte satıcının sıradaki adımı banka ödemesini işaretlemek",
     (status) => {
@@ -733,7 +766,7 @@ describe("OrderDetailPage — arayüz testi webB-08 yeniden doğrulama", () => {
     render(<OrderDetailPage />);
     await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
     const html = doc.write.mock.calls.map((c) => String(c[0])).join("");
-    expect(html).toMatch(/<th style="text-align:right">Birim Fiyat<\/th>/);
+    expect(html).toMatch(/<th class="num">Birim Fiyat<\/th>/);
     open.mockRestore();
   });
 });

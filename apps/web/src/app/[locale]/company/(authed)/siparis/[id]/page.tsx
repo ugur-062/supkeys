@@ -91,6 +91,7 @@ export default function OrderDetailPage() {
   const tStep = useTranslations("web.domain.orderStep");
   // Sıradaki-adım metni iptal paneli düğmelerinin GERÇEK adını söyler (tek kaynak).
   const tCancel = useTranslations("web.panel.trade.orderCancelRequestPanel");
+  const tDefect = useTranslations("web.panel.trade.orderDefectPanel");
   const roleLabel = useRoleLabel();
   const unitLabel = useUnitLabel();
   const quantity = useQuantityLabel();
@@ -453,6 +454,15 @@ export default function OrderDetailPage() {
         reject: tCancel("reddet"),
       })}
     </Text>
+  ) : isSeller && pendingCancelRequest ? (
+    // Arayüz testi son tur: satıcının KENDİ iptal talebi açıkken "siparişi
+    // gönder" denmez — panel "Alıcının kararı bekleniyor" + "İptal Talebini
+    // Geri Çek" diyor; sıradaki adım kartı da aynısını söyler.
+    <Text className="text-sm text-amber-700">
+      {t("saticiIptalTalebinizKararBekliyor", {
+        withdraw: tCancel("iptalTalebiniGeriCek"),
+      })}
+    </Text>
   ) : buyerPreShip && !isLc && !advanceMet ? (
     paymentAwaitingConfirmation ? (
       <Text className="text-sm text-amber-700">
@@ -512,10 +522,27 @@ export default function OrderDetailPage() {
     <Text className="text-sm text-amber-700">
       {t("ayipIhbariAcikSevkTamamlama")}
     </Text>
+  ) : !isSeller && defectDisputed ? (
+    // Arayüz testi son tur: alıcının açık ayıp ihbarı — panel ona "İhbarı
+    // Geri Çek" sunar; "karşı taraf bekleniyor" demek yanlış olurdu.
+    <Text className="text-sm text-amber-700">
+      {t("aliciAyipIhbariAcikGeriCekebilirsiniz", {
+        withdraw: tDefect("ihbariGeriCek"),
+      })}
+    </Text>
   ) : cadGate && o.status === "IN_DELIVERY" ? (
     <Text className="text-sm text-amber-700">
       {t("vesaikMukabiliTeslimAlmadanOnceKalan", {
         amount: formatMoney(remainingDue, o.currency),
+      })}
+    </Text>
+  ) : isSeller && o.status === "DISPUTED" && next?.modal === "ship" ? (
+    // Arayüz testi son tur: alıcı satıcının iptal talebini reddetti
+    // (A1-DISPUTED) — panel "Mal bulunduysa Siparişi Tamamla ile…" der;
+    // kart da ihtilafı ve iki çıkışı anlatır (düz "gönder" değil).
+    <Text className="text-sm text-amber-700">
+      {t("saticiIhtilafIptalReddedildiGonderebilirsiniz", {
+        button: next.label,
       })}
     </Text>
   ) : next ? (

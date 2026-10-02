@@ -166,3 +166,20 @@ describe("buildOrderPrintHtml — iki taraf, adres, ödeme şartı, fatura no (a
     expect(html).not.toContain("Ödeme şartı");
   });
 });
+
+describe("buildOrderPrintHtml — tutar hücreleri tek satır (arayüz testi son tur)", () => {
+  it("birim fiyat ve tutar hücreleri/başlıkları nowrap sınıfı taşır; ₺ alt satıra kırılmaz", () => {
+    const html = buildOrderPrintHtml(
+      { ...baseOrder, amount: 1250, items: [{ ...baseOrder.items[0], quantity: 100, unitPrice: 12.5 }] },
+      ctx,
+    );
+    expect(html).toMatch(/th\.num,td\.num\{[^}]*white-space:nowrap/);
+    expect(html).toContain('<th class="num">Birim</th>');
+    expect(html).toContain('<th class="num">Tutar</th>');
+    const cells = [...html.matchAll(/<td class="num">([^<]*)<\/td>/g)].map((m) => m[1]);
+    // Miktar · birim fiyat · tutar — üçü de nowrap hücrede.
+    expect(cells).toHaveLength(3);
+    expect(cells[1]).toContain("12,50");
+    expect(cells[2]).toContain("1.250,00");
+  });
+});
