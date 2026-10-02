@@ -52,7 +52,11 @@ const GREET_ABOVE_FAB_PX = 80;
  * Y-07): form ve yazışma ekranlarında balon ~6sn boyunca sağ raydaki
  * satırları ya da Gönder düğmesini örtüyordu. Düğme yine görünür.
  */
-const QUIET_ROUTE = /\/(yeni|duzenle|teklif-ver|mesajlar)(\/|$)/;
+// Arayüz testi son tur S-SELL: bilgi talebi yanıt ekranında balon yanıt
+// kutusunu, talep detayında kalem tablosunun HEDEF FİYAT sütununu örtüyordu
+// → ikisi de sessiz (yazışma ekranı / yoğun veri tablosu).
+const QUIET_ROUTE =
+  /\/(yeni|duzenle|teklif-ver|mesajlar|bilgi-talepleri|bilgi-taleplerim)(\/|$)|\/ilan\/[^/]+\/?$/;
 /** lg kırılımı — altında balon kendiliğinden açılmaz (dar ekran). */
 const WIDE_MIN_PX = 1024;
 

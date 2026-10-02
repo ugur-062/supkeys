@@ -545,7 +545,11 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
         placeholder={t("yanitiniziYazin")}
         className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
       />
-      <div className="mt-2 flex items-center justify-between gap-3">
+      {/* Sağ pay = AI Asistan düğmesinin sütunu (arayüz testi son tur
+          S-SELL): düğme ekranın sağ-altında sabit (right 32 px, 56 px +
+          halka); yanıt kutusu ekranın altına oturunca "Yanıtla"nın sağ
+          yarısını örtüyor, tık düğmeye gidiyordu. Pay, düğmeyi sola alır. */}
+      <div className="mt-2 flex items-center justify-between gap-3 sm:pr-14">
         {/* Ziyaretçi henüz kaydolmadıysa yanıtı okumak için hesap açması gerekiyor. */}
         <p className="text-xs text-zinc-500">
           {inquiry.hasAccount

@@ -89,7 +89,15 @@ describe("AssistantLauncher — karşılama balonu", () => {
     expect(screen.getByText(/Siparişlerinizi ve bağlantılarınızı/)).toBeInTheDocument();
   });
 
-  it.each(["/company/mesajlar", "/company/satinalma/taleplerim/yeni", "/company/ilan/x/teklif-ver"])(
+  it.each([
+    "/company/mesajlar",
+    "/company/satinalma/taleplerim/yeni",
+    "/company/ilan/x/teklif-ver",
+    // Arayüz testi son tur S-SELL: yanıt kutusunu ve HEDEF FİYAT sütununu örtüyordu.
+    "/company/satis/bilgi-talepleri",
+    "/company/satinalma/bilgi-taleplerim",
+    "/company/ilan/x",
+  ])(
     "%s sayfasında kendiliğinden açılmaz ve görüldü işareti yazılmaz",
     (path) => {
       vi.useFakeTimers();
