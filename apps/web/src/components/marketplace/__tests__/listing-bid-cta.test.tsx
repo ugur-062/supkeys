@@ -69,7 +69,7 @@ describe("ListingBidCta", () => {
 
 function Action() {
   const a = usePublicBidAction("ROT-000478", "Teklif ver", "/company/kayit?intent=teklif");
-  return <a href={a.href}>{a.label}</a>;
+  return a ? <a href={a.href}>{a.label}</a> : null;
 }
 
 describe("usePublicBidAction (anasayfa satırı \"Teklif ver\")", () => {
@@ -86,5 +86,19 @@ describe("usePublicBidAction (anasayfa satırı \"Teklif ver\")", () => {
     signIn("SILVER");
     render(<Action />);
     expect(screen.getByRole("link", { name: "Teklif ver" })).toHaveAttribute("href", PANEL);
+  });
+
+  // Arayüz testi son tur (webA-1): Silver ama `sell:bid:submit` yok →
+  // talep sayfası yetki notu verirken anasayfa satırı "Teklif ver" basıyordu.
+  it("Silver ∧ teklif yetkisi yok: eylem çizilmez (paket önce, sonra izin)", () => {
+    signIn("SILVER", "VERIFIED", ["sell:view"]);
+    const { container } = render(<Action />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("paket izinden önce: ücretsiz ∧ yetkisiz üyeye yine Silver kilidi", () => {
+    signIn("STANDART", "VERIFIED", ["sell:view"]);
+    render(<Action />);
+    expect(screen.getByRole("link", { name: "Teklif ver · Silver" })).toHaveAttribute("href", "/company/premium");
   });
 });

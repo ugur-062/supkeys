@@ -164,7 +164,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
     // aynı kayıt düğmesini yeniden gösteriyordu; girişli kullanıcıyı kayıt
     // sayfası bu adrese geçirir.
     // Oturumlu üyede paket kapısı önceden söylenir (Silver değil → "· Silver").
-    action: state === "open" ? { label: bid.label, href: bid.href } : null,
+    action: state === "open" && bid ? { label: bid.label, href: bid.href } : null,
   };
 
   return <ListingCard variant="row" data={data} />;

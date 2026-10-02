@@ -29,17 +29,22 @@ export function usePublicBidGate(): BuyingGate {
  * Teaser satırı/kartı "Teklif ver" eylemi (arayüz testi webA-02 yeniden
  * doğrulama): misafir → kayıt (niyet + panel dönüşü, `guestHref`); Silver ∧
  * yetki → doğrudan panel karşılığı; Silver değil → "Teklif ver · Silver"
- * doğrulama/paket sayfasına; yetki yok → panel karşılığı (talep orada da
- * görünür, teklif düğmesi yetkiye göre kapalı).
+ * doğrulama/paket sayfasına; Silver ama `sell:bid:submit` yok → `null`
+ * (eylem çizilmez — paket önce, sonra izin). Eskiden yetkisiz üyeye de
+ * "Teklif ver" basılıyordu, talep sayfası ise aynı kişiye yetki notu
+ * veriyordu (arayüz testi son tur webA-1); dar satırda `ListingBidCta`
+ * `compact` ile aynı karar: yetki notu yer kaplamaz, satırın kendisi talep
+ * sayfasına (yetki notuna) gider.
  */
 export function usePublicBidAction(
   number: string,
   label: string,
   guestHref: string,
-): { label: string; href: string; locked: boolean } {
+): { label: string; href: string; locked: boolean } | null {
   const t = useTranslations("web.marketplace.bidGate");
   const gate = usePublicBidGate();
   if (gate === "guest") return { label, href: guestHref, locked: false };
+  if (gate === "noPermission") return null;
   const href = gateHref(gate);
   if (href) return { label: t("lockedLabel", { label }), href, locked: true };
   return { label, href: PANEL_TARGET.listing(number), locked: false };
