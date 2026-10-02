@@ -27,7 +27,7 @@ import {
   XAxis as RXAxis,
   YAxis as RYAxis,
 } from "recharts";
-import { useFormatMoney } from "@/components/ui/money";
+import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
 import { useFormatPercent } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
@@ -42,7 +42,7 @@ export function SatisGelirTab({
 }) {
   const t = useTranslations("web.panel.shell.satisChartTabs");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
-  const { money: formatMoney, compact } = useFormatMoney();
+  const { money: formatMoney, axis } = useFormatMoney();
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -54,6 +54,10 @@ export function SatisGelirTab({
   }
   const AXIS = { fontSize: 11, fill: "#94a3b8" };
   const hasRevenue = analytics.revenueTrend.some((p) => p.value > 0);
+  // Eksen tek gösterim: ölçek aylık + kümülatif serinin en büyüğünden.
+  const revenueScaleMax = axisScaleMax(
+    analytics.revenueTrend.flatMap((p) => [p.value, p.cumulative]),
+  );
   const hasWinLoss = analytics.winLoss.some(
     (w) => w.won + w.lost + w.pending > 0,
   );
@@ -80,7 +84,7 @@ export function SatisGelirTab({
                   axisLine={false}
                   width={64}
                   tick={AXIS}
-                  tickFormatter={(v: number) => compact(Number(v), analytics.currency ?? "TRY")}
+                  tickFormatter={(v: number) => axis(Number(v), analytics.currency, revenueScaleMax)}
                 />
                 <RTooltip
                   formatter={(v, n) => [

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 let currentLocale = "tr";
 vi.mock("next-intl", () => ({ useLocale: () => currentLocale }));
 
-import { Money, formatCompactMoney, formatMoney, moneyParts } from "../money";
+import { Money, axisScaleMax, formatAxisMoney, formatCompactMoney, formatMoney, moneyParts } from "../money";
 
 afterEach(() => {
   currentLocale = "tr";
@@ -42,6 +42,29 @@ describe("formatCompactMoney — kısaltma DİLİN kısaltması", () => {
   it("10.000 altı kısaltılmaz, kuruşsuz", () => {
     expect(formatCompactMoney(9_999.4, "TRY", "en")).toBe("₺9,999");
     expect(formatCompactMoney(9_999.4, "TRY", "tr")).toBe("9.999 ₺");
+  });
+});
+
+/**
+ * Arayüz testi son tur — Nakit Takvimi ekseni "0 ₺, 9.000 ₺, 18 B ₺, 27 B ₺"
+ * okuyordu: tik başına kısaltma eşiği aynı eksende iki gösterim üretiyordu.
+ */
+describe("formatAxisMoney — bir eksen tek gösterim", () => {
+  it("10.000+ ölçekte 10.000 altı tikler de kısaltılır", () => {
+    const ticks = [0, 9_000, 18_000, 27_000, 36_000].map((v) => formatAxisMoney(v, "TRY", "tr", 36_000));
+    expect(ticks).toEqual(["0 ₺", "9\u00A0B ₺", "18\u00A0B ₺", "27\u00A0B ₺", "36\u00A0B ₺"]);
+    expect(formatAxisMoney(9_000, "USD", "en", 36_000)).toBe("$9K");
+  });
+
+  it("10.000 altı ölçekte hepsi kuruşsuz tam", () => {
+    const ticks = [0, 2_500, 5_000, 7_500, 10_000].map((v) => formatAxisMoney(v, "TRY", "tr", 9_200));
+    expect(ticks).toEqual(["0 ₺", "2.500 ₺", "5.000 ₺", "7.500 ₺", "10.000 ₺"]);
+  });
+
+  it("axisScaleMax en büyük mutlak değer; boş/geçersiz 0", () => {
+    expect(axisScaleMax([1_000, -40_000, 12_000])).toBe(40_000);
+    expect(axisScaleMax([])).toBe(0);
+    expect(axisScaleMax([null, undefined, Number.NaN])).toBe(0);
   });
 });
 

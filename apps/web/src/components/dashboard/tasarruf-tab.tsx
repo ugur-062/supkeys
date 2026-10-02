@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { useFormatMoney } from "@/components/ui/money";
+import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
 import { useFormatPercent } from "@/i18n/domain";
 import {
   Bar,
@@ -80,14 +80,13 @@ export function TasarrufTab({ data, period, analytics }: Props) {
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
   // Tutar/yüzde arayüz dilinin biçimiyle (tr-TR sabitti; kısaltma "Mr/M/K"
   // yerine dilin kısaltması — `formatCompactMoney`).
-  const { money, compact } = useFormatMoney();
+  const { money, axis } = useFormatMoney();
   const pct = useFormatPercent();
   // Tutarlar FİRMANIN RAPOR BİRİMİNDE (2026-09-27; sunucu çevirir). Adlar
   // (`formatTRY`) tarihsel.
   const cur = data.currency ?? analytics?.currency ?? "TRY";
   const formatTRY = (amount: number) => (Number.isFinite(amount) ? money(amount, cur) : "—");
   const formatPercent = (p: number) => (Number.isFinite(p) ? pct(p, { maximumFractionDigits: 2 }) : "—");
-  const abbreviateTRY = (n: number) => compact(n, cur);
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
   const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
 
@@ -97,6 +96,8 @@ export function TasarrufTab({ data, period, analytics }: Props) {
   const topRows = (
     costPeriod === "month" ? data.topSavingsMonth : data.topSavingsYear
   ).filter((r) => r.amount > 0);
+  // Eksen tek gösterim ("9.000 ₺" ile "18 B ₺" yan yana çıkmaz): ölçek en büyük tutardan.
+  const topScaleMax = axisScaleMax(topRows.map((r) => r.amount));
   const categoryRows =
     costPeriod === "month" ? data.categoryMonth : data.categoryYear;
   const currencyRows =
@@ -232,7 +233,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                   tickLine={false}
                 />
                 <YAxis
-                  tickFormatter={(v) => abbreviateTRY(Number(v))}
+                  tickFormatter={(v) => axis(Number(v), cur, topScaleMax)}
                   tick={{ fontSize: 11, fill: "#64748b" }}
                   axisLine={false}
                   tickLine={false}

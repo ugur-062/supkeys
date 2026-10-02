@@ -58,15 +58,52 @@ export function formatCompactMoney(
   return affixCurrency(num, currency, locale);
 }
 
-/** Arayüz diline bağlı para biçimleyiciler (`formatMoney`/`formatCompactMoney`). */
+/**
+ * Grafik tutar EKSENİ etiketi: bir eksen TEK gösterim kullanır. Gösterimi tek
+ * tek tik değeri değil eksenin ÖLÇEĞİ (`scaleMax` = serideki en büyük mutlak
+ * değer) seçer: 10.000 ve üstü ölçekte HER tik kısaltılır ("0 ₺, 9 B ₺, 18 B ₺"),
+ * altında hepsi kuruşsuz tam yazılır. Tik başına `formatCompactMoney`
+ * kullanılınca aynı eksende "9.000 ₺" ile "18 B ₺" yan yana çıkıyordu
+ * (arayüz testi son tur, Nakit Takvimi).
+ */
+export function formatAxisMoney(
+  value: number | string,
+  currency: string,
+  locale: Locale | string,
+  scaleMax: number,
+): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(n)) return "—";
+  const intl = intlLocale(locale);
+  const compact = Number.isFinite(scaleMax) && Math.abs(scaleMax) >= 10_000;
+  const num = new Intl.NumberFormat(
+    intl,
+    compact ? { notation: "compact", maximumFractionDigits: 1 } : { maximumFractionDigits: 0 },
+  ).format(n);
+  return affixCurrency(num, currency, locale);
+}
+
+/** Bir serinin eksen ölçeği: değerlerin en büyük mutlak değeri (boşsa 0). */
+export function axisScaleMax(values: ReadonlyArray<number | null | undefined>): number {
+  let max = 0;
+  for (const v of values) {
+    const a = Math.abs(Number(v ?? 0));
+    if (Number.isFinite(a) && a > max) max = a;
+  }
+  return max;
+}
+
+/** Arayüz diline bağlı para biçimleyiciler (`formatMoney`/`formatCompactMoney`/`formatAxisMoney`). */
 export function useFormatMoney(): {
   money: (value: number | string, currency?: string | null) => string;
   compact: (value: number | string, currency?: string | null) => string;
+  axis: (value: number | string, currency: string | null | undefined, scaleMax: number) => string;
 } {
   const locale = useLocale();
   return {
     money: (value, currency) => formatMoney(value, currency ?? "TRY", locale),
     compact: (value, currency) => formatCompactMoney(value, currency ?? "TRY", locale),
+    axis: (value, currency, scaleMax) => formatAxisMoney(value, currency ?? "TRY", locale, scaleMax),
   };
 }
 

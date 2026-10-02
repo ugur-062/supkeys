@@ -32,7 +32,7 @@ import type {
   SatinalmaDashboard,
 } from "@/hooks/use-company-dashboard";
 import { ErrorState } from "@/components/ui/error-state";
-import { useFormatMoney } from "@/components/ui/money";
+import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
@@ -78,12 +78,14 @@ export function SatinalmaIhaleTab({
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
   const locale = useLocale();
-  const { money: fm, compact: fcm } = useFormatMoney();
+  const { money: fm, compact: fcm, axis: fam } = useFormatMoney();
   // Tutarlar firmanın RAPOR BİRİMİNDE (2026-09-27; sunucu her siparişi kendi
   // biriminden çevirir) — eskiden yalnız TRY siparişler sayılıyordu.
   const cur = analytics?.currency ?? "TRY";
   const formatMoney = (v: number) => fm(v, cur);
   const formatCompactMoney = (v: number) => fcm(v, cur);
+  // Eksen tek gösterim: ölçek serinin en büyük tutarından seçilir.
+  const cashScaleMax = axisScaleMax(analytics?.cashCalendar.map((w) => w.amount) ?? []);
   const [subTab, setSubTab] = useState<SubTab>("own");
   // Faz 6.2 — varsayılan sıralama KAPANIŞA göre artan (ihale no değil);
   // kolon başlıkları tıklanınca yön/kolon değişir.
@@ -255,7 +257,7 @@ export function SatinalmaIhaleTab({
                   axisLine={false}
                   width={64}
                   tick={{ fontSize: 11, fill: "#94a3b8" }}
-                  tickFormatter={(v: number) => formatCompactMoney(Number(v))}
+                  tickFormatter={(v: number) => fam(Number(v), cur, cashScaleMax)}
                 />
                 <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), t("odeme")]} />
                 <Bar dataKey="amount" fill="#2563eb" radius={[3, 3, 0, 0]} />
