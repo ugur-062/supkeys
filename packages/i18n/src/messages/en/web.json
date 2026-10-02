@@ -1914,7 +1914,16 @@
       "newPasswordPlaceholder": "At least 10 characters — upper/lower case, a digit and a special character",
       "confirmPassword": "Repeat password",
       "changing": "Changing…",
-      "change": "Change password"
+      "change": "Change password",
+      "setupMetaTitle": "Set password",
+      "setupTitle": "Set your password",
+      "setupSubtitle": "Create a password to start using your account.",
+      "setupHaveAccount": "Already set your password?",
+      "setupDoneTitle": "Your password has been set",
+      "setupDoneBody": "You can now log in with your email address and new password.",
+      "toastSetupDone": "Password set",
+      "setupSubmitting": "Saving…",
+      "setupSubmit": "Set password"
     },
     "password": {
       "min": "At least 10 characters",
@@ -3053,6 +3062,7 @@
         }
       },
       "supplierDiscoveryModal": {
+        "goldaGec": "Upgrade to Gold",
         "onerilerYuklenemediTekrarDeneyin": "Suggestions could not be loaded — try again",
         "webAramasindaUygunFirmaBulunamadi": "No suitable companies were found in the web search",
         "bulunanFirmalarinYayinlanmisEPostasi": "The companies found have no published email address — invitations cannot be sent",
@@ -4194,6 +4204,8 @@
         "teklifiniziGeriCektiniz": "You withdrew your quote.",
         "oncekiTeklifinizBuTuraTaslak": "Your previous quote was carried over to this round as a draft",
         "devamEtmekIcinYeniFiyat": "To continue, enter a new price or extend the validity of your previous quote below — once extended, it becomes active again at the same price.",
+        "taslakTasindiTeklifHakkiYok": "You can't quote on this request right now — to reactivate your quote, first meet the requirement shown below.",
+        "taslakTasindiDogrulamaGerekir": "Company verification must be completed before you can resubmit your quote or extend its validity.",
         "taslakTeklifinizVarKapanistanOnce": "You have a draft quote — remember to submit it before closing.",
         "taslakTeklifinizVarDogrulamaGerekir": "You have a draft quote — company verification is required before you can submit it on this request.",
         "satinAlmaTalebiKapandiTaslak": "The buying request has closed — your draft quote was not submitted.",
@@ -5097,7 +5109,9 @@
         "vitrindenCek": "Remove from showcase",
         "kaydetmekIcinUrunVeVitrin": "Saving requires the “Manage products and showcase” permission.",
         "arsivle": "Archive",
-        "yayindakiUrunEksik": "A published product can't be saved with missing content — complete the fields required for review."
+        "yayindakiUrunEksik": "A published product can't be saved with missing content — complete the fields required for review.",
+        "yayindakiUrunEksikKisa": "Can't be saved: content is missing.",
+        "eksikleriGoster": "Show missing ({count})"
       },
       "productPreview": {
         "urunVitrindenCekildi": "Product removed from showcase",

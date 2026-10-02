@@ -14,7 +14,7 @@ import { productStatusKey } from "@/lib/company/product-status";
 import { ImageUploader } from "./image-uploader";
 import { PriceModeField, isTierComplete } from "./price-mode-field";
 import { ProductActionBar } from "./product-action-bar";
-import { EditorRail } from "./editor-rail";
+import { EditorRail, sectionFor } from "./editor-rail";
 import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Field } from "@/components/ui/field";
@@ -439,10 +439,14 @@ export function ProductShowcaseForm({
     [product],
   );
   const contentChanged = contentKey(patch) !== contentKey(product);
-  const publishedBlocked =
-    status === "published" &&
-    live.blockers.length > 0 &&
-    (contentChanged || live.blockers.some((b) => !savedBlockerCodes.has(b.code)));
+  // Kaydı KESEN eksikler: içerik değiştiyse hepsi, değilse yalnız yeni doğanlar.
+  const cuttingBlockers =
+    status !== "published"
+      ? []
+      : contentChanged
+        ? live.blockers
+        : live.blockers.filter((b) => !savedBlockerCodes.has(b.code));
+  const publishedBlocked = cuttingBlockers.length > 0;
 
   // Kaydet / Onaya gönder tek uçuşta: çift tık aynı ürünü iki kez oluşturmaz
   // (arayüz testi FX-00 O-006).
@@ -577,6 +581,8 @@ export function ProductShowcaseForm({
         publicHref={publicHref}
         publishLocked={publishLocked}
         blockedNotice={publishedBlocked && dirty}
+        blockedCount={cuttingBlockers.length}
+        onShowMissing={publishedBlocked ? () => jump(sectionFor(cuttingBlockers[0])) : undefined}
       />
       {status === "rejected" && product.rejectReason ? (
         <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-600/20">
@@ -917,7 +923,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-baslik`} className="scroll-mt-32">
+    <section id={id} aria-labelledby={`${id}-baslik`} className="scroll-mt-44">
       <div className="mb-5 flex items-start gap-3">
         <span aria-hidden className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-xs font-semibold text-white">
           {n}

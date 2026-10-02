@@ -1914,7 +1914,16 @@
       "newPasswordPlaceholder": "En az 10 karakter — büyük/küçük harf, rakam ve özel karakter",
       "confirmPassword": "Şifreyi Tekrar",
       "changing": "Değiştiriliyor…",
-      "change": "Şifreyi Değiştir"
+      "change": "Şifreyi Değiştir",
+      "setupMetaTitle": "Şifre Belirle",
+      "setupTitle": "Şifreni belirle",
+      "setupSubtitle": "Hesabını kullanmaya başlamak için bir şifre oluştur.",
+      "setupHaveAccount": "Şifreni zaten belirledin mi?",
+      "setupDoneTitle": "Şifreniz belirlendi",
+      "setupDoneBody": "Artık e-posta adresiniz ve yeni şifrenizle giriş yapabilirsiniz.",
+      "toastSetupDone": "Şifre belirlendi",
+      "setupSubmitting": "Kaydediliyor…",
+      "setupSubmit": "Şifremi Belirle"
     },
     "password": {
       "min": "En az 10 karakter",
@@ -3053,6 +3062,7 @@
         }
       },
       "supplierDiscoveryModal": {
+        "goldaGec": "Gold'a geç",
         "onerilerYuklenemediTekrarDeneyin": "Öneriler yüklenemedi — tekrar deneyin",
         "webAramasindaUygunFirmaBulunamadi": "Web aramasında uygun firma bulunamadı",
         "bulunanFirmalarinYayinlanmisEPostasi": "Bulunan firmaların yayınlanmış e-postası yok — davet gönderilemez",
@@ -4194,6 +4204,8 @@
         "teklifiniziGeriCektiniz": "Teklifinizi geri çektiniz.",
         "oncekiTeklifinizBuTuraTaslak": "Önceki teklifiniz bu tura taslak olarak taşındı",
         "devamEtmekIcinYeniFiyat": "Devam etmek için yeni fiyat verin ya da aşağıdan önceki teklifinizin geçerlilik süresini uzatın — uzatınca aynı fiyatla yeniden aktif olur.",
+        "taslakTasindiTeklifHakkiYok": "Bu talebe şu anda teklif veremiyorsunuz — teklifinizi yeniden aktif etmek için önce aşağıdaki koşulu karşılamanız gerekir.",
+        "taslakTasindiDogrulamaGerekir": "Teklifinizi yeniden göndermek ya da geçerliliğini uzatmak için önce firma doğrulamanızın tamamlanması gerekir.",
         "taslakTeklifinizVarKapanistanOnce": "Taslak teklifiniz var — kapanıştan önce göndermeyi unutmayın.",
         "taslakTeklifinizVarDogrulamaGerekir": "Taslak teklifiniz var — bu talebe göndermek için önce firma doğrulaması gerekir.",
         "satinAlmaTalebiKapandiTaslak": "Alım talebi kapandı — taslak teklifiniz gönderilmedi.",
@@ -5097,7 +5109,9 @@
         "vitrindenCek": "Vitrinden çek",
         "kaydetmekIcinUrunVeVitrin": "Kaydetmek için “Ürün ve vitrin yönetimi” yetkisi gerekir.",
         "arsivle": "Arşivle",
-        "yayindakiUrunEksik": "Yayındaki ürün eksik içerikle kaydedilemez — onaya göndermek için gerekli alanları tamamlayın."
+        "yayindakiUrunEksik": "Yayındaki ürün eksik içerikle kaydedilemez — onaya göndermek için gerekli alanları tamamlayın.",
+        "yayindakiUrunEksikKisa": "Eksik içerik nedeniyle kaydedilemez.",
+        "eksikleriGoster": "Eksikleri göster ({count})"
       },
       "productPreview": {
         "urunVitrindenCekildi": "Ürün vitrinden çekildi",

@@ -31,6 +31,8 @@ export function ProductActionBar({
   publishLocked,
   archive,
   blockedNotice,
+  blockedCount,
+  onShowMissing,
 }: {
   name: string;
   /** Durum KODU — etiket/renk okuyucunun dilinde `useProductStatusMeta` ile çizilir. */
@@ -52,6 +54,10 @@ export function ProductActionBar({
   archive?: () => void;
   /** Yayındaki ürün eksik içerikle kaydedilemez — birincil düğme kapalıyken neden (O-009). */
   blockedNotice?: boolean;
+  /** Kaydı kesen eksik sayısı — "Eksikleri göster (N)" düğmesinde. */
+  blockedCount?: number;
+  /** "Eksikleri göster": ilk eksik alanın bölümüne kaydırır (mobilde ray sayfanın en altında). */
+  onShowMissing?: () => void;
 }) {
   const t = useTranslations("web.panel.trade.productActionBar");
   const statusMeta = useProductStatusMeta()(status);
@@ -61,19 +67,11 @@ export function ProductActionBar({
     <div className="sticky top-14 z-20 -mx-1 mb-6 rounded-2xl bg-white/95 px-4 py-3 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-semibold text-zinc-950">{name.trim() || (isNew ? t("yeniUrun") : t("urun"))}</h1>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h1 className="min-w-0 max-w-full truncate text-lg font-semibold text-zinc-950">{name.trim() || (isNew ? t("yeniUrun") : t("urun"))}</h1>
             <Badge color={isNew ? "zinc" : statusMeta.color}>{isNew ? t("yeni") : statusMeta.label}</Badge>
             {dirty ? <span className="text-xs font-medium text-amber-700">{t("kaydedilmemisDegisiklik")}</span> : null}
           </div>
-          {publishLocked ? (
-            <p className="mt-0.5 text-xs text-amber-800">
-              {t("ucretsizPaketteYayindaOnaydaUrun")}
-            </p>
-          ) : null}
-          {blockedNotice ? (
-            <p className="mt-0.5 text-xs text-amber-800">{t("yayindakiUrunEksik")}</p>
-          ) : null}
         </div>
         {canManage ? (
           <div className="flex shrink-0 items-center gap-2">
@@ -82,7 +80,7 @@ export function ProductActionBar({
               disabled={busy || primaryDisabled}
               onClick={onPrimary}
               className={cn(
-                "rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:opacity-50",
+                "rounded-full px-4 py-2 text-sm sm:px-5 sm:py-2.5 font-semibold text-white shadow-sm transition disabled:opacity-50",
                 accentFillClass(accent),
               )}
             >
@@ -123,6 +121,34 @@ export function ProductActionBar({
           <p className="text-xs text-zinc-500">{t("kaydetmekIcinUrunVeVitrin")}</p>
         )}
       </div>
+      {/* NOTLAR ayrı, TAM GENİŞLİK satırda (arayüz testi webC-03 yeniden doğrulama):
+          eskiden başlık sütununun içindeydi; mobilde Kaydet düğmesinin yanındaki
+          dar sütunda satır satır kırılıp yapışkan çubuğu ~240 px'e (ekranın
+          ~%30'u) çıkarıyordu. Mobilde eksik notu KISA metin + "Eksikleri göster"
+          düğmesi — ray mobilde sayfanın en altında, eksikler yakında görünmüyordu. */}
+      {publishLocked || blockedNotice ? (
+        <div className="mt-2 space-y-1 text-xs text-amber-800" data-testid="product-action-bar-notes">
+          {publishLocked ? <p>{t("ucretsizPaketteYayindaOnaydaUrun")}</p> : null}
+          {blockedNotice ? (
+            <p>
+              <span className="sm:hidden">{t("yayindakiUrunEksikKisa")}</span>
+              <span className="hidden sm:inline">{t("yayindakiUrunEksik")}</span>
+              {onShowMissing ? (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    onClick={onShowMissing}
+                    className="font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+                  >
+                    {t("eksikleriGoster", { count: blockedCount ?? 0 })}
+                  </button>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

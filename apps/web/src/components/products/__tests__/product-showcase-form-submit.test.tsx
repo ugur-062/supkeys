@@ -270,6 +270,30 @@ describe("ProductShowcaseForm — yayın kapısı yayındaki üründe (arayüz t
   });
 });
 
+describe("ProductShowcaseForm — eksik notu yapışkan çubukta kompakt (arayüz testi webC-03 yeniden doğrulama)", () => {
+  it("not başlık sütununda DEĞİL, tam genişlik satırda; mobil kısa metin + 'Eksikleri göster' ilk eksik bölüme kaydırır", async () => {
+    const user = userEvent.setup();
+    const scrolled: string[] = [];
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id);
+    };
+    try {
+      renderWith({ product: COMPLETE });
+      await user.click(screen.getByRole("button", { name: /pano etiketini kaldır/i }));
+      const notes = screen.getByTestId("product-action-bar-notes");
+      // Başlığın (h1) sütununda değil — mobilde Kaydet'in yanındaki dar sütunda kırılmasın.
+      expect(notes.contains(screen.getByRole("heading", { level: 1 }))).toBe(false);
+      expect(notes.closest(".min-w-0.flex-1")).toBeNull();
+      expect(notes).toHaveTextContent("Eksik içerik nedeniyle kaydedilemez.");
+      await user.click(screen.getByRole("button", { name: "Eksikleri göster (1)" }));
+      expect(scrolled).toEqual(["urun-ozellik"]);
+    } finally {
+      Element.prototype.scrollIntoView = orig;
+    }
+  });
+});
+
 describe("ProductShowcaseForm — kalıtsal eksikli yayındaki ürün (arayüz testi O-009, gözden geçirme)", () => {
   // Kapı sıkılaşmadan önce yayına çıkmış, açıklaması kısa ürün: API içerik dışı
   // kaydı (fiyat/MOQ) yalnız YENİ eksik doğarsa reddeder — form da aynı kural.

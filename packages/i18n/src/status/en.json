@@ -24649,16 +24649,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.requests.myBidStatusPanel.teklifinizOncekiTurdaElendi": {
-    "hash": "017726e3c9",
-    "status": "reviewed",
-    "at": "2026-10-02"
-  },
-  "web.panel.requests.myBidStatusPanel.yeniTurAcikYenidenTeklifVerebilirsiniz": {
-    "hash": "5dcdf2fa4e",
-    "status": "reviewed",
-    "at": "2026-10-02"
-  },
   "web.panel.requests.myBidStatusPanel.teklifinizDegerlendiriliyor": {
     "hash": "80fe2246a1",
     "status": "reviewed",
@@ -24678,6 +24668,11 @@
     "hash": "07ff34aac8",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.myBidStatusPanel.teklifinizOncekiTurdaElendi": {
+    "hash": "017726e3c9",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.requests.myBidStatusPanel.teklifinizTarihineKadarGecerli": {
     "hash": "7f0bef718d",
@@ -24733,6 +24728,11 @@
     "hash": "49dbdd587e",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.myBidStatusPanel.yeniTurAcikYenidenTeklifVerebilirsiniz": {
+    "hash": "5dcdf2fa4e",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.requests.page.acikEksiltmedeParaBirimiIlk": {
     "hash": "fa01773acb",
@@ -28954,6 +28954,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.tenderActionsMenu.yeniKapanisSecin": {
+    "hash": "b97d0f090b",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
   "web.panel.requests.tenderActionsMenu.yeniKapanisTarihi": {
     "hash": "78a209a592",
     "status": "reviewed",
@@ -28963,11 +28968,6 @@
     "hash": "286acf80e9",
     "status": "reviewed",
     "at": "2026-09-24"
-  },
-  "web.panel.requests.tenderActionsMenu.yeniKapanisSecin": {
-    "hash": "b97d0f090b",
-    "status": "reviewed",
-    "at": "2026-10-02"
   },
   "web.panel.requests.tenderActionsMenu.yeniTurAc": {
     "hash": "83784a7826",
@@ -36715,14 +36715,14 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.orderPaymentsCard.kalan": {
-    "hash": "274273cb1f",
+    "hash": "7e46fbc5c1",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.orderPaymentsCard.kalanBorcunUstundeBildirimYapilamaz": {
     "hash": "58092d6719",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-02"
   },
   "web.panel.trade.orderPaymentsCard.notOpsiyonel": {
     "hash": "be722a291d",
@@ -37827,67 +37827,77 @@
   "web.panel.trade.productActionBar.arsivle": {
     "hash": "c3b2790f85",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.digerIslemler": {
     "hash": "d1fe6a4ef0",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.productActionBar.eksikleriGoster": {
+    "hash": "457593a051",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.herkeseAcikSayfayiAc": {
     "hash": "b7501d0270",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.kaydediliyor": {
     "hash": "4422d3482b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.kaydedilmemisDegisiklik": {
     "hash": "fba21c0f99",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.kaydetmekIcinUrunVeVitrin": {
     "hash": "2a7e980d37",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.taslakOlarakKaydet": {
     "hash": "a3cb10789e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.ucretsizPaketteYayindaOnaydaUrun": {
     "hash": "92b4482e1b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.urun": {
     "hash": "1337647cb6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.vitrindenCek": {
     "hash": "22fe0105fd",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.yayindakiUrunEksik": {
     "hash": "eb618d07ac",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-02"
+  },
+  "web.panel.trade.productActionBar.yayindakiUrunEksikKisa": {
+    "hash": "dc4b3160f4",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.yeni": {
     "hash": "c58a8561e6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productActionBar.yeniUrun": {
     "hash": "91653bcb21",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "web.panel.trade.productPreview.aliciBuradaBilgiIsteDugmesini": {
     "hash": "a35c36212e",
