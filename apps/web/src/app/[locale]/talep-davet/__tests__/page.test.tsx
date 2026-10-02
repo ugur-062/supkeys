@@ -53,6 +53,18 @@ describe("Talep davet önizlemesi", () => {
     // Görünen etiket <dt>; aynı etiket ikinci kez (sr-only) okunmaz (D-337).
     expect(screen.getAllByText(/Son teklif tarihi/)).toHaveLength(1);
     expect(screen.getByText(/Son teklif tarihi/).tagName).toBe("DT");
+    // Etiket + değer tek cümle gibi satır içi akar; değer dar sütuna sıkışmaz
+    // (yeniden doğrulama: RU'da tarih 5 satıra bölünüyordu).
+    for (const id of ["invite-meta-deadline", "invite-meta-delivery"]) {
+      const row = screen.getByTestId(id);
+      expect(row.className).not.toMatch(/\bflex\b/);
+      const dt = row.querySelector("dt")!;
+      const dd = row.querySelector("dd")!;
+      expect(dt.className).toMatch(/\binline\b/);
+      expect(dt.className).not.toMatch(/shrink-0/);
+      expect(dd.className).toMatch(/\binline\b/);
+    }
+    expect(screen.getByTestId("invite-meta-deadline").querySelector("dd")!.textContent).toBe(preview.closesAt);
     expect(screen.getByText("Kayıt olmak ve teklif vermek ücretsizdir.", { exact: false })).toBeInTheDocument();
     await waitFor(() => expect(sessionStorage.getItem("rothern:invite-prefill")).toContain("info@firma.com"));
   });

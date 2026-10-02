@@ -117,23 +117,27 @@ function PreviewInner() {
         {d.tenderNumber ? <p className="mt-0.5 text-xs text-zinc-600">{t("number", { number: d.tenderNumber })}</p> : null}
         <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           {d.closesAt ? (
-            <div className="flex items-start gap-1.5">
-              {/* Görünen etiket <dt>'nin kendisi — ekran okuyucu bir kez okur (D-337). */}
-              <dt className="flex shrink-0 items-start gap-2 text-zinc-600">
-                <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden />
-                {t("deadline")}:
+            <div className="relative pl-6" data-testid="invite-meta-deadline">
+              {/* Görünen etiket <dt>'nin kendisi — ekran okuyucu bir kez okur (D-337).
+                  dt/dd satır içi akar: değer etiketin hemen ardından gelir ve
+                  gerekirse etiketin altına kaydırılır; dar sütuna sıkışmaz. */}
+              <dt className="inline text-zinc-600">
+                <CalendarClock className="absolute top-0.5 left-0 h-4 w-4 text-blue-700" aria-hidden />
+                {t("deadline")}:{" "}
               </dt>
-              <dd className="text-zinc-800">{d.closesAt}</dd>
+              <dd className="inline text-zinc-800">{d.closesAt}</dd>
             </div>
           ) : null}
           {d.deliveryPlace ? (
-            <div className="flex items-start gap-1.5">
-              {/* Görünen etiket <dt>'nin kendisi — ekran okuyucu bir kez okur (D-337). */}
-              <dt className="flex shrink-0 items-start gap-2 text-zinc-600">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden />
-                {t("delivery")}:
+            <div className="relative pl-6" data-testid="invite-meta-delivery">
+              {/* Görünen etiket <dt>'nin kendisi — ekran okuyucu bir kez okur (D-337).
+                  dt/dd satır içi akar: değer etiketin hemen ardından gelir ve
+                  gerekirse etiketin altına kaydırılır; dar sütuna sıkışmaz. */}
+              <dt className="inline text-zinc-600">
+                <MapPin className="absolute top-0.5 left-0 h-4 w-4 text-blue-700" aria-hidden />
+                {t("delivery")}:{" "}
               </dt>
-              <dd className="text-zinc-800">{d.deliveryPlace}</dd>
+              <dd className="inline text-zinc-800">{d.deliveryPlace}</dd>
             </div>
           ) : null}
           {d.categories.length > 0 ? (
