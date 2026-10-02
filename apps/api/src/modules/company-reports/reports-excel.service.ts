@@ -61,18 +61,22 @@ function percentCells(row: ExcelJS.Row, cols: number[]) {
 
 // Exhaustive over ListingStatus: a new enum value fails typecheck instead of
 // leaking the raw value into the Excel (arayüz testi webB-01 IN_AWARD).
-const STATUS_KEYS: Record<ListingStatus, MsgKey> = {
+// Etiketler ekrandakiyle (`web.domain.listingStatus`) BİREBİR aynıdır — rapor
+// ekranla çelişmesin; AWARDED eskiden "Tamamlandı" yazıyordu, ekran
+// "Kazandırıldı" (arayüz testi son tur webB-1). Eşlik testi:
+// test/unit/reports-excel-status-labels.spec.ts.
+export const STATUS_KEYS: Record<ListingStatus, MsgKey> = {
   DRAFT: "api.companyReports.durumTaslak",
   IN_APPROVAL: "api.companyReports.durumOnayBekliyor",
   OPEN: "api.companyReports.durumYayinda",
   CLOSED: "api.companyReports.durumTeklifeKapali",
   IN_AWARD: "api.companyReports.durumDegerlendirmede",
   IN_AWARD_APPROVAL: "api.companyReports.durumKazandirmaOnayi",
-  AWARDED: "api.companyReports.durumTamamlandi",
+  AWARDED: "api.companyReports.durumKazandirildi",
   CANCELLED: "api.companyReports.durumIptal",
-  CLOSED_NO_AWARD: "api.companyReports.durumKazansizKapatildi",
+  CLOSED_NO_AWARD: "api.companyReports.durumKazansizKapandi",
 };
-const statusLabel = (s: string) => {
+export const statusLabel = (s: string) => {
   const key = STATUS_KEYS[s as ListingStatus];
   return key ? msg(key) : s;
 };

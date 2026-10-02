@@ -3880,29 +3880,29 @@
     "at": "2026-10-02"
   },
   "api.companyReports.durumIptal": {
-    "hash": "85e2d08742",
+    "hash": "cd4f5794ef",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-02"
+  },
+  "api.companyReports.durumKazandirildi": {
+    "hash": "381d7c961b",
+    "status": "reviewed",
+    "at": "2026-10-02"
   },
   "api.companyReports.durumKazandirmaOnayi": {
     "hash": "742efdc18a",
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "api.companyReports.durumKazansizKapatildi": {
-    "hash": "03af122527",
+  "api.companyReports.durumKazansizKapandi": {
+    "hash": "5c623a1e39",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "api.companyReports.durumOnayBekliyor": {
     "hash": "f06fe21ab4",
     "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "api.companyReports.durumTamamlandi": {
-    "hash": "0dbadb331f",
-    "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-02"
   },
   "api.companyReports.durumTaslak": {
     "hash": "25f1fe1f49",
@@ -17214,11 +17214,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.marketplace.profile.firmaTuruVeFaaliyetAlanlari": {
-    "hash": "4c8b4985af",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.marketplace.profile.founded": {
     "hash": "9fcab372c5",
     "status": "reviewed",
@@ -24939,11 +24934,6 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
-  "web.panel.requests.page.acikTalebeTeklifIcinSatisci": {
-    "hash": "e71aac126e",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.requests.page.acikTalebeTeklifIcinTeklifVermeYetkisi": {
     "hash": "71f769364b",
     "status": "reviewed",
@@ -25086,11 +25076,6 @@
   },
   "web.panel.requests.page.birlikteDavetEttiginizTedarikciGruplarini": {
     "hash": "5b5a9414b7",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.requests.page.buAcikTalebeTeklifVermekIcinSatisciRolu": {
-    "hash": "c00014fb21",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -39643,11 +39628,6 @@
     "hash": "568c3766fc",
     "status": "reviewed",
     "at": "2026-10-01"
-  },
-  "web.panel.trade.siparisIdPage.print.birim": {
-    "hash": "9f681182e7",
-    "status": "reviewed",
-    "at": "2026-09-24"
   },
   "web.panel.trade.siparisIdPage.print.birimFiyat": {
     "hash": "a600d5be39",
