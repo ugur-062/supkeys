@@ -7,6 +7,7 @@ import { CompanyProducts } from "@/components/marketplace/company-products";
 import { fetchCompanyProducts, fetchCompanyProfile, type PublicProfile } from "@/lib/public/marketplace-api";
 import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { GatedField } from "@/components/marketplace/gated-field";
+import { PublicConnectCta } from "@/components/marketplace/connect-cta";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
 import { companySeo } from "@/lib/seo/entities";
@@ -17,6 +18,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 export const revalidate = 300;
+
+const CONNECT_CLS =
+  "rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700";
 
 export async function generateMetadata({
   params,
@@ -134,14 +138,15 @@ export default async function PublicCompanyProfile({
           // notu için `translatedFrom` — tek kaynak (arayüz testi O-018).
           profile={publicProfileViewData(p, locale)}
           actions={
-            // Dil farkında Link: ham <a> dil önekini eklemiyor, EN/RU ziyaretçi
-            // Türkçe giriş sayfasına düşüyordu (derin denetim LU-22).
-            <Link
-              href={loginHref(panelHref)}
-              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-            >
-              {t("connectCta")}
-            </Link>
+            // Oturumlu üyeye paket/izin kapısı tıklamadan önce (Silver; arayüz
+            // testi kapanış S-PUB-ADMIN) — misafir sunucunun giriş bağlantısını
+            // görür. Dil farkında Link: ham <a> dil önekini eklemiyor, EN/RU
+            // ziyaretçi Türkçe giriş sayfasına düşüyordu (derin denetim LU-22).
+            <PublicConnectCta companySlug={slug} panelHref={panelHref} className={CONNECT_CLS}>
+              <Link href={loginHref(panelHref)} className={CONNECT_CLS}>
+                {t("connectCta")}
+              </Link>
+            </PublicConnectCta>
           }
           gate={{
             stats: <GatedField label={t("gateStats")} sentence="contact" redirect={panelHref} />,
@@ -150,6 +155,7 @@ export default async function PublicCompanyProfile({
                 size="box"
                 label={t("gateAside")}
                 hint={t("gateAsideHint", { name: p.name })}
+                /* Üyeye kayıt metni yerine panel karşılığı (GatedField). */
                 redirect={panelHref}
               />
             ),

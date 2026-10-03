@@ -74,7 +74,9 @@
       "metaDescription": "Browse verified suppliers' products with price and MOQ, talk to companies, and send sealed-bid quotes on buying requests. Buyer and seller in one account. Signing up is free.",
       "metaAbsoluteTitle": "Rothern — B2B marketplace: products, suppliers and buying requests",
       "comingSoonTitle": "Coming soon",
-      "comingSoonDescription": "Rothern is currently in development. We'll be with you very soon."
+      "comingSoonDescription": "Rothern is currently in development. We'll be with you very soon.",
+      "demandsEmptyMember": "Requests are matched to your categories in your panel.",
+      "openPanel": "Open in panel"
     },
     "comingSoon": {
       "badge": "In development",
@@ -861,7 +863,11 @@
       "loginFor": "<link>Log in</link> to see {label}",
       "loginForText": "Log in to see {label}",
       "loginForSellerSite": "<link>Log in</link> to see the company website",
-      "loginForContact": "<link>Log in</link> to see the Rothern ID and contact details"
+      "loginForContact": "<link>Log in</link> to see the Rothern ID and contact details",
+      "inPanel": "{label}: in your member panel",
+      "openInPanel": "View in panel",
+      "panelFor": "{label}: <link>view in the panel</link>",
+      "panelForContact": "The Rothern ID and contact details are <link>in the panel</link>"
     },
     "filters": {
       "updating": "Updating…",
@@ -1055,7 +1061,11 @@
       "countryMetaDescHas": "{count, plural, one {# product} other {# products}} from the showcases of suppliers based in {name}, with technical specifications, minimum order and price details. Pick the supplier and request information directly.",
       "countryMetaDescNone": "No products from suppliers based in {name} are published on Rothern yet. Browse suppliers in other countries or publish your buying request.",
       "countryLeadHas": "Products that companies based in {name} put in their Rothern showcases. Filter by city, category, activity type and price.",
-      "countryLeadNone": "No products from suppliers based in {name} are published yet. Continue with other countries or post a buying request."
+      "countryLeadNone": "No products from suppliers based in {name} are published yet. Continue with other countries or post a buying request.",
+      "connectLockedLabel": "{label} · Silver",
+      "connectLockedTitle": "Sending connection invites needs the Silver plan",
+      "connectVerifyCta": "Get verified first to connect",
+      "connectOpenInPanel": "Open company in panel"
     },
     "price": {
       "onRequest": "Price on request",

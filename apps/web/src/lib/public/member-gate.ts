@@ -85,6 +85,25 @@ export function publicBidGate(
   return userHasPermission(user, PUBLIC_BID_PERMISSION) ? "ok" : "noPermission";
 }
 
+/** Bağlantı davetinin API izni (Bağlantılar sayfası ve panel firma kartıyla aynı). */
+export const CONNECT_PERMISSION = "connections:manage";
+
+/**
+ * BAĞLANTI DAVETİ KAPISI (arayüz testi kapanış S-PUB-ADMIN): herkese açık firma
+ * profilindeki "Bağlantı isteği gönder" eskiden oturuma bakmıyordu — ücretsiz
+ * üye düğmeye basıp ancak panel firma kartında Silver kilidini görüyordu.
+ * Davet Silver ister (API invite aynası, kullanıcı kararı T-02); sıra aynı:
+ * önce paket, sonra izin (`connections:manage`).
+ */
+export function connectGate(
+  user: PermissionSubject | null | undefined,
+  company: GateCompany | null | undefined,
+): BuyingGate {
+  if (!user) return "guest";
+  if (!tierAtLeast(company?.tier ?? "STANDART", PAID_TIER)) return lockedGate(company);
+  return userHasPermission(user, CONNECT_PERMISSION) ? "ok" : "noPermission";
+}
+
 /** Kapalı kapının birincil eylemi (verify → doğrulama, upgrade → paketler). */
 export function gateHref(gate: BuyingGate): string | null {
   if (gate === "verify") return VERIFY_HREF;

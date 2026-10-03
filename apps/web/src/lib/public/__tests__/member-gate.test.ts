@@ -3,6 +3,7 @@ import {
   GOLD_HREF,
   VERIFY_HREF,
   buyingGate,
+  connectGate,
   gateHref,
   memberDirectoryTarget,
   memberProductHref,
@@ -88,5 +89,25 @@ describe("publicBidGate", () => {
     expect(publicBidGate(seller, { tier: "SILVER", companyVerificationStatus: "VERIFIED" })).toBe("ok");
     expect(publicBidGate(seller, { tier: "GOLD", companyVerificationStatus: "VERIFIED" })).toBe("ok");
     expect(publicBidGate(buyer, { tier: "SILVER", companyVerificationStatus: "VERIFIED" })).toBe("noPermission");
+  });
+});
+
+/** Arayüz testi kapanış S-PUB-ADMIN: bağlantı daveti Silver, sonra `connections:manage`. */
+describe("connectGate", () => {
+  const manager = { permissions: ["connections:manage"] };
+  it("oturum yok → misafir", () => {
+    expect(connectGate(null, null)).toBe("guest");
+  });
+
+  it("ücretsiz: izin olsa bile paket — doğrulanmamış önce doğrulama", () => {
+    expect(connectGate(manager, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" })).toBe("verify");
+    expect(connectGate(manager, { tier: "STANDART", companyVerificationStatus: "VERIFIED" })).toBe("upgrade");
+    expect(connectGate(seller, { tier: "STANDART", companyVerificationStatus: "VERIFIED" })).toBe("upgrade");
+  });
+
+  it("Silver/Gold ∧ izin → ok; izin yok → noPermission", () => {
+    expect(connectGate(manager, { tier: "SILVER", companyVerificationStatus: "VERIFIED" })).toBe("ok");
+    expect(connectGate(manager, { tier: "GOLD", companyVerificationStatus: "VERIFIED" })).toBe("ok");
+    expect(connectGate(seller, { tier: "GOLD", companyVerificationStatus: "VERIFIED" })).toBe("noPermission");
   });
 });

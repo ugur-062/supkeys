@@ -290,4 +290,26 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "/company/kayit?intent=teklif",
     );
   });
+
+  it("oturumlu üyeye tedarikçi gövdesi kayıt çağrısı yapmaz (S-PUB-ADMIN): boş talep satırı ve 'Ürün ekle' panele", () => {
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["sell:view", "sell:product:manage"], roles: [] } as never,
+      company: { tier: "STANDART", companyVerificationStatus: "VERIFIED" } as never,
+    });
+    try {
+      const { unmount } = render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
+      expect(screen.queryByRole("link", { name: "Ücretsiz kaydolun" })).toBeNull();
+      expect(screen.queryByText(/kaydolduktan sonra/)).toBeNull();
+      expect(screen.getByRole("link", { name: "Panelde açın" })).toHaveAttribute("href", "/company/satis#acik-talepler");
+      expect(screen.getByRole("link", { name: "Ürün ekle" })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
+      unmount();
+      // Vitrin yetkisi olmayan üyeye "Ürün ekle" çizilmez (önce paket, sonra izin; vitrin her pakette).
+      useCompanyAuthStore.setState({ user: { id: "u", permissions: ["buy:view"], roles: [] } as never });
+      render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
+      expect(screen.queryByRole("link", { name: "Ürün ekle" })).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
+  });
 });

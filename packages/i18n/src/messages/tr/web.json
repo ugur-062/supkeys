@@ -74,7 +74,9 @@
       "metaDescription": "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
       "metaAbsoluteTitle": "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
       "comingSoonTitle": "Çok Yakında",
-      "comingSoonDescription": "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz."
+      "comingSoonDescription": "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz.",
+      "demandsEmptyMember": "Talepler panelinizde kategorinize göre eşleşir.",
+      "openPanel": "Panelde açın"
     },
     "comingSoon": {
       "badge": "Geliştirme aşamasında",
@@ -861,7 +863,11 @@
       "loginFor": "{label} için <link>giriş yapın</link>",
       "loginForText": "{label} için giriş yapın",
       "loginForSellerSite": "Firmanın web sitesini görmek için <link>giriş yapın</link>",
-      "loginForContact": "Rothern ID ve iletişim bilgilerini görmek için <link>giriş yapın</link>"
+      "loginForContact": "Rothern ID ve iletişim bilgilerini görmek için <link>giriş yapın</link>",
+      "inPanel": "{label} üye panelinizde",
+      "openInPanel": "Panelde görüntüle",
+      "panelFor": "{label}: <link>panelde görüntüleyin</link>",
+      "panelForContact": "Rothern ID ve iletişim bilgileri <link>panelde</link>"
     },
     "filters": {
       "updating": "Güncelleniyor…",
@@ -1055,7 +1061,11 @@
       "countryMetaDescHas": "{name} merkezli tedarikçilerin Rothern vitrinlerinden {count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle. Tedarikçiyi seçin, doğrudan bilgi isteyin.",
       "countryMetaDescNone": "{name} merkezli tedarikçilerin Rothern'de henüz yayımlanmış ürünü yok. Diğer ülkelerdeki tedarikçileri inceleyin ya da alım talebinizi yayımlayın.",
       "countryLeadHas": "{name} merkezli firmaların Rothern vitrinine koyduğu ürünler. Şehir, kategori, faaliyet tipi ve fiyat bilgisine göre süzün.",
-      "countryLeadNone": "{name} merkezli tedarikçilerin henüz yayımlanmış ürünü yok. Diğer ülkelerden devam edebilir ya da alım talebi açabilirsiniz."
+      "countryLeadNone": "{name} merkezli tedarikçilerin henüz yayımlanmış ürünü yok. Diğer ülkelerden devam edebilir ya da alım talebi açabilirsiniz.",
+      "connectLockedLabel": "{label} · Silver",
+      "connectLockedTitle": "Bağlantı daveti göndermek Silver paketiyle açılır",
+      "connectVerifyCta": "Bağlantı için önce doğrulanın",
+      "connectOpenInPanel": "Firmayı panelde aç"
     },
     "price": {
       "onRequest": "Fiyat için teklif isteyin",
