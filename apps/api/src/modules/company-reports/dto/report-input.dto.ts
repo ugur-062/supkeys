@@ -8,6 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
+import { Transform } from "class-transformer";
 import { ListingFormat, ListingStatus } from "@rothern/db";
 import { CURRENCY_ENUM, type CurrencyCode } from "@rothern/shared";
 import type {
@@ -102,4 +103,30 @@ export class BidComparisonDto implements BidComparisonInput {
   @IsOptional()
   @IsBoolean()
   includeRoundHistory?: boolean;
+}
+
+/**
+ * Talep seçicisi sorgusu (`GET company/reports/listings`) — liste en yeni N
+ * taleple sınırlı olduğundan daha eskisi numara/başlıkla aranır
+ * (arayüz testi webB-1:NEW-1).
+ */
+export class ReportListingOptionsQueryDto {
+  /** Talep numarası / başlığı (katlanmış karşılaştırma). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  q?: string;
+
+  /** Seçili talep (id ya da numara) — pencere dışında kalsa da listeye eklenir. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(LISTING_REF_MAX)
+  selected?: string;
+
+  /** Taslakları ele (Teklif Karşılaştırma). */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "1" || value === "true")
+  @IsBoolean()
+  excludeDrafts?: boolean;
 }

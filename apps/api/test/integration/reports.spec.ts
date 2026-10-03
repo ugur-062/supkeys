@@ -3,7 +3,10 @@
  * Teklif Karşılaştırma. Hesaplar + kiracı izolasyonu + kapalı zarf (yalnız
  * sahip) doğrulanır.
  */
-import { CompanyReportsService } from "../../src/modules/company-reports/company-reports.service";
+import {
+  CompanyReportsService,
+  REPORT_LISTING_OPTIONS_LIMIT,
+} from "../../src/modules/company-reports/company-reports.service";
 import { ReportsExcelService } from "../../src/modules/company-reports/reports-excel.service";
 import { YES_NO_ANSWER_VALUES } from "@rothern/shared";
 import ExcelJS from "exceljs";
@@ -266,14 +269,97 @@ describe("Rapor talep seçicisi (arayüz testi T3)", () => {
     const { listing } = await awardedAlim(owner);
     await awardedAlim(outsider);
 
-    const rows = await service.listingOptions(owner.company.id);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toEqual({
+    const res = await service.listingOptions(owner.company.id);
+    expect(res.total).toBe(1);
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0]).toEqual({
       id: listing.id,
       tenderNumber: listing.number ?? "—",
       title: listing.title,
       status: "AWARDED",
     });
+  });
+
+  /**
+   * Pencereden (en yeni N) taşan eski talepler aranarak / seçili olarak
+   * erişilebilir; kesilme `total` ile bildirilir (arayüz testi webB-1:NEW-1:
+   * 505 talepli firmada ROT-000023…27 seçilemiyordu).
+   */
+  it("en yeni N ile sınırlı ama total bildirir; eski talep aranır ve seçili kalır", async () => {
+    const service = svc();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const count = REPORT_LISTING_OPTIONS_LIMIT + 3;
+    const base = Date.now() - count * 60_000;
+    await prisma.listing.createMany({
+      data: Array.from({ length: count }, (_, i) => ({
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        type: "ALIM" as const,
+        status: "OPEN" as const,
+        visibility: "PUBLIC" as const,
+        number: `ROT-T${String(i + 1).padStart(5, "0")}`,
+        title: i === 0 ? "İzmir Çelik Profil" : `Talep ${i + 1}`,
+        createdAt: new Date(base + i * 60_000),
+      })),
+    });
+    const oldest = await prisma.listing.findFirstOrThrow({
+      where: { number: "ROT-T00001" },
+      select: { id: true },
+    });
+
+    const page = await service.listingOptions(owner.company.id);
+    expect(page.total).toBe(count);
+    expect(page.limit).toBe(REPORT_LISTING_OPTIONS_LIMIT);
+    expect(page.items).toHaveLength(REPORT_LISTING_OPTIONS_LIMIT);
+    expect(page.items[0]!.tenderNumber).toBe(`ROT-T${String(count).padStart(5, "0")}`);
+    expect(page.items.some((r) => r.id === oldest.id)).toBe(false);
+
+    // Numarayla ve katlanmış başlıkla (İ/ı, aksan) aranır.
+    const byNumber = await service.listingOptions(owner.company.id, { q: "rot-t00001" });
+    expect(byNumber.items.map((r) => r.id)).toEqual([oldest.id]);
+    expect(byNumber.total).toBe(1);
+    const byTitle = await service.listingOptions(owner.company.id, { q: "izmir celik" });
+    expect(byTitle.items.map((r) => r.id)).toEqual([oldest.id]);
+
+    // Seçili (URL'den geri yüklenen) eski talep pencere dışında da listede.
+    const withSelected = await service.listingOptions(owner.company.id, {
+      selected: oldest.id,
+    });
+    expect(withSelected.items).toHaveLength(REPORT_LISTING_OPTIONS_LIMIT + 1);
+    expect(withSelected.items.at(-1)!.id).toBe(oldest.id);
+    // Başka firmanın talebi `selected` ile sızmaz.
+    const outsider = await makeCompanyWithUser(prisma, { country: "TR" });
+    const foreign = await service.listingOptions(outsider.company.id, {
+      selected: oldest.id,
+    });
+    expect(foreign.items).toHaveLength(0);
+    expect(foreign.total).toBe(0);
+  });
+
+  it("excludeDrafts taslakları sunucuda eler (Teklif Karşılaştırma)", async () => {
+    const service = svc();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const draft = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      status: "DRAFT",
+    });
+    const open = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      status: "OPEN",
+    });
+    const all = await service.listingOptions(owner.company.id);
+    expect(all.total).toBe(2);
+    const live = await service.listingOptions(owner.company.id, { excludeDrafts: true });
+    expect(live.items.map((r) => r.id)).toEqual([open.id]);
+    expect(live.total).toBe(1);
+    // Seçili taslak da excludeDrafts altında eklenmez.
+    const sel = await service.listingOptions(owner.company.id, {
+      excludeDrafts: true,
+      selected: draft.id,
+    });
+    expect(sel.items.map((r) => r.id)).toEqual([open.id]);
   });
 });
 

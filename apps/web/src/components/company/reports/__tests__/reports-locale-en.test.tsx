@@ -40,7 +40,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/use-company-reports", () => ({
-  useReportListingOptions: () => ({ data: [], isLoading: false }),
+  useReportListingOptions: () => ({
+    data: { items: [], total: 0, limit: 500 },
+    isLoading: false,
+  }),
   useBidComparisonReport: () => ({ mutateAsync: vi.fn(), isPending: false, data: h.bidData }),
   useDownloadBidComparisonReport: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSavingsReport: () => ({ mutateAsync: vi.fn(), isPending: false, data: h.savingsData }),

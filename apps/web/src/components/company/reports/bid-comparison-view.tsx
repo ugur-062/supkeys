@@ -10,10 +10,9 @@ import {
   Checkbox,
   CheckboxField,
 } from "@/components/catalyst/checkbox";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Radio, RadioField, RadioGroup } from "@/components/catalyst/radio";
-import { Select } from "@/components/catalyst/select";
 import {
   Table,
   TableBody,
@@ -25,7 +24,6 @@ import {
 import { Text } from "@/components/catalyst/text";
 import {
   useBidComparisonReport,
-  useReportListingOptions,
   useDownloadBidComparisonReport,
   type BidComparisonPayload,
   type ReportType,
@@ -38,6 +36,7 @@ import { Link } from "@/i18n/navigation";
 import { MONEY_FRACTION } from "@/lib/line-amount";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ReportListingPicker } from "./report-listing-picker";
 import { readReportQuery, writeReportQuery } from "./report-url-state";
 
 /**
@@ -99,7 +98,6 @@ export function BidComparisonView({
   const [showBidCurrencies, setShowBidCurrencies] = useState(false);
   const [includeRoundHistory, setIncludeRoundHistory] = useState(false);
 
-  const myTenders = useReportListingOptions();
   const report = useBidComparisonReport();
   const download = useDownloadBidComparisonReport();
 
@@ -189,22 +187,13 @@ export function BidComparisonView({
 
       {/* Kriter kartı */}
       <section className="space-y-4 card p-5 shadow-sm">
-        <Field>
-          <Label>{tr("satinAlmaTalebi")}</Label>
-          <Select
-            value={listingId}
-            onChange={(e) => setListingId(e.target.value)}
-          >
-            <option value="">{tr("secin")}</option>
-            {(myTenders.data ?? [])
-              .filter((t) => t.status !== "DRAFT")
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.tenderNumber} — {t.title}
-                </option>
-              ))}
-          </Select>
-        </Field>
+        <ReportListingPicker
+          value={listingId}
+          onChange={setListingId}
+          label={tr("satinAlmaTalebi")}
+          placeholder={tr("secin")}
+          excludeDrafts
+        />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="mb-2 text-xs font-medium text-zinc-500">

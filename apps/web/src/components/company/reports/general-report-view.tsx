@@ -25,7 +25,6 @@ import { Text } from "@/components/catalyst/text";
 import {
   useDownloadGeneralReport,
   useGeneralReport,
-  useReportListingOptions,
   type GeneralPayload,
   type ReportType,
 } from "@/hooks/use-company-reports";
@@ -37,6 +36,7 @@ import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
+import { ReportListingPicker } from "./report-listing-picker";
 import { isDayValue, isInvertedRange, readReportQuery, writeReportQuery } from "./report-url-state";
 
 // Durum etiketi katalogdan (`useListingStatusLabel`); burada yalnız süzgeç sırası
@@ -124,7 +124,6 @@ export function GeneralReportView({
   const [status, setStatus] = useState("");
   const [currency, setCurrency] = useState("");
 
-  const myTenders = useReportListingOptions();
   const { user } = useCompanyAuth();
   const canOpenListing = userHasPermission(user, "buy:view");
   const report = useGeneralReport();
@@ -266,20 +265,12 @@ export function GeneralReportView({
         </div>
 
         {mode === "SINGLE" ? (
-          <Field>
-            <Label>{tr("satinAlmaTalebi")}</Label>
-            <Select
-              value={listingId}
-              onChange={(e) => setListingId(e.target.value)}
-            >
-              <option value="">{tr("secin")}</option>
-              {(myTenders.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.tenderNumber} — {t.title}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <ReportListingPicker
+            value={listingId}
+            onChange={setListingId}
+            label={tr("satinAlmaTalebi")}
+            placeholder={tr("secin")}
+          />
         ) : null}
 
         {mode === "RANGE" ? (

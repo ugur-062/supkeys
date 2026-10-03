@@ -28,7 +28,10 @@ vi.mock("@/hooks/use-company-reports", () => ({
     isPending: h.downloadPending,
   }),
   // Seçici rapor izniyle açılan uçtan (arayüz testi T3).
-  useReportListingOptions: () => ({ data: h.tenders }),
+  // Yanıt sayfalı: en yeni N + toplam (arayüz testi webB-1:NEW-1).
+  useReportListingOptions: () => ({
+    data: { items: h.tenders, total: h.tenders.length, limit: 500 },
+  }),
 }));
 
 import { useCompanyAuthStore } from "@/lib/company-auth/store";

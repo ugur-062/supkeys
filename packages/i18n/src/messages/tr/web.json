@@ -7096,6 +7096,13 @@
         "yuzde": "%{n}",
         "siparislerOrtalamaCur": "Tüm siparişler, {currency} karşılığı — ortalama {avg}",
         "siparislerCur": "Tüm siparişler, {currency} karşılığı"
+      },
+      "listingPicker": {
+        "aramaEtiketi": "Satın alma talebi ara",
+        "aramaYerTutucu": "Numara veya başlıkla ara",
+        "enYeniListeleniyor": "Toplam {total, number} talebin en yeni {shown, number} tanesi listeleniyor. Daha eskisi için numara veya başlıkla arayın.",
+        "aramaKesildi": "Eşleşen {total, number} talebin ilk {shown, number} tanesi listeleniyor. Aramayı daraltın.",
+        "eslesenYok": "Aramayla eşleşen satın alma talebi yok."
       }
     },
     "approvals": {

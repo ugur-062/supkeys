@@ -7096,6 +7096,13 @@
         "yuzde": "{n}%",
         "siparislerOrtalamaCur": "All orders, in {currency} — average {avg}",
         "siparislerCur": "All orders, in {currency}"
+      },
+      "listingPicker": {
+        "aramaEtiketi": "Search buying requests",
+        "aramaYerTutucu": "Search by number or title",
+        "enYeniListeleniyor": "Showing the newest {shown, number} of {total, plural, one {# buying request} other {# buying requests}}. Search by number or title to find older ones.",
+        "aramaKesildi": "Showing the first {shown, number} of {total, plural, one {# matching buying request} other {# matching buying requests}}. Narrow your search.",
+        "eslesenYok": "No buying requests match your search."
       }
     },
     "approvals": {

@@ -1,7 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 
 export type ReportType = "ALIM";
 
@@ -217,19 +217,39 @@ export interface ReportListingOption {
   status: string;
 }
 
+/** Seçici yanıtı: en yeni `limit` talep + eşleşen tüm talep sayısı. */
+export interface ReportListingOptionsPage {
+  items: ReportListingOption[];
+  total: number;
+  limit: number;
+}
+
 /**
  * Rapor ekranlarının talep seçicisi — `GET company/reports/listings` rapor
  * izniyle (buy:reports:view) açılır; Taleplerim listesi (buy:view) yalnız
  * rapor yetkilisine 403 veriyordu (arayüz testi T3).
+ *
+ * Sunucu en yeni `limit` talebi döner; daha eskisi `q` (numara/başlık) ile
+ * aranır, `selected` pencere dışında kalsa da listede tutulur
+ * (arayüz testi webB-1:NEW-1).
  */
-export function useReportListingOptions() {
-  return useQuery<ReportListingOption[]>({
-    queryKey: ["company-report-listings"],
+export function useReportListingOptions(
+  params: { q?: string; selected?: string; excludeDrafts?: boolean } = {},
+) {
+  const q = params.q?.trim() || undefined;
+  const selected = params.selected?.trim() || undefined;
+  const excludeDrafts = params.excludeDrafts || undefined;
+  return useQuery<ReportListingOptionsPage>({
+    queryKey: ["company-report-listings", { q, selected, excludeDrafts }],
     queryFn: async () => {
-      const { data } = await companyApi.get<ReportListingOption[]>("/company/reports/listings");
+      const { data } = await companyApi.get<ReportListingOptionsPage>(
+        "/company/reports/listings",
+        { params: { q, selected, excludeDrafts: excludeDrafts ? "1" : undefined } },
+      );
       return data;
     },
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 }
 

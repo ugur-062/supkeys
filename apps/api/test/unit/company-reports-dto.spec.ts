@@ -3,6 +3,7 @@ import { validate } from "class-validator";
 import {
   BidComparisonDto,
   GeneralReportDto,
+  ReportListingOptionsQueryDto,
   SavingsReportDto,
 } from "../../src/modules/company-reports/dto/report-input.dto";
 
@@ -102,5 +103,33 @@ describe("BidComparisonDto", () => {
     expect(await errorsOf(BidComparisonDto, { ...base, includeNonBidders: "yes" })).toContain(
       "includeNonBidders",
     );
+  });
+});
+
+/** Talep seçicisi sorgusu (arayüz testi webB-1:NEW-1). */
+describe("ReportListingOptionsQueryDto", () => {
+  it("web istemcisinin sorgusu geçerli; excludeDrafts '1' → true, q kırpılır", async () => {
+    expect(
+      await errorsOf(ReportListingOptionsQueryDto, {
+        q: "  ROT-000023 ",
+        selected: "ROT-000023",
+        excludeDrafts: "1",
+      }),
+    ).toEqual([]);
+    expect(await errorsOf(ReportListingOptionsQueryDto, {})).toEqual([]);
+    const dto = plainToInstance(ReportListingOptionsQueryDto, {
+      q: "  çelik ",
+      excludeDrafts: "1",
+    });
+    expect(dto.q).toBe("çelik");
+    expect(dto.excludeDrafts).toBe(true);
+  });
+
+  it("aşırı uzun arama/seçim ve bilinmeyen parametre reddedilir", async () => {
+    expect(await errorsOf(ReportListingOptionsQueryDto, { q: "x".repeat(121) })).toContain("q");
+    expect(
+      await errorsOf(ReportListingOptionsQueryDto, { selected: "x".repeat(65) }),
+    ).toContain("selected");
+    expect(await errorsOf(ReportListingOptionsQueryDto, { take: "5000" })).toContain("take");
   });
 });

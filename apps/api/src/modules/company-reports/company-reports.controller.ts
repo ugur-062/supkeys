@@ -9,6 +9,7 @@ import {
   ForbiddenException,
   Get,
   Post,
+  Query,
   Res,
   StreamableFile,
   UseGuards,
@@ -27,6 +28,7 @@ import { CompanyReportsService } from "./company-reports.service";
 import {
   BidComparisonDto,
   GeneralReportDto,
+  ReportListingOptionsQueryDto,
   SavingsReportDto,
 } from "./dto/report-input.dto";
 import { ReportsExcelService } from "./reports-excel.service";
@@ -111,9 +113,12 @@ export class CompanyReportsController {
 
   /** Talep seçicisi (Genel tekil + Teklif Karşılaştırma) — rapor izni yeter. */
   @Get("listings")
-  listingOptions(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+  listingOptions(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query() query: ReportListingOptionsQueryDto,
+  ) {
     assertAllowed(user);
-    return this.service.listingOptions(user.companyId);
+    return this.service.listingOptions(user.companyId, query);
   }
 
   /** Hub özet grafikleri (denetim §10.5) — kriter yok. */

@@ -21269,6 +21269,31 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.reports.listingPicker.aramaEtiketi": {
+    "hash": "7e59b1f36b",
+    "status": "reviewed",
+    "at": "2026-10-03"
+  },
+  "web.panel.reports.listingPicker.aramaKesildi": {
+    "hash": "49e2842713",
+    "status": "reviewed",
+    "at": "2026-10-03"
+  },
+  "web.panel.reports.listingPicker.aramaYerTutucu": {
+    "hash": "ff9f8481ee",
+    "status": "reviewed",
+    "at": "2026-10-03"
+  },
+  "web.panel.reports.listingPicker.enYeniListeleniyor": {
+    "hash": "e1733015b1",
+    "status": "reviewed",
+    "at": "2026-10-03"
+  },
+  "web.panel.reports.listingPicker.eslesenYok": {
+    "hash": "4b6a266656",
+    "status": "reviewed",
+    "at": "2026-10-03"
+  },
   "web.panel.reports.raporlarIsAnaliziLayout.buSayfaZiyaretEdenlerVe": {
     "hash": "f87d4f5fdf",
     "status": "reviewed",

@@ -7096,6 +7096,13 @@
         "yuzde": "{n}%",
         "siparislerOrtalamaCur": "Все заказы, в {currency} — в среднем {avg}",
         "siparislerCur": "Все заказы, в {currency}"
+      },
+      "listingPicker": {
+        "aramaEtiketi": "Поиск заявки на закупку",
+        "aramaYerTutucu": "Поиск по номеру или названию",
+        "enYeniListeleniyor": "{total, plural, one {Всего # заявка} few {Всего # заявки} many {Всего # заявок} other {Всего # заявки}}, показаны последние {shown, number}. Чтобы найти более ранние, ищите по номеру или названию.",
+        "aramaKesildi": "{total, plural, one {Найдена # заявка} few {Найдено # заявки} many {Найдено # заявок} other {Найдено # заявки}}, показаны первые {shown, number}. Уточните запрос.",
+        "eslesenYok": "Заявки на закупку по Вашему запросу не найдены."
       }
     },
     "approvals": {

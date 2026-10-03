@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
-import { YES_NO_ANSWER_VALUES } from "@rothern/shared";
+import { YES_NO_ANSWER_VALUES, foldSearchText } from "@rothern/shared";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -143,6 +143,9 @@ const round2 = (n: number) => Math.round(n * 100) / 100 + 0;
  */
 const roundPct = (n: number) => Math.round(n * 1e6) / 1e6 + 0;
 
+/** Rapor talep seçicisinin tek seferde döndürdüğü en çok talep (en yeniler). */
+export const REPORT_LISTING_OPTIONS_LIMIT = 500;
+
 @Injectable()
 export class CompanyReportsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -160,28 +163,78 @@ export class CompanyReportsService {
     return reportCurrencyOf(company);
   }
 
-  /** Numara (ROT-…) ya da id → sahibin ilanının id'si (scope'ta değilse 404). */
   /**
    * Rapor ekranlarının talep seçicisi — firmanın kendi alım talepleri, yalnız
    * seçim için gereken alanlar. Rapor izni (`buy:reports:view`) tek başına
    * yeter: eskiden seçici `GET listings/tenders`'ı (buy:view) çağırıyor, yalnız
    * rapor yetkilisinde 403 tostu + boş liste çıkıyordu (arayüz testi T3).
+   *
+   * EN YENİ `REPORT_LISTING_OPTIONS_LIMIT` talep döner; `total` eşleşen tüm
+   * talep sayısıdır. Eskiden sessizce ilk 500'de kesiliyor, 505 talepli firmada
+   * en eski 5 talep hiç seçilemiyordu (arayüz testi webB-1:NEW-1). Artık:
+   *  - `q` numara/başlıkta KATLANMIŞ arama yapar (İ/ı, aksan — DB ILIKE bunu
+   *    yapamaz) → her talep aranarak seçilebilir;
+   *  - `selected` (URL'den geri yüklenen ya da aramadan önce seçilmiş talep)
+   *    pencere dışındaysa listeye eklenir, seçim kaybolmaz;
+   *  - `excludeDrafts` taslakları SUNUCUDA eler (Teklif Karşılaştırma) — istemci
+   *    süzgeci kesilmiş listede gerçek talepleri pencereden itiyordu.
    */
-  async listingOptions(companyId: string) {
-    const rows = await this.prisma.listing.findMany({
-      where: { companyId, type: "ALIM" },
-      select: { id: true, number: true, title: true, status: true },
-      orderBy: { createdAt: "desc" },
-      take: 500,
-    });
-    return rows.map((r) => ({
-      id: r.id,
-      tenderNumber: r.number ?? "—",
-      title: r.title,
-      status: r.status,
-    }));
+  async listingOptions(
+    companyId: string,
+    opts: { q?: string; selected?: string; excludeDrafts?: boolean } = {},
+  ) {
+    const where: Prisma.ListingWhereInput = {
+      companyId,
+      type: "ALIM",
+      ...(opts.excludeDrafts ? { status: { not: "DRAFT" as const } } : {}),
+    };
+    const select = { id: true, number: true, title: true, status: true } as const;
+    const orderBy = [{ createdAt: "desc" as const }, { id: "desc" as const }];
+    const limit = REPORT_LISTING_OPTIONS_LIMIT;
+
+    const needle = opts.q ? foldSearchText(opts.q) : "";
+    let rows: { id: string; number: string | null; title: string; status: string }[];
+    let total: number;
+    if (needle) {
+      // Firmanın KENDİ alım talepleri üzerinde hafif projeksiyon yeterli
+      // (company-listings `myBids` araması ile aynı desen).
+      const all = await this.prisma.listing.findMany({ where, select, orderBy });
+      const hits = all.filter(
+        (r) =>
+          foldSearchText(r.number ?? "").includes(needle) ||
+          foldSearchText(r.title).includes(needle),
+      );
+      total = hits.length;
+      rows = hits.slice(0, limit);
+    } else {
+      [rows, total] = await Promise.all([
+        this.prisma.listing.findMany({ where, select, orderBy, take: limit }),
+        this.prisma.listing.count({ where }),
+      ]);
+    }
+
+    const sel = opts.selected?.trim();
+    if (sel && !rows.some((r) => r.id === sel || r.number === sel)) {
+      const one = await this.prisma.listing.findFirst({
+        where: { ...where, OR: [{ id: sel }, { number: sel }] },
+        select,
+      });
+      if (one) rows = [...rows, one];
+    }
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        tenderNumber: r.number ?? "—",
+        title: r.title,
+        status: r.status,
+      })),
+      total,
+      limit,
+    };
   }
 
+  /** Numara (ROT-…) ya da id → sahibin ilanının id'si (scope'ta değilse 404). */
   private async resolveListingId(
     companyId: string,
     idOrNumber: string,
