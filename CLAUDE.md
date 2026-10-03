@@ -3219,9 +3219,9 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 ## Test & Kalite
 
 - API **304 dosya / 3.496 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
-  **330 / 2.349** · admin **64 / 380** · i18n **11 / 65** (vitest toplamı 405 / 2.794; i18n 8.392 anahtar, en/ru
-  %100) — son kapı HEAD 45207910 YEŞİL, 709 dosya / 6.290 test (6.288 geçti, 2 atlandı), arayüz testi kalanlar
-  2026-10-03. Ayrı tam API koşusu HEAD fcb6cf54'te (kod 44cb6ff4) 3.495 test yeşil.
+  **331 / 2.371** · admin **64 / 380** · i18n **11 / 65** (vitest toplamı 406 / 2.816; i18n 8.392 anahtar, en/ru
+  %100) — son kapı HEAD 8d1d9235 YEŞİL, 710 dosya / 6.312 test (2 LIVE atlandı), canlı öncesi küçük tur
+  2026-10-03. Web `onboarding-client` D-065 tam paralel koşuda 15 sn sınırına yakın (kararsız; tek başına yeşil).
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
@@ -3281,6 +3281,12 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
   servisin dönüşünü kontrol eder (ör. `approvals/pending` `listingId` değil `listing.id`
   döner) ve bulamayınca `rows[0]`a düşmek yerine hata verir. Rol spec'leri izlenen
   `docs/qa-role-*.md`'nin üzerine yazar → koşumdan sonra `git status` temiz olmalı.
+  **Adres ve kalıcı kayıt (canlı öncesi 2026-10-03):** akış spec'leri yeni teslimat adresi
+  AÇMAZ, `qaDeliveryAddressId(session)` kullanır (firma 200 adres sınırı; açık talepteki adres
+  silinemez). Admin adımından önce kalıcı kayıt bırakan spec (ör. PENDING ürün; ürün silme ucu yok)
+  önce `tryAdminApiSession()` ile admin'i dener, yoksa `test.skip` + gerekçe notu. Aynı tutarda
+  iki bekleyen ödeme çift tıklama korumasına (`DUPLICATE_PAYMENT`) takılır → kısmi ödemeler eşit
+  bölünmez. Perf kapısı 9 ölçümde p90 + p50.
   **429 metni Türkçe (2026-09-19):** `ThrottlerModule` `errorMessage` →
   `common/http/throttle-message.ts` (giriş formu API mesajını olduğu gibi
   basıyor; kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi).
@@ -3574,7 +3580,14 @@ kapanış 2026-10-02/03) `docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın d
 - **Kesinti ≠ boş veri (web):** `lib/public/marketplace-api.ts` ana veri
   çağrıları (`getJson(..., critical=true)`, `getDetail`) ağ hatası/5xx/429'da
   çalışma anında `PublicApiUnavailableError` atar (ISR son iyi sürümü korur);
-  404/4xx = gerçek yok; `next build`de atılmaz. İkincil bloklar yedekle kalır.
+  `next build`de atılmaz (yedek). Kritik liste çağrısı (`getJson` critical) 404 DIŞINDAKİ her
+  4xx'i de kesinti sayar — dağıtım penceresinde eski API yeni parametreye 400 döner, boş liste
+  ISR'a yazılmaz (canlı öncesi 2026-10-03); 404 = gerçek yok. `getDetail` diğer 4xx'te null döner.
+  Kritik listeye giden kullanıcı girdisi API sınırlarına kırpılır (süzgeç ayrıştırıcıları,
+  `fetchCompanyProducts`), yoksa elle uzatılmış URL hata sayfasına düşer. Yayında önce API, sonra
+  web (runbook §15.2 adım 6). İkincil bloklar yedekle kalır.
+  Süzgeçte şehir etiketi (`labelFor` ve çip) tek kaynaktan: `use-geo-city-name.ts`
+  `useCityFilterLabel` (facet → TR ili → önbellek → API; ham `de-munich` yazılmaz).
   Sunucudan `/public/*` çağıran sayfa düz `fetch` değil `publicHeaders(locale)` kullanır (dil,
   SSR sırrı, ziyaretçi IP'si; dinamik sayfada önce `attributeSsrToVisitor()`); ikincil bloklar
   kritik olmayan yardımcıyla (`fetchSimilarListings`/`fetchRelatedProducts`), `crossCounts`
