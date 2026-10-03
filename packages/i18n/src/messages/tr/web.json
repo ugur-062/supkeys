@@ -6207,6 +6207,9 @@
         "kaldirilanIzinler": "kaldırılan izinler: {list}",
         "yeniIzinler": "izinler: {list}",
         "koltukSecimi": "koltuk sınırı: {limit} · kalan koltuk: {kept} · işlem yetkisi kaldırılan: {dropped} kişi",
+        "roller": "roller: {list}",
+        "oncekiRoller": "önceki roller: {list}",
+        "goruntuleyici": "Görüntüleyici",
         "reason": {
           "not_admin_grant": "Yönetici yetkisi olmadan rol atama denemesi",
           "not_admin": "Yönetici rolüne yetkisiz müdahale denemesi",

@@ -6207,6 +6207,9 @@
         "kaldirilanIzinler": "сняты права: {list}",
         "yeniIzinler": "права: {list}",
         "koltukSecimi": "лимит мест: {limit} · оставлено мест: {kept} · сняты права на операции: {dropped, plural, one {# пользователь} few {# пользователя} many {# пользователей} other {# пользователя}}",
+        "roller": "роли: {list}",
+        "oncekiRoller": "прежние роли: {list}",
+        "goruntuleyici": "Наблюдатель",
         "reason": {
           "not_admin_grant": "Попытка назначить роль без прав руководителя",
           "not_admin": "Попытка без прав изменить роль руководителя",

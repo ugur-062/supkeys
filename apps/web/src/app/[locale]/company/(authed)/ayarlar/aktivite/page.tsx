@@ -24,7 +24,12 @@ import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 import { formatDate } from "@/lib/format-date";
 import { useAuditActionLabel, useRoleLabel } from "@/i18n/domain";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { tierAtLeast } from "@rothern/shared";
+import {
+  normalizePermissions,
+  permissionsForRoles,
+  tierAtLeast,
+  VIEWER_PRESET,
+} from "@rothern/shared";
 import { useDocLabels, type DocKind } from "@/hooks/use-company-docs";
 
 /** `company.docs.*` kayıtlarındaki `kind` — bilinen belge anahtarları (API DOC_META). */
@@ -134,6 +139,35 @@ export default function AktivitePage() {
           : t("yeniRoller", { list: after.map(roleLabel).join(", ") || "—" }),
       );
     }
+    // İlk yetki verilişi (company.user.invited / invitation_accepted):
+    // metadata `{roles, permissions}` taşır ama satırın hedef kişisi yoktu
+    // (davette entityLabel çözülmez) → Detay boş kalıyordu (arayüz testi
+    // kapanış api-2:NEW-1). Rol etiketleri, rolsüz liste "Görüntüleyici"
+    // (Kullanıcılar sayfasındaki rozetle aynı ölçüt); izinler yalnız hazır
+    // setten saparsa (kişiye özel) listelenir — admin denetimiyle aynı bilgi.
+    if (Array.isArray(m.roles) && Array.isArray(m.permissions)) {
+      const roles = strList(m.roles);
+      const perms = normalizePermissions(strList(m.permissions));
+      parts.push(
+        t("roller", {
+          list: roles.length
+            ? roles.map(roleLabel).join(", ")
+            : perms.length
+              ? t("goruntuleyici")
+              : "—",
+        }),
+      );
+      const preset = new Set(
+        roles.length ? permissionsForRoles(roles) : normalizePermissions(VIEWER_PRESET),
+      );
+      const custom =
+        perms.length !== preset.size || perms.some((k) => !preset.has(k));
+      if (custom && perms.length)
+        parts.push(t("yeniIzinler", { list: perms.map(permLabel).join(", ") }));
+    }
+    // Üye çıkarma: hedef kişinin önceki rolleri (iş çıkışında ne kapandı).
+    if (Array.isArray(m.previousRoles) && m.previousRoles.length)
+      parts.push(t("oncekiRoller", { list: strList(m.previousRoles).map(roleLabel).join(", ") }));
     // Koltuk seçimi: paket sınırı, kalan koltuk ve işlem yetkisi kaldırılan
     // kişi sayısı — admin Denetim sekmesiyle aynı özet; Detay boş kalıyordu
     // (arayüz testi son tur api-2).

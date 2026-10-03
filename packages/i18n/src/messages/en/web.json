@@ -6207,6 +6207,9 @@
         "kaldirilanIzinler": "permissions removed: {list}",
         "yeniIzinler": "permissions: {list}",
         "koltukSecimi": "seat limit: {limit} · seats kept: {kept} · trading permissions removed: {dropped, plural, one {# person} other {# people}}",
+        "roller": "roles: {list}",
+        "oncekiRoller": "previous roles: {list}",
+        "goruntuleyici": "Viewer",
         "reason": {
           "not_admin_grant": "Role assignment attempted without manager permission",
           "not_admin": "Unauthorized attempt to change a manager's role",

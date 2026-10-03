@@ -139,3 +139,63 @@ describe("AktivitePage — koltuk seçimi satırı", () => {
     ).toBeGreaterThan(0);
   });
 });
+
+// Arayüz testi kapanış api-2:NEW-1: davet satırının Detay'ı boştu — metadata
+// `{roles, permissions}` eşlenmiyordu.
+describe("AktivitePage — davet / kabul / çıkarma satırları", () => {
+  it("hazır set daveti yalnız rol etiketiyle; ham rol anahtarı basılmaz", () => {
+    h.items = [
+      row("company.user.invited", {
+        roles: ["SATISCI"],
+        permissions: [
+          "sell:view",
+          "sell:bid:submit",
+          "sell:order:manage",
+          "sell:product:manage",
+          "sell:inquiry:reply",
+          "connections:manage",
+          "addresses:manage",
+          "insights:view",
+        ],
+      }),
+    ];
+    render(<AktivitePage />);
+    expect(screen.getAllByText("roller: Satışçı").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/SATISCI/)).not.toBeInTheDocument();
+  });
+
+  it("hazır setten sapan davet izinleri de etiketle listeler; rolsüz liste Görüntüleyici", () => {
+    h.items = [
+      row("company.user.invited", { roles: ["ONAYLAYICI"], permissions: ["approval:act", "buy:view"] }),
+      row("company.user.invitation_accepted", {
+        invitationId: "i1",
+        roles: [],
+        permissions: ["buy:view", "sell:view", "buy:reports:view"],
+      }),
+    ];
+    render(<AktivitePage />);
+    const custom = screen.getAllByText(/^roller: Onaylayıcı · izinler: /);
+    expect(custom.length).toBeGreaterThan(0);
+    expect(custom[0].textContent).toContain("Onaylama");
+    expect(custom[0].textContent).not.toMatch(/approval:act|buy:view/);
+    expect(screen.getAllByText("roller: Görüntüleyici").length).toBeGreaterThan(0);
+  });
+
+  it("izin üzerine yazma satırı (roles var, permissions yok) rol özeti eklemez; çıkarma önceki rolleri yazar", () => {
+    h.items = [
+      row("company.user.permissions_overridden", {
+        roles: ["SATISCI"],
+        rolesAfter: ["SATISCI"],
+        before: ["sell:view"],
+        after: ["sell:view", "sell:bid:submit"],
+        added: ["sell:bid:submit"],
+        removed: [],
+      }),
+      row("company.user.removed", { previousRoles: ["SATIN_ALMACI"] }),
+    ];
+    render(<AktivitePage />);
+    expect(screen.getAllByText("eklenen izinler: Teklif verme").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^roller: /)).not.toBeInTheDocument();
+    expect(screen.getAllByText("önceki roller: Satın Almacı").length).toBeGreaterThan(0);
+  });
+});
