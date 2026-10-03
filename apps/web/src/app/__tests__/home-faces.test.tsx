@@ -145,6 +145,51 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     }
   });
 
+  it("oturumlu üyede tedarikçi notu 'Ücretsiz kaydolun' DEMEZ (webA-1): Silver ∧ izin panel, ücretsiz '· Silver', izinsiz not yok", () => {
+    const signIn = (tier: string, status: string, permissions: string[]) =>
+      useCompanyAuthStore.setState({
+        isHydrated: true,
+        user: { id: "u", permissions, roles: [] } as never,
+        company: { tier, companyVerificationStatus: status } as never,
+      });
+    try {
+      signIn("SILVER", "VERIFIED", ["sell:view", "sell:bid:submit"]);
+      let r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: /^Açık talepleri görün$/ })).toHaveAttribute(
+        "href",
+        "/company/satis#acik-talepler",
+      );
+      r.unmount();
+
+      signIn("STANDART", "VERIFIED", ["sell:view", "sell:bid:submit"]);
+      r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: /Açık talepleri görün · Silver/ })).toHaveAttribute(
+        "href",
+        "/company/premium",
+      );
+      r.unmount();
+
+      signIn("STANDART", "UNVERIFIED", ["sell:view", "sell:bid:submit"]);
+      r = hero();
+      expect(screen.getByRole("link", { name: /Açık talepleri görün · Silver/ })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      r.unmount();
+
+      // Silver ama teklif izni yok (Satın Almacı / Görüntüleyici): teklif çağrısı yok.
+      signIn("SILVER", "VERIFIED", ["buy:view"]);
+      hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.queryByRole("link", { name: /Açık talepleri görün/ })).toBeNull();
+      expect(screen.queryByText(/herkese açık taleplere Silver ile teklif verin/)).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
+  });
+
   it("ALICI gövdesi: 'size uygun' ve 'öne çıkan' YOK — hero'dan sonra DOĞRUDAN kategoriler (2026-09-22)", () => {
     render(
       <HomeBuyer

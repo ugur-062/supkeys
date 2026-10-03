@@ -19,6 +19,15 @@ const SILVER_KEYS = [
   "marketplace.pages.demandsLead",
   "marketplace.pages.demandsMetaDesc",
   "marketplace.pages.gateAsideHint",
+  // Talep detayı ALICI kartı + "Talep bilgileri" kilit notu ve llms.txt
+  // kuralı (arayüz testi kapanış webA-1): alıcı kimliği/şartname "kayıtlı
+  // kullanıcılara açık" değil, Silver (davetliye ücretsiz) ile açılır.
+  "marketplace.listing.identityNote",
+  "marketplace.listing.membersNote",
+  "marketplace.listing.gateHint",
+  "marketplace.listing.gateHintClosed",
+  "marketplace.listing.silverNote",
+  "marketing.llms.ruleItems",
 ];
 const GOLD_KEYS = [
   "marketing.home.seoParagraph",
@@ -34,16 +43,19 @@ const FREE_PROMISE: Record<(typeof LOCALES)[number], RegExp[]> = {
     /teklif vermek ücretsiz/i,
     /(teklif vermek|alıcı(yı| bilgilerini) görmek|bilgi talebi|bağlantı kurmak)[^.;]*için ücretsiz (hesap|kaydol)/i,
     /ücretsiz yayımlay/i,
+    /yalnız(ca)? kayıtlı (kullanıcı|firma|üye)/i,
   ],
   en: [
     /quoting is free/i,
     /free account (lets you|for|is needed to) [^.;]*(quote|inquir|connect|buyer)/i,
     /publish [^.;]*for free/i,
+    /registered (users|companies|members) only|only (to|for) registered/i,
   ],
   ru: [
     /предложений бесплатна/i,
     /бесплатный аккаунт (открывает|позволяет|нужен)[^.;]*(предложени|запрос|связ|покупател)/i,
     /бесплатно опубликуйте/i,
+    /только зарегистрированн/i,
   ],
 };
 

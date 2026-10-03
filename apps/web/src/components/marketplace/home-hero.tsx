@@ -6,9 +6,10 @@ import { AudienceSwitch, useAudience } from "./audience-switch";
 import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { signupHref } from "@/lib/public/visibility";
+import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
 import { gateHref } from "@/lib/public/member-gate";
 import { NEW_REQUEST_PATH, useBuyingGate } from "./member-cta";
+import { usePublicBidGate } from "./listing-bid-cta";
 import { Suspense } from "react";
 
 /**
@@ -61,6 +62,27 @@ export function HomeHero() {
           label: lockedHref ? tGate("lockedLabel", { label: t("buyerCtaLabel") }) : t("buyerCtaLabel"),
           href: lockedHref ?? (gate === "ok" ? NEW_REQUEST_PATH : signupHref("talep")),
         };
+  /* TEDARİKÇİ "TEKLİF" NOTU da oturuma göre (arayüz testi kapanış webA-1):
+     eskiden herkese "Ücretsiz kaydolun" basılıyordu — oturumlu üye kayıt
+     sayfasından panele atılıyor, teklif izni olmayan Silver üyeye de teklif
+     çağrısı yapılıyordu. Misafir → kayıt; Silver ∧ `sell:bid:submit` → panelin
+     açık talepler listesi; Silver değil → "· Silver" (doğrulama/paket); izin
+     yok → not çizilmez (önce paket, sonra izin). */
+  const tBid = useTranslations("web.marketplace.bidGate");
+  const bidGate = usePublicBidGate();
+  const bidLockedHref = gateHref(bidGate);
+  const supplierCtaNote =
+    bidGate === "noPermission"
+      ? undefined
+      : bidGate === "guest"
+        ? { text: t("supplierCtaText"), label: t("supplierCtaLabel"), href: signupHref("teklif") }
+        : {
+            text: t("supplierCtaText"),
+            label: bidLockedHref
+              ? tBid("lockedLabel", { label: t("supplierMemberCtaLabel") })
+              : t("supplierMemberCtaLabel"),
+            href: bidLockedHref ?? PANEL_TARGET.openRequests,
+          };
 
   return (
     /* HERO KAPSAYICISI — fotoğraf header'ın ALT ÇİZGİSİNDEN başlar (2026-09-09,
@@ -120,11 +142,7 @@ export function HomeHero() {
           backdrop
           widgets={SELLER_WIDGETS}
           objects={SELLER_OBJECTS}
-          ctaNote={{
-            text: t("supplierCtaText"),
-            label: t("supplierCtaLabel"),
-            href: signupHref("teklif"),
-          }}
+          ctaNote={supplierCtaNote}
         />
       ) : (
         <PanelHeroSearch

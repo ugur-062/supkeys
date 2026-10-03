@@ -127,5 +127,7 @@ export const PANEL_TARGET = {
   /** Panel talep sayfası cuid ister; numarayla açık talepler listesinde aranır. */
   listing: (number: string) =>
     `/company/satis?q=${encodeURIComponent(number)}#acik-talepler`,
+  /** Satış panelinin açık talepler listesi (Silver ∧ teklif izni). */
+  openRequests: "/company/satis#acik-talepler",
   directory: "/company/satinalma/tedarikcilerim",
 } as const;
