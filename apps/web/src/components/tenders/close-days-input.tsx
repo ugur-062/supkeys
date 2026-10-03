@@ -33,6 +33,7 @@ export function CloseDaysInput({
   suffix,
   className,
   labelClassName,
+  resetSignal,
 }: {
   value: number;
   max: number;
@@ -42,6 +43,13 @@ export function CloseDaysInput({
   suffix: string;
   className?: string;
   labelClassName?: string;
+  /**
+   * Her değişimde kutu geçersiz metnini atıp `value`'yu gösterir. Hazır
+   * seçenek / tarih seçici zaten seçili süreyi yeniden seçtiğinde `value`
+   * değişmez; bu sinyal olmadan kutu kırmızı "12,50"de kalıp kaydı
+   * durduruyordu (arayüz testi kalanlar NUM:NEW-7 gözden geçirme).
+   */
+  resetSignal?: number;
 }) {
   const t = useTranslations("web.panel.requests.requestDefaultsForm");
   const [raw, setRaw] = useState(() => String(value));
@@ -50,6 +58,11 @@ export function CloseDaysInput({
     if (Number(raw) !== value) setRaw(String(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+  useEffect(() => {
+    // Başka bir denetimle süre açıkça seçildi (aynı süre olsa da) → yazılan metin atılır.
+    if (resetSignal !== undefined) setRaw(String(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSignal]);
   const inRange = (r: string) => {
     const n = Number(r);
     return r !== "" && Number.isInteger(n) && n >= 1 && n <= max;

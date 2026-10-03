@@ -364,6 +364,9 @@ export function QuickRequest({
   };
 
   /* --- Süre */
+  // Hazır seçenek / tarih seçici "Özel gün" kutusunun geçersiz metnini atar
+  // (aynı süre yeniden seçilince `value` değişmez — CloseDaysInput.resetSignal).
+  const [closeReset, setCloseReset] = useState(0);
   const setCloseDays = (days: number) => {
     setValue("bidsCloseAt", closesAtFromDays(days), { shouldDirty: true, shouldValidate: true });
     if (terms) setTerms({ ...terms, closeDays: days });
@@ -993,11 +996,14 @@ export function QuickRequest({
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   {REQUEST_CLOSE_DAY_OPTIONS.map((d) => (
-                    <button key={d} type="button" aria-pressed={currentCloseDays === d} onClick={() => setCloseDays(d)} className={cn("rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 transition", currentCloseDays === d ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
+                    <button key={d} type="button" aria-pressed={currentCloseDays === d} onClick={() => {
+                      setCloseDays(d);
+                      setCloseReset((n) => n + 1);
+                    }} className={cn("rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 transition", currentCloseDays === d ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
                       {tr("gun3", { d: d })}
                     </button>
                   ))}
-                  <CloseDaysInput value={currentCloseDays} max={REQUEST_CLOSE_DAYS_MAX} onChange={setCloseDays} ariaLabel={tr("ozelGun")} suffix={tr("gun4")} labelClassName="flex items-center gap-1.5 text-sm text-zinc-600" className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
+                  <CloseDaysInput value={currentCloseDays} max={REQUEST_CLOSE_DAYS_MAX} onChange={setCloseDays} resetSignal={closeReset} ariaLabel={tr("ozelGun")} suffix={tr("gun4")} labelClassName="flex items-center gap-1.5 text-sm text-zinc-600" className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
                 </div>
                 {/* Belirli gün + saat (D-095, DN-10): çipler "şimdi + N gün" verir
                     (o anki dakika); kapanışı belli bir saate koymak isteyen
@@ -1008,7 +1014,10 @@ export function QuickRequest({
                     idPrefix="talep-kapanis"
                     value={watched.bidsCloseAt ?? ""}
                     min={toAppWallClockInput(new Date())}
-                    onChange={(v) => setValue("bidsCloseAt", v, { shouldDirty: true, shouldValidate: true })}
+                    onChange={(v) => {
+                      setValue("bidsCloseAt", v, { shouldDirty: true, shouldValidate: true });
+                      setCloseReset((n) => n + 1);
+                    }}
                     hasError={!!form.formState.errors.bidsCloseAt}
                     dateAriaLabel={tr("kapanisGunu")}
                     timeAriaLabel={tr("kapanisSaati")}

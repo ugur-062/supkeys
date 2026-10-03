@@ -20,7 +20,7 @@ import type { LcSubType } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { COUNTRIES, isRegistrationOpen, PAYMENT_CATEGORIES, REQUEST_ALLOWED_CURRENCIES_MAX, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
-import { createContext, useContext, useId } from "react";
+import { createContext, useContext, useId, useState } from "react";
 
 const INPUT =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
@@ -103,6 +103,8 @@ export function RequestDefaultsForm({
   const ownerCountry = company?.country ?? "TR";
   const show = (k: NonNullable<typeof only>[number]) => !only || only.includes(k);
   const set = (patch: Partial<RequestDefaults>) => onChange({ ...value, ...patch });
+  // Hazır süre seçeneği "Özel gün" kutusunun geçersiz metnini atar (aynı süre de olsa).
+  const [closeReset, setCloseReset] = useState(0);
   const countries = value.targetCountries ?? [];
   const limited = countries.length > 0;
   const priceWarning = sellerDoorPriceWarning(countries, ownerCountry, value.deliveryTerm);
@@ -348,11 +350,14 @@ export function RequestDefaultsForm({
         <Block title={tr("teklifToplamaSuresi")} hint={tr("kapanisYayinBuKadarGun")}>
           <div className="flex flex-wrap items-center gap-2">
             {REQUEST_CLOSE_DAY_OPTIONS.map((d) => (
-              <button key={d} type="button" aria-pressed={value.closeDays === d} onClick={() => set({ closeDays: d })} className={cn("rounded-full px-3 py-1.5 text-sm font-medium ring-1 transition", value.closeDays === d ? "bg-zinc-900 text-white ring-zinc-900" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
+              <button key={d} type="button" aria-pressed={value.closeDays === d} onClick={() => {
+                set({ closeDays: d });
+                setCloseReset((n) => n + 1);
+              }} className={cn("rounded-full px-3 py-1.5 text-sm font-medium ring-1 transition", value.closeDays === d ? "bg-zinc-900 text-white ring-zinc-900" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
                 {tr("gun", { d: d })}
               </button>
             ))}
-            <CloseDaysInput value={value.closeDays} max={REQUEST_CLOSE_DAYS_MAX} onChange={(d) => set({ closeDays: d })} ariaLabel={tr("ozelGunSayisi")} suffix={tr("gun2")} labelClassName="flex items-center gap-2 text-sm text-zinc-600" className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
+            <CloseDaysInput value={value.closeDays} max={REQUEST_CLOSE_DAYS_MAX} onChange={(d) => set({ closeDays: d })} resetSignal={closeReset} ariaLabel={tr("ozelGunSayisi")} suffix={tr("gun2")} labelClassName="flex items-center gap-2 text-sm text-zinc-600" className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
           </div>
         </Block>
       ) : null}

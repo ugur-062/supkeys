@@ -616,6 +616,37 @@ describe("QuickRequest", () => {
     }
   }, 30_000);
 
+  it("NUM:NEW-7 gözden geçirme: zaten seçili '7 gün' ya da tarih seçici geçersiz 'Özel gün' metnini temizler; taslak sürer", async () => {
+    h.create.mockResolvedValue({ id: "l33", number: "ROT-000073" });
+    const toastError = vi.spyOn(toast, "error");
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+      const box = screen.getByLabelText("Özel gün") as HTMLInputElement;
+      const chip7 = screen.getByRole("button", { name: "7 gün" });
+      expect(chip7).toHaveAttribute("aria-pressed", "true");
+      // Seçili süre değişmeden aynı çip: kutu geçersiz metni atar.
+      fireEvent.change(box, { target: { value: "12,50" } });
+      fireEvent.blur(box);
+      expect(box).toHaveAttribute("aria-invalid", "true");
+      fireEvent.click(chip7);
+      expect(box.value).toBe("7");
+      expect(box).not.toHaveAttribute("aria-invalid");
+      // Tarih seçiciden saat seçmek de (gün sayısı aynı kalsa bile) temizler.
+      fireEvent.change(box, { target: { value: "0,5" } });
+      fireEvent.blur(box);
+      expect(box).toHaveAttribute("aria-invalid", "true");
+      fireEvent.change(screen.getByLabelText("Kapanış saati"), { target: { value: "17:00" } });
+      expect(box).not.toHaveAttribute("aria-invalid");
+      expect(box.value).not.toBe("0,5");
+      fireEvent.click(screen.getByRole("button", { name: "Taslak kaydet" }));
+      await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+      expect(toastError).not.toHaveBeenCalledWith("1–60 gün arası tam sayı girin.");
+    } finally {
+      toastError.mockRestore();
+    }
+  }, 30_000);
+
   it("D-042: adres/şablon yönetme izni yoksa '+ Yeni adres' ve 'Şablon olarak kaydet' çizilmez", async () => {
     h.denied = ["addresses:manage", "templates:manage"];
     wrap(<QuickRequest />);

@@ -97,6 +97,19 @@ describe("RequestDefaultsForm — yerel sayı girişi (NUM)", () => {
     expect(state().c).toBe(21);
     expect(screen.queryByRole("alert")).toBeNull();
   });
+
+  it("özel gün: zaten seçili '7 gün' çipi geçersiz metni temizler (value değişmese de)", () => {
+    render(<Spy init={{ closeDays: 7 }} only={["close"]} />);
+    const input = screen.getByLabelText("Özel gün sayısı") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "12,50" } });
+    fireEvent.blur(input);
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    fireEvent.click(screen.getByRole("button", { name: "7 gün" }));
+    expect(state().c).toBe(7);
+    expect(input.value).toBe("7");
+    expect(input).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
 
 describe("RequestDefaultsForm — kabul edilen birim tavanı (D-046)", () => {

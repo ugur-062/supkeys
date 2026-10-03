@@ -19,12 +19,29 @@ const MSG = "1–60 gün arası tam sayı girin.";
 
 function Harness({ initial = 7, onCommit }: { initial?: number; onCommit: (d: number) => void }) {
   const [days, setDays] = useState(initial);
+  const [reset, setReset] = useState(0);
   const guard = useCloseDaysGuard();
   const [saved, setSaved] = useState<string>("");
   return (
     <div>
-      <button type="button" onClick={() => setDays(14)}>
+      <button
+        type="button"
+        onClick={() => {
+          setDays(14);
+          setReset((n) => n + 1);
+        }}
+      >
         14 gün
+      </button>
+      {/* Zaten seçili süreyi yeniden seçen hazır seçenek: `value` değişmez. */}
+      <button
+        type="button"
+        onClick={() => {
+          setDays(7);
+          setReset((n) => n + 1);
+        }}
+      >
+        7 gün
       </button>
       <CloseDaysInput
         value={days}
@@ -35,6 +52,7 @@ function Harness({ initial = 7, onCommit }: { initial?: number; onCommit: (d: nu
         }}
         ariaLabel="Özel gün"
         suffix="gün"
+        resetSignal={reset}
       />
       <output data-testid="days">{days}</output>
       <button type="button" onClick={() => setSaved(guard() ? `kaydedildi:${days}` : "durdu")}>
@@ -112,6 +130,21 @@ describe("CloseDaysInput", () => {
     fireEvent.click(screen.getByRole("button", { name: "14 gün" }));
     expect(input.value).toBe("14");
     expect(input).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("zaten seçili hazır seçenek (7) yeniden seçilince de geçersiz metin temizlenir ve kayıt sürer", () => {
+    render(<Harness onCommit={vi.fn()} />);
+    const input = screen.getByLabelText("Özel gün") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "12,50" } });
+    fireEvent.blur(input);
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    fireEvent.click(screen.getByRole("button", { name: "7 gün" }));
+    expect(input.value).toBe("7");
+    expect(input).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(screen.getByTestId("saved")).toHaveTextContent("kaydedildi:7");
+    expect(h.toastError).not.toHaveBeenCalled();
   });
 });
 
