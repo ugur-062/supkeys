@@ -20,9 +20,10 @@ bu tablo **çalışan staging'in gerçek yanıtıdır**. ✅ erişti · 🔒 403
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `company/activity-log` | users:manage · company:manage | SILVER | ✅ | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | ✅ | 🔒 |
 | `company/addresses` | addresses:manage · buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `company/ai/assistant/sessions` | buy:listing:manage · buy:award · buy:order:manage · buy:inquiry:send · sell:bid:submit · sell:order:manage · sell:product:manage · sell:inquiry:reply | SILVER | 503 | 🔒 | 503 | 503 | 🔒 | 🔒 | 503 | 503 | 🔒 | 503 | 🔒 |
+| `company/ai/assistant/sessions` | buy:listing:manage · buy:award · buy:order:manage · buy:inquiry:send · sell:bid:submit · sell:order:manage · sell:product:manage · sell:inquiry:reply | SILVER | ✅ | 🔒 | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | 🔒 |
 | `company/ai/usage` | users:manage · company:manage · buy:listing:manage · buy:award · buy:order:manage · buy:inquiry:send · sell:bid:submit · sell:order:manage · sell:product:manage · sell:inquiry:reply | SILVER | ✅ | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | 🔒 |
 | `company/approvals/all` | approval:act · approvals:manage | — | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | ✅ | 🔒 | 🔒 | ✅ | ✅ |
+| `company/approvals/approver-candidates` | approvals:manage | — | ✅ | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | ✅ | ✅ |
 | `company/approvals/flows` | approvals:manage | — | ✅ | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | ✅ | ✅ |
 | `company/approvals/history` | approval:act | — | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | ✅ | 🔒 | 🔒 | ✅ | ✅ |
 | `company/approvals/pending` | approval:act | — | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | ✅ | 🔒 | 🔒 | ✅ | ✅ |
@@ -37,14 +38,14 @@ bu tablo **çalışan staging'in gerçek yanıtıdır**. ✅ erişti · 🔒 403
 | `company/connections/referral-invites` | connections:manage · buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/connections/self` | connections:manage · buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/dashboard/action-center` | buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `company/dashboard/satinalma` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
-| `company/dashboard/satinalma/analytics` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
-| `company/dashboard/satinalma/tasarruf` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
-| `company/dashboard/satinalma/tedarikci` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
+| `company/dashboard/satinalma` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
+| `company/dashboard/satinalma/analytics` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
+| `company/dashboard/satinalma/tasarruf` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
+| `company/dashboard/satinalma/tedarikci` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
 | `company/dashboard/satis/aktivite` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/dashboard/satis/analytics` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/dashboard/satis/stats` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `company/dashboard/time-savings` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
+| `company/dashboard/time-savings` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
 | `company/directory` | buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/directory/facets` | buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/directory/search` | buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -70,6 +71,7 @@ bu tablo **çalışan staging'in gerçek yanıtıdır**. ✅ erişti · 🔒 403
 | `company/orders` | buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/profile` | company:manage · buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/question-templates` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
+| `company/reports/listings` | buy:reports:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
 | `company/request-defaults` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
 | `company/supplier-templates` | buy:view | GOLD | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 |
 | `company/users` | users:manage | — | ✅ | ✅ | 🔒 | 🔒 | 🔒 | 🔒 | ✅ | 🔒 | 🔒 | ✅ | ✅ |

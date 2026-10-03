@@ -7,9 +7,9 @@
 | Sayfa | alıcı · kurucu | alıcı · yönetici | alıcı · satın almacı | alıcı · satışçı | alıcı · onaylayıcı | alıcı · görüntüleyici | tedarikçi · satışçı | ücretsiz · kurucu |
 |---|---|---|---|---|---|---|---|---|
 | `/company/satinalma` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
-| `/company/satinalma/taleplerim` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satinalma/taleplerim` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | ✅ |
 | `/company/satinalma/taleplerim/yeni` | ✅ | 🔒 yetki | ✅ | ⛔ portal | ⛔ portal | 🔒 yetki | ⛔ portal | 💳 paket |
-| `/company/satinalma/siparisler` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
+| `/company/satinalma/siparisler` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | ✅ |
 | `/company/satinalma/tedarikcilerim` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
 | `/company/satinalma/bilgi-taleplerim` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
 | `/company/satinalma/urunler` | ✅ | ✅ | ✅ | ⛔ portal | ⛔ portal | ✅ | ⛔ portal | 💳 paket |
