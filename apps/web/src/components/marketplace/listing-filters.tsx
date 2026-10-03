@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Check, FilterChipBar, Group, ShowMore, ShowMoreRadio, type FilterChip } from "./filter-primitives";
 import { useFilters } from "./filter-shell";
 import { SortBar } from "./sort-bar";
+import { useCityFilterLabel } from "./use-geo-city-name";
 import { activeListingFilterCount, type ListingFilterState } from "@/lib/public/listing-filter-params";
 import { hasListingCountryFacet, listingCountryOptions } from "@/lib/public/listing-country-facet";
 import type { PublicFacets } from "@/lib/public/marketplace-api";
@@ -29,6 +30,7 @@ const isSegmentCode = (code: string) => /^\d{2}0{6}$/.test(code);
 export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idPrefix: string }) {
   const { state, update } = useFilters<ListingFilterState>();
   const cityLabel = useCityKeyLabel();
+  const selectedCityLabel = useCityFilterLabel(state.cities, facets.cities);
   const t = useTranslations("web.marketplace.filters");
   const locale = useLocale();
   const WITHIN = WITHIN_KEYS.map((key) => ({ key, label: t("withinDays", { n: Number(key) }) }));
@@ -64,7 +66,8 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
-          labelFor={cityLabel}
+          // Facet'te olmayan seçili dünya şehri ham adresle değil adıyla (canlı öncesi).
+          labelFor={selectedCityLabel}
         />
       </Group>
       <Group
@@ -125,12 +128,12 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
 
 export function ListingActiveChips({ facets }: { facets: PublicFacets }) {
   const t = useTranslations("web.marketplace.filters");
-  const cityLabel = useCityKeyLabel();
   const locale = useLocale();
   const { state, update, clear } = useFilters<ListingFilterState>();
+  const cityLabel = useCityFilterLabel(state.cities, facets.cities);
   const chips: FilterChip[] = [];
   if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? facets.selectedCategory?.name ?? state.category, onRemove: () => update({ category: undefined }) });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: facets.cities.find((f) => f.city === c)?.name ?? cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   if (state.within) chips.push({ key: "w", label: t("withinDays", { n: Number(state.within) }), onRemove: () => update({ within: undefined }) });
   if (state.country) chips.push({ key: "s", label: countryDisplayName(state.country, locale), onRemove: () => update({ country: undefined }) });
   return <FilterChipBar chips={chips} activeCount={activeListingFilterCount(state)} onClearAll={clear} />;

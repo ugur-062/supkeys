@@ -4,7 +4,7 @@ import { countryDisplayName, useActivityLabel, useCityKeyLabel } from "@/i18n/do
 import type { Locale } from "@rothern/i18n";
 import { citySlug, foldSearchText } from "@rothern/shared";
 import { searchGeoCities, type GeoCity } from "@/lib/public/geo-client";
-import { useGeoCityName, useGeoCityNames } from "./use-geo-city-name";
+import { useCityFilterLabel, useGeoCityName, useGeoCityNames } from "./use-geo-city-name";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
@@ -242,6 +242,7 @@ function LocationGroup({
   const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
   const cityLabel = useCityKeyLabel();
+  const selectedCityLabel = useCityFilterLabel(state.cities, facets.cities);
   const fold = foldSearchText;
   // Dünya şehir listesi (2026-09-27): değer kalıcı adres, ad API'den okuyucunun
   // dilinde (`name`); eski API yanıtında ad yoksa Türk il adı çevrilir.
@@ -268,7 +269,9 @@ function LocationGroup({
         idPrefix={`${idPrefix}-city`}
         onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
         emptyText={t("noCity")}
-        labelFor={cityLabel}
+        // Facet'te olmayan seçili şehir çiple aynı adla (dünya şehri dahil) —
+        // `useCityKeyLabel` yalnız Türk illerini bilir, "de-munich" ham kalıyordu.
+        labelFor={selectedCityLabel}
       />
       <NearbyControls state={state} update={update} idPrefix={idPrefix} />
     </Group>

@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { Check, FilterChipBar, Group, ShowMore, type FilterChip } from "./filter-primitives";
 import { useFilters } from "./filter-shell";
+import { useCityFilterLabel } from "./use-geo-city-name";
 import { SortBar } from "./sort-bar";
 import { activeCompanyFilterCount, type CompanyFilterState } from "@/lib/public/company-filter-params";
 import type { PublicDirectoryFacets } from "@/lib/public/marketplace-api";
@@ -48,6 +49,7 @@ export function CompanyFilters({
   const cityLabel = useCityKeyLabel();
   const activityLabel = useActivityLabel();
   const { state, update } = useFilters<CompanyFilterState>();
+  const selectedCityLabel = useCityFilterLabel(state.cities, facets.cities);
   const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0) + (state.gold ? 1 : 0);
   const categoryName = useCategoryNames(state.categories, facets);
   // Seçili ama listede olmayan (0 firmalı) kategori de adıyla ve tikli görünsün
@@ -111,7 +113,8 @@ export function CompanyFilters({
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
-          labelFor={cityLabel}
+          // Facet'te olmayan seçili dünya şehri ham adresle değil adıyla (canlı öncesi).
+          labelFor={selectedCityLabel}
         />
       </Group>
       {(facets.countries?.length ?? 0) > 1 || state.countries.length ? (
@@ -148,9 +151,9 @@ export function CompanyFilters({
 export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }) {
   const t = useTranslations("web.marketplace.filters");
   const chipLocale = useLocale() as Locale;
-  const cityLabel = useCityKeyLabel();
   const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters<CompanyFilterState>();
+  const cityLabel = useCityFilterLabel(state.cities, facets.cities);
   const categoryName = useCategoryNames(state.categories, facets);
   const chips: FilterChip[] = [];
   if (state.verified) chips.push({ key: "v", label: t("verified"), onRemove: () => update({ verified: false }) });
@@ -163,7 +166,7 @@ export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }
       onRemove: () => update({ connection: undefined }),
     });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: facets.cities.find((f) => f.city === c)?.name ?? cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   for (const c of state.countries) chips.push({ key: `u:${c}`, label: countryDisplayName(c, chipLocale), onRemove: () => update((s) => ({ ...s, countries: s.countries.filter((x) => x !== c) })) });
   for (const k of state.categories) chips.push({ key: `k:${k}`, label: categoryName(k), onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== k) })) });
   return <FilterChipBar chips={chips} activeCount={activeCompanyFilterCount(state)} onClearAll={clear} />;

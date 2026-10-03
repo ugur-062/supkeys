@@ -4,7 +4,7 @@ import { resolveProvince } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 import { useLocale } from "next-intl";
 import { useEffect, useState } from "react";
-import { cityDisplayName, countryDisplayName } from "@/i18n/domain";
+import { cityDisplayName, cityKeyDisplayName, countryDisplayName } from "@/i18n/domain";
 import { fetchGeoCityClient } from "@/lib/public/geo-client";
 
 /** Oturum boyu küçük önbellek — aynı şehir için tekrar istek atılmasın. */
@@ -81,4 +81,26 @@ export function useGeoCityNames(
     };
   }, [missingKey, locale]);
   return Object.fromEntries(resolved.map(([s, n]) => [s, n ?? s]));
+}
+
+/**
+ * Şehir süzgecinin seçili değerleri için etiket işlevi (kenar çubuğu
+ * `ShowMore.labelFor` ve çipler aynı adı yazsın — canlı öncesi): facet'te
+ * olmayan seçili dünya şehri kenar çubuğunda ham adresle ("de-munich 0")
+ * görünürken çip "Münih, Almanya" yazıyordu. Çözüm sırası `useGeoCityNames`
+ * ile aynı: facet adı → Türk il listesi → önbellek → API.
+ */
+export function useCityFilterLabel(
+  selected: string[],
+  facetCities: ReadonlyArray<{ city: string; name?: string | null }>,
+): (slug: string) => string {
+  const locale = useLocale() as Locale;
+  const known = (s: string) => facetCities.find((f) => f.city === s)?.name;
+  const names = useGeoCityNames(selected, known);
+  // Çözülemeyen (eski serbest metin) değer önceki gibi `cityKeyDisplayName`a
+  // düşer — ham adres yalnız API yanıtı gelene dek görünür.
+  return (slug) => {
+    const n = names[slug] ?? syncName(slug, locale, known(slug));
+    return n && n !== slug ? n : cityKeyDisplayName(slug, locale);
+  };
 }
