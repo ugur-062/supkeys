@@ -1,6 +1,7 @@
 import { isCompanyActivity, isCurrencyCode, isEmployeeBucketKey, isRadiusOption } from "@rothern/shared";
 import type { ProductFacetParams, ProductListParams } from "./marketplace-api";
 import {
+  capJoinedList,
   cityListParam,
   getAllParams as getAll,
   getParam as get,
@@ -122,7 +123,9 @@ export function parseProductFilters(
     category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
     cities: cityListParam(get(sp, "sehir") ?? get(sp, "il")),
     countries: list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
-    activities: list(get(sp, "faaliyet")).filter(isCompanyActivity),
+    // Tekrar düşer: `?faaliyet=` içinde on kez aynı kod birleşik değeri API'nin
+    // `activity` tavanını (200) aşırıp ana listeyi 400'e düşürürdü.
+    activities: [...new Set(list(get(sp, "faaliyet")).filter(isCompanyActivity))],
     verified: get(sp, "dogrulanmis") === "1",
     price: price === "var" || price === "teklif" ? price : undefined,
     currency: isCurrencyCode(get(sp, "para")?.toUpperCase()) ? get(sp, "para")!.toUpperCase() : undefined,
@@ -131,7 +134,9 @@ export function parseProductFilters(
     priceUnpriced: get(sp, "fiyatsizDahil") === "1",
     // API en az 1 ister; 0 "tavan yok" demek değil, geçersiz.
     moqMax: moqMax && moqMax >= 1 ? moqMax : undefined,
-    certs: list(get(sp, "sertifika")),
+    // API `cert` tavanı 400 (`PublicProductQueryDto`) — aşan URL ana listeyi
+    // 400'e, o da hata sayfasına düşürürdü.
+    certs: capJoinedList([...new Set(list(get(sp, "sertifika")))]),
     // Bilinmeyen kova anahtarı düşer — URL elle düzenlenmiş olabilir.
     employees: list(get(sp, "calisan")).map(Number).filter(isEmployeeBucketKey),
     // İkisi birlikte anlamlı: yalnız biri varsa süzgeç uygulanmaz (ve URL'e

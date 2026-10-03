@@ -33,22 +33,50 @@ export function listParam(v?: string): string[] {
 }
 
 /**
+ * Virgüllü liste parametrelerinin API tavanı (`PublicProductQueryDto` /
+ * `PublicListQueryDto` / `PublicDirectoryQueryDto`: `city`, `cert`
+ * `@MaxLength(400)`). Ana liste çağrısı 404 dışındaki 4xx'te kesinti sayılıp
+ * hata attığı için (`marketplace-api.ts` getJson) elle uzatılmış bir URL
+ * (`?sehir=<401+ karakter>`) eskiden boş liste, şimdi hata sayfası çizerdi —
+ * ayrıştırıcı tavanı aşan girdiyi API'ye hiç göndermez.
+ */
+export const FILTER_LIST_MAX_LENGTH = 400;
+
+/**
+ * Listeyi virgülle birleşik uzunluğu `max`'ı aşmayacak şekilde keser: sıra
+ * korunur, sığmayan ilk girdiden itibaren gerisi düşer (tek başına sığmayan
+ * dev girdi de düşer).
+ */
+export function capJoinedList(items: string[], max = FILTER_LIST_MAX_LENGTH): string[] {
+  const out: string[] = [];
+  let length = 0;
+  for (const item of items) {
+    const next = length + (out.length ? 1 : 0) + item.length;
+    if (next > max) break;
+    out.push(item);
+    length = next;
+  }
+  return out;
+}
+
+/**
  * Şehir listesi → KALICI ADRES (gözden geçirme, arayüz testi D-336): facet
  * anahtarı kalıcı adres ("izmir"), eski/dış bağlantılar ise ham ad taşıyor
  * (`?il=İzmir`, `?sehir=İstanbul`). Ham değer öylece kalsaydı facet'teki
  * "İzmir 12" işaretsiz kalır, yanına işaretli bir "İzmir 0" kopyası eklenirdi.
  * Tanınan Türk ili katlanıp kalıcı adrese çevrilir; tanınmayan değer (yabancı
- * şehrin adresi "de-munich") olduğu gibi kalır. Tekrarlar düşer.
+ * şehrin adresi "de-munich") olduğu gibi kalır. Tekrarlar düşer; birleşik
+ * değer API tavanını (`FILTER_LIST_MAX_LENGTH`) aşmaz.
  */
 export function cityListParam(v?: string): string[] {
-  return [
+  return capJoinedList([
     ...new Set(
       listParam(v).map((c) => {
         const province = knownCityName(c);
         return province ? citySlug(province) : c;
       }),
     ),
-  ];
+  ]);
 }
 
 /** `sayfa` → 1 tabanlı sayfa (1'den küçük/geçersiz → 1). */

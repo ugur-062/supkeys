@@ -339,7 +339,8 @@ async function getJson<T>(
       // yeni bir sorgu parametresi yollayınca `forbidNonWhitelisted` 400
       // dönüyor, yedek BOŞ liste çizilip dakikalarca ISR'a yazılıyordu. Web
       // kullanıcı girdisini API sınırlarına kırptığı için (süzgeç
-      // ayrıştırıcıları) ana veride 4xx beklenmez; atmak son iyi sayfayı
+      // ayrıştırıcıları: arama ≤ 120, sayfa ≤ 200, şehir/sertifika birleşik
+      // ≤ 400 — `FILTER_LIST_MAX_LENGTH`) ana veride 4xx beklenmez; atmak son iyi sayfayı
       // korur. Derlemede yine yedek (`unavailable`), 404 gerçek "yok".
       if (critical && err.status !== 404) unavailable(path, `HTTP ${err.status}`);
       else if (err.status !== 404) console.error(`[pazar-yeri] ${path} → HTTP ${err.status}`);

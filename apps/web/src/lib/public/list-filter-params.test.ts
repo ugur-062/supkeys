@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cityListParam, pastEndLastPage } from "./filter-param-utils";
-import { parseProductFilters } from "./product-filter-params";
+import { FILTER_LIST_MAX_LENGTH, capJoinedList, cityListParam, pastEndLastPage } from "./filter-param-utils";
+import { parseProductFilters, toProductListParams } from "./product-filter-params";
 import {
   activeCompanyFilterCount,
   buildCompanyFilterQuery,
@@ -70,5 +70,41 @@ describe("pastEndLastPage — son sayfanın ötesi (arayüz testi webA-05)", () 
     expect(pastEndLastPage({ itemCount: 0, total: 0, page: 3, pageSize: 24 })).toBeNull();
     expect(pastEndLastPage({ itemCount: 5, total: 29, page: 2, pageSize: 24 })).toBeNull();
     expect(pastEndLastPage({ itemCount: 0, total: 30, page: 1, pageSize: 24 })).toBeNull();
+  });
+});
+
+/**
+ * API TAVANI (gözden geçirme, 10b51394 sonrası): ana liste 404 dışındaki 4xx'te
+ * hata attığı için `city` / `cert` (`@MaxLength(400)`) ve ürün `activity`
+ * (`@MaxLength(200)`) tavanını aşan elle uzatılmış URL 400 → hata sayfası
+ * çizerdi. Ayrıştırıcı birleşik değeri tavanda keser.
+ */
+describe("virgüllü liste süzgeçleri API tavanını aşmaz", () => {
+  const long = (n: number) => Array.from({ length: 10 }, (_, i) => `${String(i)}${"x".repeat(n)}`).join(",");
+  it("capJoinedList sırayı korur, sığmayanı ve gerisini düşürür", () => {
+    expect(capJoinedList(["aa", "bb", "cc"], 5)).toEqual(["aa", "bb"]);
+    expect(capJoinedList(["a".repeat(6), "b"], 5)).toEqual([]);
+    expect(capJoinedList(["aa", "bb"], 5)).toEqual(["aa", "bb"]);
+  });
+  it("?sehir=<500 karakter> ürün, talep ve firma süzgecinde ≤ 400 birleşir", () => {
+    const sehir = long(49); // 10 × 50 + 9 virgül = 509
+    for (const city of [
+      toProductListParams(parseProductFilters({ sehir })).city,
+      toListingListParams(parseListingFilters({ sehir })).city,
+      toDirectoryParams(parseCompanyFilters({ sehir })).city,
+    ]) {
+      expect(city!.length).toBeLessThanOrEqual(FILTER_LIST_MAX_LENGTH);
+      expect(city!.split(",")).toHaveLength(7); // 7 × 50 + 6 = 356; 8. girdi 407 olurdu
+    }
+    expect(parseListingFilters({ sehir: "x".repeat(401) }).cities).toEqual([]);
+  });
+  it("?sertifika=<500 karakter> ≤ 400 birleşir; tekrarlar düşer", () => {
+    const cert = toProductListParams(parseProductFilters({ sertifika: long(49) })).cert!;
+    expect(cert.length).toBeLessThanOrEqual(FILTER_LIST_MAX_LENGTH);
+    expect(parseProductFilters({ sertifika: "CE,CE,ISO 9001" }).certs).toEqual(["CE", "ISO 9001"]);
+  });
+  it("?faaliyet= içinde tekrarlanan kod düşer (API activity ≤ 200)", () => {
+    const faaliyet = Array.from({ length: 10 }, () => "CONTRACT_MANUFACTURER").join(",");
+    expect(toProductListParams(parseProductFilters({ faaliyet })).activity).toBe("CONTRACT_MANUFACTURER");
   });
 });

@@ -18,6 +18,8 @@ import {
   fetchPublicDirectory,
   fetchSimilarListings,
 } from "../marketplace-api";
+import { parseListingFilters, toListingListParams } from "../listing-filter-params";
+import { parseProductFilters, toProductListParams } from "../product-filter-params";
 
 const fetchMock = vi.fn();
 const respond = (status: number, body: unknown = {}) =>
@@ -122,6 +124,17 @@ describe("ana liste — 404 dışındaki 4xx kesintidir", () => {
     expect(url.searchParams.get("page")).toBe("200");
     expect(url.searchParams.get("q")).toBe("a".repeat(120));
     expect(url.searchParams.has("categoryId")).toBe(false);
+  });
+  it("süzgeç URL'i API tavanını aşsa da ana liste 400'e düşmez (ayrıştırıcı keser)", async () => {
+    respond(200, { items: [], total: 0, page: 1, pageSize: 24 });
+    const huge = Array.from({ length: 10 }, (_, i) => `${String(i)}${"x".repeat(60)}`).join(",");
+    await fetchProducts(toProductListParams(parseProductFilters({ sehir: huge, sertifika: huge })));
+    await fetchListings(toListingListParams(parseListingFilters({ sehir: huge })));
+    const [productUrl, listingUrl] = fetchMock.mock.calls.map((c) => new URL(c[0] as string));
+    // API `PublicProductQueryDto` / `PublicListQueryDto`: city, cert ≤ 400.
+    expect(productUrl.searchParams.get("city")!.length).toBeLessThanOrEqual(400);
+    expect(productUrl.searchParams.get("cert")!.length).toBeLessThanOrEqual(400);
+    expect(listingUrl.searchParams.get("city")!.length).toBeLessThanOrEqual(400);
   });
 });
 
