@@ -1,4 +1,5 @@
 import { ErrorReporter } from "@/components/error-reporter";
+import { PopstateRestoreGuard } from "@/components/popstate-restore-guard";
 import { I18nRuntimeBridge } from "@/i18n/runtime-bridge";
 import { routing } from "@/i18n/routing";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
@@ -137,6 +138,9 @@ export default async function RootLayout({
       <body className="antialiased">
         {/* Tarayıcı hatalarını sunucuya bildirir (SDK yok, ~1 kB). */}
         <ErrorReporter />
+        {/* Geri/İleri sonrası Next'in bayat yaması önceki sayfayı geri
+            çizerse onarır (adres liste, ekran detay — D-283). */}
+        <PopstateRestoreGuard />
         {/* Sağlayıcı sunucudan render edilir: dil + mesajlar next-intl v4'te
             otomatik aktarılır. Köprü, React dışı kodun (axios) dilini kaydeder. */}
         <NextIntlClientProvider messages={messages}>
