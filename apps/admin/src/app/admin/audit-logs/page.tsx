@@ -19,7 +19,8 @@ import {
 import { TableStateRow } from "@/components/list/table-state";
 import { useAuditLogs } from "@/hooks/use-audit-logs";
 import { useListFilters } from "@/hooks/use-list-filters";
-import { ACTION_FILTERS } from "@/lib/audit-actions";
+import { Button } from "@/components/ui/button";
+import { ACTION_FILTERS, ACTION_LABELS } from "@/lib/audit-actions";
 
 interface AuditFilters {
   actorType?: string;
@@ -32,7 +33,7 @@ interface AuditFilters {
 function AuditView() {
   // Süzgeçler ve sayfa URL'de: yenileyince/geri gelince 3. sayfa korunur
   // (arayüz testi D-228). Süzgeç değişince sayfa 1'e döner (useListFilters).
-  const { filters, setFilters } = useListFilters<AuditFilters>();
+  const { filters, setFilters, clearFilters } = useListFilters<AuditFilters>();
   const actorType = filters.actorType ?? "";
   const action = filters.action ?? "";
   const search = filters.search ?? "";
@@ -45,6 +46,16 @@ function AuditView() {
     search: search.trim() || undefined,
     page,
   });
+
+  // Derin bağlantı (?action=admin.system.translation_backfill) seçili listede
+  // olmayan bir değer taşıyabilir; <select> o zaman ilk seçeneğe düşüp süzgeç
+  // etkinken "Tüm eylemler" yazıyordu (arayüz testi kalanlar webC-4). Etkin
+  // değer kendi etiketiyle (bilinmiyorsa ham adıyla) seçenek olarak eklenir.
+  const actionOptions = [{ value: "", label: "Tüm eylemler" }, ...ACTION_FILTERS];
+  if (action && !ACTION_FILTERS.some((o) => o.value === action)) {
+    actionOptions.splice(1, 0, { value: action, label: ACTION_LABELS[action] ?? action });
+  }
+  const hasFilters = !!(actorType || action || search);
 
   const items = query.data?.items ?? [];
   const pagination = query.data?.pagination;
@@ -75,16 +86,22 @@ function AuditView() {
           value={action}
           active={!!action}
           onChange={(v) => setFilters({ action: v })}
-          options={[
-            { value: "", label: "Tüm eylemler" },
-            ...ACTION_FILTERS,
-          ]}
+          options={actionOptions}
         />
         <SearchInput
           value={search}
           onChange={(v) => setFilters({ search: v })}
           placeholder="E-posta, eylem, varlık ID ara..."
         />
+        {hasFilters ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+          >
+            Süzgeçleri temizle
+          </Button>
+        ) : null}
       </div>
 
       {/* Tablo */}

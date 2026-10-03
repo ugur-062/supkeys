@@ -1940,7 +1940,7 @@ export default function ListingDetailPage() {
           </Text>
           {/* Doğrulama önce gerekiyorsa doğrulama birincil (tek kural
               useVerifyFirst; arayüz testi webC-2). */}
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             <UpgradeButtons pricingLabel={t("paketleriGor")} />
           </div>
         </div>

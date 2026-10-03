@@ -2685,9 +2685,9 @@
     "at": "2026-09-29"
   },
   "api.companyListings.herkeseAcikTalepleriGormekVeTeklif": {
-    "hash": "115afb1104",
+    "hash": "4a96b6ce33",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-03"
   },
   "api.companyListings.icinGoldPaketSatinalmaPaneliGerekir": {
     "hash": "879b86ccad",
@@ -12935,7 +12935,7 @@
     "at": "2026-09-23"
   },
   "web.marketing.home.metaDescription": {
-    "hash": "272151bb0f",
+    "hash": "36dd16bf05",
     "status": "reviewed",
     "at": "2026-10-03"
   },
@@ -16690,7 +16690,7 @@
     "at": "2026-10-03"
   },
   "web.marketplace.pages.categoryMetaDesc": {
-    "hash": "1aa7c87b0f",
+    "hash": "fed7157f91",
     "status": "reviewed",
     "at": "2026-10-03"
   },
@@ -16720,7 +16720,7 @@
     "at": "2026-09-27"
   },
   "web.marketplace.pages.cityMetaDescHas": {
-    "hash": "4a25adcfb1",
+    "hash": "ecabd77f28",
     "status": "reviewed",
     "at": "2026-10-03"
   },
@@ -16740,7 +16740,7 @@
     "at": "2026-09-23"
   },
   "web.marketplace.pages.companiesMetaDesc": {
-    "hash": "91e0dea86c",
+    "hash": "d9cd3e3d0c",
     "status": "reviewed",
     "at": "2026-10-03"
   },
@@ -16775,7 +16775,7 @@
     "at": "2026-09-27"
   },
   "web.marketplace.pages.countryMetaDescHas": {
-    "hash": "59d7dbd9fe",
+    "hash": "d1748a7cee",
     "status": "reviewed",
     "at": "2026-10-03"
   },
@@ -25190,9 +25190,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.buIlanaTeklifVermekIcinSilverPaketi": {
-    "hash": "742b43b169",
+    "hash": "508aaedc92",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-03"
   },
   "web.panel.requests.page.buIslemGeriAlinamazKazananFirmaBasina": {
     "hash": "4a06216b86",
@@ -25590,14 +25590,14 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerine": {
-    "hash": "3490d5825a",
+    "hash": "ac208e78d6",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-03"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerini": {
-    "hash": "832b62aaa6",
+    "hash": "cfe3755e73",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-03"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerini2": {
     "hash": "972f7d71ed",
@@ -30198,6 +30198,16 @@
     "hash": "c2be36310b",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.ayarlarAktivitePage.davetEdilen": {
+    "hash": "84bd933b77",
+    "status": "reviewed",
+    "at": "2026-10-03"
+  },
+  "web.panel.settings.ayarlarAktivitePage.davetGeriAlindi": {
+    "hash": "3fd01f2621",
+    "status": "reviewed",
+    "at": "2026-10-03"
   },
   "web.panel.settings.ayarlarAktivitePage.detay": {
     "hash": "6e65f3810b",
@@ -36525,9 +36535,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.lockedRequestsCard.ucretsizUyelikteYalnizBaglantiDavetiyle": {
-    "hash": "51e263afe1",
+    "hash": "db76d4ae75",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-03"
   },
   "web.panel.trade.miniBars.gunlukGoruntulenme": {
     "hash": "71edacca33",
@@ -39365,9 +39375,9 @@
     "at": "2026-10-02"
   },
   "web.panel.trade.sellerTendersView.kilitliSonucYokAciklama": {
-    "hash": "a287be3803",
+    "hash": "ffa3ac1293",
     "status": "reviewed",
-    "at": "2026-10-02"
+    "at": "2026-10-03"
   },
   "web.panel.trade.sellerTendersView.listesi": {
     "hash": "f40a295498",
@@ -39405,9 +39415,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.silverLockCard.baglantiDavetiyleGelenTalepleriUcretsiz": {
-    "hash": "51eabe43a8",
+    "hash": "034babb71a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-03"
   },
   "web.panel.trade.silverLockCard.onceDogrulanNot": {
     "hash": "d1f85028b9",

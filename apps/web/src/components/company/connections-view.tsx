@@ -276,7 +276,12 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {/* shrink-0 DEĞİL (arayüz testi webC-2): kap max-content genişliğinde
+            kalınca kendi flex-wrap'i hiç devreye girmiyor, uzun "önce
+            doğrulanın" etiketi 390 px'te sayfayı yatay kaydırıyordu. min-w-0 +
+            max-w-full ile kap satıra sığar, düğmeler alt alta iner, uzun etiket
+            kendi içinde kırılır. */}
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <Button outline href={marketCompaniesPath(portal)}>
             <Search data-slot="icon" />
             {t("firmaBul")}

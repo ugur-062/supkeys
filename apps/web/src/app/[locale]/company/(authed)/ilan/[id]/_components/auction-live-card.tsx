@@ -55,7 +55,14 @@ function Tile({
       <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
         {label}
       </p>
-      <p className="mt-1 truncate text-lg font-bold text-zinc-950 tabular-nums">
+      {/* KESİLMEZ (arayüz testi kalanlar S-SELL): 390 px'te iki sütunlu
+          ızgarada `truncate` "7.645.039,..." basıyordu ve tam değer hiçbir
+          yerde görünmüyordu. Telefonda bir boy küçük, sığmayan büyük tutar
+          satır kırar; tam değer ipucunda da. */}
+      <p
+        className="mt-1 text-base font-bold text-zinc-950 tabular-nums [overflow-wrap:anywhere] sm:text-lg"
+        title={value}
+      >
         {value}
       </p>
       {sub ? <p className="mt-0.5 text-xs text-zinc-500">{sub}</p> : null}

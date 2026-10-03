@@ -3,6 +3,7 @@
 import { useCityLabel, usePriceLabels, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { anchorId } from "@/lib/public/anchors";
 import { countryDisplayName } from "@/i18n/domain";
 
 import { CategoryImage } from "./category-image";
@@ -131,10 +132,10 @@ export function ProductCard({
   /**
    * Tek CTA etiketi (tile) — "Bilgi iste". GERÇEK bağlantıdır ve kartın
    * yayılmış bağlantısından AYRI çalışır: kart ürün sayfasını, CTA aynı
-   * sayfanın `#bilgi-iste` çapasını açar.
+   * sayfanın "Bilgi iste" çapasını açar (dil başına, `lib/public/anchors`).
    */
   cta?: string;
-  /** CTA'nın hedefi — verilmezse `<ürün sayfası>#bilgi-iste`. */
+  /** CTA'nın hedefi — verilmezse `<ürün sayfası>#<bilgi iste çapası>`. */
   ctaHref?: string;
   /**
    * Tile: kapağın sol üstündeki rozet — VERİLİRSE "Yeni"nin yerine geçer
@@ -175,6 +176,7 @@ export function ProductCard({
   className?: string;
 }) {
   const t = useTranslations("web.marketplace.productCard");
+  const locale = useLocale();
   const cityLabel = useCityLabel();
   const unitLabel = useUnitLabel();
   const quantity = useQuantityLabel();
@@ -330,7 +332,7 @@ export function ProductCard({
             </span>
             {cta && target ? (
               <Link
-                href={ctaHref ?? `${target}#bilgi-iste`}
+                href={ctaHref ?? `${target}#${anchorId("inquiry", locale)}`}
                 {...NEW_TAB}
                 onClick={(e) => e.stopPropagation()}
                 className={cn("relative z-10 inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold", ctaCls)}
@@ -358,7 +360,7 @@ export function ProductCard({
               sayfanın başını açıyordu. Izgara kartıyla aynı kural. */}
           {cta && target ? (
             <Link
-              href={ctaHref ?? `${target}#bilgi-iste`}
+              href={ctaHref ?? `${target}#${anchorId("inquiry", locale)}`}
               {...NEW_TAB}
               onClick={(e) => e.stopPropagation()}
               className={cn("relative z-10 mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}
@@ -531,7 +533,7 @@ export function ProductCard({
                karta sızmasını keser (bugün kartın kendi `onClick`i yok ama
                eklendiğinde iki eylem birden tetiklenirdi). */
             <Link
-              href={ctaHref ?? `${target}#bilgi-iste`}
+              href={ctaHref ?? `${target}#${anchorId("inquiry", locale)}`}
               {...NEW_TAB}
               onClick={(e) => e.stopPropagation()}
               className={cn(

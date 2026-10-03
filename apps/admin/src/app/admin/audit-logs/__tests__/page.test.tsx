@@ -224,6 +224,24 @@ describe("AuditLogsPage", () => {
   });
 });
 
+describe("AuditLogsPage — derin bağlantı eylem süzgeci (arayüz testi kalanlar webC-4)", () => {
+  it("listede olmayan ?action= değeri etiketiyle seçili görünür; 'Süzgeçleri temizle' çıplak adrese döner", () => {
+    h.search = "action=admin.system.translation_backfill";
+    render(<AuditLogsPage />);
+    const select = screen.getByRole("combobox", { name: "Eylem" }) as HTMLSelectElement;
+    expect(select.value).toBe("admin.system.translation_backfill");
+    expect(select.selectedOptions[0].textContent).not.toBe("Tüm eylemler");
+    expect(select.selectedOptions[0].textContent).toMatch(/çeviri/i);
+    fireEvent.click(screen.getByRole("button", { name: "Süzgeçleri temizle" }));
+    expect(h.replace).toHaveBeenCalledWith("/admin/audit-logs", { scroll: false });
+  });
+
+  it("süzgeç yokken temizleme düğmesi çizilmez", () => {
+    render(<AuditLogsPage />);
+    expect(screen.queryByRole("button", { name: "Süzgeçleri temizle" })).not.toBeInTheDocument();
+  });
+});
+
 describe("AuditLogsPage — rol kapısı (arayüz testi T-09 / D-033)", () => {
   it("SUPPORT adresle açınca denetim sorgusu atılmaz, yetki kartı çizilir", () => {
     h.admin = { role: "SUPPORT" };

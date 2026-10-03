@@ -32,6 +32,8 @@ import { ActivityIcon } from "./activity-icons";
 import { CardCarousel } from "./card-carousel";
 import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
+import { anchorId } from "@/lib/public/anchors";
+import { AnchorAliases } from "./anchor-aliases";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { MapPinIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -131,7 +133,7 @@ export function ProductDetail({
                 sellerSlug={companySlug}
                 member={
                   <Link
-                    href={`${PANEL_TARGET.product(companySlug, product.slug)}#bilgi-iste`}
+                    href={`${PANEL_TARGET.product(companySlug, product.slug)}#${anchorId("inquiry", locale)}`}
                     className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                   >
                     {t("inquire")}
@@ -270,7 +272,8 @@ export function ProductDetailBody({
   const quantity = useQuantityLabel();
   // Ürün metni bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak) ad,
   // açıklama, şartname ve anahtar kelimeler kaynağın `lang`ını taşır.
-  const contentLang = contentLangOf(product, useLocale() as Locale);
+  const locale = useLocale() as Locale;
+  const contentLang = contentLangOf(product, locale);
   const priceLabels = usePriceLabels();
   const price = productPrice({
     priceMode: product.priceMode,
@@ -398,12 +401,13 @@ export function ProductDetailBody({
               </>
             )}
 
-            {/* `#bilgi-iste` — ÜRÜN KARTININ CTA'sının hedefi. Kartın kendisi
+            {/* "Bilgi iste" çapası (dil başına, `lib/public/anchors`) — ÜRÜN KARTININ CTA'sının hedefi. Kartın kendisi
                 ürün sayfasını açar, "Bilgi iste" düğmesi aynı sayfayı EYLEMİN
                 ÜSTÜNDE açar; ikisi ayrı eylem olsun diye kartta
                 `stopPropagation` var. Çapa olmadan CTA kartla aynı yere
                 giderdi ve "ayrı düğme" olduğu yalan olurdu. */}
-            <div id="bilgi-iste" className="mt-5 scroll-mt-24 border-t border-zinc-950/5 pt-5">
+            <div id={anchorId("inquiry", locale)} className="mt-5 scroll-mt-24 border-t border-zinc-950/5 pt-5">
+              <AnchorAliases anchor="inquiry" locale={locale} />
               {cta}
             </div>
           </div>

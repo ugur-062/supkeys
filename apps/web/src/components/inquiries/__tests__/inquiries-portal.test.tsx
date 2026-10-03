@@ -394,7 +394,7 @@ describe("InquiriesView — arayüz testi D-112/D-131/D-238/D-284", () => {
     );
     wrap(<InquiriesView portal="satis" />);
     expect(await screen.findByRole("link", { name: "Silver paketine geç" })).toBeInTheDocument();
-    expect(screen.queryByText(/Bağlantı davetiyle gelen talepleri/)).toBeNull();
+    expect(screen.queryByText(/bağlantılı firmaların taleplerini ücretsiz/)).toBeNull();
   });
 
   it("arama yalnız yüklenenlerde: eski kayıtlar yüklenmediyse ipucu basılır (D-112)", async () => {

@@ -97,8 +97,8 @@ describe("arama formları dil önekini korur (Y-17)", () => {
 
   it.each([
     ["tr", "/firma/acme#urunler"],
-    ["en", "/en/companies/acme#urunler"],
-    ["ru", "/ru/kompanii/acme#urunler"],
+    ["en", "/en/companies/acme#products"],
+    ["ru", "/ru/kompanii/acme#tovary"],
   ])("CompanyProducts firma içi arama %s → %s", async (locale, expected) => {
     h.locale = locale;
     const el = await CompanyProducts({ companySlug: "acme", page: EMPTY, query: "pompa" });
@@ -106,6 +106,14 @@ describe("arama formları dil önekini korur (Y-17)", () => {
     const form = container.querySelector("form");
     expect(form?.getAttribute("action")).toBe(expected);
     expect(form?.getAttribute("method")).toBe("get");
+    // Bölüm çapası o dilde; eski/öteki dil çapaları bölümün başında görünmez
+    // hedef olarak durur (arayüz testi kalanlar COPY: `#urunler` EN/RU'da).
+    const anchor = expected.split("#")[1];
+    const section = container.querySelector("section");
+    expect(section?.id).toBe(anchor);
+    for (const id of ["urunler", "products", "tovary"].filter((x) => x !== anchor)) {
+      expect(section?.querySelector(`#${id}`)).not.toBeNull();
+    }
   });
 
   it("D-330: aralık dışı ürün sayfasında bölüm kaybolmaz — arama kutusu ve son sayfa bağlantısı kalır", async () => {

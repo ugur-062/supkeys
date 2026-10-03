@@ -294,6 +294,9 @@ describe("token'lı davet-kabul", () => {
       entityId: res.id,
     });
     expect(JSON.stringify(cancelled[0].metadata ?? {})).not.toContain("iptal-iz@firma.com");
+    // Detay için geri alınan yetki seti yazılır (arayüz testi kalanlar api-2).
+    expect(cancelled[0].metadata).toMatchObject({ roles: ["SATISCI"] });
+    expect(Array.isArray((cancelled[0].metadata as { permissions?: unknown }).permissions)).toBe(true);
 
     const member = await makeUser(prisma, a.company.id, [CompanyRole.SATISCI], {
       firstName: "Ayşe",
@@ -332,6 +335,16 @@ describe("token'lı davet-kabul", () => {
     expect(actions).toEqual(
       expect.arrayContaining(["company.user.invitation_cancelled", "company.user.profile_updated"]),
     );
+    // Davet satırları hedef adresi okuma anında AYNI firmanın davetinden çözer
+    // (metadata'da PII yok); başka firmanın listesinde görünmez.
+    const cancelRow = log.items.find(
+      (r: { action: string }) => r.action === "company.user.invitation_cancelled",
+    ) as { entityLabel: string | null };
+    expect(cancelRow.entityLabel).toBe("iptal-iz@firma.com");
+    const other = await new AuditService(prisma as never).queryForTenant(b.company.id, {
+      module: "user",
+    });
+    expect(JSON.stringify(other.items)).not.toContain("iptal-iz@firma.com");
   });
 
   it("davet dili: seçilen dilde e-posta + kabul adresi, yeniden gönderimde korunur; dilsiz davet davet edenin dili", async () => {

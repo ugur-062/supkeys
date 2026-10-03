@@ -98,7 +98,14 @@ export default function AktivitePage() {
     const m = row.metadata ?? {};
     const parts: string[] = [];
     // Kullanıcı yönetimi kayıtlarında işlemin HEDEFİ (API aynı firmadan çözer).
-    if (row.entityLabel) parts.push(t("hedef", { name: row.entityLabel }));
+    // Davet satırlarında hedef davet edilen ADRES (API aynı firmanın davet
+    // kaydından çözer; arayüz testi kalanlar api-2).
+    if (row.entityLabel)
+      parts.push(
+        row.entityType === "company_user_invitation"
+          ? t("davetEdilen", { email: row.entityLabel })
+          : t("hedef", { name: row.entityLabel }),
+      );
     // C16: kazandırma SİPARİŞ BAŞINA iz yazar (INV-AUDIT-1) — numara olmadan
     // aynı saniyedeki kayıtlar "çift kayıt" gibi okunuyordu.
     if (typeof m.orderNumber === "string") parts.push(t("siparis", { n: m.orderNumber }));
@@ -187,6 +194,10 @@ export default function AktivitePage() {
       const reasonKey = `reason.${m.reason}`;
       parts.push(t.has(reasonKey as never) ? t(reasonKey as never) : m.reason);
     }
+    // Eski davet iptali kayıtları metadata'sız ve davet satırı çözülemezse
+    // Detay boş kalmasın — ne olduğunu söyleyen kasıtlı yedek (api-2).
+    if (!parts.length && row.action === "company.user.invitation_cancelled")
+      parts.push(t("davetGeriAlindi"));
     return parts.join(" · ");
   };
 

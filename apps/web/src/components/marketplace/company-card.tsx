@@ -1,4 +1,5 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { anchorId } from "@/lib/public/anchors";
 import { cityDisplayName, countryDisplayName, useActivityLabel, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -167,7 +168,7 @@ export function CompanyCard({
           <div className="relative z-10 flex min-w-0 max-w-full flex-wrap items-center gap-2">
             {c.productCount > 0 ? (
               <Link
-                href={`${href ?? `/firma/${c.slug}`}#urunler`}
+                href={`${href ?? `/firma/${c.slug}`}#${anchorId("products", locale)}`}
                 className={`inline-flex items-center rounded-lg border bg-white px-3.5 py-2 text-sm font-semibold transition ${tone.outline}`}
               >
                 {t("viewPortfolio", { n: fmt.number(c.productCount) })}
@@ -251,7 +252,7 @@ export function CompanyCard({
                 {rest > 0 && preview.length < 4 ? (
                   <li>
                     <Link
-                      href={`${href ?? `/firma/${c.slug}`}#urunler`}
+                      href={`${href ?? `/firma/${c.slug}`}#${anchorId("products", locale)}`}
                       className={`tnum relative z-10 flex h-full min-h-24 w-full items-center justify-center rounded-lg text-sm font-semibold transition ${tone.soft}`}
                     >
                       {t("moreProducts", { n: fmt.number(rest) })}

@@ -181,6 +181,23 @@ describe("AktivitePage — davet / kabul / çıkarma satırları", () => {
     expect(screen.getAllByText("roller: Görüntüleyici").length).toBeGreaterThan(0);
   });
 
+  it("davet iptali: davet edilen adres + geri alınan roller; metadata'sız eski satır kasıtlı yedek yazar (arayüz testi kalanlar api-2)", () => {
+    h.items = [
+      {
+        ...row("company.user.invitation_cancelled", { roles: ["SATISCI"], permissions: [] }),
+        entityType: "company_user_invitation",
+        entityId: "inv1",
+        entityLabel: "aday@firma.com",
+      },
+      { ...row("company.user.invitation_cancelled", {}), id: "eski", metadata: null },
+    ];
+    render(<AktivitePage />);
+    expect(screen.getAllByText("davet edilen: aday@firma.com · roller: Satışçı").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("bekleyen davet geri alındı, davet bağlantısı artık çalışmaz").length,
+    ).toBeGreaterThan(0);
+  });
+
   it("izin üzerine yazma satırı (roles var, permissions yok) rol özeti eklemez; çıkarma önceki rolleri yazar", () => {
     h.items = [
       row("company.user.permissions_overridden", {

@@ -271,7 +271,7 @@
     "yayinIcinGecerliBirKapanisTarihi": "Publishing requires a valid closing date in the future",
     "ozelDavetliIlanYayinlamakIcinEn": "At least one company must be invited to publish a private (invite-only) request",
     "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "The request status changed; only a draft can be published",
-    "herkeseAcikTalepleriGormekVeTeklif": "A Silver plan is required to view public requests and submit quotes. Requests that reach you through a connection invitation are free to view.",
+    "herkeseAcikTalepleriGormekVeTeklif": "A Silver plan is required to view public requests and submit quotes. Requests from companies that invited you or are connected to you are free to view.",
     "icinGuncelTcmbKuruBulunamadiBu": "No current TCMB rate was found for {cur} — a reverse or forward auction cannot be opened in this currency",
     "gecersizTeslimatFaturaAdresi": "Invalid delivery or billing address",
     "kendiIlaninizaTeklifVeremezsiniz": "You cannot submit a quote to your own request",

@@ -271,7 +271,7 @@
     "yayinIcinGecerliBirKapanisTarihi": "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
     "ozelDavetliIlanYayinlamakIcinEn": "Özel (davetli) talep yayınlamak için en az bir firma davet edilmeli",
     "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "Talep durumu değişti; yalnızca taslak yayınlanabilir",
-    "herkeseAcikTalepleriGormekVeTeklif": "Herkese açık talepleri görmek ve teklif vermek için Silver paketi gerekir. Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.",
+    "herkeseAcikTalepleriGormekVeTeklif": "Herkese açık talepleri görmek ve teklif vermek için Silver paketi gerekir. Davet edildiğiniz ve bağlantılı firmaların taleplerini ücretsiz görürsünüz.",
     "icinGuncelTcmbKuruBulunamadiBu": "{cur} için güncel TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz",
     "gecersizTeslimatFaturaAdresi": "Geçersiz teslimat/fatura adresi",
     "kendiIlaninizaTeklifVeremezsiniz": "Kendi talebinize teklif veremezsiniz",

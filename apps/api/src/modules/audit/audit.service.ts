@@ -209,15 +209,39 @@ export class AuditService {
     const labelById = new Map(
       people.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim() || u.email]),
     );
+    // Davet kayıtları (invited / invitation_cancelled) hedefi davet edilen
+    // ADRESTİR: e-posta (PII) audit metadata'sına yazılmaz, okuma anında yine
+    // AYNI firmanın davet satırından çözülür — Kullanıcı Yönetimi bu adresleri
+    // aynı kişilere zaten gösteriyor. "Üye daveti iptal edildi" satırının Detay
+    // hücresi boş kalıyordu (arayüz testi kalanlar api-2); davet satırı iptalde
+    // silinmediği için eski (metadata'sız) kayıtlar da adresini kazanır.
+    const invitationIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.entityType === "company_user_invitation" && r.entityId)
+          .map((r) => r.entityId as string),
+      ),
+    ];
+    const invitations = invitationIds.length
+      ? await this.prisma.companyUserInvitation.findMany({
+          where: { id: { in: invitationIds }, companyId: tenantId },
+          select: { id: true, email: true },
+        })
+      : [];
+    const inviteEmailById = new Map(invitations.map((i) => [i.id, i.email]));
+    const entityLabelOf = (r: (typeof rows)[number]): string | null => {
+      if (!r.entityId) return null;
+      if (r.entityType === "company_user") return labelById.get(r.entityId) ?? null;
+      if (r.entityType === "company_user_invitation")
+        return inviteEmailById.get(r.entityId) ?? null;
+      return null;
+    };
     return {
       // JsonValue tip-referansı dışa sızmasın (TS2742) — metadata unknown.
       items: rows.map((r) => ({
         ...r,
         metadata: r.metadata as unknown,
-        entityLabel:
-          r.entityType === "company_user" && r.entityId
-            ? (labelById.get(r.entityId) ?? null)
-            : null,
+        entityLabel: entityLabelOf(r),
       })),
       pagination: {
         page,

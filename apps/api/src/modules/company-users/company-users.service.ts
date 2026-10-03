@@ -391,6 +391,13 @@ export class CompanyUsersService {
   }
 
   async cancelInvitation(actor: AuthenticatedCompanyUser, id: string) {
+    // Audit Detay'ı için geri alınan yetki seti (rol + izin) — davet kaydıyla
+    // aynı biçim; aktivite logu "Roller: …" diye çizer (arayüz testi kalanlar
+    // api-2: metadata null olduğu için Detay hücresi boştu).
+    const inv = await this.prisma.companyUserInvitation.findFirst({
+      where: { id, companyId: actor.companyId },
+      select: { roles: true, permissions: true },
+    });
     const res = await this.prisma.companyUserInvitation.updateMany({
       where: {
         id,
@@ -402,7 +409,8 @@ export class CompanyUsersService {
     if (res.count === 0) throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
     // INV-AUDIT-1: bekleyen yetki verilişinin geri alınması da iz bırakır
     // (arayüz testi webC-07 NEW-2 — Aktivite Logu'nda görünmüyordu). E-posta
-    // (PII) metadata'ya yazılmaz; davet id yeter.
+    // (PII) metadata'ya yazılmaz (aktivite logu okuma anında davet satırından
+    // çözer); davet id + geri alınan roller/izinler.
     await this.audit.log({
       action: "company.user.invitation_cancelled",
       actorType: "company",
@@ -412,6 +420,7 @@ export class CompanyUsersService {
       entityType: "company_user_invitation",
       entityId: id,
       critical: true,
+      metadata: { roles: inv?.roles ?? [], permissions: inv?.permissions ?? [] },
     });
     return { ok: true };
   }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { anchorId } from "@/lib/public/anchors";
+import { AnchorAliases } from "@/components/marketplace/anchor-aliases";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { tierAtLeast } from "@rothern/shared";
@@ -264,7 +266,8 @@ export default function CompanyProfilePage() {
   // ÜRÜNLER — herkese açık profildeki ızgarayla AYNI kart ve kapı; üye fiyatı görür.
   const productsBlock =
     products.length > 0 ? (
-      <section id="urunler" className="scroll-mt-24">
+      <section id={anchorId("products", locale)} className="scroll-mt-24">
+        <AnchorAliases anchor="products" locale={locale} />
         <div className="flex flex-wrap items-end justify-between gap-3">
           {/* Başlık ve ızgara herkese açık profille AYNI (kaynak kalıp):
               sayı parantezde, dört sütun, tam genişlik. */}

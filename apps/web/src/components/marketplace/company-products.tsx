@@ -1,4 +1,6 @@
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import { anchorId } from "@/lib/public/anchors";
+import { AnchorAliases } from "./anchor-aliases";
 import type { Locale } from "@rothern/i18n";
 import { ProductCard } from "./product-card";
 import { Pagination } from "@/components/ui/pagination";
@@ -32,6 +34,8 @@ export async function CompanyProducts({
   const ti = await getTranslations("web.marketplace.index");
   const fmt = await getFormatter();
   const locale = (await getLocale()) as Locale;
+  // Bölüm çapası dil başına (`#urunler` · `#products` · `#tovary`).
+  const productsAnchor = anchorId("products", locale);
   // Görünürlük pazar yeri anahtarına BAĞLI DEĞİL (2026-09-03): ürünler
   // firmanın zaten açık olan profilinin parçası. İndekslenme ayrı kapı
   // (sayfa `noindex` + sitemap anahtara bağlı).
@@ -48,11 +52,12 @@ export async function CompanyProducts({
     if (query) sp.set("urun", query);
     if (n > 1) sp.set("urunSayfa", String(n));
     const qs = sp.toString();
-    return `/firma/${companySlug}${qs ? `?${qs}` : ""}#urunler`;
+    return `/firma/${companySlug}${qs ? `?${qs}` : ""}#${productsAnchor}`;
   };
 
   return (
-    <section id="urunler" className="scroll-mt-24">
+    <section id={productsAnchor} className="scroll-mt-24">
+      <AnchorAliases anchor="products" locale={locale} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         {/* Başlık sayıyı PARANTEZDE taşır (kaynak kalıp): "kaç ürünü var"
             kartları saymadan okunur. */}
@@ -64,9 +69,9 @@ export async function CompanyProducts({
             GET formu — JS'siz de çalışır, sonuç aynı sayfada. Düz form
             next-intl'den geçmediği için hedef aktif dilin DIŞ yolu
             (`/en/companies/<slug>`); ön eksiz Türkçe yol EN/RU ziyaretçiyi
-            Türkçe sayfaya atıyordu (derin denetim Y-17). `#urunler` GET
+            Türkçe sayfaya atıyordu (derin denetim Y-17). Bölüm çapası GET
             gönderiminde korunur — sonuç portföy bölümünde açılır. */}
-        <form method="get" action={`${localizePath(`/firma/${companySlug}`, locale)}#urunler`} className="flex items-center gap-2">
+        <form method="get" action={`${localizePath(`/firma/${companySlug}`, locale)}#${productsAnchor}`} className="flex items-center gap-2">
           <label htmlFor="firma-urun-ara" className="sr-only">
             {t("searchLabel")}
           </label>
@@ -91,7 +96,7 @@ export async function CompanyProducts({
       {query ? (
         <p className="mt-3 text-sm text-zinc-500">
           {t("resultsFor", { q: query, n: page.total })}{" "}
-          <Link href={`/firma/${companySlug}#urunler`} className="font-medium text-zinc-900 underline underline-offset-2">
+          <Link href={`/firma/${companySlug}#${productsAnchor}`} className="font-medium text-zinc-900 underline underline-offset-2">
             {t("removeSearch")}
           </Link>
         </p>
