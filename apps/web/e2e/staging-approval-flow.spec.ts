@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * ONAY AKIŞI + ONAYLAYICININ DAR BAĞLAMI (Faz O).
@@ -56,14 +56,8 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
   }
 
   // ── Talep + teklif ──────────────────────────────────────────────────
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Onay Depo ${stamp}`,
-    addressLine: "Organize Sanayi 5. Cadde No 13",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM",
     format: "RFQ",
@@ -71,7 +65,7 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
     description: "Kazandırması onay akışına düşen QA talebi — staging.",
     visibility: "PUBLIC",
     categoryIds: [CATEGORY],
-    deliveryAddressId: addr.body.id,
+    deliveryAddressId: addressId,
     closesAt: daysFromNow(5),
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY"],

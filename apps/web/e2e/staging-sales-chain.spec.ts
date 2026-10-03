@@ -2,7 +2,6 @@ import { expect, request, test } from "@playwright/test";
 import {
   QA,
   PNG_1x1,
-  adminApiSession,
   adminContext,
   adminOpen,
   apiGet,
@@ -10,6 +9,7 @@ import {
   apiPost,
   apiSession,
   openAs,
+  tryAdminApiSession,
 } from "./staging-helpers";
 
 /**
@@ -35,6 +35,20 @@ test("ürün → onaya gönder → admin onayı → vitrin → bilgi talebi → 
   const stamp = Date.now().toString(36).toUpperCase();
   const productName = `QA Çelik Boru ${stamp}`;
   const actor = async () => (await browser.newContext()).newPage();
+
+  // ADMIN YOKLAMASI EN BAŞTA: ürün onaya gönderilince PENDING olur, inceleme
+  // kilidi yüzünden satıcı geri çekemez, yalnız admin karar verir. Admin
+  // oturumu yoksa (staging O-49: SUPER_ADMIN'de 2FA kurulu değil) her koşu
+  // kuyruğa bir PENDING ürün bırakıyordu → hiçbir kayıt üretmeden atla.
+  const adminProbe = await tryAdminApiSession();
+  if (!adminProbe.session) {
+    test.info().annotations.push({
+      type: "admin-yok",
+      description: `${adminProbe.reason} — satış zinciri atlandı; ürün oluşturulmadı ve onaya gönderilmedi (PENDING kalıntı yok)`,
+    });
+    test.skip(true, `admin oturumu yok, satış zinciri atlandı: ${adminProbe.reason}`);
+  }
+  const admin = adminProbe.session!;
 
   // ── Satıcı kurulumu (API): herkese açık profil (slug üretilir) ─────────
   const seller = await apiSession(QA.tedarikciKurucu);
@@ -93,7 +107,6 @@ test("ürün → onaya gönder → admin onayı → vitrin → bilgi talebi → 
   await actorPage.context().close();
 
   // ── Admin: kuyrukta görünür (API) → tarayıcıda onayla ─────────────────
-  const admin = await adminApiSession();
   const queue = await apiGet(admin, `/admin/products?status=PENDING&q=${encodeURIComponent(productName)}`);
   expect(queue.status, JSON.stringify(queue.body)).toBe(200);
   const rows = (queue.body?.items ?? queue.body?.data ?? queue.body ?? []) as Array<{ id: string }>;

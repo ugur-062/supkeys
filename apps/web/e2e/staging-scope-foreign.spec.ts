@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PASSWORD, QA, apiGet, apiPost, apiSession, daysFromNow, gotoRetry } from "./staging-helpers";
+import { PASSWORD, QA, apiGet, apiPost, apiSession, daysFromNow, gotoRetry, qaDeliveryAddressId } from "./staging-helpers";
 import { cleanupSignup, closeDb, db } from "./db-helpers";
 import { dogrulamaKodu, kayitFormu } from "./signup-flow";
 
@@ -77,13 +77,12 @@ test("BAE'deki tedarikçi: tüm-ülkeler ve yalnız-AE talebini görür, yalnız
 
   // ── 2. TR alıcı üç talep açar (API) ──────────────────────────────────
   const buyer = await apiSession(QA.aliciKurucu);
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT", title: `QA AE Depo ${stamp}`, addressLine: "OSB 3. Cadde No 5", city: "İstanbul", district: "Tuzla", country: "TR",
-  });
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const mk = async (title: string, targetCountries: string[]) => {
     const r = await apiPost(buyer, "/company/listings", {
       type: "ALIM", format: "RFQ", title, description: "Görünürlük ülkesi tarayıcı doğrulaması — staging, gerçek alım değildir.",
-      visibility: "PUBLIC", categoryIds: [CATEGORY], deliveryAddressId: addr.body.id, targetCountries,
+      visibility: "PUBLIC", categoryIds: [CATEGORY], deliveryAddressId: addressId, targetCountries,
       closesAt: daysFromNow(3), primaryCurrency: "TRY", allowedCurrencies: ["TRY"],
       items: [{ name: "M6 Cıvata", quantity: 100, unit: "adet" }],
     });

@@ -95,6 +95,45 @@ export async function apiGet(s: { ctx: APIRequestContext }, path: string) {
   return { status: res.status(), body: body as any };
 }
 
+/**
+ * QA TESLİMAT ADRESİ (2026-10-03): akış spec'leri her koşuda yeni bir
+ * "QA … Depo <damga>" adresi açıp hiç silmiyordu; QA Alıcı firması 332 adrese
+ * çıktı, firma sınırı 200 (`MAX_ADDRESSES_PER_COMPANY`) aşılınca beş akış
+ * spec'i kurulumda kırıldı. Sonradan silmek de çoğu zaman olmaz: açık ilanın
+ * kullandığı adres silinemez (`assertNotInActiveUse`). Bu yüzden adres
+ * YENİDEN KULLANILIR:
+ *   1) sabit başlıklı QA adresi varsa o,
+ *   2) yoksa bir kez açılır (sonraki koşular 1'e düşer),
+ *   3) açılamazsa (sınır dolu — eski koşuların kalıntısı) firmanın var olan
+ *      bir TR teslimat adresi (önce "QA " başlıklılar).
+ * Sonuç: firma başına en fazla BİR yeni adres, koşu sayısından bağımsız.
+ */
+export const QA_DELIVERY_ADDRESS_TITLE = "QA e2e Teslimat Deposu";
+
+export async function qaDeliveryAddressId(s: { ctx: APIRequestContext; csrf: string }): Promise<string> {
+  const list = await apiGet(s, "/company/addresses");
+  expect(list.status, `adres listesi: ${JSON.stringify(list.body).slice(0, 160)}`).toBe(200);
+  type Adres = { id: string; type: string; title: string; country: string | null };
+  const fits = (list.body as Adres[]).filter((a) => a.type === "TESLIMAT" && (a.country ?? "TR") === "TR");
+  const own = fits.find((a) => a.title === QA_DELIVERY_ADDRESS_TITLE);
+  if (own) return own.id;
+  const created = await apiPost(s, "/company/addresses", {
+    type: "TESLIMAT",
+    title: QA_DELIVERY_ADDRESS_TITLE,
+    addressLine: "Organize Sanayi 1. Cadde No 5",
+    city: "İstanbul",
+    district: "Tuzla",
+    country: "TR",
+  });
+  if (created.status < 300) return created.body.id as string;
+  const reuse = fits.filter((a) => a.title.startsWith("QA ")).at(-1) ?? fits.at(-1);
+  expect(
+    reuse,
+    `QA teslimat adresi açılamadı ve yeniden kullanılacak TR teslimat adresi yok: ${created.status} ${JSON.stringify(created.body).slice(0, 160)}`,
+  ).toBeTruthy();
+  return reuse!.id;
+}
+
 /** Tarayıcı girişi (giriş formu) — oturum /me ile doğrulanır, gerekirse bir kez yinelenir. */
 export async function uiLogin(page: Page, email: string) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -160,18 +199,31 @@ export const ADMIN_TOTP_SECRET = process.env.E2E_ADMIN_TOTP_SECRET?.trim() ?? ""
 const ADMIN_2FA_HINT =
   "admin 2FA: E2E_ADMIN_TOTP_SECRET (hesabın authenticator base32 anahtarı) verin ya da ortamda ADMIN_2FA_REQUIRED_ROLES=none olsun";
 
-/** Admin API oturumu: admin oturum + admin CSRF çerezi (aynı `X-CSRF-Token` başlığı). */
-export async function adminApiSession(): Promise<{ ctx: APIRequestContext; csrf: string }> {
-  expect(ADMIN_PASSWORD, "E2E_ADMIN_PASSWORD (render.staging.env INITIAL_ADMIN_PASSWORD)").not.toBe("");
+type AdminSession = { ctx: APIRequestContext; csrf: string };
+
+/**
+ * Admin API oturumunu DENER, başarısızlığı sebebiyle döner (iddia etmez).
+ * Admin adımına kadar kalıcı kayıt bırakan spec'ler (ör. satış zinciri ürünü
+ * onaya gönderir; PENDING ürün admin olmadan geri alınamaz) önce bununla
+ * yoklar ve admin yoksa kayıt üretmeden atlar.
+ */
+export async function tryAdminApiSession(): Promise<{ session: AdminSession; reason: null } | { session: null; reason: string }> {
+  if (!ADMIN_PASSWORD) return { session: null, reason: "E2E_ADMIN_PASSWORD (render.staging.env INITIAL_ADMIN_PASSWORD) yok" };
   const ctx = await request.newContext({
     baseURL: API.replace(/\/?$/, "/"),
     extraHTTPHeaders: { Origin: ADMIN, "Content-Type": "application/json" },
   });
+  const fail = async (reason: string) => {
+    await ctx.dispose();
+    return { session: null, reason } as const;
+  };
   const data: Record<string, string> = { email: ADMIN_EMAIL, password: ADMIN_PASSWORD };
   if (ADMIN_TOTP_SECRET) data.code = await freshTotp(ADMIN_TOTP_SECRET);
   const res = await ctx.post("admin/auth/login", { data });
   const text = await res.text();
-  expect(res.status(), `admin login: ${text}${/2FA_REQUIRED/.test(text) ? ` — ${ADMIN_2FA_HINT}` : ""}`).toBe(200);
+  if (res.status() !== 200) {
+    return fail(`admin login ${res.status()}: ${text.slice(0, 200)}${/2FA_REQUIRED/.test(text) ? ` — ${ADMIN_2FA_HINT}` : ""}`);
+  }
   // Giriş verildi ama 2FA zorunlu ve kurulu değil → her admin ucu 403 olur;
   // testler ürün hatası gibi kırılmasın, sebep burada açıkça yazsın.
   let setupRequired = false;
@@ -179,13 +231,22 @@ export async function adminApiSession(): Promise<{ ctx: APIRequestContext; csrf:
     setupRequired = !!(JSON.parse(text) as { admin?: { twoFactorSetupRequired?: boolean } }).admin
       ?.twoFactorSetupRequired;
   } catch {
-    /* gövde JSON değil — aşağıdaki çerez iddiası yakalar */
+    /* gövde JSON değil — aşağıdaki çerez denetimi yakalar */
   }
-  expect(setupRequired, `admin hesabında 2FA zorunlu ama kurulu değil (403 ADMIN_2FA_SETUP_REQUIRED) — ${ADMIN_2FA_HINT}`).toBe(false);
+  if (setupRequired) {
+    return fail(`admin hesabında 2FA zorunlu ama kurulu değil (403 ADMIN_2FA_SETUP_REQUIRED) — ${ADMIN_2FA_HINT}`);
+  }
   const cookies = (await ctx.storageState()).cookies;
   const csrf = cookies.find((c) => c.name === COOKIE.adminCsrf)?.value ?? "";
-  expect(csrf, `${COOKIE.adminCsrf} çerezi`).not.toBe("");
-  return { ctx, csrf };
+  if (!csrf) return fail(`${COOKIE.adminCsrf} çerezi yok`);
+  return { session: { ctx, csrf }, reason: null };
+}
+
+/** Admin API oturumu: admin oturum + admin CSRF çerezi (aynı `X-CSRF-Token` başlığı). */
+export async function adminApiSession(): Promise<AdminSession> {
+  const r = await tryAdminApiSession();
+  expect(r.reason, r.reason ?? "").toBeNull();
+  return r.session!;
 }
 
 /** Admin tarayıcı bağlamı: admin alan adı + admin Vercel bypass anahtarı. */

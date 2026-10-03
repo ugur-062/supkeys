@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { WEB, apiGet, apiPost, apiSession, QA, daysFromNow } from "./staging-helpers";
+import { WEB, apiGet, apiPost, apiSession, QA, daysFromNow, qaDeliveryAddressId } from "./staging-helpers";
 import { closeDb, db } from "./db-helpers";
 
 /**
@@ -30,14 +30,12 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
   // Taze bir e-posta üret: sipariş/teklif akışı tetiklenmeden log bayat olabilir.
   const buyer = await apiSession(QA.aliciSatinalmaci);
   const stamp = Date.now().toString(36).toUpperCase();
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT", title: `QA Posta ${stamp}`, addressLine: "Sanayi Cad. 4",
-    city: "İstanbul", district: "Tuzla", country: "TR",
-  });
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM", format: "RFQ", title: `QA Posta Talebi ${stamp}`,
     description: "E-posta içeriği doğrulaması için açılan QA talebi.",
-    visibility: "PUBLIC", categoryIds: ["31161500"], deliveryAddressId: addr.body.id,
+    visibility: "PUBLIC", categoryIds: ["31161500"], deliveryAddressId: addressId,
     closesAt: daysFromNow(4), primaryCurrency: "TRY", allowedCurrencies: ["TRY"],
     items: [{ name: "Posta Kalemi", quantity: 5, unit: "adet" }],
   });

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * FİRMALAR ARASI YALITIM (IDOR) + KENDİ SATIRINI DÜZENLEYEMEME.
@@ -23,16 +23,8 @@ test("başka firmanın talebi, siparişi, ürünü, adresi ve kullanıcısı id 
   const outsider = await apiSession(QA.tedarikci2Kurucu); // üçüncü firma: hiçbir ilişkisi yok
 
   // ── Alıcı firmanın kayıtları ────────────────────────────────────────
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Yalıtım Depo ${stamp}`,
-    addressLine: "Organize Sanayi 4. Cadde No 11",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
-  expect(addr.status).toBeLessThan(300);
-  const addressId: string = addr.body.id;
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
 
   // TASLAK talep: yalnız SAHİBİNE açık. (PRIVATE seçilmedi çünkü davetli
   // firma ZORUNLU ve davet bağlantı ister — yalıtım sınamasına gereksiz

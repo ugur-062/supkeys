@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * PAZARLIK (açık eksiltme) — "talebi pazarlığa al" turu.
@@ -27,15 +27,8 @@ test("RFQ → iki teklif → Pazarlığa Geç (tarayıcı) → eksiltme kurallar
 
   // ── Alıcı: RFQ talebi ────────────────────────────────────────────────
   const buyer = await apiSession(QA.aliciSatinalmaci);
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Pazarlık Depo ${stamp}`,
-    addressLine: "Organize Sanayi 3. Cadde No 9",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
-  expect(addr.status, JSON.stringify(addr.body)).toBeLessThan(300);
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
 
   // Pazarlık DOĞRUDAN açılamaz — tek yol RFQ'dan geçiş.
   const direct = await apiPost(buyer, "/company/listings", {
@@ -45,7 +38,7 @@ test("RFQ → iki teklif → Pazarlığa Geç (tarayıcı) → eksiltme kurallar
     description: "Doğrudan eksiltme denemesi — reddedilmeli.",
     visibility: "PUBLIC",
     categoryIds: [CATEGORY],
-    deliveryAddressId: addr.body.id,
+    deliveryAddressId: addressId,
     closesAt: daysFromNow(5),
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY"],
@@ -61,7 +54,7 @@ test("RFQ → iki teklif → Pazarlığa Geç (tarayıcı) → eksiltme kurallar
     description: "Kapalı zarfla başlayıp pazarlığa geçen QA talebi — staging.",
     visibility: "PUBLIC",
     categoryIds: [CATEGORY],
-    deliveryAddressId: addr.body.id,
+    deliveryAddressId: addressId,
     closesAt: daysFromNow(5),
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY"],

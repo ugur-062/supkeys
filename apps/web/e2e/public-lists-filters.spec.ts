@@ -17,24 +17,45 @@ test("firmalar: üyeliğe yönlendiren vitrin — süzgeç yok, en fazla 6 kart,
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // Süzgeç/arama/sayfalama/sayaç bilinçli KALDIRILDI: dizinin tamamı üyelere.
   await expect(page.locator('aside[aria-label="Süzgeçler"]')).toHaveCount(0);
-  const cards = await page.locator('a[href^="/firma/"]').evaluateAll((as) => new Set(as.map((a) => (a as HTMLAnchorElement).getAttribute("href")?.split("#")[0])).size);
-  expect(cards, "en fazla 6 firma kartı").toBeLessThanOrEqual(6);
+  // Kart = firma bağlantısı taşıyan <article>. Eski sayım her "/firma/…"
+  // bağlantısını sayıyordu; kartın içindeki ürün önizlemeleri
+  // (/firma/<slug>/urun/<ürün>) 6 firmayı 24 "kart" gösteriyordu.
+  const cards = page.locator("main article").filter({ has: page.locator('a[href^="/firma/"]') });
+  const cardCount = await cards.count();
+  const slugs = await cards.locator('a[href^="/firma/"]').evaluateAll(
+    (as) => new Set(as.map((a) => (a as HTMLAnchorElement).getAttribute("href")?.match(/^\/firma\/[^/#?]+/)?.[0])).size,
+  );
+  expect(cardCount, "en fazla 6 firma kartı").toBeLessThanOrEqual(6);
+  expect(slugs, "her kart tek bir firmaya ait (ürün önizlemeleri ayrı kart sayılmaz)").toBe(cardCount);
   await expect(page.locator('a[href*="/company/kayit"]').first()).toBeVisible();
 });
 
-test("alım talepleri: kapsam seçimi URL'ye yazılır; kalan süre radyo gibi davranır", async ({ page }) => {
+/**
+ * Yurtiçi/uluslararası KAPSAM süzgeci 2026-09-21'de kalktı (görünürlük ülkesi
+ * geldi); eski test her koşuda "yurtiçi talep yok" diye atlanıyordu. Kalan
+ * süre süzgeci radyo gibi davranır: tek seçim, aynı seçeneğe ikinci tık
+ * seçimi kaldırır, seçim URL'ye (`sure=`) yazılır.
+ */
+test("alım talepleri: kapsam süzgeci yok; kalan süre radyo gibi davranır ve URL'ye yazılır", async ({ page }) => {
   await page.goto("/alim-talepleri");
-  await expect(page.locator('aside[aria-label="Süzgeçler"]')).toBeVisible();
-  const scope = page.locator('aside[aria-label="Süzgeçler"] input[type=checkbox][id$="-scope-yurtici"]');
-  if ((await scope.count()) === 0) test.skip(true, "yurtiçi talep yok");
-  await scope.click();
-  await expect(page).toHaveURL(/kapsam=yurtici/);
-  const w7 = page.locator('aside[aria-label="Süzgeçler"] input[type=checkbox][id$="-within-7"]');
-  await w7.click();
-  await expect(page).toHaveURL(/sure=7/);
-  const w30 = page.locator('aside[aria-label="Süzgeçler"] input[type=checkbox][id$="-within-30"]');
-  await w30.click();
+  const aside = page.locator('aside[aria-label="Süzgeçler"]');
+  await expect(aside).toBeVisible();
+  await expect(aside.locator('input[id*="-scope-"]'), "kalkmış kapsam süzgeci").toHaveCount(0);
+  const within = (k: string) => aside.locator(`input[type=checkbox][id$="-within-${k}"]`);
+  await expect(within("30")).toHaveCount(1);
+  // Sayısı 0 olan seçenek devre dışı (3 ⊂ 7 ⊂ 30): 30 gün bile boşsa açık talep yok.
+  if (await within("30").isDisabled()) test.skip(true, "30 gün içinde kapanan açık talep yok");
+  await within("30").click();
   await expect(page).toHaveURL(/sure=30/);
-  await expect(page).not.toHaveURL(/sure=7/);
+  if (await within("7").isEnabled()) {
+    await within("7").click();
+    await expect(page).toHaveURL(/sure=7(&|$)/);
+    await expect(page).not.toHaveURL(/sure=30/);
+    await expect(within("30")).not.toBeChecked();
+  }
+  // İşaretli seçeneğe yeniden tık → seçim kalkar.
+  const checked = (await within("7").isChecked()) ? within("7") : within("30");
+  await checked.click();
+  await expect(page).not.toHaveURL(/sure=/);
   await expect(page.locator('p[aria-live="polite"]').first()).toContainText(/talebi|talep/i);
 });

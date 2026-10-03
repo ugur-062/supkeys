@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PRODUCT_LIMITS } from "@rothern/shared";
-import { QA, adminApiSession, apiGet, apiPatch, apiPost, apiSession, daysFromNow } from "./staging-helpers";
+import { QA, adminApiSession, apiGet, apiPatch, apiPost, apiSession, daysFromNow, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * EŞZAMANLILIK (2026-09-12) — çift tıklama ve yarış durumları.
@@ -20,14 +20,12 @@ test("aynı anda iki kazandırma → tek sipariş", async () => {
   const buyer = await apiSession(QA.aliciSatinalmaci);
   const seller = await apiSession(QA.tedarikciSatisci);
 
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT", title: `QA Yarış ${stamp}`, addressLine: "Sanayi Cad. No 1",
-    city: "İstanbul", district: "Tuzla", country: "TR",
-  });
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM", format: "RFQ", title: `QA Yarış Talebi ${stamp}`,
     description: "Eşzamanlı kazandırma denemesi — QA.",
-    visibility: "PUBLIC", categoryIds: [CATEGORY], deliveryAddressId: addr.body.id,
+    visibility: "PUBLIC", categoryIds: [CATEGORY], deliveryAddressId: addressId,
     closesAt: daysFromNow(5), primaryCurrency: "TRY", allowedCurrencies: ["TRY"],
     items: [{ name: "Yarış Kalemi", quantity: 10, unit: "adet" }],
   });
