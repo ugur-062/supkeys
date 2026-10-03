@@ -78,7 +78,7 @@ export function SatinalmaIhaleTab({
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
   const locale = useLocale();
-  const { money: fm, compact: fcm, axis: fam } = useFormatMoney();
+  const { money: fm, compact: fcm, axis: fam, axisWidth } = useFormatMoney();
   // Tutarlar firmanın RAPOR BİRİMİNDE (2026-09-27; sunucu her siparişi kendi
   // biriminden çevirir) — eskiden yalnız TRY siparişler sayılıyordu.
   const cur = analytics?.currency ?? "TRY";
@@ -255,7 +255,7 @@ export function SatinalmaIhaleTab({
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  width={64}
+                  width={axisWidth(cur, cashScaleMax)}
                   tick={{ fontSize: 11, fill: "#94a3b8" }}
                   tickFormatter={(v: number) => fam(Number(v), cur, cashScaleMax)}
                 />

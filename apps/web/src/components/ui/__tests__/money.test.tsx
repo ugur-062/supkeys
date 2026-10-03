@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 let currentLocale = "tr";
 vi.mock("next-intl", () => ({ useLocale: () => currentLocale }));
 
-import { Money, axisScaleMax, formatAxisMoney, formatCompactMoney, formatMoney, moneyParts } from "../money";
+import { Money, axisMoneyWidth, axisScaleMax, formatAxisMoney, formatCompactMoney, formatMoney, moneyParts } from "../money";
 
 afterEach(() => {
   currentLocale = "tr";
@@ -52,13 +52,38 @@ describe("formatCompactMoney — kısaltma DİLİN kısaltması", () => {
 describe("formatAxisMoney — bir eksen tek gösterim", () => {
   it("10.000+ ölçekte 10.000 altı tikler de kısaltılır", () => {
     const ticks = [0, 9_000, 18_000, 27_000, 36_000].map((v) => formatAxisMoney(v, "TRY", "tr", 36_000));
-    expect(ticks).toEqual(["0 ₺", "9\u00A0B ₺", "18\u00A0B ₺", "27\u00A0B ₺", "36\u00A0B ₺"]);
+    expect(ticks).toEqual(["0\u00A0₺", "9\u00A0B\u00A0₺", "18\u00A0B\u00A0₺", "27\u00A0B\u00A0₺", "36\u00A0B\u00A0₺"]);
     expect(formatAxisMoney(9_000, "USD", "en", 36_000)).toBe("$9K");
   });
 
   it("10.000 altı ölçekte hepsi kuruşsuz tam", () => {
     const ticks = [0, 2_500, 5_000, 7_500, 10_000].map((v) => formatAxisMoney(v, "TRY", "tr", 9_200));
-    expect(ticks).toEqual(["0 ₺", "2.500 ₺", "5.000 ₺", "7.500 ₺", "10.000 ₺"]);
+    expect(ticks).toEqual(["0\u00A0₺", "2.500\u00A0₺", "5.000\u00A0₺", "7.500\u00A0₺", "10.000\u00A0₺"]);
+  });
+
+  /**
+   * Arayüz testi kapanış — Recharts <Text> etiketi normal boşluktan kırar:
+   * Rusçada "75 тыс. ₺" iki satıra bölünüp üst tik kırpılıyordu. Eksen
+   * etiketinde kırılabilir boşluk kalmaz; eksen genişliği en uzun etikete göre.
+   */
+  it("eksen etiketi tek satır: kırılabilir boşluk yok (RU/TR/EN)", () => {
+    const breaking = /[ \f\n\r\t\v\u2028\u2029]/;
+    for (const locale of ["ru", "tr", "en"]) {
+      for (const v of [0, 75_000, 225_000, 300_000, 1_500_000]) {
+        expect(formatAxisMoney(v, "TRY", locale, 300_000)).not.toMatch(breaking);
+      }
+      expect(formatAxisMoney(7_500, "TRY", locale, 9_000)).not.toMatch(breaking);
+    }
+    expect(formatAxisMoney(75_000, "TRY", "ru", 300_000)).toBe("75\u00A0тыс.\u00A0₺");
+  });
+
+  it("axisMoneyWidth en uzun etikete göre büyür, alt sınırın altına inmez", () => {
+    expect(axisMoneyWidth("TRY", "tr", 300_000)).toBe(64);
+    expect(axisMoneyWidth("USD", "en", 300_000)).toBe(64);
+    expect(axisMoneyWidth("TRY", "tr", 300_000, 70)).toBe(70);
+    // "300 тыс. ₺" 64 px'e sığmıyordu.
+    expect(axisMoneyWidth("TRY", "ru", 300_000)).toBeGreaterThan(64);
+    expect(axisMoneyWidth("TRY", "ru", Number.NaN)).toBe(64);
   });
 
   it("axisScaleMax en büyük mutlak değer; boş/geçersiz 0", () => {

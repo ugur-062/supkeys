@@ -80,7 +80,26 @@ export function formatAxisMoney(
     intl,
     compact ? { notation: "compact", maximumFractionDigits: 1 } : { maximumFractionDigits: 0 },
   ).format(n);
-  return affixCurrency(num, currency, locale);
+  // Eksen etiketi TEK SATIR: Recharts <Text> etiketi eksen genişliğine
+  // sığmayınca NORMAL boşluktan kırar; Rusçada "75 тыс. ₺" sembolü ikinci
+  // satıra atıyor, iki satırlık üst tik de grafiğin üstünden kırpılıyordu
+  // (arayüz testi kapanış). Bütün boşluklar bölünmez boşluk (U+00A0).
+  return affixCurrency(num, currency, locale).replace(/ /g, "\u00A0");
+}
+
+/**
+ * Tutar ekseninin piksel genişliği (11 px yazı): eksenin en uzun etiketi
+ * (`scaleMax`ın etiketi + yuvarlanmış üst tik için bir karakter payı) sığsın;
+ * `min` altına inmez. Sabit 64 px Rusçada "300 тыс. ₺"yi soldan kırpıyordu.
+ */
+export function axisMoneyWidth(
+  currency: string,
+  locale: Locale | string,
+  scaleMax: number,
+  min = 64,
+): number {
+  const label = formatAxisMoney(Number.isFinite(scaleMax) ? scaleMax : 0, currency, locale, scaleMax);
+  return Math.min(140, Math.max(min, Math.ceil((label.length + 1) * 6.6 + 8)));
 }
 
 /** Bir serinin eksen ölçeği: değerlerin en büyük mutlak değeri (boşsa 0). */
@@ -98,12 +117,14 @@ export function useFormatMoney(): {
   money: (value: number | string, currency?: string | null) => string;
   compact: (value: number | string, currency?: string | null) => string;
   axis: (value: number | string, currency: string | null | undefined, scaleMax: number) => string;
+  axisWidth: (currency: string | null | undefined, scaleMax: number, min?: number) => number;
 } {
   const locale = useLocale();
   return {
     money: (value, currency) => formatMoney(value, currency ?? "TRY", locale),
     compact: (value, currency) => formatCompactMoney(value, currency ?? "TRY", locale),
     axis: (value, currency, scaleMax) => formatAxisMoney(value, currency ?? "TRY", locale, scaleMax),
+    axisWidth: (currency, scaleMax, min) => axisMoneyWidth(currency ?? "TRY", locale, scaleMax, min),
   };
 }
 

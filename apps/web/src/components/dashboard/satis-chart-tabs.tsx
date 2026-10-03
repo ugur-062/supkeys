@@ -42,7 +42,7 @@ export function SatisGelirTab({
 }) {
   const t = useTranslations("web.panel.shell.satisChartTabs");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
-  const { money: formatMoney, axis } = useFormatMoney();
+  const { money: formatMoney, axis, axisWidth } = useFormatMoney();
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -82,7 +82,7 @@ export function SatisGelirTab({
                 <RYAxis
                   tickLine={false}
                   axisLine={false}
-                  width={64}
+                  width={axisWidth(analytics.currency, revenueScaleMax)}
                   tick={AXIS}
                   tickFormatter={(v: number) => axis(Number(v), analytics.currency, revenueScaleMax)}
                 />

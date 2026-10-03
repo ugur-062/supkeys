@@ -80,7 +80,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
   // Tutar/yüzde arayüz dilinin biçimiyle (tr-TR sabitti; kısaltma "Mr/M/K"
   // yerine dilin kısaltması — `formatCompactMoney`).
-  const { money, axis } = useFormatMoney();
+  const { money, axis, axisWidth } = useFormatMoney();
   const pct = useFormatPercent();
   // Tutarlar FİRMANIN RAPOR BİRİMİNDE (2026-09-27; sunucu çevirir). Adlar
   // (`formatTRY`) tarihsel.
@@ -237,7 +237,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                   tick={{ fontSize: 11, fill: "#64748b" }}
                   axisLine={false}
                   tickLine={false}
-                  width={70}
+                  width={axisWidth(cur, topScaleMax, 70)}
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(59,107,255,0.06)" }}
