@@ -20,7 +20,7 @@ import { Link } from "@/i18n/navigation";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
 import { Step2Items } from "@/components/tenders/wizard/step-2-items";
-import { CloseDaysInput } from "@/components/tenders/close-days-input";
+import { CloseDaysInput, useCloseDaysGuard } from "@/components/tenders/close-days-input";
 import { hasInvalidNumber } from "@/components/ui/money-input";
 import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
 import { Button } from "@/components/ui/button";
@@ -385,8 +385,12 @@ export function QuickRequest({
    */
   const buildInput = (values: TenderFormData) => mapToInput(applyConnectionsScope(values, connectionIds));
   const submitLock = useRef(false);
+  // Geçersiz "Özel gün" kutusu kaydı/yayını durdurur, kutuya odaklanır
+  // (arayüz testi kalanlar NUM:NEW-7 — kutu kırmızıyken taslak öneki kaydediyordu).
+  const closeDaysOk = useCloseDaysGuard();
   const publish = async () => {
     if (submitLock.current) return;
+    if (!closeDaysOk()) return;
     submitLock.current = true;
     setSubmitting(true);
     try {
@@ -506,6 +510,7 @@ export function QuickRequest({
   const saveDraft = async () => {
     // Yayınla ile AYNI kilit: biri sürerken öteki yeni kayıt açamaz.
     if (submitLock.current) return;
+    if (!closeDaysOk()) return;
     ensureTitle();
     const values = getValues();
     const titleLen = values.title.trim().length;
@@ -631,6 +636,8 @@ export function QuickRequest({
   };
   /** Profil şartlarını kaydeder; başarıyı döner (kurulum kartı yalnız başarıda kapanır — D-243). */
   const persistDefaults = async (next: RequestDefaults): Promise<boolean> => {
+    // Şartlar kapanış gününü de taşır: kutu geçersizken eski değer kaydedilmez.
+    if (!closeDaysOk()) return false;
     if (hasInvalidNumber(next)) {
       toast.error(tr("gecersizSayiAlani"));
       return false;

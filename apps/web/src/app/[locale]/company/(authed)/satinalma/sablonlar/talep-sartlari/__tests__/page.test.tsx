@@ -56,4 +56,22 @@ describe("Talep Şartları sayfası", () => {
     expect(h.mutateAsync).not.toHaveBeenCalled();
     expect(h.toastError).toHaveBeenCalledWith("Kaydetmeden önce işaretli alanları düzeltin");
   });
+
+  it("NUM: geçersiz 'Özel gün' ('12,50') kaydı durdurur — önek (12) gönderilmez, aralık mesajı + odak", () => {
+    h.perms = ["buy:listing:manage"];
+    render(<TalepSartlariPage />);
+    const box = screen.getByLabelText("Özel gün sayısı");
+    fireEvent.focus(box);
+    for (const typed of ["", "1", "12", "12,", "12,5", "12,50"]) fireEvent.change(box, { target: { value: typed } });
+    fireEvent.blur(box);
+    fireEvent.click(screen.getByRole("button", { name: /kaydet/i }));
+    expect(h.mutateAsync).not.toHaveBeenCalled();
+    expect(h.toastError).toHaveBeenCalledWith("1–60 gün arası tam sayı girin.");
+    expect(document.activeElement).toBe(box);
+    // Düzeltilince kayıt onaylanan değerle gider.
+    fireEvent.change(box, { target: { value: "12" } });
+    fireEvent.blur(box);
+    fireEvent.click(screen.getByRole("button", { name: /kaydet/i }));
+    expect(h.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ closeDays: 12 }));
+  });
 });

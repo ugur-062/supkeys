@@ -103,6 +103,7 @@ vi.mock("@/components/categories/category-selector-button", () => ({
   ),
 }));
 
+import { toast } from "sonner";
 import { QuickRequest } from "../quick-request";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "@/lib/tenders/form-schema";
 import { closesAtFromDays } from "@/lib/tenders/request-defaults";
@@ -579,6 +580,40 @@ describe("QuickRequest", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
     await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
     expect(h.create.mock.calls[0][0].closesAt).toBe(parseAppWallClockInput(`${day}T17:00`)?.toISOString());
+  }, 30_000);
+
+  it("NUM:NEW-7: geçersiz 'Özel gün' ('12,50') kapanışı önekle değiştirmez; taslak ve yayın durur, kutuya odaklanır", async () => {
+    h.create.mockResolvedValue({ id: "l32", number: "ROT-000072" });
+    const toastError = vi.spyOn(toast, "error");
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+      const box = screen.getByLabelText("Özel gün") as HTMLInputElement;
+      const before = (screen.getByLabelText("Kapanış günü") as HTMLInputElement).value;
+      fireEvent.focus(box);
+      for (const typed of ["", "1", "12", "12,", "12,5", "12,50"]) fireEvent.change(box, { target: { value: typed } });
+      // Önekler ("1", "12") kapanışa yazılmadı: kapanış son onaylı değerde (7 gün).
+      expect((screen.getByLabelText("Kapanış günü") as HTMLInputElement).value).toBe(before);
+      expect(box).toHaveAttribute("aria-invalid", "true");
+      fireEvent.blur(box);
+      fireEvent.click(screen.getByRole("button", { name: "Taslak kaydet" }));
+      expect(toastError).toHaveBeenCalledWith("1–60 gün arası tam sayı girin.");
+      expect(document.activeElement).toBe(box);
+      fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+      toastError.mockClear();
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      expect(toastError).toHaveBeenCalledWith("1–60 gün arası tam sayı girin.");
+      await new Promise((r) => setTimeout(r, 0));
+      expect(h.create).not.toHaveBeenCalled();
+      // "12" + odaktan çıkış 12 günü onaylar; yayın o kapanışla gider.
+      fireEvent.change(box, { target: { value: "12" } });
+      fireEvent.blur(box);
+      expect((screen.getByLabelText("Kapanış günü") as HTMLInputElement).value).toBe(closesAtFromDays(12).slice(0, 10));
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+    } finally {
+      toastError.mockRestore();
+    }
   }, 30_000);
 
   it("D-042: adres/şablon yönetme izni yoksa '+ Yeni adres' ve 'Şablon olarak kaydet' çizilmez", async () => {

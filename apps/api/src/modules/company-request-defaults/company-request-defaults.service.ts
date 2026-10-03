@@ -101,6 +101,16 @@ function localizedIssue(issue: z.ZodIssue): string {
   }
 }
 
+/** Zod ihlalleri → `{ alan: katalog metni }` (alan başına ilk ihlal). */
+function fieldErrorsOf(issues: z.ZodIssue[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const issue of issues) {
+    const key = String(issue.path[0] ?? "_");
+    out[key] ??= localizedIssue(issue);
+  }
+  return out;
+}
+
 @Injectable()
 export class CompanyRequestDefaultsService {
   constructor(
@@ -178,11 +188,16 @@ export class CompanyRequestDefaultsService {
       // Her ihlal istek dilinde, alana özgü katalog metniyle (arayüz testi
       // D-007/D-046): zod'un ham İngilizce aralık mesajları kullanıcıya gitmez.
       const issues = [...new Set(parsed.error.issues.map(localizedIssue))];
-      throw new BadRequestException(
-        i18nMessage("api.companyRequestDefaults.talepSartlariGecersiz", {
+      // Alan hataları (`errors: { closeDays: "…" }`) global ValidationPipe
+      // şekliyle: istemci ilgili alanı işaretleyebilir ve interceptor ikinci
+      // genel toast basmaz (arayüz testi kalanlar NUM — "12,50" gibi tam sayı
+      // olmayan ya da 1…60 dışı teklif süresi alan bazında reddedilir).
+      throw new BadRequestException({
+        ...i18nMessage("api.companyRequestDefaults.talepSartlariGecersiz", {
           issues: issues.join(", "),
         }),
-      );
+        errors: fieldErrorsOf(parsed.error.issues),
+      });
     }
     const data = await this.withValidAddress(user.companyId, this.normalize(parsed.data, user.country ?? null));
     // Aktivite logu yalnız GERÇEKTEN değişen alanları yazar (arayüz testi

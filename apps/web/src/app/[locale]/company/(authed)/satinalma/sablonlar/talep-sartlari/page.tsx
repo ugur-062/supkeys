@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { RequestDefaultsForm, requestDefaultsFieldErrors } from "@/components/tenders/request-defaults-form";
+import { useCloseDaysGuard } from "@/components/tenders/close-days-input";
 import { Link } from "@/i18n/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/list/page-container";
@@ -30,8 +31,12 @@ export default function TalepSartlariPage() {
     if (q.data && !draft) setDraft(q.data.defaults ?? requestDefaultsFallbackFor(companyCountry));
   }, [q.data, draft, companyCountry]);
 
+  const closeDaysOk = useCloseDaysGuard();
   const onSave = async () => {
     if (!draft) return;
+    // "Özel gün" kutusu geçersizken son onaylı gün sessizce kaydedilmez:
+    // kutunun aralık mesajı + odak (arayüz testi kalanlar NUM).
+    if (!closeDaysOk()) return;
     // Alan hatası formda işaretli (D-007); API'ye gitmeden durdurulur.
     if (Object.keys(requestDefaultsFieldErrors(draft)).length > 0) {
       toast.error(t("isaretliAlanlariDuzeltin"));

@@ -143,6 +143,34 @@ describe("CompanyRequestDefaultsService", () => {
     expect(prisma.company.update).not.toHaveBeenCalled();
   });
 
+  it("save: tam sayı olmayan ya da 1–60 dışı teklif süresi alan hatasıyla reddedilir (arayüz testi kalanlar NUM)", async () => {
+    const { svc, prisma } = rig();
+    const response = async (patch: Record<string, unknown>) => {
+      try {
+        await svc.save(user, { ...VALID, ...patch });
+      } catch (e) {
+        expect(e).toBeInstanceOf(BadRequestException);
+        return (e as BadRequestException).getResponse() as { message: string; errors?: Record<string, string> };
+      }
+      throw new Error("save should have rejected");
+    };
+    // "12,50" istemcide önek 12'ye düşmemeli; sunucuya ham metin ya da kesir gelirse de kaydedilmez.
+    for (const closeDays of [12.5, 0, 61, -3, "12,50", "12", null, 1.5e3]) {
+      const r = await response({ closeDays });
+      expect(r.errors).toEqual({ closeDays: "Teklif toplama süresi 1 ile 60 gün arasında olmalı" });
+      expect(r.message).toMatch(/Teklif toplama süresi 1 ile 60 gün arasında olmalı/);
+    }
+    // Birden çok alan: her alan kendi metniyle.
+    const both = await response({ closeDays: 0, paymentDays: 400 });
+    expect(both.errors).toEqual({
+      closeDays: "Teklif toplama süresi 1 ile 60 gün arasında olmalı",
+      paymentDays: "Vade günü 1 ile 365 arasında olmalı",
+    });
+    expect(prisma.company.update).not.toHaveBeenCalled();
+    // Sınırlar geçerli.
+    for (const closeDays of [1, 60]) await expect(svc.save(user, { ...VALID, closeDays })).resolves.toMatchObject({ source: "saved" });
+  });
+
   it("save: aktivite loguna yalnız gerçekten değişen alanlar yazılır (arayüz testi O-107)", async () => {
     const first = rig();
     await first.svc.save(user, VALID);

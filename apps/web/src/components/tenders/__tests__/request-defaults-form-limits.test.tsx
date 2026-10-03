@@ -89,7 +89,11 @@ describe("RequestDefaultsForm — yerel sayı girişi (NUM)", () => {
       expect(input).toHaveAttribute("aria-invalid", "true");
       expect(screen.getByRole("alert")).toHaveTextContent("1–60 gün arası tam sayı girin.");
     }
+    // Geçerli değer odaktan çıkınca onaylanır (arayüz testi kalanlar NUM:NEW-7:
+    // yazarken "1" / "12" önekleri kapanışa yazılmaz).
     fireEvent.change(input, { target: { value: "21" } });
+    expect(state().c).toBe(7);
+    fireEvent.blur(input);
     expect(state().c).toBe(21);
     expect(screen.queryByRole("alert")).toBeNull();
   });
