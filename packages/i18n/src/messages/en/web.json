@@ -4518,7 +4518,7 @@
         "yalnizYetkiliDegistirebilir": "Only users allowed to manage the company profile can change this setting."
       },
       "sellerTendersView": {
-        "bagliOldugunuzAlicilarinTalepleriHerkese": "Requests from buyers you are connected with — all public requests are unlocked with the Silver plan.",
+        "bagliOldugunuzAlicilarinTalepleriHerkese": "Requests you were invited to and requests from buyers you are connected with — all public requests are unlocked with the Silver plan.",
         "bagliOldugunuzAlicilarinVeHerkese": "All requests from your connected buyers and all public requests — filter, sort and submit quotes.",
         "enFazla300GosteriliyorDaha": "Showing at most 300 results ({unit}) — if there are more, narrow the list with search and filters.",
         "suzgecler": "Filters",

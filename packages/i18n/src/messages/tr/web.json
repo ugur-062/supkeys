@@ -4518,7 +4518,7 @@
         "yalnizYetkiliDegistirebilir": "Bu ayarı yalnız şirket profilini yönetme yetkisi olan kullanıcılar değiştirebilir."
       },
       "sellerTendersView": {
-        "bagliOldugunuzAlicilarinTalepleriHerkese": "Bağlı olduğunuz alıcıların talepleri — herkese açık taleplerin tamamı Silver paketiyle açılır.",
+        "bagliOldugunuzAlicilarinTalepleriHerkese": "Davet edildiğiniz talepler ve bağlı olduğunuz alıcıların talepleri — herkese açık taleplerin tamamı Silver paketiyle açılır.",
         "bagliOldugunuzAlicilarinVeHerkese": "Bağlı olduğunuz alıcıların ve herkese açık taleplerin tamamı — süzün, sıralayın, teklif verin.",
         "enFazla300GosteriliyorDaha": "En fazla 300 {unit} gösteriliyor — daha fazlası varsa arama ve süzgeçlerle daraltın.",
         "suzgecler": "Süzgeçler",
