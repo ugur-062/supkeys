@@ -3218,10 +3218,10 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **303 dosya / 3.482 test** (2 LIVE spec atlanır; son tam koşum HEAD 36312ccf, 10'luk `--runInBand`
-  partiler, 31 parti) · web **328 / 2.326** · admin **64 / 378** · i18n **11 / 65** (vitest toplamı
-  403 / 2.769, HEAD 44cb6ff4; i18n 8.390 anahtar, en/ru %100) — arayüz testi kapanış 2026-10-03.
-  44cb6ff4'te API jest izin yüzünden koşulmadı; 36312ccf'deki tam kapı 698 dosya / 6.145 test yeşil.
+- API **304 dosya / 3.496 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
+  **330 / 2.349** · admin **64 / 380** · i18n **11 / 65** (vitest toplamı 405 / 2.794; i18n 8.392 anahtar, en/ru
+  %100) — son kapı HEAD 45207910 YEŞİL, 709 dosya / 6.290 test (6.288 geçti, 2 atlandı), arayüz testi kalanlar
+  2026-10-03. Ayrı tam API koşusu HEAD fcb6cf54'te (kod 44cb6ff4) 3.495 test yeşil.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
