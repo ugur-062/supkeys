@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsEnum,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Length,
@@ -19,11 +20,14 @@ import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
 } from "@rothern/shared";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export enum CompanyTypeDto {
   JOINT_STOCK = "JOINT_STOCK",
   LIMITED = "LIMITED",
   SOLE_PROPRIETOR = "SOLE_PROPRIETOR",
+  /** Diğer (GmbH, LLC, ООО, kooperatif…) — yerel adı `legalFormLocal`. */
+  OTHER = "OTHER",
 }
 
 /**
@@ -39,13 +43,25 @@ export class CompleteOnboardingDto {
   @IsEnum(CompanyTypeDto)
   companyType!: CompanyTypeDto;
 
+  /** `companyType = OTHER` iken ZORUNLU (serviste): "GmbH", "LLC", "ООО"… */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  legalFormLocal?: string;
+
   @IsOptional()
   @IsString()
   @Length(2, 2)
   country?: string;
 
+  /**
+   * Ham girdi: belgeden kopyalanan etiket/ülke öneki taşıyabilir ("ИНН …",
+   * "VAT DE…") — tavan bu yüzden 40. Asıl biçim kuralı serviste, NORMALİZE
+   * değer üzerinde (`normalizeTaxId` + `isValidTaxIdForCountry`, alt sınır 4 —
+   * web formu aynı fonksiyonu kullanır).
+   */
   @IsString()
-  @Length(4, 30)
+  @Length(4, 40)
   taxNumber!: string;
 
   @IsOptional()
@@ -67,6 +83,11 @@ export class CompleteOnboardingDto {
   @IsString()
   @Length(2, 80)
   city!: string;
+
+  /** Dünya şehir listesi kaydı (2026-09-27) — seçiciden; yoksa metinden eşlenir. */
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
 
   @IsOptional()
   @IsString()
@@ -102,6 +123,16 @@ export class CompleteOnboardingDto {
   @IsString()
   @Length(2, 80)
   deliveryCity?: string;
+
+  @IsOptional()
+  @IsInt()
+  deliveryCityId?: number;
+
+  /** Ayrı teslimat adresinin eyalet/bölgesi (TR dışı; fatura alanıyla aynı tavan). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  deliveryStateRegion?: string;
 
   @IsOptional()
   @IsString()
@@ -171,7 +202,7 @@ export class CompleteOnboardingDto {
   // ── Adım 3: Beyan ──
 
   @IsBoolean()
-  @Equals(true, { message: "Beyanı onaylamalısınız" })
+  @Equals(true, { message: () => tApi("api.dto.onboarding.beyaniOnaylamalisiniz") })
   declarationAccepted!: boolean;
 }
 
@@ -179,7 +210,7 @@ export class CompleteOnboardingDto {
 export class ViesCheckDto {
   @IsString()
   @Length(2, 2)
-  @Matches(/^[A-Za-z]{2}$/, { message: "Geçersiz ülke kodu" })
+  @Matches(/^[A-Za-z]{2}$/, { message: () => tApi("api.dto.onboarding.gecersizUlkeKodu") })
   countryCode!: string;
 
   @IsString()

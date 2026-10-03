@@ -4,12 +4,14 @@
  * snapshot'ı, Tüm Süreçler listesi, Yönetici iptal yetkisi, preview).
  */
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import { CompanyRole } from "@prisma/client";
 import { CompanyApprovalsService } from "../../src/modules/company-approvals/company-approvals.service";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { prisma, truncateAll } from "./test-db";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 afterAll(async () => {
   await truncateAll();
@@ -76,6 +78,28 @@ const ACCEPT_DTO = {
 
 // ════════════════════════════ Davet-kabul akışı ════════════════════════════
 describe("token'lı davet-kabul", () => {
+  it("davet e-postası GİTMEDİYSE yanıt bunu söyler; yalnız görüntüleme izniyle davet rol satırı 'Görüntüleyici'", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false });
+    const res = await service.invite(owner.auth, {
+      email: "izleyici@firma.com",
+      permissions: ["buy:view"],
+    } as never);
+    expect(res).toMatchObject({ emailSent: false, emailFailureReason: "suppressed" });
+    const call = email.send.mock.calls.at(-1)?.[0] as {
+      templateData: { data: { infoRows: Array<{ label: string; value: string }> } };
+    };
+    const roleRow = call.templateData.data.infoRows.find((r) => r.label === "Rol");
+    expect(roleRow?.value).toBe("Görüntüleyici");
+
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    const again = await service.resendInvitation(owner.auth, res.id);
+    expect(again).toMatchObject({ ok: true, emailSent: false, emailFailureReason: "failed" });
+    const ok = await service.resendInvitation(owner.auth, res.id);
+    expect(ok).toMatchObject({ ok: true, emailSent: true });
+  });
+
   it("davet: PENDING kayıt + 7 gün TTL + kabul linkli e-posta; mükerrer/kayıtlı e-posta reddedilir", async () => {
     const { service, email } = makeUsersService();
     const owner = await makeCompanyWithUser(prisma);
@@ -242,6 +266,132 @@ describe("token'lı davet-kabul", () => {
     expect(list).toHaveLength(1);
     expect(list[0]!.email).toBe("a-davet@firma.com");
     expect(list[0]!.invitedByName).toContain(a.user.firstName);
+  });
+
+  // DAVET DİLİ (2026-09-27): Türk kurucu İngilizce konuşan çalışanını davet
+  // eder → e-posta ve kabul adresi İngilizce; yeniden gönderim aynı dili korur;
+  // hesap kabul sayfasının dilinde doğar.
+  it("Aktivite Logu: davet iptali ve kişi bilgisi düzenlemesi iz bırakır; PII yazılmaz, değişmeyen alan yazılmaz (arayüz testi webC-07 NEW-2)", async () => {
+    const { service } = makeUsersService();
+    const a = await makeCompanyWithUser(prisma);
+    const b = await makeCompanyWithUser(prisma);
+    const res = await service.invite(a.auth, {
+      email: "iptal-iz@firma.com",
+      roles: ["SATISCI"],
+    } as never);
+
+    // Başka firmanın iptal denemesi (404) iz bırakmaz.
+    await expect(service.cancelInvitation(b.auth, res.id)).rejects.toThrow(/bulunamadı/i);
+    await service.cancelInvitation(a.auth, res.id);
+    const cancelled = await prisma.auditLog.findMany({
+      where: { action: "company.user.invitation_cancelled" },
+    });
+    expect(cancelled).toHaveLength(1);
+    expect(cancelled[0]).toMatchObject({
+      tenantId: a.company.id,
+      actorId: a.user.id,
+      entityType: "company_user_invitation",
+      entityId: res.id,
+    });
+    expect(JSON.stringify(cancelled[0].metadata ?? {})).not.toContain("iptal-iz@firma.com");
+    // Detay için geri alınan yetki seti yazılır (arayüz testi kalanlar api-2).
+    expect(cancelled[0].metadata).toMatchObject({ roles: ["SATISCI"] });
+    expect(Array.isArray((cancelled[0].metadata as { permissions?: unknown }).permissions)).toBe(true);
+
+    const member = await makeUser(prisma, a.company.id, [CompanyRole.SATISCI], {
+      firstName: "Ayşe",
+      lastName: "Yılmaz",
+      phone: null,
+    });
+    // Soyad aynı (yalnız boşluk farkı) → yalnız ad ve telefon değişti sayılır.
+    await service.updateUser(a.auth, member.id, {
+      firstName: "Ayşegül",
+      lastName: " Yılmaz ",
+      phone: "+90 532 000 00 00",
+    });
+    const updated = await prisma.auditLog.findMany({
+      where: { action: "company.user.profile_updated" },
+    });
+    expect(updated).toHaveLength(1);
+    expect(updated[0]).toMatchObject({
+      tenantId: a.company.id,
+      entityType: "company_user",
+      entityId: member.id,
+      metadata: { changedFields: ["firstName", "phone"] },
+    });
+    expect(JSON.stringify(updated[0].metadata)).not.toMatch(/Ayşegül|532/);
+
+    // Hiçbir alan değişmediyse (aynı değerlerle kaydet) yeni iz yok.
+    await service.updateUser(a.auth, member.id, { firstName: "Ayşegül", phone: "+90 532 000 00 00" });
+    expect(
+      await prisma.auditLog.count({ where: { action: "company.user.profile_updated" } }),
+    ).toBe(1);
+
+    // Tenant listesinde (Aktivite Logu, kullanıcı modülü) hedef kişiyle görünür.
+    const log = await new AuditService(prisma as never).queryForTenant(a.company.id, {
+      module: "user",
+    });
+    const actions = log.items.map((r: { action: string }) => r.action);
+    expect(actions).toEqual(
+      expect.arrayContaining(["company.user.invitation_cancelled", "company.user.profile_updated"]),
+    );
+    // Davet satırları hedef adresi okuma anında AYNI firmanın davetinden çözer
+    // (metadata'da PII yok); başka firmanın listesinde görünmez.
+    const cancelRow = log.items.find(
+      (r: { action: string }) => r.action === "company.user.invitation_cancelled",
+    ) as { entityLabel: string | null };
+    expect(cancelRow.entityLabel).toBe("iptal-iz@firma.com");
+    const other = await new AuditService(prisma as never).queryForTenant(b.company.id, {
+      module: "user",
+    });
+    expect(JSON.stringify(other.items)).not.toContain("iptal-iz@firma.com");
+  });
+
+  it("davet dili: seçilen dilde e-posta + kabul adresi, yeniden gönderimde korunur; dilsiz davet davet edenin dili", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma); // kurucu Türkçe (varsayılan)
+    type Sent = { locale: string; subject?: string; templateData: { data: { subject: string; ctaUrl: string } } };
+    const lastSent = () => email.send.mock.calls.at(-1)?.[0] as Sent;
+
+    const res = await service.invite(owner.auth, {
+      email: "english@firma.com",
+      permissions: ["buy:view"],
+      locale: "en",
+    } as never);
+    const inv = await prisma.companyUserInvitation.findUniqueOrThrow({ where: { id: res.id } });
+    expect(inv.locale).toBe("en");
+    expect(lastSent().locale).toBe("en");
+    expect(lastSent().templateData.data.ctaUrl).toBe(
+      `http://localhost:3000/en/company/invite/${inv.token}`,
+    );
+    expect(lastSent().templateData.data.subject).not.toMatch(/davet/i);
+
+    await service.resendInvitation(owner.auth, res.id);
+    const renewed = await prisma.companyUserInvitation.findUniqueOrThrow({ where: { id: res.id } });
+    expect(lastSent().locale).toBe("en");
+    expect(lastSent().templateData.data.ctaUrl).toBe(
+      `http://localhost:3000/en/company/invite/${renewed.token}`,
+    );
+
+    // Kabul sayfası İngilizce açıldı → hesap İngilizce doğar.
+    await runWithLocale("en", () =>
+      service.acceptInvitation(renewed.token, ACCEPT_DTO as never),
+    );
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: "english@firma.com" } });
+    expect(user.locale).toBe("en");
+
+    // Dil seçilmediyse davet edenin kayıtlı dili (Rusça kurucu → Rusça davet).
+    await prisma.companyUser.update({ where: { id: owner.user.id }, data: { locale: "ru" } });
+    const plain = await service.invite(owner.auth, {
+      email: "dilsiz@firma.com",
+      permissions: ["buy:view"],
+    } as never);
+    const plainInv = await prisma.companyUserInvitation.findUniqueOrThrow({ where: { id: plain.id } });
+    expect(plainInv.locale).toBeNull();
+    expect(lastSent().locale).toBe("ru");
+    expect(lastSent().templateData.data.ctaUrl).toBe(
+      `http://localhost:3000/ru/kompaniya/priglashenie/${plainInv.token}`,
+    );
   });
 });
 
@@ -484,5 +634,66 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
         { type: "LISTING_AWARD", listingType: "ALIM", amount: 50_000 },
       ),
     ).toBe(false);
+  });
+});
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 5: görüntüleme izinli davet koltuk
+ * tüketmediği ve yeniden gönderim beklemesiz olduğu için ücretsiz hesap
+ * rastgele adreslere sınırsız davet e-postası attırabiliyordu (işlem
+ * göndereninden). Firma başına günde 20 davet e-postası, aynı davete 10 dk'da bir.
+ */
+describe("ekip daveti e-posta freni", () => {
+  async function logSend(invitationId: string, minutesAgo = 0) {
+    await prisma.emailLog.create({
+      data: {
+        template: "notification",
+        toEmail: "x@firma.com",
+        subject: "davet",
+        provider: "test",
+        status: "SENT",
+        contextType: "company_user_invitation",
+        contextId: invitationId,
+        queuedAt: new Date(Date.now() - minutesAgo * 60_000),
+      },
+    });
+  }
+
+  it("günde 20 davet e-postası gitmişse yeni davet 429 DAILY_LIMIT; kayıt açılmaz, e-posta gitmez — iptal etmek sayacı SIFIRLAMAZ", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    for (let i = 0; i < 20; i++) {
+      const res = await service.invite(owner.auth, { email: `izleyici${i}@firma.com`, permissions: ["buy:view"] } as never);
+      await logSend(res.id);
+      await service.cancelInvitation(owner.auth, res.id);
+    }
+    email.send.mockClear();
+
+    await expect(
+      service.invite(owner.auth, { email: "fazla@firma.com", permissions: ["buy:view"] } as never),
+    ).rejects.toMatchObject({ status: 429, response: expect.objectContaining({ code: "DAILY_LIMIT" }) });
+    expect(await prisma.companyUserInvitation.count({ where: { email: "fazla@firma.com" } })).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+
+    // Başka firmanın tavanı ayrı.
+    const other = await makeCompanyWithUser(prisma);
+    await expect(
+      service.invite(other.auth, { email: "fazla@firma.com", permissions: ["buy:view"] } as never),
+    ).resolves.toMatchObject({ emailSent: true });
+  });
+
+  it("aynı davet 10 dk içinde yeniden gönderilemez (429 RESEND_COOLDOWN); süre geçince gönderilir", async () => {
+    const { service } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const res = await service.invite(owner.auth, { email: "yeniden@firma.com", permissions: ["buy:view"] } as never);
+    await logSend(res.id, 2);
+
+    await expect(service.resendInvitation(owner.auth, res.id)).rejects.toMatchObject({
+      status: 429,
+      response: expect.objectContaining({ code: "RESEND_COOLDOWN" }),
+    });
+
+    await prisma.emailLog.updateMany({ where: { contextId: res.id }, data: { queuedAt: new Date(Date.now() - 11 * 60_000) } });
+    await expect(service.resendInvitation(owner.auth, res.id)).resolves.toMatchObject({ ok: true, emailSent: true });
   });
 });

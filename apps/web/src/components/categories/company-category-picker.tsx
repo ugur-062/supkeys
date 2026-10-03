@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_PICKS,
@@ -102,6 +103,7 @@ export function CompanyCategoryPicker({
   disabled,
   error,
 }: Props) {
+  const t = useTranslations("web.shared.companyCategoryPicker");
   const [subOpen, setSubOpen] = useState(false);
   const [segmentOpen, setSegmentOpen] = useState(false);
   const [uyari, setUyari] = useState<string | null>(null);
@@ -157,28 +159,41 @@ export function CompanyCategoryPicker({
    * ve firma geniş eksene düşerdi — yani daralttığını sanırken segmentin
    * tamamından bildirim alırdı.
    */
-  const altOnayla = (ids: string[]) => {
-    if (ids.length > MAX_COMPANY_SUB_PICKS) {
-      setUyari(`En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz.`);
-      return;
-    }
-    const { mainIds, subIds } = expandCompanyCategorySelection(
+  const altGenislet = (ids: string[]) =>
+    expandCompanyCategorySelection(
       ids,
       // "Sektör geneli" ile eklenmiş, altında seçim olmayan segmentler korunur.
       value.mainIds.filter(
         (m) => !value.subIds.some((s) => categorySegment(s) === m),
       ),
     );
+
+  /**
+   * Tavan denetimi — modal `validate` olarak da çağırır: reddedilirse modal
+   * AÇIK kalır, taslak kaybolmaz (eskiden modal kapanıyor, açınca taslak eski
+   * değere sıfırlanıyordu — derin denetim 2026-09-29).
+   */
+  const altDogrula = (ids: string[]): string | null => {
+    if (ids.length > MAX_COMPANY_SUB_PICKS) {
+      return t("enFazlaUrunHizmetSecebilirsiniz", { max: MAX_COMPANY_SUB_PICKS });
+    }
+    const { mainIds } = altGenislet(ids);
     if (mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
       // Sessizce kırpmak yerine söylüyoruz: hangi seçimin düştüğünü kullanıcı
       // göremezse beyanı eksik kalır ve bunu asla fark etmez.
-      setUyari(
-        `Seçimleriniz ${mainIds.length} ayrı sektöre yayılıyor; en fazla ${MAX_COMPANY_MAIN_CATEGORIES} sektör beyan edilebilir. Daha dar bir liste seçin.`,
-      );
+      return t("secimlerinizAyriSektoreYayiliyorEn", { n: mainIds.length, max: MAX_COMPANY_MAIN_CATEGORIES });
+    }
+    return null;
+  };
+
+  const altOnayla = (ids: string[]) => {
+    const hata = altDogrula(ids);
+    if (hata) {
+      setUyari(hata);
       return;
     }
     setUyari(null);
-    onChange({ mainIds, subIds });
+    onChange(altGenislet(ids));
   };
 
   /**
@@ -255,10 +270,10 @@ export function CompanyCategoryPicker({
             </span>
             <span className="text-left">
               <span className="block text-sm font-semibold text-zinc-900">
-                Ürün / hizmet seçin
+                {t("urunHizmetSecin")}
               </span>
               <span className="mt-0.5 block text-xs text-zinc-500">
-                Sektörünüz seçiminizden otomatik belirlenir
+                {t("sektorunuzSeciminizdenOtomatikBelirlenir")}
               </span>
             </span>
           </span>
@@ -282,7 +297,7 @@ export function CompanyCategoryPicker({
                   <button
                     type="button"
                     onClick={() => segmentSil(seg)}
-                    aria-label={`${segmentAdi(seg)} sektörünü ve altındaki seçimleri kaldır`}
+                    aria-label={t("sektorunuVeAltindakiSecimleriKaldir", { segmentAdi: segmentAdi(seg) })}
                     className="rounded p-0.5 text-zinc-500 hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
                   >
                     <XIcon className="h-4 w-4" aria-hidden />
@@ -305,7 +320,7 @@ export function CompanyCategoryPicker({
                         <button
                           type="button"
                           onClick={() => altSil(y.id)}
-                          aria-label={`${y.ad} seçimini kaldır`}
+                          aria-label={t("seciminiKaldir", { ad: y.ad })}
                           className="rounded text-zinc-500 hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
                         >
                           <XIcon className="h-3 w-3" aria-hidden />
@@ -316,7 +331,7 @@ export function CompanyCategoryPicker({
                 </div>
               ) : (
                 <p className="mt-2 text-xs text-zinc-500">
-                  Sektörün tamamı — bu alandaki her talep size iletilir.
+                  {t("sektorunTamamiBuAlandakiHer")}
                 </p>
               )}
             </li>
@@ -335,7 +350,7 @@ export function CompanyCategoryPicker({
               className="flex items-center gap-1 text-sm font-semibold text-zinc-700 hover:text-zinc-900"
             >
               <Plus className="h-4 w-4" aria-hidden />
-              Ürün / hizmet ekle
+              {t("urunHizmetEkle")}
             </button>
           ) : null}
           <button
@@ -343,7 +358,7 @@ export function CompanyCategoryPicker({
             onClick={() => setSegmentOpen(true)}
             className="text-xs font-medium text-zinc-500 underline underline-offset-2 hover:text-zinc-900"
           >
-            Sektör geneli ekle
+            {t("sektorGeneliEkle")}
           </button>
         </div>
       ) : null}
@@ -361,10 +376,11 @@ export function CompanyCategoryPicker({
           onClose={() => setSubOpen(false)}
           value={secilenler}
           onConfirm={altOnayla}
+          validate={altDogrula}
           mode="multi"
           maxSelection={MAX_COMPANY_SUB_PICKS}
           title={modalTitle}
-          description="Tam olarak ne alıp sattığınızı arayıp seçin. Sektörünüz bu seçimden otomatik çıkar."
+          description={t("tamOlarakNeAlipSattiginizi")}
           catalog="full"
         />
       ) : null}
@@ -378,8 +394,8 @@ export function CompanyCategoryPicker({
           value={value.mainIds}
           onConfirm={segmentOnayla}
           maxSelection={MAX_COMPANY_MAIN_CATEGORIES}
-          title="Sektör geneli"
-          description="Bir sektörün tamamında çalışıyorsanız buradan seçin. Alt kırılım seçmek daha isabetli eşleşme sağlar."
+          title={t("sektorGeneli")}
+          description={t("birSektorunTamamindaCalisiyorsanizBuradan")}
         />
       ) : null}
     </div>

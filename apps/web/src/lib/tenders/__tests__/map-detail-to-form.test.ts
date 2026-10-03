@@ -52,9 +52,30 @@ describe("toLocalInput / toDateInput", () => {
       /^2026-07-05T\d{2}:\d{2}$/,
     );
   });
+  it("UTC'nin batısındaki tarayıcıda gün kaymaz; kayıtla gidiş-dönüş simetrik (derin denetim S095)", () => {
+    const prev = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      // map-to-input tarih alanını böyle yazar: "YYYY-MM-DD" → UTC gece yarısı.
+      const saved = new Date("2026-10-05").toISOString();
+      expect(saved).toBe("2026-10-05T00:00:00.000Z");
+      expect(toDateInput(saved)).toBe("2026-10-05");
+      expect(toDateInput("2026-10-05")).toBe("2026-10-05");
+    } finally {
+      if (prev === undefined) delete process.env.TZ;
+      else process.env.TZ = prev;
+    }
+  });
 });
 
 describe("mapDetailToForm", () => {
+  it("derin denetim S028: eski talepteki 3-4 ondalık teklif/DB ölçeğine (2) indirilir", () => {
+    const legacy = { ...detail, decimalPlaces: 4 } as unknown as ListingDetail;
+    expect(mapDetailToForm(legacy, { forCopy: true }).decimalPlaces).toBe(2);
+    const zero = { ...detail, decimalPlaces: 0 } as unknown as ListingDetail;
+    expect(mapDetailToForm(zero).decimalPlaces).toBe(0);
+  });
+
   it("düzenleme: alanlar detaydan gelir", () => {
     const f = mapDetailToForm(detail);
     expect(f.title).toBe("Çelik alımı");

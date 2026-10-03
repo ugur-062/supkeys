@@ -4,7 +4,7 @@
  */
 import "reflect-metadata";
 import { prisma, truncateAll } from "./test-db";
-import { makeAuthService } from "./make-auth-service";
+import { extractCode, makeAuthService } from "./make-auth-service";
 
 afterAll(async () => {
   await truncateAll();
@@ -67,5 +67,172 @@ describe("e-posta kodu üretim tavanı", () => {
     });
     expect(rec.attempts).toBeLessThanOrEqual(5);
     expect(rec.attempts).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("e-posta 2FA girişinde kod tavanı (derin denetim MU-16)", () => {
+  async function emailTwoFactorUser() {
+    const rig = await signupUser();
+    await rig.service.verifyEmail(rig.mail, extractCode(rig.email));
+    await prisma.companyUser.update({
+      where: { id: rig.user.id },
+      data: { twoFactorEnabled: true, twoFactorMethod: "EMAIL" },
+    });
+    const login = (code?: string) =>
+      rig.service.login({ email: rig.mail, password: "Guclu!Parola9", ...(code ? { code } : {}) } as never);
+    return { ...rig, login };
+  }
+
+  it("başarıyla doğrulanan kodlar tavana sayılmaz: 5 başarılı e-posta 2FA girişinden sonra 6. giriş kod alır", async () => {
+    const { email, login } = await emailTwoFactorUser();
+    for (let i = 0; i < 5; i++) {
+      await expect(login()).resolves.toEqual({ twoFactorRequired: true, method: "email" });
+      const ok = (await login(extractCode(email))) as { token?: string };
+      expect(ok.token).toBeTruthy();
+    }
+    const sentBefore = email.send.mock.calls.length;
+    await expect(login()).resolves.toEqual({ twoFactorRequired: true, method: "email" });
+    expect(email.send.mock.calls.length).toBe(sentBefore + 1); // yeni kod gitti
+    const ok = (await login(extractCode(email))) as { token?: string };
+    expect(ok.token).toBeTruthy();
+  });
+
+  it("tüketilen kod ikinci kez geçmez (eşzamanlı iki istekten yalnız biri)", async () => {
+    const { email, login } = await emailTwoFactorUser();
+    await login();
+    const code = extractCode(email);
+    const results = await Promise.allSettled([login(code), login(code)]);
+    const passed = results.filter(
+      (r) => r.status === "fulfilled" && (r.value as { token?: string }).token,
+    );
+    expect(passed).toHaveLength(1);
+    const again = await login(code).catch((e: unknown) => e);
+    expect((again as { token?: string }).token).toBeUndefined();
+  });
+
+  it("tavan dolunca 503 DEĞİL: geçerli son kod varsa kod ekranına geçilir, o kodla giriş yapılır", async () => {
+    const { email, login } = await emailTwoFactorUser();
+    // Doğrulanan signup kodu silinir → 5 doğrulanmamış giriş kodu = tavan doldu.
+    for (let i = 0; i < 5; i++) await login();
+    const lastCode = extractCode(email);
+    const sentBefore = email.send.mock.calls.length;
+
+    await expect(login()).resolves.toEqual({ twoFactorRequired: true, method: "email" });
+    expect(email.send.mock.calls.length).toBe(sentBefore); // yeni kod YOK
+
+    const ok = (await login(lastCode)) as { token?: string };
+    expect(ok.token).toBeTruthy();
+  });
+
+  it("tavan dolu VE geçerli kod yoksa 429 (gönderim hatası 503'ü değil)", async () => {
+    const { user, login } = await emailTwoFactorUser();
+    for (let i = 0; i < 5; i++) await login();
+    await prisma.emailVerificationCode.updateMany({
+      where: { companyUserId: user.id, usedAt: null },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const err = await login().catch((e: unknown) => e);
+    expect((err as { getStatus: () => number }).getStatus()).toBe(429);
+    expect((err as Error).message).toMatch(/çok fazla doğrulama kodu/i);
+  });
+});
+
+describe("derin denetim LU-06", () => {
+  it("eşzamanlı yanlış tahminler: deneme hakkı karşılaştırmadan ÖNCE ayrılır → en fazla 5 tahmin denenir", async () => {
+    const { service, mail } = await signupUser();
+    const hashSpy = jest.spyOn(service as never as { hashCode: (c: string) => string }, "hashCode");
+    await Promise.all(
+      Array.from({ length: 12 }, () => service.verifyEmail(mail, "000000").catch(() => undefined)),
+    );
+    expect(hashSpy.mock.calls.length).toBeLessThanOrEqual(5);
+    hashSpy.mockRestore();
+  });
+
+  it("5 hatalı denemeden sonra doğru kod da reddedilir; 5. deneme doğruysa geçer", async () => {
+    const { service, email, mail } = await signupUser();
+    const code = extractCode(email);
+    for (let i = 0; i < 4; i++) await service.verifyEmail(mail, "000000").catch(() => undefined);
+    const ok = (await service.verifyEmail(mail, code)) as { token?: string };
+    expect(ok.token).toBeTruthy();
+  });
+
+  it("2FA kurulum kodu: gönderim başarısızsa 503, tavan dolu + geçerli kod yoksa 429, geçerli kod varsa sent:false", async () => {
+    const { service, email, user } = await signupUser();
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({ sent: true });
+
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false });
+    const failed = await service.sendEmailTwoFactorCode(user.id).catch((e: unknown) => e);
+    expect((failed as { getStatus: () => number }).getStatus()).toBe(503);
+
+    // signup + 2 kod (biri gönderilemedi ama üretildi) → 2 kod daha = tavan.
+    await service.sendEmailTwoFactorCode(user.id);
+    await service.sendEmailTwoFactorCode(user.id);
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({
+      sent: false,
+      capped: true,
+    });
+
+    await prisma.emailVerificationCode.updateMany({
+      where: { companyUserId: user.id, usedAt: null },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const capped = await service.sendEmailTwoFactorCode(user.id).catch((e: unknown) => e);
+    expect((capped as { getStatus: () => number }).getStatus()).toBe(429);
+  });
+
+  it("admin doğrulama kodu (O-064): gönderim başarısızsa 503, saatlik tavan doluysa 429", async () => {
+    const { service, email, user } = await signupUser();
+    await expect(service.adminResendVerificationCode(user.id)).resolves.toBeUndefined();
+
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false });
+    const failed = await service.adminResendVerificationCode(user.id).catch((e: unknown) => e);
+    expect((failed as { getStatus: () => number }).getStatus()).toBe(503);
+
+    // signup + 2 kod (biri gönderilemedi ama üretildi) → 2 kod daha = tavan.
+    await service.adminResendVerificationCode(user.id);
+    await service.adminResendVerificationCode(user.id);
+    const sentBefore = email.send.mock.calls.length;
+    const capped = await service.adminResendVerificationCode(user.id).catch((e: unknown) => e);
+    expect((capped as { getStatus: () => number }).getStatus()).toBe(429);
+    expect(email.send.mock.calls.length).toBe(sentBefore); // e-posta YOK
+  });
+
+  it("updateMe: phone null numarayı siler (500 değil)", async () => {
+    const { service, user } = await signupUser();
+    await service.updateMe(user.id, { phone: null });
+    const after = await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id } });
+    expect(after.phone).toBeNull();
+  });
+});
+
+describe("2FA ayar kodu yönteme göre (arayüz testi O-020, D-086)", () => {
+  it("kurulum kodu e-postası 2FA konusuyla gider (giriş kodu değil); /me yöntemi döner", async () => {
+    const { service, email, user } = await signupUser();
+    expect((await service.getMe(user.id)).user.twoFactorMethod).toBeNull();
+
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({ sent: true });
+    const call = email.send.mock.calls.at(-1)?.[0] as { subject: string };
+    expect(call.subject).toBe("İki adımlı doğrulama kodunuz");
+
+    await service.enableEmailTwoFactor(user.id, extractCode(email));
+    expect((await service.getMe(user.id)).user.twoFactorMethod).toBe("EMAIL");
+    // E-posta yönteminde kapatma kodu istenebilir.
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({ sent: true });
+  });
+
+  it("authenticator ile açık 2FA'da e-posta kodu üretilmez (400, e-posta yok, hak harcanmaz)", async () => {
+    const { service, email, user } = await signupUser();
+    await prisma.companyUser.update({
+      where: { id: user.id },
+      data: { twoFactorEnabled: true, twoFactorMethod: "AUTHENTICATOR", twoFactorSecret: "JBSWY3DPEHPK3PXP" },
+    });
+    expect((await service.getMe(user.id)).user.twoFactorMethod).toBe("AUTHENTICATOR");
+
+    const codesBefore = await prisma.emailVerificationCode.count({ where: { companyUserId: user.id } });
+    const sentBefore = email.send.mock.calls.length;
+    const err = await service.sendEmailTwoFactorCode(user.id).catch((e: unknown) => e);
+    expect((err as { getStatus: () => number }).getStatus()).toBe(400);
+    expect(await prisma.emailVerificationCode.count({ where: { companyUserId: user.id } })).toBe(codesBefore);
+    expect(email.send.mock.calls.length).toBe(sentBefore);
   });
 });

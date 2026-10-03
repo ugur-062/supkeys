@@ -46,7 +46,26 @@ describe("buildCompanyActions / groupOf", () => {
     expect(g.week.map((r) => `${r.portal}:${r.key}`)).toEqual(["satis:unansweredInvites"]);
     // Bilinmeyen anahtar metin haritasında yok → düşer; mesaj satırı eklenir.
     expect(g.waiting.map((r) => `${r.portal}:${r.key}`)).toEqual(["satinalma:awaitingDecision", "satinalma:messages"]);
-    expect(g.waiting[0]!.href).toBe("/company/satinalma/taleplerim");
+    expect(g.waiting[0]!.href).toBe("/company/satinalma/taleplerim?status=OPEN,IN_AWARD");
+  });
+});
+
+describe("groupOf — takvim günü Europe/Istanbul (derin denetim S066)", () => {
+  it("UTC+5 tarayıcıda İstanbul'da aynı gün 22:30 vadeli iş 'Bugün'de kalır", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Asia/Almaty";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-01T10:00:00+03:00"));
+      // Almatı'da yerel saatle ertesi gün 00:30 — eski yerel gece yarısı
+      // hesabı bunu "Yarın" (week) grubuna atıyordu.
+      expect(groupOf(row({ dueAt: "2026-10-01T22:30:00+03:00" }))).toBe("today");
+      expect(groupOf(row({ dueAt: "2026-10-02T00:30:00+03:00" }))).toBe("week");
+    } finally {
+      vi.useRealTimers();
+      if (prevTz === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTz;
+    }
   });
 });
 
@@ -60,7 +79,7 @@ describe("CompanyActionCenter", () => {
     expect(within(sec.querySelector("h2")!.parentElement!).getByText("2")).toBeInTheDocument();
     expect(within(sec).getByText(/Gecikmiş/)).toBeInTheDocument();
     expect(within(sec).getByText(/Bu hafta/)).toBeInTheDocument();
-    expect(within(sec).getByRole("link", { name: /siparişin ödemesi gecikti — 3 gün gecikti/ })).toHaveAttribute("href", "/company/satinalma/siparisler");
+    expect(within(sec).getByRole("link", { name: /siparişin ödemesi gecikti — 3 gün gecikti/ })).toHaveAttribute("href", "/company/satinalma/siparisler?payment=overdue");
     expect(within(sec).getByRole("link", { name: /davete henüz teklif vermediniz — yarın/ })).toHaveAttribute("href", "/company/satis#acik-talepler");
     expect(within(sec).getByText("Satınalma")).toBeInTheDocument();
     expect(within(sec).getByText("Satış")).toBeInTheDocument();

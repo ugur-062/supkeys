@@ -1,6 +1,8 @@
 "use client";
 
-import { formatDate } from "@/lib/format-date";
+import { useTranslations } from "next-intl";
+import { useAiMissingFieldLabel, useFormatDate } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
 import { useAiUsage } from "@/hooks/use-ai-usage";
 import {
   useAssistantAction,
@@ -10,13 +12,19 @@ import {
   useSendAssistantMessage,
 } from "@/hooks/use-ai-assistant";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  hasBuySeatPermission,
+  hasSellSeatPermission,
+} from "@/lib/company/permissions";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { useButtonAccent, type ButtonAccent } from "@/components/ui/button-accent";
-import type {
-  AiChatMessageDto,
-  AiPendingAction,
-  AiTenderExtractResult,
+import {
+  BUYING_TIER,
+  tierAtLeast,
+  type AiChatMessageDto,
+  type AiPendingAction,
+  type AiTenderExtractResult,
 } from "@rothern/shared";
 import {
   AlertTriangle,
@@ -24,6 +32,7 @@ import {
   Check,
   FileText,
   Gavel,
+  Handshake,
   History,
   Info,
   Maximize2,
@@ -38,8 +47,9 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { AssistantMarkdown } from "./assistant-markdown";
 
 interface LocalMsg {
@@ -51,8 +61,10 @@ interface LocalMsg {
   draft?: AiTenderExtractResult;
   /** AI-4 — onay bekleyen aksiyon kartı (backend'in doğrulanmış özeti). */
   pending?: AiPendingAction;
-  /** Kart karara bağlandı: executed/rejected — butonlar gizlenir. */
-  pendingResolved?: "executed" | "rejected";
+  /** Kart karara bağlandı — butonlar gizlenir. `failed`: onay isteği hata
+   *  verdi (zaman aşımı/ağ/iş hatası); sunucu aksiyonu yürütmeden önce
+   *  tükettiği için sonuç istemcide bilinmez — "İptal edildi" DENMEZ. */
+  pendingResolved?: "executed" | "rejected" | "failed";
   /** Canlı gelen yanıt — daktilo efektiyle yazılır (geçmişten yüklenen yazılmaz). */
   typed?: boolean;
   /** Kullanıcının bu mesajla gönderdiği belge adları — balonda chip olarak kalır. */
@@ -60,14 +72,11 @@ interface LocalMsg {
 }
 
 /** Bekleme sırasında dönüşümlü durum metinleri — asistan "canlı" hissettirsin. */
-const THINKING_PHRASES = [
-  "Düşünüyorum…",
-  "Bilgilere bakıyorum…",
-  "Yanıtı hazırlıyorum…",
-];
+const THINKING_PHRASES = ["dusunuyorum", "bilgilereBakiyorum", "yanitiHazirliyorum"] as const;
 
 /** Yanıt beklerken üç zıplayan nokta + dönüşümlü durum metni. */
 function ThinkingBubble() {
+  const tp = useTranslations("web.panel.shell.assistantPanel");
   const t = tone(useButtonAccent());
   const [phrase, setPhrase] = useState(0);
   useEffect(() => {
@@ -94,7 +103,7 @@ function ThinkingBubble() {
         </span>
         {/* key remount → rt-fade-in ile yumuşak metin geçişi */}
         <span key={phrase} className="rt-fade-in text-xs text-zinc-500">
-          {THINKING_PHRASES[phrase]}
+          {tp(THINKING_PHRASES[phrase])}
         </span>
       </div>
     </div>
@@ -133,31 +142,52 @@ function TypewriterMarkdown({
 }
 
 // Metinler aynen korunur (submit'e aynı string gider) — yalnız ikon eşleşir.
-const SUGGESTIONS = [
-  { label: "Satın Alma Taleplerimi göster", icon: Gavel },
-  { label: "Yeni satın alma talebi açmak istiyorum", icon: Plus },
-  { label: "Son siparişlerim", icon: Package },
-  { label: "Açık satın alma taleplerini ara", icon: Search },
-] as const;
+// Arayüz testi O-054/O-067: öneriler kullanıcının yapabildiklerine göre
+// seçilir — satın alma önerileri yalnız alım koltuğu + satınalma paketi
+// (GOLD), satış önerileri yalnız satış koltuğu; en fazla 4 çip.
+type Suggestion = {
+  label:
+    | "oneriTaleplerimiGoster"
+    | "oneriYeniTalep"
+    | "oneriSonSiparislerim"
+    | "oneriAcikTalepleriAra"
+    | "oneriTekliflerimiGoster"
+    | "oneriBaglantilarim";
+  icon: typeof Gavel;
+};
+function suggestionsFor(canBuy: boolean, canSell: boolean): Suggestion[] {
+  const out: Suggestion[] = [];
+  if (canBuy) {
+    out.push({ label: "oneriTaleplerimiGoster", icon: Gavel });
+    out.push({ label: "oneriYeniTalep", icon: Plus });
+  }
+  out.push({ label: "oneriSonSiparislerim", icon: Package });
+  if (canSell) {
+    out.push({ label: "oneriAcikTalepleriAra", icon: Search });
+    out.push({ label: "oneriTekliflerimiGoster", icon: FileText });
+  }
+  if (!canBuy && !canSell) out.push({ label: "oneriBaglantilarim", icon: Handshake });
+  return out.slice(0, 4);
+}
 const TOOL_LABEL: Record<string, string> = {
-  list_my_tenders: "Satın Alma Taleplerinize baktım",
-  search_open_tenders: "Açık satın alma taleplerini aradım",
-  get_tender_detail: "Satın Alma Talebi detayına baktım",
-  list_my_orders: "Siparişlerinize baktım",
-  get_order_detail: "Sipariş detayına baktım",
-  list_my_connections: "Bağlantılarınıza baktım",
-  list_my_bids: "Tekliflerinize baktım",
-  propose_tender_draft: "Satın Alma Talebi taslağını hazırladım",
-  request_send_invites: "Davet önerisi hazırladım",
-  request_publish_tender: "Yayınlama önerisi hazırladım",
-  request_eliminate_bid: "Eleme önerisi hazırladım",
-  request_award_tender: "Kazandırma önerisi hazırladım",
-  request_place_bid: "Teklif önerisi hazırladım",
-  request_mark_order_received: "Teslim alma önerisi hazırladım",
+  list_my_tenders: "tool.list_my_tenders",
+  search_open_tenders: "tool.search_open_tenders",
+  get_tender_detail: "tool.get_tender_detail",
+  list_my_orders: "tool.list_my_orders",
+  get_order_detail: "tool.get_order_detail",
+  list_my_connections: "tool.list_my_connections",
+  list_my_bids: "tool.list_my_bids",
+  propose_tender_draft: "tool.propose_tender_draft",
+  request_send_invites: "tool.request_send_invites",
+  request_publish_tender: "tool.request_publish_tender",
+  request_eliminate_bid: "tool.request_eliminate_bid",
+  request_award_tender: "tool.request_award_tender",
+  request_place_bid: "tool.request_place_bid",
+  request_mark_order_received: "tool.request_mark_order_received",
 };
 
 function initials(first?: string, last?: string): string {
-  return `${(first ?? "")[0] ?? ""}${(last ?? "")[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "S";
+  return upperForText(`${(first ?? "")[0] ?? ""}${(last ?? "")[0] ?? ""}`, `${first ?? ""} ${last ?? ""}`) || "S";
 }
 
 /** Faz AI-2/3 — asistan sohbet gövdesi (modern balonlar + belge + taslak kartı). */
@@ -183,7 +213,21 @@ export function AssistantPanel({
   wide?: boolean;
   onToggleWide?: () => void;
 }) {
-  const { user } = useCompanyAuth();
+  const tr = useTranslations("web.panel.shell.assistantPanel");
+  const formatDate = useFormatDate();
+  const missingLabel = useAiMissingFieldLabel();
+  const { user, company } = useCompanyAuth();
+  // Satın alma yeteneği = alım koltuğu + satınalma paketi (GOLD) — rol kapısı
+  // paket kapısının İÇİNDE (arayüz testi O-054/O-067). Belge eki = belgeden
+  // satın alma talebi taslağı: sunucu da satın alma portalı + GOLD ister
+  // (AssistantService.message + TenderExtractService.extract); Satışçıya ya
+  // da alt pakete ataç çizilmez.
+  const canBuy =
+    hasBuySeatPermission(user) &&
+    tierAtLeast(company?.tier ?? "STANDART", BUYING_TIER);
+  const canSell = hasSellSeatPermission(user);
+  const canAttachDoc = canBuy;
+  const suggestions = suggestionsFor(canBuy, canSell);
   const router = useRouter();
   const t = tone(useButtonAccent());
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -191,6 +235,9 @@ export function AssistantPanel({
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  // Arayüz testi D-360: geçmiş sohbet silme iki adımlı (kalıcı silme onaysız
+  // yapılmaz) — onay bekleyen satırın kimliği.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [suggestNew, setSuggestNew] = useState(false);
   // GEÇMİŞTEN yükleme flag'i: sadece kullanıcı bir sohbeti geçmişten SEÇİNCE
   // mesajları backend'den doldur. Aktif sohbette (yeni mesaj) optimistic akışı
@@ -204,6 +251,15 @@ export function AssistantPanel({
   const del = useDeleteAssistantSession();
   const usage = useAiUsage();
   const endRef = useRef<HTMLDivElement>(null);
+  // SOHBET KİMLİĞİ (derin denetim S071): "Yeni sohbet"/geçmiş seçimi her
+  // seferinde artırır. Geç gelen yanıt/aksiyon sonucu, istek atıldığındaki
+  // sohbet artık ekranda değilse state'e YAZILMAZ — aksi halde A'nın yanıtı
+  // yeni sohbete düşüyor ve sessionId sessizce A'ya dönüyordu.
+  const convRef = useRef(0);
+  const sessionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -229,7 +285,9 @@ export function AssistantPanel({
   }, []);
 
   useEffect(() => {
-    if (loaded.data && loaded.data.id === loadHistoryId) {
+    // Arka plan tazelemesi bitmeden yazma: önbellekteki eski kopya son
+    // mesajları eksik gösteriyordu (derin denetim S071).
+    if (loaded.data && loaded.data.id === loadHistoryId && !loaded.isFetching) {
       setSessionId(loaded.data.id);
       setMessages(
         loaded.data.messages.map((m: AiChatMessageDto) => ({
@@ -241,7 +299,7 @@ export function AssistantPanel({
       );
       setLoadHistoryId(null); // yüklendi — bir daha ezme
     }
-  }, [loaded.data, loadHistoryId]);
+  }, [loaded.data, loaded.isFetching, loadHistoryId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -253,11 +311,13 @@ export function AssistantPanel({
     usage.data?.enabled === false ? false : (usage.data?.percentUsed ?? 0) >= 100;
 
   const openHistory = (id: string) => {
+    convRef.current += 1;
     setLoadHistoryId(id);
     setShowHistory(false);
   };
 
   const startNew = () => {
+    convRef.current += 1;
     setSessionId(null);
     setLoadHistoryId(null);
     setMessages([]);
@@ -269,6 +329,7 @@ export function AssistantPanel({
   const submit = async (preset?: string) => {
     const text = (preset ?? input).trim();
     if ((!text && files.length === 0) || send.isPending) return;
+    const conv = convRef.current;
     setInput("");
     const sentFiles = files;
     setFiles([]);
@@ -290,6 +351,7 @@ export function AssistantPanel({
         message: text,
         files: sentFiles.length > 0 ? sentFiles : undefined,
       });
+      if (conv !== convRef.current) return; // sohbet değişti — yanıt geçmişte
       setSessionId(reply.sessionId);
       setSuggestNew(reply.suggestNewChat);
       setMessages((m) => [
@@ -305,12 +367,13 @@ export function AssistantPanel({
         },
       ]);
     } catch (err) {
+      if (conv !== convRef.current) return;
       setMessages((m) => [
         ...m,
         {
           id: `err-${m.length}`,
           role: "ASSISTANT",
-          content: extractErrorMessage(err, "Şu an yanıt veremedim — lütfen tekrar deneyin."),
+          content: extractErrorMessage(err, tr("suAnYanitVeremedimLutfen")),
           typed: true,
         },
       ]);
@@ -319,18 +382,28 @@ export function AssistantPanel({
 
   // AI-4: onay kartı kararı — yürütme YALNIZ bu kullanıcı jestiyle olur.
   const action = useAssistantAction();
-  const decideAction = async (
+  // Çift tık ikinci onay isteği atıp "zaten kullanılmış" balonu üretmesin
+  // (arayüz testi FX-00 D-358).
+  const actionLock = useSubmitLock();
+  const decideAction = (
+    msgId: string,
+    pending: AiPendingAction,
+    decision: "confirm" | "reject",
+  ) => actionLock.run(() => doDecideAction(msgId, pending, decision));
+  const doDecideAction = async (
     msgId: string,
     pending: AiPendingAction,
     decision: "confirm" | "reject",
   ) => {
     if (!sessionId || action.isPending) return;
+    const conv = convRef.current;
     try {
       const result = await action.mutateAsync({
         sessionId,
         actionId: pending.id,
         decision,
       });
+      if (conv !== convRef.current) return;
       setMessages((m) => [
         ...m.map((x) =>
           x.id === msgId ? { ...x, pendingResolved: result.status } : x,
@@ -343,14 +416,19 @@ export function AssistantPanel({
         },
       ]);
     } catch (err) {
+      if (conv !== convRef.current) return;
+      // Onay hatası "İptal edildi" değildir: sunucu aksiyonu yürütmeden önce
+      // tükettiği için (zaman aşımında) işlem tamamlanmış olabilir.
+      const resolved: LocalMsg["pendingResolved"] =
+        decision === "reject" ? "rejected" : "failed";
       setMessages((m) => [
         ...m.map((x) =>
-          x.id === msgId ? { ...x, pendingResolved: "rejected" as const } : x,
+          x.id === msgId ? { ...x, pendingResolved: resolved } : x,
         ),
         {
           id: `act-err-${m.length}`,
           role: "ASSISTANT" as const,
-          content: extractErrorMessage(err, "İşlem gerçekleştirilemedi."),
+          content: extractErrorMessage(err, tr("islemGerceklestirilemedi")),
           typed: true,
         },
       ]);
@@ -387,16 +465,16 @@ export function AssistantPanel({
           </div>
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-semibold text-zinc-900">
-              Rothern Asistanı
+              {tr("rothernAsistani")}
             </p>
             {/* Alt satır yalnız kullanım uyarısında görünür (yeşil nokta zaten
                 çevrimiçi durumunu anlatıyor). */}
             {nearLimit ? (
               <p
                 className="truncate text-xs font-medium text-warning-600"
-                title="Aylık AI kullanımınız sınıra yaklaştı"
+                title={tr("aylikAiKullaniminizSiniraYaklasti")}
               >
-                Kullanım sınıra yakın
+                {tr("kullanimSiniraYakin")}
               </p>
             ) : null}
           </div>
@@ -405,15 +483,16 @@ export function AssistantPanel({
           <button
             type="button"
             onClick={startNew}
-            className="flex items-center gap-1 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+            disabled={send.isPending}
+            className="flex items-center gap-1 disabled:opacity-50 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
           >
-            <Plus className="h-3.5 w-3.5" /> Yeni sohbet
+            <Plus className="h-3.5 w-3.5" /> {tr("yeniSohbet")}
           </button>
           <button
             type="button"
             onClick={() => setShowHistory((s) => !s)}
-            aria-label="Geçmiş sohbetler"
-            title="Geçmiş sohbetler"
+            aria-label={tr("gecmisSohbetler")}
+            title={tr("gecmisSohbetler")}
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-zinc-100 hover:text-zinc-900",
               showHistory ? "bg-zinc-100 text-brand-700" : "text-zinc-500",
@@ -424,8 +503,8 @@ export function AssistantPanel({
           {onToggleWide ? (
             <button
               type="button"
-              aria-label={wide ? "Paneli daralt" : "Paneli genişlet"}
-              title={wide ? "Daralt" : "Genişlet"}
+              aria-label={wide ? tr("paneliDaralt") : tr("paneliGenislet")}
+              title={wide ? tr("daralt") : tr("genislet")}
               onClick={onToggleWide}
               className="hidden h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 sm:flex"
             >
@@ -441,7 +520,7 @@ export function AssistantPanel({
               <span className="mx-0.5 h-5 w-px bg-zinc-950/10" />
               <button
                 type="button"
-                aria-label="Kapat"
+                aria-label={tr("kapat")}
                 onClick={onClose}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
               >
@@ -456,7 +535,7 @@ export function AssistantPanel({
         <div className="rt-fade-in border-b border-zinc-950/10 bg-surface-subtle">
           <div className="flex items-center justify-between px-4 pb-1 pt-2.5">
             <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-              Geçmiş sohbetler
+              {tr("gecmisSohbetler")}
             </p>
             {(sessions.data ?? []).length > 0 ? (
               <span className="text-xs tabular-nums text-zinc-400">
@@ -470,7 +549,7 @@ export function AssistantPanel({
                 <MessageSquareText className="h-4 w-4" />
               </span>
               <p className="text-xs text-zinc-400">
-                Henüz kayıtlı sohbet yok — ilk mesajınızla oluşur.
+                {tr("henuzKayitliSohbetYokIlk")}
               </p>
             </div>
           ) : (
@@ -496,7 +575,8 @@ export function AssistantPanel({
                   <button
                     type="button"
                     onClick={() => openHistory(s.id)}
-                    className="min-w-0 flex-1 text-left"
+                    disabled={send.isPending}
+                    className="min-w-0 flex-1 text-left disabled:opacity-60"
                   >
                     <p
                       className={cn(
@@ -506,25 +586,66 @@ export function AssistantPanel({
                           : "text-zinc-700",
                       )}
                     >
-                      {s.title ?? "Sohbet"}
+                      {s.title ?? tr("sohbet")}
                     </p>
                     <p className="truncate text-xs text-zinc-400">
                       {formatDate(s.lastMessageAt, "datetime")}
                       {" · "}
-                      {s.turnCount} yazışma
+                      {tr("yazisma", { n: s.turnCount })}
                     </p>
                   </button>
-                  <button
-                    type="button"
-                    aria-label="Sil"
-                    onClick={() => {
-                      void del.mutateAsync(s.id);
-                      if (sessionId === s.id) startNew();
-                    }}
-                    className="text-zinc-400 opacity-0 transition-opacity hover:text-danger-500 focus-visible:opacity-100 group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {confirmDeleteId === s.id ? (
+                    <div
+                      role="group"
+                      aria-label={tr("silinsinMi")}
+                      className="flex shrink-0 items-center gap-1.5"
+                    >
+                      <span className="text-xs text-zinc-500">{tr("silinsinMi")}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmDeleteId(null);
+                          // Sonuç beklenir, hata yutulur (derin denetim S071):
+                          // `void mutateAsync` reddi unhandled rejection'dı ve
+                          // aktif sohbet silme başarısızken de temizleniyordu.
+                          // Hata toast'ını companyApi interceptor'ı gösterir.
+                          // Çağrı başına promise: `mutate(id, { onSuccess })`
+                          // geri çağrıları TanStack v5'te yalnız SON mutate için
+                          // çalışır; A'yı silerken B silinirse A'nın temizliği
+                          // kaçardı (gözden geçirme).
+                          del
+                            .mutateAsync(s.id)
+                            .then(() => {
+                              if (sessionIdRef.current === s.id) startNew();
+                            })
+                            .catch(() => {});
+                        }}
+                        className="rounded-md bg-danger-600 px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-danger-700"
+                      >
+                        {tr("silOnayla")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-zinc-600 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50"
+                      >
+                        {tr("vazgec")}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={tr("sil")}
+                      title={tr("sil")}
+                      onClick={() => setConfirmDeleteId(s.id)}
+                      // Dokunmatikte hover yok: düğme yalnız ince işaretçili
+                      // (fare) cihazda üzerine gelince belirir, dokunmatikte
+                      // hep görünür (D-360).
+                      className="text-zinc-400 transition-opacity hover:text-danger-500 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -548,25 +669,28 @@ export function AssistantPanel({
               </div>
             </div>
             <p className="mt-3 text-xs font-medium uppercase tracking-widest text-zinc-400">
-              Rothern Asistanı
+              {tr("rothernAsistani")}
             </p>
             <p className="mt-1 text-base font-semibold tracking-tight text-zinc-900">
-              Size nasıl yardımcı olabilirim?
+              {tr("sizeNasilYardimciOlabilirim")}
             </p>
             <p className="mt-1 max-w-xs text-sm text-zinc-500">
-              Satın Alma Taleplerinizi sorun, belge yükleyin ya da konuşarak yeni satın alma talebi
-              açın.
+              {canBuy
+                ? tr("satinAlmaTalepleriniziSorunBelge")
+                : canSell
+                  ? tr("altMetinSatis")
+                  : tr("altMetinGenel")}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s.label}
                   type="button"
-                  onClick={() => void submit(s.label)}
+                  onClick={() => void submit(tr(s.label))}
                   className="group flex items-center gap-2 rounded-full border border-zinc-950/10 bg-surface-subtle px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 hover:shadow-md active:translate-y-0 active:shadow-sm"
                 >
                   <s.icon className="h-3.5 w-3.5 text-zinc-400 transition-colors group-hover:text-brand-600" />
-                  {s.label}
+                  {tr(s.label)}
                 </button>
               ))}
             </div>
@@ -649,7 +773,7 @@ export function AssistantPanel({
                       className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-zinc-500 ring-1 ring-zinc-950/5"
                     >
                       <Check className="h-3 w-3 text-success-500" />
-                      {TOOL_LABEL[t] ?? t}
+                      {TOOL_LABEL[t] ? tr(TOOL_LABEL[t] as never) : t}
                     </span>
                   ))}
                 </div>
@@ -662,14 +786,14 @@ export function AssistantPanel({
                     <span className={cn("flex h-6 w-6 items-center justify-center rounded-md text-white", t.solid)}>
                       <FileText className="h-3.5 w-3.5" />
                     </span>
-                    Satın Alma Talebi Taslağı
+                    {tr("talepTaslagi")}
                   </p>
                   <ul className="mt-2 space-y-1 text-xs">
                     {m.draft.draft.title ? (
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
-                          Başlık:{" "}
+                          {tr("baslik")}{" "}
                           <span className="font-medium text-zinc-800">
                             {m.draft.draft.title}
                           </span>
@@ -680,7 +804,7 @@ export function AssistantPanel({
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="font-medium text-zinc-800">
-                          {m.draft.draft.items.filter((i) => i.name).length} kalem
+                          {tr("kalem", { n: m.draft.draft.items.filter((i) => i.name).length })}
                         </span>
                       </li>
                     ) : null}
@@ -688,7 +812,7 @@ export function AssistantPanel({
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
-                          Teslim:{" "}
+                          {tr("teslim")}{" "}
                           <span className="font-medium text-zinc-800">
                             {m.draft.draft.deliveryTerm}
                           </span>
@@ -699,7 +823,7 @@ export function AssistantPanel({
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
-                          Kapanış:{" "}
+                          {tr("kapanis")}{" "}
                           <span className="font-medium text-zinc-800">
                             {formatDate(m.draft.draft.bidsCloseAt, "short")}
                           </span>
@@ -709,7 +833,7 @@ export function AssistantPanel({
                   </ul>
                   {m.draft.missingRequired.length > 0 ? (
                     <p className="mt-2 rounded-lg bg-warning-50 px-2 py-1.5 text-xs text-warning-600">
-                      Eksik: {m.draft.missingRequired.join(", ")}
+                      {tr("eksik", { join: m.draft.missingRequired.map(missingLabel).join(", ") })}
                     </p>
                   ) : null}
                   <button
@@ -717,7 +841,7 @@ export function AssistantPanel({
                     onClick={() => openTenderForm(m.draft!)}
                     className={cn("group mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors", t.fill)}
                   >
-                    Satın Alma Talebi formunu aç
+                    {tr("satinAlmaTalebiFormunuAc")}
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 </div>
@@ -749,7 +873,7 @@ export function AssistantPanel({
                         <Check className="h-3.5 w-3.5" />
                       )}
                     </span>
-                    Onayınız gerekiyor
+                    {tr("onayinizGerekiyor")}
                   </p>
                   <ul className="mt-2 space-y-1 text-xs">
                     {m.pending.summary.map((line, i) => (
@@ -762,15 +886,17 @@ export function AssistantPanel({
                   {m.pendingResolved ? (
                     <p className="mt-3 rounded-lg bg-surface-subtle px-2 py-1.5 text-xs text-zinc-500">
                       {m.pendingResolved === "executed"
-                        ? "✓ Onaylandı ve gerçekleştirildi"
-                        : "İptal edildi"}
+                        ? tr("onaylandiVeGerceklestirildi")
+                        : m.pendingResolved === "failed"
+                          ? tr("sonucDogrulanamadi")
+                          : tr("iptalEdildi")}
                     </p>
                   ) : (
                     <div className="mt-3 flex gap-2">
                       <button
                         type="button"
-                        disabled={action.isPending}
-                        onClick={() => decideAction(m.id, m.pending!, "confirm")}
+                        disabled={action.isPending || actionLock.locked}
+                        onClick={() => void decideAction(m.id, m.pending!, "confirm")}
                         className={cn(
                           "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60",
                           m.pending.severity === "critical"
@@ -778,15 +904,15 @@ export function AssistantPanel({
                             : t.fill,
                         )}
                       >
-                        {action.isPending ? "Yürütülüyor…" : "Onayla"}
+                        {action.isPending || actionLock.locked ? tr("yurutuluyor") : tr("onayla")}
                       </button>
                       <button
                         type="button"
-                        disabled={action.isPending}
-                        onClick={() => decideAction(m.id, m.pending!, "reject")}
+                        disabled={action.isPending || actionLock.locked}
+                        onClick={() => void decideAction(m.id, m.pending!, "reject")}
                         className="flex-1 rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50 disabled:opacity-60"
                       >
-                        Vazgeç
+                        {tr("vazgec")}
                       </button>
                     </div>
                   )}
@@ -802,7 +928,7 @@ export function AssistantPanel({
       {suggestNew ? (
         <p className="flex items-center gap-2 border-t border-warning-500/20 bg-warning-50 px-4 py-2 text-xs text-warning-600">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          Bu sohbet uzadı — daha iyi sonuç için yeni bir sohbet başlatabilirsiniz.
+          {tr("buSohbetUzadiDahaIyi")}
         </p>
       ) : null}
 
@@ -811,7 +937,7 @@ export function AssistantPanel({
         {quotaFull ? (
           <p className="flex items-center gap-2 rounded-xl border border-zinc-950/10 bg-surface-subtle px-3 py-2.5 text-sm text-zinc-600">
             <Info className="h-4 w-4 shrink-0 text-zinc-400" />
-            Aylık AI bütçeniz doldu — ay sonunda yenilenir.
+            {tr("aylikAiButcenizDolduAy")}
           </p>
         ) : (
           <>
@@ -827,7 +953,7 @@ export function AssistantPanel({
                     <button
                       type="button"
                       onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                      aria-label="Kaldır"
+                      aria-label={tr("kaldir")}
                       className="text-zinc-400 transition-colors hover:text-danger-500"
                     >
                       <X className="h-3 w-3" />
@@ -837,27 +963,31 @@ export function AssistantPanel({
               </div>
             ) : null}
             <div className="flex items-end gap-1 rounded-2xl border border-zinc-950/10 bg-surface-subtle p-1.5 transition-colors focus-within:border-brand-400 focus-within:bg-white focus-within:ring-1 focus-within:ring-brand-400">
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
-                multiple
-                hidden
-                onChange={(e) => {
-                  addFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={send.isPending}
-                aria-label="Belge ekle"
-                title="Satın Alma Talebi belgesi ekle"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 disabled:opacity-40"
-              >
-                <Paperclip className="h-4 w-4" />
-              </button>
+              {canAttachDoc ? (
+                <>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
+                    multiple
+                    hidden
+                    onChange={(e) => {
+                      addFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={send.isPending}
+                    aria-label={tr("belgeEkle")}
+                    title={tr("satinAlmaTalebiBelgesiEkle")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 disabled:opacity-40"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                </>
+              ) : null}
               <textarea
                 ref={inputRef}
                 value={input}
@@ -869,7 +999,7 @@ export function AssistantPanel({
                   }
                 }}
                 rows={1}
-                placeholder="Bir şey sorun veya satın alma talebi açın…"
+                placeholder={canBuy ? tr("birSeySorunVeyaSatin") : tr("birSeySorun")}
                 disabled={send.isPending}
                 className="max-h-56 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-zinc-400 focus:outline-none"
               />
@@ -877,7 +1007,7 @@ export function AssistantPanel({
                 type="button"
                 onClick={() => void submit()}
                 disabled={send.isPending || (!input.trim() && files.length === 0)}
-                aria-label="Gönder"
+                aria-label={tr("gonder")}
                 className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition-all duration-200 enabled:hover:shadow-md disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none", t.fill)}
               >
                 <Send className="h-4 w-4" />

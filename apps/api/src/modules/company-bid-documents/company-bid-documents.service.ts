@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { OWNER_VISIBLE_BID_STATUSES } from "../../common/company/bid-items";
 import {
   BadRequestException,
@@ -47,10 +48,10 @@ export class CompanyBidDocumentsService {
       where: { id: listingId },
       select: { status: true, type: true },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyBidDocuments.ilanBulunamadi"));
     if (listing.status !== "OPEN") {
       throw new BadRequestException(
-        "Satın Alma Talebi teklife kapalı — belge eklenemez/silinemez",
+        i18nMessage("api.companyBidDocuments.satinAlmaTalebiTeklifeKapaliBelge"),
       );
     }
     return listing;
@@ -67,7 +68,7 @@ export class CompanyBidDocumentsService {
   ) {
     if (!hasCompanyPermission(user, bidderPermission(listingType))) {
       throw new ForbiddenException(
-        "Teklif belgeleri için 'Teklif verme' yetkisi gerekir",
+        i18nMessage("api.companyBidDocuments.teklifBelgeleriIcinTeklifVermeYetkisi"),
       );
     }
   }
@@ -97,11 +98,11 @@ export class CompanyBidDocumentsService {
       select: { id: true, status: true },
     });
     if (!bid) {
-      throw new BadRequestException("Önce teklif verin, sonra belge ekleyin");
+      throw new BadRequestException(i18nMessage("api.companyBidDocuments.onceTeklifVerinSonraBelgeEkleyin"));
     }
     if (bid.status !== "DRAFT") {
       throw new BadRequestException(
-        "Gönderilmiş teklifin belgeleri değiştirilemez",
+        i18nMessage("api.companyBidDocuments.gonderilmisTeklifinBelgeleriDegistirilemez"),
       );
     }
     return bid;
@@ -113,7 +114,7 @@ export class CompanyBidDocumentsService {
     input: { fileName: string; mimeType: string; fileSize?: number },
   ) {
     if (!ALLOWED_MIME.includes(input.mimeType)) {
-      throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
+      throw new BadRequestException(i18nMessage("api.companyBidDocuments.sadecePdfGorselVeyaExcelYuklenebilir"));
     }
     assertSafeFileName(input.fileName);
     assertReportedSize(input.fileSize);
@@ -139,10 +140,10 @@ export class CompanyBidDocumentsService {
     // GÜVENLİK (F4 benzeri): key yalnız BU ilanın BU firmaya ait klasörüne
     // işaret edebilir — başka teklifin/rastgele bir nesnenin key'i kaydedilemez.
     if (!input.key.startsWith(`listing-bids/${listingId}/${user.companyId}/`)) {
-      throw new BadRequestException("Geçersiz dosya anahtarı");
+      throw new BadRequestException(i18nMessage("api.companyBidDocuments.gecersizDosyaAnahtari"));
     }
     if (!ALLOWED_MIME.includes(input.mimeType)) {
-      throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
+      throw new BadRequestException(i18nMessage("api.companyBidDocuments.sadecePdfGorselVeyaExcelYuklenebilir"));
     }
     assertSafeFileName(input.fileName);
     await assertUploadedObjectValid(
@@ -161,7 +162,7 @@ export class CompanyBidDocumentsService {
     });
     if (existing >= MAX_DOCUMENTS_PER_BID) {
       throw new BadRequestException(
-        `Bir teklife en fazla ${MAX_DOCUMENTS_PER_BID} belge eklenebilir — önce eskilerden silin`,
+        i18nMessage("api.companyBidDocuments.birTeklifeEnFazlaBelgeEklenebilir", { MAXDOCUMENTSPERBID: MAX_DOCUMENTS_PER_BID }),
       );
     }
     const doc = await this.prisma.listingBidDocument.create({
@@ -191,7 +192,7 @@ export class CompanyBidDocumentsService {
   private async assertOwnerReadContext(user: AuthenticatedCompanyUser, listingId: string): Promise<void> {
     if (hasReadContext(user, "buy")) return; // tek kaynak: full-read-context
     void listingId; // onay bağı istisnası kalktı (yetki tablosu Faz 2)
-    throw new NotFoundException("İlan bulunamadı");
+    throw new NotFoundException(i18nMessage("api.companyBidDocuments.ilanBulunamadi"));
   }
 
   /** İlan sahibi tüm teklif belgelerini; teklifçi yalnızca kendi belgelerini görür. */
@@ -200,7 +201,7 @@ export class CompanyBidDocumentsService {
       where: { id: listingId },
       select: { id: true, companyId: true },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyBidDocuments.ilanBulunamadi"));
     const isOwner = listing.companyId === user.companyId;
     // Faz O dar-bağlam (denetim 2026-08-23 P2 #8): sahip firmanın ONAYLAYICI-only/
     // rolsüz üyesi teklifçi belgelerini yalnız onay bağı varsa görür
@@ -208,7 +209,7 @@ export class CompanyBidDocumentsService {
     if (isOwner) await this.assertOwnerReadContext(user, listingId);
     // Teklifçi firmanın üyesi kendi belgelerini SATIŞ görüntüleme iznyle görür.
     else if (!hasReadContext(user, "sell")) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyBidDocuments.ilanBulunamadi"));
     }
 
     const docs = await this.prisma.listingBidDocument.findMany({
@@ -252,15 +253,15 @@ export class CompanyBidDocumentsService {
       include: { bid: { select: { listingId: true, status: true } } },
     });
     if (!doc || doc.bid.listingId !== listingId) {
-      throw new NotFoundException("Belge bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyBidDocuments.belgeBulunamadi"));
     }
     if (doc.uploadedByCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu belgeyi silemezsiniz");
+      throw new ForbiddenException(i18nMessage("api.companyBidDocuments.buBelgeyiSilemezsiniz"));
     }
     // Gönderim kilidi (bkz. requireOwnBid): bağlayıcı teklifin eki silinemez.
     if (doc.bid.status !== "DRAFT") {
       throw new BadRequestException(
-        "Gönderilmiş teklifin belgeleri değiştirilemez",
+        i18nMessage("api.companyBidDocuments.gonderilmisTeklifinBelgeleriDegistirilemez"),
       );
     }
     const listing = await this.assertListingOpen(listingId);

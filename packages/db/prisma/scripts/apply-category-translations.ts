@@ -14,13 +14,12 @@
  *   --dry   yalnız ne değişeceğini yazar, DB'ye dokunmaz
  */
 import { PrismaClient, Prisma } from "@prisma/client";
-import { foldSearchText } from "@rothern/shared";
+import { prepareScriptDatabase } from "./lib/script-env";
+import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { buildKeywordsByCode, readTranslations } from "./lib/category-keywords";
 
-const prisma = new PrismaClient({
-  datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL,
-});
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("apply-category-translations") });
 
 const CHUNK = 500;
 
@@ -45,7 +44,7 @@ async function main() {
     const slice = codes.slice(i, i + 1000);
     const cats = await prisma.category.findMany({
       where: { code: { in: slice } },
-      select: { code: true, nameTr: true, keywords: true, searchText: true },
+      select: { code: true, nameTr: true, keywords: true, searchText: true, nameEn: true, nameRu: true },
     });
     const byCode = new Map(cats.map((c) => [c.code, c]));
     missing += slice.length - cats.length;
@@ -54,7 +53,7 @@ async function main() {
       if (!cur) continue;
       const name = translations.get(code)!.tr;
       const kw = keywordsByCode.get(code) ?? "";
-      const st = foldSearchText(`${name} ${kw}`);
+      const st = categorySearchText({ nameTr: name, keywords: kw, nameEn: cur.nameEn, nameRu: cur.nameRu });
       if (cur.nameTr === name && cur.keywords === kw && cur.searchText === st) {
         continue;
       }

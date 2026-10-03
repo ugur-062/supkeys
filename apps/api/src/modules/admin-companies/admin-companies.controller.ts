@@ -8,19 +8,27 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
+  IsEmail,
   IsIn,
   IsInt,
+  IsISO8601,
   IsObject,
   IsOptional,
   IsString,
   Length,
   Max,
+  Matches,
   MaxLength,
   Min,
+  ValidateIf,
 } from "class-validator";
+import {
+  VERIFICATION_REASON_CODES,
+  type VerificationReasonCode,
+} from "@rothern/shared";
 import type { DocKind } from "../company-docs/company-docs.service";
 import {
   CurrentAdmin,
@@ -67,6 +75,14 @@ class ListCompaniesDto {
   @IsIn(["newest", "oldest"])
   sort?: string;
 
+  /**
+   * "30" → 30 gün içinde bitecek PAKET üyelikler (pano "Süresi Yaklaşan
+   * Üyelikler" ile aynı tanım), bitişi en yakın önce (arayüz testi D-146).
+   */
+  @IsOptional()
+  @IsIn(["30"])
+  expiring?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -89,27 +105,42 @@ class SuspendDto {
 }
 
 /**
- * Firma doğrulama reddi — gerekçe ZORUNLU (firmaya e-posta/bildirimle gider;
- * admin arayüzü de ≥3 karakter ister). UI kilidi ≠ API kilidi: 2026-09-11
- * staging QA'da gövdesiz istek 201 dönüyordu.
+ * Firma doğrulama reddi — gerekçe ZORUNLU (firmaya Doğrulama sayfasında
+ * gösterilir). UI kilidi ≠ API kilidi: 2026-09-11 staging QA'da gövdesiz istek
+ * 201 dönüyordu.
+ *
+ * KODLU GEREKÇE (2026-09-27): `reasonCode` (firmanın dilinde katalogdan
+ * çevrilir) VEYA ≥3 karakterlik serbest not zorunlu — kural serviste
+ * (`requireRejectReason`), çünkü iki alandan biri yeter.
  */
 class RejectDto {
+  @IsOptional()
   @IsString()
-  @Length(3, 500, { message: "Red gerekçesi en az 3 karakter olmalı" })
-  reason!: string;
+  @MaxLength(500)
+  reason?: string;
+
+  @IsOptional()
+  @IsIn(VERIFICATION_REASON_CODES as unknown as string[])
+  reasonCode?: VerificationReasonCode;
 }
 
 /**
- * Belge bazlı inceleme kararları — { [docKind]: { status, reason?, key? } }.
+ * Belge bazlı inceleme kararları — { [docKind]: { status, reason?, reasonCode?, key? } }.
  * `key` = incelenen nesnenin R2 anahtarı (denetim 2026-08-26 Parça 9 #3):
  * gönderilirse karar O nesneye sabitlenir; arada belge değişmişse 409 döner.
+ * İç nesne serbest biçimli (`IsObject`) → `reasonCode` serviste doğrulanır.
  */
 class ReviewDocsDto {
   @IsObject()
   decisions!: Partial<
     Record<
       DocKind,
-      { status: "APPROVED" | "REJECTED"; reason?: string; key?: string }
+      {
+        status: "APPROVED" | "REJECTED";
+        reason?: string;
+        reasonCode?: VerificationReasonCode;
+        key?: string;
+      }
     >
   >;
 }
@@ -123,10 +154,14 @@ class ReviewDocRevisionDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+
+  @IsOptional()
+  @IsIn(VERIFICATION_REASON_CODES as unknown as string[])
+  reasonCode?: VerificationReasonCode;
 }
 
 /** Firma kimlik düzeltme — yalnız gönderilen alanlar değişir. */
-class UpdateCompanyProfileDto {
+export class UpdateCompanyProfileDto {
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -162,6 +197,17 @@ class UpdateCompanyProfileDto {
   @Length(2, 2)
   country?: string;
 
+  /** Hukuki yapı (2026-09-27): OTHER seçilince `legalFormLocal` zorunlu (serviste). */
+  @IsOptional()
+  @IsIn(["JOINT_STOCK", "LIMITED", "SOLE_PROPRIETOR", "OTHER"])
+  companyType?: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER";
+
+  /** Yerel hukuki yapı adı (GmbH, LLC, ООО…) — onboarding DTO'suyla aynı tavan. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  legalFormLocal?: string | null;
+
   @IsOptional()
   @IsString()
   @MaxLength(120)
@@ -177,8 +223,20 @@ class UpdateCompanyProfileDto {
   @MaxLength(400)
   addressLine?: string | null;
 
+  /**
+   * Doluysa firmanin TUM firma-duzeyi e-postalari (siparis, dogrulama, uyelik,
+   * baglanti) kullanicilar yerine bu adrese gider — bicim hatasi firmanin
+   * butun e-posta akisini sessizce keser (derin denetim MU-02). Bos string
+   * alani temizler (serviste null'a normalize edilir); dolu deger e-posta
+   * olmali, kucuk harfe cevrilip saklanir.
+   */
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.trim().toLowerCase() : value,
+  )
+  @ValidateIf((o: { billingEmail?: unknown }) => o.billingEmail !== "")
   @IsString()
+  @IsEmail()
   @MaxLength(200)
   billingEmail?: string | null;
 
@@ -201,6 +259,17 @@ class UpdateCompanyProfileDto {
   @IsString()
   @MaxLength(200)
   ibanHolder?: string | null;
+
+  /** IBAN kullanmayan ülkede zorunlu; doğrulamada her ülkede (2026-09-27). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  bankSwiftBic?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  bankName?: string | null;
 }
 
 class SetTierDto {
@@ -231,17 +300,58 @@ class ExtendMembershipDto {
   reason?: string;
 }
 
-class MembershipReportDto {
+/**
+ * Tarih biçimi DTO'da (derin denetim LU-03): eskiden yalnız `@IsString
+ * @MaxLength(10)` vardı; "2026-13-01" / "abc" servis içinde Invalid Date
+ * üretip Prisma'ya gidiyor, 400 yerine 500 dönüyordu. `strict` ISO 8601 ay/gün
+ * geçerliliğini de denetler (13. ay, 30 Şubat red).
+ */
+export class MembershipReportDto {
   /** ISO tarih (YYYY-MM-DD) — aralık başı. */
   @IsOptional()
-  @IsString()
-  @MaxLength(10)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
   from?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(10)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
   to?: string;
+}
+
+/**
+ * Şikayet listesi sorgusu (derin denetim LU-03): parametreler eskiden ham
+ * `@Query` string'i idi — `status=open` doğrulanmadan Prisma enum süzgecine,
+ * `page=abc` `parseInt` ile NaN olarak `skip`'e gidiyor, 400 yerine 500
+ * dönüyordu.
+ */
+export class ListComplaintsDto {
+  @IsOptional()
+  @IsIn(["OPEN", "RESOLVED", "DISMISSED"])
+  status?: "OPEN" | "RESOLVED" | "DISMISSED";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  companyId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  q?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
 }
 
 class AddNoteDto {
@@ -325,9 +435,11 @@ export class AdminCompaniesController {
 
   // ":id"den ÖNCE — aksi halde "stats" bir firma id'si sanılırdı.
   @Get("companies/stats")
-  @AllowAnyAdminRole() // yalnız agregat sayaç, PII yok — tüm rollere açık
-  stats() {
-    return this.service.stats();
+  @AllowAnyAdminRole() // agregat sayaçlar tüm rollere açık
+  stats(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    // Firma satırları (bitmek üzere üyelik arama listesi) satış verisidir:
+    // salt-okuma SUPPORT yalnız SAYIYI görür (arayüz testi D-182).
+    return this.service.stats({ rowsAllowed: admin.role !== "SUPPORT" });
   }
 
   @Get("companies/:id")
@@ -362,7 +474,13 @@ export class AdminCompaniesController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Body() dto: RejectDto,
   ) {
-    return this.service.setVerification(id, "REJECTED", admin.id, dto.reason);
+    return this.service.setVerification(
+      id,
+      "REJECTED",
+      admin.id,
+      dto.reason,
+      dto.reasonCode,
+    );
   }
 
   @Post("companies/:id/review")
@@ -466,19 +584,13 @@ export class AdminCompaniesController {
 
   @Get("complaints")
   @AllowAnyAdminRole() // SUPPORT şikayet triyajı yapabilir; resolve gated kalır
-  complaints(
-    @Query("status") status?: string,
-    @Query("companyId") companyId?: string,
-    @Query("q") q?: string,
-    @Query("page") page?: string,
-    @Query("pageSize") pageSize?: string,
-  ) {
+  complaints(@Query() query: ListComplaintsDto) {
     return this.service.listComplaints(
-      status,
-      companyId,
-      q,
-      page ? parseInt(page, 10) : undefined,
-      pageSize ? parseInt(pageSize, 10) : undefined,
+      query.status,
+      query.companyId,
+      query.q,
+      query.page,
+      query.pageSize,
     );
   }
 

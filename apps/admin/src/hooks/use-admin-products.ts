@@ -26,7 +26,11 @@ export interface AdminProductRow {
     name: string;
     slug: string | null;
     city: string | null;
+    /** Ham DB kademesi — süresi geçmiş paketli firmada hâlâ SILVER/GOLD. */
     tier: string;
+    /** Efektif kademe (süre geçmişse STANDART) — ekranda bu gösterilir (D-174). */
+    effectiveTier: string;
+    membershipEndAt: string | null;
     verification: string;
     isBlocked: boolean;
   };

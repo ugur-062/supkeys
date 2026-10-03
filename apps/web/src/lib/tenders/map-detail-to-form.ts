@@ -1,4 +1,6 @@
 import type { ListingDetail } from "@/hooks/use-company-listings";
+import { MONEY_DECIMALS } from "@rothern/shared";
+import { toAppWallClockInput } from "@/lib/time-zone";
 import {
   DEFAULT_FORM_VALUES,
   nowLocalDateTimeValue,
@@ -7,24 +9,32 @@ import {
 
 type Currency = TenderFormData["primaryCurrency"];
 
-/** ISO → datetime-local input ("YYYY-MM-DDTHH:mm", yerel saat). */
+/**
+ * ISO → datetime-local input ("YYYY-MM-DDTHH:mm") — ÜRÜN saat diliminde
+ * (Europe/Istanbul; gösterimle aynı, 2026-09-27). Tarayıcı saatiyle yazılsaydı
+ * yurt dışındaki kullanıcının seçtiği saat ekranda başka görünürdü.
+ */
 export function toLocalInput(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-    d.getDate(),
-  )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toAppWallClockInput(d);
 }
 
-/** ISO → date input ("YYYY-MM-DD"). */
+/**
+ * ISO → date input ("YYYY-MM-DD") — TARİH-ONLY, saat dilimi dönüşümü YOK.
+ * Kayıt tarafı (`map-to-input` `new Date("YYYY-MM-DD").toISOString()`) günü
+ * UTC gece yarısı yazar; burada da UTC alanlarıyla okunur ki simetrik olsun.
+ * Tarayıcının yerel alanlarıyla okumak UTC'nin batısında (Amerika) günü bir
+ * geri gösteriyor, her Düzenle/Kopyala kaydında bir gün daha kaydırıyordu
+ * (derin denetim S095).
+ */
 export function toDateInput(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
 /**
@@ -62,6 +72,9 @@ export function mapDetailToForm(
     // "Yeni Tur" aktarması); eksiltme ilanının kopyası formatı miras almaz.
     type: forCopy ? "RFQ" : ((l.format as TenderFormData["type"]) ?? "RFQ"),
     targetCountries: l.targetCountries ?? [],
+    // Kopya yeni talep: ayarlar varsayılana döner; düzenleme kayıttakini açar.
+    aiDiscovery: forCopy ? DEFAULT_FORM_VALUES.aiDiscovery : (l.aiDiscovery ?? false),
+    inviteShowName: forCopy ? DEFAULT_FORM_VALUES.inviteShowName : (l.inviteShowName ?? true),
     deliveryAddressId: l.deliveryAddressId ?? "",
     // Fatura adresi teslimattan farklıysa tik kapalı + seçim yüklenir;
     // aynıysa/boşsa tik açık (varsayılan davranış).
@@ -84,7 +97,6 @@ export function mapDetailToForm(
       ...DEFAULT_FORM_VALUES.logistics,
       ...((l.logistics as Record<string, unknown> | null) ?? {}),
     },
-    isSealedBid: l.isSealedBid ?? true,
     requireAllItems: l.requireAllItems ?? false,
     requireBidDocument: l.requireBidDocument ?? false,
     showTargetToSuppliers: l.showTargetToSuppliers ?? false,
@@ -107,7 +119,8 @@ export function mapDetailToForm(
     bidsOpenAt: forCopy ? nowLocalDateTimeValue() : toLocalInput(l.bidsOpenAt),
     bidVisibility:
       (l.bidVisibility as TenderFormData["bidVisibility"]) ?? "OWN_ONLY",
-    decimalPlaces: l.decimalPlaces ?? 2,
+    // Eski (API ile açılmış) talepte 3-4 olabilir; tavan teklif/DB ölçeği.
+    decimalPlaces: Math.min(l.decimalPlaces ?? 2, MONEY_DECIMALS),
     autoExtendOnLateBid: l.autoExtendOnLateBid ?? true,
     autoExtendThresholdMin: l.autoExtendThresholdMin ?? undefined,
     autoExtendByMinutes: l.autoExtendByMinutes ?? undefined,

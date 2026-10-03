@@ -16,6 +16,8 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   useAdminSystem,
   useClearSuppression,
@@ -27,6 +29,7 @@ import {
   useUpdateTimeSavingsConfig,
   type TimeSavingsConfigRow,
 } from "@/hooks/use-admin-system";
+import { cronJobMeta } from "@/lib/cron-jobs";
 import { safeFormat } from "@/lib/date";
 import {
   Database,
@@ -38,7 +41,11 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
+import { parseAdminNumber } from "@/lib/number-input";
 
+// API `FOREIGN_CURRENCY_CODES` (@rothern/shared) ile BİREBİR — admin paketi
+// shared'e bağlı değil; API listede olmayan kodu 400 ile reddeder.
 const MANUAL_CURRENCIES = [
   "USD",
   "EUR",
@@ -48,13 +55,35 @@ const MANUAL_CURRENCIES = [
   "AED",
   "CNY",
   "RUB",
+  "AZN",
+  "SEK",
+  "NOK",
+  "DKK",
+  "BGN",
+  "RON",
+  "KRW",
+  "SAR",
+  "QAR",
+  "KWD",
+  "AUD",
+  "CAD",
 ];
 
+/** Manuel kurda izin verilen ondalık (TCMB 4 hane yayımlar). */
+const RATE_DECIMALS = 6;
+
 /** Manuel kur formu — TCMB arızası acil durumu (yalnız SUPER_ADMIN, BE guard). */
-function ManualRateForm() {
+function ManualRateForm({ rates }: { rates?: Record<string, number> }) {
   const manual = useManualRate();
   const [currency, setCurrency] = useState("USD");
   const [rate, setRate] = useState("");
+  const rateNum = parseAdminNumber(rate, RATE_DECIMALS);
+  const rateInvalid = rateNum != null && !(rateNum > 0);
+  // Güncel kurun yarısından azı / iki katından fazlası büyük olasılıkla yazım
+  // hatasıdır (×10/×1000) — engellemez, uyarır.
+  const currentRate = rates?.[currency];
+  const rateFarOff =
+    rateNum != null && rateNum > 0 && !!currentRate && (rateNum > currentRate * 2 || rateNum < currentRate / 2);
   return (
     <div className="border-admin-border mt-4 flex flex-wrap items-end gap-2 border-t pt-3">
       <PencilLine className="text-admin-text-muted mb-1.5 h-4 w-4" />
@@ -76,13 +105,20 @@ function ManualRateForm() {
         <span className="text-admin-text-muted text-xs font-medium">
           Kur (₺)
         </span>
+        {/* Metin + Türkçe ayrıştırma (arayüz testi kapanış NUM): `type="number"`
+            "34,5678"i 345678 gönderiyordu — platformdaki her TRY çevrimi bozulurdu. */}
         <Input
-          type="number"
-          step="0.0001"
-          min="0"
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
           value={rate}
+          hasError={rateInvalid}
           onChange={(e) => setRate(e.target.value)}
-          placeholder="34.5000"
+          // Yer tutucu seçili birimin güncel kuru — eski sabit "34.5000"
+          // gerçeğe uzaktı (arayüz testi D-139).
+          placeholder={
+            rates?.[currency] ? rates[currency].toFixed(4).replace(".", ",") : undefined
+          }
           className="w-32"
         />
       </label>
@@ -90,23 +126,33 @@ function ManualRateForm() {
         size="sm"
         variant="secondary"
         loading={manual.isPending}
-        disabled={!Number.isFinite(Number(rate)) || Number(rate) <= 0}
+        disabled={rateNum == null || !(rateNum > 0)}
         onClick={() =>
+          rateNum != null &&
+          rateNum > 0 &&
           manual.mutate(
-            { currency, rate: Number(rate) },
+            { currency, rate: rateNum },
             {
               onSuccess: () => {
                 toast.success(`${currency} manuel kuru kaydedildi`);
                 setRate("");
               },
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
+              onError: (e: unknown) => toastApiError(e),
             },
           )
         }
       >
         Manuel Kur Kaydet
       </Button>
+      {rateInvalid ? (
+        <p role="alert" className="w-full text-xs text-red-600">
+          Kur geçersiz — en fazla {RATE_DECIMALS} ondalık, ör. 34,5678
+        </p>
+      ) : rateFarOff ? (
+        <p role="alert" className="w-full text-xs text-amber-700">
+          Dikkat: girilen kur güncel kurdan ({currentRate!.toFixed(4).replace(".", ",")}) çok farklı — değeri kontrol edin.
+        </p>
+      ) : null}
       <p className="text-admin-text-muted w-full text-xs">
         Yalnız TCMB uzun süre erişilemezse kullanın — sonraki TCMB çekimi
         üzerine yazar; işlem denetim kaydına girer.
@@ -116,10 +162,14 @@ function ManualRateForm() {
 }
 
 /** E-posta itibar — suppress edilmiş adresler + aklama. */
-function SuppressionsSection() {
+function SuppressionsSection({ canClear }: { canClear: boolean }) {
   const list = useSuppressions();
   const clear = useClearSuppression();
   const rows = list.data ?? [];
+  // Engel kaldırma gerçek dış etki (adrese yeniden gönderim başlar) — onay
+  // penceresiyle; tek tıkla aklama yoktu (arayüz testi D-221). Kilit onay
+  // penceresinde (ConfirmDialog), açık pencere tek adrese bağlı.
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
   return (
     <section className="admin-card overflow-hidden">
       <div className="border-admin-border border-b px-5 py-4">
@@ -132,7 +182,16 @@ function SuppressionsSection() {
         </p>
       </div>
       <div className="divide-admin-border divide-y">
-        {rows.length === 0 ? (
+        {list.isError ? (
+          // API hatasında "Engellenen adres yok" denmez — liste bilinmiyor
+          // (arayüz testi D-221).
+          <ErrorState
+            className="m-4"
+            title="Engellenen adresler yüklenemedi"
+            message="Liste alınamadı; engelli adres olup olmadığı şu an bilinmiyor."
+            onRetry={() => void list.refetch()}
+          />
+        ) : rows.length === 0 ? (
           <p className="text-admin-text-muted px-5 py-6 text-center text-sm">
             {list.isLoading ? "Yükleniyor..." : "Engellenen adres yok"}
           </p>
@@ -143,34 +202,54 @@ function SuppressionsSection() {
               className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5"
             >
               <div className="min-w-0">
-                <p className="text-admin-text text-sm font-medium">{r.email}</p>
+                <p className="text-admin-text text-sm font-medium break-all">{r.email}</p>
                 <p className="text-admin-text-muted text-xs">
                   {r.status === "COMPLAINED" ? "Şikayet" : "Kalıcı bounce"}
                   {r.reason ? ` — ${r.reason}` : ""} ·{" "}
                   {safeFormat(r.at, "d MMM yyyy")}
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={clear.isPending}
-                onClick={() =>
-                  clear.mutate(
-                    { email: r.email },
-                    {
-                      onSuccess: () => toast.success("Engel kaldırıldı"),
-                      onError: (e: unknown) =>
-                        toast.error(e instanceof Error ? e.message : "Hata"),
-                    },
-                  )
-                }
-              >
-                Engeli Kaldır
-              </Button>
+              {/* Liste SUPER_ADMIN+SALES; engel kaldırma yalnız SUPER_ADMIN
+                  (clearSuppression) — SALES'e 403 düğmesi çizilmez (LU-12). */}
+              {canClear ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setConfirmEmail(r.email)}
+                >
+                  Engeli Kaldır
+                </Button>
+              ) : null}
             </div>
           ))
         )}
       </div>
+      <ConfirmDialog
+        open={confirmEmail !== null}
+        title="E-posta engelini kaldır"
+        confirmLabel="Engeli Kaldır"
+        danger
+        onConfirm={() => {
+          if (!confirmEmail) return;
+          return clear.mutateAsync({ email: confirmEmail }).then(
+            () => {
+              toast.success("Engel kaldırıldı");
+              setConfirmEmail(null);
+            },
+            (e: unknown) => toastApiError(e),
+          );
+        }}
+        onClose={() => setConfirmEmail(null)}
+      >
+        <p>
+          <span className="font-medium break-all">{confirmEmail}</span> adresine
+          e-posta gönderimi yeniden başlar.
+        </p>
+        <p className="text-admin-text-muted text-xs">
+          Adres hâlâ ulaşılamazsa yeni bir geri dönme ya da şikayet onu yeniden
+          engeller; işlem denetim kaydına girer.
+        </p>
+      </ConfirmDialog>
     </section>
   );
 }
@@ -185,6 +264,9 @@ function SistemView() {
   const { admin } = useAdminAuth();
   const canManualRate = canAdminDo(admin?.role, "manualRate");
   const canListSuppressions = canAdminDo(admin?.role, "listSuppressions");
+  const canClearSuppression = canAdminDo(admin?.role, "clearSuppression");
+  // Kur yenileme SUPER_ADMIN+SALES; Sistem sayfası SUPPORT'a da açık (LU-12).
+  const canRefreshRates = canAdminDo(admin?.role, "refreshRates");
   const canTimeSavings = canAdminDo(admin?.role, "timeSavingsConfig");
 
   return (
@@ -251,22 +333,23 @@ function SistemView() {
               </span>
             </div>
           </div>
-          <Button
-            size="sm"
-            loading={refresh.isPending}
-            onClick={() =>
-              refresh.mutate(undefined, {
-                onSuccess: (r) =>
-                  r.success
-                    ? toast.success(`Kurlar yenilendi (${r.date})`)
-                    : toast.error(`TCMB alınamadı: ${r.reason ?? "bilinmiyor"}`),
-                onError: (e: unknown) =>
-                  toast.error(e instanceof Error ? e.message : "Hata"),
-              })
-            }
-          >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Kurları Şimdi Yenile
-          </Button>
+          {canRefreshRates ? (
+            <Button
+              size="sm"
+              loading={refresh.isPending}
+              onClick={() =>
+                refresh.mutate(undefined, {
+                  onSuccess: (r) =>
+                    r.success
+                      ? toast.success(`Kurlar yenilendi (${r.date})`)
+                      : toast.error(`TCMB alınamadı: ${r.reason ?? "bilinmiyor"}`),
+                  onError: (e: unknown) => toastApiError(e),
+                })
+              }
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Kurları Şimdi Yenile
+            </Button>
+          ) : null}
         </div>
         {s?.exchangeRates.rates ? (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -283,17 +366,19 @@ function SistemView() {
           </div>
         ) : null}
         <p className="text-admin-text-muted mt-3 text-xs">
-          Kur bayatken (7+ gün) döviz ilanlarında taban kıyası güvenlik gereği
-          reddedilir — TCMB arızasında bu buton kilidi açar.
+          Kur bayatken (7+ gün) dövizli açık eksiltme açılamaz, kalem bazında
+          farklı para birimli teklifler reddedilir ve dövizli tekliflerin TL
+          karşılığı boş kalır — TCMB arızasında kurları yenilemek ya da manuel
+          kur girmek bunu düzeltir.
         </p>
         {/* B2 (denetim 2026-08-26 Parça 10): bu üç bölüm SUPER_ADMIN'e kilitli
             uçlara yazıyor (backend fail-closed) ama UI'da hiç kapı yoktu →
             SUPPORT/SALES basılabilir düğmeler görüp 403 alıyordu ve
             "UI kilidi = API kilidi" garantisi bu ekranda yoktu. */}
-        {canManualRate ? <ManualRateForm /> : null}
+        {canManualRate ? <ManualRateForm rates={s?.exchangeRates.rates ?? undefined} /> : null}
       </section>
 
-      {canListSuppressions ? <SuppressionsSection /> : null}
+      {canListSuppressions ? <SuppressionsSection canClear={canClearSuppression} /> : null}
       {canTimeSavings ? <TimeSavingsConfigSection /> : null}
 
       {/* Cron işleri */}
@@ -324,34 +409,39 @@ function SistemView() {
                 empty="Kayıtlı iş yok"
               />
             ) : (
-              (s?.crons ?? []).map((c) => (
+              (s?.crons ?? []).map((c) => {
+                const meta = cronJobMeta(c);
+                return (
                 <TableRow key={c.key}>
-                  <TableCell className="text-admin-text text-sm font-medium">
-                    {c.label}
+                  {/* Ad ve zamanlama sarar: tablo `whitespace-nowrap` olduğundan
+                      uzun adlar Durum/Çalışma sayısı sütunlarını kartın
+                      dışına itiyordu (arayüz testi D-139). */}
+                  <TableCell className="text-admin-text min-w-[14rem] text-sm font-medium whitespace-normal">
+                    {meta.label}
                     <span className="text-admin-text-muted block font-mono text-[11px]">
                       {c.key}
                     </span>
                   </TableCell>
-                  <TableCell className="text-admin-text-muted text-xs">
-                    {c.schedule}
+                  <TableCell className="text-admin-text-muted min-w-[8rem] text-xs whitespace-normal">
+                    {meta.schedule}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                     {c.lastRunAt
                       ? safeFormat(c.lastRunAt, "d MMM HH:mm:ss")
-                      : "son açılıştan beri çalışmadı"}
+                      : "Henüz çalışmadı"}
                   </TableCell>
                   <TableCell>
                     {c.lastStatus === null ? (
                       <Badge color="zinc">—</Badge>
                     ) : c.lastStatus === "ok" ? (
-                      <Badge color="green">OK</Badge>
+                      <Badge color="green">Başarılı</Badge>
                     ) : (
                       <Badge color="red" title={c.lastError ?? undefined}>
                         Hata
                       </Badge>
                     )}
                     {c.lastError ? (
-                      <span className="text-admin-text-muted ml-2 text-xs">
+                      <span className="text-admin-text-muted mt-1 block max-w-[16rem] text-xs break-words whitespace-normal">
                         {c.lastError}
                       </span>
                     ) : null}
@@ -360,7 +450,8 @@ function SistemView() {
                     {c.runCount}
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -379,17 +470,22 @@ export default function AdminSistemPage() {
 
 /** Zaman Tasarrufu parametreleri — paneldeki "kazanılan saat" hesabının
  *  birim süreleri (dk). Kaydet SUPER_ADMIN ister (BE guard); audit'e düşer. */
-const TS_FIELDS: { key: keyof TimeSavingsConfigRow; label: string; step?: string }[] = [
-  { key: "rfqMailPrepMin", label: "RFQ maili (dk × davet)" },
-  { key: "followupMin", label: "Hatırlatma (dk — v1'de hesaba katılmaz)" },
-  { key: "bidToExcelMin", label: "Teklif→Excel (dk × teklif)" },
-  { key: "bidItemFactor", label: "Kalem katsayısı", step: "0.05" },
-  { key: "comparisonTableMin", label: "Karşılaştırma tablosu (dk × satın alma talebi)" },
-  { key: "revisionRoundMin", label: "Revizyon turu (dk × tur)" },
-  { key: "approvalLoopMin", label: "Onay döngüsü (dk × onay)" },
-  { key: "poPrepMin", label: "PO hazırlama (dk × sipariş)" },
-  { key: "hourlyLaborCost", label: "Saatlik maliyet (₺, boş = TL gizli)" },
+// `max` API TimeSavingsConfigDto @Max ile birebir — aşan değer sunucunun alan
+// adı taşımayan 400'üne düşmeden alan adıyla reddedilir (arayüz testi FX-00 D-037).
+const TS_FIELDS: { key: keyof TimeSavingsConfigRow; label: string; step?: string; max: number }[] = [
+  { key: "rfqMailPrepMin", label: "RFQ maili (dk × davet)", max: 999 },
+  { key: "followupMin", label: "Hatırlatma (dk — v1'de hesaba katılmaz)", max: 999 },
+  { key: "bidToExcelMin", label: "Teklif→Excel (dk × teklif)", max: 999 },
+  { key: "bidItemFactor", label: "Kalem katsayısı", step: "0.05", max: 9 },
+  { key: "comparisonTableMin", label: "Karşılaştırma tablosu (dk × satın alma talebi)", max: 999 },
+  { key: "revisionRoundMin", label: "Revizyon turu (dk × tur)", max: 999 },
+  { key: "approvalLoopMin", label: "Onay döngüsü (dk × onay)", max: 999 },
+  { key: "poPrepMin", label: "PO hazırlama (dk × sipariş)", max: 999 },
+  { key: "hourlyLaborCost", label: "Saatlik maliyet (₺, boş = TL gizli)", max: 1_000_000 },
 ];
+
+/** Zaman tasarrufu alanlarında izin verilen ondalık (dk 0,5 · katsayı 0,05). */
+const TS_DECIMALS = 2;
 
 const TS_DEFAULTS: TimeSavingsConfigRow = {
   rfqMailPrepMin: 6,
@@ -407,17 +503,24 @@ function TimeSavingsConfigSection() {
   const cfg = useTimeSavingsConfig();
   const update = useUpdateTimeSavingsConfig();
   const [form, setForm] = useState<Record<string, string>>({});
+  // Yapılandırma yüklenmeden form varsayılanlarla DOLDURULMAZ ve Kaydet kapalı
+  // kalır — yükleme hatasında varsayılanları kaydetmek gerçek ayarları ezerdi
+  // (arayüz testi FX-00 D-037).
+  const loaded = cfg.isSuccess;
   useEffect(() => {
+    if (!cfg.isSuccess) return;
     const src = cfg.data ?? TS_DEFAULTS;
     setForm(
       Object.fromEntries(
         TS_FIELDS.map((f) => [
           f.key,
-          src[f.key] == null ? "" : String(src[f.key]),
+          // Türkçe ondalık virgülle (kayıtlı 12.345 → "12,345"; noktayla
+          // basılsaydı kayıtta binlik okunup 12345 olurdu).
+          src[f.key] == null ? "" : String(src[f.key]).replace(".", ","),
         ]),
       ),
     );
-  }, [cfg.data]);
+  }, [cfg.isSuccess, cfg.data]);
 
   return (
     <section className="border-admin-border bg-admin-surface rounded-xl border p-5">
@@ -428,16 +531,26 @@ function TimeSavingsConfigSection() {
         Firma panellerindeki &ldquo;~X saat kazandın&rdquo; hesabının birim
         süreleri. Boş bırakılan saatlik maliyet TL gösterimini kapatır.
       </p>
+      {cfg.isError ? (
+        <ErrorState
+          className="mt-4"
+          title="Parametreler yüklenemedi"
+          message="Kayıtlı değerler okunamadı; varsayılanlarla kaydetmek ayarları ezeceği için form kapalı."
+          onRetry={() => cfg.refetch()}
+        />
+      ) : null}
+      {loaded ? (
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {TS_FIELDS.map((f) => (
           <label key={f.key} className="flex flex-col gap-1">
             <span className="text-admin-text-muted text-xs font-medium">
               {f.label}
             </span>
+            {/* Metin + Türkçe ayrıştırma (NUM): "1.500" TL 1,5, "0,5" katsayı 5 gidiyordu. */}
             <Input
-              type="number"
-              min="0"
-              step={f.step ?? "0.5"}
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               value={form[f.key] ?? ""}
               onChange={(e) =>
                 setForm((cur) => ({ ...cur, [f.key]: e.target.value }))
@@ -446,10 +559,12 @@ function TimeSavingsConfigSection() {
           </label>
         ))}
       </div>
+      ) : null}
       <div className="mt-4">
         <Button
           size="sm"
           loading={update.isPending}
+          disabled={!loaded}
           onClick={() => {
             const payload: Partial<TimeSavingsConfigRow> = {};
             for (const f of TS_FIELDS) {
@@ -458,18 +573,23 @@ function TimeSavingsConfigSection() {
                 if (f.key === "hourlyLaborCost") payload.hourlyLaborCost = null;
                 continue;
               }
-              const n = Number(raw);
+              const n = parseAdminNumber(raw, TS_DECIMALS) ?? Number.NaN;
               if (!Number.isFinite(n) || n < 0) {
                 toast.error(`Geçersiz değer: ${f.label}`);
                 return;
               }
+              if (n > f.max) {
+                toast.error(`${f.label}: en fazla ${f.max.toLocaleString("tr-TR")}`);
+                return;
+              }
               (payload as Record<string, number | null>)[f.key] = n;
             }
-            update.mutate(payload, {
-              onSuccess: () => toast.success("Parametreler kaydedildi"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Kaydedilemedi"),
-            });
+            // Promise döner → admin Button iş bitene dek kilitli (çift tık
+            // ikinci istek atmaz).
+            return update.mutateAsync(payload).then(
+              () => toast.success("Parametreler kaydedildi"),
+              (e: unknown) => toastApiError(e, "Kaydedilemedi"),
+            );
           }}
         >
           Kaydet

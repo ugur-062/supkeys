@@ -1,4 +1,4 @@
-import { PAID_TIERS } from "@rothern/shared";
+import { PAID_TIERS, PRODUCT_LIMITS } from "@rothern/shared";
 import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
@@ -8,9 +8,13 @@ import {
 } from "../../../common/cron/cron-registry.service";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
+import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
+import { localeOf } from "../../notifications/notification.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { appRoutes } from "../../../common/company/app-routes";
 import { enforceProductLimit } from "../../../common/company/product-limit";
+import { cancelOutgoingReferralInvites } from "../../../common/company/downgrade-invites";
+import { SeoIndexService } from "../../seo-index/seo-index.service";
 
 @Injectable()
 export class MembershipScheduler implements OnModuleInit {
@@ -22,6 +26,9 @@ export class MembershipScheduler implements OnModuleInit {
     private readonly config: ConfigService,
     // @Optional: testler scheduler'ı DI dışında elle `new`'ler.
     @Optional() private readonly cronRegistry?: CronRegistryService,
+    // Paket düşünce herkese açık firma/ürün sayfaları tazelenir (Silver+
+    // medya: video + belgeler — arayüz testi D-192 yeniden doğrulama).
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
   /**
@@ -75,7 +82,12 @@ export class MembershipScheduler implements OnModuleInit {
         billingEmail: true,
         users: {
           where: { isActive: true, deletedAt: null },
-          select: { email: true, firstName: true, lastName: true },
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            locale: true,
+          },
           orderBy: { createdAt: "asc" },
           take: 1,
         },
@@ -90,7 +102,15 @@ export class MembershipScheduler implements OnModuleInit {
     const downgraded: typeof expired = [];
     for (const c of expired) {
       const claimed = await this.prisma.company.updateMany({
-        where: { id: c.id, tier: { in: [...PAID_TIERS] } },
+        // Süre dolumu claim anında YENİDEN denetlenir (derin denetim LU-06):
+        // findMany ile claim arasında admin uzatması/paket ataması ya da
+        // upgradeToPremium başarılı olduysa firma düşürülmez, yeni bitiş
+        // tarihi ezilmez.
+        where: {
+          id: c.id,
+          tier: { in: [...PAID_TIERS] },
+          membershipEndAt: { not: null, lt: new Date() },
+        },
         // Y3: membershipEndAt'i TEMİZLE — bayat geçmiş tarih kalırsa sonraki
         // cron bu firmayı yeniden eşleştirir + gelecekteki re-grant/upgrade bayat
         // tarihe takılır. Geçmiş EXPIRE event'inde (endBefore) korunur.
@@ -129,9 +149,7 @@ export class MembershipScheduler implements OnModuleInit {
       this.prisma.companyConnection.deleteMany({
         where: { inviterCompanyId: { in: ids }, status: "PENDING" },
       }),
-      this.prisma.companyReferralInvite.deleteMany({
-        where: { inviterCompanyId: { in: ids }, status: "PENDING" },
-      }),
+      ...cancelOutgoingReferralInvites(this.prisma, ids),
     ]);
     this.logger.log(
       `${ids.length} firmanın premium süresi doldu → STANDARD; giden bekleyen davetler iptal edildi`,
@@ -150,6 +168,13 @@ export class MembershipScheduler implements OnModuleInit {
       }
     }
 
+    // Herkese açık sayfa önbelleği (arayüz testi D-192 yeniden doğrulama):
+    // ürün sayfası Silver+ medyayı (video, belgeler) ve Gold rozetini taşır;
+    // `company:<slug>` etiketi firmanın ürün sayfalarını da yeniler. Eskiden
+    // düşüş hiçbir tazeleme yaymıyordu, sayfa önbellek süresi boyunca bayat
+    // kalıyordu. En iyi çaba: servis kendi hatasını yutar.
+    for (const id of ids) this.seo?.companyChanged(id);
+
     // Bilgilendirme e-postası (best-effort) — firma yetkisini kaybettiğini bilsin.
     const baseUrl =
       resolveWebUrl(this.config);
@@ -159,27 +184,43 @@ export class MembershipScheduler implements OnModuleInit {
       const name = c.users[0]
         ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
         : c.name;
+      // E-POSTA DİLİ: firmanın EN ESKİ aktif üyesinin (pratikte kurucu) dili;
+      // yalnız `billingEmail` taşıyan, üyesi çözülmemiş firmada varsayılan.
+      const locale = localeOf(c.users[0]?.locale);
+      const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+        tApi(key, values, locale);
+      const kirpilan = trimmed.get(c.id);
+      const subject = t("api.notifications.membership.sonaErdiKonu");
       void this.email
         .send({
           to: { email, name },
-          subject: "Premium üyeliğiniz sona erdi",
+          subject,
+          locale,
           templateData: {
             template: "notification",
             data: {
-              subject: "Premium üyeliğiniz sona erdi",
-              heading: "Premium üyeliğiniz sona erdi",
+              subject,
+              heading: subject,
               paragraphs: [
-                "Merhaba,",
-                "Paket üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
-                ...(trimmed.get(c.id)
+                t("api.notifications.common.greeting"),
+                // Ürün tavanı metne SABİT yazılmaz (10 → 50 değişiminde metin bayat kalmıştı).
+                t("api.notifications.membership.sonaErdiAnaParagraf", {
+                  limit: PRODUCT_LIMITS.STANDART ?? 0,
+                }),
+                ...(kirpilan
                   ? [
-                      `Tavanı aşan ${trimmed.get(c.id)} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.`,
+                      t("api.notifications.membership.sonaErdiKirpilanUrun", {
+                        adet: kirpilan,
+                      }),
                     ]
                   : []),
-                "Tekrar pakete geçmek için hesabınızdan yükseltme yapabilirsiniz.",
+                // Yukarıdaki iptal (bağlantı + referral + kuyruktaki talep
+                // davetleri) firmaya söylenir (arayüz testi D-173).
+                t("api.notifications.membership.sonaErdiDavetIptal"),
+                t("api.notifications.membership.sonaErdiYukseltme"),
               ],
-              ctaLabel: "Premium'a Geç",
-              ctaUrl: appRoutes.premium(baseUrl),
+              ctaLabel: t("api.notifications.membership.premiumaGec"),
+              ctaUrl: appRoutes.premium(baseUrl, locale),
             },
           },
           context: { type: "membership_downgraded", id: c.id },

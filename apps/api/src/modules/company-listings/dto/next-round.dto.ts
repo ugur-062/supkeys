@@ -9,6 +9,7 @@ import {
   Min,
   ValidateIf,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export enum NextRoundTypeDto {
   RFQ = "RFQ",
@@ -32,28 +33,40 @@ export enum BidVisibilityDto {
  * İngiliz Usulü geçişini de kapsar (RFQ→İngiliz "aktarma" budur).
  */
 export class NextRoundDto {
-  @IsEnum(NextRoundTypeDto, { message: "Geçersiz satın alma talebi tipi" })
+  @IsEnum(NextRoundTypeDto, {
+    message: () => tApi("api.dto.nextRound.gecersizSatinAlmaTalebiTipi"),
+  })
   type!: NextRoundTypeDto;
 
-  @IsEnum(CarryBidsDto, { message: "Geçersiz teklif taşıma modu" })
+  @IsEnum(CarryBidsDto, {
+    message: () => tApi("api.dto.nextRound.gecersizTeklifTasimaModu"),
+  })
   carryBids!: CarryBidsDto;
 
   @IsOptional()
   @IsBoolean()
   eliminateNonBidders?: boolean;
 
-  @IsDateString({}, { message: "Geçerli bir kapanış tarihi girin" })
+  @IsDateString(
+    {},
+    { message: () => tApi("api.dto.nextRound.gecerliBirKapanisTarihiGirin") },
+  )
   closesAt!: string;
 
   @IsOptional()
-  @IsDateString({}, { message: "Geçerli bir açılış tarihi girin" })
+  @IsDateString(
+    {},
+    { message: () => tApi("api.dto.nextRound.gecerliBirAcilisTarihiGirin") },
+  )
   bidsOpenAt?: string;
 
   // ── İngiliz Usulü parametreleri (type=ENGLISH_AUCTION ise) ──
   // Minimum azaltma payı KALDIRILDI (2026-07-13): pazarlıkta tek kural
   // "kendi öncekinden kesin iyi" + turda tek aktif gönderim.
   @ValidateIf((o) => o.type === NextRoundTypeDto.ENGLISH_AUCTION)
-  @IsEnum(BidVisibilityDto, { message: "Geçersiz görünürlük modu" })
+  @IsEnum(BidVisibilityDto, {
+    message: () => tApi("api.dto.nextRound.gecersizGorunurlukModu"),
+  })
   bidVisibility?: BidVisibilityDto;
 
   @IsOptional()

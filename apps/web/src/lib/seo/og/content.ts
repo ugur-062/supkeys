@@ -1,6 +1,11 @@
+import { provinceDisplayName } from "@rothern/shared";
 import { productPrice } from "@/lib/public/product-price";
 import type { PublicListingDetail, PublicProduct, PublicProductCompany, PublicProfile } from "@/lib/public/marketplace-api";
 import { joinParts } from "@/lib/seo/meta";
+import { formatDate } from "@/lib/format-date";
+import { priceLabelsFor, seoT, webTranslator } from "@/i18n/server";
+import { quantityWith, unitLabelWith } from "@/lib/seo/entities";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 
 /**
  * OG KARTI İÇERİĞİ — saf veri, JSX yok (SEO Parça 6).
@@ -39,34 +44,41 @@ function clampTitle(s: string): string {
   return `${(sp > MAX_TITLE * 0.6 ? cut.slice(0, sp) : cut).trimEnd()}…`;
 }
 
-export function productOgContent(product: PublicProduct, company: PublicProductCompany): OgContent {
-  const price = productPrice(product);
+export function productOgContent(product: PublicProduct, company: PublicProductCompany, locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
+  const labels = priceLabelsFor(locale);
+  // Birim okuyucunun dilinde (EN kartta "… / adet" basılıyordu, 2026-09-27).
+  const unit = unitLabelWith(seoT(locale), product.unit, product.unitCode);
+  const price = productPrice({ ...product, unit }, labels);
   return {
-    eyebrow: product.category?.name ? `ÜRÜN · ${product.category.name.toUpperCase()}` : "ÜRÜN",
+    eyebrow: product.category?.name ? t("web.seo.og.productWith", { category: product.category.name.toLocaleUpperCase(locale) }) : t("web.seo.og.product"),
     title: clampTitle(product.name),
-    subtitle: joinParts([company.name, company.city], " · ") || null,
+    subtitle: joinParts([company.name, provinceDisplayName(company.city, locale)], " · ") || null,
     facts: [
-      price.hasPrice ? price.headline : "Fiyat için teklif isteyin",
-      product.moq ? `Min. ${product.moq} ${product.unit}` : null,
+      price.hasPrice ? price.headline : labels.onRequest,
+      product.moq ? t("web.seo.og.minOrder", { qty: quantityWith(seoT(locale), product.moq, product.unit, product.unitCode) }) : null,
       product.brand ? product.brand : null,
     ].filter((f): f is string => !!f),
     image: product.images[0] ?? null,
-    badge: company.verified ? "Doğrulanmış tedarikçi" : null,
+    badge: company.verified ? t("web.seo.og.verifiedSupplier") : null,
   };
 }
 
-export function companyOgContent(p: PublicProfile): OgContent {
+export function companyOgContent(p: PublicProfile, locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
   return {
-    eyebrow: "FİRMA",
+    eyebrow: t("web.seo.og.company"),
     title: clampTitle(p.name),
-    subtitle: joinParts([p.industry, p.city], " · ") || null,
+    subtitle: joinParts([p.industry, provinceDisplayName(p.city, locale)], " · ") || null,
     facts: [
-      p.productCount > 0 ? `${p.productCount} ürün vitrinde` : null,
-      p.foundedYear ? `${p.foundedYear}'den beri` : null,
-      p.employeeCount ? `${p.employeeCount} çalışan` : null,
+      p.productCount > 0 ? t("web.seo.productsInShowcase", { n: p.productCount }) : null,
+      p.foundedYear ? t("web.seo.og.since", { year: p.foundedYear }) : null,
+      // Aralık METNİ ("10-49", "250+") — çoğul mesaja sayı diye verilince
+      // EN/RU'da "NaN employees" basıyordu (derin denetim S094).
+      p.employeeCount ? t("web.seo.og.employees", { range: p.employeeCount }) : null,
     ].filter((f): f is string => !!f),
     image: p.coverImageUrl ?? p.logoUrl ?? null,
-    badge: p.verified ? "Doğrulanmış firma" : null,
+    badge: p.verified ? t("web.seo.og.verifiedCompany") : null,
   };
 }
 
@@ -74,53 +86,77 @@ export function companyOgContent(p: PublicProfile): OgContent {
  * ALIM TALEBİ — sahibin adı/logosu YOK (CLAUDE.md § İLAN SAHİBİ ANONİM).
  * Konum ve nitelik kalır: "kim alıyor" değil "nerede, ne kadar".
  */
-export function listingOgContent(l: PublicListingDetail): OgContent {
+export function listingOgContent(l: PublicListingDetail, locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
+  // Çoğul kuralı + sayı biçimi (derin denetim S094) — "1500 piece" değil "1,500 pieces".
   const qty =
     l.itemSummary.totalQuantity && l.itemSummary.unit
-      ? `${l.itemSummary.totalQuantity} ${l.itemSummary.unit}`
+      ? quantityWith(seoT(locale), l.itemSummary.totalQuantity, l.itemSummary.unit)
       : null;
   const open = l.status === "OPEN";
   return {
-    eyebrow: `ALIM TALEBİ · ${l.number}`,
+    eyebrow: t("web.seo.og.demand", { number: l.number }),
     title: clampTitle(l.title),
-    subtitle: joinParts([l.categories[0]?.name, l.company.city], " · ") || null,
+    subtitle: joinParts([l.categories[0]?.name, provinceDisplayName(l.company.city, locale)], " · ") || null,
     facts: [
-      qty ? `Miktar: ${qty}` : null,
-      l.itemSummary.count > 1 ? `${l.itemSummary.count} kalem` : null,
-      l.closesAt && open ? `Son teklif: ${new Date(l.closesAt).toLocaleDateString("tr-TR")}` : null,
+      qty ? t("web.seo.qty", { qty }) : null,
+      l.itemSummary.count > 1 ? t("web.seo.items", { n: l.itemSummary.count }) : null,
+      l.closesAt && open ? t("web.seo.og.closes", { date: formatDate(l.closesAt, "short", locale) }) : null,
     ].filter((f): f is string => !!f),
     image: l.coverImageUrl ?? null,
-    badge: open ? "Teklife açık" : "Kapandı",
+    badge: open ? t("web.seo.og.open") : t("web.seo.og.closedBadge"),
   };
 }
 
-export function categoryOgContent(name: string, count: number): OgContent {
+export function categoryOgContent(name: string, count: number, locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
   return {
-    eyebrow: "KATEGORİ",
+    eyebrow: t("web.seo.og.category"),
     title: clampTitle(name),
-    subtitle: "Tedarikçi firmaların vitrininden",
-    facts: count > 0 ? [`${count.toLocaleString("tr-TR")} ürün`] : [],
+    subtitle: t("web.seo.og.categorySubtitle"),
+    facts: count > 0 ? [t("web.seo.og.products", { n: count })] : [],
     image: null,
     badge: null,
   };
 }
 
-export function cityOgContent(kind: "products" | "companies", city: string, count: number): OgContent {
+export function cityOgContent(kind: "products" | "companies", city: string, count: number, locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
+  const cityName = provinceDisplayName(city, locale);
   return {
-    eyebrow: "ŞEHİR",
-    title: kind === "products" ? `${city} tedarikçileri ve ürünleri` : `${city} firmaları`,
-    subtitle: kind === "products" ? "Vitrindeki ürünler, teknik özellik ve fiyatla" : "Tedarikçi ve alıcı dizini",
-    facts: count > 0 ? [`${count.toLocaleString("tr-TR")} ${kind === "products" ? "ürün" : "firma"}`] : [],
+    eyebrow: t("web.seo.og.city"),
+    title: kind === "products" ? t("web.seo.og.cityProductsTitle", { city: cityName }) : t("web.seo.og.cityCompaniesTitle", { city: cityName }),
+    subtitle: kind === "products" ? t("web.seo.og.cityProductsSub") : t("web.seo.og.cityCompaniesSub"),
+    facts: count > 0 ? [kind === "products" ? t("web.seo.og.products", { n: count }) : t("web.seo.og.companies", { n: count })] : [],
     image: null,
     badge: null,
   };
 }
 
-export const BRAND_OG: OgContent = {
-  eyebrow: "B2B TEDARİK PAZAR YERİ",
-  title: "Alıcı ve tedarikçiyi tek hesapta birleştiren platform",
-  subtitle: "Ürün vitrini · Alım talebi · Kapalı zarf teklif · Sipariş takibi",
-  facts: [],
-  image: null,
-  badge: null,
-};
+/** Ülke açılış sayfası kartı — `name` okuyucunun dilinde ülke adı (çağıran çözer). */
+export function countryOgContent(name: string, count: number, locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
+  return {
+    eyebrow: t("web.seo.og.country"),
+    title: t("web.seo.og.countryProductsTitle", { country: name }),
+    subtitle: t("web.seo.og.cityProductsSub"),
+    facts: count > 0 ? [t("web.seo.og.products", { n: count })] : [],
+    image: null,
+    badge: null,
+  };
+}
+
+export function brandOgContent(locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
+  return {
+    eyebrow: t("web.seo.og.brandEyebrow"),
+    title: t("web.seo.og.brandTitle"),
+    subtitle: t("web.seo.og.brandSubtitle"),
+    facts: [],
+    image: null,
+    badge: null,
+  };
+}
+
+/** @deprecated dil bilmez; `brandOgContent(locale)` kullan. Türkçe kart. */
+export const BRAND_OG: OgContent = brandOgContent(DEFAULT_LOCALE);

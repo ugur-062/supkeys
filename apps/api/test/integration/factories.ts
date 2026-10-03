@@ -10,6 +10,7 @@ import {
 } from "@rothern/db";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { permissionsForRoles } from "@rothern/shared";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 
 let counter = 0;
 const uniq = () => `${Date.now().toString(36)}-${counter++}`;
@@ -40,7 +41,12 @@ export async function makeCompany(
       // değişiklik oluşmaz ve kilit hiç tetiklenmez.
       iban: "TR120006100519786457841399",
       ibanHolder: "Test Firma A.Ş.",
+      // SWIFT doğrulamada her ülkede zorunlu (2026-09-27) — "kimliği tam" fikstür.
+      bankSwiftBic: "TGBATRIS",
       ...over,
+      // Gerçek yazma yolu gibi şehir metninden dünya şehir listesi kaydı
+      // (2026-09-27): süzgeç/facet `cityId` okur.
+      cityId: over.cityId !== undefined ? over.cityId : resolveCityId(over.country ?? "TR", over.city ?? null),
     },
   });
 }

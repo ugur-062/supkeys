@@ -3,12 +3,13 @@
 import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader, SearchInput } from "@/components/list";
-import { api } from "@/lib/api";
+import { api, toastApiError } from "@/lib/api";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, FolderTree, SearchX } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 interface SearchMiss {
@@ -59,10 +60,34 @@ function CurationQueue() {
       toast.success("Ele alındı olarak işaretlendi");
       void qc.invalidateQueries({ queryKey: ["admin-category-misses"] });
     },
-    onError: () => toast.error("İşaretlenemedi"),
+    onError: (e: unknown) => toastApiError(e, "İşaretlenemedi"),
   });
 
+  // Tek uçuş: çift tık iki işaretleme isteği atmaz (arayüz testi FX-00 D-225).
+  const resolveLock = useSubmitLock();
+
   const rows = misses.data ?? [];
+  // Hata durumunda kart KAYBOLMAZ (eskiden boş liste gibi gizleniyordu).
+  if (misses.isError) {
+    return (
+      <div role="alert" className="admin-card px-5 py-4 text-sm">
+        <div className="flex items-center gap-2">
+          <SearchX className="h-4 w-4 text-amber-600" aria-hidden="true" />
+          <p className="text-admin-text font-bold">Bulunamayan aramalar</p>
+        </div>
+        <p className="text-admin-text-muted mt-1 text-xs">
+          Liste yüklenemedi —{" "}
+          <button
+            type="button"
+            onClick={() => void misses.refetch()}
+            className="font-semibold text-blue-600 hover:underline"
+          >
+            tekrar dene
+          </button>
+        </p>
+      </div>
+    );
+  }
   if (misses.isLoading || rows.length === 0) return null;
 
   return (
@@ -79,6 +104,12 @@ function CurationQueue() {
         kategori eksik. Ele aldıktan sonra ne yaptığınızı yazıp işaretleyin —
         terim yeniden aranırsa kuyruğa geri döner.
       </p>
+      {!canResolve ? (
+        <p className="mt-2 rounded-md bg-zinc-100 px-2.5 py-1.5 text-xs text-zinc-600">
+          İşaretleme yalnız Süper Admin ve Satış rollerine açık; Destek rolü
+          listeyi yalnız görüntüler.
+        </p>
+      ) : null}
       <ul className="mt-3 divide-y divide-zinc-950/5">
         {rows.map((m) => (
           <li key={m.id} className="flex flex-wrap items-center gap-2 py-2">
@@ -92,15 +123,31 @@ function CurationQueue() {
                 setNote((n) => ({ ...n, [m.id]: e.target.value }))
               }
               placeholder="Ne yapıldı? (ör. eşanlamlı eklendi)"
-              className="ml-auto w-64 rounded-md border border-zinc-950/10 px-2 py-1 text-sm"
+              // Backend ResolveCategoryMissDto @MaxLength(200) ile birebir.
+              maxLength={200}
+              disabled={!canResolve}
+              className="ml-auto w-64 rounded-md border border-zinc-950/10 px-2 py-1 text-sm disabled:bg-zinc-50"
             />
             <button
               type="button"
               disabled={
-                !canResolve || !note[m.id]?.trim() || resolve.isPending
+                !canResolve ||
+                !note[m.id]?.trim() ||
+                resolve.isPending ||
+                resolveLock.locked
+              }
+              title={
+                canResolve
+                  ? undefined
+                  : "Yalnız Süper Admin ve Satış işaretleyebilir"
               }
               onClick={() =>
-                resolve.mutate({ id: m.id, text: note[m.id]!.trim() })
+                void resolveLock.run(() =>
+                  resolve
+                    .mutateAsync({ id: m.id, text: note[m.id]!.trim() })
+                    // Hata toast'ı hook'un onError'unda; burada yalnız yutulur.
+                    .catch(() => {}),
+                )
               }
               className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40"
             >
@@ -156,7 +203,10 @@ function KategorilerView() {
     queryKey: ["admin-category-search", debounced],
     enabled: debounced.trim().length >= 2,
     queryFn: async () => {
-      const { data } = await api.get<{ segments: SegmentNode[] }>(
+      const { data } = await api.get<{
+        segments: SegmentNode[];
+        hiddenSegment?: string;
+      }>(
         "/categories/search-tree",
         { params: { q: debounced } },
       );
@@ -166,6 +216,7 @@ function KategorilerView() {
   });
 
   const segments = query.data?.segments ?? [];
+  const hiddenSegment = query.data?.hiddenSegment;
 
   return (
     <div className="max-w-[900px] space-y-6">
@@ -179,14 +230,16 @@ function KategorilerView() {
       <SearchInput
         value={q}
         onChange={setQ}
-        placeholder="Kategori adı veya 8 haneli kod ara (en az 2 karakter)..."
+        placeholder="Kategori adı veya kodu ara (en az 2 karakter)..."
       />
 
       {debounced.trim().length < 2 ? (
         <div className="admin-card text-admin-text-muted flex flex-col items-center gap-2 px-6 py-16 text-center text-sm">
           <FolderTree className="h-7 w-7" aria-hidden="true" />
+          {/* Örnekler GÖRÜNÜR segmentlerden (O-048): eski "yazılım" /
+              "43230000" gizli segment 43'teydi, arama ikisini de bulmuyordu. */}
           Aramak için en az 2 karakter yazın — ör. &quot;çelik&quot;,
-          &quot;yazılım&quot;, &quot;43230000&quot;.
+          &quot;rulman&quot;, &quot;31171500&quot;.
         </div>
       ) : query.isLoading ? (
         <p className="text-admin-text-muted text-sm">Aranıyor...</p>
@@ -203,7 +256,9 @@ function KategorilerView() {
         </div>
       ) : segments.length === 0 ? (
         <div className="admin-card text-admin-text-muted px-6 py-10 text-center text-sm">
-          Sonuç yok
+          {hiddenSegment
+            ? `Sonuç yok — ${hiddenSegment} segmenti katalog sadeleştirmesiyle gizli; bu koddaki kategoriler seçicilerde ve aramada görünmez.`
+            : "Sonuç yok"}
         </div>
       ) : (
         <div className="space-y-3">

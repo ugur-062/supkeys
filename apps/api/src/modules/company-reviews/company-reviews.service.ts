@@ -1,10 +1,13 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
@@ -15,7 +18,10 @@ import {
 
 @Injectable()
 export class CompanyReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly bypass?: PrismaBypassService,
+  ) {}
 
   /**
    * Tamamlanmış siparişte karşı tarafı puanla — ÇİFT YÖNLÜ: alıcı satıcıyı,
@@ -26,7 +32,7 @@ export class CompanyReviewsService {
     input: { orderId: string; rating: number; comment?: string; showName?: boolean },
   ) {
     if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
-      throw new BadRequestException("Puan 1 ile 5 arasında olmalı");
+      throw new BadRequestException(i18nMessage("api.companyReviews.puan1Ile5ArasindaOlmali"));
     }
     const order = await this.prisma.companyOrder.findUnique({
       where: { id: input.orderId },
@@ -42,12 +48,7 @@ export class CompanyReviewsService {
     const isBuyer = order?.buyerCompanyId === user.companyId;
     const isSeller = order?.sellerCompanyId === user.companyId;
     if (!order || (!isBuyer && !isSeller)) {
-      throw new NotFoundException("Sipariş bulunamadı");
-    }
-    if (order.status !== "COMPLETED") {
-      throw new BadRequestException(
-        "Yalnızca tamamlanmış siparişler değerlendirilebilir",
-      );
+      throw new NotFoundException(i18nMessage("api.companyReviews.siparisBulunamadi"));
     }
     // Rol kapısı (salt-okunur garanti #5) — assertOrderRole deseni: firma
     // adına KALICI itibar beyanını siparişin tarafı olan işlem rolü yazar
@@ -56,9 +57,20 @@ export class CompanyReviewsService {
     const needed = isBuyer ? "buy:order:manage" : "sell:order:manage";
     if (!hasCompanyPermission(user, needed)) {
       throw new ForbiddenException(
-        isBuyer
-          ? "Değerlendirme yazmak için 'Alım siparişi işlemleri' yetkisi gerekir"
-          : "Değerlendirme yazmak için 'Satış siparişi işlemleri' yetkisi gerekir",
+        i18nMessage("api.companyReviews.degerlendirmeYazmakIcinYetkiGerekir", {
+          permission: tApi(
+            isBuyer
+              ? "api.permission.buy_order_manage"
+              : "api.permission.sell_order_manage",
+          ),
+        }),
+      );
+    }
+    // İş ön koşulu rol kapısından SONRA (arayüz testi D-161): yetkisiz üye
+    // sipariş durumunu 400 metninden öğrenmesin, doğrudan 403 alsın.
+    if (order.status !== "COMPLETED") {
+      throw new BadRequestException(
+        i18nMessage("api.companyReviews.yalnizcaTamamlanmisSiparislerDegerlendirilebilir"),
       );
     }
     const targetCompanyId = isBuyer
@@ -121,14 +133,14 @@ export class CompanyReviewsService {
           isBlocked: true,
         },
       });
-      if (!target) throw new NotFoundException("Firma profili bulunamadı");
+      if (!target) throw new NotFoundException(i18nMessage("api.companyReviews.firmaProfiliBulunamadi"));
       // Denetim 2026-08-24 Parça 7: pasif/askıya alınmış firma ile KARŞILIKLI
       // blok da kapıya dahil. Blok bağlantı kayıtlarını sildiği için "ilişkili"
       // dalı bloklu firmayı elemiyordu; askı ise yalnız isBlocked yazıp
       // publicEnabled'ı bıraktığından değerlendirme özeti (opt-in ortak ADLARI
       // + yorumlar) açık kalıyordu.
       if (!target.isActive || target.isBlocked) {
-        throw new NotFoundException("Firma profili bulunamadı");
+        throw new NotFoundException(i18nMessage("api.companyReviews.firmaProfiliBulunamadi"));
       }
       const blocked = await this.prisma.companyBlock.count({
         where: {
@@ -139,7 +151,7 @@ export class CompanyReviewsService {
         },
       });
       if (blocked > 0) {
-        throw new NotFoundException("Firma profili bulunamadı");
+        throw new NotFoundException(i18nMessage("api.companyReviews.firmaProfiliBulunamadi"));
       }
       const relation = await this.prisma.companyConnection.count({
         where: {
@@ -153,10 +165,13 @@ export class CompanyReviewsService {
       // paketi aranır — profil kapısıyla (hasPublicProfile) aynı karar.
       const publiclyListed = target.publicEnabled;
       if (relation === 0 && !publiclyListed) {
-        throw new NotFoundException("Firma profili bulunamadı");
+        throw new NotFoundException(i18nMessage("api.companyReviews.firmaProfiliBulunamadi"));
       }
     }
-    const rows = await this.prisma.companyReview.findMany({
+    // BYPASS (yayın denetimi 2026-09-28, RLS): özet seçimindeki zorunlu
+    // `order` ilişkisi (`company_orders`, kısıtlı) başka firmanın siparişinde
+    // izleyene görünmez → Prisma İSTİSNA atar (500). Süzgeç hedef firmada.
+    const rows = await (this.bypass ?? this.prisma).companyReview.findMany({
       where: { targetCompanyId: companyId },
       select: REVIEW_SUMMARY_SELECT,
       orderBy: { createdAt: "desc" },

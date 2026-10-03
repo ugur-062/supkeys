@@ -7,7 +7,7 @@
  */
 import "reflect-metadata";
 import { CompanyRole, Prisma } from "@rothern/db";
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { AiBudgetService, AiBudgetExceededException } from "../../src/modules/ai/ai-budget.service";
 import { AiService } from "../../src/modules/ai/ai.service";
 import type { AiConfig } from "../../src/modules/ai/ai.config";
@@ -15,7 +15,7 @@ import { AssistantService } from "../../src/modules/ai/assistant/assistant.servi
 import type { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
 import { toolDefsForUser, allowedPortals } from "../../src/modules/ai/assistant/assistant-tools";
-import { ASSISTANT_SYSTEM_PROMPT } from "../../src/modules/ai/assistant/assistant.prompts";
+import { assistantSystemPrompt } from "../../src/modules/ai/assistant/assistant.prompts";
 import {
   BaseAiProvider,
   type AiCompletionRequest,
@@ -79,7 +79,11 @@ class FakeConnections {
   list = jest.fn(async () => [] as unknown[]);
 }
 
-function build(cfg: AiConfig, provider: FakeProvider) {
+function build(
+  cfg: AiConfig,
+  provider: FakeProvider,
+  over: { actions?: object; suggest?: () => Promise<string[]> } = {},
+) {
   const listings = makeService().service;
   const orders = new FakeOrders();
   const connections = new FakeConnections();
@@ -88,7 +92,7 @@ function build(cfg: AiConfig, provider: FakeProvider) {
   // Belge (fileKeys) senaryosu bu suite'te yok — storage stub yeterli.
   // Kategori önerisi stub: öneri yok (senaryolar deterministik kalır).
   const categorySuggest = {
-    suggest: async () => [] as string[],
+    suggest: over.suggest ?? (async () => [] as string[]),
   } as unknown as CategorySuggestService;
   const tenderExtract = new TenderExtractService(
     ai,
@@ -108,10 +112,10 @@ function build(cfg: AiConfig, provider: FakeProvider) {
     tenderExtract,
     categorySuggest,
     // AI-4 aksiyon servisi — bu spec'ler propose akışını KULLANMAZ; stub yeterli.
-    {
+    (over.actions ?? {
       proposeSendInvites: async () => ({ ok: false, problem: "stub" }),
       proposePublishTender: async () => ({ ok: false, problem: "stub" }),
-    } as never,
+    }) as never,
   );
   return { svc, listings, orders, connections };
 }
@@ -175,6 +179,50 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("Silver + belge eki (derin denetim Y-05): belge → talep taslağı GOLD ister, sağlayıcıya gitmez", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "SILVER",
+      roles: [CompanyRole.SATIN_ALMACI],
+    });
+    const silver = authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI], {
+      tier: "SILVER",
+    });
+
+    await expect(
+      svc.message(silver, { message: "", fileKeys: [`ai-extract/${co.company.id}/x.pdf`] }),
+    ).rejects.toThrow(/Gold paket/);
+    expect(provider.calls).toHaveLength(0);
+    // Ret oturum açılmadan önce: geride boş "taslak" oturum kalmaz (A4 gözden geçirme).
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+
+  it("satış koltuğu + belge eki: oturum açılmadan reddedilir (A4 gözden geçirme)", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "GOLD",
+      roles: [CompanyRole.SATISCI],
+    });
+    const seller = authFor(co.user, co.company.id, [CompanyRole.SATISCI]);
+
+    await expect(
+      svc.message(seller, { message: "", fileKeys: [`ai-extract/${co.company.id}/x.pdf`] }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(provider.calls).toHaveLength(0);
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+
+  it("arayüz testi O-067: boş mesaj 403 değil 400 (girdi hatası), oturum açılmaz", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await expect(svc.message(co.auth, { message: "   " })).rejects.toThrow(BadRequestException);
+    expect(provider.calls).toHaveLength(0);
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+
   it("bütçe dolu → çağrı öncesi reddedilir (feature=assistant)", async () => {
     const provider = new FakeProvider();
     const { svc } = build(makeCfg(), provider);
@@ -189,12 +237,71 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
       AiBudgetExceededException,
     );
     expect(provider.calls).toHaveLength(0);
+    // Derin denetim LU-04: ilk mesajda açılan oturum hata yolunda silinir
+    // (listede boş "hayalet" oturum kalmaz).
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+});
+
+describe("hayalet oturum (derin denetim LU-04)", () => {
+  it("sağlayıcı hatası: YENİ oturum silinir; MEVCUT oturum ve mesajları korunur", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const ok = await svc.message(co.auth, { message: "merhaba" });
+
+    provider.complete = async () => {
+      throw new Error('{"code": 503, "message": "overloaded"}');
+    };
+    await expect(svc.message(co.auth, { message: "yeni sohbet" })).rejects.toThrow(
+      ServiceUnavailableException,
+    );
+    await expect(
+      svc.message(co.auth, { sessionId: ok.sessionId, message: "devam" }),
+    ).rejects.toThrow(ServiceUnavailableException);
+
+    const sessions = await prisma.aiChatSession.findMany({ where: { companyId: co.company.id } });
+    expect(sessions.map((x) => x.id)).toEqual([ok.sessionId]);
+    expect(await prisma.aiChatMessage.count({ where: { sessionId: ok.sessionId } })).toBe(2);
+  });
+
+  it("rezervasyon tahmini: 4 araç + kapanış = 5 çağrının çıktısı ve taslak bağlamı dahil", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const spy = jest.spyOn(AiBudgetService.prototype, "reserve");
+    try {
+      await svc.message(co.auth, { message: "merhaba" });
+      const plain = Number(spy.mock.calls[0]![0].candidates[0]!.estimatedCostUsd);
+      // Çıktı tavanı 5 × 4096 token × 2,5 USD/M.
+      expect(plain).toBeGreaterThanOrEqual((5 * 4096 * 2.5) / 1_000_000);
+
+      const session = await prisma.aiChatSession.create({
+        data: {
+          companyId: co.company.id,
+          userId: co.user.id,
+          title: "t",
+          tenderDraft: {
+            title: "Büyük taslak",
+            description: "x".repeat(4000),
+            items: [{ name: "Baret", quantity: 5, unit: "adet" }],
+            keywords: [],
+            suggestedCategoryIds: [],
+          } as Prisma.InputJsonValue,
+        },
+      });
+      await svc.message(co.auth, { sessionId: session.id, message: "merhaba" });
+      const withDraft = Number(spy.mock.calls[1]![0].candidates[0]!.estimatedCostUsd);
+      expect(withDraft).toBeGreaterThan(plain);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
 describe("Faz AI-2 — araç kümesi (bağlayıcı yazma YOK)", () => {
   it("DOĞRUDAN yazma aracı YOK; yazma yalnız onay-kartılı request_* önerileriyle", () => {
-    const defs = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI] }));
+    const defs = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI] }), "GOLD");
     const names = defs.map((d) => d.name);
     // AI-4 sonrası da değişmez: model hiçbir işlemi doğrudan yürütemez —
     // place_bid/create/award gibi araçlar asla sunulmaz. request_* araçları
@@ -278,6 +385,10 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     const listResult = responses.find((r) => "total" in r);
     expect(listResult).toBeDefined();
     expect((listResult as { total: number }).total).toBe(1);
+    // D-357: model ham kodu değil arayüzdeki etiketi görür; kod ayrı alanda.
+    const row = (listResult as { items: Record<string, unknown>[] }).items[0]!;
+    expect(row.status).toBe("Yayında");
+    expect(row.statusCode).toBe("OPEN");
   });
 });
 
@@ -303,8 +414,12 @@ describe("Faz AI-2 — injection + nötr hata + oturum", () => {
     await svc.message(saAuth, { message: "ihalelerim" });
 
     const call = provider.calls[1]!;
-    // Sistem prompt sabit (enjeksiyon değiştiremez).
-    expect(call.system).toBe(ASSISTANT_SYSTEM_PROMPT);
+    // Sistem prompt sabit (enjeksiyon değiştiremez). İstek dili tr → tr varyantı.
+    // MU-07: sabit istemin ardina yalniz sunucunun urettigi saat baglami eklenir.
+    expect(call.system.startsWith(assistantSystemPrompt("tr"))).toBe(true);
+    expect(call.system.slice(assistantSystemPrompt("tr").length)).toMatch(
+      /^\n\nCURRENT DATE\/TIME: \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\w+\), time zone Europe\/Istanbul/,
+    );
     // Enjekte metin YALNIZ functionResponse (VERİ) içinde — talimat konumunda değil.
     const responses = toolResponses(call);
     const asString = JSON.stringify(responses);
@@ -405,7 +520,9 @@ describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
     expect(reply.tenderDraft!.draft.items[0]!.name).toBe("Çelik boru DN50");
     expect(reply.tenderDraft!.draft.items[0]!.quantity).toBe(500);
     // Eksik zorunlular sorulacak (teslim/ödeme/kapanış).
-    expect(reply.tenderDraft!.missingRequired.join(" ")).toMatch(/Teslim|Kapanış|Ödeme/i);
+    expect(
+      reply.tenderDraft!.missingRequired.some((m) => m === "deliveryTerm" || m === "bidsCloseAt"),
+    ).toBe(true);
     // İHALE AÇILMADI — hiçbir listing oluşmadı (BAĞLAYICI-YAZMA-YOK).
     expect(await prisma.listing.count()).toBe(0);
     // Taslak oturuma yazıldı (belge + konuşma birleşiminin kaynağı).
@@ -445,11 +562,168 @@ describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
     expect(reply.tenderDraft!.flags.some((f) => f.reason === "validation_failed")).toBe(true);
   });
 
+  it("canli AI: tek mesajda 'hazirla ve yayinla' — yayin onerisine turdaki taslak (kategori onerili) gider", async () => {
+    const provider = new FakeProvider();
+    const closesAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    provider.steps = [
+      {
+        toolCalls: [
+          {
+            name: "propose_tender_draft",
+            args: {
+              title: "500 adet baret alımı",
+              primaryCurrency: "TRY",
+              deliveryTerm: "DOMESTIC_DELIVERED",
+              paymentCategory: "OPEN_ACCOUNT",
+              bidsCloseAt: closesAt,
+              items: [{ name: "Baret", quantity: 500, unit: "adet" }],
+            },
+          },
+          { name: "request_publish_tender", args: { rothernIds: ["TEST-0001"] } },
+        ],
+      },
+      { text: "Onay kartını gösterdim." },
+    ];
+    const seen: unknown[] = [];
+    const pending = {
+      id: "act-1",
+      type: "publish_tender",
+      severity: "critical",
+      summary: ["kart"],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const actions = {
+      proposeSendInvites: async () => ({ ok: false, problem: "stub" }),
+      proposePublishTender: async (_u: unknown, _s: string, _a: unknown, turnDraft?: unknown) => {
+        seen.push(turnDraft);
+        return turnDraft ? { ok: true, pending } : { ok: false, problem: "taslak yok" };
+      },
+    };
+    const suggest = jest.fn(async () => ["30991900"]);
+    const { svc } = build(makeCfg(), provider, { actions, suggest });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const reply = await svc.message(authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]), {
+      message: "500 adet baret için talep hazırla ve yayınla, TEST-0001 davet et",
+    });
+
+    expect(seen).toHaveLength(1);
+    const d = seen[0] as { title: string; suggestedCategoryIds: string[] };
+    expect(d.title).toBe("500 adet baret alımı");
+    expect(d.suggestedCategoryIds).toEqual(["30991900"]);
+    // Kategori önerisi tur sonunda TEKRAR çağrılmaz (zaten var).
+    expect(suggest).toHaveBeenCalledTimes(1);
+    expect(reply.pendingAction?.id).toBe("act-1");
+    // Model yazamaz: ilan açılmadı; taslak tur sonunda oturuma yazıldı.
+    expect(await prisma.listing.count()).toBe(0);
+    const s = await prisma.aiChatSession.findFirstOrThrow();
+    expect((s.tenderDraft as { suggestedCategoryIds?: string[] }).suggestedCategoryIds).toEqual(["30991900"]);
+  });
+
+  it("canli AI: propose_tender_draft onceki belge taslaginin sayfa ozetlerini korur", async () => {
+    const provider = new FakeProvider();
+    provider.steps = [
+      { toolCalls: [{ name: "propose_tender_draft", args: { title: "Baret alımı (güncel)" } }] },
+      { text: "güncelledim" },
+    ];
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const session = await prisma.aiChatSession.create({
+      data: {
+        userId: co.user.id,
+        companyId: co.company.id,
+        title: "t",
+        tenderDraft: { title: "Baret alımı", pageSummaries: ["Sayfa 1: şartname"] } as Prisma.InputJsonValue,
+      },
+    });
+    const reply = await svc.message(authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]), {
+      sessionId: session.id,
+      message: "başlığı güncelle",
+    });
+    expect(reply.tenderDraft!.draft.title).toBe("Baret alımı (güncel)");
+    expect(reply.tenderDraft!.draft.pageSummaries).toEqual(["Sayfa 1: şartname"]);
+  });
+
+  it("canli AI: belge kaynak isareti sohbet guncellemesinde korunur; modelin argumani yok sayilir", async () => {
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const auth = authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]);
+    const run = async (tenderDraft: Record<string, unknown>, args: Record<string, unknown>) => {
+      const provider = new FakeProvider();
+      provider.steps = [
+        { toolCalls: [{ name: "propose_tender_draft", args }] },
+        { text: "güncelledim" },
+      ];
+      const { svc } = build(makeCfg(), provider);
+      const session = await prisma.aiChatSession.create({
+        data: {
+          userId: co.user.id,
+          companyId: co.company.id,
+          title: "t",
+          tenderDraft: tenderDraft as Prisma.InputJsonValue,
+        },
+      });
+      const reply = await svc.message(auth, { sessionId: session.id, message: "güncelle" });
+      const stored = await prisma.aiChatSession.findUniqueOrThrow({ where: { id: session.id } });
+      return { reply, stored: stored.tenderDraft as { fromDocument?: boolean } };
+    };
+
+    // Belge taslağı (sayfa özeti YOK) → sohbet güncellemesinden sonra da belgeden.
+    const doc = await run({ title: "Baret alımı", fromDocument: true }, { title: "Baret alımı (güncel)" });
+    expect(doc.reply.tenderDraft!.draft.fromDocument).toBe(true);
+    expect(doc.stored.fromDocument).toBe(true);
+
+    // Sohbet taslağı: model argümanla "belgeden" diyemez.
+    const chat = await run({ title: "Baret alımı" }, { title: "Baret", fromDocument: true });
+    expect(chat.reply.tenderDraft!.draft.fromDocument).toBe(false);
+    expect(chat.stored.fromDocument).toBe(false);
+  });
+
   it("propose_tender_draft yalnız SA/ST portallı kullanıcıya sunulur", () => {
-    const withSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI] })).map((d) => d.name);
+    const withSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI] }), "GOLD").map((d) => d.name);
     expect(withSeat).toContain("propose_tender_draft");
     // Portal yok (etiket-only — pratikte AI erişimi de yok) → taslak aracı da yok.
-    const noSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [] })).map((d) => d.name);
+    const noSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [] }), "GOLD").map((d) => d.name);
     expect(noSeat).not.toContain("propose_tender_draft");
+  });
+
+  it("arayüz testi O-054: taslak/yayın/davet araçları yalnız satınalma portalı + GOLD; eleme/kazandırma yalnız satınalma portalı", () => {
+    const BUY_DRAFT = ["propose_tender_draft", "request_publish_tender", "request_send_invites"];
+    const OWNER_SIDE = ["request_eliminate_bid", "request_award_tender"];
+    const names = (roles: CompanyRole[], tier: string) =>
+      toolDefsForUser(allowedPortals({ isOwner: false, roles }), tier).map((d) => d.name);
+
+    const buyerGold = names([CompanyRole.SATIN_ALMACI], "GOLD");
+    expect(buyerGold).toEqual(expect.arrayContaining([...BUY_DRAFT, ...OWNER_SIDE]));
+
+    // Silver (satınalma paneli yok) ya da süresi dolmuş Gold (efektif STANDART).
+    for (const tier of ["SILVER", "STANDART"]) {
+      const buyerLow = names([CompanyRole.SATIN_ALMACI], tier);
+      for (const n of BUY_DRAFT) expect(buyerLow).not.toContain(n);
+      expect(buyerLow).toEqual(expect.arrayContaining(OWNER_SIDE));
+    }
+
+    // Gold firmanın yalnız Satışçısı: satın alma araçlarının hiçbiri yok.
+    const sellerGold = names([CompanyRole.SATISCI], "GOLD");
+    for (const n of [...BUY_DRAFT, ...OWNER_SIDE]) expect(sellerGold).not.toContain(n);
+    expect(sellerGold).toContain("request_place_bid");
+  });
+
+  it("arayüz testi O-054: sunulmayan taslak aracını model uydursa da taslak oluşmaz (Satışçı)", async () => {
+    const provider = new FakeProvider();
+    provider.steps = [
+      { toolCalls: [{ name: "propose_tender_draft", args: { title: "Boru alımı" } }] },
+      { text: "Satın alma talebi açmak için satın alma yetkisi ve Gold paket gerekir." },
+    ];
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATISCI] });
+    const seller = authFor(co.user, co.company.id, [CompanyRole.SATISCI]);
+
+    const reply = await svc.message(seller, { message: "talep açmak istiyorum" });
+    expect(reply.tenderDraft).toBeUndefined();
+    expect(reply.toolsUsed).not.toContain("propose_tender_draft");
+    expect(toolResponses(provider.calls[1]!)).toContainEqual({ error: "unavailable" });
+    const s = await prisma.aiChatSession.findFirstOrThrow({ where: { companyId: co.company.id } });
+    expect(s.tenderDraft).toBeNull();
+    // Model de bu kullanıcıya taslak aracını görmedi.
+    expect((provider.calls[0]!.tools ?? []).map((t) => t.name)).not.toContain("propose_tender_draft");
   });
 });

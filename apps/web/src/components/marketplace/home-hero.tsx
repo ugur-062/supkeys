@@ -1,10 +1,15 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { AudienceSwitch, useAudience } from "./audience-switch";
 import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { signupHref } from "@/lib/public/visibility";
+import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
+import { gateHref } from "@/lib/public/member-gate";
+import { NEW_REQUEST_PATH, useBuyingGate } from "./member-cta";
+import { usePublicBidGate } from "./listing-bid-cta";
 import { Suspense } from "react";
 
 /**
@@ -39,7 +44,47 @@ import { Suspense } from "react";
  */
 export function HomeHero() {
   const { audience } = useAudience();
+  const t = useTranslations("web.marketing.home");
   const supplier = audience === "supplier";
+  const tGate = useTranslations("web.marketplace.memberGate");
+  /* ALICI "TALEP AÇ" NOTU üyenin paketine göre (arayüz testi webA-03 gözden
+     geçirme, T-02): eskiden herkese `signupHref("talep")` — oturumlu üye kayıt
+     sayfasından sessizce `/company`ye atılıyordu. Misafir → kayıt; Gold ∧
+     yetki → sihirbaz; Gold değil → "Talep aç · Gold" (doğrulama/paket); yetki
+     yok → not çizilmez. Kapı hidrasyondan önce "guest" (sunucu HTML'i aynı). */
+  const gate = useBuyingGate("listing");
+  const lockedHref = gateHref(gate);
+  const buyerCtaNote =
+    gate === "noPermission"
+      ? undefined
+      : {
+          text: t("buyerCtaText"),
+          /* Misafire de "· Gold" (arayüz testi kapanış COPY, T-02): kayıt
+             STANDART açar, talep yayını Gold. Yalnız Gold ∧ yetkili çıplak. */
+          label: gate === "ok" ? t("buyerCtaLabel") : tGate("lockedLabel", { label: t("buyerCtaLabel") }),
+          href: lockedHref ?? (gate === "ok" ? NEW_REQUEST_PATH : signupHref("talep")),
+        };
+  /* TEDARİKÇİ "TEKLİF" NOTU da oturuma göre (arayüz testi kapanış webA-1):
+     eskiden herkese "Ücretsiz kaydolun" basılıyordu — oturumlu üye kayıt
+     sayfasından panele atılıyor, teklif izni olmayan Silver üyeye de teklif
+     çağrısı yapılıyordu. Misafir → kayıt; Silver ∧ `sell:bid:submit` → panelin
+     açık talepler listesi; Silver değil → "· Silver" (doğrulama/paket); izin
+     yok → not çizilmez (önce paket, sonra izin). */
+  const tBid = useTranslations("web.marketplace.bidGate");
+  const bidGate = usePublicBidGate();
+  const bidLockedHref = gateHref(bidGate);
+  const supplierCtaNote =
+    bidGate === "noPermission"
+      ? undefined
+      : bidGate === "guest"
+        ? { text: t("supplierCtaText"), label: t("supplierCtaLabel"), href: signupHref("teklif") }
+        : {
+            text: t("supplierCtaText"),
+            label: bidLockedHref
+              ? tBid("lockedLabel", { label: t("supplierMemberCtaLabel") })
+              : t("supplierMemberCtaLabel"),
+            href: bidLockedHref ?? PANEL_TARGET.openRequests,
+          };
 
   return (
     /* HERO KAPSAYICISI — fotoğraf header'ın ALT ÇİZGİSİNDEN başlar (2026-09-09,
@@ -84,11 +129,14 @@ export function HomeHero() {
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
-          title="Hangi talebe teklif vereceksiniz?"
+          title={t("supplierTitle")}
           plainTitle
-          lead="Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla."
-          placeholder="Talep, sektör veya ürün arayın"
+          lead={t("supplierLead")}
+          placeholder={t("supplierPlaceholder")}
           action={MARKETPLACE_ROUTES.demands}
+          /* Talep aramaları SATIŞ son aramalarına yazılır (arayüz testi
+             D-312) — bu yüzde AI yok, portal kutudan çıkarılamıyordu. */
+          portal="satis"
           /* İKİ YÜZ BİREBİR HİZALI (2026-09-18, kullanıcı: "geçişte yazılar
              yer değiştirmesin, sadece panel değişsin"): alıcı yüzüyle aynı
              yapı — başlık · iki satır alt cümle · arama · not. */
@@ -96,29 +144,21 @@ export function HomeHero() {
           backdrop
           widgets={SELLER_WIDGETS}
           objects={SELLER_OBJECTS}
-          ctaNote={{
-            text: "Teklif vermek ve alıcıyı görmek için",
-            label: "Ücretsiz kaydolun",
-            href: signupHref("teklif"),
-          }}
+          ctaNote={supplierCtaNote}
         />
       ) : (
         <PanelHeroSearch
           key="buyer"
-          title="Hangi ürünü arıyorsunuz?"
+          title={t("buyerTitle")}
           plainTitle
-          lead="Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin."
-          placeholder="Ürün veya sektör arayın..."
+          lead={t("buyerLead")}
+          placeholder={t("buyerPlaceholder")}
           action={MARKETPLACE_ROUTES.products}
           accent="blue"
           backdrop
           widgets={BUYER_WIDGETS}
           objects={BUYER_OBJECTS}
-          ctaNote={{
-            text: "Aradığınız ürünü bulamadınız mı?",
-            label: "Talep aç",
-            href: signupHref("talep"),
-          }}
+          ctaNote={buyerCtaNote}
         />
       )}
       </Suspense>
@@ -133,7 +173,7 @@ export function HomeHero() {
    hero'nun bandı elden geçerse burası da elden geçmeli. */
 const BAND =
   "relative isolate -mt-6 flex min-h-[30rem] 2xl:min-h-[34rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-hidden bg-white bg-gradient-to-b from-emerald-50/80 via-white to-white " +
+  "ml-[calc(50%-50cqw)] overflow-x-clip bg-white bg-gradient-to-b from-emerald-50/80 via-white to-white " +
   "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
 
 /**
@@ -148,17 +188,16 @@ const BAND =
  * çizilir). Metinler yukarıdaki `PanelHeroSearch key="supplier"` ile AYNI olmalı.
  */
 function HeroShell() {
+  const t = useTranslations("web.marketing.home");
   return (
-    <section aria-label="Hangi talebe teklif vereceksiniz?" className={BAND}>
+    <section aria-label={t("supplierTitle")} className={BAND}>
       {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
       <HeroDecor widgets={SELLER_WIDGETS} objects={SELLER_OBJECTS} accent="emerald" />
       <div className="mx-auto w-full max-w-4xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          Hangi talebe teklif vereceksiniz?
+          {t("supplierTitle")}
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">
-          Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla.
-        </p>
+        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{t("supplierLead")}</p>
       </div>
     </section>
   );

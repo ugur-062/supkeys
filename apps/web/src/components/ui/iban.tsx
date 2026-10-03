@@ -1,6 +1,7 @@
 "use client";
 
 import { Copy, Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -31,13 +32,14 @@ export function Iban({
   masked?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("web.shared.iban");
   const [shown, setShown] = useState(!masked);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value.replace(/\s+/g, ""));
-      toast.success("IBAN kopyalandı");
+      toast.success(t("ibanKopyalandi"));
     } catch {
-      toast.error("Kopyalanamadı");
+      toast.error(t("kopyalanamadi"));
     }
   };
   return (
@@ -49,8 +51,8 @@ export function Iban({
         <button
           type="button"
           onClick={() => setShown((s) => !s)}
-          aria-label={shown ? "IBAN'ı gizle" : "IBAN'ı göster"}
-          title={shown ? "Gizle" : "Göster"}
+          aria-label={shown ? t("ibaniGizle") : t("ibaniGoster")}
+          title={shown ? t("gizle") : t("goster")}
           className="-m-1 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
         >
           {shown ? (
@@ -63,8 +65,8 @@ export function Iban({
       <button
         type="button"
         onClick={copy}
-        aria-label="IBAN'ı kopyala"
-        title="Kopyala"
+        aria-label={t("ibaniKopyala")}
+        title={t("kopyala")}
         className="-m-1 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
       >
         <Copy className="size-3.5" aria-hidden />

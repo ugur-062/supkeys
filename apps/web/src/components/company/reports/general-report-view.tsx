@@ -1,9 +1,14 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { useListingStatusLabel } from "@/i18n/domain";
+import { formatNumber, intlLocale } from "@/i18n/format";
 import { formatDate } from "@/lib/format-date";
+import { appDayRangeIso } from "@/lib/time-zone";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Heading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Radio, RadioField, RadioGroup } from "@/components/catalyst/radio";
@@ -23,30 +28,81 @@ import {
   type GeneralPayload,
   type ReportType,
 } from "@/hooks/use-company-reports";
-import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { userHasPermission } from "@/lib/company/permissions";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Link } from "@/i18n/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CURRENCIES } from "@/lib/tenders/labels";
+import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
+import { ReportListingPicker } from "./report-listing-picker";
+import { isDayValue, isInvertedRange, readReportQuery, writeReportQuery } from "./report-url-state";
 
-const STATUS_TR: Record<string, string> = {
-  DRAFT: "Taslak",
-  IN_APPROVAL: "Onayda",
-  OPEN: "Yayında",
-  CLOSED: "Teklife Kapalı",
-  IN_AWARD_APPROVAL: "Kazandırma Onayı",
-  AWARDED: "Tamamlandı",
-  CANCELLED: "İptal",
-  CLOSED_NO_AWARD: "Kazansız",
-};
+// Durum etiketi katalogdan (`useListingStatusLabel`); burada yalnız süzgeç sırası
+// (yaşam döngüsü sırası). Normal kapanış doğrudan IN_AWARD'a gider; CLOSED
+// yalnız admin moderasyon kapatması — sona yakın durur (derin denetim LU-28).
+const STATUS_OPTIONS = [
+  "DRAFT",
+  "IN_APPROVAL",
+  "OPEN",
+  "IN_AWARD",
+  "IN_AWARD_APPROVAL",
+  "AWARDED",
+  "CLOSED_NO_AWARD",
+  "CANCELLED",
+  "CLOSED",
+] as const;
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
-function tl(n: number | null) {
+/**
+ * Tutar — okuyucunun dilinde, ondalıksız; sembol tek kaynaktan
+ * (`currencySymbol`). Birim ÇAĞIRANDAN: hedef toplam talebin biriminde,
+ * teklif tutarları firmanın rapor biriminde (`baseCurrency`).
+ */
+function tl(n: number | null, locale: Locale, currency: string) {
   return n == null
     ? "—"
-    : `${n.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺`;
+    : affixCurrency(n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 0 }), currency, locale);
+}
+
+/** Eksi tasarruf yeşil boyanmaz (kazanan en yüksek teklifin üstünde). */
+function deltaTone(n: number | null) {
+  return n != null && n < 0 ? "text-red-700" : "text-emerald-700";
+}
+
+interface GeneralCriteria {
+  mode: "SINGLE" | "RANGE" | null;
+  listingId: string;
+  rangeStart: string;
+  rangeEnd: string;
+  fmt: string;
+  status: string;
+  currency: string;
+}
+
+/** Kriter → istek gövdesi; eksik/ters kriterde null. */
+function buildPayload(type: ReportType, c: GeneralCriteria): GeneralPayload | null {
+  if (c.mode === "SINGLE") {
+    if (!c.listingId.trim()) return null;
+    return { type, mode: "SINGLE", listingId: c.listingId.trim() };
+  }
+  if (c.mode === "RANGE") {
+    if (isInvertedRange(c.rangeStart, c.rangeEnd)) return null;
+    // Günler ürün saat diliminde (İstanbul) tam gün olarak okunur.
+    const range = appDayRangeIso(c.rangeStart, c.rangeEnd);
+    if (!range) return null;
+    return {
+      type,
+      mode: "RANGE",
+      rangeStart: range.rangeStart,
+      rangeEnd: range.rangeEnd,
+      format: c.fmt || undefined,
+      status: c.status || undefined,
+      currency: c.currency || undefined,
+    };
+  }
+  return null;
 }
 
 /** Genel İhale/İlan Raporu — tek ihale VEYA tarih aralığı (eski sistem deseni). */
@@ -57,8 +113,9 @@ export function GeneralReportView({
   type: ReportType;
   basePath: string; // "/company/sirketim/raporlar"
 }) {
-  const isAlim = type === "ALIM";
-  const deltaWord = isAlim ? "Tasarruf" : "Kazanç";
+  const tr = useTranslations("web.panel.reports.generalReportView");
+  const locale = useLocale() as Locale;
+  const statusLabel = useListingStatusLabel();
   const [mode, setMode] = useState<"SINGLE" | "RANGE" | null>(null);
   const [listingId, setListingId] = useState("");
   const [rangeStart, setRangeStart] = useState("");
@@ -67,52 +124,106 @@ export function GeneralReportView({
   const [status, setStatus] = useState("");
   const [currency, setCurrency] = useState("");
 
-  const myTenders = useTenders();
+  const { user } = useCompanyAuth();
+  const canOpenListing = userHasPermission(user, "buy:view");
   const report = useGeneralReport();
   const download = useDownloadGeneralReport();
 
+  // Ters aralık (bitiş < başlangıç) satır içi hata + gönderim kapalı (D-113).
+  const rangeInverted = mode === "RANGE" && isInvertedRange(rangeStart, rangeEnd);
   const canSubmit = useMemo(() => {
     if (mode === "SINGLE") return listingId.trim().length > 0;
-    if (mode === "RANGE") return rangeStart.length > 0 && rangeEnd.length > 0;
+    if (mode === "RANGE")
+      return rangeStart.length > 0 && rangeEnd.length > 0 && !rangeInverted;
     return false;
-  }, [mode, listingId, rangeStart, rangeEnd]);
+  }, [mode, listingId, rangeStart, rangeEnd, rangeInverted]);
 
-  const payload = (): GeneralPayload | null => {
-    if (mode === "SINGLE") {
-      if (!listingId.trim()) return null;
-      return { type, mode: "SINGLE", listingId: listingId.trim() };
-    }
-    if (mode === "RANGE") {
-      return {
-        type,
-        mode: "RANGE",
-        rangeStart: new Date(rangeStart).toISOString(),
-        rangeEnd: new Date(`${rangeEnd}T23:59:59`).toISOString(),
-        format: fmt || undefined,
-        status: status || undefined,
-        currency: currency || undefined,
-      };
-    }
-    return null;
-  };
+  const criteria = (): GeneralCriteria => ({
+    mode,
+    listingId,
+    rangeStart,
+    rangeEnd,
+    fmt,
+    status,
+    currency,
+  });
+  const payload = () => buildPayload(type, criteria());
 
-  const run = async () => {
-    const p = payload();
-    if (!p) return;
+  const generate = async (p: GeneralPayload) => {
     try {
       await report.mutateAsync(p);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Rapor oluşturulamadı"));
+      toast.error(extractErrorMessage(err, tr("raporOlusturulamadi")));
     }
   };
+
+  const run = async () => {
+    const c = criteria();
+    const p = buildPayload(type, c);
+    if (!p) return;
+    // Kriterler adrese: talebe gidip Geri'ye basınca rapor geri gelir (D-293).
+    writeReportQuery(
+      c.mode === "SINGLE"
+        ? { mode: "SINGLE", listing: c.listingId.trim() }
+        : {
+            mode: "RANGE",
+            start: c.rangeStart,
+            end: c.rangeEnd,
+            format: c.fmt,
+            status: c.status,
+            currency: c.currency,
+          },
+    );
+    await generate(p);
+  };
+
+  // Açılışta adresteki kriterleri geri yükle ve raporu yeniden üret (D-293).
+  useEffect(() => {
+    const q = readReportQuery();
+    const m = q.get("mode");
+    let restored: GeneralCriteria | null = null;
+    if (m === "SINGLE" && q.get("listing")) {
+      restored = {
+        mode: "SINGLE",
+        listingId: q.get("listing") ?? "",
+        rangeStart: "",
+        rangeEnd: "",
+        fmt: "",
+        status: "",
+        currency: "",
+      };
+    } else if (m === "RANGE" && isDayValue(q.get("start")) && isDayValue(q.get("end"))) {
+      restored = {
+        mode: "RANGE",
+        listingId: "",
+        rangeStart: q.get("start") ?? "",
+        rangeEnd: q.get("end") ?? "",
+        fmt: q.get("format") ?? "",
+        status: q.get("status") ?? "",
+        currency: q.get("currency") ?? "",
+      };
+    }
+    if (!restored) return;
+    setMode(restored.mode);
+    setListingId(restored.listingId);
+    setRangeStart(restored.rangeStart);
+    setRangeEnd(restored.rangeEnd);
+    setFmt(restored.fmt);
+    setStatus(restored.status);
+    setCurrency(restored.currency);
+    const p = buildPayload(type, restored);
+    if (p) void generate(p);
+    // Yalnız açılışta bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const runDownload = async () => {
     const p = payload();
     if (!p) return;
     try {
       const { filename } = await download.mutateAsync(p);
-      toast.success(`${filename} indiriliyor`);
+      toast.success(tr("indiriliyor", { file: filename }));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İndirme başarısız"));
+      toast.error(extractErrorMessage(err, tr("indirmeBasarisiz")));
     }
   };
 
@@ -126,16 +237,16 @@ export function GeneralReportView({
           className="inline-flex items-center gap-1 hover:text-zinc-800 hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Raporlar
+          {tr("raporlar")}
         </Link>
       </nav>
-      <Heading>{isAlim ? "Genel Satın Alma Talebi Raporu" : "Genel İlan Raporu"}</Heading>
+      <Heading>{tr("genelSatinAlmaTalebiRaporu")}</Heading>
 
       {/* Kriter kartı */}
       <section className="space-y-4 card p-5 shadow-sm">
         <div>
           <p className="mb-2 text-xs font-medium text-zinc-500">
-            Raporlama Kriteri
+            {tr("raporlamaKriteri")}
           </p>
           <RadioGroup
             value={mode ?? ""}
@@ -144,81 +255,74 @@ export function GeneralReportView({
           >
             <RadioField>
               <Radio value="SINGLE" />
-              <Label>
-                Tek bir {isAlim ? "satın alma talebini" : "ilanı"} raporlayacağım
-              </Label>
+              <Label>{tr("tekBirSatinAlmaTalebiniRaporlayacagim")}</Label>
             </RadioField>
             <RadioField>
               <Radio value="RANGE" />
-              <Label>
-                Belirli tarih aralığındaki {isAlim ? "satın alma taleplerini" : "ilanları"}{" "}
-                raporlayacağım
-              </Label>
+              <Label>{tr("belirliTarihAraligindakiSatinAlmaTaleplerini")}</Label>
             </RadioField>
           </RadioGroup>
         </div>
 
         {mode === "SINGLE" ? (
-          <Field>
-            <Label>{isAlim ? "Satın Alma Talebi" : "İlan"}</Label>
-            <Select
-              value={listingId}
-              onChange={(e) => setListingId(e.target.value)}
-            >
-              <option value="">— Seçin —</option>
-              {(myTenders.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.tenderNumber} — {t.title}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <ReportListingPicker
+            value={listingId}
+            onChange={setListingId}
+            label={tr("satinAlmaTalebi")}
+            placeholder={tr("secin")}
+          />
         ) : null}
 
         {mode === "RANGE" ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Field>
-              <Label>Başlangıç</Label>
+              <Label>{tr("baslangic")}</Label>
               <Input
                 type="date"
                 value={rangeStart}
+                max={rangeEnd || undefined}
                 onChange={(e) => setRangeStart(e.target.value)}
               />
             </Field>
             <Field>
-              <Label>Bitiş</Label>
+              <Label>{tr("bitis")}</Label>
               <Input
                 type="date"
                 value={rangeEnd}
+                min={rangeStart || undefined}
+                invalid={rangeInverted}
                 onChange={(e) => setRangeEnd(e.target.value)}
               />
+              {rangeInverted ? (
+                <ErrorMessage>{tr("bitisBaslangictanOnceOlamaz")}</ErrorMessage>
+              ) : null}
             </Field>
             <Field>
-              <Label>Usul</Label>
+              <Label>{tr("usul")}</Label>
               <Select value={fmt} onChange={(e) => setFmt(e.target.value)}>
-                <option value="">Tümü</option>
-                <option value="RFQ">Teklif Toplama</option>
-                <option value="ENGLISH_AUCTION">Pazarlık</option>
+                <option value="">{tr("tumu")}</option>
+                <option value="RFQ">{tr("teklifToplama")}</option>
+                <option value="ENGLISH_AUCTION">{tr("pazarlik")}</option>
               </Select>
             </Field>
             <Field>
-              <Label>Durum</Label>
+              <Label>{tr("durum")}</Label>
               <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="">Tümü</option>
-                {Object.entries(STATUS_TR).map(([v, l]) => (
+                <option value="">{tr("tumu")}</option>
+                {STATUS_OPTIONS.map((v) => (
                   <option key={v} value={v}>
-                    {l}
+                    {statusLabel(v)}
                   </option>
                 ))}
               </Select>
             </Field>
             <Field>
-              <Label>Para Birimi</Label>
+              <Label>{tr("paraBirimi")}</Label>
               <Select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
               >
-                <option value="">Tümü</option>
+                <option value="">{tr("tumu")}</option>
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -234,7 +338,7 @@ export function GeneralReportView({
             {report.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" data-slot="icon" />
             ) : null}
-            Raporu Oluştur
+            {tr("raporuOlustur")}
           </Button>
           <Button
             outline
@@ -242,7 +346,7 @@ export function GeneralReportView({
             disabled={!canSubmit || download.isPending}
           >
             <FileSpreadsheet data-slot="icon" />
-            Excel İndir
+            {tr("excelIndir")}
           </Button>
         </div>
       </section>
@@ -260,9 +364,7 @@ export function GeneralReportView({
               role="status"
               className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
             >
-              Sonuç en fazla {data.maxRows ?? 500} kayıtla sınırlandı — daha
-              eskiler bu raporda YOK. Tarih aralığını daraltarak tamamını
-              görebilirsiniz.
+              {tr("sonucEnFazlaKayitlaSinirlandi", { max: data.maxRows ?? 500 })}
             </p>
           ) : null}
           {/* Özet şeridi */}
@@ -270,14 +372,19 @@ export function GeneralReportView({
             {(
               [
                 [
-                  isAlim ? "Toplam Satın Alma Talebi" : "Toplam İlan",
+                  tr("toplamSatinAlmaTalebi"),
                   String(data.summary.totalListings),
                 ],
-                ["Kazandırılan", String(data.summary.awardedListings)],
-                ["Yanıt Oranı", `%${data.summary.overallResponseRate}`],
-                ["Ort. Teklif", String(data.summary.avgBidsPerListing)],
-                ["Kazanan Toplam", tl(data.summary.totalAwardedValue)],
-                [`Toplam ${deltaWord}`, tl(data.summary.totalDelta), true],
+                [tr("kazandirilan"), String(data.summary.awardedListings)],
+                // Sayılar okuyucunun ondalık ayırıcısıyla (ICU düz argümanı
+                // biçimlemez — "%77.3", "1.2" basıyordu; arayüz testi O-033).
+                [
+                  tr("yanitOrani"),
+                  tr("yuzde", { n: formatNumber(data.summary.overallResponseRate, locale, { maximumFractionDigits: 1 }) }),
+                ],
+                [tr("ortTeklif"), formatNumber(data.summary.avgBidsPerListing, locale, { maximumFractionDigits: 1 })],
+                [tr("kazananToplam"), tl(data.summary.totalAwardedValue, locale, data.baseCurrency ?? "TRY")],
+                [tr("toplamTasarruf"), tl(data.summary.totalDelta, locale, data.baseCurrency ?? "TRY"), data.summary.totalDelta >= 0],
               ] as Array<[string, string, boolean?]>
             ).map(([k, v, accent]) => (
               <div key={k} className="bg-white p-3.5">
@@ -299,41 +406,43 @@ export function GeneralReportView({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky left-0 z-10 bg-white">{isAlim ? "Satın Alma Talebi" : "İlan"}</TableHeader>
-                  <TableHeader>Durum</TableHeader>
-                  <TableHeader className="text-right">Davet</TableHeader>
-                  <TableHeader className="text-right">Teklif</TableHeader>
-                  <TableHeader className="text-right">Yanıt %</TableHeader>
-                  <TableHeader className="text-right">
-                    {isAlim ? "Hedef" : "Taban"}
-                  </TableHeader>
-                  <TableHeader className="text-right">Kazanan</TableHeader>
-                  <TableHeader>
-                    {isAlim ? "Kazanan Tedarikçi" : "Kazanan Alıcı"}
-                  </TableHeader>
-                  <TableHeader className="text-right">{deltaWord}</TableHeader>
+                  <TableHeader className="sticky left-0 z-10 bg-white">{tr("satinAlmaTalebi")}</TableHeader>
+                  <TableHeader>{tr("durum")}</TableHeader>
+                  <TableHeader className="text-right">{tr("davet")}</TableHeader>
+                  <TableHeader className="text-right">{tr("teklif")}</TableHeader>
+                  <TableHeader className="text-right">{tr("yanit")}</TableHeader>
+                  <TableHeader className="text-right">{tr("hedef")}</TableHeader>
+                  <TableHeader className="text-right">{tr("kazanan")}</TableHeader>
+                  <TableHeader>{tr("kazananTedarikci")}</TableHeader>
+                  <TableHeader className="text-right">{tr("tasarruf")}</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {data.listings.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="sticky left-0 z-10 bg-white">
-                      <Link
-                        href={`/company/ilan/${t.id}`}
-                        className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
-                      >
-                        {t.title}
-                      </Link>
+                      {/* Talep detayı buy:view ister — yalnız rapor yetkilisine
+                          bağlantı yetki duvarına götürürdü (arayüz testi T3). */}
+                      {canOpenListing ? (
+                        <Link
+                          href={`/company/ilan/${t.id}`}
+                          className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
+                        >
+                          {t.title}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-zinc-900">{t.title}</span>
+                      )}
                       <div className="tabular-nums text-xs text-zinc-400">
                         {t.number ?? "—"}
                         {t.closesAt
-                          ? ` · ${formatDate(t.closesAt, "short")}`
+                          ? ` · ${formatDate(t.closesAt, "short", locale)}`
                           : ""}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge color="zinc">
-                        {STATUS_TR[t.status] ?? t.status}
+                        {statusLabel(t.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -343,19 +452,21 @@ export function GeneralReportView({
                       {t.submittedBidCount}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {t.responseRate != null ? `%${t.responseRate}` : "—"}
+                      {t.responseRate != null
+                        ? tr("yuzde", { n: formatNumber(t.responseRate, locale, { maximumFractionDigits: 1 }) })
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-600">
-                      {tl(t.estimatedTotal)}
+                      {tl(t.estimatedTotal, locale, t.currency)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-900">
-                      {tl(t.winningTotal)}
+                      {tl(t.winningTotal, locale, data.baseCurrency ?? "TRY")}
                     </TableCell>
                     <TableCell className="max-w-[180px] truncate text-zinc-700">
                       {t.winnerName ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
-                      {tl(t.delta)}
+                    <TableCell className={`text-right font-semibold tabular-nums ${deltaTone(t.delta)}`}>
+                      {tl(t.delta, locale, data.baseCurrency ?? "TRY")}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -363,8 +474,7 @@ export function GeneralReportView({
             </Table>
           </div>
           <Text className="text-xs text-zinc-400">
-            Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak
-            gösterilir.
+            {tr("tutarlarTeklifAnindakiTcmbKuruylaCur", { currency: data.baseCurrency ?? "TRY" })}
           </Text>
         </section>
       ) : null}

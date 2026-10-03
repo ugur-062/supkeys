@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadGatewayException,
   ForbiddenException,
@@ -58,6 +59,14 @@ export interface AiCallOptions {
    * Bütçe rezervasyonu ve premium eşiği doğru çalışsın diye tahmine eklenir.
    */
   extraInputTokenEstimate?: number;
+  /**
+   * Bu cagridan SONRA ayni ozellikte yapilacak bagli metin cagrisinin
+   * (varsayilan model, grounding yok) prompt+system karakter ust siniri.
+   * Rezervasyon, birikimli tavanlarda (havuz/kullanici/gun) o cagriya da yer
+   * kaldigini dogrular; yer yoksa ILK cagri para harcamadan reddedilir
+   * (profil zenginlestirme grounded yolu, derin denetim MU-06).
+   */
+  followUpInputChars?: number;
   /** AiUsage.metadata'ya yazılacak özellik bağlamı (route, sayfa sayısı vb.). */
   metadata?: Record<string, unknown>;
   /**
@@ -120,17 +129,17 @@ export class AiService {
     if (!this.config.enabled || !this.provider) {
       // Fail-closed ama SESSİZ DEĞİL: anahtar yoksa özellik kapalı, net 503.
       throw new ServiceUnavailableException(
-        "AI özelliği şu anda kullanılamıyor (yapılandırılmamış).",
+        i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyorYapilandirilmamis"),
       );
     }
     if (!tierAtLeast(user.tier, minTier)) {
       throw new ForbiddenException(
-        "AI özellikleri Silver veya üzeri paket gerektirir.",
+        i18nMessage("api.ai.aiOzellikleriSilverVeyaUzeriPaket"),
       );
     }
     if (!hasCompanyPermission(user, anyOf)) {
       throw new ForbiddenException(
-        "AI özelliklerini yalnızca bu alanda işlem yetkisi taşıyan kullanıcılar kullanabilir.",
+        i18nMessage("api.ai.aiOzellikleriniYalnizcaBuAlandaIslem"),
       );
     }
   }
@@ -177,6 +186,21 @@ export class AiService {
         { grounded: options.webSearch === true },
       );
 
+    // Bagli takip cagrisi: varsayilan (ucuz) modelle, cikti tavaniyla —
+    // takip cagrisinin premium adayi dusse de bu fallback tahmini sigar.
+    const followUpCostUsd =
+      options.followUpInputChars != null
+        ? costFromUsage(
+            {
+              inputTokens: Math.ceil(options.followUpInputChars / 4),
+              outputTokens: this.config.maxOutputTokens,
+              cacheReadTokens: 0,
+              cacheWriteTokens: 0,
+            },
+            this.config.pricing[models.default]!,
+          )
+        : undefined;
+
     // Premium alt-bütçesi doluysa reserve() fallback'e (ucuz model) düşer —
     // premium'a yükseltme YAPILMAZ, Flash'la devam edilir.
     const candidates = premiumWanted
@@ -185,11 +209,13 @@ export class AiService {
             model: models.premium,
             estimatedCostUsd: estimateFor(models.premium),
             isPremium: true,
+            followUpCostUsd,
           },
           {
             model: baseModel,
             estimatedCostUsd: estimateFor(baseModel),
             isPremium: false,
+            followUpCostUsd,
           },
         ]
       : [
@@ -197,6 +223,7 @@ export class AiService {
             model: baseModel,
             estimatedCostUsd: estimateFor(baseModel),
             isPremium: false,
+            followUpCostUsd,
           },
         ];
 
@@ -244,7 +271,7 @@ export class AiService {
           keepEstimate: true,
         });
         throw new ServiceUnavailableException(
-          "AI isteği zaman aşımına uğradı — lütfen tekrar deneyin.",
+          i18nMessage("api.ai.aiIstegiZamanAsiminaUgradiLutfen"),
         );
       }
       if (err instanceof AiProviderError) {
@@ -256,13 +283,58 @@ export class AiService {
         });
         this.logger.warn(`AI sağlayıcı hatası (${err.code}): ${err.message}`);
         throw new BadGatewayException(
-          "AI sağlayıcısı hata döndürdü — lütfen tekrar deneyin.",
+          i18nMessage("api.ai.saglayiciHataDondurdu"),
         );
       }
       // Beklenmeyen iç hata: rezervasyonu serbest bırakma (fail-closed) —
       // reaper 10 dk sonra timeout kuralıyla kapatır.
       throw err;
     }
+  }
+
+  /** AI yapılandırılmış mı (anahtar + sağlayıcı)? Sistem işleri önce buna bakar. */
+  get isEnabled(): boolean {
+    return this.config.enabled && !!this.provider;
+  }
+
+  /**
+   * PLATFORMUN ÖDEDİĞİ çağrı (2026-09-27, AI tedarikçi keşfi Faz 1) — kullanıcı
+   * yok, firma bütçesine YAZILMAZ. Yalnız platformun kendi edinme kanalı olan
+   * işler (yayın sonrası otomatik tedarikçi araması) kullanır; maliyet çağırana
+   * döner ve çağıran KENDİ tavanını uygular (bkz. discovery-runs, günlük USD
+   * tavanı). İçerik çevirisiyle aynı ilke: platform işi, platform bütçesi.
+   * Kullanıcının tetiklediği her şey `callAi` (bütçe + erişim kapısı) kalır.
+   */
+  async callAiSystem(
+    options: Pick<AiCallOptions, "prompt" | "system" | "responseSchema" | "webSearch" | "thinkingLevel">,
+  ): Promise<AiCallResult & { costUsd: number }> {
+    if (!this.isEnabled) {
+      throw new ServiceUnavailableException(
+        i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyorYapilandirilmamis"),
+      );
+    }
+    const model = this.config.models.default;
+    const result = await this.provider!.complete({
+      model,
+      prompt: options.prompt,
+      system: options.system,
+      responseSchema: options.responseSchema,
+      webSearch: options.webSearch,
+      thinkingLevel: options.thinkingLevel,
+      maxOutputTokens: this.config.maxOutputTokens,
+      timeoutMs: this.config.timeoutMs,
+    });
+    const cost = costFromUsage(result.usage, this.config.pricing[model]!, {
+      grounded: options.webSearch === true,
+    });
+    return {
+      finishReason: result.finishReason,
+      outputTokens: result.usage.outputTokens,
+      text: result.text,
+      downgraded: false,
+      warned: false,
+      costUsd: Number(cost),
+    };
   }
 
   /**
@@ -280,7 +352,7 @@ export class AiService {
     const hasSeat = hasCompanyPermission(user, ALL_SEAT_PERMISSIONS);
     if (!isManagement && !hasSeat) {
       throw new ForbiddenException(
-        "AI kullanımını yalnızca yönetim ya da işlem yetkisi taşıyan kullanıcılar görüntüleyebilir.",
+        i18nMessage("api.ai.aiKullaniminiYalnizcaYonetimYaDa"),
       );
     }
 
@@ -288,7 +360,7 @@ export class AiService {
     const snapshot = await this.budget.usageSnapshot(user.companyId, user.userId);
     if (snapshot == null) {
       throw new ForbiddenException(
-        "Paketiniz AI özelliklerini içermiyor — Silver veya üzeri paket gerekir.",
+        i18nMessage("api.ai.paketinizAiOzellikleriniIcermiyorSilverVeya"),
       );
     }
     const warnAtPercent = Math.round(this.config.caps.warnShare * 100);
@@ -301,6 +373,10 @@ export class AiService {
         percentUsed: snapshot.percentUsed,
         premiumPercentUsed: snapshot.premiumPercentUsed,
         warning: snapshot.warned,
+        exhausted: snapshot.poolExhausted,
+        // `reserve` kişisel tavanı (havuzun userShare'i) yönetime de uygular:
+        // havuz dolmasa da bu kullanıcının AI'ı kapalı olabilir (D-172).
+        myExhausted: snapshot.userCapExhausted,
         byUser: snapshot.byUser,
         byFeature: snapshot.byFeature,
       };
@@ -311,6 +387,8 @@ export class AiService {
       warnAtPercent,
       percentUsed: snapshot.myPercentOfCap,
       warning: snapshot.myPercentOfCap >= warnAtPercent,
+      // Kişisel tavan ya da firma havuzu doldu → bu kullanıcı için AI kapalı.
+      exhausted: snapshot.userCapExhausted || snapshot.poolExhausted,
     };
   }
 
@@ -343,12 +421,14 @@ export class AiService {
         select: { id: true },
       });
       for (const m of managers) {
+        // Metin ANAHTAR olarak geçer; her alıcı için kendi diliyle üretilir.
         await this.notifications.pushToUser(m.id, {
           type: WARN_NOTIFICATION_TYPE,
-          title: "AI bütçe uyarısı",
-          body: `Firmanızın aylık AI kullanımı %${Math.round(percentUsed)} seviyesine ulaştı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır.`,
-          ctaUrl: "/company/ayarlar/ai-kullanim",
-          ctaLabel: "Kullanımı Gör",
+          titleKey: "api.notifications.ai.butceUyarisiBaslik",
+          bodyKey: "api.notifications.ai.butceUyarisiGovde",
+          params: { yuzde: Math.round(percentUsed) },
+          ctaPath: "/company/ayarlar/ai-kullanim",
+          ctaLabelKey: "api.notifications.ai.kullanimiGor",
         });
       }
     } catch (err) {

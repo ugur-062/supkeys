@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * ÇOK TEDARİKÇİLİ TEKLİF — "başka hesaplardan teklif verilmeli" turu.
@@ -24,15 +24,8 @@ test("iki ayrı tedarikçi teklif verir; kapalı zarf, paket ve rol kapıları",
 
   // ── Alıcı: talebi SATIN ALMACI rolüyle açar (kurucu değil) ─────────────
   const buyer = await apiSession(QA.aliciSatinalmaci);
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Teklif Depo ${stamp}`,
-    addressLine: "Organize Sanayi 2. Cadde No 7",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
-  expect(addr.status, JSON.stringify(addr.body)).toBeLessThan(300);
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM",
     format: "RFQ",
@@ -40,7 +33,7 @@ test("iki ayrı tedarikçi teklif verir; kapalı zarf, paket ve rol kapıları",
     description: "İki tedarikçinin teklif verdiği QA talebi — staging.",
     visibility: "PUBLIC",
     categoryIds: [CATEGORY],
-    deliveryAddressId: addr.body.id,
+    deliveryAddressId: addressId,
     closesAt: daysFromNow(7),
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY"],

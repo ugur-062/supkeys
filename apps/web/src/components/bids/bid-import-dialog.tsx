@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -14,10 +15,12 @@ import {
   useDownloadBidTemplate,
   useParseBidTemplate,
 } from "@/hooks/use-bid-import";
+import { useBidDeliveryTimeLabel, useFormatNumber, useQuantityLabel } from "@/i18n/domain";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import {
-  bidDeliveryTimeLabel,
+  BID_IMPORT_MAX_CSV_BYTES,
+  IMPORT_MAX_FILE_BYTES,
   type BidImportConfidence,
   type BidImportMatch,
   type BidImportResult,
@@ -49,16 +52,29 @@ export function BidImportDialog({
   variant,
   listingId,
   currencyLabel,
+  itemCurrencyAllowed,
   onApply,
 }: {
   open: boolean;
   onClose: () => void;
   variant: BidImportVariant;
   listingId: string;
-  /** Teklifin ana para birimi (null currency satırlarında gösterilir). */
+  /**
+   * Teklifin para birimi (sayfadaki effectiveCurrency). Sunucu satır birimini
+   * açık kodla döner (talebin ana birimi dahil); null = satırda birim yok →
+   * bu birim sayılır.
+   */
   currencyLabel: string;
+  /**
+   * Kalem bazlı para birimi yazılabilir mi (teklif sayfasındaki
+   * `canItemCurrency`). Kapalıyken ana birimden farklı birimli satır
+   * uygulanmaz — fiyat sessizce ana birim sayılırdı (derin denetim MU-23).
+   */
+  itemCurrencyAllowed: boolean;
   onApply: (rows: BidImportApplyRow[]) => void;
 }) {
+  const t = useTranslations("web.panel.trade.bidImportDialog");
+  const fmtNum = useFormatNumber();
   const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<BidImportResult | null>(null);
   /** Kalem → seçilen belge satırı id'si (elle eşleme) veya "" (boş bırak). */
@@ -90,18 +106,21 @@ export function BidImportDialog({
       setFiles(picked);
     } catch (err) {
       setFiles([]);
-      toast.error(extractErrorMessage(err, isAi ? "Belge işlenemedi" : "Dosya okunamadı"));
+      toast.error(extractErrorMessage(err, isAi ? t("belgeIslenemedi") : t("dosyaOkunamadi")));
     }
   };
 
   // Satırın efektif değeri: elle eşleme (override) > motor eşleşmesi.
-  const effective = useMemo(() => {
+  // Elle seçilen belge satırının uyarıları o satırdan gelir (sunucu eşleşmeyen
+  // satırı da aynı fiyat/birim kurallarından geçirir); kalemin otomatik
+  // eşleşme uyarıları elle seçimde gösterilmez.
+  const effective = useMemo((): EffectiveRow[] => {
     if (!result) return [];
     const byDoc = new Map(result.unmatchedDocRows.map((d) => [d.id, d] as const));
-    return result.matches.map((m) => {
+    const rows = result.matches.map((m) => {
       const ov = overrides[m.itemId];
-      if (ov === undefined) return { m, unitPrice: m.unitPrice, currency: m.currency, deliveryTime: m.deliveryTime, source: m.source, confidence: m.confidence, manual: false };
-      if (ov === "") return { m, unitPrice: null, currency: null, deliveryTime: null, source: null, confidence: "none" as BidImportConfidence, manual: true };
+      if (ov === undefined) return { m, unitPrice: m.unitPrice, currency: m.currency, deliveryTime: m.deliveryTime, source: m.source, confidence: m.confidence, manual: false, warnings: m.warnings, errors: m.errors };
+      if (ov === "") return { m, unitPrice: null, currency: null, deliveryTime: null, source: null, confidence: "none" as BidImportConfidence, manual: true, warnings: [], errors: [] };
       const d = byDoc.get(ov);
       return {
         m,
@@ -111,12 +130,37 @@ export function BidImportDialog({
         source: d?.text ?? null,
         confidence: "exact" as BidImportConfidence, // kullanıcı elle seçti
         manual: true,
+        warnings: d?.warnings ?? [],
+        // Elle seçilen belge satırının hataları o satırdan gelir (kabul
+        // edilmeyen para birimi — derin denetim MU-19); kalemin otomatik
+        // eşleşme hataları elle seçimi bloklamaz.
+        errors: d?.errors ?? [],
       };
     });
-  }, [result, overrides]);
+    // Satır birimi teklif birimine göre normalize edilir: teklif birimiyle
+    // aynıysa null (= kalem teklif biriminde), farklıysa kod. Böylece talebin
+    // ana birimi (TRY) teklif biriminden (USD) farklıyken "185 TRY" satırı
+    // 185 USD sayılmaz (derin denetim MU-23 gözden geçirme).
+    // Kalem bazlı birim kapalıyken (tek birimli / açık eksiltme) teklif
+    // biriminden farklı birimli fiyat uygulanamaz: form birimi yazmaz, fiyat
+    // teklif birimi sayılırdı. Satır hata olarak işaretlenir, kullanıcı elle çevirir.
+    return rows.map((e) => {
+      const currency = e.currency && e.currency !== currencyLabel ? e.currency : null;
+      const row = { ...e, currency };
+      return e.unitPrice != null && currency && !itemCurrencyAllowed
+        ? {
+            ...row,
+            errors: [
+              ...e.errors,
+              t("kalemBirimiKullanilamaz", { currency, main: currencyLabel }),
+            ],
+          }
+        : row;
+    });
+  }, [result, overrides, currencyLabel, itemCurrencyAllowed, t]);
 
   const applicable = effective.filter(
-    (e) => e.unitPrice != null && e.m.errors.length === 0 && !excluded.has(e.m.itemId),
+    (e) => e.unitPrice != null && e.errors.length === 0 && !excluded.has(e.m.itemId),
   );
 
   const apply = () => {
@@ -137,13 +181,13 @@ export function BidImportDialog({
       <DialogTitle>
         <span className="flex items-center gap-2">
           {isAi ? <Sparkles className="h-5 w-5" /> : <FileSpreadsheet className="h-5 w-5" />}
-          {isAi ? "Belgeden Fiyatla (AI)" : "Excel Şablonu ile Fiyatla"}
+          {isAi ? t("belgedenFiyatlaAi") : t("excelSablonuIleFiyatla")}
         </span>
       </DialogTitle>
       <DialogDescription>
         {isAi
-          ? "Fiyat listenizi, proformanızı ya da teklif mektubunuzu yükleyin — AI satırları okur, sistem satın alma talebi kalemleriyle eşleştirir; siz kontrol edip uygularsınız. Teklifi her zaman SİZ gönderirsiniz."
-          : "Bu satın alma talebine özel şablonu indirin, fiyat/teslim sütunlarını doldurun ve yükleyin — kalemler birebir eşleşir (AI kullanılmaz). Teklifi her zaman SİZ gönderirsiniz."}
+          ? t("fiyatListeniziProformaniziYaDa")
+          : t("buSatinAlmaTalebineOzel")}
       </DialogDescription>
 
       <DialogBody className="space-y-4">
@@ -153,7 +197,7 @@ export function BidImportDialog({
               <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-950/10 bg-zinc-50 px-3 py-2.5">
                 <Download className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
                 <div className="min-w-0 flex-1 text-sm text-zinc-700">
-                  <strong>1.</strong> Bu ihalenin teklif şablonunu indirin (kalemler hazır; siz fiyat/teslim doldurursunuz)
+                  {t.rich("sablonuIndirinAdim", { strong: (c) => <strong>{c}</strong> })}
                 </div>
                 <Button
                   outline
@@ -161,33 +205,68 @@ export function BidImportDialog({
                   onClick={() =>
                     download
                       .mutateAsync()
-                      .catch((e) => toast.error(extractErrorMessage(e, "Şablon indirilemedi")))
+                      .catch((e) => toast.error(extractErrorMessage(e, t("sablonIndirilemedi"))))
                   }
                 >
-                  {download.isPending ? "İndiriliyor…" : "Şablonu indir"}
+                  {download.isPending ? t("indiriliyor") : t("sablonuIndir")}
                 </Button>
               </div>
             ) : null}
             <div className="rounded-lg border border-zinc-950/10 px-3 py-2.5 text-sm text-zinc-700">
               <strong>{isAi ? "" : "2. "}</strong>
               {isAi
-                ? "Belgenizi yükleyin (tek PDF, tek Excel/CSV ya da birden çok fotoğraf)"
-                : "Doldurduğunuz şablonu yükleyin (.xlsx)"}
+                ? t("belgeniziYukleyinTekPdfTek")
+                : t("doldurdugunuzSablonuYukleyinXlsx")}
             </div>
             <Dropzone
-              accept={isAi ? ".pdf,.jpg,.jpeg,.png,.webp,.heic,.xlsx,.csv" : ".xlsx,.csv"}
+              accept={isAi ? AI_ACCEPT : EXCEL_ACCEPT}
               multiple={isAi}
               disabled={busy}
-              onFiles={(fs) => {
+              onFiles={(picked) => {
+                let fs = picked;
                 if (fs.length === 0) return;
+                // Uzantı kapısı İSTEMCİDE (arayüz testi D-279): sürükle-bırak
+                // `accept`i atlar; Excel alanına bırakılan PDF önce sunucuya
+                // gidip 400 dönüyordu.
+                const accept = isAi ? AI_ACCEPT : EXCEL_ACCEPT;
+                const rejected = fs.filter((f) => !matchesAccept(f.name, accept));
+                if (rejected.length > 0) {
+                  toast.error(
+                    t("desteklenmeyenDosyaTuru", {
+                      names: rejected.map((f) => f.name).join(", "),
+                      allowed: accept.split(",").join(", "),
+                    }),
+                  );
+                  fs = fs.filter((f) => matchesAccept(f.name, accept));
+                  if (fs.length === 0) return;
+                }
+                if (!isAi) {
+                  // Şablon base64 JSON gövdesiyle gider (5 MB gövde sınırı,
+                  // base64 4/3 şişirir): kalem içe aktarmadaki istemci kapısının
+                  // aynısı — büyük dosya açıklamasız 413 almadan, doğru sınırla
+                  // reddedilir (derin denetim 2026-09-29).
+                  const f = fs[0]!;
+                  const isCsv = /\.csv$/i.test(f.name);
+                  const cap = isCsv ? BID_IMPORT_MAX_CSV_BYTES : IMPORT_MAX_FILE_BYTES;
+                  if (f.size > cap) {
+                    toast.error(
+                      t("dosyaCokBuyukIcinSinir", {
+                        mb: fmtNum(f.size / 1024 / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+                        kind: isCsv ? "CSV" : "Excel",
+                        cap: fmtNum(cap / 1024 / 1024, { maximumFractionDigits: 1 }),
+                      }),
+                    );
+                    return;
+                  }
+                }
                 void run(isAi ? fs.slice(0, 20) : [fs[0]!]);
               }}
-              label={isAi ? "PDF, fotoğraf veya Excel seç" : "Doldurulmuş şablonu seç"}
-              hint={isAi ? "En fazla 20 dosya · fiyatlar KDV hariç okunur" : "Yalnız bu satın alma talebinin şablonu kabul edilir"}
+              label={isAi ? t("pdfFotografVeyaExcelSec") : t("doldurulmusSablonuSec")}
+              hint={isAi ? t("enFazla20DosyaFiyatlar") : t("yalnizBuSatinAlmaTalebinin")}
             />
             {busy && files.length === 0 ? (
               <p className="text-sm text-zinc-500">
-                {isAi ? "Belge işleniyor — AI satırları okuyor, bu birkaç saniye sürebilir…" : "Şablon okunuyor…"}
+                {isAi ? t("belgeIsleniyorAiSatirlariOkuyor") : t("sablonOkunuyor")}
               </p>
             ) : null}
           </>
@@ -208,16 +287,29 @@ export function BidImportDialog({
 
       <DialogActions>
         <Button plain disabled={busy} onClick={close}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         {result ? (
           <Button disabled={busy || applicable.length === 0} onClick={apply}>
-            {applicable.length} kalemin fiyatını uygula
+            {t("kaleminFiyatiniUygula", { length: applicable.length })}
           </Button>
         ) : null}
       </DialogActions>
     </Dialog>
   );
+}
+
+/** Seçici/bırakma alanının kabul ettiği uzantılar (sunucu ayrıştırıcısıyla aynı küme). */
+const AI_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.heic,.xlsx,.csv";
+const EXCEL_ACCEPT = ".xlsx,.csv";
+
+/** Dosya adı `accept` listesindeki uzantılardan biriyle mi bitiyor (büyük/küçük harf duyarsız). */
+export function matchesAccept(fileName: string, accept: string): boolean {
+  const name = fileName.toLowerCase();
+  return accept
+    .split(",")
+    .map((x) => x.trim().toLowerCase())
+    .some((ext) => ext.startsWith(".") && name.endsWith(ext));
 }
 
 type EffectiveRow = {
@@ -228,6 +320,10 @@ type EffectiveRow = {
   source: string | null;
   confidence: BidImportConfidence;
   manual: boolean;
+  /** Efektif satırın uyarıları (elle seçimde belge satırının). */
+  warnings: string[];
+  /** Efektif satırın hataları — varsa satır uygulanmaz. */
+  errors: string[];
 };
 
 function Preview({
@@ -251,7 +347,12 @@ function Preview({
   fileNames: string[];
   onReset: () => void;
 }) {
-  const priced = effective.filter((e) => e.unitPrice != null && e.m.errors.length === 0).length;
+  const t = useTranslations("web.panel.trade.bidImportDialog");
+  const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
+  const qtyLabel = useQuantityLabel();
+  const fmtNum = useFormatNumber();
+  const fmt = (n: number) => fmtNum(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const priced = effective.filter((e) => e.unitPrice != null && e.errors.length === 0).length;
   const hasDocRows = result.unmatchedDocRows.length > 0;
   const toggleExclude = (id: string) => {
     const n = new Set(excluded);
@@ -263,14 +364,14 @@ function Preview({
     <>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-800">
-          {priced} / {effective.length} kalem fiyatlandı
+          {t("kalemFiyatlandi", { priced: priced, length: effective.length })}
         </span>
         {result.mode === "ai" ? (
           <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
-            AI okudu · eşleştirmeyi sistem yaptı — rozetleri kontrol edin
+            {t("aiOkuduEslestirmeyiSistemYapti")}
           </span>
         ) : (
-          <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">Şablon · birebir eşleşme</span>
+          <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">{t("sablonBirebirEslesme")}</span>
         )}
         <span className="ml-auto truncate text-xs text-zinc-500">{fileNames.join(", ")}</span>
         <button
@@ -278,7 +379,7 @@ function Preview({
           onClick={onReset}
           className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800"
         >
-          <X className="h-3.5 w-3.5" /> Başka dosya
+          <X className="h-3.5 w-3.5" /> {t("baskaDosya")}
         </button>
       </div>
 
@@ -300,17 +401,17 @@ function Preview({
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th scope="col" className="px-3 py-2 font-medium">Uygula</th>
-              <th scope="col" className="px-3 py-2 font-medium">Satın Alma Talebi kalemi</th>
-              <th scope="col" className="px-3 py-2 font-medium">{result.mode === "ai" ? "Belgede bulunan" : "Kaynak"}</th>
-              <th scope="col" className="px-3 py-2 font-medium text-right">Birim fiyat</th>
-              <th scope="col" className="px-3 py-2 font-medium">Teslim</th>
-              <th scope="col" className="px-3 py-2 font-medium">Güven</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("uygula")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("satinAlmaTalebiKalemi")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{result.mode === "ai" ? t("belgedeBulunan") : t("kaynak")}</th>
+              <th scope="col" className="px-3 py-2 font-medium text-right">{t("birimFiyat")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("teslim")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("guven")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {effective.map((e) => {
-              const bad = e.m.errors.length > 0;
+              const bad = e.errors.length > 0;
               const medium = e.confidence === "medium";
               const none = e.unitPrice == null;
               const off = excluded.has(e.m.itemId);
@@ -322,7 +423,7 @@ function Preview({
                   <td className="px-3 py-1.5">
                     <input
                       type="checkbox"
-                      aria-label={`${e.m.itemName} uygula`}
+                      aria-label={t("uygulaAria", { itemName: e.m.itemName })}
                       checked={!off && !none && !bad}
                       disabled={none || bad}
                       onChange={() => toggleExclude(e.m.itemId)}
@@ -333,18 +434,18 @@ function Preview({
                       <span className="text-zinc-400">#{e.m.lineNo}</span> {e.m.itemName}
                     </div>
                     <div className="text-xs text-zinc-500">
-                      {e.m.itemQuantity} {e.m.itemUnit}
+                      {qtyLabel(e.m.itemQuantity, e.m.itemUnit)}
                     </div>
-                    {bad ? <div className="text-xs text-red-700">{e.m.errors.join(" · ")}</div> : null}
-                    {e.m.warnings.length > 0 && !bad ? (
-                      <div className="text-xs text-amber-700">{e.m.warnings.join(" · ")}</div>
+                    {bad ? <div className="text-xs text-red-700">{e.errors.join(" · ")}</div> : null}
+                    {e.warnings.length > 0 && !bad ? (
+                      <div className="text-xs text-amber-700">{e.warnings.join(" · ")}</div>
                     ) : null}
                   </td>
                   <td className="max-w-[260px] px-3 py-1.5">
                     {result.mode === "ai" && (medium || none || hasDocRows) ? (
                       <select
                         className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs"
-                        aria-label={`${e.m.itemName} için belge satırı seç`}
+                        aria-label={t("icinBelgeSatiriSec", { itemName: e.m.itemName })}
                         value={overrides[e.m.itemId] ?? (e.m.source ? "__auto" : "")}
                         onChange={(ev) => {
                           const v = ev.target.value;
@@ -354,8 +455,8 @@ function Preview({
                           setOverrides(next);
                         }}
                       >
-                        {e.m.source ? <option value="__auto">{e.m.source} (otomatik)</option> : null}
-                        <option value="">— eşleştirme (boş bırak)</option>
+                        {e.m.source ? <option value="__auto">{t("otomatik", { source: e.m.source })}</option> : null}
+                        <option value="">{t("eslestirmeBosBirak")}</option>
                         {result.unmatchedDocRows.map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.text}
@@ -381,25 +482,22 @@ function Preview({
         </table>
       </div>
       <p className="text-xs text-zinc-500">
-        Uygula yalnız formdaki kalem fiyatlarını doldurur; teklifi göndermeden önce tüm alanları kontrol edin.
+        {t("uygulaYalnizFormdakiKalemFiyatlarini")}
       </p>
     </>
   );
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 function ConfidenceBadge({ c, manual }: { c: BidImportConfidence; manual: boolean }) {
+  const t = useTranslations("web.panel.trade.bidImportDialog");
   if (manual && c === "exact") {
-    return <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[11px] font-medium text-white">Elle</span>;
+    return <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[11px] font-medium text-white">{t("elle")}</span>;
   }
   const map: Record<BidImportConfidence, { label: string; cls: string; dots: string }> = {
-    exact: { label: "Kesin", cls: "bg-emerald-100 text-emerald-800", dots: "●●●" },
-    high: { label: "Yüksek", cls: "bg-emerald-50 text-emerald-700", dots: "●●○" },
-    medium: { label: "Emin misiniz?", cls: "bg-amber-100 text-amber-800", dots: "●○○" },
-    none: { label: "Eşleşmedi", cls: "bg-zinc-100 text-zinc-500", dots: "—" },
+    exact: { label: t("kesin"), cls: "bg-emerald-100 text-emerald-800", dots: "●●●" },
+    high: { label: t("yuksek"), cls: "bg-emerald-50 text-emerald-700", dots: "●●○" },
+    medium: { label: t("eminMisiniz"), cls: "bg-amber-100 text-amber-800", dots: "●○○" },
+    none: { label: t("eslesmedi"), cls: "bg-zinc-100 text-zinc-500", dots: "—" },
   };
   const v = map[c];
   return (

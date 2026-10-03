@@ -8,8 +8,7 @@ import {
   foldSearchText,
   isCompanyActivity,
   isRadiusOption,
-  provincesWithin,
-  resolveProvince,
+  isValidCountryCode,
   stemPrefix,
   tokenizeQuery,
   isHiddenCategory,
@@ -17,6 +16,9 @@ import {
 import { resolveCategoryAttributes } from "./category-attributes";
 import { FAST_REPLY_HOURS } from "./reply-time";
 import { publicProductWhere } from "./public-profile-gate";
+import { geoIndex } from "../geo/geo-index";
+import { currentLocale } from "../i18n/locale-context";
+import { fxRate } from "../currency/fx-rates";
 
 /**
  * ÜRÜN DİZİNİ — where/orderBy/facet TEK KAYNAK (2026-09-04).
@@ -29,13 +31,27 @@ import { publicProductWhere } from "./public-profile-gate";
 export interface ProductIndexParams {
   q?: string;
   category?: string;
-  /** Tek değer ya da virgüllü liste ("İstanbul,İzmir") — ÇOKLU seçim. */
+  /**
+   * Şehir — kalıcı adres ya da virgüllü liste ("istanbul,de-munich") — ÇOKLU
+   * seçim. Dünya şehir listesinden (`cityId`, 2026-09-27); eski bağlantıdaki
+   * ham Türk il adı ("İstanbul") de çözülür.
+   */
   city?: string;
+  /** Satıcı ülkesi — ISO kod ya da virgüllü liste ("TR,DE") — ÇOKLU (2026-09-27). */
+  country?: string;
   /** Tek kod ya da virgüllü liste — ÇOKLU seçim. */
   activity?: string;
   verified?: boolean;
   price?: "has" | "request";
-  /** TRY cinsinden birim fiyat aralığı (yalnız fiyatı yazılı ürünler). */
+  /**
+   * Fiyat süzgecinin/histogramının PARA BİRİMİ (ISO; 2026-09-27 "kurla
+   * çevir"). `priceMin`/`priceMax` bu birimde yorumlanır ve TCMB kuruyla
+   * TRY'ye çevrilip `priceAmountBase` ile karşılaştırılır; histogram da bu
+   * birimde döner. Verilmezse TRY. Varsayılanı ÇAĞIRAN seçer (ziyaretçide
+   * arayüz dili, panelde firma ülkesi — `fx-rates.ts` `resolve*Currency`).
+   */
+  currency?: string;
+  /** `currency` cinsinden birim fiyat aralığı (yalnız fiyatı yazılı ürünler). */
   priceMin?: number;
   priceMax?: number;
   /** "Min. sipariş ≤ X" — MOQ'su bu değerden küçük/eşit ya da hiç olmayanlar. */
@@ -52,7 +68,7 @@ export interface ProductIndexParams {
   cert?: string;
   /** Virgüllü çalışan kovası ALT SINIRLARI ("10,50") — bkz. `employee-bucket`. */
   employees?: string;
-  /** "Yakınımda" merkezi: il adı ya da posta kodu. `radius` ile birlikte. */
+  /** "Yakınımda" merkezi: şehir adresi (dünya geneli), Türk il adı ya da Türk posta kodu. `radius` ile birlikte. */
   near?: string;
   /** Yarıçap (km) — 25 | 50 | 100 | 250. */
   radius?: number;
@@ -71,6 +87,14 @@ export const MOQ_BUCKETS = [10, 100, 1000] as const;
 
 /** Fiyat histogramı kova sayısı — ray genişliğinde okunur kalan en yüksek değer. */
 export const PRICE_HISTOGRAM_BUCKETS = 12;
+
+/**
+ * Süzgeç para biriminin TRY kuru — bilinmeyen/boş kod TRY sayılır (1).
+ * Aralık sınırları `× kur` ile TRY tabanına, histogram `÷ kur` ile geri çevrilir.
+ */
+function currencyRate(code?: string): number {
+  return fxRate(code) ?? 1;
+}
 
 /** Virgüllü çoklu değer → dizi (boşlar düşer, tavan 10). */
 export function multi(v?: string): string[] {
@@ -144,15 +168,31 @@ export async function employeeValuesQuery(
 }
 
 /**
- * "Yakınımda" → il adları. Merkez çözülemezse ya da yarıçap geçersizse BOŞ
- * döner ve süzgeç HİÇ uygulanmaz — bilinmeyen bir şehir yüzünden listeyi
- * boşaltmak yerine kısıtı yok saymak doğrusu (kullanıcı yazım hatası yapmış
- * olabilir; çipte ne seçildiği zaten görünüyor).
+ * "Yakınımda" → şehir kayıtları (DÜNYA GENELİ, 2026-09-27; eskiden yalnız 81
+ * il). Merkez çözülemezse ya da yarıçap geçersizse BOŞ döner ve süzgeç HİÇ
+ * uygulanmaz — bilinmeyen bir şehir yüzünden listeyi boşaltmak yerine kısıtı
+ * yok saymak doğrusu (çipte ne seçildiği zaten görünüyor).
  */
-export function nearCities(q: Pick<ProductIndexParams, "near" | "radius">): string[] {
-  const origin = resolveProvince(q.near);
+export function nearCityIds(q: Pick<ProductIndexParams, "near" | "radius">): number[] {
+  const idx = geoIndex();
+  const origin = idx.resolveNear(q.near);
   if (!origin || q.radius == null || !isRadiusOption(q.radius)) return [];
-  return provincesWithin(origin, q.radius);
+  return idx.within(origin, q.radius);
+}
+
+/** Şehir süzgeci değerleri → kayıt id'leri (kalıcı adres ya da eski ham il adı). */
+export function cityIdsOf(v?: string): number[] {
+  const idx = geoIndex();
+  return multi(v)
+    .map((x) => idx.resolveParam(x)?.id)
+    .filter((x): x is number => x != null);
+}
+
+/** Satıcı ülkesi süzgeci değerleri (geçerli ISO kodlar, büyük harf). */
+export function countriesOf(v?: string): string[] {
+  return multi(v)
+    .map((x) => x.toUpperCase())
+    .filter(isValidCountryCode);
 }
 
 export const PRODUCT_PAGE_SIZE = 24;
@@ -172,13 +212,19 @@ export function productSearchClauses(
   // `includeCompanyName: false` — firma dizininde ÜRÜN metnini aramak için:
   // orada firma adı zaten ayrı bir dalda aranıyor, burada da aransa ada
   // uyan firmanın TÜM ürünleri "aramaya uyan ürün" sayılırdı.
+  // `searchTextI18n`: kaynak + EN/RU çevirileri (içerik çevirisi servisi
+  // yazar) — "steel pipe" Türkçe "Çelik boru" kaydını bulur.
   const withCompany = opts.includeCompanyName ?? true;
-  return tokens.map((t) => ({
-    OR: [
-      { searchText: { contains: stemPrefix(foldSearchText(t)) } },
-      ...(withCompany ? [{ company: { name: { contains: t, mode: "insensitive" as const } } }] : []),
-    ],
-  }));
+  return tokens.map((t) => {
+    const needle = stemPrefix(foldSearchText(t));
+    return {
+      OR: [
+        { searchText: { contains: needle } },
+        { searchTextI18n: { contains: needle } },
+        ...(withCompany ? [{ company: { name: { contains: t, mode: "insensitive" as const } } }] : []),
+      ],
+    };
+  });
 }
 
 /**
@@ -216,17 +262,28 @@ export function productIndexWhere(
   extra: Prisma.CompanyItemWhereInput[] = [],
   opts: { employeeValues?: string[] } = {},
 ): Prisma.CompanyItemWhereInput {
-  const cities = multi(q.city);
+  const cityValues = multi(q.city);
+  const cities = cityIdsOf(q.city);
+  const countries = countriesOf(q.country);
   const activities = multi(q.activity).filter(isCompanyActivity);
   const certs = multi(q.cert);
   const employeeKeys = employeeKeysOf(q.employees);
-  const near = nearCities(q);
+  const near = nearCityIds(q);
+  // Ters aralık (min > max) yer değiştirir — eskiden sessizce 0 ürün dönüyordu
+  // (arayüz testi D-074; web ayrıştırıcısı da aynı kuralı uygular).
+  const [priceMin, priceMax] =
+    q.priceMin != null && q.priceMax != null && q.priceMin > q.priceMax
+      ? [q.priceMax, q.priceMin]
+      : [q.priceMin, q.priceMax];
   const and: Prisma.CompanyItemWhereInput[] = [
     ...productSearchClauses(q.q),
     // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
     // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz. Çoklu seçim
     // = OR (İstanbul VEYA İzmir).
-    ...(cities.length ? [{ company: { city: { in: cities } } }] : []),
+    // Tanınmayan şehir değeri → boş küme (`in: []`): seçilen şehir yoksa sonuç
+    // da yok (eskiden ham ad eşleşmediğinde de böyleydi).
+    ...(cityValues.length ? [{ company: { cityId: { in: cities } } }] : []),
+    ...(countries.length ? [{ company: { country: { in: countries } } }] : []),
     ...(activities.length ? [{ company: { activities: { hasSome: activities } } }] : []),
     ...(q.verified ? [{ company: { companyVerificationStatus: "VERIFIED" as const } }] : []),
     ...(q.price === "has"
@@ -237,7 +294,7 @@ export function productIndexWhere(
     // "Yakınımda": il MERKEZLERİ arası mesafeden türetilen il listesi. Şehir
     // süzgeciyle birlikte seçilirse ikisi de uygulanır (kesişim) — iki ayrı
     // koşul, çünkü tek `company` nesnesinde aynı anahtar iki kez olamaz.
-    ...(near.length ? [{ company: { city: { in: near } } }] : []),
+    ...(near.length ? [{ company: { cityId: { in: near } } }] : []),
     // Ölçümü OLMAYAN firma (null) dışarıda kalır — "yavaş" saymıyoruz,
     // "bilmiyoruz" diyoruz; kullanıcı hızlı olduğu KANITLI olanı istedi.
     ...(q.fastReply ? [{ company: { medianReplyHours: { lte: FAST_REPLY_HOURS } } }] : []),
@@ -247,13 +304,22 @@ export function productIndexWhere(
     // `employeeValues` ile geçer (bkz. `employeeValuesFor`). Liste boşsa
     // seçim hiçbir şeyi eşlemiyordur; `in: []` doğru sonucu (0 kayıt) verir.
     ...(employeeKeys.length ? [{ company: { employeeCount: { in: opts.employeeValues ?? [] } } }] : []),
-    // Fiyat aralığı yalnız yazılı birim fiyatı olanlara uygulanır (sabit fiyat;
-    // kademeli ürünlerin tabanı priceAmount'ta yok — kapsam dışı, bilinçli).
-    ...(q.priceMin != null || q.priceMax != null
+    // Fiyat aralığı KURLA ÇEVRİLMİŞ ortak tabanda (2026-09-27): sınırlar
+    // seçilen para biriminden TRY'ye çevrilir, ürünün TRY karşılığıyla
+    // (`priceAmountBase`, kartta görünen fiyat: sabitte tutar, kademelide en
+    // düşük kademe) karşılaştırılır. Eskiden ham `priceAmount` para birimine
+    // bakmadan kıyaslanıyordu: "en çok 500" diyen Alman alıcıya 450 EUR'luk
+    // ürünle 490 TRY'lik ürün karışıyordu.
+    ...(priceMin != null || priceMax != null
       ? [
           {
             OR: [
-              { priceAmount: { ...(q.priceMin != null ? { gte: q.priceMin } : {}), ...(q.priceMax != null ? { lte: q.priceMax } : {}) } },
+              {
+                priceAmountBase: {
+                  ...(priceMin != null ? { gte: priceMin * currencyRate(q.currency) } : {}),
+                  ...(priceMax != null ? { lte: priceMax * currencyRate(q.currency) } : {}),
+                },
+              },
               ...(q.priceUnpriced ? [{ priceMode: "ON_REQUEST" as const }] : []),
             ],
           },
@@ -284,10 +350,17 @@ export function productIndexOrderBy(
   sort?: ProductIndexParams["sort"],
 ): Prisma.CompanyItemOrderByWithRelationInput[] {
   const paidFirst = { company: { tier: "desc" as const } };
-  if (sort === "newest") return [paidFirst, { publishedAt: "desc" }, { completionScore: "desc" }];
-  if (sort === "price") return [{ priceAmount: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }];
-  if (sort === "price_desc") return [{ priceAmount: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }];
-  return [paidFirst, { completionScore: "desc" }, { publishedAt: "desc" }];
+  // Benzersiz son anahtar (`id`): liste skip/take ile sayfalanıyor; eşit
+  // satırlarda (fiyatsız ürünler aynı completionScore, toplu onayın aynı
+  // publishedAt'i) Postgres sıra garanti etmez → ürün sayfalar arasında
+  // tekrar eder ya da hiç görünmez.
+  const tie = { id: "asc" as const };
+  if (sort === "newest") return [paidFirst, { publishedAt: "desc" }, { completionScore: "desc" }, tie];
+  // Fiyat sırası TRY karşılığından (`priceAmountBase`): ham tutarla
+  // sıralanınca JPY/KRW ürünleri (büyük sayı) en pahalı, KWD en ucuz görünürdü.
+  if (sort === "price") return [{ priceAmountBase: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }, tie];
+  if (sort === "price_desc") return [{ priceAmountBase: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }, tie];
+  return [paidFirst, { completionScore: "desc" }, { publishedAt: "desc" }, tie];
 }
 
 export interface ProductFacetRow {
@@ -296,8 +369,13 @@ export interface ProductFacetRow {
   /** Prisma `Decimal` → satır eşlemesinde `.toNumber()` (bkz. `toFacetRow`). */
   moq?: number | null;
   priceAmount?: number | null;
+  /** Fiyatın TRY karşılığı — histogram bundan, seçilen para birimine çevrilerek. */
+  priceAmountBase?: number | null;
   company: {
     city: string | null;
+    /** Dünya şehir listesi kaydı (2026-09-27); eski satırda olmayabilir. */
+    cityId?: number | null;
+    country?: string | null;
     activities: string[];
     companyVerificationStatus?: string;
     certifications?: string[];
@@ -314,8 +392,12 @@ export function toFacetRow(r: {
   priceMode?: string;
   moq?: Prisma.Decimal | null;
   priceAmount?: Prisma.Decimal | null;
+  priceAmountBase?: Prisma.Decimal | null;
   company: {
     city: string | null;
+    /** Dünya şehir listesi kaydı (2026-09-27); eski satırda olmayabilir. */
+    cityId?: number | null;
+    country?: string | null;
     activities: string[];
     companyVerificationStatus?: string;
     certifications?: string[];
@@ -328,6 +410,7 @@ export function toFacetRow(r: {
     priceMode: r.priceMode,
     moq: r.moq != null ? Number(r.moq) : null,
     priceAmount: r.priceAmount != null ? Number(r.priceAmount) : null,
+    priceAmountBase: r.priceAmountBase != null ? Number(r.priceAmountBase) : null,
     company: r.company,
   };
 }
@@ -340,11 +423,17 @@ export function toFacetRow(r: {
  * gelir; şehir/faaliyet/doğrulanmış/fiyat burada bellekte uygulanır.
  */
 export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndexParams) {
-  const cities = new Set(multi(sel.city));
+  const cities = new Set(cityIdsOf(sel.city));
+  const hasCity = multi(sel.city).length > 0;
+  const countries = new Set(countriesOf(sel.country));
   const acts = new Set(multi(sel.activity));
   const certs = new Set(multi(sel.cert));
   const empKeys = new Set(employeeKeysOf(sel.employees));
-  const okCity = (r: ProductFacetRow) => cities.size === 0 || (!!r.company.city && cities.has(r.company.city));
+  const okCity = (r: ProductFacetRow) => !hasCity || (r.company.cityId != null && cities.has(r.company.cityId));
+  const okCountry = (r: ProductFacetRow) => countries.size === 0 || (!!r.company.country && countries.has(r.company.country));
+  // "Yakınımda" sayaçlara da uygulanır (eskiden liste daralıyor, sayılar daralmıyordu).
+  const nearSet = new Set(nearCityIds(sel));
+  const okNear = (r: ProductFacetRow) => nearSet.size === 0 || (r.company.cityId != null && nearSet.has(r.company.cityId));
   const okAct = (r: ProductFacetRow) => acts.size === 0 || r.company.activities.some((a) => acts.has(a));
   const okVer = (r: ProductFacetRow) => !sel.verified || r.company.companyVerificationStatus === "VERIFIED";
   const okPrice = (r: ProductFacetRow) =>
@@ -366,22 +455,25 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
   // Her boyut KENDİ seçimi hariç, diğer TÜM seçimler uygulanmış küme üzerinde
   // sayılır. Boyut ekledikçe bu listeler uzuyor; biri unutulursa o boyutun
   // sayacı fazla gösterir ve tıklayınca liste beklenenden dar çıkar.
-  const base = (r: ProductFacetRow) => okCert(r) && okEmp(r) && okFast(r);
+  // Satıcı ülkesi (2026-09-27) her boyutun tabanında — kendi boyutu (forCountry) hariç.
+  const base = (r: ProductFacetRow) => okCert(r) && okEmp(r) && okFast(r) && okCountry(r) && okNear(r);
   const forCity = rows.filter((r) => okAct(r) && okVer(r) && okPrice(r) && base(r));
+  const forCountry = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okEmp(r) && okFast(r) && okNear(r));
   const forAct = rows.filter((r) => okCity(r) && okVer(r) && okPrice(r) && base(r));
   const forVer = rows.filter((r) => okCity(r) && okAct(r) && okPrice(r) && base(r));
-  const forFast = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okEmp(r));
+  const forFast = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okEmp(r) && okCountry(r) && okNear(r));
   const forPrice = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && base(r));
-  const forCert = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okEmp(r));
-  const forEmp = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r));
+  const forCert = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okEmp(r) && okFast(r) && okCountry(r) && okNear(r));
+  const forEmp = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okFast(r) && okCountry(r) && okNear(r));
   const forAll = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && base(r));
   return {
     // Gizli segment (katalog sadeleştirme 2026-09-19) facet'e girmez — adı
     // çözülemediği için süzgeçte çıplak kod ("10000000") görünüyordu.
     categories: [...count(forAll, (r) => (r.categoryId && r.categoryId.length === 8 && !isHiddenCategory(r.categoryId) ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
-    cities: [...count(forCity, (r) => (r.company.city?.trim() ? [r.company.city.trim()] : [])).entries()]
-      .map(([city, count]) => ({ city, count }))
-      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+    cities: cityFacet(count(forCity, (r) => (r.company.cityId != null ? [String(r.company.cityId)] : []))),
+    countries: [...count(forCountry, (r) => (r.company.country ? [r.company.country] : [])).entries()]
+      .map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country)),
     activities: [...count(forAct, (r) => r.company.activities).entries()]
       .map(([activity, count]) => ({ activity, count }))
       .sort((a, b) => b.count - a.count),
@@ -412,7 +504,7 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
     moq: Object.fromEntries(
       MOQ_BUCKETS.map((b) => [b, forAll.filter((r) => r.moq == null || r.moq <= b).length]),
     ) as Record<string, number>,
-    priceHistogram: priceHistogram(forAll),
+    priceHistogram: priceHistogram(forAll, sel.currency),
   };
 }
 
@@ -434,37 +526,67 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
  *
  * Fiyatı yazılı ürün 2'den azsa ya da hepsi aynı fiyattaysa `null` →
  * çağıran histogramı hiç çizmez (boş kutu basmayız).
+ *
+ * PARA BİRİMİ (2026-09-27): fiyatlar TRY karşılığından (`priceAmountBase`)
+ * `currency` birimine çevrilir — farklı birimdeki ürünler tek eksende. Kova
+ * sınırları o birimde; web aynı birimle `priceMin/priceMax` geri gönderir.
  */
-export function priceHistogram(rows: ProductFacetRow[]): {
+export function priceHistogram(rows: ProductFacetRow[], currency?: string): {
   min: number;
   max: number;
   quantiles: { p33: number; p66: number };
   buckets: { from: number; to: number; count: number }[];
 } | null {
-  const prices = rows.map((r) => r.priceAmount).filter((p): p is number => p != null && p > 0).sort((a, b) => a - b);
+  const rate = currencyRate(currency);
+  const bases = rows
+    .map((r) => r.priceAmountBase)
+    .filter((b): b is number => b != null && b > 0)
+    .sort((a, b) => a - b);
+  const prices = bases.map((b) => b / rate);
   if (prices.length < 2) return null;
   const at = (q: number) => prices[Math.min(prices.length - 1, Math.max(0, Math.round(q * (prices.length - 1))))]!;
   const lo = Math.max(1, at(0.05));
   const hi = at(0.95);
   if (!(hi > lo)) return null;
-  // Log ölçek: kova sınırları lo·(hi/lo)^(i/n).
+  /*
+   * KOVA = TIKLAMA SÜZGECİ (arayüz testi O-016). Çubuğa tıklamak
+   * `priceMin=from&priceMax=to` gönderir ve liste `productIndexWhere`'in
+   * KAPALI aralığıyla (`from·kur ≤ taban ≤ to·kur`) süzülür; çubuğun sayısı
+   * da TAM bu kuralla sayılır. Eskiden p5–p95 dışındaki fiyatlar ilk/son
+   * kovaya sayılıyor ama kova sınırı kırpılmış aralıkta kalıyordu ("16 ürün"
+   * yazan çubuk 12 ürün getiriyordu); USD/EUR'da 1'in altındaki her fiyat
+   * ilk kovaya yığılıyordu. Şimdi:
+   *  · iç sınırlar log ölçekte p5–p95 arasında (okunur dağılım), TAM SAYI
+   *    (URL ve API tam sayı alır);
+   *  · dış sınırlar GERÇEK uçlara genişler (⌊min⌋ … ⌈max⌉);
+   *  · bir fiyat iç sınıra TAM denk gelirse sınır bir kaydırılır — kapalı
+   *    aralıkta o ürün iki çubukta birden sayılırdı.
+   */
   const ratio = Math.log(hi / lo) / PRICE_HISTOGRAM_BUCKETS;
-  const edge = (i: number) => lo * Math.exp(ratio * i);
-  const buckets = Array.from({ length: PRICE_HISTOGRAM_BUCKETS }, (_, i) => ({
-    from: Math.round(edge(i)),
-    to: Math.round(edge(i + 1)),
-    count: 0,
-  }));
-  for (const p of prices) {
-    const i = Math.min(
-      PRICE_HISTOGRAM_BUCKETS - 1,
-      Math.max(0, Math.floor(Math.log(p / lo) / ratio)),
-    );
-    buckets[i]!.count++;
+  const baseSet = new Set(bases);
+  const onEdge = (e: number) => baseSet.has(e * rate);
+  const first = Math.floor(prices[0]! + 1e-9);
+  const last = Math.ceil(prices[prices.length - 1]! - 1e-9);
+  const edges = [first];
+  for (let i = 1; i < PRICE_HISTOGRAM_BUCKETS; i++) {
+    const prev = edges[edges.length - 1]!;
+    const ideal = Math.round(lo * Math.exp(ratio * i));
+    let e = ideal;
+    for (const d of [1, -1, 2, -2, 3, -3]) {
+      if (!onEdge(e)) break;
+      e = ideal + d;
+    }
+    if (e > prev && e < last) edges.push(e);
   }
+  edges.push(last);
+  const buckets = edges.slice(0, -1).map((from, i) => {
+    const to = edges[i + 1]!;
+    const count = bases.filter((b) => b >= from * rate && b <= to * rate).length;
+    return { from, to, count };
+  });
   return {
-    min: Math.round(prices[0]!),
-    max: Math.round(prices[prices.length - 1]!),
+    min: first,
+    max: last,
     quantiles: { p33: Math.round(at(1 / 3)), p66: Math.round(at(2 / 3)) },
     buckets,
   };
@@ -479,9 +601,11 @@ export const ATTR_FACET_VALUES = 12;
 
 export interface AttributeFacet {
   key: string;
+  /** Okuyucunun dilinde etiket (i18n Faz 4b); alan adı geriye dönük. */
   nameTr: string;
   unit: string | null;
-  values: { value: string; count: number }[];
+  /** `value` kanonik (Türkçe, süzgeç parametresi); `label` okuyucunun dilinde gösterim. */
+  values: { value: string; label?: string; count: number }[];
 }
 
 /**
@@ -527,7 +651,7 @@ export async function attributeFacets(
       nameTr: d.nameTr,
       unit: d.unit,
       values: [...counts.get(d.key)!.entries()]
-        .map(([value, count]) => ({ value, count }))
+        .map(([value, count]) => ({ value, ...(d.optionLabels?.[value] ? { label: d.optionLabels[value] } : {}), count }))
         .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "tr"))
         .slice(0, ATTR_FACET_VALUES),
     }))
@@ -560,4 +684,20 @@ export function subCategoryCounts(rows: { categoryId: string | null }[], categor
     m.set(key, (m.get(key) ?? 0) + 1);
   }
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * Şehir facet'i (2026-09-27): `cityId` → { city: KALICI ADRES (URL değeri),
+ * name: okuyucunun dilinde ad, country, count }. Web değeri `?sehir=`e yazar,
+ * `name`i çizer. Listede artık olmayan id sayılmaz.
+ */
+export function cityFacet(counts: Map<string, number>): { city: string; name: string; country: string; count: number }[] {
+  const idx = geoIndex();
+  const locale = currentLocale();
+  const out: { city: string; name: string; country: string; count: number }[] = [];
+  for (const [id, count] of counts) {
+    const row = idx.byId(Number(id));
+    if (row) out.push({ city: row.slug, name: idx.label(row, locale), country: row.countryCode, count });
+  }
+  return out.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, locale));
 }

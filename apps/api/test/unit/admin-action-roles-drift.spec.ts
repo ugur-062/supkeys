@@ -15,9 +15,15 @@ import { AdminCompaniesController } from "../../src/modules/admin-companies/admi
 import { AdminCompanyUsersController } from "../../src/modules/admin-companies/admin-company-users.controller";
 import { AdminStaffController } from "../../src/modules/admin-auth/admin-staff.controller";
 import { AdminSystemController } from "../../src/modules/admin-system/admin-system.controller";
+import { AdminInspectionController } from "../../src/modules/admin-companies/admin-inspection.controller";
+import { AdminProductsController } from "../../src/modules/admin-companies/admin-products.controller";
+import { AdminAuditController } from "../../src/modules/admin-audit/admin-audit.controller";
+import { AdminEmailLogsController } from "../../src/modules/email/admin-email-logs.controller";
+import { AdminGrowthController } from "../../src/modules/admin-growth/admin-growth.controller";
 
 const SUPER = ["SUPER_ADMIN"];
 const KYC = ["SUPER_ADMIN", "SALES"];
+const PRODUCT_REVIEW = ["SUPER_ADMIN", "SUPPORT"];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Ctor = { prototype: any };
@@ -58,6 +64,28 @@ const EXPECTED: Record<string, Spec> = {
   timeSavingsConfig: { kind: "method", ctrl: AdminSystemController, method: "updateTimeSavingsConfig", roles: SUPER },
   listSuppressions: { kind: "method", ctrl: AdminSystemController, method: "listSuppressions", roles: KYC },
   resolveCategoryMiss: { kind: "method", ctrl: AdminSystemController, method: "resolveCategoryMiss", roles: KYC },
+  // Derin denetim MU-21: üst çubuktaki global arama SUPPORT'a da çiziliyordu,
+  // her tuşta 403 toast'ı. GET admin/search kapısı matrisle eşlenir.
+  globalSearch: { kind: "method", ctrl: AdminCompaniesController, method: "search", roles: KYC },
+  // Derin denetim LU-11: Genel Bakış "Son Firmalar" paneli SUPPORT'ta da
+  // GET admin/companies çağırıp her açılışta 403 toast'ı basıyordu.
+  listCompanies: { kind: "method", ctrl: AdminCompaniesController, method: "list", roles: KYC },
+  // Derin denetim LU-12: ilan/sipariş müdahalesi, ürün kararı ve kur yenileme
+  // düğmeleri rol kapısızdı. Tek matris aksiyonu birden çok uca karşılık
+  // geliyorsa her uç ayrı satırda ("aksiyon:uç") denetlenir.
+  "listingIntervention:close": { kind: "method", ctrl: AdminInspectionController, method: "closeListing", roles: KYC },
+  "listingIntervention:extend": { kind: "method", ctrl: AdminInspectionController, method: "extendListing", roles: KYC },
+  "listingIntervention:reopen": { kind: "method", ctrl: AdminInspectionController, method: "reopenListing", roles: KYC },
+  cancelOrder: { kind: "method", ctrl: AdminInspectionController, method: "cancelOrder", roles: KYC },
+  "reviewProduct:approve": { kind: "method", ctrl: AdminProductsController, method: "approve", roles: PRODUCT_REVIEW },
+  "reviewProduct:bulkApprove": { kind: "method", ctrl: AdminProductsController, method: "bulkApprove", roles: PRODUCT_REVIEW },
+  "reviewProduct:reject": { kind: "method", ctrl: AdminProductsController, method: "reject", roles: PRODUCT_REVIEW },
+  refreshRates: { kind: "method", ctrl: AdminSystemController, method: "refreshRates", roles: KYC },
+  // Arayüz testi T-09: admin menüsü ve sayfa kapıları da matristen beslenir.
+  viewAuditLogs: { kind: "method", ctrl: AdminAuditController, method: "list", roles: KYC },
+  viewEmailLogs: { kind: "method", ctrl: AdminEmailLogsController, method: "list", roles: KYC },
+  viewGrowth: { kind: "method", ctrl: AdminGrowthController, method: "invites", roles: KYC },
+  viewMembershipReport: { kind: "method", ctrl: AdminCompaniesController, method: "membershipReport", roles: KYC },
 };
 
 describe("admin-action-roles DRIFT NÖBETÇİSİ (matris ↔ backend @RequireAdminRole)", () => {

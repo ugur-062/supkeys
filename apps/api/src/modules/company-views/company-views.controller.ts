@@ -8,6 +8,8 @@ import {
 } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyViewsService } from "./company-views.service";
 
@@ -29,6 +31,11 @@ export class CompanyViewsController {
 
   @Get("insights")
   @RequireCompanyPermission("insights:view")
+  // İş Analizi Silver+ — kapı guard'da: izinsiz STANDART üyeye de önce paket
+  // söylenir (TIER_REQUIRED; web kilit kartı da paket önce). Servisteki
+  // kademe denetimi derinlemesine savunma olarak kalır (arayüz testi T3).
+  @RequireTier("SILVER")
+  @UseGuards(CompanyPaidTierGuard)
   insights(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Query("days") days?: string) {
     return this.service.insights(user, { days: Number(days) || undefined });
   }

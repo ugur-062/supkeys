@@ -62,7 +62,8 @@ beforeEach(async () => {
 describe("setPermissions — kişi başına açık liste", () => {
   it("Kurucu bir Satın Almacı'yı görüntüleyiciye indirir: liste yazılır, roller türetilir, koltuk boşalır, iz + bildirim", async () => {
     const svc = makeUsersService();
-    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // GOLD: satınalma koltuğu yalnız Gold'da sayılır (arayüz testi O-065).
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const sa = await makeUser(prisma, owner.company.id, [CompanyRole.SATIN_ALMACI]);
     const before = await svc.seatUsage(owner.company.id);
     expect(before.used).toBe(3); // kurucu (SA+ST = 2 koltuk) + sa (1) — Faz 5 grup sayımı
@@ -94,7 +95,12 @@ describe("setPermissions — kişi başına açık liste", () => {
 
   it("işlem tiki eklemek koltuk ister: Bronz'da koltuk doluyken onaylayıcıya 'Teklif verme' 400", async () => {
     const svc = makeUsersService();
-    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART" }); // kurucu SA+ST = 2/2 dolu
+    // Kurucu ST + satışçı ST = 2/2 dolu (Gold altında satınalma koltuğu sayılmaz).
+    const owner = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"] as never,
+    });
+    await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
     const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(
       svc.setPermissions(owner.auth, approver.id, ["approval:act", "sell:bid:submit"]),

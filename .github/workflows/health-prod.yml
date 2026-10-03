@@ -41,7 +41,8 @@ jobs:
   saglik:
     name: Canlı sağlık denetimi
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Sürüm yoklaması en çok 15 dk (+ ilk bekleme + denetimler).
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -57,9 +58,15 @@ jobs:
         if: github.event_name == 'push'
         run: sleep 240
 
+      # Push koşumunda beklenen commit verilir: betik API `/health`
+      # sürümü bu SHA'ya eşitlenene dek (en çok 15 dk) yoklar, eşleşmezse
+      # KIRMIZI. Sabit bekleme tek başına yetmiyordu — derleme uzarsa ya da
+      # migration düşerse eski dağıtım yoklanıp yeşil veriliyordu.
       - name: Denetimi koş
         env:
           INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          EXPECTED_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
+          DEPLOY_WAIT_SECONDS: "900"
         run: node apps/web/scripts/prod-health.mjs
 
       - name: SEO denetimini koş

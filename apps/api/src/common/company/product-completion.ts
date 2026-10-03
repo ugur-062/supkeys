@@ -7,10 +7,14 @@ export {
   MIN_DESCRIPTION,
   MIN_NAME,
   productCompletion,
+  productPublishBlockerCodes,
   productPublishBlockers,
+  publishBlockerLabelTr,
 } from "@rothern/shared";
 export type {
   CompletionContext,
   CompletionResult,
   ProductLike,
+  PublishBlocker,
+  PublishBlockerCode,
 } from "@rothern/shared";

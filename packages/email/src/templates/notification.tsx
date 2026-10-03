@@ -1,5 +1,6 @@
 import { Section, Text } from "@react-email/components";
 import * as React from "react";
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
 import type { NotificationData } from "../types";
 import { Button } from "./_components/button";
 import { Heading } from "./_components/heading";
@@ -45,9 +46,17 @@ export function makeNotificationSubject(props: NotificationData): string {
   return props.subject;
 }
 
-export function NotificationEmail(props: NotificationData) {
+/**
+ * Gövde metni ÇAĞIRANDAN gelir (alıcının diliyle üretilmiş başlık/paragraf/CTA)
+ * — burada çeviri yapılmaz. `locale` yalnız kabuğa (Layout altbilgisi + <html
+ * lang>) geçer; verilmezse Türkçe.
+ */
+export function NotificationEmail(props: NotificationData & { locale?: Locale }) {
   return (
-    <Layout preview={props.preview ?? props.heading}>
+    <Layout
+      preview={props.preview ?? props.heading}
+      locale={props.locale ?? DEFAULT_LOCALE}
+    >
       <Heading>{props.heading}</Heading>
 
       {props.paragraphs.map((p, i) => (

@@ -2,6 +2,7 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import type { CompanyRole } from "@/lib/company-auth/types";
+import type { Locale } from "@rothern/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface CompanyTeamUser {
@@ -50,6 +51,8 @@ export interface InviteUserInput {
   /** Yetki tablosu (Faz 4): açık izin listesi; verilirse roller yok sayılır. */
   permissions?: string[];
   roles?: CompanyRole[];
+  /** Davet dili — e-posta + kabul sayfası; yoksa davet edenin kayıtlı dili. */
+  locale?: Locale;
 }
 
 export interface PendingInvitation {
@@ -89,11 +92,25 @@ function invalidateUserCaches(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["company-seats"] });
 }
 
+/**
+ * Davet e-postasının GERÇEK teslim sonucu (2026-09-27) — API davet ve
+ * yeniden gönder yanıtlarında döner. `suppressed`: adres daha önce kalıcı
+ * geri döndü/şikâyet etti (yeniden göndermek işe yaramaz); `failed`:
+ * sağlayıcı hatası (yeniden gönder denenebilir). Eski API alanı döndürmez →
+ * `emailSent` yoksa "gönderildi" varsayılır.
+ */
+export interface InvitationEmailResult {
+  emailSent?: boolean;
+  emailFailureReason?: "suppressed" | "failed";
+}
+
 export function useInviteUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: InviteUserInput) => {
-      const { data } = await companyApi.post("/company/users", input);
+      const { data } = await companyApi.post<
+        { id: string; email: string; expiresAt: string } & InvitationEmailResult
+      >("/company/users", input);
       return data;
     },
     onSuccess: () => invalidateUserCaches(qc),
@@ -130,7 +147,7 @@ export function useResendInvitation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await companyApi.post(
+      const { data } = await companyApi.post<{ ok: true } & InvitationEmailResult>(
         `/company/users/invitations/${id}/resend`,
       );
       return data;
@@ -192,14 +209,22 @@ export function useSetUserPermissions() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, permissions }: { id: string; permissions: string[] }) => {
+      // Tek çağıran (Kullanıcıyı Düzenle) hatayı kendi toast'unda bağlamıyla
+      // gösterir → global 400/409 toast'u ikinci kez basmasın (webC-07 NEW-1).
       const { data } = await companyApi.put<{
         ok: boolean;
         permissions: string[];
         roles: CompanyRole[];
-      }>(`/company/users/${id}/permissions`, { permissions });
+      }>(`/company/users/${id}/permissions`, { permissions }, { skipErrorToast: true });
       return data;
     },
-    onSuccess: () => invalidateUserCaches(qc),
+    onSuccess: () => {
+      invalidateUserCaches(qc);
+      // Kurucu KENDİ işlem tiklerini düzenleyebilir; sunucu kişinin kendi
+      // değişikliği için "Firma yöneticiniz yetkilerinizi değiştirdi"
+      // bildirimini artık yollamıyor (arayüz testi Y-13) → /me burada tazelenir.
+      qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+    },
   });
 }
 
@@ -218,10 +243,24 @@ export function useUpdateUser() {
       // Kuruculuk devrinde eski Kurucu'nun yeni rolü.
       previousOwnerRoles?: CompanyRole[];
     }) => {
-      const { data } = await companyApi.patch(`/company/users/${id}`, payload);
+      // Çağıran (Kullanıcıyı Düzenle / kuruculuk devri) hatayı kendi toast'unda
+      // gösterir; kısmi başarıda ("yetkiler kaydedildi, ancak …") global
+      // interceptor ham mesajı ikinci toast olarak basıyordu (webC-07 NEW-1).
+      const { data } = await companyApi.patch(`/company/users/${id}`, payload, {
+        skipErrorToast: true,
+      });
       return data;
     },
-    onSuccess: () => invalidateUserCaches(qc),
+    onSuccess: (_data, vars) => {
+      invalidateUserCaches(qc);
+      // Kuruculuk devri EYLEMİ YAPANIN yetkisini de düşürür (isOwner,
+      // billing:manage, users:manage); sunucu `permissions_changed`i yalnız
+      // yeni Kurucuya yollar → eski Kurucunun /me'si burada tazelenir, menü ve
+      // kapılar sayfa yenilenmeden yeni rolüyle çizilir (derin denetim MU-13).
+      if (vars.roles?.includes("SAHIP" as CompanyRole)) {
+        qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+      }
+    },
   });
 }
 

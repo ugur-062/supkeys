@@ -10,6 +10,7 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /**
  * Pazar yeri liste sorgusu — TAMAMEN anonim, hiçbir alan kimliğe bağlı değil.
@@ -33,7 +34,7 @@ export class PublicListQueryDto {
 
   /** Tam 8 haneli kategori kodu (Category.id). */
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, { message: () => tApi("api.dto.publicListQuery.kategoriKodu8HaneliOlmali") })
   category?: string;
 
   /** Şehir — virgüllü çoklu (PROMPT 4, 2026-09-06; tek değer geriye uyumlu). */
@@ -101,7 +102,7 @@ export class PublicListFacetQueryDto {
   q?: string;
 
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, { message: () => tApi("api.dto.publicListQuery.kategoriKodu8HaneliOlmali") })
   category?: string;
 
   @IsOptional()

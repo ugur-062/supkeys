@@ -1,5 +1,6 @@
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import type { CompanyTier } from "@/lib/company-auth/types";
+import { formatNumber, intlLocale } from "@/i18n/format";
 
 /**
  * PAKET KATALOĞU — TEK KAYNAK (2026-09-15).
@@ -17,6 +18,10 @@ import type { CompanyTier } from "@/lib/company-auth/types";
  * tutarı farklı ve henüz açıklanmadı — bu yüzden burada YOK; satın alma ekranı
  * yalnız yıllık dönemi hesaplar. (Fiyatların kendisi kullanıcı kararı bekliyor;
  * değişirse yalnız bu dosya değişir.)
+ *
+ * METİN i18n Faz 1'de KATALOĞA da yazıldı (`web.pricing.plans.*`); pazarlama
+ * sayfası `usePricingPlans` ile oradan okur, panel hâlâ buradan (Faz 2'de
+ * geçer). İki kaynak `__tests__/plans-i18n.test.ts` ile birebir tutulur.
  */
 export interface PricingPlan {
   tier: CompanyTier;
@@ -54,12 +59,13 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     monthlyUsd: 160,
     tagline: "Tedarikçi paketi: görün, davet al, teklif ver, ürünlerini sergile.",
     features: [
-      "“Doğrulanmış” rozeti ve dizinde öncelikli sıra",
+      "Firma dizininde öncelikli sıra",
       "Sınırsız ürün, ürün belgesi (PDF) ve video",
       "Herkese açık satın alma taleplerine sınırsız teklif",
+      "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
       "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
       "Ziyaret Edenler ve İş Analizi",
-      "Yapay zekâ: belgeden fiyatlama, AI ile talep arama",
+      "Yapay zekâ: belgeden fiyatlama, AI ile talep arama, sohbet asistanı",
       "4 satış koltuğu",
     ],
     cta: "Silver'a Başla",
@@ -74,8 +80,8 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       "Silver'ın tamamı",
       "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
       "Kazandırma, onay akışları, raporlar & şablonlar",
-      "Yapay zekâ — belgeden talep taslağı, sohbet asistanı, tedarikçi keşfi",
-      "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
+      "Yapay zekâ — belgeden talep taslağı, asistana belge ekleme, tedarikçi keşfi",
+      "“Gold Üye” rozeti — profilde, firma dizininde ve ürünlerde güven işareti",
       "6 koltuk (satınalma ve satış)",
     ],
     cta: "Gold'a Başla",
@@ -83,7 +89,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
 ];
 
 export const PRICING_NOTE =
-  "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme 6 aylık veya yıllık dönem için peşin alınır; aylık faturalama yoktur. 6 aylık dönemde aylık tutar farklıdır.";
+  "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme yıllık dönem için peşin alınır; aylık faturalama yoktur.";
 
 export function planBySlug(slug: string | null | undefined): PricingPlan | null {
   return PRICING_PLANS.find((p) => p.slug === slug?.toLowerCase()) ?? null;
@@ -93,7 +99,15 @@ export function planByTier(tier: CompanyTier): PricingPlan {
   return PRICING_PLANS.find((p) => p.tier === tier) ?? PRICING_PLANS[0]!;
 }
 
-/** "$1.920" — Türkçe binlik ayraç, USD. */
-export function formatUsd(amount: number): string {
-  return `$${amount.toLocaleString("tr-TR")}`;
+/**
+ * "$1.920" (TR) / "$1,920" (EN) / "1 920 $" (RU) — USD, arayüz dilinin yerel
+ * biçimiyle: binlik ayracı da simgenin yeri de dile göre. Sabit `$${n}`
+ * şablonu Rusçada "$160" basıyordu (arayüz testi D-078). Simge yeri ELLE
+ * (Intl `currency` biçimi değil): sayfa sunucuda da çizilir, sunucu/tarayıcı
+ * ICU boşluk farkı hidrasyon uyuşmazlığı üretmesin (bkz. `i18n/format.ts`).
+ */
+const USD_SUFFIX_LOCALES = new Set(["ru-RU"]);
+export function formatUsd(amount: number, locale: string): string {
+  const n = formatNumber(amount, locale, { maximumFractionDigits: 2 });
+  return USD_SUFFIX_LOCALES.has(intlLocale(locale)) ? `${n}\u00a0$` : `$${n}`;
 }

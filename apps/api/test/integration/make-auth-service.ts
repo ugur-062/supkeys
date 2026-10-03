@@ -23,6 +23,10 @@ export function makeAuthService(env: Record<string, string> = {}) {
       return { authId };
     }),
     updatePassword: jest.fn(async () => undefined),
+    updateEmail: jest.fn(async (authId: string, newEmail: string) => {
+      for (const [e, id] of byEmail) if (id === authId) byEmail.delete(e);
+      byEmail.set(newEmail.toLowerCase().trim(), authId);
+    }),
   };
   const audit = { log: jest.fn(async () => undefined) };
   const email = { send: jest.fn(async () => ({ emailLogId: "x", sent: true })) };

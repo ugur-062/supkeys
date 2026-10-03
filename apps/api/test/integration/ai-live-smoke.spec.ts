@@ -31,6 +31,13 @@ class FakeStorage {
     if (!f) throw new Error("NoSuchKey");
     return f;
   }
+  // Servis yüklemeden sonra HEAD ile boyut/içerik tipini okur (denetim
+  // 2026-08-24 Parça 5); canlı test varsayılan atlandığı için rig bayatlamıştı
+  // (yayın denetimi 2026-09-28 Bölüm 8).
+  async checkExists(_bucket: string, key: string): Promise<{ exists: boolean; size?: number; contentType?: string }> {
+    const f = this.files.get(key);
+    return f ? { exists: true, size: f.length, contentType: "application/pdf" } : { exists: false };
+  }
 }
 
 const SPEC_TEXT =

@@ -82,6 +82,21 @@ describe("bağlantı yaşam döngüsü", () => {
     expect(outgoing[0]!.company.id).toBe(b.company.id);
     const incoming = await service.listIncoming(b.company.id);
     expect(incoming).toHaveLength(1);
+    // Arayüz testi D-266: karar için kart alanları (şehir/sektör/Doğrulanmış) gelir.
+    const aRow = await prisma.company.findUniqueOrThrow({
+      where: { id: a.company.id },
+      select: { city: true, industry: true, companyVerificationStatus: true },
+    });
+    expect(incoming[0]!.company).toEqual(
+      expect.objectContaining({
+        id: a.company.id,
+        city: aRow.city,
+        industry: aRow.industry,
+        verified: aRow.companyVerificationStatus === "VERIFIED",
+      }),
+    );
+    expect(incoming[0]!.company).not.toHaveProperty("taxNumber");
+    expect(outgoing[0]!.company).toHaveProperty("city");
 
     await service.accept(b.auth, res.id);
     expect(notifications.pushToCompany).toHaveBeenCalledWith(
@@ -94,6 +109,27 @@ describe("bağlantı yaşam döngüsü", () => {
     expect(aList.map((c) => c.company.id)).toEqual([b.company.id]);
     expect(bList.map((c) => c.company.id)).toEqual([a.company.id]);
     expect(await service.listOutgoing(a.company.id)).toHaveLength(0);
+  });
+
+  it("bağlantı isteği e-postası genel panele değil portalın Gelen istekler görünümüne götürür (arayüz testi D-114)", async () => {
+    const { service, email } = rig();
+    const { a, bCode } = await twoCompanies();
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const stdCode = await giveRothernId(std.company.id);
+    await service.invite(a.auth, bCode);
+    await service.invite(a.auth, stdCode);
+    type Sent = { context: { type: string }; templateData: { data: { ctaUrl: string } } };
+    const requestMails = () =>
+      email.send.mock.calls.map((c) => c[0] as Sent).filter((m) => m.context.type === "connection_request");
+    // E-posta best-effort (`void`) — gönderimi bekle.
+    for (let i = 0; i < 100 && requestMails().length < 2; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    // Gold alıcı → Tedarikçilerim; ücretsiz alıcı (satınalma portalı yok) → Müşterilerim.
+    expect(requestMails().map((m) => m.templateData.data.ctaUrl).sort()).toEqual([
+      "http://localhost:3000/company/satinalma/tedarikcilerim?view=incoming",
+      "http://localhost:3000/company/satis/musterilerim?view=incoming",
+    ]);
   });
 
   it("T2 (INV-TIER-1): inviter üyeliği dolunca bağlantı listede PASİF (CL:connectedCompanyIds birebir)", async () => {
@@ -319,6 +355,67 @@ describe("e-posta daveti + referral", () => {
     expect(await service.listReferralInvites(a.company.id)).toHaveLength(0);
   });
 
+  it("aynı adrese 7 gün içinde ikinci referral daveti ALREADY_INVITED; başarısız gönderim freni tetiklemez", async () => {
+    const { service, email } = rig();
+    const { a } = await twoCompanies();
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    const first = await service.inviteByEmail(a.auth, "tekrar@firma.com");
+    expect(first).toMatchObject({ kind: "invited", delivery: "FAILED", emailSent: false });
+    // Başarısız gönderim (e-posta kaydı yok / FAILED) → yeniden denenebilir.
+    const second = await service.inviteByEmail(a.auth, "tekrar@firma.com");
+    expect(second).toMatchObject({ kind: "invited", delivery: "SENT", emailSent: true });
+    // Gerçek servis e-posta kaydı yazar; sahte gönderimde elle kurulur.
+    const inv = await prisma.companyReferralInvite.findFirstOrThrow({
+      where: { inviterCompanyId: a.company.id, email: "tekrar@firma.com" },
+    });
+    await prisma.emailLog.create({
+      data: {
+        template: "referral_invite",
+        toEmail: "tekrar@firma.com",
+        subject: "x",
+        provider: "resend",
+        status: "SENT",
+        contextType: "referral_invite",
+        contextId: inv.id,
+      },
+    });
+    await expect(service.inviteByEmail(a.auth, "tekrar@firma.com")).rejects.toMatchObject({
+      response: { code: "ALREADY_INVITED" },
+    });
+  });
+
+  it("davet DİLİ: seçilen dil kayda + e-postaya; yeniden gönderim kayıttaki dille (2026-09-27)", async () => {
+    const { service, email } = rig();
+    const { a } = await twoCompanies();
+    // Türk alıcı Kazak tedarikçiyi davet eder: ekranda Rusça seçildi.
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    await service.inviteByEmail(a.auth, "zakupki@zavod.kz", "ru");
+    const inv = await prisma.companyReferralInvite.findFirstOrThrow({
+      where: { inviterCompanyId: a.company.id, email: "zakupki@zavod.kz" },
+    });
+    expect(inv.locale).toBe("ru");
+    // İlk gönderim düştü → yeniden (dil verilmeden) → kayıttaki Rusça.
+    await service.inviteByEmail(a.auth, "zakupki@zavod.kz");
+    const call = email.send.mock.calls.at(-1)?.[0] as {
+      locale: string;
+      templateData: { data: { registerUrl: string } };
+    };
+    expect(call.locale).toBe("ru");
+    expect(call.templateData.data.registerUrl).toContain("/ru/kompaniya/registratsiya?ref=");
+
+    // Dil verilmeyen yeni adres: uzantıdan (.kz → ru), genel uzantı → davet edenin dili (tr).
+    await service.inviteByEmailBatch(a.auth, ["satis@firma.kz", { email: "info@firma.com" }]);
+    const rows = await prisma.companyReferralInvite.findMany({
+      where: { inviterCompanyId: a.company.id, email: { in: ["satis@firma.kz", "info@firma.com"] } },
+      select: { email: true, locale: true },
+      orderBy: { email: "asc" },
+    });
+    expect(rows).toEqual([
+      { email: "info@firma.com", locale: "tr" },
+      { email: "satis@firma.kz", locale: "ru" },
+    ]);
+  });
+
   it("pasif firmanın kullanıcı e-postası → anlamlı hata (boşa referral maili gitmez)", async () => {
     const { service, email } = rig();
     const { a, b } = await twoCompanies();
@@ -359,7 +456,7 @@ describe("toplu e-posta daveti", () => {
       c.user.email, // zaten bağlı → atlanır
     ]);
 
-    expect(res.summary).toEqual({ request: 1, invited: 1, skipped: 2 });
+    expect(res.summary).toEqual({ request: 1, invited: 1, skipped: 2, failed: 0 });
     const byEmail = new Map(res.results.map((r) => [r.email, r]));
     expect(byEmail.get(b.user.email)?.status).toBe("request");
     expect(byEmail.get("yeni@firma.com")?.status).toBe("invited");
@@ -503,6 +600,51 @@ describe("firma profili — adres biçimi", () => {
   });
 });
 
+describe("KVKK: şahıs firmasının vergi no'su (=TCKN) karşı firmaya açılmaz (derin denetim Y-06)", () => {
+  const TCKN = "10000000146";
+
+  it("panel profili: SOLE_PROPRIETOR'da trade.taxNumber null (başkası da kendisi de); tüzel kişide açık", async () => {
+    const { service } = rig();
+    const { a, b, aCode, bCode } = await twoCompanies();
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { companyType: "SOLE_PROPRIETOR", taxNumber: TCKN, publicEnabled: true },
+    });
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { companyType: "LIMITED", taxNumber: "1234567890", publicEnabled: true },
+    });
+
+    const foreign = await service.getProfile(a.auth, bCode);
+    expect(foreign.profile.trade.taxNumber).toBeNull();
+    expect(JSON.stringify(foreign)).not.toContain(TCKN);
+    // Kendi panel profili de TCKN basmaz — tam değer yalnız Ayarlar'da
+    // (company:manage); burası o kapıyı delmemeli.
+    const self = await service.getProfile(b.auth, bCode);
+    expect(self.profile.trade.taxNumber).toBeNull();
+
+    // Tüzel kişinin vergi no'su ticari sicil verisi: açık kalır.
+    const legal = await service.getProfile(b.auth, aCode);
+    expect(legal.profile.trade.taxNumber).toBe("1234567890");
+  });
+
+  it("bağlantı kartı (list) vergi no taşımaz", async () => {
+    const { service } = rig();
+    const { a, b, bCode } = await twoCompanies();
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { companyType: "SOLE_PROPRIETOR", taxNumber: TCKN },
+    });
+    const inv = await service.invite(a.auth, bCode);
+    await service.accept(b.auth, inv.id);
+
+    const listed = await service.list(a.company.id);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]!.company).not.toHaveProperty("taxNumber");
+    expect(JSON.stringify(listed)).not.toContain(TCKN);
+  });
+});
+
 describe("STANDARD premium kapıları — davet + dizin", () => {
   it("STANDARD e-posta ile davet gönderemez (tekli + toplu)", async () => {
     const { service } = rig();
@@ -625,8 +767,13 @@ describe("profil talep listesi — ücretsiz izleyen (2026-09-06)", () => {
       visibility: "PUBLIC",
     });
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART", country: "TR" });
-    const before = (await service.getProfile(std.auth, targetCode)) as { listings: { id: string }[] };
+    const before = (await service.getProfile(std.auth, targetCode)) as {
+      listings: { id: string }[];
+      lockedListingCount: number;
+    };
     expect(before.listings.map((l) => l.id)).not.toContain(listing.id);
+    // Arayüz testi D-329: gizleme kasıtlı, ama "açık talep yok" yerine gerçek sayı.
+    expect(before.lockedListingCount).toBe(1);
 
     await prisma.companyConnection.create({
       data: {
@@ -638,12 +785,51 @@ describe("profil talep listesi — ücretsiz izleyen (2026-09-06)", () => {
         decidedAt: new Date(),
       },
     });
-    const after = (await service.getProfile(std.auth, targetCode)) as { listings: { id: string }[] };
+    const after = (await service.getProfile(std.auth, targetCode)) as {
+      listings: { id: string }[];
+      lockedListingCount: number;
+    };
     expect(after.listings.map((l) => l.id)).toContain(listing.id);
+    expect(after.lockedListingCount).toBe(0);
 
     const silver = await makeCompanyWithUser(prisma, { tier: "SILVER", country: "TR" });
-    const paidView = (await service.getProfile(silver.auth, targetCode)) as { listings: { id: string }[] };
+    const paidView = (await service.getProfile(silver.auth, targetCode)) as {
+      listings: { id: string }[];
+      lockedListingCount: number;
+    };
     expect(paidView.listings.map((l) => l.id)).toContain(listing.id);
+    expect(paidView.lockedListingCount).toBe(0);
+  });
+
+  it("kilit sayısı davetli olunan PUBLIC talebi saymaz (zaten listede) — D-329", async () => {
+    const { service } = rig();
+    const target = await makeCompanyWithUser(prisma, { tier: "GOLD", country: "TR" });
+    const targetCode = await giveRothernId(target.company.id);
+    await prisma.company.update({ where: { id: target.company.id }, data: { publicEnabled: true } });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART", country: "TR" });
+    const invited = await makeListing(prisma, {
+      companyId: target.company.id,
+      createdById: target.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+    });
+    await makeListing(prisma, {
+      companyId: target.company.id,
+      createdById: target.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+    });
+    await prisma.listingInvitation.create({
+      data: { listingId: invited.id, invitedCompanyId: std.company.id, invitedById: target.user.id },
+    });
+    const prof = (await service.getProfile(std.auth, targetCode)) as {
+      listings: { id: string }[];
+      lockedListingCount: number;
+    };
+    expect(prof.listings.map((l) => l.id)).toEqual([invited.id]);
+    expect(prof.lockedListingCount).toBe(1);
   });
 
   it("GEÇERSİZ bağlantı (kuran taraf ücretsiz) profilde talep açmaz — tek kaynak hasValidConnection (denetim #2)", async () => {
@@ -789,5 +975,129 @@ describe("F-CONN-1: getProfile ihale görünürlüğü — PRIVATE yalnız davet
 
     const prof = await service.getProfile(b.auth, aCode);
     expect(prof.listings.map((l) => l.id)).toEqual([pub.id]);
+  });
+});
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 5: günlük referral tavanı (50) gönderim
+ * DENEMESİNDEN sayılır ama toplu davet önce tüm adresleri hazırlayıp SONRA
+ * gönderiyordu → hazırlık anında hiçbiri sayılmıyordu (49 + 50 = 99). DTO
+ * doğrulaması atlatıldığında da parti tavanı yoktu. İkisi serviste kapandı.
+ */
+describe("toplu e-posta daveti — günlük tavan ve parti tavanı (serviste)", () => {
+  async function seedSentToday(inviterCompanyId: string, invitedById: string, n: number) {
+    for (let i = 0; i < n; i++) {
+      const inv = await prisma.companyReferralInvite.create({
+        data: { inviterCompanyId, invitedById, email: `onceki${i}@firma.com` },
+      });
+      await prisma.emailLog.create({
+        data: {
+          template: "referral_invite",
+          toEmail: inv.email,
+          subject: "davet",
+          provider: "test",
+          status: "SENT",
+          contextType: "referral_invite",
+          contextId: inv.id,
+        },
+      });
+    }
+  }
+
+  it("bugün 49 davet gitmişse partideki 3 adresten YALNIZ 1'i gönderilir, kalanı DAILY_LIMIT", async () => {
+    const { service, email } = rig();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await seedSentToday(a.company.id, a.user.id, 49);
+
+    const res = await service.inviteByEmailBatch(a.auth, ["y1@firma.com", "y2@firma.com", "y3@firma.com"]);
+
+    expect(res.results.map((r) => r.code)).toEqual(["SENT", "DAILY_LIMIT", "DAILY_LIMIT"]);
+    expect(res.summary.invited).toBe(1);
+    const referralSends = email.send.mock.calls.filter(
+      (c) => (c[0] as { templateData?: { template?: string } })?.templateData?.template === "referral_invite",
+    );
+    expect(referralSends).toHaveLength(1);
+  });
+
+  it("DTO atlatılsa bile tek istekte 50'den fazla adres reddedilir; hiçbir davet kaydı ya da e-posta oluşmaz", async () => {
+    const { service, email } = rig();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const many = Array.from({ length: 51 }, (_, i) => `toplu${i}@firma.com`);
+
+    await expect(service.inviteByEmailBatch(a.auth, many)).rejects.toThrow(/50/);
+    expect(await prisma.companyReferralInvite.count({ where: { inviterCompanyId: a.company.id } })).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("panel profil — başka firmanın ürün/talep içeriği okuyucunun dilinde (derin denetim S025)", () => {
+  it("başka firmanın profilinde ürün adları ve talep başlıkları localize edilir; kendi profili ham kalır", async () => {
+    const { service: base } = rig();
+    const translations = {
+      localizeCompanies: jest.fn(async (items: object[]) => items),
+      localizeListings: jest.fn(async (items: { title: string }[], ids: string[]) =>
+        items.map((it, i) => ({ ...it, title: `EN:${ids[i]}`, translatedFrom: "tr" })),
+      ),
+      localizeProducts: jest.fn(async (items: { name: string }[], ids: string[]) =>
+        items.map((it, i) => ({ ...it, name: `EN:${ids[i]}`, translatedFrom: "tr" })),
+      ),
+    };
+    const b0 = base as unknown as Record<string, unknown>;
+    const service = new CompanyConnectionsService(
+      b0.prisma as never,
+      b0.bypass as never,
+      b0.blocks as never,
+      b0.email as never,
+      b0.config as never,
+      b0.notifications as never,
+      b0.audit as never,
+      undefined,
+      translations as never,
+    );
+    const { a, b, bCode } = await twoCompanies();
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { publicEnabled: true, slug: `s025-${b.company.id.slice(0, 8)}` },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: b.company.id,
+      createdById: b.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      title: "Çelik boru alımı",
+    });
+    const product = await prisma.companyItem.create({
+      data: {
+        companyId: b.company.id,
+        createdById: b.user.id,
+        name: "M6 Cıvata Paslanmaz",
+        unit: "adet",
+        isActive: true,
+        isPublic: true,
+        reviewStatus: "APPROVED",
+        slug: `m6-civata-${b.company.id.slice(0, 8)}`,
+        publishedAt: new Date(),
+      },
+    });
+
+    const foreign = (await service.getProfile(a.auth, bCode)) as {
+      listings: { id: string; title: string }[];
+      products: { slug: string; name: string }[];
+    };
+    expect(foreign.listings.find((l) => l.id === listing.id)?.title).toBe(`EN:${listing.id}`);
+    // Kart iç kimliği taşımaz — eşleme slug ile, çeviri anahtarı ürün id'si.
+    expect(foreign.products.find((p) => p.slug === product.slug)?.name).toBe(`EN:${product.id}`);
+
+    translations.localizeListings.mockClear();
+    translations.localizeProducts.mockClear();
+    const self = (await service.getProfile(b.auth, bCode)) as {
+      listings: { id: string; title: string }[];
+      products: { slug: string; name: string }[];
+    };
+    expect(self.listings.find((l) => l.id === listing.id)?.title).toBe("Çelik boru alımı");
+    expect(self.products.find((p) => p.slug === product.slug)?.name).toBe("M6 Cıvata Paslanmaz");
+    expect(translations.localizeListings).not.toHaveBeenCalled();
+    expect(translations.localizeProducts).not.toHaveBeenCalled();
   });
 });

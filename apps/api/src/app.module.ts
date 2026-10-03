@@ -7,12 +7,14 @@ import { SentryModule } from "@sentry/nestjs/setup";
 import { ServerErrorSentryFilter } from "./common/logging/server-error-sentry.filter";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
-import { THROTTLE_MESSAGE } from "./common/http/throttle-message";
+import { throttleMessage } from "./common/http/throttle-message";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
-import { maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
+import { serializeRequestForLog } from "./common/logging/request-log-serializer";
 import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
 import { CsrfGuard } from "./common/auth/csrf.guard";
+import { I18nModule } from "./common/i18n/i18n.service";
+import { LocaleMiddleware } from "./common/i18n/locale.middleware";
 import { RequestContextMiddleware } from "./common/logging/request-context.middleware";
 import { TenantContextMiddleware } from "./common/tenant/tenant-context.middleware";
 import { TenantContextInterceptor } from "./common/tenant/tenant-context.interceptor";
@@ -26,6 +28,8 @@ import { CronRegistryModule } from "./common/cron/cron-registry.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { SeoIndexModule } from "./modules/seo-index/seo-index.module";
+import { ContentTranslationModule } from "./modules/content-translation/content-translation.module";
+import { GeoModule } from "./modules/geo/geo.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
 import { CompanyBidDocumentsModule } from "./modules/company-bid-documents/company-bid-documents.module";
@@ -65,6 +69,8 @@ import { HealthModule } from "./modules/health/health.module";
 import { NotificationModule } from "./modules/notifications/notification.module";
 import { PasswordResetModule } from "./modules/password-reset/password-reset.module";
 import { ResendWebhookModule } from "./modules/resend-webhook/resend-webhook.module";
+import { EmailProgramsModule } from "./modules/email-programs/email-programs.module";
+import { AdminGrowthModule } from "./modules/admin-growth/admin-growth.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module";
 
@@ -92,17 +98,22 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
             : undefined,
         // Denetim 2026-08-23 #6: path/query'de taşınan davet/referral/sıfırlama
         // token'ları access-log'a düşmesin — url maskelenir (saf fonksiyon).
+        // Derin denetim MU-12: başlıklar izinli listeyle yazılır — x-rothern-ssr
+        // (SEO_REVALIDATE_SECRET) her SSR satırına düz metin düşüyordu.
         serializers: {
-          req: (req: Record<string, unknown>) => ({
-            ...req,
-            url: maskSensitiveUrl(req.url as string | undefined),
-          }),
+          req: serializeRequestForLog,
         },
         redact: {
           paths: [
             "req.headers.authorization",
             "req.headers.cookie",
             "req.headers[\"cf-connecting-ip\"]",
+            'req.headers["x-rothern-ssr"]',
+            'req.headers["x-csrf-token"]',
+            'req.headers["svix-signature"]',
+            'req.headers["x-forwarded-for"]',
+            'req.headers["true-client-ip"]',
+            'req.headers["x-real-ip"]',
             'res.headers["set-cookie"]',
             "req.body.password",
             "req.body.currentPassword",
@@ -152,7 +163,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     // kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi
     // (2026-09-19 incelemesinde staging giriş ekranında görüldü).
     ThrottlerModule.forRoot({
-      errorMessage: THROTTLE_MESSAGE,
+      errorMessage: () => throttleMessage(),
       throttlers: [
         {
           name: "default",
@@ -167,6 +178,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
       ],
     }),
     PrismaModule,
+    // Çok dillilik: istek dili ALS + çevirmen (global). bkz. docs/plan-i18n.md
+    I18nModule,
     // Altyapı (paylaşılan)
     SupabaseAuthModule,
     EmailModule,
@@ -176,6 +189,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     PasswordResetModule,
     AuditModule,
     SeoIndexModule,
+    ContentTranslationModule,
+    GeoModule,
     HealthModule,
     // Admin
     AdminAuthModule,
@@ -220,6 +235,10 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     PublicProfileModule,
     // Faz AI-0 — AI altyapısı (sağlayıcı adapteri + bütçe + kullanım ekranı)
     AiModule,
+    // Günlük e-posta programı (2026-09-27, Faz 2).
+    EmailProgramsModule,
+    // Büyüme ölçümü — yönetici davet hunisi (2026-09-27, Faz 4).
+    AdminGrowthModule,
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.
@@ -248,8 +267,10 @@ export class AppModule implements NestModule {
     // satırı üretmez → health gürültüsü artmaz).
     // TenantContextMiddleware ÖNCE: als.run tüm isteği (RequestContext dahil
     // guard/interceptor/handler) sarar → tenant bağlamı her yerde erişilebilir.
+    // LocaleMiddleware EN ÖNCE: Accept-Language → dil ALS'i; hata mesajları ve
+    // doğrulama metinleri istek boyunca bu dilde üretilir (docs/plan-i18n.md).
     consumer
-      .apply(TenantContextMiddleware, RequestContextMiddleware)
+      .apply(LocaleMiddleware, TenantContextMiddleware, RequestContextMiddleware)
       .forRoutes("*");
   }
 }

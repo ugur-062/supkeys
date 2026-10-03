@@ -1,5 +1,8 @@
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { AccentButton } from "@/components/ui/accent-fill";
+import { localizePath } from "@/i18n/href";
 
 /**
  * Arama — DÜZ HTML FORM, client JS yok.
@@ -12,11 +15,17 @@ import { AccentButton } from "@/components/ui/accent-fill";
  * Görünüm Application UI "Forms / Input groups" deseni: `ring-1 ring-inset`
  * + `focus-within:ring-2`. Sarmalayıcıya odak halkası vermek, ikon ve alanın
  * TEK bir kontrol gibi okunmasını sağlıyor.
+ *
+ * `action` İÇ (Türkçe) yoldur; forma aktif dilin DIŞ yolu basılır
+ * (`/urunler` + en → `/en/products`). Düz form next-intl sarmalayıcısından
+ * geçmez ve `localeDetection: false` ile ön eksiz adres her zaman `tr`
+ * çözülür — çevrilmeseydi EN/RU ziyaretçi aramada Türkçe siteye düşerdi
+ * (derin denetim Y-17).
  */
 export function SearchForm({
   action,
   defaultValue,
-  placeholder = "Ne arıyorsunuz? (ürün, hizmet, malzeme)",
+  placeholder,
   hidden,
   hiddenList,
   size = "md",
@@ -35,9 +44,11 @@ export function SearchForm({
   /** `lg` = hero (daha yüksek ve gölgeli). */
   size?: "md" | "lg";
 }) {
+  const t = useTranslations("web.marketplace.search");
+  const locale = useLocale() as Locale;
   const lg = size === "lg";
   return (
-    <form action={action} method="get" role="search" className="w-full">
+    <form action={localizePath(action, locale)} method="get" role="search" className="w-full">
       {Object.entries(hidden ?? {}).map(([k, v]) =>
         v ? <input key={k} type="hidden" name={k} value={v} /> : null,
       )}
@@ -59,9 +70,11 @@ export function SearchForm({
           <input
             type="search"
             name="q"
+            // API arama sınırı (arayüz testi D-056) — aşan metin 400 alıp boş liste gösteriyordu.
+            maxLength={120}
             defaultValue={defaultValue}
-            placeholder={placeholder}
-            aria-label="Pazar yerinde ara"
+            placeholder={placeholder ?? t("placeholder")}
+            aria-label={t("ariaLabel")}
             className={`w-full rounded-full bg-transparent pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400 ${
               lg ? "h-14" : "h-12"
             }`}
@@ -73,7 +86,7 @@ export function SearchForm({
             lg ? "h-14 px-7 text-sm" : "h-12 px-6 text-sm"
           }`}
         >
-          Ara
+          {t("submit")}
         </AccentButton>
       </div>
     </form>

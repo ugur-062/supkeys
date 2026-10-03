@@ -1,22 +1,32 @@
 "use client";
 
-import { useCompanyAuth, useCompanyMe } from "@/hooks/use-company-auth";
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
+import {
+  useCompanyAuth,
+  useCompanyMe,
+  useCompanyPermissionsSynced,
+} from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
   COMPANY_AREA,
   PORTALS,
   accessiblePortals,
-  activePortalFromPath,
   isCompanyAreaPath,
   type PortalKey,
 } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import * as Headless from "@headlessui/react";
 import { X } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname } from "@/i18n/navigation";
+import { useEffect, useState } from "react";
+import { noteNavigation } from "@/lib/nav-history";
 import { AssistantLauncher } from "./assistant/assistant-launcher";
-import { CompanySidebarContent } from "./sidebar";
+import {
+  CompanySidebarContent,
+  resolveActivePortal,
+  viewablePortals,
+} from "./sidebar";
 import { CompanyTopbar } from "./topbar";
 import { ButtonAccentProvider, accentForPortal } from "@/components/ui/button-accent";
 
@@ -25,6 +35,8 @@ const RAIL = "4.5rem"; // 72px
 const RAIL_EXPANDED = "16rem"; // 256px
 
 export function CompanyShell({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("web.panel.shell.shell");
+  const tn = useNavLabel();
   // Login sonrası /me ile firma + roller tazelenir.
   useCompanyMe();
   const pathname = usePathname();
@@ -34,14 +46,28 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const [hovered, setHovered] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // D-299: sayfa içeriği izinler /me ile tazelenince çizilir — kalıcı anlık
+  // görüntüdeki BAYAT izinlerle (ör. az önce kaldırılan satış izni) izinli
+  // sorgular atılıp 403 tostları çıkıyordu. Kabuk (üst çubuk, menü) anlık
+  // görüntüyle hemen boyanır; yalnız içerik bir /me turu bekler (SPA
+  // gezinmesinde bayrak zaten true). /me hata verirse beklenmez.
+  const permissionsSynced = useCompanyPermissionsSynced();
   const available = accessiblePortals(user, company?.tier);
-  const activePortal: PortalKey =
-    activePortalFromPath(pathname) ??
-    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
-    available[0] ??
-    "satis";
+  // Etkin portal sol menüyle AYNI kuraldan (D-159).
+  const activePortal: PortalKey = resolveActivePortal(
+    pathname,
+    viewablePortals(user),
+    available,
+    lastPortal,
+  );
 
   const expanded = pinned || hovered;
+
+  // "Geri" bağlantıları için uygulama içi gezinme izi (D-156): referrer SPA
+  // gezinmede değişmez, adres değişimini burada kaydederiz.
+  useEffect(() => {
+    noteNavigation();
+  }, [pathname]);
 
   return (
     /* Birincil düğme rengi aktif portaldan (satınalma mavi, satış emerald);
@@ -84,13 +110,13 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-14 items-center justify-between border-b border-zinc-100 px-4">
             <span className="text-sm font-semibold text-zinc-900">
               {isCompanyAreaPath(pathname)
-                ? COMPANY_AREA.label
+                ? tn(COMPANY_AREA.label)
                 : available.length === 0
-                  ? "Menü"
-                  : PORTALS[activePortal].label}
+                  ? t("menu")
+                  : tn(PORTALS[activePortal].label)}
             </span>
             <Headless.CloseButton
-              aria-label="Menüyü kapat"
+              aria-label={t("menuyuKapat")}
               className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
             >
               <X className="size-5" aria-hidden />
@@ -126,7 +152,15 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           id="icerik"
           className="mx-auto w-full max-w-[1320px] grow px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 xl:px-10"
         >
-          {children}
+          {permissionsSynced ? (
+            children
+          ) : (
+            <div className="space-y-4" aria-hidden data-testid="shell-permissions-pending">
+              <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
+              <div className="h-24 animate-pulse rounded-2xl bg-zinc-100" />
+              <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+            </div>
+          )}
         </div>
       </main>
 

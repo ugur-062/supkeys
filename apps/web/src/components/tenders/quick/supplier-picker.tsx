@@ -1,8 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useConnections, type Connection } from "@/hooks/use-company-connections";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { fetchSupplierTemplate, useSupplierTemplates } from "@/hooks/use-supplier-templates";
 import { cn } from "@/lib/utils";
-import { companyActivityLabel, foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
+import { BUYING_TIER, companyActivityLabel, foldSearchText, stemPrefix, tierAtLeast, tokenizeQuery } from "@rothern/shared";
+import { useActivityLabel, useCityLabel } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
 import {
   CheckBadgeIcon,
   ChevronDownIcon,
@@ -14,7 +19,7 @@ import {
   TrashIcon,
   XCircleIcon,
 } from "@heroicons/react/20/solid";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * DAVET / GÖRÜNÜRLÜK SEÇİCİSİ (2026-09-19, kullanıcı mockup'ı + aynı gün
@@ -39,6 +44,13 @@ import { useMemo, useState } from "react";
  * firmanın sektör/ad/faaliyet metninde geçiyor mu. Puanlı olanlar ÖNE,
  * "Kalemlere uygun" çipiyle; eşitlikte ada göre. Süzgeç/arama sırayı
  * bozmaz, yalnız daraltır. Değer sihirbazla AYNI: Rothern ID listesi.
+ *
+ * GRUPTAN EKLE (2026-10-01, T-19): Şablonlar › Tedarikçi Grupları'ndaki bir
+ * grubun üyeleri tek tıkla seçime eklenir. Yalnız BU listede olan (geçerli
+ * bağlantı — engellenen/kopan/paketi düşen bağlantı listede yoktur) üyeler
+ * eklenir; zaten seçili olanlar tekrarlanmaz, mevcut seçim korunur. Gruplar
+ * GOLD özelliği (API `CompanyPaidTierGuard`) + `buy:view` — ikisi de yoksa
+ * denetim çizilmez.
  */
 const PAGE = 7;
 
@@ -61,14 +73,24 @@ export function SupplierPicker({
   /** `connections`: görünürlük listesi (işaretsiz = görmez); `private`: davet listesi. */
   mode?: "private" | "connections";
 }) {
+  const t = useTranslations("web.panel.requests.supplierPicker");
+  const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const { data: connections = [], isLoading } = useConnections();
   const [q, setQ] = useState("");
   const [sector, setSector] = useState("");
   const [city, setCity] = useState("");
   const [shown, setShown] = useState(PAGE);
   const scoped = mode === "connections";
+  // Paket kapısı İÇİNDE rol kapısı: gruplar GOLD + `buy:view`.
+  const { company } = useCompanyAuth();
+  const canViewGroups = useHasCompanyPermission("buy:view");
+  const groupsEnabled = !!company && tierAtLeast(company.tier, BUYING_TIER) && canViewGroups;
+  const groups = useSupplierTemplates({ enabled: groupsEnabled });
+  const [groupBusy, setGroupBusy] = useState(false);
+  const [groupNote, setGroupNote] = useState<string | null>(null);
 
-  const term = q.trim().toLocaleLowerCase("tr");
+  const term = foldSearchText(q);
   const scored = useMemo(() => {
     const tokens = itemTokens(itemNames);
     const prefixes = categoryPrefixes(categoryIds);
@@ -92,7 +114,7 @@ export function SupplierPicker({
         if (sector && c.company.industry !== sector) return false;
         if (city && c.company.city !== city) return false;
         if (!term) return true;
-        const hay = [c.company.name, c.company.city, c.company.industry].filter(Boolean).join(" ").toLocaleLowerCase("tr");
+        const hay = foldSearchText([c.company.name, c.company.city, c.company.industry].filter(Boolean).join(" "));
         return hay.includes(term);
       }),
     [scored, sector, city, term],
@@ -105,6 +127,35 @@ export function SupplierPicker({
   const allVisibleOn = visibleIds.length > 0 && visibleIds.every((id) => value.includes(id));
   const toggleAll = () =>
     onChange(allVisibleOn ? value.filter((id) => !visibleIds.includes(id)) : [...new Set([...value, ...visibleIds])]);
+  const groupRows = groupsEnabled ? (groups.data ?? []).filter((g) => g.memberCount > 0) : [];
+  // Grup isteği sürerken tablo açık kalır: kullanıcının o arada yaptığı seçim
+  // ezilmesin diye birleştirme await SONRASI güncel seçim/listeyle yapılır.
+  const latest = useRef({ value, allIds });
+  useEffect(() => {
+    latest.current = { value, allIds };
+  });
+  const addGroup = async (groupId: string) => {
+    if (!groupId || groupBusy) return;
+    setGroupBusy(true);
+    setGroupNote(null);
+    try {
+      const tpl = await fetchSupplierTemplate(groupId);
+      const now = latest.current;
+      const r = mergeGroupMembers(now.value, tpl.members.map((m) => m.rothernId), now.allIds);
+      if (r.added.length > 0) onChange(r.next);
+      setGroupNote(
+        r.added.length === 0 && r.skipped === 0
+          ? t("grupZatenSecili", { name: tpl.name })
+          : r.skipped > 0
+            ? t("grupEklendiAtlanan", { name: tpl.name, added: r.added.length, skipped: r.skipped })
+            : t("grupEklendi", { name: tpl.name, added: r.added.length }),
+      );
+    } catch {
+      setGroupNote(t("grupYuklenemedi"));
+    } finally {
+      setGroupBusy(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -117,13 +168,13 @@ export function SupplierPicker({
   if (connections.length === 0) {
     return (
       <p className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-600">
-        Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.
+        {t("henuzBaglantinizYokHerkeseAcik")}
       </p>
     );
   }
 
   const TH = "px-3 py-2.5 text-left text-xs font-medium text-zinc-500";
-  const listTitle = scoped ? "Bağlantılarım" : "Davet edilecek firmalar";
+  const listTitle = scoped ? t("baglantilarim") : t("davetEdilecekFirmalar");
   return (
     /* KAPSAYICI SORGUSU: sütunlar kapsayıcı genişliğine göre gizlenir
        (viewport'a değil) — form sütunu ≈800 px. */
@@ -134,13 +185,13 @@ export function SupplierPicker({
           <h4 className="text-base font-semibold text-zinc-950">{listTitle}</h4>
           <p className="text-xs tabular-nums text-zinc-500">
             {scoped
-              ? `${selected.length} / ${allIds.length} seçili`
-              : `${rows.length === 0 ? "0" : `1–${Math.min(shown, rows.length)}`} / ${rows.length} firma`}
+              ? t("secili", { selected: selected.length, total: allIds.length })
+              : t("firmaAraligi", { range: rows.length === 0 ? "0" : `1–${Math.min(shown, rows.length)}`, total: rows.length })}
           </p>
         </div>
         {scoped ? (
           <p className="mt-1 text-xs text-zinc-500">
-            İşaretli firmalar talebi görür ve davet alır. İşareti kaldırdığınız firma talebi hiç görmez, bildirim ve e-posta almaz.
+            {t("isaretliFirmalarTalebiGorurVe")}
           </p>
         ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -152,43 +203,64 @@ export function SupplierPicker({
                 setQ(e.target.value);
                 setShown(PAGE);
               }}
-              placeholder="Firma adı, şehir, sektör ara"
-              aria-label="Firma ara"
+              placeholder={t("firmaAdiSehirSektorAra")}
+              aria-label={t("firmaAra")}
               className="w-full rounded-xl border border-zinc-300 bg-white py-2 pr-3 pl-9 text-sm shadow-sm outline-none placeholder:text-zinc-500 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
             />
           </div>
-          <FilterSelect label="Sektör" value={sector} onChange={(v) => { setSector(v); setShown(PAGE); }} options={sectors} />
-          <FilterSelect label="Şehir" value={city} onChange={(v) => { setCity(v); setShown(PAGE); }} options={cities} />
+          <FilterSelect label={t("sektor")} value={sector} onChange={(v) => { setSector(v); setShown(PAGE); }} options={sectors.map((s) => ({ value: s, label: s }))} />
+          <FilterSelect label={t("sehir")} value={city} onChange={(v) => { setCity(v); setShown(PAGE); }} options={cities.map((c) => ({ value: c, label: cityLabel(c) }))} />
           {scoped ? (
             <span className="inline-flex items-center gap-1 text-sm">
               <button type="button" onClick={() => onChange([...new Set([...value, ...allIds])])} className="rounded-lg px-2 py-1 font-medium text-blue-700 hover:bg-blue-50">
-                Tümünü seç
+                {t("tumunuSec")}
               </button>
               <span aria-hidden className="text-zinc-300">·</span>
               <button type="button" onClick={() => onChange(value.filter((id) => !allIds.includes(id)))} className="rounded-lg px-2 py-1 font-medium text-zinc-700 hover:bg-zinc-100">
-                Tümünü kaldır
+                {t("tumunuKaldir")}
               </button>
             </span>
           ) : (
             <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
-              <input type="checkbox" checked={allVisibleOn} onChange={toggleAll} aria-label="Görünenlerin tümünü seç" className="size-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600/30" />
-              Tümünü seç
+              <input type="checkbox" checked={allVisibleOn} onChange={toggleAll} aria-label={t("gorunenlerinTumunuSec")} className="size-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600/30" />
+              {t("tumunuSec")}
             </label>
           )}
+          {groupRows.length > 0 ? (
+            <select
+              value=""
+              disabled={groupBusy}
+              onChange={(e) => void addGroup(e.target.value)}
+              aria-label={t("gruptanEkle")}
+              className="min-w-[8.5rem] rounded-xl border border-blue-300 bg-white py-2 pr-8 pl-3 text-sm font-medium text-blue-700 shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:opacity-50"
+            >
+              <option value="">{t("gruptanEkle")}</option>
+              {groupRows.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {t("grupSecenegi", { name: g.name, n: g.memberCount })}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
+        {groupNote ? (
+          <p role="status" className="mt-2 text-xs text-zinc-600">
+            {groupNote}
+          </p>
+        ) : null}
 
         <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-zinc-950/5">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50">
               <tr>
                 <th scope="col" className="w-10 px-3 py-2.5">
-                  <span className="sr-only">Seç</span>
+                  <span className="sr-only">{t("sec")}</span>
                 </th>
-                <th scope="col" className={TH}>Firma</th>
-                <th scope="col" className={cn(TH, "hidden @md:table-cell")}>Şehir</th>
-                <th scope="col" className={cn(TH, "hidden @2xl:table-cell")}>Sektör</th>
-                <th scope="col" className={cn(TH, "hidden @3xl:table-cell")}>Firma türü</th>
-                {scoped ? <th scope="col" className={cn(TH, "hidden text-right @xl:table-cell")}>Görünürlük</th> : null}
+                <th scope="col" className={TH}>{t("firma")}</th>
+                <th scope="col" className={cn(TH, "hidden @md:table-cell")}>{t("sehir")}</th>
+                <th scope="col" className={cn(TH, "hidden @2xl:table-cell")}>{t("sektor")}</th>
+                <th scope="col" className={cn(TH, "hidden @3xl:table-cell")}>{t("firmaTuru")}</th>
+                {scoped ? <th scope="col" className={cn(TH, "hidden text-right @xl:table-cell")}>{t("gorunurluk")}</th> : null}
                 <th scope="col" className="w-8" />
               </tr>
             </thead>
@@ -205,7 +277,7 @@ export function SupplierPicker({
                         checked={on}
                         onChange={() => toggle(id)}
                         onClick={(e) => e.stopPropagation()}
-                        aria-label={`${c.company.name} seç`}
+                        aria-label={t("sec2", { name: c.company.name })}
                         className="size-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600/30"
                       />
                     </td>
@@ -215,29 +287,29 @@ export function SupplierPicker({
                         <span className="min-w-0">
                           <span className="flex items-center gap-1.5">
                             <span className="truncate font-semibold text-zinc-950">{c.company.name}</span>
-                            {c.company.verified ? <CheckBadgeIcon aria-label="Doğrulanmış firma" className="size-4 shrink-0 text-blue-600" /> : null}
+                            {c.company.verified ? <CheckBadgeIcon aria-label={t("dogrulanmisFirma")} className="size-4 shrink-0 text-blue-600" /> : null}
                             {score > 0 ? (
                               <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-600/20">
                                 <SparklesIcon aria-hidden className="size-3" />
-                                Kalemlere uygun
+                                {t("kalemlereUygun")}
                               </span>
                             ) : null}
                           </span>
-                          <span className="block truncate text-xs text-zinc-500 @md:hidden">{[c.company.city, c.company.industry].filter(Boolean).join(" · ")}</span>
+                          <span className="block truncate text-xs text-zinc-500 @md:hidden">{[c.company.city ? cityLabel(c.company.city) : null, c.company.industry].filter(Boolean).join(" · ")}</span>
                         </span>
                       </span>
                     </td>
-                    <td className="hidden px-3 py-2.5 text-zinc-600 @md:table-cell">{c.company.city ?? "—"}</td>
+                    <td className="hidden px-3 py-2.5 text-zinc-600 @md:table-cell">{c.company.city ? cityLabel(c.company.city) : "—"}</td>
                     <td className="hidden max-w-[12rem] truncate px-3 py-2.5 text-zinc-600 @2xl:table-cell">{c.company.industry ?? "—"}</td>
                     <td className="hidden px-3 py-2.5 @3xl:table-cell">
-                      {act ? <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{companyActivityLabel(act)}</span> : <span className="text-zinc-400">—</span>}
+                      {act ? <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{activityLabel(act)}</span> : <span className="text-zinc-400">—</span>}
                     </td>
                     {scoped ? (
                       <td className="hidden px-3 py-2.5 text-right @xl:table-cell">
                         {on ? (
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Görür</span>
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{t("gorur")}</span>
                         ) : (
-                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">Görmez</span>
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">{t("gormez")}</span>
                         )}
                       </td>
                     ) : null}
@@ -250,7 +322,7 @@ export function SupplierPicker({
               {visible.length === 0 ? (
                 <tr>
                   <td colSpan={scoped ? 7 : 6} className="px-3 py-6 text-center text-sm text-zinc-500">
-                    Eşleşen bağlantı yok.
+                    {t("eslesenBaglantiYok")}
                   </td>
                 </tr>
               ) : null}
@@ -265,7 +337,7 @@ export function SupplierPicker({
               className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm hover:bg-zinc-50"
             >
               <PlusCircleIcon aria-hidden className="size-4" />
-              Daha fazla yükle
+              {t("dahaFazlaYukle")}
               <ChevronDownIcon aria-hidden className="size-4" />
             </button>
           </div>
@@ -273,15 +345,15 @@ export function SupplierPicker({
       </section>
 
       {/* ALT — seçilenler, tam genişlik (tablonun sağına değil altına) */}
-      <section aria-label="Seçilen firmalar" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5">
+      <section aria-label={t("secilenFirmalar")} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h4 className="flex items-center gap-2 text-base font-semibold text-zinc-950">
-              Seçilen firmalar
+              {t("secilenFirmalar")}
               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-blue-700">{selected.length}</span>
             </h4>
             <p className="mt-1 text-xs text-zinc-500">
-              {scoped ? "Bu firmalar talebi görür ve davet alır." : "Yalnız davet ettiğiniz firmalar görür."}
+              {scoped ? t("buFirmalarTalebiGorurVe") : t("yalnizDavetEttiginizFirmalarGorur")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -293,7 +365,7 @@ export function SupplierPicker({
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
               >
                 <PaperAirplaneIcon aria-hidden className="size-4" />
-                {selected.length} firmayı davet et
+                {t("firmayiDavetEt", { length: selected.length })}
               </button>
             ) : null}
             <button
@@ -303,13 +375,13 @@ export function SupplierPicker({
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
             >
               <TrashIcon aria-hidden className="size-4" />
-              Seçimi temizle
+              {t("secimiTemizle")}
             </button>
           </div>
         </div>
         {selected.length === 0 ? (
           <p className="mt-4 rounded-xl bg-zinc-100 px-3 py-3 text-center text-xs text-zinc-600">
-            {scoped ? "Hiçbir bağlantı seçili değil — talebi kimse görmez. Yukarıdan firma işaretleyin." : "Yukarıdaki listeden firma seçin."}
+            {scoped ? t("hicbirBaglantiSeciliDegilTalebi") : t("yukaridakiListedenFirmaSecin")}
           </p>
         ) : (
           <ul className="mt-4 grid grid-cols-1 gap-2 @xl:grid-cols-2 @4xl:grid-cols-3">
@@ -321,12 +393,12 @@ export function SupplierPicker({
                     <span className="truncate text-sm font-semibold text-zinc-950">{c.company.name}</span>
                     {c.company.verified ? <CheckBadgeIcon aria-hidden className="size-4 shrink-0 text-blue-600" /> : null}
                   </span>
-                  <span className="block truncate text-xs text-zinc-500">{[c.company.city, c.company.industry].filter(Boolean).join(" · ")}</span>
+                  <span className="block truncate text-xs text-zinc-500">{[c.company.city ? cityLabel(c.company.city) : null, c.company.industry].filter(Boolean).join(" · ")}</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => toggle(c.company.rothernId as string)}
-                  aria-label={`${c.company.name} davetini kaldır`}
+                  aria-label={t("davetiniKaldir", { name: c.company.name })}
                   className="shrink-0 text-zinc-300 hover:text-zinc-600"
                 >
                   <XCircleIcon aria-hidden className="size-5" />
@@ -362,7 +434,7 @@ function initials(name: string): string {
   return name
     .split(/\s+/)
     .slice(0, 2)
-    .map((p) => p[0]?.toLocaleUpperCase("tr") ?? "")
+    .map((p) => (p[0] ? upperForText(p[0], name) : ""))
     .join("");
 }
 
@@ -376,7 +448,7 @@ function uniqSorted(values: (string | null | undefined)[]): string[] {
   return [...new Set(values.filter((v): v is string => !!v && v.trim().length > 0))].sort((a, b) => a.localeCompare(b, "tr"));
 }
 
-function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
     <select
       value={value}
@@ -386,12 +458,39 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
     >
       <option value="">{label}</option>
       {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
+        <option key={o.value} value={o.value}>
+          {o.label}
         </option>
       ))}
     </select>
   );
+}
+
+/**
+ * Grup üyelerini seçime katar (T-19): yalnız seçicide olan (`available` —
+ * geçerli bağlantı) Rothern ID'leri; zaten seçili olan tekrarlanmaz, mevcut
+ * seçim ve sırası korunur. `skipped`: listede olmayan (bağlantı değil /
+ * engelli / Rothern ID'siz) üye sayısı.
+ */
+export function mergeGroupMembers(
+  current: string[],
+  memberRothernIds: (string | null | undefined)[],
+  available: string[],
+): { next: string[]; added: string[]; skipped: number } {
+  const avail = new Set(available);
+  const have = new Set(current);
+  const added: string[] = [];
+  let skipped = 0;
+  for (const id of new Set(memberRothernIds)) {
+    if (!id || !avail.has(id)) {
+      skipped += 1;
+      continue;
+    }
+    if (have.has(id)) continue;
+    have.add(id);
+    added.push(id);
+  }
+  return { next: [...current, ...added], added, skipped };
 }
 
 /** Kalem adlarından anlamlı kökler (≥3 harf, kök-önek). */

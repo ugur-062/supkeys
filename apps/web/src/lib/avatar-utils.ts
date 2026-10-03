@@ -1,3 +1,5 @@
+import { upperForText } from "@/i18n/format";
+
 /**
  * V2-4 — Şirket adından deterministik renk + initials.
  * Hash deterministik olduğu için aynı isim her zaman aynı renge düşer.
@@ -25,19 +27,7 @@ export function getAvatarProps(name: string): AvatarProps {
     return { initials: "?", bgClass: "bg-slate-400", textClass: "text-white" };
   }
 
-  // İlk 2 kelimenin baş harfleri (TR uppercase locale)
-  const words = name
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w.length > 0);
-  let initials = "";
-  if (words.length >= 2) {
-    initials = `${words[0]![0]!}${words[1]![0]!}`.toLocaleUpperCase("tr-TR");
-  } else if (words[0]) {
-    initials = words[0].substring(0, 2).toLocaleUpperCase("tr-TR");
-  } else {
-    initials = "?";
-  }
+  const initials = avatarInitials(name);
 
   const palette = AVATAR_COLORS[avatarHash(name) % AVATAR_COLORS.length]!;
 
@@ -53,11 +43,15 @@ export function avatarHash(name: string): number {
   return Math.abs(hash);
 }
 
-/** Baş harfler — ilk iki kelimenin ilk harfi, TR büyük harf ("İ" doğru). */
+/**
+ * Baş harfler — ilk iki kelimenin ilk harfi, ADIN KENDİ diline göre büyük
+ * harf (`upperForText`): Türkçe addaki "i" → "İ", Latin/Kiril addaki "i"
+ * → "I" ("ivan petrov" → "IP"; `tr-TR` sabitken "İP" oluyordu).
+ */
 export function avatarInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter((w) => w.length > 0);
-  if (words.length >= 2) return `${words[0]![0]!}${words[1]![0]!}`.toLocaleUpperCase("tr-TR");
-  if (words[0]) return words[0].substring(0, 2).toLocaleUpperCase("tr-TR");
+  if (words.length >= 2) return upperForText(`${words[0]![0]!}${words[1]![0]!}`, name);
+  if (words[0]) return upperForText(words[0].substring(0, 2), name);
   return "?";
 }
 

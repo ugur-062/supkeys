@@ -70,6 +70,45 @@ describe("INV-TIER-1 — efektif tier /me + profil yüzeyleri", () => {
   });
 });
 
+/** Arayüz testi D-029: panel üyelik bitişini ve süre dolumunu gösterebilsin. */
+describe("profil.get.membership — bitiş / süre doldu bilgisi", () => {
+  type M = { membership: { endsAt: Date | null; expiredAt: Date | null } };
+  const get = async (id: string) => ((await profileService().get(id)) as M).membership;
+
+  it("canlı paket: endsAt bitiş tarihi, expiredAt null; süresiz pakette ikisi de null", async () => {
+    const co = await paketWithEnd(future);
+    expect(await get(co.company.id)).toEqual({ endsAt: future, expiredAt: null });
+    const co2 = await paketWithEnd(null);
+    expect(await get(co2.company.id)).toEqual({ endsAt: null, expiredAt: null });
+  });
+
+  it("cron öncesi tembel pencere: ham tarih geçmişte → expiredAt", async () => {
+    const co = await paketWithEnd(past);
+    expect(await get(co.company.id)).toEqual({ endsAt: null, expiredAt: past });
+  });
+
+  it("cron sonrası: son olay EXPIRE (30 gün içinde) → expiredAt = endBefore; sonra GRANT/REVOKE gelirse yok", async () => {
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await prisma.companyMembershipEvent.create({
+      data: { companyId: co.company.id, action: "EXPIRE", endBefore: past, createdAt: new Date(Date.now() - 1000) },
+    });
+    expect(await get(co.company.id)).toEqual({ endsAt: null, expiredAt: past });
+
+    await prisma.companyMembershipEvent.create({
+      data: { companyId: co.company.id, action: "REVOKE", endBefore: null },
+    });
+    expect((await get(co.company.id)).expiredAt).toBeNull();
+  });
+
+  it("30 günden eski süre dolumu bant göstermez", async () => {
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await prisma.companyMembershipEvent.create({
+      data: { companyId: co.company.id, action: "EXPIRE", endBefore: new Date(Date.now() - 31 * 86_400_000) },
+    });
+    expect((await get(co.company.id)).expiredAt).toBeNull();
+  });
+});
+
 describe("INV-TIER-1 — bağlantı-geçerlilik yüzeyleri (listings + supplier-templates)", () => {
   it("süresi dolmuş PAKET davetçinin bağlantısı HER İKİ connectedCompanyIds'te elenir; canlı PAKET kalır", async () => {
     const viewer = await makeCompanyWithUser(prisma, { country: "TR" });

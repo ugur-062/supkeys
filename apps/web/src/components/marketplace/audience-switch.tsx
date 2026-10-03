@@ -1,8 +1,20 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { cn } from "@/lib/utils";
+import { isCategoriesAnchor } from "@/lib/public/anchors";
 import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 /**
  * ALICIYIM / TEDARİKÇİYİM — anasayfanın yüzünü seçen anahtar (kullanıcı
@@ -74,14 +86,82 @@ const Ctx = createContext<{
   setAudience: () => {},
 });
 
+/**
+ * YALNIZ ALICI YÜZÜNDE DURAN ÇAPALAR. Altbilgi ve boş durum "Kategoriler"i
+ * `/#kategoriler`e gönderir; vitrin alıcı yüzünde olduğu için varsayılan
+ * (tedarikçi) yüzde hedef `hidden` kalıyor ve hiçbir yere kaymıyordu (arayüz
+ * testi O-118). Böyle bir çapayla gelinince yüz alıcıya geçer (kayıtlı tercih
+ * DEĞİŞMEZ — ziyaretçinin seçimi değil, bağlantının hedefi) ve hedef
+ * görünür olduktan sonra kaydırılır.
+ */
+function buyerAnchor(hash: string): string | null {
+  let id: string;
+  try {
+    id = decodeURIComponent(hash.replace(/^#/, ""));
+  } catch {
+    return null;
+  }
+  // Dil başına çapa (`#kategoriler` / `#categories` / `#kategorii`).
+  return isCategoriesAnchor(id) ? id : null;
+}
+
 export function AudienceProvider({ children }: { children: ReactNode }) {
   const [audience, set] = useState<Audience>(DEFAULT_AUDIENCE);
+  const [scrollTo, setScrollTo] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
-    const saved = readSavedAudience();
-    set(saved);
-    publishAudience(saved);
+    const anchor = buyerAnchor(window.location.hash);
+    const initial = anchor ? "buyer" : readSavedAudience();
+    set(initial);
+    publishAudience(initial);
+    if (anchor) setScrollTo({ id: anchor });
+
+    const goTo = (id: string) => {
+      set("buyer");
+      publishAudience("buyer");
+      setScrollTo({ id });
+    };
+    const onHash = () => {
+      const id = buyerAnchor(window.location.hash);
+      if (id) goTo(id);
+    };
+    /* Aynı sayfadaki `/#kategoriler` bağlantısı istemci yönlendiricisiyle
+       (pushState) gider ve `hashchange` ATEŞLENMEZ — tıklama yakalanır. */
+    const onClick = (e: MouseEvent) => {
+      // Yeni sekme/pencere (Ctrl/Cmd/Shift/Alt+tık, target="_blank") bu
+      // sekmede gezinme değildir — mevcut sayfa yüz değiştirmemeli.
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as HTMLElement | null)?.closest?.("a");
+      if (!a?.href) return;
+      if (a.target && a.target !== "_self") return;
+      let url: URL;
+      try {
+        url = new URL(a.href, window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) return;
+      const id = buyerAnchor(url.hash);
+      if (id) goTo(id);
+    };
+    window.addEventListener("hashchange", onHash);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      document.removeEventListener("click", onClick, true);
+    };
   }, []);
+
+  // Hedef ancak alıcı yüzü çizildikten sonra görünür; tarayıcının kendi çapa
+  // kaydırması gizli öğede boşa düşer, burada açıkça kaydırılır.
+  useEffect(() => {
+    if (!scrollTo || audience !== "buyer") return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(scrollTo.id)?.scrollIntoView?.({ block: "start" });
+      setScrollTo(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [scrollTo, audience]);
 
   const setAudience = (a: Audience) => {
     set(a);
@@ -100,46 +180,51 @@ export function useAudience() {
   return useContext(Ctx);
 }
 
-const OPTIONS: {
-  key: Audience;
-  label: string;
-  hint: string;
-  Icon: typeof ShoppingCartIcon;
-  on: string;
-}[] = [
-  // SIRA: Tedarikçiyim SOLDA, Alıcıyım SAĞDA (2026-09-21, kullanıcı kararı).
-  {
-    key: "supplier",
-    label: "Tedarikçiyim",
-    hint: "Talep arıyorum, teklif vereceğim",
-    Icon: BuildingStorefrontIcon,
-    on: "bg-white text-emerald-700 shadow-sm",
-  },
-  {
-    key: "buyer",
-    label: "Alıcıyım",
-    hint: "Ürün arıyorum",
-    Icon: ShoppingCartIcon,
-    on: "bg-white text-blue-700 shadow-sm",
-  },
-];
-
-/**
- * Anahtarın GÖRÜNÜMÜ panel portal piliyle aynı (2026-09-08, kullanıcı
- * kararı): açık gri hazne, seçili taraf BEYAZ yuva + kendi portal rengi
- * (alıcı mavi, tedarikçi yeşil) + ikon. Panelde soldaki Satınalma | Satış
- * anahtarı da böyle; anasayfa o ekranları taşıdığı için aynı jest aynı
- * görünmeli.
- *
- * ETİKET panel adları DEĞİL ("Satınalma"/"Satış" içeriden terimlerdir):
- * ziyaretçi kendini alıcı ya da tedarikçi olarak tanır.
- */
 export function AudienceSwitch({ className }: { className?: string }) {
   const { audience, setAudience } = useAudience();
+  const t = useTranslations("web.marketing.audience");
+  // SIRA: Tedarikçiyim SOLDA, Alıcıyım SAĞDA (2026-09-21, kullanıcı kararı).
+  const OPTIONS: {
+    key: Audience;
+    label: string;
+    hint: string;
+    Icon: typeof ShoppingCartIcon;
+    on: string;
+  }[] = [
+    {
+      key: "supplier",
+      label: t("supplier"),
+      hint: t("supplierHint"),
+      Icon: BuildingStorefrontIcon,
+      on: "bg-white text-emerald-700 shadow-sm",
+    },
+    {
+      key: "buyer",
+      label: t("buyer"),
+      hint: t("buyerHint"),
+      Icon: ShoppingCartIcon,
+      on: "bg-white text-blue-700 shadow-sm",
+    },
+  ];
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  /* RADYO KALIBI (arayüz testi D-313): grup TEK sekme durağıdır (seçili olan);
+     ok tuşları seçimi kaydırır ve odağı taşır, Home/End uçlara gider. */
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const last = OPTIONS.length - 1;
+    let next: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = index === last ? 0 : index + 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = index === 0 ? last : index - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    if (next === null) return;
+    e.preventDefault();
+    setAudience(OPTIONS[next]!.key);
+    refs.current[next]?.focus();
+  };
   return (
     <div
       role="radiogroup"
-      aria-label="Hangi taraftasınız?"
+      aria-label={t("label")}
       className={cn(
         /* Yükseklik 40 px (`p-0.5` + `py-1.5`), 44 değil: anasayfada pil
          fotoğrafın üstünde, header çizgisi ile hero başlığının ARASINDA
@@ -149,16 +234,21 @@ export function AudienceSwitch({ className }: { className?: string }) {
         className,
       )}
     >
-      {OPTIONS.map((o) => {
+      {OPTIONS.map((o, i) => {
         const on = o.key === audience;
         return (
           <button
             key={o.key}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={on}
+            tabIndex={on ? 0 : -1}
             title={o.hint}
             onClick={() => setAudience(o.key)}
+            onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
               "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition",
               on ? o.on : "text-zinc-600 hover:text-zinc-950",

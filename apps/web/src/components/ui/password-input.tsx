@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/catalyst/input";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { Eye, EyeOff } from "lucide-react";
 import { forwardRef, useState, type ComponentPropsWithoutRef } from "react";
 
@@ -22,6 +23,10 @@ import { forwardRef, useState, type ComponentPropsWithoutRef } from "react";
  *    geziliyor ve görünür odak halkası taşıyor.
  *
  * `forwardRef`: react-hook-form `register()` ref veriyor, kırılmamalı.
+ *
+ * Catalyst `Input` `className`'i SARMALAYICI span'e verir: `pr-10` oraya
+ * yazılınca dolgu kutunun dışında kalıyor, göz tuşu girişin yanında ayrı bir
+ * kutucukta görünüyordu (arayüz testi D-352). Dolgu iç `<input>`a gider.
  */
 type Props = Omit<ComponentPropsWithoutRef<typeof Input>, "type">;
 
@@ -29,6 +34,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
   { className, ...props },
   ref,
 ) {
+  const t = useTranslations("web.shared.passwordInput");
   const [gorunur, setGorunur] = useState(false);
   const Ikon = gorunur ? EyeOff : Eye;
 
@@ -38,13 +44,13 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
         ref={ref}
         type={gorunur ? "text" : "password"}
         /* Sağda tuş var — metin altına girmesin. */
-        className={cn("pr-10", className)}
+        className={cn("[&_input]:pr-10", className)}
         {...props}
       />
       <button
         type="button"
         /* Etiket DURUMA göre değişir: ekran okuyucu bir sonraki eylemi okur. */
-        aria-label={gorunur ? "Şifreyi gizle" : "Şifreyi göster"}
+        aria-label={gorunur ? t("sifreyiGizle") : t("sifreyiGoster")}
         onClick={() => setGorunur((v) => !v)}
         className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
       >

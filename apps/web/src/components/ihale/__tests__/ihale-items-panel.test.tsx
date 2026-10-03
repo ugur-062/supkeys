@@ -52,7 +52,6 @@ function renderPanel(
       <IhaleItemsPanel
         listingId="l1"
         detailHref="/company/ilan/l1?from=x"
-        itemsTab={1}
         {...props}
       />
     </QueryClientProvider>,
@@ -89,7 +88,8 @@ describe("IhaleItemsPanel", () => {
     expect(screen.getByText("Kalemler (2)")).toBeInTheDocument();
     expect(screen.getByText("DN50 dikişsiz")).toBeInTheDocument();
     expect(screen.getByText("MLZ-42")).toBeInTheDocument();
-    expect(screen.getByText("1.500 metre")).toBeInTheDocument();
+    // Miktar + birim çoğul/simge kuralıyla (`useQuantityLabel`): metre → "m".
+    expect(screen.getByText("1.500 m")).toBeInTheDocument();
     // Hedef fiyat verisi yok (tedarikçi görünümü) → kolon hiç çizilmez.
     expect(screen.queryByText("Hedef Fiyat")).not.toBeInTheDocument();
     expect(screen.queryByText(/daha göster/)).not.toBeInTheDocument();
@@ -141,13 +141,14 @@ describe("IhaleItemsPanel", () => {
         ),
       ),
     });
-    renderPanel(undefined, { itemsTab: 2 });
+    renderPanel();
 
     expect(await screen.findByText("Kalem 1")).toBeInTheDocument();
     expect(screen.queryByText("Kalem 6")).not.toBeInTheDocument();
     expect(screen.queryByText(/daha göster/)).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: "Tüm 25 kalemi detayda gör →" });
-    expect(link).toHaveAttribute("href", "/company/ilan/l1?from=x&tab=2");
+    // Kalemler detayın varsayılan sekmesi: `tab` eklenmez (`tab=1` = Dosyalar).
+    expect(link).toHaveAttribute("href", "/company/ilan/l1?from=x");
   });
 
   it("kalem yoksa boş durum metni", async () => {
@@ -155,7 +156,7 @@ describe("IhaleItemsPanel", () => {
     renderPanel();
 
     expect(
-      await screen.findByText("Bu ilanda kalem tanımlanmamış."),
+      await screen.findByText("Bu talepte kalem tanımlanmamış."),
     ).toBeInTheDocument();
   });
 

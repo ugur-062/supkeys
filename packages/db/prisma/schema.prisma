@@ -64,6 +64,10 @@ model PlatformAdmin {
   // Oturum iptali (denetim 2026-08-23 #3): parola değişimi/reset/2FA değişimi
   // artırır; JWT `tv` claim'i eşleşmezse 401 (company ile parite).
   tokenVersion     Int       @default(0)
+  // Geçici parola (personel ekle / şifre sıfırla) ile açılan hesap: kendi
+  // şifresini koyana dek AdminRolesGuard yalnız me + change-password + 2FA
+  // kurulum uçlarını açar (arayüz testi D-025). change-password false yapar.
+  mustChangePassword Boolean @default(false)
   lastLoginAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -107,13 +111,60 @@ model EmailLog {
 
   contextType String?
   contextId   String?
+  // Gönderim dili (tr/en/ru; NULL = eski satır, Türkçe varsayılır). Admin
+  // "Yeniden gönder" aynı dille çizsin diye yazılır (derin denetim MU-05).
+  locale      String?
 
   @@index([status])
   @@index([toEmail])
   @@index([template])
   @@index([contextType, contextId])
   @@index([queuedAt])
+  // Alıcı başına sıklık sorguları (davet 7 gün kuralı, günlük tavan).
+  @@index([toEmail, queuedAt])
   @@map("email_logs")
+}
+
+/**
+ * Tek tık abonelikten çıkış (RFC 8058, 2026-09-27) — ADRES bazlı kalıcı kayıt.
+ * Kayıtlı kullanıcının kategori tercihi ayrıca `CompanyUser.notificationPrefs`e
+ * yazılır (Ayarlar › Bildirimler aynı değeri gösterir); bu tablo kullanıcı
+ * olmayan alıcıyı (firma `billingEmail`i) ve "tüm isteğe bağlı" kapsamını
+ * taşır. İşlem e-postaları (kod, şifre, sipariş) bu tabloya BAKMAZ.
+ */
+model EmailOptOut {
+  id        String   @id @default(cuid())
+  email     String
+  /// Bildirim tercih anahtarı (`categoryMatch`…), `lifecycle` ya da `all`.
+  scope     String
+  createdAt DateTime @default(now())
+
+  @@unique([email, scope])
+  @@map("email_opt_outs")
+}
+
+/**
+ * AKŞAM ÖZETİ KUYRUĞU (2026-09-27, Faz 2): kategori eşleşmesinde alıcı başına
+ * günde 3 e-posta anında gider; fazlası buraya düşer ve alıcının yerel saati
+ * 18:00'de TEK e-postada gönderilir. Aynı talep aynı adrese bir kez.
+ */
+model EmailDigestItem {
+  id        String    @id @default(cuid())
+  email     String
+  locale    String
+  /// Alıcı firma — saat dilimi ülkesinden; ücretsiz/ücretli metin.
+  companyId String
+  /// CATEGORY_MATCH
+  kind      String
+  listingId String
+  /// Ücretsiz alıcı: talep kilitli (Silver teşviki metni, talep bağlantısı yok).
+  locked    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@unique([email, kind, listingId])
+  @@index([sentAt, createdAt])
+  @@map("email_digest_items")
 }
 
 enum EmailStatus {
@@ -169,6 +220,9 @@ enum CompanyType {
   JOINT_STOCK
   LIMITED
   SOLE_PROPRIETOR
+  /// Diğer (2026-09-27, kayıt tüm ülkelere açıldı): GmbH, LLC, ООО, kooperatif…
+  /// Yerel yapı adı `Company.legalFormLocal`de.
+  OTHER
 }
 
 /// Firmanın NE YAPTIĞI — CompanyType'ın (hukuki biçim) tamamlayıcısı.
@@ -221,6 +275,21 @@ enum Currency {
   AED
   CNY
   RUB
+  // 2026-09-27 (uluslararası tur): TCMB'nin günlük kur verdiği para
+  // birimleri — kur kaynağı hazır. KZT/UZS/PLN/CZK/HUF TCMB'de yok, ikinci
+  // kaynak gelince eklenecek.
+  AZN
+  SEK
+  NOK
+  DKK
+  BGN
+  RON
+  KRW
+  SAR
+  QAR
+  KWD
+  AUD
+  CAD
 }
 
 enum TwoFactorMethod {
@@ -235,6 +304,15 @@ model Category {
    */
   code       String @unique
   nameTr     String
+  /**
+   * i18n Faz 4 (2026-09-23): kategori adının İngilizce / Rusça karşılığı.
+   * Kaynak `src/seeds/category-names.i18n.tsv` (Gemini Pro toplu çevirisi,
+   * staging'de üretilip depoya yazıldı); `seed-categories` ve
+   * `apply-category-names-i18n` yazar. NULL = çeviri yok → okuma yolu
+   * `categoryName()` ile Türkçeye düşer. Adres slug'ı HER ZAMAN `nameTr`den.
+   */
+  nameEn     String?
+  nameRu     String?
   /**
    * TR-katlanmış arama metni (foldSearchText(nameTr)) — 'İ'/aksan sorunsuz
    * substring arama için. Seed yazar; sorgu tarafı da aynı fold'dan geçer.
@@ -540,12 +618,18 @@ model Company {
   name        String // ticari ad
   legalName   String?
   companyType CompanyType?
+  /// `companyType = OTHER` iken firmanın yerel hukuki yapısı ("GmbH", "LLC"…).
+  legalFormLocal String?
   taxNumber   String?      @unique
   taxOffice   String?
   country     String       @default("TR")
   stateRegion String?
 
   // Adres (inline; ileride Address[] defteriyle zenginleşir)
+  /// Dünya şehir listesi kaydı (`geo_cities.id`; 2026-09-27). Şehir sayfaları,
+  /// şehir süzgeci ve "Yakınımda" bunu okur; `city` metni gösterim içindir.
+  /// Türkiye'de il kaydı. FK YOK (liste yeniden tohumlanabilsin).
+  cityId       Int?
   city         String?
   district     String?
   neighborhood String?
@@ -568,8 +652,12 @@ model Company {
   mersisNo               String?
   tradeRegistryNo        String?
   kepAddress             String?
+  /// IBAN ülkesinde IBAN; IBAN kullanmayan ülkede HESAP NUMARASI (`countryUsesIban`).
   iban                   String?
   ibanHolder             String?
+  /// IBAN kullanmayan ülkede zorunlu (2026-09-27): SWIFT/BIC + banka adı.
+  bankSwiftBic           String?
+  bankName               String?
 
   // Kategoriler — AYRI: ne alırım vs ne satarım
   buyerCategoryIds     String[] @default([])
@@ -705,9 +793,17 @@ model Company {
   @@index([activities], type: Gin, map: "companies_activities_idx")
   /** Ziyaretlerim karşı tarafa görünsün (Ziyaret Edenler) — kapalıysa görüntüleme anonim sayılır. */
   visitsVisible          Boolean @default(true)
+  /**
+   * ÇOK DİLLİ arama metni — kaynak metin + DONE çevirilerin (en/ru) katlanmış
+   * birleşimi (foldSearchText). YALNIZ içerik çevirisi servisi yazar
+   * (`content-translation` DONE anı + açılış doldurması); arama `searchText`
+   * yanında buna da bakar → İngilizce/Rusça sorgu Türkçe kaydı bulur.
+   */
+  searchTextI18n String @default("")
   viewsReceived          CompanyView[] @relation("ViewTarget")
   viewsMade              CompanyView[] @relation("ViewViewer")
 
+  @@index([cityId])
   @@map("companies")
 }
 
@@ -873,6 +969,7 @@ model CompanyConnection {
 enum ReferralInviteStatus {
   PENDING // davet gönderildi, hedef henüz kayıt olmadı
   ACCEPTED // hedef kayıt oldu → INVITE bağlantısı kuruldu
+  CANCELLED // davet eden iptal etti — satır SİLİNMEZ (tavan/fren sayımı ona dayanır)
 }
 
 /**
@@ -924,6 +1021,8 @@ model PublicInquiry {
   message     String
   /** Serbest metin miktar beyanı ("500 adet") — yapılandırılmış alan değil. */
   quantity    String?
+  /** Ziyaretçinin dili (tr/en/ru) — doğrulama ve satıcı yanıtı e-postaları bu dilde. NULL = tr. */
+  locale      String?
 
   // ── Doğrulama ──────────────────────────────────────────────────────────
   /** Tek kullanımlık doğrulama jetonu (hash'lenmiş saklanır). */
@@ -988,6 +1087,23 @@ model CompanyReferralInvite {
    * gider; kayıt token'la tamamlanınca bağlantıya EK bu ihaleye davet yazılır.
    */
   listingId         String?
+  /**
+   * Davetin gittiği dil (tr/en/ru) — alıcı kayıtlı DEĞİL; ülkesinden
+   * türetilir ya da davet eden seçer. Yeniden gönderimde aynı dil kullanılır.
+   * NULL = eski kayıt (davet edenin dili).
+   */
+  locale            String?
+  /**
+   * Davet bağlantısının açıldığı son an (kayıt sayfası bildirir, 2026-09-27).
+   * İlgi sinyali: bağlantıyı açan adrese davetler 7 günlük sıklık freni
+   * beklemeden gider.
+   */
+  lastClickedAt     DateTime?
+
+  /**
+   * Bu davet kaydının (davet eden × adres) taşıdığı talep davetleri.
+   */
+  listingInvites ExternalListingInvite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -995,6 +1111,136 @@ model CompanyReferralInvite {
   @@unique([inviterCompanyId, email])
   @@index([email])
   @@map("company_referral_invites")
+}
+
+enum ExternalInviteSource {
+  MANUAL // alıcı adresi elle yazdı (tanıdığı tedarikçi)
+  AI_FORM // talep formunda AI keşfinden seçildi
+  AI_AUTO // yayın sonrası otomatik AI keşfinden seçildi
+}
+
+enum ExternalInviteState {
+  QUEUED
+  SENT
+  CANCELLED
+  FAILED
+}
+
+/**
+ * KAYITSIZ ADRESE TALEP DAVETİ — talep × adres kuyruğu (2026-09-27, Faz 0b).
+ * Eskiden davet `CompanyReferralInvite` satırının kendisiydi ve o satır
+ * (davet eden × adres) BENZERSİZ olduğundan bir alıcı aynı tedarikçiyi ömründe
+ * yalnız İLK talebine davet edebiliyordu. Artık referral satırı bağlantı
+ * jetonunu taşır; her talep daveti burada ayrı satırdır.
+ * E-posta KUYRUKTAN gider (`ExternalInviteDispatcher`, dakikalık iş): alıcının
+ * kendi ülkesinde mesai saatinde, platform geneli günlük tavanla, aynı adrese
+ * 7 günde en fazla bir e-posta (bekleyenler tek e-postada toplanır). Elle
+ * yazılan adres (MANUAL) beklemeden gider.
+ */
+model ExternalListingInvite {
+  id               String                @id @default(cuid())
+  listingId        String
+  listing          Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  inviterCompanyId String
+  referralInviteId String
+  referralInvite   CompanyReferralInvite @relation(fields: [referralInviteId], references: [id], onDelete: Cascade)
+  email            String
+  /// Davet e-postasının dili (alıcı kayıtsız — ülke/uzantıdan türer).
+  locale           String
+  /// AI keşfinin bulduğu ülke (ISO-2) — gönderim saati bu ülkenin saatine göre.
+  country          String?
+  source           ExternalInviteSource  @default(MANUAL)
+  state            ExternalInviteState   @default(QUEUED)
+  sendAfter        DateTime              @default(now())
+  attempts         Int                   @default(0)
+  sentAt           DateTime?
+  reminderSentAt   DateTime?
+  /// OPTED_OUT | REGISTERED | LISTING_CLOSED | PAUSED | SUPPRESSED | FREQUENCY
+  cancelReason     String?
+  emailLogId       String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([listingId, email])
+  @@index([state, sendAfter])
+  @@index([email, sentAt])
+  @@index([inviterCompanyId, createdAt])
+  @@map("external_listing_invites")
+}
+
+enum DiscoveryTrigger {
+  FORM // talep formunda (yayından önce) alıcı başlattı
+  PUBLISH // yayında otomatik (Listing.aiDiscovery)
+  SECOND_ROUND // süre yarılandı, teklif az — daha geniş arama
+  MANUAL // talep sayfasında "daha fazla bul"
+}
+
+enum DiscoveryRunState {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+/**
+ * AI TEDARİKÇİ KEŞFİ TURU (2026-09-27, Faz 1). Yayın sonrası ve ikinci tur
+ * aramaları PLATFORMUN bütçesiyle arka planda koşar (`DiscoveryRunner`);
+ * sonuç talep sayfasında bant + alıcıya bildirim olarak döner, alıcı adayları
+ * (hepsi seçili) tek tıkla davet eder.
+ */
+model SupplierDiscoveryRun {
+  id              String            @id @default(cuid())
+  companyId       String
+  listingId       String?
+  listing         Listing?          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  trigger         DiscoveryTrigger
+  state           DiscoveryRunState @default(PENDING)
+  /// Aranan ülkeler (talebin görünürlük ülkeleri; boş = tüm ülkeler).
+  targetCountries String[]          @default([])
+  costUsd         Decimal?          @db.Decimal(10, 4)
+  error           String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  /// Alıcıya "N tedarikçi bulundu" bildirimi gitti.
+  notifiedAt      DateTime?
+  /// Alıcı öneri bandını kapattı.
+  dismissedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  candidates      SupplierDiscoveryCandidate[]
+
+  @@index([listingId, createdAt])
+  @@index([state, createdAt])
+  @@map("supplier_discovery_runs")
+}
+
+model SupplierDiscoveryCandidate {
+  id              String               @id @default(cuid())
+  runId           String
+  run             SupplierDiscoveryRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  name            String
+  email           String?
+  website         String?
+  city            String?
+  country         String?
+  reason          String?
+  /// Tedarik edebileceği kalemler (1'den başlayan sıra no).
+  matchedItems    Int[]                @default([])
+  /// LOCAL (alıcının ülkesi) | ABROAD
+  scope           String?
+  /// SUGGESTED | INVITED | ALREADY_INVITED | MEMBER
+  status          String               @default("SUGGESTED")
+  /// Son 7 günde başka alıcıdan davet aldı (davet özet e-postayla gider).
+  recentlyInvited Boolean              @default(false)
+  /// Adres ya da web sitesi kayıtlı bir firmayla eşleşti (ya da platform keşfi).
+  memberCompanyId String?
+  /// Üyenin eşleştiği kategori adları (gerekçe rozeti).
+  matchedCategories String[]         @default([])
+  /// PLATFORM (üye dizini) | WEB (web araması) | BOTH
+  source          String?
+  createdAt       DateTime             @default(now())
+
+  @@index([runId])
+  @@map("supplier_discovery_candidates")
 }
 
 /**
@@ -1110,6 +1356,10 @@ model CompanyOrder {
   acceptedNote             String?
   bankAccountHolder        String?
   bankIban                 String?
+  /// IBAN kullanmayan ülkenin hesabı (2026-09-27): hesap no + SWIFT + banka adı.
+  bankAccountNumber        String?
+  bankSwiftBic             String?
+  bankName                 String?
   expectedDeliveryDate     DateTime?
   // AKREDİTİF adımları (paymentCategory=LETTER_OF_CREDIT, Faz 3): alıcı LC
   // açtırır (LC belgesi zorunlu) → satıcı kabul eder (gönderim kilidi açılır)
@@ -1286,6 +1536,15 @@ model CompanyOrderItem {
   // yoksa teklifin genel süresi award anında kopyalanır.
   deliveryTime BidDeliveryTime?
   note         String?
+  // Muadil / marka snapshot'ı (arayüz testi O-003) — award anında kalemin
+  // istenen marka/MPN'i ve kazanan teklif kaleminin muadil beyanı dondurulur;
+  // sipariş ve yazdırma çıktısı uyuşmazlıkta bağlayıcı kayıt olur. Eski
+  // siparişlerde boş (kalem↔kazanan ilişkisi saklanmadığı için backfill yok).
+  requestedBrand String?
+  requestedMpn   String?
+  isAlternative  Boolean          @default(false)
+  offeredBrand   String?
+  offeredMpn     String?
 
   @@index([orderId])
   @@map("company_order_items")
@@ -1312,7 +1571,12 @@ model ListingBid {
   createdById    String // CompanyUser (teklifi veren kişi)
 
   // Zenginleştirme (eski Bid ile paralel).
-  version              Int              @default(1) // taslak güncellemede artar
+  // Eşzamanlılık sayacı: HER yazımda (taslak kaydı dahil) artar — revizyon
+  // sayısı olarak gösterilmez (arayüz testi O-036).
+  version              Int              @default(1)
+  // Gönderim sayısı: yalnız SUBMITTED'a yazımda artar (taslak saymaz).
+  // Arayüzdeki "Revizyon N" ve zaman kazancı revizyon sayımı bundan.
+  submitCount          Int              @default(0)
   submittedAt          DateTime? // SUBMITTED'a geçiş anı
   // Satıcının taahhüt ettiği teslim tarihi. LEGACY (2026-08-02'den önce) —
   // yeni teklifler süre girer.
@@ -1543,6 +1807,12 @@ model Listing {
   // Sınır ötesi hedef ülkeler (ISO kodları). Boş + isInternational=true =
   // tüm yabancı ülkeler; dolu = yalnızca listelenen ülkeler görür.
   targetCountries          String[]           @default([])
+  /// Yayınlanınca AI yurt içi + yurt dışında tedarikçi arasın (2026-09-27;
+  /// formda herkese açık/bağlantılara açık talepte varsayılan açık).
+  aiDiscovery              Boolean            @default(false)
+  /// Kayıtsız tedarikçiye giden davette firma adı görünsün (varsayılan açık;
+  /// kapalıysa "Bir alıcı firma" + gönderen "Rothern").
+  inviteShowName           Boolean            @default(true)
   // Format (RFQ/İngiliz Usulü).
   format                   ListingFormat?
   visibility               ListingVisibility  @default(CONNECTIONS)
@@ -1657,9 +1927,21 @@ model Listing {
   orders           CompanyOrder[]
   items            ListingItem[]
   invitations      ListingInvitation[]
+  // Kayıtsız adreslere talep daveti kuyruğu (talep × adres, 2026-09-27).
+  externalInvites  ExternalListingInvite[]
+  // AI tedarikçi keşfi turları (form, yayın sonrası, ikinci tur, elle).
+  discoveryRuns    SupplierDiscoveryRun[]
   documents        ListingDocument[]
   roundSnapshots   ListingRoundSnapshot[]
   approvalRequests ApprovalRequest[]
+
+  /**
+   * ÇOK DİLLİ arama metni — kaynak metin + DONE çevirilerin (en/ru) katlanmış
+   * birleşimi (foldSearchText). YALNIZ içerik çevirisi servisi yazar
+   * (`content-translation` DONE anı + açılış doldurması); arama `searchText`
+   * yanında buna da bakar → İngilizce/Rusça sorgu Türkçe kaydı bulur.
+   */
+  searchTextI18n String @default("")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1670,6 +1952,7 @@ model Listing {
   // GENİŞLETİLDİ (prefix eski kullanımı karşılar).
   @@index([status, closesAt])
   @@index([companyId, type, status])
+  @@index([searchTextI18n(ops: raw("gin_trgm_ops"))], type: Gin, map: "listings_searchTextI18n_trgm_idx")
   @@map("listings")
 }
 
@@ -1829,6 +2112,12 @@ model CompanyItem {
   /** TIERED modunda [{ minQty, unitPrice }] — miktar arttıkça birim düşer. */
   priceTiers    Json?
   priceCurrency Currency  @default(TRY)
+  /**
+   * Fiyatın TRY karşılığı (TCMB kuru) — YALNIZ ürün dizininin fiyat süzgeci,
+   * sıralaması ve histogramı içindir; gösterim her zaman `priceAmount` +
+   * `priceCurrency`. Yazımda ve günlük kur işinde tazelenir. NULL = fiyatsız.
+   */
+  priceAmountBase Decimal? @db.Decimal(20, 2)
   /** Minimum sipariş miktarı. */
   moq           Decimal?  @db.Decimal(18, 3)
 
@@ -1843,6 +2132,13 @@ model CompanyItem {
    * (foldSearchText). Vitrindeki ürün araması yalnız buradan okur.
    */
   searchText    String    @default("")
+  /**
+   * ÇOK DİLLİ arama metni — kaynak metin + DONE çevirilerin (en/ru) katlanmış
+   * birleşimi (foldSearchText). YALNIZ içerik çevirisi servisi yazar
+   * (`content-translation` DONE anı + açılış doldurması); arama `searchText`
+   * yanında buna da bakar → İngilizce/Rusça sorgu Türkçe kaydı bulur.
+   */
+  searchTextI18n String @default("")
 
   createdById   String
   createdAt     DateTime  @default(now())
@@ -1859,6 +2155,9 @@ model CompanyItem {
   // Vitrin sorgusu: yayımlanmış ürünler, yeni önce.
   @@index([isPublic, publishedAt])
   @@index([reviewStatus, submittedAt])
+  @@index([priceAmountBase])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "company_items_searchText_trgm_idx")
+  @@index([searchTextI18n(ops: raw("gin_trgm_ops"))], type: Gin, map: "company_items_searchTextI18n_trgm_idx")
   views CompanyView[]
 
   @@map("company_items")
@@ -1906,6 +2205,16 @@ model CategoryAttribute {
   type       CategoryAttributeType
   /** SINGLE_SELECT / MULTI_SELECT için kapalı değer listesi. */
   options    String[] @default([])
+  /**
+   * i18n Faz 4b (2026-09-23): etiket ve seçenek listesinin EN/RU karşılığı.
+   * `optionsEn`/`optionsRu` `options` ile AYNI SIRADA (indeks eşlemesi); saklanan
+   * ürün değeri Türkçe kanonik kalır, yalnız GÖSTERİM çevrilir. Kaynak
+   * `src/seeds/category-attribute-names.i18n.tsv`; NULL/boş = çeviri yok.
+   */
+  nameEn     String?
+  nameRu     String?
+  optionsEn  String[] @default([])
+  optionsRu  String[] @default([])
   /** NUMBER için birim ("mm", "V", "kg"). */
   unit       String?
   /**
@@ -2067,6 +2376,14 @@ model ListingInvitation {
   invitedCompanyId String
   invitedCompany   Company  @relation("ListingInvitee", fields: [invitedCompanyId], references: [id], onDelete: Cascade)
   invitedById      String // CompanyUser (daveti gönderen)
+  /// Davetin kaynağı: null = elle (bağlantı), "AI" = AI keşfinin önerdiği üye
+  /// (bağlantı şartı yok, günlük tavanlı — 2026-09-28).
+  origin           String?
+  /// AI önerisinin gerekçesi (davet e-postasına yazılır): { productName? , category?, web? }
+  aiReason         Json?
+  /// Davet bildirimi (e-posta + zil) gönderildi damgası — açılış duyurusu ve
+  /// elle davet koşullu damgalar, tek gönderim (arayüz testi FX-00 D-177).
+  notifiedAt       DateTime?
   createdAt        DateTime @default(now())
 
   @@unique([listingId, invitedCompanyId])
@@ -2104,7 +2421,9 @@ model ListingBidItem {
   currency      Currency?
   // Kalem birimi → teklifin ana birimi çevrim damgası (submit anı, TCMB çaprazı).
   // null = 1 (aynı birim). S5 nöbetçisi bid.amount'u AYNI damgayla yeniden hesaplar.
-  fxToBase      Decimal?         @db.Decimal(18, 6)
+  // Ölçek 12 (derin denetim LU-09): zayıf birimden (KRW) güçlüye (EUR/KWD)
+  // damga ~0,0006 düzeyinde; 6 ondalık göreli %0,1-0,2 sapma yaratıyordu.
+  fxToBase      Decimal?         @db.Decimal(24, 12)
 
   @@unique([bidId, itemId])
   @@index([bidId])
@@ -2139,10 +2458,20 @@ model CompanyUser {
   // Kurtarma kodları (SHA-256 hash) — enable'da üretilir, BİR KEZ gösterilir;
   // her kod tek kullanımlık (girişte/kapatmada tüketilir).
   twoFactorRecoveryCodes String[]        @default([])
+  // Hesap bazlı 2FA deneme freni (derin denetim 2026-09-29 MU-16): pencere
+  // (15 dk) içinde en fazla 5 deneme; deneme doğrulamadan ÖNCE koşullu artışla
+  // ayrılır (eşzamanlı burst tavanı aşamaz), başarıda sıfırlanır.
+  twoFactorFailedAttempts Int            @default(0)
+  twoFactorWindowStartedAt DateTime?
+  // Son kabul edilen TOTP adımı (unix/30) — aynı kodun tekrar kullanımı reddedilir.
+  twoFactorLastTotpStep  Int?
   // Oturum sürümü — parola değişince artar; eski JWT'ler geçersizleşir
   // (strategy her istekte DB'den doğrular).
   tokenVersion           Int             @default(0)
   notificationPrefs      Json?
+  // Arayüz dili (i18n Faz 0, 2026-09-23): tr | en | ru — tek kaynak
+  // @rothern/i18n LOCALES. Bildirim/e-posta ALICININ bu diliyle üretilir.
+  locale                 String          @default("tr")
   invitedById            String?
   invitedAt              DateTime?
   lastLoginAt            DateTime?
@@ -2193,6 +2522,8 @@ model CompanyUserInvitation {
   expiresAt   DateTime
   invitedById String
   acceptedAt  DateTime?
+  /** Davet e-postasının ve kabul sayfasının dili (davet eden seçer). NULL = davet edenin dili. */
+  locale      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2230,6 +2561,10 @@ model Notification {
 
   @@index([companyUserId, portal, readAt])
   @@index([companyUserId, createdAt])
+  // Cron sorguları (derin denetim LU-09): yaşam döngüsü e-postası ve AI bütçe
+  // uyarısı companyId+type+createdAt, sıfır teklif hatırlatması type+listingId.
+  @@index([companyId, type, createdAt])
+  @@index([listingId, type])
   @@map("notifications")
 }
 
@@ -2373,7 +2708,12 @@ model CompanyBankAccount {
   company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title         String // "TL Vadesiz — İş Bankası" vb.
   accountHolder String
-  iban          String
+  /// IBAN ülkesinde zorunlu; IBAN kullanmayan ülkede boş → `accountNumber` + `swiftBic`.
+  iban          String?
+  accountNumber String?
+  swiftBic      String?
+  /// Bankanın ülkesi (ISO) — biçim kararı buradan (`countryUsesIban`).
+  bankCountry   String?
   bankName      String?
   isDefault     Boolean @default(false)
 
@@ -2420,6 +2760,10 @@ model CompanyAddress {
   contactName String?
   phone       String?
   country     String             @default("TR")
+  /// Eyalet/bölge (TR dışı: "Bayern", "Maharashtra"); TR'de boş.
+  stateRegion String?
+  /// Dünya şehir listesi kaydı (`geo_cities.id`; 2026-09-27) — FK YOK.
+  cityId      Int?
   city        String?
   district    String?
   addressLine String
@@ -2507,3 +2851,71 @@ model CompanyView {
   @@map("company_views")
 }
 
+
+/// İÇERİK ÇEVİRİSİ (i18n Faz 1e, 2026-09-23 — kullanıcı kararı "her eklenen
+/// otomatik çevrilsin"): ürün / alım talebi / firma profili METİNLERİNİN
+/// Gemini Pro ile üç dile çevirisi. Kaynak kolonlara DOKUNULMAZ; her hedef dil
+/// için bir satır. `sourceHash` kaynak alanların özeti — değişince yeniden
+/// çevrilir; `fields` NULL = kaynak dilin kendisi (çeviri yok). Okuma yolu
+/// (herkese açık uçlar) istek diline göre alanları üzerine yazar; çeviri yoksa
+/// özgün metin döner (fail-open).
+enum TranslatableEntity {
+  PRODUCT
+  LISTING
+  COMPANY
+}
+
+enum ContentTranslationStatus {
+  PENDING // sırada / yeniden çevrilecek (eski `fields` okunmaya devam eder)
+  DONE
+  FAILED // attempts < 3 ise süpürücü yeniden dener
+}
+
+model ContentTranslation {
+  id           String                   @id @default(cuid())
+  entityType   TranslatableEntity
+  entityId     String
+  locale       String
+  sourceLocale String?
+  sourceHash   String
+  fields       Json?
+  status       ContentTranslationStatus @default(PENDING)
+  attempts     Int                      @default(0)
+  error        String?
+  model        String?
+  inputTokens  Int                      @default(0)
+  outputTokens Int                      @default(0)
+  costUsd      Decimal?                 @db.Decimal(12, 6)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@unique([entityType, entityId, locale])
+  @@index([status, updatedAt])
+  @@map("content_translations")
+}
+
+/// DÜNYA ŞEHİR LİSTESİ (2026-09-27, kullanıcı: "şehir sayfaları türkiye özel
+/// olamaz"). Kaynak GeoNames cities15000 (CC BY 4.0) — `src/seeds/geo-cities.tsv`
+/// + Türkiye'nin 81 ili (negatif id, paylaşılan `TR_PROVINCES`) + KKTC şehirleri.
+/// Şehir sayfası adresi `slug` ("bursa", "de-munich"); "Yakınımda" `lat/lng`.
+model GeoCity {
+  id          Int     @id
+  countryCode String
+  admin1      String?
+  name        String
+  nameTr      String?
+  nameEn      String?
+  nameRu      String?
+  lat         Float
+  lng         Float
+  population  Int     @default(0)
+  slug        String  @unique
+  /// Katlanmış arama metni: tüm adlar + yerel yazım (trigram GIN — migration'da).
+  searchText  String  @default("")
+
+  @@index([countryCode])
+  // Trigram GIN migration'da ham SQL; burada BEYAN edilmezse CI drift kapısı
+  // (migrate diff --exit-code) düşer (yayın denetimi 2026-09-28 Bölüm 3).
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "geo_cities_searchText_trgm_idx")
+  @@map("geo_cities")
+}

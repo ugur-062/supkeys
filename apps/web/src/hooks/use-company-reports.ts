@@ -1,7 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 
 export type ReportType = "ALIM";
 
@@ -42,6 +42,8 @@ export interface GeneralRow {
 }
 
 export interface GeneralResult {
+  /** Tutar sütunlarının (en düşük/yüksek/kazanan/tasarruf) birimi — firmanın rapor para birimi. */
+  baseCurrency?: string;
   mode: "SINGLE" | "RANGE";
   type: ReportType;
   generatedAt: string;
@@ -112,6 +114,8 @@ export interface SavingsResult {
   rangeStart: string;
   rangeEnd: string;
   currency: string | null;
+  /** Tutarların birimi — firmanın rapor para birimi (`currency` süzgeçtir). */
+  baseCurrency?: string;
   truncated?: boolean;
   maxRows?: number;
   rows: SavingsRow[];
@@ -146,7 +150,11 @@ export interface ComparisonParty {
   companyName: string;
   submitted: boolean;
   status: string;
+  /** Alıcı bu teklifi eledi (LOST ∧ eliminatedAt) — kazandırmada kaybetmekten ayrı. */
+  eliminated?: boolean;
   totalAmount: number | null;
+  /** Ham `totalAmount`'un birimi (teklifin ana birimi). */
+  totalCurrency?: string | null;
   totalTry: number | null;
   bidCurrency: string | null;
   rank: number | null;
@@ -154,6 +162,8 @@ export interface ComparisonParty {
   itemPrices: {
     itemId: string;
     unitPrice: number | null;
+    /** Ham kalem fiyatının birimi (madde 9: teklifin ana biriminden farklı olabilir). */
+    currency?: string | null;
     totalPrice: number | null;
     isBest: boolean;
     deltaVsReferencePct: number | null;
@@ -162,6 +172,8 @@ export interface ComparisonParty {
 }
 
 export interface BidComparisonResult {
+  /** `totalTry`, referans ve "en iyi" tutarların birimi — firmanın rapor para birimi. */
+  baseCurrency?: string;
   type: ReportType;
   generatedAt: string;
   includePrice: boolean;
@@ -192,7 +204,53 @@ export interface BidComparisonResult {
     companyName: string;
     unitPrice: number;
   }[];
-  roundHistory: { round: number; bidderName: string; amount: number }[];
+  /** Tur arşivi — tutar teklifin KENDİ biriminde (`currency`). */
+  roundHistory: { round: number; bidderName: string; amount: number; currency?: string }[];
+}
+
+/* ── Talep seçicisi ── */
+
+export interface ReportListingOption {
+  id: string;
+  tenderNumber: string;
+  title: string;
+  status: string;
+}
+
+/** Seçici yanıtı: en yeni `limit` talep + eşleşen tüm talep sayısı. */
+export interface ReportListingOptionsPage {
+  items: ReportListingOption[];
+  total: number;
+  limit: number;
+}
+
+/**
+ * Rapor ekranlarının talep seçicisi — `GET company/reports/listings` rapor
+ * izniyle (buy:reports:view) açılır; Taleplerim listesi (buy:view) yalnız
+ * rapor yetkilisine 403 veriyordu (arayüz testi T3).
+ *
+ * Sunucu en yeni `limit` talebi döner; daha eskisi `q` (numara/başlık) ile
+ * aranır, `selected` pencere dışında kalsa da listede tutulur
+ * (arayüz testi webB-1:NEW-1).
+ */
+export function useReportListingOptions(
+  params: { q?: string; selected?: string; excludeDrafts?: boolean } = {},
+) {
+  const q = params.q?.trim() || undefined;
+  const selected = params.selected?.trim() || undefined;
+  const excludeDrafts = params.excludeDrafts || undefined;
+  return useQuery<ReportListingOptionsPage>({
+    queryKey: ["company-report-listings", { q, selected, excludeDrafts }],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ReportListingOptionsPage>(
+        "/company/reports/listings",
+        { params: { q, selected, excludeDrafts: excludeDrafts ? "1" : undefined } },
+      );
+      return data;
+    },
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
 }
 
 /* ── Mutations ── */

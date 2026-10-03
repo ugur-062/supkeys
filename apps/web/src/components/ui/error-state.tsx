@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface ErrorStateProps {
   title?: string;
@@ -17,12 +18,17 @@ interface ErrorStateProps {
  * refetch veya error boundary reset).
  */
 export function ErrorState({
-  title = "Bir şeyler ters gitti",
-  message = "İçerik yüklenirken bir hata oluştu. Lütfen tekrar deneyin.",
+  title,
+  message,
   onRetry,
-  retryLabel = "Tekrar dene",
+  retryLabel,
   className,
 }: ErrorStateProps) {
+  // Varsayılan metinler GÖVDEDE çözülür: parametre varsayılanı `t`yi göremez.
+  const t = useTranslations("web.shared.errorState");
+  const heading = title ?? t("birSeylerTersGitti");
+  const body = message ?? t("icerikYuklenirkenHata");
+  const retry = retryLabel ?? t("tekrarDene");
   return (
     <div
       role="alert"
@@ -33,12 +39,12 @@ export function ErrorState({
     >
       <AlertTriangle className="size-8 text-red-500" aria-hidden="true" />
       <div className="space-y-1">
-        <p className="text-sm font-medium text-zinc-900">{title}</p>
-        <p className="max-w-sm text-sm text-zinc-500">{message}</p>
+        <p className="text-sm font-medium text-zinc-900">{heading}</p>
+        <p className="max-w-sm text-sm text-zinc-500">{body}</p>
       </div>
       {onRetry ? (
         <Button variant="secondary" size="sm" onClick={onRetry}>
-          {retryLabel}
+          {retry}
         </Button>
       ) : null}
     </div>

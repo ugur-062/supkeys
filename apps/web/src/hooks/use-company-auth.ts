@@ -1,7 +1,13 @@
 "use client";
 
+import { localizePath } from "@/i18n/href";
+import { useLocale } from "next-intl";
+import { pickLocale } from "@rothern/i18n";
+import { runtimeLocale } from "@/i18n/runtime";
+
 import { companyApi } from "@/lib/company-auth/api";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { bindSessionOwner, clearTenantSessionData } from "@/lib/company-auth/tenant-storage";
 import type {
   CompanyLoginResponse,
   CompanyMeResponse,
@@ -19,6 +25,17 @@ export function useCompanyAuth() {
     // Oturum httpOnly cookie'de; `user` varlığı istemci-taraflı "giriş yapıldı".
     isAuthenticated: !!user,
   };
+}
+
+/**
+ * İzinler bu sayfa yüklemesinde sunucudan tazelendi mi (arayüz testi D-299)?
+ * Kalıcı anlık görüntü (`store.ts`) anlık boyama içindir; izni kaldırılmış
+ * kullanıcıda bayat kalır. İzne bağlı İSTEK atan yüzeyler (panel içeriği,
+ * rozetler, canlı kartlar) bunu bekler; `/me` hata verirse true döner
+ * (anlık görüntü bilinen en iyi durum — sayfa kilitli kalmaz).
+ */
+export function useCompanyPermissionsSynced(): boolean {
+  return useCompanyAuthStore((s) => s.permissionsSynced);
 }
 
 /** Rol kontrolü — kullanıcının verilen role sahip olup olmadığı. */
@@ -46,6 +63,7 @@ export type CompanyLoginResult =
 
 export function useCompanyLogin() {
   const queryClient = useQueryClient();
+  const uiLocale = useLocale();
   return useMutation({
     mutationFn: async (input: {
       email: string;
@@ -64,7 +82,16 @@ export function useCompanyLogin() {
     // düşmesi: kullanıcı SPA'da kalıyor, BAŞKA bir hesapla giriş yapıyor ve
     // TanStack Query önceki hesabın önbelleğini servis ediyor (ihale listesi,
     // teklifler, mesajlar). Girişte de sıfırdan başla.
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // i18n (2026-09-23, kullanıcı: "İngilizce seçtiğim hâlde panel Türkçe"):
+      // giriş sayfasının dili AÇIK bir seçimdir. Hesabın kayıtlı dili farklıysa
+      // hesaba yazılır — yoksa `LocaleUrlSync` paneli kayıtlı (eski) dile geri
+      // atardı. Yönlendirmeden ÖNCE beklenir; hata girişi engellemez.
+      if ("user" in data && pickLocale(data.user?.locale) !== uiLocale) {
+        await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
+      }
+      // Aynı sekmede önceki (başka) hesabın taslakları yeni hesaba geri yüklenmesin.
+      if ("user" in data && data.user?.id) bindSessionOwner(data.user.id);
       queryClient.clear();
     },
   });
@@ -95,13 +122,31 @@ export type VerifyEmailResult =
   | { alreadyVerified: true };
 
 export function useVerifyEmail() {
+  const queryClient = useQueryClient();
+  const uiLocale = useLocale();
   return useMutation({
-    mutationFn: async (input: { email: string; code: string }) => {
+    mutationFn: async (input: {
+      email: string;
+      code: string;
+      // Giriş ekranındaki "Oturumumu açık bırak" — verilmezse (kayıt akışı)
+      // API varsayılanı (kalıcı). false → oturum çerezi (derin denetim MU-23).
+      rememberMe?: boolean;
+    }) => {
       const { data } = await companyApi.post<VerifyEmailResult>(
         "/company-auth/verify-email",
         input,
       );
       return data;
+    },
+    // İlk doğrulama oturum açar → girişle aynı hijyen: dil eşitleme, sekme
+    // sahibi bağlama, önceki hesabın önbelleğini temizleme.
+    onSuccess: async (data) => {
+      if (!("user" in data)) return;
+      if (pickLocale(data.user?.locale) !== uiLocale) {
+        await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
+      }
+      if (data.user?.id) bindSessionOwner(data.user.id);
+      queryClient.clear();
     },
   });
 }
@@ -113,6 +158,23 @@ export function useResendEmailCode() {
         "/company-auth/resend-email-code",
         { email },
       );
+      return data;
+    },
+  });
+}
+
+/**
+ * Doğrulanmamış kaydın e-postasını düzelt — aynı hesabın adresi değişir, kod
+ * yeni adrese gider (yeni kayıt açılmaz; derin denetim LU-22).
+ */
+export function useChangeSignupEmail() {
+  return useMutation({
+    mutationFn: async (input: { email: string; password: string; newEmail: string }) => {
+      const { data } = await companyApi.post<{
+        email: string;
+        verificationRequired: true;
+        emailSent?: boolean;
+      }>("/company-auth/signup/change-email", input);
       return data;
     },
   });
@@ -131,17 +193,25 @@ export interface InvitationPreview {
   expiresAt: string;
 }
 
+const invitationPreviewKey = (token: string) => ["company-invitation", token] as const;
+
 export function useInvitationPreview(token: string) {
   return useQuery({
-    queryKey: ["company-invitation", token],
+    queryKey: invitationPreviewKey(token),
     queryFn: async () => {
+      // Sayfa geçersiz/kullanılmış daveti kendi kartında gösterir → global
+      // toast yok (kart + toast aynı hatayı iki kez gösteriyordu).
       const { data } = await companyApi.get<InvitationPreview>(
         `/company/invitations/${token}`,
+        { skipErrorToast: true },
       );
       return data;
     },
     enabled: !!token,
     retry: false,
+    // Tek kullanımlık davetin önizlemesi: yeniden çekmek bilgi katmaz, kabulden
+    // sonra ise "zaten kabul edilmiş" döner (arayüz testi FX-00 D-003).
+    staleTime: Infinity,
   });
 }
 
@@ -158,6 +228,7 @@ export interface AcceptInvitationInput {
 }
 
 export function useAcceptInvitation(token: string) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: AcceptInvitationInput) => {
       const { data } = await companyApi.post<CompanyLoginResponse>(
@@ -165,6 +236,22 @@ export function useAcceptInvitation(token: string) {
         input,
       );
       return data;
+    },
+    // Kabul oturum açar → girişle aynı hijyen (arayüz testi D-348): bu
+    // tarayıcıda başka bir hesap açıksa onun önbelleği ve taslakları yeni
+    // hesaba taşınmasın. (Yeni hesabın dili isteğin Accept-Language'ından,
+    // yani davet sayfasında seçili dilden doğar — ayrıca yazmaya gerek yok.)
+    onSuccess: (data) => {
+      if (data.user?.id) bindSessionOwner(data.user.id);
+      // Kabul sayfası yönlendirme bitene dek açık kalır: önizleme sorgusu
+      // önbellekten silinirse hâlâ bağlı olan gözlemci onu yeniden çeker →
+      // API "Bu davet zaten kabul edilmiş" (400) döner ve her kabulde panelde
+      // hata toast'ı çıkardı (arayüz testi FX-00 D-003). Önizleme davetlinin
+      // kendi verisi; temizlikten sonra geri konur, yeniden çekilmez.
+      const key = invitationPreviewKey(token);
+      const preview = queryClient.getQueryData<InvitationPreview>(key);
+      queryClient.clear();
+      if (preview) queryClient.setQueryData(key, preview);
     },
   });
 }
@@ -213,14 +300,27 @@ export function useCompleteOnboarding() {
   });
 }
 
-export function useCompanyMe(enabled = true) {
+/**
+ * `skipErrorToast`: /me hatasını kendi kartında gösteren yüzey (onboarding
+ * sihirbazı) global "Sunucu hatası" toast'ını kapatır — tek hata, tek mesaj
+ * (arayüz testi webA-09 yeniden doğrulama; D-085 ile aynı ilke). Panel kabuğu
+ * kart basmadığı için orada toast kalır.
+ */
+export function useCompanyMe(
+  enabled = true,
+  { skipErrorToast = false }: { skipErrorToast?: boolean } = {},
+) {
   const user = useCompanyAuthStore((s) => s.user);
   const setMe = useCompanyAuthStore((s) => s.setMe);
+  const markPermissionsSynced = useCompanyAuthStore(
+    (s) => s.markPermissionsSynced,
+  );
   const query = useQuery({
     queryKey: ["company-auth", "me"],
     queryFn: async () => {
       const { data } = await companyApi.get<CompanyMeResponse>(
         "/company-auth/me",
+        skipErrorToast ? { skipErrorToast: true } : undefined,
       );
       return data;
     },
@@ -230,21 +330,42 @@ export function useCompanyMe(enabled = true) {
   // Store senkronu render sonrası yan-etkiyle (queryFn içinde değil — StrictMode
   // çift-fetch veya cache okumasında setMe atlanmasını önler).
   useEffect(() => {
-    if (query.data) setMe(query.data);
+    if (!query.data) return;
+    bindSessionOwner(query.data.user.id);
+    setMe(query.data);
   }, [query.data, setMe]);
+  // D-299: /me düşerse (kesinti) izinli yüzeyler sonsuza dek beklemesin.
+  useEffect(() => {
+    if (query.isError) markPermissionsSynced();
+  }, [query.isError, markPermissionsSynced]);
   return query;
 }
+
+/** Çıkış isteğinin en uzun bekleneceği süre (ms). */
+export const LOGOUT_WAIT_MS = 3000;
 
 export function useCompanyLogout() {
   const clear = useCompanyAuthStore((s) => s.clear);
   const queryClient = useQueryClient();
-  return () => {
-    // Backend httpOnly cookie'yi temizler; sonucu beklemeden UI'ı boşalt.
-    void companyApi.post("/company-auth/logout").catch(() => undefined);
-    clear();
-    queryClient.clear();
-    if (typeof window !== "undefined") {
-      window.location.href = "/company/login";
+  return async () => {
+    // Derin denetim MU-21: istek beklenmeden yönlendirilince tarayıcı bekleyen
+    // logout isteğini iptal edebiliyordu → httpOnly oturum çerezi silinmeden
+    // kalıyordu. Yanıt beklenir; API askıda kalırsa en çok LOGOUT_WAIT_MS.
+    try {
+      await Promise.race([
+        companyApi.post("/company-auth/logout"),
+        new Promise((resolve) => setTimeout(resolve, LOGOUT_WAIT_MS)),
+      ]);
+    } catch {
+      // Ağ/401 — istemci tarafı yine de temizlenir.
+    } finally {
+      clear();
+      queryClient.clear();
+      // Taslaklar, AI'ın bulduğu tedarikçi adresleri, davet ön doldurma, son aramalar.
+      clearTenantSessionData();
+      if (typeof window !== "undefined") {
+        window.location.href = localizePath("/company/login", runtimeLocale());
+      }
     }
   };
 }

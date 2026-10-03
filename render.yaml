@@ -66,6 +66,11 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Önerilir (derin denetim Y-11): Settings → API Keys → Secret key (sb_secret_…).
+      # Tanımlıysa girişte istemci IP'si Sb-Forwarded-For ile iletilir; Supabase'in
+      # IP başına giriş kotası Render'ın tek çıkış IP'sinde paylaşılmaz.
+      - key: SUPABASE_SECRET_KEY
+        sync: false
       # ── Depolama (Cloudflare R2) — İKİ BUCKET (bkz. docs/r2-bucket-split.md) ──
       - key: R2_ACCOUNT_ID
         sync: false

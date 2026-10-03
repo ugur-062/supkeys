@@ -1,8 +1,13 @@
+import { tApi } from "../../common/i18n/i18n.service";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { isValidCountryCode } from "@rothern/shared";
+import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
+import { localizeDefaultAddressTitle } from "../../common/company/default-address-title";
 import { CompanyAddressType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -15,6 +20,30 @@ import { UpsertAddressDto } from "./dto/company-address.dto";
  * (teslimat adresi değişimi sevkiyat-yönlendirme delili); yalnız başarılı
  * mutasyon loglanır, silme-kilidi retleri loglanmaz. log() fail-safe.
  */
+/**
+ * Firma başına adres tavanı (arayüz testi D-135): tavansız defter 300+ adresle
+ * 21.000 px'lik listeye dönüşüyordu. Tavan yalnız YENİ adreste uygulanır —
+ * eskiden tavanı aşmış defter silinmez, düzenlenebilir kalır.
+ */
+export const MAX_ADDRESSES_PER_COMPANY = 200;
+
+/**
+ * Türkiye adresinde posta kodu 5 rakam (arayüz testi D-133; arayüz aynı kuralı
+ * yazarken uygular). Boş posta kodu serbest — alan isteğe bağlı. Diğer
+ * ülkelerin biçimi serbest (SW1A 1AA, 1012 AB…), DTO tavanı 20.
+ */
+export function assertPostalCode(country: string, postalCode: string | null | undefined) {
+  const v = postalCode?.trim();
+  if (country === "TR" && v && !/^\d{5}$/.test(v)) {
+    throw new BadRequestException(i18nMessage("api.companyAddresses.trPostaKodu5Hane"));
+  }
+}
+
+function cityFields(dto: { country?: string; city?: string | null; cityId?: number | null }) {
+  const cityId = resolveCityId(normalizeAddressCountry(dto.country), dto.city, dto.cityId);
+  return { cityId, city: storedCityName(cityId, dto.city) };
+}
+
 @Injectable()
 export class CompanyAddressesService {
   constructor(
@@ -39,15 +68,28 @@ export class CompanyAddressesService {
     };
   }
 
-  list(companyId: string) {
-    return this.prisma.companyAddress.findMany({
+  async list(companyId: string) {
+    const rows = await this.prisma.companyAddress.findMany({
       where: { companyId },
       orderBy: [{ type: "asc" }, { isDefault: "desc" }, { createdAt: "asc" }],
     });
+    // Kayıtta yazılan varsayılan başlıklar ("Merkez"…) okuyucunun dilinde.
+    return rows.map((r) => ({ ...r, title: localizeDefaultAddressTitle(r.title) }));
   }
 
   async create(user: AuthenticatedCompanyUser, dto: UpsertAddressDto) {
     const type = dto.type as CompanyAddressType;
+    assertPostalCode(normalizeAddressCountry(dto.country), dto.postalCode);
+    const count = await this.prisma.companyAddress.count({
+      where: { companyId: user.companyId },
+    });
+    if (count >= MAX_ADDRESSES_PER_COMPANY) {
+      throw new BadRequestException(
+        i18nMessage("api.companyAddresses.adresSiniriAsildi", {
+          max: MAX_ADDRESSES_PER_COMPANY,
+        }),
+      );
+    }
     const address = await runTenantTx(this.prisma, async (tx) => {
       const created = await tx.companyAddress.create({
         data: {
@@ -56,8 +98,10 @@ export class CompanyAddressesService {
           title: dto.title.trim(),
           contactName: dto.contactName?.trim() || null,
           phone: dto.phone?.trim() || null,
-          country: dto.country?.trim() || "TR",
-          city: dto.city?.trim() || null,
+          country: normalizeAddressCountry(dto.country),
+          stateRegion: dto.stateRegion?.trim() || null,
+          // Dünya şehir listesi kaydı (2026-09-27); eşlendiyse tek biçimli ad (`storedCityName`).
+          ...cityFields(dto),
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
           postalCode: dto.postalCode?.trim() || null,
@@ -100,6 +144,7 @@ export class CompanyAddressesService {
     // düzeltmesi mümkün kalsın.
     const LOCKED_FIELDS = [
       "country",
+      "stateRegion",
       "city",
       "district",
       "addressLine",
@@ -108,23 +153,46 @@ export class CompanyAddressesService {
       "taxNumber",
     ] as const;
     const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
+    // Karşılaştırma YAZILACAK şehirle yapılır (derin denetim S021): geçerli bir
+    // `cityId` metni ezer (`storedCityName`); eskiden eski şehir metni + başka
+    // şehrin id'si gönderilince kilit atlanıp adres fiilen taşınıyordu.
+    const city = cityFields(dto);
     const incoming: Record<(typeof LOCKED_FIELDS)[number], string | null> = {
-      country: dto.country?.trim() || "TR",
-      city: norm(dto.city),
+      country: normalizeAddressCountry(dto.country),
+      stateRegion: norm(dto.stateRegion),
+      city: norm(city.city),
       district: norm(dto.district),
       addressLine: dto.addressLine.trim(),
       postalCode: norm(dto.postalCode),
       taxOffice: norm(dto.taxOffice),
       taxNumber: norm(dto.taxNumber),
     };
-    const locationChanged = LOCKED_FIELDS.some(
-      (k) => (before[k] ?? null) !== incoming[k],
-    );
+    // Şehir: iki taraf da listeden eşlendiyse id'ler, değilse metin (büyük/
+    // küçük harf duyarsız — kanonik yazıma geçiş kilide takılmasın).
+    const cityChanged =
+      before.cityId != null && city.cityId != null
+        ? before.cityId !== city.cityId
+        : (norm(before.city)?.toLocaleLowerCase("tr") ?? null) !==
+          (incoming.city?.toLocaleLowerCase("tr") ?? null);
+    const locationChanged =
+      cityChanged ||
+      LOCKED_FIELDS.some(
+        (k) => k !== "city" && (before[k] ?? null) !== incoming[k],
+      );
+    // Posta kodu biçimi yalnız değişen değerde denetlenir: kuraldan önce
+    // kaydedilmiş hatalı kod, başlık/telefon düzeltmesini engellemesin.
+    const country = normalizeAddressCountry(dto.country);
+    if (
+      incoming.postalCode !== (before.postalCode ?? null) ||
+      country !== before.country
+    ) {
+      assertPostalCode(country, incoming.postalCode);
+    }
     if (locationChanged) {
       await this.assertNotInActiveUse(
         user.companyId,
         id,
-        "adres bilgileri değiştirilemez",
+        "edit",
       );
     }
     const type = dto.type as CompanyAddressType;
@@ -136,8 +204,10 @@ export class CompanyAddressesService {
           title: dto.title.trim(),
           contactName: dto.contactName?.trim() || null,
           phone: dto.phone?.trim() || null,
-          country: dto.country?.trim() || "TR",
-          city: dto.city?.trim() || null,
+          country: normalizeAddressCountry(dto.country),
+          stateRegion: dto.stateRegion?.trim() || null,
+          // Dünya şehir listesi kaydı (2026-09-27); eşlendiyse tek biçimli ad (`storedCityName`).
+          ...city,
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
           postalCode: dto.postalCode?.trim() || null,
@@ -158,6 +228,7 @@ export class CompanyAddressesService {
         "contactName",
         "phone",
         "country",
+        "stateRegion",
         "city",
         "district",
         "addressLine",
@@ -182,7 +253,7 @@ export class CompanyAddressesService {
 
   async remove(user: AuthenticatedCompanyUser, id: string) {
     const before = await this.requireOwn(user.companyId, id);
-    await this.assertNotInActiveUse(user.companyId, id, "silinemez");
+    await this.assertNotInActiveUse(user.companyId, id, "delete");
     await runTenantTx(this.prisma, async (tx) => {
       // Sonuçlanmış (AWARDED/iptal) ilanlardaki sarkan referansları temizle
       // (sipariş adresi zaten award anında snapshot'landı).
@@ -229,20 +300,41 @@ export class CompanyAddressesService {
   private async assertNotInActiveUse(
     companyId: string,
     id: string,
-    what: string,
+    what: "delete" | "edit",
   ) {
+    // Cümlenin sonundaki eylem parçası da katalogdan gelir; yoksa EN/RU
+    // cümlenin ortasına Türkçe düşerdi (çeviri incelemesi 2026-09-24).
+    const whatText = tApi(
+      what === "delete"
+        ? "api.companyAddresses.silinemez"
+        : "api.companyAddresses.adresBilgileriDegistirilemez",
+    );
+    const usedBy = { OR: [{ deliveryAddressId: id }, { billingAddressId: id }] };
     const activeUse = await this.prisma.listing.count({
       where: {
         companyId,
         status: {
           in: ["DRAFT", "IN_APPROVAL", "OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"],
         },
-        OR: [{ deliveryAddressId: id }, { billingAddressId: id }],
+        ...usedBy,
       },
     });
     if (activeUse > 0) {
       throw new BadRequestException(
-        `Bu adres ${activeUse} aktif ilanda kullanılıyor — ${what}; önce ilanlardaki adresi değiştirin`,
+        i18nMessage("api.companyAddresses.buAdresAktifIlandaKullaniliyorOnce", { activeUse: activeUse, what: whatText }),
+      );
+    }
+    // CLOSED = yalnız admin moderasyon kapatması; admin yeniden açınca
+    // SUBMITTED teklifleriyle OPEN'a döner → adres kilitli kalır (derin
+    // denetim S021; eskiden arada silinip ilan adressiz yeniden açılıyordu).
+    // Sahip CLOSED ilanda adresi değiştiremez → ayrı metin desteğe yönlendirir
+    // ("önce ilandaki adresi değiştirin" uygulanamaz bir yönlendirmeydi).
+    const closedUse = await this.prisma.listing.count({
+      where: { companyId, status: "CLOSED", ...usedBy },
+    });
+    if (closedUse > 0) {
+      throw new BadRequestException(
+        i18nMessage("api.companyAddresses.buAdresYoneticiKapattigiIlandaKullaniliyor", { closedUse: closedUse, what: whatText }),
       );
     }
     const bidUse = await this.prisma.listingBid.count({
@@ -254,7 +346,7 @@ export class CompanyAddressesService {
     });
     if (bidUse > 0) {
       throw new BadRequestException(
-        `Bu adres ${bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar ${what}`,
+        i18nMessage("api.companyAddresses.buAdresGonderilmisTeklifteKullaniliyorTeklif", { bidUse: bidUse, what: whatText }),
       );
     }
   }
@@ -265,7 +357,7 @@ export class CompanyAddressesService {
       where: { id },
     });
     if (!a || a.companyId !== companyId) {
-      throw new NotFoundException("Adres bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyAddresses.adresBulunamadi"));
     }
     return a;
   }
@@ -282,4 +374,17 @@ export class CompanyAddressesService {
       data: { isDefault: false },
     });
   }
+}
+
+/**
+ * Adres ülkesi (2026-09-27): büyük harfe çevrilir ve TAM ülke listesine göre
+ * doğrulanır (eskiden yalnız `MaxLength(2)` vardı — "zz" kaydedilebiliyordu).
+ * Boş → TR (eski istemciler).
+ */
+function normalizeAddressCountry(raw: string | undefined): string {
+  const c = raw?.trim().toUpperCase() || "TR";
+  if (!isValidCountryCode(c)) {
+    throw new BadRequestException(i18nMessage("api.companyAuth.gecersizUlkeSecimi"));
+  }
+  return c;
 }

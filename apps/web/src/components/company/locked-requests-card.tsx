@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { SilverLockCard } from "@/components/company/silver-lock-card";
 import type { LockedRequestsSummary } from "@/hooks/use-seller-tenders";
 import { formatDate } from "@/lib/format-date";
@@ -15,18 +17,20 @@ export function LockedRequestsCard({
 }: {
   summary: Extract<LockedRequestsSummary, { locked: true }>;
 }) {
+  const t = useTranslations("web.panel.trade.lockedRequestsCard");
+  const locale = useLocale() as Locale;
   const { total, inMyCategories, thisWeek, itemCount, samples } = summary;
   const hasAny = total > 0;
   const metaParts = [
-    inMyCategories > 0 ? `${inMyCategories} kategorinizde` : null,
-    thisWeek > 0 ? `${thisWeek} bu hafta yeni` : null,
-    itemCount > 0 ? `toplam ${itemCount} kalem` : null,
+    inMyCategories > 0 ? t("kategorinizde", { n: inMyCategories }) : null,
+    thisWeek > 0 ? t("buHaftaYeni", { n: thisWeek }) : null,
+    itemCount > 0 ? t("toplamKalem", { n: itemCount }) : null,
   ].filter(Boolean);
   return (
     <SilverLockCard
-      title={hasAny ? `Silver ile açılacak ${total} açık talep` : "Herkese açık talepler Silver ile görünür"}
+      title={hasAny ? t("silverIleAcilacakAcikTalep", { total: total }) : t("herkeseAcikTaleplerSilverIle")}
       meta={hasAny && metaParts.length > 0 ? metaParts.join(" · ") : null}
-      description="Ücretsiz üyelikte yalnız bağlantı davetiyle gelen talepleri görürsünüz. Herkese açık taleplerin tamamı, teklif verme ve alıcı kimliği Silver paketiyle açılır."
+      description={t("ucretsizUyelikteYalnizBaglantiDavetiyle")}
       className="border-zinc-300"
     >
       {samples.length > 0 ? (
@@ -41,9 +45,9 @@ export function LockedRequestsCard({
             >
               <span className="font-medium text-zinc-900">{s.title}</span>
               {s.category ? <span>{s.category}</span> : null}
-              <span>{s.itemCount} kalem</span>
+              <span>{t("kalem", { n: s.itemCount })}</span>
               {s.city ? <span>{s.city}</span> : null}
-              {s.closesAt ? <span>Kapanış {formatDate(s.closesAt)}</span> : null}
+              {s.closesAt ? <span>{t("kapanis", { formatDate: formatDate(s.closesAt, "short", locale) })}</span> : null}
             </li>
           ))}
         </ul>

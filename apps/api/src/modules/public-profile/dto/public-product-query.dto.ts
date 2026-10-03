@@ -1,5 +1,6 @@
 import { Transform } from "class-transformer";
 import { IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /** Firma vitrini içi ürün araması — anonim; her alan dar ve doğrulanmış. */
 export class PublicProductQueryDto {
@@ -11,7 +12,9 @@ export class PublicProductQueryDto {
 
   /** 8 haneli kategori kodu; ata zincirini kapsayan önek süzgeci olarak kullanılır. */
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, {
+    message: () => tApi("api.dto.publicProductQuery.kategoriKodu8HaneliOlmali"),
+  })
   categoryId?: string;
 
   @IsOptional()

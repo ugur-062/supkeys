@@ -38,6 +38,17 @@ export class CompanyApprovalsController {
     return this.service.listFlows(user.companyId);
   }
 
+  /**
+   * Onaycı adayları (akış sihirbazı seçicisi) — approvals:manage yeter;
+   * `GET company/users` users:manage istediği için yalnız akış yetkisi olan
+   * üyede seçici boş kalıyordu (derin denetim MU-23).
+   */
+  @Get("approver-candidates")
+  @RequireCompanyPermission("approvals:manage")
+  listApproverCandidates(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listApproverCandidates(user.companyId);
+  }
+
   @Post("flows")
   @RequireTier("GOLD")
   // Faz T: YENİ akış kurma Silver+ (mevcut akışları yönetme/karar tier'sız —
@@ -106,8 +117,11 @@ export class CompanyApprovalsController {
   }
 
   /**
-   * Geçmiş + taleplerim — izin gerektirmez: kullanıcı yalnızca PARÇASI olduğu
-   * istekleri görür (başlattıkları + onaycısı olduğu sonuçlanmışlar).
+   * Geçmiş — `approval:act` İSTER (izinsiz üye 403; yalnız `buy:award` taşıyan
+   * Satın Almacı kendi başlattığı istekleri buradan listeleyemez — arayüz testi
+   * D-184, kullanıcı kararı T-20: davranış değişmedi, yorum düzeltildi). Sonuç
+   * yalnız çağıranın PARÇASI olduğu istekler: başlattıkları + onaycısı olduğu
+   * sonuçlanmışlar. Web bu ucu çağırmaz (Onaylar › "Tüm istekler" = `all`).
    */
   @Get("history")
   @RequireCompanyPermission("approval:act")
@@ -150,9 +164,16 @@ export class CompanyApprovalsController {
     return this.service.decide(user, id, "reject", dto);
   }
 
-  /** İsteği başlatan (veya sahip) bekleyen onay isteğini iptal eder. */
+  /**
+   * İsteği başlatan (veya approvals:manage) bekleyen onay isteğini iptal eder —
+   * kural serviste (`cancelRequest`). Guard yalnız bağlamı ister: onay ya da
+   * satınalma tarafı. Eskiden [approvals:manage, buy:award] istiyordu; yayın
+   * onayını başlatan "Talep açma ve yönetme" yetkilisi (ya da izinleri sonradan
+   * daralan başlatan) kendi isteğini iptal edemiyordu, UI düğmeyi çizerken
+   * (arayüz testi T3). buy:view tüm satınalma işlem izinlerince örtüktür.
+   */
   @Post(":id/cancel")
-  @RequireCompanyPermission(["approvals:manage", "buy:award"])
+  @RequireCompanyPermission(["approvals:manage", "approval:act", "buy:view"])
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

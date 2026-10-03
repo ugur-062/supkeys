@@ -6,7 +6,7 @@ import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-c
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompany, makeCompanyWithUser } from "./factories";
 
 function rig() {
   const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
@@ -55,12 +55,53 @@ describe("Admin aksiyonları audit'lenir", () => {
     });
     expect(row).not.toBeNull();
     expect(row!.actorId).toBe("admin-9");
+    expect(row!.metadata).toMatchObject({ tier: "GOLD", from: "STANDART", months: 12 });
+  });
+
+  // Arayüz testi son tur api-2: paket kaldırma denetim satırı önceki hibenin
+  // ayını ("ay: 12") taşımaz — kaldırmada ay verilmez.
+  it("setTier STANDART (paket kaldırma) → metadata months taşımaz", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await service.setTier(co.company.id, "GOLD", 12, "admin-9");
+    await service.setTier(co.company.id, "STANDART", 12, "admin-9");
+    const rows = await prisma.auditLog.findMany({
+      where: { action: "admin.company.tier_set", entityId: co.company.id },
+      orderBy: { createdAt: "asc" },
+    });
+    const revoke = rows.find((r) => (r.metadata as { tier?: string }).tier === "STANDART");
+    expect(revoke).toBeDefined();
+    expect(revoke!.metadata).toMatchObject({ tier: "STANDART", from: "GOLD", months: null });
+  });
+
+  // Arayüz testi D-192 yeniden doğrulama: paket değişimi herkese açık firma ve
+  // ürün sayfalarını (Gold rozeti, Silver+ video/belgeler) tazeler.
+  it("setTier paket değişince SEO tazelemesi yayar; aynı paket yeniden yazılınca yaymaz", async () => {
+    const seo = { companyChanged: jest.fn() };
+    const service = new AdminCompaniesService(
+      prisma as never,
+      {} as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
+      { pushToCompany: jest.fn().mockResolvedValue(1) } as never,
+      { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+      new AuditService(prisma as never),
+      new EmailSuppressionService(prisma as never),
+      seo as never,
+    );
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await service.setTier(co.company.id, "STANDART", undefined, "admin-1");
+    expect(seo.companyChanged).toHaveBeenCalledWith(co.company.id);
+    seo.companyChanged.mockClear();
+    await service.setTier(co.company.id, "STANDART", undefined, "admin-1");
+    expect(seo.companyChanged).not.toHaveBeenCalled();
   });
 
   it("verification_set → audit_log", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    await service.setVerification(co.company.id, "REJECTED", "admin-7");
+    // Red gerekçesi (kod VEYA ≥3 karakterlik not) servis katmanında da zorunlu
+    // (2026-09-27, kodlu gerekçe) — yalnız kodla red.
+    await service.setVerification(co.company.id, "REJECTED", "admin-7", undefined, "UNREADABLE");
     const row = await prisma.auditLog.findFirst({
       where: {
         action: "admin.company.verification_set",
@@ -131,6 +172,18 @@ describe("updateProfile — kimlik düzeltme (Faz 2)", () => {
     await expect(
       service.updateProfile(co.company.id, { name: "  " }, "admin-1"),
     ).rejects.toThrow("Firma adı boş olamaz");
+  });
+
+  it("başka firmadaki vergi numarasına düzeltme 500 değil 409 (derin denetim MU-16)", async () => {
+    const { service } = rig();
+    const a = await makeCompanyWithUser(prisma, {});
+    const b = await makeCompanyWithUser(prisma, {});
+    await prisma.company.update({ where: { id: a.company.id }, data: { taxNumber: "1234567890" } });
+    const err = await service
+      .updateProfile(b.company.id, { taxNumber: "1234567890" }, "admin-1")
+      .catch((e: unknown) => e);
+    expect((err as { getStatus: () => number }).getStatus()).toBe(409);
+    expect((err as Error).message).toBe("Bu vergi numarası başka bir firmada kayıtlı");
   });
 });
 
@@ -316,6 +369,56 @@ describe("list — sayfalama + kuyruk sıralaması (Faz 1-2)", () => {
     expect(res.items[0]!.updatedAt).toBeInstanceOf(Date);
   });
 
+  it("kuyruk (queue=kyc): Başvuru tarihi ve sıra belge gönderiminden gelir, sonraki düzenleme sırayı bozmaz (arayüz testi O-075)", async () => {
+    const { service } = rig();
+    const day = 86_400_000;
+    const first = await makeCompanyWithUser(prisma, { companyVerificationStatus: "PENDING" });
+    const second = await makeCompanyWithUser(prisma, { companyVerificationStatus: "PENDING" });
+    const revising = await makeCompanyWithUser(prisma, { companyVerificationStatus: "VERIFIED" });
+    const submitAt = (id: string, at: Date) =>
+      prisma.auditLog.create({
+        data: {
+          action: "company.docs.submitted",
+          actorType: "company",
+          entityType: "company",
+          entityId: id,
+          createdAt: at,
+        },
+      });
+    await submitAt(first.company.id, new Date(Date.now() - 5 * day));
+    await submitAt(second.company.id, new Date(Date.now() - 3 * day));
+    const revAt = new Date(Date.now() - 4 * day);
+    await prisma.companyKycRevision.create({
+      data: {
+        companyId: revising.company.id,
+        kind: "taxPlate",
+        key: `company-docs/${revising.company.id}/taxPlate-v2.pdf`,
+        status: "PENDING",
+        createdAt: revAt,
+      },
+    });
+    // Admin ilk firmanın bilgisini düzenledi → updatedAt şimdi.
+    await prisma.company.update({
+      where: { id: first.company.id },
+      data: { name: "Edited Name", updatedAt: new Date() },
+    });
+
+    const res = await service.list({ queue: "kyc", sort: "oldest", page: 1, pageSize: 10 });
+    expect(res.total).toBe(3);
+    expect(res.items.map((r) => r.id)).toEqual([
+      first.company.id,
+      revising.company.id,
+      second.company.id,
+    ]);
+    expect(Math.round((Date.now() - res.items[0]!.submittedAt!.getTime()) / day)).toBe(5);
+    expect(res.items[1]!.submittedAt!.getTime()).toBe(revAt.getTime());
+
+    // Sayfalama sırayı korur.
+    const p2 = await service.list({ queue: "kyc", sort: "oldest", page: 2, pageSize: 2 });
+    expect(p2.total).toBe(3);
+    expect(p2.items.map((r) => r.id)).toEqual([second.company.id]);
+  });
+
   it("stats funnel adımlarını döner", async () => {
     const { service } = rig();
     await makeCompanyWithUser(prisma, {});
@@ -324,6 +427,46 @@ describe("list — sayfalama + kuyruk sıralaması (Faz 1-2)", () => {
     expect(stats.funnel).toHaveProperty("onboarded");
     expect(stats.funnel).toHaveProperty("kycSubmitted");
     expect(stats.funnel).toHaveProperty("verified");
+  });
+
+  it("stats ülke seçenekleri ilk 10 ile sınırlı değil (derin denetim LU-11)", async () => {
+    const { service } = rig();
+    const countries = ["TR", "DE", "FR", "IT", "ES", "NL", "PL", "GB", "US", "AZ", "GE", "KZ"];
+    for (const country of countries) {
+      await makeCompanyWithUser(prisma, { country });
+    }
+    await makeCompanyWithUser(prisma, { country: "TR" });
+    const stats = await service.stats();
+    // Pano yine en kalabalık 10 ülkeyi gösterir…
+    expect(stats.countryBreakdown).toHaveLength(10);
+    expect(stats.countryBreakdown[0]).toEqual({ country: "TR", count: 2 });
+    // …ama duyuru segmenti / firma filtresi tüm ülkeleri alır.
+    expect(stats.countryOptions).toHaveLength(12);
+    expect(stats.countryOptions.map((c) => c.country).sort()).toEqual([...countries].sort());
+  });
+});
+
+describe("list — expiring=30 süzgeci (arayüz testi D-146)", () => {
+  it("yalnız 30 gün içinde bitecek paket üyelikler, bitişi en yakın önce; pano sayısıyla aynı", async () => {
+    const { service } = rig();
+    const day = 86_400_000;
+    const soon = await makeCompany(prisma, { tier: "GOLD", membershipEndAt: new Date(Date.now() + 20 * day) });
+    const sooner = await makeCompany(prisma, { tier: "SILVER", membershipEndAt: new Date(Date.now() + 3 * day) });
+    await makeCompany(prisma, { tier: "GOLD", membershipEndAt: new Date(Date.now() + 60 * day) });
+    await makeCompany(prisma, { tier: "GOLD", membershipEndAt: new Date(Date.now() - day) });
+    await makeCompany(prisma, { tier: "STANDART", membershipEndAt: new Date(Date.now() + 5 * day) });
+    await makeCompany(prisma, { tier: "GOLD", membershipEndAt: null });
+
+    const res = await service.list({ expiring: "30", page: 1, pageSize: 25 });
+    expect(res.items.map((r) => r.id)).toEqual([sooner.id, soon.id]);
+    expect(res.total).toBe(2);
+    expect((await service.stats()).expiringMembershipsCount).toBe(res.total);
+
+    // Kademe süzgeciyle birlikte: GOLD → yalnız 20 günlük; STANDART → boş.
+    const gold = await service.list({ expiring: "30", tier: "GOLD", page: 1, pageSize: 25 });
+    expect(gold.items.map((r) => r.id)).toEqual([soon.id]);
+    const std = await service.list({ expiring: "30", tier: "STANDART", page: 1, pageSize: 25 });
+    expect(std.total).toBe(0);
   });
 });
 
@@ -378,6 +521,35 @@ describe("announce — toplu duyuru (batch + paralel, per-firma findUnique yok)"
       where: { action: "admin.announcement.sent" },
     });
     expect((log.metadata as { delivered: number }).delivered).toBe(3);
+  });
+
+  it("Y-08: e-postalar `bulk` öncelikle kuyruğa gider; yanıt emailQueued, bitince sent/failed audit'e yazılır", async () => {
+    const { service, email } = announceRig();
+    for (let i = 0; i < 3; i++) await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    // Biri başarısız, biri suppress (sent:false), biri gönderildi.
+    email.send
+      .mockRejectedValueOnce(new Error("[resend] rate_limit_exceeded: x"))
+      .mockResolvedValueOnce({ emailLogId: "s", sent: false })
+      .mockResolvedValueOnce({ emailLogId: "t", sent: true });
+
+    const res = await service.announce(
+      { subject: "Duyuru", message: "Merhaba", sendEmail: true },
+      "admin-1",
+    );
+    expect(res).toMatchObject({ targets: 3, delivered: 3, emailQueued: 3 });
+    // Duyuru kuyruğu diğer e-postaları bekletmesin: bulk öncelik.
+    for (const call of email.send.mock.calls) {
+      expect(call[0]).toMatchObject({ priority: "bulk" });
+    }
+    // E-posta sonucu arka planda yazılır.
+    let done = null as Awaited<ReturnType<typeof prisma.auditLog.findFirst>>;
+    for (let i = 0; i < 50 && !done; i++) {
+      await new Promise((r) => setTimeout(r, 20));
+      done = await prisma.auditLog.findFirst({
+        where: { action: "admin.announcement.email_completed" },
+      });
+    }
+    expect(done?.metadata).toMatchObject({ sent: 1, skipped: 1, failed: 1 });
   });
 
   it("sendEmail=false: yalnız in-app push, e-posta yok", async () => {

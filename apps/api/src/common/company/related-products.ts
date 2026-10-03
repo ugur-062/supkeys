@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import type { PrismaClient } from "@rothern/db";
 import { NotFoundException } from "@nestjs/common";
 import { publicProductWhere } from "./public-profile-gate";
@@ -23,12 +24,36 @@ type Db = Pick<PrismaClient, "companyItem">;
  * ürününü basıyordu — alıcı karşılaştıracak başka tedarikçi göremiyordu ve
  * pazar yeri hissi tam orada kırılıyordu (kullanıcı bulgusu).
  */
-export async function relatedProducts(prisma: Db, companySlug: string, productSlug: string) {
+export interface RelatedViewerScope {
+  /**
+   * Panel görüntüleyicisi (arayüz testi D-231): "Benzer ürünler — diğer
+   * tedarikçilerden" ve "Kategoride yeni" görüntüleyenin KENDİ firmasını
+   * listelememeli — üye kendi ürününü "başka tedarikçi" diye görüyordu.
+   */
+  viewerCompanyId?: string;
+  /**
+   * Görüntüleyiciyle herhangi yönde engel ilişkisi olan firmalar: hiçbir
+   * blokta listelenmez; ürünün kendi firması bu kümedeyse 404 (panel ürün
+   * sayfası `discoverProduct` ile aynı karşılıklı görünmezlik).
+   */
+  blockedCompanyIds?: string[];
+}
+
+export async function relatedProducts(prisma: Db, companySlug: string, productSlug: string, viewer: RelatedViewerScope = {}) {
   const base = await prisma.companyItem.findFirst({
-    where: { ...publicProductWhere(), slug: productSlug, company: { slug: companySlug } },
+    // Firma slug'ı AND ile eklenir: `company` anahtarını düz yazmak
+    // `publicProductWhere()`in profil kapısını (publicEnabled/aktif/bloksuz)
+    // ezer ve engelli firmanın ürünü için 404 yerine 200 dönerdi.
+    where: { AND: [publicProductWhere(), { slug: productSlug, company: { slug: companySlug } }] },
     select: { id: true, companyId: true, categoryId: true },
   });
-  if (!base) throw new NotFoundException("Ürün bulunamadı");
+  if (!base) throw new NotFoundException(i18nMessage("api.company.urunBulunamadi"));
+  const blocked = viewer.blockedCompanyIds ?? [];
+  if (blocked.includes(base.companyId)) throw new NotFoundException(i18nMessage("api.company.urunBulunamadi"));
+  // "Diğer tedarikçiler" blokları: ürünün firması + görüntüleyen + engelliler.
+  const otherCompanies = {
+    notIn: [...new Set([base.companyId, ...(viewer.viewerCompanyId ? [viewer.viewerCompanyId] : []), ...blocked])],
+  };
   const [fromCompany, fromTotal] = await Promise.all([
     prisma.companyItem.findMany({
       where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },
@@ -45,7 +70,7 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
   if (code && /^\d{8}$/.test(code)) {
     for (const level of [`${code.slice(0, 6)}00`, `${code.slice(0, 4)}0000`, `${code.slice(0, 2)}000000`]) {
       similar = await prisma.companyItem.findMany({
-        where: { ...publicProductWhere(), ...productCategoryWhere(level), companyId: { not: base.companyId } },
+        where: { ...publicProductWhere(), ...productCategoryWhere(level), companyId: otherCompanies },
         select: PRODUCT_INDEX_SELECT,
         orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
         take: 8,
@@ -59,7 +84,7 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
           ...publicProductWhere(),
           ...productCategoryWhere(`${code.slice(0, 2)}000000`),
           id: { not: base.id },
-          companyId: { not: base.companyId },
+          companyId: otherCompanies,
         },
         select: PRODUCT_INDEX_SELECT,
         orderBy: [{ publishedAt: "desc" }],
@@ -68,9 +93,17 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
     : [];
   const verifiedFirst = (rows: typeof fromCompany) =>
     rows.map(toProductIndexCard).sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
+  const similarCards = verifiedFirst(similar);
+  const similarIds = similarCards.map((c) => similar.find((r) => r.slug === c.slug && r.company.slug === c.company.slug)?.id ?? "");
   return {
     fromCompany: { items: fromCompany.map(toProductIndexCard), total: fromTotal },
-    similar: verifiedFirst(similar),
+    similar: similarCards,
     popular: popular.map(toProductIndexCard),
+    /** İç kimlikler — YALNIZ çeviri eşlemesi için; herkese açık uç yanıta koymadan soyar (i18n Faz 1e). */
+    ids: {
+      fromCompany: fromCompany.map((r) => r.id),
+      similar: similarIds,
+      popular: popular.map((r) => r.id),
+    },
   };
 }

@@ -31,13 +31,15 @@ function storageMock() {
       size: 1024,
       contentType: "application/pdf",
     })),
+    // D-014: commit içerik imzasını (ilk baytlar) da denetler.
+    readObjectPrefix: jest.fn(async () => Buffer.from("%PDF-1.7\n%")),
   };
 }
 
-function docsService() {
+function docsService(storage = storageMock()) {
   return new CompanyDocsService(
     prisma as never,
-    storageMock() as never,
+    storage as never,
     new AuditService(prisma as never),
   );
 }
@@ -60,6 +62,38 @@ function adminService() {
     email,
     notifications,
   };
+}
+
+/**
+ * Gozden gecirme (MU-19): prisma'yi saran ve companyKycRevision.<method>
+ * cagrisi dondukten HEMEN SONRA `between` kancasini calistiran vekil — okuma
+ * ile yazma arasindaki yaris penceresini deterministik uretir.
+ */
+function racyPrisma(method: string, between: () => Promise<void>) {
+  let fired = false;
+  const delegate = prisma.companyKycRevision as unknown as Record<string, unknown>;
+  const wrapped = new Proxy(delegate, {
+    get(t, p) {
+      const v = Reflect.get(t, p) as unknown;
+      if (typeof v !== "function") return v;
+      if (p !== method) return (v as (...a: unknown[]) => unknown).bind(t);
+      return async (...args: unknown[]) => {
+        const out = await (v as (...a: unknown[]) => Promise<unknown>).apply(t, args);
+        if (!fired) {
+          fired = true;
+          await between();
+        }
+        return out;
+      };
+    },
+  });
+  return new Proxy(prisma, {
+    get(t, p) {
+      if (p === "companyKycRevision") return wrapped;
+      const v = Reflect.get(t, p) as unknown;
+      return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+    },
+  });
 }
 
 /** TR: tüm belgeler APPROVED + firma VERIFIED — hiçbir belge değiştirilemez. */
@@ -195,6 +229,107 @@ describe("A-modeli — firma tarafı (VERIFIED'da onaysız alan → revizyon)", 
     expect(rows).toHaveLength(1);
     expect(rows[0]!.id).toBe(first.id);
     expect(rows[0]!.key).toBe(`company-docs/${co.id}/v2.pdf`);
+  });
+
+  it("MU-19 (S026): ezilen bekleyen revizyonun eski nesnesi R2'dan silinir (öksüz kalmaz)", async () => {
+    const storage = storageMock();
+    const docs = docsService(storage);
+    const co = await verifiedForeignCompany();
+
+    await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v1.pdf`);
+    expect(storage.deleteObject).not.toHaveBeenCalled();
+    await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v2.pdf`);
+
+    expect(storage.deleteObject).toHaveBeenCalledTimes(1);
+    expect(storage.deleteObject).toHaveBeenCalledWith(
+      "private",
+      `company-docs/${co.id}/v1.pdf`,
+    );
+  });
+
+  it("MU-19 (S026): eski nesne silinemezse yükleme yine başarılı (best-effort)", async () => {
+    const storage = storageMock();
+    storage.deleteObject.mockRejectedValue(new Error("r2 down"));
+    const docs = docsService(storage);
+    const co = await verifiedForeignCompany();
+
+    await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v1.pdf`);
+    await expect(
+      docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v2.pdf`),
+    ).resolves.toMatchObject({ ok: true, revision: true });
+    const row = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: co.id, kind: "signatureCircular", status: "PENDING" },
+    });
+    expect(row.key).toBe(`company-docs/${co.id}/v2.pdf`);
+  });
+
+  it("MU-19 gözden geçirme: okuma ile güncelleme arasında admin onaylarsa onaylı satır ezilmez, canlı nesne silinmez (409)", async () => {
+    const co = await verifiedForeignCompany();
+    await docsService().commit(
+      co.id,
+      "signatureCircular",
+      `company-docs/${co.id}/v1.pdf`,
+    );
+    const rev = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: co.id, kind: "signatureCircular" },
+    });
+    const { svc } = adminService();
+    const storage = storageMock();
+    const racy = racyPrisma("findFirst", async () => {
+      await svc.reviewDocRevision(co.id, rev.id, { status: "APPROVED" }, "adm1");
+    });
+    const docs = new CompanyDocsService(
+      racy as never,
+      storage as never,
+      new AuditService(prisma as never),
+    );
+
+    await expect(
+      docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v2.pdf`),
+    ).rejects.toMatchObject({ status: 409 });
+
+    const after = await prisma.companyKycRevision.findUniqueOrThrow({
+      where: { id: rev.id },
+    });
+    expect(after.status).toBe("APPROVED");
+    expect(after.key).toBe(`company-docs/${co.id}/v1.pdf`);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.docSignatureCircularUrl).toBe(`company-docs/${co.id}/v1.pdf`);
+    expect(storage.deleteObject).not.toHaveBeenCalledWith(
+      "private",
+      `company-docs/${co.id}/v1.pdf`,
+    );
+    expect(
+      await prisma.companyKycRevision.count({
+        where: { companyId: co.id, status: "PENDING" },
+      }),
+    ).toBe(0);
+  });
+
+  it("MU-19 gözden geçirme: admin okuduktan sonra firma dosyayı değiştirirse onay GÜNCEL key'i yazar (silinmiş nesneyi değil)", async () => {
+    const co = await verifiedForeignCompany();
+    const docs = docsService();
+    await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v1.pdf`);
+    const rev = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: co.id, kind: "signatureCircular" },
+    });
+    const racy = racyPrisma("findUnique", async () => {
+      await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v2.pdf`);
+    });
+    const svc = new AdminCompaniesService(
+      racy as never,
+      storageMock() as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
+      { pushToCompany: jest.fn().mockResolvedValue(undefined) } as never,
+      { get: jest.fn(() => "http://localhost:3000") } as never,
+      new AuditService(prisma as never),
+      new EmailSuppressionService(prisma as never),
+    );
+
+    await svc.reviewDocRevision(co.id, rev.id, { status: "APPROVED" }, "adm1");
+
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.docSignatureCircularUrl).toBe(`company-docs/${co.id}/v2.pdf`);
   });
 
   it("get(): kind başına SON revizyon döner (status + presigned url)", async () => {

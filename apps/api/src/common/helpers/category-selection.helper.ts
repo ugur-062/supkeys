@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 import { hiddenCategoryWhere } from "@rothern/shared";
 import {
@@ -29,7 +30,7 @@ export async function validateCategorySelection(
 
   if (mainIds.length < 1 || mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
     throw new BadRequestException(
-      `1-${MAX_COMPANY_MAIN_CATEGORIES} arası ana kategori seçmelisiniz`,
+      i18nMessage("api.helpers.n1ArasiAnaKategoriSecmelisiniz", { MAXCOMPANYMAINCATEGORIES: MAX_COMPANY_MAIN_CATEGORIES }),
     );
   }
 
@@ -38,11 +39,11 @@ export async function validateCategorySelection(
   // kullanılsaydı 50 yaprak seçen kullanıcı genişlemeyle tavanı aşıp anlamsız
   // bir hata alırdı.
   if (subIds.length > MAX_COMPANY_SUB_CATEGORIES) {
-    throw new BadRequestException("Alt kategori beyanı fazla geniş");
+    throw new BadRequestException(i18nMessage("api.helpers.altKategoriBeyaniFazlaGenis"));
   }
   if (deepestCategoryPicks(subIds).length > MAX_COMPANY_SUB_PICKS) {
     throw new BadRequestException(
-      `En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz`,
+      i18nMessage("api.helpers.enFazlaUrunHizmetSecebilirsiniz", { MAXCOMPANYSUBPICKS: MAX_COMPANY_SUB_PICKS }),
     );
   }
 
@@ -52,7 +53,7 @@ export async function validateCategorySelection(
   });
   if (mains.length !== mainIds.length) {
     throw new BadRequestException(
-      "Geçersiz ana kategori (yalnızca segment seçilebilir)",
+      i18nMessage("api.helpers.gecersizAnaKategoriYalnizcaSegmentSecilebilir"),
     );
   }
 
@@ -61,7 +62,7 @@ export async function validateCategorySelection(
       where: { id: { in: subIds }, level: { gt: 1 }, isActive: true, ...hiddenCategoryWhere() },
     });
     if (subCount !== subIds.length) {
-      throw new BadRequestException("Geçersiz alt kategori seçimi");
+      throw new BadRequestException(i18nMessage("api.helpers.gecersizAltKategoriSecimi"));
     }
   }
 

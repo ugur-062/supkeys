@@ -20,6 +20,8 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
+import { TEMPLATE_NAME_MAX_LENGTH } from "@rothern/shared";
+import { tApi } from "../../common/i18n/i18n.service";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -33,7 +35,9 @@ import { CompanySupplierTemplatesService } from "./company-supplier-templates.se
 class CreateSupplierTemplateDto {
   @IsString()
   @MinLength(2)
-  @MaxLength(120)
+  @MaxLength(TEMPLATE_NAME_MAX_LENGTH, {
+    message: () => tApi("api.companySupplierTemplates.adEnFazla", { max: TEMPLATE_NAME_MAX_LENGTH }),
+  })
   name!: string;
 
   @IsOptional()
@@ -52,7 +56,9 @@ class UpdateSupplierTemplateDto {
   @IsOptional()
   @IsString()
   @MinLength(2)
-  @MaxLength(120)
+  @MaxLength(TEMPLATE_NAME_MAX_LENGTH, {
+    message: () => tApi("api.companySupplierTemplates.adEnFazla", { max: TEMPLATE_NAME_MAX_LENGTH }),
+  })
   name?: string;
 
   @IsOptional()

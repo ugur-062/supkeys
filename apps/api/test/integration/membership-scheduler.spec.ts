@@ -5,7 +5,7 @@
  */
 import { MembershipScheduler } from "../../src/modules/company-auth/schedulers/membership.scheduler";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompanyWithUser, makeListing } from "./factories";
 
 afterAll(async () => {
   await truncateAll();
@@ -71,6 +71,19 @@ describe("MembershipScheduler.downgradeExpired", () => {
       },
     });
 
+    const extListing = await makeListing(prisma, { companyId: a.company.id, createdById: a.user.id, status: "OPEN" });
+    const queuedExt = await prisma.externalListingInvite.create({
+      data: {
+        listingId: extListing.id,
+        referralInviteId: referral.id,
+        inviterCompanyId: a.company.id,
+        email: "yeni@firma.com",
+        locale: "tr",
+        state: "QUEUED",
+        source: "MANUAL",
+      },
+    });
+
     await scheduler.downgradeExpired();
 
     // Tier: A düştü, D korundu.
@@ -93,12 +106,43 @@ describe("MembershipScheduler.downgradeExpired", () => {
     expect(
       await prisma.companyConnection.findUnique({ where: { id: incoming.id } }),
     ).not.toBeNull();
-    // A'nın referral daveti silindi.
-    expect(
-      await prisma.companyReferralInvite.findUnique({
-        where: { id: referral.id },
-      }),
-    ).toBeNull();
+    // A'nın referral daveti SİLİNMEZ, iptal edilir (yayın denetimi Bölüm 13):
+    // silinince talep davetleri cascade ile gidiyor, adres freni/geçmişi
+    // sıfırlanıyordu. Kuyrukta bekleyen talep daveti de iptal.
+    const refAfter = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: referral.id } });
+    expect(refAfter.status).toBe("CANCELLED");
+    const extAfter = await prisma.externalListingInvite.findUniqueOrThrow({ where: { id: queuedExt.id } });
+    expect(extAfter.state).toBe("CANCELLED");
+    expect(extAfter.cancelReason).toBe("INVITER_DOWNGRADED");
+  });
+
+  // Arayüz testi D-192 yeniden doğrulama: süre dolumu herkese açık firma/ürün
+  // sayfalarını tazeler (Silver+ video ve belgeler önbellekte kalmasın);
+  // süresi geçmemiş firma için tazeleme yayılmaz.
+  it("düşen firma için SEO tazelemesi yayılır, düşmeyen için yayılmaz", async () => {
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const seo = { companyChanged: jest.fn() };
+    const scheduler = new MembershipScheduler(
+      prisma as never,
+      email as never,
+      config as never,
+      undefined,
+      seo as never,
+    );
+    const a = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+    });
+    const d = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: d.company.id },
+      data: { membershipEndAt: new Date(Date.now() + 86_400_000) },
+    });
+    await scheduler.downgradeExpired();
+    expect(seo.companyChanged).toHaveBeenCalledTimes(1);
+    expect(seo.companyChanged).toHaveBeenCalledWith(a.company.id);
   });
 
   it("düşecek firma yoksa hiçbir şeye dokunmaz", async () => {
@@ -115,5 +159,55 @@ describe("MembershipScheduler.downgradeExpired", () => {
       (await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } }))
         .tier,
     ).toBe("GOLD");
+  });
+
+  it("okuma ile claim arasında uzatılan firma DÜŞÜRÜLMEZ (derin denetim LU-06)", async () => {
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+    });
+    const extendedTo = new Date(Date.now() + 365 * 86_400_000);
+    // findMany süresi dolmuş firmayı döndürdükten HEMEN sonra admin uzatması
+    // yazılır (yarış penceresinin deterministik taklidi).
+    const bind = (o: object, k: string | symbol) => {
+      const v = Reflect.get(o, k);
+      return typeof v === "function" ? v.bind(o) : v;
+    };
+    const racing = new Proxy(prisma, {
+      get(target, key) {
+        if (key !== "company") return bind(target, key);
+        return new Proxy(target.company, {
+          get(ct, ck) {
+            if (ck !== "findMany") return bind(ct, ck);
+            return async (args: never) => {
+              const rows = await ct.findMany(args);
+              await target.company.update({
+                where: { id: a.company.id },
+                data: { membershipEndAt: extendedTo },
+              });
+              return rows;
+            };
+          },
+        });
+      },
+    });
+    const scheduler = new MembershipScheduler(
+      racing as never,
+      email as never,
+      config as never,
+    );
+    await scheduler.downgradeExpired();
+    const after = await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } });
+    expect(after.tier).toBe("GOLD");
+    expect(after.membershipEndAt?.getTime()).toBe(extendedTo.getTime());
+    expect(email.send).not.toHaveBeenCalled();
+    expect(
+      await prisma.companyMembershipEvent.count({
+        where: { companyId: a.company.id, action: "EXPIRE" },
+      }),
+    ).toBe(0);
   });
 });

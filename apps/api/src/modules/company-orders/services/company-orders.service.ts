@@ -1,5 +1,8 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -15,7 +18,9 @@ import {
 import {
   advancePercentFor,
   DUE_DATE_CATEGORIES,
+  encodeSystemText,
   isLetterOfCredit,
+  LC_PAYMENT_METHOD,
   paymentDueDate,
   sellerShipsGoods,
   type PaymentCategory,
@@ -37,6 +42,8 @@ import type {
   ShipOrderDto,
 } from "../dto/order-action.dto";
 import { EmailService } from "../../email/email.service";
+import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
+import type { Locale } from "@rothern/i18n";
 import {
   NotificationService,
   pickCompanyRecipients,
@@ -48,6 +55,16 @@ import { resolveWebUrl } from "../../../common/config/web-url";
 import { expectedDeliveryFromTimes } from "../../../common/company/delivery-time";
 import { reportToSentry } from "../../../instrument";
 import { appRoutes } from "../../../common/company/app-routes";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { ContentTranslationService } from "../../content-translation/content-translation.service";
+import {
+  dateParam,
+  formatMoney,
+  formatNotificationParams,
+  moneyParam,
+  type NotificationParams,
+} from "../../../common/notifications/notification-params";
+import { maskEmail } from "../../../common/logging/mask-email";
 
 /**
  * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
@@ -59,6 +76,13 @@ const ORDERS_LIST_CAP = 1000;
 // TTK 23 muayene/ayıp ihbarı penceresi — teslimden itibaren gün. Tek pencere
 // (2/8 açık/gizli ayrımı hukuki nitelendirme, buton değil): en geniş süreyi ver.
 const DEFECT_NOTICE_WINDOW_DAYS = 8;
+
+/**
+ * Aynı kişinin aynı tutar + notla tekrar bildirimi bu pencere içinde mükerrer
+ * sayılır (çift tık / ağ tekrarı — arayüz testi FX-00 O-002). Bilinçli iki
+ * ayrı aynı tutarlı havale bu süreden sonra ya da farklı notla kaydedilir.
+ */
+const PAYMENT_DUPLICATE_WINDOW_MS = 60_000;
 
 @Injectable()
 export class CompanyOrdersService {
@@ -77,6 +101,7 @@ export class CompanyOrdersService {
     // işlemleri (accept/ship/complete/...) this.prisma (RLS-korumalı) kalır.
     private readonly bypass: PrismaBypassService,
     @Optional() private readonly realtime?: RealtimeService,
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   private webUrl(): string {
@@ -86,16 +111,17 @@ export class CompanyOrdersService {
   private async companyRecipient(
     companyId: string,
     portal?: NotificationPortal,
-  ): Promise<{ email: string; name: string } | null> {
+  ): Promise<{ email: string; name: string; locale: Locale } | null> {
     // Yetki tablosu: portalı GÖRÜNTÜLEME izni taşıyan en eski aktif üye
-    // (billingEmail önce) — tek kaynak pickCompanyRecipients.
+    // (billingEmail önce) — tek kaynak pickCompanyRecipients. Alıcının DİLİ de
+    // gelir (i18n Faz 3): e-posta metni bu dille üretilir.
     const m = await pickCompanyRecipients(
       this.prisma,
       [companyId],
       portal ? [viewPermissionForPortal(portal)] : null,
     );
     const r = m.get(companyId);
-    return r ? { email: r.email, name: r.name } : null;
+    return r ? { email: r.email, name: r.name, locale: r.locale } : null;
   }
 
   /**
@@ -119,19 +145,21 @@ export class CompanyOrdersService {
   private async notifyOrderParty(
     orderId: string,
     recipientCompanyId: string,
-    subject: string,
-    heading: string,
-    paragraph: string,
+    subjectKey: ApiMessageKey,
+    headingKey: ApiMessageKey,
+    bodyKey: ApiMessageKey,
     portal: NotificationPortal,
+    params?: NotificationParams,
   ): Promise<void> {
     try {
       await this.notifyOrderPartyUnsafe(
         orderId,
         recipientCompanyId,
-        subject,
-        heading,
-        paragraph,
+        subjectKey,
+        headingKey,
+        bodyKey,
         portal,
+        params,
       );
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
@@ -145,36 +173,57 @@ export class CompanyOrdersService {
     }
   }
 
+  /**
+   * DİL (i18n Faz 3): üç metin de KATALOG ANAHTARI olarak gelir. Tek bildirim
+   * N kullanıcıya fan-out edildiği için in-app metni burada değil çekirdekte
+   * (`renderPayload`) her alıcının diliyle üretilir; e-posta tek kişiye gider,
+   * onun metni burada o kişinin diliyle çıkar.
+   */
   private async notifyOrderPartyUnsafe(
     orderId: string,
     recipientCompanyId: string,
-    subject: string,
-    heading: string,
-    paragraph: string,
+    subjectKey: ApiMessageKey,
+    headingKey: ApiMessageKey,
+    bodyKey: ApiMessageKey,
     portal: NotificationPortal,
+    params?: NotificationParams,
   ): Promise<void> {
-    const ctaUrl = appRoutes.order(this.webUrl(), orderId);
+    const ctaKey: ApiMessageKey = "api.notifications.orders.ctaOrder";
     // In-app kanal (order_status_changed transactional → her zaman gider).
+    // `ctaPath` TÜRKÇE iç yolu taşır (mutlak); çekirdek alıcı başına çevirir.
     await this.notifications.pushToCompany(recipientCompanyId, {
       type: "order_status_changed",
       portal,
-      title: heading,
-      body: paragraph,
-      ctaLabel: "Siparişi Gör",
-      ctaUrl,
+      titleKey: headingKey,
+      bodyKey,
+      ctaLabelKey: ctaKey,
+      params,
+      ctaPath: appRoutes.order(this.webUrl(), orderId),
     });
     const to = await this.companyRecipient(recipientCompanyId, portal);
     if (!to) return;
+    const locale = to.locale;
+    // Tipli tarih/tutar alıcının dilinde biçimlenir (`notification-params.ts`).
+    const text = formatNotificationParams(params, locale);
+    const subject = tApi(subjectKey, text, locale);
+    const heading = tApi(headingKey, text, locale);
+    const paragraph = tApi(bodyKey, text, locale);
+    const ctaLabel = tApi(ctaKey, undefined, locale);
+    const ctaUrl = appRoutes.order(this.webUrl(), orderId, locale);
     void this.email
       .send({
         to: { email: to.email, name: to.name },
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
             heading,
-            paragraphs: ["Merhaba,", paragraph],
-            ctaLabel: "Siparişi Gör",
+            paragraphs: [
+              tApi("api.notifications.common.greeting", undefined, locale),
+              paragraph,
+            ],
+            ctaLabel,
             ctaUrl,
           },
         },
@@ -183,7 +232,7 @@ export class CompanyOrdersService {
       })
       .catch((err) =>
         this.logger.error(
-          `Sipariş bildirimi gönderilemedi (${to.email}): ${
+          `Sipariş bildirimi gönderilemedi (${maskEmail(to.email)}): ${
             err instanceof Error ? err.message : String(err)
           }`,
         ),
@@ -200,11 +249,11 @@ export class CompanyOrdersService {
     // hatası almalı (kontrol sırası: authz → iş doğrulaması).
     const src = await this.loadParticipant(user, id);
     if (src.sellerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "seller");
     if (src.status !== "PENDING") {
-      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+      throw new BadRequestException(i18nMessage("api.companyOrders.siparisBuDurumdaBuIslemeUygun"));
     }
     // Teminat mektubu şartı (requireGuaranteeLetter) BİLGİ AMAÇLIDIR: belge
     // yükleme siparişten kaldırıldı (2026-08-22, "muhasebe/belge arşivi değiliz")
@@ -219,19 +268,26 @@ export class CompanyOrdersService {
       src.paymentCategory === "CASH_AGAINST_DOCS";
     let bankAccountHolder: string | null = null;
     let bankIban: string | null = null;
+    // IBAN kullanmayan ülkenin hesabı (2026-09-27): hesap no + SWIFT + banka adı.
+    let bankAccountNumber: string | null = null;
+    let bankSwiftBic: string | null = null;
+    let bankName: string | null = null;
     if (input.bankAccountId) {
       const acct = await this.prisma.companyBankAccount.findUnique({
         where: { id: input.bankAccountId },
-        select: { companyId: true, accountHolder: true, iban: true },
+        select: { companyId: true, accountHolder: true, iban: true, accountNumber: true, swiftBic: true, bankName: true },
       });
       if (!acct || acct.companyId !== user.companyId) {
-        throw new BadRequestException("Geçersiz banka hesabı seçimi");
+        throw new BadRequestException(i18nMessage("api.companyOrders.gecersizBankaHesabiSecimi"));
       }
       bankAccountHolder = acct.accountHolder;
       bankIban = acct.iban;
+      bankAccountNumber = acct.accountNumber;
+      bankSwiftBic = acct.swiftBic;
+      bankName = acct.bankName;
     } else if (!skipBankRequired) {
       throw new BadRequestException(
-        "Ödeme alabilmek için onayda bir banka hesabı seçmelisiniz — kayıtlı hesabınız yoksa Ayarlar → Banka Hesapları'ndan ekleyin (yalnız Kurucu ekleyebilir)",
+        i18nMessage("api.companyOrders.odemeAlabilmekIcinOnaydaBirBanka"),
       );
     }
     // Tahmini teslim kabulde SORULMAZ (2026-08-02) — teklif zaten teslim
@@ -272,6 +328,9 @@ export class CompanyOrdersService {
         acceptedNote: input.acceptedNote?.trim() || null,
         bankAccountHolder,
         bankIban,
+        bankAccountNumber,
+        bankSwiftBic,
+        bankName,
         expectedDeliveryDate,
       },
     });
@@ -296,10 +355,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
-      "Siparişiniz onaylandı",
-      "Sipariş onaylandı",
-      `${this.orderLabel(res.order.number)} siparişiniz satıcı tarafından onaylandı ve hazırlanıyor.`,
+      "api.notifications.orders.accepted.subject",
+      "api.notifications.orders.accepted.heading",
+      "api.notifications.orders.accepted.body",
       "satinalma",
+      this.orderParams(res.order.number),
     );
     return { ok: res.ok, status: res.status };
   }
@@ -309,7 +369,7 @@ export class CompanyOrdersService {
     // Eski sistem paritesi + frontend ReasonModal minLength=10 ile aynı kural:
     // karşı taraf gerekçesiz ret görmesin (sunucu otorite).
     if ((reason?.trim().length ?? 0) < 10) {
-      throw new BadRequestException("Red gerekçesi en az 10 karakter olmalı");
+      throw new BadRequestException(i18nMessage("api.companyOrders.redGerekcesiEnAz10Karakter"));
     }
     const res = await this.transition(user, id, {
       side: "seller",
@@ -318,7 +378,15 @@ export class CompanyOrdersService {
       // Gerekçe geçişle AYNI yazmada — ikinci update yarıda kalırsa
       // gerekçesiz REJECTED kalmasın.
       data: { rejectedReason: reason!.trim(), rejectedAt: new Date() },
+      // İ-1 (2026-09-19 inceleme, kullanıcı kararı): ret alıcıyı çıkmazda
+      // bırakmasın — talep değerlendirmeye döner, diğer teklifler yeniden
+      // açılır. Geçişle AYNI transaction (derin denetim LU-16): eskiden ret
+      // ayrı commit ediliyor, geri alma ayrı tx'te düşerse sipariş REJECTED
+      // ama teklif WON / talep AWARDED kalıyor, yeniden deneme de "geçersiz
+      // geçiş" diyordu — onaracak yol yoktu.
+      inTx: (tx, order) => this.revertAwardInTx(tx, order, reason!.trim()),
     });
+    const revert = res.extra ?? null;
     // INV-AUDIT-1: durum geçişi (sipariş reddi) — commit SONRASI, bildirimden önce.
     await this.audit.log({
       action: "company.order.rejected",
@@ -336,26 +404,36 @@ export class CompanyOrdersService {
         reason: reason!.trim(),
       },
     });
-    // İ-1 (2026-09-19 inceleme, kullanıcı kararı): ret alıcıyı çıkmazda
-    // bırakmasın — talep değerlendirmeye döner, diğer teklifler yeniden açılır.
-    const revert = await this.revertAwardAfterRejection(
-      user,
-      res.order,
-      reason!.trim(),
-    );
+    if (revert && res.order.listingId) {
+      await this.audit.log({
+        action: "company.listing.award_reverted_on_rejection",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: res.order.buyerCompanyId,
+        entityType: "listing",
+        entityId: res.order.listingId,
+        critical: true,
+        metadata: {
+          orderId: res.order.id,
+          orderNumber: res.order.number,
+          sellerCompanyId: res.order.sellerCompanyId,
+          ...revert,
+        },
+      });
+    }
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
-      "Siparişiniz reddedildi",
-      "Sipariş reddedildi",
-      `${this.orderLabel(res.order.number)} siparişiniz satıcı tarafından reddedildi.${
-        reason ? ` Gerekçe: ${reason}` : ""
-      }${
-        revert?.reopened
-          ? " Satın alma talebiniz yeniden değerlendirmeye alındı; diğer teklifler tekrar açık, başka bir tedarikçiye kazandırabilir ya da yeni tur açabilirsiniz."
-          : ""
-      }`,
+      "api.notifications.orders.rejected.subject",
+      "api.notifications.orders.rejected.heading",
+      "api.notifications.orders.rejected.body",
       "satinalma",
+      this.orderParams(res.order.number, {
+        hasReason: reason ? "yes" : "no",
+        reason: reason ?? "",
+        reopened: revert?.reopened ? "yes" : "no",
+      }),
     );
     return { ok: res.ok, status: res.status };
   }
@@ -377,71 +455,67 @@ export class CompanyOrdersService {
    *    kalır (öteki tedarikçilerin siparişleri sürüyor).
    *
    * Satıcı bağlamında alıcının talep/teklif satırlarına yazar → RLS'li client
-   * boş dönerdi; bypass client bilinçli (çapraz-firma yazma, koşullar açık).
+   * boş dönerdi; `reject` bunu ret geçişiyle AYNI bypass transaction'ında
+   * çağırır (çapraz-firma yazma, koşullar açık; tek commit — derin denetim LU-16).
    * Geri alınan teklifin geçerliliği dolmuş olabilir — kazandırma kapısı
    * (`assertBidValidityAlive`) o anda uyarır.
    */
-  private async revertAwardAfterRejection(
-    user: AuthenticatedCompanyUser,
-    order: { id: string; number: string | null; listingId: string | null; sellerCompanyId: string; buyerCompanyId: string },
+  private async revertAwardInTx(
+    tx: Prisma.TransactionClient,
+    order: { id: string; listingId: string | null; sellerCompanyId: string },
     reason: string,
   ): Promise<{ reopened: boolean; lost: number; restored: number } | null> {
     const listingId = order.listingId;
     if (!listingId) return null;
-    const result = await this.bypass.$transaction(async (tx) => {
-      const lost = await tx.listingBid.updateMany({
-        where: {
-          listingId,
-          bidderCompanyId: order.sellerCompanyId,
-          status: { in: ["WON", "AWARDED_PARTIAL"] },
-        },
-        data: {
-          status: "LOST",
-          eliminatedAt: new Date(),
-          eliminationReason: `Sipariş satıcı tarafından reddedildi: ${reason}`.slice(0, 500),
-        },
-      });
-      const otherLive = await tx.companyOrder.count({
-        where: {
-          listingId,
-          id: { not: order.id },
-          status: { notIn: ["REJECTED", "CANCELLED"] },
-        },
-      });
-      if (otherLive > 0) return { reopened: false, lost: lost.count, restored: 0 };
-      const listing = await tx.listing.findUnique({
-        where: { id: listingId },
-        select: { currentRound: true },
-      });
-      const reopened = await tx.listing.updateMany({
-        where: { id: listingId, status: "AWARDED" },
-        data: { status: "IN_AWARD", awardedAt: null },
-      });
-      if (reopened.count !== 1) return { reopened: false, lost: lost.count, restored: 0 };
-      const restored = await tx.listingBid.updateMany({
-        where: {
-          listingId,
-          status: "LOST",
-          eliminatedAt: null,
-          round: listing?.currentRound ?? 1,
-          bidderCompanyId: { not: order.sellerCompanyId },
-        },
-        data: { status: "SUBMITTED" },
-      });
-      return { reopened: true, lost: lost.count, restored: restored.count };
+    const lost = await tx.listingBid.updateMany({
+      where: {
+        listingId,
+        bidderCompanyId: order.sellerCompanyId,
+        status: { in: ["WON", "AWARDED_PARTIAL"] },
+      },
+      data: {
+        status: "LOST",
+        eliminatedAt: new Date(),
+        // Sistem gerekçesi KOD olarak saklanır; metni okuyucunun dilinde
+        // çizim yeri üretir (`parseSystemText`, eski Türkçe kayıtlar da tanınır).
+        eliminationReason: encodeSystemText("ORDER_REJECTED", reason).slice(0, 500),
+      },
     });
-    await this.audit.log({
-      action: "company.listing.award_reverted_on_rejection",
-      actorType: "company",
-      actorId: user.userId,
-      actorEmail: user.email,
-      tenantId: order.buyerCompanyId,
-      entityType: "listing",
-      entityId: listingId,
-      critical: true,
-      metadata: { orderId: order.id, orderNumber: order.number, sellerCompanyId: order.sellerCompanyId, ...result },
+    const otherLive = await tx.companyOrder.count({
+      where: {
+        listingId,
+        id: { not: order.id },
+        status: { notIn: ["REJECTED", "CANCELLED"] },
+      },
     });
-    return result;
+    if (otherLive > 0) return { reopened: false, lost: lost.count, restored: 0 };
+    const listing = await tx.listing.findUnique({
+      where: { id: listingId },
+      select: { currentRound: true },
+    });
+    const reopened = await tx.listing.updateMany({
+      where: { id: listingId, status: "AWARDED" },
+      data: { status: "IN_AWARD", awardedAt: null },
+    });
+    if (reopened.count !== 1) return { reopened: false, lost: lost.count, restored: 0 };
+    // Kalem bazlı kazandırmanın yazdığı kısmi miktar da düşer: yeniden
+    // kazandırma (özellikle tam kazandırma, bu kolonu yazmaz) eski kısmi
+    // miktarla raporlanmasın (`awardedQuantity ?? quantity`; derin denetim LU-16).
+    await tx.listingItem.updateMany({
+      where: { listingId },
+      data: { awardedQuantity: null },
+    });
+    const restored = await tx.listingBid.updateMany({
+      where: {
+        listingId,
+        status: "LOST",
+        eliminatedAt: null,
+        round: listing?.currentRound ?? 1,
+        bidderCompanyId: { not: order.sellerCompanyId },
+      },
+      data: { status: "SUBMITTED" },
+    });
+    return { reopened: true, lost: lost.count, restored: restored.count };
   }
 
   /** Satıcı siparişi gönderir: ACCEPTED → IN_DELIVERY (+ fatura no zorunlu).
@@ -449,13 +523,16 @@ export class CompanyOrdersService {
    *  ödemeyi onaylamalı ya da reddetmeli (alıcı tamamlama kapısının simetriği). */
   async ship(user: AuthenticatedCompanyUser, id: string, input: ShipOrderDto) {
     const order = await this.loadParticipant(user, id);
+    // Kontrol sırası authz → iş doğrulaması (arayüz testi D-161): alıcı
+    // tarafı peşin eşiği / onaylı ödeme bilgisini 400 metninde görmesin.
+    this.assertOrderSide(user, order, "seller");
     // TTK 23: ayıp ihbarı DISPUTED'ında satıcı SEVK EDEMEZ (mal zaten teslim,
     // ihtilaf muayene/ayıp meselesi). A1 (satıcı iptal talebi) DISPUTED'ında
     // sevk açık kalır — ayrımı defectNotifiedAt yapar. (ship from-list DISPUTED
     // içerdiğinden bu guard olmadan ayıplı sipariş sevk yoluna girerdi.)
     if (order.status === "DISPUTED" && order.defectNotifiedAt) {
       throw new BadRequestException(
-        "Ayıp ihbarı bulunan sipariş sevk edilemez — mal zaten teslim edilmiş; çözüm taraflar arasında",
+        i18nMessage("api.companyOrders.ayipIhbariBulunanSiparisSevkEdilemez"),
       );
     }
     const category = order.paymentCategory as PaymentCategory;
@@ -464,12 +541,12 @@ export class CompanyOrdersService {
     if (isLetterOfCredit(category)) {
       if (!order.lcOpenedAt) {
         throw new BadRequestException(
-          "Alıcının akreditifi henüz açmadı — akreditif açılıp kabul edilmeden gönderilemez",
+          i18nMessage("api.companyOrders.alicininAkreditifiHenuzAcmadiAkreditifAcilip"),
         );
       }
       if (!order.lcAcceptedAt) {
         throw new BadRequestException(
-          "Akreditifi kabul etmeden gönderemezsiniz — Akreditif bölümünden 'Akreditifi Kabul Ettim' adımını tamamlayın",
+          i18nMessage("api.companyOrders.akreditifiKabulEtmedenGonderemezsinizAkreditifBo"),
         );
       }
     }
@@ -486,9 +563,12 @@ export class CompanyOrdersService {
       // INV-MONEY-1: tam Decimal, tolerans yok — eşiğe TAM ulaşma GEÇER,
       // 1 kuruş eksik gönderimi ENGELLER.
       if (confirmed.lt(advanceDue)) {
-        const curSym = await this.orderCurrencySymbol(id);
+        const cur = await this.orderCurrencyCode(id);
         throw new BadRequestException(
-          `Bu siparişte peşin ödeme şartı var — gönderim için ${advanceDue.toNumber().toLocaleString("tr-TR")} ${curSym} peşin tahsilat onaylanmalı (onaylı: ${confirmed.toNumber().toLocaleString("tr-TR")} ${curSym})`,
+          i18nMessage("api.companyOrders.buSiparistePesinOdemeSartiVar", {
+            toLocaleString: formatMoney(advanceDue.toNumber(), cur, currentLocale()),
+            toLocaleString2: formatMoney(confirmed.toNumber(), cur, currentLocale()),
+          }),
         );
       }
     }
@@ -497,7 +577,7 @@ export class CompanyOrdersService {
     });
     if (pendingPayments > 0) {
       throw new BadRequestException(
-        "Alıcının onay bekleyen ödeme kaydı var — siparişi göndermeden önce Ödemeler bölümünden onaylayın veya reddedin",
+        i18nMessage("api.companyOrders.alicininOnayBekleyenOdemeKaydiVar"),
       );
     }
     const res = await this.transition(user, id, {
@@ -535,12 +615,15 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
-      ships ? "Siparişiniz gönderildi" : "Siparişiniz teslime hazır",
-      ships ? "Sipariş yolda" : "Teslime hazır",
       ships
-        ? `${this.orderLabel(res.order.number)} siparişiniz gönderildi (Fatura no: ${input.invoiceNumber.trim()}).`
-        : `${this.orderLabel(res.order.number)} siparişiniz teslime hazır — teslim alabilirsiniz (Fatura no: ${input.invoiceNumber.trim()}).`,
+        ? "api.notifications.orders.shipped.subject"
+        : "api.notifications.orders.readyForPickup.subject",
+      ships ? "api.notifications.orders.shipped.heading" : "api.notifications.orders.readyForPickup.heading",
+      ships ? "api.notifications.orders.shipped.body" : "api.notifications.orders.readyForPickup.body",
       "satinalma",
+      this.orderParams(res.order.number, {
+        invoiceNumber: input.invoiceNumber.trim(),
+      }),
     );
     return { ok: res.ok, status: res.status };
   }
@@ -555,6 +638,8 @@ export class CompanyOrdersService {
    */
   async receive(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
     const order = await this.loadParticipant(user, id);
+    // authz → iş doğrulaması (arayüz testi D-161).
+    this.assertOrderSide(user, order, "buyer");
     if (
       order.paymentTiming === "BEFORE_DELIVERY" &&
       order.paymentCategory === "CASH_AGAINST_DOCS"
@@ -569,7 +654,7 @@ export class CompanyOrdersService {
       const total = amt ? new Prisma.Decimal(amt.amount) : new Prisma.Decimal(0);
       if (!this.isFullyPaid(total, confirmed)) {
         throw new BadRequestException(
-          "Vesaik mukabili: teslim almadan önce tam ödemenin onaylanması gerekir",
+          i18nMessage("api.companyOrders.vesaikMukabiliTeslimAlmadanOnceTam"),
         );
       }
     }
@@ -609,10 +694,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       res.order.sellerCompanyId,
-      "Sipariş teslim alındı ve tamamlandı",
-      "Sipariş tamamlandı",
-      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı ve tamamlandı.`,
+      "api.notifications.orders.autoCompleted.subject",
+      "api.notifications.orders.autoCompleted.heading",
+      "api.notifications.orders.autoCompleted.body",
       "satis",
+      this.orderParams(res.order.number),
     );
     return { ok: res.ok, status: res.status };
   }
@@ -627,11 +713,11 @@ export class CompanyOrdersService {
     // yalnız DELIVERED.
     const src = await this.loadParticipant(user, id);
     if (src.buyerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "buyer");
     if (src.status !== "DELIVERED") {
-      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+      throw new BadRequestException(i18nMessage("api.companyOrders.siparisBuDurumdaBuIslemeUygun"));
     }
     const res = await this.transition(user, id, {
       side: "buyer",
@@ -658,10 +744,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       res.order.sellerCompanyId,
-      "Sipariş tamamlandı",
-      "Sipariş tamamlandı",
-      `${this.orderLabel(res.order.number)} siparişi tamamlandı.`,
+      "api.notifications.orders.completed.subject",
+      "api.notifications.orders.completed.heading",
+      "api.notifications.orders.completed.body",
       "satis",
+      this.orderParams(res.order.number),
     );
     return { ok: res.ok, status: res.status };
   }
@@ -675,13 +762,13 @@ export class CompanyOrdersService {
   async cancel(user: AuthenticatedCompanyUser, id: string, reason?: string) {
     if ((reason?.trim().length ?? 0) < 10) {
       throw new BadRequestException(
-        "İptal gerekçesi en az 10 karakter olmalı",
+        i18nMessage("api.companyOrders.iptalGerekcesiEnAz10Karakter"),
       );
     }
     // Yetki dış katmanda (iş doğrulamasından önce).
     const order = await this.loadParticipant(user, id);
     if (order.buyerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "buyer");
 
@@ -695,7 +782,7 @@ export class CompanyOrdersService {
       const status = rows[0]?.status;
       if (!status || !CANCELABLE.includes(status)) {
         throw new BadRequestException(
-          "Sipariş bu durumda bu işleme uygun değil",
+          i18nMessage("api.companyOrders.siparisBuDurumdaBuIslemeUygun"),
         );
       }
       // Onaylı (CONFIRMED) ödeme varsa tek taraflı iptal edilemez — para el
@@ -705,7 +792,7 @@ export class CompanyOrdersService {
       });
       if (confirmedPayments > 0) {
         throw new BadRequestException(
-          "Onaylı ödeme bulunan sipariş iptal edilemez — iade için destek ekibiyle iletişime geçin",
+          i18nMessage("api.companyOrders.onayliOdemeBulunanSiparisIptalEdilemez"),
         );
       }
       const done = await tx.companyOrder.updateMany({
@@ -714,7 +801,7 @@ export class CompanyOrdersService {
       });
       if (done.count !== 1) {
         throw new BadRequestException(
-          "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
+          i18nMessage("api.companyOrders.siparisDurumuAzOnceDegistiSayfayi"),
         );
       }
     });
@@ -739,12 +826,14 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
-      "Sipariş iptal edildi",
-      "Sipariş iptal edildi",
-      `${this.orderLabel(order.number)} siparişi alıcı tarafından iptal edildi.${
-        reason ? ` Gerekçe: ${reason}` : ""
-      }`,
+      "api.notifications.orders.cancelled.subject",
+      "api.notifications.orders.cancelled.heading",
+      "api.notifications.orders.cancelled.body",
       "satis",
+      this.orderParams(order.number, {
+        hasReason: reason ? "yes" : "no",
+        reason: reason ?? "",
+      }),
     );
     return { ok: true, status: "CANCELLED" as const };
   }
@@ -759,12 +848,12 @@ export class CompanyOrdersService {
   async requestCancel(user: AuthenticatedCompanyUser, id: string, reason?: string) {
     if ((reason?.trim().length ?? 0) < 10) {
       throw new BadRequestException(
-        "İptal talebi gerekçesi en az 10 karakter olmalı",
+        i18nMessage("api.companyOrders.iptalTalebiGerekcesiEnAz10"),
       );
     }
     const order = await this.loadParticipant(user, id);
     if (order.sellerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "seller");
     // Atomik: yalnız ACCEPTED ve açık talep YOKKEN (transition() flag koşulu
@@ -779,7 +868,7 @@ export class CompanyOrdersService {
     });
     if (res.count !== 1) {
       throw new BadRequestException(
-        "İptal talebi yalnız onaylanmış (ve açık talebi olmayan) siparişte açılabilir",
+        i18nMessage("api.companyOrders.iptalTalebiYalnizOnaylanmisVeAcik"),
       );
     }
     await this.audit.log({
@@ -797,10 +886,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.buyerCompanyId,
-      "Satıcı sipariş iptali talep etti",
-      "Satıcı sipariş iptali talep etti",
-      `${this.orderLabel(order.number)} sipariş için satıcı iptal talep etti. Gerekçe: ${reason!.trim()} — Onaylayın veya reddedin.`,
+      "api.notifications.orders.cancelRequested.subject",
+      "api.notifications.orders.cancelRequested.heading",
+      "api.notifications.orders.cancelRequested.body",
       "satinalma",
+      this.orderParams(order.number, { reason: reason!.trim() }),
     );
     return { ok: true as const };
   }
@@ -809,7 +899,7 @@ export class CompanyOrdersService {
   async withdrawCancelRequest(user: AuthenticatedCompanyUser, id: string) {
     const order = await this.loadParticipant(user, id);
     if (order.sellerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "seller");
     const res = await this.prisma.companyOrder.updateMany({
@@ -821,7 +911,7 @@ export class CompanyOrdersService {
       },
     });
     if (res.count !== 1) {
-      throw new BadRequestException("Geri çekilecek açık bir iptal talebi yok");
+      throw new BadRequestException(i18nMessage("api.companyOrders.geriCekilecekAcikBirIptalTalebi"));
     }
     await this.audit.log({
       action: "company.order.cancel_request_withdrawn",
@@ -838,10 +928,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.buyerCompanyId,
-      "İptal talebi geri çekildi",
-      "İptal talebi geri çekildi",
-      `${this.orderLabel(order.number)} sipariş için satıcı iptal talebini geri çekti; sipariş devam ediyor.`,
+      "api.notifications.orders.cancelRequestWithdrawn.subject",
+      "api.notifications.orders.cancelRequestWithdrawn.heading",
+      "api.notifications.orders.cancelRequestWithdrawn.body",
       "satinalma",
+      this.orderParams(order.number),
     );
     return { ok: true as const };
   }
@@ -852,7 +943,7 @@ export class CompanyOrdersService {
   async approveCancelRequest(user: AuthenticatedCompanyUser, id: string) {
     const order = await this.loadParticipant(user, id);
     if (order.buyerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "buyer");
     const res = await this.prisma.companyOrder.updateMany({
@@ -869,12 +960,12 @@ export class CompanyOrdersService {
         status: "CANCELLED",
         cancelledAt: new Date(),
         cancelReason:
-          order.cancelRequestReason ?? "Satıcı iptal talebi onaylandı",
+          order.cancelRequestReason ?? encodeSystemText("CANCEL_REQUEST_APPROVED"),
       },
     });
     if (res.count !== 1) {
       throw new BadRequestException(
-        "Onaylanacak açık bir iptal talebi/ihtilaf yok — durum değişmiş olabilir",
+        i18nMessage("api.companyOrders.onaylanacakAcikBirIptalTalebiIhtilaf"),
       );
     }
     await this.audit.log({
@@ -896,10 +987,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
-      "İptal talebi onaylandı",
-      "İptal talebi onaylandı",
-      `${this.orderLabel(order.number)} sipariş, alıcının onayıyla iptal edildi.`,
+      "api.notifications.orders.cancelApproved.subject",
+      "api.notifications.orders.cancelApproved.heading",
+      "api.notifications.orders.cancelApproved.body",
       "satis",
+      this.orderParams(order.number),
     );
     return { ok: true as const, status: "CANCELLED" as const };
   }
@@ -913,7 +1005,7 @@ export class CompanyOrdersService {
   ) {
     const order = await this.loadParticipant(user, id);
     if (order.buyerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "buyer");
     const res = await this.prisma.companyOrder.updateMany({
@@ -922,7 +1014,7 @@ export class CompanyOrdersService {
     });
     if (res.count !== 1) {
       throw new BadRequestException(
-        "Reddedilecek açık bir iptal talebi yok — durum değişmiş olabilir",
+        i18nMessage("api.companyOrders.reddedilecekAcikBirIptalTalebiYok"),
       );
     }
     await this.audit.log({
@@ -946,10 +1038,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
-      "İptal talebi reddedildi — sipariş ihtilaflı",
-      "İptal talebi reddedildi — sipariş ihtilaflı",
-      `${this.orderLabel(order.number)} sipariş için iptal talebiniz reddedildi. Sipariş ihtilaflı; mal bulunursa sevk edebilir, ya da alıcı sonradan iptali onaylayabilir.`,
+      "api.notifications.orders.cancelRejected.subject",
+      "api.notifications.orders.cancelRejected.heading",
+      "api.notifications.orders.cancelRejected.body",
       "satis",
+      this.orderParams(order.number),
     );
     return { ok: true as const, status: "DISPUTED" as const };
   }
@@ -970,27 +1063,27 @@ export class CompanyOrdersService {
   ) {
     if ((reason?.trim().length ?? 0) < 10) {
       throw new BadRequestException(
-        "Ayıp ihbarı gerekçesi en az 10 karakter olmalı",
+        i18nMessage("api.companyOrders.ayipIhbariGerekcesiEnAz10"),
       );
     }
     const order = await this.loadParticipant(user, id);
     if (order.buyerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "buyer");
     if (order.status !== "DELIVERED" && order.status !== "COMPLETED") {
       throw new BadRequestException(
-        "Ayıp ihbarı yalnız teslim alınmış siparişte açılabilir",
+        i18nMessage("api.companyOrders.ayipIhbariYalnizTeslimAlinmisSipariste"),
       );
     }
     if (!order.deliveredAt) {
-      throw new BadRequestException("Siparişin teslim tarihi yok");
+      throw new BadRequestException(i18nMessage("api.companyOrders.siparisinTeslimTarihiYok"));
     }
     // 8-gün muayene penceresi — WHERE'de tarih-aritmetiği ifade edilemez, kodda.
     const windowMs = DEFECT_NOTICE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
     if (Date.now() > new Date(order.deliveredAt).getTime() + windowMs) {
       throw new BadRequestException(
-        `Muayene/ayıp ihbarı süresi (${DEFECT_NOTICE_WINDOW_DAYS} gün) doldu`,
+        i18nMessage("api.companyOrders.muayeneAyipIhbariSuresiGunDoldu", { DEFECTNOTICEWINDOWDAYS: DEFECT_NOTICE_WINDOW_DAYS }),
       );
     }
     // Atomik: DELIVERED/COMPLETED + açık ihbar yokken. disputePrevStatus geri
@@ -1011,7 +1104,7 @@ export class CompanyOrdersService {
     });
     if (res.count !== 1) {
       throw new BadRequestException(
-        "Ayıp ihbarı açılamadı — sipariş durumu değişmiş veya zaten bir ihbar var",
+        i18nMessage("api.companyOrders.ayipIhbariAcilamadiSiparisDurumuDegismis"),
       );
     }
     await this.audit.log({
@@ -1034,10 +1127,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
-      "Ayıp ihbarı — sipariş ihtilaflı",
-      "Ayıp ihbarı",
-      `${this.orderLabel(order.number)} sipariş için alıcı ayıp ihbarında bulundu (TTK 23). Gerekçe: ${reason!.trim()} — çözüm taraflar arasındadır.`,
+      "api.notifications.orders.defectReported.subject",
+      "api.notifications.orders.defectReported.heading",
+      "api.notifications.orders.defectReported.body",
       "satis",
+      this.orderParams(order.number, { reason: reason!.trim() }),
     );
     return { ok: true as const, status: "DISPUTED" as const };
   }
@@ -1046,11 +1140,11 @@ export class CompanyOrdersService {
   async withdrawDefectNotice(user: AuthenticatedCompanyUser, id: string) {
     const order = await this.loadParticipant(user, id);
     if (order.buyerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "buyer");
     if (order.status !== "DISPUTED" || !order.defectNotifiedAt) {
-      throw new BadRequestException("Geri çekilecek açık bir ayıp ihbarı yok");
+      throw new BadRequestException(i18nMessage("api.companyOrders.geriCekilecekAcikBirAyipIhbari"));
     }
     const prev: CompanyOrderStatus = order.disputePrevStatus ?? "DELIVERED";
     const res = await this.prisma.companyOrder.updateMany({
@@ -1065,7 +1159,7 @@ export class CompanyOrdersService {
     });
     if (res.count !== 1) {
       throw new BadRequestException(
-        "Ayıp ihbarı geri çekilemedi — durum değişmiş olabilir",
+        i18nMessage("api.companyOrders.ayipIhbariGeriCekilemediDurumDegismis"),
       );
     }
     await this.audit.log({
@@ -1083,10 +1177,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
-      "Ayıp ihbarı geri çekildi",
-      "Ayıp ihbarı geri çekildi",
-      `${this.orderLabel(order.number)} sipariş için alıcı ayıp ihbarını geri çekti; sipariş önceki durumuna döndü.`,
+      "api.notifications.orders.defectWithdrawn.subject",
+      "api.notifications.orders.defectWithdrawn.heading",
+      "api.notifications.orders.defectWithdrawn.body",
       "satis",
+      this.orderParams(order.number),
     );
     return { ok: true as const, status: prev };
   }
@@ -1103,15 +1198,11 @@ export class CompanyOrdersService {
     user: AuthenticatedCompanyUser,
     side: "seller" | "buyer",
   ) {
+    // authz → iş doğrulaması (arayüz testi D-161).
+    this.assertOrderSide(user, order, side);
     if (!isLetterOfCredit(order.paymentCategory as PaymentCategory)) {
-      throw new BadRequestException("Bu sipariş akreditifli değil");
+      throw new BadRequestException(i18nMessage("api.companyOrders.buSiparisAkreditifliDegil"));
     }
-    const own =
-      side === "seller"
-        ? order.sellerCompanyId === user.companyId
-        : order.buyerCompanyId === user.companyId;
-    if (!own) throw new ForbiddenException("Bu işlemi yapamazsınız");
-    this.assertOrderRole(user, side);
   }
 
   /** Alıcı: "Akreditif Açıldı" — beyan (belge yüklemesi yok); ACCEPTED evresi. */
@@ -1120,10 +1211,10 @@ export class CompanyOrdersService {
     this.assertLcOrder(order, user, "buyer");
     // A1-DISPUTED'ta da açık: sevk çıkışının ön koşulu (bkz. isPaymentOpen).
     if (order.status !== "ACCEPTED" && !this.isA1Dispute(order)) {
-      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+      throw new BadRequestException(i18nMessage("api.companyOrders.siparisBuDurumdaBuIslemeUygun"));
     }
     if (order.lcOpenedAt) {
-      throw new BadRequestException("Akreditif zaten açıldı olarak işaretlendi");
+      throw new BadRequestException(i18nMessage("api.companyOrders.akreditifZatenAcildiOlarakIsaretlendi"));
     }
     await this.prisma.companyOrder.update({
       where: { id },
@@ -1143,10 +1234,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
-      "Akreditif açıldı — kabulünüz bekleniyor",
-      "Akreditif açıldı",
-      `${this.orderLabel(order.number)} sipariş için alıcı akreditifi açtı. Bankanızdan teyit edip 'Akreditifi Kabul Ettim' adımını tamamlayın.`,
+      "api.notifications.orders.lcOpened.subject",
+      "api.notifications.orders.lcOpened.heading",
+      "api.notifications.orders.lcOpened.body",
       "satis",
+      this.orderParams(order.number),
     );
     return { ok: true };
   }
@@ -1157,15 +1249,15 @@ export class CompanyOrdersService {
     this.assertLcOrder(order, user, "seller");
     // A1-DISPUTED'ta da açık: sevk çıkışının ön koşulu (bkz. isPaymentOpen).
     if (order.status !== "ACCEPTED" && !this.isA1Dispute(order)) {
-      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+      throw new BadRequestException(i18nMessage("api.companyOrders.siparisBuDurumdaBuIslemeUygun"));
     }
     if (!order.lcOpenedAt) {
       throw new BadRequestException(
-        "Önce alıcının akreditifi açması gerekir",
+        i18nMessage("api.companyOrders.onceAlicininAkreditifiAcmasiGerekir"),
       );
     }
     if (order.lcAcceptedAt) {
-      throw new BadRequestException("Akreditif zaten kabul edildi");
+      throw new BadRequestException(i18nMessage("api.companyOrders.akreditifZatenKabulEdildi"));
     }
     await this.prisma.companyOrder.update({
       where: { id },
@@ -1185,10 +1277,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.buyerCompanyId,
-      "Akreditif kabul edildi",
-      "Akreditif kabul edildi",
-      `${this.orderLabel(order.number)} sipariş için satıcı akreditifi kabul etti ve gönderime hazırlanıyor.`,
+      "api.notifications.orders.lcAccepted.subject",
+      "api.notifications.orders.lcAccepted.heading",
+      "api.notifications.orders.lcAccepted.body",
       "satinalma",
+      this.orderParams(order.number),
     );
     return { ok: true };
   }
@@ -1196,7 +1289,7 @@ export class CompanyOrdersService {
   /**
    * Satıcı: "Ödeme Bankadan Alındı" — akreditif ödemesi banka kanalından geldi.
    * Sistem, siparişin kalanı kadar ONAYLI ödeme kaydı üretir (yöntem
-   * "Akreditif") → mevcut tamamlama/oto-tamamlama kapıları değişmeden çalışır.
+   * `LC_PAYMENT_METHOD`; eski kayıtlarda "Akreditif") → mevcut tamamlama/oto-tamamlama kapıları değişmeden çalışır.
    * DELIVERED ise doğrudan tamamlanır; IN_DELIVERY ise teslim alınınca kapanır.
    */
   async lcMarkPaid(user: AuthenticatedCompanyUser, id: string) {
@@ -1204,7 +1297,7 @@ export class CompanyOrdersService {
     this.assertLcOrder(order, user, "seller");
     if (!order.lcAcceptedAt) {
       throw new BadRequestException(
-        "Akreditif kabul edilmeden ödeme alındı işaretlenemez",
+        i18nMessage("api.companyOrders.akreditifKabulEdilmedenOdemeAlindiIsaretlenemez"),
       );
     }
     if (
@@ -1215,11 +1308,11 @@ export class CompanyOrdersService {
       order.status !== "COMPLETED"
     ) {
       throw new BadRequestException(
-        "Ödeme, sipariş gönderildikten sonra işaretlenebilir",
+        i18nMessage("api.companyOrders.odemeSiparisGonderildiktenSonraIsaretlenebilir"),
       );
     }
     if (order.lcPaidAt) {
-      throw new BadRequestException("Ödeme zaten alındı olarak işaretlendi");
+      throw new BadRequestException(i18nMessage("api.companyOrders.odemeZatenAlindiOlarakIsaretlendi"));
     }
     // YAŞAM DÖNGÜSÜ AYRIMI: LC ödemesi borcu kapatır (onaylı tam-tutar kaydı +
     // lcPaidAt damgası) ama sipariş DURUMUNU değiştirmez — operasyonel tamamlama
@@ -1231,7 +1324,7 @@ export class CompanyOrdersService {
         { status: CompanyOrderStatus; amount: Prisma.Decimal }[]
       >`SELECT "status","amount" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
       const row = rows[0];
-      if (!row) throw new NotFoundException("Sipariş bulunamadı");
+      if (!row) throw new NotFoundException(i18nMessage("api.companyOrders.siparisBulunamadi"));
       if (
         row.status !== "IN_DELIVERY" &&
         row.status !== "DELIVERED" &&
@@ -1239,7 +1332,7 @@ export class CompanyOrdersService {
         row.status !== "COMPLETED"
       ) {
         throw new BadRequestException(
-          "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
+          i18nMessage("api.companyOrders.siparisDurumuAzOnceDegistiSayfayi"),
         );
       }
       const total = new Prisma.Decimal(row.amount);
@@ -1253,8 +1346,8 @@ export class CompanyOrdersService {
           data: {
             orderId: id,
             amount: remaining,
-            method: "Akreditif",
-            note: "Akreditif ödemesi banka kanalından alındı",
+            method: LC_PAYMENT_METHOD,
+            note: encodeSystemText("LC_PAID_VIA_BANK"),
             status: "CONFIRMED",
             confirmedAt: new Date(),
             recordedByCompanyId: order.sellerCompanyId,
@@ -1294,10 +1387,11 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.buyerCompanyId,
-      "Akreditif ödemesi alındı",
-      "Ödeme alındı",
-      `${this.orderLabel(order.number)} sipariş için akreditif ödemesi banka kanalından alındı.`,
+      "api.notifications.orders.lcPaymentReceived.subject",
+      "api.notifications.orders.lcPaymentReceived.heading",
+      "api.notifications.orders.lcPaymentReceived.body",
       "satinalma",
+      this.orderParams(order.number),
     );
     return { ok: true };
   }
@@ -1328,6 +1422,11 @@ export class CompanyOrdersService {
           deliveredAt: { not: null },
           paymentDays: { not: null },
           paymentCategory: { in: [...DUE_DATE_CATEGORIES] },
+          // KEYSET sayfalama (derin denetim LU-16): Prisma `cursor + skip:1`
+          // imleç satırını filtresiz bulur; batch'in son adayı aşağıda
+          // damgalanınca filtreden düşüyor ve OFFSET 1 bir sonraki UYGUN
+          // satırı atlıyordu (hatırlatması bir saat gecikiyordu).
+          ...(cursor ? { id: { gt: cursor } } : {}),
         },
         select: {
           id: true,
@@ -1342,7 +1441,6 @@ export class CompanyOrdersService {
         },
         orderBy: { id: "asc" },
         take: BATCH,
-        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       });
       if (candidates.length === 0) break;
       cursor = candidates[candidates.length - 1]!.id;
@@ -1387,19 +1485,27 @@ export class CompanyOrdersService {
           });
           if (claimed.count !== 1) continue;
           const remaining = Prisma.Decimal.max(0, totalDec.minus(confirmed));
-          const curSym = o.currency && o.currency !== "TRY" ? o.currency : "₺";
           // Bildirim hatası (a) bu siparişin hatırlatmasını kalıcı kaybetmesin
           // (damga geri alınır), (b) taramanın kalanını iptal etmesin
           // (denetim 2026-08-23 Parça 3 #7). `await` korunur — spec'ler
           // sendDuePaymentReminders sonrası bildirimi senkron sayıyor.
+          // UNSAFE varyant bilinçli (derin denetim LU-16): `notifyOrderParty`
+          // hatayı yutar → catch ölü koddu, damga kalıyor ve hatırlatma kalıcı
+          // kayboluyordu. Burada hata fırlamalı ki damga geri alınsın.
           try {
-            await this.notifyOrderParty(
+            await this.notifyOrderPartyUnsafe(
               o.id,
               o.buyerCompanyId,
-              "Ödeme vadesi yaklaşıyor",
-              "Ödeme vadesi yaklaşıyor",
-              `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${dueAt!.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toNumber().toLocaleString("tr-TR")} ${curSym}.`,
+              "api.notifications.orders.paymentDue.subject",
+              "api.notifications.orders.paymentDue.heading",
+              "api.notifications.orders.paymentDue.body",
               "satinalma",
+              // Vade günü ve tutar TİPLİ: alıcının dilinde, vade İstanbul
+              // takvim günüyle (eskiden UTC günü → bir gün önce görünebiliyordu).
+              this.orderParams(o.number, {
+                dueDate: dateParam(dueAt!, "date"),
+                amount: moneyParam(remaining.toNumber(), o.currency ?? "TRY"),
+              }),
             );
             sent++;
           } catch (err) {
@@ -1409,11 +1515,12 @@ export class CompanyOrdersService {
                 data: { paymentDueReminderSentAt: null },
               })
               .catch(() => undefined);
-            this.logger.error(
-              `Vade hatırlatması gönderilemedi (${o.id}): ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            );
+            const reason = err instanceof Error ? err.message : String(err);
+            this.logger.error(`Payment due reminder failed (${o.id}): ${reason}`);
+            reportToSentry("order-notify-failed", "error", {
+              tags: { module: "orders" },
+              extra: { orderId: o.id, recipientCompanyId: o.buyerCompanyId, reason },
+            });
           }
         }
       }
@@ -1422,8 +1529,17 @@ export class CompanyOrdersService {
     return sent;
   }
 
-  private orderLabel(number: string | null): string {
-    return number ? `${number} numaralı` : "İlgili";
+  /**
+   * Sipariş bildirimlerinin ORTAK ICU parametreleri. Numara yoksa metin
+   * "İlgili sipariş…" der; bu ayrım artık mesajın İÇİNDEKİ
+   * `{hasNumber, select, …}` dalında yapılır — seçilecek sözcük ALICININ
+   * dilinde olmalı, eski `orderLabel()` ise Türkçeyi çağıranda kuruyordu.
+   */
+  private orderParams(
+    number: string | null,
+    extra?: NotificationParams,
+  ): NotificationParams {
+    return { hasNumber: number ? "yes" : "no", number: number ?? "", ...extra };
   }
 
   /**
@@ -1481,15 +1597,16 @@ export class CompanyOrdersService {
     return agg._sum.amount ?? new Prisma.Decimal(0);
   }
 
-  private async orderCurrencySymbol(id: string): Promise<string> {
+  /** Siparişin para birimi KODU (sembol ve yeri `formatMoney` ile dilden). */
+  private async orderCurrencyCode(id: string): Promise<string> {
     const o = await this.prisma.companyOrder.findUnique({
       where: { id },
       select: { currency: true },
     });
-    return o?.currency && o.currency !== "TRY" ? o.currency : "₺";
+    return o?.currency ?? "TRY";
   }
 
-  private async transition(
+  private async transition<R = undefined>(
     user: AuthenticatedCompanyUser,
     id: string,
     rule: {
@@ -1497,37 +1614,64 @@ export class CompanyOrdersService {
       from: CompanyOrderStatus | CompanyOrderStatus[];
       to: CompanyOrderStatus;
       data?: Prisma.CompanyOrderUpdateInput;
+      /**
+       * Geçişle AYNI transaction'da çalışacak yan yazma (ör. ret → kazandırmayı
+       * geri al). Verilirse geçiş + yan yazma tek commit: yan yazma düşerse
+       * durum da geri alınır, kullanıcı aynı işlemi yeniden deneyebilir.
+       * Çapraz-firma yazma içerebildiği için bypass client transaction'ı.
+       */
+      inTx?: (
+        tx: Prisma.TransactionClient,
+        order: Awaited<ReturnType<CompanyOrdersService["loadParticipant"]>>,
+      ) => Promise<R>;
     },
-  ) {
+  ): Promise<{
+    ok: true;
+    status: CompanyOrderStatus;
+    order: Awaited<ReturnType<CompanyOrdersService["loadParticipant"]>>;
+    extra: R | undefined;
+  }> {
     const order = await this.loadParticipant(user, id);
     const isSeller = order.sellerCompanyId === user.companyId;
     const allowed = rule.side === "seller" ? isSeller : !isSeller;
     if (!allowed) {
-      throw new ForbiddenException("Bu işlemi yapamazsınız");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, rule.side);
     const fromList = Array.isArray(rule.from) ? rule.from : [rule.from];
     if (!fromList.includes(order.status)) {
-      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+      throw new BadRequestException(i18nMessage("api.companyOrders.siparisBuDurumdaBuIslemeUygun"));
     }
     // ATOMİK geçiş: durum koşulu yazma anında da doğrulanır — eşzamanlı iki
     // aksiyonda (ör. alıcı iptal ederken satıcı kargoya verirse) son yazan
     // iptali ezemez; kaybeden taraf anlaşılır hata alır.
-    const res = await this.prisma.companyOrder.updateMany({
-      where: { id, status: { in: fromList } },
-      data: { status: rule.to, ...(rule.data as Prisma.CompanyOrderUpdateManyMutationInput) },
-    });
-    if (res.count !== 1) {
-      throw new BadRequestException(
-        "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
-      );
+    const write = async (client: Prisma.TransactionClient | PrismaService) => {
+      const res = await client.companyOrder.updateMany({
+        where: { id, status: { in: fromList } },
+        data: { status: rule.to, ...(rule.data as Prisma.CompanyOrderUpdateManyMutationInput) },
+      });
+      if (res.count !== 1) {
+        throw new BadRequestException(
+          i18nMessage("api.companyOrders.siparisDurumuAzOnceDegistiSayfayi"),
+        );
+      }
+    };
+    let extra: R | undefined;
+    if (rule.inTx) {
+      const inTx = rule.inTx;
+      extra = await this.bypass.$transaction(async (tx) => {
+        await write(tx);
+        return inTx(tx, order);
+      });
+    } else {
+      await write(this.prisma);
     }
     // WS: iki tarafın sipariş listesi + açık detayları anında güncellensin.
     this.realtime?.pingOrder(id, [
       order.sellerCompanyId,
       order.buyerCompanyId,
     ]);
-    return { ok: true, status: rule.to, order };
+    return { ok: true, status: rule.to, order, extra };
   }
 
   /**
@@ -1555,7 +1699,26 @@ export class CompanyOrdersService {
     if (hasReadContext(user, side)) return;
     // Onay bağı istisnası kalktı (yetki tablosu Faz 2): onaylayıcı-only üye
     // sipariş detayını görmez; karar bağlamı onay projeksiyonunda.
-    throw new NotFoundException("Sipariş bulunamadı");
+    throw new NotFoundException(i18nMessage("api.companyOrders.siparisBulunamadi"));
+  }
+
+  /**
+   * Taraf + rol kapısı — iş ön koşullarından ÖNCE çağrılır (arayüz testi
+   * D-161): siparişin karşı tarafı 400 yerine 403 alır, ön koşul metni
+   * (peşin tutarı, onaylı ödeme) yanlış tarafa sızmaz. `transition` aynı
+   * kontrolü atomik geçişte yineler.
+   */
+  private assertOrderSide(
+    user: AuthenticatedCompanyUser,
+    order: { sellerCompanyId: string; buyerCompanyId: string },
+    side: "seller" | "buyer",
+  ): void {
+    const own =
+      side === "seller"
+        ? order.sellerCompanyId === user.companyId
+        : order.buyerCompanyId === user.companyId;
+    if (!own) throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
+    this.assertOrderRole(user, side);
   }
 
   private assertOrderRole(
@@ -1567,9 +1730,13 @@ export class CompanyOrdersService {
     // Faz R: SAHIP muafiyeti yok — sipariş adımı yalnız tarafın işlem izniyle.
     if (!hasCompanyPermission(user, needed)) {
       throw new ForbiddenException(
-        side === "seller"
-          ? "Bu işlem için 'Satış siparişi işlemleri' yetkisi gerekir — firma yöneticinizden isteyin"
-          : "Bu işlem için 'Alım siparişi işlemleri' yetkisi gerekir — firma yöneticinizden isteyin",
+        i18nMessage("api.companyOrders.buIslemIcinYetkiGerekirYoneticinizdenIsteyin", {
+          permission: tApi(
+            side === "seller"
+              ? "api.permission.sell_order_manage"
+              : "api.permission.buy_order_manage",
+          ),
+        }),
       );
     }
   }
@@ -1613,7 +1780,7 @@ export class CompanyOrdersService {
       (order.sellerCompanyId !== user.companyId &&
         order.buyerCompanyId !== user.companyId)
     ) {
-      throw new NotFoundException("Sipariş bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyOrders.siparisBulunamadi"));
     }
     // Faz O — dar-bağlam okuma kapısı (getOne ile simetrik; mutasyonlar ayrıca
     // assertOrderRole ile kapılı, bu yalnız okuma sızıntısını kapatır).
@@ -1682,7 +1849,7 @@ export class CompanyOrdersService {
   ) {
     const order = await this.loadParticipant(user, id);
     if (order.buyerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Ödemeyi yalnızca alıcı kaydedebilir");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.odemeyiYalnizcaAliciKaydedebilir"));
     }
     this.assertOrderRole(user, "buyer");
     if (
@@ -1695,12 +1862,12 @@ export class CompanyOrdersService {
     ) {
       throw new BadRequestException(
         isLetterOfCredit(order.paymentCategory as PaymentCategory)
-          ? "Akreditifli siparişte ödeme banka kanalından yapılır — manuel ödeme kaydı girilmez"
-          : "Bu sipariş şu an ödeme kaydına uygun değil",
+          ? i18nMessage("api.companyOrders.akreditifliSiparisteManuelOdemeGirilmez")
+          : i18nMessage("api.companyOrders.siparisOdemeKaydinaUygunDegil"),
       );
     }
     if (!(input.amount > 0)) {
-      throw new BadRequestException("Tutar 0'dan büyük olmalı");
+      throw new BadRequestException(i18nMessage("api.companyOrders.tutar0DanBuyukOlmali"));
     }
     // Kalan tutar koruması ATOMİK: sipariş satırını FOR UPDATE ile kilitle →
     // aynı siparişe eşzamanlı ödeme kayıtları serialize olur, AWAITING+CONFIRMED
@@ -1734,9 +1901,39 @@ export class CompanyOrdersService {
       // cap'i 1 kuruş aşan REDDEDİLİR (AWAITING+CONFIRMED toplamı cap'i aşamaz).
       if (recorded.plus(inputDec).gt(cap)) {
         const remaining = Prisma.Decimal.max(0, cap.minus(recorded));
-        const curSym = cur === "TRY" ? "₺" : cur;
         throw new BadRequestException(
-          `Kalan ödeme ${remaining.toNumber().toLocaleString("tr-TR")} ${curSym} — bu tutarı aşan ödeme kaydedilemez`,
+          i18nMessage("api.companyOrders.kalanOdemeBuTutariAsanOdeme", {
+            toLocaleString: formatMoney(remaining.toNumber(), cur, currentLocale()),
+          }),
+        );
+      }
+      // Mükerrer bildirim (arayüz testi FX-00 O-002): aynı kişinin aynı tutar,
+      // not, yöntem ve çek bilgisiyle (create ile aynı normalizasyon) az önce
+      // açtığı, onay bekleyen kayıt varsa ikincisi açılmaz — aynı tutarlı
+      // vadeli çek serisi (farklı çek no / vade) mükerrer sayılmaz —
+      // çift tık iki "onay bekliyor" kaydı ve satıcıya iki e-posta üretiyordu;
+      // satıcı ikisini de onaylarsa peşin eşiği yanlışlıkla dolabilirdi. Sipariş
+      // satırı kilitli olduğundan eşzamanlı ikinci istek ilkini görür.
+      const duplicate = await tx.companyOrderPayment.findFirst({
+        where: {
+          orderId: id,
+          status: "AWAITING_CONFIRMATION",
+          recordedByUserId: user.userId,
+          amount: inputDec,
+          note: input.note?.trim() || null,
+          method: input.method?.trim() || null,
+          chequeNo: isCheque ? input.chequeNo?.trim() || null : null,
+          chequeDueDate:
+            isCheque && input.chequeDueDate
+              ? new Date(input.chequeDueDate)
+              : null,
+          createdAt: { gte: new Date(Date.now() - PAYMENT_DUPLICATE_WINDOW_MS) },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          i18nMessage("api.companyOrders.ayniOdemeAzOnceBildirildi", undefined, "DUPLICATE_PAYMENT"),
         );
       }
       const p = await tx.companyOrderPayment.create({
@@ -1757,15 +1954,18 @@ export class CompanyOrdersService {
       });
       return { payment: p, currency: cur };
     });
-    // Bildirim tutarı siparişin para biriminde (USD siparişte "₺" yazıyordu).
-    const curSym = currency === "TRY" ? "₺" : currency;
+    // Bildirim tutarı siparişin para biriminde (USD siparişte "₺" yazıyordu)
+    // ve ALICININ sayı biçiminde (tipli parametre).
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
-      "Yeni ödeme kaydı — onayınız bekleniyor",
-      "Ödeme kaydedildi",
-      `${this.orderLabel(order.number)} sipariş için ${input.amount.toLocaleString("tr-TR")} ${curSym} tutarında ödeme kaydedildi. Onaylamanız bekleniyor.`,
+      "api.notifications.orders.paymentRecorded.subject",
+      "api.notifications.orders.paymentRecorded.heading",
+      "api.notifications.orders.paymentRecorded.body",
       "satis",
+      this.orderParams(order.number, {
+        amount: moneyParam(input.amount, currency ?? "TRY"),
+      }),
     );
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     return this.serializePayment(payment);
@@ -1799,7 +1999,7 @@ export class CompanyOrdersService {
   ) {
     const order = await this.loadParticipant(user, id);
     if (order.sellerCompanyId !== user.companyId) {
-      throw new ForbiddenException("Ödemeyi yalnızca satıcı onaylayabilir");
+      throw new ForbiddenException(i18nMessage("api.companyOrders.odemeyiYalnizcaSaticiOnaylayabilir"));
     }
     this.assertOrderRole(user, "seller");
     // Ödeme kaydı ön-kontrolü (temiz 404).
@@ -1807,7 +2007,7 @@ export class CompanyOrdersService {
       where: { id: paymentId },
     });
     if (!payment || payment.orderId !== id) {
-      throw new NotFoundException("Ödeme kaydı bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyOrders.odemeKaydiBulunamadi"));
     }
 
     // Kararı, sipariş satırını FOR UPDATE kilitleyerek UYGULA (cancel ile
@@ -1820,13 +2020,13 @@ export class CompanyOrdersService {
       const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
         SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
       const status = rows[0]?.status;
-      if (!status) throw new NotFoundException("Sipariş bulunamadı");
+      if (!status) throw new NotFoundException(i18nMessage("api.companyOrders.siparisBulunamadi"));
       if (
         decision === "CONFIRMED" &&
         (status === "CANCELLED" || status === "REJECTED")
       ) {
         throw new BadRequestException(
-          "İptal edilmiş siparişte ödeme onaylanamaz",
+          i18nMessage("api.companyOrders.iptalEdilmisSiparisteOdemeOnaylanamaz"),
         );
       }
       // Atomik CAS: yalnız hâlâ bekleyen ödeme sonuçlanır (çift tık güvenli).
@@ -1839,7 +2039,7 @@ export class CompanyOrdersService {
         },
       });
       if (res.count !== 1) {
-        throw new BadRequestException("Bu ödeme zaten sonuçlanmış");
+        throw new BadRequestException(i18nMessage("api.companyOrders.buOdemeZatenSonuclanmis"));
       }
       // YAŞAM DÖNGÜSÜ AYRIMI: ödeme onayı borcu kapatır ama sipariş DURUMUNU
       // değiştirmez (eski DELIVERED→COMPLETED oto-tamamlama kaldırıldı). Operasyonel
@@ -1879,14 +2079,20 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       order.buyerCompanyId,
-      decision === "CONFIRMED" ? "Ödemeniz onaylandı" : "Ödemeniz reddedildi",
-      decision === "CONFIRMED" ? "Ödeme onaylandı" : "Ödeme reddedildi",
       decision === "CONFIRMED"
-        ? `${this.orderLabel(order.number)} sipariş için ödemeniz satıcı tarafından onaylandı.`
-        : `${this.orderLabel(order.number)} sipariş için ödemeniz reddedildi.${
-            reason ? ` Gerekçe: ${reason}` : ""
-          }`,
+        ? "api.notifications.orders.paymentConfirmed.subject"
+        : "api.notifications.orders.paymentRejected.subject",
+      decision === "CONFIRMED"
+        ? "api.notifications.orders.paymentConfirmed.heading"
+        : "api.notifications.orders.paymentRejected.heading",
+      decision === "CONFIRMED"
+        ? "api.notifications.orders.paymentConfirmed.body"
+        : "api.notifications.orders.paymentRejected.body",
       "satinalma",
+      this.orderParams(order.number, {
+        hasReason: reason ? "yes" : "no",
+        reason: reason ?? "",
+      }),
     );
 
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
@@ -1961,17 +2167,38 @@ export class CompanyOrdersService {
         listingId: true,
         createdAt: true,
         deliveredAt: true,
+        // Şirketim "teslim tarihi geçti" satırının süzgeci (`?due=overdue`,
+        // arayüz testi O-035) listede client-side bu alanla çalışır.
+        expectedDeliveryDate: true,
         deliveryTerm: true,
         paymentCategory: true,
         paymentDays: true,
         advancePercent: true,
         seller: { select: { name: true } },
         buyer: { select: { name: true } },
-        listing: { select: { title: true, type: true, number: true } },
+        listing: { select: { title: true, type: true, number: true, companyId: true } },
       },
       orderBy: { createdAt: "desc" },
       take: ORDERS_LIST_CAP,
     });
+    // Karşı firmanın talebinin başlığı okuyucunun dilinde (çapraz-firma okuma =
+    // localize*; derin denetim LU-16). Kendi talebi ham kalır.
+    const foreignListings = new Map<string, string>();
+    for (const r of rows) {
+      if (r.listingId && r.listing && r.listing.companyId !== companyId) {
+        foreignListings.set(r.listingId, r.listing.title);
+      }
+    }
+    const localizedTitles = new Map<string, string>();
+    if (this.translations && foreignListings.size > 0) {
+      const lids = [...foreignListings.keys()];
+      const loc = await this.translations.localizeListings(
+        lids.map((lid) => ({ title: foreignListings.get(lid)! })),
+        lids,
+        currentLocale(),
+      );
+      lids.forEach((lid, i) => localizedTitles.set(lid, loc[i]!.title));
+    }
     // YAŞAM DÖNGÜSÜ AYRIMI: ödeme durumu türetilir (yeni alan yok). Sayfa
     // siparişleri için TEK groupBy (cron deseni; N+1 yok) → paymentSettled +
     // paymentDueDate. Liste rozeti/KPI status yerine bunu kullanır.
@@ -1994,10 +2221,14 @@ export class CompanyOrdersService {
         o.paymentDays,
         o.deliveredAt,
       );
+      const base = this.serialize(o, companyId);
       return {
-        ...this.serialize(o, companyId),
+        ...base,
+        listingTitle:
+          (o.listingId ? localizedTitles.get(o.listingId) : undefined) ?? base.listingTitle,
         paymentSettled: this.isFullyPaid(new Prisma.Decimal(o.amount), confirmed),
         paymentDueDate: due ? due.toISOString() : null,
+        expectedDeliveryDate: o.expectedDeliveryDate ? o.expectedDeliveryDate.toISOString() : null,
       };
     });
   }
@@ -2020,7 +2251,7 @@ export class CompanyOrdersService {
         seller: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
         buyer: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
         listing: {
-          select: { title: true, type: true, number: true },
+          select: { title: true, type: true, number: true, companyId: true },
         },
         items: true,
         payments: { orderBy: { createdAt: "desc" } },
@@ -2031,11 +2262,30 @@ export class CompanyOrdersService {
       (o.sellerCompanyId !== user.companyId &&
         o.buyerCompanyId !== user.companyId)
     ) {
-      throw new NotFoundException("Sipariş bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyOrders.siparisBulunamadi"));
     }
     // Faz O — dar-bağlam okuma kapısı (listing getOne ile simetrik).
     await this.assertOrderReadContext(user, o);
     const other = o.sellerCompanyId === user.companyId ? o.buyer : o.seller;
+    const otherId = o.sellerCompanyId === user.companyId ? o.buyerCompanyId : o.sellerCompanyId;
+    const [{ industry: otherIndustry }] = this.translations
+      ? await this.translations.localizeIndustry([{ industry: other.industry }], [otherId], currentLocale())
+      : [{ industry: other.industry }];
+    // Karşı firmanın talep başlığı + kalem adları okuyucunun dilinde (çapraz-
+    // firma okuma = localize*; derin denetim LU-16). Kalem adları talebin
+    // çeviri satırındaki kaynak→çeviri eşlemesinden; eşleşmeyen ad ham kalır.
+    // Kendi talebini gören taraf ham okur.
+    let listingTitle = o.listing?.title ?? null;
+    let itemNames = o.items.map((it) => it.name);
+    if (this.translations && o.listingId && o.listing && o.listing.companyId !== user.companyId) {
+      const [loc] = await this.translations.localizeListings(
+        [{ title: o.listing.title, items: itemNames.map((name) => ({ name })) }],
+        [o.listingId],
+        currentLocale(),
+      );
+      listingTitle = loc!.title;
+      itemNames = loc!.items.map((it) => it.name);
+    }
 
     // S3: gösterim toplamları tek-kaynak reducer'dan (eskiden inline döngü
     // confirmedPaymentSum'ı re-derive ediyordu). Gösterim sınırında (.toFixed(2))
@@ -2050,9 +2300,11 @@ export class CompanyOrdersService {
 
     return {
       ...this.serialize(o, user.companyId),
+      listingTitle,
       counterpartyProfile: {
         city: other.city,
-        industry: other.industry,
+        // Karşı firmanın sektörü okuyucunun dilinde (çapraz-firma okuma = localize*).
+        industry: otherIndustry,
         email: other.billingEmail,
         phone: other.billingPhone,
         rothernId: other.rothernId,
@@ -2110,10 +2362,10 @@ export class CompanyOrdersService {
       lcAcceptedAt: o.lcAcceptedAt,
       lcPaidAt: o.lcPaidAt,
       // Teslimat adresi snapshot'ı (award anında: ALIM→ilan, SATIS→teklif).
-      deliveryAddress: o.deliveryAddress as Record<
-        string,
-        string | null
-      > | null,
+      // Kayıtta yazılan varsayılan başlık ("Merkez") okuyucunun dilinde.
+      deliveryAddress: localizeSnapshotTitle(
+        o.deliveryAddress as Record<string, string | null> | null,
+      ),
       // Ödeme planı + teslim şekli — award anındaki SNAPSHOT (ilan silinse de
       // kalır). Teminat tetiği bu değil, order.paymentTiming'dir (yukarıda).
       paymentCategory: o.paymentCategory,
@@ -2128,6 +2380,9 @@ export class CompanyOrdersService {
       acceptedNote: o.acceptedNote,
       bankAccountHolder: o.bankAccountHolder,
       bankIban: o.bankIban,
+      bankAccountNumber: o.bankAccountNumber,
+      bankSwiftBic: o.bankSwiftBic,
+      bankName: o.bankName,
       expectedDeliveryDate: o.expectedDeliveryDate,
       invoiceNumber: o.invoiceNumber,
       deliveryStartedAt: o.deliveryStartedAt,
@@ -2140,15 +2395,21 @@ export class CompanyOrdersService {
       cancelledAt: o.cancelledAt,
       cancelReason: o.cancelReason,
       payments: o.payments.map((p) => this.serializePayment(p)),
-      items: o.items.map((it) => ({
+      items: o.items.map((it, i) => ({
         id: it.id,
-        name: it.name,
+        name: itemNames[i] ?? it.name,
         quantity: it.quantity.toString(),
         unit: it.unit,
         unitPrice: it.unitPrice.toString(),
         deliveryDate: it.deliveryDate,
         deliveryTime: it.deliveryTime,
         note: it.note,
+        // Muadil / marka snapshot'ı (award anında; arayüz testi O-003).
+        requestedBrand: it.requestedBrand,
+        requestedMpn: it.requestedMpn,
+        isAlternative: it.isAlternative,
+        offeredBrand: it.offeredBrand,
+        offeredMpn: it.offeredMpn,
       })),
     };
   }
@@ -2200,4 +2461,12 @@ export class CompanyOrdersService {
       advancePercent: o.advancePercent ?? null,
     };
   }
+}
+
+/** Sipariş adres snapshot'ındaki varsayılan başlığı okuyucu diline çevirir. */
+function localizeSnapshotTitle(
+  a: Record<string, string | null> | null,
+): Record<string, string | null> | null {
+  if (!a || typeof a.title !== "string") return a;
+  return { ...a, title: localizeDefaultAddressTitle(a.title) };
 }

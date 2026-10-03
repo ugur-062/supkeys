@@ -5,6 +5,7 @@
  *    dolu senaryo (1 ihale + 1 teklif + kazandırma → funnel/winloss doğru).
  */
 import "reflect-metadata";
+import { Prisma } from "@prisma/client";
 import {
   DashboardAnalyticsService,
   deltaPct,
@@ -14,14 +15,25 @@ import {
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 describe("analitik saf yardımcılar", () => {
   it("monthWindows 12 ardışık ay üretir", () => {
-    const w = monthWindows(new Date(2026, 7, 3));
+    const w = monthWindows(new Date("2026-08-03T09:00:00Z"));
     expect(w).toHaveLength(12);
     expect(w[0]!.key).toBe("2025-09");
     expect(w[11]!.key).toBe("2026-08");
     expect(+w[1]!.start).toBe(+w[0]!.end);
+  });
+
+  it("monthWindows ay sınırı İstanbul duvar saatiyle: 1 Eki 01:00 (TR) Ekim'e düşer (derin denetim LU-07)", () => {
+    // 30 Eyl 22:00Z = 1 Eki 01:00 TR (UTC+3).
+    const now = new Date("2026-09-30T22:00:00Z");
+    const w = monthWindows(now);
+    expect(w[11]!.key).toBe("2026-10");
+    expect(w[11]!.start.toISOString()).toBe("2026-09-30T21:00:00.000Z");
+    expect(w[10]!.key).toBe("2026-09");
+    expect(w[10]!.start.toISOString()).toBe("2026-08-31T21:00:00.000Z");
   });
 
   it("deltaPct: önceki 0 → null; şimdiki 0 → null ('0 ↘ %100' yok); artış/azalış yüzdesi", () => {
@@ -32,10 +44,11 @@ describe("analitik saf yardımcılar", () => {
   });
 
   it("previousWindow dönem uzunluğunu korur", () => {
-    const now = new Date(2026, 7, 3);
+    const now = new Date("2026-08-03T09:00:00Z");
     const q = previousWindow("quarter", now);
-    expect(q.start.getMonth()).toBe(3); // Nis (Tem çeyreği öncesi)
-    expect(q.end.getMonth()).toBe(6);
+    // Nis (Tem çeyreği öncesi) → Tem; İstanbul 00:00 = 21:00Z önceki gün.
+    expect(q.start.toISOString()).toBe("2026-03-31T21:00:00.000Z");
+    expect(q.end.toISOString()).toBe("2026-06-30T21:00:00.000Z");
   });
 });
 
@@ -43,6 +56,21 @@ describe("DashboardAnalyticsService (DB)", () => {
   const service = new DashboardAnalyticsService(
     prisma as unknown as PrismaService,
   );
+
+  /** Kalem-bazlı kazandırmanın açtığı sipariş (ALIM: teklifçi = satıcı). */
+  const awardOrder = (
+    buyerCompanyId: string,
+    sellerCompanyId: string,
+    listingId: string,
+    items: { name: string; unitPrice: number }[],
+  ) =>
+    prisma.companyOrder.create({
+      data: {
+        buyerCompanyId, sellerCompanyId, listingId, currency: "TRY", status: "PENDING",
+        amount: items.reduce((n, it) => n + it.unitPrice, 0),
+        items: { create: items.map((it) => ({ ...it, quantity: 1, unit: "adet" })) },
+      },
+    });
 
   beforeEach(async () => {
     await truncateAll();
@@ -153,10 +181,44 @@ describe("DashboardAnalyticsService (DB)", () => {
     }
   });
 
-  it("money bloğu (Faz 4): dönem harcaması + açık taahhüt TRY-only hesaplanır", async () => {
+  it("funnel 'Teslim Edildi' yalnız DELIVERED/COMPLETED siparişi sayar; teslimden sonra DISPUTED olan sayılmaz (liste süzgeciyle aynı küme)", async () => {
     const buyer = await makeCompanyWithUser(prisma, {});
     const seller = await makeCompanyWithUser(prisma, {});
-    // Dönem içi TRY sipariş (ödenmemiş) + USD sipariş (money'e girmez).
+    const mk = async (status: "COMPLETED" | "DISPUTED") => {
+      const l = await makeListing(prisma, {
+        companyId: buyer.company.id,
+        createdById: buyer.user.id,
+        status: "AWARDED",
+      });
+      await prisma.listing.update({ where: { id: l.id }, data: { awardedAt: new Date() } });
+      await prisma.companyOrder.create({
+        data: {
+          buyerCompanyId: buyer.company.id,
+          sellerCompanyId: seller.company.id,
+          listingId: l.id,
+          amount: 100,
+          currency: "TRY",
+          status,
+          deliveredAt: new Date(),
+          ...(status === "COMPLETED" ? { completedAt: new Date() } : {}),
+        },
+      });
+    };
+    await mk("COMPLETED");
+    await mk("DISPUTED");
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    const byKey = Object.fromEntries(sa.funnel.map((f) => [f.key, f.count]));
+    expect(byKey.orders).toBe(2);
+    expect(byKey.delivered).toBe(1);
+  });
+
+  it("money bloğu (Faz 4 + 2026-09-27): TÜM siparişler rapor birimine (TR → TRY) çevrilip toplanır", async () => {
+    setFxRates({ USD: 40 });
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    // Dönem içi TRY sipariş (ödenmemiş) + USD sipariş — eskiden USD sipariş
+    // panodan DIŞLANIYORDU; artık güncel kurla TRY karşılığı eklenir.
     await prisma.companyOrder.create({
       data: {
         buyerCompanyId: buyer.company.id,
@@ -177,10 +239,153 @@ describe("DashboardAnalyticsService (DB)", () => {
     });
 
     const sa = await service.satinalma(buyer.company.id, "year");
-    expect(sa.money.periodSpend).toBe(5000);
-    expect(sa.money.openCommitment).toBe(5000); // ödeme yok → tamamı taahhüt
+    expect(sa.currency).toBe("TRY");
+    expect(sa.money.periodSpend).toBe(5000 + 900 * 40);
+    expect(sa.money.openCommitment).toBe(5000 + 900 * 40); // ödeme yok → tamamı taahhüt
     expect(sa.money.dueIn30d).toBe(0); // teslim yok → vade türetilemez
     expect(sa.money.realizedSavings).toBe(0);
+    resetFxRates();
+  });
+
+  it("yabancı satıcı (DE): gelir EUR biriminde ve TRY DIŞI siparişler dahil (eskiden 0 görünüyordu)", async () => {
+    setFxRates({ EUR: 50 });
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, { country: "DE" });
+    await prisma.companyOrder.create({
+      data: { buyerCompanyId: buyer.company.id, sellerCompanyId: seller.company.id, amount: 1200, currency: "EUR", status: "ACCEPTED" },
+    });
+    await prisma.companyOrder.create({
+      data: { buyerCompanyId: buyer.company.id, sellerCompanyId: seller.company.id, amount: 5000, currency: "TRY", status: "ACCEPTED" },
+    });
+    const st = await service.satis(seller.company.id, "year");
+    expect(st.currency).toBe("EUR");
+    const revenue = st.revenueTrend.reduce((n, p) => n + p.value, 0);
+    expect(revenue).toBeCloseTo(1200 + 5000 / 50);
+    expect(st.pareto.totalTry).toBeCloseTo(1300);
+    resetFxRates();
+  });
+
+  it("kalem-bazlı kazandırma: tasarruf/hacim kalem başına TEK kazanan fiyatla, çift sayım yok (derin denetim 2026-09-29)", async () => {
+    // Talep: A ve B, hedef 100/100. X: A=90,B=100; Y: A=95,B=80.
+    // Kazandırma A→X, B→Y (ikisi de AWARDED_PARTIAL).
+    // Doğru: tasarruf 10+20=30, hacim 90+80=170. Eski: tasarruf 35, hacim 365.
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const x = await makeCompanyWithUser(prisma, {});
+    const y = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      primaryCurrency: "TRY",
+      awardedAt: new Date(),
+    });
+    const a = await makeItem(prisma, listing.id, { lineNo: 1, targetPrice: new Prisma.Decimal(100) });
+    const b = await makeItem(prisma, listing.id, { lineNo: 2, targetPrice: new Prisma.Decimal(100) });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: x.company.id, createdById: x.user.id,
+      amount: 190, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 90 }, { itemId: b.id, unitPrice: 100 }],
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: y.company.id, createdById: y.user.id,
+      amount: 175, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 95 }, { itemId: b.id, unitPrice: 80 }],
+    });
+    // Kazandırmanın açtığı siparişler (awardByItem: satıcı başına, kalem adı +
+    // kazanan birim fiyat) — kalemin kime verildiği buradan çözülür.
+    await awardOrder(buyer.company.id, x.company.id, listing.id, [{ name: a.name, unitPrice: 90 }]);
+    await awardOrder(buyer.company.id, y.company.id, listing.id, [{ name: b.name, unitPrice: 80 }]);
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    expect(sa.money.realizedSavings).toBeCloseTo(30, 5);
+    expect(sa.topSavings[0]!.amount).toBeCloseTo(30, 5);
+    expect(sa.savingsTrend.reduce((n, p) => n + p.value, 0)).toBeCloseTo(30, 5);
+  });
+
+  it("kalem en ucuz olmayan kazanana verildiyse tasarruf o teklifin fiyatıyla (MU-18 gözden geçirme)", async () => {
+    // X: A=90,B=100; Y: A=95,B=80. Kazandırma A→Y, B→X (alıcı en ucuzu seçmedi).
+    // Doğru: A (100-95)=5, B (100-100)=0 → 5. Eski (en düşük fiyat): 10+20=30.
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const x = await makeCompanyWithUser(prisma, {});
+    const y = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      primaryCurrency: "TRY",
+      awardedAt: new Date(),
+    });
+    const a = await makeItem(prisma, listing.id, { lineNo: 1, targetPrice: new Prisma.Decimal(100) });
+    const b = await makeItem(prisma, listing.id, { lineNo: 2, targetPrice: new Prisma.Decimal(100) });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: x.company.id, createdById: x.user.id,
+      amount: 190, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 90 }, { itemId: b.id, unitPrice: 100 }],
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: y.company.id, createdById: y.user.id,
+      amount: 175, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 95 }, { itemId: b.id, unitPrice: 80 }],
+    });
+    await awardOrder(buyer.company.id, y.company.id, listing.id, [{ name: a.name, unitPrice: 95 }]);
+    await awardOrder(buyer.company.id, x.company.id, listing.id, [{ name: b.name, unitPrice: 100 }]);
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    expect(sa.money.realizedSavings).toBeCloseTo(5, 5);
+    expect(sa.topSavings[0]!.amount).toBeCloseTo(5, 5);
+  });
+
+  it("awardedQuantity varsa analitik de onu çarpar (Tasarruf sekmesiyle aynı)", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      primaryCurrency: "TRY",
+      awardedAt: new Date(),
+    });
+    const it1 = await makeItem(prisma, listing.id, {
+      quantity: new Prisma.Decimal(10),
+      targetPrice: new Prisma.Decimal(100),
+      awardedQuantity: new Prisma.Decimal(4),
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: seller.company.id, createdById: seller.user.id,
+      amount: 800, currency: "TRY", status: "WON",
+      items: [{ itemId: it1.id, unitPrice: 80 }],
+    });
+    const sa = await service.satinalma(buyer.company.id, "year");
+    expect(sa.money.realizedSavings).toBeCloseTo(80, 5); // 20 × 4 (eski: 20 × 10)
+  });
+
+  it("satış pipeline 'kazanıldı' tutarı kısmi kazanılan teklifte teklifin tamamını değil kazanılan payı (sipariş) sayar", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      awardedAt: new Date(),
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: seller.company.id, createdById: seller.user.id,
+      amount: 1000, currency: "TRY", status: "AWARDED_PARTIAL",
+    });
+    await prisma.companyOrder.create({
+      data: {
+        listingId: listing.id,
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        amount: 300,
+        currency: "TRY",
+        status: "PENDING",
+      },
+    });
+    const st = await service.satis(seller.company.id, "year");
+    const won = st.pipeline.find((p) => p.key === "won")!;
+    expect(won.count).toBe(1);
+    expect(won.amountTry).toBeCloseTo(300, 5); // eski: 1000
   });
 
   it("custom aralık (Faz 3): funnel yalnız [from,to) içindeki kayıtları sayar", async () => {

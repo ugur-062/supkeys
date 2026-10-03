@@ -23,7 +23,10 @@ import {
  * 2) Destek (SUPPORT) rolü: personel ucundan açılır, firma detayına 403,
  *    ürün kuyruğuna 200; tarayıcıda firma sayfası "yetkiniz yok".
  * 3) Kategoriler (sonuçsuz aramalar) sayfası açılır.
- * Admin 2FA staging'de KAPALI (elle: canlı hesapta açılacak).
+ * Admin 2FA (MU-01): API production modunda koştuğu için staging'de de
+ * SUPER_ADMIN'e 2FA ZORUNLU (ADMIN_2FA_REQUIRED_ROLES tanımsızsa). Hesapta 2FA
+ * kuruluysa `E2E_ADMIN_TOTP_SECRET` verilmeli; yardımcılar (adminApiSession,
+ * adminUiLogin) kodu kendisi üretir. SUPPORT rolü zorunlu listede değil.
  */
 const DOC_KINDS = ["taxPlate", "tradeRegistry", "signatureCircular", "activityCert", "idFront", "idBack"] as const;
 const SUPPORT_EMAIL = "uguray156+qa-admin-destek@gmail.com";
@@ -65,6 +68,8 @@ test.describe("firma doğrulama", () => {
       tradeRegistryNo: `QA-${stamp}`,
       iban: "TR330006100519786457841326",
       ibanHolder: "QA Ücretsiz Firma",
+      // 2026-09-27: firma doğrulamasında SWIFT/BIC her ülkede ZORUNLU (TR dahil).
+      bankSwiftBic: "TGBATRIS",
     });
     expect(submit.status, JSON.stringify(submit.body)).toBeLessThan(300);
     const docs = await apiGet(free, "/company/docs");

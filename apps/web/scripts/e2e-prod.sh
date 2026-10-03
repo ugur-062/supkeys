@@ -42,6 +42,9 @@ export E2E_PASSWORD="${E2E_PASSWORD:-Canli1234!}"
 export PLAYWRIGHT_ADMIN_URL="${PLAYWRIGHT_ADMIN_URL:-https://admin.rothern.com}"
 export E2E_ADMIN_EMAIL="$(oku INITIAL_ADMIN_EMAIL)"
 export E2E_ADMIN_PASSWORD="$(oku INITIAL_ADMIN_PASSWORD)"
+# Canlı SUPER_ADMIN'de 2FA kurulu (O-27): giriş TOTP ister. Hesabın authenticator
+# base32 anahtarı .env.prod.local'de E2E_ADMIN_TOTP_SECRET; yoksa kod gönderilmez.
+export E2E_ADMIN_TOTP_SECRET="${E2E_ADMIN_TOTP_SECRET:-$(oku E2E_ADMIN_TOTP_SECRET)}"
 
 [ -n "$E2E_DATABASE_URL" ] || { echo ".env.prod.local: DATABASE_URL yok" >&2; exit 1; }
 

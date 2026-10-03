@@ -20,10 +20,10 @@ const TRANSIENT_503 = () =>
     'got status: 503 . {"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}',
   );
 
+// Metin yalniz parts'tan okunur (SDK'nin `text` getter'i kullanilmaz).
 const OK_RESPONSE = {
-  text: "merhaba",
   usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 },
-  candidates: [{ content: { parts: [] }, finishReason: "STOP" }],
+  candidates: [{ content: { parts: [{ text: "merhaba" }] }, finishReason: "STOP" }],
 };
 
 function makeRequest(model: string) {
@@ -174,5 +174,56 @@ describe("GeminiProvider 400 uyarlama merdiveni", () => {
       }),
     ).rejects.toBeInstanceOf(AiProviderError);
     expect(mockGenerateContent).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("GeminiProvider yanit metni (derin denetim canli AI)", () => {
+  let provider: GeminiProvider;
+
+  beforeEach(() => {
+    mockGenerateContent.mockReset();
+    provider = new GeminiProvider({ apiKey: "test-anahtar-fixture-uzun" });
+  });
+
+  it("metin yalniz text parcalarindan birlesir; SDK `text` getter'ina dokunulmaz (functionCall uyarisi basilmaz)", async () => {
+    const textGetter = jest.fn(() => "SDK_TEXT");
+    const resp = {
+      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 },
+      candidates: [
+        {
+          content: {
+            parts: [
+              { text: "dusunce", thought: true },
+              { text: "Merhaba " },
+              { functionCall: { name: "search_listings", args: { q: "baret" } }, thoughtSignature: "sig-1" },
+              { text: "dunya" },
+            ],
+          },
+          finishReason: "STOP",
+        },
+      ],
+    };
+    Object.defineProperty(resp, "text", { get: textGetter });
+    mockGenerateContent.mockResolvedValueOnce(resp);
+
+    const result = await provider.complete(makeRequest("gemini-flash-latest"));
+
+    expect(textGetter).not.toHaveBeenCalled();
+    expect(result.text).toBe("Merhaba dunya");
+    // thoughtSignature functionCall parcasiyla birlikte korunur (geri besleme kurali).
+    expect(result.toolCalls).toEqual([
+      { name: "search_listings", args: { q: "baret" }, signature: "sig-1" },
+    ]);
+  });
+
+  it("parca yoksa ya da yalniz functionCall varsa metin bos dizedir", async () => {
+    mockGenerateContent
+      .mockResolvedValueOnce({ usageMetadata: {}, candidates: [] })
+      .mockResolvedValueOnce({
+        usageMetadata: {},
+        candidates: [{ content: { parts: [{ functionCall: { name: "x", args: {} } }] } }],
+      });
+    expect((await provider.complete(makeRequest("gemini-flash-latest"))).text).toBe("");
+    expect((await provider.complete(makeRequest("gemini-flash-latest"))).text).toBe("");
   });
 });

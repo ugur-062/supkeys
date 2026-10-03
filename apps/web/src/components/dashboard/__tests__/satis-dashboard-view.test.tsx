@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -8,12 +9,15 @@ const h = vi.hoisted(() => ({
   analytics: undefined as unknown,
   /** URL search param'ları (dönem/karşılaştır/sekme) — test başına ayarlanır. */
   search: "" as string,
+  user: { firstName: "Ada", permissions: ["sell:product:manage", "sell:bid:submit"] } as Record<string, unknown>,
+  company: { name: "Örnek Ltd." } as Record<string, unknown>,
+  push: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({
-    user: { firstName: "Ada" },
-    company: { name: "Örnek Ltd." },
+    user: h.user,
+    company: h.company,
   }),
 }));
 vi.mock("@/hooks/use-company-dashboard", () => ({
@@ -55,11 +59,15 @@ vi.mock("@/hooks/use-company-messages", () => ({
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(h.search),
   usePathname: () => "/company/satis",
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: h.push, replace: vi.fn() }),
 }));
 // Hero'daki "AI ile ara" useMutation kullanır — sağlayıcısız test kırılmasın.
+const aiMutate = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/use-ai-search-intent", () => ({
-  useAiSearchIntent: () => ({ mutate: vi.fn(), isPending: false }),
+  useAiSearchIntent: () => ({ mutate: aiMutate, isPending: false }),
+}));
+vi.mock("@/components/dashboard/home-company-list", () => ({
+  HomeCompanyList: () => <div data-testid="company-list" />,
 }));
 // Aksiyon merkezi/şeridi kendi ucundan beslenir — ayrı test edilir; burada
 // varlığını gözlemleyen hafif mock.
@@ -87,7 +95,9 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
   }),
 }));
 vi.mock("@/components/company/seller-tenders-view", () => ({
-  SellerTendersView: () => <div data-testid="seller-tenders" />,
+  SellerTendersView: ({ banner }: { banner?: React.ReactNode }) => (
+    <div data-testid="seller-tenders" id="acik-talepler">{banner}</div>
+  ),
 }));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
@@ -111,6 +121,13 @@ beforeEach(() => {
   h.statsLoading = false;
   h.analytics = undefined;
   h.search = "";
+  h.user = { firstName: "Ada", permissions: ["sell:product:manage", "sell:bid:submit"] };
+  h.company = { name: "Örnek Ltd." };
+  try {
+    sessionStorage.clear();
+  } catch {
+    /* yok */
+  }
 });
 
 describe("SatisDashboardView", () => {
@@ -172,7 +189,7 @@ describe("SatisDashboardView", () => {
     expect(screen.queryByText(/Profili tamamla/)).toBeNull();
     expect(screen.queryByText(/yayında ·/)).toBeNull();
     // TEK arama kutusu (hero); ikinci "İlan aç" YOK.
-    expect(screen.getAllByRole("searchbox")).toHaveLength(1);
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
     expect(screen.queryByText(/İlan aç/)).toBeNull();
   });
 
@@ -186,9 +203,115 @@ describe("SatisDashboardView", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("'Ürün ekle' şeridi yalnız ürün yönetme izniyle (arayüz testi O-099)", () => {
+    h.user = { firstName: "Ada", permissions: ["sell:bid:submit"] };
+    render(<SatisDashboardView />);
+    expect(screen.queryByRole("link", { name: /Ürün ekle/ })).toBeNull();
+  });
+
+  it("AI kilidinin nedeni: Silver altı → paket bağlantısı; Gold ama koltuk izni yok → yetki notu (arayüz testi O-050)", () => {
+    h.company = { name: "Örnek Ltd.", tier: "STANDART" };
+    const { unmount } = render(<SatisDashboardView />);
+    expect(screen.getByRole("link", { name: "Silver ile açılır" })).toBeInTheDocument();
+    unmount();
+    h.company = { name: "Örnek Ltd.", tier: "GOLD" };
+    h.user = { firstName: "Ada", permissions: ["company:manage"] };
+    render(<SatisDashboardView />);
+    expect(screen.getByRole("button", { name: /AI ile ara/ })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Silver ile açılır" })).toBeNull();
+    expect(screen.getByText("AI ile arama, alım ya da satış yetkisi olan kullanıcılara açıktır.")).toBeInTheDocument();
+  });
+
+  it("'Firma' kapsamında talep/alıcı önerisi çıkmaz; AI açılınca açık talepler geri gelir (arayüz testi O-095 / D-234)", async () => {
+    const user = userEvent.setup();
+    h.company = { name: "Örnek Ltd.", tier: "GOLD" };
+    render(<SatisDashboardView />);
+    // Talep kapsamında öneri var.
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Alıcı" } });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Firma" }));
+    expect(screen.getByTestId("company-list")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Alıcı A" } });
+    expect(screen.queryByRole("listbox")).toBeNull();
+    // AI → kapsam talebe döner, liste açık talepler.
+    await user.click(screen.getByRole("button", { name: /AI ile ara/ }));
+    expect(screen.queryByTestId("company-list")).toBeNull();
+    expect(screen.getByTestId("seller-tenders")).toBeInTheDocument();
+  });
+
+  it("AI sonucu: açık taleplere gider, bant kategori çipinde uygulanan SEGMENT'in adını yazar (arayüz testi D-276)", async () => {
+    const user = userEvent.setup();
+    h.company = { name: "Örnek Ltd.", tier: "GOLD" };
+    h.search = "kategori=31000000";
+    render(<SatisDashboardView />);
+    await user.click(screen.getByRole("button", { name: /AI ile ara/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "AI ile ara" }), { target: { value: "kapı kolu üretiyoruz" } });
+    fireEvent.submit(screen.getByRole("search"));
+    const r = {
+      portal: "satis",
+      summary: "kapı kolu",
+      query: null,
+      category: { id: "31162800", name: "Kollar veya tokmaklar" },
+      categoryHint: null,
+      city: null,
+      cityName: null,
+      country: null,
+      verifiedOnly: false,
+      activity: null,
+      priceMax: null,
+      currency: null,
+      quantity: null,
+      unit: null,
+      keywords: [],
+      relaxed: [],
+      relaxedCategoryName: null,
+      draft: null,
+      downgraded: false,
+      warned: false,
+    };
+    act(() => aiMutate.mock.calls[0][1].onSuccess(r));
+    expect(h.push).toHaveBeenLastCalledWith("/company/satis?kategori=31000000#acik-talepler");
+    expect(screen.getByRole("button", { name: /Kategori: Bileşen/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Kollar veya tokmaklar/)).toBeNull();
+  });
+
   it("'Son Aktiviteler' akışı anasayfada render edilmez (kaldırıldı, 2026-08-03)", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
     expect(screen.queryByText("Son Aktiviteler")).not.toBeInTheDocument();
+  });
+
+  it("#acik-talepler ile açılınca liste gelince bölüme kaydırır; kayıtlı 'Firma' kapsamı listeyi gizlemez (webC-04 yeniden doğrulama)", () => {
+    h.stats = fullStats();
+    const scroll = vi.fn();
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    sessionStorage.setItem("rothern.hero-scope:satis", "suppliers");
+    window.history.replaceState(null, "", "/company/satis#acik-talepler");
+    try {
+      render(<SatisDashboardView />);
+      expect(screen.getByTestId("seller-tenders")).toBeInTheDocument();
+      expect(screen.queryByTestId("company-list")).toBeNull();
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(scroll.mock.contexts[0]).toBe(document.getElementById("acik-talepler"));
+    } finally {
+      Element.prototype.scrollIntoView = orig;
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("çapasız açılışta kaydırmaz, kayıtlı 'Firma' kapsamı geri gelir", () => {
+    h.stats = fullStats();
+    const scroll = vi.fn();
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    sessionStorage.setItem("rothern.hero-scope:satis", "suppliers");
+    try {
+      render(<SatisDashboardView />);
+      expect(screen.getByTestId("company-list")).toBeInTheDocument();
+      expect(scroll).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollIntoView = orig;
+    }
   });
 });

@@ -16,6 +16,7 @@ import { AudienceProvider } from "@/components/marketplace/audience-switch";
 import { HomeHero } from "@/components/marketplace/home-hero";
 import { HomeBuyer } from "@/components/marketplace/home-buyer";
 import { HomeSupplier } from "@/components/marketplace/home-supplier";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 const product = (i: number) => ({
   slug: `urun-${i}`,
@@ -115,10 +116,79 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "/company/kayit?intent=teklif",
     );
     await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
-    expect(screen.getByRole("link", { name: /Talep aç/ })).toHaveAttribute(
+    // Misafir de paketi tıklamadan önce görür (arayüz testi kapanış COPY, T-02).
+    expect(screen.getByRole("link", { name: "Talep aç · Gold" })).toHaveAttribute(
       "href",
       "/company/kayit?intent=talep",
     );
+  });
+
+  it("oturumlu üyede alıcı 'Talep aç' notu paketine göre (T-02): Silver kilitli, Gold sihirbaz", async () => {
+    const user = userEvent.setup();
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["buy:view", "buy:listing:manage"], roles: [] } as never,
+      company: { tier: "SILVER", companyVerificationStatus: "VERIFIED" } as never,
+    });
+    try {
+      const { unmount } = hero();
+      await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
+      expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
+      unmount();
+      useCompanyAuthStore.setState({ company: { tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never });
+      hero();
+      expect(screen.getByRole("link", { name: /^Talep aç/ })).toHaveAttribute(
+        "href",
+        "/company/satinalma/taleplerim/yeni",
+      );
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
+  });
+
+  it("oturumlu üyede tedarikçi notu 'Ücretsiz kaydolun' DEMEZ (webA-1): Silver ∧ izin panel, ücretsiz '· Silver', izinsiz not yok", () => {
+    const signIn = (tier: string, status: string, permissions: string[]) =>
+      useCompanyAuthStore.setState({
+        isHydrated: true,
+        user: { id: "u", permissions, roles: [] } as never,
+        company: { tier, companyVerificationStatus: status } as never,
+      });
+    try {
+      signIn("SILVER", "VERIFIED", ["sell:view", "sell:bid:submit"]);
+      let r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: /^Açık talepleri görün$/ })).toHaveAttribute(
+        "href",
+        "/company/satis#acik-talepler",
+      );
+      r.unmount();
+
+      signIn("STANDART", "VERIFIED", ["sell:view", "sell:bid:submit"]);
+      r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: /Açık talepleri görün · Silver/ })).toHaveAttribute(
+        "href",
+        "/company/premium",
+      );
+      r.unmount();
+
+      signIn("STANDART", "UNVERIFIED", ["sell:view", "sell:bid:submit"]);
+      r = hero();
+      expect(screen.getByRole("link", { name: /Açık talepleri görün · Silver/ })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      r.unmount();
+
+      // Silver ama teklif izni yok (Satın Almacı / Görüntüleyici): teklif çağrısı yok.
+      signIn("SILVER", "VERIFIED", ["buy:view"]);
+      hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.queryByRole("link", { name: /Açık talepleri görün/ })).toBeNull();
+      expect(screen.queryByText(/herkese açık taleplere Silver ile teklif verin/)).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
   });
 
   it("ALICI gövdesi: 'size uygun' ve 'öne çıkan' YOK — hero'dan sonra DOĞRUDAN kategoriler (2026-09-22)", () => {
@@ -191,17 +261,20 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(within(list).getByRole("link", { name: /Tüm talepler \(16\)/ })).toBeInTheDocument();
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
-    expect(within(list).getAllByText(/şartname ve belgeler üyelere/).length).toBe(3);
+    expect(within(list).getAllByText(/şartname ve belgeler Silver ile/).length).toBe(3);
     // SATIR düzeni (2026-09-10): kategori GÖRSELİ yok (v3 2026-09-19: sütun
     // ikon karoları var, fotoğraf yine yok), sütunlar panelle aynı.
     const rows = list.querySelector("ul")!;
     expect(within(rows).queryAllByRole("img")).toHaveLength(0);
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
-    const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });
+    // Misafir de paketi tıklamadan önce görür (arayüz testi kapanış COPY, T-02).
+    const teklif = within(list).getAllByRole("link", { name: "Teklif ver · Silver" });
     expect(teklif).toHaveLength(3);
     // Tedarikçi yüzünde YEŞİL dolgulu düğme (2026-09-18, kullanıcı).
     expect(teklif[0]!.className).toContain("bg-emerald-600");
+    // Dönüş PANEL karşılığına (O-113): herkese açık talep sayfası değil.
+    expect(teklif[0]!.getAttribute("href")).toContain("intent=teklif&redirect=%2Fcompany%2Fsatis%3Fq%3D");
   });
 
   it("TEDARİKÇİ gövdesi: üye verisi (KPI, sağlık kartları, uygunluk) YOK", () => {
@@ -218,5 +291,27 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "href",
       "/company/kayit?intent=teklif",
     );
+  });
+
+  it("oturumlu üyeye tedarikçi gövdesi kayıt çağrısı yapmaz (S-PUB-ADMIN): boş talep satırı ve 'Ürün ekle' panele", () => {
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["sell:view", "sell:product:manage"], roles: [] } as never,
+      company: { tier: "STANDART", companyVerificationStatus: "VERIFIED" } as never,
+    });
+    try {
+      const { unmount } = render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
+      expect(screen.queryByRole("link", { name: "Ücretsiz kaydolun" })).toBeNull();
+      expect(screen.queryByText(/kaydolduktan sonra/)).toBeNull();
+      expect(screen.getByRole("link", { name: "Panelde açın" })).toHaveAttribute("href", "/company/satis#acik-talepler");
+      expect(screen.getByRole("link", { name: "Ürün ekle" })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
+      unmount();
+      // Vitrin yetkisi olmayan üyeye "Ürün ekle" çizilmez (önce paket, sonra izin; vitrin her pakette).
+      useCompanyAuthStore.setState({ user: { id: "u", permissions: ["buy:view"], roles: [] } as never });
+      render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
+      expect(screen.queryByRole("link", { name: "Ürün ekle" })).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
   });
 });

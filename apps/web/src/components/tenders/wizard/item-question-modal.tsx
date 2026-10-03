@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import {
@@ -18,10 +19,12 @@ import {
   useQuestionTemplates,
   useSaveQuestionTemplate,
 } from "@/hooks/use-templates";
-import type { TenderFormData } from "@/lib/tenders/form-schema";
+import { ANSWER_TYPE_VALUES, MAX_ITEM_QUESTIONS, type TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
@@ -32,13 +35,6 @@ interface Props {
   index: number;
 }
 
-const ANSWER_TYPES: Array<{ value: string; label: string }> = [
-  { value: "TEXT", label: "Metin" },
-  { value: "NUMBER", label: "Sayı" },
-  { value: "YES_NO", label: "Evet / Hayır" },
-  { value: "DATE", label: "Tarih" },
-];
-
 function newId(): string {
   try {
     return crypto.randomUUID();
@@ -48,6 +44,9 @@ function newId(): string {
 }
 
 export function ItemQuestionModal({ open, onClose, index }: Props) {
+  const tr = useTranslations("web.panel.requests.itemQuestionModal");
+  /** Cevap türü etiketi (`cevapTipi.<KOD>`); bilinmeyen kod olduğu gibi. */
+  const answerTypeLabel = (v: string) => (tr.has(`cevapTipi.${v}` as never) ? tr(`cevapTipi.${v}` as never) : v);
   const { control, register, getValues } = useFormContext<TenderFormData>();
   const { fields, append, remove, replace } = useFieldArray({
     control,
@@ -55,6 +54,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
     keyName: "_rfkey",
   });
   const saveTpl = useSaveQuestionTemplate();
+  const canSaveTemplate = useHasCompanyPermission("templates:manage");
 
   // Açılışta soru dizisinin anlık görüntüsü — "Vazgeç" buna geri döner.
   const snapshot = useRef<TenderFormData["items"][number]["questions"]>([]);
@@ -87,14 +87,17 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
     const qs = getValues(`items.${index}.questions`) ?? [];
     const valid = qs.filter((q) => q.text.trim());
     if (valid.length === 0) {
-      toast.error("Önce en az bir soru ekle");
+      toast.error(tr("onceEnAzBirSoru"));
       return;
     }
     setTplName("");
     setNameOpen(true);
   };
 
-  const saveAsTemplate = async () => {
+  // Çift tık / Enter basılı tutmak kopya soru şablonu açmasın (arayüz testi FX-00 D-041).
+  const tplLock = useDialogSubmitLock(nameOpen);
+  const saveAsTemplate = () => void tplLock.run(doSaveAsTemplate);
+  const doSaveAsTemplate = async () => {
     const name = tplName.trim();
     if (!name) return;
     const qs = getValues(`items.${index}.questions`) ?? [];
@@ -108,10 +111,10 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           required: q.required,
         })),
       });
-      toast.success("Soru şablonu kaydedildi");
+      toast.success(tr("soruSablonuKaydedildi"));
       setNameOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("sablonKaydedilemedi")));
     }
   };
 
@@ -122,12 +125,23 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
   const templates = useQuestionTemplates();
   const tplDetail = useQuestionTemplate(pickerOpen ? tplId : null);
 
-  const addBlank = () =>
+  // Tavan (derin denetim S085): eskiden ekleme sınırsızdı; 20'yi aşan dizi
+  // yayında yalnız genel "eksik" uyarısı veriyor, şablon kaydı 400 alıyordu.
+  const remaining = Math.max(0, MAX_ITEM_QUESTIONS - fields.length);
+  const full = remaining === 0;
+
+  const addBlank = () => {
+    if (full) return;
     append({ id: newId(), text: "", answerType: "TEXT", required: true });
+  };
 
   const addSelectedFromTemplate = () => {
     if (!tplDetail.data) return;
-    const toAdd = tplDetail.data.items.filter((q) => selected.has(q.id));
+    const picked = tplDetail.data.items.filter((q) => selected.has(q.id));
+    const toAdd = picked.slice(0, remaining);
+    if (toAdd.length < picked.length) {
+      toast.warning(tr("soruTavaniEklenmedi", { dropped: picked.length - toAdd.length, max: MAX_ITEM_QUESTIONS }));
+    }
     for (const q of toAdd) {
       append({
         id: newId(),
@@ -147,9 +161,9 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           <HelpCircle className="h-5 w-5 text-zinc-700" />
         </div>
         <div className="min-w-0">
-          <DialogTitle>Kalem {index + 1} Soruları</DialogTitle>
+          <DialogTitle>{tr("kalemSorulari", { n: index + 1 })}</DialogTitle>
           <DialogDescription>
-            Bu kaleme birden fazla teknik soru ekleyebilirsiniz.
+            {tr("buKalemeBirdenFazlaTeknik")}
           </DialogDescription>
         </div>
       </div>
@@ -158,8 +172,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
         <div className="rounded-lg bg-warning-50 border border-warning-200 p-3 text-sm text-warning-800 flex gap-2">
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>
-            Tedarikçi bu kaleme teklif verirken zorunlu işaretli soruları
-            cevaplamak zorundadır.
+            {tr("tedarikciBuKalemeTeklifVerirken")}
           </span>
         </div>
 
@@ -172,7 +185,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           >
             <span className="flex items-center gap-2">
               <LayoutTemplate className="w-4 h-4" />
-              Şablondan Soru Ekle
+              {tr("sablondanSoruEkle")}
             </span>
             <ChevronDown
               className={cn(
@@ -184,10 +197,10 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           {pickerOpen ? (
             <div className="px-3 py-3 border-t border-zinc-950/5 space-y-2.5 bg-zinc-50/40">
               {templates.isLoading ? (
-                <p className="text-xs text-zinc-500">Yükleniyor…</p>
+                <p className="text-xs text-zinc-500">{tr("yukleniyor")}</p>
               ) : (templates.data?.length ?? 0) === 0 ? (
                 <p className="text-xs text-zinc-500">
-                  Kayıtlı soru şablonunuz yok.
+                  {tr("kayitliSoruSablonunuzYok")}
                 </p>
               ) : (
                 <>
@@ -198,15 +211,15 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                       setSelected(new Set());
                     }}
                   >
-                    <option value="">Şablon seçin…</option>
+                    <option value="">{tr("sablonSecin")}</option>
                     {templates.data?.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.name} ({t.itemCount} soru)
+                        {tr("soru", { name: t.name, itemCount: t.itemCount })}
                       </option>
                     ))}
                   </Select>
                   {tplId && tplDetail.isLoading ? (
-                    <p className="text-xs text-zinc-500">Sorular yükleniyor…</p>
+                    <p className="text-xs text-zinc-500">{tr("sorularYukleniyor")}</p>
                   ) : tplDetail.data ? (
                     <>
                       <ul className="space-y-1 max-h-44 overflow-y-auto pr-1">
@@ -230,11 +243,8 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                                   {q.text}
                                 </span>
                                 <span className="text-xs text-zinc-500">
-                                  Cevap türü:{" "}
-                                  {ANSWER_TYPES.find(
-                                    (a) => a.value === q.answerType,
-                                  )?.label ?? q.answerType}
-                                  {q.required ? " · Zorunlu" : ""}
+                                  {tr("cevapTuruDeger", { label: answerTypeLabel(q.answerType) })}
+                                  {q.required ? ` ${tr("zorunlu")}` : ""}
                                 </span>
                               </span>
                             </div>
@@ -246,10 +256,10 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                         variant="secondary"
                         size="sm"
                         onClick={addSelectedFromTemplate}
-                        disabled={selected.size === 0}
+                        disabled={selected.size === 0 || full}
                       >
                         <Plus className="w-4 h-4" />
-                        Seçilenleri Ekle ({selected.size})
+                        {tr("secilenleriEkle", { size: selected.size })}
                       </UiButton>
                     </>
                   ) : null}
@@ -262,7 +272,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
         {/* Soru listesi */}
         {fields.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-4">
-            Henüz soru yok. “Soru Ekle” ile başlayın veya şablondan seçin.
+            {tr("henuzSoruYokSoruEkle")}
           </p>
         ) : (
           <div className="space-y-3">
@@ -273,19 +283,19 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-xs font-semibold text-zinc-500">
-                    Soru {qi + 1}
+                    {tr("soruN", { n: qi + 1 })}
                   </span>
                   <button
                     type="button"
                     onClick={() => remove(qi)}
-                    aria-label="Soruyu kaldır"
+                    aria-label={tr("soruyuKaldir")}
                     className="text-danger-500 hover:text-danger-700"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
                 <Input
-                  placeholder="Örn. Garanti süresi nedir?"
+                  placeholder={tr("ornGarantiSuresiNedir")}
                   maxLength={500}
                   {...register(`items.${index}.questions.${qi}.text`)}
                 />
@@ -295,16 +305,16 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                       htmlFor={`q-type-${index}-${qi}`}
                       className="text-xs text-zinc-500 mb-0"
                     >
-                      Cevap türü
+                      {tr("cevapTuru")}
                     </Label>
                     <Select
                       id={`q-type-${index}-${qi}`}
                       className="!w-auto"
                       {...register(`items.${index}.questions.${qi}.answerType`)}
                     >
-                      {ANSWER_TYPES.map((a) => (
-                        <option key={a.value} value={a.value}>
-                          {a.label}
+                      {ANSWER_TYPE_VALUES.map((a) => (
+                        <option key={a} value={a}>
+                          {answerTypeLabel(a)}
                         </option>
                       ))}
                     </Select>
@@ -315,12 +325,12 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                     render={({ field }) => (
                       <div className="flex items-center gap-2 text-sm text-zinc-700">
                         <Checkbox
-                          aria-label="Zorunlu soru"
+                          aria-label={tr("zorunluSoru")}
                           checked={!!field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                         />
-                        <span>Zorunlu</span>
+                        <span>{tr("zorunlu2")}</span>
                       </div>
                     )}
                   />
@@ -330,51 +340,58 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           </div>
         )}
 
-        <UiButton type="button" variant="ghost" size="sm" onClick={addBlank}>
+        <UiButton type="button" variant="ghost" size="sm" onClick={addBlank} disabled={full}>
           <Plus className="w-4 h-4" />
-          Soru Ekle
+          {tr("soruEkle")}
         </UiButton>
+        {full ? (
+          <p className="text-xs text-zinc-500">{tr("soruTavani", { max: MAX_ITEM_QUESTIONS })}</p>
+        ) : null}
       </DialogBody>
 
       <DialogActions>
-        <Button
-          plain
-          onClick={openSaveDialog}
-          disabled={saveTpl.isPending}
-        >
-          <Save data-slot="icon" />
-          Şablon Olarak Kaydet
-        </Button>
+        {/* Soru seti kaydı API'de `templates:manage` ister — izinsiz kullanıcıya
+            düğme gösterilip 403 yedirilmez (arayüz testi D-042). */}
+        {canSaveTemplate ? (
+          <Button
+            plain
+            onClick={openSaveDialog}
+            disabled={saveTpl.isPending}
+          >
+            <Save data-slot="icon" />
+            {tr("sablonOlarakKaydet")}
+          </Button>
+        ) : null}
         <Button plain onClick={handleCancel}>
-          Vazgeç
+          {tr("vazgec")}
         </Button>
-        <Button onClick={handleDone}>Tamam</Button>
+        <Button onClick={handleDone}>{tr("tamam")}</Button>
       </DialogActions>
 
       {/* Şablon adı diyaloğu (window.prompt yerine) */}
       <Dialog open={nameOpen} onClose={() => setNameOpen(false)} size="sm">
-        <DialogTitle>Şablon Adı</DialogTitle>
+        <DialogTitle>{tr("sablonAdi")}</DialogTitle>
         <DialogBody>
           <Input
             autoFocus
             maxLength={120}
-            placeholder="Örn. Standart teknik sorular"
+            placeholder={tr("ornStandartTeknikSorular")}
             value={tplName}
             onChange={(e) => setTplName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && tplName.trim()) saveAsTemplate();
+              if (e.key === "Enter" && tplName.trim() && !saveTpl.isPending) saveAsTemplate();
             }}
           />
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setNameOpen(false)}>
-            Vazgeç
+            {tr("vazgec")}
           </Button>
           <Button
             onClick={saveAsTemplate}
-            disabled={!tplName.trim() || saveTpl.isPending}
+            disabled={!tplName.trim() || saveTpl.isPending || tplLock.locked}
           >
-            Kaydet
+            {tr("kaydet")}
           </Button>
         </DialogActions>
       </Dialog>

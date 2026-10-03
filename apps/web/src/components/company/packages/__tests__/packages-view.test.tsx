@@ -8,7 +8,8 @@
  * Kilitlenenler:
  *  · ekran yalnız üç paket kartıdır — eski "neler açılır" listesi, doğrulama
  *    kutusu ve "manuel onayla" notu YOK
- *  · satın al: doğrulanmamış → doğrulama sayfası; doğrulanmış → satın alma ekranı
+ *  · satın al: doğrulanmamış → doğrulama sayfası; incelemede (PENDING) → düğme
+ *    pasif + "inceleniyor" notu (arayüz testi O-068); doğrulanmış → satın alma ekranı
  *  · paket işlemi yalnız kurucuda (backend `upgradeToPremium` aynası)
  *  · mevcut ve alt paketlerde satın al düğmesi çizilmez
  *  · fiyat pazarlama sayfasıyla AYNI kaynaktan (`lib/pricing/plans.ts`)
@@ -19,6 +20,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   meData: undefined as unknown,
+  profile: undefined as unknown,
+  profileEnabled: undefined as boolean | undefined,
   push: vi.fn(),
   toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
 }));
@@ -27,6 +30,12 @@ vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: h.push }) }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyMe: () => ({ data: h.meData }),
+}));
+vi.mock("@/hooks/use-company-profile", () => ({
+  useCompanyProfile: (enabled?: boolean) => {
+    h.profileEnabled = enabled;
+    return { data: enabled === false ? undefined : h.profile };
+  },
 }));
 
 import { PRICING_PLANS } from "@/lib/pricing/plans";
@@ -46,7 +55,10 @@ function setMe({
 
 const card = (name: string) => screen.getByRole("listitem", { name: `${name} paketi` });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  h.profile = undefined;
+});
 
 describe("PackagesView", () => {
   it("yalnız üç paket kartı çizer — eski kapı metinleri YOK", () => {
@@ -77,12 +89,19 @@ describe("PackagesView", () => {
     expect(h.toast.info).toHaveBeenCalledTimes(1);
   });
 
-  it("PENDING de doğrulanmış sayılmaz → doğrulama sayfası", async () => {
-    const user = userEvent.setup();
+  it("PENDING (incelemede): 'önce doğrulayın' demez, düğme pasif ve 'inceleniyor' notu (O-068)", async () => {
     setMe({ status: "PENDING" });
     render(<PackagesView />);
-    await user.click(within(card("Silver")).getByRole("button", { name: "Silver satın al" }));
-    expect(h.push).toHaveBeenCalledWith("/company/ayarlar/dogrulama");
+    const silver = card("Silver");
+    expect(within(silver).getByRole("button", { name: "Silver satın al" })).toBeDisabled();
+    expect(within(silver).getByText(/Doğrulamanız inceleniyor/)).toBeInTheDocument();
+    expect(within(silver).getByRole("link", { name: "Durumu gör" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(screen.queryByText("Önce ücretsiz doğrulama")).toBeNull();
+    expect(h.push).not.toHaveBeenCalled();
+    expect(h.toast.info).not.toHaveBeenCalled();
   });
 
   it("DOĞRULANMIŞ firma doğrudan satın alma ekranına gider", async () => {
@@ -110,6 +129,26 @@ describe("PackagesView", () => {
     render(<PackagesView />);
     expect(within(card("Gold")).getByRole("button", { name: "Gold satın al" })).toBeDisabled();
     expect(within(card("Gold")).getByText("Paketi firma kurucusu satın alabilir")).toBeInTheDocument();
+  });
+
+  it("üyelik bitişi: mevcut ücretli kartta 'Bitiş', süresi dolmuş Standart firmada bant (D-029)", () => {
+    setMe({ tier: "GOLD" });
+    h.profile = { membership: { endsAt: "2026-12-31T09:00:00.000Z", expiredAt: null } };
+    const { unmount } = render(<PackagesView />);
+    expect(within(card("Gold")).getByText("Bitiş: 31 Aralık 2026")).toBeInTheDocument();
+    expect(h.profileEnabled).toBe(true);
+    unmount();
+
+    setMe({ tier: "STANDART" });
+    h.profile = { membership: { endsAt: null, expiredAt: "2026-09-30T09:00:00.000Z" } };
+    render(<PackagesView />);
+    expect(screen.getByRole("status")).toHaveTextContent(/30 Eylül 2026 tarihinde doldu/);
+  });
+
+  it("kurucu olmayan üyede profil (üyelik) sorgusu atılmaz", () => {
+    setMe({ isOwner: false });
+    render(<PackagesView />);
+    expect(h.profileEnabled).toBe(false);
   });
 
   it("kilitli sayfadan gelindiyse gereken paketi söyler", () => {

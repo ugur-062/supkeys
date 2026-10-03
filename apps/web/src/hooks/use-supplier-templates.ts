@@ -25,9 +25,11 @@ export interface SupplierTemplateDetail {
   }[];
 }
 
-export function useSupplierTemplates() {
+/** `enabled: false` — paket/rol kapısı dışında istek atılmaz (talep formu seçicisi). */
+export function useSupplierTemplates(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["supplier-templates"],
+    enabled: opts.enabled ?? true,
     queryFn: async () => {
       const { data } = await companyApi.get<SupplierTemplateRow[]>(
         "/company/supplier-templates",

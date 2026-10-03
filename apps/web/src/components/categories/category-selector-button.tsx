@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChevronRight, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -42,18 +43,19 @@ export function CategorySelectorButton({
   maxSelection = 20,
   placeholder,
   error,
-  modalTitle = "Kategori Seç",
+  modalTitle,
   modalDescription,
   disabled,
   catalog = "full",
 }: Props) {
+  const t = useTranslations("web.shared.categorySelectorButton");
   const [isOpen, setIsOpen] = useState(false);
   const { data: selectedCategories } = useCategoriesByIds(value);
 
   const defaultPlaceholder =
     mode === "single"
-      ? "Satın Alma Talebi kategorisini seçin"
-      : "Tedarik kategorilerinizi seçin";
+      ? t("satinAlmaTalebiKategorisiniSecin")
+      : t("tedarikKategorileriniziSecin");
 
   return (
     <>
@@ -87,8 +89,8 @@ export function CategorySelectorButton({
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {mode === "single"
-                    ? "Tek kategori seçin"
-                    : `En fazla ${maxSelection} kategori seçebilirsiniz`}
+                    ? t("tekKategoriSecin")
+                    : t("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection })}
                 </p>
               </div>
             </div>
@@ -114,7 +116,7 @@ export function CategorySelectorButton({
                         type="button"
                         onClick={() => onChange(value.filter((x) => x !== id))}
                         className="ml-1 rounded hover:text-rose-600"
-                        aria-label={`${label} kategorisini kaldır`}
+                        aria-label={t("kategorisiniKaldir", { label: label })}
                       >
                         <XIcon className="h-3 w-3" />
                       </button>
@@ -131,8 +133,8 @@ export function CategorySelectorButton({
               >
                 <Plus className="h-4 w-4" />
                 {mode === "single"
-                  ? "Değiştir"
-                  : "Kategori Ekle / Düzenle"}
+                  ? t("degistir")
+                  : t("kategoriEkleDuzenle")}
               </button>
             ) : null}
           </div>
@@ -158,7 +160,7 @@ export function CategorySelectorButton({
           onConfirm={onChange}
           mode={mode}
           maxSelection={maxSelection}
-          title={modalTitle}
+          title={modalTitle ?? t("kategoriSec")}
           description={modalDescription}
           catalog={catalog}
         />

@@ -64,10 +64,17 @@ describe("computeSavings (saf çekirdek)", () => {
   });
 
   it("periodStart: yıl/çeyrek/ay sınırları doğru", () => {
-    const now = new Date(2026, 7, 3); // 3 Ağu 2026
-    expect(periodStart("year", now).getMonth()).toBe(0);
-    expect(periodStart("quarter", now).getMonth()).toBe(6); // Tem
-    expect(periodStart("month", now).getMonth()).toBe(7);
+    const now = new Date("2026-08-03T09:00:00Z"); // 3 Ağu 2026
+    // Sınırlar İstanbul 00:00 (UTC+3 → önceki gün 21:00Z).
+    expect(periodStart("year", now).toISOString()).toBe("2025-12-31T21:00:00.000Z");
+    expect(periodStart("quarter", now).toISOString()).toBe("2026-06-30T21:00:00.000Z"); // Tem
+    expect(periodStart("month", now).toISOString()).toBe("2026-07-31T21:00:00.000Z");
+  });
+
+  it("periodStart: UTC'de ay sonu ama İstanbul'da yeni ay → yeni ayın başı (derin denetim LU-07)", () => {
+    const now = new Date("2026-12-31T22:30:00Z"); // 1 Oca 2027 01:30 TR
+    expect(periodStart("month", now).toISOString()).toBe("2026-12-31T21:00:00.000Z");
+    expect(periodStart("year", now).toISOString()).toBe("2026-12-31T21:00:00.000Z");
   });
 });
 

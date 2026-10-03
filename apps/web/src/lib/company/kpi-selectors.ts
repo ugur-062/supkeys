@@ -1,4 +1,3 @@
-import type { MyBid } from "@/hooks/use-company-listings";
 import type { CompanyOrder } from "@/hooks/use-company-orders";
 
 /**
@@ -15,20 +14,14 @@ import type { CompanyOrder } from "@/hooks/use-company-orders";
  * Tanımlar buradadır; başka yerde statü kümesi yazılmaz.
  */
 
-/** Teklif hâlâ karar bekliyor: verilmiş ve ilan karara bağlanmamış. */
-const OFFER_OPEN_LISTING = new Set(["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"]);
-
-/** Açık taleplere verdiğim, karar bekleyen teklifler. */
-export function selectActiveOffers(bids: MyBid[]): MyBid[] {
-  return bids.filter(
-    (b) => b.status === "SUBMITTED" && OFFER_OPEN_LISTING.has(b.listing.status),
-  );
-}
-
-/** Kazandığım işler — KISMİ kazanım DAHİL (etiket bunu söyler). */
-export function selectWonOffers(bids: MyBid[]): MyBid[] {
-  return bids.filter((b) => b.status === "WON" || b.status === "AWARDED_PARTIAL");
-}
+/*
+ * TEKLİF sayaçları (karar bekleyen / kazanılan) artık SUNUCUDA sayılır
+ * (arayüz testi O-005): `GET company/listings/my-bids` → `counts`
+ * (`company-listings.service.ts` `listMyBids`, `MY_BID_UNDECIDED_LISTING`).
+ * Eskiden burada en yeni 200 teklifin listesinden sayılıyordu; 200'ü aşan
+ * firmada pano ve liste yanlış sayı gösteriyordu. Tekliflerim özeti ve
+ * Şirketim KPI'ları aynı `counts`u okur.
+ */
 
 /**
  * Canlı sipariş — Satışlarım/Siparişlerim "Aktif" kutusuyla BİREBİR (B4 MECE):

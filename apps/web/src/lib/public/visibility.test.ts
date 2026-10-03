@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VISIBILITY, canSee, loginHref, signupHref } from "./visibility";
+import { VISIBILITY, canSee, loginHref, safeRedirect, signupHref } from "./visibility";
 
 describe("görünürlük katmanı v2", () => {
   it("ürün ve firma anonime açık: fiyat, MOQ, kuruluş, Hakkında, ortalama puan", () => {
@@ -36,5 +36,21 @@ describe("görünürlük katmanı v2", () => {
     for (const [entity, fields] of Object.entries(VISIBILITY)) {
       expect(Object.values(fields).includes("anon"), entity).toBe(true);
     }
+  });
+});
+
+// Yayın denetimi 2026-09-28 Bölüm 5: tarayıcı `\`'ı `/` sayar, sekme/satır
+// sonunu atar → bunlar protokolsüz başka köke gider; hepsi reddedilir.
+describe("safeRedirect — açık yönlendirme", () => {
+  it.each(["/\\evil.com", "/\\/evil.com", "/\t/evil.com", "/\n/evil.com", "/x\\..\\evil", "//evil.com", "https://evil.com", ""])(
+    "reddeder: %j",
+    (v) => {
+      expect(safeRedirect(v)).toBeNull();
+    },
+  );
+
+  it("site içi yolları olduğu gibi geçirir", () => {
+    expect(safeRedirect("/company/ilan/abc?tab=1#x")).toBe("/company/ilan/abc?tab=1#x");
+    expect(safeRedirect("/talep/rot-000001-celik-boru")).toBe("/talep/rot-000001-celik-boru");
   });
 });

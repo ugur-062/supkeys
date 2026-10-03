@@ -46,6 +46,8 @@ describe("MegaMenu", () => {
     expect(await screen.findByText("Elektrik Sistemleri")).toBeTruthy();
     expect(screen.getByText("Panolar")).toBeTruthy();
     expect(screen.getByText("Tüm Elektrik Sistemleri ürünleri →")).toBeTruthy();
+    // Derin denetim S093: ağaç sayfa diliyle istenir (tarayıcı dili değil).
+    expect(h.menu).toHaveBeenCalledWith("tr");
   });
 
   it("alt dalı olmayan segmentte en çok ürünlü dallar gösterilir (panel boş kalmaz)", async () => {

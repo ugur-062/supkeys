@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ForbiddenException,
@@ -8,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@rothern/db";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
@@ -15,6 +17,7 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 import { EmailService } from "../email/email.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { pickCompanyRecipients } from "../notifications/notification.service";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { appRoutes } from "../../common/company/app-routes";
 
@@ -29,6 +32,21 @@ interface ThreadParties {
   buyerCompanyId: string;
   sellerCompanyId: string;
 }
+
+/**
+ * Sonuçlanmamış (süren) sipariş durumları — alıcı yönü paket kapısının
+ * istisnası: paketi düşen alıcı, süren siparişin satıcısıyla yazışabilir
+ * (T-06: "mevcut siparişler erişilebilir kalır"). Tamamlanan / reddedilen /
+ * iptal edilen sipariş istisna açmaz.
+ */
+const OPEN_ORDER_STATUSES = [
+  "PENDING",
+  "ACCEPTED",
+  "CREATED",
+  "IN_DELIVERY",
+  "DELIVERED",
+  "DISPUTED",
+] as const;
 
 @Injectable()
 export class CompanyMessagesService {
@@ -63,31 +81,58 @@ export class CompanyMessagesService {
       );
       const to = recipients.get(companyId);
       if (!to) return;
+      // Gönderen FİRMA adı da konuda/gövdede (arayüz testi D-114): yalnız kişi
+      // adı ("Ayşe Yılmaz size mesaj gönderdi") alıcıya kimin yazdığını söylemiyordu.
+      const senderCompany = await this.prisma.company.findUnique({
+        where: { id: senderCompanyId },
+        select: { name: true },
+      });
+      const company = senderCompany?.name?.trim() || senderName;
       const email = to.email;
       const name = to.name;
       const baseUrl =
         resolveWebUrl(this.config);
-      const subject = `${senderName} size mesaj gönderdi`;
+      // Metin ALICININ dilinde (pickCompanyRecipients alıcının `locale`ini
+      // çözer; fatura adresi dalında kurucunun dili).
+      const locale = to.locale;
+      const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+        tApi(key, values, locale);
+      const subject = t("api.notifications.companyMessages.newMessage.subject", {
+        sender: senderName,
+        company,
+      });
       await this.email.send({
         to: { email, name },
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
-            heading: "Yeni mesajınız var",
+            heading: t("api.notifications.companyMessages.newMessage.heading"),
             paragraphs: [
-              "Merhaba,",
-              `${senderName} size Rothern üzerinden bir mesaj gönderdi. Görüntülemek ve yanıtlamak için giriş yapın.`,
+              t("api.notifications.companyMessages.newMessage.greeting"),
+              t("api.notifications.companyMessages.newMessage.body", {
+                sender: senderName,
+                company,
+              }),
             ],
-            ctaLabel: "Mesajları Gör",
+            ctaLabel: t("api.notifications.companyMessages.newMessage.cta"),
             // Denetim 2026-08-23 Parça 4: CTA GÖNDERENİN portalını kullanıyordu;
             // alıcının portalı her zaman TERSİDİR (thread daima alıcı-satıcı
             // çifti). Alıcıda o portal yoksa (ör. SILVER-altı tedarikçi için
             // satınalma portalı) link Premium/erişim ekranına düşüyordu.
             // Birleşik gelen kutusu (2026-08-02) portal-bağımsız → doğrudan ona
-            // gideriz; sohbet `with` parametresiyle açılır.
-            ctaUrl: appRoutes.messagesWith(baseUrl, senderCompanyId),
+            // gideriz; sohbet `with` parametresiyle açılır. Yön (portal)
+            // AÇIKÇA geçilir (derin denetim Y-18): verilmezse iki izinli
+            // kullanıcıda gelen kutusu "satinalma"yı seçip satıcı tarafa ters
+            // yöndeki BOŞ konuşmayı açıyordu.
+            ctaUrl: appRoutes.messagesWith(
+              baseUrl,
+              senderCompanyId,
+              locale,
+              recipientSide === "sell" ? "satis" : "satinalma",
+            ),
           },
         },
         context: { type: "message_received", id: companyId },
@@ -113,7 +158,7 @@ export class CompanyMessagesService {
 
   private assertPortal(portal: string): MessagePortal {
     if (portal !== "satinalma" && portal !== "satis") {
-      throw new BadRequestException("Geçersiz portal");
+      throw new BadRequestException(i18nMessage("api.companyMessages.gecersizPortal"));
     }
     return portal;
   }
@@ -145,16 +190,24 @@ export class CompanyMessagesService {
     if (action === "read") {
       if (this.canReadPortal(user, portal)) return;
       throw new ForbiddenException(
-        portal === "satinalma"
-          ? "Mesajları görüntülemek için 'Satınalma görüntüleme' yetkisi gerekir"
-          : "Mesajları görüntülemek için 'Satış görüntüleme' yetkisi gerekir",
+        i18nMessage("api.companyMessages.mesajlariGoruntulemekIcinYetkiGerekir", {
+          permission: tApi(
+            portal === "satinalma"
+              ? "api.permission.buy_view"
+              : "api.permission.sell_view",
+          ),
+        }),
       );
     }
     if (hasCompanyPermission(user, this.portalSendPermission(portal))) return;
     throw new ForbiddenException(
-      portal === "satinalma"
-        ? "Mesaj göndermek için 'Talep açma ve yönetme' yetkisi gerekir"
-        : "Mesaj göndermek için 'Teklif verme' yetkisi gerekir",
+      i18nMessage("api.companyMessages.mesajGondermekIcinYetkiGerekir", {
+        permission: tApi(
+          portal === "satinalma"
+            ? "api.permission.buy_listing_manage"
+            : "api.permission.sell_bid_submit",
+        ),
+      }),
     );
   }
 
@@ -255,15 +308,22 @@ export class CompanyMessagesService {
       where: { id: otherCompanyId },
       select: { id: true, name: true },
     });
-    if (!other) throw new NotFoundException("Firma bulunamadı");
+    if (!other) throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     // Blok (iki yön) → konuşma GÖRÜNMEZ (send() ile tutarlı karşılıklı-görünmezlik;
     // engellenen taraf eski geçmişi de okuyamaz).
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     if (blockedIds.includes(otherCompanyId)) {
-      throw new NotFoundException("Firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     }
 
     const parties = this.parties(user.companyId, portal, otherCompanyId);
+    // Paketi düşen alıcının süren sipariş istisnası (send() aynası) — web
+    // composer'ı Gold çağrısı yerine bununla açar. Gold'da / satıcı yönünde
+    // sorulmaz (kapı zaten açık), false döner.
+    const sendOpenByOrder =
+      portal === "satinalma" &&
+      !tierAtLeast(user.tier, BUYING_TIER) &&
+      (await this.buyerDirectionOpen(user, otherCompanyId));
     const thread = await this.prisma.messageThread.findUnique({
       where: {
         buyerCompanyId_sellerCompanyId: {
@@ -280,6 +340,7 @@ export class CompanyMessagesService {
         thread: null,
         otherParty: other,
         messages: [],
+        sendOpenByOrder,
       };
     }
 
@@ -304,7 +365,29 @@ export class CompanyMessagesService {
         mine: m.senderCompanyId === user.companyId,
         createdAt: m.createdAt,
       })),
+      sendOpenByOrder,
     };
+  }
+
+  /**
+   * ALICI yönünde yazma paketle açık mı: Gold (efektif) ya da bu satıcıyla
+   * süren bir sipariş var (paketi düşen alıcının istisnası). Yalnız
+   * çağıranın ALICI olduğu siparişler sayılır.
+   */
+  private async buyerDirectionOpen(
+    user: AuthenticatedCompanyUser,
+    sellerCompanyId: string,
+  ): Promise<boolean> {
+    if (tierAtLeast(user.tier, BUYING_TIER)) return true;
+    const open = await this.prisma.companyOrder.findFirst({
+      where: {
+        buyerCompanyId: user.companyId,
+        sellerCompanyId,
+        status: { in: [...OPEN_ORDER_STATUSES] },
+      },
+      select: { id: true },
+    });
+    return open !== null;
   }
 
   /** Mesaj gönder — thread yoksa oluşturur (find-or-create). */
@@ -315,13 +398,34 @@ export class CompanyMessagesService {
     body: string,
   ) {
     const portal = this.assertPortal(portalRaw);
+    // PAKET kapısı rol kapısından ÖNCE (CLAUDE.md: rol denetimi paket
+    // denetiminin İÇİNDE; arayüz testi O-123): ALICI yönü satınalma
+    // panelidir → Gold (BUYING_TIER, efektif — süresi biten Gold STANDART).
+    // Paketi düşen firma eski alıcı konuşmalarını OKUR (listThreads/getThread
+    // paket sormaz) ama yazamaz; satıcı yönü her pakete açık.
+    // İstisna: bu satıcıyla SÜREN bir sipariş varsa (T-06 — mevcut siparişler
+    // erişilebilir kalır; teslimat/ödeme yazışması kesilmesin).
+    if (
+      portal === "satinalma" &&
+      !(await this.buyerDirectionOpen(user, otherCompanyId))
+    ) {
+      throw new ForbiddenException({
+        ...i18nMessage(
+          "api.companyMessages.aliciOlarakMesajGoldGerektirir",
+          undefined,
+          "TIER_REQUIRED",
+        ),
+        statusCode: 403,
+        minTier: BUYING_TIER,
+      });
+    }
     // Ticari müzakere kapısı (salt-okunur garanti #4): mesaj karşı FİRMAYA
     // gider, e-posta tetikler, taahhüt izlenimi yaratır → yalnız işlem rolü.
     // Etiket-only (Kurucu/Yönetici) ve Onaylayıcı gönderemez; okuma uçları da
     // aynı rol kapısının arkasında (requirePortalRole).
     this.requirePortalRole(user, portal, "send");
     if (otherCompanyId === user.companyId) {
-      throw new BadRequestException("Kendine mesaj gönderemezsin");
+      throw new BadRequestException(i18nMessage("api.companyMessages.kendineMesajGonderemezsin"));
     }
     const other = await this.prisma.company.findUnique({
       where: { id: otherCompanyId },
@@ -330,12 +434,12 @@ export class CompanyMessagesService {
     // Pasif veya admin-bloklu firmaya mesaj gönderilemez (istenmeyen bildirim/
     // e-posta üretmesin; varlığı sızdırmamak için jenerik 404).
     if (!other || !other.isActive || other.isBlocked) {
-      throw new NotFoundException("Firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     }
     // Engel (iki yön) mesajlaşmayı da kapatır — engelleyen taraf sızdırılmaz.
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     if (blockedIds.includes(otherCompanyId)) {
-      throw new NotFoundException("Firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     }
 
     const parties = this.parties(user.companyId, portal, otherCompanyId);

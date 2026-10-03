@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 export interface AuditLogItem {
   id: string;
   tenantId: string | null;
-  actorType: "tenant" | "admin" | "supplier" | "system";
+  /** `company` bugünkü firma aktörü; `tenant`/`supplier` eski satırlar. */
+  actorType: "company" | "tenant" | "admin" | "supplier" | "system";
   actorId: string | null;
   actorEmail: string | null;
   action: string;

@@ -1,0 +1,2096 @@
+"use client";
+
+import { useLocale, useTranslations } from "next-intl";
+import { intlLocale } from "@/i18n/format";
+import { affixCurrency } from "@/lib/tenders/labels";
+import { useBidDeliveryTimeLabel, useBidDocKindLabel, useMoneyInputError, useSystemText, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { SilverLockCard, UpgradeButtons } from "@/components/company/silver-lock-card";
+import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
+import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Input } from "@/components/catalyst/input";
+import { MoneyInput, isInvalidNumber } from "@/components/ui/money-input";
+import { NumberInput } from "@/components/ui/number-input";
+import { SelectMenu } from "@/components/ui/select-menu";
+import { Select } from "@/components/catalyst/select";
+import { Text } from "@/components/catalyst/text";
+import { Textarea } from "@/components/catalyst/textarea";
+import {
+  BID_DOC_SELECTABLE_KINDS,
+  useBidDocuments,
+  useDeleteBidDoc,
+  useUploadBidDoc,
+  type BidDocKind,
+} from "@/hooks/use-bid-documents";
+import {
+  useListingDetail,
+  usePlaceBid,
+  type ListingDetail,
+  type ListingItemRow,
+} from "@/hooks/use-company-listings";
+import { extractErrorMessage } from "@/lib/tenders/error";
+import { formatDate, formatDateTime, todayLocalISO } from "@/lib/tenders/date";
+import { MONEY_FRACTION } from "@/lib/line-amount";
+import { YES_NO_STORED } from "@/lib/tenders/yes-no-answer";
+import { BID_DELIVERY_TIMES, MONEY_DECIMALS } from "@rothern/shared";
+import { subscribeRealtime } from "@/lib/realtime";
+import { daysUntil } from "@/lib/tenders/seller-state";
+import {
+  normalizeSeedPrice,
+  seedBidItemPrice,
+} from "@/lib/tenders/carried-bid-price";
+import { cn } from "@/lib/utils";
+import { ArrowLeftIcon } from "@heroicons/react/20/solid";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  FileSpreadsheet,
+  FileText,
+  Lock,
+  Paperclip,
+  Sparkles,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
+import { BidImportDialog, type BidImportApplyRow, type BidImportVariant } from "@/components/bids/bid-import-dialog";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { VerifyNudge } from "@/components/company/verify-nudge";
+import { tierAtLeast } from "@rothern/shared";
+import { Link } from "@/i18n/navigation";
+import { useParams } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { AuctionLiveCard } from "../_components/auction-live-card";
+import {
+  AuctionBidWorkbench,
+  type WorkbenchTarget,
+} from "../_components/auction-bid-workbench";
+import {
+  cmpDecimal,
+  decSub,
+  exactTotal,
+  roundMoney,
+  unitStep,
+} from "@/lib/tenders/distribute";
+
+/**
+ * Teklif belgesi türleri — API `company-bid-documents.service.ts`
+ * `ALLOWED_MIME` ile birebir (yükleme URL'si isteği bu listeyle süzülür).
+ * `accept` dosya seçiciyi daraltır; sürükle-bırak onu atladığı için
+ * `addFiles` ayrıca MIME'a bakar (derin denetim Y-15).
+ */
+const BID_DOC_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+]);
+/** Onay penceresi açıldıktan sonra perde/Escape kapatmasının yok sayıldığı süre (çift tık). */
+const CONFIRM_CLOSE_GUARD_MS = 500;
+const BID_DOC_ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls";
+
+/** Kalem başına form durumu. null fiyat = "bu kaleme teklif verme". */
+interface ItemState {
+  price: string | null;
+  /** Teslim SÜRESİ (BID_DELIVERY_TIMES; "" = genel süre geçerli). */
+  deliveryTime: string;
+  /** Kalem para birimi ("" = teklifin ana birimi) — madde 9, yalnız ALIM RFQ. */
+  currency: string;
+  answers: Record<string, string>;
+  // ── Faz 3: MUADİL beyanı (yalnız alıcı izin verdiyse görünür) ──────────
+  isAlternative: boolean;
+  offeredBrand: string;
+  offeredMpn: string;
+}
+
+/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47), sembol tek kaynaktan; 2 ondalık (D-048). */
+function moneyIn(intl: string, v: number, currency: string): string {
+  return affixCurrency(v.toLocaleString(intl, MONEY_FRACTION), currency, intl);
+}
+
+/**
+ * Kaleme özel alanın görsel etiketi (arayüz testi O-096). Headless `Label`
+ * kontrole her zaman `aria-labelledby` yazar ve `aria-label`ı ezer → bütün
+ * fiyat alanları "Birim Fiyat" adını alıyordu. Bu etiket yalnız görseldir;
+ * erişilebilir ad kontrolün kalem adını içeren `aria-label`ından gelir.
+ */
+function VisualLabel({ children }: { children: ReactNode }) {
+  return (
+    <span
+      data-slot="label"
+      aria-hidden="true"
+      className="text-base/6 text-zinc-950 select-none sm:text-sm/6"
+    >
+      {children}
+    </span>
+  );
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function Blocked({
+  title,
+  detailHref,
+  backLabel,
+  messageHref,
+}: {
+  title: string;
+  detailHref: string;
+  /** Düğme etiketi — hedef talep detayı değilse ayrı etiket (D-122). */
+  backLabel?: string;
+  /** Alıcıya mesaj yolu (D-280) — metin "alıcıyla iletişime geçin" diyorsa. */
+  messageHref?: string;
+}) {
+  const t = useTranslations("web.panel.requests.page");
+  return (
+    <div className="mx-auto max-w-xl px-4 py-16 text-center">
+      <AlertTriangle
+        className="mx-auto h-8 w-8 text-amber-500"
+        aria-hidden="true"
+      />
+      <Heading className="mt-3">{title}</Heading>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        {messageHref ? (
+          <Button href={messageHref}>{t("aliciyaMesajGonder")}</Button>
+        ) : null}
+        <Button href={detailHref} outline>
+          {backLabel ?? t("satinAlmaTalebiDetayinaDon")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AnswerInput({
+  q,
+  value,
+  onChange,
+}: {
+  q: NonNullable<ListingItemRow["questions"]>[number];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const t = useTranslations("web.panel.requests.page");
+  const label = (
+    <Label>
+      {q.text}
+      {q.required ? <span className="text-red-600"> *</span> : null}
+    </Label>
+  );
+  if (q.answerType === "YES_NO") {
+    return (
+      <Field>
+        {label}
+        <Select value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{t("secin")}</option>
+          {/* Değerler VERİ (cevap olarak saklanır) — dilden bağımsız sabit;
+              görünen etiket katalogdan, alıcı tarafı `yesNoAnswerLabel` ile
+              kendi diline çevirir. */}
+          <option value={YES_NO_STORED.yes}>{t("evet")}</option>
+          <option value={YES_NO_STORED.no}>{t("hayir")}</option>
+        </Select>
+      </Field>
+    );
+  }
+  if (q.answerType === "NUMBER") {
+    // Yerel ondalık giriş (arayüz testi kapanış NUM): `type="number"` Türkçe
+    // tarayıcıda "12,50"yi 1250 gönderiyordu (gönderilmiş teklif düzenlenemez).
+    // Geçersiz metin `INVALID_NUMBER_RAW` olur, gönderim/taslak engellenir.
+    return (
+      <Field>
+        {label}
+        <NumberInput value={value} onChange={onChange} maxDecimals={NUMBER_ANSWER_DECIMALS} />
+        {isInvalidNumber(value) ? <ErrorMessage>{t("sayisalCevapGecersiz")}</ErrorMessage> : null}
+      </Field>
+    );
+  }
+  return (
+    <Field>
+      {label}
+      <Input
+        type={q.answerType === "DATE" ? "date" : "text"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </Field>
+  );
+}
+
+/** Sayısal soru cevabında izin verilen ondalık (serbest ölçü/oran cevabı). */
+const NUMBER_ANSWER_DECIMALS = 6;
+
+export default function TeklifVerPage() {
+  const tr = useTranslations("web.panel.requests.page");
+  const docKindLabel = useBidDocKindLabel();
+  const deliveryTimeLabel = useBidDeliveryTimeLabel();
+  const systemText = useSystemText();
+  const moneyError = useMoneyInputError();
+  const td = useTranslations("web.domain");
+  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const locale = useLocale();
+  const intl = intlLocale(locale);
+  const money = (v: number, currency: string) => moneyIn(intl, v, currency);
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+  const router = useRouter();
+  const detail = useListingDetail(id);
+  // Satınalma görüntüleme yetkisi olmayan kullanıcı kendi firmasının talebini
+  // 404 olarak alır (API kasıtlı) — not bunu söyler (arayüz testi D-024).
+  const hasBuyView = useHasCompanyPermission("buy:view");
+  const placeBid = usePlaceBid(id);
+  const bidDocs = useBidDocuments(id);
+  const uploadDoc = useUploadBidDoc(id);
+  const deleteDoc = useDeleteBidDoc(id);
+  const confirm = useConfirm();
+
+  const l = detail.data;
+  const detailHref = `/company/ilan/${id}`;
+
+  // ── Form durumu ──
+  const [itemState, setItemState] = useState<Record<string, ItemState>>({});
+  const [singleAmount, setSingleAmount] = useState("");
+  // Teslim SÜRESİ (2026-08-02; tarih yerine merdiven) — "" = seçilmedi.
+  const [deliveryTime, setDeliveryTime] = useState("");
+  const [validityDays, setValidityDays] = useState("30");
+  const [currency, setCurrency] = useState("");
+  const [note, setNote] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Onay penceresinin açıldığı an — "Teklif Gönder"e çift tıklamada ikinci
+  // tık yeni açılan pencerenin perdesine düşüp onu anında kapatıyordu, hiçbir
+  // şey olmamış gibi görünüyordu (arayüz testi son tur S-SELL). Açılıştan
+  // hemen sonraki perde/Escape kapatması yok sayılır; "Vazgeç" etkilenmez.
+  const confirmOpenedAtRef = useRef(0);
+  const [seeded, setSeeded] = useState(false);
+  // Taşınan teklifteki yabancı birimli kalemler ana birime çevrildi mi (not).
+  const [convertedFromItemCurrency, setConvertedFromItemCurrency] =
+    useState(false);
+  // Pazarlık çalışma masası: kilitli kalemler + taşınan (diff/Sıfırla) fiyatlar.
+  const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+  // Fiyat içe aktarma dialog durumu + paket (hook'lar erken return'den ÖNCE).
+  const [bidImport, setBidImport] = useState<BidImportVariant | null>(null);
+  const { company: authCompany } = useCompanyAuth();
+  const [initialPrices, setInitialPrices] = useState<Record<string, string>>(
+    {},
+  );
+  // Henüz teklif kaydı yokken seçilen dosyalar — kayıt sonrası yüklenir.
+  const [stagedFiles, setStagedFiles] = useState<
+    { file: File; kind: BidDocKind }[]
+  >([]);
+  // Sürükle-bırak alanı görsel geri bildirimi.
+  const [dragActive, setDragActive] = useState(false);
+  // Gönderim akışının evresi (derin denetim Y-15). Durum ekranı YALNIZ
+  // "Teklif Gönder" akışına bağlı: eskiden `placeBid.isSuccess`e bakılıyordu;
+  // dosyalı ilk teklifte önce kaydedilen TASLAK bayrağı true yapıyor, ardından
+  // dosya yüklemesi düşünce ekran "gönderildi"de takılıyor, teklif DRAFT
+  // kalıyordu. "sending" → taslak/yükleme/gönderim sürüyor; "sent" → son
+  // gönderim başarılı (yönlendirme bekleniyor). Hata → "idle", form geri gelir.
+  const [submitPhase, setSubmitPhase] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  );
+  // "Taslak kaydet" akışı (kayıt + dosya yükleme) sürerken düğmeler kilitli.
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  // WS: canlı eksiltme — rakip teklifi anında yansısın.
+  useEffect(() => subscribeRealtime("listing", id), [id]);
+
+  // İlan değişirse (client-side geçiş) önceki formun state'i taşınmasın.
+  useEffect(() => {
+    setSeeded(false);
+    setItemState({});
+    setSingleAmount("");
+    setDeliveryTime("");
+    setValidityDays("30");
+    setCurrency("");
+    setNote("");
+    setStagedFiles([]);
+    setLockedIds(new Set());
+    setInitialPrices({});
+    setConvertedFromItemCurrency(false);
+  }, [id]);
+
+  // Mevcut tekliften tohumla (taslak devam / eleme sonrası / eksiltme yeni tur).
+  useEffect(() => {
+    if (!l || seeded) return;
+    setSeeded(true);
+    const bid = l.myBid;
+    const next: Record<string, ItemState> = {};
+    const answerByQ = new Map(
+      (bid?.answers ?? []).map((a) => [a.questionId, a.value] as const),
+    );
+    // Kalem bazlı birim yalnız kapalı zarf + çok birimli talepte (aşağıdaki
+    // `canItemCurrency` ile aynı kural). Kullanılamıyorsa (ör. kapalı zarftan
+    // pazarlığa taşınan karma birimli teklif) yabancı kalem damgayla ana
+    // birime çevrilir — yoksa masa USD'yi ₺ sanıyor, gönderim 400 alıyordu
+    // (arayüz testi son tur S-SELL).
+    const allowItemCurrency =
+      (l.allowedCurrencies?.length ?? 0) > 1 && !l.english?.isEnglishAuction;
+    const bidCurrency = bid?.currency || l.primaryCurrency || "TRY";
+    let converted = false;
+    for (const it of l.items ?? []) {
+      const bi = bid?.items?.find((x) => x.itemId === it.id);
+      const answers: Record<string, string> = {};
+      for (const q of it.questions ?? []) {
+        answers[q.id] = answerByQ.get(q.id) ?? "";
+      }
+      const seed = bi
+        ? seedBidItemPrice(bi, { bidCurrency, allowItemCurrency })
+        : null;
+      if (seed?.converted) converted = true;
+      next[it.id] = {
+        price: seed?.price ?? "",
+        deliveryTime: bi?.deliveryTime ?? "",
+        currency: seed?.currency ?? "",
+        answers,
+        // Faz 3 — mevcut teklif düzenleniyorsa muadil beyanı geri yüklenir.
+        isAlternative: bi?.isAlternative ?? false,
+        offeredBrand: bi?.offeredBrand ?? "",
+        offeredMpn: bi?.offeredMpn ?? "",
+      };
+    }
+    setItemState(next);
+    // Taşınan fiyatların anlık görüntüsü — çalışma masası diff ve Sıfırla
+    // için (kullanıcı fiyatları değiştirdikçe bu sabit kalır).
+    const initP: Record<string, string> = {};
+    for (const [iid, stt] of Object.entries(next)) {
+      if (stt.price) initP[iid] = stt.price;
+    }
+    setInitialPrices(initP);
+    setConvertedFromItemCurrency(converted);
+    if (bid) {
+      if (!l.items?.length) setSingleAmount(normalizeSeedPrice(bid.amount));
+      if (bid.deliveryTime) setDeliveryTime(bid.deliveryTime);
+      if (bid.validityDays) setValidityDays(String(bid.validityDays));
+      if (bid.note) setNote(bid.note);
+      if (bid.currency) setCurrency(bid.currency);
+    }
+  }, [l, seeded]);
+
+  const items = l?.items ?? [];
+  const hasItems = items.length > 0;
+  const myDocs = (bidDocs.data ?? []).filter((d) => d.mine);
+
+  // Dosya ekleme — dropzone ve dosya seçici ortak kullanır. Yeni dosyalar
+  // varsayılan "Teklif Mektubu" kategorisiyle gelir; kullanıcı satırdan değiştirir.
+  const addFiles = (incoming: File[]) => {
+    // Tür süzgeci: sürükle-bırak `accept`i atlar; sunucunun kabul etmediği tür
+    // (.docx, .heic…) gönderimde 400 alıp teklifi yarıda bırakıyordu.
+    const badType = incoming.filter((f) => !BID_DOC_MIME_TYPES.has(f.type));
+    if (badType.length) {
+      toast.error(
+        tr("desteklenmeyenDosyaTuru", {
+          join: badType.map((f) => f.name).join(", "),
+        }),
+      );
+    }
+    const files = incoming.filter((f) => BID_DOC_MIME_TYPES.has(f.type));
+    const MAX = 50 * 1024 * 1024;
+    const tooBig = files.filter((f) => f.size > MAX);
+    if (tooBig.length) {
+      toast.error(
+        tr("n50mbSiniriniAsiyor", { join: tooBig.map((f) => f.name).join(", ") }),
+      );
+    }
+    const ok = files
+      .filter((f) => f.size <= MAX)
+      .map((file) => ({ file, kind: "TEKLIF_MEKTUBU" as BidDocKind }));
+    if (ok.length) setStagedFiles((s) => [...s, ...ok].slice(0, 10));
+  };
+  const effectiveCurrency =
+    currency || l?.primaryCurrency || "TRY";
+  // Madde 9 — kalem bazlı para birimi: yalnız kapalı zarf talebinde ve
+  // talep birden çok birime izin veriyorsa (backend aynı kuralı zorlar).
+  const canItemCurrency =
+    (l?.allowedCurrencies?.length ?? 0) > 1 &&
+    !l?.english?.isEnglishAuction;
+
+  const pricedItems = useMemo(
+    () =>
+      items.filter((it) => {
+        const st = itemState[it.id];
+        return st?.price !== null && st?.price !== "" && st !== undefined;
+      }),
+    [items, itemState],
+  );
+
+  // Teklif verilen kalemler.
+  const bidItemsForDelivery = hasItems ? pricedItems : [];
+  // Genel teslim süresi, teklif verilen HER kalemin kendi süresi varsa
+  // GEREKSİZ (tedarikçi ayrı ayrı girdi) → zorunlu değil, gizlenir.
+  const everyBidItemHasDelivery =
+    hasItems &&
+    bidItemsForDelivery.length > 0 &&
+    bidItemsForDelivery.every((it) => !!itemState[it.id]?.deliveryTime);
+
+  const total = useMemo(() => {
+    if (!hasItems) return Number(singleAmount) || 0;
+    return pricedItems.reduce((sum, it) => {
+      const p = Number(itemState[it.id]?.price ?? 0);
+      return sum + (Number.isFinite(p) ? p * Number(it.quantity) : 0);
+    }, 0);
+  }, [hasItems, singleAmount, pricedItems, itemState]);
+
+  // Madde 9 — birim bazında ara toplamlar: karma birimli teklifte tek sayı
+  // toplamak yanıltıcı olur; birim başına gösterilir, ana birime çevrimi
+  // sunucu kur damgasıyla yapar (bid.amount).
+  const totalsByCurrency = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!hasItems) return m;
+    for (const it of pricedItems) {
+      const st = itemState[it.id];
+      const p = Number(st?.price ?? 0);
+      if (!Number.isFinite(p) || p <= 0) continue;
+      const cur = st?.currency || effectiveCurrency;
+      m.set(cur, (m.get(cur) ?? 0) + p * Number(it.quantity));
+    }
+    return m;
+  }, [hasItems, pricedItems, itemState, effectiveCurrency]);
+  // Ana birime çevrim gereken teklif: birden çok birim VEYA tek birim ama ana
+  // birimden farklı (arayüz testi Y-09 — fiyatlı kalemlerin hepsi EUR iken
+  // toplam ham sayıyı "₺" ile yazıyordu: 3.400 € → "3.400 ₺").
+  const mixedCurrency =
+    totalsByCurrency.size > 1 ||
+    (totalsByCurrency.size === 1 && !totalsByCurrency.has(effectiveCurrency));
+  // Her birimin tutarı BÖLÜNMEZ parça: dar alanda (mobil yapışkan çubuk,
+  // sağ kolon kartı) "1.550,00 €"nun sembolü tek başına alt satıra düşüyordu
+  // (arayüz testi son tur S-SELL); satır yalnız " + " ayracında kırılır.
+  const totalParts = mixedCurrency
+    ? [...totalsByCurrency.entries()].map(([c, v]) => money(v, c))
+    : [money(total, effectiveCurrency)];
+  const totalLabel = totalParts.map((part, i) => (
+    <Fragment key={i}>
+      {i > 0 ? " + " : null}
+      <span className="whitespace-nowrap">{part}</span>
+    </Fragment>
+  ));
+
+  // ── Pazarlık çalışma masası hesapları ──
+  // Minimum pay kaldırıldı (2026-07-13): tek kural "kendi öncekinden kesin
+  // iyi" + turda tek aktif gönderim. Hedef = kendi son teklifinin bir adım
+  // altı; toplam kıyasları kesin aritmetikle (float drifti sunucunun
+  // Decimal doğrulamasıyla çelişmesin).
+  const isAuction = !!l?.english?.isEnglishAuction;
+  const auctionItemsMode = isAuction && hasItems;
+  // Teklif DTO'su ve DB 2 ondalık saklar — eski talepteki 3-4 hane masada
+  // gönderilemeyecek fiyat üretmesin (derin denetim S028).
+  const decimals = Math.min(l?.decimalPlaces ?? 2, MONEY_DECIMALS);
+  // Kendi son toplam — birim kilidi gereği hep teklifçinin kendi biriminde;
+  // kilit yokken (ilk teklif) zaten null.
+  const ownLastTotal =
+    (isAuction &&
+      l?.nextBidConstraint?.ownCurrency === effectiveCurrency &&
+      l?.nextBidConstraint?.ownLastTotal) ||
+    null;
+  const canBidThisRound = l?.nextBidConstraint?.canBidThisRound ?? true;
+
+  // Kalem id → formdaki fiyat (çalışma masası prop'u; null = kapsam dışı).
+  const priceMap = useMemo(() => {
+    const m: Record<string, string | null> = {};
+    // `null` (kapsam dışı) KORUNUR — `?? ""` onu boş fiyata çeviriyordu; X
+    // yalnız fiyatı siliyor, "Hariç" ve geri ekleme çalışmıyordu (D-273).
+    for (const it of items) {
+      const st = itemState[it.id];
+      m[it.id] = st ? st.price : "";
+    }
+    return m;
+  }, [items, itemState]);
+
+  const exactTotalStr = useMemo(() => {
+    if (!isAuction) return "0";
+    if (!hasItems) {
+      return singleAmount && Number(singleAmount) > 0 ? singleAmount : "0";
+    }
+    return exactTotal(
+      pricedItems.map((it) => ({
+        quantity: it.quantity,
+        unitPrice: itemState[it.id]?.price ?? "0",
+      })),
+    );
+  }, [isAuction, hasItems, singleAmount, pricedItems, itemState]);
+
+  // KIYAS AYNI KALEMLER BAZINDA: monotonluk, önceki teklifte FİYATLANMIŞ
+  // kalemlerin yeni ara toplamına bakar — önceki toplam da yalnız onları
+  // kapsıyordu (elma-elma). Yeni eklenen kalem serbest (ilk teklif
+  // muamelesi, kıyasa girmez); önceden fiyatlanmış kalem BIRAKILAMAZ
+  // (sunucu da reddeder). Kalemsizde ara toplam = toplam.
+  const prevPricedIds = useMemo(() => {
+    if (!isAuction || l?.myBid?.status !== "SUBMITTED")
+      return new Set<string>();
+    return new Set(
+      (l?.myBid?.items ?? [])
+        .filter((x) => Number(x.unitPrice) > 0)
+        .map((x) => x.itemId),
+    );
+  }, [isAuction, l?.myBid]);
+  // Sunucu kıyası kayıtlı (2 haneye yuvarlanmış) tutarla ve yuvarlanmış ara
+  // toplamla yapar (roundMoney) — istemci ön-kontrolü de aynı yuvarlamada.
+  const comparableTotalStr = useMemo(() => {
+    if (!hasItems || prevPricedIds.size === 0) return roundMoney(exactTotalStr);
+    return roundMoney(exactTotal(
+      items
+        .filter((it) => prevPricedIds.has(it.id))
+        .map((it) => {
+          const p = itemState[it.id]?.price;
+          return {
+            quantity: it.quantity,
+            unitPrice: p && Number(p) > 0 ? p : "0",
+          };
+        }),
+    ));
+  }, [hasItems, prevPricedIds, exactTotalStr, items, itemState]);
+  // Kapsam genişledi mi (yeni kalem fiyatlandı) — mesaj dili buna göre.
+  const scopeExpanded =
+    hasItems &&
+    prevPricedIds.size > 0 &&
+    pricedItems.some((it) => !prevPricedIds.has(it.id));
+
+  // Efektif hedef = monotonluk sınırı: kendi son teklifinin bir adım
+  // altı ("kesin daha iyi" kuralının sayısal karşılığı). İlk teklifte
+  // (ownLast yok) hedef kısıtı yoktur.
+  const effectiveTarget = useMemo(() => {
+    if (!ownLastTotal) return null;
+    return decSub(ownLastTotal, unitStep(decimals));
+  }, [ownLastTotal, decimals]);
+
+  const workbenchTarget: WorkbenchTarget = useMemo(() => {
+    // met/kalan kıyası AYNI KALEMLER ara toplamıyla (kapsam genişletme
+    // toplamı büyütse de kural sağlanabilir).
+    const hasAmount = cmpDecimal(comparableTotalStr, "0") === 1;
+    const met =
+      effectiveTarget != null &&
+      hasAmount &&
+      cmpDecimal(comparableTotalStr, effectiveTarget) <= 0;
+    return {
+      effectiveTarget,
+      ownLastTotal,
+      exactTotalStr,
+      comparableTotalStr,
+      met,
+      remaining:
+        effectiveTarget != null && !met && hasAmount
+          ? decSub(comparableTotalStr, effectiveTarget)
+          : "0",
+      noReference: !ownLastTotal,
+    };
+  }, [effectiveTarget, ownLastTotal, exactTotalStr, comparableTotalStr]);
+
+  if (detail.isLoading) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-16 text-center text-sm text-zinc-500">
+        {tr("yukleniyor")}
+      </div>
+    );
+  }
+  if (!l) {
+    // 403 TIER_REQUIRED (ücretsiz üye, herkese açık talep, 2026-09-06): "bulunamadı"
+    // yalan olurdu — talep var, paket yok. Talep sayfasıyla aynı kilit kartı.
+    const err = (detail.error as { response?: { status?: number; data?: { code?: string } } } | null)?.response;
+    // 403 COUNTRY_NOT_ELIGIBLE (2026-09-27): talep firmanın ülkesine açık değil.
+    const countryGate = countryGateFrom(detail.error);
+    if (countryGate) {
+      return (
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <CountryNotEligibleCard targetCountries={countryGate.targetCountries} />
+        </div>
+      );
+    }
+    if (err?.status === 403 && err.data?.code === "TIER_REQUIRED") {
+      return (
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <SilverLockCard
+            title={tr("buHerkeseAcikTalebeTeklif")}
+            description={tr("herkeseAcikSatinAlmaTaleplerini")}
+          />
+        </div>
+      );
+    }
+    // 404 (silinmiş, adres hatalı, erişim yok — ya da yetkisiz kullanıcının
+    // KENDİ firma talebi): "bulunamadı" demek yanlış olabilir; talep
+    // detayıyla aynı nötr kart, yeniden deneme yok (arayüz testi D-024).
+    // Ağ/sunucu hatasında ise "yüklenemedi" + Tekrar dene. Hedef nötr
+    // (açık talepler), etiketi de ona göre (D-122).
+    if (detail.error && err?.status !== 404) {
+      return (
+        <div className="mx-auto max-w-xl px-4 py-16 text-center">
+          <AlertTriangle className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
+          <Heading className="mt-3">{tr("ilanYuklenemedi")}</Heading>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <Button onClick={() => void detail.refetch()}>{tr("tekrarDene")}</Button>
+            <Button href="/company/satis" outline>
+              {tr("acikTaleplereDon")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
+        <Heading className="mt-3">{tr("satinAlmaTalebineUlasilamiyor")}</Heading>
+        <Text className="mt-2 text-sm text-zinc-500">{tr("ilanKaldirilmisAdresHataliYa")}</Text>
+        {!hasBuyView ? (
+          <Text className="mt-2 text-sm text-zinc-600">{tr("kendiFirmaTalebiYetkiNotu")}</Text>
+        ) : null}
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <Button href="/company/satis" outline>
+            {tr("acikTaleplereDon")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Kapılar ──
+  if (l.isOwner) {
+    return <Blocked title={tr("kendiIlaninizaTeklifVeremezsiniz")} detailHref={detailHref} />;
+  }
+  if (!l.canBid) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <Lock className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
+        <Heading className="mt-3">{tr("teklifIcinSilverPaketiGerekir")}</Heading>
+        <Text className="mt-2 text-sm text-zinc-500">
+          {tr("herkeseAcikSatinAlmaTaleplerine")}
+        </Text>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          {/* Doğrulama önce gerekiyorsa doğrulama birincil (webC-2). */}
+          <UpgradeButtons pricingLabel={tr("paketleriGor")} />
+          <Button href={detailHref} outline>
+            {tr("satinAlmaTalebiDetayinaDon")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  if (l.roleAllowsBid === false) {
+    return (
+      <Blocked
+        title={tr("acikTalebeTeklifIcinTeklifVermeYetkisi")}
+        detailHref={detailHref}
+      />
+    );
+  }
+  // GÖNDERİM SÜRERKEN/AZ ÖNCE GÖNDERİLDİĞİNDE: onSuccess içindeki cache
+  // yazımı isSuccess bayrağından ÖNCE ulaşır — aşağıdaki kapılar (zaten
+  // verildi / tur hakkı doldu) router.push tamamlanmadan devreye girip
+  // "Satın Alma Talebi Detayına Dön" ekranı flaşlıyordu. Pending dahil tek durum
+  // ekranı göster; dönüş otomatik. Ekran mutasyon bayrağına DEĞİL gönderim
+  // akışının evresine bağlı (Y-15): taslak adımı başarılı olup yükleme
+  // düşerse akış "idle"a döner ve form (bekleyen dosyalarla) yeniden görünür.
+  if (submitPhase !== "idle") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-zinc-500">
+        {submitPhase === "sent"
+          ? tr("teklifinGonderildiSatinAlmaTalebi")
+          : tr("teklifinGonderiliyor")}
+      </div>
+    );
+  }
+  if (l.status !== "OPEN") {
+    return <Blocked title={tr("buSatinAlmaTalebineArtik")} detailHref={detailHref} />;
+  }
+  if (l.myBid?.status === "WITHDRAWN") {
+    return (
+      <Blocked
+        title={tr("teklifiniziGeriCektinizYenidenTeklif")}
+        detailHref={detailHref}
+      />
+    );
+  }
+  // Yeni tura taşınmış RFQ teklifi turda bir kez revize edilebilir (sunucu
+  // `canReviseCarried` ile söyler); diğer gönderilmiş RFQ teklifleri kilitli.
+  if (
+    l.myBid?.status === "SUBMITTED" &&
+    !l.english?.isEnglishAuction &&
+    !l.myBid.canReviseCarried
+  ) {
+    return (
+      <Blocked
+        title={tr("teklifZatenVerildiDegisiklikIcin")}
+        detailHref={detailHref}
+        messageHref={
+          l.ownerCompanyId
+            ? `/company/mesajlar?with=${l.ownerCompanyId}&portal=satis`
+            : undefined
+        }
+      />
+    );
+  }
+  // Pazarlıkta turda tek aktif gönderim: hak kullanıldıysa form kapalı.
+  // Taşınan (carry-over) teklif hak yakmaz — sunucu ayrımı yapar (canBidThisRound).
+  if (
+    l.english?.isEnglishAuction &&
+    l.myBid?.status === "SUBMITTED" &&
+    !canBidThisRound
+  ) {
+    return (
+      <Blocked
+        title={tr("buTurdakiTeklifinizVerildiIlan")}
+        detailHref={detailHref}
+      />
+    );
+  }
+
+  const isRebidAfterLoss = l.myBid?.status === "LOST";
+  const isAuctionRebid =
+    l.myBid?.status === "SUBMITTED" && !!l.english?.isEnglishAuction;
+  // Taşınan RFQ teklifinin revizyonu: gönderilmiş teklif taslağa çekilemez →
+  // taslak düğmesi ve dosya alanı kapalı (pazarlık yeniden teklifiyle aynı).
+  const isCarriedRevision =
+    l.myBid?.status === "SUBMITTED" &&
+    !l.english?.isEnglishAuction &&
+    !!l.myBid.canReviseCarried;
+  const isSubmittedRevision = isAuctionRebid || isCarriedRevision;
+  const pageTitle = isSubmittedRevision
+    ? tr("yeniTeklifVer")
+    : isRebidAfterLoss
+      ? tr("yenidenTeklifVer")
+      : tr("teklifVer");
+
+  const days = daysUntil(l.closesAt);
+  const deadlineClass =
+    days !== null && days <= 1
+      ? "border-rose-200 bg-rose-50 text-rose-700"
+      : days !== null && days <= 3
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : "border-zinc-200 bg-zinc-50 text-zinc-600";
+
+  const setItem = (itemId: string, patch: Partial<ItemState>) =>
+    setItemState((s) => ({
+      ...s,
+      [itemId]: { ...(s[itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {}, isAlternative: false, offeredBrand: "", offeredMpn: "" }), ...patch },
+    }));
+
+  // Fiyat içe aktarma (Faz 2, 2026-08-22): "Excel Şablonu ile Fiyatla" (AI'sız,
+  // her paket) + "Belgeden Fiyatla (AI)" (Silver+). Yalnız itemState dolar;
+  // gönderme aynı akış (monotonluk/award nöbetçisi/zorunlu-kalem kapıları aynen).
+  const aiAllowed = tierAtLeast(authCompany?.tier ?? "STANDART", "SILVER");
+  const applyImportedPrices = (rows: BidImportApplyRow[]) => {
+    setItemState((s) => {
+      const out = { ...s };
+      for (const r of rows) {
+        if (lockedIds.has(r.itemId)) continue; // çalışma masasında kilitli kalem korunur
+        const prev = out[r.itemId] ?? { price: "", deliveryTime: "", currency: "", answers: {}, isAlternative: false, offeredBrand: "", offeredMpn: "" };
+        out[r.itemId] = {
+          ...prev,
+          price: String(r.unitPrice),
+          // Kalem bazlı para birimi YALNIZ `canItemCurrency` koşullarında
+          // geçerli (Madde 9: kapalı zarf + çok birimli talep). Eskiden
+          // yalnız `multiCurrency` bakılıyordu; pazarlık taleplerinde forma
+          // birim yazılıp gönderim backend kapısına takılıyordu
+          // (denetim 2026-08-24 Parça 6).
+          // Diyalog birimi teklif birimine göre normalize eder: null = satır
+          // teklif biriminde → kalem ana birime ("") döner; önceki kalem
+          // birimi (ör. EUR) kalsa fiyat sessizce o birim sayılırdı
+          // (derin denetim MU-23 gözden geçirme).
+          currency: canItemCurrency ? (r.currency ?? "") : prev.currency,
+          deliveryTime: r.deliveryTime ?? prev.deliveryTime,
+        };
+      }
+      return out;
+    });
+    const skipped = rows.filter((r) => lockedIds.has(r.itemId)).length;
+    toast.success(
+      skipped
+        ? tr("kaleminFiyatiFormaYazildiKilitliAtlandi", { n: rows.length - skipped, skipped })
+        : tr("kaleminFiyatiFormaYazildi", { n: rows.length - skipped }),
+    );
+  };
+  const bidImportButtons =
+    hasItems && l ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button outline onClick={() => setBidImport("excel")}>
+          <FileSpreadsheet className="h-4 w-4" />
+          {tr("excelSablonuIleFiyatla")}
+        </Button>
+        <Button
+          outline
+          disabled={!aiAllowed}
+          title={aiAllowed ? undefined : tr("belgedenFiyatlamaSilverVeUzeri")}
+          onClick={() => setBidImport("ai")}
+        >
+          <Sparkles className="h-4 w-4" />
+          {tr("belgedenFiyatlaAi")}
+          {!aiAllowed ? <Lock className="h-3.5 w-3.5 text-zinc-400" aria-hidden /> : null}
+        </Button>
+      </div>
+    ) : null;
+
+  // Taşınan teklifteki yabancı birimli kalemler ana birime çevrildiyse
+  // tedarikçi fiyatların neden değiştiğini görsün (arayüz testi son tur S-SELL).
+  const convertedNote = convertedFromItemCurrency ? (
+    <div
+      role="note"
+      className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800"
+    >
+      {tr("kalemBirimleriAnaBirimeCevrildi", { currency: effectiveCurrency })}
+    </div>
+  ) : null;
+
+  // Çalışma masası araçları: toplu fiyat yazımı + kalem kilidi.
+  const applyPrices = (next: Record<string, string>) =>
+    setItemState((s) => {
+      const out = { ...s };
+      for (const [iid, p] of Object.entries(next)) {
+        out[iid] = {
+          ...(out[iid] ?? { price: "", deliveryTime: "", currency: "", answers: {}, isAlternative: false, offeredBrand: "", offeredMpn: "" }),
+          price: p,
+        };
+      }
+      return out;
+    });
+  const toggleLock = (itemId: string) =>
+    setLockedIds((s) => {
+      const n = new Set(s);
+      if (n.has(itemId)) n.delete(itemId);
+      else n.add(itemId);
+      return n;
+    });
+  // Tablo satırının genişleyen ek alanları — kart görünümü de AYNI fonksiyonu
+  // çağırır (teslim + para birimi + muadil + kalem soruları), tek kaynak.
+  // Çalışma masası satır durumu: fiyatlanmış kalemde CEVAPSIZ zorunlu soru
+  // (amber rozet + satır açık gelir) + girilmiş kalem teslim tarihi özeti —
+  // ikisi de chevron arkasında gizli kalıp gözden kaçmasın.
+  // Alıcının kalem şartları (arayüz testi O-037): marka · parça no, muadil
+  // izni ve istenen teslim tarihi teklif formunda da görünür — eskiden marka
+  // yalnız muadil bloğunun içindeydi, istenen tarih hiç yoktu.
+  const itemFacts = (it: ListingItemRow): string[] => {
+    const facts: string[] = [];
+    const brandMpn = [it.brand, it.mpn].filter(Boolean).join(" · ");
+    if (brandMpn) facts.push(brandMpn);
+    if (it.alternativeAllowed === false) facts.push(tr("muadilKabulEdilmez"));
+    if (it.requiredByDate) {
+      facts.push(
+        tr("istenenTeslim", {
+          date: formatDate(`${it.requiredByDate.slice(0, 10)}T12:00:00+03:00`, locale),
+        }),
+      );
+    }
+    return facts;
+  };
+
+  const workbenchRowMeta = (it: ListingItemRow) => {
+    const st = itemState[it.id];
+    const priced = st?.price != null && st.price !== "" && Number(st.price) > 0;
+    const requiredMissing =
+      priced &&
+      (it.questions ?? []).some(
+        (q) => q.required && !(st?.answers[q.id] ?? "").trim(),
+      );
+    const parts = itemFacts(it);
+    if (st?.deliveryTime) {
+      parts.push(tr("teslim", { value: deliveryTimeLabel(st.deliveryTime) ?? st.deliveryTime }));
+    }
+    const note = parts.length > 0 ? parts.join(" · ") : null;
+    return { requiredMissing, note };
+  };
+
+  const renderItemExtras = (it: ListingItemRow) => {
+    const st = itemState[it.id];
+    return (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {isAuctionRebid ? null : (
+        <Field>
+          <VisualLabel>{tr("kalemTeslimSuresiOpsiyonel")}</VisualLabel>
+          <Select
+            aria-label={tr("teslimSuresi", { name: it.name })}
+            value={st?.deliveryTime ?? ""}
+            onChange={(e) => setItem(it.id, { deliveryTime: e.target.value })}
+          >
+            <option value="">{tr("genelSureGecerli")}</option>
+            {BID_DELIVERY_TIMES.map((t) => (
+              <option key={t} value={t}>
+                {deliveryTimeLabel(t)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        )}
+        {canItemCurrency ? (
+          <Field>
+            <VisualLabel>{tr("kalemParaBirimi")}</VisualLabel>
+            <Select
+              aria-label={tr("paraBirimiAria", { name: it.name })}
+              value={st?.currency ?? ""}
+              onChange={(e) => setItem(it.id, { currency: e.target.value })}
+            >
+              <option value="">{tr("anaBirim", { effectiveCurrency: effectiveCurrency })}</option>
+              {(l.allowedCurrencies ?? [])
+                .filter((c) => c !== effectiveCurrency)
+                .map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+        ) : null}
+        {/* Faz 3 — MUADİL beyanı. Yalnız alıcı izin verdiyse görünür; izin
+            yoksa alan HİÇ çıkmaz (tedarikçiye uygulanamayacak bir seçenek
+            göstermek kafa karıştırır). Alıcının istediği marka varsa
+            hatırlatılır ki tedarikçi ne yerine ne önerdiğini bilsin. */}
+        {it.alternativeAllowed !== false ? (
+          <Field className="sm:col-span-2">
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 rounded border-zinc-300"
+                checked={st?.isAlternative ?? false}
+                onChange={(e) =>
+                  setItem(it.id, { isAlternative: e.target.checked })
+                }
+              />
+              <span className="text-sm">
+                <span className="font-medium text-zinc-800">
+                  {tr("muadilEsdegerUrunTeklifEdiyorum")}
+                </span>
+                {it.brand || it.mpn ? (
+                  <span className="block text-xs text-zinc-500">
+                    {tr("istenen", { join: [it.brand, it.mpn].filter(Boolean).join(" · ") })}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          </Field>
+        ) : null}
+        {it.alternativeAllowed !== false && st?.isAlternative ? (
+          <>
+            <Field>
+              <VisualLabel>{tr("teklifEttiginizMarka")}</VisualLabel>
+              <Input
+                aria-label={tr("teklifEdilenMarkaAria", { name: it.name })}
+                value={st?.offeredBrand ?? ""}
+                onChange={(e) =>
+                  setItem(it.id, { offeredBrand: e.target.value })
+                }
+              />
+            </Field>
+            <Field>
+              <VisualLabel>{tr("teklifEttiginizParcaNo")}</VisualLabel>
+              <Input
+                aria-label={tr("teklifEdilenParcaNo", { name: it.name })}
+                value={st?.offeredMpn ?? ""}
+                onChange={(e) => setItem(it.id, { offeredMpn: e.target.value })}
+              />
+            </Field>
+          </>
+        ) : null}
+        {(it.questions ?? []).map((q) => (
+          <AnswerInput
+            key={q.id}
+            q={q}
+            value={st?.answers[q.id] ?? ""}
+            onChange={(v) =>
+              setItem(it.id, {
+                answers: { ...(st?.answers ?? {}), [q.id]: v },
+              })
+            }
+          />
+        ))}
+      </div>
+    );
+  };
+
+  /**
+   * Geçersiz sayı girişleri (arayüz testi kapanış NUM) — gönderim VE taslak
+   * kaydı durur: geçersiz metin `INVALID_NUMBER_RAW` olarak durur, aksi hâlde
+   * taslak "NaN" cevabı ya da boş geçerlilik kaydederdi.
+   */
+  const numberInputProblems = (withValidity: boolean): string[] => {
+    const out: string[] = [];
+    if (withValidity && !isAuction && isInvalidNumber(validityDays)) out.push(tr("gecerlilikSuresiAralik"));
+    for (const it of pricedItems) {
+      const st = itemState[it.id];
+      const bad = (it.questions ?? []).find(
+        (q) => q.answerType === "NUMBER" && isInvalidNumber(st?.answers[q.id]),
+      );
+      if (bad) {
+        out.push(tr("kalemSayisalCevapGecersiz", { name: it.name, question: bad.text }));
+        break;
+      }
+    }
+    return out;
+  };
+
+  // ── Doğrulama (gönderim) ──
+  const submitProblems = (): string[] => {
+    const problems: string[] = [];
+    // Form mevcut tekliften henüz tohumlanmadıysa susmalı — boş state'e
+    // bakıp "fiyat gir / bırakılamaz" gibi SAHTE hatalar flaşlıyordu.
+    if (!seeded) return problems;
+    if (hasItems) {
+      if (pricedItems.length === 0)
+        problems.push(tr("enAzBirKalemeBirimFiyatGirin"));
+      if (l.requireAllItems && pricedItems.length < items.length)
+        problems.push(tr("buSatinAlmaTalebindeTum"));
+    } else {
+      // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend place-bid.dto birebir).
+      if (!singleAmount) problems.push(tr("gecerliBirTutarGirin"));
+      else {
+        const e = moneyError(Number(singleAmount));
+        if (e) problems.push(e);
+      }
+    }
+    if (hasItems) {
+      for (const it of pricedItems) {
+        for (const q of it.questions ?? []) {
+          if (q.required && !(itemState[it.id]?.answers[q.id] ?? "").trim()) {
+            problems.push(tr("kalemiIcinZorunluSoruCevaplanmadi", { name: it.name }));
+            break;
+          }
+        }
+      }
+      // Muadil beyanı en az marka VEYA parça no ister (sunucu da reddeder).
+      for (const it of pricedItems) {
+        const st = itemState[it.id];
+        if (
+          it.alternativeAllowed !== false &&
+          st?.isAlternative &&
+          !st.offeredBrand.trim() &&
+          !st.offeredMpn.trim()
+        ) {
+          problems.push(tr("muadilMarkaVeyaParcaNoGirin", { name: it.name }));
+          break;
+        }
+      }
+      // F4: fiyatlanan her kalem >0 + 2 ondalık + MAX_MONEY (backend unitPrice birebir).
+      for (const it of pricedItems) {
+        const e = moneyError(Number(itemState[it.id]?.price ?? 0));
+        if (e) {
+          problems.push(tr("kalemiBirimFiyati", { name: it.name, e: e }));
+          break;
+        }
+      }
+    }
+    // Genel teslim süresi yalnız kalem süresi GİRİLMEYEN kalem varsa zorunlu.
+    // Madde 14: pazarlık rebid'inde teslim bilgisi taşınan tekliften korunur —
+    // yeniden istenmez (backend de mevcut değeri korur).
+    if (!isAuctionRebid && !everyBidItemHasDelivery && !deliveryTime)
+      problems.push(
+        // Kalemsiz talepte "süre girmediğiniz kalemler" ibaresi anlamsız
+        // (yeniden doğrulama webC-01).
+        hasItems
+          ? tr("teslimSuresiZorunluSureGirmediginiz")
+          : tr("teslimSuresiZorunluKalemsiz"),
+      );
+    // Madde 15: pazarlıkta geçerlilik sorulmaz — teklif süresizdir.
+    // 1–365 tam gün (place-bid DTO ile aynı; arayüz testi D-010 — 400 gün
+    // gönderilip alan adsız sunucu hatası dönüyordu).
+    if (!isAuction) {
+      if (!validityDays) problems.push(tr("gecerlilikSuresiZorunlu"));
+      else if (!/^\d+$/.test(validityDays) || Number(validityDays) < 1 || Number(validityDays) > 365)
+        problems.push(tr("gecerlilikSuresiAralik"));
+    }
+    // Geçerlilik yukarıda denetlendi; burada yalnız sayısal soru cevapları.
+    problems.push(...numberInputProblems(false));
+    // KYC (arayüz testi D-028): davetsiz ∧ bağlantısız ∧ doğrulanmamış teklifçi
+    // gönderemez (sunucu 403) — yalnız taslak.
+    if (l.bidRequiresVerification) problems.push(tr("gonderimIcinDogrulamaGerekir"));
+    if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
+      problems.push(tr("buSatinAlmaTalebindeTeklif"));
+    // İngiliz usulü yeniden teklif: monotonluk ön-kontrolü AYNI KALEMLER
+    // ara toplamıyla (düşmeli) — yeni eklenen kalem kıyasa girmez, önceden
+    // fiyatlanmış kalem bırakılamaz (sunucu da aynı kuralları zorlar; burada
+    // anlık geri bildirim).
+    if (
+      l.english?.isEnglishAuction &&
+      l.myBid?.status === "SUBMITTED" &&
+      effectiveCurrency === (l.myBid.currency ?? l.primaryCurrency ?? "TRY")
+    ) {
+      if (hasItems && prevPricedIds.size > 0) {
+        for (const it of items) {
+          if (!prevPricedIds.has(it.id)) continue;
+          const p = itemState[it.id]?.price;
+          if (!(p != null && Number(p) > 0))
+            problems.push(
+              tr("pazarliktaOncedenFiyatladiginizKalemBirakila", { name: it.name }),
+            );
+        }
+      }
+      const own = Number(l.myBid.amount);
+      const scopeNote = scopeExpanded
+        ? tr("oncedenFiyatladiginizKalemlerinToplami")
+        : tr("yeniTeklifin");
+      if (cmpDecimal(comparableTotalStr, "0") === 1) {
+        if (cmpDecimal(comparableTotalStr, l.myBid.amount) >= 0)
+          problems.push(
+            tr("acikEksiltmeOncekiTeklifininAltinda", { scopeNote: scopeNote, money: money(own, effectiveCurrency) }),
+          );
+      }
+    }
+    // NOT: eski "toplam en fazla X olabilir" (sınır = öncekinin 1 kuruş
+    // altı) uyarısı kaldırıldı — yukarıdaki "öncekinden düşük olmalı"
+    // kuralının kafa karıştıran kuruşlu tekrarıydı; kuruş-altı uç
+    // durumda sunucu kesin Decimal kıyasla zaten reddeder.
+    return problems;
+  };
+
+  /**
+   * Seçilen dosyaları yükler. Başarısız olanlar STAGED listede KALIR (kullanıcı
+   * tekrar deneyebilir — eskiden sessizce kayboluyordu). Başarı sayısını döner.
+   */
+  const uploadStaged = async (): Promise<{ ok: boolean }> => {
+    if (stagedFiles.length === 0) return { ok: true };
+    const failed: { file: File; kind: BidDocKind }[] = [];
+    let lastError: unknown = null;
+    for (const sf of stagedFiles) {
+      try {
+        await uploadDoc.mutateAsync(sf);
+      } catch (err) {
+        lastError = err;
+        failed.push(sf);
+      }
+    }
+    setStagedFiles(failed);
+    if (failed.length > 0) {
+      toast.error(
+        tr("dosyaYuklenemediListedeKaldiTekrar", { length: failed.length, extractErrorMessage: extractErrorMessage(
+          lastError,
+          tr("bilinmeyenHata"),
+        ) }),
+      );
+      return { ok: false };
+    }
+    return { ok: true };
+  };
+
+  const buildPayload = (asDraft: boolean) => ({
+    asDraft,
+    note: note.trim() || undefined,
+    deliveryTime: deliveryTime || undefined,
+    validityDays:
+      isAuction ? undefined : validityDays ? Number(validityDays) : undefined,
+    currency: currency || undefined,
+    ...(hasItems
+      ? {
+          items: pricedItems.map((it) => {
+            const st = itemState[it.id]!;
+            return {
+              itemId: it.id,
+              unitPrice: Number(st.price),
+              deliveryTime: st.deliveryTime || undefined,
+              currency: st.currency || undefined,
+              // Faz 3: yalnız alıcı izin verdiyse anlamlı. Sunucu zaten
+              // bayrağı `alternativeAllowed`a göre düşürüyor (tedarikçi
+              // kuralı aşamaz) — burada da göndermiyoruz.
+              isAlternative:
+                it.alternativeAllowed !== false && st.isAlternative
+                  ? true
+                  : undefined,
+              offeredBrand: st.offeredBrand.trim() || undefined,
+              offeredMpn: st.offeredMpn.trim() || undefined,
+              answers: (it.questions ?? [])
+                .map((q) => ({
+                  questionId: q.id,
+                  value: (st.answers[q.id] ?? "").trim(),
+                }))
+                .filter((a) => a.value),
+            };
+          }),
+        }
+      : { amount: Number(singleAmount) }),
+  });
+
+  const saveDraft = async () => {
+    const numberProblems = numberInputProblems(true);
+    if (numberProblems.length > 0) {
+      toast.error(numberProblems[0]);
+      return;
+    }
+    setSavingDraft(true);
+    try {
+      await placeBid.mutateAsync(buildPayload(true));
+      const up = await uploadStaged();
+      if (up.ok) {
+        toast.success(tr("taslakKaydedildi"));
+        router.push(detailHref);
+      } else {
+        // Yükleme başarısız: taslak kaydedildi ama dosyalar bekliyor —
+        // çelişkili success yerine tek net mesaj (hata toast'ı uploadStaged attı).
+        toast.info(tr("taslakKaydedildiYuklenemeyenDosyalarListede"));
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err, tr("taslakKaydedilemedi")));
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  /**
+   * İKİ AŞAMALI gönderim: dosya varsa önce TASLAK kaydet → dosyaları yükle →
+   * sonra gönder. Böylece belge-zorunlu ihalede teklif hiçbir zaman belgesiz
+   * SUBMITTED kalmaz (backend de submit'te belge sayısını doğrular).
+   */
+  const submit = async () => {
+    setConfirmOpen(false);
+    setSubmitPhase("sending");
+    try {
+      if (stagedFiles.length > 0) {
+        // Taslak adımı hiç teklif kaydı yokken (dosyaların bağlanacağı satır
+        // oluşsun diye) ve ELENMİŞ (LOST) teklifte: sunucu belgeyi yalnız
+        // DRAFT teklife ekletir, LOST→DRAFT serbest (X22). DRAFT kayıtta
+        // gerek yok; açık eksiltmede gönderilmiş teklif DRAFT'a düşürülmez
+        // (yarıştan düşürürdü) — orada dosya alanı zaten kapalı.
+        if (!l.myBid || l.myBid.status === "LOST") {
+          await placeBid.mutateAsync(buildPayload(true));
+        }
+        const up = await uploadStaged();
+        if (!up.ok) {
+          // Staged korunur; form geri gelir, kullanıcı tekrar dener.
+          setSubmitPhase("idle");
+          return;
+        }
+      }
+      await placeBid.mutateAsync(buildPayload(false));
+      setSubmitPhase("sent");
+      toast.success(tr("teklifinizGonderildi"));
+      router.push(detailHref);
+    } catch (err) {
+      setSubmitPhase("idle");
+      toast.error(extractErrorMessage(err, tr("teklifGonderilemedi")));
+    }
+  };
+  const busy = placeBid.isPending || savingDraft || submitPhase !== "idle";
+
+  const problems = submitProblems();
+  const filledRatio = hasItems
+    ? Math.round((pricedItems.length / Math.max(items.length, 1)) * 100)
+    : singleAmount
+      ? 100
+      : 0;
+
+  return (
+    // P1 (denetim §4.2): sayfa mantıksal bir form — Enter, doğrulama
+    // temizse onay diyaloğunu açar (buton akışıyla birebir).
+    <form
+      className="space-y-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (problems.length === 0 && !busy) {
+          confirmOpenedAtRef.current = Date.now();
+          setConfirmOpen(true);
+        }
+      }}
+    >
+      <Link
+        href={detailHref}
+        className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+      >
+        <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
+        {l.number ?? tr("alimTalebi")}
+      </Link>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Heading>{pageTitle}</Heading>
+        {l.closesAt ? (
+          <span
+            className={cn(
+              "rounded-lg border px-3 py-1.5 text-xs font-semibold",
+              deadlineClass,
+            )}
+          >
+            {days !== null && days >= 0
+              ? days === 0
+                ? tr("kapanisZamanBugun", { dateTime: formatDateTime(l.closesAt, locale) })
+                : tr("kapanisZamanGun", { dateTime: formatDateTime(l.closesAt, locale), days })
+              : tr("kapanisZaman", { dateTime: formatDateTime(l.closesAt, locale) })}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Doğrulama teşviki (2026-09-28): belgesiz firma teklif verirken alıcının
+          onu "Doğrulanmamış firma" olarak göreceğini öğrenir. */}
+      <VerifyNudge required={!!l.bidRequiresVerification} />
+
+      {isRebidAfterLoss && l.myBid?.eliminationReason ? (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p>
+            <span className="font-semibold">{tr("oncekiTeklifinElemeGerekcesi")}</span>{" "}
+            {systemText(l.myBid.eliminationReason)}
+          </p>
+        </div>
+      ) : null}
+
+      {isCarriedRevision ? (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {tr("tasinanTeklifBirKezRevize")}
+        </div>
+      ) : null}
+
+      {l.english?.isEnglishAuction ? (
+        <AuctionLiveCard l={l} bidderCurrency={effectiveCurrency} />
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        {/* Sol — form */}
+        <div className="space-y-5 lg:col-span-2">
+          {/* Talep özeti */}
+          <section className="card p-5">
+            <dl
+              className={cn(
+                "grid grid-cols-2 gap-3 text-sm",
+                hasItems ? "sm:grid-cols-4" : "sm:grid-cols-3",
+              )}
+            >
+              <div>
+                <dt className="text-xs text-zinc-500">{tr("alici")}</dt>
+                <dd className="truncate font-medium text-zinc-900">
+                  {l.owner?.name ?? tr("gizliFirma")}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-zinc-500">{tr("kapanis")}</dt>
+                <dd className="font-medium text-zinc-900">
+                  {l.closesAt ? formatDateTime(l.closesAt, locale) : "—"}
+                </dd>
+              </div>
+              {/* Kalemsiz talepte "Kalem 0" anlamsız (D-274). */}
+              {hasItems ? (
+                <div>
+                  <dt className="text-xs text-zinc-500">{tr("kalem")}</dt>
+                  <dd className="font-medium text-zinc-900">{items.length}</dd>
+                </div>
+              ) : null}
+              {/* Çok birimli talepte kabul edilen birimlerin TAMAMI (ana önce):
+                  kart yalnız "TRY" diyordu, kalem seçicileri USD/EUR sunarken
+                  (arayüz testi son tur S-BUY). Teklifin kendi birimi formda. */}
+              <div>
+                <dt className="text-xs text-zinc-500">
+                  {(l.allowedCurrencies?.length ?? 0) > 1 ? tr("paraBirimleri") : tr("paraBirimi")}
+                </dt>
+                <dd className="font-medium text-zinc-900">
+                  {(l.allowedCurrencies?.length ?? 0) > 1
+                    ? [
+                        l.primaryCurrency ?? "TRY",
+                        ...(l.allowedCurrencies ?? []).filter(
+                          (c) => c !== (l.primaryCurrency ?? "TRY"),
+                        ),
+                      ].join(", ")
+                    : effectiveCurrency}
+                </dd>
+              </div>
+            </dl>
+            {(l.allowedCurrencies?.length ?? 0) <= 1 ? (
+              <Text className="mt-2 text-xs text-zinc-400">
+                {tr("paraBirimiAliciTarafindanBelirlendi")}
+              </Text>
+            ) : null}
+          </section>
+
+          {l && bidImport ? (
+            <BidImportDialog
+              open
+              variant={bidImport}
+              listingId={l.id}
+              currencyLabel={effectiveCurrency}
+              itemCurrencyAllowed={canItemCurrency}
+              onClose={() => setBidImport(null)}
+              onApply={applyImportedPrices}
+            />
+          ) : null}
+
+          {/* Kalem fiyatları — pazarlıkta çalışma masası (hedef çubuğu +
+              toplu araçlar + kompakt tablo), diğer akışlarda kart listesi. */}
+          {hasItems && auctionItemsMode ? (
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Subheading>{tr("kalemFiyatlari")}</Subheading>
+                {bidImportButtons}
+              </div>
+              {l.requireAllItems ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {tr.rich("buSatinAlmaTalebindeTumKalemlereTeklifZorunlu", {
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
+                </div>
+              ) : null}
+              {convertedNote}
+              <AuctionBidWorkbench
+                items={items}
+                prices={priceMap}
+                initialPrices={initialPrices}
+                setPrice={(iid, p) => setItem(iid, { price: p })}
+                applyPrices={applyPrices}
+                lockedIds={lockedIds}
+                toggleLock={toggleLock}
+                currency={effectiveCurrency}
+                decimals={decimals}
+                target={workbenchTarget}
+                defaultPercent="5"
+                requireAllItems={!!l.requireAllItems}
+                mandatoryIds={prevPricedIds}
+                rowMeta={workbenchRowMeta}
+                renderItemExtras={renderItemExtras}
+              />
+            </section>
+          ) : hasItems ? (
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Subheading>{tr("kalemFiyatlari")}</Subheading>
+                {bidImportButtons}
+              </div>
+              {convertedNote}
+              {l.requireAllItems ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {tr.rich("buSatinAlmaTalebindeTumKalemlereTeklifZorunlu", {
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
+                </div>
+              ) : null}
+              <div className="space-y-3">
+                {items.map((it, idx) => {
+                  const st = itemState[it.id];
+                  const optedOut = st?.price === null;
+                  const lineTotal =
+                    st?.price && Number(st.price) > 0
+                      ? Number(st.price) * Number(it.quantity)
+                      : null;
+                  return (
+                    <div
+                      key={it.id}
+                      className={cn(
+                        "rounded-xl border bg-white p-4",
+                        optedOut
+                          ? "border-zinc-100 opacity-60"
+                          : "border-zinc-950/10",
+                      )}
+                    >
+                      {/* Mobilde ad üstte, fiyat altta (D-151): yan yana dizilimde
+                          ad 51 px'lik sütunda kelime kelime kırılıyordu. */}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-100 text-xs font-semibold text-zinc-600">
+                              {idx + 1}
+                            </span>
+                            <p className="font-medium text-zinc-900">{it.name}</p>
+                            {optedOut ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                                {tr("haric")}
+                              </span>
+                            ) : null}
+                            {(it.questions?.length ?? 0) > 0 ? (
+                              <Badge color="zinc">
+                                {tr("soru", { n: it.questions!.length })}
+                              </Badge>
+                            ) : null}
+                          </div>
+                          {it.description ? (
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {it.description}
+                            </p>
+                          ) : null}
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {quantity(it.quantity, it.unit, it.unitCode)}
+                            {it.materialCode ? ` · ${it.materialCode}` : ""}
+                            {it.targetPrice
+                              ? tr("hedef", { money: money(Number(it.targetPrice), effectiveCurrency) })
+                              : ""}
+                          </p>
+                          {itemFacts(it).length > 0 ? (
+                            <p className="mt-1 text-xs text-zinc-600">
+                              {itemFacts(it).join(" · ")}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        {optedOut ? (
+                          <button
+                            type="button"
+                            onClick={() => setItem(it.id, { price: "" })}
+                            className="text-xs font-semibold text-blue-600 hover:underline"
+                          >
+                            {tr("kalemiGeriEkle")}
+                          </button>
+                        ) : (
+                          <div className="flex items-start gap-2">
+                            <div className="w-full sm:w-36">
+                              <Field>
+                                <VisualLabel>{tr("birimFiyat")}</VisualLabel>
+                                <MoneyInput
+                                  aria-label={tr("birimFiyatAria", { name: it.name })}
+                                  value={st?.price ?? ""}
+                                  onChange={(raw) =>
+                                    setItem(it.id, { price: raw })
+                                  }
+                                />
+                              </Field>
+                              {lineTotal !== null ? (
+                                <p className="mt-1 text-right text-xs font-semibold text-zinc-700 tabular-nums">
+                                  = {money(lineTotal, st?.currency || effectiveCurrency)}
+                                </p>
+                              ) : null}
+                            </div>
+                            {!l.requireAllItems ? (
+                              /* §10.4: anlamı belirsiz × yerine etiketli
+                                 anahtar — geri alma "Kalemi geri ekle". */
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setItem(it.id, { price: null })
+                                }
+                                // Kalem adını taşıyan erişilebilir ad: her
+                                // kalemin düğmesi ayırt edilsin (webC-01).
+                                aria-label={tr("kalemeTeklifVermiyorumAria", { name: it.name })}
+                                className="mt-7 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600"
+                              >
+                                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                                {/* Mobilde metin görsel olarak gizli ama
+                                    erişilebilir adı korunur (D-277). */}
+                                <span className="sr-only sm:not-sr-only">
+                                  {tr("buKalemeTeklifVermiyorum")}
+                                </span>
+                              </button>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+
+                      {!optedOut ? (
+                        // Ek alanlar (teslim / kalem para birimi / MUADİL
+                        // beyanı / sorular) çalışma masasıyla TEK kaynaktan
+                        // çizilir. Eskiden burada elle kopyalanmıştı ve muadil
+                        // bloğu atlanmıştı → kapalı zarf RFQ'da tedarikçi
+                        // muadil beyan edemiyordu (derin denetim Y-16).
+                        <div className="mt-3 border-t border-zinc-50 pt-3">
+                          {renderItemExtras(it)}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-zinc-400 italic">
+                          {tr("buKalemeTeklifVerilmeyecek")}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : (
+            <section className="space-y-3">
+              <Subheading>{tr("teklifTutari")}</Subheading>
+              <p className="text-xs text-zinc-400">{td("kdvHaricNote")}</p>
+              <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
+                <Field>
+                  <Label>{tr("tutarBirimli", { effectiveCurrency })}</Label>
+                  <MoneyInput value={singleAmount} onChange={setSingleAmount} />
+                </Field>
+                {isAuction && effectiveTarget ? (
+                  <p
+                    className={cn(
+                      "mt-2 text-xs",
+                      workbenchTarget.met
+                        ? "text-emerald-700"
+                        : "text-amber-700",
+                    )}
+                  >
+                    {tr.rich("oncekiTeklifindenDusukOlmali", {
+                      money: money(Number(effectiveTarget), effectiveCurrency),
+                      strong: (c) => <strong className="tabular-nums">{c}</strong>,
+                    })}
+                    {workbenchTarget.met ? tr("uygun") : ""}
+                  </p>
+                ) : null}
+              </div>
+            </section>
+          )}
+
+          {/* Teslim & geçerlilik */}
+          <section className="space-y-3">
+            <Subheading>{tr("teslimGecerlilik")}</Subheading>
+            <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 sm:grid-cols-3">
+              <Field>
+                <Label>
+                  {tr("genelTeslimSuresiBaslik")}
+                  {everyBidItemHasDelivery || isAuctionRebid ? "" : " *"}
+                </Label>
+                {isAuctionRebid ? (
+                  <p className="pt-2 text-xs text-zinc-500">
+                    {tr("teslimBilgisiMevcutTeklifinizdenTasindi")}
+                  </p>
+                ) : everyBidItemHasDelivery ? (
+                  <p className="pt-2 text-xs text-emerald-700">
+                    {tr("herKalemeAyriTeslimSuresi")}
+                  </p>
+                ) : (
+                  <>
+                    <Select
+                      value={deliveryTime}
+                      onChange={(e) => setDeliveryTime(e.target.value)}
+                      aria-label={tr("genelTeslimSuresi")}
+                    >
+                      <option value="">{tr("secin")}</option>
+                      {BID_DELIVERY_TIMES.map((t) => (
+                        <option key={t} value={t}>
+                          {deliveryTimeLabel(t)}
+                        </option>
+                      ))}
+                    </Select>
+                    {hasItems ? (
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {tr("kalemSuresiGirmediginizKalemlerIcin")}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </Field>
+              <Field>
+                <Label>
+                  {isAuction ? tr("teklifGecerlilikSuresi") : tr("teklifGecerlilikSuresiGun")}
+                </Label>
+                {isAuction ? (
+                  <p className="pt-2 text-xs text-zinc-500">
+                    {tr.rich("pazarliktaTekliflerSuresizGecerlidir", {
+                      strong: (c) => <strong>{c}</strong>,
+                    })}
+                  </p>
+                ) : (
+                  // Yerel tam sayı: "0,5" artık 5 gün değil, aralık mesajı.
+                  <NumberInput
+                    value={validityDays}
+                    onChange={setValidityDays}
+                  />
+                )}
+              </Field>
+              {(l.allowedCurrencies?.length ?? 0) > 1 ? (
+                <Field>
+                  <Label>{tr("paraBirimi")}</Label>
+                  <Select
+                    value={currency || l.primaryCurrency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    // Açık eksiltmede birim ilk gönderilmiş teklifle kilitlenir
+                    // (backend de reddeder) — kur oynamasıyla adım kuralı
+                    // oynanamaz; azaltma hep kendi biriminde işler.
+                    disabled={isAuctionRebid}
+                  >
+                    {l.allowedCurrencies!.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
+                  {isAuctionRebid ? (
+                    <p className="mt-1 text-xs text-zinc-400">
+                      {tr("acikEksiltmedeParaBirimiIlk")}
+                    </p>
+                  ) : null}
+                </Field>
+              ) : null}
+            </div>
+          </section>
+
+          {/* Not */}
+          <section className="space-y-3">
+            <Subheading>{tr("teklifNotu")}</Subheading>
+            <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
+              <Textarea
+                rows={3}
+                maxLength={1000}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={tr("aliciyaIletmekIstediginizNotOpsiyonel")}
+              />
+            </div>
+          </section>
+
+          {/* Teklif dosyaları — sürükle-bırak + dosya başına kategori. Teminat
+              burada YOK; kazandırma sonrası sipariş aşamasında yüklenir. */}
+          <section className="space-y-3">
+            <Subheading>
+              {l.requireBidDocument ? tr("teklifDosyalariZorunlu") : tr("teklifDosyalari")}
+            </Subheading>
+            <div className="space-y-3 rounded-xl border border-zinc-950/10 bg-white p-4">
+              {l.requireBidDocument ? (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {tr("buSatinAlmaTalebindeTeklif2")}
+                </p>
+              ) : null}
+
+              {/* Sürükle-bırak alanı. Pazarlıkta gönderilmiş teklifin belgeleri
+                  değiştirilemez (sunucu yalnız DRAFT teklife belge ekletir,
+                  gönderilmiş teklif de taslağa çekilemez) — alan yerine not. */}
+              {isSubmittedRevision ? (
+                <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                  {isAuctionRebid
+                    ? tr("pazarliktaGonderilmisTeklifinBelgeleriDegismez")
+                    : tr("tasinanTeklifinBelgeleriDegismez")}
+                </p>
+              ) : (
+                <label
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragActive(true);
+                  }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragActive(false);
+                    addFiles(Array.from(e.dataTransfer.files));
+                  }}
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 ${
+                    dragActive
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-zinc-200 bg-zinc-50/60 hover:border-zinc-300"
+                  }`}
+                >
+                  <UploadCloud className="h-6 w-6 text-zinc-400" aria-hidden="true" />
+                  <p className="text-sm font-medium text-zinc-700">
+                    {tr.rich("dosyalariSurukleyinYaDaSecmekIcinTiklayin", {
+                      em: (c) => <span className="text-blue-600">{c}</span>,
+                    })}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {tr("pdfGorselVeyaExcelDosya")}
+                  </p>
+                  {/* sr-only (display:none değil): Tab ile odaklanır, Enter/Boşluk
+                      dosya seçiciyi açar (D-277). */}
+                  <input
+                    type="file"
+                    className="sr-only"
+                    multiple
+                    accept={BID_DOC_ACCEPT}
+                    aria-label={tr("teklifDosyasiSec")}
+                    onChange={(e) => {
+                      addFiles(Array.from(e.target.files ?? []));
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+              {isRebidAfterLoss && myDocs.length > 0 ? (
+                <p className="text-xs text-zinc-500">
+                  {tr("elenmisTeklifBelgeKaldirmakIcinTaslak")}
+                </p>
+              ) : null}
+
+              {/* Dosya listesi — yüklü belgeler + gönderimde yüklenecek dosyalar */}
+              {myDocs.length === 0 && stagedFiles.length === 0 ? (
+                <p className="text-center text-xs text-zinc-400">
+                  {tr("henuzDosyaEklenmedi")}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {myDocs.map((d) => (
+                    <li
+                      key={d.id}
+                      className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2"
+                    >
+                      <FileText className="h-4 w-4 shrink-0 text-zinc-400" />
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 flex-1 truncate text-sm text-blue-600 hover:underline"
+                      >
+                        {d.fileName}
+                      </a>
+                      <span className="hidden shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 sm:inline">
+                        {docKindLabel(d.kind)}
+                      </span>
+                      <span className="shrink-0 text-xs font-medium text-emerald-600">
+                        {tr("yuklendi")}
+                      </span>
+                      {/* Sunucu belgeyi yalnız DRAFT teklifte siler; LOST /
+                          SUBMITTED teklifte düğme her tıkta 400 alıyordu. */}
+                      {l.myBid?.status === "DRAFT" ? (
+                        <button
+                          type="button"
+                          aria-label={tr("belgesiniSil", { fileName: d.fileName })}
+                          disabled={deleteDoc.isPending}
+                          onClick={async () => {
+                            if (
+                              !(await confirm({
+                                title: tr("belgeSilinsinMi"),
+                                description: tr("kaliciOlarakSilinecek", { fileName: d.fileName }),
+                                confirmLabel: tr("sil"),
+                                destructive: true,
+                              }))
+                            )
+                              return;
+                            try {
+                              await deleteDoc.mutateAsync(d.id);
+                              toast.success(tr("belgeSilindi"));
+                            } catch (err) {
+                              toast.error(
+                                extractErrorMessage(err, tr("belgeSilinemedi")),
+                              );
+                            }
+                          }}
+                          className="shrink-0 text-zinc-400 hover:text-red-600 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+                  {stagedFiles.map((sf, i) => (
+                    <li
+                      key={`${sf.file.name}-${i}`}
+                      className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2"
+                    >
+                      <Paperclip className="h-4 w-4 shrink-0 text-blue-400" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-zinc-800">
+                          {sf.file.name}
+                        </p>
+                        <p className="text-xs text-zinc-400">
+                          {tr("gonderimdeYuklenecek", { formatBytes: formatBytes(sf.file.size) })}
+                        </p>
+                      </div>
+                      <SelectMenu
+                        value={sf.kind}
+                        ariaLabel={tr("kategorisi", { name: sf.file.name })}
+                        onChange={(v) =>
+                          setStagedFiles((s) =>
+                            s.map((x, j) =>
+                              j === i ? { ...x, kind: v as BidDocKind } : x,
+                            ),
+                          )
+                        }
+                        className="w-40 shrink-0"
+                        options={BID_DOC_SELECTABLE_KINDS.map((k) => ({
+                          value: k,
+                          label: docKindLabel(k),
+                        }))}
+                      />
+                      <button
+                        type="button"
+                        aria-label={tr("dosyasiniKaldir", { name: sf.file.name })}
+                        onClick={() =>
+                          setStagedFiles((s) => s.filter((_, j) => j !== i))
+                        }
+                        className="-m-2 shrink-0 rounded-md p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Sağ — yapışkan toplam */}
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <div className="space-y-3">
+            <div className="rounded-2xl bg-emerald-700 p-5 text-white">
+              <p className="text-xs font-semibold tracking-wide text-emerald-200 uppercase">
+                {tr("toplamTeklif")}
+              </p>
+              <p className="mt-1 text-2xl font-bold tabular-nums">
+                {totalLabel}
+              </p>
+              {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
+              {isAuction && effectiveTarget && workbenchTarget.ownLastTotal ? (
+                <p className="mt-1 text-xs text-emerald-200">
+                  {workbenchTarget.met ? (
+                    <span className="tabular-nums">
+                      {tr("indirim", {
+                        money: money(
+                          Number(
+                            decSub(
+                              workbenchTarget.ownLastTotal,
+                              workbenchTarget.comparableTotalStr,
+                            ),
+                          ),
+                          effectiveCurrency,
+                        ),
+                      })}
+                    </span>
+                  ) : (
+                    tr("oncekindenTutarDusukOlmali", {
+                      money: money(Number(workbenchTarget.ownLastTotal), effectiveCurrency),
+                    })
+                  )}
+                </p>
+              ) : null}
+              {hasItems ? (
+                <>
+                  <p className="mt-3 text-xs text-emerald-200">
+                    {tr("fiyatlandirilanKalem", { length: pricedItems.length, length2: items.length })}
+                  </p>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-emerald-900/60">
+                    <div
+                      className="h-full bg-white transition-all"
+                      style={{ width: `${filledRatio}%` }}
+                    />
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* type="submit": Enter, doğrulama temizse onay penceresini açar
+                (formun onSubmit'i; D-271). */}
+            <Button
+              type="submit"
+              color="emerald"
+              className="w-full"
+              disabled={problems.length > 0 || busy}
+            >
+              {tr("teklifGonder")}
+            </Button>
+            {/* Auction'da GÖNDERİLMİŞ teklif taslağa çekilemez (yarıştan
+                düşürürdü) — rebid'de taslak butonu gizli; backend de reddeder. */}
+            {!isSubmittedRevision ? (
+              <Button
+                outline
+                className="w-full"
+                disabled={busy}
+                onClick={saveDraft}
+              >
+                {tr("taslakOlarakKaydet")}
+              </Button>
+            ) : null}
+            <Link
+              href={detailHref}
+              className="block text-center text-sm text-zinc-500 hover:text-zinc-700"
+            >
+              {tr("vazgec")}
+            </Link>
+
+            {problems.length > 0 ? (
+              <ul className="space-y-1 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-xs text-zinc-500">
+                {/* key=metin OLMAZ: aynı adlı iki kalem aynı mesajı üretip
+                    çift key ile bayat <li> bırakıyordu. */}
+                {problems.map((p, i) => (
+                  <li key={`${i}-${p}`}>• {p}</li>
+                ))}
+              </ul>
+            ) : (
+              /* §10.4: liste tamamlanınca kaybolmaz — yeşil "hazır" hâli
+                 (alan dolu kalır, panel zıplamaz). */
+              <p className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
+                <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                {tr("gonderimeHazirTumZorunluAlanlar")}
+              </p>
+            )}
+
+            {/* Pazarlıkta görünürlük notu kaldırıldı (belirsiz/mantıksızdı —
+                ne görüneceğini canlı kart zaten gösteriyor); kapalı zarf
+                notu RFQ'da kalır. */}
+            {!l.english?.isEnglishAuction ? (
+              <p className="text-center text-xs text-zinc-400">
+                {tr("kapaliZarfTeklifinDigerTedarikcilere")}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobil yapışkan CTA — toplam + gönder (masaüstünde sağ kolon var) */}
+      <div className="fixed inset-x-0 bottom-0 z-20 mb-0 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+            {tr("toplamTeklif")}
+          </p>
+          <p className="text-base font-bold text-zinc-950 tabular-nums">
+            {totalLabel}
+          </p>
+          {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
+          {isAuction && effectiveTarget && workbenchTarget.ownLastTotal ? (
+            <p
+              className={cn(
+                "text-xs tabular-nums",
+                workbenchTarget.met ? "text-emerald-600" : "text-amber-600",
+              )}
+            >
+              {workbenchTarget.met
+                ? tr("indirim", { money: money(
+                    Number(
+                      decSub(
+                        workbenchTarget.ownLastTotal,
+                        workbenchTarget.comparableTotalStr,
+                      ),
+                    ),
+                    effectiveCurrency,
+                  ) })
+                : tr("oncekindenDusukOlmali")}
+            </p>
+          ) : null}
+        </div>
+        <Button
+          type="submit"
+          color="emerald"
+          disabled={problems.length > 0 || busy}
+          className="shrink-0 whitespace-nowrap"
+        >
+          {tr("teklifGonder")}
+        </Button>
+      </div>
+      {/* Yapışkan çubuk içeriği örtmesin */}
+      <div className="h-16 lg:hidden" />
+
+      {/* Gönderim onayı */}
+      <Dialog
+        open={confirmOpen}
+        onClose={() => {
+          if (Date.now() - confirmOpenedAtRef.current < CONFIRM_CLOSE_GUARD_MS) return;
+          setConfirmOpen(false);
+        }}
+      >
+        <DialogTitle>
+          {isSubmittedRevision || isRebidAfterLoss
+            ? tr("teklifiRevizeEt")
+            : tr("teklifGonder")}
+        </DialogTitle>
+        <DialogBody>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+            <p className="text-xs font-semibold text-emerald-700">{tr("toplamTeklif")}</p>
+            <p className="mt-1 text-2xl font-bold text-emerald-800 tabular-nums">
+              {totalLabel}
+            </p>
+            {mixedCurrency ? (
+              <p className="mt-1 text-xs text-emerald-700">
+                {tr("karmaBirimliTeklifKarsilastirmaToplami", { effectiveCurrency: effectiveCurrency })}
+              </p>
+            ) : null}
+          </div>
+          {l.english?.isEnglishAuction ? (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <p>
+                <span className="font-semibold">
+                  {tr("buTurdaTekTeklifHakkin")}
+                </span>{" "}
+                {tr("gonderdiktenSonraBuTurdaDegistiremezsin")}
+              </p>
+            </div>
+          ) : (
+            <Text className="mt-3 text-sm text-zinc-500">
+              {tr("gonderilenTeklifDuzenlenemezVeGeri")}
+            </Text>
+          )}
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setConfirmOpen(false)}>
+            {tr("vazgec")}
+          </Button>
+          <Button color="emerald" onClick={submit} disabled={busy}>
+            {busy ? tr("gonderiliyor") : tr("teklifiGonder")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </form>
+  );
+}

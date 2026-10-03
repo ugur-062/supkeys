@@ -28,6 +28,7 @@ import { SummaryTab } from "./tabs/summary-tab";
 import { UsersTab } from "./tabs/users-tab";
 
 import { TIER_COLOR, TIER_LABEL, VERIFY_META } from "@/lib/terms";
+import { toastApiError } from "@/lib/api";
 
 const TABS = [
   { key: "ozet", label: "Özet" },
@@ -55,7 +56,7 @@ export function CompanyDetailView({
   companyId: string;
   initialTab?: string;
 }) {
-  const { data, isLoading, isError, refetch } = useCompanyDetail(companyId);
+  const { data, isLoading, isError, error, refetch } = useCompanyDetail(companyId);
   const [tab, setTab] = useState<TabKey>(
     TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : "ozet",
   );
@@ -76,6 +77,33 @@ export function CompanyDetailView({
       </div>
     );
   }
+  // Yetki hatası "yeniden dene" ile düzelmez (yayın denetimi 2026-09-28
+  // Bölüm 6: Destek rolü firma detayında genel hata + "Tekrar dene" görüyordu).
+  if (isError && (error as { response?: { status?: number } } | null)?.response?.status === 403) {
+    return (
+      <div className="space-y-2 py-16 text-center">
+        <p className="text-admin-text text-sm font-medium">Bu firmanın ayrıntılarını görüntüleme yetkiniz yok.</p>
+        <p className="text-admin-text-muted text-sm">Firma ayrıntıları Süper Admin ve Satış rollerine açık.</p>
+      </div>
+    );
+  }
+  // Var olmayan firma: "Tekrar dene" işe yaramaz (arayüz testi D-206).
+  if (isError && (error as { response?: { status?: number } } | null)?.response?.status === 404) {
+    return (
+      <div className="space-y-4 py-16 text-center">
+        <p className="text-admin-text text-sm font-medium">Firma bulunamadı.</p>
+        <p className="text-admin-text-muted text-sm">
+          Bağlantı hatalı olabilir ya da firma kalıcı olarak silinmiş olabilir.
+        </p>
+        <Link
+          href="/admin/firmalar"
+          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Firmalar listesine dön
+        </Link>
+      </div>
+    );
+  }
   if (isError || !data) {
     return (
       <div className="space-y-4 py-16 text-center">
@@ -88,6 +116,13 @@ export function CompanyDetailView({
   }
 
   const meta = VERIFY_META[data.companyVerificationStatus] ?? VERIFY_META.UNVERIFIED;
+  // KVKK ile anonimleştirilmiş firma salt okunur (D-208) — askı kaldırma
+  // KVKK gerekçesini siliyordu; bildirim/düzenleme/paket de anlamsız.
+  const anonymized = !!data.anonymized;
+  const canNotify = canAdminDo(role, "notify") && !anonymized;
+  const canSuspendAct =
+    !anonymized &&
+    (data.isBlocked ? canAdminDo(role, "unsuspend") : canAdminDo(role, "suspend"));
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -104,18 +139,28 @@ export function CompanyDetailView({
             {data.name}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge color={meta.color}>{meta.label}</Badge>
+            {anonymized ? null : <Badge color={meta.color}>{meta.label}</Badge>}
             <Badge color={TIER_COLOR[data.tier] ?? "zinc"}>
               {TIER_LABEL[data.tier]}
             </Badge>
-            {data.isBlocked ? <Badge color="red">Askıda</Badge> : null}
+            {anonymized ? (
+              <Badge color="zinc">KVKK ile anonimleştirildi</Badge>
+            ) : data.isBlocked ? (
+              <Badge color="red">Askıda</Badge>
+            ) : null}
             <button
               type="button"
               title="Firma kodunu kopyala"
               onClick={() => {
                 if (!data.rothernId) return;
-                void navigator.clipboard.writeText(data.rothernId);
-                toast.success("Kod kopyalandı");
+                // Pano izni yoksa / API yoksa başarı toast'ı basılmaz (D-207).
+                const code = data.rothernId;
+                Promise.resolve()
+                  .then(() => navigator.clipboard.writeText(code))
+                  .then(
+                    () => toast.success("Kod kopyalandı"),
+                    () => toast.error("Kod kopyalanamadı — tarayıcı panoya erişim izni vermedi"),
+                  );
               }}
               className="text-admin-text-muted inline-flex items-center gap-1 rounded px-1 font-mono text-xs hover:bg-zinc-100"
             >
@@ -137,11 +182,9 @@ export function CompanyDetailView({
         </div>
         {/* Üyelik yönetimi TEK yerden (Üyelik sekmesi) — header'daki kopya
             kontrol farklı doğrulama/gerekçe kalitesiyle ikinci yol açıyordu. */}
-        {!canAdminDo(role, "notify") &&
-        !canAdminDo(role, "suspend") &&
-        !canAdminDo(role, "unsuspend") ? null : (
+        {!canNotify && !canSuspendAct ? null : (
           <div className="flex items-center gap-2">
-            {canAdminDo(role, "notify") ? (
+            {canNotify ? (
               <Button
                 variant="secondary"
                 size="sm"
@@ -150,8 +193,10 @@ export function CompanyDetailView({
                 Bildirim Gönder
               </Button>
             ) : null}
-            {data.isBlocked
-              ? canAdminDo(role, "unsuspend") && (
+            {!canSuspendAct
+              ? null
+              : data.isBlocked
+              ? (
                   <Button
                     variant="secondary"
                     size="sm"
@@ -161,8 +206,7 @@ export function CompanyDetailView({
                         { id: companyId, action: "unsuspend" },
                         {
                           onSuccess: () => toast.success("Askı kaldırıldı"),
-                          onError: (e: unknown) =>
-                            toast.error(e instanceof Error ? e.message : "Hata"),
+                          onError: (e: unknown) => toastApiError(e),
                         },
                       )
                     }
@@ -170,7 +214,7 @@ export function CompanyDetailView({
                     Askıyı Kaldır
                   </Button>
                 )
-              : canAdminDo(role, "suspend") && (
+              : (
                   <Button
                     variant="danger"
                     size="sm"
@@ -185,7 +229,15 @@ export function CompanyDetailView({
       </div>
 
       {/* Askı bilgisi — görünür uyarı */}
-      {data.isBlocked ? (
+      {anonymized ? (
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
+          <strong>KVKK silme talebiyle anonimleştirildi</strong>
+          {data.blockedAt ? ` — ${safeFormat(data.blockedAt, "d MMM yyyy HH:mm")}` : ""}.
+          Kimlik ve iletişim bilgileri silindi, kullanıcılar kapatıldı; sipariş
+          geçmişi yasal saklama için korunuyor. Bu kayıt üzerinde işlem
+          yapılamaz.
+        </div>
+      ) : data.isBlocked ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <strong>Askıda</strong>
           {data.blockedAt ? ` — ${safeFormat(data.blockedAt, "d MMM yyyy HH:mm")}` : ""}
@@ -224,7 +276,16 @@ export function CompanyDetailView({
       {tab === "ozet" ? <SummaryTab data={data} /> : null}
       {tab === "belgeler" ? <DocsTab companyId={companyId} data={data} /> : null}
       {tab === "uyelik" ? <MembershipTab companyId={companyId} data={data} /> : null}
-      {tab === "kullanicilar" ? <UsersTab companyId={companyId} /> : null}
+      {tab === "kullanicilar" ? <UsersTab
+          companyId={companyId}
+          // Satınalma yetkisi yalnız efektif GOLD'da (süresi geçmiş GOLD = STANDART);
+          // API aynı kapıyı uygular, burada seçenek baştan kilitlenir.
+          canGrantBuy={
+            data.tier === "GOLD" &&
+            (!data.membershipEndAt ||
+              new Date(data.membershipEndAt).getTime() >= Date.now())
+          }
+        /> : null}
       {tab === "ilanlar" ? <ListingsTab companyId={companyId} /> : null}
       {tab === "siparisler" ? <OrdersTab companyId={companyId} /> : null}
       {tab === "baglantilar" ? (
@@ -249,8 +310,7 @@ export function CompanyDetailView({
             { id: companyId, action: "suspend", reason: v || undefined },
             {
               onSuccess: () => toast.success("Askıya alındı"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
+              onError: (e: unknown) => toastApiError(e),
             },
           );
           setPrompt(null);

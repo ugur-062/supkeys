@@ -15,6 +15,7 @@ import {
 } from "@/lib/image-crop";
 import { cn } from "@/lib/utils";
 import { Loader2, Minus, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /**
@@ -52,6 +53,7 @@ export function ImageCropDialog({
   /** Kırpılmış dosya. Hata fırlatırsa pencere açık kalır. */
   onConfirm: (cropped: File) => Promise<void>;
 }) {
+  const t = useTranslations("web.shared.imageCropDialog");
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [frame, setFrame] = useState<{ w: number; h: number } | null>(null);
@@ -152,17 +154,17 @@ export function ImageCropDialog({
     <Dialog open={!!file} onClose={() => (busy ? undefined : onCancel())} size="xl">
       <DialogTitle>{title}</DialogTitle>
       <DialogDescription>
-        Görseli sürükleyerek görünecek bölgeyi seçin, kaydırıcıyla yakınlaştırın.
+        {t("gorseliSurukleyerekBolgeSecin")}
         {hint ? ` ${hint}` : ""}
       </DialogDescription>
       <DialogBody>
         <div ref={wrapRef} className="flex w-full justify-center">
           {loadError ? (
-            <p className="py-10 text-sm text-red-700">Görsel açılamadı. Başka bir dosya deneyin.</p>
+            <p className="py-10 text-sm text-red-700">{t("gorselAcilamadi")}</p>
           ) : (
             <div
               role="img"
-              aria-label="Kırpma alanı — sürükleyin ya da ok tuşlarıyla kaydırın"
+              aria-label={t("kirpmaAlani")}
               tabIndex={0}
               onKeyDown={onKey}
               onPointerDown={(e) => {
@@ -219,7 +221,7 @@ export function ImageCropDialog({
             type="button"
             onClick={() => crop && setZoom(crop.zoom - 0.25)}
             disabled={!ready || (crop?.zoom ?? 1) <= MIN_ZOOM}
-            aria-label="Uzaklaştır"
+            aria-label={t("uzaklastir")}
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-600 ring-1 ring-zinc-950/10 hover:bg-zinc-100 disabled:opacity-40"
           >
             <Minus className="size-4" aria-hidden />
@@ -233,14 +235,14 @@ export function ImageCropDialog({
             value={crop?.zoom ?? 1}
             disabled={!ready}
             onChange={(e) => setZoom(Number(e.target.value))}
-            aria-label="Yakınlaştırma"
+            aria-label={t("yakinlastirma")}
             className="w-full accent-zinc-900"
           />
           <button
             type="button"
             onClick={() => crop && setZoom(crop.zoom + 0.25)}
             disabled={!ready || (crop?.zoom ?? 1) >= MAX_ZOOM}
-            aria-label="Yakınlaştır"
+            aria-label={t("yakinlastir")}
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-600 ring-1 ring-zinc-950/10 hover:bg-zinc-100 disabled:opacity-40"
           >
             <Plus className="size-4" aria-hidden />
@@ -249,11 +251,11 @@ export function ImageCropDialog({
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onCancel} disabled={busy}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={() => void confirm()} disabled={!ready || busy}>
           {busy ? <Loader2 data-slot="icon" className="animate-spin" /> : null}
-          {busy ? "Kaydediliyor…" : "Kaydet"}
+          {busy ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </DialogActions>
     </Dialog>

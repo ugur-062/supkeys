@@ -25,6 +25,8 @@ export interface TenderListItem {
   createdBy: { firstName: string; lastName: string };
   invitationCount: number;
   bidCount: number;
+  /** AI tedarikçi önerisi bekleyen talep (Şirketim `?ai=1` süzgeci, O-035). */
+  aiSuggestionsPending?: boolean;
   publishedAt: string | null;
   bidsCloseAt: string | null;
   createdAt: string;

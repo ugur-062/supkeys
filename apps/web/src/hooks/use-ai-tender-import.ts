@@ -1,5 +1,6 @@
 "use client";
 
+import { tRuntime } from "@/i18n/runtime";
 import { companyApi } from "@/lib/company-auth/api";
 import type { AiTenderExtractResult } from "@rothern/shared";
 import { useMutation } from "@tanstack/react-query";
@@ -20,7 +21,7 @@ async function uploadOne(file: File): Promise<string> {
     body: file,
     headers: { "Content-Type": file.type },
   });
-  if (!put.ok) throw new Error("Dosya yüklenemedi — lütfen tekrar deneyin");
+  if (!put.ok) throw new Error(tRuntime("common.errors.uploadFailed"));
   return presigned.key;
 }
 

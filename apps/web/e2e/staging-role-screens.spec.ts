@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { QA, apiGet, apiSession, gotoRetry, uiLogin } from "./staging-helpers";
+import { BUYING_WIND_DOWN_PATHS } from "../src/lib/company/portals";
 
 /**
  * ROL × EKRAN MATRİSİ — her rol tarayıcıda gezer, her sayfa dört durumdan
@@ -104,9 +105,12 @@ for (const u of USERS) {
       // çıkar; izni olmayan her durumda portal kapısı görür.
       const portalOk = !r.portal || (r.portal === "buy" ? has("buy:view") : has("sell:view"));
       const premiumLocked = r.portal === "buy" && has("buy:view") && tier !== "GOLD";
+      // Gold altında Taleplerim ve Siparişler BİLİNÇLİ açık (T-06, wind-down):
+      // mevcut işi sonuçlandırmak için liste + paket bandı, kapı değil.
+      const windDown = premiumLocked && BUYING_WIND_DOWN_PATHS.includes(r.path);
       const routeTierOk = !r.tier || (r.tier === "SILVER" ? tier !== "STANDART" : tier === "GOLD");
       const permOk = r.needs.length === 0 || r.needs.some(has);
-      const expected: State = premiumLocked
+      const expected: State = premiumLocked && !windDown
         ? "paket"
         : !portalOk
           ? "portal"

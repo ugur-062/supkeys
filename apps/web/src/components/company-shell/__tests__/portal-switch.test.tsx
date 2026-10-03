@@ -90,6 +90,8 @@ describe("PortalSwitch", () => {
     // Gizlenmez: kullanıcı neyi kaçırdığını görmeli.
     expect(screen.getByLabelText("Paketle açılır")).toBeInTheDocument();
     expect(screen.getByText(/Gold paketiyle açılır/)).toBeInTheDocument();
+    // İki cümle boşlukla ayrılır (derin denetim S071: "kazandırırsınız.Gold").
+    expect(screen.getByText(/Gold paketiyle açılır/).textContent).toMatch(/\. Gold paketiyle açılır\.$/);
     // Bağlantı yine portalın kendi yoluna gider — `PortalGuard` orada karşılar.
     const satinalma = screen.getByText(/Talep açar/).closest("a");
     expect(satinalma).toHaveAttribute("href", "/company/satinalma");
@@ -104,4 +106,19 @@ describe("PortalSwitch", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("dar ekranda panel görünüm alanına sabitlenir, sm+ tuşa çapalı (arayüz testi O-053)", () => {
+    render(<PortalSwitch active="satis" visiblePortals={IKISI} available={IKISI} />);
+    fireEvent.click(screen.getByRole("button", { name: /Panel değiştir/ }));
+    const cls = screen.getByRole("dialog", { name: "Panel değiştir" }).className;
+    // Mobil: iki kenardan 8 px boşluklu, üst çubuğun hemen altında.
+    expect(cls).toMatch(/(^|\s)fixed(\s|$)/);
+    expect(cls).toMatch(/(^|\s)inset-x-2(\s|$)/);
+    // sm+: eski çapa (tuşun sağ kenarı, w-72).
+    expect(cls).toMatch(/sm:absolute/);
+    expect(cls).toMatch(/sm:right-0/);
+    expect(cls).toMatch(/sm:w-72/);
+    expect(cls).not.toMatch(/(^|\s)w-72(\s|$)/);
+  });
 });
+

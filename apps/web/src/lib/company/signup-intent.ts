@@ -1,3 +1,5 @@
+import { safeRedirect } from "@/lib/public/visibility";
+
 /**
  * KAYIT NİYETİ — anasayfa CTA'sı ile kayıt sonrası ilk sayfa arasındaki köprü
  * (2026-09-04).
@@ -8,12 +10,12 @@
  * `/company` köküne dönüldüğünde `consumeSignupIntent` okur, ilgili sihirbaza
  * yönlendirir ve siler. Query ile taşımak onboarding'de kaybolurdu.
  *
- * Tek kaynak: hedef rotalar burada, bileşenler yazmaz.
+ * Tek kaynak: hedef rotalar burada, bileşenler yazmaz. Niyetin EKRANDAKİ
+ * adı/ipucu yok — kayıt formu niyeti yalnız taşır, metin basmaz (i18n Faz 2'de
+ * ölü `label`/`hint` alanları kaldırıldı).
  */
 export const SIGNUP_INTENTS = {
   talep: {
-    label: "Alım talebi açmak",
-    hint: "Satın alma talebi yayımla, kapalı zarf teklif topla.",
     /**
      * YÖNLENDİRME YOK (2026-09-14, kullanıcı kararı).
      *
@@ -29,19 +31,13 @@ export const SIGNUP_INTENTS = {
     href: null,
   },
   vitrin: {
-    label: "Vitrin açmak",
-    hint: "Ürün kataloğunu yayımla, bilgi talebi al.",
     href: "/company/satis/urunlerim?yeni=1",
   },
   ikisi: {
-    label: "İkisi de",
-    hint: "Tek hesapla hem al hem sat — panelden başla.",
     href: null,
   },
   /** "Teklif ver" / "Bilgi iste" — geldiği kaydın PANEL karşılığına döner (`redirect`). */
   teklif: {
-    label: "Teklif vermek",
-    hint: "Açık alım taleplerine kapalı zarf teklif ver.",
     href: "/company/satis#acik-talepler",
   },
 } as const;
@@ -55,10 +51,8 @@ export function parseSignupIntent(raw: string | null | undefined): SignupIntent 
   return raw && raw in SIGNUP_INTENTS ? (raw as SignupIntent) : null;
 }
 
-/** Yalnız site içi yol; açık yönlendirme yok (visibility.ts ile aynı kural). */
-function safe(redirect?: string | null): string | null {
-  return redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
-}
+/** Yalnız site içi yol; açık yönlendirme yok — tek kural `safeRedirect`. */
+const safe = safeRedirect;
 
 export function rememberSignupIntent(intent: SignupIntent, redirect?: string | null) {
   try {
@@ -70,6 +64,18 @@ export function rememberSignupIntent(intent: SignupIntent, redirect?: string | n
   }
 }
 
+/**
+ * Niyetin hedefi — `redirect` (site içi) niyetin kendi hedefinden ÖNCE gelir.
+ * Zaten girişli ziyaretçi kayıt sayfasına bir CTA'dan geldiğinde buraya
+ * gider (arayüz testi O-113); kayıt sonrası aynı kural `consumeSignupIntent`.
+ */
+export function signupIntentTarget(
+  intent: SignupIntent | null,
+  redirect?: string | null,
+): string | null {
+  return safe(redirect) ?? (intent ? SIGNUP_INTENTS[intent].href : null);
+}
+
 /** Okur ve SİLER — tek kullanımlık. `redirect` niyet hedefinden ÖNCE gelir. */
 export function consumeSignupIntent(): string | null {
   try {
@@ -77,7 +83,7 @@ export function consumeSignupIntent(): string | null {
     const intent = parseSignupIntent(sessionStorage.getItem(KEY));
     sessionStorage.removeItem(KEY);
     sessionStorage.removeItem(REDIRECT_KEY);
-    return redirect ?? (intent ? SIGNUP_INTENTS[intent].href : null);
+    return signupIntentTarget(intent, redirect);
   } catch {
     return null;
   }

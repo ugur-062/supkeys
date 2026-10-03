@@ -3,16 +3,18 @@ import { ConfigService } from "@nestjs/config";
 import {
   PUBLIC_PATHS,
   categoryPath,
-  cityCompanyPath,
   cityProductPath,
   companyPath,
-  knownCityName,
+  countryProductPath,
   listingPath,
   productPath,
   segmentCodeOf,
 } from "@rothern/shared";
+import { LOCALES } from "@rothern/i18n";
+import { localizeAppPath } from "../../common/company/app-routes";
 import { resolveWebUrl } from "../../common/config/web-url";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { geoIndex } from "../../common/geo/geo-index";
 
 /**
  * YAYIN ANI → ARAMA MOTORU BİLDİRİMİ (2026-09-09, SEO Parça 5).
@@ -83,6 +85,7 @@ export const SITEMAP_PATHS = {
   listings: "/sitemaps/listings.xml",
   categories: "/sitemaps/categories.xml",
   cities: "/sitemaps/cities.xml",
+  countries: "/sitemaps/countries.xml",
 } as const;
 
 export const SEO_TAGS = {
@@ -96,6 +99,43 @@ export const SEO_TAGS = {
   listing: (number: string) => `listing:${number.toLowerCase()}`,
 } as const;
 
+/**
+ * IndexNow adres listesi — her Türkçe İÇ yolun üç dildeki DIŞ adresi
+ * (i18n SEO, 2026-09-25). `/en/products/…`, `/ru/tovary/…` ayrı adreslerdir;
+ * yalnız Türkçe bildirilirse motor EN/RU sayfayı ancak sitemap turunda öğrenir.
+ */
+export function localizedIndexNowUrls(base: string, paths: string[]): string[] {
+  return [...new Set(paths.flatMap((p) => LOCALES.map((l) => `${base}${localizeAppPath(p, l)}`)))];
+}
+
+/**
+ * `marketplaceIndexableWhere` (common/company/listing-visibility.ts) kuralının
+ * bellek içi karşılığı — ikisi birlikte değişmeli: vitrin (PUBLIC, yayımlanmış,
+ * embargo geçmiş, firma vitrini açık ve aktif) ∧ status OPEN ∧ publicIndexable.
+ */
+export function isListingIndexable(
+  row: {
+    status: string;
+    visibility: string;
+    publicIndexable: boolean;
+    publishedAt: Date | null;
+    bidsOpenAt: Date | null;
+    company: { publicListingsEnabled: boolean; isActive: boolean; isBlocked: boolean };
+  },
+  now: Date,
+): boolean {
+  return (
+    row.visibility === "PUBLIC" &&
+    row.status === "OPEN" &&
+    row.publicIndexable &&
+    row.publishedAt != null &&
+    (row.bidsOpenAt == null || row.bidsOpenAt.getTime() <= now.getTime()) &&
+    row.company.publicListingsEnabled &&
+    row.company.isActive &&
+    !row.company.isBlocked
+  );
+}
+
 @Injectable()
 export class SeoIndexService {
   private readonly logger = new Logger(SeoIndexService.name);
@@ -107,8 +147,16 @@ export class SeoIndexService {
   private timer: NodeJS.Timeout | null = null;
   private warnedMissing = new Set<string>();
 
+  /**
+   * BYPASS istemcisi (yayın denetimi 2026-09-28): çağıranların çoğu firma
+   * bağlamı OLMADAN koşar — admin ürün onayı/reddi, çeviri süpürücüsü (cron),
+   * admin backfill. RLS açıkken kısıtlı istemci `company_items`i bağlamsız
+   * göremez, satır null döner ve bildirim sessizce gitmezdi: onaylanan ürün
+   * IndexNow'a ve web tazelemesine hiç girmiyordu. Okumalar yalnız kimlikle,
+   * sonuç kullanıcıya dönmez.
+   */
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly config: ConfigService,
   ) {}
 
@@ -126,34 +174,53 @@ export class SeoIndexService {
           isPublic: true,
           isActive: true,
           categoryId: true,
-          company: { select: { slug: true, city: true, publicEnabled: true } },
+          company: { select: { slug: true, cityId: true, country: true, publicEnabled: true } },
         },
       });
       if (!row?.company.slug) return;
       const visible = row.isPublic && row.isActive && row.company.publicEnabled;
-      const change = await this.productChange(row.company.slug, row.slug, row.categoryId, row.company.city, visible);
+      const change = await this.productChange(row.company.slug, row.slug, row.categoryId, row.company.cityId, row.company.country, visible);
       this.enqueue(change);
     });
   }
 
-  /** Firma profili açıldı/kapandı/değişti; askıya alındı. */
-  companyChanged(companyId: string): void {
+  /**
+   * Firma profili açıldı/kapandı/değişti; askıya alındı.
+   * `removed`: satır SERT SİLİNDİ (KVKK) — okuma artık boş döner, bu yüzden
+   * çağıran silmeden önce okuduğu slug/şehir/ülkeyi verir; görünmez sayılır.
+   */
+  companyChanged(
+    companyId: string,
+    removed?: { slug: string | null; cityId: number | null; country: string | null },
+  ): void {
     void this.safely("firma", async () => {
-      const row = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: { slug: true, city: true, publicEnabled: true, isActive: true, isBlocked: true },
-      });
+      const row = removed
+        ? { ...removed, publicEnabled: false, isActive: false, isBlocked: true }
+        : await this.prisma.company.findUnique({
+            where: { id: companyId },
+            select: { slug: true, cityId: true, country: true, publicEnabled: true, isActive: true, isBlocked: true },
+          });
       if (!row?.slug) return;
       const visible = row.publicEnabled && row.isActive && !row.isBlocked;
-      const city = knownCityName(row.city);
+      // Şehir sayfası dünya şehir listesinden (2026-09-27); firma şehir sayfası
+      // (`/firmalar/sehir`) 2026-09-22'de kalktı — 308 döner, bildirilmez.
+      const city = geoIndex().byId(row.cityId);
+      // Şehir/ülke açılış sayfaları firmanın ürünlerini listeler: firma
+      // açılınca/kapanınca/taşınınca o sayfaların içeriği değişir → IndexNow'a
+      // da gider (2026-09-27 SEO denetimi; eskiden yalnız tazeleniyordu).
+      const geoPaths = [
+        ...(city ? [cityProductPath(city.slug)] : []),
+        ...(row.country ? [countryProductPath(row.country)] : []),
+      ];
       const paths = [
         companyPath(row.slug),
         PUBLIC_PATHS.companies,
-        ...(city ? [cityCompanyPath(city), cityProductPath(city)] : []),
+        ...geoPaths,
         SITEMAP_PATHS.index,
         SITEMAP_PATHS.companies,
         SITEMAP_PATHS.products, // ürün sayfaları firma adı/şehri taşır
         SITEMAP_PATHS.cities,
+        SITEMAP_PATHS.countries,
       ];
       this.enqueue({
         paths,
@@ -161,7 +228,7 @@ export class SeoIndexService {
         // (web `fetchProduct` bu etiketi taşır) — ad/şehir/logo değişince
         // ürün sayfasındaki satıcı bloğu bayat kalmasın.
         tags: [SEO_TAGS.company(row.slug), SEO_TAGS.companies, SEO_TAGS.facets, SEO_TAGS.sitemap],
-        indexNow: visible ? [companyPath(row.slug), ...(city ? [cityCompanyPath(city)] : [])] : [],
+        indexNow: visible ? [companyPath(row.slug), ...geoPaths] : [],
       });
     });
   }
@@ -177,15 +244,21 @@ export class SeoIndexService {
           status: true,
           visibility: true,
           publicIndexable: true,
-          company: { select: { publicListingsEnabled: true, city: true } },
+          publishedAt: true,
+          bidsOpenAt: true,
+          company: {
+            select: { publicListingsEnabled: true, isActive: true, isBlocked: true, city: true },
+          },
         },
       });
       if (!row?.number) return;
       const path = listingPath(row.number, row.title);
-      // Vitrin kapısı `listing-visibility.ts` ile aynı ruh: PUBLIC ∧ firma
-      // izinli. Statü/embargo ayrıntısı sayfada çözülür; burada yalnız
-      // "adres herkese açık mı" sorusu var.
-      const visible = row.visibility === "PUBLIC" && row.company.publicListingsEnabled;
+      // IndexNow kapısı = `marketplaceIndexableWhere` (sitemap ile aynı kural).
+      // Derin denetim LU-19: yalnız PUBLIC ∧ firma izinli bakılıyordu →
+      // embargolu (bidsOpenAt gelecekte), indekse kapatılmış (publicIndexable
+      // =false) ya da kapanmış talebin başlık slug'lı adresi motorlara gidiyor,
+      // başlık açılıştan önce üçüncü tarafa sızıyordu. Tazeleme koşulsuz kalır.
+      const visible = isListingIndexable(row, new Date());
       this.enqueue({
         paths: [path, PUBLIC_PATHS.demands, "/", SITEMAP_PATHS.index, SITEMAP_PATHS.listings],
         tags: [SEO_TAGS.listing(row.number), SEO_TAGS.listings, SEO_TAGS.facets, SEO_TAGS.sitemap],
@@ -202,27 +275,35 @@ export class SeoIndexService {
     companySlug: string,
     productSlug: string | null,
     categoryId: string | null,
-    cityRaw: string | null,
+    cityId: number | null,
+    country: string | null,
     visible: boolean,
   ): Promise<SeoChange> {
     const segment = segmentCodeOf(categoryId);
     const cat = segment
       ? await this.prisma.category.findUnique({ where: { id: segment }, select: { nameTr: true } })
       : null;
-    const city = knownCityName(cityRaw);
+    const city = geoIndex().byId(cityId);
     const own = productSlug ? productPath(companySlug, productSlug) : null;
     const catPath = segment && cat ? categoryPath(segment, cat.nameTr) : null;
+    // Şehir/ülke açılış sayfaları (dünya geneli, 2026-09-27) kategori sayfası
+    // gibi ürün listesidir → yayında IndexNow'a da gider (üç dilde).
+    const geoPaths = [
+      ...(city ? [cityProductPath(city.slug)] : []),
+      ...(country ? [countryProductPath(country)] : []),
+    ];
     const paths = [
       ...(own ? [own] : []),
       companyPath(companySlug),
       PUBLIC_PATHS.products,
       "/",
       ...(catPath ? [catPath] : []),
-      ...(city ? [cityProductPath(city)] : []),
+      ...geoPaths,
       SITEMAP_PATHS.index,
       SITEMAP_PATHS.products,
       SITEMAP_PATHS.categories,
       SITEMAP_PATHS.cities,
+      SITEMAP_PATHS.countries,
       "/llms-full.txt",
     ];
     return {
@@ -234,7 +315,7 @@ export class SeoIndexService {
         SEO_TAGS.facets,
         SEO_TAGS.sitemap,
       ],
-      indexNow: visible && own ? [own, companyPath(companySlug), ...(catPath ? [catPath] : [])] : [],
+      indexNow: visible && own ? [own, companyPath(companySlug), ...(catPath ? [catPath] : []), ...geoPaths] : [],
     };
   }
 
@@ -329,7 +410,7 @@ export class SeoIndexService {
       return;
     }
     const host = new URL(base).host;
-    const urlList = paths.map((p) => `${base}${p}`);
+    const urlList = localizedIndexNowUrls(base, paths);
     for (let i = 0; i < urlList.length; i += INDEXNOW_BATCH) {
       const batch = urlList.slice(i, i + INDEXNOW_BATCH);
       try {

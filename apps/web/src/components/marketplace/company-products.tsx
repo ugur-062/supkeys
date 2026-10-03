@@ -1,8 +1,13 @@
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import { anchorId } from "@/lib/public/anchors";
+import { AnchorAliases } from "./anchor-aliases";
+import type { Locale } from "@rothern/i18n";
 import { ProductCard } from "./product-card";
 import { Pagination } from "@/components/ui/pagination";
 import { fetchCompanyProducts, type PublicProductPage } from "@/lib/public/marketplace-api";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { localizePath } from "@/i18n/href";
 
 /**
  * Firma profilindeki ÜRÜN PORTFÖYÜ — sunucu bileşeni.
@@ -25,40 +30,62 @@ export async function CompanyProducts({
   /** `?urun=` — firma içi arama terimi (spec §7). */
   query?: string;
 }) {
+  const t = await getTranslations("web.marketplace.companyProducts");
+  const ti = await getTranslations("web.marketplace.index");
+  const fmt = await getFormatter();
+  const locale = (await getLocale()) as Locale;
+  // Bölüm çapası dil başına (`#urunler` · `#products` · `#tovary`).
+  const productsAnchor = anchorId("products", locale);
   // Görünürlük pazar yeri anahtarına BAĞLI DEĞİL (2026-09-03): ürünler
   // firmanın zaten açık olan profilinin parçası. İndekslenme ayrı kapı
   // (sayfa `noindex` + sitemap anahtara bağlı).
   const page = given ?? (await fetchCompanyProducts(companySlug, { q: query }));
   // Arama VARKEN boş sonuç da çizilir: kutuyu yazan kullanıcı "sonuç yok"
   // görmeli. Aramasız boş portföy hâlâ hiç basılmaz (yarım profil hissi).
-  if (page.items.length === 0 && !query) return null;
+  // Karar TOPLAMA bakar, sayfadaki satıra değil (arayüz testi D-330):
+  // `?urunSayfa=99` gibi aralık dışı sayfada satır yok ama portföy var —
+  // bölüm, arama ve sayfalama birlikte kayboluyordu.
+  if (page.total === 0 && !query) return null;
+  const lastPage = Math.max(1, Math.ceil(page.total / page.pageSize));
+  const pageHref = (n: number) => {
+    const sp = new URLSearchParams();
+    if (query) sp.set("urun", query);
+    if (n > 1) sp.set("urunSayfa", String(n));
+    const qs = sp.toString();
+    return `/firma/${companySlug}${qs ? `?${qs}` : ""}#${productsAnchor}`;
+  };
 
   return (
-    <section id="urunler" className="scroll-mt-24">
+    <section id={productsAnchor} className="scroll-mt-24">
+      <AnchorAliases anchor="products" locale={locale} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         {/* Başlık sayıyı PARANTEZDE taşır (kaynak kalıp): "kaç ürünü var"
             kartları saymadan okunur. */}
         <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
-          Tüm Ürünler ve Hizmetler ({page.total.toLocaleString("tr-TR")})
+          {t("title", { n: fmt.number(page.total) })}
         </h2>
         {/* FİRMA İÇİ ARAMA (spec §7): derin kataloglu firmada ziyaretçi
             aradığını 40 kartın içinde gözle bulmak zorunda kalmasın. Düz
-            GET formu — JS'siz de çalışır, sonuç aynı sayfada. */}
-        <form method="get" action={`/firma/${companySlug}`} className="flex items-center gap-2">
+            GET formu — JS'siz de çalışır, sonuç aynı sayfada. Düz form
+            next-intl'den geçmediği için hedef aktif dilin DIŞ yolu
+            (`/en/companies/<slug>`); ön eksiz Türkçe yol EN/RU ziyaretçiyi
+            Türkçe sayfaya atıyordu (derin denetim Y-17). Bölüm çapası GET
+            gönderiminde korunur — sonuç portföy bölümünde açılır. */}
+        <form method="get" action={`${localizePath(`/firma/${companySlug}`, locale)}#${productsAnchor}`} className="flex items-center gap-2">
           <label htmlFor="firma-urun-ara" className="sr-only">
-            Bu firmanın ürünlerinde ara
+            {t("searchLabel")}
           </label>
           <input
             id="firma-urun-ara"
             type="search"
             name="urun"
             defaultValue={query ?? ""}
-            placeholder="Ürün arama"
+            placeholder={t("searchPlaceholder")}
             className="h-11 w-52 rounded-full border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none focus:border-zinc-900 sm:w-72"
           />
           <button
             type="submit"
-            aria-label="Ürünlerde ara"
+            aria-label={t("searchSubmit")}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-700"
           >
             <MagnifyingGlassIcon aria-hidden className="size-5" />
@@ -68,16 +95,23 @@ export async function CompanyProducts({
 
       {query ? (
         <p className="mt-3 text-sm text-zinc-500">
-          “{query}” için {page.total.toLocaleString("tr-TR")} sonuç ·{" "}
-          <Link href={`/firma/${companySlug}#urunler`} className="font-medium text-zinc-900 underline underline-offset-2">
-            aramayı kaldır
+          {t("resultsFor", { q: query, n: page.total })}{" "}
+          <Link href={`/firma/${companySlug}#${productsAnchor}`} className="font-medium text-zinc-900 underline underline-offset-2">
+            {t("removeSearch")}
           </Link>
         </p>
       ) : null}
 
-      {page.items.length === 0 ? (
+      {page.items.length === 0 && page.total > 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
-          Bu firmanın ürünlerinde “{query}” bulunamadı.
+          {t("pageEmpty")}{" "}
+          <Link href={pageHref(lastPage)} className="font-medium text-zinc-900 underline underline-offset-2">
+            {t("lastPage")}
+          </Link>
+        </p>
+      ) : page.items.length === 0 ? (
+        <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
+          {t("noneFor", { q: query ?? "" })}
         </p>
       ) : (
         <>
@@ -87,7 +121,7 @@ export async function CompanyProducts({
               okunsun. */}
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {page.items.map((p) => (
-              <ProductCard key={p.slug} companySlug={companySlug} product={p} cta="Bilgi iste" />
+              <ProductCard key={p.slug} companySlug={companySlug} product={p} cta={ti("inquire")} />
             ))}
           </div>
           {/* Sayfalama `urunSayfa` ile (sayfanın kendi şeması) — arama terimi
@@ -97,13 +131,7 @@ export async function CompanyProducts({
             page={page.page}
             total={page.total}
             pageSize={page.pageSize}
-            hrefBuilder={(n) => {
-              const sp = new URLSearchParams();
-              if (query) sp.set("urun", query);
-              if (n > 1) sp.set("urunSayfa", String(n));
-              const qs = sp.toString();
-              return `/firma/${companySlug}${qs ? `?${qs}` : ""}#urunler`;
-            }}
+            hrefBuilder={pageHref}
           />
         </>
       )}

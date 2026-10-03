@@ -27,6 +27,8 @@ const FORBIDDEN = [
   "companyId",
   "isPublic",
   "isActive",
+  "searchText",
+  "searchTextI18n",
 ];
 
 function allKeys(v: unknown, out = new Set<string>()): Set<string> {
@@ -62,7 +64,7 @@ async function seedCompanyWithProduct(
       unit: "adet",
       slug: `pano-${seq}`,
       code: "GIZLI-KOD-1",
-      targetPrice: 999,
+      targetPrice: 7654321,
       description: "x".repeat(120),
       images: ["a.webp"],
       keywords: ["pano"],
@@ -148,7 +150,27 @@ describe("ürün vitrini — sızıntı", () => {
     // Alış hedefi ve stok kodu metin olarak da geçmemeli.
     const json = JSON.stringify(one);
     expect(json).not.toContain("GIZLI-KOD-1");
-    expect(json).not.toContain("999");
+    // Ayırt edici değer: "999" rastgele cuid/zaman damgasında da çıkıp testi kararsız yapıyordu.
+    expect(json).not.toContain("7654321");
+  });
+
+  it("ürün detayı segment halkasını (L1, iniş sayfası) ve dil durumunu verir", async () => {
+    await prisma.category.create({
+      data: { id: "39000000", code: "39000000", nameTr: "Elektrik Malzemeleri", nameEn: "Electrical supplies", level: 1, isActive: true },
+    });
+    const { company, product } = await seedCompanyWithProduct({}, { categoryId: "39122215" });
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    // Ad okuyucunun dilinde (istek bağlamı yok → Türkçe), adres parçası Türkçe addan.
+    expect(one.product.segment).toEqual({ id: "39000000", name: "Elektrik Malzemeleri", slug: "elektrik-malzemeleri" });
+    // Çeviri servisi yok → tüm diller hazır, kaynak Türkçe, bekleyen yok.
+    expect(one.product.readyLocales).toEqual(["tr", "en", "ru"]);
+    expect(one.product.sourceLocale).toBe("tr");
+    expect(one.product.translationPending).toBe(false);
+
+    // Segment satırı yoksa (ya da gizli segment) halka null — kırıntı yazılmaz.
+    const other = await seedCompanyWithProduct({}, { categoryId: "10101501" });
+    const two = await service().getPublicProduct(other.company.slug as string, other.product.slug as string);
+    expect(two.product.segment).toBeNull();
   });
 
   it("FİRMA ADI ürün sayfasında GÖRÜNÜR — ilanın tersi, bilinçli", async () => {
@@ -159,6 +181,86 @@ describe("ürün vitrini — sızıntı", () => {
     );
     expect(one.company.name).toBe(company.name);
     expect(one.company.slug).toBe(company.slug);
+  });
+
+  it("web sitesi: yalnız VARLIĞI döner (hasWebsite), adresin kendisi ürün yanıtında YOK", async () => {
+    const withSite = await seedCompanyWithProduct({ website: "https://vitrin-ornek.example" });
+    const one = await service().getPublicProduct(withSite.company.slug as string, withSite.product.slug as string);
+    expect(one.company.hasWebsite).toBe(true);
+    expect(allKeys(one).has("website")).toBe(false);
+    expect(JSON.stringify(one)).not.toContain("vitrin-ornek.example");
+
+    // Sitesi olmayan (null ya da boşluk) firmada kapılı satır çizilmez.
+    const noSite = await seedCompanyWithProduct({ website: null });
+    const two = await service().getPublicProduct(noSite.company.slug as string, noSite.product.slug as string);
+    expect(two.company.hasWebsite).toBe(false);
+    const blank = await seedCompanyWithProduct({ website: "   " });
+    const three = await service().getPublicProduct(blank.company.slug as string, blank.product.slug as string);
+    expect(three.company.hasWebsite).toBe(false);
+  });
+});
+
+// T-18 / D-331 / D-192 (arayüz testi 2026-10-01): belge ADI herkese açık,
+// İNDİRME adresi üyeye; video ve belgeler Silver+ satıcının (efektif paket).
+describe("ürün vitrini — belge ve video (paket + üyelik)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  const media = {
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    documents: [{ url: "https://cdn.example.com/katalog.pdf", title: "Katalog" }],
+  };
+
+  it("Silver satıcı: video döner, belge yalnız ADIYLA (indirme adresi anonim yanıtta YOK)", async () => {
+    const { company, product } = await seedCompanyWithProduct({ tier: "SILVER" }, media);
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    expect(one.product.videoUrl).toBe(media.videoUrl);
+    expect(one.product.documents).toEqual([{ title: "Katalog" }]);
+    expect(JSON.stringify(one)).not.toContain("katalog.pdf");
+  });
+
+  it("STANDART'a düşen satıcının videosu ve belgeleri servis edilmez (kayıt korunur)", async () => {
+    const { company, product } = await seedCompanyWithProduct({ tier: "STANDART" }, media);
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    expect(one.product.videoUrl).toBeNull();
+    expect(one.product.documents).toBeNull();
+    const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: product.id } });
+    expect(row.videoUrl).toBe(media.videoUrl);
+  });
+
+  // Yeniden doğrulama (webA-03): `buy:view` olmayan üye (satış koltuğu,
+  // görüntüleyici) belgeyi hiçbir yerden indiremiyordu — üye ucu oturumla açık.
+  it("üye ucu: oturumlu üye indirme adresini alır; Silver altı satıcıda boş, engelde 404", async () => {
+    const { company, product } = await seedCompanyWithProduct({ tier: "SILVER" }, media);
+    const viewer = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const got = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
+    expect(got).toEqual({ documents: [{ url: "https://cdn.example.com/katalog.pdf", title: "Katalog" }] });
+
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+    });
+    const expired = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
+    expect(expired).toEqual({ documents: [] });
+
+    await prisma.company.update({ where: { id: company.id }, data: { membershipEndAt: null } });
+    await prisma.companyBlock.create({
+      data: { blockerCompanyId: company.id, blockedCompanyId: viewer.company.id },
+    });
+    await expect(
+      service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("süresi dolmuş Gold = STANDART: medya gizlenir", async () => {
+    const { company, product } = await seedCompanyWithProduct(
+      { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) },
+      media,
+    );
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    expect(one.product.videoUrl).toBeNull();
+    expect(one.product.documents).toBeNull();
   });
 });
 
@@ -212,5 +314,21 @@ describe("pazar yeri anahtarı — GÖRÜNÜRLÜK ≠ İNDEKSLENME", () => {
 
   it("ürün SİTEMAP'i anahtara TABİ", () => {
     expect(guardsOf("productSitemap")).toContain("MarketplaceLiveGuard");
+  });
+});
+
+describe("firma profili ürün araması", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("sorgu KATLANIR (büyük harf + Türkçe harf) ve çok dilli sütuna da bakar", async () => {
+    const { company, product } = await seedCompanyWithProduct({}, { searchTextI18n: "dagitim panosu distribution panel" });
+    const slugs = async (q: string) =>
+      (await service().listPublicProducts(company.slug as string, { q })).items.map((p) => p.slug);
+    // Eskiden ham token katlanmış sütunda aranıyordu → "DAĞITIM" hiçbir şey bulmuyordu.
+    expect(await slugs("DAĞITIM")).toEqual([product.slug]);
+    expect(await slugs("distribution panels")).toEqual([product.slug]);
+    expect(await slugs("switchboard")).toEqual([]);
   });
 });

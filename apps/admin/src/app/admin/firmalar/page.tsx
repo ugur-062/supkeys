@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import {
   FilterSelect,
   PageHeader,
@@ -35,17 +36,22 @@ import {
   type AdminCompanyListResponse,
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
-import { api } from "@/lib/api";
+import { api, toastApiError } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import { Download, EllipsisVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useListFilters } from "@/hooks/use-list-filters";
-import { countryFlag, countryName } from "@/lib/country";
-import { safeFormat } from "@/lib/date";
+import { countryFlag, countryName, countryShort } from "@/lib/country";
+import { safeFormat, toDateInput } from "@/lib/date";
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
+import {
+  remainingSentence,
+  revokeNotice,
+  tierGrantWarnings,
+} from "./[id]/_components/tier-warnings";
 
 import {
   PAID_TIER_OPTIONS,
@@ -55,6 +61,13 @@ import {
 } from "@/lib/terms";
 
 const PAGE_SIZE = 25;
+
+/**
+ * KVKK ile anonimleştirilmiş firma (D-208) detayda "Doğrulandı"/"Askıda"
+ * yerine bu rozetle görünür; liste de aynı dili konuşur (yeniden doğrulama
+ * webC-11 — liste satırı doğrulanmış + askıdaki bir firma gibi görünüyordu).
+ */
+const KVKK_ANON_LABEL = "KVKK ile anonimleştirildi";
 
 /**
  * Filtreli TÜM sonucu sayfa sayfa çekip CSV indir (tavan 2000 kayıt —
@@ -76,7 +89,7 @@ async function exportCsv(params: Record<string, string | undefined>) {
     if (page * 100 >= data.total) break;
   }
   downloadCsv(
-    `firmalar-${new Date().toISOString().slice(0, 10)}.csv`,
+    `firmalar-${toDateInput()}.csv`, // yerel gün (D-142)
     ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "Doğrulama", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"],
     rows.map((c) => [
       c.name,
@@ -86,7 +99,9 @@ async function exportCsv(params: Record<string, string | undefined>) {
       [c.stateRegion, c.city].filter(Boolean).join(" / "),
       TIER_LABEL[c.tier] ?? c.tier,
       c.membershipEndAt ? safeFormat(c.membershipEndAt, "yyyy-MM-dd") : "",
-      VERIFY_META[c.verification]?.label ?? c.verification,
+      c.anonymized
+        ? KVKK_ANON_LABEL
+        : (VERIFY_META[c.verification]?.label ?? c.verification),
       c.isBlocked ? "Evet" : "",
       c.complaintCount,
       c.userCount,
@@ -101,6 +116,8 @@ interface Filters {
   country?: string;
   tier?: string;
   blocked?: string;
+  /** "30" → 30 gün içinde bitecek paket üyelikler (pano bağlantısı, D-146). */
+  expiring?: string;
   search?: string;
   page?: number;
   [key: string]: string | number | boolean | undefined;
@@ -119,11 +136,12 @@ function FirmalarView() {
     country: filters.country || undefined,
     tier: filters.tier || undefined,
     blocked: filters.blocked || undefined,
+    expiring: filters.expiring === "30" ? "30" : undefined,
     q: filters.search?.trim() || undefined,
     page: filters.page ?? 1,
     pageSize: PAGE_SIZE,
   });
-  // Ülke filtresi seçenekleri gerçek veriden (stats countryBreakdown).
+  // Ülke filtresi seçenekleri gerçek veriden (stats countryOptions — tüm ülkeler).
   const stats = useAdminCompanyStats();
   const act = useCompanyAction();
   const tierAct = useSetCompanyTier();
@@ -132,29 +150,53 @@ function FirmalarView() {
   const page = query.data?.page ?? filters.page ?? 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // CSV dışa aktarımı sürerken buton kilitli (çift tık paralel dizi başlatıp
+  // birden çok dosya indirmesin); hata yakalanır (derin denetim LU-12).
+  const [exporting, setExporting] = useState(false);
+  const runExport = async () => {
+    setExporting(true);
+    try {
+      const n = await exportCsv({
+        status: filters.status || undefined,
+        country: filters.country || undefined,
+        tier: filters.tier || undefined,
+        blocked: filters.blocked || undefined,
+        expiring: filters.expiring === "30" ? "30" : undefined,
+        q: filters.search?.trim() || undefined,
+      });
+      toast.success(`${n} firma CSV'ye aktarıldı`);
+    } catch (e) {
+      toastApiError(e, "CSV alınamadı");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const [prompt, setPrompt] = useState<
-    | { kind: "tierMonths"; id: string; tier: "SILVER" | "GOLD" }
+    | { kind: "tierMonths"; row: AdminCompanyRow; tier: "SILVER" | "GOLD" }
+    | { kind: "revoke"; row: AdminCompanyRow }
     | { kind: "suspendReason"; id: string }
     | null
   >(null);
 
+  // Promise döner: diyalog yalnız başarıda kapanır (hata dalında girilen
+  // değer kaybolmaz) ve onay düğmesi iş bitene dek kilitli kalır.
   const runTier = (
     id: string,
     tier: "STANDART" | "SILVER" | "GOLD",
     months?: number,
+    reason?: string,
   ) =>
-    tierAct.mutate(
-      { id, tier, months },
-      {
-        onSuccess: () =>
-          toast.success(
-            tier !== "STANDART"
-              ? `${TIER_LABEL[tier]} paketi tanımlandı`
-              : "Paket kaldırıldı (Standart)",
-          ),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+    tierAct.mutateAsync({ id, tier, months, reason }).then(
+      () => {
+        toast.success(
+          tier !== "STANDART"
+            ? `${TIER_LABEL[tier]} paketi tanımlandı`
+            : "Paket kaldırıldı (Standart)",
+        );
+        setPrompt(null);
       },
+      (e: unknown) => toastApiError(e),
     );
 
   const runAction = (
@@ -167,8 +209,7 @@ function FirmalarView() {
       { id, action, reason },
       {
         onSuccess: () => toast.success(msg),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
 
@@ -200,7 +241,11 @@ function FirmalarView() {
           onChange={(v) => setFilters({ country: v })}
           options={[
             { value: "", label: "Tüm ülkeler" },
-            ...(stats.data?.countryBreakdown ?? []).map((c) => ({
+            ...(
+              stats.data?.countryOptions ??
+              stats.data?.countryBreakdown ??
+              []
+            ).map((c) => ({
               value: c.country,
               label: `${countryFlag(c.country)} ${countryName(c.country)} (${c.count})`,
             })),
@@ -216,6 +261,16 @@ function FirmalarView() {
             { value: "GOLD", label: "Gold" },
             { value: "SILVER", label: "Silver" },
             { value: "STANDART", label: "Standart" },
+          ]}
+        />
+        <FilterSelect
+          ariaLabel="Üyelik bitişi"
+          value={filters.expiring === "30" ? "30" : ""}
+          active={filters.expiring === "30"}
+          onChange={(v) => setFilters({ expiring: v })}
+          options={[
+            { value: "", label: "Tüm bitiş tarihleri" },
+            { value: "30", label: "30 gün içinde bitecek" },
           ]}
         />
         <FilterSelect
@@ -236,16 +291,9 @@ function FirmalarView() {
         <Button
           variant="secondary"
           size="sm"
-          disabled={total === 0}
-          onClick={() => {
-            void exportCsv({
-              status: filters.status || undefined,
-              country: filters.country || undefined,
-              tier: filters.tier || undefined,
-              blocked: filters.blocked || undefined,
-              q: filters.search?.trim() || undefined,
-            }).then((n) => toast.success(`${n} firma CSV'ye aktarıldı`));
-          }}
+          disabled={total === 0 || exporting}
+          loading={exporting}
+          onClick={() => void runExport()}
         >
           <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
         </Button>
@@ -286,7 +334,11 @@ function FirmalarView() {
                       >
                         {c.name}
                       </Link>
-                      {c.isBlocked ? (
+                      {c.anonymized ? (
+                        <Badge color="zinc" className="ml-2">
+                          {KVKK_ANON_LABEL}
+                        </Badge>
+                      ) : c.isBlocked ? (
                         <Badge color="red" className="ml-2">
                           Askıda
                         </Badge>
@@ -301,7 +353,7 @@ function FirmalarView() {
                         .filter(Boolean)
                         .join(" / ")}
                     >
-                      {countryFlag(c.country)} {c.country}
+                      {countryFlag(c.country)} {countryShort(c.country)}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <Badge color={TIER_COLOR[c.tier] ?? "zinc"}>
@@ -314,7 +366,11 @@ function FirmalarView() {
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <Badge color={meta.color}>{meta.label}</Badge>
+                      {c.anonymized ? (
+                        <span className="text-admin-text-muted">—</span>
+                      ) : (
+                        <Badge color={meta.color}>{meta.label}</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-admin-text">
                       {c.complaintCount > 0 ? (
@@ -337,7 +393,9 @@ function FirmalarView() {
                           >
                             İncele
                           </Link>
-                          {canAdminDo(role, "setTier") ? (
+                          {/* KVKK ile anonimleştirilmiş firmada paket/askı
+                              işlemi yok (D-208; API 409). */}
+                          {canAdminDo(role, "setTier") && !c.anonymized ? (
                           <Dropdown>
                             <DropdownButton
                               plain
@@ -353,7 +411,7 @@ function FirmalarView() {
                                   onClick={() =>
                                     setPrompt({
                                       kind: "tierMonths",
-                                      id: c.id,
+                                      row: c,
                                       tier: t,
                                     })
                                   }
@@ -363,9 +421,13 @@ function FirmalarView() {
                                   </DropdownLabel>
                                 </DropdownItem>
                               ))}
+                              {/* Detaydaki Üyelik sekmesiyle aynı: gerekçeli
+                                  onay penceresi (arayüz testi O-046). */}
                               {c.tier !== "STANDART" ? (
                                 <DropdownItem
-                                  onClick={() => runTier(c.id, "STANDART")}
+                                  onClick={() =>
+                                    setPrompt({ kind: "revoke", row: c })
+                                  }
                                 >
                                   <DropdownLabel>Paketi Kaldır</DropdownLabel>
                                 </DropdownItem>
@@ -419,8 +481,15 @@ function FirmalarView() {
       <PromptDialog
         open={prompt?.kind === "tierMonths"}
         title={`${prompt?.kind === "tierMonths" ? TIER_LABEL[prompt.tier] : ""} Paketi Tanımla`}
+        notice={
+          prompt?.kind === "tierMonths"
+            ? tierWarningNotice(prompt.row, prompt.tier)
+            : undefined
+        }
         label="Kaç ay verilsin?"
         type="number"
+        // Aralık PromptDialog'da doğrulanır (backend @Min(1) @Max(60)); dışı
+        // değer sessizce 12/60'a çevrilmez (arayüz testi O-074).
         min={1}
         max={60}
         defaultValue="12"
@@ -428,10 +497,31 @@ function FirmalarView() {
         confirmLabel="Tanımla"
         onConfirm={(v) => {
           if (prompt?.kind !== "tierMonths") return;
-          // Geçersiz/1 altı → varsayılan 12; üst sınır backend @Max(60) ile birebir.
-          const n = Math.floor(Number(v));
-          runTier(prompt.id, prompt.tier, n >= 1 ? Math.min(60, n) : 12);
-          setPrompt(null);
+          return runTier(prompt.row.id, prompt.tier, Number(v));
+        }}
+        onClose={() => setPrompt(null)}
+      />
+      <PromptDialog
+        open={prompt?.kind === "revoke"}
+        title="Paketi Kaldır"
+        notice={
+          prompt?.kind === "revoke"
+            ? revokeNotice(
+                remainingSentence(
+                  prompt.row.tier,
+                  prompt.row.membershipEndAt,
+                  (iso) => safeFormat(iso, "d MMMM yyyy"),
+                ),
+              )
+            : undefined
+        }
+        label="Gerekçe (opsiyonel — geçmişte görünür)"
+        placeholder="Örn. iade talebi"
+        maxLength={500}
+        confirmLabel="Kaldır"
+        onConfirm={(v) => {
+          if (prompt?.kind !== "revoke") return;
+          return runTier(prompt.row.id, "STANDART", undefined, v || undefined);
         }}
         onClose={() => setPrompt(null)}
       />
@@ -453,13 +543,34 @@ function FirmalarView() {
   );
 }
 
+/** Satır menüsünden paket tanımlarken sonuç uyarıları (D-191). */
+function tierWarningNotice(
+  row: AdminCompanyRow,
+  tier: "SILVER" | "GOLD",
+): React.ReactNode {
+  const warnings = tierGrantWarnings(
+    { tier: row.tier, verification: row.verification },
+    tier,
+  );
+  if (warnings.length === 0) return undefined;
+  return (
+    <div className="space-y-1">
+      {warnings.map((w) => (
+        <p key={w}>{w}</p>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminFirmalarPage() {
   return (
     <AdminShell>
       {/* useSearchParams (URL-senkron filtreler) Suspense sınırı ister. */}
-      <Suspense fallback={null}>
-        <FirmalarView />
-      </Suspense>
+      <AdminRoleGate action="listCompanies">
+        <Suspense fallback={null}>
+          <FirmalarView />
+        </Suspense>
+      </AdminRoleGate>
     </AdminShell>
   );
 }

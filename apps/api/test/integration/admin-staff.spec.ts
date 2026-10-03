@@ -6,7 +6,9 @@
 import { authenticator } from "otplib";
 import { AdminAuthService } from "../../src/modules/admin-auth/admin-auth.service";
 import { AdminStaffService } from "../../src/modules/admin-auth/admin-staff.service";
+import { PrismaClient } from "@rothern/db";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { TEST_DB_URL } from "./env";
 import { prisma, truncateAll } from "./test-db";
 
 let seq = 0;
@@ -93,6 +95,8 @@ describe("personel yönetimi", () => {
       where: { id: res.id },
     });
     expect(created?.role).toBe("SUPPORT");
+    // Arayüz testi D-025: geçici parola → ilk girişte zorunlu değişim.
+    expect(created?.mustChangePassword).toBe(true);
     // Parola audit metadata'sına YAZILMAZ.
     const log = await prisma.auditLog.findFirst({
       where: { action: "admin.staff.created", entityId: res.id },
@@ -140,6 +144,123 @@ describe("personel yönetimi", () => {
     });
     expect(after?.twoFactorEnabled).toBe(false);
     expect(after?.twoFactorSecret).toBeNull();
+    // Arayüz testi D-025: yeni geçici parola da zorunlu değişim ister.
+    expect(after?.mustChangePassword).toBe(true);
+  });
+
+  it("resetPassword: kendi hesabını sıfırlama reddedilir (derin denetim MU-21 — tek SUPER_ADMIN kilitlenmesin)", async () => {
+    const { service, supabase } = staffRig();
+    const solo = await makeAdmin("SUPER_ADMIN", {
+      twoFactorEnabled: true,
+      twoFactorSecret: "SECRET",
+    });
+    await expect(service.resetPassword(solo.id, solo.id)).rejects.toThrow(
+      /Kendi şifrenizi/,
+    );
+    expect(supabase.updatePassword).not.toHaveBeenCalled();
+    const after = await prisma.platformAdmin.findUnique({
+      where: { id: solo.id },
+    });
+    expect(after?.twoFactorEnabled).toBe(true);
+    expect(after?.tokenVersion).toBe(solo.tokenVersion);
+  });
+
+  it("eşzamanlı çapraz düşürme 0 SUPER_ADMIN bırakmaz (derin denetim LU-02 — FOR UPDATE)", async () => {
+    // Bariyer: her tx `count` sonrası diğerinin de saymasını bekler (en çok
+    // 300 ms). Kilitsiz kodda iki tx de "benden başka 1 var" görüp yazardı;
+    // FOR UPDATE ile ikinci tx kilitte bekler, bariyer zaman aşımıyla açılır.
+    let arrived = 0;
+    const waitOthers = async () => {
+      arrived += 1;
+      const until = Date.now() + 300;
+      while (arrived < 2 && Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+    };
+    // Paylaşılan test client'ı connection_limit=1 (tüm tx'ler zaten seri) —
+    // yarışı gerçekten koşturmak için bu test çok bağlantılı ayrı client açar.
+    const base = TEST_DB_URL.replace(/[?&]connection_limit=\d+/, "");
+    const multi = new PrismaClient({
+      datasources: {
+        db: { url: `${base}${base.includes("?") ? "&" : "?"}connection_limit=3` },
+      },
+    });
+    const racyPrisma = new Proxy(multi, {
+      get(target, prop, recv) {
+        if (prop !== "$transaction") return Reflect.get(target, prop, recv);
+        return (fn: (tx: unknown) => Promise<unknown>, opts?: unknown) =>
+          target.$transaction(
+            (tx) =>
+              fn(
+                new Proxy(tx, {
+                  get(t, k) {
+                    if (k !== "platformAdmin") return Reflect.get(t, k);
+                    const model = t.platformAdmin;
+                    return new Proxy(model, {
+                      get(m, mk) {
+                        if (mk !== "count") return Reflect.get(m, mk);
+                        return async (args: never) => {
+                          const n = await m.count(args);
+                          await waitOthers();
+                          return n;
+                        };
+                      },
+                    });
+                  },
+                }),
+              ),
+            opts as never,
+          );
+      },
+    });
+    const service = new AdminStaffService(
+      racyPrisma as never,
+      new AuditService(prisma as never),
+      {} as never,
+    );
+    try {
+      for (let round = 0; round < 2; round += 1) {
+        await truncateAll();
+        arrived = 0;
+        const a = await makeAdmin("SUPER_ADMIN");
+        const b = await makeAdmin("SUPER_ADMIN");
+        const results = await Promise.allSettled([
+          service.setRole(b.id, "SALES", a.id),
+          round % 2 === 0
+            ? service.setRole(a.id, "SUPPORT", b.id)
+            : service.setActive(a.id, false, b.id),
+        ]);
+        expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+        const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+        expect(String(rejected.reason?.message)).toMatch(/Son aktif SUPER_ADMIN/);
+        const remaining = await prisma.platformAdmin.count({
+          where: { role: "SUPER_ADMIN", isActive: true },
+        });
+        expect(remaining).toBe(1);
+      }
+    } finally {
+      await multi.$disconnect();
+    }
+  });
+
+  it("pasifleştirme oturumları iptal eder; yeniden aktifleştirmede eski JWT dirilmez (derin denetim LU-02)", async () => {
+    const { service } = staffRig();
+    const actor = await makeAdmin("SUPER_ADMIN");
+    const staff = await makeAdmin("SALES");
+    const otherSuper = await makeAdmin("SUPER_ADMIN");
+    await service.setActive(staff.id, false, actor.id);
+    let row = await prisma.platformAdmin.findUniqueOrThrow({ where: { id: staff.id } });
+    expect(row.isActive).toBe(false);
+    expect(row.tokenVersion).toBe(staff.tokenVersion + 1);
+    // Yeniden aktifleştirme sürümü değiştirmez (yeni giriş yeni tv ile imzalanır).
+    await service.setActive(staff.id, true, actor.id);
+    row = await prisma.platformAdmin.findUniqueOrThrow({ where: { id: staff.id } });
+    expect(row.isActive).toBe(true);
+    expect(row.tokenVersion).toBe(staff.tokenVersion + 1);
+    // SUPER_ADMIN dalı (transaction içi) da sürümü artırır.
+    await service.setActive(otherSuper.id, false, actor.id);
+    row = await prisma.platformAdmin.findUniqueOrThrow({ where: { id: otherSuper.id } });
+    expect(row.tokenVersion).toBe(otherSuper.tokenVersion + 1);
   });
 });
 
@@ -179,6 +300,8 @@ describe("admin 2FA + login", () => {
     const admin = await makeAdmin("SALES");
     const setup = await service.setupTwoFactor(admin.id);
     expect(setup.otpauthUrl).toContain("Rothern");
+    // Arayüz testi FX-00 D-223: kurulum QR görselini de döner.
+    expect(setup.qrDataUrl).toMatch(/^data:image\/png;base64,/);
     await expect(
       service.enableTwoFactor(admin.id, setup.secret, "000000"),
     ).rejects.toThrow(/kodu hatalı/);

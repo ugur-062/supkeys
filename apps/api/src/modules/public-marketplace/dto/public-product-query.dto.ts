@@ -11,6 +11,8 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { CURRENCY_CODES } from "@rothern/shared";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /**
  * Ürün dizini sorgusu — `PublicListQueryDto` ile aynı disiplin: her alan dar,
@@ -28,7 +30,9 @@ export class PublicProductQueryDto {
 
   /** Tam 8 haneli kategori kodu; ata zinciri sunucuda genişletilir. */
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, {
+    message: () => tApi("api.dto.publicProductQuery.kategoriKodu8HaneliOlmali"),
+  })
   category?: string;
 
   /** Şehir — tek ya da virgüllü çoklu ("İstanbul,İzmir"). */
@@ -38,12 +42,28 @@ export class PublicProductQueryDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
+  /** Satıcı ülkesi — ISO kod ya da virgüllü çoklu ("TR,DE") (2026-09-27). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  country?: string;
+
   /** Sıralama — `relevance`, `newest`, `price` (artan), `price_desc` (azalan); fiyatsızlar sonda. */
   @IsOptional()
   @IsIn(["relevance", "newest", "price", "price_desc"])
   sort?: "relevance" | "newest" | "price" | "price_desc";
 
-  /** Birim fiyat aralığı (TRY). */
+  /**
+   * Fiyat süzgecinin para birimi (2026-09-27, "kurla çevir"): `priceMin`/
+   * `priceMax` bu birimde, TCMB kuruyla ortak tabana çevrilip karşılaştırılır.
+   * Verilmezse istek dilinden (tr TRY · ru RUB · en USD). Liste dar (önbellek).
+   */
+  @IsOptional()
+  @IsIn(CURRENCY_CODES)
+  currency?: string;
+
+  /** Birim fiyat aralığı (`currency` cinsinden). */
   @IsOptional()
   @Transform(({ value }) => (value === "" || value == null ? undefined : Number(value)))
   @IsInt()
@@ -104,7 +124,9 @@ export class PublicProductQueryDto {
   @IsOptional()
   @IsString()
   @MaxLength(40)
-  @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, { message: "Çalışan kovası sayı listesi olmalı" })
+  @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, {
+    message: () => tApi("api.dto.publicProductQuery.calisanKovasiSayiListesiOlmali"),
+  })
   employees?: string;
 
   /** "Yakınımda" merkezi — il adı ya da posta kodu ("İzmir" | "35100"). */
@@ -152,7 +174,7 @@ export class PublicProductQueryDto {
   @ArrayMaxSize(6)
   @Matches(/^[a-z0-9_]{1,40}:[^\n\r]{1,60}$/, {
     each: true,
-    message: "Nitelik süzgeci anahtar:değer biçiminde olmalı",
+    message: () => tApi("api.dto.publicProductQuery.nitelikSuzgeciAnahtarDegerBiciminde"),
   })
   attr?: string[];
 
@@ -176,7 +198,9 @@ export class PublicProductQueryDto {
  */
 export class PublicProductFacetQueryDto {
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, {
+    message: () => tApi("api.dto.publicProductQuery.kategoriKodu8HaneliOlmali"),
+  })
   category?: string;
 
   /** v3 (2026-09-04): BAĞLAMA DUYARLI sayım — diğer seçimler bu alanlarla gelir. */
@@ -194,6 +218,11 @@ export class PublicProductFacetQueryDto {
   @IsOptional()
   @IsString()
   @MaxLength(200)
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
   activity?: string;
 
   @IsOptional()
@@ -203,6 +232,11 @@ export class PublicProductFacetQueryDto {
   @IsOptional()
   @IsIn(["has", "request"])
   price?: "has" | "request";
+
+  /** Fiyat histogramının para birimi — liste ucundaki `currency` ile aynı kural. */
+  @IsOptional()
+  @IsIn(CURRENCY_CODES)
+  currency?: string;
 
   /**
    * Firma sertifikası — tek ya da virgüllü çoklu ("ISO 9001,CE"), OR'lanır.
@@ -223,7 +257,9 @@ export class PublicProductFacetQueryDto {
   @IsOptional()
   @IsString()
   @MaxLength(40)
-  @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, { message: "Çalışan kovası sayı listesi olmalı" })
+  @Matches(/^[0-9]{1,3}(,[0-9]{1,3})*$/, {
+    message: () => tApi("api.dto.publicProductQuery.calisanKovasiSayiListesiOlmali"),
+  })
   employees?: string;
 
   /** "Yakınımda" merkezi — il adı ya da posta kodu ("İzmir" | "35100"). */

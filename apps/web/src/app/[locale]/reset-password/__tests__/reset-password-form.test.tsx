@@ -1,0 +1,178 @@
+// @vitest-environment jsdom
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const h = vi.hoisted(() => ({
+  post: vi.fn(),
+  push: vi.fn(),
+  token: "a".repeat(64) as string | null,
+  setup: null as string | null,
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: h.push }),
+  useSearchParams: () => ({
+    get: (k: string) => (k === "token" ? h.token : k === "setup" ? h.setup : null),
+  }),
+}));
+vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("@/lib/company-auth/api", () => ({
+  companyApi: { post: h.post },
+}));
+
+import { ResetPasswordForm } from "../reset-password-form";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  h.token = "a".repeat(64);
+  h.setup = null;
+});
+
+describe("ResetPasswordForm", () => {
+  it("token yoksa hata kutusu + YENİ BAĞLANTI linki /company/sifremi-unuttum'a gider", () => {
+    h.token = null;
+    render(<ResetPasswordForm />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Geçersiz bağlantı");
+    expect(
+      screen.getByRole("link", { name: "Yeni bağlantı iste" }),
+    ).toHaveAttribute("href", "/company/sifremi-unuttum");
+  });
+
+  it("politika backend ile hizalı: büyük harfsiz parola frontend'de reddedilir (istek atılmaz)", async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "kucukharf1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "kucukharf1");
+    await user.click(
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
+    );
+    expect(
+      screen.getByText("En az bir büyük harf içermeli"),
+    ).toBeInTheDocument();
+    expect(h.post).not.toHaveBeenCalled();
+  });
+
+  it("politika kayıtla AYNI: özel karaktersiz ve 10 karakterden kısa şifre reddedilir (yayın denetimi Bölüm 9)", async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola12");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "GucluParola12");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByText("En az bir özel karakter içermeli")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Yeni Şifre"));
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Parola12!");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByText("En az 10 karakter")).toBeInTheDocument();
+    expect(h.post).not.toHaveBeenCalled();
+  });
+
+  it("eşleşmeyen parolalar reddedilir", async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Farkli1234");
+    await user.click(
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
+    );
+    expect(screen.getByText("Şifreler eşleşmiyor")).toBeInTheDocument();
+    expect(h.post).not.toHaveBeenCalled();
+  });
+
+  it("başarılı sıfırlama: token+parola POST edilir, başarı ekranı → /company/login", async () => {
+    const user = userEvent.setup();
+    h.post.mockResolvedValue({ data: { success: true } });
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
+    );
+
+    expect(h.post).toHaveBeenCalledWith("/auth/password-reset/confirm", {
+      token: "a".repeat(64),
+      newPassword: "Guclu!Parola1",
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Şifreniz değiştirildi",
+    );
+    await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
+    expect(h.push).toHaveBeenCalledWith("/company/login");
+  });
+
+  it("hesap kurulum bağlantısı (setup=1): 'Şifremi Belirle' düğmesi ve 'belirlendi' ekranı; oturum kapatma metni yok", async () => {
+    const user = userEvent.setup();
+    h.setup = "1";
+    h.post.mockResolvedValue({ data: { success: true } });
+    render(<ResetPasswordForm />);
+    expect(screen.queryByRole("button", { name: "Şifreyi Değiştir" })).toBeNull();
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(screen.getByRole("button", { name: "Şifremi Belirle" }));
+    expect(h.post).toHaveBeenCalledWith("/auth/password-reset/confirm", {
+      token: "a".repeat(64),
+      newPassword: "Guclu!Parola1",
+    });
+    expect(h.toast.success).toHaveBeenCalledWith("Şifre belirlendi");
+    const done = screen.getByRole("status");
+    expect(done).toHaveTextContent("Şifreniz belirlendi");
+    expect(done).not.toHaveTextContent("oturumlarınız kapatıldı");
+  });
+
+  it("backend hatası (süresi dolmuş token) alert olarak gösterilir", async () => {
+    const user = userEvent.setup();
+    h.post.mockRejectedValue({
+      isAxiosError: true,
+      response: { data: { message: "Bağlantının süresi dolmuş" } },
+    });
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(
+      screen.getByRole("button", { name: "Şifreyi Değiştir" }),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(/süresi dolmuş/i);
+    // Form ekranda kalır — kullanıcı yeni bağlantı isteyebilir.
+    expect(screen.getByLabelText("Yeni Şifre")).toBeInTheDocument();
+  });
+
+  // Arayüz testi D-085: kesik/kullanılmış bağlantı ham doğrulama metni ya da
+  // form içi hata yerine "geçersiz bağlantı" kartı + yeni bağlantı yolu.
+  it("kesik token (deadbeef): form yerine geçersiz bağlantı kartı", () => {
+    h.token = "deadbeef";
+    render(<ResetPasswordForm />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Geçersiz bağlantı");
+    expect(screen.getByRole("link", { name: "Yeni bağlantı iste" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Yeni Şifre")).toBeNull();
+  });
+
+  it("403 (kullanılmış bağlantı): sunucu nedeniyle geçersiz bağlantı kartı", async () => {
+    const user = userEvent.setup();
+    h.post.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 403, data: { message: "Bu bağlantı zaten kullanılmış" } },
+    });
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Bu bağlantı zaten kullanılmış");
+    expect(screen.getByRole("link", { name: "Yeni bağlantı iste" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Yeni Şifre")).toBeNull();
+  });
+
+  it("400 token alan hatası da bağlantı kartına gider", async () => {
+    const user = userEvent.setup();
+    h.post.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 400, data: { message: "Doğrulama hatası", errors: { token: "Geçersiz veya kullanılmış bağlantı" } } },
+    });
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Geçersiz veya kullanılmış bağlantı");
+    expect(screen.queryByLabelText("Yeni Şifre")).toBeNull();
+  });
+});

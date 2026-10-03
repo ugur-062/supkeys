@@ -10,6 +10,10 @@ const h = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   usePathname: () => h.pathname,
 }));
+// /me tazeleyici (QueryClient ister) — layout testinde yalnız yeri önemli.
+vi.mock("@/components/layout/two-factor-setup-notice", () => ({
+  AdminMeRefresher: () => <div>me-refresher</div>,
+}));
 vi.mock("@/lib/auth/store", () => ({
   useAdminAuthStore: Object.assign(
     (sel?: (s: typeof h.state) => unknown) => (sel ? sel(h.state) : h.state),
@@ -40,6 +44,8 @@ describe("AdminLayout guard", () => {
       </AdminLayout>,
     );
     expect(screen.getByText("login-içerik")).toBeInTheDocument();
+    // Login sayfasında /me tazeleyici çalışmaz.
+    expect(screen.queryByText("me-refresher")).not.toBeInTheDocument();
     // Guard atlandı → yönlendirme yok.
     expect(window.location.href).toBe("");
   });
@@ -65,5 +71,7 @@ describe("AdminLayout guard", () => {
       </AdminLayout>,
     );
     expect(screen.getByText("korumalı-içerik")).toBeInTheDocument();
+    // MU-01: korumalı her sayfada /me tazeleyici bağlı.
+    expect(screen.getByText("me-refresher")).toBeInTheDocument();
   });
 });

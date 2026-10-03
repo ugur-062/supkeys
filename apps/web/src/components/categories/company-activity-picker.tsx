@@ -1,10 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   COMPANY_ACTIVITIES,
   MAX_COMPANY_ACTIVITIES,
 } from "@rothern/shared";
 import { Check } from "lucide-react";
+import { useActivityLabel } from "@/i18n/domain";
 
 interface Props {
   value: string[];
@@ -33,18 +35,23 @@ export function CompanyActivityPicker({
   value,
   onChange,
   disabled,
-  hint = "Alıcılar üreticiyle bayiyi ayırt edebilsin diye sorulur; dizin ve arama süzgeçlerinde kullanılır.",
+  hint,
 }: Props) {
+  const t = useTranslations("web.shared.companyActivityPicker");
+  // Ad ve açıklama arayüz dilinde (2026-09-27; eskiden `nameTr`/`hintTr` —
+  // İngilizce/Rusça kayıt ekranında Türkçe basıyordu).
+  const activityLabel = useActivityLabel();
+  const th = useTranslations("web.domain.activityHint");
   const dolu = value.length >= MAX_COMPANY_ACTIVITIES;
 
   return (
     <div>
       <span className="block text-sm font-medium text-zinc-950">
-        Faaliyet tipiniz{" "}
-        <span className="font-normal text-zinc-500">(isteğe bağlı)</span>
+        {t("faaliyetTipiniz")}{" "}
+        <span className="font-normal text-zinc-500">{t("istegeBagli")}</span>
       </span>
       <p className="mt-0.5 mb-2 text-xs text-zinc-500">
-        En fazla {MAX_COMPANY_ACTIVITIES} seçim. {hint}
+        {t("enFazlaSecim", { max: MAX_COMPANY_ACTIVITIES, hint: hint ?? t("hintVarsayilan") })}
       </p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {COMPANY_ACTIVITIES.map((a) => {
@@ -81,9 +88,11 @@ export function CompanyActivityPicker({
               </span>
               <span>
                 <span className="block text-sm font-medium text-zinc-900">
-                  {a.nameTr}
+                  {activityLabel(a.code)}
                 </span>
-                <span className="block text-xs text-zinc-500">{a.hintTr}</span>
+                <span className="block text-xs text-zinc-500">
+                  {th.has(a.code as never) ? th(a.code as never) : a.hintTr}
+                </span>
               </span>
             </button>
           );

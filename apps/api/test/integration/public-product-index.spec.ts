@@ -8,13 +8,17 @@
  *   · ürün kartı FİRMA ADINI taşır — ilan kartının tam tersi.
  */
 import { PublicMarketplaceService } from "../../src/modules/public-marketplace/public-marketplace.service";
+import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 // Çalışan kovası süzgeci `employeeCount` DISTINCT değerlerini 15 dk önbelleğe
 // alır; her test kendi firmalarını kurduğu için önbellek turlar arasında
 // bayat kalır ve süzgeç boş dönerdi.
 import { resetEmployeeValueCache } from "../../src/common/company/product-index";
+import { productPriceBase } from "@rothern/shared";
+import { fxRate, resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 const service = () =>
   new PublicMarketplaceService(prisma as unknown as PrismaBypassService);
@@ -31,6 +35,7 @@ const FORBIDDEN = [
   "isPublic",
   "isActive",
   "searchText",
+  "searchTextI18n",
 ];
 
 function allKeys(v: unknown, out = new Set<string>()): Set<string> {
@@ -71,6 +76,8 @@ async function seedProduct(
       city: "İstanbul",
       publicEnabled: true,
       ...companyOver,
+      // Gerçek yazma yolu gibi (2026-09-27): süzgeç/facet `cityId` okur.
+      cityId: resolveCityId("TR", (companyOver.city as string | undefined) ?? "İstanbul"),
     },
   });
   const product = await prisma.companyItem.create({
@@ -90,6 +97,17 @@ async function seedProduct(
       publishedAt: new Date(),
       searchText: "dagitim panosu pano",
       ...productOver,
+      // Gerçek yazma yolu gibi (2026-09-27): fiyat süzgeci/sıralaması TRY
+      // karşılığını (`priceAmountBase`) okur.
+      priceAmountBase: productPriceBase(
+        {
+          priceMode: (productOver.priceMode as string | undefined) ?? "ON_REQUEST",
+          priceAmount: productOver.priceAmount ?? null,
+          priceTiers: productOver.priceTiers ?? null,
+          priceCurrency: (productOver.priceCurrency as string | undefined) ?? "TRY",
+        },
+        fxRate,
+      ),
     },
   });
   return { company: patched, product };
@@ -289,8 +307,24 @@ describe("ürün dizini — kapı", () => {
     await seedProduct({ city: "Bursa" });
     await seedProduct({ city: "Bursa", publicEnabled: false });
     const f = await service().productFacets({});
-    expect(f.cities.find((c) => c.city === "Bursa")?.count).toBe(1);
+    // Facet değeri şehrin KALICI ADRESİ, `name` görünen ad (2026-09-27).
+    expect(f.cities.find((c) => c.city === "bursa")).toMatchObject({ name: "Bursa", country: "TR", count: 1 });
     expect(f.truncated).toBe(false);
+  });
+
+  it("satıcı ülkesi sayaçları yanıtta; ülke seçiliyken de diğer ülkeler sayılır (MU-10)", async () => {
+    await seedProduct();
+    await seedProduct();
+    await seedProduct({ country: "DE" });
+    await seedProduct({ country: "DE", publicEnabled: false });
+    expect((await service().productFacets({})).countries).toEqual([
+      { country: "TR", count: 2 },
+      { country: "DE", count: 1 },
+    ]);
+    expect((await service().productFacets({ country: "DE" })).countries).toEqual([
+      { country: "TR", count: 2 },
+      { country: "DE", count: 1 },
+    ]);
   });
 });
 
@@ -339,6 +373,33 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     expect(rel.popular.map((c) => c.company.slug)).not.toContain(company.slug);
     expect(rel.popular.map((c) => c.name)).toContain("Benzer");
     await expect(service().relatedProducts("yok", "yok")).rejects.toThrow(/bulunamadı/);
+  });
+
+  it("ilişkili (panel, arayüz testi D-231): görüntüleyenin kendi ürünü ve engel ilişkili firmalar 'diğer tedarikçiler'de yok", async () => {
+    const { company, product } = await seedProduct({}, { categoryId: "39121000", slug: "base-d231" });
+    const viewer = await seedProduct({}, { categoryId: "39121500", name: "Kendi urunum" });
+    const blockedCo = await seedProduct({}, { categoryId: "39121500", name: "Engelli urun" });
+    await seedProduct({}, { categoryId: "39121500", name: "Baska tedarikci" });
+    await prisma.companyBlock.create({ data: { blockerCompanyId: blockedCo.company.id, blockedCompanyId: viewer.company.id } });
+    const panel = new PublicProfileService(prisma as never);
+    // Herkese açık uç görüntüleyeni bilmez — üçü de listelenir.
+    const anon = await panel.related(company.slug as string, product.slug as string);
+    expect(anon.similar.map((c) => c.name).sort()).toEqual(["Baska tedarikci", "Engelli urun", "Kendi urunum"]);
+    const rel = await panel.relatedForViewer(viewer.company.id, company.slug as string, product.slug as string);
+    expect(rel.similar.map((c) => c.name)).toEqual(["Baska tedarikci"]);
+    expect(rel.popular.map((c) => c.name)).not.toContain("Kendi urunum");
+    expect(rel.popular.map((c) => c.name)).not.toContain("Engelli urun");
+    // Ürünün kendi firması engel ilişkiliyse 404 (panel ürün sayfasıyla aynı).
+    await expect(
+      panel.relatedForViewer(viewer.company.id, blockedCo.company.slug as string, blockedCo.product.slug as string),
+    ).rejects.toThrow(/bulunamadı/);
+  });
+
+  it("ilişkili: engelli firmanın ürünü 404 (firma slug'ı profil kapısını ezmez)", async () => {
+    const { company, product } = await seedProduct({}, { slug: "engelli-urun" });
+    await expect(service().relatedProducts(company.slug as string, product.slug as string)).resolves.toBeTruthy();
+    await prisma.company.update({ where: { id: company.id }, data: { isBlocked: true } });
+    await expect(service().relatedProducts(company.slug as string, product.slug as string)).rejects.toThrow(/bulunamadı/);
   });
 
   it("öneri: ürün + firma; kısa sorgu boş", async () => {
@@ -432,7 +493,7 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     // Sertifika sayacı KENDİ seçimini hariç tutar → CE hâlâ görünür.
     expect(f.certifications.find((c) => c.cert === "CE")?.count).toBe(1);
     // Şehir sayacı sertifika seçimiyle DARALIR → C (sertifikasız) düşer.
-    expect(f.cities.find((c) => c.city === "İzmir")?.count).toBe(1);
+    expect(f.cities.find((c) => c.city === "izmir")?.count).toBe(1);
     // Çalışan sayacı da sertifika seçimiyle daralır.
     expect(f.employees.find((e) => e.key === 250)).toBeUndefined();
   });
@@ -445,6 +506,45 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     expect(
       (await service().listProducts({ priceMax: 500, priceUnpriced: "1" })).items.map((p) => p.name).sort(),
     ).toEqual(["Teklifle", "Ucuz"]);
+  });
+
+  it("KURLA ÇEVİR (2026-09-27): farklı birimdeki fiyatlar ortak tabanda süzülür, sıralanır, histogramlanır", async () => {
+    setFxRates({ EUR: 50, JPY: 0.25 });
+    try {
+      await seedProduct({}, { name: "Avro", priceMode: "FIXED", priceAmount: "450", priceCurrency: "EUR" });
+      await seedProduct({}, { name: "Lira", priceMode: "FIXED", priceAmount: "490", priceCurrency: "TRY" });
+      await seedProduct({}, { name: "Yen", priceMode: "FIXED", priceAmount: "10000", priceCurrency: "JPY" });
+      await seedProduct({}, {
+        name: "Kademeli",
+        priceMode: "TIERED",
+        priceTiers: [{ minQty: 1, unitPrice: 30 }, { minQty: 100, unitPrice: 20 }],
+        priceCurrency: "EUR",
+      });
+      // "En az 400 EUR": 450 EUR girer; 490 TRY (≈9,8 EUR) ve 10.000 JPY
+      // (≈50 EUR) girmez — eskiden ham tutar kıyaslanıp ikisi de giriyordu.
+      expect(
+        (await service().listProducts({ currency: "EUR", priceMin: 400 })).items.map((p) => p.name),
+      ).toEqual(["Avro"]);
+      // Kademeli ürün kartındaki "…'dan başlayan" fiyatla (20 EUR) süzülür.
+      expect(
+        (await service().listProducts({ currency: "EUR", priceMin: 15, priceMax: 25 })).items.map((p) => p.name),
+      ).toEqual(["Kademeli"]);
+      // Sıra TRY karşılığından: 22.500 > 2.500 (JPY) > 1.000 (kademeli) > 490.
+      expect((await service().listProducts({ sort: "price_desc" })).items.map((p) => p.name)).toEqual([
+        "Avro",
+        "Yen",
+        "Kademeli",
+        "Lira",
+      ]);
+      const f = await service().productFacets({ currency: "EUR" });
+      expect(f.currency).toBe("EUR");
+      expect(f.priceHistogram!.max).toBe(450);
+      // 490 TRY ≈ 9,8 EUR: alt uç AŞAĞI yuvarlanır (arayüz testi O-016) — ilk
+      // çubuğun `priceMin`i en ucuz ürünü de kapsamalı (eskiden 10, 9,8'i dışarıda bırakıyordu).
+      expect(f.priceHistogram!.min).toBe(9);
+    } finally {
+      resetFxRates();
+    }
   });
 
   it("MOQ ön ayar sayaçları KÜMÜLATİF ve where ile aynı kuralı uygular", async () => {
@@ -480,10 +580,30 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     const f = await service().productFacets({ activity: "MANUFACTURER" });
     // Şehir sayaçları faaliyet süzgeciyle daralır (C düşer).
     expect([...f.cities].sort((a, b) => a.city.localeCompare(b.city))).toEqual([
-      { city: "İstanbul", count: 1 },
-      { city: "İzmir", count: 1 },
+      { city: "istanbul", name: "İstanbul", country: "TR", count: 1 },
+      { city: "izmir", name: "İzmir", country: "TR", count: 1 },
     ]);
     // Faaliyet sayaçları KENDİ seçimini hariç tutar: DISTRIBUTOR hâlâ görünür.
     expect(f.activities.find((a) => a.activity === "DISTRIBUTOR")?.count).toBe(1);
+  });
+});
+
+describe("ürün dizini — çok dilli arama (searchTextI18n)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+    resetEmployeeValueCache();
+  });
+
+  it("İngilizce/Rusça sorgu çevirisi olan Türkçe ürünü bulur (çoğul toleranslı)", async () => {
+    const { product } = await seedProduct({}, { searchTextI18n: "dagitim panosu pano distribution panel распределительныи щит" });
+    const ids = async (q: string) => (await service().listProducts({ q })).items.map((p) => p.slug);
+    expect(await ids("distribution panels")).toEqual([product.slug]);
+    expect(await ids("распределительный щит")).toEqual([product.slug]);
+    expect(await ids("switchboard")).toEqual([]);
+  });
+
+  it("Türkçe arama değişmedi (searchText yolu)", async () => {
+    const { product } = await seedProduct();
+    expect((await service().listProducts({ q: "Dağıtım PANOSU" })).items.map((p) => p.slug)).toEqual([product.slug]);
   });
 });

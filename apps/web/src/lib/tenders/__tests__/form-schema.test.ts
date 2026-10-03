@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { createTranslator } from "use-intl/core";
+import { WEB_NAMESPACES, messagesFor } from "@rothern/i18n/messages";
 import {
   DEFAULT_FORM_VALUES,
-  tenderFormSchema,
+  MAX_LISTING_INVITATIONS,
+  makeTenderFormSchema,
   type TenderFormData,
 } from "../form-schema";
+
+/* i18n Faz 2: şema FABRİKA — mesajlar kullanıcının dilinden. Test Türkçe
+   katalogla kurar ki beklentiler gerçek metni (ör. "2 yıl") sınasın. */
+const tTr = createTranslator({ locale: "tr", messages: messagesFor("tr", WEB_NAMESPACES) as never }) as unknown as (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+const tenderFormSchema = makeTenderFormSchema((key, values) => tTr(`web.panel.requests.${key}`, values));
 
 const future = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
 
@@ -22,6 +33,19 @@ function validForm(over: Partial<TenderFormData> = {}): TenderFormData {
 }
 
 describe("tenderFormSchema", () => {
+  it("S083/S095: davet tavanı API ile ortak sabit; Bağlantılarım listesi tek gövdede (260 bağlantı geçer)", () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `R${i}`);
+    // 50'yi (ve eski 200'lük tavanı) aşan bağlantı listesi yayını engellemez.
+    expect(MAX_LISTING_INVITATIONS).toBeGreaterThanOrEqual(1000);
+    expect(tenderFormSchema.safeParse(validForm({ visibility: "CONNECTIONS", invitedSupplierIds: ids(260) })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ visibility: "PRIVATE", invitedSupplierIds: ids(260) })).success).toBe(true);
+    for (const visibility of ["PRIVATE", "CONNECTIONS"] as const) {
+      const over = tenderFormSchema.safeParse(validForm({ visibility, invitedSupplierIds: ids(MAX_LISTING_INVITATIONS + 1) }));
+      expect(over.success).toBe(false);
+      expect(over.error?.issues[0]?.path).toEqual(["invitedSupplierIds"]);
+    }
+  });
+
   it("geçerli form parse edilir", () => {
     expect(tenderFormSchema.safeParse(validForm()).success).toBe(true);
   });
@@ -119,6 +143,13 @@ describe("tenderFormSchema", () => {
     expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: 50 })).success).toBe(true);
     expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: 50, targetCountries: [] })).success).toBe(true);
     expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: 100, targetCountries: ["DE", "TR"] })).success).toBe(true);
+  });
+
+  it("peşinde yüzde zorunlu — boş kutu API 400'üne değil form hatasına düşer (MU-10)", () => {
+    const r = tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: undefined }));
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.path).toEqual(["advancePercent"]);
+    expect(r.error?.issues[0]?.message).toBe("Peşin yüzdesi (%1-100) zorunlu");
   });
 
   it("akreditif: alt tip zorunlu; Usance vade ister; açık hesap da her talepte", () => {

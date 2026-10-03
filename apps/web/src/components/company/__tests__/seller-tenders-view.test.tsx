@@ -80,7 +80,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     invited: true,
     connected: false,
     myBidStatus: null,
-    myBidVersion: null,
+    myBidSubmitCount: null,
     categoryMatch: false,
     categories: [{ code: "10000000", name: "Canlı Hayvanlar" }],
     extraCategoryCount: 0,
@@ -96,8 +96,8 @@ function rowTitles(): (string | null)[] {
 }
 /** Masaüstü kenar süzgeci (mobil çekmece kapalıyken DOM'da yok). */
 const sidebar = () => within(screen.getByRole("complementary", { name: "Süzgeçler" }));
-// Grup başlığı <legend> daraltma düğmesinin İÇİNDE (display: contents) —
-// fieldset'in erişilebilir adı legend'dan türemez; düğmeden fieldset'e çık.
+// Grup başlığı daraltma düğmesinin İÇİNDE; düğmeden fieldset'e çıkılır
+// (fieldset ayrıca aria-labelledby ile başlıktan adlanır — D-326).
 const group = (name: string) =>
   within(
     sidebar()
@@ -120,7 +120,7 @@ beforeEach(() => {
 describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () => {
   it("satır: durum rozeti + FİRMA + kapanış + teklifim; rozetler genişletmede", async () => {
     const user = userEvent.setup();
-    h.rows = [row({ categoryMatch: true, myBidVersion: 2, myBidStatus: "SUBMITTED" })];
+    h.rows = [row({ categoryMatch: true, myBidSubmitCount: 2, myBidStatus: "SUBMITTED" })];
     render(<SellerTendersView />);
 
     expect(screen.getByRole("heading", { name: "Açık Talepler" })).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getByText("Verildi · v2")).toBeInTheDocument();
     expect(screen.getAllByText("Canlı Hayvanlar").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Profilinizle eşleşti")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
+    await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getAllByText("Profilinizle eşleşti").length).toBeGreaterThanOrEqual(2);
     // Sıralama çipleri: varsayılan "Size uygun" basılı.
     expect(screen.getByRole("button", { name: "Size uygun" })).toHaveAttribute("aria-pressed", "true");
@@ -162,6 +162,31 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
       expect(screen.getByText(/herkese açık taleplerin tamamı Silver paketiyle açılır/)).toBeInTheDocument();
     } finally {
       h.locked = { locked: false };
+    }
+  });
+
+  it("ücretsiz üye + arama (\"Teklif ver\"den ?q=ROT-…) boş: süzgeci değil paketi söyler (webA-02 yeniden doğrulama)", () => {
+    h.locked = { locked: true, total: 32, inMyCategories: 0, thisWeek: 29, itemCount: 77, samples: [] };
+    h.search = "q=ROT-000478";
+    try {
+      render(<SellerTendersView />);
+      expect(screen.getByText("Bu aramada size açık talep yok")).toBeInTheDocument();
+      expect(screen.getByText(/Aradığınız talep herkese açıksa Silver paketiyle görünür/)).toBeInTheDocument();
+      expect(screen.queryByText("Süzgeçlerinizi değiştirerek tekrar deneyin.")).toBeNull();
+    } finally {
+      h.locked = { locked: false };
+      h.search = "";
+    }
+  });
+
+  it("paketli üye + arama boş: süzgeç boş durumu aynen", () => {
+    h.search = "q=ROT-000478";
+    try {
+      render(<SellerTendersView />);
+      expect(screen.getByText("Süzgeçlerinizi değiştirerek tekrar deneyin.")).toBeInTheDocument();
+      expect(screen.queryByText("Bu aramada size açık talep yok")).toBeNull();
+    } finally {
+      h.search = "";
     }
   });
 
@@ -198,6 +223,45 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getByRole("button", { name: /Durum: Geçmiş/ })).toBeInTheDocument();
   });
 
+  it("geçmişte sayaç 'geçmiş talep' der; 200 tavanında '200+' ve bant (arayüz testi D-116)", () => {
+    h.search = "durum=gecmis";
+    h.rows = [
+      row({ title: "Açık olan" }),
+      ...Array.from({ length: 200 }, () => row({ status: "AWARDED", myBidStatus: "LOST" })),
+    ];
+    const { unmount } = render(<SellerTendersView />);
+    expect(screen.getByText("200+ geçmiş talep bulundu")).toBeInTheDocument();
+    expect(screen.queryByText(/açık talep bulundu/)).toBeNull();
+    // Durum facet'i başlıkla AYNI alt sınırı yazar: Geçmiş 200+, Tümü 201+;
+    // Aktif (1, tavan altı) kesin (yeniden doğrulama: facet "Geçmiş 200" diyordu).
+    const pastRadio = screen.getAllByRole("radio", { name: /Geçmiş/ })[0]!;
+    expect(pastRadio.closest("label")).toHaveTextContent(/200\+$/);
+    const allRadio = screen.getAllByRole("radio", { name: /Tümü/ })[0]!;
+    expect(allRadio.closest("label")).toHaveTextContent(/201\+$/);
+    const activeRadio = screen.getAllByRole("radio", { name: /Aktif/ })[0]!;
+    expect(activeRadio.closest("label")).toHaveTextContent(/1$/);
+    expect(activeRadio.closest("label")).not.toHaveTextContent("+");
+    expect(screen.getByText(/Geçmiş taleplerin en yeni 200'ü gösteriliyor/)).toBeInTheDocument();
+    // Açık kapsamın tavanı (300) değil — o bant çıkmaz.
+    expect(screen.queryByText(/En fazla 300/)).toBeNull();
+    unmount();
+
+    // Tavan altında kesin sayı, bant yok; "Tümü" genel "talep" der.
+    h.search = "durum=tumu";
+    h.rows = [row(), row({ status: "AWARDED", myBidStatus: "LOST" })];
+    render(<SellerTendersView />);
+    expect(screen.getByText("2 talep bulundu")).toBeInTheDocument();
+    expect(screen.queryByText(/en yeni 200/)).toBeNull();
+    expect(screen.getAllByRole("radio", { name: /Tümü/ })[0]!.closest("label")).not.toHaveTextContent("+");
+  });
+
+  it("eski WITHDRAWN teklif ham kodla değil 'Geri çekildi' etiketiyle görünür (arayüz testi D-275)", () => {
+    h.rows = [row({ myBidStatus: "WITHDRAWN" })];
+    render(<SellerTendersView />);
+    expect(screen.getAllByText("Geri çekildi").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/WITHDRAWN/)).toBeNull();
+  });
+
   it("alıcı süzgeci veriden türetilir (sayaçlı) ve URL ile uygulanır", async () => {
     const user = userEvent.setup();
     h.rows = [
@@ -221,6 +285,33 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     // Bağlamsal sayaç: alıcı grubu kendisi hariç sayar → Y hâlâ 2 gösterir.
     expect(group("Alıcı").getByLabelText(/^Firma Y/).closest("label")).toHaveTextContent("Firma Y2");
     expect(screen.getByRole("button", { name: /Firma X/ })).toBeInTheDocument();
+  });
+
+  it("alıcı şehri ve ülkesi (2026-09-27): şehir API'nin yerel adıyla, anahtarı slug; ülke grubu birden fazla ülkede çizilir, URL'e ?ulke= yazar", async () => {
+    const user = userEvent.setup();
+    h.rows = [
+      row({ title: "Yerli talep", ownerCountry: "TR", ownerCity: "İstanbul", ownerCitySlug: "istanbul", ownerCityLabel: "İstanbul" }),
+      row({ title: "Alman talebi", ownerCountry: "DE", ownerCity: "Munich", ownerCitySlug: "de-munich", ownerCityLabel: "Münih" }),
+    ];
+    const { unmount } = render(<SellerTendersView />);
+    await user.click(group("Alıcı şehri").getByLabelText(/^Münih/));
+    expect(h.replace).toHaveBeenLastCalledWith("/company/satis?sehir=de-munich", { scroll: false });
+    await user.click(group("Alıcı ülkesi").getByLabelText(/^Almanya/));
+    expect(h.replace).toHaveBeenLastCalledWith("/company/satis?ulke=DE", { scroll: false });
+    unmount();
+
+    h.search = "ulke=DE";
+    render(<SellerTendersView />);
+    expect(screen.getByText(/Alman talebi/)).toBeInTheDocument();
+    expect(screen.queryByText(/Yerli talep/)).not.toBeInTheDocument();
+    // Aktif çip okuyucunun dilinde ülke adı (ham kod değil).
+    expect(screen.getByRole("button", { name: /Almanya/ })).toBeInTheDocument();
+  });
+
+  it("tek ülkeden gelen listede alıcı ülkesi grubu çizilmez", () => {
+    h.rows = [row({ ownerCountry: "TR" }), row({ ownerCountry: "TR" })];
+    render(<SellerTendersView />);
+    expect(sidebar().queryByRole("button", { name: /^Alıcı ülkesi/ })).toBeNull();
   });
 
   it("arama URL'den (?q=) uygulanır ve çip olarak kaldırılabilir", async () => {
@@ -289,13 +380,13 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     const user = userEvent.setup();
     h.rows = [row({ invited: false, connected: true })];
     const { unmount } = render(<SellerTendersView />);
-    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
+    await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getAllByText("Bağlantılı")[0]).toBeInTheDocument();
     unmount();
 
     h.rows = [row({ invited: true, connected: true })];
     render(<SellerTendersView />);
-    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
+    await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getByText("Davetlisiniz")).toBeInTheDocument();
     expect(screen.queryByText("Bağlantılı")).not.toBeInTheDocument();
   });
@@ -312,7 +403,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     h.rows = [row()];
     render(<SellerTendersView />);
     expect(h.get).not.toHaveBeenCalled();
-    const toggle = screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ });
+    const toggle = screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ });
     await user.click(toggle);
     expect(await screen.findByText("Çelik Boru")).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledWith("/company/listings/l1", expect.objectContaining({ signal: expect.anything() }));
@@ -324,7 +415,8 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
   it("satırda seçim kutusu YOK (kaldırıldı, 2026-08-03) — kutular yalnız kenar süzgecinde", () => {
     h.rows = [row()];
     render(<SellerTendersView />);
-    expect(within(screen.getByRole("table")).queryByRole("checkbox")).toBeNull();
+    // Liste artık adlandırılmış <section> (role="table" axe KRİTİK ihlaldi — yayın denetimi Bölüm 12).
+    expect(within(screen.getByRole("region", { name: /listesi/i })).queryByRole("checkbox")).toBeNull();
     expect(screen.queryByText("Tümünü seç")).not.toBeInTheDocument();
   });
 

@@ -30,6 +30,7 @@ export type RequestDim =
   | "closing"
   | "buyers"
   | "cities"
+  | "countries"
   | "currencies"
   | "format"
   | "period";
@@ -47,6 +48,15 @@ export function rowFits(row: SellerTenderRow, fit: RequestFit): boolean {
     case "teklif":
       return row.myBidStatus != null;
   }
+}
+
+/**
+ * Şehir süzgeci anahtarı: dünya şehir dizininin kalıcı adresi (`bursa`,
+ * `de-munich` — dilden bağımsız, farklı ülkelerdeki aynı adlı şehirler ayrı);
+ * eşlenmemiş şehirde ham metin (2026-09-27).
+ */
+export function rowCityKey(row: SellerTenderRow): string | null {
+  return row.ownerCitySlug || row.ownerCity || null;
 }
 
 /** Satırın segmentleri (tekil) — kategori sayacı satırı segment başına bir kez sayar. */
@@ -131,7 +141,13 @@ export function passes(
   if (except !== "closing" && f.closing && !closesWithin(row, f.closing, now)) return false;
   if (except !== "buyers" && f.buyers.length && !(row.owner && f.buyers.includes(row.owner.id)))
     return false;
-  if (except !== "cities" && f.cities.length && !(row.ownerCity && f.cities.includes(row.ownerCity)))
+  if (except !== "cities" && f.cities.length) {
+    const key = rowCityKey(row);
+    // Eski bağlantılar `?sehir=` içinde ham il adı taşır ("Bursa") — o da eşleşir.
+    const hit = (key && f.cities.includes(key)) || (row.ownerCity && f.cities.includes(row.ownerCity));
+    if (!hit) return false;
+  }
+  if (except !== "countries" && f.countries.length && !(row.ownerCountry && f.countries.includes(row.ownerCountry)))
     return false;
   if (except !== "currencies" && f.currencies.length && !f.currencies.includes(row.currency))
     return false;
@@ -182,16 +198,51 @@ export interface FacetItem {
   label: string;
   count: number;
 }
+/**
+ * API tarama tavanları (`sellerTenders`): açık talepler `SELLER_SCAN_CAP`
+ * (300), katıldığım geçmiş talepler en yeni 200. Tavana dayanan kapsamın
+ * sayısı ALT SINIRDIR ("200+", arayüz testi D-116).
+ */
+export interface RequestScanCaps {
+  open: number;
+  past: number;
+}
+export const REQUEST_SCAN_CAPS: RequestScanCaps = { open: 300, past: 200 };
+
 export interface RequestFacets {
   status: Record<"aktif" | "gecmis" | "tumu", number>;
+  /**
+   * Durum sayacı tarama tavanında mı — `true` ise sayı alt sınır, "N+" yazılır.
+   * Başlıktaki "N+ … bulundu" sayacı da buradan okur; aynı ekrandaki iki sayı
+   * ayrışmasın (yeniden doğrulama: başlık "200+", facet "Geçmiş 200" diyordu).
+   */
+  statusAtLeast: Record<"aktif" | "gecmis" | "tumu", boolean>;
   fit: Record<RequestFit, number>;
   categories: FacetItem[];
   closing: Record<ClosingWindow, number>;
   buyers: FacetItem[];
   cities: FacetItem[];
+  /** Alıcı (talep sahibi) ülkesi. */
+  countries: FacetItem[];
   currencies: FacetItem[];
   format: Record<"teklif" | "pazarlik", number>;
   period: Record<PeriodWindow, number>;
+}
+
+/**
+ * Facet etiketleri okuyucunun dilinde — motor saf kalsın diye çağıran verir
+ * (`request-filters` / `SellerTendersView`: `countryDisplayName`, `useCityLabel`).
+ */
+export interface RequestFacetLabels {
+  /** ISO kodu → ülke adı (varsayılan: kod). */
+  country?: (code: string) => string;
+  /** Eşlenmemiş/ham şehir metni → gösterim (Türk il adı çevirisi; varsayılan: olduğu gibi). */
+  city?: (raw: string) => string;
+  /**
+   * Listede artık bulunmayan seçili alıcının (eski `?alici=` bağlantısı)
+   * etiketi — çağıran katalogdan verir (varsayılan: tire).
+   */
+  unknownBuyer?: string;
 }
 
 function tally(
@@ -220,6 +271,8 @@ export function requestFacets(
   f: RequestFilterState,
   segmentNames: ReadonlyMap<string, string>,
   now: number,
+  labels: RequestFacetLabels = {},
+  caps: RequestScanCaps = REQUEST_SCAN_CAPS,
 ): RequestFacets {
   const rowsFor = (dim: RequestDim) => all.filter((r) => passes(r, f, now, dim));
   const count = (rows: SellerTenderRow[], pred: (r: SellerTenderRow) => boolean) =>
@@ -230,13 +283,36 @@ export function requestFacets(
   const cl = rowsFor("closing");
   const fm = rowsFor("format");
   const pd = rowsFor("period");
-  const buyerName = (id: string) => all.find((r) => r.owner?.id === id)?.owner?.name ?? "Alıcı";
+  const buyerName = (id: string) =>
+    all.find((r) => r.owner?.id === id)?.owner?.name ?? labels.unknownBuyer ?? "—";
+  const countryName = labels.country ?? ((c: string) => c);
+  const rawCity = labels.city ?? ((c: string) => c);
+  // Şehir adı: API'nin okuyucu dilindeki adı (dünya şehir dizini), yoksa ham metin.
+  const cityLabelOf = (r: SellerTenderRow) => r.ownerCityLabel || rawCity(r.ownerCity ?? "");
+  const cityLabelByKey = (k: string) => {
+    const r = all.find((x) => rowCityKey(x) === k || x.ownerCity === k);
+    return r ? cityLabelOf(r) : rawCity(k);
+  };
+
+  const status = {
+    aktif: count(st, (r) => r.status === "OPEN"),
+    gecmis: count(st, (r) => r.status !== "OPEN"),
+    tumu: st.length,
+  };
+  // Kapsam başına tavan: açık ve geçmiş ayrı sorgulardan gelir, ayrı kırpılır.
+  // Sayı ancak süzgeçler o kapsamı daraltmadıysa (tavandaki kümenin TAMAMI)
+  // alt sınırdır; daraltılmış sayı gösterilen veride kesindir.
+  const openTotal = count(all, (r) => r.status === "OPEN");
+  const pastTotal = all.length - openTotal;
+  const aktifAtLeast = openTotal >= caps.open && status.aktif === openTotal;
+  const gecmisAtLeast = pastTotal >= caps.past && status.gecmis === pastTotal;
 
   return {
-    status: {
-      aktif: count(st, (r) => r.status === "OPEN"),
-      gecmis: count(st, (r) => r.status !== "OPEN"),
-      tumu: st.length,
+    status,
+    statusAtLeast: {
+      aktif: aktifAtLeast,
+      gecmis: gecmisAtLeast,
+      tumu: aktifAtLeast || gecmisAtLeast,
     },
     fit: {
       davet: count(fit, (r) => rowFits(r, "davet")),
@@ -245,10 +321,16 @@ export function requestFacets(
       kategori: count(fit, (r) => rowFits(r, "kategori")),
       teklif: count(fit, (r) => rowFits(r, "teklif")),
     },
+    // Yalnız GÖRÜNÜR segmentler sayılır (arayüz testi D-009): gizli segment
+    // (`HIDDEN_SEGMENTS`) `categories/segments` listesinde yok → adı bulunamayıp
+    // ham kod ("10000000 — 16") basılıyordu. Ürün facet'iyle aynı kural.
     categories: tally(
       rowsFor("categories"),
-      (r) => rowSegments(r).map((key) => ({ key, label: segmentNames.get(key) ?? key })),
-      f.categories,
+      (r) =>
+        rowSegments(r)
+          .filter((key) => segmentNames.has(key))
+          .map((key) => ({ key, label: segmentNames.get(key) ?? key })),
+      f.categories.filter((k) => segmentNames.has(k)),
       (k) => segmentNames.get(k) ?? k,
     ),
     closing: Object.fromEntries(
@@ -260,11 +342,24 @@ export function requestFacets(
       f.buyers,
       buyerName,
     ),
-    cities: tally(
-      rowsFor("cities"),
-      (r) => (r.ownerCity ? [{ key: r.ownerCity, label: r.ownerCity }] : []),
-      f.cities,
-      (k) => k,
+    cities: disambiguateCities(
+      tally(
+        rowsFor("cities"),
+        (r) => {
+          const key = rowCityKey(r);
+          return key ? [{ key, label: cityLabelOf(r) }] : [];
+        },
+        f.cities,
+        cityLabelByKey,
+      ),
+      all,
+      countryName,
+    ),
+    countries: tally(
+      rowsFor("countries"),
+      (r) => (r.ownerCountry ? [{ key: r.ownerCountry, label: countryName(r.ownerCountry) }] : []),
+      f.countries,
+      countryName,
     ),
     currencies: tally(
       rowsFor("currencies"),
@@ -280,4 +375,23 @@ export function requestFacets(
       PERIOD_WINDOWS.map((d) => [d, count(pd, (r) => publishedWithin(r, d, now))]),
     ) as Record<PeriodWindow, number>,
   };
+}
+
+/**
+ * Farklı ülkelerde AYNI ADLI iki şehir (anahtarları ayrı) listede yan yana
+ * aynı görünmesin — yalnız çakışan etiketlere ülke adı eklenir.
+ */
+function disambiguateCities(
+  items: FacetItem[],
+  all: SellerTenderRow[],
+  countryName: (code: string) => string,
+): FacetItem[] {
+  const seen = new Map<string, number>();
+  for (const it of items) seen.set(it.label, (seen.get(it.label) ?? 0) + 1);
+  if (![...seen.values()].some((n) => n > 1)) return items;
+  return items.map((it) => {
+    if ((seen.get(it.label) ?? 0) < 2) return it;
+    const cc = all.find((r) => rowCityKey(r) === it.key)?.ownerCountry;
+    return cc ? { ...it, label: `${it.label} (${countryName(cc)})` } : it;
+  });
 }

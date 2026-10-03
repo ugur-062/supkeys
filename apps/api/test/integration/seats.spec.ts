@@ -9,6 +9,7 @@
 import { CompanyRole } from "@rothern/db";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { readSeatUsage } from "../../src/common/company/seat-gate";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
 
@@ -73,33 +74,86 @@ beforeEach(async () => {
 });
 
 describe("Faz 5 — koltuk sayımı (kişi, grup)", () => {
-  it("SA+ST taşıyan kurucu 2 koltuk (satınalma 1 + satış 1); ONAYLAYICI/YONETICI/görüntüleyici tüketmez", async () => {
+  it("SA+ST taşıyan kurucu GOLD'da 2 koltuk (satınalma 1 + satış 1); ONAYLAYICI/YONETICI/görüntüleyici tüketmez", async () => {
     const { svc } = makeUsersService();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" }); // SAHIP+SA+ST
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // SAHIP+SA+ST
     await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
     await makeUser(prisma, co.company.id, [CompanyRole.YONETICI]);
     await makeUser(prisma, co.company.id, [], { permissions: ["buy:view", "sell:view"] });
 
     const usage = await svc.seatUsage(co.company.id);
-    expect(usage).toMatchObject({ limit: 2, used: 2, usedBuy: 1, usedSell: 1, overflow: 0 });
+    expect(usage).toMatchObject({ limit: 6, used: 2, usedBuy: 1, usedSell: 1, overflow: 0 });
   });
 
-  it("STANDART limit 2: kurucu iki koltuğu alırsa paket dolar; tek koltuklu kurucuda 1 boş", async () => {
+  it("Gold altında satınalma koltuğu SAYILMAZ; kayıtlı satınalma izni silinmez (arayüz testi O-065, DN-04)", async () => {
     const { svc } = makeUsersService();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" }); // SAHIP+SA+ST
+    const buyer = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]);
+    expect(await svc.seatUsage(co.company.id)).toMatchObject({
+      limit: 2,
+      used: 1,
+      usedBuy: 0,
+      usedSell: 1,
+      overflow: 0,
+    });
+    // Boş koltuk gerçekten kullanılabilir: satışçı daveti geçer.
+    await expect(
+      svc.invite(co.auth, { email: "s@x.com", roles: ["SATISCI"] } as never),
+    ).resolves.toBeDefined();
+    const row = await prisma.companyUser.findUniqueOrThrow({ where: { id: buyer.id } });
+    expect(row.roles).toContain(CompanyRole.SATIN_ALMACI);
+    // Gold'a dönünce satınalma koltukları yeniden sayılır.
+    await prisma.company.update({ where: { id: co.company.id }, data: { tier: "GOLD" } });
+    expect(await svc.seatUsage(co.company.id)).toMatchObject({ usedBuy: 2, usedSell: 1 });
+  });
+
+  it("STANDART limit 2: kurucu satış koltuğu + bekleyen satışçı daveti paketi doldurur", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"] as never,
+    });
     expect((await svc.seatUsage(co.company.id)).limit).toBe(2);
     await expect(
       svc.invite(co.auth, { email: "s@x.com", roles: ["SATISCI"] } as never),
-    ).rejects.toThrow(/Koltuk dolu/);
-    // Kurucu yalnız satınalma koltuğu → 1 boş → satış daveti geçer.
-    const solo = await makeCompanyWithUser(prisma, {
-      tier: "STANDART",
-      roles: ["SAHIP", "SATIN_ALMACI"] as never,
-    });
-    expect((await svc.seatUsage(solo.company.id)).used).toBe(1);
-    await expect(
-      svc.invite(solo.auth, { email: "s2@x.com", roles: ["SATISCI"] } as never),
     ).resolves.toBeDefined();
+    await expect(
+      svc.invite(co.auth, { email: "s2@x.com", roles: ["SATISCI"] } as never),
+    ).rejects.toThrow(/Koltuk dolu/);
+  });
+
+  it("son koltuğu tutan bekleyen davet YENİDEN GÖNDERİLEBİLİR — kendi koltuğu iki kez sayılmaz (arayüz testi O-063)", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"] as never,
+    }); // 1/2
+    const inv = (await svc.invite(co.auth, {
+      email: "son-koltuk@x.com",
+      roles: ["SATISCI"],
+    } as never)) as { id: string };
+    await expect(svc.resendInvitation(co.auth, inv.id)).resolves.toMatchObject({ ok: true });
+    // Kapı hâlâ çalışıyor: başka bir koltuk daveti yine reddedilir.
+    await expect(
+      svc.invite(co.auth, { email: "fazla@x.com", roles: ["SATISCI"] } as never),
+    ).rejects.toThrow(/Koltuk dolu/);
+  });
+});
+
+describe("Koltuk kapısı tek kaynak (derin denetim MU-04)", () => {
+  it("firma paneli sayımı admin kapısının okuduğu sayımla birebir aynı", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
+    await seedInvitation(
+      co.company.id,
+      co.user.id,
+      [CompanyRole.SATIN_ALMACI],
+      "tek-kaynak@example.com",
+    );
+    const panel = await svc.seatUsage(co.company.id);
+    expect(panel).toEqual(await readSeatUsage(prisma as never, co.company.id));
+    expect(panel).toMatchObject({ usedSell: 2, pendingBuy: 1, overflow: 0 });
   });
 });
 
@@ -121,7 +175,7 @@ describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
 
     await expect(
       svc.invite(co.auth, { email: "yeni@x.com", roles: ["SATISCI"] } as never),
-    ).rejects.toThrow(/Koltuk dolu/);
+    ).rejects.toThrow(/Koltuk dolu.*paketi yükseltin/);
     await expect(
       svc.invite(co.auth, { email: "onay@x.com", roles: ["ONAYLAYICI"] } as never),
     ).resolves.toBeDefined();
@@ -176,13 +230,20 @@ describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
     await expect(
       svc.invite(co.auth, { email: "yedinci@x.com", roles: ["SATISCI"] } as never),
     ).rejects.toThrow(/Koltuk dolu/);
+    // GOLD en üst paket: "paketi yükseltin" denmez, koltuk boşaltma yolu
+    // söylenir (arayüz testi D-188).
+    const err = (await svc
+      .invite(co.auth, { email: "sekizinci@x.com", roles: ["SATISCI"] } as never)
+      .catch((e: unknown) => e)) as Error;
+    expect(err.message).toMatch(/koltuğu boşaltın/);
+    expect(err.message).not.toMatch(/yükselt/);
   });
 
   it("bekleyen koltuk davetleri grup bazında sayılır (davet-yağmuru kapalı)", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {
       tier: "STANDART",
-      roles: ["SAHIP", "SATIN_ALMACI"] as never,
+      roles: ["SAHIP", "SATISCI"] as never,
     }); // 1/2
     await seedInvitation(co.company.id, co.user.id, [CompanyRole.SATISCI], "bekleyen@x.com"); // 1 + 1 bekleyen = 2
     const usage = await svc.seatUsage(co.company.id);
@@ -212,10 +273,10 @@ describe("Faz 5 — kapılar (STANDART 2 koltuk)", () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {
       tier: "STANDART",
-      roles: ["SAHIP", "SATIN_ALMACI"] as never,
+      roles: ["SAHIP", "SATISCI"] as never,
     }); // 1/2 → 1 boş koltuk
     const invA = await seedInvitation(co.company.id, co.user.id, [CompanyRole.SATISCI], "a@yaris.com");
-    const invB = await seedInvitation(co.company.id, co.user.id, [CompanyRole.SATIN_ALMACI], "b@yaris.com");
+    const invB = await seedInvitation(co.company.id, co.user.id, [CompanyRole.SATISCI], "b@yaris.com");
 
     const results = await Promise.allSettled([
       svc.acceptInvitation(invA.token, ACCEPT_DTO),
@@ -235,14 +296,15 @@ describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (ki
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // kurucu SA+ST = 2
     const u2 = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI, CompanyRole.YONETICI]); // +1 = 3
-    const u3 = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]); // +1 = 4
+    const u3 = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]); // +1 = 4
 
     await prisma.company.update({
       where: { id: co.company.id },
       data: { tier: "STANDART", membershipEndAt: new Date(Date.now() + 86_400_000) },
     });
+    // Gold altında kurucunun satınalma koltuğu sayılmaz (O-065): 3 satış / 2.
     const over = await svc.seatUsage(co.company.id);
-    expect(over).toMatchObject({ limit: 2, used: 4, usedBuy: 2, usedSell: 2, overflow: 2 });
+    expect(over).toMatchObject({ limit: 2, used: 3, usedBuy: 0, usedSell: 3, overflow: 1 });
     await expect(
       svc.invite(co.auth, { email: "n@x.com", roles: ["SATISCI"] } as never),
     ).rejects.toThrow(/Koltuk dolu/);
@@ -268,23 +330,24 @@ describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (ki
       },
     });
 
-    // Kurucu seçer: kurucu SATIŞ + u3 SATINALMA kalır → kurucunun satınalma
-    // koltuğu ve u2'nin satış koltuğu düşer; u2 YONETICI etiketi kalır.
+    // Kurucu seçer: kurucu SATIŞ + u3 SATIŞ kalır → u2'nin satış koltuğu
+    // düşer; u2 YONETICI etiketi kalır. Kurucunun (sayılmayan) satınalma
+    // izinleri dokunulmadan kalır.
     const res = await svc.applySeatSelection(co.auth, [
       { userId: co.user.id, group: "sell" },
-      { userId: u3.id, group: "buy" },
+      { userId: u3.id, group: "sell" },
     ]);
-    expect(res).toEqual({ ok: true, droppedCount: 2 });
+    expect(res).toEqual({ ok: true, droppedCount: 1 });
     const u2After = await prisma.companyUser.findUniqueOrThrow({ where: { id: u2.id } });
     expect(u2After.roles).toEqual([CompanyRole.YONETICI]);
     expect(u2After.isActive).toBe(true);
     expect(u2After.permissions).toContain("sell:view"); // görüntüleme kaldı
     expect(u2After.permissions).not.toContain("sell:bid:submit");
     const ownerAfter = await prisma.companyUser.findUniqueOrThrow({ where: { id: co.user.id } });
-    expect(ownerAfter.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATISCI]);
-    expect(ownerAfter.permissions).not.toContain("buy:listing:manage");
+    expect(ownerAfter.permissions).toContain("sell:bid:submit");
+    expect(ownerAfter.permissions).toContain("buy:listing:manage"); // uykuda, silinmedi
     const after = await svc.seatUsage(co.company.id);
-    expect(after).toMatchObject({ limit: 2, used: 2, usedBuy: 1, usedSell: 1, overflow: 0 });
+    expect(after).toMatchObject({ limit: 2, used: 2, usedBuy: 0, usedSell: 2, overflow: 0 });
 
     const row = await prisma.auditLog.findFirstOrThrow({
       where: { action: "company.user.roles_changed", entityId: u2.id },
@@ -355,26 +418,65 @@ describe("Faz 5 — paket düşüşü: aşkın durum + kurucu koltuk seçimi (ki
 
   it("seçim doğrulamaları: limit üstü seçim + koltuksuz çift reddedilir; eski istemci keepUserIds kişinin tüm gruplarını korur", async () => {
     const { svc } = makeUsersService();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" }); // kurucu 2 koltuk
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" }); // kurucu SA+ST (satınalma sayılmaz)
     const a = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
+    const b = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
     const approver = await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(
       svc.applySeatSelection(co.auth, [
-        { userId: co.user.id, group: "buy" },
         { userId: co.user.id, group: "sell" },
         { userId: a.id, group: "sell" },
+        { userId: b.id, group: "sell" },
       ]),
     ).rejects.toThrow(/En fazla 2/);
     await expect(
-      svc.applySeatSelection(co.auth, [{ userId: approver.id, group: "buy" }]),
+      svc.applySeatSelection(co.auth, [{ userId: approver.id, group: "sell" }]),
     ).rejects.toThrow(/koltuk kullanmayan/);
+    // Gold altında satınalma koltuğu seçilemez (O-069).
     await expect(
-      svc.applySeatSelection(co.auth, [{ userId: a.id, group: "buy" }]), // a'nın satınalma koltuğu yok
-    ).rejects.toThrow(/koltuk kullanmayan/);
-    // Eski istemci: keepUserIds → kurucunun iki grubu korunur, a düşer.
+      svc.applySeatSelection(co.auth, [{ userId: co.user.id, group: "buy" }]),
+    ).rejects.toThrow(/Gold pakette/);
+    // Eski istemci: keepUserIds → kurucunun satış koltuğu korunur, a ve b düşer.
     const res = await svc.applySeatSelection(co.auth, [co.user.id]);
-    expect(res).toEqual({ ok: true, droppedCount: 1 });
-    expect((await svc.seatUsage(co.company.id)).used).toBe(2);
+    expect(res).toEqual({ ok: true, droppedCount: 2 });
+    expect((await svc.seatUsage(co.company.id)).used).toBe(1);
+  });
+
+  it("GOLD→SILVER: satınalma koltuğu seçimde reddedilir, satış koltukları seçilir; uykudaki satınalma izni kalır (arayüz testi O-069)", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // kurucu SA+ST
+    const buyer = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]);
+    const sellers = [];
+    for (let i = 0; i < 4; i++) {
+      sellers.push(await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]));
+    }
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { tier: "SILVER", membershipEndAt: new Date(Date.now() + 86_400_000) },
+    });
+    // 5 satış koltuğu / 4 (satınalma koltukları sayılmaz) → 1 aşkın.
+    expect(await svc.seatUsage(co.company.id)).toMatchObject({
+      limit: 4,
+      used: 5,
+      usedBuy: 0,
+      overflow: 1,
+    });
+    await expect(
+      svc.applySeatSelection(co.auth, [
+        { userId: co.user.id, group: "buy" },
+        { userId: buyer.id, group: "buy" },
+        { userId: co.user.id, group: "sell" },
+        { userId: sellers[0]!.id, group: "sell" },
+      ]),
+    ).rejects.toThrow(/Gold pakette/);
+    const res = await svc.applySeatSelection(co.auth, [
+      { userId: co.user.id, group: "sell" },
+      ...sellers.slice(0, 3).map((s) => ({ userId: s.id, group: "sell" as const })),
+    ]);
+    expect(res).toEqual({ ok: true, droppedCount: 1 }); // yalnız 4. satışçı
+    const buyerRow = await prisma.companyUser.findUniqueOrThrow({ where: { id: buyer.id } });
+    expect(buyerRow.roles).toContain(CompanyRole.SATIN_ALMACI);
+    expect(await svc.seatUsage(co.company.id)).toMatchObject({ used: 4, overflow: 0 });
   });
 });
 
@@ -436,6 +538,35 @@ describe("Satınalma yetkisi paket kapısı", () => {
     ).resolves.toBeDefined();
   });
 
+  it("uykudaki buy koltuğu olan kişiye YENİ buy işlem izni Gold altında REDDEDİLİR; mevcutlar kalır (arayüz testi T3)", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP"] as never,
+    });
+    // Gold'dayken verilmiş, kademe düşünce uykuya geçmiş talep yönetme izni.
+    const kisi = await makeUser(prisma, co.company.id, [], {
+      permissions: ["buy:view", "buy:listing:manage"],
+    });
+    await expect(
+      svc.setPermissions(co.auth, kisi.id, ["buy:view", "buy:listing:manage", "buy:award"]),
+    ).rejects.toThrow(/Gold pakette/);
+    await expect(
+      svc.setPermissions(co.auth, kisi.id, [
+        "buy:view",
+        "buy:listing:manage",
+        "buy:order:manage",
+        "buy:inquiry:send",
+      ]),
+    ).rejects.toThrow(/Gold pakette/);
+    const row = await prisma.companyUser.findUniqueOrThrow({ where: { id: kisi.id } });
+    expect(row.permissions).not.toContain("buy:award");
+    // Mevcut uykudaki izin korunarak başka değişiklik yapılabilir.
+    await expect(
+      svc.setPermissions(co.auth, kisi.id, ["buy:view", "buy:listing:manage", "sell:view"]),
+    ).resolves.toBeDefined();
+  });
+
   it("GOLD: satınalma yetkisi verilebilir", async () => {
     const { svc } = makeUsersService();
     const co = await makeCompanyWithUser(prisma, {
@@ -445,5 +576,152 @@ describe("Satınalma yetkisi paket kapısı", () => {
     await expect(
       svc.invite(co.auth, { email: "alici2@x.com", roles: ["SATIN_ALMACI"] } as never),
     ).resolves.toBeDefined();
+  });
+});
+
+/**
+ * Arayüz testi Y-13: Kurucu her zaman yöneticidir. Yönetim yetkisi onda örtük
+ * ve kayıtlı listede tutulmaz; koltuk seçimi ya da kendi işlem tiklerini
+ * düzenlemesi satırına yalnız işlem izinlerini yazıyordu ve son-yönetici
+ * nöbetçisi kurucuyu artık saymayıp her ekip düzenlemesini reddediyordu.
+ */
+describe("Kurucu ekip yönetiminden kilitlenmez (arayüz testi Y-13)", () => {
+  async function svcWithNotifications() {
+    const { NotificationService } = await import(
+      "../../src/modules/notifications/notification.service"
+    );
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    return new CompanyUsersService(
+      prisma as never,
+      { createUser: jest.fn(), deleteUser: jest.fn() } as never,
+      { createSession: jest.fn() } as never,
+      email as never,
+      config as never,
+      new AuditService(prisma as never),
+      new NotificationService(prisma as never),
+    );
+  }
+
+  it("koltuk seçimi kurucunun kendi grubunu bıraktıktan sonra düzenleme ve pasifleştirme çalışır", async () => {
+    const svc = await svcWithNotifications();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // tek yönetici: kurucu
+    const sellers = [];
+    for (let i = 0; i < 5; i++) {
+      sellers.push(await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]));
+    }
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { tier: "SILVER", membershipEndAt: new Date(Date.now() + 86_400_000) },
+    });
+    // Kurucu kendi satış koltuğunu bırakıp ilk dört satışçıyı seçer (beşinci düşer).
+    await svc.applySeatSelection(
+      co.auth,
+      sellers.slice(0, 4).map((s) => ({ userId: s.id, group: "sell" as const })),
+    );
+    const ownerRow = await prisma.companyUser.findUniqueOrThrow({ where: { id: co.user.id } });
+    expect(ownerRow.permissions).not.toContain("users:manage"); // örtük — saklanmaz
+    // Kendi koltuğunu bırakan kurucuya "işlem yetkileriniz kaldırıldı"
+    // bildirimi gitmez (arayüz testi api2-01 yeniden doğrulama). Bildirim
+    // best-effort (void) — diğer düşen kişininki yazılana dek beklenir.
+    const seatNotices = (id: string) =>
+      prisma.notification.count({ where: { companyUserId: id, type: "seat_selection" } });
+    for (let i = 0; i < 40 && (await seatNotices(sellers[4]!.id)) === 0; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(await seatNotices(sellers[4]!.id)).toBe(1); // düşen diğer kişi bilgilenir
+    expect(await seatNotices(co.user.id)).toBe(0);
+    await expect(
+      svc.setPermissions(co.auth, sellers[0]!.id, ["sell:view", "sell:bid:submit"]),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(svc.setActive(co.auth, sellers[1]!.id, false)).resolves.toBeDefined();
+  });
+
+  it("kurucu kendi işlem tiklerini düzenler, ardından başka kullanıcıyı düzenler → geçer; kendine 'yöneticiniz değiştirdi' bildirimi gitmez", async () => {
+    const svc = await svcWithNotifications();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const seller = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
+    await svc.setPermissions(co.auth, co.user.id, ["sell:bid:submit"]);
+    await expect(
+      svc.setPermissions(co.auth, seller.id, ["sell:view", "sell:product:manage"]),
+    ).resolves.toMatchObject({ ok: true });
+    expect(
+      await prisma.notification.count({
+        where: { companyUserId: co.user.id, type: "permissions_changed" },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.notification.count({
+        where: { companyUserId: seller.id, type: "permissions_changed" },
+      }),
+    ).toBe(1);
+  });
+
+  it("kurucusuz firmada son yönetici garantisi hâlâ çalışır", async () => {
+    const svc = await svcWithNotifications();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const admin = await makeUser(prisma, co.company.id, [CompanyRole.YONETICI]);
+    // Kurucu pasif → sayılmaz; tek aktif yönetim yetkilisi `admin`.
+    await prisma.companyUser.update({ where: { id: co.user.id }, data: { isActive: false } });
+    await expect(
+      svc.setPermissions(
+        { ...(co.auth as object), userId: "ghost", isOwner: true } as never,
+        admin.id,
+        ["sell:view"],
+      ),
+    ).rejects.toThrow(/aktif yönetim yetkilisi/);
+  });
+});
+
+describe("Görüntüleyici hazır seti 'Özel' sayılmaz (arayüz testi D-305)", () => {
+  it("rolsüz kişi Görüntüleyici setiyle birebir → custom:false; fazladan tik → custom:true", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const viewer = await makeUser(prisma, co.company.id, [], {
+      permissions: ["buy:view", "sell:view", "buy:reports:view"],
+    });
+    const extra = await makeUser(prisma, co.company.id, [], {
+      permissions: ["buy:view", "sell:view", "buy:reports:view", "insights:view"],
+    });
+    const list = await svc.list(co.company.id);
+    expect(list.find((u) => u.id === viewer.id)?.custom).toBe(false);
+    expect(list.find((u) => u.id === extra.id)?.custom).toBe(true);
+  });
+});
+
+describe("GOLD→SILVER düşüşü firmaya bildirilir (arayüz testi O-065)", () => {
+  it("admin Silver'a alınca 'satınalma paneli kapandı' bildirimi gider; Silver'dan Gold'a çıkışta gitmez", async () => {
+    const { AdminCompaniesService } = await import(
+      "../../src/modules/admin-companies/admin-companies.service"
+    );
+    const { EmailSuppressionService } = await import(
+      "../../src/modules/email/email-suppression.service"
+    );
+    const notifications = { pushToCompany: jest.fn().mockResolvedValue(1) };
+    const admin = new AdminCompaniesService(
+      prisma as never,
+      {} as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
+      notifications as never,
+      { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+      new AuditService(prisma as never),
+      new EmailSuppressionService(prisma as never),
+    );
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await admin.setTier(co.company.id, "SILVER", 12, "admin-1");
+    expect(notifications.pushToCompany).toHaveBeenCalledWith(
+      co.company.id,
+      expect.objectContaining({
+        type: "membership_downgraded",
+        titleKey: "api.notifications.adminCompanies.paketSilvereAlindiBaslik",
+        bodyKey: "api.notifications.adminCompanies.paketSilvereAlindiGovde",
+      }),
+    );
+    notifications.pushToCompany.mockClear();
+    await admin.setTier(co.company.id, "GOLD", 12, "admin-1");
+    expect(notifications.pushToCompany).not.toHaveBeenCalledWith(
+      co.company.id,
+      expect.objectContaining({ type: "membership_downgraded" }),
+    );
   });
 });

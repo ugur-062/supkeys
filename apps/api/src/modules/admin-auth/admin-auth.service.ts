@@ -1,24 +1,33 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
   UnauthorizedException,
-  ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
+import * as QRCode from "qrcode";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import {
+  admin2faRequiredRolesFromConfig,
+  isAdmin2faSetupRequired,
+} from "../../common/config/admin-2fa";
 import {
   decryptTotpSecret,
   encryptTotpSecret,
   totpEncKey,
 } from "../../common/auth/totp-secret-cipher";
-import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
+import { SupabaseAuthService, isSupabaseAuthAccessError } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
 
-const INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı";
+/**
+ * Kimlik hatasının KATALOG ANAHTARI — iki çağrı yeri (parola ve hesap
+ * durumu) BİLEREK aynı mesajı basar: hangi adımın düştüğü sızmasın.
+ */
+const INVALID_CREDENTIALS_KEY = "api.adminAuth.ePostaVeyaSifreHatali" as const;
 
 @Injectable()
 export class AdminAuthService {
@@ -45,12 +54,12 @@ export class AdminAuthService {
     // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401.
     let authId: string;
     try {
-      const result = await this.supabaseAuth.verifyPassword(email, dto.password);
+      const result = await this.supabaseAuth.verifyPassword(email, dto.password, ctx?.ip);
       authId = result.authId;
     } catch (err) {
-      if (err instanceof ServiceUnavailableException) throw err; // kesinti ≠ parola hatası
+      if (isSupabaseAuthAccessError(err)) throw err; // kesinti / istemci kotası (429) ≠ parola hatası
       auditFail("bad_credentials");
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+      throw new UnauthorizedException(i18nMessage(INVALID_CREDENTIALS_KEY));
     }
 
     const admin = await this.prisma.platformAdmin.findUnique({
@@ -59,14 +68,14 @@ export class AdminAuthService {
 
     if (!admin || !admin.isActive) {
       auditFail("inactive_or_missing");
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+      throw new UnauthorizedException(i18nMessage(INVALID_CREDENTIALS_KEY));
     }
 
     // 2FA (TOTP) — etkinse parola YETMEZ: kod ister; frontend bu mesajı
     // yakalayıp kod alanını gösterir ve isteği code ile tekrarlar.
     if (admin.twoFactorEnabled && admin.twoFactorSecret) {
       if (!dto.code) {
-        throw new UnauthorizedException("2FA_REQUIRED");
+        throw new UnauthorizedException(i18nMessage("api.adminAuth.n2faRequired"));
       }
       const ok = authenticator.verify({
         token: dto.code.trim(),
@@ -74,7 +83,7 @@ export class AdminAuthService {
       });
       if (!ok) {
         auditFail("bad_2fa_code");
-        throw new UnauthorizedException("Doğrulama kodu hatalı");
+        throw new UnauthorizedException(i18nMessage("api.adminAuth.dogrulamaKoduHatali"));
       }
     }
 
@@ -91,12 +100,20 @@ export class AdminAuthService {
       tv: admin.tokenVersion,
     };
 
+    // 2FA zorunlu rolde 2FA kapalıysa giriş YİNE verilir (kilitlenme yok) ama
+    // AdminRolesGuard yalnız kurulum uçlarını açar; panel Ayarlar'a yönlendirir.
+    const twoFactorSetupRequired = this.twoFactorSetupRequired(admin);
+
     void this.audit.log({
       action: "auth.login",
       actorType: "admin",
       actorId: admin.id,
       actorEmail: admin.email,
-      metadata: { portal: "admin", role: admin.role },
+      metadata: {
+        portal: "admin",
+        role: admin.role,
+        ...(twoFactorSetupRequired ? { twoFactorSetupRequired: true } : {}),
+      },
       ip: ctx?.ip,
       userAgent: ctx?.userAgent,
     });
@@ -109,8 +126,25 @@ export class AdminAuthService {
         firstName: admin.firstName,
         lastName: admin.lastName,
         role: admin.role,
+        twoFactorEnabled: admin.twoFactorEnabled,
+        twoFactorSetupRequired,
+        // Geçici parolayla girildi → panel Ayarlar'a kilitlenir (D-025).
+        mustChangePassword: admin.mustChangePassword,
       },
     };
+  }
+
+  /** Rol ADMIN_2FA_REQUIRED_ROLES'ta ve 2FA kapalı mı (MU-01). */
+  private twoFactorSetupRequired(admin: {
+    role: string;
+    twoFactorEnabled: boolean;
+    twoFactorSecret: string | null;
+  }): boolean {
+    // Login'in kod istediği koşulla AYNI (etkin + sır var) — strateji de böyle.
+    return isAdmin2faSetupRequired(admin2faRequiredRolesFromConfig(this.config), {
+      role: admin.role,
+      twoFactorEnabled: admin.twoFactorEnabled && !!admin.twoFactorSecret,
+    });
   }
 
   async getMe(adminId: string) {
@@ -127,30 +161,37 @@ export class AdminAuthService {
       lastName: admin.lastName,
       role: admin.role,
       twoFactorEnabled: admin.twoFactorEnabled,
+      twoFactorSetupRequired: this.twoFactorSetupRequired(admin),
+      mustChangePassword: admin.mustChangePassword,
     };
   }
 
   // ── Hesap güvenliği (Faz 7) ─────────────────────────────────
 
   /** Şifre değiştir — mevcut şifre Supabase'te doğrulanır. */
-  async changePassword(adminId: string, current: string, next: string) {
+  async changePassword(adminId: string, current: string, next: string, clientIp?: string) {
     const admin = await this.requireAdmin(adminId);
     if (next.length < 12) {
-      throw new BadRequestException("Yeni şifre en az 12 karakter olmalı");
+      throw new BadRequestException(i18nMessage("api.adminAuth.yeniSifreEnAz12Karakter"));
+    }
+    // Geçici parolayı "yeni" diye yeniden koymak zorunlu değişimi boşa çıkarırdı (D-025).
+    if (next === current) {
+      throw new BadRequestException(i18nMessage("api.adminAuth.yeniSifreMevcutSifreyleAyniOlamaz"));
     }
     try {
-      await this.supabaseAuth.verifyPassword(admin.email, current);
+      await this.supabaseAuth.verifyPassword(admin.email, current, clientIp);
     } catch (err) {
-      if (err instanceof ServiceUnavailableException) throw err;
-      throw new BadRequestException("Mevcut şifre hatalı");
+      if (isSupabaseAuthAccessError(err)) throw err;
+      throw new BadRequestException(i18nMessage("api.adminAuth.mevcutSifreHatali"));
     }
     if (!admin.authId) {
-      throw new BadRequestException("Hesap Supabase köprüsüne bağlı değil");
+      throw new BadRequestException(i18nMessage("api.adminAuth.hesapSupabaseKoprusuneBagliDegil"));
     }
     await this.supabaseAuth.updatePassword(admin.authId, next);
     // Oturum iptali: diğer cihazlardaki admin oturumları düşer; bu oturum için
-    // taze token döner (AuthCookieInterceptor cookie'yi yeniler).
-    const token = await this.rotateSession(admin.id);
+    // taze token döner (AuthCookieInterceptor cookie'yi yeniler). Geçici
+    // parola kilidi de burada kalkar (D-025).
+    const token = await this.rotateSession(admin.id, { mustChangePassword: false });
     await this.audit.log({
       action: "admin.self.password_changed",
       actorType: "admin",
@@ -161,10 +202,13 @@ export class AdminAuthService {
   }
 
   /** tokenVersion++ ve bu oturum için taze JWT (denetim 2026-08-23 #3). */
-  private async rotateSession(adminId: string): Promise<string> {
+  private async rotateSession(
+    adminId: string,
+    extra?: { mustChangePassword?: boolean },
+  ): Promise<string> {
     const updated = await this.prisma.platformAdmin.update({
       where: { id: adminId },
-      data: { tokenVersion: { increment: 1 } },
+      data: { ...extra, tokenVersion: { increment: 1 } },
       select: { id: true, email: true, role: true, tokenVersion: true },
     });
     const payload: AdminJwtPayload = {
@@ -190,25 +234,30 @@ export class AdminAuthService {
     return decryptTotpSecret(stored, this.encKey());
   }
 
-  /** 2FA kurulum — secret + otpauth URI döner (enable'da kodla doğrulanır). */
+  /**
+   * 2FA kurulum — secret + otpauth URI + QR görseli döner (enable'da kodla
+   * doğrulanır). QR, firma 2FA kurulumuyla aynı kütüphaneden (arayüz testi
+   * FX-00 D-223: admin yalnız elle anahtar girebiliyordu).
+   */
   async setupTwoFactor(adminId: string) {
     const admin = await this.requireAdmin(adminId);
     if (admin.twoFactorEnabled) {
-      throw new BadRequestException("2FA zaten etkin");
+      throw new BadRequestException(i18nMessage("api.adminAuth.n2faZatenEtkin"));
     }
     const secret = authenticator.generateSecret();
     const otpauthUrl = authenticator.keyuri(admin.email, "Rothern Admin", secret);
-    return { secret, otpauthUrl };
+    const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
+    return { secret, otpauthUrl, qrDataUrl };
   }
 
   /** 2FA etkinleştir — setup'taki secret + authenticator kodu doğrulanır. */
   async enableTwoFactor(adminId: string, secret: string, code: string) {
     const admin = await this.requireAdmin(adminId);
     if (admin.twoFactorEnabled) {
-      throw new BadRequestException("2FA zaten etkin");
+      throw new BadRequestException(i18nMessage("api.adminAuth.n2faZatenEtkin"));
     }
     if (!authenticator.verify({ token: code.trim(), secret })) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+      throw new BadRequestException(i18nMessage("api.adminAuth.dogrulamaKoduHatali"));
     }
     await this.prisma.platformAdmin.update({
       where: { id: adminId },
@@ -229,7 +278,7 @@ export class AdminAuthService {
   async disableTwoFactor(adminId: string, code: string) {
     const admin = await this.requireAdmin(adminId);
     if (!admin.twoFactorEnabled || !admin.twoFactorSecret) {
-      throw new BadRequestException("2FA etkin değil");
+      throw new BadRequestException(i18nMessage("api.adminAuth.n2faEtkinDegil"));
     }
     if (
       !authenticator.verify({
@@ -237,7 +286,7 @@ export class AdminAuthService {
         secret: this.decryptSecret(admin.twoFactorSecret),
       })
     ) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+      throw new BadRequestException(i18nMessage("api.adminAuth.dogrulamaKoduHatali"));
     }
     await this.prisma.platformAdmin.update({
       where: { id: adminId },

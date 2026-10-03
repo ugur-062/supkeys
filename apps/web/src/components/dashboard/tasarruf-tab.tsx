@@ -1,5 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
+import { useFormatPercent } from "@/i18n/domain";
 import {
   Bar,
   BarChart,
@@ -13,7 +17,6 @@ import {
 } from "recharts";
 import { InfoTooltip } from "./info-tooltip";
 import type { Period } from "./period-toggle";
-import { DASH } from "@/lib/dashboard/strings";
 import type { SatinalmaAnalytics } from "@/hooks/use-company-dashboard";
 import {
   ChartCard,
@@ -37,6 +40,8 @@ export interface CategoryBreakdownRow {
   label: string;
   /** Yüzde 0..100 */
   percent: number;
+  /** Tasarruf tutarı (rapor biriminde) — yüzdeyle AYNI pencereden. */
+  amount?: number;
 }
 
 export interface CurrencyBreakdownRow {
@@ -47,6 +52,8 @@ export interface CurrencyBreakdownRow {
 }
 
 export interface TasarrufTabData {
+  /** Tutarların birimi — firmanın rapor para birimi (eski yanıtta yok → TRY). */
+  currency?: string;
   month: SavingsMetrics;
   year: SavingsMetrics;
   topSavingsMonth: TopSavingTender[];
@@ -61,30 +68,36 @@ interface Props {
   data: TasarrufTabData;
   /** Global dönem — sayfa başındaki TEK seçici (kart içi seçiciler kalktı). */
   period: Period;
-  /** Trend + tutarlı kategori kırılımı (analytics ucu). */
+  /** Tasarruf trendi (analytics ucu). Kategori tutarı `data` satırından gelir. */
   analytics?: SatinalmaAnalytics;
 }
 
-const TOOLTIP_SAVINGS =
-  "İhalelerdeki tüm kalemler için, kalem bazında En iyi ilk teklif ve En iyi son teklif arasındaki farkın, ilgili kalem miktarıyla çarpılıp toplanması ile elde edilir.";
-const TOOLTIP_VOLUME =
-  "Kazandırılan satın alma taleplerinde, kazanan kalemlerin (birim fiyat × miktar) toplamı.";
-const TOOLTIP_RATE =
-  "Toplam tasarruf / toplam işlem hacmi oranı. Genel verimlilik göstergesi.";
-const TOOLTIP_TOP5 =
-  "Seçilen dönemde, kalem-bazlı tasarruf hesabıyla bulduğumuz en yüksek tasarruflu 5 satın alma talebi.";
-const TOOLTIP_CATEGORY =
-  "Kategori bazında ortalama tasarruf oranı (en az 1 kazandırılmış satın alma talebi olan kategoriler).";
-const TOOLTIP_CURRENCY =
-  "Satın Alma Talebi ana para birimine göre tasarruf oranı (TRY karşılığı baz alınır).";
-
 export function TasarrufTab({ data, period, analytics }: Props) {
+  const t = useTranslations("web.panel.shell.tasarrufTab");
+  // "Satın Alma Talebi Aç" yalnız talep açma izniyle — menü CTA'sıyla aynı
+  // kural (paket kapısı panoyu zaten Gold'a bağlar; rol kontrolü içinde).
+  // İzinsiz üye CTA'dan "yetki gerektirir" duvarına düşüyordu (arayüz testi T3).
+  const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
+  // Tutar/yüzde arayüz dilinin biçimiyle (tr-TR sabitti; kısaltma "Mr/M/K"
+  // yerine dilin kısaltması — `formatCompactMoney`).
+  const { money, axis, axisWidth } = useFormatMoney();
+  const pct = useFormatPercent();
+  // Tutarlar FİRMANIN RAPOR BİRİMİNDE (2026-09-27; sunucu çevirir). Adlar
+  // (`formatTRY`) tarihsel.
+  const cur = data.currency ?? analytics?.currency ?? "TRY";
+  const formatTRY = (amount: number) => (Number.isFinite(amount) ? money(amount, cur) : "—");
+  const formatPercent = (p: number) => (Number.isFinite(p) ? pct(p, { maximumFractionDigits: 2 }) : "—");
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
   const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
 
   const metrics = costPeriod === "month" ? data.month : data.year;
-  const topRows =
-    costPeriod === "month" ? data.topSavingsMonth : data.topSavingsYear;
+  // Tasarrufu olmayan (0,00) talep "en yüksek tasarruflu" sıralamasına girmez
+  // (arayüz testi D-297; uç da süzer — eski yanıta karşı burada da).
+  const topRows = (
+    costPeriod === "month" ? data.topSavingsMonth : data.topSavingsYear
+  ).filter((r) => r.amount > 0);
+  // Eksen tek gösterim ("9.000 ₺" ile "18 B ₺" yan yana çıkmaz): ölçek en büyük tutardan.
+  const topScaleMax = axisScaleMax(topRows.map((r) => r.amount));
   const categoryRows =
     costPeriod === "month" ? data.categoryMonth : data.categoryYear;
   const currencyRows =
@@ -96,15 +109,15 @@ export function TasarrufTab({ data, period, analytics }: Props) {
           kullanıcı kararı: "Şirketim'deki zaman tasarrufu kısımları gereksiz").
           Sekme yalnız MALİYET tasarrufunu gösterir. */}
       {period === "quarter" ? (
-        <p className="text-xs text-zinc-400">{DASH.quarterCostNote}</p>
+        <p className="text-xs text-zinc-400">{t("maliyetKiriliminda")}</p>
       ) : null}
 
-      {/* Tasarruf trendi: aylık bar + kümülatif çizgi (yalnız TRY ihaleler). */}
+      {/* Tasarruf trendi: aylık bar + kümülatif çizgi (rapor biriminde, tüm talepler). */}
       <div className="grid grid-cols-1 gap-4">
         <ChartCard
-          title="Tasarruf Trendi"
-          subtitle="Aylık tasarruf (bar) + kümülatif (çizgi) — TRY satın alma talepleri; hedef verisi platformda yok"
-          ariaLabel="Aylık tasarruf trendi"
+          title={t("tasarrufTrendi")}
+          subtitle={t("aylikTasarrufBarKumulatifCizgiCur", { currency: cur })}
+          ariaLabel={t("aylikTasarrufTrendi")}
         >
           {analytics && analytics.savingsTrend.some((p) => p.value > 0) ? (
             <div className="h-52">
@@ -113,7 +126,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                   <CartesianGrid vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
                   <YAxis tickLine={false} axisLine={false} width={48} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                  <Tooltip formatter={(v, n) => [formatTRY(Number(v ?? 0)), n === "value" ? "Aylık" : "Kümülatif"]} />
+                  <Tooltip formatter={(v, n) => [formatTRY(Number(v ?? 0)), n === "value" ? t("aylik") : t("kumulatif")]} />
                   <Bar dataKey="value" fill="#2563eb" radius={[3, 3, 0, 0]} />
                   <Line type="monotone" dataKey="cumulative" stroke="#1e3a8a" strokeWidth={1.5} dot={false} isAnimationActive={false} />
                 </ComposedChart>
@@ -121,10 +134,10 @@ export function TasarrufTab({ data, period, analytics }: Props) {
             </div>
           ) : (
             <DashboardEmptyState
-              title="Henüz tasarruf verisi yok"
-              body="İlk satın alma talebinizi sonuçlandırdığınızda (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
-              ctaLabel="Satın Alma Talebi Aç"
-              ctaHref="/company/satinalma/taleplerim/yeni"
+              title={t("henuzTasarrufVerisiYok")}
+              body={t("ilkSatinAlmaTalebiniziSonuclandirdiginizda")}
+              ctaLabel={canCreateBuyListing ? t("satinAlmaTalebiAc") : undefined}
+              ctaHref={canCreateBuyListing ? "/company/satinalma/taleplerim/yeni" : undefined}
             />
           )}
         </ChartCard>
@@ -137,21 +150,21 @@ export function TasarrufTab({ data, period, analytics }: Props) {
       <section className="card p-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Metric
-            label="Toplam Tasarrufum"
+            label={t("toplamTasarrufum")}
             value={formatTRY(metrics.totalSavings)}
-            tooltip={TOOLTIP_SAVINGS}
+            tooltip={t("tooltipSavings")}
             accent="success"
           />
           <Metric
-            label="Toplam İşlem Hacmim"
+            label={t("toplamIslemHacmim")}
             value={formatTRY(metrics.totalVolume)}
-            tooltip={TOOLTIP_VOLUME}
+            tooltip={t("tooltipVolume")}
             accent="brand"
           />
           <Metric
-            label="Ortalama Tasarruf Oranım"
+            label={t("ortalamaTasarrufOranim")}
             value={formatPercent(metrics.averageSavingsRate)}
-            tooltip={TOOLTIP_RATE}
+            tooltip={t("tooltipRate")}
             accent="indigo"
           />
         </div>
@@ -162,16 +175,19 @@ export function TasarrufTab({ data, period, analytics }: Props) {
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-zinc-950">
-              En Yüksek Tasarruflu 5 Satın Alma Talebim
+              {t("enYuksekTasarruflu5Satin")}
             </h2>
-            <InfoTooltip content={TOOLTIP_TOP5} />
+            <InfoTooltip content={t("tooltipTop5")} />
           </div>
           <span className="flex items-center gap-2 text-xs text-slate-500">
             <span aria-hidden className="h-2 w-2 rounded-full bg-success-500" />
-            En yüksek tasarruflu satın alma talebi
+            {t("enYuksekTasarruflu")}
           </span>
         </header>
 
+        {topRows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-zinc-500">{t("top5Bos")}</p>
+        ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Sol — sıralı liste */}
           <ul className="divide-y divide-slate-100">
@@ -217,11 +233,11 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                   tickLine={false}
                 />
                 <YAxis
-                  tickFormatter={(v) => abbreviateTRY(Number(v))}
+                  tickFormatter={(v) => axis(Number(v), cur, topScaleMax)}
                   tick={{ fontSize: 11, fill: "#64748b" }}
                   axisLine={false}
                   tickLine={false}
-                  width={70}
+                  width={axisWidth(cur, topScaleMax, 70)}
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(59,107,255,0.06)" }}
@@ -230,8 +246,8 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                     border: "1px solid #e2e8f0",
                     fontSize: 12,
                   }}
-                  formatter={(v) => [formatTRY(Number(v)), "Tasarruf"]}
-                  labelFormatter={(rank) => `#${String(rank)}. Satın Alma Talebi`}
+                  formatter={(v) => [formatTRY(Number(v)), t("tasarrufTutari")]}
+                  labelFormatter={(rank) => t("satinAlmaTalebi", { String: String(rank) })}
                 />
                 <Bar
                   dataKey="amount"
@@ -241,32 +257,31 @@ export function TasarrufTab({ data, period, analytics }: Props) {
               </BarChart>
             </ResponsiveContainer>
             <p className="mt-1 text-right text-xs font-medium text-slate-500">
-              Tasarruf Tutarı
+              {t("tasarrufTutari")}
             </p>
           </div>
         </div>
+        )}
       </section>
 
       {/* 2 yatay-bar kart */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <BreakdownCard
-          title="Ana Kategori Bazlı Tasarrufum"
-          tooltip={TOOLTIP_CATEGORY}
-          rows={categoryRows.map((r) => {
-            const amt = analytics?.categorySavings.find(
-              (c) => c.label === r.label,
-            )?.amount;
-            return {
-              label: r.label,
-              percent: r.percent,
-              amountLabel: amt != null ? formatTRY(amt) : undefined,
-            };
-          })}
+          title={t("anaKategoriBazliTasarrufum")}
+          tooltip={t("tooltipCategory")}
+          // Tutar yüzdeyle aynı satırdan (aynı dönem penceresi). Eskiden
+          // analytics'in seçili-dönem tutarı eşleniyordu → çeyrek/özel aralıkta
+          // yıl yüzdesinin yanında çeyrek tutarı çıkıyordu.
+          rows={categoryRows.map((r) => ({
+            label: r.label,
+            percent: r.percent,
+            amountLabel: r.amount != null ? formatTRY(r.amount) : undefined,
+          }))}
           color="brand"
         />
         <BreakdownCard
-          title="Ana Para Birimi Bazlı Tasarrufum"
-          tooltip={TOOLTIP_CURRENCY}
+          title={t("anaParaBirimiBazliTasarrufum")}
+          tooltip={t("tooltipCurrency")}
           rows={currencyRows}
           color="indigo"
         />
@@ -317,6 +332,7 @@ function BreakdownCard({
   rows: Array<{ label: string; percent?: number; amountLabel?: string }>;
   color: "brand" | "indigo";
 }) {
+  const pct = useFormatPercent();
   const fill =
     color === "brand"
       ? "bg-zinc-900"
@@ -348,7 +364,7 @@ function BreakdownCard({
                       {r.amountLabel}
                     </span>
                   ) : null}
-                  {hasData ? `${(r.percent as number).toFixed(2)}%` : "—"}
+                  {hasData ? pct(r.percent as number, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
                 </span>
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -367,25 +383,4 @@ function BreakdownCard({
       </ul>
     </section>
   );
-}
-
-function formatTRY(amount: number): string {
-  if (!Number.isFinite(amount)) return "—";
-  return new Intl.NumberFormat("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatPercent(p: number): string {
-  if (!Number.isFinite(p)) return "—";
-  return `%${p.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}`;
-}
-
-function abbreviateTRY(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(0)}Mr ₺`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M ₺`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K ₺`;
-  return `${n} ₺`;
 }

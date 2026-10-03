@@ -575,3 +575,46 @@ describe("company-profile — alt kategoriler", () => {
     ).rejects.toThrow(BadRequestException);
   });
 });
+
+/**
+ * Merkez adresi posta kodu (arayüz testi webC-09 yeniden doğrulama): adres
+ * defteriyle aynı kural — TR'de 5 rakam, yabancıda serbest. PATCH eskiden
+ * 'ABCDE' kaydediyordu; kural yalnız arayüzdeydi.
+ */
+describe("company-profile — TR posta kodu 5 rakam", () => {
+  it("TR firması: 'ABCDE' / '3400' reddedilir, '34000' kaydedilir, boş serbest", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    for (const bad of ["ABCDE", "3400", "34 000"]) {
+      await expect(
+        svc.update(owner.company.id, { postalCode: bad } as never),
+      ).rejects.toThrow(/5 haneli/);
+    }
+    await svc.update(owner.company.id, { postalCode: "34000" } as never);
+    let c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.postalCode).toBe("34000");
+    await svc.update(owner.company.id, { postalCode: "" } as never);
+    c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.postalCode).toBeNull();
+  });
+
+  it("yabancı firma: harfli posta kodu serbest", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "GB" });
+    await svc.update(owner.company.id, { postalCode: "SW1A 1AA" } as never);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.postalCode).toBe("SW1A 1AA");
+  });
+
+  it("kuraldan önce kaydedilmiş hatalı kod aynen gelirse diğer alanların kaydını engellemez", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({ where: { id: owner.company.id }, data: { postalCode: "ABC" } });
+    await svc.update(owner.company.id, { postalCode: "ABC", website: "https://ornek.com.tr" } as never);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.website).toBe("https://ornek.com.tr");
+    await expect(
+      svc.update(owner.company.id, { postalCode: "ABCD1" } as never),
+    ).rejects.toThrow(/5 haneli/);
+  });
+});

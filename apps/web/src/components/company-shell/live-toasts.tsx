@@ -1,8 +1,15 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
+import { notificationHref, stripLocale } from "@/i18n/href";
+
 import type { AppNotification } from "@/hooks/use-notifications";
 import type { ThreadSummary } from "@/hooks/use-company-messages";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  useCompanyAuth,
+  useCompanyPermissionsSynced,
+} from "@/hooks/use-company-auth";
 import { companyApi } from "@/lib/company-auth/api";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { connectRealtime } from "@/lib/realtime";
@@ -14,7 +21,7 @@ import {
 } from "@/lib/company/portals";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, MessageSquare, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { NOTIFICATION_KEY } from "@/hooks/use-notifications";
@@ -55,17 +62,16 @@ function storeFor(userId: string): SeenStore {
   return store;
 }
 
-/** ctaUrl mutlak gelebilir — path'e indir (zil ile aynı davranış). */
+/** ctaUrl mutlak + dil ön ekli gelebilir — İÇ yola indir (zil ile aynı davranış). */
 function toPath(ctaUrl: string | null): string {
-  const path = (ctaUrl ?? "").replace(/^https?:\/\/[^/]+/, "");
-  return path || "/company/bildirimler";
+  return notificationHref(ctaUrl, "/company/bildirimler");
 }
 
 /** Kullanıcı şu an bu konuşmanın içinde mi? (birleşik kutu:
  *  /company/mesajlar?with=<id>&portal=<p>; portal paramı yoksa firma eşleşmesi yeter.) */
 function viewingThread(portal: PortalKey, otherPartyId: string): boolean {
   if (typeof window === "undefined") return false;
-  if (window.location.pathname !== "/company/mesajlar") return false;
+  if (stripLocale(window.location.pathname) !== "/company/mesajlar") return false;
   const q = new URLSearchParams(window.location.search);
   if (q.get("with") !== otherPartyId) return false;
   const p = q.get("portal");
@@ -78,6 +84,7 @@ function PopupCard({
   title,
   body,
   chip,
+  closeLabel,
   onOpen,
   onClose,
 }: {
@@ -86,6 +93,13 @@ function PopupCard({
   title: string;
   body: string;
   chip?: string;
+  /**
+   * Kapat düğmesinin adı ÇAĞIRANDA çevrilir (arayüz testi D-012): kart kök
+   * `<Toaster>`ın içinde çizilir — orada `web.panel` mesajları YÜKLÜ DEĞİL
+   * (panel sağlayıcısı yalnız `(authed)` düzeninde), `useTranslations` burada
+   * MISSING_MESSAGE verip ham anahtarı basıyordu.
+   */
+  closeLabel: string;
   onOpen: () => void;
   onClose: () => void;
 }) {
@@ -123,7 +137,7 @@ function PopupCard({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Kapat"
+        aria-label={closeLabel}
         className="shrink-0 rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
       >
         <X className="size-3.5" aria-hidden="true" />
@@ -133,12 +147,19 @@ function PopupCard({
 }
 
 export function LiveToasts() {
+  const tr = useTranslations("web.panel.shell.liveToasts");
+  const tn = useNavLabel();
   const { user } = useCompanyAuth();
+  // D-299: izinler /me ile tazelenmeden kalıcı anlık görüntünün (bayat)
+  // izinleriyle thread ucu çağrılmasın (403 tostu); tazelenince effect yeni
+  // `user` ile yeniden kurulur.
+  const synced = useCompanyPermissionsSynced();
   const qc = useQueryClient();
   const router = useRouter();
+  const closeLabel = tr("kapat");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !synced) return;
     const seen = storeFor(user.id);
     // Mesaj kartları yalnız işlem rolü olan portallardan (API aynası: rolsüz
     // portalın threads ucu 403 verir).
@@ -187,7 +208,7 @@ export function LiveToasts() {
       if (n.type === "permissions_changed") {
         qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
       }
-      const chip = n.portal ? PORTALS[n.portal].label : undefined;
+      const chip = n.portal ? tn(PORTALS[n.portal].label) : undefined;
       toast.custom(
         (t) => (
           <PopupCard
@@ -206,6 +227,7 @@ export function LiveToasts() {
                 );
               router.push(toPath(n.ctaUrl));
             }}
+            closeLabel={closeLabel}
             onClose={() => toast.dismiss(t)}
           />
         ),
@@ -220,14 +242,15 @@ export function LiveToasts() {
             icon={<MessageSquare className="size-4" aria-hidden="true" />}
             accent="emerald"
             title={t.otherPartyName}
-            body={t.lastMessagePreview ?? "Yeni mesaj"}
-            chip={PORTALS[portal].label}
+            body={t.lastMessagePreview ?? tr("yeniMesaj")}
+            chip={tn(PORTALS[portal].label)}
             onOpen={() => {
               toast.dismiss(id);
               router.push(
                 `/company/mesajlar?with=${t.otherPartyId}&portal=${portal}`,
               );
             }}
+            closeLabel={closeLabel}
             onClose={() => toast.dismiss(id)}
           />
         ),
@@ -245,12 +268,13 @@ export function LiveToasts() {
           <PopupCard
             icon={<Bell className="size-4" aria-hidden="true" />}
             accent="blue"
-            title={`+${count} yeni bildirim daha`}
-            body="Tümünü görmek için tıkla."
+            title={tr("yeniBildirimDaha", { count: count })}
+            body={tr("tumunuGormekIcinTikla")}
             onOpen={() => {
               toast.dismiss(t);
               router.push("/company/bildirimler");
             }}
+            closeLabel={closeLabel}
             onClose={() => toast.dismiss(t)}
           />
         ),
@@ -260,6 +284,10 @@ export function LiveToasts() {
 
     const onNotification = async () => {
       const items = await fetchNotifications();
+      // Bildirimler sayfası imleçli ayrı sorgu kullanır (derin denetim S057):
+      // açıksa o da tazelensin, zil rozeti sayısı da.
+      void qc.invalidateQueries({ queryKey: [...NOTIFICATION_KEY, "feed"] });
+      void qc.invalidateQueries({ queryKey: [...NOTIFICATION_KEY, "unread"] });
       const fresh = items.filter((n) => !n.readAt && !seen.notifIds.has(n.id));
       for (const n of items) seen.notifIds.add(n.id);
       if (!seen.seeded) return; // tohumlanmadan sinyal geldi — sessiz geç
@@ -307,7 +335,7 @@ export function LiveToasts() {
       socket.off("notification.new", handleNotification);
       socket.off("message.new", handleMessage);
     };
-  }, [user, qc, router]);
+  }, [user, synced, qc, router, closeLabel]);
 
   return null;
 }

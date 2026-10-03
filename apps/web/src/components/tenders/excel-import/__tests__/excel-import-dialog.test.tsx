@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ItemImportResult } from "@rothern/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
 const h = vi.hoisted(() => ({
   parse: vi.fn(),
@@ -102,6 +103,19 @@ describe("ExcelImportDialog", () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ name: "Çelik boru", quantity: 120, unit: "m" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("büyük dosya: MB değerleri yerel biçimde, 3,5 MB sınırı yuvarlanmaz; sunucuya gitmez (derin denetim boşluk taraması GA2)", () => {
+    render(
+      <ExcelImportDialog open onClose={() => {}} existingCount={0} onApply={() => {}} />,
+    );
+    expect(screen.getByText(/en fazla 3,5 MB\) veya CSV \(en fazla 1 MB\)/)).toBeInTheDocument();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["x"], "kalemler.xlsx");
+    Object.defineProperty(file, "size", { value: 20.5 * 1024 * 1024 });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(toast.error).toHaveBeenCalledWith("Dosya çok büyük (20,5 MB) — Excel için sınır 3,5 MB");
+    expect(h.parse).not.toHaveBeenCalled();
   });
 
   it("hiç geçerli satır yoksa Aktar devre dışı", async () => {

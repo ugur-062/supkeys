@@ -1,3 +1,6 @@
+import { useActivityLabel, useCityLabel, usePriceLabels, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
+import { foldSearchText, productVideoEmbedUrl } from "@rothern/shared";
 import { PublicLayout } from "./public-layout";
 import { ProductGallery } from "./product-gallery";
 import { Badge } from "@/components/catalyst/badge";
@@ -7,8 +10,11 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Heading } from "@/components/catalyst/heading";
 import { Tabs } from "@/components/ui/tabs";
 import { JsonLd } from "@/components/seo/json-ld";
+import { AutoTranslatedNote } from "./auto-translated-note";
 import { productSeo } from "@/lib/seo/entities";
-import { productPrice } from "@/lib/public/product-price";
+import { contentLangOf } from "@/lib/seo/meta";
+import type { Locale } from "@rothern/i18n";
+import { formatProductPrice, productPrice } from "@/lib/public/product-price";
 import type {
   ProductIndexCard,
   ProductPriceFields,
@@ -16,21 +22,21 @@ import type {
   PublicProductCompany,
   RelatedProducts,
 } from "@/lib/public/marketplace-api";
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
+import { MemberCta, SessionSwap } from "./member-cta";
+import { ProductDocuments, type ProductDocument } from "./product-documents";
 import { ProductCard } from "./product-card";
 import { ActivityIcon } from "./activity-icons";
 import { CardCarousel } from "./card-carousel";
-import { companyActivityLabel } from "@rothern/shared";
 import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
+import { anchorId } from "@/lib/public/anchors";
+import { AnchorAliases } from "./anchor-aliases";
 import { resolveSiteUrl } from "@/lib/site-url";
-import {
-  DocumentTextIcon,
-  MapPinIcon,
-} from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { MapPinIcon } from "@heroicons/react/20/solid";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Ürün sayfası — SUNUCU bileşeni.
@@ -52,12 +58,16 @@ export function ProductDetail({
   companySlug: string;
   related?: RelatedProducts;
 }) {
+  const t = useTranslations("web.marketplace.product");
   const site = resolveSiteUrl();
   const url = `${site}/firma/${companySlug}/urun/${product.slug}`;
   // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
   const attrs = product.attributeList ?? [];
 
-  const price = productPrice(product);
+  const priceLabels = usePriceLabels();
+  const price = productPrice(product, priceLabels);
+  const locale = useLocale();
+  const seoT = useSeoT();
 
   /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
      `lib/seo/entities.ts` `productSeo` hem `generateMetadata`yı hem buradaki
@@ -71,7 +81,7 @@ export function ProductDetail({
     // Bu bileşen yalnız herkese açık sayfada kullanılıyor; `noindex` kararı
     // sayfanın `generateMetadata`sında veriliyor, grafik ondan etkilenmez.
     indexable: true,
-  });
+  }, { locale, t: seoT });
 
   return (
     <PublicLayout>
@@ -81,10 +91,13 @@ export function ProductDetail({
         <ProductBreadcrumb
           /* "Anasayfa" METNİ ev ikonuyla değişti (kaynak kalıp): aynı hedef
              iki kez yazılmasın. */
-          home={{ href: "/", label: "Anasayfa" }}
+          home={{ href: "/", label: t("home") }}
           trail={[
-            ...(product.category
-              ? [{ label: product.category.name, href: categoryPath(product.category.id, product.category.name) }]
+            // SEGMENT açılış sayfası (2026-09-27): L3 kodu süzgeç adresine
+            // (`/urunler?kategori=`, kanoniği dizin) gidiyordu — JSON-LD
+            // kırıntısıyla aynı halka.
+            ...(product.segment
+              ? [{ label: product.segment.name, href: categoryHref(product.segment) }]
               : []),
             { label: company.name, href: `/firma/${companySlug}` },
           ]}
@@ -98,35 +111,54 @@ export function ProductDetail({
           related={related}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
           sellerSite={
-            <GatedField label="Firmanın web sitesi" redirect={PANEL_TARGET.product(companySlug, product.slug)} />
+            company.hasWebsite ? (
+              <SellerSiteGate label={t("sellerSite")} redirect={PANEL_TARGET.product(companySlug, product.slug)} />
+            ) : undefined
           }
+          documentsLoginHref={loginHref(`${PANEL_TARGET.product(companySlug, product.slug)}#belgeler`)}
           cta={
             <>
-              {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası panelin
-                  ürün sayfasına döner, oradaki form kimlik sormaz. Misafir
-                  formu kalktı — kimlik zaten oturumdan geliyor. */}
+              {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası üyenin
+                  ürün sayfasına döner (paket bilmeyen iniş adresi — Gold
+                  satınalma sayfasına geçer, diğerlerine Gold uyarısı). */}
               {company.freeMember ? (
                 <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
-                  Bu tedarikçi ücretsiz üye: sorunuzu görür, yanıt için Silver paketine
-                  geçmesi gerekir. Doğrulanmış tedarikçilerin benzer ürünleri aşağıda.
+                  {t("freeMemberNote")}
                 </p>
               ) : null}
-              <Link
-                href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
-                className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+              {/* Oturumlu ama Gold olmayan üye Gold gerektiğini TIKLAMADAN
+                  önce görür (kullanıcı kararı T-02, arayüz testi Y-03). */}
+              <MemberCta
+                action="inquiry"
+                sellerSlug={companySlug}
+                member={
+                  <Link
+                    href={`${PANEL_TARGET.product(companySlug, product.slug)}#${anchorId("inquiry", locale)}`}
+                    className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    {t("inquire")}
+                  </Link>
+                }
               >
-                Bilgi iste
-              </Link>
-              <p className="mt-2 text-center text-xs text-zinc-500">
-                Hesabınız yok mu?{" "}
                 <Link
-                  href={signupHref("teklif", PANEL_TARGET.product(companySlug, product.slug))}
-                  className="font-medium text-zinc-700 hover:underline"
+                  href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
+                  className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
-                  Ücretsiz kaydolun
-                </Link>{" "}
-                · 2 dakika, kredi kartı yok
-              </p>
+                  {t("inquire")}
+                </Link>
+                <p className="mt-2 text-center text-xs text-zinc-500">
+                  {t("noAccount")}{" "}
+                  <Link
+                    href={signupHref("teklif", PANEL_TARGET.product(companySlug, product.slug))}
+                    className="font-medium text-zinc-700 hover:underline"
+                  >
+                    {t("signupFree")}
+                  </Link>{" "}
+                  {t("twoMinutes")}
+                </p>
+                {/* Ücretsiz üyelik bilgi talebini AÇMAZ — sözü dürüst tut. */}
+                <p className="mt-2 text-center text-xs text-zinc-500">{t("inquiryGoldNote")}</p>
+              </MemberCta>
             </>
           }
         />
@@ -143,6 +175,21 @@ export function ProductDetail({
   );
 }
 
+
+/**
+ * KAPILI WEB SİTESİ SATIRI — yalnız MİSAFİRE (arayüz testi son tur webA-1).
+ * Çağıran onu yalnız satıcının sitesi VARSA (`company.hasWebsite`) basar;
+ * oturumlu üyeye "giriş yapın" denmez (giriş bağlantısı onu sitesini
+ * göstermeyen üye sayfasına geçiriyordu — belge çağrısındaki döngünün eşi).
+ * Sunucu HTML'i misafir hâlidir; üye hidrasyondan sonra satırı görmez.
+ */
+export function SellerSiteGate({ label, redirect }: { label: string; redirect: string }) {
+  return (
+    <SessionSwap member={null}>
+      <GatedField label={label} sentence="sellerSite" redirect={redirect} />
+    </SessionSwap>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 
@@ -189,6 +236,7 @@ export function ProductDetailBody({
   sellerSite,
   related,
   hrefFor,
+  documentsLoginHref,
   // Sekme vurgusu HER YERDE MAVİ (2026-09-19, kullanıcı: "Ürün Özellikleri /
   // Sertifikalar seçilince mavi olsun, siyah değil") — herkese açık sayfada
   // da monokrom seçili sekme istenmedi.
@@ -213,16 +261,33 @@ export function ProductDetailBody({
   hrefFor?: (c: ProductIndexCard) => string;
   /** Sekme vurgusu — panel satınalmada `blue`, public monokrom. */
   accent?: "default" | "blue";
+  /**
+   * Belge İNDİRME adresi gelmediğinde (herkese açık uç yalnız adı verir —
+   * görünürlük tablosu `documentDownload: "member"`) basılacak giriş bağlantısı.
+   */
+  documentsLoginHref?: string;
 }) {
+  const t = useTranslations("web.marketplace.product");
+  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  // Ürün metni bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak) ad,
+  // açıklama, şartname ve anahtar kelimeler kaynağın `lang`ını taşır.
+  const locale = useLocale() as Locale;
+  const contentLang = contentLangOf(product, locale);
+  const priceLabels = usePriceLabels();
   const price = productPrice({
     priceMode: product.priceMode,
     priceAmount: product.priceAmount ?? null,
     priceTiers: product.priceTiers ?? null,
     priceCurrency: product.priceCurrency ?? "TRY",
-    unit: product.unit,
-  });
+    unit: unitLabel(product.unit, product.unitCode),
+  }, priceLabels);
   // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
   const attrs = product.attributeList ?? [];
+  // Video İZİNLİ LİSTEDEN gömülür (YouTube çerezsiz alan / Vimeo); başka adres
+  // çizilmez. API paketi düşen satıcının videosunu zaten boş döner (Y-11, D-192).
+  const videoEmbed = productVideoEmbedUrl(product.videoUrl);
+  const documents = (product.documents ?? []) as ProductDocument[];
 
   return (
     <>
@@ -246,7 +311,7 @@ export function ProductDetailBody({
             badge={
               isNewProduct(product.publishedAt) ? (
                 <UiBadge tone="new" size="sm">
-                  Yeni Ürün
+                  {t("newProduct")}
                 </UiBadge>
               ) : undefined
             }
@@ -268,9 +333,11 @@ export function ProductDetailBody({
           <Heading
             level={1}
             className="mt-2 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+            lang={contentLang}
           >
             {product.name}
           </Heading>
+          <AutoTranslatedNote from={product.translatedFrom} className="mt-2" />
 
           {/* "Yeni" rozeti kapağa taşındı; burada ürünün KENDİ kimlik
               etiketleri kalır. "Gold Üye" satıcı kartında (firmaya ait). */}
@@ -281,9 +348,9 @@ export function ProductDetailBody({
           {(product.brand && !brandIsSeller(product.brand, company.name)) || product.mpn ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {product.brand && !brandIsSeller(product.brand, company.name) ? (
-                <Badge color="zinc">Marka: {product.brand}</Badge>
+                <Badge color="zinc">{t("brand", { brand: product.brand })}</Badge>
               ) : null}
-              {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
+              {product.mpn ? <Badge color="zinc">{t("mpn", { mpn: product.mpn })}</Badge> : null}
             </div>
           ) : null}
 
@@ -302,10 +369,10 @@ export function ProductDetailBody({
                   {price.headline}
                 </p>
                 {price.note ? <p className="mt-1 text-xs text-zinc-500">{price.note}</p> : null}
-                {price.hasPrice ? <p className="mt-1 text-xs text-zinc-500">KDV hariç</p> : null}
+                {price.hasPrice ? <p className="mt-1 text-xs text-zinc-500">{t("vatExcluded")}</p> : null}
                 {product.moq ? (
                   <p className="tnum mt-2 text-sm text-zinc-500">
-                    Minimum sipariş: {Number(product.moq).toLocaleString("tr-TR")} {product.unit}
+                    {t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) })}
                   </p>
                 ) : null}
 
@@ -313,18 +380,18 @@ export function ProductDetailBody({
                   <table className="mt-4 w-full text-left text-sm">
                     <thead className="text-xs text-zinc-500 uppercase">
                       <tr>
-                        <th className="pb-1 font-medium">Miktar</th>
-                        <th className="pb-1 text-right font-medium">Birim fiyat</th>
+                        <th className="pb-1 font-medium">{t("qty")}</th>
+                        <th className="pb-1 text-right font-medium">{t("unitPrice")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-950/5">
-                      {price.tiers.map((t) => (
-                        <tr key={t.minQty}>
+                      {price.tiers.map((tier) => (
+                        <tr key={tier.minQty}>
                           <td className="tnum py-1.5 text-zinc-700">
-                            {t.minQty.toLocaleString("tr-TR")}+ {product.unit}
+                            ≥ {quantity(tier.minQty, product.unit, product.unitCode)}
                           </td>
                           <td className="tnum py-1.5 text-right font-medium text-zinc-950">
-                            {t.unitPrice.toLocaleString("tr-TR")} {product.priceCurrency}
+                            {formatProductPrice(tier.unitPrice, product.priceCurrency ?? "TRY", priceLabels.locale)}
                           </td>
                         </tr>
                       ))}
@@ -334,12 +401,13 @@ export function ProductDetailBody({
               </>
             )}
 
-            {/* `#bilgi-iste` — ÜRÜN KARTININ CTA'sının hedefi. Kartın kendisi
+            {/* "Bilgi iste" çapası (dil başına, `lib/public/anchors`) — ÜRÜN KARTININ CTA'sının hedefi. Kartın kendisi
                 ürün sayfasını açar, "Bilgi iste" düğmesi aynı sayfayı EYLEMİN
                 ÜSTÜNDE açar; ikisi ayrı eylem olsun diye kartta
                 `stopPropagation` var. Çapa olmadan CTA kartla aynı yere
                 giderdi ve "ayrı düğme" olduğu yalan olurdu. */}
-            <div id="bilgi-iste" className="mt-5 scroll-mt-24 border-t border-zinc-950/5 pt-5">
+            <div id={anchorId("inquiry", locale)} className="mt-5 scroll-mt-24 border-t border-zinc-950/5 pt-5">
+              <AnchorAliases anchor="inquiry" locale={locale} />
               {cta}
             </div>
           </div>
@@ -349,7 +417,7 @@ export function ProductDetailBody({
               için — eskiden başlıkla fiyat arasındaydı ve CTA'yı aşağı
               itiyordu. */}
           {product.keywords.length > 0 ? (
-            <ul className="mt-4 flex flex-wrap gap-1.5">
+            <ul className="mt-4 flex flex-wrap gap-1.5" lang={contentLang}>
               {product.keywords.slice(0, 12).map((k) => (
                 <li key={k} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
                   {k}
@@ -385,57 +453,66 @@ export function ProductDetailBody({
         items={[
           {
             id: "ozellikler",
-            label: "Ürün Özellikleri",
+            label: t("tabFeatures"),
             hidden: !product.description,
             content: (
               <div className="max-w-3xl">
                 {product.description ? (
-                  <p className="text-base/7 whitespace-pre-line text-zinc-700">{product.description}</p>
+                  <p className="text-base/7 whitespace-pre-line text-zinc-700" lang={contentLang}>{product.description}</p>
                 ) : null}
               </div>
             ),
           },
           {
             id: "teknik",
-            label: "Teknik Özellikler",
+            label: t("tabSpecs"),
             hidden: attrs.length === 0 && !product.specification,
             content: (
               <div className="max-w-3xl space-y-6">
                 {attrs.length > 0 ? <SpecTable rows={attrs} /> : null}
                 {product.specification ? (
                   <section>
-                    <h3 className="text-sm font-semibold text-zinc-900">Teknik şartname</h3>
-                    <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
+                    <h3 className="text-sm font-semibold text-zinc-900">{t("specText")}</h3>
+                    <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600" lang={contentLang}>{product.specification}</p>
                   </section>
                 ) : null}
               </div>
             ),
           },
           {
+            id: "video",
+            label: t("tabVideo"),
+            hidden: !videoEmbed,
+            content: videoEmbed ? (
+              <div className="aspect-video w-full max-w-3xl overflow-hidden rounded-xl bg-zinc-950">
+                <iframe
+                  src={videoEmbed}
+                  title={t("videoTitle", { product: product.name })}
+                  loading="lazy"
+                  allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                  className="size-full border-0"
+                />
+              </div>
+            ) : null,
+          },
+          {
             id: "belgeler",
-            label: "Belgeler",
-            hidden: (product.documents ?? []).length === 0,
+            label: t("tabDocs"),
+            hidden: documents.length === 0,
             content: (
-              <ul className="max-w-3xl space-y-2">
-                {(product.documents ?? []).map((d) => (
-                  <li key={d.url}>
-                    <a
-                      href={d.url}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600"
-                    >
-                      <DocumentTextIcon aria-hidden className="size-4 text-zinc-400" />
-                      {d.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <ProductDocuments
+                documents={documents}
+                companySlug={company.slug ?? undefined}
+                productSlug={product.slug}
+                loginHref={documentsLoginHref}
+              />
             ),
           },
           {
             id: "sertifikalar",
-            label: "Sertifikalar",
+            label: t("tabCerts"),
             hidden: (company.certifications ?? []).length === 0,
             content: (
               <ul className="flex max-w-3xl flex-wrap gap-2">
@@ -460,12 +537,10 @@ export function ProductDetailBody({
       {related && related.fromCompany.items.length > 0 && hrefFor ? (
         <div className="mt-14">
           <CardCarousel
-            heading={`${company.name} ile keşfedilecek daha fazla ürün`}
+            heading={t("moreFrom", { company: company.name })}
             link={{
               href: companyHref,
-              label: `Tüm ürünleri görüntüle${
-                related.fromCompany.total > 0 ? ` (${related.fromCompany.total})` : ""
-              }`,
+              label: related.fromCompany.total > 0 ? t("viewAllCount", { n: related.fromCompany.total }) : t("viewAll"),
             }}
           >
             {related.fromCompany.items.map((c) => (
@@ -525,10 +600,13 @@ function SellerSummary({
   sellerSite?: React.ReactNode;
   compact?: boolean;
 }) {
+  const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
+  const t = useTranslations("web.marketplace.product");
   const certs = (company.certifications ?? []).slice(0, compact ? 2 : 4);
   const facts = [
-    company.foundedYear ? `Kuruluş ${company.foundedYear}` : null,
-    company.employeeCount ? `${company.employeeCount} çalışan` : null,
+    company.foundedYear ? t("founded", { year: company.foundedYear }) : null,
+    company.employeeCount ? t("employees", { n: company.employeeCount }) : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -542,12 +620,12 @@ function SellerSummary({
             </Link>
             {company.verified ? (
               <UiBadge tone="verified" size="sm" className="px-1">
-                <span className="sr-only">Doğrulanmış firma</span>
+                <span className="sr-only">{t("verifiedCompany")}</span>
               </UiBadge>
             ) : null}
             {company.gold ? (
               <UiBadge tone="gold" size="sm" className="px-1">
-                <span className="sr-only">Gold Üye</span>
+                <span className="sr-only">{t("goldMember")}</span>
               </UiBadge>
             ) : null}
           </p>
@@ -556,7 +634,7 @@ function SellerSummary({
             {company.city ? (
               <span className="inline-flex items-center gap-1">
                 <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
-                {company.city}
+                {cityLabel(company.city)}
               </span>
             ) : null}
           </p>
@@ -577,7 +655,7 @@ function SellerSummary({
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700"
             >
               <ActivityIcon code={a} className="size-4 text-zinc-400" />
-              {companyActivityLabel(a)}
+              {activityLabel(a)}
             </span>
           ))}
           {certs.map((c) => (
@@ -614,6 +692,7 @@ export function RelatedRows({
   categoryName: string | null;
   hrefFor: (c: ProductIndexCard) => string;
 }) {
+  const t = useTranslations("web.marketplace.product");
   // "Firmanın diğerleri" SEKMEDE (Firma); burada BAŞKA TEDARİKÇİLERİN
   // ürünleri durur — alıcının karşılaştırma yaptığı yer burasıdır
   // (2026-09-07 kullanıcı bulgusu: satır aynı firmanın ürünlerini
@@ -625,10 +704,10 @@ export function RelatedRows({
   const others = related.similar.length > 0 ? related.similar : related.popular;
   const heading =
     related.similar.length > 0
-      ? "Benzer ürünler — diğer tedarikçilerden"
+      ? t("similarOthers")
       : categoryName
-        ? `${categoryName} içinde yeni`
-        : "Kategoride yeni";
+        ? t("newIn", { category: categoryName })
+        : t("newInCategory");
   return <RelatedRow heading={heading} items={others} hrefFor={hrefFor} />;
 }
 
@@ -660,9 +739,16 @@ function RelatedRow({
   );
 }
 
-/** Marka, satıcı firmanın adının parçası mı (ör. "Demo Gold" ⊂ "Demo Gold Makina")? */
+/**
+ * Marka, satıcı firmanın adının parçası mı (ör. "Demo Gold" ⊂ "Demo Gold Makina")?
+ * KELİME sınırında karşılaştırılır (derin denetim S077): düz alt dize
+ * "Algı Elektrik" içinde "LG"yi, "Kabbani Ltd" içinde "ABB"yi bulup gerçek
+ * markanın çipini gizliyordu.
+ */
 export function brandIsSeller(brand: string, companyName: string): boolean {
-  const b = brand.trim().toLocaleLowerCase("tr");
-  const c = companyName.trim().toLocaleLowerCase("tr");
-  return b.length > 0 && (c.includes(b) || b.includes(c));
+  const words = (s: string) => foldSearchText(s).split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(" ");
+  const b = words(brand);
+  const c = words(companyName);
+  if (!b || !c) return false;
+  return ` ${c} `.includes(` ${b} `) || ` ${b} `.includes(` ${c} `);
 }

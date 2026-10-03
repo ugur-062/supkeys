@@ -1,18 +1,16 @@
 "use client";
 
-import { formatDate } from "@/lib/format-date";
+import { useTranslations } from "next-intl";
 import { MODULE_LABELS } from "@/lib/company/portals";
-import { OWNER_COLUMN_LABEL } from "@/lib/company/terms";
+import { useClosingUrgency, useFormatDate, useScopeLabel } from "@/i18n/domain";
 import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
-import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
+import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
-import { scopeLabel } from "@rothern/shared";
 import { Star } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
-import { expiredNote } from "@/lib/tenders/seller-state";
 
 /**
  * Yoğun SATIR görünümü — referans tasarım uyarlaması. Veri sözleşmesi:
@@ -26,17 +24,18 @@ export const IHALE_VIEW_FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
 interface StatusStyle {
-  label: string;
+  /** Katalog anahtarı (`web.panel.requests.ihalelistrow.status.<key>`). */
+  key: "open" | "evaluating" | "awarded" | "draft" | "closed";
   strip: string;
   box: string;
 }
 
-/** Durum → şerit + dikey rozet (referans 4 kova + Taslak). */
+/** Durum → şerit + dikey rozet (referans 4 kova + Taslak); metin katalogdan. */
 export function statusStyle(status: TenderListItem["status"]): StatusStyle {
   switch (status) {
     case "OPEN":
       return {
-        label: "Yayında",
+        key: "open",
         strip: "border-l-emerald-500",
         box: "bg-emerald-50 text-emerald-700 ring-emerald-200",
       };
@@ -44,35 +43,30 @@ export function statusStyle(status: TenderListItem["status"]): StatusStyle {
     case "IN_AWARD":
     case "IN_AWARD_APPROVAL":
       return {
-        label: "Değerlendirmede",
+        key: "evaluating",
         strip: "border-l-amber-500",
         box: "bg-amber-50 text-amber-700 ring-amber-200",
       };
     case "AWARDED":
       return {
-        label: "Tamamlandı",
+        key: "awarded",
         strip: "border-l-slate-400",
         box: "bg-slate-100 text-slate-600 ring-slate-200",
       };
     case "DRAFT":
       return {
-        label: "Taslak",
+        key: "draft",
         strip: "border-l-slate-400",
         box: "bg-slate-100 text-slate-600 ring-slate-200",
       };
     default: // CANCELLED, CLOSED, CLOSED_NO_AWARD
       return {
-        label: "Kapalı",
+        key: "closed",
         strip: "border-l-rose-500",
         box: "bg-rose-50 text-rose-700 ring-rose-200",
       };
   }
 }
-
-// B9: tek tarih dili — kanonik formatlayıcı (yıl her yerde görünür).
-const shortDate = (iso: string | null) => formatDate(iso, "short");
-const fullDate = (iso: string | null) => formatDate(iso, "datetime");
-
 
 /** Küçük bilgi çipi — kolonlardaki "hep aynı gri metin" yerine tonlu ayrım
  *  (her iki satır görünümü: kendi ihalelerim + başkalarının ihaleleri). */
@@ -111,6 +105,7 @@ export function DaysLeftChip({
   status: string;
   closesAt: string | null;
 }) {
+  const closingUrgency = useClosingUrgency();
   const u = closingUrgency(status, closesAt);
   if (!u) return null;
   const days = daysUntil(closesAt) ?? 99;
@@ -119,11 +114,37 @@ export function DaysLeftChip({
   return <InfoChip tone={tone}>{u.text}</InfoChip>;
 }
 
+/**
+ * "Süresi doldu · N gün önce" — kapanış geçmiş ama karar verilmemiş kayıt
+ * (v2 4d; `lib/tenders/seller-state` `expiredNote` ile aynı kural, metin
+ * katalogdan). "Değerlendirmede" rozeti tek başına 6 gündür kapalı bir
+ * talebi hâlâ açık gibi okutuyordu; zaman notu durumun yanına gelir.
+ */
+export function useExpiredNote(): (status: string, closesAt: string | null) => string | null {
+  const tr = useTranslations("web.panel.requests.ihalelistrow");
+  return (status, closesAt) => {
+    if (!closesAt) return null;
+    if (!["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"].includes(status)) return null;
+    const days = daysUntil(closesAt);
+    if (days == null || days >= 0) return null;
+    const ago = -days;
+    return ago === 0 ? tr("suresiDolduBugun") : tr("suresiDolduGunOnce", { n: ago });
+  };
+}
+
 export interface IhaleListRowProps {
   t: TenderListItem;
   favorite: boolean;
   onToggleFavorite: (id: string) => void;
+  /**
+   * Detaydaki "← Taleplerim" dönüş adresi — listenin O ANKİ süzgeç/arama
+   * sorgusunu taşır (arayüz testi O-052 yeniden doğrulama); verilmezse
+   * süzgeçsiz liste.
+   */
+  fromHref?: string;
 }
+
+export const TALEPLERIM_HREF = "/company/satinalma/taleplerim";
 
 /**
  * KENDİ ilanım/talebim — `ListingCard` row ADAPTÖRÜ (v2 denetimi). Düzen
@@ -135,10 +156,18 @@ export function IhaleListRow({
   t,
   favorite,
   onToggleFavorite,
+  fromHref = TALEPLERIM_HREF,
 }: IhaleListRowProps) {
+  const tr = useTranslations("web.panel.requests.ihalelistrow");
+  const te = useTranslations("web.domain.entity");
+  // Tarihler okuyucunun dilinde; saatli olan TR dışında "(GMT+3)" taşır.
+  const fmtDate = useFormatDate();
+  const shortDate = (iso: string | null) => fmtDate(iso, "short");
+  const fullDate = (iso: string | null) => fmtDate(iso, "datetime");
+  const scopeLabel = useScopeLabel();
+  const expiredNote = useExpiredNote();
   const st = statusStyle(t.status);
 
-  const fromHref = "/company/satinalma/taleplerim";
   const fromLabel = MODULE_LABELS.satinalma.ihalelerim;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
@@ -155,7 +184,7 @@ export function IhaleListRow({
     title: t.title,
     kind: "talep",
     categoryIds: t.categoryIds,
-    status: { label: st.label, className: st.box },
+    status: { label: tr(`status.${st.key}`), className: st.box },
     strip: st.strip,
     timeNote: expiredNote(t.status, t.bidsCloseAt),
     leading: (
@@ -167,7 +196,7 @@ export function IhaleListRow({
             e.stopPropagation();
             onToggleFavorite(t.id);
           }}
-          aria-label={favorite ? "Favorilerden çıkar" : "Favorilere ekle"}
+          aria-label={favorite ? tr("favorilerdenCikar") : tr("favorilereEkle")}
           aria-pressed={favorite}
           className={cn("rounded", ROW_FOCUS)}
         >
@@ -183,7 +212,8 @@ export function IhaleListRow({
     ),
     facts: [
       {
-        label: OWNER_COLUMN_LABEL,
+        label: te("ownerColumn"),
+        icon: "info",
         value: (
           <span
             className="block truncate font-semibold text-slate-900"
@@ -197,7 +227,8 @@ export function IhaleListRow({
       // "teklifler ve davetli yerlerini değiştir") — sahibin ilk baktığı
       // sayı gelen teklif sayısıdır.
       {
-        label: "Teklifler",
+        label: tr("teklifler"),
+        icon: "people",
         value:
           t.bidCount > 0 ? (
             <Link
@@ -212,28 +243,33 @@ export function IhaleListRow({
           ),
       },
       {
-        label: "Görünürlük",
+        label: tr("gorunurluk"),
+        icon: "scope",
         value: (
           <span className="flex flex-col items-start gap-1">
             <ScopeChip targetCountries={t.targetCountries} />
             {t.format === "ENGLISH_AUCTION" ? (
-              <InfoChip tone="violet">Pazarlık</InfoChip>
+              <InfoChip tone="violet">{tr("pazarlik")}</InfoChip>
             ) : (
-              <span className="text-[11px] leading-tight text-slate-600">Teklif Toplama</span>
+              <span className="text-[11px] leading-tight text-slate-600">{tr("teklifToplama")}</span>
             )}
           </span>
         ),
       },
       {
-        label: "Yayın",
+        label: tr("yayin"),
+        icon: "info",
         value: (
-          <span className="text-slate-500" title={fullDate(t.publishedAt ?? t.createdAt)}>
-            {shortDate(t.publishedAt ?? t.createdAt)}
+          // D-149: yayımlanmamış (taslak / onayda) talepte oluşturma tarihi
+          // "Yayın" gibi basılmaz — "—".
+          <span className="text-slate-500" title={t.publishedAt ? fullDate(t.publishedAt) : undefined}>
+            {shortDate(t.publishedAt)}
           </span>
         ),
       },
       {
-        label: "Kapanış",
+        label: tr("kapanis"),
+        icon: "closing",
         value: (
           <span title={fullDate(t.bidsCloseAt)}>
             <span className={cn("font-semibold", closeSoon ? "text-rose-600" : "text-slate-900")}>
@@ -246,7 +282,8 @@ export function IhaleListRow({
         ),
       },
       {
-        label: "Kategori",
+        label: tr("kategori"),
+        icon: "category",
         value:
           t.categories.length > 0 ? (
             <span title={t.categories.map((c) => c.name).join(", ")}>
@@ -255,7 +292,7 @@ export function IhaleListRow({
               </span>
               {t.categories.length + t.extraCategoryCount > 1 ? (
                 <span className="block text-[11px] leading-tight text-slate-600">
-                  +{t.categories.length + t.extraCategoryCount - 1} kategori
+                  {tr("artiNKategori", { n: t.categories.length + t.extraCategoryCount - 1 })}
                 </span>
               ) : null}
             </span>
@@ -265,7 +302,7 @@ export function IhaleListRow({
       },
     ],
     metric: {
-      label: "Davetli",
+      label: tr("davetli"),
       value: (
         <span className={cn("tabular-nums", t.invitationCount > 0 ? "text-slate-900" : "text-slate-400")}>
           {t.invitationCount}
@@ -281,14 +318,14 @@ export function IhaleListRow({
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-4">
             {(
               [
-                ["Yayın", fullDate(t.publishedAt ?? t.createdAt) || "—"],
-                ["Kapanış", fullDate(t.bidsCloseAt) || "—"],
-                ["Davetli", String(t.invitationCount)],
-                ["Teklif", String(t.bidCount)],
-                ["Usul", t.format === "ENGLISH_AUCTION" ? "Pazarlık" : "Teklif Toplama"],
-                ["Görünürlük", scopeLabel(t.targetCountries ?? [])],
+                [tr("yayin"), fullDate(t.publishedAt)],
+                [tr("kapanis"), fullDate(t.bidsCloseAt) || "—"],
+                [tr("davetli"), String(t.invitationCount)],
+                [tr("teklif"), String(t.bidCount)],
+                [tr("usul"), t.format === "ENGLISH_AUCTION" ? tr("pazarlik") : tr("teklifToplama")],
+                [tr("gorunurluk"), scopeLabel(t.targetCountries ?? [])],
                 [
-                  "Kategori",
+                  tr("kategori"),
                   t.categories.length
                     ? `${t.categories.map((c) => c.name).join(", ")}${t.extraCategoryCount > 0 ? ` +${t.extraCategoryCount}` : ""}`
                     : "—",
@@ -301,7 +338,7 @@ export function IhaleListRow({
               </div>
             ))}
           </dl>
-          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} itemsTab={2} />
+          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} />
           <Link
             href={detailHref}
             className={cn(
@@ -309,7 +346,7 @@ export function IhaleListRow({
               ROW_FOCUS,
             )}
           >
-            Kalemler ve tüm detay →
+            {tr("kalemlerVeTumDetay")}
           </Link>
         </>
       ),

@@ -1,12 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   useActionCenter,
   type ActionCenterApiRow,
   type ActionSeverity,
 } from "@/hooks/use-company-dashboard";
 import { useUnreadMessages } from "@/hooks/use-company-messages";
-import { ACTION_ROWS, DASH } from "@/lib/dashboard/strings";
+import { ACTION_ROWS } from "@/lib/dashboard/strings";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -16,8 +17,8 @@ import {
   Info,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
+import { Link } from "@/i18n/navigation";
+import { useState, type ReactNode } from "react";
 import { ErrorState } from "@/components/ui/error-state";
 
 /**
@@ -45,33 +46,40 @@ const SEVERITY_META: Record<
     cls: "bg-rose-50 text-rose-600",
     label: "kritik",
   },
-  warning: { icon: Clock3, cls: "bg-amber-50 text-amber-600", label: "uyarı" },
+  warning: { icon: Clock3, cls: "bg-amber-50 text-amber-600", label: "uyari" },
   info: { icon: Info, cls: "bg-slate-100 text-slate-500", label: "bilgi" },
 };
 
 const DAY_MS = 86_400_000;
 
-/** Takvim günü bazlı zaman etiketi — "bugün / yarın / N gün kaldı" vb. */
-function timeLabel(r: ActionCenterApiRow): string | null {
-  if (r.overdueDays != null) {
-    return r.overdueDays === 0 ? "bugün gecikti" : `${r.overdueDays} gün gecikti`;
-  }
-  if (r.dueAt) {
-    const due = new Date(r.dueAt);
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const days = Math.floor((due.getTime() - startOfToday.getTime()) / DAY_MS);
-    if (days <= 0) return "bugün";
-    if (days === 1) return "yarın";
-    return `${days} gün kaldı`;
-  }
-  if (r.waitingDays != null && r.waitingDays > 0) {
-    return `${r.waitingDays} gündür bekliyor`;
-  }
-  return null;
+/** Takvim günü bazlı zaman etiketi — "bugün / yarın / N gün kaldı" vb. (hook: dil bilir). */
+function useTimeLabel(): (r: ActionCenterApiRow) => string | null {
+  const t = useTranslations("web.panel.shell.actionCenter");
+  return (r) => {
+    if (r.overdueDays != null) {
+      return r.overdueDays === 0 ? t("bugunGecikti") : t("gunGecikti", { n: r.overdueDays });
+    }
+    if (r.dueAt) {
+      const due = new Date(r.dueAt);
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const days = Math.floor((due.getTime() - startOfToday.getTime()) / DAY_MS);
+      if (days <= 0) return t("bugun");
+      if (days === 1) return t("yarin");
+      return t("gunKaldi", { n: days });
+    }
+    if (r.waitingDays != null && r.waitingDays > 0) {
+      return t("gundurBekliyor", { n: r.waitingDays });
+    }
+    return null;
+  };
 }
 
 export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
+  const t = useTranslations("web.panel.shell.actionCenter");
+  // Satır cümleleri PAYLAŞILAN haritada (Şirketim › Bekleyen İşler aynı anahtarları okur).
+  const tRow = useTranslations("web.panel.shell.actionRows");
+  const timeLabel = useTimeLabel();
   const query = useActionCenter(portal);
   const unread = useUnreadMessages(portal);
   const [expanded, setExpanded] = useState(false);
@@ -88,8 +96,8 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
   if (query.isError) {
     return (
       <ErrorState
-        title="Aksiyon merkezi yüklenemedi"
-        message="Bekleyen işleriniz alınamadı — bu listenin boş olduğu anlamına GELMEZ."
+        title={t("aksiyonMerkeziYuklenemedi")}
+        message={t("bekleyenIslerinizAlinamadiBuListenin")}
         onRetry={() => void query.refetch()}
       />
     );
@@ -117,15 +125,15 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
   return (
     <section
       className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm"
-      aria-label="Aksiyon merkezi"
+      aria-label={t("aksiyonMerkezi")}
     >
       <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-medium text-slate-500">
-        {DASH.actionTitle}
+        {t("bekleyenIsler")}
       </h2>
       {known.length === 0 ? (
         <p className="flex items-center gap-2 px-5 py-4 text-sm text-slate-500">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
-          {DASH.actionEmpty}
+          {t("bekleyenBirIsinizYok")}
         </p>
       ) : (
         <>
@@ -135,13 +143,13 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                 zemin + sağa kayan ok. */}
             {visible.map((r) => {
               const meta = SEVERITY_META[r.severity];
-              const t = texts[r.key]!;
+              const tx = texts[r.key]!;
               const time = timeLabel(r);
               return (
                 <li key={r.key}>
                   <Link
-                    href={t.href}
-                    aria-label={`${r.count} ${t.text}${time ? ` — ${time}` : ""}`}
+                    href={tx.href}
+                    aria-label={`${tRow.markup(tx.textKey as never, { n: r.count, b: (c: string) => c } as never)}${time ? ` — ${time}` : ""}`}
                     className="group flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50"
                   >
                     <span
@@ -149,15 +157,17 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105",
                         meta.cls,
                       )}
-                      title={meta.label}
+                      title={t(meta.label as never)}
                     >
                       <meta.icon className="h-4 w-4" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1 text-sm text-slate-700">
-                      <strong className="font-semibold tabular-nums text-slate-950">
-                        {r.count}
-                      </strong>{" "}
-                      <span className="group-hover:text-slate-950">{t.text}</span>
+                      <span className="group-hover:text-slate-950">
+                        {tRow.rich(tx.textKey as never, {
+                          n: r.count,
+                          b: (c: ReactNode) => <strong className="font-semibold tabular-nums text-slate-950">{c}</strong>,
+                        } as never)}
+                      </span>
                       {time ? (
                         <span
                           className={cn(
@@ -188,7 +198,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
               onClick={() => setExpanded((v) => !v)}
               className="w-full border-t border-slate-100 px-5 py-2.5 text-left text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
             >
-              {expanded ? DASH.actionShowLess : DASH.actionShowAll(known.length)}
+              {expanded ? t("dahaAzGoster") : t("tumunuGor", { n: known.length })}
             </button>
           ) : null}
         </>
@@ -212,6 +222,10 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
  * göstermek, kullanıcıya geciken siparişi kaçırtır.
  */
 export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
+  const t = useTranslations("web.panel.shell.actionCenter");
+  // Satır cümleleri PAYLAŞILAN haritada (Şirketim › Bekleyen İşler aynı anahtarları okur).
+  const tRow = useTranslations("web.panel.shell.actionRows");
+  const timeLabel = useTimeLabel();
   const query = useActionCenter(portal);
   const unread = useUnreadMessages(portal);
   const [open, setOpen] = useState(false);
@@ -220,8 +234,8 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
   if (query.isError) {
     return (
       <ErrorState
-        title="Bekleyen işler yüklenemedi"
-        message="Bu listenin boş olduğu anlamına GELMEZ."
+        title={t("bekleyenIslerYuklenemedi")}
+        message={t("buListeninBosOlduguAnlamina")}
         onRetry={() => void query.refetch()}
       />
     );
@@ -244,20 +258,20 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
   if (known.length === 0) return null;
 
   return (
-    <section aria-label={DASH.actionTitle} className="space-y-3">
+    <section aria-label={t("bekleyenIsler")} className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
-          {DASH.actionTitle}
+          {t("bekleyenIsler")}
         </span>
         {known.slice(0, 5).map((r) => {
           const meta = SEVERITY_META[r.severity];
-          const t = texts[r.key]!;
+          const row = texts[r.key]!;
           const time = timeLabel(r);
           return (
             <Link
               key={r.key}
-              href={t.href}
-              title={time ? `${t.text} — ${time}` : t.text}
+              href={row.href}
+              title={`${tRow.markup(row.textKey as never, { n: r.count, b: (c: string) => c } as never)}${time ? ` — ${time}` : ""}`}
               className={cn(
                 "group inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1.5 text-sm font-medium ring-1 ring-inset transition",
                 r.severity === "critical"
@@ -275,8 +289,12 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
               >
                 <meta.icon className="h-3.5 w-3.5" aria-hidden />
               </span>
-              <span className="tabular-nums font-semibold">{r.count}</span>
-              <span className="font-normal">{t.text}</span>
+              <span className="font-normal">
+                {tRow.rich(row.textKey as never, {
+                  n: r.count,
+                  b: (c: ReactNode) => <span className="tabular-nums font-semibold">{c}</span>,
+                } as never)}
+              </span>
             </Link>
           );
         })}
@@ -286,7 +304,7 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
           aria-expanded={open}
           className="ml-auto text-sm font-semibold text-zinc-500 hover:text-zinc-900"
         >
-          {open ? "Gizle" : `Tümü (${known.length})`}
+          {open ? t("gizle") : t("tumu", { length: known.length })}
         </button>
       </div>
       {/* Açılınca AYNI bileşen: tek veri, tek sıralama, tek metin haritası. */}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useNavLabel } from "@/i18n/domain";
 import { FilterShellCore, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
 import { CompanyActiveChips, CompanyFilters, CompanySortBar } from "@/components/marketplace/company-filters";
 import { CompanyCard } from "@/components/marketplace/company-card";
@@ -17,12 +19,11 @@ import {
   PANEL_MARKET,
   SELLER_MARKET,
   marketCompaniesPath,
-  panelCategoryPath,
   panelCompanyPath,
   panelProductPath,
 } from "@/lib/company/panel-market";
 import type { PortalKey } from "@/lib/company/portals";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { MarketHeader, MarketTabs } from "./market-band";
 import { MarketEmpty, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
@@ -43,11 +44,14 @@ function productsHref(state: CompanyFilterState): string {
   return `${PANEL_MARKET.products}${qs ? `?${qs}` : ""}`;
 }
 
-/** Bağlantı durumu rozeti — pazar listesinde de görünür (panelin yapısal avantajı). */
-const STATUS_BADGE: Record<string, { label: string; className: string } | undefined> = {
-  active: { label: "Bağlısınız", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  pending: { label: "İstek gönderildi", className: "bg-amber-50 text-amber-700 ring-amber-200" },
-  incoming: { label: "İstek geldi", className: "bg-blue-50 text-blue-700 ring-blue-200" },
+/**
+ * Bağlantı durumu rozeti — pazar listesinde de görünür (panelin yapısal avantajı).
+ * `label` katalog anahtarıdır (`web.panel.market.panelCompanyIndex.*`), çizim yerinde çevrilir.
+ */
+const STATUS_BADGE: Record<string, { label: "baglisiniz" | "istekGonderildi" | "istekGeldi"; className: string } | undefined> = {
+  active: { label: "baglisiniz", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  pending: { label: "istekGonderildi", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  incoming: { label: "istekGeldi", className: "bg-blue-50 text-blue-700 ring-blue-200" },
 };
 
 /**
@@ -85,9 +89,10 @@ export function PanelCompanyIndex({ portal = "satinalma" }: { portal?: PortalKey
 }
 
 function PanelCompanyFilters({ idPrefix }: { idPrefix: string }) {
+  const t = useTranslations("web.panel.market.panelCompanyIndex");
   const { state } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
-  if (!facets.data) return <p className="text-sm text-zinc-500">Süzgeçler yükleniyor…</p>;
+  if (!facets.data) return <p className="text-sm text-zinc-500">{t("suzgeclerYukleniyor")}</p>;
   return <CompanyFilters facets={facets.data} idPrefix={idPrefix} showConnection />;
 }
 
@@ -100,6 +105,8 @@ function Inner({
   result: ReturnType<typeof useCompanySearch>;
   portal: PortalKey;
 }) {
+  const t = useTranslations("web.panel.market.panelCompanyIndex");
+  const tn = useNavLabel();
   const { update } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
   const data = result.data;
@@ -108,8 +115,12 @@ function Inner({
   const isSatis = portal === "satis";
   const base = marketCompaniesPath(portal);
   // Sekme rozeti: aynı arama/kategoriyle kaç ÜRÜN var (tek satır yeter).
-  // Satışta ürün dizini yok → sekme çizilmez, sayı sorulmaz.
-  const products = useDiscoverSearch({ q: state.q, category: state.categories[0], pageSize: 1 }, { enabled: !isSatis });
+  // Satışta ürün dizini yok → sekme çizilmez, sayı sorulmaz. Kategori
+  // `productsHref` ile AYNI kuralla taşınır (yalnız tek kategori seçiliyken):
+  // çoklu seçimde ilk kategoriye göre sayılsaydı rozet, tıklayınca açılan
+  // kategorisiz listeyle çelişirdi.
+  const productsCategory = state.categories.length === 1 ? state.categories[0] : undefined;
+  const products = useDiscoverSearch({ q: state.q, category: productsCategory, pageSize: 1 }, { enabled: !isSatis });
 
   return (
     <div className="space-y-8">
@@ -126,12 +137,12 @@ function Inner({
         accent={isSatis ? "default" : "blue"}
         breadcrumb={
           isSatis
-            ? [{ label: "Satış", href: SELLER_MARKET.home }, { label: "Firmalar" }]
-            : [{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Firmalar" }]
+            ? [{ label: tn("portal.satis"), href: SELLER_MARKET.home }, { label: tn("common.companies") }]
+            : [{ label: tn("portal.satinalma"), href: PANEL_MARKET.home }, { label: tn("common.companies") }]
         }
-        title="Firmalar"
-        lead={isSatis ? "Alıcı olabilecek firmaları bulun; bağlantı isteği ve mesaj firma sayfasında." : undefined}
-        count={data ? `${total.toLocaleString("tr-TR")} firma` : undefined}
+        title={tn("common.companies")}
+        lead={isSatis ? t("aliciOlabilecekFirmalariBulunBaglanti") : undefined}
+        count={data ? t("firma", { n: total }) : undefined}
         tabs={
           isSatis ? undefined : (
             <MarketTabs
@@ -149,7 +160,7 @@ function Inner({
 
       <MarketListLayout
         rail={<PanelCompanyFilters idPrefix="d" />}
-        toolbarStart={<ResultCount noun="firma" loading={result.isLoading} />}
+        toolbarStart={<ResultCount kind="company" loading={result.isLoading} />}
         toolbarEnd={<CompanySortBar />}
         page={state.page}
         total={total}
@@ -159,7 +170,7 @@ function Inner({
         {result.isLoading ? (
           <MarketGridSkeleton count={6} variant="company" />
         ) : !data || data.items.length === 0 ? (
-          <MarketEmpty title="Bu kriterlerle firma yok." />
+          <MarketEmpty title={t("buKriterlerleFirmaYok")} />
         ) : (
           /* YATAY LİSTE (2026-09-08, kullanıcı kararı: "kare kare değil,
              yatay birer birer"): firma dizini bir DEĞERLENDİRME ekranı —
@@ -178,10 +189,13 @@ function Inner({
       <MarketDiscoveryFooter
         cities={facets.data?.cities ?? []}
         categories={facets.data?.categories ?? []}
+        kind="companies"
         cityHref={(city) => `${base}?sehir=${encodeURIComponent(city)}`}
-        /* Kategori: satınalmada kategori SAYFASI kanonik; satışta o sayfa
-           yok → aynı dizin kategori süzgeciyle. */
-        categoryHref={(c) => (isSatis ? `${base}?kategori=${c.id}` : panelCategoryPath(c.id, c.name))}
+        /* Kategori İKİ PORTALDA da aynı dizin kategori süzgeciyle (arayüz
+           testi D-155): çip FİRMA sayısını gösteriyor; satınalmada ürün
+           kategori sayfasına gidince sayı çelişiyor, sayfa "Ürün bulunamadı"
+           diyebiliyordu. */
+        categoryHref={(c) => `${base}?kategori=${c.id}`}
       />
     </div>
   );
@@ -200,6 +214,7 @@ export function PanelCompanyCard({
   query?: string;
   portal: PortalKey;
 }) {
+  const t = useTranslations("web.panel.market.panelCompanyIndex");
   const badge = STATUS_BADGE[company.connectionStatus];
   // "Aramanıza uyan" ürün şeridi ürün detayına (satınalma pazarı) bağlanır;
   // satışta o rota yok ve satıcı ürün DEĞİL alıcı arıyor → şerit çizilmez.
@@ -211,13 +226,16 @@ export function PanelCompanyCard({
       /* Satış portalında eylemler YEŞİL (2026-09-19, kullanıcı). */
       accent={portal === "satis" ? "emerald" : "blue"}
       href={panelCompanyPath(company.rothernId ?? company.slug)}
+      /* Ürün şeridi mini kartı: satınalmada panel ürün sayfası; satışta o
+         rota yok → herkese açık ürün sayfası (kartın varsayılanı). */
+      productHref={portal === "satis" ? undefined : (p) => panelProductPath(company.slug, p)}
       /* Birincil eylem firmanın PANEL sayfası: bağlantı isteği ve mesaj
          orada yaşıyor — kartta ayrı bir "iletişim" akışı yok. */
-      cta={{ label: "İletişime geçin", href: panelCompanyPath(company.rothernId ?? company.slug) }}
+      cta={{ label: t("iletisimeGecin"), href: panelCompanyPath(company.rothernId ?? company.slug) }}
       badge={
         badge ? (
           <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${badge.className}`}>
-            {badge.label}
+            {t(badge.label)}
           </span>
         ) : undefined
       }
@@ -225,7 +243,7 @@ export function PanelCompanyCard({
         query && matched.length > 0 ? (
           <>
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-              Aramanıza uyan
+              {t("aramanizaUyan")}
             </p>
             <ul className="mt-1.5 space-y-1">
               {matched.slice(0, 3).map((p) => (
@@ -240,7 +258,7 @@ export function PanelCompanyCard({
                     className="line-clamp-1 text-sm text-zinc-700 underline-offset-2 hover:text-zinc-950 hover:underline"
                   >
                     {p.name}
-                    <span className="sr-only"> (yeni sekmede açılır)</span>
+                    <span className="sr-only"> {t("yeniSekmedeAcilir")}</span>
                   </Link>
                 </li>
               ))}

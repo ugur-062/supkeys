@@ -1,15 +1,22 @@
 "use client";
 
+import { useCityLabel, usePriceLabels, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { anchorId } from "@/lib/public/anchors";
+import { countryDisplayName } from "@/i18n/domain";
+
 import { CategoryImage } from "./category-image";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import { productPrice } from "@/lib/public/product-price";
-import { countryFlag, countryName } from "@rothern/shared";
+import { countryFlag } from "@rothern/shared";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState, type ReactNode } from "react";
 
 /**
@@ -54,14 +61,15 @@ import { useState, type ReactNode } from "react";
 const NEW_TAB = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 function NewTabHint() {
-  return <span className="sr-only"> (yeni sekmede açılır)</span>;
+  const t = useTranslations("web.marketplace.productCard");
+  return <span className="sr-only"> {t("newTab")}</span>;
 }
 
 export type ProductCardProduct = Pick<
   PublicProductCard,
   "slug" | "name" | "images" | "categoryId" | "unit" | "priceMode"
 > &
-  Partial<Pick<PublicProductCard, "excerpt"> & ProductPriceFields> & {
+  Partial<Pick<PublicProductCard, "excerpt" | "unitCode"> & ProductPriceFields> & {
     /** "Yeni" rozeti (≤7 gün) — dizin kartında dolu, firma altı listede yok. */
     publishedAt?: string | null;
   };
@@ -124,10 +132,10 @@ export function ProductCard({
   /**
    * Tek CTA etiketi (tile) — "Bilgi iste". GERÇEK bağlantıdır ve kartın
    * yayılmış bağlantısından AYRI çalışır: kart ürün sayfasını, CTA aynı
-   * sayfanın `#bilgi-iste` çapasını açar.
+   * sayfanın "Bilgi iste" çapasını açar (dil başına, `lib/public/anchors`).
    */
   cta?: string;
-  /** CTA'nın hedefi — verilmezse `<ürün sayfası>#bilgi-iste`. */
+  /** CTA'nın hedefi — verilmezse `<ürün sayfası>#<bilgi iste çapası>`. */
   ctaHref?: string;
   /**
    * Tile: kapağın sol üstündeki rozet — VERİLİRSE "Yeni"nin yerine geçer
@@ -137,8 +145,9 @@ export function ProductCard({
   /**
    * Kapağın sağ üstünde "Karşılaştır" kutusu (yalnız `tile`). Durum şimdilik
    * KARTIN İÇİNDE; karşılaştırma tablosu bağlanınca `onCompare` ile dışarı
-   * taşınır. Varsayılan KAPALI — işlevi henüz olmayan bir kontrolü her
-   * yüzeye basmamak için yalnız dizin/arama sonuçlarında açılır.
+   * taşınır. Varsayılan KAPALI ve şu an HİÇBİR çağıran açmıyor (arayüz
+   * testi O-017): tablo bağlanmadan görünen kutu işaretleniyor ama hiçbir şey
+   * yapmıyordu. Karşılaştırma tablosu gelince `onCompare` ile birlikte açılır.
    */
   compare?: boolean;
   /** "Karşılaştır" değişimi — ileride karşılaştırma tablosunun girişi. */
@@ -166,6 +175,14 @@ export function ProductCard({
   priority?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("web.marketplace.productCard");
+  const locale = useLocale();
+  const cityLabel = useCityLabel();
+  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const fmt = useFormatter();
+  const priceLabels = usePriceLabels();
+  const hydrated = useHydrated();
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
   const firm: ProductCardCompany | undefined =
     company ?? (companyName ? { name: companyName, city: companyCity } : undefined);
@@ -212,15 +229,18 @@ export function ProductCard({
     priceAmount: product.priceAmount ?? null,
     priceTiers: product.priceTiers ?? null,
     priceCurrency: product.priceCurrency ?? "TRY",
-    unit: product.unit,
-  });
+    unit: unitLabel(product.unit, product.unitCode),
+  }, priceLabels);
   const compact = variant === "compact";
   const ctaCls =
     accent === "blue"
       ? "bg-blue-600 text-white hover:bg-blue-700 group-hover:bg-blue-700 focus-visible:ring-blue-600"
       : "bg-blue-600 text-white hover:bg-blue-700 group-hover:bg-blue-700 focus-visible:ring-blue-600";
   const bullets = compact ? [] : (features ?? []).filter(Boolean).slice(0, 3);
-  const fresh = showNew && isNew(product.publishedAt);
+  // "Yeni" (≤ 7 gün) "şimdi"ye bağlı: ISR sayfalarında bayat HTML ile
+  // istemci eşiği farklı tarafında kalırsa #418 (derin denetim X13) —
+  // rozet yalnız hidrasyondan sonra (`hydrated` bileşen başında).
+  const fresh = showNew && hydrated && isNew(product.publishedAt);
 
   if (variant === "wide") {
     return (
@@ -249,12 +269,12 @@ export function ProductCard({
           <div className="flex flex-wrap items-center gap-1.5">
             {firm?.verified ? (
               <Badge tone="verified" size="sm">
-                Doğrulanmış
+                {t("verified")}
               </Badge>
             ) : null}
             {fresh ? (
               <Badge tone="new" size="sm">
-                Yeni
+                {t("new")}
               </Badge>
             ) : null}
           </div>
@@ -290,7 +310,7 @@ export function ProductCard({
               {firm.city ? (
                 <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
                   <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
-                  {firm.city}
+                  {cityLabel(firm.city)}
                 </span>
               ) : null}
             </div>
@@ -306,14 +326,20 @@ export function ProductCard({
               </span>
               {product.moq ? (
                 <span className="tnum block text-xs text-zinc-500">
-                  {`Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`}
+                  {t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) })}
                 </span>
               ) : null}
             </span>
-            {cta ? (
-              <span className={cn("inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold", ctaCls)}>
+            {cta && target ? (
+              <Link
+                href={ctaHref ?? `${target}#${anchorId("inquiry", locale)}`}
+                {...NEW_TAB}
+                onClick={(e) => e.stopPropagation()}
+                className={cn("relative z-10 inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold", ctaCls)}
+              >
                 {cta}
-              </span>
+                <NewTabHint />
+              </Link>
             ) : null}
           </div>
         </div>
@@ -327,12 +353,21 @@ export function ProductCard({
             {price.headline}
           </p>
           <p className="tnum mt-0.5 text-xs text-zinc-500">
-            {product.moq ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}` : "\u00A0"}
+            {product.moq ? t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) }) : "\u00A0"}
           </p>
-          {cta ? (
-            <span className={cn("mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}>
+          {/* Liste görünümünde de AYRI hedef (arayüz testi D-038): eskiden düz
+              `<span>`dı, tıklama kartın kendisine gidip bilgi kutusunu değil
+              sayfanın başını açıyordu. Izgara kartıyla aynı kural. */}
+          {cta && target ? (
+            <Link
+              href={ctaHref ?? `${target}#${anchorId("inquiry", locale)}`}
+              {...NEW_TAB}
+              onClick={(e) => e.stopPropagation()}
+              className={cn("relative z-10 mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}
+            >
               {cta}
-            </span>
+              <NewTabHint />
+            </Link>
           ) : null}
         </div>
       </article>
@@ -344,7 +379,7 @@ export function ProductCard({
   // "Yeni". "Doğrulanmış" kapağa ÇIKMAZ: firma özelliğidir ve firma satırında
   // ikon olarak zaten duruyor; ikisini birden basmak aynı olguyu iki kez
   // yazmak olurdu (kaldırılan "Gold Üye" rozetiyle aynı gürültü).
-  const coverBadge = badge ?? (fresh ? <Badge tone="new" size="sm">Yeni</Badge> : null);
+  const coverBadge = badge ?? (fresh ? <Badge tone="new" size="sm">{t("new")}</Badge> : null);
 
   return (
     <article
@@ -446,7 +481,7 @@ export function ProductCard({
                 <span className="truncate text-xs font-medium text-zinc-700">{firm.name}</span>
                 {firm.verified ? (
                   <Badge tone="verified" size="sm" className="shrink-0 px-1">
-                    <span className="sr-only">Doğrulanmış firma</span>
+                    <span className="sr-only">{t("verifiedCompany")}</span>
                   </Badge>
                 ) : null}
                 {/* "Gold Üye" METİN rozeti olarak KALDIRILMIŞTI (2026-09-07):
@@ -456,14 +491,14 @@ export function ProductCard({
                     kullanıcı için okunur (etiketi ekran okuyucuda). */}
                 {firm.gold ? (
                   <Badge tone="gold" size="sm" className="shrink-0 px-1">
-                    <span className="sr-only">Gold Üye</span>
+                    <span className="sr-only">{t("goldMember")}</span>
                   </Badge>
                 ) : null}
               </span>
               {firm.city ? (
                 <span className="mt-0.5 flex items-center gap-0.5 text-[11px] text-zinc-500">
                   <MapPinIcon aria-hidden className="size-3 shrink-0 text-zinc-400" />
-                  <span className="truncate">{firm.city}</span>
+                  <span className="truncate">{cityLabel(firm.city)}</span>
                 </span>
               ) : null}
             </span>
@@ -488,7 +523,7 @@ export function ProductCard({
               MOQ yok). */}
           <p className="tnum mt-0.5 text-xs text-zinc-500">
             {product.moq
-              ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
+              ? t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) })
               : "\u00A0"}
           </p>
           {cta && !compact && target ? (
@@ -498,7 +533,7 @@ export function ProductCard({
                karta sızmasını keser (bugün kartın kendi `onClick`i yok ama
                eklendiğinde iki eylem birden tetiklenirdi). */
             <Link
-              href={ctaHref ?? `${target}#bilgi-iste`}
+              href={ctaHref ?? `${target}#${anchorId("inquiry", locale)}`}
               {...NEW_TAB}
               onClick={(e) => e.stopPropagation()}
               className={cn(
@@ -521,12 +556,13 @@ export function ProductCard({
  * Emoji dekoratif; anlamı `sr-only` ülke adı taşır.
  */
 function CountryFlag({ code }: { code?: string | null }) {
+  const locale = useLocale();
   const flag = countryFlag(code);
   if (!flag) return null;
   return (
-    <span className="shrink-0 text-sm leading-none" title={countryName(code as string)}>
+    <span className="shrink-0 text-sm leading-none" title={countryDisplayName(code as string, locale)}>
       <span aria-hidden>{flag}</span>
-      <span className="sr-only">{countryName(code as string)}</span>
+      <span className="sr-only">{countryDisplayName(code as string, locale)}</span>
     </span>
   );
 }
@@ -543,6 +579,7 @@ function CountryFlag({ code }: { code?: string | null }) {
  * görünür.
  */
 function CompareToggle({ name, onChange }: { name: string; onChange?: (on: boolean) => void }) {
+  const t = useTranslations("web.marketplace.productCard");
   const [on, setOn] = useState(false);
   return (
     <label
@@ -561,7 +598,7 @@ function CompareToggle({ name, onChange }: { name: string; onChange?: (on: boole
         }}
         className="size-3.5 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
       />
-      Karşılaştır
+      {t("compare")}
       <span className="sr-only">: {name}</span>
     </label>
   );

@@ -1,9 +1,15 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
-import { hiddenCategoryWhere, isHiddenCategory } from "@rothern/shared";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { hiddenCategoryWhere, isHiddenCategory, listingSlug } from "@rothern/shared";
+import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
+import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemPrefix } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
+import { resolveVisitorCurrency } from "../../common/currency/fx-rates";
+import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows } from "../../common/company/category-name";
 import {
   marketplaceIndexableWhere,
   marketplaceListingWhere,
@@ -31,6 +37,8 @@ import {
   productIndexWhere,
   subCategoryCounts,
   toFacetRow,
+  cityFacet,
+  cityIdsOf,
 } from "../../common/company/product-index";
 import { relatedProducts } from "../../common/company/related-products";
 import {
@@ -58,24 +66,34 @@ const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(B
  * tek bir yardımcı yazıp facet'i `unnest` ile hesaplamak.
  */
 const FACET_SCAN_CAP = 5000;
+/**
+ * `/public/stats` son 24 saat teklif sayısını ancak vitrinde en az bu kadar
+ * açık talep varken verir; altında sayı tek tek taleplere indirgenebilir.
+ */
+export const PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS = 10;
 /** Nitelik facet'inde bir anahtar için gösterilecek en fazla değer. */
 /** Sayılabilir nitelik tipleri — serbest metin ve sayı facet OLMAZ. */
 
 @Injectable()
 export class PublicMarketplaceService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    /** İçerik çevirisi (i18n Faz 1e) — isteğe bağlı; yoksa özgün metin. */
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
 
   private async resolveCategories(
     codes: string[],
-  ): Promise<Map<string, { id: string; name: string; level: number }>> {
+  ): Promise<Map<string, { id: string; name: string; level: number; slug: string }>> {
     const unique = [...new Set(codes)].filter(Boolean);
     if (unique.length === 0) return new Map();
     const rows = await this.prisma.category.findMany({
       where: { id: { in: unique } },
-      select: { id: true, nameTr: true, level: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
     });
+    // i18n Faz 4: ad okuyucunun dilinde, `slug` HER ZAMAN Türkçe addan (adres dilden bağımsız).
     return new Map(
-      rows.map((r) => [r.id, { id: r.id, name: r.nameTr, level: r.level }]),
+      rows.map((r) => [r.id, { id: r.id, name: categoryName(r), level: r.level, slug: categorySlug(r.nameTr) }]),
     );
   }
 
@@ -85,6 +103,7 @@ export class PublicMarketplaceService {
   ): PublicListingCard {
     return {
       number: row.number ?? "",
+      slug: listingSlug(row.number ?? "", row.title),
       type: row.type,
       title: row.title,
       status: row.status,
@@ -110,6 +129,7 @@ export class PublicMarketplaceService {
   ): PublicListing {
     return {
       number: row.number ?? "",
+      slug: listingSlug(row.number ?? "", row.title),
       type: row.type,
       title: row.title,
       description: row.description,
@@ -169,27 +189,35 @@ export class PublicMarketplaceService {
     // Ayrı bir `company:` spread'i olarak yazılsaydı kapının
     // publicListingsEnabled/isActive/isBlocked koşullarını ezer ve süzgeç
     // kullanan her sorguda kapı sessizce açılırdı.
-    const cities = multi(q.city);
+    // Şehir dünya şehir listesinden (`cityId`, 2026-09-27); eski ham il adı da çözülür.
+    const cityValues = multi(q.city);
     const company: Prisma.CompanyWhereInput = {
       ...(gate.company as Prisma.CompanyWhereInput),
-      ...(cities.length === 1 ? { city: cities[0] } : cities.length > 1 ? { city: { in: cities } } : {}),
+      ...(cityValues.length ? { cityId: { in: cityIdsOf(q.city) } } : {}),
     };
-    const where: Prisma.ListingWhereInput = {
-      ...gate,
-      company,
-      ...(q.type ? { type: q.type } : {}),
+    // Süzgeçler kapıya SPREAD ile değil `AND` dizisiyle katılır (derin denetim
+    // Y-10): kapı embargoyu üst düzey `OR` anahtarında taşır; ülke süzgeci de
+    // bir `OR` olduğundan eskiden aynı anahtarı ezip embargoyu düşürüyordu →
+    // `?country=TR` ile açılışı gelecekteki talepler listede görünüyordu.
+    // Kapı kendi nesnesinde kalır, her süzgeç ayrı AND terimi olur; hiçbir
+    // süzgeç kapının bir anahtarını ezemez.
+    const filters: Prisma.ListingWhereInput[] = [
+      ...(q.type ? [{ type: q.type }] : []),
       // Varsayılan: yalnız teklife AÇIK olanlar. Kapanmışlar `state=all` ile
       // istenirse gelir (arşiv sayfaları) — ama asla varsayılan değildir,
       // ziyaretçiye ölü ilan göstermek en kötü ilk izlenim.
-      ...(q.state === "all" ? {} : { status: "OPEN" }),
-      ...(await this.listingCategoryWhere(q.category)),
+      ...(q.state === "all" ? [] : [{ status: "OPEN" as const }]),
+      await this.listingCategoryWhere(q.category),
       ...(q.country
-        ? { OR: [{ targetCountries: { isEmpty: true } }, { targetCountries: { has: q.country.toUpperCase() } }] }
-        : {}),
+        ? [{ OR: [{ targetCountries: { isEmpty: true } }, { targetCountries: { has: q.country.toUpperCase() } }] }]
+        : []),
       ...(q.closesWithin
-        ? { closesAt: { gte: now, lte: new Date(now.getTime() + Number(q.closesWithin) * 86_400_000) } }
-        : {}),
-      ...this.searchWhere(q.q),
+        ? [{ closesAt: { gte: now, lte: new Date(now.getTime() + Number(q.closesWithin) * 86_400_000) } }]
+        : []),
+      this.searchWhere(q.q),
+    ].filter((f) => Object.keys(f).length > 0);
+    const where: Prisma.ListingWhereInput = {
+      AND: [{ ...gate, company }, ...filters],
     };
 
     const [total, rows] = await Promise.all([
@@ -211,8 +239,17 @@ export class PublicMarketplaceService {
     const cats = await this.resolveCategories(
       rows.flatMap((r) => r.categoryIds),
     );
+    const cards = rows.map((r) => this.toCard(r, cats));
+    // i18n Faz 1e: kart metni + alıcı firmanın sektörü okuyucunun dilinde.
+    const localizedCards = this.translations
+      ? await this.translations.localizeListingCompanies(
+          await this.translations.localizeListings(cards, rows.map((r) => r.id), currentLocale(), excerptOf),
+          rows.map((r) => r.company?.id),
+          currentLocale(),
+        )
+      : cards;
     return {
-      items: rows.map((r) => this.toCard(r, cats)),
+      items: localizedCards,
       total,
       page,
       pageSize: LISTING_PAGE_SIZE,
@@ -246,10 +283,10 @@ export class PublicMarketplaceService {
   }
 
   /**
-   * Serbest arama — başlık/açıklama/anahtar kelime. Kategori aramasındaki
-   * `searchText` yolundan AYRI: orada katlanmış tek bir sütun var, burada
-   * yok. Sorgu tokenlenir ve her token AND'lenir (sıra önemsiz), her token
-   * üç alanda OR'lanır.
+   * Serbest arama — başlık/açıklama/anahtar kelime + `searchTextI18n`
+   * (katlanmış kaynak + EN/RU çeviriler, kalem adları dahil; içerik çevirisi
+   * servisi yazar). Ham ILIKE dalları sütun henüz dolmamış talepler için
+   * yedek. Token AND, alanlar OR.
    */
   private searchWhere(raw?: string): Prisma.ListingWhereInput {
     const tokens = raw ? tokenizeQuery(raw) : [];
@@ -260,6 +297,7 @@ export class PublicMarketplaceService {
           { title: { contains: t, mode: "insensitive" as const } },
           { description: { contains: t, mode: "insensitive" as const } },
           { keywords: { has: t } },
+          { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
         ],
       })),
     };
@@ -275,9 +313,25 @@ export class PublicMarketplaceService {
       where: { ...marketplaceListingWhere(now), number },
       select: PUBLIC_LISTING_SELECT,
     });
-    if (!row) throw new NotFoundException("İlan bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicMarketplace.ilanBulunamadi"));
     const cats = await this.resolveCategories(row.categoryIds);
-    return this.toDetail(row, cats);
+    const detail = this.toDetail(row, cats);
+    // Dil durumu (i18n SEO, 2026-09-27): web hreflang'i yalnız HAZIR dillere
+    // yazar, kaynak metni gösterdiği dilde `lang={sourceLocale}` basar.
+    if (!this.translations) return { ...detail, readyLocales: [...LOCALES], sourceLocale: DEFAULT_LOCALE };
+    const locale = currentLocale();
+    const [[localized], state] = await Promise.all([
+      this.translations.localizeListings([detail], [row.id], locale, excerptOf),
+      this.translations.localeState("LISTING", row.id),
+    ]);
+    const [withIndustry] = await this.translations.localizeListingCompanies([localized ?? detail], [row.company?.id], locale);
+    const out = { ...(withIndustry ?? localized ?? detail), ...state };
+    // Bu dilde çeviri henüz yoksa sayfa kaynak metni gösterir → indekslenmez
+    // (kapsam denetimi dakikalar içinde çevirir, SEO bildirimi sayfayı tazeler).
+    if (out.indexable && !state.readyLocales.includes(locale)) {
+      return { ...out, indexable: false };
+    }
+    return out;
   }
 
   /* ---------------------------------------------------------------- */
@@ -299,6 +353,13 @@ export class PublicMarketplaceService {
     countries: { code: string; count: number }[];
     /** Kalan süre kovaları (3/7/30 gün) — diğer seçimlerle. */
     within: { "3": number; "7": number; "30": number };
+    /**
+     * Seçili kategorinin okuyucu dilindeki adı (arayüz testi D-061): talep
+     * sayfasındaki çip yaprağa (L2–L4) bağlanır; `categories` yalnız segment
+     * saydığı için aktif çip adını buradan okur (ürün facet'iyle aynı biçim).
+     * Seçim yoksa / kod yoksa null.
+     */
+    selectedCategory: { id: string; name: string; level: number } | null;
     truncated: boolean;
   }> {
     const now = new Date();
@@ -309,7 +370,7 @@ export class PublicMarketplaceService {
         categoryIds: true,
         targetCountries: true,
         closesAt: true,
-        company: { select: { city: true } },
+        company: { select: { city: true, cityId: true } },
       },
       take: FACET_SCAN_CAP + 1,
     });
@@ -318,10 +379,11 @@ export class PublicMarketplaceService {
     type Row = (typeof scanned)[number];
 
     const prefix = q.category ? categoryPrefix(q.category) : null;
-    const cities = multi(q.city);
+    const hasCity = multi(q.city).length > 0;
+    const cityIds = new Set(cityIdsOf(q.city));
     const dayMs = 86_400_000;
     const inCat = (r: Row) => !prefix || r.categoryIds.some((c) => c.startsWith(prefix));
-    const inCity = (r: Row) => cities.length === 0 || (!!r.company.city && cities.includes(r.company.city.trim()));
+    const inCity = (r: Row) => !hasCity || (r.company.cityId != null && cityIds.has(r.company.cityId));
     const country = q.country?.toUpperCase();
     const inScope = (r: Row) => !country || r.targetCountries.length === 0 || r.targetCountries.includes(country);
     const withinDays = (r: Row, d: number) =>
@@ -342,17 +404,24 @@ export class PublicMarketplaceService {
     }
     const cityCount = new Map<string, number>();
     for (const r of forCity) {
-      const city = r.company.city?.trim();
-      if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
+      if (r.company.cityId != null) cityCount.set(String(r.company.cityId), (cityCount.get(String(r.company.cityId)) ?? 0) + 1);
     }
     const typeCount = new Map<string, number>();
     for (const r of scanned) typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
-    // Ülke facet'i: "tüm ülkelere açık" sayısı + hedef listelerde geçen ülkeler.
+    // Ülke facet'i ("Teklif verebilecek tedarikçi ülkesi", 2026-09-27 kuralı):
+    // HER ülke seçilebilir ve C ülkesinin sayısı = `openToAll` + C'yi açıkça
+    // hedefleyen talepler (`countryCanSee`, liste süzgeci `inScope` ile aynı).
+    // `countries` yalnız AÇIK hedef sayılarını taşır (istemci `openToAll`
+    // ekler); seçili ülke hedeflenmemiş olsa da 0 ile listede kalır ki çip ve
+    // sayaç "tüm ülkelere açık" talepleri göstersin (eskiden liste yalnız
+    // hedeflenen ülkelerdi → her talep herkese açıkken grup hiç çizilmiyordu).
     const openToAll = forScope.filter((r) => r.targetCountries.length === 0).length;
     const countryCount = new Map<string, number>();
     for (const r of forScope) for (const c of r.targetCountries) countryCount.set(c, (countryCount.get(c) ?? 0) + 1);
+    if (country && /^[A-Z]{2}$/.test(country) && !countryCount.has(country)) countryCount.set(country, 0);
 
-    const cats = await this.resolveCategories([...catCount.keys()]);
+    const cats = await this.resolveCategories([...catCount.keys(), ...(q.category ? [q.category] : [])]);
+    const selected = q.category ? cats.get(q.category) : undefined;
     return {
       categories: [...catCount.entries()]
         .map(([id, count]) => {
@@ -361,12 +430,9 @@ export class PublicMarketplaceService {
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
-      cities: [...cityCount.entries()]
-        .map(([city, count]) => ({ city, count }))
-        .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+      cities: cityFacet(cityCount),
       types: [...typeCount.entries()].map(([type, count]) => ({ type, count })),
-      // Kapsam süzgeci (yurtiçi / uluslararası) — sayfa açıklaması bunu vaat
-      // ediyordu, süzgeç yoktu.
+      // Görünürlük ülkesi süzgeci — bkz. yukarıdaki kural (seçilebilir her ülke).
       openToAll,
       countries: [...countryCount.entries()]
         .map(([code, count]) => ({ code, count }))
@@ -376,6 +442,7 @@ export class PublicMarketplaceService {
         "7": forWithin.filter((r) => withinDays(r, 7)).length,
         "30": forWithin.filter((r) => withinDays(r, 30)).length,
       },
+      selectedCategory: selected ? { id: selected.id, name: selected.name, level: selected.level } : null,
       truncated,
     };
   }
@@ -400,7 +467,13 @@ export class PublicMarketplaceService {
     // Where/orderBy TEK KAYNAK (`common/company/product-index.ts`) — panelin
     // "Ürün Ara"sı aynı fonksiyonu okur.
     const where = productIndexWhere(
-      { ...q, verified: q.verified === "1", priceUnpriced: q.priceUnpriced === "1", fastReply: q.fastReply === "1" },
+      {
+        ...q,
+        verified: q.verified === "1",
+        priceUnpriced: q.priceUnpriced === "1",
+        fastReply: q.fastReply === "1",
+        currency: resolveVisitorCurrency(q.currency, currentLocale()),
+      },
       [],
       { employeeValues: await employeeValuesQuery(this.prisma, q.employees) },
     );
@@ -415,7 +488,12 @@ export class PublicMarketplaceService {
       }),
     ]);
     const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
-    return { items, total, page, pageSize: PAGE_SIZE };
+    return {
+      items: this.translations ? await this.translations.localizeProducts(items, rows.map((r) => r.id), currentLocale()) : items,
+      total,
+      page,
+      pageSize: PAGE_SIZE,
+    };
   }
 
   /**
@@ -429,7 +507,9 @@ export class PublicMarketplaceService {
       orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
       take: Math.min(limit * 6, 200),
     });
-    const cards = rows.map(toProductIndexCard);
+    const cards = this.translations
+      ? await this.translations.localizeProducts(rows.map(toProductIndexCard), rows.map((r) => r.id), currentLocale())
+      : rows.map(toProductIndexCard);
     cards.sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
     const perCompany = new Map<string, number>();
     const out: ProductIndexCard[] = [];
@@ -444,8 +524,16 @@ export class PublicMarketplaceService {
   }
 
   /** Ürün sayfası ilişkili bloklar — `common/company/related-products.ts`. */
-  relatedProducts(companySlug: string, productSlug: string) {
-    return relatedProducts(this.prisma, companySlug, productSlug);
+  async relatedProducts(companySlug: string, productSlug: string) {
+    const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug);
+    if (!this.translations) return rest;
+    const locale = currentLocale();
+    const t = this.translations;
+    return {
+      fromCompany: { items: await t.localizeProducts(rest.fromCompany.items, ids.fromCompany, locale), total: rest.fromCompany.total },
+      similar: await t.localizeProducts(rest.similar, ids.similar, locale),
+      popular: await t.localizeProducts(rest.popular, ids.popular, locale),
+    };
   }
 
   /**
@@ -466,6 +554,7 @@ export class PublicMarketplaceService {
         ? this.prisma.companyItem.findMany({
             where: { ...publicProductWhere(), ...(tokens.length ? { AND: productSearchClauses(q) } : {}) },
             select: {
+              id: true,
               name: true,
               slug: true,
               images: true,
@@ -484,7 +573,7 @@ export class PublicMarketplaceService {
           ...hiddenCategoryWhere(),
           AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })),
         },
-        select: { id: true, nameTr: true, level: true },
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
         orderBy: [{ level: "asc" }],
         take: 5,
       }),
@@ -503,32 +592,39 @@ export class PublicMarketplaceService {
             // Vitrin kapısı + AÇIK: kapanmış talebi öneri olarak sunmak
             // "teklif ver" beklentisi yaratır. Sahip ADI YOK (anonimlik).
             where: { ...marketplaceListingWhere(now), status: "OPEN", ...this.searchWhere(q) },
-            select: { number: true, title: true, closesAt: true },
+            select: { id: true, number: true, title: true, closesAt: true },
             orderBy: [{ publishedAt: "desc" }],
             take: 5,
           })
         : [],
     ]);
+    const productHits = products.map((p) => ({
+      name: p.name,
+      slug: p.slug ?? "",
+      companySlug: p.company.slug ?? "",
+      companyName: p.company.name,
+      image: p.images[0] ?? null,
+    }));
+    const listingHits = listings.map((l) => ({
+      number: l.number,
+      slug: listingSlug(l.number ?? "", l.title),
+      title: l.title,
+      closesAt: l.closesAt?.toISOString() ?? null,
+    }));
     return {
-      products: products.map((p) => ({
-        name: p.name,
-        slug: p.slug ?? "",
-        companySlug: p.company.slug ?? "",
-        companyName: p.company.name,
-        image: p.images[0] ?? null,
-      })),
-      categories: categories.map((c) => ({ id: c.id, name: c.nameTr, level: c.level })),
+      products: this.translations
+        ? await this.translations.localizeProducts(productHits, products.map((p) => p.id), currentLocale())
+        : productHits,
+      categories: categories.map((c) => ({ id: c.id, name: categoryName(c), level: c.level, slug: categorySlug(c.nameTr) })),
       companies: companies.map((c) => ({
         name: c.name,
         slug: c.slug as string,
         city: c.city,
         logoUrl: c.logoUrl,
       })),
-      listings: listings.map((l) => ({
-        number: l.number,
-        title: l.title,
-        closesAt: l.closesAt?.toISOString() ?? null,
-      })),
+      listings: this.translations
+        ? await this.translations.localizeListings(listingHits, listings.map((l) => l.id), currentLocale())
+        : listingHits,
     };
   }
 
@@ -550,7 +646,7 @@ export class PublicMarketplaceService {
       }),
       this.prisma.category.findMany({
         where: { inDiscovery: true, level: { lte: 2 }, ...hiddenCategoryWhere() },
-        select: { id: true, nameTr: true, level: true },
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
       }),
     ]);
     const segCount = new Map<string, number>();
@@ -568,26 +664,30 @@ export class PublicMarketplaceService {
       .filter((c) => c.level === 1)
       .map((seg) => ({
         id: seg.id,
-        name: seg.nameTr,
+        name: categoryName(seg),
+        slug: categorySlug(seg.nameTr),
         count: segCount.get(seg.id) ?? 0,
         children: families
           .filter((f) => f.id.slice(0, 2) === seg.id.slice(0, 2))
-          .map((f) => ({ id: f.id, name: f.nameTr, count: famCount.get(f.id) ?? 0 }))
+          .map((f) => ({ id: f.id, name: categoryName(f), slug: categorySlug(f.nameTr), count: famCount.get(f.id) ?? 0 }))
           .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"))
           .slice(0, 12),
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
   }
 
-  /** Anasayfa sayı şeridi — gerçek sayımlar; eşiği web uygular. */
+  /**
+   * Anasayfa sayı şeridi — gerçek sayımlar; envanter eşiğini web uygular.
+   * Teklif sayısının eşiği (`PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS`) burada:
+   * yanıt anonim ve herkese açık, çizimdeki eşik veriyi gizlemez.
+   */
   async stats() {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
     const dayAgo = new Date(now.getTime() - 86_400_000);
-    const [products, companies, categories, openDemands, catRows, productsThisWeek, bidsLast24h, verifiedCompanies] = await Promise.all([
+    const [products, companies, openDemands, catRows, productsThisWeek, bidsLast24h, verifiedCompanies] = await Promise.all([
       this.prisma.companyItem.count({ where: publicProductWhere() }),
       this.prisma.company.count({ where: PUBLIC_PROFILE_WHERE }),
-      this.prisma.category.count({ where: { inDiscovery: true, level: 1, ...hiddenCategoryWhere() } }),
       this.prisma.listing.count({ where: { ...marketplaceListingWhere(now), status: "OPEN", type: "ALIM" } }),
       this.prisma.companyItem.findMany({
         where: publicProductWhere(),
@@ -602,6 +702,22 @@ export class PublicMarketplaceService {
         where: { companyVerificationStatus: "VERIFIED", ...PUBLIC_PROFILE_WHERE },
       }),
     ]);
+    // "Ürünü olan kategori" sayısı (llms-full.txt envanteri): ürün facet'iyle
+    // AYNI kural — yayındaki ürünlerin gizli olmayan 8 haneli kodlarının
+    // segmenti (L1), kategori tablosunda var olanlar. Eskiden keşifteki TÜM
+    // L1 segmentler sayılıyordu (29), listede ise ürünlü 19 satır vardı
+    // (arayüz testi D-077).
+    const segments = [
+      ...new Set(
+        catRows
+          .map((r) => r.categoryId)
+          .filter((c): c is string => !!c && c.length === 8 && !isHiddenCategory(c))
+          .map((c) => `${c.slice(0, 2)}000000`),
+      ),
+    ];
+    const categories = segments.length
+      ? await this.prisma.category.count({ where: { id: { in: segments }, ...hiddenCategoryWhere() } })
+      : 0;
     // "Popüler aramalar" — arama logu YOK; yedek: ürün sayısı en yüksek 20
     // ALT kategori (L3 sınıf). Etiket web'de "Popüler kategoriler".
     const l3 = new Map<string, number>();
@@ -619,7 +735,11 @@ export class PublicMarketplaceService {
       categories,
       openDemands,
       productsThisWeek,
-      bidsLast24h,
+      // Anonim uca ham teklif sayısı yalnız yeterince açık talep varken
+      // (derin denetim LU-18): vitrinde tek/az talep varken sayı o talebin
+      // kapalı zarftaki teklif sayısını ele verir. Eşik altında 0 — web şeridi
+      // sıfır satırı zaten basmaz.
+      bidsLast24h: openDemands >= PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS ? bidsLast24h : 0,
       verifiedCompanies,
       popularCategories: top
         .map(([id, count]) => ({ id, name: names.get(id)?.name ?? null, count }))
@@ -638,6 +758,8 @@ export class PublicMarketplaceService {
     /** Seçili kategorinin adı — ürünü olmasa da (çip/başlık için). */
     selectedCategory: { id: string; name: string; level: number } | null;
     cities: { city: string; count: number }[];
+    /** Satıcı ülkesi sayaçları (`?ulke=`) — web süzgeç grubu + ülke şeridi. */
+    countries: { country: string; count: number }[];
     activities: { activity: string; count: number }[];
     verified: number;
     fastReply: number;
@@ -645,6 +767,8 @@ export class PublicMarketplaceService {
     certifications: { cert: string; count: number }[];
     employees: { key: number; count: number }[];
     moq: Record<string, number>;
+    /** Histogramın (ve süzgeç sınırlarının) para birimi — web etiketleri bununla. */
+    currency: string;
     priceHistogram: {
       min: number;
       max: number;
@@ -671,9 +795,12 @@ export class PublicMarketplaceService {
         attributes: true,
         moq: true,
         priceAmount: true,
+        priceAmountBase: true,
         company: {
           select: {
             city: true,
+            cityId: true,
+            country: true,
             activities: true,
             companyVerificationStatus: true,
             certifications: true,
@@ -690,6 +817,7 @@ export class PublicMarketplaceService {
     const inCategory = prefix ? scanned.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : scanned;
     const sel = {
       city: q.city,
+      country: q.country,
       activity: q.activity,
       verified: q.verified === "1",
       price: q.price,
@@ -698,6 +826,7 @@ export class PublicMarketplaceService {
       near: q.near,
       radius: q.radius,
       fastReply: q.fastReply === "1",
+      currency: resolveVisitorCurrency(q.currency, currentLocale()),
     };
     // `attributes` facet'i ham satırı ister (JSON alanı), sayaçlar eşlenmişi.
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), sel);
@@ -728,6 +857,8 @@ export class PublicMarketplaceService {
       /** Seçili kategorinin kendisi (ürünü olmasa da). */
       selectedCategory: selected ?? null,
       cities: ctx.cities,
+      // Hesaplanıyordu ama yanıta bağlanmamıştı (derin denetim MU-10).
+      countries: ctx.countries,
       activities: ctx.activities,
       verified: ctx.verified,
       fastReply: ctx.fastReply,
@@ -735,6 +866,7 @@ export class PublicMarketplaceService {
       certifications: ctx.certifications,
       employees: ctx.employees,
       moq: ctx.moq,
+      currency: sel.currency,
       priceHistogram: ctx.priceHistogram,
       attributes: await attributeFacets(this.prisma, q.category, inCategory),
       truncated,
@@ -752,7 +884,7 @@ export class PublicMarketplaceService {
    * adresi izler, sayfada başka bir kanonik görür ve ikisini de güvensiz sayar.
    */
   async sitemap(): Promise<
-    { number: string; title: string; type: string; updatedAt: string }[]
+    { number: string; slug: string; title: string; type: string; updatedAt: string }[]
   > {
     const now = new Date();
     const rows = await this.prisma.listing.findMany({
@@ -763,6 +895,7 @@ export class PublicMarketplaceService {
     });
     return rows.map((r) => ({
       number: r.number as string,
+      slug: listingSlug(r.number as string, r.title),
       title: r.title,
       type: r.type,
       updatedAt: r.updatedAt.toISOString(),

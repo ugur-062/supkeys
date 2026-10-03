@@ -1,17 +1,25 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows } from "../../../common/company/category-name";
 import {
   categoryCatalogWhere,
   hiddenCategoryWhere,
+  isHiddenCategory,
   foldSearchText,
   tokenizeQuery,
   type CategoryCatalog,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  categoryCodePrefix,
+  categoryMatchScore,
+  relevanceWeight,
+} from "./category-search-rank";
 
 /**
  * 4 seviye kategori servisi (kaynak: Ariba kataloğu, birebir).
@@ -30,6 +38,18 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
  * Render free planının 512 MB'ını zorlardı. Silindi; breadcrumb'lar
  * `getByIds`'te hedefli sorguyla çıkarılıyor (yalnız seçili kodlar).
  */
+/** Public kategori arama sorgusunun en fazla uzunluğu (karakter). */
+export const CATEGORY_SEARCH_MAX_LENGTH = 120;
+/** Arama sorgusunda AND'lenen en fazla (tekil) kelime sayısı. */
+export const CATEGORY_SEARCH_MAX_TOKENS = 8;
+/** Ağaca giren en fazla eşleşme (L3+L4) — aşılırsa `truncated`. */
+export const CATEGORY_SEARCH_RESULT_CAP = 200;
+/**
+ * Alaka puanıyla sıralanacak aday havuzu (O-022). Kırpma puanlamadan SONRA
+ * yapılır; havuz yalnız hafif alanları taşır.
+ */
+const CATEGORY_SEARCH_POOL = 1000;
+
 @Injectable()
 export class CategoryService {
   private readonly logger = new Logger(CategoryService.name);
@@ -53,20 +73,20 @@ export class CategoryService {
    * düzine sınıf var — o istek küçük ve seyrek.
    */
   async getAllActive() {
-    const cats = await this.prisma.category.findMany({
+    const cats = localizeCategoryRows(await this.prisma.category.findMany({
       // Gizli segmentler (katalog sadeleştirme, 2026-09-19) hiçbir listede yok.
       where: { isActive: true, level: { lte: 2 }, ...hiddenCategoryWhere() },
       orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
       select: {
         id: true,
         code: true,
-        nameTr: true,
+        ...CATEGORY_NAME_SELECT,
         level: true,
         parentId: true,
         segmentLetter: true,
         sortOrder: true,
       },
-    });
+    }));
     return this.attachChildCount(cats);
   }
 
@@ -80,20 +100,24 @@ export class CategoryService {
    * modalı; o zaten drill-down sırasında `/all`'ı çekiyor.
    */
   async getSegments() {
-    const cats = await this.prisma.category.findMany({
+    const raw = await this.prisma.category.findMany({
       where: { isActive: true, level: 1, ...hiddenCategoryWhere() },
       orderBy: [{ sortOrder: "asc" }],
       select: {
         id: true,
         code: true,
-        nameTr: true,
+        ...CATEGORY_NAME_SELECT,
         level: true,
         parentId: true,
         segmentLetter: true,
         sortOrder: true,
       },
     });
-    return this.attachChildCount(cats);
+    // i18n Faz 4: ad okuyucunun dilinde; adres slug'ı HER ZAMAN Türkçe addan (dilden bağımsız).
+    const cats = localizeCategoryRows(raw);
+    const withCount = await this.attachChildCount(cats);
+    const trSlug = new Map(raw.map((c) => [c.id, categorySlug(c.nameTr)] as const));
+    return withCount.map((c) => ({ ...c, slug: trSlug.get(c.id) ?? categorySlug(c.nameTr) }));
   }
 
   /**
@@ -106,19 +130,19 @@ export class CategoryService {
    */
   async childrenOf(parentId: string, catalog: CategoryCatalog = "full") {
     if (!parentId) return [];
-    const cats = await this.prisma.category.findMany({
+    const cats = localizeCategoryRows(await this.prisma.category.findMany({
       where: { isActive: true, parentId, ...categoryCatalogWhere(catalog) },
       orderBy: [{ sortOrder: "asc" }],
       select: {
         id: true,
         code: true,
-        nameTr: true,
+        ...CATEGORY_NAME_SELECT,
         level: true,
         parentId: true,
         segmentLetter: true,
         sortOrder: true,
       },
-    });
+    }));
     return this.attachChildCount(cats, catalog);
   }
 
@@ -185,8 +209,18 @@ export class CategoryService {
     }>;
     /** 200 sonuç tavanına takıldı — kullanıcıya "aramayı daraltın" gösterilir. */
     truncated: boolean;
+    /**
+     * Sonuçsuz KOD aramasında kod gizli bir segmentin altındaysa o segmentin
+     * iki hanesi (O-048, yeniden doğrulama) — admin kategori tarayıcısı "Sonuç
+     * yok" yerine nedenini söyler. Diğer durumlarda yok.
+     */
+    hiddenSegment?: string;
   }> {
-    const q = query?.trim() ?? "";
+    // Kimliksiz uç: sorgu uzunluğu ve token sayısı SINIRLI. Sınırsızken
+    // ~16 KB'lık "er er er ..." tek istekte ~10.000 ILIKE yüklemli sorgu
+    // üretiyordu (derin denetim MU-11). Diğer public arama uçları da q'yu
+    // 80-120 karaktere kırpıyor.
+    const q = (query ?? "").trim().slice(0, CATEGORY_SEARCH_MAX_LENGTH).trim();
     if (q.length < 2) return { segments: [], truncated: false };
 
     // TR-katlanmış arama: 'İ' (PG lower → i+combining dot) ve aksansız yazım
@@ -201,7 +235,17 @@ export class CategoryService {
     // sözlüğünün (keywords) değerini çarpar — kullanıcı ürün adıyla marka/
     // özellik kelimesini aynı sorguda karıştırdığında da eşleşir.
     const folded = foldSearchText(q);
-    const tokens = tokenizeQuery(q);
+    // Tekrarlanan kelime (katlanmış biçimiyle) AND listesine bir şey katmaz,
+    // yalnız yüklem çoğaltır — tekilleştirilip ilk N kelimeyle sınırlanır.
+    const seenTokens = new Set<string>();
+    const tokens = tokenizeQuery(q)
+      .filter((t) => {
+        const key = foldSearchText(t);
+        if (seenTokens.has(key)) return false;
+        seenTokens.add(key);
+        return true;
+      })
+      .slice(0, CATEGORY_SEARCH_MAX_TOKENS);
     const nameFilter = tokens.length
       ? {
           AND: tokens.map((t) => ({
@@ -219,43 +263,108 @@ export class CategoryService {
           ],
         };
 
+    // Kodla arama (O-048): yalnız rakamdan oluşan sorgu kod ÖNEKİYLE de
+    // eşleşir ("43230000" → aile "4323", "31161603" → tam kod). Metin yolu
+    // da açık kalır (eş anlamlıda geçen model numarası gibi).
+    const codePrefix = categoryCodePrefix(q);
+    const matchFilter = codePrefix
+      ? { OR: [{ code: { startsWith: codePrefix } }, nameFilter] }
+      : nameFilter;
+
+    // ALAKA SIRASI (O-022): eşleşen L3/L4 adayları hafif alanlarla çekilir,
+    // puanlanır (ad başı / tam sözcük > ad içi > yalnız eş anlamlı; kod
+    // eşleşmesi en önde) ve 200 tavanı puan sırasından SONRA uygulanır.
+    // Eskiden düzey + sıra numarasıyla kesiliyordu → "rulman"da eş anlamlıdan
+    // gelen alakasız satırlar öne geçiyor, "kablo"/"boru" 200'de alakasız
+    // ilk sonuçlarla kesiliyordu. Eşit puanda SINIF (L3) önce kalır: gezinilebilir
+    // omurga emtia seline feda edilmez (2026-09-01 ölçümü "makine").
+    //
     // Katalog süzgeci YALNIZ burada: eşleşenler L3+L4 ve iki katalog yalnız
     // L4'te ayrışıyor. Aşağıdaki `famMatches` (L2 + L3 çocukları) süzülmüyor —
     // o katmanlar iki dışa aktarımda birebir aynı.
-    const matched = await this.prisma.category.findMany({
-      where: {
-        isActive: true,
-        level: { in: [3, 4] },
-        ...categoryCatalogWhere(catalog),
-        ...nameFilter,
-      },
-      include: {
-        parent: {
+    const poolSelect = {
+      id: true,
+      code: true,
+      ...CATEGORY_NAME_SELECT,
+      level: true,
+      sortOrder: true,
+    } as const;
+    const baseWhere = {
+      isActive: true,
+      level: { in: [3, 4] },
+      ...categoryCatalogWhere(catalog),
+    };
+    const pool = await this.prisma.category.findMany({
+      where: { ...baseWhere, ...matchFilter },
+      select: poolSelect,
+      orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
+      take: CATEGORY_SEARCH_POOL,
+    });
+    const poolFull = pool.length >= CATEGORY_SEARCH_POOL;
+    if (poolFull && tokens.length > 0) {
+      // Çok geniş sorgu: havuz eş anlamlı eşleşmeleriyle dolmuş olabilir →
+      // ADINDA geçenler ayrıca çekilir ki alakalı satır havuz dışında kalmasın.
+      const byName = await this.prisma.category.findMany({
+        where: {
+          ...baseWhere,
+          AND: tokens.map((t) => ({
+            OR: [
+              { nameTr: { contains: t, mode: "insensitive" as const } },
+              { nameEn: { contains: t, mode: "insensitive" as const } },
+              { nameRu: { contains: t, mode: "insensitive" as const } },
+            ],
+          })),
+        },
+        select: poolSelect,
+        orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
+        take: CATEGORY_SEARCH_POOL,
+      });
+      const seen = new Set(pool.map((r) => r.id));
+      for (const r of byName) if (!seen.has(r.id)) pool.push(r);
+    }
+
+    const foldedTokens = tokens.map((t) => foldSearchText(t));
+    const scoreOf = (row: {
+      code: string;
+      nameTr: string;
+      nameEn: string | null;
+      nameRu: string | null;
+    }) =>
+      codePrefix && row.code.startsWith(codePrefix)
+        ? 100 + (row.code === codePrefix.padEnd(8, "0") ? 50 : 0)
+        : categoryMatchScore(row, foldedTokens, folded);
+    const scored = pool
+      .map((row) => ({ row, score: scoreOf(row) }))
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.row.level - b.row.level ||
+          a.row.sortOrder - b.row.sortOrder,
+      );
+    const top = scored.slice(0, CATEGORY_SEARCH_RESULT_CAP);
+    const scoreById = new Map(scored.map((x) => [x.row.id, x.score] as const));
+
+    // Yalnız ağaca girecek satırların ata zinciri.
+    const chainRows = top.length
+      ? await this.prisma.category.findMany({
+          where: { id: { in: top.map((x) => x.row.id) } },
           include: {
             parent: {
               include: {
-                parent: true,
+                parent: {
+                  include: {
+                    parent: true,
+                  },
+                },
               },
             },
           },
-        },
-      },
-      take: 200,
-      // SINIF (L3) ÖNCE, emtia (L4) sonra — kırpma sırası kritik.
-      //
-      // Eskiden `level: "desc"` idi (emtia önce). Katalog küçük ve eşanlamlı
-      // sözlüğü boşken bu zararsızdı: geniş bir sorgu bile 200'ü zor buluyordu.
-      // Katalog 10.991 kategoriye ve sözlük 61k kelimeye çıkınca durum tersine
-      // döndü — ölçüm (2026-09-01, canlı): "makine" 92 sınıf + 474 emtia
-      // eşleştiriyor ve emtia-önce sıralamada ilk 200'e giren sınıf sayısı
-      // SIFIR. Kullanıcı 200 tekil ürün görüyor, gezinebileceği tek bir üst
-      // başlık görmüyordu.
-      //
-      // Sınıf önce gelince gezinilebilir omurga kırpmadan KURTULUYOR; ağaç
-      // kurucusu eşleşen emtianın sınıfını zaten (isMatch:false ile) ekliyor,
-      // yani yol bilgisi kaybolmuyor.
-      orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
-    });
+        })
+      : [];
+    const chainById = new Map(chainRows.map((r) => [r.id, r] as const));
+    const matched = top
+      .map((x) => chainById.get(x.row.id))
+      .filter((r): r is (typeof chainRows)[number] => !!r);
 
     // Family (L2) adıyla arama da bulsun: eşleşen family'lerin TÜM Class'ları
     // sonuç ağacına eklenir — "Pano ve dağıtım sistemleri" yazan kullanıcı
@@ -264,7 +373,7 @@ export class CategoryService {
       where: {
         isActive: true,
         level: 2,
-        ...nameFilter,
+        ...matchFilter,
         ...hiddenCategoryWhere(),
       },
       include: {
@@ -281,6 +390,13 @@ export class CategoryService {
     if (matched.length === 0 && famMatches.length === 0) {
       // Sonuçsuz aramalar keywords/taksonomi kürasyonunun ham girdisi —
       // log drain'de "Kategori araması sonuçsuz" ile toplanır.
+      // Kod araması kürasyon kuyruğuna YAZILMAZ: eş anlamlı ekleyerek
+      // çözülecek bir terim değil (O-048 — sahte kayıt düşüyordu).
+      if (codePrefix) {
+        return isHiddenCategory(codePrefix)
+          ? { segments: [], truncated: false, hiddenSegment: codePrefix.slice(0, 2) }
+          : { segments: [], truncated: false };
+      }
       this.logger.log(`Kategori araması sonuçsuz: "${q.slice(0, 80)}"`);
       await this.recordSearchMiss(q, folded);
       return { segments: [], truncated: false };
@@ -293,6 +409,12 @@ export class CategoryService {
       level: number;
       sortOrder: number;
       isMatch: boolean;
+      /** En iyi alaka puanı (kendisi ya da altındaki emtia) — sıralama. */
+      score: number;
+      /** Alt ağaçtaki ad eşleşmelerinin toplam ağırlığı (`relevanceWeight`). */
+      weight: number;
+      /** Sınıfın KENDİ adının puanı (eşleşmediyse 0). */
+      ownScore: number;
       commodities: Map<
         string,
         {
@@ -302,6 +424,8 @@ export class CategoryService {
           level: number;
           sortOrder: number;
           isMatch: boolean;
+          score: number;
+          weight: number;
         }
       >;
     }
@@ -311,6 +435,8 @@ export class CategoryService {
       nameTr: string;
       level: number;
       sortOrder: number;
+      score: number;
+      weight: number;
       classes: Map<string, ClassAcc>;
     }
     interface SegmentAcc {
@@ -320,6 +446,8 @@ export class CategoryService {
       level: number;
       segmentLetter: string | null;
       sortOrder: number;
+      score: number;
+      weight: number;
       families: Map<string, FamilyAcc>;
     }
 
@@ -364,16 +492,19 @@ export class CategoryService {
       }
 
       if (!segment || !family || !cls) continue;
+      const rowScore = scoreById.get(cat.id) ?? 0;
 
       let segAcc = segmentMap.get(segment.id);
       if (!segAcc) {
         segAcc = {
           id: segment.id,
           code: segment.code,
-          nameTr: segment.nameTr,
+          nameTr: categoryName(segment),
           level: segment.level,
           segmentLetter: segment.segmentLetter,
           sortOrder: segment.sortOrder,
+          score: 0,
+          weight: 0,
           families: new Map(),
         };
         segmentMap.set(segment.id, segAcc);
@@ -384,39 +515,55 @@ export class CategoryService {
         famAcc = {
           id: family.id,
           code: family.code,
-          nameTr: family.nameTr,
+          nameTr: categoryName(family),
           level: family.level,
           sortOrder: family.sortOrder,
+          score: 0,
+          weight: 0,
           classes: new Map(),
         };
         segAcc.families.set(family.id, famAcc);
       }
+      const rowWeight = relevanceWeight(rowScore);
+      segAcc.score = Math.max(segAcc.score, rowScore);
+      famAcc.score = Math.max(famAcc.score, rowScore);
+      segAcc.weight += rowWeight;
+      famAcc.weight += rowWeight;
 
       let clsAcc = famAcc.classes.get(cls.id);
       if (!clsAcc) {
         clsAcc = {
           id: cls.id,
           code: cls.code,
-          nameTr: cls.nameTr,
+          nameTr: categoryName(cls),
           level: cls.level,
           sortOrder: cls.sortOrder,
-          isMatch: cat.level === 3 && cat.id === cls.id,
+          isMatch: false,
+          score: 0,
+          weight: 0,
+          ownScore: 0,
           commodities: new Map(),
         };
         famAcc.classes.set(cls.id, clsAcc);
-      } else if (cat.level === 3 && cat.id === cls.id) {
-        clsAcc.isMatch = true;
       }
+      if (cat.level === 3 && cat.id === cls.id) {
+        clsAcc.isMatch = true;
+        clsAcc.ownScore = rowScore;
+      }
+      clsAcc.score = Math.max(clsAcc.score, rowScore);
+      clsAcc.weight += rowWeight;
 
       if (commodity) {
         if (!clsAcc.commodities.has(commodity.id)) {
           clsAcc.commodities.set(commodity.id, {
             id: commodity.id,
             code: commodity.code,
-            nameTr: commodity.nameTr,
+            nameTr: categoryName(commodity),
             level: commodity.level,
             sortOrder: commodity.sortOrder,
             isMatch: true,
+            score: rowScore,
+            weight: rowWeight,
           });
         }
       }
@@ -427,15 +574,18 @@ export class CategoryService {
     for (const fam of famMatches) {
       const segment = fam.parent;
       if (!segment) continue;
+      const famScore = scoreOf(fam);
       let segAcc = segmentMap.get(segment.id);
       if (!segAcc) {
         segAcc = {
           id: segment.id,
           code: segment.code,
-          nameTr: segment.nameTr,
+          nameTr: categoryName(segment),
           level: segment.level,
           segmentLetter: segment.segmentLetter,
           sortOrder: segment.sortOrder,
+          score: 0,
+          weight: 0,
           families: new Map(),
         };
         segmentMap.set(segment.id, segAcc);
@@ -445,60 +595,87 @@ export class CategoryService {
         famAcc = {
           id: fam.id,
           code: fam.code,
-          nameTr: fam.nameTr,
+          nameTr: categoryName(fam),
           level: fam.level,
           sortOrder: fam.sortOrder,
+          score: 0,
+          weight: 0,
           classes: new Map(),
         };
         segAcc.families.set(fam.id, famAcc);
       }
+      segAcc.score = Math.max(segAcc.score, famScore);
+      famAcc.score = Math.max(famAcc.score, famScore);
+      segAcc.weight += relevanceWeight(famScore);
+      famAcc.weight += relevanceWeight(famScore);
       for (const cls of fam.children) {
         if (!famAcc.classes.has(cls.id)) {
           famAcc.classes.set(cls.id, {
             id: cls.id,
             code: cls.code,
-            nameTr: cls.nameTr,
+            nameTr: categoryName(cls),
             level: cls.level,
             sortOrder: cls.sortOrder,
             isMatch: false,
+            score: 0,
+            weight: 0,
+            ownScore: 0,
             commodities: new Map(),
           });
         }
       }
     }
 
-    const sortByOrder = <T extends { sortOrder: number }>(a: T, b: T) =>
-      a.sortOrder - b.sortOrder;
+    // SIRALAMA (O-022, yeniden doğrulama). Segment ve aile alt ağaçlarındaki
+    // ad eşleşmelerinin AĞIRLIĞIYLA dizilir: en iyi tek puan çok sık eşitleniyor
+    // ("kablo"da 11 segmentin hepsinde adı "Kablo …" ile başlayan bir satır var)
+    // ve eşitlik kod sırasına düşünce Madencilik (20…) Elektrik kablosunun
+    // (26…) önüne geçiyordu; "rulman"da tek "Rulman ayırıcı"lı El aletleri
+    // segmenti, yalnız eş anlamlıdan gelen kardeşleriyle birlikte, "Rulmanlar
+    // ve yataklar" sınıfının önünde kalıyordu. Ağırlık yalnız ADDA geçen
+    // satırları sayar (eş anlamlı = 0), dolayısıyla eş anlamlı seli segment
+    // öne çekemez; yalnız eş anlamlıdan gelen kardeşler kendi düzeylerinde en
+    // sona düşer. Sınıflarda önce sınıfın KENDİ adı ("kablo": "Kablo tesisatı"
+    // sınıfı, yüz "… kablosu" emtiası olan "Elektrik kablosu ve aksesuarları"
+    // sınıfının altında gömülmesin), sonra ağırlık (onlarca "… vana" emtiası
+    // olan "Valflar", tek "Vana kutusu" emtiası olan sınıfın önünde); emtia
+    // yaprakları kendi puanıyla. Eşitte katalog sırası.
+    const byWeight = <T extends { sortOrder: number; score: number; weight: number }>(
+      a: T,
+      b: T,
+    ) => b.weight - a.weight || b.score - a.score || a.sortOrder - b.sortOrder;
+    const byScore = <T extends { sortOrder: number; score: number }>(a: T, b: T) =>
+      b.score - a.score || a.sortOrder - b.sortOrder;
 
     const segments = Array.from(segmentMap.values())
-      .sort(sortByOrder)
+      .sort(byWeight)
       .map((seg) => ({
         id: seg.id,
         code: seg.code,
-        nameTr: seg.nameTr,
+        nameTr: categoryName(seg),
         level: seg.level,
         segmentLetter: seg.segmentLetter,
         families: Array.from(seg.families.values())
-          .sort(sortByOrder)
+          .sort(byWeight)
           .map((fam) => ({
             id: fam.id,
             code: fam.code,
-            nameTr: fam.nameTr,
+            nameTr: categoryName(fam),
             level: fam.level,
             classes: Array.from(fam.classes.values())
-              .sort(sortByOrder)
+              .sort((a, b) => b.ownScore - a.ownScore || byWeight(a, b))
               .map((cls) => ({
                 id: cls.id,
                 code: cls.code,
-                nameTr: cls.nameTr,
+                nameTr: categoryName(cls),
                 level: cls.level,
                 isMatch: cls.isMatch,
                 commodities: Array.from(cls.commodities.values())
-                  .sort(sortByOrder)
+                  .sort(byScore)
                   .map((com) => ({
                     id: com.id,
                     code: com.code,
-                    nameTr: com.nameTr,
+                    nameTr: categoryName(com),
                     level: com.level,
                     isMatch: com.isMatch,
                   })),
@@ -507,7 +684,7 @@ export class CategoryService {
       }));
 
     // 200 tavanına çarptıysak kullanıcı bilsin — sessiz kırpma yanıltıcı.
-    return { segments, truncated: matched.length >= 200 };
+    return { segments, truncated: poolFull || pool.length > CATEGORY_SEARCH_RESULT_CAP };
   }
 
   /**
@@ -533,7 +710,7 @@ export class CategoryService {
                 parent: {
                   select: {
                     id: true,
-                    nameTr: true,
+                    ...CATEGORY_NAME_SELECT,
                     segmentLetter: true,
                     level: true,
                   },
@@ -548,7 +725,7 @@ export class CategoryService {
     return cats.map((c) => ({
       id: c.id,
       code: c.code,
-      nameTr: c.nameTr,
+      nameTr: categoryName(c),
       level: c.level,
       breadcrumb: buildBreadcrumb(c),
     }));
@@ -620,7 +797,7 @@ export class CategoryService {
     const missing = ids.filter((id) => !foundIds.has(id));
     if (missing.length > 0) {
       throw new NotFoundException(
-        `Geçersiz kategori ID: ${missing.join(", ")}`,
+        i18nMessage("api.categories.gecersizKategoriId", { join: missing.join(", ") }),
       );
     }
 
@@ -629,8 +806,10 @@ export class CategoryService {
       if (wrong.length > 0) {
         throw new BadRequestException(
           opts.exactLevel === 1
-            ? "Sadece ana başlık (Segment) seviyesindeki kategoriler seçilebilir."
-            : `Sadece level ${opts.exactLevel} kategoriler seçilebilir.`,
+            ? i18nMessage("api.categories.yalnizSegmentSeviyesiSecilebilir")
+            : i18nMessage("api.categories.yalnizBelirtilenSeviyeSecilebilir", {
+                level: opts.exactLevel,
+              }),
         );
       }
       return;
@@ -644,8 +823,8 @@ export class CategoryService {
         // — sabit metin kullanıcıya yanlış kuralı söylerdi.
         throw new BadRequestException(
           opts.minLevel >= 3
-            ? "Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez)."
-            : "Ana başlık (Segment) alt kategori olarak seçilemez — bir alt kırılım seçin.",
+            ? i18nMessage("api.categories.yalnizClassVeyaCommoditySecilebilir")
+            : i18nMessage("api.categories.segmentAltKategoriOlarakSecilemez"),
         );
       }
     }
@@ -665,9 +844,9 @@ export function buildBreadcrumb(node: unknown): string {
   while (cur) {
     if (cur.level === 1) {
       const letter = cur.segmentLetter ? `${cur.segmentLetter}. ` : "";
-      parts.unshift(`${letter}${cur.nameTr}`);
+      parts.unshift(`${letter}${categoryName(cur)}`);
     } else if (cur.nameTr) {
-      parts.unshift(cur.nameTr);
+      parts.unshift(categoryName(cur));
     }
     cur = cur.parent;
   }

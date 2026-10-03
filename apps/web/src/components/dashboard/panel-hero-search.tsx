@@ -1,15 +1,19 @@
 "use client";
 
 import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { BuildingOffice2Icon, ClipboardDocumentListIcon, CubeIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { Link } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { localizePath } from "@/i18n/href";
+import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { rememberSearch } from "@/lib/company/recent-searches";
 import { cn } from "@/lib/utils";
@@ -54,6 +58,15 @@ export interface PanelHeroAi {
   portal: AiSearchPortal;
   /** Silver+ ∧ koltuk rolü. */
   enabled: boolean;
+  /**
+   * KİLİDİN NEDENİ (arayüz testi O-050): rol kısıtı paket kilidi gibi
+   * anlatılmaz. "tier" → "Silver ile açılır" (Paketler'e); "role" → paket
+   * bağlantısı YOK, "alım/satış yetkisi olan kullanıcılara açık" notu (Gold
+   * firmanın Yönetici'si Paketler'de "Mevcut paketiniz" görüyordu). Rol
+   * kontrolü paket kontrolünün İÇİNDE: paket yetmiyorsa neden her zaman
+   * paket. Verilmezse eski davranış ("tier"). Bkz. `aiSearchAccess`.
+   */
+  lockedBy?: "tier" | "role";
   onResult: (r: AiSearchIntentResult) => void;
   placeholder?: string;
 }
@@ -117,9 +130,19 @@ export function HeroDecor({
      portal tonunda — satınalma mavi, satış yeşil. */
   accent?: "blue" | "emerald";
 }) {
+  // Widget başlığı/ipucu katalog anahtarı olabilir (`web.marketing.heroDecor.*`, i18n);
+  // anahtar değilse düz metin basılır (panel/test geriye dönük).
+  const tDecor = useTranslations("web.marketing.heroDecor");
+  const tx = (v: string) => (tDecor.has(v as never) ? tDecor(v as never) : v);
   const g = accent === "emerald";
+  // KIRPMA BURADA (arayüz testi webA-07, yeniden doğrulama): eskiden bandın
+  // kendisi `overflow-hidden` taşıyordu ve bandın altına inen öneri
+  // listesini de kesiyordu ("Firmalar" grubu görünmüyor, ↑ ile seçilen satır
+  // görünmez kalıyordu). Taşan yalnız dekor; onu kendi kutusunda kırpıyoruz.
+  // Kutu konumlu ama `z-index`siz — çocukların `-z-10/-z-20`si bandın
+  // istifleme bağlamında kalır (içeriğin arkasında, zeminin üstünde).
   return (
-    <>
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         {/* Referanstaki soluk geometrik zemin düzlemleri — çok açık gri,
             eğik, arkada; bant beyaz kalır. */}
         <div aria-hidden className={cn("pointer-events-none absolute -left-24 top-1/3 -z-20 hidden h-72 w-[26rem] -rotate-12 rounded-[3rem] 2xl:block", g ? "bg-emerald-100/60" : "bg-blue-100/60")} />
@@ -168,14 +191,14 @@ export function HeroDecor({
             ) : (
               <w.icon className={cn("size-8", g ? "text-emerald-600" : "text-blue-600")} strokeWidth={1.75} />
             )}
-            <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
+            <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{tx(w.title)}</span>
             <span className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-[13px] leading-snug text-zinc-500">{w.hint}</span>
+              <span className="text-[13px] leading-snug text-zinc-500">{tx(w.hint)}</span>
               <ChevronRight className="size-4 shrink-0 text-zinc-500" />
             </span>
           </div>
         ))}
-    </>
+    </div>
   );
 }
 
@@ -189,7 +212,7 @@ export function PanelHeroSearch({
   placeholder,
   action,
   chips = [],
-  chipsLabel = "Popüler",
+  chipsLabel: chipsLabelProp,
   ctaNote,
   backdrop = false,
   widgets,
@@ -201,6 +224,7 @@ export function PanelHeroSearch({
   supplierScope,
   onScopeChange,
   scope: scopeProp,
+  portal,
 }: {
   eyebrow?: string;
   title: string;
@@ -281,13 +305,29 @@ export function PanelHeroSearch({
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
   ai?: PanelHeroAi;
+  /**
+   * Son aramaların yazıldığı portal (`recent-searches.ts`, arayüz testi
+   * D-312). Verilmezse `ai.portal`, o da yoksa satınalma — herkese açık
+   * anasayfanın TEDARİKÇİ yüzü AI taşımadığı için talep aramaları alıcının
+   * tavsiye şeridine yazılıyordu.
+   */
+  portal?: AiSearchPortal;
 }) {
+  const t = useTranslations("web.marketplace.panelHome.panelHeroSearch");
+  const chipsLabel = chipsLabelProp ?? t("populer");
   const router = useRouter();
   const pathname = usePathname();
+  const locale = useLocale() as Locale;
   const sp = useSearchParams();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [aiMode, setAiMode] = useState(false);
+  // AI kutusunda 3 karakterden kısa gönderim: sessizce yutulmaz, not çıkar
+  // (arayüz testi D-233). Yazınca kalkar.
+  const [aiShort, setAiShort] = useState(false);
+  // Öneri listesinde klavyeyle seçili satır (arayüz testi D-235) — -1: yok.
+  const [active, setActive] = useState(-1);
+  const listId = useId();
   const [scopeState, setScopeState] = useState<"products" | "suppliers">("products");
   const scope = scopeProp ?? scopeState;
   const setScope = (next: "products" | "suppliers") => {
@@ -304,12 +344,16 @@ export function PanelHeroSearch({
     const term = q.trim();
     setOpen(false);
     if (aiActive && ai) {
-      if (term.length < 3 || intent.isPending) return;
+      if (intent.isPending) return;
+      if (term.length < 3) {
+        setAiShort(true);
+        return;
+      }
       intent.mutate(
         { text: term, portal: ai.portal },
         {
           onSuccess: (r) => ai.onResult(r),
-          onError: (err) => toast.error(extractErrorMessage(err, "AI araması başarısız oldu — tekrar deneyin.")),
+          onError: (err) => toast.error(extractErrorMessage(err, t("aiAramasiBasarisizOlduTekrar"))),
         },
       );
       return;
@@ -320,7 +364,7 @@ export function PanelHeroSearch({
     // Anasayfadaki tavsiye şeridinin girdisi (tarayıcı-yerel, bkz.
     // `recent-searches.ts`). AI dalı yukarıda döndüğü için buraya yalnız
     // DÜZ arama düşer — AI yorumu bir arama terimi değil.
-    if (term) rememberSearch(ai?.portal === "satis" ? "satis" : "satinalma", term);
+    if (term) rememberSearch((portal ?? ai?.portal) === "satis" ? "satis" : "satinalma", term);
     const keep = new URLSearchParams(targetAction === pathname ? (sp?.toString() ?? "") : "");
     keep.delete("q");
     keep.delete("sayfa");
@@ -328,7 +372,51 @@ export function PanelHeroSearch({
     if (term) parts.push(`q=${encodeURIComponent(term)}`);
     router.push(parts.length ? `${targetAction}?${parts.join("&")}` : targetAction);
   };
+  // Öneri kaynağı yoksa (herkese açık anasayfa — typeahead ertelendi, D-002)
+  // kutu düz bir arama kutusudur: `role="combobox"` ekran okuyucuya hiç
+  // gelmeyecek önerileri vaat ediyordu (arayüz testi webA-07, yeniden doğrulama).
+  const typeahead = onQueryChange !== undefined || suggestions.length > 0;
   const hasSug = !aiActive && q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
+  // Klavye gezinmesi (arayüz testi D-235, ARIA combobox kalıbı): gruplar
+  // düz bir diziye açılır, ↓/↑ etkin satırı gezer, Enter etkin satıra gider,
+  // Esc listeyi kapatır (metni SİLMEZ — `type="search"`ün tarayıcı
+  // varsayılanı kutuyu boşaltıyordu).
+  const sugGroups = suggestions.filter((g) => g.rows.length > 0);
+  const flatRows = sugGroups.flatMap((g) => g.rows);
+  // Öneriler geç gelirse (ürün ucu) sıra kayar — etkin satır sıfırlanır,
+  // Enter başka bir satıra gitmesin.
+  const rowsSig = flatRows.map((r) => r.href).join("\n");
+  const [seenSig, setSeenSig] = useState(rowsSig);
+  if (rowsSig !== seenSig) {
+    setSeenSig(rowsSig);
+    setActive(-1);
+  }
+  const listOpen = open && hasSug;
+  const activeRow = listOpen && active >= 0 ? flatRows[active] : undefined;
+  const optionId = (i: number) => `${listId}-opt-${i}`;
+  const onSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!hasSug || flatRows.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setOpen(true);
+      setActive((i) => (!listOpen || i >= flatRows.length - 1 ? 0 : i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setOpen(true);
+      setActive((i) => (!listOpen || i <= 0 ? flatRows.length - 1 : i - 1));
+    } else if (e.key === "Enter" && activeRow) {
+      e.preventDefault();
+      setOpen(false);
+      setActive(-1);
+      router.push(activeRow.href);
+    } else if (e.key === "Escape" && listOpen) {
+      e.preventDefault();
+      setOpen(false);
+      setActive(-1);
+    }
+  };
+  // Kilit nedeni (O-050): verilmezse eski davranış — paket.
+  const aiLock = ai && !ai.enabled ? (ai.lockedBy ?? "tier") : null;
   // Textarea'da Enter gönderir, Shift+Enter satır ekler.
   const onAiKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -339,8 +427,8 @@ export function PanelHeroSearch({
   const aiPlaceholder =
     ai?.placeholder ??
     (ai?.portal === "satis"
-      ? "Ne sattığınızı anlatın: ürün, kapasite, bölge…"
-      : "Ne aradığınızı anlatın: ürün, adet, şehir, teslim süresi, bütçe…");
+      ? t("neSattiginiziAnlatinUrunKapasite")
+      : t("neAradiginiziAnlatinUrunAdet"));
   const tone =
     accent === "blue"
       ? {
@@ -381,9 +469,14 @@ export function PanelHeroSearch({
       /* BACKDROP modunda hero bir BANT: panel kenar boşluğunu negatif
          marjla iptal eder (tam genişlik), kendi boşluğunu geri verir ve
          gerçek bir yükseklik alır — köşe görselleri ancak böyle "sahne"
-         kurar. `overflow-hidden` yatay kaydırmayı keser. Sade modda
+         kurar. `overflow-x-clip` yatay kaydırmayı keser ama DİKEYDE
+         kırpmaz: öneri listesi bandın altına taşar (arayüz testi webA-07,
+         yeniden doğrulama — `overflow-hidden` listeyi kesiyordu; dekor
+         `HeroDecor`un kendi kutusunda kırpılır). Liste açıkken bant `z-10`
+         alır ki alttaki konumlu kartlar listenin üstüne binmesin. Sade modda
          (satış) eski kompakt hero. */
-      className={
+      className={cn(
+        listOpen && "z-10",
         backdrop
           /* `-mt-6 lg:-mt-8`: kabuğun içerik sarmalayıcısı `py-6 lg:py-8`
              taşıyor; bant onu da iptal eder ki fotoğraf üst çubuğun HEMEN
@@ -394,7 +487,7 @@ export function PanelHeroSearch({
              satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
              Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
           ? cn(
-              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
+              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-x-clip bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
               /* Köşe kartları varken bant biraz daha yüksek — kartlar arama
                  kutusunun satırına inmez (2xl'de ölçüldü). */
               widgets?.length
@@ -407,8 +500,8 @@ export function PanelHeroSearch({
                   )
                 : "min-h-[30rem]",
             )
-          : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
-      }
+          : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6",
+      )}
     >
       {/* ARKA PLAN YOK (2026-09-17, kullanıcı kararı: "arama kısmının
           arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
@@ -471,19 +564,25 @@ export function PanelHeroSearch({
 
         {ai ? (
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">
-            {!ai.enabled ? (
+            {aiLock === "tier" ? (
               <Link href="/company/premium" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
-                Silver ile açılır
+                {t("silverIleAcilir")}
               </Link>
+            ) : aiLock === "role" ? (
+              /* Rol kısıtı: paket bağlantısı YOK — paket zaten yetiyor. */
+              <span className="text-zinc-500">{t("aiRolKilidi")}</span>
             ) : null}
           </div>
         ) : null}
 
         {/* `data-hero-search`: üst çubuk araması bu kutuyu gözler — kutu
-            görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür. */}
+            görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür.
+            `action` yalnız hidrasyon öncesi düz gönderimin hedefi (sonra
+            `onSubmit` router'la gider) — o da aktif dilin DIŞ yolu olmalı
+            (derin denetim Y-17). */}
         <form
           data-hero-search
-          action={targetAction}
+          action={localizePath(targetAction, locale)}
           method="get"
           role="search"
           onSubmit={onSubmit}
@@ -499,7 +598,7 @@ export function PanelHeroSearch({
           {supplierScope && !aiActive ? (
             <div
               role="group"
-              aria-label="Arama kapsamı"
+              aria-label={t("aramaKapsami")}
               className="mx-auto mb-3 inline-flex rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur"
             >
               <button
@@ -515,7 +614,7 @@ export function PanelHeroSearch({
                 ) : (
                   <CubeIcon aria-hidden className="size-5" />
                 )}
-                {supplierScope.primaryLabel ?? "Ürün"}
+                {supplierScope.primaryLabel ?? t("urun")}
               </button>
               <button
                 type="button"
@@ -526,7 +625,7 @@ export function PanelHeroSearch({
                 }`}
               >
                 <BuildingOffice2Icon aria-hidden className="size-5" />
-                {supplierScope.label ?? "Firma"}
+                {supplierScope.label ?? t("firma")}
               </button>
             </div>
           ) : null}
@@ -548,97 +647,148 @@ export function PanelHeroSearch({
               <textarea
                 name="q"
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setAiShort(false);
+                }}
                 onKeyDown={onAiKey}
                 rows={2}
                 placeholder={aiPlaceholder}
-                aria-label="AI ile ara"
+                aria-label={t("aiIleAra")}
                 maxLength={500}
                 className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             ) : (
               <span className="relative flex min-w-[8rem] flex-1 items-center">
-                <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-4 size-5 text-zinc-400" />
+                <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-3 size-5 text-zinc-400 sm:left-4" />
+                {/* MOBİL (arayüz testi D-316): 390 px'te yer tutucu "Talep,
+                    sektör veya ür" diye kesiliyordu — dar ekranda girinti ve
+                    yer tutucu küçük, düğmeler simge; sığmayan uç "…" ile biter. */}
                 <input
                   type="search"
                   name="q"
+                  {...(typeahead
+                    ? {
+                        role: "combobox",
+                        "aria-expanded": listOpen,
+                        "aria-controls": listOpen ? listId : undefined,
+                        "aria-autocomplete": "list" as const,
+                        "aria-activedescendant": activeRow ? optionId(active) : undefined,
+                      }
+                    : {})}
                   value={q}
                   onChange={(e) => {
                     setQ(e.target.value);
                     onQueryChange?.(e.target.value);
                     setOpen(true);
+                    setActive(-1);
                   }}
                   onFocus={() => setOpen(true)}
+                  onKeyDown={onSearchKey}
                   placeholder={targetPlaceholder}
                   aria-label={title}
                   autoComplete="off"
-                  className="h-12 w-full bg-transparent pr-3 pl-12 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                  className="h-12 w-full bg-transparent pr-2 pl-10 text-base text-ellipsis text-zinc-950 outline-none placeholder:text-sm placeholder:text-zinc-400 sm:pr-3 sm:pl-12 sm:placeholder:text-base"
                 />
               </span>
             )}
             {ai ? (
               <>
                 <span aria-hidden className="my-2 hidden w-px bg-zinc-200 sm:block" />
+                {/* MOBİLDE DE VAR (arayüz testi O-081): `hidden sm:inline-flex`
+                    eylemi 640 px altında tümden siliyordu — dar ekranda simge
+                    düğme, ad ekran okuyucuda. */}
                 <button
                   type="button"
                   aria-pressed={aiActive}
                   disabled={!ai.enabled}
-                  title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
-                  onClick={() => ai.enabled && setAiMode(!aiMode)}
-                  className={`mx-1 hidden h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex ${
+                  title={aiLock === "role" ? t("aiRolKilidi") : aiLock === "tier" ? t("silverVeUzeriPaketlerde") : undefined}
+                  onClick={() => {
+                    if (!ai.enabled) return;
+                    const next = !aiMode;
+                    setAiMode(next);
+                    setAiShort(false);
+                    // AI yorumu ürün/talep süzgeci üretir; kapsam pilleri AI
+                    // modunda gizli. "Firma" seçiliyken alttaki firma listesi
+                    // kalıyordu (arayüz testi D-234/O-095) — kapsam birincile döner.
+                    if (next && supplierScope && scope === "suppliers") setScope("products");
+                  }}
+                  className={`mx-1 inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 ${
                     aiActive ? tone.softOn : tone.soft
                   }`}
                 >
                   <SparklesIcon aria-hidden className="size-5" />
-                  {aiActive ? "Aramaya dön" : "AI ile ara"}
+                  <span className="sr-only sm:not-sr-only">{aiActive ? t("aramayaDon") : t("aiIleAra")}</span>
                 </button>
               </>
             ) : null}
             <button
               type="submit"
               disabled={aiActive && intent.isPending}
-              className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-7 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
+              className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${aiActive ? "px-5 sm:px-7" : "px-4 sm:px-7"} ${tone.btn}`}
             >
-              {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
+              {aiActive ? (
+                intent.isPending ? t("yorumlaniyor") : t("aiIleBul")
+              ) : (
+                /* Dar ekranda yalnız ok (D-316) — ad ekran okuyucuda kalır. */
+                <span className="sr-only sm:not-sr-only">{t("ara")}</span>
+              )}
               {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
             </button>
           </div>
+          {aiActive && aiShort ? (
+            <p role="alert" className="mt-2 text-xs font-medium text-amber-700">
+              {t("aiEnAz3Karakter")}
+            </p>
+          ) : null}
           {aiActive ? (
             <p className="mt-2 text-xs text-zinc-500">
-              Örnek: &ldquo;İstanbul'a teslim, 50 adet 400 kVAr kompanzasyon panosu, doğrulanmış üretici&rdquo; — AI süzgeçleri kurar, sonuçlar aşağıda listelenir.
+              {t("ornekIstanbulaTeslim")}
             </p>
           ) : null}
 
-          {open && hasSug ? (
+          {listOpen ? (
             <div
+              id={listId}
               role="listbox"
-              aria-label="Öneriler"
+              aria-label={t("oneriler")}
+              // Fare listeden çıkınca vurgu düşer — yoksa Enter yazılan metni
+              // aramak yerine fareyle geçilen öneriye gider (D-235).
+              onMouseLeave={() => setActive(-1)}
               className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-2xl bg-white text-left shadow-xl ring-1 ring-zinc-950/10"
             >
-              {suggestions
-                .filter((g) => g.rows.length > 0)
-                .map((g) => (
-                  <div key={g.label} className="border-b border-zinc-950/5 py-1 last:border-b-0">
-                    <p className="px-4 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+              {sugGroups.map((g, gi) => {
+                // Grubun düz dizideki ilk satırı — seçenek kimliği/etkinlik için.
+                const offset = sugGroups.slice(0, gi).reduce((n, x) => n + x.rows.length, 0);
+                return (
+                  <div key={g.label} role="group" aria-label={g.label} className="border-b border-zinc-950/5 py-1 last:border-b-0">
+                    <p aria-hidden className="px-4 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
                       {g.label}
                     </p>
-                    <ul>
-                      {g.rows.map((r) => (
-                        <li key={r.key}>
-                          <Link
-                            href={r.href}
-                            role="option"
-                            aria-selected={false}
-                            className="flex items-center justify-between gap-3 px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
-                          >
-                            <span className="line-clamp-1">{r.label}</span>
-                            {r.meta ? <span className="shrink-0 text-xs text-zinc-500">{r.meta}</span> : null}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
+                    {g.rows.map((r, ri) => {
+                      const i = offset + ri;
+                      return (
+                        <Link
+                          key={r.key}
+                          id={optionId(i)}
+                          href={r.href}
+                          role="option"
+                          aria-selected={i === active}
+                          tabIndex={-1}
+                          onMouseEnter={() => setActive(i)}
+                          className={cn(
+                            "flex items-center justify-between gap-3 px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50",
+                            i === active && "bg-zinc-100",
+                          )}
+                        >
+                          <span className="line-clamp-1">{r.label}</span>
+                          {r.meta ? <span className="shrink-0 text-xs text-zinc-500">{r.meta}</span> : null}
+                        </Link>
+                      );
+                    })}
                   </div>
-                ))}
+                );
+              })}
             </div>
           ) : null}
         </form>

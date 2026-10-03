@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   requestPublicImageUpload,
   resolvePublicImage,
@@ -13,25 +14,37 @@ import {
   MAX_COMPANY_SUB_PICKS,
   deepestCategoryPicks,
   generateSlug,
-  isValidIbanTr,
+  countryUsesIban,
+  isValidAccountNumber,
+  isMistypedIban,
+  isValidIbanAny,
+  isValidSwiftBic,
+  normalizeSwift,
   maskIban,
   normalizeIban,
 } from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../common/company/company-slug";
 import { effectiveTier } from "../../common/company/effective-tier";
+import { visibleTaxNumber } from "../../common/company/visible-tax-number";
+import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   assertUploadedObjectValid,
   MAX_IMAGE_BYTES,
 } from "../../common/helpers/upload-validation";
 import { AuditService } from "../audit/audit.service";
+import { assertPostalCode } from "../company-addresses/company-addresses.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { CategoryService } from "../categories/services/category.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
 
 const IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"];
+
+/** Süresi dolan paketin panelde "süre doldu / yenile" olarak gösterildiği gün sayısı (D-029). */
+const MEMBERSHIP_EXPIRED_NOTICE_DAYS = 30;
 
 const SELECT = {
   id: true,
@@ -43,6 +56,7 @@ const SELECT = {
   country: true,
   city: true,
   district: true,
+  stateRegion: true,
   addressLine: true,
   postalCode: true,
   aboutText: true,
@@ -65,6 +79,8 @@ const SELECT = {
   taxNumber: true,
   taxOffice: true,
   companyType: true,
+  legalFormLocal: true,
+  cityId: true,
   authorizedTckn: true,
   authorizedTitle: true,
   mersisNo: true,
@@ -91,6 +107,8 @@ export class CompanyProfileService {
     private readonly audit: AuditService,
     /** Yayın anı SEO bildirimi — SONDA ve isteğe bağlı (test rig'leri kırılmasın). */
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e): tanıtım/hizmet/sektör değişince çevrilir — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /**
@@ -120,12 +138,17 @@ export class CompanyProfileService {
       where: { id: companyId },
       select: SELECT,
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.companyProfile.firmaBulunamadi"));
     // INV-TIER-1: efektif tier — ham `tier` doğrudan dönmez (süre-dolma
     // penceresinde /me ile ıraksardı). membershipEndAt yalnız hesap içindi,
     // yanıttan çıkarılır.
     const { membershipEndAt, ...rest } = c;
-    const base = { ...rest, tier: effectiveTier(c.tier, membershipEndAt) };
+    const tier = effectiveTier(c.tier, membershipEndAt);
+    const base = {
+      ...rest,
+      tier,
+      membership: await this.membershipStatus(companyId, c.tier, tier, membershipEndAt),
+    };
     // KVKK veri-minimizasyonu: yetkili TCKN + IBAN + fatura telefonu kişisel/
     // finansal veridir — yalnız company:manage yetkisi olan kullanıcıya döner.
     if (!canSeeSensitive) {
@@ -139,11 +162,45 @@ export class CompanyProfileService {
         billingPhone: null,
         // Şahıs firmasında taxNumber = 11 haneli TCKN (kişisel veri) → onu da
         // maskele. Tüzel kişide (JOINT_STOCK/LIMITED) vergi no kamuya açıktır.
-        taxNumber:
-          c.companyType === "SOLE_PROPRIETOR" ? null : c.taxNumber,
+        taxNumber: visibleTaxNumber(c),
       };
     }
     return base;
+  }
+
+  /**
+   * ÜYELİK SÜRESİ (arayüz testi D-029): panel paketin ne zaman biteceğini ve
+   * süresi dolduysa ne zaman dolduğunu gösterebilsin diye.
+   *  · endsAt   — efektif paket hâlâ ücretliyse bitiş tarihi (süresizde null).
+   *  · expiredAt — paket DÜŞTÜYSE (efektif STANDART) son 30 gün içindeki bitiş:
+   *    cron öncesi tembel pencerede ham `membershipEndAt`; cron sonrası
+   *    (`membershipEndAt` temizlenir) en son üyelik olayı EXPIRE ise onun
+   *    `endBefore`'u. Sonradan GRANT/EXTEND/REVOKE geldiyse bant gösterilmez.
+   */
+  private async membershipStatus(
+    companyId: string,
+    rawTier: string,
+    tier: string,
+    membershipEndAt: Date | null,
+  ): Promise<{ endsAt: Date | null; expiredAt: Date | null }> {
+    if (tier !== "STANDART") return { endsAt: membershipEndAt, expiredAt: null };
+    const windowStart = Date.now() - MEMBERSHIP_EXPIRED_NOTICE_DAYS * 86_400_000;
+    if (rawTier !== "STANDART" && membershipEndAt) {
+      return {
+        endsAt: null,
+        expiredAt: membershipEndAt.getTime() >= windowStart ? membershipEndAt : null,
+      };
+    }
+    const last = await this.prisma.companyMembershipEvent.findFirst({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: { action: true, endBefore: true },
+    });
+    const expiredAt =
+      last?.action === "EXPIRE" && last.endBefore && last.endBefore.getTime() >= windowStart
+        ? last.endBefore
+        : null;
+    return { endsAt: null, expiredAt };
   }
 
   /**
@@ -156,6 +213,11 @@ export class CompanyProfileService {
     dto: UpdateCompanyProfileDto,
     actor?: AuthenticatedCompanyUser,
   ) {
+    // DTO `@Length(2, 200)` KIRPILMAMIŞ değere bakar; kayıt kırpılmış değeri
+    // yazar → "   " boş ad olarak saklanıyordu (derin denetim LU-16).
+    if (dto.name !== undefined && dto.name.trim().length < 2) {
+      throw new BadRequestException(i18nMessage("api.companyProfile.firmaAdiEnAz2Karakter"));
+    }
     // Fix1: SAKLANAN görsel URL'leri kendi R2 tenant-profile deposundan olmalı —
     // harici/data: URL PATCH'i public profilde <img src> olarak render edilir.
     // GRANDFATHER: yalnız DEĞİŞEN/YENİ değeri doğrula (mevcut değer dokunulmuyorsa
@@ -206,6 +268,9 @@ export class CompanyProfileService {
     if (dto.website !== undefined) data.website = dto.website.trim() || null;
     if (dto.city !== undefined) data.city = dto.city.trim() || null;
     if (dto.district !== undefined) data.district = dto.district.trim() || null;
+    // Eyalet/bölge (TR dışı) — kayıtta sorulur, Firma Bilgileri'nden de
+    // düzenlenir (2026-09-27; eskiden kayıttan sonra değiştirilemiyordu).
+    if (dto.stateRegion !== undefined) data.stateRegion = dto.stateRegion.trim() || null;
     if (dto.addressLine !== undefined)
       data.addressLine = dto.addressLine.trim() || null;
     if (dto.postalCode !== undefined)
@@ -248,7 +313,7 @@ export class CompanyProfileService {
     const seciminiDenetle = (ids: string[]) => {
       if (deepestCategoryPicks(ids).length > MAX_COMPANY_SUB_PICKS) {
         throw new BadRequestException(
-          `En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz`,
+          i18nMessage("api.companyProfile.enFazlaUrunHizmetSecebilirsiniz", { MAXCOMPANYSUBPICKS: MAX_COMPANY_SUB_PICKS }),
         );
       }
     };
@@ -310,7 +375,7 @@ export class CompanyProfileService {
         [];
       if (alis.length === 0 && satis.length === 0) {
         throw new BadRequestException(
-          "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
+          i18nMessage("api.companyProfile.enAzBirAnaKategoriSecili"),
         );
       }
     }
@@ -335,6 +400,7 @@ export class CompanyProfileService {
       "mersisNo",
       "tradeRegistryNo",
       "ibanHolder",
+      "bankName",
     ] as const;
     const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
     const kycBefore = await this.prisma.company.findUnique({
@@ -347,6 +413,10 @@ export class CompanyProfileService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
+        country: true,
+        postalCode: true,
       },
     });
     const kycLocked =
@@ -361,12 +431,16 @@ export class CompanyProfileService {
       const ibanChanged =
         dto.iban !== undefined &&
         (dto.iban.trim() ? normalizeIban(dto.iban) : null) !==
-          (kycBefore.iban ?? null);
-      if (changed || ibanChanged) {
+          (kycBefore.iban ? normalizeIban(kycBefore.iban) : null);
+      // SWIFT de ödeme yolunu değiştirir → IBAN gibi kilitli.
+      const swiftChanged =
+        dto.bankSwiftBic !== undefined &&
+        (normalizeSwift(dto.bankSwiftBic) || null) !== (kycBefore.bankSwiftBic ?? null);
+      if (changed || ibanChanged || swiftChanged) {
         throw new BadRequestException(
           kycBefore.companyVerificationStatus === "PENDING"
-            ? "Doğrulama inceleniyor; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez"
-            : "Firmanız doğrulandı; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin",
+            ? i18nMessage("api.companyProfile.dogrulamaInceleniyorKilitliAlanlar")
+            : i18nMessage("api.companyProfile.firmanizDogrulandiKilitliAlanlar"),
         );
       }
     }
@@ -380,26 +454,58 @@ export class CompanyProfileService {
     if (dto.kepAddress !== undefined) {
       const kep = dto.kepAddress.trim();
       if (kep && !/^[^@\s]+@[^@\s]+\.kep\.tr$/i.test(kep)) {
-        throw new BadRequestException("Geçerli bir KEP adresi giriniz");
+        throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirKepAdresiGiriniz"));
       }
       data.kepAddress = kep || null;
     }
     if (dto.iban !== undefined) {
       const raw = dto.iban.trim();
       if (raw) {
-        const iban = normalizeIban(raw);
-        // Banka hesaplarıyla aynı kural: TR katı; yabancı IBAN gevşek format
-        // (yabancı firma profili TR-only kuralla IBAN kaydedemiyordu).
-        const valid = iban.startsWith("TR")
-          ? isValidIbanTr(iban)
-          : /^[A-Z]{2}[0-9A-Z]{8,32}$/.test(iban);
-        if (!valid) {
-          throw new BadRequestException("Geçerli bir IBAN giriniz");
+        // Ülkeye göre (2026-09-27): IBAN ülkesinde IBAN (mod-97, TR katı);
+        // IBAN kullanmayan ülkede bu alan HESAP NUMARASI taşır.
+        if (countryUsesIban(kycBefore?.country ?? "TR")) {
+          const iban = normalizeIban(raw);
+          if (!isValidIbanAny(iban)) {
+            throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirIbanGiriniz"));
+          }
+          data.iban = iban;
+        } else {
+          // IBAN biçiminde ama mod-97'si tutmayan değer hesap no sayılmaz
+          // (yanlış yazılmış IBAN — derin denetim LU-10).
+          if (isMistypedIban(raw)) {
+            throw new BadRequestException(i18nMessage("api.bankDetails.ibanInvalid"));
+          }
+          if (!isValidAccountNumber(raw)) {
+            throw new BadRequestException(i18nMessage("api.bankDetails.accountNumberInvalid"));
+          }
+          data.iban = raw;
         }
-        data.iban = iban;
       } else {
         data.iban = null;
       }
+    }
+    if (dto.bankSwiftBic !== undefined) {
+      const sw = normalizeSwift(dto.bankSwiftBic);
+      if (sw && !isValidSwiftBic(sw)) {
+        throw new BadRequestException(i18nMessage("api.bankDetails.swiftInvalid"));
+      }
+      data.bankSwiftBic = sw || null;
+    }
+    if (dto.bankName !== undefined) data.bankName = dto.bankName.trim() || null;
+    // Merkez adresi posta kodu: adres defteriyle AYNI kural (TR'de 5 rakam).
+    // Yalnız arayüz denetliyordu; PATCH 'ABCDE' kaydediyordu (arayüz testi
+    // webC-09 yeniden doğrulama). Adres defteri gibi yalnız DEĞİŞEN değerde:
+    // kuraldan önce kaydedilmiş hatalı kod başka alanın kaydını engellemesin.
+    if (
+      dto.postalCode !== undefined &&
+      (dto.postalCode.trim() || null) !== (kycBefore?.postalCode ?? null)
+    ) {
+      assertPostalCode(kycBefore?.country ?? "TR", dto.postalCode);
+    }
+    // Şehir → dünya şehir listesi kaydı (2026-09-27; şehir sayfası/süzgeç).
+    if (dto.city !== undefined || dto.cityId !== undefined) {
+      data.cityId = resolveCityId(kycBefore?.country ?? "TR", dto.city ?? null, dto.cityId);
+      if (dto.city !== undefined && dto.city.trim()) data.city = storedCityName(data.cityId as number | null, dto.city);
     }
 
     // Public profil açıksa ve henüz slug yoksa SEO-dostu benzersiz slug üret.
@@ -447,6 +553,9 @@ export class CompanyProfileService {
       // Profil herkese açıksa (ya da az önce açıldı/kapandıysa) firma
       // sayfası + dizin + ürün sayfalarındaki satıcı bloğu tazelenir.
       if (current?.publicEnabled || c.publicEnabled) this.seo?.companyChanged(companyId);
+      if (c.publicEnabled && (dto.aboutText !== undefined || dto.services !== undefined || dto.industry !== undefined)) {
+        void this.translations?.enqueue("COMPANY", companyId);
+      }
     }
     return c;
   }

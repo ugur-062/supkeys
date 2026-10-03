@@ -7,10 +7,12 @@ import { AdminCompanyUsersService } from "../../src/modules/admin-companies/admi
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
+import { permissionsForRoles } from "@rothern/shared";
 
 function rig() {
   const passwordReset = {
     requestForCompany: jest.fn().mockResolvedValue({ success: true }),
+    requestAccountSetup: jest.fn().mockResolvedValue({ sent: true }),
   };
   const companyAuth = {
     adminResendVerificationCode: jest.fn().mockResolvedValue(undefined),
@@ -18,6 +20,7 @@ function rig() {
   const supabase = {
     updateEmail: jest.fn().mockResolvedValue(undefined),
     createUser: jest.fn().mockResolvedValue({ authId: "auth-new-1" }),
+    deleteUser: jest.fn().mockResolvedValue(undefined),
   };
   const audit = new AuditService(prisma as never);
   const service = new AdminCompanyUsersService(
@@ -50,6 +53,43 @@ describe("kurtarma aksiyonları", () => {
       where: { action: "admin.user.password_reset_sent", entityId: co.user.id },
     });
     expect(log?.actorId).toBe("admin-1");
+  });
+
+  it("O-064: doğrulama kodu gönderilemezse (tavan/hata) hata yükselir ve audit YAZILMAZ", async () => {
+    const { service, companyAuth } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const capped = Object.assign(new Error("too many"), { status: 429 });
+    companyAuth.adminResendVerificationCode.mockRejectedValueOnce(capped);
+    await expect(
+      service.resendVerification(co.company.id, co.user.id, "admin-1"),
+    ).rejects.toBe(capped);
+    expect(
+      await prisma.auditLog.count({
+        where: { action: "admin.user.verification_resent", entityId: co.user.id },
+      }),
+    ).toBe(0);
+    // Başarıda audit firma kimliğiyle (tenantId) yazılır.
+    await service.resendVerification(co.company.id, co.user.id, "admin-1");
+    const log = await prisma.auditLog.findFirst({
+      where: { action: "admin.user.verification_resent", entityId: co.user.id },
+    });
+    expect(log?.tenantId).toBe(co.company.id);
+  });
+
+  it("D-205: kullanıcı işlemleri firma kimliğiyle yazılır, firma id'siyle aramada bulunur", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const other = await makeCompanyWithUser(prisma, {});
+    await service.dropSessions(co.company.id, co.user.id, "admin-1");
+    await service.dropSessions(other.company.id, other.user.id, "admin-1");
+    const audit = new AuditService(prisma as never);
+    const res = await audit.query({ search: co.company.id });
+    const actions = res.items.map((i) => [i.action, i.entityId]);
+    expect(actions).toContainEqual(["admin.user.sessions_dropped", co.user.id]);
+    expect(actions).not.toContainEqual([
+      "admin.user.sessions_dropped",
+      other.user.id,
+    ]);
   });
 
   it("başka firmanın kullanıcısına işlem yapılamaz (scope)", async () => {
@@ -165,9 +205,10 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
       "admin-1",
     );
     expect(supabase.createUser).toHaveBeenCalled();
-    expect(passwordReset.requestForCompany).toHaveBeenCalledWith(
-      "eklenen@firma.com",
-    );
+    // O-124: sıfırlama değil "hesabınız açıldı" e-postası (yeni kullanıcı id'si).
+    expect(passwordReset.requestAccountSetup).toHaveBeenCalledWith(res.userId);
+    expect(passwordReset.requestForCompany).not.toHaveBeenCalled();
+    expect(res.emailSent).toBe(true);
     const user = await prisma.companyUser.findUniqueOrThrow({
       where: { id: res.userId },
       select: {
@@ -210,6 +251,111 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
   });
 });
 
+describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
+  it("Aktifleştir: dolu firmada koltuk taşıyan pasif kişi geri açılamaz; koltuksuz kişi açılır", async () => {
+    const { service } = rig();
+    // SILVER limit 4: Kurucu ST (1; satınalma koltuğu Gold altında sayılmaz)
+    // + üç satışçı (3) = 4/4.
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { membershipEndAt: new Date(Date.now() + 30 * 86400_000) },
+    });
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    const passive = await makeUser(prisma, co.company.id, ["SATISCI"], {
+      isActive: false,
+    });
+    await expect(
+      service.setActive(co.company.id, passive.id, true, "admin-1"),
+    ).rejects.toThrow(/Koltuk dolu \(4\/4\)/);
+    const still = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: passive.id },
+      select: { isActive: true },
+    });
+    expect(still.isActive).toBe(false);
+    // Koltuksuz (yalnız onaylayıcı) kişi koltuk tüketmez → açılır.
+    const approver = await makeUser(prisma, co.company.id, ["ONAYLAYICI"], {
+      isActive: false,
+    });
+    await service.setActive(co.company.id, approver.id, true, "admin-1");
+    const re = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: approver.id },
+      select: { isActive: true },
+    });
+    expect(re.isActive).toBe(true);
+  });
+
+  it("Aktifleştir: Gold olmayan firmada satın almacı geri açılamaz (paket kapısı)", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    const buyer = await makeUser(prisma, co.company.id, ["SATIN_ALMACI"], {
+      isActive: false,
+    });
+    await expect(
+      service.setActive(co.company.id, buyer.id, true, "admin-1"),
+    ).rejects.toThrow(/yalnız Gold/);
+  });
+
+  it("addUser: Gold olmayan firmaya Satın Almacı eklenemez; Supabase hesabı açılmaz", async () => {
+    const { service, supabase } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    await expect(
+      service.addUser(
+        co.company.id,
+        { email: "alici@firma.com", firstName: "A", lastName: "B", role: "SATIN_ALMACI" },
+        "admin-1",
+      ),
+    ).rejects.toThrow(/yalnız Gold/);
+    expect(supabase.createUser).not.toHaveBeenCalled();
+    expect(
+      await prisma.companyUser.count({ where: { email: "alici@firma.com" } }),
+    ).toBe(0);
+  });
+
+  it("addUser: bekleyen koltuk daveti koltuk sayımına girer", async () => {
+    const { service, supabase } = rig();
+    // STANDART limit 2: Kurucu satış koltuğu (1) + bekleyen satışçı daveti (1).
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    await prisma.companyUserInvitation.create({
+      data: {
+        companyId: co.company.id,
+        email: "davetli@firma.com",
+        roles: ["SATISCI"],
+        permissions: permissionsForRoles(["SATISCI"]),
+        token: "tok-mu04-" + Date.now(),
+        invitedById: co.user.id,
+        expiresAt: new Date(Date.now() + 86400_000),
+      },
+    });
+    await expect(
+      service.addUser(
+        co.company.id,
+        { email: "satis@firma.com", firstName: "S", lastName: "T", role: "SATISCI" },
+        "admin-1",
+      ),
+    ).rejects.toThrow(/bekleyen davet/);
+    expect(supabase.createUser).not.toHaveBeenCalled();
+    // Koltuksuz rol (Onaylayıcı) kapıya takılmaz.
+    await service.addUser(
+      co.company.id,
+      { email: "onay@firma.com", firstName: "O", lastName: "N", role: "ONAYLAYICI" },
+      "admin-1",
+    );
+    expect(supabase.createUser).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("list — telefon PII response'ta yok (fazla-açığa-çıkarma kırpıldı)", () => {
   it("phone anahtarı dönmez; email/ad döner", async () => {
     const { service } = rig();
@@ -226,5 +372,19 @@ describe("list — telefon PII response'ta yok (fazla-açığa-çıkarma kırpı
     expect(u.email).toBe(co.user.email);
     expect(u).toHaveProperty("firstName");
     expect(u).toHaveProperty("lastName");
+  });
+
+  // Arayüz testi son tur api-2: rolsüz Görüntüleyici üyenin izinleri döner —
+  // admin Rol sütunu "—" yerine "Görüntüleyici" yazabilsin.
+  it("permissions döner (rolsüz görüntüleyici ayırt edilir)", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    await prisma.companyUser.update({
+      where: { id: co.user.id },
+      data: { roles: [], permissions: ["buy:view", "sell:view", "buy:reports:view"] },
+    });
+    const [u] = await service.list(co.company.id);
+    expect(u!.roles).toEqual([]);
+    expect(u!.permissions).toEqual(["buy:view", "sell:view", "buy:reports:view"]);
   });
 });

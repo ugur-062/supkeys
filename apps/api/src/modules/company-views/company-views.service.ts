@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ForbiddenException, Injectable, Logger, Optional } from "@nestjs/common";
 import { tierAtLeast } from "@rothern/shared";
 import { createHash } from "node:crypto";
@@ -9,6 +10,7 @@ import {
   roundReplyHours,
   type InquiryReplyPair,
 } from "../../common/company/reply-time";
+import { appDayKey } from "../../common/time/app-calendar";
 
 /**
  * ZİYARET EDENLER + İŞ ANALİZİ (2026-09-05, Europages "Your Visitors" /
@@ -32,7 +34,10 @@ export const VIEW_RETENTION_DAYS = 180;
 const VISITORS_PAGE_SIZE = 20;
 const SCAN_CAP = 5000;
 
-const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+// Gün anahtarı (tekilleştirme + günlük grafik) İstanbul takvim günüdür
+// (CLAUDE.md "SAAT DİLİMİ"; derin denetim LU-17 — UTC günü TR 00:00-03:00
+// görüntülemelerini önceki güne yazıyordu).
+const dayKey = appDayKey;
 const hash = (s: string) =>
   createHash("sha256")
     .update(`${process.env.VIEW_HASH_SALT ?? process.env.JWT_SECRET ?? "rothern"}|${s}`)
@@ -79,6 +84,10 @@ export class CompanyViewsService {
   ): Promise<void> {
     if (!viewer.companyId || viewer.companyId === target.companyId) return;
     try {
+      // Engel KARŞILIKLI GÖRÜNMEZLİKTİR (derin denetim LU-08): iki yönden
+      // birinde engel varsa ziyaret hiç yazılmaz — yoksa engelleyenin kimliği
+      // ve baktığı ürün engellenenin Ziyaret Edenler listesine düşerdi.
+      if (await this.blockedPair(viewer.companyId, target.companyId)) return;
       const v = await this.prisma.company.findUnique({
         where: { id: viewer.companyId },
         select: { visitsVisible: true },
@@ -102,6 +111,29 @@ export class CompanyViewsService {
     } catch (err) {
       this.logger.warn(`Görüntülenme kaydı atlandı: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  /** İki firma arasında (herhangi yönde) engel var mı. Bypass: RLS altında karşı yönün satırı gizlenmesin. */
+  private async blockedPair(a: string, b: string): Promise<boolean> {
+    const row = await (this.bypass ?? this.prisma).companyBlock.findFirst({
+      where: {
+        OR: [
+          { blockerCompanyId: a, blockedCompanyId: b },
+          { blockerCompanyId: b, blockedCompanyId: a },
+        ],
+      },
+      select: { id: true },
+    });
+    return !!row;
+  }
+
+  /** `companyId` ile herhangi yönde engel ilişkisi olan firmalar (`CompanyBlocksService.blockedCompanyIds` ile aynı kural). */
+  private async blockedIds(companyId: string): Promise<Set<string>> {
+    const rows = await (this.bypass ?? this.prisma).companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    return new Set(rows.map((r) => (r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId)));
   }
 
   /** Herkese açık sayfa beacon'ı — anonim, günlük tekil (ip + ua + gün). */
@@ -153,7 +185,7 @@ export class CompanyViewsService {
     const page = Math.max(1, opts.page ?? 1);
     const since = daysAgo(days);
     const prevSince = daysAgo(days * 2);
-    const [rows, prevRows] = await Promise.all([
+    const [rows, prevRows, blocked] = await Promise.all([
       this.prisma.companyView.findMany({
         where: { targetCompanyId: user.companyId, viewedAt: { gte: since } },
         select: { viewerCompanyId: true, productId: true, viewedAt: true },
@@ -165,10 +197,16 @@ export class CompanyViewsService {
         select: { viewerCompanyId: true },
         take: SCAN_CAP,
       }),
+      this.blockedIds(user.companyId),
     ]);
+    // Engel ilişkisindeki firmanın ziyaretleri (engelden ÖNCE yazılmış
+    // olanlar dahil) KİMLİKSİZ sayılır (derin denetim LU-08): toplam doğru
+    // kalır, ad/logo/baktığı ürün görünmez.
+    const viewerOf = (r: { viewerCompanyId: string | null }) =>
+      r.viewerCompanyId && !blocked.has(r.viewerCompanyId) ? r.viewerCompanyId : null;
     const previous = {
       total: prevRows.length,
-      identified: new Set(prevRows.map((r) => r.viewerCompanyId).filter(Boolean)).size,
+      identified: new Set(prevRows.map(viewerOf).filter(Boolean)).size,
     };
     const daily = dailySeries(rows.map((r) => r.viewedAt), days);
     const total = rows.length;
@@ -176,16 +214,17 @@ export class CompanyViewsService {
     type G = { visits: number; last: Date; profileViews: number; productIds: Set<string> };
     const groups = new Map<string, G>();
     for (const r of rows) {
-      if (!r.viewerCompanyId) continue;
-      const g = groups.get(r.viewerCompanyId) ?? { visits: 0, last: r.viewedAt, profileViews: 0, productIds: new Set<string>() };
+      const viewer = viewerOf(r);
+      if (!viewer) continue;
+      const g = groups.get(viewer) ?? { visits: 0, last: r.viewedAt, profileViews: 0, productIds: new Set<string>() };
       g.visits += 1;
       if (r.viewedAt > g.last) g.last = r.viewedAt;
       if (r.productId) g.productIds.add(r.productId);
       else g.profileViews += 1;
-      groups.set(r.viewerCompanyId, g);
+      groups.set(viewer, g);
     }
     const identified = groups.size;
-    const anonymous = rows.filter((r) => !r.viewerCompanyId).length;
+    const anonymous = rows.filter((r) => !viewerOf(r)).length;
     const locked = !tierAtLeast(user.tier, "SILVER");
     const base = { days, total, profileViews, productViews: total - profileViews, identified, anonymous, previous, daily, locked, page, pageSize: VISITORS_PAGE_SIZE };
     if (locked || identified === 0) return { ...base, totalItems: identified, items: [] as VisitorItem[] };
@@ -245,7 +284,7 @@ export class CompanyViewsService {
   /** İş Analizi — Silver+ (Raporlar kapısıyla aynı). Dönem ve önceki dönem karşılaştırmalı. */
   async insights(user: AuthenticatedCompanyUser, opts: { days?: number } = {}) {
     if (!tierAtLeast(user.tier, "SILVER")) {
-      throw new ForbiddenException("İş Analizi Silver ve üzeri paketlerde.");
+      throw new ForbiddenException(i18nMessage("api.companyViews.isAnaliziSilverVeUzeriPaketlerde"));
     }
     const days = clampDays(opts.days);
     const now = new Date();
@@ -253,7 +292,7 @@ export class CompanyViewsService {
     const prevSince = daysAgo(days * 2);
     const me = user.companyId;
     const cnt = (where: object) => this.prisma.companyView.count({ where });
-    const [profileCur, profilePrev, productCur, productPrev, identCur, identPrev, topRaw, inquiries, conns, invites, bids] =
+    const [profileCur, profilePrev, productCur, productPrev, identCurRaw, identPrevRaw, topRaw, inquiries, conns, invites, bids, blocked] =
       await Promise.all([
         cnt({ targetCompanyId: me, productId: null, viewedAt: { gte: since } }),
         cnt({ targetCompanyId: me, productId: null, viewedAt: { gte: prevSince, lt: since } }),
@@ -289,7 +328,14 @@ export class CompanyViewsService {
           where: { bidderCompanyId: me, submittedAt: { gte: since } },
           select: { status: true },
         }),
+        this.blockedIds(me),
       ]);
+    // Ziyaret Edenler (`visitors`) ile AYNI kural: engel ilişkisindeki firma
+    // kimliksiz sayılır — kimlikli ziyaretçi sayısı ve şehir kırılımı iki
+    // ekranda ayrışmasın (derin denetim LU-08).
+    const unblocked = (r: { viewerCompanyId: string | null }) => !!r.viewerCompanyId && !blocked.has(r.viewerCompanyId);
+    const identCur = identCurRaw.filter(unblocked);
+    const identPrev = identPrevRaw.filter(unblocked);
     const periodRows = await this.prisma.companyView.findMany({
       where: { targetCompanyId: me, viewedAt: { gte: since } },
       select: { productId: true, viewedAt: true },
@@ -317,9 +363,15 @@ export class CompanyViewsService {
     const cityCounts = new Map<string, number>();
     for (const c of viewerCompanies) if (c.city) cityCounts.set(c.city, (cityCounts.get(c.city) ?? 0) + 1);
     // TEK KAYNAK (`common/company/reply-time.ts`): "Hızlı yanıt veren"
-    // süzgecinin gece cron'u AYNI fonksiyonu kullanır — panelde görülen sayı
-    // ile dizinde süzülen ölçü ayrışmasın.
-    const median = medianFirstReplyHours(inquiries);
+    // süzgecinin gece cron'u AYNI fonksiyonu AYNI pencereyle (REPLY_WINDOW_DAYS,
+    // süzgeçsiz — `recomputeReplyTimes`) kullanır; seçili dönemden (7/30/90)
+    // hesaplanınca panel "6 saat" derken dizin firmayı hızlı saymayabiliyordu
+    // (derin denetim LU-17). Dönem bazlı sayılar (gelen/yanıtlanan) ayrı kalır.
+    const replyRows = await this.prisma.publicInquiry.findMany({
+      where: { companyId: me, createdAt: { gte: daysAgo(REPLY_WINDOW_DAYS) } },
+      select: { createdAt: true, replies: { select: { createdAt: true }, orderBy: { createdAt: "asc" }, take: 1 } },
+    });
+    const median = medianFirstReplyHours(replyRows);
     return {
       days,
       generatedAt: now.toISOString(),
@@ -341,6 +393,8 @@ export class CompanyViewsService {
         received: inquiries.length,
         replied: inquiries.filter((i) => i.replies.length > 0).length,
         medianFirstReplyHours: roundReplyHours(median),
+        /** Ortanca yanıt süresinin penceresi (gün) — seçili dönemden bağımsız. */
+        replyWindowDays: REPLY_WINDOW_DAYS,
       },
       connections: {
         invitesReceived: conns.length,
@@ -386,34 +440,37 @@ export class CompanyViewsService {
     }
     const now = new Date();
     let updated = 0;
-    // Ölçüsü DEĞİŞEN firmayı yaz; pencereden düşenleri de temizle.
-    const stale = await this.prisma.company.findMany({
-      where: { medianReplyHours: { not: null } },
-      select: { id: true },
+    // Yalnız ölçüsü DEĞİŞEN firmayı yaz; pencereden düşenleri de temizle.
+    // Yazım HAM SQL (derin denetim MU-10): Prisma `update` `@updatedAt`'i
+    // ilerletir → sitemap lastmod her gece "değişti" der, çeviri kapsam
+    // süpürücüsü (`t.updatedAt >= e.updatedAt`) firmayı her gece yeniden
+    // kuyruğa alırdı. Yanıt süresi ne profil içeriği ne çevrilecek metin.
+    // `medianReplyComputedAt` = değerin son DEĞİŞTİĞİ an.
+    const current = await this.prisma.company.findMany({
+      where: { OR: [{ medianReplyHours: { not: null } }, { id: { in: [...byCompany.keys()] } }] },
+      select: { id: true, medianReplyHours: true },
     });
-    const ids = new Set([...byCompany.keys(), ...stale.map((c) => c.id)]);
-    for (const id of ids) {
-      const value = roundReplyHours(medianFirstReplyHours(byCompany.get(id) ?? []));
-      await this.prisma.company.update({
-        where: { id },
-        data: { medianReplyHours: value, medianReplyComputedAt: now },
-      });
+    for (const c of current) {
+      const value = roundReplyHours(medianFirstReplyHours(byCompany.get(c.id) ?? []));
+      if (value === c.medianReplyHours) continue;
+      await this.prisma.$executeRaw`UPDATE "companies" SET "medianReplyHours" = ${value}, "medianReplyComputedAt" = ${now} WHERE "id" = ${c.id}`;
       updated++;
     }
     return { scanned: rows.length, updated };
   }
 }
 
-/** Gün başına sayım — dönemdeki HER gün için satır (boş günler 0), eskiden yeniye. */
+/** Gün başına sayım (İstanbul takvim günü) — dönemdeki HER gün için satır (boş günler 0), eskiden yeniye. */
 export function dailySeries(dates: Date[], days: number): { date: string; views: number }[] {
   const out: { date: string; views: number }[] = [];
   const counts = new Map<string, number>();
   for (const d of dates) {
-    const k = d.toISOString().slice(0, 10);
+    const k = dayKey(d);
     counts.set(k, (counts.get(k) ?? 0) + 1);
   }
+  // İstanbul'da yaz saati yok (sabit +03) → 24 saatlik adım her gün bir gün geri gider.
   for (let i = days - 1; i >= 0; i--) {
-    const k = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+    const k = dayKey(new Date(Date.now() - i * 86_400_000));
     out.push({ date: k, views: counts.get(k) ?? 0 });
   }
   return out;

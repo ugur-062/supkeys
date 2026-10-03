@@ -4,7 +4,7 @@
  * yarış koruması (iki eşzamanlı confirm → parola yalnız bir kez set edilir).
  */
 import * as crypto from "node:crypto";
-import { ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { PasswordResetService } from "../../src/modules/password-reset/password-reset.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
@@ -72,6 +72,42 @@ describe("PasswordResetService", () => {
       }),
     ).toBe(1);
     expect(email.send).toHaveBeenCalled();
+    // Sıfırlama bağlantısı hesap kurulum ipucu taşımaz.
+    expect(email.send.mock.calls[0]![0].templateData.data.resetUrl).toMatch(
+      /reset-password\?token=[0-9a-f]{64}$/,
+    );
+    // Derin denetim X09: bağlam kimliği adres değil kullanıcı id'si (EmailLog +
+    // kritik alarmda Sentry extra.contextId'e düşer).
+    expect(email.send.mock.calls[0]![0].context).toEqual({
+      type: "password_reset",
+      id: owner.user.id,
+    });
+  });
+
+  it("O-124: admin eklenen üyeye 'hesabınız açıldı' e-postası — firma adıyla, 72 sa geçerli token, sıfırlama metni YOK", async () => {
+    const { service, email } = rig();
+    const owner = await userWithAuth();
+    const before = Date.now();
+    const res = await service.requestAccountSetup(owner.user.id);
+    expect(res).toEqual({ sent: true });
+    const tok = await prisma.passwordResetToken.findFirstOrThrow({
+      where: { companyUserId: owner.user.id, usedAt: null },
+    });
+    const ttlH = (tok.expiresAt.getTime() - before) / 3_600_000;
+    expect(ttlH).toBeGreaterThan(71);
+    expect(ttlH).toBeLessThanOrEqual(72.01);
+    const arg = email.send.mock.calls[0]![0];
+    expect(arg.templateData.template).toBe("notification");
+    expect(arg.context).toEqual({ type: "password_reset", id: owner.user.id });
+    const data = arg.templateData.data as {
+      subject: string;
+      paragraphs: string[];
+      ctaUrl: string;
+    };
+    expect(data.subject).toContain(owner.company.name);
+    // `setup=1`: sayfa "Şifreni belirle" metnini gösterir (yeniden doğrulama).
+    expect(data.ctaUrl).toMatch(/reset-password\?token=[0-9a-f]{64}&setup=1$/);
+    expect(JSON.stringify(data)).not.toMatch(/sıfırlama talebinde/);
   });
 
   it("request: YOK olan e-posta → success ama token/e-posta YOK (enumeration-safe)", async () => {
@@ -151,5 +187,31 @@ describe("PasswordResetService", () => {
     expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
     // Parola yalnız BİR kez güncellendi — yarışta ikinci set olmaz.
     expect(supabaseAuth.updatePassword).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirm: Supabase parolayı reddederse (zayıf/sızmış) token YANMAZ, aynı linkle tekrar denenir (derin denetim X17)", async () => {
+    const { service, supabaseAuth } = rig();
+    const owner = await userWithAuth();
+    const plain = await makeToken(owner.user.id);
+    supabaseAuth.updatePassword.mockRejectedValueOnce(
+      new BadRequestException("weak"),
+    );
+
+    await expect(
+      service.confirmPasswordReset(plain, "Password123!"),
+    ).rejects.toThrow(BadRequestException);
+    const tok = await prisma.passwordResetToken.findFirst({
+      where: { companyUserId: owner.user.id },
+    });
+    expect(tok?.usedAt).toBeNull();
+
+    // İkinci deneme (güçlü parola) aynı linkle başarılı.
+    await expect(
+      service.confirmPasswordReset(plain, "Guclu-Parola-2026!"),
+    ).resolves.toEqual({ success: true });
+    const used = await prisma.passwordResetToken.findFirst({
+      where: { companyUserId: owner.user.id },
+    });
+    expect(used?.usedAt).not.toBeNull();
   });
 });

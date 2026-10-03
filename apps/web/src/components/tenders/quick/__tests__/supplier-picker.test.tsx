@@ -6,7 +6,7 @@
  */
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const connections = [
   { connectionId: "c1", origin: "SENT", decidedAt: null, company: { id: "1", name: "Beta Kimya", rothernId: "BETA-0001", city: "Kocaeli", industry: "Kimyasal ürünler", activities: ["DISTRIBUTOR"], categoryIds: ["12000000", "12161500"] } },
@@ -16,8 +16,27 @@ const connections = [
 vi.mock("@/hooks/use-company-connections", () => ({
   useConnections: () => ({ data: connections, isLoading: false }),
 }));
+// Tedarikçi grupları (T-19): GOLD + buy:view kapısı; şablon detayı istekle gelir.
+const g = vi.hoisted(() => ({
+  tier: "GOLD" as string,
+  canView: true,
+  groups: [] as { id: string; name: string; memberCount: number; isPublic: boolean; isOwnedByMe: boolean; createdAt: string; updatedAt: string }[],
+  fetch: vi.fn(),
+  enabledCalls: [] as (boolean | undefined)[],
+}));
+vi.mock("@/hooks/use-company-auth", () => ({
+  useCompanyAuth: () => ({ company: { tier: g.tier } }),
+  useHasCompanyPermission: () => g.canView,
+}));
+vi.mock("@/hooks/use-supplier-templates", () => ({
+  useSupplierTemplates: (opts: { enabled?: boolean }) => {
+    g.enabledCalls.push(opts?.enabled);
+    return { data: opts?.enabled === false ? undefined : g.groups };
+  },
+  fetchSupplierTemplate: g.fetch,
+}));
 
-import { SupplierPicker } from "../supplier-picker";
+import { mergeGroupMembers, SupplierPicker } from "../supplier-picker";
 
 describe("SupplierPicker", () => {
   it("kalem/kategori uygunluğu ÖNE gelir ve çip taşır; diğerleri ada göre", () => {
@@ -89,5 +108,90 @@ describe("SupplierPicker", () => {
     expect(onChange).toHaveBeenLastCalledWith([]); // görünen tek firma zaten seçiliydi → kaldırır
     await user.click(screen.getByRole("button", { name: "1 firmayı davet et" }));
     expect(onInvite).toHaveBeenCalledWith(1);
+  });
+
+  describe("Gruptan ekle (T-19)", () => {
+    const GROUP = { id: "g1", name: "Makine tedarikçileri", memberCount: 3, isPublic: true, isOwnedByMe: true, createdAt: "", updatedAt: "" };
+    beforeEach(() => {
+      g.tier = "GOLD";
+      g.canView = true;
+      g.groups = [GROUP];
+      g.enabledCalls = [];
+      g.fetch.mockReset();
+    });
+
+    it("mergeGroupMembers: yalnız listedeki (geçerli bağlantı) üyeler eklenir, seçili olan tekrarlanmaz, seçim korunur", () => {
+      const r = mergeGroupMembers(["BETA-0001"], ["EGEM-0001", "BETA-0001", "YOK-0001", null, "EGEM-0001"], ["BETA-0001", "ANAD-0001", "EGEM-0001"]);
+      expect(r.next).toEqual(["BETA-0001", "EGEM-0001"]);
+      expect(r.added).toEqual(["EGEM-0001"]);
+      expect(r.skipped).toBe(2); // bağlantı olmayan + Rothern ID'siz
+    });
+
+    it("özel kipte grup seçilince üyeleri tek tıkla eklenir; bağlantı olmayan atlanır ve söylenir", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      g.fetch.mockResolvedValue({
+        id: "g1",
+        name: "Makine tedarikçileri",
+        isPublic: true,
+        members: [
+          { id: "3", name: "Ege Makina", rothernId: "EGEM-0001", tier: "SILVER" },
+          { id: "2", name: "Anadolu Metal", rothernId: "ANAD-0001", tier: "SILVER" },
+          { id: "9", name: "Engelli Firma", rothernId: "BLOK-0001", tier: "SILVER" },
+        ],
+      });
+      render(<SupplierPicker value={["ANAD-0001"]} onChange={onChange} />);
+      await user.selectOptions(screen.getByRole("combobox", { name: "Gruptan ekle" }), "g1");
+      expect(g.fetch).toHaveBeenCalledWith("g1");
+      expect(onChange).toHaveBeenLastCalledWith(["ANAD-0001", "EGEM-0001"]);
+      expect(await screen.findByRole("status")).toHaveTextContent(
+        "“Makine tedarikçileri” grubundan 1 firma eklendi; 1 firma bağlantılarınız arasında olmadığı için eklenmedi.",
+      );
+    });
+
+    it("Bağlantılarım kipinde de var; tüm üyeler zaten seçiliyse değişiklik yapılmaz", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      g.fetch.mockResolvedValue({ id: "g1", name: "Makine tedarikçileri", isPublic: true, members: [{ id: "3", name: "Ege Makina", rothernId: "EGEM-0001", tier: "SILVER" }] });
+      render(<SupplierPicker mode="connections" value={["EGEM-0001", "BETA-0001"]} onChange={onChange} />);
+      await user.selectOptions(screen.getByRole("combobox", { name: "Gruptan ekle" }), "g1");
+      expect(onChange).not.toHaveBeenCalled();
+      expect(await screen.findByRole("status")).toHaveTextContent("“Makine tedarikçileri” grubundaki firmalar zaten seçili.");
+    });
+
+    it("istek sürerken yapılan seçim ezilmez: birleştirme güncel seçimle yapılır", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      let resolve!: (v: unknown) => void;
+      g.fetch.mockReturnValue(new Promise((r) => { resolve = r; }));
+      const { rerender } = render(<SupplierPicker value={["ANAD-0001"]} onChange={onChange} />);
+      await user.selectOptions(screen.getByRole("combobox", { name: "Gruptan ekle" }), "g1");
+      // İstek beklerken kullanıcı Beta Kimya'yı seçer (üst bileşen değeri günceller).
+      await user.click(screen.getByRole("checkbox", { name: "Beta Kimya seç" }));
+      expect(onChange).toHaveBeenLastCalledWith(["ANAD-0001", "BETA-0001"]);
+      rerender(<SupplierPicker value={["ANAD-0001", "BETA-0001"]} onChange={onChange} />);
+      resolve({ id: "g1", name: "Makine tedarikçileri", isPublic: true, members: [{ id: "3", name: "Ege Makina", rothernId: "EGEM-0001", tier: "SILVER" }] });
+      expect(await screen.findByRole("status")).toHaveTextContent("“Makine tedarikçileri” grubundan 1 firma eklendi.");
+      expect(onChange).toHaveBeenLastCalledWith(["ANAD-0001", "BETA-0001", "EGEM-0001"]);
+    });
+
+    it("GOLD değilse ya da buy:view yoksa denetim çizilmez ve istek atılmaz; boş grup listelenmez", () => {
+      g.tier = "SILVER";
+      const { unmount } = render(<SupplierPicker value={[]} onChange={() => {}} />);
+      expect(screen.queryByRole("combobox", { name: "Gruptan ekle" })).toBeNull();
+      expect(g.enabledCalls.every((e) => e === false)).toBe(true);
+      unmount();
+      g.tier = "GOLD";
+      g.canView = false;
+      g.enabledCalls = [];
+      const second = render(<SupplierPicker value={[]} onChange={() => {}} />);
+      expect(screen.queryByRole("combobox", { name: "Gruptan ekle" })).toBeNull();
+      expect(g.enabledCalls.every((e) => e === false)).toBe(true);
+      second.unmount();
+      g.canView = true;
+      g.groups = [{ ...GROUP, memberCount: 0 }];
+      render(<SupplierPicker value={[]} onChange={() => {}} />);
+      expect(screen.queryByRole("combobox", { name: "Gruptan ekle" })).toBeNull();
+    });
   });
 });

@@ -37,9 +37,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { generateJson, priceOf, readGeminiKey } from "./lib/gemini";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("gen-category-keywords") });
 
 const OUT_PATH = path.resolve(
   __dirname,

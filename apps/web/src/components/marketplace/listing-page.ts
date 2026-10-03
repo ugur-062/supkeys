@@ -1,5 +1,5 @@
 import {
-  listingPath,
+  listingHref,
   parseListingNumber,
   type PublicListingType,
 } from "@/lib/public/marketplace";
@@ -33,7 +33,7 @@ export async function resolveListingPage(
   const listing = await fetchListing(number);
   if (!listing) return { kind: "notFound" };
 
-  const canonical = listingPath(listing.number, listing.title);
+  const canonical = listingHref(listing);
   if (listing.type !== expected) return { kind: "redirect", to: canonical };
   if (canonical !== `/talep/${slug}`) {
     return { kind: "redirect", to: canonical };

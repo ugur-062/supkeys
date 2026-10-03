@@ -53,7 +53,7 @@ describe("SearchTypeahead", () => {
     await u.selectOptions(screen.getByLabelText("Arama kapsamı"), "listings");
     expect(container.querySelector("form")?.getAttribute("action")).toBe("/alim-talepleri");
     await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "boru");
-    await waitFor(() => expect(h.suggest).toHaveBeenCalledWith("boru", "listings"));
+    await waitFor(() => expect(h.suggest).toHaveBeenCalledWith("boru", "listings", "tr"));
   });
 
   it("öneri grupları: kategori · ürün (firma adıyla) · firma", async () => {
@@ -71,7 +71,7 @@ describe("SearchTypeahead", () => {
     await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "pano");
     await screen.findByText("Panolar");
     await u.keyboard("{ArrowDown}{Enter}");
-    expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/urunler/kategori/39120000"));
+    expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/urunler?kategori=39120000"));
   });
 
   it("son aramalar yazılır ve boş kutuda gösterilir", async () => {

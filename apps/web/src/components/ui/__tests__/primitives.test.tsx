@@ -5,6 +5,7 @@ import { avatarInitials, avatarHash, AVATAR_PASTELS } from "@/lib/avatar-utils";
 import { Avatar } from "../avatar";
 import { Badge } from "../badge";
 import { Breadcrumb } from "../breadcrumb";
+import { Chip } from "../chip";
 import { pageSlots } from "../pagination";
 
 describe("pageSlots — 7 yuva", () => {
@@ -27,8 +28,13 @@ describe("pageSlots — 7 yuva", () => {
 });
 
 describe("Avatar monogram", () => {
-  it("TR büyük harf: 'izmir demir' → 'İD'; tek kelime ilk iki harf", () => {
-    expect(avatarInitials("izmir demir")).toBe("İD");
+  // 2026-09-27: büyük harf ADIN diline göre — Türkçe harfli adda Türkçe kural
+  // ("iş makine" → "İM"), Türkçe harfsiz adda dilden bağımsız ("ivan petrov" →
+  // "IP"; `tr-TR` sabitken "İP" oluyordu). Büyük harfle yazılmış "İzmir" korunur.
+  it("büyük harf adın diline göre; tek kelime ilk iki harf", () => {
+    expect(avatarInitials("İzmir Demir")).toBe("İD");
+    expect(avatarInitials("iş makine")).toBe("İM");
+    expect(avatarInitials("ivan petrov")).toBe("IP");
     expect(avatarInitials("ışık")).toBe("IŞ");
   });
   it("aynı ad aynı pastel (deterministik), farklı adlar dağılır", () => {
@@ -57,5 +63,23 @@ describe("Badge / Breadcrumb", () => {
     render(<Breadcrumb items={[{ label: "Anasayfa", href: "/" }, { label: "Ürünler", href: "/urunler" }, { label: "Pano" }]} />);
     expect(screen.getByText("Pano").getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Ürünler" }).getAttribute("href")).toBe("/urunler");
+  });
+});
+
+describe("Chip — dar ekranda uzun etiket (arayüz testi O-114)", () => {
+  it("çip kapsayıcıyı aşamaz, metin kısalır ve tam ad `title`da; × düğmesi küçülmez", () => {
+    const long = "Elektrik Sistemleri, Aydınlatma, Bileşenleri ve Aksesuarları ile Elektrik Malzemeleri";
+    render(
+      <Chip onRemove={() => {}} removeLabel="kaldır">
+        {long}
+      </Chip>,
+    );
+    const label = screen.getByText(long);
+    expect(label.className).toContain("truncate");
+    expect(label.getAttribute("title")).toBe(long);
+    const chip = label.parentElement!;
+    expect(chip.className).toContain("max-w-full");
+    expect(chip.className).toContain("min-w-0");
+    expect(screen.getByRole("button", { name: "kaldır" }).className).toContain("shrink-0");
   });
 });

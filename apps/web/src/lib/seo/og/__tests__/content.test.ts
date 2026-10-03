@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PublicListingDetail } from "@/lib/public/marketplace-api";
-import { categoryOgContent, cityOgContent, listingOgContent, productOgContent } from "../content";
+import { categoryOgContent, cityOgContent, companyOgContent, listingOgContent, productOgContent } from "../content";
 
 const listing = {
   number: "ROT-000042",
@@ -24,10 +24,26 @@ describe("OG kart içeriği", () => {
     const text = JSON.stringify(c);
     expect(text).not.toContain("GİZLİ FİRMA");
     expect(c.subtitle).toBe("Yapı Malzemeleri · Ankara");
-    expect(c.facts).toContain("Miktar: 1200 metre");
+    expect(c.facts).toContain("Miktar: 1.200 m"); // sayfa gövdesindeki quantity() ile aynı
     expect(c.facts).toContain("2 kalem");
     expect(c.badge).toBe("Teklife açık");
     expect(c.eyebrow).toContain("ROT-000042");
+  });
+
+  it("talep miktarı dilin çoğul kuralı ve sayı biçimiyle yazılır (derin denetim S094)", () => {
+    const l = { ...listing, itemSummary: { count: 1, totalQuantity: "1500", unit: "adet" } } as PublicListingDetail;
+    expect(listingOgContent(l, "en").facts).toContain("Quantity: 1,500 pieces");
+    expect(listingOgContent(l, "tr").facts).toContain("Miktar: 1.500 adet");
+  });
+
+  it("firma: çalışan aralığı metin olarak basılır, 'NaN' değil (derin denetim S094)", () => {
+    const p = { name: "Acme", industry: null, city: null, productCount: 0, foundedYear: null, employeeCount: "10-49" } as never;
+    for (const loc of ["en", "ru", "tr"] as const) {
+      const facts = companyOgContent(p, loc).facts;
+      expect(facts.some((f) => f.includes("10-49"))).toBe(true);
+      expect(facts.join(" ")).not.toContain("NaN");
+    }
+    expect(companyOgContent(p, "en").facts).toContain("Employees: 10-49");
   });
 
   it("kapanan talep: rozet 'Kapandı', son teklif tarihi yazılmaz", () => {

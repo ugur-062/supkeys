@@ -36,3 +36,15 @@ export function bidValidUntilMs(
   if (submittedAt == null || validityDays == null) return null;
   return submittedAt.getTime() + validityDays * MS_PER_DAY;
 }
+
+/**
+ * Açılış embargosu — `bidsOpenAt` gelecekteyse talep sahibi ve teklif sahibi
+ * dışında kimse (davetli dahil) talebi göremez (getOne 404, sellerTenders
+ * süzgeci). Bildirim yolları embargoda davetlileri atlar (derin denetim LU-16).
+ */
+export function isListingEmbargoed(
+  bidsOpenAt: Date | null | undefined,
+  nowMs: number = Date.now(),
+): boolean {
+  return bidsOpenAt != null && bidsOpenAt.getTime() > nowMs;
+}

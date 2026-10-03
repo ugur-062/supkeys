@@ -1,0 +1,772 @@
+// @vitest-environment jsdom
+import type {
+  CompanyOrderDetail,
+  CompanyOrderStatus,
+} from "@/hooks/use-company-orders";
+import { render, screen, within } from "@testing-library/react";
+import { toast } from "sonner";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const h = vi.hoisted(() => ({
+  order: undefined as CompanyOrderDetail | undefined,
+  isLoading: false,
+  isError: false,
+  error: null as unknown,
+  refetch: vi.fn(),
+  mutate: vi.fn(),
+  confirm: vi.fn(async () => true),
+}));
+
+const authRoles = vi.hoisted(() => ({
+  current: ["SATIN_ALMACI", "SATISCI"] as string[],
+}));
+
+vi.mock("next/navigation", () => ({
+  useParams: () => ({ id: "o1" }),
+}));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/lib/realtime", () => ({
+  subscribeRealtime: () => () => {},
+}));
+vi.mock("@/components/providers/confirm-dialog", () => ({
+  useConfirm: () => h.confirm,
+}));
+vi.mock("@/hooks/use-company-bank-accounts", () => ({
+  useBankAccounts: () => ({ data: [] }),
+}));
+// F7: aksiyonlar rol-kapılı (canActOnOrder) — varsayılan tam-rollü kurucu
+// paritesi; persona testi rolleri daraltır.
+vi.mock("@/hooks/use-company-auth", () => ({
+  useCompanyAuth: () => ({ user: { roles: authRoles.current } }),
+}));
+
+// Ağır alt bileşenleri sadeleştir — durum makinesi/aksiyon UI'sine odaklan.
+vi.mock("@/components/orders/order-payments-card", () => ({
+  OrderPaymentsCard: () => null,
+}));
+vi.mock("../_components/order-timeline", () => ({
+  OrderTimeline: () => null,
+}));
+vi.mock("../_components/order-review-card", () => ({
+  OrderReviewCard: () => null,
+}));
+
+// mut factory'nin İÇİNDE tanımlanmalı — vi.mock dosya başına hoist edilir,
+// dışarıdaki `const mut`'a erişim "Cannot access before initialization" verir.
+vi.mock("@/hooks/use-company-orders", () => {
+  const mut = () => ({ mutateAsync: h.mutate, isPending: false });
+  return {
+    useOrder: () => ({
+      data: h.order,
+      isLoading: h.isLoading,
+      isError: h.isError,
+      error: h.error,
+      refetch: h.refetch,
+    }),
+    useShipOrder: mut,
+    useReceiveOrder: mut,
+    useCompleteOrder: mut,
+    useAcceptOrder: mut,
+    useRejectOrder: mut,
+    useCancelOrder: mut,
+    useRequestCancel: mut,
+    useWithdrawCancelRequest: mut,
+    useCancelRequestDecision: mut,
+    useRaiseDefectNotice: mut,
+    useWithdrawDefectNotice: mut,
+    useLcStep: mut,
+  };
+});
+
+import OrderDetailPage from "../page";
+
+function order(
+  status: CompanyOrderStatus,
+  role: "buyer" | "seller",
+  over: Partial<CompanyOrderDetail> = {},
+): CompanyOrderDetail {
+  return {
+    id: "o1",
+    number: "ORD-2026-0001",
+    amount: "1000",
+    currency: "TRY",
+    status,
+    role,
+    counterparty: "Karşı A.Ş.",
+    counterpartyCompanyId: "c1",
+    listingId: "l1",
+    listingTitle: "Çelik Alımı",
+    listingType: "ALIM",
+    listingNumber: "ROT-2026-0001",
+    createdAt: new Date().toISOString(),
+    counterpartyProfile: {
+      city: null,
+      industry: null,
+      email: null,
+      phone: null,
+      rothernId: null,
+    },
+    paymentTiming: "AFTER_DELIVERY",
+    requireGuaranteeLetter: false,
+    paymentOpen: false,
+    paymentTotals: { confirmed: "0", pending: "0", remaining: "1000" },
+    payments: [],
+    items: [],
+    deliveryAddress: null,
+    paymentCategory: "OPEN_ACCOUNT",
+    advancePercent: null,
+    paymentDays: null,
+    lcType: null,
+    lcConfirmed: false,
+    paymentNote: null,
+    deliveryTerm: null,
+    acceptedAt: null,
+    acceptedNote: null,
+    bankAccountHolder: null,
+    bankIban: null,
+    expectedDeliveryDate: null,
+    invoiceNumber: null,
+    deliveryStartedAt: null,
+    deliveryNote: null,
+    deliveredAt: null,
+    completedAt: null,
+    completedNote: null,
+    rejectedAt: null,
+    rejectedReason: null,
+    cancelledAt: null,
+    cancelReason: null,
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  h.order = undefined;
+  h.isLoading = false;
+  h.isError = false;
+  h.error = null;
+  h.confirm.mockResolvedValue(true);
+  authRoles.current = ["SATIN_ALMACI", "SATISCI"];
+});
+
+describe("OrderDetailPage — yükleme/bulunamadı", () => {
+  it("yükleniyorken iskelet (aria-hidden) gösterir", () => {
+    h.isLoading = true;
+    const { container } = render(<OrderDetailPage />);
+    expect(container.querySelector('[aria-hidden]')).toBeInTheDocument();
+    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("veri yoksa nötr 'bulunamadı ya da yetkiniz yok' (D-162)", () => {
+    h.order = undefined;
+    h.isLoading = false;
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText("Sipariş bulunamadı ya da bu siparişi görüntüleme yetkiniz yok."),
+    ).toBeInTheDocument();
+  });
+
+  it("404 → nötr 'bulunamadı ya da yetkiniz yok' (yeniden deneme yok, D-162)", () => {
+    h.isError = true;
+    h.error = { response: { status: 404 } };
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText("Sipariş bulunamadı ya da bu siparişi görüntüleme yetkiniz yok."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).not.toBeInTheDocument();
+  });
+
+  it("O-092: 500/ağ hatası → hata durumu + 'Tekrar dene' (bulunamadı DEĞİL)", async () => {
+    h.isError = true;
+    h.error = { response: { status: 500 } };
+    render(<OrderDetailPage />);
+    expect(screen.queryByText(/Sipariş bulunamadı/)).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.refetch).toHaveBeenCalled();
+  });
+});
+
+describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
+  it("PENDING + satıcı → Kabul Et / Reddet", () => {
+    h.order = order("PENDING", "seller");
+    render(<OrderDetailPage />);
+    expect(screen.getByRole("button", { name: "Kabul Et" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reddet" })).toBeInTheDocument();
+  });
+
+  it("PENDING + alıcı → onay bekleme metni + İptal Et", () => {
+    h.order = order("PENDING", "buyer");
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/Satıcının siparişi onaylaması bekleniyor/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Siparişi İptal Et" }),
+    ).toBeInTheDocument();
+  });
+
+  it("ACCEPTED + satıcı → Siparişi Tamamla (madde 17: gönder yerine tamamla)", () => {
+    h.order = order("ACCEPTED", "seller");
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Siparişi Tamamla" }),
+    ).toBeInTheDocument();
+  });
+
+  it("ACCEPTED + satıcı + alıcı-toplar teslim (EXW) → yine Siparişi Tamamla", () => {
+    h.order = order("ACCEPTED", "seller", { deliveryTerm: "EXW" });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getAllByRole("button", { name: "Siparişi Tamamla" })[0],
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Siparişi Gönder (eski)" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("IN_DELIVERY + alıcı → Teslim Aldım", () => {
+    h.order = order("IN_DELIVERY", "buyer");
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Teslim Aldım" }),
+    ).toBeInTheDocument();
+  });
+
+  it("DELIVERED + alıcı + TAM ödeme onaylı → Siparişi Tamamla", () => {
+    h.order = order("DELIVERED", "buyer", {
+      paymentTotals: { confirmed: "1000", pending: "0", remaining: "0" },
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Siparişi Tamamla" }),
+    ).toBeInTheDocument();
+  });
+
+  it("DELIVERED + alıcı + ödeme eksik → Tamamla VAR (yaşam döngüsü ayrımı: kabul ödemeden bağımsız)", () => {
+    h.order = order("DELIVERED", "buyer", {
+      paymentTotals: { confirmed: "0", pending: "0", remaining: "1000" },
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Siparişi Tamamla" }),
+    ).toBeInTheDocument();
+  });
+
+  it("DELIVERED + alıcı + bekleyen ödeme → Tamamla yine VAR (ödeme sipariş kabulünü engellemez)", () => {
+    h.order = order("DELIVERED", "buyer", {
+      paymentTotals: { confirmed: "0", pending: "1000", remaining: "0" },
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Siparişi Tamamla" }),
+    ).toBeInTheDocument();
+  });
+
+  it("ACCEPTED + satıcı + bekleyen ödeme → gönderim YOK, ödeme onayı uyarısı", () => {
+    h.order = order("ACCEPTED", "seller", {
+      paymentTotals: { confirmed: "0", pending: "1000", remaining: "0" },
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.queryByRole("button", { name: "Siparişi Gönder (eski)" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/Alıcı ödeme bildirdi/)).toBeInTheDocument();
+  });
+
+  it("COMPLETED → tamamlandı mesajı, aksiyon yok", () => {
+    h.order = order("COMPLETED", "buyer");
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Sipariş tamamlandı/)).toBeInTheDocument();
+  });
+
+  it("PENDING + teminat şartlı ilan, satıcı → teminat mektubu uyarısı", () => {
+    h.order = order("PENDING", "seller", {
+      paymentTiming: "BEFORE_DELIVERY",
+      requireGuaranteeLetter: true,
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/teminat mektubu şartı/)).toBeInTheDocument();
+  });
+
+  it("PENDING + teslim öncesi ödeme ama teminat şartsız → uyarı yok (opsiyonel özellik)", () => {
+    h.order = order("PENDING", "seller", {
+      paymentTiming: "BEFORE_DELIVERY",
+      requireGuaranteeLetter: false,
+    });
+    render(<OrderDetailPage />);
+    expect(screen.queryByText(/teminat mektubu şartı/)).not.toBeInTheDocument();
+  });
+
+  it("'Kabul Et' → AcceptOrderModal açılır (Siparişi Onayla)", async () => {
+    h.order = order("PENDING", "seller");
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Kabul Et" }));
+    expect(
+      await screen.findByText("Siparişi Onayla"),
+    ).toBeInTheDocument();
+  });
+});
+
+
+describe("OrderDetailPage — F7 rol kapısı (etiket-only salt-okunur)", () => {
+  const PERSONAS: [string, string[]][] = [
+    ["salt-SAHIP", ["SAHIP"]],
+    ["salt-YONETICI", ["YONETICI"]],
+    ["salt-ONAYLAYICI", ["ONAYLAYICI"]],
+    ["rolsüz", []],
+  ];
+  for (const [name, roles] of PERSONAS) {
+    it(`${name}: PENDING satıcı görünümünde Kabul/Reddet GİZLİ, sayfa görünür`, () => {
+      authRoles.current = roles;
+      h.order = order("PENDING", "seller");
+      render(<OrderDetailPage />);
+      // Sayfa/veri görünür (salt-okunur gözetim regresyonu).
+      expect(screen.getByText("Satış siparişi")).toBeInTheDocument();
+      // Aksiyonlar gizli, açıklayıcı not var.
+      expect(
+        screen.queryByRole("button", { name: "Kabul Et" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Reddet" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(/rolü gerektirir/)).toBeInTheDocument();
+    });
+  }
+
+  it("yön uyuşmayan rol: alıcı görünümünde yalnız-Satışçı 'Teslim Aldım' GÖRMEZ", () => {
+    authRoles.current = ["SATISCI"];
+    h.order = order("IN_DELIVERY", "buyer");
+    render(<OrderDetailPage />);
+    expect(
+      screen.queryByRole("button", { name: "Teslim Aldım" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("OrderDetailPage — A1-DISPUTED akreditif (derin denetim MU-23)", () => {
+  const lc = { paymentCategory: "LETTER_OF_CREDIT" } as Partial<CompanyOrderDetail>;
+
+  it("alıcı: akreditif açılmamışken 'Akreditif Açıldı' görünür", () => {
+    h.order = order("DISPUTED", "buyer", { ...lc, defectNotifiedAt: null });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Akreditif Açıldı" }),
+    ).toBeInTheDocument();
+  });
+
+  it("satıcı: açılmış akreditifi kabul edebilir; kabul sonrası 'Siparişi Tamamla' (sevk çıkışı)", () => {
+    h.order = order("DISPUTED", "seller", {
+      ...lc,
+      defectNotifiedAt: null,
+      lcOpenedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    const { unmount } = render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Akreditifi Kabul Ettim" }),
+    ).toBeInTheDocument();
+    unmount();
+
+    h.order = order("DISPUTED", "seller", {
+      ...lc,
+      defectNotifiedAt: null,
+      lcOpenedAt: new Date().toISOString(),
+      lcAcceptedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(
+      screen.getAllByRole("button", { name: "Siparişi Tamamla" })[0],
+    ).toBeInTheDocument();
+  });
+
+  it("ayıp ihbarlı DISPUTED: LC açılış/kabul adımı sunulmaz", () => {
+    h.order = order("DISPUTED", "buyer", {
+      ...lc,
+      defectNotifiedAt: new Date().toISOString(),
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.queryByRole("button", { name: "Akreditif Açıldı" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("OrderDetailPage — arayüz testi webB-07", () => {
+  it("O-055: peşin %100 kabul edilmiş sipariş, alıcı → 'Ödemeyi yapıp bildirin' (karşı taraf DEĞİL)", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      paymentCategory: "ADVANCE",
+      advancePercent: 100,
+      advanceDue: "1000.00",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentOpen: true,
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/peşin ödeme şartı var/)).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("O-055: peşin bildirimi onay bekliyorsa alıcıya bekleme metni", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      paymentCategory: "ADVANCE",
+      advancePercent: 100,
+      advanceDue: "1000.00",
+      paymentTotals: { confirmed: "0", pending: "1000", remaining: "0" },
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Peşin ödeme bildiriminiz satıcının onayını bekliyor/)).toBeInTheDocument();
+  });
+
+  it("O-055: akreditif açılmamış, alıcı → akreditifi açtırıp işaretleme metni", () => {
+    h.order = order("ACCEPTED", "buyer", { paymentCategory: "LETTER_OF_CREDIT" });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Akreditifi bankanızdan açtırın/)).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("O-055: iptal edilmiş siparişte 'başka adım yok'", () => {
+    h.order = order("CANCELLED", "buyer");
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Sipariş iptal edildi — başka adım yok/)).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("O-030: ayıp ihbarlı DISPUTED (önceki COMPLETED) — biten adımlar işaretli, son adım amber", () => {
+    h.order = order("DISPUTED", "buyer", {
+      defectNotifiedAt: new Date().toISOString(),
+      disputePrevStatus: "COMPLETED",
+    } as Partial<CompanyOrderDetail>);
+    const { container } = render(<OrderDetailPage />);
+    expect(container.querySelectorAll(".bg-emerald-500")).toHaveLength(3);
+    const current = container.querySelector('[aria-current="step"]');
+    expect(current?.querySelector(".border-amber-500")).not.toBeNull();
+  });
+
+  it("O-030: A1-DISPUTED (önceki durum yok) → Onay adımı işaretli kalır", () => {
+    h.order = order("DISPUTED", "seller", { defectNotifiedAt: null });
+    const { container } = render(<OrderDetailPage />);
+    expect(container.querySelectorAll(".bg-emerald-500")).toHaveLength(1);
+  });
+
+  it("D-105: açık iptal talebinde 'iptal edilemez' bandı çizilmez", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      cancelRequestedAt: new Date().toISOString(),
+      cancelRequestReason: "Stok tükendi, gönderemiyoruz.",
+      paymentTotals: { confirmed: "500", pending: "0", remaining: "500" },
+    });
+    render(<OrderDetailPage />);
+    expect(screen.queryByText(/iptal edilemez/)).not.toBeInTheDocument();
+  });
+
+  it("D-105: iptal edilen siparişte özet 'Kalan' gösterilmez", () => {
+    h.order = order("CANCELLED", "buyer", {
+      paymentTotals: { confirmed: "500", pending: "0", remaining: "500" },
+    });
+    render(<OrderDetailPage />);
+    expect(screen.queryByText("Kalan")).not.toBeInTheDocument();
+  });
+
+  it("D-127: onaysız tam bildirimde Kalan onaylıya göre (1.000) + ayrı 'Onay bekleyen' satırı", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      paymentTotals: { confirmed: "0", pending: "1000", remaining: "0" },
+      paymentSettled: false,
+    });
+    render(<OrderDetailPage />);
+    const kalan = screen.getByText("Kalan").nextElementSibling as HTMLElement;
+    expect(kalan.textContent).toMatch(/1\.000,00/);
+    expect(kalan.querySelector(".text-amber-700")).not.toBeNull();
+    expect(screen.getByText("Onay bekleyen")).toBeInTheDocument();
+  });
+
+  it("O-029: akreditifli siparişte (eski kayıtta yazılmış) IBAN gösterilmez", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      paymentCategory: "LETTER_OF_CREDIT",
+      bankAccountHolder: "Satıcı A.Ş.",
+      bankIban: "TR330006100519786457841326",
+    });
+    render(<OrderDetailPage />);
+    expect(screen.queryByText("IBAN")).not.toBeInTheDocument();
+    expect(screen.queryByText("Satıcı A.Ş.")).not.toBeInTheDocument();
+  });
+
+  it("O-029: 'Akreditif Açıldı' onay penceresinden geçer; vazgeçilirse istek atılmaz", async () => {
+    h.order = order("ACCEPTED", "buyer", { paymentCategory: "LETTER_OF_CREDIT" });
+    h.confirm.mockResolvedValueOnce(false);
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Akreditif Açıldı" }));
+    expect(h.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Akreditif açıldı mı?" }),
+    );
+    expect(h.mutate).not.toHaveBeenCalled();
+  });
+
+  it("O-029: 'Ödeme Bankadan Alındı' GERİ ALINAMAZ uyarılı onaydan sonra çalışır", async () => {
+    h.order = order("DELIVERED", "seller", {
+      paymentCategory: "LETTER_OF_CREDIT",
+      lcOpenedAt: new Date().toISOString(),
+      lcAcceptedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Ödeme Bankadan Alındı" }));
+    expect(h.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destructive: true,
+        description: expect.stringMatching(/GERİ ALINAMAZ/),
+      }),
+    );
+    expect(h.mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("D-128: akreditif başlığı sözcüğü tekrar etmez, TR'de 'Sight' yok", () => {
+    h.order = order("ACCEPTED", "seller", {
+      paymentCategory: "LETTER_OF_CREDIT",
+      lcType: "SIGHT",
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText("Akreditif (görüldüğünde ödemeli)")).toBeInTheDocument();
+    expect(screen.queryByText(/Sight/)).not.toBeInTheDocument();
+  });
+
+  it("O-003: muadil kalemde teklif edilen ve istenen marka/parça no görünür", () => {
+    h.order = order("PENDING", "buyer", {
+      items: [
+        {
+          id: "i1",
+          name: "Rulman 6204",
+          quantity: "200",
+          unit: "adet",
+          unitPrice: "3.20",
+          requestedBrand: "SKF",
+          requestedMpn: "6204-2RS",
+          isAlternative: true,
+          offeredBrand: "FAG",
+          offeredMpn: "6204-2Z-C3",
+        },
+      ],
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText("Muadil")).toBeInTheDocument();
+    expect(screen.getByText("Teklif edilen: FAG · 6204-2Z-C3")).toBeInTheDocument();
+    expect(screen.getByText("İstenen: SKF · 6204-2RS")).toBeInTheDocument();
+  });
+});
+
+describe("OrderDetailPage — arayüz testi webB-07 yeniden doğrulama", () => {
+  it("NEW-1: açık satıcı iptal talebinde alıcının sıradaki adımı karar vermek (karşı taraf DEĞİL)", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      cancelRequestedAt: new Date().toISOString(),
+      cancelRequestReason: "Stok tükendi.",
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/karar sizde: İptal talebi bölümünden İptali Onayla veya Reddet seçin/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("NEW-1: peşin eşiği dolmamışken de açık iptal talebi önce karar ister", () => {
+    h.order = order("ACCEPTED", "buyer", {
+      paymentCategory: "ADVANCE",
+      advancePercent: 100,
+      advanceDue: "1000.00",
+      paymentTiming: "BEFORE_DELIVERY",
+      cancelRequestedAt: new Date().toISOString(),
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/karar sizde/)).toBeInTheDocument();
+  });
+
+  it("NEW-1: iptal talebi reddedildi (A1-DISPUTED), alıcı → iki yönlü çıkış metni", () => {
+    h.order = order("DISPUTED", "buyer", {
+      defectNotifiedAt: null,
+      cancelRequestedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Sipariş ihtilaflı: satıcı malı bulursa siparişi gönderebilir/)).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("NEW-1: satıcı açık iptal talebinde alıcı karar metnini görmez", () => {
+    h.order = order("ACCEPTED", "seller", { cancelRequestedAt: new Date().toISOString() });
+    render(<OrderDetailPage />);
+    expect(screen.queryByText(/karar sizde/)).not.toBeInTheDocument();
+  });
+
+  it("son tur: satıcının KENDİ iptal talebi açıkken sıradaki adım 'gönder' değil, alıcının kararı + geri çekme", () => {
+    h.order = order("ACCEPTED", "seller", { cancelRequestedAt: new Date().toISOString() });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/İptal talebiniz alıcının kararını bekliyor. Vazgeçerseniz İptal talebi bölümünden İptal Talebini Geri Çek seçebilirsiniz/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Siparişi gönderdiğinde fatura no ile işaretle/)).not.toBeInTheDocument();
+  });
+
+  it("son tur: alıcı satıcının iptal talebini reddetti (A1-DISPUTED), satıcı → ihtilaf + Siparişi Tamamla ile çözüm", () => {
+    h.order = order("DISPUTED", "seller", {
+      defectNotifiedAt: null,
+      cancelRequestedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/Sipariş ihtilaflı: alıcı iptal talebinizi reddetti. Mal bulunduysa Siparişi Tamamla ile/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Siparişi gönderdiğinde fatura no ile işaretle/)).not.toBeInTheDocument();
+  });
+
+  it("son tur: ayıp ihbarlı DISPUTED, alıcı → ihbar açık + İhbarı Geri Çek (karşı taraf DEĞİL)", () => {
+    h.order = order("DISPUTED", "buyer", {
+      defectNotifiedAt: new Date().toISOString(),
+      disputePrevStatus: "COMPLETED",
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByText(/Ayıp ihbarınız açık — çözüm satıcıyla aranızda. Sorun çözüldüyse Ayıp ihbarı bölümünden İhbarı Geri Çek ile/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it.each(["IN_DELIVERY", "DELIVERED"] as const)(
+    "NEW-2: akreditifli %s siparişte satıcının sıradaki adımı banka ödemesini işaretlemek",
+    (status) => {
+      h.order = order(status, "seller", {
+        paymentCategory: "LETTER_OF_CREDIT",
+        lcOpenedAt: new Date().toISOString(),
+        lcAcceptedAt: new Date().toISOString(),
+      } as Partial<CompanyOrderDetail>);
+      render(<OrderDetailPage />);
+      expect(screen.getByText(/ödemeyi aldığınızda Akreditif bölümünden işaretleyin/)).toBeInTheDocument();
+      expect(screen.queryByText(/Karşı tarafın işlemi bekleniyor/)).not.toBeInTheDocument();
+    },
+  );
+
+  it("NEW-2: akreditif ödemesi işaretlendikten sonra satıcı alıcıyı bekler", () => {
+    h.order = order("IN_DELIVERY", "seller", {
+      paymentCategory: "LETTER_OF_CREDIT",
+      lcOpenedAt: new Date().toISOString(),
+      lcAcceptedAt: new Date().toISOString(),
+      lcPaidAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/Karşı tarafın işlemi bekleniyor/)).toBeInTheDocument();
+  });
+});
+
+describe("OrderDetailPage — arayüz testi webB-08", () => {
+  it("D-005: tedarikçi 'Alım Talebi' görür, alıcı 'Satın Alma Talebi'", () => {
+    h.order = order("ACCEPTED", "seller");
+    const { unmount } = render(<OrderDetailPage />);
+    expect(screen.getByText("Bağlı Alım Talebi")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Alım Talebine Git" })).toBeInTheDocument();
+    expect(screen.queryByText(/Satın Alma Talebi/)).not.toBeInTheDocument();
+    unmount();
+    h.order = order("ACCEPTED", "buyer");
+    render(<OrderDetailPage />);
+    expect(screen.getByText("Bağlı Satın Alma Talebi")).toBeInTheDocument();
+  });
+
+  it("D-123: tamamlanmış açık hesap siparişte satıcıya alıcının ödemesi bekleniyor (kaydedebilirsiniz DEĞİL)", () => {
+    h.order = order("COMPLETED", "seller", { paymentSettled: false });
+    const { unmount } = render(<OrderDetailPage />);
+    expect(screen.getByText(/Alıcının ödemesi bekleniyor/)).toBeInTheDocument();
+    expect(screen.queryByText(/kaydedebilirsiniz/)).not.toBeInTheDocument();
+    unmount();
+    h.order = order("COMPLETED", "seller", {
+      paymentTotals: { confirmed: "0", pending: "1000", remaining: "0" },
+    });
+    render(<OrderDetailPage />);
+    expect(screen.getByText(/onaylayın veya reddedin/)).toBeInTheDocument();
+    expect(screen.queryByText(/satıcının onayı bekleniyor/)).not.toBeInTheDocument();
+  });
+
+  it("D-111: açılır pencere engellenince sessiz kalmaz — toast", async () => {
+    h.order = order("COMPLETED", "buyer");
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/Yazdırma penceresi açılamadı/),
+    );
+    open.mockRestore();
+  });
+
+  it("D-255: iptal onayı 500 alınca pencere AÇIK kalır, bileşen ikinci toast basmaz", async () => {
+    h.order = order("ACCEPTED", "buyer", {
+      cancelRequestedAt: new Date().toISOString(),
+      cancelRequestReason: "Stok tükendi, gönderemiyoruz.",
+    });
+    h.mutate.mockRejectedValueOnce({ isAxiosError: true, response: { status: 500, data: {} } });
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "İptali Onayla" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "İptali Onayla" }));
+    expect(h.mutate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("D-257 + D-258: red penceresi her açılışta boş; açıklamada ham enum yok", async () => {
+    h.order = order("ACCEPTED", "buyer", {
+      cancelRequestedAt: new Date().toISOString(),
+    });
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Reddet" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/DISPUTED/)).not.toBeInTheDocument();
+    await userEvent.type(within(dialog).getByRole("textbox"), "eski metin");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Vazgeç" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reddet" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("textbox")).toHaveValue("");
+  });
+
+  it("D-281: ihtilaf ipucu ekrandaki düğme adını ('Siparişi Tamamla') söyler", () => {
+    h.order = order("DISPUTED", "seller", { defectNotifiedAt: null });
+    render(<OrderDetailPage />);
+    const hint = screen.getByText(/ile ihtilafı çözebilirsiniz/);
+    expect(hint.textContent).toContain("Siparişi Tamamla");
+    expect(hint.textContent).not.toContain("Siparişi Gönder");
+  });
+});
+
+describe("OrderDetailPage — arayüz testi webB-08 yeniden doğrulama", () => {
+  const item = {
+    id: "i1",
+    name: "Paslanmaz çelik küresel vana",
+    quantity: "100",
+    unit: "adet",
+    unitPrice: "12.5",
+    deliveryDate: null,
+  };
+
+  it("D-285: kalem tablosu kart genişliğine bağlı — teslim/birim fiyat yalnız @2xl kartta sütun", () => {
+    h.order = order("COMPLETED", "buyer", {
+      items: [item] as unknown as CompanyOrderDetail["items"],
+    });
+    render(<OrderDetailPage />);
+    const table = screen.getByRole("table");
+    expect(table.closest("section")?.className).toMatch(/(^|\s)@container(\s|$)/);
+    const headers = within(table).getAllByRole("columnheader");
+    const delivery = headers.find((th) => th.textContent === "Teslim Tarihi");
+    const unitPrice = headers.find((th) => th.textContent === "Birim Fiyat");
+    for (const th of [delivery, unitPrice]) {
+      expect(th?.className).toMatch(/(^|\s)@2xl:table-cell(\s|$)/);
+      expect(th?.className).not.toMatch(/(^|\s)sm:table-cell(\s|$)/);
+    }
+  });
+
+  it("NEW-2: baskı çıktısında 4. sütun 'Birim Fiyat' (ölçü birimi DEĞİL)", async () => {
+    h.order = order("COMPLETED", "seller", {
+      items: [item] as unknown as CompanyOrderDetail["items"],
+    });
+    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    const win = { document: doc, focus: vi.fn(), print: vi.fn(), opener: null };
+    const open = vi.spyOn(window, "open").mockReturnValue(win as unknown as Window);
+    render(<OrderDetailPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
+    const html = doc.write.mock.calls.map((c) => String(c[0])).join("");
+    expect(html).toMatch(/<th class="num">Birim Fiyat<\/th>/);
+    open.mockRestore();
+  });
+});

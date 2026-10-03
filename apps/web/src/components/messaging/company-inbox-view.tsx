@@ -1,5 +1,7 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import { PageHeader } from "@/components/list";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
@@ -7,16 +9,22 @@ import { CompanyMessageThread } from "@/components/messaging/company-message-thr
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useConnections } from "@/hooks/use-company-connections";
 import {
+  useThreadMessages,
   useThreads,
   type MessagePortal,
+  type ThreadSummary,
 } from "@/hooks/use-company-messages";
-import { canUseMessaging, PORTAL_ORDER } from "@/lib/company/portals";
+import {
+  canUseMessaging,
+  messagingDirectionOpen,
+  PORTAL_ORDER,
+} from "@/lib/company/portals";
+import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
-import { tr } from "date-fns/locale";
-import { MessageSquare, Search } from "lucide-react";
+import { Lock, MessageSquare, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * BİRLEŞİK gelen kutusu (kullanıcı isteği 2026-08-02): Satınalma + Satış
@@ -38,17 +46,49 @@ interface ThreadRow {
   unread: boolean;
 }
 
-/** "Bu konuşmada ben kimim?" rozeti — satinalma kutusu = ben ALICIYIM. */
-const ROLE_CHIP: Record<MessagePortal, { label: string; cls: string }> = {
-  satinalma: { label: "Alıcısınız", cls: "bg-blue-50 text-blue-700" },
-  satis: { label: "Satıcısınız", cls: "bg-emerald-50 text-emerald-700" },
+/** "Bu konuşmada ben kimim?" rozeti — satinalma kutusu = ben ALICIYIM. Etiket katalog anahtarı. */
+const ROLE_CHIP: Record<MessagePortal, { label: "rozetAlicisiniz" | "rozetSaticisiniz"; cls: string }> = {
+  satinalma: { label: "rozetAlicisiniz", cls: "bg-blue-50 text-blue-700" },
+  satis: { label: "rozetSaticisiniz", cls: "bg-emerald-50 text-emerald-700" },
 };
 
+/**
+ * Portalsız derin link (`?with=` — yeni mesaj e-postası eski biçimi) için yön:
+ * bu firmayla VAR OLAN konuşmanın portalı (okunmamış olan, yoksa en yenisi).
+ * Konuşma yoksa null → çağıran rolüm olan ilk tarafa düşer.
+ */
+function pickDeepLinkPortal(
+  threads: ThreadSummary[],
+  otherPartyId: string,
+  myPortals: MessagePortal[],
+): MessagePortal | null {
+  const mine = threads.filter(
+    (th) => th.otherPartyId === otherPartyId && myPortals.includes(th.portal),
+  );
+  if (mine.length === 0) return null;
+  const unread = mine.find((th) => th.unread);
+  if (unread) return unread.portal;
+  const byRecent = [...mine].sort((a, b) =>
+    (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""),
+  );
+  return byRecent[0]!.portal;
+}
+
 export function CompanyInboxView() {
-  const { user } = useCompanyAuth();
+  const t = useTranslations("web.panel.inbox.companyInboxView");
+  const locale = useLocale();
+  const { user, company } = useCompanyAuth();
   // Kullanıcının mesajlaşabildiği taraflar (işlem rolü olan portallar).
   const myPortals = PORTAL_ORDER.filter((p) =>
     canUseMessaging(user, p),
+  );
+  // YENİ konuşmanın açılabileceği yönler (arayüz testi O-123): alıcı yönü
+  // satınalma panelidir → Gold. Gold altı firma eski alıcı konuşmalarını
+  // listede görür ve okur; varsayılan yön alıcı tarafı olmaz, yön seçicide
+  // alıcı tarafı kilitli görünür (API `send` aynı kuralla 403 TIER_REQUIRED
+  // verir — süren sipariş istisnası dışında).
+  const newChatPortals = myPortals.filter((p) =>
+    messagingDirectionOpen(p, company?.tier),
   );
   const allowed = myPortals.length > 0;
   const connections = useConnections();
@@ -57,27 +97,49 @@ export function CompanyInboxView() {
   const paramPortal = searchParams.get("portal");
   const [selected, setSelected] = useState<{
     id: string;
-    portal: MessagePortal;
+    /** null = derin linkte yön yok; konuşmalar yüklenince çözülür. */
+    portal: MessagePortal | null;
   } | null>(() => {
     const withId = searchParams.get("with");
     if (!withId) return null;
-    const portal: MessagePortal =
+    const portal: MessagePortal | null =
       paramPortal === "satis" || paramPortal === "satinalma"
         ? paramPortal
-        : (myPortals[0] ?? "satinalma");
+        : null;
     return { id: withId, portal };
   });
   const [search, setSearch] = useState("");
 
+  // Seçim adres çubuğunda (arayüz testi D-355): listeden seçilen konuşma
+  // `?with=&portal=` olarak yazılır — yenileme/paylaşım aynı konuşmayı açar
+  // (derin link okuyucusu yukarıdaki başlangıç durumu). Yönü henüz çözülmemiş
+  // (portalsız) seçimde `portal` yazılmaz; sabitlenince eklenir. Next
+  // `history.replaceState`i yönlendiriciyle eşitler (gezinme/yeniden yükleme yok).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    if (selected) {
+      u.searchParams.set("with", selected.id);
+      if (selected.portal) u.searchParams.set("portal", selected.portal);
+      else u.searchParams.delete("portal");
+    } else {
+      u.searchParams.delete("with");
+      u.searchParams.delete("portal");
+    }
+    if (u.toString() !== window.location.href) {
+      window.history.replaceState(null, "", u.toString());
+    }
+  }, [selected]);
+
   const rows = useMemo<ThreadRow[]>(() => {
-    const threadRows: ThreadRow[] = (threads.data ?? []).map((t) => ({
-      key: `${t.portal}:${t.otherPartyId}`,
-      id: t.otherPartyId,
-      name: t.otherPartyName,
-      portal: t.portal,
-      lastMessagePreview: t.lastMessagePreview,
-      lastMessageAt: t.lastMessageAt,
-      unread: t.unread,
+    const threadRows: ThreadRow[] = (threads.data ?? []).map((th) => ({
+      key: `${th.portal}:${th.otherPartyId}`,
+      id: th.otherPartyId,
+      name: th.otherPartyName,
+      portal: th.portal,
+      lastMessagePreview: th.lastMessagePreview,
+      lastMessageAt: th.lastMessageAt,
+      unread: th.unread,
     }));
     const threadCompanyIds = new Set(threadRows.map((r) => r.id));
     // Henüz konuşulmamış bağlantılar — yeni sohbet başlatma girişleri
@@ -102,33 +164,86 @@ export function CompanyInboxView() {
       if (b.lastMessageAt) return 1;
       return a.name.localeCompare(b.name, "tr");
     });
-    const q = search.trim().toLocaleLowerCase("tr");
+    // Katlanmış karşılaştırma — `tr` küçültme Latin "I"yı "ı" yapıyordu.
+    const q = foldSearchText(search);
     return q
-      ? all.filter((r) => r.name.toLocaleLowerCase("tr").includes(q))
+      ? all.filter((r) => foldSearchText(r.name).includes(q))
       : all;
   }, [connections.data, threads.data, search]);
 
-  const selectedRowName =
+  // Seçili sohbetin yönü. Açık portal (rolüm varsa) aynen; yoksa (portalsız
+  // e-posta linki, derin denetim Y-18) bu firmayla var olan konuşmanın yönü —
+  // eskiden iki izinli kullanıcıda hep "satinalma" seçilip satıcı tarafa ters
+  // yöndeki BOŞ konuşma açılıyordu. Konuşmalar yüklenirken null (iskelet).
+  const activePortal: MessagePortal | null = !selected
+    ? null
+    : selected.portal && myPortals.includes(selected.portal)
+      ? selected.portal
+      : threads.isLoading
+        ? null
+        : (pickDeepLinkPortal(threads.data ?? [], selected.id, myPortals) ??
+          newChatPortals[0] ??
+          myPortals[0] ??
+          "satinalma");
+
+  // Çözülen yön BİR KEZ sabitlenir (gözden geçirme W4): her render'da
+  // yeniden hesaplansaydı, LIVE yoklamada okunmamış bayrağı düşünce ya da
+  // öbür yönde yeni okunmamış gelince seçim diğer konuşmaya kayar, sohbet
+  // yeniden bağlanıp taslak silinirdi.
+  // Gözden geçirme R-4: YALNIZ yönü belirsiz (portalsız) seçim ve YALNIZ yön
+  // gerçekten çözüldüğünde yazılır. Açık `?portal=` / kullanıcı seçimi asla
+  // ezilmez: kalıcı oturum anlık görüntüsünde izinler bayat/eksikken
+  // (myPortals boş ya da tek taraf) fallback "satinalma" state'e yazılıyor,
+  // /me doğru izinleri getirince ters yöndeki boş konuşma kilitleniyordu.
+  // Tek taraflı kullanıcıda yön zaten belirlenimci (tek seçenek), kayma
+  // yok — sabitlenmez; ikinci taraf sonradan verilirse taze veriyle çözülür.
+  const pinReady =
+    allowed &&
+    myPortals.length > 1 &&
+    !threads.isLoading &&
+    threads.data !== undefined;
+  useEffect(() => {
+    if (!pinReady || !selected || selected.portal !== null || !activePortal) {
+      return;
+    }
+    setSelected({ id: selected.id, portal: activePortal });
+  }, [pinReady, selected, activePortal]);
+
+  const knownName =
     rows.find((r) => r.id === selected?.id)?.name ??
-    (threads.data ?? []).find((t) => t.otherPartyId === selected?.id)
+    (threads.data ?? []).find((th) => th.otherPartyId === selected?.id)
       ?.otherPartyName ??
+    // Derin denetim LU-31: `rows` arama süzgecinden geçmiş liste; henüz
+    // konuşması olmayan seçili bağlantı süzgeçle düşünce ad kayboluyor,
+    // sohbet paneli unmount olup taslak siliniyordu.
+    (connections.data ?? []).find((c) => c.company.id === selected?.id)
+      ?.company.name ??
     null;
+  // Derin denetim Y-18: ad yalnız konuşmalar + AKTİF bağlantılardan
+  // çözülüyordu; bağlantısız teklif veren / sipariş karşı tarafıyla ilk
+  // temasta (backend D1 kararıyla serbest) panel hiç çizilmiyordu. Ad yoksa
+  // sohbet ucunun `otherParty.name`i kullanılır — sohbet bileşeniyle AYNI
+  // sorgu anahtarı, yani ek istek yok.
+  const nameQuery = useThreadMessages(
+    activePortal ?? "satinalma",
+    selected && activePortal && !knownName ? selected.id : undefined,
+  );
+  const selectedName = knownName ?? nameQuery.data?.otherParty.name ?? null;
 
   if (!allowed) {
     return (
       <div className="space-y-5">
         <PageHeader
-          title="Mesajlar"
-          description="Satınalma ve satış konuşmaların — tek kutuda."
+          title={t("mesajlar")}
+          description={t("satinalmaVeSatisKonusmalarinTek")}
         />
         <div className="flex flex-col items-center rounded-xl border border-zinc-950/10 bg-white px-6 py-16 text-center">
           <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
           <p className="text-sm font-medium text-zinc-700">
-            Mesajlaşma için Satın Almacı veya Satışçı rolü gerekir.
+            {t("mesajlasmaIcinSatinAlmaciVeya")}
           </p>
           <p className="mt-1 max-w-sm text-xs text-zinc-500">
-            Bu hesapta operasyon rolü tanımlı değil. Rolleri Ayarlar →
-            Kullanıcılar&apos;dan kurucu düzenleyebilir.
+            {t("buHesaptaOperasyonRoluTanimli")}
           </p>
         </div>
       </div>
@@ -138,12 +253,16 @@ export function CompanyInboxView() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Mesajlar"
-        description="Satınalma ve satış konuşmalarınız — tek kutuda; her konuşmada hangi tarafta olduğunuz rozetle görünür."
+        title={t("mesajlar")}
+        description={t("satinalmaVeSatisKonusmalarinizTek")}
       />
 
-      {/* C44: standart düzen — konuşma listesi SOLDA, sohbet SAĞDA. */}
-      <div className="grid h-[calc(100vh-13rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[340px_minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)]">
+      {/* C44: standart düzen — konuşma listesi SOLDA, sohbet SAĞDA.
+          Arayüz testi Y-07: kutu ekranın altına kadar uzanınca sağ-alttaki
+          sabit AI Asistan düğmesi (bottom-8, 56px) Gönder düğmesini
+          örtüyordu; sayfa kaymadığı için kabuğun pb-24 payı da işlemiyordu.
+          Alt kenar düğmenin üstünde kalacak kadar kısaltıldı (17rem). */}
+      <div className="grid h-[calc(100vh-17rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[340px_minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)]">
         {/* Sol: kontak listesi */}
         <div
           className={`flex flex-col border-zinc-950/10 bg-white sm:order-1 sm:border-r ${
@@ -154,15 +273,26 @@ export function CompanyInboxView() {
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <input
+                type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Kişi ara…"
+                // Erişilebilir ad (arayüz testi D-267): yer tutucu ad değildir.
+                aria-label={t("kisiAraEtiketi")}
+                placeholder={t("kisiAra")}
                 className="w-full rounded-lg border border-surface-border bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
               />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {connections.isLoading || threads.isLoading ? (
+            {threads.isError && !threads.data ? (
+              // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "önce bağlantı
+              // kur" boş durumu yanıltıyordu.
+              <ErrorState
+                className="m-3"
+                message={t("konusmalarYuklenemedi")}
+                onRetry={() => void threads.refetch()}
+              />
+            ) : connections.isLoading || threads.isLoading ? (
               <div className="space-y-2 p-3" aria-hidden>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div
@@ -175,14 +305,14 @@ export function CompanyInboxView() {
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                 <MessageSquare className="mb-2 h-8 w-8 text-zinc-300" />
                 <p className="text-sm text-zinc-500">
-                  Mesajlaşmak için önce bir firmayla bağlantı kur.
+                  {t("mesajlasmakIcinOnceBirFirmayla")}
                 </p>
               </div>
             ) : (
               rows.map((r) => {
                 const isActive =
                   selected?.id === r.id &&
-                  (r.portal === undefined || selected?.portal === r.portal);
+                  (r.portal === undefined || activePortal === r.portal);
                 return (
                   <button
                     key={r.key}
@@ -190,8 +320,9 @@ export function CompanyInboxView() {
                     onClick={() =>
                       setSelected({
                         id: r.id,
-                        // Yeni sohbette varsayılan yön: rolüm olan ilk taraf.
-                        portal: r.portal ?? myPortals[0]!,
+                        // Yeni sohbette varsayılan yön: paketin ve rolün
+                        // açtığı ilk taraf (Gold altında satıcı yönü, O-123).
+                        portal: r.portal ?? newChatPortals[0] ?? myPortals[0]!,
                       })
                     }
                     className={`flex w-full items-center gap-3 border-l-2 border-b border-zinc-950/5 px-3 py-3 text-left transition hover:bg-zinc-50 ${
@@ -211,7 +342,7 @@ export function CompanyInboxView() {
                             <span
                               className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${ROLE_CHIP[r.portal].cls}`}
                             >
-                              {ROLE_CHIP[r.portal].label}
+                              {t(ROLE_CHIP[r.portal].label)}
                             </span>
                           ) : null}
                         </span>
@@ -219,7 +350,7 @@ export function CompanyInboxView() {
                           <span className="shrink-0 text-xs text-zinc-400">
                             {isToday(new Date(r.lastMessageAt))
                               ? format(new Date(r.lastMessageAt), "HH:mm")
-                              : formatDate(r.lastMessageAt, "short")}
+                              : formatDate(r.lastMessageAt, "short", locale)}
                           </span>
                         ) : null}
                       </div>
@@ -228,7 +359,7 @@ export function CompanyInboxView() {
                           className="truncate text-xs text-zinc-500"
                           title={r.lastMessagePreview ?? undefined}
                         >
-                          {r.lastMessagePreview ?? "Yeni sohbet"}
+                          {r.lastMessagePreview ?? t("yeniSohbet")}
                         </span>
                         {r.unread ? (
                           <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-blue-600" />
@@ -246,71 +377,103 @@ export function CompanyInboxView() {
         <div
           className={`min-h-0 sm:order-2 ${selected ? "flex" : "hidden sm:flex"} flex-col`}
         >
-          {selected && selectedRowName ? (
+          {selected ? (
             <>
+              {/* Mobil geri — ad çözülmese de her zaman (çıkmaz ekran olmasın). */}
               <button
                 type="button"
                 onClick={() => setSelected(null)}
                 className="border-b border-zinc-950/5 px-4 py-2 text-left text-xs text-zinc-500 sm:hidden"
               >
-                ← Kişiler
+                {t("kisiler")}
               </button>
-              {/* Bağlam şeridi — bu konuşmada hangi taraftayım? İki rolü olan
-                  kullanıcı yönü buradan değiştirebilir (yeni sohbet yönü). */}
-              <div className="flex flex-wrap items-center gap-2 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2">
-                <span className="text-xs text-zinc-600">
-                  Bu konuşmada{" "}
-                  <strong>
-                    {selected.portal === "satinalma"
-                      ? "alıcısınız"
-                      : "satıcısınız"}
-                  </strong>
-                  {" — "}
-                  {selected.portal === "satinalma"
-                    ? `${selectedRowName} size satış yapıyor.`
-                    : `${selectedRowName} sizden alım yapıyor.`}
-                </span>
-                {myPortals.length === 2 ? (
-                  <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
-                    {PORTAL_ORDER.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() =>
-                          setSelected({ id: selected.id, portal: p })
-                        }
-                        className={cn(
-                          "rounded-md px-2 py-0.5 text-xs font-semibold transition",
-                          selected.portal === p
-                            ? "bg-white shadow-sm " +
-                                (p === "satinalma"
-                                  ? "text-blue-700"
-                                  : "text-emerald-700")
-                            : "text-zinc-500 hover:text-zinc-800",
-                        )}
-                      >
-                        {p === "satinalma" ? "Alıcı olarak" : "Satıcı olarak"}
-                      </button>
-                    ))}
+              {activePortal && selectedName ? (
+                <>
+                  {/* Bağlam şeridi — bu konuşmada hangi taraftayım? İki rolü olan
+                      kullanıcı yönü buradan değiştirebilir (yeni sohbet yönü). */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2">
+                    <span className="text-xs text-zinc-600">
+                      {t.rich(activePortal === "satinalma" ? "buKonusmadaAlicisiniz" : "buKonusmadaSaticisiniz", {
+                        name: selectedName,
+                        strong: (chunks) => <strong>{chunks}</strong>,
+                      })}
+                    </span>
+                    {/* Seçici iki işlem rolü olan HER pakette (gözden geçirme
+                        webA-08): Gold altında da kapalı yön (alıcı) kilitli
+                        görünür — seçilirse sohbet okunur ve Gold çağrısı çıkar.
+                        Gizlenseydi, firmayla yalnız alıcı yönlü konuşması olan
+                        kullanıcı (tek satıra sabit) her pakete açık satıcı
+                        yönüne geçemezdi. */}
+                    {myPortals.length === 2 ? (
+                      <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
+                        {PORTAL_ORDER.map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() =>
+                              setSelected({ id: selected.id, portal: p })
+                            }
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold transition",
+                              activePortal === p
+                                ? "bg-white shadow-sm " +
+                                    (p === "satinalma"
+                                      ? "text-blue-700"
+                                      : "text-emerald-700")
+                                : "text-zinc-500 hover:text-zinc-800",
+                            )}
+                          >
+                            {newChatPortals.includes(p) ? null : (
+                              <Lock
+                                aria-hidden
+                                data-testid={`inbox-direction-locked-${p}`}
+                                className="size-3"
+                              />
+                            )}
+                            {p === "satinalma" ? t("aliciOlarak") : t("saticiOlarak")}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-              <div className="min-h-0 flex-1">
-                <CompanyMessageThread
-                  key={`${selected.portal}:${selected.id}`}
-                  portal={selected.portal}
-                  otherPartyId={selected.id}
-                  otherPartyName={selectedRowName}
-                  bare
-                />
-              </div>
+                  <div className="min-h-0 flex-1">
+                    <CompanyMessageThread
+                      key={`${activePortal}:${selected.id}`}
+                      portal={activePortal}
+                      otherPartyId={selected.id}
+                      otherPartyName={selectedName}
+                      bare
+                    />
+                  </div>
+                </>
+              ) : nameQuery.isError ? (
+                <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6 text-center">
+                  <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
+                  <p className="text-sm font-medium text-zinc-600">
+                    {t("sohbetAcilamadi")}
+                  </p>
+                  <p className="mt-1 max-w-sm text-xs text-zinc-400">
+                    {t("sohbetAcilamadiAciklama")}
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="flex-1 space-y-3 p-4"
+                  aria-hidden
+                  data-testid="inbox-thread-skeleton"
+                >
+                  <div className="h-10 w-1/2 animate-pulse rounded-lg bg-zinc-100" />
+                  <div className="h-16 animate-pulse rounded-lg bg-zinc-100" />
+                  <div className="h-16 w-2/3 animate-pulse rounded-lg bg-zinc-100" />
+                </div>
+              )}
             </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center bg-zinc-50 text-center">
               <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
-              <p className="text-sm font-medium text-zinc-600">Bir kişi seç</p>
+              <p className="text-sm font-medium text-zinc-600">{t("birKisiSec")}</p>
               <p className="mt-1 text-xs text-zinc-400">
-                Soldan bir firma seçerek sohbete başlayın.
+                {t("soldanBirFirmaSecerekSohbete")}
               </p>
             </div>
           )}

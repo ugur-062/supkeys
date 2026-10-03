@@ -6,7 +6,8 @@
 import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { invite, makeCompany, makeCompanyWithUser, makeListing } from "./factories";
+import { foldSearchText } from "@rothern/shared";
 
 const svc = () => new SupplierDiscoveryService(prisma as unknown as PrismaService);
 
@@ -21,11 +22,13 @@ beforeEach(async () => {
 describe("SupplierDiscoveryService.discoverRegistered", () => {
   it("segment/alt eşleşen SILVER+ firmalar döner; profilsiz STANDART, bağlantılı, bloklu ve kendisi dönmez", async () => {
     const buyer = await makeCompanyWithUser(prisma);
-    // Alt-kategori (class) eşleşmesi → güçlü
+    // Alt-kategori (class) eşleşmesi → güçlü. Depolama kuralı: L2-L4 seçimi
+    // `sellerSubCategoryIds`e, segmenti `sellerCategoryIds`e (yayın bildirimi
+    // eşleştiricisiyle aynı — eskiden keşif alt kodu ana alanda arıyordu).
     const strong = await makeCompanyWithUser(prisma, { name: "Güçlü AŞ", tier: "SILVER" });
     await prisma.company.update({
       where: { id: strong.company.id },
-      data: { sellerCategoryIds: ["30991500"], city: "İstanbul" },
+      data: { sellerCategoryIds: ["30000000"], sellerSubCategoryIds: ["30991500"], city: "İstanbul" },
     });
     // Segment eşleşmesi → normal
     const seg = await makeCompanyWithUser(prisma, { name: "Segment AŞ", tier: "SILVER" });
@@ -33,8 +36,8 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       where: { id: seg.company.id },
       data: { sellerCategoryIds: ["30000000"] },
     });
-    // STANDART ve profilini YAYINLAMAMIŞ (dizinde görünmez) — dönmemeli.
-    // (Profilini yayınlamış ücretsiz firma 2026-09-06'dan beri ADAY — aşağıdaki test.)
+    // STANDART — dönmemeli (2026-09-28: AI önerisine yalnız SILVER+ ∧ doğrulanmış
+    // üye girer; profilini yayınlamış ücretsiz firma da ARTIK aday değil).
     const std = await makeCompanyWithUser(prisma, { name: "Paketsiz", tier: "STANDART" });
     await prisma.company.update({
       where: { id: std.company.id },
@@ -102,5 +105,117 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
     });
     expect(res.candidates).toHaveLength(1);
     expect(res.candidates[0]!.connectionStatus).toBe("PENDING");
+  });
+
+  it("GÜVENLİK: başka firmanın talep id'si verilirse davetli listesi sızmaz (alreadyInvited hep false)", async () => {
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const attacker = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const rival = await makeCompanyWithUser(prisma, { name: "Rakip AŞ", tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: rival.company.id },
+      data: { sellerCategoryIds: ["30000000"] },
+    });
+    const listing = await makeListing(prisma, { companyId: owner.company.id, createdById: owner.user.id });
+    await invite(prisma, listing.id, rival.company.id, owner.user.id);
+
+    // Sahip kendi talebinde davetliyi görür…
+    const own = await svc().discoverRegistered(owner.auth, {
+      type: "ALIM",
+      categoryIds: ["30991500"],
+      listingId: listing.id,
+    });
+    expect(own.candidates.find((c) => c.name === "Rakip AŞ")?.alreadyInvited).toBe(true);
+
+    // …başka firma aynı id ile soramaz.
+    const res = await svc().discoverRegistered(attacker.auth, {
+      type: "ALIM",
+      categoryIds: ["30991500"],
+      listingId: listing.id,
+    });
+    const rivalRow = res.candidates.find((c) => c.name === "Rakip AŞ");
+    expect(rivalRow).toBeDefined();
+    expect(rivalRow!.alreadyInvited).toBe(false);
+  });
+
+  it("vitrinde kalemi SATAN firma kategori beyanı uymasa da önerilir; hangi kalem olduğu işaretlenir (2026-09-27)", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    const seller = await makeCompanyWithUser(prisma, { name: "Cıvata AŞ", tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: { slug: "civata-as", publicEnabled: true, sellerCategoryIds: ["12000000"] },
+    });
+    await prisma.companyItem.create({
+      data: {
+        companyId: seller.company.id,
+        createdById: seller.user.id,
+        name: "M6 Cıvata DIN 933",
+        unit: "adet",
+        slug: "m6-civata",
+        isPublic: true,
+        publishedAt: new Date(),
+        searchText: foldSearchText("M6 Cıvata DIN 933 bağlantı elemanı"),
+      },
+    });
+    const res = await svc().discoverRegistered(buyer.auth, {
+      type: "ALIM",
+      itemNames: ["Rulman 6205", "M6 cıvata"],
+    });
+    expect(res.candidates.map((c) => c.name)).toEqual(["Cıvata AŞ"]);
+    expect(res.candidates[0]!.matchedItems).toEqual([2]);
+    expect(res.candidates[0]!.strongMatch).toBe(true);
+  });
+
+  it("segmentte 60+ daha yeni firma olsa da ESKİ güçlü eşleşme (alt kategori) puanlamaya girer ve başa gelir (derin denetim S015)", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    await makeCompany(prisma, {
+      name: "Eski Güçlü AŞ",
+      tier: "SILVER",
+      sellerCategoryIds: ["30000000"],
+      sellerSubCategoryIds: ["30991500"],
+      createdAt: new Date(Date.now() - 365 * 24 * 3600 * 1000),
+    });
+    for (let i = 0; i < 61; i++) {
+      await makeCompany(prisma, { name: `Segment ${i}`, tier: "SILVER", sellerCategoryIds: ["30000000"] });
+    }
+    const res = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: ["30991500"] });
+    expect(res.candidates[0]!.name).toBe("Eski Güçlü AŞ");
+    expect(res.candidates[0]!.strongMatch).toBe(true);
+    expect(res.candidates).toHaveLength(12);
+  });
+
+  it("talep belirli ülkelere açıksa o ülkelerin dışındaki firma önerilmez", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    const tr = await makeCompanyWithUser(prisma, { name: "TR AŞ", tier: "SILVER" });
+    const de = await makeCompanyWithUser(prisma, { name: "DE GmbH", tier: "SILVER", country: "DE" });
+    for (const c of [tr, de]) {
+      await prisma.company.update({ where: { id: c.company.id }, data: { sellerCategoryIds: ["30000000"] } });
+    }
+    const all = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: ["30991500"] });
+    expect(all.candidates.map((c) => c.name).sort()).toEqual(["DE GmbH", "TR AŞ"]);
+    const onlyDe = await svc().discoverRegistered(buyer.auth, {
+      type: "ALIM",
+      categoryIds: ["30991500"],
+      targetCountries: ["DE"],
+    });
+    expect(onlyDe.candidates.map((c) => c.name)).toEqual(["DE GmbH"]);
+  });
+
+  it("AI önerisine YALNIZ SILVER+ ∧ doğrulanmış üye girer: vitrini açık ücretsiz firma ve doğrulanmamış Silver önerilmez (2026-09-28)", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    const ok = await makeCompanyWithUser(prisma, { name: "Doğrulanmış Silver", tier: "SILVER" });
+    const free = await makeCompanyWithUser(prisma, { name: "Ücretsiz Vitrin", tier: "STANDART" });
+    const unverified = await makeCompanyWithUser(prisma, {
+      name: "Doğrulanmamış Silver",
+      tier: "SILVER",
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    for (const c of [ok, free, unverified]) {
+      await prisma.company.update({
+        where: { id: c.company.id },
+        data: { sellerCategoryIds: ["30000000"], publicEnabled: true, slug: `s-${c.company.id}` },
+      });
+    }
+    const res = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: ["30991500"] });
+    expect(res.candidates.map((c) => c.name)).toEqual(["Doğrulanmış Silver"]);
   });
 });

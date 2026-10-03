@@ -29,6 +29,7 @@ COPY apps/admin/package.json apps/admin/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/email/package.json packages/email/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY apps/admin/ apps/admin/

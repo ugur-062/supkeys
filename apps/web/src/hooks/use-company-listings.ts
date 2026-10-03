@@ -3,6 +3,7 @@
 import { companyApi } from "@/lib/company-auth/api";
 import type { PaymentCategoryValue } from "@/lib/tenders/form-schema";
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -74,18 +75,11 @@ export interface Listing {
   createdAt: string;
 }
 
-// Backend Prisma `Currency` enum'u ile birebir (9 birim) — eksik tutmak
-// AED/CNY tekliflerini `as` cast'leriyle maskeleyip sessiz hataya yol açıyordu.
-export type CurrencyCode =
-  | "TRY"
-  | "USD"
-  | "EUR"
-  | "GBP"
-  | "CHF"
-  | "JPY"
-  | "AED"
-  | "CNY"
-  | "RUB";
+// Backend Prisma `Currency` enum'u ile birebir — TEK KAYNAK `@rothern/shared`
+// `CURRENCY_CODES` (2026-09-27: 21 birim). Eksik tutmak yeni birimli teklifleri
+// `as` cast'leriyle maskeleyip sessiz hataya yol açıyordu.
+import type { CurrencyCode } from "@rothern/shared";
+export type { CurrencyCode };
 
 export interface ItemQuestionInput {
   text: string;
@@ -110,6 +104,10 @@ export interface CreateListingInput {
   /** Eski alan — sunucu yok sayar, türetir (2026-09-21). */
   isInternational?: boolean;
   targetCountries?: string[]; // görünürlük ülkeleri (boş = tüm ülkeler)
+  /** Yayınlanınca AI yurt içi + yurt dışında tedarikçi arasın (2026-09-27). */
+  aiDiscovery?: boolean;
+  /** Kayıtsız tedarikçiye giden davette firma adı görünsün. */
+  inviteShowName?: boolean;
   deliveryAddressId?: string;
   billingAddressId?: string;
   format?: ListingFormat;
@@ -130,7 +128,7 @@ export interface CreateListingInput {
   requireAllItems?: boolean;
   requireBidDocument?: boolean;
   showTargetToSuppliers?: boolean;
-  isSealedBid?: boolean;
+  // isSealedBid gönderilmez (T-16): API varsayılanı true — RFQ her zaman kapalı zarf.
   primaryCurrency?: CurrencyCode;
   allowedCurrencies?: CurrencyCode[];
   // Teslim / ödeme — zamanlama GÖNDERİLMEZ, backend plandan türetir (Faz 2).
@@ -172,12 +170,19 @@ export interface MyBid {
     | "AWARDED_PARTIAL"
     | "LOST";
   round: number;
+  /** Eşzamanlılık sayacı (taslak kaydında da artar) — revizyon DEĞİL. */
   version: number;
+  /** Gönderim sayısı (taslak saymaz) — "Revizyon N" bundan (arayüz testi O-036). */
+  submitCount: number;
   createdAt: string;
   /** Taahhüt edilen teslim tarihi (LEGACY). */
   deliveryDate: string | null;
   /** Teslim SÜRESİ (BID_DELIVERY_TIMES; 2026-08-02 sonrası teklifler). */
   deliveryTime?: string | null;
+  /** LOST'ta dolu = alıcı eledi; boş = kazandırmada kaybetti / kapandı (D-102). */
+  eliminatedAt?: string | null;
+  /** LOST'un sebebi satıcının kendi sipariş reddi (alıcı elemedi; arayüz testi son tur). */
+  orderRejected?: boolean;
   /** Kazanan teklifin oluşturduğu sipariş (WON/AWARDED_PARTIAL). */
   orderId: string | null;
   listing: {
@@ -192,17 +197,66 @@ export interface MyBid {
   };
 }
 
-/** Firmanın verdiği tüm teklifler — Tekliflerim ekranı. */
-export function useMyBids(enabled = true) {
+export type MyBidSort = "newest" | "oldest" | "amount";
+
+/** Tekliflerim sorgusu — süzme/sıralama/sayfalama SUNUCUDA (arayüz testi O-005). */
+export interface MyBidsQuery {
+  status?: MyBid["status"][];
+  /** Yalnız karar bekleyenler (`counts.active` kümesi). */
+  pending?: boolean;
+  q?: string;
+  /** Son N gün. */
+  days?: number;
+  sort?: MyBidSort;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface MyBidsPage {
+  items: MyBid[];
+  /** Süzgece uyan toplam. */
+  total: number;
+  /** Sunucunun uyguladığı (aralığa sıkıştırılmış) sayfa. */
+  page: number;
+  pageSize: number;
+  /**
+   * Süzgeçten BAĞIMSIZ sayaçlar — liste özeti ve Şirketim KPI'ları aynı
+   * sunucu sayımını okur (eskiden istemci en yeni 200 teklifte sayıyordu).
+   */
+  counts: {
+    all: number;
+    /** Karar bekleyen: gönderilmiş ve ilan karara bağlanmamış. */
+    active: number;
+    /** Kazanılan — kısmi kazanım dahil. */
+    won: number;
+  };
+}
+
+/**
+ * Firmanın verdiği teklifler — Tekliflerim ekranı (sayfalı). Anahtar
+ * `["company-my-bids", …]`: mevcut önek geçersiz kılmaları hepsini tazeler.
+ */
+export function useMyBids(query: MyBidsQuery = {}, enabled = true) {
+  const params: Record<string, string> = {};
+  if (query.status?.length) params.status = query.status.join(",");
+  if (query.pending) params.pending = "1";
+  if (query.q) params.q = query.q;
+  if (query.days) params.days = String(query.days);
+  if (query.sort && query.sort !== "newest") params.sort = query.sort;
+  if (query.page && query.page > 1) params.page = String(query.page);
+  if (query.pageSize) params.pageSize = String(query.pageSize);
   return useQuery({
-    queryKey: ["company-my-bids"],
+    queryKey: ["company-my-bids", params],
     enabled,
     queryFn: async () => {
-      const { data } = await companyApi.get<MyBid[]>(
+      const { data } = await companyApi.get<MyBidsPage>(
         "/company/listings/my-bids",
+        { params },
       );
       return data;
     },
+    // Süzgeç/sayfa değişirken eski sayfa ekranda kalsın (iskelet titremesi yok).
+    placeholderData: keepPreviousData,
     // Eleme/kazanma gibi durum değişiklikleri yenilemeden görünsün.
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
@@ -250,6 +304,12 @@ export interface ListingBidItemRow {
   deliveryTime?: string | null;
   /** Kalem para birimi (madde 9; null = teklifin ana birimi). */
   currency?: string | null;
+  /**
+   * Kalem birimi → teklifin ana birimi çevrim damgası (yalnız sahip
+   * projeksiyonu; null = aynı birim). Kalem kıyasının TRY karşılığı için
+   * (derin denetim Y-14).
+   */
+  fxToBase?: string | null;
   // Faz 3 — MUADİL beyanı: alıcı izin verdiyse tedarikçi NE teklif ettiğini
   // söyler; olmadan alıcı tekliflerin aynı ürüne mi ait olduğunu göremez.
   isAlternative?: boolean;
@@ -285,6 +345,10 @@ export interface ListingBidRow {
   validityDays?: number | null;
   /** Geçerlilik rozeti: son geçerlilik = submittedAt + validityDays. */
   submittedAt?: string | null;
+  /** Alıcı bu teklifi ELEDİ (LOST ∧ dolu) — kazandırmada kaybetmekten ayrı (arayüz testi D-102). */
+  eliminatedAt?: string | null;
+  /** Satıcı kazandığı siparişi reddetti → LOST (eliminatedAt de dolu ama alıcı ELEMEDİ). */
+  orderRejected?: boolean;
   items?: ListingBidItemRow[];
   answers?: { questionId: string; value: string }[];
 }
@@ -300,6 +364,7 @@ export interface ListingAddress {
   addressLine: string;
   district: string | null;
   city: string | null;
+  stateRegion?: string | null;
   postalCode: string | null;
   country: string;
   contactName: string | null;
@@ -309,6 +374,8 @@ export interface ListingAddress {
 }
 
 export interface ListingDetail {
+  /** Teklifçi görünümü: metin okuyucunun diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+  translatedFrom?: string | null;
   /** Sunucu parmak izi — bir sonraki istekte If-None-Match olarak gider
    *  (sahip dalı; başkası için tanımsız). Perf turu, denetim P10. */
   etag?: string;
@@ -317,6 +384,11 @@ export interface ListingDetail {
   type: ListingType;
   isInternational: boolean;
   targetCountries: string[];
+  /** Yalnız sahip dalında (sunucu teklifçiye göndermez). */
+  aiDiscovery?: boolean;
+  /** Sahip dalı: talep vitrindeyse herkese açık İÇ yol (paylaş), değilse null. */
+  publicPath?: string | null;
+  inviteShowName?: boolean;
   format: ListingFormat | null;
   visibility: ListingVisibility;
   title: string;
@@ -341,6 +413,8 @@ export interface ListingDetail {
   canPublish?: boolean;
   // Bekleyen onay isteği id'si (IN_APPROVAL / IN_AWARD_APPROVAL'da).
   pendingApprovalId?: string | null;
+  // Bekleyen isteği bu kullanıcı mı başlattı (iptal kuralı: başlatan ∨ approvals:manage).
+  pendingApprovalMine?: boolean;
   // ihale zenginleştirme
   categoryIds?: string[];
   preferredActivities?: string[];
@@ -385,11 +459,17 @@ export interface ListingDetail {
   /** Rol kapısı: teklif SATISCI rolü ister. */
   roleAllowsBid?: boolean;
   invited?: boolean;
+  /** Teklif GÖNDERİMİ firma doğrulaması ister (davetsiz ∧ bağlantısız ∧ doğrulanmamış; placeBid INV-KYC-1 aynası). */
+  bidRequiresVerification?: boolean;
+  /** Alıcı firmanın id'si (teklifçi dalı) — mesaj bağlantısı için. */
+  ownerCompanyId?: string;
   myBid?: {
     amount: string;
     note: string | null;
     status: string;
     version?: number;
+    /** Teklifin ait olduğu tur — elenen teklif yeni tura taşınmaz (O-026). */
+    round?: number;
     submittedAt?: string | null;
     eliminationReason?: string | null;
     eliminatedAt?: string | null;
@@ -398,11 +478,23 @@ export interface ListingDetail {
     deliveryTime?: string | null;
     validityDays?: number | null;
     currency?: string | null;
+    /** Yeni tura taşınmış RFQ teklifi bu turda bir kez revize edilebilir (sunucu kuralı). */
+    canReviseCarried?: boolean;
     items?: ListingBidItemRow[];
     answers?: { questionId: string; value: string }[];
   } | null;
   /** Bu ilandan doğan, çağıranın taraf olduğu sipariş (kazanan teklifçi). */
   myOrder?: { id: string; number: string | null; status: string } | null;
+  /** Sahip dalı: talepten doğan TÜM siparişler (kalem bazlıda birden çok).
+   *  Reddedilende satıcı gerekçesi; kalem adları tedariksiz kalanı bulur (O-028). */
+  orders?: {
+    id: string;
+    number: string | null;
+    status: string;
+    sellerCompanyId?: string;
+    rejectedReason?: string | null;
+    itemNames?: string[];
+  }[];
   // İngiliz Usulü (açık eksiltme):
   english?: {
     isEnglishAuction: true;
@@ -538,7 +630,8 @@ export function useCancelListing(id: string) {
 
 export interface RoundHistoryEntry {
   round: number;
-  bids: Array<{ bidderName: string; amount: string }>;
+  /** `currency`: teklifin kendi birimi (çok-birimli pazarlıkta farklı olabilir). */
+  bids: Array<{ bidderName: string; amount: string; currency?: string | null }>;
 }
 
 /** İngiliz Usulü tur geçmişi (sahip). */
@@ -692,16 +785,19 @@ export function useStartEvaluation(id: string) {
 export function useExtendBidValidity(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (additionalDays: number) => {
+    // `expectedValidityDays`: ekranda görülen süre — sunucu, süre o arada
+    // değiştiyse (yeniden deneme, ikinci sekme) uzatmayı ikinci kez eklemez.
+    mutationFn: async (input: { additionalDays: number; expectedValidityDays?: number }) => {
       const { data } = await companyApi.post<{
         ok: boolean;
         validityDays: number;
         validUntil: string;
         revived: boolean;
-      }>(`/company/listings/${id}/bids/extend-validity`, { additionalDays });
+      }>(`/company/listings/${id}/bids/extend-validity`, input);
       return data;
     },
-    onSuccess: () => {
+    // 409 (süre az önce değişti) dahil her sonuçta güncel süre çekilsin.
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
       // `revived: true` teklifi DRAFT'tan SUBMITTED'a taşıyabiliyor →
       // Tekliflerim listesi de tazelenmeli (denetim 2026-08-26 Parça 10).
@@ -834,7 +930,19 @@ export function useDeleteListing() {
       const { data } = await companyApi.delete(`/company/listings/${id}`);
       return data;
     },
-    onSuccess: () => invalidateListingCaches(qc),
+    onSuccess: (_data, id) => {
+      // Arayüz testi D-100: silinen talebin detay (ve id'li alt) sorguları
+      // geçersiz kılınırsa açık detay sayfası yönlendirmeden önce onu yeniden
+      // çekip 404 alıyordu → önbellekten DÜŞÜR, kalanları tazele.
+      qc.removeQueries({
+        predicate: (q) => q.queryKey[0] === "company-listings" && q.queryKey.includes(id),
+      });
+      qc.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === "company-listings" && !q.queryKey.includes(id),
+      });
+      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+    },
   });
 }
 

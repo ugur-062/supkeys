@@ -4,18 +4,59 @@ import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
-import { api } from "@/lib/api";
+import { api, toastApiError } from "@/lib/api";
 import { countryLabel } from "@/lib/country";
+import { anonymizedMessage } from "@/lib/retention-reasons";
 import { safeFormat } from "@/lib/date";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Download, MailWarning, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditProfileDialog } from "../edit-profile-dialog";
+import { reasonText } from "../verification-reason";
+
+/** Hukuki yapı etiketi (admin Türkçe); OTHER iken yerel ad (GmbH, LLC…) eklenir. */
+const COMPANY_TYPE_LABELS: Record<string, string> = {
+  JOINT_STOCK: "Anonim Şirket",
+  LIMITED: "Limited Şirket",
+  SOLE_PROPRIETOR: "Şahıs Firması",
+  OTHER: "Diğer",
+};
+
+function companyTypeText(data: AdminCompanyDetail): string | null {
+  if (!data.companyType) return null;
+  const label = COMPANY_TYPE_LABELS[data.companyType] ?? data.companyType;
+  return data.companyType === "OTHER" && data.legalFormLocal
+    ? `${label} — ${data.legalFormLocal}`
+    : label;
+}
+
+/**
+ * Son VIES (AB KDV) sorgusunun özeti (2026-09-27). Firma tarafı her sorguyu
+ * audit'e yazar; kayıt yoksa ve ülke AB'deyse "sorgulanmadı" denir.
+ */
+function viesText(data: AdminCompanyDetail): string | null {
+  const v = data.vies;
+  if (!v) return data.viesSupported ? "Sorgulanmadı" : null;
+  const when = safeFormat(v.checkedAt, "d MMM yyyy HH:mm");
+  const number = v.vatNumber ? `${v.countryCode ?? ""}${v.vatNumber}` : null;
+  if (v.unavailable) return ["Servis yanıt vermedi", number, when].filter(Boolean).join(" · ");
+  if (!v.valid) return ["Geçersiz", number, when].filter(Boolean).join(" · ");
+  return [
+    "Geçerli",
+    number,
+    when,
+    v.name ? `VIES'teki ad: ${v.name}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 /** KVKK — veri export (JSON indir) + firma silme/anonimleştirme. */
 function DangerZone({ data }: { data: AdminCompanyDetail }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
   const expected = data.rothernId ?? data.id.slice(0, 8);
@@ -37,7 +78,7 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
       URL.revokeObjectURL(url);
       toast.success("Veri export'u indirildi");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Hata");
+      toastApiError(e);
     } finally {
       setBusy(false);
     }
@@ -46,17 +87,23 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
   const destroy = async () => {
     setBusy(true);
     try {
-      const { data: res } = await api.delete<{ mode: string }>(
-        `/admin/companies/${data.id}`,
-      );
+      const { data: res } = await api.delete<{
+        mode: string;
+        retainedBecause?: Record<string, number>;
+      }>(`/admin/companies/${data.id}`);
       toast.success(
         res.mode === "deleted"
           ? "Firma kalıcı olarak silindi"
-          : "Firma anonimleştirildi (siparişli — finansal kayıt korundu)",
+          : anonymizedMessage(res.retainedBecause),
       );
+      // Liste/KPI önbelleği (staleTime 60 sn) silinen firmayı eski adıyla
+      // göstermesin; detay önbelleği de atılır (derin denetim LU-12).
+      qc.removeQueries({ queryKey: ["admin-company-detail", data.id] });
+      void qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      void qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
       router.push("/admin/firmalar");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Hata");
+      toastApiError(e);
       setBusy(false);
     }
   };
@@ -71,31 +118,44 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
           <Download className="mr-1.5 h-3.5 w-3.5" /> Veri Export (JSON)
         </Button>
       </div>
-      <div className="mt-4 border-t border-red-200 pt-3">
-        <p className="text-xs text-red-800">
-          <strong>Firmayı sil:</strong> siparişi yoksa KALICI silinir; siparişi
-          varsa finansal kayıt korunur, kimlik <strong>anonimleştirilir</strong>{" "}
-          (geri alınamaz). Onay için firma kodunu yazın:{" "}
-          <code className="rounded bg-white px-1 font-mono">{expected}</code>
+      {/* Zaten anonimleştirilmiş kayıtta sil/anonimleştir yok (D-208; API 409)
+          — üstteki "işlem yapılamaz" bandıyla çelişmesin (yeniden doğrulama
+          webC-11). Saklanan geçmişin export'u açık kalır. */}
+      {data.anonymized ? (
+        <p className="mt-4 border-t border-red-200 pt-3 text-xs text-red-800">
+          Bu firma KVKK silme talebiyle zaten anonimleştirildi; kimlik
+          bilgileri silindi. Yeniden silme/anonimleştirme yapılamaz — yasal
+          saklama kapsamındaki geçmiş korunur.
         </p>
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder={expected}
-            aria-label="Silme onayı — firma kodu"
-            className="w-40 rounded-lg border border-red-300 bg-white px-3 py-1.5 font-mono text-sm"
-          />
-          <Button
-            variant="danger"
-            size="sm"
-            disabled={busy || confirmText.trim() !== expected}
-            onClick={destroy}
-          >
-            Kalıcı Olarak Sil / Anonimleştir
-          </Button>
+      ) : (
+        <div className="mt-4 border-t border-red-200 pt-3">
+          <p className="text-xs text-red-800">
+            <strong>Firmayı sil:</strong> platformda hiç izi yoksa KALICI
+            silinir; sipariş, teklif, talep, mesaj, değerlendirme, şikayet, davet
+            ya da üyelik geçmişi varsa bu kayıtlar korunur, kimlik{" "}
+            <strong>anonimleştirilir</strong> (geri alınamaz). Onay için firma
+            kodunu yazın:{" "}
+            <code className="rounded bg-white px-1 font-mono">{expected}</code>
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={expected}
+              aria-label="Silme onayı — firma kodu"
+              className="w-40 rounded-lg border border-red-300 bg-white px-3 py-1.5 font-mono text-sm"
+            />
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={busy || confirmText.trim() !== expected}
+              onClick={destroy}
+            >
+              Kalıcı Olarak Sil / Anonimleştir
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -171,12 +231,16 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
           <h3 className="text-admin-text text-sm font-semibold">
             Kimlik Bilgileri
           </h3>
-          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Düzenle
-          </Button>
+          {/* KVKK ile anonimleştirilmiş kayıt düzenlenmez (D-208; API 409). */}
+          {data.anonymized ? null : (
+            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Düzenle
+            </Button>
+          )}
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Row label="Ünvan" value={data.legalName} />
+          <Row label="Hukuki yapı" value={companyTypeText(data)} />
           <Row label="Vergi No" value={data.taxNumber} />
           <Row label="Vergi Dairesi" value={data.taxOffice} />
           <Row label="MERSİS No" value={data.mersisNo} />
@@ -186,7 +250,16 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
             label="Bölge / Şehir"
             value={[data.stateRegion, data.city].filter(Boolean).join(" / ")}
           />
+          <Row
+            label="İlçe / Mahalle"
+            value={[data.district, data.neighborhood].filter(Boolean).join(" / ")}
+          />
+          <Row label="Posta kodu" value={data.postalCode ?? null} />
           <Row label="Adres" value={data.addressLine} />
+          <Row label="Yetkili kimlik no" value={data.authorizedTckn ?? null} />
+          {data.vies || data.viesSupported ? (
+            <Row label="VIES (AB KDV)" value={viesText(data)} />
+          ) : null}
           <Row label="Sektör" value={data.industry} />
           <Row
             label="Web sitesi"
@@ -220,8 +293,10 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
               ) : null
             }
           />
-          <Row label="IBAN" value={data.iban} />
-          <Row label="IBAN Sahibi" value={data.ibanHolder} />
+          <Row label="IBAN / Hesap No" value={data.iban} />
+          <Row label="Hesap Sahibi" value={data.ibanHolder} />
+          <Row label="SWIFT / BIC" value={data.bankSwiftBic ?? null} />
+          <Row label="Banka" value={data.bankName ?? null} />
           <Row label="Kayıt tarihi" value={safeFormat(data.createdAt, "d MMM yyyy HH:mm")} />
           <Row
             label="Doğrulama tarihi"
@@ -234,7 +309,7 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
         </dl>
         {data.companyRejectionReason ? (
           <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-            Red gerekçesi: {data.companyRejectionReason}
+            Red gerekçesi: {reasonText(data.companyRejectionReason)}
           </p>
         ) : null}
       </section>

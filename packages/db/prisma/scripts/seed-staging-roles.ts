@@ -16,6 +16,7 @@
  * var olmayan alan adına gönderip Resend itibarını bozmayız.
  */
 import { type CompanyRole, type CompanyTier, PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { VIEWER_PRESET, permissionsForRoles, generateShortCode } from "@rothern/shared";
 import { createClient } from "@supabase/supabase-js";
 
@@ -23,15 +24,17 @@ const STAGING_REF = "tmqwyypvxxkwrxequksu";
 const MAILBOX = "uguray156";
 const PASSWORD = process.env.STAGING_QA_PASSWORD ?? "Staging1234!";
 
-const dbUrl = process.env.DATABASE_URL ?? "";
+// Ortam dosyası (ENV_FILE ya da kök .env) PrismaClient'tan ÖNCE yüklenir;
+// staging kapısı BAĞLANILACAK adresi (DIRECT_URL || DATABASE_URL) denetler.
+const dbUrl = prepareScriptDatabase("seed-staging-roles");
 if (!dbUrl.includes(STAGING_REF) && process.env.ALLOW_ANY_DB !== "1") {
   console.error(
-    "❌ DATABASE_URL staging projesini göstermiyor — bu seed yalnız staging içindir (ALLOW_ANY_DB=1 ile aşılır).",
+    "❌ Hedef veritabanı staging projesini göstermiyor — bu seed yalnız staging içindir (ALLOW_ANY_DB=1 ile aşılır).",
   );
   process.exit(1);
 }
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: dbUrl });
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,

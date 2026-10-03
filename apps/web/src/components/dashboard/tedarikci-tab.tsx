@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useFormatNumber } from "@/i18n/domain";
 import {
   Table,
   TableBody,
@@ -10,7 +12,6 @@ import {
 } from "@/components/catalyst/table";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Trophy } from "lucide-react";
-import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -20,7 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import { InfoTooltip } from "./info-tooltip";
-import { PeriodToggle, type Period } from "./period-toggle";
+import type { Period } from "./period-toggle";
 
 export interface SupplierMetric {
   fromPool: number;
@@ -60,21 +61,31 @@ export interface TedarikciTabData {
 
 interface Props {
   data: TedarikciTabData;
+  /** Global dönem — sayfa başındaki TEK seçici (Tasarruf sekmesiyle aynı;
+   *  kart içi seçiciler kalktı). Uçta yalnız ay ve yıl kırılımı var: çeyrek
+   *  ve özel aralıkta YIL gösterilir ve bunu söyleyen not çıkar (arayüz testi
+   *  O-104; eskiden "Bu Çeyrek" sessizce yıl verisi gösteriyordu ve sekme
+   *  sayfanın dönemini yok sayıp "Bu Ay" açılıyordu). */
+  period: Period | "custom";
 }
 
 const MEDAL_BG = ["bg-amber-400", "bg-slate-300", "bg-orange-400"] as const;
 
-export function TedarikciTab({ data }: Props) {
-  const [topPeriod, setTopPeriod] = useState<Period>("month");
-  const [compPeriod, setCompPeriod] = useState<Period>("month");
+export function TedarikciTab({ data, period }: Props) {
+  const t = useTranslations("web.panel.shell.tedarikciTab");
+  const fmtNum = useFormatNumber();
+  const dataPeriod: "month" | "year" = period === "month" ? "month" : "year";
 
   const topSuppliers =
-    topPeriod === "month" ? data.topSuppliersMonth : data.topSuppliersYear;
+    dataPeriod === "month" ? data.topSuppliersMonth : data.topSuppliersYear;
   const competitive =
-    compPeriod === "month" ? data.competitiveMonth : data.competitiveYear;
+    dataPeriod === "month" ? data.competitiveMonth : data.competitiveYear;
 
   return (
     <div className="space-y-6">
+      {period !== "month" && period !== "year" ? (
+        <p className="text-xs text-zinc-400">{t("yilVerisiGosteriliyor")}</p>
+      ) : null}
       {/* Faz 6: Rekabet Skoru bilgisi ana tablonun "Rekabet" kolonuna,
           Nakit Takvimi anasayfa gövdesine (İhale sekmesi) taşındı — üçüncü
           sekmede saklı kalmıyorlar. */}
@@ -84,26 +95,25 @@ export function TedarikciTab({ data }: Props) {
         <section className="card p-6 lg:col-span-2">
           <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <InfoTooltip content="Dönemde en çok satın alma talebinize teklif veren tedarikçiler. Ortalama sıralama düşükse o tedarikçi sürekli en iyi 1-2 fiyat veriyor demektir." />
+              <InfoTooltip content={t("donemdeEnCokSatinAlma")} />
               <h2 className="text-sm font-semibold text-zinc-950">
-                En Sık Teklif Veren Tedarikçiler
+                {t("enSikTeklifVerenTedarikciler")}
               </h2>
             </div>
-            <PeriodToggle value={topPeriod} onChange={setTopPeriod} />
           </header>
 
           {topSuppliers.length === 0 ? (
             <p className="py-8 text-center text-sm text-zinc-500">
-              Bu dönemde teklif veren tedarikçi bulunmuyor.
+              {t("buDonemdeTeklifVerenTedarikci")}
             </p>
           ) : (
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader>Tedarikçiler</TableHeader>
-                  <TableHeader>Teklif Verdiği Talep</TableHeader>
-                  <TableHeader>Ortalama Sıra</TableHeader>
-                  <TableHeader>Toplam Teklif</TableHeader>
+                  <TableHeader>{t("tedarikciler")}</TableHeader>
+                  <TableHeader>{t("teklifVerdigiTalep")}</TableHeader>
+                  <TableHeader>{t("ortalamaSira")}</TableHeader>
+                  <TableHeader>{t("toplamTeklif")}</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -118,7 +128,7 @@ export function TedarikciTab({ data }: Props) {
                           <span
                             aria-hidden
                             className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white ${MEDAL_BG[r.rank - 1]}`}
-                            title={`${r.rank}. sırada`}
+                            title={t("sirada", { rank: r.rank })}
                           >
                             ★
                           </span>
@@ -133,7 +143,7 @@ export function TedarikciTab({ data }: Props) {
                       {r.tendersBidOn}
                     </TableCell>
                     <TableCell className=" tabular-nums text-zinc-700">
-                      {r.averageRank.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {fmtNum(r.averageRank, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className=" tabular-nums text-zinc-700">
                       {r.totalBids}
@@ -149,9 +159,8 @@ export function TedarikciTab({ data }: Props) {
         <section className="card p-6">
           <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-zinc-950">
-              En Rekabetçi Talep
+              {t("enRekabetciTalep")}
             </h2>
-            <PeriodToggle value={compPeriod} onChange={setCompPeriod} />
           </header>
 
           <div className="relative h-40">
@@ -190,7 +199,7 @@ export function TedarikciTab({ data }: Props) {
             <div className="pointer-events-none absolute left-1/2 top-1 -translate-x-1/2">
               <div className="flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700 shadow-sm">
                 <Trophy className="h-3 w-3 fill-current text-amber-500" />
-                {competitive.bidderCount} Teklif Veren
+                {t("teklifVeren", { bidderCount: competitive.bidderCount })}
               </div>
             </div>
           </div>
@@ -203,7 +212,7 @@ export function TedarikciTab({ data }: Props) {
               {competitive.title}
             </p>
             <p className="text-xs text-zinc-500">
-              İhaledeki Teklif Veren Sayısı: {competitive.bidderCount}
+              {t("talepTeklifVerenSayisi", { bidderCount: competitive.bidderCount })}
             </p>
           </div>
         </section>

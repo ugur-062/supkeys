@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   Bar,
   BarChart,
@@ -29,12 +31,16 @@ import type {
   SatinalmaAnalytics,
   SatinalmaDashboard,
 } from "@/hooks/use-company-dashboard";
-import { formatCompactMoney, formatMoney } from "@/components/ui/money";
+import { ErrorState } from "@/components/ui/error-state";
+import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
+import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { formatDate } from "@/lib/format-date";
+import { calendarDaysBetween } from "@/lib/time-zone";
+import { BUYER_ORDER_HREF } from "@/lib/dashboard/strings";
 
 type SubTab = "own" | "company";
 
@@ -45,7 +51,7 @@ const FUNNEL_STAGE_HREF: Record<string, string> = {
   bids: "/company/satinalma/taleplerim",
   awarded: "/company/satinalma/taleplerim?status=AWARDED",
   orders: "/company/satinalma/siparisler",
-  delivered: "/company/satinalma/siparisler?status=DELIVERED",
+  delivered: BUYER_ORDER_HREF.delivered,
 };
 
 /** Satınalma panosu — İhale sekmesi (eski ihale-tab markup'ı, yeni veri). */
@@ -53,12 +59,33 @@ export function SatinalmaIhaleTab({
   data,
   analytics,
   showKpis = true,
+  analyticsError = false,
+  onRetryAnalytics,
 }: {
   data: SatinalmaDashboard;
   analytics?: SatinalmaAnalytics;
   /** Şirketim › Genel Bakış: sayılar ayrı bölümde — burada yalnız grafik/tablo. */
   showKpis?: boolean;
+  /** Analitik ucu hata verdi (veri yok): huni/döngü/nakit kartları "henüz veri
+   *  yok" boş durumu DEĞİL, tekrar-dene'li hata gösterir (arayüz testi O-102). */
+  analyticsError?: boolean;
+  onRetryAnalytics?: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
+  // "Satın Alma Talebi Aç" yalnız talep açma izniyle — menü CTA'sıyla aynı
+  // kural (paket kapısı panoyu zaten Gold'a bağlar; rol kontrolü içinde).
+  // İzinsiz üye CTA'dan "yetki gerektirir" duvarına düşüyordu (arayüz testi T3).
+  const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
+  const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
+  const locale = useLocale();
+  const { money: fm, compact: fcm, axis: fam, axisWidth } = useFormatMoney();
+  // Tutarlar firmanın RAPOR BİRİMİNDE (2026-09-27; sunucu her siparişi kendi
+  // biriminden çevirir) — eskiden yalnız TRY siparişler sayılıyordu.
+  const cur = analytics?.currency ?? "TRY";
+  const formatMoney = (v: number) => fm(v, cur);
+  const formatCompactMoney = (v: number) => fcm(v, cur);
+  // Eksen tek gösterim: ölçek serinin en büyük tutarından seçilir.
+  const cashScaleMax = axisScaleMax(analytics?.cashCalendar.map((w) => w.amount) ?? []);
   const [subTab, setSubTab] = useState<SubTab>("own");
   // Faz 6.2 — varsayılan sıralama KAPANIŞA göre artan (ihale no değil);
   // kolon başlıkları tıklanınca yön/kolon değişir.
@@ -76,50 +103,50 @@ export function SatinalmaIhaleTab({
     <div className="space-y-6">
       {showKpis ? (
         <>
-      {/* Faz 4.1 — birincil satır TUTAR (TRY-only, etiketle söylenir);
+      {/* Faz 4.1 — birincil satır TUTAR (rapor biriminde, etikette söylenir);
           adet kartları ikinci satıra indi. */}
       {analytics ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
-            label="Dönem Harcaması"
+            label={t("donemHarcamasi")}
             value={formatCompactMoney(analytics.money.periodSpend)}
             valueTitle={formatMoney(analytics.money.periodSpend)}
             href="/company/satinalma/siparisler"
             accent="blue"
             deltaPct={analytics.money.deltas.periodSpend}
-            hint="dönem içi siparişler · yalnız TRY"
+            hint={t("donemIciSiparislerCur", { currency: cur })}
           />
           <KpiCard
-            label="Açık Sipariş Taahhüdü"
+            label={t("acikSiparisTaahhudu")}
             value={formatCompactMoney(analytics.money.openCommitment)}
             valueTitle={formatMoney(analytics.money.openCommitment)}
             href="/company/satinalma/siparisler"
             accent="blue"
-            hint="ödenmemiş sipariş bakiyesi · yalnız TRY"
+            hint={t("odenmemisSiparisBakiyesiCur", { currency: cur })}
           />
           <KpiCard
-            label="30 Günde Vadesi Gelen"
+            label={t("n30GundeVadesiGelen")}
             value={formatCompactMoney(analytics.money.dueIn30d)}
             valueTitle={formatMoney(analytics.money.dueIn30d)}
-            href="/company/satinalma/siparisler?status=DELIVERED"
+            href={BUYER_ORDER_HREF.delivered}
             accent="blue"
             attention={analytics.money.dueIn30d > 0}
             hint={
               analytics.money.dueIn30d > 0
-                ? "ödeme planla — vade 30 gün içinde"
-                : "vadesi yaklaşan ödeme yok"
+                ? t("odemePlanlaVade30Gun")
+                : t("vadesiYaklasanOdemeYok")
             }
           />
           <KpiCard
-            label="Gerçekleşen Tasarruf"
+            label={t("gerceklesenTasarruf")}
             value={formatCompactMoney(analytics.money.realizedSavings)}
             valueTitle={formatMoney(analytics.money.realizedSavings)}
             href="/company/sirketim/raporlar/tasarruf"
             accent="blue"
             deltaPct={analytics.money.deltas.realizedSavings}
             spark={analytics.savingsTrend}
-            sparkLabels={{ valueSuffix: " ₺" }}
-            hint="hedef fiyata göre · yalnız TRY"
+            sparkLabels={{ valueSuffix: ` ${currencySymbol(cur)}` }}
+            hint={t("hedefFiyataGoreCur", { currency: cur })}
           />
         </div>
       ) : null}
@@ -128,28 +155,30 @@ export function SatinalmaIhaleTab({
           Vurgu kuralı (Faz 4.4): yalnız aksiyon bekleyen > 0 + neden metni. */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Açık Satın Alma Taleplerim"
+          label={t("acikSatinAlmaTaleplerim")}
           value={data.openCount}
           href="/company/satinalma/taleplerim?status=OPEN"
           accent="blue"
           spark={analytics?.kpiSeries.listings}
         />
         <KpiCard
-          label="Gelen Teklifler"
+          label={t("gelenTeklifler")}
           value={data.bidsReceived}
-          href="/company/satinalma/taleplerim?status=IN_AWARD"
+          // Sayım yalnız AÇIK taleplere gelen teklifler — hedef liste aynı küme
+          // (derin denetim S066; eskiden IN_AWARD'a gidip boş liste açıyordu).
+          href="/company/satinalma/taleplerim?status=OPEN"
           accent="blue"
           attention={(analytics?.actions.awaitingDecision ?? 0) > 0}
           hint={
             (analytics?.actions.awaitingDecision ?? 0) > 0
-              ? `${analytics!.actions.awaitingDecision} satın alma talebi karar bekliyor`
+              ? t("satinAlmaTalebiKararBekliyor", { awaitingDecision: analytics!.actions.awaitingDecision })
               : undefined
           }
           deltaPct={analytics?.deltas.bids}
           spark={analytics?.kpiSeries.bids}
         />
         <KpiCard
-          label="Kazandırılan Satın Alma Talepleri"
+          label={t("kazandirilanSatinAlmaTalepleri")}
           value={data.awarded}
           href="/company/satinalma/taleplerim?status=AWARDED"
           accent="blue"
@@ -157,9 +186,9 @@ export function SatinalmaIhaleTab({
           spark={analytics?.kpiSeries.awarded}
         />
         <KpiCard
-          label="Devam Eden Siparişler"
+          label={t("devamEdenSiparisler")}
           value={data.ongoingOrders}
-          href="/company/satinalma/siparisler"
+          href={BUYER_ORDER_HREF.ongoing}
           accent="blue"
           deltaPct={analytics?.deltas.orders}
           spark={analytics?.kpiSeries.orders}
@@ -170,11 +199,15 @@ export function SatinalmaIhaleTab({
         </>
       ) : null}
 
+      {!analytics && analyticsError ? (
+        <ErrorState title={t("analitikAlinamadi")} onRetry={onRetryAnalytics} />
+      ) : (
+        <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Süreç Hunisi"
-          subtitle="Dönemde açılan satın alma taleplerin bugünkü aşaması (kohort — her aşama öncekinin alt kümesi)"
-          ariaLabel="Satınalma süreç hunisi"
+          title={t("surecHunisi")}
+          subtitle={t("donemdeAcilanSatinAlmaTaleplerin")}
+          ariaLabel={t("satinalmaSurecHunisi")}
           href="/company/satinalma/taleplerim"
         >
           {analytics && analytics.funnel[0]!.count > 0 ? (
@@ -187,18 +220,18 @@ export function SatinalmaIhaleTab({
             />
           ) : (
             <DashboardEmptyState
-              title="Henüz huni verisi yok"
-              body="İlk satın alma talebinizi açıp teklif topladığınızda süreç dönüşümü burada görünecek."
-              ctaLabel="Satın Alma Talebi Aç"
-              ctaHref="/company/satinalma/taleplerim/yeni"
+              title={t("henuzHuniVerisiYok")}
+              body={t("ilkSatinAlmaTalebiniziAcip")}
+              ctaLabel={canCreateBuyListing ? t("satinAlmaTalebiAc") : undefined}
+              ctaHref={canCreateBuyListing ? "/company/satinalma/taleplerim/yeni" : undefined}
             />
           )}
         </ChartCard>
         <ChartCard
-          title="Döngü Süresi"
-          subtitle="Satın Alma Talebi açılışından siparişe geçen ortalama gün (aylık)"
-          ariaLabel="Döngü süresi trendi"
-          rangeBadge="son 12 ay"
+          title={t("donguSuresi")}
+          subtitle={t("satinAlmaTalebiAcilisindanSiparise")}
+          ariaLabel={t("donguSuresiTrendi")}
+          rangeBadge={tRange("son12Ay")}
         >
           <CycleTrendChart points={analytics?.cycleTrend} />
         </ChartCard>
@@ -207,10 +240,10 @@ export function SatinalmaIhaleTab({
       {/* Nakit Takvimi — tedarikçi sekmesinden anasayfa gövdesine taşındı
           (Faz 6.3): ödeme yükü üçüncü sekmede saklı kalmasın. */}
       <ChartCard
-        title="Nakit Takvimi"
-        subtitle="Önümüzdeki 30 günün ödeme yükü (haftalık, TRY siparişler)"
-        ariaLabel="30 günlük ödeme takvimi"
-        href="/company/satinalma/siparisler?status=DELIVERED"
+        title={t("nakitTakvimi")}
+        subtitle={t("onumuzdeki30GununOdemeYukuCur", { currency: cur })}
+        ariaLabel={t("n30GunlukOdemeTakvimi")}
+        href={BUYER_ORDER_HREF.delivered}
       >
         {analytics && analytics.cashCalendar.some((w) => w.amount > 0) ? (
           <div className="h-44">
@@ -218,19 +251,28 @@ export function SatinalmaIhaleTab({
               <BarChart data={analytics.cashCalendar}>
                 <CartesianGrid vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <YAxis tickLine={false} axisLine={false} width={52} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0), "TRY"), "Ödeme"]} />
+                {/* Tutar ekseni kısaltılır — ham değer dar eksende kırpılıyordu. */}
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={axisWidth(cur, cashScaleMax)}
+                  tick={{ fontSize: 11, fill: "#94a3b8" }}
+                  tickFormatter={(v: number) => fam(Number(v), cur, cashScaleMax)}
+                />
+                <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), t("odeme")]} />
                 <Bar dataKey="amount" fill="#2563eb" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         ) : (
           <DashboardEmptyState
-            title="Önümüzdeki 30 günde vadesi gelen ödeme yok"
-            body="Teslim alınan siparişlerin vadeleri yaklaştıkça haftalık ödeme yükün burada görünecek."
+            title={t("onumuzdeki30GundeVadesiGelen")}
+            body={t("teslimAlinanSiparislerinVadeleriYaklastikca")}
           />
         )}
       </ChartCard>
+        </>
+      )}
 
       {/* Teklife Açık İhaleler paneli */}
       <section className="card">
@@ -238,14 +280,14 @@ export function SatinalmaIhaleTab({
           <div className="flex items-center gap-2">
             <span aria-hidden className="h-2 w-2 rounded-full bg-success-500" />
             <h2 className="text-base font-semibold text-zinc-950">
-              Teklife Açık Satın Alma Talepleri
+              {t("teklifeAcikSatinAlmaTalepleri")}
             </h2>
           </div>
           <Link
             href="/company/satinalma/taleplerim"
             className="text-sm font-semibold text-zinc-900 hover:text-zinc-600"
           >
-            Tümünü İncele →
+            {t("tumunuIncele")}
           </Link>
         </header>
 
@@ -254,8 +296,8 @@ export function SatinalmaIhaleTab({
           <div className="inline-flex w-fit gap-1 rounded-lg bg-zinc-100 p-0.5">
             {(
               [
-                ["own", "Oluşturduğunuz", data.openTendersOwn.length],
-                ["company", "Firmanın", data.openTendersCompany.length],
+                ["own", t("olusturdugunuz"), data.openTendersOwn.length],
+                ["company", t("firmanin"), data.openTendersCompany.length],
               ] as const
             ).map(([key, label, count]) => (
               <button
@@ -290,7 +332,7 @@ export function SatinalmaIhaleTab({
               <FileX2 className="h-7 w-7 text-zinc-400" />
             </div>
             <p className="text-sm text-zinc-500">
-              Görüntülenecek bir satın alma talebi bulunmamaktadır.
+              {t("goruntulenecekBirSatinAlmaTalebi")}
             </p>
           </div>
         ) : (
@@ -298,21 +340,21 @@ export function SatinalmaIhaleTab({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <SortableHeader label="Satın Alma Talebi No" k="number" sort={sort} onSort={toggleSort} />
+                  <SortableHeader label={t("satinAlmaTalebiNo")} k="number" sort={sort} onSort={toggleSort} />
                   <TableHeader>
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                      Satın Alma Talebi Adı
+                      {t("satinAlmaTalebiAdi")}
                     </span>
                   </TableHeader>
-                  <SortableHeader label="Açılış Tarihi" k="opened" sort={sort} onSort={toggleSort} />
-                  <SortableHeader label="Kapanış" k="closes" sort={sort} onSort={toggleSort} />
+                  <SortableHeader label={t("acilisTarihi")} k="opened" sort={sort} onSort={toggleSort} />
+                  <SortableHeader label={t("kapanis")} k="closes" sort={sort} onSort={toggleSort} />
                   <SortableHeader
-                    label="Gelen Teklif" k="bids" sort={sort} onSort={toggleSort}
+                    label={t("gelenTeklif")} k="bids" sort={sort} onSort={toggleSort}
                     className="text-right"
                   />
                   <TableHeader>
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                      Rekabet
+                      {t("rekabet")}
                     </span>
                   </TableHeader>
                 </TableRow>
@@ -338,12 +380,12 @@ export function SatinalmaIhaleTab({
                       </Link>
                     </TableCell>
                     <TableCell className="tabular-nums text-xs text-zinc-400">
-                      {formatDate(r.openedAt)}
+                      {formatDate(r.openedAt, "short", locale)}
                     </TableCell>
                     <TableCell>
                       <span className="flex flex-col items-start gap-0.5">
                         <span className="text-[13px] font-semibold tabular-nums text-zinc-900">
-                          {formatDate(r.closesAt)}
+                          {formatDate(r.closesAt, "short", locale)}
                         </span>
                         <DaysLeftBadge closesAt={r.closesAt} />
                       </span>
@@ -437,37 +479,41 @@ function CompetitionCell({
 }: {
   row: { id: string; closesAt: string; bidCount?: number };
 }) {
+  const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
   const bids = row.bidCount ?? 0;
   if (bids >= 2) {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
         <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
-        Sağlıklı
+        {t("saglikli")}
       </span>
     );
   }
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5 whitespace-nowrap">
       <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-        {bids === 0 ? "0 teklif" : "1 teklif"}
+        {t("teklifSayisi", { n: bids })}
       </span>
       <Link
         href={`/company/ilan/${row.id}`}
         className="text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
       >
-        Davetli Ekle
+        {t("davetliEkle")}
       </Link>
     </span>
   );
 }
 
 /** Kapanışa kalan gün rozeti: ≤3 kırmızı, ≤7 amber, aksi nötr. */
-function DaysLeftBadge({ closesAt }: { closesAt: string }) {
-  const days = Math.ceil(
-    (new Date(closesAt).getTime() - Date.now()) / 86_400_000,
-  );
-  if (days < 0)
-    return <span className="text-xs text-zinc-400">Kapandı</span>;
+export function DaysLeftBadge({ closesAt }: { closesAt: string }) {
+  const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
+  // Takvim günü farkı (APP_TIME_ZONE): `Math.ceil(ms/gün)` aynı gün kapanan
+  // talebe "1 gün kaldı" diyordu, "Bugün" dalı ölüydü (derin denetim LU-29).
+  const closes = new Date(closesAt);
+  const now = new Date();
+  const days = calendarDaysBetween(now, closes);
+  if (closes.getTime() <= now.getTime())
+    return <span className="text-xs text-zinc-400">{t("kapandi")}</span>;
   const cls =
     days <= 3
       ? "bg-rose-50 text-rose-700"
@@ -478,7 +524,7 @@ function DaysLeftBadge({ closesAt }: { closesAt: string }) {
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${cls}`}
     >
-      {days === 0 ? "Bugün" : `${days} gün kaldı`}
+      {days === 0 ? t("bugun") : t("gunKaldi", { days: days })}
     </span>
   );
 }
@@ -490,19 +536,22 @@ function DaysLeftBadge({ closesAt }: { closesAt: string }) {
  *    çevrilir,
  *  - null aylar çizgiyle BAĞLANMAZ (connectNulls yok) — izole ay dot kalır.
  *  Hedef verisi platformda YOK (TODO: firma hedefi girilirse ReferenceLine). */
-function CycleTrendChart({
+/** Test için dışa açık (döngü süresi grafiği i18n sözleşmesi). */
+export function CycleTrendChart({
   points,
 }: {
   points?: { key: string; label: string; value: number | null }[];
 }) {
+  const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
+  const formatDaysOrHours = useFormatDaysOrHours();
   const filled = (points ?? []).filter(
     (p): p is { key: string; label: string; value: number } => p.value != null,
   );
   if (filled.length === 0) {
     return (
       <DashboardEmptyState
-        title="Henüz döngü verisi yok"
-        body="Kazandırdığınız satın alma talebi siparişe dönüştüğünde açılış→sipariş süresi burada görünecek."
+        title={t("henuzDonguVerisiYok")}
+        body={t("kazandirdiginizSatinAlmaTalebiSiparise")}
       />
     );
   }
@@ -517,10 +566,10 @@ function CycleTrendChart({
           {formatDaysOrHours(avgDays)}
         </p>
         <p className="text-sm text-slate-500">
-          ortalama · önceki dönem —
+          {t("ortalamaOncekiDonem")}
         </p>
         <p className="text-xs text-slate-400">
-          Trend için en az 3 ay veri gerekli.
+          {t("trendIcinEnAz3")}
         </p>
       </div>
     );
@@ -533,7 +582,16 @@ function CycleTrendChart({
         p.value == null ? p : { ...p, value: Math.round(p.value * 24) },
       )
     : points;
-  const unit = useHours ? "saat" : "gün";
+  // Eksen birimi parametresiz anahtardan; tooltip değeri çoğul biçimli
+  // `saat`/`gun` ile (derin denetim 2026-09-29: `t("gun")` değersiz çağrılınca
+  // prod'da ham ICU metni basılıyordu, "saat"/"Ortalama" sabit Türkçeydi).
+  const unit = useHours ? t("birimSaat") : t("birimGun");
+  const formatValue = (v: unknown) =>
+    useHours
+      ? Number(v ?? 0) < 1
+        ? t("saatAlti")
+        : t("saat", { n: Number(v ?? 0) })
+      : t("gun", { n: Number(v ?? 0) });
 
   return (
     <div>
@@ -549,7 +607,7 @@ function CycleTrendChart({
               tick={{ fontSize: 11, fill: "#94a3b8" }}
               allowDecimals={false}
             />
-            <Tooltip formatter={(v) => [`${Number(v ?? 0)} ${unit}`, "Ortalama"]} />
+            <Tooltip formatter={(v) => [formatValue(v), t("ortalama")]} />
             <Line
               type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={1.5}
               dot={{ r: 3 }} isAnimationActive={false}
@@ -562,10 +620,20 @@ function CycleTrendChart({
   );
 }
 
-/** < 1 gün ortalamayı saate çevirerek yazar ("14 saat" / "1,4 gün"). */
-function formatDaysOrHours(days: number): string {
-  if (days < 1) return `${Math.round(days * 24)} saat`;
-  return `${days.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} gün`;
+/**
+ * < 1 gün ortalamayı saate çevirerek yazar ("14 saat" / "1,4 gün") — dil bilen
+ * hook. 1 saatin altı "<1 saat": yuvarlanmış "0 saat" süre yokmuş gibi
+ * okunuyordu (arayüz testi O-041'in İş Analizi kuralı; webC-04 yeniden
+ * doğrulama).
+ */
+function useFormatDaysOrHours(): (days: number) => string {
+  const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
+  const locale = useLocale();
+  return (days) => {
+    if (days >= 1) return t("gun", { n: days.toLocaleString(locale, { maximumFractionDigits: 1 }) });
+    const hours = Math.round(days * 24);
+    return hours < 1 ? t("saatAlti") : t("saat", { n: hours });
+  };
 }
 
 // Dalga B-2: yerel `formatDate` KALDIRILDI — paylaşılan formatDate'i

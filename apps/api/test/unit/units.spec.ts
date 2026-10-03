@@ -69,6 +69,39 @@ describe("Ölçü birimi kataloğu", () => {
       expect(normalizeUnit("M3")).toBe("M3");
     });
 
+    it("her alias KENDİ birimine düşer (katlanmış ya da noktasız biçimde gölgelenmez)", () => {
+      for (const u of UNITS) {
+        for (const a of u.aliases) expect([a, normalizeUnit(a)]).toEqual([a, u.code]);
+      }
+    });
+
+    it("İngilizce çoğul ve yaygın biçimler (2026-09-27)", () => {
+      const cases: [string, string][] = [
+        ["pieces", "PCE"], ["Each", "PCE"], ["EA", "PCE"], ["pairs", "PAIR"], ["sets", "SET"],
+        ["kgs", "KG"], ["tons", "TON"], ["Tonnes", "TON"], ["metric tons", "TON"],
+        ["metres", "M"], ["Meters", "M"], ["square metres", "M2"], ["sq. m", "M2"], ["cubic meters", "M3"],
+        ["litres", "LTR"], ["liters", "LTR"], ["boxes", "BOX"], ["cartons", "CRT"], ["pallets", "PAL"],
+        ["rolls", "ROL"], ["bags", "BAG"], ["drums", "DRM"], ["hours", "HUR"], ["days", "DAY"],
+        ["months", "MON"], ["years", "YER"], ["man-days", "MDY"], ["trips", "TRP"],
+      ];
+      for (const [raw, code] of cases) expect([raw, normalizeUnit(raw)]).toEqual([raw, code]);
+    });
+
+    it("Rusça birimler — Excel içe aktarma ve AI kalemleri unitCode alsın (2026-09-27)", () => {
+      const cases: [string, string][] = [
+        ["шт", "PCE"], ["шт.", "PCE"], ["Штук", "PCE"], ["пара", "PAIR"], ["комплект", "SET"],
+        ["кг", "KG"], ["г", "GRM"], ["т", "TON"], ["тонн", "TON"],
+        ["м", "M"], ["п.м.", "M"], ["мм", "MM"], ["см", "CM"], ["км", "KM"],
+        ["м2", "M2"], ["м²", "M2"], ["кв.м", "M2"], ["кв. м", "M2"], ["кв м", "M2"],
+        ["м3", "M3"], ["куб.м", "M3"], ["л", "LTR"], ["литр", "LTR"], ["мл", "ML"],
+        ["упак", "PKT"], ["упак.", "PKT"], ["коробка", "BOX"], ["короб", "CRT"], ["паллет", "PAL"],
+        ["поддон", "PAL"], ["рулон", "ROL"], ["мешок", "BAG"], ["бочка", "DRM"],
+        ["час", "HUR"], ["ч", "HUR"], ["день", "DAY"], ["мес", "MON"], ["мес.", "MON"], ["год", "YER"],
+        ["услуга", "SRV"], ["человеко-день", "MDY"], ["рейс", "TRP"],
+      ];
+      for (const [raw, code] of cases) expect([raw, normalizeUnit(raw)]).toEqual([raw, code]);
+    });
+
     it("tanınmayan birim null döner — İŞ ENGELLENMEZ", () => {
       // Liste bilinçli KAPALI DEĞİL: kullanıcı "bobin" yazabilmeli.
       expect(normalizeUnit("bobin")).toBeNull();

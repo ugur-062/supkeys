@@ -9,7 +9,9 @@ import {
   useAdminComplaints,
   type AdminCompanyStats,
 } from "@/hooks/use-admin-companies";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useAdminProductStats } from "@/hooks/use-admin-products";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -28,7 +30,17 @@ import {
 import Link from "next/link";
 
 function DashboardContent() {
-  const companiesQ = useAdminCompanies({ page: 1, pageSize: 6 });
+  // Firma listesi/detayı (GET admin/companies[/:id]) SUPPORT'a kapalı (KYC PII).
+  // Genel Bakış herkesin açılış sayfası: SUPPORT'ta liste hiç istenmez (her
+  // girişte çift 403 toast'ı + yanıltıcı "Firma yok" vardı — derin denetim
+  // LU-11) ve 403 veren sayfalara bağlantı verilmez.
+  const { admin } = useAdminAuth();
+  const canCompanies = canAdminDo(admin?.role, "listCompanies");
+  const companyHref = (href: string) => (canCompanies ? href : undefined);
+  const companiesQ = useAdminCompanies(
+    { page: 1, pageSize: 6 },
+    { enabled: canCompanies },
+  );
   const openComplaintsQ = useAdminComplaints("OPEN");
   const statsQ = useAdminCompanyStats();
   const s = statsQ.data;
@@ -60,7 +72,7 @@ function DashboardContent() {
           icon={Building2}
           label="Toplam Firma"
           value={s?.totalCompanies ?? 0}
-          href="/admin/firmalar"
+          href={companyHref("/admin/firmalar")}
           sub={
             s
               ? `${s.tierBreakdown.GOLD} gold · ${s.tierBreakdown.SILVER} silver · ${s.tierBreakdown.STANDART} standart`
@@ -71,13 +83,16 @@ function DashboardContent() {
           icon={ShieldCheck}
           label="Doğrulanmış"
           value={s?.verified ?? 0}
-          href="/admin/firmalar?status=VERIFIED"
+          href={companyHref("/admin/firmalar?status=VERIFIED")}
         />
         <KpiCard
           icon={Clock}
           label="İnceleme Bekleyen"
           value={s?.pendingReview ?? 0}
-          href="/admin/firmalar?status=PENDING"
+          // Sayaç `list(queue:"kyc")` evreni (PENDING + revizyon bekleyen
+          // VERIFIED) → aynı kümeyi gösteren Başvurular kuyruğuna gider;
+          // `?status=PENDING` revizyonları dışarıda bırakıyordu (LU-11).
+          href={companyHref("/admin/basvurular")}
           // SLA: kuyrukta 2+ gün bekleyen başvuru varsa kırmızı uyarı.
           alert={(s?.pendingReview ?? 0) > 0 && (queueAgeDays ?? 0) >= 2}
           sub={
@@ -136,13 +151,17 @@ function DashboardContent() {
         <Panel
           title="Süresi Yaklaşan Üyelikler"
           titleIcon={CalendarClock}
-          moreHref="/admin/firmalar"
+          // Süzülmüş liste (aynı 30 gün tanımı) — süzgeçsiz firma listesine
+          // gidiyordu (arayüz testi D-146).
+          moreHref={companyHref("/admin/firmalar?expiring=30")}
         >
           {(s?.expiringMemberships ?? []).length === 0 ? (
             <p className="text-admin-text-muted p-6 text-center text-sm">
               {statsQ.isLoading
                 ? "Yükleniyor…"
-                : "30 gün içinde bitecek üyelik yok"}
+                : (s?.expiringMembershipsCount ?? 0) > 0
+                  ? `30 gün içinde bitecek ${s?.expiringMembershipsCount} üyelik var`
+                  : "30 gün içinde bitecek üyelik yok"}
             </p>
           ) : (
             (s?.expiringMemberships ?? []).map((c) => {
@@ -151,10 +170,10 @@ function DashboardContent() {
                   86_400_000,
               );
               return (
-                <Link
+                <RowLink
                   key={c.id}
-                  href={`/admin/firmalar/${c.id}`}
-                  className="hover:bg-admin-border/20 flex items-center justify-between px-5 py-3"
+                  href={companyHref(`/admin/firmalar/${c.id}`)}
+                  className="flex items-center justify-between px-5 py-3"
                 >
                   <div className="min-w-0">
                     <p className="text-admin-text truncate font-semibold">
@@ -167,24 +186,27 @@ function DashboardContent() {
                   <Badge color={days <= 7 ? "red" : "amber"}>
                     {days} gün
                   </Badge>
-                </Link>
+                </RowLink>
               );
             })
           )}
         </Panel>
 
         {/* Ülke dağılımı */}
-        <Panel title="Ülke Dağılımı" moreHref="/admin/firmalar">
+        <Panel
+          title="Ülke Dağılımı"
+          moreHref={companyHref("/admin/firmalar")}
+        >
           {(s?.countryBreakdown ?? []).length === 0 ? (
             <p className="text-admin-text-muted p-6 text-center text-sm">
               {statsQ.isLoading ? "Yükleniyor…" : "Veri yok"}
             </p>
           ) : (
             (s?.countryBreakdown ?? []).map((c) => (
-              <Link
+              <RowLink
                 key={c.country}
-                href={`/admin/firmalar?country=${c.country}`}
-                className="hover:bg-admin-border/20 flex items-center justify-between px-5 py-2.5"
+                href={companyHref(`/admin/firmalar?country=${c.country}`)}
+                className="flex items-center justify-between px-5 py-2.5"
               >
                 <span className="text-admin-text text-sm">
                   {countryFlag(c.country)} {countryName(c.country)}
@@ -192,39 +214,45 @@ function DashboardContent() {
                 <span className="text-admin-text text-sm font-semibold tabular-nums">
                   {c.count}
                 </span>
-              </Link>
+              </RowLink>
             ))
           )}
         </Panel>
 
-        {/* Son firmalar */}
-        <Panel title="Son Firmalar" moreHref="/admin/firmalar">
-          {companies.length === 0 ? (
-            <p className="text-admin-text-muted p-6 text-center text-sm">
-              {companiesQ.isLoading ? "Yükleniyor…" : "Firma yok"}
-            </p>
-          ) : (
-            companies.map((c) => (
-              <Link
-                key={c.id}
-                href={`/admin/firmalar/${c.id}`}
-                className="hover:bg-admin-border/20 flex items-center justify-between px-5 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-admin-text truncate font-semibold">
-                    {countryFlag(c.country)} {c.name}
-                  </p>
-                  <p className="text-admin-text-muted font-mono text-xs">
-                    {c.rothernId ?? "—"}
-                  </p>
-                </div>
-                <span className="text-admin-text-muted ml-3 flex-shrink-0 text-xs">
-                  {safeFormat(c.createdAt, "d MMM")}
-                </span>
-              </Link>
-            ))
-          )}
-        </Panel>
+        {/* Son firmalar — yalnız firma listesini görebilen roller */}
+        {canCompanies ? (
+          <Panel title="Son Firmalar" moreHref="/admin/firmalar">
+            {companies.length === 0 ? (
+              <p className="text-admin-text-muted p-6 text-center text-sm">
+                {companiesQ.isLoading
+                  ? "Yükleniyor…"
+                  : companiesQ.isError
+                    ? "Veri alınamadı"
+                    : "Firma yok"}
+              </p>
+            ) : (
+              companies.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/admin/firmalar/${c.id}`}
+                  className="hover:bg-admin-border/20 flex items-center justify-between px-5 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-admin-text truncate font-semibold">
+                      {countryFlag(c.country)} {c.name}
+                    </p>
+                    <p className="text-admin-text-muted font-mono text-xs">
+                      {c.rothernId ?? "—"}
+                    </p>
+                  </div>
+                  <span className="text-admin-text-muted ml-3 flex-shrink-0 text-xs">
+                    {safeFormat(c.createdAt, "d MMM")}
+                  </span>
+                </Link>
+              ))
+            )}
+          </Panel>
+        ) : null}
 
         {/* Açık şikayetler */}
         <Panel title="Açık Şikayetler" moreHref="/admin/sikayetler">
@@ -236,7 +264,11 @@ function DashboardContent() {
             openComplaints.slice(0, 6).map((c) => (
               <Link
                 key={c.id}
-                href={`/admin/firmalar/${c.against.id}?tab=sikayetler`}
+                href={
+                  canCompanies
+                    ? `/admin/firmalar/${c.against.id}?tab=sikayetler`
+                    : "/admin/sikayetler"
+                }
                 className="hover:bg-admin-border/20 block px-5 py-3"
               >
                 <p className="text-admin-text truncate font-semibold">
@@ -434,7 +466,8 @@ function Panel({
 }: {
   title: string;
   titleIcon?: LucideIcon;
-  moreHref: string;
+  /** Verilmezse "Tümünü Gör" çizilmez (rol hedef sayfaya erişemiyor). */
+  moreHref?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -444,12 +477,14 @@ function Panel({
           {Icon ? <Icon className="text-admin-text-muted h-4 w-4" /> : null}
           {title}
         </h3>
-        <Link
-          href={moreHref}
-          className="text-xs font-semibold text-zinc-600 hover:underline"
-        >
-          Tümünü Gör →
-        </Link>
+        {moreHref ? (
+          <Link
+            href={moreHref}
+            className="text-xs font-semibold text-zinc-600 hover:underline"
+          >
+            Tümünü Gör →
+          </Link>
+        ) : null}
       </div>
       <div className="divide-admin-border divide-y">{children}</div>
     </div>
@@ -493,32 +528,62 @@ function KpiCard({
   icon: LucideIcon;
   label: string;
   value: number;
-  href: string;
+  /** Verilmezse kart tıklanamaz (rol hedef sayfaya erişemiyor). */
+  href?: string;
   alert?: boolean;
   sub?: string;
 }) {
-  return (
-    <Link href={href} className="block">
-      <div className="admin-card h-full p-5 transition-colors hover:border-zinc-300">
-        <div
-          className={cn(
-            "mb-3 flex h-10 w-10 items-center justify-center rounded-xl",
-            alert ? "bg-danger-50" : "bg-zinc-100",
-          )}
-        >
-          <Icon
-            className={cn("h-5 w-5", alert ? "text-danger-600" : "text-zinc-600")}
-          />
-        </div>
-        <p className="text-admin-text-muted text-xs font-semibold tracking-wide uppercase">
-          {label}
-        </p>
-        <p className="text-admin-text mt-1 text-2xl font-bold">
-          {value.toLocaleString("tr-TR")}
-        </p>
-        {sub ? <p className="text-admin-text-muted mt-1 text-xs">{sub}</p> : null}
+  const card = (
+    <div
+      className={cn(
+        "admin-card h-full p-5 transition-colors",
+        href && "hover:border-zinc-300",
+      )}
+    >
+      <div
+        className={cn(
+          "mb-3 flex h-10 w-10 items-center justify-center rounded-xl",
+          alert ? "bg-danger-50" : "bg-zinc-100",
+        )}
+      >
+        <Icon
+          className={cn("h-5 w-5", alert ? "text-danger-600" : "text-zinc-600")}
+        />
       </div>
+      <p className="text-admin-text-muted text-xs font-semibold tracking-wide uppercase">
+        {label}
+      </p>
+      <p className="text-admin-text mt-1 text-2xl font-bold">
+        {value.toLocaleString("tr-TR")}
+      </p>
+      {sub ? <p className="text-admin-text-muted mt-1 text-xs">{sub}</p> : null}
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block">
+      {card}
     </Link>
+  ) : (
+    card
+  );
+}
+
+/** Panel satırı: hedef yoksa (rol erişemiyor) tıklanamaz düz satır. */
+function RowLink({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return href ? (
+    <Link href={href} className={cn("hover:bg-admin-border/20", className)}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
   );
 }
 

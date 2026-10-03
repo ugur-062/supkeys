@@ -11,19 +11,21 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader, Pagination } from "@/components/list";
 import { useAdminCompanies } from "@/hooks/use-admin-companies";
+import { useListFilters } from "@/hooks/use-list-filters";
 import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useEffect } from "react";
 
 const PAGE_SIZE = 25;
 
 /** Bekleme süresi rozeti — SLA görselleştirmesi (3+ gün amber, 7+ gün red). */
-function waitBadge(updatedAt: string) {
+function waitBadge(since: string) {
   const days = Math.floor(
-    (Date.now() - new Date(updatedAt).getTime()) / 86_400_000,
+    (Date.now() - new Date(since).getTime()) / 86_400_000,
   );
   const color = days >= 7 ? "red" : days >= 3 ? "amber" : "zinc";
   const label = days === 0 ? "bugün" : `${days} gün`;
@@ -35,7 +37,13 @@ function waitBadge(updatedAt: string) {
  * firmalar EN-ESKİ-ÖNCE. Satır → firma detayının Belgeler sekmesi.
  */
 function BasvurularView() {
-  const [page, setPage] = useState(1);
+  // Sayfa URL'de (?page=) — firmaya girip geri dönünce aynı sayfa (D-198).
+  const { filters, setFilters } = useListFilters<{ page?: number }>();
+  const page = filters.page ?? 1;
+  const setPage = (p: number) => setFilters({ page: p > 1 ? p : undefined });
+  // Firma detayına sayfa taşınır: karar sonrası dönüş aynı sayfaya.
+  const detailHref = (id: string) =>
+    `/admin/firmalar/${id}?tab=belgeler&from=queue${page > 1 ? `&qp=${page}` : ""}`;
   // Faz Y: kuyruk = ilk-doğrulama PENDING'leri + VERIFIED kalıp belge
   // güncellemesi (revizyon) bekleyenler — status filtresi tek başına yetmez.
   const query = useAdminCompanies({
@@ -47,6 +55,11 @@ function BasvurularView() {
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Karar sonrası kuyruk kısalıp sayfa boşa düştüyse son dolu sayfaya geç.
+  const overflow = !!query.data && total > 0 && page > totalPages;
+  useEffect(() => {
+    if (overflow) setFilters({ page: totalPages > 1 ? totalPages : undefined });
+  }, [overflow, totalPages, setFilters]);
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -76,11 +89,15 @@ function BasvurularView() {
                 empty="Kuyruk boş — bekleyen başvuru yok"
               />
             ) : (
-              items.map((c) => (
+              items.map((c) => {
+                // Kuyruğa giriş anı (belge gönderimi); `updatedAt` her
+                // düzenlemede değiştiği için yalnız eski API yedeği (O-075).
+                const since = c.submittedAt ?? c.updatedAt;
+                return (
                 <TableRow key={c.id}>
                   <TableCell className="text-admin-text font-medium">
                     <Link
-                      href={`/admin/firmalar/${c.id}?tab=belgeler&from=queue`}
+                      href={detailHref(c.id)}
                       className="hover:underline"
                     >
                       {c.name}
@@ -106,19 +123,20 @@ function BasvurularView() {
                     ) : null}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
-                    {safeFormat(c.updatedAt, "d MMM yyyy HH:mm")}
+                    {safeFormat(since, "d MMM yyyy HH:mm")}
                   </TableCell>
-                  <TableCell>{waitBadge(c.updatedAt)}</TableCell>
+                  <TableCell>{waitBadge(since)}</TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/admin/firmalar/${c.id}?tab=belgeler&from=queue`}
+                      href={detailHref(c.id)}
                       className="inline-flex items-center rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700"
                     >
                       İncele
                     </Link>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -137,7 +155,12 @@ function BasvurularView() {
 export default function AdminBasvurularPage() {
   return (
     <AdminShell>
-      <BasvurularView />
+      {/* useSearchParams (URL-senkron sayfa) Suspense sınırı ister. */}
+      <AdminRoleGate action="listCompanies">
+        <Suspense fallback={null}>
+          <BasvurularView />
+        </Suspense>
+      </AdminRoleGate>
     </AdminShell>
   );
 }

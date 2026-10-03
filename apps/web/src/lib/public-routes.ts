@@ -1,3 +1,4 @@
+import { stripLocale } from "@/i18n/href";
 /**
  * Giriş gerektirmeyen, arama motorlarına açık rotalar — TEK KAYNAK.
  *
@@ -62,7 +63,10 @@ export const PUBLIC_TOP_SEGMENTS: readonly string[] = PUBLIC_ROUTE_PREFIXES.map(
 
 export function isPublicRoute(pathname: string): boolean {
   // Sorgu dizesi/hash bu fonksiyona gelmemeli; gelirse de zarar vermesin.
-  const path = pathname.split("?")[0]?.split("#")[0] ?? "/";
+  // Dil ön eki (`/en/urunler`) rota kimliğini değiştirmez (i18n Faz 1) —
+  // soyulmazsa `/en/*` herkese açık sayfalar nonce'lu CSP alır ve statik HTML
+  // nonce taşımadığı için betikleri engellenir (2026-09-23 staging bulgusu).
+  const path = stripLocale(pathname.split("?")[0]?.split("#")[0] ?? "/");
   if ((PUBLIC_EXACT as readonly string[]).includes(path)) return true;
   return PUBLIC_ROUTE_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`),

@@ -1,6 +1,7 @@
 "use client";
 
 import { ProfileEditor } from "@/components/company/profile-editor";
+import { ErrorState } from "@/components/ui/error-state";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 
@@ -13,8 +14,14 @@ import { useCompanyProfile } from "@/hooks/use-company-profile";
  * ücretsiz üye profilini düzenleyemiyordu, Faz 1 ile çelişiyordu).
  */
 export function MyProfileView() {
-  const { data: profile, isLoading } = useCompanyProfile();
+  const { data: profile, isLoading, isError, refetch } = useCompanyProfile();
   const canEdit = useHasCompanyPermission("company:manage");
+
+  // Hata iskelete düşmesin: sorgu başarısız olunca `profile` hiç gelmez ve
+  // sayfa açıklamasız gri iskelette kalıyordu (derin denetim LU-27).
+  if (isError && !profile) {
+    return <ErrorState onRetry={() => void refetch()} />;
+  }
 
   if (isLoading || !profile) {
     return (

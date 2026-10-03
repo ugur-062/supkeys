@@ -1,6 +1,11 @@
 "use client";
 
-import { canSendMessages } from "@/lib/company/portals";
+import { useLocale, useTranslations } from "next-intl";
+import { useRoleLabel } from "@/i18n/domain";
+import { formatDate } from "@/lib/format-date";
+import { canSendMessages, messagingDirectionOpen } from "@/lib/company/portals";
+import { buyingGate, gateHref } from "@/lib/public/member-gate";
+import { Link } from "@/i18n/navigation";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
@@ -11,8 +16,7 @@ import {
 } from "@/hooks/use-company-messages";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { format, isToday, isYesterday } from "date-fns";
-import { tr } from "date-fns/locale";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Lock, Send } from "lucide-react";
 import {
   type KeyboardEvent,
   useEffect,
@@ -20,12 +24,26 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 
-function formatTimestamp(date: Date): string {
-  if (isToday(date)) return format(date, "HH:mm", { locale: tr });
-  if (isYesterday(date)) return `Dün ${format(date, "HH:mm", { locale: tr })}`;
-  return format(date, "d MMM HH:mm", { locale: tr });
+/**
+ * Mesaj zamanı — bugün "HH:mm", dün "Dün HH:mm", eskisi tarih + saat okuyucunun
+ * dilinde (`formatDate`). Bugün/dün ayrımı tarayıcı gününe göre (sohbet yalnız istemcide çizilir).
+ */
+function useFormatTimestamp(): (date: Date) => string {
+  const t = useTranslations("web.panel.inbox.companyMessageThread");
+  const locale = useLocale();
+  return (date) => {
+    if (isToday(date)) return format(date, "HH:mm");
+    if (isYesterday(date)) return t("dun", { time: format(date, "HH:mm") });
+    return formatDate(date, "datetime", locale);
+  };
 }
+
+/** Mesaj gövdesi tavanı — API `SendMessageDto` `@MaxLength(5000)` aynası (D-356). */
+export const MESSAGE_MAX_LENGTH = 5000;
+/** Sayaç bu uzunluktan sonra görünür (kısa mesajda gürültü olmasın). */
+const COUNTER_FROM = 4000;
 
 interface Props {
   portal: MessagePortal;
@@ -45,12 +63,29 @@ export function CompanyMessageThread({
   otherPartyName,
   bare = false,
 }: Props) {
+  const t = useTranslations("web.panel.inbox.companyMessageThread");
+  const roleLabel = useRoleLabel();
   const { data, isLoading } = useThreadMessages(portal, otherPartyId);
   const sendMutation = useSendMessage(portal, otherPartyId);
   // F7: gönderme portal-yönlü işlem rolü ister (backend send() birebir:
   // satinalma→Satın Almacı, satis→Satışçı) — rolsüz okur, composer gizli.
-  const { user } = useCompanyAuth();
-  const canSend = canSendMessages(user, portal);
+  // O-123: alıcı yönü ayrıca Gold ister (paket kapısı rolün DIŞINDA): paketi
+  // düşen firma eski konuşmayı okur, composer yerine doğru CTA'yı görür
+  // (doğrulanmamışsa önce doğrulama, değilse Gold'a geçiş).
+  const { user, company } = useCompanyAuth();
+  // Süren sipariş istisnası (sunucu bildirir): paketi düşen alıcı o
+  // satıcıya yazmaya devam eder — Gold çağrısı gösterilmez.
+  const sendOpenByOrder = data?.sendOpenByOrder === true;
+  const tierOpen =
+    messagingDirectionOpen(portal, company?.tier) || sendOpenByOrder;
+  const tierGate = tierOpen ? null : buyingGate(user, company, "listing");
+  const tierGateHref = tierGate ? gateHref(tierGate) : null;
+  const canSend = canSendMessages(
+    user,
+    portal,
+    company?.tier,
+    sendOpenByOrder,
+  );
 
   const [content, setContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -60,18 +95,25 @@ export function CompanyMessageThread({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
-  const handleSend = async () => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    try {
-      await sendMutation.mutateAsync(trimmed);
-      setContent("");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Mesaj gönderilemedi"));
-    }
-  };
+  // Enter'a art arda basmak / çift tık aynı mesajı iki kez göndermesin
+  // (arayüz testi FX-00 D-067, O-031).
+  const sendLock = useSubmitLock();
+  const handleSend = () =>
+    sendLock.run(async () => {
+      const trimmed = content.trim();
+      if (!trimmed) return;
+      try {
+        await sendMutation.mutateAsync(trimmed);
+        setContent("");
+      } catch (err) {
+        toast.error(extractErrorMessage(err, t("mesajGonderilemedi")));
+      }
+    });
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME bileşimi (Japonca/Çince vb. aday seçimi) Enter'ı onaylamak için
+    // kullanır — o Enter mesajı GÖNDERMEZ (arayüz testi D-356).
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
@@ -109,8 +151,8 @@ export function CompanyMessageThread({
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200">
               <Send className="h-5 w-5 text-zinc-400" />
             </div>
-            <p className="text-sm font-medium text-zinc-600">Henüz mesaj yok</p>
-            <p className="mt-1 text-xs text-zinc-400">İlk mesajı sen gönder</p>
+            <p className="text-sm font-medium text-zinc-600">{t("henuzMesajYok")}</p>
+            <p className="mt-1 text-xs text-zinc-400">{t("ilkMesajiSenGonder")}</p>
           </div>
         ) : (
           <MessageList messages={messages} />
@@ -118,11 +160,24 @@ export function CompanyMessageThread({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input — yalnız portal-yönlü işlem rolüne görünür */}
-      {!canSend ? (
+      {/* Input — paket (alıcı yönü Gold) + portal-yönlü işlem rolü */}
+      {tierGate && tierGateHref ? (
+        <div
+          role="note"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900"
+        >
+          <Lock aria-hidden className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">{t("aliciYonuGoldGerektirir")}</span>
+          <Link
+            href={tierGateHref}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:text-amber-950"
+          >
+            {tierGate === "verify" ? t("onceUcretsizDogrulan") : t("goldaGec")}
+          </Link>
+        </div>
+      ) : !canSend ? (
         <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
-          Mesaj göndermek {portal === "satis" ? "Satışçı" : "Satın Almacı"}{" "}
-          rolü gerektirir — konuşmayı görüntülüyorsunuz.
+          {t("mesajGondermekRoluGerektirir", { role: roleLabel(portal === "satis" ? "SATISCI" : "SATIN_ALMACI") })}
         </div>
       ) : (
       <div className="border-t border-zinc-200 bg-white px-3 py-3">
@@ -132,7 +187,11 @@ export function CompanyMessageThread({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={onKey}
-              placeholder="Mesaj yaz… (Enter: gönder, Shift+Enter: yeni satır)"
+              maxLength={MESSAGE_MAX_LENGTH}
+              // Kısa yer tutucu (D-008): uzun "Enter/Shift+Enter" metni 390 px'te
+              // iki satıra bölünüp kesiliyordu; klavye ipucu yalnız geniş ekranda alt satırda.
+              placeholder={t("mesajYaz")}
+              aria-describedby="company-message-enter-hint"
               rows={1}
               className="max-h-32 w-full resize-none rounded-lg border border-surface-border bg-white px-3.5 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             />
@@ -140,16 +199,30 @@ export function CompanyMessageThread({
           <button
             type="button"
             onClick={() => void handleSend()}
-            disabled={sendMutation.isPending || !content.trim()}
+            disabled={sendMutation.isPending || sendLock.locked || !content.trim()}
             className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-4 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
-            aria-label="Gönder"
+            aria-label={t("gonder")}
           >
-            {sendMutation.isPending ? (
+            {sendMutation.isPending || sendLock.locked ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
             )}
           </button>
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-2 px-0.5">
+          <p id="company-message-enter-hint" className="hidden text-xs text-zinc-500 sm:block">
+            {t("enterIpucu")}
+          </p>
+          {content.length >= COUNTER_FROM ? (
+            <span
+              className={`ml-auto text-xs tabular-nums ${
+                content.length >= MESSAGE_MAX_LENGTH ? "text-rose-700" : "text-zinc-500"
+              }`}
+            >
+              {t("karakterSayaci", { n: content.length, max: MESSAGE_MAX_LENGTH })}
+            </span>
+          ) : null}
         </div>
       </div>
       )}
@@ -158,6 +231,7 @@ export function CompanyMessageThread({
 }
 
 function MessageList({ messages }: { messages: ChatMessage[] }) {
+  const formatTimestamp = useFormatTimestamp();
   return (
     <div className="space-y-2">
       {messages.map((msg) => {

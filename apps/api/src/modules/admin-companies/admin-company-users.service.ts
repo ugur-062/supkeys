@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -6,9 +7,9 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
-import type { CompanyRole } from "@rothern/db";
-import { SEAT_LIMITS, SEAT_ROLES, countSeats, permissionsForRoles } from "@rothern/shared";
-import { effectiveTier } from "../../common/company/effective-tier";
+import type { CompanyRole, Prisma } from "@rothern/db";
+import { isValidEmailLike, permissionsForRoles, seatGroupsOf } from "@rothern/shared";
+import { assertSeatAvailable, lockCompanyRow } from "../../common/company/seat-gate";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
@@ -46,7 +47,7 @@ export class AdminCompanyUsersService {
       where: { id: companyId },
       select: { ownerUserId: true },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const users = await this.prisma.companyUser.findMany({
       where: { companyId },
       select: {
@@ -57,6 +58,10 @@ export class AdminCompanyUsersService {
         // phone: bilinçli ÇIKARILDI — SUPPORT dahil tüm rollere açık bu liste
         // yalnız kullanıcı seçimi/e-posta kurtarma için; telefon gereksiz PII.
         roles: true,
+        // Rolsüz üye (Görüntüleyici hazır seti) Rol sütununda "—" çıkıyordu;
+        // firma panelindeki gibi izinlerden "Görüntüleyici" türetilir (arayüz
+        // testi son tur api-2, D-305).
+        permissions: true,
         isActive: true,
         emailVerifiedAt: true,
         twoFactorEnabled: true,
@@ -72,21 +77,26 @@ export class AdminCompanyUsersService {
     }));
   }
 
-  /** Şifre sıfırlama e-postası gönder (mevcut reset akışı — link 30 dk). */
+  /** Şifre sıfırlama e-postası gönder (mevcut reset akışı — link 60 dk). */
   async sendPasswordReset(companyId: string, userId: string, adminId: string) {
     const user = await this.requireMember(companyId, userId);
     await this.passwordReset.requestForCompany(user.email);
-    await this.log("admin.user.password_reset_sent", userId, adminId, {
+    await this.log(companyId, "admin.user.password_reset_sent", userId, adminId, {
       email: user.email,
     });
     return { ok: true };
   }
 
-  /** Doğrulama kodunu yeniden gönder — yalnız doğrulanmamış kullanıcıya. */
+  /**
+   * Doğrulama kodunu yeniden gönder — yalnız doğrulanmamış kullanıcıya.
+   * Saatlik kod tavanı doluysa 429, gönderim başarısızsa 503 fırlar (arayüz
+   * testi O-064: eskiden sonuç atılıp her durumda "gönderildi" + audit
+   * yazılıyordu, e-posta gitmiyordu). Audit YALNIZ başarıda yazılır.
+   */
   async resendVerification(companyId: string, userId: string, adminId: string) {
     await this.requireMember(companyId, userId);
     await this.companyAuth.adminResendVerificationCode(userId);
-    await this.log("admin.user.verification_resent", userId, adminId);
+    await this.log(companyId, "admin.user.verification_resent", userId, adminId);
     return { ok: true };
   }
 
@@ -104,17 +114,41 @@ export class AdminCompanyUsersService {
     const user = await this.requireMember(companyId, userId);
     if (user.isOwner && !active) {
       throw new BadRequestException(
-        "Firma sahibi devre dışı bırakılamaz — önce sahipliği devredin",
+        i18nMessage("api.adminCompanies.firmaSahibiDevreDisiBirakilamazOnce"),
       );
     }
-    await this.prisma.companyUser.update({
-      where: { id: userId },
-      data: {
-        isActive: active,
-        ...(active ? {} : { tokenVersion: { increment: 1 } }),
-      },
+    // Derin denetim MU-04: koltuk taşıyan pasif kişinin reaktivasyonu koltuğunu
+    // yeniden tüketir — firma panelindeki reaktivasyonla AYNI kapı (paket limiti
+    // + satınalma yalnız GOLD), firma satırı kilitli tx'te. Eskiden admin
+    // "Aktifleştir" 4/4 dolu firmada 5/4 açabiliyordu.
+    const seatGroups = seatGroupsOf({
+      isOwner: user.isOwner,
+      permissions: user.permissions,
+      roles: user.roles,
     });
+    if (active && !user.isActive && !user.deletedAt && seatGroups.size > 0) {
+      await this.prisma.$transaction(async (tx) => {
+        await lockCompanyRow(tx, companyId);
+        await assertSeatAvailable(tx, companyId, {
+          groups: seatGroups,
+          context: "assign",
+        });
+        await tx.companyUser.update({
+          where: { id: userId },
+          data: { isActive: true },
+        });
+      });
+    } else {
+      await this.prisma.companyUser.update({
+        where: { id: userId },
+        data: {
+          isActive: active,
+          ...(active ? {} : { tokenVersion: { increment: 1 } }),
+        },
+      });
+    }
     await this.log(
+      companyId,
       active ? "admin.user.activated" : "admin.user.deactivated",
       userId,
       adminId,
@@ -129,7 +163,7 @@ export class AdminCompanyUsersService {
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
     });
-    await this.log("admin.user.sessions_dropped", userId, adminId);
+    await this.log(companyId, "admin.user.sessions_dropped", userId, adminId);
     return { ok: true };
   }
 
@@ -146,18 +180,18 @@ export class AdminCompanyUsersService {
   ) {
     const user = await this.requireMember(companyId, userId);
     const email = rawEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new BadRequestException("Geçerli bir e-posta girin");
+    if (!isValidEmailLike(email)) {
+      throw new BadRequestException(i18nMessage("api.adminCompanies.gecerliBirEPostaGirin"));
     }
     if (email === user.email) {
-      throw new BadRequestException("Yeni e-posta mevcutla aynı");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yeniEPostaMevcutlaAyni"));
     }
     const clash = await this.prisma.companyUser.findUnique({
       where: { email },
       select: { id: true },
     });
     if (clash) {
-      throw new ConflictException("Bu e-posta başka bir kullanıcıda kayıtlı");
+      throw new ConflictException(i18nMessage("api.adminCompanies.buEPostaBaskaBirKullanicida"));
     }
     // Önce Supabase (login kaynağı) — başarısızsa domain'e dokunma.
     if (user.authId) {
@@ -171,7 +205,7 @@ export class AdminCompanyUsersService {
         tokenVersion: { increment: 1 },
       },
     });
-    await this.log("admin.user.email_changed", userId, adminId, {
+    await this.log(companyId, "admin.user.email_changed", userId, adminId, {
       from: user.email,
       to: email,
     });
@@ -180,7 +214,8 @@ export class AdminCompanyUsersService {
 
   /**
    * Doğrudan üye ekleme — davet akışını beklemeden admin eliyle hesap açılır;
-   * kullanıcıya şifre belirleme (reset) e-postası gider. SAHIP atanamaz.
+   * kullanıcıya "hesabınız açıldı, şifrenizi belirleyin" e-postası gider.
+   * SAHIP atanamaz.
    */
   async addUser(
     companyId: string,
@@ -194,38 +229,33 @@ export class AdminCompanyUsersService {
   ) {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { id: true, tier: true, membershipEndAt: true },
+      select: { id: true },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const email = input.email.trim().toLowerCase();
     if (!ASSIGNABLE_ROLES.includes(input.role as CompanyRole)) {
-      throw new BadRequestException("Geçersiz rol");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizRol"));
     }
-    // Yetki tablosu (Faz 4): admin eliyle açılan koltuk da paket kapısından
-    // geçer — eskiden admin limitin üstüne SA/ST ekleyebiliyordu.
-    if ((SEAT_ROLES as readonly string[]).includes(input.role)) {
-      const limit =
-        SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
-      if (limit != null) {
-        // Faz 5: koltuk = (kişi, grup) — grup bazında sayım (tek kaynak countSeats).
-        const rows = await this.prisma.companyUser.findMany({
-          where: { companyId, deletedAt: null, isActive: true },
-          select: { roles: true, permissions: true },
-        });
-        const used = countSeats(rows).total;
-        if (used + 1 > limit) {
-          throw new BadRequestException(
-            `Koltuk dolu (${used}/${limit}) — bu rol için firmanın paketi yükseltilmeli`,
-          );
-        }
-      }
-    }
+    const permissions = permissionsForRoles([input.role]);
+    // Yetki tablosu (Faz 4) + derin denetim MU-04: admin eliyle açılan koltuk
+    // firma panelindeki kapının AYNISINDAN geçer — (kişi, grup) sayımı, bekleyen
+    // koltuk davetleri dahil (aksi halde onlar kabulde "koltuk dolu" kalır) ve
+    // SATINALMA YALNIZ GOLD (2026-09-14). Burada kilitsiz ön kontrol (Supabase
+    // hesabı boşuna açılmasın); asıl kapı aşağıda kilitli tx'te tekrar koşar.
+    const seatGroups = seatGroupsOf({ permissions });
+    const seatGate = (db: Prisma.TransactionClient) =>
+      assertSeatAvailable(db, companyId, {
+        groups: seatGroups,
+        includePending: true,
+        context: "assign",
+      });
+    await seatGate(this.prisma);
     const clash = await this.prisma.companyUser.findUnique({
       where: { email },
       select: { id: true },
     });
     if (clash) {
-      throw new ConflictException("Bu e-posta ile zaten bir kullanıcı var");
+      throw new ConflictException(i18nMessage("api.adminCompanies.buEPostaIleZatenBir"));
     }
     // Supabase hesabı rastgele parola ile açılır — kullanıcı reset linkiyle
     // kendi parolasını koyar (parola hiçbir yerde loglanmaz/paylaşılmaz).
@@ -234,29 +264,47 @@ export class AdminCompanyUsersService {
       randomBytes(24).toString("base64url"),
       { role: "company_user" },
     );
-    const user = await this.prisma.companyUser.create({
-      data: {
-        email,
-        authId,
-        firstName: input.firstName.trim(),
-        lastName: input.lastName.trim(),
-        roles: [input.role as CompanyRole],
-        // Yetki tablosu: rol etiketinin hazır seti açık liste olarak yazılır.
-        permissions: permissionsForRoles([input.role]),
-        companyId,
-        // Admin eliyle açıldı — doğrulama adımı atlanır (kimlik telefonda).
-        emailVerifiedAt: new Date(),
-        invitedAt: new Date(),
-      },
-      select: { id: true, email: true },
-    });
-    await this.passwordReset.requestForCompany(email);
-    await this.log("admin.user.created", user.id, adminId, {
+    let user: { id: string; email: string };
+    try {
+      user = await this.prisma.$transaction(async (tx) => {
+        await lockCompanyRow(tx, companyId);
+        await seatGate(tx);
+        return tx.companyUser.create({
+          data: {
+            email,
+            authId,
+            firstName: input.firstName.trim(),
+            lastName: input.lastName.trim(),
+            roles: [input.role as CompanyRole],
+            // Yetki tablosu: rol etiketinin hazır seti açık liste olarak yazılır.
+            permissions,
+            companyId,
+            // Admin eliyle açıldı — doğrulama adımı atlanır (kimlik telefonda).
+            emailVerifiedAt: new Date(),
+            invitedAt: new Date(),
+          },
+          select: { id: true, email: true },
+        });
+      });
+    } catch (err) {
+      // Kilitli kapı (yarış) ya da yazım düştü — yetim Supabase hesabı kalmasın.
+      await this.supabase.deleteUser(authId).catch((e: unknown) => {
+        this.logger.warn(
+          `addUser rollback: orphan auth user could not be deleted (${authId}): ${String(e)}`,
+        );
+      });
+      throw err;
+    }
+    // Sıfırlama değil "hesabınız açıldı, şifrenizi belirleyin" e-postası
+    // (arayüz testi O-124) — firma adıyla, 72 saat geçerli bağlantı.
+    const { sent } = await this.passwordReset.requestAccountSetup(user.id);
+    await this.log(companyId, "admin.user.created", user.id, adminId, {
       email,
       role: input.role,
       companyId,
+      setupEmailSent: sent,
     });
-    return { ok: true, userId: user.id };
+    return { ok: true, userId: user.id, emailSent: sent };
   }
 
   private async requireMember(companyId: string, userId: string) {
@@ -268,14 +316,22 @@ export class AdminCompanyUsersService {
         authId: true,
         isActive: true,
         emailVerifiedAt: true,
+        deletedAt: true,
+        roles: true,
+        permissions: true,
         company: { select: { ownerUserId: true } },
       },
     });
-    if (!user) throw new NotFoundException("Kullanıcı bu firmada bulunamadı");
+    if (!user) throw new NotFoundException(i18nMessage("api.adminCompanies.kullaniciBuFirmadaBulunamadi"));
     return { ...user, isOwner: user.id === user.company.ownerUserId };
   }
 
+  /**
+   * `tenantId` = firma (arayüz testi D-205): firma detayındaki Denetim sekmesi
+   * kullanıcı işlemlerini firma kimliğiyle bulur (entityId kullanıcıdır).
+   */
   private async log(
+    companyId: string,
     action: string,
     userId: string,
     adminId: string,
@@ -285,6 +341,7 @@ export class AdminCompanyUsersService {
       action,
       actorType: "admin",
       actorId: adminId,
+      tenantId: companyId,
       entityType: "company_user",
       entityId: userId,
       metadata: metadata ?? null,

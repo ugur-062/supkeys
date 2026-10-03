@@ -17,7 +17,7 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
 
   it("gidiş-dönüş: her anahtar okunur ve aynen yazılır", () => {
     const q =
-      "?q=%C3%A7elik&durum=gecmis&uygunluk=davet%2Ckategori&kategori=39000000%2C23000000&kapanis=7&alici=c1%2Cc2&sehir=Bursa&para=USD%2CEUR&usul=pazarlik&donem=30&sirala=yeni&sayfa=3";
+      "?q=%C3%A7elik&durum=gecmis&uygunluk=davet%2Ckategori&kategori=39000000%2C23000000&kapanis=7&alici=c1%2Cc2&sehir=bursa%2Cde-munich&ulke=TR%2CDE&para=USD%2CEUR&usul=pazarlik&donem=30&sirala=yeni&sayfa=3";
     const s = parseRequestFilters(new URLSearchParams(q));
     expect(s.q).toBe("çelik");
     expect(s.status).toBe("gecmis");
@@ -25,15 +25,16 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
     expect(s.categories).toEqual(["39000000", "23000000"]);
     expect(s.closing).toBe(7);
     expect(s.buyers).toEqual(["c1", "c2"]);
-    expect(s.cities).toEqual(["Bursa"]);
+    expect(s.cities).toEqual(["bursa", "de-munich"]);
+    expect(s.countries).toEqual(["TR", "DE"]);
     expect(s.currencies).toEqual(["USD", "EUR"]);
     expect(s.format).toBe("pazarlik");
     expect(s.period).toBe(30);
     expect(s.sort).toBe("yeni");
     expect(s.page).toBe(3);
     expect(buildRequestFilterQuery(s)).toBe(q);
-    // durum + 2 uygunluk + 2 kategori + kapanış + 2 alıcı + şehir + 2 para + usul + dönem (kapsam 2026-09-21'de kalktı)
-    expect(activeRequestFilterCount(s)).toBe(13);
+    // durum + 2 uygunluk + 2 kategori + kapanış + 2 alıcı + 2 şehir + 2 ülke + 2 para + usul + dönem (kapsam 2026-09-21'de kalktı)
+    expect(activeRequestFilterCount(s)).toBe(16);
   });
 
   it("geçersiz değerler düşer: bilinmeyen durum/uygunluk/kapanış, 8 haneli olmayan kod, sayfa 0", () => {
@@ -54,6 +55,8 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
     expect(s.categories).toEqual(["39000000", "23000000"]);
     // Para birimi büyük harfe çekilir.
     expect(parseRequestFilters(new URLSearchParams("para=try")).currencies).toEqual(["TRY"]);
+    // Ülke: büyük harf, ISO alpha-2 dışı düşer, tekilleşir.
+    expect(parseRequestFilters(new URLSearchParams("ulke=de,DE,xyz,1a,tr")).countries).toEqual(["DE", "TR"]);
   });
 
   it("temizle: arama DAHİL sıfırlar, sıralama kalır", () => {

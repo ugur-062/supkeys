@@ -10,7 +10,9 @@ const h = vi.hoisted(() => ({
   result: { data: undefined as unknown, isLoading: false },
   lastParams: undefined as unknown,
   companyTotal: 20,
+  companyParams: undefined as unknown,
   selectedCategory: null as { id: string; name: string; level: number } | null,
+  perms: ["buy:view", "buy:listing:manage", "buy:inquiry:send"] as string[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -36,8 +38,14 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
     },
   }),
 }));
+vi.mock("@/hooks/use-company-auth", () => ({
+  useHasCompanyPermission: (p: string) => h.perms.includes(p),
+}));
 vi.mock("@/hooks/use-company-directory", () => ({
-  useCompanySearch: () => ({ data: { items: [], total: h.companyTotal, page: 1, pageSize: 20 } }),
+  useCompanySearch: (params: unknown) => {
+    h.companyParams = params;
+    return { data: { items: [], total: h.companyTotal, page: 1, pageSize: 20 } };
+  },
 }));
 
 import { PanelProductIndex } from "../panel-product-index";
@@ -63,6 +71,7 @@ beforeEach(() => {
   h.search = "";
   h.selectedCategory = null;
   h.companyTotal = 20;
+  h.perms = ["buy:view", "buy:listing:manage", "buy:inquiry:send"];
   h.result = {
     data: {
       items: [product(1, { matchesProfile: true, features: ["Güç: 400 kVAr"] }), product(2, { matchesProfile: false })],
@@ -99,6 +108,29 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
       "href",
       "/company/satinalma/firmalar?q=pano&kategori=39000000",
     );
+  });
+
+  it("sekme rozeti ve adresi FİRMA süzgeçlerini (şehir, ülke, faaliyet, doğrulanmış) de taşır — '0 ürün' yanında süzgeçsiz firma sayısı yok (webA-12 yeniden doğrulama)", () => {
+    // Ürün dizini şehir/ülke/faaliyet/doğrulanmış süzgecini satıcı FİRMA
+    // alanından uygular; firma dizini aynı adlarla okur. Eskiden rozet ve
+    // bağlantı yalnız q + kategori taşıyordu: İstanbul seçiliyken "0 ürün"
+    // yanında "Firmalar 3" yazıyor, geçişte şehir sessizce düşüyordu.
+    h.search = "q=vida&kategori=31000000&sehir=istanbul&ulke=TR&faaliyet=MANUFACTURER&dogrulanmis=1&fiyatMax=500";
+    render(<PanelProductIndex />);
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).getByRole("link", { name: /Firmalar/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/firmalar?q=vida&sehir=istanbul&ulke=TR&faaliyet=MANUFACTURER&kategori=31000000&dogrulanmis=1",
+    );
+    // Sayı, sekmenin götürdüğü listeyle AYNI parametrelerle istenir.
+    expect(h.companyParams).toMatchObject({
+      q: "vida",
+      city: "istanbul",
+      country: "TR",
+      activity: "MANUFACTURER",
+      category: "31000000",
+      verified: true,
+    });
   });
 
   it("başlıkta sonuç sayısı ve kartta ülke bayrağı; rayın sonunda 'Tüm filtreleri sıfırla'", async () => {
@@ -179,6 +211,15 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?adet=48", { scroll: false });
   });
 
+  it("büyük sayfa boyutu seçilip sonuçlar tek sayfaya sığınca da seçici kalır (küçük boyuta dönüş yolu)", () => {
+    // Derin denetim LU-27: seçici sayfalamayla birlikte yalnız
+    // `total > pageSize` iken çiziliyordu; 30 sonuçta 48 seçilince kayboluyordu.
+    h.search = "adet=48";
+    h.result = { ...h.result, data: { ...(h.result.data as object), total: 30, pageSize: 48 } };
+    render(<PanelProductIndex />);
+    expect(screen.getByLabelText("Sayfa başına")).toHaveValue("48");
+  });
+
   it("İLK YÜKLEMEDE 'bulunamadı' yazmaz — iskelet dönerken sayfa boş ilan edilmez", () => {
     h.result = { data: undefined, isLoading: true };
     render(<PanelProductIndex />);
@@ -202,5 +243,37 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     h.search = "q=yok&dogrulanmis=1";
     render(<PanelProductIndex />);
     expect(screen.getByRole("button", { name: "Filtreleri temizle" })).toBeInTheDocument();
+  });
+
+  it("son sayfanın ötesinde 'Bu kriterlerle ürün yok' DEMEZ — 'Bu sayfada sonuç yok' + son sayfaya git (arayüz testi son tur webA-2)", async () => {
+    // Başlık "169 ürün" derken gövde "bulunamadı" diyordu (herkese açık dizindeki webA-05 NEW-2 ile aynı çelişki).
+    const user = userEvent.setup();
+    h.search = "sayfa=9";
+    h.result = { data: { items: [], total: 169, page: 9, pageSize: 24 }, isLoading: false };
+    render(<PanelProductIndex />);
+    expect(screen.queryByText("Bu kriterlerle ürün yok.")).toBeNull();
+    expect(screen.getByText("Bu sayfada sonuç yok.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Son sayfaya gidin" }));
+    expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?sayfa=8", { scroll: false });
+  });
+
+  it("eylemler İZNE bağlı: talep açma ve bilgi isteme yetkisi yoksa düğmeler çizilmez (arayüz testi O-079, D-038)", () => {
+    h.perms = ["buy:view"];
+    const { unmount } = render(<PanelProductIndex />);
+    expect(screen.queryAllByRole("link", { name: /Bilgi iste/ })).toHaveLength(0);
+    unmount();
+
+    h.search = "q=yok";
+    h.result = { data: { items: [], total: 0, page: 1, pageSize: 24 }, isLoading: false };
+    render(<PanelProductIndex />);
+    expect(screen.queryByRole("link", { name: /Talep aç/ })).toBeNull();
+  });
+
+  it("liste görünümünde de 'Bilgi iste' AYRI hedeftir (#bilgi-iste), düz metin değil (D-038)", () => {
+    h.search = "gorunum=liste";
+    render(<PanelProductIndex />);
+    const ctas = screen.getAllByRole("link", { name: /Bilgi iste/ });
+    expect(ctas.length).toBeGreaterThan(0);
+    expect(ctas[0]).toHaveAttribute("href", expect.stringContaining("#bilgi-iste"));
   });
 });

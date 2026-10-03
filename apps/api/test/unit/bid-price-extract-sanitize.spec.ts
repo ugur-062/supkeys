@@ -1,7 +1,9 @@
 import {
+  declaredCrossLanguage,
   salvageRows,
   sanitizeRows,
 } from "../../src/modules/ai/bid-price-extract/bid-price-extract.service";
+import { BID_PRICE_RESPONSE_SCHEMA, BID_PRICE_SYSTEM_PROMPT } from "../../src/modules/ai/bid-price-extract/bid-price-extract.prompts";
 
 /**
  * "Belgeden Fiyatla" çıktı dayanıklılığı (2026-08-22 ölçüm bulgusu): Gemini
@@ -52,5 +54,20 @@ describe("salvageRows — kesik JSON", () => {
   it("tam (kesilmemiş) JSON'da da tüm satırları verir (kapanan ] sonrası durur)", () => {
     const full = '{ "rows": [ { "text": "A" }, { "text": "B" } ], "docCurrency": "TRY" }';
     expect(salvageRows(full).map((r) => r.text)).toEqual(["A", "B"]);
+  });
+});
+
+describe("diller arası belge (2026-09-27)", () => {
+  it("model belge ve kalem dilini ayrı söyler; ikisi geçerli ve farklıysa diller arası", () => {
+    expect(declaredCrossLanguage("de", "tr")).toBe(true);
+    expect(declaredCrossLanguage("TR", "tr-TR")).toBe(false);
+    expect(declaredCrossLanguage(null, "tr")).toBe(false);
+    expect(declaredCrossLanguage("??", "tr")).toBe(false);
+  });
+
+  it("istem ipucunu ANLAMCA ister, satır metnini çevirtmez; şema dil alanlarını taşır", () => {
+    expect(BID_PRICE_SYSTEM_PROMPT).toMatch(/FARKLI DİLDEYSE hintLineNo'yu ANLAMCA/);
+    expect(BID_PRICE_SYSTEM_PROMPT).toMatch(/olduğu gibi — ÇEVİRME/);
+    expect(Object.keys(BID_PRICE_RESPONSE_SCHEMA.properties)).toEqual(expect.arrayContaining(["docLanguage", "itemsLanguage"]));
   });
 });

@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
@@ -20,7 +21,8 @@ import {
   type MembershipReportRow,
 } from "@/hooks/use-admin-companies";
 import { downloadCsv } from "@/lib/csv";
-import { safeFormat } from "@/lib/date";
+import { safeFormat, toDateInput } from "@/lib/date";
+import { membershipEventActor, membershipEventReason } from "@/lib/membership-event";
 import { Download } from "lucide-react";
 import { useState } from "react";
 
@@ -36,7 +38,7 @@ const ACTION_META: Record<
 
 function exportReportCsv(rows: MembershipReportRow[]) {
   downloadCsv(
-    `uyelik-raporu-${new Date().toISOString().slice(0, 10)}.csv`,
+    `uyelik-raporu-${toDateInput()}.csv`, // yerel gün (D-142)
     ["Tarih", "Firma", "Kod", "İşlem", "Ay", "Yeni Bitiş", "Yapan", "Gerekçe"],
     rows.map((r) => [
       safeFormat(r.createdAt, "yyyy-MM-dd HH:mm"),
@@ -45,8 +47,8 @@ function exportReportCsv(rows: MembershipReportRow[]) {
       ACTION_META[r.action].label,
       r.months ?? "",
       r.endAfter ? safeFormat(r.endAfter, "yyyy-MM-dd") : "",
-      r.adminEmail ?? "sistem",
-      r.reason ?? "",
+      membershipEventActor(r),
+      membershipEventReason(r.reason) ?? "",
     ]),
   );
 }
@@ -54,9 +56,15 @@ function exportReportCsv(rows: MembershipReportRow[]) {
 function RaporView() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const query = useMembershipReport(from || undefined, to || undefined);
-  const rows = query.data?.rows ?? [];
-  const t = query.data?.totals;
+  // Ters aralık (başlangıç > bitiş) sessizce kabul edilip boş rapor
+  // gösteriyordu — uyarı verilir, istek atılmaz (arayüz testi D-145).
+  // "YYYY-MM-DD" metin karşılaştırması tarih sırasıyla aynıdır.
+  const inverted = !!from && !!to && from > to;
+  const query = useMembershipReport(from || undefined, to || undefined, {
+    enabled: !inverted,
+  });
+  const rows = inverted ? [] : (query.data?.rows ?? []);
+  const t = inverted ? undefined : query.data?.totals;
 
   const truncated = query.data?.truncated ?? false;
   const totalMatching = query.data?.totalMatching ?? rows.length;
@@ -87,8 +95,8 @@ function RaporView() {
               range: () => {
                 const n = new Date();
                 return [
-                  `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-01`,
-                  n.toISOString().slice(0, 10),
+                  toDateInput(new Date(n.getFullYear(), n.getMonth(), 1)),
+                  toDateInput(n),
                 ];
               },
             },
@@ -98,26 +106,21 @@ function RaporView() {
                 const n = new Date();
                 const first = new Date(n.getFullYear(), n.getMonth() - 1, 1);
                 const last = new Date(n.getFullYear(), n.getMonth(), 0);
-                return [
-                  `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}-01`,
-                  `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`,
-                ];
+                return [toDateInput(first), toDateInput(last)];
               },
             },
             {
               label: "Son 30 Gün",
               range: () => [
-                new Date(Date.now() - 30 * 86_400_000)
-                  .toISOString()
-                  .slice(0, 10),
-                new Date().toISOString().slice(0, 10),
+                toDateInput(Date.now() - 30 * 86_400_000),
+                toDateInput(),
               ],
             },
             {
               label: "Bu Yıl",
               range: () => [
                 `${new Date().getFullYear()}-01-01`,
-                new Date().toISOString().slice(0, 10),
+                toDateInput(),
               ],
             },
           ] as const
@@ -146,6 +149,8 @@ function RaporView() {
           <Input
             type="date"
             value={from}
+            max={to || undefined}
+            aria-invalid={inverted || undefined}
             onChange={(e) => setFrom(e.target.value)}
           />
         </label>
@@ -156,6 +161,8 @@ function RaporView() {
           <Input
             type="date"
             value={to}
+            min={from || undefined}
+            aria-invalid={inverted || undefined}
             onChange={(e) => setTo(e.target.value)}
           />
         </label>
@@ -172,6 +179,12 @@ function RaporView() {
           </Button>
         ) : null}
       </div>
+
+      {inverted ? (
+        <p role="alert" className="text-sm text-red-700">
+          Başlangıç tarihi bitiş tarihinden sonra olamaz — aralığı düzeltin.
+        </p>
+      ) : null}
 
       {/* Toplamlar */}
       {t ? (
@@ -193,7 +206,7 @@ function RaporView() {
         Toplam kartları tüm evrenden hesaplandığı için doğru; kesilen yalnız
         aşağıdaki satır listesi (ve dolayısıyla CSV çıktısı).
       */}
-      {truncated ? (
+      {truncated && !inverted ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Bu aralıkta {totalMatching.toLocaleString("tr-TR")} hareket var; aşağıda
           (ve CSV&apos;de) yalnız en yeni {rows.length.toLocaleString("tr-TR")}{" "}
@@ -219,10 +232,14 @@ function RaporView() {
             {rows.length === 0 ? (
               <TableStateRow
                 colSpan={7}
-                loading={query.isLoading}
-                error={query.isError}
+                loading={!inverted && query.isLoading}
+                error={!inverted && query.isError}
                 onRetry={() => void query.refetch()}
-                empty="Bu aralıkta üyelik hareketi yok"
+                empty={
+                  inverted
+                    ? "Geçerli bir tarih aralığı seçin"
+                    : "Bu aralıkta üyelik hareketi yok"
+                }
               />
             ) : (
               rows.map((r) => (
@@ -248,10 +265,10 @@ function RaporView() {
                     {r.endAfter ? safeFormat(r.endAfter, "d MMM yyyy") : "—"}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs">
-                    {r.adminEmail ?? "sistem"}
+                    {membershipEventActor(r)}
                   </TableCell>
                   <TableCell className="text-admin-text-muted max-w-[220px] truncate text-xs">
-                    {r.reason ?? "—"}
+                    {membershipEventReason(r.reason) ?? "—"}
                   </TableCell>
                 </TableRow>
               ))
@@ -267,7 +284,9 @@ function RaporView() {
 export default function AdminUyelikRaporuPage() {
   return (
     <AdminShell>
-      <RaporView />
+      <AdminRoleGate action="viewMembershipReport">
+        <RaporView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

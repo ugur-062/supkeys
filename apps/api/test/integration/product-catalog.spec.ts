@@ -17,6 +17,7 @@ import {
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 const audit = { log: jest.fn() };
 const service = () =>
@@ -235,6 +236,18 @@ describe("yayımlama akışı", () => {
     expect(r.attributes).toEqual({ gerilim: "AG" });
   });
 
+  // Yayın denetimi 2026-09-28 Bölüm 5: DTO alanı `@IsObject` olduğu için değer
+  // doğrulanmıyordu; MB'lık tek değer içerik çevirisinin Pro istemine giriyordu.
+  it("nitelik DEĞERİ sınırlı: dev metin, uzun liste ve nesne 400; metin/liste/sayı geçer", async () => {
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const item = await makeProduct(company.id, user.id);
+    for (const bad of ["x".repeat(201), Array.from({ length: 51 }, () => "AG"), { nested: "AG" }, ["AG", { x: 1 }]]) {
+      await expect(service().updateShowcase(auth, item.id, { attributes: { gerilim: bad } })).rejects.toThrow(/Nitelik değeri geçersiz/);
+    }
+    const ok = await service().updateShowcase(auth, item.id, { attributes: { gerilim: "AG", ip: ["IP54", "IP65"], dolap: 3 } });
+    expect(ok.attributes).toEqual({ gerilim: "AG", ip: ["IP54", "IP65"], dolap: 3 });
+  });
+
   it("başka firmanın ürününe dokunamaz", async () => {
     const a = await makeCompanyWithUser(prisma);
     const b = await makeCompanyWithUser(prisma);
@@ -248,6 +261,7 @@ describe("yayımlama akışı", () => {
     const { company, user, auth } = await makeCompanyWithUser(prisma);
     const item = await makeProduct(company.id, user.id, {
       description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+      brand: "Schneider", mpn: "NSX400F", specification: "IEC 61439-2",
     });
     const sent = await service().publish(auth, item.id);
     expect(sent.reviewStatus).toBe("PENDING");
@@ -262,6 +276,9 @@ describe("yayımlama akışı", () => {
     const preview = await service().getShowcase(auth, item.id);
     expect(preview.id).toBe(item.id);
     expect(preview.reviewStatus).toBe("PENDING");
+    // Kimlik alanları vitrin yanıtında: `?urun=` derin bağlantısıyla açılan
+    // önizleme bunları buradan çizer (arayüz testi webC-16, gözden geçirme).
+    expect(preview).toMatchObject({ brand: "Schneider", mpn: "NSX400F", specification: "IEC 61439-2" });
     const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: item.id } });
     expect(row.description).toBe("x".repeat(120));
     expect(row.name).toBe("Dağıtım panosu 400A");
@@ -300,6 +317,167 @@ describe("yayımlama akışı", () => {
     expect(off.isPublic).toBe(false);
     expect(off.reviewStatus).toBe("DRAFT");
   });
+
+  /* Arayüz testi O-009: yayın kapısı yalnız `publish`te değil, yayındaki ürünün
+     her kaydında — eksik içerikle incelemeye girip vitrinde kalamaz. */
+  describe("yayın kapısı — yayındaki ürünün kaydı (O-009)", () => {
+    const live = (companyId: string, userId: string, over: Record<string, unknown> = {}) =>
+      makeProduct(companyId, userId, {
+        description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+        reviewStatus: "APPROVED", isPublic: true, publishedAt: new Date(), slug: "dagitim-panosu-400a",
+        ...over,
+      });
+
+    it("anahtar kelimeleri silinip açıklaması kısaltılan yayındaki ürün 400 alır; kayıt değişmez, incelemeye girmez", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await live(company.id, user.id);
+      const err = await service()
+        .updateShowcase(auth, item.id, { description: "Kısa.", keywords: [], images: ["a.webp"] })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(BadRequestException);
+      expect(String((err as BadRequestException).message)).toMatch(/Açıklama.*anahtar kelime/);
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: item.id } });
+      expect(row.reviewStatus).toBe("APPROVED");
+      expect(row.keywords).toEqual(["pano"]);
+      expect(row.description).toBe("x".repeat(120));
+    });
+
+    it("görselleri silmek de engellenir; eksiksiz içerik değişikliği incelemeye girer", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await live(company.id, user.id);
+      await expect(
+        service().updateShowcase(auth, item.id, { description: "x".repeat(120), keywords: ["pano"], images: [] }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      const ok = await service().updateShowcase(auth, item.id, {
+        description: "z".repeat(120), keywords: ["pano"], images: ["a.webp"],
+      });
+      expect(ok.reviewStatus).toBe("PENDING");
+    });
+
+    it("yalnız MOQ değişen yayındaki ürün onaylı kalır (içerik değil)", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await live(company.id, user.id);
+      const r = await service().updateShowcase(auth, item.id, {
+        description: "x".repeat(120), keywords: ["pano"], images: ["a.webp"], moq: 25,
+      });
+      expect(r.reviewStatus).toBe("APPROVED");
+      expect(r.moq).toBe("25");
+    });
+
+    it("kapı kuralları sıkılaşmadan önce yayına çıkmış eksik ürün içerik DIŞI alanını güncelleyebilir", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await live(company.id, user.id, { description: "eski kısa açıklama" });
+      const r = await service().updateShowcase(auth, item.id, {
+        description: "eski kısa açıklama", keywords: ["pano"], images: ["a.webp"], moq: 10,
+      });
+      expect(r.reviewStatus).toBe("APPROVED");
+    });
+
+    it("TASLAK serbest: eksik içerikli taslak kaydedilir; vitrinden çekilmiş onaylı ürün (taslak) incelemeye düşmez", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const draft = await makeProduct(company.id, user.id);
+      const d = await service().updateShowcase(auth, draft.id, { description: "Kısa.", keywords: [] });
+      expect(d.reviewStatus).toBe("DRAFT");
+      const downgraded = await live(company.id, user.id, { isPublic: false, slug: "pano-2", name: "Pano 2" });
+      const r = await service().updateShowcase(auth, downgraded.id, { description: "Kısa.", keywords: [] });
+      expect(r.reviewStatus).toBe("APPROVED");
+      expect(r.isPublic).toBe(false);
+    });
+  });
+
+  /* Derin denetim Y-07 (2026-09-29): katalog kalemi ucu (`PATCH company/items/:id`)
+     vitrin yolunun moderasyon kuralını ATLATMAMALI. */
+  describe("katalog kalemi yaması (update) — yayındaki üründe moderasyon", () => {
+    const translations = { enqueue: jest.fn() };
+    const seo = { productChanged: jest.fn() };
+    const svcWithHooks = () =>
+      new CompanyItemsService(
+        prisma as unknown as PrismaService,
+        audit as never,
+        {} as never,
+        undefined,
+        seo as never,
+        undefined,
+        translations as never,
+      );
+    const approved = (companyId: string, userId: string) =>
+      makeProduct(companyId, userId, {
+        description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+        reviewStatus: "APPROVED", isPublic: true, publishedAt: new Date(), slug: "dagitim-panosu-400a",
+        searchText: "dagitim panosu 400a pano",
+      });
+
+    beforeEach(() => {
+      translations.enqueue.mockClear();
+      seo.productChanged.mockClear();
+    });
+
+    it("APPROVED üründe ad/açıklama değişince PENDING'e düşer, vitrinde kalır; arama metni ve çeviri yenilenir", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await approved(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, {
+        name: "Yeni pano adı", unit: "adet", description: `WhatsApp +90 555 000 00 00 ${"y".repeat(100)}`,
+      });
+      expect(r.reviewStatus).toBe("PENDING");
+      expect(r.isPublic).toBe(true);
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: item.id } });
+      expect(row.reviewStatus).toBe("PENDING");
+      expect(row.submittedAt).not.toBeNull();
+      expect(row.rejectReason).toBeNull();
+      expect(row.searchText).toContain("yeni pano");
+      expect(row.searchText).toContain("pano");
+      expect(translations.enqueue).toHaveBeenCalledWith("PRODUCT", item.id);
+      expect(seo.productChanged).toHaveBeenCalledWith(item.id);
+      // İnceleme kilidi artık bu uçta da devrede.
+      await expect(svcWithHooks().update(auth, item.id, { name: "Bir daha", unit: "adet" })).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("şartname/marka/MPN de herkese açık içerik sayılır → PENDING", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await approved(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, { name: "Dağıtım panosu 400A", unit: "adet", specification: "spam metni" });
+      expect(r.reviewStatus).toBe("PENDING");
+      const item2 = await makeProduct(company.id, user.id, {
+        name: "Başka pano", reviewStatus: "APPROVED", isPublic: true, slug: "baska-pano",
+        description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+      });
+      const r2 = await svcWithHooks().update(auth, item2.id, { name: "Başka pano", unit: "adet", brand: "Marka X" });
+      expect(r2.reviewStatus).toBe("PENDING");
+      const row2 = await prisma.companyItem.findUniqueOrThrow({ where: { id: item2.id } });
+      expect(row2.searchText).toContain("marka x");
+    });
+
+    it("içerik dışı alan (stok kodu/birim/hedef fiyat) ya da değişmeyen kayıt APPROVED kalır", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await approved(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, {
+        name: "  Dağıtım panosu 400A ", unit: "kg", code: "PNO-400", targetPrice: 1200,
+      });
+      expect(r.reviewStatus).toBe("APPROVED");
+      expect(r.isPublic).toBe(true);
+      expect(r.code).toBe("PNO-400");
+    });
+
+    it("YAYIN KAPISI (arayüz testi O-009): yayındaki ürün eksik açıklamayla kaydedilemez; kayıt değişmez", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await approved(company.id, user.id);
+      await expect(
+        svcWithHooks().update(auth, item.id, { name: "Dağıtım panosu 400A", unit: "adet", description: "Kısa." }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: item.id } });
+      expect(row.reviewStatus).toBe("APPROVED");
+      expect(row.description).toBe("x".repeat(120));
+    });
+
+    it("taslak (DRAFT) üründe düzenleme serbest, incelemeye düşmez ve çevrilmez", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await makeProduct(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, { name: "Taslak yeni ad", unit: "adet" });
+      expect(r.reviewStatus).toBe("DRAFT");
+      expect(r.name).toBe("Taslak yeni ad");
+      expect(translations.enqueue).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("ürün oluşturma — TEK ÇAĞRI (ilan sihirbazı değil)", () => {
@@ -325,6 +503,23 @@ describe("ürün oluşturma — TEK ÇAĞRI (ilan sihirbazı değil)", () => {
     expect(p.isPublic).toBe(false);
   });
 
+  it("para birimi verilmezse FİRMANIN ülkesinden doğar; TRY karşılığı yazımda hesaplanır (2026-09-27)", async () => {
+    setFxRates({ EUR: 50 });
+    try {
+      const { auth } = await makeCompanyWithUser(prisma, { country: "DE" });
+      const p = await service().createProduct(auth, { name: "Schaltschrank", unit: "adet", priceMode: "FIXED", priceAmount: 450 });
+      expect(p.priceCurrency).toBe("EUR");
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: p.id }, select: { priceAmountBase: true } });
+      expect(Number(row.priceAmountBase)).toBe(22_500);
+      // Teklifle fiyata geçince taban düşer (süzgeçte "fiyatsız").
+      await service().updateShowcase(auth, p.id, { priceMode: "ON_REQUEST" });
+      const after = await prisma.companyItem.findUniqueOrThrow({ where: { id: p.id }, select: { priceAmountBase: true } });
+      expect(after.priceAmountBase).toBeNull();
+    } finally {
+      resetFxRates();
+    }
+  });
+
   it("adsız ürün açılamaz", async () => {
     const { auth } = await makeCompanyWithUser(prisma);
     await expect(
@@ -348,5 +543,43 @@ describe("ürün oluşturma — TEK ÇAĞRI (ilan sihirbazı değil)", () => {
     // Ad değişti → arama metni de yenilenmeli, yoksa ürün eski adıyla aranır.
     expect(row.searchText).toContain("paslanmaz");
     expect(row.searchText).toContain("boru");
+  });
+});
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 6 (yerel uçtan uca koşuda yakalandı): Ürünlerim
+ * ilk 50 satırı KULLANIM sıklığıyla alıp sekmeleri istemcide süzüyordu → 50'den
+ * fazla ürünü olan firmada "Onay bekliyor (1)" boş, az önce eklenen ürün görünmez.
+ * Sekme ve "en yeni üstte" sunucuda.
+ */
+describe("Ürünlerim listesi — sunucu süzgeci ve en yeni üstte", () => {
+  it("55 ürünlü firmada: sekme süzgeci sunucuda, recent sıralamada en yeni ilk, publishedInReview sayılır", async () => {
+    const { company, user } = await makeCompanyWithUser(prisma);
+    const base = Date.now() - 60 * 86_400_000;
+    for (let i = 0; i < 52; i++) {
+      await makeProduct(company.id, user.id, { name: `Eski ${String(i).padStart(2, "0")}`, usageCount: 5, createdAt: new Date(base + i * 1000) });
+    }
+    await makeProduct(company.id, user.id, { name: "Yayında incelemede", isPublic: true, reviewStatus: "PENDING", createdAt: new Date(base + 60_000) });
+    await makeProduct(company.id, user.id, { name: "Düzeltme istendi", reviewStatus: "REJECTED", createdAt: new Date(base + 61_000) });
+    const newest = await makeProduct(company.id, user.id, { name: "Çelik boru yeni", reviewStatus: "PENDING", isPublic: false });
+
+    const pending = await service().list(company.id, { status: "pending", sort: "recent" });
+    expect(pending.items.map((i) => i.name)).toEqual(["Çelik boru yeni"]);
+
+    const published = await service().list(company.id, { status: "published", sort: "recent" });
+    expect(published.items.map((i) => i.name)).toEqual(["Yayında incelemede"]);
+
+    const rejected = await service().list(company.id, { status: "rejected" });
+    expect(rejected.items.map((i) => i.name)).toEqual(["Düzeltme istendi"]);
+
+    const recent = await service().list(company.id, { sort: "recent" });
+    expect(recent.items[0]!.id).toBe(newest.id);
+    expect(recent.total).toBe(55);
+    expect(recent.truncated).toBe(true);
+    expect(recent.counts).toMatchObject({ published: 1, pending: 2, rejected: 1, publishedInReview: 1 });
+
+    // Katalog seçicisi (varsayılan) kullanım sıklığıyla kalır: yeni ürün ilk sayfada değil.
+    const usage = await service().list(company.id, {});
+    expect(usage.items.some((i) => i.id === newest.id)).toBe(false);
   });
 });

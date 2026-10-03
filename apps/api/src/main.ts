@@ -15,14 +15,16 @@ import type { ValidationError } from "class-validator";
 import helmet from "helmet";
 import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
-import { isCorsOriginAllowed } from "./common/cors-origin";
+import { CORS_EXPOSED_HEADERS, isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
-import { assertProdEmailSender } from "./common/config/email-sender";
+import { assertAdmin2faConfig } from "./common/config/admin-2fa";
+import { assertProdEmailSender, assertProdStreamSenders } from "./common/config/email-sender";
 import { checkAiKey } from "./common/config/ai-config";
 import { reportToSentry } from "./instrument";
 import { translateValidatorMessage } from "./common/error-messages";
+import { tApi } from "./common/i18n/i18n.service";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -89,12 +91,21 @@ async function bootstrap() {
   // boot'ta yakala (bkz. common/config/prod-config-sanity.ts).
   assertProdConfigSanity(config);
 
+  // Admin 2FA zorunlulugu (derin denetim MU-01): ADMIN_2FA_REQUIRED_ROLES
+  // gecersizse THROW; prod'da bilincli kapatildiysa gurultulu uyari.
+  const admin2faWarning = assertAdmin2faConfig(config);
+  if (admin2faWarning) {
+    new Logger("Bootstrap").warn(admin2faWarning);
+    reportToSentry(admin2faWarning, "warning");
+  }
+
   // Gönderen adresi (fail-closed): canlı posta YALNIZ rothern.com alan adından
   // çıkabilir. 2026-09-13'te canlı `onboarding@resend.dev` kullanıyordu —
   // müşteriye giden her e-posta sağlayıcının TEST alan adından gidiyordu ve
   // hata sessizdi (gönderim başarılı, günlük temiz, testler yeşil). Artık
   // yanlış adresle boot edilmez (bkz. common/config/email-sender.ts).
   assertProdEmailSender(config);
+  assertProdStreamSenders(config);
 
   // Faz AI-0 — AI anahtar sağlığı: placeholder/bozuk anahtar prod'da BOOT
   // ETMEZ (bozuk anahtarla "AI açık" sanılıp runtime'da her çağrının 502
@@ -176,9 +187,10 @@ async function bootstrap() {
       transform: true,
       forbidNonWhitelisted: true,
       /**
-       * Polish-3 — class-validator sonuçlarını TR mesajlarla
-       * `{ message, errors: { field: msg } }` shape'ine çevir.
-       * Frontend `extractFieldErrors` ile inline gösterir.
+       * Polish-3 — class-validator sonuçlarını `{ message, errors: { field:
+       * msg } }` shape'ine çevir; metinler İSTEK DİLİNDE (i18n Faz 0, ALS
+       * bağlamı LocaleMiddleware'den). Frontend `extractFieldErrors` ile
+       * inline gösterir.
        */
       exceptionFactory: (errors: ValidationError[]) => {
         const fieldErrors: Record<string, string> = {};
@@ -194,7 +206,9 @@ async function bootstrap() {
               const PRIORITY = ["isDefined", "isNotEmpty", "isString", "isNumber", "isInt", "isBoolean", "isEnum", "isIn", "isArray", "isEmail", "isIso8601", "isUrl"];
               const keys = Object.keys(err.constraints);
               const pick = PRIORITY.find((k) => keys.includes(k)) ?? keys[0];
-              const firstMsg = missing ? "Bu alan zorunlu" : (pick ? err.constraints[pick] : undefined) ?? "Geçersiz değer";
+              const firstMsg = missing
+                ? tApi("api.validation.required")
+                : ((pick ? err.constraints[pick] : undefined) ?? tApi("api.validation.invalid"));
               fieldErrors[path] = translateValidatorMessage(firstMsg);
             }
             if (err.children && err.children.length > 0) {
@@ -207,7 +221,7 @@ async function bootstrap() {
         return new BadRequestException({
           statusCode: 400,
           error: "Bad Request",
-          message: "Doğrulama hatası",
+          message: tApi("api.validation.failed"),
           errors: fieldErrors,
         });
       },
@@ -228,9 +242,9 @@ async function bootstrap() {
     origin: (origin, cb) =>
       cb(null, isCorsOriginAllowed(origin, { corsOrigins, allowVercel })),
     credentials: true,
-    // Correlation-id: api ve app AYRI origin'de → tarayıcı istemci response
-    // header'ını ancak expose edilirse okuyabilir (destek ekibine iletmek için).
-    exposedHeaders: ["x-request-id"],
+    // api ve app AYRI origin'de → tarayıcı response header'ını ancak expose
+    // edilirse okuyabilir (x-request-id + indirme dosya adı; bkz. cors-origin.ts).
+    exposedHeaders: CORS_EXPOSED_HEADERS,
   });
 
   // Graceful shutdown — Nest lifecycle hooks tetiklenir (Prisma bağlantısı

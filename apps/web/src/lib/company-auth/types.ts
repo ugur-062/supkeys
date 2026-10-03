@@ -1,3 +1,4 @@
+import type { Locale } from "@rothern/i18n";
 // Birleşik sistem — Company auth tipleri (backend /company-auth ile uyumlu).
 
 export type CompanyRole =
@@ -27,8 +28,21 @@ export interface CompanyUserDto {
   /** Efektif izinler (rol + override + sahiplik) — UI kapıları için. */
   permissions?: string[];
   twoFactorEnabled: boolean;
+  /**
+   * Açık 2FA'nın yöntemi (kapalıyken null). Ayarlar 2FA ekranı metni ve
+   * "E-postaya kod gönder" düğmesini buna göre seçer. Eski anlık görüntüde
+   * olmayabilir.
+   */
+  twoFactorMethod?: "AUTHENTICATOR" | "EMAIL" | null;
   notificationPrefs: Record<string, boolean> | null;
   lastLoginAt: string | null;
+  /** Arayüz dili (tr/en/ru) — @rothern/i18n LOCALES; eski anlık görüntüde olmayabilir. */
+  locale?: Locale;
+  /**
+   * Sözleşme/KVKK onay izi eksik (admin eliyle açılan hesap) → panel onay
+   * kapısı (`TermsAcceptanceGate`). Eski anlık görüntüde olmayabilir.
+   */
+  needsTermsAcceptance?: boolean;
 }
 
 export interface CompanyProfile {

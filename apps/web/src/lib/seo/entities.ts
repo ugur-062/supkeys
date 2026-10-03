@@ -1,8 +1,21 @@
-import { SITE_NAME } from "./meta";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
-import { productPrice } from "@/lib/public/product-price";
-import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
-import { absoluteUrl, buildMetadata, clampDescription, joinParts } from "@/lib/seo/meta";
+import { provinceDisplayName } from "@rothern/shared";
+import { findUnitDef, intlLocale } from "@/i18n/format";
+import { localizePath } from "@/i18n/href";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
+import { TITLE_SUFFIX, fitTitle } from "./meta";
+import { MARKETPLACE_ROUTES, categoryHref, listingHref } from "@/lib/public/marketplace";
+import { productPrice, type PriceLabels } from "@/lib/public/product-price";
+import { SITE_ID, breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
+import {
+  absoluteUrl,
+  buildMetadata,
+  clampDescription,
+  contentLangOf,
+  joinParts,
+  LANG_TAG,
+  ogCardPath,
+  readyLocalesOf,
+} from "@/lib/seo/meta";
 import type { Metadata } from "next";
 
 /**
@@ -23,7 +36,28 @@ import type { Metadata } from "next";
  * (`joinParts` boşları atar) — "fiyat: belirtilmemiş" gibi doldurma yapılmaz.
  * Kapılı alan (ilan sahibinin adı, firma iletişimi, teklifler) buraya
  * PARAMETRE OLARAK BİLE geçmez; sözleşme testi çıktıyı tarar.
+ *
+ * ÇOK DİLLİ GRAF (2026-09-27 SEO denetimi): her sayfada İKİ düğüm —
+ *   · SAYFA düğümü (`ItemPage`/`ProfilePage`): `@id`/`url` = o dilin adresi,
+ *     `inLanguage`, `isPartOf` (site), `mainEntity`, `dateModified`;
+ *   · VARLIK düğümü (`Product`/`Organization`/`Demand`): `@id` DİLDEN
+ *     BAĞIMSIZ (Türkçe kanonik + `#product`/`#company`/`#demand`) — üç dil
+ *     sayfası AYNI varlığı anlatır, üç ayrı firma/ürün değil. `inLanguage`
+ *     bu tiplerde geçerli bir özellik DEĞİL, yalnız sayfa düğümünde.
+ * Varlık düğümü grafta İLK sırada kalır (testler ve tüketiciler onu okur).
  */
+
+/** Dilden bağımsız varlık kimlikleri — Türkçe (ön eksiz) kanonik + parça. */
+export const entityId = {
+  product: (companySlug: string, productSlug: string) => `${absoluteUrl(`/firma/${companySlug}/urun/${productSlug}`)}#product`,
+  company: (slug: string) => `${absoluteUrl(`/firma/${slug}`)}#company`,
+  demand: (path: string) => `${absoluteUrl(path)}#demand`,
+};
+
+/** ISO ülke kodu mu (`addressCountry`) — boş/serbest metin yazılmaz, "TR" UYDURULMAZ. */
+function isoCountry(code: string | null | undefined): string | undefined {
+  return code && /^[A-Z]{2}$/.test(code) ? code : undefined;
+}
 
 /* ------------------------------------------------------------------ */
 /* Ürün                                                                */
@@ -39,14 +73,22 @@ export interface ProductSeoInput {
     brand: string | null;
     mpn: string | null;
     unit: string;
+    /** Katalog birimi — varsa etiket okuyucunun dilinde (`web.domain.unit.<KOD>`). */
+    unitCode?: string | null;
     moq: string | null;
     priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
     priceAmount: string | null;
     priceTiers: { minQty: number; unitPrice: number }[] | null;
     priceCurrency: string;
     category?: { id: string; name: string } | null;
+    /** Kategorinin segmenti (L1) — kırıntı segment açılış sayfasına bağlanır. */
+    segment?: { id: string; name: string; slug?: string } | null;
     attributeList?: { label: string; value: string; unit: string | null }[];
     keywords?: string[];
+    updatedAt?: string | null;
+    /** Dil durumu (API): hreflang yalnız hazır diller; kaynak dilde gösterimde `inLanguage`. */
+    readyLocales?: string[];
+    sourceLocale?: string;
   };
   company: {
     name: string;
@@ -59,31 +101,129 @@ export interface ProductSeoInput {
   indexable: boolean;
 }
 
-function priceSentence(p: ProductSeoInput["product"]): string {
-  const price = productPrice(p);
-  if (price.hasPrice) return price.headline;
-  return "Fiyat için teklif isteyin";
+/**
+ * Gevşek anahtarlı çevirmen — üreticiler bunu PARAMETRE alır. Sunucuda
+ * `seoT(locale)` (i18n/server.ts, `server-only`), istemcide `useSeoT()`
+ * (i18n/domain.ts). Bu modül `@/i18n/server`ı İMPORT ETMEZ: ürün/talep
+ * detay bileşenleri ve panel formlarının parçacık önizlemesi istemcide de
+ * çalışıyor; `server-only` zinciri derlemeyi kırar (2026-09-23, staging).
+ */
+export type SeoT = (key: string, values?: Record<string, string | number | Date>) => string;
+
+function priceLabels(t: SeoT, locale: Locale): PriceLabels {
+  return {
+    locale: intlLocale(locale),
+    onRequest: t("web.marketplace.price.onRequest"),
+    fromQty: (n, unit, code) => t("web.marketplace.price.fromQty", { qty: quantityWith(t, n, unit, code) }),
+  };
 }
 
-export function productSeo(input: ProductSeoInput): {
+/**
+ * Ölçü birimi etiketi OKUYUCUNUN DİLİNDE (istemci `useUnitLabel` ile aynı
+ * eşleme): kod ya da Türkçe ad/simge katalogdaysa `web.domain.unit.<KOD>`,
+ * değilse özgün metin (kodsuz serbest birim zaten içerik çevirisinden gelir).
+ * Eskiden meta açıklaması ve OG fiyatı EN sayfada "… / adet" basıyordu.
+ */
+export function unitLabelWith(t: SeoT, unit: string | null | undefined, code?: string | null): string {
+  const known = findUnitDef(unit, code);
+  return known ? t(`web.domain.unit.${known.code}`) : (unit ?? "");
+}
+
+/**
+ * Miktar + birim DİLİN ÇOĞUL KURALIYLA (`web.domain.qty.<KOD>`): "100 pieces",
+ * "100 коробок", "100 adet". Tekil etiketi sayının yanına yapıştırmak EN/RU'da
+ * "100 piece" / "100 коробка" basıyordu (2026-09-27). Kodsuz serbest birimde
+ * sayı + metin (`qty.other`).
+ */
+export function quantityWith(t: SeoT, n: number | string, unit: string | null | undefined, code?: string | null): string {
+  const num = Number(n);
+  const known = findUnitDef(unit, code);
+  if (!Number.isFinite(num)) return [String(n), unitLabelWith(t, unit, code)].filter(Boolean).join(" ");
+  return known
+    ? t(`web.domain.qty.${known.code}`, { n: num })
+    : t("web.domain.qty.other", { n: num, unit: unit ?? "" });
+}
+
+function priceSentence(p: ProductSeoInput["product"], locale: Locale, t: SeoT, unit: string): string {
+  const labels = priceLabels(t, locale);
+  const price = productPrice({ ...p, unit }, labels);
+  if (price.hasPrice) return price.headline;
+  return labels.onRequest;
+}
+
+/**
+ * Teklif düğümü — YALNIZ gerçek fiyat varsa (2026-09-27): fiyatsız `Offer`
+ * ("teklif isteyin") ya da stok bilmeden yazılan `InStock` Rich Results
+ * hatasıdır ve uydurmadır. Sabit fiyat → `Offer.price`; kademeli → en düşük/
+ * en yüksek birim fiyatlı `AggregateOffer` (+ kademeler `priceSpecification`).
+ */
+function offerNode(
+  pr: ProductSeoInput["product"],
+  url: string,
+  unit: string,
+  seller: JsonLdNode,
+): JsonLdNode | undefined {
+  const moq = pr.moq
+    ? { eligibleQuantity: { "@type": "QuantitativeValue", minValue: Number(pr.moq) || undefined, unitText: unit } }
+    : {};
+  // 0 fiyat "gerçek fiyat" değildir (derin denetim LU-08): API artık 0'ı
+  // reddediyor ama eski kayıtta "0" string'i truthy olduğundan Google'a
+  // ücretsiz ürün olarak Offer price=0 yazılıyordu.
+  if (pr.priceMode === "FIXED" && Number(pr.priceAmount) > 0) {
+    return compact({ "@type": "Offer", url, price: pr.priceAmount, priceCurrency: pr.priceCurrency, ...moq, seller });
+  }
+  if (pr.priceMode === "TIERED" && pr.priceTiers?.length && pr.priceTiers.every((t) => Number(t.unitPrice) > 0)) {
+    const prices = pr.priceTiers.map((t) => t.unitPrice);
+    return compact({
+      "@type": "AggregateOffer",
+      url,
+      lowPrice: Math.min(...prices),
+      highPrice: Math.max(...prices),
+      priceCurrency: pr.priceCurrency,
+      offerCount: pr.priceTiers.length,
+      priceSpecification: pr.priceTiers.map((t) => ({
+        "@type": "UnitPriceSpecification",
+        price: t.unitPrice,
+        priceCurrency: pr.priceCurrency,
+        eligibleQuantity: { "@type": "QuantitativeValue", minValue: t.minQty, unitText: unit },
+      })),
+      ...moq,
+      seller,
+    });
+  }
+  return undefined;
+}
+
+export interface SeoOptions {
+  /** Sayfanın dili (i18n Faz 1) — kanonik/hreflang ve JSON-LD adresi bu dilin. */
+  locale?: Locale;
+  /** Çevirmen: sunucuda `seoT(locale)`, istemcide `useSeoT()`. */
+  t: SeoT;
+}
+
+export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = opts.t;
   const { product: pr, company: co, companySlug } = input;
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, locale));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
-  const where = joinParts([co.name, co.city], ", ");
+  const where = joinParts([co.name, provinceDisplayName(co.city, locale)], ", ");
+  const unit = unitLabelWith(ts, pr.unit, pr.unitCode);
+  const minOrder = pr.moq ? ts("web.seo.og.minOrder", { qty: quantityWith(ts, pr.moq, pr.unit, pr.unitCode) }) : null;
 
   /* Tanım cümlesi: NE + KİM + NEREDE + FİYAT + MOQ. Arama sonucunda ve AI
      cevabında tek başına anlamlı olmalı — "ürün sayfası" demek yetmez. */
   const summary = joinParts(
     [
       joinParts([pr.name, pr.category?.name], " — "),
-      where ? `${where} vitrininde` : null,
-      priceSentence(pr),
-      pr.moq ? `min. ${pr.moq} ${pr.unit}` : null,
+      where ? ts("web.seo.inShowcaseOf", { where }) : null,
+      priceSentence(pr, locale, ts, unit),
+      minOrder,
     ],
     " · ",
   );
@@ -92,67 +232,37 @@ export function productSeo(input: ProductSeoInput): {
      sıralamada hem alıntıda şablon cümleden değerlidir. Olgular arkaya
      eklenir; 160'ta kelime sınırında kesilir. */
   const lead = pr.description ? clampDescription(pr.description, 96) : null;
-  const description = clampDescription(
-    joinParts([lead, priceSentence(pr), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
-  );
+  const description = clampDescription(joinParts([lead, priceSentence(pr, locale, ts, unit), minOrder, where], " · "));
 
   // Başlık tavanı 75 (canlı denetim 2026-09-11: 83 karakterlik ürün adı taşıyordu):
   // önce firma adı düşer, yine uzunsa ürün adı kelime sınırında kısaltılır.
   const title = clampTitle(pr.name, co.name);
+  const productId = entityId.product(companySlug, pr.slug);
 
-  const offer = compact({
-    "@type": "Offer",
-    url,
-    availability: "https://schema.org/InStock",
-    priceCurrency: pr.priceCurrency,
-    ...(pr.priceMode === "FIXED" && pr.priceAmount ? { price: pr.priceAmount } : {}),
-    ...(pr.priceMode === "TIERED" && pr.priceTiers?.length
+  /* Satıcı kimliği ÜRÜNDE açıktır (ilan sahibinin tersine): ürün sayfası
+     firmanın opt-in vitrinidir ve adı sayfada zaten yazılı. Adres okuyucunun
+     dilinde, kimlik dilden bağımsız (firma sayfasındaki `Organization`la aynı). */
+  const seller = compact({
+    "@type": "Organization",
+    ...(co.slug ? { "@id": entityId.company(co.slug), url: absoluteUrl(localizePath(`/firma/${co.slug}`, locale)) } : {}),
+    name: co.name,
+    ...(co.city
       ? {
-          priceSpecification: pr.priceTiers.map((t) => ({
-            "@type": "UnitPriceSpecification",
-            price: t.unitPrice,
-            priceCurrency: pr.priceCurrency,
-            eligibleQuantity: {
-              "@type": "QuantitativeValue",
-              minValue: t.minQty,
-              unitText: pr.unit,
-            },
-          })),
+          address: compact({
+            "@type": "PostalAddress",
+            addressLocality: provinceDisplayName(co.city, locale),
+            addressCountry: isoCountry(co.country),
+          }),
         }
       : {}),
-    ...(pr.moq
-      ? {
-          eligibleQuantity: {
-            "@type": "QuantitativeValue",
-            minValue: Number(pr.moq) || undefined,
-            unitText: pr.unit,
-          },
-        }
-      : {}),
-    /* Satıcı kimliği ÜRÜNDE açıktır (ilan sahibinin tersine): ürün sayfası
-       firmanın opt-in vitrinidir ve adı sayfada zaten yazılı. */
-    seller: compact({
-      "@type": "Organization",
-      name: co.name,
-      ...(co.slug ? { url: absoluteUrl(`/firma/${co.slug}`) } : {}),
-      ...(co.city
-        ? {
-            address: {
-              "@type": "PostalAddress",
-              addressLocality: co.city,
-              addressCountry: co.country ?? "TR",
-            },
-          }
-        : {}),
-    }),
   });
 
   const productNode = compact({
     "@type": "Product",
+    "@id": productId,
     name: pr.name,
     url,
     description: pr.description ?? summary,
-    inLanguage: "tr-TR",
     image: images,
     ...(pr.category?.name ? { category: pr.category.name } : {}),
     ...(pr.brand ? { brand: { "@type": "Brand", name: pr.brand } } : {}),
@@ -167,7 +277,22 @@ export function productSeo(input: ProductSeoInput): {
           })),
         }
       : {}),
-    offers: offer,
+    offers: offerNode(pr, url, unit, seller),
+    mainEntityOfPage: { "@id": url },
+  });
+
+  const pageNode = compact({
+    "@type": "ItemPage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    inLanguage: contentLangOf(pr, locale) ?? LANG_TAG[locale],
+    isPartOf: { "@id": SITE_ID() },
+    mainEntity: { "@id": productId },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+    ...(images[0] ? { primaryImageOfPage: { "@type": "ImageObject", url: images[0] } } : {}),
+    ...(pr.updatedAt ? { dateModified: pr.updatedAt } : {}),
   });
 
   return {
@@ -175,18 +300,28 @@ export function productSeo(input: ProductSeoInput): {
       title,
       description,
       path,
-      images: images.slice(0, 1),
+      // Ürün fotoğrafı yoksa (yayın kapısı ≥1 ister; önizleme/eski kayıt)
+      // ürünün KENDİ kartı — marka kartı değil.
+      images: images.length ? images.slice(0, 1) : [ogCardPath(path, locale)],
       noindex: !input.indexable,
+      locale: opts.locale,
+      locales: readyLocalesOf(pr.readyLocales),
     }),
     jsonLd: graph([
       productNode,
-      breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.products, path: MARKETPLACE_ROUTES.products },
-        ...(pr.category ? [{ name: pr.category.name, path: categoryPath(pr.category.id, pr.category.name) }] : []),
-        { name: co.name, path: `/firma/${companySlug}` },
-        { name: pr.name, path },
-      ]),
+      pageNode,
+      {
+        "@id": `${url}#breadcrumb`,
+        ...breadcrumbNode([
+          { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+          { name: ts("web.marketplace.labels.products"), path: MARKETPLACE_ROUTES.products },
+          // Kırıntı SEGMENT açılış sayfasına (2026-09-27): L3 kodu süzgeç
+          // adresine düşüyordu (`/en/products?kategori=…`, kanoniği dizin).
+          ...(pr.segment ? [{ name: pr.segment.name, path: categoryHref(pr.segment) }] : []),
+          { name: co.name, path: `/firma/${companySlug}` },
+          { name: pr.name, path },
+        ], locale),
+      },
     ]),
     summary,
   };
@@ -221,26 +356,34 @@ export interface CompanySeoInput {
    */
   website?: string | null;
   linkedinUrl?: string | null;
+  /** Kalite kapısı (API `indexable`) — `false` ise `noindex`. Verilmezse indekslenebilir. */
+  indexable?: boolean;
+  updatedAt?: string | null;
+  /** Dil durumu (API): hreflang yalnız hazır diller. */
+  readyLocales?: string[];
+  sourceLocale?: string;
 }
 
 function httpUrls(values: (string | null | undefined)[]): string[] {
   return values.filter((v): v is string => !!v && /^https?:\/\//i.test(v.trim())).map((v) => v.trim());
 }
 
-export function companySeo(c: CompanySeoInput): {
+export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = opts.t;
   const path = `/firma/${c.slug}`;
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, locale));
 
   const summary = joinParts(
     [
       joinParts([c.name, c.industry], " — "),
-      c.city ? `${c.city} merkezli` : null,
-      c.productCount > 0 ? `${c.productCount} ürün vitrinde` : null,
-      c.verified ? "Rothern'de doğrulanmış firma" : null,
+      c.city ? ts("web.seo.basedIn", { city: provinceDisplayName(c.city, locale) }) : null,
+      c.productCount > 0 ? ts("web.seo.productsInShowcase", { n: c.productCount }) : null,
+      c.verified ? ts("web.seo.verifiedOnRothern") : null,
     ],
     " · ",
   );
@@ -250,25 +393,30 @@ export function companySeo(c: CompanySeoInput): {
   // (canlı denetim 2026-09-11) — parçacık için en az ~50: genel cümle eklenir.
   const parts = [
     lead,
-    joinParts([c.industry, c.city], ", "),
-    c.productCount > 0 ? `${c.productCount} ürün` : null,
-    "Rothern firma profili",
+    joinParts([c.industry, provinceDisplayName(c.city, locale)], ", "),
+    c.productCount > 0 ? ts("web.seo.products", { n: c.productCount }) : null,
+    ts("web.seo.companyProfile"),
   ];
   const base = joinParts(parts, " · ");
   const description = clampDescription(
-    base.length >= 50 ? base : `${base} · Ürünlerini inceleyin, bilgi isteyin, bağlantı kurun.`,
+    base.length >= 50 ? base : `${base} ${ts("web.seo.exploreTail")}`,
   );
 
-  const image = c.coverImageUrl ?? c.logoUrl;
+  // JSON-LD görsel/logo MUTLAK adres ister: kapak çoğu zaman göreli yedek
+  // (`/categories/72000000.webp`) — arayüz testi D-080.
+  const toAbs = (u: string) => (/^https?:\/\//.test(u) ? u : absoluteUrl(u));
+  const logo = c.logoUrl ? toAbs(c.logoUrl) : null;
+  const image = c.coverImageUrl ? toAbs(c.coverImageUrl) : logo;
+  const companyId = entityId.company(c.slug);
+  const title = companyTitle(c.name, c.industry, provinceDisplayName(c.city, locale));
 
   const orgNode = compact({
     "@type": "Organization",
-    "@id": `${url}#company`,
+    "@id": companyId,
     name: c.name,
     url,
     description: c.aboutText ?? summary,
-    inLanguage: "tr-TR",
-    ...(c.logoUrl ? { logo: c.logoUrl } : {}),
+    ...(logo ? { logo } : {}),
     ...(image ? { image } : {}),
     ...(c.foundedYear ? { foundingDate: String(c.foundedYear) } : {}),
     /* `employeeCount` bir ARALIK ("11-50") — sayı değil. Şemaya sayı gibi
@@ -277,30 +425,46 @@ export function companySeo(c: CompanySeoInput): {
     ...(c.categories.length ? { knowsAbout: c.categories.map((k) => k.name) } : {}),
     ...(c.certifications?.length ? { hasCredential: c.certifications } : {}),
     ...(httpUrls([c.website, c.linkedinUrl]).length ? { sameAs: httpUrls([c.website, c.linkedinUrl]) } : {}),
+    /* Adres: ülke yalnız ISO kodu varsa (eskiden yoksa "TR" UYDURULUYORDU).
+       `areaServed` YAZILMAZ: firmanın merkez ülkesi hizmet bölgesi değildir
+       ve eskiden ham kod ("DE") ad olarak basılıyordu (2026-09-27). */
     ...(c.city
       ? {
-          address: {
+          address: compact({
             "@type": "PostalAddress",
-            addressLocality: c.city,
-            addressCountry: c.country ?? "TR",
-          },
+            addressLocality: provinceDisplayName(c.city, locale),
+            addressCountry: isoCountry(c.country),
+          }),
         }
       : {}),
-    areaServed: { "@type": "Country", name: c.country === "TR" || !c.country ? "Türkiye" : c.country },
     ...(c.products?.length
       ? {
           hasOfferCatalog: {
             "@type": "OfferCatalog",
-            name: `${c.name} ürünleri`,
+            name: ts("web.seo.productsOf", { name: c.name }),
             itemListElement: c.products.slice(0, 10).map((p, i) => ({
               "@type": "ListItem",
               position: i + 1,
-              url: absoluteUrl(`${path}/urun/${p.slug}`),
+              url: absoluteUrl(localizePath(`${path}/urun/${p.slug}`, locale)),
               name: p.name,
             })),
           },
         }
       : {}),
+    mainEntityOfPage: { "@id": url },
+  });
+
+  const pageNode = compact({
+    "@type": "ProfilePage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    inLanguage: contentLangOf(c, locale) ?? LANG_TAG[locale],
+    isPartOf: { "@id": SITE_ID() },
+    mainEntity: { "@id": companyId },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+    ...(c.updatedAt ? { dateModified: c.updatedAt } : {}),
   });
 
   /* ORTALAMA PUAN YAZILMAZ: şema `aggregateRating` için oy SAYISI ister
@@ -311,19 +475,29 @@ export function companySeo(c: CompanySeoInput): {
 
   return {
     metadata: buildMetadata({
-      title: joinParts([c.name, joinParts([c.industry, c.city], ", ")], " — "),
+      title,
       description,
       path,
-      images: image ? [image] : undefined,
+      // Kapak yoksa firmanın KENDİ OG kartı (ad + sektör + şehir); logo kare
+      // ve küçük — paylaşım kartında bozuk görünür (2026-09-27: kapaksız
+      // firmaların hepsi marka kartına düşüyordu, segment kartı kullanılmıyordu).
+      images: [c.coverImageUrl ?? ogCardPath(path, locale)],
       type: "profile",
+      noindex: c.indexable === false,
+      locale: opts.locale,
+      locales: readyLocalesOf(c.readyLocales),
     }),
     jsonLd: graph([
       orgNode,
-      breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.companies, path: MARKETPLACE_ROUTES.companies },
-        { name: c.name, path },
-      ]),
+      pageNode,
+      {
+        "@id": `${url}#breadcrumb`,
+        ...breadcrumbNode([
+          { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+          { name: ts("web.marketplace.labels.companies"), path: MARKETPLACE_ROUTES.companies },
+          { name: c.name, path },
+        ], locale),
+      },
     ]),
     summary,
   };
@@ -335,6 +509,8 @@ export function companySeo(c: CompanySeoInput): {
 
 export interface ListingSeoInput {
   number: string;
+  /** Dilden bağımsız slug (API) — yoksa başlıktan üretilir. */
+  slug?: string | null;
   title: string;
   description: string | null;
   closesAt: string | null;
@@ -345,6 +521,10 @@ export interface ListingSeoInput {
   /** SAHİBİN ADI ALINMAZ — bilerek: tip düzeyinde de sızdırılamasın. */
   buyer: { city: string | null; country: string | null; isInternational: boolean };
   coverImageUrl: string | null;
+  updatedAt?: string | null;
+  /** Dil durumu (API): hreflang yalnız hazır diller. */
+  readyLocales?: string[];
+  sourceLocale?: string;
 }
 
 /**
@@ -354,6 +534,8 @@ export interface ListingSeoInput {
  */
 export function listingSeoInput(l: {
   number: string;
+  /** Dilden bağımsız slug (API) — yoksa başlıktan üretilir. */
+  slug?: string | null;
   title: string;
   description: string | null;
   closesAt: string | null;
@@ -364,9 +546,13 @@ export function listingSeoInput(l: {
   isInternational: boolean;
   coverImageUrl: string | null;
   company: { city: string | null; country: string | null };
+  updatedAt?: string | null;
+  readyLocales?: string[];
+  sourceLocale?: string;
 }): ListingSeoInput {
   return {
     number: l.number,
+    slug: l.slug ?? null,
     title: l.title,
     description: l.description,
     closesAt: l.closesAt,
@@ -380,29 +566,35 @@ export function listingSeoInput(l: {
       isInternational: l.isInternational,
     },
     coverImageUrl: l.coverImageUrl,
+    updatedAt: l.updatedAt ?? null,
+    readyLocales: l.readyLocales,
+    sourceLocale: l.sourceLocale,
   };
 }
 
-export function listingSeo(l: ListingSeoInput): {
+export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
-  const path = listingPath(l.number, l.title);
-  const url = absoluteUrl(path);
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = opts.t;
+  const path = listingHref(l);
+  const url = absoluteUrl(localizePath(path, locale));
   const cat = l.categories[0]?.name ?? null;
+  const unit = l.itemSummary.unit ? unitLabelWith(ts, l.itemSummary.unit) : null;
+  // Çoğul kuralı + sayı biçimi (derin denetim S094): tekil etiketi yapıştırmak
+  // EN/RU'da "1500 piece" basıyordu. JSON-LD `unitText` tekil etiket kalır.
   const qty =
-    l.itemSummary.totalQuantity && l.itemSummary.unit
-      ? `${l.itemSummary.totalQuantity} ${l.itemSummary.unit}`
-      : null;
+    l.itemSummary.totalQuantity && unit ? quantityWith(ts, l.itemSummary.totalQuantity, l.itemSummary.unit) : null;
 
   const summary = joinParts(
     [
       joinParts([l.title, cat], " — "),
       qty,
-      l.itemSummary.count > 1 ? `${l.itemSummary.count} kalem` : null,
-      l.buyer.city ? `alıcı: ${l.buyer.city}` : null,
-      l.open ? "teklife açık" : "kapandı",
+      l.itemSummary.count > 1 ? ts("web.seo.items", { n: l.itemSummary.count }) : null,
+      l.buyer.city ? ts("web.seo.buyerCity", { city: provinceDisplayName(l.buyer.city, locale) }) : null,
+      l.open ? ts("web.seo.openForQuotes") : ts("web.seo.closed"),
     ],
     " · ",
   );
@@ -411,21 +603,27 @@ export function listingSeo(l: ListingSeoInput): {
     joinParts(
       [
         l.description ? clampDescription(l.description, 90) : null,
-        qty ? `Miktar: ${qty}` : null,
+        qty ? ts("web.seo.qty", { qty }) : null,
         cat,
-        l.buyer.city ?? null,
-        "Kapalı zarf teklif — Rothern",
+        l.buyer.city ? provinceDisplayName(l.buyer.city, locale) : null,
+        ts("web.seo.sealedTail"),
       ],
       " · ",
     ),
   );
 
+  const demandId = entityId.demand(path);
+  // Numara korunur, talep başlığı 75 tavanına (` · Rothern` soneki + ` — <no>`
+  // düşülerek) kırpılır; DTO başlığa 200 karaktere kadar izin veriyor
+  // (derin denetim LU-24).
+  const titleMax = 75 - TITLE_SUFFIX.length - (l.number ? l.number.length + 3 : 0);
+  const title = joinParts([clampTitle(l.title, null, titleMax), l.number], " — ");
   const demandNode = compact({
     "@type": "Demand",
+    "@id": demandId,
     name: l.title,
     url,
     identifier: l.number,
-    inLanguage: "tr-TR",
     description: l.description ?? summary,
     ...(l.closesAt ? { validThrough: l.closesAt } : {}),
     availability: l.open ? "https://schema.org/InStock" : "https://schema.org/Discontinued",
@@ -443,7 +641,7 @@ export function listingSeo(l: ListingSeoInput): {
           eligibleQuantity: {
             "@type": "QuantitativeValue",
             value: l.itemSummary.totalQuantity,
-            unitText: l.itemSummary.unit,
+            unitText: unit,
           },
         }
       : {}),
@@ -451,45 +649,77 @@ export function listingSeo(l: ListingSeoInput): {
       ? {
           areaServed: {
             "@type": "Place",
-            address: {
+            address: compact({
               "@type": "PostalAddress",
-              addressLocality: l.buyer.city,
-              addressCountry: l.buyer.country ?? "TR",
-            },
+              addressLocality: provinceDisplayName(l.buyer.city, locale),
+              addressCountry: isoCountry(l.buyer.country),
+            }),
           },
         }
       : {}),
+    mainEntityOfPage: { "@id": url },
+  });
+
+  const pageNode = compact({
+    "@type": "ItemPage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    inLanguage: contentLangOf(l, locale) ?? LANG_TAG[locale],
+    isPartOf: { "@id": SITE_ID() },
+    mainEntity: { "@id": demandId },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+    ...(l.updatedAt ? { dateModified: l.updatedAt } : {}),
   });
 
   return {
     metadata: buildMetadata({
-      title: joinParts([l.title, l.number], " — "),
+      title,
       description,
       path,
-      images: l.coverImageUrl ? [l.coverImageUrl] : undefined,
+      // Görsel yoksa talebin KENDİ OG kartı (numara + başlık + konum; sahip adı
+      // YOK) — eskiden marka kartına düşüyordu, segment kartı kullanılmıyordu.
+      images: [l.coverImageUrl ?? ogCardPath(path, locale)],
       noindex: !l.indexable,
+      locale: opts.locale,
+      locales: readyLocalesOf(l.readyLocales),
     }),
     jsonLd: graph([
       demandNode,
-      breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.demands, path: MARKETPLACE_ROUTES.demands },
-        { name: l.title, path },
-      ]),
+      pageNode,
+      {
+        "@id": `${url}#breadcrumb`,
+        ...breadcrumbNode([
+          { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+          { name: ts("web.marketplace.labels.demands"), path: MARKETPLACE_ROUTES.demands },
+          { name: l.title, path },
+        ], locale),
+      },
     ]),
     summary,
   };
 }
 
-/** "<ürün> — <firma>" en çok 75 karakter; sığmazsa firma düşer, sonra ürün adı kısalır. */
-/**
- * Kök düzen başlığa `%s · Rothern` şablonunu UYGULUYOR (layout.tsx). Tavan
- * hesabı bu soneki saymazsa üretilen başlık 75'i aşar ve canlı denetim
- * kırmızıya döner (2026-09-12: 83 karakterlik ürün başlığı). Sonek burada
- * düşülür — çağıranların hatırlamasına bırakılmaz.
- */
-const TITLE_SUFFIX = ` · ${SITE_NAME}`;
 
+/**
+ * Firma başlığı "ad — sektör, şehir"; 75 karakter tavanına sığmazsa önce şehir,
+ * sonra sektör düşer, en son ad kısalır. Çevrilmiş sektör adları (EN/RU) uzun
+ * olabildiği için tavan aşılıyordu (yerel SEO denetimi 2026-09-26: 80-84).
+ */
+export function companyTitle(name: string, industry?: string | null, city?: string | null): string {
+  const max = 75 - TITLE_SUFFIX.length;
+  for (const tail of [joinParts([industry, city], ", "), industry ?? "", city ?? ""]) {
+    const full = joinParts([name, tail], " — ");
+    if (tail && full.length <= max) return full;
+  }
+  return clampTitle(name);
+}
+
+/**
+ * "<ürün> — <firma>" en çok 75 karakter (kök düzenin `· Rothern` soneki
+ * `TITLE_SUFFIX` ile düşülür); sığmazsa firma düşer, sonra ürün adı kısalır.
+ */
 export function clampTitle(
   name: string,
   brand?: string | null,
@@ -497,8 +727,5 @@ export function clampTitle(
 ): string {
   const full = joinParts([name, brand], " — ");
   if (full.length <= max) return full;
-  if (name.length <= max) return name;
-  const cut = name.slice(0, max - 1);
-  const atWord = cut.lastIndexOf(" ");
-  return `${(atWord > max * 0.6 ? cut.slice(0, atWord) : cut).trim()}…`;
+  return fitTitle(name, max);
 }

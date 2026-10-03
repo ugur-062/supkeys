@@ -15,23 +15,16 @@
  *
  * Çalıştır:  cd packages/db && npx tsx prisma/scripts/seed-marketplace-demo.ts
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
-
 import { PrismaClient, type CompanyActivity, type CompanyTier, type Prisma } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { createClient } from "@supabase/supabase-js";
 import { categoryAncestors, foldSearchText, generateSlug, permissionsForRoles, productCompletion } from "@rothern/shared";
 import { CATEGORY_ATTRIBUTES } from "../../src/seeds/category-attributes";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-marketplace-demo") });
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -44,6 +37,12 @@ const genCode = () => {
   return `${p()}-${p()}`;
 };
 const days = (n: number) => new Date(Date.now() + n * 86400_000);
+// Kayıt akışı üç zorunlu onayı birden yazar; demo hesaplar da onaylı doğar,
+// yoksa panel onay penceresi açılır (derin denetim MU-04).
+const ACCEPTED = () => {
+  const now = new Date();
+  return { termsAcceptedAt: now, mediationAcceptedAt: now, kvkkAcceptedAt: now };
+};
 /**
  * DEMO GÖRSELİ = KÜRATÖRLÜ CC0 KATEGORİ FOTOĞRAFI (2026-09-07).
  *
@@ -147,9 +146,9 @@ type Pr = {
 };
 const PRODUCTS: Pr[] = [
   // ege
-  { owner: "ege", name: "%100 Pamuk Penye Kumaş 180 g/m²", cat: "11162100", catKw: "kumaş", desc: "Ne 30/1 penye iplikten örülmüş, 180 g/m² gramajlı süprem kumaş. Tişört ve iç giyim için; OEKO-TEX sertifikalı, reaktif boyalı, 60 renk seçeneği. Top ağırlığı 25–30 kg.", spec: "En: 180 cm (açık)\nGramaj: 180 g/m² ±5\nÇekme: max %5 (60°C)", brand: "Ege Tekstil", unit: "kg", kw: ["penye", "süprem", "pamuk kumaş", "tişört kumaşı"], img: "/categories/53000000.webp", tiers: [{ minQty: 100, unitPrice: 245 }, { minQty: 500, unitPrice: 228 }, { minQty: 2000, unitPrice: 212 }], moq: 100, attrs: {"form": "Rulo", "standart": ["ISO", "EN"]} },
-  { owner: "ege", name: "Polyester Astar Kumaş 60 g/m²", cat: "11162100", catKw: "kumaş", desc: "Ceket ve mont astarı için 60 g/m² polyester taft astar. 150 cm en, antistatik apre, 40 stok renk. Konfeksiyon fasonculara top bazında sevkiyat.", brand: "Ege Tekstil", unit: "m", kw: ["astar", "polyester", "taft"], img: "/categories/53000000.webp", price: 38, moq: 500, attrs: {"form": "Rulo", "standart": ["ISO"]} },
-  { owner: "ege", name: "Organik Pamuk İplik Ne 20/1 (GOTS)", cat: "11151600", desc: "GOTS sertifikalı organik pamuktan ring iplik, Ne 20/1, örme ve dokuma için. 1,8 kg bobin, palet bazında teslim. Test raporu her partide.", brand: "Ege Tekstil", mpn: "EGE-OC-20", unit: "kg", kw: ["organik pamuk", "iplik", "GOTS", "ring iplik"], img: "/categories/53000000.webp", price: 168, moq: 500, attrs: {"standart": ["ISO"]} },
+  { owner: "ege", name: "%100 Pamuk Penye Kumaş 180 g/m²", cat: "11162100", catKw: "kumaş", desc: "Ne 30/1 penye iplikten örülmüş, 180 g/m² gramajlı süprem kumaş. Tişört ve iç giyim için; OEKO-TEX sertifikalı, reaktif boyalı, 60 renk seçeneği. Top ağırlığı 25–30 kg.", spec: "En: 180 cm (açık)\nGramaj: 180 g/m² ±5\nÇekme: max %5 (60°C)", brand: "Ege Tekstil", unit: "kg", kw: ["penye", "süprem", "pamuk kumaş", "tişört kumaşı"], img: "/categories/53000000.webp", tiers: [{ minQty: 100, unitPrice: 245 }, { minQty: 500, unitPrice: 228 }, { minQty: 2000, unitPrice: 212 }], moq: 100, attrs: {"malzeme": ["Pamuk"], "form": "Top / rulo", "standart": ["ISO", "EN"]} },
+  { owner: "ege", name: "Polyester Astar Kumaş 60 g/m²", cat: "11162100", catKw: "kumaş", desc: "Ceket ve mont astarı için 60 g/m² polyester taft astar. 150 cm en, antistatik apre, 40 stok renk. Konfeksiyon fasonculara top bazında sevkiyat.", brand: "Ege Tekstil", unit: "m", kw: ["astar", "polyester", "taft"], img: "/categories/53000000.webp", price: 38, moq: 500, attrs: {"malzeme": ["Polyester"], "form": "Top / rulo", "standart": ["ISO"]} },
+  { owner: "ege", name: "Organik Pamuk İplik Ne 20/1 (GOTS)", cat: "11151600", desc: "GOTS sertifikalı organik pamuktan ring iplik, Ne 20/1, örme ve dokuma için. 1,8 kg bobin, palet bazında teslim. Test raporu her partide.", brand: "Ege Tekstil", mpn: "EGE-OC-20", unit: "kg", kw: ["organik pamuk", "iplik", "GOTS", "ring iplik"], img: "/categories/53000000.webp", price: 168, moq: 500, attrs: {"malzeme": ["Pamuk"], "form": "Bobin", "standart": ["ISO"]} },
   // marmara
   { owner: "marmara", name: "Domates Salçası 5 kg Teneke (28-30 Brix)", cat: "50192400", catKw: "salça", desc: "Çift konsantre domates salçası, 28–30 Brix, katkısız. 5 kg teneke, kolide 4 adet. Horeca ve toptan gıda için; raf ömrü 24 ay.", brand: "Marmara", unit: "adet", kw: ["salça", "domates", "horeca", "toptan gıda"], img: "/categories/50000000.webp", tiers: [{ minQty: 48, unitPrice: 295 }, { minQty: 480, unitPrice: 268 }], moq: 48, attrs: {"sertifika": ["ISO 22000", "HACCP", "Helal"], "saklama": "Oda sıcaklığı", "ambalaj": ["Teneke"], "raf_omru": 24} },
   { owner: "marmara", name: "Konserve Bezelye 400 g", cat: "50192400", catKw: "konserve", desc: "Taze hasat bezelye, 400 g teneke, kolide 24 adet. Özel markalı üretim yapılır; minimum sipariş bir palet (2.400 adet).", brand: "Marmara", unit: "adet", kw: ["konserve", "bezelye", "private label"], img: "/categories/50000000.webp", price: 24.5, moq: 2400, attrs: {"sertifika": ["ISO 22000", "HACCP"], "saklama": "Oda sıcaklığı", "ambalaj": ["Teneke"], "raf_omru": 36} },
@@ -395,7 +394,7 @@ async function main() {
       slug = existingUser.company.slug ?? generateSlug(d.name);
       while ((await prisma.company.count({ where: { slug, id: { not: existingUser.companyId } } })) > 0) slug = `${slug}-${Math.floor(Math.random() * 90 + 10)}`;
       await prisma.company.update({ where: { id: existingUser.companyId }, data: { ...data, slug } });
-      await prisma.companyUser.update({ where: { id: existingUser.id }, data: { authId, roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), isActive: true, deletedAt: null, emailVerifiedAt: new Date() } });
+      await prisma.companyUser.update({ where: { id: existingUser.id }, data: { authId, roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), isActive: true, deletedAt: null, emailVerifiedAt: new Date(), ...ACCEPTED() } });
       companyId = existingUser.companyId; ownerId = existingUser.id;
     } else {
       let code = genCode();
@@ -405,7 +404,7 @@ async function main() {
       const company = await prisma.company.create({ data: { ...data, rothernId: code, slug } });
       const firstName = d.name.split(" ")[0] ?? d.name;
       const user = await prisma.companyUser.create({
-        data: { email, authId, firstName, lastName: "Yetkili", roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), companyId: company.id, emailVerifiedAt: new Date() },
+        data: { email, authId, firstName, lastName: "Yetkili", roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), companyId: company.id, emailVerifiedAt: new Date(), ...ACCEPTED() },
       });
       await prisma.company.update({ where: { id: company.id }, data: { ownerUserId: user.id } });
       companyId = company.id; ownerId = user.id;

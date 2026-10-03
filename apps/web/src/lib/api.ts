@@ -1,3 +1,4 @@
+import { runtimeLocale, tRuntime } from "@/i18n/runtime";
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 import { resolveApiBaseUrl } from "./resolve-api-url";
@@ -14,6 +15,25 @@ export const api = axios.create({
   // kalkar, KISA timeout her cold-start'ı öldürür. Kısaltmayın.
   timeout: 45_000,
 });
+
+// İstek dili (i18n Faz 0): API hata metinlerini bu dilde döner. Sunucuda
+// (RSC çekimleri) başlık yok → API varsayılanı tr.
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    config.headers["Accept-Language"] = runtimeLocale();
+  }
+  return config;
+});
+
+// İstek başına toast kapatma (arayüz testi D-058): hatayı kendi kartında /
+// satır içinde gösteren sayfalar (davet önizlemesi, davet çıkışı, e-posta
+// tercihleri) `skipErrorToast: true` geçer — yoksa kartın üstüne bir de
+// global toast çıkıyor, başarısız gönderimde aynı hata iki kez görünüyordu.
+declare module "axios" {
+  interface AxiosRequestConfig {
+    skipErrorToast?: boolean;
+  }
+}
 
 interface ApiErrorPayload {
   message?: string | string[];
@@ -46,6 +66,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorPayload>) => {
     if (typeof window === "undefined") return Promise.reject(error);
+    if (error.config?.skipErrorToast) return Promise.reject(error);
 
     const status = error.response?.status;
     const data = error.response?.data;
@@ -57,7 +78,7 @@ api.interceptors.response.use(
 
     // 403 — forbidden
     if (status === 403) {
-      toast.error(pickMessage(data, "Bu işlem için yetkiniz yok"));
+      toast.error(pickMessage(data, tRuntime("common.errors.forbidden")));
       return Promise.reject(error);
     }
 
@@ -67,7 +88,7 @@ api.interceptors.response.use(
       // /resource/:id pattern'ı (sonu / ile bitmiyor + ardından query string yok)
       const isDetailEndpoint = /\/[^/?]+\/[^/?]+(?:\?|$)/.test(url);
       if (isDetailEndpoint) {
-        toast.error(pickMessage(data, "Kayıt bulunamadı"));
+        toast.error(pickMessage(data, tRuntime("common.errors.notFound")));
       }
       return Promise.reject(error);
     }
@@ -78,31 +99,31 @@ api.interceptors.response.use(
         // Inline gösterim — component handle eder
         return Promise.reject(error);
       }
-      toast.error(pickMessage(data, "Geçersiz istek"));
+      toast.error(pickMessage(data, tRuntime("common.errors.badRequest")));
       return Promise.reject(error);
     }
 
     // 409 — conflict
     if (status === 409) {
-      toast.error(pickMessage(data, "Bu işlem mevcut durumda yapılamaz"));
+      toast.error(pickMessage(data, tRuntime("common.errors.conflict")));
       return Promise.reject(error);
     }
 
     // 422 — semantic
     if (status === 422) {
-      toast.error(pickMessage(data, "Geçersiz veri"));
+      toast.error(pickMessage(data, tRuntime("common.errors.unprocessable")));
       return Promise.reject(error);
     }
 
     // 5xx — server
     if (status && status >= 500) {
-      toast.error("Sunucu hatası, lütfen tekrar deneyin");
+      toast.error(tRuntime("common.errors.server"));
       return Promise.reject(error);
     }
 
     // Network (no response)
     if (!error.response) {
-      toast.error("Bağlantı hatası, internet bağlantınızı kontrol edin");
+      toast.error(tRuntime("common.errors.network"));
       return Promise.reject(error);
     }
 

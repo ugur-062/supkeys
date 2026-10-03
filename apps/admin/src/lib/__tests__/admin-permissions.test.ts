@@ -46,3 +46,30 @@ describe("canAdminDo (F7: backend @RequireAdminRole ile birebir)", () => {
     }
   });
 });
+
+describe("globalSearch (derin denetim MU-21 — GET admin/search SUPER_ADMIN+SALES)", () => {
+  it("SUPPORT üst çubuk aramasını görmez (her tuşta 403 toast'ı üretiyordu)", () => {
+    expect(canAdminDo("SUPER_ADMIN", "globalSearch")).toBe(true);
+    expect(canAdminDo("SALES", "globalSearch")).toBe(true);
+    expect(canAdminDo("SUPPORT", "globalSearch")).toBe(false);
+  });
+});
+
+describe("inceleme/sistem aksiyonları (derin denetim LU-12 — düğmeler 403 veriyordu)", () => {
+  it("ilan müdahalesi, sipariş iptali ve kur yenileme SUPER_ADMIN+SALES — SUPPORT görmez", () => {
+    for (const a of ["listingIntervention", "cancelOrder", "refreshRates"] as const) {
+      expect(canAdminDo("SUPER_ADMIN", a)).toBe(true);
+      expect(canAdminDo("SALES", a)).toBe(true);
+      expect(canAdminDo("SUPPORT", a)).toBe(false);
+    }
+  });
+  it("ürün kararı SUPER_ADMIN+SUPPORT — SALES yalnız okur", () => {
+    expect(canAdminDo("SUPER_ADMIN", "reviewProduct")).toBe(true);
+    expect(canAdminDo("SUPPORT", "reviewProduct")).toBe(true);
+    expect(canAdminDo("SALES", "reviewProduct")).toBe(false);
+  });
+  it("engel kaldırma yalnız SUPER_ADMIN (liste SALES'e açık olsa da)", () => {
+    expect(canAdminDo("SALES", "listSuppressions")).toBe(true);
+    expect(canAdminDo("SALES", "clearSuppression")).toBe(false);
+  });
+});

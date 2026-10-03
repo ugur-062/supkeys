@@ -1,3 +1,10 @@
+import { categoryMatchInstantAllowed, localDayStart } from "../../../common/email/email-program-policy";
+import { COMPANY_DAILY_INVITE_CAP, utcDayStart } from "../../../common/company/external-invite-policy";
+import { productSearchClauses } from "../../../common/company/product-index";
+import { publicProductWhere } from "../../../common/company/public-profile-gate";
+import { timeZoneForCountry } from "../../../common/time/country-time-zone";
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import {
   BadRequestException,
   ConflictException,
@@ -7,7 +14,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { hiddenCategoryWhere, isHiddenCategory } from "@rothern/shared";
+import { foldSearchText, hiddenCategoryWhere, isHiddenCategory, isOrderRejectedReason, listingPath } from "@rothern/shared";
 import {
   CompanyRole,
   ListingType,
@@ -26,13 +33,14 @@ import {
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import { buildProductMatcher, productMatchReason } from "../../../common/company/product-request-match";
-import { derivePaymentTiming, countryCanSee, deriveIsInternational, normalizeTargetCountries, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, PAID_TIER, validateShortCode ,
+import { derivePaymentTiming, countryCanSee, deriveIsInternational, normalizeTargetCountries, isRegistrationOpen, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, PAID_TIER, validateShortCode ,
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderPermission } from "../bidder-op-role";
+import { connectedInvitees } from "../listing-invitees";
 import {
-  LISTING_MANAGE_DENY_MESSAGE,
   listingManageDenial,
+  listingManageDenyKey,
 } from "../listing-manage-access";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import {
@@ -46,6 +54,7 @@ import {
 import {
   isListingVisibleToViewer,
   listingBidEligibility,
+  marketplaceListingWhere,
 } from "../../../common/company/listing-visibility";
 import {
   PRICED_ITEM_WHERE,
@@ -58,10 +67,18 @@ import {
 } from "../../../common/company/bid-items";
 import {
   isListingClosedAt,
+  isListingEmbargoed,
   bidValidUntilMs,
 } from "../../../common/company/listing-timing";
 import { AuditService } from "../../audit/audit.service";
 import { SeoIndexService } from "../../seo-index/seo-index.service";
+import { ContentTranslationService } from "../../content-translation/content-translation.service";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
+import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
+import { PENDING_AI_SUGGESTION_RUN_WHERE } from "../../../common/company/ai-suggestions";
+import { geoIndex } from "../../../common/geo/geo-index";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -73,23 +90,43 @@ import {
   NotificationService,
   pickCompanyRecipients,
   viewPermissionForPortal,
+  type CompanyRecipient,
   type NotificationPortal,
 } from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
+import {
+  dateParam,
+  formatAmount,
+  formatMoney,
+  formatNotificationParams,
+  listingTitleParam,
+  ListingTitleResolver,
+  listingTitleRefs,
+  moneyParam,
+  type NotificationParams,
+} from "../../../common/notifications/notification-params";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
+import { MY_BIDS_MAX_PAGE_SIZE, type MyBidsQueryDto } from "../dto/my-bids-query.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { hasReadContext } from "../../../common/company/full-read-context";
 import { isConnectionValid } from "../../../common/company/valid-connection";
+import {
+  AI_RECOMMENDABLE_SELECT,
+  aiHiddenMatchKind,
+  isAiRecommendable,
+} from "../../../common/company/ai-recommendable";
+import { listingPreviewRowsByLocale, type PreviewRow } from "../../../common/company/listing-email-preview";
+import { INVITE_ITEM_PREVIEW, INVITE_TRANSLATION_WAIT_MS } from "../../../common/company/invite-delivery";
 import { reportToSentry } from "../../../instrument";
 import {
   getTenantStore,
   runWithTenantContext,
 } from "../../../common/tenant/tenant-context";
-import { appRoutes } from "../../../common/company/app-routes";
+import { appRoutes, localizeAppPath } from "../../../common/company/app-routes";
 import { createHash } from "node:crypto";
 import { StorageService } from "../../storage/storage.service";
 import {
@@ -97,13 +134,28 @@ import {
   affinityReasonText,
   type AffinityReasons,
 } from "../../company-affinity/company-affinity.service";
+import { maskEmail } from "../../../common/logging/mask-email";
+import {
+  orderItemAlternativeSnapshot,
+  type OrderItemAlternativeSnapshot,
+} from "../../../common/company/order-item-snapshot";
 
-/** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
-type Recipient = {
-  email: string;
-  name: string;
-  prefs?: Record<string, boolean> | null;
-};
+/**
+ * Bildirim alıcısı — e-posta/isim + kullanıcı bildirim tercihleri + DİL.
+ * Tek kaynak `pickCompanyRecipients`; yerel kopya tutmuyoruz ki `locale` gibi
+ * yeni bir alan eklendiğinde iki tanım sessizce ayrışmasın.
+ */
+type Recipient = CompanyRecipient;
+
+/** "Merhaba," — TÜM bildirim e-postalarının ortak açılış satırı (paylaşılan anahtar). */
+const GREETING = "api.notifications.common.greeting" as const;
+
+/**
+ * Türkçe İÇ (mutlak) adres → alıcının dilindeki adres. `app-routes.ts`
+ * `localize` ile AYNI kuralı uygular; `appRoutes`ta karşılığı OLMAYAN iki
+ * pazarlama adresi (paket sayfası, satış anasayfası çapası) için kullanılır.
+ * O iki yol `appRoutes`a girdi olarak eklenince bu yardımcı düşmeli.
+ */
 
 /**
  * Kazandırma audit'i aktörü. Doğrudan yolda (award/awardByItem) actorId = çağıran;
@@ -128,6 +180,12 @@ const CLOSING_REMINDER_MINUTES = 60;
  * fazlasını söylerdi.
  */
 const SELLER_SCAN_CAP = 300;
+/**
+ * Teklif "karar bekleyen" sayılır: SUBMITTED ve ilan henüz karara
+ * bağlanmamış. Tekliflerim özeti + Şirketim "Aktif Tekliflerim" KPI'ı bu
+ * kümeyi sunucudan okur (eskiden web `kpi-selectors` kesik listede sayıyordu).
+ */
+const MY_BID_UNDECIDED_LISTING = ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] as const;
 
 /**
  * Bildirim ilgi eşiği. Skorlar firma başına 100 puanlık bütçeye normalize —
@@ -140,6 +198,75 @@ const NOTIFY_MIN_AFFINITY = 5;
  * susturmamak için. Bkz. `rankByAffinity`.
  */
 const NOTIFY_MIN_STRONG = 10;
+
+/**
+ * Yetki/paket kapısı mesajlarının cümle İÇİNE giren eylem parçası (i18n Faz 3).
+ * Serbest Türkçe dize geçilseydi EN/RU cümlenin ortasına Türkçe düşerdi.
+ */
+type ListingActionKey =
+  | "publish"
+  | "bid"
+  | "award"
+  | "publishWork"
+  | "newRound"
+  | "inviteSupplier"
+  | "editListing"
+  | "extendClosing";
+
+const LISTING_ACTION_KEYS = {
+  publish: "api.companyListings.actionPublish",
+  bid: "api.companyListings.actionBid",
+  award: "api.companyListings.actionAward",
+  publishWork: "api.companyListings.actionPublishWork",
+  newRound: "api.companyListings.actionNewRound",
+  inviteSupplier: "api.companyListings.actionInviteSupplier",
+  editListing: "api.companyListings.actionEditListing",
+  extendClosing: "api.companyListings.actionExtendClosing",
+} as const;
+
+/** Bildirim e-postasının içeriği — metin ALICININ dilinde üretilir (`notify`). */
+interface ListingNotifyData {
+  subjectKey: ApiMessageKey;
+  headingKey: ApiMessageKey;
+  bodyKey: ApiMessageKey;
+  /**
+   * Üç anahtarın ORTAK ICU parametre sözlüğü — tarih/tutar/talep başlığı
+   * TİPLİ (`notification-params.ts`), alıcının dilinde biçimlenir.
+   */
+  params?: NotificationParams;
+  ctaLabelKey?: ApiMessageKey;
+  ctaUrl?: (locale: Locale) => string;
+  footerNoteKey?: ApiMessageKey;
+  infoRows?: { label: string; value: string }[];
+  /** Alıcının dilinde bilgi satırları (talep önizlemesi — `listing-email-preview.ts`). */
+  infoRowsFor?: (locale: Locale) => { label: string; value: string }[] | undefined;
+}
+
+/** AI'ın bulduğu ama alıcıya gösterilmeyen ücretsiz firmaya Silver/doğrulama çağrısı. */
+export const AI_MATCH_LOCKED_CONTEXT = "listing_ai_match_locked";
+
+/**
+ * RFQ'da "Yeni Tur" AUTO taşımasıyla bu tura SUBMITTED gelmiş ve bu turda henüz
+ * yeniden gönderilmemiş teklif mi? (derin denetim MU-20). Taşıma `round`u yeni
+ * tura yazar, `activeBidRound`a dokunmaz; her gönderim `activeBidRound`u güncel
+ * tura çeker → turda tek revizyon. Pazarlık kendi kuralını (`canBidThisRound`)
+ * uygular; ilk tur ve taslak/elenmiş teklif kapsam dışı.
+ */
+export function carriedBidRevisable(
+  bid: { status: string; round: number; activeBidRound: number | null },
+  listing: { format: string | null; currentRound: number },
+): boolean {
+  return (
+    listing.format !== "ENGLISH_AUCTION" &&
+    listing.currentRound > 1 &&
+    bid.status === "SUBMITTED" &&
+    bid.round === listing.currentRound &&
+    bid.activeBidRound !== listing.currentRound
+  );
+}
+
+/** Sayısal soru cevabı: noktalı kanonik ondalık ("12.5", "1500", "-3"). */
+const NUMBER_ANSWER_PATTERN = /^-?\d+(?:\.\d+)?$/;
 
 @Injectable()
 export class CompanyListingsService {
@@ -168,8 +295,12 @@ export class CompanyListingsService {
     // kapanış, iptal, kazandırma, başlık/açıklama güncellemesi). Teklif
     // hareketleri çağırmaz: sayfa teklif sayısı bile göstermiyor.
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e): yayın/güncelleme/yeni turda talep metni çevrilir — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
+  /** Bildirimde talep başlığı ALICININ dilinde (`$listingTitle` parametresi). */
+  private readonly listingTitles = new ListingTitleResolver(() => this.translations);
 
   private webUrl(): string {
     return resolveWebUrl(this.config);
@@ -217,37 +348,193 @@ export class CompanyListingsService {
     return type === "ALIM" ? "satis" : "satinalma";
   }
 
-  /** Bildirim e-postası gönder (fire-and-forget). */
+  /**
+   * Bildirim e-postası gönder (fire-and-forget).
+   *
+   * DİL (i18n Faz 3): metin ALICININ dilinde üretilir — çağıran katalog
+   * ANAHTARI verir, çeviri `to.locale` ile burada koşar. Tek bir olaydan N
+   * firmaya e-posta gittiği için çağıranın metni önceden çevirmesi yanlıştır.
+   * "Merhaba," açılışı ortak; CTA adresi de aynı dille kurulur (geri çağrı
+   * `appRoutes.*(base, id, locale)` alır).
+   */
   private notify(
     to: Recipient,
-    data: {
-      subject: string;
-      heading: string;
-      paragraphs: string[];
-      infoRows?: { label: string; value: string }[];
-      ctaLabel?: string;
-      ctaUrl?: string;
-      footerNote?: string;
-    },
+    data: ListingNotifyData,
     context?: { type: string; id: string },
   ): void {
     // Alıcının bildirim tercihi bu tipi kapatmışsa gönderme (transactional
     // tipler her zaman gider). billingEmail alıcılarında tercih yok → gider.
     if (context && !isNotificationEnabled(to.prefs, context.type)) return;
+    // Talep başlığı alıcının dilindeki çeviriden okunur (başvuru varsa tek
+    // sorgu, 60 sn önbellekli); başvuru yoksa gönderim EŞZAMANLI kalır.
+    if (listingTitleRefs(data.params).length > 0 && this.translations) {
+      void this.listingTitles
+        .forParams(data.params, to.locale)
+        .catch(() => undefined)
+        .then((titles) => this.sendNotifyEmail(to, data, context, titles))
+        .catch((err) => this.logNotifyEmailError(to.email, err));
+      return;
+    }
+    this.sendNotifyEmail(to, data, context);
+  }
+
+  private sendNotifyEmail(
+    to: Recipient,
+    data: ListingNotifyData,
+    context: { type: string; id: string } | undefined,
+    titles?: ReadonlyMap<string, string>,
+  ): void {
+    const locale = to.locale;
+    const params = formatNotificationParams(data.params, locale, titles);
+    const t = (key: ApiMessageKey) => tApi(key, params, locale);
+    const subject = t(data.subjectKey);
     void this.email
       .send({
         to: { email: to.email, name: to.name },
-        templateData: { template: "notification", data },
-        subject: data.subject,
+        // Şablon kabuğu (altbilgi, <html lang>) da alıcının dilinde olsun.
+        locale,
+        templateData: {
+          template: "notification",
+          data: {
+            subject,
+            heading: t(data.headingKey),
+            paragraphs: [tApi(GREETING, undefined, locale), t(data.bodyKey)],
+            ...((data.infoRowsFor?.(locale) ?? data.infoRows)?.length
+              ? { infoRows: data.infoRowsFor?.(locale) ?? data.infoRows }
+              : {}),
+            ...(data.ctaLabelKey ? { ctaLabel: t(data.ctaLabelKey) } : {}),
+            ...(data.ctaUrl ? { ctaUrl: data.ctaUrl(locale) } : {}),
+            ...(data.footerNoteKey ? { footerNote: t(data.footerNoteKey) } : {}),
+          },
+        },
+        subject,
         context,
       })
-      .catch((err) =>
-        this.logger.error(
-          `Bildirim e-postası gönderilemedi (${to.email}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        ),
-      );
+      .catch((err) => this.logNotifyEmailError(to.email, err));
+  }
+
+  private logNotifyEmailError(email: string, err: unknown): void {
+    this.logger.error(
+      `Bildirim e-postası gönderilemedi (${maskEmail(email)}): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+
+  /**
+   * HERKESE AÇIK TALEPTE BAĞLANTILAR OTOMATİK DAVETLİ (2026-09-27, kullanıcı
+   * kararı: "herkese açık paylaşılsa bile mutlaka bağlantılarına davet gitsin").
+   *
+   * Eskiden PUBLIC talepte bağlantılar yalnız kategorileri uyuyorsa kategori
+   * duyurusu alıyordu; gerçek davet yalnız formda seçilenlere gidiyordu.
+   * Artık alıcının GEÇERLİ bağlantılarının tamamı davetli olur (kategoriden
+   * bağımsız) — davetli firma talebi pakete bakmadan görür ve teklif verir
+   * (bağlantı = tanışıklık; KYC tablosundaki "davetli/bağlantılı" satırı).
+   *
+   * Hariç: engellenen/askıdaki/pasif firma ve talebin GÖRÜNÜRLÜK ÜLKESİ
+   * dışındaki bağlantı — elle davet ülke kısıtını aşar (alıcının bilinçli
+   * seçimi), otomatik davet aşmaz. Yalnız ilk açılışta (yeni tur mevcut
+   * davetlileri kullanır). BYPASS: embargolu talepte açılış cron'dan gelir
+   * (tenant bağlamı yok); bağlantı tablosu RLS'li.
+   */
+  private async autoInviteConnections(listingId: string): Promise<number> {
+    const listing = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: { companyId: true, visibility: true, type: true, createdById: true, targetCountries: true },
+    });
+    if (!listing || listing.visibility !== "PUBLIC" || listing.type !== "ALIM") return 0;
+    const rows = await this.bypass.companyConnection.findMany({
+      where: {
+        status: "ACTIVE",
+        OR: [{ inviterCompanyId: listing.companyId }, { inviteeCompanyId: listing.companyId }],
+      },
+      select: {
+        inviterCompanyId: true,
+        inviteeCompanyId: true,
+        origin: true,
+        inviter: { select: { tier: true, membershipEndAt: true } },
+      },
+    });
+    const connected = rows
+      .filter((r) => isConnectionValid(r))
+      .map((r) => (r.inviterCompanyId === listing.companyId ? r.inviteeCompanyId : r.inviterCompanyId));
+    if (connected.length === 0) return 0;
+    const blocked = new Set(await this.blocks.blockedCompanyIds(listing.companyId));
+    const eligible = await this.bypass.company.findMany({
+      where: {
+        id: { in: connected.filter((id) => !blocked.has(id) && id !== listing.companyId) },
+        isActive: true,
+        isBlocked: false,
+        ...(listing.targetCountries.length > 0 ? { country: { in: listing.targetCountries } } : {}),
+      },
+      select: { id: true },
+    });
+    if (eligible.length === 0) return 0;
+    const created = await this.bypass.listingInvitation.createMany({
+      data: eligible.map((c) => ({
+        listingId,
+        invitedCompanyId: c.id,
+        invitedById: listing.createdById,
+      })),
+      skipDuplicates: true,
+    });
+    if (created.count > 0) {
+      this.logger.log(`Public listing ${listingId}: auto-invited ${created.count} connection(s)`);
+    }
+    return created.count;
+  }
+
+  /**
+   * Talep önizlemesinin kaynağı (kalemler, kapanış, teslim yeri) + alıcı
+   * dillerinde çevirinin beklenmesi. Duyurular arka planda gittiği için
+   * bekleme kullanıcıyı bekletmez (dış davetle aynı ~60 sn kuralı).
+   */
+  private async listingPreviewFor(
+    listingId: string,
+    locales: Iterable<Locale>,
+  ): Promise<Map<Locale, PreviewRow[]>> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        title: true,
+        closesAt: true,
+        deliveryAddressId: true,
+        companyId: true,
+        items: {
+          select: { name: true, quantity: true, unit: true, unitCode: true },
+          orderBy: { lineNo: "asc" },
+          take: INVITE_ITEM_PREVIEW,
+        },
+        _count: { select: { items: true } },
+      },
+    });
+    if (!l) return new Map();
+    const address = l.deliveryAddressId
+      ? await this.bypass.companyAddress.findFirst({
+          where: { id: l.deliveryAddressId, companyId: l.companyId },
+          select: { city: true, country: true },
+        })
+      : null;
+    const wanted = [...new Set(locales)];
+    if (this.translations && wanted.length > 0) {
+      await this.translations
+        .ensureTranslated("LISTING", l.id, wanted, INVITE_TRANSLATION_WAIT_MS)
+        .catch(() => false);
+    }
+    const tr = this.translations;
+    return listingPreviewRowsByLocale(
+      {
+        id: l.id,
+        title: l.title,
+        closesAt: l.closesAt,
+        items: l.items,
+        itemCount: l._count.items,
+        place: address,
+      },
+      wanted,
+      tr ? async (base, id, locale) => (await tr.localizeListings([base], [id], locale))[0] : undefined,
+    );
   }
 
   /**
@@ -269,21 +556,33 @@ export class CompanyListingsService {
         number: true,
         companyId: true,
         type: true,
+        bidsOpenAt: true,
       },
     });
     if (!listing) return;
-    const label = `"${listing.title}" (${listing.number ?? "—"})`;
+    // Metin ARTIK burada kurulmaz: anahtar + ICU parametresi taşınır, cümle
+    // her alıcının dilinde üretilir (bkz. notify / renderPayload). Sahip KENDİ
+    // başlığını ham okur; katılımcılar BAŞKA firmadır → başlık onların
+    // dilindeki çeviriden (`$listingTitle`, yoksa kaynak başlık).
+    const p = { title: listing.title, number: listing.number ?? "—" };
+    const participantParams = { ...p, title: listingTitleParam(listing.id, listing.title) };
     const ownerPortal = this.ownerPortal(listing.type);
     const bidderPortal = this.bidderPortal(listing.type);
 
     // Davetliler + teklif verenler (PUBLIC ilanda davetsiz teklifçi olabilir)
     // birleşik kümesine kapanış bildirimi.
+    // Açılış embargosu sürüyorsa (Değerlendirmeye Al açılıştan önce) davetliler
+    // talebi GÖREMEZ (getOne 404) ve açılış duyurusu da onlara hiç gitmedi →
+    // yalnız teklif sahipleri bilgilendirilir (derin denetim LU-16).
+    const embargoed = isListingEmbargoed(listing.bidsOpenAt);
     const [invs, bids] = await this.inOwnerContext(listing.companyId, () =>
       Promise.all([
-        this.bypass.listingInvitation.findMany({
-          where: { listingId },
-          select: { invitedCompanyId: true },
-        }),
+        embargoed
+          ? Promise.resolve([] as { invitedCompanyId: string }[])
+          : this.bypass.listingInvitation.findMany({
+              where: { listingId },
+              select: { invitedCompanyId: true },
+            }),
         this.bypass.listingBid.findMany({
           where: { listingId },
           select: { bidderCompanyId: true },
@@ -315,14 +614,12 @@ export class CompanyListingsService {
       this.notify(
         r,
         {
-          subject: "Satın Alma Talebinde teklif alımı kapandı",
-          heading: "Satın Alma Talebi değerlendirme aşamasında",
-          paragraphs: [
-            "Merhaba,",
-            `${label} satın alma talebinde teklif alımı kapandı; satın alma talebi değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
-          ],
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: bidUrl,
+          subjectKey: "api.notifications.listings.closed.subject",
+          headingKey: "api.notifications.listings.closed.title",
+          bodyKey: "api.notifications.listings.closed.body",
+          params: participantParams,
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
         },
         { type: "listing_closed", id: listingId },
       );
@@ -333,10 +630,11 @@ export class CompanyListingsService {
       {
         type: "listing_closed",
         portal: bidderPortal,
-        title: "Satın Alma Talebi değerlendirme aşamasında",
-        body: `${label} satın alma talebinde teklif alımı kapandı; satın alma talebi değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
-        ctaLabel: "Satın Alma Talebini Gör",
-        ctaUrl: bidUrl,
+        titleKey: "api.notifications.listings.closed.title",
+        bodyKey: "api.notifications.listings.closed.body",
+        ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+        params: participantParams,
+        ctaPath: bidUrl,
         listingId,
       },
     );
@@ -353,14 +651,12 @@ export class CompanyListingsService {
       this.notify(
         owner,
         {
-          subject: "Satın Alma Talebiniz kapandı — kazandırma kararı bekleniyor",
-          heading: "Kazandırma kararı zamanı",
-          paragraphs: [
-            "Merhaba,",
-            `${label} satın alma talebiniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
-          ],
-          ctaLabel: "Teklifleri İncele",
-          ctaUrl: ownerUrl,
+          subjectKey: "api.notifications.listings.closedOwner.subject",
+          headingKey: "api.notifications.listings.closedOwner.title",
+          bodyKey: "api.notifications.listings.closedOwner.body",
+          params: p,
+          ctaLabelKey: "api.notifications.listings.cta.reviewBids",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
         },
         { type: "listing_closed_owner", id: listingId },
       );
@@ -369,10 +665,11 @@ export class CompanyListingsService {
     await this.notifications.pushToCompany(listing.companyId, {
       type: "listing_closed_owner",
       portal: ownerPortal,
-      title: "Kazandırma kararı zamanı",
-      body: `${label} satın alma talebiniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
-      ctaLabel: "Teklifleri İncele",
-      ctaUrl: ownerUrl,
+      titleKey: "api.notifications.listings.closedOwner.title",
+      bodyKey: "api.notifications.listings.closedOwner.body",
+      ctaLabelKey: "api.notifications.listings.cta.reviewBids",
+      params: p,
+      ctaPath: ownerUrl,
       listingId,
     });
   }
@@ -443,11 +740,18 @@ export class CompanyListingsService {
         ];
 
     const blocked = await this.blocks.blockedCompanyIds(listing.companyId);
+    // DAVETLİLER HARİÇ (2026-09-27): herkese açık talepte bağlantılar artık
+    // otomatik davetli (`autoInviteConnections`) ve davet e-postası alıyor;
+    // kategorisi de uyan davetliye ikinci bir duyuru gitmesin.
+    const invited = await this.bypass.listingInvitation.findMany({
+      where: { listingId },
+      select: { invitedCompanyId: true },
+    });
     const candidates = await this.prisma.company.findMany({
       where: {
-        id: { notIn: [listing.companyId, ...blocked] },
+        id: { notIn: [listing.companyId, ...blocked, ...invited.map((i) => i.invitedCompanyId)] },
         // Paket şartı YOK (2026-09-06): ücretsiz firma da haber alır — talep ona
-        // kilitli, duyuru "Silver ile açılır" der (dönüşüm tetiği: gerçek bir
+        // kilitli, duyuru Silver'a geçmeye çağırır (dönüşüm tetiği: gerçek bir
         // talep, kendi kategorisinde, göremiyor). Efektif kademe aşağıda metni seçer.
         isActive: true,
         // Denetim 2026-08-24 Parça 7: admin tarafından ASKIYA ALINMIŞ firma
@@ -467,7 +771,14 @@ export class CompanyListingsService {
         },
         OR: catOr,
       },
-      select: { id: true, tier: true, membershipEndAt: true, activities: true },
+      select: {
+        id: true,
+        tier: true,
+        membershipEndAt: true,
+        activities: true,
+        country: true,
+        companyVerificationStatus: true,
+      },
       // Flood-guard (bilinçli). `orderBy` OLMADAN kesme, 300'ü aşan segmentte
       // "kim haber alır"ı tarama sırasına bırakıyordu; en YENİ firmalar hiç
       // haber alamayabiliyordu. Deterministik sıra + sessiz kesmeyi loglama.
@@ -528,12 +839,46 @@ export class CompanyListingsService {
       sirali.map((c) => c.id),
       matchPortal,
     );
-    // Açık talepler satış ANASAYFASINDA (2026-09-05); satın-al sayfası yok.
-    const url = `${this.webUrl()}/company/satis#acik-talepler`;
-    const pricingUrl = `${this.webUrl()}/nasil-calisir#fiyatlar`;
-    const label = isBuyDemand ? "satın alma talebi" : "satış ilanı";
-    const verb = isBuyDemand ? "Sattığınız" : "Aldığınız";
-    const action = isBuyDemand ? "teklif vermek" : "satın almak";
+    // Ücretli alıcı DOĞRUDAN talebe gider (2026-09-27; eskiden Açık Talepler
+    // listesine düşüp talebi aramak zorundaydı). Ücretsiz alıcı panelin
+    // Paketler sayfasına (herkese açık fiyat sayfası paneli terk ettiriyordu).
+    const url = appRoutes.listing(this.webUrl(), listing.id);
+    const pricingUrl = `${this.webUrl()}/company/premium`;
+    // Doğrulanmamış ücretsiz firmaya önce ücretsiz doğrulama (paket alımının
+    // tek şartı; 2026-09-28, kullanıcı: "Silver'a veya doğrulamaya yönlendirme").
+    const verifyUrl = `${this.webUrl()}/company/ayarlar/dogrulama`;
+    // YÖN'e göre AYRI anahtar kümesi (i18n Faz 3). Cümleyi parçadan kurmak
+    // ("satın alma talebi" + "Sattığınız" + "teklif vermek") Türkçede yürüyor
+    // ama EN/RU'da sözcük sırası ve çekim tutmaz — her yön TAM cümlesini
+    // taşır, metin alıcının dilinde üretilir.
+    // Satış ilanı 2026-09-04'te kalktı (ListingType yalnız ALIM) → tek yön:
+    // alım talebi, satıcı firmalara duyurulur.
+    const K = {
+      heading: "api.notifications.listings.categoryMatch.buy.heading",
+      openSubject: "api.notifications.listings.categoryMatch.buy.openSubject",
+      openBody: "api.notifications.listings.categoryMatch.buy.openBody",
+      openInAppBody: "api.notifications.listings.categoryMatch.buy.openInAppBody",
+      lockedSubject: "api.notifications.listings.categoryMatch.buy.lockedSubject",
+      lockedBody: "api.notifications.listings.categoryMatch.buy.lockedBody",
+      lockedInAppTitle: "api.notifications.listings.categoryMatch.buy.lockedInAppTitle",
+      lockedInAppBody: "api.notifications.listings.categoryMatch.buy.lockedInAppBody",
+      lockedBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedBodyUnverified",
+      lockedInAppBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedInAppBodyUnverified",
+      openBodyUnverified: "api.notifications.listings.categoryMatch.buy.openBodyUnverified",
+      openInAppBodyUnverified: "api.notifications.listings.categoryMatch.buy.openInAppBodyUnverified",
+      openBodyPending: "api.notifications.listings.categoryMatch.buy.openBodyPending",
+      openInAppBodyPending: "api.notifications.listings.categoryMatch.buy.openInAppBodyPending",
+      openCta: "api.notifications.listings.cta.viewRequest",
+    } as const;
+    const VERIFY_CTA = "api.notifications.listings.cta.verifyFree" as const;
+    const FOOTER = "api.notifications.listings.categoryMatch.footerNote" as const;
+    const PLANS_CTA = "api.notifications.listings.cta.upgradeSilver" as const;
+    // Alıcılar BAŞKA firmalardır → başlık onların dilinde. Duyuru yayın anında
+    // gider; içerik çevirisi o an hazır değilse kaynak başlık basılır (bilinçli).
+    const p = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+    };
     // Ücretsiz (efektif STANDART) alıcı: talep ona KİLİTLİ — metin dürüst olsun,
     // CTA paket sayfasına (kilit kartı satış anasayfasında da sayıyı gösterir).
     // Ücretsiz ama alıcıyla GEÇERLİ bağlantısı olan firma talebi görebilir ve
@@ -548,51 +893,157 @@ export class CompanyListingsService {
           ] as const,
       ),
     );
-    const lockedText = {
-      subject: `Kategorinizde yeni bir ${label} var — Silver ile açılır`,
-      heading: `Kategorinize uygun yeni ${label}`,
-      paragraphs: [
-        "Merhaba,",
-        `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}). Ücretsiz üyelikte herkese açık talepler kilitlidir; görmek ve ${action} için Silver paketine geçin. Bağlantı davetiyle gelen talepleri her zaman ücretsiz görürsünüz.`,
-      ],
-      ctaLabel: "Paketleri Gör",
-      ctaUrl: pricingUrl,
-      footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
-    };
-    const openText = {
-      subject: `Size uygun yeni bir ${label} yayınlandı`,
-      heading: `Kategorinize uygun yeni ${label}`,
-      paragraphs: [
-        "Merhaba,",
-        `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}). İncelemek ve ${action} için Rothern'e giriş yapın.`,
-      ],
-      ctaLabel: isBuyDemand ? "Açık Satın Alma Taleplerini Gör" : "Satış İlanlarını Gör",
-      ctaUrl: url,
-      footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
-    };
+    const needsVerify = new Set(
+      candidates
+        .filter(
+          (c) =>
+            isFree.get(c.id) &&
+            c.companyVerificationStatus !== "VERIFIED" &&
+            c.companyVerificationStatus !== "PENDING",
+        )
+        .map((c) => c.id),
+    );
+    // ÜCRETLİ ama doğrulanmamış / incelemedeki firma (arayüz testi D-163):
+    // talebi görür ama bağlantısız teklif INV-KYC-1 ile 403 alır
+    // (`assertBidVerified`) → "hemen teklif verin" yerine doğrulama çağrısı
+    // (incelemedeyse "onaylanınca teklif verebilirsiniz"). Bağlantılı firma
+    // KYC'den muaf → açık metin kalır.
+    const paidKyc = new Map(
+      candidates
+        .filter(
+          (c) =>
+            !isFree.get(c.id) &&
+            !ownerConnected.has(c.id) &&
+            c.companyVerificationStatus !== "VERIFIED",
+        )
+        .map(
+          (c) =>
+            [c.id, c.companyVerificationStatus === "PENDING" ? "pending" : "unverified"] as const,
+        ),
+    );
+    // Talep önizlemesi alıcının dilinde — ücretsiz firma kilitli talebin NE
+    // olduğunu görsün (Silver'a geçiş için somut gerekçe), ücretli firma
+    // talebi açmadan uygunluğunu tartsın. Alıcı kimliği YOK (anonim).
+    const preview = await this.listingPreviewFor(
+      listing.id,
+      [...recipients.values()].map((r) => r.locale),
+    ).catch(() => new Map<Locale, PreviewRow[]>());
+    // GÜNDE 3 ANINDA, FAZLASI AKŞAM ÖZETİ (2026-09-27, Faz 2; kullanıcı:
+    // "kayıtlıya kategorisi uyuşuyorsa sık gönderelim"). Alıcının yerel günü
+    // (firma ülkesinin saat dilimi) içinde bu tür e-posta 3'e ulaştıysa talep
+    // özet kuyruğuna düşer ve yerel 18:00'de tek e-postada gider
+    // (`EmailProgramsService.sendDigests`). "Hepsi anında" tercihi
+    // (`categoryMatchInstant`) sınırı kaldırır. Uygulama içi bildirim değişmez.
+    const now = new Date();
+    const recentSends = await this.bypass.emailLog.findMany({
+      where: {
+        toEmail: { in: [...recipients.values()].map((r) => r.email) },
+        contextType: "listing_category_match",
+        status: { not: "FAILED" },
+        queuedAt: { gte: new Date(now.getTime() - 36 * 3_600_000) },
+      },
+      select: { toEmail: true, queuedAt: true },
+    });
+    const sentInCall = new Map<string, number>();
+    const countryOf = new Map(candidates.map((c) => [c.id, c.country]));
     let sent = 0;
+    let digested = 0;
     for (const c of sirali) {
       const to = recipients.get(c.id);
       if (!to) continue;
-      this.notify(to, isFree.get(c.id) ? lockedText : openText, {
-        type: "listing_category_match",
-        id: listingId,
-      });
+      if (!isNotificationEnabled(to.prefs, "listing_category_match")) continue;
+      const dayStart = localDayStart(now, timeZoneForCountry(countryOf.get(c.id)));
+      const sentToday =
+        recentSends.filter((r) => r.toEmail === to.email && r.queuedAt >= dayStart).length +
+        (sentInCall.get(to.email) ?? 0);
+      if (
+        !categoryMatchInstantAllowed({
+          sentTodayLocal: sentToday,
+          allInstant: to.prefs?.categoryMatchInstant === true,
+        })
+      ) {
+        await this.bypass.emailDigestItem
+          .upsert({
+            where: { email_kind_listingId: { email: to.email, kind: "CATEGORY_MATCH", listingId: listing.id } },
+            create: {
+              email: to.email,
+              locale: to.locale,
+              companyId: c.id,
+              kind: "CATEGORY_MATCH",
+              listingId: listing.id,
+              locked: !!isFree.get(c.id),
+            },
+            update: {},
+          })
+          .catch((err) =>
+            this.logger.warn(`digest enqueue failed: ${err instanceof Error ? err.message : String(err)}`),
+          );
+        digested++;
+        continue;
+      }
+      sentInCall.set(to.email, (sentInCall.get(to.email) ?? 0) + 1);
+      this.notify(
+        to,
+        isFree.get(c.id)
+          ? {
+              subjectKey: K.lockedSubject,
+              headingKey: K.heading,
+              bodyKey: needsVerify.has(c.id) ? K.lockedBodyUnverified : K.lockedBody,
+              params: p,
+              ctaLabelKey: needsVerify.has(c.id) ? VERIFY_CTA : PLANS_CTA,
+              ctaUrl: (l) => localizeAppPath(needsVerify.has(c.id) ? verifyUrl : pricingUrl, l),
+              footerNoteKey: FOOTER,
+              infoRowsFor: (l) => preview.get(l),
+            }
+          : paidKyc.get(c.id) === "unverified"
+            ? {
+                subjectKey: K.openSubject,
+                headingKey: K.heading,
+                bodyKey: K.openBodyUnverified,
+                params: p,
+                ctaLabelKey: VERIFY_CTA,
+                ctaUrl: (l) => localizeAppPath(verifyUrl, l),
+                footerNoteKey: FOOTER,
+                infoRowsFor: (l) => preview.get(l),
+              }
+            : {
+                subjectKey: K.openSubject,
+                headingKey: K.heading,
+                bodyKey:
+                  paidKyc.get(c.id) === "pending" ? K.openBodyPending : K.openBody,
+                params: p,
+                ctaLabelKey: K.openCta,
+                ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
+                footerNoteKey: FOOTER,
+                infoRowsFor: (l) => preview.get(l),
+              },
+        { type: "listing_category_match", id: listingId },
+      );
       sent++;
     }
     // In-app kanal (e-postaya paralel) — eşleşen firmaların YALNIZCA teklifçi
     // portalındaki (ALIM→satış, SATIS→satınalma) aktif kullanıcılarına. Portal
     // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
     // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
-    const paidIds = sirali.map((c) => c.id).filter((id) => !isFree.get(id));
-    const freeIds = sirali.map((c) => c.id).filter((id) => isFree.get(id));
+    const paidIds = sirali
+      .map((c) => c.id)
+      .filter((id) => !isFree.get(id) && !paidKyc.has(id));
+    const paidUnverifiedIds = sirali
+      .map((c) => c.id)
+      .filter((id) => paidKyc.get(id) === "unverified");
+    const paidPendingIds = sirali
+      .map((c) => c.id)
+      .filter((id) => paidKyc.get(id) === "pending");
+    const freeIds = sirali.map((c) => c.id).filter((id) => isFree.get(id) && !needsVerify.has(id));
+    const verifyIds = sirali.map((c) => c.id).filter((id) => needsVerify.has(id));
     if (paidIds.length > 0) {
       await this.notifications.pushToCompanies(paidIds, {
         type: "listing_category_match",
-        title: `Kategorinize uygun yeni ${label}`,
-        body: `${verb} kategorilerle eşleşen yeni bir ${label}: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}).`,
-        ctaUrl: url,
-        ctaLabel: isBuyDemand ? "Açık Satın Alma Taleplerini Gör" : "Satış İlanlarını Gör",
+        titleKey: K.heading,
+        bodyKey: K.openInAppBody,
+        ctaLabelKey: K.openCta,
+        params: p,
+        ctaPath: url,
         listingId: listing.id,
         portal: matchPortal,
       });
@@ -602,13 +1053,50 @@ export class CompanyListingsService {
       // kilit kartı sayıyı gösterir, CTA paket sayfasına.
       await this.notifications.pushToCompanies(freeIds, {
         type: "listing_category_match",
-        title: `Kategorinizde yeni bir ${label} — Silver ile açılır`,
-        body: `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}". Görmek ve ${action} için Silver paketine geçin.`,
-        ctaUrl: pricingUrl,
-        ctaLabel: "Paketleri Gör",
+        titleKey: K.lockedInAppTitle,
+        bodyKey: K.lockedInAppBody,
+        ctaLabelKey: PLANS_CTA,
+        params: p,
+        ctaPath: pricingUrl,
         portal: matchPortal,
       });
     }
+    if (paidUnverifiedIds.length > 0) {
+      await this.notifications.pushToCompanies(paidUnverifiedIds, {
+        type: "listing_category_match",
+        titleKey: K.heading,
+        bodyKey: K.openInAppBodyUnverified,
+        ctaLabelKey: VERIFY_CTA,
+        params: p,
+        ctaPath: verifyUrl,
+        listingId: listing.id,
+        portal: matchPortal,
+      });
+    }
+    if (paidPendingIds.length > 0) {
+      await this.notifications.pushToCompanies(paidPendingIds, {
+        type: "listing_category_match",
+        titleKey: K.heading,
+        bodyKey: K.openInAppBodyPending,
+        ctaLabelKey: K.openCta,
+        params: p,
+        ctaPath: url,
+        listingId: listing.id,
+        portal: matchPortal,
+      });
+    }
+    if (verifyIds.length > 0) {
+      await this.notifications.pushToCompanies(verifyIds, {
+        type: "listing_category_match",
+        titleKey: K.lockedInAppTitle,
+        bodyKey: K.lockedInAppBodyUnverified,
+        ctaLabelKey: VERIFY_CTA,
+        params: p,
+        ctaPath: verifyUrl,
+        portal: matchPortal,
+      });
+    }
+    if (digested > 0) this.logger.log(`category match ${listing.number}: ${digested} to evening digest`);
     this.logger.log(
       `Kategori eşleşmesi (${listing.number}): ${sent}/${candidates.length} firmaya bildirim (${
         isBuyDemand ? "satıcı" : "alıcı"
@@ -677,6 +1165,38 @@ export class CompanyListingsService {
   // davet/teklif satırlarını tarar. Ana client'la RLS açıldığında bağlamsız
   // çağrı 0 satır döner — hata yok, log yok, bildirim sessizce hiç gitmez;
   // istek yolundan gelen çağrı da sahibin bağlamıyla davetlileri göremezdi.
+  /** Yayında otomatik AI keşfi açık talep için tur (daha önce açılmadıysa). */
+  private async enqueueDiscoveryRun(listingId: string): Promise<void> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: { aiDiscovery: true, companyId: true, targetCountries: true },
+    });
+    if (!l?.aiDiscovery) return;
+    const existing = await this.bypass.supplierDiscoveryRun.findFirst({
+      where: { listingId, trigger: { in: ["PUBLISH", "SECOND_ROUND"] } },
+      select: { id: true },
+    });
+    if (existing) return;
+    await this.bypass.supplierDiscoveryRun.create({
+      data: { listingId, companyId: l.companyId, trigger: "PUBLISH", targetCountries: l.targetCountries },
+    });
+  }
+
+  /**
+   * Yayındaki (duyurusu yapılmış) talep düzenlendi: otomatik AI keşfi açık,
+   * talep hâlâ OPEN ve teklife açıksa (embargo bitmiş) tur yoksa yazılır.
+   * `enqueueDiscoveryRun` idempotent (açık değilse ya da tur varsa döner).
+   */
+  private async enqueueDiscoveryAfterEdit(listingId: string): Promise<void> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: { status: true, bidsOpenAt: true },
+    });
+    if (!l || l.status !== "OPEN") return;
+    if (l.bidsOpenAt && l.bidsOpenAt > new Date()) return;
+    await this.enqueueDiscoveryRun(listingId);
+  }
+
   async announceListingOpen(
     listingId: string,
     kind: "invitation" | "newRound",
@@ -685,13 +1205,20 @@ export class CompanyListingsService {
     // İLK çağrı damgayı basar ve duyuruyu atar; yarışan ikinci çağrı (cron
     // overlap / publish+cron) count=0 alıp sessizce döner — çift bildirim yok.
     // Embargo (bidsOpenAt gelecekte) koşulu sağlamaz → damga basılmaz, cron
-    // açılış anında yeniden dener.
+    // açılış anında yeniden dener. Kapanış saati geçmiş talep duyurulmaz
+    // (derin denetim 2026-09-29 X08): kesinti hem açılışı hem kapanışı
+    // kapsadıysa davetliler teklif veremeyecekleri talebe davet edilmesin,
+    // AI keşfi kapalı talebe tur açmasın — closeExpired zaten kapatır.
+    const now = new Date();
     const claimed = await this.bypass.listing.updateMany({
       where: {
         id: listingId,
         status: "OPEN",
         openNotifiedAt: null,
-        OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: new Date() } }],
+        AND: [
+          { OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }] },
+          { OR: [{ closesAt: null }, { closesAt: { gt: now } }] },
+        ],
       },
       data: { openNotifiedAt: new Date() },
     });
@@ -726,6 +1253,18 @@ export class CompanyListingsService {
         }`,
       );
     }
+    // HERKESE AÇIK TALEPTE BAĞLANTILAR OTOMATİK DAVETLİ (2026-09-27) — davet
+    // bildiriminden ÖNCE (aynı duyuruya girsinler) ve kategori duyurusundan
+    // önce (davetliye ikinci e-posta gitmesin). Hata duyuruyu durdurmaz.
+    if (kind === "invitation") {
+      await this.autoInviteConnections(listingId).catch((err) =>
+        this.logger.warn(
+          `Auto-invite of connections failed (${listingId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }
     // Fire-and-forget: reddi (DB flake vb.) UNHANDLED rejection'a düşmesin →
     // prod'da süreç çökme riski (kardeşi 563 gibi .catch — notifyListingInvitees
     // iç try/catch taşımaz, çağıran korur).
@@ -742,6 +1281,15 @@ export class CompanyListingsService {
           `Kategori eşleşme bildirimi başarısız (${listingId}): ${
             err instanceof Error ? err.message : String(err)
           }`,
+        ),
+      );
+      // AI TEDARİKÇİ KEŞFİ (2026-09-27, Faz 1): talepte açıksa yayın anında
+      // tur kuyruğa girer; dakikalık iş (`DiscoveryRunsService`) platform
+      // bütçesiyle yurt içi + yurt dışı arar, alıcıya tek tık davet önerir.
+      // Yalnız satır yazılır (AI modülüne bağımlılık yok); hata duyuruyu durdurmaz.
+      await this.enqueueDiscoveryRun(listingId).catch((err) =>
+        this.logger.warn(
+          `AI discovery enqueue failed (${listingId}): ${err instanceof Error ? err.message : String(err)}`,
         ),
       );
     }
@@ -798,53 +1346,73 @@ export class CompanyListingsService {
       const bidderSet = new Set(bidders.map((b) => b.bidderCompanyId));
       targets = targets.filter((id) => !bidderSet.has(id));
     }
+    // Açılış davetinde davet başına tek bildirim (arayüz testi FX-00 D-177):
+    // aynı anda elle eklenen davetli iki yoldan da e-posta alıyordu. Yalnız
+    // damgayı alanlar bildirilir; hatırlatma ve yeni tur damgaya bakmaz.
+    if (mode === "invitation") {
+      targets = await this.claimInvitationNotices(listingId, targets);
+    }
     const url = appRoutes.listing(this.webUrl(), listingId);
-    const t = listing.title;
-    const no = listing.number ?? "—";
-    // Mod'a göre metin + tip. Yeni tur (`listing_new_round`) tercihte
-    // listelenmez → transactional (kapatılamaz): açılan yeni tur mutlaka duyulmalı.
-    const content = {
+    // Davetliler BAŞKA firmadır → başlık onların dilinde (içerik çevirisi).
+    const p = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+    };
+    // Mod'a göre ANAHTAR + tip (metin alıcının dilinde üretilir). Yeni tur
+    // (`listing_new_round`) tercihte listelenmez → transactional
+    // (kapatılamaz): açılan yeni tur mutlaka duyulmalı.
+    const content = ({
       invitation: {
-        type: "listing_invitation" as const,
-        subject: "Bir satın alma talebine davet edildiniz",
-        heading: "Satın Alma Talebi daveti",
-        paragraph: `"${t}" (${no}) satın alma talebine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
-        inAppTitle: "Satın Alma Talebi daveti",
-        inAppBody: `"${t}" (${no}) satın alma talebine davet edildiniz.`,
-        ctaLabel: "Satın Alma Talebini Gör",
+        type: "listing_invitation",
+        subjectKey: "api.notifications.listings.invitation.subject",
+        titleKey: "api.notifications.listings.invitation.title",
+        bodyKey: "api.notifications.listings.invitation.body",
+        inAppBodyKey: "api.notifications.listings.invitation.inAppBody",
+        ctaKey: "api.notifications.listings.cta.viewRequest",
       },
       reminder: {
-        type: "listing_reminder" as const,
-        subject: "Satın Alma Talebi kapanışı yaklaşıyor",
-        heading: "Kapanış hatırlatması",
-        paragraph: `"${t}" (${no}) satın alma talebinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
-        inAppTitle: "Kapanış hatırlatması",
-        inAppBody: `"${t}" (${no}) satın alma talebinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
-        ctaLabel: "Teklif Ver",
+        type: "listing_reminder",
+        subjectKey: "api.notifications.listings.reminder.subject",
+        titleKey: "api.notifications.listings.reminder.title",
+        bodyKey: "api.notifications.listings.reminder.body",
+        // Hatırlatmada e-posta ve zil metni AYNI cümle — tek anahtar.
+        inAppBodyKey: "api.notifications.listings.reminder.body",
+        ctaKey: "api.notifications.listings.cta.placeBid",
       },
       newRound: {
-        type: "listing_new_round" as const,
-        subject: "Satın Alma Talebinde yeni tur başladı",
-        heading: "Yeni tur açıldı",
-        paragraph: `"${t}" (${no}) satın alma talebinde yeni bir tur açıldı. Güncel teklifinizi vermek için giriş yapın.`,
-        inAppTitle: "Yeni tur açıldı",
-        inAppBody: `"${t}" (${no}) satın alma talebinde yeni tur açıldı — güncel teklifinizi verin.`,
-        ctaLabel: "Teklif Ver",
+        type: "listing_new_round",
+        subjectKey: "api.notifications.listings.newRound.subject",
+        titleKey: "api.notifications.listings.newRound.title",
+        bodyKey: "api.notifications.listings.newRound.body",
+        inAppBodyKey: "api.notifications.listings.newRound.inAppBody",
+        ctaKey: "api.notifications.listings.cta.placeBid",
       },
-    }[mode];
+    } as const)[mode];
 
     const recipients = await this.companyRecipients(targets, invitePortal);
+    // Davette talep ÖNİZLEMESİ (ilk kalemler + miktar, kapanış, teslim yeri)
+    // alıcının dilinde — yalnız başlık alan davetli neyin istendiğini görmeden
+    // giriş yapmıyordu (2026-09-27). Hatırlatma/yeni turda kısa kalır.
+    const preview =
+      mode === "invitation"
+        ? await this.listingPreviewFor(
+            listingId,
+            [...recipients.values()].map((r) => r.locale),
+          ).catch(() => new Map<Locale, PreviewRow[]>())
+        : new Map<Locale, PreviewRow[]>();
     for (const invitedCompanyId of targets) {
       const r = recipients.get(invitedCompanyId);
       if (!r) continue;
       this.notify(
         r,
         {
-          subject: content.subject,
-          heading: content.heading,
-          paragraphs: ["Merhaba,", content.paragraph],
-          ctaLabel: content.ctaLabel,
-          ctaUrl: url,
+          subjectKey: content.subjectKey,
+          headingKey: content.titleKey,
+          bodyKey: content.bodyKey,
+          params: p,
+          ctaLabelKey: content.ctaKey,
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
+          infoRowsFor: (l) => preview.get(l),
         },
         { type: content.type, id: listingId },
       );
@@ -853,10 +1421,11 @@ export class CompanyListingsService {
     await this.notifications.pushToCompanies(targets, {
       type: content.type,
       portal: invitePortal,
-      title: content.inAppTitle,
-      body: content.inAppBody,
-      ctaLabel: content.ctaLabel,
-      ctaUrl: url,
+      titleKey: content.titleKey,
+      bodyKey: content.inAppBodyKey,
+      ctaLabelKey: content.ctaKey,
+      params: p,
+      ctaPath: url,
       listingId,
     });
   }
@@ -868,21 +1437,21 @@ export class CompanyListingsService {
   private validateListingDates(dto: CreateListingDto) {
     if (dto.asDraft) return;
     if (!dto.closesAt) {
-      throw new BadRequestException("Kapanış tarihi zorunlu");
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiZorunlu"));
     }
     const close = new Date(dto.closesAt);
     if (Number.isNaN(close.getTime()) || close.getTime() <= Date.now()) {
-      throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiGelecekteOlmali"));
     }
     // Üst sınır: closesAt=9999 → auto-close cron hiç tetiklenmez (yaşam döngüsü
     // kırılır). En fazla now + 2 yıl. bidsOpenAt < closesAt zorunlu → transitif kapalı.
     if (close.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
-      throw new BadRequestException("Kapanış tarihi çok ileri (en fazla 2 yıl)");
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiCokIleriEnFazla"));
     }
     if (dto.bidsOpenAt) {
       const open = new Date(dto.bidsOpenAt);
       if (!Number.isNaN(open.getTime()) && open.getTime() >= close.getTime()) {
-        throw new BadRequestException("Açılış tarihi kapanıştan önce olmalı");
+        throw new BadRequestException(i18nMessage("api.companyListings.acilisTarihiKapanistanOnceOlmali"));
       }
     }
   }
@@ -926,7 +1495,7 @@ export class CompanyListingsService {
         // backstop'u KORUNUR (fail-closed — stray/legacy null en katı kapıya düşer).
         if (dto.advancePercent == null) {
           throw new BadRequestException(
-            "Peşin ödemede peşin yüzdesi (%1-100) zorunlu",
+            i18nMessage("api.companyListings.pesinOdemedePesinYuzdesi1100"),
           );
         }
         advancePercent = dto.advancePercent;
@@ -939,11 +1508,13 @@ export class CompanyListingsService {
       case "SENET": {
         if (!dto.paymentDays) {
           throw new BadRequestException(
-            category === "CHEQUE"
-              ? "Çek için vade gün sayısı zorunlu"
-              : category === "SENET"
-                ? "Senet için vade gün sayısı zorunlu"
-                : "Vadeli ödeme için gün sayısı zorunlu",
+            i18nMessage(
+              category === "CHEQUE"
+                ? "api.companyListings.cekIcinVadeGunSayisiZorunlu"
+                : category === "SENET"
+                  ? "api.companyListings.senetIcinVadeGunSayisiZorunlu"
+                  : "api.companyListings.vadeliOdemeIcinGunSayisiZorunlu",
+            ),
           );
         }
         paymentDays = dto.paymentDays;
@@ -953,13 +1524,13 @@ export class CompanyListingsService {
         lcType = (dto.lcType as LcType) ?? null;
         if (!lcType) {
           throw new BadRequestException(
-            "Akreditif için alt tip (Sight/Usance) seçin",
+            i18nMessage("api.companyListings.akreditifIcinAltTipSightUsance"),
           );
         }
         if (lcType === "USANCE") {
           if (!dto.paymentDays) {
             throw new BadRequestException(
-              "Vadeli (Usance) akreditif için vade gün sayısı zorunlu",
+              i18nMessage("api.companyListings.vadeliUsanceAkreditifIcinVadeGun"),
             );
           }
           paymentDays = dto.paymentDays;
@@ -969,7 +1540,7 @@ export class CompanyListingsService {
       case "CUSTOM": {
         if (!note) {
           throw new BadRequestException(
-            "Özel ödeme şeklinde ödeme koşulu notu zorunlu",
+            i18nMessage("api.companyListings.ozelOdemeSeklindeOdemeKosuluNotu"),
           );
         }
         break;
@@ -1025,7 +1596,7 @@ export class CompanyListingsService {
       !(dto.allowedCurrencies as string[]).includes(primary)
     ) {
       throw new BadRequestException(
-        "İzin verilen para birimleri ilanın ana birimini içermeli",
+        i18nMessage("api.companyListings.izinVerilenParaBirimleriIlaninAna"),
       );
     }
     // Teslim şekli ülkeye göre süzülmez (2026-09-21): yerli tedarikçi de
@@ -1033,7 +1604,15 @@ export class CompanyListingsService {
     // Hedef ülkeler gerçek ülke kodu olmalı ("XX" değil).
     for (const c of dto.targetCountries ?? []) {
       if (!isValidCountryCode(c)) {
-        throw new BadRequestException(`Geçersiz hedef ülke kodu: ${c}`);
+        throw new BadRequestException(i18nMessage("api.companyListings.gecersizHedefUlkeKodu", { c: c }));
+      }
+      // Kayda kapalı ülke (`REGISTRATION_BLOCKED`) hedeflenemez: oradan firma
+      // kayıt olamaz, davet gidemez (derin denetim 2026-09-29 X24). Sessizce
+      // süzülmez — yalnız o ülkeyi hedefleyen talep "tüm ülkeler"e genişlerdi.
+      if (!isRegistrationOpen(c)) {
+        throw new BadRequestException(
+          i18nMessage("api.companyListings.hedefUlkeKayitKapali", { c: c }, "TARGET_COUNTRY_BLOCKED"),
+        );
       }
     }
     // Kategori kodları taksonomide var olmalı (ihale için level ≥ 3).
@@ -1057,7 +1636,7 @@ export class CompanyListingsService {
         },
       });
       if (found !== new Set(dto.categoryIds).size) {
-        throw new BadRequestException("Geçersiz kategori seçimi");
+        throw new BadRequestException(i18nMessage("api.companyListings.gecersizKategoriSecimi"));
       }
     }
     // Kimsenin göremeyeceği ilan: PRIVATE + davetsiz yayına çıkamaz.
@@ -1067,7 +1646,7 @@ export class CompanyListingsService {
       opts.inviteCount === 0
     ) {
       throw new BadRequestException(
-        "Özel (davetli) ilan en az bir davetli firma ile yayınlanabilir",
+        i18nMessage("api.companyListings.ozelDavetliIlanEnAzBir"),
       );
     }
   }
@@ -1080,11 +1659,11 @@ export class CompanyListingsService {
    */
   private assertPaidForNewListingWork(
     user: AuthenticatedCompanyUser,
-    action: string,
+    action: ListingActionKey,
   ) {
     if (!tierAtLeast(user.tier, BUYING_TIER)) {
       throw new ForbiddenException(
-        `${action} için Gold paket (satınalma paneli) gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.`,
+        i18nMessage("api.companyListings.icinGoldPaketSatinalmaPaneliGerekir", { action: tApi(LISTING_ACTION_KEYS[action]) }),
       );
     }
   }
@@ -1098,10 +1677,22 @@ export class CompanyListingsService {
    * kazanıp REJECTED olursa reddedilmiş karşı taraflı canlı sipariş kalırdı.
    * `assertPaidForNewListingWork` simetriği (ikisi de user objesinden okur).
    */
-  private assertVerified(user: AuthenticatedCompanyUser, action: string) {
+  private assertVerified(user: AuthenticatedCompanyUser, action: ListingActionKey) {
     if (user.companyVerificationStatus !== "VERIFIED") {
+      // PENDING (belgeler yüklü, inceleniyor) firmaya "belgeleri yükleyip
+      // onaya gönderin" denmez — ayrı mesaj ve kod (arayüz testi O-068).
+      const pending = user.companyVerificationStatus === "PENDING";
       throw new ForbiddenException(
-        `Firma doğrulamanız tamamlanmadan ${action} — belgelerinizi Ayarlar → Doğrulama'dan yükleyip onaya gönderin.`,
+        pending
+          ? i18nMessage(
+              "api.companyListings.firmaDogrulamanizIncelemede",
+              { action: tApi(LISTING_ACTION_KEYS[action]) },
+              "COMPANY_VERIFICATION_PENDING",
+            )
+          : i18nMessage(
+              "api.companyListings.firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl",
+              { action: tApi(LISTING_ACTION_KEYS[action]) },
+            ),
       );
     }
   }
@@ -1113,7 +1704,7 @@ export class CompanyListingsService {
     // Üç paket (2026-09-06): satınalma paneli = GOLD (Silver yalnız satış).
     if (!tierAtLeast(user.tier, BUYING_TIER)) {
       throw new ForbiddenException(
-        "Satın alma talebi açmak için Gold paket (satınalma paneli) gerekir.",
+        i18nMessage("api.companyListings.satinAlmaTalebiAcmakIcinGold"),
       );
     }
     // BK-A (kör-nokta denetimi): asDraft:false doğrudan status:OPEN üretir =
@@ -1121,7 +1712,7 @@ export class CompanyListingsService {
     // Aksi halde doğrulanmamış PAKET firma create(asDraft:false) ile publishListing'in
     // assertVerified'ını atlayarak ilan yayınlar. Taslak SERBEST (INV-KYC-1 funnel).
     if (!dto.asDraft) {
-      this.assertVerified(user, "ilan yayınlayamazsınız");
+      this.assertVerified(user, "publish");
     }
 
     // Yetki tablosu: talep açma = "Talep açma ve yönetme" izni (etiket değil;
@@ -1129,7 +1720,7 @@ export class CompanyListingsService {
     void type;
     if (!hasCompanyPermission(user, "buy:listing:manage")) {
       throw new ForbiddenException(
-        "Talep açmak için 'Talep açma ve yönetme' yetkisi gerekir",
+        i18nMessage("api.companyListings.talepAcmakIcinTalepAcmaVe"),
       );
     }
 
@@ -1138,7 +1729,7 @@ export class CompanyListingsService {
 
     if (!dto.format) {
       throw new BadRequestException(
-        "Satın alma talebi için format seçin (Teklif Toplama / Pazarlık)",
+        i18nMessage("api.companyListings.satinAlmaTalebiIcinFormatSecin"),
       );
     }
     // İngiliz usulü doğrudan AÇILAMAZ — tek yol RFQ turu kapanınca "Yeni Tur"
@@ -1146,7 +1737,7 @@ export class CompanyListingsService {
     // soğuk-başlangıç eksiltme/artırma olmaz.
     if (dto.format === "ENGLISH_AUCTION") {
       throw new BadRequestException(
-        "Pazarlık doğrudan açılamaz — talebi teklif toplama olarak açın, 'Pazarlığa Geç' ile açık eksiltme turuna aktarın",
+        i18nMessage("api.companyListings.pazarlikDogrudanAcilamazTalebiTeklifToplama"),
       );
     }
     format = dto.format as ListingFormat;
@@ -1156,7 +1747,7 @@ export class CompanyListingsService {
     // Davet edilecek firmaları çöz: rothernId → companyId, bağlı olmalı.
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
-      const connectedIds = await this.connectedCompanyIds(user.companyId);
+      const connected = new Set(await this.connectedCompanyIds(user.companyId));
       const codes = dto.invitations
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
@@ -1164,9 +1755,10 @@ export class CompanyListingsService {
         where: { rothernId: { in: codes } },
         select: { id: true },
       });
-      inviteCompanyIds = targets
-        .map((t) => t.id)
-        .filter((id) => id !== user.companyId && connectedIds.includes(id));
+      inviteCompanyIds = connectedInvitees(
+        targets.map((t) => t.id),
+        { selfCompanyId: user.companyId, connected },
+      );
     }
 
     await this.validateListingBusinessRules(dto, {
@@ -1178,6 +1770,7 @@ export class CompanyListingsService {
       dto.deliveryAddressId,
       dto.billingAddressId,
     );
+    await this.assertListingItemImagesOwned(user.companyId, dto.items);
 
     const listing = await runTenantTx(this.prisma, async (tx) => {
       const l = await tx.listing.create({
@@ -1190,6 +1783,10 @@ export class CompanyListingsService {
           // türetilir — kural taşımaz.
           targetCountries: normalizeTargetCountries(dto.targetCountries),
           isInternational: deriveIsInternational(normalizeTargetCountries(dto.targetCountries), user.country),
+          // AI keşfi + davette firma adı (2026-09-27, Faz 1) — eski istemci
+          // göndermezse: arama kapalı, ad görünür.
+          aiDiscovery: dto.aiDiscovery ?? false,
+          inviteShowName: dto.inviteShowName ?? true,
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
@@ -1299,6 +1896,25 @@ export class CompanyListingsService {
     // Doğrudan yayınlandıysa: davet + kategori duyurusu (embargo-farkında —
     // açılış gelecekteyse cron açılışta gönderir).
     if (!dto.asDraft) {
+      // INV-AUDIT-1: doğrudan yayın da bir durum geçişi (yok → OPEN) —
+      // publishListing ile aynı iz; commit SONRASI, duyurudan önce (derin
+      // denetim MU-20: hızlı talep kartı yayınları audit'te görünmüyordu).
+      await this.audit.log({
+        action: "company.listing.published",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: user.companyId,
+        entityType: "listing",
+        entityId: listing.id,
+        critical: true,
+        metadata: {
+          listingType: listing.type,
+          from: null,
+          to: "OPEN",
+          visibility: listing.visibility,
+        },
+      });
       void this.announceListingOpen(listing.id, "invitation").catch((err) =>
         this.logger.warn(
           `Yayın duyurusu başarısız (${listing.id}): ${
@@ -1306,6 +1922,13 @@ export class CompanyListingsService {
           }`,
         ),
       );
+      // Doğrudan yayın da bir yayın anıdır: IndexNow + ISR tazeleme (SEO Parça 5)
+      // ve içerik çevirisi (i18n Faz 1e). Eskiden yalnız taslak→yayın (`publish`)
+      // yolu tetikliyordu; hızlı talep kartı doğrudan OPEN açtığı için yeni
+      // talepler ne indekslenmeye bildiriliyor ne çevriliyordu (2026-09-23 gece,
+      // staging tetik testinde yakalandı).
+      this.seo?.listingChanged(listing.id);
+      void this.translations?.enqueue("LISTING", listing.id);
     }
     return this.serialize(listing);
   }
@@ -1314,8 +1937,8 @@ export class CompanyListingsService {
    * İlanı düzenle (eski sistemdeki updateDraft kuralı): ilanı açan doğru-taraf
    * operatörü (Satın Almacı) veya firma sahibi; talep
    * AÇIK/TASLAK ve henüz SUBMITTED teklif gelmemişken. İlk teklif gelince
-   * kilitlenir. Tür değiştirilemez (mevcut tür korunur). Kalemler ve davetler
-   * tamamen yeniden yazılır (sil-ve-oluştur).
+   * kilitlenir. Tür değiştirilemez (mevcut tür korunur). Kalemler tamamen
+   * yeniden yazılır (sil-ve-oluştur); davetler FARK olarak uygulanır.
    */
   async updateListing(
     user: AuthenticatedCompanyUser,
@@ -1331,20 +1954,26 @@ export class CompanyListingsService {
         type: true,
         format: true,
         createdById: true,
+        openNotifiedAt: true,
       },
     });
     // Faz 3 — tx İÇİNDE toplanır, commit'ten SONRA R2'dan silinir (tx geri
     // alınırsa nesne gitmiş olmasın).
     const staleDocKeys: string[] = [];
     if (!existing || existing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
+    // Arayüz testi O-010 (kullanıcı kararı T-06): talebi düzenlemek (kalemler,
+    // şartlar, yeni davetliler) GOLD ister — paketi düşen/süresi biten firma
+    // açık talebini yalnız sonuçlandırır (kazandır/ele/kapat/iptal). Paket
+    // kapısı rol kapısının DIŞINDA (önce paket, sonra rol).
+    this.assertPaidForNewListingWork(user, "editListing");
     this.assertListingManageRole(user, existing);
     // Düzenlenebilirlik kilidi — eski sistem birebir. DRAFT her zaman serbest;
     // OPEN ise yalnızca henüz SUBMITTED teklif yokken.
     if (existing.status !== "OPEN" && existing.status !== "DRAFT") {
       throw new BadRequestException(
-        "Sadece taslak veya henüz teklif gelmemiş satın alma talepleri düzenlenebilir",
+        i18nMessage("api.companyListings.sadeceTaslakVeyaHenuzTeklifGelmemis"),
       );
     }
     if (existing.status === "OPEN") {
@@ -1357,7 +1986,7 @@ export class CompanyListingsService {
       });
       if (bidCount > 0) {
         throw new BadRequestException(
-          "Bu satın alma talebine teklif verilmiş; düzenleme yapılamaz",
+          i18nMessage("api.companyListings.buSatinAlmaTalebineTeklifVerilmis"),
         );
       }
     }
@@ -1380,11 +2009,7 @@ export class CompanyListingsService {
     const type = existing.type;
     let format: ListingFormat | null = null;
     if (!dto.format) {
-      throw new BadRequestException(
-        type === "ALIM"
-          ? "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)"
-          : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
-      );
+      throw new BadRequestException(i18nMessage("api.companyListings.alimIcinFormatSecin"));
     }
     // Düzenlemeyle İngiliz usulüne GEÇİLEMEZ (RFQ taslağı açıp edit'le
     // eksiltmeye çevirme = doğrudan-açma yasağının arka kapısı olurdu).
@@ -1395,15 +2020,29 @@ export class CompanyListingsService {
       existing.format !== "ENGLISH_AUCTION"
     ) {
       throw new BadRequestException(
-        "Satın Alma Talebi formatı düzenlemeyle pazarlığa çevrilemez — 'Pazarlığa Geç' ile aktarın",
+        i18nMessage("api.companyListings.satinAlmaTalebiFormatiDuzenlemeylePazarliga"),
       );
     }
     format = dto.format as ListingFormat;
 
-    // Davet edilecek firmaları çöz (create ile aynı kural).
+    // Davet edilecek firmaları çöz. Davetler FARK olarak uygulanır (derin
+    // denetim MU-20): bağlantı şartı yalnız YENİ eklenen firmaya aranır —
+    // mevcut davetli (bağlantısı sonradan düşmüş ya da AI keşfinden bağlantısız
+    // davet edilmiş) formda kaldığı sürece korunur; formda kalan satır yeniden
+    // yazılmaz (AI davetinin origin/aiReason'ı durur). Form TÜM davetlileri
+    // geri gönderir (map-detail-to-form; seçicide görünmeyen bağlantısız AI
+    // davetlisi değerde gizli kalır) → formda OLMAYAN davetli, kaynağı ne
+    // olursa olsun alıcının çıkardığı davetlidir ve silinir. AI satırını
+    // koşulsuz korumak, seçicide görünen bağlantılı AI davetlisini "çıkarılmış
+    // gibi görünüp erişimi süren" hâle sokuyordu.
+    const priorInvites = await this.prisma.listingInvitation.findMany({
+      where: { listingId },
+      select: { invitedCompanyId: true },
+    });
+    const priorInvited = new Set(priorInvites.map((i) => i.invitedCompanyId));
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
-      const connectedIds = await this.connectedCompanyIds(user.companyId);
+      const connected = new Set(await this.connectedCompanyIds(user.companyId));
       const codes = dto.invitations
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
@@ -1411,19 +2050,35 @@ export class CompanyListingsService {
         where: { rothernId: { in: codes } },
         select: { id: true },
       });
-      inviteCompanyIds = targets
-        .map((t) => t.id)
-        .filter((id) => id !== user.companyId && connectedIds.includes(id));
+      inviteCompanyIds = connectedInvitees(
+        targets.map((t) => t.id),
+        { selfCompanyId: user.companyId, connected, alsoAllowed: priorInvited },
+      );
     }
+    const finalInvitedCount = new Set(inviteCompanyIds).size;
 
     await this.validateListingBusinessRules(dto, {
       format,
-      inviteCount: inviteCompanyIds.length,
+      inviteCount: finalInvitedCount,
     });
     await this.assertListingAddressesOwned(
       user.companyId,
       dto.deliveryAddressId,
       dto.billingAddressId,
+    );
+    // Kalemler sil-yaz ile yeniden yazılır: ilanda ZATEN kayıtlı görsel
+    // (eski kayıt / katalog kopyası) yeniden doğrulanmaz, yalnız yeni adres.
+    await this.assertListingItemImagesOwned(
+      user.companyId,
+      dto.items,
+      new Set(
+        (
+          await this.prisma.listingItem.findMany({
+            where: { listingId },
+            select: { images: true },
+          })
+        ).flatMap((i) => i.images),
+      ),
     );
 
     // Açık eksiltme (legacy taslak) düzenleniyorsa kur damgası tazelenir —
@@ -1436,6 +2091,7 @@ export class CompanyListingsService {
           )
         : null;
 
+    const addedInvitees: string[] = [];
     const updated = await runTenantTx(this.prisma, async (tx) => {
       // Denetim 2026-08-23 P2 #6 (TOCTOU): ilan satırını kilitle ve teklif
       // kontrolünü TX İÇİNDE yinele — eşzamanlı placeBid (aynı kilidi bekler)
@@ -1445,7 +2101,7 @@ export class CompanyListingsService {
         const liveBids = await tx.listingBid.count({ where: { listingId } });
         if (liveBids > 0) {
           throw new ConflictException(
-            "Bu satın alma talebine az önce teklif verildi; düzenleme yapılamaz",
+            i18nMessage("api.companyListings.buSatinAlmaTalebineAzOnce"),
           );
         }
       }
@@ -1460,6 +2116,9 @@ export class CompanyListingsService {
           // türetilir — kural taşımaz.
           targetCountries: normalizeTargetCountries(dto.targetCountries),
           isInternational: deriveIsInternational(normalizeTargetCountries(dto.targetCountries), user.country),
+          // Göndermeyen (eski) istemci ayarı DEĞİŞTİRMEZ.
+          ...(dto.aiDiscovery !== undefined ? { aiDiscovery: dto.aiDiscovery } : {}),
+          ...(dto.inviteShowName !== undefined ? { inviteShowName: dto.inviteShowName } : {}),
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
@@ -1568,11 +2227,24 @@ export class CompanyListingsService {
         }
       }
 
-      // Davetleri yeniden yaz.
-      await tx.listingInvitation.deleteMany({ where: { listingId } });
-      if (inviteCompanyIds.length) {
+      // Davetleri FARK olarak uygula: formdan çıkarılan davetler silinir,
+      // formda kalanlar (AI dahil) dokunulmadan kalır, yalnız yeni firmalar
+      // eklenir (mevcut satır yeniden yazılmaz → yeni davetli kümesi doğru).
+      await tx.listingInvitation.deleteMany({
+        where: { listingId, invitedCompanyId: { notIn: inviteCompanyIds } },
+      });
+      const stillInvited = new Set(
+        (
+          await tx.listingInvitation.findMany({
+            where: { listingId },
+            select: { invitedCompanyId: true },
+          })
+        ).map((i) => i.invitedCompanyId),
+      );
+      const toAdd = inviteCompanyIds.filter((cid) => !stillInvited.has(cid));
+      if (toAdd.length) {
         await tx.listingInvitation.createMany({
-          data: inviteCompanyIds.map((cid) => ({
+          data: toAdd.map((cid) => ({
             listingId,
             invitedCompanyId: cid,
             invitedById: user.userId,
@@ -1580,6 +2252,7 @@ export class CompanyListingsService {
           skipDuplicates: true,
         });
       }
+      addedInvitees.push(...toAdd);
       return l;
     });
     // Açılış tarihi düzenlemeyle geçmişe/boşa çekilmiş olabilir — duyuru henüz
@@ -1592,6 +2265,34 @@ export class CompanyListingsService {
           }`,
         ),
       );
+      // Açılış duyurusu ÇOKTAN yapıldıysa yukarıdaki claim alınamaz → düzenlemede
+      // eklenen davetliler `addInvitations` ile aynı yoldan haberdar edilir
+      // (derin denetim MU-20). Duyuru henüz yapılmadıysa onları da duyuru kapsar.
+      const embargoed =
+        updated.bidsOpenAt && updated.bidsOpenAt.getTime() > Date.now();
+      if (existing.openNotifiedAt && addedInvitees.length > 0 && !embargoed) {
+        void this.notifyAddedInvitees(updated, addedInvitees).catch((err) =>
+          this.logger.warn(
+            `Invitation notify after edit failed (${listingId}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+      }
+      // Duyuru ÇOKTAN yapıldıysa (claim alınamaz) sonradan açılan otomatik AI
+      // keşfi turu buradan kuyruğa girer (derin denetim 2026-09-29 S090) —
+      // yoksa talep sayfası süresiz "aranıyor" derdi. Duyuru henüz yapılmadıysa
+      // turu `announceListingOpen` yazar (çift tur olmasın diye burada değil);
+      // embargo sürüyorsa açılış duyurusu yazar.
+      if (existing.openNotifiedAt) {
+        await this.enqueueDiscoveryAfterEdit(listingId).catch((err) =>
+          this.logger.warn(
+            `AI discovery enqueue after edit failed (${listingId}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+      }
     }
     // Faz 3 — yetim R2 nesnelerini en-iyi-çaba temizle. Başarısızlık akışı
     // KIRMAZ (kullanıcının düzenlemesi tamamlandı) ama loglanır; bucket
@@ -1614,7 +2315,11 @@ export class CompanyListingsService {
     }
     // Yayındaki ilanın başlığı/açıklaması/kalemleri değişti → herkese açık
     // sayfa ve slug (başlıktan türer) tazelenir. Taslakta adres yok.
-    if (updated.status !== "DRAFT") this.seo?.listingChanged(listingId);
+    if (updated.status !== "DRAFT") {
+      this.seo?.listingChanged(listingId);
+      // i18n Faz 1e: metin değiştiyse yeniden çevrilir (hash aynıysa kuyruk açılmaz).
+      void this.translations?.enqueue("LISTING", listingId);
+    }
     return this.serialize(updated);
   }
 
@@ -1634,12 +2339,12 @@ export class CompanyListingsService {
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     this.assertListingManageRole(user, listing);
     if (listing.status !== "DRAFT") {
       throw new BadRequestException(
-        "Yalnızca taslak ilan silinebilir; yayınlanmış ilan iptal edilir",
+        i18nMessage("api.companyListings.yalnizcaTaslakIlanSilinebilirYayinlanmisIlan"),
       );
     }
     await this.prisma.listing.delete({ where: { id: listingId } });
@@ -1652,8 +2357,8 @@ export class CompanyListingsService {
    * (Yayın onayı KALDIRILDI — onay akışı yalnız KAZANDIRMADA devreye girer.)
    */
   async publishListing(user: AuthenticatedCompanyUser, listingId: string) {
-    this.assertPaidForNewListingWork(user, "İlan yayınlamak");
-    this.assertVerified(user, "ilan yayınlayamazsınız");
+    this.assertPaidForNewListingWork(user, "publishWork");
+    this.assertVerified(user, "publish");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -1664,6 +2369,7 @@ export class CompanyListingsService {
         visibility: true,
         type: true,
         createdById: true,
+        bidsOpenAt: true,
         // X-CF-2: açık eksiltmede açılış kur damgası yayında SENKRON kurulur.
         format: true,
         allowedCurrencies: true,
@@ -1671,11 +2377,11 @@ export class CompanyListingsService {
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     this.assertListingManageRole(user, listing);
     if (listing.status !== "DRAFT") {
-      throw new BadRequestException("Yalnızca taslak ilan yayınlanabilir");
+      throw new BadRequestException(i18nMessage("api.companyListings.yalnizcaTaslakIlanYayinlanabilir"));
     }
     // Taslak, tarih/davet kontrolünü atlayarak kaydedilebildiğinden yayında
     // yeniden doğrula (create'in non-draft yoluyla aynı kurallar):
@@ -1684,16 +2390,26 @@ export class CompanyListingsService {
     //     (kimsenin göremeyeceği açık ilan olmasın).
     if (!listing.closesAt || listing.closesAt.getTime() <= Date.now()) {
       throw new BadRequestException(
-        "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
+        i18nMessage("api.companyListings.yayinIcinGecerliBirKapanisTarihi"),
       );
     }
+    // create'in non-draft kurallarının GERİ KALANI da (2 yıl tavanı,
+    // açılış < kapanış): taslak `validateListingDates`'i tamamen atladığından
+    // taslak+yayınla yolu `closesAt=9999` (cron hiç kapatmaz) ya da
+    // `bidsOpenAt > closesAt` (teklif alamadan kapanan talep) yayınlayabiliyordu
+    // (derin denetim LU-15).
+    this.validateListingDates({
+      asDraft: false,
+      closesAt: listing.closesAt.toISOString(),
+      bidsOpenAt: listing.bidsOpenAt?.toISOString(),
+    } as CreateListingDto);
     if (listing.visibility === "PRIVATE") {
       const inviteCount = await this.prisma.listingInvitation.count({
         where: { listingId },
       });
       if (inviteCount === 0) {
         throw new BadRequestException(
-          "Özel (davetli) ilan yayınlamak için en az bir firma davet edilmeli",
+          i18nMessage("api.companyListings.ozelDavetliIlanYayinlamakIcinEn"),
         );
       }
     }
@@ -1723,13 +2439,13 @@ export class CompanyListingsService {
     });
     if (published.count !== 1) {
       throw new ConflictException(
-        "İlan durumu değişti; yalnızca taslak yayınlanabilir",
+        i18nMessage("api.companyListings.ilanDurumuDegistiYalnizcaTaslakYayinlanabilir"),
       );
     }
     const updated = await this.prisma.listing.findUnique({
       where: { id: listingId },
     });
-    if (!updated) throw new NotFoundException("İlan bulunamadı");
+    if (!updated) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     // INV-AUDIT-1: durum geçişi (yayınlama) — commit SONRASI, duyurudan önce.
     await this.audit.log({
       action: "company.listing.published",
@@ -1757,6 +2473,7 @@ export class CompanyListingsService {
     );
     this.realtime?.pingListing(listingId);
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     return this.serialize(updated);
   }
 
@@ -1776,6 +2493,7 @@ export class CompanyListingsService {
       where: { id: payload.listingId },
       data: { status: "OPEN", publishedAt: new Date() },
     });
+    void this.translations?.enqueue("LISTING", payload.listingId);
     void this.announceListingOpen(payload.listingId, "invitation").catch((err) =>
       this.logger.warn(
         `Yayın duyurusu başarısız (${payload.listingId}): ${
@@ -1856,12 +2574,124 @@ export class CompanyListingsService {
   }
 
   /**
-   * Firmanın başka firmaların ilanlarına verdiği TÜM teklifler — Tekliflerim
+   * Firmanın başka firmaların ilanlarına verdiği teklifler — Tekliflerim
    * ekranı. İlan özeti (başlık/no/tür/durum/kapanış) ile birlikte döner.
+   *
+   * Arayüz testi O-005: SAYFALI + sunucu tarafı süzgeç/sıralama + durum
+   * sayaçları. Eskiden sabit `take: 200` ile kesiliyor, süzme ve sayaçlar
+   * istemcide bu kesik listeden hesaplanıyordu: 200'ü aşan firmada sayılar
+   * yanlış, en yeni 200'ün dışındaki teklifler (karar bekleyenler dahil)
+   * hiç görünmüyordu. `counts` süzgeçten BAĞIMSIZ — liste başlığı özeti ve
+   * Şirketim KPI'ları aynı sayımı okur (tek kaynak burası).
    */
-  async listMyBids(companyId: string) {
+  async listMyBids(companyId: string, query: MyBidsQueryDto = {}) {
+    const pageSize = Math.min(
+      Math.max(query.pageSize ?? 10, 1),
+      MY_BIDS_MAX_PAGE_SIZE,
+    );
+    const sort = query.sort ?? "newest";
+    const base: Prisma.ListingBidWhereInput = { bidderCompanyId: companyId };
+    const where: Prisma.ListingBidWhereInput = {
+      ...base,
+      ...(query.status?.length ? { status: { in: query.status } } : {}),
+      // `counts.active` ile AYNI küme (KPI → liste drill-down, D-120). Durum
+      // süzgeciyle birlikte AND'lenir (status: SUBMITTED dışı → boş sonuç).
+      ...(query.pending
+        ? {
+            AND: [
+              { status: "SUBMITTED" as const },
+              { listing: { status: { in: [...MY_BID_UNDECIDED_LISTING] } } },
+            ],
+          }
+        : {}),
+      ...(query.days
+        ? { createdAt: { gte: new Date(Date.now() - query.days * 86_400_000) } }
+        : {}),
+    };
+    // Arama KATLANMIŞ karşılaştırma (İ/ı, aksan) — DB ILIKE bunu yapamaz.
+    // Firmanın KENDİ teklifleri üzerinde hafif bir projeksiyon yeterli.
+    const needle = query.q ? foldSearchText(query.q) : "";
+    if (needle) {
+      const candidates = await this.prisma.listingBid.findMany({
+        where,
+        select: {
+          id: true,
+          listing: {
+            select: {
+              title: true,
+              number: true,
+              company: { select: { name: true } },
+            },
+          },
+        },
+      });
+      where.id = {
+        in: candidates
+          .filter(
+            (c) =>
+              foldSearchText(c.listing.title).includes(needle) ||
+              foldSearchText(c.listing.number ?? "").includes(needle) ||
+              foldSearchText(c.listing.company.name).includes(needle),
+          )
+          .map((c) => c.id),
+      };
+    }
+
+    const [total, byStatus, active] = await Promise.all([
+      this.prisma.listingBid.count({ where }),
+      this.prisma.listingBid.groupBy({
+        by: ["status"],
+        where: base,
+        _count: { _all: true },
+      }),
+      // "Karar bekleyen": gönderilmiş ve ilan henüz karara bağlanmamış.
+      this.prisma.listingBid.count({
+        where: {
+          ...base,
+          status: "SUBMITTED",
+          listing: { status: { in: [...MY_BID_UNDECIDED_LISTING] } },
+        },
+      }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(Math.max(query.page ?? 1, 1), totalPages);
+    const skip = (page - 1) * pageSize;
+
+    // Tutar sıralaması TRY karşılığıyla (INV-FX-1 tek baz) — hesaplanan
+    // değer olduğundan DB'de sıralanamaz: hafif projeksiyonda sırala, sayfanın
+    // kimliklerini al.
+    let pageIds: string[] | null = null;
+    if (sort === "amount") {
+      const rows = await this.prisma.listingBid.findMany({
+        where,
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          exchangeRateSnapshot: true,
+          createdAt: true,
+          listing: { select: { auctionRateSnapshot: true } },
+        },
+      });
+      pageIds = rows
+        .map((r) => ({
+          id: r.id,
+          at: r.createdAt.getTime(),
+          v:
+            this.auctionTryValue(
+              r.amount,
+              r.currency,
+              r.exchangeRateSnapshot,
+              r.listing.auctionRateSnapshot,
+            ) ?? r.amount,
+        }))
+        .sort((a, b) => b.v.comparedTo(a.v) || b.at - a.at)
+        .slice(skip, skip + pageSize)
+        .map((r) => r.id);
+    }
+
     const bids = await this.prisma.listingBid.findMany({
-      where: { bidderCompanyId: companyId },
+      where: pageIds ? { ...base, id: { in: pageIds } } : where,
       include: {
         listing: {
           select: {
@@ -1877,9 +2707,16 @@ export class CompanyListingsService {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
-      take: 200,
+      orderBy: [
+        { createdAt: sort === "oldest" ? "asc" : "desc" },
+        { id: "asc" },
+      ],
+      ...(pageIds ? {} : { skip, take: pageSize }),
     });
+    if (pageIds) {
+      const pos = new Map(pageIds.map((id, i) => [id, i] as const));
+      bids.sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0));
+    }
 
     // Kazanan tekliflerin siparişleri — karttan "Siparişe Git" için.
     // ALIM'da satıcıyım, SATIS'ta alıcıyım; her iki rolü tek sorguda kapsar.
@@ -1901,7 +2738,9 @@ export class CompanyListingsService {
         : [];
     const orderByListing = new Map(orders.map((o) => [o.listingId, o.id]));
 
-    return bids.map((b) => ({
+    const countOf = (s: ListingBidStatus) =>
+      byStatus.find((g) => g.status === s)?._count._all ?? 0;
+    const items = bids.map((b) => ({
       id: b.id,
       amount: b.amount.toString(),
       currency: b.currency,
@@ -1919,10 +2758,21 @@ export class CompanyListingsService {
               ?.toFixed(2) ?? null,
       status: b.status,
       round: b.round,
+      // Eşzamanlılık sayacı (her yazımda artar) — revizyon DEĞİL.
       version: b.version,
+      // Gönderim sayısı (taslak kaydı saymaz) — "Revizyon N" bundan (O-036).
+      submitCount: b.submitCount,
       createdAt: b.createdAt,
       deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
       deliveryTime: b.deliveryTime,
+      // LOST'un sebebi: dolu = alıcı eledi ("Elendi"); boş = kazandırmada
+      // kaybetti / kazanansız kapandı (arayüz testi D-102). Teklif sahibinin
+      // kendi teklifi — detay panelinde zaten görünür.
+      eliminatedAt: b.eliminatedAt ? b.eliminatedAt.toISOString() : null,
+      // Kazanan teklif SATICI siparişi reddettiği için LOST oldu (ret yolu
+      // eliminatedAt + `[[ORDER_REJECTED]]` damgalar) — alıcı elemedi; web
+      // "Elendi" yerine "Siparişi reddettiniz" basar (arayüz testi son tur).
+      orderRejected: isOrderRejectedReason(b.eliminationReason),
       orderId: orderByListing.get(b.listingId) ?? null,
       listing: {
         id: b.listing.id,
@@ -1934,6 +2784,17 @@ export class CompanyListingsService {
         ownerName: b.listing.company.name,
       },
     }));
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      counts: {
+        all: byStatus.reduce((n, g) => n + g._count._all, 0),
+        active,
+        won: countOf("WON") + countOf("AWARDED_PARTIAL"),
+      },
+    };
   }
 
   /**
@@ -1986,10 +2847,25 @@ export class CompanyListingsService {
     const cats = catIds.length
       ? await this.prisma.category.findMany({
           where: { id: { in: catIds } },
-          select: { id: true, nameTr: true },
+          select: { id: true, ...CATEGORY_NAME_SELECT },
         })
       : [];
-    const cmap = new Map(cats.map((c) => [c.id, c.nameTr]));
+    const cmap = new Map(cats.map((c) => [c.id, categoryName(c)]));
+
+    // AI tedarikçi önerisi bekleyen talepler — Şirketim "AI, N talebiniz için
+    // tedarikçi buldu" satırının kümesi (`?status=OPEN&ai=1`, arayüz testi
+    // O-035); tanım aksiyon merkeziyle ORTAK. Tek sorgu (N+1 yok).
+    const aiRuns = rows.length
+      ? await this.prisma.supplierDiscoveryRun.findMany({
+          where: {
+            ...PENDING_AI_SUGGESTION_RUN_WHERE,
+            companyId,
+            listingId: { in: rows.map((r) => r.id) },
+          },
+          select: { listingId: true },
+        })
+      : [];
+    const aiPending = new Set(aiRuns.map((a) => a.listingId));
 
     return rows.map((r) => {
       const u = umap.get(r.createdById);
@@ -2015,7 +2891,10 @@ export class CompanyListingsService {
         },
         invitationCount: r._count.invitations,
         bidCount: r._count.bids,
-        publishedAt: r.publishedAt ?? r.createdAt,
+        aiSuggestionsPending: aiPending.has(r.id),
+        // D-149: yayımlanmamış (taslak / onayda) talepte null — createdAt ayrı
+        // gönderilir; geri düşüş web/mobilde "Yayın <oluşturma>" basıyordu.
+        publishedAt: r.publishedAt,
         bidsCloseAt: r.closesAt,
         createdAt: r.createdAt,
       };
@@ -2065,6 +2944,11 @@ export class CompanyListingsService {
     return {
       type: o.type,
       companyId: { notIn: [o.companyId, ...o.blockedIds] },
+      // Admin askısı / pasif firma: talepleri akıştan düşer (vitrin
+      // `marketplaceListingWhere` ve kategori duyurusuyla aynı kural; derin
+      // denetim MU-20 — askıdaki firmanın açık talebi teklif toplamaya
+      // devam ediyordu). Firmalar arası engel `blockedIds` ayrıdır.
+      company: { isActive: true, isBlocked: false },
       status: "OPEN",
       AND: [
         // Açılış embargosu: açılış tarihi GELECEKTE olan ilan, sahibi dışında
@@ -2195,7 +3079,7 @@ export class CompanyListingsService {
       createdAt: true,
       companyId: true,
       targetCountries: true,
-      company: { select: { name: true, city: true, country: true } },
+      company: { select: { name: true, city: true, cityId: true, country: true } },
       _count: { select: { items: true } },
       // Kapak: sahibin seçtiği görsel, yoksa ilk kalemin ilk görseli
       // (pazar yerindeki `deriveCover` ile AYNI kural — iki yerde farklı
@@ -2258,7 +3142,7 @@ export class CompanyListingsService {
     const [myBids, myInvites, categories] = await Promise.all([
       this.prisma.listingBid.findMany({
         where: { listingId: { in: ids }, bidderCompanyId: companyId },
-        select: { listingId: true, status: true, version: true },
+        select: { listingId: true, status: true, submitCount: true },
       }),
       this.prisma.listingInvitation.findMany({
         where: { listingId: { in: ids }, invitedCompanyId: companyId },
@@ -2268,12 +3152,12 @@ export class CompanyListingsService {
         where: {
           code: { in: [...new Set(all.flatMap((l) => l.categoryIds.slice(0, 2)))] },
         },
-        select: { code: true, nameTr: true },
+        select: { code: true, ...CATEGORY_NAME_SELECT },
       }),
     ]);
     const bidByListing = new Map(myBids.map((b) => [b.listingId, b] as const));
     const invitedSet = new Set(myInvites.map((iv) => iv.listingId));
-    const catName = new Map(categories.map((c) => [c.code, c.nameTr] as const));
+    const catName = new Map(categories.map((c) => [c.code, categoryName(c)] as const));
 
     // Kategori eşleşmesi: ilan kodları → segment/alt adayları, benim İLGİLİ
     // yön kategorilerimle kesişiyor mu (bildirim eşleştiricisiyle aynı mantık):
@@ -2307,8 +3191,27 @@ export class CompanyListingsService {
       myActivities.size > 0 &&
       wanted.some((a) => myActivities.has(a));
 
+    // Sahibin şehri → kalıcı adres anahtarı (`bursa`, `de-munich`) + okuyucunun
+    // dilinde ad; dünya şehir dizini (`geoIndex`) herkese açık facet'le aynı kaynak.
+    const geo = geoIndex();
+    const readerLocale = currentLocale();
+    const ownerCityOf = (cityId: number | null) => {
+      const row = geo.byId(cityId);
+      return {
+        ownerCitySlug: row?.slug ?? null,
+        ownerCityLabel: row ? geo.label(row, readerLocale) : null,
+      };
+    };
+
+    // Bağlantılar bir kez Set'e: ilan × bağlantı karesel taraması yok.
+    const connectedSet = new Set(connectedIds);
+    // Rol kapısı paket kapısının İÇİNDE (arayüz testi O-038): detay ucu
+    // `roleAllowsBid`'i ayrı döndürüyor; liste satırında tek bayrak var, o
+    // yüzden `canBid` rolü de içerir — görüntüleyici kartta "Teklif ver" görüp
+    // rol ekranına düşmesin. placeBid ile aynı izin (`bidderPermission`).
+    const roleAllowsBid = hasCompanyPermission(user, bidderPermission(type));
     const rows = all.map((l) => {
-      const connected = connectedIds.includes(l.companyId);
+      const connected = connectedSet.has(l.companyId);
       const invited = invitedSet.has(l.id);
       const bid = bidByListing.get(l.id);
       const pm = productMatcher.match(
@@ -2317,11 +3220,12 @@ export class CompanyListingsService {
       );
       // Gizli satır (PUBLIC ∧ ücretsiz ∧ bağsız/davetsiz) sorguya HİÇ girmez
       // (`sellerVisibleWhere` viewerPaid) — burada yalnız teklif hakkı hesaplanır.
-      const { canBid } = listingBidEligibility(l.visibility, {
+      const { canBid: tierAllowsBid } = listingBidEligibility(l.visibility, {
         isInvited: invited,
         connectedToOwner: connected,
         viewerTier: user.tier,
       });
+      const canBid = tierAllowsBid && roleAllowsBid;
       return {
         _open: l.status === "OPEN",
         id: l.id,
@@ -2339,6 +3243,12 @@ export class CompanyListingsService {
         owner: { id: l.companyId, name: l.company.name },
         // Şehir: teklif verecek tarafın lojistik kararı için (pazar yeriyle aynı çizgi).
         ownerCity: l.company.city,
+        // Şehir süzgeci ANAHTARI + okuyucunun dilinde ad (2026-09-27): ham
+        // metin RU satıcıya "İstanbul" basıyor, farklı ülkelerdeki aynı adlı
+        // şehirleri tek girdide birleştiriyordu. Eşlenmemiş şehirde null →
+        // web ham metne düşer.
+        ownerCityId: l.company.cityId ?? null,
+        ...ownerCityOf(l.company.cityId),
         coverImageUrl:
           l.coverImageUrl ?? l.items.find((i) => i.images.length > 0)?.images[0] ?? null,
         // Kalem adları (ilk 20): satış anasayfası araması "kalem" ile bulsun.
@@ -2349,7 +3259,9 @@ export class CompanyListingsService {
         // altında, kategori eşleşenin üstünde önceliklenir.
         connected,
         myBidStatus: bid?.status ?? null,
-        myBidVersion: bid?.version ?? null,
+        // Gönderim sayısı ("· v2" eki) — `version` eşzamanlılık sayacıdır,
+        // taslak kayıtlarında da artar (arayüz testi O-036).
+        myBidSubmitCount: bid?.submitCount ?? null,
         categoryMatch: matchesMyCategories(l.categoryIds),
         activityMatch: matchesMyActivity(l.preferredActivities ?? []),
         // Aynı ülke: görünürlük kuralı değil SIRA sinyali (2026-09-21) — talep
@@ -2441,7 +3353,12 @@ export class CompanyListingsService {
       matchScore: affinityByListing.get(r.id)?.score ?? 0,
       matchReason: _productReason ?? affinityByListing.get(r.id)?.reason ?? null,
     }));
-    return opts.limit && opts.limit > 0 ? mapped.slice(0, opts.limit) : mapped;
+    const limited = opts.limit && opts.limit > 0 ? mapped.slice(0, opts.limit) : mapped;
+    // i18n Faz 1e: BAŞKA firmanın talebi okuyucunun dilinde (başlık + kalem adları);
+    // çeviri yoksa özgün metin, `translatedFrom` alanı gelmez.
+    return this.translations
+      ? await this.translations.localizeListings(limited, limited.map((r) => r.id), currentLocale())
+      : limited;
   }
 
   /**
@@ -2489,9 +3406,9 @@ export class CompanyListingsService {
 
     const cats = await this.prisma.category.findMany({
       where: { id: { in: [...counts.keys()] } },
-      select: { id: true, nameTr: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT },
     });
-    const nameById = new Map(cats.map((c) => [c.id, c.nameTr] as const));
+    const nameById = new Map(cats.map((c) => [c.id, categoryName(c)] as const));
     return {
       segments: [...counts.entries()]
         .map(([id, count]) => ({ id, name: nameById.get(id) ?? id, count }))
@@ -2523,7 +3440,7 @@ export class CompanyListingsService {
     const addrIds = [listing.deliveryAddressId, listing.billingAddressId].filter(
       (x): x is string => !!x,
     );
-    const [bids, items, invites, approval, addrs] = await Promise.all([
+    const [bids, items, invites, approval, addrs, orders] = await Promise.all([
       this.prisma.listingBid.aggregate({
         where: { listingId },
         _count: { _all: true },
@@ -2548,6 +3465,13 @@ export class CompanyListingsService {
             _max: { updatedAt: true },
           })
         : Promise.resolve({ _max: { updatedAt: null } }),
+      // Sahip yanıtındaki sipariş şeridi (`myOrder`/`orders`, arayüz testi
+      // D-043): sipariş doğunca ve durumu değişince ekran tazelenmeli.
+      this.prisma.companyOrder.aggregate({
+        where: { listingId },
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
     ]);
     const parts = [
       listing.updatedAt.getTime(),
@@ -2559,6 +3483,12 @@ export class CompanyListingsService {
       approval._count._all,
       approval._max.updatedAt?.getTime() ?? 0,
       addrs._max.updatedAt?.getTime() ?? 0,
+      orders._count._all,
+      orders._max.updatedAt?.getTime() ?? 0,
+      // Payload okuyucunun DİLİNE bağlı alan taşır (varsayılan adres başlığı
+      // `localizeDefaultAddressTitle`); dil değişince aynı veri farklı yanıt
+      // demektir → 304 eski dildeki başlığı bırakmasın (derin denetim LU-15).
+      currentLocale(),
     ].join("-");
     return `W/"${createHash("sha1").update(parts).digest("base64url")}"`;
   }
@@ -2621,9 +3551,9 @@ export class CompanyListingsService {
     const samples = rows.slice(0, 3);
     const catIds = [...new Set(samples.map((r) => r.categoryIds[0]).filter((c): c is string => !!c))];
     const cats = catIds.length
-      ? await this.prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, nameTr: true } })
+      ? await this.prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
       : [];
-    const catName = new Map(cats.map((c) => [c.id, c.nameTr] as const));
+    const catName = new Map(cats.map((c) => [c.id, categoryName(c)] as const));
     return {
       locked: true as const,
       total: rows.length,
@@ -2649,9 +3579,13 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      include: { company: { select: { name: true, country: true } } },
+      include: {
+        company: {
+          select: { name: true, country: true, isActive: true, isBlocked: true },
+        },
+      },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
 
     const isOwner = listing.companyId === user.companyId;
 
@@ -2661,16 +3595,24 @@ export class CompanyListingsService {
       (x): x is string => !!x,
     );
     const [addrRows, englishAgg, items, connectedIds] = await Promise.all([
+      // BYPASS (yayın denetimi 2026-09-28, RLS): teklifçi bağlamında kısıtlı
+      // istemci sahibin `company_addresses` satırını göremez → teklif
+      // verebilen tedarikçi teslim adresini hep boş görüyordu. Kapsam
+      // `companyId: listing.companyId` ile sahipte; teklifçiye yalnız
+      // `canBid` iken döner (aşağıda).
       addrIds.length
-        ? this.prisma.companyAddress.findMany({
+        ? this.bypass.companyAddress.findMany({
             // Yalnızca ilan sahibinin adresleri — başka firmanın PII'si sızmaz.
             where: { id: { in: addrIds }, companyId: listing.companyId },
           })
         : Promise.resolve([] as Awaited<
             ReturnType<typeof this.prisma.companyAddress.findMany>
           >),
+      // BYPASS (RLS): teklifçi bağlamında yalnız kendi teklifi görünürdü.
+      // Teklifçiye dönen en iyi fiyat/sayı `auctionView`dan (görünürlük
+      // kapılı) ezilir — sızıntı yüzeyi yok.
       listing.format === "ENGLISH_AUCTION"
-        ? this.prisma.listingBid.findMany({
+        ? this.bypass.listingBid.findMany({
             where: { listingId: id, status: "SUBMITTED" },
             select: {
               // INV-FX-1 (X6): id + submittedAt tie-break için (rankAuctionBids).
@@ -2702,10 +3644,12 @@ export class CompanyListingsService {
     const serializeAddr = (a: (typeof addrRows)[number] | undefined) =>
       a
         ? {
-            title: a.title,
+            // Kayıtta yazılan varsayılan başlık ("Merkez") okuyucunun dilinde.
+            title: localizeDefaultAddressTitle(a.title),
             addressLine: a.addressLine,
             district: a.district,
             city: a.city,
+            stateRegion: a.stateRegion,
             postalCode: a.postalCode,
             country: a.country,
             contactName: a.contactName,
@@ -2778,8 +3722,10 @@ export class CompanyListingsService {
       warrantyMonths: it.warrantyMonths,
       hsCode: it.hsCode,
       // CC-1: hedef/istenen fiyat non-owner'a YALNIZCA sahip opt-in ettiyse
-      // gösterilir (varsayılan gizli — çıpalama riski). Sahip yolu (detail) ayrı,
-      // hep görür.
+      // gösterilir (varsayılan gizli — çıpalama riski). Sahip dalı bu maskeli
+      // listeyi olduğu gibi döndürmez: sahip yanıtında `itemsOut.map(...)`
+      // `targetPrice`ı maskesiz değerle ezer (arayüz testi Y-02 — düzenle-kaydet
+      // döngüsü onu siliyordu).
       targetPrice: listing.showTargetToSuppliers
         ? (it.targetPrice?.toString() ?? null)
         : null,
@@ -2824,7 +3770,7 @@ export class CompanyListingsService {
       const needsApproval =
         listing.status === "IN_APPROVAL" ||
         listing.status === "IN_AWARD_APPROVAL";
-      const [bids, invitations, pendingApprovalId, totalBidCount] =
+      const [bids, invitations, pendingApproval, totalBidCount, orders] =
         await Promise.all([
         this.prisma.listingBid.findMany({
           where: {
@@ -2867,17 +3813,43 @@ export class CompanyListingsService {
         // canEdit için TÜM teklif kayıtları sayılır (WITHDRAWN/DRAFT dahil) —
         // updateListing kilidiyle birebir aynı kural.
         this.prisma.listingBid.count({ where: { listingId: id } }),
+        // Bu talepten doğan siparişler (arayüz testi D-043): sahip de "Siparişe
+        // git" şeridini görsün. Kalem bazlı kazandırmada birden fazla sipariş
+        // olabilir → hepsi `orders`ta, en yenisi `myOrder`da (teklifçi dalıyla
+        // aynı alan adı, web şeridi tek kaynaktan çizer).
+        this.prisma.companyOrder.findMany({
+          where: { listingId: id, buyerCompanyId: user.companyId },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          // Arayüz testi O-028: kalem bazlı kazandırmada bir sipariş reddedilince
+          // talep AWARDED kalır (öteki sipariş sürüyor) — sahip hangi kalemlerin
+          // tedariksiz kaldığını ve satıcının gerekçesini görmeli.
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            sellerCompanyId: true,
+            rejectedReason: true,
+            items: { select: { name: true }, orderBy: { id: "asc" } },
+          },
+        }),
       ]);
       // A2 fix: sahip-detay teklif sıralaması TEK KAYNAK — yetkili karşılaştırıcı
       // (rankAuctionBids: Decimal + TRY-normalize). Eski ham `Number(a.amount)-
       // Number(b.amount)` karışık kurda kur normalize ETMEDEN sıralıyordu → 100 USD
       // (~3000 TRY) 3000 TRY'nin altında görünüp sahip yanlış firmaya kazandırırdı.
       const rankedBids = this.rankAuctionBids(bids, listing.auctionRateSnapshot, false);
+      // Herkese açık sayfa YALNIZ vitrindeyse (tek kaynak `marketplaceListingWhere`)
+      // — paylaş düğmesi (2026-09-27, Faz 3) 404 veren bağlantı paylaştırmasın.
+      const inVitrine =
+        !!listing.number &&
+        (await this.bypass.listing.count({ where: { AND: [{ id }, marketplaceListingWhere(new Date())] } })) > 0;
       return {
         ...this.detail(listing),
         // İstemci bunu bir sonraki istekte If-None-Match ile geri gönderir.
         etag: fp,
         isOwner: true,
+        // İÇ yol (`/talep/rot-000042-…`); web dile göre çevirir. Vitrinde değilse null.
+        publicPath: inVitrine && listing.number ? listingPath(listing.number, listing.title) : null,
         // F7: buton izin-kapısı için — kazandır/ele assertListingManageRole
         // (createdById===userId VEYA SAHİP) ister; UI aynı kapıyı uygular.
         createdById: listing.createdById,
@@ -2889,14 +3861,45 @@ export class CompanyListingsService {
         // Yayınlanabilir: yalnızca taslakken.
         canPublish: listing.status === "DRAFT",
         // Bekleyen onay isteği (iptal için).
-        pendingApprovalId,
+        pendingApprovalId: pendingApproval?.id ?? null,
+        // "Onayı İptal Et" yalnız başlatana (veya approvals:manage) — API
+        // `cancelRequest` kuralı (arayüz testi T3).
+        pendingApprovalMine: !!pendingApproval && pendingApproval.createdById === user.userId,
         english,
         internalNotes: listing.internalNotes,
         deliveryAddressId: listing.deliveryAddressId,
         billingAddressId: listing.billingAddressId,
         deliveryAddress,
         billingAddress,
-        items: itemsOut,
+        // Arayüz testi Y-02: düzenleme formu bu yanıttan dolar ve TÜM alanları
+        // geri yazar → sahibin kendi ayarları ve maskesiz hedef fiyatı burada
+        // olmalı; yoksa dokunulmayan alanlar varsayılanla ezilir. Üç ayar yalnız
+        // sahip dalında (teklifçiye dönmez).
+        preferredActivities: listing.preferredActivities,
+        aiDiscovery: listing.aiDiscovery,
+        inviteShowName: listing.inviteShowName,
+        items: itemsOut.map((it, i) => ({
+          ...it,
+          targetPrice: items[i].targetPrice?.toString() ?? null,
+        })),
+        // Arayüz testi D-043: kazandırılmış talepte "Siparişe git" şeridi.
+        // Kalem bazlıda reddedilen/iptal edilen sipariş en yeni olsa bile şerit
+        // CANLI siparişi göstermeli (yeniden doğrulama webB-05): önce canlı
+        // olanların en yenisi, hiç canlı yoksa en yenisi.
+        myOrder: (() => {
+          const o =
+            orders.find((x) => x.status !== "REJECTED" && x.status !== "CANCELLED") ??
+            orders[0];
+          return o ? { id: o.id, number: o.number, status: o.status } : null;
+        })(),
+        orders: orders.map((o) => ({
+          id: o.id,
+          number: o.number,
+          status: o.status,
+          sellerCompanyId: o.sellerCompanyId,
+          rejectedReason: o.status === "REJECTED" ? o.rejectedReason : null,
+          itemNames: o.items.map((it) => it.name),
+        })),
         invitations: invitations.map((iv) => ({
           companyName: iv.invitedCompany.name,
           rothernId: iv.invitedCompany.rothernId,
@@ -2944,6 +3947,13 @@ export class CompanyListingsService {
           validityDays: b.validityDays,
           // Geçerlilik rozeti için: son geçerlilik = submittedAt + validityDays.
           submittedAt: b.submittedAt ? b.submittedAt.toISOString() : null,
+          // Arayüz testi D-102: LOST iki ayrı sonuç — alıcının ELEDİĞİ teklif
+          // (eliminatedAt dolu) ile kazandırmada kaybeden/kazanansız kapanan.
+          // Web "Elendi"yi yalnız bununla basar.
+          eliminatedAt: b.eliminatedAt ? b.eliminatedAt.toISOString() : null,
+          // Satıcı kazandığı siparişi reddetti (alıcı elemedi) — web
+          // "Sipariş reddedildi" basar (arayüz testi son tur).
+          orderRejected: isOrderRejectedReason(b.eliminationReason),
           deliveryAddress: b.deliveryAddress,
           items: b.items.map((bi) => ({
             itemId: bi.itemId,
@@ -2959,6 +3969,9 @@ export class CompanyListingsService {
             deliveryTime: bi.deliveryTime,
             // Madde 9 — kalem para birimi (null = teklifin ana birimi).
             currency: bi.currency,
+            // Kalem→ana birim çevrim damgası: sahip kalem kıyası/kalem
+            // kazandırma ön-seçimi TRY karşılığını bununla hesaplar (Y-14).
+            fxToBase: bi.fxToBase != null ? bi.fxToBase.toString() : null,
           })),
           answers: b.answers.map((a) => ({
             questionId: a.questionId,
@@ -2971,7 +3984,7 @@ export class CompanyListingsService {
     // Yetki tablosu: başkasının talebini okumak SATIŞ tarafı iştir → sell:view
     // (onaylayıcı-only / yalnız-alım üyesi 404 alır; varlık sızdırmaz).
     if (!hasReadContext(user, "sell")) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     // Bağımsız non-owner okumaları tek turda (görünürlük/blok kapısı sonuçlar
     // gelince değerlendirilir; over-fetch ucuz, seri tur sayısı düşer — P1).
@@ -3028,12 +4041,12 @@ export class CompanyListingsService {
       isInvited,
       connectedToOwner: connected,
     });
-    if (!visible) throw new NotFoundException("İlan bulunamadı");
+    if (!visible) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
 
     // Yayınlanmamış (DRAFT) ilan sahip dışında kimseye görünmez — davetli/
     // bağlantılı firma dahi id ile taslağı açamaz (owner dalı yukarıda döner).
     if (listing.status === "DRAFT") {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
 
     // Açılış embargosu: açılış tarihi GELECEKTEyse ilan sahibi dışında kimse
@@ -3047,15 +4060,26 @@ export class CompanyListingsService {
       listing.bidsOpenAt.getTime() > Date.now() &&
       !myBid
     ) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
 
     // Engelli firma ilanı göremez.
     if (blockedIds.includes(user.companyId)) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
-    // Ülke kapsamı (davetli hariç): uluslararası ilan yurtiçi tedarikçiye,
-    // yurtiçi ilan yabancıya görünmez.
+    // Askıdaki / pasif firmanın talebi akıştan düşer (`sellerVisibleWhere` ile
+    // aynı kural; derin denetim MU-20). İSTİSNA: talepte teklifi olan firma
+    // kendi teklifinin geçmişini görmeye devam eder — teklif verme yine kapalı
+    // (placeBid aynı kapıyı uygular).
+    if ((!listing.company.isActive || listing.company.isBlocked) && !myBid) {
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    }
+    // Görünürlük ülkesi (davetli hariç): talep yalnız belirli ülkelere açıksa
+    // başka ülkedeki firma İÇERİĞİ göremez. 404 değil 403 (2026-09-27): talep
+    // pazar yerinde zaten herkese açık ("Yalnız … merkezli tedarikçiler teklif
+    // verebilir" notuyla) — kayıt olup derin bağlantıdan gelen yabancı
+    // tedarikçi "bulunamadı" değil nedenini görmeli. Gövde yalnız kod + hedef
+    // ülkeler taşır (sayfadaki notla aynı olgu); başlık/kalem/şart YOK.
     if (
       !isInvited &&
       !this.isCountryEligible(
@@ -3065,7 +4089,11 @@ export class CompanyListingsService {
         listing.targetCountries,
       )
     ) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new ForbiddenException({
+        ...i18nMessage("api.companyListings.talepBaskaUlkelereAcik", undefined, "COUNTRY_NOT_ELIGIBLE"),
+        statusCode: 403,
+        targetCountries: listing.targetCountries,
+      });
     }
 
     // Davetli firma her görünürlükte görür ve teklif verebilir (alıcı onu
@@ -3082,13 +4110,7 @@ export class CompanyListingsService {
     // "Teklif ver") gelen üye boş sayfa yerine paket ekranı görmeli. `code`
     // web'in dalı — `PremiumGate` benzeri kilit kartı.
     if (hidden) {
-      throw new ForbiddenException({
-        statusCode: 403,
-        message:
-          "Herkese açık talepleri görmek ve teklif vermek için Silver paketi gerekir. Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.",
-        code: "TIER_REQUIRED",
-        minTier: PAID_TIER,
-      });
+      throw new ForbiddenException({ ...i18nMessage("api.companyListings.herkeseAcikTalepleriGormekVeTeklif", undefined, "TIER_REQUIRED"), statusCode: 403, minTier: PAID_TIER });
     }
     // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
     // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
@@ -3137,12 +4159,21 @@ export class CompanyListingsService {
             bidCount: auctionView?.participantCount ?? 0,
           }
         : null;
-    return {
+    const bidderView = {
       ...this.detail(listing),
       isOwner: false,
       canBid,
       roleAllowsBid,
       invited: isInvited,
+      // KYC kapısı UI'a da yansısın (arayüz testi D-028): placeBid'in
+      // INV-KYC-1 kuralıyla birebir — davetsiz ∧ bağlantısız teklifçi
+      // VERIFIED değilse gönderim 403 alır; form bunu baştan söyler, yalnız
+      // taslağa izin verir.
+      bidRequiresVerification:
+        !isInvited && !connected && user.companyVerificationStatus !== "VERIFIED",
+      // Teklifçinin alıcıya mesaj yolu (arayüz testi D-280): alıcı adı bu dalda
+      // zaten görünür; satıcı talepleri listesi de `owner.id` döndürür.
+      ownerCompanyId: listing.companyId,
       english: englishForBidder,
       auctionView,
       nextBidConstraint,
@@ -3156,6 +4187,9 @@ export class CompanyListingsService {
             note: myBid.note,
             status: myBid.status,
             version: myBid.version,
+            // Teklifin ait olduğu tur: elenen teklif yeni tura taşınmaz (O-026),
+            // teklifçi metni "önceki turda elendi" diyebilsin diye.
+            round: myBid.round,
             submittedAt: myBid.submittedAt
               ? myBid.submittedAt.toISOString()
               : null,
@@ -3171,6 +4205,9 @@ export class CompanyListingsService {
             validityDays: myBid.validityDays,
             deliveryAddressId: myBid.deliveryAddressId,
             currency: myBid.currency,
+            // Yeni tura taşınmış RFQ teklifi bu turda bir kez revize edilebilir
+            // (placeBid ile aynı kural — `carriedBidRevisable`).
+            canReviseCarried: carriedBidRevisable(myBid, listing),
             items: myBid.items.map((bi) => ({
               itemId: bi.itemId,
               unitPrice: bi.unitPrice.toString(),
@@ -3182,6 +4219,11 @@ export class CompanyListingsService {
                 : null,
               deliveryTime: bi.deliveryTime,
               currency: bi.currency,
+              // Kalem→ana birim damgası: kapalı zarftan pazarlığa taşınan
+              // karma birimli teklifte form yabancı kalemi bu damgayla ana
+              // birime çevirir (pazarlıkta tek birim — arayüz testi son tur
+              // S-SELL). Teklifçinin kendi verisi.
+              fxToBase: bi.fxToBase != null ? bi.fxToBase.toString() : null,
             })),
             answers: myBid.answers.map((a) => ({
               questionId: a.questionId,
@@ -3194,6 +4236,11 @@ export class CompanyListingsService {
         ? { id: myOrder.id, number: myOrder.number, status: myOrder.status }
         : null,
     };
+    // i18n Faz 1e: teklifçi başkasının talebini KENDİ dilinde okur (başlık, açıklama,
+    // anahtar kelime, kalem adları). Sahip dalı ham kalır — sahibi düzenler.
+    return this.translations
+      ? (await this.translations.localizeListings([bidderView], [listing.id], currentLocale()))[0]
+      : bidderView;
   }
 
   /**
@@ -3221,7 +4268,7 @@ export class CompanyListingsService {
       const rate = await this.exchangeRates.getFreshRate(cur).catch(() => null);
       if (rate == null || rate <= 0) {
         throw new BadRequestException(
-          `${cur} için güncel TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz`,
+          i18nMessage("api.companyListings.icinGuncelTcmbKuruBulunamadiBu", { cur: cur }),
         );
       }
       out[cur] = new Prisma.Decimal(rate).toString();
@@ -3359,7 +4406,11 @@ export class CompanyListingsService {
   } | null> {
     if (visibility === "OWN_ONLY") return null;
 
-    const rows = await this.prisma.listingBid.findMany({
+    // BYPASS (yayın denetimi 2026-09-28, RLS): bu görünüm TEKLİFÇİYE hesaplanır;
+    // kısıtlı istemci teklifçi bağlamında yalnız kendi teklifini gösterir →
+    // "en iyi fiyat" kendi fiyatı, sırası hep 1'di. Rakip tutarları yanıta
+    // yalnız `visibility` izin verdiği ölçüde çıkar (aşağıda).
+    const rows = await this.bypass.listingBid.findMany({
       where: { listingId, status: "SUBMITTED" },
       select: {
         // INV-FX-1 (X6): id + submittedAt tie-break için (rankAuctionBids).
@@ -3438,6 +4489,51 @@ export class CompanyListingsService {
     ]);
 
   /**
+   * Kalem görselleri herkese açık yüzeylere düşer (pazar yeri kapağı
+   * `deriveCover`, talep sayfası og:image) → profil görselleriyle AYNI kural:
+   * yalnız firmanın kendi public deposu (`assertOwnPublicImageUrl`). Aksi hâlde
+   * API'ye doğrudan harici/`data:` adres yazılıp moderasyonsuz üçüncü taraf
+   * görseli Rothern sayfasında yayınlanabiliyordu (derin denetim LU-15).
+   *
+   * Muaf: `known` (düzenlemede ilanda zaten kayıtlı görseller) ve firmanın
+   * KENDİ kataloğundaki ürün görselleri — sihirbaz katalogdan eklenen ürünün
+   * kapağını taşır; o adres zaten ürün sayfasında yayında, bu yol yeni bir
+   * harici adres açmaz. Storage yoksa (elle kurulan test rig'i) atlanır.
+   */
+  private async assertListingItemImagesOwned(
+    companyId: string,
+    items: { images?: string[] }[] | undefined,
+    known: ReadonlySet<string> = new Set(),
+  ): Promise<void> {
+    const storage = this.storage;
+    if (!storage) return;
+    const urls = [
+      ...new Set(
+        (items ?? []).flatMap((it) =>
+          (it.images ?? []).map((u) => u.trim()).filter(Boolean),
+        ),
+      ),
+    ].filter((u) => !known.has(u));
+    const foreign = new Map<string, unknown>();
+    for (const u of urls) {
+      try {
+        storage.assertOwnPublicImageUrl(u, companyId);
+      } catch (err) {
+        foreign.set(u, err);
+      }
+    }
+    if (foreign.size === 0) return;
+    const catalog = await this.prisma.companyItem.findMany({
+      where: { companyId, images: { hasSome: [...foreign.keys()] } },
+      select: { images: true },
+    });
+    const catalogImages = new Set(catalog.flatMap((c) => c.images));
+    for (const [u, err] of foreign) {
+      if (!catalogImages.has(u)) throw err;
+    }
+  }
+
+  /**
    * İlana yazılan teslimat/fatura adres id'leri istek sahibinin KENDİ adres
    * defterinden olmalı. Aksi halde yabancı bir CompanyAddress'in id'si ilana
    * yazılıp award'da orderDeliverySnapshot ile siparişin deliveryAddress JSON'una
@@ -3456,7 +4552,7 @@ export class CompanyListingsService {
       where: { id: { in: ids }, companyId },
     });
     if (owned !== ids.length) {
-      throw new BadRequestException("Geçersiz teslimat/fatura adresi");
+      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeslimatFaturaAdresi"));
     }
   }
 
@@ -3469,6 +4565,7 @@ export class CompanyListingsService {
     contactName: true,
     phone: true,
     country: true,
+    stateRegion: true,
     city: true,
     district: true,
     addressLine: true,
@@ -3508,6 +4605,89 @@ export class CompanyListingsService {
     return out;
   }
 
+  /**
+   * Teklif ERİŞİM kapıları — tek kaynak (arayüz testi O-071): placeBid ve
+   * taslak canlandırma (`extendBidValidity`, fiilen yeniden gönderim) aynı
+   * sırayla çalıştırır. Sıra: sahibin askısı → engel → görünürlük → ülke
+   * (404, varlık sızdırılmaz) → paket/bağlantı/davet (403). Rol kapısı
+   * çağıranda (mesajı akışa göre farklı).
+   */
+  private async assertBidAccess(
+    user: AuthenticatedCompanyUser,
+    listing: {
+      id: string;
+      companyId: string;
+      visibility: ListingVisibility;
+      isInternational: boolean;
+      targetCountries: string[];
+      company: { country: string; isActive: boolean; isBlocked: boolean };
+    },
+  ): Promise<{ isInvited: boolean; connected: boolean }> {
+    // Askıdaki / pasif firmanın talebi teklif almaz (akıştan da düşer —
+    // `sellerVisibleWhere`; derin denetim MU-20). 404: varlık sızdırılmaz.
+    if (!listing.company.isActive || listing.company.isBlocked) {
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    }
+    const [blockedIds, connectedIds, invitedCount] = await Promise.all([
+      this.blocks.blockedCompanyIds(listing.companyId),
+      this.connectedCompanyIds(user.companyId),
+      this.prisma.listingInvitation.count({
+        where: { listingId: listing.id, invitedCompanyId: user.companyId },
+      }),
+    ]);
+    if (blockedIds.includes(user.companyId)) {
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    }
+    const connected = connectedIds.includes(listing.companyId);
+    // Davet her görünürlükte teklif hakkı verir ve ÜLKE kapsamını da aşar
+    // (alıcı firmayı açıkça seçti) — getOne/sellerTenders ile aynı kural.
+    const isInvited = invitedCount > 0;
+    const visible = isListingVisibleToViewer(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+    });
+    if (!visible) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    if (
+      !isInvited &&
+      !this.isCountryEligible(
+        user.country,
+        listing.company.country,
+        listing.isInternational,
+        listing.targetCountries,
+      )
+    ) {
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    }
+
+    const { canBid } = listingBidEligibility(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+      viewerTier: user.tier,
+    });
+    if (!canBid) {
+      throw new ForbiddenException(
+        listing.visibility === "PRIVATE"
+          ? i18nMessage("api.companyListings.ozelTalebeYalnizDavetliFirmalar")
+          : i18nMessage("api.companyListings.tekliIcinPremiumUyelikGerekir"),
+      );
+    }
+    return { isInvited, connected };
+  }
+
+  /**
+   * INV-KYC-1 teklif gönderim kuralı — tek kaynak (arayüz testi O-072):
+   * davetli ∨ bağlantılı teklifçi muaf, yabancı (platformun tanıştırdığı)
+   * teklifçi VERIFIED olmalı. placeBid ve taslak canlandırma aynı kuralı
+   * okur; getOne'ın `bidRequiresVerification` bayrağı bunun aynası.
+   */
+  private assertBidVerified(
+    user: AuthenticatedCompanyUser,
+    reach: { isInvited: boolean; connected: boolean },
+  ) {
+    if (reach.isInvited || reach.connected) return;
+    this.assertVerified(user, "bid");
+  }
+
   async placeBid(user: AuthenticatedCompanyUser, id: string, dto: PlaceBidDto) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
@@ -3535,23 +4715,21 @@ export class CompanyListingsService {
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
         autoExtendByMinutes: true,
-        company: { select: { country: true } },
+        company: { select: { country: true, isActive: true, isBlocked: true } },
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId === user.companyId) {
-      throw new BadRequestException("Kendi ilanınıza teklif veremezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyListings.kendiIlaninizaTeklifVeremezsiniz"));
     }
     // ── ERİŞİM kontrolleri ÖNCE (404/403) — durum/para birimi 400'leri gizli
     // ilanın varlığını/ayarlarını sızdırmasın (info-leak: davetsiz PRIVATE
     // prober geçersiz para birimiyle "geçersiz para birimi" alamamalı).
-    const [blockedIds, connectedIds, invitedCount, existingBid] =
+    // Erişim bloğu `assertBidAccess`'te — taslak canlandırma da aynısını
+    // çalıştırır (arayüz testi O-071).
+    const [{ isInvited, connected }, existingBid] =
       await Promise.all([
-        this.blocks.blockedCompanyIds(listing.companyId),
-        this.connectedCompanyIds(user.companyId),
-        this.prisma.listingInvitation.count({
-          where: { listingId: id, invitedCompanyId: user.companyId },
-        }),
+        this.assertBidAccess(user, listing),
         this.prisma.listingBid.findUnique({
           where: {
             listingId_bidderCompanyId: {
@@ -3563,7 +4741,10 @@ export class CompanyListingsService {
             status: true,
             amount: true,
             currency: true,
+            round: true,
             activeBidRound: true,
+            // Tx içindeki yeniden okuma kıyası (eşzamanlı gönderim yarışı).
+            version: true,
             // Pazarlık rebid'inde teslim bilgisi taşınan tekliften KORUNUR
             // (madde 14) — yeniden sorulmaz, gönderilmezse eski değer kalır.
             deliveryTime: true,
@@ -3578,65 +4759,29 @@ export class CompanyListingsService {
           },
         }),
       ]);
-    if (blockedIds.includes(user.companyId)) {
-      throw new NotFoundException("İlan bulunamadı");
-    }
-    const connected = connectedIds.includes(listing.companyId);
-    // Davet her görünürlükte teklif hakkı verir ve ÜLKE kapsamını da aşar
-    // (alıcı firmayı açıkça seçti) — getOne/sellerTenders ile aynı kural.
-    const isInvited = invitedCount > 0;
-    const visible = isListingVisibleToViewer(listing.visibility, {
-      isInvited,
-      connectedToOwner: connected,
-    });
-    if (!visible) throw new NotFoundException("İlan bulunamadı");
-    if (
-      !isInvited &&
-      !this.isCountryEligible(
-        user.country,
-        listing.company.country,
-        listing.isInternational,
-        listing.targetCountries,
-      )
-    ) {
-      throw new NotFoundException("İlan bulunamadı");
-    }
-
-    const { canBid } = listingBidEligibility(listing.visibility, {
-      isInvited,
-      connectedToOwner: connected,
-      viewerTier: user.tier,
-    });
-    if (!canBid) {
-      throw new ForbiddenException(
-        listing.visibility === "PRIVATE"
-          ? "Bu özel satın alma talebine yalnızca davetli firmalar teklif verebilir"
-          : "Bu ilana teklif vermek için premium üyelik gerekir",
-      );
-    }
 
     // Rol (işleme göre): ALIM ilanı → teklifçi SATAR → Satışçı; SATIS → ALIR → Satın Almacı.
     // Faz R: SAHIP muafiyeti yok — Kurucu teklif için op-rol taşımalı.
     if (!hasCompanyPermission(user, bidderPermission(listing.type))) {
       throw new ForbiddenException(
-        "Teklif vermek için 'Teklif verme' yetkisi gerekir",
+        i18nMessage("api.companyListings.teklifVermekIcinTeklifVermeYetkisi"),
       );
     }
 
     // ── Durum / zaman kontrolleri ──
     if (listing.status !== "OPEN") {
-      throw new BadRequestException("İlan teklife kapalı");
+      throw new BadRequestException(i18nMessage("api.companyListings.ilanTeklifeKapali"));
     }
     // Açılış saati gelmemişse teklif alınmaz (mühürlü açılış embargosu).
     if (listing.bidsOpenAt && Date.now() < listing.bidsOpenAt.getTime()) {
       throw new BadRequestException(
-        "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
+        i18nMessage("api.companyListings.teklifVermeHenuzBaslamadiAcilisSaatini"),
       );
     }
     // Kapanış zamanı geçmişse teklif alınmaz (cron'u beklemeden — geç teklif
     // bütünlüğü). Scheduler ilanı ~1 dk içinde CLOSED'a çeker.
     if (isListingClosedAt(listing.closesAt)) {
-      throw new BadRequestException("Teklif süresi doldu");
+      throw new BadRequestException(i18nMessage("api.companyListings.teklifSuresiDoldu"));
     }
 
     // ── Mevcut teklif durum kuralları (SERVER-side — UI'a güvenilmez) ──
@@ -3646,19 +4791,26 @@ export class CompanyListingsService {
     // aşağıda zorlanır). WITHDRAWN yalnız legacy kayıtlarda olabilir.
     if (existingBid?.status === "WITHDRAWN") {
       throw new BadRequestException(
-        "Geri çekilen teklif yeniden verilemez",
+        i18nMessage("api.companyListings.geriCekilenTeklifYenidenVerilemez"),
       );
     }
+    const isDraft = dto.asDraft === true;
+    // YENİ TURA TAŞINAN RFQ TEKLİFİ (derin denetim MU-20): "Yeni Tur" AUTO
+    // taşıması teklifi SUBMITTED olarak yeni tura yazar; tedarikçiye "dilerseniz
+    // fiyatınızı düşürebilirsiniz" denir → turda BİR KEZ yeniden gönderim
+    // serbest (taşıma tur hakkını yakmaz — pazarlıktaki `activeBidRound`
+    // kuralının RFQ karşılığı). Taslağa çekilemez (yumuşak geri çekme olurdu).
+    const carriedRevision =
+      !!existingBid && !isDraft && carriedBidRevisable(existingBid, listing);
     if (
       existingBid?.status === "SUBMITTED" &&
-      listing.format !== "ENGLISH_AUCTION"
+      listing.format !== "ENGLISH_AUCTION" &&
+      !carriedRevision
     ) {
       throw new BadRequestException(
-        "Gönderilmiş teklif düzenlenemez — değişiklik için alıcıyla iletişime geçin; alıcı teklifinizi elerse yeniden teklif verebilirsiniz",
+        i18nMessage("api.companyListings.gonderilmisTeklifDuzenlenemezDegisiklikIcinAlici"),
       );
     }
-
-    const isDraft = dto.asDraft === true;
     // INV-KYC-1 (2026-09-01 revizyonu): doğrulama, PLATFORMUN KEFİL OLDUĞU
     // yerde istenir — tanıştıran platform mu, yoksa taraflar birbirini zaten
     // tanıyor mu?
@@ -3679,10 +4831,7 @@ export class CompanyListingsService {
     // istiyor, yani doğrulama zincirle de uygulanıyor. Buradaki açık kontrol
     // savunma derinliği: admin `setTier` ile elle paket verebiliyor ve o yol
     // doğrulamayı atlıyor.
-    const reachedViaRelationship = isInvited || connected;
-    if (!isDraft && !reachedViaRelationship) {
-      this.assertVerified(user, "teklif veremezsiniz");
-    }
+    if (!isDraft) this.assertBidVerified(user, { isInvited, connected });
     // Auction'da gönderilmiş teklif TASLAĞA çekilemez: agregattan düşürür
     // ("yumuşak geri çekme" ile fiyat manipülasyonu) ve sonraki gönderimde
     // monotonluk referanssız kalırdı.
@@ -3692,7 +4841,7 @@ export class CompanyListingsService {
       listing.format === "ENGLISH_AUCTION"
     ) {
       throw new BadRequestException(
-        "Açık eksiltme/artırmada gönderilmiş teklif taslağa çekilemez — yeni tutarı doğrudan gönderin",
+        i18nMessage("api.companyListings.acikEksiltmeArtirmadaGonderilmisTeklifTaslaga"),
       );
     }
     // Para birimi: ilan izin veriyorsa seçilebilir; varsayılan ilanın birimi.
@@ -3701,7 +4850,7 @@ export class CompanyListingsService {
       listing.allowedCurrencies.length > 0 &&
       !listing.allowedCurrencies.includes(currency)
     ) {
-      throw new BadRequestException("Bu ilan için geçersiz para birimi");
+      throw new BadRequestException(i18nMessage("api.companyListings.buIlanIcinGecersizParaBirimi"));
     }
     // İngiliz usulünde para birimi İLK gönderilmiş teklifle KİLİTLENİR —
     // tur içinde birim değiştirip kur yuvarlamasıyla adım kuralı oynanamaz;
@@ -3712,7 +4861,7 @@ export class CompanyListingsService {
       existingBid.currency !== currency
     ) {
       throw new BadRequestException(
-        `Açık eksiltme/artırmada para birimi değiştirilemez — teklifinizi ${existingBid.currency} olarak verin`,
+        i18nMessage("api.companyListings.acikEksiltmeArtirmadaParaBirimiDegistirilemez", { currency: existingBid.currency }),
       );
     }
     // TURDA TEK AKTİF GÖNDERİM (2026-07-13): pazarlıkta her firma tur başına
@@ -3728,7 +4877,7 @@ export class CompanyListingsService {
       existingBid.activeBidRound === listing.currentRound
     ) {
       throw new BadRequestException(
-        "Bu turdaki teklifinizi verdiniz — ilan sahibi yeni tur açarsa güncelleyebilirsiniz",
+        i18nMessage("api.companyListings.buTurdakiTeklifiniziVerdinizIlanSahibi"),
       );
     }
     // Gönderimde geçerlilik zorunlu (taslakta opsiyonel). PAZARLIK İSTİSNASI
@@ -3737,7 +4886,7 @@ export class CompanyListingsService {
     const isAuctionFormat = listing.format === "ENGLISH_AUCTION";
     if (!isDraft && !isAuctionFormat && !dto.validityDays) {
       throw new BadRequestException(
-        "Teklif göndermek için geçerlilik süresi zorunlu",
+        i18nMessage("api.companyListings.teklifGondermekIcinGecerlilikSuresiZorunlu"),
       );
     }
     // Genel teslim SÜRESİ (2026-08-02; tarih yerine süre merdiveni): teklif
@@ -3763,7 +4912,7 @@ export class CompanyListingsService {
       !(isAuctionFormat && carriedHasDelivery)
     ) {
       throw new BadRequestException(
-        "Teslim süresi zorunlu (süre girmediğiniz kalemler için)",
+        i18nMessage("api.companyListings.teslimSuresiZorunluSureGirmediginizKalemler"),
       );
     }
     // Gönderimde teslim tarihi geçmişte olamaz.
@@ -3772,7 +4921,7 @@ export class CompanyListingsService {
       dto.deliveryDate &&
       new Date(dto.deliveryDate).getTime() < Date.now() - 86_400_000
     ) {
-      throw new BadRequestException("Teslim tarihi geçmişte olamaz");
+      throw new BadRequestException(i18nMessage("api.companyListings.teslimTarihiGecmisteOlamaz"));
     }
     // Teslimat adresi: yalnız eski satış ilanı tekliflerinde vardı (kaldırıldı).
     const deliveryAddressId: string | null = null;
@@ -3788,7 +4937,7 @@ export class CompanyListingsService {
         : 0;
       if (docCount === 0) {
         throw new BadRequestException(
-          "Bu satın alma talebinde teklif dosyası zorunlu — önce taslak kaydedip dosya ekleyin",
+          i18nMessage("api.companyListings.buSatinAlmaTalebindeTeklifDosyasi"),
         );
       }
     }
@@ -3803,7 +4952,7 @@ export class CompanyListingsService {
         quantity: true,
         // Faz 3: muadil izni — tedarikçinin beyanı buna göre kabul/düşürülür.
         alternativeAllowed: true,
-        questions: { select: { id: true, required: true, text: true } },
+        questions: { select: { id: true, required: true, text: true, answerType: true } },
       },
     });
     // Muadil kuralı için id→kalem eşlemi (aşağıdaki map'te okunur).
@@ -3828,7 +4977,7 @@ export class CompanyListingsService {
     if (listingItems.length > 0) {
       if (!dto.items || dto.items.length === 0) {
         throw new BadRequestException(
-          "Bu satın alma talebi kalem-bazlı; en az bir kaleme birim fiyat girin",
+          i18nMessage("api.companyListings.buSatinAlmaTalebiKalemBazli"),
         );
       }
       const qtyById = new Map(
@@ -3836,12 +4985,12 @@ export class CompanyListingsService {
       );
       const provided = dto.items.filter((bi) => qtyById.has(bi.itemId));
       if (provided.length === 0) {
-        throw new BadRequestException("Geçerli kalem teklifi yok");
+        throw new BadRequestException(i18nMessage("api.companyListings.gecerliKalemTeklifiYok"));
       }
       // Aynı kalem iki kez gönderilirse toplam yanlış hesaplanır (DB unique
       // ihlali öncesi) — baştan reddet (F6).
       if (new Set(provided.map((bi) => bi.itemId)).size !== provided.length) {
-        throw new BadRequestException("Aynı kalem birden fazla kez girilemez");
+        throw new BadRequestException(i18nMessage("api.companyListings.ayniKalemBirdenFazlaKezGirilemez"));
       }
       // requireAllItems yalnız GÖNDERİMDE zorlanır — kısmi taslak kaydedilebilsin.
       if (
@@ -3850,13 +4999,13 @@ export class CompanyListingsService {
         provided.length < listingItems.length
       ) {
         throw new BadRequestException(
-          "Bu satın alma talebinde tüm kalemlere teklif vermelisiniz",
+          i18nMessage("api.companyListings.buSatinAlmaTalebindeTumKalemlere"),
         );
       }
       // Gönderimde her fiyatlanan kalem pozitif olmalı (0₺'lik satır kazanamaz).
       if (!isDraft && provided.some((bi) => bi.unitPrice <= 0)) {
         throw new BadRequestException(
-          "Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı",
+          i18nMessage("api.companyListings.fiyatlananHerKaleminBirimFiyatiSifirdan"),
         );
       }
       // Madde 9 (2026-08-02) — kalem bazlı para birimi: kalem, ilanın izin
@@ -3876,7 +5025,7 @@ export class CompanyListingsService {
       if (hasForeignItems) {
         if (listing.type !== "ALIM" || listing.format === "ENGLISH_AUCTION") {
           throw new BadRequestException(
-            "Kalem bazında farklı para birimi yalnız kapalı zarf alım satın alma taleplerinde kullanılabilir",
+            i18nMessage("api.companyListings.kalemBazindaFarkliParaBirimiYalniz"),
           );
         }
         for (const bi of provided) {
@@ -3886,7 +5035,7 @@ export class CompanyListingsService {
             !listing.allowedCurrencies.includes(c)
           ) {
             throw new BadRequestException(
-              `Bu ilan için geçersiz kalem para birimi: ${c}`,
+              i18nMessage("api.companyListings.buIlanIcinGecersizKalemPara", { c: c }),
             );
           }
         }
@@ -3897,7 +5046,7 @@ export class CompanyListingsService {
           const r = await this.exchangeRates.getFreshRate(c).catch(() => null);
           if (r == null || r <= 0) {
             throw new BadRequestException(
-              `Güncel kur bilgisi yok (TCMB ${c}) — kalem bazlı farklı para birimi şu an kullanılamıyor; teklifi tek birimde verin veya daha sonra tekrar deneyin`,
+              i18nMessage("api.companyListings.guncelKurBilgisiYokTcmbKalem", { c: c }),
             );
           }
           return new Prisma.Decimal(r);
@@ -3905,11 +5054,14 @@ export class CompanyListingsService {
         const baseRate = await rateTry(currency);
         for (const c of [...new Set(provided.map(itemCurrencyOf))]) {
           if (fxByCurrency.has(c)) continue;
+          // 12 ondalık = kolon ölçeği (Decimal(24,12)). 6 ondalıkta KRW→EUR
+          // gibi küçük damgalar (~0,0006) göreli %0,1-0,2 sapıyordu
+          // (derin denetim LU-09); saklanan ve hesaplanan damga aynı kalmalı.
           fxByCurrency.set(
             c,
             (await rateTry(c))
               .div(baseRate)
-              .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP),
+              .toDecimalPlaces(12, Prisma.Decimal.ROUND_HALF_UP),
           );
         }
       }
@@ -3929,7 +5081,7 @@ export class CompanyListingsService {
       // Gönderilen (taslak olmayan) teklif sıfır toplam olamaz; tüm birim
       // fiyatlar 0 ise "kazanan sıfır teklif" oluşmasın (F6).
       if (!isDraft && amount.lte(0)) {
-        throw new BadRequestException("Teklif toplamı sıfırdan büyük olmalı");
+        throw new BadRequestException(i18nMessage("api.companyListings.teklifToplamiSifirdanBuyukOlmali"));
       }
       // Madde 14: pazarlık rebid'inde kalem teslim bilgisi taşınan tekliften
       // korunur (dto göndermezse eski değer yazılır — sessiz silme yok).
@@ -3960,6 +5112,21 @@ export class CompanyListingsService {
           fxToBase: c !== currency ? (fxByCurrency.get(c) ?? null) : null,
         };
       });
+      // Muadil beyanı en az marka VEYA parça no ister (place-bid.dto sözleşmesi):
+      // boş muadil satırı alıcıya "neyin muadili?" sorusunu cevapsız bırakır,
+      // teklifler aynı ürün üzerinden kıyaslanamaz. Taslakta serbest.
+      if (!isDraft) {
+        const bare = bidItemsData.find(
+          (bi) => bi.isAlternative && !bi.offeredBrand && !bi.offeredMpn,
+        );
+        if (bare) {
+          throw new BadRequestException(
+            i18nMessage("api.companyListings.muadilTeklifteMarkaVeyaParcaNoZorunlu", {
+              name: itemById.get(bare.itemId)?.name ?? "",
+            }),
+          );
+        }
+      }
 
       // Kalem soruları: cevaplar yalnız FİYATLANAN kalemin sorularına verilebilir;
       // gönderimde fiyatlanan kalemlerin ZORUNLU soruları cevaplanmış olmalı.
@@ -3974,15 +5141,24 @@ export class CompanyListingsService {
         for (const a of bi.answers ?? []) {
           const q = questionById.get(a.questionId);
           if (!q || q.itemId !== bi.itemId) {
-            throw new BadRequestException("Geçersiz soru cevabı");
+            throw new BadRequestException(i18nMessage("api.companyListings.gecersizSoruCevabi"));
           }
           if (seen.has(a.questionId)) {
             throw new BadRequestException(
-              "Aynı soruya birden fazla cevap girilemez",
+              i18nMessage("api.companyListings.ayniSoruyaBirdenFazlaCevapGirilemez"),
             );
           }
           seen.add(a.questionId);
           const value = a.value.trim();
+          // Sayısal soru cevabı kanonik ondalık olmalı (arayüz testi kapanış NUM):
+          // eski web `type="number"` Türkçe "12,50"yi "1250" gönderiyordu; web
+          // artık yerel biçimi çevirir, sunucu biçimsiz değeri (virgül, "NaN")
+          // saklamaz — gönderilmiş teklif düzenlenemez.
+          if (value && q.answerType === "NUMBER" && !NUMBER_ANSWER_PATTERN.test(value)) {
+            throw new BadRequestException(
+              i18nMessage("api.companyListings.sayisalCevapGecersiz", { text: q.text }),
+            );
+          }
           if (value) answersData.push({ questionId: a.questionId, value });
         }
       }
@@ -3995,14 +5171,14 @@ export class CompanyListingsService {
           );
           if (missing) {
             throw new BadRequestException(
-              `Zorunlu kalem sorusu cevaplanmadı: "${missing.text}"`,
+              i18nMessage("api.companyListings.zorunluKalemSorusuCevaplanmadi", { text: missing.text }),
             );
           }
         }
       }
     } else {
       if (dto.amount == null || dto.amount <= 0) {
-        throw new BadRequestException("Geçerli bir tutar girin");
+        throw new BadRequestException(i18nMessage("api.companyListings.gecerliBirTutarGirin"));
       }
       amount = new Prisma.Decimal(dto.amount);
     }
@@ -4011,7 +5187,7 @@ export class CompanyListingsService {
     // TOPLAMI) tekil @Max'larla bağlanamaz; Decimal(18,2) kolonu ~1e16'da
     // taşar → aksi halde Postgres 500. MAX_MONEY tavanı → temiz 400.
     if (amount.gt(MAX_MONEY)) {
-      throw new BadRequestException("Teklif toplamı çok büyük");
+      throw new BadRequestException(i18nMessage("api.companyListings.teklifToplamiCokBuyuk"));
     }
 
     // TRY dışı teklifte güncel TCMB kuru anlık snapshot'lanır — hem kayıt
@@ -4089,10 +5265,10 @@ export class CompanyListingsService {
       const ownLast: Prisma.Decimal | null =
         existingBid?.status === "SUBMITTED" ? existingBid.amount : null;
       if (ownLast != null) {
-        const fmt = (d: Prisma.Decimal) =>
-          d.toNumber().toLocaleString("tr-TR", { maximumFractionDigits: 2 });
-        // Mesajlar teklifçinin KENDİ biriminde konuşur (ilanın değil).
-        const bidSym = currency === "TRY" ? "₺" : currency;
+        // Hata mesajı İSTEĞİN dilinde (teklifçinin kendisi okuyor), tutar
+        // teklifçinin KENDİ biriminde; sembolün yeri dilden (`formatMoney` —
+        // eski "{fmt} {bidSym}" İngilizcede sembolü sona koyuyordu).
+        const prevAmount = formatMoney(ownLast.toNumber(), currency, currentLocale());
         // KIYAS AYNI KALEMLER BAZINDA: önceki teklif kısmi olabilir — yeni
         // teklif kapsam GENİŞLETEBİLİR (yeni kalem ilk-teklif muamelesi,
         // toplam artabilir). Kural: (a) önceden fiyatlanmış kalem
@@ -4119,27 +5295,33 @@ export class CompanyListingsService {
               const name =
                 listingItems.find((li) => li.id === pid)?.name ?? "kalem";
               throw new BadRequestException(
-                `Pazarlıkta önceden fiyatladığınız kalem bırakılamaz — "${name}" için fiyat girin`,
+                i18nMessage("api.companyListings.pazarliktaOncedenFiyatladiginizKalemBirakilamazI", { name: name }),
               );
             }
             sub = sub.plus(
               new Prisma.Decimal(up).mul(qtyById.get(pid) ?? 0),
             );
           }
-          comparable = sub;
+          // Kayıtlı `ownLast` 2 haneye yuvarlanmış tutar (sumLineTotals →
+          // roundMoney); ham ara toplamla kıyas kesirli miktarda AYNI fiyatı
+          // "daha düşük" sayıyordu (1,5 × 10,33 = 15,495 < 15,50) — derin
+          // denetim LU-15. Kıyas, yazılacak tutarla aynı yuvarlamada.
+          comparable = roundMoney(sub);
           scopeExpanded = bidItemsData.length > prevIds.size;
         }
-        const scopeNote = scopeExpanded
-          ? "önceden fiyatladığınız kalemlerin toplamı"
-          : "yeni teklifiniz";
+        const scopeNote = tApi(
+          scopeExpanded
+            ? "api.companyListings.oncedenFiyatladiginizKalemlerinToplami"
+            : "api.companyListings.yeniTeklifiniz",
+        );
         if (!isAscending && comparable.gte(ownLast)) {
           throw new BadRequestException(
-            `Pazarlık: ${scopeNote} önceki teklifinizin (${fmt(ownLast)} ${bidSym}) altında olmalı`,
+            i18nMessage("api.companyListings.pazarlikOncekiTeklifinizinAltindaOlmali", { scopeNote: scopeNote, amount: prevAmount }),
           );
         }
         if (isAscending && comparable.lte(ownLast)) {
           throw new BadRequestException(
-            `Açık artırma: ${scopeNote} önceki teklifinizin (${fmt(ownLast)} ${bidSym}) üzerinde olmalı`,
+            i18nMessage("api.companyListings.acikArtirmaOncekiTeklifinizinUzerindeOlmali", { scopeNote: scopeNote, amount: prevAmount }),
           );
         }
       }
@@ -4166,7 +5348,30 @@ export class CompanyListingsService {
       const row = live[0];
       if (!row || row.status !== "OPEN" || row.currentRound !== listing.currentRound) {
         throw new ConflictException(
-          "İlan bu sırada güncellendi (durum/tur değişti) — sayfayı yenileyip teklifi tekrar gönderin",
+          i18nMessage("api.companyListings.ilanBuSiradaGuncellendiDurumTur"),
+        );
+      }
+      // Teklif satırı da ilan kilidi ALTINDA yeniden okunur: turda-tek-gönderim,
+      // SUBMITTED-düzenlenemez ve monotonluk kapıları tx dışındaki
+      // `existingBid` okumasına dayanıyor. Aynı firmadan eşzamanlı iki POST
+      // ikisi de kapıları geçip ikincisi birincinin yazdığını kural denetimi
+      // olmadan eziyordu (turda iki gönderim / fiyatı geri çekme — derin
+      // denetim LU-15). Okunan anlık görüntüden sapma → Conflict, istemci
+      // yenileyip yeniden dener.
+      const liveBid = await tx.$queryRaw<
+        { status: string; activeBidRound: number | null; amount: Prisma.Decimal; version: number }[]
+      >`SELECT status, "activeBidRound", amount, version FROM listing_bids WHERE "listingId" = ${id} AND "bidderCompanyId" = ${user.companyId} FOR UPDATE`;
+      const lb = liveBid[0] ?? null;
+      const bidChanged = existingBid
+        ? !lb ||
+          lb.status !== existingBid.status ||
+          lb.version !== existingBid.version ||
+          lb.activeBidRound !== existingBid.activeBidRound ||
+          !new Prisma.Decimal(lb.amount).equals(existingBid.amount)
+        : lb != null;
+      if (bidChanged) {
+        throw new ConflictException(
+          i18nMessage("api.companyListings.teklifinizBuSiradaDegistiSayfayi"),
         );
       }
       if (listingItems.length > 0) {
@@ -4175,7 +5380,7 @@ export class CompanyListingsService {
         });
         if (stillThere !== listingItems.length) {
           throw new ConflictException(
-            "İlan kalemleri bu sırada değişti — sayfayı yenileyip teklifi tekrar gönderin",
+            i18nMessage("api.companyListings.ilanKalemleriBuSiradaDegistiSayfayi"),
           );
         }
       }
@@ -4200,12 +5405,13 @@ export class CompanyListingsService {
           createdById: user.userId,
           status,
           submittedAt: isDraft ? null : new Date(),
+          // Gönderim sayacı — taslak saymaz (arayüz testi O-036).
+          submitCount: isDraft ? 0 : 1,
           round: listing.currentRound,
-          // Pazarlıkta gönderim tur hakkını kullanır (taslak kullanmaz).
-          activeBidRound:
-            !isDraft && listing.format === "ENGLISH_AUCTION"
-              ? listing.currentRound
-              : null,
+          // Gönderim tur hakkını kullanır (taslak kullanmaz) — pazarlıkta
+          // "turda tek gönderim", RFQ'da "taşınan teklif turda bir kez
+          // revize" kuralı bunu sayar (MU-20).
+          activeBidRound: !isDraft ? listing.currentRound : null,
         },
         update: {
           amount,
@@ -4217,7 +5423,10 @@ export class CompanyListingsService {
           deliveryAddressId,
           note: dto.note?.trim() || null,
           status,
+          // `version` eşzamanlılık sayacı (her yazımda); revizyon sayısı
+          // `submitCount` — yalnız gönderimde artar (arayüz testi O-036).
           version: { increment: 1 },
+          ...(!isDraft ? { submitCount: { increment: 1 } } : {}),
           // Yeniden teklif (elenmişken tekrar SUBMITTED) → eski eleme izini temizle
           // ki myBid'de "elendi" bilgisi canlı teklifle çelişmesin.
           // Denetim 2026-08-23 P2 #2: taslak güncellemesi eski gönderim damgasını
@@ -4230,9 +5439,7 @@ export class CompanyListingsService {
           round: listing.currentRound,
           // Tur hakkı yalnız GÖNDERİMDE işlenir; taslak güncellemesi mevcut
           // hakkı (varsa) silmez.
-          ...(!isDraft && listing.format === "ENGLISH_AUCTION"
-            ? { activeBidRound: listing.currentRound }
-            : {}),
+          ...(!isDraft ? { activeBidRound: listing.currentRound } : {}),
         },
       });
       if (listingItems.length > 0) {
@@ -4284,8 +5491,10 @@ export class CompanyListingsService {
           currency: bid.currency,
           round: listing.currentRound,
           version: bid.version,
-          // version>1 → elenmiş/önceki teklifin üzerine yeniden gönderim.
-          resubmission: bid.version > 1,
+          submitCount: bid.submitCount,
+          // submitCount>1 → önceki gönderimin üzerine yeniden gönderim
+          // (version taslak kayıtlarında da artar — revizyon sayılmaz, O-036).
+          resubmission: bid.submitCount > 1,
         },
       });
     }
@@ -4329,10 +5538,11 @@ export class CompanyListingsService {
         .pushToCompany(listing.companyId, {
           type: "bid_received",
           portal: this.ownerPortal(listing.type),
-          title: "Yeni teklif geldi",
-          body: `"${listing.title}" (${listing.number ?? "—"}) ilanınıza yeni bir teklif verildi.`,
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: appRoutes.listing(this.webUrl(), id),
+          titleKey: "api.notifications.listings.bidReceived.title",
+          bodyKey: "api.notifications.listings.bidReceived.body",
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          params: { title: listing.title, number: listing.number ?? "—" },
+          ctaPath: appRoutes.listing(this.webUrl(), id),
           listingId: id,
         })
         .catch((err) =>
@@ -4372,22 +5582,22 @@ export class CompanyListingsService {
         auctionRateSnapshot: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiKazandirabilir"));
     }
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
-      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
+      throw new BadRequestException(i18nMessage("api.companyListings.ilanZatenKazandirilmisVeyaIptal"));
     }
     if (!hasCompanyPermission(user, "buy:award")) {
-      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.companyListings.kazandirmaIcinYetkinizYok"));
     }
     // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
     // operatörü veya firma sahibi başlatabilir (yönetim kapısını başlatan aktöre
     // uygular — onay zinciri/onAwardApproved bundan etkilenmez).
     this.assertListingManageRole(user, listing);
     // INV-KYC-1: kazandırma sipariş (para-taahhüdü) doğurur → VERIFIED ister.
-    this.assertVerified(user, "kazandıramazsınız");
+    this.assertVerified(user, "award");
 
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
@@ -4401,12 +5611,16 @@ export class CompanyListingsService {
         status: true,
         submittedAt: true,
         validityDays: true,
+        bidderCompany: { select: { isActive: true, isBlocked: true } },
         items: { select: { itemId: true, unitPrice: true } },
       },
     });
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
-      throw new BadRequestException("Geçersiz teklif");
+      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
     }
+    // Askıdaki / pasif teklifçiye sipariş yazılmaz (giriş yapamaz, sipariş
+    // PENDING'de takılırdı — derin denetim MU-20).
+    this.assertBidderAwardable(bid.bidderCompany);
     // Geçerliliği dolmuş teklif kazandırılamaz (2026-09-19 inceleme): ekran
     // "Geçerlilik doldu" rozeti basıyor ama sunucu kabul ediyordu → tedarikçinin
     // artık bağlı olmadığı fiyata sipariş doğuyordu. Pazarlıkta geçerlilik
@@ -4419,7 +5633,7 @@ export class CompanyListingsService {
       });
       if (docCount === 0) {
         throw new BadRequestException(
-          "Bu satın alma talebi teklif belgesi zorunlu kılıyor; kazanan teklifin belgesi yok",
+          i18nMessage("api.companyListings.buSatinAlmaTalebiTeklifBelgesi"),
         );
       }
     }
@@ -4457,7 +5671,7 @@ export class CompanyListingsService {
       });
       if (moved.count !== 1) {
         throw new ConflictException(
-          "İlan durumu değişti; kazandırmayı tekrar deneyin",
+          i18nMessage("api.companyListings.ilanDurumuDegistiKazandirmayiTekrarDeneyin"),
         );
       }
       return { pendingApproval: true as const };
@@ -4475,8 +5689,44 @@ export class CompanyListingsService {
     const until = bidValidUntilMs(bid.submittedAt, bid.validityDays);
     if (until != null && until <= Date.now()) {
       throw new BadRequestException(
-        "Teklifin geçerlilik süresi dolmuş; tedarikçiden süre uzatması isteyin ya da yeni tur açın",
+        i18nMessage("api.companyListings.teklifinGecerlilikSuresiDolmusTedarikcidenSure"),
       );
+    }
+  }
+
+  /** Askıdaki (admin) ya da pasif teklifçi firmaya kazandırma yapılmaz. */
+  private assertBidderAwardable(
+    company: { isActive: boolean; isBlocked: boolean } | null | undefined,
+  ): void {
+    if (!company || !company.isActive || company.isBlocked) {
+      throw new BadRequestException(
+        i18nMessage("api.companyListings.teklifVerenFirmaAskidaKazandirilamaz"),
+      );
+    }
+  }
+
+  /**
+   * Kazandırmanın UYGULANDIĞI an (doğrudan ya da onay sonrası — `onAwardApproved`)
+   * kazanan tekliflerin hâlâ kazandırılabilir olduğunu doğrular: geçerlilik
+   * süresi dolmamış (Mimari Karar 6) ve teklifçi askıda/pasif değil. Onay
+   * günler sürebilir; talep anındaki kontrol yetmez (derin denetim MU-20).
+   * Hata `decide()`in fail-closed geri almasıyla onaycıya döner.
+   */
+  private async assertWinningBidsAwardable(
+    listingId: string,
+    bidIds: string[],
+  ): Promise<void> {
+    const rows = await this.prisma.listingBid.findMany({
+      where: { id: { in: [...new Set(bidIds)] }, listingId },
+      select: {
+        submittedAt: true,
+        validityDays: true,
+        bidderCompany: { select: { isActive: true, isBlocked: true } },
+      },
+    });
+    for (const r of rows) {
+      this.assertBidValidityAlive(r);
+      this.assertBidderAwardable(r.bidderCompany);
     }
   }
 
@@ -4505,7 +5755,7 @@ export class CompanyListingsService {
         deliveryTerm: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     // Kaybedecek teklif sahiplerini kazandırma ÖNCESİ yakala (tx onları LOST'a
     // çevirecek) → sonuç sonrası "kazanamadınız" bildirimi için.
     const losingBidderIds = [
@@ -4524,6 +5774,8 @@ export class CompanyListingsService {
         id: true,
         listingId: true,
         status: true,
+        // Kazanan guard'ı: tx dışı okunan tutar/kalemlerin hâlâ geçerli olduğu.
+        version: true,
         bidderCompanyId: true,
         amount: true,
         currency: true,
@@ -4538,6 +5790,10 @@ export class CompanyListingsService {
             currency: true,
             fxToBase: true,
             note: true,
+            // Muadil beyanı siparişe snapshot'lanır (arayüz testi O-003).
+            isAlternative: true,
+            offeredBrand: true,
+            offeredMpn: true,
           },
         },
       },
@@ -4545,15 +5801,17 @@ export class CompanyListingsService {
     if (!bid || bid.listingId !== listingId) {
       // Savunma derinliği: payload sunucu-üretimi ama yanlış bidId yanlış
       // taraflarla sipariş yazmasın.
-      throw new BadRequestException("Geçersiz teklif");
+      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
     }
     // Onay penceresi güvencesi: kazandırma anında teklif hâlâ SUBMITTED olmalı
     // (geri çekilmiş/elenmiş teklife sipariş yazılmaz).
     if (bid.status !== "SUBMITTED") {
       throw new BadRequestException(
-        "Teklif artık geçerli değil (geri çekilmiş veya elenmiş) — kazandırılamaz",
+        i18nMessage("api.companyListings.teklifArtikGecerliDegilGeriCekilmis"),
       );
     }
+    // Onay yolunda da geçerlilik + teklifçi durumu (MU-20).
+    await this.assertWinningBidsAwardable(listingId, [bidId]);
 
     const listingItems = await this.prisma.listingItem.findMany({
       where: { listingId },
@@ -4563,6 +5821,8 @@ export class CompanyListingsService {
         quantity: true,
         unit: true,
         unitCode: true,
+        brand: true,
+        mpn: true,
       },
     });
     const orderItems = listingItems
@@ -4581,6 +5841,8 @@ export class CompanyListingsService {
               deliveryDate: bi.deliveryDate,
               deliveryTime: bi.deliveryTime ?? bid.deliveryTime,
               note: bi.note,
+              // O-003: istenen marka/MPN + muadil beyanı (sipariş bağlayıcı kaydı).
+              ...orderItemAlternativeSnapshot(li, bi),
               // Madde 9 — kalem para birimi (null = teklifin ana birimi) +
               // ana birime çevrim damgası (nöbetçi yeniden hesaplaması için).
               currency: (bi.currency ?? bid.currency) as Currency,
@@ -4604,7 +5866,7 @@ export class CompanyListingsService {
       const recomputed = sumLineTotalsInBase(orderItems);
       if (!recomputed.equals(bid.amount)) {
         throw new BadRequestException(
-          "Sipariş tutarı tutarsızlığı — kazandırma güvenlik nedeniyle durduruldu (destek ekibiyle iletişime geçin)",
+          i18nMessage("api.companyListings.siparisTutariTutarsizligiKazandirmaGuvenlikNeden"),
         );
       }
     }
@@ -4656,19 +5918,23 @@ export class CompanyListingsService {
         data: { status: "AWARDED", awardedAt: new Date() },
       });
       if (transition.count !== 1) {
-        throw new BadRequestException("İlan zaten kazandırılmış");
+        throw new BadRequestException(i18nMessage("api.companyListings.ilanZatenKazandirilmis"));
       }
       // B1: koşullu-atomik winner (runItemAward:4626 simetrisi). 4026 ön-okuması
       // ile bu tx arasındaki pencerede bid elenirse (SUBMITTED→LOST) `where
       // status:SUBMITTED` 0 satır alır → throw → tx ROLLBACK: elenmiş/çekilmiş
       // teklife sipariş yazılmaz (LOST↔sipariş tutarlılığı korunur).
+      // `version` da koşulda (derin denetim LU-15): OPEN açık eksiltmede teklif
+      // sahibi bu pencerede yeniden gönderirse (placeBid version++) tutar ve
+      // kalemler tx dışında okunan anlık görüntüden sapar → bayat tutarla
+      // sipariş yazılmaz, count=0 → Conflict.
       const won = await tx.listingBid.updateMany({
-        where: { id: bidId, status: "SUBMITTED" },
+        where: { id: bidId, status: "SUBMITTED", version: bid.version },
         data: { status: "WON" },
       });
       if (won.count !== 1) {
         throw new ConflictException(
-          "Teklif artık geçerli değil (elenmiş veya çekilmiş) — kazandırılamaz",
+          i18nMessage("api.companyListings.teklifArtikGecerliDegilElenmisVeya"),
         );
       }
       await tx.listingBid.updateMany({
@@ -4717,10 +5983,17 @@ export class CompanyListingsService {
               name: it.name,
               quantity: it.quantity,
               unit: it.unit,
+              // Plan kalemin kanonik birim kodunu taşıyordu ama yazılmıyordu.
+              unitCode: it.unitCode,
               unitPrice: it.unitPrice,
               deliveryDate: it.deliveryDate,
               deliveryTime: it.deliveryTime,
               note: it.note,
+              requestedBrand: it.requestedBrand,
+              requestedMpn: it.requestedMpn,
+              isAlternative: it.isAlternative,
+              offeredBrand: it.offeredBrand,
+              offeredMpn: it.offeredMpn,
             })),
           });
         }
@@ -4783,18 +6056,35 @@ export class CompanyListingsService {
         .map((o) => o.number)
         .filter(Boolean)
         .join(", ");
+      // Tekil/çoğul ("sipariş" ↔ "siparişler") ICU plural ile katalogda —
+      // dile göre kural değişir, kodda `length > 1` ile kurulamaz.
+      // Hangi talep kazanıldı (arayüz testi D-106): başlık + numara metinde.
+      const awardParams: NotificationParams = {
+        title: listingTitleParam(listingId, listing.title),
+        number: listing.number ?? "—",
+        orderNumbers: orderNumbersLabel,
+        count: orders.length,
+      };
+      // Birden çok sipariş (çok-birimli teklif) → CTA sipariş LİSTESİNE;
+      // tek sipariş → doğrudan sipariş detayı (D-106: bağlantı yalnız
+      // sonuncuya gidiyordu).
+      const multiOrder = orders.length > 1;
+      const awardCta = (l?: Locale) =>
+        multiOrder
+          ? appRoutes.orders(this.webUrl(), wonPortal, l)
+          : appRoutes.order(this.webUrl(), order.id, l);
       if (recipient) {
         this.notify(
           recipient,
           {
-            subject: "Tebrikler — teklifiniz kazandı",
-            heading: "Teklifiniz kazandı",
-            paragraphs: [
-              "Merhaba,",
-              `Bir satın alma talebinde teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
-            ],
-            ctaLabel: "Siparişi Gör",
-            ctaUrl: appRoutes.order(this.webUrl(), order.id),
+            subjectKey: "api.notifications.listings.awarded.subject",
+            headingKey: "api.notifications.listings.awarded.title",
+            bodyKey: "api.notifications.listings.awarded.body",
+            params: awardParams,
+            ctaLabelKey: multiOrder
+              ? "api.notifications.listings.cta.viewOrders"
+              : "api.notifications.listings.cta.viewOrder",
+            ctaUrl: (l) => awardCta(l),
           },
           { type: "bid_awarded", id: order.id },
         );
@@ -4802,17 +6092,23 @@ export class CompanyListingsService {
       await this.notifications.pushToCompany(bid.bidderCompanyId, {
         type: "bid_awarded",
         portal: wonPortal,
-        title: "Teklifiniz kazandı",
-        body: `Bir satın alma talebinde teklifiniz kazandı ve ${orderNumbersLabel} numaralı sipariş${orders.length > 1 ? "ler" : ""} oluştu.`,
-        ctaLabel: "Siparişi Gör",
-        ctaUrl: appRoutes.order(this.webUrl(), order.id),
+        titleKey: "api.notifications.listings.awarded.title",
+        bodyKey: "api.notifications.listings.awarded.bodyShort",
+        ctaLabelKey: multiOrder
+          ? "api.notifications.listings.cta.viewOrders"
+          : "api.notifications.listings.cta.viewOrder",
+        params: awardParams,
+        ctaPath: awardCta(),
       });
       // Kaybeden teklif sahiplerine "satın alma talebi sonuçlandı" bildirimi (teklifçi
       // portalı, bidElimination tercihine bağlı — eleme bildirimini kapatan
       // bunu da almaz).
       if (losingBidderIds.length > 0) {
         const lostUrl = appRoutes.listing(this.webUrl(), listingId);
-        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı.`;
+        const lostParams = {
+          title: listingTitleParam(listingId, listing.title),
+          number: listing.number ?? "—",
+        };
         const lostRecipients = await this.companyRecipients(
           losingBidderIds,
           wonPortal,
@@ -4823,14 +6119,12 @@ export class CompanyListingsService {
           this.notify(
             r,
             {
-              subject: "Satın Alma Talebi sonuçlandı",
-              heading: "Satın Alma Talebi sonuçlandı",
-              paragraphs: [
-                "Merhaba,",
-                `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`,
-              ],
-              ctaLabel: "Satın Alma Talebini Gör",
-              ctaUrl: lostUrl,
+              subjectKey: "api.notifications.listings.lost.title",
+              headingKey: "api.notifications.listings.lost.title",
+              bodyKey: "api.notifications.listings.lost.emailBody",
+              params: lostParams,
+              ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+              ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
             },
             { type: "bid_lost", id: listingId },
           );
@@ -4838,15 +6132,17 @@ export class CompanyListingsService {
         await this.notifications.pushToCompanies(losingBidderIds, {
           type: "bid_lost",
           portal: wonPortal,
-          title: "Satın Alma Talebi sonuçlandı",
-          body: lostBody,
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: lostUrl,
+          titleKey: "api.notifications.listings.lost.title",
+          bodyKey: "api.notifications.listings.lost.body",
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          params: lostParams,
+          ctaPath: lostUrl,
           listingId,
         });
       }
       this.realtime?.pingListing(listingId, awardParties);
       this.seo?.listingChanged(listingId);
+      void this.translations?.enqueue("LISTING", listingId);
       for (const o of orders) this.realtime?.pingOrder(o.id, awardParties);
     } catch (err) {
       this.logger.warn(
@@ -4884,32 +6180,28 @@ export class CompanyListingsService {
         auctionRateSnapshot: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiKazandirabilir"));
     }
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
-      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
+      throw new BadRequestException(i18nMessage("api.companyListings.ilanZatenKazandirilmisVeyaIptal"));
     }
     // Kalem-bazlı kazandırma her iki yönde: ALIM'da kalemler farklı satıcılara,
     // SATIS'ta farklı alıcılara verilebilir (rol, tam kazandırmayla aynı).
     if (!hasCompanyPermission(user, "buy:award")) {
-      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.companyListings.kazandirmaIcinYetkinizYok"));
     }
     // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
     // operatörü veya firma sahibi başlatabilir (award ile aynı kapı).
     this.assertListingManageRole(user, listing);
     // INV-KYC-1: kalem-bazlı kazandırma da sipariş doğurur → VERIFIED ister.
-    this.assertVerified(user, "kazandıramazsınız");
+    this.assertVerified(user, "award");
 
     // Geçerliliği dolmuş teklif kalem bazında da kazandırılamaz (award ile simetri).
     {
       const ids = [...new Set(itemAwards.map((a) => a.bidId))];
-      const rows = await this.prisma.listingBid.findMany({
-        where: { id: { in: ids }, listingId },
-        select: { submittedAt: true, validityDays: true },
-      });
-      for (const r of rows) this.assertBidValidityAlive(r);
+      await this.assertWinningBidsAwardable(listingId, ids);
     }
     // Belge zorunluysa her kazanan teklifin en az 1 belgesi olmalı (tam-kazandırma
     // ile aynı kural — item-award baypasını kapatır).
@@ -4922,7 +6214,7 @@ export class CompanyListingsService {
         where: { id: { in: winningBidIds }, listingId, status: "SUBMITTED" },
       });
       if (validBids !== winningBidIds.length) {
-        throw new BadRequestException("Geçersiz teklif");
+        throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
       }
       // Perf (N+1): per-bid count yerine TEK groupBy — belgesi olan bidId kümesi.
       const docCounts = await this.prisma.listingBidDocument.groupBy({
@@ -4935,7 +6227,7 @@ export class CompanyListingsService {
       );
       if (winningBidIds.some((id) => !bidsWithDoc.has(id))) {
         throw new BadRequestException(
-          "Belge zorunlu — kazanan teklifin yüklü belgesi yok",
+          i18nMessage("api.companyListings.belgeZorunluKazananTeklifinYukluBelgesi"),
         );
       }
     }
@@ -4968,7 +6260,7 @@ export class CompanyListingsService {
       });
       if (moved.count !== 1) {
         throw new ConflictException(
-          "İlan durumu değişti; kazandırmayı tekrar deneyin",
+          i18nMessage("api.companyListings.ilanDurumuDegistiKazandirmayiTekrarDeneyin"),
         );
       }
       return { pendingApproval: true as const };
@@ -5006,15 +6298,15 @@ export class CompanyListingsService {
         auctionRateSnapshot: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiKazandirabilir"));
     }
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
-      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
+      throw new BadRequestException(i18nMessage("api.companyListings.ilanZatenKazandirilmisVeyaIptal"));
     }
     if (!hasCompanyPermission(user, "buy:award")) {
-      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.companyListings.kazandirmaIcinYetkinizYok"));
     }
     // Önizleme de yönetim kapısından geçer (award ile simetri): oluşturan
     // olmayan operatör başkasının ilanında eşik yoklayamaz.
@@ -5030,7 +6322,7 @@ export class CompanyListingsService {
       },
     });
     if (!bid || bid.listingId !== listingId) {
-      throw new BadRequestException("Geçersiz teklif");
+      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
     }
     // award() ile BİREBİR aynı tutar hesabı: INV-FX-1 tek-baz (açılış → teklif
     // damgası); baz yoksa null → onay ZORUNLU (forceRequireApproval).
@@ -5071,15 +6363,15 @@ export class CompanyListingsService {
         auctionRateSnapshot: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiKazandirabilir"));
     }
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
-      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
+      throw new BadRequestException(i18nMessage("api.companyListings.ilanZatenKazandirilmisVeyaIptal"));
     }
     if (!hasCompanyPermission(user, "buy:award")) {
-      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.companyListings.kazandirmaIcinYetkinizYok"));
     }
     this.assertListingManageRole(user, listing);
 
@@ -5104,19 +6396,32 @@ export class CompanyListingsService {
   private async buildItemGroups(
     listingId: string,
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+    // Arayüz testi D-104: kullanıcının girdiği kazandırma (önizleme + kazandır)
+    // kalem miktarını aşan kısmi miktarı 400 ile reddeder; eskiden sessizce
+    // kırpılıyordu. Onay sonrası yürütme (`runItemAward`) eski bekleyen
+    // istekleri bozmamak için kırpmayı sürdürür.
+    opts: { strictQuantity?: boolean } = {},
   ) {
     const items = await this.prisma.listingItem.findMany({
       where: { listingId },
-      select: { id: true, name: true, quantity: true, unit: true },
+      select: {
+        id: true,
+        name: true,
+        quantity: true,
+        unit: true,
+        unitCode: true,
+        brand: true,
+        mpn: true,
+      },
     });
     if (items.length === 0) {
-      throw new BadRequestException("Bu satın alma talebinde kalem yok");
+      throw new BadRequestException(i18nMessage("api.companyListings.buSatinAlmaTalebindeKalemYok"));
     }
     const itemMap = new Map(items.map((i) => [i.id, i]));
     // Kısmi kapsam: yalnızca kazanan seçilen kalemler kazandırılır; teklif
     // almamış/seçilmemiş kalemler atlanır (eski sistemle aynı). En az 1 gerekir.
     if (itemAwards.length === 0) {
-      throw new BadRequestException("En az bir kalem için kazanan seçin");
+      throw new BadRequestException(i18nMessage("api.companyListings.enAzBirKalemIcinKazanan"));
     }
     // Bir kalem yalnızca tek kazanana verilebilir. Aynı itemId iki kez gelirse
     // awardedQuantity sessizce ezilirdi (F8) — baştan reddet.
@@ -5124,7 +6429,7 @@ export class CompanyListingsService {
       new Set(itemAwards.map((a) => a.itemId)).size !== itemAwards.length
     ) {
       throw new BadRequestException(
-        "Bir kalem birden fazla kazanana verilemez",
+        i18nMessage("api.companyListings.birKalemBirdenFazlaKazananaVerilemez"),
       );
     }
     const bidIds = [...new Set(itemAwards.map((a) => a.bidId))];
@@ -5132,6 +6437,8 @@ export class CompanyListingsService {
       where: { id: { in: bidIds }, listingId, status: "SUBMITTED" },
       select: {
         id: true,
+        // runItemAward kazanan guard'ı (runFullAward simetrisi, LU-15).
+        version: true,
         bidderCompanyId: true,
         currency: true,
         // X-CF-1: teklifin kur damgası — onay eşiği TRY çevriminde `award` ile
@@ -5147,6 +6454,10 @@ export class CompanyListingsService {
             currency: true,
             fxToBase: true,
             note: true,
+            // Muadil beyanı siparişe snapshot'lanır (arayüz testi O-003).
+            isAlternative: true,
+            offeredBrand: true,
+            offeredMpn: true,
           },
         },
       },
@@ -5159,18 +6470,19 @@ export class CompanyListingsService {
         // Madde 9: grup anahtarı firma+PARA BİRİMİ — çok-birimli tekliften
         // kazanan kalemler birim başına AYRI siparişe düşer (sipariş tek birim).
         bidderCompanyId: string;
-        orderItems: {
+        orderItems: ({
           name: string;
           // S8: order kalem precision — ham Prisma.Decimal (runFullAward
           // orderItems ile AYNI temsil; eskiden Number() → MAX_MONEY-ölçek
           // fiyatta fidelity farkı vardı).
           quantity: Prisma.Decimal;
           unit: string;
+          unitCode: string | null;
           unitPrice: Prisma.Decimal;
           deliveryDate: Date | null;
           deliveryTime: BidDeliveryTime | null;
           note: string | null;
-        }[];
+        } & OrderItemAlternativeSnapshot)[];
         amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7), KENDİ biriminde
         currency: Currency; // bu grubun (siparişin) birimi
         exchangeRateSnapshot: Prisma.Decimal | null; // birim→TRY damgası (X-CF-1)
@@ -5181,14 +6493,27 @@ export class CompanyListingsService {
     for (const a of itemAwards) {
       const bid = bidMap.get(a.bidId);
       const li = itemMap.get(a.itemId);
-      if (!bid || !li) throw new BadRequestException("Geçersiz kalem/teklif");
+      if (!bid || !li) throw new BadRequestException(i18nMessage("api.companyListings.gecersizKalemTeklif"));
       const bi = bid.items.find((x) => x.itemId === a.itemId);
       if (!bi) {
         throw new BadRequestException(
-          `Seçilen teklifin "${li.name}" kalemi için fiyatı yok`,
+          i18nMessage("api.companyListings.secilenTeklifinKalemiIcinFiyatiYok", { name: li.name }),
         );
       }
       const fullQty = Number(li.quantity);
+      if (
+        opts.strictQuantity &&
+        a.awardedQuantity != null &&
+        a.awardedQuantity > fullQty
+      ) {
+        throw new BadRequestException(
+          i18nMessage(
+            "api.companyListings.kazandirilacakMiktarKalemMiktariniAsamaz",
+            { name: li.name },
+            "AWARD_QUANTITY_EXCEEDS_ITEM",
+          ),
+        );
+      }
       const qty =
         a.awardedQuantity != null && a.awardedQuantity > 0
           ? Math.min(a.awardedQuantity, fullQty)
@@ -5232,6 +6557,8 @@ export class CompanyListingsService {
         name: li.name,
         quantity: new Prisma.Decimal(qty),
         unit: li.unit,
+        unitCode: li.unitCode ?? null,
+        ...orderItemAlternativeSnapshot(li, bi),
         unitPrice: bi.unitPrice,
         deliveryDate: bi.deliveryDate,
         // Kalem süresi yoksa teklifin genel süresi snapshot'lanır.
@@ -5245,7 +6572,8 @@ export class CompanyListingsService {
     // yuvarlanıp hesapla ıraksıyordu; tek kaynak `roundMoney` ile hizalanır
     // (denetim 2026-08-23).
     for (const g of groups.values()) g.amount = roundMoney(g.amount);
-    return { groups, itemQty };
+    const bidVersions = new Map(bids.map((b) => [b.id, b.version] as const));
+    return { groups, itemQty, bidVersions };
   }
 
   /**
@@ -5287,7 +6615,9 @@ export class CompanyListingsService {
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
     auctionSnap: unknown,
   ): Promise<Prisma.Decimal | null> {
-    const { groups } = await this.buildItemGroups(listingId, itemAwards);
+    const { groups } = await this.buildItemGroups(listingId, itemAwards, {
+      strictQuantity: true,
+    });
     let total = new Prisma.Decimal(0);
     for (const g of groups.values()) {
       const tv = this.toTryAmount(
@@ -5329,10 +6659,16 @@ export class CompanyListingsService {
         deliveryTerm: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
-    const { groups, itemQty } = await this.buildItemGroups(
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    const { groups, itemQty, bidVersions } = await this.buildItemGroups(
       listingId,
       itemAwards,
+    );
+    // Onay yolunda da geçerlilik + teklifçi durumu (MU-20) — buildItemGroups
+    // tekliflerin bu ilana ait + SUBMITTED olduğunu zaten doğruladı.
+    await this.assertWinningBidsAwardable(
+      listingId,
+      itemAwards.map((a) => a.bidId),
     );
     // Madde 9: grup = (firma, para birimi) — groupArr artık grup nesneleri
     // (bidderCompanyId grup içinde taşınır).
@@ -5411,7 +6747,7 @@ export class CompanyListingsService {
         data: { status: "AWARDED", awardedAt: new Date() },
       });
       if (transition.count !== 1) {
-        throw new BadRequestException("İlan zaten kazandırılmış");
+        throw new BadRequestException(i18nMessage("api.companyListings.ilanZatenKazandirilmis"));
       }
       // Tam kazanan → WON; fiyatladığından azını kazanan → AWARDED_PARTIAL.
       const fullWinners = winningBidIds.filter(
@@ -5426,24 +6762,26 @@ export class CompanyListingsService {
       // elenirse `where status:SUBMITTED` o satırı atlar → güncellenen kazanan
       // sayısı düşer → throw → tx ROLLBACK: aşağıdaki sipariş döngüsü (groupArr)
       // elenmiş teklife sipariş YAZMAZ (WON'suz sipariş sızıntısı kapanır).
+      // `version` koşulu (LU-15): grup fiyatları tx dışında okundu; bu
+      // pencerede yeniden gönderilen teklife bayat fiyatla sipariş yazılmaz.
       let awardedWinners = 0;
-      if (fullWinners.length > 0) {
+      for (const winnerId of winningBidIds) {
         const r = await tx.listingBid.updateMany({
-          where: { listingId, id: { in: fullWinners }, status: "SUBMITTED" },
-          data: { status: "WON" },
-        });
-        awardedWinners += r.count;
-      }
-      if (partialWinners.length > 0) {
-        const r = await tx.listingBid.updateMany({
-          where: { listingId, id: { in: partialWinners }, status: "SUBMITTED" },
-          data: { status: "AWARDED_PARTIAL" },
+          where: {
+            listingId,
+            id: winnerId,
+            status: "SUBMITTED",
+            version: bidVersions.get(winnerId) ?? -1,
+          },
+          data: {
+            status: partialWinners.includes(winnerId) ? "AWARDED_PARTIAL" : "WON",
+          },
         });
         awardedWinners += r.count;
       }
       if (awardedWinners !== winningBidIds.length) {
         throw new ConflictException(
-          "Kazanan tekliflerden biri artık geçerli değil (elenmiş veya çekilmiş) — kazandırma uygulanamadı",
+          i18nMessage("api.companyListings.kazananTekliflerdenBiriArtikGecerliDegil"),
         );
       }
       await tx.listingBid.updateMany({
@@ -5489,10 +6827,16 @@ export class CompanyListingsService {
                 name: it.name,
                 quantity: it.quantity,
                 unit: it.unit,
+                unitCode: it.unitCode,
                 unitPrice: it.unitPrice,
                 deliveryDate: it.deliveryDate,
                 deliveryTime: it.deliveryTime,
                 note: it.note,
+                requestedBrand: it.requestedBrand,
+                requestedMpn: it.requestedMpn,
+                isAlternative: it.isAlternative,
+                offeredBrand: it.offeredBrand,
+                offeredMpn: it.offeredMpn,
               })),
             },
           },
@@ -5542,6 +6886,13 @@ export class CompanyListingsService {
     try {
       // Kazanan her firmaya (teklifçi) bildirim — tek seferde topla (N+1 yerine).
       const itemWonPortal = this.bidderPortal(listing.type);
+      // Hangi talep kazanıldı (arayüz testi D-106) — toplu kazandırmayla aynı.
+      const itemAwardParams = (orderNumber: string | null): NotificationParams => ({
+        title: listingTitleParam(listingId, listing.title),
+        number: listing.number ?? "—",
+        orderNumbers: orderNumber ?? "",
+        count: 1,
+      });
       const recipients = await this.companyRecipients(
         [...new Set(groupArr.map((g) => g.bidderCompanyId))],
         itemWonPortal,
@@ -5554,14 +6905,15 @@ export class CompanyListingsService {
           this.notify(
             recipient,
             {
-              subject: "Tebrikler — teklifiniz kazandı",
-              heading: "Teklifiniz kazandı",
-              paragraphs: [
-                "Merhaba,",
-                `Bir satın alma talebinde teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
-              ],
-              ctaLabel: "Siparişi Gör",
-              ctaUrl: appRoutes.order(this.webUrl(), o.id),
+              subjectKey: "api.notifications.listings.awarded.subject",
+              headingKey: "api.notifications.listings.awarded.title",
+              // Kalem-bazlı kazandırmada tedarikçi başına TEK sipariş →
+              // kısa gövde (toplu kazandırmadaki "detayları takip edin"
+              // cümlesi burada hiç yoktu, biçim korunur).
+              bodyKey: "api.notifications.listings.awarded.bodyShort",
+              params: itemAwardParams(o.number),
+              ctaLabelKey: "api.notifications.listings.cta.viewOrder",
+              ctaUrl: (l) => appRoutes.order(this.webUrl(), o.id, l),
             },
             { type: "bid_awarded", id: o.id },
           );
@@ -5571,17 +6923,21 @@ export class CompanyListingsService {
           await this.notifications.pushToCompany(bidderCompanyId, {
             type: "bid_awarded",
             portal: itemWonPortal,
-            title: "Teklifiniz kazandı",
-            body: `Bir satın alma talebinde teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
-            ctaLabel: "Siparişi Gör",
-            ctaUrl: appRoutes.order(this.webUrl(), o.id),
+            titleKey: "api.notifications.listings.awarded.title",
+            bodyKey: "api.notifications.listings.awarded.bodyShort",
+            ctaLabelKey: "api.notifications.listings.cta.viewOrder",
+            params: itemAwardParams(o.number),
+            ctaPath: appRoutes.order(this.webUrl(), o.id),
           });
         }
       }
       // Kaybedenler (hiç kalem kazanamayan SUBMITTED teklifçiler) — runFullAward simetrisi.
       if (losingBidderIds.length > 0) {
         const lostUrl = appRoutes.listing(this.webUrl(), listingId);
-        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı.`;
+        const lostParams = {
+          title: listingTitleParam(listingId, listing.title),
+          number: listing.number ?? "—",
+        };
         const lostRecipients = await this.companyRecipients(losingBidderIds, itemWonPortal);
         for (const cid of losingBidderIds) {
           const r = lostRecipients.get(cid);
@@ -5589,11 +6945,12 @@ export class CompanyListingsService {
           this.notify(
             r,
             {
-              subject: "Satın Alma Talebi sonuçlandı",
-              heading: "Satın Alma Talebi sonuçlandı",
-              paragraphs: ["Merhaba,", `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`],
-              ctaLabel: "Satın Alma Talebini Gör",
-              ctaUrl: lostUrl,
+              subjectKey: "api.notifications.listings.lost.title",
+              headingKey: "api.notifications.listings.lost.title",
+              bodyKey: "api.notifications.listings.lost.emailBody",
+              params: lostParams,
+              ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+              ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
             },
             { type: "bid_lost", id: listingId },
           );
@@ -5601,10 +6958,11 @@ export class CompanyListingsService {
         await this.notifications.pushToCompanies(losingBidderIds, {
           type: "bid_lost",
           portal: itemWonPortal,
-          title: "Satın Alma Talebi sonuçlandı",
-          body: lostBody,
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: lostUrl,
+          titleKey: "api.notifications.listings.lost.title",
+          bodyKey: "api.notifications.listings.lost.body",
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          params: lostParams,
+          ctaPath: lostUrl,
           listingId,
         });
       }
@@ -5614,9 +6972,16 @@ export class CompanyListingsService {
         ...losingBidderIds,
       ]);
       this.seo?.listingChanged(listingId);
-      for (const o of created) {
-        this.realtime?.pingOrder(o.id, [listing.companyId]);
-      }
+      void this.translations?.enqueue("LISTING", listingId);
+      // Sipariş sinyali İKİ tarafa (runFullAward `awardParties` simetrisi):
+      // kazanan teklifçinin Siparişler listesi de anında tazelensin (LU-15).
+      created.forEach((o, i) => {
+        const bidderCompanyId = groupArr[i]?.bidderCompanyId;
+        this.realtime?.pingOrder(o.id, [
+          listing.companyId,
+          ...(bidderCompanyId ? [bidderCompanyId] : []),
+        ]);
+      });
     } catch (err) {
       this.logger.warn(
         `Kalem-bazlı kazandırma sonrası bildirim başarısız (${listingId}): ${
@@ -5649,6 +7014,19 @@ export class CompanyListingsService {
         }
       | null;
     if (!p) return;
+    // INV-KYC-1 uygulama anında da (arayüz testi O-013): kazandırma isteği
+    // açıldıktan sonra alıcının doğrulaması geri alındıysa sipariş doğmaz.
+    // Onay servisi son adımda aynı kontrolü açık mesajla yapar; bu ikinci hat
+    // (fail-closed: throw → onay geri alınır).
+    const owner = await this.bypass.listing.findUnique({
+      where: { id: payload.listingId },
+      select: { company: { select: { companyVerificationStatus: true } } },
+    });
+    if (owner?.company.companyVerificationStatus !== "VERIFIED") {
+      throw new ForbiddenException(
+        i18nMessage("api.companyApprovals.firmaDogrulamasiGecerliDegilOnayUygulanamaz", undefined, "COMPANY_NOT_VERIFIED"),
+      );
+    }
     // Onay-yolu: actorId = kazandırmayı BAŞLATAN (initiator), approverUserId =
     // son adımı onaylayan. E-posta event'te taşınmaz (opsiyonel).
     const actor: AwardActor = {
@@ -5703,7 +7081,7 @@ export class CompanyListingsService {
     listingId: string,
     dto: NextRoundDto,
   ) {
-    this.assertPaidForNewListingWork(user, "Yeni tur açmak");
+    this.assertPaidForNewListingWork(user, "newRound");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -5722,21 +7100,21 @@ export class CompanyListingsService {
         autoExtendByMinutes: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi yeni tur açabilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiYeniTurAcabilir"));
     }
     this.assertListingManageRole(user, listing);
     // Denetim 2026-08-23 P2 #5: CLOSED = YALNIZ admin moderasyon kapatması —
     // sahip yeni turla yeniden açamaz, kazandıramaz, eleyemez (tek çıkış admin reopen).
     if (listing.status === "CLOSED") {
       throw new BadRequestException(
-        "Bu ilan yönetici tarafından teklife kapatıldı — yeni tur açılamaz, destek ile iletişime geçin",
+        i18nMessage("api.companyListings.buIlanYoneticiTarafindanTeklifeKapatildi"),
       );
     }
     if (!["OPEN", "IN_AWARD", "CLOSED_NO_AWARD"].includes(listing.status)) {
       throw new BadRequestException(
-        "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
+        i18nMessage("api.companyListings.yeniTurYalnizcaAcikVeyaKapanmis"),
       );
     }
     const isAuction = dto.type === "ENGLISH_AUCTION";
@@ -5744,15 +7122,15 @@ export class CompanyListingsService {
     // "kendi öncekinden kesin iyi" + turda tek aktif gönderim.
     const closesAt = new Date(dto.closesAt);
     if (Number.isNaN(closesAt.getTime()) || closesAt.getTime() <= Date.now()) {
-      throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiGelecekteOlmali"));
     }
     // Üst sınır (create ile aynı): en fazla now + 2 yıl — auto-close kırılmasın.
     if (closesAt.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
-      throw new BadRequestException("Kapanış tarihi çok ileri (en fazla 2 yıl)");
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiCokIleriEnFazla"));
     }
     const bidsOpenAt = dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null;
     if (bidsOpenAt && bidsOpenAt.getTime() >= closesAt.getTime()) {
-      throw new BadRequestException("Açılış tarihi kapanıştan önce olmalı");
+      throw new BadRequestException(i18nMessage("api.companyListings.acilisTarihiKapanistanOnceOlmali"));
     }
 
     // Açık eksiltme kur damgası — izinli her birimin günün TCMB kuru (kuru
@@ -5776,16 +7154,32 @@ export class CompanyListingsService {
       include: { bidderCompany: { select: { name: true } } },
     });
     const bidderCompanyIds = [...new Set(bids.map((b) => b.bidderCompanyId))];
+    // Arayüz testi O-026: alıcının ELEDİĞİ teklif (eliminatedAt dolu — eleme
+    // ya da satıcının reddettiği sipariş) yeni tura TAŞINMAZ; eski turda LOST
+    // ve gerekçesiyle kalır, tedarikçi isterse yeni turda yeniden teklif verir.
+    // Taşınan küme yalnız SUBMITTED + kazansız kapanışta LOST'a çekilmiş
+    // (eliminatedAt boş) teklifler.
+    const carryable = bids.filter((b) => b.eliminatedAt == null);
     const priorWhere = {
       listingId,
       round: listing.currentRound,
       status: { in: ["SUBMITTED", "LOST"] as ListingBidStatus[] },
+      eliminatedAt: null,
     };
     // Madde 13 (2026-08-02): teklifler HER ZAMAN otomatik ve CANLI taşınır;
-    // pazarlığa geçildikten sonra geçerlilik SÜRESİZ olur (validityDays=null
+    // PAZARLIĞA geçildikten sonra geçerlilik SÜRESİZ olur (validityDays=null
     // zaten "süresiz" semantiği taşıyor — bidValidUntilMs null döner).
-    // Geçerlilik-farkında eleme/taslağa-düşürme KALDIRILDI: süresi dolmuş
-    // teklif de fiyatı korunarak canlı taşınır; sahibi turda güncelleyebilir.
+    // RFQ turunda (arayüz testi O-026) tedarikçinin verdiği geçerlilik KORUNUR:
+    // süresi devam eden teklif canlı taşınır; süresi dolmuş olan taslağa
+    // düşer (fiyat korunur) ve tedarikçiye "geçerliliği uzat ya da yeni fiyat
+    // ver" bildirimi gider — `extendBidValidity` taslağı aynı fiyatla canlandırır.
+    const nowMs = Date.now();
+    const isExpiredForRfq = (b: (typeof bids)[number]) => {
+      const until = bidValidUntilMs(b.submittedAt, b.validityDays);
+      return !isAuction && until != null && until <= nowMs;
+    };
+    const carriedLive = carryable.filter((b) => !isExpiredForRfq(b));
+    const carriedExpired = carryable.filter((b) => isExpiredForRfq(b));
 
     await runTenantTx(this.prisma, async (tx) => {
       const newRound = listing.currentRound + 1;
@@ -5836,7 +7230,7 @@ export class CompanyListingsService {
         },
       });
       if (transition.count !== 1) {
-        throw new ConflictException("İlan durumu değişti; yeni tur açılamadı");
+        throw new ConflictException(i18nMessage("api.companyListings.ilanDurumuDegistiYeniTurAcilamadi"));
       }
       if (bids.length > 0) {
         // Denetim 2026-08-28 Parça 12 #11: damga artık BİRİMİNİ ve açılış
@@ -5869,30 +7263,29 @@ export class CompanyListingsService {
       if (dto.carryBids === "AUTO") {
         // Primary-dışı birimdeki teklifler de CANLI taşınır: auction kıyasları
         // açılış günü kur damgasıyla birimler arası çevrilerek yapılıyor.
-        // Revive edilen teklifin bayat eleme damgası temizlenir. Madde 13:
-        // taşınan tekliflerin geçerliliği SÜRESİZE çekilir (validityDays=null)
-        // — pazarlık boyunca teklif "dolmaz", geçerlilik yeniden sorulmaz.
-        if (bids.length > 0) {
+        // Madde 13: PAZARLIKTA taşınan tekliflerin geçerliliği SÜRESİZE çekilir
+        // (validityDays=null) — pazarlık boyunca teklif "dolmaz". RFQ'da
+        // tedarikçinin geçerliliği korunur (O-026).
+        if (carriedLive.length > 0) {
           await tx.listingBid.updateMany({
-            where: { id: { in: bids.map((b) => b.id) } },
+            where: { id: { in: carriedLive.map((b) => b.id) } },
             data: {
               status: "SUBMITTED",
               round: newRound,
-              eliminationReason: null,
-              eliminatedAt: null,
-              validityDays: null,
+              ...(isAuction ? { validityDays: null } : {}),
             },
+          });
+        }
+        if (carriedExpired.length > 0) {
+          await tx.listingBid.updateMany({
+            where: { id: { in: carriedExpired.map((b) => b.id) } },
+            data: { status: "DRAFT", round: newRound },
           });
         }
       } else if (dto.carryBids === "LAZY") {
         await tx.listingBid.updateMany({
           where: priorWhere,
-          data: {
-            status: "DRAFT",
-            round: newRound,
-            eliminationReason: null,
-            eliminatedAt: null,
-          },
+          data: { status: "DRAFT", round: newRound },
         });
       } else {
         await tx.listingBid.updateMany({
@@ -5937,16 +7330,18 @@ export class CompanyListingsService {
     // AUTO taşımada teklif sahipleri HEMEN bilgilendirilir (embargolu açılışta
     // bile — açılıştan önce hazırlanma süresi): geçerli teklifi taşınanlara
     // "taşındı", süresi dolanlara "yeni fiyat ver ya da geçerliliği uzat".
-    if (dto.carryBids === "AUTO" && bids.length > 0) {
+    if (dto.carryBids === "AUTO" && carryable.length > 0) {
       void this.notifyNextRoundCarry(
         listingId,
-        bids.map((b) => ({
+        carriedLive.map((b) => ({
+          bidId: b.id,
           companyId: b.bidderCompanyId,
           amount: b.amount.toString(),
           currency: b.currency,
         })),
-        // Madde 13: geçerlilik süresize çekildiği için "dolmuş" küme yok.
-        [],
+        // Pazarlıkta geçerlilik süresize çekildiği için "dolmuş" küme boş;
+        // RFQ'da süresi dolup taslağa düşenler (O-026).
+        carriedExpired.map((b) => b.bidderCompanyId),
         bidsOpenAt,
       ).catch((err) =>
         this.logger.warn(
@@ -5968,7 +7363,7 @@ export class CompanyListingsService {
    */
   private async notifyNextRoundCarry(
     listingId: string,
-    carried: { companyId: string; amount: string; currency: string }[],
+    carried: { bidId: string; companyId: string; amount: string; currency: string }[],
     expiredCompanyIds: string[],
     opensAt: Date | null,
   ) {
@@ -5977,17 +7372,44 @@ export class CompanyListingsService {
       select: { id: true, title: true, number: true, type: true, format: true },
     });
     if (!listing) return;
-    const label = `"${listing.title}" (${listing.number ?? "—"})`;
+    // Çok dövizli teklif (kalem bazlı farklı birim — madde 9): `amount` teklifin
+    // ana birimindeki KARŞILIĞIDIR; tedarikçiye "X ₺ teklifiniz" demek verdiği
+    // fiyatı yanlış anlatır (arayüz testi D-006) → ayrı metin, "yaklaşık …
+    // karşılığı". Ayrı anahtar (ICU select değil): eski satırların parametresi
+    // yok, render kırılmasın.
+    const mixedBidIds = new Set<string>();
+    if (carried.length > 0) {
+      const currencyOf = new Map(carried.map((c) => [c.bidId, c.currency]));
+      const foreignItems = await this.prisma.listingBidItem.findMany({
+        where: {
+          bidId: { in: carried.map((c) => c.bidId) },
+          currency: { not: null },
+          ...PRICED_ITEM_WHERE,
+        },
+        select: { bidId: true, currency: true },
+      });
+      for (const it of foreignItems) {
+        if (it.currency && it.currency !== currencyOf.get(it.bidId)) {
+          mixedBidIds.add(it.bidId);
+        }
+      }
+    }
     const portal = this.bidderPortal(listing.type);
     const url = appRoutes.listing(this.webUrl(), listingId);
-    const roundName =
-      listing.format === "ENGLISH_AUCTION" ? "açık eksiltme turu" : "yeni tur";
-    const opensInFuture = opensAt != null && opensAt.getTime() > Date.now();
-    const opensText = opensInFuture
-      ? `Açılışa (${opensAt.toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}) kadar`
-      : "Devam etmek için";
+    // Tur adı ("açık eksiltme turu" ↔ "yeni tur") ve "Açılışa (…) kadar" ↔
+    // "Devam etmek için" cümlenin ORTASINDA duruyor: kodda birleştirilirse
+    // EN/RU'da sözcük sırası tutmaz. İkisi de katalogda ICU `select` ile.
+    // Açılış saati ve tutar TİPLİ: alıcının dilinde, İstanbul duvar saatiyle
+    // biçimlenir (eskiden "tr-TR" ve saat dilimsiz → UTC sunucuda 3 saat kayık).
+    const base: NotificationParams = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+      round: listing.format === "ENGLISH_AUCTION" ? "auction" : "standard",
+      opens:
+        opensAt != null && opensAt.getTime() > Date.now() ? "future" : "now",
+      openAt: opensAt ? dateParam(opensAt, "dateTime") : "",
+    };
 
-    const sym = (c: string) => (c === "TRY" ? "₺" : c);
     // Perf (N+1): tüm carried+expired bidder alıcıları TEK batch'te çözülür
     // (eski per-bidder companyRecipient yerine — 630/5373'teki doğru desen).
     const recipients = await this.companyRecipients(
@@ -5996,16 +7418,23 @@ export class CompanyListingsService {
     );
     for (const c of carried) {
       const recipient = recipients.get(c.companyId) ?? null;
-      const body = `${label} satın alma talebinde ${roundName} açıldı. ${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz.`;
+      const p: NotificationParams = {
+        ...base,
+        amount: moneyParam(c.amount, c.currency),
+      };
+      const bodyKey = mixedBidIds.has(c.bidId)
+        ? "api.notifications.listings.nextRoundCarried.bodyMixed"
+        : "api.notifications.listings.nextRoundCarried.body";
       if (recipient) {
         this.notify(
           recipient,
           {
-            subject: "Yeni tur açıldı — teklifiniz taşındı",
-            heading: "Teklifiniz yeni tura taşındı",
-            paragraphs: ["Merhaba,", body],
-            ctaLabel: "Satın Alma Talebini Gör",
-            ctaUrl: url,
+            subjectKey: "api.notifications.listings.nextRoundCarried.subject",
+            headingKey: "api.notifications.listings.nextRoundCarried.heading",
+            bodyKey,
+            params: p,
+            ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+            ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
           },
           { type: "listing_new_round", id: listingId },
         );
@@ -6013,25 +7442,26 @@ export class CompanyListingsService {
       await this.notifications.pushToCompany(c.companyId, {
         type: "listing_new_round",
         portal,
-        title: "Yeni tur — teklifiniz taşındı",
-        body,
-        ctaLabel: "Satın Alma Talebini Gör",
-        ctaUrl: url,
+        titleKey: "api.notifications.listings.nextRoundCarried.inAppTitle",
+        bodyKey,
+        ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+        params: p,
+        ctaPath: url,
         listingId,
       });
     }
     for (const companyId of expiredCompanyIds) {
       const recipient = recipients.get(companyId) ?? null;
-      const body = `${label} satın alma talebinde ${roundName} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. ${opensText} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın.`;
       if (recipient) {
         this.notify(
           recipient,
           {
-            subject: "Teklifinizin geçerlilik süresi doldu — işlem gerekli",
-            heading: "Teklifinizin geçerliliği doldu",
-            paragraphs: ["Merhaba,", body],
-            ctaLabel: "Satın Alma Talebini Gör",
-            ctaUrl: url,
+            subjectKey: "api.notifications.listings.nextRoundExpired.subject",
+            headingKey: "api.notifications.listings.nextRoundExpired.title",
+            bodyKey: "api.notifications.listings.nextRoundExpired.body",
+            params: base,
+            ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+            ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
           },
           { type: "listing_new_round", id: listingId },
         );
@@ -6039,10 +7469,11 @@ export class CompanyListingsService {
       await this.notifications.pushToCompany(companyId, {
         type: "listing_new_round",
         portal,
-        title: "Teklifinizin geçerliliği doldu",
-        body,
-        ctaLabel: "Satın Alma Talebini Gör",
-        ctaUrl: url,
+        titleKey: "api.notifications.listings.nextRoundExpired.title",
+        bodyKey: "api.notifications.listings.nextRoundExpired.body",
+        ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+        params: base,
+        ctaPath: url,
         listingId,
       });
     }
@@ -6060,19 +7491,27 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listingId: string,
     additionalDays: number,
+    expectedValidityDays?: number,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
         id: true,
+        companyId: true,
         type: true,
         number: true,
         status: true,
         closesAt: true,
+        bidsOpenAt: true,
         currentRound: true,
+        // Canlandırma erişim kapıları (`assertBidAccess`, arayüz testi O-071).
+        visibility: true,
+        isInternational: true,
+        targetCountries: true,
+        company: { select: { country: true, isActive: true, isBlocked: true } },
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     // Uzatma sonuçlanmamış her aşamada serbest — değerlendirme uzarken
     // (IN_AWARD*) teklifin dolmaması tam da bu akışın amacı. OPEN'da
     // kapanış saati geçmişse cron'u beklemeden reddedilir. CLOSED = yönetici
@@ -6081,7 +7520,7 @@ export class CompanyListingsService {
     const extendable = ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"];
     if (listing.status === "CLOSED") {
       throw new BadRequestException(
-        "Bu ilan yönetici tarafından teklife kapatıldı — geçerlilik süresi uzatılamaz",
+        i18nMessage("api.companyListings.buIlanYoneticiTarafindanTeklifeKapatildi2"),
       );
     }
     if (
@@ -6091,7 +7530,7 @@ export class CompanyListingsService {
         listing.closesAt.getTime() <= Date.now())
     ) {
       throw new BadRequestException(
-        "Satın Alma Talebi sonuçlandı — geçerlilik süresi uzatılamaz",
+        i18nMessage("api.companyListings.satinAlmaTalebiSonuclandiGecerlilikSuresi"),
       );
     }
     const bid = await this.prisma.listingBid.findUnique({
@@ -6110,55 +7549,93 @@ export class CompanyListingsService {
         validityDays: true,
       },
     });
-    if (!bid) throw new NotFoundException("Bu ilanda teklifiniz yok");
+    if (!bid) throw new NotFoundException(i18nMessage("api.companyListings.buIlandaTeklifinizYok"));
     // Teklif-yanı op-rol kapısı — placeBid ile AYNI (Faz R: SAHIP muafiyeti
     // yok; Kurucu ihalede salt-gözlemcidir). Uzatma bağlayıcı taahhüdü
     // sürdürür, DRAFT-canlandırma fiilen yeniden gönderimdir.
     if (!hasCompanyPermission(user, bidderPermission(listing.type))) {
       throw new ForbiddenException(
-        "Teklif geçerliliğini uzatmak için 'Teklif verme' yetkisi gerekir",
+        i18nMessage("api.companyListings.teklifGecerliliginiUzatmakIcinTeklifVerme"),
       );
     }
     if (bid.status !== "SUBMITTED" && bid.status !== "DRAFT") {
       throw new BadRequestException(
-        "Bu teklifin geçerlilik süresi uzatılamaz",
+        i18nMessage("api.companyListings.buTeklifinGecerlilikSuresiUzatilamaz"),
       );
     }
     // Hiç gönderilmemiş (ham) taslak uzatılamaz — uzatma yalnız daha önce
     // GÖNDERİLMİŞ bir fiyatın süresini yeniler; yeni fiyat = teklif-ver akışı.
     if (!bid.submittedAt || !bid.validityDays || bid.amount.lte(0)) {
       throw new BadRequestException(
-        "Uzatılacak gönderilmiş bir teklif yok — teklif verme ekranını kullanın",
+        i18nMessage("api.companyListings.uzatilacakGonderilmisBirTeklifYokTeklif"),
       );
     }
     // Taslağa düşmüş teklif yalnız GÜNCEL turda canlandırılabilir (taşınan
     // teklif); eski tur artığı için yeni teklif verilmeli.
     if (bid.status === "DRAFT" && bid.round !== listing.currentRound) {
       throw new BadRequestException(
-        "Bu teklif güncel tura ait değil — lütfen yeni teklif verin",
+        i18nMessage("api.companyListings.buTeklifGuncelTuraAitDegil"),
+      );
+    }
+    // İstemci uzatmayı hangi süreye göre istediyse o süre hâlâ geçerli olmalı:
+    // yeniden deneme ya da ikinci sekme aynı uzatmayı bir daha eklemesin
+    // (arayüz testi FX-00 yeniden doğrulama — ardışık iki çağrı 7→14→21).
+    if (expectedValidityDays != null && expectedValidityDays !== bid.validityDays) {
+      throw new ConflictException(
+        i18nMessage("api.companyListings.teklifGecerliligiAzOnceUzatildi", undefined, "BID_VALIDITY_CHANGED"),
       );
     }
     const newValidityDays = bid.validityDays + additionalDays;
     const validUntilMs = bidValidUntilMs(bid.submittedAt, newValidityDays);
     if (validUntilMs == null || validUntilMs <= Date.now()) {
       throw new BadRequestException(
-        "Uzatma yetersiz — teklifin son geçerlilik günü hâlâ geçmişte kalıyor, daha uzun bir süre girin",
+        i18nMessage("api.companyListings.uzatmaYetersizTeklifinSonGecerlilikGunu"),
       );
     }
     const validUntil = new Date(validUntilMs);
     const revived = bid.status === "DRAFT";
-    // Denetim 2026-08-23 P2 #2: canlandırma = yeniden GÖNDERİM; en azından KYC
-    // kapısı placeBid ile aynı (içerik kapıları: placeBid taslak güncellemesi
-    // artık submittedAt'ı sıfırlar → yalnız taşınan, içeriği değişmemiş taslak
-    // buraya gelebilir).
-    if (revived) this.assertVerified(user, "teklif veremezsiniz");
-    await this.prisma.listingBid.update({
-      where: { id: bid.id },
+    // Canlandırma fiilen yeniden GÖNDERİMDİR → placeBid'in zaman kapıları
+    // (derin denetim LU-15): yalnız teklif alımı açıkken (OPEN, kapanış
+    // gelecekte — yukarıda) ve açılış embargosu bittiyse. Aksi hâlde LAZY
+    // taşınan taslak, kapanıştan sonra (IN_AWARD) ya da embargoda "geç
+    // teklif" olarak canlanıyordu. Salt SUBMITTED uzatması değerlendirmede
+    // serbest kalır.
+    if (revived) {
+      if (listing.status !== "OPEN") {
+        throw new BadRequestException(i18nMessage("api.companyListings.ilanTeklifeKapali"));
+      }
+      if (listing.bidsOpenAt && Date.now() < listing.bidsOpenAt.getTime()) {
+        throw new BadRequestException(
+          i18nMessage("api.companyListings.teklifVermeHenuzBaslamadiAcilisSaatini"),
+        );
+      }
+    }
+    // Denetim 2026-08-23 P2 #2: canlandırma = yeniden GÖNDERİM → placeBid'in
+    // ERİŞİM kapıları (engel, görünürlük, ülke, paket/bağlantı/davet — arayüz
+    // testi O-071: bağlantısı düşen STANDART ya da engellenen tedarikçi
+    // taslağını canlandıramaz) ve AYNI KYC kuralı (O-072: davetli/bağlantılı
+    // muaf, yabancı VERIFIED). İçerik kapıları: placeBid taslak güncellemesi
+    // submittedAt'ı sıfırlar → yalnız taşınan, içeriği değişmemiş taslak
+    // buraya gelebilir.
+    if (revived) {
+      const reach = await this.assertBidAccess(user, listing);
+      this.assertBidVerified(user, reach);
+    }
+    // KOŞULLU yazım (arayüz testi FX-00 D-272): okunan süre ve durum hâlâ
+    // aynıysa uzatılır. Eşzamanlı ikinci "Geçerliliği Uzat" isteği eskiden
+    // süreyi ikinci kez ekliyordu; artık 409 alır, süre bir kez uzar.
+    const { count } = await this.prisma.listingBid.updateMany({
+      where: { id: bid.id, validityDays: bid.validityDays, status: bid.status },
       data: {
         validityDays: newValidityDays,
         ...(revived ? { status: "SUBMITTED" } : {}),
       },
     });
+    if (count !== 1) {
+      throw new ConflictException(
+        i18nMessage("api.companyListings.teklifGecerliligiAzOnceUzatildi", undefined, "BID_VALIDITY_CHANGED"),
+      );
+    }
     // INV-AUDIT-1: bağlayıcı teklifin ömrünü uzatan ticari işlem iz bırakır;
     // canlandırma SUBMITTED durum geçişidir → critical.
     await this.audit.log({
@@ -6181,6 +7658,7 @@ export class CompanyListingsService {
     });
     this.realtime?.pingListing(listingId);
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     return {
       ok: true,
       validityDays: newValidityDays,
@@ -6194,12 +7672,34 @@ export class CompanyListingsService {
    * İngiliz Usulü + OPEN + kapanışa <2 dk kala eklenemez (eski sistemle aynı).
    * OPEN ilanda yeni davetlilere anında davet e-postası gider.
    */
+  /**
+   * Son saniye koruması: açık İngiliz usulü eksiltmeye kapanışa 2 dakikadan az
+   * kala yeni davetli eklenemez. Davet ekleyen HER yol (elle davet, AI üye
+   * daveti) bu tek kapıdan geçer (derin denetim LU-16).
+   */
+  private assertInviteWindowOpen(listing: {
+    format: string | null;
+    status: string;
+    closesAt: Date | null;
+  }) {
+    if (
+      listing.format === "ENGLISH_AUCTION" &&
+      listing.status === "OPEN" &&
+      listing.closesAt &&
+      listing.closesAt.getTime() - Date.now() < 2 * 60_000
+    ) {
+      throw new BadRequestException(
+        i18nMessage("api.companyListings.kapanisa2DakikadanAzKalaPazarlik"),
+      );
+    }
+  }
+
   async addInvitations(
     user: AuthenticatedCompanyUser,
     listingId: string,
     rothernIds: string[],
   ) {
-    this.assertPaidForNewListingWork(user, "Satın Alma Talebine yeni tedarikçi davet etmek");
+    this.assertPaidForNewListingWork(user, "inviteSupplier");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -6211,28 +7711,21 @@ export class CompanyListingsService {
         bidsOpenAt: true,
         type: true,
         createdById: true,
+        title: true,
+        number: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi davet ekleyebilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiDavetEkleyebilir"));
     }
     this.assertListingManageRole(user, listing);
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
-      throw new BadRequestException("Bu ilana artık davet eklenemez");
+      throw new BadRequestException(i18nMessage("api.companyListings.buIlanaArtikDavetEklenemez"));
     }
-    if (
-      listing.format === "ENGLISH_AUCTION" &&
-      listing.status === "OPEN" &&
-      listing.closesAt &&
-      listing.closesAt.getTime() - Date.now() < 2 * 60_000
-    ) {
-      throw new BadRequestException(
-        "Kapanışa 2 dakikadan az kala pazarlık satın alma talebine tedarikçi eklenemez",
-      );
-    }
+    this.assertInviteWindowOpen(listing);
 
-    const connectedIds = await this.connectedCompanyIds(user.companyId);
+    const connected = new Set(await this.connectedCompanyIds(user.companyId));
     const codes = (rothernIds ?? [])
       .map((c) => normalizeShortCode(c))
       .filter((c) => validateShortCode(c));
@@ -6240,9 +7733,10 @@ export class CompanyListingsService {
       where: { rothernId: { in: codes } },
       select: { id: true },
     });
-    const wanted = targets
-      .map((t) => t.id)
-      .filter((id) => id !== user.companyId && connectedIds.includes(id));
+    const wanted = connectedInvitees(
+      targets.map((t) => t.id),
+      { selfCompanyId: user.companyId, connected },
+    );
 
     const existing = await this.prisma.listingInvitation.findMany({
       where: { listingId, invitedCompanyId: { in: wanted } },
@@ -6266,43 +7760,553 @@ export class CompanyListingsService {
       const embargoed =
         listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now();
       if (listing.status === "OPEN" && !embargoed) {
-        const title = await this.prisma.listing.findUnique({
-          where: { id: listingId },
-          select: { title: true, number: true },
-        });
-        const url = appRoutes.listing(this.webUrl(), listingId);
-        const addPortal = this.bidderPortal(listing.type);
-        const addRecipients = await this.companyRecipients(toAdd, addPortal);
-        for (const cid of toAdd) {
-          const r = addRecipients.get(cid);
-          if (!r) continue;
-          this.notify(
-            r,
-            {
-              subject: "Bir satın alma talebine davet edildiniz",
-              heading: "Satın Alma Talebi daveti",
-              paragraphs: [
-                "Merhaba,",
-                `"${title?.title ?? "Satın Alma Talebi"}" (${title?.number ?? "—"}) satın alma talebine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
-              ],
-              ctaLabel: "Satın Alma Talebini Gör",
-              ctaUrl: url,
-            },
-            { type: "listing_invitation", id: listingId },
-          );
-        }
-        await this.notifications.pushToCompanies(toAdd, {
-          type: "listing_invitation",
-          portal: addPortal,
-          title: "Satın Alma Talebi daveti",
-          body: `"${title?.title ?? "Satın Alma Talebi"}" (${title?.number ?? "—"}) satın alma talebine davet edildiniz.`,
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: url,
-          listingId,
-        });
+        await this.notifyAddedInvitees(listing, toAdd);
       }
     }
     return { added: toAdd.length, skipped: wanted.length - toAdd.length };
+  }
+
+  /**
+   * Davet bildirimi HAKKI — `notifiedAt` koşullu damgalanır, yalnız damgayı
+   * alan davetlilerin firma kimlikleri döner (arayüz testi FX-00 D-177). Açılış
+   * duyurusu, sonradan eklenen davetli bildirimi ve AI üye daveti aynı hakkı
+   * paylaşır → eşzamanlı yollar aynı firmaya iki davet e-postası atmaz.
+   * BYPASS: açılış cron'dan da gelir (tenant bağlamı yok).
+   */
+  private async claimInvitationNotices(listingId: string, companyIds: string[]): Promise<string[]> {
+    if (companyIds.length === 0) return [];
+    const rows = await this.bypass.$queryRaw<{ invitedCompanyId: string }[]>`
+      UPDATE listing_invitations
+         SET "notifiedAt" = now()
+       WHERE "listingId" = ${listingId}
+         AND "invitedCompanyId" = ANY(${companyIds}::text[])
+         AND "notifiedAt" IS NULL
+      RETURNING "invitedCompanyId"`;
+    const claimed = new Set(rows.map((r) => r.invitedCompanyId));
+    // Girdi sırası korunur (bildirim sırası deterministik kalsın).
+    return companyIds.filter((id) => claimed.has(id));
+  }
+
+  /**
+   * Yayındaki (OPEN, embargosuz) talebe SONRADAN eklenen davetlilere davet
+   * e-postası + zil. Tek kaynak: `addInvitations` ve `updateListing` (düzenleme
+   * ekranında eklenen davetli — açılış duyurusu çoktan yapıldığı için
+   * `announceListingOpen` claim'i alamaz; derin denetim MU-20).
+   */
+  private async notifyAddedInvitees(
+    listing: { id: string; title: string; number: string | null; type: ListingType },
+    companyIds: string[],
+  ): Promise<void> {
+    // Davet başına tek bildirim (arayüz testi FX-00 D-177): açılış duyurusu
+    // ile yarışan elle davet aynı firmaya iki e-posta atıyordu — yalnız
+    // damgayı alan davetliler bildirilir.
+    companyIds = await this.claimInvitationNotices(listing.id, companyIds);
+    if (companyIds.length === 0) return;
+    const listingId = listing.id;
+    const url = appRoutes.listing(this.webUrl(), listingId);
+    const addPortal = this.bidderPortal(listing.type);
+    const addRecipients = await this.companyRecipients(companyIds, addPortal);
+    // Aynı cümle `notifyListingInvitees`in "invitation" modunda da
+    // kullanılır — anahtarlar ortak, iki yüzey ayrışmaz.
+    const p = {
+      title: listingTitleParam(listingId, listing.title),
+      number: listing.number ?? "—",
+    };
+    for (const cid of companyIds) {
+      const r = addRecipients.get(cid);
+      if (!r) continue;
+      this.notify(
+        r,
+        {
+          subjectKey: "api.notifications.listings.invitation.subject",
+          headingKey: "api.notifications.listings.invitation.title",
+          bodyKey: "api.notifications.listings.invitation.body",
+          params: p,
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
+        },
+        { type: "listing_invitation", id: listingId },
+      );
+    }
+    await this.notifications.pushToCompanies(companyIds, {
+      type: "listing_invitation",
+      portal: addPortal,
+      titleKey: "api.notifications.listings.invitation.title",
+      bodyKey: "api.notifications.listings.invitation.inAppBody",
+      ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+      params: p,
+      ctaPath: url,
+      listingId,
+    });
+  }
+
+  /**
+   * AI KEŞFİNİN ÖNERDİĞİ ÜYEYİ TALEBE DOĞRUDAN DAVET (2026-09-28, kullanıcı
+   * kararı: "sistemimize kayıtlıysa ayrıca gösterelim — kategori ya da kalem
+   * eşleşmesi var diye; en üstte seçili olsun, doğrudan davet edelim").
+   *
+   * Elle davetten (`addInvitations`, yalnız BAĞLANTILI firma) farkı: bağlantı
+   * şartı YOK. Yerine frenler:
+   *  - firma aktif, askıda değil, iki yönlü engel yok, talebin görünürlük
+   *    ülkesine uyuyor (davet edilse talebi göremezdi);
+   *  - alıcı başına günlük tavan dış davetlerle ORTAK (`COMPANY_DAILY_INVITE_CAP`);
+   *  - üyeye günde 3 AI kaynaklı davet e-postası anında, fazlası akşam özeti.
+   * Gerekçe SUNUCUDA hesaplanır (vitrinde kalemi satıyor / kategori eşleşiyor)
+   * ve davete yazılır; e-posta "vitrininizdeki X ürünü nedeniyle" der.
+   * Davetli firma ücretsiz paketteyse de talebi görür ve teklif verir.
+   */
+  async inviteDiscoveredMembers(user: AuthenticatedCompanyUser, listingId: string, companyIdsRaw: string[]) {
+    this.assertPaidForNewListingWork(user, "inviteSupplier");
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        format: true,
+        closesAt: true,
+        bidsOpenAt: true,
+        type: true,
+        createdById: true,
+        title: true,
+        number: true,
+        targetCountries: true,
+        categoryIds: true,
+        inviteShowName: true,
+        items: { select: { name: true }, orderBy: { lineNo: "asc" }, take: 15 },
+      },
+    });
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiDavetEkleyebilir"));
+    }
+    this.assertListingManageRole(user, listing);
+    if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
+      throw new BadRequestException(i18nMessage("api.companyListings.buIlanaArtikDavetEklenemez"));
+    }
+    this.assertInviteWindowOpen(listing);
+
+    const ids = [...new Set(companyIdsRaw)].filter((id) => id && id !== user.companyId).slice(0, COMPANY_DAILY_INVITE_CAP);
+    const dayStart = utcDayStart(new Date());
+    const [blockedList, companies, existing, externalToday, memberToday, conns] = await Promise.all([
+      this.blocks.blockedCompanyIds(user.companyId),
+      this.bypass.company.findMany({
+        where: { id: { in: ids }, isActive: true, isBlocked: false },
+        select: {
+          id: true,
+          country: true,
+          sellerCategoryIds: true,
+          sellerSubCategoryIds: true,
+          ...AI_RECOMMENDABLE_SELECT,
+        },
+      }),
+      this.bypass.listingInvitation.findMany({
+        where: { listingId, invitedCompanyId: { in: ids } },
+        select: { invitedCompanyId: true },
+      }),
+      this.bypass.externalListingInvite.count({ where: { inviterCompanyId: user.companyId, createdAt: { gte: dayStart } } }),
+      this.bypass.listingInvitation.count({
+        where: { origin: "AI", listing: { companyId: user.companyId }, createdAt: { gte: dayStart } },
+      }),
+      this.bypass.companyConnection.findMany({
+        where: {
+          status: "ACTIVE",
+          OR: [
+            { inviterCompanyId: user.companyId, inviteeCompanyId: { in: ids } },
+            { inviteeCompanyId: user.companyId, inviterCompanyId: { in: ids } },
+          ],
+        },
+        select: {
+          inviterCompanyId: true,
+          inviteeCompanyId: true,
+          origin: true,
+          inviter: { select: { tier: true, membershipEndAt: true } },
+        },
+      }),
+    ]);
+    const blocked = new Set(blockedList);
+    // Bağlantısız üye yalnız SILVER+ ∧ doğrulanmışsa (`ai-recommendable.ts`).
+    const connected = new Set(
+      conns
+        .filter((c) => isConnectionValid(c))
+        .map((c) => (c.inviterCompanyId === user.companyId ? c.inviteeCompanyId : c.inviterCompanyId)),
+    );
+    const byId = new Map(companies.map((c) => [c.id, c]));
+    const already = new Set(existing.map((e) => e.invitedCompanyId));
+    let budget = COMPANY_DAILY_INVITE_CAP - externalToday - memberToday;
+
+    type Status = "INVITED" | "ALREADY_INVITED" | "DAILY_LIMIT" | "NOT_ELIGIBLE";
+    const results: Array<{ companyId: string; status: Status }> = [];
+    const toAdd: string[] = [];
+    for (const id of ids) {
+      const c = byId.get(id);
+      if (already.has(id)) results.push({ companyId: id, status: "ALREADY_INVITED" });
+      else if (
+        !c ||
+        blocked.has(id) ||
+        !countryCanSee(listing.targetCountries, c.country) ||
+        !(connected.has(id) || isAiRecommendable(c))
+      ) {
+        results.push({ companyId: id, status: "NOT_ELIGIBLE" });
+      } else if (budget <= 0) results.push({ companyId: id, status: "DAILY_LIMIT" });
+      else {
+        toAdd.push(id);
+        budget--;
+        results.push({ companyId: id, status: "INVITED" });
+      }
+    }
+    if (toAdd.length === 0) return { results };
+
+    // Gerekçe: vitrinde kalemi satan ürünün adı; yoksa kategori eşleşmesi.
+    const productOf = new Map<string, string>();
+    for (const it of listing.items) {
+      const clauses = productSearchClauses(it.name, { includeCompanyName: false });
+      if (clauses.length === 0) continue;
+      const rows = await this.bypass.companyItem.findMany({
+        where: { AND: [{ companyId: { in: toAdd } }, publicProductWhere(), ...clauses] },
+        select: { companyId: true, name: true },
+        take: 50,
+      });
+      for (const r of rows) if (!productOf.has(r.companyId)) productOf.set(r.companyId, r.name);
+    }
+    const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(listing.categoryIds);
+    const seg = new Set(segmentIds);
+    const sub = new Set(subCandidates);
+    const reasonOf = (id: string): { productName?: string; category?: boolean } => {
+      const product = productOf.get(id);
+      if (product) return { productName: product };
+      const c = byId.get(id)!;
+      return c.sellerSubCategoryIds.some((x) => sub.has(x)) || c.sellerCategoryIds.some((x) => seg.has(x))
+        ? { category: true }
+        : {};
+    };
+
+    await this.bypass.listingInvitation.createMany({
+      data: toAdd.map((cid) => ({
+        listingId,
+        invitedCompanyId: cid,
+        invitedById: user.userId,
+        origin: "AI",
+        aiReason: reasonOf(cid),
+      })),
+      skipDuplicates: true,
+    });
+    void this.audit.log({
+      action: "company.listing.ai_member_invited",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listingId,
+      metadata: { invited: toAdd.length },
+    });
+
+    // OPEN ve embargo yoksa bildirim (arka planda; önizleme çevirisi beklenir).
+    // Embargoluda açılış duyurusu davetlilerin hepsine gider.
+    const embargoed = listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now();
+    if (listing.status === "OPEN" && !embargoed) {
+      void this.notifyAiMemberInvites(listing, toAdd, reasonOf, new Map(companies.map((c) => [c.id, c.country]))).catch(
+        (err) => this.logger.warn(`AI member invite notify failed (${listingId}): ${err instanceof Error ? err.message : String(err)}`),
+      );
+    }
+    return { results };
+  }
+
+  private async notifyAiMemberInvites(
+    listing: { id: string; title: string; number: string | null; type: ListingType; companyId: string; inviteShowName: boolean },
+    companyIds: string[],
+    reasonOf: (id: string) => { productName?: string; category?: boolean },
+    countryOf: Map<string, string | null>,
+  ): Promise<void> {
+    // Davet başına tek bildirim (FX-00 D-177): açılış duyurusu bu davetliyi
+    // zaten duyurduysa ikinci kez gönderilmez.
+    companyIds = await this.claimInvitationNotices(listing.id, companyIds);
+    if (companyIds.length === 0) return;
+    const portal = this.bidderPortal(listing.type);
+    const recipients = await this.companyRecipients(companyIds, portal);
+    const emails = [...recipients.values()].map((r) => r.email);
+    const [owner, preview, recent, sameListing] = await Promise.all([
+      this.bypass.company.findUnique({ where: { id: listing.companyId }, select: { name: true } }),
+      this.listingPreviewFor(listing.id, [...recipients.values()].map((r) => r.locale)).catch(
+        () => new Map<Locale, PreviewRow[]>(),
+      ),
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: [...recipients.values()].map((r) => r.email) },
+          contextType: "listing_invitation_ai",
+          status: { not: "FAILED" },
+          queuedAt: { gte: new Date(Date.now() - 36 * 3_600_000) },
+        },
+        select: { toEmail: true, queuedAt: true },
+      }),
+      // Bu talep için zaten e-posta almış adres (kategori duyurusu / davet)
+      // ikinci kez almaz — yalnız davetli olur ve uygulama içi bildirim görür.
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: emails },
+          contextId: listing.id,
+          contextType: { in: ["listing_category_match", "listing_invitation", "listing_invitation_ai"] },
+          status: { not: "FAILED" },
+        },
+        select: { toEmail: true },
+      }),
+    ]);
+    const alreadyMailed = new Set(sameListing.map((r) => r.toEmail));
+    const now = new Date();
+    const sentInCall = new Map<string, number>();
+    const p = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+      inviter: owner?.name ?? "",
+    };
+    for (const cid of companyIds) {
+      const to = recipients.get(cid);
+      if (!to || !isNotificationEnabled(to.prefs, "listing_invitation_ai")) continue;
+      if (alreadyMailed.has(to.email)) continue;
+      // Akşam özetinde bekleyen kategori eşleşmesi davete dönüşür (tek satır).
+      await this.bypass.emailDigestItem
+        .deleteMany({ where: { email: to.email, kind: "CATEGORY_MATCH", listingId: listing.id, sentAt: null } })
+        .catch(() => undefined);
+      const dayStart = localDayStart(now, timeZoneForCountry(countryOf.get(cid)));
+      const sentToday =
+        recent.filter((r) => r.toEmail === to.email && r.queuedAt >= dayStart).length + (sentInCall.get(to.email) ?? 0);
+      if (!categoryMatchInstantAllowed({ sentTodayLocal: sentToday, allInstant: to.prefs?.categoryMatchInstant === true })) {
+        await this.bypass.emailDigestItem
+          .upsert({
+            where: { email_kind_listingId: { email: to.email, kind: "INVITATION", listingId: listing.id } },
+            create: { email: to.email, locale: to.locale, companyId: cid, kind: "INVITATION", listingId: listing.id },
+            update: {},
+          })
+          .catch(() => undefined);
+        continue;
+      }
+      sentInCall.set(to.email, (sentInCall.get(to.email) ?? 0) + 1);
+      const reason = reasonOf(cid);
+      this.notify(
+        to,
+        {
+          subjectKey:
+            listing.inviteShowName && owner?.name
+              ? "api.notifications.listings.aiInvitation.subject"
+              : "api.notifications.listings.aiInvitation.subjectAnon",
+          headingKey: "api.notifications.listings.invitation.title",
+          bodyKey: reason.productName
+            ? "api.notifications.listings.aiInvitation.bodyProduct"
+            : reason.category
+              ? "api.notifications.listings.aiInvitation.bodyCategory"
+              : "api.notifications.listings.aiInvitation.body",
+          params: { ...p, product: reason.productName ?? "" },
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
+          infoRowsFor: (l) => preview.get(l),
+          footerNoteKey: "api.notifications.listings.aiInvitation.footer",
+        },
+        { type: "listing_invitation_ai", id: listing.id },
+      );
+    }
+    await this.notifications.pushToCompanies(companyIds, {
+      type: "listing_invitation",
+      portal,
+      titleKey: "api.notifications.listings.invitation.title",
+      bodyKey: "api.notifications.listings.invitation.inAppBody",
+      ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+      params: { title: p.title, number: p.number },
+      ctaPath: appRoutes.listing(this.webUrl(), listing.id),
+      listingId: listing.id,
+    });
+  }
+
+  /**
+   * AI'IN BULDUĞU AMA ALICIYA GÖSTERİLMEYEN ÜCRETSİZ FİRMALARA SILVER /
+   * DOĞRULAMA ÇAĞRISI (2026-09-28, kullanıcı: "ücretsiz firma alıcı talep
+   * açarken görünmesin; ama AI ile bulunduğunda oradan Silver'a veya
+   * doğrulamaya yönlendirelim").
+   *
+   * Yalnız HERKESE AÇIK ∧ açık ∧ embargosuz talepte: Silver'a geçen firma talebi
+   * görür (özel/bağlantılara açık talepte göremezdi — yanıltıcı olurdu). Davetli,
+   * bu talep için zaten e-posta almış (kategori duyurusu/davet) ya da akşam
+   * özetinde bekleyen adres atlanır. Alıcının kimliği yazılmaz (herkese açık
+   * talep anonim); kalem önizlemesi alıcının dilinde. Doğrulanmamış firmaya
+   * önce ücretsiz doğrulama (paket alımının tek şartı), doğrulanmış/incelemede
+   * olana Silver. Kategori eşleşmesiyle AYNI günlük sınır (yerel günde 3,
+   * fazlası kilitli özet satırı).
+   */
+  async notifyHiddenAiMatches(listingId: string, companyIdsRaw: string[]): Promise<number> {
+    const ids = [...new Set(companyIdsRaw)];
+    if (ids.length === 0) return 0;
+    const listing = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        title: true,
+        number: true,
+        type: true,
+        status: true,
+        visibility: true,
+        publishedAt: true,
+        bidsOpenAt: true,
+        targetCountries: true,
+      },
+    });
+    const now = new Date();
+    if (
+      !listing ||
+      listing.visibility !== "PUBLIC" ||
+      listing.status !== "OPEN" ||
+      !listing.publishedAt ||
+      (listing.bidsOpenAt && listing.bidsOpenAt.getTime() > now.getTime())
+    ) {
+      return 0;
+    }
+    const [invited, blockedList, companies, connected] = await Promise.all([
+      this.bypass.listingInvitation.findMany({ where: { listingId, invitedCompanyId: { in: ids } }, select: { invitedCompanyId: true } }),
+      this.blocks.blockedCompanyIds(listing.companyId),
+      this.bypass.company.findMany({
+        where: { id: { in: ids }, isActive: true, isBlocked: false },
+        select: { id: true, country: true, ...AI_RECOMMENDABLE_SELECT },
+      }),
+      this.connectedCompanyIds(listing.companyId),
+    ]);
+    const skip = new Set([...invited.map((i) => i.invitedCompanyId), ...blockedList, ...connected, listing.companyId]);
+    // Yeniden denetim: yalnız alıcıya gösterilmeyen (ücretsiz/doğrulanmamış) firmalar.
+    const targets = companies.filter(
+      (c) => !skip.has(c.id) && !isAiRecommendable(c) && countryCanSee(listing.targetCountries, c.country),
+    );
+    if (targets.length === 0) return 0;
+    const portal = this.bidderPortal(listing.type);
+    const recipients = await this.companyRecipients(targets.map((c) => c.id), portal);
+    const emails = [...recipients.values()].map((r) => r.email);
+    const [mailed, pending, recent, preview] = await Promise.all([
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: emails },
+          contextId: listing.id,
+          contextType: { in: ["listing_category_match", "listing_invitation", "listing_invitation_ai", AI_MATCH_LOCKED_CONTEXT] },
+          status: { not: "FAILED" },
+        },
+        select: { toEmail: true },
+      }),
+      this.bypass.emailDigestItem.findMany({
+        where: { email: { in: emails }, listingId: listing.id },
+        select: { email: true },
+      }),
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: emails },
+          contextType: { in: ["listing_category_match", AI_MATCH_LOCKED_CONTEXT] },
+          status: { not: "FAILED" },
+          queuedAt: { gte: new Date(now.getTime() - 36 * 3_600_000) },
+        },
+        select: { toEmail: true, queuedAt: true },
+      }),
+      this.listingPreviewFor(listing.id, [...recipients.values()].map((r) => r.locale)).catch(
+        () => new Map<Locale, PreviewRow[]>(),
+      ),
+    ]);
+    const already = new Set([...mailed.map((m) => m.toEmail), ...pending.map((p) => p.email)]);
+    const p = { title: listingTitleParam(listing.id, listing.title), number: listing.number ?? "—" };
+    const pricingUrl = `${this.webUrl()}/company/premium`;
+    const verifyUrl = `${this.webUrl()}/company/ayarlar/dogrulama`;
+    const K = "api.notifications.listings.aiMatchLocked" as const;
+    const sentInCall = new Map<string, number>();
+    // Metin/CTA firmanın NEDEN önerilmediğine göre (arayüz testi O-056):
+    // paketli firma talebi zaten görür — ona paket değil doğrulama anlatılır,
+    // CTA talebin kendisi (incelemede) ya da doğrulama sayfası.
+    const listingUrl = (l?: Locale) => appRoutes.listing(this.webUrl(), listing.id, l);
+    const variants = {
+      verify: {
+        bodyKey: `${K}.bodyVerify`,
+        inAppBodyKey: `${K}.inAppBodyVerify`,
+        ctaLabelKey: "api.notifications.listings.cta.verifyFree",
+        ctaUrl: (l: Locale) => localizeAppPath(verifyUrl, l),
+        ctaPath: verifyUrl,
+      },
+      upgrade: {
+        bodyKey: `${K}.bodySilver`,
+        inAppBodyKey: `${K}.inAppBodySilver`,
+        ctaLabelKey: "api.notifications.listings.cta.upgradeSilver",
+        ctaUrl: (l: Locale) => localizeAppPath(pricingUrl, l),
+        ctaPath: pricingUrl,
+      },
+      paidPending: {
+        bodyKey: `${K}.bodyPaidPending`,
+        inAppBodyKey: `${K}.inAppBodyPaidPending`,
+        ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+        ctaUrl: (l: Locale) => listingUrl(l),
+        ctaPath: listingUrl(),
+      },
+      paidVerify: {
+        bodyKey: `${K}.bodyPaidVerify`,
+        inAppBodyKey: `${K}.inAppBodyPaidVerify`,
+        ctaLabelKey: "api.notifications.listings.cta.verifyFree",
+        ctaUrl: (l: Locale) => localizeAppPath(verifyUrl, l),
+        ctaPath: verifyUrl,
+      },
+    } as const;
+    const inAppIds: Record<keyof typeof variants, string[]> = {
+      verify: [],
+      upgrade: [],
+      paidPending: [],
+      paidVerify: [],
+    };
+    let sent = 0;
+    for (const c of targets) {
+      const to = recipients.get(c.id);
+      if (!to || already.has(to.email)) continue;
+      const kind = aiHiddenMatchKind(c);
+      const v = variants[kind];
+      inAppIds[kind].push(c.id);
+      if (!isNotificationEnabled(to.prefs, AI_MATCH_LOCKED_CONTEXT)) continue;
+      const dayStart = localDayStart(now, timeZoneForCountry(c.country));
+      const sentToday =
+        recent.filter((r) => r.toEmail === to.email && r.queuedAt >= dayStart).length + (sentInCall.get(to.email) ?? 0);
+      if (!categoryMatchInstantAllowed({ sentTodayLocal: sentToday, allInstant: to.prefs?.categoryMatchInstant === true })) {
+        await this.bypass.emailDigestItem
+          .upsert({
+            where: { email_kind_listingId: { email: to.email, kind: "CATEGORY_MATCH", listingId: listing.id } },
+            create: { email: to.email, locale: to.locale, companyId: c.id, kind: "CATEGORY_MATCH", listingId: listing.id, locked: true },
+            update: {},
+          })
+          .catch(() => undefined);
+        continue;
+      }
+      sentInCall.set(to.email, (sentInCall.get(to.email) ?? 0) + 1);
+      this.notify(
+        to,
+        {
+          subjectKey: `${K}.subject`,
+          headingKey: `${K}.subject`,
+          bodyKey: v.bodyKey,
+          params: p,
+          ctaLabelKey: v.ctaLabelKey,
+          ctaUrl: v.ctaUrl,
+          footerNoteKey: `${K}.footer`,
+          infoRowsFor: (l) => preview.get(l),
+        },
+        { type: AI_MATCH_LOCKED_CONTEXT, id: listing.id },
+      );
+      sent++;
+    }
+    // Uygulama içi: ücretsiz firmaya talep bağlantısı VERİLMEZ (403 alırdı);
+    // paketli ∧ incelemedeki firma talebi görebildiği için ona talep bağlantısı.
+    for (const kind of Object.keys(inAppIds) as (keyof typeof variants)[]) {
+      const ids = inAppIds[kind];
+      if (ids.length === 0) continue;
+      const v = variants[kind];
+      await this.notifications.pushToCompanies(ids, {
+        type: AI_MATCH_LOCKED_CONTEXT,
+        portal,
+        titleKey: `${K}.subject`,
+        bodyKey: v.inAppBodyKey,
+        ctaLabelKey: v.ctaLabelKey,
+        params: p,
+        ctaPath: v.ctaPath,
+        ...(kind === "paidPending" ? { listingId: listing.id } : {}),
+      });
+    }
+    return sent;
   }
 
   /**
@@ -6316,7 +8320,7 @@ export class CompanyListingsService {
       select: { id: true, companyId: true, type: true },
     });
     if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     // Faz O dar-bağlam (denetim 2026-08-23 P2 #8): ONAYLAYICI-only/rolsüz üye
     // teklifçi adı+tutar geçmişini yalnız onay bağı varsa görür (getOne ile aynı).
@@ -6371,16 +8375,18 @@ export class CompanyListingsService {
         status: true,
         type: true,
         createdById: true,
+        title: true,
+        number: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi eleme yapabilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiElemeYapabilir"));
     }
     this.assertListingManageRole(user, listing);
     // Karar aşaması: açık VEYA kapanmış ilanda eleme yapılabilir (award ile aynı).
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
-      throw new BadRequestException("Bu durumda eleme yapılamaz");
+      throw new BadRequestException(i18nMessage("api.companyListings.buDurumdaElemeYapilamaz"));
     }
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
@@ -6392,7 +8398,7 @@ export class CompanyListingsService {
       },
     });
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
-      throw new BadRequestException("Geçersiz teklif");
+      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
     }
     // B1: koşullu-atomik (kardeşler cancel:5556 / closeNoAward:5916 /
     // startEvaluation:5702 ile simetri). Eşzamanlı award bu bid'i WON/
@@ -6409,31 +8415,29 @@ export class CompanyListingsService {
       },
     });
     if (eliminated.count !== 1) {
-      throw new ConflictException("Teklif durumu değişti; eleme uygulanamadı");
+      throw new ConflictException(i18nMessage("api.companyListings.teklifDurumuDegistiElemeUygulanamadi"));
     }
 
     // Tedarikçiye eleme bildirimi (gerekçe paylaşılmaz — eski sistem davranışı).
-    const info = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: { title: true, number: true, type: true },
-    });
-    const elimPortal = info ? this.bidderPortal(info.type) : undefined;
+    const elimPortal = this.bidderPortal(listing.type);
     const recipient = await this.companyRecipient(
       bid.bidderCompanyId,
       elimPortal,
     );
+    const elimParams = {
+      title: listingTitleParam(listingId, listing.title),
+      number: listing.number ?? "—",
+    };
     if (recipient) {
       this.notify(
         recipient,
         {
-          subject: "Teklifiniz hakkında güncelleme",
-          heading: "Teklifiniz değerlendirme dışı kaldı",
-          paragraphs: [
-            "Merhaba,",
-            `"${info?.title ?? "Satın Alma Talebi"}" (${info?.number ?? "—"}) satın alma talebinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
-          ],
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: appRoutes.listing(this.webUrl(), listingId),
+          subjectKey: "api.notifications.listings.eliminated.subject",
+          headingKey: "api.notifications.listings.eliminated.title",
+          bodyKey: "api.notifications.listings.eliminated.body",
+          params: elimParams,
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
         },
         { type: "bid_eliminated", id: bidId },
       );
@@ -6441,10 +8445,11 @@ export class CompanyListingsService {
     await this.notifications.pushToCompany(bid.bidderCompanyId, {
       type: "bid_eliminated",
       portal: elimPortal,
-      title: "Teklifiniz değerlendirme dışı kaldı",
-      body: `"${info?.title ?? "Satın Alma Talebi"}" (${info?.number ?? "—"}) satın alma talebinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
-      ctaLabel: "Satın Alma Talebini Gör",
-      ctaUrl: appRoutes.listing(this.webUrl(), listingId),
+      titleKey: "api.notifications.listings.eliminated.title",
+      bodyKey: "api.notifications.listings.eliminated.body",
+      ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+      params: elimParams,
+      ctaPath: appRoutes.listing(this.webUrl(), listingId),
       listingId,
     });
     this.realtime?.pingListing(listingId, [bid.bidderCompanyId]);
@@ -6467,13 +8472,13 @@ export class CompanyListingsService {
         createdById: true,
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi iptal edebilir");
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiIptalEdebilir"));
     }
     this.assertListingManageRole(user, listing);
     if (listing.status !== "OPEN") {
-      throw new BadRequestException("Sadece açık ilan iptal edilebilir");
+      throw new BadRequestException(i18nMessage("api.companyListings.sadeceAcikIlanIptalEdilebilir"));
     }
     await runTenantTx(this.prisma, async (tx) => {
       // GUARD-FIRST (closeNoAward simetrisi): yalnız OPEN iken iptal et.
@@ -6485,7 +8490,7 @@ export class CompanyListingsService {
         data: { status: "CANCELLED", cancelReason: reason?.trim() || null },
       });
       if (cancelled.count !== 1) {
-        throw new ConflictException("İlan durumu değişti; iptal uygulanamadı");
+        throw new ConflictException(i18nMessage("api.companyListings.ilanDurumuDegistiIptalUygulanamadi"));
       }
       await tx.listingBid.updateMany({
         where: { listingId, status: "SUBMITTED" },
@@ -6510,14 +8515,18 @@ export class CompanyListingsService {
       },
     });
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     // Katılımcılara haber ver (UI "gerekçe iletilir" vaadi artık gerçek).
     void this.notifyListingParticipants(listingId, {
-      subject: "Satın Alma Talebi iptal edildi",
-      heading: "Satın Alma Talebi iptal edildi",
-      body: (label) =>
-        `${label} satın alma talebi ilan sahibi tarafından iptal edildi.${
-          reason?.trim() ? ` Gerekçe: ${reason.trim()}` : ""
-        }`,
+      subjectKey: "api.notifications.listings.cancelled.title",
+      headingKey: "api.notifications.listings.cancelled.title",
+      bodyKey: "api.notifications.listings.cancelled.body",
+      // Gerekçe cümlenin SONUNA eklenir; varlığı ICU `select` ile katalogda
+      // (kodda birleştirilirse çeviride noktalama/sıra kaybolur).
+      params: {
+        hasReason: reason?.trim() ? "yes" : "no",
+        reason: reason?.trim() ?? "",
+      },
       type: "listing_closed",
     }).catch((err) =>
       this.logger.error(
@@ -6531,14 +8540,22 @@ export class CompanyListingsService {
 
   /**
    * İptal / kazansız-kapatma bildirimi — davetliler + teklif verenler birleşik
-   * kümesine e-posta + in-app.
+   * kümesine e-posta + in-app. Public: admin müdahaleleri (kapat/uzat/yeniden
+   * aç) de katılımcılara bu tek yoldan bildirir (derin denetim MU-04).
    */
-  private async notifyListingParticipants(
+  async notifyListingParticipants(
     listingId: string,
     opts: {
-      subject: string;
-      heading: string;
-      body: (label: string) => string;
+      subjectKey: ApiMessageKey;
+      /** E-posta başlığı ve zil başlığı AYNI cümle. */
+      headingKey: ApiMessageKey;
+      bodyKey: ApiMessageKey;
+      /**
+       * Çağırana özel ICU parametreleri. Talebin başlığı/numarası burada
+       * eklenir — çağıran yalnız kendi alanlarını (gerekçe, yeni kapanış…)
+       * verir. Tarih/tutar TİPLİ (`notification-params.ts`).
+       */
+      params?: NotificationParams;
       type: string;
     },
   ) {
@@ -6550,16 +8567,28 @@ export class CompanyListingsService {
         number: true,
         type: true,
         companyId: true,
+        bidsOpenAt: true,
       },
     });
     if (!listing) return;
-    const label = `"${listing.title}" (${listing.number ?? "—"})`;
+    // Katılımcılar BAŞKA firmadır → başlık onların dilinde (içerik çevirisi).
+    const p: NotificationParams = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+      ...(opts.params ?? {}),
+    };
+    // Açılış embargosunda davetliler talebi göremez (getOne 404) ve açılış
+    // duyurusu onlara henüz gitmedi → iptal/kapanış değişikliği yalnız teklif
+    // sahiplerine (önceki tur katılımcısı) gider (derin denetim LU-16).
+    const embargoed = isListingEmbargoed(listing.bidsOpenAt);
     const [invs, bids] = await this.inOwnerContext(listing.companyId, () =>
       Promise.all([
-        this.prisma.listingInvitation.findMany({
-          where: { listingId },
-          select: { invitedCompanyId: true },
-        }),
+        embargoed
+          ? Promise.resolve([] as { invitedCompanyId: string }[])
+          : this.prisma.listingInvitation.findMany({
+              where: { listingId },
+              select: { invitedCompanyId: true },
+            }),
         this.prisma.listingBid.findMany({
           where: { listingId },
           select: { bidderCompanyId: true },
@@ -6583,11 +8612,12 @@ export class CompanyListingsService {
       this.notify(
         r,
         {
-          subject: opts.subject,
-          heading: opts.heading,
-          paragraphs: ["Merhaba,", opts.body(label)],
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: url,
+          subjectKey: opts.subjectKey,
+          headingKey: opts.headingKey,
+          bodyKey: opts.bodyKey,
+          params: p,
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
         },
         { type: opts.type, id: listingId },
       );
@@ -6595,10 +8625,11 @@ export class CompanyListingsService {
     await this.notifications.pushToCompanies(companyIds, {
       type: opts.type,
       portal: partPortal,
-      title: opts.heading,
-      body: opts.body(label),
-      ctaLabel: "Satın Alma Talebini Gör",
-      ctaUrl: url,
+      titleKey: opts.headingKey,
+      bodyKey: opts.bodyKey,
+      ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+      params: p,
+      ctaPath: url,
       listingId,
     });
   }
@@ -6622,15 +8653,15 @@ export class CompanyListingsService {
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     this.assertListingManageRole(user, listing);
     if (listing.status === "IN_AWARD") {
-      throw new BadRequestException("Satın Alma Talebi zaten değerlendirmede");
+      throw new BadRequestException(i18nMessage("api.companyListings.satinAlmaTalebiZatenDegerlendirmede"));
     }
     if (listing.status !== "OPEN") {
       throw new BadRequestException(
-        "Yalnızca açık satın alma talebi değerlendirmeye alınabilir",
+        i18nMessage("api.companyListings.yalnizcaAcikSatinAlmaTalebiDegerlendirmeye"),
       );
     }
     // Koşullu geçiş: eşzamanlı kapanış cron'u / kazandırma yarışında durum
@@ -6646,7 +8677,7 @@ export class CompanyListingsService {
       },
     });
     if (updated.count !== 1) {
-      throw new ConflictException("İlan durumu değişti — sayfayı yenileyin");
+      throw new ConflictException(i18nMessage("api.companyListings.ilanDurumuDegistiSayfayiYenileyin"));
     }
     // INV-AUDIT-1: durum geçişi (değerlendirmeye alma) — commit SONRASI.
     await this.audit.log({
@@ -6673,6 +8704,7 @@ export class CompanyListingsService {
     );
     this.realtime?.pingListing(listingId);
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     return { ok: true, status: "IN_AWARD" };
   }
 
@@ -6690,20 +8722,24 @@ export class CompanyListingsService {
       select: { id: true, title: true, number: true, type: true, companyId: true },
     });
     if (!listing) return;
-    const label = `"${listing.title}" (${listing.number ?? "—"})`;
     const portal = this.ownerPortal(listing.type);
     const url = appRoutes.listing(this.webUrl(), listingId);
-    const body = `${label} satın alma talebi değerlendirmede ve ${expiringCount} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da tedarikçilerden geçerlilik uzatması isteyin.`;
+    const p = {
+      title: listing.title,
+      number: listing.number ?? "—",
+      count: expiringCount,
+    };
     const recipient = await this.companyRecipient(listing.companyId, portal);
     if (recipient) {
       this.notify(
         recipient,
         {
-          subject: "Değerlendirmedeki satın alma talebinde teklif geçerlilikleri doluyor",
-          heading: "Teklif geçerlilikleri dolmak üzere",
-          paragraphs: ["Merhaba,", body],
-          ctaLabel: "Satın Alma Talebini Gör",
-          ctaUrl: url,
+          subjectKey: "api.notifications.listings.evaluationReminder.subject",
+          headingKey: "api.notifications.listings.evaluationReminder.title",
+          bodyKey: "api.notifications.listings.evaluationReminder.body",
+          params: p,
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
         },
         { type: "listing_evaluation_reminder", id: listingId },
       );
@@ -6711,10 +8747,11 @@ export class CompanyListingsService {
     await this.notifications.pushToCompany(listing.companyId, {
       type: "listing_evaluation_reminder",
       portal,
-      title: "Teklif geçerlilikleri dolmak üzere",
-      body,
-      ctaLabel: "Satın Alma Talebini Gör",
-      ctaUrl: url,
+      titleKey: "api.notifications.listings.evaluationReminder.title",
+      bodyKey: "api.notifications.listings.evaluationReminder.body",
+      ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+      params: p,
+      ctaPath: url,
       listingId,
     });
   }
@@ -6728,12 +8765,12 @@ export class CompanyListingsService {
     const listing = await this.ownerOpenListing(user, listingId);
     const date = new Date(closesAt);
     if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
-      throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiGelecekteOlmali"));
     }
     // Üst sınır (create/next-round ile aynı) — bu endpoint'ten de closesAt=9999
     // ile auto-close kırılmasın.
     if (date.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
-      throw new BadRequestException("Kapanış tarihi çok ileri (en fazla 2 yıl)");
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiCokIleriEnFazla"));
     }
     const extra = await this.prisma.listing.findUnique({
       where: { id: listing.id },
@@ -6742,7 +8779,7 @@ export class CompanyListingsService {
     // Kapanış açılıştan önce olamaz (yayındaki ilanın bütünlüğü).
     if (extra?.bidsOpenAt && date.getTime() <= extra.bidsOpenAt.getTime()) {
       throw new BadRequestException(
-        "Kapanış tarihi açılış tarihinden sonra olmalı",
+        i18nMessage("api.companyListings.kapanisTarihiAcilisTarihindenSonraOlmali"),
       );
     }
     // İngiliz usulünde kapanışa <2 dk kala değişiklik yok — davet ekleme
@@ -6754,13 +8791,17 @@ export class CompanyListingsService {
       extra.closesAt.getTime() - Date.now() < 2 * 60_000
     ) {
       throw new BadRequestException(
-        "Kapanışa 2 dakikadan az kaldı — açık eksiltme/artırmada kapanış saati artık değiştirilemez",
+        i18nMessage("api.companyListings.kapanisa2DakikadanAzKaldiAcik"),
       );
     }
     // Uzatma (yeni kapanış daha ileri) → kapanış-hatırlatması bayrağını sıfırla
     // ki yeni pencere için tekrar gönderilebilsin (placeBid auto-extend de böyle yapar).
     const isExtension =
       extra?.closesAt != null && date.getTime() > extra.closesAt.getTime();
+    // Arayüz testi O-010 (kullanıcı kararı T-06): kapanışı UZATMAK talebe yeni
+    // süre (= yeni teklif penceresi) açar → GOLD ister. Öne çekmek teklif
+    // alımını kısaltan sonuçlandırma adımıdır, paketsiz de serbest.
+    if (isExtension) this.assertPaidForNewListingWork(user, "extendClosing");
     // F2 (INV-SM-1 kardeş simetrisi): ownerOpenListing OPEN okur ama yazım
     // koşulsuzdu → eşzamanlı cron auto-close / startEvaluation / award ilanı
     // OPEN'dan çıkarırsa closesAt artık-OPEN-olmayan ilana yazılıyordu. Bugün
@@ -6776,27 +8817,25 @@ export class CompanyListingsService {
     });
     if (changed.count !== 1) {
       throw new ConflictException(
-        "İlan durumu değişti; kapanış zamanı güncellenemedi",
+        i18nMessage("api.companyListings.ilanDurumuDegistiKapanisZamaniGuncellenemedi"),
       );
     }
     // Kural değişikliği davetlilere/teklifçilere bildirilir — özellikle öne
     // çekme "son gün veririm" diye plan yapan teklifçi için tuzak olmasın.
+    // Yön SÖZCÜĞÜ değil, ICU `select` etiketi: çeviri katalogda.
     const direction =
       extra?.closesAt == null
-        ? "güncellendi"
+        ? "updated"
         : date.getTime() > extra.closesAt.getTime()
-          ? "uzatıldı"
-          : "öne çekildi";
-    const newClosingLabel = date.toLocaleString("tr-TR", {
-      dateStyle: "long",
-      timeStyle: "short",
-      timeZone: "Europe/Istanbul",
-    });
+          ? "extended"
+          : "advanced";
+    // Yeni kapanış TİPLİ: her katılımcının dilinde biçimlenir (eskiden
+    // "tr-TR" → İngilizce e-postada "27 Eylül 2026").
     void this.notifyListingParticipants(listing.id, {
-      subject: "Satın Alma Talebi kapanış zamanı değişti",
-      heading: "Kapanış zamanı değişti",
-      body: (label) =>
-        `${label} satın alma talebinin kapanış zamanı ${direction}. Yeni kapanış: ${newClosingLabel}.`,
+      subjectKey: "api.notifications.listings.closingChanged.subject",
+      headingKey: "api.notifications.listings.closingChanged.title",
+      bodyKey: "api.notifications.listings.closingChanged.body",
+      params: { direction, closesAt: dateParam(date, "dateTime") },
       type: "listing_closing_changed",
     }).catch((err) =>
       this.logger.error(
@@ -6826,7 +8865,7 @@ export class CompanyListingsService {
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     this.assertListingManageRole(user, listing);
     await this.prisma.listing.update({
@@ -6853,11 +8892,11 @@ export class CompanyListingsService {
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     this.assertListingManageRole(user, listing);
     if (!["OPEN", "IN_AWARD"].includes(listing.status)) {
-      throw new BadRequestException("Bu ilan kapatılamaz");
+      throw new BadRequestException(i18nMessage("api.companyListings.buIlanKapatilamaz"));
     }
     await runTenantTx(this.prisma, async (tx) => {
       // Koşullu: eşzamanlı runFullAward bu arada AWARDED + sipariş yazdıysa
@@ -6868,7 +8907,7 @@ export class CompanyListingsService {
       });
       if (closed.count !== 1) {
         throw new ConflictException(
-          "İlan durumu değişti; kazanansız kapatma uygulanamadı",
+          i18nMessage("api.companyListings.ilanDurumuDegistiKazanansizKapatmaUygulanamadi"),
         );
       }
       await tx.listingBid.updateMany({
@@ -6894,13 +8933,15 @@ export class CompanyListingsService {
       },
     });
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     void this.notifyListingParticipants(listingId, {
-      subject: "Satın Alma Talebi kazanan olmadan kapatıldı",
-      heading: "Satın Alma Talebi sonuçlanmadan kapatıldı",
-      body: (label) =>
-        `${label} satın alma talebi kazanan seçilmeden kapatıldı.${
-          reason?.trim() ? ` Gerekçe: ${reason.trim()}` : ""
-        }`,
+      subjectKey: "api.notifications.listings.closedNoAward.subject",
+      headingKey: "api.notifications.listings.closedNoAward.title",
+      bodyKey: "api.notifications.listings.closedNoAward.body",
+      params: {
+        hasReason: reason?.trim() ? "yes" : "no",
+        reason: reason?.trim() ?? "",
+      },
       type: "listing_closed",
     }).catch((err) =>
       this.logger.error(
@@ -6923,7 +8964,8 @@ export class CompanyListingsService {
    *  (b) ilanı bu kişi açmış (createdById === userId).
    * SAHİP İSTİSNASI YOK: Kurucu ihaleler üzerinde salt-gözlemcidir (ürün
    * kararı, 2026-07-23); op-rol taşısa bile yalnız KENDİ açtığı ilanı yönetir.
-   * Oluşturanı ayrılan ilan için destek kanalı (admin) devreye girer.
+   * Oluşturan çıkarılınca/pasifleşince yaşayan talepler işlemi yapana (izni
+   * varsa) ya da Kurucu'ya devredilir (`CompanyUsersService.handOverLiveListings`).
    */
   /**
    * Faz O — owner-dal OKUMA kapısı (INV-VIS ailesi): FULL_READ (etiketler +
@@ -6941,7 +8983,7 @@ export class CompanyListingsService {
     // rakip teklifler/tedarikçi kimlikleri/adresler ona açılmaz.
     if (hasReadContext(user, "buy")) return; // Faz O tek kaynak (buy:view)
     void listingId;
-    throw new NotFoundException("İlan bulunamadı");
+    throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
   }
 
   private assertListingManageRole(
@@ -6972,7 +9014,7 @@ export class CompanyListingsService {
           reason: denial.reason,
         },
       });
-      throw new ForbiddenException(LISTING_MANAGE_DENY_MESSAGE);
+      throw new ForbiddenException(i18nMessage(listingManageDenyKey(denial.reason)));
     }
   }
 
@@ -6991,11 +9033,11 @@ export class CompanyListingsService {
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     this.assertListingManageRole(user, listing);
     if (listing.status !== "OPEN") {
-      throw new BadRequestException("Sadece açık ilanda yapılabilir");
+      throw new BadRequestException(i18nMessage("api.companyListings.sadeceAcikIlandaYapilabilir"));
     }
     return listing;
   }
@@ -7142,7 +9184,11 @@ export class CompanyListingsService {
   }
 
   private async connectedCompanyIds(companyId: string): Promise<string[]> {
-    const rows = await this.prisma.companyConnection.findMany({
+    // BYPASS (yayın denetimi 2026-09-28, RLS): cron yolları (embargolu talebin
+    // açılış duyurusu, gizli AI eşleşmesi) firma bağlamı olmadan çağırır →
+    // kısıtlı istemci `company_connections`ı göremez, liste boş dönerdi.
+    // Süzgeç verilen firmanın kendi bağlantıları; istek yollarında sonuç aynı.
+    const rows = await this.bypass.companyConnection.findMany({
       where: {
         status: "ACTIVE",
         OR: [

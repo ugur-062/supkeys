@@ -5,6 +5,7 @@
  * (F2/F3/F6), kazandırma→sipariş doğruluğu, çift-kazandırma (F1), kalem-bazlı
  * (F8), state-machine.
  */
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { CompanyRole, type ListingStatus, type ListingType } from "@rothern/db";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { prisma, truncateAll } from "./test-db";
@@ -18,6 +19,7 @@ import {
   makeUser,
 } from "./factories";
 import { makeService } from "./make-service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 const PAST = new Date(Date.now() - 3600 * 1000);
@@ -161,10 +163,34 @@ describe("getOne — kapalı zarf (closed envelope)", () => {
 });
 
 describe("getOne — görünürlük ülkesi (2026-09-21: boş = herkes, dolu = yalnız o ülkeler)", () => {
-  it("yalnız sahibin ülkesi ([TR]): farklı ülke firması göremez (404)", async () => {
+  it("yalnız sahibin ülkesi ([TR]): farklı ülke firması İÇERİĞİ göremez — 403 COUNTRY_NOT_ELIGIBLE + hedef ülkeler (2026-09-27)", async () => {
     const { service, listing } = await setupAlim({ targetCountries: ["TR"] }); // owner TR
     const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
-    await expect(service.getOne(foreign.auth, listing.id)).rejects.toThrow();
+    const err = await service.getOne(foreign.auth, listing.id).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ForbiddenException);
+    const body = (err as ForbiddenException).getResponse() as Record<string, unknown>;
+    expect(body.code).toBe("COUNTRY_NOT_ELIGIBLE");
+    expect(body.targetCountries).toEqual(["TR"]);
+    expect(typeof body.message).toBe("string");
+    // Kapalı zarf / içerik: gövde yalnız kod + mesaj + hedef ülke taşır.
+    expect(Object.keys(body).sort()).toEqual(["code", "i18nKey", "message", "statusCode", "targetCountries"]);
+    expect(JSON.stringify(body)).not.toContain(listing.title);
+  });
+
+  it("ülke kapısı görünürlük kapısından SONRA: bağsız firma CONNECTIONS talebinde yine 404 (varlık sızmaz)", async () => {
+    const { service, listing } = await setupAlim({ targetCountries: ["TR"], visibility: "CONNECTIONS" });
+    const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
+    await expect(service.getOne(foreign.auth, listing.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("davetli yabancı firma ülke kapısını aşar", async () => {
+    const { service, owner, listing } = await setupAlim({ targetCountries: ["TR"] });
+    const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
+    await invite(prisma, listing.id, foreign.company.id, owner.user.id);
+    await expect(service.getOne(foreign.auth, listing.id)).resolves.toBeDefined();
   });
 
   it("boş hedef = tüm ülkeler: sahibin ülkesindeki firma da, yabancı da görür", async () => {
@@ -209,6 +235,37 @@ describe("getOne — görünürlük ülkesi (2026-09-21: boş = herkes, dolu = y
     const { service, mocks, bidder, listing } = await setupAlim();
     mocks.blocks.blockedCompanyIds.mockResolvedValue([bidder.company.id]);
     await expect(service.getOne(bidder.auth, listing.id)).rejects.toThrow();
+  });
+});
+
+describe("sellerTenders — sahip şehri süzgeç anahtarı + okuyucunun dilinde (2026-09-27)", () => {
+  it("eşlenmiş şehir kalıcı adres anahtarı ve okuyucunun dilinde ad taşır; eşlenmemişte null", async () => {
+    const { service, owner, bidder, listing } = await setupAlim();
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { city: "İstanbul", cityId: -1034 },
+    });
+    const ru = (await runWithLocale("ru", () => service.sellerTenders(bidder.auth))) as unknown as Record<string, unknown>[];
+    const row = ru.find((r) => r.id === listing.id)!;
+    expect(row).toMatchObject({
+      ownerCity: "İstanbul",
+      ownerCityId: -1034,
+      ownerCitySlug: "istanbul",
+      ownerCityLabel: "Стамбул",
+      ownerCountry: "TR",
+    });
+
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { city: "Bilinmeyen Kasaba", cityId: null },
+    });
+    const tr = (await service.sellerTenders(bidder.auth)) as unknown as Record<string, unknown>[];
+    expect(tr.find((r) => r.id === listing.id)).toMatchObject({
+      ownerCity: "Bilinmeyen Kasaba",
+      ownerCityId: null,
+      ownerCitySlug: null,
+      ownerCityLabel: null,
+    });
   });
 });
 
@@ -259,6 +316,19 @@ describe("açılış embargosu — gelecek tarihli bidsOpenAt", () => {
     expect(second.openNotifiedAt!.getTime()).toBe(
       first.openNotifiedAt!.getTime(),
     );
+  });
+
+  it("derin denetim X08: kapanış saati geçmiş talep duyurulmaz (kesinti sonrası)", async () => {
+    const { service, listing } = await setupAlim({
+      bidsOpenAt: new Date(Date.now() - 2 * 3600_000),
+      closesAt: new Date(Date.now() - 3600_000),
+    });
+    await service.announceListingOpen(listing.id, "invitation");
+    const db = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+      select: { openNotifiedAt: true },
+    });
+    expect(db.openNotifiedAt).toBeNull();
   });
 
   it("embargolu ilanda duyuru ERTELENİR — damga basılmaz (cron açılışta gönderir)", async () => {
@@ -818,6 +888,43 @@ describe("eliminate — state machine", () => {
     });
     expect(after.status).toBe("LOST");
   });
+
+  it("sahip detayı elenen teklifi eliminatedAt ile ayırır; kazandırmada kaybeden boş kalır (arayüz testi D-102)", async () => {
+    const { service, owner, bidder, listing, item } = await setupAlim();
+    const other = await makeCompanyWithUser(prisma, { country: "TR" });
+    const third = await makeCompanyWithUser(prisma, { country: "TR" });
+    const eliminated = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1200,
+      items: [{ itemId: item.id, unitPrice: 1200 }],
+    });
+    const winner = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: other.company.id,
+      createdById: other.user.id,
+      amount: 900,
+      items: [{ itemId: item.id, unitPrice: 900 }],
+    });
+    const loser = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: third.company.id,
+      createdById: third.user.id,
+      amount: 1000,
+      items: [{ itemId: item.id, unitPrice: 1000 }],
+    });
+    await service.eliminate(owner.auth, listing.id, eliminated.id, "uygun değil");
+    await service.award(owner.auth, listing.id, winner.id);
+    const res = (await service.getOne(owner.auth, listing.id)) as {
+      bids: { id: string; status: string; eliminatedAt?: string | null }[];
+    };
+    const byId = new Map(res.bids.map((b) => [b.id, b]));
+    expect(byId.get(eliminated.id)?.status).toBe("LOST");
+    expect(byId.get(eliminated.id)?.eliminatedAt).toEqual(expect.any(String));
+    expect(byId.get(loser.id)?.status).toBe("LOST");
+    expect(byId.get(loser.id)?.eliminatedAt).toBeNull();
+  });
 });
 
 describe("Faz 5 — kalem teslim tarihi award'da siparişe kopyalanır", () => {
@@ -968,6 +1075,21 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
         roles: [CompanyRole.SATISCI],
       });
       await expect(service.updateListing(auth, listing.id, {} as never)).rejects.toThrow(DENY);
+    });
+
+    it("talebi AÇAN ama izni olmayan kişiye 'yalnız açan yönetebilir' değil eksik izin söylenir (arayüz testi T3)", async () => {
+      const { service, company, listing } = await setup("ALIM");
+      const awarder = await makeUser(prisma, company.id, [], { permissions: ["buy:view", "buy:award"] });
+      await prisma.listing.update({ where: { id: listing.id }, data: { createdById: awarder.id } });
+      const auth = authFor(
+        company,
+        { id: awarder.id, email: awarder.email, roles: [] },
+        { permissions: ["buy:view", "buy:award"] },
+      );
+      const msg = await errOf(service.updateListing(auth, listing.id, {} as never));
+      expect(msg).toMatch(DENY);
+      expect(msg).toMatch(/Talep açma ve yönetme/);
+      expect(msg).not.toMatch(/yalnız talebi açan/);
     });
 
     it("SAHİP başkasının açtığı ilanı YÖNETEMEZ — Kurucu salt-gözlemci (owner istisnası söküldü)", async () => {

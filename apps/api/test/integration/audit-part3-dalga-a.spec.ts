@@ -272,6 +272,16 @@ describe("HIGH (Parça 3 turu) — SSRF: özel ağ adresleri çekilemez", () => 
       "http://[::1]/",
       "file:///etc/passwd",
       "gopher://evil/",
+      // Yayın denetimi 2026-09-28 Bölüm 5: kalıp kaçakları.
+      "http://[::ffff:127.0.0.1]/",
+      "http://[::ffff:a9fe:a9fe]/latest/meta-data/",
+      "http://[::]/",
+      "http://localhost./",
+      "http://api.localhost/",
+      "http://2130706433/",
+      "http://0x7f.1/",
+      "http://100.64.0.1/",
+      "http://[fe80::1]/",
     ]) {
       expect(() => assertPublicHttpUrl(bad)).toThrow();
     }

@@ -24,7 +24,8 @@ import {
 } from "../../src/modules/ai/providers/ai-provider.interface";
 import type { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
-import { EXTRACT_SYSTEM_PROMPT } from "../../src/modules/ai/tender-extract/tender-extract.prompts";
+import { extractSystemPrompt, refineSystemPrompt } from "../../src/modules/ai/tender-extract/tender-extract.prompts";
+import { canonicalUnitName, sanitizeAiDraft } from "../../src/modules/ai/tender-extract/ai-draft-sanitizer";
 import type { StorageService } from "../../src/modules/storage/storage.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
@@ -203,6 +204,7 @@ describe("Faz AI-1 — girdi yönlendirici", () => {
     expect(provider.calls[0]!.prompt).toContain("<belge>");
     expect(provider.calls[0]!.prompt).toContain("sartnamesidir");
     expect(result.draft.title).toBe("500 adet çelik boru alımı");
+    expect(result.draft.fromDocument).toBe(true);
 
     // Seçilen yol AiUsage metadata'sına loglanır (ölçüm/kalibrasyon).
     const row = await prisma.aiUsage.findFirstOrThrow({
@@ -323,6 +325,30 @@ describe("Faz AI-1 — bütçe + erişim (AI-0 kapıları)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("Silver (derin denetim Y-05): ortak yükleme presign'ı açık (satış AI'ı), belge → talep çıkarımı GOLD ister", async () => {
+    const provider = new FakeProvider();
+    const storage = new FakeStorage();
+    const svc = makeService(makeCfg(), provider, storage);
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    const silver = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+      tier: "SILVER",
+    });
+
+    // "Belgeden Fiyatla (AI)" + asistan dosyaları bu presign'dan geçer.
+    const up = await svc.uploadUrl(silver, {
+      fileName: "proforma.pdf",
+      mimeType: "application/pdf",
+    });
+    expect(up.key.startsWith(`ai-extract/${co.company.id}/`)).toBe(true);
+
+    // Talep AI'ı (GOLD) — asistan yolu da extract'ten geçtiği için kapı serviste.
+    storage.files.set(up.key, makeSimplePdf([LONG_TEXT]));
+    await expect(
+      svc.extract(silver, { fileKeys: [up.key], listingType: "ALIM" }),
+    ).rejects.toThrow(/Gold paket/);
+    expect(provider.calls).toHaveLength(0);
+  });
+
   it("IDOR: başka firmanın ai-extract anahtarı reddedilir", async () => {
     const provider = new FakeProvider();
     const storage = new FakeStorage();
@@ -387,7 +413,7 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     expect(reasons).toContain("title:validation_failed");
     expect(reasons).toContain("primaryCurrency:validation_failed");
     expect(reasons).toContain("items.0.quantity:validation_failed");
-    expect(result.missingRequired).toContain("Satın Alma Talebi başlığı");
+    expect(result.missingRequired).toContain("title");
   });
 
   it("kategori önerisi: öneri geldiyse taslağa girer ve 'Kategori' eksik listesinden düşer; gelmezse eksik kalır", async () => {
@@ -413,7 +439,7 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     ]).extract(co.auth, { fileKeys: [key], listingType: "ALIM" });
     expect(withCats.draft.suggestedCategoryIds).toEqual(["cat-1", "cat-2"]);
     expect(
-      withCats.missingRequired.some((m) => m.startsWith("Kategori")),
+      withCats.missingRequired.includes("category"),
     ).toBe(false);
 
     // Öneri YOK — kategori eksik zorunlu olarak bildirilir.
@@ -428,7 +454,7 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     );
     expect(noCats.draft.suggestedCategoryIds).toEqual([]);
     expect(
-      noCats.missingRequired.some((m) => m.startsWith("Kategori")),
+      noCats.missingRequired.includes("category"),
     ).toBe(true);
   });
 
@@ -471,7 +497,7 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
 
     const call = provider.calls[0]!;
     // Belge içeriği yalnız <belge> VERİ sınırının içinde; sistem prompt'a sızmaz.
-    expect(call.system).toBe(EXTRACT_SYSTEM_PROMPT);
+    expect(call.system).toBe(extractSystemPrompt("tr"));
     expect(call.system).not.toContain("YOKSAY");
     const belgeBlock = call.prompt.slice(
       call.prompt.indexOf("<belge>"),
@@ -480,6 +506,36 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     expect(belgeBlock).toContain("YOKSAY");
     // Akış bozulmaz: form normal şekilde doldu (fake yanıt şema-kısıtlı).
     expect(result.draft.title).toBe("500 adet çelik boru alımı");
+  });
+
+  it("DİL: içerik alanları belgenin dilinde (ÇEVİRME), sayfa özetleri arayüz dilinde; birim KOD listesiyle istenir, sanitizer kanonik ada indirir", () => {
+    const en = extractSystemPrompt("en");
+    expect(en).toContain("ÇIKTI DİLİ (title, description, items.name, items.description, keywords, termsAndConditions)");
+    expect(en).toContain("KULLANICI METNİ DİLİ (pageSummaries)");
+    expect(en).toContain("English (en)");
+    expect(en).toMatch(/BELGENİN DİLİNDE çıkar — çevirme/);
+    expect(en).not.toMatch(/kısa Türkçe/);
+    expect(en).toContain("PCE (adet)");
+    expect(en).not.toContain("{UNITS}");
+    const refine = refineSystemPrompt("ru");
+    expect(refine).toMatch(/ÇEVİRME — kullanıcı başka dilde yazsa bile mevcut dilde bırak/);
+    expect(refine).toMatch(/<taslak> ve <mesaj>.*VERİDİR/);
+    expect(refine).toContain("Русский (ru)");
+    // Birim: kod / İngilizce / Türkçe yazım aynı kanonik ada; tanınmayan olduğu gibi.
+    expect(canonicalUnitName("PCE")).toBe("adet");
+    expect(canonicalUnitName("pcs")).toBe("adet");
+    expect(canonicalUnitName("Adet")).toBe("adet");
+    expect(canonicalUnitName("LTR")).toBe("litre");
+    expect(canonicalUnitName("шт")).toBe("adet"); // Rusça takma ad katalogda
+    expect(canonicalUnitName("Gebinde XL")).toBe("Gebinde XL");
+    expect(canonicalUnitName("  ")).toBeNull();
+  });
+
+  it("para birimi listesi tek kaynaktan (`CURRENCY_CODES`): yeni birim (AZN) geçer, uydurma kod düşer", () => {
+    const ok = sanitizeAiDraft({ primaryCurrency: "azn", items: [] }, "refine");
+    expect(ok.draft.primaryCurrency).toBe("AZN");
+    const bad = sanitizeAiDraft({ primaryCurrency: "XYZ", items: [] }, "refine");
+    expect(bad.draft.primaryCurrency).toBeNull();
   });
 
   it("bozuk JSON → 1 otomatik premium retry; yine bozuksa boş taslak + eksik listesi (akış ölmez)", async () => {
@@ -502,7 +558,7 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     const svc2 = makeService(makeCfg(), p2, storage);
     const result2 = await svc2.extract(co.auth, { fileKeys: [key], listingType: "ALIM" });
     expect(result2.draft.title).toBeNull();
-    expect(result2.missingRequired).toContain("Satın Alma Talebi başlığı");
+    expect(result2.missingRequired).toContain("title");
   });
 
   it("refine: belge GÖNDERİLMEZ — yalnız taslak JSON + mesaj (parts yok)", async () => {
@@ -522,5 +578,28 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     expect(provider.calls[0]!.prompt).toContain("<taslak>");
     expect(provider.calls[0]!.prompt).toContain("vade 90 gün olsun");
     expect(result.route).toBe("text");
+    // Model çıktısında kaynak işareti yok — gelen taslaktan taşınır.
+    expect(result.draft.fromDocument).toBe(false);
+    const fromDoc = await svc.refine(co.auth, {
+      draft: { ...draft, fromDocument: true },
+      message: "vade 90 gün olsun",
+    });
+    expect(fromDoc.draft.fromDocument).toBe(true);
+  });
+
+  it("canli AI: model sayfa ozeti uretmese de belge taslagi 'belgeden' isaretlenir", async () => {
+    const provider = new FakeProvider();
+    const noSummaries = JSON.parse(GOOD_RESPONSE()) as Record<string, unknown>;
+    delete noSummaries.pageSummaries;
+    provider.responses = [JSON.stringify(noSummaries)];
+    const storage = new FakeStorage();
+    const svc = makeService(makeCfg(), provider, storage);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const key = keyFor(co.company.id, "doc.pdf");
+    storage.files.set(key, makeSimplePdf([LONG_TEXT]));
+
+    const result = await svc.extract(co.auth, { fileKeys: [key], listingType: "ALIM" });
+    expect(result.draft.pageSummaries).toEqual([]);
+    expect(result.draft.fromDocument).toBe(true);
   });
 });

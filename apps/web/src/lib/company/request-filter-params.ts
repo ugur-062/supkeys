@@ -8,8 +8,13 @@
  *
  *   ?q=&durum=aktif|gecmis|tumu&uygunluk=davet,baglanti,kategori,teklif
  *   &kategori=39000000,23000000 (SEGMENT kodları) &kapsam=yurtici|uluslararasi
- *   &kapanis=3|7|30 &alici=<id>,<id> &sehir=a,b &para=TRY,USD &usul=teklif|pazarlik
- *   &donem=7|30|90 &sirala=yakin|uzak|yeni &sayfa=2
+ *   &kapanis=3|7|30 &alici=<id>,<id> &sehir=bursa,de-munich &ulke=TR,DE
+ *   &para=TRY,USD &usul=teklif|pazarlik &donem=7|30|90 &sirala=yakin|uzak|yeni &sayfa=2
+ *
+ * Şehir KALICI ADRES ANAHTARIYLA (2026-09-27): dünya şehir dizininin slug'ı
+ * (`bursa`, `de-munich`) — dilden bağımsız, farklı ülkelerdeki aynı adlı
+ * şehirler ayrı. Eşlenmemiş şehirde ham metin; eski bağlantılardaki ham il
+ * adı ("Bursa") süzmede yine eşleşir. Ülke = ALICININ (talep sahibinin) ülkesi.
  *
  * Kategori SEGMENT düzeyinde: satır en çok 2 kod taşır ve sayaçlar segmentte
  * anlamlı; öneri/çipten gelen tam kod (L3+) segmentine indirgenir.
@@ -23,23 +28,28 @@ export type PeriodWindow = 7 | 30 | 90;
 
 export const CLOSING_WINDOWS: readonly ClosingWindow[] = [3, 7, 30];
 export const PERIOD_WINDOWS: readonly PeriodWindow[] = [7, 30, 90];
-export const FIT_OPTIONS: readonly { key: RequestFit; label: string }[] = [
-  { key: "davet", label: "Davet edildim" },
-  { key: "baglanti", label: "Bağlantılı alıcı" },
-  { key: "urun", label: "Ürünlerimle eşleşen" },
-  { key: "kategori", label: "Kategorime uygun" },
-  { key: "teklif", label: "Teklif verdiklerim" },
+/**
+ * Süzgeç seçenekleri ANAHTAR listesidir; etiket katalogdan gelir (i18n Faz 2:
+ * `web.panel.trade.requestFilters.{fit,status,sort}.<anahtar>` — çizim
+ * `components/company/request-filters.tsx`).
+ */
+export const FIT_OPTIONS: readonly { key: RequestFit }[] = [
+  { key: "davet" },
+  { key: "baglanti" },
+  { key: "urun" },
+  { key: "kategori" },
+  { key: "teklif" },
 ];
-export const STATUS_OPTIONS: readonly { key: RequestStatusFilter; label: string }[] = [
-  { key: "aktif", label: "Aktif" },
-  { key: "gecmis", label: "Geçmiş" },
-  { key: "tumu", label: "Tümü" },
+export const STATUS_OPTIONS: readonly { key: RequestStatusFilter }[] = [
+  { key: "aktif" },
+  { key: "gecmis" },
+  { key: "tumu" },
 ];
-export const SORT_OPTIONS: readonly { key: RequestSort | undefined; label: string }[] = [
-  { key: undefined, label: "Size uygun" },
-  { key: "yakin", label: "Yakın biten" },
-  { key: "uzak", label: "Uzak biten" },
-  { key: "yeni", label: "En yeni" },
+export const SORT_OPTIONS: readonly { key: RequestSort | undefined }[] = [
+  { key: undefined },
+  { key: "yakin" },
+  { key: "uzak" },
+  { key: "yeni" },
 ];
 
 export interface RequestFilterState {
@@ -54,7 +64,10 @@ export interface RequestFilterState {
   closing?: ClosingWindow;
   /** Alıcı firma id'leri (maskeli satırlar sahipsiz — listede yok). */
   buyers: string[];
+  /** Şehir anahtarları (slug; eşlenmemiş şehirde ham metin). */
   cities: string[];
+  /** Alıcı ülkesi (ISO alpha-2). */
+  countries: string[];
   currencies: string[];
   format?: RequestFormat;
   /** Son N günde yayımlanan. */
@@ -98,6 +111,9 @@ export function parseRequestFilters(sp: SearchParamsLike): RequestFilterState {
     closing: oneOfNum(get(sp, "kapanis"), CLOSING_WINDOWS),
     buyers: list(get(sp, "alici")),
     cities: list(get(sp, "sehir")),
+    countries: [
+      ...new Set(list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c))),
+    ],
     currencies: list(get(sp, "para")).map((c) => c.toUpperCase()),
     format: oneOf(get(sp, "usul"), ["teklif", "pazarlik"] as const),
     period: oneOfNum(get(sp, "donem"), PERIOD_WINDOWS),
@@ -116,6 +132,7 @@ export function buildRequestFilterQuery(f: RequestFilterState): string {
   if (f.closing) sp.set("kapanis", String(f.closing));
   if (f.buyers.length) sp.set("alici", f.buyers.join(","));
   if (f.cities.length) sp.set("sehir", f.cities.join(","));
+  if (f.countries.length) sp.set("ulke", f.countries.join(","));
   if (f.currencies.length) sp.set("para", f.currencies.join(","));
   if (f.format) sp.set("usul", f.format);
   if (f.period) sp.set("donem", String(f.period));
@@ -134,6 +151,7 @@ export function activeRequestFilterCount(f: RequestFilterState): number {
     (f.closing ? 1 : 0) +
     f.buyers.length +
     f.cities.length +
+    f.countries.length +
     f.currencies.length +
     (f.format ? 1 : 0) +
     (f.period ? 1 : 0)
@@ -146,6 +164,7 @@ export const EMPTY_REQUEST_FILTERS: RequestFilterState = {
   categories: [],
   buyers: [],
   cities: [],
+  countries: [],
   currencies: [],
   page: 1,
 };

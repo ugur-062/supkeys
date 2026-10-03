@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -42,6 +43,7 @@ export function Pagination({
   onPageChange,
   variant = "card",
 }: PaginationProps) {
+  const t = useTranslations("web.panel.shell.pagination");
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
   const pages = pageRange(page, totalPages);
@@ -57,17 +59,17 @@ export function Pagination({
     >
       <div className="text-sm text-zinc-500">
         {total === 0
-          ? "Kayıt yok"
-          : `${total} kayıt içinden ${start}-${end} arası`}
+          ? t("kayitYok")
+          : t("kayitIcindenArasi", { total: total, start: start, end: end })}
       </div>
 
-      <nav className="flex items-center gap-1" aria-label="Sayfalama">
+      <nav className="flex items-center gap-1" aria-label={t("sayfalama")}>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          aria-label="Önceki sayfa"
+          aria-label={t("oncekiSayfa")}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -103,7 +105,7 @@ export function Pagination({
           size="sm"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          aria-label="Sonraki sayfa"
+          aria-label={t("sonrakiSayfa")}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

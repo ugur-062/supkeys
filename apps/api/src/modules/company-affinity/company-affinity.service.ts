@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { tApi } from "../../common/i18n/i18n.service";
 
 /**
  * FİRMA İLGİ MOTORU — beyandan davranışa.
@@ -414,26 +415,33 @@ export class CompanyAffinityService {
 export function affinityReasonText(
   reasons: AffinityReasons | null | undefined,
 ): string | null {
-  if (!reasons) return null;
-  if (reasons.wonOrders) return "Bu alanda tamamlanmış siparişiniz var";
-  if (reasons.bids) return "Bu alanda daha önce teklif verdiniz";
-  if (reasons.catalogItems) return "Kataloğunuzda bu alandan kalemler var";
-  if (reasons.invitations) return "Bu alandaki taleplere davet edildiniz";
-  if (reasons.publishedListings) return "Bu alanda ilan yayınladınız";
-  if (reasons.declared) return "Faaliyet alanlarınızda işaretli";
-  return null;
+  return reasonText(reasons, "own");
 }
 
 /** Aynı metnin ÜÇÜNCÜ ŞAHIS hâli — alıcıya tedarikçi önerirken. */
 export function affinityReasonTextThirdParty(
   reasons: AffinityReasons | null | undefined,
 ): string | null {
+  return reasonText(reasons, "thirdParty");
+}
+
+/** En güçlü sinyal önce; metin istek dilinde (katalog `api.companyAffinity.reason.*`). */
+const REASON_ORDER = [
+  "wonOrders",
+  "bids",
+  "catalogItems",
+  "invitations",
+  "publishedListings",
+  "declared",
+] as const;
+
+function reasonText(
+  reasons: AffinityReasons | null | undefined,
+  perspective: "own" | "thirdParty",
+): string | null {
   if (!reasons) return null;
-  if (reasons.wonOrders) return "Bu alanda tamamlanmış siparişi var";
-  if (reasons.bids) return "Bu alanda daha önce teklif verdi";
-  if (reasons.catalogItems) return "Kataloğunda bu alandan kalemler var";
-  if (reasons.invitations) return "Bu alandaki taleplere davet edildi";
-  if (reasons.publishedListings) return "Bu alanda ilan yayınladı";
-  if (reasons.declared) return "Faaliyet alanlarında işaretli";
-  return null;
+  const hit = REASON_ORDER.find((k) => reasons[k]);
+  return hit
+    ? tApi(`api.companyAffinity.reason.${perspective}.${hit}` as "api.companyAffinity.reason.own.wonOrders")
+    : null;
 }

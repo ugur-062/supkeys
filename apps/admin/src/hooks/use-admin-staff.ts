@@ -69,10 +69,14 @@ export function useStaffAction() {
 // ── Hesap güvenliği (self) ───────────────────────────────────
 
 export function useChangePassword() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { current: string; next: string }) => {
       await api.post("/admin/auth/change-password", input);
     },
+    // Geçici parola kilidi (D-025) kalktı → /me tazelenir, store bayrağı düşer,
+    // RequireAdminAuth paneli açar.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "auth", "me"] }),
   });
 }
 
@@ -82,9 +86,12 @@ export function useTwoFactor() {
     qc.invalidateQueries({ queryKey: ["admin", "auth", "me"] });
   const setup = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<{ secret: string; otpauthUrl: string }>(
-        "/admin/auth/2fa/setup",
-      );
+      const { data } = await api.post<{
+        secret: string;
+        otpauthUrl: string;
+        /** QR görseli (data: URL) — eski API'de yok, elle anahtar yedeği kalır. */
+        qrDataUrl?: string;
+      }>("/admin/auth/2fa/setup");
       return data;
     },
   });

@@ -29,34 +29,66 @@ export interface ProfileCompletenessInput {
   sellerCategoryIds?: string[] | null;
 }
 
+/**
+ * Madde KODU (i18n Faz 3): paylaşılan paket metin değil kod taşır; metni
+ * tüketici çevirir (web `web.domain.profileItem.<kod>`). Türkçe ad geriye
+ * dönük olarak burada kalır — `missing` dizisi birebir aynı çıkar.
+ */
+export type ProfileCompletenessKey =
+  | "logo"
+  | "cover"
+  | "about"
+  | "services"
+  | "foundedYear"
+  | "employeeCount"
+  | "website"
+  | "industry"
+  | "city"
+  | "categories";
+
+export interface ProfileCompletenessItem {
+  key: ProfileCompletenessKey;
+  /** Türkçe ad (katalog yoksa yedek). */
+  label: string;
+  done: boolean;
+}
+
 export interface ProfileCompleteness {
   pct: number;
-  /** Eksik alan etiketleri — kullanıcıya gösterilen sırayla. */
+  /** Eksik alan etiketleri (Türkçe) — kullanıcıya gösterilen sırayla. */
   missing: string[];
+  /** Eksik alan KODLARI — `missing` ile aynı sırada; katalogdan çevrilir. */
+  missingKeys: ProfileCompletenessKey[];
+  /** Tüm maddeler (kod + Türkçe ad + doluluk) — sıra korunur. */
+  items: ProfileCompletenessItem[];
 }
 
 const filled = (v: string | number | null | undefined): boolean =>
   v != null && String(v).trim() !== "";
 
 export function profileCompleteness(p: ProfileCompletenessInput): ProfileCompleteness {
-  const items: [string, boolean][] = [
-    ["Logo", filled(p.logoUrl)],
-    ["Kapak", filled(p.coverImageUrl)],
-    ["Hakkında", filled(p.aboutText)],
-    ["Hizmetler", (p.services?.length ?? 0) > 0],
-    ["Kuruluş yılı", filled(p.foundedYear)],
-    ["Çalışan sayısı", filled(p.employeeCount)],
-    ["Web sitesi", filled(p.website)],
-    ["Sektör", filled(p.industry)],
-    ["Şehir", filled(p.city)],
-    [
-      "Faaliyet kategorileri",
-      (p.buyerCategoryIds?.length ?? 0) + (p.sellerCategoryIds?.length ?? 0) > 0,
-    ],
+  const items: ProfileCompletenessItem[] = [
+    { key: "logo", label: "Logo", done: filled(p.logoUrl) },
+    { key: "cover", label: "Kapak", done: filled(p.coverImageUrl) },
+    { key: "about", label: "Hakkında", done: filled(p.aboutText) },
+    { key: "services", label: "Hizmetler", done: (p.services?.length ?? 0) > 0 },
+    { key: "foundedYear", label: "Kuruluş yılı", done: filled(p.foundedYear) },
+    { key: "employeeCount", label: "Çalışan sayısı", done: filled(p.employeeCount) },
+    { key: "website", label: "Web sitesi", done: filled(p.website) },
+    { key: "industry", label: "Sektör", done: filled(p.industry) },
+    { key: "city", label: "Şehir", done: filled(p.city) },
+    {
+      key: "categories",
+      label: "Faaliyet kategorileri",
+      done: (p.buyerCategoryIds?.length ?? 0) + (p.sellerCategoryIds?.length ?? 0) > 0,
+    },
   ];
-  const done = items.filter(([, ok]) => ok).length;
+  const done = items.filter((i) => i.done).length;
+  const missingItems = items.filter((i) => !i.done);
   return {
     pct: Math.round((done / items.length) * 100),
-    missing: items.filter(([, ok]) => !ok).map(([l]) => l),
+    missing: missingItems.map((i) => i.label),
+    missingKeys: missingItems.map((i) => i.key),
+    items,
   };
 }

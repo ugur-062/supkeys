@@ -1,7 +1,20 @@
 import {
+  DEFAULT_LOCALE,
+  isLocale,
+  translateRoutePath,
+  type Locale,
+} from "@rothern/i18n";
+import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
+import { localeOf } from "../../notifications/notification.service";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { resolveCityId, storedCityName } from "../../../common/geo/geo-index";
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -19,23 +32,27 @@ import {
   isValidCountryCode,
   isValidTaxIdForCountry,
   isValidTckn,
-
-  isRegistrationOpen,} from "@rothern/shared";
+  isRegistrationOpen,
+  EU_VAT_COUNTRIES,
+  normalizeDigits,
+  normalizeTaxId,
+} from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../../common/company/company-slug";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { ensureOwnerBuySeat } from "../../../common/company/owner-buy-seat";
-import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
+import { NOTIFICATION_FLAG_KEYS, NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import {
   PrismaService,
   PrismaBypassService,
 } from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
+import { assertPostalCode } from "../../company-addresses/company-addresses.service";
 import { EmailService } from "../../email/email.service";
-import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
+import { SupabaseAuthService, isSupabaseAuthAccessError } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
-import { CompanySignupDto } from "../dto/company-signup.dto";
+import { ChangeSignupEmailDto, CompanySignupDto } from "../dto/company-signup.dto";
 import { CompleteOnboardingDto } from "../dto/onboarding.dto";
 import {
   effectivePermissions,
@@ -43,19 +60,27 @@ import {
 } from "../permissions/company-permissions.constants";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import { isReferralExpired } from "../../../common/company/invite-delivery";
 import {
   decryptTotpSecret,
   encryptTotpSecret,
   totpEncKey,
 } from "../../../common/auth/totp-secret-cipher";
+import { maskEmail } from "../../../common/logging/mask-email";
 
-const ROLE_LABELS: Record<CompanyRole, string> = {
-  [CompanyRole.SAHIP]: "Kurucu",
-  [CompanyRole.YONETICI]: "Yönetici",
-  [CompanyRole.SATIN_ALMACI]: "Satın Almacı",
-  [CompanyRole.SATISCI]: "Satışçı",
-  [CompanyRole.ONAYLAYICI]: "Onaylayıcı",
-};
+/** Her bildirim e-postasının ilk paragrafı (alıcının dilinde). */
+const NOTIFY_GREETING_KEY = "api.notifications.common.greeting" as ApiMessageKey;
+
+/**
+ * İÇ (Türkçe, ön eksiz) yol → alıcının dilindeki TAM adres.
+ * `common/company/app-routes.ts` içindeki `localize` ile AYNI kural (o dosya
+ * yardımcıyı dışa aktardığında burası ona bağlanmalı — iki kopya ayrışmasın).
+ */
+function localizeUrl(base: string, path: string, locale: Locale): string {
+  const outer = translateRoutePath(path, locale);
+  if (locale === DEFAULT_LOCALE) return `${base}${outer}`;
+  return `${base}${outer === "/" ? `/${locale}` : `/${locale}${outer}`}`;
+}
 
 type Ctx = { ip?: string; userAgent?: string };
 
@@ -66,6 +91,32 @@ const EMAIL_CODE_MAX_ATTEMPTS = 5;
 // başına en fazla 5 kod → toplam tahmin bütçesi ≈25/saat (10^6'ya karşı
 // brute-force pratik olarak kapanır); e-posta flood'u da sınırlanır.
 const EMAIL_CODE_MAX_PER_HOUR = 5;
+
+// Hesap bazlı 2FA deneme freni (derin denetim 2026-09-29 MU-16): TOTP ve
+// kurtarma kodunda IP throttle tek frendi; dağıtık IP'lerle 10^6 uzayda tahmin
+// serbestti. Pencere başına en fazla 5 deneme → ~480/gün (pratikte kapalı).
+const TWO_FACTOR_MAX_ATTEMPTS = 5;
+const TWO_FACTOR_WINDOW_MIN = 15;
+
+/** `companies_taxNumber_key` ihlali mi (P2002, hedef taxNumber)? */
+function isTaxNumberConflict(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;
+  const target = e.meta?.target;
+  return (Array.isArray(target) ? target.join(",") : String(target ?? "")).includes("taxNumber");
+}
+
+function twoFactorLockedError(): HttpException {
+  return new HttpException(
+    i18nMessage("api.companyAuth.cokFazlaHatali2faDenemesi", { dakika: TWO_FACTOR_WINDOW_MIN }, "TWO_FACTOR_LOCKED"),
+    HttpStatus.TOO_MANY_REQUESTS,
+  );
+}
+
+function taxNumberTakenError(): ConflictException {
+  return new ConflictException(
+    i18nMessage("api.companyAuth.buVergiNumarasiIleKayitliFirmaVar", undefined, "TAX_NUMBER_TAKEN"),
+  );
+}
 
 @Injectable()
 export class CompanyAuthService {
@@ -98,7 +149,7 @@ export class CompanyAuthService {
       select: { id: true },
     });
     if (existing) {
-      throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+      throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
     }
 
     // 1) Supabase auth.users oluştur
@@ -112,12 +163,15 @@ export class CompanyAuthService {
     // 2) Company + ilk CompanyUser (owner). Prisma hatasında auth.users temizle.
     //    Firma adı signup'ta sorulmaz → geçici ad; onboarding'de legalName ile
     //    güncellenir. E-posta doğrulanmadan (emailVerifiedAt=null) login engelli.
+    //    Geçici ad DİLDEN BAĞIMSIZ: kurucunun adı soyadı (2026-09-27; eskiden
+    //    "<Ad> <Soyad> Firması" — Türkçe ek admin listelerinde ve davet eden
+    //    firmaya giden "kabul edildi" e-postasında yabancı kayıtta da görünüyordu).
     let result: { company: Company; user: CompanyUser };
     try {
       result = await runTenantTx(this.bypass, async (tx) => {
         const company = await tx.company.create({
           data: {
-            name: `${dto.firstName.trim()} ${dto.lastName.trim()} Firması`,
+            name: `${dto.firstName.trim()} ${dto.lastName.trim()}`,
             tier: "STANDART",
             rothernId,
           },
@@ -126,6 +180,8 @@ export class CompanyAuthService {
           data: {
             email,
             authId,
+            // i18n: kayıt sayfasının dili hesabın dili olur (Accept-Language → ALS).
+            locale: currentLocale(),
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone.trim(),
@@ -168,7 +224,7 @@ export class CompanyAuthService {
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002"
       ) {
-        throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+        throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
       }
       throw e;
     }
@@ -189,7 +245,7 @@ export class CompanyAuthService {
       dto.referralToken,
     ).catch((err) =>
       this.logger.error(
-        `Referans daveti bağlama hatası (${email}): ${
+        `Referans daveti bağlama hatası (${maskEmail(email)}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       ),
@@ -225,11 +281,20 @@ export class CompanyAuthService {
     userId: string,
     email: string,
     firstName: string,
-    kind: "verify" | "login" = "verify",
+    /** verify: kayıt doğrulaması · login: giriş 2FA'sı · twoFactor: Ayarlar'da
+     *  2FA kurulum/kapatma (arayüz testi D-086 — "Giriş doğrulama kodunuz"
+     *  diyordu). */
+    kind: "verify" | "login" | "twoFactor" = "verify",
+    /** ALICININ dili — verilmezse istek bağlamı (giriş/kayıt sayfasının dili). */
+    locale: Locale = currentLocale(),
   ): Promise<{ sent: boolean; capped?: boolean }> {
     // Hesap-bazlı üretim tavanı (son 60 dk). Aşıldıysa yeni kod ÜRETİLMEZ ve
     // e-posta gitmez; mevcut kod (varsa) geçerli kalır. Çağıran generic yanıt
     // döner (kayıt/yeniden gönder akışında enumeration sızdırmaz).
+    // Sayıma yalnız DOĞRULANMAMIŞ kodlar girer: başarıyla doğrulanan kod satırı
+    // tüketimde SİLİNİR (consumeEmailCode/verifyEmail). Eskiden tüketilen kodlar
+    // da sayılıyor, saatte 5 başarılı e-posta 2FA girişinden sonra 6. giriş ~1
+    // saat kilitleniyordu (derin denetim MU-16, gözden geçirme).
     const recent = await this.bypass.emailVerificationCode.count({
       where: { companyUserId: userId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
     });
@@ -249,25 +314,45 @@ export class CompanyAuthService {
         expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MIN * 60_000),
       },
     });
-    const isLogin = kind === "login";
-    const subject = isLogin ? "Giriş doğrulama kodunuz" : "E-posta doğrulama kodunuz";
+    // 2FA ayar kodu giriş koduyla aynı kritik bağlamda (login_2fa) gider.
+    const isLogin = kind === "login" || kind === "twoFactor";
+    // Metin ALICININ dilinde (katalog anahtarı + ICU parametresi).
+    const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+      tApi(key, values, locale);
+    const subject = t(
+      kind === "twoFactor"
+        ? "api.notifications.companyAuth.ikiAdimliAyarKoduKonu"
+        : isLogin
+          ? "api.notifications.companyAuth.girisKoduKonu"
+          : "api.notifications.companyAuth.dogrulamaKoduKonu",
+    );
     try {
       const res = await this.email.send({
         to: { email, name: firstName },
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
-            heading: isLogin
-              ? "İki adımlı doğrulama kodu"
-              : "E-posta adresinizi doğrulayın",
-            paragraphs: [
-              "Merhaba,",
+            heading: t(
               isLogin
-                ? `Giriş için iki adımlı doğrulama kodunuz: ${code}`
-                : `Rothern hesabınızı etkinleştirmek için doğrulama kodunuz: ${code}`,
-              `Kod ${EMAIL_CODE_TTL_MIN} dakika geçerlidir.`,
+                ? "api.notifications.companyAuth.girisKoduBaslik"
+                : "api.notifications.companyAuth.dogrulamaKoduBaslik",
+            ),
+            paragraphs: [
+              t(NOTIFY_GREETING_KEY),
+              t(
+                kind === "twoFactor"
+                  ? "api.notifications.companyAuth.ikiAdimliAyarKoduGovde"
+                  : isLogin
+                    ? "api.notifications.companyAuth.girisKoduGovde"
+                    : "api.notifications.companyAuth.dogrulamaKoduGovde",
+                { kod: code },
+              ),
+              t("api.notifications.companyAuth.kodGecerlilik", {
+                dakika: EMAIL_CODE_TTL_MIN,
+              }),
             ],
           },
         },
@@ -279,7 +364,7 @@ export class CompanyAuthService {
       return { sent: res.sent };
     } catch (err) {
       this.logger.error(
-        `Doğrulama kodu e-postası gönderilemedi (${email}): ${
+        `Doğrulama kodu e-postası gönderilemedi (${maskEmail(email)}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
@@ -295,13 +380,38 @@ export class CompanyAuthService {
   async adminResendVerificationCode(userId: string): Promise<void> {
     const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, firstName: true, emailVerifiedAt: true },
+      select: {
+        email: true,
+        firstName: true,
+        emailVerifiedAt: true,
+        locale: true,
+      },
     });
-    if (!user) throw new BadRequestException("Kullanıcı bulunamadı");
+    if (!user) throw new BadRequestException(i18nMessage("api.companyAuth.kullaniciBulunamadi"));
     if (user.emailVerifiedAt) {
-      throw new BadRequestException("E-posta zaten doğrulanmış");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ePostaZatenDogrulanmis"));
     }
-    await this.issueEmailCode(userId, user.email, user.firstName);
+    const { sent, capped } = await this.issueEmailCode(
+      userId,
+      user.email,
+      user.firstName,
+      "verify",
+      localeOf(user.locale),
+    );
+    // Failure-aware (arayüz testi O-064): eskiden sonuç atılıyordu — tavan
+    // doluyken admin "gönderildi" görüyor, destek kullanıcıya yanlış bilgi
+    // veriyordu. Tavan → dürüst 429, gönderim hatası/bastırma → 503.
+    if (!sent && capped) {
+      throw new HttpException(
+        i18nMessage("api.companyAuth.cokFazlaKodIstendi", undefined, "EMAIL_CODE_CAPPED"),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (!sent) {
+      throw new ServiceUnavailableException(
+        i18nMessage("api.companyAuth.dogrulamaKoduSuAndaGonderilemediLutfen"),
+      );
+    }
   }
 
   /**
@@ -318,26 +428,36 @@ export class CompanyAuthService {
     });
     if (!record || record.expiresAt < new Date()) return false;
     if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) return false;
-    if (record.codeHash !== this.hashCode(code.trim())) {
-      await this.bumpCodeAttempt(record.id);
-      return false;
-    }
-    await this.bypass.emailVerificationCode.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
+    // Deneme hakkı karşılaştırmadan ÖNCE atomik tüketilir (derin denetim LU-06).
+    if (!(await this.claimCodeAttempt(record.id))) return false;
+    if (record.codeHash !== this.hashCode(code.trim())) return false;
+    // Başarılı tüketim satırı SİLER (üretim tavanına sayılmasın). KOŞULLU
+    // silme (usedAt null) → aynı kodla eşzamanlı iki istekten yalnız biri geçer;
+    // arada yeni kod üretilip bu kod kapatıldıysa da geçmez.
+    const { count } = await this.bypass.emailVerificationCode.deleteMany({
+      where: { id: record.id, usedAt: null },
     });
-    return true;
+    return count === 1;
   }
 
   /**
-   * Hatalı deneme sayacı — KOŞULLU artış (attempts < MAX): eşzamanlı burst
-   * tavanı aşamaz (denetim 2026-08-23 #9, check-then-act yarışı kapatıldı).
+   * Deneme hakkını hash karşılaştırmasından ÖNCE atomik ayırır — KOŞULLU artış
+   * (attempts < MAX, kullanılmamış). Yalnız hakkı alan istek tahminini dener:
+   * eşzamanlı burst ne sayacı ne de denenen tahmin sayısını tavanın üstüne
+   * çıkarabilir (denetim 2026-08-23 #9; derin denetim LU-06 — eskiden sayaç
+   * okunup karşılaştırma sonra artırılıyordu, paralel istekler aynı "0"
+   * değerini görüp tahminlerini deniyordu). Doğru kod satırı zaten silinir.
    */
-  private async bumpCodeAttempt(recordId: string): Promise<void> {
-    await this.bypass.emailVerificationCode.updateMany({
-      where: { id: recordId, attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS } },
+  private async claimCodeAttempt(recordId: string): Promise<boolean> {
+    const { count } = await this.bypass.emailVerificationCode.updateMany({
+      where: {
+        id: recordId,
+        usedAt: null,
+        attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS },
+      },
       data: { attempts: { increment: 1 } },
     });
+    return count === 1;
   }
 
   /** Kodu doğrula → emailVerifiedAt set + otomatik login (token). */
@@ -347,7 +467,7 @@ export class CompanyAuthService {
       where: { email: normalized },
       include: { company: true },
     });
-    if (!user) throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+    if (!user) throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     // GÜVENLİK: bu uç KİMLİK DOĞRULAMASIZ. Zaten doğrulanmış e-postada kod
     // kontrolü olmadan token DÖNDÜRÜLEMEZ (hesap ele geçirme). Sadece bilgi ver;
     // oturum için normal login kullanılır.
@@ -359,28 +479,44 @@ export class CompanyAuthService {
       orderBy: { createdAt: "desc" },
     });
     if (!record || record.expiresAt < new Date()) {
-      throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+      throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
-    if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+    // Deneme hakkı karşılaştırmadan ÖNCE atomik ayrılır (derin denetim LU-06).
+    if (
+      record.attempts >= EMAIL_CODE_MAX_ATTEMPTS ||
+      !(await this.claimCodeAttempt(record.id))
+    ) {
       throw new BadRequestException(
-        "Çok fazla hatalı deneme — yeni kod isteyin",
+        i18nMessage("api.companyAuth.cokFazlaHataliDenemeYeniKod"),
       );
     }
     if (record.codeHash !== this.hashCode(code)) {
-      await this.bumpCodeAttempt(record.id);
-      throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+      throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
-    const [, updatedUser] = await this.bypass.$transaction([
-      this.bypass.emailVerificationCode.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      }),
-      this.bypass.companyUser.update({
-        where: { id: user.id },
+    // Doğrulanan kod satırı SİLİNİR: üretim tavanına sayılmaz (consumeEmailCode
+    // ile aynı kural, derin denetim MU-16 gözden geçirme). Tüketim ATOMİK
+    // (arayüz testi FX-00 D-064): koşullu silme + koşullu doğrulama damgası;
+    // aynı kodla eşzamanlı ikinci istek satırı bulamaz ve oturum AÇMAZ
+    // (eskiden iki istek de 200 + iki oturum alıyordu).
+    const updatedUser = await this.bypass.$transaction(async (tx) => {
+      const consumed = await tx.emailVerificationCode.deleteMany({
+        where: { id: record.id, usedAt: null },
+      });
+      if (consumed.count !== 1) {
+        throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
+      }
+      const stamped = await tx.companyUser.updateMany({
+        where: { id: user.id, emailVerifiedAt: null },
         data: { emailVerifiedAt: new Date() },
+      });
+      if (stamped.count !== 1) {
+        throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
+      }
+      return tx.companyUser.findUniqueOrThrow({
+        where: { id: user.id },
         include: { company: true },
-      }),
-    ]);
+      });
+    });
     return this.buildLoginResponse(updatedUser, updatedUser.company);
   }
 
@@ -389,12 +525,98 @@ export class CompanyAuthService {
     const normalized = email.toLowerCase().trim();
     const user = await this.bypass.companyUser.findUnique({
       where: { email: normalized },
-      select: { id: true, firstName: true, emailVerifiedAt: true },
+      select: {
+        id: true,
+        firstName: true,
+        emailVerifiedAt: true,
+        locale: true,
+      },
     });
     if (user && !user.emailVerifiedAt) {
-      await this.issueEmailCode(user.id, normalized, user.firstName);
+      await this.issueEmailCode(
+        user.id,
+        normalized,
+        user.firstName,
+        "verify",
+        localeOf(user.locale),
+      );
     }
     return { success: true as const };
+  }
+
+  /**
+   * Doğrulanmamış kaydın e-postasını düzeltir (kod adımındaki "E-posta adresini
+   * değiştir"). Eskiden istemci forma dönüp YENİ bir kayıt açıyordu: yanlış
+   * adresteki hesap + geçici firma yetim kalıyor, gerçek adres sahibi kayıtta
+   * 409 alıyordu (derin denetim LU-22). Artık aynı hesabın adresi değişir ve
+   * kod yeni adrese gider.
+   *
+   * Kimlik: eski adres + kayıtta belirlenen parola (bu adımda token yok).
+   * Doğrulanmış hesap, bulunamayan hesap ve yanlış parola AYNI hatayı alır
+   * (hesap varlığı sızdırılmaz); doğrulanmış hesabın adresi buradan değişmez.
+   */
+  async changeSignupEmail(dto: ChangeSignupEmailDto, ctx?: Ctx) {
+    const email = dto.email.toLowerCase().trim();
+    const newEmail = dto.newEmail.toLowerCase().trim();
+    const invalid = () =>
+      new UnauthorizedException(i18nMessage("api.companyAuth.ePostaVeyaSifreHatali"));
+
+    let authId: string;
+    try {
+      authId = (await this.supabaseAuth.verifyPassword(email, dto.password, ctx?.ip)).authId;
+    } catch (err) {
+      if (isSupabaseAuthAccessError(err)) throw err;
+      throw invalid();
+    }
+    const user = await this.bypass.companyUser.findUnique({
+      where: { authId },
+      select: { id: true, email: true, firstName: true, emailVerifiedAt: true, deletedAt: true },
+    });
+    if (!user || user.email !== email || user.emailVerifiedAt || user.deletedAt) {
+      throw invalid();
+    }
+
+    if (newEmail !== email) {
+      const clash = await this.bypass.companyUser.findUnique({
+        where: { email: newEmail },
+        select: { id: true },
+      });
+      if (clash) {
+        throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
+      }
+      // Önce Supabase (giriş kaynağı); domain güncellemesi düşerse geri alınır.
+      await this.supabaseAuth.updateEmail(authId, newEmail);
+      try {
+        await this.bypass.companyUser.update({
+          where: { id: user.id },
+          data: { email: newEmail },
+        });
+      } catch (e) {
+        await this.supabaseAuth.updateEmail(authId, email).catch((rollbackErr: unknown) =>
+          this.logger.error(
+            `Signup email change rollback failed (user=${user.id}): ${
+              rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
+            }`,
+          ),
+        );
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
+        }
+        throw e;
+      }
+      void this.audit.log({
+        action: "company.signup_email_changed",
+        actorType: "company",
+        actorId: user.id,
+        actorEmail: newEmail,
+        metadata: { from: email, to: newEmail, portal: "company" },
+        ip: ctx?.ip,
+      });
+    }
+
+    // Eski adrese giden kod geçersiz olur (issueEmailCode eskileri kapatır).
+    const { sent } = await this.issueEmailCode(user.id, newEmail, user.firstName);
+    return { email: newEmail, verificationRequired: true as const, emailSent: sent };
   }
 
   // ============================================================
@@ -414,49 +636,72 @@ export class CompanyAuthService {
     });
     if (!existing) throw new UnauthorizedException();
     if (existing.ownerUserId !== userId) {
-      throw new ForbiddenException("Yalnızca firma sahibi doğrulama yapabilir");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.yalnizcaFirmaSahibiDogrulamaYapabilir"));
     }
     if (existing.onboardingCompletedAt) {
-      throw new BadRequestException("Firma doğrulaması zaten tamamlanmış");
+      throw new BadRequestException(i18nMessage("api.companyAuth.firmaDogrulamasiZatenTamamlanmis"));
     }
 
     const country = (dto.country || "TR").toUpperCase();
-    // KKTC (XN) ISO listesinde YOK — profil kapısı onu tanır, `COUNTRIES`
-    // tanımaz. Bu yüzden geçerlilik "ISO'da var VEYA açık bir profili var".
-    if (!isValidCountryCode(country) && !isRegistrationOpen(country)) {
-      throw new BadRequestException("Geçersiz ülke seçimi");
+    // Tam ülke listesi (KKTC `XN` dahil, 2026-09-27).
+    if (!isValidCountryCode(country)) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.gecersizUlkeSecimi"));
     }
-    // KAYIT KAPISI (2026-09-01): yeni kayıt yalnız profili AÇIK ülkelerden.
-    // YALNIZ YENİ KAYDA uygulanır — mevcut firmalar etkilenmez (bu metot
-    // yukarıda `onboardingCompletedAt` ile zaten korunuyor). Aksi hâlde
-    // kapatılan bir ülkedeki çalışan hesap kilitlenirdi.
+    // KAYIT KAPISI (2026-09-27): her ülke açık, `REGISTRATION_BLOCKED` hariç
+    // (ABD + toprakları, kapsamlı yaptırım ülkeleri). YALNIZ YENİ KAYDA
+    // uygulanır — mevcut firmalar etkilenmez (bu metot yukarıda
+    // `onboardingCompletedAt` ile zaten korunuyor).
     if (!isRegistrationOpen(country)) {
       throw new BadRequestException(
-        "Şu anda bu ülkeden yeni kayıt alınmıyor. Ülkenizin açılmasını " +
-          "istiyorsanız bizimle iletişime geçin.",
+        i18nMessage("api.companyAuth.buUlkedenYeniKayitAlinmiyor"),
       );
     }
+    // Hukuki yapı "Diğer" (2026-09-27): yerel yapı adı zorunlu (GmbH, LLC…).
+    const legalFormLocal = dto.legalFormLocal?.trim() || null;
+    if (dto.companyType === "OTHER" && (!legalFormLocal || legalFormLocal.length < 2)) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.yerelHukukiYapiZorunlu"));
+    }
+    // Dünya şehir listesi kaydı (2026-09-27): şehir sayfası/süzgeç/"Yakınımda".
+    const cityId = resolveCityId(country, dto.city, dto.cityId);
+    const cityName = storedCityName(cityId, dto.city) ?? dto.city.trim();
+    const deliveryCityId = resolveCityId(country, dto.deliveryCity ?? dto.city, dto.deliveryCityId);
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
-    if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
+    // Saklanan değer NORMALİZE (etiket/ülke öneki atılmış, rakamlar ASCII) —
+    // web formu aynı fonksiyonla denetler (2026-09-27).
+    const taxNumber = normalizeTaxId(dto.taxNumber, country);
+    if (!isValidTaxIdForCountry(taxNumber, country, isSole)) {
       throw new BadRequestException(
-        country === "TR"
-          ? isSole
-            ? "Şahıs firması için 11 haneli geçerli TCKN giriniz"
-            : "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz"
-          : "Geçerli bir vergi/sicil numarası giriniz",
+        i18nMessage(
+          country === "TR"
+            ? isSole
+              ? "api.companyAuth.sahisFirmasiIcin11HaneliTckn"
+              : "api.companyAuth.tuzelKisiIcin10HaneliVergiNo"
+            : "api.companyAuth.gecerliBirVergiSicilNumarasiGiriniz",
+        ),
       );
     }
+    // Vergi no platform genelinde TEKİL (`companies_taxNumber_key`). Aynı
+    // firmadan ikinci kişinin ayrı kayıt olması B2B'de olağan — eskiden unique
+    // ihlali 500 olarak düşüyor, kullanıcı onboarding'de takılı kalıyordu
+    // (derin denetim 2026-09-29 MU-16). Ön kontrol bypass'ta (başka tenant'ın
+    // satırı); yarış için aşağıda P2002 de aynı 409'a çevrilir.
+    await this.assertTaxNumberFree(taxNumber, companyId);
     if (country === "TR") {
       if (!dto.authorizedTckn || !isValidTckn(dto.authorizedTckn)) {
-        throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
+        throw new BadRequestException(i18nMessage("api.companyAuth.yetkiliTCKimlikNoGecersiz"));
       }
       if (!dto.taxOffice?.trim()) {
-        throw new BadRequestException("Vergi dairesi zorunlu");
+        throw new BadRequestException(i18nMessage("api.companyAuth.vergiDairesiZorunlu"));
       }
       if (!dto.district?.trim()) {
-        throw new BadRequestException("İlçe zorunlu");
+        throw new BadRequestException(i18nMessage("api.companyAuth.ilceZorunlu"));
       }
     }
+
+    // Posta kodu: adres defteriyle AYNI kural (TR'de 5 rakam) — kayıt ikisini
+    // de adres defterine yazar, kural yalnız arayüzdeydi (arayüz testi webC-09).
+    assertPostalCode(country, dto.postalCode);
+    if (dto.deliverySameAsBilling === false) assertPostalCode(country, dto.deliveryPostalCode);
 
     const { mainIds, subIds } = await validateCategorySelection(
       this.prisma,
@@ -486,6 +731,9 @@ export class CompanyAuthService {
     // yani kullanılabilir olduğu anda, bir koltuk önceden yakmadan.
     const roles: CompanyRole[] = [CompanyRole.SAHIP, CompanyRole.SATISCI];
     const deliverySame = dto.deliverySameAsBilling !== false;
+    // Mahalle ayrı adres kolonu değil (CompanyAddress'te yok, Company'de
+    // gösterilmiyordu) → açık adres satırına katılır; web alanı yalnız TR'de sorar.
+    const billingLine = withNeighborhood(dto.neighborhood, dto.addressLine);
 
     await runTenantTx(this.prisma, async (tx) => {
       await tx.company.update({
@@ -494,8 +742,9 @@ export class CompanyAuthService {
           name: dto.legalName.trim(),
           legalName: dto.legalName.trim(),
           companyType: dto.companyType,
+          legalFormLocal: dto.companyType === "OTHER" ? legalFormLocal : null,
           country,
-          taxNumber: dto.taxNumber.trim(),
+          taxNumber,
           taxOffice: dto.taxOffice?.trim() || null,
           website: normalizeWebsite(dto.website),
           /**
@@ -514,14 +763,18 @@ export class CompanyAuthService {
            */
           publicEnabled: true,
           slug: await ensureUniqueCompanySlug(tx, dto.legalName.trim(), companyId),
-          city: dto.city.trim(),
+          city: cityName,
+          cityId,
           district: dto.district?.trim() || null,
           stateRegion: dto.stateRegion?.trim() || null,
           neighborhood: dto.neighborhood?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
-          addressLine: dto.addressLine.trim(),
+          addressLine: billingLine,
           authorizedTckn: dto.authorizedTckn?.trim() || null,
-          authorizedTitle: ROLE_LABELS[CompanyRole.SAHIP],
+          // KULLANICININ DİLİNDE (2026-09-27): eskiden sabit Türkçe "Kurucu"
+          // yazılıp Firma Bilgileri'nde ham basılıyordu; Rus firma "Kurucu"
+          // görüyordu. İstek dili = kayıt ekranının dili.
+          authorizedTitle: tApi("api.companyAuth.defaults.founderTitle"),
           // AYNI LİSTE DÖRT ALANA — bilinçli, kopyala-yapıştır değil.
           //
           // Kayıt ekranı TEK soru sorar ("ne alıp satıyorsunuz"). Yeni kullanıcı
@@ -551,14 +804,20 @@ export class CompanyAuthService {
         data: {
           companyId,
           type: "FATURA",
-          title: "Merkez",
+          // Varsayılan başlıklar kullanıcının dilinde (bkz. authorizedTitle);
+          // eski Türkçe kayıtlar okumada çevrilir (`localizeDefaultAddressTitle`).
+          title: tApi("api.companyAuth.defaults.headOfficeTitle"),
           country,
-          city: dto.city.trim(),
+          // Eyalet/bölge adres defterine de taşınır (2026-09-27) — yoksa TR dışı
+          // adresin "state"i sipariş kaydında kayboluyordu.
+          stateRegion: dto.stateRegion?.trim() || null,
+          city: cityName,
+          cityId,
           district: dto.district?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
-          addressLine: dto.addressLine.trim(),
+          addressLine: billingLine,
           taxOffice: dto.taxOffice?.trim() || null,
-          taxNumber: dto.taxNumber.trim(),
+          taxNumber,
           isDefault: true,
         },
       });
@@ -566,24 +825,70 @@ export class CompanyAuthService {
         data: {
           companyId,
           type: "TESLIMAT",
-          title: deliverySame ? "Teslimat (fatura ile aynı)" : "Teslimat",
+          title: tApi(
+            deliverySame
+              ? "api.companyAuth.defaults.deliverySameTitle"
+              : "api.companyAuth.defaults.deliveryTitle",
+          ),
           country,
-          city: (deliverySame ? dto.city : dto.deliveryCity ?? dto.city).trim(),
+          stateRegion: (deliverySame ? dto.stateRegion : dto.deliveryStateRegion)?.trim() || null,
+          city: deliverySame ? cityName : (storedCityName(deliveryCityId, dto.deliveryCity ?? dto.city) ?? ""),
+          cityId: deliverySame ? cityId : deliveryCityId,
           district:
             (deliverySame ? dto.district : dto.deliveryDistrict)?.trim() || null,
           postalCode:
             (deliverySame ? dto.postalCode : dto.deliveryPostalCode)?.trim() ||
             null,
-          addressLine: (deliverySame
-            ? dto.addressLine
-            : dto.deliveryAddressLine ?? dto.addressLine
-          ).trim(),
+          addressLine: deliverySame
+            ? billingLine
+            : withNeighborhood(
+                dto.deliveryNeighborhood,
+                dto.deliveryAddressLine ?? dto.addressLine,
+              ),
           isDefault: true,
         },
       });
+    }).catch((e: unknown) => {
+      // Yarış: ön kontrolü geçen eşzamanlı kayıt → aynı yönlendirici 409.
+      if (isTaxNumberConflict(e)) throw taxNumberTakenError();
+      throw e;
     });
 
+    // Paket onboarding'den ÖNCE tanımlandıysa (admin GOLD verdi, kurucu sonra
+    // tamamladı) yukarıdaki yazım, paket tanımında açılan satınalma koltuğunu
+    // ezip kurucuyu 403'e düşürüyordu (arayüz testi D-165). Aynı fail-safe
+    // yardımcı burada da koşar: GOLD değilse ya da koltuk varsa dokunmaz.
+    await ensureOwnerBuySeat(this.prisma, companyId).catch((err: unknown) =>
+      this.logger.warn(
+        `Owner buying seat could not be opened after onboarding (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+
+    // AB firması: kaydedilen vergi no arka planda VIES'e sorulur (audit izi).
+    this.scheduleOnboardingVies(companyId, userId, country, taxNumber);
+
+    // Bu firmayı davet linkiyle getiren firmalara "davetiniz kabul edildi" —
+    // ancak şimdi, gerçek firma adı belliyken (fire-and-forget).
+    void this.notifyReferralInvitersJoined(companyId).catch((err) =>
+      this.logger.warn(
+        `Davet kabul bildirimi gönderilemedi (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+
     return { ok: true as const };
+  }
+
+  /** Vergi no başka bir firmada kayıtlıysa yönlendirici 409 (onboarding). */
+  private async assertTaxNumberFree(taxNumber: string, companyId: string): Promise<void> {
+    const taken = await this.bypass.company.findFirst({
+      where: { taxNumber, id: { not: companyId } },
+      select: { id: true },
+    });
+    if (taken) throw taxNumberTakenError();
   }
 
   /**
@@ -595,21 +900,34 @@ export class CompanyAuthService {
     newCompanyId: string,
     usedToken?: string,
   ): Promise<void> {
-    const invites = await this.bypass.companyReferralInvite.findMany({
-      where: { email, status: "PENDING" },
+    // 2026-09-27 davet denetimi: (1) KULLANILAN token'ın daveti, kayıt
+    // e-postası davet adresinden FARKLI olsa da eşleşir — AI keşfinin bulduğu
+    // adresler çoğu kez info@ kutusudur, tedarikçi kişisel adresiyle kaydolunca
+    // davet (ve talep bağlamı) kayboluyordu. Rıza zaten linke tıklamakla
+    // verildi. (2) Son gönderimden 30 günü geçmiş davet SÜRESİ DOLMUŞ sayılır
+    // (`isReferralExpired`; şema değişikliği yok, `updatedAt` her gönderimde
+    // ilerletilir).
+    const found = await this.bypass.companyReferralInvite.findMany({
+      where: {
+        status: "PENDING",
+        OR: [{ email }, ...(usedToken ? [{ token: usedToken }] : [])],
+      },
       select: {
         id: true,
         inviterCompanyId: true,
         invitedById: true,
         token: true,
         listingId: true,
+        updatedAt: true,
       },
     });
-    if (invites.length === 0) return;
-    const newCompany = await this.bypass.company.findUnique({
-      where: { id: newCompanyId },
-      select: { name: true },
-    });
+    const now = new Date();
+    // Kullanılan token ÖNCE işlenir: aynı firmanın e-postayla eşleşen ikinci
+    // daveti bağlantıyı önce PENDING yaratırsa (upsert update:{}) ACTIVE
+    // hiç yazılmazdı.
+    const invites = found
+      .filter((inv) => !isReferralExpired(inv.updatedAt, now))
+      .sort((a, b) => Number(b.token === usedToken) - Number(a.token === usedToken));
     for (const inv of invites) {
       if (inv.inviterCompanyId === newCompanyId) continue;
       // BK-CONN-1: rıza yalnız KULLANILAN davet linki için verildi. O token'ın
@@ -634,35 +952,6 @@ export class CompanyAuthService {
         },
         update: {},
       });
-      // Faz C: davet ihale bağlamlıysa ve link KULLANILDIYSA — ihale hâlâ
-      // davete açıksa yeni firmayı ihaleye otomatik davet et (kapalı zarf
-      // etkisi yok; firma paneline girince ihaleyi davetlilerinde görür).
-      if (isUsed && inv.listingId) {
-        const listing = await this.bypass.listing.findUnique({
-          where: { id: inv.listingId },
-          select: { id: true, status: true, companyId: true },
-        });
-        if (
-          listing &&
-          listing.companyId === inv.inviterCompanyId &&
-          (listing.status === "DRAFT" || listing.status === "OPEN")
-        ) {
-          await this.bypass.listingInvitation.upsert({
-            where: {
-              listingId_invitedCompanyId: {
-                listingId: listing.id,
-                invitedCompanyId: newCompanyId,
-              },
-            },
-            create: {
-              listingId: listing.id,
-              invitedCompanyId: newCompanyId,
-              invitedById: inv.invitedById,
-            },
-            update: {},
-          });
-        }
-      }
       await this.bypass.companyReferralInvite.update({
         where: { id: inv.id },
         data: {
@@ -690,25 +979,92 @@ export class CompanyAuthService {
           status: isUsed ? "ACTIVE" : "PENDING",
         },
       });
-      // Yalnız KULLANILAN davet (ACTIVE) inviter'a "kabul edildi" e-postası;
-      // PENDING istekler yeni firmanın onayını bekler (listIncoming). in-app kanal
-      // burada döngü nedeniyle yok — NotificationModule bu servise enjekte edilemez.
-      if (isUsed) {
-        const inviterEmail = await this.companyNotifyEmail(inv.inviterCompanyId);
-        if (inviterEmail) {
-          this.sendNotificationEmail(
-            inviterEmail,
-            "Davetiniz kabul edildi",
-            [
-              "Merhaba,",
-              `Davet ettiğiniz ${newCompany?.name ?? "bir firma"} Rothern'e katıldı ve artık bağlantınız.`,
-            ],
-            { label: "Bağlantılarım", url: `${this.webBase()}/company` },
-            "connection_accepted",
-            inv.id,
-          );
-        }
-      }
+      // "Davetiniz kabul edildi" e-postası BURADA GİTMEZ (2026-09-27): kayıt
+      // anında firmanın adı henüz geçici (kurucunun adı) — davet eden firma
+      // ya yer tutucuyu ya da isimsiz metni görüyordu. E-posta onboarding
+      // tamamlanınca, GERÇEK firma adıyla gider (`notifyReferralInvitersJoined`).
+    }
+
+    // TALEP DAVETLERİ (talep × adres, 2026-09-27): bu adrese gelmiş ya da
+    // kullanılan jetonun taşıdığı talep davetleri, talep hâlâ davete açıksa
+    // yeni firmaya platform içi davet olur — alıcı o tedarikçiyi o talebe
+    // KENDİSİ davet etti (başka alıcıların davetleri de; bağlantı rızası ayrı,
+    // yukarıda). Kapalı zarf etkisi yok: firma panelde talebi davetlilerinde görür.
+    await this.attachExternalListingInvites(email, newCompanyId, invites.map((i) => i.id));
+  }
+
+  private async attachExternalListingInvites(
+    email: string,
+    newCompanyId: string,
+    referralIds: string[],
+  ): Promise<void> {
+    const rows = await this.bypass.externalListingInvite.findMany({
+      where: {
+        OR: [{ email: email.toLowerCase() }, ...(referralIds.length ? [{ referralInviteId: { in: referralIds } }] : [])],
+        listing: { status: { in: ["DRAFT", "OPEN"] } },
+        // İPTAL EDİLMİŞ DAVET BAĞLANMAZ (derin denetim 2026-09-29 MU-16): alıcı
+        // referral'ı iptal ettiyse ya da paketi düştüyse (ikisi de referral'ı
+        // CANCELLED yapar) o adres kendi kaydolduğunda talebi GÖRMEMELİ. Referral
+        // koşulu iptalden önce SENT olmuş satırları da kapsar; satır koşulu
+        // ikinci emniyet.
+        referralInvite: { status: { not: "CANCELLED" } },
+        NOT: { state: "CANCELLED", cancelReason: { in: ["REFERRAL_CANCELLED", "INVITER_DOWNGRADED"] } },
+      },
+      select: {
+        listingId: true,
+        inviterCompanyId: true,
+        listing: { select: { companyId: true } },
+        referralInvite: { select: { invitedById: true } },
+      },
+    });
+    for (const r of rows) {
+      if (r.inviterCompanyId === newCompanyId || r.listing.companyId !== r.inviterCompanyId) continue;
+      await this.bypass.listingInvitation.upsert({
+        where: { listingId_invitedCompanyId: { listingId: r.listingId, invitedCompanyId: newCompanyId } },
+        create: { listingId: r.listingId, invitedCompanyId: newCompanyId, invitedById: r.referralInvite.invitedById },
+        update: {},
+      });
+    }
+  }
+
+  /**
+   * Onboarding tamamlandı → bu firmayı davet linkiyle getiren firmalara
+   * "davetiniz kabul edildi" e-postası (gerçek firma adıyla). Alıcı küme:
+   * kayıtta KULLANILAN davetin kurduğu ACTIVE, davet kökenli bağlantılar
+   * (e-postayla eşleşen diğer davetler PENDING istek kalır, onlara gitmez).
+   * Onboarding tek seferlik olduğu için e-posta da bir kez gider. in-app kanal
+   * yok — NotificationModule bu servise enjekte edilemez (döngü).
+   */
+  private async notifyReferralInvitersJoined(companyId: string): Promise<void> {
+    const [company, conns] = await Promise.all([
+      this.bypass.company.findUnique({
+        where: { id: companyId },
+        select: { name: true },
+      }),
+      this.bypass.companyConnection.findMany({
+        where: { inviteeCompanyId: companyId, status: "ACTIVE", origin: "INVITE" },
+        select: { id: true, inviterCompanyId: true },
+      }),
+    ]);
+    const name = company?.name?.trim() ?? "";
+    for (const conn of conns) {
+      const inviterEmail = await this.companyNotifyEmail(conn.inviterCompanyId);
+      if (!inviterEmail) continue;
+      this.sendNotificationEmail(
+        { email: inviterEmail.email, name: inviterEmail.name },
+        inviterEmail.locale,
+        {
+          subjectKey: "api.notifications.companyAuth.davetKabulBaslik",
+          paragraphKeys: name
+            ? ["api.notifications.companyAuth.davetKabulGovde"]
+            : ["api.notifications.companyAuth.davetKabulGovdeIsimsiz"],
+          ctaLabelKey: "api.notifications.companyAuth.baglantilarim",
+          ctaPath: "/company",
+          params: { firma: name },
+        },
+        "connection_accepted",
+        conn.id,
+      );
     }
   }
 
@@ -729,14 +1085,15 @@ export class CompanyAuthService {
 
     let authId: string;
     try {
-      const r = await this.supabaseAuth.verifyPassword(email, dto.password);
+      // Y-11: istemci IP'si Supabase'e iletilir (IP başına giriş kotası).
+      const r = await this.supabaseAuth.verifyPassword(email, dto.password, ctx?.ip);
       authId = r.authId;
     } catch (err) {
       // Supabase erişim/kesinti hatası (503) parola hatası DEĞİLDİR — aynen
       // geçir (denetim 2026-08-23 #10: yanlış audit + kullanıcıya yanlış mesaj).
-      if (err instanceof ServiceUnavailableException) throw err;
+      if (isSupabaseAuthAccessError(err)) throw err;
       auditFail("bad_credentials");
-      throw new UnauthorizedException("E-posta veya şifre hatalı");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.ePostaVeyaSifreHatali"));
     }
 
     const user = await this.bypass.companyUser.findUnique({
@@ -745,30 +1102,26 @@ export class CompanyAuthService {
     });
     if (!user) {
       auditFail("user_missing");
-      throw new UnauthorizedException("E-posta veya şifre hatalı");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.ePostaVeyaSifreHatali"));
     }
     if (user.deletedAt || !user.isActive) {
       auditFail("user_inactive");
-      throw new ForbiddenException("Kullanıcı hesabı aktif değil");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.kullaniciHesabiAktifDegil"));
     }
     if (user.company.isBlocked) {
       auditFail("company_blocked");
-      throw new ForbiddenException("Firma hesabı engellenmiş");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.firmaHesabiEngellenmis"));
     }
     if (!user.company.isActive) {
       auditFail("company_inactive");
-      throw new ForbiddenException("Firma hesabı aktif değil");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.firmaHesabiAktifDegil"));
     }
     if (!user.emailVerifiedAt) {
       auditFail("email_unverified");
       // Yapısal `code` — frontend akış kararını MESAJ METNİNE değil koda
       // bağlar (metin eşleşmesi CSRF 403'üyle karışıp sahte "kod gönderildi"
       // akışı tetiklemişti; mesaj değişse de akış kırılmasın).
-      throw new ForbiddenException({
-        statusCode: 403,
-        message: "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
-        code: "EMAIL_NOT_VERIFIED",
-      });
+      throw new ForbiddenException({ ...i18nMessage("api.companyAuth.girisYapmadanOnceEPostaAdresinizi", undefined, "EMAIL_NOT_VERIFIED"), statusCode: 403 });
     }
 
     // 2FA açıksa: kod yoksa "gerekli" yanıtı. E-posta yönteminde kodu HEMEN
@@ -776,18 +1129,42 @@ export class CompanyAuthService {
     if (user.twoFactorEnabled) {
       if (!dto.code) {
         if (user.twoFactorMethod === "EMAIL") {
-          const { sent } = await this.issueEmailCode(
+          const { sent, capped } = await this.issueEmailCode(
             user.id,
             user.email,
             user.firstName,
             "login",
+            localeOf(user.locale),
           );
+          // Saatlik kod tavanı dolduysa yeni kod ÜRETİLMEZ ama son gönderilen
+          // kod hâlâ geçerli olabilir — gönderim hatası DEĞİL (derin denetim
+          // 2026-09-29 MU-16: eskiden 503 dönüyor, kod alanı hiç açılmıyor,
+          // gelen kutusundaki geçerli kod girilemiyordu). Geçerli kod varsa kod
+          // ekranına geç; yoksa 503 yerine dürüst 429.
+          if (!sent && capped) {
+            const active = await this.bypass.emailVerificationCode.findFirst({
+              where: {
+                companyUserId: user.id,
+                usedAt: null,
+                expiresAt: { gt: new Date() },
+                attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS },
+              },
+              select: { id: true },
+            });
+            if (active) {
+              return { twoFactorRequired: true as const, method: "email" as const };
+            }
+            throw new HttpException(
+              i18nMessage("api.companyAuth.cokFazlaKodIstendi", undefined, "EMAIL_CODE_CAPPED"),
+              HttpStatus.TOO_MANY_REQUESTS,
+            );
+          }
           // failure-aware (1b): kod gitmezse kullanıcı ilerleyemez → sessizce
           // "kodu gir" deme, açık hata ver. Parola zaten doğrulandı (post-auth)
           // → enumeration sızıntısı DEĞİL. (Sentry alarmı send() içinde.)
           if (!sent) {
             throw new ServiceUnavailableException(
-              "Doğrulama kodu şu anda gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
+              i18nMessage("api.companyAuth.dogrulamaKoduSuAndaGonderilemediLutfen"),
             );
           }
           return { twoFactorRequired: true as const, method: "email" as const };
@@ -797,13 +1174,17 @@ export class CompanyAuthService {
           method: "authenticator" as const,
         };
       }
-      const { ok, usedRecovery } = await this.verifyTwoFactorCode(
+      const { ok, usedRecovery, locked } = await this.verifyTwoFactorCode(
         user.id,
         dto.code,
       );
+      if (locked) {
+        auditFail("2fa_locked");
+        throw twoFactorLockedError();
+      }
       if (!ok) {
         auditFail("bad_2fa");
-        throw new UnauthorizedException("Doğrulama kodu hatalı");
+        throw new UnauthorizedException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
       }
       if (usedRecovery) {
         // Kurtarma koduyla giriş iz bırakır (tek kullanımlık kod tüketildi).
@@ -824,33 +1205,88 @@ export class CompanyAuthService {
   // ============================================================
   // VIES — AB VAT numarası ücretsiz oto-doğrulama (Faz 5)
   // ============================================================
-  async viesCheck(countryCode: string, vatNumber: string) {
-    const cc = countryCode.toUpperCase().trim().replace(/[^A-Z]/g, "");
-    const num = vatNumber.replace(/[^A-Za-z0-9]/g, "");
+  /**
+   * VIES REST sorgusu. YANIT BİÇİMİ (2026-09-27, canlı uçla doğrulandı):
+   * `{ isValid, userError, name, address, requestDate, … }` — `valid` DEĞİL.
+   * Eskiden `data.valid` okunduğu için HER AB firması "geçersiz" görünüyordu.
+   *  · `userError` "VALID"/"INVALID" dışında (MS_UNAVAILABLE, TIMEOUT,
+   *    SERVICE_UNAVAILABLE, *_MAX_CONCURRENT_REQ…) HTTP 200 ile de gelir →
+   *    bunlar "servis yanıt vermedi"dir, "geçersiz" DEĞİL.
+   *  · Bazı üye ülkeler (DE) adı/adresi paylaşmaz: `name: "---"` → null (yoksa
+   *    onboarding boş unvana "---" kopyalardı).
+   * Sonuç `company.vies_checked` audit kaydına yazılır (şema değişikliği yok) —
+   * admin firma özetinde son sorguyu görür.
+   */
+  async viesCheck(
+    countryCode: string,
+    vatNumber: string,
+    ctx?: { companyId?: string; userId?: string; source?: "manual" | "onboarding" },
+  ) {
+    // VIES Yunanistan için ISO "GR" değil "EL" kullanır; numara ülke önekiyle
+    // girilmişse ("DE811234567") önek ATILIR — VIES yalnız numarayı ister
+    // (2026-09-27: önekli numara her zaman "geçersiz" dönüyordu).
+    const iso = countryCode.toUpperCase().trim().replace(/[^A-Z]/g, "");
+    const cc = iso === "GR" ? "EL" : iso;
+    let num = normalizeDigits(vatNumber).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    for (const prefix of [cc, iso]) {
+      if (num.startsWith(prefix)) {
+        num = num.slice(prefix.length);
+        break;
+      }
+    }
     const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${encodeURIComponent(
       cc,
     )}/vat/${encodeURIComponent(num)}`;
+    let result: { valid: boolean; unavailable?: true; name: string | null; address: string | null };
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) return { valid: false, unavailable: true as const };
-      const data = (await res.json()) as {
-        valid?: boolean;
-        name?: string;
-        address?: string;
-      };
-      return {
-        valid: !!data.valid,
-        name: data.name?.trim() || null,
-        address: data.address?.trim() || null,
-      };
+      if (!res.ok) {
+        result = { valid: false, unavailable: true, name: null, address: null };
+      } else {
+        result = parseViesResponse(await res.json());
+      }
     } catch (err) {
       this.logger.warn(
         `VIES sorgusu başarısız (${cc}${num}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
-      return { valid: false, unavailable: true as const };
+      result = { valid: false, unavailable: true, name: null, address: null };
     }
+    if (ctx?.companyId) {
+      void this.audit.log({
+        action: "company.vies_checked",
+        actorType: ctx.userId ? "company" : "system",
+        actorId: ctx.userId ?? null,
+        entityType: "company",
+        entityId: ctx.companyId,
+        metadata: {
+          countryCode: iso,
+          vatNumber: num,
+          valid: result.valid,
+          unavailable: result.unavailable === true,
+          name: result.name,
+          address: result.address,
+          source: ctx.source ?? "manual",
+        },
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Onboarding tamamlanınca AB firmasının KAYDEDİLEN vergi numarası arka planda
+   * VIES'e sorulur ve sonuç audit'e yazılır — kullanıcı "VIES ile doğrula"ya
+   * basmasa da admin incelemede sonucu görür. Fail-open (kayıt bundan etkilenmez);
+   * test ortamında dış servise gidilmez.
+   */
+  private scheduleOnboardingVies(companyId: string, userId: string, country: string, taxNumber: string) {
+    if (!EU_VAT_COUNTRIES.has(country)) return;
+    const env = this.config.get<string>("NODE_ENV") ?? process.env.NODE_ENV;
+    if (env === "test" || this.config.get<string>("VIES_AUTO_CHECK") === "false") return;
+    void this.viesCheck(country, taxNumber, { companyId, userId, source: "onboarding" }).catch(
+      () => undefined,
+    );
   }
 
   // ============================================================
@@ -862,7 +1298,7 @@ export class CompanyAuthService {
     // ile açılır. Bugün premium yalnız admin grant ile verilir. Bkz. INV-TIER-1.
     if (this.config.get<string>("PREMIUM_SELF_UPGRADE_ENABLED") !== "true") {
       throw new ForbiddenException(
-        "Premium şu an manuel onayla veriliyor — self-servis yükseltme geçici olarak kapalı",
+        i18nMessage("api.companyAuth.premiumSuAnManuelOnaylaVeriliyor"),
       );
     }
     // Kullanıcı satırı ARTIK OKUNMUYOR — 2FA şartı kalktı (aşağıdaki not).
@@ -880,7 +1316,7 @@ export class CompanyAuthService {
     // GÜVENLİK: faturalandırma/paket işlemi yalnız firma sahibinde (billing:manage
     // OWNER_ONLY). Sahip olmayan doğrulanmış kullanıcı tier'ı yükseltemez.
     if (company.ownerUserId !== userId) {
-      throw new ForbiddenException("Yalnızca firma sahibi paket yükseltebilir");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.yalnizcaFirmaSahibiPaketYukseltebilir"));
     }
     // INV-TIER-1: efektif tier — süresi-dolmuş (lazy) PAKET firma "zaten premium"
     // engeline takılmadan yenileyebilsin; efektif STANDARD ise yükseltme akışına girer.
@@ -889,7 +1325,7 @@ export class CompanyAuthService {
     }
     if (company.companyVerificationStatus !== "VERIFIED") {
       throw new BadRequestException(
-        "Önce şirket belgelerinizi doğrulatmalısınız",
+        i18nMessage("api.companyAuth.onceSirketBelgeleriniziDogrulatmalisiniz"),
       );
     }
     // 2FA ve WEB SİTESİ ŞARTLARI KALDIRILDI (2026-09-15, kullanıcı kararı).
@@ -916,9 +1352,35 @@ export class CompanyAuthService {
     // açılmıyor ve ödeme devreye girdiğinde parası da alınmış oluyor.
     // Bugün süre yok (ücretsiz seam) → null = süresiz. Ödeme geldiğinde bu
     // satır dönem sonunu yazacak.
-    await this.prisma.company.update({
-      where: { id: companyId },
-      data: { tier: "GOLD", membershipEndAt: null },
+    // Üyelik geçmişi + denetim (arayüz testi D-170): admin yolları GRANT
+    // olayını aynı tx'te yazıyor; self-servis yükseltme geçmişte ve denetimde
+    // iz bırakmıyordu ("premium'um nereye gitti" + gelir raporu boşluğu).
+    await runTenantTx(this.prisma, async (tx) => {
+      await tx.company.update({
+        where: { id: companyId },
+        data: { tier: "GOLD", membershipEndAt: null },
+      });
+      await tx.companyMembershipEvent.create({
+        data: {
+          companyId,
+          action: "GRANT",
+          months: null,
+          endBefore: company.membershipEndAt,
+          endAfter: null,
+          reason: "self_service_upgrade",
+          adminId: null,
+        },
+      });
+    });
+    await this.audit.log({
+      action: "company.membership.self_upgraded",
+      actorType: "company",
+      actorId: userId,
+      tenantId: companyId,
+      entityType: "company",
+      entityId: companyId,
+      metadata: { tier: "GOLD", from: company.tier },
+      critical: true,
     });
     // Satınalma koltuğu BURADA açılır: kayıtta verilmiyor çünkü STANDART'ta
     // kullanılamıyor ve ücretsiz paketin koltuğunu boşuna yakıyordu.
@@ -983,35 +1445,133 @@ export class CompanyAuthService {
 
   /**
    * TOTP kodu VEYA kurtarma kodu doğrula. Kurtarma kodu eşleşirse TÜKETİLİR
-   * (tek kullanımlık). Dönen değer: geçerli mi + kurtarma kodu mu kullanıldı.
+   * (tek kullanımlık). Dönen değer: geçerli mi + kurtarma kodu mu kullanıldı +
+   * hesap bazlı deneme freni dolu mu (`locked` → kod HİÇ denenmedi).
+   *
+   * DENEME FRENİ (derin denetim 2026-09-29 MU-16): deneme doğrulamadan ÖNCE
+   * koşullu artışla ayrılır (eşzamanlı burst pencere tavanını aşamaz), başarıda
+   * sayaç sıfırlanır. Tavanı dolduran hatalı deneme sahibine e-posta atar.
    */
   private async verifyTwoFactorCode(
     userId: string,
     code: string,
-  ): Promise<{ ok: boolean; usedRecovery: boolean }> {
+  ): Promise<{ ok: boolean; usedRecovery: boolean; locked?: boolean }> {
     const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
       select: {
+        email: true,
+        locale: true,
         twoFactorMethod: true,
         twoFactorSecret: true,
         twoFactorRecoveryCodes: true,
       },
     });
     if (!user) return { ok: false, usedRecovery: false };
-    const trimmed = code.trim();
+    const attempt = await this.reserveTwoFactorAttempt(userId);
+    if (!attempt.allowed) return { ok: false, usedRecovery: false, locked: true };
+    const result = await this.checkTwoFactorCode(userId, user, code.trim());
+    if (result.ok) {
+      await this.bypass.companyUser.updateMany({
+        where: { id: userId },
+        data: { twoFactorFailedAttempts: 0, twoFactorWindowStartedAt: null },
+      });
+    } else if (attempt.last) {
+      this.logger.warn(`2FA attempt limit reached, code entry paused (user=${userId})`);
+      this.sendNotificationEmail(
+        { email: user.email },
+        localeOf(user.locale),
+        {
+          subjectKey: "api.notifications.companyAuth.ikiAdimliKilitBaslik",
+          paragraphKeys: ["api.notifications.companyAuth.ikiAdimliKilitGovde"],
+          ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+          ctaPath: "/company/ayarlar",
+          params: { dakika: TWO_FACTOR_WINDOW_MIN },
+        },
+        "two_factor_locked",
+        userId,
+      );
+    }
+    return result;
+  }
+
+  /**
+   * Hesap bazlı 2FA deneme hakkı ayır. Pencere yoksa/süresi dolduysa önce
+   * yenisi açılır (koşullu — eşzamanlı açılışlar birbirini sıfırlamaz), sonra
+   * sayaç `< MAX` koşuluyla artırılır. `last`: bu deneme pencerenin son hakkı.
+   */
+  private async reserveTwoFactorAttempt(
+    userId: string,
+  ): Promise<{ allowed: boolean; last: boolean }> {
+    const now = new Date();
+    const windowFloor = new Date(now.getTime() - TWO_FACTOR_WINDOW_MIN * 60_000);
+    await this.bypass.companyUser.updateMany({
+      where: {
+        id: userId,
+        OR: [
+          { twoFactorWindowStartedAt: null },
+          { twoFactorWindowStartedAt: { lt: windowFloor } },
+        ],
+      },
+      data: { twoFactorFailedAttempts: 0, twoFactorWindowStartedAt: now },
+    });
+    try {
+      const row = await this.bypass.companyUser.update({
+        where: { id: userId, twoFactorFailedAttempts: { lt: TWO_FACTOR_MAX_ATTEMPTS } },
+        data: { twoFactorFailedAttempts: { increment: 1 } },
+        select: { twoFactorFailedAttempts: true },
+      });
+      return { allowed: true, last: row.twoFactorFailedAttempts >= TWO_FACTOR_MAX_ATTEMPTS };
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+        return { allowed: false, last: false };
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * TOTP kodunu doğrular; geçerliyse kabul edilen zaman adımını döndürür
+   * (tekrar kullanım engeli için saklanır), değilse null. Adım hesabı ile
+   * doğrulama AYNI ana sabitlenir (adım sınırında kayma olmasın).
+   */
+  private totpStep(code: string, encryptedSecret: string): number | null {
+    const totp = authenticator.clone({ epoch: Date.now() });
+    const delta = totp.checkDelta(code, this.decryptSecret(encryptedSecret));
+    if (delta === null) return null;
+    const { epoch, step: period } = totp.allOptions();
+    return Math.floor(epoch / 1000 / period) + delta;
+  }
+
+  private async checkTwoFactorCode(
+    userId: string,
+    user: {
+      twoFactorMethod: CompanyUser["twoFactorMethod"];
+      twoFactorSecret: string | null;
+      twoFactorRecoveryCodes: string[];
+    },
+    trimmed: string,
+  ): Promise<{ ok: boolean; usedRecovery: boolean }> {
     // Ana yöntem: EMAIL → e-postaya giden kod; AUTHENTICATOR → TOTP.
     if (user.twoFactorMethod === "EMAIL") {
       if (await this.consumeEmailCode(userId, trimmed)) {
         return { ok: true, usedRecovery: false };
       }
-    } else if (
-      user.twoFactorSecret &&
-      authenticator.verify({
-        token: trimmed,
-        secret: this.decryptSecret(user.twoFactorSecret),
-      })
-    ) {
-      return { ok: true, usedRecovery: false };
+    } else if (user.twoFactorSecret) {
+      const step = this.totpStep(trimmed, user.twoFactorSecret);
+      if (step !== null) {
+        // TEKRAR KULLANIM ENGELİ: kabul edilen adım saklanır; aynı (ya da daha
+        // eski) adımın kodu ikinci kez geçmez. Koşullu yazım → eşzamanlı iki
+        // istekte yalnız biri geçer.
+        const { count } = await this.bypass.companyUser.updateMany({
+          where: {
+            id: userId,
+            OR: [{ twoFactorLastTotpStep: null }, { twoFactorLastTotpStep: { lt: step } }],
+          },
+          data: { twoFactorLastTotpStep: step },
+        });
+        if (count === 1) return { ok: true, usedRecovery: false };
+        return { ok: false, usedRecovery: false };
+      }
     }
     // Kurtarma kodu — her iki yöntemde de geçerli; hash eşleşirse listeden düş.
     // ATOMİK tüketim (denetim 2026-08-23): `where: has(hash)` koşullu updateMany —
@@ -1040,7 +1600,7 @@ export class CompanyAuthService {
     });
     if (!user) throw new UnauthorizedException();
     if (user.twoFactorEnabled) {
-      throw new BadRequestException("İki adımlı doğrulama zaten açık");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
     }
     const secret = authenticator.generateSecret();
     await this.prisma.companyUser.update({
@@ -1061,27 +1621,45 @@ export class CompanyAuthService {
     return resolveWebUrl(this.config);
   }
 
-  /** Generic "notification" şablonlu e-posta — best-effort. */
+  /**
+   * Generic "notification" şablonlu e-posta — best-effort.
+   *
+   * DİL (i18n Faz 3): metin ALICININ dilinde üretilir; çağıran düz metin
+   * değil KATALOG ANAHTARI verir ve alıcının `locale`'ini geçirir. Selamlama
+   * ("Merhaba,") otomatik eklenir; `paragraphKeys` yalnız içerik paragrafları.
+   * `ctaPath` İÇ (Türkçe) yoldur, alıcının diline çevrilir.
+   */
   private sendNotificationEmail(
     to: { email: string; name?: string },
-    subject: string,
-    paragraphs: string[],
-    cta: { label: string; url: string },
+    locale: Locale,
+    msg: {
+      subjectKey: ApiMessageKey;
+      paragraphKeys: readonly ApiMessageKey[];
+      ctaLabelKey: ApiMessageKey;
+      ctaPath: string;
+      params?: Record<string, string | number>;
+    },
     type: string,
     id: string,
   ) {
+    const t = (key: ApiMessageKey) => tApi(key, msg.params, locale);
+    const subject = t(msg.subjectKey);
     void this.email
       .send({
         to,
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
             heading: subject,
-            paragraphs,
-            ctaLabel: cta.label,
-            ctaUrl: cta.url,
+            paragraphs: [
+              t(NOTIFY_GREETING_KEY),
+              ...msg.paragraphKeys.map(t),
+            ],
+            ctaLabel: t(msg.ctaLabelKey),
+            ctaUrl: localizeUrl(this.webBase(), msg.ctaPath, locale),
           },
         },
         context: { type, id },
@@ -1104,7 +1682,12 @@ export class CompanyAuthService {
         billingEmail: true,
         users: {
           where: { isActive: true, deletedAt: null },
-          select: { email: true, firstName: true, lastName: true },
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            locale: true,
+          },
           orderBy: { createdAt: "asc" },
           take: 1,
         },
@@ -1115,38 +1698,52 @@ export class CompanyAuthService {
     const name = c.users[0]
       ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
       : c.name;
-    return { email, name };
+    // E-POSTA DİLİ: firmanın EN ESKİ aktif üyesinin (pratikte kurucu) dili;
+    // yalnız `billingEmail` taşıyan, üyesi çözülmemiş firmada varsayılan.
+    return { email, name, locale: localeOf(c.users[0]?.locale) };
   }
 
   async enableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, twoFactorSecret: true },
+      select: { email: true, twoFactorSecret: true, locale: true },
     });
     if (!user?.twoFactorSecret) {
-      throw new BadRequestException("Önce 2FA kurulumunu başlatın");
+      throw new BadRequestException(i18nMessage("api.companyAuth.once2faKurulumunuBaslatin"));
     }
-    if (
-      !authenticator.verify({
-        token: code.trim(),
-        secret: this.decryptSecret(user.twoFactorSecret),
-      })
-    ) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+    // Kurulumda girilen kodun adımı da saklanır (derin denetim LU-33): eskiden
+    // yalnız doğrulanıyordu; kapatma alanı null'a çektiği için yeniden açtıktan
+    // sonra aynı kod aynı adım penceresinde girişte bir kez daha geçiyordu.
+    const step = this.totpStep(code.trim(), user.twoFactorSecret);
+    if (step === null) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
     }
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.prisma.companyUser.update({
-      where: { id: userId },
+    // KOŞULLU yazım (arayüz testi FX-00 Y-12): "2FA kapalı ve kurulum sırrı
+    // aynı" iken yazılır. Eskiden eşzamanlı iki "Doğrula & Aç" isteği de
+    // geçiyor, ikincisi kurtarma kodlarını ezip kullanıcıya gösterilen ilk seti
+    // geçersiz bırakıyordu. Etkilenen satır 0 → zaten açık; e-posta/bildirim
+    // yalnız başarılı yazımdan sonra.
+    const { count } = await this.prisma.companyUser.updateMany({
+      where: {
+        id: userId,
+        twoFactorEnabled: false,
+        twoFactorSecret: user.twoFactorSecret,
+      },
       data: {
         twoFactorEnabled: true,
         twoFactorEnabledAt: new Date(),
         twoFactorMethod: "AUTHENTICATOR",
+        twoFactorLastTotpStep: step,
         twoFactorRecoveryCodes: recoveryCodes.map((c) =>
           this.hashRecoveryCode(c),
         ),
       },
     });
-    this.notify2faEnabled(userId, user.email);
+    if (count !== 1) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
+    }
+    this.notify2faEnabled(userId, user.email, localeOf(user.locale));
     return { ok: true, recoveryCodes };
   }
 
@@ -1154,29 +1751,75 @@ export class CompanyAuthService {
   async sendEmailTwoFactorCode(userId: string) {
     const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, firstName: true },
+      select: {
+        email: true,
+        firstName: true,
+        locale: true,
+        twoFactorEnabled: true,
+        twoFactorMethod: true,
+      },
     });
     if (!user) throw new UnauthorizedException();
-    await this.issueEmailCode(userId, user.email, user.firstName, "login");
-    return { sent: true };
+    // Authenticator ile açık 2FA e-posta kodunu KABUL ETMEZ (checkTwoFactorCode
+    // yalnız TOTP + kurtarma kodu) — kod üretmek saatlik hakkı ve deneme
+    // hakkını boşa harcatıyordu (arayüz testi O-020).
+    if (user.twoFactorEnabled && user.twoFactorMethod !== "EMAIL") {
+      throw new BadRequestException(
+        i18nMessage("api.companyAuth.ePostaKoduBuYontemdeGecersiz"),
+      );
+    }
+    const { sent, capped } = await this.issueEmailCode(
+      userId,
+      user.email,
+      user.firstName,
+      "twoFactor",
+      localeOf(user.locale),
+    );
+    // Giriş yoluyla aynı failure-aware kural (derin denetim LU-06: eskiden
+    // sonuç yok sayılıp her durumda {sent:true} dönüyordu). Tavan dolu ama
+    // gelen kutusundaki son kod hâlâ geçerliyse kod alanı açılabilsin; yoksa
+    // dürüst 429. Gönderim hatası 503.
+    if (!sent && capped) {
+      const active = await this.bypass.emailVerificationCode.findFirst({
+        where: {
+          companyUserId: userId,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+          attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS },
+        },
+        select: { id: true },
+      });
+      if (active) return { sent: false as const, capped: true as const };
+      throw new HttpException(
+        i18nMessage("api.companyAuth.cokFazlaKodIstendi", undefined, "EMAIL_CODE_CAPPED"),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (!sent) {
+      throw new ServiceUnavailableException(
+        i18nMessage("api.companyAuth.dogrulamaKoduSuAndaGonderilemediLutfen"),
+      );
+    }
+    return { sent: true as const };
   }
 
   /** E-postaya gelen kodu doğrulayıp E-POSTA 2FA'yı aç (kurtarma kodları üret). */
   async enableEmailTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, twoFactorEnabled: true },
+      select: { email: true, twoFactorEnabled: true, locale: true },
     });
     if (!user) throw new UnauthorizedException();
     if (user.twoFactorEnabled) {
-      throw new BadRequestException("İki adımlı doğrulama zaten açık");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
     }
     if (!(await this.consumeEmailCode(userId, code))) {
-      throw new BadRequestException("Doğrulama kodu hatalı veya süresi dolmuş");
+      throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHataliVeyaSuresiDolmus"));
     }
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.prisma.companyUser.update({
-      where: { id: userId },
+    // Koşullu yazım (FX-00 Y-12): eşzamanlı ikinci istek kodları ezmez.
+    const { count } = await this.prisma.companyUser.updateMany({
+      where: { id: userId, twoFactorEnabled: false },
       data: {
         twoFactorEnabled: true,
         twoFactorEnabledAt: new Date(),
@@ -1187,11 +1830,14 @@ export class CompanyAuthService {
         ),
       },
     });
-    this.notify2faEnabled(userId, user.email);
+    if (count !== 1) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
+    }
+    this.notify2faEnabled(userId, user.email, localeOf(user.locale));
     return { ok: true, recoveryCodes };
   }
 
-  private notify2faEnabled(userId: string, email: string) {
+  private notify2faEnabled(userId: string, email: string, locale: Locale) {
     void this.audit.log({
       action: "auth.2fa_enabled",
       actorType: "company",
@@ -1200,12 +1846,13 @@ export class CompanyAuthService {
     });
     this.sendNotificationEmail(
       { email },
-      "İki adımlı doğrulama açıldı",
-      [
-        "Merhaba,",
-        "Hesabınızda iki adımlı doğrulama (2FA) etkinleştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
-      ],
-      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      locale,
+      {
+        subjectKey: "api.notifications.companyAuth.ikiAdimliAcildiBaslik",
+        paragraphKeys: ["api.notifications.companyAuth.ikiAdimliAcildiGovde"],
+        ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+        ctaPath: "/company/ayarlar",
+      },
       "two_factor_enabled",
       userId,
     );
@@ -1215,15 +1862,16 @@ export class CompanyAuthService {
   async disableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, twoFactorEnabled: true },
+      select: { email: true, twoFactorEnabled: true, locale: true },
     });
     if (!user?.twoFactorEnabled) {
-      throw new BadRequestException("İki adımlı doğrulama zaten kapalı");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenKapali"));
     }
     // Kod: authenticator TOTP / e-posta kodu / kurtarma kodu (yönteme göre).
-    const { ok } = await this.verifyTwoFactorCode(userId, code);
+    const { ok, locked } = await this.verifyTwoFactorCode(userId, code);
+    if (locked) throw twoFactorLockedError();
     if (!ok) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+      throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
     }
     await this.prisma.companyUser.update({
       where: { id: userId },
@@ -1233,6 +1881,9 @@ export class CompanyAuthService {
         twoFactorMethod: "AUTHENTICATOR", // varsayılana dön
         twoFactorSecret: null,
         twoFactorRecoveryCodes: [],
+        twoFactorLastTotpStep: null,
+        twoFactorFailedAttempts: 0,
+        twoFactorWindowStartedAt: null,
       },
     });
     void this.audit.log({
@@ -1243,12 +1894,13 @@ export class CompanyAuthService {
     });
     this.sendNotificationEmail(
       { email: user.email },
-      "İki adımlı doğrulama kapatıldı",
-      [
-        "Merhaba,",
-        "Hesabınızda iki adımlı doğrulama (2FA) kapatıldı. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
-      ],
-      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      localeOf(user.locale),
+      {
+        subjectKey: "api.notifications.companyAuth.ikiAdimliKapatildiBaslik",
+        paragraphKeys: ["api.notifications.companyAuth.ikiAdimliKapatildiGovde"],
+        ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+        ctaPath: "/company/ayarlar",
+      },
       "two_factor_disabled",
       userId,
     );
@@ -1274,15 +1926,75 @@ export class CompanyAuthService {
     };
   }
 
+  /**
+   * Sözleşme onayı (derin denetim 2026-09-29 MU-04) — admin eliyle açılan
+   * hesap kullanıcı sözleşmesi / aracılık sözleşmesi / KVKK onayı izi olmadan
+   * doğuyordu. `/me` `needsTermsAcceptance` döner, panel kapısı onayı
+   * kullanıcının KENDİSİNDEN alır. Yalnız boş alan yazılır (kayıt/davet
+   * kabulündeki ilk onay tarihi ezilmez); isteğe bağlı rızalar yalnız ilk
+   * onayda (Ayarlar'daki tercih ekranının yerine geçmez).
+   */
+  async acceptTerms(
+    userId: string,
+    dto: {
+      marketingConsent?: boolean;
+      profileImprovementConsent?: boolean;
+    },
+  ) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        termsAcceptedAt: true,
+        mediationAcceptedAt: true,
+        kvkkAcceptedAt: true,
+      },
+    });
+    if (!user) throw new UnauthorizedException();
+    const needed = needsTermsAcceptance(user);
+    if (needed) {
+      const now = new Date();
+      await this.prisma.companyUser.update({
+        where: { id: userId },
+        data: {
+          ...(user.termsAcceptedAt ? {} : { termsAcceptedAt: now }),
+          ...(user.mediationAcceptedAt ? {} : { mediationAcceptedAt: now }),
+          ...(user.kvkkAcceptedAt ? {} : { kvkkAcceptedAt: now }),
+          ...(dto.marketingConsent !== undefined
+            ? { marketingConsent: dto.marketingConsent }
+            : {}),
+          ...(dto.profileImprovementConsent !== undefined
+            ? { profileImprovementConsent: dto.profileImprovementConsent }
+            : {}),
+        },
+      });
+      void this.audit.log({
+        action: "company.user.terms_accepted",
+        actorType: "company",
+        actorId: userId,
+        actorEmail: user.email,
+      });
+    }
+    return this.getMe(userId);
+  }
+
   // ============================================================
   // HESAP AYARLARI (eski ayarlar — kişisel)
   // ============================================================
 
-  /** Kendi profilini güncelle (ad/soyad/telefon). */
+  /** Kendi profilini güncelle (ad/soyad/telefon/dil). */
   async updateMe(
     userId: string,
-    dto: { firstName?: string; lastName?: string; phone?: string },
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string | null;
+      locale?: string;
+    },
   ) {
+    if (dto.locale !== undefined && !isLocale(dto.locale)) {
+      throw new BadRequestException(i18nMessage("api.validation.localeUnsupported"));
+    }
     await this.prisma.companyUser.update({
       where: { id: userId },
       data: {
@@ -1292,7 +2004,11 @@ export class CompanyAuthService {
         ...(dto.lastName !== undefined
           ? { lastName: dto.lastName.trim() }
           : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+        // null da numarayı siler (derin denetim LU-06: null.trim() 500 veriyordu).
+        ...(dto.phone !== undefined
+          ? { phone: (dto.phone ?? "").trim() || null }
+          : {}),
+        ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
       },
     });
     return this.getMe(userId);
@@ -1307,17 +2023,18 @@ export class CompanyAuthService {
     userId: string,
     currentPassword: string,
     newPassword: string,
+    clientIp?: string,
   ) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, authId: true, companyId: true },
+      select: { email: true, authId: true, companyId: true, locale: true },
     });
     if (!user || !user.authId) throw new UnauthorizedException();
     try {
-      await this.supabaseAuth.verifyPassword(user.email, currentPassword);
+      await this.supabaseAuth.verifyPassword(user.email, currentPassword, clientIp);
     } catch (err) {
-      if (err instanceof ServiceUnavailableException) throw err;
-      throw new ForbiddenException("Mevcut parola hatalı");
+      if (isSupabaseAuthAccessError(err)) throw err;
+      throw new ForbiddenException(i18nMessage("api.companyAuth.mevcutParolaHatali"));
     }
     await this.supabaseAuth.updatePassword(user.authId, newPassword);
     const updated = await this.prisma.companyUser.update({
@@ -1333,12 +2050,13 @@ export class CompanyAuthService {
     });
     this.sendNotificationEmail(
       { email: user.email },
-      "Parolanız değiştirildi",
-      [
-        "Merhaba,",
-        "Hesabınızın parolası değiştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı sıfırlayın ve destekle iletişime geçin.",
-      ],
-      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      localeOf(user.locale),
+      {
+        subjectKey: "api.notifications.companyAuth.parolaDegistiBaslik",
+        paragraphKeys: ["api.notifications.companyAuth.parolaDegistiGovde"],
+        ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+        ctaPath: "/company/ayarlar",
+      },
       "password_changed",
       userId,
     );
@@ -1362,17 +2080,17 @@ export class CompanyAuthService {
     userId: string,
     prefs: Record<string, unknown>,
   ) {
-    const valid = new Set<string>(NOTIFICATION_PREF_KEYS);
+    const valid = new Set<string>([...NOTIFICATION_PREF_KEYS, ...NOTIFICATION_FLAG_KEYS]);
     const clean: Record<string, boolean> = {};
     for (const [k, v] of Object.entries(prefs ?? {})) {
       if (!valid.has(k)) {
-        throw new BadRequestException(`Geçersiz bildirim tercihi: ${k}`);
+        throw new BadRequestException(i18nMessage("api.companyAuth.gecersizBildirimTercihi", { k: k }));
       }
       clean[k] = v === true;
     }
     const current = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { notificationPrefs: true },
+      select: { notificationPrefs: true, email: true },
     });
     const merged = {
       ...((current?.notificationPrefs as Record<string, boolean> | null) ?? {}),
@@ -1382,6 +2100,17 @@ export class CompanyAuthService {
       where: { id: userId },
       data: { notificationPrefs: merged },
     });
+    // Tek tık çıkışla adrese yazılmış kayıt (kullanıcı olmadan önce firma
+    // e-postasıyken ya da "tümü" kapsamıyla) yeniden açılan türü engellemesin:
+    // Ayarlar ekranındaki seçim son sözdür.
+    const reopened = Object.entries(clean)
+      .filter(([k, v]) => v && (NOTIFICATION_PREF_KEYS as readonly string[]).includes(k))
+      .map(([k]) => k);
+    if (reopened.length > 0 && current?.email) {
+      await this.prisma.emailOptOut.deleteMany({
+        where: { email: current.email.toLowerCase(), scope: { in: [...reopened, "all"] } },
+      });
+    }
     return this.getMe(userId);
   }
 
@@ -1467,9 +2196,15 @@ export class CompanyAuthService {
       isOwner,
       permissions,
       twoFactorEnabled: user.twoFactorEnabled,
+      // Ayarlar 2FA ekranı yönteme göre metin/düğme gösterir (arayüz testi
+      // O-020, D-086). Kapalıyken sütun varsayılanı anlamsız → null.
+      twoFactorMethod: user.twoFactorEnabled ? user.twoFactorMethod : null,
       notificationPrefs:
         (user.notificationPrefs as Record<string, boolean> | null) ?? null,
       lastLoginAt: user.lastLoginAt,
+      locale: user.locale,
+      // Onay izi eksik (admin eliyle açılan hesap) → panel onay kapısı.
+      needsTermsAcceptance: needsTermsAcceptance(user),
     };
   }
 
@@ -1514,9 +2249,82 @@ export class CompanyAuthService {
 }
 
 
+/**
+ * Mahalleyi açık adres satırının başına ekler ("Moda Mah., Bahariye Cd. 5") —
+ * satır zaten içeriyorsa tekrar etmez; DTO tavanı (500) korunur.
+ */
+function withNeighborhood(neighborhood: string | null | undefined, line: string): string {
+  const n = neighborhood?.trim();
+  const l = line.trim();
+  if (!n || l.toLocaleLowerCase("tr-TR").includes(n.toLocaleLowerCase("tr-TR"))) return l;
+  return `${n}, ${l}`.slice(0, 500);
+}
+
 /** Web sitesi normalizasyonu: boş → null; şemasızsa https:// öne eklenir. */
 function normalizeWebsite(raw?: string): string | null {
   const w = (raw ?? "").trim();
   if (!w) return null;
   return /^https?:\/\//i.test(w) ? w.slice(0, 200) : `https://${w}`.slice(0, 200);
+}
+
+/** VIES "hizmet yanıt vermedi" kodları — HTTP 200 ile gelse de "geçersiz" DEĞİL. */
+const VIES_UNAVAILABLE = new Set([
+  "MS_UNAVAILABLE",
+  "TIMEOUT",
+  "SERVICE_UNAVAILABLE",
+  "MS_MAX_CONCURRENT_REQ",
+  "GLOBAL_MAX_CONCURRENT_REQ",
+  "IP_BLOCKED",
+]);
+
+/** VIES'in "paylaşılmadı" yer tutucuları ("---") → null. */
+function viesText(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t && !/^-+$/.test(t) ? t : null;
+}
+
+/**
+ * VIES REST yanıtı → sonuç. Canlı biçim `{ isValid, userError, name, address }`;
+ * hata durumunda `{ actionSucceed: false, errorWrappers: [{ error }] }` da gelir.
+ * Eski/yedek biçim `valid` de okunur.
+ */
+export function parseViesResponse(data: unknown): {
+  valid: boolean;
+  unavailable?: true;
+  name: string | null;
+  address: string | null;
+} {
+  const d = (data ?? {}) as {
+    isValid?: boolean;
+    valid?: boolean;
+    userError?: string;
+    actionSucceed?: boolean;
+    errorWrappers?: { error?: string }[];
+    name?: unknown;
+    address?: unknown;
+  };
+  const error = d.userError ?? d.errorWrappers?.[0]?.error;
+  if ((error && VIES_UNAVAILABLE.has(error)) || (d.actionSucceed === false && d.isValid == null)) {
+    return { valid: false, unavailable: true, name: null, address: null };
+  }
+  const valid = d.isValid === true || (d.isValid == null && d.valid === true);
+  return {
+    valid,
+    name: valid ? viesText(d.name) : null,
+    address: valid ? viesText(d.address) : null,
+  };
+}
+
+
+/**
+ * Kişi bazlı sözleşme onayı eksik mi — üç zorunlu onaydan biri bile yoksa true
+ * (derin denetim 2026-09-29 MU-04; kayıt ve davet kabulü üçünü birden yazar).
+ */
+export function needsTermsAcceptance(user: {
+  termsAcceptedAt: Date | null;
+  mediationAcceptedAt: Date | null;
+  kvkkAcceptedAt: Date | null;
+}): boolean {
+  return !user.termsAcceptedAt || !user.mediationAcceptedAt || !user.kvkkAcceptedAt;
 }

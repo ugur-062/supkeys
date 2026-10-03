@@ -250,6 +250,145 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("ret mesajı SON adayın sebebinden: premium request_cap + Flash havuz → 'havuz doldu' (derin denetim LU-04)", async () => {
+    const budget = new AiBudgetService(prisma as never, makeCfg());
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await seedSpend(co.company.id, co.user.id, 24.999, { createdAt: monthStartSeedDate() });
+    const reserve = budget.reserve({
+      companyId: co.company.id,
+      userId: co.user.id,
+      feature: "test",
+      candidates: [
+        // Havuz 25 → istek tavanı 1,25; premium tahmini 2 → request_cap.
+        { model: PRO, estimatedCostUsd: new Prisma.Decimal(2), isPremium: true },
+        // Flash sığardı ama aylık havuz dolu → pool.
+        { model: FLASH, estimatedCostUsd: new Prisma.Decimal(0.01), isPremium: false },
+      ],
+    });
+    await expect(reserve).rejects.toThrow(/aylık AI bütçesi doldu/);
+  });
+
+  it("paket bazında istek tavanı: STANDART'ta grounded profil çağrısı sığar, diğer paketler %5'te kalır (derin denetim S013/X21)", async () => {
+    // Gerçek sayılar: STANDART havuzu 0,5 USD, çıktı tavanı 8192 token.
+    // Grounded tahmin = 0,035 (istek ücreti) + 8192×2,5/1M ≈ 0,056 USD;
+    // genel %5 pay 0,025 USD tavan verir → her seferinde request_cap idi.
+    const GROUNDED: AiCallOptions = {
+      feature: "profile_enrich",
+      prompt: "x".repeat(800),
+      minTier: "STANDART",
+      webSearch: true,
+    };
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const auth = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+      tier: "STANDART",
+      isOwner: true,
+    });
+
+    const eski = new FakeProvider();
+    const aiEski = makeAi(
+      makeCfg({ budgets: { STANDART: 0.5 }, maxOutputTokens: 8192 }),
+      eski,
+    );
+    await expect(aiEski.callAi(auth, GROUNDED)).rejects.toThrow(AiBudgetExceededException);
+    expect(eski.calls).toHaveLength(0);
+
+    const yeni = new FakeProvider();
+    const aiYeni = makeAi(
+      makeCfg({
+        budgets: { STANDART: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 } },
+      }),
+      yeni,
+    );
+    await expect(aiYeni.callAi(auth, GROUNDED)).resolves.toMatchObject({ text: "cevap" });
+    expect(yeni.calls).toHaveLength(1);
+
+    // Override yalnız STANDART'a: GOLD havuzu 0,5 olsaydı %5 tavanı sürerdi.
+    const gold = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const goldAi = makeAi(
+      makeCfg({
+        budgets: { GOLD: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 } },
+      }),
+      new FakeProvider(),
+    );
+    await expect(
+      goldAi.callAi(gold.auth, { feature: "profile_enrich", prompt: "x".repeat(800), webSearch: true }),
+    ).rejects.toThrow(AiBudgetExceededException);
+  });
+
+  it("bağlı takip çağrısına bütçede yer yoksa ücretli ilk çağrı HİÇ başlamaz; aynı gün timeout sonrası tam akış sığar (MU-06 gözden geçirme)", async () => {
+    // Profil grounded akışı: 1) grounded çağrı ~0,056  2) şema çağrısı ~0,021.
+    // Önceki timeout FAILED satırı tahmini (0,056) KORUR. Eski günlük tavan
+    // (0,5 × %25 = 0,125): grounded 0,112 ile geçiyor, şema çağrısı daily_cap
+    // ile düşüyordu — grounded ücreti boşa, kullanıcıya taslak yok.
+    const GROUNDED: AiCallOptions = {
+      feature: "profile_enrich",
+      prompt: "x".repeat(800),
+      minTier: "STANDART",
+      webSearch: true,
+      followUpInputChars: 10_500,
+    };
+    const SEMA: AiCallOptions = {
+      feature: "profile_enrich",
+      prompt: "x".repeat(10_000),
+      minTier: "STANDART",
+    };
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const auth = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+      tier: "STANDART",
+      isOwner: true,
+    });
+    await seedSpend(co.company.id, co.user.id, "0.056", {
+      feature: "profile_enrich",
+      status: "FAILED",
+      errorCode: "timeout",
+    });
+
+    // Eski günlük tavan: takip çağrısına yer yok → grounded çağrı sağlayıcıya
+    // GİTMEDEN reddedilir (para yanmaz, rezervasyon satırı açılmaz).
+    const eski = new FakeProvider();
+    const aiEski = makeAi(
+      makeCfg({
+        budgets: { STANDART: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 } },
+      }),
+      eski,
+    );
+    await expect(aiEski.callAi(auth, GROUNDED)).rejects.toThrow(AiBudgetExceededException);
+    expect(eski.calls).toHaveLength(0);
+    // Takip bildirimi olmadan grounded geçerdi (0,112 ≤ 0,125) — boşa harcama yolu.
+    expect(
+      await prisma.aiUsage.count({ where: { companyId: co.company.id, status: "RESERVED" } }),
+    ).toBe(0);
+
+    // STANDART günlük payı 0,5 (0,25 USD): timeout sonrası tam akış sığar.
+    const yeni = new FakeProvider();
+    yeni.usage = { inputTokens: 300, outputTokens: 4000, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const aiYeni = makeAi(
+      makeCfg({
+        budgets: { STANDART: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 }, dailyShareByTier: { STANDART: 0.5 } },
+      }),
+      yeni,
+    );
+    await expect(aiYeni.callAi(auth, GROUNDED)).resolves.toMatchObject({ text: "cevap" });
+    await expect(aiYeni.callAi(auth, SEMA)).resolves.toMatchObject({ text: "cevap" });
+    expect(yeni.calls).toHaveLength(2);
+
+    // Takip tahmini REZERVE EDİLMEZ: satır yalnız kendi maliyetini tutar.
+    const rows = await prisma.aiUsage.findMany({
+      where: { companyId: co.company.id, status: "SETTLED" },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.costUsd.toNumber()).toBeLessThan(0.05);
+  });
+
   it("YARIŞ: kalan bütçeye tek istek sığarken 2 eşzamanlı istek → TAM 1 başarılı", async () => {
     const provider = new FakeProvider();
     provider.delayMs = 50;
@@ -446,6 +585,41 @@ describe("Faz AI-0 — kullanım ekranı görünürlüğü", () => {
     await expect(
       ai.usageView(authFor(approver, co.company.id, [CompanyRole.ONAYLAYICI])),
     ).rejects.toThrow(/görüntüleyebilir/);
+  });
+
+  it("havuz %100 → exhausted (AI kapalı, %80 uyarısından ayrı); kişisel tavan dolan SA da exhausted (arayüz testi D-172)", async () => {
+    const ai = makeAi(makeCfg({ budgets: { GOLD: 10 } }), new FakeProvider());
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const sa = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]);
+    const saAuth = authFor(sa, co.company.id, [CompanyRole.SATIN_ALMACI]);
+
+    // %85: uyarı var, AI açık.
+    await seedSpend(co.company.id, co.user.id, 3.5, { createdAt: monthStartSeedDate() });
+    await seedSpend(co.company.id, sa.id, 5, { createdAt: monthStartSeedDate() });
+    let mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: true, exhausted: false });
+    // SA kendi tavanını (10×0.5=5) doldurdu → onun için AI kapalı.
+    expect(((await ai.usageView(saAuth)) as { exhausted: boolean }).exhausted).toBe(true);
+
+    // Havuz %101,7 → firma görünümünde de kapalı.
+    await seedSpend(co.company.id, co.user.id, 1.67, { createdAt: monthStartSeedDate() });
+    mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: true, exhausted: true });
+  });
+
+  it("kurucu kişisel tavanını (havuzun yarısı) doldurdu, havuz %100 altında → firma görünümünde myExhausted (arayüz testi D-172)", async () => {
+    const ai = makeAi(makeCfg({ budgets: { GOLD: 10 } }), new FakeProvider());
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+
+    // Kurucu %40: havuz da kişisel tavan da açık.
+    await seedSpend(co.company.id, co.user.id, 4, { createdAt: monthStartSeedDate() });
+    let mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean; myExhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: false, exhausted: false, myExhausted: false });
+
+    // Kurucu 5,2 (tavan 10×0.5=5) → havuz %52 ama kurucu için AI kapalı.
+    await seedSpend(co.company.id, co.user.id, 1.2, { createdAt: monthStartSeedDate() });
+    mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean; myExhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: false, exhausted: false, myExhausted: true });
   });
 
   it("tier kapısı: controller CompanyPaidTierGuard (Silver+) taşır", async () => {

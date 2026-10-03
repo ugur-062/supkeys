@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
@@ -44,8 +45,9 @@ function parts(deadline: Date, now: Date): Parts {
 export function CountdownFull({
   deadline,
   className,
-  endedLabel = "Süre doldu",
+  endedLabel,
 }: CountdownFullProps) {
+  const t = useTranslations("web.panel.requests.countdownFull");
   const target = useMemo(() => new Date(deadline), [deadline]);
   const now = useNow(1000);
   const p = parts(target, new Date(now));
@@ -56,7 +58,7 @@ export function CountdownFull({
         role="status"
         className={cn("font-semibold text-danger-600", className)}
       >
-        {endedLabel}
+        {endedLabel ?? t("sureDoldu")}
       </span>
     );
   }
@@ -69,17 +71,17 @@ export function CountdownFull({
         : "text-zinc-700";
 
   const segments: string[] = [];
-  if (p.days > 0) segments.push(`${p.days} gün`);
-  segments.push(`${p.hours} saat`);
-  segments.push(`${p.minutes} dakika`);
-  if (p.days === 0) segments.push(`${p.seconds} saniye`);
+  if (p.days > 0) segments.push(t("gun", { days: p.days }));
+  segments.push(t("saat", { hours: p.hours }));
+  segments.push(t("dakika", { minutes: p.minutes }));
+  if (p.days === 0) segments.push(t("saniye", { seconds: p.seconds }));
 
   return (
     // role="timer" + aria-live kapalı: ekran okuyucu her saniye spam'lemez,
     // odaklanınca/gezinince güncel kalan süreyi okur.
     <span
       role="timer"
-      aria-label={`Kalan süre: ${segments.join(" ")}`}
+      aria-label={t("kalanSure", { join: segments.join(" ") })}
       className={cn("font-semibold tabular-nums", tone, className)}
     >
       {segments.join(" ")}

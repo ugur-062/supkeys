@@ -1,7 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { SECTOR_EDIT_HREF } from "@/lib/company/portals";
-import { listingTerms } from "@/lib/company/terms";
+import { countryDisplayName, useCityLabel, useListingTerms } from "@/i18n/domain";
 import { EmptyState, ListSkeleton, Pagination } from "@/components/list";
 import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
 import {
@@ -15,7 +17,13 @@ import { RequestActiveChips, RequestFilters, RequestSortControl } from "@/compon
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
 import { LockedRequestsCard } from "@/components/company/locked-requests-card";
 import { useLockedRequestsSummary, useSellerTenders, type LockedRequestsSummary, type SellerTenderRow } from "@/hooks/use-seller-tenders";
-import { passes, requestFacets, sortRequests, type RequestFacets } from "@/lib/company/request-facets";
+import {
+  passes,
+  REQUEST_SCAN_CAPS,
+  requestFacets,
+  sortRequests,
+  type RequestFacets,
+} from "@/lib/company/request-facets";
 import {
   activeRequestFilterCount,
   buildRequestFilterQuery,
@@ -24,11 +32,19 @@ import {
   type RequestFilterState,
 } from "@/lib/company/request-filter-params";
 import { ClipboardList } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useMemo, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
+/**
+ * API tarama tavanları (`REQUEST_SCAN_CAPS`): tavana dayanan kapsamda sayaç
+ * "N+" yazar ve bant gösterilir (arayüz testi D-116 — "200 açık talep bulundu"
+ * kesin sayı gibi okunuyordu). Başlık ve durum facet'i aynı alt sınır kararını
+ * (`facets.statusAtLeast`) okur.
+ */
+const OPEN_SCAN_CAP = REQUEST_SCAN_CAPS.open;
+const PAST_SCAN_CAP = REQUEST_SCAN_CAPS.past;
 /** Liste satış ANASAYFASINDA yaşar; süzgeç durumu bu yolun sorgusunda. */
 const BASE = "/company/satis";
 
@@ -65,14 +81,32 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
     () => new Map((segments.data ?? []).map((s) => [s.id, s.nameTr] as const)),
     [segments.data],
   );
+  // Şehir/ülke etiketleri okuyucunun dilinde (2026-09-27): şehir adı API'den
+  // (dünya şehir dizini), eşlenmemiş Türk il adı `useCityLabel` ile.
+  const locale = useLocale() as Locale;
+  const cityLabel = useCityLabel();
+  const tv = useTranslations("web.panel.trade.sellerTendersView");
   const facets = useMemo(
-    () => requestFacets(all, state, segmentNames, now),
-    [all, key, segmentNames, now], // eslint-disable-line react-hooks/exhaustive-deps
+    () =>
+      requestFacets(all, state, segmentNames, now, {
+        country: (c) => countryDisplayName(c, locale),
+        city: (raw) => cityLabel(raw),
+        unknownBuyer: tv("bilinmeyenAlici"),
+      }),
+    [all, key, segmentNames, now, locale], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const filtered = useMemo(
     () => sortRequests(all.filter((r) => passes(r, state, now)), state.sort),
     [all, key, now], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // Kapsam başına tavan: açık ve geçmiş ayrı sorgulardan gelir, ayrı kırpılır.
+  const openCount = useMemo(() => all.filter((r) => r.status === "OPEN").length, [all]);
+  const pastCount = all.length - openCount;
+  const openAtCap = state.status !== "gecmis" && openCount >= OPEN_SCAN_CAP;
+  const pastAtCap = state.status !== "aktif" && pastCount >= PAST_SCAN_CAP;
+  // Süzgeç daraltmadıysa sayı tavandaki kümenin TAMAMI → alt sınır ("200+");
+  // durum facet'iyle aynı karar (iki sayı aynı ekranda ayrışmasın).
+  const countAtLeast = facets.statusAtLeast[state.status];
 
   return (
     <FilterShellCore
@@ -89,7 +123,9 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
         facets={facets}
         banner={banner}
         locked={locked}
-        atCap={all.length >= 300}
+        atCap={openAtCap}
+        pastAtCap={pastAtCap}
+        countAtLeast={countAtLeast}
         isLoading={tenders.isLoading}
         isError={tenders.isError}
         refetch={() => void tenders.refetch()}
@@ -105,6 +141,8 @@ function RequestList({
   banner,
   locked,
   atCap,
+  pastAtCap,
+  countAtLeast,
   isLoading,
   isError,
   refetch,
@@ -115,13 +153,19 @@ function RequestList({
   banner?: ReactNode;
   /** Ücretsiz üyenin kilit özeti (paketliye null). */
   locked: Extract<LockedRequestsSummary, { locked: true }> | null;
+  /** Açık talepler tarama tavanında (yalnız açık kapsamı görünürken). */
   atCap: boolean;
+  /** Geçmiş talepler tavanında (yalnız geçmiş kapsamı görünürken). */
+  pastAtCap: boolean;
+  /** Sayaç tavandaki kümenin tamamı → "N+". */
+  countAtLeast: boolean;
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
 }) {
+  const tr = useTranslations("web.panel.trade.sellerTendersView");
   // Kayıt tipi sözlüğü: başkalarının AÇIK TALEPLERİ — satış tarafında tek terim.
-  const t = listingTerms("ACIK_TALEP");
+  const t = useListingTerms("ACIK_TALEP");
   const { update, clear } = useFilters<RequestFilterState>();
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(state.page, totalPages);
@@ -136,8 +180,8 @@ function RequestList({
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
           {locked
-            ? "Bağlı olduğunuz alıcıların talepleri — herkese açık taleplerin tamamı Silver paketiyle açılır."
-            : "Bağlı olduğunuz alıcıların ve herkese açık taleplerin tamamı — süzün, sıralayın, teklif verin."}
+            ? tr("bagliOldugunuzAlicilarinTalepleriHerkese")
+            : tr("bagliOldugunuzAlicilarinVeHerkese")}
         </p>
       </div>
 
@@ -145,7 +189,12 @@ function RequestList({
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          En fazla 300 {t.unit} gösteriliyor — daha fazlası varsa arama ve süzgeçlerle daraltın.
+          {tr("enFazla300GosteriliyorDaha", { unit: t.unit })}
+        </div>
+      ) : null}
+      {pastAtCap ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          {tr("gecmisEnYeni200Gosteriliyor")}
         </div>
       ) : null}
 
@@ -156,11 +205,11 @@ function RequestList({
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[15rem_1fr]">
         <aside
-          aria-label="Süzgeçler"
+          aria-label={tr("suzgecler")}
           className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]"
         >
           {isLoading ? (
-            <p className="text-sm text-zinc-500">Süzgeçler yükleniyor…</p>
+            <p className="text-sm text-zinc-500">{tr("suzgeclerYukleniyor")}</p>
           ) : (
             <RequestFilters facets={facets} idPrefix="d" />
           )}
@@ -170,7 +219,12 @@ function RequestList({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun={t.unit} />
+              {/* Durum süzgecine göre metin (D-116): geçmişte "açık talep"
+                  demek çelişkiydi. */}
+              <ResultCount
+                kind={state.status === "gecmis" ? "pastRequest" : state.status === "tumu" ? "request" : "openRequest"}
+                atLeast={countAtLeast}
+              />
             </span>
             <RequestSortControl />
           </div>
@@ -182,8 +236,8 @@ function RequestList({
               <div className="space-y-3">
                 <EmptyState
                   icon={ClipboardList}
-                  title="Açık talepler yüklenemedi."
-                  description="Bir hata oluştu — tekrar deneyin."
+                  title={tr("acikTaleplerYuklenemedi")}
+                  description={tr("birHataOlustuTekrarDeneyin")}
                   variant="no-results"
                 />
                 <div className="text-center">
@@ -192,7 +246,7 @@ function RequestList({
                     onClick={refetch}
                     className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                   >
-                    Tekrar dene
+                    {tr("tekrarDene")}
                   </button>
                 </div>
               </div>
@@ -200,18 +254,27 @@ function RequestList({
               <EmptyState
                 icon={ClipboardList}
                 title={
-                  isFiltered
-                    ? "Sonuç bulunamadı."
+                  /* Ücretsiz üyede boş arama süzgecin değil paketin sonucu
+                     olabilir: herkese açık talep (ör. "Teklif ver"den gelen
+                     ?q=ROT-…) listeye hiç girmez. Süzgeci suçlamak yerine
+                     kilit kartına bağlanır (arayüz testi webA-02 yeniden
+                     doğrulama). */
+                  isFiltered && locked
+                    ? tr("kilitliSonucYok")
+                    : isFiltered
+                    ? tr("sonucBulunamadi")
                     : state.status === "aktif"
-                      ? `Aktif ${t.unit} yok.`
-                      : `Henüz ${t.unit} yok.`
+                      ? tr("aktifYok", { unit: t.unit })
+                      : tr("henuzYok", { unit: t.unit })
                 }
                 description={
-                  isFiltered
-                    ? "Süzgeçlerinizi değiştirerek tekrar deneyin."
+                  isFiltered && locked
+                    ? tr("kilitliSonucYokAciklama")
+                    : isFiltered
+                    ? tr("suzgecleriniziDegistirerekTekrarDeneyin")
                     : state.status === "aktif"
-                      ? "Kapananlar için Durum → Geçmiş."
-                      : "Kategorinize uygun talep yayınlandığında burada görünür."
+                      ? tr("kapananlarIcinDurumGecmis")
+                      : tr("kategorinizeUygunTalepYayinlandigindaBurada")
                 }
                 variant={isFiltered ? "no-results" : "no-data"}
                 action={
@@ -221,7 +284,7 @@ function RequestList({
                       onClick={clear}
                       className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                     >
-                      Filtreleri temizle
+                      {tr("filtreleriTemizle")}
                     </button>
                   ) : (
                     /* Satışta TEK eylem: eşleşme kategori beyanına dayanır —
@@ -230,18 +293,21 @@ function RequestList({
                       href={SECTOR_EDIT_HREF}
                       className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                     >
-                      Satış kategorilerini düzenle
+                      {tr("satisKategorileriniDuzenle")}
                     </Link>
                   )
                 }
               />
             ) : (
               <>
-                <div className="space-y-2" role="table" aria-label={`${t.searchNoun} listesi`}>
+                {/* `role="table"` KALDIRILDI (yayın denetimi 2026-09-28 Bölüm 12 —
+                    IhaleListView'deki 2026-09-12 düzeltmesinin eşi): satırlar kart,
+                    ARIA tablosu `row` çocuk ister → axe KRİTİK ihlal. */}
+                <section className="space-y-2" aria-label={tr("listesi", { noun: t.searchNoun })}>
                   {pageRows.map((row) => (
                     <BrowseTenderRow key={row.id} t={row} />
                   ))}
-                </div>
+                </section>
                 {totalPages > 1 ? (
                   <Pagination
                     page={safePage}

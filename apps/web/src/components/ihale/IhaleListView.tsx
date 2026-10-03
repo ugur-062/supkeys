@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/list";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { cn } from "@/lib/utils";
-import { ClipboardList, Plus } from "lucide-react";
-import Link from "next/link";
+import { CircleSlash, ClipboardList, Plus } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useEffect, useState } from "react";
 import { IHALE_VIEW_FOCUS, IhaleListRow } from "./IhaleListRow";
@@ -23,17 +25,32 @@ export function IhaleListView({
   isLoading,
   isError,
   onRetry,
-  emptyCtaLabel = "Satın Alma Talebi Aç",
+  emptyCtaLabel,
+  isFiltered = false,
+  onClearFilters,
+  fromHref,
 }: {
   items: TenderListItem[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
   emptyCtaLabel?: string;
+  /** Arama/süzgeç etkin — boş sonuç "henüz yok" değil "eşleşen yok" (O-086). */
+  isFiltered?: boolean;
+  onClearFilters?: () => void;
+  /** Satır → detay dönüş adresi (süzgeç sorgusu dahil; bkz. IhaleListRow). */
+  fromHref?: string;
 }) {
+  const tr = useTranslations("web.panel.requests.ihalelistview");
+  const ctaLabel = emptyCtaLabel ?? tr("satinAlmaTalebiAc");
   const accent = useButtonAccent();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const canCreate = useHasCompanyPermission("buy:listing:manage");
+  // Rol kontrolü paket kontrolünün İÇİNDE: Gold altına düşen firma listeyi
+  // görür (mevcut işini bitirir) ama yeni talep açamaz (T-06, O-008).
+  const hasCreatePermission = useHasCompanyPermission("buy:listing:manage");
+  const { company } = useCompanyAuth();
+  const tierAllowsCreate = tierAtLeast(company?.tier ?? "STANDART", BUYING_TIER);
+  const canCreate = hasCreatePermission && tierAllowsCreate;
 
   useEffect(() => {
     try {
@@ -62,8 +79,8 @@ export function IhaleListView({
     return (
       <EmptyState
         icon={ClipboardList}
-        title="Veri alınamadı."
-        description="Bir hata oluştu — tekrar deneyin."
+        title={tr("veriAlinamadi")}
+        description={tr("birHataOlustuTekrarDeneyin")}
         variant="no-results"
         action={
           <button
@@ -74,7 +91,7 @@ export function IhaleListView({
               IHALE_VIEW_FOCUS,
             )}
           >
-            Tekrar dene
+            {tr("tekrarDene")}
           </button>
         }
       />
@@ -94,16 +111,44 @@ export function IhaleListView({
     );
   }
 
+  if (items.length === 0 && isFiltered) {
+    // O-086: süzgeç yüzünden boş — oluşturma CTA'sı değil, tek tık temizleme.
+    return (
+      <EmptyState
+        icon={CircleSlash}
+        title={tr("eslesenTalepYok")}
+        description={tr("filtreleriDegistiripTekrarDene")}
+        variant="no-results"
+        action={
+          onClearFilters ? (
+            <button
+              type="button"
+              onClick={onClearFilters}
+              className={cn(
+                "inline-flex items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50",
+                IHALE_VIEW_FOCUS,
+              )}
+            >
+              {tr("filtreleriTemizle")}
+            </button>
+          ) : undefined
+        }
+      />
+    );
+  }
+
   if (items.length === 0) {
     const createHref = "/company/satinalma/taleplerim/yeni";
     return (
       <EmptyState
         icon={ClipboardList}
-        title="Henüz satın alma talebi yok."
+        title={tr("henuzSatinAlmaTalebiYok")}
         description={
           canCreate
-            ? "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
-            : "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir."
+            ? tr("ilkSatinAlmaTalebiniziBirkac")
+            : hasCreatePermission
+              ? tr("yeniTalepGoldGerektirir")
+              : tr("satinAlmaTalebiAcmaIslem")
         }
         variant="no-data"
         action={
@@ -117,7 +162,7 @@ export function IhaleListView({
               )}
             >
               <Plus className="size-4" aria-hidden />
-              {emptyCtaLabel}
+              {ctaLabel}
             </Link>
           ) : undefined
         }
@@ -129,7 +174,7 @@ export function IhaleListView({
     /* `role="table"` KALDIRILDI (a11y 2026-09-12): sütun başlığı ve hücre yok,
        satırlar da kart; ARIA tablosu çocuk olarak `row` şart koşuyor ve KRİTİK
        ihlal veriyordu. `<section>` + ad = erişilebilir bölge, zorunlu çocuk yok. */
-    <section aria-label="Satın Alma Talebi listesi" className="space-y-2">
+    <section aria-label={tr("satinAlmaTalebiListesi")} className="space-y-2">
       {/* "Tümünü seç" şeridi KALDIRILDI (kullanıcı isteği, 2026-08-03):
           toplu sunucu işlemi yok — seçim yalnız yer kaplıyordu. */}
       {items.map((t) => (
@@ -138,6 +183,7 @@ export function IhaleListView({
           t={t}
           favorite={favorites.has(t.id)}
           onToggleFavorite={toggleFavorite}
+          fromHref={fromHref}
         />
       ))}
     </section>

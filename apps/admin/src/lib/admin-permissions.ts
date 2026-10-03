@@ -37,11 +37,28 @@ export type AdminAction =
   | "clearSuppression" // POST admin/system/suppressions/clear
   | "timeSavingsConfig" // POST admin/system/time-savings-config
   | "listSuppressions" // companies/:id/users/:userId/{password-reset,resend,drop-sessions} — @AllowAnyAdminRole
-  | "resolveCategoryMiss"; // POST admin/system/category-misses/:id/resolve
+  | "resolveCategoryMiss" // POST admin/system/category-misses/:id/resolve
+  | "globalSearch" // GET admin/search (üst çubuk global arama)
+  | "listCompanies" // GET admin/companies (firma listesi + detay; KYC PII, SUPPORT'a kapalı)
+  // Derin denetim LU-12: inceleme sayfaları (ilan/sipariş/ürün) ve Sistem
+  // sayfası bu aksiyonları rol kapısız çiziyordu → izinsiz role 403 toast'ı.
+  | "listingIntervention" // POST admin/listings/:id/{close,extend,reopen}
+  | "cancelOrder" // POST admin/orders/:id/cancel
+  | "reviewProduct" // POST admin/products/:id/{approve,reject} + bulk-approve
+  | "refreshRates" // POST admin/system/refresh-rates
+  // Arayüz testi T-09 (D-017, D-033, D-224): menü öğeleri ve sayfa kapıları
+  // da bu matristen beslenir — izinsiz role menüde görünmez, adresle
+  // açılınca sorgu atmadan yetki kartı çizilir.
+  | "viewAuditLogs" // GET admin/audit-logs (Denetim Kaydı + Güvenlik)
+  | "viewEmailLogs" // GET admin/email-logs
+  | "viewGrowth" // GET admin/growth/invites
+  | "viewMembershipReport"; // GET admin/membership/report
 
 const SUPER: AdminRole[] = ["SUPER_ADMIN"];
 const KYC: AdminRole[] = ["SUPER_ADMIN", "SALES"];
 const ANY: AdminRole[] = ["SUPER_ADMIN", "SALES", "SUPPORT"];
+// Ürün kararı katalog kalitesi işidir → SUPPORT'a açık, SALES yalnız okur.
+const PRODUCT_REVIEW: AdminRole[] = ["SUPER_ADMIN", "SUPPORT"];
 
 export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   setTier: SUPER,
@@ -67,6 +84,16 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   timeSavingsConfig: SUPER,
   listSuppressions: KYC,
   resolveCategoryMiss: KYC,
+  globalSearch: KYC,
+  listCompanies: KYC,
+  listingIntervention: KYC,
+  cancelOrder: KYC,
+  reviewProduct: PRODUCT_REVIEW,
+  refreshRates: KYC,
+  viewAuditLogs: KYC,
+  viewEmailLogs: KYC,
+  viewGrowth: KYC,
+  viewMembershipReport: KYC,
 };
 
 /** Rol bu aksiyonu yapabilir mi? (frontend buton kapısı — backend otorite kalır) */

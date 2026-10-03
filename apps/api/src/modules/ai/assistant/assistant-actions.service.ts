@@ -1,3 +1,10 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { tApi } from "../../../common/i18n/i18n.service";
+import { formatMoney, formatNotificationDate } from "../../../common/notifications/notification-params";
+import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
+import { quantityDisplay } from "../../../common/i18n/unit-label";
+import { deliveryTermLabel, paymentCategoryLabel } from "../../../common/i18n/listing-terms-label";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import {
   BadRequestException,
   ForbiddenException,
@@ -8,20 +15,24 @@ import {
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@rothern/db";
 import {
-  BID_DELIVERY_TIME_LABELS,
   BID_DELIVERY_TIMES,
   type AiActionResult,
   type AiPendingAction,
   type BidDeliveryTime,
+  normalizeUnit,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CreateListingDto } from "../../company-listings/dto/create-listing.dto";
 import { PlaceBidDto } from "../../company-listings/dto/place-bid.dto";
 import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
+import { CompanyRequestDefaultsService } from "../../company-request-defaults/company-request-defaults.service";
+import { MAX_MONEY } from "../../../common/constants/money";
 import { CompanyOrdersService } from "../../company-orders/services/company-orders.service";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
+import { missingFieldsForPrompt } from "./assistant.prompts";
 import { validatePendingDto } from "./validate-pending-dto";
 
 /**
@@ -58,6 +69,21 @@ interface StoredPendingAction {
 }
 
 /** Propose çıktısı — hem modele (tool response) hem UI kartına gider. */
+/** Yayin onay kartinda gosterilen teslimat adresi. */
+interface PickedAddress {
+  id: string;
+  title: string;
+  city: string | null;
+  district: string | null;
+}
+
+/** class-validator `maxDecimalPlaces: 2` ile ayni olcu (ondalik basamak sayisi). */
+function hasAtMostTwoDecimals(n: number): boolean {
+  const s = String(n);
+  if (/e/i.test(s)) return false;
+  return (s.split(".")[1]?.length ?? 0) <= 2;
+}
+
 export interface ProposeOutcome {
   ok: boolean;
   pending?: AiPendingAction;
@@ -74,6 +100,7 @@ export class AssistantActionsService {
     private readonly listings: CompanyListingsService,
     private readonly orders: CompanyOrdersService,
     private readonly audit: AuditService,
+    private readonly requestDefaults: CompanyRequestDefaultsService,
   ) {}
 
   // ── PROPOSE ────────────────────────────────────────────────────────────
@@ -114,18 +141,30 @@ export class AssistantActionsService {
       severity: "normal",
       params: { listingId, rothernIds },
       summary: [
-        `Satın Alma Talebi: ${listing.title} (${listing.number ?? listing.id})`,
-        `Davet edilecek: ${targets.map((t) => `${t.name} (${t.rothernId})`).join(", ")}`,
-        "Yalnız bağlantılı firmalara davet gider; diğerleri atlanır.",
+        tApi("api.ai.assistant.card.listing", {
+          title: listing.title,
+          number: listing.number ?? listing.id,
+        }),
+        tApi("api.ai.assistant.card.invitees", {
+          list: targets.map((t) => `${t.name} (${t.rothernId})`).join(", "),
+        }),
+        tApi("api.ai.assistant.sendInvites.note"),
       ],
     });
   }
 
-  /** Oturumdaki taslaktan ihale YAYINLAMA önerisi (kritik). */
+  /**
+   * Oturumdaki taslaktan ihale YAYINLAMA önerisi (kritik). `turnDraft`: aynı
+   * sohbet turunda toplanan (henüz oturuma yazılmamış) taslak — taslak tur
+   * SONUNDA kalıcılaşır; "hazırla ve yayınla" tek mesajında DB'deki taslak
+   * yok ya da bayat olurdu (derin denetim canlı AI). Taslak yine sanitize
+   * edilir; kart + pendingAction üretilir, yürütme yalnız confirm'de.
+   */
   async proposePublishTender(
     user: AuthenticatedCompanyUser,
     sessionId: string,
     args: Record<string, unknown>,
+    turnDraft?: unknown,
   ): Promise<ProposeOutcome> {
     const type = "ALIM" as const;
     // Davetli (kapalı) yayın en az 1 davetli firma ister (iş kuralı) —
@@ -152,26 +191,30 @@ export class AssistantActionsService {
       where: { id: sessionId, userId: user.userId, companyId: user.companyId },
       select: { tenderDraft: true },
     });
-    if (!session?.tenderDraft) {
+    const rawDraft = turnDraft ?? session?.tenderDraft;
+    if (!session || !rawDraft) {
       return { ok: false, problem: "Bu sohbette biriken bir satın alma talebi taslağı yok — önce taslağı birlikte hazırlayın." };
     }
-    const s = sanitizeAiDraft(session.tenderDraft, "refine");
+    const s = sanitizeAiDraft(rawDraft, "refine");
     if (s.missingRequired.length > 0) {
       return {
         ok: false,
-        problem: `Taslakta eksik zorunlu alanlar var: ${s.missingRequired.join(", ")}. Önce bunları tamamlayın.`,
+        problem: `Taslakta eksik zorunlu alanlar var: ${missingFieldsForPrompt(s.missingRequired)}. Önce bunları tamamlayın.`,
       };
     }
     if (s.draft.suggestedCategoryIds.length === 0) {
       return { ok: false, problem: "Kategori önerisi yok — kalemleri netleştirin, kategori otomatik önerilsin." };
     }
-    const dto = await this.draftToCreateDto(user, type, s.draft);
-    if (typeof dto === "string") return { ok: false, problem: dto };
+    const built = await this.draftToCreateDto(user, type, s.draft);
+    if (typeof built === "string") return { ok: false, problem: built };
+    const { dto, address } = built;
     dto.invitations = invitees.map((c) => c.rothernId!);
 
+    // Kategori adı onay kartında okuyucunun dilinde (eskiden `nameTr` ham —
+    // EN/RU arayüzde Türkçe kategori adı basıyordu).
     const cats = await this.prisma.category.findMany({
       where: { id: { in: dto.categoryIds ?? [] } },
-      select: { nameTr: true },
+      select: CATEGORY_NAME_SELECT,
     });
     return this.storePending(user, sessionId, {
       type: "publish_tender",
@@ -183,22 +226,61 @@ export class AssistantActionsService {
       // planının ya da şartname metninin kullanıcı görmeden yayınlanması
       // demekti (denetim 2026-08-24 Parça 6).
       summary: [
-        `${type === "ALIM" ? "Alım satın alma talebi" : "Satış ilanı"} YAYINLANACAK: ${dto.title}`,
-        `Kalemler: ${(dto.items ?? [])
-          .slice(0, 5)
-          .map(
-            (i) =>
-              `${i.name} — ${i.quantity ?? "?"} ${i.unit ?? ""}`.trim(),
-          )
-          .join(" · ")}${(dto.items ?? []).length > 5 ? " …" : ""} (${(dto.items ?? []).length} kalem)`,
-        `Kategori: ${cats.map((c) => c.nameTr).join(", ") || "-"}`,
-        `Davet edilecek: ${invitees.map((c) => c.name).join(", ")}`,
-        `Kapanış: ${dto.closesAt ?? "-"} · Para birimi: ${dto.primaryCurrency ?? "-"} · Görünürlük: Davetli (kapalı)`,
-        `Ödeme: ${summarizePaymentPlan(dto)} · Teslim: ${dto.deliveryTerm ?? "-"}`,
-        `Açıklama: ${previewText(dto.description)}`,
-        `Şartname: ${previewText(dto.terms)}`,
-        "Yayınlandığında teklif almaya açılır; kapanış ve kalemler teklif geldikten sonra değiştirilemez.",
-        "Açıklama/şartname metinleri belgeden geldi — onaylamadan önce okuyun.",
+        // Satış ilanı kalktı (2026-09-04) — yayın her zaman alım talebi.
+        tApi("api.ai.assistant.publish.headingAlim", { title: dto.title }),
+        tApi("api.ai.assistant.publish.items", {
+          list: `${(dto.items ?? [])
+            .slice(0, 5)
+            .map(
+              (i) =>
+                // Miktar + birim okuyucunun dilinde, çoğul kuralıyla.
+                i.quantity != null
+                  ? `${i.name} — ${quantityDisplay(i.quantity, normalizeUnit(i.unit), i.unit, currentLocale())}`
+                  : `${i.name} — ? ${i.unit ?? ""}`.trim(),
+            )
+            .join(" · ")}${(dto.items ?? []).length > 5 ? " …" : ""}`,
+          // Sayı DİZE geçilir: ICU sayı biçimlendirmesi binlik ayraç eklerdi
+          // (tr'de "1.000 kalem"), bugünkü çıktı ham sayı basıyor.
+          count: String((dto.items ?? []).length),
+        }),
+        tApi("api.ai.assistant.publish.category", {
+          list: cats.map((c) => categoryName(c)).join(", ") || "-",
+        }),
+        tApi("api.ai.assistant.card.invitees", {
+          list: invitees.map((c) => c.name).join(", "),
+        }),
+        // Kapanis okuyucunun dilinde, Istanbul duvar saatiyle (+ en/ru dilim
+        // etiketi) — ham UTC ISO basiliyordu (derin denetim MU-07).
+        tApi("api.ai.assistant.publish.closing", {
+          closesAt: dto.closesAt
+            ? formatNotificationDate(new Date(dto.closesAt), currentLocale(), "dateTime")
+            : "-",
+          currency: dto.primaryCurrency ?? "-",
+        }),
+        // Teslimat adresi de BAGLAYICI alan — kartta gorunmeli (MU-07).
+        tApi("api.ai.assistant.publish.deliveryAddress", {
+          address: [localizeDefaultAddressTitle(address.title), address.district, address.city]
+            .map((x) => x?.trim())
+            .filter(Boolean)
+            .join(", "),
+        }),
+        // Teslim/ödeme şekli okuyucunun dilinde etiket (ham enum kodu değil).
+        tApi("api.ai.assistant.publish.payment", {
+          plan: summarizePaymentPlan(dto),
+          delivery: deliveryTermLabel(dto.deliveryTerm) ?? "-",
+        }),
+        tApi("api.ai.assistant.publish.description", {
+          text: previewText(dto.description),
+        }),
+        tApi("api.ai.assistant.publish.terms", { text: previewText(dto.terms) }),
+        tApi("api.ai.assistant.publish.note"),
+        // "Belgeden geldi" yalnız taslak gerçekten belge çıkarımından geldiyse
+        // (açık kaynak işareti — sayfa özetleri şemada zorunlu değil, model
+        // atlayabilir); aksi halde metinler sohbetten derlendi — uyarı yine
+        // gösterilir.
+        s.draft.fromDocument
+          ? tApi("api.ai.assistant.publish.sourceWarning")
+          : tApi("api.ai.assistant.publish.sourceWarningChat"),
       ],
     });
   }
@@ -224,10 +306,18 @@ export class AssistantActionsService {
       severity: "normal",
       params: { listingId: ref.listing.id, bidId: ref.bid.id, reason },
       summary: [
-        `Satın Alma Talebi: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
-        `Elenecek teklif: ${ref.supplierName} — ${ref.bid.amount} ${ref.bid.currency}`,
-        ...(reason ? [`Gerekçe: ${reason}`] : []),
-        "Tedarikçiye eleme bildirimi gider; dilerse yeniden teklif verebilir.",
+        tApi("api.ai.assistant.card.listing", {
+          title: ref.listing.title,
+          number: ref.listing.number ?? ref.listing.id,
+        }),
+        tApi("api.ai.assistant.eliminate.bid", {
+          supplier: ref.supplierName,
+          amount: formatMoney(String(ref.bid.amount), ref.bid.currency, currentLocale()),
+        }),
+        ...(reason
+          ? [tApi("api.ai.assistant.eliminate.reason", { reason })]
+          : []),
+        tApi("api.ai.assistant.eliminate.note"),
       ],
     });
   }
@@ -256,10 +346,16 @@ export class AssistantActionsService {
       severity: "critical",
       params: { listingId: ref.listing.id, bidId: ref.bid.id, note },
       summary: [
-        `Satın Alma Talebi KAZANDIRILACAK: ${ref.listing.title} (${ref.listing.number ?? ref.listing.id})`,
-        `Kazanan: ${ref.supplierName} — ${ref.bid.amount} ${ref.bid.currency} (tüm kalemler)`,
-        "Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder, sipariş oluşturulur.",
-        "Firmanızda onay akışı tanımlıysa işlem önce şirket onayına düşer.",
+        tApi("api.ai.assistant.award.heading", {
+          title: ref.listing.title,
+          number: ref.listing.number ?? ref.listing.id,
+        }),
+        tApi("api.ai.assistant.award.winner", {
+          supplier: ref.supplierName,
+          amount: formatMoney(String(ref.bid.amount), ref.bid.currency, currentLocale()),
+        }),
+        tApi("api.ai.assistant.award.irreversible"),
+        tApi("api.ai.assistant.award.approvalNote"),
       ],
     });
   }
@@ -299,6 +395,7 @@ export class AssistantActionsService {
       name: string;
       quantity: unknown;
       unit: string;
+      unitCode?: string | null;
       questions?: Array<{ required?: boolean }>;
     }>;
     if (items.length === 0) {
@@ -320,10 +417,24 @@ export class AssistantActionsService {
       ? (args.items as Array<{ itemId?: unknown; unitPrice?: unknown }>)
       : [];
     const priceById = new Map<string, number>();
+    const badPrice: string[] = [];
     for (const it of argItems) {
       const id = String(it.itemId ?? "");
       const p = Number(it.unitPrice);
-      if (id && Number.isFinite(p) && p > 0) priceById.set(id, p);
+      if (!id || !Number.isFinite(p) || p <= 0) continue;
+      // PlaceBidItemDto kurali (en fazla 2 ondalik, MAX_MONEY) propose'da —
+      // onayda dusup karti harcamasin (derin denetim MU-07).
+      if (!hasAtMostTwoDecimals(p) || p > MAX_MONEY) {
+        badPrice.push(items.find((i) => i.id === id)?.name ?? id);
+        continue;
+      }
+      priceById.set(id, p);
+    }
+    if (badPrice.length > 0) {
+      return {
+        ok: false,
+        problem: `Unit price must be a positive amount with at most 2 decimal places (max ${MAX_MONEY}) for: ${badPrice.join(", ")}. Ask the user for a corrected unit price.`,
+      };
     }
     const missing = items.filter((i) => !priceById.has(i.id));
     if (missing.length > 0) {
@@ -347,7 +458,12 @@ export class AssistantActionsService {
       const qty = new Prisma.Decimal(String(i.quantity ?? 1));
       const sub = qty.mul(new Prisma.Decimal(String(price)));
       amount = amount.add(sub);
-      lines.push(`${i.name}: ${String(i.quantity)} ${i.unit} × ${price} = ${sub.toString()} ${currency}`);
+      // Miktar, birim ve tutarlar okuyucunun dilinde (İngilizce kartta "adet"
+      // ve "500 TRY" basılıyordu); sembolün yeri dilden (`formatMoney`).
+      const loc = currentLocale();
+      lines.push(
+        `${i.name}: ${quantityDisplay(String(i.quantity), i.unitCode ?? normalizeUnit(i.unit), i.unit, loc)} × ${formatMoney(price, currency, loc)} = ${formatMoney(sub.toString(), currency, loc)}`,
+      );
     }
     const note = typeof args.note === "string" ? args.note.slice(0, 1000) : undefined;
     const validityDays =
@@ -364,8 +480,19 @@ export class AssistantActionsService {
       };
     }
 
+    // Kalemli teklifte `amount` GONDERILMEZ (web ile ayni sozlesme): servis
+    // tutari kalemlerden hesaplar; kesirli miktarda Σ 2 ondaligi asip
+    // PlaceBidDto.amount kuralina takiliyor, onaylanan kart 400 ile dusuyordu.
+    // Gecerlilik gonderimde zorunlu (placeBid kurali; acik eksiltme haric) —
+    // propose'da sorulur, onayda dusup karti harcamasin (MU-07).
+    if (!validityDays && detail.format !== "ENGLISH_AUCTION") {
+      return {
+        ok: false,
+        problem: "Offer validity in days (validityDays, 1-365) is required to submit a bid. Ask the user.",
+      };
+    }
+
     const dto: PlaceBidDto = {
-      amount: Number(amount.toString()),
       currency: currency as PlaceBidDto["currency"],
       items: items.map((i) => ({ itemId: i.id, unitPrice: priceById.get(i.id)! })),
       deliveryTime: deliveryTime as BidDeliveryTime,
@@ -373,16 +500,36 @@ export class AssistantActionsService {
       ...(validityDays ? { validityDays } : {}),
     } as PlaceBidDto;
 
+    // Teslim süresi onay kartında okuyucunun dilinde (eskiden Türkçe sözlük sabitti).
+    const deliveryLabel = tApi(`api.ai.assistant.deliveryTime.${deliveryTime as BidDeliveryTime}`);
     return this.storePending(user, sessionId, {
       type: "place_bid",
       severity: "critical",
       params: { listingId, dto: dto as unknown as Record<string, unknown> },
       summary: [
-        `TEKLİF VERİLECEK: ${String(detail.title)} (${String(detail.number ?? listingId)})`,
+        tApi("api.ai.assistant.placeBid.heading", {
+          title: String(detail.title),
+          number: String(detail.number ?? listingId),
+        }),
         ...lines.slice(0, 6),
-        ...(lines.length > 6 ? [`… ve ${lines.length - 6} kalem daha`] : []),
-        `TOPLAM: ${amount.toString()} ${currency} · Teslim: ${BID_DELIVERY_TIME_LABELS[deliveryTime as BidDeliveryTime]}${validityDays ? ` · Geçerlilik: ${validityDays} gün` : ""}`,
-        "Gönderilen teklif GERİ ÇEKİLEMEZ ve değiştirilemez (kapalı zarf).",
+        ...(lines.length > 6
+          ? [
+              tApi("api.ai.assistant.placeBid.moreItems", {
+                count: String(lines.length - 6),
+              }),
+            ]
+          : []),
+        validityDays
+          ? tApi("api.ai.assistant.placeBid.totalWithValidity", {
+              amount: formatMoney(amount.toString(), currency, currentLocale()),
+              delivery: deliveryLabel,
+              days: validityDays,
+            })
+          : tApi("api.ai.assistant.placeBid.total", {
+              amount: formatMoney(amount.toString(), currency, currentLocale()),
+              delivery: deliveryLabel,
+            }),
+        tApi("api.ai.assistant.placeBid.note"),
       ],
     });
   }
@@ -421,9 +568,14 @@ export class AssistantActionsService {
       severity: "normal",
       params: { orderId, note },
       summary: [
-        `Sipariş TESLİM ALINDI işaretlenecek: ${order.number ?? order.id}`,
-        `Satıcı: ${order.seller?.name ?? "-"} · Tutar: ${order.amount} ${order.currency ?? ""}`,
-        "Satıcıya bildirim gider; sorun varsa teslim sonrası kusur bildirimi ayrıca yapılabilir.",
+        tApi("api.ai.assistant.orderReceived.heading", {
+          number: order.number ?? order.id,
+        }),
+        tApi("api.ai.assistant.orderReceived.seller", {
+          seller: order.seller?.name ?? "-",
+          amount: formatMoney(String(order.amount), order.currency, currentLocale()),
+        }),
+        tApi("api.ai.assistant.orderReceived.note"),
       ],
     });
   }
@@ -494,13 +646,10 @@ export class AssistantActionsService {
     user: AuthenticatedCompanyUser,
     type: "ALIM",
     d: ReturnType<typeof sanitizeAiDraft>["draft"],
-  ): Promise<CreateListingDto | string> {
-    // Varsayılan teslimat adresi — ilan formunun zorunlu tuttuğu alan.
-    const addr = await this.prisma.companyAddress.findFirst({
-      where: { companyId: user.companyId, type: { in: ["TESLIMAT", "ILETISIM"] } },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
+  ): Promise<{ dto: CreateListingDto; address: PickedAddress } | string> {
+    // Teslimat adresi — ilan formunun zorunlu tuttugu alan; secim web hizli
+    // talep formuyla ayni sirada (MU-07).
+    const addr = await this.pickDeliveryAddress(user.companyId);
     if (!addr) {
       return "Firmanızda kayıtlı teslimat adresi yok — Ayarlar → Adresler'den ekleyin, sonra tekrar deneyin.";
     }
@@ -537,10 +686,43 @@ export class AssistantActionsService {
           unit: i.unit ?? "adet",
           materialCode: i.materialCode ?? undefined,
           requiredByDate: i.requiredByDate ?? undefined,
-          targetUnitPrice: i.targetUnitPrice ?? undefined,
+          // ListingItemDto alanı `targetPrice` (derin denetim LU-04): eski
+          // `targetUnitPrice` confirm'deki whitelist ile sessizce düşüyordu.
+          targetPrice: i.targetUnitPrice ?? undefined,
         })) as CreateListingDto["items"],
     };
-    return dto;
+    return { dto, address: addr };
+  }
+
+  /**
+   * Yayin adresi — web hizli talep formunun sirasi (quick-request.tsx):
+   * talep sartlari profilindeki adres (kaydedilmis ya da son talepteki),
+   * sonra varsayilan TESLIMAT, sonra herhangi bir TESLIMAT, en son ILETISIM.
+   * Eskiden TESLIMAT/ILETISIM arasindan en eski olusturulan aliniyordu: eski
+   * bir iletisim adresi yeni varsayilan teslimat adresinin onune geciyordu
+   * (derin denetim MU-07).
+   */
+  private async pickDeliveryAddress(companyId: string): Promise<PickedAddress | null> {
+    const select = { id: true, title: true, city: true, district: true } as const;
+    const profile = await this.requestDefaults.get(companyId).catch(() => null);
+    const preferredId = profile?.defaults?.deliveryAddressId ?? null;
+    if (preferredId) {
+      const preferred = await this.prisma.companyAddress.findFirst({
+        where: { id: preferredId, companyId },
+        select,
+      });
+      if (preferred) return preferred;
+    }
+    const rows = await this.prisma.companyAddress.findMany({
+      where: { companyId, type: { in: ["TESLIMAT", "ILETISIM"] } },
+      orderBy: { createdAt: "asc" },
+      select: { ...select, type: true, isDefault: true },
+    });
+    const pick =
+      rows.find((a) => a.type === "TESLIMAT" && a.isDefault) ??
+      rows.find((a) => a.type === "TESLIMAT") ??
+      rows[0];
+    return pick ? { id: pick.id, title: pick.title, city: pick.city, district: pick.district } : null;
   }
 
   // ── CONFIRM / REJECT ───────────────────────────────────────────────────
@@ -561,7 +743,7 @@ export class AssistantActionsService {
       data: { pendingAction: Prisma.DbNull },
     });
     if (cleared.count === 0) {
-      throw new BadRequestException("Bu onay zaten kullanılmış.");
+      throw new BadRequestException(i18nMessage("api.ai.buOnayZatenKullanilmis"));
     }
 
     let message = "";
@@ -571,14 +753,14 @@ export class AssistantActionsService {
         case "send_invites": {
           const p = action.params as { listingId: string; rothernIds: string[] };
           await this.listings.addInvitations(user, p.listingId, p.rothernIds);
-          message = "Davetler gönderildi (yalnız bağlantılı firmalara).";
+          message = tApi("api.ai.assistant.result.invitesSent");
           resourceId = p.listingId;
           break;
         }
         case "eliminate_bid": {
           const p = action.params as { listingId: string; bidId: string; reason?: string };
           await this.listings.eliminate(user, p.listingId, p.bidId, p.reason);
-          message = "Teklif elendi — tedarikçiye bildirim gönderildi.";
+          message = tApi("api.ai.assistant.result.bidEliminated");
           resourceId = p.listingId;
           break;
         }
@@ -589,9 +771,11 @@ export class AssistantActionsService {
             approvalPending?: boolean;
           };
           resourceId = r?.orderId ?? p.listingId;
-          message = r?.orderId
-            ? "Kazandırma tamamlandı — sipariş oluşturuldu."
-            : "Kazandırma başlatıldı — firmanızın onay akışına iletildi.";
+          message = tApi(
+            r?.orderId
+              ? "api.ai.assistant.result.awarded"
+              : "api.ai.assistant.result.awardPending",
+          );
           break;
         }
         case "place_bid": {
@@ -601,14 +785,14 @@ export class AssistantActionsService {
           // değil; `as PlaceBidDto` yalnız derleme-zamanı iddiadır).
           const bidDto = validatePendingDto(PlaceBidDto, p.dto);
           await this.listings.placeBid(user, p.listingId, bidDto);
-          message = "Teklifiniz gönderildi (kapalı zarf — yalnız satın alma talebi sahibi görür).";
+          message = tApi("api.ai.assistant.result.bidPlaced");
           resourceId = p.listingId;
           break;
         }
         case "mark_order_received": {
           const p = action.params as { orderId: string; note?: string };
           await this.orders.receive(user, p.orderId, { note: p.note } as never);
-          message = "Sipariş teslim alındı olarak işaretlendi — satıcıya bildirim gitti.";
+          message = tApi("api.ai.assistant.result.orderReceived");
           resourceId = p.orderId;
           break;
         }
@@ -619,7 +803,7 @@ export class AssistantActionsService {
             id?: string;
           };
           resourceId = created?.id;
-          message = "Satın Alma Talebi yayınlandı — teklifler artık toplanıyor.";
+          message = tApi("api.ai.assistant.result.published");
           // Yayınlanan taslağı oturumdan temizle (tekrar yayınlanmasın).
           await this.prisma.aiChatSession.update({
             where: { id: session.id },
@@ -628,7 +812,7 @@ export class AssistantActionsService {
           break;
         }
         default:
-          throw new BadRequestException("Bilinmeyen aksiyon tipi.");
+          throw new BadRequestException(i18nMessage("api.ai.bilinmeyenAksiyonTipi"));
       }
     } catch (err) {
       // Servis kapıları (rol/KYC/durum) Türkçe ve kullanıcıya-güvenli mesaj
@@ -665,7 +849,10 @@ export class AssistantActionsService {
       where: { id: session.id },
       data: { pendingAction: Prisma.DbNull },
     });
-    return { status: "rejected", message: "İşlem iptal edildi — hiçbir şey yapılmadı." };
+    return {
+      status: "rejected",
+      message: tApi("api.ai.assistant.result.rejected"),
+    };
   }
 
   // ── HELPERS ────────────────────────────────────────────────────────────
@@ -707,17 +894,17 @@ export class AssistantActionsService {
       where: { id: sessionId, userId: user.userId, companyId: user.companyId },
       select: { id: true, pendingAction: true },
     });
-    if (!session) throw new NotFoundException("Sohbet bulunamadı");
+    if (!session) throw new NotFoundException(i18nMessage("api.ai.sohbetBulunamadi"));
     const action = session.pendingAction as unknown as StoredPendingAction | null;
     if (!action || action.id !== actionId) {
-      throw new BadRequestException("Onay bekleyen işlem bulunamadı.");
+      throw new BadRequestException(i18nMessage("api.ai.onayBekleyenIslemBulunamadi"));
     }
     if (Date.parse(action.expiresAt) < Date.now()) {
       await this.prisma.aiChatSession.update({
         where: { id: session.id },
         data: { pendingAction: Prisma.DbNull },
       });
-      throw new ForbiddenException("Onay süresi doldu — asistandan işlemi yeniden isteyin.");
+      throw new ForbiddenException(i18nMessage("api.ai.onaySuresiDolduAsistandanIslemiYeniden"));
     }
     return { session, action };
   }
@@ -729,17 +916,32 @@ function summarizePaymentPlan(dto: {
   advancePercent?: number | null;
   paymentDays?: number | null;
 }): string {
-  const cat = dto.paymentCategory ? String(dto.paymentCategory) : null;
-  if (!cat) return "belirtilmedi";
+  const cat = paymentCategoryLabel(dto.paymentCategory ? String(dto.paymentCategory) : null);
+  if (!cat) return tApi("api.ai.assistant.payment.unspecified");
   const parts = [cat];
-  if (dto.advancePercent != null) parts.push(`%${dto.advancePercent} peşin`);
-  if (dto.paymentDays != null) parts.push(`${dto.paymentDays} gün vade`);
+  // Yüzde (1-100) ve vade günü (1-365) SAYI geçilir: üç haneyi aşmadıkları
+  // için ICU biçimlendirmesi binlik ayraç eklemez, çeviri çoğul kurabilir.
+  if (dto.advancePercent != null) {
+    parts.push(
+      tApi("api.ai.assistant.payment.advance", { percent: dto.advancePercent }),
+    );
+  }
+  if (dto.paymentDays != null) {
+    parts.push(tApi("api.ai.assistant.payment.term", { days: dto.paymentDays }));
+  }
   return parts.join(" · ");
 }
 
 /** Serbest metin önizlemesi — kart okunur kalsın diye kısaltılır. */
 function previewText(v: string | null | undefined, max = 220): string {
   const s = (v ?? "").replace(/\s+/g, " ").trim();
-  if (!s) return "yok";
-  return s.length > max ? `${s.slice(0, max)}… (${s.length} karakter)` : s;
+  if (!s) return tApi("api.ai.assistant.preview.empty");
+  return s.length > max
+    ? tApi("api.ai.assistant.preview.truncated", {
+        text: s.slice(0, max),
+        // Karakter sayısı dört haneyi aşabilir → DİZE (ICU binlik ayracı
+        // bugünkü ham çıktıyı bozardı).
+        count: String(s.length),
+      })
+    : s;
 }

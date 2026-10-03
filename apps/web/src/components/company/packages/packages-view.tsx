@@ -1,17 +1,18 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { Button } from "@/components/catalyst/button";
 import { useCompanyMe } from "@/hooks/use-company-auth";
+import { useCompanyProfile } from "@/hooks/use-company-profile";
 import type { CompanyTier } from "@/lib/company-auth/types";
-import {
-  PRICING_NOTE,
-  PRICING_PLANS,
-  type PricingPlan,
-} from "@/lib/pricing/plans";
+import type { PricingPlan } from "@/lib/pricing/plans";
+import { usePricingPlans } from "@/lib/pricing/use-plans";
 import { tierAtLeast } from "@rothern/shared";
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { ShieldCheckIcon } from "@heroicons/react/24/outline";
-import { useRouter } from "next/navigation";
+import { ClockIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
+import { Link, useRouter } from "@/i18n/navigation";
+import { formatDate } from "@/lib/format-date";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,9 @@ const PILL: Record<CompanyTier, string> = {
  *
  * AKIŞ — kararın yeri SATIN AL tıklaması:
  *  · doğrulanmamış → doğrulama sayfası (toast neden yönlendirildiğini söyler)
+ *  · incelemede (PENDING) → düğme pasif, kart "inceleniyor — onaylanınca
+ *    satın alabilirsiniz" der (arayüz testi O-068: eskiden "önce doğrulayın"
+ *    toast'ıyla "İncelemede, değişiklik yapılamaz" sayfasına atıyordu)
  *  · doğrulanmış   → satın alma ekranı (`/company/premium/satin-al`)
  * Doğrulama kartta ÖNCEDEN söylenir (küçük satır), sürpriz yönlendirme olmasın.
  * Paket işlemi yalnız KURUCUDA (`billing:manage` sahibe özel; backend
@@ -48,13 +52,22 @@ const PILL: Record<CompanyTier, string> = {
  * hangi paketin gerektiğini TEK cümlede söyler.
  */
 export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD" }) {
+  const t = useTranslations("web.panel.premium.packagesView");
+  // Paket adı/slogan/özellik/not katalogdan (`web.pricing.*`); yapı `PRICING_PLANS`ten.
+  const { plans, note } = usePricingPlans();
   const me = useCompanyMe();
   const router = useRouter();
+  const locale = useLocale() as Locale;
 
   const company = me.data?.company;
   const currentTier: CompanyTier = company?.tier ?? "STANDART";
   const verified = company?.companyVerificationStatus === "VERIFIED";
+  const pending = company?.companyVerificationStatus === "PENDING";
   const isOwner = me.data?.user.isOwner === true;
+  // Üyelik bitişi / süre dolumu (arayüz testi D-029) — profil ucundan; paketi
+  // yenileyebilecek tek kişi kurucu olduğu için yalnız onda okunur.
+  const membership = useCompanyProfile(isOwner).data?.membership;
+  const fmt = (iso: string) => formatDate(iso, "long", locale);
 
   // Vurgulanan kart: kilitli sayfanın istediği paket; yoksa bir üst paket.
   const highlight: CompanyTier | null =
@@ -67,8 +80,9 @@ export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD
           : null;
 
   const buy = (plan: PricingPlan) => {
+    if (pending) return; // düğme zaten pasif; kart nedenini söylüyor
     if (!verified) {
-      toast.info("Paket satın almadan önce firmanızı doğrulayın. Doğrulama ücretsizdir.");
+      toast.info(t("paketSatinAlmadanOnceFirmanizi"));
       router.push(VERIFICATION_HREF);
       return;
     }
@@ -76,27 +90,36 @@ export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD
   };
 
   const requiredName = requiredTier
-    ? PRICING_PLANS.find((p) => p.tier === requiredTier)?.name
+    ? plans.find((p) => p.tier === requiredTier)?.name
     : null;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
       <header className="mx-auto max-w-2xl text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
-          Paketler
+          {t("paketler")}
         </h1>
         <p className="mt-3 text-base text-pretty text-zinc-600">
           {requiredName && highlight === requiredTier
-            ? `Bu sayfa ${requiredName} paketiyle açılır.`
-            : "Görünmek ücretsiz, öne çıkmak paketli."}
+            ? t("buSayfaPaketiyleAcilir", { requiredName: requiredName })
+            : t("gorunmekUcretsizOneCikmakPaketli")}
         </p>
       </header>
+
+      {membership?.expiredAt && currentTier === "STANDART" ? (
+        <p
+          role="status"
+          className="mx-auto mt-6 max-w-2xl rounded-xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-900 ring-1 ring-amber-600/20"
+        >
+          {t("uyelikSuresiDoldu", { date: fmt(membership.expiredAt) })}
+        </p>
+      ) : null}
 
       <ul
         role="list"
         className="mx-auto mt-10 grid max-w-md grid-cols-1 items-stretch gap-5 lg:max-w-none lg:grid-cols-3"
       >
-        {PRICING_PLANS.map((plan) => {
+        {plans.map((plan) => {
           const current = plan.tier === currentTier;
           const included = !current && tierAtLeast(currentTier, plan.tier);
           const upgrade = !current && !included;
@@ -105,7 +128,7 @@ export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD
           return (
             <li
               key={plan.tier}
-              aria-label={`${plan.name} paketi`}
+              aria-label={t("paketi", { name: plan.name })}
               className={cn(
                 "relative flex flex-col rounded-2xl bg-white p-6 sm:p-7",
                 lifted
@@ -124,7 +147,7 @@ export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD
                 </span>
                 {current ? (
                   <span className="text-xs font-semibold text-zinc-600">
-                    Mevcut paketiniz
+                    {t("mevcutPaketiniz")}
                   </span>
                 ) : null}
               </div>
@@ -132,20 +155,25 @@ export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD
               <p className="mt-5 flex items-baseline gap-x-1.5">
                 {plan.monthlyUsd === null ? (
                   <span className="text-4xl font-semibold tracking-tight text-zinc-950">
-                    Ücretsiz
+                    {t("ucretsiz")}
                   </span>
                 ) : (
                   <>
                     <span className="text-4xl font-semibold tracking-tight text-zinc-950 tabular-nums">
                       ${plan.monthlyUsd}
                     </span>
-                    <span className="text-sm text-zinc-500">/ay</span>
+                    <span className="text-sm text-zinc-500">{t("ay")}</span>
                   </>
                 )}
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                {plan.monthlyUsd === null ? "Süresiz" : "Yıllık ödemede, KDV hariç"}
+                {plan.monthlyUsd === null ? t("suresiz") : t("yillikOdemedeKdvHaric")}
               </p>
+              {current && plan.monthlyUsd !== null && membership?.endsAt ? (
+                <p className="mt-1 text-xs font-medium text-zinc-700">
+                  {t("bitis", { date: fmt(membership.endsAt) })}
+                </p>
+              ) : null}
 
               <p className="mt-4 text-sm/6 text-zinc-700">{plan.tagline}</p>
 
@@ -174,35 +202,45 @@ export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD
                       <Button
                         color="blue"
                         className="w-full"
-                        disabled={!isOwner}
+                        disabled={!isOwner || pending}
                         onClick={() => buy(plan)}
                       >
-                        {plan.name} satın al
+                        {t("satinAl", { name: plan.name })}
                       </Button>
                     ) : (
                       <Button
                         outline
                         className="w-full"
-                        disabled={!isOwner}
+                        disabled={!isOwner || pending}
                         onClick={() => buy(plan)}
                       >
-                        {plan.name} satın al
+                        {t("satinAl", { name: plan.name })}
                       </Button>
                     )}
                     <p className="mt-2.5 flex min-h-5 items-center justify-center gap-1.5 text-center text-xs text-zinc-500">
                       {!isOwner ? (
-                        "Paketi firma kurucusu satın alabilir"
+                        t("paketiFirmaKurucusuSatinAlabilir")
+                      ) : pending ? (
+                        <>
+                          <ClockIcon aria-hidden className="size-4 shrink-0" />
+                          <span>
+                            {t("dogrulamaIncelemede")}{" "}
+                            <Link href={VERIFICATION_HREF} className="font-medium text-zinc-700 underline underline-offset-2">
+                              {t("durumuGor")}
+                            </Link>
+                          </span>
+                        </>
                       ) : !verified ? (
                         <>
                           <ShieldCheckIcon aria-hidden className="size-4 shrink-0" />
-                          Önce ücretsiz doğrulama
+                          {t("onceUcretsizDogrulama")}
                         </>
                       ) : null}
                     </p>
                   </>
                 ) : (
                   <p className="flex h-9 items-center justify-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-600">
-                    {current ? "Kullanıyorsunuz" : "Paketinize dahil"}
+                    {current ? t("kullaniyorsunuz") : t("paketinizeDahil")}
                   </p>
                 )}
               </div>
@@ -212,7 +250,7 @@ export function PackagesView({ requiredTier }: { requiredTier?: "SILVER" | "GOLD
       </ul>
 
       <p className="mx-auto mt-8 max-w-2xl text-center text-xs text-zinc-500">
-        {PRICING_NOTE}
+        {note}
       </p>
     </div>
   );

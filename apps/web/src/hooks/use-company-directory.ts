@@ -29,6 +29,8 @@ export interface DirectorySearchParams {
   q?: string;
   /** Virgüllü çoklu. */
   city?: string;
+  /** Firma ülkesi — ISO, virgüllü (2026-09-27). */
+  country?: string;
   /** Virgüllü çoklu 8 haneli kod. */
   category?: string;
   /** Virgüllü çoklu faaliyet kodu. */
@@ -48,6 +50,7 @@ function directoryQuery(params: DirectorySearchParams): string {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.city) sp.set("city", params.city);
+  if (params.country) sp.set("country", params.country);
   if (params.category) sp.set("category", params.category);
   if (params.activity) sp.set("activity", params.activity);
   if (params.verified) sp.set("verified", "1");
@@ -119,6 +122,8 @@ export interface ProfileListing {
 
 export interface CompanyProfile {
   profile: {
+    /** Tanıtım/hizmet/sektör okuyucunun diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+    translatedFrom?: string | null;
     rothernId: string | null;
     slug: string | null;
     name: string;
@@ -160,6 +165,12 @@ export interface CompanyProfile {
   /** Herkese açık profildeki ızgarayla aynı kapı ve sıra; üye fiyatı görür. */
   products: ProductIndexCard[];
   productCount: number;
+  /**
+   * Ücretsiz (STANDART) bağsız izleyenden paket kuralıyla gizlenen açık
+   * herkese açık talep sayısı (arayüz testi D-329); diğer izleyenlerde 0.
+   * Eski API'de yok.
+   */
+  lockedListingCount?: number;
 }
 
 export function useCompanyProfile(rothernId: string) {

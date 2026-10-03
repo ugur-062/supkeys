@@ -1,6 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
+import type { Locale } from "@rothern/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
@@ -74,15 +75,24 @@ export function useReferralInvites() {
   });
 }
 
+/**
+ * "Tedarikçini davet et" — kayıtsız adrese davet e-postası. `locale` davet
+ * e-postasının dili (2026-09-27; ekranda adres başına seçilir, varsayılanı
+ * `recipientLocale`); verilmezse sunucu türetir.
+ */
 export function useInviteByEmail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (email: string) => {
+    mutationFn: async (input: string | { email: string; locale?: Locale }) => {
+      const body = typeof input === "string" ? { email: input } : input;
       const { data } = await companyApi.post<{
         kind: "request" | "invited";
         targetName?: string;
         email?: string;
-      }>("/company/connections/invite-by-email", { email });
+        /** Davet e-postasının GERÇEK sonucu (yalnız `invited`); eski API döndürmez. */
+        delivery?: "SENT" | "FAILED" | "SUPPRESSED";
+        emailSent?: boolean;
+      }>("/company/connections/invite-by-email", body);
       return data;
     },
     onSuccess: () =>
@@ -93,20 +103,27 @@ export function useInviteByEmail() {
 export interface BatchInviteResult {
   results: {
     email: string;
-    status: "request" | "invited" | "skipped";
+    /** `failed`: kayıt oluştu ama e-posta gitmedi (sağlayıcı hatası ya da adres e-posta almıyor). */
+    status: "request" | "invited" | "skipped" | "failed";
+    /** Makine kodu: SENT · FAILED · SUPPRESSED · ALREADY_INVITED · DAILY_LIMIT · OPTED_OUT · REQUEST */
+    code?: string;
     targetName?: string;
     reason?: string;
   }[];
-  summary: { request: number; invited: number; skipped: number };
+  summary: { request: number; invited: number; skipped: number; failed?: number };
 }
 
 export function useInviteByEmailBatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (emails: string[]) => {
+    mutationFn: async (input: string[] | { email: string; locale?: Locale }[]) => {
+      // Gönderimler artık BEKLENİR (adres başına gerçek sonuç) — 50 adreste
+      // varsayılan 45 sn'yi aşabilir. Adres başına dil `invites` ile gider.
+      const invites = input.map((i) => (typeof i === "string" ? { email: i } : i));
       const { data } = await companyApi.post<BatchInviteResult>(
         "/company/connections/invite-by-email/batch",
-        { emails },
+        { invites },
+        { timeout: 120_000 },
       );
       return data;
     },

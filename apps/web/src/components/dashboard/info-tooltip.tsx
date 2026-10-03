@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -15,13 +16,14 @@ interface Props {
  * başlıklarının yanında kullanılır.
  */
 export function InfoTooltip({ content, size = "sm" }: Props) {
+  const t = useTranslations("web.panel.shell.infoTooltip");
   const px = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
   return (
     <span className="group relative inline-flex">
       <button
         type="button"
         className="text-zinc-400 hover:text-zinc-700 focus:outline-none focus-visible:text-zinc-700"
-        aria-label="Bilgi"
+        aria-label={t("bilgi")}
       >
         <Info className={px} />
       </button>

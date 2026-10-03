@@ -22,6 +22,8 @@ export interface CategoryNode {
   id: string;
   code: string;
   nameTr: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad) — yalnız `segments` ucu verir (i18n Faz 4). */
+  slug?: string;
   level: number;
   parentId?: string | null;
   segmentLetter?: string | null;

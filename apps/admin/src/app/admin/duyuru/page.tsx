@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/catalyst/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAdminCompanyStats } from "@/hooks/use-admin-companies";
@@ -11,7 +12,9 @@ import { useAnnounce } from "@/hooks/use-admin-support";
 import { countryFlag, countryName } from "@/lib/country";
 import { Megaphone } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 /**
  * Platform duyurusu — tüm firmalara veya segmente (üyelik/ülke) toplu
@@ -49,7 +52,9 @@ function DuyuruView() {
     if (!d) return null;
     if (form.country) {
       return (
-        d.countryBreakdown.find((c) => c.country === form.country)?.count ?? 0
+        (d.countryOptions ?? d.countryBreakdown).find(
+          (c) => c.country === form.country,
+        )?.count ?? 0
       );
     }
     if (form.tier) {
@@ -61,21 +66,30 @@ function DuyuruView() {
   const set = (k: string, v: string | boolean) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  const send = () => {
-    announce.mutate(
-      {
-        subject: form.subject.trim(),
-        message: form.message.trim(),
-        tier: (form.tier || undefined) as
-          | "STANDART"
-          | "SILVER"
-          | "GOLD"
-          | undefined,
-        country: form.country || undefined,
-        sendEmail: form.sendEmail,
-      },
-      {
-        onSuccess: (r) => {
+  // Gönderilebilirlik tek kaynak: hem "Duyuruyu Gönder" hem "Evet, Gönder".
+  const canSubmit =
+    form.subject.trim().length >= 3 && form.message.trim().length >= 10;
+
+  // "Evet, Gönder" tek uçuşta: async işleyici → admin Button kilitler; ikinci
+  // çağrı ayrıca burada yutulur (arayüz testi FX-00 O-007; sunucu da aynı
+  // duyuruyu kısa pencerede ikinci kez göndermez).
+  const sendLock = useSubmitLock();
+  const send = () =>
+    sendLock.run(() =>
+      announce.mutateAsync(
+        {
+          subject: form.subject.trim(),
+          message: form.message.trim(),
+          tier: (form.tier || undefined) as
+            | "STANDART"
+            | "SILVER"
+            | "GOLD"
+            | undefined,
+          country: form.country || undefined,
+          sendEmail: form.sendEmail,
+        },
+      ).then(
+        (r) => {
           toast.success(
             `Duyuru gönderildi — ${r.delivered}/${r.targets} firma`,
           );
@@ -88,13 +102,12 @@ function DuyuruView() {
           });
           setConfirming(false);
         },
-        onError: (e: unknown) => {
-          toast.error(e instanceof Error ? e.message : "Hata");
+        (e: unknown) => {
+          toastApiError(e);
           setConfirming(false);
         },
-      },
+      ),
     );
-  };
 
   return (
     <div className="max-w-[720px] space-y-6">
@@ -103,6 +116,9 @@ function DuyuruView() {
         description="Tüm firmalara veya segmente toplu bildirim — dikkatli kullanın."
       />
 
+      {/* Onay kutusu açıkken form KİLİTLİ (arayüz testi D-220): önizleme ve
+          kesin hedef sayısı onaylanan içerikle aynı kalsın; değiştirmek için
+          "Vazgeç". */}
       <section className="admin-card space-y-4 px-5 py-4">
         <label className="flex flex-col gap-1">
           <span className="text-admin-text-muted text-xs font-medium">
@@ -110,6 +126,7 @@ function DuyuruView() {
           </span>
           <Input
             value={form.subject}
+            disabled={confirming}
             onChange={(e) => set("subject", e.target.value)}
             placeholder="Örn. Planlı bakım bildirimi"
           />
@@ -120,6 +137,7 @@ function DuyuruView() {
           </span>
           <Textarea
             value={form.message}
+            disabled={confirming}
             onChange={(e) => set("message", e.target.value)}
             rows={5}
             placeholder="Duyuru metni..."
@@ -132,6 +150,7 @@ function DuyuruView() {
             </span>
             <Select
               value={form.tier}
+              disabled={confirming}
               onChange={(e) => set("tier", e.target.value)}
             >
               <option value="">Tüm üyelikler</option>
@@ -146,10 +165,15 @@ function DuyuruView() {
             </span>
             <Select
               value={form.country}
+              disabled={confirming}
               onChange={(e) => set("country", e.target.value)}
             >
               <option value="">Tüm ülkeler</option>
-              {(stats.data?.countryBreakdown ?? []).map((c) => (
+              {(
+                stats.data?.countryOptions ??
+                stats.data?.countryBreakdown ??
+                []
+              ).map((c) => (
                 <option key={c.country} value={c.country}>
                   {countryFlag(c.country)} {countryName(c.country)} ({c.count})
                 </option>
@@ -161,6 +185,7 @@ function DuyuruView() {
           <input
             type="checkbox"
             checked={form.sendEmail}
+            disabled={confirming}
             onChange={(e) => set("sendEmail", e.target.checked)}
             className="h-4 w-4 rounded border-zinc-300"
           />
@@ -195,7 +220,8 @@ function DuyuruView() {
               <Button
                 variant="danger"
                 size="sm"
-                loading={announce.isPending}
+                loading={announce.isPending || sendLock.locked}
+                disabled={!canSubmit}
                 onClick={send}
               >
                 Evet, Gönder
@@ -212,9 +238,7 @@ function DuyuruView() {
         ) : (
           <div className="flex justify-end">
             <Button
-              disabled={
-                form.subject.trim().length < 3 || form.message.trim().length < 10
-              }
+              disabled={!canSubmit}
               onClick={() => {
                 setConfirming(true);
                 // Kesin hedef sayısını sunucudan sor (göndermez).
@@ -224,7 +248,7 @@ function DuyuruView() {
                     message: form.message.trim(),
                     tier: (form.tier || undefined) as
                       | "STANDART"
-                                  | "SILVER"
+                      | "SILVER"
                       | "GOLD"
                       | undefined,
                     country: form.country || undefined,
@@ -246,7 +270,9 @@ function DuyuruView() {
 export default function AdminDuyuruPage() {
   return (
     <AdminShell>
-      <DuyuruView />
+      <AdminRoleGate action="announce">
+        <DuyuruView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

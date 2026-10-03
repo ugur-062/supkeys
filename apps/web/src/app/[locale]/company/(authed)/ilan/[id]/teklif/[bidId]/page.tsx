@@ -1,0 +1,514 @@
+"use client";
+
+import { useLocale, useTranslations } from "next-intl";
+import { useBidDeliveryTimeLabel, useBidDocKindLabel, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { formatDate } from "@/lib/format-date";
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import { Heading, Subheading } from "@/components/catalyst/heading";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import { Text } from "@/components/catalyst/text";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { ReasonDialog } from "@/components/tenders/reason-dialog";
+import { AlternativeOfferNote } from "@/components/tenders/alternative-offer-note";
+import {
+  BID_DOC_KINDS,
+  useBidDocuments,
+} from "@/hooks/use-bid-documents";
+import {
+  useAwardListing,
+  useAwardPreview,
+  useEliminateBid,
+  useListingDetail,
+} from "@/hooks/use-company-listings";
+import { isBidExpired } from "@/lib/tenders/bid-expiry";
+import { lostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
+import { formatDateTime } from "@/lib/tenders/date";
+import { extractErrorMessage } from "@/lib/tenders/error";
+import { useFormatMoney } from "@/components/ui/money";
+import { formatNumber } from "@/i18n/format";
+import { ArrowLeftIcon } from "@heroicons/react/20/solid";
+import { Link } from "@/i18n/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import {
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
+import { canManageListing } from "@/lib/tenders/can-manage-listing";
+import { bidViewQuery, parseBidView } from "@/lib/tenders/bid-view";
+import { VERIFY_HREF } from "@/lib/public/member-gate";
+import { yesNoAnswerLabel } from "@/lib/tenders/yes-no-answer";
+import { toast } from "sonner";
+
+export default function BidDetailPage() {
+  const t = useTranslations("web.panel.requests.page");
+  const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
+  const docKindLabel = useBidDocKindLabel();
+  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const locale = useLocale();
+  const { money: formatMoney } = useFormatMoney();
+  const params = useParams<{ id: string; bidId: string }>();
+  const { id, bidId } = params;
+  // Talep detayındaki Gelen Teklifler süzgeci (?teklifler=) geri bağlantısına
+  // taşınır — uygulama içi geri ok da seçimi korur (arayüz testi D-109).
+  const searchParams = useSearchParams();
+  const backHref = `/company/ilan/${id}${bidViewQuery(parseBidView(searchParams.get("teklifler")))}`;
+  const { data: l, isLoading, isError, error, refetch } = useListingDetail(id);
+  const confirm = useConfirm();
+  const award = useAwardListing(id);
+  const awardPreview = useAwardPreview(id);
+  const eliminate = useEliminateBid(id);
+  const bidDocs = useBidDocuments(id);
+  const [eliminateOpen, setEliminateOpen] = useState(false);
+  // Onaya takılan kazandırma — onaycılara not dialogu (talep detayıyla aynı).
+  const [approvalNoteOpen, setApprovalNoteOpen] = useState(false);
+  // B4: ihale detayındaki kapının AYNISI (backend assertListingManageRole
+  // aynası) — hook'lar koşulsuz çağrılmalı, bu yüzden erken dönüşlerden ÖNCE.
+  const { user, company } = useCompanyAuth();
+  // Kazandırma doğrulanmış firma ister (API assertVerified) — arayüz testi
+  // D-044: "GERİ ALINAMAZ" onayından sonra 403 yerine önceden söylenir.
+  const companyVerified =
+    !company || company.companyVerificationStatus === "VERIFIED";
+  // İncelemedeki (PENDING) firmaya "Doğrulamayı tamamlayın" denmez — talep
+  // detayıyla aynı kural (buyingGate/SilverLockCard).
+  const verificationPending = company?.companyVerificationStatus === "PENDING";
+  const hasManagePermission = useHasCompanyPermission("buy:listing:manage");
+  // Kazandırma ayrı izin (API award uçları `buy:award` ister) — yetki
+  // tablosunda "Kazandırma" verilmemiş üyeye düğme gösterilmez (derin
+  // denetim LU-21). Ele düğmesi buy:listing:manage ile kalır.
+  const hasAwardPermission = useHasCompanyPermission("buy:award");
+  const canManage = canManageListing({
+    hasManagePermission,
+    createdById: l?.createdById,
+    userId: user?.id,
+  });
+
+  if (isLoading)
+    return <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>;
+  // 404 = talep/teklif görülemiyor (kaldırılmış ya da bu üyenin satınalma
+  // görüntüleme yetkisi yok — sunucu sebep söylemez). "Tekrar dene" aynı 404'ü
+  // döndürür; nötr kart + panele dönüş (arayüz testi D-024).
+  if (
+    isError &&
+    (error as { response?: { status?: number } } | null)?.response?.status === 404
+  )
+    return (
+      <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center">
+        <Text className="text-sm font-medium text-zinc-900">
+          {t("teklifeUlasilamiyor")}
+        </Text>
+        <Text className="mt-1 text-sm text-zinc-500">{t("teklifErisimAciklama")}</Text>
+        <Button outline className="mt-3" href="/company">
+          {t("paneleDon")}
+        </Button>
+      </div>
+    );
+  if (isError)
+    return (
+      <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <Text className="text-sm text-red-700">{t("teklifYuklenemedi")}</Text>
+        <Button outline className="mt-3" onClick={() => refetch()}>
+          {t("tekrarDene")}
+        </Button>
+      </div>
+    );
+  if (!l)
+    return <Text className="text-sm text-zinc-500">{t("ilanBulunamadi")}</Text>;
+
+  const bid = (l.bids ?? []).find((b) => b.id === bidId);
+  if (!bid)
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+        >
+          <ArrowLeftIcon className="h-4 w-4" />
+          {t("satinAlmaTalebi")}
+        </Link>
+        <Text className="text-sm text-zinc-500">{t("teklifBulunamadi")}</Text>
+      </div>
+    );
+
+  const items = l.items ?? [];
+  // B4 (denetim 2026-08-26 Parça 10): bu sayfada `canManage` kapısı YOKTU —
+  // ilanı AÇMAYAN izinli bir operatöre (ve işlem-rolsüz Kurucu'ya) kazandır/ele
+  // düğmeleri gösteriliyordu; ihale detayında bilinçle gizlenen yıkıcı butonlar
+  // burada açıktı (API `assertListingManageRole` ile 403 veriyordu).
+  const canDecide =
+    (l.status === "OPEN" || l.status === "IN_AWARD") && canManage;
+  const docs = (bidDocs.data ?? []).filter((d) => d.bidId === bid.id);
+
+  const priceFor = (itemId: string) =>
+    bid.items?.find((x) => x.itemId === itemId)?.unitPrice;
+
+  // Geçerliliği dolmuş teklif kazandırılamaz (CLAUDE.md §6) — talep
+  // detayındaki satırla AYNI hesap; düğme pasif + ipucu.
+  const bidExpired = isBidExpired(bid);
+
+  const runAward = async (approvalNote?: string) => {
+    try {
+      const res = await award.mutateAsync({ bidId: bid.id, approvalNote });
+      toast.success(
+        res.pendingApproval
+          ? t("kazandirmaOnayaGonderildi")
+          : t("kazandirildiSiparisOlustu", { number: res.number ?? "" }),
+      );
+      return true;
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("kazandirilamadi")));
+      return false;
+    }
+  };
+
+  // Derin denetim S060: bu sayfa talep detayındaki korumaları atlıyordu —
+  // ön kontrol yoktu (onaya takılan kazandırmada not girilemiyordu), onay
+  // metni geri alınamazlığı söylemiyordu. Akış artık talep detayıyla aynı:
+  // önce "onaya takılır mı?" (fail-closed), takılıyorsa not dialogu, değilse
+  // "GERİ ALINAMAZ" uyarılı yıkıcı onay.
+  const handleAward = async () => {
+    if (bidExpired) return;
+    let requiresApproval: boolean;
+    try {
+      ({ requiresApproval } = await awardPreview.mutateAsync({ bidId: bid.id }));
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err, t("onayDurumuDogrulanamadiTekrarDeneyin")),
+      );
+      return;
+    }
+    if (requiresApproval) {
+      setApprovalNoteOpen(true);
+      return;
+    }
+    if (
+      !(await confirm({
+        title: t("kazandir"),
+        description: t("kazandirilsinMiBuIslemGeri", { bidderName: bid.bidderName }),
+        confirmLabel: t("evetKazandir"),
+        destructive: true,
+      }))
+    )
+      return;
+    await runAward();
+  };
+
+  const submitApprovalNote = async (note: string) => {
+    if (await runAward(note.trim() || undefined)) setApprovalNoteOpen(false);
+  };
+
+  const submitEliminate = async (reason: string) => {
+    try {
+      await eliminate.mutateAsync({
+        bidId: bid.id,
+        reason: reason.trim() || undefined,
+      });
+      toast.success(t("teklifElendi"));
+      setEliminateOpen(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("elenemedi")));
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <Link
+        href={backHref}
+        className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        {l.title}
+      </Link>
+
+      {/* Başlık kartı */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {bid.status === "WON" ? (
+                <Badge color="green">{t("kazandi")}</Badge>
+              ) : bid.status === "AWARDED_PARTIAL" ? (
+                <Badge color="green">{t("kismenKazandi")}</Badge>
+              ) : bid.status === "LOST" ? (
+                // Yalnız alıcının elediği "Elendi" (arayüz testi D-102).
+                <Badge color="zinc">
+                  {(() => {
+                    const outcome = lostBidOutcome(bid, l.status);
+                    return outcome === "orderRejected"
+                      ? t("siparisReddedildi")
+                      : outcome === "eliminated"
+                      ? t("elendi")
+                      : outcome === "lost"
+                        ? t("kaybetti")
+                        : t("kapandiTeklif");
+                  })()}
+                </Badge>
+              ) : (
+                <Badge color="blue">{t("degerlendirmede")}</Badge>
+              )}
+              {bid.round ? <Badge color="zinc">{t("tur", { round: bid.round })}</Badge> : null}
+              {bidExpired ? <Badge color="amber">{t("gecerlilikDoldu")}</Badge> : null}
+            </div>
+            <Heading>{bid.bidderName}</Heading>
+            <Text className="text-sm text-zinc-500">
+              {formatDateTime(bid.createdAt, locale)}
+            </Text>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold tabular-nums text-zinc-950">
+              {formatMoney(bid.amount, bid.currency ?? "TRY")}
+            </div>
+            {bid.currency && bid.currency !== "TRY" ? (
+              <div className="text-xs text-zinc-500">
+                {bid.amountTry != null
+                  ? `≈ ${formatMoney(bid.amountTry, "TRY")}`
+                  : t("tryKarsiligiYokKurAlinamadi")}
+              </div>
+            ) : null}
+            {bid.bidderCompanyId ? (
+              <Link
+                href={`/company/mesajlar?with=${bid.bidderCompanyId}&portal=satinalma`}
+                className="text-xs font-semibold text-blue-600 hover:underline"
+              >
+                {t("mesajGonder")}
+              </Link>
+            ) : null}
+          </div>
+        </div>
+
+        {canDecide && bid.status === "SUBMITTED" ? (
+          <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4">
+            <div className="flex justify-end gap-2">
+              <Button
+                plain
+                onClick={() => setEliminateOpen(true)}
+                disabled={eliminate.isPending}
+              >
+                {t("ele")}
+              </Button>
+              {hasAwardPermission ? (
+                <Button
+                  onClick={handleAward}
+                  disabled={
+                    award.isPending ||
+                    awardPreview.isPending ||
+                    bidExpired ||
+                    !companyVerified
+                  }
+                  title={
+                    bidExpired
+                      ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
+                      : !companyVerified
+                        ? t("kazandirmakIcinDogrulamaGerekirKisa")
+                        : undefined
+                  }
+                >
+                  {t("kazandir")}
+                </Button>
+              ) : null}
+            </div>
+            {bidExpired && hasAwardPermission ? (
+              <Text className="text-right text-xs text-amber-700">
+                {t("teklifinGecerlilikSuresiDolmusTedarikciden")}
+              </Text>
+            ) : null}
+            {!companyVerified && hasAwardPermission && !bidExpired ? (
+              <Text className="text-right text-xs text-amber-700">
+                {verificationPending
+                  ? t("dogrulamaIncelemedeOnaylanincaYayinlayipKazandirabilirsiniz")
+                  : t.rich("kazandirmakIcinFirmaDogrulamasiGerekir", {
+                      link: (c) => (
+                        <Link href={VERIFY_HREF} className="font-semibold underline">
+                          {c}
+                        </Link>
+                      ),
+                    })}
+              </Text>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Teslim & geçerlilik — satıcının taahhüdü. */}
+      <section className="card p-5">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-zinc-500">
+              {t("taahhutEdilenTeslim")}
+            </dt>
+            <dd className="font-medium text-zinc-900">
+              {bidDeliveryTimeLabel(bid.deliveryTime) ??
+                (bid.deliveryDate
+                  ? formatDate(bid.deliveryDate, "short", locale)
+                  : "—")}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-500">{t("teklifGecerliligi")}</dt>
+            <dd className="font-medium text-zinc-900">
+              {bid.validityDays ? t("gun", { validityDays: bid.validityDays }) : "—"}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      {/* Kalem kırılımı */}
+      {items.length > 0 && bid.items && bid.items.length > 0 ? (
+        <section className="space-y-2">
+          <Subheading>{t("kalemTeklifleri")}</Subheading>
+          <div className="card px-2 [--gutter:--spacing(4)]">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>{t("kalem")}</TableHeader>
+                  <TableHeader className="text-right">{t("miktar")}</TableHeader>
+                  <TableHeader className="text-right">{t("birimFiyat")}</TableHeader>
+                  <TableHeader className="text-right">{t("tutar")}</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((it) => {
+                  const bi = bid.items?.find((x) => x.itemId === it.id);
+                  const up = bi?.unitPrice;
+                  const line = up ? Number(up) * Number(it.quantity) : null;
+                  // Kalem sorularının cevapları (satıcı girdiyse).
+                  const itemAnswers = (it.questions ?? [])
+                    .map((q) => ({
+                      q,
+                      value: bid.answers?.find((a) => a.questionId === q.id)
+                        ?.value,
+                    }))
+                    .filter((x) => x.value);
+                  return (
+                    <TableRow key={it.id}>
+                      <TableCell className="text-zinc-900">
+                        {it.name}
+                        {/* Muadil beyanı — alıcı kazandırmadan ÖNCE görmeli
+                            (derin denetim Y-16). */}
+                        <AlternativeOfferNote bidItem={bi} item={it} />
+                        {bi?.deliveryTime || bi?.deliveryDate ? (
+                          <span className="block text-xs text-zinc-500">
+                            {t("kalemTeslimi", {
+                              value:
+                                bidDeliveryTimeLabel(bi.deliveryTime) ??
+                                (bi.deliveryDate
+                                  ? formatDate(bi.deliveryDate, "short", locale)
+                                  : "—"),
+                            })}
+                          </span>
+                        ) : null}
+                        {itemAnswers.map(({ q, value }) => (
+                          <span
+                            key={q.id}
+                            className="block text-xs text-zinc-500"
+                          >
+                            {q.text}:{" "}
+                            <strong>
+                              {q.answerType === "YES_NO" && value
+                                ? yesNoAnswerLabel(value, { yes: t("evet"), no: t("hayir") })
+                                : value}
+                            </strong>
+                          </span>
+                        ))}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-zinc-600">
+                        {quantity(it.quantity, it.unit, it.unitCode)}
+                      </TableCell>
+                      {/* Madde 9: kalem kendi para birimini taşıyabilir. */}
+                      <TableCell className="text-right tabular-nums text-zinc-700">
+                        {up
+                          ? formatMoney(up, bi?.currency ?? bid.currency ?? "TRY")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-zinc-900">
+                        {line != null
+                          ? formatMoney(line, bi?.currency ?? bid.currency ?? "TRY")
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Not */}
+      {bid.note ? (
+        <section className="space-y-2">
+          <Subheading>{t("teklifNotu")}</Subheading>
+          <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
+            <Text className="whitespace-pre-wrap text-sm text-zinc-700">
+              {bid.note}
+            </Text>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Belgeler */}
+      <section className="space-y-2">
+        <Subheading>{t("teklifBelgeleri", { length: docs.length })}</Subheading>
+        {docs.length === 0 ? (
+          <Text className="text-sm text-zinc-500">{t("belgeEklenmemis")}</Text>
+        ) : (
+          <div className="space-y-4">
+            {BID_DOC_KINDS.map((k) => {
+              const group = docs.filter((d) => d.kind === k);
+              if (group.length === 0) return null;
+              return (
+                <div key={k} className="space-y-1">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                    {docKindLabel(k)}
+                  </p>
+                  {group.map((d) => (
+                    <a
+                      key={d.id}
+                      href={d.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-blue-600 hover:bg-zinc-50"
+                    >
+                      <span aria-hidden="true">📎</span> {d.fileName}
+                    </a>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <ReasonDialog
+        open={eliminateOpen}
+        onClose={() => setEliminateOpen(false)}
+        onSubmit={submitEliminate}
+        title={t("teklifiEle")}
+        description={t("elensinMiYenidenTeklifVerebilir", { bidderName: bid.bidderName })}
+        confirmLabel={t("ele")}
+        destructive
+        pending={eliminate.isPending}
+      />
+
+      {/* Onay akışı devrede — başlatıcı notu (onaycılara iletilir, opsiyonel) */}
+      <ReasonDialog
+        open={approvalNoteOpen}
+        onClose={() => setApprovalNoteOpen(false)}
+        onSubmit={submitApprovalNote}
+        title={t("kazandirmayiOnayaGonder")}
+        description={t("icinKazandirmaOnayaGonderilecekSiparis", { bidderName: bid.bidderName })}
+        confirmLabel={t("onayaGonder")}
+        pending={award.isPending}
+      />
+    </div>
+  );
+}

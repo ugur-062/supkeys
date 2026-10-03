@@ -46,6 +46,9 @@ export function mapAiDraftToForm(
       materialCode: it.materialCode ?? "",
       requiredByDate: toDateInput(it.requiredByDate),
       targetUnitPrice: it.targetUnitPrice ?? undefined,
+      // Muadil varsayılanı AÇIK (DEFAULT_FORM_VALUES ve backend ile aynı);
+      // yazılmazsa formdaki checkbox `false` okunur (derin denetim Y-16).
+      alternativeAllowed: true,
       customQuestion: "",
       questions: [],
     }));

@@ -7,7 +7,19 @@ import { AdminInspectionService } from "../../src/modules/admin-companies/admin-
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser, makeListing } from "./factories";
+import { makeCompanyWithUser as makeCompanyWithUserBase, makeListing } from "./factories";
+
+/** D-166: doğrulama yolları kurulumu (onboarding) bitmiş firma ister. */
+async function makeCompanyWithUser(
+  ...args: Parameters<typeof makeCompanyWithUserBase>
+): ReturnType<typeof makeCompanyWithUserBase> {
+  const made = await makeCompanyWithUserBase(...args);
+  await prisma.company.update({
+    where: { id: made.company.id },
+    data: { onboardingCompletedAt: new Date() },
+  });
+  return made;
+}
 
 function rig() {
   const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
@@ -385,7 +397,9 @@ describe("Dalga B — KYC kimlik alanları admin yolunda da zorunlu", () => {
     ).rejects.toThrow(/eksik kimlik bilgisi/i);
   });
 
-  it("yabancı firmada kimlik alanı kuralı uygulanmaz", async () => {
+  it("yabancı firmada da kimlik kuralı uygulanır — MERSİS hariç (2026-09-27)", async () => {
+    // Eskiden TR dışı firma için erken dönülüyordu: admin, firma tarafının
+    // `submit()`'te zorunlu tuttuğu sicil/banka/SWIFT BOŞKEN onaylayabiliyordu.
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, {
       country: "DE",
@@ -397,13 +411,37 @@ describe("Dalga B — KYC kimlik alanları admin yolunda da zorunlu", () => {
         docTradeRegistryUrl: "company-docs/x/tradeRegistry.pdf",
         docTaxPlateUrl: "company-docs/x/taxPlate.pdf",
         docIdFrontUrl: "company-docs/x/idFront.pdf",
-        mersisNo: null,
+        mersisNo: null, // Türkiye'ye özgü — yabancıda aranmaz
         iban: null,
       },
     });
     await expect(
       service.setVerification(co.company.id, "VERIFIED", "admin-1"),
+    ).rejects.toThrow(/IBAN/);
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { iban: "DE89370400440532013000", bankSwiftBic: "COBADEFF" },
+    });
+    await expect(
+      service.setVerification(co.company.id, "VERIFIED", "admin-1"),
     ).resolves.toMatchObject({ ok: true });
+  });
+
+  it("IBAN kullanmayan ülkede (IN) banka adı da istenir", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, { country: "IN", companyVerificationStatus: "PENDING" });
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: {
+        docTradeRegistryUrl: "company-docs/x/tradeRegistry.pdf",
+        docTaxPlateUrl: "company-docs/x/taxPlate.pdf",
+        docIdFrontUrl: "company-docs/x/idFront.pdf",
+        iban: "50100123456789",
+        bankSwiftBic: "HDFCINBB",
+        bankName: null,
+      },
+    });
+    await expect(service.setVerification(co.company.id, "VERIFIED", "admin-1")).rejects.toThrow(/banka adı/);
   });
 });
 
@@ -449,6 +487,31 @@ describe("Dalga B — audit satırı admin e-postasını taşır", () => {
       where: { action: "admin.company.suspended", entityId: co.company.id },
     });
     expect(row.actorEmail).toBe("denetci@rothern.com");
+  });
+
+  it("firma aktörünün e-postası da CompanyUser'dan çözülür; bilinmeyen kimlik yazımı bozmaz (webC-14)", async () => {
+    const audit = new AuditService(prisma as never);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await audit.log({
+      action: "company.vies_checked",
+      actorType: "company",
+      actorId: co.user.id,
+      entityType: "company",
+      entityId: co.company.id,
+      metadata: { countryCode: "DE", valid: false },
+    });
+    await audit.log({
+      action: "company.vies_checked",
+      actorType: "company",
+      actorId: "missing-user",
+      entityType: "company",
+      entityId: co.company.id,
+    });
+    const rows = await prisma.auditLog.findMany({
+      where: { action: "company.vies_checked", entityId: co.company.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(rows.map((r) => r.actorEmail)).toEqual([co.user.email, null]);
   });
 });
 

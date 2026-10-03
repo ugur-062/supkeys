@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
@@ -65,6 +66,13 @@ interface Props {
    * Yalnız L4 yaprakta ayrışıyorlar; segment/aile/sınıf ikisinde de aynı.
    */
   catalog?: CategoryCatalog;
+  /**
+   * Onay öncesi doğrulama: metin dönerse modal KAPANMAZ, taslak korunur ve
+   * metin modal içinde gösterilir (ör. firma seçiminde sektör tavanı — onay
+   * sonrası reddedilince kullanıcının tüm taslağı kayboluyordu, derin denetim
+   * 2026-09-29). `null` → onaylanır.
+   */
+  validate?: (ids: string[]) => string | null;
 }
 
 /**
@@ -81,14 +89,18 @@ export function CategorySelectorModal({
   onConfirm,
   mode = "multi",
   maxSelection = 20,
-  title = "Kategori Seç",
+  title,
   description,
   catalog = "full",
+  validate,
 }: Props) {
+  const tr = useTranslations("web.shared.categorySelectorModal");
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
+  /** `validate` reddi — kendiliğinden kaybolmaz; seçim değişince silinir. */
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(
     new Set(),
@@ -104,7 +116,10 @@ export function CategorySelectorModal({
   const { data: searchTree, isLoading: searchLoading } =
     useCategorySearchTree(debouncedSearch, catalog);
   // Seçilen kategorilerin breadcrumb'larını getir — header chip listesi için.
-  const { data: selectedInfo } = useCategoriesByIds(draftIds);
+  // `isPlaceholderData`: yeni seçim eklenince sorgu anahtarı değişir ve cevap
+  // gelene kadar ÖNCEKİ liste döner — o sırada listede olmayan id "silinmiş"
+  // değil, henüz yükleniyor.
+  const { data: selectedInfo, isPlaceholderData } = useCategoriesByIds(draftIds);
   // O(1) lookup için Map'e dönüştür — N seçimde linear .find() yerine.
   const selectedInfoMap = useMemo(() => {
     if (!selectedInfo) return null;
@@ -122,7 +137,12 @@ export function CategorySelectorModal({
     setExpandedFamilies(new Set());
     setExpandedClasses(new Set());
     setWarningMsg(null);
+    setConfirmError(null);
   }, [isOpen, value]);
+
+  useEffect(() => {
+    setConfirmError(null);
+  }, [draftIds]);
 
   useEffect(() => {
     if (!warningMsg) return;
@@ -152,21 +172,32 @@ export function CategorySelectorModal({
       return;
     }
     if (draftIds.length >= maxSelection) {
-      setWarningMsg(`En fazla ${maxSelection} kategori seçebilirsiniz`);
+      setWarningMsg(tr("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection }));
       return;
     }
     setDraftIds([...draftIds, id]);
   };
 
   const handleConfirm = () => {
+    const err = validate?.(draftIds) ?? null;
+    if (err) {
+      setConfirmError(err);
+      return;
+    }
     onConfirm(draftIds);
     onClose();
   };
 
+  // Single mod: başlık seçili id'nin KENDİ kaydını gösterir — placeholder
+  // (önceki seçim) listesinin ilk elemanı değil.
+  const singleInfo =
+    mode === "single" ? selectedInfo?.find((c) => c.id === draftIds[0]) : undefined;
+  const singleLoading = selectedInfo === undefined || (isPlaceholderData && !singleInfo);
+
   const defaultDescription =
     mode === "single"
-      ? "Satın Alma Talebi için 1 kategori seçin — tedarikçi eşleşmesi bu seçime göre yapılır."
-      : "Tedarik edebildiğiniz kategorileri işaretleyin — ilgili satın alma taleplerine davet alırsınız.";
+      ? tr("satinAlmaTalebiIcin1")
+      : tr("tedarikEdebildiginizKategorileriIsaretleyinI");
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-[60]">
@@ -187,14 +218,14 @@ export function CategorySelectorModal({
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-zinc-950">
-                  {title}
+                  {title ?? tr("kategoriSec")}
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   {description ?? defaultDescription}
                 </p>
               </div>
             </div>
-            <IconButton aria-label="Kapat" onClick={onClose}>
+            <IconButton aria-label={tr("kapat")} onClick={onClose}>
               <X className="h-5 w-5" />
             </IconButton>
           </div>
@@ -206,7 +237,7 @@ export function CategorySelectorModal({
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Kategori ara (örn: çelik, kablo, vinç, kaynak)"
+                placeholder={tr("kategoriAraOrnCelikKablo")}
                 className={search ? "[&_input]:pr-9" : undefined}
               />
             </InputGroup>
@@ -218,7 +249,7 @@ export function CategorySelectorModal({
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
                   <Sparkles className="h-3.5 w-3.5 text-zinc-500" />
-                  Seçimleriniz
+                  {tr("seciminiz")}
                   <span className="ml-1 rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white">
                     {draftIds.length}/{maxSelection}
                   </span>
@@ -229,21 +260,20 @@ export function CategorySelectorModal({
                     onClick={() => setDraftIds([])}
                     className="text-xs font-semibold text-zinc-500 hover:text-danger-600"
                   >
-                    Tümünü temizle
+                    {tr("tumunuTemizle")}
                   </button>
                 ) : null}
               </div>
               {draftIds.length === 0 ? (
                 <p className="py-1 text-xs italic text-zinc-400">
-                  Henüz seçim yok — aşağıdaki listeden veya arama ile kategori
-                  ekleyin.
+                  {tr("henuzSecimYokAsagidakiListeden")}
                 </p>
               ) : (
                 <ul className="flex flex-wrap gap-2">
                   {draftIds.map((id) => {
                     const info = selectedInfoMap?.get(id);
-                    const loading = selectedInfoMap === null;
-                    const missing = selectedInfoMap !== null && !info;
+                    const loading = selectedInfoMap === null || (isPlaceholderData && !info);
+                    const missing = !loading && !info;
                     return (
                       <li key={id}>
                         <Badge
@@ -253,13 +283,13 @@ export function CategorySelectorModal({
                         >
                           <span className="max-w-[260px] truncate">
                             {info?.nameTr ??
-                              (loading ? "…" : "(silinmiş kategori)")}
+                              (loading ? "…" : tr("silinmisKategori"))}
                           </span>
                           <button
                             type="button"
                             onClick={() => toggleSelection(id)}
                             className="-mr-1 rounded-full p-0.5 hover:text-danger-600"
-                            aria-label="Kaldır"
+                            aria-label={tr("kaldir")}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -273,22 +303,27 @@ export function CategorySelectorModal({
           ) : draftIds.length > 0 ? (
             <div className="border-b border-zinc-950/5 bg-zinc-50/60 px-6 py-2.5">
               <span className="block text-xs font-semibold text-zinc-700">
-                ✓ Seçili:{" "}
-                {selectedInfo?.[0]?.nameTr ??
-                  (selectedInfo === undefined ? "…" : "(silinmiş kategori)")}
+                {tr("secili", {
+                  name:
+                    singleInfo?.nameTr ??
+                    (singleLoading ? "…" : tr("silinmisKategori")),
+                })}
               </span>
               {/* Tam yol — "Aksesuarlar" gibi bağlamsız yaprak adları için. */}
-              {selectedInfo?.[0]?.breadcrumb ? (
+              {singleInfo?.breadcrumb ? (
                 <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                  {selectedInfo[0].breadcrumb}
+                  {singleInfo.breadcrumb}
                 </span>
               ) : null}
             </div>
           ) : null}
 
-          {warningMsg ? (
-            <div className="border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-xs font-medium text-amber-800">
-              ⚠️ {warningMsg}
+          {(confirmError ?? warningMsg) ? (
+            <div
+              role={confirmError ? "alert" : undefined}
+              className="border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-xs font-medium text-amber-800"
+            >
+              ⚠️ {confirmError ?? warningMsg}
             </div>
           ) : null}
 
@@ -329,17 +364,19 @@ export function CategorySelectorModal({
           <div className="flex items-center justify-between gap-3 border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3.5">
             <span className="text-xs text-zinc-500">
               {mode === "multi" && draftIds.length > 0
-                ? `${draftIds.length} seçim hazır — Onayla'ya tıklayın`
+                ? tr("secimHazirOnaylaYaTiklayin", { n: draftIds.length })
                 : mode === "single" && draftIds.length === 1
-                  ? "1 kategori hazır"
-                  : "Listeden seçim yapın"}
+                  ? tr("n1KategoriHazir")
+                  : tr("listedenSecimYapin")}
             </span>
             <div className="flex items-center gap-2">
               <Button plain onClick={onClose}>
-                Vazgeç
+                {tr("vazgec")}
               </Button>
-              <Button onClick={handleConfirm} disabled={draftIds.length === 0}>
-                Onayla{draftIds.length > 0 ? ` (${draftIds.length})` : ""}
+              {/* Başlangıçta seçim varsa boş seçim de onaylanabilir — "Tümünü temizle"
+                  sonrası düğme kapalı kalıyor, temizleme kaydedilemiyordu (arayüz testi D-345). */}
+              <Button onClick={handleConfirm} disabled={draftIds.length === 0 && value.length === 0}>
+                {draftIds.length > 0 ? tr("onaylaN", { n: draftIds.length }) : tr("onayla")}
               </Button>
             </div>
           </div>
@@ -380,11 +417,12 @@ function SegmentList({
   mode,
   catalog,
 }: SegmentListProps) {
+  const t = useTranslations("web.shared.categorySelectorModal");
   if (roots.length === 0) {
     return (
       <div className="py-12 text-center">
         <p className="text-sm text-zinc-500">
-          Kategori bulunamadı. Sistem yöneticisiyle iletişime geçin.
+          {t("kategoriBulunamadiSistemYoneticisiyleIletisi")}
         </p>
       </div>
     );
@@ -423,7 +461,7 @@ function SegmentList({
           {selCount > 0 ? (
             <span
               className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white"
-              title={`Bu dalda ${selCount} seçim`}
+              title={t("buDaldaSecim", { n: selCount })}
             >
               {selCount}
             </span>
@@ -452,7 +490,7 @@ function SegmentList({
       {malSegments.length > 0 ? (
         <section>
           <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-            Mal ve Ekipman
+            {t("malVeEkipman")}
           </h3>
           <ul className="space-y-0.5">{malSegments.map(renderSegment)}</ul>
         </section>
@@ -461,7 +499,7 @@ function SegmentList({
       {hizmetSegments.length > 0 ? (
         <section>
           <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-            Hizmetler
+            {t("hizmetler")}
           </h3>
           <ul className="space-y-0.5">{hizmetSegments.map(renderSegment)}</ul>
         </section>
@@ -493,6 +531,7 @@ function FamilyList({
   mode,
   catalog,
 }: FamilyListProps) {
+  const t = useTranslations("web.shared.categorySelectorModal");
   const { data: families, isLoading } = useChildren(segmentId, 1, catalog);
 
   if (isLoading) {
@@ -547,7 +586,7 @@ function FamilyList({
               {famSelCount > 0 ? (
                 <span
                   className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white"
-                  title={`Bu dalda ${famSelCount} seçim`}
+                  title={t("buDaldaSecim", { n: famSelCount })}
                 >
                   {famSelCount}
                 </span>
@@ -643,6 +682,7 @@ function ClassRow({
   mode,
   catalog,
 }: ClassRowProps) {
+  const t = useTranslations("web.shared.categorySelectorModal");
   const commodityCount = cls._count?.children ?? 0;
   const hasCommodities = commodityCount > 0;
   const isSelected = selected.includes(cls.id);
@@ -665,7 +705,7 @@ function ClassRow({
             type="button"
             onClick={() => onToggleExpand(cls.id)}
             className="-ml-1 shrink-0 rounded p-0.5 hover:bg-zinc-100"
-            aria-label={isExpanded ? "Daralt" : "Genişlet"}
+            aria-label={isExpanded ? t("daralt") : t("genislet")}
           >
             <Disclosure open={isExpanded} />
           </button>
@@ -796,6 +836,7 @@ function SearchResults({
   mode,
   onToggle,
 }: SearchResultsProps) {
+  const t = useTranslations("web.shared.categorySelectorModal");
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -808,11 +849,10 @@ function SearchResults({
     return (
       <div className="py-12 text-center">
         <p className="text-sm font-medium text-zinc-700">
-          &ldquo;{query}&rdquo; için sonuç bulunamadı
+          {t("icinSonucBulunamadi", { query })}
         </p>
         <p className="mt-1.5 text-xs text-zinc-500">
-          Daha genel bir terim deneyin (örn. marka yerine ürün adı) veya
-          aramayı temizleyip listeye göz atın.
+          {t("dahaGenelBirTerimDeneyin")}
         </p>
       </div>
     );
@@ -822,7 +862,7 @@ function SearchResults({
     <>
       {truncated ? (
         <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Çok fazla sonuç var — tümü gösterilemiyor. Aramanızı daraltın.
+          {t("cokFazlaSonucVarTumu")}
         </p>
       ) : null}
       <ul className="space-y-3">

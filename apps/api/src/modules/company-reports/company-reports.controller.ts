@@ -1,9 +1,15 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
+import { appDayKey } from "../../common/time/app-calendar";
+import { DEFAULT_LOCALE } from "@rothern/i18n";
 import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   Post,
+  Query,
   Res,
   StreamableFile,
   UseGuards,
@@ -18,12 +24,13 @@ import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.g
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
+import { CompanyReportsService } from "./company-reports.service";
 import {
-  CompanyReportsService,
-  type BidComparisonInput,
-  type GeneralReportInput,
-  type SavingsReportInput,
-} from "./company-reports.service";
+  BidComparisonDto,
+  GeneralReportDto,
+  ReportListingOptionsQueryDto,
+  SavingsReportDto,
+} from "./dto/report-input.dto";
 import { ReportsExcelService } from "./reports-excel.service";
 
 /**
@@ -37,7 +44,7 @@ const REPORTS_PERMISSION = "buy:reports:view";
 function assertAllowed(user: AuthenticatedCompanyUser) {
   if (!hasCompanyPermission(user, REPORTS_PERMISSION)) {
     throw new ForbiddenException(
-      "Alım raporları için 'Satınalma raporları' yetkisi gerekir",
+      i18nMessage("api.companyReports.alimRaporlariIcinSatinalmaRaporlariYetkisi"),
     );
   }
 }
@@ -51,18 +58,68 @@ function xlsx(res: Response, filename: string, buffer: Buffer) {
   return new StreamableFile(buffer);
 }
 
-const stamp = () => new Date().toISOString().slice(0, 10);
+// Dosya adındaki gün İstanbul takvimiyle — sunucu UTC; 00:00-03:00 arası
+// indirilen rapor önceki günün tarihini taşıyordu (arayüz testi D-186).
+const stamp = () => appDayKey(new Date());
+
+const NAME_FOLD: Record<string, string> = {
+  ç: "c",
+  ğ: "g",
+  ı: "i",
+  ö: "o",
+  ş: "s",
+  ü: "u",
+  Ç: "c",
+  Ğ: "g",
+  İ: "i",
+  Ö: "o",
+  Ş: "s",
+  Ü: "u",
+};
+
+function asciiSlug(text: string) {
+  return text
+    .replace(/[çğıöşüÇĞİÖŞÜ]/g, (c) => NAME_FOLD[c] ?? c)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * İndirilen dosyanın adı da kullanıcıya görünür → istek dilinde üretilir.
+ * `Content-Disposition` yalnız ASCII taşıyabildiği için çevrilen ad slug'a
+ * indirgenir; Türkçe değerler zaten slug olduğundan TR çıktısı birebir aynı
+ * kalır. Latin dışı bir ad (Kiril) slug'dan tümüyle düşerdi → yedek TÜRKÇE
+ * addır, dosya hiçbir dilde yalnız tarihe inmez.
+ */
+function reportFile(key: Parameters<typeof tApi>[0]) {
+  const slug = asciiSlug(tApi(key)) || asciiSlug(tApi(key, undefined, DEFAULT_LOCALE));
+  return slug ? `${slug}-${stamp()}.xlsx` : `${stamp()}.xlsx`;
+}
 
 @Controller("company/reports")
 @RequireTier("GOLD")
 @RequireCompanyPermission(REPORTS_PERMISSION)
 // Raporlar premium özelliğidir — STANDARD firma erişemez (yalnız teklif verir).
-@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard, CompanyPaidTierGuard)
+// Sıra: paket → izin (rol kontrolü paket kontrolünün İÇİNDE; arayüz testi T3).
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class CompanyReportsController {
   constructor(
     private readonly service: CompanyReportsService,
     private readonly excel: ReportsExcelService,
   ) {}
+
+  /** Talep seçicisi (Genel tekil + Teklif Karşılaştırma) — rapor izni yeter. */
+  @Get("listings")
+  listingOptions(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query() query: ReportListingOptionsQueryDto,
+  ) {
+    assertAllowed(user);
+    return this.service.listingOptions(user.companyId, query);
+  }
 
   /** Hub özet grafikleri (denetim §10.5) — kriter yok. */
   @Post("summary")
@@ -74,7 +131,7 @@ export class CompanyReportsController {
   @Post("general")
   general(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: GeneralReportInput,
+    @Body() body: GeneralReportDto,
   ) {
     assertAllowed(user);
     return this.service.general(user.companyId, body);
@@ -83,19 +140,19 @@ export class CompanyReportsController {
   @Post("general/download")
   async generalDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: GeneralReportInput,
+    @Body() body: GeneralReportDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     assertAllowed(user);
     const data = await this.service.general(user.companyId, body);
     const buf = await this.excel.general(data);
-    return xlsx(res, `genel-rapor-${stamp()}.xlsx`, buf);
+    return xlsx(res, reportFile("api.companyReports.dosyaGenelRapor"), buf);
   }
 
   @Post("savings")
   savings(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: SavingsReportInput,
+    @Body() body: SavingsReportDto,
   ) {
     assertAllowed(user);
     return this.service.savings(user.companyId, body);
@@ -104,19 +161,19 @@ export class CompanyReportsController {
   @Post("savings/download")
   async savingsDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: SavingsReportInput,
+    @Body() body: SavingsReportDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     assertAllowed(user);
     const data = await this.service.savings(user.companyId, body);
     const buf = await this.excel.savings(data);
-    return xlsx(res, `tasarruf-raporu-${stamp()}.xlsx`, buf);
+    return xlsx(res, reportFile("api.companyReports.dosyaTasarrufRaporu"), buf);
   }
 
   @Post("bid-comparison")
   bidComparison(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: BidComparisonInput,
+    @Body() body: BidComparisonDto,
   ) {
     assertAllowed(user);
     return this.service.bidComparison(user.companyId, body);
@@ -125,12 +182,16 @@ export class CompanyReportsController {
   @Post("bid-comparison/download")
   async bidComparisonDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: BidComparisonInput,
+    @Body() body: BidComparisonDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     assertAllowed(user);
     const data = await this.service.bidComparison(user.companyId, body);
     const buf = await this.excel.bidComparison(data);
-    return xlsx(res, `teklif-karsilastirma-${stamp()}.xlsx`, buf);
+    return xlsx(
+      res,
+      reportFile("api.companyReports.dosyaTeklifKarsilastirma"),
+      buf,
+    );
   }
 }

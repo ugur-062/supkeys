@@ -7,6 +7,7 @@ import {
   IsString,
   MaxLength,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export class AddInvitationsDto {
   @IsArray()
@@ -24,7 +25,10 @@ export class InternalNotesDto {
 }
 
 export class ChangeClosingDto {
-  @IsISO8601({}, { message: "Geçerli bir kapanış tarihi girin" })
+  @IsISO8601(
+    {},
+    { message: () => tApi("api.dto.ownerAction.gecerliBirKapanisTarihiGirin") },
+  )
   closesAt!: string;
 }
 

@@ -60,6 +60,8 @@ import { Prisma } from "@rothern/db";
  * `auctionRateSnapshot` / `bidVisibility` / `autoExtend*` — teklif mekaniği.
  */
 export const PUBLIC_LISTING_SELECT = {
+  // İç kimlik yalnız ÇEVİRİ eşlemesi için (i18n Faz 1e); mapper yanıta YAZMAZ.
+  id: true,
   number: true,
   type: true,
   title: true,
@@ -114,6 +116,8 @@ export const PUBLIC_LISTING_SELECT = {
       // "İLAN SAHİBİ ANONİM" notu). Select'ten çıkarılmalarının sebebi
       // yalnız gizlemek değil: Prisma'dan hiç dönmedikleri için mapper,
       // JSON-LD veya ileride eklenecek bir alan onları kazara yazamaz.
+      // `id` YALNIZ iç kullanım (sektör çevirisi için firma çevirisi aranır); `toPublicCompany` yazmaz.
+      id: true,
       city: true,
       country: true,
       industry: true,
@@ -167,6 +171,9 @@ export interface PublicListingItemSummary {
 
 export interface PublicListing {
   number: string;
+  /** Dilden bağımsız adres parçası — KAYNAK başlığın slug'ı (`listingSlug`). Çevrilmiş
+   *  başlıktan slug üretilmez: `/en/talep/<slug>` = `/talep/<slug>` (i18n Faz 1e). */
+  slug: string;
   type: "ALIM";
   title: string;
   description: string | null;
@@ -208,12 +215,20 @@ export interface PublicListing {
   company: PublicListingCompany;
   /** Kategori kodlarının çözülmüş adları (kod → ad); eksik kod atlanır. */
   categories: { id: string; name: string; level: number }[];
+  /**
+   * Dil durumu (i18n SEO, 2026-09-27) — YALNIZ detay yanıtında: talebin kendi
+   * dilinde gösterilebildiği diller (hreflang) ve özgün metnin dili ("und" =
+   * henüz bilinmiyor). Kimlik değil, içerik niteliği.
+   */
+  readyLocales?: string[];
+  sourceLocale?: string;
 }
 
 /** Liste kartı — detayın DAR alt kümesi (kalem/şartname gövdesi taşımaz). */
 export type PublicListingCard = Pick<
   PublicListing,
   | "number"
+  | "slug"
   | "type"
   | "title"
   | "status"

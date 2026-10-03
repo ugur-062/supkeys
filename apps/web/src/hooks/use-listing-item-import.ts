@@ -1,5 +1,6 @@
 "use client";
 
+import { tRuntime } from "@/i18n/runtime";
 import { companyApi } from "@/lib/company-auth/api";
 import type { ItemImportResult } from "@rothern/shared";
 import { useMutation } from "@tanstack/react-query";
@@ -38,7 +39,7 @@ export function useDownloadItemTemplate() {
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Dosya okunamadı"));
+    reader.onerror = () => reject(new Error(tRuntime("common.errors.fileReadFailed")));
     reader.onload = () => {
       const s = String(reader.result ?? "");
       resolve(s.includes(",") ? s.slice(s.indexOf(",") + 1) : s);

@@ -1,19 +1,17 @@
+import { useTranslations } from "next-intl";
 import { signupHref } from "@/lib/public/visibility";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { ArrowRightIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { ClipboardList, Lock, Table2 } from "lucide-react";
-import Link from "next/link";
+import { MemberCta } from "./member-cta";
 
 /**
  * "TALEP AÇ" BANNERI — Europages RFQ bannerı. Her zaman görünür; ürün
  * sayfasında ürün adı ön-doldurulur (`prefill`). İllüstrasyon ikon setinden,
  * stok fotoğraf yok.
  */
-const POINTS = [
-  { icon: ClipboardList, t: "Yalnız kategorinle eşleşen tedarikçiler" },
-  { icon: Lock, t: "Teklifler birbirini görmez — kapalı zarf" },
-  { icon: Table2, t: "Karşılaştırma tablosu, tek ekranda kazandırma" },
-] as const;
+const POINT_ICONS = [ClipboardList, Lock, Table2] as const;
+const CTA_CLS = "inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition";
 
 /**
  * İKİ YÜZ (2026-09-08): herkese açık sayfada KAYIT hunisi (monokrom),
@@ -28,11 +26,20 @@ export function RfqBanner({
   prefill?: string;
   variant?: "public" | "panel";
 }) {
+  const t = useTranslations("web.marketing.rfq");
+  const tGate = useTranslations("web.marketplace.memberGate");
+  const POINTS = [
+    { icon: POINT_ICONS[0], t: t("point1") },
+    { icon: POINT_ICONS[1], t: t("point2") },
+    { icon: POINT_ICONS[2], t: t("point3") },
+  ];
   const panelHref = `/company/satinalma/taleplerim/yeni${prefill ? `?q=${encodeURIComponent(prefill)}` : ""}`;
-  const href =
-    variant === "panel"
-      ? panelHref
-      : signupHref("talep", prefill ? panelHref : undefined);
+  /* Herkese açık yüz kayda DÖNÜŞ ADRESİ TAŞIMAZ (arayüz testi Y-03): yeni
+     firma STANDART doğar, satınalma sihirbazı Gold ister — `talep` niyetinin
+     bilinçli olarak yönlendirmesiz olması (signup-intent.ts) burada `redirect`
+     ile deliniyordu ve kayıt sonrası ilk ekran Gold duvarı oluyordu. Oturumlu
+     üyeye kapıyı `MemberCta` söyler (Gold ∧ yetki → doğrudan sihirbaz). */
+  const href = variant === "panel" ? panelHref : signupHref("talep");
   const blue = variant === "panel";
   return (
     <section className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -60,7 +67,7 @@ export function RfqBanner({
         </div>
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-            Bir talep aç, birden fazla kapalı zarf teklif al
+            {t("title")}
           </h2>
           <ul className="mt-5 grid gap-3 sm:grid-cols-3">
             {POINTS.map((p) => (
@@ -70,13 +77,31 @@ export function RfqBanner({
               </li>
             ))}
           </ul>
-          <AccentLink
-            href={href}
-            className="mt-6 inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition"
-          >
-            Talep aç
-            <ArrowRightIcon aria-hidden className="size-4" />
-          </AccentLink>
+          {variant === "panel" ? (
+            <AccentLink href={href} className={`mt-6 ${CTA_CLS}`}>
+              {t("cta")}
+              <ArrowRightIcon aria-hidden className="size-4" />
+            </AccentLink>
+          ) : (
+            <div className="mt-6 max-w-md">
+              <MemberCta
+                action="listing"
+                member={
+                  <AccentLink href={panelHref} className={CTA_CLS}>
+                    {t("cta")}
+                    <ArrowRightIcon aria-hidden className="size-4" />
+                  </AccentLink>
+                }
+              >
+                {/* Misafir de paketi tıklamadan önce görür: "Talep aç · Gold"
+                    (arayüz testi kapanış COPY, T-02). */}
+                <AccentLink href={href} className={CTA_CLS}>
+                  {tGate("lockedLabel", { label: t("cta") })}
+                  <ArrowRightIcon aria-hidden className="size-4" />
+                </AccentLink>
+              </MemberCta>
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -31,6 +31,17 @@ const ALLOWLIST: Record<string, string> = {
     "kişinin KENDİ bildirim satırları (companyUserId ile sınırlı); içerik süzgeci Faz 2",
   CompanyInvitationsController:
     "davet önizleme/kabul — token ile ANONİM (oturum yok, guard yok)",
+  MemberProductDocumentsController:
+    "ürün belgesi indirme — görünürlük tablosu `documentDownload: member`: oturum yeter, paket/izin istemez (T-18, arayüz testi webA-03)",
+};
+
+/**
+ * Allowlist sınıfında olup yine de firma izni İSTEYEN uçlar (`Sınıf.metot` →
+ * gerekçe). Kişinin kendi hesabını değil FİRMA kaydını etkileyen uçlar.
+ */
+const ALLOWLIST_GATED: Record<string, string> = {
+  "CompanyAuthController.viesCheck":
+    "VIES sonucu firmanın denetim kaydına yazılır → company:manage (arayüz testi D-187)",
 };
 
 const MODULES_DIR = path.join(__dirname, "../../src/modules");
@@ -126,7 +137,17 @@ describe("company izin DRIFT NÖBETÇİSİ — izinsiz uç kalamaz", () => {
 
   it("allowlist'teki sınıflar izin bildirmez (kapsam dışı olduğu belgelenmiş)", () => {
     for (const h of handlers.filter((x) => x.controller in ALLOWLIST)) {
+      if (`${h.controller}.${h.method}` in ALLOWLIST_GATED) continue;
       expect(h.permission).toBeUndefined();
+    }
+  });
+
+  it("allowlist sınıfında bilinçli izinli uçlar izin + guard taşır", () => {
+    for (const key of Object.keys(ALLOWLIST_GATED)) {
+      const h = handlers.find((x) => `${x.controller}.${x.method}` === key);
+      expect(h).toBeDefined();
+      expect(ALL_KNOWN_PERMISSIONS).toContain(h!.permission as string);
+      expect(h!.guardsOk).toBe(true);
     }
   });
 });

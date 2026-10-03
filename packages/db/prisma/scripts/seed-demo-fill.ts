@@ -6,23 +6,12 @@
  * Çalıştır:  cd packages/db && npx tsx prisma/scripts/seed-demo-fill.ts
  * Idempotent: her koşuda @demofill.local firmaları silinip yeniden kurulur.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-// .env'i manuel yükle (tsx otomatik yüklemez).
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
-
 import { PrismaClient, type CompanyRole, type CompanyTier } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { createClient } from "@supabase/supabase-js";
 import { permissionsForRoles } from "@rothern/shared";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-demo-fill") });
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -38,6 +27,12 @@ const genCode = () => {
   return `${p()}-${p()}`;
 };
 const days = (n: number) => new Date(Date.now() + n * 86400_000);
+// Kayıt akışı üç zorunlu onayı birden yazar; demo hesaplar da onaylı doğar,
+// yoksa panel onay penceresi açılır (derin denetim MU-04).
+const ACCEPTED = () => {
+  const now = new Date();
+  return { termsAcceptedAt: now, mediationAcceptedAt: now, kvkkAcceptedAt: now };
+};
 
 async function findAuthUser(email: string): Promise<string | null> {
   for (let page = 1; page <= 20; page++) {
@@ -183,7 +178,7 @@ async function main() {
     });
     const firstName = d.name.split(" ")[0] ?? d.name;
     const user = await prisma.companyUser.create({
-      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, permissions: permissionsForRoles(OWNER_ROLES), companyId: company.id, emailVerifiedAt: new Date() },
+      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, permissions: permissionsForRoles(OWNER_ROLES), companyId: company.id, emailVerifiedAt: new Date(), ...ACCEPTED() },
     });
     await prisma.company.update({ where: { id: company.id }, data: { ownerUserId: user.id } });
     id[d.key] = { companyId: company.id, ownerId: user.id };
@@ -209,10 +204,10 @@ async function main() {
       const authId = await ensureAuthUser(email);
       await prisma.companyUser.upsert({
         where: { email },
-        update: { authId, roles: t.roles, companyId: id[key]!.companyId, isActive: true, deletedAt: null },
+        update: { authId, roles: t.roles, companyId: id[key]!.companyId, isActive: true, deletedAt: null, ...ACCEPTED() },
         create: {
           email, authId, firstName: t.label, lastName: COMPANIES.find((c) => c.key === key)!.name,
-          roles: t.roles, companyId: id[key]!.companyId, emailVerifiedAt: new Date(),
+          roles: t.roles, companyId: id[key]!.companyId, emailVerifiedAt: new Date(), ...ACCEPTED(),
         },
       });
       teamCount++;

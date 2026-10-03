@@ -1,20 +1,25 @@
 "use client";
 
-import { tierAtLeast } from "@rothern/shared";
+import { useNavLabel } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
+import { useTranslations } from "next-intl";
 import {
   useCompanyAuth,
+  useCompanyPermissionsSynced,
   useHasCompanyPermission,
 } from "@/hooks/use-company-auth";
 import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { userHasPermission } from "@/lib/company/permissions";
 import {
+  BUYING_WIND_DOWN_PATHS,
   COMPANY_AREA,
   PORTALS,
   PORTAL_ORDER,
   accessiblePortals,
   activePortalFromPath,
   isCompanyAreaPath,
+  isNavItemLocked,
   isPortalItemActive,
   type PortalKey,
 } from "@/lib/company/portals";
@@ -28,8 +33,8 @@ import {
   ShoppingCartIcon,
 } from "@heroicons/react/20/solid";
 import { Pin, PinOff } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 
 /** Portal aksanına göre aktif öğe stilleri (dinamik Tailwind sınıfı üretmemek için sabit). */
 const ACCENT = {
@@ -44,6 +49,42 @@ const ACCENT = {
     switch: "bg-white text-emerald-700 shadow-sm",
   },
 } as const;
+
+/**
+ * Kabuğun ETKİN portalı — sol menü, üst çubuk ve mobil çekmece başlığı AYNI
+ * kuralı okur. URL'deki portal yalnız kullanıcı onu GÖREBİLİYORSA (görüntüleme
+ * izni) etkindir (arayüz testi D-159): Gold firmada Satışçı `/company/satinalma`
+ * ret kartındayken menü satınalma bağlantılarını (hepsi aynı rete giden)
+ * gösteriyordu. Paket kilidi İSTİSNA: izni olup paketi yetmeyen satınalma
+ * etkin kalır (kilitli menü + PortalGuard paket ekranı — kullanıcı neyi
+ * kaçırdığını görür). Portal-nötr rotada son portal, yoksa ilk erişilebilir.
+ */
+export function resolveActivePortal(
+  pathname: string | null,
+  visiblePortals: readonly PortalKey[],
+  available: readonly PortalKey[],
+  lastPortal: PortalKey | null | undefined,
+): PortalKey {
+  const fromUrl = activePortalFromPath(pathname);
+  return (
+    (fromUrl && visiblePortals.includes(fromUrl) ? fromUrl : null) ??
+    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
+    available[0] ??
+    // Paketi yetmeyen görüntüleme izni (Gold altındaki satınalma) — portal-
+    // nötr rotada da o portalın menüsü (açık kalan listeler) çizilir.
+    visiblePortals[0] ??
+    "satis"
+  );
+}
+
+/** Görüntüleme izni olan portallar (paket kilidi dahil — kilitli pil görünür). */
+export function viewablePortals(
+  user: Parameters<typeof userHasPermission>[0],
+): PortalKey[] {
+  return PORTAL_ORDER.filter((p) =>
+    userHasPermission(user, p === "satinalma" ? "buy:view" : "sell:view"),
+  );
+}
 
 /** Tekil nav satırı — daralınca etiket ray genişliğiyle kırpılır (animasyonlu). */
 function RailItem({
@@ -80,7 +121,9 @@ function RailItem({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       aria-label={label}
-      title={expanded ? undefined : label}
+      // Genişken de tam ad ipucu (arayüz testi D-147): RU'da uzun etiketler
+      // ("Мои запросы информации") ray genişliğinde kesiliyordu.
+      title={label}
       className={cn(
         "group/item relative flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm font-medium transition-colors",
         active
@@ -139,6 +182,8 @@ export function CompanySidebarContent({
   showPin?: boolean;
   onNavigate?: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.sidebar");
+  const tn = useNavLabel();
   const pathname = usePathname();
   const { company, user } = useCompanyAuth();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
@@ -147,7 +192,14 @@ export function CompanySidebarContent({
   const tier = company?.tier ?? "STANDART";
 
   const canAct = useHasCompanyPermission("approval:act");
-  const { data: pendingCount } = usePendingApprovalCount(canAct);
+  // D-299: rozet isteği izinler /me ile tazelenince (bayat izinle 403 yok).
+  const permissionsSynced = useCompanyPermissionsSynced();
+  const { data: pendingCount } = usePendingApprovalCount(canAct && permissionsSynced);
+  // Onaylar girişi ApprovalsGate ile AYNI kural (approval:act ∨ approvals:manage):
+  // yalnız "Onay akışı tanımlama" izinli üye de sayfaya (Tüm istekler + akışlar)
+  // menüden ulaşır — eskiden yalnız adres yazılınca açılıyordu (arayüz testi T3).
+  // Bekleyen rozeti yalnız approval:act'te (pending ucu ona açık).
+  const canSeeApprovals = canAct || userHasPermission(user, "approvals:manage");
   // Madde 19: ana menü "Satın Alma Talebi Aç" CTA'sı — izin tek-kaynak backend
   // permissions (SAHIP/YONETICI etiketi taşımaz, Faz R).
   const canCreateBuyListing = useHasCompanyPermission("buy:listing:manage");
@@ -156,22 +208,21 @@ export function CompanySidebarContent({
   // çizilir; izni olmayan portal menüde hiç yoktur (kilitli pil yok). Tek
   // istisna paket kapısı: satınalma izni var ama kademe < Silver → kilitli pil
   // (tıklayınca PortalGuard paket ekranını açar). Tek portal → pil satırı yok.
-  const visiblePortals: PortalKey[] = PORTAL_ORDER.filter((p) =>
-    userHasPermission(user, p === "satinalma" ? "buy:view" : "sell:view"),
-  );
+  const visiblePortals = viewablePortals(user);
   const lastPortal = usePortalStore((s) => s.lastPortal);
   // Portal-nötr rotalarda (/company/ilan, /company/onaylar…) SON portalda kal.
-  const active: PortalKey =
-    activePortalFromPath(pathname) ??
-    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
-    available[0] ??
-    "satis";
+  const active = resolveActivePortal(pathname, visiblePortals, available, lastPortal);
   const portal = PORTALS[active];
-  // Minimal kabuk modu: hiç portal erişimi olmayan üye (ONAYLAYICI-only /
-  // rolsüz) yalnız Onaylar + Ayarlar görür — panel nav'ı duvara götürür.
-  // YONETICI/SAHIP etiketi accessiblePortals'ın manager dalıyla panel aldığı
-  // için salt-okunur gözetim (Faz R) DEĞİŞMEZ.
-  const minimal = available.length === 0;
+  // Minimal kabuk modu: hiçbir portalı GÖRÜNTÜLEME izni olmayan üye
+  // (ONAYLAYICI-only / rolsüz) yalnız Onaylar + Ayarlar görür — panel nav'ı
+  // duvara götürür. Satınalma izni olup paketi yetmeyen üye minimal DEĞİL:
+  // Gold altındaki firmada Taleplerim/Siparişlerim açık kalır (T-06) ve menüde
+  // görünür; öteki satırlar kilitli (arayüz testi webC-06 NEW-2 — yalnız
+  // satınalma izinli kişide menü boştu).
+  const minimal = visiblePortals.length === 0;
+  // Etkin portal görünüyor ama paketi yetmiyor (yalnız satınalma < Gold):
+  // açık kalan listeler dışındaki satırlar kilit taşır.
+  const portalTierLocked = !minimal && !available.includes(active);
   // ŞİRKETİM alanı (2026-09-05): üst çubuktaki firma adından girilir; sol menü
   // firma menüsüne döner, portal geçişi üstte KALIR (panele tek tıkla dönüş).
   const inCompanyArea = isCompanyAreaPath(pathname);
@@ -196,12 +247,12 @@ export function CompanySidebarContent({
           <Link
             href="/company/satinalma/taleplerim/yeni"
             onClick={onNavigate}
-            title={expanded ? undefined : "Satın Alma Talebi Aç"}
+            title={expanded ? undefined : t("satinAlmaTalebiAc")}
             className="flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             <PlusIcon className="size-4 shrink-0" aria-hidden />
             {expanded ? (
-              <span className="truncate">Satın Alma Talebi Aç</span>
+              <span className="truncate">{t("satinAlmaTalebiAc")}</span>
             ) : null}
           </Link>
         </div>
@@ -217,18 +268,18 @@ export function CompanySidebarContent({
               "mb-2 flex items-center gap-2.5 rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5",
               expanded ? "px-2.5 py-2" : "justify-center p-1.5",
             )}
-            title={expanded ? undefined : COMPANY_AREA.label}
+            title={expanded ? undefined : tn(COMPANY_AREA.label)}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-[11px] font-semibold text-white">
               {(company?.name ?? "?")
                 .split(/\s+/)
                 .slice(0, 2)
-                .map((w) => w[0]?.toLocaleUpperCase("tr-TR") ?? "")
+                .map((w) => (w[0] ? upperForText(w[0], w) : ""))
                 .join("")}
             </span>
             {expanded ? (
               <span className="min-w-0">
-                <span className="block text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">{COMPANY_AREA.label}</span>
+                <span className="block text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">{tn(COMPANY_AREA.label)}</span>
                 <span className="block truncate text-sm font-semibold text-zinc-900">{company?.name ?? "—"}</span>
               </span>
             ) : null}
@@ -241,7 +292,7 @@ export function CompanySidebarContent({
               key={item.href}
               href={item.href}
               icon={item.icon}
-              label={item.label}
+              label={tn(item.label)}
               active={
                 inCompanyArea && item.href === COMPANY_AREA.basePath
                   ? pathname === COMPANY_AREA.basePath
@@ -249,7 +300,12 @@ export function CompanySidebarContent({
               }
               accent={inCompanyArea ? "zinc" : portal.accent}
               expanded={expanded}
-              locked={!!item.minTier && !tierAtLeast(tier, item.minTier)}
+              locked={
+                isNavItemLocked(item, user, tier) ||
+                (!inCompanyArea &&
+                  portalTierLocked &&
+                  !BUYING_WIND_DOWN_PATHS.includes(item.href))
+              }
               onClick={onNavigate}
             />
           ))}
@@ -257,14 +313,14 @@ export function CompanySidebarContent({
         {/* Onaylar — panel nav'ından ayraçla ayrılır (yönetsel). ŞİRKETİM
             alanında ÇİZİLMEZ (2026-09-10, kullanıcı kararı): orası firma
             menüsü; Onaylar portal menüsünde ve minimal kabukta kalır. */}
-        {canAct && !minimal && !inCompanyArea ? (
+        {canSeeApprovals && !minimal && !inCompanyArea ? (
           <div className="mx-1 my-2 h-px bg-zinc-100" aria-hidden />
         ) : null}
-        {canAct && (!inCompanyArea || minimal) ? (
+        {canSeeApprovals && (!inCompanyArea || minimal) ? (
           <RailItem
             href="/company/onaylar"
             icon={ShieldCheckIcon}
-            label="Onaylar"
+            label={t("onaylar")}
             active={isPortalItemActive("/company/onaylar", pathname)}
             accent="zinc"
             expanded={expanded}
@@ -280,7 +336,7 @@ export function CompanySidebarContent({
         <RailItem
           href="/company/ayarlar"
           icon={Cog6ToothIcon}
-          label="Ayarlar"
+          label={t("ayarlar")}
           active={pathname?.startsWith("/company/ayarlar") ?? false}
           accent="zinc"
           expanded={expanded}
@@ -290,7 +346,7 @@ export function CompanySidebarContent({
           <button
             type="button"
             onClick={togglePinned}
-            title={pinned ? "Menüyü serbest bırak" : "Menüyü sabitle"}
+            title={pinned ? t("menuyuSerbestBirak") : t("menuyuSabitle")}
             className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-950/5 hover:text-zinc-700"
           >
             <span className="ml-0.5 shrink-0">
@@ -306,7 +362,7 @@ export function CompanySidebarContent({
                 expanded ? "opacity-100" : "opacity-0",
               )}
             >
-              {pinned ? "Sabitlemeyi kaldır" : "Menüyü sabitle"}
+              {pinned ? t("sabitlemeyiKaldir") : t("menuyuSabitle")}
             </span>
           </button>
         ) : null}

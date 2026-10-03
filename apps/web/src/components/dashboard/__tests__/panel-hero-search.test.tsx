@@ -84,7 +84,7 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
       />,
     );
     // Varsayılan klasik mod.
-    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /AI ile ara/ }));
     const box = screen.getByRole("textbox", { name: "AI ile ara" });
     expect(box.tagName).toBe("TEXTAREA");
@@ -100,11 +100,16 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     h.mutate.mock.calls[0][1].onSuccess(r);
     expect(onResult).toHaveBeenCalledWith(r);
     expect(push).not.toHaveBeenCalledWith(expect.stringContaining("pano"));
-    // Kısa metin gönderilmez.
+    // Kısa metin gönderilmez — ama sessizce de yutulmaz (arayüz testi D-233).
     h.mutate.mockClear();
+    expect(screen.queryByRole("alert")).toBeNull();
     fireEvent.change(box, { target: { value: "ab" } });
     fireEvent.submit(screen.getByRole("search"));
     expect(h.mutate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("AI araması için en az 3 karakter yazın.");
+    // Yazınca not kalkar.
+    fireEvent.change(box, { target: { value: "abc" } });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("Silver altı: AI anahtarı devre dışı, 'Silver ile açılır' bağlantısı", () => {
@@ -113,6 +118,144 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     // PANELDEN ÇIKMAZ (2026-09-15): premium çağrıları panel içindeki paket
     // sayfasına gider; Ayarlar hub'ı da pazarlama sayfası da doğru yer değil.
     expect(screen.getByRole("link", { name: "Silver ile açılır" })).toHaveAttribute("href", "/company/premium");
+  });
+
+  it("rol kilidi paket kilidi gibi anlatılmaz: paket bağlantısı YOK, yetki notu var (arayüz testi O-050)", () => {
+    render(
+      <PanelHeroSearch
+        title="T"
+        lead="x"
+        placeholder="p"
+        action="/x"
+        ai={{ portal: "satinalma", enabled: false, lockedBy: "role", onResult: vi.fn() }}
+      />,
+    );
+    const btn = screen.getByRole("button", { name: /AI ile ara/ });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("title", "AI ile arama, alım ya da satış yetkisi olan kullanıcılara açıktır.");
+    expect(screen.queryByRole("link", { name: "Silver ile açılır" })).toBeNull();
+    expect(screen.queryByText("Silver ve üzeri paketlerde")).toBeNull();
+    expect(screen.getByText("AI ile arama, alım ya da satış yetkisi olan kullanıcılara açıktır.")).toBeInTheDocument();
+  });
+});
+
+describe("PanelHeroSearch — mobil, kapsam ve klavye (arayüz testi O-081 / D-234 / D-235 / D-312 / D-316)", () => {
+  it("AI düğmesi dar ekranda da çizilir (simge, ad ekran okuyucuda); 'Ara' dar ekranda simge", () => {
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" ai={{ portal: "satinalma", enabled: true, onResult: vi.fn() }} />);
+    const ai = screen.getByRole("button", { name: /AI ile ara/ });
+    // `hidden sm:inline-flex` 640 px altında eylemi siliyordu.
+    expect(ai.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    expect(ai.className).toMatch(/(^|\s)inline-flex(\s|$)/);
+    expect(ai.querySelector(".sr-only")?.textContent).toBe("AI ile ara");
+    const submit = screen.getAllByRole("button", { name: /^Ara/ }).find((b) => b.getAttribute("type") === "submit") as HTMLElement;
+    expect(submit.querySelector(".sr-only")?.textContent).toBe("Ara");
+    // Yer tutucu dar ekranda küçük ve "…" ile biter (D-316).
+    expect(screen.getByRole("searchbox").className).toMatch(/placeholder:text-sm/);
+    expect(screen.getByRole("searchbox").className).toMatch(/text-ellipsis/);
+  });
+
+  it("'Firma' kapsamı seçiliyken AI açılınca kapsam birincile döner (D-234)", async () => {
+    const user = userEvent.setup();
+    const onScopeChange = vi.fn();
+    render(
+      <PanelHeroSearch
+        title="T"
+        lead="x"
+        placeholder="p"
+        action="/company/satinalma/urunler"
+        supplierScope={{ action: "/company/satinalma/firmalar", placeholder: "f" }}
+        scope="suppliers"
+        onScopeChange={onScopeChange}
+        ai={{ portal: "satinalma", enabled: true, onResult: vi.fn() }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /AI ile ara/ }));
+    expect(onScopeChange).toHaveBeenLastCalledWith("products");
+  });
+
+  it("öneriler klavyeyle gezilir: ↓/↑ etkin satır, Enter gider, Esc metni silmeden kapatır (D-235)", () => {
+    push.mockClear();
+    render(
+      <PanelHeroSearch
+        title="T"
+        lead="x"
+        placeholder="p"
+        action="/company/satinalma/urunler"
+        suggestions={[
+          { label: "Ürünler", rows: [{ key: "a", label: "Konveyör bant", href: "/u/a" }, { key: "b", label: "Konveyör rulo", href: "/u/b" }] },
+          { label: "Firmalar", rows: [{ key: "c", label: "Konveyör AŞ", href: "/f/c" }] },
+        ]}
+      />,
+    );
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "konveyö" } });
+    expect(box).toHaveAttribute("aria-expanded", "true");
+    const list = screen.getByRole("listbox");
+    expect(box).toHaveAttribute("aria-controls", list.id);
+    expect(box).not.toHaveAttribute("aria-activedescendant");
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    const third = screen.getByRole("option", { name: "Konveyör AŞ" });
+    expect(third).toHaveAttribute("aria-selected", "true");
+    expect(box).toHaveAttribute("aria-activedescendant", third.id);
+    // Sondan başa sarar; ↑ sona döner.
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    expect(screen.getByRole("option", { name: "Konveyör bant" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(box, { key: "ArrowUp" });
+    expect(screen.getByRole("option", { name: "Konveyör AŞ" })).toHaveAttribute("aria-selected", "true");
+    // Esc: liste kapanır, metin KALIR.
+    fireEvent.keyDown(box, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(box).toHaveValue("konveyö");
+    // ↓ yeniden açar, Enter etkin satıra gider (form gönderilmez).
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(push).toHaveBeenLastCalledWith("/u/b");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("fareyle geçilen öneri listeden çıkınca etkin kalmaz; Enter yazılan metni arar (D-235)", () => {
+    push.mockClear();
+    render(
+      <PanelHeroSearch
+        title="T"
+        lead="x"
+        placeholder="p"
+        action="/company/satinalma/urunler"
+        suggestions={[{ label: "Ürünler", rows: [{ key: "a", label: "Konveyör bant", href: "/u/a" }] }]}
+      />,
+    );
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "konveyö" } });
+    const opt = screen.getByRole("option", { name: "Konveyör bant" });
+    fireEvent.mouseEnter(opt);
+    expect(opt).toHaveAttribute("aria-selected", "true");
+    fireEvent.mouseLeave(screen.getByRole("listbox"));
+    expect(opt).toHaveAttribute("aria-selected", "false");
+    expect(box).not.toHaveAttribute("aria-activedescendant");
+    // Enter engellenmez (tarayıcı formu gönderir) ve öneriye gidilmez.
+    expect(fireEvent.keyDown(box, { key: "Enter" })).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.submit(screen.getByRole("search"));
+    expect(push).toHaveBeenLastCalledWith("/company/satinalma/urunler?q=konvey%C3%B6");
+  });
+
+  it("son aramalar açık portal prop'una yazılır — AI'sız tedarikçi yüzü satışa (D-312)", () => {
+    localStorage.clear();
+    const { unmount } = render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/talepler" portal="satis" />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "rulman" } });
+    fireEvent.submit(screen.getByRole("search"));
+    const saved = JSON.parse(localStorage.getItem("rothern.panel.recent-searches") ?? "{}");
+    expect(saved.satis).toEqual(["rulman"]);
+    expect(saved.satinalma).toBeUndefined();
+    unmount();
+    // Prop yoksa eski davranış: AI portalı, o da yoksa satınalma.
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/urunler" />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "vana" } });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(JSON.parse(localStorage.getItem("rothern.panel.recent-searches") ?? "{}").satinalma).toEqual(["vana"]);
   });
 });
 
@@ -262,5 +405,56 @@ describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)"
       <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="emerald" />,
     );
     expect(container.querySelectorAll("img")).toHaveLength(0);
+  });
+});
+
+describe("PanelHeroSearch — öneri listesi ve combobox rolü (arayüz testi webA-07, yeniden doğrulama)", () => {
+  const sug = [
+    { label: "Ürünler", rows: [{ key: "a", label: "Konveyör bant", href: "/u/a" }] },
+    { label: "Firmalar", rows: [{ key: "c", label: "Konveyör AŞ", href: "/f/c" }] },
+  ];
+
+  it("öneri kaynağı yoksa (herkese açık anasayfa) kutu düz arama kutusudur — combobox vaadi yok", () => {
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/urunler" backdrop />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "rulman" } });
+    const box = screen.getByRole("searchbox");
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(box).not.toHaveAttribute("aria-autocomplete");
+    expect(box).not.toHaveAttribute("aria-expanded");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("çağıran öneri ucu bağladıysa (onQueryChange) öneri gelmeden de combobox'tır", () => {
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" onQueryChange={vi.fn()} />);
+    const box = screen.getByRole("combobox");
+    expect(box).toHaveAttribute("aria-autocomplete", "list");
+    expect(box).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("bant öneri listesini DİKEYDE kırpmaz; liste açıkken bant alttaki içeriğin üstüne çıkar, dekor kendi kutusunda kırpılır", () => {
+    const widgets = [{ icon: Sparkles, title: "AI ile tedarikçi bul", hint: "h", at: "tl" as const }];
+    const { container } = render(
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" backdrop widgets={widgets} objects={[{ src: "/hero/kutu.webp", at: "bl" }]} suggestions={sug} onQueryChange={vi.fn()} />,
+    );
+    const band = container.querySelector("section") as HTMLElement;
+    // `overflow-hidden` bandın altına inen listeyi kesiyordu ("Firmalar" grubu
+    // görünmüyor, ↑ ile seçilen satır görünmez kalıyordu).
+    expect(band.className).not.toMatch(/(^|\s)overflow-hidden(\s|$)/);
+    expect(band.className).toMatch(/(^|\s)overflow-x-clip(\s|$)/);
+    expect(band.className).not.toMatch(/(^|\s)z-10(\s|$)/);
+    // Taşan dekor (koli `-bottom-6`) bandın dışına sızmasın: kendi kırpma kutusu.
+    const obj = container.querySelector('img[src="/hero/kutu.webp"]') as HTMLElement;
+    const clip = obj.parentElement as HTMLElement;
+    expect(clip.className).toMatch(/(^|\s)absolute(\s|$)/);
+    expect(clip.className).toMatch(/(^|\s)inset-0(\s|$)/);
+    expect(clip.className).toMatch(/(^|\s)overflow-hidden(\s|$)/);
+    expect(clip.className).not.toMatch(/(^|\s)-?z-/);
+
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "konveyö" } });
+    expect(screen.getByRole("option", { name: "Konveyör AŞ" })).toBeInTheDocument();
+    expect(band.className).toMatch(/(^|\s)z-10(\s|$)/);
+    fireEvent.keyDown(box, { key: "Escape" });
+    expect(band.className).not.toMatch(/(^|\s)z-10(\s|$)/);
   });
 });

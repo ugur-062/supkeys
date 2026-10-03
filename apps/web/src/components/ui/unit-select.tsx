@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   COMMON_UNIT_CODES,
   UNITS,
@@ -13,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/catalyst/select";
 import { cn } from "@/lib/utils";
+import { useUnitLabel } from "@/i18n/domain";
 
 /**
  * Ölçü birimi seçici (Faz 1).
@@ -29,6 +31,10 @@ import { cn } from "@/lib/utils";
  *    gösterilir (raporda gruplanamaz).
  *  · Eski kayıtlar serbest metin taşıyor; `normalizeUnit` ile tanınırsa liste
  *    otomatik o birimi seçili gösterir, tanınmazsa "listede yok" moduna düşer.
+ *  · "Listede yok" modu bileşenin KENDİ durumudur (derin denetim S086): yazarken
+ *    kod VERİLMEZ (`unitCode: null`) — "teneke"nin ilk harfi "t" TON takma adına
+ *    eşleşip kutuyu kapatıyordu. Bilinen birim eşlemesi yalnız alandan çıkınca
+ *    ve metnin TAMAMI bir birim adıyla eşleşirse yapılır ("kg" → Kilogram).
  */
 const OTHER = "__other__";
 
@@ -39,6 +45,8 @@ export function UnitSelect({
   id,
   hasError,
   disabled,
+  showHint = true,
+  onFreeTextBlur,
 }: {
   /** Serbest metin birim (kaydedilen alan). */
   value: string;
@@ -49,10 +57,52 @@ export function UnitSelect({
   id?: string;
   hasError?: boolean;
   disabled?: boolean;
+  /**
+   * "Katalogda yok" notu seçicinin altında mı çizilsin? Dar sütunda (kalem
+   * satırı) not 6 satıra kırılıyordu (arayüz testi D-096) — çağıran
+   * `false` verip notu tam genişlik satırda `UnitNotInCatalogHint` ile basar.
+   */
+  showHint?: boolean;
+  /**
+   * Serbest birim kutusundan çıkılınca (olası kodlamadan SONRA) çağrılır —
+   * çağıran boş alanın hatasını burada gösterir. "Diğer…" seçilir seçilmez
+   * boş kutuya "Birim zorunlu" basılmasın (arayüz testi webB-03 yeniden
+   * doğrulama): hata yalnız alandan boş çıkılınca ya da kayıtta.
+   */
+  onFreeTextBlur?: () => void;
 }) {
+  const t = useTranslations("web.shared.unitSelect");
+  // Boyut başlığı katalogdan (`web.domain.unitDimension.<KOD>`); yeni bir boyut
+  // eklenirse paylaşılan Türkçe sözlüğe düşer.
+  const td = useTranslations("web.domain.unitDimension");
+  const unitLabel = useUnitLabel();
   const resolved = unitCode ?? normalizeUnit(value);
   const [freeText, setFreeText] = useState(resolved ? "" : value);
-  const isOther = !resolved;
+  const [otherMode, setOtherMode] = useState(!resolved);
+  const isOther = otherMode || !resolved;
+  // "Diğer…" kullanıcı seçimiyle açılınca boş kutu odak alır (yazmaya hazır);
+  // ilk çizimde/eski kayıtta odak çalınmaz.
+  const freeTextRef = useRef<HTMLInputElement>(null);
+  const focusFreeText = useRef(false);
+  useEffect(() => {
+    if (!isOther || !focusFreeText.current) return;
+    focusFreeText.current = false;
+    freeTextRef.current?.focus();
+  }, [isOther]);
+  // Dışarıdan gelen değişiklik (satır sıfırlama, katalogdan kalem) modu yeniden
+  // türetir; bileşenin kendi yazdığı değer türetmez (yoksa ilk harf yine kilitler).
+  const emitted = useRef<string | null>(value);
+  useEffect(() => {
+    if (value === emitted.current) return;
+    emitted.current = value;
+    const r = unitCode ?? normalizeUnit(value);
+    setOtherMode(!r);
+    setFreeText(r ? "" : value);
+  }, [value, unitCode]);
+  const emit = (next: { unit: string; unitCode: string | null }) => {
+    emitted.current = next.unit;
+    onChange(next);
+  };
 
   const grouped = useMemo(() => {
     const commons = COMMON_UNIT_CODES.map((c) => getUnit(c)!).filter(Boolean);
@@ -76,58 +126,84 @@ export function UnitSelect({
         onChange={(e) => {
           const v = e.target.value;
           if (v === OTHER) {
-            onChange({ unit: freeText || "", unitCode: null });
+            focusFreeText.current = true;
+            setOtherMode(true);
+            emit({ unit: freeText || "", unitCode: null });
             return;
           }
           const u = getUnit(v);
+          setOtherMode(false);
           // Serbest metin alanı da katalog adıyla senkron kalır: kayıt hem
           // koda hem okunur metne sahip olur (expand→contract gereği).
-          onChange({ unit: u?.nameTr ?? v, unitCode: v });
+          emit({ unit: u?.nameTr ?? v, unitCode: v });
         }}
       >
-        <optgroup label="Sık kullanılan">
+        <optgroup label={t("sikKullanilan")}>
           {grouped.commons.map((u) => (
             <option key={u.code} value={u.code}>
-              {u.nameTr}
+              {unitLabel(u.nameTr, u.code)}
             </option>
           ))}
         </optgroup>
         {grouped.rest.map(([dim, list]) => (
-          <optgroup key={dim} label={UNIT_DIMENSION_LABELS[dim]}>
+          <optgroup
+            key={dim}
+            label={td.has(dim as never) ? td(dim as never) : UNIT_DIMENSION_LABELS[dim]}
+          >
             {list.map((u) => (
               <option key={u.code} value={u.code}>
-                {u.nameTr}
+                {unitLabel(u.nameTr, u.code)}
               </option>
             ))}
           </optgroup>
         ))}
-        <option value={OTHER}>Listede yok…</option>
+        <option value={OTHER}>{t("listedeYok")}</option>
       </Select>
 
       {isOther ? (
         <>
           <Input
-            aria-label="Birim (listede yok)"
-            placeholder="örn. bobin"
+            ref={freeTextRef}
+            aria-label={t("birimListedeYok")}
+            placeholder={t("ornBobin")}
             value={freeText}
             disabled={disabled}
             hasError={hasError}
             onChange={(e) => {
               const t = e.target.value;
               setFreeText(t);
-              // Kullanıcı bilinen bir birim yazarsa sessizce kodla — "kg"
-              // yazan kişi listeden seçmiş gibi davransın.
-              onChange({ unit: t, unitCode: normalizeUnit(t) });
+              // Yazarken kodlama YOK — ilk harf ("t", "g", "л") bir birimin
+              // takma adına eşleşip kutuyu kapatıyordu.
+              emit({ unit: t, unitCode: null });
+            }}
+            onBlur={() => {
+              // Bilinen bir birim TAM yazıldıysa ("kg") listeden seçilmiş gibi kodla.
+              const code = normalizeUnit(freeText);
+              const u = code ? getUnit(code) : null;
+              if (u) {
+                setOtherMode(false);
+                setFreeText("");
+                emit({ unit: u.nameTr, unitCode: u.code });
+              }
+              onFreeTextBlur?.();
             }}
           />
-          <p className={cn("text-xs", "text-amber-700")}>
-            Bu birim katalogda yok — raporlarda diğer birimlerle
-            gruplanamayacak.
-          </p>
+          {showHint ? <UnitNotInCatalogHint /> : null}
         </>
       ) : null}
     </div>
   );
+}
+
+/** "Bu birim katalogda yok" notu — seçici dışında tam genişlik çizmek için. */
+export function UnitNotInCatalogHint({ className }: { className?: string }) {
+  const t = useTranslations("web.shared.unitSelect");
+  return <p className={cn("text-xs text-amber-700", className)}>{t("buBirimKatalogdaYok")}</p>;
+}
+
+/** Kalem satırı notu için: seçici "listede yok" modunda mı (kod yok, metin tanınmıyor)? */
+export function isUnitNotInCatalog(unit: string | null | undefined, unitCode: string | null | undefined): boolean {
+  return !(unitCode ?? normalizeUnit(unit ?? ""));
 }
 
 /** Gösterim yardımcısı — tablo/özet satırlarında `unitCode ?? unit`. */

@@ -11,10 +11,14 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 import { LOGO_CID } from "../../assets/logo";
+import { DEFAULT_LOCALE, emailT, type Locale } from "../../i18n";
+import { EmailEnvContext, privacyNoticeUrl, showsPrivacyNotice, siteHost } from "./email-env";
 import { COLORS, FONTS } from "./tokens";
 
 interface LayoutProps {
   preview: string;
+  /** Alıcının dili — verilmezse Türkçe (kaynak dil). */
+  locale?: Locale;
   children: React.ReactNode;
 }
 
@@ -57,13 +61,19 @@ const footerStyle = {
   lineHeight: "1.6",
 };
 
+const footerLink = { color: COLORS.slate500, textDecoration: "underline" };
+
 // Logo gömülü (inline CID) ek olarak gönderilir → uzak görsel engelleyen
 // istemcilerde ve dev'de (localhost) de görünür. Ek client.ts'te eklenir.
 const LOGO_SRC = `cid:${LOGO_CID}`;
 
-export function Layout({ preview, children }: LayoutProps) {
+export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutProps) {
+  const t = emailT(locale);
+  // Alan adı ve yıl gönderim ortamından (bkz. email-env.ts) — sabit değil.
+  const env = React.useContext(EmailEnvContext);
+  const year = (env.now ?? new Date()).getUTCFullYear();
   return (
-    <Html lang="tr">
+    <Html lang={locale}>
       <Head>
         {/* Koyu mod: istemciler (Gmail iOS/Android, Apple Mail, Outlook)
             arka planı koyulaştırır ama GÖRSELLERİ değiştirmez ve çoğu
@@ -99,9 +109,45 @@ export function Layout({ preview, children }: LayoutProps) {
               }}
             />
             <Text style={footerStyle}>
-              © 2026 Rothern
+              {t("email.layout.copyright", { year: String(year) })}
               <br />
-              Bu e-postayı rothern.com platformundan aldınız.
+              {t("email.layout.footerNote", { site: siteHost(env.siteUrl) })}
+              {/* Tek tık çıkış + tercihler — yalnız işlem DIŞI e-postalarda
+                  (gönderim servisi bağlamı kurar; kod/şifre/siparişte yok). */}
+              {env.unsubscribeUrl ? (
+                <>
+                  <br />
+                  {t.rich(
+                    env.preferencesUrl ? "email.layout.unsubscribeWithPrefs" : "email.layout.unsubscribe",
+                    {
+                      unsub: (chunks: React.ReactNode) => (
+                        <a href={env.unsubscribeUrl} style={footerLink}>
+                          {chunks}
+                        </a>
+                      ),
+                      prefs: (chunks: React.ReactNode) => (
+                        <a href={env.preferencesUrl} style={footerLink}>
+                          {chunks}
+                        </a>
+                      ),
+                    },
+                  )}
+                </>
+              ) : null}
+              {/* KVKK aydınlatma: çıkış bağlantısıyla birlikte ya da üye
+                  olmayan adrese giden işlem e-postasında (`privacyNotice`). */}
+              {showsPrivacyNotice(env) ? (
+                <>
+                  <br />
+                  {t.rich("email.layout.privacy", {
+                    privacy: (chunks: React.ReactNode) => (
+                      <a href={privacyNoticeUrl(env.siteUrl, locale)} style={footerLink}>
+                        {chunks}
+                      </a>
+                    ),
+                  })}
+                </>
+              ) : null}
             </Text>
           </Section>
         </Container>

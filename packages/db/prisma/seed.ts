@@ -206,6 +206,20 @@ async function ensureCompany(
       where: { id: existingUser.companyId, onboardingCompletedAt: null },
       data: { onboardingCompletedAt: new Date() },
     });
+    // Sözleşme/KVKK onayı eksik demo hesapta panel onay penceresi açılır ve
+    // e2e akışlarını tıklama engeliyle bozar (derin denetim MU-04) — backfill.
+    const now = new Date();
+    await prisma.companyUser.updateMany({
+      where: {
+        email,
+        OR: [
+          { termsAcceptedAt: null },
+          { mediationAcceptedAt: null },
+          { kvkkAcceptedAt: null },
+        ],
+      },
+      data: { termsAcceptedAt: now, mediationAcceptedAt: now, kvkkAcceptedAt: now },
+    });
     console.log("ℹ️  Firma kullanıcısı zaten var:", email);
     return existingUser.companyId;
   }
@@ -239,6 +253,10 @@ async function ensureCompany(
       permissions: permissionsForRoles(OWNER_ROLES),
       companyId: company.id,
       emailVerifiedAt: new Date(),
+      // Kayıt akışı üç onayı birden yazar; demo hesap da onaylı doğar.
+      termsAcceptedAt: new Date(),
+      mediationAcceptedAt: new Date(),
+      kvkkAcceptedAt: new Date(),
     },
   });
   await prisma.company.update({

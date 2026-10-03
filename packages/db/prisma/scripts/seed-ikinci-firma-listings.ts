@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-ikinci-firma-listings") });
 
 async function main() {
   const company = await prisma.company.findUnique({

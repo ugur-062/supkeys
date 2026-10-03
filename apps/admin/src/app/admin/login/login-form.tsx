@@ -49,7 +49,13 @@ export function AdminLoginForm() {
       {
       onSuccess: (data) => {
         toast.success(`Hoş geldiniz, ${data.admin.firstName}`);
-        router.push("/admin/dashboard");
+        // 2FA zorunlu ama kurulmamış (MU-01) ya da geçici parolayla girildi
+        // (D-025) → doğrudan Ayarlar (kurulum / şifre değiştir).
+        router.push(
+          data.admin.twoFactorSetupRequired || data.admin.mustChangePassword
+            ? "/admin/settings"
+            : "/admin/dashboard",
+        );
       },
       onError: (err) => {
         if (axios.isAxiosError(err)) {
@@ -103,14 +109,17 @@ export function AdminLoginForm() {
             placeholder="••••••••"
             autoComplete="current-password"
             hasError={!!errors.password}
-            className="pr-10"
+            // className Catalyst'in dış sarmalayıcı span'ına gider; düz "pr-10"
+            // çerçeveli <input>'u 40px daraltıp göz düğmesini kutunun dışına
+            // itiyordu. Dolgu iç input'a verilir (InputGroup ile aynı kalıp).
+            className="[&_input]:pr-10"
             {...register("password")}
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            tabIndex={-1}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-pressed={showPassword}
             aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
           >
             {showPassword ? (

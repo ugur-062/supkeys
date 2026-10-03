@@ -1,5 +1,15 @@
 import { Injectable } from "@nestjs/common";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
+import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
+import { currentLocale } from "../../common/i18n/locale-context";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { appDay, appMonth } from "../../common/time/app-calendar";
+import { convertAmount } from "../../common/currency/fx-rates";
+import {
+  awardedSavingsVolumeTry,
+  reportCurrencyOf,
+  tryToCurrency,
+} from "../../common/company/report-currency";
 import {
   periodStart,
   type SavingsPeriod,
@@ -7,17 +17,18 @@ import {
 
 /**
  * Pano analitiği — panel başına TEK toplu uç. Tüm seriler MEVCUT zaman
- * damgalarından türetilir (uydurma yok); parasal seriler TRY-bazlıdır
- * (çoklu birimi tek eksende toplamak yanıltıcı — reports-summary ile aynı
- * karar, UI etikette söyler). Hedef/bütçe verisi platformda YOK — o
- * grafikler frontend'de EmptyState + TODO.
- * 5 dk in-memory cache (time-savings deseni).
+ * damgalarından türetilir (uydurma yok). PARASAL SERİLER FİRMANIN RAPOR
+ * PARA BİRİMİNDE (2026-09-27, `reportCurrencyOf`: Talep Şartları ana birimi
+ * ya da ülkenin birimi): her tutar kendi biriminden güncel TCMB kuruyla o
+ * birime çevrilip toplanır; yanıtta `currency` döner, alan adları
+ * (`amountTry`, `totalTry`) geriye dönük. Eskiden yalnız TRY tutarlar
+ * sayılıyordu — yalnız EUR satan Alman satıcı panoda sıfır gelir görüyordu.
+ * Tasarruf teklif DAMGASIYLA TRY'ye, oradan rapor birimine (Tasarruf sekmesi
+ * ile aynı kural, `report-currency.ts`). Hedef/bütçe verisi platformda YOK —
+ * o grafikler frontend'de EmptyState + TODO.
+ * 5 dk in-memory cache (time-savings deseni) — anahtar istek dilini de taşır
+ * (etiketler ve kategori adları dile göre üretilir).
  */
-
-const MONTHS_TR = [
-  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
-  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
-];
 
 export interface MonthPoint {
   key: string;
@@ -28,15 +39,10 @@ export interface MonthPoint {
 /** Son 12 ayın başlangıçları (eskiden yeniye). */
 export function monthWindows(now: Date): { start: Date; end: Date; key: string; label: string }[] {
   const out: { start: Date; end: Date; key: string; label: string }[] = [];
+  // İstanbul takvim ayları (sunucu UTC; bkz. `app-calendar`).
   for (let i = 11; i >= 0; i--) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-    out.push({
-      start,
-      end,
-      key: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`,
-      label: MONTHS_TR[start.getMonth()]!,
-    });
+    const m = appMonth(now, -i);
+    out.push({ start: m.start, end: m.end, key: m.key, label: shortMonthLabel(m.labelDate) });
   }
   return out;
 }
@@ -62,7 +68,7 @@ export function previousWindow(
 ): { start: Date; end: Date } {
   const end = periodStart(period, now);
   const months = period === "month" ? 1 : period === "quarter" ? 3 : 12;
-  const start = new Date(end.getFullYear(), end.getMonth() - months, 1);
+  const start = appMonth(end, -months).start;
   return { start, end };
 }
 
@@ -110,6 +116,15 @@ interface CacheEntry {
 export class DashboardAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Firmanın rapor para birimi — önbellek anahtarına da girer (Talep Şartları değişebilir). */
+  private async reportCurrency(companyId: string): Promise<string> {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, requestDefaults: true },
+    });
+    return reportCurrencyOf(company);
+  }
+
   private readonly cache = new Map<string, CacheEntry>();
   private static readonly CACHE_MS = 5 * 60_000;
 
@@ -143,7 +158,12 @@ export class DashboardAnalyticsService {
     // boyunca MASKESİZ tedarikçi adlarını alıyordu (P4 maskesinin cache
     // üzerinden baypası — denetim 2026-08-25 Parça 8).
     const maskKey = maskSupplierNames ? "m1" : "m0";
-    return this.cached(`sa:${companyId}:${period}${rangeKey}:${maskKey}`, async () => {
+    const reportCur = await this.reportCurrency(companyId);
+    // Tutar kendi biriminden rapor birimine (güncel kur); kur yoksa 0 — satır
+    // yine sayılır (adet serileri etkilenmez), yalnız tutarı katılmaz.
+    const toCur = (amount: unknown, currency: string | null | undefined) =>
+      convertAmount(Number(amount), currency ?? "TRY", reportCur) ?? 0;
+    return this.cached(`sa:${companyId}:${period}${rangeKey}:${maskKey}:${reportCur}:${currentLocale()}`, async () => {
       const now = new Date();
       // Özel aralık: [from, to) dönem penceresi; önceki dönem = eşit uzunlukta
       // hemen öncesi. Aralıksızda mevcut month/quarter/year davranışı.
@@ -177,13 +197,16 @@ export class DashboardAnalyticsService {
             id: true, number: true, title: true, status: true,
             createdAt: true, closesAt: true, awardedAt: true,
             categoryIds: true, primaryCurrency: true,
-            items: { select: { id: true, quantity: true, targetPrice: true } },
+            items: { select: { id: true, name: true, quantity: true, targetPrice: true, awardedQuantity: true } },
+            // Kalemin FİİLEN kime verildiği siparişlerden çözülür (awardedBidForItem).
+            orders: { select: { sellerCompanyId: true, items: { select: { name: true, unitPrice: true } } } },
             bids: {
               where: { status: { in: ["SUBMITTED", "WON", "AWARDED_PARTIAL", "LOST"] } },
               select: {
-                status: true, currency: true, submittedAt: true, createdAt: true,
+                status: true, bidderCompanyId: true, currency: true, submittedAt: true, createdAt: true,
+                exchangeRateSnapshot: true,
                 bidderCompany: { select: { name: true } },
-                items: { select: { itemId: true, unitPrice: true } },
+                items: { select: { itemId: true, unitPrice: true, currency: true, fxToBase: true } },
               },
             },
             invitations: { select: { invitedCompanyId: true, createdAt: true } },
@@ -295,32 +318,39 @@ export class DashboardAnalyticsService {
       const orderedListingIds = new Set(
         liveOrders.filter((o) => o.listingId).map((o) => o.listingId!),
       );
+      // "Teslim Edildi" = sipariş DELIVERED/COMPLETED — aşamanın bağlandığı
+      // liste süzgeciyle (`BUYER_ORDER_HREF.delivered`) AYNI küme. Teslimden
+      // sonra ihtilafa düşen (DISPUTED, deliveredAt dolu) sipariş başarılı
+      // teslim sayılmaz (arayüz testi webC-04 yeniden doğrulama: huni 51,
+      // liste 49).
       const deliveredListingIds = new Set(
         liveOrders
-          .filter((o) => o.listingId && (o.deliveredAt ?? o.completedAt))
+          .filter(
+            (o) => o.listingId && (o.status === "DELIVERED" || o.status === "COMPLETED"),
+          )
           .map((o) => o.listingId!),
       );
       const cohort = pListings;
       const funnel = [
-        { key: "listings", label: "Satın Alma Talebi Açıldı", count: cohort.length },
+        { key: "listings", label: tApi("api.companyDashboard.funnel.listings"), count: cohort.length },
         {
           key: "bids",
-          label: "Teklif Aldı",
+          label: tApi("api.companyDashboard.funnel.bids"),
           count: cohort.filter((l) => l.bids.length > 0).length,
         },
         {
           key: "awarded",
-          label: "Kazandırıldı",
+          label: tApi("api.companyDashboard.funnel.awarded"),
           count: cohort.filter((l) => l.awardedAt).length,
         },
         {
           key: "orders",
-          label: "Siparişe Döndü",
+          label: tApi("api.companyDashboard.funnel.orders"),
           count: cohort.filter((l) => orderedListingIds.has(l.id)).length,
         },
         {
           key: "delivered",
-          label: "Teslim Edildi",
+          label: tApi("api.companyDashboard.funnel.delivered"),
           count: cohort.filter((l) => deliveredListingIds.has(l.id)).length,
         },
       ];
@@ -341,23 +371,19 @@ export class DashboardAnalyticsService {
         .filter((c) => c.days >= 0);
       const cycleTrend = avgBucketize(cycles, (c) => c.createdAt, (c) => c.days, windows);
 
-      // ── Tasarruf: hedef fiyat bazlı (mevcut Tasarruf sekmesi formülü),
-      //    TRY-dışı ihale hariç (kur-tarihli dönüşüm ağır; UI etikette). ──
-      const savingsOf = (l: (typeof listings)[number]): number => {
-        if (l.primaryCurrency !== "TRY") return 0;
-        const itemMap = new Map(l.items.map((i) => [i.id, i]));
-        let s = 0;
-        for (const b of l.bids) {
-          if (b.status !== "WON" && b.status !== "AWARDED_PARTIAL") continue;
-          for (const bi of b.items) {
-            const it = itemMap.get(bi.itemId);
-            if (!it || it.targetPrice == null) continue;
-            const diff = (Number(it.targetPrice) - Number(bi.unitPrice)) * Number(it.quantity);
-            if (diff > 0) s += diff;
-          }
-        }
-        return s;
+      // ── Tasarruf: hedef fiyat bazlı (Tasarruf sekmesi formülü). Hedef İLANIN,
+      //    kazanan birim fiyatı TEKLİFİN (ya da kalemin) biriminde → ikisi de
+      //    DAMGAYLA TRY'ye (`report-currency.ts`), fark rapor birimine. Damgası
+      //    olmayan satır hesaba KATILMAZ (fail-closed; uydurma tasarruf yok).
+      //    Eskiden TRY dışı talep tümüyle 0 sayılıyordu. ──
+      //    Kalem-bazlı kazandırmada AWARDED_PARTIAL teklif kazanmadığı kalemleri
+      //    de taşır → kalem başına TEK (fiilen kazanan) fiyat × awardedQuantity;
+      //    Tasarruf sekmesiyle aynı fonksiyon (derin denetim 2026-09-29).
+      const savingsVolumeOf = (l: (typeof listings)[number]): { savings: number; volume: number } => {
+        const { savings: s, volume: v } = awardedSavingsVolumeTry(l);
+        return { savings: tryToCurrency(s, reportCur) ?? 0, volume: tryToCurrency(v, reportCur) ?? 0 };
       };
+      const savingsOf = (l: (typeof listings)[number]): number => savingsVolumeOf(l).savings;
       const awardedAll = listings.filter((l) => l.awardedAt);
       const savingsMonthly = bucketize(
         awardedAll, (l) => l.awardedAt, (l) => savingsOf(l), windows,
@@ -374,29 +400,21 @@ export class DashboardAnalyticsService {
         (l) => l.awardedAt! >= start && l.awardedAt! < end,
       )) {
         const seg = l.categoryIds[0] ? `${l.categoryIds[0].slice(0, 2)}000000` : null;
-        if (!seg || l.primaryCurrency !== "TRY") continue;
-        const itemMap = new Map(l.items.map((i) => [i.id, i]));
-        let vol = 0;
-        for (const b of l.bids) {
-          if (b.status !== "WON" && b.status !== "AWARDED_PARTIAL") continue;
-          for (const bi of b.items) {
-            const it = itemMap.get(bi.itemId);
-            if (it) vol += Number(bi.unitPrice) * Number(it.quantity);
-          }
-        }
-        const cur = catAgg.get(seg) ?? { savings: 0, volume: 0 };
-        cur.savings += savingsOf(l);
-        cur.volume += vol;
-        catAgg.set(seg, cur);
+        if (!seg) continue;
+        const sv = savingsVolumeOf(l);
+        const agg = catAgg.get(seg) ?? { savings: 0, volume: 0 };
+        agg.savings += sv.savings;
+        agg.volume += sv.volume;
+        catAgg.set(seg, agg);
       }
       const segIds = [...catAgg.keys()];
       const segNames = segIds.length
         ? await this.prisma.category.findMany({
             where: { id: { in: segIds } },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : [];
-      const nameById = new Map(segNames.map((c) => [c.id, c.nameTr]));
+      const nameById = new Map(segNames.map((c) => [c.id, categoryName(c)]));
       const categorySavings = [...catAgg.entries()]
         .map(([id, a]) => ({
           label: nameById.get(id) ?? id,
@@ -480,39 +498,40 @@ export class DashboardAnalyticsService {
       const weeks: { start: Date; label: string; amount: number }[] = [];
       for (let i = 0; i < 5; i++) {
         const ws = new Date(now.getTime() + i * 7 * 86_400_000);
+        const wd = appDay(ws);
         weeks.push({
           start: ws,
-          label: `${ws.getDate()} ${MONTHS_TR[ws.getMonth()]}`,
+          label: `${wd.day} ${shortMonthLabel(wd.labelDate)}`,
           amount: 0,
         });
       }
       // openOrdersAll: 12 aydan eski ama hâlâ ödenmemiş sipariş de takvime girer.
       for (const o of openOrdersAll) {
         const due = dueDateOf(o);
-        if (!due || o.currency !== "TRY") continue;
+        if (!due) continue;
         if (due < now || due > in30d) continue;
+        // Ödemeler siparişin biriminde → kalan önce orada, sonra rapor birimine.
         const remaining = Number(o.amount) - (confirmedByOrder.get(o.id) ?? 0);
         if (remaining <= 0) continue;
         const idx = Math.min(4, Math.floor((+due - +now) / (7 * 86_400_000)));
-        weeks[idx]!.amount = round2(weeks[idx]!.amount + remaining);
+        weeks[idx]!.amount = round2(weeks[idx]!.amount + toCur(remaining, o.currency));
       }
       const cashCalendar = weeks.map((w) => ({ label: w.label, amount: w.amount }));
 
-      // ── Tutar KPI'ları (Faz 4) — TRY-only, UI etikette söyler ──
+      // ── Tutar KPI'ları (Faz 4) — rapor biriminde (`currency`), her sipariş
+      //    kendi biriminden çevrilir. ──
       const trySpendIn = (s: Date, e: Date) =>
         round2(
           liveOrders
-            .filter((o) => o.currency === "TRY" && o.createdAt >= s && o.createdAt < e)
-            .reduce((sum, o) => sum + Number(o.amount), 0),
+            .filter((o) => o.createdAt >= s && o.createdAt < e)
+            .reduce((sum, o) => sum + toCur(o.amount, o.currency), 0),
         );
       const periodSpend = trySpendIn(start, end);
       const openCommitment = round2(
-        openOrdersAll
-          .filter((o) => o.currency === "TRY")
-          .reduce((sum, o) => {
-            const remaining = Number(o.amount) - (confirmedByOrder.get(o.id) ?? 0);
-            return sum + Math.max(0, remaining);
-          }, 0),
+        openOrdersAll.reduce((sum, o) => {
+          const remaining = Number(o.amount) - (confirmedByOrder.get(o.id) ?? 0);
+          return sum + Math.max(0, toCur(remaining, o.currency));
+        }, 0),
       );
       const dueIn30d = round2(cashCalendar.reduce((s, w) => s + w.amount, 0));
       const trySavingsIn = (s: Date, e: Date) =>
@@ -554,6 +573,8 @@ export class DashboardAnalyticsService {
       };
 
       return {
+        /** Parasal serilerin birimi (firmanın rapor para birimi). */
+        currency: reportCur,
         actions, funnel, cycleTrend, savingsTrend, categorySavings, topSavings,
         competition: { avgBidsPerListing, lowCompetition },
         suppliers, cashCalendar, money, kpiSeries, deltas,
@@ -564,7 +585,10 @@ export class DashboardAnalyticsService {
   // ── SATIŞ ────────────────────────────────────────────────────────────────
   async satis(companyId: string, period: SavingsPeriod, range?: PeriodRange) {
     const rangeKey = range ? `:${+range.from}-${+range.to}` : "";
-    return this.cached(`st:${companyId}:${period}${rangeKey}`, async () => {
+    const reportCur = await this.reportCurrency(companyId);
+    const toCur = (amount: unknown, currency: string | null | undefined) =>
+      convertAmount(Number(amount), currency ?? "TRY", reportCur) ?? 0;
+    return this.cached(`st:${companyId}:${period}${rangeKey}:${reportCur}:${currentLocale()}`, async () => {
       const now = new Date();
       const start = range?.from ?? periodStart(period, now);
       const end = range?.to ?? now;
@@ -607,7 +631,7 @@ export class DashboardAnalyticsService {
             createdAt: { gte: from },
           },
           select: {
-            createdAt: true, amount: true, currency: true,
+            createdAt: true, amount: true, currency: true, listingId: true,
             buyerCompanyId: true, expectedDeliveryDate: true, status: true,
             buyer: { select: { name: true } },
           },
@@ -632,10 +656,10 @@ export class DashboardAnalyticsService {
         ).length,
       };
 
-      // ── Gelir trendi (TRY siparişler) + kümülatif ──
-      const tryOrders = orders.filter((o) => o.currency === "TRY");
+      // ── Gelir trendi (TÜM siparişler, rapor biriminde) + kümülatif ──
+      const revenueOf = (o: (typeof orders)[number]) => toCur(o.amount, o.currency);
       const revenueMonthly = bucketize(
-        tryOrders, (o) => o.createdAt, (o) => Number(o.amount), windows,
+        orders, (o) => o.createdAt, revenueOf, windows,
       ).map((p) => ({ ...p, value: round2(p.value) }));
       let cum = 0;
       const revenueTrend = revenueMonthly.map((p) => {
@@ -667,33 +691,51 @@ export class DashboardAnalyticsService {
       });
 
       // ── Pipeline (dönem içi): davet ADET (tutar bilinemez — teklif yok),
-      //    sonrası TRY tutar. ──
+      //    sonrası rapor biriminde tutar (alan adı `amountTry` geriye dönük). ──
       const pBids = bids.filter((b) => b.createdAt >= start && b.createdAt < end);
       const tryAmt = (rows: typeof bids) =>
-        round2(rows.filter((b) => b.currency === "TRY").reduce((s, b) => s + Number(b.amount), 0));
+        round2(rows.reduce((s, b) => s + toCur(b.amount, b.currency), 0));
       const submitted = pBids;
       const evaluating = pBids.filter(
         (b) => b.status === "SUBMITTED" && ["IN_AWARD", "IN_AWARD_APPROVAL"].includes(b.listing.status),
       );
       const wonBids = pBids.filter((b) => b.status === "WON" || b.status === "AWARDED_PARTIAL");
+      // Kısmi kazanılan teklifin TAM tutarı kazanılmayan kalemleri de içerir
+      // (derin denetim 2026-09-29) — kazanılan pay, kazandırmanın bu talepte
+      // satıcıya açtığı siparişlerin tutarıdır.
+      const orderAmtByListing = new Map<string, number>();
+      for (const o of orders) {
+        if (!o.listingId) continue;
+        orderAmtByListing.set(o.listingId, (orderAmtByListing.get(o.listingId) ?? 0) + revenueOf(o));
+      }
+      const wonAmt = round2(
+        wonBids.reduce(
+          (s, b) =>
+            s +
+            (b.status === "AWARDED_PARTIAL"
+              ? (orderAmtByListing.get(b.listingId) ?? 0)
+              : toCur(b.amount, b.currency)),
+          0,
+        ),
+      );
       const pipeline = [
         {
-          key: "invites", label: "Davet",
+          key: "invites", label: tApi("api.companyDashboard.pipeline.invites"),
           count: invitations.filter(
             (iv) => iv.createdAt >= start && iv.createdAt < end,
           ).length,
           amountTry: null as number | null, // TODO: teklifsiz davetin tutarı yok
         },
-        { key: "submitted", label: "Teklif Verildi", count: submitted.length, amountTry: tryAmt(submitted) },
-        { key: "evaluating", label: "Değerlendirmede", count: evaluating.length, amountTry: tryAmt(evaluating) },
-        { key: "won", label: "Kazanıldı", count: wonBids.length, amountTry: tryAmt(wonBids) },
+        { key: "submitted", label: tApi("api.companyDashboard.pipeline.submitted"), count: submitted.length, amountTry: tryAmt(submitted) },
+        { key: "evaluating", label: tApi("api.companyDashboard.pipeline.evaluating"), count: evaluating.length, amountTry: tryAmt(evaluating) },
+        { key: "won", label: tApi("api.companyDashboard.pipeline.won"), count: wonBids.length, amountTry: wonAmt },
       ];
 
-      // ── Müşteri Pareto (12 ay TRY gelir) ──
+      // ── Müşteri Pareto (12 ay gelir, rapor biriminde) ──
       const byBuyer = new Map<string, number>();
-      for (const o of tryOrders) {
+      for (const o of orders) {
         const name = o.buyer?.name ?? o.buyerCompanyId;
-        byBuyer.set(name, round2((byBuyer.get(name) ?? 0) + Number(o.amount)));
+        byBuyer.set(name, round2((byBuyer.get(name) ?? 0) + revenueOf(o)));
       }
       const totalRev = round2([...byBuyer.values()].reduce((a, b) => a + b, 0));
       const paretoRows = [...byBuyer.entries()]
@@ -740,10 +782,10 @@ export class DashboardAnalyticsService {
       const segNames = segIds.length
         ? await this.prisma.category.findMany({
             where: { id: { in: segIds } },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : [];
-      const nameById = new Map(segNames.map((c) => [c.id, c.nameTr]));
+      const nameById = new Map(segNames.map((c) => [c.id, categoryName(c)]));
       const categoryWinRate = [...catAgg.entries()]
         .map(([id, a]) => ({
           label: nameById.get(id) ?? id,
@@ -779,12 +821,14 @@ export class DashboardAnalyticsService {
           inWin(orders, (o) => o.createdAt, prev.start, prev.end),
         ),
         revenue: deltaPct(
-          round2(tryOrders.filter((o) => o.createdAt >= start && o.createdAt < end).reduce((s, o) => s + Number(o.amount), 0)),
-          round2(tryOrders.filter((o) => o.createdAt >= prev.start && o.createdAt < prev.end).reduce((s, o) => s + Number(o.amount), 0)),
+          round2(orders.filter((o) => o.createdAt >= start && o.createdAt < end).reduce((s, o) => s + revenueOf(o), 0)),
+          round2(orders.filter((o) => o.createdAt >= prev.start && o.createdAt < prev.end).reduce((s, o) => s + revenueOf(o), 0)),
         ),
       };
 
       return {
+        /** Parasal serilerin birimi (firmanın rapor para birimi). */
+        currency: reportCur,
         actions, revenueTrend, winLoss, pipeline, pareto,
         responseTrend, categoryWinRate,
         missed: { count: missed.length, amountTry: null as number | null },

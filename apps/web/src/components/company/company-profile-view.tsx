@@ -1,7 +1,12 @@
 import { cn } from "@/lib/utils";
+import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
+import { cityDisplayName, countryDisplayName, useActivityLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { INTL_LOCALE, upperForText } from "@/i18n/format";
 import type { ReactNode } from "react";
 import { MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
-import { companyActivityLabel, countryFlag, countryName, type ReviewSummary } from "@rothern/shared";
+import { countryFlag, type ReviewSummary } from "@rothern/shared";
 
 import { safeExternalUrl } from "@/lib/safe-url";
 import { CompanyLogo } from "@/components/company/company-logo";
@@ -55,6 +60,15 @@ export interface ProfileViewData {
   logoUrl: string | null;
   coverImageUrl: string | null;
   aboutText: string | null;
+  /** Metin sayfa diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+  translatedFrom?: string | null;
+  /**
+   * Firma metni (tanıtım, sektör, hizmetler) SAYFANIN DİLİNDE DEĞİLSE onun dili
+   * — çevirisi bekleyen ya da Türkçe dışı kaynaklı içerik (`contentLangOf`).
+   * Metin blokları `lang` taşır (2026-09-27: EN sayfada Türkçe tanıtım
+   * `<html lang="en">` altında okunuyordu). Verilmezse sayfanın dili.
+   */
+  contentLang?: string;
   /**
    * Aşağıdakiler OPSİYONEL: herkese açık sayfa (anonim katman) bu alanları
    * HİÇ vermez — `null` bile yazılsa RSC yüküne anahtar adı düşer ve "gizli
@@ -188,8 +202,11 @@ export function CompanyProfileView({
    */
   layout?: "columns" | "stacked";
 }) {
+  const t = useTranslations("web.marketplace.profile");
+  const activityLabel = useActivityLabel();
+  const locale = useLocale();
   const services = p.services ?? [];
-  const location = [p.city, p.country].filter(Boolean).join(", ");
+  const location = [cityDisplayName(p.city, locale), p.country ? countryDisplayName(p.country, locale) : null].filter(Boolean).join(", ");
 
   return (
     <div className="space-y-6">
@@ -203,7 +220,7 @@ export function CompanyProfileView({
           galeri ve değerlendirmeler ÜRÜNLERİN ALTINDAKİ "hakkında" bölümüne
           indi: üstte durduklarında ilk ekranı tümüyle yiyor ve ziyaretçi
           firmanın NE SATTIĞINI görmeden kaydırmak zorunda kalıyordu. */}
-      <section className="overflow-hidden card">
+      <section className="isolate overflow-hidden card">
         {/* Kapak: görsel varsa şerit, yoksa ince renk bandı. Yükseklik
             bilinçli olarak kısaldı — üst blok ürünleri ekrandan itmesin. */}
         <div
@@ -218,7 +235,7 @@ export function CompanyProfileView({
             // P0: kırık R2 URL'inde çıplak kırık-görsel ikonu yerine koyu zemine
             // sessizce düş — onError işleyicisi İSTEMCİ bileşeninde (bu dosya
             // herkese açık sayfada sunucu bileşeni; RSC'de <img onError> 500 verir).
-            <SafeCoverImage src={p.coverImageUrl} alt={`${p.name} kapak görseli`} logoSrc={p.logoUrl} />
+            <SafeCoverImage src={p.coverImageUrl} alt={t("kapakGorseli", { name: p.name })} logoSrc={p.logoUrl} />
           ) : null}
           {edit?.cover ?? null}
         </div>
@@ -240,11 +257,11 @@ export function CompanyProfileView({
               <div className="relative -mt-12 shrink-0 rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-zinc-950/5 sm:-mt-14">
                 <CompanyLogo
                   src={p.logoUrl}
-                  alt={`${p.name} logosu`}
+                  alt={t("firmaLogosu", { name: p.name })}
                   className="h-20 w-20 rounded-xl object-cover sm:h-24 sm:w-24"
                   fallback={
                     <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-blue-600 text-3xl font-bold text-white sm:h-24 sm:w-24">
-                      {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
+                      {upperForText(p.name.charAt(0), p.name)}
                     </div>
                   }
                 />
@@ -259,9 +276,9 @@ export function CompanyProfileView({
                   {p.verified ? (
                     <span
                       className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
-                      title="Kimliği doğrulanmış firma"
+                      title={t("verifiedTitle")}
                     >
-                      Doğrulanmış
+                      {t("verified")}
                     </span>
                   ) : null}
                   {p.verified === false ? (
@@ -270,14 +287,14 @@ export function CompanyProfileView({
                     // orada "herkes doğrulanmamış" mesajı pazar yerini zayıflatırdı.
                     <span
                       className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 ring-1 ring-zinc-300 ring-inset"
-                      title="Kimlik doğrulaması yapılmamış firma — doğrulama, Silver/Gold paketine geçişin ilk adımıdır"
+                      title={t("unverifiedTitle")}
                     >
-                      Doğrulanmamış
+                      {t("unverified")}
                     </span>
                   ) : null}
                   {p.goldMember ? (
                     <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                      Gold Üye
+                      {t("goldMember")}
                     </span>
                   ) : null}
                 </div>
@@ -294,21 +311,21 @@ export function CompanyProfileView({
                           {countryFlag(p.country)}
                         </span>
                       ) : null}
-                      {p.country ? <span className="font-medium text-zinc-800">{countryName(p.country)}</span> : null}
+                      {p.country ? <span className="font-medium text-zinc-800">{countryDisplayName(p.country, locale)}</span> : null}
                       {p.city ? (
                         <span className="inline-flex items-center gap-1 text-zinc-500">
                           <MapPinIcon aria-hidden className="size-4 text-zinc-400" />
-                          {p.city}
+                          {cityDisplayName(p.city, locale)}
                         </span>
                       ) : null}
-                      {p.industry ? <span className="text-zinc-500">· {p.industry}</span> : null}
+                      {p.industry ? <span className="text-zinc-500" lang={p.contentLang}>· {p.industry}</span> : null}
                     </p>
                     {p.activities?.length ? (
                       <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-700">
                         {p.activities.map((code) => (
                           <span key={code} className="inline-flex items-center gap-1.5">
                             <ActivityIcon code={code} className="size-4 text-zinc-400" />
-                            <span className="font-medium">{companyActivityLabel(code)}</span>
+                            <span className="font-medium">{activityLabel(code)}</span>
                           </span>
                         ))}
                       </p>
@@ -329,12 +346,12 @@ export function CompanyProfileView({
               aynı paragrafı iki kez basmayız. */}
           {p.aboutText ? (
             <div className="mt-4 max-w-4xl">
-              <p className="line-clamp-2 text-[15px] leading-relaxed text-zinc-600">{p.aboutText}</p>
+              <p className="line-clamp-2 text-[15px] leading-relaxed text-zinc-600" lang={p.contentLang}>{p.aboutText}</p>
               <a
                 href="#hakkinda"
                 className="mt-1 inline-block text-sm font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
               >
-                Daha fazlasını oku
+                {t("readMore")}
               </a>
             </div>
           ) : null}
@@ -354,22 +371,25 @@ export function CompanyProfileView({
           {edit?.classification ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
-                Firma türü ve faaliyet alanları
+                {/* Kart faaliyet tipi + kategorileri gösterir; onboarding'deki yasal
+                    "Firma türü" değil (arayüz testi D-088, yeniden doğrulama). */}
+                {t("faaliyetTipiVeKategorileri")}
               </h2>
               <div className="mt-3">{edit.classification}</div>
             </section>
           ) : null}
           {edit?.about ? (
             <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Hakkında</h2>
+              <h2 className="text-base font-semibold text-zinc-900">{t("about")}</h2>
               <div className="mt-3">{edit.about}</div>
             </section>
           ) : p.aboutText ? (
             <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">{p.name} hakkında</h2>
-              <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
+              <h2 className="text-base font-semibold text-zinc-900">{t("aboutName", { name: p.name })}</h2>
+              <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600" lang={p.contentLang}>
                 {p.aboutText}
               </p>
+              <AutoTranslatedNote from={p.translatedFrom} className="mt-2" />
               {gate?.about ? <div className="mt-3">{gate.about}</div> : null}
             </section>
           ) : null}
@@ -378,13 +398,13 @@ export function CompanyProfileView({
               "sağ kısımda sertifikalar falan gibi kısımlar olmasın"). */}
           {edit?.services ? (
             <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Hizmetler</h2>
+              <h2 className="text-base font-semibold text-zinc-900">{t("services")}</h2>
               <div className="mt-3">{edit.services}</div>
             </section>
           ) : services.length > 0 ? (
             <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Hizmetler</h2>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <h2 className="text-base font-semibold text-zinc-900">{t("services")}</h2>
+              <div className="mt-3 flex flex-wrap gap-2" lang={p.contentLang}>
                 {services.map((s) => (
                   <span
                     key={s}
@@ -411,15 +431,15 @@ export function CompanyProfileView({
             p.trade.kepAddress) ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">
-                Ticari Bilgiler
+                {t("tradeInfo")}
               </h2>
               <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
                 {p.trade.legalName ? (
-                  <TradeRow label="Ticari Unvan" value={p.trade.legalName} />
+                  <TradeRow label={t("legalName")} value={p.trade.legalName} />
                 ) : null}
                 {p.trade.taxNumber ? (
                   <TradeRow
-                    label="Vergi No"
+                    label={t("taxNo")}
                     value={
                       p.trade.taxOffice
                         ? `${p.trade.taxNumber} · ${p.trade.taxOffice}`
@@ -429,17 +449,17 @@ export function CompanyProfileView({
                   />
                 ) : null}
                 {p.trade.mersisNo ? (
-                  <TradeRow label="MERSİS No" value={p.trade.mersisNo} mono />
+                  <TradeRow label={t("mersisNo")} value={p.trade.mersisNo} mono />
                 ) : null}
                 {p.trade.tradeRegistryNo ? (
                   <TradeRow
-                    label="Ticaret Sicil No"
+                    label={t("registryNo")}
                     value={p.trade.tradeRegistryNo}
                     mono
                   />
                 ) : null}
                 {p.trade.kepAddress ? (
-                  <TradeRow label="KEP Adresi" value={p.trade.kepAddress} mono />
+                  <TradeRow label={t("kepAddress")} value={p.trade.kepAddress} mono />
                 ) : null}
               </dl>
             </section>
@@ -465,7 +485,7 @@ export function CompanyProfileView({
               ürünler yukarıda tam genişlikte. */}
           {edit?.stats ? (
             <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Şirket Bilgileri</h2>
+              <h2 className="text-base font-semibold text-zinc-900">{t("companyInfo")}</h2>
               <div className="mt-3">{edit.stats}</div>
             </section>
           ) : p.rothernId ||
@@ -481,18 +501,18 @@ export function CompanyProfileView({
             p.ratingAvg != null ||
             (p.rating && p.rating.count > 0) ? (
             <section className="card p-6">
-              <h2 className="text-base font-semibold text-zinc-900">Şirket Bilgileri</h2>
+              <h2 className="text-base font-semibold text-zinc-900">{t("companyInfo")}</h2>
               <dl className="mt-4 space-y-3">
                 {p.rothernId ? (
-                  <InfoRow label="Rothern ID" value={<span className="tabular-nums slashed-zero">{p.rothernId}</span>} />
+                  <InfoRow label={t("rothernId")} value={<span className="tabular-nums slashed-zero">{p.rothernId}</span>} />
                 ) : null}
-                {p.foundedYear ? <InfoRow label="Kuruluş" value={String(p.foundedYear)} /> : null}
-                {p.employeeCount ? <InfoRow label="Çalışan" value={p.employeeCount} /> : null}
-                {p.industry ? <InfoRow label="Sektör" value={p.industry} /> : null}
-                {location ? <InfoRow label="Konum" value={location} /> : null}
+                {p.foundedYear ? <InfoRow label={t("founded")} value={String(p.foundedYear)} /> : null}
+                {p.employeeCount ? <InfoRow label={t("employees")} value={p.employeeCount} /> : null}
+                {p.industry ? <InfoRow label={t("industry")} value={p.industry} /> : null}
+                {location ? <InfoRow label={t("location")} value={location} /> : null}
                 {p.rating && p.rating.count > 0 ? (
                   <InfoRow
-                    label="Değerlendirme"
+                    label={t("rating")}
                     value={
                       <span className="inline-flex items-center gap-1">
                         <StarIcon className="size-4 text-rating" aria-hidden />
@@ -503,7 +523,7 @@ export function CompanyProfileView({
                   />
                 ) : p.ratingAvg != null ? (
                   <InfoRow
-                    label="Değerlendirme"
+                    label={t("rating")}
                     value={
                       <span className="inline-flex items-center gap-1">
                         <StarIcon className="size-4 text-rating" aria-hidden />
@@ -531,9 +551,9 @@ export function CompanyProfileView({
                 <div className="mt-4 border-t border-zinc-100 pt-4">{gate.stats}</div>
               ) : p.website || p.linkedinUrl || p.instagramUrl ? (
                 <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-zinc-100 pt-4 text-sm">
-                  <ExternalLink href={p.website} label="Web Sitesi" />
-                  <ExternalLink href={p.linkedinUrl} label="LinkedIn" />
-                  <ExternalLink href={p.instagramUrl} label="Instagram" />
+                  <ExternalLink href={p.website} label={t("website")} />
+                  <ExternalLink href={p.linkedinUrl} label={t("linkedin")} />
+                  <ExternalLink href={p.instagramUrl} label={t("instagram")} />
                 </div>
               ) : null}
             </section>
@@ -555,10 +575,12 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-const ROLE_LABEL = { buyer: "Doğrulanmış alıcı", seller: "Doğrulanmış tedarikçi" } as const;
-/** Rol bilinmiyorsa (bkz. ReviewPartner.role) nötr etiket. */
-const roleLabel = (r: "buyer" | "seller" | null) =>
-  r ? ROLE_LABEL[r] : "Doğrulanmış ortak";
+type ReviewRole = "buyer" | "seller";
+/** Değerlendiren tarafın rolü — katalogdan (i18n Faz 1 kapanış). */
+function useRoleLabel(): (r: ReviewRole | null | undefined) => string {
+  const t = useTranslations("web.marketplace.profile");
+  return (r) => (r === "buyer" ? t("verifiedBuyer") : r === "seller" ? t("verifiedSupplier") : t("verifiedPartner"));
+}
 
 function Stars({ value, label }: { value: number; label?: string }) {
   const full = Math.round(value);
@@ -572,10 +594,11 @@ function Stars({ value, label }: { value: number; label?: string }) {
   );
 }
 
-function monthYear(iso: string): string {
+/** "Eyl 2026" — okuyucunun dilinde (Intl). */
+function monthYear(iso: string, locale: Locale): string {
   const d = new Date(iso);
   return Number.isFinite(d.getTime())
-    ? d.toLocaleDateString("tr-TR", { month: "short", year: "numeric" })
+    ? d.toLocaleDateString(INTL_LOCALE[locale], { month: "short", year: "numeric" })
     : "";
 }
 
@@ -584,20 +607,23 @@ function monthYear(iso: string): string {
  * yok; "diğer yorumlar" native <details>). Hem /firma/[slug] hem platform içi.
  */
 function ReviewSummarySection({ s }: { s: ReviewSummary }) {
+  const t = useTranslations("web.marketplace.profile");
+  const locale = useLocale();
+  const roleLabel = useRoleLabel();
   const maxDist = Math.max(1, ...([5, 4, 3, 2, 1] as const).map((k) => s.distribution[k]));
   return (
     <section className="card p-6">
-      <h2 className="text-base font-semibold text-zinc-900">Değerlendirmeler</h2>
+      <h2 className="text-base font-semibold text-zinc-900">{t("reviews")}</h2>
       <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-3xl font-semibold tabular-nums text-zinc-900">
               {s.avg.toFixed(1)}
             </span>
-            <Stars value={s.avg} label={`Genel ${s.avg.toFixed(1)} / 5`} />
+            <Stars value={s.avg} label={t("genel5", { avg: s.avg.toFixed(1) })} />
           </div>
           <div className="mt-0.5 text-xs text-zinc-500">
-            {s.firms} firma · {s.orders} sipariş · her firma bir oy
+            {t("firmaSiparisHerFirmaBir", { firms: s.firms, orders: s.orders })}
           </div>
         </div>
         <dl className="min-w-[160px] flex-1 space-y-1">
@@ -627,14 +653,14 @@ function ReviewSummarySection({ s }: { s: ReviewSummary }) {
                     {pt.name ?? roleLabel(pt.role)}
                   </span>
                   {pt.name ? (
-                    <span className="ml-2 text-xs text-zinc-500">{roleLabel(pt.role).replace("Doğrulanmış ", "")}</span>
+                    <span className="ml-2 text-xs text-zinc-500">{roleLabel(pt.role)}</span>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-500">
                   <Stars value={pt.avg} label={`${pt.avg} / 5`} />
                   <span className="tabular-nums">{pt.avg.toFixed(1)}</span>
-                  <span>· {pt.count} sipariş</span>
-                  <span>· {monthYear(pt.lastAt)}</span>
+                  <span>· {t("ordersCount", { n: pt.count })}</span>
+                  <span>· {monthYear(pt.lastAt, locale)}</span>
                 </div>
               </div>
               {latest ? (
@@ -643,12 +669,12 @@ function ReviewSummarySection({ s }: { s: ReviewSummary }) {
               {rest.length > 0 ? (
                 <details className="mt-1">
                   <summary className="cursor-pointer text-xs font-medium text-zinc-500 hover:text-zinc-800">
-                    Diğer {rest.length} yorum
+                    {t("digerYorum", { n: rest.length })}
                   </summary>
                   <ul className="mt-2 space-y-2">
                     {rest.map((c, j) => (
                       <li key={j} className="text-sm text-zinc-600">
-                        <span className="mr-2 text-xs text-zinc-500">{monthYear(c.createdAt)} · {c.rating}/5</span>
+                        <span className="mr-2 text-xs text-zinc-500">{monthYear(c.createdAt, locale)} · {c.rating}/5</span>
                         <span className="whitespace-pre-wrap">{c.comment}</span>
                       </li>
                     ))}

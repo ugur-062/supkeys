@@ -6,8 +6,10 @@ import {
   MinLength,
 } from "class-validator";
 
+import { tApi } from "../../../common/i18n/i18n.service";
+
 export class CompanyLoginDto {
-  @IsEmail({}, { message: "Geçerli bir e-posta adresi giriniz" })
+  @IsEmail({}, { message: () => tApi("api.dto.companyLogin.gecerliBirEpostaAdresiGiriniz") })
   email!: string;
 
   @IsString()

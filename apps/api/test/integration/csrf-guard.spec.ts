@@ -90,6 +90,32 @@ describe("CsrfGuard — double-submit fail-closed (SameSite=lax)", () => {
       guard.canActivate(ctx("POST", "/api/company-auth/login")),
     ).toBe(true);
   });
+
+  // D-349: bayat rk_company var, rk_csrf yok → token'lı ön-oturum uçları düşmez.
+  it("şifre sıfırlama onayı bayat çerezle header'sız muaf (D-349)", () => {
+    expect(
+      guard.canActivate(ctx("POST", "/api/auth/password-reset/confirm", authCookie())),
+    ).toBe(true);
+  });
+
+  it("üye daveti kabulü bayat çerezle header'sız muaf (D-349)", () => {
+    expect(
+      guard.canActivate(
+        ctx("POST", `/api/company/invitations/${"f".repeat(64)}/accept`, authCookie()),
+      ),
+    ).toBe(true);
+  });
+
+  it("oturumlu benzer uçlar muaf DEĞİL (bağlantı/sipariş kabulü)", () => {
+    expect(() =>
+      guard.canActivate(ctx("POST", "/api/company/connections/abc/accept", authCookie(TOKEN))),
+    ).toThrow(/CSRF/);
+    expect(() =>
+      guard.canActivate(
+        ctx("POST", "/api/company/connections/invitations/abc/accept", authCookie(TOKEN)),
+      ),
+    ).toThrow(/CSRF/);
+  });
 });
 
 describe("CsrfGuard — SameSite=none prod-default açığı (belgeler)", () => {

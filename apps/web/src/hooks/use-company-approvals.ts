@@ -66,6 +66,31 @@ export function useApprovalFlows() {
   });
 }
 
+/** Akış sihirbazı onaycı seçicisi — aktif + approval:act (sunucu süzer). */
+export interface ApproverCandidate {
+  id: string;
+  firstName: string;
+  lastName: string;
+  roles: CompanyRole[];
+}
+
+/**
+ * Onaycı adayları — `GET /company/users` users:manage istediği için yalnız
+ * approvals:manage taşıyan üye de akış kurabilsin diye ayrı hafif uç.
+ */
+export function useApproverCandidates(enabled = true) {
+  return useQuery({
+    queryKey: ["company-approvals", "approver-candidates"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ApproverCandidate[]>(
+        "/company/approvals/approver-candidates",
+      );
+      return data;
+    },
+    enabled,
+  });
+}
+
 export function useCreateApprovalFlow() {
   const qc = useQueryClient();
   return useMutation({
@@ -145,8 +170,10 @@ export function useDuplicateApprovalFlow() {
   });
 }
 
-export function usePendingApprovals() {
+/** `enabled`: uç yalnız approval:act'e açık — izin yoksa sorgu atılmaz (derin denetim LU-21). */
+export function usePendingApprovals(opts: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled: opts.enabled ?? true,
     queryKey: ["company-approvals", "pending"],
     queryFn: async () => {
       const { data } = await companyApi.get<PendingApproval[]>(

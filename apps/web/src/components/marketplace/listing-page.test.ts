@@ -48,6 +48,16 @@ describe("resolveListingPage", () => {
     });
   });
 
+  it("API slug verdiyse kanonik ondan gelir — çevrilmiş başlık adresi DEĞİŞTİRMEZ (i18n Faz 1e)", async () => {
+    // EN yanıtı: başlık çevrilmiş, slug kaynak (Türkçe) başlığın slug'ı.
+    fetchListing.mockResolvedValue(listing({ title: "ABB Switchgear", slug: "rot-000057-abb-salt-malzeme" }));
+    expect((await resolveListingPage("rot-000057-abb-salt-malzeme", "ALIM")).kind).toBe("ok");
+    expect(await resolveListingPage("rot-000057-abb-switchgear", "ALIM")).toEqual({
+      kind: "redirect",
+      to: "/talep/rot-000057-abb-salt-malzeme",
+    });
+  });
+
   it("ALIM kaydı /talep altında kalır", async () => {
     fetchListing.mockResolvedValue(listing({ type: "ALIM", title: "Boru" }));
     expect((await resolveListingPage("rot-000057-boru", "ALIM")).kind).toBe("ok");

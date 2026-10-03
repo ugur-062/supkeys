@@ -45,6 +45,10 @@ export function normalizeTargetCountries(input: readonly string[] | null | undef
  * Kart/detay etiketi: "Tüm ülkeler" · "Yalnız Türkiye" · "Türkiye, Almanya"
  * · "Türkiye +3 ülke". `ownerCountry` verilirse tek ülke = sahibin ülkesi
  * "Yalnız …" diye okunur.
+ *
+ * i18n (Faz 3): bu TÜRKÇE YEDEKTİR. Dil bilen yüzey web'deki `useScopeLabel`
+ * (`web.domain.scope.*` + `Intl.DisplayNames` ülke adı); API'de çağrı yeri
+ * yoktur. Metin gerekiyorsa önce tüketicinin hook'una bak.
  */
 export function scopeLabel(targetCountries: readonly string[], ownerCountry?: string | null): string {
   if (targetCountries.length === 0) return "Tüm ülkeler";

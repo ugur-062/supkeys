@@ -1,11 +1,8 @@
-import { cn } from "@/lib/utils";
-import { scopeLabel } from "@rothern/shared";
+"use client";
 
-/**
- * GÖRÜNÜRLÜK ÜLKESİ ÇİPİ (2026-09-21): "Tüm ülkeler" · "Yalnız Türkiye" ·
- * "Türkiye, Almanya" · "Türkiye +3 ülke". Eski Yurtiçi/Uluslararası çipinin
- * yerini alır; renk anlam taşımaz (herkes = açık yeşil, sınırlı = gri).
- */
+import { useScopeLabel } from "@/i18n/domain";
+import { cn } from "@/lib/utils";
+
 export function ScopeChip({
   targetCountries,
   ownerCountry,
@@ -15,6 +12,7 @@ export function ScopeChip({
   ownerCountry?: string | null;
   className?: string;
 }) {
+  const scopeLabel = useScopeLabel();
   const list = targetCountries ?? [];
   const open = list.length === 0;
   return (

@@ -21,3 +21,16 @@ export function sumPaymentsByStatus(
     new Prisma.Decimal(0),
   );
 }
+
+/**
+ * Sipariş tam ödendi mi — TEK KURAL (INV-MONEY-1: tam Decimal, tolerans YOK;
+ * eşitlik geçer, 1 kuruş eksik geçmez; tutar ≤ 0 = ödenecek yok).
+ *
+ * Sipariş listesinin `paymentSettled` alanı ile Şirketim › Bekleyen İşler'in
+ * ödeme satırları (`ActionCenterService` overduePayments / paymentWindow) bu
+ * kuralı ORTAK okur: satır "1 siparişin ödemesi gecikti" deyip bağlandığı
+ * `?payment=overdue` listesi başka küme göstermesin (arayüz testi O-035).
+ */
+export function isOrderFullyPaid(total: Prisma.Decimal, confirmed: Prisma.Decimal): boolean {
+  return total.lte(0) || confirmed.gte(total);
+}

@@ -57,6 +57,19 @@ describe("CheckoutView", () => {
     expect(screen.queryByRole("heading", { name: /satın al/ })).toBeNull();
   });
 
+  it("PENDING (incelemede) firma doğrulamaya atılmaz, 'inceleniyor' der (O-068)", () => {
+    setMe({ status: "PENDING" });
+    render(<CheckoutView />);
+    expect(h.replace).not.toHaveBeenCalled();
+    expect(h.toast.info).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Doğrulamanız inceleniyor" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Doğrulama durumu" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(screen.queryByText(/bize yazın/)).toBeNull();
+  });
+
   it("geçersiz ya da ücretsiz paket → Paketler", () => {
     setMe();
     h.paket = "standart";
@@ -79,7 +92,7 @@ describe("CheckoutView", () => {
     // "Ödeme yakında" türü yazı/düğme çizilmez (kullanıcı kararı).
     expect(screen.queryByText(/yakında/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /Satın al|ödeme/i })).toBeNull();
-    const talep = screen.getByRole("link", { name: "Satın alma talebi gönder" });
+    const talep = screen.getByRole("link", { name: "Satın almak için bize yazın" });
     expect(talep.getAttribute("href")).toMatch(/^mailto:support@rothern\.com\?subject=Gold/);
   });
 
@@ -98,7 +111,7 @@ describe("CheckoutView", () => {
     h.paket = "silver";
     render(<CheckoutView />);
     expect(screen.queryByRole("button", { name: /Satın al/ })).toBeNull();
-    expect(screen.getByRole("link", { name: "Satın alma talebi gönder" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Satın almak için bize yazın" })).toBeInTheDocument();
   });
 
   it("paket zaten firmadaysa satın alma çizilmez", () => {

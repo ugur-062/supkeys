@@ -165,6 +165,14 @@ describe("AUTO taşıma — madde 13: koşulsuz canlı + süresiz", () => {
   });
 });
 
+/** Taslak canlandırma testleri için talebi teklif alımına açık hâle getirir. */
+async function reopenForBids(listingId: string) {
+  await prisma.listing.update({
+    where: { id: listingId },
+    data: { status: "OPEN", closesAt: FUTURE },
+  });
+}
+
 describe("Geçerlilik uzatma (extendBidValidity)", () => {
   it("SUBMITTED teklif: validityDays artar (tur açılmadan — değerlendirme evresi)", async () => {
     const { service, valid, listing } = await closedRfq();
@@ -180,6 +188,9 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
       where: { listingId: listing.id, bidderCompanyId: expired.company.id },
       data: { status: "DRAFT" },
     });
+    // Canlandırma = yeniden gönderim → yalnız teklif alımı açıkken (derin
+    // denetim LU-15; IN_AWARD'da reddi derin-denetim-lu15.spec'te).
+    await reopenForBids(listing.id);
     // 10 gün geçerliydi, 30 gün önce verildi → 20 gün geride. +60 gün → ileride.
     const res = await service.extendBidValidity(expired.auth, listing.id, 60);
     expect(res).toMatchObject({ ok: true, validityDays: 70, revived: true });
@@ -234,6 +245,7 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
       where: { listingId: listing.id, bidderCompanyId: expired.company.id },
       data: { status: "DRAFT" },
     });
+    await reopenForBids(listing.id);
     await service.extendBidValidity(expired.auth, listing.id, 60);
     const revive = await prisma.auditLog.findFirst({
       where: {
@@ -314,4 +326,85 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
       service.extendBidValidity(stranger.auth, open.id, 30),
     ).rejects.toThrow(/teklifiniz yok/);
   });
+});
+
+describe("Arayüz testi O-026 — RFQ yeni turu: geçerlilik ve elenen teklif", () => {
+  it("RFQ turunda geçerli teklif CANLI taşınır ve geçerliliği KORUNUR; süresi dolmuş taslağa düşer (fiyat korunur)", async () => {
+    const { service, owner, valid, expired, listing } = await closedRfq();
+    await service.createNextRound(owner.auth, listing.id, nextRoundDto({ type: "RFQ" }));
+
+    const v = await bidOf(listing.id, valid.company.id);
+    const e = await bidOf(listing.id, expired.company.id);
+    expect(v).toMatchObject({ status: "SUBMITTED", round: 2, validityDays: 60 });
+    expect(e).toMatchObject({ status: "DRAFT", round: 2, validityDays: 10 });
+    expect(Number(e.amount)).toBe(900);
+
+    // Süresi dolan taraf "geçerliliği uzat" ile aynı fiyatı canlandırabilir.
+    const res = await service.extendBidValidity(expired.auth, listing.id, 60);
+    expect(res).toMatchObject({ revived: true });
+    expect(await bidOf(listing.id, expired.company.id)).toMatchObject({
+      status: "SUBMITTED",
+      round: 2,
+    });
+  });
+
+  it("RFQ turunda süresi dolan tedarikçiye 'geçerliliği doldu', geçerli olana 'taşındı' bildirimi gider", async () => {
+    const { service, owner, valid, expired, listing } = await closedRfq();
+    await service.createNextRound(owner.auth, listing.id, nextRoundDto({ type: "RFQ" }));
+    let validNotifs: { title: string }[] = [];
+    let expiredNotifs: { title: string }[] = [];
+    for (let i = 0; i < 40; i++) {
+      [validNotifs, expiredNotifs] = await Promise.all([
+        prisma.notification.findMany({
+          where: { companyId: valid.company.id, type: "listing_new_round" },
+          select: { title: true },
+        }),
+        prisma.notification.findMany({
+          where: { companyId: expired.company.id, type: "listing_new_round" },
+          select: { title: true },
+        }),
+      ]);
+      if (validNotifs.length > 0 && expiredNotifs.length > 0) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    expect(validNotifs.some((n) => n.title.includes("taşındı"))).toBe(true);
+    expect(expiredNotifs.some((n) => n.title.includes("geçerliliği doldu"))).toBe(true);
+    expect(expiredNotifs.some((n) => n.title.includes("taşındı"))).toBe(false);
+  });
+
+  it.each(["RFQ", "ENGLISH_AUCTION"] as const)(
+    "alıcının ELEDİĞİ teklif yeni tura taşınmaz (%s): eski turda LOST + gerekçesiyle kalır, taşındı bildirimi gitmez",
+    async (type) => {
+      const { service, owner, valid, expired, listing } = await closedRfq();
+      const elim = await prisma.listingBid.findFirstOrThrow({
+        where: { listingId: listing.id, bidderCompanyId: valid.company.id },
+      });
+      await service.eliminate(owner.auth, listing.id, elim.id, "teknik uygunsuz");
+      await service.createNextRound(owner.auth, listing.id, nextRoundDto({ type }));
+
+      const after = await prisma.listingBid.findUniqueOrThrow({ where: { id: elim.id } });
+      expect(after).toMatchObject({
+        status: "LOST",
+        round: 1,
+        eliminationReason: "teknik uygunsuz",
+      });
+      expect(after.eliminatedAt).not.toBeNull();
+      // Teklifçi detayı teklifin turunu döner — panel "önceki turda elendi"
+      // diyebilsin (arayüz testi api1-01 yeniden doğrulama).
+      const view = (await service.getOne(valid.auth, listing.id)) as {
+        currentRound: number;
+        myBid: { status: string; round: number } | null;
+      };
+      expect(view.currentRound).toBe(2);
+      expect(view.myBid).toMatchObject({ status: "LOST", round: 1 });
+      // Elenmemiş teklif taşındı (pazarlıkta süresiz, RFQ'da süresi dolduğu için taslak).
+      const other = await bidOf(listing.id, expired.company.id);
+      expect(other.round).toBe(2);
+      await new Promise((r) => setTimeout(r, 500));
+      const carriedToEliminated = await prisma.notification.count({
+        where: { companyId: valid.company.id, type: "listing_new_round" },
+      });
+      expect(carriedToEliminated).toBe(0);
+    },
+  );
 });

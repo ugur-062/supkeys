@@ -1,4 +1,4 @@
-import { getParam as get, listParam as list, pageParam, type SearchParamsLike } from "./filter-param-utils";
+import { cityListParam, getParam as get, pageParam, type SearchParamsLike } from "./filter-param-utils";
 import type { ListParams } from "./marketplace-api";
 
 /**
@@ -23,6 +23,15 @@ export interface ListingFilterState {
   page: number;
 }
 
+/**
+ * API doğrulama SINIRLARI (`PublicListQueryDto`) — ayrıştırma bunlara kırpar
+ * (ürün dizinindeki D-056 ile aynı kural; arayüz testi son tur webA-2).
+ * Eskiden `?sayfa=201` ya da 120 karakteri aşan arama uçtan 400 alıyor ve
+ * ziyaretçi "Alım talebi bulunamadı" görüyordu — oysa açık talepler var.
+ */
+export const LISTING_SEARCH_MAX_LENGTH = 120;
+export const LISTING_PAGE_LIMIT = 200;
+
 export const EMPTY_LISTING_FILTERS: ListingFilterState = { cities: [], page: 1 };
 
 export function parseListingFilters(sp: SearchParamsLike): ListingFilterState {
@@ -31,14 +40,14 @@ export function parseListingFilters(sp: SearchParamsLike): ListingFilterState {
   const within = get(sp, "sure");
   const sort = get(sp, "sirala");
   return {
-    q: get(sp, "q")?.trim() || undefined,
+    q: get(sp, "q")?.trim().slice(0, LISTING_SEARCH_MAX_LENGTH).trim() || undefined,
     category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
-    cities: list(get(sp, "sehir") ?? get(sp, "il")),
+    cities: cityListParam(get(sp, "sehir") ?? get(sp, "il")),
     country: country && /^[A-Z]{2}$/.test(country) ? country : undefined,
     within: within === "3" || within === "7" || within === "30" ? within : undefined,
     sort: sort === "yeni" || sort === "kapanis" ? sort : undefined,
     state: get(sp, "durum") === "hepsi" ? "hepsi" : undefined,
-    page: pageParam(get(sp, "sayfa")),
+    page: Math.min(pageParam(get(sp, "sayfa")), LISTING_PAGE_LIMIT),
   };
 }
 

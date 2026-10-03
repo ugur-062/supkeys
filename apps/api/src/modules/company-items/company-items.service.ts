@@ -1,3 +1,6 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import {
   BadRequestException,
   ConflictException,
@@ -18,10 +21,22 @@ import {
   PRODUCT_MEDIA_TIER,
   slugifyText,
   tierAtLeast,
-  tokenizeQuery, categoryPrefix, type TierName } from "@rothern/shared";
-import { resolveCategoryAttributes } from "../../common/company/category-attributes";
-import { showcaseContentChanged } from "../../common/company/product-content-diff";
+  tokenizeQuery, categoryPrefix, type TierName,
+  defaultCurrencyForCountry,
+  isCurrencyCode,
+  productPriceBase,
+  isHttpsUrl,
+  productVideoEmbedUrl } from "@rothern/shared";
+import { fxRate, resolveCompanyCurrency } from "../../common/currency/fx-rates";
+import {
+  ATTRIBUTE_LIST_MAX_ITEMS,
+  ATTRIBUTE_VALUE_MAX_CHARS,
+  isValidAttributeValue,
+  resolveCategoryAttributes,
+} from "../../common/company/category-attributes";
+import { catalogContentChanged, showcaseContentChanged } from "../../common/company/product-content-diff";
 import { effectiveTier } from "../../common/company/effective-tier";
+import { pickFreeSlug } from "../../common/company/company-slug";
 import {
   hasPublicProfile,
   publicProductWhere,
@@ -53,20 +68,35 @@ import {
 } from "../../common/company/public-image-upload";
 import { StorageService } from "../storage/storage.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import {
   productCompletion,
-  productPublishBlockers,
+  productPublishBlockerCodes,
   type ProductLike,
+  type PublishBlocker,
 } from "../../common/company/product-completion";
 import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
+import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { CompanyViewsService } from "../company-views/company-views.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
 /** Katalog boyutu tavanı — sınırsız büyüme depolama/arama maliyeti üretir. */
 const MAX_CATALOG_ITEMS = 5000;
-/** Tek seferde kataloğa alınabilecek kalem sayısı (ihaleden içe aktarma). */
+/** Tek çağrıda işlenecek kimlik sayısı (`mark-used`; DTO tavanıyla aynı). */
 const MAX_BULK_IMPORT = 200;
+/**
+ * İlandan kataloğa tek seferde eklenebilecek YENİ kalem — ilan kalem tavanı
+ * (500, `create-listing.dto.ts`) ile aynı: tek basış ilanın tamamını alır.
+ * Eskiden 200'dü ve tekilleştirmeden ÖNCE kesiliyordu: 205 kalemli ilanda
+ * +200 eklenip 5'i sessizce düşüyor, ikinci basış "zaten var" diyordu
+ * (arayüz testi D-248).
+ */
+const MAX_LISTING_IMPORT = 500;
+/** Aynı kişinin aynı adlı taslak/onaydaki ürünü bu pencerede mükerrer sayılır (FX-00 O-006). */
+const PRODUCT_DUPLICATE_WINDOW_MS = 30_000;
 
 /**
  * Vitrin yanıtı — AÇIK tip. Prisma'nın `JsonValue` tipleri controller
@@ -99,6 +129,15 @@ export interface ProductShowcase {
   moq: string | null;
   unit: string;
   unitCode: string | null;
+  /**
+   * Kalemin kimlik alanları — vitrin önizlemesi (`ProductPreview`) bunları
+   * herkese açık sayfadaki gibi basar. Yanıtta yoktu: `?urun=` derin
+   * bağlantısıyla açılan ürünün önizlemesi marka/MPN/şartnameyi kaybediyordu
+   * (arayüz testi webC-16, gözden geçirme).
+   */
+  brand: string | null;
+  mpn: string | null;
+  specification: string | null;
   completion: { score: number; missing: { key: string; label: string; points: number }[] };
   publishBlockers: string[];
   attributeDefs: {
@@ -178,6 +217,16 @@ export interface DiscoverProductRow {
   };
 }
 
+/** Ürünlerim sekmeleri (web `ProductTab`, "all" hariç). */
+export type ShowcaseListStatus = "published" | "pending" | "rejected" | "draft";
+export const SHOWCASE_LIST_STATUSES: readonly ShowcaseListStatus[] = ["published", "pending", "rejected", "draft"];
+const SHOWCASE_STATUS_WHERE: Record<ShowcaseListStatus, Prisma.CompanyItemWhereInput> = {
+  published: { isPublic: true },
+  pending: { isPublic: false, reviewStatus: "PENDING" },
+  rejected: { reviewStatus: "REJECTED" },
+  draft: { isPublic: false, reviewStatus: { notIn: ["PENDING", "REJECTED"] } },
+};
+
 @Injectable()
 export class CompanyItemsService {
   // DİKKAT (rig stub gotcha, CLAUDE.md): `storage` SONA eklendi. Araya
@@ -200,6 +249,9 @@ export class CompanyItemsService {
      * bağlı: elle kurulan test rig'leri kırılmasın; yoksa ana client'a düşer.
      */
     @Optional() private readonly bypass?: PrismaBypassService,
+    /** İçerik çevirisi (i18n Faz 1e): yayındaki ürünün metni değişince yeniden çevrilir; başka firmanın
+     *  ürünü okuyucunun dilinde okunur — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /** Çapraz firma okumaları için client — RLS altında bypass, rig'de ana client. */
@@ -219,6 +271,15 @@ export class CompanyItemsService {
       archived?: boolean;
       /** Efektif paket — yayında ürün tavanını (`PRODUCT_LIMITS`) yanıta koymak için. */
       tier?: string;
+      /**
+       * Ürünlerim sekmesi — SUNUCUDA süzülür (yayın denetimi 2026-09-28 Bölüm 6):
+       * eskiden web ilk 50 satırı alıp istemcide süzüyordu; 50'den fazla ürünü
+       * olan firmada "Onay bekliyor (1)" sekmesi boş liste gösteriyordu.
+       * Anlam web `productStatusKey` ile birebir (yayında+incelemede → published).
+       */
+      status?: ShowcaseListStatus;
+      /** `recent` = en yeni üstte (Ürünlerim); varsayılan kullanım sıklığı (katalog seçici). */
+      sort?: "usage" | "recent";
     } = {},
   ) {
     const take = Math.min(Math.max(opts.take ?? 50, 1), 200);
@@ -230,9 +291,15 @@ export class CompanyItemsService {
       companyId,
       isActive: !opts.archived,
       ...(opts.categoryId ? { categoryId: opts.categoryId } : {}),
+      ...(opts.status ? SHOWCASE_STATUS_WHERE[opts.status] : {}),
       ...(folded
         ? {
             OR: [
+              // Katlanmış kol (derin denetim LU-08): ILIKE Postgres `lower()`
+              // ile küçültür, 'ışık' 'Işık Direği'ni bulmazdı. `searchText`
+              // ad/marka/MPN'den katlanır; ham kollar kod araması ve
+              // searchText'i henüz dolmamış eski kayıtlar için kalır.
+              { searchText: { contains: folded } },
               { name: { contains: q!, mode: "insensitive" } },
               { code: { contains: q!, mode: "insensitive" } },
               { brand: { contains: q!, mode: "insensitive" } },
@@ -241,15 +308,18 @@ export class CompanyItemsService {
           }
         : {}),
     };
-    const [rows, total, published, draft, pending, rejected] = await Promise.all([
+    const [rows, total, published, draft, pending, rejected, publishedInReview] = await Promise.all([
       this.prisma.companyItem.findMany({
         where,
-        orderBy: [
-          { usageCount: "desc" },
-          { lastUsedAt: { sort: "desc", nulls: "last" } },
-          { name: "asc" },
-          { id: "asc" }, // tie-break — sayfalar arası kayma olmasın
-        ],
+        orderBy:
+          opts.sort === "recent"
+            ? [{ createdAt: "desc" }, { id: "asc" }]
+            : [
+                { usageCount: "desc" },
+                { lastUsedAt: { sort: "desc", nulls: "last" } },
+                { name: "asc" },
+                { id: "asc" }, // tie-break — sayfalar arası kayma olmasın
+              ],
         take,
         skip,
         // Ürünlerim tablosu (2026-09-18): görüntülenme sütunu — kayıtlı
@@ -264,14 +334,23 @@ export class CompanyItemsService {
       this.prisma.companyItem.count({
         where: { companyId, isActive: true, isPublic: true },
       }),
+      // Taslak sayacı liste süzgeciyle AYNI koşul (derin denetim LU-08): paket
+      // düşüşünde `enforceProductLimit` ürünü yalnız isPublic=false yapar
+      // (reviewStatus APPROVED kalır); Taslak sekmesi onu listeliyor, eski
+      // `reviewStatus: DRAFT` sayacı saymıyordu.
       this.prisma.companyItem.count({
-        where: { companyId, isActive: true, isPublic: false, reviewStatus: { in: ["DRAFT"] } },
+        where: { companyId, isActive: true, ...SHOWCASE_STATUS_WHERE.draft },
       }),
       this.prisma.companyItem.count({
         where: { companyId, isActive: true, reviewStatus: "PENDING" },
       }),
       this.prisma.companyItem.count({
         where: { companyId, isActive: true, isPublic: false, reviewStatus: "REJECTED" },
+      }),
+      // Yayındayken yeniden incelenen — ücretsiz tavan göstergesi bunu iki kez
+      // saymamak için ister (eskiden web kesik listeden sayıyordu).
+      this.prisma.companyItem.count({
+        where: { companyId, isActive: true, isPublic: true, reviewStatus: "PENDING" },
       }),
     ]);
     return {
@@ -280,7 +359,7 @@ export class CompanyItemsService {
       // Sessiz tavan yok: kullanıcı kesildiğini görür.
       truncated: skip + rows.length < total,
       // `pending` yayında olup yeniden incelenenleri DE sayar (kuyrukta).
-      counts: { published, draft, pending, rejected },
+      counts: { published, draft, pending, rejected, publishedInReview },
       // Ücretsiz pakette yayında ürün tavanı (null = limitsiz) — Ürünlerim
       // "N/10 yayında" ve formdaki "Kaydet ve yayınla" kilidi buradan okur.
       productLimit: opts.tier ? (PRODUCT_LIMITS[opts.tier as TierName] ?? null) : null,
@@ -288,15 +367,21 @@ export class CompanyItemsService {
   }
 
   async create(user: AuthenticatedCompanyUser, input: CatalogItemInput) {
-    await this.assertCapacity(user.companyId, 1);
     const data = this.normalize(input);
-    const row = await this.prisma.companyItem
-      .create({
-        data: { ...data, companyId: user.companyId, createdById: user.userId },
-      })
-      .catch((e: unknown) => {
-        throw this.mapDuplicate(e, data.code);
+    // Arama metni `update` ile AYNI formül — yoksa katlanmış arama yeni kalemi
+    // ilk düzenlemeye kadar bulamazdı (derin denetim LU-08).
+    const searchText = foldSearchText(
+      [data.name, data.brand, data.mpn].filter(Boolean).join(" "),
+    );
+    // Tavan sayımı ve yazma aynı kilitte (FX-00).
+    const row = await this.withCompanyItemLock(user.companyId, async (tx) => {
+      await this.assertCapacity(user.companyId, 1, tx);
+      return tx.companyItem.create({
+        data: { ...data, searchText, companyId: user.companyId, createdById: user.userId },
       });
+    }).catch((e: unknown) => {
+      throw this.mapDuplicate(e, data.code);
+    });
     void this.audit.log({
       action: "company.catalog_item.created",
       actorType: "company",
@@ -316,10 +401,52 @@ export class CompanyItemsService {
     input: Partial<CatalogItemInput>,
   ) {
     const before = await this.requireOwn(user.companyId, id);
+    // Uç `templates:manage` de kabul eder (D-185); vitrine dokunmuş ürün yalnız
+    // satış izniyle değişir — `setActive` ile aynı kural.
+    this.assertCanTouchShowcase(user, before);
     this.assertNotInReview(before);
     const patch = this.normalize({ ...this.toInput(before), ...input });
+    // MODERASYON (derin denetim Y-07, 2026-09-29): bu uç eskiden yalnız PENDING
+    // kilidine bakıp yayındaki (APPROVED) ürünün adını/açıklamasını/kategorisini
+    // admin görmeden değiştiriyordu — vitrin yolunu (`updateShowcase`) atlatmanın
+    // arka kapısıydı. Artık AYNI kural: içerik değişince yeniden PENDING (vitrinde
+    // kalır, red çeker). Şartname/marka/MPN de herkese açık sayfada göründüğü için
+    // içerik sayılır (`catalogContentChanged`). Kod/birim/hedef fiyat içerik değil.
+    //
+    // Yalnız VİTRİNDEKİ (isPublic) onaylı ürün yeniden incelemeye girer (arayüz
+    // testi O-009): paket düşüşünde taslağa çekilmiş (APPROVED, isPublic=false)
+    // ürün ekranda "Taslak"tır; kaydı taslak kalır, kuyruğa `publish` ile
+    // (tavan + kapı denetimiyle) girer.
+    const contentChanged =
+      before.isPublic && before.reviewStatus === "APPROVED" && catalogContentChanged(before, patch);
+    // YAYIN KAPISI (O-009): yayındaki ürün eksik içerikle kaydedilemez —
+    // `publish` ile AYNI 400. Eskiden yalnız `publish` denetliyordu; açıklaması
+    // silinmiş, anahtar kelimesiz ürün incelemeye girip vitrinde kalıyordu.
+    if (before.isPublic) {
+      this.assertStaysPublishable(
+        before,
+        this.toProductLike({ ...before, name: patch.name, description: patch.description, categoryId: patch.categoryId }),
+        contentChanged,
+      );
+    }
+    // Arama metni ad/marka/mpn/etiketlerden türetilir (`normalizeShowcase` ile
+    // aynı formül) — yenilenmezse ürün eski adıyla aranmaya devam ederdi.
+    const searchText = foldSearchText(
+      [patch.name, patch.brand, patch.mpn, ...(before.keywords ?? [])]
+        .filter(Boolean)
+        .join(" "),
+    );
     const row = await this.prisma.companyItem
-      .update({ where: { id }, data: patch })
+      .update({
+        where: { id },
+        data: {
+          ...patch,
+          searchText,
+          ...(contentChanged
+            ? { reviewStatus: "PENDING" as const, submittedAt: new Date(), rejectReason: null }
+            : {}),
+        },
+      })
       .catch((e: unknown) => {
         throw this.mapDuplicate(e, patch.code);
       });
@@ -331,10 +458,28 @@ export class CompanyItemsService {
       tenantId: user.companyId,
       entityType: "company_item",
       entityId: id,
-      metadata: { name: row.name },
+      metadata: { name: row.name, isPublic: row.isPublic, reReview: contentChanged },
     });
     if (row.isPublic) this.seo?.productChanged(id);
+    // Vitrindeki ya da onay bekleyen ürünün metni değişti → yeniden çeviri
+    // (kaynak aynıysa işlem yok) — `updateShowcase` ile aynı kural.
+    if (row.isPublic || row.reviewStatus === "PENDING") void this.translations?.enqueue("PRODUCT", id);
     return this.serialize(row);
+  }
+
+  /**
+   * Vitrine dokunmuş ürün (yayında / onayda / onaylı / reddedilmiş) yalnız
+   * `sell:product:manage` ile değişir; kalem uçları `templates:manage` de
+   * kabul ettiği için (satınalma Kalem Kataloğu) servis ayrıca denetler.
+   */
+  private assertCanTouchShowcase(
+    user: AuthenticatedCompanyUser,
+    before: { isPublic: boolean; reviewStatus: string },
+  ) {
+    const isShowcaseProduct = before.isPublic || before.reviewStatus !== "DRAFT";
+    if (isShowcaseProduct && !hasCompanyPermission(user, "sell:product:manage")) {
+      throw new ForbiddenException(i18nMessage("api.business.forbidden"));
+    }
   }
 
   /**
@@ -343,33 +488,51 @@ export class CompanyItemsService {
    */
   async setActive(user: AuthenticatedCompanyUser, id: string, isActive: boolean) {
     const before = await this.requireOwn(user.companyId, id, { anyState: true });
+    // Uc `templates:manage` (satinalma Kalem Katalogu) VEYA `sell:product:manage`
+    // kabul eder (derin denetim S066). Vitrine dokunmus bir urun (yayinda /
+    // onayda / onayli / reddedilmis) yalniz satis izniyle arsivlenir: satinalma
+    // tarafi katalogu temizlerken yayindaki vitrini dusurmemeli.
+    this.assertCanTouchShowcase(user, before);
     // Ücretsiz paket tavanı ARŞİVDEN GERİ ALMADA da geçerli (denetim 2026-09-06
     // #2): arşivlenen ürün isPublic'i korur; tavan yalnız publish'te olsaydı
     // "10 yayımla → arşivle → 10 daha → geri al" 20 yayında ürün üretirdi.
     // Moderasyonla (2026-09-09) tavan "yayında + onay bekleyen" — `publish`
     // kapısıyla AYNI sayım; yalnız isPublic sayılsaydı 10 kuyruktaki + arşivden
     // dönen public ürün tavanı aşardı.
-    if (isActive && (before.isPublic || before.reviewStatus === "PENDING")) {
-      const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
-      if (limit != null) {
-        const occupied = await this.prisma.companyItem.count({
-          where: {
-            companyId: user.companyId,
-            isActive: true,
-            OR: [{ isPublic: true }, { reviewStatus: "PENDING" }],
-          },
+    //
+    // Sayım ve geri alma `publish` ile AYNI advisory kilitte (arayüz testi
+    // FX-00 O-070): eşzamanlı geri almalar eskiden ikisi de "yer var" görüp
+    // tavanı aşıyordu (47/50 + 5 paralel → 52/50). Kilit altında arşivde mi
+    // diye de yeniden okunur — zaten geri alınmış kayıt yeniden sayılmaz.
+    const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
+    const gated =
+      isActive && limit != null && (before.isPublic || before.reviewStatus === "PENDING");
+    const row = gated
+      ? await this.withCompanyItemLock(user.companyId, async (tx) => {
+          const fresh = await tx.companyItem.findUnique({
+            where: { id },
+            select: { isActive: true },
+          });
+          if (fresh && !fresh.isActive) {
+            const occupied = await tx.companyItem.count({
+              where: {
+                companyId: user.companyId,
+                isActive: true,
+                OR: [{ isPublic: true }, { reviewStatus: "PENDING" }],
+              },
+            });
+            if (occupied >= limit) {
+              throw new ForbiddenException(
+                i18nMessage("api.companyItems.ucretsizPaketteEnFazlaUrunYayinda", { limit: limit }),
+              );
+            }
+          }
+          return tx.companyItem.update({ where: { id }, data: { isActive } });
+        })
+      : await this.prisma.companyItem.update({
+          where: { id },
+          data: { isActive },
         });
-        if (occupied >= limit) {
-          throw new ForbiddenException(
-            `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.`,
-          );
-        }
-      }
-    }
-    const row = await this.prisma.companyItem.update({
-      where: { id },
-      data: { isActive },
-    });
     void this.audit.log({
       action: isActive
         ? "company.catalog_item.restored"
@@ -410,53 +573,66 @@ export class CompanyItemsService {
         },
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
-    const source = listing.items.slice(0, MAX_BULK_IMPORT);
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyItems.ilanBulunamadi"));
+    const source = listing.items;
     if (source.length === 0) {
       return { added: 0, skipped: 0, truncated: 0 };
     }
-    const existing = await this.prisma.companyItem.findMany({
-      where: { companyId: user.companyId },
-      select: { code: true, name: true },
-    });
-    const seenCode = new Set(
-      existing.map((e) => e.code).filter((c): c is string => !!c),
-    );
-    const seenName = new Set(existing.map((e) => foldSearchText(e.name)));
+    // Okuma, tavan ve yazma TEK kilitte (arayüz testi FX-00 O-061): çift tık
+    // iki isteği de boş kataloğu okuyup kalemleri iki kez yazıyordu (malzeme
+    // kodu olmayan kalemi tekil anahtar korumuyor); eşzamanlı içe aktarmalar
+    // 5000 tavanını da aşabiliyordu.
+    const { toCreate, skipped, truncated } = await this.withCompanyItemLock(user.companyId, async (tx) => {
+      const existing = await tx.companyItem.findMany({
+        where: { companyId: user.companyId },
+        select: { code: true, name: true },
+      });
+      const seenCode = new Set(
+        existing.map((e) => e.code).filter((c): c is string => !!c),
+      );
+      const seenName = new Set(existing.map((e) => foldSearchText(e.name)));
 
-    const toCreate: Prisma.CompanyItemCreateManyInput[] = [];
-    let skipped = 0;
-    for (const it of source) {
-      const code = it.materialCode?.trim() || null;
-      const nameKey = foldSearchText(it.name);
-      if ((code && seenCode.has(code)) || seenName.has(nameKey)) {
-        skipped++;
-        continue;
+      const toCreate: Prisma.CompanyItemCreateManyInput[] = [];
+      let skipped = 0;
+      for (const it of source) {
+        const code = it.materialCode?.trim() || null;
+        const nameKey = foldSearchText(it.name);
+        if ((code && seenCode.has(code)) || seenName.has(nameKey)) {
+          skipped++;
+          continue;
+        }
+        if (code) seenCode.add(code);
+        seenName.add(nameKey);
+        toCreate.push({
+          companyId: user.companyId,
+          createdById: user.userId,
+          code,
+          name: it.name,
+          // Katlanmış arama metni (ad) — `create` ile aynı gerekçe.
+          searchText: nameKey,
+          description: it.description,
+          unit: it.unit,
+          // Tanınmazsa NULL — "PCE" varsaymak sessizce YANLIŞ birim üretirdi
+          // (denetimin peşine düştüğü sınıf: uydurma varsayılan).
+          unitCode: it.unitCode ?? normalizeUnit(it.unit),
+          // İlanın ilk kategorisi makul bir varsayılan; kullanıcı düzeltebilir.
+          categoryId: listing.categoryIds[0] ?? null,
+          targetPrice: it.targetPrice,
+        });
       }
-      if (code) seenCode.add(code);
-      seenName.add(nameKey);
-      toCreate.push({
-        companyId: user.companyId,
-        createdById: user.userId,
-        code,
-        name: it.name,
-        description: it.description,
-        unit: it.unit,
-        // Tanınmazsa NULL — "PCE" varsaymak sessizce YANLIŞ birim üretirdi
-        // (denetimin peşine düştüğü sınıf: uydurma varsayılan).
-        unitCode: it.unitCode ?? normalizeUnit(it.unit),
-        // İlanın ilk kategorisi makul bir varsayılan; kullanıcı düzeltebilir.
-        categoryId: listing.categoryIds[0] ?? null,
-        targetPrice: it.targetPrice,
-      });
-    }
-    await this.assertCapacity(user.companyId, toCreate.length);
-    if (toCreate.length > 0) {
-      await this.prisma.companyItem.createMany({
-        data: toCreate,
-        skipDuplicates: true,
-      });
-    }
+      // Tavan TEKİLLEŞTİRMEDEN SONRA (D-248): zaten katalogda olanlar yer tutmaz;
+      // kesilen yeni kalem sayısı `truncated` ile döner (sessiz kayıp yok).
+      const truncated = Math.max(0, toCreate.length - MAX_LISTING_IMPORT);
+      if (truncated > 0) toCreate.length = MAX_LISTING_IMPORT;
+      await this.assertCapacity(user.companyId, toCreate.length, tx);
+      if (toCreate.length > 0) {
+        await tx.companyItem.createMany({
+          data: toCreate,
+          skipDuplicates: true,
+        });
+      }
+      return { toCreate, skipped, truncated };
+    });
     void this.audit.log({
       action: "company.catalog_item.bulk_imported",
       actorType: "company",
@@ -470,7 +646,7 @@ export class CompanyItemsService {
     return {
       added: toCreate.length,
       skipped,
-      truncated: listing.items.length - source.length,
+      truncated,
     };
   }
 
@@ -500,7 +676,9 @@ export class CompanyItemsService {
   ) {
     const page = Math.max(1, q.page ?? 1);
     const size = Math.min(Math.max(q.pageSize ?? PRODUCT_PAGE_SIZE, 1), 48);
-    const where = productIndexWhere(q, [{ companyId: { not: user.companyId } }], {
+    // Fiyat süzgecinin para birimi: seçilmediyse FİRMANIN ülkesinden.
+    q = { ...q, currency: resolveCompanyCurrency(q.currency, user.country) };
+    const where = productIndexWhere(q, [{ companyId: { notIn: await this.hiddenCompanyIds(user.companyId) } }], {
       employeeValues: await employeeValuesQuery(this.prisma, q.employees),
     });
     const orderBy = productIndexOrderBy(q.sort);
@@ -517,7 +695,7 @@ export class CompanyItemsService {
         this.crossTenant.companyItem.findMany({ where, select: PRODUCT_INDEX_SELECT, orderBy, skip, take: size }),
       ]);
       const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
-      return { items, total, page, pageSize: size };
+      return { items: await this.localizeCards(items, rows), total, page, pageSize: size };
     }
     const matchClause: Prisma.CompanyItemWhereInput = {
       OR: prefixes.map((p) => ({ categoryId: { startsWith: p } })),
@@ -554,7 +732,7 @@ export class CompanyItemsService {
       ...head.map((r) => ({ ...toProductIndexCard(r), matchesProfile: true })),
       ...tail.map((r) => ({ ...toProductIndexCard(r), matchesProfile: false })),
     ];
-    return { items: await attachProductFeatures(this.prisma, rows, cards), total, page, pageSize: size };
+    return { items: await this.localizeCards(await attachProductFeatures(this.prisma, rows, cards), rows), total, page, pageSize: size };
   }
 
   /** Firmanın ALIM kategorileri (L1 ana + L2-4 alt) → kod ön ekleri. */
@@ -577,10 +755,13 @@ export class CompanyItemsService {
    * panelin nitelik süzgeci sessizce HEP boş dönüyordu.
    */
   async discoverFacets(user: AuthenticatedCompanyUser, q: ProductIndexParams = {}) {
+    // Histogram firmanın para biriminde (seçilmediyse ülkesinden) — liste
+    // ucuyla AYNI çözüm, yoksa sınırlar bir birimde gösterilip ötekinde süzülürdü.
+    q = { ...q, currency: resolveCompanyCurrency(q.currency, user.country) };
     const raw = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
-        companyId: { not: user.companyId },
+        companyId: { notIn: await this.hiddenCompanyIds(user.companyId) },
         ...(q.q ? { AND: productSearchClauses(q.q) } : {}),
       },
       select: {
@@ -589,9 +770,12 @@ export class CompanyItemsService {
         attributes: true,
         moq: true,
         priceAmount: true,
+        priceAmountBase: true,
         company: {
           select: {
             city: true,
+            cityId: true,
+            country: true,
             activities: true,
             companyVerificationStatus: true,
             certifications: true,
@@ -627,12 +811,12 @@ export class CompanyItemsService {
       ]),
     ];
     const cats = ids.length
-      ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true, level: true } })
+      ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, ...CATEGORY_NAME_SELECT, level: true } })
       : [];
     const byId = new Map(cats.map((c) => [c.id, c]));
     const named = (pairs: [string, number][]) =>
       pairs
-        .map(([id, count]) => (byId.has(id) ? { id, name: byId.get(id)!.nameTr, level: byId.get(id)!.level, count } : null))
+        .map(([id, count]) => (byId.has(id) ? { id, name: categoryName(byId.get(id)!), level: byId.get(id)!.level, count } : null))
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
     const selected = q.category ? byId.get(q.category) : undefined;
@@ -642,9 +826,11 @@ export class CompanyItemsService {
       subCategories: named(subCounts),
       /** Seçili kategorinin kendisi (ürünü olmasa da) — çip ve sayfa başlığı. */
       selectedCategory: selected
-        ? { id: selected.id, name: selected.nameTr, level: selected.level }
+        ? { id: selected.id, name: categoryName(selected), level: selected.level }
         : null,
       cities: ctx.cities,
+      // Satıcı ülkesi sayaçları (derin denetim MU-10: hesaplanıp düşüyordu).
+      countries: ctx.countries,
       activities: ctx.activities,
       verified: ctx.verified,
       fastReply: ctx.fastReply,
@@ -652,6 +838,8 @@ export class CompanyItemsService {
       certifications: ctx.certifications,
       employees: ctx.employees,
       moq: ctx.moq,
+      /** Histogramın (ve süzgeç sınırlarının) para birimi. */
+      currency: q.currency,
       priceHistogram: ctx.priceHistogram,
       attributes: await attributeFacets(this.prisma, q.category, inCategory),
       truncated,
@@ -697,7 +885,22 @@ export class CompanyItemsService {
       },
     });
     if (!company || !hasPublicProfile(company)) {
-      throw new NotFoundException("Ürün bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyItems.urunBulunamadi"));
+    }
+    // Engel karşılıklı görünmezliktir — panel firma profiliyle (`getProfile`)
+    // AYNI kural: engel ilişkisindeki firmanın ürün sayfası panelde 404
+    // (derin denetim LU-08; eskiden açılıp kimlikli ziyaret de yazıyordu).
+    if (company.id !== user.companyId) {
+      const block = await this.crossTenant.companyBlock.findFirst({
+        where: {
+          OR: [
+            { blockerCompanyId: user.companyId, blockedCompanyId: company.id },
+            { blockerCompanyId: company.id, blockedCompanyId: user.companyId },
+          ],
+        },
+        select: { id: true },
+      });
+      if (block) throw new NotFoundException(i18nMessage("api.companyItems.urunBulunamadi"));
     }
     const row = await this.crossTenant.companyItem.findFirst({
       where: {
@@ -714,7 +917,7 @@ export class CompanyItemsService {
         moq: true,
       },
     });
-    if (!row) throw new NotFoundException("Ürün bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.companyItems.urunBulunamadi"));
     /* KATEGORİ ADI da çözülür (2026-09-08, kullanıcı bulgusu: "burada
        hangi kategori olduğunu göstermiyor"). Herkese açık uç bunu zaten
        döndürüyordu; panel ucu yalnız `categoryId` veriyordu, dolayısıyla
@@ -725,23 +928,26 @@ export class CompanyItemsService {
       row.categoryId
         ? this.prisma.category.findUnique({
             where: { id: row.categoryId },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
     ]);
     // Ziyaret Edenler: üye ürünü açtı — kimlikli görüntülenme (fire-and-forget).
     void this.views?.recordPanelView(user, { companyId: company.id, productId: row.id });
-    return {
-      product: {
-        ...toPublicProduct(row),
-        attributeList: labelAttributes(row.attributes, attributeDefs),
-        category: category ? { id: category.id, name: category.nameTr } : null,
+    const product = {
+      ...toPublicProduct(row),
+      attributeList: labelAttributes(row.attributes, attributeDefs),
+        category: category ? { id: category.id, name: categoryName(category) } : null,
         priceAmount: row.priceAmount?.toString() ?? null,
         priceTiers: row.priceTiers as unknown,
         priceCurrency: row.priceCurrency,
         moq: row.moq?.toString() ?? null,
-      },
-      company: {
+    };
+    // i18n Faz 1e: başkasının ürünü okuyucunun dilinde (ad, açıklama, anahtar kelime, nitelikler).
+    const [localizedProduct] = this.translations
+      ? await this.translations.localizeProducts([product], [row.id], currentLocale())
+      : [product];
+    const sellerCard = {
         name: company.name,
         slug: company.slug,
         city: company.city,
@@ -759,8 +965,11 @@ export class CompanyItemsService {
         certifications: company.certifications.slice(0, 4),
         // Üye katmanı: web sitesi bağlantısı (public sayfada kapılı).
         website: company.website,
-      },
     };
+    const [seller] = this.translations
+      ? await this.translations.localizeIndustry([sellerCard], [company.id], currentLocale())
+      : [sellerCard];
+    return { product: localizedProduct, company: seller };
   }
 
   /**
@@ -784,7 +993,7 @@ export class CompanyItemsService {
     const rows = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
-        companyId: { not: user.companyId },
+        companyId: { notIn: await this.hiddenCompanyIds(user.companyId) },
         ...(opts.category && isCategoryCode(opts.category)
           ? { categoryId: { startsWith: categoryPrefix(opts.category) as string } }
           : {}),
@@ -793,6 +1002,7 @@ export class CompanyItemsService {
           : {}),
       },
       select: {
+        id: true,
         slug: true,
         name: true,
         description: true,
@@ -817,11 +1027,16 @@ export class CompanyItemsService {
       orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
       take,
     });
-    return rows.map((r) => {
+    // i18n Faz 1e: keşif şeridi kartları okuyucunun dilinde (ad + özet).
+    const localized: ((typeof rows)[number] & { translatedFrom?: string | null })[] = this.translations
+      ? await this.translations.localizeProducts(rows, rows.map((r) => r.id), currentLocale())
+      : rows;
+    return localized.map((r) => {
       const flat = (r.description ?? "").replace(/\s+/g, " ").trim();
       return {
         slug: r.slug ?? "",
         name: r.name,
+        translatedFrom: r.translatedFrom ?? null,
         excerpt: flat ? (flat.length <= 140 ? flat : `${flat.slice(0, 139)}…`) : null,
         images: r.images,
         unit: r.unit,
@@ -842,6 +1057,30 @@ export class CompanyItemsService {
     });
   }
 
+  /**
+   * Panel ürün listelerinde gösterilmeyecek firmalar: kendisi + herhangi yönde
+   * engel ilişkisi olanlar (derin denetim LU-08 artığı). Engel karşılıklı
+   * görünmezliktir — ürün sayfası (`discoverProduct`) zaten 404 veriyordu,
+   * ama arama, facet sayaçları ve keşif şeridi engelli firmanın ürünlerini
+   * listelemeye devam ediyordu. Kural `CompanyBlocksService.blockedCompanyIds`
+   * ile aynı; çapraz-firma okuma olduğu için `crossTenant`.
+   */
+  private async hiddenCompanyIds(companyId: string): Promise<string[]> {
+    const rows = await this.crossTenant.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    const ids = new Set<string>([companyId]);
+    for (const r of rows) ids.add(r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId);
+    return [...ids];
+  }
+
+  /** i18n Faz 1e: başka firmanın ürün kartları okuyucunun dilinde (ad, özet, özellik satırları). */
+  private async localizeCards<T extends { name: string }>(cards: T[], rows: { id: string }[]): Promise<T[]> {
+    if (!this.translations) return cards;
+    return this.translations.localizeProducts(cards, rows.map((r) => r.id), currentLocale());
+  }
+
   // ── yardımcılar ─────────────────────────────────────────────────────────
 
   /**
@@ -854,10 +1093,7 @@ export class CompanyItemsService {
    */
   private assertNotInReview(row: { reviewStatus: ProductReviewStatus }) {
     if (row.reviewStatus === "PENDING") {
-      throw new ConflictException({
-        code: "PRODUCT_IN_REVIEW",
-        message: "Ürün incelemede — ekibimiz onaylayana ya da düzeltme isteyene kadar değiştirilemez.",
-      });
+      throw new ConflictException(i18nMessage("api.companyItems.urunIncelemedeEkibimizOnaylayanaYaDa", undefined, "PRODUCT_IN_REVIEW"));
     }
   }
 
@@ -875,7 +1111,7 @@ export class CompanyItemsService {
     const row = await this.prisma.companyItem.findFirst({
       where: { id, companyId, ...(opts.anyState ? {} : { isActive: true }) },
     });
-    if (!row) throw new NotFoundException("Katalog kalemi bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.companyItems.katalogKalemiBulunamadi"));
     return row;
   }
 
@@ -943,6 +1179,7 @@ export class CompanyItemsService {
     // eskiden yalnız açıklama gönderen istek görsel/anahtar/nitelik/fiyatı
     // siliyordu. Tek kaynak `showcase-merge.ts`.
     const merged = mergeShowcaseInput(before, input);
+    this.assertShowcaseLinks(before, merged, mediaAllowed);
     const patch = await this.normalizeShowcase(
       before,
       mediaAllowed
@@ -960,8 +1197,24 @@ export class CompanyItemsService {
     // Karşılaştırma kanonik (2026-09-19): eski JSON.stringify eşitliği DbNull
     // ve boş açıklamada yanlış pozitif veriyordu → değişmeyen kayıt bile
     // yeniden incelemeye düşüyordu. Tek kaynak `product-content-diff.ts`.
+    // Yalnız VİTRİNDEKİ onaylı ürün yeniden incelemeye girer (O-009; `update`
+    // ile aynı gerekçe — taslağa çekilmiş onaylı ürün taslak gibi kaydedilir).
     const contentChanged =
-      before.reviewStatus === "APPROVED" && showcaseContentChanged(before, patch);
+      before.isPublic && before.reviewStatus === "APPROVED" && showcaseContentChanged(before, patch);
+    // YAYIN KAPISI (arayüz testi O-009): birleşik sonuç `publish` kapısından
+    // geçmeli; taslak serbest.
+    if (before.isPublic) {
+      this.assertStaysPublishable(
+        before,
+        this.toProductLike({
+          ...before,
+          ...patch,
+          attributes: patch.attributes === Prisma.DbNull ? null : (patch.attributes as Prisma.JsonValue),
+          priceTiers: patch.priceTiers === Prisma.DbNull ? null : (patch.priceTiers as Prisma.JsonValue),
+        }),
+        contentChanged,
+      );
+    }
     const row = await this.prisma.companyItem
       .update({
         where: { id },
@@ -983,6 +1236,9 @@ export class CompanyItemsService {
     // Yayındaki ürünün sayfası değişti → motorlar ve web önbelleği. Taslakta
     // herkese açık adres yok; bildirim gereksiz.
     if (row.isPublic) this.seo?.productChanged(id);
+    // Vitrindeki ya da onay bekleyen ürünün içeriği değişti → yeniden çeviri
+    // (kaynak aynıysa işlem yok). Taslak çevrilmez: yalnız sahibi görür.
+    if (row.isPublic || row.reviewStatus === "PENDING") void this.translations?.enqueue("PRODUCT", id);
     return this.serializeShowcase(row);
   }
 
@@ -998,24 +1254,52 @@ export class CompanyItemsService {
    */
   async createProduct(user: AuthenticatedCompanyUser, input: ShowcaseInput & { unit?: string; unitCode?: string }) {
     const name = input.name?.trim();
-    if (!name) throw new BadRequestException("Ürün adı zorunlu");
+    if (!name) throw new BadRequestException(i18nMessage("api.companyItems.urunAdiZorunlu"));
+    // Bağlantı kuralları kayıt AÇILMADAN (`updateShowcase` aynı denetimi yapar,
+    // ama orada atılan 400 yetim taslak bırakır, yeniden deneme mükerrer
+    // korumasına — DUPLICATE_PRODUCT — takılırdı).
+    this.assertShowcaseLinks({ videoUrl: null, externalUrl: null }, input, tierAtLeast(user.tier, PRODUCT_MEDIA_TIER));
     const base = this.normalize({
       name,
       unit: input.unit ?? "adet",
       unitCode: input.unitCode,
     });
-    await this.assertCapacity(user.companyId, 1);
-    const created = await this.prisma.companyItem
-      .create({
+    // Para birimi verilmediyse FİRMANIN ülkesinden (2026-09-27): yabancı
+    // satıcının ürünü TRY ile doğmasın.
+    const fallbackCurrency = defaultCurrencyForCountry(user.country);
+    // Tavan + mükerrer denetimi + oluşturma aynı kilitte (arayüz testi FX-00
+    // O-006): aynı kişinin az önce aynı adla açtığı taslak varsa ikinci kayıt
+    // açılmaz (çift tık iki taslak / iki onay kuyruğu girdisi üretiyordu).
+    const created = await this.withCompanyItemLock(user.companyId, async (tx) => {
+      await this.assertCapacity(user.companyId, 1, tx);
+      const duplicate = await tx.companyItem.findFirst({
+        where: {
+          companyId: user.companyId,
+          createdById: user.userId,
+          name: base.name,
+          // "Onaya gönder" çift tıkında ilk kayıt bu arada PENDING'e geçmiş
+          // olabilir — ikisi de mükerrer sayılır.
+          reviewStatus: { in: ["DRAFT", "PENDING"] },
+          createdAt: { gte: new Date(Date.now() - PRODUCT_DUPLICATE_WINDOW_MS) },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          i18nMessage("api.companyItems.ayniUrunAzOnceOlusturuldu", undefined, "DUPLICATE_PRODUCT"),
+        );
+      }
+      return tx.companyItem.create({
         data: {
           ...base,
+          priceCurrency: (isCurrencyCode(input.priceCurrency) ? input.priceCurrency : fallbackCurrency) as Currency,
           companyId: user.companyId,
           createdById: user.userId,
         },
-      })
-      .catch((e: unknown) => {
-        throw this.mapDuplicate(e, base.code);
       });
+    }).catch((e: unknown) => {
+      throw this.mapDuplicate(e, base.code);
+    });
     // Vitrin alanları AYNI normalizasyondan geçer — iki yazma yolu olsaydı
     // biri nitelik süzgecini ya da searchText'i kaçırırdı.
     return this.updateShowcase(user, created.id, input);
@@ -1035,19 +1319,13 @@ export class CompanyItemsService {
   async publish(user: AuthenticatedCompanyUser, id: string) {
     const row = await this.requireOwn(user.companyId, id);
     this.assertNotInReview(row);
-    const blockers = productPublishBlockers(this.toProductLike(row));
-    if (blockers.length > 0) {
-      throw new BadRequestException(
-        `Onaya gönderilemedi — ${blockers.join(", ")}`,
-      );
-    }
+    this.assertPublishable(productPublishBlockerCodes(this.toProductLike(row)));
     // Ücretsiz pakette YAYINDA + ONAY BEKLEYEN ürün tavanı (`PRODUCT_LIMITS`,
     // 2026-09-06). Zaten yayında/bekleyen ürünü yeniden göndermek sayılmaz;
     // taslak sınırsız — kapı yalnız kuyruğa GİRİŞ anında.
     const limit = PRODUCT_LIMITS[user.tier as TierName] ?? null;
     const countsAgainstLimit =
       limit != null && !row.isPublic && row.reviewStatus !== "PENDING";
-    const slug = await this.ensureSlug(user.companyId, id, row.name, row.slug);
     /**
      * TAVAN SAYIMI VE YAZMA AYNI İŞLEMDE (2026-09-12).
      *
@@ -1057,9 +1335,19 @@ export class CompanyItemsService {
      * lock ile sıraya alınır; işlem bitince otomatik bırakılır (PgBouncer
      * işlem havuzuyla uyumlu — oturum düzeyi kilit orada güvenli değildi).
      */
-    const updated = await this.prisma.$transaction(async (tx) => {
+    // Kilit artık HER gönderimde alınır ve slug kilit altında seçilir (arayüz
+    // testi FX-00 O-006): aynı adlı iki ürün eşzamanlı gönderilince ikisi de
+    // aynı boş slug'ı seçip tekil kısıtı bozuyor, biri ham 500 alıyordu; aynı
+    // ürünün çift gönderimi de kilit altında yeniden okunup 409 alır.
+    const { updated, slug } = await runTenantTx(this.prisma, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.companyId}))`;
+      const fresh = await tx.companyItem.findUnique({
+        where: { id },
+        select: { reviewStatus: true },
+      });
+      if (fresh) this.assertNotInReview(fresh);
+      const slug = await this.ensureSlug(user.companyId, id, row.name, row.slug, tx);
       if (countsAgainstLimit) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.companyId}))`;
         const occupied = await tx.companyItem.count({
           where: {
             companyId: user.companyId,
@@ -1069,11 +1357,11 @@ export class CompanyItemsService {
         });
         if (occupied >= limit) {
           throw new ForbiddenException(
-            `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Daha fazlası için Silver paketine geçin.`,
+            i18nMessage("api.companyItems.ucretsizPaketteEnFazlaUrunYayinda2", { limit: limit }),
           );
         }
       }
-      return tx.companyItem.update({
+      const updated = await tx.companyItem.update({
         where: { id },
         data: {
           slug,
@@ -1082,6 +1370,7 @@ export class CompanyItemsService {
           rejectReason: null,
         },
       });
+      return { updated, slug };
     });
     void this.audit.log({
       action: "company.product.submitted",
@@ -1093,6 +1382,11 @@ export class CompanyItemsService {
       entityId: id,
       metadata: { name: updated.name, slug, wasPublic: row.isPublic },
     });
+    // Onaya gönderilen ürün ŞİMDİ çevrilir: admin onayladığı an EN/RU sayfa
+    // çevrilmiş içerikle yayına çıkar (onayda çevirmek birkaç dakikalık
+    // Türkçe-içerikli EN sayfa penceresi açıyordu). Onaydaki enqueue kaynak
+    // aynıysa işlem yapmaz.
+    void this.translations?.enqueue("PRODUCT", id);
     return this.serializeShowcase(updated);
   }
 
@@ -1129,23 +1423,52 @@ export class CompanyItemsService {
     id: string,
     name: string,
     current: string | null,
+    db: Prisma.TransactionClient = this.prisma,
   ): Promise<string> {
     if (current) return current;
-    const base = slugifyText(name) || "urun";
-    for (let i = 0; i < 100; i += 1) {
-      const candidate = i === 0 ? base : `${base}-${i + 1}`;
-      const clash = await this.prisma.companyItem.findFirst({
-        where: { companyId, slug: candidate, NOT: { id } },
-        select: { id: true },
+    // Çeviriyazısı olmayan ad (Çince, Arapça …) boş slug üretir → Türkçe
+    // "urun" yerine kayıt kimliğine düş: dilden bağımsız ve zaten tekil.
+    const base = slugifyText(name) || `product-${id.slice(-8).toLowerCase()}`;
+    return pickFreeSlug(base, async (candidates) => {
+      const rows = await db.companyItem.findMany({
+        where: { companyId, slug: { in: candidates }, NOT: { id } },
+        select: { slug: true },
       });
-      if (!clash) return candidate;
+      return rows.map((r) => r.slug).filter((s): s is string => !!s);
+    });
+  }
+
+  /**
+   * BAĞLANTI KURALLARI (arayüz testi Y-11, gözden geçirme): video İZİNLİ
+   * LİSTEDE (YouTube/Vimeo — web yalnız bunları gömer, `productVideoEmbedUrl`),
+   * dış bağlantı yalnız https (`isHttpsUrl`). Denetim YALNIZ DEĞİŞEN değerde:
+   * kural öncesinden kalmış eski değer (http://, şemasız adres, Dailymotion)
+   * dokunulmadıkça kaydı düşürmez — form her kayıtta iki alanı da geri
+   * gönderiyor; DTO'daki eski denetim satıcıyı ürününü (fiyat, açıklama…)
+   * hiç kaydedemez hâle getiriyordu. Video paketin altındaysa (Silver altı)
+   * alan zaten yazılmaz (`before.videoUrl` korunur) — denetlenmez.
+   */
+  private assertShowcaseLinks(
+    before: { videoUrl: string | null; externalUrl: string | null },
+    next: { videoUrl?: string | null; externalUrl?: string | null },
+    mediaAllowed: boolean,
+  ) {
+    const changed = (a: string | null | undefined, b: string | null | undefined) => {
+      const v = a?.trim() || null;
+      return v !== null && v !== (b?.trim() || null) ? v : null;
+    };
+    const video = mediaAllowed ? changed(next.videoUrl, before.videoUrl) : null;
+    if (video && productVideoEmbedUrl(video) === null) {
+      throw new BadRequestException(i18nMessage("api.dto.companyItems.gecersizVideoBaglantisi"));
     }
-    // 100 denemede bulunamadıysa kayıt kimliğine düş — çakışma imkânsız.
-    return `${base}-${id.slice(-6)}`;
+    const external = changed(next.externalUrl, before.externalUrl);
+    if (external && !isHttpsUrl(external)) {
+      throw new BadRequestException(i18nMessage("api.dto.companyItems.gecersizDisBaglanti"));
+    }
   }
 
   private async normalizeShowcase(
-    before: { categoryId: string | null; name?: string; brand?: string | null; mpn?: string | null },
+    before: { categoryId: string | null; name?: string; brand?: string | null; mpn?: string | null; priceCurrency?: string | null },
     input: ShowcaseInput,
   ) {
     const images = (input.images ?? []).map((u) => u.trim()).filter(Boolean);
@@ -1160,7 +1483,16 @@ export class CompanyItemsService {
     const allowed = new Set(defs.map((d) => d.key));
     const attributes: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(input.attributes ?? {})) {
-      if (allowed.has(k) && v != null && v !== "") attributes[k] = v;
+      if (!allowed.has(k) || v == null || v === "") continue;
+      if (!isValidAttributeValue(v)) {
+        throw new BadRequestException(
+          i18nMessage("api.companyItems.nitelikDegeriGecersiz", {
+            max: ATTRIBUTE_VALUE_MAX_CHARS,
+            items: ATTRIBUTE_LIST_MAX_ITEMS,
+          }),
+        );
+      }
+      attributes[k] = v;
     }
 
     // AD ve AÇIKLAMA da bu yoldan yazılır (2026-09-03). Eskiden ürün formunda
@@ -1214,8 +1546,68 @@ export class CompanyItemsService {
       ...(input.priceCurrency
         ? { priceCurrency: input.priceCurrency as Currency }
         : {}),
+      // TRY karşılığı (ürün dizininin fiyat süzgeci/sıralaması) — yazımda
+      // hesaplanır, günlük kur işi tazeler. Tek kural `productPriceBase`.
+      priceAmountBase: this.priceBaseOf(input, before.priceCurrency),
       moq: input.moq == null ? null : new Prisma.Decimal(input.moq),
     };
+  }
+
+  private priceBaseOf(input: ShowcaseInput, beforeCurrency?: string | null): Prisma.Decimal | null {
+    const base = productPriceBase(
+      {
+        priceMode: input.priceMode ?? "ON_REQUEST",
+        priceAmount: input.priceMode === "FIXED" ? input.priceAmount : null,
+        priceTiers: input.priceMode === "TIERED" ? input.priceTiers : null,
+        priceCurrency: input.priceCurrency ?? beforeCurrency ?? "TRY",
+      },
+      fxRate,
+    );
+    return base == null ? null : new Prisma.Decimal(base.toFixed(2));
+  }
+
+  /**
+   * Yayın kapısı eksiklerinin METNİ — kod paylaşılan paketten, metin
+   * katalogdan (`api.companyItems.publishBlocker.<kod>`) ve İSTEK DİLİNDE.
+   * Hem 400 gövdesi hem vitrin DTO'sundaki `publishBlockers` buradan geçer;
+   * ayrışsalardı ekran bir dilde, hata başka dilde olurdu.
+   */
+  private publishBlockerTexts(blockers: PublishBlocker[]): string[] {
+    return blockers.map((b) =>
+      tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
+    );
+  }
+
+  /** Yayın kapısı eksikleri varsa `publish` ile AYNI 400 (tek metin). */
+  private assertPublishable(blockers: PublishBlocker[]) {
+    if (blockers.length > 0) {
+      throw new BadRequestException(
+        i18nMessage("api.companyItems.onayaGonderilemedi", {
+          join: this.publishBlockerTexts(blockers).join(", "),
+        }),
+      );
+    }
+  }
+
+  /**
+   * YAYINDAKİ ÜRÜNÜN KAYDI (arayüz testi O-009): içerik değiştiyse (ürün
+   * yeniden incelemeye girecek) birleşik sonuç kapıdan TAM geçmeli. İçerik
+   * dışı kayıt (fiyat/MOQ) yalnız YENİ bir eksik doğurursa reddedilir — kapı
+   * kuralları sıkılaşmadan önce yayına çıkmış eski ürün fiyatını yine
+   * güncelleyebilsin.
+   */
+  private assertStaysPublishable(
+    before: Parameters<typeof this.toProductLike>[0],
+    after: ProductLike,
+    contentChanged: boolean,
+  ) {
+    const blockers = productPublishBlockerCodes(after);
+    if (blockers.length === 0) return;
+    if (!contentChanged) {
+      const prev = new Set(productPublishBlockerCodes(this.toProductLike(before)).map((b) => b.code));
+      if (blockers.every((b) => prev.has(b.code))) return;
+    }
+    this.assertPublishable(blockers);
   }
 
   private toProductLike(r: {
@@ -1259,6 +1651,9 @@ export class CompanyItemsService {
     priceCurrency: string;
     unit: string;
     unitCode: string | null;
+    brand: string | null;
+    mpn: string | null;
+    specification: string | null;
   }): Promise<ProductShowcase> {
     const like = this.toProductLike(r);
     const defs = await this.resolveAttributes(r.categoryId);
@@ -1294,25 +1689,48 @@ export class CompanyItemsService {
       moq: r.moq?.toString() ?? null,
       unit: r.unit,
       unitCode: r.unitCode,
+      brand: r.brand,
+      mpn: r.mpn,
+      specification: r.specification,
       completion,
-      publishBlockers: productPublishBlockers(like),
+      publishBlockers: this.publishBlockerTexts(productPublishBlockerCodes(like)),
       attributeDefs: defs,
     };
   }
 
-  private async assertCapacity(companyId: string, adding: number) {
+  /**
+   * Firma bazlı İŞLEM düzeyi advisory kilit (`publish` ve admin onayıyla AYNI
+   * anahtar `hashtext(companyId)`): sayıp sonra yazan katalog/vitrin yolları
+   * (tavan, içe aktarma, arşivden geri alma) eşzamanlı isteklerde sıraya girer
+   * (arayüz testi FX-00 O-061/O-070).
+   */
+  private withCompanyItemLock<T>(
+    companyId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return runTenantTx(this.prisma, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))`;
+      return fn(tx);
+    });
+  }
+
+  private async assertCapacity(
+    companyId: string,
+    adding: number,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
     if (adding <= 0) return;
-    const count = await this.prisma.companyItem.count({ where: { companyId } });
+    const count = await db.companyItem.count({ where: { companyId } });
     if (count + adding > MAX_CATALOG_ITEMS) {
       throw new BadRequestException(
-        `Katalog en fazla ${MAX_CATALOG_ITEMS} kalem taşıyabilir — kullanmadıklarınızı arşivleyin`,
+        i18nMessage("api.companyItems.katalogEnFazlaKalemTasiyabilirKullanmadiklariniz", { MAXCATALOGITEMS: MAX_CATALOG_ITEMS }),
       );
     }
   }
 
   private normalize(input: CatalogItemInput) {
     const name = input.name?.trim();
-    if (!name) throw new BadRequestException("Kalem adı zorunlu");
+    if (!name) throw new BadRequestException(i18nMessage("api.companyItems.kalemAdiZorunlu"));
     const unit = input.unit?.trim() || "adet";
     // İlan kalemiyle AYNI kural: kod verilmediyse metinden türet, tanınmazsa
     // NULL bırak ve serbest metni sakla. Katalogda birimi ZORUNLU tutmak
@@ -1370,7 +1788,7 @@ export class CompanyItemsService {
       e.code === "P2002"
     ) {
       return new BadRequestException(
-        `"${code}" stok kodu katalogda zaten var — kod firma içinde tekil olmalı`,
+        i18nMessage("api.companyItems.stokKoduKatalogdaZatenVarKod", { code: code ?? "" }),
       );
     }
     return e as Error;

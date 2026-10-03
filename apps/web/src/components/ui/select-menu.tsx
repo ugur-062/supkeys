@@ -8,6 +8,7 @@ import {
   ListboxOptions,
 } from "@headlessui/react";
 import { CheckIcon, ChevronDownIcon } from "@heroicons/react/16/solid";
+import { useTranslations } from "next-intl";
 
 export interface SelectMenuOption {
   value: string;
@@ -40,6 +41,7 @@ export function SelectMenu({
   disabled?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("web.shared.ui");
   const selected = options.find((o) => o.value === value) ?? null;
   return (
     <Listbox value={value} onChange={onChange} disabled={disabled}>
@@ -52,7 +54,7 @@ export function SelectMenu({
             disabled && "cursor-not-allowed opacity-50",
           )}
         >
-          <span className="truncate">{selected?.label ?? "— seç —"}</span>
+          <span className="truncate">{selected?.label ?? t("selectPlaceholder")}</span>
           <ChevronDownIcon
             className="pointer-events-none absolute right-2 h-4 w-4 text-zinc-400"
             aria-hidden

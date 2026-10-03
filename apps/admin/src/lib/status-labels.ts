@@ -27,6 +27,9 @@ export const ORDER_STATUS: Record<
   COMPLETED: { label: "Tamamlandı", color: "green" },
   REJECTED: { label: "Reddedildi", color: "red" },
   CANCELLED: { label: "İptal", color: "red" },
+  // A1: satıcının iptal talebini alıcı reddetti — admin müdahalesi gerektiren
+  // ihtilaf; etiketsizken gri ham "DISPUTED" basılıyordu (derin denetim LU-13).
+  DISPUTED: { label: "İhtilaflı", color: "red" },
 };
 
 // Alıcının malı kendi topladığı teslim şekilleri — IN_DELIVERY "Teslime Hazır".
@@ -61,8 +64,9 @@ export const BID_STATUS: Record<
 > = {
   DRAFT: { label: "Taslak", color: "zinc" },
   SUBMITTED: { label: "Verildi", color: "blue" },
-  UNDER_REVIEW: { label: "Değerlendirmede", color: "amber" },
   WON: { label: "Kazandı", color: "green" },
+  // Kalem bazlı kazandırmada kısmi kazanan (şemada olmayan UNDER_REVIEW yerine).
+  AWARDED_PARTIAL: { label: "Kısmen kazandı", color: "green" },
   LOST: { label: "Elendi", color: "red" },
   WITHDRAWN: { label: "Geri Çekildi", color: "zinc" },
 };

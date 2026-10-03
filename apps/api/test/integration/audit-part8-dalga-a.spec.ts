@@ -150,9 +150,13 @@ describe("#2 — yanıt oranı %100'ü aşmaz (payda davetliler, pay davetli yan
       listingId: listing.id,
     } as never)) as {
       listings: { responseRate: number | null; submittedBidCount: number }[];
+      summary: { overallResponseRate: number; totalSubmittedBids: number };
     };
     expect(res.listings[0]!.responseRate).toBe(100);
     expect(res.listings[0]!.submittedBidCount).toBe(3);
+    // Derin denetim 2026-09-29 S035: özet de aynı tabanda (eskiden 3/1 → %300).
+    expect(res.summary.overallResponseRate).toBe(100);
+    expect(res.summary.totalSubmittedBids).toBe(3);
   });
 });
 

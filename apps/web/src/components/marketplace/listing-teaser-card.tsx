@@ -1,14 +1,14 @@
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { Badge } from "@/components/ui/badge";
-import { scopeLabel } from "@rothern/shared";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { listingPath, publicState } from "@/lib/public/marketplace";
+import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
-import { signupHref } from "@/lib/public/visibility";
+import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import { companyActivityLabel } from "@rothern/shared";
-import Link from "next/link";
+import { useActivityLabel, useCityLabel, useQuantityLabel, useScopeLabel } from "@/i18n/domain";
+import { useFormatter, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ALIM TALEBİ TEASER KARTI (görünürlük v2) — "gizli ama cezbedici".
@@ -34,13 +34,24 @@ function leftTone(left: number): "danger" | "gold" | "neutral" {
 }
 
 export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }) {
-  const href = listingPath(l.number, l.title);
+  const t = useTranslations("web.marketplace.card");
+  const quantity = useQuantityLabel();
+  const fmt = useFormatter();
+  const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
+  const scopeLabel = useScopeLabel();
+  const href = listingHref(l);
   const open = publicState(l.status) === "open";
   const left = open ? daysLeft(l.closesAt) : null;
   const activity = l.company.activities[0];
-  const who = [activity ? companyActivityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
+  const who = [activity ? activityLabel(activity) : null, cityLabel(l.company.city)].filter(Boolean).join(" · ");
   const primaryCategory = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
   const qty = l.itemSummary.totalQuantity && l.itemSummary.unit ? Number(l.itemSummary.totalQuantity) : null;
+  // Büyük sayı + küçük birim ayrı çizilir; birim DİLİN ÇOĞUL KURALIYLA
+  // ("1,200 pieces", "1 200 коробок") — etiket sayıdan sonra bölünür.
+  const qtyNum = qty != null ? fmt.number(qty) : "";
+  const qtyLabel = qty != null ? quantity(qty, l.itemSummary.unit) : "";
+  const qtyUnit = qtyLabel.startsWith(qtyNum) ? qtyLabel.slice(qtyNum.length).trim() : qtyLabel;
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-within:ring-2 focus-within:ring-zinc-950">
@@ -56,7 +67,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
           {left != null ? (
             <Badge tone={leftTone(left)} size="sm" icon={false} className="tnum bg-white/90">
               <ClockIcon aria-hidden className="size-3" />
-              {left <= 0 ? "Bugün kapanıyor" : `${left} gün kaldı`}
+              {left <= 0 ? t("closesToday") : t("daysLeft", { n: left })}
             </Badge>
           ) : null}
         </div>
@@ -73,31 +84,31 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         {/* Ölçek — kartın en büyük yazısı; yalnız birimli miktar */}
         {qty ? (
           <p className="mt-3 tnum text-2xl font-semibold tracking-tight text-zinc-950">
-            {qty.toLocaleString("tr-TR")}
-            <span className="ml-1 text-base font-medium text-zinc-500">{l.itemSummary.unit}</span>
+            {qtyNum}
+            <span className="ml-1 text-base font-medium text-zinc-500">{qtyUnit}</span>
           </p>
         ) : null}
         <p className={`text-xs text-zinc-500 tnum ${qty ? "mt-0.5" : "mt-3"}`}>
-          {l.itemSummary.count} kalem · şartname ve belgeler üyelere
+          {t("itemsCountMembers", { count: l.itemSummary.count })}
         </p>
 
         <dl className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
           {l.company.verified ? (
             <div className="flex items-center">
-              <dt className="sr-only">Alıcı doğrulaması</dt>
+              <dt className="sr-only">{t("buyerVerification")}</dt>
               <dd>
-                <Badge tone="verified" size="sm">Doğrulanmış alıcı</Badge>
+                <Badge tone="verified" size="sm">{t("verifiedBuyer")}</Badge>
               </dd>
             </div>
           ) : null}
           {who ? (
             <div className="flex items-center gap-1">
-              <dt className="sr-only">Alıcı</dt>
+              <dt className="sr-only">{t("buyer")}</dt>
               <dd className="flex items-center gap-1"><MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />{who}</dd>
             </div>
           ) : null}
           <div className="flex items-center gap-1">
-            <dt className="sr-only">Görünürlük</dt>
+            <dt className="sr-only">{t("visibility")}</dt>
             <dd className="flex items-center gap-1"><GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />{scopeLabel(l.targetCountries ?? [])}</dd>
           </div>
           <div className="flex items-center gap-1">
@@ -105,12 +116,12 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
                 İpucu sarmalayıcısı <dd>'nin İÇİNDE: dışarıda olunca <dl>'nin
                 doğrudan çocuğu <span> oluyordu (a11y: definition-list + dlitem,
                 2026-09-12 taraması). */}
-            <dt className="sr-only">Teklif gizliliği</dt>
+            <dt className="sr-only">{t("bidPrivacy")}</dt>
             <dd>
-              <Tooltip label="Teklifler kapalı zarf: teklifçiler birbirinin fiyatını görmez.">
+              <Tooltip label={t("sealedTooltip")}>
                 <span className="flex items-center gap-1">
                   <LockClosedIcon aria-hidden className="size-3.5 text-zinc-300" />
-                  Kapalı zarf
+                  {t("sealedBid")}
                 </span>
               </Tooltip>
             </dd>
@@ -119,8 +130,10 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-5">
           <span className="tnum text-xs font-medium text-zinc-500">{l.number}</span>
-          <Button href={signupHref("teklif", href)} className="relative z-10">
-            Teklif ver
+          {/* Dönüş PANEL karşılığına: herkese açık sayfa aynı kayıt düğmesini
+              yeniden gösteriyordu (arayüz testi O-113). */}
+          <Button href={signupHref("teklif", PANEL_TARGET.listing(l.number))} className="relative z-10">
+            {t("quote")}
           </Button>
         </div>
       </div>

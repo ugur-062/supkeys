@@ -1,12 +1,17 @@
 "use client";
 
+import { countryDisplayName, useActivityLabel, useCityKeyLabel } from "@/i18n/domain";
+import type { Locale } from "@rothern/i18n";
+
+import { useLocale, useTranslations } from "next-intl";
+
 import { Check, FilterChipBar, Group, ShowMore, type FilterChip } from "./filter-primitives";
 import { useFilters } from "./filter-shell";
+import { useCityFilterLabel } from "./use-geo-city-name";
 import { SortBar } from "./sort-bar";
 import { activeCompanyFilterCount, type CompanyFilterState } from "@/lib/public/company-filter-params";
 import type { PublicDirectoryFacets } from "@/lib/public/marketplace-api";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { companyActivityLabel } from "@rothern/shared";
 import { useMemo } from "react";
 
 /**
@@ -39,7 +44,12 @@ export function CompanyFilters({
   /** Bağlantı durumu grubu — YALNIZ panelde (ziyaretçinin bağlantısı yok). */
   showConnection?: boolean;
 }) {
+  const t = useTranslations("web.marketplace.filters");
+  const dirLocale = useLocale() as Locale;
+  const cityLabel = useCityKeyLabel();
+  const activityLabel = useActivityLabel();
   const { state, update } = useFilters<CompanyFilterState>();
+  const selectedCityLabel = useCityFilterLabel(state.cities, facets.cities);
   const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0) + (state.gold ? 1 : 0);
   const categoryName = useCategoryNames(state.categories, facets);
   // Seçili ama listede olmayan (0 firmalı) kategori de adıyla ve tikli görünsün
@@ -52,7 +62,7 @@ export function CompanyFilters({
     <div className="space-y-3">
       {showConnection ? (
         <Group
-          title="Bağlantı"
+          title={t("connection")}
           count={state.connection ? 1 : 0}
           onClear={() => update({ connection: undefined })}
           storageKey="dir-connection"
@@ -61,52 +71,68 @@ export function CompanyFilters({
           <Check
             id={`${idPrefix}-conn-yes`}
             type="radio"
-            label="Bağlı olduklarım"
+            label={t("connected")}
             checked={state.connection === "bagli"}
             onChange={(on) => update({ connection: on ? "bagli" : undefined })}
           />
           <Check
             id={`${idPrefix}-conn-no`}
             type="radio"
-            label="Henüz bağlı değilim"
+            label={t("notConnected")}
             checked={state.connection === "yeni"}
             onChange={(on) => update({ connection: on ? "yeni" : undefined })}
           />
         </Group>
       ) : null}
       <Group
-        title="Firma profili"
+        title={t("companyProfile")}
         count={profileCount}
         onClear={() => update({ verified: false, hasProducts: false, gold: false })}
         storageKey="dir-profile"
       >
-        <Check id={`${idPrefix}-verified`} label="Doğrulanmış" count={facets.verified} checked={state.verified} onChange={(on) => update({ verified: on })} />
-        <Check id={`${idPrefix}-products`} label="Ürünü olan" count={facets.withProducts} checked={state.hasProducts} onChange={(on) => update({ hasProducts: on })} />
-        <Check id={`${idPrefix}-gold`} label="Gold Üye" count={facets.gold ?? 0} checked={state.gold} onChange={(on) => update({ gold: on })} />
+        <Check id={`${idPrefix}-verified`} label={t("verified")} count={facets.verified} checked={state.verified} onChange={(on) => update({ verified: on })} />
+        <Check id={`${idPrefix}-products`} label={t("hasProducts")} count={facets.withProducts} checked={state.hasProducts} onChange={(on) => update({ hasProducts: on })} />
+        <Check id={`${idPrefix}-gold`} label={t("goldMember")} count={facets.gold ?? 0} checked={state.gold} onChange={(on) => update({ gold: on })} />
       </Group>
       <Group
-        title="Faaliyet tipi"
+        title={t("activityType")}
         count={state.activities.length}
         onClear={() => update({ activities: [] })}
         storageKey="dir-activity"
       >
         <ShowMore
-          items={facets.activities.map((a) => ({ key: a.activity, label: companyActivityLabel(a.activity), count: a.count }))}
+          items={facets.activities.map((a) => ({ key: a.activity, label: activityLabel(a.activity), count: a.count }))}
           selected={state.activities}
           idPrefix={`${idPrefix}-act`}
           onToggle={(k, on) => update((s) => ({ ...s, activities: on ? [...s.activities, k] : s.activities.filter((x) => x !== k) }))}
         />
       </Group>
-      <Group title="Şehir" count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="dir-city">
+      <Group title={t("city")} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="dir-city">
         <ShowMore
-          items={facets.cities.map((c) => ({ key: c.city, label: c.city, count: c.count }))}
+          items={facets.cities.map((c) => ({ key: c.city, label: c.name ?? cityLabel(c.city), count: c.count }))}
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
+          // Facet'te olmayan seçili dünya şehri ham adresle değil adıyla (canlı öncesi).
+          labelFor={selectedCityLabel}
         />
       </Group>
+      {(facets.countries?.length ?? 0) > 1 || state.countries.length ? (
+        /* "Firma ülkesi", "Satıcı ülkesi" DEĞİL (arayüz testi D-049): firma
+           dizini iki portalda da herkesi listeler; satış portalında alıcı
+           arayan kullanıcıya "satıcı" demek yanlış. */
+        <Group title={t("companyCountry")} count={state.countries.length} onClear={() => update({ countries: [] })} storageKey="dir-country">
+          <ShowMore
+            items={(facets.countries ?? []).map((c) => ({ key: c.country, label: countryDisplayName(c.country, dirLocale), count: c.count }))}
+            selected={state.countries}
+            idPrefix={`${idPrefix}-country`}
+            onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
+            labelFor={(k) => countryDisplayName(k, dirLocale)}
+          />
+        </Group>
+      ) : null}
       <Group
-        title="Kategori"
+        title={t("category")}
         count={state.categories.length}
         onClear={() => update({ categories: [] })}
         storageKey="dir-category"
@@ -123,32 +149,38 @@ export function CompanyFilters({
 }
 
 export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }) {
+  const t = useTranslations("web.marketplace.filters");
+  const chipLocale = useLocale() as Locale;
+  const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters<CompanyFilterState>();
+  const cityLabel = useCityFilterLabel(state.cities, facets.cities);
   const categoryName = useCategoryNames(state.categories, facets);
   const chips: FilterChip[] = [];
-  if (state.verified) chips.push({ key: "v", label: "Doğrulanmış", onRemove: () => update({ verified: false }) });
-  if (state.hasProducts) chips.push({ key: "p", label: "Ürünü olan", onRemove: () => update({ hasProducts: false }) });
-  if (state.gold) chips.push({ key: "g", label: "Gold Üye", onRemove: () => update({ gold: false }) });
+  if (state.verified) chips.push({ key: "v", label: t("verified"), onRemove: () => update({ verified: false }) });
+  if (state.hasProducts) chips.push({ key: "p", label: t("hasProducts"), onRemove: () => update({ hasProducts: false }) });
+  if (state.gold) chips.push({ key: "g", label: t("goldMember"), onRemove: () => update({ gold: false }) });
   if (state.connection)
     chips.push({
       key: "conn",
-      label: state.connection === "bagli" ? "Bağlı olduklarım" : "Henüz bağlı değilim",
+      label: state.connection === "bagli" ? t("connected") : t("notConnected"),
       onRemove: () => update({ connection: undefined }),
     });
-  for (const a of state.activities) chips.push({ key: `a:${a}`, label: companyActivityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
+  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.countries) chips.push({ key: `u:${c}`, label: countryDisplayName(c, chipLocale), onRemove: () => update((s) => ({ ...s, countries: s.countries.filter((x) => x !== c) })) });
   for (const k of state.categories) chips.push({ key: `k:${k}`, label: categoryName(k), onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== k) })) });
   return <FilterChipBar chips={chips} activeCount={activeCompanyFilterCount(state)} onClearAll={clear} />;
 }
 
 export function CompanySortBar() {
+  const t = useTranslations("web.marketplace.filters");
   return (
     <SortBar<CompanyFilterState>
       options={[
-        { value: undefined, label: "Uygunluk" },
-        { value: "ad", label: "A-Z" },
-        { value: "urun", label: "En çok ürün" },
-        { value: "yeni", label: "En yeni" },
+        { value: undefined, label: t("sortRelevance") },
+        { value: "ad", label: t("sortAZ") },
+        { value: "urun", label: t("sortMostProducts") },
+        { value: "yeni", label: t("sortNewest") },
       ]}
     />
   );

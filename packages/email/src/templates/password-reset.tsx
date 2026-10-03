@@ -1,5 +1,6 @@
 import { Section, Text } from "@react-email/components";
 import * as React from "react";
+import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { PasswordResetData } from "../types";
 import { Button } from "./_components/button";
 import { Heading } from "./_components/heading";
@@ -39,58 +40,68 @@ const warningBox = {
   lineHeight: "1.6",
 };
 
-export function makePasswordResetSubject(): string {
-  return "🔑 Parola sıfırlama bağlantınız — Rothern";
+export function makePasswordResetSubject(locale: Locale = DEFAULT_LOCALE): string {
+  return emailT(locale)("email.passwordReset.subject");
 }
 
-export function PasswordResetEmail(props: PasswordResetData) {
-  return (
-    <Layout preview="Parola sıfırlama talebiniz için bağlantı.">
-      <Heading>Parolanızı sıfırlayın 🔑</Heading>
+export function PasswordResetEmail(props: PasswordResetData & { locale?: Locale }) {
+  const locale = props.locale ?? DEFAULT_LOCALE;
+  const t = emailT(locale);
 
-      <Text style={paragraph}>Merhaba {props.firstName},</Text>
+  return (
+    <Layout preview={t("email.passwordReset.preview")} locale={locale}>
+      <Heading>{t("email.passwordReset.heading")}</Heading>
 
       <Text style={paragraph}>
-        Rothern hesabınız için bir parola sıfırlama talebinde bulundunuz. Yeni
-        parolanızı belirlemek için aşağıdaki butona tıklayın.
+        {t("email.passwordReset.greeting", { firstName: props.firstName })}
       </Text>
 
+      <Text style={paragraph}>{t("email.passwordReset.intro")}</Text>
+
       <Section style={infoBox}>
-        <strong style={{ color: COLORS.brand900 }}>Bağlantı bilgisi</strong>
+        <strong style={{ color: COLORS.brand900 }}>
+          {t("email.passwordReset.infoTitle")}
+        </strong>
         <br />
-        Hesap: <strong>{props.email}</strong>
+        {t("email.passwordReset.accountLabel")} <strong>{props.email}</strong>
         <br />
-        Geçerlilik: <strong>{props.expiresInMinutes} dakika</strong>
+        {t("email.passwordReset.validityLabel")}{" "}
+        <strong>
+          {t("email.passwordReset.validityValue", {
+            minutes: props.expiresInMinutes,
+          })}
+        </strong>
         <br />
-        Bu bağlantı yalnızca bir kez kullanılabilir.
+        {t("email.passwordReset.onceOnly")}
       </Section>
 
       <Section style={ctaWrap}>
-        <Button href={props.resetUrl}>Parolayı Sıfırla</Button>
+        <Button href={props.resetUrl}>{t("email.passwordReset.cta")}</Button>
       </Section>
 
-      <Section style={warningBox}>
-        Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz —
-        bağlantıyı kullanmazsanız hesabınızda hiçbir şey değişmez.
-      </Section>
+      <Section style={warningBox}>{t("email.passwordReset.ignoreNote")}</Section>
     </Layout>
   );
 }
 
-export function renderPasswordResetText(props: PasswordResetData): string {
+export function renderPasswordResetText(
+  props: PasswordResetData,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const t = emailT(locale);
   return [
-    "Rothern parola sıfırlama",
+    t("email.passwordReset.textTitle"),
     "",
-    `Merhaba ${props.firstName},`,
+    t("email.passwordReset.greeting", { firstName: props.firstName }),
     "",
-    "Hesabınız için bir parola sıfırlama talebinde bulundunuz.",
+    t("email.passwordReset.textIntro"),
     "",
-    `Bağlantı ${props.expiresInMinutes} dakika geçerli ve sadece bir kez kullanılabilir.`,
+    t("email.passwordReset.textValidity", { minutes: props.expiresInMinutes }),
     "",
-    `Parolayı sıfırlamak için: ${props.resetUrl}`,
+    t("email.passwordReset.textCta", { url: props.resetUrl }),
     "",
-    "Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz.",
+    t("email.passwordReset.textIgnore"),
     "",
-    "— Rothern",
+    t("email.layout.textSignature"),
   ].join("\n");
 }

@@ -1,7 +1,10 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { useNavLabel } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**
@@ -150,6 +153,9 @@ export function MarketTabs({
   productCount?: number;
   companyCount?: number;
 }) {
+  const t = useTranslations("web.panel.market.marketBand");
+  const tn = useNavLabel();
+  const locale = useLocale();
   const tab = (key: "products" | "companies", href: string, label: string, count?: number) => (
     <Link
       key={key}
@@ -171,17 +177,17 @@ export function MarketTabs({
             active === key ? "bg-blue-50 text-blue-700" : "bg-zinc-100 text-zinc-600"
           }`}
         >
-          {count.toLocaleString("tr-TR")}
+          {formatNumber(count, locale)}
         </span>
       ) : null}
     </Link>
   );
   return (
-    <nav aria-label="Sonuç türü" className="flex flex-wrap items-center gap-6 border-b border-zinc-200">
-      {tab("products", productsHref, "Ürünler ve hizmetler", productCount)}
+    <nav aria-label={t("sonucTuru")} className="flex flex-wrap items-center gap-6 border-b border-zinc-200">
+      {tab("products", productsHref, t("urunlerVeHizmetler"), productCount)}
       {/* "Tedarikçiler" → "Firmalar" (2026-09-10, kullanıcı kararı): iki
           portalda aynı sözcük, dizin herkesi listeler. */}
-      {tab("companies", companiesHref, "Firmalar", companyCount)}
+      {tab("companies", companiesHref, tn("common.companies"), companyCount)}
     </nav>
   );
 }

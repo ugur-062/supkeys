@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 import { assertUploadedObjectValid } from "../../../common/helpers/upload-validation";
 import type { StorageService } from "../../storage/storage.service";
@@ -34,13 +35,13 @@ export async function downloadAiInputs(
       buffer = await storage.getObject("private", key);
     } catch {
       throw new BadRequestException(
-        "Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin",
+        i18nMessage("api.ai.dosyaYuklenmemisGorunuyorLutfenTekrarDeneyin"),
       );
     }
     total += buffer.length;
     if (total > MAX_TOTAL_INPUT_BYTES) {
       throw new BadRequestException(
-        "Seçilen dosyaların toplam boyutu çok büyük — daha az dosya seçin",
+        i18nMessage("api.ai.secilenDosyalarinToplamBoyutuCokBuyuk"),
       );
     }
     files.push({ key, buffer });

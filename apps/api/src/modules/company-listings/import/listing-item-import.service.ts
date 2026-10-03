@@ -1,3 +1,7 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { tApi } from "../../../common/i18n/i18n.service";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { unitDisplayName } from "../../../common/i18n/unit-label";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   ITEM_IMPORT_EXAMPLE_SHEET,
@@ -24,8 +28,8 @@ import {
   isQuantityValidForUnit,
   getUnit,} from "@rothern/shared";
 import ExcelJS from "exceljs";
-import { Readable } from "stream";
-import { assertZipWithinLimits, ZipInspectError } from "../../../common/files/zip-inspect";
+import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
+import { readCsvInto } from "../../../common/files/spreadsheet-reader";
 
 /**
  * Kalem Excel şablonu — ÜRET + OKU (2026-08-22). AI YOK: deterministik,
@@ -99,24 +103,32 @@ export class ListingItemImportService {
     // 2) Nasıl Doldurulur
     const help = wb.addWorksheet(ITEM_IMPORT_HELP_SHEET);
     help.columns = [{ width: 30 }, { width: 14 }, { width: 90 }];
-    const h0 = help.addRow(["Sütun", "Zorunlu", "Açıklama"]);
+    const h0 = help.addRow([
+      tApi("api.companyListings.itemImport.template.helpColumn"),
+      tApi("api.companyListings.itemImport.template.helpRequired"),
+      tApi("api.companyListings.itemImport.template.helpDescription"),
+    ]);
     h0.eachCell((cell) => {
       cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${INK}` } };
     });
     for (const c of cols) {
-      const r = help.addRow([c.header, c.required ? "Evet" : "Hayır", c.hint]);
+      const r = help.addRow([
+        c.header,
+        tApi(c.required ? "api.companyListings.itemImport.template.yes" : "api.companyListings.itemImport.template.no"),
+        tApi(`api.companyListings.itemImport.hint.${c.key}` as "api.companyListings.itemImport.hint.name"),
+      ]);
       r.getCell(3).alignment = { wrapText: true, vertical: "top" };
       if (c.required) r.getCell(2).font = { bold: true };
     }
     help.addRow([]);
     const notes = [
-      `"${ITEM_IMPORT_SHEET}" sayfasında 1. satır başlıktır — DEĞİŞTİRMEYİN. Kalemleri 2. satırdan itibaren alt alta yazın.`,
-      `En fazla ${ITEM_IMPORT_MAX_ROWS} kalem. Boş satırlar atlanır.`,
-      "Fiyatlar KDV HARİÇ girilir. Ondalık ayracı virgül veya nokta olabilir (12,5 ya da 12.5).",
-      "Tarihler GG.AA.YYYY (ör. 15.09.2026) ya da Excel tarih hücresi olabilir.",
-      "Dosyayı kaydedip (.xlsx) satın alma talebi formundaki 'Excel ile İçe Aktar' ile yükleyin; aktarmadan önce önizleme görürsünüz.",
-      "Sütunların sırası önemli değil; başlık metni aynı kaldığı sürece sütun ekleyip çıkarabilirsiniz (zorunlular hariç).",
+      tApi("api.companyListings.itemImport.template.noteHeader", { sheet: ITEM_IMPORT_SHEET }),
+      tApi("api.companyListings.itemImport.template.noteMaxRows", { max: ITEM_IMPORT_MAX_ROWS }),
+      tApi("api.companyListings.itemImport.template.notePrices"),
+      tApi("api.companyListings.itemImport.template.noteDates"),
+      tApi("api.companyListings.itemImport.template.noteUpload"),
+      tApi("api.companyListings.itemImport.template.noteColumns"),
     ];
     for (const n of notes) {
       const r = help.addRow([n]);
@@ -135,28 +147,28 @@ export class ListingItemImportService {
     });
     const samples: Record<ItemImportColumnKey, unknown>[] = [
       {
-        name: 'Çelik boru 2" DN50 dikişsiz',
+        name: tApi("api.companyListings.itemImport.sample.name1"),
         quantity: 120,
         unit: "m",
-        description: "ST37, 6 m boy, kaynaklı bağlantıya uygun",
+        description: tApi("api.companyListings.itemImport.sample.description1"),
         materialCode: "BRU-200",
         requiredByDate: "15.09.2026",
         targetUnitPrice: 185,
       },
       {
-        name: "Dirsek 90° 2\"",
+        name: tApi("api.companyListings.itemImport.sample.name2"),
         quantity: 40,
-        unit: "adet",
+        unit: tApi("api.companyListings.itemImport.sample.unit2"),
         description: "",
         materialCode: "DRS-290",
         requiredByDate: "",
         targetUnitPrice: 42.5,
       },
       {
-        name: "Flanş DN50 PN16",
+        name: tApi("api.companyListings.itemImport.sample.name3"),
         quantity: 12.5,
         unit: "kg",
-        description: "Kör flanş, galvaniz",
+        description: tApi("api.companyListings.itemImport.sample.description3"),
         materialCode: "",
         requiredByDate: "30.09.2026",
         targetUnitPrice: "",
@@ -180,9 +192,9 @@ export class ListingItemImportService {
     listingType?: "ALIM";
   }): Promise<ItemImportResult> {
     const buffer = decodeBase64Strict(input.dataBase64);
-    if (buffer.length === 0) throw new BadRequestException("Dosya boş");
+    if (buffer.length === 0) throw new BadRequestException(i18nMessage("api.companyListings.dosyaBos"));
     if (buffer.length > ITEM_IMPORT_MAX_FILE_BYTES) {
-      throw new BadRequestException("Dosya çok büyük (5 MB sınırı)");
+      throw new BadRequestException(i18nMessage("api.companyListings.dosyaCokBuyuk5MbSiniri"));
     }
     const ws = await this.readWorksheet(buffer, input.fileName, input.mimeType);
     const allowed = itemImportColumnsFor();
@@ -203,39 +215,37 @@ export class ListingItemImportService {
       !buffer.subarray(0, 4096).includes(0);
     if (isZip) {
       if (/\.xlsm$/i.test(fileName)) {
-        throw new BadRequestException("Makrolu dosya (.xlsm) kabul edilmez — .xlsx olarak kaydedin");
+        throw new BadRequestException(i18nMessage("api.companyListings.makroluDosyaXlsmKabulEdilmezXlsx"));
       }
       // Zip bombası koruması (denetim 2026-08-23): açılmış boyut/giriş tavanı
       // yüklemeden ÖNCE (ExcelJS tüm XML'i belleğe açar).
       assertXlsxSafe(buffer);
       try {
-        await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+        await wb.xlsx.load(buffer as unknown as ArrayBuffer, XLSX_LOAD_OPTIONS);
       } catch {
-        throw new BadRequestException("Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin");
+        throw new BadRequestException(i18nMessage("api.companyListings.excelDosyasiOkunamadiXlsxOlarakYeniden"));
       }
     } else if (looksCsv) {
       // CSV'ye ayrı tavan: ExcelJS csv.read dosyanın tamamını hücre nesnesine
       // açar (3,7 MB dar hücreli CSV → ~470-860 MB heap; denetim P5 HIGH).
       if (buffer.length > ITEM_IMPORT_MAX_CSV_BYTES) {
         throw new BadRequestException(
-          "CSV dosyası çok büyük — şablonu .xlsx olarak kaydedip yükleyin (CSV için sınır 1 MB)",
+          i18nMessage("api.companyListings.csvDosyasiCokBuyukSablonuXlsx"),
         );
       }
       try {
-        await wb.csv.read(Readable.from(buffer), {
-          parserOptions: { delimiter: detectCsvDelimiter(buffer) },
-        });
+        await readCsvInto(wb, buffer);
       } catch {
-        throw new BadRequestException("CSV dosyası okunamadı");
+        throw new BadRequestException(i18nMessage("api.companyListings.csvDosyasiOkunamadi"));
       }
     } else {
       throw new BadRequestException(
-        "Desteklenmeyen dosya — Excel (.xlsx) veya CSV yükleyin. Şablonu indirip kullanabilirsiniz.",
+        i18nMessage("api.companyListings.desteklenmeyenDosyaExcelXlsxVeyaCsv"),
       );
     }
     const named = wb.getWorksheet(ITEM_IMPORT_SHEET);
     const ws = named ?? wb.worksheets.find((w) => w.rowCount > 0) ?? wb.worksheets[0];
-    if (!ws) throw new BadRequestException("Dosyada sayfa bulunamadı");
+    if (!ws) throw new BadRequestException(i18nMessage("api.companyListings.dosyadaSayfaBulunamadi"));
     return ws;
   }
 }
@@ -250,8 +260,8 @@ export function assertXlsxSafe(buffer: Buffer): void {
     if (e instanceof ZipInspectError) {
       throw new BadRequestException(
         e.reason === "corrupt" || e.reason === "zip64"
-          ? "Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin"
-          : "Excel dosyası çok büyük/karmaşık — yalnız Kalemler sayfasını bırakıp 500 satırın altında yükleyin",
+          ? i18nMessage("api.companyListings.excelDosyasiOkunamadiXlsxOlarakYeniden")
+          : i18nMessage("api.companyListings.excelDosyasiCokBuyukKarmasik"),
       );
     }
     throw e;
@@ -261,16 +271,9 @@ export function assertXlsxSafe(buffer: Buffer): void {
 function decodeBase64Strict(s: string): Buffer {
   const clean = s.replace(/^data:[^;]+;base64,/, "");
   if (!/^[A-Za-z0-9+/=\s]*$/.test(clean)) {
-    throw new BadRequestException("Dosya verisi geçersiz");
+    throw new BadRequestException(i18nMessage("api.companyListings.dosyaVerisiGecersiz"));
   }
   return Buffer.from(clean, "base64");
-}
-
-function detectCsvDelimiter(buffer: Buffer): string {
-  const head = buffer.subarray(0, 4096).toString("utf8").split(/\r?\n/)[0] ?? "";
-  const counts: Record<string, number> = { ";": 0, ",": 0, "\t": 0 };
-  for (const ch of head) if (ch in counts) counts[ch]!++;
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]![0];
 }
 
 /** exceljs hücre değerini düz metne indirger (richText/formül/hyperlink/Date dahil). */
@@ -291,34 +294,47 @@ export function cellText(v: ExcelJS.CellValue): string | number | Date | null {
   return String(v);
 }
 
-/** "1.234,5" / "1,234.5" / "12,5" / "12.5" → number (TR ve EN biçimleri). */
-export function parseLocaleNumber(v: unknown): number | null {
+/**
+ * Tablo hücresindeki sayı METNİ → number — İSTEK DİLİNİN ayraç kuralıyla
+ * (arayüz testi kapanış NUM, 2026-10-03; web `parseMoneyDisplay` ile aynı
+ * kural, dil `currentLocale()` = Accept-Language / kayıtlı dil).
+ *
+ * Eskiden kural Türkçeye sabitti: İngilizce arayüzde "1,500" yazan alıcının
+ * miktarı/hedef fiyatı 1,5, "12.500" 12500 okunuyor ve satır "Hazır" diye
+ * işaretleniyordu (teklif içe aktarmada da aynı yardımcı — satıcı fiyatı).
+ *  - Sayı hücresi (number) aynen.
+ *  - İki ayraç türü birlikte → SONDAKİ ondalık ("1.234,5", "1,234.5").
+ *  - Yalnız dilin ONDALIK ayracı (TR/RU ",", EN "."): tek geçiş ondalık
+ *    ("12,5" TR, "12.500" EN = 12,5); çok geçiş binlik ("1,234,567").
+ *  - Yalnız dilin BİNLİK ayracı (TR/RU ".", EN ","): düzgün 3'lü grup binlik
+ *    ("1.500" TR, "1,500" EN); "0." ile başlayan ya da 3'lü grup olmayan →
+ *    başka alışkanlıkla yazılmış ondalık ("0.500", "12.5" TR; "12,5" EN).
+ */
+export function parseLocaleNumber(v: unknown, locale: string = currentLocale()): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (v == null) return null;
-  let s = String(v).trim().replace(/\s/g, "").replace(/[₺$€£]/g, "");
+  let s = String(v).trim().replace(/[\s\u00a0\u202f']/g, "").replace(/[₺$€£]/g, "");
   if (!s) return null;
+  const decimalSep: "." | "," = locale === "en" ? "." : ",";
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
+  const toDecimal = (sep: "." | ",") => {
+    const other = sep === "." ? "," : ".";
+    const at = s.lastIndexOf(sep);
+    return `${s.slice(0, at).split(other).join("").split(sep).join("")}.${s.slice(at + 1)}`;
+  };
+  const grouped = (sep: "." | ",") =>
+    new RegExp(`^[1-9]\\d{0,2}(?:${sep === "." ? "\\." : ","}\\d{3})+$`).test(s);
   if (hasComma && hasDot) {
     // Son görülen ayraç ondalık, diğeri binlik.
-    if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
-    else s = s.replace(/,/g, "");
-  } else if (hasComma) {
-    // Tek virgül: ondalık (TR). Birden çok virgül: binlik.
-    s = (s.match(/,/g) ?? []).length === 1 ? s.replace(",", ".") : s.replace(/,/g, "");
-  } else if (hasDot) {
-    // "1.234" (3 hane) binlik sayılır mı? Belirsiz — tek nokta + tam 3 hane sonrası → binlik.
-    const parts = s.split(".");
-    if (parts.length > 2) s = s.replace(/\./g, "");
-    else if (
-      parts.length === 2 &&
-      parts[1]!.length === 3 &&
-      parts[0]!.length <= 3 &&
-      /^[1-9]\d*$/.test(parts[0]!)
-    ) {
-      // "1.234" → 1234 (TR binlik). "0.500"/"12.500" 3 ondalık miktar da olabilir ama
-      // TR kullanıcı 12,500 yazar; ikilem kabul: tam-3-hane+nokta = binlik.
-      s = s.replace(".", "");
+    s = toDecimal(s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".");
+  } else if (hasComma || hasDot) {
+    const sep: "." | "," = hasComma ? "," : ".";
+    const count = s.split(sep).length - 1;
+    if (sep === decimalSep) {
+      s = count === 1 ? toDecimal(sep) : s.split(sep).join("");
+    } else {
+      s = grouped(sep) ? s.split(sep).join("") : count === 1 ? toDecimal(sep) : s;
     }
   }
   const n = Number(s);
@@ -374,7 +390,8 @@ export function locateHeader(
   let best: { headerRow: number; map: Map<number, ItemImportColumnKey> } | null = null;
   const limit = Math.min(ws.rowCount, 15);
   for (let r = 1; r <= limit; r++) {
-    const row = ws.getRow(r);
+    const row = ws.findRow(r); // getRow eksik satırı OLUŞTURUR — okurken findRow
+    if (!row) continue;
     const map = new Map<number, ItemImportColumnKey>();
     row.eachCell({ includeEmpty: false }, (cell, col) => {
       const key = matchImportColumn(cellText(cell.value));
@@ -385,7 +402,7 @@ export function locateHeader(
   const keys = new Set(best?.map.values() ?? []);
   if (!best || !keys.has("name") || !keys.has("quantity") || !keys.has("unit")) {
     throw new BadRequestException(
-      "Şablon sütunları bulunamadı — başlık satırında en az 'Kalem Adı', 'Miktar' ve 'Birim' olmalı. Şablonu indirip kullanın.",
+      i18nMessage("api.companyListings.sablonSutunlariBulunamadiBaslikSatirindaEn"),
     );
   }
   return best;
@@ -400,22 +417,27 @@ export function parseWorksheet(
   const rows: ItemImportRow[] = [];
   let truncated = 0;
 
-  for (let r = headerRow + 1; r <= ws.rowCount; r++) {
-    const row = ws.getRow(r);
+  // Yalnız VAR OLAN satırlar gezilir (derin denetim 2026-09-29 Y-03):
+  // `ws.rowCount` son satırın NUMARASIDIR; `<row r="1048576">` taşıyan 10 KB'lık
+  // bir xlsx'te `getRow`/`getCell` döngüsü ~1M Row + milyonlarca Cell nesnesi
+  // OLUŞTURUP süreci OOM'a sokuyordu. eachRow seyrek diziyi atlar, findCell
+  // eksik hücreyi yaratmaz.
+  ws.eachRow({ includeEmpty: false }, (row, r) => {
+    if (r <= headerRow) return;
     const raw: Partial<Record<ItemImportColumnKey, unknown>> = {};
     let any = false;
     for (const [col, key] of map) {
-      const v = cellText(row.getCell(col).value);
+      const v = cellText(row.findCell(col)?.value ?? null);
       if (v != null && String(v).trim() !== "") any = true;
       raw[key] = v;
     }
-    if (!any) continue; // boş satır
+    if (!any) return; // boş satır
     if (rows.length >= ITEM_IMPORT_MAX_ROWS) {
       truncated++;
-      continue;
+      return;
     }
     rows.push(validateRow(r, raw, allowed));
-  }
+  });
 
   const validCount = rows.filter((x) => x.errors.length === 0).length;
   return {
@@ -428,6 +450,16 @@ export function parseWorksheet(
   };
 }
 
+/**
+ * Satır hatası metni — i18n Faz 3: sabit Türkçe yerine katalog anahtarı
+ * (`api.companyListings.itemImport.*`), İSTEK DİLİNDE. Önizleme tablosundaki
+ * "Durum" sütunu bu dizeleri olduğu gibi basar. Sütun ADI şablon dosyasının
+ * gerçek başlığıdır ama HATA metninde okunur bir etiket olarak geçer →
+ * o da katalogdan (`itemImport.column.<anahtar>`).
+ */
+const importColumnLabel = (k: "name" | "quantity" | "unit" | "description" | "materialCode" | "targetUnitPrice") =>
+  tApi(`api.companyListings.itemImport.column.${k}` as "api.companyListings.itemImport.column.name");
+
 function validateRow(
   rowNumber: number,
   raw: Partial<Record<ItemImportColumnKey, unknown>>,
@@ -435,53 +467,62 @@ function validateRow(
 ): ItemImportRow {
   const errors: string[] = [];
   const has = (k: ItemImportColumnKey) => allowed.some((c) => c.key === k);
-  const text = (k: ItemImportColumnKey, label: string, max: number, required: boolean) => {
+  const text = (
+    k: "name" | "unit" | "description" | "materialCode",
+    max: number,
+    required: boolean,
+  ) => {
+    const label = importColumnLabel(k);
     const v = raw[k];
     const s = v == null ? "" : String(v instanceof Date ? v.toISOString() : v).trim();
     if (!s) {
-      if (required) errors.push(`${label} boş`);
+      if (required) errors.push(tApi("api.companyListings.itemImport.bos", { label }));
       return null;
     }
     if (s.length > max) {
-      errors.push(`${label} çok uzun (en fazla ${max} karakter)`);
+      errors.push(tApi("api.companyListings.itemImport.cokUzun", { label, max }));
       return s.slice(0, max);
     }
     return s;
   };
-  const money = (k: ItemImportColumnKey, label: string) => {
+  const money = (k: "targetUnitPrice") => {
     if (!has(k)) return null;
+    const label = importColumnLabel(k);
     const v = raw[k];
     if (v == null || String(v).trim() === "") return null;
     const n = parseLocaleNumber(v);
     if (n == null) {
-      errors.push(`${label} sayı değil`);
+      errors.push(tApi("api.companyListings.itemImport.sayiDegil", { label }));
       return null;
     }
     if (n < MIN_MONEY || n > MAX_MONEY) {
-      errors.push(`${label} 0,01 ile 1e15 arasında olmalı`);
+      errors.push(tApi("api.companyListings.itemImport.paraAraligi", { label }));
       return null;
     }
     if (decimalsOf(n) > MONEY_DECIMALS) {
-      errors.push(`${label} en fazla ${MONEY_DECIMALS} ondalık olabilir`);
+      errors.push(tApi("api.companyListings.itemImport.ondalik", { label, n: MONEY_DECIMALS }));
       return null;
     }
     return n;
   };
 
-  const name = text("name", "Kalem Adı", 200, true);
-  const unit = text("unit", "Birim", 20, true);
-  const description = text("description", "Açıklama", 2000, false);
-  const materialCode = text("materialCode", "Malzeme Kodu", 50, false);
+  const name = text("name", 200, true);
+  const unit = text("unit", 20, true);
+  const description = text("description", 2000, false);
+  const materialCode = text("materialCode", 50, false);
 
   let quantity: number | null = null;
   {
+    const label = importColumnLabel("quantity");
     const v = raw.quantity;
-    if (v == null || String(v).trim() === "") errors.push("Miktar boş");
+    if (v == null || String(v).trim() === "") errors.push(tApi("api.companyListings.itemImport.bos", { label }));
     else {
       const n = parseLocaleNumber(v);
-      if (n == null) errors.push("Miktar sayı değil");
-      else if (n < MIN_QUANTITY || n > MAX_QUANTITY) errors.push("Miktar 0,001 ile 1.000.000.000 arasında olmalı");
-      else if (decimalsOf(n) > QUANTITY_DECIMALS) errors.push(`Miktar en fazla ${QUANTITY_DECIMALS} ondalık olabilir`);
+      if (n == null) errors.push(tApi("api.companyListings.itemImport.sayiDegil", { label }));
+      else if (n < MIN_QUANTITY || n > MAX_QUANTITY)
+        errors.push(tApi("api.companyListings.itemImport.miktarAraligi", { label }));
+      else if (decimalsOf(n) > QUANTITY_DECIMALS)
+        errors.push(tApi("api.companyListings.itemImport.ondalik", { label, n: QUANTITY_DECIMALS }));
       else quantity = n;
     }
   }
@@ -489,11 +530,11 @@ function validateRow(
   let requiredByDate: string | null = null;
   if (has("requiredByDate")) {
     const d = parseImportDate(raw.requiredByDate);
-    if (d.invalid) errors.push("Termin tarihi geçersiz (GG.AA.YYYY bekleniyor)");
+    if (d.invalid) errors.push(tApi("api.companyListings.itemImport.terminGecersiz"));
     requiredByDate = d.iso;
   }
 
-  const targetUnitPrice = money("targetUnitPrice", "Hedef Birim Fiyat");
+  const targetUnitPrice = money("targetUnitPrice");
 
   // Faz 1: serbest metin birimi kanonik koda çevir. Tanınmazsa satır GEÇERLİ
   // kalır (kod null) — Excel'de "ad." yazan kullanıcıyı durdurmuyoruz, ama
@@ -507,8 +548,8 @@ function validateRow(
     const u = getUnit(unitCode)!;
     errors.push(
       u.decimals === 0
-        ? `"${u.nameTr}" birimi tam sayı ister — ondalıklı miktar girilemez`
-        : `Miktar "${u.nameTr}" için en fazla ${u.decimals} ondalık olabilir`,
+        ? tApi("api.companyListings.itemImport.birimTamSayi", { unit: unitDisplayName(u.code) })
+        : tApi("api.companyListings.itemImport.birimOndalik", { unit: unitDisplayName(u.code), n: u.decimals }),
     );
   }
 

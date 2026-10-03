@@ -2,7 +2,12 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 export type NotificationPortal = "satinalma" | "satis";
 
@@ -33,6 +38,43 @@ export function useNotifications(portal?: NotificationPortal, enabled = true) {
       });
       return data;
     },
+    enabled: !!user && enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Bildirimler sayfasının bir seferde çektiği satır sayısı (API varsayılanıyla aynı). */
+export const NOTIFICATION_PAGE_SIZE = 30;
+
+/** Sayfalama imleci — API `parseBefore` biçimi: `<ISO tarih>_<id>`. */
+export function notificationCursor(n: Pick<AppNotification, "createdAt" | "id">): string {
+  return `${n.createdAt}_${n.id}`;
+}
+
+/**
+ * Bildirimler sayfası — TÜM geçmiş, imleçle sayfa sayfa (derin denetim S057).
+ * Sayfa eskiden `useNotifications` ile yalnız son 30 satırı görüyordu; API'nin
+ * `before` imleci hiç kullanılmadığından 31. satır ve öncesine ulaşılamıyordu.
+ * Anahtar NOTIFICATION_KEY altında: okundu işaretleme tazelemesi burayı da kapsar.
+ */
+export function useNotificationFeed(enabled = true) {
+  const user = useCompanyAuthStore((s) => s.user);
+  return useInfiniteQuery({
+    queryKey: [...NOTIFICATION_KEY, "feed"],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const { data } = await companyApi.get<AppNotification[]>("/notifications", {
+        params: {
+          take: NOTIFICATION_PAGE_SIZE,
+          ...(pageParam ? { before: pageParam } : {}),
+        },
+      });
+      return data;
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage.length < NOTIFICATION_PAGE_SIZE
+        ? undefined
+        : notificationCursor(lastPage[lastPage.length - 1]),
     enabled: !!user && enabled,
     staleTime: 30 * 1000,
   });

@@ -7,7 +7,7 @@ import {
   activePortalFromPath,
   type PortalKey,
 } from "@/lib/company/portals";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/navigation";
 
 /**
  * Aktif portalı türetir — kabuk (shell) ile AYNI kural: URL'den; portal-nötr

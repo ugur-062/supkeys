@@ -32,10 +32,7 @@ import { RealtimeService } from "./realtime.service";
 // değerlendirilse bile dotenv sıralaması footgun olmaktan çıkar).
 const WS_VERCEL_ORIGIN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
 
-function wsOriginAllowed(
-  origin: string | undefined,
-  cb: (err: Error | null, allow?: boolean) => void,
-): void {
+export function isWsOriginAllowed(origin: string | undefined): boolean {
   const allowlist = (
     process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001"
   )
@@ -46,11 +43,33 @@ function wsOriginAllowed(
   // `*.vercel.app` jokeri REST ile AYNI kapıdan (CORS_ALLOW_VERCEL=true) —
   // denetim 2026-08-23: WS'te koşulsuz açıktı (drift).
   const allowVercel = process.env.CORS_ALLOW_VERCEL === "true";
-  const ok =
+  return (
     !origin ||
     allowlist.includes(origin) ||
-    (allowVercel && WS_VERCEL_ORIGIN.test(origin));
-  cb(null, ok);
+    (allowVercel && WS_VERCEL_ORIGIN.test(origin))
+  );
+}
+
+function wsOriginAllowed(
+  origin: string | undefined,
+  cb: (err: Error | null, allow?: boolean) => void,
+): void {
+  cb(null, isWsOriginAllowed(origin));
+}
+
+/**
+ * Derin denetim LU-19: `cors` seçeneği izinsiz origin'i REDDETMEZ, yalnız ACAO
+ * başlığını eklemez — WebSocket upgrade'inde tarayıcı CORS uygulamadığından
+ * same-site bir alt alan adındaki (Domain=.rothern.com, SameSite=Lax çerez)
+ * sayfa handshake'i kurup firma odasını dinleyebiliyordu (CSWSH). engine.io
+ * `allowRequest` her handshake'te (polling + websocket) çalışır ve 403 döner.
+ */
+export function wsAllowRequest(
+  req: { headers: { origin?: string } },
+  cb: (err: string | null | undefined, success: boolean) => void,
+): void {
+  const allowed = isWsOriginAllowed(req.headers.origin);
+  cb(allowed ? null : "origin not allowed", allowed);
 }
 
 // F-WS-1: soket başına mesaj rate-limiti (kayan pencere). REST'te ThrottlerGuard
@@ -65,6 +84,7 @@ const WS_MSG_WINDOW_MS = 10_000;
 // 16KB açık cap DoS yüzeyini 64x küçültür (handshake HTTP olduğu için etkilenmez).
 @WebSocketGateway({
   cors: { origin: wsOriginAllowed, credentials: true },
+  allowRequest: wsAllowRequest,
   path: "/rt",
   maxHttpBufferSize: 16 * 1024,
 })
@@ -85,7 +105,18 @@ export class RealtimeGateway
     this.logger.log("Realtime gateway hazır (path=/rt)");
   }
 
-  async handleConnection(client: Socket): Promise<void> {
+  handleConnection(client: Socket): Promise<boolean> {
+    // Derin denetim LU-19: Nest handleConnection'ı BEKLEMEZ, mesaj işleyicileri
+    // hemen bağlanır; istemcinin tamponlanmış `subscribe`'ı kimlik doğrulama
+    // bitmeden gelirse companyId boş görünüp sessizce düşüyordu. Söz burada
+    // (senkron, ilk await'ten önce) saklanır; onSubscribe önce onu bekler.
+    const ready = this.authenticate(client);
+    client.data.ready = ready;
+    return ready;
+  }
+
+  /** Handshake doğrulaması; başarılıysa true, aksi halde soket kapatılır. */
+  private async authenticate(client: Socket): Promise<boolean> {
     // TÜM handshake işlemi try içinde (denetim 2026-08-23 #1): token çıkarımı
     // dışarıdaysa bozuk çerez başlığı yakalanmamış red → süreç düşebiliyordu.
     try {
@@ -150,8 +181,10 @@ export class RealtimeGateway
           );
         }
       }
+      return true;
     } catch {
       client.disconnect(true);
+      return false;
     }
   }
 
@@ -187,6 +220,9 @@ export class RealtimeGateway
     body: { kind: "listing" | "order"; id: string },
   ): Promise<void> {
     if (!this.rateOk(client)) return; // F-WS-1: DB'den ÖNCE
+    // Handshake doğrulaması sürüyorsa bitmesini bekle (LU-19).
+    const ready = client.data.ready as Promise<boolean> | undefined;
+    if (ready && !(await ready)) return;
     const companyId = client.data.companyId as string | undefined;
     if (!companyId) return;
     if (!body?.id || (body.kind !== "listing" && body.kind !== "order")) return;

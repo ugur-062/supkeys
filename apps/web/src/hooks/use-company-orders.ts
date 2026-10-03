@@ -1,7 +1,12 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 export type CompanyOrderStatus =
   | "PENDING"
@@ -32,6 +37,13 @@ export interface CompanyOrderItemRow {
   /** Kalem teslim SÜRESİ (BID_DELIVERY_TIMES; 2026-08-02 sonrası awardlar). */
   deliveryTime?: string | null;
   note?: string | null;
+  /** Award anında alıcının kalemde istediği marka / parça no (snapshot). */
+  requestedBrand?: string | null;
+  requestedMpn?: string | null;
+  /** Kazanan teklifin muadil beyanı (snapshot, arayüz testi O-003). */
+  isAlternative?: boolean;
+  offeredBrand?: string | null;
+  offeredMpn?: string | null;
 }
 
 export interface OrderPayment {
@@ -67,6 +79,8 @@ export interface CompanyOrder {
   // rozeti/KPI status yerine bunu kullanır. paymentDueDate = vade (varsa).
   paymentSettled?: boolean;
   paymentDueDate?: string | null;
+  /** Beklenen teslim tarihi (liste `?due=overdue` süzgeci, O-035). */
+  expectedDeliveryDate?: string | null;
   createdAt: string;
   items?: CompanyOrderItemRow[];
   /** Liste rozet/adım etiketi teslim şekline göre uyarlanır (sellerShipsGoods). */
@@ -92,6 +106,7 @@ export interface OrderDeliveryAddress {
   contactName: string | null;
   phone: string | null;
   country: string;
+  stateRegion?: string | null;
   city: string | null;
   district: string | null;
   addressLine: string;
@@ -132,6 +147,10 @@ export interface CompanyOrderDetail extends CompanyOrder {
   acceptedNote: string | null;
   bankAccountHolder: string | null;
   bankIban: string | null;
+  /** IBAN kullanmayan ülkenin hesabı (2026-09-27). */
+  bankAccountNumber?: string | null;
+  bankSwiftBic?: string | null;
+  bankName?: string | null;
   expectedDeliveryDate: string | null;
   invoiceNumber: string | null;
   deliveryStartedAt: string | null;
@@ -198,6 +217,20 @@ export function useOrder(id: string) {
   });
 }
 
+/**
+ * Sipariş durumunu/ödemesini değiştiren her mutasyon: sipariş önbelleği (liste +
+ * detay önek) VE pano/aksiyon merkezi (PENDING/IN_DELIVERY/DELIVERED sayar,
+ * staleTime 60 sn) birlikte tazelenir — derin denetim LU-24.
+ */
+function invalidateOrderCaches(qc: QueryClient) {
+  // Promise döner: onSuccess onu beklediği için mutateAsync, sipariş
+  // önbelleği tazelenmeden çözülmez (eski tek-satır davranışı korunur).
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    qc.invalidateQueries({ queryKey: ["company-dashboard"] }),
+  ]);
+}
+
 /** Satıcı: siparişi gönder (fatura no zorunlu + gönderim notu). */
 export function useShipOrder(id: string) {
   const qc = useQueryClient();
@@ -206,7 +239,7 @@ export function useShipOrder(id: string) {
       const { data } = await companyApi.post(`/company/orders/${id}/ship`, input);
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -221,7 +254,7 @@ export function useReceiveOrder(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -236,7 +269,7 @@ export function useCompleteOrder(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -251,7 +284,7 @@ export function useAcceptOrder(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -265,7 +298,7 @@ export function useRejectOrder(id: string) {
       });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -279,7 +312,7 @@ export function useCancelOrder(id: string) {
       });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -294,7 +327,7 @@ export function useRequestCancel(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -309,7 +342,7 @@ export function useWithdrawCancelRequest(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -327,7 +360,7 @@ export function useCancelRequestDecision(
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -342,7 +375,7 @@ export function useRaiseDefectNotice(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -357,7 +390,7 @@ export function useWithdrawDefectNotice(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -372,7 +405,7 @@ export function useLcStep(id: string, action: "opened" | "accept" | "paid") {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -432,8 +465,7 @@ export function useRecordPayment(id: string) {
       // Denetim 2026-08-26 Parça 10: yalnız DETAY tazeleniyordu; liste
       // `paymentSettled`/`paymentDueDate` ile rozet ve KPI basıyor → önek
       // invalidasyonu (dosyadaki diğer sipariş mutasyonlarının deseni).
-      qc.invalidateQueries({ queryKey: ["company-orders"] });
-      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+      invalidateOrderCaches(qc);
     },
   });
 }
@@ -457,8 +489,7 @@ export function usePaymentDecision(id: string) {
       // Denetim 2026-08-26 Parça 10: yalnız DETAY tazeleniyordu; liste
       // `paymentSettled`/`paymentDueDate` ile rozet ve KPI basıyor → önek
       // invalidasyonu (dosyadaki diğer sipariş mutasyonlarının deseni).
-      qc.invalidateQueries({ queryKey: ["company-orders"] });
-      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+      invalidateOrderCaches(qc);
     },
   });
 }

@@ -13,6 +13,7 @@ vi.mock("@/hooks/use-company-views", () => ({
   useVisitors: () => ({ data: h.data, isLoading: h.isLoading, isError: h.isError }),
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { VisitorsView } from "../visitors-view";
 
 const base = (over: Partial<VisitorsResponse> = {}): VisitorsResponse => ({
@@ -58,10 +59,50 @@ describe("VisitorsView", () => {
     expect(screen.queryByText("Ziyaretçi A")).toBeNull();
   });
 
+  it("Standart + doğrulanmamış firma: birincil eylem doğrulama, paketler ikincil (arayüz testi D-194)", () => {
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "UNVERIFIED" } as never } as never);
+    try {
+      h.data = base({ locked: true, items: [] });
+      render(<VisitorsView />);
+      expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
+      // Kilit kartı akışta: bölüm yüksekliği kart kadar büyür, mobilde başlık/
+      // eylemler bulanık satırların sabit yüksekliğine kırpılmaz (yeniden doğrulama).
+      const overlay = screen.getByTestId("visitors-lock-overlay");
+      expect(overlay.className).not.toMatch(/\babsolute\b|\binset-0\b/);
+      expect(overlay.className).toMatch(/\bcol-start-1\b.*\brow-start-1\b/);
+      const section = screen.getByRole("region", { name: "Kimlikli ziyaretçi listesi (kilitli)" });
+      expect(section.className).toMatch(/\bgrid\b/);
+      expect(section).toContainElement(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" }));
+    } finally {
+      useCompanyAuthStore.setState({ company: null } as never);
+    }
+  });
+
   it("boş dönem: tek eylem Profili tamamla", () => {
     h.data = base({ total: 0, profileViews: 0, productViews: 0, identified: 0, anonymous: 0, totalItems: 0, items: [] });
-    render(<VisitorsView />);
-    expect(screen.getByText("Bu dönemde kimliği bilinen ziyaretçi yok.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Profili tamamla" })).toHaveAttribute("href", "/company/sirketim/profil");
+    useCompanyAuthStore.setState({ user: { permissions: ["company:manage", "insights:view"] } } as never);
+    try {
+      render(<VisitorsView />);
+      expect(screen.getByText("Bu dönemde kimliği bilinen ziyaretçi yok.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Profili tamamla" })).toHaveAttribute("href", "/company/sirketim/profil");
+    } finally {
+      useCompanyAuthStore.setState({ user: null } as never);
+    }
+  });
+
+  it("boş dönem, yalnız insights:view: profil kapısına götüren eylem yok (O-062)", () => {
+    h.data = base({ total: 0, profileViews: 0, productViews: 0, identified: 0, anonymous: 0, totalItems: 0, items: [] });
+    useCompanyAuthStore.setState({ user: { permissions: ["insights:view"] } } as never);
+    try {
+      render(<VisitorsView />);
+      expect(screen.getByText("Bu dönemde kimliği bilinen ziyaretçi yok.")).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Profili tamamla" })).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ user: null } as never);
+    }
   });
 });
