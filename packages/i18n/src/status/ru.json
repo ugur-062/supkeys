@@ -26694,13 +26694,13 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.teklifiniziYalnizAliciGorur": {
+    "hash": "5433e112ad",
+    "status": "reviewed",
+    "at": "2026-10-03"
+  },
   "web.panel.requests.page.teklifiRevizeEt": {
     "hash": "9beab72511",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.requests.page.tekliflerKapanisTarihindenSonraAlici": {
-    "hash": "9587983dcd",
     "status": "reviewed",
     "at": "2026-09-24"
   },

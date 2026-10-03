@@ -3390,7 +3390,7 @@
         "kapanmasina": "Closes in",
         "teklifAlimiKapandiDegerlendirmeAsamasinda": "Quote submission is closed — under evaluation",
         "kapaliZarfDigerTekliflerinTutarini": "Sealed bid: you cannot see the amounts of other quotes.",
-        "tekliflerKapanisTarihindenSonraAlici": "Quotes are opened by the buyer company after the closing date.",
+        "teklifiniziYalnizAliciGorur": "Other suppliers can never see your quote; only the buyer company sees it.",
         "nasilCalisir": "How does it work?",
         "teklifim": "My quote",
         "satinAlmaTalebiBolumleri": "Request sections",

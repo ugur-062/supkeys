@@ -2659,7 +2659,7 @@ export default function ListingDetailPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-zinc-950">{t("kapaliZarfDigerTekliflerinTutarini")}</p>
-              <p className="text-xs text-zinc-500">{t("tekliflerKapanisTarihindenSonraAlici")}</p>
+              <p className="text-xs text-zinc-500">{t("teklifiniziYalnizAliciGorur")}</p>
             </div>
             {/* Dil farkında Link — ham <a> EN/RU'da Türkçe sayfayı açıyordu
                 (derin denetim LU-21). */}

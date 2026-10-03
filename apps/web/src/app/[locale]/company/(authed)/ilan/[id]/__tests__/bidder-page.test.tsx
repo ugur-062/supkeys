@@ -193,6 +193,17 @@ describe("teklif veren başlık kartı", () => {
   });
 });
 
+describe("kapalı zarf bandı (canlı öncesi)", () => {
+  it("teklif verene kapanıştan sonra açılma vaadi vermez — teklifi yalnız alıcının gördüğünü söyler", () => {
+    renderPage();
+    expect(screen.getByText("Kapalı zarf: diğer tekliflerin tutarını göremezsiniz.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Teklifinizi diğer tedarikçiler hiçbir zaman göremez; yalnız alıcı firma görür."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/kapanış tarihinden sonra/)).toBeNull();
+  });
+});
+
 describe("talebe ulaşılamıyor (D-024)", () => {
   it("404'te 'Tekrar dene' yok; satınalma izni olmayan üyeye kendi-firma notu", () => {
     h.error = { response: { status: 404 } };
