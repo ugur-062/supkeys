@@ -405,6 +405,26 @@ describe("sipariş iptali", () => {
     // Kodlu saklanır (çok dillilik); firma ekranı okuyucunun dilinde çizer.
     expect(parseSystemText(after.cancelReason)).toEqual({ code: "ADMIN", text: "taraflar anlaşamadı, destek #42" });
     expect(companies.notifyCompany).toHaveBeenCalledTimes(2);
+    // Arayüz testi kapanış (api-1 NEW-2): taraf portalı + siparişe giden CTA —
+    // portal verilmeyince alıcı metni Satış süzgecinde rozetsiz, CTA /company idi.
+    const calls = companies.notifyCompany.mock.calls as [
+      string,
+      { type: string; portal?: string; cta?: { labelKey?: string; path: string } },
+    ][];
+    const cta = {
+      labelKey: "api.notifications.listings.cta.viewOrder",
+      path: `/company/siparis/${order.id}`,
+    };
+    expect(calls.find(([id]) => id === buyer.company.id)![1]).toMatchObject({
+      type: "admin_order_cancelled",
+      portal: "satinalma",
+      cta,
+    });
+    expect(calls.find(([id]) => id === seller.company.id)![1]).toMatchObject({
+      type: "admin_order_cancelled",
+      portal: "satis",
+      cta,
+    });
   });
 
   it("D-164: talep siparişsiz kalınca tavsiye YALNIZ alıcıya; satıcıya nötr metin", async () => {

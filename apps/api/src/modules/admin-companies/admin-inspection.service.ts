@@ -44,6 +44,22 @@ function ownerListingLink(listingId: string) {
 }
 
 /**
+ * Admin sipariş iptali bildiriminin taraf portalı ve bağlantısı: sipariş
+ * ekranlarında alıcı her zaman satın alma, satıcı satış portalındadır
+ * (CompanyOrdersService bildirimleriyle aynı kural); CTA iptal edilen
+ * siparişin detayına gider ("Siparişi Gör" → /company/siparis/<id>).
+ */
+export function orderCancelLink(orderId: string, side: "buyer" | "seller") {
+  return {
+    portal: (side === "buyer" ? "satinalma" : "satis") as NotificationPortal,
+    cta: {
+      labelKey: "api.notifications.listings.cta.viewOrder" as const,
+      path: `/company/siparis/${orderId}`,
+    },
+  };
+}
+
+/**
  * Admin inceleme + müdahale (Faz 5) — "satın alma talebimde ne oldu / siparişim takıldı"
  * destek çağrıları. Admin platform sahibidir: kapalı-zarf kuralı TARAFLAR
  * arasında geçerlidir, admin tüm teklifleri tutarlarıyla görür. Müdahaleler
@@ -713,6 +729,11 @@ export class AdminInspectionService {
       const buyerStranded = stranded && side === "buyer";
       void this.companies.notifyCompany(companyId, {
         type: "admin_order_cancelled",
+        // Taraf portalı + siparişe giden CTA (arayüz testi kapanış, api-1
+        // NEW-2): alıcı satırı satın alma, satıcı satırı satış tarafına ait;
+        // portal verilmeyince satır nötr yazılıp alıcı metni Satış süzgecinde
+        // rozetsiz görünüyor, CTA genel "Rothern'e Git" → /company idi.
+        ...orderCancelLink(id, side),
         subjectKey: "api.notifications.adminInspection.siparisIptalBaslik",
         bodyKey: buyerStranded
           ? numarali
