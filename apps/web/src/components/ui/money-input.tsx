@@ -25,6 +25,20 @@ export function formatMoneyDisplay(raw: string, locale: Locale | string = DEFAUL
 const MONEY_DECIMALS = 2;
 
 /**
+ * Kesirli ham para değerini 2 haneye tamamlar ("1250.5" → "1250.50"); tam
+ * sayı ("1250"), yarım ondalık ("1250.") ve boş değer olduğu gibi kalır.
+ *
+ * Prisma `Decimal.toString` ve `String(12.5)` sondaki sıfırı atar → kayıtlı
+ * fiyat formda "1.250,5" / "12,5" görünüyordu (arayüz testi kapanış S-SELL
+ * NEW-1). Çizim tarafında, tek yerde düzeltilir: ham state'e dokunulmaz.
+ */
+export function padMoneyFraction(raw: string, decimals: number = MONEY_DECIMALS): string {
+  const m = /^(-?\d*)\.(\d+)$/.exec(raw);
+  if (!m || m[2].length >= decimals) return raw;
+  return `${m[1]}.${m[2].padEnd(decimals, "0")}`;
+}
+
+/**
  * Tam genişlikli rakam/ayraç (Çince/Japonca IME'de sayı böyle gelir:
  * "１２，５００") ve Arapça-Hint rakamları ASCII'ye; boşluk türleri (Rusça
  * binlik U+00A0/U+202F dahil) ve kesme işareti (İsviçre "1'234.50") atılır.
@@ -154,7 +168,15 @@ export function MoneyInput({ value, onChange, onBlur, maxDecimals, ...props }: P
     <Input
       type="text"
       inputMode="decimal"
-      value={text ?? formatMoneyDisplay(value, locale)}
+      // Para alanı (2 ondalık) odakta değilken kesirli değer 2 haneyle çizilir;
+      // miktar (3) / tam sayı (0) alanları olduğu gibi.
+      value={
+        text ??
+        formatMoneyDisplay(
+          (maxDecimals ?? MONEY_DECIMALS) === MONEY_DECIMALS ? padMoneyFraction(value) : value,
+          locale,
+        )
+      }
       onChange={(e) => {
         const typed = sanitizeTyped(e.target.value);
         const raw = parseMoneyDisplay(typed, locale, maxDecimals);

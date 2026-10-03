@@ -8,7 +8,12 @@ import { affixCurrency } from "@/lib/tenders/labels";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
-import { MoneyInput, parseMoneyDisplay } from "@/components/ui/money-input";
+import {
+  MoneyInput,
+  formatMoneyDisplay,
+  padMoneyFraction,
+  parseMoneyDisplay,
+} from "@/components/ui/money-input";
 import { MONEY_FRACTION } from "@/lib/line-amount";
 import type { ListingItemRow } from "@/hooks/use-company-listings";
 import {
@@ -441,9 +446,9 @@ export function AuctionBidWorkbench({
                       <td className="px-3 py-2 text-right text-zinc-400 tabular-nums">
                         {init ? (
                           <span className={cn(changed && "line-through")}>
-                            {Number(init).toLocaleString(intl, {
-                              maximumFractionDigits: decimals,
-                            })}
+                            {/* Yanındaki girişle aynı biçim: kesirli fiyat 2 haneyle
+                                ("1.500,50"; eskiden Intl en çok-2 kuralıyla "1.500,5"). */}
+                            {formatMoneyDisplay(padMoneyFraction(init), locale)}
                           </span>
                         ) : (
                           "—"

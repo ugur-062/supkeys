@@ -87,7 +87,8 @@ describe("MoneyInput — tuş tuş yazım, arayüz diline göre", () => {
     await typeIn("1234,5");
     expect(last).toBe("1234.5");
     fireEvent.blur(box());
-    expect(box().value).toBe("1 234,5");
+    // Odaktan çıkınca kesirli para 2 haneyle (arayüz testi kapanış S-SELL NEW-1).
+    expect(box().value).toBe("1 234,50");
   });
 
   it("yarım ondalık odaktan çıkınca düşer", async () => {
@@ -103,7 +104,7 @@ describe("MoneyInput — tuş tuş yazım, arayüz diline göre", () => {
     currentLocale = "en";
     const user = await typeIn("7,5");
     await user.click(screen.getByRole("button", { name: "Dışarıdan" }));
-    expect(box().value).toBe("2,500.5");
+    expect(box().value).toBe("2,500.50");
   });
 
   it("harf yazılamaz", async () => {
@@ -183,5 +184,55 @@ describe("MoneyInputNumber — miktar (3 ondalık, TR)", () => {
     await user.keyboard("2.5");
     await user.tab();
     expect(input.value).toBe("2,5");
+  });
+});
+
+/**
+ * Arayüz testi kapanış S-SELL NEW-1: Prisma `Decimal.toString` ve
+ * `String(12.5)` sondaki sıfırı atıyor → kayıtlı fiyat formda "1.250,5",
+ * kademe "12,5" / "9,9" görünüyordu. Ham değer değişmez, yalnız çizim.
+ */
+describe("MoneyInput — kayıtlı kesirli fiyat 2 haneyle çizilir", () => {
+  it.each([
+    ["tr", "1250.5", "1.250,50"],
+    ["en", "250.5", "250.50"],
+    ["ru", "1250.5", "1 250,50"],
+    ["tr", "1250", "1.250"],
+    ["tr", "1250.50", "1.250,50"],
+  ])("%s: '%s' → '%s'", (locale, raw, shown) => {
+    currentLocale = locale;
+    render(<MoneyInput aria-label="Tutar" value={raw} onChange={() => {}} />);
+    expect(box().value).toBe(shown);
+  });
+
+  it("kademe fiyatı (sayı 12.5 / 9.9) 12,50 / 9,90", () => {
+    render(
+      <>
+        <MoneyInputNumber aria-label="A" value={12.5} onChange={() => {}} />
+        <MoneyInputNumber aria-label="B" value={9.9} onChange={() => {}} />
+      </>,
+    );
+    expect((screen.getByLabelText("A") as HTMLInputElement).value).toBe("12,50");
+    expect((screen.getByLabelText("B") as HTMLInputElement).value).toBe("9,90");
+  });
+
+  it("yazarken metin kullanıcınındır; odaktan çıkınca 2 haneye oturur", async () => {
+    const user = await typeIn("12,5");
+    expect(box().value).toBe("12,5");
+    expect(last).toBe("12.5");
+    await user.tab();
+    expect(box().value).toBe("12,50");
+    expect(last).toBe("12.5");
+  });
+
+  it("miktar (3 ondalık) ve tam sayı alanları doldurulmaz", () => {
+    render(
+      <>
+        <MoneyInputNumber aria-label="Q" maxDecimals={3} value={2.5} onChange={() => {}} />
+        <MoneyInput aria-label="I" maxDecimals={0} value="7" onChange={() => {}} />
+      </>,
+    );
+    expect((screen.getByLabelText("Q") as HTMLInputElement).value).toBe("2,5");
+    expect((screen.getByLabelText("I") as HTMLInputElement).value).toBe("7");
   });
 });

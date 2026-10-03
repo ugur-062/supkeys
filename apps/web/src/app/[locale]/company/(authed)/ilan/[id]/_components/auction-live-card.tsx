@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/format";
 import { affixCurrency } from "@/lib/tenders/labels";
+import { MONEY_FRACTION } from "@/lib/line-amount";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { convertAuctionAmount } from "@/lib/tenders/auction-currency";
 import { cn } from "@/lib/utils";
@@ -170,7 +171,7 @@ export function AuctionLiveCard({
           value={view?.bestTotal ? money(view.bestTotal, bestCur) : tr("gizli")}
           sub={
             bestInMyCurrency != null
-              ? `≈ ${withSym(bestInMyCurrency.toLocaleString(intl, { maximumFractionDigits: 2 }), myCurrency)}`
+              ? `≈ ${withSym(bestInMyCurrency.toLocaleString(intl, MONEY_FRACTION), myCurrency)}`
               : undefined
           }
         />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoneyDisplay, parseMoneyDisplay } from "../money-input";
+import { formatMoneyDisplay, padMoneyFraction, parseMoneyDisplay } from "../money-input";
 
 /**
  * Denetim 2026-08-26 Parça 10 #1 sözleşmesi.
@@ -216,5 +216,22 @@ describe("parseMoneyDisplay — miktar (3 ondalık)", () => {
   it("para (varsayılan 2 hane) davranışı değişmez", () => {
     expect(parseMoneyDisplay("1.2345")).toBe("12345");
     expect(parseMoneyDisplay("0.125", "en")).toBe("0.12");
+  });
+});
+
+describe("padMoneyFraction (arayüz testi kapanış S-SELL NEW-1)", () => {
+  it("kesirli değeri 2 haneye tamamlar", () => {
+    expect(padMoneyFraction("1500.5")).toBe("1500.50");
+    expect(padMoneyFraction("0.5")).toBe("0.50");
+    expect(padMoneyFraction("12.50")).toBe("12.50");
+  });
+  it("tam sayı, yarım ondalık ve boş değer olduğu gibi", () => {
+    expect(padMoneyFraction("1500")).toBe("1500");
+    expect(padMoneyFraction("1500.")).toBe("1500.");
+    expect(padMoneyFraction("")).toBe("");
+  });
+  it("biçimle birlikte: '1.500,50' / EN '250.50'", () => {
+    expect(formatMoneyDisplay(padMoneyFraction("1500.5"), "tr")).toBe("1.500,50");
+    expect(formatMoneyDisplay(padMoneyFraction("250.5"), "en")).toBe("250.50");
   });
 });

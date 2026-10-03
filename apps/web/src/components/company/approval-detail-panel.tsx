@@ -8,6 +8,7 @@ import { ListSkeleton } from "@/components/list";
 import { useApprovalDetail } from "@/hooks/use-company-approvals";
 import { formatDate } from "@/lib/format-date";
 import { affixCurrency } from "@/lib/tenders/labels";
+import { MONEY_FRACTION } from "@/lib/line-amount";
 import { displayStepStatus } from "@/lib/company/approval-steps";
 import { BadgeCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -22,10 +23,11 @@ const STEP_LABEL: Record<string, { key: string; color: "amber" | "green" | "rose
   NOT_NEEDED: { key: "step.NOT_NEEDED", color: "zinc" },
 };
 
-// Sayılar arayüz dilinin biçimiyle (`intl` = BCP-47; tr-TR sabitti).
+// Sayılar arayüz dilinin biçimiyle (`intl` = BCP-47; tr-TR sabitti); her zaman
+// 2 ondalık — en çok-2 kuralı "1.500,5" basıyordu (arayüz testi kapanış S-SELL NEW-1).
 function moneyIn(intl: string, amount: number | null | undefined, currency: string) {
   if (amount == null) return "—";
-  return affixCurrency(amount.toLocaleString(intl, { maximumFractionDigits: 2 }), currency, intl);
+  return affixCurrency(amount.toLocaleString(intl, MONEY_FRACTION), currency, intl);
 }
 
 /**

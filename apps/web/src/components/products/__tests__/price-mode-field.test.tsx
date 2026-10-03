@@ -47,6 +47,36 @@ describe("PriceModeField — kademeler", () => {
     expect(screen.getByText(/eksik kademe kaydedilmez/)).toBeInTheDocument();
   });
 
+  it("kayıtlı kademe fiyatları iki ondalıkla: 12,50 / 9,90 (arayüz testi kapanış S-SELL NEW-1)", () => {
+    render(
+      <Harness
+        initial={[
+          { minQty: 1, unitPrice: 12.5 },
+          { minQty: 100, unitPrice: 10.75 },
+          { minQty: 500, unitPrice: 9.9 },
+        ]}
+      />,
+    );
+    expect(screen.getByLabelText("1. kademe: birim fiyat")).toHaveValue("12,50");
+    expect(screen.getByLabelText("2. kademe: birim fiyat")).toHaveValue("10,75");
+    expect(screen.getByLabelText("3. kademe: birim fiyat")).toHaveValue("9,90");
+    expect(latest[0]!.unitPrice).toBe(12.5);
+  });
+
+  it("kayıtlı sabit fiyat (Decimal '1250.5') 1.250,50", () => {
+    render(
+      <PriceModeField
+        mode="FIXED"
+        amount="1250.5"
+        tiers={[]}
+        currency="TRY"
+        unit="adet"
+        onChange={() => {}}
+      />,
+    );
+    expect(document.getElementById("fiyat-birim")).toHaveValue("1.250,50");
+  });
+
   it("silinen fiyat 0'a dönmez, boş kalır", async () => {
     const user = userEvent.setup();
     render(<Harness initial={[{ minQty: 1, unitPrice: 12.5 }]} />);

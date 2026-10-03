@@ -784,6 +784,24 @@ describe("TeklifVerPage — arayüz testi webC-01", () => {
       expect(screen.getAllByText(/15\.000,00 ₺/).length).toBeGreaterThanOrEqual(1);
     });
 
+    it("'Önceki' sütunu girişle aynı biçim: 1.500,50 (arayüz testi kapanış S-SELL NEW-1)", () => {
+      // Intl en çok-2 kuralıyla "1.500,5" basıyordu; yanındaki giriş "1.500,50".
+      h.detail = baseDetail({
+        english: { isEnglishAuction: true, currentBest: null, bidCount: 1, currentRound: 2 },
+        myBid: {
+          amount: "15005",
+          status: "SUBMITTED",
+          version: 1,
+          note: null,
+          items: [{ itemId: "i1", unitPrice: "1500.5" }],
+        },
+      } as Partial<ListingDetail>);
+      render(<TeklifVerPage />);
+      expect(screen.getByLabelText("Çelik Boru birim fiyat")).toHaveValue("1.500,50");
+      expect(screen.getByText("1.500,50")).toBeInTheDocument();
+      expect(screen.queryByText("1.500,5")).toBeNull();
+    });
+
     it("D-273: X kalemi kapsam dışı bırakır (Hariç), 'Teklif ver' geri ekler", async () => {
       const user = userEvent.setup();
       h.detail = auction();
