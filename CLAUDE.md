@@ -1119,6 +1119,32 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   Sonradan sıkılaşan biçim kuralı DTO'ya değil servise, yalnız DEĞİŞEN değere uygulanır (form alanları geri
   gönderir). Kaydedilmemiş değişiklik `useUnsavedChangesGuard(dirty)` (sayfada tek guard). Belge düzeyi tıklama
   dinleyicileri değiştirici tuşu, `button!==0`, `defaultPrevented`, `target!=='_self'`ı atlar.
+- **Sayı girişi (arayüz testi kapanış):** doğrulanan HİÇBİR sayı alanı yerel `type=number` değildir (web ve admin):
+  Türkçe tarayıcı virgülü yutar, noktayı ondalık okur ('2,5' → 25, '1.500' → 1,5, '2.' → ''). Para `MoneyInput`;
+  miktar (Decimal 18,3) `MoneyInputNumber maxDecimals={QUANTITY_DECIMALS}`; gün/ay/yüzde/nitelik/cevap
+  `components/ui/number-input.tsx` (`NumberInput`/`NumberInputNumber`/`useNumberField`; `parseNumberStrict` arayüz
+  dilinin ayraçlarıyla, kırpmaz, geçersiz → `INVALID_NUMBER_RAW`/NaN). Doğrulamasız kayıt yolları (taslak,
+  `persistDefaults`) `hasInvalidNumber` ile durur; özel kapanış günü `CloseDaysInput` (tuş başına clamp yok).
+  Admin `lib/number-input.ts` `parseAdminNumber`/`parseAdminInteger` (TR, aynı algoritma). API Excel
+  `parseLocaleNumber` `currentLocale()` ile okur; NUMBER teklif cevabı kanonik ondalık (`NUMBER_ANSWER_PATTERN`).
+  Kesirli para odak dışında 2 ondalık (`padMoneyFraction`); salt-okur tutar `formatMoneyDisplay(padMoneyFraction(raw))`
+  ya da `MONEY_FRACTION`, yalnız `maximumFractionDigits` ile değil.
+- **Kapanış yerleşim/akış kuralları (arayüz testi kapanış):** grafik tutar ekseni `useFormatMoney().axis(value, cur,
+  axisScaleMax(series))` (eksende tek gösterim; tik başına compact yok), etiket U+00A0'lı (`formatAxisMoney`; Recharts
+  normal boşlukta sarar), YAxis genişliği `axisWidth(...)`, sabit genişlik yazılmaz. Görünüm alanının altına düşebilen
+  satır içi birincil düğme `FAB_CLEARANCE_CLASS` (`company-shell/assistant/fab-clearance.ts`). Değere bağlı
+  `maxLength` yapıştırmayı sınırlamaz: bağlantı kutularında onChange `clampLinkInput` (`lib/safe-url.ts`). Rol/izin
+  tablosundaki hazır set çipi seçim arka planını animasyonla değiştirmez. `PhoneInput` ülkesiz numarada '' yayar
+  (EN'de varsayılan ülke yok): ayırt etmesi gereken form `onCountryMissingChange` kullanır. Rapor talep seçicisi
+  `GET company/reports/listings` `{items,total,limit}` (en yeni 500, `q` katlanmış numara/başlık araması, `selected`
+  pencere dışını ekler, `excludeDrafts` sunucuda); arayüz ortak `components/company/reports/report-listing-picker.tsx`,
+  dizi üstüne düz Select yazılmaz. Şirketim ödeme satırları Siparişlerim `?payment=overdue|open` ile aynı küme
+  (`paymentDueDate`, `isOrderFullyPaid`); AI satırı `PENDING_AI_SUGGESTION_RUN_WHERE` ortak.
+- **Geri/İleri yarışı (arayüz testi kapanış, D-283):** `loading.tsx` varken Next 15.5 sayfa segmentini tembel çeker ve
+  geç gelen `ACTION_SERVER_PATCH`'i popstate'in geri yüklediği duruma bayatlık denetimi olmadan uygular (eski sayfa
+  yeni adresin altında kalır). Kök koruma `components/popstate-restore-guard.tsx` (`lib/popstate-restore-guard.ts`,
+  `[locale]/layout.tsx`'te) popstate'i yeniden tetikleyerek onarır. Next bayat yamaları düşürene kadar kaldırılmaz;
+  popstate dispatch eden uygulama kodu bu korumayı hesaba katar.
 
 ## Tek Kaynaklar — dokunmadan önce buraya bak
 
@@ -1213,7 +1239,10 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | İstek dili (API) · çevirmen · anahtarlı istisna | `common/i18n/{locale-context,i18n.service,http-i18n}.ts` (`currentLocale`, `tApi`, `i18nMessage`) |
 | React dışı çeviri köprüsü (web) · dil çerezi | `src/i18n/{runtime,locale-cookie}.ts` (`tRuntime`, `effectiveClientLocale`) |
 | Çift gönderim kilidi (web/admin) | `@/hooks/use-submit-lock` (`useSubmitLock`, `useDialogSubmitLock`) |
-| Herkese açık satın alma / teklif CTA kapısı | `apps/web/src/lib/public/member-gate.ts` (`buyingGate`, `publicBidGate`) · `components/marketplace/member-cta.tsx` |
+| Herkese açık satın alma / teklif / bağlantı CTA kapısı | `apps/web/src/lib/public/member-gate.ts` (`buyingGate`, `publicBidGate`, `connectGate`) · `components/marketplace/member-cta.tsx` · `connect-cta.tsx` · `gated-field.tsx` |
+| Herkese açık sayfa çapası (dil başına) | `apps/web/src/lib/public/anchors.ts` (`pricingHref`, `categoriesHref`, `anchorId`) |
+| Paket yükseltme CTA hedefi (önce doğrulama) | `components/company/silver-lock-card.tsx` (`useUpgradeHref`, `UpgradeButtons`, `UpgradeActions`, `VerifyFirstLink`) |
+| Sayı girişi (gün/ay/yüzde/nitelik/cevap) | web `components/ui/number-input.tsx` + `money-input.tsx` `parseNumberStrict` · admin `lib/number-input.ts` |
 | Şirketim alan/profil izinleri · Gold altı açık satınalma sayfaları · mesaj yönü | `apps/web/src/lib/company/portals.ts` (`COMPANY_AREA_PERMISSIONS`, `COMPANY_PROFILE_PERMISSIONS`, `BUYING_WIND_DOWN_PATHS`, `messagingDirectionOpen`) |
 | Şirketim KPI türetilmiş liste süzgeçleri | `apps/web/src/lib/dashboard/derived-filters.ts` ⇔ API `ActionCenterService` |
 | Teklif erişimi · KYC kapısı · LOST etiketi | `company-listings.service.ts` `assertBidAccess` / `assertBidVerified` · web `lib/tenders/lost-bid-outcome.ts` |
@@ -1860,6 +1889,14 @@ talep `/talep/rot-…`, kategori `/urunler/kategori/<kod>-<ad>`.
 - **Panel ilişkili ürünleri ve firma dizini (webA-06):** panel `GET /company/market/related/:company/:product`
   (buy:view; `RelatedViewerScope` kendi firmasını ve engelli firmaları dışlar, ürün firması engelliyse 404).
   Firma kartında ürün önizlemesi firma başına ayrı `take`. Firma dizini 'Firma ülkesi'; mobil süzgeç 'Süzgeçler'.
+- **Kapanış kuralları (arayüz testi kapanış):** misafir de paket etiketini baştan görür (Silver eylemi
+  `bidGate.lockedLabel`, Gold eylemi `memberGate.lockedLabel`; ham etiket yalnız paketi ve izni tutan üyede).
+  Statik/ISR sayfa oturumlu üyeye giriş/kayıt CTA'sı göstermez: `GatedField` hidrasyondan sonra panel karşılığını
+  çizer (yoksa hiçbir şey); bağlantı/teklif/satın alma eylemi `connectGate`/`publicBidGate`/`buyingGate` (önce paket,
+  sonra izin) üzerinden, hidrasyondan önce misafir çocukları çizen istemci adacıklarıyla. Hiçbir herkese açık metin
+  alıcı kimliği/şartnameyi "kayıtlı kullanıcılara" vaat etmez (Silver; davetli tedarikçiye ücretsiz) —
+  `public-tier-copy.test.ts` dil başına regex'le korur. Çapa `lib/public/anchors.ts`'ten; '#fiyatlar' gibi sabit
+  Türkçe parça yazılmaz. Herkese açık ürün projeksiyonu `hasWebsite` taşır, `website` değil.
 - **Pazarlama (webA-10, T-05):** menüler pazar yeri rotalarını yalnız `MARKETPLACE_LIVE` açıkken basar; alıcı yüzü
   çapaları `audience-switch.tsx` `BUYER_ANCHORS`; USD `formatUsd(amount, locale)`; sözleşme sayfaları `LegalDoc` →
   `PublicLayout`.
@@ -2449,7 +2486,8 @@ Sözleşme: `panel-hero-search.test` "arka plan".
 - **Profilim (webC-05):** yalnız değişen alanları PATCH'ler (`rebaseDraft`), ekranda kontrolü olmayan alan taslağa
   girmez; tavanlar `COMPANY_PROFILE_LIMITS`/`COMPANY_SERVICES_MAX`; şemasız bağlantı girdisinde `linkInputMaxLength`;
   AI güçlendirme = Silver+ ∧ `hasAnySeatPermission`; paket kilidi CTA'sı `useVerifyFirst`/`UpgradeActions`, düz
-  `PRICING_HREF` yazılmaz.
+  `PRICING_HREF` yazılmaz — bu her ücretsiz/paket altı yükseltme CTA'sı için geçerli: tek bağlantı `useUpgradeHref()`,
+  bant/düğme `UpgradeButtons`, Paketler'e bağlanan cümle sonrası `VerifyFirstLink` (arayüz testi kapanış).
 - **Paket kilitli sayfalar (webC-10, webB-05):** `CompanyPaidTierGuard` 403 gövdesi her zaman `code: TIER_REQUIRED`
   + `minTier`; PremiumOnly dışında çalışan sorgu `tierAtLeast` ile `enabled`. Doğrulama gerektiren her kapı PENDING'i
   ayrı metinle işler (API `COMPANY_VERIFICATION_PENDING`); pasif düğme notunda 'Doğrulamayı tamamlayın' bağlantısı
@@ -2754,8 +2792,12 @@ Forma kalem ekleyen HER yol `alternativeAllowed: true` yazar (yoksa RHF kapalı
   her yol ikisini çağırır. Satış listesinde `canBid` rol iznini içerir; teklifçi detayı `bidRequiresVerification` +
   `ownerCompanyId` taşır. Geçerlilik uzatma `expectedValidityDays` taşır, süre değiştiyse 409 `BID_VALIDITY_CHANGED`.
   LOST etiketi tek kaynak `lostBidOutcome` (yalnız eliminatedAt dolu → 'Elendi'; teklif listeleyen API'ler eliminatedAt
-  döner); eleme metni `myBid.round` ile `listing.currentRound`'u karşılaştırır; teklifçi IN_AWARD_APPROVAL'ı IN_AWARD
-  görür. Teklif formunda kaleme özel alan `VisualLabel` (aria-hidden) + kalem adlı aria-label. Belgeden fiyatlamada
+  döner; eliminatedAt + `[[ORDER_REJECTED]]` gerekçesi = satıcı kendi siparişini reddetti → `orderRejected`,
+  `isOrderRejectedReason`, 'Elendi' DEĞİL — arayüz testi kapanış); eleme metni `myBid.round` ile
+  `listing.currentRound`'u karşılaştırır; teklifçi IN_AWARD_APPROVAL'ı IN_AWARD görür. Teklif formu tohumu
+  `lib/tenders/carried-bid-price.ts` `seedBidItemPrice`: kalem birimi bu turda yoksa (pazarlık) yabancı kalem
+  `fxToBase` damgasıyla ana birime YUKARI yuvarlanır (arayüz testi kapanış). Teklif formunda kaleme özel alan
+  `VisualLabel` (aria-hidden) + kalem adlı aria-label. Belgeden fiyatlamada
   birim karşılaştırması `normalizeUnit` kodu (`sameUnit`).
 - **Sipariş (api1-02, webB-07/08):** taraf + rol (`assertOrderSide`) iş ön koşulundan ÖNCE; değerlendirmede rol
   COMPLETED kontrolünden önce. Kalem snapshot'ı `orderItemAlternativeSnapshot` (toplu ve kalem bazlı aynı fonksiyon,
@@ -2953,13 +2995,16 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- **Son altı migration arayüz testinden (2026-10-01/02), staging VE canlıda BEKLİYOR (O-56;
+- **Son sekiz migration arayüz testinden (2026-10-01/03), staging VE canlıda BEKLİYOR (O-56;
   API web/admin'le aynı pencerede ve önce, O-57):** `20261001120000_listing_invitation_notified_at`,
   `20261001150000_listing_bid_submit_count` (DEFAULT 0 + gönderilmişlere UPDATE),
   `20261001180000_notification_zero_bid_portal_backfill` (salt DML),
   `20261001210000_order_item_alternative_snapshot`, `20261002090000_platform_admin_must_change_password`,
-  `20261002130000_anonymized_company_items_backfill` (salt DML). Hepsi eklemeli/idempotent; eski
-  veriye uydurma backfill yazılmaz (bilinmeyen geçmiş NULL/varsayılan kalır). Bekleyen toplam 20.
+  `20261002130000_anonymized_company_items_backfill` (salt DML),
+  `20261002160000_notification_admin_listing_portal_backfill` ve
+  `20261003090000_notification_admin_order_cancelled_portal_backfill` (ikisi salt DML, arayüz testi kapanış; O-56
+  listesine henüz eklenmedi). Hepsi eklemeli/idempotent; eski
+  veriye uydurma backfill yazılmaz (bilinmeyen geçmiş NULL/varsayılan kalır). Bekleyen toplam 22.
 - Öncesi derin denetim DÜŞÜK turundan (2026-09-30, O-40): `20260930120000_notification_cron_indexes_fx_precision` — notifications'a 2 index +
   `listing_bid_items.fxToBase` DECIMAL(24,12) (ölçek genişlemesi tabloyu yeniden yazar,
   snapshot). Damga her yerde 12 ondalıkla üretilir (saklanan = hesaplanan). Ardından
@@ -3173,10 +3218,11 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **300 dosya / 3.465 test** (2 LIVE spec atlanır) · web **318 / 2.169** · admin
-  **63 / 362** · i18n **9 / 51** — toplam 690 dosya / 6.047 test (arayüz testi 2026-10-01
-  son kapısı, HEAD adcc8cd0; API 10'luk `--runInBand` partiler, 30 parti; i18n 8.344 anahtar,
-  en/ru %100). Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
+- API **303 dosya / 3.482 test** (2 LIVE spec atlanır; son tam koşum HEAD 36312ccf, 10'luk `--runInBand`
+  partiler, 31 parti) · web **328 / 2.326** · admin **64 / 378** · i18n **11 / 65** (vitest toplamı
+  403 / 2.769, HEAD 44cb6ff4; i18n 8.390 anahtar, en/ru %100) — arayüz testi kapanış 2026-10-03.
+  44cb6ff4'te API jest izin yüzünden koşulmadı; 36312ccf'deki tam kapı 698 dosya / 6.145 test yeşil.
+  Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
   kırmızı (servisin `end = new Date()` ↔ `createdAt @default(now())` yarışı) —
@@ -3514,8 +3560,8 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 
 Tek kayıt `docs/qa-launch-audit-2026-09-28.md` (16 bölüm, bulgular + operatör
 matrisi + runbook); derin denetim ve düzeltme durumu
-`docs/qa-launch-audit-2026-09-29-derin.md`; tarayıcı arayüz testi (501 kusur, kararlar T-01…T-20)
-`docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın diye:
+`docs/qa-launch-audit-2026-09-29-derin.md`; tarayıcı arayüz testi (501 kusur, kararlar T-01…T-20; son yerel tur ve
+kapanış 2026-10-02/03) `docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın diye:
 - **Mesajlaşma derin linki (derin denetim 2026-09-29 Y-18):** `/company/mesajlar?
   with=<firma>` her zaman `&portal=satinalma|satis` taşır (linki AÇANIN yönü;
   e-posta CTA'sı `appRoutes.messagesWith(base, id, locale, portal)`). `with`
@@ -3667,6 +3713,13 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   aktör e-postasını kendisi çözer. Firmaya bağlı varlığa admin işlemi `tenantId`=firma; iki firmalı müdahale
   (sipariş iptali, bağlantı daveti) `tenantId` = ilk taraf + `metadata.counterpartyCompanyId`, `AuditService.query`
   admin satırlarında ikisini eşler. Başvuru kuyruğu yaşı `submittedAt`. Admin CSP `frame-src` R2 kökü + `https://*.<host>`.
+- **Denetim ve admin bildirimleri (arayüz testi kapanış):** iç içe metadata anahtarları da `KEY_LABEL`'da; izin
+  etiketleri admin'de `lib/terms.ts` `COMPANY_PERMISSION_LABEL` aynası (guard testli); API başlamama gerekçesini cümle
+  değil kod yazar; `tier_set` metadata'sında `months` yalnız ücretli hibede (kaldırmada null); admin kullanıcı listesi
+  `permissions` döner (rolsüz = 'Görüntüleyici'). Ham kod aramak için yerel DB'deki her farklı `audit_logs.metadata`
+  satırını biçimleyip tara. Siparişle ilgili admin bildirimi taraf portalı (alıcı satinalma / satıcı satis) +
+  `/company/siparis/<id>` CTA'sı (`orderCancelLink`); talep müdahalesi `listingId` + `/company/ilan/<id>` CTA'sı.
+  API Excel durum etiketleri (`api.companyReports.durum*`) her dilde `web.domain.listingStatus` ile aynı (parite testi).
 - **Admin e-posta ve sistem (webC-15):** engel kaldırma işareti `SUPPRESSION_CLEAR_MARKER_WHERE` (template + provider=internal
   + status=SENT, `suppression-marker.ts`), yalnız template'le eşleşen sorgu yazılmaz; yeniden gönderim iç kaydı 400;
   `REDACTED_CONTEXT_TYPES` API ile aynı; iç kayıtta başlık şablon etiketi. Zamanlanmış iş adları `lib/cron-jobs.ts`

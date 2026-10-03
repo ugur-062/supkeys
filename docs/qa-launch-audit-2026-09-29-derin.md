@@ -208,7 +208,7 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 121. **Gold dışı firmada talep düzenleme sayfası**: *Varsayılan:* PortalGuard'ın PremiumGate'i (doğrulama kararı satın al tıklamasında); doğrulama-öncelikli ayrı kilit kartı ayrı iş.
 122. **Eski siparişlerin muadil/marka snapshot'ı** (O-003, DN-11): *Varsayılan:* backfill yok (kalem ↔ kazanan teklif ilişkisi saklanmadığı için uydurulmadı); ad + fiyat eşleşmesiyle betik istenebilir.
 123. **Vesaik mukabilinde banka hesabı önseçimi** (O-029): *Varsayılan:* önseçili kaldı (görünür, 'Hesap eklenmesin' seçilebilir); akreditife hiç hesap işlenmiyor.
-124. **Next.js geri tuşu yarışı** (D-283, DN-07): sipariş detayından ~0-70 ms içinde Geri'de adres değişiyor, detay ekranda kalıyor. *Varsayılan:* uygulama değişikliği yok; Next sürüm yükseltmesi ya da üst akış bildirimi.
+124. ~~**Next.js geri tuşu yarışı** (D-283, DN-07): sipariş detayından ~0-70 ms içinde Geri'de adres değişiyor, detay ekranda kalıyor. *Varsayılan:* uygulama değişikliği yok; Next sürüm yükseltmesi ya da üst akış bildirimi.~~ → **Kapandı (arayüz testi kapanış):** 2401eab2 uygulama düzeyi koruma (`popstate-restore-guard`), bkz. karar 158.
 125. **Sonuçlanan onay isteğinde kalan adımlar** (D-361): *Varsayılan:* yalnız görüntüde 'gerek kalmadı'; sunucu WAITING/PENDING bırakıyor. SKIPPED/NOT_NEEDED yazımı ayrı iş.
 126. **Pazarlıkta 10 kat sapma freni** (Y-10): *Varsayılan:* eklenmedi (kök neden `type=number` düzeltildi).
 127. **Eski revize tekliflerin 'Revizyon' etiketi** (O-036, DN-11): *Varsayılan:* `submitCount` backfill'i gönderilmiş satırlara 1 yazdı; geçmiş yeniden gönderim sayısı bilinmediği için etiket kayboldu (uydurulmadı).
@@ -218,7 +218,7 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 131. **'Gelen Teklifler' KPI'ı teklif, hedef liste talep sayıyor** (O-035): *Varsayılan:* hedef `?status=OPEN&bids=1`; sayılar doğası gereği eşit değil. KPI'ı 'teklif gelen talep' sayısına çevirmek ya da ayrı liste ürün kararı.
 132. **Satış 'Aktif Sipariş' eski CREATED siparişleri de sayıyor**: liste süzgecinde CREATED yok. *Varsayılan:* dokunulmadı (yeni akış CREATED üretmiyor).
 133. **Tedarikçi sekmesinde çeyrek / özel aralık** (O-104): *Varsayılan:* uç yalnız ay ve yıl döndürüyor, yıl verisi açık notla gösteriliyor; gerçek çeyrek için API'ye dönem parametresi.
-134. **Firma sayfasındaki 'Bağlantı İçin Silver'a Geçin'** (D-194 kalanı): `firma/[id]/page.tsx` doğrulanmamış firmayı doğrudan `/company/premium`a götürüyor. *Varsayılan:* açık; `useVerifyFirst`/`VERIFY_HREF`e bağlanmalı (küçük iş).
+134. ~~**Firma sayfasındaki 'Bağlantı İçin Silver'a Geçin'** (D-194 kalanı): `firma/[id]/page.tsx` doğrulanmamış firmayı doğrudan `/company/premium`a götürüyor. *Varsayılan:* açık; `useVerifyFirst`/`VERIFY_HREF`e bağlanmalı (küçük iş).~~ → **Kapandı (arayüz testi son tur):** 6cff7139 `useVerifyFirst`'e bağlandı; e3999909 aynı kuralı diğer yükseltme CTA'larına yaydı.
 135. **'Gold altında açık kalan listeler' bandı** (O-008): *Varsayılan:* hiç Gold olmamış STANDART/SILVER firmada da (buy:view varsa) görünüyor; yalnız eski Gold'lara göstermek için API'de 'önceki paket' bilgisi gerekir.
 136. **Adres tavanı ve ödeme ekranı e-posta düğmesi** (D-135, D-137): *Varsayılan:* firma başına 200 adres (yalnız yeni adreste), düğme 'Satın almak için bize yazın'.
 137. **PENDING firmada paket satın alma** (O-068): *Varsayılan:* doğrulama sayfasına yönlendirmek yerine düğme pasif + 'inceleniyor — onaylanınca satın alabilirsiniz' + 'Durumu gör'; ödeme ekranı yerinde açıklar (CLAUDE.md güncellendi). Eski davranış istenirse geri alınır.
@@ -229,6 +229,35 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 142. **Bilgi talebi araması sunucuda değil** (D-112): *Varsayılan:* yalnız yüklenen kayıtlarda, ipucuyla (ücretsiz satıcıda alıcı adıyla arama kimlik sızdırır).
 143. **Admin geçici şifresi** (D-025, DN-11): *Varsayılan:* `mustChangePassword` backfill'siz; mevcut personel kilitlenmez, zorunlu değişim yalnız yeni geçici şifrelerde. Ayrı süre sınırı (ör. 72 saat) yok. Geçici şifreyle kalan hesap varsa O-59.
 144. **Yalnız 'Bağlantılar' izni olan üyeye örtük satış görüntülemesi** (T3): *Varsayılan:* `connections:manage` tek başınaysa `sell:view` gelir (Müşterilerim her pakette açık). Alternatif: kayıtta en az bir görüntüleme zorunlu (400) ya da satınalma görüntülemesi.
+
+**Arayüz testi son tur ve kapanış (2026-10-02/03):**
+
+145. **Herkese açık ürün sayfasında web sitesi** (webA-1:NEW-1): *Varsayılan:* oturumlu üye web sitesi satırını hiç görmüyor; projeksiyon yalnız `hasWebsite` taşıyor. Firma profili siteyi zaten herkese gösteriyor (SEO kararı 2026-09-09), istenirse ürün sayfası da adresi gösterebilir.
+146. **EN kayıtta varsayılan telefon ülkesi** (webA-1:NEW-3): *Varsayılan:* bilerek yok (sessiz +90 yok); yalnız hata metni 'önce ülke kodunu seçin' oldu.
+147. **'Ödemesi gecikti' sayımı** (O-035): *Varsayılan:* hatırlatma cron'u ve sipariş listesiyle aynı kanonik vade kuralı (`paymentDueDate`, `isOrderFullyPaid`). OPEN_ACCOUNT ve yalnız completedAt'li siparişler artık sayılmıyor, canlıda sayı biraz düşebilir; bu siparişler 'ödemesi bekleniyor'a geçer.
+148. **Siparişini reddeden tedarikçinin teklif etiketi** (webB-2:NEW-1): *Varsayılan:* tedarikçi 'Siparişi reddettiniz', sahip 'Sipariş reddedildi' görüyor (sahipte gri rozet).
+149. **Panel dil seçici** (S-BUY): *Varsayılan:* üst çubuktaki hesap menüsünde. Seçim kayıtlı hesap dilini değiştirir, yani e-postalar da değişir (Ayarlar > Dil ile aynı); `/en/...` doğrudan açılınca kayıtlı dile döner. Alternatif: oturumluk, URL'ye uyan panel dili.
+150. **Tasarruf raporunda tarih** (S-BUY:NEW-8): *Varsayılan:* varsayılan aralık yerine ipucu. İstenirse son 30 gün ya da bu yıl ön seçili gelir.
+151. **Eksik ya da geçersiz kademe satırı** (webC-4:NEW-1, NUM kademe miktarı): *Varsayılan:* düzenleme kipi de oluşturma gibi eksik satırı kayıttan sonra formdan atar. Başlangıç miktarı geçersiz ('2.5') kademe de eksik sayılır: sarı uyarıyla kayda alınmaz, sert engel yok.
+152. **Pazarlık turunda karma birimli taşınan teklif** (S-SELL): *Varsayılan:* tedarikçi formunda yabancı kalem teklifin kendi `fxToBase` damgasıyla ana birime YUKARI yuvarlanarak çevrilir; değişmeden gönderim indirim sayılmaz. Alıcı yeni turu açarken uyarılmıyor; istenirse ayrı iş.
+153. **Onay penceresi çift tık koruması** (S-SELL): *Varsayılan:* açıldıktan sonraki 500 ms backdrop/Escape kapanışı yalnız teklif sayfasında yok sayılıyor, Catalyst Dialog'a genel uygulanmadı.
+154. **AI karşılama balonu** (S-SELL): *Varsayılan:* talep detayında (`/company/ilan/:id`) ve bilgi talebi sayfalarında kendiliğinden açılmıyor, FAB görünür.
+155. **Firma profili kapı notu** (S-PUB-ADMIN, `gateAsideHint`): *Varsayılan:* 'Kayıt ücretsiz; bağlantı daveti Silver, talep açıp teklif toplamak Gold'; mesajlaşma vaadi kaldırıldı. Onay.
+156. **Kilitli STANDART üyeye anasayfa tedarikçi notu** (webA-1:NEW-2): *Varsayılan:* 'Açık talepleri görün · Silver' (doğrulanmamışa doğrulama, değilse `/company/premium`), alıcıdaki '· Gold' kalıbıyla aynı. Alternatif: 'Teklif verin · Silver'.
+157. **Eski sipariş iptali bildirimleri** (api-1:NEW-2 backfill): *Varsayılan:* 25 eski satıcı tarafı satır doğru portala taşındı ama gövdesi D-164 öncesi alıcı metniyle kaldı (geçmiş metne dokunulmadı). Numarasız ya da belirsiz eski satırlar portalsız ve genel CTA'lı kalıyor. İstenirse yeniden üretilir ya da silinir.
+158. **D-283 kök koruma** (DN-07; karar 124'ün yerine geçer): *Varsayılan:* Next 15.5.25 bayat sunucu yamasını hâlâ uyguluyor; `popstate-restore-guard` uygulama düzeyinde onarıyor. Next bu yamaları düşürünce koruma etkisiz kalır ve kaldırılabilir. `pnpm patch` reddedildi (lock ve üç Dockerfile değişirdi).
+159. **Metin içi yükseltme bağlantıları** (webC-2): *Varsayılan:* ürün tavanı notu, koltuk dolu notu ve üyelik 'Yenile' bağlantısı Paketler'e gitmeye devam ediyor; doğrulanmamış veya reddedilmiş firmada arkasına 'Önce ücretsiz doğrulan' bağlantısı ekleniyor. Bant ve düğme CTA'larında doğrulama birincil.
+160. **Para girişinde tam sayı** (S-SELL:NEW-1): *Varsayılan:* odak dışında yalnız kesirli değer 2 ondalığa tamamlanır ('1.250,5' → '1.250,50'), tam sayı ',00' almaz. Tek satırlık değişiklikle ',00' eklenebilir.
+161. **Telefonda 'Yanıtla' satırı** (S-SELL:NEW-2): *Varsayılan:* düğme aynı satırda, satıra 64 px sağ boşluk (ipucu bir satır fazla sarar); düğmeyi ayrı satıra indirmek seçilmedi.
+162. **Oturumlu üyede herkese açık kapılar** (S-PUB-ADMIN): *Varsayılan:* panel karşılığı olmayan alan (kapalı talebin kalem listesi, satıcı sitesi satırı) üyeye hiç çizilmiyor. Bağlantı izni olmayan Silver üye 'Firmayı panelde aç' görüyor, firmanın kendi profilinde bağlantı eylemi yok.
+163. **Ürün dizini fiyat süzgeci** (NUM): *Varsayılan:* yalnız tam sayı; '2,5' gibi ondalık işaretlenir ve uygulanmaz. Ondalık sınır için URL şeması ve API değişmeli.
+164. **Admin manuel kur** (NUM): *Varsayılan:* güncel TCMB kurunun yarısının altı ya da iki katının üstü sarı uyarı verir ama kaydedilebilir (acil kur). Engel ya da onay adımı istenirse ayrı iş.
+165. **Excel içe aktarmada belirsiz ayraç** (NUM): *Varsayılan:* metin hücresindeki sayı istek diliyle okunur (EN '1,500' = 1500, TR '1,500' = 1,5); belirsizlik uyarısı yok, TR kullanıcının EN biçimli '1,500'ü 1,5 okunur.
+166. **Sayı hassasiyetleri** (NUM): *Varsayılan:* NUMBER nitelik 4, NUMBER teklif cevabı 6, manuel kur 6, admin zaman tasarrufu 2 ondalık. API kanonik olmayan NUMBER cevabını ('12,50') taslakta da 400 ile reddediyor.
+167. **Ölü herkese açık bileşenler** (COPY:NEW-16): `trust-band.tsx`, `how-it-works-flow.tsx`, `listing-teaser-card.tsx`, `floating-cta.tsx` hiçbir yere bağlı değil; silme izin sınıflandırıcısınca reddedildi. *Varsayılan:* metinleri kurala uyduruldu, testle korunuyor; onayla silinebilir.
+168. **Misafir 'Teklif ver · Silver'** (COPY:NEW-4): *Varsayılan:* davetli ve bağlı tedarikçi ücretsizde de teklif verebildiği hâlde herkese açık kartta '· Silver' gösteriliyor; ayrıntıyı kapı metni anlatıyor.
+169. **EN/RU çapa adları** (COPY:NEW-15): *Varsayılan:* pricing/tarify, features/vozmozhnosti, faq/voprosy, categories/kategorii; TR çapaları aynen. Kalan `#bilgi-iste`/`#urunler` son yeniden doğrulamada açık.
+170. **Meta açıklamalarında paket adları** (COPY:NEW-11): *Varsayılan:* Silver/Gold adıyla geçiyor; bazı TR metinler 160 karakteri aşıyor ve son yeniden doğrulamada tam paket adında kesildiği görüldü. Pazarlama ifadesi istenirse değiştirilir.
 
 ### Regresyon
 
