@@ -13,7 +13,7 @@ import {
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
-import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
+import { SilverLockCard, UpgradeButtons } from "@/components/company/silver-lock-card";
 import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -1938,9 +1938,11 @@ export default function ListingDetailPage() {
               strong: (c) => <strong>{c}</strong>,
             })}
           </Text>
-          <Button href={PRICING_HREF} className="shrink-0">
-            {t("paketleriGor")}
-          </Button>
+          {/* Doğrulama önce gerekiyorsa doğrulama birincil (tek kural
+              useVerifyFirst; arayüz testi webC-2). */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <UpgradeButtons pricingLabel={t("paketleriGor")} />
+          </div>
         </div>
       ) : l.roleAllowsBid === false && biddingOpen ? (
         // Rol kapısı: sessiz buton yokluğu yerine açık yönlendirme.

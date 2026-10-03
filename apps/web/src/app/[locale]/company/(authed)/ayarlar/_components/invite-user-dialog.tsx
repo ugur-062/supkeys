@@ -24,7 +24,7 @@ import {
 } from "@/hooks/use-company-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Link } from "@/i18n/navigation";
-import { PRICING_HREF } from "@/components/company/silver-lock-card";
+import { PRICING_HREF, VerifyFirstLink } from "@/components/company/silver-lock-card";
 import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { useEffect, useRef, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
@@ -185,13 +185,19 @@ export function InviteUserDialog({
               <p className="text-xs text-amber-700">
                 {topTier
                   ? t("kullaniciHakkiDoluKoltukBosaltin")
-                  : t.rich("kullaniciHakkiDoluPaketYukseltin", {
-                      link: (c) => (
-                        <Link href={PRICING_HREF} className="font-semibold underline underline-offset-2">
-                          {c}
-                        </Link>
-                      ),
-                    })}
+                  : (
+                    <>
+                      {t.rich("kullaniciHakkiDoluPaketYukseltin", {
+                        link: (c) => (
+                          <Link href={PRICING_HREF} className="font-semibold underline underline-offset-2">
+                            {c}
+                          </Link>
+                        ),
+                      })}
+                      {/* Paket alımı doğrulama ister (useVerifyFirst; webC-2). */}
+                      <VerifyFirstLink />
+                    </>
+                  )}
               </p>
             ) : null}
           </div>

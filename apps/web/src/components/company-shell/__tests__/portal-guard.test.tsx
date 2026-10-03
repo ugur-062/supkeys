@@ -30,6 +30,7 @@ vi.mock("@/components/company-shell/premium-gate", () => ({
 }));
 
 import { PortalGuard } from "../portal-guard";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -138,6 +139,43 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
     expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
     // Açık portal sayılmaz — son portal kaydı yapılmaz.
     expect(h.setLastPortal).not.toHaveBeenCalled();
+  });
+
+  it("bant telefonda dikey: düğme metnin altına iner, sm'de yan yana (webC-2)", () => {
+    h.auth.user = { roles: ["YONETICI"] };
+    h.auth.company = { tier: "SILVER" };
+    h.pathname = "/company/satinalma/taleplerim";
+    render(
+      <PortalGuard portal="satinalma">
+        <div data-testid="child">LISTE</div>
+      </PortalGuard>,
+    );
+    const banner = screen.getByRole("status");
+    expect(banner).toHaveClass("flex-col", "sm:flex-row");
+    // Düğme metin sütununun KARDEŞİ (aynı satırı paylaşan esnek öğe değil).
+    const link = screen.getByRole("link", { name: "Paketleri gör" });
+    expect(link.parentElement).toBe(banner);
+    expect(screen.getByText("Satınalma paneli Gold pakette").closest("div")?.parentElement?.parentElement).toBe(banner);
+  });
+
+  it("doğrulaması reddedilmiş firmada bant önce doğrulamaya gider (useVerifyFirst, webC-2)", () => {
+    h.auth.user = { roles: ["YONETICI"] };
+    h.auth.company = { tier: "STANDART" };
+    h.pathname = "/company/satinalma/taleplerim";
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
+    try {
+      render(
+        <PortalGuard portal="satinalma">
+          <div data-testid="child">LISTE</div>
+        </PortalGuard>,
+      );
+      expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+    } finally {
+      useCompanyAuthStore.setState({ company: null } as never);
+    }
   });
 
   it("SILVER + buy:view: Siparişlerim de açık", () => {

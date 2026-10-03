@@ -58,7 +58,7 @@ import { marketCompaniesPath } from "@/lib/company/panel-market";
 import { useCityLabel } from "@/i18n/domain";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import type { PortalKey } from "@/lib/company/portals";
-import { PRICING_HREF } from "@/components/company/silver-lock-card";
+import { useUpgradeHref, useVerifyFirst } from "@/components/company/silver-lock-card";
 import {
   BadgeCheck,
   Ban,
@@ -123,6 +123,11 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   // "Davet et" düğmesinde; listeler herkese açık.
   const { company } = useCompanyAuth();
   const isPaid = tierAtLeast(company?.tier ?? "STANDART", "SILVER");
+  // Kilitli davet çağrısı: paket alımı doğrulama ister — doğrulanmamış/
+  // reddedilmiş ücretsiz firma önce doğrulamaya gider (tek kural
+  // useVerifyFirst; firma sayfasıyla aynı, arayüz testi D-194/webC-2).
+  const verifyFirst = useVerifyFirst();
+  const upgradeHref = useUpgradeHref();
   // F7: bağlantı mutasyonları connections:manage ister (Kurucu/Yönetici).
   const canManageConn = useHasCompanyPermission("connections:manage");
 
@@ -284,9 +289,9 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
               </Button>
             ) : (
               // Silver+ eylem ücretsizde KİLİTLİ görünür (CLAUDE.md kuralı; O-097).
-              <Button outline href={PRICING_HREF}>
+              <Button outline href={upgradeHref}>
                 <Lock data-slot="icon" />
-                {t("silverIleDavetEt")}
+                {verifyFirst ? t("davetIcinOnceDogrulanin") : t("silverIleDavetEt")}
               </Button>
             )
           ) : null}

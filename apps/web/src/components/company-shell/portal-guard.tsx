@@ -16,6 +16,7 @@ import {
   type PortalKey,
 } from "@/lib/company/portals";
 import { Lock } from "lucide-react";
+import { useUpgradeHref, useVerifyFirst } from "@/components/company/silver-lock-card";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useEffect } from "react";
 
@@ -92,21 +93,30 @@ export function PortalGuard({
  */
 function BuyingWindDownBanner() {
   const t = useTranslations("web.panel.shell.portalGuard");
+  const tl = useTranslations("web.panel.trade.silverLockCard");
+  // Paket alımı doğrulama ister — tek kural useVerifyFirst (webC-2).
+  const verifyFirst = useVerifyFirst();
+  const href = useUpgradeHref();
+  // Telefonda düğme metnin ALTINA iner (arayüz testi webC-2: düğme yanda
+  // kalınca başlık ve açıklama kartın ~%45'lik sütununa sıkışıyordu);
+  // sm ve üstünde yan yana.
   return (
     <div
       role="status"
-      className="flex flex-wrap items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+      className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-start"
     >
-      <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold">{t("windDownBaslik")}</p>
-        <p className="mt-0.5 text-amber-800">{t("windDownAciklama")}</p>
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{t("windDownBaslik")}</p>
+          <p className="mt-0.5 text-amber-800">{t("windDownAciklama")}</p>
+        </div>
       </div>
       <Link
-        href="/company/premium"
-        className="shrink-0 self-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+        href={href}
+        className="ml-7 shrink-0 self-start rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 sm:ml-0 sm:self-center"
       >
-        {t("paketleriGor")}
+        {verifyFirst ? tl("onceUcretsizDogrulan") : t("paketleriGor")}
       </Link>
     </div>
   );

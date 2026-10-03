@@ -197,6 +197,22 @@ describe("TeklifVerPage — kapılar", () => {
     expect(screen.getByText(/Teklif için Silver paketi gerekir/)).toBeInTheDocument();
   });
 
+  it("teklif hakkı yok + doğrulaması reddedilmiş ücretsiz firma → önce doğrulama, Paketler ikincil (webC-2)", () => {
+    h.detail = baseDetail({ canBid: false });
+    const prev = useCompanyAuthStore.getState().company;
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
+    try {
+      render(<TeklifVerPage />);
+      expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      expect(screen.getByRole("link", { name: "Paketleri Gör" })).toHaveAttribute("href", "/company/premium");
+    } finally {
+      useCompanyAuthStore.setState({ company: prev } as never);
+    }
+  });
+
   it("kapalı alım talebi → engellenir", () => {
     h.detail = baseDetail({ status: "CLOSED" });
     render(<TeklifVerPage />);

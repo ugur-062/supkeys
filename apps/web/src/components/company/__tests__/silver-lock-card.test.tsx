@@ -2,7 +2,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
-import { SilverLockCard } from "../silver-lock-card";
+import { SilverLockCard, UpgradeButtons, VerifyFirstLink, useUpgradeHref } from "../silver-lock-card";
 
 /**
  * SILVER KİLİT KARTI — DOĞRULAMA ÖNCE (2026-09-28, kullanıcı: "Silver'a veya
@@ -30,6 +30,52 @@ describe("SilverLockCard", () => {
     setStatus("VERIFIED");
     render(<SilverLockCard title="Kilitli" description="d" />);
     expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/company/premium");
+    expect(screen.queryByRole("link", { name: "Önce ücretsiz doğrulan" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * TEK DÜĞMELİ / METİN İÇİ ÇAĞRILAR (arayüz testi webC-2): Bağlantılar "Silver
+ * ile davet et", teklif bantları ve metin içi paket bağlantıları da aynı kuralı
+ * paylaşır — reddedilmiş/doğrulanmamış ücretsiz firma doğrudan Paketler'e
+ * gönderilmez.
+ */
+function HrefProbe() {
+  return <a href={useUpgradeHref()}>adres</a>;
+}
+
+describe("useUpgradeHref / UpgradeButtons / VerifyFirstLink", () => {
+  it.each(["UNVERIFIED", "REJECTED"])("%s → doğrulama önce", (status) => {
+    setStatus(status);
+    render(
+      <>
+        <HrefProbe />
+        <UpgradeButtons pricingLabel="Paketleri gör" />
+        <p>
+          metin <VerifyFirstLink />
+        </p>
+      </>,
+    );
+    expect(screen.getByRole("link", { name: "adres" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    const verify = screen.getAllByRole("link", { name: "Önce ücretsiz doğrulan" });
+    expect(verify).toHaveLength(2);
+    for (const a of verify) expect(a).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
+  });
+
+  it.each(["VERIFIED", "PENDING"])("%s → yalnız Paketler", (status) => {
+    setStatus(status);
+    render(
+      <>
+        <HrefProbe />
+        <UpgradeButtons pricingLabel="Paketleri gör" />
+        <p>
+          metin <VerifyFirstLink />
+        </p>
+      </>,
+    );
+    expect(screen.getByRole("link", { name: "adres" })).toHaveAttribute("href", "/company/premium");
+    expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
     expect(screen.queryByRole("link", { name: "Önce ücretsiz doğrulan" })).not.toBeInTheDocument();
   });
 });

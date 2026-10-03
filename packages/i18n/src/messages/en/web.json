@@ -6721,6 +6721,7 @@
         "davetIptalEdilsinMi": "Cancel the invitation?",
         "davetIptalAciklama": "The invitation sent to {email} will be cancelled; a company that signs up with this address will not be connected to you automatically.",
         "silverIleDavetEt": "Invite with Silver",
+        "davetIcinOnceDogrulanin": "Get verified first to invite",
         "gelenIstekleriKabulEdebilirsiniz": "You can accept connection requests sent to you here. Sending connection requests and email invitations is available with the Silver plan."
       },
       "profileEditor": {

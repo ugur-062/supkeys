@@ -6721,6 +6721,7 @@
         "davetIptalEdilsinMi": "Davet iptal edilsin mi?",
         "davetIptalAciklama": "{email} adresine gönderdiğiniz davet iptal edilecek; bu adresle kayıt olan firma size otomatik bağlanmaz.",
         "silverIleDavetEt": "Silver ile davet et",
+        "davetIcinOnceDogrulanin": "Davet için önce doğrulanın",
         "gelenIstekleriKabulEdebilirsiniz": "Size gelen bağlantı isteklerini buradan kabul edebilirsiniz. Bağlantı isteği göndermek ve e-postayla davet etmek Silver paketle açılır."
       },
       "profileEditor": {

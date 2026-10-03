@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/format";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { useBidDeliveryTimeLabel, useBidDocKindLabel, useMoneyInputError, useSystemText, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
-import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
+import { SilverLockCard, UpgradeButtons } from "@/components/company/silver-lock-card";
 import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -659,8 +659,9 @@ export default function TeklifVerPage() {
         <Text className="mt-2 text-sm text-zinc-500">
           {tr("herkeseAcikSatinAlmaTaleplerine")}
         </Text>
-        <div className="mt-5 flex items-center justify-center gap-3">
-          <Button href={PRICING_HREF}>{tr("paketleriGor")}</Button>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          {/* Doğrulama önce gerekiyorsa doğrulama birincil (webC-2). */}
+          <UpgradeButtons pricingLabel={tr("paketleriGor")} />
           <Button href={detailHref} outline>
             {tr("satinAlmaTalebiDetayinaDon")}
           </Button>

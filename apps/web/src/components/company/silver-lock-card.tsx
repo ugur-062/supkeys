@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type { ReactNode } from "react";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
+import { Button } from "@/components/catalyst/button";
 
 /** Doğrulama sayfası — paket satın almanın tek şartı. */
 export const VERIFY_HREF = "/company/ayarlar/dogrulama";
@@ -32,6 +33,71 @@ export const PRICING_HREF = "/company/premium";
 export function useVerifyFirst(): boolean {
   const status = useCompanyAuthStore((s) => s.company?.companyVerificationStatus);
   return !!status && status !== "VERIFIED" && status !== "PENDING";
+}
+
+/**
+ * PAKET ÇAĞRISININ ADRESİ — tek kural: doğrulama önce gerekiyorsa doğrulama
+ * sayfası, değilse Paketler. Tek düğmeli/bağlantılı her yükseltme çağrısı bunu
+ * kullanır (arayüz testi webC-2: Bağlantılar "Silver ile davet et" ve teklif
+ * bantları reddedilmiş ücretsiz firmayı doğrudan Paketler'e gönderiyordu).
+ */
+export function useUpgradeHref(): string {
+  return useVerifyFirst() ? VERIFY_HREF : PRICING_HREF;
+}
+
+/**
+ * BANT/EKRAN DÜĞMELERİ (catalyst `Button`) — `UpgradeActions`'ın düğme hali:
+ * doğrulama önce gerekiyorsa "Önce ücretsiz doğrulan" birincil + paket düğmesi
+ * çerçeveli; değilse yalnız birincil paket düğmesi. Çağıran sarmalayıcıyı
+ * (flex-wrap) kendisi verir.
+ */
+export function UpgradeButtons({
+  pricingLabel,
+  className,
+}: {
+  /** Paket düğmesinin metni (ör. "Paketleri gör"). */
+  pricingLabel: string;
+  className?: string;
+}) {
+  const t = useTranslations("web.panel.trade.silverLockCard");
+  const verifyFirst = useVerifyFirst();
+  if (!verifyFirst) {
+    return (
+      <Button href={PRICING_HREF} className={className}>
+        {pricingLabel}
+      </Button>
+    );
+  }
+  return (
+    <>
+      <Button href={VERIFY_HREF} className={className}>
+        {t("onceUcretsizDogrulan")}
+      </Button>
+      <Button href={PRICING_HREF} outline className={className}>
+        {pricingLabel}
+      </Button>
+    </>
+  );
+}
+
+/**
+ * METİN İÇİ PAKET BAĞLANTISININ YANINA doğrulama bağlantısı: cümle Paketler'e
+ * bağlanır (ne açılacağını anlatır), doğrulama önce gerekiyorsa ardından
+ * "Önce ücretsiz doğrulan" gelir — paket seçip doğrulamaya geri atılmasın.
+ * Doğrulama gerekmiyorsa hiçbir şey çizmez.
+ */
+export function VerifyFirstLink({ className = "" }: { className?: string }) {
+  const t = useTranslations("web.panel.trade.silverLockCard");
+  const verifyFirst = useVerifyFirst();
+  if (!verifyFirst) return null;
+  return (
+    <>
+      {" "}
+      <Link href={VERIFY_HREF} className={`font-semibold underline underline-offset-2 ${className}`}>
+        {t("onceUcretsizDogrulan")}
+      </Link>
+    </>
+  );
 }
 
 /**

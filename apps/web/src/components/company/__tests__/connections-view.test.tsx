@@ -58,6 +58,7 @@ vi.mock("@/hooks/use-company-connections", () => ({
 }));
 
 import { ConnectionsView } from "../connections-view";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 const co = (i: number, over: Record<string, unknown> = {}) => ({
   id: `c${i}`,
@@ -179,6 +180,22 @@ describe("ConnectionsView", () => {
     expect(screen.queryByRole("link", { name: /Silver ile davet et/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Daha fazla" })).toBeNull();
     expect(screen.getAllByText("Firma 1").length).toBeGreaterThan(0);
+  });
+
+  it("STANDART + reddedilmiş doğrulama: kilitli davet önce doğrulamaya gider (webC-2, D-194 kuralı)", () => {
+    h.tier = "STANDART";
+    h.connections = [];
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
+    try {
+      render(<ConnectionsView />);
+      expect(screen.queryByRole("link", { name: /Silver ile davet et/ })).toBeNull();
+      expect(screen.getByRole("link", { name: /Davet için önce doğrulanın/ })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+    } finally {
+      useCompanyAuthStore.setState({ company: null } as never);
+    }
   });
 
   it("?view=incoming gelen istekler görünümüyle açılır (D-328)", () => {

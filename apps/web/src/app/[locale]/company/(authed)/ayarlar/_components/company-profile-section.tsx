@@ -43,7 +43,7 @@ import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format-date";
-import { PRICING_HREF } from "@/components/company/silver-lock-card";
+import { PRICING_HREF, VerifyFirstLink } from "@/components/company/silver-lock-card";
 
 /**
  * Ayarlar › Firma Bilgileri — TİCARİ KAYIT.
@@ -325,6 +325,8 @@ export function CompanyProfileSection() {
                   >
                     {t("uyelikYenile")}
                   </Link>
+                  {/* Yenileme de paket alımıdır — doğrulama önce (webC-2). */}
+                  <VerifyFirstLink className="text-xs text-zinc-700 hover:text-zinc-900" />
                 </>
               ) : null}
             </span>
