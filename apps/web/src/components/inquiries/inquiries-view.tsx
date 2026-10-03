@@ -27,6 +27,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { accentFillClass } from "@/components/ui/button-accent";
+import { FAB_CLEARANCE_CLASS } from "@/components/company-shell/assistant/fab-clearance";
 
 /**
  * BİLGİ TALEPLERİ — gelen kutusu düzeni (2026-09-09 yeniden tasarım).
@@ -546,10 +547,10 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
         className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
       />
       {/* Sağ pay = AI Asistan düğmesinin sütunu (arayüz testi son tur
-          S-SELL): düğme ekranın sağ-altında sabit (right 32 px, 56 px +
-          halka); yanıt kutusu ekranın altına oturunca "Yanıtla"nın sağ
+          S-SELL; telefon dahil, kapanış NEW-2): düğme ekranın sağ-altında
+          sabit; yanıt kutusu ekranın altına yaklaşınca "Yanıtla"nın sağ
           yarısını örtüyor, tık düğmeye gidiyordu. Pay, düğmeyi sola alır. */}
-      <div className="mt-2 flex items-center justify-between gap-3 sm:pr-14">
+      <div className={cn("mt-2 flex items-center justify-between gap-3", FAB_CLEARANCE_CLASS)}>
         {/* Ziyaretçi henüz kaydolmadıysa yanıtı okumak için hesap açması gerekiyor. */}
         <p className="text-xs text-zinc-500">
           {inquiry.hasAccount

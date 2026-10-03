@@ -153,6 +153,13 @@ describe("InquiriesView — gelen kutusu düzeni (2026-09-09)", () => {
     expect(screen.getByText("Bu süzgeçte talep yok.")).toBeInTheDocument();
   });
 
+  it("'Yanıtla' satırı telefonda da AI düğmesinin sütunundan çekilir (arayüz testi kapanış S-SELL NEW-2)", async () => {
+    wrap(<InquiriesView portal="satis" />);
+    const row = (await screen.findByRole("button", { name: "Yanıtla" })).parentElement!;
+    // Eskiden yalnız `sm:pr-14`: 390 px'te düğme "Yanıtla"nın sağını örtüyordu.
+    expect(row).toHaveClass("pr-16", "sm:pr-14");
+  });
+
   it("alıcı: yanıt bekleniyor notu, ürün bağlantısı satıcı sayfasına, yanıt kutusu YOK", async () => {
     wrap(<InquiriesView portal="satinalma" />);
     expect(await screen.findByText("Fiyat bilgisi rica ederim.")).toBeInTheDocument();
