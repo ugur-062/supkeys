@@ -20,6 +20,8 @@ import { Link } from "@/i18n/navigation";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
 import { Step2Items } from "@/components/tenders/wizard/step-2-items";
+import { CloseDaysInput } from "@/components/tenders/close-days-input";
+import { hasInvalidNumber } from "@/components/ui/money-input";
 import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
 import { Button } from "@/components/ui/button";
 import { PublishedPanel } from "./published-panel";
@@ -70,7 +72,7 @@ import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, fallbackVisibilityFor, initialRequestFormValues, type QuickSeedKind } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, requestDefaultsFallbackFor, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
+import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, requestDefaultsFallbackFor, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
 import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { Sparkles } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
@@ -512,6 +514,12 @@ export function QuickRequest({
       toast.error(titleLen === 0 ? tr("taslakIcinEnAzBir") : tReq("formSchema.titleMin"));
       return;
     }
+    // Taslak kaydı şema doğrulamasından geçmez: geçersiz sayı girişi (NaN)
+    // JSON'da null olur ve alan SESSİZCE boşalırdı (arayüz testi kapanış NUM).
+    if (hasInvalidNumber(values) || hasInvalidNumber(terms)) {
+      toast.error(tr("gecersizSayiAlani"));
+      return;
+    }
     submitLock.current = true;
     setSubmitting(true);
     try {
@@ -623,6 +631,10 @@ export function QuickRequest({
   };
   /** Profil şartlarını kaydeder; başarıyı döner (kurulum kartı yalnız başarıda kapanır — D-243). */
   const persistDefaults = async (next: RequestDefaults): Promise<boolean> => {
+    if (hasInvalidNumber(next)) {
+      toast.error(tr("gecersizSayiAlani"));
+      return false;
+    }
     try {
       await saveDefaults.mutateAsync(next);
       toast.success(tr("talepSartlariKaydedildiSonrakiTaleplerde"));
@@ -978,10 +990,7 @@ export function QuickRequest({
                       {tr("gun3", { d: d })}
                     </button>
                   ))}
-                  <label className="flex items-center gap-1.5 text-sm text-zinc-600">
-                    <input type="number" min={1} max={60} value={currentCloseDays} onChange={(e) => setCloseDays(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} aria-label={tr("ozelGun")} className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
-                    {tr("gun4")}
-                  </label>
+                  <CloseDaysInput value={currentCloseDays} max={REQUEST_CLOSE_DAYS_MAX} onChange={setCloseDays} ariaLabel={tr("ozelGun")} suffix={tr("gun4")} labelClassName="flex items-center gap-1.5 text-sm text-zinc-600" className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
                 </div>
                 {/* Belirli gün + saat (D-095, DN-10): çipler "şimdi + N gün" verir
                     (o anki dakika); kapanışı belli bir saate koymak isteyen

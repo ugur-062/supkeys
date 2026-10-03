@@ -52,3 +52,25 @@ describe("AttributeFields — seçenek etiketleri", () => {
     expect(screen.getByRole("button", { name: "Toz boya" })).toBeInTheDocument();
   });
 });
+
+/**
+ * Arayüz testi kapanış NUM: sayısal nitelik `type="number"` idi; Türkçe
+ * tarayıcıda "2,5" mm 25 olarak kaydediliyordu.
+ */
+describe("AttributeFields — sayısal nitelik yerel ondalık (NUM)", () => {
+  const numDef: AttributeDef[] = [{ ...base, key: "kalinlik", nameTr: "Kalınlık", unit: "mm", type: "NUMBER", options: [] }];
+
+  it("TR '2,5' kanonik '2.5' kaydedilir (25 DEĞİL)", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<AttributeFields defs={numDef} values={{}} onChange={onChange} />);
+    await user.type(screen.getByLabelText(/Kalınlık/), "2,5");
+    expect(onChange).toHaveBeenLastCalledWith({ kalinlik: "2.5" });
+  });
+
+  it("geçersiz giriş alan hatası verir ve geçersiz ham değer taşır", () => {
+    render(<AttributeFields defs={numDef} values={{ kalinlik: "NaN" }} onChange={vi.fn()} />);
+    expect(screen.getByText("Geçerli bir sayı girin (ör. 2,5).")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Kalınlık/)).toHaveAttribute("aria-invalid", "true");
+  });
+});

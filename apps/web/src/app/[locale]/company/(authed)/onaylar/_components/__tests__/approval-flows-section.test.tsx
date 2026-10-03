@@ -132,6 +132,27 @@ describe("ApprovalFlowsSection — onaycı seçici keşfedilebilirlik", () => {
     ).toBeNull();
   });
 
+  /**
+   * Arayüz testi kapanış NUM: bütçe eşiği `type="number"` idi; Türkçe "12,50"
+   * 1.250 TL, "1.500" 1,5 TL eşik oluyordu. Artık yerel para girişi.
+   */
+  it("bütçe eşiği TR '1.500' = 1.500 TL, '12,50' = 12,50 TL (NUM)", async () => {
+    h.users = [user("u1", ["ONAYLAYICI"])];
+    render(<ApprovalFlowsSection canManage openNew />);
+    const nameInput = screen.queryByLabelText(/Akış adı|Akış Adı/i);
+    if (nameInput) fireEvent.change(nameInput, { target: { value: "Test" } });
+    const next = screen.queryByRole("button", { name: /İleri|Devam/i });
+    if (next) fireEvent.click(next);
+    fireEvent.click(await screen.findByRole("button", { name: "Onaycı Ekle" }));
+    const threshold = screen.getByPlaceholderText(/Boş/) as HTMLInputElement;
+    fireEvent.change(threshold, { target: { value: "1.500" } });
+    fireEvent.blur(threshold);
+    expect(threshold.value).toBe("1.500");
+    fireEvent.change(threshold, { target: { value: "12,50" } });
+    fireEvent.blur(threshold);
+    expect(threshold.value).toBe("12,50");
+  });
+
   it("users:manage taşıyan üyede Kullanıcılar linki kalır", async () => {
     h.users = [user("u1", ["ONAYLAYICI"])];
     render(<ApprovalFlowsSection canManage openNew />);

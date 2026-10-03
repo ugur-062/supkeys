@@ -170,7 +170,7 @@ export function makeTenderItemSchema(t: RequestsTranslate) {
     alternativeAllowed: z.boolean().optional(),
     specification: z.string().max(5000, maxChars(5000)).optional(),
     warrantyMonths: z
-      .number()
+      .number({ invalid_type_error: t("formSchema.integerRequired") })
       .int(t("formSchema.integerRequired"))
       .min(0)
       .max(600, t("formSchema.warrantyMax"))

@@ -44,6 +44,7 @@ import { AlternativeOfferNote } from "@/components/tenders/alternative-offer-not
 import { yesNoAnswerLabel } from "@/lib/tenders/yes-no-answer";
 import { orderStatusMeta } from "@/lib/orders/order-status";
 import type { CompanyOrderStatus } from "@/hooks/use-company-orders";
+import { useNumberField } from "@/components/ui/number-input";
 
 type Tone = "success" | "info" | "warning" | "danger";
 
@@ -102,6 +103,8 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const unitLabel = useUnitLabel();
   const quantity = useQuantityLabel();
   const locale = useLocale();
+  // Erken return'den ÖNCE (kanca sırası).
+  const extendDaysField = useNumberField({ value: extendDays, onChange: setExtendDays });
   const intl = intlLocale(locale);
   if (!bid) return null;
   // Dalga B-2: elle sembol türetme kaldırıldı (USD "$" yerine "USD" gösteriyordu).
@@ -298,14 +301,16 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                 </button>
               ))}
               <span className="flex items-center gap-2 text-sm text-zinc-500">
+                {/* Yerel tam sayı (arayüz testi kapanış NUM): `type="number"`
+                    "0,5"i 05 = 5 gün okuyup uzatıyordu. */}
                 <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={extendDays}
-                  onChange={(e) => setExtendDays(e.target.value)}
+                  {...extendDaysField.inputProps}
                   aria-label={t("ozelUzatmaSuresiGun")}
-                  className="w-20 rounded-md border border-zinc-300 px-2 py-1.5 text-right text-sm"
+                  aria-invalid={!extendDaysValid || undefined}
+                  className={cn(
+                    "w-20 rounded-md border border-zinc-300 px-2 py-1.5 text-right text-sm",
+                    !extendDaysValid && "border-rose-500",
+                  )}
                 />
                 {t("gun2")}
               </span>

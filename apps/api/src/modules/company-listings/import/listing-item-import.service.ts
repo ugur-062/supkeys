@@ -1,5 +1,6 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { tApi } from "../../../common/i18n/i18n.service";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import { unitDisplayName } from "../../../common/i18n/unit-label";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
@@ -293,34 +294,47 @@ export function cellText(v: ExcelJS.CellValue): string | number | Date | null {
   return String(v);
 }
 
-/** "1.234,5" / "1,234.5" / "12,5" / "12.5" → number (TR ve EN biçimleri). */
-export function parseLocaleNumber(v: unknown): number | null {
+/**
+ * Tablo hücresindeki sayı METNİ → number — İSTEK DİLİNİN ayraç kuralıyla
+ * (arayüz testi kapanış NUM, 2026-10-03; web `parseMoneyDisplay` ile aynı
+ * kural, dil `currentLocale()` = Accept-Language / kayıtlı dil).
+ *
+ * Eskiden kural Türkçeye sabitti: İngilizce arayüzde "1,500" yazan alıcının
+ * miktarı/hedef fiyatı 1,5, "12.500" 12500 okunuyor ve satır "Hazır" diye
+ * işaretleniyordu (teklif içe aktarmada da aynı yardımcı — satıcı fiyatı).
+ *  - Sayı hücresi (number) aynen.
+ *  - İki ayraç türü birlikte → SONDAKİ ondalık ("1.234,5", "1,234.5").
+ *  - Yalnız dilin ONDALIK ayracı (TR/RU ",", EN "."): tek geçiş ondalık
+ *    ("12,5" TR, "12.500" EN = 12,5); çok geçiş binlik ("1,234,567").
+ *  - Yalnız dilin BİNLİK ayracı (TR/RU ".", EN ","): düzgün 3'lü grup binlik
+ *    ("1.500" TR, "1,500" EN); "0." ile başlayan ya da 3'lü grup olmayan →
+ *    başka alışkanlıkla yazılmış ondalık ("0.500", "12.5" TR; "12,5" EN).
+ */
+export function parseLocaleNumber(v: unknown, locale: string = currentLocale()): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (v == null) return null;
-  let s = String(v).trim().replace(/\s/g, "").replace(/[₺$€£]/g, "");
+  let s = String(v).trim().replace(/[\s\u00a0\u202f']/g, "").replace(/[₺$€£]/g, "");
   if (!s) return null;
+  const decimalSep: "." | "," = locale === "en" ? "." : ",";
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
+  const toDecimal = (sep: "." | ",") => {
+    const other = sep === "." ? "," : ".";
+    const at = s.lastIndexOf(sep);
+    return `${s.slice(0, at).split(other).join("").split(sep).join("")}.${s.slice(at + 1)}`;
+  };
+  const grouped = (sep: "." | ",") =>
+    new RegExp(`^[1-9]\\d{0,2}(?:${sep === "." ? "\\." : ","}\\d{3})+$`).test(s);
   if (hasComma && hasDot) {
     // Son görülen ayraç ondalık, diğeri binlik.
-    if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
-    else s = s.replace(/,/g, "");
-  } else if (hasComma) {
-    // Tek virgül: ondalık (TR). Birden çok virgül: binlik.
-    s = (s.match(/,/g) ?? []).length === 1 ? s.replace(",", ".") : s.replace(/,/g, "");
-  } else if (hasDot) {
-    // "1.234" (3 hane) binlik sayılır mı? Belirsiz — tek nokta + tam 3 hane sonrası → binlik.
-    const parts = s.split(".");
-    if (parts.length > 2) s = s.replace(/\./g, "");
-    else if (
-      parts.length === 2 &&
-      parts[1]!.length === 3 &&
-      parts[0]!.length <= 3 &&
-      /^[1-9]\d*$/.test(parts[0]!)
-    ) {
-      // "1.234" → 1234 (TR binlik). "0.500"/"12.500" 3 ondalık miktar da olabilir ama
-      // TR kullanıcı 12,500 yazar; ikilem kabul: tam-3-hane+nokta = binlik.
-      s = s.replace(".", "");
+    s = toDecimal(s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".");
+  } else if (hasComma || hasDot) {
+    const sep: "." | "," = hasComma ? "," : ".";
+    const count = s.split(sep).length - 1;
+    if (sep === decimalSep) {
+      s = count === 1 ? toDecimal(sep) : s.split(sep).join("");
+    } else {
+      s = grouped(sep) ? s.split(sep).join("") : count === 1 ? toDecimal(sep) : s;
     }
   }
   const n = Number(s);

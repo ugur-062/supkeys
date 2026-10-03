@@ -469,7 +469,8 @@
     "talepBaskaUlkelereAcik": "Этот запрос открыт только для поставщиков из определённых стран; страны Вашей компании нет в этом списке.",
     "teklifGecerliligiAzOnceUzatildi": "Срок действия предложения только что обновлён; обновите страницу, чтобы проверить",
     "kazandirilacakMiktarKalemMiktariniAsamaz": "Количество к присуждению по позиции «{name}» не может превышать запрошенное",
-    "firmaDogrulamanizIncelemede": "Проверка Вашей компании на рассмотрении; до её одобрения: {action}. Повторно загружать документы не нужно."
+    "firmaDogrulamanizIncelemede": "Проверка Вашей компании на рассмотрении; до её одобрения: {action}. Повторно загружать документы не нужно.",
+    "sayisalCevapGecersiz": "Ответ на вопрос «{text}» должен быть корректным числом."
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Запрос не найден",

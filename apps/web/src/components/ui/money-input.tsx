@@ -120,6 +120,114 @@ export function parseMoneyDisplay(
   return `${int}.${dec}`;
 }
 
+/**
+ * Geçersiz sayı girişinin ham değeri (arayüz testi kapanış NUM). Bilerek "NaN":
+ * `Number(...)` NaN verir, `/^\d+$/` tutmaz, `Number.isInteger` düşer — ham
+ * değeri denetleyen her yol alanı geçersiz sayar. Boş ("") ayrı: alan boş.
+ */
+export const INVALID_NUMBER_RAW = "NaN";
+
+/** Ham değer (string) ya da sayı geçersiz sayı girişi mi? */
+export function isInvalidNumber(v: unknown): boolean {
+  return v === INVALID_NUMBER_RAW || (typeof v === "number" && Number.isNaN(v));
+}
+
+/**
+ * Nesnede (form değerleri, şart taslağı) geçersiz sayı girişi var mı — iç içe
+ * dolaşır. Doğrulamasız yollar (taslak kaydı) için: NaN JSON'da `null` olur ve
+ * alan SESSİZCE boşalırdı.
+ */
+export function hasInvalidNumber(v: unknown, depth = 0): boolean {
+  if (isInvalidNumber(v)) return true;
+  if (depth > 6 || v == null || typeof v !== "object") return false;
+  if (v instanceof Date || (typeof File !== "undefined" && v instanceof File)) return false;
+  return Object.values(v as Record<string, unknown>).some((x) => hasInvalidNumber(x, depth + 1));
+}
+
+/**
+ * KESİN sayı ayrıştırma — doğrulanan alanlar (gün, ay, yüzde, nitelik, eşik)
+ * için (arayüz testi kapanış NUM, 2026-10-03).
+ *
+ * `type="number"` Türkçe tarayıcıda virgülü YUTUYORDU: "0,5" → 05 = 5 gün,
+ * "2,5" peşin → %25, "12,50" → 1250; noktayı da ondalık okuyordu: "1.500" TL
+ * eşik → 1,5. `parseMoneyDisplay` gibi aynı dil kuralları (ayraçlar arayüz
+ * dilinden; iki ayraç → sondaki ondalık; yalnız öteki ayraç → ≤2 hane ondalık,
+ * düzgün 3'lü grup binlik) ama KIRPMAZ ve TAHMİN ETMEZ:
+ *  - `maxDecimals`tan fazla anlamlı ondalık → GEÇERSİZ (tam sayı alanında
+ *    "0,5" / "2.5" / "12,50" 5/25/1250 değil, hata);
+ *  - düzensiz gruplama ("1.2.3", "12.34.567"), harf, eksi → GEÇERSİZ.
+ *
+ * Dönüş: "" (boş) · kanonik ham değer ("1500", "2.5") · `INVALID_NUMBER_RAW`.
+ */
+export function parseNumberStrict(
+  display: string,
+  locale: Locale | string = DEFAULT_LOCALE,
+  maxDecimals = 0,
+): string {
+  const { decimal } = numberSeparators(locale);
+  const norm = normalizeInput(display).trim();
+  if (!norm) return "";
+  // Boşluk (RU binlik) ve kesme işareti (CH) binliktir.
+  const cleaned = norm.replace(/[\s'’]/g, "");
+  if (!/^[0-9.,]+$/.test(cleaned) || !/\d/.test(cleaned)) return INVALID_NUMBER_RAW;
+
+  const lastDot = cleaned.lastIndexOf(".");
+  const lastComma = cleaned.lastIndexOf(",");
+  let decimalAt = -1;
+  if (lastDot !== -1 && lastComma !== -1) {
+    decimalAt = Math.max(lastDot, lastComma);
+    // Ondalık ayracı bir kez geçer ("1.234,5,6" geçersiz).
+    if (cleaned.split(cleaned[decimalAt]!).length !== 2) return INVALID_NUMBER_RAW;
+  } else if (lastDot !== -1 || lastComma !== -1) {
+    const sep: "." | "," = lastDot !== -1 ? "." : ",";
+    const at = Math.max(lastDot, lastComma);
+    const count = cleaned.split(sep).length - 1;
+    const digitsAfter = cleaned.length - at - 1;
+    const grouped = isGrouped(cleaned, sep) && !/^0[.,]/.test(cleaned);
+    if (sep === decimal) {
+      if (count === 1) decimalAt = at;
+      else if (!grouped) return INVALID_NUMBER_RAW;
+    } else if (count === 1 && digitsAfter <= MONEY_DECIMALS) {
+      decimalAt = at; // başka alışkanlıkla yazılmış ondalık ("2.5", "12.50")
+    } else if (!grouped) {
+      // "1.2505" / "0.125": 3+ ondalıklı alanda ondalık, öteki alanda geçersiz.
+      if (count === 1 && maxDecimals > MONEY_DECIMALS) decimalAt = at;
+      else return INVALID_NUMBER_RAW;
+    }
+  }
+
+  const intPart = decimalAt === -1 ? cleaned : cleaned.slice(0, decimalAt);
+  const fracPart = decimalAt === -1 ? "" : cleaned.slice(decimalAt + 1);
+  if (/[.,]/.test(fracPart)) return INVALID_NUMBER_RAW;
+  if (/[.,]/.test(intPart)) {
+    const groupSep = intPart.includes(".") ? "." : ",";
+    if (intPart.includes(groupSep === "." ? "," : ".") || !isGrouped(intPart, groupSep)) {
+      return INVALID_NUMBER_RAW;
+    }
+  }
+  const frac = fracPart.replace(/0+$/, "");
+  if (frac.length > maxDecimals) return INVALID_NUMBER_RAW;
+  const int = intPart.replace(/[.,]/g, "").replace(/^0+(?=\d)/, "") || "0";
+  return frac ? `${int}.${frac}` : int;
+}
+
+/**
+ * Kayıtsız (react-hook-form `register`) metin kutusu için: yazılan metin →
+ * sayı. Boş → `undefined`, geçersiz → `NaN` (zod `invalid_type` mesajı çıkar,
+ * `hasInvalidNumber` taslak kaydını durdurur).
+ */
+export function numberFromInputText(
+  v: unknown,
+  locale: Locale | string = DEFAULT_LOCALE,
+  maxDecimals = 0,
+): number | undefined {
+  if (typeof v === "number") return v;
+  if (v == null) return undefined;
+  const raw = parseNumberStrict(String(v), locale, maxDecimals);
+  if (raw === "") return undefined;
+  return raw === INVALID_NUMBER_RAW ? Number.NaN : Number(raw);
+}
+
 /** Yazılan metin yalnız rakam + dilin binlik ayracından mı oluşuyor (canlı gruplama güvenli mi)? */
 function onlyDigitsAndGroup(text: string, locale: Locale | string): boolean {
   const { group } = numberSeparators(locale);

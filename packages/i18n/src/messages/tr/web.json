@@ -968,7 +968,8 @@
       "foundOpenRequestAtLeast": "{total, number}+ açık talep bulundu",
       "foundPastRequestAtLeast": "{total, number}+ geçmiş talep bulundu",
       "foundRequestAtLeast": "{total, number}+ talep bulundu",
-      "companyCountry": "Firma ülkesi"
+      "companyCountry": "Firma ülkesi",
+      "priceWholeNumber": "Fiyat sınırını tam sayı olarak girin (ör. 1.500)."
     },
     "index": {
       "breadcrumb": "Yol",
@@ -2824,7 +2825,8 @@
         "sonUlkeCikarilamaz": "Son ülke çıkarılamaz: önce başka bir ülke ekleyin ya da “Tüm ülkeler”i seçin.",
         "vadeGunAraligi": "Vade günü 1 ile 365 arasında olmalı",
         "pesinYuzdesiAraligi": "Peşin yüzdesi 1 ile 100 arasında olmalı",
-        "enFazlaBirim": "En fazla {max} birim seçilebilir; yenisini eklemek için birini kaldırın."
+        "enFazlaBirim": "En fazla {max} birim seçilebilir; yenisini eklemek için birini kaldırın.",
+        "ozelGunAraligi": "1–{max} gün arası tam sayı girin."
       },
       "ihalelerView": {
         "tedarikSurecleriniziYonetinAcinDavet": "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın.",
@@ -3620,7 +3622,9 @@
         "markaParcaNo": "Marka / Parça no: {value}",
         "isaretliAlanlariDuzeltin": "Kaydetmeden önce işaretli alanları düzeltin",
         "siparisReddedildi": "Sipariş reddedildi",
-        "tryKarsiligiTitle": "Teklifin kur damgasıyla TRY karşılığı"
+        "tryKarsiligiTitle": "Teklifin kur damgasıyla TRY karşılığı",
+        "sayisalCevapGecersiz": "Geçerli bir sayı girin (ör. 12,5).",
+        "kalemSayisalCevapGecersiz": "{name}: “{question}” sorusuna geçerli bir sayı girin."
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -3862,7 +3866,8 @@
         "belirliTarihSaat": "ya da belirli tarih ve saat:",
         "kapanisGunu": "Kapanış günü",
         "kapanisSaati": "Kapanış saati",
-        "yayinIcinDogrulamaIncelemede": "Doğrulamanız inceleniyor; onaylanınca talebi yayınlayabilirsiniz. Şimdilik taslak kaydedebilirsiniz. <link>Durumu gör</link>"
+        "yayinIcinDogrulamaIncelemede": "Doğrulamanız inceleniyor; onaylanınca talebi yayınlayabilirsiniz. Şimdilik taslak kaydedebilirsiniz. <link>Durumu gör</link>",
+        "gecersizSayiAlani": "Bazı sayı alanları geçersiz (kırmızı işaretli). Düzeltip yeniden deneyin."
       },
       "publishedPanel": {
         "talebinizYayinda": "Talebiniz yayında",
@@ -5078,7 +5083,8 @@
         "belgeYuklenemedi": "Belge yüklenemedi",
         "vitrindenCek": "Vitrinden çek",
         "vitrindenCekOnayBaslik": "Ürün vitrinden çekilsin mi?",
-        "vitrindenCekOnayAciklama": "Ürün taslağa döner; yeniden yayına çıkması için tekrar onay gerekir."
+        "vitrindenCekOnayAciklama": "Ürün taslağa döner; yeniden yayına çıkması için tekrar onay gerekir.",
+        "nitelikSayiGecersiz": "Sayısal bir nitelikte geçersiz değer var; kırmızı işaretli alanı düzeltin."
       },
       "productsView": {
         "urunAcilamadi": "Ürün açılamadı",
@@ -5222,7 +5228,7 @@
         "veUzeri": "{unit} ve üzeri",
         "kademeyiSil": "Kademeyi sil",
         "kademeEkle": "Kademe ekle",
-        "kademeEksik": "Bu kademenin miktarını ve 0’dan büyük fiyatını girin; eksik kademe kaydedilmez.",
+        "kademeEksik": "Bu kademenin miktarını (tam sayı) ve 0’dan büyük fiyatını girin; eksik kademe kaydedilmez.",
         "paraBirimi": "Para birimi",
         "mode": {
           "FIXED": {
@@ -5245,7 +5251,8 @@
       },
       "attributeFields": {
         "tamamlanmaSkorunuEtkiler": "Tamamlanma skorunu etkiler",
-        "seciniz": "Seçiniz"
+        "seciniz": "Seçiniz",
+        "sayiGecersiz": "Geçerli bir sayı girin (ör. 2,5)."
       },
       "panelInquiryDialog": {
         "talepGonderilemedi": "Talep gönderilemedi",

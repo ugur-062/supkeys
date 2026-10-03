@@ -265,6 +265,9 @@ export function carriedBidRevisable(
   );
 }
 
+/** Sayısal soru cevabı: noktalı kanonik ondalık ("12.5", "1500", "-3"). */
+const NUMBER_ANSWER_PATTERN = /^-?\d+(?:\.\d+)?$/;
+
 @Injectable()
 export class CompanyListingsService {
   private readonly logger = new Logger(CompanyListingsService.name);
@@ -4949,7 +4952,7 @@ export class CompanyListingsService {
         quantity: true,
         // Faz 3: muadil izni — tedarikçinin beyanı buna göre kabul/düşürülür.
         alternativeAllowed: true,
-        questions: { select: { id: true, required: true, text: true } },
+        questions: { select: { id: true, required: true, text: true, answerType: true } },
       },
     });
     // Muadil kuralı için id→kalem eşlemi (aşağıdaki map'te okunur).
@@ -5147,6 +5150,15 @@ export class CompanyListingsService {
           }
           seen.add(a.questionId);
           const value = a.value.trim();
+          // Sayısal soru cevabı kanonik ondalık olmalı (arayüz testi kapanış NUM):
+          // eski web `type="number"` Türkçe "12,50"yi "1250" gönderiyordu; web
+          // artık yerel biçimi çevirir, sunucu biçimsiz değeri (virgül, "NaN")
+          // saklamaz — gönderilmiş teklif düzenlenemez.
+          if (value && q.answerType === "NUMBER" && !NUMBER_ANSWER_PATTERN.test(value)) {
+            throw new BadRequestException(
+              i18nMessage("api.companyListings.sayisalCevapGecersiz", { text: q.text }),
+            );
+          }
           if (value) answersData.push({ questionId: a.questionId, value });
         }
       }

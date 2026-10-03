@@ -17,6 +17,7 @@ import {
 } from "@/components/catalyst/dialog";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -69,15 +70,20 @@ const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
 const TRY_SYMBOL = currencySymbol("TRY");
 
 /**
- * Eşik tutarı (TRY) — okuyucunun dilinde, ondalıksız, sembolüyle (yeri dilden:
+ * Eşik tutarı (TRY) — okuyucunun dilinde, kuruş varsa 2 ondalıkla, sembolüyle (yeri dilden:
  * İngilizcede "₺50,000", Türkçede "50.000 ₺"). Sembol katalog metnine
  * gömülmez; mesajlar tek `{amount}` alır.
  */
 function useFmtTl() {
   const locale = useLocale() as Locale;
   return useMemo(() => {
-    const nf = new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 0 });
-    return { format: (n: number) => affixCurrency(nf.format(n), "TRY", locale) };
+    // Eşik kuruşlu olabilir (DTO 2 ondalık): 1500.5 "₺1,501" değil "₺1,500.50";
+    // tam tutar kuruşsuz kalır ("₺50,000").
+    const whole = new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 0 });
+    const cents = new Intl.NumberFormat(intlLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return {
+      format: (n: number) => affixCurrency((Number.isInteger(n) ? whole : cents).format(n), "TRY", locale),
+    };
   }, [locale]);
 }
 
@@ -1042,11 +1048,11 @@ function StepEditorDialog({
         </Field>
         <Field>
           <Label>{t("butceEsigiOpsiyonel", { currency: TRY_SYMBOL })}</Label>
-          <Input
-            type="number"
-            min={0}
+          {/* Yerel para girişi (arayüz testi kapanış NUM): `type="number"`
+              Türkçe "12,50"yi 1.250 TL, "1.500"ü 1,5 TL eşik yapıyordu. */}
+          <MoneyInput
             value={threshold}
-            onChange={(e) => setThreshold(e.target.value)}
+            onChange={setThreshold}
             placeholder={t("bosHerTutardaOnaylar")}
           />
           {thresholdMoneyErr ? (

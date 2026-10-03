@@ -19,7 +19,7 @@ import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
-import { MoneyInput } from "@/components/ui/money-input";
+import { isInvalidNumber, MoneyInput } from "@/components/ui/money-input";
 import {
   useCategoryAttributes,
   useCreateProduct,
@@ -456,6 +456,12 @@ export function ProductShowcaseForm({
   const doSave = async (thenSubmit: boolean) => {
     if (!patch.name) {
       toast.error(t("urunAdiZorunlu"));
+      return;
+    }
+    // Sayısal nitelikte geçersiz giriş ("2,5,1", "1.2.3") kaydedilmez — eskiden
+    // `type="number"` "2,5"i sessizce 25 yazıyordu (arayüz testi kapanış NUM).
+    if (attributeDefs.some((d) => d.type === "NUMBER" && isInvalidNumber(attributes[d.key]))) {
+      toast.error(t("nitelikSayiGecersiz"));
       return;
     }
     if (thenSubmit && publishLocked) {

@@ -290,6 +290,26 @@ describe("yardımcılar", () => {
     expect(parseLocaleNumber("abc")).toBeNull();
     expect(parseLocaleNumber(7)).toBe(7);
   });
+  /**
+   * Arayüz testi kapanış NUM: kural Türkçeye sabitti; İngilizce arayüzde
+   * "1,500" 1,5 ve "12.500" 12500 okunup satır "Hazır" işaretleniyordu.
+   */
+  it("parseLocaleNumber istek dilinin ayraç kuralıyla", () => {
+    // EN: virgül binlik, nokta ondalık.
+    expect(parseLocaleNumber("1,500", "en")).toBe(1500);
+    expect(parseLocaleNumber("12.500", "en")).toBe(12.5);
+    expect(parseLocaleNumber("1,500.5", "en")).toBe(1500.5);
+    expect(parseLocaleNumber("12,5", "en")).toBe(12.5); // başka alışkanlık
+    expect(parseLocaleNumber("1,234,567", "en")).toBe(1234567);
+    // TR / RU: nokta binlik, virgül ondalık.
+    expect(parseLocaleNumber("1,500", "tr")).toBe(1.5);
+    expect(parseLocaleNumber("12.500", "tr")).toBe(12500);
+    expect(parseLocaleNumber("1.250,5", "tr")).toBe(1250.5);
+    expect(parseLocaleNumber("0,5", "ru")).toBe(0.5);
+    expect(parseLocaleNumber("1 234,5", "ru")).toBe(1234.5);
+    // Düzensiz gruplama sayı değildir.
+    expect(parseLocaleNumber("1.2.3", "tr")).toBeNull();
+  });
   it("parseImportDate", () => {
     expect(parseImportDate("15.09.2026")).toEqual({ iso: "2026-09-15", invalid: false });
     expect(parseImportDate("15/09/2026")).toEqual({ iso: "2026-09-15", invalid: false });

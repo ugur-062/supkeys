@@ -2,7 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import type { AttributeDef } from "@/hooks/use-company-items";
-import { Field } from "@/components/ui/field";
+import { Field, useFieldContext } from "@/components/ui/field";
+import { isInvalidNumber } from "@/components/ui/money-input";
+import { useNumberField } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 
 /**
@@ -53,7 +55,10 @@ export function AttributeFields({
         const kontrolId = `nitelik-${d.key}`;
         const grup = d.type === "MULTI_SELECT";
         return (
-          <Field key={d.key}>
+          <Field
+            key={d.key}
+            error={d.type === "NUMBER" && isInvalidNumber(v) ? t("sayiGecersiz") : undefined}
+          >
             <Label
               as={grup ? "p" : "label"}
               {...(grup ? { id: `${kontrolId}-baslik` } : { htmlFor: kontrolId })}
@@ -112,13 +117,10 @@ export function AttributeFields({
             ) : null}
 
             {d.type === "NUMBER" ? (
-              <input
+              <NumberAttributeInput
                 id={kontrolId}
-                type="number"
-                inputMode="decimal"
                 value={typeof v === "string" ? v : ""}
-                onChange={(e) => set(d.key, e.target.value)}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+                onChange={(raw) => set(d.key, raw)}
               />
             ) : null}
 
@@ -136,5 +138,43 @@ export function AttributeFields({
         );
       })}
     </div>
+  );
+}
+
+/** Sayısal nitelik alanında izin verilen ondalık (ölçü: 0,125 mm). */
+const ATTRIBUTE_NUMBER_DECIMALS = 4;
+
+/**
+ * Sayısal nitelik (Kalınlık mm …) — yerel ondalık giriş (arayüz testi kapanış
+ * NUM): `type="number"` Türkçe tarayıcıda "2,5"i 25 kaydediyordu. Geçersiz
+ * metin `INVALID_NUMBER_RAW` olarak durur; ürün kaydı onu reddeder.
+ */
+function NumberAttributeInput({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (raw: string) => void;
+}) {
+  const field = useFieldContext();
+  const { invalid, inputProps } = useNumberField({
+    value,
+    onChange,
+    maxDecimals: ATTRIBUTE_NUMBER_DECIMALS,
+  });
+  return (
+    <input
+      id={id}
+      {...inputProps}
+      aria-invalid={invalid || undefined}
+      aria-describedby={field?.describedBy}
+      className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:ring-2 ${
+        invalid
+          ? "border-red-500 focus:border-red-600 focus:ring-red-600/10"
+          : "border-zinc-300 focus:border-zinc-900 focus:ring-zinc-900/10"
+      }`}
+    />
   );
 }

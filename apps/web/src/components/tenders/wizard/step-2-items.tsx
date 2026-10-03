@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { FileSpreadsheet } from "lucide-react";
 import { ExcelImportDialog } from "@/components/tenders/excel-import/excel-import-dialog";
 import { QUANTITY_DECIMALS, type ItemImportItem } from "@rothern/shared";
-import { MoneyInputNumber } from "@/components/ui/money-input";
+import { MoneyInputNumber, numberFromInputText } from "@/components/ui/money-input";
 import {
   Controller,
   useFieldArray,
@@ -227,6 +227,7 @@ interface ItemRowProps {
 
 function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
   const t = useTranslations("web.panel.requests.step2Items");
+  const locale = useLocale();
   const {
     register,
     control,
@@ -468,16 +469,18 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             <Label htmlFor={`items.${index}.warrantyMonths`}>
               {t("garantiAy")}
             </Label>
+            {/* Yerel tam sayı (arayüz testi kapanış NUM): `type="number"`
+                Türkçe tarayıcıda "0,5"i 05 = 5 ay okuyup taslağa sessizce
+                yazıyordu; geçersiz giriş artık NaN → alan hatası. */}
             <Input
               id={`items.${index}.warrantyMonths`}
-              type="number"
-              min={0}
-              max={600}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
               placeholder={t("orn24")}
               hasError={!!itemErrors?.warrantyMonths}
               {...register(`items.${index}.warrantyMonths`, {
-                setValueAs: (v: string) =>
-                  v === "" ? undefined : Number(v),
+                setValueAs: (v: unknown) => numberFromInputText(v, locale),
               })}
             />
           </Field>

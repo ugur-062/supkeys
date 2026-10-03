@@ -45,6 +45,31 @@ describe("PromptDialog", () => {
     expect(onConfirm).toHaveBeenCalledWith("merhaba");
   });
 
+  it("number: Türkçe '0,5' 5 DEĞİL — aralık hatası, Onayla kapalı; '12' kanonik gider (arayüz testi kapanış NUM)", async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptDialog
+        open
+        title="Paket"
+        label="Kaç ay verilsin?"
+        type="number"
+        min={1}
+        max={60}
+        required
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />,
+    );
+    const input = screen.getByLabelText(/Kaç ay/);
+    await user.type(input, "0,5");
+    expect(screen.getByText("1-60 arası bir tam sayı girin")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
+    await user.clear(input);
+    await user.type(input, "12");
+    await user.click(screen.getByRole("button", { name: "Onayla" }));
+    expect(onConfirm).toHaveBeenCalledWith("12");
+  });
+
   it("vazgeç → onClose çağrılır, onConfirm çağrılmaz", async () => {
     const user = userEvent.setup();
     render(

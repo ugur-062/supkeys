@@ -176,3 +176,42 @@ describe("fiyat süzgeci — para birimi", () => {
     expect(url).not.toContain("fiyatMax");
   });
 });
+
+/**
+ * Arayüz testi kapanış NUM: fiyat kutuları rakam dışını atıyordu → "2.5" 25,
+ * "12,50" 1250, EN "1,500.5" 15005 süzülüyordu. Artık yerel tam sayı.
+ */
+describe("fiyat süzgeci — yerel tam sayı (NUM)", () => {
+  function typeMin(value: string) {
+    const min = screen.getByPlaceholderText("0") as HTMLInputElement;
+    act(() => {
+      fireEvent.change(min, { target: { value } });
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    return min;
+  }
+
+  it("TR '1.500' fiyatMin=1500; '12,50' süzgece GİTMEZ, uyarı görünür", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <FilterShell basePath="/urunler" total={0}>
+          <ProductFilters facets={facets()} idPrefix="t" />
+        </FilterShell>,
+      );
+      typeMin("1.500");
+      expect(lastUrl()).toContain("fiyatMin=1500");
+      nav.push.mockClear();
+      nav.replace.mockClear();
+      const min = typeMin("12,50");
+      expect(nav.push).not.toHaveBeenCalled();
+      expect(nav.replace).not.toHaveBeenCalled();
+      expect(min).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent("tam sayı");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

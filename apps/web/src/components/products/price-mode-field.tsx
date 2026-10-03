@@ -5,6 +5,7 @@ import type { PriceTier } from "@/hooks/use-company-items";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { MoneyInput, MoneyInputNumber } from "@/components/ui/money-input";
+import { NumberInputNumber } from "@/components/ui/number-input";
 import { PlusIcon, TrashIcon } from "@heroicons/react/20/solid";
 import { CURRENCIES } from "@/lib/tenders/labels";
 
@@ -117,9 +118,11 @@ export function PriceModeField({
                   <span className="flex items-center gap-2">
                     {/* Tam sayı miktar — Türkçe binlik "1.000" 1 okunmasın. */}
                     <div className="w-28">
-                      <MoneyInputNumber
+                      {/* Yerel TAM SAYI (arayüz testi kapanış NUM): `MoneyInputNumber
+                          maxDecimals=0` kesri sessizce atıyordu ("2.5" → 2,
+                          "1.250,5" → 1.250); kesirli giriş artık geçersiz (NaN). */}
+                      <NumberInputNumber
                         aria-label={tr("kademeBaslangicMiktari", { n: i + 1 })}
-                        maxDecimals={0}
                         value={t.minQty}
                         onChange={(v) => {
                           const next = [...tiers];

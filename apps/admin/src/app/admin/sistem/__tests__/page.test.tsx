@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   clearMutateAsync: vi.fn((_v: unknown) => Promise.resolve()),
+  manualMutate: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
   system: {
     database: "up",
@@ -61,7 +62,7 @@ vi.mock("@/components/layout/admin-shell", () => ({
 vi.mock("@/hooks/use-admin-system", () => ({
   useAdminSystem: () => ({ data: h.system, isLoading: false }),
   useRefreshRates: () => ({ mutate: vi.fn(), isPending: false }),
-  useManualRate: () => ({ mutate: vi.fn(), isPending: false }),
+  useManualRate: () => ({ mutate: h.manualMutate, isPending: false }),
   useStorageHealth: () => ({ data: undefined, isError: false }),
   useSuppressions: () => h.suppressions,
   useClearSuppression: () => ({ mutateAsync: h.clearMutateAsync, isPending: false }),
@@ -93,7 +94,31 @@ describe("Sistem — zamanlanmış işler (arayüz testi D-139)", () => {
   it("kur notu satış ilanından söz etmez; manuel kur yer tutucusu güncel kur", () => {
     render(<AdminSistemPage />);
     expect(screen.queryByText(/döviz ilanlarında/)).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText("49.0184")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("49,0184")).toBeInTheDocument();
+  });
+
+  /**
+   * Arayüz testi kapanış NUM: `type="number"` "34,5678"i 345678 gönderiyordu
+   * (platformdaki her TRY çevrimi bozulurdu).
+   */
+  it("manuel kur Türkçe '49,5678' → 49.5678 gönderilir; çok farklı kur uyarılır", async () => {
+    const user = userEvent.setup();
+    render(<AdminSistemPage />);
+    const input = screen.getByPlaceholderText("49,0184");
+    await user.type(input, "49,5678");
+    await user.click(screen.getByRole("button", { name: "Manuel Kur Kaydet" }));
+    expect(h.manualMutate).toHaveBeenCalledWith({ currency: "USD", rate: 49.5678 }, expect.anything());
+    await user.clear(input);
+    await user.type(input, "495678");
+    expect(screen.getByText(/güncel kurdan .* çok farklı/)).toBeInTheDocument();
+  });
+
+  it("manuel kur geçersiz giriş ('1.2.3') → hata ve düğme kapalı", async () => {
+    const user = userEvent.setup();
+    render(<AdminSistemPage />);
+    await user.type(screen.getByPlaceholderText("49,0184"), "1.2.3");
+    expect(screen.getByText(/Kur geçersiz/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manuel Kur Kaydet" })).toBeDisabled();
   });
 });
 

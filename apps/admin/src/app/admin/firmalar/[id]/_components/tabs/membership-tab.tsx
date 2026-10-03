@@ -21,6 +21,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { parseAdminInteger } from "@/lib/number-input";
 import {
   useExtendMembership,
   useMembershipHistory,
@@ -61,11 +62,9 @@ type PaidTier = (typeof PAID_TIER_OPTIONS)[number];
 
 /** Ay alanı doğrulaması — backend @Min(1) @Max(60) ile birebir. */
 function monthsError(raw: string): string | null {
-  const n = Number(raw.trim());
-  if (raw.trim() === "" || !Number.isInteger(n) || n < 1 || n > 60) {
-    return "Ay 1-60 arası bir tam sayı olmalı";
-  }
-  return null;
+  // Türkçe kesin ayrıştırma (arayüz testi kapanış NUM): `type="number"` "0,5"i
+  // 05 = 5 ay okuyordu ve tam sayı denetimi geçiyordu.
+  return parseAdminInteger(raw, 1, 60) == null ? "Ay 1-60 arası bir tam sayı olmalı" : null;
 }
 
 function MonthsReasonDialog({
@@ -129,9 +128,9 @@ function MonthsReasonDialog({
           <Label htmlFor="membership-months">Ay sayısı</Label>
           <Input
             id="membership-months"
-            type="number"
-            min={1}
-            max={60}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
             value={months}
             hasError={!!mErr}
             onChange={(e) => setMonths(e.target.value)}
@@ -157,7 +156,7 @@ function MonthsReasonDialog({
           onClick={() => {
             if (mErr) return;
             // Promise döner → Button iş bitene dek kilitli (FX-00).
-            return onConfirm(Number(months.trim()), reason.trim(), tier);
+            return onConfirm(parseAdminInteger(months, 1, 60)!, reason.trim(), tier);
           }}
         >
           {confirmLabel}

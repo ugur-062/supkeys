@@ -42,6 +42,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
+import { parseAdminNumber } from "@/lib/number-input";
 
 // API `FOREIGN_CURRENCY_CODES` (@rothern/shared) ile BİREBİR — admin paketi
 // shared'e bağlı değil; API listede olmayan kodu 400 ile reddeder.
@@ -68,11 +69,21 @@ const MANUAL_CURRENCIES = [
   "CAD",
 ];
 
+/** Manuel kurda izin verilen ondalık (TCMB 4 hane yayımlar). */
+const RATE_DECIMALS = 6;
+
 /** Manuel kur formu — TCMB arızası acil durumu (yalnız SUPER_ADMIN, BE guard). */
 function ManualRateForm({ rates }: { rates?: Record<string, number> }) {
   const manual = useManualRate();
   const [currency, setCurrency] = useState("USD");
   const [rate, setRate] = useState("");
+  const rateNum = parseAdminNumber(rate, RATE_DECIMALS);
+  const rateInvalid = rateNum != null && !(rateNum > 0);
+  // Güncel kurun yarısından azı / iki katından fazlası büyük olasılıkla yazım
+  // hatasıdır (×10/×1000) — engellemez, uyarır.
+  const currentRate = rates?.[currency];
+  const rateFarOff =
+    rateNum != null && rateNum > 0 && !!currentRate && (rateNum > currentRate * 2 || rateNum < currentRate / 2);
   return (
     <div className="border-admin-border mt-4 flex flex-wrap items-end gap-2 border-t pt-3">
       <PencilLine className="text-admin-text-muted mb-1.5 h-4 w-4" />
@@ -94,16 +105,19 @@ function ManualRateForm({ rates }: { rates?: Record<string, number> }) {
         <span className="text-admin-text-muted text-xs font-medium">
           Kur (₺)
         </span>
+        {/* Metin + Türkçe ayrıştırma (arayüz testi kapanış NUM): `type="number"`
+            "34,5678"i 345678 gönderiyordu — platformdaki her TRY çevrimi bozulurdu. */}
         <Input
-          type="number"
-          step="0.0001"
-          min="0"
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
           value={rate}
+          hasError={rateInvalid}
           onChange={(e) => setRate(e.target.value)}
           // Yer tutucu seçili birimin güncel kuru — eski sabit "34.5000"
           // gerçeğe uzaktı (arayüz testi D-139).
           placeholder={
-            rates?.[currency] ? rates[currency].toFixed(4) : undefined
+            rates?.[currency] ? rates[currency].toFixed(4).replace(".", ",") : undefined
           }
           className="w-32"
         />
@@ -112,10 +126,12 @@ function ManualRateForm({ rates }: { rates?: Record<string, number> }) {
         size="sm"
         variant="secondary"
         loading={manual.isPending}
-        disabled={!Number.isFinite(Number(rate)) || Number(rate) <= 0}
+        disabled={rateNum == null || !(rateNum > 0)}
         onClick={() =>
+          rateNum != null &&
+          rateNum > 0 &&
           manual.mutate(
-            { currency, rate: Number(rate) },
+            { currency, rate: rateNum },
             {
               onSuccess: () => {
                 toast.success(`${currency} manuel kuru kaydedildi`);
@@ -128,6 +144,15 @@ function ManualRateForm({ rates }: { rates?: Record<string, number> }) {
       >
         Manuel Kur Kaydet
       </Button>
+      {rateInvalid ? (
+        <p role="alert" className="w-full text-xs text-red-600">
+          Kur geçersiz — en fazla {RATE_DECIMALS} ondalık, ör. 34,5678
+        </p>
+      ) : rateFarOff ? (
+        <p role="alert" className="w-full text-xs text-amber-700">
+          Dikkat: girilen kur güncel kurdan ({currentRate!.toFixed(4).replace(".", ",")}) çok farklı — değeri kontrol edin.
+        </p>
+      ) : null}
       <p className="text-admin-text-muted w-full text-xs">
         Yalnız TCMB uzun süre erişilemezse kullanın — sonraki TCMB çekimi
         üzerine yazar; işlem denetim kaydına girer.
@@ -459,6 +484,9 @@ const TS_FIELDS: { key: keyof TimeSavingsConfigRow; label: string; step?: string
   { key: "hourlyLaborCost", label: "Saatlik maliyet (₺, boş = TL gizli)", max: 1_000_000 },
 ];
 
+/** Zaman tasarrufu alanlarında izin verilen ondalık (dk 0,5 · katsayı 0,05). */
+const TS_DECIMALS = 2;
+
 const TS_DEFAULTS: TimeSavingsConfigRow = {
   rfqMailPrepMin: 6,
   followupMin: 3,
@@ -486,7 +514,9 @@ function TimeSavingsConfigSection() {
       Object.fromEntries(
         TS_FIELDS.map((f) => [
           f.key,
-          src[f.key] == null ? "" : String(src[f.key]),
+          // Türkçe ondalık virgülle (kayıtlı 12.345 → "12,345"; noktayla
+          // basılsaydı kayıtta binlik okunup 12345 olurdu).
+          src[f.key] == null ? "" : String(src[f.key]).replace(".", ","),
         ]),
       ),
     );
@@ -516,11 +546,11 @@ function TimeSavingsConfigSection() {
             <span className="text-admin-text-muted text-xs font-medium">
               {f.label}
             </span>
+            {/* Metin + Türkçe ayrıştırma (NUM): "1.500" TL 1,5, "0,5" katsayı 5 gidiyordu. */}
             <Input
-              type="number"
-              min="0"
-              max={f.max}
-              step={f.step ?? "0.5"}
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               value={form[f.key] ?? ""}
               onChange={(e) =>
                 setForm((cur) => ({ ...cur, [f.key]: e.target.value }))
@@ -543,7 +573,7 @@ function TimeSavingsConfigSection() {
                 if (f.key === "hourlyLaborCost") payload.hourlyLaborCost = null;
                 continue;
               }
-              const n = Number(raw);
+              const n = parseAdminNumber(raw, TS_DECIMALS) ?? Number.NaN;
               if (!Number.isFinite(n) || n < 0) {
                 toast.error(`Geçersiz değer: ${f.label}`);
                 return;

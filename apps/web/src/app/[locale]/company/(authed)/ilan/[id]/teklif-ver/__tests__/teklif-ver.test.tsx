@@ -399,6 +399,65 @@ describe("TeklifVerPage — form", () => {
     expect(h.toast.success).toHaveBeenCalledWith("Taslak kaydedildi");
   });
 
+  /**
+   * Arayüz testi kapanış NUM: sayısal soru `type="number"` idi; Türkçe "12,50"
+   * cevap "1250" gönderiliyordu (gönderilmiş teklif düzenlenemez). Geçerlilik
+   * "0,5" → 5 gün. Artık yerel biçim çevrilir, geçersiz giriş kaydı durdurur.
+   */
+  it("sayısal soru cevabı TR '12,50' → '12.5'; geçerlilik '0,5' taslağı durdurur (NUM)", async () => {
+    const user = userEvent.setup();
+    h.mutateAsync.mockResolvedValue({ status: "DRAFT" });
+    h.detail = baseDetail({
+      items: [
+        {
+          ...baseDetail().items![0]!,
+          questions: [{ id: "q2", text: "Et kalınlığı (mm)?", answerType: "NUMBER", required: false }],
+        },
+      ],
+    } as Partial<ListingDetail>);
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "90");
+    const answer = screen.getByLabelText(/Et kalınlığı/);
+    await user.type(answer, "12,50");
+
+    const validity = screen.getByDisplayValue("30");
+    await user.clear(validity);
+    await user.type(validity, "0,5");
+    await user.click(screen.getByRole("button", { name: "Taslak Olarak Kaydet" }));
+    expect(h.mutateAsync).not.toHaveBeenCalled();
+    expect(h.toast.error).toHaveBeenCalledWith(expect.stringMatching(/1.*365/));
+
+    await user.clear(validity);
+    await user.type(validity, "45");
+    await user.click(screen.getByRole("button", { name: "Taslak Olarak Kaydet" }));
+    expect(h.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asDraft: true,
+        validityDays: 45,
+        items: [expect.objectContaining({ answers: [{ questionId: "q2", value: "12.5" }] })],
+      }),
+    );
+  });
+
+  it("sayısal soruda geçersiz cevap ('1.2.3') alan hatası + taslak durur (NUM)", async () => {
+    const user = userEvent.setup();
+    h.detail = baseDetail({
+      items: [
+        {
+          ...baseDetail().items![0]!,
+          questions: [{ id: "q2", text: "Et kalınlığı (mm)?", answerType: "NUMBER", required: false }],
+        },
+      ],
+    } as Partial<ListingDetail>);
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "90");
+    await user.type(screen.getByLabelText(/Et kalınlığı/), "1.2.3");
+    expect(screen.getByText("Geçerli bir sayı girin (ör. 12,5).")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Taslak Olarak Kaydet" }));
+    expect(h.mutateAsync).not.toHaveBeenCalled();
+    expect(h.toast.error).toHaveBeenCalledWith(expect.stringContaining("Et kalınlığı"));
+  });
+
   it("eleme sonrası yeniden teklif: başlık + gerekçe bandı + seed", () => {
     h.detail = baseDetail({
       myBid: {

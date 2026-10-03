@@ -9,6 +9,8 @@ import { useGeoCityName, useGeoCityNames } from "./use-geo-city-name";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { useFilterAccent, useFilters } from "./filter-shell";
+import { isInvalidNumber } from "@/components/ui/money-input";
+import { useNumberField } from "@/components/ui/number-input";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import { PRICE_LIMIT, activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
 import { readViewPreference, writeViewPreference } from "@/lib/public/view-preference";
@@ -658,11 +660,17 @@ function PriceGroup({
     setMin(state.priceMin?.toString() ?? "");
     setMax(state.priceMax?.toString() ?? "");
   }, [state.priceMin, state.priceMax]);
+  // Yerel TAM SAYI girişi (arayüz testi kapanış NUM): eskiden rakam dışı her
+  // karakter atılıyordu → "2.5" 25, "12,50" 1250, EN "1,500.5" 15005 süzülüyordu.
+  // Sınır tam TL; kesirli/belirsiz giriş geçersiz sayılır ve süzgece GİTMEZ.
+  const minField = useNumberField({ value: min, onChange: setMin });
+  const maxField = useNumberField({ value: max, onChange: setMax });
   // 400 ms debounce — her tuşta sunucuya gitmesin.
   useEffect(() => {
+    if (isInvalidNumber(min) || isInvalidNumber(max)) return;
     const t = setTimeout(() => {
       const n = (v: string) =>
-        v.trim() === "" ? undefined : Math.min(PRICE_LIMIT, Math.max(0, Math.trunc(Number(v)))) || undefined;
+        v.trim() === "" ? undefined : Math.min(PRICE_LIMIT, Math.max(0, Number(v))) || undefined;
       let pm = n(min);
       let px = n(max);
       // Ters aralık (min > max) sessizce boş liste veriyordu (arayüz testi
@@ -745,14 +753,17 @@ function PriceGroup({
       <div className="mb-2 grid grid-cols-2 gap-2 px-2">
         <label className="text-xs text-zinc-500">
           {t("minCurrency", { currency: sym })}
-          <input inputMode="numeric" maxLength={10} value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ""))} placeholder="0" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
+          <input {...minField.inputProps} maxLength={14} placeholder="0" aria-invalid={minField.invalid || undefined} className={`mt-1 h-9 w-full rounded-lg border px-2 text-sm tabular-nums text-zinc-900 outline-none ${minField.invalid ? "border-red-500 focus:border-red-600" : "border-zinc-200 focus:border-zinc-900"}`} />
         </label>
         <label className="text-xs text-zinc-500">
           {t("maxCurrency", { currency: sym })}
-          <input inputMode="numeric" maxLength={10} value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))} placeholder="∞" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
+          <input {...maxField.inputProps} maxLength={14} placeholder="∞" aria-invalid={maxField.invalid || undefined} className={`mt-1 h-9 w-full rounded-lg border px-2 text-sm tabular-nums text-zinc-900 outline-none ${maxField.invalid ? "border-red-500 focus:border-red-600" : "border-zinc-200 focus:border-zinc-900"}`} />
         </label>
       </div>
 
+      {minField.invalid || maxField.invalid ? (
+        <p role="alert" className="mb-1 px-2 text-[11px]/4 text-red-600">{t("priceWholeNumber")}</p>
+      ) : null}
       <p className="mb-2 px-2 text-[11px]/4 text-zinc-500">{t("currencyHint")}</p>
 
       {/* Yalnız ARALIK seçiliyken anlamlı: aralık fiyatın TRY karşılığına

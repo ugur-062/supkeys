@@ -162,3 +162,26 @@ describe("tamamlanma kuralı — fiyat > 0 (API @Min aynası)", () => {
     expect(priceMissing({ ...base, priceMode: "FIXED", priceAmount: "12.50" })).toBe(false);
   });
 });
+
+/**
+ * Arayüz testi kapanış NUM: kademe başlangıç miktarı `maxDecimals=0` para
+ * girişiydi ve kesri SESSİZCE atıyordu ("2.5" → 2, "1.250,5" → 1.250).
+ * Artık yerel tam sayı: binlik okunur, kesirli giriş geçersiz (NaN, uyarı).
+ */
+describe("PriceModeField — kademe miktarı tam sayı (NUM)", () => {
+  it("'1.500' 1500; '2.5' ve '1.250,5' kırpılmaz, geçersiz olur", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial={[{ minQty: 1, unitPrice: 12.5 }]} />);
+    const qty = screen.getByLabelText("1. kademe: başlangıç miktarı");
+    await user.clear(qty);
+    await user.type(qty, "1.500");
+    expect(latest[0]!.minQty).toBe(1500);
+    for (const typed of ["2.5", "1.250,5", "0,5"]) {
+      await user.clear(qty);
+      await user.type(qty, typed);
+      expect(latest[0]!.minQty).toBeNaN();
+      expect(qty).toHaveAttribute("aria-invalid", "true");
+      expect((qty as HTMLInputElement).value).toBe(typed);
+    }
+  });
+});

@@ -968,7 +968,8 @@
       "foundOpenRequestAtLeast": "{total, number}+ open requests found",
       "foundPastRequestAtLeast": "{total, number}+ past requests found",
       "foundRequestAtLeast": "{total, number}+ requests found",
-      "companyCountry": "Company country"
+      "companyCountry": "Company country",
+      "priceWholeNumber": "Enter the price limit as a whole number (e.g. 1,500)."
     },
     "index": {
       "breadcrumb": "Breadcrumb",
@@ -2824,7 +2825,8 @@
         "sonUlkeCikarilamaz": "The last country can’t be removed: add another country first or choose “All countries”.",
         "vadeGunAraligi": "Payment term days must be between 1 and 365",
         "pesinYuzdesiAraligi": "Advance percentage must be between 1 and 100",
-        "enFazlaBirim": "You can select up to {max} currencies; remove one to add another."
+        "enFazlaBirim": "You can select up to {max} currencies; remove one to add another.",
+        "ozelGunAraligi": "Enter a whole number of days from 1 to {max}."
       },
       "ihalelerView": {
         "tedarikSurecleriniziYonetinAcinDavet": "Manage your procurement processes — open, invite, award.",
@@ -3620,7 +3622,9 @@
         "markaParcaNo": "Brand / Part no.: {value}",
         "isaretliAlanlariDuzeltin": "Fix the highlighted fields before saving",
         "siparisReddedildi": "Order rejected",
-        "tryKarsiligiTitle": "TRY equivalent at the bid’s exchange rate"
+        "tryKarsiligiTitle": "TRY equivalent at the bid’s exchange rate",
+        "sayisalCevapGecersiz": "Enter a valid number (e.g. 12.5).",
+        "kalemSayisalCevapGecersiz": "{name}: enter a valid number for “{question}”."
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -3862,7 +3866,8 @@
         "belirliTarihSaat": "or a specific date and time:",
         "kapanisGunu": "Closing date",
         "kapanisSaati": "Closing time",
-        "yayinIcinDogrulamaIncelemede": "Your verification is under review; you can publish the request once it is approved. You can save a draft for now. <link>View status</link>"
+        "yayinIcinDogrulamaIncelemede": "Your verification is under review; you can publish the request once it is approved. You can save a draft for now. <link>View status</link>",
+        "gecersizSayiAlani": "Some number fields are invalid (marked in red). Fix them and try again."
       },
       "publishedPanel": {
         "talebinizYayinda": "Your request is live",
@@ -5078,7 +5083,8 @@
         "belgeYuklenemedi": "Could not upload the document",
         "vitrindenCek": "Remove from showcase",
         "vitrindenCekOnayBaslik": "Remove the product from your showcase?",
-        "vitrindenCekOnayAciklama": "The product returns to draft; publishing it again requires another review."
+        "vitrindenCekOnayAciklama": "The product returns to draft; publishing it again requires another review.",
+        "nitelikSayiGecersiz": "A numeric attribute has an invalid value; fix the field marked in red."
       },
       "productsView": {
         "urunAcilamadi": "Product could not be opened",
@@ -5222,7 +5228,7 @@
         "veUzeri": "{unit} and above",
         "kademeyiSil": "Delete tier",
         "kademeEkle": "Add tier",
-        "kademeEksik": "Enter a quantity and a price above 0 for this tier; incomplete tiers are not saved.",
+        "kademeEksik": "Enter a whole-number quantity and a price above 0 for this tier; incomplete tiers are not saved.",
         "paraBirimi": "Currency",
         "mode": {
           "FIXED": {
@@ -5245,7 +5251,8 @@
       },
       "attributeFields": {
         "tamamlanmaSkorunuEtkiler": "Affects the completion score",
-        "seciniz": "Select"
+        "seciniz": "Select",
+        "sayiGecersiz": "Enter a valid number (e.g. 2.5)."
       },
       "panelInquiryDialog": {
         "talepGonderilemedi": "Could not send inquiry",

@@ -39,6 +39,62 @@ describe("RequestDefaultsForm — aralık denetimi (D-007)", () => {
   });
 });
 
+/**
+ * Arayüz testi kapanış NUM: `type="number"` Türkçe tarayıcıda "2,5" peşini
+ * %25, "0,5" vadeyi 5 gün kaydediyordu; özel gün kutusu her tuşta kırpıyordu
+ * ("0,5" → 15, "12,50" → 60). Artık yerel tam sayı; geçersiz giriş işaretli.
+ */
+describe("RequestDefaultsForm — yerel sayı girişi (NUM)", () => {
+  function Spy({ init, only }: { init: Partial<RequestDefaults>; only: Parameters<typeof RequestDefaultsForm>[0]["only"] }) {
+    const [v, setV] = useState<RequestDefaults>({ ...REQUEST_DEFAULTS_FALLBACK, ...init });
+    return (
+      <>
+        <RequestDefaultsForm value={v} onChange={setV} only={only} />
+        <output data-testid="state">{JSON.stringify({ a: v.advancePercent, p: v.paymentDays, c: v.closeDays })}</output>
+      </>
+    );
+  }
+  const state = () => JSON.parse(screen.getByTestId("state").textContent!) as { a: number | null; p: number | null; c: number };
+
+  it("peşin '2,5' → %25 DEĞİL: alan işaretli, değer geçersiz (JSON null)", () => {
+    render(<Spy init={{ paymentCategory: "ADVANCE", advancePercent: 100, paymentDays: null }} only={["payment"]} />);
+    const input = screen.getByLabelText(/Peşin/);
+    fireEvent.change(input, { target: { value: "2,5" } });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(state().a).toBeNull(); // NaN → JSON'da null; 25 değil
+    expect(screen.getByText("Peşin yüzdesi 1 ile 100 arasında olmalı")).toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe("2,5");
+  });
+
+  it("vade '0,5' → 5 gün DEĞİL; '1.500' → 1500 (aralık dışı), '45' → temiz", () => {
+    render(<Spy init={{ paymentCategory: "DEFERRED", paymentDays: 30 }} only={["payment"]} />);
+    const input = screen.getByLabelText(/Vade/);
+    fireEvent.change(input, { target: { value: "0,5" } });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(state().p).toBeNull();
+    fireEvent.change(input, { target: { value: "1.500" } });
+    expect(state().p).toBe(1500);
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    fireEvent.change(input, { target: { value: "45" } });
+    expect(state().p).toBe(45);
+    expect(input).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("özel gün: '0,5' 15 / '12,50' 60 olmaz — kapanış değişmez, aralık mesajı görünür", () => {
+    render(<Spy init={{ closeDays: 7 }} only={["close"]} />);
+    const input = screen.getByLabelText("Özel gün sayısı");
+    for (const typed of ["0,5", "12,50", "2.5", "1.500"]) {
+      fireEvent.change(input, { target: { value: typed } });
+      expect(state().c).toBe(7);
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent("1–60 gün arası tam sayı girin.");
+    }
+    fireEvent.change(input, { target: { value: "21" } });
+    expect(state().c).toBe(21);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
 describe("RequestDefaultsForm — kabul edilen birim tavanı (D-046)", () => {
   it("tavanda seçilmemiş çipler pasif ve ipucu görünür; birini kaldırınca açılır", () => {
     render(<Harness init={{ primaryCurrency: "TRY", allowedCurrencies: ["TRY"] }} only={["currency"]} />);

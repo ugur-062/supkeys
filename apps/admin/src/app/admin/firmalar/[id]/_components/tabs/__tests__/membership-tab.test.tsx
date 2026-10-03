@@ -64,6 +64,19 @@ describe("MembershipTab — üyelik yönetimi", () => {
     });
   });
 
+  it("Türkçe '0,5' ay 5 ay DEĞİL: alan hatası, Uzat kapalı (arayüz testi kapanış NUM)", async () => {
+    const user = userEvent.setup();
+    render(<MembershipTab companyId="c1" data={paketDetail()} />);
+    await user.click(screen.getByRole("button", { name: "Süre Uzat" }));
+    const dialog = await screen.findByRole("dialog");
+    const months = within(dialog).getByLabelText(/Ay sayısı/);
+    await user.clear(months);
+    await user.type(months, "0,5");
+    expect(within(dialog).getByText(/Ay 1-60 arası/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Uzat" })).toBeDisabled();
+    expect(h.extendMutate).not.toHaveBeenCalled();
+  });
+
   it("geçersiz ay (0) → alan hatası, Uzat kapalı, mutate çağrılmaz", async () => {
     const user = userEvent.setup();
     render(<MembershipTab companyId="c1" data={paketDetail()} />);

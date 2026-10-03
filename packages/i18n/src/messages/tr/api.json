@@ -469,7 +469,8 @@
     "talepBaskaUlkelereAcik": "Bu talep yalnız belirli ülkelerdeki tedarikçilere açık; firmanızın ülkesi bu listede değil.",
     "teklifGecerliligiAzOnceUzatildi": "Teklifin geçerlilik süresi az önce güncellendi; sayfayı yenileyip kontrol edin",
     "kazandirilacakMiktarKalemMiktariniAsamaz": "“{name}” kalemi için kazandırılacak miktar talep miktarını aşamaz",
-    "firmaDogrulamanizIncelemede": "Firma doğrulamanız inceleniyor; onaylanana kadar {action}. Belgelerinizi yeniden yüklemeniz gerekmez."
+    "firmaDogrulamanizIncelemede": "Firma doğrulamanız inceleniyor; onaylanana kadar {action}. Belgelerinizi yeniden yüklemeniz gerekmez.",
+    "sayisalCevapGecersiz": "“{text}” sorusunun cevabı geçerli bir sayı olmalı."
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Talep bulunamadı",

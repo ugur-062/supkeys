@@ -469,7 +469,8 @@
     "talepBaskaUlkelereAcik": "This request is open only to suppliers based in specific countries, and your company's country is not one of them.",
     "teklifGecerliligiAzOnceUzatildi": "The quote's validity period was just updated; refresh the page to check",
     "kazandirilacakMiktarKalemMiktariniAsamaz": "The award quantity for “{name}” cannot exceed the requested quantity",
-    "firmaDogrulamanizIncelemede": "Your company verification is under review; until it is approved, {action}. There is no need to upload your documents again."
+    "firmaDogrulamanizIncelemede": "Your company verification is under review; until it is approved, {action}. There is no need to upload your documents again.",
+    "sayisalCevapGecersiz": "The answer to “{text}” must be a valid number."
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Request not found",

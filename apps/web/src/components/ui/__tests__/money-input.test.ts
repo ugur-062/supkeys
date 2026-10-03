@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatMoneyDisplay, padMoneyFraction, parseMoneyDisplay } from "../money-input";
+import {
+  INVALID_NUMBER_RAW,
+  formatMoneyDisplay,
+  hasInvalidNumber,
+  numberFromInputText,
+  padMoneyFraction,
+  parseMoneyDisplay,
+  parseNumberStrict,
+} from "../money-input";
 
 /**
  * Denetim 2026-08-26 Parça 10 #1 sözleşmesi.
@@ -233,5 +241,63 @@ describe("padMoneyFraction (arayüz testi kapanış S-SELL NEW-1)", () => {
   it("biçimle birlikte: '1.500,50' / EN '250.50'", () => {
     expect(formatMoneyDisplay(padMoneyFraction("1500.5"), "tr")).toBe("1.500,50");
     expect(formatMoneyDisplay(padMoneyFraction("250.5"), "en")).toBe("250.50");
+  });
+});
+
+/**
+ * Arayüz testi kapanış NUM (2026-10-03): doğrulanan sayı alanları (gün, ay,
+ * yüzde, nitelik) için KESİN ayrıştırma — kırpmaz, tahmin etmez.
+ */
+describe("parseNumberStrict — kesin yerel sayı", () => {
+  it("TR tam sayı alanı: '0,5' / '2.5' / '12,50' / '1.250,5' geçersiz; '1.500' 1500", () => {
+    expect(parseNumberStrict("0,5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("2.5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("12,50", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.250,5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.500", "tr")).toBe("1500");
+    expect(parseNumberStrict("05", "tr")).toBe("5");
+    expect(parseNumberStrict("12,0", "tr")).toBe("12");
+    expect(parseNumberStrict("", "tr")).toBe("");
+  });
+
+  it("EN tam sayı alanı: '1,500' 1500; '12.50' / '1,500.5' geçersiz", () => {
+    expect(parseNumberStrict("1,500", "en")).toBe("1500");
+    expect(parseNumberStrict("12.50", "en")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1,500.5", "en")).toBe(INVALID_NUMBER_RAW);
+    // EN "1.000" = 1,000 ondalık = 1 (kırpma değil, anlamsız sıfırlar).
+    expect(parseNumberStrict("1.000", "en")).toBe("1");
+  });
+
+  it("ondalıklı alan: dilin kuralı + başka alışkanlık; fazla ondalık kırpılmaz, reddedilir", () => {
+    expect(parseNumberStrict("2,5", "tr", 4)).toBe("2.5");
+    expect(parseNumberStrict("12,50", "tr", 2)).toBe("12.5");
+    expect(parseNumberStrict("1.250,5", "tr", 2)).toBe("1250.5");
+    expect(parseNumberStrict("2.5", "tr", 2)).toBe("2.5");
+    expect(parseNumberStrict("1,500.5", "en", 2)).toBe("1500.5");
+    expect(parseNumberStrict("0,125", "tr", 4)).toBe("0.125");
+    expect(parseNumberStrict("1.2505", "tr", 4)).toBe("1.2505");
+    expect(parseNumberStrict("1,234", "tr", 2)).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1 234,5", "ru", 2)).toBe("1234.5");
+  });
+
+  it("çöp, eksi ve düzensiz gruplama geçersiz", () => {
+    expect(parseNumberStrict("abc", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("-5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.2.3", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("12.3.456", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.234,5,6", "tr", 2)).toBe(INVALID_NUMBER_RAW);
+  });
+
+  it("numberFromInputText: boş → undefined, geçersiz → NaN, sayı aynen", () => {
+    expect(numberFromInputText("", "tr")).toBeUndefined();
+    expect(numberFromInputText("0,5", "tr")).toBeNaN();
+    expect(numberFromInputText("24", "tr")).toBe(24);
+    expect(numberFromInputText(12, "tr")).toBe(12);
+  });
+
+  it("hasInvalidNumber iç içe NaN ve geçersiz ham değeri bulur", () => {
+    expect(hasInvalidNumber({ items: [{ warrantyMonths: Number.NaN }] })).toBe(true);
+    expect(hasInvalidNumber({ a: { b: INVALID_NUMBER_RAW } })).toBe(true);
+    expect(hasInvalidNumber({ a: 1, b: "x", c: null, d: [2, 3] })).toBe(false);
   });
 });

@@ -4,6 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { Field, useFieldContext } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
+import { useNumberFieldNumber } from "@/components/ui/number-input";
+import { CloseDaysInput } from "@/components/tenders/close-days-input";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
@@ -350,10 +352,7 @@ export function RequestDefaultsForm({
                 {tr("gun", { d: d })}
               </button>
             ))}
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <input type="number" min={1} max={REQUEST_CLOSE_DAYS_MAX} value={value.closeDays} onChange={(e) => set({ closeDays: Math.min(REQUEST_CLOSE_DAYS_MAX, Math.max(1, Number(e.target.value) || 1)) })} className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" aria-label={tr("ozelGunSayisi")} />
-              {tr("gun2")}
-            </label>
+            <CloseDaysInput value={value.closeDays} max={REQUEST_CLOSE_DAYS_MAX} onChange={(d) => set({ closeDays: d })} ariaLabel={tr("ozelGunSayisi")} suffix={tr("gun2")} labelClassName="flex items-center gap-2 text-sm text-zinc-600" className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
           </div>
         </Block>
       ) : null}
@@ -402,21 +401,23 @@ export function RequestDefaultsForm({
   );
 }
 
-/** Sayı kutusu — Field bağlamından aria-invalid/aria-describedby okur. */
-function NumberInput({ id, min, max, value, onChange }: { id: string; min: number; max: number; value: number | null; onChange: (n: number | null) => void }) {
+/**
+ * Sayı kutusu — Field bağlamından aria-invalid/aria-describedby okur. Yerel
+ * tam sayı girişi (arayüz testi kapanış NUM): `type="number"` Türkçe
+ * tarayıcıda "2,5" peşini %25, "0,5" vadeyi 5 gün kaydediyordu. Geçersiz giriş
+ * `NaN` bildirilir → `requestDefaultsFieldErrors` alanı işaretler.
+ */
+function NumberInput({ id, value, onChange }: { id: string; min: number; max: number; value: number | null; onChange: (n: number | null) => void }) {
   const field = useFieldContext();
+  const { invalid, inputProps } = useNumberFieldNumber({ value, onChange });
+  const bad = invalid || field?.invalid;
   return (
     <input
       id={id}
-      type="number"
-      inputMode="numeric"
-      min={min}
-      max={max}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-      aria-invalid={field?.invalid || undefined}
+      {...inputProps}
+      aria-invalid={bad || undefined}
       aria-describedby={field?.describedBy}
-      className={cn(INPUT, field?.invalid && "border-red-500 focus:border-red-600 focus:ring-red-600/10")}
+      className={cn(INPUT, bad && "border-red-500 focus:border-red-600 focus:ring-red-600/10")}
     />
   );
 }

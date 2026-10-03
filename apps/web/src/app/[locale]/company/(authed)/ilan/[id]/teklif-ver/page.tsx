@@ -14,10 +14,11 @@ import {
   DialogBody,
   DialogTitle,
 } from "@/components/catalyst/dialog";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
-import { MoneyInput } from "@/components/ui/money-input";
+import { MoneyInput, isInvalidNumber } from "@/components/ui/money-input";
+import { NumberInput } from "@/components/ui/number-input";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
@@ -208,23 +209,32 @@ function AnswerInput({
       </Field>
     );
   }
+  if (q.answerType === "NUMBER") {
+    // Yerel ondalık giriş (arayüz testi kapanış NUM): `type="number"` Türkçe
+    // tarayıcıda "12,50"yi 1250 gönderiyordu (gönderilmiş teklif düzenlenemez).
+    // Geçersiz metin `INVALID_NUMBER_RAW` olur, gönderim/taslak engellenir.
+    return (
+      <Field>
+        {label}
+        <NumberInput value={value} onChange={onChange} maxDecimals={NUMBER_ANSWER_DECIMALS} />
+        {isInvalidNumber(value) ? <ErrorMessage>{t("sayisalCevapGecersiz")}</ErrorMessage> : null}
+      </Field>
+    );
+  }
   return (
     <Field>
       {label}
       <Input
-        type={
-          q.answerType === "NUMBER"
-            ? "number"
-            : q.answerType === "DATE"
-              ? "date"
-              : "text"
-        }
+        type={q.answerType === "DATE" ? "date" : "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
     </Field>
   );
 }
+
+/** Sayısal soru cevabında izin verilen ondalık (serbest ölçü/oran cevabı). */
+const NUMBER_ANSWER_DECIMALS = 6;
 
 export default function TeklifVerPage() {
   const tr = useTranslations("web.panel.requests.page");
@@ -998,6 +1008,27 @@ export default function TeklifVerPage() {
     );
   };
 
+  /**
+   * Geçersiz sayı girişleri (arayüz testi kapanış NUM) — gönderim VE taslak
+   * kaydı durur: geçersiz metin `INVALID_NUMBER_RAW` olarak durur, aksi hâlde
+   * taslak "NaN" cevabı ya da boş geçerlilik kaydederdi.
+   */
+  const numberInputProblems = (withValidity: boolean): string[] => {
+    const out: string[] = [];
+    if (withValidity && !isAuction && isInvalidNumber(validityDays)) out.push(tr("gecerlilikSuresiAralik"));
+    for (const it of pricedItems) {
+      const st = itemState[it.id];
+      const bad = (it.questions ?? []).find(
+        (q) => q.answerType === "NUMBER" && isInvalidNumber(st?.answers[q.id]),
+      );
+      if (bad) {
+        out.push(tr("kalemSayisalCevapGecersiz", { name: it.name, question: bad.text }));
+        break;
+      }
+    }
+    return out;
+  };
+
   // ── Doğrulama (gönderim) ──
   const submitProblems = (): string[] => {
     const problems: string[] = [];
@@ -1067,6 +1098,8 @@ export default function TeklifVerPage() {
       else if (!/^\d+$/.test(validityDays) || Number(validityDays) < 1 || Number(validityDays) > 365)
         problems.push(tr("gecerlilikSuresiAralik"));
     }
+    // Geçerlilik yukarıda denetlendi; burada yalnız sayısal soru cevapları.
+    problems.push(...numberInputProblems(false));
     // KYC (arayüz testi D-028): davetsiz ∧ bağlantısız ∧ doğrulanmamış teklifçi
     // gönderemez (sunucu 403) — yalnız taslak.
     if (l.bidRequiresVerification) problems.push(tr("gonderimIcinDogrulamaGerekir"));
@@ -1176,6 +1209,11 @@ export default function TeklifVerPage() {
   });
 
   const saveDraft = async () => {
+    const numberProblems = numberInputProblems(true);
+    if (numberProblems.length > 0) {
+      toast.error(numberProblems[0]);
+      return;
+    }
     setSavingDraft(true);
     try {
       await placeBid.mutateAsync(buildPayload(true));
@@ -1624,13 +1662,10 @@ export default function TeklifVerPage() {
                     })}
                   </p>
                 ) : (
-                  <Input
-                    type="number"
-                    min={1}
-                    max={365}
-                    step={1}
+                  // Yerel tam sayı: "0,5" artık 5 gün değil, aralık mesajı.
+                  <NumberInput
                     value={validityDays}
-                    onChange={(e) => setValidityDays(e.target.value)}
+                    onChange={setValidityDays}
                   />
                 )}
               </Field>

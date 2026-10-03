@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
+import { parseAdminNumber } from "@/lib/number-input";
 
 interface PromptDialogProps {
   open: boolean;
@@ -124,8 +125,10 @@ export function PromptDialog({
     minLength !== undefined &&
     (required || trimmed !== "") &&
     trimmed.length < minLength;
-  // number: tam sayı + aralık (boşsa `required` karar verir).
-  const num = Number(trimmed);
+  // number: tam sayı + aralık (boşsa `required` karar verir). Kutu metin +
+  // Türkçe kesin ayrıştırma (arayüz testi kapanış NUM): `type="number"` "0,5"i
+  // 05 = 5 okuyup tam sayı denetimini geçiriyordu.
+  const num = type === "number" ? (parseAdminNumber(trimmed, 0) ?? Number.NaN) : Number.NaN;
   const outOfRange =
     type === "number" &&
     trimmed !== "" &&
@@ -158,7 +161,11 @@ export function PromptDialog({
   const submit = () => {
     if (invalid) return;
     void lock
-      .run(() => (secondary ? onConfirm(trimmed, secondaryValue.trim()) : onConfirm(trimmed)))
+      .run(() => {
+        // Sayı alanı çağırana kanonik değerle gider ("1.500" → "1500").
+        const out = type === "number" && trimmed !== "" ? String(num) : trimmed;
+        return secondary ? onConfirm(out, secondaryValue.trim()) : onConfirm(out);
+      })
       .catch(() => {});
   };
 
@@ -195,9 +202,10 @@ export function PromptDialog({
           </Label>
           <Input
             id="prompt-dialog-input"
-            type={type}
-            min={type === "datetime-local" ? minDateTime : min}
-            max={type === "number" ? max : type === "datetime-local" ? maxDateTime : undefined}
+            type={type === "number" ? "text" : type}
+            inputMode={type === "number" ? "numeric" : undefined}
+            min={type === "datetime-local" ? minDateTime : undefined}
+            max={type === "datetime-local" ? maxDateTime : undefined}
             maxLength={type === "text" || type === "email" ? maxLength : undefined}
             autoFocus
             value={value}
