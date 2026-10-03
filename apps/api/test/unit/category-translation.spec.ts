@@ -1,4 +1,5 @@
 import { buildAttributePrompt, buildCategoryPrompt, parseAttributeBatch, parseCategoryBatch, type AttributeBatchRow, type CategoryBatchRow } from "../../src/modules/content-translation/category-translation.logic";
+import { CategoryTranslationService } from "../../src/modules/content-translation/category-translation.service";
 
 /** i18n Faz 4 — kategori adı toplu çevirisi: istem ve çıktı denetimi. */
 const rows: CategoryBatchRow[] = [
@@ -77,5 +78,24 @@ describe("parseAttributeBatch", () => {
       { id: "a2", en: "Thickness", ru: "Толщина", optionsEn: [], optionsRu: [] },
     ]);
     expect(parseAttributeBatch(rows, bad)).toEqual({ error: expect.stringContaining("options length") });
+  });
+});
+
+describe("CategoryTranslationService başlatma gerekçesi (arayüz testi webC-4)", () => {
+  // Denetim kaydına giden `reason` makine kodudur; admin Detay'ı onu Türkçe
+  // etiketler. İngilizce cümle ("translation provider not configured") ham görünüyordu.
+  it("sağlayıcı yoksa kategori ve nitelik işi başlamaz, gerekçe kod olarak döner", () => {
+    const svc = new CategoryTranslationService({} as never, { enabled: false } as never);
+    expect(svc.start()).toEqual({ started: false, reason: "provider_not_configured" });
+    expect(svc.startAttributes()).toEqual({ started: false, reason: "provider_not_configured" });
+  });
+
+  it("iş zaten koşuyorsa ikinci başlatma 'already_running' koduyla reddedilir", () => {
+    const svc = new CategoryTranslationService({} as never, { enabled: true } as never);
+    const internals = svc as unknown as { running: boolean; attrRunning: boolean };
+    internals.running = true;
+    internals.attrRunning = true;
+    expect(svc.start()).toEqual({ started: false, reason: "already_running" });
+    expect(svc.startAttributes()).toEqual({ started: false, reason: "already_running" });
   });
 });

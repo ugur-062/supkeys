@@ -196,6 +196,11 @@ describe("audit-format", () => {
         "rolesBefore", "previousRoles", "droppedGroups", "labelChanges", "roleChanges", "address",
         "countryCode", "unavailable", "valid", "vatNumber", "queued", "newLogId", "template",
         "toEmail", "active",
+        // İç içe nesnelerin anahtarları (rowCounts, retainedBecause, enqueued,
+        // roleChanges) — Detay'da da anahtar adıyla görünür (webC-4).
+        "added", "removed", "users", "listings", "adminNotes", "bidsPlaced", "bankAccounts",
+        "ordersAsBuyer", "ordersAsSeller", "complaintsReceived", "complaintsMade",
+        "membershipEvents", "listingInvitations", "products", "companies",
       ];
       const sameInTurkish = new Set(["portal"]);
       const raw = seen.filter((k) => {
@@ -209,6 +214,31 @@ describe("audit-format", () => {
 
   // Son tur (webC-4): 143 eylemlik taramada kalan ham enum/anahtar örnekleri.
   describe("son tur webC-4 — kalan ham kodlar", () => {
+    it("çeviri doldurma satırları Türkçe: iç içe sayaç anahtarları ve başlamama gerekçesi", () => {
+      expect(
+        formatAuditMetadata("admin.system.translation_backfill", {
+          enabled: false,
+          enqueued: { listings: 0, products: 3, companies: 1 },
+        }),
+      ).toBe("açık: hayır · kuyruğa alınan: (ilan: 0 · ürün: 3 · firma: 1)");
+      for (const action of [
+        "admin.system.category_translation_backfill",
+        "admin.system.attribute_translation_backfill",
+      ]) {
+        // Güncel API kodu ve eski satırların İngilizce cümlesi aynı etiketi alır.
+        for (const reason of ["provider_not_configured", "translation provider not configured"]) {
+          expect(formatAuditMetadata(action, { reason, started: false })).toBe(
+            "gerekçe: Çeviri sağlayıcısı yapılandırılmamış · başladı: hayır",
+          );
+        }
+        for (const reason of ["already_running", "already running"]) {
+          expect(formatAuditMetadata(action, { reason, started: false })).toBe(
+            "gerekçe: Zaten çalışıyor · başladı: hayır",
+          );
+        }
+      }
+    });
+
     it("şikayet, bağlantı, görünürlük ve adres türü değerleri Türkçe", () => {
       expect(
         formatAuditMetadata("admin.complaint.resolved", { status: "DISMISSED", suspend: false }),

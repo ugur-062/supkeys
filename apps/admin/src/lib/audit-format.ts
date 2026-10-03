@@ -215,6 +215,9 @@ const KEY_LABEL: Record<string, string> = {
   // anonimleştirme `retainedBecause`) ve zaman tasarrufu ayarları.
   users: "kullanıcı",
   listings: "ilan",
+  // Çeviri doldurma (`admin.system.translation_backfill` → `enqueued`).
+  products: "ürün",
+  companies: "firma",
   bidsPlaced: "verilen teklif",
   ordersAsBuyer: "alım siparişi",
   ordersAsSeller: "satış siparişi",
@@ -311,6 +314,12 @@ const VALUE_BY_KEY: Record<string, Record<string, string>> = {
     not_admin: "Yönetici değil",
     not_admin_grant: "Yönetici olmayan yetki veremez",
     not_creator: "Talebi açan kişi değil",
+    // Kategori/nitelik çeviri doldurma başlamadığında (API kodu; eski satırlar
+    // İngilizce cümle yazıyordu — webC-4).
+    provider_not_configured: "Çeviri sağlayıcısı yapılandırılmamış",
+    already_running: "Zaten çalışıyor",
+    "translation provider not configured": "Çeviri sağlayıcısı yapılandırılmamış",
+    "already running": "Zaten çalışıyor",
   },
 };
 

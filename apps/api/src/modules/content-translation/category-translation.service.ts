@@ -24,6 +24,15 @@ import {
  */
 const CATEGORY_WORKERS = 4;
 
+/**
+ * Toplu çevirinin başlamama gerekçesi — makine kodu (yanıtta ve denetim
+ * kaydında `reason`). Admin Denetim Kaydı Türkçe etiketini
+ * `apps/admin/src/lib/audit-format.ts` (VALUE_BY_KEY.reason) verir; eskiden
+ * İngilizce cümle yazılıyor ve Detay'da ham görünüyordu (arayüz testi webC-4).
+ */
+export type BackfillSkipReason = "provider_not_configured" | "already_running";
+export type BackfillStartResult = { started: boolean; reason?: BackfillSkipReason };
+
 @Injectable()
 export class CategoryTranslationService {
   private readonly logger = new Logger(CategoryTranslationService.name);
@@ -46,9 +55,9 @@ export class CategoryTranslationService {
   }
 
   /** Arka planda başlatır (istek yanıtı beklemez). */
-  start(locales: Locale[] = ["en", "ru"]): { started: boolean; reason?: string } {
-    if (!this.translations.enabled) return { started: false, reason: "translation provider not configured" };
-    if (this.running) return { started: false, reason: "already running" };
+  start(locales: Locale[] = ["en", "ru"]): BackfillStartResult {
+    if (!this.translations.enabled) return { started: false, reason: "provider_not_configured" };
+    if (this.running) return { started: false, reason: "already_running" };
     this.running = true;
     this.progress = { done: 0, failed: 0, batches: 0, costUsd: 0, startedAt: new Date().toISOString(), finishedAt: null, lastError: null };
     setImmediate(() => {
@@ -135,9 +144,9 @@ export class CategoryTranslationService {
     return { total, translated: { en, ru }, running: this.attrRunning, progress: this.attrProgress };
   }
 
-  startAttributes(): { started: boolean; reason?: string } {
-    if (!this.translations.enabled) return { started: false, reason: "translation provider not configured" };
-    if (this.attrRunning) return { started: false, reason: "already running" };
+  startAttributes(): BackfillStartResult {
+    if (!this.translations.enabled) return { started: false, reason: "provider_not_configured" };
+    if (this.attrRunning) return { started: false, reason: "already_running" };
     this.attrRunning = true;
     this.attrProgress = { done: 0, failed: 0, batches: 0, costUsd: 0, startedAt: new Date().toISOString(), finishedAt: null, lastError: null };
     setImmediate(() => {
