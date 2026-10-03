@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MemberCta, OpenRequestLink, SessionSwap } from "../member-cta";
 import { PublicEmptyState } from "../public-empty-state";
+import { RfqBanner } from "../rfq-banner";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 /**
@@ -113,9 +114,9 @@ describe("SessionSwap", () => {
 describe("OpenRequestLink", () => {
   const listingPerms = ["buy:view", "buy:listing:manage"];
 
-  it("misafir: kayıt (dönüş adresi yok)", () => {
+  it("misafir: \"Talep aç · Gold\" kayda (dönüş adresi yok; paket tıklamadan önce — arayüz testi kapanış COPY)", () => {
     render(<OpenRequestLink label="Talep aç" prefill="pano" />);
-    const href = screen.getByRole("link", { name: "Talep aç" }).getAttribute("href") ?? "";
+    const href = screen.getByRole("link", { name: "Talep aç · Gold" }).getAttribute("href") ?? "";
     expect(href).toContain("/company/kayit?intent=talep");
     expect(href).not.toContain("redirect");
   });
@@ -149,5 +150,18 @@ describe("OpenRequestLink", () => {
     signIn("SILVER", "VERIFIED", listingPerms);
     render(<PublicEmptyState title="Talep bulunamadı." openRequest={{ label: "Talep aç" }} />);
     expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
+  });
+});
+
+describe("RfqBanner (ürün sayfası 'Bir talep aç…')", () => {
+  it("misafir: 'Talep aç · Gold' kayda — paket tıklamadan önce (arayüz testi kapanış COPY, T-02)", () => {
+    render(<RfqBanner prefill="pano" />);
+    const link = screen.getByRole("link", { name: /Talep aç · Gold/ });
+    expect(link.getAttribute("href")).toContain("/company/kayit?intent=talep");
+  });
+
+  it("boş durumun 'Kategorilere göz at' bağlantısı dilin çapasına gider", () => {
+    render(<PublicEmptyState title="Talep bulunamadı." />);
+    expect(screen.getByRole("link", { name: /Kategori/ })).toHaveAttribute("href", "/#kategoriler");
   });
 });

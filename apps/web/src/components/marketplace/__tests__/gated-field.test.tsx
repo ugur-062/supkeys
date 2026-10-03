@@ -99,3 +99,14 @@ describe("GatedField — oturumlu üyeye giriş/kayıt denmez", () => {
     expect(b.container.textContent).toBe("");
   });
 });
+
+describe("GatedField box başlığı (arayüz testi kapanış COPY)", () => {
+  it("varsayılan '{label} üyelere açık'; paketle açılan alan kendi başlığını verir", () => {
+    const { unmount } = render(<GatedField size="box" label="Kalem listesi" redirect="/company/x" />);
+    expect(screen.getByText("Kalem listesi üyelere açık")).toBeInTheDocument();
+    unmount();
+    render(<GatedField size="box" label="Kalem listesi" title="Kalem listesi Silver paketiyle açılır" redirect="/company/x" />);
+    expect(screen.getByText("Kalem listesi Silver paketiyle açılır")).toBeInTheDocument();
+    expect(screen.queryByText(/üyelere açık/)).toBeNull();
+  });
+});

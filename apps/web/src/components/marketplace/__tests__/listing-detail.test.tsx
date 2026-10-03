@@ -77,4 +77,17 @@ describe("ListingDetail", () => {
     expect(screen.getByText(/belgeleri görmek Silver paketiyle açılır/)).toBeInTheDocument();
     expect(screen.getByText("Bu talep teklife kapalı.")).toBeInTheDocument();
   });
+
+  it("misafir: kapı başlığı, kayıt CTA'sı ve ödül listesi Silver'ı baştan söyler; 'üyelere/kayıtlı' vaadi yok (arayüz testi kapanış COPY)", () => {
+    const { container } = render(<ListingDetail listing={base} />);
+    expect(screen.getByText("Alıcı firma, şartname ve ekli belgeler Silver paketiyle açılır")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Kaydol — teklif Silver paketiyle" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/company/kayit?intent=teklif"),
+    );
+    expect(screen.getByText("Silver ile: alıcı adı, şartname ve ekli belgeler")).toBeInTheDocument();
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/üyelere açık|kayıtlı (kullanıcı|firma)lara/);
+    expect(text).not.toMatch(/Teklif vermek için kaydol/);
+  });
 });

@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { categoriesHref } from "@/lib/public/anchors";
 import { Link } from "@/i18n/navigation";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { OpenRequestLink } from "./member-cta";
@@ -31,6 +32,7 @@ export function PublicEmptyState({
   openRequest?: { label: string; prefill?: string };
 }) {
   const t = useTranslations("web.marketplace.empty");
+  const locale = useLocale();
   // BEYAZ yüzey: katalog sayfalarının zemini artık tonlu (`MARKET_GROUND`);
   // eski `bg-zinc-50/60` orada zeminden ayrışmıyor ve kutu kayboluyordu.
   return (
@@ -62,7 +64,7 @@ export function PublicEmptyState({
           </Link>
         ) : null}
         <Link
-          href="/#kategoriler"
+          href={categoriesHref(locale)}
           className="rounded-full border border-zinc-300 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-white"
         >
           {t("browse")}

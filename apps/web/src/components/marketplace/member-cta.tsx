@@ -109,6 +109,10 @@ export function newRequestHref(prefill?: string): string {
  *
  * misafir → kayıt (dönüş adresi TAŞIMAZ, Y-03) · Gold ∧ yetki → sihirbaz ·
  * Gold değil → kilitli "Talep aç · Gold" (doğrulama/paket) · yetki yok → hiç.
+ *
+ * Misafir etiketi de "Talep aç · Gold" (arayüz testi kapanış COPY, T-02):
+ * yeni firma STANDART doğar, talep yayını Gold ister — kayıt bağlantısı
+ * bunu tıklamadan önce söyler.
  */
 export function OpenRequestLink({
   label,
@@ -127,6 +131,7 @@ export function OpenRequestLink({
   trailing?: ReactNode;
 }) {
   const fill = useAccentFill();
+  const t = useTranslations("web.marketplace.memberGate");
   const cls = accent ? cn(className, fill) : className;
   return (
     <MemberCta
@@ -142,7 +147,7 @@ export function OpenRequestLink({
       }
     >
       <Link href={signupHref("talep")} className={cls}>
-        {label}
+        {t("lockedLabel", { label })}
         {trailing}
       </Link>
     </MemberCta>

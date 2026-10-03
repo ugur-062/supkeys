@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { anchorId } from "@/lib/public/anchors";
 
 /* `"use client"` ŞART: `toShowcaseRows` panelin client dosyasından geliyor
    (`category-showcase-rows.tsx`) ve sunucudan ÇAĞRILAMAZ. Panel dosyasına
@@ -45,6 +46,7 @@ export function HomeBuyer({
   // 6 blok × (1 promo + 10 kategori); artan segmentler son ızgaraya eklenir.
   const rows = toShowcaseRows(showcase, 6);
   const t = useTranslations("web.marketing.home");
+  const locale = useLocale();
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
@@ -57,7 +59,7 @@ export function HomeBuyer({
           düşüyordu (canlı bulgu 2026-09-09). Sarmalayıcı `CategoryShowcaseRows`
           panel bileşenine dokunmadan çapayı veriyor; `scroll-mt` sabit
           header'ın altına gizlenmesin diye. */}
-      <div id="kategoriler" className="scroll-mt-24">
+      <div id={anchorId("categories", locale)} className="scroll-mt-24">
       <CategoryShowcaseRows
         rows={rows}
         /* Ürünü OLMAYAN segment kategori sayfasında 404 verir (o sayfa boş

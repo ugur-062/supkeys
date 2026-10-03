@@ -1,7 +1,8 @@
 import { RothernLogo } from "@/components/brand/logo";
 import { LanguageSwitcher } from "@/components/marketing/language-switcher";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { categoriesHref, pricingHref } from "@/lib/public/anchors";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Link } from "@/i18n/navigation";
 import { SessionSwap } from "./member-cta";
@@ -18,6 +19,7 @@ export function MarketplaceFooter() {
   const t = useTranslations("web.marketing.footer");
   const tn = useTranslations("web.marketing.nav");
   const tl = useTranslations("web.marketplace.labels");
+  const locale = useLocale();
   // Yayın anahtarı kapalıyken pazar yeri sütunu HİÇ basılmaz — rotalar 404.
   const COLUMNS = [
     ...(MARKETPLACE_LIVE
@@ -28,7 +30,7 @@ export function MarketplaceFooter() {
               { label: tl("demands"), href: MARKETPLACE_ROUTES.demands },
               { label: tl("products"), href: MARKETPLACE_ROUTES.products },
               { label: tl("companies"), href: MARKETPLACE_ROUTES.companies },
-              { label: t("categories"), href: "/#kategoriler" },
+              { label: t("categories"), href: categoriesHref(locale) },
             ],
           },
         ]
@@ -38,7 +40,7 @@ export function MarketplaceFooter() {
       links: [
         { label: tn("howItWorks"), href: "/nasil-calisir" },
         { label: t("faq"), href: "/sss" },
-        { label: tn("pricing"), href: "/nasil-calisir#fiyatlar" },
+        { label: tn("pricing"), href: pricingHref(locale) },
         { label: t("about"), href: "/hakkimizda" },
         { label: t("contact"), href: "/iletisim" },
       ],

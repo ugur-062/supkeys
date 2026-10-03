@@ -27,6 +27,7 @@ export function RfqBanner({
   variant?: "public" | "panel";
 }) {
   const t = useTranslations("web.marketing.rfq");
+  const tGate = useTranslations("web.marketplace.memberGate");
   const POINTS = [
     { icon: POINT_ICONS[0], t: t("point1") },
     { icon: POINT_ICONS[1], t: t("point2") },
@@ -92,8 +93,10 @@ export function RfqBanner({
                   </AccentLink>
                 }
               >
+                {/* Misafir de paketi tıklamadan önce görür: "Talep aç · Gold"
+                    (arayüz testi kapanış COPY, T-02). */}
                 <AccentLink href={href} className={CTA_CLS}>
-                  {t("cta")}
+                  {tGate("lockedLabel", { label: t("cta") })}
                   <ArrowRightIcon aria-hidden className="size-4" />
                 </AccentLink>
               </MemberCta>

@@ -307,13 +307,14 @@ export function ListingDetail({
                       className="mt-4"
                       size="box"
                       label={t("gateLabel")}
+                      title={t("gateTitle")}
                       hint={t("gateHint")}
                       redirect={PANEL_TARGET.listing(listing.number)}
                       signup={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
                     />
                   </ListingBidCta>
                 ) : (
-                  <GatedField className="mt-4" size="box" label={t("gateLabel")} hint={t("gateHintClosed")} />
+                  <GatedField className="mt-4" size="box" label={t("gateLabel")} title={t("gateTitle")} hint={t("gateHintClosed")} />
                 )}
               </section>
             ) : null}

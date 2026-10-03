@@ -106,7 +106,9 @@ export async function CompanyIndex({
             </span>
             <div>
               <h2 id="firmalar-uyelik" className="text-lg font-semibold text-zinc-950">
-                {t("membersOnlyTitle")}
+                {/* Oturumlu üyeye "üyelere açık" denmez — dizin zaten panelinde
+                    (arayüz testi kapanış COPY:companies). */}
+                <SessionSwap member={t("membersOnlyTitleMember")}>{t("membersOnlyTitle")}</SessionSwap>
               </h2>
               <p className="mt-1 max-w-xl text-sm/6 text-zinc-600">{t("membersOnlyBody")}</p>
             </div>

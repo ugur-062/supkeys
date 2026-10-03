@@ -59,7 +59,9 @@ export function HomeHero() {
       ? undefined
       : {
           text: t("buyerCtaText"),
-          label: lockedHref ? tGate("lockedLabel", { label: t("buyerCtaLabel") }) : t("buyerCtaLabel"),
+          /* Misafire de "· Gold" (arayüz testi kapanış COPY, T-02): kayıt
+             STANDART açar, talep yayını Gold. Yalnız Gold ∧ yetkili çıplak. */
+          label: gate === "ok" ? t("buyerCtaLabel") : tGate("lockedLabel", { label: t("buyerCtaLabel") }),
           href: lockedHref ?? (gate === "ok" ? NEW_REQUEST_PATH : signupHref("talep")),
         };
   /* TEDARİKÇİ "TEKLİF" NOTU da oturuma göre (arayüz testi kapanış webA-1):

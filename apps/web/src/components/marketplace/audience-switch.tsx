@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
+import { isCategoriesAnchor } from "@/lib/public/anchors";
 import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
 import {
   createContext,
@@ -93,10 +94,15 @@ const Ctx = createContext<{
  * DEĞİŞMEZ — ziyaretçinin seçimi değil, bağlantının hedefi) ve hedef
  * görünür olduktan sonra kaydırılır.
  */
-const BUYER_ANCHORS = new Set(["kategoriler"]);
 function buyerAnchor(hash: string): string | null {
-  const id = decodeURIComponent(hash.replace(/^#/, ""));
-  return BUYER_ANCHORS.has(id) ? id : null;
+  let id: string;
+  try {
+    id = decodeURIComponent(hash.replace(/^#/, ""));
+  } catch {
+    return null;
+  }
+  // Dil başına çapa (`#kategoriler` / `#categories` / `#kategorii`).
+  return isCategoriesAnchor(id) ? id : null;
 }
 
 export function AudienceProvider({ children }: { children: ReactNode }) {

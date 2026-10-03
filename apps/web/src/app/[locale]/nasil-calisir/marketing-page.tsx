@@ -49,6 +49,7 @@ import {
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { signupHref } from "@/lib/public/visibility";
+import { anchorId } from "@/lib/public/anchors";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
@@ -831,7 +832,7 @@ export default function HomePage() {
       {/* "Pazar & erişim" istatistik bandı KALDIRILDI (2026-09-18, kullanıcı kararı). */}
 
       {/* Özellikler — 2 sıra bento (2.sırada 3 sütun) */}
-      <section id="ozellikler" className="relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-32">
+      <section id={anchorId("features", locale)} className="relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-32">
         {/* Yumuşak mavi zemin lekeleri (mockup) — dekoratif */}
         <div aria-hidden className="pointer-events-none absolute -top-24 -right-40 -z-10 hidden size-[36rem] rounded-full bg-blue-100/50 blur-3xl lg:block" />
         <div aria-hidden className="pointer-events-none absolute top-1/2 -left-48 -z-10 hidden size-[30rem] rounded-full bg-blue-50 blur-3xl lg:block" />
@@ -1064,7 +1065,7 @@ export default function HomePage() {
       </section>
 
       {/* Üyelik */}
-      <section id="fiyatlar" className="relative isolate scroll-mt-24 overflow-hidden bg-white py-24 sm:py-32">
+      <section id={anchorId("pricing", locale)} className="relative isolate scroll-mt-24 overflow-hidden bg-white py-24 sm:py-32">
         <SoftBlobs flip />
         <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
           <div className="flex items-center justify-center gap-3 text-xs font-semibold tracking-[0.2em] text-blue-600 uppercase">
@@ -1157,7 +1158,7 @@ export default function HomePage() {
       </section>
 
       {/* SSS — ortalı başlık + çok kolonlu Q&A kartları */}
-      <section id="sss" className="scroll-mt-24 border-t border-zinc-200 bg-white py-24 sm:py-32">
+      <section id={anchorId("faq", locale)} className="scroll-mt-24 border-t border-zinc-200 bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           {/* SSS (2026-09-19, kullanıcı mockup'ı): üstte kısa mavi çizgi,
               daha sakin başlık, mavi e-posta bağlantısı, "+" gri yuvarlakta. */}

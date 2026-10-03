@@ -51,6 +51,7 @@ export function GatedField({
   redirect,
   signup,
   size = "inline",
+  title,
   hint,
   memberHint,
   sentence,
@@ -67,6 +68,13 @@ export function GatedField({
    */
   signup?: string;
   size?: "inline" | "box";
+  /**
+   * Box başlığı — verilmezse "{label} üyelere açık". Üyelikle DEĞİL paketle
+   * açılan alan (talep detayında alıcı/şartname → Silver) kendi başlığını
+   * verir; genel kalıp ücretsiz kaydın açtığını vaat ediyordu (arayüz testi
+   * kapanış COPY, T-02).
+   */
+  title?: string;
   /** Box: ikinci satır açıklama (misafire — kayıt/paket metni). */
   hint?: string;
   /** Box: oturumlu üyeye ikinci satır (verilmezse yok; misafir `hint`i üyeye gösterilmez). */
@@ -113,7 +121,7 @@ export function GatedField({
       >
         <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
           <LockClosedIcon aria-hidden className="size-4 text-zinc-400" />
-          {t("membersOnly", { label })}
+          {title ?? t("membersOnly", { label })}
         </p>
         {hint ? <p className="mt-1 text-sm/6 text-zinc-600">{hint}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">

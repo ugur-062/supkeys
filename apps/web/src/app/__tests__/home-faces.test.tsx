@@ -116,7 +116,8 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "/company/kayit?intent=teklif",
     );
     await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
-    expect(screen.getByRole("link", { name: /Talep aç/ })).toHaveAttribute(
+    // Misafir de paketi tıklamadan önce görür (arayüz testi kapanış COPY, T-02).
+    expect(screen.getByRole("link", { name: "Talep aç · Gold" })).toHaveAttribute(
       "href",
       "/company/kayit?intent=talep",
     );
@@ -260,14 +261,15 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(within(list).getByRole("link", { name: /Tüm talepler \(16\)/ })).toBeInTheDocument();
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
-    expect(within(list).getAllByText(/şartname ve belgeler üyelere/).length).toBe(3);
+    expect(within(list).getAllByText(/şartname ve belgeler Silver ile/).length).toBe(3);
     // SATIR düzeni (2026-09-10): kategori GÖRSELİ yok (v3 2026-09-19: sütun
     // ikon karoları var, fotoğraf yine yok), sütunlar panelle aynı.
     const rows = list.querySelector("ul")!;
     expect(within(rows).queryAllByRole("img")).toHaveLength(0);
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
-    const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });
+    // Misafir de paketi tıklamadan önce görür (arayüz testi kapanış COPY, T-02).
+    const teklif = within(list).getAllByRole("link", { name: "Teklif ver · Silver" });
     expect(teklif).toHaveLength(3);
     // Tedarikçi yüzünde YEŞİL dolgulu düğme (2026-09-18, kullanıcı).
     expect(teklif[0]!.className).toContain("bg-emerald-600");

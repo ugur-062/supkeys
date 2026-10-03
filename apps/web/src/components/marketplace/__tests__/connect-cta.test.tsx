@@ -55,7 +55,7 @@ describe("PublicConnectCta", () => {
   it("ücretsiz, doğrulanmamış: önce doğrulama", () => {
     signIn("STANDART", "UNVERIFIED");
     renderCta();
-    expect(screen.getByRole("link", { name: "Bağlantı için önce doğrulanın" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Bağlantı Silver ile — önce doğrulanın" })).toHaveAttribute(
       "href",
       "/company/ayarlar/dogrulama",
     );

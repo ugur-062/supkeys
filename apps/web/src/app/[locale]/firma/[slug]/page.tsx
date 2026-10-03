@@ -143,8 +143,10 @@ export default async function PublicCompanyProfile({
             // görür. Dil farkında Link: ham <a> dil önekini eklemiyor, EN/RU
             // ziyaretçi Türkçe giriş sayfasına düşüyordu (derin denetim LU-22).
             <PublicConnectCta companySlug={slug} panelHref={panelHref} className={CONNECT_CLS}>
+              {/* Misafir de paketi tıklamadan önce görür: "… · Silver"
+                  (arayüz testi kapanış COPY, T-02 — davet Silver ister). */}
               <Link href={loginHref(panelHref)} className={CONNECT_CLS}>
-                {t("connectCta")}
+                {t("connectLockedLabel", { label: t("connectCta") })}
               </Link>
             </PublicConnectCta>
           }

@@ -73,9 +73,10 @@ function Action() {
 }
 
 describe("usePublicBidAction (anasayfa satırı \"Teklif ver\")", () => {
-  it("misafir → kayıt; ücretsiz → \"Teklif ver · Silver\" doğrulamaya; Silver → panel", () => {
+  it("misafir → \"Teklif ver · Silver\" kayda; ücretsiz → \"Teklif ver · Silver\" doğrulamaya; Silver → panel", () => {
+    // Misafir de paketi tıklamadan önce görür (arayüz testi kapanış COPY, T-02).
     const { unmount } = render(<Action />);
-    expect(screen.getByRole("link", { name: "Teklif ver" })).toHaveAttribute("href", "/company/kayit?intent=teklif");
+    expect(screen.getByRole("link", { name: "Teklif ver · Silver" })).toHaveAttribute("href", "/company/kayit?intent=teklif");
     unmount();
 
     signIn("STANDART", "UNVERIFIED");

@@ -7,6 +7,7 @@ import { breadcrumbNode, faqNode, graph } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
+import { pricingHref } from "@/lib/public/anchors";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 
 /**
@@ -65,7 +66,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
               </Link>
             ),
             pricing: (chunks) => (
-              <Link href="/nasil-calisir#fiyatlar" className={LINK}>
+              <Link href={pricingHref(locale)} className={LINK}>
                 {chunks}
               </Link>
             ),

@@ -35,6 +35,11 @@ export function usePublicBidGate(): BuyingGate {
  * veriyordu (arayüz testi son tur webA-1); dar satırda `ListingBidCta`
  * `compact` ile aynı karar: yetki notu yer kaplamaz, satırın kendisi talep
  * sayfasına (yetki notuna) gider.
+ *
+ * MİSAFİR ETİKETİ DE "· Silver" (arayüz testi kapanış COPY: T-02 "CTA'lar
+ * paketi baştan söyler"): eskiden yalnız oturumlu ücretsiz üye "Teklif ver ·
+ * Silver" görüyordu, misafire çıplak "Teklif ver" → ücretsiz kayıt basılıyordu.
+ * Hedef aynı kalır (kayıt; davetli tedarikçi ücretsizde de teklif verir).
  */
 export function usePublicBidAction(
   number: string,
@@ -43,7 +48,7 @@ export function usePublicBidAction(
 ): { label: string; href: string; locked: boolean } | null {
   const t = useTranslations("web.marketplace.bidGate");
   const gate = usePublicBidGate();
-  if (gate === "guest") return { label, href: guestHref, locked: false };
+  if (gate === "guest") return { label: t("lockedLabel", { label }), href: guestHref, locked: false };
   if (gate === "noPermission") return null;
   const href = gateHref(gate);
   if (href) return { label: t("lockedLabel", { label }), href, locked: true };
