@@ -1,6 +1,6 @@
 /**
  * API KESİNTİSİ "BOŞ VERİ" DEĞİLDİR (yayın denetimi 2026-09-28 B1-1): ana veri
- * çağrıları ağ hatası/5xx/429'da çalışma anında HATA atar — ISR son iyi sürümü
+ * çağrıları ağ hatası/5xx/429'da (liste çağrıları 404 dışındaki 4xx'te de) çalışma anında HATA atar — ISR son iyi sürümü
  * korur, detay sayfası 404'e dönmez. 404 gerçek "yok"tur. `next build`
  * sırasında atılmaz (Render askısında derleme kırılmasın). İkincil bloklar
  * (facet vb.) yedekle kalır.
@@ -8,11 +8,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PublicApiUnavailableError,
+  fetchCompanyProducts,
   fetchFacets,
   fetchListing,
   fetchListings,
   fetchProduct,
   fetchProductSitemap,
+  fetchProducts,
+  fetchPublicDirectory,
   fetchSimilarListings,
 } from "../marketplace-api";
 
@@ -74,6 +77,51 @@ describe("liste ve sitemap — ana veri", () => {
     expect((await fetchSimilarListings({ type: "ALIM" })).items).toEqual([]);
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
     expect((await fetchSimilarListings({ type: "ALIM" })).items).toEqual([]);
+  });
+});
+
+/**
+ * DAĞITIM PENCERESİ (canlı öncesi, staging): yeni web eski API'ye yeni sorgu
+ * parametresi yollayınca API `forbidNonWhitelisted` ile 400 döner. Ana liste
+ * bunu BOŞ yedekle çizip ISR'a yazıyordu; artık 404 dışındaki 4xx de kesinti.
+ */
+describe("ana liste — 404 dışındaki 4xx kesintidir", () => {
+  it.each([400, 403, 409, 422])("HTTP %i → çalışma anında hata atar", async (status) => {
+    respond(status);
+    await expect(fetchListings({})).rejects.toBeInstanceOf(PublicApiUnavailableError);
+    await expect(fetchProducts({ q: "vana" })).rejects.toBeInstanceOf(PublicApiUnavailableError);
+    await expect(fetchPublicDirectory({})).rejects.toBeInstanceOf(PublicApiUnavailableError);
+    await expect(fetchCompanyProducts("firma")).rejects.toBeInstanceOf(PublicApiUnavailableError);
+    await expect(fetchProductSitemap(0)).rejects.toBeInstanceOf(PublicApiUnavailableError);
+  });
+  it("derleme sırasında 400 hata atmaz — boş yedekle çıkar (API'siz derleme kırılmaz)", async () => {
+    vi.stubEnv("NEXT_PHASE", "phase-production-build");
+    respond(400);
+    expect((await fetchListings({})).items).toEqual([]);
+    expect(await fetchProductSitemap(0)).toEqual([]);
+  });
+  it("404 yine gerçek 'yok': boş yedek, hata yok", async () => {
+    respond(404);
+    expect((await fetchProducts({})).items).toEqual([]);
+    expect((await fetchCompanyProducts("firma")).items).toEqual([]);
+  });
+  it("ikincil bloklar 400'de de yedekle kalır (facet, benzer talepler)", async () => {
+    respond(400);
+    expect((await fetchFacets({})).categories).toEqual([]);
+    expect((await fetchSimilarListings({ type: "ALIM" })).items).toEqual([]);
+  });
+  it("tekil kayıt 400 → null (yolu kullanıcı yazar; 404 anlamı korunur)", async () => {
+    respond(400);
+    expect(await fetchListing("rot-000001")).toBeNull();
+    expect(await fetchProduct("firma", "urun")).toBeNull();
+  });
+  it("firma ürünleri: elle yazılmış sayfa/arama API sınırlarına kırpılır (400'e düşmez)", async () => {
+    respond(200, { items: [], total: 0, page: 200, pageSize: 24 });
+    await fetchCompanyProducts("firma", { q: `  ${"a".repeat(130)}  `, page: 500.5, categoryId: "abc" });
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get("page")).toBe("200");
+    expect(url.searchParams.get("q")).toBe("a".repeat(120));
+    expect(url.searchParams.has("categoryId")).toBe(false);
   });
 });
 

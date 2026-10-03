@@ -200,8 +200,11 @@ export async function publicHeaders(explicit?: string): Promise<Record<string, s
  * sürüm / `notFound()` 404 önbelleğe girip `revalidate` süresince kalıyordu —
  * Googlebot için dolu sayfa 404 oluyordu). İlk çizimde hata sayfası (500,
  * önbelleğe girmez). `next build` sırasında atılmaz: API kapalıyken (Render
- * askısı) derleme boş sürümle çıkar, ilk ISR yenilemesi onarır. 404 ve diğer
- * 4xx gerçek "yok"tur → yedek / `null`. İkincil bloklar (facet, öne çıkan,
+ * askısı) derleme boş sürümle çıkar, ilk ISR yenilemesi onarır. 404 gerçek
+ * "yok"tur → yedek / `null`. ANA LİSTE çağrılarında (`getJson` critical) 404
+ * dışındaki 4xx de kesinti sayılır (dağıtım penceresi: eski API yeni
+ * parametreye 400 döner, canlı öncesi); tekil kayıtta (`getDetail`) diğer 4xx
+ * `null` kalır — yolu kullanıcı yazar, sorgu parametresi taşımaz. İkincil bloklar (facet, öne çıkan,
  * ilişkili, sayaç) yedekle kalır — tek uçtaki arıza sayfayı düşürmesin.
  */
 export class PublicApiUnavailableError extends Error {
@@ -331,7 +334,14 @@ async function getJson<T>(
     return await loadPublicJson<T>(path, { revalidate, tags, fresh, locale });
   } catch (err) {
     if (err instanceof UpstreamHttpError) {
-      if (critical && upstreamDown(err.status)) unavailable(path, `HTTP ${err.status}`);
+      // ANA veride 404 DIŞINDAKİ her 2xx dışı yanıt kesintidir — 400/409/422
+      // dahil (canlı öncesi, staging dağıtım penceresi): yeni web eski API'ye
+      // yeni bir sorgu parametresi yollayınca `forbidNonWhitelisted` 400
+      // dönüyor, yedek BOŞ liste çizilip dakikalarca ISR'a yazılıyordu. Web
+      // kullanıcı girdisini API sınırlarına kırptığı için (süzgeç
+      // ayrıştırıcıları) ana veride 4xx beklenmez; atmak son iyi sayfayı
+      // korur. Derlemede yine yedek (`unavailable`), 404 gerçek "yok".
+      if (critical && err.status !== 404) unavailable(path, `HTTP ${err.status}`);
       else if (err.status !== 404) console.error(`[pazar-yeri] ${path} → HTTP ${err.status}`);
       return fallback;
     }
@@ -1046,14 +1056,22 @@ export function fetchProductFacets(params: ProductFacetParams = {}, opts: { loca
   return getJson(`/public/products/facets${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_FACETS, 300, undefined, false, opts.locale);
 }
 
+const COMPANY_PRODUCT_SEARCH_MAX = 120;
+const COMPANY_PRODUCT_PAGE_LIMIT = 200;
+
 export function fetchCompanyProducts(
   companySlug: string,
   params: { q?: string; categoryId?: string; page?: number; fresh?: boolean } = {},
 ): Promise<PublicProductPage> {
+  // API sınırlarına (`PublicProductQueryDto`: q ≤ 120, 8 haneli kod, tam sayı
+  // sayfa ≤ 200) kırpılır: ana veri 4xx'te hata attığı için firma sayfasındaki
+  // elle yazılmış `?urunSayfa=500` / uzun `?urun=` hata sayfası çizmesin.
+  const q = params.q?.trim().slice(0, COMPANY_PRODUCT_SEARCH_MAX).trim();
+  const page = params.page ? Math.min(Math.floor(params.page), COMPANY_PRODUCT_PAGE_LIMIT) : 1;
   const sp = new URLSearchParams();
-  if (params.q) sp.set("q", params.q);
-  if (params.categoryId) sp.set("categoryId", params.categoryId);
-  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  if (q) sp.set("q", q);
+  if (params.categoryId && /^\d{8}$/.test(params.categoryId)) sp.set("categoryId", params.categoryId);
+  if (page > 1) sp.set("page", String(page));
   const qs = sp.toString();
   return getJson(
     `/public/companies/${encodeURIComponent(companySlug)}/products${qs ? `?${qs}` : ""}`,

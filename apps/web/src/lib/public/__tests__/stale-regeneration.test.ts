@@ -5,6 +5,8 @@
  * 404 atılsaydı gizlenen/silinen ilan ya da ürün, SEO etiket kancası
  * kaçtığında her yenilemede eski veriyle çizilirdi. 404 bu yüzden önbelleğe
  * yazılan bir DEĞERDİR; 5xx/429/ağ hatası atılır → son iyi kopya kalır (B1-1).
+ * Ana LİSTE çağrılarında 404 dışındaki 4xx de kesintidir (dağıtım penceresi,
+ * canlı öncesi): önbelleğe yazılmaz, son iyi kopya kalır, girdi yoksa atılır.
  * Sahte, Next'in bu dalını birebir taklit eder (JSON gövde, hata → bayat).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -99,6 +101,39 @@ describe("bayat girdi + ISR yenilemesi", () => {
       fail();
       expect(await fetchListing("rot-000001")).toMatchObject({ title: "Son iyi" });
     }
+  });
+
+  it("liste ucu kesintisi (503 / 400 / 409 / 422) → son iyi liste kalır, boş yedek çizilmez", async () => {
+    // Dağıtım penceresi (canlı öncesi): yeni web eski API'ye yeni parametre
+    // yollar, `forbidNonWhitelisted` 400 döner. 400 önbelleğe yazılmaz.
+    const { fetchListings } = await import("../marketplace-api");
+    respond(200, { items: [{ id: "l1" }], total: 1, page: 1, pageSize: 24 });
+    expect((await fetchListings({})).total).toBe(1);
+    next.isRevalidate = true;
+    for (const status of [503, 400, 409, 422]) {
+      markAllStale();
+      respond(status);
+      expect((await fetchListings({})).total).toBe(1);
+    }
+  });
+
+  it("liste ucu ilk okumada (girdi yok) 400 → hata atar: boş liste sayfası ISR'a yazılmaz", async () => {
+    const { fetchListings, fetchProducts, PublicApiUnavailableError } = await import("../marketplace-api");
+    respond(400);
+    await expect(fetchListings({ sort: "closing" })).rejects.toBeInstanceOf(PublicApiUnavailableError);
+    await expect(fetchProducts({ q: "vana" })).rejects.toBeInstanceOf(PublicApiUnavailableError);
+    expect(store.size).toBe(0);
+    // API güncellenince aynı anahtar normal doldurulur.
+    respond(200, { items: [{ id: "l1" }], total: 1, page: 1, pageSize: 24 });
+    expect((await fetchListings({ sort: "closing" })).total).toBe(1);
+  });
+
+  it("derlemede liste ucu 400 → boş yedek (API'siz derleme kırılmaz), önbelleğe yazılmaz", async () => {
+    vi.stubEnv("NEXT_PHASE", "phase-production-build");
+    const { fetchListings } = await import("../marketplace-api");
+    respond(400);
+    expect((await fetchListings({})).total).toBe(0);
+    expect(store.size).toBe(0);
   });
 
   it("ilk okuma (girdi yok) 404 → null; önizleme (fresh) de null", async () => {
