@@ -64,7 +64,10 @@ function adminRig() {
   return { svc, email, audit };
 }
 
-type SentMail = { subject: string; templateData: { data: { paragraphs: string[] } } };
+type SentMail = {
+  subject: string;
+  templateData: { data: { paragraphs: string[]; highlights?: string[] } };
+};
 
 /** notifyCompany `void` ile çağrılır — e-posta gönderimini bekle. */
 async function sentMail(email: { send: jest.Mock }): Promise<SentMail> {
@@ -408,7 +411,9 @@ describe("D-173 — üyelik süresi dolumu e-postası", () => {
     });
     await scheduler.downgradeExpired();
     const mail = await sentMail(email);
-    expect(mail.templateData.data.paragraphs.join("\n")).toContain(
+    // 55d52924 (e-posta tasarımı): firmada fiilen değişenler uzun paragraflardan
+    // ayrı, madde işaretli highlights kutusunda gösterilir.
+    expect((mail.templateData.data.highlights ?? []).join("\n")).toContain(
       "taleplerinizde gönderim sırası bekleyen tedarikçi davetleri iptal edildi",
     );
   });
