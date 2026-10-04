@@ -336,10 +336,15 @@ export function CompanyCard({
           </h3>
           {badge ? <div className="mt-1">{badge}</div> : null}
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-            {c.city ? (
+            {/* Tile da wide ile aynı: bayrak + yerelleştirilmiş ülke, şehir (2026-10-04, bayraklar). */}
+            {c.city || c.country ? (
               <span className="inline-flex items-center gap-1">
-                <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
-                {c.city}
+                {c.country ? (
+                  <CountryFlag code={c.country} decorative />
+                ) : (
+                  <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
+                )}
+                {[c.country ? countryDisplayName(c.country, locale) : null, cityDisplayName(c.city, locale)].filter(Boolean).join(", ")}
               </span>
             ) : null}
             {c.mainCategory ? <span className="line-clamp-1">{c.mainCategory.name}</span> : null}

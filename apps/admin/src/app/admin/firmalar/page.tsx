@@ -42,7 +42,7 @@ import { Download, EllipsisVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useListFilters } from "@/hooks/use-list-filters";
-import { countryName, countryShort } from "@/lib/country";
+import { countryName } from "@/lib/country";
 import { CountryFlag } from "@/components/country-flag";
 import { safeFormat, toDateInput } from "@/lib/date";
 import Link from "next/link";
@@ -354,7 +354,8 @@ function FirmalarView() {
                         .filter(Boolean)
                         .join(" / ")}
                     >
-                      <CountryFlag code={c.country} decorative /> {countryShort(c.country)}
+                      {/* Yalnız bayrak (ad = alt/title); dosyası yoksa bileşen kısa metne ("KKTC") düşer — kod ikinci kez basılmaz. */}
+                      <CountryFlag code={c.country} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <Badge color={TIER_COLOR[c.tier] ?? "zinc"}>

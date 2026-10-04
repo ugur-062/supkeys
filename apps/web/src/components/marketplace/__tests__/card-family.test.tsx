@@ -147,6 +147,14 @@ describe("CompanyCard", () => {
     expect(screen.getByText("3 ürün · Kuruluş 2008 · 50-100 çalışan")).toBeTruthy();
   });
 
+  it("tile görünümü de bayrak + ülke adı + şehir basar (wide ile aynı)", () => {
+    const { container } = render(<CompanyCard company={base} />);
+    const img = container.querySelector('img[src="/flags/4x3/tr.svg"]');
+    expect(img).toBeTruthy();
+    expect(img!.getAttribute("alt")).toBe("");
+    expect(screen.getByText("Türkiye, Kocaeli")).toBeTruthy();
+  });
+
   it("eski dizin yanıtında yeni alanlar yoksa çökmez", () => {
     render(<CompanyCard company={base} />);
     expect(screen.getByText("3 ürün")).toBeTruthy();
