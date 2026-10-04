@@ -58,11 +58,11 @@ describe("ai-search — yorum → URL süzgeci", () => {
     expect(intentToProductQuery({ ...base, query: null, category: null, city: null, activity: null, verifiedOnly: false, priceMax: null, quantity: null })).toBe("");
   });
 
-  it("satış: kategori SEGMENT'e iner, şehir alıcı şehri; alıcıya özgü alanlar yazılmaz", () => {
-    expect(intentToRequestQuery({ ...base, portal: "satis" })).toBe("?q=kompanzasyon+panosu&kategori=39000000&sehir=istanbul");
+  it("satış: kategori SEGMENT'e iner; alıcı ŞEHRİ yazılmaz (2026-10-04 — süzgeç alıcı ülkesi); alıcıya özgü alanlar yazılmaz", () => {
+    expect(intentToRequestQuery({ ...base, portal: "satis" })).toBe("?q=kompanzasyon+panosu&kategori=39000000");
     // Ülke = alıcı ülkesi süzgeci.
     expect(intentToRequestQuery({ ...base, portal: "satis", city: "de-munich", country: "DE" })).toBe(
-      "?q=kompanzasyon+panosu&kategori=39000000&sehir=de-munich&ulke=DE",
+      "?q=kompanzasyon+panosu&kategori=39000000&ulke=DE",
     );
   });
 

@@ -1,13 +1,13 @@
 "use client";
 
-import { countryDisplayName, useCityKeyLabel } from "@/i18n/domain";
+import type { Locale } from "@rothern/i18n";
+import { countryDisplayName } from "@/i18n/domain";
 
 import { useLocale, useTranslations } from "next-intl";
 
 import { Check, FilterChipBar, Group, ShowMore, ShowMoreRadio, type FilterChip } from "./filter-primitives";
 import { useFilters } from "./filter-shell";
 import { SortBar } from "./sort-bar";
-import { useCityFilterLabel } from "./use-geo-city-name";
 import { activeListingFilterCount, type ListingFilterState } from "@/lib/public/listing-filter-params";
 import { hasListingCountryFacet, listingCountryOptions } from "@/lib/public/listing-country-facet";
 import type { PublicFacets } from "@/lib/public/marketplace-api";
@@ -25,15 +25,16 @@ const isSegmentCode = (code: string) => /^\d{2}0{6}$/.test(code);
 
 /**
  * ALIM TALEBİ SÜZGEÇLERİ (PROMPT 4) — ürün süzgeciyle aynı yapı taşları:
- * Kategori (tek seçim, segment), Şehir (çoklu), Kalan süre (radyo), Kapsam
- * (radyo). Sayaçlar bağlamsal (facet ucu seçili süzgeçleri alır).
+ * Kategori (tek seçim, segment), Alıcı ülkesi (çoklu, bayrak + ad + sayı),
+ * Kalan süre (radyo), Görünürlük ülkesi. Sayaçlar bağlamsal (facet ucu seçili
+ * süzgeçleri alır). ALICI ŞEHRİ grubu 2026-10-04'te kalktı (sahip kararı:
+ * satırlar alıcının ülkesini gösteriyor, süzgeç de aynı soruyu sorar).
  */
 export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idPrefix: string }) {
   const { state, update } = useFilters<ListingFilterState>();
-  const cityLabel = useCityKeyLabel();
-  const selectedCityLabel = useCityFilterLabel(state.cities, facets.cities);
   const t = useTranslations("web.marketplace.filters");
-  const locale = useLocale();
+  const locale = useLocale() as Locale;
+  const buyerCountries = facets.buyerCountries ?? [];
   const WITHIN = WITHIN_KEYS.map((key) => ({ key, label: t("withinDays", { n: Number(key) }) }));
   const within = facets.within;
   return (
@@ -56,21 +57,31 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
           missingCount={(k) => (isSegmentCode(k) ? 0 : undefined)}
         />
       </Group>
-      <Group
-        title={t("city")}
-        count={state.cities.length}
-        onClear={() => update({ cities: [] })}
-        storageKey="lst-city"
-      >
-        <ShowMore
-          items={facets.cities.map((c) => ({ key: c.city, label: c.name ?? cityLabel(c.city), count: c.count }))}
-          selected={state.cities}
-          idPrefix={`${idPrefix}-city`}
-          onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
-          // Facet'te olmayan seçili dünya şehri ham adresle değil adıyla (canlı öncesi).
-          labelFor={selectedCityLabel}
-        />
-      </Group>
+      {/* ALICI ÜLKESİ (talebin açıldığı ülke) — satırdaki bayrak + ülkeyle
+          aynı bilgi; çoklu seçim, bağlamsal sayı. Görünürlük ülkesinden
+          (aşağıda, "teklif verebilecek tedarikçi") AYRI soru. */}
+      {buyerCountries.length > 0 || state.buyerCountries.length > 0 ? (
+        <Group
+          title={t("buyerCountry")}
+          count={state.buyerCountries.length}
+          onClear={() => update({ buyerCountries: [] })}
+          storageKey="lst-buyer-country"
+        >
+          <ShowMore
+            items={buyerCountries.map((c) => ({ key: c.code, label: countryDisplayName(c.code, locale), count: c.count }))}
+            selected={state.buyerCountries}
+            idPrefix={`${idPrefix}-buyer-country`}
+            onToggle={(k, on) =>
+              update((s) => ({
+                ...s,
+                buyerCountries: on ? [...new Set([...s.buyerCountries, k])] : s.buyerCountries.filter((x) => x !== k),
+              }))
+            }
+            labelFor={(k) => countryDisplayName(k, locale)}
+            iconFor={(k) => <CountryFlag code={k} decorative />}
+          />
+        </Group>
+      ) : null}
       <Group
         title={t("remaining")}
         count={state.within ? 1 : 0}
@@ -130,12 +141,12 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
 
 export function ListingActiveChips({ facets }: { facets: PublicFacets }) {
   const t = useTranslations("web.marketplace.filters");
-  const locale = useLocale();
+  const locale = useLocale() as Locale;
   const { state, update, clear } = useFilters<ListingFilterState>();
-  const cityLabel = useCityFilterLabel(state.cities, facets.cities);
   const chips: FilterChip[] = [];
   if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? facets.selectedCategory?.name ?? state.category, onRemove: () => update({ category: undefined }) });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.buyerCountries)
+    chips.push({ key: `b:${c}`, label: t("buyerCountryChip", { country: countryDisplayName(c, locale) }), onRemove: () => update((s) => ({ ...s, buyerCountries: s.buyerCountries.filter((x) => x !== c) })) });
   if (state.within) chips.push({ key: "w", label: t("withinDays", { n: Number(state.within) }), onRemove: () => update({ within: undefined }) });
   if (state.country) chips.push({ key: "s", label: countryDisplayName(state.country, locale), onRemove: () => update({ country: undefined }) });
   return <FilterChipBar chips={chips} activeCount={activeListingFilterCount(state)} onClearAll={clear} />;

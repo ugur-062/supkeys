@@ -955,6 +955,8 @@
       "listingCountry": "Open to suppliers in",
       "listingCountryPick": "Choose another country",
       "listingCountryHint": "Requests open to all countries are included in every selection.",
+      "buyerCountry": "Buyer country",
+      "buyerCountryChip": "Buyer: {country}",
       "notFoundProduct": "No products found",
       "notFoundCompany": "No companies found",
       "notFoundBuyingRequest": "No buying requests found",
@@ -1308,7 +1310,8 @@
     "scope": {
       "allCountries": "All countries",
       "onlyCountry": "{country} only",
-      "plusMore": "{country} +{n} more"
+      "plusMore": "{country} +{n} more",
+      "domesticOnly": "domestic suppliers only"
     },
     "closing": {
       "daysLeft": "{days, plural, one {# day left} other {# days left}}",
@@ -4963,7 +4966,6 @@
         "gunIcinde": "{d, plural, one {Within # day} other {Within # days}}",
         "alici": "Buyer",
         "aliciAdiGorunenTalepYok": "No requests with a visible buyer name",
-        "aliciSehri": "Buyer city",
         "paraBirimi": "Currency",
         "usul": "Procedure",
         "teklifToplama": "Quote collection",

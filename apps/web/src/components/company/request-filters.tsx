@@ -35,10 +35,10 @@ import { useMemo, useState } from "react";
  *
  * Sıra "teklif verecek miyim" sorusunun sırası: neden karşımda (Uygunluk) →
  * hâlâ açık mı (Durum) → alanım mı (Kategori) → yetişir miyim (Kapsam,
- * Kapanış) → kim (Alıcı, Şehir, Ülke) → koşullar (Para birimi, Usul) → ne
- * zaman çıktı (Yayın tarihi). Şehir ve ülke etiketleri okuyucunun dilinde
- * (facet motoru `SellerTendersView`den etiketleyici alır); tek ülkeden gelen
- * listede ülke grubu çizilmez (tek seçenekli süzgeç gürültüdür). Arama
+ * Kapanış) → kim (Alıcı, Alıcı ülkesi) → koşullar (Para birimi, Usul) → ne
+ * zaman çıktı (Yayın tarihi). Ülke etiketleri okuyucunun dilinde, bayraklı
+ * (facet motoru `SellerTendersView`den etiketleyici alır). Alıcı şehri grubu
+ * 2026-10-04'te kalktı (sahip kararı: talepte konum = ülke). Arama
  * kutusu YOK — hero kutusu `?q=` yazar, burada yalnız çip olarak görünür
  * (aynı sayfada iki arama kutusu olmasın).
  */
@@ -111,16 +111,11 @@ export function RequestFilters({ facets, idPrefix = "t" }: { facets: RequestFace
         />
       </Group>
 
-      <Group title={t("aliciSehri")} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="talep-sehir">
-        <ShowMore
-          items={facets.cities}
-          selected={state.cities}
-          idPrefix={`${idPrefix}-city`}
-          onToggle={(k, on) => update((s) => ({ ...s, cities: toggleIn(s.cities, k, on) }))}
-        />
-      </Group>
-
-      {facets.countries.length > 1 || state.countries.length > 0 ? (
+      {/* ALICI ÜLKESİ — eski "Alıcı şehri" grubunun yerine (2026-10-04 sahip
+          kararı): satırlar alıcının ülkesini bayrakla gösteriyor, süzgeç de
+          aynı bilgiyi sorar (maskeli satırlar dahil). Tek ülke olsa da çizilir:
+          şehir grubunun yerini tutar ve listenin nereden geldiğini söyler. */}
+      {facets.countries.length > 0 || state.countries.length > 0 ? (
         <Group title={t("aliciUlkesi")} count={state.countries.length} onClear={() => update({ countries: [] })} storageKey="talep-ulke">
           <ShowMore
             items={facets.countries}
@@ -231,8 +226,6 @@ export function RequestActiveChips({ facets }: { facets: RequestFacets }) {
   if (state.closing) chips.push({ key: "closing", label: t("gunIcindeKapanan", { closing: state.closing }), onRemove: () => update({ closing: undefined }) });
   for (const b of state.buyers)
     chips.push({ key: `buyer:${b}`, label: name(facets.buyers, b), onRemove: () => update((s) => ({ ...s, buyers: s.buyers.filter((x) => x !== b) })) });
-  for (const c of state.cities)
-    chips.push({ key: `city:${c}`, label: name(facets.cities, c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   for (const c of state.countries)
     chips.push({ key: `country:${c}`, label: name(facets.countries, c), onRemove: () => update((s) => ({ ...s, countries: s.countries.filter((x) => x !== c) })) });
   for (const c of state.currencies)

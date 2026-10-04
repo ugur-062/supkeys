@@ -11,7 +11,9 @@ import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
 import { companySeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
-import { cityDisplayName, countryDisplayName, useActivityLabel, useSeoT } from "@/i18n/domain";
+import { cityDisplayName, useActivityLabel, useSeoT } from "@/i18n/domain";
+import { CountryLabel } from "@/components/ui/country-flag";
+import { MapPinIcon } from "@heroicons/react/20/solid";
 import { useLocale, useTranslations } from "next-intl";
 import {
   COMPANY_PROFILE_LIMITS,
@@ -341,11 +343,16 @@ export function ProfileEditor({
           maxLength={LIMITS.industry}
           className="!w-64"
         />
-        <span>
-          {[cityDisplayName(profile.city, locale), profile.country ? countryDisplayName(profile.country, locale) : null]
-            .filter(Boolean)
-            .join(", ")}
-        </span>
+        {/* Konum herkese açık profille AYNI çizim (son toparlama 2026-10-04):
+            ülke bayrakla (ortak `CountryLabel`), şehir yanında — eskiden düz
+            metin "Bursa, Türkiye" bayraksızdı. */}
+        {profile.country ? <CountryLabel code={profile.country} size="md" className="font-medium text-zinc-800" /> : null}
+        {profile.city ? (
+          <span className="inline-flex items-center gap-1">
+            <MapPinIcon aria-hidden className="size-4 text-zinc-400" />
+            {cityDisplayName(profile.city, locale)}
+          </span>
+        ) : null}
         {profile.rothernId ? (
           <span className="tabular-nums text-xs text-zinc-400">{profile.rothernId}</span>
         ) : null}

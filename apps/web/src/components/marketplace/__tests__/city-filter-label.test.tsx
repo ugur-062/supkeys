@@ -3,8 +3,9 @@
  * ŞEHİR SÜZGECİ ETİKETİ (canlı öncesi, staging bulgusu): facet listesinde
  * olmayan SEÇİLİ dünya şehri kenar çubuğunda ham adresle ("de-munich 0")
  * görünürken çip "Münih, Almanya" yazıyordu — `labelFor` yalnız Türk illerini
- * bilen `useCityKeyLabel`dı. Ürün, firma ve talep süzgeçleri aynı ad
- * çözümünü (`useCityFilterLabel` → facet adı → Türk il → API) kullanır.
+ * bilen `useCityKeyLabel`dı. Ürün ve firma süzgeçleri aynı ad çözümünü
+ * (`useCityFilterLabel` → facet adı → Türk il → API) kullanır; talep dizininde
+ * alıcı şehri süzgeci 2026-10-04'te kalktı (yerine alıcı ülkesi).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -83,8 +84,9 @@ describe("şehir süzgeci — facet'te olmayan seçili dünya şehri", () => {
     expect(screen.queryByText(/de-munich/)).toBeNull();
   });
 
-  it("talep süzgeci: kenar çubuğu ve çip adıyla", async () => {
-    const facets = { categories: [], cities: [], countries: [] } as unknown as PublicFacets;
+  it("talep süzgeci: alıcı şehri süzgeci YOK (2026-10-04) — eski ?sehir= ne kenar çubuğunda ne çipte görünür, API'ye gidilmez", () => {
+    geo.fetchGeoCityClient.mockClear();
+    const facets = { categories: [], buyerCountries: [], countries: [] } as unknown as PublicFacets;
     wrap(
       parseListingFilters(sp),
       <>
@@ -92,9 +94,9 @@ describe("şehir süzgeci — facet'te olmayan seçili dünya şehri", () => {
         <ListingFilters facets={facets} idPrefix="t" />
       </>,
     );
-    await waitFor(() => expect(railLabel("t-city-de-munich")).toContain("Münih, Almanya"));
-    expect(screen.getAllByText("Münih, Almanya").length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByText(/de-munich/)).toBeNull();
+    expect(document.getElementById("t-city-de-munich")).toBeNull();
+    expect(screen.queryByText(/Münih|de-munich|Ankara/)).toBeNull();
+    expect(geo.fetchGeoCityClient).not.toHaveBeenCalled();
   });
 
   it("facet adı varsa API'ye gidilmeden o ad kullanılır", () => {

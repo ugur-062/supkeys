@@ -17,6 +17,7 @@ import { SilverLockCard, UpgradeButtons } from "@/components/company/silver-lock
 import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { CountryFlag, CountryLabel } from "@/components/ui/country-flag";
+import { ScopeFlags } from "@/components/tenders/target-scope";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { FilesTab } from "@/components/tenders/files-tab";
@@ -88,7 +89,6 @@ import {
   Info,
   Layers,
   Lock,
-  MapPin,
   Paperclip,
   Users,
   Sparkles,
@@ -2115,7 +2115,8 @@ export default function ListingDetailPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">
-          {(l.targetCountries ?? []).length === 0 ? <Globe aria-hidden className="size-4" /> : <MapPin aria-hidden className="size-4" />}
+          {/* Küre yalnız "Tüm ülkeler"; hedef ülke(ler) bayrakla (son toparlama 2026-10-04). */}
+          {(l.targetCountries ?? []).length === 0 ? <Globe aria-hidden className="size-4" /> : <ScopeFlags codes={l.targetCountries ?? []} max={3} />}
           {scopeLabel(l.targetCountries ?? [], company?.country)}
         </span>
         {l.format ? (

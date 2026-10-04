@@ -154,6 +154,17 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByText(/Kaydedilmemiş değişiklikler/)).not.toBeInTheDocument();
   });
 
+  it("başlıktaki konum ortak bayrakla: TR bayrağı + Türkiye, şehir yanında (son toparlama 2026-10-04)", () => {
+    const { container } = render(<ProfileEditor profile={PROFILE} canEdit />);
+    const flag = container.querySelector('img[src="/flags/4x3/tr.svg"]');
+    expect(flag).not.toBeNull();
+    // Ad metinde yazılı → bayrak dekoratif; düz "İstanbul, Türkiye" metni kalmadı.
+    expect(flag!.getAttribute("alt")).toBe("");
+    expect(flag!.closest("span")).toHaveTextContent("Türkiye");
+    expect(screen.getByText("İstanbul")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("İstanbul, Türkiye");
+  });
+
   it("hakkında değişince anında kirli → Kaydet PATCH'i YALNIZ değişen alanı taşır; Vazgeç geri alır (arayüz testi O-103)", async () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "Yeni tanıtım" } });

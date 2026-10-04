@@ -27,19 +27,16 @@ export interface SellerTenderRow {
   isInternational: boolean;
   /** Görünürlük ülkeleri (boş = tüm ülkeler). */
   targetCountries?: string[];
+  /** Talebin açıldığı ülke (alıcının ülkesi) — Açık Talepler "Alıcı ülkesi" süzgeci. */
   ownerCountry?: string | null;
   closesAt: string | null;
   createdAt: string;
   itemCount: number;
+  /**
+   * Alıcının ŞEHRİ YOK (2026-10-04 sahip kararı): talepte konum = ülke
+   * (`ownerCountry`); API `ownerCity*` alanlarını artık göndermiyor.
+   */
   owner: { id: string; name: string } | null;
-  /** Şehir kimlik DEĞİL nitelik — maskeli kartta da kalır (lojistik kararı). */
-  ownerCity?: string | null;
-  /** Dünya şehir dizini kaydı (eşlenmemiş şehirde null). */
-  ownerCityId?: number | null;
-  /** Şehir süzgeci anahtarı — kalıcı adres (`bursa`, `de-munich`); eşlenmemişte null. */
-  ownerCitySlug?: string | null;
-  /** Şehir adı okuyucunun dilinde (API `Accept-Language`); eşlenmemişte null. */
-  ownerCityLabel?: string | null;
   /** Kapak görseli: sahibin seçtiği, yoksa ilk kalemin ilk görseli. */
   coverImageUrl?: string | null;
   canBid: boolean;
@@ -75,15 +72,13 @@ export interface SellerTenderRow {
 
 /**
  * GET /company/listings/seller-tenders/masked satırı — herkese açık KART
- * yansıtması (`toPublicListingCard`) + usul, kalem adları, şehir anahtarı ve
- * izleyenin eşleşme sinyalleri. Alıcı adı/kimliği/iç kimlik YOK.
+ * yansıtması (`toPublicListingCard`) + usul, kalem adları ve izleyenin
+ * eşleşme sinyalleri. Alıcı adı/kimliği/iç kimlik ve şehri YOK.
  */
 export type MaskedTenderApiRow = Omit<PublicListingCard, "translatedFrom"> & {
   masked: true;
   format: string | null;
   itemNames: string[];
-  ownerCitySlug: string | null;
-  ownerCityLabel: string | null;
   categoryMatch: boolean;
   productMatch: boolean;
   matchedProduct: string | null;
@@ -119,10 +114,6 @@ export function maskedRowToSellerRow(m: MaskedTenderApiRow): SellerTenderRow {
     itemCount: m.itemCount,
     owner: null,
     ownerVerified: m.company.verified,
-    ownerCity: m.company.city,
-    ownerCityId: null,
-    ownerCitySlug: m.ownerCitySlug,
-    ownerCityLabel: m.ownerCityLabel,
     coverImageUrl: m.coverImageUrl,
     canBid: false,
     invited: false,

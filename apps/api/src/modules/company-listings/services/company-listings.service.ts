@@ -78,7 +78,6 @@ import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
 import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
 import { PENDING_AI_SUGGESTION_RUN_WHERE } from "../../../common/company/ai-suggestions";
-import { geoIndex } from "../../../common/geo/geo-index";
 import {
   PUBLIC_LISTING_SELECT,
   excerptOf,
@@ -3095,7 +3094,9 @@ export class CompanyListingsService {
       createdAt: true,
       companyId: true,
       targetCountries: true,
-      company: { select: { name: true, city: true, cityId: true, country: true } },
+      // Alıcının ŞEHRİ çekilmez (2026-10-04 sahip kararı): talepte konum =
+      // ülke; Açık Talepler süzgeci de şehir değil alıcı ülkesi.
+      company: { select: { name: true, country: true } },
       _count: { select: { items: true } },
       // Kapak: sahibin seçtiği görsel, yoksa ilk kalemin ilk görseli
       // (pazar yerindeki `deriveCover` ile AYNI kural — iki yerde farklı
@@ -3207,18 +3208,6 @@ export class CompanyListingsService {
       myActivities.size > 0 &&
       wanted.some((a) => myActivities.has(a));
 
-    // Sahibin şehri → kalıcı adres anahtarı (`bursa`, `de-munich`) + okuyucunun
-    // dilinde ad; dünya şehir dizini (`geoIndex`) herkese açık facet'le aynı kaynak.
-    const geo = geoIndex();
-    const readerLocale = currentLocale();
-    const ownerCityOf = (cityId: number | null) => {
-      const row = geo.byId(cityId);
-      return {
-        ownerCitySlug: row?.slug ?? null,
-        ownerCityLabel: row ? geo.label(row, readerLocale) : null,
-      };
-    };
-
     // Bağlantılar bir kez Set'e: ilan × bağlantı karesel taraması yok.
     const connectedSet = new Set(connectedIds);
     // Rol kapısı paket kapısının İÇİNDE (arayüz testi O-038): detay ucu
@@ -3257,14 +3246,6 @@ export class CompanyListingsService {
         itemCount: l._count.items,
         // id: liste "Alıcı" süzgeci companyId'ye göre gruplar (browse ile aynı shape).
         owner: { id: l.companyId, name: l.company.name },
-        // Şehir: teklif verecek tarafın lojistik kararı için (pazar yeriyle aynı çizgi).
-        ownerCity: l.company.city,
-        // Şehir süzgeci ANAHTARI + okuyucunun dilinde ad (2026-09-27): ham
-        // metin RU satıcıya "İstanbul" basıyor, farklı ülkelerdeki aynı adlı
-        // şehirleri tek girdide birleştiriyordu. Eşlenmemiş şehirde null →
-        // web ham metne düşer.
-        ownerCityId: l.company.cityId ?? null,
-        ...ownerCityOf(l.company.cityId),
         coverImageUrl:
           l.coverImageUrl ?? l.items.find((i) => i.images.length > 0)?.images[0] ?? null,
         // Kalem adları (ilk 20): satış anasayfası araması "kalem" ile bulsun.
@@ -3608,15 +3589,10 @@ export class CompanyListingsService {
       const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(codes);
       return segmentIds.some((c) => mySegs.has(c)) || subCandidates.some((c) => mySubs.has(c));
     };
-    const geo = geoIndex();
-    const readerLocale = currentLocale();
     const built = rows.map((r) => {
       const pm = productMatcher.match(r.categoryIds, `${r.title} ${r.items.map((i) => i.name).join(" ")}`);
-      const city = geo.byId(r.company.cityId);
       return {
         row: toMaskedTenderRow(r, cats, {
-          ownerCitySlug: city?.slug ?? null,
-          ownerCityLabel: city ? geo.label(city, readerLocale) : null,
           categoryMatch: inMyCategories(r.categoryIds),
           productMatch: pm.matched,
           matchedProduct: pm.product,

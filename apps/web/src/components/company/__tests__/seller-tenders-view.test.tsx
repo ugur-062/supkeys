@@ -81,7 +81,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     createdAt: new Date().toISOString(),
     itemCount: 3,
     owner: { id: "buyer-1", name: "Alıcı A.Ş." },
-    ownerCity: "Bursa",
+    ownerCountry: "TR",
     canBid: true,
     invited: true,
     connected: false,
@@ -111,14 +111,12 @@ function masked(over: Partial<MaskedTenderApiRow> = {}): SellerTenderRow {
     targetCountries: [],
     itemCount: 2,
     itemSummary: { count: 2, totalQuantity: null, unit: null },
-    company: { city: "Bursa", country: "TR", industry: "Metal", activities: [], verified: true },
+    company: { country: "TR", industry: "Metal", activities: [], verified: true },
     categories: [{ id: "39121501", name: "Kablo", level: 4 }],
     coverImageUrl: null,
     excerpt: null,
     format: "RFQ",
     itemNames: ["Bakır kablo"],
-    ownerCitySlug: "bursa",
-    ownerCityLabel: "Bursa",
     categoryMatch: false,
     productMatch: false,
     matchedProduct: null,
@@ -182,7 +180,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     render(<SellerTendersView />);
     expect(screen.queryByRole("searchbox", { name: /adı, numarası/ })).toBeNull();
     expect(screen.getByText("1 açık talep bulundu")).toBeInTheDocument();
-    expect(sidebar().getAllByRole("button", { name: /^(Uygunluk|Durum|Kategori|Kapanış|Alıcı|Alıcı şehri|Para birimi|Usul|Yayın tarihi)( ?\(\d+\))?$/ })).toHaveLength(9);
+    expect(sidebar().getAllByRole("button", { name: /^(Uygunluk|Durum|Kategori|Kapanış|Alıcı|Alıcı ülkesi|Para birimi|Usul|Yayın tarihi)( ?\(\d+\))?$/ })).toHaveLength(9);
   });
 
   it("ücretsiz üye (2026-10-03): davetli/bağlantılı satırlar ÜSTTE, altında alıcı gizli herkese açık talepler; kilit kartı YOK", () => {
@@ -253,13 +251,26 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(texts).toEqual(["Davetli uzak", "Maskeli yakın", "Maskeli orta"]);
   });
 
-  it("ücretsiz üye: arama, kategori sayacı ve şehir süzgeci maskeli satırları da kapsar (\"Teklif ver\"den ?q=ROT-…)", () => {
+  it("ücretsiz üye: arama, kategori sayacı ve ALICI ÜLKESİ süzgeci maskeli satırları da kapsar (\"Teklif ver\"den ?q=ROT-…)", () => {
     setCompany("STANDART");
-    h.rows = [row({ title: "Davetli talep" }), masked({ title: "Kablo talebi", number: "ROT-000478" })];
+    h.rows = [
+      row({ title: "Davetli talep" }),
+      masked({ title: "Kablo talebi", number: "ROT-000478" }),
+      masked({ title: "Alman maskeli", company: { country: "DE", industry: null, activities: [], verified: false } }),
+    ];
     const { unmount } = render(<SellerTendersView />);
-    // Kategori: maskeli satır "Elektrik" segmentine sayılır.
-    expect(group("Kategori").getByLabelText(/^Elektrik/).closest("label")).toHaveTextContent("Elektrik1");
+    // Kategori: maskeli satırlar "Elektrik" segmentine sayılır.
+    expect(group("Kategori").getByLabelText(/^Elektrik/).closest("label")).toHaveTextContent("Elektrik2");
+    // Alıcı ülkesi: maskeli satırın ülkesi de sayılır (TR = davetli + maskeli).
+    expect(group("Alıcı ülkesi").getByLabelText(/^Almanya/).closest("label")).toHaveTextContent("Almanya1");
+    expect(group("Alıcı ülkesi").getByLabelText(/^Türkiye/).closest("label")).toHaveTextContent("Türkiye2");
     unmount();
+
+    h.search = "ulke=DE";
+    const second = render(<SellerTendersView />);
+    expect(screen.getByText(/Alman maskeli/)).toBeInTheDocument();
+    expect(screen.queryByText(/Kablo talebi/)).toBeNull();
+    second.unmount();
 
     h.search = "q=ROT-000478";
     render(<SellerTendersView />);
@@ -380,15 +391,18 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getByRole("button", { name: /Firma X/ })).toBeInTheDocument();
   });
 
-  it("alıcı şehri ve ülkesi (2026-09-27): şehir API'nin yerel adıyla, anahtarı slug; ülke grubu birden fazla ülkede çizilir, URL'e ?ulke= yazar", async () => {
+  it("ALICI ÜLKESİ süzgeci alıcı şehri grubunun yerine (2026-10-04 sahip kararı): bayrak + yerel ad + sayı, URL'e ?ulke= yazar", async () => {
     const user = userEvent.setup();
     h.rows = [
-      row({ title: "Yerli talep", ownerCountry: "TR", ownerCity: "İstanbul", ownerCitySlug: "istanbul", ownerCityLabel: "İstanbul" }),
-      row({ title: "Alman talebi", ownerCountry: "DE", ownerCity: "Munich", ownerCitySlug: "de-munich", ownerCityLabel: "Münih" }),
+      row({ title: "Yerli talep", ownerCountry: "TR" }),
+      row({ title: "Alman talebi", ownerCountry: "DE" }),
     ];
     const { unmount } = render(<SellerTendersView />);
-    await user.click(group("Alıcı şehri").getByLabelText(/^Münih/));
-    expect(h.replace).toHaveBeenLastCalledWith("/company/satis?sehir=de-munich", { scroll: false });
+    // Şehir grubu YOK.
+    expect(sidebar().queryByRole("button", { name: /^Alıcı şehri/ })).toBeNull();
+    const almanya = group("Alıcı ülkesi").getByLabelText(/^Almanya/).closest("label")!;
+    expect(almanya).toHaveTextContent("Almanya1");
+    expect(almanya.querySelector('img[src="/flags/4x3/de.svg"]')).not.toBeNull();
     await user.click(group("Alıcı ülkesi").getByLabelText(/^Almanya/));
     expect(h.replace).toHaveBeenLastCalledWith("/company/satis?ulke=DE", { scroll: false });
     unmount();
@@ -401,10 +415,19 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getByRole("button", { name: /Almanya/ })).toBeInTheDocument();
   });
 
-  it("tek ülkeden gelen listede alıcı ülkesi grubu çizilmez", () => {
+  it("eski ?sehir= bağlantısı yok sayılır: liste süzülmez, çip yok", () => {
+    h.rows = [row({ title: "Yerli talep" }), row({ title: "Alman talebi", ownerCountry: "DE" })];
+    h.search = "sehir=bursa";
+    render(<SellerTendersView />);
+    expect(screen.getByText(/Yerli talep/)).toBeInTheDocument();
+    expect(screen.getByText(/Alman talebi/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /bursa/i })).toBeNull();
+  });
+
+  it("tek ülkeden gelen listede de alıcı ülkesi grubu çizilir (şehir grubunun yerini tutar)", () => {
     h.rows = [row({ ownerCountry: "TR" }), row({ ownerCountry: "TR" })];
     render(<SellerTendersView />);
-    expect(sidebar().queryByRole("button", { name: /^Alıcı ülkesi/ })).toBeNull();
+    expect(group("Alıcı ülkesi").getByLabelText(/^Türkiye/).closest("label")).toHaveTextContent("Türkiye2");
   });
 
   it("arama URL'den (?q=) uygulanır ve çip olarak kaldırılabilir", async () => {

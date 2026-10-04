@@ -1,6 +1,7 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
-import { CountryLabel } from "@/components/ui/country-flag";
+import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { BuyerCountryScope, TargetScope } from "@/components/tenders/target-scope";
+import type { ReactNode } from "react";
 import { PublicLayout } from "./public-layout";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
@@ -23,7 +24,6 @@ import {
   BanknotesIcon,
   BuildingOffice2Icon,
   CheckBadgeIcon,
-  GlobeAltIcon,
   LockClosedIcon,
 } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -56,7 +56,6 @@ export function ListingDetail({
   const locale = useLocale();
   const seoT = useSeoT();
   const fmt = useFormatter();
-  const scopeLabel = useScopeLabel();
   const activityLabel = useActivityLabel();
   const deliveryTermLabel = useDeliveryTermLabel();
   const paymentCategoryLabel = usePaymentCategoryLabel();
@@ -84,7 +83,7 @@ export function ListingDetail({
   // başlık, açıklama ve kalem adları kaynağın `lang`ını taşır (2026-09-27).
   const contentLang = contentLangOf(listing, locale as Locale);
 
-  const facts: { label: string; value: string }[] = [
+  const facts: { label: string; value: ReactNode }[] = [
     { label: t("number"), value: listing.number },
     ...(showDeadline
       ? [
@@ -99,7 +98,8 @@ export function ListingDetail({
       : []),
     {
       label: t("visibility"),
-      value: scopeLabel(listing.targetCountries ?? []),
+      // Hedef ülke(ler) bayrakla; küre yalnız "Tüm ülkeler" (son toparlama).
+      value: <TargetScope targetCountries={listing.targetCountries} />,
     },
     { label: t("currency"), value: listing.primaryCurrency },
     ...(listing.deliveryTerm
@@ -247,7 +247,7 @@ export function ListingDetail({
                   </>
                 ),
               },
-              { label: t("visibility"), value: scopeLabel(listing.targetCountries ?? []) },
+              { label: t("visibility"), value: <TargetScope targetCountries={listing.targetCountries} /> },
               {
                 label: t("format"),
                 value: listing.format === "ENGLISH_AUCTION" ? t("formatAuction") : t("formatRfq"),
@@ -386,16 +386,13 @@ export function ListingDetail({
                       {listing.company.industry}
                     </p>
                   ) : null}
-                  {/* Talebin açıldığı ÜLKE (2026-10-04, şehir yerine). */}
-                  {listing.company.country ? (
-                    <p className="mt-1 flex items-center text-xs text-zinc-500">
-                      <CountryLabel code={listing.company.country} />
-                    </p>
-                  ) : null}
-                  <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
-                    <GlobeAltIcon aria-hidden className="size-3.5" />
-                    {scopeLabel(listing.targetCountries ?? [])}
-                  </p>
+                  {/* Talebin açıldığı ÜLKE (2026-10-04, şehir yerine) + hedef
+                      kapsamı bayrakla; ikisi aynı ülkeyse tek satır. */}
+                  <BuyerCountryScope
+                    buyerCountry={listing.company.country}
+                    targetCountries={listing.targetCountries}
+                    lineClassName="mt-1 text-xs text-zinc-500"
+                  />
                 </div>
               </div>
               <p className="mt-4 text-xs/5 text-zinc-500">

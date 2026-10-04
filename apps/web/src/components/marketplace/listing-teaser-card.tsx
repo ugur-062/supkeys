@@ -5,8 +5,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
-import { ClockIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/react/20/solid";
-import { useActivityLabel, useQuantityLabel, useScopeLabel } from "@/i18n/domain";
+import { ClockIcon, LockClosedIcon } from "@heroicons/react/20/solid";
+import { ScopeBesideBuyer } from "@/components/tenders/target-scope";
+import { useActivityLabel, useQuantityLabel } from "@/i18n/domain";
 import { CountryLabel } from "@/components/ui/country-flag";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -39,7 +40,6 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
   const quantity = useQuantityLabel();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
-  const scopeLabel = useScopeLabel();
   const href = listingHref(l);
   const open = publicState(l.status) === "open";
   const left = open ? daysLeft(l.closesAt) : null;
@@ -109,13 +109,16 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
               <dd className="flex min-w-0 items-center gap-1">
                 {activityText ? <span className="min-w-0 truncate">{activityText}</span> : null}
                 {activityText && buyerCountry ? <span aria-hidden className="text-zinc-400">·</span> : null}
-                {buyerCountry ? <CountryLabel code={buyerCountry} /> : null}
+                {buyerCountry ? <CountryLabel code={buyerCountry} className="shrink-0" /> : null}
               </dd>
             </div>
           ) : null}
           <div className="flex items-center gap-1">
             <dt className="sr-only">{t("visibility")}</dt>
-            <dd className="flex items-center gap-1"><GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />{scopeLabel(l.targetCountries ?? [])}</dd>
+            <dd className="flex min-w-0 items-center gap-1">
+              {/* Hedef ülke(ler) bayrakla, küre yalnız "Tüm ülkeler"; alıcının ülkesiyle aynıysa ad tekrarlanmaz. */}
+              <ScopeBesideBuyer targetCountries={l.targetCountries} buyerCountry={buyerCountry} iconClassName="text-zinc-300" />
+            </dd>
           </div>
           <div className="flex items-center gap-1">
             {/* Kapalı zarf bir KURAL — ipucu neyin gizli kaldığını söyler.

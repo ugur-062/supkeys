@@ -17,7 +17,7 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
 
   it("gidiş-dönüş: her anahtar okunur ve aynen yazılır", () => {
     const q =
-      "?q=%C3%A7elik&durum=gecmis&uygunluk=davet%2Ckategori&kategori=39000000%2C23000000&kapanis=7&alici=c1%2Cc2&sehir=bursa%2Cde-munich&ulke=TR%2CDE&para=USD%2CEUR&usul=pazarlik&donem=30&sirala=yeni&sayfa=3";
+      "?q=%C3%A7elik&durum=gecmis&uygunluk=davet%2Ckategori&kategori=39000000%2C23000000&kapanis=7&alici=c1%2Cc2&ulke=TR%2CDE&para=USD%2CEUR&usul=pazarlik&donem=30&sirala=yeni&sayfa=3";
     const s = parseRequestFilters(new URLSearchParams(q));
     expect(s.q).toBe("çelik");
     expect(s.status).toBe("gecmis");
@@ -25,7 +25,6 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
     expect(s.categories).toEqual(["39000000", "23000000"]);
     expect(s.closing).toBe(7);
     expect(s.buyers).toEqual(["c1", "c2"]);
-    expect(s.cities).toEqual(["bursa", "de-munich"]);
     expect(s.countries).toEqual(["TR", "DE"]);
     expect(s.currencies).toEqual(["USD", "EUR"]);
     expect(s.format).toBe("pazarlik");
@@ -33,8 +32,16 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
     expect(s.sort).toBe("yeni");
     expect(s.page).toBe(3);
     expect(buildRequestFilterQuery(s)).toBe(q);
-    // durum + 2 uygunluk + 2 kategori + kapanış + 2 alıcı + 2 şehir + 2 ülke + 2 para + usul + dönem (kapsam 2026-09-21'de kalktı)
-    expect(activeRequestFilterCount(s)).toBe(16);
+    // durum + 2 uygunluk + 2 kategori + kapanış + 2 alıcı + 2 ülke + 2 para + usul + dönem (kapsam 2026-09-21'de, şehir 2026-10-04'te kalktı)
+    expect(activeRequestFilterCount(s)).toBe(14);
+  });
+
+  it("ALICI ŞEHRİ süzgeci yok (2026-10-04 sahip kararı): eski `?sehir=` bağlantısı açılır, yok sayılır ve adrese geri yazılmaz", () => {
+    const s = parseRequestFilters(new URLSearchParams("sehir=bursa%2Cde-munich&ulke=TR"));
+    expect(s).not.toHaveProperty("cities");
+    expect(s.countries).toEqual(["TR"]);
+    expect(buildRequestFilterQuery(s)).toBe("?ulke=TR");
+    expect(activeRequestFilterCount(s)).toBe(1);
   });
 
   it("geçersiz değerler düşer: bilinmeyen durum/uygunluk/kapanış, 8 haneli olmayan kod, sayfa 0", () => {

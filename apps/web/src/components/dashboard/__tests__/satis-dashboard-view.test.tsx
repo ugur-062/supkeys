@@ -88,11 +88,11 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
   maskedRequestHref: (n: string) => `/company/satis/acik-talep/${n}`,
   useSellerTenders: () => ({
     data: [
-      { id: "t1", number: "ROT-000001", title: "Kablo alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
-      { id: "t2", number: "ROT-000002", title: "Pano alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
-      { id: "t3", number: "ROT-000003", title: "Eski", status: "AWARDED", owner: { id: "c2", name: "Alıcı B" }, ownerCity: null, categories: [] },
+      { id: "t1", number: "ROT-000001", title: "Kablo alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCountry: "TR", categories: [] },
+      { id: "t2", number: "ROT-000002", title: "Pano alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCountry: "TR", categories: [] },
+      { id: "t3", number: "ROT-000003", title: "Eski", status: "AWARDED", owner: { id: "c2", name: "Alıcı B" }, ownerCountry: null, categories: [] },
       // Ücretsiz üyenin alıcı gizli satırı (2026-10-03): ad yok, iç kimlik yok.
-      { id: "masked:ROT-000004", masked: true, number: "ROT-000004", title: "Kablo makarası alımı", status: "OPEN", owner: null, ownerCity: "İzmir", categories: [] },
+      { id: "masked:ROT-000004", masked: true, number: "ROT-000004", title: "Kablo makarası alımı", status: "OPEN", owner: null, ownerCountry: "TR", categories: [] },
     ],
     isLoading: false,
   }),

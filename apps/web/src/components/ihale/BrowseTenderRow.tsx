@@ -25,7 +25,7 @@ import { DaysLeftChip, InfoChip, useExpiredNote } from "./IhaleListRow";
  * kişi değil FİRMA (owner.name) ve sağ uç metrik benim teklifim.
  *
  * MASKELİ SATIR (`t.masked`, ücretsiz üye, 2026-10-03): aynı kart, alıcı
- * herkese açık sitedeki gibi — "Alıcı gizli · şehir" + "Doğrulanmış alıcı"
+ * herkese açık sitedeki gibi — "Alıcı gizli" / bayrak + ülke + "Doğrulanmış alıcı"
  * rozeti; eylem "Teklif ver · Silver" (doğrulama önce kuralı:
  * `useUpgradeHref`), tıklayınca panel içi maskeli görünüm. Genişletme paneli
  * (kalem tablosu tam detay ucunu okur) maskeli satırda YOK. Kart görünümü kaldırıldı (tek görünüm bu,
@@ -104,39 +104,45 @@ export function BrowseTenderRow({
   const firma = {
     label: tr("firma"),
     icon: "company" as const,
+    // HÜCRE SIĞAR (son toparlama 2026-10-04, arayüz testi bulgusu): içerik
+    // `max-w-full` ile sütun genişliğine bağlı, uzun metin `truncate` + tam
+    // metin `title`da — eskiden maskeli satırın "Alıcı gizli · <bayrak>
+    // Türkiye"si içeriği kadar genişleyip KALEM sütununun üstüne biniyordu.
     value: t.owner ? (
-      <span className="flex min-w-0 items-center gap-1.5">
+      <span className="flex min-w-0 max-w-full items-center gap-1.5">
         <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50">
           <Building2 className="h-3 w-3 text-emerald-600" aria-hidden />
         </span>
-        <span className="truncate font-semibold text-slate-900" title={t.owner.name}>
+        <span className="min-w-0 truncate font-semibold text-slate-900" title={t.owner.name}>
           {t.owner.name}
         </span>
-        {/* Talebin açıldığı ülke — adı okunur bayrak (alt/title = ülke adı). */}
+        {/* Talebin açıldığı ülke — adı okunur bayrak (alt/title = ülke adı); bayrak küçülmez. */}
         {t.ownerCountry ? <CountryFlag code={t.ownerCountry} /> : null}
       </span>
     ) : (
       /* Alıcı gizli — herkese açık talep satırıyla aynı tarif (kimlik değil
          nitelik): talebin açıldığı ÜLKE (bayrak + ad; 2026-10-04, şehir
-         yerine) + doğrulama rozeti. Ad/logo/slug hiç gelmez. */
-      <span className="flex min-w-0 flex-col items-start gap-1">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-slate-100">
-            <Lock className="h-3 w-3 text-slate-500" aria-hidden />
+         yerine) + doğrulama rozeti. Ad/logo/slug hiç gelmez. "Alıcı gizli"
+         ile ülke SARILIR (`flex-wrap`): sığarsa yan yana, sığmazsa ülke alt
+         satıra iner — ayraç yok, bayrak ayraç görevi görür (satır başında
+         sarkan "·" olmasın). */
+      <span className="flex min-w-0 max-w-full flex-col items-start gap-1">
+        <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 text-slate-700">
+          <span className="flex min-w-0 max-w-full items-center gap-1.5">
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-slate-100">
+              <Lock className="h-3 w-3 text-slate-500" aria-hidden />
+            </span>
+            <span className="min-w-0 truncate" title={tr("aliciGizli")}>
+              {tr("aliciGizli")}
+            </span>
           </span>
-          <span className="flex min-w-0 items-center gap-1 text-slate-700">
-            <span className="truncate">{tr("aliciGizli")}</span>
-            {t.ownerCountry ? (
-              <>
-                <span aria-hidden className="text-slate-400">·</span>
-                <CountryLabel code={t.ownerCountry} />
-              </>
-            ) : null}
-          </span>
+          {t.ownerCountry ? <CountryLabel code={t.ownerCountry} className="font-medium text-slate-600" /> : null}
         </span>
         {t.ownerVerified ? (
-          <Badge tone="verified" size="sm" icon={false}>
-            {tr("dogrulanmisAlici")}
+          <Badge tone="verified" size="sm" icon={false} className="max-w-full">
+            <span className="truncate" title={tr("dogrulanmisAlici")}>
+              {tr("dogrulanmisAlici")}
+            </span>
           </Badge>
         ) : null}
       </span>

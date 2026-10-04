@@ -520,7 +520,8 @@ export interface ListingSeoInput {
   itemSummary: { count: number; totalQuantity: string | null; unit: string | null };
   categories: { id: string; name: string }[];
   /** SAHİBİN ADI ALINMAZ — bilerek: tip düzeyinde de sızdırılamasın. */
-  buyer: { city: string | null; country: string | null; isInternational: boolean };
+  /** Alıcının konumu yalnız ÜLKE (2026-10-04: talepte şehir yok). */
+  buyer: { country: string | null; isInternational: boolean };
   coverImageUrl: string | null;
   updatedAt?: string | null;
   /** Dil durumu (API): hreflang yalnız hazır diller. */
@@ -546,7 +547,7 @@ export function listingSeoInput(l: {
   categories: { id: string; name: string }[];
   isInternational: boolean;
   coverImageUrl: string | null;
-  company: { city: string | null; country: string | null };
+  company: { country: string | null };
   updatedAt?: string | null;
   readyLocales?: string[];
   sourceLocale?: string;
@@ -562,7 +563,6 @@ export function listingSeoInput(l: {
     itemSummary: l.itemSummary,
     categories: l.categories,
     buyer: {
-      city: l.company.city,
       country: l.company.country,
       isInternational: l.isInternational,
     },

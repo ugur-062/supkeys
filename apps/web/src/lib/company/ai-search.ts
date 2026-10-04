@@ -78,15 +78,15 @@ export function intentToProductQuery(r: AiSearchIntentResult): string {
 }
 
 /**
- * Satış: açık talep süzgeci (kategori SEGMENT düzeyinde; şehir = alıcı
- * şehrinin kalıcı adresi, ülke = alıcı ülkesi).
+ * Satış: açık talep süzgeci (kategori SEGMENT düzeyinde; ülke = alıcı
+ * ülkesi). Alıcı şehri süzgeci yok (2026-10-04) — API satışta şehri zaten
+ * alıcı ülkesine çevirip `city: null` döner.
  */
 export function intentToRequestQuery(r: AiSearchIntentResult): string {
   return buildRequestFilterQuery({
     ...EMPTY_REQUEST_FILTERS,
     q: r.query ?? undefined,
     categories: r.category ? [segmentOf(r.category.id)] : [],
-    cities: r.city ? [r.city] : [],
     countries: r.country ? [r.country] : [],
     page: 1,
   });

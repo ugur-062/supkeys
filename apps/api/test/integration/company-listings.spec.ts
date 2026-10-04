@@ -19,7 +19,6 @@ import {
   makeUser,
 } from "./factories";
 import { makeService } from "./make-service";
-import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 const PAST = new Date(Date.now() - 3600 * 1000);
@@ -253,34 +252,20 @@ describe("getOne — talebin açıldığı ÜLKE (2026-10-04, şehir yerine)", (
   });
 });
 
-describe("sellerTenders — sahip şehri süzgeç anahtarı + okuyucunun dilinde (2026-09-27)", () => {
-  it("eşlenmiş şehir kalıcı adres anahtarı ve okuyucunun dilinde ad taşır; eşlenmemişte null", async () => {
+describe("sellerTenders — alıcının konumu ÜLKE, şehir yok (2026-10-04 sahip kararı)", () => {
+  it("satır alıcı ülkesini taşır; şehir alanları (ownerCity*) yanıtta hiç yok", async () => {
     const { service, owner, bidder, listing } = await setupAlim();
     await prisma.company.update({
       where: { id: owner.company.id },
-      data: { city: "İstanbul", cityId: -1034 },
+      data: { city: "İstanbul", cityId: -1034, country: "TR" },
     });
-    const ru = (await runWithLocale("ru", () => service.sellerTenders(bidder.auth))) as unknown as Record<string, unknown>[];
-    const row = ru.find((r) => r.id === listing.id)!;
-    expect(row).toMatchObject({
-      ownerCity: "İstanbul",
-      ownerCityId: -1034,
-      ownerCitySlug: "istanbul",
-      ownerCityLabel: "Стамбул",
-      ownerCountry: "TR",
-    });
-
-    await prisma.company.update({
-      where: { id: owner.company.id },
-      data: { city: "Bilinmeyen Kasaba", cityId: null },
-    });
-    const tr = (await service.sellerTenders(bidder.auth)) as unknown as Record<string, unknown>[];
-    expect(tr.find((r) => r.id === listing.id)).toMatchObject({
-      ownerCity: "Bilinmeyen Kasaba",
-      ownerCityId: null,
-      ownerCitySlug: null,
-      ownerCityLabel: null,
-    });
+    const rows = (await service.sellerTenders(bidder.auth)) as unknown as Record<string, unknown>[];
+    const row = rows.find((r) => r.id === listing.id)!;
+    expect(row.ownerCountry).toBe("TR");
+    for (const k of ["ownerCity", "ownerCityId", "ownerCitySlug", "ownerCityLabel"]) {
+      expect(row).not.toHaveProperty(k);
+    }
+    expect(JSON.stringify(row)).not.toContain("İstanbul");
   });
 });
 

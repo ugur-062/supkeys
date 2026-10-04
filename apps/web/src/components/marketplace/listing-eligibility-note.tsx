@@ -1,7 +1,7 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { GlobeAltIcon } from "@heroicons/react/20/solid";
 import { countryDisplayName } from "@/i18n/domain";
+import { ScopeFlags } from "@/components/tenders/target-scope";
 
 /**
  * ÜLKE UYGUNLUK NOTU (2026-09-27) — talep yalnız belirli ülkelere açıksa
@@ -33,7 +33,11 @@ export function ListingEligibilityNote({
       data-testid="listing-eligibility-note"
       className="mb-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-200"
     >
-      <GlobeAltIcon aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+      {/* Hedef ülkelerin bayrakları (son toparlama 2026-10-04; küre "tüm
+          ülkeler" demekti, bu not yalnız kısıtlı talepte çizilir). */}
+      <span className="mt-1 shrink-0">
+        <ScopeFlags codes={list} max={3} />
+      </span>
       <span>{t("onlyCountriesCanBid", { countries, n: list.length })}</span>
     </p>
   );

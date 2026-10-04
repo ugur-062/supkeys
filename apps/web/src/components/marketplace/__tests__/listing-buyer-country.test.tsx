@@ -98,6 +98,15 @@ describe("alım talebi konumu: alıcının şehri değil talebin açıldığı �
     expectCountryNotCity(container);
   });
 
+  it("talep detayı: hedef ülke küre değil BAYRAKLA; alıcı ülkesiyle aynı tek hedef tek satır (son toparlama)", () => {
+    const { container, unmount } = render(<ListingDetail listing={{ ...detail, targetCountries: ["DE"] } as PublicListingDetail} />);
+    expect(container.querySelector('img[src="/flags/4x3/de.svg"]')).not.toBeNull();
+    expect(screen.getAllByText("Almanya").length).toBeGreaterThan(0);
+    unmount();
+    render(<ListingDetail listing={{ ...detail, targetCountries: ["AZ"] } as PublicListingDetail} />);
+    expect(screen.getAllByText("yalnız yurt içi tedarikçiler").length).toBe(1);
+  });
+
   it("ülkesi olmayan eski kayıt: konum satırı çizilmez, şehir de basılmaz", () => {
     const { container } = render(
       <ListingTeaserRow listing={{ ...card, company: { ...card.company, country: null } }} />,

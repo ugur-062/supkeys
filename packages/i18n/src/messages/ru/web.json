@@ -955,6 +955,8 @@
       "listingCountry": "Для поставщиков из",
       "listingCountryPick": "Выберите другую страну",
       "listingCountryHint": "Запросы, открытые для всех стран, показываются при любом выборе.",
+      "buyerCountry": "Страна покупателя",
+      "buyerCountryChip": "Покупатель: {country}",
       "notFoundProduct": "Товары не найдены",
       "notFoundCompany": "Компании не найдены",
       "notFoundBuyingRequest": "Заявки на закупку не найдены",
@@ -1308,7 +1310,8 @@
     "scope": {
       "allCountries": "Все страны",
       "onlyCountry": "Только {country}",
-      "plusMore": "{country} и ещё {n}"
+      "plusMore": "{country} и ещё {n}",
+      "domesticOnly": "только местные поставщики"
     },
     "closing": {
       "daysLeft": "{days, plural, one {Остался # день} few {Осталось # дня} many {Осталось # дней} other {Осталось # дня}}",
@@ -4963,7 +4966,6 @@
         "gunIcinde": "{d, plural, one {В течение # дня} few {В течение # дней} many {В течение # дней} other {В течение # дня}}",
         "alici": "Покупатель",
         "aliciAdiGorunenTalepYok": "Нет запросов с видимым названием покупателя",
-        "aliciSehri": "Город покупателя",
         "paraBirimi": "Валюта",
         "usul": "Процедура",
         "teklifToplama": "Сбор предложений",

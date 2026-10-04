@@ -8,13 +8,13 @@
  *
  *   ?q=&durum=aktif|gecmis|tumu&uygunluk=davet,baglanti,kategori,teklif
  *   &kategori=39000000,23000000 (SEGMENT kodları) &kapsam=yurtici|uluslararasi
- *   &kapanis=3|7|30 &alici=<id>,<id> &sehir=bursa,de-munich &ulke=TR,DE
+ *   &kapanis=3|7|30 &alici=<id>,<id> &ulke=TR,DE
  *   &para=TRY,USD &usul=teklif|pazarlik &donem=7|30|90 &sirala=yakin|uzak|yeni &sayfa=2
  *
- * Şehir KALICI ADRES ANAHTARIYLA (2026-09-27): dünya şehir dizininin slug'ı
- * (`bursa`, `de-munich`) — dilden bağımsız, farklı ülkelerdeki aynı adlı
- * şehirler ayrı. Eşlenmemiş şehirde ham metin; eski bağlantılardaki ham il
- * adı ("Bursa") süzmede yine eşleşir. Ülke = ALICININ (talep sahibinin) ülkesi.
+ * Ülke = ALICININ (talep sahibinin) ülkesi — satırlardaki bayrak + ülkeyle
+ * aynı bilgi. ALICI ŞEHRİ SÜZGECİ YOK (2026-10-04 sahip kararı: talepte konum
+ * = ülke; API şehri artık göndermiyor): eski `?sehir=` bağlantıları açılır,
+ * parametre YOK SAYILIR ve bir sonraki süzgeç değişikliğinde adresten düşer.
  *
  * Kategori SEGMENT düzeyinde: satır en çok 2 kod taşır ve sayaçlar segmentte
  * anlamlı; öneri/çipten gelen tam kod (L3+) segmentine indirgenir.
@@ -64,8 +64,6 @@ export interface RequestFilterState {
   closing?: ClosingWindow;
   /** Alıcı firma id'leri (maskeli satırlar sahipsiz — listede yok). */
   buyers: string[];
-  /** Şehir anahtarları (slug; eşlenmemiş şehirde ham metin). */
-  cities: string[];
   /** Alıcı ülkesi (ISO alpha-2). */
   countries: string[];
   currencies: string[];
@@ -110,7 +108,6 @@ export function parseRequestFilters(sp: SearchParamsLike): RequestFilterState {
     ],
     closing: oneOfNum(get(sp, "kapanis"), CLOSING_WINDOWS),
     buyers: list(get(sp, "alici")),
-    cities: list(get(sp, "sehir")),
     countries: [
       ...new Set(list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c))),
     ],
@@ -131,7 +128,6 @@ export function buildRequestFilterQuery(f: RequestFilterState): string {
   if (f.categories.length) sp.set("kategori", f.categories.join(","));
   if (f.closing) sp.set("kapanis", String(f.closing));
   if (f.buyers.length) sp.set("alici", f.buyers.join(","));
-  if (f.cities.length) sp.set("sehir", f.cities.join(","));
   if (f.countries.length) sp.set("ulke", f.countries.join(","));
   if (f.currencies.length) sp.set("para", f.currencies.join(","));
   if (f.format) sp.set("usul", f.format);
@@ -150,7 +146,6 @@ export function activeRequestFilterCount(f: RequestFilterState): number {
     f.categories.length +
     (f.closing ? 1 : 0) +
     f.buyers.length +
-    f.cities.length +
     f.countries.length +
     f.currencies.length +
     (f.format ? 1 : 0) +
@@ -163,7 +158,6 @@ export const EMPTY_REQUEST_FILTERS: RequestFilterState = {
   fit: [],
   categories: [],
   buyers: [],
-  cities: [],
   countries: [],
   currencies: [],
   page: 1,

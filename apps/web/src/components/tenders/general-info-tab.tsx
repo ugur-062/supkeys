@@ -3,13 +3,13 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
+import { TargetScope } from "@/components/tenders/target-scope";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import {
   countryDisplayName,
   useDeliveryTermLabel,
   useFormatPaymentPlan,
-  useScopeLabel,
   usePlaceLabel,
 } from "@/i18n/domain";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
@@ -100,7 +100,6 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
   const placeLabel = usePlaceLabel();
   const locale = useLocale() as Locale;
   const fmt = (v: string | null | undefined) => formatDateTime(v, locale);
-  const scopeLabel = useScopeLabel();
   const deliveryTermLabel = useDeliveryTermLabel();
   const formatPaymentPlan = useFormatPaymentPlan();
   // Görünürlük / tedarikçi görünürlüğü kodları → katalog (bilinmeyen kod ham).
@@ -176,7 +175,8 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
           </Fact>
           {/* Ayrı etiket (derin denetim LU-31): iki satır da "Görünürlük" diyordu. */}
           <Fact label={t("gorunurlukUlkesi")}>
-            {scopeLabel(l.targetCountries ?? [])}
+            {/* Hedef ülke(ler) bayrakla; küre yalnız "Tüm ülkeler" (son toparlama). */}
+            <TargetScope targetCountries={l.targetCountries} />
           </Fact>
           <Fact label={t("format")}>
             {l.format === "ENGLISH_AUCTION"

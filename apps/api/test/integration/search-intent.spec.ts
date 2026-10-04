@@ -177,7 +177,7 @@ describe("AI arama — search-intent", () => {
     const { auth } = await makeCompanyWithUser(prisma);
     await makeCategory("39121600", "Şalt malzemeleri", 3, false);
     const rows = [
-      { title: "Trafo merkezi tedariki", number: "ROT-1", owner: { name: "Alıcı A" }, ownerCity: "Bursa", itemNames: ["Şalt malzemesi seti"], categories: [{ code: "26101500", name: "Trafolar" }] },
+      { title: "Trafo merkezi tedariki", number: "ROT-1", owner: { name: "Alıcı A" }, ownerCountry: "TR", itemNames: ["Şalt malzemesi seti"], categories: [{ code: "26101500", name: "Trafolar" }] },
     ];
     const listings = { sellerTenders: jest.fn().mockResolvedValue(rows) };
     const { service, callAi } = rig(
@@ -189,12 +189,15 @@ describe("AI arama — search-intent", () => {
     expect(r.portal).toBe("satis");
     expect(r.draft).toBeNull();
     expect(String(callAi.mock.calls[0][1].prompt)).toContain("SATICI");
-    // Kategori 39 (talep 26'da) ve şehir İzmir (talep Bursa) sonuç vermedi →
-    // ikisi de kaldırıldı; arama terimi (çok kelimeli, kalem adında) kaldı.
-    expect(r.relaxed).toEqual(["category", "city"]);
+    // Kategori 39 (talep 26'da) sonuç vermedi → kaldırıldı; arama terimi (çok
+    // kelimeli, kalem adında) kaldı. Açık taleplerde ŞEHİR SÜZÜLMEZ (2026-10-04):
+    // "İzmir" alıcı ÜLKESİNE (TR) çevrildi ve o süzgeç sonuç verdi.
+    expect(r.relaxed).toEqual(["category"]);
     expect(r.relaxedCategoryName).toBe("Şalt malzemeleri");
     expect(r.category).toBeNull();
     expect(r.city).toBeNull();
+    expect(r.cityName).toBeNull();
+    expect(r.country).toBe("TR");
     expect(r.query).toBe("şalt malzemesi");
     expect(listings.sellerTenders).toHaveBeenCalledWith(auth, "ALIM", { openOnly: true });
   });
@@ -202,8 +205,8 @@ describe("AI arama — search-intent", () => {
   it("SATICI sorgu kısaltma: 'elektrik panosu kompanzasyon' → biri hariç deneme → 'panosu' (ek toleransıyla 'pano alımı'nı bulur)", async () => {
     const { auth } = await makeCompanyWithUser(prisma);
     const rows = [
-      { title: "Trafo merkezi için trafo, kablo ve pano alımı", number: "ROT-2", owner: { name: "Alıcı B" }, ownerCity: "Bursa", itemNames: ["Dağıtım panosu"], categories: [{ code: "39121500", name: "Panolar" }] },
-      { title: "Şantiye için inşaat demiri", number: "ROT-3", owner: { name: "Alıcı C" }, ownerCity: "Bursa", itemNames: [], categories: [{ code: "30100000", name: "İnşaat" }] },
+      { title: "Trafo merkezi için trafo, kablo ve pano alımı", number: "ROT-2", owner: { name: "Alıcı B" }, ownerCountry: "TR", itemNames: ["Dağıtım panosu"], categories: [{ code: "39121500", name: "Panolar" }] },
+      { title: "Şantiye için inşaat demiri", number: "ROT-3", owner: { name: "Alıcı C" }, ownerCountry: "TR", itemNames: [], categories: [{ code: "30100000", name: "İnşaat" }] },
     ];
     const listings = { sellerTenders: jest.fn().mockResolvedValue(rows) };
     const { service } = rig(
@@ -328,30 +331,35 @@ describe("AI arama — search-intent", () => {
     expect((await s2.interpret(auth, { text: "pano", portal: "satinalma" })).country).toBeNull();
   });
 
-  it("SATICI: şehir web süzgeciyle AYNI anahtar — alıcının kalıcı şehir adresi ('Мюнхен' → de-munich); ülke ALICI ülkesi süzgeci; eşlenmemiş alıcı şehrinde ham metin", async () => {
+  it("SATICI: açık taleplerde şehir SÜZÜLMEZ — şehir alıcı ÜLKESİNE çevrilir (2026-10-04 sahip kararı); ülke ALICI ülkesi süzgeci", async () => {
     withWorldIndex();
     const { auth } = await makeCompanyWithUser(prisma);
     const rows = [
-      { title: "Pano alımı", number: "ROT-5", owner: { name: "Käufer" }, ownerCity: "Munich", ownerCitySlug: "de-munich", ownerCityId: MUNICH.id, ownerCountry: "DE", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
-      { title: "Pano alımı 2", number: "ROT-6", owner: { name: "Alıcı" }, ownerCity: "Bursa", ownerCitySlug: "bursa", ownerCountry: "TR", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
-      // Eşlenmemiş (serbest metin) alıcı şehri — web süzgeci ham metinle eşler.
-      { title: "Pano alımı 3", number: "ROT-7", owner: { name: "Kunde" }, ownerCity: "Kleinstadt", ownerCitySlug: null, ownerCountry: "DE", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
+      { title: "Pano alımı", number: "ROT-5", owner: { name: "Käufer" }, ownerCountry: "DE", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
+      { title: "Pano alımı 2", number: "ROT-6", owner: { name: "Alıcı" }, ownerCountry: "TR", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
+      { title: "Pano alımı 3", number: "ROT-7", owner: { name: "Kunde" }, ownerCountry: "DE", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
     ];
     const listings = { sellerTenders: jest.fn().mockResolvedValue(rows) };
     const run = async (model: Record<string, unknown>) => {
       const { service } = rig({ summary: "Pano", query: "pano", ...model }, undefined, listings as unknown as Partial<CompanyListingsService>);
       return service.interpret(auth, { text: "pano", portal: "satis" });
     };
+    // Şehir + ülke: şehir uygulanmaz, ülke kalır.
     const r = await run({ city: "Мюнхен", country: "DE" });
     expect(r.relaxed).toEqual([]);
-    expect(r.city).toBe("de-munich");
-    expect(r.cityName).toBe("Münih");
+    expect(r.city).toBeNull();
+    expect(r.cityName).toBeNull();
     expect(r.country).toBe("DE");
-    // Dünya listesinde olmayan şehir, eşlenmemiş alıcı şehrinde bulunursa ham metinle süzülür.
+    // Yalnız şehir: dünya listesindeki şehrin ülkesi alıcı ülkesi olur.
+    const onlyCity = await run({ city: "Мюнхен" });
+    expect(onlyCity.city).toBeNull();
+    expect(onlyCity.country).toBe("DE");
+    expect(onlyCity.relaxed).toEqual([]);
+    // Dünya listesinde olmayan şehir: ülkeye çevrilemez, "şehir kaldırıldı".
     const raw = await run({ city: "kleinstadt" });
-    expect(raw.relaxed).toEqual([]);
-    expect(raw.city).toBe("Kleinstadt");
-    expect(raw.cityName).toBe("Kleinstadt");
+    expect(raw.relaxed).toEqual(["city"]);
+    expect(raw.city).toBeNull();
+    expect(raw.country).toBeNull();
     // Ülke süzgeci satışta da sayıma girer: Fransız alıcı yok → ülke gevşetilir.
     const fr = await run({ country: "FR" });
     expect(fr.relaxed).toEqual(["country"]);

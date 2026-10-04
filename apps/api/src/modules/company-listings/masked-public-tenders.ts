@@ -21,16 +21,12 @@ import {
  * sayfasında gördüğünden FAZLASI buradan çıkamaz. Sahip/teklifçi serileştiricisi
  * (`getOne`) bu yola girmez; teklif/belge/mesaj kapıları değişmedi.
  *
- * Seçimin herkese açık seçimden TEK farkı `company.cityId` — yalnız şehir
- * süzgeci anahtarını (`ownerCitySlug`) ve okuyucunun dilindeki şehir adını
- * türetmek için; yanıta yazılmaz.
+ * Seçim herkese açık seçimin AYNISI: 2026-10-04'e dek şehir süzgeci anahtarı
+ * için `company.cityId` de çekiliyordu; sahip kararıyla talepte alıcının
+ * şehri hiçbir yerde gösterilmiyor ve süzülmüyor (süzgeç alıcı ÜLKESİ,
+ * kartın `company.country`si) — ek alan kalmadı.
  */
-export const MASKED_LISTING_SELECT = {
-  ...PUBLIC_LISTING_SELECT,
-  company: {
-    select: { ...PUBLIC_LISTING_SELECT.company.select, cityId: true },
-  },
-} satisfies Prisma.ListingSelect;
+export const MASKED_LISTING_SELECT = PUBLIC_LISTING_SELECT satisfies Prisma.ListingSelect;
 
 export type MaskedListingRow = Prisma.ListingGetPayload<{ select: typeof MASKED_LISTING_SELECT }>;
 
@@ -38,8 +34,6 @@ export type MaskedListingRow = Prisma.ListingGetPayload<{ select: typeof MASKED_
  * Maskeli satır = herkese açık KART + yalnız şunlar:
  *  · `format` ve `itemNames` — herkese açık DETAYIN zaten verdiği alanlar
  *    (usul ve kalem adları, `/talep/<slug>`),
- *  · `ownerCitySlug`/`ownerCityLabel` — kartın şehrinden türetilmiş süzgeç
- *    anahtarı ve okuyucunun dilinde ad (kimlik değil nitelik),
  *  · izleyenin KENDİ verisinden sinyaller (kategori/ürün eşleşmesi).
  * İç kimlik (`id`, `companyId`), firma adı/unvanı/slug/logo/Rothern ID,
  * adres, kişi, ek, şartname YOK — `masked-public-tenders.spec.ts` alan
@@ -49,8 +43,6 @@ export type MaskedTenderRow = PublicListingCard & {
   masked: true;
   format: string | null;
   itemNames: string[];
-  ownerCitySlug: string | null;
-  ownerCityLabel: string | null;
   categoryMatch: boolean;
   productMatch: boolean;
   matchedProduct: string | null;
@@ -71,8 +63,6 @@ export function toMaskedTenderRow(
   row: MaskedListingRow,
   cats: PublicCategoryMap,
   extra: {
-    ownerCitySlug: string | null;
-    ownerCityLabel: string | null;
     categoryMatch: boolean;
     productMatch: boolean;
     matchedProduct: string | null;

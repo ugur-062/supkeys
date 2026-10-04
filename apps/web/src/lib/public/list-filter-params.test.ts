@@ -15,18 +15,25 @@ import {
 } from "./listing-filter-params";
 
 describe("alım talebi süzgeç URL şeması", () => {
-  it("Türkçe sorguyu ayrıştırır; eski `il` okunur; sıralama/ülke/süre çevrilir", () => {
-    const f = parseListingFilters(new URLSearchParams("q=boru&kategori=39000000&il=İzmir&ulke=de&sure=7&sirala=kapanis&sayfa=3"));
-    expect(f).toMatchObject({ q: "boru", category: "39000000", cities: ["izmir"], country: "DE", within: "7", sort: "kapanis", page: 3 });
-    expect(toListingListParams(f)).toMatchObject({ type: "ALIM", city: "izmir", country: "DE", closesWithin: "7", sort: "closing", page: 3 });
-    expect(activeListingFilterCount(f)).toBe(4);
+  it("Türkçe sorguyu ayrıştırır; alıcı ülkesi/görünürlük ülkesi/sıralama/süre çevrilir", () => {
+    const f = parseListingFilters(new URLSearchParams("q=boru&kategori=39000000&aliciUlke=tr,DE&ulke=de&sure=7&sirala=kapanis&sayfa=3"));
+    expect(f).toMatchObject({ q: "boru", category: "39000000", buyerCountries: ["TR", "DE"], country: "DE", within: "7", sort: "kapanis", page: 3 });
+    expect(toListingListParams(f)).toMatchObject({ type: "ALIM", buyerCountry: "TR,DE", country: "DE", closesWithin: "7", sort: "closing", page: 3 });
+    expect(activeListingFilterCount(f)).toBe(5);
   });
   it("gidiş-dönüş kararlı; geçersiz değerler düşer", () => {
-    const f = parseListingFilters({ sehir: "İstanbul,Bursa", sure: "9", ulke: "xyz", sirala: "z", sayfa: "0" });
-    expect(f).toEqual({ q: undefined, category: undefined, cities: ["istanbul", "bursa"], country: undefined, within: undefined, sort: undefined, state: undefined, page: 1 });
+    const f = parseListingFilters({ aliciUlke: "TR,xyz,tr,1A", sure: "9", ulke: "xyz", sirala: "z", sayfa: "0" });
+    expect(f).toEqual({ q: undefined, category: undefined, buyerCountries: ["TR"], country: undefined, within: undefined, sort: undefined, state: undefined, page: 1 });
     const q = buildListingFilterQuery(f);
-    expect(q).toBe("?sehir=istanbul%2Cbursa");
+    expect(q).toBe("?aliciUlke=TR");
     expect(parseListingFilters(new URLSearchParams(q))).toEqual(f);
+  });
+  it("ALICI ŞEHRİ süzgeci yok (2026-10-04 sahip kararı): eski `?sehir=` / `?il=` YOK SAYILIR, adrese geri yazılmaz, kanonik taban", () => {
+    const f = parseListingFilters({ sehir: "İstanbul,de-munich", il: "İzmir" });
+    expect(f).toEqual(parseListingFilters({}));
+    expect(toListingListParams(f)).not.toHaveProperty("city");
+    expect(buildListingFilterQuery(f)).toBe("");
+    expect(activeListingFilterCount(f)).toBe(0);
   });
   it("uç sınırlarına kırpar: `?sayfa=201` 200'e, uzun arama 120 karaktere iner (arayüz testi son tur webA-2)", () => {
     // Eskiden uç 400 dönüyor, ziyaretçi açık talepler varken "Alım talebi bulunamadı" görüyordu.
@@ -39,7 +46,6 @@ describe("alım talebi süzgeç URL şeması", () => {
 describe("şehir değeri kalıcı adrese çevrilir (D-336, gözden geçirme)", () => {
   it("ham/katlanmış il adı facet anahtarıyla aynı kalıcı adrese iner; tekrar düşer; yabancı adres korunur", () => {
     expect(cityListParam("İstanbul,istanbul,ISTANBUL,Şanlıurfa,de-munich")).toEqual(["istanbul", "sanliurfa", "de-munich"]);
-    expect(parseListingFilters({ sehir: "İzmir" }).cities).toEqual(["izmir"]);
     expect(parseCompanyFilters({ sehir: "İzmir" }).cities).toEqual(["izmir"]);
     expect(parseProductFilters({ sehir: "İzmir" }).cities).toEqual(["izmir"]);
   });
@@ -86,17 +92,19 @@ describe("virgüllü liste süzgeçleri API tavanını aşmaz", () => {
     expect(capJoinedList(["a".repeat(6), "b"], 5)).toEqual([]);
     expect(capJoinedList(["aa", "bb"], 5)).toEqual(["aa", "bb"]);
   });
-  it("?sehir=<500 karakter> ürün, talep ve firma süzgecinde ≤ 400 birleşir", () => {
+  it("?sehir=<500 karakter> ürün ve firma süzgecinde ≤ 400 birleşir; talep dizini şehri hiç göndermez", () => {
     const sehir = long(49); // 10 × 50 + 9 virgül = 509
     for (const city of [
       toProductListParams(parseProductFilters({ sehir })).city,
-      toListingListParams(parseListingFilters({ sehir })).city,
       toDirectoryParams(parseCompanyFilters({ sehir })).city,
     ]) {
       expect(city!.length).toBeLessThanOrEqual(FILTER_LIST_MAX_LENGTH);
       expect(city!.split(",")).toHaveLength(7); // 7 × 50 + 6 = 356; 8. girdi 407 olurdu
     }
-    expect(parseListingFilters({ sehir: "x".repeat(401) }).cities).toEqual([]);
+    expect(toListingListParams(parseListingFilters({ sehir })).buyerCountry).toBeUndefined();
+    // Alıcı ülkesi en çok 10 iki harfli kod (API tavanı içinde).
+    const many = Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i).repeat(2)).join(",");
+    expect(toListingListParams(parseListingFilters({ aliciUlke: many })).buyerCountry!.split(",")).toHaveLength(10);
   });
   it("?sertifika=<500 karakter> ≤ 400 birleşir; tekrarlar düşer", () => {
     const cert = toProductListParams(parseProductFilters({ sertifika: long(49) })).cert!;

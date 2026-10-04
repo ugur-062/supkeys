@@ -129,12 +129,14 @@ describe("ana liste — 404 dışındaki 4xx kesintidir", () => {
     respond(200, { items: [], total: 0, page: 1, pageSize: 24 });
     const huge = Array.from({ length: 10 }, (_, i) => `${String(i)}${"x".repeat(60)}`).join(",");
     await fetchProducts(toProductListParams(parseProductFilters({ sehir: huge, sertifika: huge })));
-    await fetchListings(toListingListParams(parseListingFilters({ sehir: huge })));
+    await fetchListings(toListingListParams(parseListingFilters({ sehir: huge, aliciUlke: huge })));
     const [productUrl, listingUrl] = fetchMock.mock.calls.map((c) => new URL(c[0] as string));
     // API `PublicProductQueryDto` / `PublicListQueryDto`: city, cert ≤ 400.
     expect(productUrl.searchParams.get("city")!.length).toBeLessThanOrEqual(400);
     expect(productUrl.searchParams.get("cert")!.length).toBeLessThanOrEqual(400);
-    expect(listingUrl.searchParams.get("city")!.length).toBeLessThanOrEqual(400);
+    // Talep dizini: alıcı şehri süzgeci yok (2026-10-04); bozuk alıcı ülkesi düşer.
+    expect(listingUrl.searchParams.has("city")).toBe(false);
+    expect(listingUrl.searchParams.has("buyerCountry")).toBe(false);
   });
 });
 

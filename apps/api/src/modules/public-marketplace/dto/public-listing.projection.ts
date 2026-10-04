@@ -53,8 +53,10 @@ import { listingSlug } from "@rothern/shared";
  *   İlan sayfasından oraya bağlantı da verilmez — bağlantının kendisi kimliği
  *   ele verirdi.
  *
- *   Kalan alanlar (şehir, ülke, sektör, faaliyet tipi) kimlik değil nitelik:
- *   teklif verecek tarafın lojistik ve uygunluk kararı için gerekli.
+ *   Kalan alanlar (ülke, sektör, faaliyet tipi) kimlik değil nitelik:
+ *   teklif verecek tarafın lojistik ve uygunluk kararı için gerekli. Alıcının
+ *   ŞEHRİ 2026-10-04'ten beri talep yüzeylerinde YOK (sahip kararı: konum =
+ *   ülke; süzgeç de şehir değil alıcı ülkesi).
  *
  * `internalNotes` — tanımı gereği yalnız sahip.
  * `createdById` — kişi kimliği (KVKK).
@@ -121,7 +123,9 @@ export const PUBLIC_LISTING_SELECT = {
       // JSON-LD veya ileride eklenecek bir alan onları kazara yazamaz.
       // `id` YALNIZ iç kullanım (sektör çevirisi için firma çevirisi aranır); `toPublicCompany` yazmaz.
       id: true,
-      city: true,
+      // ŞEHİR YOK (2026-10-04 sahip kararı): talepte alıcının konumu
+      // yalnız ÜLKE olarak gösterilir ve süzülür; şehir hiçbir talep
+      // yüzeyinde (liste, detay, maskeli satır, süzgeç) yok — sorguya da girmez.
       country: true,
       industry: true,
       activities: true,
@@ -136,12 +140,12 @@ export type PublicListingRow = Prisma.ListingGetPayload<{
 
 /**
  * İlan sahibinin ANONİM tarifi. Ad/slug/logo YOK — bkz. "İLAN SAHİBİ ANONİM".
- * Kalanlar kimlik değil NİTELİK: alıcının hangi şehirde, hangi sektörde ve ne
+ * Kalanlar kimlik değil NİTELİK: alıcının hangi ülkede, hangi sektörde ve ne
  * tür bir firma olduğu, teklif verecek tarafın işine yarar ve tek başına
  * firmayı işaret etmez.
  */
 export interface PublicListingCompany {
-  city: string | null;
+  /** Talebin açıldığı ülke (alıcı firmanın ülkesi, ISO alpha-2). Şehir YOK (2026-10-04). */
   country: string | null;
   industry: string | null;
   activities: string[];
@@ -273,7 +277,6 @@ export function toPublicCompany(
   c: PublicListingRow["company"],
 ): PublicListingCompany {
   return {
-    city: c.city,
     country: c.country,
     industry: c.industry,
     activities: c.activities,

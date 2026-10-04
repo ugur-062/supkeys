@@ -95,6 +95,12 @@ export function FlagImage({
 /**
  * Bayrak + ekran dilindeki ülke adı ("🇹🇷 Türkiye" yerine `<img> Türkiye`):
  * alım talebinin hangi ülkeden açıldığı, firma ülkesi gibi satır içi metinler.
+ *
+ * Dar hücrede SIĞAR (son toparlama 2026-10-04): kap `max-w-full`, bayrak
+ * küçülmez, ad `truncate` ile kısalır ve tam ad `title`da ("Bosna-Hersek"
+ * gibi uzun adlar komşu sütuna taşmaz). Yan yana duran ikincil metinle
+ * (faaliyet tipi) yarışırken ÜLKE öncelikli kalsın diye çağıran `shrink-0`
+ * verebilir — `max-w-full` yine de hücreyi aşmasını engeller.
  */
 export function CountryLabel({
   code,
@@ -108,10 +114,11 @@ export function CountryLabel({
   const locale = useLocale() as Locale;
   if (!code) return null;
   const cc = code.trim().toUpperCase();
+  const name = countryDisplayName(cc, locale);
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-1", className)}>
+    <span className={cn("inline-flex min-w-0 max-w-full items-center gap-1", className)} title={name}>
       <FlagImage code={cc} label="" size={size} decorative />
-      <span className="truncate">{countryDisplayName(cc, locale)}</span>
+      <span className="min-w-0 truncate">{name}</span>
     </span>
   );
 }

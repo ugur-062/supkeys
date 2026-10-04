@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { SECTOR_EDIT_HREF } from "@/lib/company/portals";
-import { countryDisplayName, useCityLabel, useListingTerms } from "@/i18n/domain";
+import { countryDisplayName, useListingTerms } from "@/i18n/domain";
 import { EmptyState, ListSkeleton, Pagination } from "@/components/list";
 import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
 import {
@@ -92,10 +92,8 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
     () => new Map((segments.data ?? []).map((s) => [s.id, s.nameTr] as const)),
     [segments.data],
   );
-  // Şehir/ülke etiketleri okuyucunun dilinde (2026-09-27): şehir adı API'den
-  // (dünya şehir dizini), eşlenmemiş Türk il adı `useCityLabel` ile.
+  // Alıcı ülkesi etiketleri okuyucunun dilinde (alıcı şehri süzgeci 2026-10-04'te kalktı).
   const locale = useLocale() as Locale;
-  const cityLabel = useCityLabel();
   const tv = useTranslations("web.panel.trade.sellerTendersView");
   // Kapsam başına tavan: açık, maskeli ve geçmiş ayrı sorgulardan gelir, ayrı
   // kırpılır — açık kapsam, iki açık gruptan biri tavandaysa alt sınırdır.
@@ -112,7 +110,6 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
         now,
         {
           country: (c) => countryDisplayName(c, locale),
-          city: (raw) => cityLabel(raw),
           unknownBuyer: tv("bilinmeyenAlici"),
         },
         // Toplam 300'ü geçse de hiçbir grup tavanda değilse sayı kesindir.

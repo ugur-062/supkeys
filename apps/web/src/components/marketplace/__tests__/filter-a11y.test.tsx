@@ -100,7 +100,7 @@ describe("ShowMore — facet'te olmayan seçili seçenek (D-336)", () => {
 
 const listingFacets: PublicFacets = {
   categories: [{ id: "31000000", name: "Üretim bileşenleri", level: 1, count: 3 }],
-  cities: [{ city: "izmir", name: "İzmir", country: "TR", count: 12 }],
+  buyerCountries: [{ code: "TR", count: 12 }],
   types: [],
   openToAll: 0,
   countries: [],
@@ -133,20 +133,38 @@ describe("ListingFilters — facet'in saymadığı seçili kategori (D-336, göz
   });
 });
 
-describe("Şehir süzgeci — eski bağlantıdaki ham il adı (D-336, gözden geçirme)", () => {
-  it("?il=İzmir facet'teki 'İzmir 12' satırını işaretler, '0' kopyası eklenmez", () => {
-    nav.search = "il=%C4%B0zmir";
+describe("Talep dizini ALICI ÜLKESİ süzgeci — alıcı şehrinin yerine (2026-10-04 sahip kararı)", () => {
+  it("bayrak + yerel ad + sayı; şehir grubu yok; eski ?il= / ?sehir= hiçbir kutuyu işaretlemez", () => {
+    nav.search = "il=%C4%B0zmir&sehir=izmir";
     render(
       <ListingFilterShell total={12} drawer={null}>
         <ListingFilters facets={listingFacets} idPrefix="t" />
       </ListingFilterShell>,
     );
-    const boxes = screen.getAllByRole("checkbox", { name: /İzmir/ }) as HTMLInputElement[];
-    expect(boxes).toHaveLength(1);
-    expect(boxes[0]!.checked).toBe(true);
-    expect(boxes[0]!.closest("label")!.textContent).toBe("İzmir12");
+    expect(screen.queryByRole("checkbox", { name: /İzmir/ })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Şehir" })).toBeNull();
+    const group = screen.getByRole("group", { name: "Alıcı ülkesi" });
+    const box = within(group).getByRole("checkbox", { name: /Türkiye/ }) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(box.closest("label")!.textContent).toBe("Türkiye12");
+    expect(box.closest("label")!.querySelector('img[src="/flags/4x3/tr.svg"]')).not.toBeNull();
   });
 
+  it("?aliciUlke=DE facet'te olmayan seçili ülkeyi 0 ile, adıyla listeler", () => {
+    nav.search = "aliciUlke=DE";
+    render(
+      <ListingFilterShell total={0} drawer={null}>
+        <ListingFilters facets={listingFacets} idPrefix="t" />
+      </ListingFilterShell>,
+    );
+    const group = screen.getByRole("group", { name: "Alıcı ülkesi" });
+    const box = within(group).getByRole("checkbox", { name: /Almanya/ }) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    expect(box.closest("label")!.textContent).toBe("Almanya0");
+  });
+});
+
+describe("Şehir süzgeci — eski bağlantıdaki ham il adı (D-336, gözden geçirme)", () => {
   it("firma dizininde de ?sehir=İzmir tek satır ve işaretli", () => {
     nav.search = "sehir=%C4%B0zmir";
     render(

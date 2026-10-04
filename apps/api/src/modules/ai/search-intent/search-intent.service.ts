@@ -108,14 +108,17 @@ export class SearchIntentService {
 
     // GEVŞETME: süzgeçlerin tamamı 0 sonuç veriyorsa en az güvenilenden
     // başlayarak kaldır — AI araması "hiçbir şey bulunamadı" ile bitmesin.
-    // Şehir anahtarı iki portalda da dünya şehir listesinin kalıcı adresi
+    // Şehir anahtarı ürün dizininde dünya şehir listesinin kalıcı adresi
     // (`?sehir=bursa,de-munich`); ülke ürün dizininde SATICININ, açık
-    // taleplerde ALICININ ülkesi (`?ulke=`).
+    // taleplerde ALICININ ülkesi (`?ulke=`). AÇIK TALEPLERDE ŞEHİR SÜZGECİ YOK
+    // (2026-10-04 sahip kararı): metindeki şehir alıcı ÜLKESİNE çevrilir
+    // (model ülke söylemediyse şehrin ülkesi), şehir uygulanmaz.
+    const requests = portal === "satis";
     const filters: Filters = {
       query: s.query,
       category,
-      city: place.city?.slug ?? null,
-      country: place.country,
+      city: requests ? null : (place.city?.slug ?? null),
+      country: requests ? (place.country ?? place.city?.countryCode ?? null) : place.country,
       verifiedOnly: s.verifiedOnly,
       activity: s.activity,
       priceMax: s.priceMax,
@@ -125,13 +128,12 @@ export class SearchIntentService {
     const out =
       portal === "satinalma"
         ? await this.relaxProducts(user, filters)
-        : await this.relaxRequests(user, filters, place.unresolvedCity ? s.city : null);
+        : await this.relaxRequests(user, filters);
     const { applied } = out;
-    // Metinde şehir geçti ama dünya şehir listesinde (satışta: eşlenmemiş
-    // alıcı şehirlerinde de) bulunamadı: süzgeç uygulanamaz (uygulansaydı 0
-    // sonuç verirdi) — bant "şehir kaldırıldı" der.
+    // Metinde şehir geçti ama dünya şehir listesinde bulunamadı: süzgeç
+    // uygulanamaz (uygulansaydı 0 sonuç verirdi) — bant "şehir kaldırıldı" der.
     const relaxed: AiSearchRelaxed[] =
-      place.unresolvedCity && !out.rawCity && !out.relaxed.includes("city") ? ["city", ...out.relaxed] : out.relaxed;
+      place.unresolvedCity && !out.relaxed.includes("city") ? ["city", ...out.relaxed] : out.relaxed;
 
     return {
       portal,
@@ -177,40 +179,25 @@ export class SearchIntentService {
           [{ companyId: { not: user.companyId } }],
         ),
       });
-    const r = await relax(f, PRODUCT_RELAX_ORDER, count);
-    return { ...r, rawCity: null as string | null };
+    return relax(f, PRODUCT_RELAX_ORDER, count);
   }
 
   /**
    * Açık talepler: satıcının görebildiği açık talepler (liste ile AYNI kaynak)
    * üzerinde sayım — web süzgeciyle AYNI kural (`request-facets` `passes`):
-   * şehir anahtarı alıcının dünya şehir kaydının kalıcı adresi (eşlenmemiş
-   * şehirde ham metin; ham metin eski bağlantılar için de eşleşir), ülke
-   * alıcının ülkesi.
-   *
-   * `unmatchedCity`: model şehri dünya listesinde bulunamadı — alıcısı
-   * eşlenmemiş (serbest metin) şehirde olan satırlarda aynı ad aranır;
-   * bulunursa süzgeç o HAM metinle kurulur (web de ham metinle eşler).
+   * ülke alıcının (talep sahibinin) ülkesi. Alıcı şehri süzgeci 2026-10-04'te
+   * kalktı (sahip kararı) — `f.city` burada hep null.
    */
-  private async relaxRequests(user: AuthenticatedCompanyUser, f: Filters, unmatchedCity: string | null) {
-    if (!this.listings) return { applied: f, relaxed: [] as AiSearchRelaxed[], rawCity: null as string | null };
+  private async relaxRequests(user: AuthenticatedCompanyUser, f: Filters) {
+    if (!this.listings) return { applied: f, relaxed: [] as AiSearchRelaxed[] };
     const rows = await this.listings.sellerTenders(user, "ALIM", { openOnly: true });
     const hay = rows.map((r) => ({
       seg: r.categories.map((c) => c.code.slice(0, 2)),
-      cityKey: r.ownerCitySlug || r.ownerCity || null,
-      cityText: r.ownerCity ?? null,
       country: r.ownerCountry ?? null,
       text: foldSearchText(
         [r.title, r.number ?? "", r.owner?.name ?? "", ...(r.itemNames ?? []), ...r.categories.map((c) => c.name)].join(" "),
       ),
     }));
-    let rawCity: string | null = null;
-    if (!f.city && unmatchedCity) {
-      const want = foldSearchText(unmatchedCity);
-      rawCity =
-        hay.find((h) => h.cityText && h.cityKey === h.cityText && foldSearchText(h.cityText) === want)?.cityText ?? null;
-    }
-    const start: Filters = rawCity ? { ...f, city: rawCity } : f;
     const count = async (x: Filters) => {
       // Web listesiyle AYNI kural: kelimeler AND, ek toleranslı (`stemPrefix`).
       const ts = x.query ? tokenizeQuery(x.query).map((t) => stemPrefix(foldSearchText(t))) : [];
@@ -219,12 +206,10 @@ export class SearchIntentService {
         (h) =>
           ts.every((t) => h.text.includes(t)) &&
           (!seg || h.seg.includes(seg)) &&
-          (!x.city || h.cityKey === x.city || h.cityText === x.city) &&
           (!x.country || h.country === x.country),
       ).length;
     };
-    const r = await relax(start, REQUEST_RELAX_ORDER, count);
-    return { ...r, rawCity };
+    return relax({ ...f, city: null }, REQUEST_RELAX_ORDER, count);
   }
 }
 
@@ -232,8 +217,10 @@ export class SearchIntentService {
  * Modelin şehir/ülke yazımı → dünya şehir listesi kaydı. Ülke verildiyse şehir
  * O ÜLKEDE aranır (aynı adlı şehirler: "Batumi" GE); verilmediyse herhangi
  * dildeki tam ad (en kalabalık kayıt, Türkiye illeri önce). Ülke koduyla
- * birlikte geçersiz kod düşer; şehirden ülke TÜRETİLMEZ — şehir süzgeci zaten
- * ülkeyi daraltır, ülke yalnız şehir gevşetilince kalan yedek süzgeçtir.
+ * birlikte geçersiz kod düşer; burada şehirden ülke TÜRETİLMEZ — ürün
+ * dizininde şehir süzgeci zaten ülkeyi daraltır, ülke yalnız şehir
+ * gevşetilince kalan yedek süzgeçtir. (Açık taleplerde şehir süzülmediği için
+ * çağıran şehrin ülkesini alıcı ülkesi olarak kullanır — `interpret`.)
  */
 export function resolvePlace(
   city: string | null,
@@ -251,7 +238,7 @@ interface Filters {
   category: ResolvedCategory | null;
   /**
    * Şehir süzgecinin URL anahtarı (`?sehir=`): dünya şehir listesinin kalıcı
-   * adresi; satışta eşlenmemiş alıcı şehrinde ham metin.
+   * adresi. Yalnız ürün dizini; açık taleplerde hep null (alıcı ülkesi süzülür).
    */
   city: string | null;
   /** Ürün dizininde satıcının, açık taleplerde alıcının ülkesi (ISO, `?ulke=`). */
@@ -270,7 +257,7 @@ interface Filters {
  * → EN SON arama kelimeleri (kısaltılır, tümden kalkmaz).
  */
 const PRODUCT_RELAX_ORDER: AiSearchRelaxed[] = ["category", "priceMax", "quantity", "activity", "verifiedOnly", "city", "country", "query"];
-const REQUEST_RELAX_ORDER: AiSearchRelaxed[] = ["category", "city", "country", "query"];
+const REQUEST_RELAX_ORDER: AiSearchRelaxed[] = ["category", "country", "query"];
 
 const queryTokens = (q: string | null) => (q ? tokenizeQuery(q) : []);
 

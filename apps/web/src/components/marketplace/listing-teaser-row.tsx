@@ -74,9 +74,18 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         icon: "company",
         value: (
           <span className="flex min-w-0 flex-col items-start gap-1">
-            <span className="flex min-w-0 max-w-full items-center gap-1 text-slate-800">
-              {activityText ? <span className="min-w-0 truncate">{activityText}</span> : null}
-              {activityText && l.company.country ? <span aria-hidden className="text-slate-400">·</span> : null}
+            {/* ÜLKE ÖNCELİKLİ (son toparlama 2026-10-04): faaliyet ile ülke
+                tek satırda yarışınca EN/RU'da ülke "Tü…"/"Т…"ye kısalıyordu.
+                Artık SARILIR — sığarsa yan yana, sığmazsa ülke alt satıra
+                iner ve tam görünür; yalnız tek başına sütundan uzun metin
+                (`max-w-full` + `truncate`, tam metin `title`da) kısalır. Ayraç
+                yok: bayrak ayraçtır, satır başında "·" sarkmaz. */}
+            <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-slate-800">
+              {activityText ? (
+                <span className="min-w-0 max-w-full truncate" title={activityText}>
+                  {activityText}
+                </span>
+              ) : null}
               {l.company.country ? <CountryLabel code={l.company.country} /> : null}
               {!activityText && !l.company.country ? "—" : null}
             </span>

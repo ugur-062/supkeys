@@ -955,6 +955,8 @@
       "listingCountry": "Teklif verebilecek tedarikçi ülkesi",
       "listingCountryPick": "Başka bir ülke seçin",
       "listingCountryHint": "Tüm ülkelere açık talepler her seçimde listelenir.",
+      "buyerCountry": "Alıcı ülkesi",
+      "buyerCountryChip": "Alıcı: {country}",
       "notFoundProduct": "Ürün bulunamadı",
       "notFoundCompany": "Firma bulunamadı",
       "notFoundBuyingRequest": "Alım talebi bulunamadı",
@@ -1308,7 +1310,8 @@
     "scope": {
       "allCountries": "Tüm ülkeler",
       "onlyCountry": "Yalnız {country}",
-      "plusMore": "{country} +{n} ülke"
+      "plusMore": "{country} +{n} ülke",
+      "domesticOnly": "yalnız yurt içi tedarikçiler"
     },
     "closing": {
       "daysLeft": "{days, plural, one {# gün kaldı} other {# gün kaldı}}",
@@ -4963,7 +4966,6 @@
         "gunIcinde": "{d} gün içinde",
         "alici": "Alıcı",
         "aliciAdiGorunenTalepYok": "Alıcı adı görünen talep yok",
-        "aliciSehri": "Alıcı şehri",
         "paraBirimi": "Para birimi",
         "usul": "Usul",
         "teklifToplama": "Teklif toplama",

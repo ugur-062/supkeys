@@ -24,7 +24,7 @@ import {
   toPublicListingCard,
   toPublicListingDetail,
 } from "./dto/public-listing.projection";
-import type { PublicListQueryDto } from "./dto/public-list-query.dto";
+import { buyerCountryList, type PublicListQueryDto } from "./dto/public-list-query.dto";
 import type { PublicProductFacetQueryDto, PublicProductQueryDto } from "./dto/public-product-query.dto";
 import {
   attributeFacets,
@@ -36,8 +36,6 @@ import {
   productIndexWhere,
   subCategoryCounts,
   toFacetRow,
-  cityFacet,
-  cityIdsOf,
 } from "../../common/company/product-index";
 import { relatedProducts } from "../../common/company/related-products";
 import {
@@ -52,8 +50,6 @@ import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "../../common/company/p
 const PAGE_SIZE = 24;
 /** Talep kartları büyük (teaser) — sayfa başına 12 (PROMPT 4). Ürün dizini 24'te kalır. */
 const LISTING_PAGE_SIZE = 12;
-/** Virgüllü çoklu değer (şehir) → dizi; boşları düşür, tavan 10. */
-const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
 /**
  * Facet hesabı BELLEKTE yapılır (kategori kodları `String[]`, Prisma dizi
  * elemanına groupBy yapamaz). Ham SQL yazmamamın sebebi drift: görünürlük
@@ -120,15 +116,16 @@ export class PublicMarketplaceService {
     const now = new Date();
     const page = Math.max(1, q.page ?? 1);
     const gate = marketplaceListingWhere(now);
-    // Şehir süzgeci kapının firma koşullarının ÜSTÜNE katılır, YANINA değil.
-    // Ayrı bir `company:` spread'i olarak yazılsaydı kapının
-    // publicListingsEnabled/isActive/isBlocked koşullarını ezer ve süzgeç
-    // kullanan her sorguda kapı sessizce açılırdı.
-    // Şehir dünya şehir listesinden (`cityId`, 2026-09-27); eski ham il adı da çözülür.
-    const cityValues = multi(q.city);
+    // ALICI ÜLKESİ süzgeci (2026-10-04 sahip kararı — alıcı ŞEHRİ süzgecinin
+    // yerine; eski `city` parametresi DTO'da kabul edilip YOK SAYILIR) kapının
+    // firma koşullarının ÜSTÜNE katılır, YANINA değil. Ayrı bir `company:`
+    // spread'i olarak yazılsaydı kapının publicListingsEnabled/isActive/
+    // isBlocked koşullarını ezer ve süzgeç kullanan her sorguda kapı
+    // sessizce açılırdı.
+    const buyerCountries = buyerCountryList(q.buyerCountry);
     const company: Prisma.CompanyWhereInput = {
       ...(gate.company as Prisma.CompanyWhereInput),
-      ...(cityValues.length ? { cityId: { in: cityIdsOf(q.city) } } : {}),
+      ...(buyerCountries.length ? { country: { in: buyerCountries } } : {}),
     };
     // Süzgeçler kapıya SPREAD ile değil `AND` dizisiyle katılır (derin denetim
     // Y-10): kapı embargoyu üst düzey `OR` anahtarında taşır; ülke süzgeci de
@@ -281,7 +278,12 @@ export class PublicMarketplaceService {
    */
   async facets(q: PublicListFacetQueryDto = {}): Promise<{
     categories: { id: string; name: string; level: number; count: number }[];
-    cities: { city: string; count: number }[];
+    /**
+     * ALICI ÜLKESİ (talebin açıldığı ülke, 2026-10-04 — eski `cities`
+     * facet'inin yerine): ülke kodu + bağlamsal sayı; seçili ülke sonuçsuz
+     * kalsa da 0 ile listede (çip kaldırılabilsin).
+     */
+    buyerCountries: { code: string; count: number }[];
     types: { type: string; count: number }[];
     /** Görünürlük ülkesi (2026-09-21): `openToAll` = hedef listesi boş; `countries` = hedef listelerde geçen ülkeler. */
     openToAll: number;
@@ -305,7 +307,7 @@ export class PublicMarketplaceService {
         categoryIds: true,
         targetCountries: true,
         closesAt: true,
-        company: { select: { city: true, cityId: true } },
+        company: { select: { country: true } },
       },
       take: FACET_SCAN_CAP + 1,
     });
@@ -314,21 +316,21 @@ export class PublicMarketplaceService {
     type Row = (typeof scanned)[number];
 
     const prefix = q.category ? categoryPrefix(q.category) : null;
-    const hasCity = multi(q.city).length > 0;
-    const cityIds = new Set(cityIdsOf(q.city));
+    const buyerCountries = buyerCountryList(q.buyerCountry);
+    const buyerSet = new Set(buyerCountries);
     const dayMs = 86_400_000;
     const inCat = (r: Row) => !prefix || r.categoryIds.some((c) => c.startsWith(prefix));
-    const inCity = (r: Row) => !hasCity || (r.company.cityId != null && cityIds.has(r.company.cityId));
+    const inBuyer = (r: Row) => buyerSet.size === 0 || (r.company.country != null && buyerSet.has(r.company.country));
     const country = q.country?.toUpperCase();
     const inScope = (r: Row) => !country || r.targetCountries.length === 0 || r.targetCountries.includes(country);
     const withinDays = (r: Row, d: number) =>
       !!r.closesAt && r.closesAt.getTime() >= now.getTime() && r.closesAt.getTime() <= now.getTime() + d * dayMs;
     const inWithin = (r: Row) => !q.closesWithin || withinDays(r, Number(q.closesWithin));
 
-    const forCat = scanned.filter((r) => inCity(r) && inScope(r) && inWithin(r));
-    const forCity = scanned.filter((r) => inCat(r) && inScope(r) && inWithin(r));
-    const forScope = scanned.filter((r) => inCat(r) && inCity(r) && inWithin(r));
-    const forWithin = scanned.filter((r) => inCat(r) && inCity(r) && inScope(r));
+    const forCat = scanned.filter((r) => inBuyer(r) && inScope(r) && inWithin(r));
+    const forBuyer = scanned.filter((r) => inCat(r) && inScope(r) && inWithin(r));
+    const forScope = scanned.filter((r) => inCat(r) && inBuyer(r) && inWithin(r));
+    const forWithin = scanned.filter((r) => inCat(r) && inBuyer(r) && inScope(r));
 
     const catCount = new Map<string, number>();
     for (const r of forCat) {
@@ -337,10 +339,11 @@ export class PublicMarketplaceService {
         catCount.set(seg, (catCount.get(seg) ?? 0) + 1);
       }
     }
-    const cityCount = new Map<string, number>();
-    for (const r of forCity) {
-      if (r.company.cityId != null) cityCount.set(String(r.company.cityId), (cityCount.get(String(r.company.cityId)) ?? 0) + 1);
+    const buyerCount = new Map<string, number>();
+    for (const r of forBuyer) {
+      if (r.company.country) buyerCount.set(r.company.country, (buyerCount.get(r.company.country) ?? 0) + 1);
     }
+    for (const c of buyerCountries) if (!buyerCount.has(c)) buyerCount.set(c, 0);
     const typeCount = new Map<string, number>();
     for (const r of scanned) typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
     // Ülke facet'i ("Teklif verebilecek tedarikçi ülkesi", 2026-09-27 kuralı):
@@ -365,7 +368,9 @@ export class PublicMarketplaceService {
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
-      cities: cityFacet(cityCount),
+      buyerCountries: [...buyerCount.entries()]
+        .map(([code, count]) => ({ code, count }))
+        .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code)),
       types: [...typeCount.entries()].map(([type, count]) => ({ type, count })),
       // Görünürlük ülkesi süzgeci — bkz. yukarıdaki kural (seçilebilir her ülke).
       openToAll,

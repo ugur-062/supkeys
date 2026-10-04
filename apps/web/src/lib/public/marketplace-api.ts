@@ -29,7 +29,10 @@ import { SSR_CLIENT_IP_HEADER, ssrVisitorIp } from "./ssr-visitor";
  * DÖNDÜRMÜYOR (`PUBLIC_LISTING_SELECT`), tip de onu yansıtıyor.
  */
 export interface PublicCompanyRef {
-  city: string | null;
+  /**
+   * Talebin açıldığı ülke (alıcı firmanın ülkesi). Alıcının ŞEHRİ 2026-10-04
+   * sahip kararıyla talep yüzeylerinden kalktı — API artık göndermiyor.
+   */
   country: string | null;
   industry: string | null;
   activities: string[];
@@ -131,11 +134,11 @@ export interface CityFacet {
 export interface PublicFacets {
   categories: (PublicCategoryRef & { count: number })[];
   /**
-   * Şehirler (2026-09-27, dünya şehir listesi): `city` = kalıcı adres (URL
-   * değeri: "bursa", "de-munich"), `name` = okuyucunun dilinde ad. Eski API
-   * `name`/`country` vermeyebilir → çizim `name ?? city`.
+   * ALICI ÜLKESİ (talebin açıldığı ülke; 2026-10-04 sahip kararı — eski
+   * alıcı şehri facet'inin yerine): ülke kodu + bağlamsal sayı. Eski API
+   * göndermez → `?? []` ile okunur.
    */
-  cities: CityFacet[];
+  buyerCountries?: { code: string; count: number }[];
   types: { type: string; count: number }[];
   /** Görünürlük ülkesi: tüm ülkelere açık sayısı + hedef listelerde geçen ülkeler. */
   openToAll: number;
@@ -384,7 +387,8 @@ export interface ListParams {
   type?: PublicListingType;
   q?: string;
   category?: string;
-  city?: string;
+  /** Alıcı ülkesi (talebin açıldığı ülke) — virgüllü ISO alpha-2 (`TR,DE`). */
+  buyerCountry?: string;
   state?: "open" | "all";
   /** Görünürlük ülkesi (ISO alpha-2): bu ülkedeki tedarikçinin görebildiği talepler. */
   country?: string;
@@ -400,7 +404,7 @@ function toQuery(params: ListParams): string {
   if (params.type) sp.set("type", params.type);
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
-  if (params.city) sp.set("city", params.city);
+  if (params.buyerCountry) sp.set("buyerCountry", params.buyerCountry);
   if (params.state) sp.set("state", params.state);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   if (params.country) sp.set("country", params.country);
@@ -438,7 +442,7 @@ export async function fetchListing(
 
 const EMPTY_FACETS: PublicFacets = {
   categories: [],
-  cities: [],
+  buyerCountries: [],
   types: [],
   openToAll: 0,
   countries: [],
@@ -447,12 +451,12 @@ const EMPTY_FACETS: PublicFacets = {
 
 /** Facet sayaçları BAĞLAMSAL (PROMPT 4): seçili süzgeçler de gönderilir. */
 export function fetchFacets(
-  params: Pick<ListParams, "q" | "category" | "city" | "country" | "closesWithin"> = {},
+  params: Pick<ListParams, "q" | "category" | "buyerCountry" | "country" | "closesWithin"> = {},
 ): Promise<PublicFacets> {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
-  if (params.city) sp.set("city", params.city);
+  if (params.buyerCountry) sp.set("buyerCountry", params.buyerCountry);
   if (params.country) sp.set("country", params.country);
   if (params.closesWithin) sp.set("closesWithin", params.closesWithin);
   const qs = sp.toString();

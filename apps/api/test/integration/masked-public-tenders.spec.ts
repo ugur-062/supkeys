@@ -47,9 +47,6 @@ const MASKED_ROW_KEYS = [
   // herkese açık detayın zaten verdiği
   "format",
   "itemNames",
-  // kartın şehrinden türetilen süzgeç anahtarı + okuyucunun dilinde ad
-  "ownerCitySlug",
-  "ownerCityLabel",
   // izleyenin kendi verisinden sinyaller
   "categoryMatch",
   "productMatch",
@@ -58,7 +55,7 @@ const MASKED_ROW_KEYS = [
 ].sort();
 
 /** Alıcının anonim tarifi — herkese açık `PublicListingCompany` ile birebir. */
-const MASKED_COMPANY_KEYS = ["activities", "city", "country", "industry", "verified"];
+const MASKED_COMPANY_KEYS = ["activities", "country", "industry", "verified"];
 
 /** Yanıt ağacının hiçbir yerinde geçmemesi gereken anahtarlar. */
 const FORBIDDEN_ANYWHERE = [
@@ -145,7 +142,8 @@ async function publicListing(opts: { verified?: boolean } = {}) {
       slug: `gizli-alici-${seq}-${Math.random().toString(36).slice(2, 7)}`,
       rothernId: `RTH-MASK-${seq}-${Math.random().toString(36).slice(2, 7)}`,
       logoUrl: `https://cdn.test/logo-${seq}.png`,
-      city: "İstanbul",
+      // Ayırt edici şehir: talep yüzeylerinde alıcı şehri YOK (2026-10-04) — metinde aranır.
+      city: "Gizlikent",
       addressLine: "Gizli Sokak No: 7",
       website: "https://gizli-alici.test",
       industry: "Metal",
@@ -212,7 +210,9 @@ describe("maskeli talepler — ücretsiz (STANDART) tedarikçi", () => {
     expect(row.masked).toBe(true);
     expect(row.number).toBe(listing.number);
     expect(row.title).toBe(listing.title);
-    expect(row.company.city).toBe("İstanbul");
+    // Alıcının ŞEHRİ yok (2026-10-04 sahip kararı): konum = ülke, süzgeç alıcı ülkesi.
+    expect(row.company.country).toBe("TR");
+    expect(row.company).not.toHaveProperty("city");
     expect(row.company.verified).toBe(true);
     expect(row.itemNames).toEqual(["Dikişsiz boru 3 inç"]);
     expect(row.itemSummary).toEqual({ count: 1, totalQuantity: "40", unit: "ton" });
@@ -226,6 +226,7 @@ describe("maskeli talepler — ücretsiz (STANDART) tedarikçi", () => {
       "RTH-MASK-",
       "logo-",
       "Gizli Sokak",
+      "Gizlikent",
       "gizli-alici.test",
       listing.id,
       owner.company.id,
@@ -251,9 +252,8 @@ describe("maskeli talepler — ücretsiz (STANDART) tedarikçi", () => {
     const pub = await new PublicMarketplaceService(prisma as unknown as PrismaBypassService).list({});
     const card = pub.items.find((c) => c.number === listing.number);
     expect(card).toBeDefined();
-    const { format, itemNames, ownerCitySlug, ownerCityLabel, categoryMatch, productMatch, matchedProduct, masked, ...cardPart } =
-      row!;
-    void [format, itemNames, ownerCitySlug, ownerCityLabel, categoryMatch, productMatch, matchedProduct, masked];
+    const { format, itemNames, categoryMatch, productMatch, matchedProduct, masked, ...cardPart } = row!;
+    void [format, itemNames, categoryMatch, productMatch, matchedProduct, masked];
     expect(cardPart).toEqual(card);
   });
 

@@ -201,9 +201,11 @@ describe("pazar yeri — kapalı zarf yapısal güvence", () => {
     expectAnonymousOwner(res);
     expect(JSON.stringify(res)).not.toContain("Gizli Alici Sanayi");
     // Nitelik alanları DURUR: teklif verecek taraf lojistik/uygunluk kararını
-    // bunlarla verir ve tek başlarına firmayı işaret etmezler.
-    expect(res.company.city).toBe("İstanbul");
+    // bunlarla verir ve tek başlarına firmayı işaret etmezler. Alıcının ŞEHRİ
+    // 2026-10-04'ten beri YOK (sahip kararı: talepte konum = ülke).
     expect(res.company.country).toBe("TR");
+    expect(res.company).not.toHaveProperty("city");
+    expect(JSON.stringify(res)).not.toContain("İstanbul");
   });
 
   it("İLAN SAHİBİNİN ADI hiçbir yerde geçmez — listede", async () => {
@@ -469,11 +471,46 @@ describe("pazar yeri — süzgeç ve arama", () => {
     expect((await service().facets({ category: "99999999" })).selectedCategory).toBeNull();
   });
 
-  it("şehir süzgeci firma kapısını EZMEZ", async () => {
-    // Regresyon: `city` süzgeci `company` nesnesini spread ile ezerse
+  it("alıcı ülkesi süzgeci firma kapısını EZMEZ", async () => {
+    // Regresyon: süzgeç `company` nesnesini spread ile ezerse
     // publicListingsEnabled/isActive kontrolü düşerdi.
-    await seedPublicListing({}, { city: "İzmir", publicListingsEnabled: false });
-    expect((await service().list({ city: "İzmir" })).items).toHaveLength(0);
+    await seedPublicListing({}, { country: "DE", publicListingsEnabled: false });
+    expect((await service().list({ buyerCountry: "DE" })).items).toHaveLength(0);
+  });
+
+  it("ALICI ÜLKESİ süzgeci + facet'i alıcı şehrinin yerine (2026-10-04 sahip kararı)", async () => {
+    await seedPublicListing({ title: "Boru alımı" }, { country: "TR", city: "Bursa" });
+    await seedPublicListing({ title: "Kablo alımı" }, { country: "TR", city: "İzmir" });
+    await seedPublicListing({ title: "Vana alımı", categoryIds: ["40000000"] }, { country: "DE", city: "Munich" });
+
+    // Liste: virgüllü çoklu, küçük harf ve bozuk parça tolere edilir.
+    expect((await service().list({ buyerCountry: "DE" })).total).toBe(1);
+    expect((await service().list({ buyerCountry: "tr" })).total).toBe(2);
+    expect((await service().list({ buyerCountry: "TR,de" })).total).toBe(3);
+    expect((await service().list({ buyerCountry: "x1,DE" })).total).toBe(1);
+    // ESKİ `city` parametresi yok sayılır (eski bağlantı/istemci 400 almaz, liste süzülmez).
+    expect((await service().list({ city: "bursa" })).total).toBe(3);
+
+    // Facet: ülke + sayı, eski `cities` anahtarı yok; şehir adı hiçbir yerde.
+    const all = await service().facets({});
+    expect(all.buyerCountries).toEqual([
+      { code: "TR", count: 2 },
+      { code: "DE", count: 1 },
+    ]);
+    expect(all).not.toHaveProperty("cities");
+    expect(JSON.stringify(all)).not.toMatch(/Bursa|İzmir|Munich/);
+    // Bağlamsal: kategori seçimi ülke sayılarını daraltır; ülke seçimi kendi
+    // boyutunu daraltmaz (dal değiştirilebilsin).
+    const vana = await service().facets({ category: "40000000" });
+    expect(vana.buyerCountries).toEqual([{ code: "DE", count: 1 }]);
+    const de = await service().facets({ buyerCountry: "DE" });
+    expect(de.buyerCountries).toEqual([
+      { code: "TR", count: 2 },
+      { code: "DE", count: 1 },
+    ]);
+    // Sonuçsuz seçili ülke 0 ile listede kalır (çip kaldırılabilsin).
+    const jp = await service().facets({ buyerCountry: "JP" });
+    expect(jp.buyerCountries).toContainEqual({ code: "JP", count: 0 });
   });
 
   it("çok kelimeli arama AND'lenir, sıra önemsiz", async () => {

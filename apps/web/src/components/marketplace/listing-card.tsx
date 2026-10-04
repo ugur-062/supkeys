@@ -10,7 +10,7 @@ import {
   type PublicListingState,
 } from "@/lib/public/marketplace";
 import { cn } from "@/lib/utils";
-import { useScopeLabel } from "@/i18n/domain";
+import { ScopeBesideBuyer } from "@/components/tenders/target-scope";
 import { CountryLabel } from "@/components/ui/country-flag";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import {
@@ -27,7 +27,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ClockIcon,
-  GlobeAltIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -458,7 +457,6 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
   const ts = useTranslations("web.marketplace.state");
   const locale = useLocale();
   const fmt = useFormatter();
-  const scopeLabel = useScopeLabel();
   const state = publicState(listing.status);
   const href = listingHref(listing);
   const primaryCategory =
@@ -537,8 +535,10 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
             {(listing.targetCountries ?? []).length > 0 ? (
               <div className="flex items-center gap-1">
                 <dt className="sr-only">{t("visibility")}</dt>
-                <GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>{scopeLabel(listing.targetCountries ?? [])}</dd>
+                {/* Hedef ülke(ler) bayrakla (son toparlama); alıcının ülkesiyle aynıysa ad tekrarlanmaz. */}
+                <dd className="min-w-0">
+                  <ScopeBesideBuyer targetCountries={listing.targetCountries} buyerCountry={listing.company.country} />
+                </dd>
               </div>
             ) : null}
             {listing.closesAt && state === "open" ? (

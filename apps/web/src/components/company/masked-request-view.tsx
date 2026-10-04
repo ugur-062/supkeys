@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Building2, Globe2, Lock } from "lucide-react";
+import { ArrowLeft, Building2, Lock } from "lucide-react";
 import {
   useActivityLabel,
   useClosingUrgency,
@@ -10,7 +10,6 @@ import {
   useFormatDate,
   usePaymentCategoryLabel,
   useQuantityLabel,
-  useScopeLabel,
 } from "@/i18n/domain";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/catalyst/button";
@@ -20,7 +19,7 @@ import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-not
 import { PRICING_HREF, useUpgradeHref, useVerifyFirst } from "@/components/company/silver-lock-card";
 import { useMaskedTender, type MaskedTenderResponse } from "@/hooks/use-seller-tenders";
 import { cn } from "@/lib/utils";
-import { CountryLabel } from "@/components/ui/country-flag";
+import { BuyerCountryScope, TargetScope } from "@/components/tenders/target-scope";
 
 /** Satış anasayfasındaki Açık Talepler bölümü (geri bağlantı). */
 const BACK_HREF = "/company/satis#acik-talepler";
@@ -97,7 +96,6 @@ export function MaskedRequestView({ number }: { number: string }) {
 function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
   const t = useTranslations("web.panel.trade.maskedRequestView");
   const fmtDate = useFormatDate();
-  const scopeLabel = useScopeLabel();
   const quantity = useQuantityLabel();
   const activityLabel = useActivityLabel();
   const deliveryTermLabel = useDeliveryTermLabel();
@@ -110,11 +108,11 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
   // Alıcının ŞEHRİ değil, talebin açıldığı ÜLKE (2026-10-04, kullanıcı kararı).
   const buyerCountry = listing.company.country;
 
-  const facts: { label: string; value: string }[] = [
+  const facts: { label: string; value: ReactNode }[] = [
     { label: t("talepNo"), value: listing.number },
     ...(listing.closesAt ? [{ label: t("sonTeklifTarihi"), value: fmtDate(listing.closesAt, "datetime") }] : []),
     ...(listing.publishedAt ? [{ label: t("yayin"), value: fmtDate(listing.publishedAt, "short") }] : []),
-    { label: t("gorunurluk"), value: scopeLabel(listing.targetCountries ?? []) },
+    { label: t("gorunurluk"), value: <TargetScope targetCountries={listing.targetCountries} /> },
     { label: t("paraBirimi"), value: listing.primaryCurrency },
     ...(listing.deliveryTerm ? [{ label: t("teslimSekli"), value: deliveryTermLabel(listing.deliveryTerm) }] : []),
     { label: t("odeme"), value: paymentCategoryLabel(listing.paymentCategory) },
@@ -178,7 +176,7 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
                 </>
               ),
             },
-            { label: t("gorunurluk"), value: scopeLabel(listing.targetCountries ?? []) },
+            { label: t("gorunurluk"), value: <TargetScope targetCountries={listing.targetCountries} /> },
             { label: t("usul"), value: listing.format === "ENGLISH_AUCTION" ? t("usulPazarlik") : t("usulTeklif") },
           ].map((f) => (
             <div key={f.label} className="bg-white px-4 py-3">
@@ -248,15 +246,8 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
                   </Badge>
                 ) : null}
                 {listing.company.industry ? <p className="text-xs text-zinc-500">{listing.company.industry}</p> : null}
-                {buyerCountry ? (
-                  <p className="flex items-center text-xs text-zinc-500">
-                    <CountryLabel code={buyerCountry} />
-                  </p>
-                ) : null}
-                <p className="flex items-center gap-1 text-xs text-zinc-500">
-                  <Globe2 aria-hidden className="size-3.5" />
-                  {scopeLabel(listing.targetCountries ?? [])}
-                </p>
+                {/* Alıcının ülkesi + hedef kapsamı bayrakla; aynı ülkeyse tek satır. */}
+                <BuyerCountryScope buyerCountry={buyerCountry} targetCountries={listing.targetCountries} lineClassName="text-xs text-zinc-500" />
               </div>
             </div>
           </div>
