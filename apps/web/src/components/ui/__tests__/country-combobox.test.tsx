@@ -80,6 +80,21 @@ describe("CountryCombobox (2026-09-27, kayıt tüm ülkelere açık)", () => {
     expect(await screen.findByRole("option", { name: /Zimbabve/ })).toBeInTheDocument();
   });
 
+  it("seçili ülke ilk sayfanın ötesindeyken de tek dip kaydırması bir sayfa ekler", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="MX" />);
+    await user.click(screen.getByRole("button", { name: "Ülke listesini aç" }));
+    const list = await screen.findByRole("listbox");
+    const before = screen.getAllByRole("option").length;
+    // Seçili Meksika ilk 60 satırın ötesinde → çizilen satır `limit`ten fazla.
+    expect(before).toBeGreaterThan(60);
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 5000 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 288 });
+    list.scrollTop = 4700;
+    fireEvent.scroll(list);
+    expect(screen.getAllByRole("option").length).toBeGreaterThan(before);
+  });
+
   it("listenin sonlarındaki seçili ülke açılışta çizilen aralıkta (işaretli) gelir", async () => {
     const user = userEvent.setup();
     render(<Harness initial="ZW" />);

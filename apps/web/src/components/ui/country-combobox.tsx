@@ -159,7 +159,11 @@ export function CountryCombobox({
         onScroll={(e) => {
           const el = e.currentTarget;
           if (shown.length < filtered.length && el.scrollTop + el.clientHeight >= el.scrollHeight - 160) {
-            setLimit((n) => n + OPTION_PAGE);
+            // Çizilenden büyüt: seçili ülke sayfanın ötesindeyse çizilen satır
+            // `limit`ten fazladır; `n + OPTION_PAGE` o sayıyı aşmayıp liste
+            // dipte takılı kalabiliyordu (tek kaydırma olayı, scrollTop sabit).
+            const drawn = shown.length;
+            setLimit((n) => Math.max(n, drawn) + OPTION_PAGE);
           }
         }}
         className="z-50 max-h-72 w-(--input-width) min-w-64 overflow-auto rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg ring-1 ring-zinc-950/5 empty:invisible [--anchor-gap:0.25rem]"
