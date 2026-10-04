@@ -31,6 +31,18 @@ import { BankAccountsSection } from "../bank-accounts-section";
 const TR_OK = "TR330006100519786457841326";
 const DE_OK = "DE89370400440532013000";
 
+/**
+ * Kurulum alanını TEK `paste` olayıyla doldurur (son toparlama 2026-10-04).
+ * Karakter karakter `user.type` her tuşta açık diyaloğu (banka ülkesi seçicisi
+ * dahil) yeniden çizdiriyordu; tam suite paralel koşarken uzun IBAN + SWIFT +
+ * banka adı yazımı testi 15 sn zaman aşımına itiyordu. Doğrulama değere
+ * bakar; tuş-tuş yazım diğer IBAN testlerinde `user.type` ile sınanır.
+ */
+async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
+  await user.click(el);
+  await user.paste(text);
+}
+
 describe("BankAccountsSection", () => {
   beforeEach(() => {
     useCompanyAuthStore.setState({ company: null } as never);
@@ -55,8 +67,8 @@ describe("BankAccountsSection", () => {
     render(<BankAccountsSection canManage />);
     await user.click(screen.getByRole("button", { name: "Hesap Ekle" }));
     await screen.findByText("Yeni Banka Hesabı");
-    await user.type(screen.getByLabelText("Hesap Başlığı *"), "EUR");
-    await user.type(screen.getByLabelText("Hesap Sahibi *"), "Demo A.Ş.");
+    await fill(user, screen.getByLabelText("Hesap Başlığı *"), "EUR");
+    await fill(user, screen.getByLabelText("Hesap Sahibi *"), "Demo A.Ş.");
     return user;
   }
 
@@ -118,9 +130,9 @@ describe("BankAccountsSection", () => {
   it("kısmi IBAN ülkesinde yanlış yazılmış IBAN hesap no sayılmaz: satır içi IBAN hatası, kayıt yok (derin denetim LU-10)", async () => {
     useCompanyAuthStore.setState({ company: { country: "BR" } } as never);
     const user = await openNew();
-    await user.type(screen.getByLabelText("IBAN ya da hesap numarası *"), "BR18 0036 0305 0000 1000 9795 494C 1");
-    await user.type(screen.getByLabelText("SWIFT / BIC kodu *"), "BRASBRRJ");
-    await user.type(screen.getByLabelText("Banka adı *"), "Banco do Brasil");
+    await fill(user, screen.getByLabelText("IBAN ya da hesap numarası *"), "BR18 0036 0305 0000 1000 9795 494C 1");
+    await fill(user, screen.getByLabelText("SWIFT / BIC kodu *"), "BRASBRRJ");
+    await fill(user, screen.getByLabelText("Banka adı *"), "Banco do Brasil");
     expect(await screen.findByText(/kontrol hanesi tutmuyor/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Kaydet" }));
     expect(h.save).not.toHaveBeenCalled();

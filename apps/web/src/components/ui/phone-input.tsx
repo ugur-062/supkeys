@@ -123,6 +123,18 @@ export function PhoneInput({
     const tr = rows.filter((r) => r.code === "TR");
     return [...tr, ...rows.filter((r) => r.code !== "TR").sort((a, b) => a.label.localeCompare(b.label, locale))];
   }, [locale]);
+  // 245 `<option>` ÖNBELLEKLİ (son toparlama 2026-10-04): telefon kutusu
+  // formların içinde; her tuş vuruşunda (ad, e-posta, şifre…) liste baştan
+  // kuruluyordu. Aynı öğe nesneleri React'te uzlaştırmayı da atlatır.
+  const optionNodes = useMemo(
+    () =>
+      options.map((c) => (
+        <option key={c.code} value={c.code} className="text-zinc-900">
+          {c.label} (+{c.dialCode})
+        </option>
+      )),
+    [options],
+  );
 
   const setCountry = (next: string) => {
     if (!next) return;
@@ -198,11 +210,7 @@ export function PhoneInput({
               {t("selectCountry")}
             </option>
           )}
-          {options.map((c) => (
-            <option key={c.code} value={c.code} className="text-zinc-900">
-              {c.label} (+{c.dialCode})
-            </option>
-          ))}
+          {optionNodes}
         </select>
         <svg
           className="pointer-events-none mr-2 ml-1 h-4 w-4 text-zinc-400"

@@ -37,13 +37,25 @@ vi.mock("@/hooks/use-company-auth", () => ({
 
 import { CompanySignupClient } from "../signup-client";
 
+/**
+ * Kurulum alanını TEK `paste` olayıyla doldurur (son toparlama 2026-10-04).
+ * Karakter karakter `user.type` her tuşta tüm formu (telefon/ülke seçicisi
+ * dahil) yeniden çizdiriyordu; tam suite paralel koşarken bu kurulum adımları
+ * testleri 15 sn zaman aşımına itiyordu. Tuş-tuş davranışı sınanan alanlar
+ * (telefon, IBAN, kod…) testin kendisinde `user.type` ile kalır.
+ */
+async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
+  await user.click(el);
+  await user.paste(text);
+}
+
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText("Ad"), "Ada");
-  await user.type(screen.getByLabelText("Soyad", { exact: true }), "Yılmaz");
-  await user.type(screen.getByLabelText("Kurumsal e-posta"), "ada@firma.com");
-  await user.type(screen.getByLabelText("Telefon"), "5551112233");
-  await user.type(screen.getByLabelText("Şifre", { exact: true }), "Guclu!Parola9");
-  await user.type(screen.getByLabelText("Şifre (tekrar)"), "Guclu!Parola9");
+  await fill(user, screen.getByLabelText("Ad"), "Ada");
+  await fill(user, screen.getByLabelText("Soyad", { exact: true }), "Yılmaz");
+  await fill(user, screen.getByLabelText("Kurumsal e-posta"), "ada@firma.com");
+  await fill(user, screen.getByLabelText("Telefon"), "5551112233");
+  await fill(user, screen.getByLabelText("Şifre", { exact: true }), "Guclu!Parola9");
+  await fill(user, screen.getByLabelText("Şifre (tekrar)"), "Guclu!Parola9");
   // Erişilebilir ad görünen metnin kendisi (arayüz testi O-120, Field/Label).
   await user.click(
     screen.getByRole("checkbox", { name: "Kullanıcı sözleşmesini okudum ve kabul ediyorum" }),

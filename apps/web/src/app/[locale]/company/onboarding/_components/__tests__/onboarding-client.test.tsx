@@ -74,14 +74,26 @@ import {
   mergeDraft,
 } from "../onboarding-client";
 
+/**
+ * Kurulum alanını TEK `paste` olayıyla doldurur (son toparlama 2026-10-04).
+ * Karakter karakter `user.type` her tuşta tüm formu (telefon/ülke seçicisi
+ * dahil) yeniden çizdiriyordu; tam suite paralel koşarken bu kurulum adımları
+ * testleri 15 sn zaman aşımına itiyordu. Tuş-tuş davranışı sınanan alanlar
+ * (telefon, IBAN, kod…) testin kendisinde `user.type` ile kalır.
+ */
+async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
+  await user.click(el);
+  await user.paste(text);
+}
+
 // LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
 async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText("Firma Unvanı *"), "Örnek Ltd.");
-  await user.type(screen.getByLabelText("Vergi No / TCKN *"), "1234567890");
-  await user.type(screen.getByLabelText("Vergi Dairesi *"), "Kadıköy VD");
+  await fill(user, screen.getByLabelText("Firma Unvanı *"), "Örnek Ltd.");
+  await fill(user, screen.getByLabelText("Vergi No / TCKN *"), "1234567890");
+  await fill(user, screen.getByLabelText("Vergi Dairesi *"), "Kadıköy VD");
   await user.selectOptions(screen.getByLabelText("İl *"), "İstanbul");
   await user.selectOptions(screen.getByLabelText("İlçe *"), "Kadıköy");
-  await user.type(screen.getByLabelText("Açık Adres *"), "Moda Cad. No:1");
+  await fill(user, screen.getByLabelText("Açık Adres *"), "Moda Cad. No:1");
 }
 
 beforeEach(() => {
@@ -334,13 +346,13 @@ describe("OnboardingClient — yabancı firma", () => {
     h.completeAsync.mockResolvedValue({ ok: true });
     render(<OnboardingClient />);
     await pickCountry(user, "Alman", "Almanya");
-    await user.type(screen.getByLabelText("Firma Unvanı *"), "Müller Handel");
+    await fill(user, screen.getByLabelText("Firma Unvanı *"), "Müller Handel");
     await user.selectOptions(screen.getByLabelText("Firma Türü *"), "OTHER");
-    await user.type(screen.getByLabelText(/Hukuki yapı \(yerel/i), "GmbH");
-    await user.type(screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
+    await fill(user, screen.getByLabelText(/Hukuki yapı \(yerel/i), "GmbH");
+    await fill(user, screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
     await user.type(screen.getByLabelText("Şehir *"), "München");
     await user.type(screen.getAllByLabelText("Eyalet / Bölge")[0], "Bayern");
-    await user.type(screen.getByLabelText("Açık Adres *"), "Leopoldstr. 1");
+    await fill(user, screen.getByLabelText("Açık Adres *"), "Leopoldstr. 1");
     await user.click(screen.getByRole("checkbox", { name: /teslimat adresi olarak kullan/i }));
     const cities = screen.getAllByLabelText("Şehir *");
     expect(cities).toHaveLength(2);
@@ -348,7 +360,7 @@ describe("OnboardingClient — yabancı firma", () => {
     const states = screen.getAllByLabelText("Eyalet / Bölge");
     expect(states).toHaveLength(2);
     await user.type(states[1], "Hamburg");
-    await user.type(screen.getAllByLabelText("Açık Adres *")[1], "Hafenstr. 2");
+    await fill(user, screen.getAllByLabelText("Açık Adres *")[1], "Hafenstr. 2");
     await user.click(screen.getByRole("button", { name: "Devam" }));
 
     await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));

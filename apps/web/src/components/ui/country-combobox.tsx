@@ -11,6 +11,12 @@ import { cn } from "@/lib/utils";
 import { CountryFlag } from "@/components/ui/country-flag";
 
 /**
+ * Açık listede ilk çizilen satır sayısı; liste dibine kaydırıldıkça bir sayfa
+ * daha eklenir (bkz. `onScroll`). `max-h-72` kutuda ~9 satır görünür.
+ */
+const OPTION_PAGE = 60;
+
+/**
  * ARANABİLİR ÜLKE SEÇİCİ (2026-09-27, kayıt tüm ülkelere açıldı): 245 ülkelik
  * native <select> kaydırılarak kullanılamazdı. Kayıt formu, adres defteri,
  * hızlı talep adresi ve banka ülkesi AYNI bileşeni kullanır.
@@ -47,17 +53,60 @@ export function CountryCombobox({
   const locale = useLocale() as Locale;
   const t = useTranslations("web.shared.countryPicker");
   const [query, setQuery] = useState("");
+  // Anahtar içerikten: çağıran listeyi satır içi kurarsa (`codes={….map()}`)
+  // her çizimde 245 ülke yeniden sıralanmasın.
+  const codesKey = codes ? codes.join(",") : null;
   const options = useMemo(() => {
-    const allowed = codes ? new Set(codes) : null;
+    const allowed = codesKey === null ? null : new Set(codesKey.split(","));
     const rows = COUNTRIES.filter((c) => !allowed || allowed.has(c.code)).map((c) => {
       const label = countryDisplayName(c.code, locale);
       return { code: c.code, label, hay: foldSearchText(`${label} ${c.name} ${c.code}`) };
     });
     const [tr, rest] = [rows.filter((r) => r.code === "TR"), rows.filter((r) => r.code !== "TR")];
     return [...tr, ...rest.sort((a, b) => a.label.localeCompare(b.label, locale))];
-  }, [codes, locale]);
+  }, [codesKey, locale]);
   const q = foldSearchText(query.trim());
-  const filtered = q ? options.filter((o) => o.hay.includes(q)) : options;
+  const filtered = useMemo(() => (q ? options.filter((o) => o.hay.includes(q)) : options), [options, q]);
+  // TEMBEL SATIRLAR (son toparlama 2026-10-04): Headless UI her seçeneği
+  // kaydederken/sökerken tüm seçenek aboneliklerini dolaşır (n² iş); 245
+  // satırı birden açmak ve aramayla sökmek yavaş telefonlarda takılıyor,
+  // tam test paketinde form testlerini 15 sn zaman aşımına itiyordu. Liste
+  // ilk `OPTION_PAGE` satırla açılır, dibe kaydırdıkça büyür; seçili ülke her
+  // zaman çizilen aralıkta kalır (açılışta oraya kaydırılır). Arama sonucu
+  // zaten kısa olduğundan pratikte yalnız göz gezdirmede devreye girer.
+  const [limit, setLimit] = useState(OPTION_PAGE);
+  const selectedIndex = filtered.findIndex((o) => o.code === value);
+  const shownCount = Math.max(limit, selectedIndex + 1 + OPTION_PAGE / 4);
+  const shown = useMemo(
+    () => (filtered.length > shownCount ? filtered.slice(0, shownCount) : filtered),
+    [filtered, shownCount],
+  );
+  // Seçenek satırları ÖNBELLEKLİ: kutu formun içinde; formun her tuş vuruşu
+  // bu bileşeni yeniden çizer ve kapalı listede bile yüzlerce öğe (satır +
+  // bayrak + ad + işaret) yeniden kuruluyordu. Liste yalnız arama, sayfa ya
+  // da dil değişince kurulur; aynı öğe nesneleri React uzlaştırmasını atlatır.
+  const noResults = t("noResults");
+  const optionNodes = useMemo(
+    () =>
+      shown.length === 0 ? (
+        <div className="px-3 py-2 text-sm text-zinc-500">{noResults}</div>
+      ) : (
+        shown.map((o) => (
+          <ComboboxOption
+            key={o.code}
+            value={o}
+            className="group flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-zinc-950 select-none data-focus:bg-zinc-100"
+          >
+            <span className="flex w-5 shrink-0 justify-center">
+              <CountryFlag code={o.code} decorative />
+            </span>
+            <span className="flex-1 truncate">{o.label}</span>
+            <CheckIcon className="invisible size-4 fill-zinc-950 group-data-selected:visible" aria-hidden="true" />
+          </ComboboxOption>
+        ))
+      ),
+    [shown, noResults],
+  );
   const selected = options.find((o) => o.code === value) ?? null;
   // Arama yazılırken kutudaki metin seçili ülke değil → bayrak gizlenir.
   const showFlag = !!selected && !query;
@@ -68,7 +117,10 @@ export function CountryCombobox({
       onChange={(o: (typeof options)[number] | null) => {
         if (o) onChange(o.code);
       }}
-      onClose={() => setQuery("")}
+      onClose={() => {
+        setQuery("");
+        setLimit(OPTION_PAGE);
+      }}
       disabled={disabled}
       immediate
     >
@@ -81,7 +133,10 @@ export function CountryCombobox({
           id={id}
           aria-label={ariaLabel}
           displayValue={(o: (typeof options)[number] | null) => o?.label ?? ""}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setLimit(OPTION_PAGE);
+          }}
           placeholder={placeholder ?? t("placeholder")}
           autoComplete="off"
           className={cn(
@@ -101,25 +156,15 @@ export function CountryCombobox({
       </div>
       <ComboboxOptions
         anchor="bottom start"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          if (shown.length < filtered.length && el.scrollTop + el.clientHeight >= el.scrollHeight - 160) {
+            setLimit((n) => n + OPTION_PAGE);
+          }
+        }}
         className="z-50 max-h-72 w-(--input-width) min-w-64 overflow-auto rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg ring-1 ring-zinc-950/5 empty:invisible [--anchor-gap:0.25rem]"
       >
-        {filtered.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-zinc-500">{t("noResults")}</div>
-        ) : (
-          filtered.map((o) => (
-            <ComboboxOption
-              key={o.code}
-              value={o}
-              className="group flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-zinc-950 select-none data-focus:bg-zinc-100"
-            >
-              <span className="flex w-5 shrink-0 justify-center">
-                <CountryFlag code={o.code} decorative />
-              </span>
-              <span className="flex-1 truncate">{o.label}</span>
-              <CheckIcon className="invisible size-4 fill-zinc-950 group-data-selected:visible" aria-hidden="true" />
-            </ComboboxOption>
-          ))
-        )}
+        {optionNodes}
       </ComboboxOptions>
     </Combobox>
   );

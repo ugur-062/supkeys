@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { CountryCombobox } from "../country-combobox";
 
-function Harness({ codes }: { codes?: string[] }) {
-  const [v, setV] = useState("TR");
+function Harness({ codes, initial = "TR" }: { codes?: string[]; initial?: string }) {
+  const [v, setV] = useState(initial);
   return (
     <>
       <CountryCombobox value={v} onChange={setV} codes={codes} ariaLabel="Ülke" />
@@ -58,5 +58,33 @@ describe("CountryCombobox (2026-09-27, kayıt tüm ülkelere açık)", () => {
     await user.clear(box);
     await user.type(box, "amerika");
     expect(screen.queryByRole("option", { name: /Amerika/ })).not.toBeInTheDocument();
+  });
+
+  // Son toparlama 2026-10-04: liste tembel çizilir (Headless UI'da 245 seçenek
+  // birden kaydedilince açılış/arama yavaştı).
+  it("açık liste ilk sayfayla çizilir, dibe kaydırınca büyür; arama tüm ülkelerde yapılır", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const box = screen.getByRole("combobox", { name: "Ülke" });
+    await user.clear(box);
+    const list = await screen.findByRole("listbox");
+    expect(screen.getAllByRole("option")).toHaveLength(60);
+    // Dibe yakın kaydırma → bir sayfa daha.
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 2000 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 288 });
+    list.scrollTop = 1700;
+    fireEvent.scroll(list);
+    expect(screen.getAllByRole("option")).toHaveLength(120);
+    // Çizilmemiş sayfadaki ülke de aramayla bulunur.
+    await user.type(box, "zimba");
+    expect(await screen.findByRole("option", { name: /Zimbabve/ })).toBeInTheDocument();
+  });
+
+  it("listenin sonlarındaki seçili ülke açılışta çizilen aralıkta (işaretli) gelir", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="ZW" />);
+    await user.click(screen.getByRole("button", { name: "Ülke listesini aç" }));
+    const opt = await screen.findByRole("option", { name: /Zimbabve/ });
+    expect(opt).toHaveAttribute("aria-selected", "true");
   });
 });

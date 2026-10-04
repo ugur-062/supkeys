@@ -30,11 +30,23 @@ vi.mock("@/hooks/use-company-auth", () => ({
 
 import { AcceptInviteClient } from "../accept-invite-client";
 
+/**
+ * Kurulum alanını TEK `paste` olayıyla doldurur (son toparlama 2026-10-04).
+ * Karakter karakter `user.type` her tuşta tüm formu (telefon/ülke seçicisi
+ * dahil) yeniden çizdiriyordu; tam suite paralel koşarken bu kurulum adımları
+ * testleri 15 sn zaman aşımına itiyordu. Tuş-tuş davranışı sınanan alanlar
+ * (telefon, IBAN, kod…) testin kendisinde `user.type` ile kalır.
+ */
+async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
+  await user.click(el);
+  await user.paste(text);
+}
+
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText("Ad"), "Ada");
-  await user.type(screen.getByLabelText("Soyad", { exact: true }), "Yılmaz");
-  await user.type(screen.getByLabelText("Şifre", { exact: true }), "Guclu!Parola9");
-  await user.type(screen.getByLabelText(/Şifre \(/), "Guclu!Parola9");
+  await fill(user, screen.getByLabelText("Ad"), "Ada");
+  await fill(user, screen.getByLabelText("Soyad", { exact: true }), "Yılmaz");
+  await fill(user, screen.getByLabelText("Şifre", { exact: true }), "Guclu!Parola9");
+  await fill(user, screen.getByLabelText(/Şifre \(/), "Guclu!Parola9");
   await user.click(screen.getByRole("checkbox", { name: "Kullanıcı sözleşmesini okudum ve kabul ediyorum" }));
   await user.click(screen.getByRole("checkbox", { name: "Platform aracılık ve kullanım sözleşmesini kabul ediyorum" }));
   await user.click(screen.getByRole("checkbox", { name: /^KVKK Aydınlatma Metni/ }));
