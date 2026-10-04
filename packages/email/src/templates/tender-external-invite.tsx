@@ -1,11 +1,11 @@
-import { Text } from "@react-email/components";
 import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type EmailMessageKey, type EmailTranslator, type Locale } from "../i18n";
 import type { TenderExternalInviteData, TenderExternalInviteItem } from "../types";
-import { Button } from "./_components/button";
+import { MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
+import { CtaButton } from "./_components/button";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
-import { COLORS, FONTS } from "./_components/tokens";
+import { COLORS } from "./_components/tokens";
 
 /**
  * Faz C — dış tedarikçi daveti ("X sizi 'Y' satın alma talebine davet etti").
@@ -21,62 +21,25 @@ import { COLORS, FONTS } from "./_components/tokens";
  * Alt bilgide kim-neden-gönderdi açıklaması + tek tık opt-out (İYS/ETK).
  */
 
-const paragraph = {
-  fontFamily: FONTS.sans,
-  fontSize: "14px",
-  lineHeight: "1.6",
-  color: COLORS.slate700,
-  margin: "0 0 16px 0",
+const panelTitle: React.CSSProperties = {
+  fontSize: "15px",
+  lineHeight: "22px",
+  fontWeight: 600,
+  color: COLORS.slate900,
 };
 
-const infoBox = {
-  ...paragraph,
-  backgroundColor: COLORS.brand50,
-  border: `1px solid ${COLORS.brand100}`,
-  borderRadius: "10px",
-  padding: "14px 16px",
-  fontSize: "13px",
-  margin: "16px 0",
-};
+const panelLine: React.CSSProperties = { ...TEXT.small, display: "block" };
 
-const itemsBox = {
-  ...paragraph,
-  border: `1px solid ${COLORS.surfaceBorder}`,
-  borderRadius: "10px",
-  padding: "14px 16px",
-  fontSize: "13px",
-  margin: "0 0 16px 0",
-};
-
-const itemList = {
-  margin: "6px 0 0 0",
-  paddingLeft: "18px",
-};
-
-const pitch = {
-  ...paragraph,
-  fontSize: "13px",
-  color: COLORS.slate700,
-};
-
-const ctaWrap = { textAlign: "center" as const, margin: "24px 0 8px 0" };
-
-const secondaryLink = {
-  ...paragraph,
-  fontSize: "13px",
-  textAlign: "center" as const,
+const itemList: React.CSSProperties = {
   margin: "8px 0 0 0",
+  paddingLeft: "20px",
+  fontSize: "14px",
+  lineHeight: "22px",
 };
 
-const footnote = {
-  marginTop: "20px",
-  paddingTop: "20px",
-  borderTop: `1px solid ${COLORS.surfaceBorder}`,
-  fontFamily: FONTS.sans,
-  fontSize: "12px",
-  color: COLORS.slate500,
-  lineHeight: "1.6",
-};
+const smallText: React.CSSProperties = { ...TEXT.body, fontSize: "14px", lineHeight: "22px" };
+
+const secondaryLink: React.CSSProperties = { ...TEXT.small, margin: "12px 0 0 0" };
 
 /** Cümle içinde kalın yazılan parça — çeviride sözcük sırası değişse de yerini korur. */
 const bold = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
@@ -190,91 +153,78 @@ export function TenderExternalInviteEmail(
         {t(props.reminder ? "email.tenderExternalInvite.reminderHeading" : "email.tenderExternalInvite.heading")}
       </Heading>
 
-      <Text style={paragraph}>{t("email.tenderExternalInvite.greeting")}</Text>
+      <Paragraph>{t("email.tenderExternalInvite.greeting")}</Paragraph>
 
-      <Text style={paragraph}>
+      <Paragraph>
         {t.rich(props.reminder ? "email.tenderExternalInvite.reminderIntro" : "email.tenderExternalInvite.intro", {
           inviterName: props.inviterName,
           b: bold,
         })}
-      </Text>
+      </Paragraph>
 
-      <Text style={infoBox}>
-        <strong>{props.tenderTitle}</strong>
+      <Panel>
+        <span className="r-strong" style={panelTitle}>
+          {props.tenderTitle}
+        </span>
         {info.map((line) => (
-          <React.Fragment key={line}>
-            <br />
+          <span key={line} className="r-muted" style={panelLine}>
             {line}
-          </React.Fragment>
+          </span>
         ))}
-      </Text>
+      </Panel>
 
       {items.lines.length > 0 ? (
-        <div style={itemsBox}>
-          <strong>{t("email.tenderExternalInvite.itemsTitle", { count: items.total })}</strong>
-          <ul style={itemList}>
+        <Panel style={{ backgroundColor: COLORS.card }}>
+          <span className="r-strong" style={{ ...panelTitle, fontSize: "14px" }}>
+            {t("email.tenderExternalInvite.itemsTitle", { count: items.total })}
+          </span>
+          <ul className="r-text" style={itemList}>
             {items.lines.map((line, i) => (
               <li key={`${i}-${line}`}>{line}</li>
             ))}
           </ul>
           {items.more > 0 ? (
-            <span style={{ color: COLORS.slate500 }}>
+            <span className="r-muted" style={{ ...panelLine, marginTop: "4px" }}>
               {t("email.tenderExternalInvite.moreItems", { count: items.more })}
             </span>
           ) : null}
-        </div>
+        </Panel>
       ) : null}
 
-      <Text style={pitch}>
+      <Paragraph style={smallText}>
         {t("email.tenderExternalInvite.sealedBid")}
         <br />
         {t("email.tenderExternalInvite.freeToQuote")}
-      </Text>
+      </Paragraph>
 
-      <Text style={paragraph}>
+      <Paragraph style={smallText}>
         {t("email.tenderExternalInvite.howTo", {
           inviterName: props.inviterName,
         })}
-      </Text>
+      </Paragraph>
 
-      <div style={ctaWrap}>
-        <Button href={props.registerUrl}>
-          {t("email.tenderExternalInvite.cta")}
-        </Button>
-      </div>
+      <CtaButton href={props.registerUrl}>{t("email.tenderExternalInvite.cta")}</CtaButton>
 
       {props.previewUrl ? (
-        <Text style={secondaryLink}>
+        <Paragraph style={secondaryLink}>
           {t.rich("email.tenderExternalInvite.previewLink", {
-            link: (chunks: React.ReactNode) => (
-              <a href={props.previewUrl ?? undefined} style={{ color: COLORS.slate700 }}>
-                {chunks}
-              </a>
-            ),
+            link: (chunks: React.ReactNode) => <MutedLink href={props.previewUrl ?? undefined}>{chunks}</MutedLink>,
           })}
-        </Text>
+        </Paragraph>
       ) : props.publicUrl ? (
-        <Text style={secondaryLink}>
+        <Paragraph style={secondaryLink}>
           {t.rich("email.tenderExternalInvite.publicLink", {
-            link: (chunks: React.ReactNode) => (
-              <a href={props.publicUrl ?? undefined} style={{ color: COLORS.slate700 }}>
-                {chunks}
-              </a>
-            ),
+            link: (chunks: React.ReactNode) => <MutedLink href={props.publicUrl ?? undefined}>{chunks}</MutedLink>,
           })}
-        </Text>
+        </Paragraph>
       ) : null}
 
-      <Text style={footnote}>
+      <Note>
         {t.rich("email.tenderExternalInvite.footnote", {
           inviterName: props.inviterName,
-          optout: (chunks: React.ReactNode) => (
-            <a href={props.optOutUrl} style={{ color: COLORS.slate500 }}>
-              {chunks}
-            </a>
-          ),
+          optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
         })}
-      </Text>
+      </Note>
     </Layout>
   );
 }

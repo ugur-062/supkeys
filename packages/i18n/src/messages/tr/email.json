@@ -13,7 +13,7 @@
   "passwordReset": {
     "subject": "🔑 Şifre sıfırlama bağlantınız — Rothern",
     "preview": "Şifre sıfırlama talebiniz için bağlantı.",
-    "heading": "Şifrenizi sıfırlayın 🔑",
+    "heading": "Şifrenizi sıfırlayın",
     "greeting": "Merhaba {firstName},",
     "intro": "Rothern hesabınız için bir şifre sıfırlama talebinde bulundunuz. Yeni şifrenizi belirlemek için aşağıdaki butona tıklayın.",
     "infoTitle": "Bağlantı bilgisi",
@@ -139,5 +139,17 @@
     "textItem": "{inviterName} — {tenderTitle}: {url}",
     "textFootnote": "Bu e-posta, Rothern üzerinden gönderilen alım talebi davetlerini bir araya getirir; bir pazarlama listesine eklenmediniz.",
     "textOptOut": "Bu tür davetleri kapatmak için: {url}"
+  },
+  "code": {
+    "label": "Doğrulama kodu",
+    "validity": "Kod {minutes} dakika geçerlidir.",
+    "preview": "Doğrulama kodunuz: {code} · {minutes} dakika geçerli",
+    "previewNoExpiry": "Doğrulama kodunuz: {code}",
+    "textLine": "Doğrulama kodunuz: {code}",
+    "ignoreNote": "Bu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz. Kodu kimseyle paylaşmayın.",
+    "twoFactorIgnoreNote": "Bu isteği siz yapmadıysanız bu e-postayı yok sayın ve şifrenizi değiştirin. Kodu kimseyle paylaşmayın.",
+    "verifyIntro": "Rothern hesabınızı etkinleştirmek için aşağıdaki doğrulama kodunu girin.",
+    "loginIntro": "Rothern'e giriş yapmak için aşağıdaki iki adımlı doğrulama kodunu girin.",
+    "twoFactorIntro": "Hesap ayarlarınızda iki adımlı doğrulamayı açmak veya kapatmak için aşağıdaki kodu girin."
   }
 }

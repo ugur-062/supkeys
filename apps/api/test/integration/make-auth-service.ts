@@ -58,13 +58,19 @@ export function makeAuthService(env: Record<string, string> = {}) {
   return { service, supabaseAuth, audit, email, jwt };
 }
 
-/** signup sonrası e-posta mock'undan 6 haneli kodu ayıkla. */
+/**
+ * signup sonrası e-posta mock'undan 6 haneli kodu ayıkla. Kod 2026-10-04'ten
+ * beri paragrafta değil ayrı `code` alanında (şablon kod bloğunda basar);
+ * eski yük biçimi için paragraflara da bakılır.
+ */
 export function extractCode(email: {
   send: jest.Mock;
 }): string {
   const call = email.send.mock.calls.at(-1)?.[0] as {
-    templateData: { data: { paragraphs: string[] } };
+    templateData: { data: { paragraphs: string[]; code?: { value: string } } };
   };
+  const direct = call.templateData.data.code?.value;
+  if (direct && /^\d{6}$/.test(direct)) return direct;
   const joined = call.templateData.data.paragraphs.join(" ");
   const m = joined.match(/\b(\d{6})\b/);
   if (!m) throw new Error("Kod bulunamadı");

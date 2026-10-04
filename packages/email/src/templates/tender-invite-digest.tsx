@@ -1,11 +1,11 @@
-import { Text } from "@react-email/components";
 import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type EmailTranslator, type Locale } from "../i18n";
 import type { TenderInviteDigestData, TenderInviteDigestEntry } from "../types";
-import { Button } from "./_components/button";
+import { MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
+import { CtaButton } from "./_components/button";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
-import { COLORS, FONTS } from "./_components/tokens";
+import { COLORS } from "./_components/tokens";
 import { formatInviteQuantity, infoLines } from "./tender-external-invite";
 
 /**
@@ -20,36 +20,24 @@ import { formatInviteQuantity, infoLines } from "./tender-external-invite";
  * + talep daveti o firmayla kurulur).
  */
 
-const paragraph = {
-  fontFamily: FONTS.sans,
+const cardTitle: React.CSSProperties = {
+  fontSize: "15px",
+  lineHeight: "22px",
+  fontWeight: 600,
+  color: COLORS.slate900,
+  display: "block",
+};
+
+const cardLine: React.CSSProperties = { ...TEXT.small, display: "block" };
+
+const itemList: React.CSSProperties = {
+  margin: "8px 0 4px 0",
+  paddingLeft: "20px",
   fontSize: "14px",
-  lineHeight: "1.6",
-  color: COLORS.slate700,
-  margin: "0 0 16px 0",
+  lineHeight: "22px",
 };
 
-const card = {
-  ...paragraph,
-  border: `1px solid ${COLORS.surfaceBorder}`,
-  borderRadius: "10px",
-  padding: "14px 16px",
-  fontSize: "13px",
-  margin: "0 0 12px 0",
-};
-
-const itemList = { margin: "6px 0 0 0", paddingLeft: "18px" };
-
-const ctaWrap = { margin: "12px 0 0 0" };
-
-const footnote = {
-  marginTop: "20px",
-  paddingTop: "20px",
-  borderTop: `1px solid ${COLORS.surfaceBorder}`,
-  fontFamily: FONTS.sans,
-  fontSize: "12px",
-  color: COLORS.slate500,
-  lineHeight: "1.6",
-};
+const smallText: React.CSSProperties = { ...TEXT.body, fontSize: "14px", lineHeight: "22px" };
 
 /** Özette kalem önizlemesi — kart kısa kalsın. */
 export const DIGEST_ITEM_PREVIEW = 3;
@@ -105,56 +93,52 @@ export function TenderInviteDigestEmail(props: TenderInviteDigestData & { locale
   return (
     <Layout preview={t("email.tenderInviteDigest.preview", { count: props.invites.length })} locale={locale}>
       <Heading>{t("email.tenderInviteDigest.heading")}</Heading>
-      <Text style={paragraph}>{t("email.tenderExternalInvite.greeting")}</Text>
-      <Text style={paragraph}>{t("email.tenderInviteDigest.intro")}</Text>
+      <Paragraph>{t("email.tenderExternalInvite.greeting")}</Paragraph>
+      <Paragraph>{t("email.tenderInviteDigest.intro")}</Paragraph>
 
       {props.invites.map((e, idx) => {
         const lines = entryLines(t, e);
         return (
-          <div key={`${idx}-${e.ctaUrl}`} style={card}>
-            <strong>{e.inviterName}</strong>
-            <br />
-            {e.tenderTitle}
+          <Panel key={`${idx}-${e.ctaUrl}`} margin="0 0 12px 0" style={{ backgroundColor: COLORS.card }}>
+            <span className="r-muted" style={{ ...cardLine, fontWeight: 600 }}>
+              {e.inviterName}
+            </span>
+            <span className="r-strong" style={cardTitle}>
+              {e.tenderTitle}
+            </span>
             {lines.info.map((line) => (
-              <React.Fragment key={line}>
-                <br />
-                <span style={{ color: COLORS.slate500 }}>{line}</span>
-              </React.Fragment>
+              <span key={line} className="r-muted" style={cardLine}>
+                {line}
+              </span>
             ))}
             {lines.items.length > 0 ? (
-              <ul style={itemList}>
+              <ul className="r-text" style={itemList}>
                 {lines.items.map((line, i) => (
                   <li key={`${i}-${line}`}>{line}</li>
                 ))}
               </ul>
             ) : null}
             {lines.more > 0 ? (
-              <span style={{ color: COLORS.slate500 }}>
+              <span className="r-muted" style={cardLine}>
                 {t("email.tenderExternalInvite.moreItems", { count: lines.more })}
               </span>
             ) : null}
-            <div style={ctaWrap}>
-              <Button href={e.ctaUrl}>{t("email.tenderInviteDigest.cta")}</Button>
-            </div>
-          </div>
+            <CtaButton href={e.ctaUrl}>{t("email.tenderInviteDigest.cta")}</CtaButton>
+          </Panel>
         );
       })}
 
-      <Text style={{ ...paragraph, fontSize: "13px" }}>
+      <Paragraph style={{ ...smallText, marginTop: "8px" }}>
         {t("email.tenderExternalInvite.sealedBid")}
         <br />
         {t("email.tenderExternalInvite.freeToQuote")}
-      </Text>
+      </Paragraph>
 
-      <Text style={footnote}>
+      <Note>
         {t.rich("email.tenderInviteDigest.footnote", {
-          optout: (chunks: React.ReactNode) => (
-            <a href={props.optOutUrl} style={{ color: COLORS.slate500 }}>
-              {chunks}
-            </a>
-          ),
+          optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
         })}
-      </Text>
+      </Note>
     </Layout>
   );
 }

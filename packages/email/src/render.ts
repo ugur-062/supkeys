@@ -121,7 +121,7 @@ async function renderTemplate(
       return {
         subject: makeNotificationSubject(spec.data),
         html,
-        text: renderNotificationText(spec.data),
+        text: renderNotificationText(spec.data, locale),
       };
     }
     default: {

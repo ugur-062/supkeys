@@ -1,44 +1,13 @@
-import { Section, Text } from "@react-email/components";
 import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { ReferralInviteData } from "../types";
-import { Button } from "./_components/button";
+import { InfoRows, MutedLink, Note, Paragraph } from "./_components/blocks";
+import { CtaButton } from "./_components/button";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
-import { COLORS, FONTS } from "./_components/tokens";
 
-const paragraph = {
-  fontFamily: FONTS.sans,
-  fontSize: "14px",
-  lineHeight: "1.6",
-  color: COLORS.slate700,
-  margin: "0 0 16px 0",
-};
-
-const infoBox = {
-  ...paragraph,
-  backgroundColor: COLORS.brand50,
-  border: `1px solid ${COLORS.brand100}`,
-  borderRadius: "10px",
-  padding: "14px 16px",
-  fontSize: "13px",
-  margin: "16px 0",
-};
-
-const ctaWrap = {
-  textAlign: "center" as const,
-  margin: "24px 0 8px 0",
-};
-
-const warningBox = {
-  marginTop: "20px",
-  paddingTop: "20px",
-  borderTop: `1px solid ${COLORS.surfaceBorder}`,
-  fontFamily: FONTS.sans,
-  fontSize: "12px",
-  color: COLORS.slate500,
-  lineHeight: "1.6",
-};
+/** Etiket katalogda iki noktalı ("Davet eden:"); tablo sütununda iki nokta düşer. */
+const label = (s: string) => s.replace(/[:：]\s*$/, "");
 
 /** Cümle içinde kalın yazılan parça — çeviride sözcük sırası değişse de yerini korur. */
 const bold = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
@@ -65,54 +34,43 @@ export function ReferralInviteEmail(props: ReferralInviteData & { locale?: Local
     >
       <Heading>{t("email.referralInvite.heading")}</Heading>
 
-      <Text style={paragraph}>{t("email.referralInvite.greeting")}</Text>
+      <Paragraph>{t("email.referralInvite.greeting")}</Paragraph>
 
-      <Text style={paragraph}>
+      <Paragraph>
         {t.rich("email.referralInvite.intro", {
           inviterName: props.inviterName,
           b: bold,
         })}
-      </Text>
+      </Paragraph>
 
-      <Text style={paragraph}>
+      <Paragraph>
         {t.rich("email.referralInvite.autoConnect", {
           inviterName: props.inviterName,
           b: bold,
         })}
-      </Text>
+      </Paragraph>
 
-      <Section style={infoBox}>
-        <strong style={{ color: COLORS.brand900 }}>
-          {t("email.referralInvite.infoTitle")}
-        </strong>
-        <br />
-        {t("email.referralInvite.inviterLabel")}{" "}
-        <strong>{props.inviterName}</strong>
-        <br />
-        {t("email.referralInvite.inviteeLabel")} <strong>{props.email}</strong>
-        <br />
-        {t("email.referralInvite.infoNote")}
-      </Section>
+      <InfoRows
+        rows={[
+          { label: label(t("email.referralInvite.inviterLabel")), value: props.inviterName },
+          { label: label(t("email.referralInvite.inviteeLabel")), value: props.email },
+        ]}
+        footer={t("email.referralInvite.infoNote")}
+      />
 
-      <Section style={ctaWrap}>
-        <Button href={props.registerUrl}>{t("email.referralInvite.cta")}</Button>
-      </Section>
+      <CtaButton href={props.registerUrl}>{t("email.referralInvite.cta")}</CtaButton>
 
-      <Section style={warningBox}>
+      <Note>
         {t("email.referralInvite.ignoreNote")}
         {props.optOutUrl ? (
           <>
             <br />
             {t.rich("email.referralInvite.optOut", {
-              optout: (chunks: React.ReactNode) => (
-                <a href={props.optOutUrl} style={{ color: COLORS.slate500 }}>
-                  {chunks}
-                </a>
-              ),
+              optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
             })}
           </>
         ) : null}
-      </Section>
+      </Note>
     </Layout>
   );
 }

@@ -13,7 +13,7 @@
   "passwordReset": {
     "subject": "🔑 Your password reset link — Rothern",
     "preview": "Link for your password reset request.",
-    "heading": "Reset your password 🔑",
+    "heading": "Reset your password",
     "greeting": "Hello {firstName},",
     "intro": "You requested a password reset for your Rothern account. Click the button below to set a new password.",
     "infoTitle": "Link details",
@@ -139,5 +139,17 @@
     "textItem": "{inviterName} — {tenderTitle}: {url}",
     "textFootnote": "This email bundles buying request invitations sent through Rothern; you have not been added to a marketing list.",
     "textOptOut": "To turn off such invitations: {url}"
+  },
+  "code": {
+    "label": "Verification code",
+    "validity": "The code is valid for {minutes, plural, one {# minute} other {# minutes}}.",
+    "preview": "Your verification code: {code} · valid for {minutes, plural, one {# minute} other {# minutes}}",
+    "previewNoExpiry": "Your verification code: {code}",
+    "textLine": "Your verification code: {code}",
+    "ignoreNote": "If you didn't request this, you can safely ignore this email. Never share this code with anyone.",
+    "twoFactorIgnoreNote": "If you didn't request this, ignore this email and change your password. Never share this code with anyone.",
+    "verifyIntro": "Enter the verification code below to activate your Rothern account.",
+    "loginIntro": "Enter the two-step verification code below to log in to Rothern.",
+    "twoFactorIntro": "Enter the code below to turn two-step verification on or off in your account settings."
   }
 }

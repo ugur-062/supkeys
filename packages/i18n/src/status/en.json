@@ -8229,6 +8229,56 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "email.code.ignoreNote": {
+    "hash": "89c29a19ce",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.label": {
+    "hash": "55c3d6fb9b",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.loginIntro": {
+    "hash": "a99ceec332",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.preview": {
+    "hash": "c5c01e9d82",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.previewNoExpiry": {
+    "hash": "9925131a1c",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.textLine": {
+    "hash": "9925131a1c",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.twoFactorIgnoreNote": {
+    "hash": "17ca41f4ed",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.twoFactorIntro": {
+    "hash": "bb1e022ac7",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.validity": {
+    "hash": "1a3af9da45",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "email.code.verifyIntro": {
+    "hash": "504aaa2e71",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
   "email.domain.activity.CONTRACT_MANUFACTURER": {
     "hash": "83f2840baa",
     "status": "reviewed",
@@ -8465,9 +8515,9 @@
     "at": "2026-09-24"
   },
   "email.passwordReset.heading": {
-    "hash": "1dae13ad95",
+    "hash": "5cd2b5a074",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "email.passwordReset.ignoreNote": {
     "hash": "b3d10d4d31",

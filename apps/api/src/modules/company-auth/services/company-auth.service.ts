@@ -340,20 +340,23 @@ export class CompanyAuthService {
                 ? "api.notifications.companyAuth.girisKoduBaslik"
                 : "api.notifications.companyAuth.dogrulamaKoduBaslik",
             ),
+            // Kod paragraf içinde DEĞİL: şablon ayrı ve belirgin kod bloğunda
+            // basar (etiket, geçerlilik satırı, önizleme metni ve "siz
+            // istemediyseniz" notu alıcının dilinde `email.code.*`). Düz metin
+            // sürümü de kodu taşır (2026-10-04 e-posta tasarımı).
             paragraphs: [
               t(NOTIFY_GREETING_KEY),
               t(
                 kind === "twoFactor"
-                  ? "api.notifications.companyAuth.ikiAdimliAyarKoduGovde"
+                  ? "email.code.twoFactorIntro"
                   : isLogin
-                    ? "api.notifications.companyAuth.girisKoduGovde"
-                    : "api.notifications.companyAuth.dogrulamaKoduGovde",
-                { kod: code },
+                    ? "email.code.loginIntro"
+                    : "email.code.verifyIntro",
               ),
-              t("api.notifications.companyAuth.kodGecerlilik", {
-                dakika: EMAIL_CODE_TTL_MIN,
-              }),
             ],
+            code: { value: code, expiresInMinutes: EMAIL_CODE_TTL_MIN },
+            // 2FA ayar kodu daha sert uyarır: istemediyseniz şifrenizi değiştirin.
+            ...(kind === "twoFactor" ? { footerNote: t("email.code.twoFactorIgnoreNote") } : {}),
           },
         },
         context: { type: isLogin ? "login_2fa" : "email_verify", id: userId },

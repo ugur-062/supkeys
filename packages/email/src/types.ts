@@ -130,14 +130,31 @@ export interface NotificationInfoRow {
   label: string;
   value: string;
 }
+/**
+ * Tek kullanımlık kod (e-posta doğrulama, e-posta ile 2FA girişi, 2FA ayar
+ * kodu). Şablon kodu paragraf içinde DEĞİL, ayrı ve belirgin bir kod
+ * bloğunda basar; etiket ("Doğrulama kodu"), geçerlilik satırı, önizleme
+ * metni ve "siz istemediyseniz yok sayın" notu alıcının dilinde
+ * `email.code.*` anahtarlarından gelir.
+ */
+export interface NotificationCode {
+  /** Kodun kendisi ("488189"). */
+  value: string;
+  /** Geçerlilik süresi (dakika) — verilirse "Kod N dakika geçerlidir." */
+  expiresInMinutes?: number;
+}
 export interface NotificationData {
   subject: string;
+  /** Gelen kutusu önizleme metni; yoksa kodlu e-postada kod + süre, değilse başlık. */
   preview?: string;
   heading: string;
   paragraphs: string[];
   infoRows?: NotificationInfoRow[];
+  /** Kodlu işlem e-postası (bkz. `NotificationCode`). */
+  code?: NotificationCode;
   ctaLabel?: string;
   ctaUrl?: string;
+  /** Gövde altındaki sessiz not; kodlu e-postada verilmezse varsayılan "yok sayın" notu. */
   footerNote?: string;
 }
 
