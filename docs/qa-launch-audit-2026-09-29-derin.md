@@ -259,6 +259,10 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 169. **EN/RU çapa adları** (COPY:NEW-15): *Varsayılan:* pricing/tarify, features/vozmozhnosti, faq/voprosy, categories/kategorii; TR çapaları aynen. Kalan `#bilgi-iste`/`#urunler` son yeniden doğrulamada açık.
 170. **Meta açıklamalarında paket adları** (COPY:NEW-11): *Varsayılan:* Silver/Gold adıyla geçiyor; bazı TR metinler 160 karakteri aşıyor ve son yeniden doğrulamada tam paket adında kesildiği görüldü. Pazarlama ifadesi istenirse değiştirilir.
 
+**Ücretsiz üye talep görünümü (2026-10-03):**
+
+171. **Ücretsiz üyede herkese açık talepler alıcı gizli** — **KARAR VERİLDİ (kullanıcı kararı 2026-10-03):** "bu şekilde gözükmesin ücretsiz üyelere bunlar normal satın alma talebi gibi şirket isimleri gizli şekilde gözükmeli bu çirkin duruyor ama en yukarı da bağlantılı üyelerininki gözükmeli". STANDART üye Açık Talepler'de önce davetli/bağlantılı talepleri, altında aynı satır bileşeniyle alıcı adı gizli herkese açık talepleri görür. Teklif, tam detay, alıcı kimliği ve belgeler Silver'da kalır. Veri yalnız herkese açık yansıtmadan (`toPublicListingCard`/`toPublicListingDetail`) gelir ve vitrin kapısıyla (`marketplaceListingWhere`) kesişir. Büyük kilit kartı ve `locked-summary` silindi (60545f8a, 57def2ad). Ayrıntı ve doğrulama: `docs/qa-ui-test-2026-10-01.md` "Ücretsiz üyede herkese açık talepler alıcı gizli".
+
 ### Regresyon
 
 - **İlk kapı (HEAD 806c0e77):** 7 kapının 6'sı yeşil. `i18n:check` cırcırı 5 API dosyasında tabanı aştı: yeni Türkçe günlük ve iç hata literalleri (2171890b, da98caca, 73d31761, 9a276af3, 5507c878). a6d09191 bu metinleri İngilizce ASCII'ye çevirdi; cırcır yeşile döndü.
