@@ -119,7 +119,8 @@ test("iki ayrı tedarikçi teklif verir; kapalı zarf, paket ve rol kapıları",
   const maskedText = JSON.stringify(freeMasked.body);
   expect(maskedText, "maskeli yanıtta iç kimlik").not.toContain(id);
   expect(maskedText, "maskeli yanıtta alıcı adı").not.toContain("QA Alıcı");
-  expect(Object.keys(maskedRow!.company).sort()).toEqual(["activities", "city", "country", "industry", "verified"]);
+  // Alıcı şehri talep yüklerinden kalktı (bd32f484, 2026-10-04): yalnız ülke kalır.
+  expect(Object.keys(maskedRow!.company).sort()).toEqual(["activities", "country", "industry", "verified"]);
   const maskedDetail = await apiGet(free, `/company/listings/seller-tenders/masked/${maskedRow!.number}`);
   expect(maskedDetail.status).toBe(200);
   expect(JSON.stringify(maskedDetail.body)).not.toContain(id);
