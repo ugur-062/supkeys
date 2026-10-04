@@ -181,7 +181,26 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
 - **Ülke listesi TAM** (`data/countries.ts` `COUNTRY_TABLE`: 245 = ISO +
   `XK` Kosova + `XN` KKTC; kod · Türkçe ad · telefon kodu). STATİK (Intl'den
   türetilmez — sunucu/tarayıcı ICU farkı hidrasyon uyuşmazlığı üretirdi); EN/RU
-  adı `countryDisplayName` (Intl + `XN` elle). `XN`/`XK` bayrağı çizilmez.
+  adı `countryDisplayName` (Intl + `XN` elle).
+- **ÜLKE GÖSTERİMİ = SVG BAYRAK, EMOJİ ASLA (2026-10-04, kullanıcı isteği):**
+  ISO kodu ya da emoji bayrak basılmaz (Windows emojiyi 'TR' harfleriyle
+  basar). Web tek bileşen `components/ui/country-flag.tsx`: `CountryFlag`
+  (sm 16×12, md 20×15, lazy; ad yanında yazılıyorsa alt="" + aria-hidden,
+  yalnızsa yerelleştirilmiş ad alt/title) ve `CountryLabel` (bayrak + ad;
+  `max-w-full` + `title`). Dosyalar flag-icons 7.5.0 (MIT) 4x3 seti,
+  `apps/{web,admin}/public/flags/4x3/<kod>.svg`; varlık kararı tek kaynak
+  `@rothern/shared` `hasFlagAsset`/`flagAssetPath`. `XK` çizilir, `XN`
+  dosyasız → 'KKTC' metni; bilinmeyen kod metin. Admin'in kendi eşdeğer
+  bileşeni var (web'inkini içe aktarma). Native `<option>` ve e-postada yalnız
+  ad. Emoji yardımcıları (`countryFlag`, `codeToFlag`, `PhoneCountry.flag`)
+  silindi, geri getirme. Talep satırının alıcı hücresinde ülke kırpılmaz,
+  alt satıra kayar.
+- **Büyük Headless UI listesi tembel çizilir:** yüzlerce seçenekli Combobox
+  açılış/kapanışta n² maliyetli. `CountryCombobox` ilk 60 satırı çizer
+  (`OPTION_PAGE=60`), dibe kaydırdıkça çizilen sayıdan bir sayfa büyür, seçili
+  ülke hep aralıkta; seçenek satırları ve telefonun `<option>` listesi
+  önbellekli. Büyük her Headless listesinde bu kalıp; Headless `virtual` modu
+  jsdom'da hiçbir şey çizmez.
 - **Profil:** özel profiller (TR, KKTC, RU, AZ, KZ, UZ, CN, AE) aynen; profili
   olmayan her geçerli ülke `getCountryProfile` ile VARSAYILAN yabancı profil
   alır — **3 belge** (sicil + vergi kaydı + yetkili kimliği/pasaportu; kullanıcı
@@ -288,7 +307,7 @@ slug'ı — `/urunler/sehir/bursa` DEĞİŞMEZ; GeoNames'in ilçe ölçekli TR
   `CityCombobox` (serbest yazım açık; Headless `Input` — düz `<input>`
   Catalyst `Label`ına bağlanmaz). Uçlar `GET public/geo/cities?q&country`,
   `GET public/geo/cities/:slug`.
-- **Süzgeç/facet:** şehir facet'i `{city: slug, name, country, count}` (ad
+- **Süzgeç/facet:** şehir facet'i (ürün/firma dizini; talep listelerinde YOK) `{city: slug, name, country, count}` (ad
   okuyucunun dilinde); `?ulke=<CC>` SATICI ÜLKESİ süzgeci + facet'i (ürün ve
   firma dizini, panel dahil); "Yakınımda" dünya genelinde (haversine; yabancı
   posta kodu ÇÖZÜLMEZ, rakam yalnız TR). Ülke sayfası `/urunler/ulke/<cc>-<ad>`
@@ -423,13 +442,28 @@ davette kalemler olsun ki cazip gelsin, dil kusursuz, filtreler dahil tüm
   reddedilir. Onboarding ülkeyi telefon/dilden başlatır (EN'de seçim zorunlu),
   mahalle adres satırına eklenir (yalnız TR), yabancı firma Firma Bilgileri'nde
   eyalet/bölge düzenler. Onboarding başlığı "Şirket bilgileri" (doğrulama DEĞİL).
-- **SÜZGEÇ/UYGUNLUK:** Açık Talepler şehir süzgeci kalıcı slug (`?sehir=
-  de-munich`; ham metin yedeği) + alıcı ülkesi (`?ulke=`). Ülke kısıtlı talep:
-  herkese açık sayfada "Yalnız … merkezli tedarikçiler" notu; panelde uygun
-  olmayan firmaya 404 değil 403 `COUNTRY_NOT_ELIGIBLE` (+ `targetCountries`,
-  içerik YOK; görünürlük kuralı önce). Talep dizininde ülke süzgecinin anlamı
-  "Teklif verebilecek tedarikçi ülkesi" (sayı = tüm ülkelere açık + o ülkeyi
-  hedefleyen). Birim eşanlamlıları EN çoğul + RU (шт, кг, кв.м…).
+- **TALEP KONUMU = ALICI ÜLKESİ, ŞEHİR YOK (2026-10-04, sahip kararı):**
+  alım talebinde konum talebin açıldığı ülke (alıcı firmanın ülkesi,
+  `company.country`/`ownerCountry`). Alıcı şehri hiçbir talep yüzeyinde
+  basılmaz ve yüke yazılmaz (herkese açık kart/detay `company.city`, maskeli
+  satır `ownerCitySlug/Label`, `sellerTenders` `ownerCity*` kalktı; SEO metni
+  `web.seo.buyerCountry`, JSON-LD `areaServed` yalnız `addressCountry`).
+  **Talep listelerinde şehir süzgeci YOK:** herkese açık `/alim-talepleri`
+  alıcı ülkesi `?aliciUlke=<ISO,...>` (API `buyerCountry`, facet
+  `facets.buyerCountries`, bayrak + ad + sayı); orada `?ulke=` hâlâ "Teklif
+  verebilecek tedarikçi ülkesi" (sayı = tüm ülkelere açık + o ülkeyi
+  hedefleyen). Panel Açık Talepler'de `?ulke=` = alıcı ülkesi (tek ülke olsa
+  da grup çizilir). Eski `?sehir=`/`?il=` bağlantıları kabul edilir ve yok
+  sayılır; API `city` sorgu parametresi uyumluluk için kabul edilip yok
+  sayılır. AI satış araması şehri alıcı ülkesine çevirir. Ürün/firma
+  dizinlerinin şehir süzgeci DEĞİŞMEDİ.
+- **Hedef ülke kapsamı bayrakla:** `components/tenders/target-scope.tsx`;
+  küre simgesi yalnız 'Tüm ülkeler'; tek hedef alıcı ülkesine eşitse
+  'Türkiye · yalnız yurt içi tedarikçiler' (ülke iki kez yazılmaz).
+- **UYGUNLUK:** ülke kısıtlı talep herkese açık sayfada "Yalnız … merkezli
+  tedarikçiler" notu taşır; panelde uygun olmayan firmaya 404 değil 403
+  `COUNTRY_NOT_ELIGIBLE` (+ `targetCountries`, içerik YOK; görünürlük kuralı
+  önce). Birim eşanlamlıları EN çoğul + RU (шт, кг, кв.м…).
 - **SEO/GEO:** hreflang/x-default/sitemap YALNIZ hazır diller (`buildMetadata(
   { locales })`, API detay `readyLocales` + `sourceLocale`; x-default hazır
   ilk dile tr → en → ru). Sözleşme sayfaları yalnız tr (EN/RU kanoniği TR).
@@ -1041,10 +1075,25 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   Doğrulandı: 14 sayfa `colorScheme: "dark"` emülasyonuyla tarandı, koyu kutu/
   kontrol yok. **E-POSTA AYRI DÜNYA:** Gmail/Apple Mail zemini ve metni ters
   çevirir ama GÖRSELİ ÇEVİRMEZ; `prefers-color-scheme`/CSS `filter` çoğu
-  istemcide çalışmaz. Bu yüzden e-posta logosu KENDİ beyaz yuvarlak kart
-  zeminini taşır (`packages/email/scripts/build-email-logo.mjs` → `src/assets/
-  logo.ts`). Logoyu değiştirirken scripti yeniden koş; şeffaf zeminli siyah logo
-  koyu modda KAYBOLUR (2026-09-11'de canlıda görüldü).
+  istemcide çalışmaz. Logo bu yüzden gri sayfa zemininde DEĞİL, beyaz kartın
+  BAŞLIĞINDA durur (görselin beyaz zemini kartla aynı renk, açık modda çerçeve
+  görünmez). İki CID logo var (`packages/email/scripts/build-email-logo.mjs` →
+  `src/assets/logo.ts`): beyaz zeminli olan Gmail/Outlook masaüstünde metin
+  sütunuyla hizalı küçük chip; şeffaf zeminli açık logo yalnız
+  `prefers-color-scheme` okuyan istemcide ve Outlook.com `[data-ogsc]`'de
+  görünür (varsayılan `display:none` + `mso-hide:all`). Logoyu değiştirirken
+  scripti yeniden koş; tek şeffaf siyah logo koyu modda KAYBOLUR.
+- **E-POSTA TASARIMI VE METNİ (2026-10-04):** ortak gövde parçaları
+  `packages/email/src/templates/_components/blocks.tsx` (kendi kutunu yazma).
+  Tek kullanımlık kod her zaman `CodeBlock` (büyük, harf aralıklı, tek metin
+  düğümü, kopyalanan değer boşluksuz; geçerlilik + "siz istemediyseniz" notu;
+  önizleme ve düz metinde de kod). Mono font e-postada da YOK
+  (`tabular-nums`). 375 px'te tek sütun. Metin (`api.notifications.*`,
+  `email.*`): düğme ve başlıklar cümle düzeninde; tipografik tırnak (TR/EN
+  “…”, EN ’, RU «…»; TR kesme işareti düz kalır); RU cinsiyet nötr ('(а)'
+  kalıbı yok); CTA kısa, 375 px'te tek satıra sığsın diye ~22 karakteri
+  geçmez. Gövde bir arayüz düğmesinin adını anıyorsa o dilde `web.json`'daki
+  etiketin AYNISI yazılır.
 - **"parola" DEĞİL "şifre" (2026-09-10 kararının kalanı 2026-09-11'de kapandı):**
   giriş, kayıt, davet ve şifre sıfırlama ekranları dahil kullanıcı metinlerinin
   hepsi "şifre"; kod içi değişken adları (`password`) değişmez.
@@ -1528,7 +1577,7 @@ Tek kaynak `@rothern/shared` `helpers/tier.ts` (`TIER_ORDER` STANDART<SILVER<GOL
 
 | Paket | Ne | Koltuk |
 |-------|----|--------|
-| STANDART (ücretsiz) | profil + 50 ürünlük vitrin + dizinde yer (paketlilerden SONRA); davetli/bağlantılı talebe teklif, mesaj, sipariş; **PUBLIC talepleri GÖRMEZ**, bağlantı daveti gönderemez, gelen bilgi talebi ANONİM | 2 |
+| STANDART (ücretsiz) | profil + 50 ürünlük vitrin + dizinde yer (paketlilerden SONRA); davetli/bağlantılı talebe teklif, mesaj, sipariş; **PUBLIC talepleri yalnız alıcısı gizli maskeli satır olarak görür, teklif veremez**, bağlantı daveti gönderemez, gelen bilgi talebi ANONİM | 2 |
 | SILVER (satış paneli) | dizinde öncelik + "Doğrulanmış", sınırsız ürün + belge/video, PUBLIC talep görme/teklif, bağlantı daveti, bilgi talebi kimliği+yanıt, Ziyaret Edenler, İş Analizi, satış AI'ı | 4 |
 | GOLD (iki panel) | Silver + satınalma paneli (talep açma, kazandırma, onay akışı, raporlar, şablonlar, talep AI'ı) + "Gold Üye" | 6 |
 
@@ -1597,8 +1646,31 @@ publish ile aynı advisory kilit (`hashtext(companyId)`) altında sayar; tavan d
 `hidden` = PUBLIC ∧ bağsız ∧ davetsiz ∧ STANDART → satır sorguya HİÇ girmez,
 `getOne` **403 `{code:"TIER_REQUIRED"}`** (404 değil — pazar yerinde teaser
 zaten açık). İstisna: bağlıyken teklif vermiş firma (`hasBid`) bağlantı düşse de
-kendi teklifinin talebini açar. Kilit kartı gerçek SAYI gösterir
-(`locked-summary`), maskeli önizleme KALKTI.
+kendi teklifinin talebini açar.
+
+**Ücretsiz üyede PUBLIC talepler maskeli satır (2026-10-03, sahip kararı).**
+Kilit kartı, `locked-summary` ucu ve `lockedPublicSummary` YOK. STANDART'ın
+Açık Talepler'i iki grup: üstte davetli/bağlantılı talepler (teklif
+verilebilir), altta herkese açık talepler aynı satır bileşeniyle, alıcı gizli
+(`MaskedSectionLabel` + tek satır Silver notu; sıralama grup içinde). Satır
+'Alıcı gizli · <bayrak> <ülke>', 'Doğrulanmış alıcı' rozeti, 'Teklif ver ·
+Silver' CTA'sı (doğrulama önce). Uçlar `GET company/listings/seller-tenders/
+masked` ve `…/masked/:number`; detay `/company/satis/acik-talep/[number]`.
+- **Veri YALNIZ herkese açık yansıtmadan:** `toPublicListingCard`/
+  `toPublicListingDetail` (`public-listing.projection.ts`, `/talep/<slug>` ile
+  aynı tek kaynak). Firma adı/unvan/slug/logo/Rothern ID/adres/kişi/web sitesi,
+  iç kimlikler, ekler, şartname, marka, hedef fiyat, iç notlar yanıta girmez;
+  maskeli yanıt için ayrı serializer YAZMA. Satır numarayla açılır, numarasız
+  talep kümeye girmez.
+- Maskeli küme `marketplaceListingWhere` ile kesişir: vitrin kapalı/
+  yayımlanmamış/embargolu talep anonime nasıl kapalıysa ücretsiz üyeye de
+  kapalı. Davetli, bağlantılı ya da teklif verilmiş talep maskelenmez; engelli
+  firmalar iki yönde görünmez; CONNECTIONS/PRIVATE 404.
+- Teklif (403), tam detay (403 `TIER_REQUIRED`) ve belge kapıları aynı;
+  paketli üye maskeli uçtan boş liste alır. Sözleşme
+  `masked-public-tenders.spec.ts` satır/firma alan kümesini birebir sabitler.
+- Hiçbir metin (profil kilit notu dahil) ücretsiz üyeyi alıcıyı eşleştirmeye
+  davet etmez.
 
 ### İzin modeli
 **Doğruluk kaynağı `CompanyUser.permissions String[]`**; `roles` ETİKET (listeden
@@ -1832,8 +1904,8 @@ derin denetim 2026-09-30 LU-01). Firma dizininde Rothern ID eşleşmesi yalnız 
 Herkese açık talep sayfasında firma adı/logosu/profil bağlantısı GÖSTERİLMEZ;
 `PUBLIC_LISTING_SELECT` bir **beyaz listedir** (listelenmeyen kolon Prisma'dan
 hiç dönmez) ve JSON-LD'de `Organization` düğümü YOKTUR. Gerekçe: "kim alıyor"
-rekabet istihbaratıdır. Gösterilen: şehir, ülke, sektör, faaliyet tipi —
-kimlik değil nitelik.
+rekabet istihbaratıdır. Gösterilen: ülke (bayrakla), sektör, faaliyet tipi —
+kimlik değil nitelik. Alıcı şehri gösterilmez (bkz. "TALEP KONUMU").
 
 **Kalem ADLARI herkese açık (2026-09-18, kullanıcı kararı: "kalemlerin neler
 olduğu gözüksün, firma bilgisi zaten gizli"):** `items[].name` projeksiyonda;
@@ -3218,15 +3290,18 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **304 dosya / 3.496 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
-  **331 / 2.371** · admin **64 / 380** · i18n **11 / 65** (vitest toplamı 406 / 2.816; i18n 8.392 anahtar, en/ru
-  %100) — son kapı HEAD 8d1d9235 YEŞİL, 710 dosya / 6.312 test (2 LIVE atlandı), canlı öncesi küçük tur
-  2026-10-03. Web `onboarding-client` D-065 tam paralel koşuda 15 sn sınırına yakın (kararsız; tek başına yeşil).
+- API **306 dosya / 3.528 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
+  **335 / 2.413** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 411 / 2.864; i18n 8.428 anahtar, en/ru
+  %100) — son kapı HEAD e1831a3d YEŞİL (9/9), 717 dosya / 6.392 test (2 LIVE atlandı), son toparlama 2026-10-04.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
   kırmızı (servisin `end = new Date()` ↔ `createdAt @default(now())` yarışı) —
   yeniden koşuda yeşil, gerileme sayılmaz.
+- **Web form testlerinde kurulum alanları paste ile:** sınanmayan alanları
+  tıklama + `user.paste` yardımcısıyla doldur, `user.type` yalnız sınanan alanda.
+  Her tuş vuruşu tüm formu yeniden çizer; tam paket paralel yükünde bu testleri
+  15 sn sınırının ötesine itiyordu.
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
   Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
   (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`

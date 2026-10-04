@@ -263,6 +263,10 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 
 171. **Ücretsiz üyede herkese açık talepler alıcı gizli** — **KARAR VERİLDİ (kullanıcı kararı 2026-10-03):** "bu şekilde gözükmesin ücretsiz üyelere bunlar normal satın alma talebi gibi şirket isimleri gizli şekilde gözükmeli bu çirkin duruyor ama en yukarı da bağlantılı üyelerininki gözükmeli". STANDART üye Açık Talepler'de önce davetli/bağlantılı talepleri, altında aynı satır bileşeniyle alıcı adı gizli herkese açık talepleri görür. Teklif, tam detay, alıcı kimliği ve belgeler Silver'da kalır. Veri yalnız herkese açık yansıtmadan (`toPublicListingCard`/`toPublicListingDetail`) gelir ve vitrin kapısıyla (`marketplaceListingWhere`) kesişir. Büyük kilit kartı ve `locked-summary` silindi (60545f8a, 57def2ad). Ayrıntı ve doğrulama: `docs/qa-ui-test-2026-10-01.md` "Ücretsiz üyede herkese açık talepler alıcı gizli".
 
+**Son toparlama (2026-10-04):**
+
+172. **Talep listelerinde şehir yerine alıcı ülkesi süzgeci** — **KARAR VERİLDİ (sahip kararı 2026-10-04):** talep satırları şehir yerine alıcı ülkesini gösterdiği için alıcı şehri süzgeci kaldırıldı. Herkese açık `/alim-talepleri` alıcı ülkesini `?aliciUlke=<ISO,...>` ile süzer (API `buyerCountry`, `facets.buyerCountries`); `?ulke=` teklif verebilecek tedarikçi ülkesi olarak kalır. Panel Açık Talepler'de `?ulke=` alıcı ülkesidir. Eski `?sehir=`/`?il=` bağlantıları ve API `city` parametresi kabul edilip yok sayılır. Alıcı şehri hiçbir talep yükünde yok (bd32f484). Ayrıntı: `docs/qa-ui-test-2026-10-01.md` "Son toparlama (2026-10-04)".
+
 ### Regresyon
 
 - **İlk kapı (HEAD 806c0e77):** 7 kapının 6'sı yeşil. `i18n:check` cırcırı 5 API dosyasında tabanı aştı: yeni Türkçe günlük ve iç hata literalleri (2171890b, da98caca, 73d31761, 9a276af3, 5507c878). a6d09191 bu metinleri İngilizce ASCII'ye çevirdi; cırcır yeşile döndü.
