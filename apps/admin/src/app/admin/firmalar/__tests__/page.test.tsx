@@ -113,8 +113,9 @@ describe("FirmalarView — durum tablosu", () => {
     };
     render(<AdminFirmalarPage />);
     expect(screen.getByText("Acme A.Ş.")).toBeInTheDocument();
-    // Ülke hücresi: bayrak + kod
-    expect(screen.getByText(/TR/)).toBeInTheDocument();
+    // Ülke hücresi: yalnız bayrak (kod metni yok) — erişilebilir ad = ülke adı
+    const flag = screen.getByRole("img", { name: "Türkiye" });
+    expect(flag).toHaveAttribute("src", "/flags/4x3/tr.svg");
     // Gold rozet + bitiş tarihi ("Gold" ayrıca üyelik filtresi
     // option'ında da geçer → getAllBy).
     expect(screen.getAllByText("Gold").length).toBeGreaterThanOrEqual(2);
