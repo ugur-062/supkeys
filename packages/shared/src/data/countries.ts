@@ -301,6 +301,26 @@ export function isTurkey(code: string | null | undefined): boolean {
 }
 
 /**
+ * BAYRAK GÖRSELİ (2026-10-04, kullanıcı: "TR AZ DE yerine küçük bayraklar"):
+ * emoji bayrağı Windows çizmez (iki harf basar), başsız Chromium kutu basar.
+ * Bayraklar flag-icons 7.5.0 (MIT) 4x3 SVG'leri olarak projeye kopyalandı:
+ * `apps/{web,admin}/public/flags/4x3/<kod-küçük-harf>.svg` (dış istek yok).
+ * Tablodaki her kodun dosyası VAR, tek istisna `XN` KKTC (ISO'da yok, set'te
+ * yok) — bileşen orada metne düşer. `XK` Kosova'nın dosyası var. Sözleşme:
+ * web `country-flag.test` her kod için dosyayı arar.
+ */
+export function hasFlagAsset(code: string | null | undefined): boolean {
+  if (!code) return false;
+  const c = code.trim().toUpperCase();
+  return c !== "XN" && COUNTRY_CODES.has(c);
+}
+
+/** Bayrak SVG'sinin herkese açık yolu (`/flags/4x3/tr.svg`); dosyası yoksa `null`. */
+export function flagAssetPath(code: string | null | undefined): string | null {
+  return hasFlagAsset(code) ? `/flags/4x3/${(code as string).trim().toLowerCase()}.svg` : null;
+}
+
+/**
  * Ülke kodundan BAYRAK emojisi — kart ve dizin satırlarında ad okunmadan
  * ülke ayırt edilsin diye (Europages kalıbı).
  *
