@@ -105,14 +105,30 @@ export class CompanyListingsController {
   }
 
   /**
-   * Ücretsiz üyenin kilit kartı (2026-09-06): Silver ile açılacak PUBLIC talep
-   * sayıları + bulanık örnek satırlar (gerçek veri). Paketliye `{ locked: false }`.
-   * `:id`den ÖNCE bildirilmeli (iki parçalı yol olsa da sıra açık kalsın).
+   * ÜCRETSİZ ÜYENİN MASKELİ TALEPLERİ (2026-10-03): Silver bir üyenin göreceği
+   * herkese açık talepler, ALICI KİMLİĞİ GİZLİ — herkese açık kart yansıtması
+   * (`toPublicListingCard`). Davetli/bağlantılı talepler `seller-tenders`te tam
+   * satır kalır, burada YOK. Paketliye boş dizi. Teklif/belge/detay kapıları
+   * değişmedi (STANDART'a 403). `:id`den ÖNCE bildirilir.
    */
-  @Get("seller-tenders/locked-summary")
+  @Get("seller-tenders/masked")
   @RequireCompanyPermission("sell:view")
-  lockedSummary(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.lockedPublicSummary(user);
+  maskedTenders(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.maskedPublicTenders(user);
+  }
+
+  /**
+   * Maskeli talep görünümü — numarayla (iç kimlik ücretsiz üyeye verilmez).
+   * Gövde herkese açık `/talep/<slug>` detayıyla aynı serileştirici; talep
+   * maskesiz görülebiliyorsa `{ masked:false, id }` (panel tam detaya geçer).
+   */
+  @Get("seller-tenders/masked/:number")
+  @RequireCompanyPermission("sell:view")
+  maskedTender(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("number") number: string,
+  ) {
+    return this.service.maskedPublicTender(user, number);
   }
 
   /**

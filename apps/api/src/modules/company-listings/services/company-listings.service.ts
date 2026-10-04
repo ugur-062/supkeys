@@ -79,6 +79,20 @@ import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
 import { PENDING_AI_SUGGESTION_RUN_WHERE } from "../../../common/company/ai-suggestions";
 import { geoIndex } from "../../../common/geo/geo-index";
+import {
+  PUBLIC_LISTING_SELECT,
+  excerptOf,
+  toPublicListingDetail,
+  type PublicCategoryMap,
+} from "../../public-marketplace/dto/public-listing.projection";
+import {
+  MASKED_LISTING_SELECT,
+  isListingNumber,
+  toMaskedTenderRow,
+  type MaskedTenderDetail,
+  type MaskedTenderRow,
+  type UnmaskedTenderRedirect,
+} from "../masked-public-tenders";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -880,7 +894,8 @@ export class CompanyListingsService {
       number: listing.number ?? "—",
     };
     // Ücretsiz (efektif STANDART) alıcı: talep ona KİLİTLİ — metin dürüst olsun,
-    // CTA paket sayfasına (kilit kartı satış anasayfasında da sayıyı gösterir).
+    // CTA paket sayfasına (satış anasayfası talebi alıcı adı gizli satır olarak
+    // listeler — `maskedPublicTenders`, 2026-10-03).
     // Ücretsiz ama alıcıyla GEÇERLİ bağlantısı olan firma talebi görebilir ve
     // teklif verebilir → ona da açık metin (denetim 2026-09-06 #5).
     const ownerConnected = new Set(await this.connectedCompanyIds(listing.companyId));
@@ -1049,8 +1064,8 @@ export class CompanyListingsService {
       });
     }
     if (freeIds.length > 0) {
-      // Ücretsiz üyeye talep bağlantısı VERİLMEZ (403 alırdı); satış anasayfası
-      // kilit kartı sayıyı gösterir, CTA paket sayfasına.
+      // Ücretsiz üyeye tam talep bağlantısı VERİLMEZ (403 alırdı); satış
+      // anasayfası talebi alıcı adı gizli listeler, CTA paket sayfasına.
       await this.notifications.pushToCompanies(freeIds, {
         type: "listing_category_match",
         titleKey: K.lockedInAppTitle,
@@ -2926,8 +2941,9 @@ export class CompanyListingsService {
    * Kural: kendi ilanın ve bloklu firmanın ilanı HARİÇ; DAVETLİYSEN her şey
    * görünür, değilsen ülke kapsamı ∧ görünürlük. PUBLIC: paketli (SILVER+)
    * izleyene hepsi, ÜCRETSİZ izleyene yalnız BAĞLI olduğu firmanınkiler
-   * (2026-09-06 — eski "maskeli önizleme" kalktı; `listingBidEligibility.hidden`
-   * ile birebir). CONNECTIONS yalnız bağlantılılara.
+   * (`listingBidEligibility.hidden` ile birebir; ücretsizin göremediği PUBLIC
+   * talepler alıcı adı gizli ayrı uçtan gelir — `maskedPublicTenders`,
+   * 2026-10-03). CONNECTIONS yalnız bağlantılılara.
    */
   private sellerVisibleWhere(o: {
     type: ListingType;
@@ -3494,52 +3510,88 @@ export class CompanyListingsService {
   }
 
   /**
-   * ÜCRETSİZ ÜYE KİLİT KARTI (2026-09-06): Standart üye bağsız PUBLIC talepleri
-   * görmez; satış anasayfasında yalnız GERÇEK sayıları ve bulanık örnek
-   * satırları görür ("Silver ile açılacak N talep"). Uydurma veri yok — sayım,
-   * Silver olsaydı `sellerVisibleWhere`in göstereceği kümeden (bağlı/davetli
-   * olduğu için ZATEN gördükleri hariç). Örnek satırlar pazar yeri teaser'ıyla
-   * aynı alanlar (başlık, kategori, kalem sayısı, şehir, kapanış) — kimlik yok.
-   * Paketli üyeye `{ locked: false }`; sayım bile yapılmaz.
+   * MASKELİ KÜME — ücretsiz (STANDART) üyenin alıcı kimliği GİZLİ gördüğü
+   * herkese açık talepler (2026-10-03, kullanıcı kararı; eski kilit kartının
+   * saydığı küme ile AYNI): Silver olsaydı `sellerVisibleWhere`in göstereceği
+   * PUBLIC talepler, eksi kendi/engelli/BAĞLI firmalarınki, eksi davetli
+   * olduğu ve teklif verdiği talepler — onlar zaten `sellerTenders`te TAM
+   * satır olarak durur. Davetli ya da bağlı talep ASLA maskelenmez.
    */
-  async lockedPublicSummary(user: AuthenticatedCompanyUser) {
-    if (tierAtLeast(user.tier, PAID_TIER)) return { locked: false as const };
+  private maskedPublicWhere(o: {
+    companyId: string;
+    connectedIds: string[];
+    blockedIds: string[];
+    country: string | null | undefined;
+  }): Prisma.ListingWhereInput {
+    return {
+      AND: [
+        this.sellerVisibleWhere({
+          type: "ALIM",
+          companyId: o.companyId,
+          connectedIds: o.connectedIds,
+          blockedIds: o.blockedIds,
+          country: o.country,
+          viewerPaid: true,
+        }),
+        {
+          visibility: "PUBLIC",
+          // Maskeli satır NUMARAYLA açılır (iç kimlik verilmez) — numarasız
+          // (eski/tutarsız) kayıt açılamayacağı için listelenmez.
+          number: { not: null },
+          companyId: { notIn: [o.companyId, ...o.blockedIds, ...o.connectedIds] },
+          invitations: { none: { invitedCompanyId: o.companyId } },
+          bids: { none: { bidderCompanyId: o.companyId } },
+        },
+      ],
+    };
+  }
+
+  /** Herkese açık yansıtmanın kategori haritası (kod → ad, okuyucunun dilinde). */
+  private async publicCategoryMap(codes: string[]): Promise<PublicCategoryMap> {
+    const unique = [...new Set(codes)].filter(Boolean);
+    if (unique.length === 0) return new Map();
+    const rows = await this.prisma.category.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, level: true, ...CATEGORY_NAME_SELECT },
+    });
+    return new Map(rows.map((r) => [r.id, { id: r.id, name: categoryName(r), level: r.level }] as const));
+  }
+
+  /**
+   * ÜCRETSİZ ÜYENİN MASKELİ TALEP SATIRLARI (2026-10-03) — Açık Talepler'de
+   * davetli/bağlantılı taleplerin ALTINDA normal satır olarak çizilir. Veri
+   * herkese açık yansıtmadan (`MASKED_LISTING_SELECT` + `toPublicListingCard`):
+   * alıcı adı/unvanı/slug/logo/Rothern ID/adres/kişi/ek/şartname YOK. Teklif,
+   * belge, detay (`getOne` 403 TIER_REQUIRED) kapıları DEĞİŞMEDİ.
+   * Paketliye boş dizi: o zaten tüm PUBLIC talepleri `sellerTenders`te görür.
+   */
+  async maskedPublicTenders(user: AuthenticatedCompanyUser): Promise<MaskedTenderRow[]> {
+    if (tierAtLeast(user.tier, PAID_TIER)) return [];
     const companyId = user.companyId;
-    const [connectedIds, blockedIds, me] = await Promise.all([
+    const [connectedIds, blockedIds, me, myProducts] = await Promise.all([
       this.connectedCompanyIds(companyId),
       this.blocks.blockedCompanyIds(companyId),
       this.prisma.company.findUnique({
         where: { id: companyId },
         select: { sellerCategoryIds: true, sellerSubCategoryIds: true },
       }),
+      this.prisma.companyItem.findMany({
+        where: { companyId, isActive: true },
+        select: { name: true, categoryId: true, keywords: true },
+        orderBy: { updatedAt: "desc" },
+        take: 500,
+      }),
     ]);
     const rows = await this.prisma.listing.findMany({
-      where: {
-        ...this.sellerVisibleWhere({
-          type: "ALIM",
-          companyId,
-          connectedIds,
-          blockedIds,
-          country: user.country,
-          viewerPaid: true,
-        }),
-        visibility: "PUBLIC",
-        companyId: { notIn: [companyId, ...blockedIds, ...connectedIds] },
-        invitations: { none: { invitedCompanyId: companyId } },
-        bids: { none: { bidderCompanyId: companyId } },
-      },
-      select: {
-        title: true,
-        categoryIds: true,
-        closesAt: true,
-        publishedAt: true,
-        isInternational: true,
-        company: { select: { city: true } },
-        _count: { select: { items: true } },
-      },
-      orderBy: { publishedAt: "desc" },
+      where: this.maskedPublicWhere({ companyId, connectedIds, blockedIds, country: user.country }),
+      select: MASKED_LISTING_SELECT,
+      orderBy: [{ closesAt: "asc" }, { number: "asc" }],
       take: SELLER_SCAN_CAP,
     });
+    if (rows.length === 0) return [];
+
+    const cats = await this.publicCategoryMap(rows.flatMap((r) => r.categoryIds));
+    const productMatcher = buildProductMatcher(myProducts);
     const mySegs = new Set(me?.sellerCategoryIds ?? []);
     const mySubs = new Set(me?.sellerSubCategoryIds ?? []);
     const inMyCategories = (codes: string[]) => {
@@ -3547,28 +3599,115 @@ export class CompanyListingsService {
       const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(codes);
       return segmentIds.some((c) => mySegs.has(c)) || subCandidates.some((c) => mySubs.has(c));
     };
-    const weekAgo = Date.now() - 7 * 86_400_000;
-    const samples = rows.slice(0, 3);
-    const catIds = [...new Set(samples.map((r) => r.categoryIds[0]).filter((c): c is string => !!c))];
-    const cats = catIds.length
-      ? await this.prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
-      : [];
-    const catName = new Map(cats.map((c) => [c.id, categoryName(c)] as const));
-    return {
-      locked: true as const,
-      total: rows.length,
-      inMyCategories: rows.filter((r) => inMyCategories(r.categoryIds)).length,
-      thisWeek: rows.filter((r) => r.publishedAt != null && r.publishedAt.getTime() >= weekAgo).length,
-      itemCount: rows.reduce((sum, r) => sum + r._count.items, 0),
-      samples: samples.map((r) => ({
-        title: r.title,
-        category: r.categoryIds[0] ? (catName.get(r.categoryIds[0]) ?? null) : null,
-        itemCount: r._count.items,
-        closesAt: r.closesAt,
-        city: r.company.city,
-        isInternational: r.isInternational,
-      })),
-    };
+    const geo = geoIndex();
+    const readerLocale = currentLocale();
+    const built = rows.map((r) => {
+      const pm = productMatcher.match(r.categoryIds, `${r.title} ${r.items.map((i) => i.name).join(" ")}`);
+      const city = geo.byId(r.company.cityId);
+      return {
+        row: toMaskedTenderRow(r, cats, {
+          ownerCitySlug: city?.slug ?? null,
+          ownerCityLabel: city ? geo.label(city, readerLocale) : null,
+          categoryMatch: inMyCategories(r.categoryIds),
+          productMatch: pm.matched,
+          matchedProduct: pm.product,
+        }),
+        id: r.id,
+        companyId: r.company.id,
+        sameCountry: !!user.country && r.company.country === user.country,
+      };
+    });
+    // Sıra `sellerTenders` merdiveninin herkese açık basamakları: ürün
+    // eşleşmesi › kategori eşleşmesi › aynı ülke; kalanı yakın kapanış.
+    built.sort(
+      (a, b) =>
+        Number(b.row.productMatch) - Number(a.row.productMatch) ||
+        Number(b.row.categoryMatch) - Number(a.row.categoryMatch) ||
+        Number(b.sameCountry) - Number(a.sameCountry),
+    );
+    const out = built.map((b) => b.row);
+    if (!this.translations) return out;
+    // i18n Faz 1e: başlık, özet, kalem adları ve alıcının sektörü okuyucunun
+    // dilinde (herkese açık listeyle aynı iki adım). İç kimlikler yalnız eşleme.
+    const locale = currentLocale();
+    const localized = await this.translations.localizeListings(
+      out,
+      built.map((b) => b.id),
+      locale,
+      excerptOf,
+    );
+    return this.translations.localizeListingCompanies(
+      localized,
+      built.map((b) => b.companyId),
+      locale,
+    );
+  }
+
+  /**
+   * MASKELİ TALEP GÖRÜNÜMÜ — panel içinde, numarayla (iç kimlik ücretsiz
+   * üyeye hiç verilmez). Gövde herkese açık `/talep/<slug>` detayıyla AYNI
+   * serileştirici (`toPublicListingDetail`); sahip/teklifçi yanıtı değil.
+   *  · Talep maskeli kümedeyse → maskeli detay.
+   *  · İzleyen talebi zaten MASKESİZ görebiliyorsa (paketli; davetli, bağlı ya
+   *    da teklifli ücretsiz) → `{ masked:false, id }` — panel tam detaya geçer.
+   *    Kimlik yalnız tam detayı zaten açabilene döner.
+   *  · Aksi hâlde 404 (varlık sızdırılmaz).
+   */
+  async maskedPublicTender(
+    user: AuthenticatedCompanyUser,
+    number: string,
+  ): Promise<MaskedTenderDetail | UnmaskedTenderRedirect> {
+    if (!isListingNumber(number)) {
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    }
+    const companyId = user.companyId;
+    const paid = tierAtLeast(user.tier, PAID_TIER);
+    const [connectedIds, blockedIds] = await Promise.all([
+      this.connectedCompanyIds(companyId),
+      this.blocks.blockedCompanyIds(companyId),
+    ]);
+    if (!paid) {
+      const row = await this.prisma.listing.findFirst({
+        where: {
+          AND: [
+            this.maskedPublicWhere({ companyId, connectedIds, blockedIds, country: user.country }),
+            { number },
+          ],
+        },
+        select: PUBLIC_LISTING_SELECT,
+      });
+      if (row) {
+        const cats = await this.publicCategoryMap(row.categoryIds);
+        const detail = toPublicListingDetail(row, cats);
+        if (!this.translations) return { ...detail, masked: true };
+        const locale = currentLocale();
+        const [localized] = await this.translations.localizeListings([detail], [row.id], locale, excerptOf);
+        const [withIndustry] = await this.translations.localizeListingCompanies(
+          [localized ?? detail],
+          [row.company.id],
+          locale,
+        );
+        return { ...(withIndustry ?? localized ?? detail), masked: true };
+      }
+    }
+    const visible = await this.prisma.listing.findFirst({
+      where: {
+        AND: [
+          this.sellerVisibleWhere({
+            type: "ALIM",
+            companyId,
+            connectedIds,
+            blockedIds,
+            country: user.country,
+            viewerPaid: paid,
+          }),
+          { number },
+        ],
+      },
+      select: { id: true },
+    });
+    if (visible) return { masked: false, id: visible.id };
+    throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
   }
 
   async getOne(

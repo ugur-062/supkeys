@@ -5,7 +5,7 @@ import { userHasPermission } from "@/lib/company/permissions";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CtaBand } from "@/components/dashboard/cta-band";
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
-import { useSellerTenders } from "@/hooks/use-seller-tenders";
+import { maskedRequestHref, useSellerTenders } from "@/hooks/use-seller-tenders";
 import { SellerTendersView } from "@/components/company/seller-tenders-view";
 import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
 import { aiSearchAccess, intentToRequestQuery } from "@/lib/company/ai-search";
@@ -114,8 +114,9 @@ export function SatisDashboardView() {
         return {
           key: row.id,
           label: row.title,
-          meta: item ? t("kalemMeta", { item }) : (row.owner?.name ?? undefined),
-          href: `/company/ilan/${row.id}`,
+          // Maskeli satır (ücretsiz üye, alıcı gizli): ad yok, panel içi maskeli görünüm.
+          meta: item ? t("kalemMeta", { item }) : (row.owner?.name ?? (row.masked ? t("aliciGizli") : undefined)),
+          href: row.masked ? maskedRequestHref(row.number ?? "") : `/company/ilan/${row.id}`,
         };
       });
     // Alıcı firmalar (açık talep sayısıyla) → listeyi o alıcıya süzer.

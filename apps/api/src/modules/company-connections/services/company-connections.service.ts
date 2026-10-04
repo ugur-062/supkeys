@@ -1833,9 +1833,10 @@ export class CompanyConnectionsService {
     const viewerPaid = tierAtLeast(user.tier, PAID_TIER);
     // Ücretsiz bağsız izleyenden paket kuralıyla gizlenen açık PUBLIC talepler
     // (arayüz testi D-329): gizleme kasıtlı, ama sayfa "açık talep yok" demek
-    // yerine kilit kartında GERÇEK sayıyı gösterir (`locked-summary` ile aynı ilke).
-    // Yalnız sayı — başlık/kalem sızmaz. Davetli olduğu ya da teklif verdiği
-    // talepler zaten listede, sayıya girmez.
+    // yerine kilit kartında GERÇEK sayıyı gösterir. Yalnız sayı — başlık/kalem
+    // sızmaz: firma profilinde talep satırı, maskeli olsa bile ALICIYI ele verir
+    // (Açık Talepler'deki maskeli satırlar firmadan kopuk — 2026-10-03).
+    // Davetli olduğu ya da teklif verdiği talepler zaten listede, sayıya girmez.
     const lockedListingCountQuery =
       !isSelf && !connectedForListings && !viewerPaid
         ? this.prisma.listing.count({

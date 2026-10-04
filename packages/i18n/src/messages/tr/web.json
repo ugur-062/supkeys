@@ -364,7 +364,7 @@
         "q2": "Tedarikçiler birbirinin teklifini görür mü?",
         "a2": "Asla. Kapalı zarf: her tedarikçi yalnızca kendi teklifini görür. Talep sahibi tüm teklifleri görür ve en iyisini kazandırır.",
         "q3": "Standart üyelikle ne yapabilirim?",
-        "a3": "Profilinizi yayınlar, {n} ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri görmek ve teklif vermek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve firma dizininde öncelikli sıra Silver ile; kendi satın alma talebinizi açmak Gold ile gelir. Firma doğrulaması ve “Doğrulanmış” rozeti ücretsizdir.",
+        "a3": "Profilinizi yayınlar, {n} ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri de alıcı adı gizli olarak görürsünüz. Bu taleplere teklif vermek ve alıcıyı görmek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve firma dizininde öncelikli sıra Silver ile; kendi satın alma talebinizi açmak Gold ile gelir. Firma doğrulaması ve “Doğrulanmış” rozeti ücretsizdir.",
         "q4": "Platform paraya aracılık ediyor mu?",
         "a4": "Hayır. Ödeme taraflar arasında doğrudan yapılır; Rothern paraya aracılık etmez; ödeme yalnızca “ödendi” ya da “ödeme bekleniyor” olarak işaretlenir. Koltuk başına ücret yoktur.",
         "q5": "Siparişten sonra ne oluyor?",
@@ -1285,7 +1285,7 @@
     },
     "bidGate": {
       "title": "Herkese açık taleplere teklif Silver paketiyle verilir",
-      "body": "Ücretsiz üyelikte davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verebilirsiniz. Herkese açık taleplerin tamamı, alıcı kimliği ve teklif verme Silver paketiyle açılır.",
+      "body": "Ücretsiz üyelikte herkese açık talepleri alıcı adı gizli olarak görürsünüz; bunlara teklif vermek ve alıcı kimliği Silver paketiyle açılır. Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
       "verifyNote": "Silver paketine geçmenin tek şartı ücretsiz firma doğrulamasıdır.",
       "verifyCta": "Önce ücretsiz doğrulan",
       "upgradeCta": "Silver paketine geç",
@@ -1898,7 +1898,7 @@
         "tagline": "Vitrinini aç, çevren içinde al-sat.",
         "cta": "Ücretsiz Başla",
         "f1": "Herkese açık firma profili ve {n} ürünlük vitrin — firma dizininde yer",
-        "f2": "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme",
+        "f2": "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme; herkese açık talepleri alıcı adı gizli görme",
         "f3": "Gelen bağlantı davetlerini kabul etme, mesajlaşma",
         "f4": "Sipariş, teslim & ödeme adımı takibi",
         "f5": "2 koltuk"
@@ -1909,7 +1909,7 @@
         "cta": "Silver'a Başla",
         "f1": "Firma dizininde öncelikli sıra",
         "f2": "Sınırsız ürün, ürün belgesi (PDF) ve video",
-        "f3": "Herkese açık satın alma taleplerine sınırsız teklif",
+        "f3": "Herkese açık satın alma taleplerinde alıcı kimliği ve sınırsız teklif",
         "f4": "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
         "f5": "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
         "f6": "Ziyaret Edenler ve İş Analizi",
@@ -2577,7 +2577,8 @@
         "urunleriniziFiyatVeMinimumSiparis": "Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin.",
         "urunEkle": "Ürün ekle",
         "talep": "Talep",
-        "kalemMeta": "Kalem: {item}"
+        "kalemMeta": "Kalem: {item}",
+        "aliciGizli": "Alıcı gizli"
       },
       "tasarrufTab": {
         "tasarrufTrendi": "Tasarruf Trendi",
@@ -3172,8 +3173,6 @@
       },
       "browsetenderrow": {
         "firma": "Firma",
-        "gizliFirma": "Gizli firma",
-        "premium": "Silver",
         "kapanis": "Kapanış",
         "kalem": "Kalem",
         "gorunurluk": "Görünürlük",
@@ -3193,7 +3192,6 @@
         "herkeseAcik": "Herkese Açık",
         "urununuz": "Ürününüz: {matchedProduct}",
         "buTalepGecmisEtkinliginizeGore": "Bu talep geçmiş etkinliğinize göre önceliklendirildi",
-        "detayaGit": "Detaya git →",
         "kalemlerVeTumDetay": "Kalemler ve tüm detay →",
         "verildi": "Verildi",
         "kazandiniz": "Kazandınız",
@@ -3205,7 +3203,10 @@
         "paraBirimi": "Para birimi",
         "usul": "Usul",
         "geriCekildi": "Geri çekildi",
-        "teklifVar": "Kayıtlı"
+        "teklifVar": "Kayıtlı",
+        "aliciGizli": "Alıcı gizli",
+        "dogrulanmisAlici": "Doğrulanmış alıcı",
+        "teklifVerSilver": "Teklif ver · Silver"
       },
       "ihalelistview": {
         "veriAlinamadi": "Veri alınamadı.",
@@ -3289,7 +3290,7 @@
         "kalemKazandirilacakKalemSecilmeyenTeklifsiz": "{length} kalem kazandırılacak, {skipped} kalem (seçilmeyen/teklifsiz) atlanacak.",
         "kalemBazliKazandirilsinMi": "Kalem-bazlı kazandırılsın mı?",
         "buHerkeseAcikTalepSilver": "Bu herkese açık talep Silver paketiyle açılır",
-        "herkeseAcikSatinAlmaTaleplerini": "Herkese açık alım taleplerini görmek ve teklif vermek Silver ile gelir. Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
+        "herkeseAcikSatinAlmaTaleplerini": "Herkese açık alım taleplerine teklif vermek ve alıcıyı görmek Silver ile gelir; ücretsiz üyelikte bu talepler Açık Talepler'de alıcı adı gizli görünür. Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
         "satinAlmaTalebineUlasilamiyor": "Talebe ulaşılamıyor.",
         "ilanKaldirilmisAdresHataliYa": "Talep kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş olabilir (ör. firma bağlantısı veya paket durumu). Sorun olduğunu düşünüyorsanız talep sahibiyle iletişime geçin.",
         "paneleDon": "Panele Dön",
@@ -4503,7 +4504,7 @@
         "ziyaretBirim": "{n, number} <unit>ziyaret</unit>"
       },
       "silverLockCard": {
-        "baglantiDavetiyleGelenTalepleriUcretsiz": "Davet edildiğiniz ve bağlantılı firmaların taleplerini ücretsiz görürsünüz.",
+        "baglantiDavetiyleGelenTalepleriUcretsiz": "Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
         "silverPaketineGec": "Silver paketine geç",
         "onceDogrulanNot": "Silver pakete geçmenin tek şartı firmanızı doğrulamaktır. Doğrulama ücretsizdir ve birkaç dakika sürer.",
         "onceUcretsizDogrulan": "Önce ücretsiz doğrulan",
@@ -4518,7 +4519,6 @@
         "yalnizYetkiliDegistirebilir": "Bu ayarı yalnız şirket profilini yönetme yetkisi olan kullanıcılar değiştirebilir."
       },
       "sellerTendersView": {
-        "bagliOldugunuzAlicilarinTalepleriHerkese": "Davet edildiğiniz talepler ve bağlı olduğunuz alıcıların talepleri — herkese açık taleplerin tamamı Silver paketiyle açılır.",
         "bagliOldugunuzAlicilarinVeHerkese": "Bağlı olduğunuz alıcıların ve herkese açık taleplerin tamamı — süzün, sıralayın, teklif verin.",
         "enFazla300GosteriliyorDaha": "En fazla 300 {unit} gösteriliyor — daha fazlası varsa arama ve süzgeçlerle daraltın.",
         "suzgecler": "Süzgeçler",
@@ -4537,8 +4537,11 @@
         "listesi": "{noun} listesi",
         "bilinmeyenAlici": "Alıcı",
         "gecmisEnYeni200Gosteriliyor": "Geçmiş taleplerin en yeni 200'ü gösteriliyor — daha eski tekliflerinize Tekliflerim'den ulaşabilirsiniz.",
-        "kilitliSonucYok": "Bu aramada size açık talep yok",
-        "kilitliSonucYokAciklama": "Ücretsiz üyelikte yalnız davet edildiğiniz ve bağlantılı firmaların talepleri listelenir. Aradığınız talep herkese açıksa Silver paketiyle görünür; yukarıdaki karttan doğrulamaya ya da paketlere geçebilirsiniz."
+        "ucretsizAltBaslik": "Önce davet edildiğiniz ve bağlı olduğunuz alıcıların talepleri; altında herkese açık talepler alıcı adı gizli — bunlara teklif Silver ile.",
+        "maskeliBolumEtiketi": "Herkese açık talepler · alıcı adı ve teklif Silver ile",
+        "maskeliNot": "Alıcının adını görmek ve teklif vermek için Silver gerekir.",
+        "maskeliNotDogrulan": "Önce ücretsiz doğrulan",
+        "maskeliNotPaketler": "Paketleri gör"
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Onaylar yetki gerektirir",
@@ -4763,16 +4766,6 @@
           "overdue": "Ödemesi gecikmiş",
           "open": "Ödeme bekleniyor"
         }
-      },
-      "lockedRequestsCard": {
-        "silverIleAcilacakAcikTalep": "Silver ile açılacak {total} açık talep",
-        "herkeseAcikTaleplerSilverIle": "Herkese açık talepler Silver ile görünür",
-        "ucretsizUyelikteYalnizBaglantiDavetiyle": "Ücretsiz üyelikte yalnız davet edildiğiniz ve bağlantılı firmaların taleplerini görürsünüz. Herkese açık taleplerin tamamı, teklif verme ve alıcı kimliği Silver paketiyle açılır.",
-        "kapanis": "Kapanış {formatDate}",
-        "kategorinizde": "{n} kategorinizde",
-        "buHaftaYeni": "{n} bu hafta yeni",
-        "toplamKalem": "toplam {n} kalem",
-        "kalem": "{n} kalem"
       },
       "permissionGate": {
         "yetkiIcinFirmaYoneticinizeBasvurun": "{description} Yetki için firma yöneticinize başvurun.",
@@ -5733,6 +5726,46 @@
       "companyItems": {
         "gorselYuklenemedi": "Görsel yüklenemedi",
         "belgeYuklenemedi": "Belge yüklenemedi"
+      },
+      "maskedRequestView": {
+        "geriAcikTalepler": "Açık Talepler",
+        "yonlendiriliyor": "Talebin tam detayına yönlendiriliyorsunuz…",
+        "bulunamadi": "Talep bulunamadı",
+        "bulunamadiAciklama": "Talep kapanmış, kaldırılmış ya da artık size görünmüyor olabilir.",
+        "yuklenemedi": "Talep yüklenemedi.",
+        "tekrarDene": "Tekrar dene",
+        "maskeliEtiket": "Herkese açık · alıcı adı gizli",
+        "kategori": "Kategori",
+        "arananTedarikciTipi": "Aranan tedarikçi tipi:",
+        "kapanis": "Kapanış",
+        "kalem": "Kalem",
+        "kalemSayisi": "{count, plural, one {# kalem} other {# kalem}}",
+        "toplam": "toplam {qty}",
+        "gorunurluk": "Görünürlük",
+        "usul": "Usul",
+        "usulPazarlik": "Pazarlık (eksiltme)",
+        "usulTeklif": "Teklif toplama",
+        "aciklama": "Açıklama",
+        "kalemler": "Kalemler ({count})",
+        "kalemYedek": "Kalem {n}",
+        "talepBilgileri": "Talep bilgileri",
+        "talepNo": "Talep numarası",
+        "sonTeklifTarihi": "Son teklif tarihi",
+        "yayin": "Yayın",
+        "paraBirimi": "Para birimi",
+        "teslimSekli": "Teslim şekli",
+        "odeme": "Ödeme",
+        "vade": "Vade",
+        "vadeGun": "{n, number} gün",
+        "kapaliZarfNotu": "Kapalı zarf: teklifleri yalnız talep sahibi görür, teklifçiler birbirinin fiyatını ve kimliğini göremez. Alıcının adı, teknik şartname ve ekli belgeler Silver paketiyle açılır.",
+        "alici": "Alıcı",
+        "aliciGizli": "Alıcı gizli",
+        "dogrulanmisAlici": "Doğrulanmış alıcı",
+        "teklifVerSilver": "Teklif ver · Silver",
+        "ctaNot": "Herkese açık taleplere teklif vermek ve alıcının adını görmek Silver paketiyle açılır.",
+        "ctaNotDogrulama": "Silver paketine geçmenin tek şartı ücretsiz firma doğrulamasıdır — önce firmanızı doğrulayın.",
+        "paketleriGor": "Paketleri gör",
+        "kapandi": "Bu talep teklife kapalı."
       }
     },
     "settings": {
@@ -6582,7 +6615,7 @@
         "kalemBirimi": "<num>{n, number}</num> <unit>kalem</unit>",
         "kilitliTaleplerBaslik": "Bu firmanın açık alım talepleri var",
         "kilitliTaleplerSayi": "{n, number} açık alım talebi",
-        "kilitliTaleplerAciklama": "Herkese açık alım taleplerini görmek ve teklif vermek Silver paketle açılır. Firma sizi bir talebe davet ederse o talebi ücretsiz paketle de görürsünüz."
+        "kilitliTaleplerAciklama": "Bu firmanın herkese açık talepleri burada Silver paketiyle listelenir; ücretsiz üyelikte onları Açık Talepler'de alıcı adı gizli görürsünüz. Firma sizi bir talebe davet ederse o talebi ücretsiz paketle de tam görürsünüz."
       },
       "page": {
         "yonlendiriliyor": "Yönlendiriliyor…"

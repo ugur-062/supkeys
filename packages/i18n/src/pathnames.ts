@@ -103,6 +103,8 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/company/satinalma/urunler/[firmaSlug]/[urunSlug]": P("/company/satinalma/urunler/[firmaSlug]/[urunSlug]", "/company/purchasing/products/[firmaSlug]/[urunSlug]", "/kompaniya/zakupki/tovary/[firmaSlug]/[urunSlug]"),
   // ---- satış portalı ---------------------------------------------------
   "/company/satis": P("/company/satis", "/company/sales", "/kompaniya/prodazhi"),
+  // Ücretsiz üyenin alıcı gizli talep görünümü (2026-10-03) — numarayla.
+  "/company/satis/acik-talep/[number]": P("/company/satis/acik-talep/[number]", "/company/sales/open-request/[number]", "/kompaniya/prodazhi/otkrytaya-zayavka/[number]"),
   "/company/satis/bilgi-talepleri": P("/company/satis/bilgi-talepleri", "/company/sales/inquiries", "/kompaniya/prodazhi/zaprosy"),
   "/company/satis/firmalar": P("/company/satis/firmalar", "/company/sales/companies", "/kompaniya/prodazhi/kompanii"),
   "/company/satis/mesajlar": P("/company/satis/mesajlar", "/company/sales/messages", "/kompaniya/prodazhi/soobshcheniya"),

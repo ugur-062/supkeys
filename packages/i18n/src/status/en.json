@@ -2685,9 +2685,9 @@
     "at": "2026-09-29"
   },
   "api.companyListings.herkeseAcikTalepleriGormekVeTeklif": {
-    "hash": "4a96b6ce33",
+    "hash": "713f6ccd2a",
     "status": "reviewed",
-    "at": "2026-10-03"
+    "at": "2026-10-04"
   },
   "api.companyListings.icinGoldPaketSatinalmaPaneliGerekir": {
     "hash": "879b86ccad",
@@ -5570,9 +5570,9 @@
     "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.paketSonlandirildiAnaParagraf": {
-    "hash": "2d727c8ff7",
+    "hash": "176d7c5681",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.adminCompanies.paketSonlandirildiBaslik": {
     "hash": "9cd12b01a8",
@@ -5585,14 +5585,14 @@
     "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.paketSonlandirildiGovde": {
-    "hash": "f25e69969e",
+    "hash": "a868890b57",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.adminCompanies.paketSonlandirildiGovdeKirpildi": {
-    "hash": "f1f4784de1",
+    "hash": "f40725ba4c",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.adminCompanies.paketSonlandirildiKirpilanUrun": {
     "hash": "3fcb19a161",
@@ -7035,9 +7035,9 @@
     "at": "2026-09-27"
   },
   "api.notifications.membership.sonaErdiAnaParagraf": {
-    "hash": "2ffc8d7ee5",
+    "hash": "33af4c965a",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.membership.sonaErdiDavetIptal": {
     "hash": "4de5489683",
@@ -13260,9 +13260,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.howItWorks.faq.a3": {
-    "hash": "4ad140bccd",
+    "hash": "631d37b80d",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "web.marketing.howItWorks.faq.a4": {
     "hash": "2699558b4b",
@@ -15140,9 +15140,9 @@
     "at": "2026-10-02"
   },
   "web.marketplace.bidGate.body": {
-    "hash": "5d048205e5",
+    "hash": "ebd4dc8c35",
     "status": "reviewed",
-    "at": "2026-10-03"
+    "at": "2026-10-04"
   },
   "web.marketplace.bidGate.compactLocked": {
     "hash": "c9837da971",
@@ -19295,9 +19295,9 @@
     "at": "2026-09-24"
   },
   "web.panel.company.firmaIdPage.kilitliTaleplerAciklama": {
-    "hash": "c5ce582a05",
+    "hash": "93617b4d85",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "web.panel.company.firmaIdPage.kilitliTaleplerBaslik": {
     "hash": "51a14aae7d",
@@ -22794,6 +22794,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.browsetenderrow.aliciGizli": {
+    "hash": "3d4edd3553",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
   "web.panel.requests.browsetenderrow.arananTedarikciTipi": {
     "hash": "f39c481fae",
     "status": "reviewed",
@@ -22819,10 +22824,10 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.requests.browsetenderrow.detayaGit": {
-    "hash": "f013d18346",
+  "web.panel.requests.browsetenderrow.dogrulanmisAlici": {
+    "hash": "757c0e99fb",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "web.panel.requests.browsetenderrow.firma": {
     "hash": "439145df69",
@@ -22833,11 +22838,6 @@
     "hash": "6d31ceb41e",
     "status": "reviewed",
     "at": "2026-10-01"
-  },
-  "web.panel.requests.browsetenderrow.gizliFirma": {
-    "hash": "2f94121155",
-    "status": "reviewed",
-    "at": "2026-09-24"
   },
   "web.panel.requests.browsetenderrow.gorunurluk": {
     "hash": "4cf8eb0086",
@@ -22904,11 +22904,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.requests.browsetenderrow.premium": {
-    "hash": "8697f43205",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
   "web.panel.requests.browsetenderrow.profilinizleEslesti": {
     "hash": "04f2c71548",
     "status": "reviewed",
@@ -22948,6 +22943,11 @@
     "hash": "d57149c5f0",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.browsetenderrow.teklifVerSilver": {
+    "hash": "51fdaabd9d",
+    "status": "reviewed",
+    "at": "2026-10-04"
   },
   "web.panel.requests.browsetenderrow.urununuz": {
     "hash": "5ba4667ccc",
@@ -25595,9 +25595,9 @@
     "at": "2026-10-03"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerini": {
-    "hash": "cfe3755e73",
+    "hash": "b6d813bd33",
     "status": "reviewed",
-    "at": "2026-10-03"
+    "at": "2026-10-04"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerini2": {
     "hash": "972f7d71ed",
@@ -34644,6 +34644,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.shell.satisDashboardView.aliciGizli": {
+    "hash": "3d4edd3553",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
   "web.panel.shell.satisDashboardView.alicilar": {
     "hash": "c62c8a8d58",
     "status": "reviewed",
@@ -36499,45 +36504,195 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
-  "web.panel.trade.lockedRequestsCard.buHaftaYeni": {
-    "hash": "29803cf2a2",
+  "web.panel.trade.maskedRequestView.aciklama": {
+    "hash": "6f80065c74",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
-  "web.panel.trade.lockedRequestsCard.herkeseAcikTaleplerSilverIle": {
-    "hash": "e0c9096aed",
+  "web.panel.trade.maskedRequestView.alici": {
+    "hash": "850f092d67",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
-  "web.panel.trade.lockedRequestsCard.kalem": {
-    "hash": "b8faffa524",
+  "web.panel.trade.maskedRequestView.aliciGizli": {
+    "hash": "3d4edd3553",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
-  "web.panel.trade.lockedRequestsCard.kapanis": {
-    "hash": "6f09ad3fdf",
+  "web.panel.trade.maskedRequestView.arananTedarikciTipi": {
+    "hash": "a75c4f08c4",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
-  "web.panel.trade.lockedRequestsCard.kategorinizde": {
-    "hash": "867fe7b6de",
+  "web.panel.trade.maskedRequestView.bulunamadi": {
+    "hash": "37d42705a6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
-  "web.panel.trade.lockedRequestsCard.silverIleAcilacakAcikTalep": {
-    "hash": "ae0fe9384e",
+  "web.panel.trade.maskedRequestView.bulunamadiAciklama": {
+    "hash": "bd3ce1f335",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
-  "web.panel.trade.lockedRequestsCard.toplamKalem": {
-    "hash": "dc1f68fb83",
+  "web.panel.trade.maskedRequestView.ctaNot": {
+    "hash": "7b702d4248",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
-  "web.panel.trade.lockedRequestsCard.ucretsizUyelikteYalnizBaglantiDavetiyle": {
-    "hash": "db76d4ae75",
+  "web.panel.trade.maskedRequestView.ctaNotDogrulama": {
+    "hash": "7d7916ce6b",
     "status": "reviewed",
-    "at": "2026-10-03"
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.dogrulanmisAlici": {
+    "hash": "757c0e99fb",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.geriAcikTalepler": {
+    "hash": "7a4cf25b92",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.gorunurluk": {
+    "hash": "4cf8eb0086",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kalem": {
+    "hash": "ccc7774628",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kalemler": {
+    "hash": "4513542e59",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kalemSayisi": {
+    "hash": "51394024ec",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kalemYedek": {
+    "hash": "e6f72e674c",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kapaliZarfNotu": {
+    "hash": "31e0622c34",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kapandi": {
+    "hash": "e38edbcfcd",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kapanis": {
+    "hash": "03c8b154de",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.kategori": {
+    "hash": "b7964404a7",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.maskeliEtiket": {
+    "hash": "e50985690d",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.odeme": {
+    "hash": "ba45116946",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.paketleriGor": {
+    "hash": "36474a4f25",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.paraBirimi": {
+    "hash": "d8d810201b",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.sonTeklifTarihi": {
+    "hash": "274a2a423a",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.talepBilgileri": {
+    "hash": "b5b67213ac",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.talepNo": {
+    "hash": "134ce31f3f",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.teklifVerSilver": {
+    "hash": "51fdaabd9d",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.tekrarDene": {
+    "hash": "555367ed61",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.teslimSekli": {
+    "hash": "f4289160ef",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.toplam": {
+    "hash": "078c48f4ee",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.usul": {
+    "hash": "7bc1096c35",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.usulPazarlik": {
+    "hash": "e9930845b8",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.usulTeklif": {
+    "hash": "f69f9dddbb",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.vade": {
+    "hash": "dc9edc1542",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.vadeGun": {
+    "hash": "8a9312062b",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.yayin": {
+    "hash": "697dcaaedb",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.yonlendiriliyor": {
+    "hash": "0394eaf96b",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.maskedRequestView.yuklenemedi": {
+    "hash": "65529ec88c",
+    "status": "reviewed",
+    "at": "2026-10-04"
   },
   "web.panel.trade.miniBars.gunlukGoruntulenme": {
     "hash": "71edacca33",
@@ -39319,11 +39474,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.sellerTendersView.bagliOldugunuzAlicilarinTalepleriHerkese": {
-    "hash": "f9964141d4",
-    "status": "reviewed",
-    "at": "2026-10-03"
-  },
   "web.panel.trade.sellerTendersView.bagliOldugunuzAlicilarinVeHerkese": {
     "hash": "0a87008f99",
     "status": "reviewed",
@@ -39369,20 +39519,30 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.sellerTendersView.kilitliSonucYok": {
-    "hash": "2fbeb1308c",
-    "status": "reviewed",
-    "at": "2026-10-02"
-  },
-  "web.panel.trade.sellerTendersView.kilitliSonucYokAciklama": {
-    "hash": "ffa3ac1293",
-    "status": "reviewed",
-    "at": "2026-10-03"
-  },
   "web.panel.trade.sellerTendersView.listesi": {
     "hash": "f40a295498",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.sellerTendersView.maskeliBolumEtiketi": {
+    "hash": "5e966e33d2",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.sellerTendersView.maskeliNot": {
+    "hash": "d60fb1e5de",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.sellerTendersView.maskeliNotDogrulan": {
+    "hash": "d2acf441bb",
+    "status": "reviewed",
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.sellerTendersView.maskeliNotPaketler": {
+    "hash": "36474a4f25",
+    "status": "reviewed",
+    "at": "2026-10-04"
   },
   "web.panel.trade.sellerTendersView.satisKategorileriniDuzenle": {
     "hash": "fc6ef853ba",
@@ -39414,10 +39574,15 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.trade.silverLockCard.baglantiDavetiyleGelenTalepleriUcretsiz": {
-    "hash": "034babb71a",
+  "web.panel.trade.sellerTendersView.ucretsizAltBaslik": {
+    "hash": "f11beb965d",
     "status": "reviewed",
-    "at": "2026-10-03"
+    "at": "2026-10-04"
+  },
+  "web.panel.trade.silverLockCard.baglantiDavetiyleGelenTalepleriUcretsiz": {
+    "hash": "c3e9569a60",
+    "status": "reviewed",
+    "at": "2026-10-04"
   },
   "web.panel.trade.silverLockCard.onceDogrulanNot": {
     "hash": "d1f85028b9",
@@ -40780,9 +40945,9 @@
     "at": "2026-09-23"
   },
   "web.pricing.plans.silver.f3": {
-    "hash": "7ed63fee4e",
+    "hash": "4a2b884d04",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-04"
   },
   "web.pricing.plans.silver.f4": {
     "hash": "76c07cc8fe",
@@ -40830,9 +40995,9 @@
     "at": "2026-09-23"
   },
   "web.pricing.plans.standart.f2": {
-    "hash": "e48c591a2f",
+    "hash": "337b7725c5",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-04"
   },
   "web.pricing.plans.standart.f3": {
     "hash": "89a128c321",

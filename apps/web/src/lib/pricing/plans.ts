@@ -45,7 +45,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     tagline: "Vitrinini aç, çevren içinde al-sat.",
     features: [
       `Herkese açık firma profili ve ${PRODUCT_LIMITS.STANDART} ürünlük vitrin — firma dizininde yer`,
-      "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme",
+      "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme; herkese açık talepleri alıcı adı gizli görme",
       "Gelen bağlantı davetlerini kabul etme, mesajlaşma",
       "Sipariş, teslim & ödeme adımı takibi",
       "2 koltuk",
@@ -61,7 +61,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     features: [
       "Firma dizininde öncelikli sıra",
       "Sınırsız ürün, ürün belgesi (PDF) ve video",
-      "Herkese açık satın alma taleplerine sınırsız teklif",
+      "Herkese açık satın alma taleplerinde alıcı kimliği ve sınırsız teklif",
       "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
       "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
       "Ziyaret Edenler ve İş Analizi",

@@ -297,7 +297,7 @@ describe("davetli ülke-bypass + maskeli yanıt kırpma", () => {
     expect(bid.status).toBe("SUBMITTED");
   });
 
-  it("ücretsiz (STANDART) bağsız izleyici PUBLIC talebi HİÇ açamaz — 403 TIER_REQUIRED (maskeli teaser kalktı, 2026-09-06)", async () => {
+  it("ücretsiz (STANDART) bağsız izleyici PUBLIC talebin TAM detayını açamaz — 403 TIER_REQUIRED (alıcı gizli görünüm ayrı uçta: maskedPublicTender, 2026-10-03)", async () => {
     const { service } = makeService();
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
     const standard = await makeCompanyWithUser(prisma, {

@@ -364,7 +364,7 @@
         "q2": "Can suppliers see each other's quotes?",
         "a2": "Never. Sealed bids: each supplier sees only its own quote. The request owner sees all quotes and awards the best one.",
         "q3": "What can I do on the Standard plan?",
-        "a3": "You publish your profile, open a showcase of up to {n} products, discover companies, and quote on requests from companies that invited you or are connected to you. Seeing and quoting on public requests, sending connection invitations, seeing the buyer's identity in incoming inquiries and replying, and priority ranking in the company directory come with Silver; posting your own buying requests comes with Gold. Company verification and the “Verified” badge are free.",
+        "a3": "You publish your profile, open a showcase of up to {n} products, discover companies, and quote on requests from companies that invited you or are connected to you. You also see public requests, with the buyer hidden. Quoting on them and seeing the buyer, sending connection invitations, seeing the buyer's identity in incoming inquiries and replying, and priority ranking in the company directory come with Silver; posting your own buying requests comes with Gold. Company verification and the “Verified” badge are free.",
         "q4": "Does the platform handle payments?",
         "a4": "No. Payment is made directly between the parties; Rothern does not handle money. Payment is only marked as “paid” or “payment pending”. There is no per-seat fee.",
         "q5": "What happens after the order?",
@@ -1285,7 +1285,7 @@
     },
     "bidGate": {
       "title": "Quoting on public requests requires the Silver plan",
-      "body": "On the free plan you can quote on requests from companies that invited you or are connected to you. All public requests, the buyer's identity and quoting open with the Silver plan.",
+      "body": "On the free plan you see public requests with the buyer hidden; quoting on them and the buyer's identity open with the Silver plan. You can quote for free on requests from companies that invited you or are connected to you.",
       "verifyNote": "The only requirement for the Silver plan is free company verification.",
       "verifyCta": "Get verified for free first",
       "upgradeCta": "Upgrade to Silver",
@@ -1898,7 +1898,7 @@
         "tagline": "Open your showcase, buy and sell within your network.",
         "cta": "Start for free",
         "f1": "Public company profile and a showcase of {n} products — listed in the company directory",
-        "f2": "Quoting on requests from companies that invited you or are connected to you",
+        "f2": "Quoting on requests from companies that invited you or are connected to you; seeing public requests with the buyer hidden",
         "f3": "Accepting incoming connection invitations, messaging",
         "f4": "Order, delivery & payment step tracking",
         "f5": "2 seats"
@@ -1909,7 +1909,7 @@
         "cta": "Start with Silver",
         "f1": "Priority ranking in the company directory",
         "f2": "Unlimited products, product documents (PDF) and video",
-        "f3": "Unlimited quotes on public buying requests",
+        "f3": "Buyer identity and unlimited quotes on public buying requests",
         "f4": "Appear in buyers' AI supplier suggestions and get invited straight to requests",
         "f5": "Sending connection invitations and seeing the buyer's identity in inquiries",
         "f6": "Visitors and Business Insights",
@@ -2577,7 +2577,8 @@
         "urunleriniziFiyatVeMinimumSiparis": "Publish your products with price and minimum order details so buyers can find them and send inquiries.",
         "urunEkle": "Add product",
         "talep": "Request",
-        "kalemMeta": "Line item: {item}"
+        "kalemMeta": "Line item: {item}",
+        "aliciGizli": "Buyer hidden"
       },
       "tasarrufTab": {
         "tasarrufTrendi": "Savings trend",
@@ -3172,8 +3173,6 @@
       },
       "browsetenderrow": {
         "firma": "Company",
-        "gizliFirma": "Undisclosed company",
-        "premium": "Silver",
         "kapanis": "Closing",
         "kalem": "Line items",
         "gorunurluk": "Visibility",
@@ -3193,7 +3192,6 @@
         "herkeseAcik": "Public",
         "urununuz": "Your product: {matchedProduct}",
         "buTalepGecmisEtkinliginizeGore": "This request was prioritized based on your past activity",
-        "detayaGit": "Go to details →",
         "kalemlerVeTumDetay": "Line items and full details →",
         "verildi": "Submitted",
         "kazandiniz": "You won",
@@ -3205,7 +3203,10 @@
         "paraBirimi": "Currency",
         "usul": "Procedure",
         "geriCekildi": "Withdrawn",
-        "teklifVar": "On file"
+        "teklifVar": "On file",
+        "aliciGizli": "Buyer hidden",
+        "dogrulanmisAlici": "Verified buyer",
+        "teklifVerSilver": "Submit quote · Silver"
       },
       "ihalelistview": {
         "veriAlinamadi": "Data could not be retrieved.",
@@ -3289,7 +3290,7 @@
         "kalemKazandirilacakKalemSecilmeyenTeklifsiz": "{length, plural, one {# line item will be awarded} other {# line items will be awarded}}, {skipped, plural, one {# line item (unselected/no quote) will be skipped} other {# line items (unselected/no quote) will be skipped}}.",
         "kalemBazliKazandirilsinMi": "Award by line item?",
         "buHerkeseAcikTalepSilver": "This public request is available with the Silver plan",
-        "herkeseAcikSatinAlmaTaleplerini": "Viewing public buying requests and submitting quotes comes with Silver. You can quote for free on requests from companies that invited you or are connected to you.",
+        "herkeseAcikSatinAlmaTaleplerini": "Quoting on public buying requests and seeing the buyer come with Silver; on the free plan these requests appear in Open Requests with the buyer name hidden. You can quote for free on requests from companies that invited you or are connected to you.",
         "satinAlmaTalebineUlasilamiyor": "The request cannot be accessed.",
         "ilanKaldirilmisAdresHataliYa": "The request may have been removed, the address may be incorrect, or your access conditions may have changed (e.g. company connection or plan status). If you think something is wrong, contact the request owner.",
         "paneleDon": "Back to panel",
@@ -4503,7 +4504,7 @@
         "ziyaretBirim": "{n, plural, one {# <unit>visit</unit>} other {# <unit>visits</unit>}}"
       },
       "silverLockCard": {
-        "baglantiDavetiyleGelenTalepleriUcretsiz": "Requests from companies that invited you or are connected to you are visible free of charge.",
+        "baglantiDavetiyleGelenTalepleriUcretsiz": "You can quote for free on requests from companies that invited you or are connected to you.",
         "silverPaketineGec": "Upgrade to Silver",
         "onceDogrulanNot": "The only requirement for upgrading to Silver is verifying your company. Verification is free and takes a few minutes.",
         "onceUcretsizDogrulan": "Get verified for free first",
@@ -4518,7 +4519,6 @@
         "yalnizYetkiliDegistirebilir": "Only users allowed to manage the company profile can change this setting."
       },
       "sellerTendersView": {
-        "bagliOldugunuzAlicilarinTalepleriHerkese": "Requests you were invited to and requests from buyers you are connected with — all public requests are unlocked with the Silver plan.",
         "bagliOldugunuzAlicilarinVeHerkese": "All requests from your connected buyers and all public requests — filter, sort and submit quotes.",
         "enFazla300GosteriliyorDaha": "Showing at most 300 results ({unit}) — if there are more, narrow the list with search and filters.",
         "suzgecler": "Filters",
@@ -4537,8 +4537,11 @@
         "listesi": "{noun} list",
         "bilinmeyenAlici": "Buyer",
         "gecmisEnYeni200Gosteriliyor": "Showing the 200 most recent past requests — find older quotes under My Quotes.",
-        "kilitliSonucYok": "No requests open to you for this search",
-        "kilitliSonucYokAciklama": "On the free plan only requests from companies that invited you or are connected to you are listed. If the request you're looking for is public, it becomes visible with the Silver plan; use the card above to get verified or see the plans."
+        "ucretsizAltBaslik": "Requests you were invited to and requests from your connected buyers come first; below them, public requests with the buyer hidden — quoting on those needs Silver.",
+        "maskeliBolumEtiketi": "Public requests · buyer name and quoting with Silver",
+        "maskeliNot": "Seeing the buyer's name and quoting require Silver.",
+        "maskeliNotDogrulan": "Get verified for free first",
+        "maskeliNotPaketler": "See plans"
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Approvals require permission",
@@ -4763,16 +4766,6 @@
           "overdue": "Payment overdue",
           "open": "Payment pending"
         }
-      },
-      "lockedRequestsCard": {
-        "silverIleAcilacakAcikTalep": "{total, plural, one {# open request} other {# open requests}} unlocked with Silver",
-        "herkeseAcikTaleplerSilverIle": "Public requests are visible with Silver",
-        "ucretsizUyelikteYalnizBaglantiDavetiyle": "On the free plan you only see requests from companies that invited you or are connected to you. All public requests, quote submission and buyer identity are unlocked with the Silver plan.",
-        "kapanis": "Closes {formatDate}",
-        "kategorinizde": "{n} in your categories",
-        "buHaftaYeni": "{n} new this week",
-        "toplamKalem": "{n, plural, one {# line item in total} other {# line items in total}}",
-        "kalem": "{n, plural, one {# line item} other {# line items}}"
       },
       "permissionGate": {
         "yetkiIcinFirmaYoneticinizeBasvurun": "{description} Contact your company administrator to request access.",
@@ -5733,6 +5726,46 @@
       "companyItems": {
         "gorselYuklenemedi": "Image could not be uploaded",
         "belgeYuklenemedi": "Document could not be uploaded"
+      },
+      "maskedRequestView": {
+        "geriAcikTalepler": "Open Requests",
+        "yonlendiriliyor": "Taking you to the full request details…",
+        "bulunamadi": "Request not found",
+        "bulunamadiAciklama": "The request may have closed, been removed or no longer be visible to you.",
+        "yuklenemedi": "The request could not be loaded.",
+        "tekrarDene": "Try again",
+        "maskeliEtiket": "Public · buyer name hidden",
+        "kategori": "Category",
+        "arananTedarikciTipi": "Supplier type sought:",
+        "kapanis": "Closing",
+        "kalem": "Items",
+        "kalemSayisi": "{count, plural, one {# item} other {# items}}",
+        "toplam": "total {qty}",
+        "gorunurluk": "Visibility",
+        "usul": "Method",
+        "usulPazarlik": "Negotiation (reverse auction)",
+        "usulTeklif": "Request for quotation",
+        "aciklama": "Description",
+        "kalemler": "Items ({count})",
+        "kalemYedek": "Item {n}",
+        "talepBilgileri": "Request details",
+        "talepNo": "Request number",
+        "sonTeklifTarihi": "Quote deadline",
+        "yayin": "Published",
+        "paraBirimi": "Currency",
+        "teslimSekli": "Delivery terms",
+        "odeme": "Payment",
+        "vade": "Payment term",
+        "vadeGun": "{n, number} days",
+        "kapaliZarfNotu": "Sealed bid: only the request owner sees the quotes; bidders cannot see each other's prices or identities. The buyer's name, technical specifications and attached documents unlock with the Silver plan.",
+        "alici": "Buyer",
+        "aliciGizli": "Buyer hidden",
+        "dogrulanmisAlici": "Verified buyer",
+        "teklifVerSilver": "Submit quote · Silver",
+        "ctaNot": "Quoting on public requests and seeing the buyer's name unlock with the Silver plan.",
+        "ctaNotDogrulama": "The only requirement for the Silver plan is free company verification — verify your company first.",
+        "paketleriGor": "See plans",
+        "kapandi": "This request is closed for quotes."
       }
     },
     "settings": {
@@ -6582,7 +6615,7 @@
         "kalemBirimi": "{n, plural, one {<num>#</num> <unit>line item</unit>} other {<num>#</num> <unit>line items</unit>}}",
         "kilitliTaleplerBaslik": "This company has open buying requests",
         "kilitliTaleplerSayi": "{n, plural, one {# open buying request} other {# open buying requests}}",
-        "kilitliTaleplerAciklama": "Viewing and quoting on public buying requests is available with the Silver plan. If the company invites you to a request, you can see it on the free plan too."
+        "kilitliTaleplerAciklama": "This company's public requests are listed here with the Silver plan; on the free plan you see them in Open Requests with the buyer name hidden. If the company invites you to a request, you can see it in full on the free plan too."
       },
       "page": {
         "yonlendiriliyor": "Redirecting…"

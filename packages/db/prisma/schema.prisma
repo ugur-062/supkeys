@@ -604,7 +604,7 @@ enum CompanyRole {
 }
 
 enum CompanyTier {
-  STANDART // ücretsiz: PUBLIC talepleri maskeli görür; davet/bağlantı talebine teklif; dizinde görünmez; 2 koltuk
+  STANDART // ücretsiz: PUBLIC talepleri alıcı kimliği gizli görür (teklif Silver); davet/bağlantı talebine teklif; dizinde paketlilerden sonra; 2 koltuk
   SILVER // tedarikçi paketi (SATIŞ paneli): dizin, profil, PUBLIC'e teklif, davet, vitrin, satış AI'ı; 4 koltuk
   GOLD // iki panel: + satınalma paneli (talep açma, kazandırma, onay akışı, rapor/şablon, talep AI'ı) + rozet; 6 koltuk
 }

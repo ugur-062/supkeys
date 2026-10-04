@@ -42,10 +42,12 @@ test("Yönetici: kendi satırında yetki tablosu kilitli", async ({ page }) => {
   await expect(page.getByText(/Kendi yetkilerinizi düzenleyemezsiniz/)).toBeVisible();
 });
 
-test("Ücretsiz paket: herkese açık talepler kilitli (Silver), davet gönderemez", async ({ page }) => {
+test("Ücretsiz paket: herkese açık talepler alıcı adı gizli (teklif Silver), kilit kartı yok, davet gönderemez", async ({ page }) => {
   await uiLogin(page, QA.ucretsizKurucu);
   await page.goto("/company/satis");
-  await expect(page.locator("body")).toContainText(/Silver/, { timeout: 30_000 });
+  // 2026-10-03: büyük kilit kartı kalktı; alt başlık maskeli grubu anlatır.
+  await expect(page.locator("body")).toContainText(/alıcı adı gizli — bunlara teklif Silver ile/, { timeout: 30_000 });
+  await expect(page.getByText(/Silver ile açılacak/)).toHaveCount(0);
   await page.goto("/company/satis/musterilerim");
   await expect(page.getByRole("heading", { name: "Bağlantılar" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: /Davet et/ })).toHaveCount(0);

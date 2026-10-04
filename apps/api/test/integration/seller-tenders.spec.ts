@@ -325,8 +325,8 @@ describe("sellerTenders", () => {
       visibility: "PUBLIC",
     });
 
-    // Standart (ücretsiz): bağsız PUBLIC listede HİÇ YOK (2026-09-06 — eski
-    // maskeli önizleme kalktı; kilit kartı sayıyı gösterir).
+    // Standart (ücretsiz): bağsız PUBLIC TAM listede yok; alıcı gizli maskeli
+    // satır olarak ayrı uçtan gelir (2026-10-03, `masked-public-tenders.spec`).
     const stdRows = await service.sellerTenders(standard.auth);
     expect(stdRows.find((r) => r.id === l.id)).toBeUndefined();
 

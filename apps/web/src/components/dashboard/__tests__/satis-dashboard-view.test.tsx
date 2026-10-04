@@ -85,11 +85,14 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
   }),
 }));
 vi.mock("@/hooks/use-seller-tenders", () => ({
+  maskedRequestHref: (n: string) => `/company/satis/acik-talep/${n}`,
   useSellerTenders: () => ({
     data: [
       { id: "t1", number: "ROT-000001", title: "Kablo alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
       { id: "t2", number: "ROT-000002", title: "Pano alımı", status: "OPEN", owner: { id: "c1", name: "Alıcı A" }, ownerCity: "Bursa", categories: [] },
       { id: "t3", number: "ROT-000003", title: "Eski", status: "AWARDED", owner: { id: "c2", name: "Alıcı B" }, ownerCity: null, categories: [] },
+      // Ücretsiz üyenin alıcı gizli satırı (2026-10-03): ad yok, iç kimlik yok.
+      { id: "masked:ROT-000004", masked: true, number: "ROT-000004", title: "Kablo makarası alımı", status: "OPEN", owner: null, ownerCity: "İzmir", categories: [] },
     ],
     isLoading: false,
   }),
@@ -237,6 +240,14 @@ describe("SatisDashboardView", () => {
     await user.click(screen.getByRole("button", { name: /AI ile ara/ }));
     expect(screen.queryByTestId("company-list")).toBeNull();
     expect(screen.getByTestId("seller-tenders")).toBeInTheDocument();
+  });
+
+  it("öneride maskeli satır (ücretsiz üye): alıcı adı yerine 'Alıcı gizli', hedef panel içi maskeli görünüm", () => {
+    render(<SatisDashboardView />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "makara" } });
+    const opt = screen.getByRole("option", { name: /Kablo makarası alımı/ });
+    expect(opt).toHaveAttribute("href", "/company/satis/acik-talep/ROT-000004");
+    expect(opt).toHaveTextContent("Alıcı gizli");
   });
 
   it("AI sonucu: açık taleplere gider, bant kategori çipinde uygulanan SEGMENT'in adını yazar (arayüz testi D-276)", async () => {

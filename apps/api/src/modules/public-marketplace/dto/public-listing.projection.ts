@@ -1,4 +1,5 @@
 import { Prisma } from "@rothern/db";
+import { listingSlug } from "@rothern/shared";
 
 /**
  * HERKESE AÇIK İLAN YANSITMASI — kapalı zarfın YAPISAL güvencesi.
@@ -40,9 +41,11 @@ import { Prisma } from "@rothern/db";
  *   İlanı KİMİN açtığı herkese açık sayfada gösterilmez. Bir alım talebinde
  *   bu bilgi doğrudan rekabet istihbaratıdır ("X firması 40 ton çelik boru
  *   arıyor" = X'in üretim planı); satış ilanında da müşteri listesini açık
- *   eder. Panelde ücretsiz (STANDART) üye bağsız PUBLIC talebi HİÇ görmez
- *   (2026-09-06, `listingBidEligibility.hidden`; eski maskeli önizleme kalktı).
- *   Anonim ziyaretçi teaser'ı görür (başlık, açıklama, kalem sayısı) ama
+ *   eder. Panelde ücretsiz (STANDART) üye bağsız PUBLIC talebi tam görmez
+ *   (`listingBidEligibility.hidden`); Açık Talepler'de onu ALICI GİZLİ satır
+ *   olarak görür — o satır ve maskeli görünüm BU dosyanın kart/detay
+ *   yansıtmasından üretilir (`toPublicListingCard`/`toPublicListingDetail`,
+ *   2026-10-03), yani ziyaretçiden fazlasını taşıyamaz. Anonim ziyaretçi teaser'ı görür (başlık, açıklama, kalem sayısı) ama
  *   sahibi asla — sahip kimliği hiçbir yüzeyde ücretsiz/anonim tarafa açılmaz.
  *
  *   Firma adının herkese açık göründüğü tek yer `/firma/<slug>` profilidir:
@@ -293,6 +296,88 @@ export function deriveCover(row: {
     if (item.images.length > 0) return item.images[0];
   }
   return null;
+}
+
+/** Çözülmüş kategori (kod → ad, okuyucunun dilinde) — kart ve detay aynı haritayı okur. */
+export type PublicCategoryMap = Map<string, { id: string; name: string; level: number }>;
+
+const categoriesOf = (row: PublicListingRow, cats: PublicCategoryMap) =>
+  row.categoryIds.map((id) => cats.get(id)).filter((c): c is NonNullable<typeof c> => !!c);
+
+/**
+ * KART YANSITMASI — TEK KAYNAK. Herkese açık liste (`PublicMarketplaceService.list`)
+ * ve panelde ücretsiz üyenin MASKELİ talep satırı (`CompanyListingsService.
+ * maskedPublicTenders`, 2026-10-03) aynı fonksiyonu okur: maskeli satır
+ * ziyaretçinin gördüğünden FAZLASINI taşıyamasın diye ayrı mapper yazılmadı.
+ */
+export function toPublicListingCard(row: PublicListingRow, cats: PublicCategoryMap): PublicListingCard {
+  return {
+    number: row.number ?? "",
+    slug: listingSlug(row.number ?? "", row.title),
+    type: row.type,
+    title: row.title,
+    status: row.status,
+    closesAt: row.closesAt?.toISOString() ?? null,
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    primaryCurrency: row.primaryCurrency,
+    isInternational: row.isInternational,
+    targetCountries: row.targetCountries,
+    itemCount: row.items.length,
+    coverImageUrl: deriveCover(row),
+    excerpt: excerptOf(row.description),
+    itemSummary: itemSummaryOf(row.items),
+    company: toPublicCompany(row.company),
+    categories: categoriesOf(row, cats),
+  };
+}
+
+/**
+ * DETAY YANSITMASI — TEK KAYNAK. Herkese açık `/talep/<slug>` (`getByNumber`)
+ * ve panelin maskeli talep görünümü (`maskedPublicTender`) aynı çıktıyı verir;
+ * sahip/teklifçi serileştiricisi (`getOne`) bu yola HİÇ girmez.
+ */
+export function toPublicListingDetail(row: PublicListingRow, cats: PublicCategoryMap): PublicListing {
+  return {
+    number: row.number ?? "",
+    slug: listingSlug(row.number ?? "", row.title),
+    type: row.type,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    format: row.format,
+    primaryCurrency: row.primaryCurrency,
+    allowedCurrencies: row.allowedCurrencies,
+    isInternational: row.isInternational,
+    targetCountries: row.targetCountries,
+    categoryIds: row.categoryIds,
+    preferredActivities: row.preferredActivities,
+    keywords: row.keywords,
+    requireAllItems: row.requireAllItems,
+    requireBidDocument: row.requireBidDocument,
+    requireGuaranteeLetter: row.requireGuaranteeLetter,
+    isSealedBid: row.isSealedBid,
+    isLogistics: row.isLogistics,
+    deliveryTerm: row.deliveryTerm,
+    paymentCategory: row.paymentCategory,
+    paymentTiming: row.paymentTiming,
+    advancePercent: row.advancePercent,
+    paymentDays: row.paymentDays,
+    lcType: row.lcType,
+    lcConfirmed: row.lcConfirmed,
+    closesAt: row.closesAt?.toISOString() ?? null,
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    updatedAt: row.updatedAt.toISOString(),
+    coverImageUrl: deriveCover(row),
+    // `marketplaceIndexableWhere` ile AYNI mantık: ilan bazlı izin ∧ hâlâ
+    // teklife açık. Sahip izin vermiş olsa bile kapanmış ilan dizinlenmez.
+    // Sayfa bunu okuyup `noindex` basar; sitemap zaten sorguda süzüyor.
+    indexable: row.publicIndexable && row.status === "OPEN",
+    itemCount: row.items.length,
+    itemSummary: itemSummaryOf(row.items),
+    items: itemRowsOf(row.items),
+    company: toPublicCompany(row.company),
+    categories: categoriesOf(row, cats),
+  };
 }
 
 export function excerptOf(description: string | null, max = 200): string | null {

@@ -1,8 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useActivityLabel, useListingTerms, useSellerStateLabel, useFormatDate } from "@/i18n/domain";
-import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
+import { useActivityLabel, useCityLabel, useListingTerms, useSellerStateLabel, useFormatDate } from "@/i18n/domain";
+import { maskedRequestHref, type SellerTenderRow } from "@/hooks/use-seller-tenders";
+import { useUpgradeHref } from "@/components/company/silver-lock-card";
+import { Badge } from "@/components/ui/badge";
 import {
   closingUrgency,
   daysUntil,
@@ -19,8 +21,13 @@ import { DaysLeftChip, InfoChip, useExpiredNote } from "./IhaleListRow";
 /**
  * Başkalarının talepleri için yoğun SATIR görünümü (Açık Talepler) —
  * Taleplerim'deki IhaleListRow ile aynı görsel dil; fark: talep sahibi
- * kişi değil FİRMA (owner.name; maskeli listede "Gizli firma · Premium") ve
- * sağ uç metrik benim teklifim. Kart görünümü kaldırıldı (tek görünüm bu,
+ * kişi değil FİRMA (owner.name) ve sağ uç metrik benim teklifim.
+ *
+ * MASKELİ SATIR (`t.masked`, ücretsiz üye, 2026-10-03): aynı kart, alıcı
+ * herkese açık sitedeki gibi — "Alıcı gizli · şehir" + "Doğrulanmış alıcı"
+ * rozeti; eylem "Teklif ver · Silver" (doğrulama önce kuralı:
+ * `useUpgradeHref`), tıklayınca panel içi maskeli görünüm. Genişletme paneli
+ * (kalem tablosu tam detay ucunu okur) maskeli satırda YOK. Kart görünümü kaldırıldı (tek görünüm bu,
  * kullanıcı isteği 2026-08-03). Rozet kalabalığı (davet/bağlantı/kategori)
  * genişletme satırında.
  */
@@ -54,7 +61,12 @@ export function BrowseTenderRow({
   // Açık talepler artık satış ANASAYFASINDA (2026-09-05) — geri bağlantı oraya.
   const fromHref = "/company/satis#acik-talepler";
   const fromLabel = useListingTerms("ACIK_TALEP").title;
-  const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
+  const masked = t.masked === true;
+  const upgradeHref = useUpgradeHref();
+  const cityLabel = useCityLabel();
+  const detailHref = masked
+    ? maskedRequestHref(t.number ?? "")
+    : `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
   const strip =
     t.status !== "OPEN"
@@ -87,7 +99,6 @@ export function BrowseTenderRow({
     myBase && t.myBidSubmitCount && t.myBidSubmitCount > 1
       ? tr("teklifSurumu", { label: myBase, version: t.myBidSubmitCount })
       : myBase;
-  const hiddenOwner = !t.owner;
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
   const firma = {
@@ -103,12 +114,24 @@ export function BrowseTenderRow({
         </span>
       </span>
     ) : (
-      <span className="flex items-center gap-1.5">
-        <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-50">
-          <Lock className="h-3 w-3 text-amber-500" aria-hidden />
+      /* Alıcı gizli — herkese açık talep satırıyla aynı tarif (kimlik değil
+         nitelik): şehir + doğrulama rozeti. Ad/logo/slug hiç gelmez. */
+      <span className="flex min-w-0 flex-col items-start gap-1">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-slate-100">
+            <Lock className="h-3 w-3 text-slate-500" aria-hidden />
+          </span>
+          <span className="truncate text-slate-700">
+            {[tr("aliciGizli"), t.ownerCityLabel || (t.ownerCity ? cityLabel(t.ownerCity) : null)]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
         </span>
-        <span className="truncate italic text-slate-500">{tr("gizliFirma")}</span>
-        <InfoChip tone="amber">{tr("premium")}</InfoChip>
+        {t.ownerVerified ? (
+          <Badge tone="verified" size="sm" icon={false}>
+            {tr("dogrulanmisAlici")}
+          </Badge>
+        ) : null}
       </span>
     ),
   };
@@ -186,7 +209,11 @@ export function BrowseTenderRow({
   // "Teklif ver": teklifim yoksa ve verilebiliyorsa (4d — "TEKLİFİM —" boş
   // hücresi yerine eylem). Kompakt kartta her durumda bir eylem var.
   const canBidNow = !my && t.canBid && t.status === "OPEN";
-  const action = canBidNow
+  const action = masked
+    ? t.status === "OPEN"
+      ? { label: tr("teklifVerSilver"), href: upgradeHref }
+      : null
+    : canBidNow
     ? { label: tr("teklifVer"), href: detailHref }
     : compact
       ? { label: my ? tr("teklifim") : tr("incele"), href: detailHref }
@@ -247,7 +274,7 @@ export function BrowseTenderRow({
         }
       : null,
     action,
-    expandable: compact
+    expandable: compact || masked
       ? null
       : {
           id: `browse-row-detay-${t.id}`,
@@ -329,7 +356,7 @@ export function BrowseTenderRow({
                   ROW_FOCUS,
                 )}
               >
-                {hiddenOwner ? tr("detayaGit") : tr("kalemlerVeTumDetay")}
+                {tr("kalemlerVeTumDetay")}
               </Link>
             </>
           ),

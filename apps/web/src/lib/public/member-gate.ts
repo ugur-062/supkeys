@@ -69,9 +69,10 @@ export const PUBLIC_BID_PERMISSION = "sell:bid:submit";
 
 /**
  * HERKESE AÇIK TALEBE TEKLİF KAPISI (arayüz testi webA-02 yeniden doğrulama):
- * PUBLIC talebi görmek ve ona tanımadan teklif vermek Silver ister (CLAUDE.md
+ * PUBLIC talebi tam görmek ve ona tanımadan teklif vermek Silver ister (CLAUDE.md
  * paket tablosu; API `listingBidEligibility` ücretsiz firmaya bağsız/davetsiz
- * PUBLIC talebi hiç göstermez). Herkese açık "Teklif ver" düğmeleri oturumlu
+ * PUBLIC talebin tam detayını açmaz — yalnız alıcı gizli maskeli satır/görünüm,
+ * 2026-10-03). Herkese açık "Teklif ver" düğmeleri oturumlu
  * ama Silver olmayan üyeye bunu TIKLAMADAN önce söyler — eskiden "ücretsiz
  * kaydol, teklif ver" deyip paneldeki Silver kilidine düşürüyordu. Sıra
  * aynı: önce paket (Silver), sonra izin (`sell:bid:submit`).

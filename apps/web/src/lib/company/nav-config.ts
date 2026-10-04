@@ -25,6 +25,7 @@ export function getCompanyBreadcrumb(pathname: string): string {
     }
   }
   if (pathname.startsWith("/company/ilan/")) return "extra.ilanDetayi";
+  if (pathname.startsWith("/company/satis/acik-talep/")) return "extra.ilanDetayi";
   if (pathname.startsWith("/company/siparis/")) return "extra.siparisDetayi";
   return EXTRA[pathname] ?? "common.home";
 }

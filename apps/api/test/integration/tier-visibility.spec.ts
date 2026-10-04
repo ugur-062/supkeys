@@ -1,9 +1,10 @@
 /**
- * Kademe görünürlüğü — 2026-09-06 revizyonu ("premium çekmek için"):
- * STANDART, bağlı/davetli OLMADIĞI PUBLIC talebi HİÇ görmez (listede yok,
- * detay 403 TIER_REQUIRED, teklif 403); kilit özeti (`lockedPublicSummary`)
- * yalnız gerçek SAYI + örnek satır verir. Davet/bağlantı → tam görünüm + teklif.
- * SILVER+ → PUBLIC tam + teklif. Eski "maskeli önizleme" KALKTI. Formüllerin
+ * Kademe görünürlüğü — STANDART, bağlı/davetli OLMADIĞI PUBLIC talebi TAM
+ * görmez (tam listede yok, detay 403 TIER_REQUIRED, teklif 403); onu Açık
+ * Talepler'de ALICI GİZLİ maskeli satır olarak görür (`maskedPublicTenders`,
+ * 2026-10-03 — eski kilitli sayı kartının yerine; ayrıntılı sözleşme
+ * `masked-public-tenders.spec.ts`). Davet/bağlantı → tam görünüm + teklif,
+ * maskelenmez. SILVER+ → PUBLIC tam + teklif, maskeli liste boş. Formüllerin
  * tek kaynağı listingBidEligibility (listing-visibility.ts) —
  * getOne/sellerTenders/placeBid aynı kuralı okur.
  */
@@ -26,6 +27,7 @@ const bid = (itemId: string, unitPrice = 100) =>
     validityDays: 30,
   }) as never;
 
+let seq = 0;
 async function publicListing() {
   const owner = await makeCompanyWithUser(prisma, { country: "TR" });
   const listing = await makeListing(prisma, {
@@ -35,6 +37,8 @@ async function publicListing() {
     status: "OPEN",
     visibility: "PUBLIC",
     closesAt: FUTURE,
+    // Maskeli satır numarayla açılır; numarasız kayıt maskeli listeye girmez.
+    number: `ROT-${String(600000 + ++seq)}`,
   });
   const item = await makeItem(prisma, listing.id);
   return { owner, listing, item };
@@ -48,8 +52,8 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlantı açar", () => {
-  it("STANDART: bağsız PUBLIC listede YOK; detay 403 TIER_REQUIRED; kilit özeti gerçek sayı verir", async () => {
+describe("Kademe görünürlüğü — STANDART PUBLIC'i yalnız maskeli görür, davet/bağlantı açar", () => {
+  it("STANDART: bağsız PUBLIC tam listede YOK; detay 403 TIER_REQUIRED; maskeli satırda alıcı gizli", async () => {
     const { service } = makeService();
     const { listing } = await publicListing();
     const std = await makeCompanyWithUser(prisma, {
@@ -68,15 +72,14 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     expect(err!.getStatus()).toBe(403);
     expect(err!.getResponse()).toMatchObject({ code: "TIER_REQUIRED", minTier: "SILVER" });
 
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked).toBe(true);
-    if (summary.locked) {
-      expect(summary.total).toBe(1);
-      expect(summary.samples[0]?.title).toBe(listing.title);
-      expect(summary.samples[0]).not.toHaveProperty("id");
-      expect(JSON.stringify(summary)).not.toContain(listing.id);
-    }
-    // Sektör sayaçları da aynı kapıyı okur: ücretsize 0.
+    const masked = await service.maskedPublicTenders(std.auth);
+    expect(masked).toHaveLength(1);
+    expect(masked[0]?.title).toBe(listing.title);
+    expect(masked[0]).not.toHaveProperty("id");
+    expect(masked[0]).not.toHaveProperty("owner");
+    expect(JSON.stringify(masked)).not.toContain(listing.id);
+    // Pano keşif sayaçları TAM listeyle aynı kapıyı okur: ücretsize 0
+    // (maskeli satırlar sektör süzgecine web'de, kendi listesinden girer).
     expect((await service.discoverFacets(std.auth)).total).toBe(0);
   });
 
@@ -92,7 +95,7 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     ).rejects.toThrow(/premium|paket|bağlantı/i);
   });
 
-  it("STANDART davet edilince TAM görür + teklif verir; kilit özeti onu SAYMAZ", async () => {
+  it("STANDART davet edilince TAM görür + teklif verir; maskelenmez", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();
     const std = await makeCompanyWithUser(prisma, {
@@ -115,8 +118,7 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     await expect(
       service.placeBid(std.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked && summary.total).toBe(0);
+    expect(await service.maskedPublicTenders(std.auth)).toEqual([]);
   });
 
   it("STANDART bağlantısının talebini TAM görür + teklif verir", async () => {
@@ -133,11 +135,10 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     await expect(
       service.placeBid(std.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked && summary.total).toBe(0);
+    expect(await service.maskedPublicTenders(std.auth)).toEqual([]);
   });
 
-  it("hasBid istisnası: teklif vermiş STANDART firma bağlantı düşse de kendi talebini görür, kilit özeti onu saymaz", async () => {
+  it("hasBid istisnası: teklif vermiş STANDART firma bağlantı düşse de kendi talebini görür, maskelenmez", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();
     const std = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
@@ -152,11 +153,10 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     expect(detail.canBid).toBe(false); // görür ama yeniden teklif kapısı paketli
     const rows = (await service.sellerTenders(std.auth)) as { id: string }[];
     expect(rows.find((r) => r.id === listing.id)).toBeTruthy();
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked && summary.total).toBe(0);
+    expect(await service.maskedPublicTenders(std.auth)).toEqual([]);
   });
 
-  it("SILVER aynı PUBLIC'i görür + teklif verir; kilit özeti locked:false", async () => {
+  it("SILVER aynı PUBLIC'i görür + teklif verir; maskeli liste boş", async () => {
     const { service } = makeService();
     const { listing, item } = await publicListing();
     const silver = await makeCompanyWithUser(prisma, {
@@ -172,7 +172,7 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     await expect(
       service.placeBid(silver.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
-    expect(await service.lockedPublicSummary(silver.auth)).toEqual({ locked: false });
+    expect(await service.maskedPublicTenders(silver.auth)).toEqual([]);
   });
 
   it("süresi DOLMUŞ SILVER efektif STANDART gibi görmez (INV-TIER-1 lazy)", async () => {

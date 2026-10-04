@@ -15,8 +15,10 @@ import {
 } from "@/components/marketplace/filter-shell";
 import { RequestActiveChips, RequestFilters, RequestSortControl } from "@/components/company/request-filters";
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
-import { LockedRequestsCard } from "@/components/company/locked-requests-card";
-import { useLockedRequestsSummary, useSellerTenders, type LockedRequestsSummary, type SellerTenderRow } from "@/hooks/use-seller-tenders";
+import { useSellerTenders, type SellerTenderRow } from "@/hooks/use-seller-tenders";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { PAID_TIER, tierAtLeast } from "@rothern/shared";
+import { MaskedSectionLabel } from "@/components/company/masked-section-label";
 import {
   passes,
   REQUEST_SCAN_CAPS,
@@ -34,14 +36,16 @@ import {
 import { ClipboardList } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
-import { useMemo, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
 /**
  * API tarama tavanları (`REQUEST_SCAN_CAPS`): tavana dayanan kapsamda sayaç
  * "N+" yazar ve bant gösterilir (arayüz testi D-116 — "200 açık talep bulundu"
  * kesin sayı gibi okunuyordu). Başlık ve durum facet'i aynı alt sınır kararını
- * (`facets.statusAtLeast`) okur.
+ * (`facets.statusAtLeast`) okur. Ücretsiz üyede açık talepler İKİ ayrı
+ * sorgudan gelir (tam + maskeli, ikisi de 300 tavanlı) — tavan kararı grup
+ * başına verilir, toplam üzerinden değil.
  */
 const OPEN_SCAN_CAP = REQUEST_SCAN_CAPS.open;
 const PAST_SCAN_CAP = REQUEST_SCAN_CAPS.past;
@@ -60,12 +64,19 @@ const BASE = "/company/satis";
  *    iki liste bir daha görsel olarak ayrışmasın.
  *  · Kendi arama kutusu YOK: en üstteki kutu (hero) ile aynı sayfada ikinci
  *    kutu tekrar oluyordu; arama burada yalnız çip.
+ *  · ÜCRETSİZ ÜYE (2026-10-03, kullanıcı kararı: "ücretsiz üyelere bunlar
+ *    normal satın alma talebi gibi şirket isimleri gizli şekilde gözükmeli …
+ *    en yukarıda bağlantılı üyelerininki gözükmeli"): önce teklif verebildiği
+ *    davetli/bağlantılı talepler, ALTINDA aynı satır bileşeniyle alıcı adı
+ *    gizli herkese açık talepler (`row.masked`), araya ince bir bölüm etiketi.
+ *    Büyük kilit kartı KALDIRILDI. Süzgeç/sayaç/sıralama iki grubu birlikte
+ *    sayar; sıralama grup İÇİNDE uygulanır (maskeli satır üste çıkmaz).
  */
 export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   const tenders = useSellerTenders();
-  // Ücretsiz üye: herkese açık talepler listede YOK; kilit kartı gerçek sayıyı verir.
-  const lockedSummary = useLockedRequestsSummary();
-  const locked = lockedSummary.data?.locked ? lockedSummary.data : null;
+  // Ücretsiz üye: herkese açık talepler alıcı adı gizli satır olarak listenin altında.
+  const tier = useCompanyAuthStore((s) => s.company?.tier);
+  const isFree = !tierAtLeast(tier ?? "STANDART", PAID_TIER);
   const segments = useCategorySegments();
   // `useSearchParams` sunucu-öncesi render ve test ortamında NULL dönebilir.
   const sp = useSearchParams();
@@ -86,23 +97,38 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   const locale = useLocale() as Locale;
   const cityLabel = useCityLabel();
   const tv = useTranslations("web.panel.trade.sellerTendersView");
+  // Kapsam başına tavan: açık, maskeli ve geçmiş ayrı sorgulardan gelir, ayrı
+  // kırpılır — açık kapsam, iki açık gruptan biri tavandaysa alt sınırdır.
+  const openCount = useMemo(() => all.filter((r) => r.status === "OPEN" && !r.masked).length, [all]);
+  const maskedCount = useMemo(() => all.filter((r) => r.masked).length, [all]);
+  const pastCount = all.filter((r) => r.status !== "OPEN").length;
+  const openGroupAtCap = openCount >= OPEN_SCAN_CAP || maskedCount >= OPEN_SCAN_CAP;
   const facets = useMemo(
     () =>
-      requestFacets(all, state, segmentNames, now, {
-        country: (c) => countryDisplayName(c, locale),
-        city: (raw) => cityLabel(raw),
-        unknownBuyer: tv("bilinmeyenAlici"),
-      }),
-    [all, key, segmentNames, now, locale], // eslint-disable-line react-hooks/exhaustive-deps
+      requestFacets(
+        all,
+        state,
+        segmentNames,
+        now,
+        {
+          country: (c) => countryDisplayName(c, locale),
+          city: (raw) => cityLabel(raw),
+          unknownBuyer: tv("bilinmeyenAlici"),
+        },
+        // Toplam 300'ü geçse de hiçbir grup tavanda değilse sayı kesindir.
+        { open: openGroupAtCap ? 0 : Number.POSITIVE_INFINITY, past: PAST_SCAN_CAP },
+      ),
+    [all, key, segmentNames, now, locale, openGroupAtCap], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const filtered = useMemo(
-    () => sortRequests(all.filter((r) => passes(r, state, now)), state.sort),
-    [all, key, now], // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  // Kapsam başına tavan: açık ve geçmiş ayrı sorgulardan gelir, ayrı kırpılır.
-  const openCount = useMemo(() => all.filter((r) => r.status === "OPEN").length, [all]);
-  const pastCount = all.length - openCount;
-  const openAtCap = state.status !== "gecmis" && openCount >= OPEN_SCAN_CAP;
+  // Önce teklif verilebilir satırlar, sonra maskeli grup — sıralama grup İÇİNDE.
+  const filtered = useMemo(() => {
+    const hits = all.filter((r) => passes(r, state, now));
+    return [
+      ...sortRequests(hits.filter((r) => !r.masked), state.sort),
+      ...sortRequests(hits.filter((r) => r.masked), state.sort),
+    ];
+  }, [all, key, now]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openAtCap = state.status !== "gecmis" && openGroupAtCap;
   const pastAtCap = state.status !== "aktif" && pastCount >= PAST_SCAN_CAP;
   // Süzgeç daraltmadıysa sayı tavandaki kümenin TAMAMI → alt sınır ("200+");
   // durum facet'iyle aynı karar (iki sayı aynı ekranda ayrışmasın).
@@ -122,7 +148,7 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
         rows={filtered}
         facets={facets}
         banner={banner}
-        locked={locked}
+        isFree={isFree}
         atCap={openAtCap}
         pastAtCap={pastAtCap}
         countAtLeast={countAtLeast}
@@ -139,7 +165,7 @@ function RequestList({
   rows,
   facets,
   banner,
-  locked,
+  isFree,
   atCap,
   pastAtCap,
   countAtLeast,
@@ -151,8 +177,8 @@ function RequestList({
   rows: SellerTenderRow[];
   facets: RequestFacets;
   banner?: ReactNode;
-  /** Ücretsiz üyenin kilit özeti (paketliye null). */
-  locked: Extract<LockedRequestsSummary, { locked: true }> | null;
+  /** Ücretsiz (STANDART) üye — alt başlık ve maskeli grup metni. */
+  isFree: boolean;
   /** Açık talepler tarama tavanında (yalnız açık kapsamı görünürken). */
   atCap: boolean;
   /** Geçmiş talepler tavanında (yalnız geçmiş kapsamı görünürken). */
@@ -179,13 +205,9 @@ function RequestList({
           {t.title}
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          {locked
-            ? tr("bagliOldugunuzAlicilarinTalepleriHerkese")
-            : tr("bagliOldugunuzAlicilarinVeHerkese")}
+          {isFree ? tr("ucretsizAltBaslik") : tr("bagliOldugunuzAlicilarinVeHerkese")}
         </p>
       </div>
-
-      {locked ? <LockedRequestsCard summary={locked} /> : null}
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
@@ -254,23 +276,17 @@ function RequestList({
               <EmptyState
                 icon={ClipboardList}
                 title={
-                  /* Ücretsiz üyede boş arama süzgecin değil paketin sonucu
-                     olabilir: herkese açık talep (ör. "Teklif ver"den gelen
-                     ?q=ROT-…) listeye hiç girmez. Süzgeci suçlamak yerine
-                     kilit kartına bağlanır (arayüz testi webA-02 yeniden
-                     doğrulama). */
-                  isFiltered && locked
-                    ? tr("kilitliSonucYok")
-                    : isFiltered
+                  /* Ücretsiz üyede herkese açık talepler de (alıcı adı gizli)
+                     listede — boş arama artık paketin değil süzgecin sonucu
+                     (eski "kilitli sonuç yok" dalı 2026-10-03'te kalktı). */
+                  isFiltered
                     ? tr("sonucBulunamadi")
                     : state.status === "aktif"
                       ? tr("aktifYok", { unit: t.unit })
                       : tr("henuzYok", { unit: t.unit })
                 }
                 description={
-                  isFiltered && locked
-                    ? tr("kilitliSonucYokAciklama")
-                    : isFiltered
+                  isFiltered
                     ? tr("suzgecleriniziDegistirerekTekrarDeneyin")
                     : state.status === "aktif"
                       ? tr("kapananlarIcinDurumGecmis")
@@ -304,8 +320,15 @@ function RequestList({
                     IhaleListView'deki 2026-09-12 düzeltmesinin eşi): satırlar kart,
                     ARIA tablosu `row` çocuk ister → axe KRİTİK ihlal. */}
                 <section className="space-y-2" aria-label={tr("listesi", { noun: t.searchNoun })}>
-                  {pageRows.map((row) => (
-                    <BrowseTenderRow key={row.id} t={row} />
+                  {pageRows.map((row, i) => (
+                    <Fragment key={row.id}>
+                      {/* Maskeli grubun başı (bu sayfada) — ince bölüm etiketi
+                          + tek satır doğrulama/paket notu; kilit kartı yok. */}
+                      {row.masked && !pageRows[i - 1]?.masked ? (
+                        <MaskedSectionLabel />
+                      ) : null}
+                      <BrowseTenderRow t={row} />
+                    </Fragment>
                   ))}
                 </section>
                 {totalPages > 1 ? (

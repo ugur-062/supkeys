@@ -7,7 +7,9 @@ import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs, qaDeliveryAddress
  * Alıcı PUBLIC talep açar; İKİ AYRI tedarikçi firması tarayıcıdan teklif verir.
  * Ardından kuralların hepsi tek tek doğrulanır:
  *   · kapalı zarf: tedarikçi rakibin teklifini ne API'de ne ekranda görür
- *   · ücretsiz (STANDART) firma PUBLIC talebi hiç göremez (403 TIER_REQUIRED)
+ *   · ücretsiz (STANDART) firma PUBLIC talebi TAM göremez (403 TIER_REQUIRED),
+ *     teklif veremez; Açık Talepler'de ALICI GİZLİ maskeli satır olarak görür
+ *     (2026-10-03) — satırda alıcı adı ve iç kimlik yok
  *   · görüntüleyici teklif veremez (düğme yok + API 403)
  *   · onaylayıcı talebi göremez (dar bağlam)
  *   · alıcı iki teklifi de görür
@@ -100,13 +102,30 @@ test("iki ayrı tedarikçi teklif verir; kapalı zarf, paket ve rol kapıları",
   // Kendi teklifini görebilmeli (myBid / kendi versiyonu).
   expect(JSON.stringify(asBidder.body)).toMatch(/130|myBid|ownBid/);
 
-  // ── ÜCRETSİZ (STANDART): PUBLIC talep kilitli ─────────────────────────
+  // ── ÜCRETSİZ (STANDART): PUBLIC talep yalnız ALICI GİZLİ ──────────────
   const free = await apiSession(QA.ucretsizKurucu);
   const asFree = await apiGet(free, `/company/listings/${id}`);
   expect(asFree.status, "STANDART PUBLIC talep detayı").toBe(403);
   expect(JSON.stringify(asFree.body)).toContain("TIER_REQUIRED");
   const freeList = await apiGet(free, "/company/listings/seller-tenders");
-  expect(JSON.stringify(freeList.body ?? ""), "kilitli talep listeye sızmamalı").not.toContain(id);
+  expect(JSON.stringify(freeList.body ?? ""), "tam listeye (teklif verilebilir) girmemeli").not.toContain(id);
+  // Maskeli satır (2026-10-03): numara ve başlık var; iç kimlik ve alıcı adı YOK.
+  const freeMasked = await apiGet(free, "/company/listings/seller-tenders/masked");
+  expect(freeMasked.status).toBe(200);
+  const maskedRow = (freeMasked.body as Array<{ number: string; title: string; company: Record<string, unknown> }>).find(
+    (r) => r.title === `QA Çok Teklifli Alım ${stamp}`,
+  );
+  expect(maskedRow, "STANDART maskeli listede talebi görür").toBeTruthy();
+  const maskedText = JSON.stringify(freeMasked.body);
+  expect(maskedText, "maskeli yanıtta iç kimlik").not.toContain(id);
+  expect(maskedText, "maskeli yanıtta alıcı adı").not.toContain("QA Alıcı");
+  expect(Object.keys(maskedRow!.company).sort()).toEqual(["activities", "city", "country", "industry", "verified"]);
+  const maskedDetail = await apiGet(free, `/company/listings/seller-tenders/masked/${maskedRow!.number}`);
+  expect(maskedDetail.status).toBe(200);
+  expect(JSON.stringify(maskedDetail.body)).not.toContain(id);
+  // Teklif kapısı değişmedi.
+  const freeBid = await apiPost(free, `/company/listings/${id}/bids`, { items: [] });
+  expect(freeBid.status, "STANDART maskeli talebe teklif POST").toBe(403);
 
   // ── GÖRÜNTÜLEYİCİ: teklif veremez ────────────────────────────────────
   const viewer = await apiSession(QA.tedarikciGoruntuleyici);
