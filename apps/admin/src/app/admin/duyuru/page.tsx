@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAdminCompanyStats } from "@/hooks/use-admin-companies";
 import { useAnnounce } from "@/hooks/use-admin-support";
-import { countryFlag, countryName } from "@/lib/country";
+import { countryName } from "@/lib/country";
 import { Megaphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
@@ -175,7 +175,7 @@ function DuyuruView() {
                 []
               ).map((c) => (
                 <option key={c.country} value={c.country}>
-                  {countryFlag(c.country)} {countryName(c.country)} ({c.count})
+                  {countryName(c.country)} ({c.count})
                 </option>
               ))}
             </Select>

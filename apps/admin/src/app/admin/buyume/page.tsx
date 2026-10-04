@@ -7,7 +7,8 @@ import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import { StatCard } from "@/components/ui/stat-card";
 import { useGrowthReport } from "@/hooks/use-admin-growth";
-import { countryFlag, countryName } from "@/lib/country";
+import { countryName } from "@/lib/country";
+import { CountryFlag } from "@/components/country-flag";
 import { useState } from "react";
 
 /**
@@ -46,7 +47,14 @@ const pct = (n: number, d: number) => (d > 0 ? `%${trNum(Math.round((n / d) * 10
 /** Davet dili → ad; ülkesi bilinmeyen davet "Bilinmiyor" (ham "??"/kod yerine). */
 const LOCALE_LABEL: Record<string, string> = { tr: "Türkçe", en: "İngilizce", ru: "Rusça" };
 const countryCell = (code: string | null) =>
-  code && code !== "??" ? `${countryFlag(code)} ${countryName(code)}` : "Bilinmiyor";
+  code && code !== "??" ? (
+    <span className="inline-flex items-center gap-1.5">
+      <CountryFlag code={code} decorative />
+      {countryName(code)}
+    </span>
+  ) : (
+    "Bilinmiyor"
+  );
 
 function GrowthView() {
   const [days, setDays] = useState(30);

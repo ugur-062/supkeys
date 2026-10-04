@@ -12,7 +12,8 @@ import {
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useAdminProductStats } from "@/hooks/use-admin-products";
 import { canAdminDo } from "@/lib/admin-permissions";
-import { countryFlag, countryName } from "@/lib/country";
+import { countryName } from "@/lib/country";
+import { CountryFlag } from "@/components/country-flag";
 import { safeFormat } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import {
@@ -208,8 +209,8 @@ function DashboardContent() {
                 href={companyHref(`/admin/firmalar?country=${c.country}`)}
                 className="flex items-center justify-between px-5 py-2.5"
               >
-                <span className="text-admin-text text-sm">
-                  {countryFlag(c.country)} {countryName(c.country)}
+                <span className="text-admin-text inline-flex items-center gap-1.5 text-sm">
+                  <CountryFlag code={c.country} decorative /> {countryName(c.country)}
                 </span>
                 <span className="text-admin-text text-sm font-semibold tabular-nums">
                   {c.count}
@@ -239,7 +240,7 @@ function DashboardContent() {
                 >
                   <div className="min-w-0">
                     <p className="text-admin-text truncate font-semibold">
-                      {countryFlag(c.country)} {c.name}
+                      <CountryFlag code={c.country} className="mr-1" /> {c.name}
                     </p>
                     <p className="text-admin-text-muted font-mono text-xs">
                       {c.rothernId ?? "—"}

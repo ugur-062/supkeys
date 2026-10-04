@@ -42,7 +42,8 @@ import { Download, EllipsisVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useListFilters } from "@/hooks/use-list-filters";
-import { countryFlag, countryName, countryShort } from "@/lib/country";
+import { countryName, countryShort } from "@/lib/country";
+import { CountryFlag } from "@/components/country-flag";
 import { safeFormat, toDateInput } from "@/lib/date";
 import Link from "next/link";
 import { Suspense, useState } from "react";
@@ -247,7 +248,7 @@ function FirmalarView() {
               []
             ).map((c) => ({
               value: c.country,
-              label: `${countryFlag(c.country)} ${countryName(c.country)} (${c.count})`,
+              label: `${countryName(c.country)} (${c.count})`,
             })),
           ]}
         />
@@ -353,7 +354,7 @@ function FirmalarView() {
                         .filter(Boolean)
                         .join(" / ")}
                     >
-                      {countryFlag(c.country)} {countryShort(c.country)}
+                      <CountryFlag code={c.country} decorative /> {countryShort(c.country)}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <Badge color={TIER_COLOR[c.tier] ?? "zinc"}>

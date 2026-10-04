@@ -15,7 +15,8 @@ import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader, Pagination } from "@/components/list";
 import { useAdminCompanies } from "@/hooks/use-admin-companies";
 import { useListFilters } from "@/hooks/use-list-filters";
-import { countryFlag, countryName } from "@/lib/country";
+import { countryName, countryShort } from "@/lib/country";
+import { CountryFlag } from "@/components/country-flag";
 import { safeFormat } from "@/lib/date";
 import Link from "next/link";
 import { Suspense, useEffect } from "react";
@@ -115,7 +116,7 @@ function BasvurularView() {
                     className="text-admin-text text-sm whitespace-nowrap"
                     title={countryName(c.country)}
                   >
-                    {countryFlag(c.country)} {c.country}
+                    <CountryFlag code={c.country} decorative /> {countryShort(c.country)}
                     {c.country !== "TR" ? (
                       <Badge color="blue" className="ml-2">
                         Yabancı

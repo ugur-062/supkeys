@@ -6,6 +6,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
 import { api, toastApiError } from "@/lib/api";
 import { countryLabel } from "@/lib/country";
+import { CountryFlag } from "@/components/country-flag";
 import { anonymizedMessage } from "@/lib/retention-reasons";
 import { safeFormat } from "@/lib/date";
 import { useRouter } from "next/navigation";
@@ -245,7 +246,15 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
           <Row label="Vergi Dairesi" value={data.taxOffice} />
           <Row label="MERSİS No" value={data.mersisNo} />
           <Row label="Ticari Sicil No" value={data.tradeRegistryNo} />
-          <Row label="Ülke" value={countryLabel(data.country)} />
+          <Row
+            label="Ülke"
+            value={
+              <span className="inline-flex items-center gap-1.5">
+                <CountryFlag code={data.country} decorative />
+                {countryLabel(data.country)}
+              </span>
+            }
+          />
           <Row
             label="Bölge / Şehir"
             value={[data.stateRegion, data.city].filter(Boolean).join(" / ")}

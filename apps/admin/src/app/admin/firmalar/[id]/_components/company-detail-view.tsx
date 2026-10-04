@@ -10,6 +10,7 @@ import {
 } from "@/hooks/use-admin-companies";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { countryLabel } from "@/lib/country";
+import { CountryFlag } from "@/components/country-flag";
 import { safeFormat } from "@/lib/date";
 import { ArrowLeft, Copy, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -167,7 +168,8 @@ export function CompanyDetailView({
               {data.rothernId ?? "—"}
               <Copy className="h-3 w-3" aria-hidden />
             </button>
-            <span className="text-admin-text-muted text-xs">
+            <span className="text-admin-text-muted inline-flex items-center gap-1 text-xs">
+              <CountryFlag code={data.country} decorative />
               {countryLabel(data.country)}
             </span>
             {data.billingEmail ? (

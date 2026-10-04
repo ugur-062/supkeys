@@ -3,7 +3,7 @@
 import { TIER_COLOR, TIER_LABEL } from "@/lib/terms";
 import { Badge } from "@/components/catalyst/badge";
 import { useGlobalSearch } from "@/hooks/use-admin-support";
-import { countryFlag } from "@/lib/country";
+import { CountryFlag } from "@/components/country-flag";
 import { cn } from "@/lib/utils";
 import { Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -196,7 +196,7 @@ export function GlobalSearch() {
                         className="hover:bg-admin-border/20 flex w-full items-center justify-between px-4 py-2 text-left"
                       >
                         <span className="text-admin-text text-sm">
-                          {countryFlag(c.country)} {c.name}
+                          <CountryFlag code={c.country} className="mr-1" /> {c.name}
                           <span className="text-admin-text-muted ml-2 font-mono text-xs">
                             {c.rothernId ?? ""}
                           </span>
