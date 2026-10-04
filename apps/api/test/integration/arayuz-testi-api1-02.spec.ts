@@ -254,7 +254,7 @@ describe("D-163 — ücretli ama doğrulanmamış firmaya kategori duyurusu", ()
     expect(email.send).toHaveBeenCalledTimes(1);
     const payload = JSON.stringify((email.send as jest.Mock).mock.calls[0][0].templateData);
     expect(payload).toContain("/company/ayarlar/dogrulama");
-    expect(payload).toContain("Ücretsiz Doğrulan");
+    expect(payload).toContain("Ücretsiz doğrulan");
     expect(payload).not.toContain("hemen teklif verin");
     expect(inApp.length).toBeGreaterThan(0);
     expect(inApp[0]!.body).toMatch(/doğrulayın/);

@@ -106,7 +106,7 @@ describe("AdminProductsService", () => {
     await b.svc.reject("i1", "Açıklama yetersiz kalmış", "admin1");
     expect(b.seo.productChanged).not.toHaveBeenCalled();
     const draftRejected = b.companies.notifyCompany.mock.calls[0][1];
-    expect(tApi(draftRejected.cta.labelKey)).toBe("Düzelt ve yeniden gönder");
+    expect(tApi(draftRejected.cta.labelKey)).toBe("Ürünü düzelt");
     expect(draftRejected.cta.path).toBe("/company/satis/urunlerim?sekme=rejected");
   });
 

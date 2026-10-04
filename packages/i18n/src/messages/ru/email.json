@@ -50,7 +50,6 @@
     "textOptOut": "Чтобы отключить такие приглашения: {url}"
   },
   "tenderExternalInvite": {
-    "subject": "{inviterName} приглашает Вас принять участие в заявке на закупку «{tenderTitle}»",
     "preview": "{inviterName} хочет получить от Вас предложение по заявке на закупку «{tenderTitle}».",
     "heading": "Вас пригласили принять участие в заявке на закупку",
     "greeting": "Здравствуйте!",

@@ -50,7 +50,6 @@
     "textOptOut": "To turn off such invitations: {url}"
   },
   "tenderExternalInvite": {
-    "subject": "{inviterName} invited you to quote on the buying request “{tenderTitle}”",
     "preview": "{inviterName} would like a quote from you for the buying request “{tenderTitle}”.",
     "heading": "You’ve been invited to quote on a buying request",
     "greeting": "Hello,",

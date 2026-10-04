@@ -1354,7 +1354,7 @@
       "lcOpened": {
         "subject": "Letter of credit opened — awaiting your acceptance",
         "heading": "Letter of credit opened",
-        "body": "The buyer opened a letter of credit for {hasNumber, select, yes {order {number}} other {the order}}. Confirm it with your bank and complete the “I accepted the letter of credit” step."
+        "body": "The buyer opened a letter of credit for {hasNumber, select, yes {order {number}} other {the order}}. Confirm it with your bank and complete the “Accept letter of credit” step."
       },
       "lcAccepted": {
         "subject": "Letter of credit accepted",
@@ -1390,16 +1390,16 @@
     "approvals": {
       "pending": {
         "title": "Your approval is awaited",
-        "body": "It is your turn to approve \"{hasTitle, select, yes {{title}} other {Buying request}}\" ({number}). Please review it and decide on the Approvals page.",
-        "cta": "Approvals page",
+        "body": "It is your turn to approve “{hasTitle, select, yes {{title}} other {Buying request}}” ({number}). Please review it and decide on the Approvals page.",
+        "cta": "Go to approvals",
         "waitingDays": "{days, plural, one {This approval has been waiting for # day.} other {This approval has been waiting for # days.}}"
       },
       "decided": {
         "approvedTitle": "Your approval request was approved",
         "rejectedTitle": "Your approval request was rejected",
-        "body": "The approval request you started for \"{hasTitle, select, yes {{title}} other {Buying request}}\" ({number}) {approved, select, yes {was approved and the action was applied} other {was rejected}}.{hasNote, select, yes { Note: {note}} other {}}",
-        "cta": "View buying request",
-        "bodyNoEligibleApprover": "The approval request you started for \"{hasTitle, select, yes {{title}} other {Buying request}}\" ({number}) was rejected. Note: There is no other eligible approver in the approval flow besides you — add an approver to the flow or contact the company owner."
+        "body": "The approval request you started for “{hasTitle, select, yes {{title}} other {Buying request}}” ({number}) {approved, select, yes {was approved and the action was applied} other {was rejected}}.{hasNote, select, yes { Note: {note}} other {}}",
+        "cta": "View request",
+        "bodyNoEligibleApprover": "The approval request you started for “{hasTitle, select, yes {{title}} other {Buying request}}” ({number}) was rejected. Note: There is no other eligible approver in the approval flow besides you — add an approver to the flow or contact the company owner."
       }
     },
     "companyUsers": {
@@ -1489,147 +1489,145 @@
       "reply": {
         "subject": "You’ve received a reply to your inquiry",
         "heading": "You’ve got a reply",
-        "intro": "{company} replied to your inquiry about \"{product}\".",
+        "intro": "{company} replied to your inquiry about “{product}”.",
         "claimedRead": "You can read the reply on your My Inquiries page.",
         "guestRead": "Create your free account to read the reply; this inquiry and its replies will be linked to your account.",
         "claimedCta": "Read the reply",
-        "guestCta": "Create my account and read the reply"
+        "guestCta": "Sign up to read"
       },
       "seller": {
         "subject": "New inquiry about your product",
         "heading": "New inquiry",
-        "intro": "{visitor} asked for information about your product \"{product}\".",
-        "introWithQuantity": "{visitor} asked for information about your product \"{product}\" ({quantity}).",
+        "intro": "{visitor} asked for information about your product “{product}”.",
+        "introWithQuantity": "{visitor} asked for information about your product “{product}” ({quantity}).",
         "action": "You can view and reply to the inquiry from your panel.",
         "cta": "View inquiry"
       },
       "sellerFree": {
         "subject": "New inquiry about your product — Silver to reply",
         "heading": "A buyer asked about your product",
-        "intro": "A buyer asked for information about your product \"{product}\".",
-        "introWithQuantity": "A buyer asked for information about your product \"{product}\" ({quantity}).",
+        "intro": "A buyer asked for information about your product “{product}”.",
+        "introWithQuantity": "A buyer asked for information about your product “{product}” ({quantity}).",
         "action": "On the free plan you can see the question; the buyer’s identity, contact details and replying are unlocked with the Silver plan.",
         "cta": "View inquiry"
       }
     },
     "listings": {
       "cta": {
-        "viewRequest": "View buying request",
+        "viewRequest": "View request",
         "reviewBids": "Review quotes",
-        "placeBid": "Submit quote",
+        "placeBid": "Submit a quote",
         "viewOrder": "View order",
         "viewOrders": "View orders",
-        "viewPlans": "View plans",
-        "viewOpenRequests": "View open buying requests",
         "upgradeSilver": "Upgrade to Silver",
-        "verifyFree": "Get Verified for Free"
+        "verifyFree": "Get verified for free"
       },
       "closed": {
         "subject": "Quote submission closed for a buying request",
         "title": "Buying request under evaluation",
-        "body": "Quote submission has closed for the buying request \"{title}\" ({number}); the request is now under evaluation. You will be notified when the result is announced."
+        "body": "Quote submission has closed for the buying request “{title}” ({number}); the request is now under evaluation. You will be notified when the result is announced."
       },
       "closedOwner": {
         "subject": "Your buying request has closed — award decision pending",
         "title": "Time to make your award decision",
-        "body": "Your buying request \"{title}\" ({number}) has closed for quotes. You can review the quotes and make your award decision."
+        "body": "Your buying request “{title}” ({number}) has closed for quotes. You can review the quotes and make your award decision."
       },
       "categoryMatch": {
         "footerNote": "You receive this notification based on your category preferences.",
         "buy": {
           "heading": "New buying request in your category",
           "openSubject": "A new buying request that fits you was published",
-          "openBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see the requested line items below — open the request and submit your quote.",
-          "openInAppBody": "New buying request matching the categories you sell: \"{title}\" ({number}).",
+          "openBody": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see the requested line items below — open the request and submit your quote.",
+          "openInAppBody": "New buying request matching the categories you sell: “{title}” ({number}).",
           "lockedSubject": "A new buyer in your category — upgrade to Silver to quote",
-          "lockedBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see what is requested below. On the free plan you cannot quote on public requests; upgrade to Silver to quote on this request and on other open requests in your category, and to stand out in the company directory. Requests your connections invite you to are always free.",
+          "lockedBody": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see what is requested below. On the free plan you cannot quote on public requests; upgrade to Silver to quote on this request and on other open requests in your category, and to stand out in the company directory. Requests your connections invite you to are always free.",
           "lockedInAppTitle": "A new buyer in your category — upgrade to Silver to quote",
-          "lockedInAppBody": "A new buying request matching the categories you sell was published: \"{title}\". Upgrade to Silver to quote on it.",
-          "lockedBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see what is requested below. On the free plan you cannot quote on public requests, and the only requirement for upgrading to Silver is verifying your company for free. Get verified first, then quote on this request and other open requests in your category with Silver. Requests your connections invite you to are always free.",
-          "lockedInAppBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\". To quote, verify your company for free first, then upgrade to Silver.",
-          "openBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see the requested line items below. To quote on public requests, first verify your company for free; once verification is complete, you can submit a quote on this request. Requests your connections invite you to do not require verification.",
-          "openInAppBodyUnverified": "New buying request matching the categories you sell: \"{title}\" ({number}). Verify your company for free first to submit a quote.",
-          "openBodyPending": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see the requested line items below. Your company verification is under review; once it is approved, you can submit a quote on this request.",
-          "openInAppBodyPending": "New buying request matching the categories you sell: \"{title}\" ({number}). You can submit a quote once your company verification is approved."
+          "lockedInAppBody": "A new buying request matching the categories you sell was published: “{title}”. Upgrade to Silver to quote on it.",
+          "lockedBodyUnverified": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see what is requested below. On the free plan you cannot quote on public requests, and the only requirement for upgrading to Silver is verifying your company for free. Get verified first, then quote on this request and other open requests in your category with Silver. Requests your connections invite you to are always free.",
+          "lockedInAppBodyUnverified": "A new buying request matching the categories you sell was published: “{title}”. To quote, verify your company for free first, then upgrade to Silver.",
+          "openBodyUnverified": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see the requested line items below. To quote on public requests, first verify your company for free; once verification is complete, you can submit a quote on this request. Requests your connections invite you to do not require verification.",
+          "openInAppBodyUnverified": "New buying request matching the categories you sell: “{title}” ({number}). Verify your company for free first to submit a quote.",
+          "openBodyPending": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see the requested line items below. Your company verification is under review; once it is approved, you can submit a quote on this request.",
+          "openInAppBodyPending": "New buying request matching the categories you sell: “{title}” ({number}). You can submit a quote once your company verification is approved."
         }
       },
       "invitation": {
         "subject": "You have been invited to a buying request",
         "title": "Buying request invitation",
-        "body": "You have been invited to the buying request \"{title}\" ({number}). You can see the requested line items below — open the request for details and to submit a quote.",
-        "inAppBody": "You have been invited to the buying request \"{title}\" ({number})."
+        "body": "You have been invited to the buying request “{title}” ({number}). You can see the requested line items below — open the request for details and to submit a quote.",
+        "inAppBody": "You have been invited to the buying request “{title}” ({number})."
       },
       "reminder": {
         "subject": "Buying request closing soon",
         "title": "Closing reminder",
-        "body": "The buying request \"{title}\" ({number}) is closing soon. This is your last chance to submit a quote."
+        "body": "The buying request “{title}” ({number}) is closing soon. This is your last chance to submit a quote."
       },
       "newRound": {
         "subject": "A new round has started on a buying request",
         "title": "New round opened",
-        "body": "A new round has opened on the buying request \"{title}\" ({number}). Log in to submit your updated quote.",
-        "inAppBody": "A new round has opened on the buying request \"{title}\" ({number}) — submit your updated quote."
+        "body": "A new round has opened on the buying request “{title}” ({number}). Log in to submit your updated quote.",
+        "inAppBody": "A new round has opened on the buying request “{title}” ({number}) — submit your updated quote."
       },
       "bidReceived": {
         "title": "New quote received",
-        "body": "A new quote was submitted for your request \"{title}\" ({number})."
+        "body": "A new quote was submitted for your request “{title}” ({number})."
       },
       "awarded": {
         "subject": "Congratulations — your quote won",
         "title": "Your quote won",
-        "body": "Your quote won the buying request \"{title}\" ({number}) and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created. You can track order details and next steps on Rothern.",
-        "bodyShort": "Your quote won the buying request \"{title}\" ({number}) and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created."
+        "body": "Your quote won the buying request “{title}” ({number}) and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created. You can track order details and next steps on Rothern.",
+        "bodyShort": "Your quote won the buying request “{title}” ({number}) and {count, plural, one {order} other {orders}} {orderNumbers} {count, plural, one {has} other {have}} been created."
       },
       "lost": {
         "title": "Buying request concluded",
-        "body": "The buying request \"{title}\" ({number}) has concluded; your quote did not win this round.",
-        "emailBody": "The buying request \"{title}\" ({number}) has concluded; your quote did not win this round. Keep an eye on Rothern for new opportunities."
+        "body": "The buying request “{title}” ({number}) has concluded; your quote did not win this round.",
+        "emailBody": "The buying request “{title}” ({number}) has concluded; your quote did not win this round. Keep an eye on Rothern for new opportunities."
       },
       "nextRoundCarried": {
         "subject": "New round opened — your quote was carried over",
         "heading": "Your quote was carried over to the new round",
         "inAppTitle": "New round — your quote was carried over",
-        "body": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request \"{title}\" ({number}). Your quote of {amount} was carried over unchanged because it is still valid — you may lower your price if you wish.",
-        "bodyMixed": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request \"{title}\" ({number}). Your multi-currency quote (approx. {amount} equivalent in total) was carried over unchanged because it is still valid — you may lower your price if you wish."
+        "body": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request “{title}” ({number}). Your quote of {amount} was carried over unchanged because it is still valid — you may lower your price if you wish.",
+        "bodyMixed": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request “{title}” ({number}). Your multi-currency quote (approx. {amount} equivalent in total) was carried over unchanged because it is still valid — you may lower your price if you wish."
       },
       "nextRoundExpired": {
         "subject": "Your quote’s validity has expired — action required",
         "title": "Your quote’s validity has expired",
-        "body": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request \"{title}\" ({number}), but your previous quote could not be carried over because its validity has expired. {opens, select, future {Before it opens ({openAt}),} other {To continue,}} submit a new price or extend the validity of your current quote."
+        "body": "{round, select, auction {A reverse auction round} other {A new round}} has opened on the buying request “{title}” ({number}), but your previous quote could not be carried over because its validity has expired. {opens, select, future {Before it opens ({openAt}),} other {To continue,}} submit a new price or extend the validity of your current quote."
       },
       "eliminated": {
         "subject": "Update on your quote",
         "title": "Your quote was not shortlisted",
-        "body": "Your quote for the buying request \"{title}\" ({number}) was eliminated in this round. You may update it and submit a new quote."
+        "body": "Your quote for the buying request “{title}” ({number}) was eliminated in this round. You may update it and submit a new quote."
       },
       "cancelled": {
         "title": "Buying request canceled",
-        "body": "The buying request \"{title}\" ({number}) was canceled by its owner.{hasReason, select, yes { Reason: {reason}} other {}}"
+        "body": "The buying request “{title}” ({number}) was canceled by its owner.{hasReason, select, yes { Reason: {reason}} other {}}"
       },
       "closedNoAward": {
         "subject": "Buying request closed without a winner",
         "title": "Buying request closed without an award",
-        "body": "The buying request \"{title}\" ({number}) was closed without selecting a winner.{hasReason, select, yes { Reason: {reason}} other {}}"
+        "body": "The buying request “{title}” ({number}) was closed without selecting a winner.{hasReason, select, yes { Reason: {reason}} other {}}"
       },
       "adminClosed": {
         "subject": "Buying request closed to quotes by the platform team",
         "title": "Buying request closed to quotes",
-        "body": "The buying request \"{title}\" ({number}) has been closed to quotes by the platform team. You will be notified separately if it is reopened after review."
+        "body": "The buying request “{title}” ({number}) has been closed to quotes by the platform team. You will be notified separately if it is reopened after review."
       },
       "adminReopened": {
         "subject": "Buying request reopened for quotes",
         "title": "Buying request reopened for quotes",
-        "body": "The buying request \"{title}\" ({number}) has been reopened for quotes by the platform team. New closing time: {closesAt}."
+        "body": "The buying request “{title}” ({number}) has been reopened for quotes by the platform team. New closing time: {closesAt}."
       },
       "closingChanged": {
         "subject": "Buying request closing time changed",
         "title": "Closing time changed",
-        "body": "The closing time of the buying request \"{title}\" ({number}) has been {direction, select, extended {extended} advanced {moved earlier} other {updated}}. New closing time: {closesAt}."
+        "body": "The closing time of the buying request “{title}” ({number}) has been {direction, select, extended {extended} advanced {moved earlier} other {updated}}. New closing time: {closesAt}."
       },
       "evaluationReminder": {
         "subject": "Quote validity is expiring on a buying request under evaluation",
         "title": "Quote validity is about to expire",
-        "body": "The buying request \"{title}\" ({number}) is under evaluation and {count, plural, one {# quote is} other {# quotes are}} about to expire (or already expired). Make your decision or ask suppliers to extend validity."
+        "body": "The buying request “{title}” ({number}) is under evaluation and {count, plural, one {# quote is} other {# quotes are}} about to expire (or already expired). Make your decision or ask suppliers to extend validity."
       },
       "preview": {
         "items": "Line items ({count, number})",
@@ -1639,30 +1637,30 @@
       },
       "aiInvitation": {
         "subject": "{inviter} invited you to a buying request",
-        "subjectAnon": "You've been invited to a buying request that matches what you sell",
-        "body": "You've been invited to the buying request \"{title}\" ({number}). The requested line items are below; open the request for details and to submit a quote.",
-        "bodyProduct": "You've been invited to the buying request \"{title}\" ({number}). We suggested you because of \"{product}\" in your showcase; the requested line items are below.",
-        "bodyCategory": "You've been invited to the buying request \"{title}\" ({number}). The request matches the category you sell in; the requested line items are below.",
-        "footer": "This invitation was sent based on Rothern's supplier suggestions. You can turn off request invitations in Settings › Notifications."
+        "subjectAnon": "You’ve been invited to a buying request that matches what you sell",
+        "body": "You’ve been invited to the buying request “{title}” ({number}). The requested line items are below; open the request for details and to submit a quote.",
+        "bodyProduct": "You’ve been invited to the buying request “{title}” ({number}). We suggested you because of “{product}” in your showcase; the requested line items are below.",
+        "bodyCategory": "You’ve been invited to the buying request “{title}” ({number}). The request matches the category you sell in; the requested line items are below.",
+        "footer": "This invitation was sent based on Rothern’s supplier suggestions. You can turn off request invitations in Settings › Notifications."
       },
       "aiMatchLocked": {
         "subject": "A buyer is looking for what you sell",
-        "bodySilver": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because you're on the free plan, you weren't suggested to the buyer and can't see the request. With Silver, you see this request and quote on it, and you appear in buyers' AI supplier suggestions.",
-        "bodyVerify": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because your company is unverified and on the free plan, you weren't suggested to the buyer and can't see the request. Verify your company for free first — it's the only requirement for upgrading to Silver; with Silver you can quote on this request and appear in buyers' AI supplier suggestions.",
-        "inAppBodySilver": "AI found your company a good fit for the request \"{title}\". Upgrade to Silver to see it and submit a quote.",
-        "inAppBodyVerify": "AI found your company a good fit for the request \"{title}\". Verify your company for free first, then quote with Silver.",
-        "bodyPaidPending": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because your company verification is still under review, you haven't been suggested to the buyer yet. You can already see the request; once your verification is approved, you can quote on it and appear in buyers' AI supplier suggestions.",
-        "bodyPaidVerify": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because your company is unverified, you weren't suggested to the buyer. You can see the request; verify your company for free to quote on it and appear in buyers' AI supplier suggestions.",
-        "inAppBodyPaidPending": "AI found your company a good fit for the request \"{title}\". You can see it now; you can quote once your verification is approved.",
-        "inAppBodyPaidVerify": "AI found your company a good fit for the request \"{title}\". Verify your company for free to submit a quote.",
-        "footer": "You're receiving this because your showcase and categories matched a buyer's search. You can turn off category notifications in Settings › Notifications."
+        "bodySilver": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because you’re on the free plan, you weren’t suggested to the buyer and can’t see the request. With Silver, you see this request and quote on it, and you appear in buyers’ AI supplier suggestions.",
+        "bodyVerify": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company is unverified and on the free plan, you weren’t suggested to the buyer and can’t see the request. Verify your company for free first — it’s the only requirement for upgrading to Silver; with Silver you can quote on this request and appear in buyers’ AI supplier suggestions.",
+        "inAppBodySilver": "AI found your company a good fit for the request “{title}”. Upgrade to Silver to see it and submit a quote.",
+        "inAppBodyVerify": "AI found your company a good fit for the request “{title}”. Verify your company for free first, then quote with Silver.",
+        "bodyPaidPending": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company verification is still under review, you haven’t been suggested to the buyer yet. You can already see the request; once your verification is approved, you can quote on it and appear in buyers’ AI supplier suggestions.",
+        "bodyPaidVerify": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company is unverified, you weren’t suggested to the buyer. You can see the request; verify your company for free to quote on it and appear in buyers’ AI supplier suggestions.",
+        "inAppBodyPaidPending": "AI found your company a good fit for the request “{title}”. You can see it now; you can quote once your verification is approved.",
+        "inAppBodyPaidVerify": "AI found your company a good fit for the request “{title}”. Verify your company for free to submit a quote.",
+        "footer": "You’re receiving this because your showcase and categories matched a buyer’s search. You can turn off category notifications in Settings › Notifications."
       }
     },
     "adminCompanies": {
       "ulkeDegistiBaslik": "Country change: your verification documents need updating",
       "ulkeDegistiGovde": "Because your company’s country was updated, the required verification documents have changed. Upload the missing documents and resubmit your verification.",
       "dogrulamaOnaylandiBaslik": "Your company verification was approved",
-      "dogrulamaOnaylandiGovde": "Your company verification documents have been reviewed and approved. Your company now appears with the \"Verified\" badge and steps that require verification are unlocked. Publishing requests also requires the Gold plan and quoting on public requests requires the Silver plan; you can quote on requests you are invited to or that come from your connections without a plan.",
+      "dogrulamaOnaylandiGovde": "Your company verification documents have been reviewed and approved. Your company now appears with the “Verified” badge and steps that require verification are unlocked. Publishing requests also requires the Gold plan and quoting on public requests requires the Silver plan; you can quote on requests you are invited to or that come from your connections without a plan.",
       "dogrulamaReddedildiBaslik": "Your company verification was rejected",
       "dogrulamaReddedildiGovde": "Your company verification documents were reviewed but could not be approved. Please update your documents and resubmit.",
       "baziBelgelerReddedildiBaslik": "Some of your documents were rejected",
@@ -1672,15 +1670,15 @@
       "belgeGuncellemesiReddedildiBaslik": "Your document update was rejected",
       "belgeGuncellemesiReddedildiGovde": "The new document you submitted was not approved; your current document remains valid. You can review the reason and upload a new document.",
       "paketSonlandirildiBaslik": "Your plan has ended",
-      "paketSonlandirildiAnaParagraf": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer's identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
+      "paketSonlandirildiAnaParagraf": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
       "paketSonlandirildiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval.",
       "paketSonlandirildiDavetIptal": "The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
-      "paketSonlandirildiGovde": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer's identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
-      "paketSonlandirildiGovdeKirpildi": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer's identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
+      "paketSonlandirildiGovde": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
+      "paketSonlandirildiGovdeKirpildi": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
       "paketTanimlandiBaslik": "Your plan has been activated",
       "paketTanimlandiGovde": "The {paket} plan has been assigned to your company account. You can start using your plan benefits right away.",
       "paketSilvereAlindiBaslik": "Your plan has been changed to Silver",
-      "paketSilvereAlindiGovde": "A platform administrator has moved your company to the Silver plan. Opening new requests, inviting new suppliers to existing requests, extending closing dates and editing requests are available with the Gold plan. You can still view your existing requests, evaluate and award the quotes you have received, close requests and complete ongoing orders. Supplier invitations waiting to be sent have been canceled. Your team's buying permissions have not been deleted; they do not take up seats on Silver and become active again when you return to Gold. All your selling rights continue.",
+      "paketSilvereAlindiGovde": "A platform administrator has moved your company to the Silver plan. Opening new requests, inviting new suppliers to existing requests, extending closing dates and editing requests are available with the Gold plan. You can still view your existing requests, evaluate and award the quotes you have received, close requests and complete ongoing orders. Supplier invitations waiting to be sent have been canceled. Your team’s buying permissions have not been deleted; they do not take up seats on Silver and become active again when you return to Gold. All your selling rights continue.",
       "askiyaAlindiBaslik": "Your account has been suspended",
       "askiyaAlindiGerekce": "Your company account has been suspended by a platform administrator. Reason: {gerekce}",
       "askiyaAlindiItiraz": "To appeal or for more information, please contact our support team.",
@@ -1692,7 +1690,7 @@
       "askiKaldirildiBaslik": "Your account suspension has been lifted",
       "askiKaldirildiGovde": "Your company account suspension has been lifted; you can use the platform again.",
       "dogrulamaGeriAlindiBaslik": "Your company verification has been revoked",
-      "dogrulamaGeriAlindiEtki": "Your company documents were reviewed again and your verified status has been revoked. Until your documents are approved again, the \"Verified\" badge does not appear on your profile and steps that require verification, such as publishing requests, submitting quotes and awarding quotes, are unavailable. Your existing orders are not affected. Correct the rejected documents and resubmit.",
+      "dogrulamaGeriAlindiEtki": "Your company documents were reviewed again and your verified status has been revoked. Until your documents are approved again, the “Verified” badge does not appear on your profile and steps that require verification, such as publishing requests, submitting quotes and awarding quotes, are unavailable. Your existing orders are not affected. Correct the rejected documents and resubmit.",
       "dogrulamaGeriAlindiGovde": "Your company verification has been revoked: until your documents are approved again, publishing requests, submitting quotes and awarding quotes are unavailable. Correct the rejected documents and resubmit.",
       "reddedilenBelgelerBaslik": "Rejected documents and reasons:",
       "redSatiri": "• {belge}: {gerekce}",
@@ -1730,34 +1728,34 @@
     },
     "adminProducts": {
       "yayinaAlindiBaslik": "Your product has been published",
-      "yayinaAlindiGovde": "Your product \"{ad}\" has been reviewed and published in the showcase. Buyers can now view your product page and send inquiries.",
+      "yayinaAlindiGovde": "Your product “{ad}” has been reviewed and published in the showcase. Buyers can now view your product page and send inquiries.",
       "guncellemeOnaylandiBaslik": "Your product update was approved",
-      "guncellemeOnaylandiGovde": "The change to your product \"{ad}\" has been reviewed and approved; the showcase version is up to date.",
+      "guncellemeOnaylandiGovde": "The change to your product “{ad}” has been reviewed and approved; the showcase version is up to date.",
       "urunuGor": "View product",
       "urunlerimiGor": "View my products",
       "topluYayinaAlindiBaslik": "{adet, plural, one {# of your products has been published} other {# of your products have been published}}",
-      "topluTekParagraf": "Your product \"{ad}\" has been reviewed and published in the showcase.",
+      "topluTekParagraf": "Your product “{ad}” has been reviewed and published in the showcase.",
       "topluCokParagraf": "{adet, plural, one {# of your products has been reviewed and published in the showcase} other {# of your products have been reviewed and published in the showcase}}: {liste}.",
       "topluCokParagrafKirpik": "{adet, plural, one {# of your products has been reviewed and published in the showcase} other {# of your products have been reviewed and published in the showcase}}: {liste} and {kalan} more.",
       "topluAliciNotu": "Buyers can now view your product pages and send inquiries.",
-      "topluTekGovde": "Your product \"{ad}\" has been reviewed and published in the showcase. Buyers can now view your product pages and send inquiries.",
+      "topluTekGovde": "Your product “{ad}” has been reviewed and published in the showcase. Buyers can now view your product pages and send inquiries.",
       "topluCokGovde": "{adet, plural, one {# of your products has been reviewed and published in the showcase} other {# of your products have been reviewed and published in the showcase}}: {liste}. Buyers can now view your product pages and send inquiries.",
       "topluCokGovdeKirpik": "{adet, plural, one {# of your products has been reviewed and published in the showcase} other {# of your products have been reviewed and published in the showcase}}: {liste} and {kalan} more. Buyers can now view your product pages and send inquiries.",
       "duzeltmeIstendiBaslik": "Corrections requested for your product",
-      "duzeltmeIstendiParagraf": "Your product \"{ad}\" has been reviewed and sent back to you for corrections. Reason: {gerekce}",
-      "duzeltmeIstendiParagrafVitrinden": "Your product \"{ad}\" has been reviewed and sent back to you for corrections. The product has been removed from the showcase until the corrections are made. Reason: {gerekce}",
+      "duzeltmeIstendiParagraf": "Your product “{ad}” has been reviewed and sent back to you for corrections. Reason: {gerekce}",
+      "duzeltmeIstendiParagrafVitrinden": "Your product “{ad}” has been reviewed and sent back to you for corrections. The product has been removed from the showcase until the corrections are made. Reason: {gerekce}",
       "duzeltmeIstendiTekrarGonder": "Make the change described in the reason and resubmit the product for approval.",
-      "duzeltmeIstendiGovde": "Your product \"{ad}\" has been reviewed and sent back to you for corrections. Reason: {gerekce} Make the change described in the reason and resubmit the product for approval.",
-      "duzeltmeIstendiGovdeVitrinden": "Your product \"{ad}\" has been reviewed and sent back to you for corrections. The product has been removed from the showcase until the corrections are made. Reason: {gerekce} Make the change described in the reason and resubmit the product for approval.",
-      "duzeltVeGonder": "Correct and resubmit"
+      "duzeltmeIstendiGovde": "Your product “{ad}” has been reviewed and sent back to you for corrections. Reason: {gerekce} Make the change described in the reason and resubmit the product for approval.",
+      "duzeltmeIstendiGovdeVitrinden": "Your product “{ad}” has been reviewed and sent back to you for corrections. The product has been removed from the showcase until the corrections are made. Reason: {gerekce} Make the change described in the reason and resubmit the product for approval.",
+      "duzeltVeGonder": "Edit product"
     },
     "adminInspection": {
       "ilanKapatildiBaslik": "Your request was closed by an administrator",
-      "ilanKapatildiGovde": "Your request \"{baslik}\" was closed to quotes by a platform administrator. Reason: {gerekce}",
+      "ilanKapatildiGovde": "Your request “{baslik}” was closed to quotes by a platform administrator. Reason: {gerekce}",
       "ilanUzatildiBaslik": "Request closing date extended",
-      "ilanUzatildiGovde": "The platform administrator has updated the closing date of your request \"{baslik}\" to {tarih}.",
+      "ilanUzatildiGovde": "The platform administrator has updated the closing date of your request “{baslik}” to {tarih}.",
       "ilanYenidenAcildiBaslik": "Your request has been reopened",
-      "ilanYenidenAcildiGovde": "The platform administrator has reopened your request \"{baslik}\" for quotes. New closing date: {tarih}.",
+      "ilanYenidenAcildiGovde": "The platform administrator has reopened your request “{baslik}” for quotes. New closing date: {tarih}.",
       "siparisIptalBaslik": "Order canceled by an administrator",
       "siparisIptalNumarali": "Order {numara} was canceled by a platform administrator. Reason: {gerekce}",
       "siparisIptalGenel": "The related order was canceled by a platform administrator. Reason: {gerekce}",
@@ -1768,13 +1766,9 @@
     "companyAuth": {
       "dogrulamaKoduKonu": "Your email verification code",
       "dogrulamaKoduBaslik": "Verify your email address",
-      "dogrulamaKoduGovde": "Your verification code to activate your Rothern account: {kod}",
       "girisKoduKonu": "Your login verification code",
       "girisKoduBaslik": "Two-step verification code",
-      "girisKoduGovde": "Your two-step verification code for signing in: {kod}",
       "ikiAdimliAyarKoduKonu": "Your two-step verification code",
-      "ikiAdimliAyarKoduGovde": "Your code to turn two-step verification on or off in your account settings: {kod}. If you did not request this, ignore this email and change your password.",
-      "kodGecerlilik": "The code is valid for {dakika, plural, one {# minute} other {# minutes}}.",
       "davetKabulBaslik": "Your invitation was accepted",
       "davetKabulGovde": "{firma}, which you invited, has joined Rothern and is now your connection.",
       "davetKabulGovdeIsimsiz": "A company you invited has joined Rothern and is now your connection.",
@@ -1791,7 +1785,7 @@
     },
     "membership": {
       "sonaErdiKonu": "Your plan has expired",
-      "sonaErdiAnaParagraf": "Your plan has expired and your account has been moved to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer's identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a paid plan), and up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
+      "sonaErdiAnaParagraf": "Your plan has expired and your account has been moved to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a paid plan), and up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
       "sonaErdiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval.",
       "sonaErdiYukseltme": "To move to a plan again, you can upgrade from your account.",
       "premiumaGec": "View plans",
@@ -1804,26 +1798,26 @@
     },
     "discovery": {
       "title": "Matching suppliers found",
-      "body": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request \"{title}\"{abroad, plural, =0 {} other { (# abroad)}}. You can invite them with one click.",
-      "cta": "View and invite suppliers",
+      "body": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request “{title}”{abroad, plural, =0 {} other { (# abroad)}}. You can invite them with one click.",
+      "cta": "View suppliers",
       "emailSubject": "{n, plural, one {# supplier} other {# suppliers}} found for your request",
       "emailHeading": "Suppliers found for your request",
-      "emailBody": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request \"{title}\" ({number}){abroad, plural, =0 {} other { — # of them abroad}}. Open the list, remove the ones you don't want and invite the rest with one click. Invitations are sent in each supplier's own language, during business hours in their country.",
+      "emailBody": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request “{title}” ({number}){abroad, plural, =0 {} other { — # of them abroad}}. Open the list, remove the ones you don’t want and invite the rest with one click. Invitations are sent in each supplier’s own language, during business hours in their country.",
       "emailFooter": "If you still have few quotes when half of the time has passed, we will search once more."
     },
     "digest": {
       "subject": "{n, plural, one {# more request} other {# more requests}} opened in your categories today",
-      "body": "You reached today's limit for instant alerts, so we've collected the other requests opened today in one email:",
+      "body": "You reached today’s limit for instant alerts, so we’ve collected the other requests opened today in one email:",
       "bodyLocked": "Here are the other requests opened in your categories today. Upgrade to Silver to view them and submit quotes.",
       "closesRow": "Quote deadline: {date}",
       "cta": "View open requests",
-      "footer": "To get every category email instantly, turn on \"All instantly\" in Settings › Notifications.",
+      "footer": "To get every category email instantly, turn on “All instantly” in Settings › Notifications.",
       "invitationSubject": "You were invited to {n, plural, one {# more request} other {# more requests}} today",
-      "invitationBody": "You reached today's limit for instant alerts, so we've collected today's other request invitations in one email:",
+      "invitationBody": "You reached today’s limit for instant alerts, so we’ve collected today’s other request invitations in one email:",
       "invitationCta": "View invitations",
       "bodyLockedUnverified": "Here are the other requests opened in your categories today. You need Silver to view them and submit quotes, and the only requirement for Silver is verifying your company for free.",
-      "bodyUnverified": "You reached today's limit for instant alerts, so we've collected the other requests opened today in one email. To quote on public requests, first verify your company for free; requests your connections invite you to don't require verification.",
-      "bodyPending": "You reached today's limit for instant alerts, so we've collected the other requests opened today in one email. Your company verification is under review; once it's approved, you can quote on these requests from buyers you aren't connected with."
+      "bodyUnverified": "You reached today’s limit for instant alerts, so we’ve collected the other requests opened today in one email. To quote on public requests, first verify your company for free; requests your connections invite you to don’t require verification.",
+      "bodyPending": "You reached today’s limit for instant alerts, so we’ve collected the other requests opened today in one email. Your company verification is under review; once it’s approved, you can quote on these requests from buyers you aren’t connected with."
     },
     "lifecycle": {
       "profile": {
@@ -1837,14 +1831,14 @@
         "cta": "Add product"
       },
       "verify": {
-        "subject": "Get verified for free and earn the \"Verified\" badge",
-        "body": "Verified companies stand out in buyers' lists and receive more invitations. Uploading your documents takes a few minutes.",
+        "subject": "Get verified for free and earn the “Verified” badge",
+        "body": "Verified companies stand out in buyers’ lists and receive more invitations. Uploading your documents takes a few minutes.",
         "cta": "Start verification"
       },
       "market": {
         "subject": "{n, plural, one {# request was} other {# requests were}} opened in your categories in the last 2 weeks",
         "body": "You can quote on buying requests in your categories from Open Requests.",
-        "bodyLocked": "Upgrade to Silver to view these requests and quote on them. On the free plan you can still quote on requests from buyers you're connected with or who invite you.",
+        "bodyLocked": "Upgrade to Silver to view these requests and quote on them. On the free plan you can still quote on requests from buyers you’re connected with or who invite you.",
         "cta": "View open requests",
         "ctaLocked": "Upgrade to Silver"
       },
@@ -1852,28 +1846,28 @@
         "subject": "Your company was viewed {n, plural, one {# time} other {# times}} this week",
         "body": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. See who looked on the Visitors page.",
         "cta": "See visitors",
-        "bodyFree": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days, {members, plural, one {# of them} other {# of them}} by Rothern member companies. Silver shows you which companies looked; with Silver you can also quote on public requests and appear in buyers' AI supplier suggestions.",
-        "bodyFreeAnon": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. With Silver, you see the names of companies that viewed your profile, quote on public requests and appear in buyers' AI supplier suggestions.",
+        "bodyFree": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days, {members, plural, one {# of them} other {# of them}} by Rothern member companies. Silver shows you which companies looked; with Silver you can also quote on public requests and appear in buyers’ AI supplier suggestions.",
+        "bodyFreeAnon": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. With Silver, you see the names of companies that viewed your profile, quote on public requests and appear in buyers’ AI supplier suggestions.",
         "ctaFree": "Explore Silver",
-        "bodyUnverified": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. Verified companies stand out in buyers' lists, and only verified Silver and Gold companies appear in AI supplier suggestions. Verification is free and takes a few minutes.",
+        "bodyUnverified": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. Verified companies stand out in buyers’ lists, and only verified Silver and Gold companies appear in AI supplier suggestions. Verification is free and takes a few minutes.",
         "ctaUnverified": "Get verified for free"
       },
       "verify_again": {
-        "subject": "Unverified companies don't appear in buyers' AI suggestions",
-        "body": "Buyers use AI supplier suggestions when they create requests, and only verified Silver and Gold companies are included. When you submit a quote, the buyer also sees you as an \"Unverified company\". Verification is free, uploading the documents takes a few minutes, and it's the only requirement for upgrading to Silver.",
+        "subject": "Unverified companies don’t appear in buyers’ AI suggestions",
+        "body": "Buyers use AI supplier suggestions when they create requests, and only verified Silver and Gold companies are included. When you submit a quote, the buyer also sees you as an “Unverified company”. Verification is free, uploading the documents takes a few minutes, and it’s the only requirement for upgrading to Silver.",
         "cta": "Get verified for free"
       },
       "silver": {
         "subject": "Your company is verified — now get in front of buyers",
-        "body": "With Silver, you see and quote on public buying requests, appear in buyers' AI supplier suggestions and see the names of companies that viewed your profile.",
+        "body": "With Silver, you see and quote on public buying requests, appear in buyers’ AI supplier suggestions and see the names of companies that viewed your profile.",
         "cta": "Explore Silver"
       }
     },
     "zeroBid": {
-      "subject": "Your request \"{title}\" hasn't received any quotes yet",
+      "subject": "Your request “{title}” hasn’t received any quotes yet",
       "heading": "Your request is waiting for quotes",
-      "body": "Your request \"{title}\" ({number}) closes on {closesAt} and hasn't received any quotes yet. Invite the suppliers AI found with one click, or extend the quote deadline.",
-      "inAppBody": "Your request \"{title}\" hasn't received any quotes yet. Invite the suppliers AI found or extend the deadline.",
+      "body": "Your request “{title}” ({number}) closes on {closesAt} and hasn’t received any quotes yet. Invite the suppliers AI found with one click, or extend the quote deadline.",
+      "inAppBody": "Your request “{title}” hasn’t received any quotes yet. Invite the suppliers AI found or extend the deadline.",
       "cta": "Open request"
     }
   },

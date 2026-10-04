@@ -5530,9 +5530,9 @@
     "at": "2026-10-01"
   },
   "api.notifications.adminCompanies.dogrulamaGeriAlindiEtki": {
-    "hash": "2c73c83d60",
+    "hash": "1b199151e6",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.adminCompanies.dogrulamaGeriAlindiGovde": {
     "hash": "951adda598",
@@ -5545,9 +5545,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminCompanies.dogrulamaOnaylandiGovde": {
-    "hash": "df1acf20db",
+    "hash": "1e79a4917a",
     "status": "reviewed",
-    "at": "2026-09-28"
+    "at": "2026-10-04"
   },
   "api.notifications.adminCompanies.dogrulamaReddedildiBaslik": {
     "hash": "e47c9a7602",
@@ -5710,9 +5710,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminInspection.ilanKapatildiGovde": {
-    "hash": "583d06084c",
+    "hash": "829fcce881",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminInspection.ilanUzatildiBaslik": {
     "hash": "5ff45e73d2",
@@ -5720,9 +5720,9 @@
     "at": "2026-09-30"
   },
   "api.notifications.adminInspection.ilanUzatildiGovde": {
-    "hash": "247866bbff",
+    "hash": "19fadbd9c4",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.adminInspection.ilanYenidenAcildiBaslik": {
     "hash": "d147213d64",
@@ -5730,9 +5730,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminInspection.ilanYenidenAcildiGovde": {
-    "hash": "7cab7fbd63",
+    "hash": "b7f0381d64",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.adminInspection.siparisIptalBaslik": {
     "hash": "960f117024",
@@ -5770,24 +5770,24 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminProducts.duzeltmeIstendiGovde": {
-    "hash": "35d550772c",
+    "hash": "e80c983ccf",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.duzeltmeIstendiGovdeVitrinden": {
-    "hash": "f906e5f5d2",
+    "hash": "9d946ca1f5",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.duzeltmeIstendiParagraf": {
-    "hash": "6a749a2368",
+    "hash": "c16a02228c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.duzeltmeIstendiParagrafVitrinden": {
-    "hash": "bc8fece66f",
+    "hash": "3b8048fc6c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.duzeltmeIstendiTekrarGonder": {
     "hash": "8d4da20395",
@@ -5795,9 +5795,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminProducts.duzeltVeGonder": {
-    "hash": "3a66da221a",
+    "hash": "6931261d27",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.guncellemeOnaylandiBaslik": {
     "hash": "ccf14b25a5",
@@ -5805,9 +5805,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminProducts.guncellemeOnaylandiGovde": {
-    "hash": "bc62c373da",
+    "hash": "852b32eb7b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.topluAliciNotu": {
     "hash": "1d73e53c2d",
@@ -5835,14 +5835,14 @@
     "at": "2026-09-25"
   },
   "api.notifications.adminProducts.topluTekGovde": {
-    "hash": "adf1cc22df",
+    "hash": "754293de52",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.topluTekParagraf": {
-    "hash": "042d5f101e",
+    "hash": "dcd024c6b7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.adminProducts.topluYayinaAlindiBaslik": {
     "hash": "e10f4d14db",
@@ -5865,9 +5865,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.adminProducts.yayinaAlindiGovde": {
-    "hash": "adf4ee2859",
+    "hash": "7826c0f4a9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.ai.butceUyarisiBaslik": {
     "hash": "a6d6ac9314",
@@ -5880,9 +5880,9 @@
     "at": "2026-09-25"
   },
   "api.notifications.ai.kullanimiGor": {
-    "hash": "6139f8748c",
+    "hash": "1055064b7a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.approvals.decided.approvedTitle": {
     "hash": "888ceeb713",
@@ -5890,19 +5890,19 @@
     "at": "2026-09-24"
   },
   "api.notifications.approvals.decided.body": {
-    "hash": "9c64c3c1c9",
+    "hash": "7a878ab5a2",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.approvals.decided.bodyNoEligibleApprover": {
-    "hash": "58bf4bec1f",
+    "hash": "87d497f2ca",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.approvals.decided.cta": {
-    "hash": "70bf970f73",
+    "hash": "676062f685",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.approvals.decided.rejectedTitle": {
     "hash": "64d3d83300",
@@ -5910,14 +5910,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.approvals.pending.body": {
-    "hash": "112d14b280",
+    "hash": "3506e8fe6b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.approvals.pending.cta": {
-    "hash": "116873795a",
+    "hash": "fab730ff59",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.approvals.pending.title": {
     "hash": "9e3fa4837d",
@@ -5930,9 +5930,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.common.belgeleriGuncelle": {
-    "hash": "f5ee5c0550",
+    "hash": "eec7858ea6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.common.belgelerim": {
     "hash": "60d8c98760",
@@ -5940,14 +5940,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.common.belgeleriTamamla": {
-    "hash": "bb8cffc1a3",
+    "hash": "fa5e3349e7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.common.gitRothern": {
-    "hash": "df5e5c91e3",
+    "hash": "f7daf410a7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.common.greeting": {
     "hash": "b6953841cf",
@@ -5984,11 +5984,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "api.notifications.companyAuth.dogrulamaKoduGovde": {
-    "hash": "216ede0881",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "api.notifications.companyAuth.dogrulamaKoduKonu": {
     "hash": "8a5d87c95a",
     "status": "reviewed",
@@ -5999,20 +5994,15 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "api.notifications.companyAuth.girisKoduGovde": {
-    "hash": "caef82b7ed",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "api.notifications.companyAuth.girisKoduKonu": {
     "hash": "eaea80c8a1",
     "status": "reviewed",
     "at": "2026-09-24"
   },
   "api.notifications.companyAuth.hesapAyarlari": {
-    "hash": "eea5369581",
+    "hash": "21bb698a33",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.companyAuth.ikiAdimliAcildiBaslik": {
     "hash": "d82081efcb",
@@ -6023,11 +6013,6 @@
     "hash": "1974fb240a",
     "status": "reviewed",
     "at": "2026-09-24"
-  },
-  "api.notifications.companyAuth.ikiAdimliAyarKoduGovde": {
-    "hash": "5adb48f9aa",
-    "status": "reviewed",
-    "at": "2026-10-01"
   },
   "api.notifications.companyAuth.ikiAdimliAyarKoduKonu": {
     "hash": "3ee5b584bb",
@@ -6054,11 +6039,6 @@
     "status": "reviewed",
     "at": "2026-09-30"
   },
-  "api.notifications.companyAuth.kodGecerlilik": {
-    "hash": "32de1fd547",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "api.notifications.companyAuth.parolaDegistiBaslik": {
     "hash": "5bc43af1ce",
     "status": "reviewed",
@@ -6072,7 +6052,7 @@
   "api.notifications.companyConnections.accepted.body": {
     "hash": "b41ab50546",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-10-04"
   },
   "api.notifications.companyConnections.accepted.title": {
     "hash": "b93c7303d4",
@@ -6080,9 +6060,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.companyConnections.emailCta": {
-    "hash": "df5e5c91e3",
+    "hash": "f7daf410a7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.companyConnections.greeting": {
     "hash": "b6953841cf",
@@ -6117,12 +6097,12 @@
   "api.notifications.companyMessages.newMessage.body": {
     "hash": "f7c898e8fa",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.companyMessages.newMessage.cta": {
-    "hash": "59d7259f4d",
+    "hash": "c8a085740e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.companyMessages.newMessage.greeting": {
     "hash": "b6953841cf",
@@ -6137,12 +6117,12 @@
   "api.notifications.companyMessages.newMessage.subject": {
     "hash": "d5ef4153a0",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.companyUsers.accountSetup.cta": {
-    "hash": "d92448708e",
+    "hash": "896d11d6bb",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.companyUsers.accountSetup.footer": {
     "hash": "a8e0e25327",
@@ -6180,9 +6160,9 @@
     "at": "2026-10-01"
   },
   "api.notifications.companyUsers.invite.cta": {
-    "hash": "65e54c7022",
+    "hash": "d1fdfd508a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.companyUsers.invite.footer": {
     "hash": "cbaae6008f",
@@ -6190,9 +6170,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.companyUsers.invite.heading": {
-    "hash": "e580e7f6f3",
+    "hash": "cf1854ccd7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.companyUsers.invite.intro": {
     "hash": "1ac4ddd268",
@@ -6232,7 +6212,7 @@
   "api.notifications.companyUsers.ownershipTransferred.toNewOwner.body": {
     "hash": "69bfaa42b2",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.companyUsers.ownershipTransferred.toNewOwner.title": {
     "hash": "efdea4f41d",
@@ -6337,12 +6317,12 @@
   "api.notifications.digest.cta": {
     "hash": "cb6d5170c7",
     "status": "reviewed",
-    "at": "2026-09-28"
+    "at": "2026-10-04"
   },
   "api.notifications.digest.footer": {
-    "hash": "e5234e0669",
+    "hash": "83e42cc96a",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.digest.invitationBody": {
     "hash": "5d43e6ca7e",
@@ -6365,19 +6345,19 @@
     "at": "2026-09-27"
   },
   "api.notifications.discovery.body": {
-    "hash": "801d1c1ab0",
+    "hash": "e198ac2bed",
     "status": "reviewed",
-    "at": "2026-09-30"
+    "at": "2026-10-04"
   },
   "api.notifications.discovery.cta": {
-    "hash": "966838a7d9",
+    "hash": "1d8a1a250a",
     "status": "reviewed",
-    "at": "2026-09-30"
+    "at": "2026-10-04"
   },
   "api.notifications.discovery.emailBody": {
-    "hash": "134a88091c",
+    "hash": "a421c044da",
     "status": "reviewed",
-    "at": "2026-09-30"
+    "at": "2026-10-04"
   },
   "api.notifications.discovery.emailFooter": {
     "hash": "79c096b1f3",
@@ -6427,7 +6407,7 @@
   "api.notifications.lifecycle.market.cta": {
     "hash": "cb6d5170c7",
     "status": "reviewed",
-    "at": "2026-09-28"
+    "at": "2026-10-04"
   },
   "api.notifications.lifecycle.market.ctaLocked": {
     "hash": "fe624b99cd",
@@ -6470,9 +6450,9 @@
     "at": "2026-09-28"
   },
   "api.notifications.lifecycle.verify_again.body": {
-    "hash": "53485f0fbd",
+    "hash": "d905a2c7bd",
     "status": "reviewed",
-    "at": "2026-09-28"
+    "at": "2026-10-04"
   },
   "api.notifications.lifecycle.verify_again.cta": {
     "hash": "4f3a0d82c1",
@@ -6495,9 +6475,9 @@
     "at": "2026-09-27"
   },
   "api.notifications.lifecycle.verify.subject": {
-    "hash": "7425699d1c",
+    "hash": "e6f4caa0ea",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.lifecycle.weekly.body": {
     "hash": "ff4e8aee5f",
@@ -6540,49 +6520,49 @@
     "at": "2026-09-27"
   },
   "api.notifications.listings.adminClosed.body": {
-    "hash": "0a823bd820",
+    "hash": "70d704f38e",
     "status": "reviewed",
-    "at": "2026-09-30"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.adminClosed.subject": {
-    "hash": "84f6321cf7",
+    "hash": "3fbfd7ac58",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.adminClosed.title": {
-    "hash": "e14d3965ca",
+    "hash": "2b3116274f",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.adminReopened.body": {
-    "hash": "323f5259c9",
+    "hash": "7bee0b7cd1",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.adminReopened.subject": {
-    "hash": "74f57cc663",
+    "hash": "24e0f71bd9",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.adminReopened.title": {
-    "hash": "74f57cc663",
+    "hash": "24e0f71bd9",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiInvitation.body": {
-    "hash": "815dd3280e",
+    "hash": "613fd75b78",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiInvitation.bodyCategory": {
-    "hash": "70ac18ec85",
+    "hash": "460974d9af",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiInvitation.bodyProduct": {
-    "hash": "73ca313a75",
+    "hash": "45b4039b3e",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiInvitation.footer": {
     "hash": "e0a43f7884",
@@ -6600,24 +6580,24 @@
     "at": "2026-09-29"
   },
   "api.notifications.listings.aiMatchLocked.bodyPaidPending": {
-    "hash": "131756d0f1",
+    "hash": "2d62649f0f",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.bodyPaidVerify": {
-    "hash": "99b054d6ee",
+    "hash": "8e85e22b27",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.bodySilver": {
-    "hash": "1bad77fc75",
+    "hash": "b3da000676",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.bodyVerify": {
-    "hash": "ff21f52472",
+    "hash": "c57bc44ca8",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.footer": {
     "hash": "158249e162",
@@ -6625,24 +6605,24 @@
     "at": "2026-09-28"
   },
   "api.notifications.listings.aiMatchLocked.inAppBodyPaidPending": {
-    "hash": "ab129f0ad1",
+    "hash": "13107083fc",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.inAppBodyPaidVerify": {
-    "hash": "5941418607",
+    "hash": "00d613fe0c",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.inAppBodySilver": {
-    "hash": "9985ec4977",
+    "hash": "6fafd09bf8",
     "status": "reviewed",
-    "at": "2026-09-28"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.inAppBodyVerify": {
-    "hash": "3cffd8e265",
+    "hash": "010ebb848c",
     "status": "reviewed",
-    "at": "2026-09-28"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.aiMatchLocked.subject": {
     "hash": "4d90633df1",
@@ -6650,14 +6630,14 @@
     "at": "2026-09-28"
   },
   "api.notifications.listings.awarded.body": {
-    "hash": "36d2ccbdbd",
+    "hash": "74e93d4141",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.awarded.bodyShort": {
-    "hash": "0632f501ea",
+    "hash": "dbb5cb8244",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.awarded.subject": {
     "hash": "783c1ce487",
@@ -6670,9 +6650,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.bidReceived.body": {
-    "hash": "5a20692a20",
+    "hash": "20ff7def98",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.bidReceived.title": {
     "hash": "bfd71b5d34",
@@ -6680,14 +6660,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.cancelled.body": {
-    "hash": "73eaa4f6b2",
+    "hash": "b909de702a",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.cancelled.title": {
-    "hash": "81910562ad",
+    "hash": "bb1f4a58c3",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.heading": {
     "hash": "849ac1cc56",
@@ -6695,24 +6675,24 @@
     "at": "2026-09-29"
   },
   "api.notifications.listings.categoryMatch.buy.lockedBody": {
-    "hash": "2ed8107c5c",
+    "hash": "bb32f15770",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.lockedBodyUnverified": {
-    "hash": "43c945b00b",
+    "hash": "881054807b",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.lockedInAppBody": {
-    "hash": "4645bcb8c2",
+    "hash": "b31d71bd57",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.lockedInAppBodyUnverified": {
-    "hash": "1aa92e52cc",
+    "hash": "110a526a38",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.lockedInAppTitle": {
     "hash": "203fca1c2e",
@@ -6725,34 +6705,34 @@
     "at": "2026-09-27"
   },
   "api.notifications.listings.categoryMatch.buy.openBody": {
-    "hash": "c72ca46444",
+    "hash": "f43ea71271",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.openBodyPending": {
-    "hash": "d4e036cc7e",
+    "hash": "8797c49adc",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.openBodyUnverified": {
-    "hash": "c85ae78d8d",
+    "hash": "51adaaabdc",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.openInAppBody": {
-    "hash": "3321c45605",
+    "hash": "def95213c2",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.openInAppBodyPending": {
-    "hash": "946431379a",
+    "hash": "19057b7f5a",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.openInAppBodyUnverified": {
-    "hash": "7311f55559",
+    "hash": "f424ab9689",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.categoryMatch.buy.openSubject": {
     "hash": "3e19bc7de2",
@@ -6765,44 +6745,44 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.closed.body": {
-    "hash": "0527ca0e39",
+    "hash": "b4c6ebc9e9",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closed.subject": {
-    "hash": "6b136252bc",
+    "hash": "196fca20d6",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closed.title": {
-    "hash": "7d456ae131",
+    "hash": "662f05c8a7",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closedNoAward.body": {
-    "hash": "f0651f9e0c",
+    "hash": "06ffe0384b",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closedNoAward.subject": {
-    "hash": "57bb202bed",
+    "hash": "49fdb70c7e",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closedNoAward.title": {
-    "hash": "bb43a88c17",
+    "hash": "fba7f4550d",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closedOwner.body": {
-    "hash": "d578184a2f",
+    "hash": "a1777079e0",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closedOwner.subject": {
-    "hash": "75a8611d5c",
+    "hash": "f4e2f18a33",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closedOwner.title": {
     "hash": "17510d83ad",
@@ -6810,14 +6790,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.closingChanged.body": {
-    "hash": "c5cf1e67ad",
+    "hash": "81a300fc91",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closingChanged.subject": {
-    "hash": "295866f336",
+    "hash": "dda126e2f4",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.closingChanged.title": {
     "hash": "d234bd2fe1",
@@ -6825,54 +6805,44 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.cta.placeBid": {
-    "hash": "d8636b1525",
+    "hash": "d57149c5f0",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.cta.reviewBids": {
-    "hash": "7c6bdfdd68",
+    "hash": "0c7cec5517",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.cta.upgradeSilver": {
-    "hash": "3026c9865d",
+    "hash": "fe624b99cd",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.cta.verifyFree": {
-    "hash": "9141036837",
+    "hash": "4f3a0d82c1",
     "status": "reviewed",
-    "at": "2026-09-28"
-  },
-  "api.notifications.listings.cta.viewOpenRequests": {
-    "hash": "32ebf3c00f",
-    "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.cta.viewOrder": {
-    "hash": "da1d18c0cf",
+    "hash": "b645d0767f",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.cta.viewOrders": {
-    "hash": "d8aab720fd",
+    "hash": "2265dcd07c",
     "status": "reviewed",
-    "at": "2026-10-01"
-  },
-  "api.notifications.listings.cta.viewPlans": {
-    "hash": "624d5ed752",
-    "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.cta.viewRequest": {
-    "hash": "e8384c2fb1",
+    "hash": "676062f685",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.eliminated.body": {
-    "hash": "f02c61b8ab",
+    "hash": "1c44a846c5",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.eliminated.subject": {
     "hash": "9fb9aee7bb",
@@ -6885,9 +6855,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.evaluationReminder.body": {
-    "hash": "8ecdd80dfd",
+    "hash": "b59c171c5d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.evaluationReminder.subject": {
     "hash": "cdd3b43ce4",
@@ -6900,14 +6870,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.invitation.body": {
-    "hash": "a895c133f0",
+    "hash": "b91cf93d61",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.invitation.inAppBody": {
-    "hash": "c3d6d18b7a",
+    "hash": "25b3d597b4",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.invitation.subject": {
     "hash": "57a2abc65a",
@@ -6915,39 +6885,39 @@
     "at": "2026-09-29"
   },
   "api.notifications.listings.invitation.title": {
-    "hash": "6abb8064f1",
+    "hash": "8c8dfdd996",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.lost.body": {
-    "hash": "0b9a0c4186",
+    "hash": "9295b011de",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.lost.emailBody": {
-    "hash": "9d58b8ca76",
+    "hash": "ec457f3e54",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.lost.title": {
-    "hash": "9a032923bf",
+    "hash": "873bb2fc9d",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.newRound.body": {
-    "hash": "697887b832",
+    "hash": "b8f02ae007",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.newRound.inAppBody": {
-    "hash": "25a5df7ecc",
+    "hash": "44f9f410bc",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.newRound.subject": {
-    "hash": "b93ba0ac17",
+    "hash": "11d9798e5f",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.newRound.title": {
     "hash": "7965d30c60",
@@ -6955,14 +6925,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.nextRoundCarried.body": {
-    "hash": "7e643376a1",
+    "hash": "2cdd825a6a",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.nextRoundCarried.bodyMixed": {
-    "hash": "396582eba8",
+    "hash": "100da36a5a",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.nextRoundCarried.heading": {
     "hash": "2416130322",
@@ -6980,9 +6950,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.listings.nextRoundExpired.body": {
-    "hash": "006653a319",
+    "hash": "be665697cf",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.nextRoundExpired.subject": {
     "hash": "a5169a4dce",
@@ -7015,14 +6985,14 @@
     "at": "2026-09-27"
   },
   "api.notifications.listings.reminder.body": {
-    "hash": "6a7dd73515",
+    "hash": "5b37cca655",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.reminder.subject": {
-    "hash": "0c37443f32",
+    "hash": "7d466c4857",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "api.notifications.listings.reminder.title": {
     "hash": "a804c520bb",
@@ -7030,9 +7000,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.membership.premiumaGec": {
-    "hash": "624d5ed752",
+    "hash": "36474a4f25",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.membership.sonaErdiAnaParagraf": {
     "hash": "33af4c965a",
@@ -7180,9 +7150,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.orders.ctaOrder": {
-    "hash": "da1d18c0cf",
+    "hash": "b645d0767f",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.orders.defectReported.body": {
     "hash": "552a08e863",
@@ -7230,9 +7200,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.orders.lcOpened.body": {
-    "hash": "957fb9a1d1",
+    "hash": "7786ee5330",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.orders.lcOpened.heading": {
     "hash": "28e3ed0ea1",
@@ -7375,9 +7345,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.publicInquiry.reply.guestCta": {
-    "hash": "45e836f577",
+    "hash": "b36362fb3e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.publicInquiry.reply.guestRead": {
     "hash": "f49e8ebb7d",
@@ -7390,9 +7360,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.publicInquiry.reply.intro": {
-    "hash": "e76e605533",
+    "hash": "9109c441c5",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-10-04"
   },
   "api.notifications.publicInquiry.reply.subject": {
     "hash": "3179e69839",
@@ -7415,14 +7385,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.publicInquiry.seller.intro": {
-    "hash": "7a7816add8",
+    "hash": "ea2e1bf73f",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.publicInquiry.seller.introWithQuantity": {
-    "hash": "ac475a5480",
+    "hash": "a908b6685d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.publicInquiry.seller.subject": {
     "hash": "b594292778",
@@ -7445,14 +7415,14 @@
     "at": "2026-09-24"
   },
   "api.notifications.publicInquiry.sellerFree.intro": {
-    "hash": "4c2ee00bf8",
+    "hash": "466ab1233a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.publicInquiry.sellerFree.introWithQuantity": {
-    "hash": "bc56d6a245",
+    "hash": "82e22c910b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "api.notifications.publicInquiry.sellerFree.subject": {
     "hash": "10299cfe0c",
@@ -7490,9 +7460,9 @@
     "at": "2026-09-24"
   },
   "api.notifications.zeroBid.body": {
-    "hash": "1eaab86586",
+    "hash": "d028a913e7",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.zeroBid.cta": {
     "hash": "a41b1cbe49",
@@ -7505,14 +7475,14 @@
     "at": "2026-09-27"
   },
   "api.notifications.zeroBid.inAppBody": {
-    "hash": "b0e32838ff",
+    "hash": "20fd6f085b",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.notifications.zeroBid.subject": {
-    "hash": "584eaab356",
+    "hash": "04bc7b8df0",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "api.passwordReset.baglantininSuresiDolmus": {
     "hash": "4989b1e38b",
@@ -8783,11 +8753,6 @@
     "hash": "aedef11730",
     "status": "reviewed",
     "at": "2026-09-27"
-  },
-  "email.tenderExternalInvite.subject": {
-    "hash": "8bb978e643",
-    "status": "reviewed",
-    "at": "2026-10-04"
   },
   "email.tenderExternalInvite.subjectItems": {
     "hash": "df9659a4e8",
@@ -39321,11 +39286,6 @@
   },
   "web.panel.trade.requestFilters.aliciAdiGorunenTalepYok": {
     "hash": "3e901f4ac8",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.trade.requestFilters.aliciSehri": {
-    "hash": "f419a10589",
     "status": "reviewed",
     "at": "2026-09-24"
   },

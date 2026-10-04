@@ -78,7 +78,7 @@ describe("e-posta tasarımı — kabuk", () => {
     const n = await renderEmail(
       {
         template: "notification",
-        data: { subject: "S", heading: "Yeni mesajınız var", paragraphs: ["Merhaba,"], ctaLabel: "Mesajları Gör", ctaUrl: "https://www.rothern.com/company/mesajlar" },
+        data: { subject: "S", heading: "Yeni mesajınız var", paragraphs: ["Merhaba,"], ctaLabel: "Mesajları gör", ctaUrl: "https://www.rothern.com/company/mesajlar" },
       },
       "tr",
       { ...env, unsubscribeUrl: "https://www.rothern.com/api/email/unsubscribe?t=x" },

@@ -50,7 +50,6 @@
     "textOptOut": "Bu tür davetleri kapatmak için: {url}"
   },
   "tenderExternalInvite": {
-    "subject": "{inviterName} sizi “{tenderTitle}” alım talebine davet etti",
     "preview": "{inviterName}, “{tenderTitle}” alım talebi için sizden teklif almak istiyor.",
     "heading": "Bir alım talebine davet edildiniz",
     "greeting": "Merhaba,",

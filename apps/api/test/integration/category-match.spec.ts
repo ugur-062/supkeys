@@ -167,7 +167,7 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     expect(email.send).toHaveBeenCalledTimes(1);
     const payload = JSON.stringify((email.send as jest.Mock).mock.calls[0][0].templateData);
     expect(payload).toContain("/company/ayarlar/dogrulama");
-    expect(payload).toContain("Ücretsiz Doğrulan");
+    expect(payload).toContain("Ücretsiz doğrulan");
     expect(payload).not.toContain("/company/ilan/");
   });
 

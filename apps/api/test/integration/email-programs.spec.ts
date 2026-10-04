@@ -170,7 +170,7 @@ describe("kilitli özet — doğrulanmamış ücretsiz firma (2026-09-28)", () =
     await svc.sendDigests(new Date());
     const data = (email.send.mock.calls[0][0] as { templateData: { data: { ctaUrl: string; ctaLabel: string } } }).templateData.data;
     expect(data.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
-    expect(data.ctaLabel).toBe("Ücretsiz Doğrulan");
+    expect(data.ctaLabel).toBe("Ücretsiz doğrulan");
   });
 });
 
@@ -191,14 +191,14 @@ describe("kilitsiz özet — ücretli doğrulanmamış / incelemedeki firma", ()
     });
   }
 
-  it("doğrulanmamış (bağlantısız) → doğrulama ipucu + Ücretsiz Doğrulan", async () => {
+  it("doğrulanmamış (bağlantısız) → doğrulama ipucu + Ücretsiz doğrulan", async () => {
     const { svc, email } = makeService();
     await seed("UNVERIFIED");
     await svc.sendDigests(new Date());
     const data = dataOf(email);
     expect(data.paragraphs[1]).toMatch(/önce firmanızı ücretsiz doğrulayın/);
     expect(data.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
-    expect(data.ctaLabel).toBe("Ücretsiz Doğrulan");
+    expect(data.ctaLabel).toBe("Ücretsiz doğrulan");
   });
 
   it("incelemede → onaydan sonra teklif açılır; düğme açık taleplere", async () => {
