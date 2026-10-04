@@ -3,6 +3,7 @@ import type { Locale } from "@rothern/i18n";
 import { countryProductPath } from "@rothern/shared";
 import { countryDisplayName } from "@/i18n/domain";
 import { Link } from "@/i18n/navigation";
+import { CountryFlag } from "@/components/ui/country-flag";
 
 /**
  * ÜLKE BAĞLANTI ŞERİDİ (2026-09-27) — ülke sayfalarına iç bağlantı (şehir
@@ -30,6 +31,7 @@ export function CountryLinks({
               href={countryProductPath(c.country)}
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm text-zinc-700 ring-1 ring-zinc-950/10 ring-inset transition hover:text-zinc-950 hover:ring-zinc-950/20"
             >
+              <CountryFlag code={c.country} decorative />
               {countryDisplayName(c.country, locale)}
               <span className="text-xs text-zinc-500 tabular-nums">{c.count}</span>
             </Link>

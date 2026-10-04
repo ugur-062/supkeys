@@ -211,6 +211,10 @@ describe("pazar yeri — kapalı zarf yapısal güvence", () => {
     const res = await service().list({});
     expectAnonymousOwner(res);
     expect(JSON.stringify(res)).not.toContain("Gizli Alici Sanayi");
+    // Kart konumu talebin açıldığı ÜLKE (2026-10-04, web şehir yerine bunu basar).
+    const items = (res as unknown as { items: { company: { country: string | null } }[] }).items;
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((i) => i.company.country === "TR")).toBe(true);
   });
 
   it("firma profil sayfasına bağlantı kurulamaz (slug dönmez)", async () => {

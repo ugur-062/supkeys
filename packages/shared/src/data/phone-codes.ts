@@ -1,7 +1,8 @@
 /**
  * Telefon ülke kodları (dial code) — telefon giriş alanındaki ülke seçici için.
- * Kaynak `COUNTRY_TABLE` (tam ülke listesi, 2026-09-27); bayrak emojisi koddan
- * türetilir (codeToFlag) — ayrı görsel varlık gerekmez.
+ * Kaynak `COUNTRY_TABLE` (tam ülke listesi, 2026-09-27). Bayrak web'de SVG
+ * görseli (`CountryFlag`, 2026-10-04); emoji alanı kalktı — Windows bayrak
+ * emojisini çizmiyor, iki harf basıyordu.
  */
 import { COUNTRIES, COUNTRY_TABLE } from "./countries";
 
@@ -65,20 +66,10 @@ const NATIONAL_PREFIX_COUNTRY: { dial: string; prefixes: string[]; code: string 
   { dial: "1", prefixes: ["787", "939"], code: "PR" },
 ];
 
-/** ISO alpha-2 kodundan bayrak emojisi (bölgesel gösterge sembolleri). */
-export function codeToFlag(code: string): string {
-  const cc = (code || "").toUpperCase();
-  if (cc.length !== 2 || !/^[A-Z]{2}$/.test(cc) || cc === "XN" || cc === "XK") return "🏳️";
-  return String.fromCodePoint(
-    ...[...cc].map((ch) => 0x1f1e6 + (ch.charCodeAt(0) - 65)),
-  );
-}
-
 export interface PhoneCountry {
   code: string; // ISO alpha-2
   name: string; // Türkçe ad
   dialCode: string; // + olmadan
-  flag: string; // emoji
 }
 
 /** Ülke seçici için birleşik liste (COUNTRIES sırası: TR başta, sonra alfabetik). */
@@ -88,7 +79,6 @@ export const PHONE_COUNTRIES: readonly PhoneCountry[] = COUNTRIES.filter(
   code: c.code,
   name: c.name,
   dialCode: PHONE_DIAL_CODES[c.code]!,
-  flag: codeToFlag(c.code),
 }));
 
 /** En uzun dial code önce — "+1268" (Antigua) "+1"den (ABD) önce denenmeli. */

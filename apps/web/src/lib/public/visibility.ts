@@ -64,7 +64,8 @@ export const VISIBILITY = {
     scope: "anon",
     itemSummary: "anon", // "2 kalem · 1.200 adet"
     itemQuantities: "anon", // "Kalem 1 · 500 adet" — ad yok
-    buyerCity: "anon",
+    buyerCity: "anon", // yükte ve şehir süzgecinde; kart/detay artık ülkeyi gösterir
+    buyerCountry: "anon", // talebin açıldığı ülke — kart/detay konumu (2026-10-04)
     buyerActivity: "anon",
     verifiedBadge: "anon",
     closesAt: "anon",

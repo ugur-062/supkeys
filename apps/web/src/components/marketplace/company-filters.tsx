@@ -1,6 +1,7 @@
 "use client";
 
 import { countryDisplayName, useActivityLabel, useCityKeyLabel } from "@/i18n/domain";
+import { CountryFlag } from "@/components/ui/country-flag";
 import type { Locale } from "@rothern/i18n";
 
 import { useLocale, useTranslations } from "next-intl";
@@ -128,6 +129,7 @@ export function CompanyFilters({
             idPrefix={`${idPrefix}-country`}
             onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
             labelFor={(k) => countryDisplayName(k, dirLocale)}
+            iconFor={(k) => <CountryFlag code={k} decorative />}
           />
         </Group>
       ) : null}

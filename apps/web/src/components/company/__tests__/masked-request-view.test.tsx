@@ -83,6 +83,11 @@ describe("MaskedRequestView (ücretsiz üyenin alıcı gizli talep görünümü,
     expect(h.get).toHaveBeenCalledWith("/company/listings/seller-tenders/masked/ROT-000042");
     expect(screen.getAllByText("Alıcı gizli").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Doğrulanmış alıcı")).toBeInTheDocument();
+    // Alıcının ŞEHRİ değil talebin açıldığı ÜLKE (2026-10-04): "İstanbul" yerine
+    // bayrak + "Türkiye" (açıklamadaki serbest metin hariç).
+    expect(screen.getByText("Türkiye")).toBeInTheDocument();
+    expect(screen.queryByText("İstanbul")).toBeNull();
+    expect(document.querySelector('img[src="/flags/4x3/tr.svg"]')).not.toBeNull();
     expect(screen.getByText("Dikişsiz boru 3 inç")).toBeInTheDocument();
     expect(screen.getByText(/Kapalı zarf: teklifleri yalnız talep sahibi görür/)).toBeInTheDocument();
     expect(screen.getAllByText("ROT-000042").length).toBeGreaterThanOrEqual(1);

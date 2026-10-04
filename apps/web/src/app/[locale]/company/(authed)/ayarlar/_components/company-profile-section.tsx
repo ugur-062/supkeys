@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { countryDisplayName, useTierLabel } from "@/i18n/domain";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import {
   isKycLocked,
@@ -262,7 +263,12 @@ export function CompanyProfileSection() {
             {profile.rothernId ?? "—"}
           </DescriptionDetails>
           <DescriptionTerm>{t("kayitUlkesi")}</DescriptionTerm>
-          <DescriptionDetails>{countryDisplayName(profile.country, locale)}</DescriptionDetails>
+          <DescriptionDetails>
+            <span className="inline-flex items-center gap-1.5">
+              <CountryFlag code={profile.country} decorative />
+              {countryDisplayName(profile.country, locale)}
+            </span>
+          </DescriptionDetails>
           {/* "Firma Türü" faaliyet tipiyle (Üretici/Distribütör…) karışıyordu —
               bu alan HUKUKİ yapı. */}
           <DescriptionTerm>{t("hukukiYapi")}</DescriptionTerm>

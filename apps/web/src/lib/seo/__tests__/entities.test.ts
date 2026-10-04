@@ -222,9 +222,15 @@ describe("listingSeo — sahip ANONİM kalır", () => {
     expect(raw).not.toContain("provider");
   });
 
-  it("konum ve miktar kalır (sayfada da görünüyor)", () => {
-    expect(raw).toContain("Antalya");
+  it("konum (talebin açıldığı ÜLKE) ve miktar kalır — sayfada görünenle aynı (2026-10-04)", () => {
+    expect(raw).toContain('"addressCountry":"TR"');
     expect(raw).toContain("312000");
+    // Alıcının şehri sayfada basılmıyor → şemada, özette ve açıklamada da yok.
+    expect(raw).not.toContain("Antalya");
+    expect(seo.summary).toContain("alıcı: Türkiye");
+    expect(seo.summary).not.toContain("Antalya");
+    expect(String(seo.metadata.description)).toContain("Türkiye");
+    expect(String(seo.metadata.description)).not.toContain("Antalya");
   });
 
   it("uzun talep başlığı numara korunarak 75 tavanına kırpılır (derin denetim LU-24)", () => {

@@ -1,5 +1,6 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useActivityLabel, useCityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { CountryLabel } from "@/components/ui/country-flag";
 import { PublicLayout } from "./public-layout";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
@@ -24,7 +25,6 @@ import {
   CheckBadgeIcon,
   GlobeAltIcon,
   LockClosedIcon,
-  MapPinIcon,
 } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { AccentLink } from "@/components/ui/accent-fill";
@@ -58,7 +58,6 @@ export function ListingDetail({
   const fmt = useFormatter();
   const scopeLabel = useScopeLabel();
   const activityLabel = useActivityLabel();
-  const cityLabel = useCityLabel();
   const deliveryTermLabel = useDeliveryTermLabel();
   const paymentCategoryLabel = usePaymentCategoryLabel();
   const closingUrgency = useClosingUrgency();
@@ -387,10 +386,10 @@ export function ListingDetail({
                       {listing.company.industry}
                     </p>
                   ) : null}
-                  {listing.company.city ? (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
-                      <MapPinIcon aria-hidden className="size-3.5" />
-                      {cityLabel(listing.company.city)}
+                  {/* Talebin açıldığı ÜLKE (2026-10-04, şehir yerine). */}
+                  {listing.company.country ? (
+                    <p className="mt-1 flex items-center text-xs text-zinc-500">
+                      <CountryLabel code={listing.company.country} />
                     </p>
                   ) : null}
                   <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">

@@ -1853,7 +1853,7 @@
     "basedIn": "based in {city}",
     "productsOf": "{name} products",
     "items": "{n, plural, one {# line item} other {# line items}}",
-    "buyerCity": "buyer: {city}",
+    "buyerCountry": "buyer: {country}",
     "openForQuotes": "open for quotes",
     "closed": "closed",
     "qty": "Quantity: {qty}",

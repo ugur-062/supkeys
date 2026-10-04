@@ -41,7 +41,7 @@ export function CountryFlag({
     return (
       <span
         className={cn(
-          "inline-block shrink-0 rounded-[2px] bg-zinc-100 px-0.5 align-[-1px] font-mono text-[9px] leading-3 font-semibold text-zinc-600",
+          "inline-block shrink-0 rounded-[2px] bg-zinc-100 px-0.5 align-[-1px] text-[9px] leading-3 font-semibold text-zinc-600",
           className,
         )}
         title={decorative ? undefined : name}

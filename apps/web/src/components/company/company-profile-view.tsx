@@ -6,7 +6,8 @@ import type { Locale } from "@rothern/i18n";
 import { INTL_LOCALE, upperForText } from "@/i18n/format";
 import type { ReactNode } from "react";
 import { MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
-import { countryFlag, type ReviewSummary } from "@rothern/shared";
+import type { ReviewSummary } from "@rothern/shared";
+import { CountryFlag } from "@/components/ui/country-flag";
 
 import { safeExternalUrl } from "@/lib/safe-url";
 import { CompanyLogo } from "@/components/company/company-logo";
@@ -303,15 +304,15 @@ export function CompanyProfileView({
                 ) : (
                   <>
                     {/* Ülke BAYRAKLI (Europages): menşe ad okunmadan ayırt
-                        edilir. KKTC (XN) ISO 3166-1'de olmadığı için orada
-                        bayrak basılmaz — `countryFlag` null döner. */}
+                        edilir. SVG bayrak (`CountryFlag`, 2026-10-04 — emoji
+                        Windows'ta "TR" basıyordu); ad yanında → dekoratif. */}
                     <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
-                      {countryFlag(p.country) ? (
-                        <span aria-hidden className="text-base leading-none">
-                          {countryFlag(p.country)}
+                      {p.country ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-zinc-800">
+                          <CountryFlag code={p.country} size="md" decorative />
+                          {countryDisplayName(p.country, locale)}
                         </span>
                       ) : null}
-                      {p.country ? <span className="font-medium text-zinc-800">{countryDisplayName(p.country, locale)}</span> : null}
                       {p.city ? (
                         <span className="inline-flex items-center gap-1 text-zinc-500">
                           <MapPinIcon aria-hidden className="size-4 text-zinc-400" />

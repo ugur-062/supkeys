@@ -16,6 +16,7 @@ import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
 import { SilverLockCard, UpgradeButtons } from "@/components/company/silver-lock-card";
 import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
+import { CountryFlag, CountryLabel } from "@/components/ui/country-flag";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { FilesTab } from "@/components/tenders/files-tab";
@@ -1739,7 +1740,10 @@ export default function ListingDetailPage() {
                 {/* Farklı ülkeden tedarikçi (2026-09-21): navlun/gümrük farkı
                     olabilir — alıcı kıyaslarken görsün. */}
                 {b.bidderCountry && company?.country && b.bidderCountry !== company.country ? (
-                  <Badge color="zinc">{countryDisplayName(b.bidderCountry, locale)}</Badge>
+                  <Badge color="zinc" className="gap-x-1">
+                    <CountryFlag code={b.bidderCountry} decorative />
+                    {countryDisplayName(b.bidderCountry, locale)}
+                  </Badge>
                 ) : null}
                 {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
                     görsün (son gün = submittedAt + validityDays). */}
@@ -2142,6 +2146,12 @@ export default function ListingDetailPage() {
         <span className="min-w-0">
           <span className="block text-xs text-zinc-500">{t("aliciFirma")}</span>
           <span className="block truncate text-base font-semibold text-zinc-950">{l.owner ? l.owner.name : t("gizliFirma")}</span>
+          {/* Talebin açıldığı ülke (2026-10-04) — ad gizliyken de görünür. */}
+          {l.ownerCountry ? (
+            <span className="mt-0.5 flex text-xs text-zinc-600">
+              <CountryLabel code={l.ownerCountry} />
+            </span>
+          ) : null}
         </span>
       </div>
 

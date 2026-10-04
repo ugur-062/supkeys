@@ -2,8 +2,9 @@ import {
   COUNTRY_PROFILES,
   COUNTRIES,
   REGISTRATION_BLOCKED,
-  countryFlag,
   countryHasIban,
+  flagAssetPath,
+  hasFlagAsset,
   countryName,
   countryUsesIban,
   getCountryProfile,
@@ -59,10 +60,14 @@ describe("Ülke profilleri", () => {
     expect(codes.length).toBeGreaterThanOrEqual(245);
     expect(countryName("XN")).toMatch(/Kıbrıs/);
     expect(isValidCountryCode("XK")).toBe(true);
-    // KKTC ve Kosova ISO bayrağı yok — uydurma bayrak basılmaz.
-    expect(countryFlag("XN")).toBeNull();
-    expect(countryFlag("XK")).toBeNull();
-    expect(countryFlag("DE")).toBe("🇩🇪");
+    // Bayrak SVG dosyası (flag-icons, 2026-10-04): KKTC'nin yok (metne düşer),
+    // Kosova'nın var; tabloda olmayan kod dosya yolu üretmez.
+    expect(hasFlagAsset("XN")).toBe(false);
+    expect(flagAssetPath("XN")).toBeNull();
+    expect(flagAssetPath("XK")).toBe("/flags/4x3/xk.svg");
+    expect(flagAssetPath("de")).toBe("/flags/4x3/de.svg");
+    expect(flagAssetPath("ZZ")).toBeNull();
+    expect(flagAssetPath(null)).toBeNull();
   });
 
   it("profili olmayan ülke VARSAYILAN yabancı profil alır: 3 belge, IBAN kaydından banka biçimi, AB → VIES", () => {

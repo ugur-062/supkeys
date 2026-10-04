@@ -238,6 +238,21 @@ describe("getOne — görünürlük ülkesi (2026-09-21: boş = herkes, dolu = y
   });
 });
 
+describe("getOne — talebin açıldığı ÜLKE (2026-10-04, şehir yerine)", () => {
+  it("teklifçi ve sahip detayı ownerCountry taşır; alıcının şehri yanıta girmez", async () => {
+    const { service, owner, bidder, listing } = await setupAlim();
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { country: "AZ", city: "Bakü Gizli Şehir" },
+    });
+    for (const auth of [bidder.auth, owner.auth]) {
+      const res = (await service.getOne(auth, listing.id)) as unknown as Record<string, unknown>;
+      expect(res.ownerCountry).toBe("AZ");
+      expect(JSON.stringify(res)).not.toContain("Bakü Gizli Şehir");
+    }
+  });
+});
+
 describe("sellerTenders — sahip şehri süzgeç anahtarı + okuyucunun dilinde (2026-09-27)", () => {
   it("eşlenmiş şehir kalıcı adres anahtarı ve okuyucunun dilinde ad taşır; eşlenmemişte null", async () => {
     const { service, owner, bidder, listing } = await setupAlim();

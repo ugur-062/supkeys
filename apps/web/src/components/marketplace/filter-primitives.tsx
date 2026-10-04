@@ -239,6 +239,7 @@ export function ShowMore({
   onToggle,
   emptyText,
   labelFor,
+  iconFor,
 }: {
   items: FacetOption[];
   selected: string[];
@@ -247,6 +248,8 @@ export function ShowMore({
   emptyText?: string;
   /** Facet'te olmayan SEÇİLİ anahtarın etiketi — verilirse o anahtar 0 sayıyla listelenir (D-336). */
   labelFor?: (key: string) => string;
+  /** Satır ikonu anahtardan (ör. ülke bayrağı) — facet'te olmayan seçili satır da alır. */
+  iconFor?: (key: string) => ReactNode;
 }) {
   const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
@@ -261,7 +264,7 @@ export function ShowMore({
           key={i.key}
           id={`${idPrefix}-${i.key}`}
           label={i.label}
-          icon={i.icon}
+          icon={i.icon ?? iconFor?.(i.key)}
           count={i.count}
           checked={selected.includes(i.key)}
           onChange={(on) => onToggle(i.key, on)}
@@ -284,6 +287,7 @@ export function ShowMoreRadio({
   emptyText,
   labelFor,
   missingCount,
+  iconFor,
 }: {
   items: FacetOption[];
   selected?: string;
@@ -292,6 +296,8 @@ export function ShowMoreRadio({
   emptyText?: string;
   /** Bkz. `ShowMore.labelFor`. */
   labelFor?: (key: string) => string;
+  /** Bkz. `ShowMore.iconFor`. */
+  iconFor?: (key: string) => ReactNode;
   /** Facet'te olmayan seçili anahtarın sayısı; `undefined` → sayı çizilmez (varsayılan 0). */
   missingCount?: (key: string) => number | undefined;
 }) {
@@ -307,7 +313,7 @@ export function ShowMoreRadio({
           key={i.key}
           id={`${idPrefix}-${i.key}`}
           label={i.label}
-          icon={i.icon}
+          icon={i.icon ?? iconFor?.(i.key)}
           count={i.count}
           checked={selected === i.key}
           onChange={() => onSelect(i.key)}

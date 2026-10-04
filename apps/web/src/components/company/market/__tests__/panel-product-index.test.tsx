@@ -136,12 +136,13 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
   it("başlıkta sonuç sayısı ve kartta ülke bayrağı; rayın sonunda 'Tüm filtreleri sıfırla'", async () => {
     // Sayı BAŞLIĞIN YANINDA (referans kalıbı): araç çubuğundaki "30 ürün
     // bulundu" satırı listenin üstünde kalıyor, başlıkta katalog büyüklüğü
-    // okunuyor. Bayrak firma adının önünde — KKTC (XN) ISO'da olmadığı için
-    // orada bayrak basılmaz (bkz. `countryFlag`).
+    // okunuyor. Bayrak firma adının önünde — SVG görseli (`CountryFlag`),
+    // erişilebilir adı ülke adı; KKTC (XN) dosyasız → "KKTC" metni.
     const user = userEvent.setup();
     render(<PanelProductIndex />);
     expect(screen.getByText("30 ürün")).toBeInTheDocument();
     expect(screen.getAllByTitle("Türkiye").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("img", { name: "Türkiye" })[0]).toHaveAttribute("src", "/flags/4x3/tr.svg");
 
     const aside = screen.getByRole("complementary", { name: "Süzgeçler" });
     const clearAll = within(aside).getByRole("button", { name: /Tüm filtreleri sıfırla/ });

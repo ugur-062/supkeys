@@ -11,11 +11,15 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { countryDisplayName } from "@/i18n/domain";
 import { useMemo, useState } from "react";
+import { GlobeAltIcon } from "@heroicons/react/16/solid";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { CountryFlag } from "@/components/ui/country-flag";
 
 /**
  * Uluslararası telefon girişi — solda bayrak + ülke kodu seçici (native select),
- * sağda ulusal numara. `value` tam string ("+90 5xxxxxxxxx"); onChange aynı
+ * sağda ulusal numara. Bayrak SVG görseli (`CountryFlag`, 2026-10-04): emoji
+ * bayrağı Windows'ta "TR" diye basılıyordu; native `<option>` görsel alamaz, o
+ * yüzden listede yalnız ad + kod. `value` tam string ("+90 5xxxxxxxxx"); onChange aynı
  * formatı döndürür. Kayıt, davet-kabul, ayarlar ve adres defterinde ortak.
  *
  * 2026-09-27 (kayıt tüm ülkelere açık): liste tam (245 ülke) ve ekrandaki dile
@@ -172,8 +176,12 @@ export function PhoneInput({
     >
       {/* Ülke seçici — bayrak + arama kodu. */}
       <div className="relative flex items-center border-r border-zinc-950/10 bg-zinc-50">
-        <span className="pointer-events-none pl-3 text-base leading-none">
-          {current?.flag ?? "🏳️"}
+        <span className="pointer-events-none flex items-center pl-3">
+          {current ? (
+            <CountryFlag code={current.code} decorative />
+          ) : (
+            <GlobeAltIcon aria-hidden className="size-4 text-zinc-400" />
+          )}
         </span>
         <span className="pointer-events-none pl-1.5 text-sm text-zinc-600">
           +{current?.dialCode ?? ""}
@@ -192,7 +200,7 @@ export function PhoneInput({
           )}
           {options.map((c) => (
             <option key={c.code} value={c.code} className="text-zinc-900">
-              {c.flag} {c.label} (+{c.dialCode})
+              {c.label} (+{c.dialCode})
             </option>
           ))}
         </select>

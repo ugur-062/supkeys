@@ -2,6 +2,7 @@ import { provinceDisplayName } from "@rothern/shared";
 import { productPrice } from "@/lib/public/product-price";
 import type { PublicListingDetail, PublicProduct, PublicProductCompany, PublicProfile } from "@/lib/public/marketplace-api";
 import { joinParts } from "@/lib/seo/meta";
+import { countryDisplayName } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { priceLabelsFor, seoT, webTranslator } from "@/i18n/server";
 import { quantityWith, unitLabelWith } from "@/lib/seo/entities";
@@ -97,7 +98,8 @@ export function listingOgContent(l: PublicListingDetail, locale: Locale = DEFAUL
   return {
     eyebrow: t("web.seo.og.demand", { number: l.number }),
     title: clampTitle(l.title),
-    subtitle: joinParts([l.categories[0]?.name, provinceDisplayName(l.company.city, locale)], " · ") || null,
+    // Talebin açıldığı ÜLKE (2026-10-04, şehir yerine) — sayfayla aynı olgu.
+    subtitle: joinParts([l.categories[0]?.name, l.company.country ? countryDisplayName(l.company.country, locale) : null], " · ") || null,
     facts: [
       qty ? t("web.seo.qty", { qty }) : null,
       l.itemSummary.count > 1 ? t("web.seo.items", { n: l.itemSummary.count }) : null,

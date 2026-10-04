@@ -2,12 +2,13 @@
 
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/react";
 import { CheckIcon, ChevronDownIcon } from "@heroicons/react/16/solid";
-import { COUNTRIES, countryFlag, foldSearchText } from "@rothern/shared";
+import { COUNTRIES, foldSearchText } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { countryDisplayName } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
+import { CountryFlag } from "@/components/ui/country-flag";
 
 /**
  * ARANABİLİR ÜLKE SEÇİCİ (2026-09-27, kayıt tüm ülkelere açıldı): 245 ülkelik
@@ -16,6 +17,11 @@ import { cn } from "@/lib/utils";
  *
  * Arama: ekrandaki dilde ad + Türkçe ad + ISO kodu, katlanmış (ç=c, İ=i…) —
  * "almanya", "germany", "de" hepsi Almanya'yı bulur. Türkiye her zaman başta.
+ *
+ * Bayrak SVG görseli (`CountryFlag`, 2026-10-04): emoji bayrağı Windows'ta
+ * "TR"/"DE" harfleri olarak basılıyordu. `<input>` değerine görsel giremez →
+ * seçili ülkenin bayrağı kutunun SOLUNA mutlak konumlu çizilir, metin dolgusu
+ * yalnız o zaman genişler; seçenek satırlarında ad yanında, dekoratif.
  */
 export function CountryCombobox({
   value,
@@ -25,6 +31,7 @@ export function CountryCombobox({
   id,
   disabled = false,
   className,
+  placeholder,
 }: {
   value: string;
   onChange: (code: string) => void;
@@ -34,6 +41,8 @@ export function CountryCombobox({
   id?: string;
   disabled?: boolean;
   className?: string;
+  /** Kutu boşken yazı (varsayılan "Ülke ara…"; ekleme kipinde "+ Ülke ekle"). */
+  placeholder?: string;
 }) {
   const locale = useLocale() as Locale;
   const t = useTranslations("web.shared.countryPicker");
@@ -42,7 +51,7 @@ export function CountryCombobox({
     const allowed = codes ? new Set(codes) : null;
     const rows = COUNTRIES.filter((c) => !allowed || allowed.has(c.code)).map((c) => {
       const label = countryDisplayName(c.code, locale);
-      return { code: c.code, label, flag: countryFlag(c.code), hay: foldSearchText(`${label} ${c.name} ${c.code}`) };
+      return { code: c.code, label, hay: foldSearchText(`${label} ${c.name} ${c.code}`) };
     });
     const [tr, rest] = [rows.filter((r) => r.code === "TR"), rows.filter((r) => r.code !== "TR")];
     return [...tr, ...rest.sort((a, b) => a.label.localeCompare(b.label, locale))];
@@ -50,6 +59,8 @@ export function CountryCombobox({
   const q = foldSearchText(query.trim());
   const filtered = q ? options.filter((o) => o.hay.includes(q)) : options;
   const selected = options.find((o) => o.code === value) ?? null;
+  // Arama yazılırken kutudaki metin seçili ülke değil → bayrak gizlenir.
+  const showFlag = !!selected && !query;
 
   return (
     <Combobox
@@ -69,12 +80,21 @@ export function CountryCombobox({
         <ComboboxInput
           id={id}
           aria-label={ariaLabel}
-          displayValue={(o: (typeof options)[number] | null) => (o ? `${o.flag ? `${o.flag} ` : ""}${o.label}` : "")}
+          displayValue={(o: (typeof options)[number] | null) => o?.label ?? ""}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={t("placeholder")}
+          placeholder={placeholder ?? t("placeholder")}
           autoComplete="off"
-          className="block w-full rounded-lg border border-zinc-950/10 bg-white py-[calc(--spacing(2.5)-1px)] pr-9 pl-[calc(--spacing(3.5)-1px)] sm:py-[calc(--spacing(1.5)-1px)] sm:pl-[calc(--spacing(3)-1px)] text-base/6 text-zinc-950 placeholder:text-zinc-500 focus:border-zinc-950/20 focus:outline-none disabled:opacity-50 sm:text-sm/6"
+          className={cn(
+            "block w-full rounded-lg border border-zinc-950/10 bg-white py-[calc(--spacing(2.5)-1px)] pr-9 sm:py-[calc(--spacing(1.5)-1px)] text-base/6",
+            showFlag ? "pl-9 sm:pl-8.5" : "pl-[calc(--spacing(3.5)-1px)] sm:pl-[calc(--spacing(3)-1px)]",
+            "text-zinc-950 placeholder:text-zinc-500 focus:border-zinc-950/20 focus:outline-none disabled:opacity-50 sm:text-sm/6",
+          )}
         />
+        {showFlag ? (
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center sm:left-2.5">
+            <CountryFlag code={selected.code} decorative />
+          </span>
+        ) : null}
         <ComboboxButton className="absolute inset-y-0 right-0 flex items-center px-2.5" aria-label={t("open")}>
           <ChevronDownIcon className="size-4 fill-zinc-500" aria-hidden="true" />
         </ComboboxButton>
@@ -92,8 +112,8 @@ export function CountryCombobox({
               value={o}
               className="group flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-zinc-950 select-none data-focus:bg-zinc-100"
             >
-              <span className="w-5 shrink-0 text-center" aria-hidden="true">
-                {o.flag ?? ""}
+              <span className="flex w-5 shrink-0 justify-center">
+                <CountryFlag code={o.code} decorative />
               </span>
               <span className="flex-1 truncate">{o.label}</span>
               <CheckIcon className="invisible size-4 fill-zinc-950 group-data-selected:visible" aria-hidden="true" />

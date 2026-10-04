@@ -7,7 +7,8 @@ import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
 import { daysUntil } from "@/lib/tenders/seller-state";
-import { useActivityLabel, useCityLabel, useClosingUrgency, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useClosingUrgency, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { CountryLabel } from "@/components/ui/country-flag";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
@@ -28,7 +29,8 @@ const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
  * kümesi: Alıcı · Kalem · Kapsam · Kapanış · Kategori; sağda "Teklif ver".
  *
  * Kapalı zarf kuralı KORUNUR: alıcı adı, kalem adları, hedef fiyat YOK —
- * Alıcı sütunu yalnız faaliyet tipi · şehir + doğrulama rozeti. Panele özgü
+ * Alıcı sütunu yalnız faaliyet tipi · talebin açıldığı ÜLKE (bayrak + ad;
+ * 2026-10-04 kullanıcı kararı "İstanbul yerine Türkiye") + doğrulama rozeti. Panele özgü
  * uygunluk rozetleri (davet/bağlantı/eşleşme) ve genişletme paneli anonimde
  * hesaplanamaz, çizilmez. Teaser KARTI (`ListingTeaserCard`) dizin ve
  * ilan detayında yaşamaya devam eder.
@@ -41,7 +43,6 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   const locale = useLocale();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
-  const cityLabel = useCityLabel();
   const closingUrgency = useClosingUrgency();
   const href = listingHref(l);
   const state = publicState(l.status);
@@ -55,7 +56,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   const urgency = closingUrgency(l.status, l.closesAt);
   const days = daysUntil(l.closesAt) ?? 99;
   const activity = l.company.activities[0];
-  const who = [activity ? activityLabel(activity) : null, cityLabel(l.company.city)].filter(Boolean).join(" · ");
+  const activityText = activity ? activityLabel(activity) : null;
   const primary = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
 
   const data: ListingCardData = {
@@ -73,7 +74,12 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         icon: "company",
         value: (
           <span className="flex min-w-0 flex-col items-start gap-1">
-            <span className="truncate text-slate-800">{who || "—"}</span>
+            <span className="flex min-w-0 max-w-full items-center gap-1 text-slate-800">
+              {activityText ? <span className="min-w-0 truncate">{activityText}</span> : null}
+              {activityText && l.company.country ? <span aria-hidden className="text-slate-400">·</span> : null}
+              {l.company.country ? <CountryLabel code={l.company.country} /> : null}
+              {!activityText && !l.company.country ? "—" : null}
+            </span>
             {l.company.verified ? (
               <Badge tone="verified" size="sm" icon={false}>
                 {t("verifiedBuyer")}

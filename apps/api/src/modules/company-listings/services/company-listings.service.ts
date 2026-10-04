@@ -9230,7 +9230,7 @@ export class CompanyListingsService {
       closesAt: Date | null;
       cancelReason: string | null;
       createdAt: Date;
-      company: { name: string };
+      company: { name: string; country: string | null };
       categoryIds: string[];
       keywords: string[];
       terms: string | null;
@@ -9280,6 +9280,10 @@ export class CompanyListingsService {
       cancelReason: l.cancelReason,
       createdAt: l.createdAt,
       owner: { name: l.company.name },
+      // Talebin açıldığı ülke (alıcı firmanın ülkesi; 2026-10-04 kullanıcı
+      // kararı: talep konumu şehir değil ülke). Herkese açık kartta da var —
+      // şehirden az tanımlayıcı; alıcı şehri bu yanıta eklenmez.
+      ownerCountry: l.company.country,
       categoryIds: l.categoryIds,
       keywords: l.keywords,
       terms: l.terms,

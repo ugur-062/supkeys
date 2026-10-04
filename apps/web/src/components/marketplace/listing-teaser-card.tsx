@@ -5,8 +5,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
-import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import { useActivityLabel, useCityLabel, useQuantityLabel, useScopeLabel } from "@/i18n/domain";
+import { ClockIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/react/20/solid";
+import { useActivityLabel, useQuantityLabel, useScopeLabel } from "@/i18n/domain";
+import { CountryLabel } from "@/components/ui/country-flag";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
@@ -38,13 +39,14 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
   const quantity = useQuantityLabel();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
-  const cityLabel = useCityLabel();
   const scopeLabel = useScopeLabel();
   const href = listingHref(l);
   const open = publicState(l.status) === "open";
   const left = open ? daysLeft(l.closesAt) : null;
   const activity = l.company.activities[0];
-  const who = [activity ? activityLabel(activity) : null, cityLabel(l.company.city)].filter(Boolean).join(" · ");
+  // Alıcı: faaliyet tipi · talebin açıldığı ÜLKE (2026-10-04, şehir yerine).
+  const activityText = activity ? activityLabel(activity) : null;
+  const buyerCountry = l.company.country;
   const primaryCategory = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
   const qty = l.itemSummary.totalQuantity && l.itemSummary.unit ? Number(l.itemSummary.totalQuantity) : null;
   // Büyük sayı + küçük birim ayrı çizilir; birim DİLİN ÇOĞUL KURALIYLA
@@ -101,10 +103,14 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
               </dd>
             </div>
           ) : null}
-          {who ? (
-            <div className="flex items-center gap-1">
+          {activityText || buyerCountry ? (
+            <div className="flex min-w-0 items-center gap-1">
               <dt className="sr-only">{t("buyer")}</dt>
-              <dd className="flex items-center gap-1"><MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />{who}</dd>
+              <dd className="flex min-w-0 items-center gap-1">
+                {activityText ? <span className="min-w-0 truncate">{activityText}</span> : null}
+                {activityText && buyerCountry ? <span aria-hidden className="text-zinc-400">·</span> : null}
+                {buyerCountry ? <CountryLabel code={buyerCountry} /> : null}
+              </dd>
             </div>
           ) : null}
           <div className="flex items-center gap-1">

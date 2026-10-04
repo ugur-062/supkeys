@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useActivityLabel, useCityLabel, useListingTerms, useSellerStateLabel, useFormatDate } from "@/i18n/domain";
+import { useActivityLabel, useListingTerms, useSellerStateLabel, useFormatDate } from "@/i18n/domain";
 import { maskedRequestHref, type SellerTenderRow } from "@/hooks/use-seller-tenders";
 import { useUpgradeHref } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import {
   deriveSellerTenderState,
 } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
+import { CountryFlag, CountryLabel } from "@/components/ui/country-flag";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { Building2, Lock } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -63,7 +64,6 @@ export function BrowseTenderRow({
   const fromLabel = useListingTerms("ACIK_TALEP").title;
   const masked = t.masked === true;
   const upgradeHref = useUpgradeHref();
-  const cityLabel = useCityLabel();
   const detailHref = masked
     ? maskedRequestHref(t.number ?? "")
     : `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
@@ -112,19 +112,26 @@ export function BrowseTenderRow({
         <span className="truncate font-semibold text-slate-900" title={t.owner.name}>
           {t.owner.name}
         </span>
+        {/* Talebin açıldığı ülke — adı okunur bayrak (alt/title = ülke adı). */}
+        {t.ownerCountry ? <CountryFlag code={t.ownerCountry} /> : null}
       </span>
     ) : (
       /* Alıcı gizli — herkese açık talep satırıyla aynı tarif (kimlik değil
-         nitelik): şehir + doğrulama rozeti. Ad/logo/slug hiç gelmez. */
+         nitelik): talebin açıldığı ÜLKE (bayrak + ad; 2026-10-04, şehir
+         yerine) + doğrulama rozeti. Ad/logo/slug hiç gelmez. */
       <span className="flex min-w-0 flex-col items-start gap-1">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-slate-100">
             <Lock className="h-3 w-3 text-slate-500" aria-hidden />
           </span>
-          <span className="truncate text-slate-700">
-            {[tr("aliciGizli"), t.ownerCityLabel || (t.ownerCity ? cityLabel(t.ownerCity) : null)]
-              .filter(Boolean)
-              .join(" · ")}
+          <span className="flex min-w-0 items-center gap-1 text-slate-700">
+            <span className="truncate">{tr("aliciGizli")}</span>
+            {t.ownerCountry ? (
+              <>
+                <span aria-hidden className="text-slate-400">·</span>
+                <CountryLabel code={t.ownerCountry} />
+              </>
+            ) : null}
           </span>
         </span>
         {t.ownerVerified ? (

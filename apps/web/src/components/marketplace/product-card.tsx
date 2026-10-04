@@ -4,14 +4,13 @@ import { useCityLabel, usePriceLabels, useQuantityLabel, useUnitLabel } from "@/
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { anchorId } from "@/lib/public/anchors";
-import { countryDisplayName } from "@/i18n/domain";
 
 import { CategoryImage } from "./category-image";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import { productPrice } from "@/lib/public/product-price";
-import { countryFlag } from "@rothern/shared";
+import { CountryFlag } from "@/components/ui/country-flag";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -77,7 +76,7 @@ export type ProductCardProduct = Pick<
 export interface ProductCardCompany {
   name: string;
   city?: string | null;
-  /** ISO ülke kodu — bayrak için (KKTC/XN'de bayrak basılmaz, bkz. `countryFlag`). */
+  /** ISO ülke kodu — bayrak için (`CountryFlag`; KKTC/XN dosyasız → "KKTC" metni). */
   country?: string | null;
   /** KYC doğrulaması tamam — "Doğrulanmış" rozeti. */
   verified?: boolean;
@@ -473,10 +472,9 @@ export function ProductCard({
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 items-center gap-1">
                 {/* ÜLKE BAYRAĞI (2026-09-07, Europages kalıbı): firma adının
-                    önünde, adı okumadan menşei ayırt edilsin diye. Emoji
-                    çözülemeyen kodda (KKTC/XN, bilinmeyen kod) HİÇ basılmaz —
-                    tofu kutusu basmaktansa yok. Erişilebilirlik: ülke ADI
-                    `title` + `sr-only` ile taşınır, emoji dekoratif. */}
+                    önünde, adı okumadan menşei ayırt edilsin diye. 2026-10-04:
+                    emoji yerine SVG (`CountryFlag`; Windows emojiyi "TR" diye
+                    basıyordu). Erişilebilir ad ülke adı (`alt` + `title`). */}
                 <CountryFlag code={firm.country} />
                 <span className="truncate text-xs font-medium text-zinc-700">{firm.name}</span>
                 {firm.verified ? (
@@ -548,22 +546,6 @@ export function ProductCard({
         </div>
       </div>
     </article>
-  );
-}
-
-/**
- * Ülke bayrağı — çözülemeyen kodda hiç çizilmez (bkz. `countryFlag`).
- * Emoji dekoratif; anlamı `sr-only` ülke adı taşır.
- */
-function CountryFlag({ code }: { code?: string | null }) {
-  const locale = useLocale();
-  const flag = countryFlag(code);
-  if (!flag) return null;
-  return (
-    <span className="shrink-0 text-sm leading-none" title={countryDisplayName(code as string, locale)}>
-      <span aria-hidden>{flag}</span>
-      <span className="sr-only">{countryDisplayName(code as string, locale)}</span>
-    </span>
   );
 }
 

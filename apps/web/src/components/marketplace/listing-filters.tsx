@@ -12,6 +12,7 @@ import { activeListingFilterCount, type ListingFilterState } from "@/lib/public/
 import { hasListingCountryFacet, listingCountryOptions } from "@/lib/public/listing-country-facet";
 import type { PublicFacets } from "@/lib/public/marketplace-api";
 import { CountryCombobox } from "@/components/ui/country-combobox";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { registrationCountries } from "@rothern/shared";
 
 /** Seçicide yalnız kayda açık ülkeler — kapalı listedeki ülkeden tedarikçi olamaz. */
@@ -105,6 +106,7 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
               key={c.code}
               id={`${idPrefix}-country-${c.code}`}
               label={countryDisplayName(c.code, locale)}
+              icon={<CountryFlag code={c.code} decorative />}
               count={c.count}
               checked={state.country === c.code}
               onChange={() => update({ country: state.country === c.code ? undefined : c.code })}

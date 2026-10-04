@@ -2,10 +2,9 @@
 
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Building2, Globe2, Lock, MapPin } from "lucide-react";
+import { ArrowLeft, Building2, Globe2, Lock } from "lucide-react";
 import {
   useActivityLabel,
-  useCityLabel,
   useClosingUrgency,
   useDeliveryTermLabel,
   useFormatDate,
@@ -21,6 +20,7 @@ import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-not
 import { PRICING_HREF, useUpgradeHref, useVerifyFirst } from "@/components/company/silver-lock-card";
 import { useMaskedTender, type MaskedTenderResponse } from "@/hooks/use-seller-tenders";
 import { cn } from "@/lib/utils";
+import { CountryLabel } from "@/components/ui/country-flag";
 
 /** Satış anasayfasındaki Açık Talepler bölümü (geri bağlantı). */
 const BACK_HREF = "/company/satis#acik-talepler";
@@ -97,7 +97,6 @@ export function MaskedRequestView({ number }: { number: string }) {
 function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
   const t = useTranslations("web.panel.trade.maskedRequestView");
   const fmtDate = useFormatDate();
-  const cityLabel = useCityLabel();
   const scopeLabel = useScopeLabel();
   const quantity = useQuantityLabel();
   const activityLabel = useActivityLabel();
@@ -108,7 +107,8 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
   const verifyFirst = useVerifyFirst();
   const open = listing.status === "OPEN";
   const urgency = closingUrgency(listing.status, listing.closesAt);
-  const city = listing.company.city ? cityLabel(listing.company.city) : null;
+  // Alıcının ŞEHRİ değil, talebin açıldığı ÜLKE (2026-10-04, kullanıcı kararı).
+  const buyerCountry = listing.company.country;
 
   const facts: { label: string; value: string }[] = [
     { label: t("talepNo"), value: listing.number },
@@ -248,10 +248,9 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
                   </Badge>
                 ) : null}
                 {listing.company.industry ? <p className="text-xs text-zinc-500">{listing.company.industry}</p> : null}
-                {city ? (
-                  <p className="flex items-center gap-1 text-xs text-zinc-500">
-                    <MapPin aria-hidden className="size-3.5" />
-                    {city}
+                {buyerCountry ? (
+                  <p className="flex items-center text-xs text-zinc-500">
+                    <CountryLabel code={buyerCountry} />
                   </p>
                 ) : null}
                 <p className="flex items-center gap-1 text-xs text-zinc-500">

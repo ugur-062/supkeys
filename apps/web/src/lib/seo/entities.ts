@@ -1,6 +1,7 @@
 import { provinceDisplayName } from "@rothern/shared";
 import { findUnitDef, intlLocale } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
+import { countryDisplayName } from "@/i18n/domain";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { TITLE_SUFFIX, fitTitle } from "./meta";
 import { MARKETPLACE_ROUTES, categoryHref, listingHref } from "@/lib/public/marketplace";
@@ -593,7 +594,8 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
       joinParts([l.title, cat], " — "),
       qty,
       l.itemSummary.count > 1 ? ts("web.seo.items", { n: l.itemSummary.count }) : null,
-      l.buyer.city ? ts("web.seo.buyerCity", { city: provinceDisplayName(l.buyer.city, locale) }) : null,
+      // Talebin açıldığı ÜLKE (2026-10-04): sayfa da şehir yerine ülkeyi gösterir.
+      l.buyer.country ? ts("web.seo.buyerCountry", { country: countryDisplayName(l.buyer.country, locale) }) : null,
       l.open ? ts("web.seo.openForQuotes") : ts("web.seo.closed"),
     ],
     " · ",
@@ -605,7 +607,7 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
         l.description ? clampDescription(l.description, 90) : null,
         qty ? ts("web.seo.qty", { qty }) : null,
         cat,
-        l.buyer.city ? provinceDisplayName(l.buyer.city, locale) : null,
+        l.buyer.country ? countryDisplayName(l.buyer.country, locale) : null,
         ts("web.seo.sealedTail"),
       ],
       " · ",
@@ -645,13 +647,14 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
           },
         }
       : {}),
-    ...(l.buyer.city
+    // Yapılandırılmış veri sayfada görüneni yansıtır: talep konumu ülke
+    // (2026-10-04), alıcının şehri sayfada artık basılmıyor → şemaya da yazılmaz.
+    ...(isoCountry(l.buyer.country)
       ? {
           areaServed: {
             "@type": "Place",
             address: compact({
               "@type": "PostalAddress",
-              addressLocality: provinceDisplayName(l.buyer.city, locale),
               addressCountry: isoCountry(l.buyer.country),
             }),
           },

@@ -1,6 +1,7 @@
 "use client";
 
 import { countryDisplayName, useActivityLabel, useCityKeyLabel } from "@/i18n/domain";
+import { CountryFlag } from "@/components/ui/country-flag";
 import type { Locale } from "@rothern/i18n";
 import { citySlug, foldSearchText } from "@rothern/shared";
 import { searchGeoCities, type GeoCity } from "@/lib/public/geo-client";
@@ -381,7 +382,10 @@ function NearbyControls({
                 className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-zinc-100"
               >
                 <span className="truncate">{o.name}</span>
-                <span className="shrink-0 text-[11px] text-zinc-500">{countryDisplayName(o.countryCode, locale)}</span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-zinc-500">
+                  <CountryFlag code={o.countryCode} decorative />
+                  {countryDisplayName(o.countryCode, locale)}
+                </span>
               </button>
             </li>
           ))}
@@ -449,6 +453,7 @@ function CountryGroup({
         onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
         emptyText={t("noCountry")}
         labelFor={(k) => countryDisplayName(k, locale)}
+        iconFor={(k) => <CountryFlag code={k} decorative />}
       />
     </Group>
   );

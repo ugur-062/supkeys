@@ -10,6 +10,7 @@ import { ActivityIcon } from "./activity-icons";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
+import { CountryFlag } from "@/components/ui/country-flag";
 
 /**
  * FİRMA DİZİNİ KARTI — herkese açık (görünürlük v2; kart sistemi PROMPT 5).
@@ -135,7 +136,11 @@ export function CompanyCard({
               <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
                 {c.city || c.country ? (
                   <span className="inline-flex items-center gap-1">
-                    <MapPinIcon aria-hidden className="size-3.5 text-zinc-500" />
+                    {c.country ? (
+                      <CountryFlag code={c.country} decorative />
+                    ) : (
+                      <MapPinIcon aria-hidden className="size-3.5 text-zinc-500" />
+                    )}
                     {[c.country ? countryDisplayName(c.country, locale) : null, cityDisplayName(c.city, locale)].filter(Boolean).join(", ")}
                   </span>
                 ) : null}

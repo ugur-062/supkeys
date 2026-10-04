@@ -1853,7 +1853,7 @@
     "basedIn": "с центром в г. {city}",
     "productsOf": "Товары {name}",
     "items": "{n, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}}",
-    "buyerCity": "покупатель: {city}",
+    "buyerCountry": "покупатель: {country}",
     "openForQuotes": "открыт для предложений",
     "closed": "закрыт",
     "qty": "Количество: {qty}",

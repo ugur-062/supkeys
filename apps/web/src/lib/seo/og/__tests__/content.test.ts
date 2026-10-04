@@ -23,7 +23,10 @@ describe("OG kart içeriği", () => {
     const c = listingOgContent({ ...listing, company: { ...listing.company, name: "GİZLİ FİRMA A.Ş." } } as never);
     const text = JSON.stringify(c);
     expect(text).not.toContain("GİZLİ FİRMA");
-    expect(c.subtitle).toBe("Yapı Malzemeleri · Ankara");
+    // Konum = talebin açıldığı ÜLKE (2026-10-04, sayfayla aynı), alıcının şehri değil.
+    expect(c.subtitle).toBe("Yapı Malzemeleri · Türkiye");
+    expect(text).not.toContain("Ankara");
+    expect(listingOgContent(listing, "ru").subtitle).toBe("Yapı Malzemeleri · Турция");
     expect(c.facts).toContain("Miktar: 1.200 m"); // sayfa gövdesindeki quantity() ile aynı
     expect(c.facts).toContain("2 kalem");
     expect(c.badge).toBe("Teklife açık");

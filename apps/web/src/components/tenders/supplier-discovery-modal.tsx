@@ -25,6 +25,7 @@ import {
 } from "@/hooks/use-supplier-discovery";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { countryDisplayName } from "@/i18n/domain";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { GOLD_HREF } from "@/lib/public/member-gate";
@@ -440,7 +441,7 @@ export function SupplierDiscoveryModal({
                             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
                               {c.city || c.country ? (
                                 <span className="inline-flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
+                                  {c.country ? <CountryFlag code={c.country} decorative /> : <MapPin className="h-3 w-3" />}
                                   {[c.city, c.country ? countryDisplayName(c.country, uiLocale) : null]
                                     .filter(Boolean)
                                     .join(", ")}

@@ -10,7 +10,8 @@ import {
   type PublicListingState,
 } from "@/lib/public/marketplace";
 import { cn } from "@/lib/utils";
-import { useCityLabel, useScopeLabel } from "@/i18n/domain";
+import { useScopeLabel } from "@/i18n/domain";
+import { CountryLabel } from "@/components/ui/country-flag";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import {
   CalendarDaysIcon,
@@ -458,7 +459,6 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
   const locale = useLocale();
   const fmt = useFormatter();
   const scopeLabel = useScopeLabel();
-  const cityLabel = useCityLabel();
   const state = publicState(listing.status);
   const href = listingHref(listing);
   const primaryCategory =
@@ -524,11 +524,14 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
                 <dd className="truncate">{listing.company.industry}</dd>
               </div>
             ) : null}
-            {listing.company.city ? (
-              <div className="flex items-center gap-1">
+            {/* Talebin açıldığı ÜLKE (2026-10-04, kullanıcı: "İstanbul yerine
+                Türkiye"); alıcının şehri kartta gösterilmez. */}
+            {listing.company.country ? (
+              <div className="flex min-w-0 items-center gap-1">
                 <dt className="sr-only">{t("location")}</dt>
-                <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>{cityLabel(listing.company.city)}</dd>
+                <dd className="min-w-0">
+                  <CountryLabel code={listing.company.country} />
+                </dd>
               </div>
             ) : null}
             {(listing.targetCountries ?? []).length > 0 ? (

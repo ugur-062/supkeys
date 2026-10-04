@@ -7,7 +7,7 @@
  * arayüzde adı yerine kodu görünüyordu. Şimdi tüm yerleşik ülke ve bölgeler
  * (insansız AQ/BV/HM/TF/UM/GS hariç) + iki kullanıcıya ayrılmış kod:
  * `XK` Kosova (yaygın kullanım) ve `XN` KKTC (ISO'da YOK — dış sistemlere
- * gönderilmez, bayrağı çizilmez).
+ * gönderilmez, bayrak dosyası yok → `hasFlagAsset` false).
  *
  * VERİ STATİK, bilinçli: ad `Intl.DisplayNames`ten türetilseydi sunucu (Node
  * ICU) ile tarayıcı farklı ad basıp hidrasyon uyuşmazlığı üretebilirdi. EN/RU
@@ -318,24 +318,4 @@ export function hasFlagAsset(code: string | null | undefined): boolean {
 /** Bayrak SVG'sinin herkese açık yolu (`/flags/4x3/tr.svg`); dosyası yoksa `null`. */
 export function flagAssetPath(code: string | null | undefined): string | null {
   return hasFlagAsset(code) ? `/flags/4x3/${(code as string).trim().toLowerCase()}.svg` : null;
-}
-
-/**
- * Ülke kodundan BAYRAK emojisi — kart ve dizin satırlarında ad okunmadan
- * ülke ayırt edilsin diye (Europages kalıbı).
- *
- * Emoji, iki harfin "bölgesel gösterge" karşılığından türetilir; ayrı bir
- * görsel varlığı ya da kütüphanesi YOK.
- *
- * ⚠️ KKTC (`XN`) ISO 3166-1'de OLMAYAN, kullanıcıya ayrılmış bir koddur:
- * bölgesel gösterge çifti geçerli bir bayrağa çözülmez, tarayıcıya göre iki
- * harf kutusu ya da tofu çıkar. Bu yüzden `null` döner — çağıran bayrak
- * yerine ülke ADINI basar. Aynısı listede olmayan/bozuk kodlar için de
- * geçerli: uydurma bir bayrak basmaktansa hiç basmamak doğrudur.
- */
-export function countryFlag(code: string | null | undefined): string | null {
-  if (!code) return null;
-  const c = code.trim().toUpperCase();
-  if (!/^[A-Z]{2}$/.test(c) || c === "XN" || c === "XK" || !COUNTRY_CODES.has(c)) return null;
-  return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
 }

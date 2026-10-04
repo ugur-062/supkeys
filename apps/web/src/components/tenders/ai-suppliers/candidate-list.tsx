@@ -3,7 +3,7 @@
 import type { CandidateStatus } from "@/hooks/use-supplier-discovery";
 import { countryDisplayName } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
-import { countryFlag } from "@rothern/shared";
+import { CountryFlag } from "@/components/ui/country-flag";
 import type { Locale } from "@rothern/i18n";
 import { ExternalLink } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -133,7 +133,6 @@ export function CandidateList({
             <ul className="space-y-2">
               {g.rows.map((c) => {
                 const selectable = isSelectable(c);
-                const flag = c.country ? countryFlag(c.country) : null;
                 const place = [c.city, c.country ? countryDisplayName(c.country, locale) : null].filter(Boolean).join(", ");
                 const items = itemLabel(c.matchedItems);
                 const href = c.website ? safeHref(c.website) : null;
@@ -175,8 +174,8 @@ export function CandidateList({
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-600">
                           {place ? (
-                            <span>
-                              {flag ? <span aria-hidden>{flag} </span> : null}
+                            <span className="inline-flex items-center gap-1">
+                              {c.country ? <CountryFlag code={c.country} decorative /> : null}
                               {place}
                             </span>
                           ) : null}

@@ -404,6 +404,8 @@ export interface ListingDetail {
   billingAddress?: ListingAddress | null;
   createdAt: string;
   owner: { name: string } | null;
+  /** Talebin açıldığı ülke (alıcı firmanın ülkesi; ad gizliyken de gelir). Eski API'de yok. */
+  ownerCountry?: string | null;
   isOwner: boolean;
   /** F7: kazandır/ele buton izin-kapısı (createdById===userId VEYA SAHİP). */
   createdById?: string | null;

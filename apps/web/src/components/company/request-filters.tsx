@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { foldSearchText } from "@rothern/shared";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { useFilters } from "@/components/marketplace/filter-shell";
 import {
   Check,
@@ -126,6 +127,7 @@ export function RequestFilters({ facets, idPrefix = "t" }: { facets: RequestFace
             selected={state.countries}
             idPrefix={`${idPrefix}-country`}
             onToggle={(k, on) => update((s) => ({ ...s, countries: toggleIn(s.countries, k, on) }))}
+            iconFor={(k) => <CountryFlag code={k} decorative />}
           />
         </Group>
       ) : null}

@@ -18,6 +18,8 @@ import {
 import { CURRENCIES, DELIVERY_TERMS } from "@/lib/tenders/labels";
 import type { LcSubType } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
+import { CountryCombobox } from "@/components/ui/country-combobox";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { COUNTRIES, isRegistrationOpen, PAYMENT_CATEGORIES, REQUEST_ALLOWED_CURRENCIES_MAX, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
 import { createContext, useContext, useId, useState } from "react";
@@ -153,6 +155,7 @@ export function RequestDefaultsForm({
               <ul className="flex flex-wrap gap-1.5" aria-label={tr("seciliUlkeler")}>
                 {countries.map((c) => (
                   <li key={c} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
+                    <CountryFlag code={c} decorative />
                     {countryDisplayName(c, locale)}
                     {/* Son ülke çıkarılamaz (derin denetim S084): boş liste "tüm
                         ülkeler" demektir → kip sessizce genişliyordu. Değiştirmek
@@ -170,23 +173,19 @@ export function RequestDefaultsForm({
                   </li>
                 ))}
               </ul>
-              <select
-                aria-label={tr("ulkeEkle")}
+              {/* Aranabilir seçici + bayraklar (2026-10-04; eskiden 245 satırlık
+                  native select). Kayda kapalı ülke hedeflenemez (API de
+                  reddeder; derin denetim X24). */}
+              <CountryCombobox
                 value=""
-                onChange={(e) => {
-                  const code = e.target.value;
+                ariaLabel={tr("ulkeEkle")}
+                placeholder={tr("ulkeEkle2")}
+                disabled={readOnly}
+                codes={COUNTRIES.filter((c) => isRegistrationOpen(c.code) && !countries.includes(c.code)).map((c) => c.code)}
+                onChange={(code) => {
                   if (code && !countries.includes(code)) set({ targetCountries: [...countries, code] });
                 }}
-                className={INPUT}
-              >
-                <option value="">{tr("ulkeEkle2")}</option>
-                {/* Kayda kapalı ülke hedeflenemez (API de reddeder; derin denetim X24). */}
-                {COUNTRIES.filter((c) => isRegistrationOpen(c.code) && !countries.includes(c.code)).map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {countryDisplayName(c.code, locale)}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           ) : null}
         </Block>

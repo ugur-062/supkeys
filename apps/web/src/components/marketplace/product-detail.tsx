@@ -34,6 +34,7 @@ import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { anchorId } from "@/lib/public/anchors";
 import { AnchorAliases } from "./anchor-aliases";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { MapPinIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -615,6 +616,8 @@ function SellerSummary({
         <Avatar name={company.name} src={company.logoUrl} size={48} />
         <div className="min-w-0">
           <p className="flex min-w-0 items-center gap-1.5">
+            {/* Satıcı firmanın ülkesi — kartlarla aynı küçük bayrak (2026-10-04). */}
+            <CountryFlag code={company.country} />
             <Link href={companyHref} className="truncate text-sm font-semibold text-zinc-950 hover:text-zinc-600">
               {company.name}
             </Link>

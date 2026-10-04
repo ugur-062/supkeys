@@ -1853,7 +1853,7 @@
     "basedIn": "{city} merkezli",
     "productsOf": "{name} ürünleri",
     "items": "{n} kalem",
-    "buyerCity": "alıcı: {city}",
+    "buyerCountry": "alıcı: {country}",
     "openForQuotes": "teklife açık",
     "closed": "kapandı",
     "qty": "Miktar: {qty}",

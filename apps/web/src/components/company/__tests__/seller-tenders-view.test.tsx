@@ -208,11 +208,15 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(order).toEqual(["Davetli talep", "Bağlantılı talep", "—etiket—", "Maskeli eşleşen", "Maskeli diğer"]);
     expect(screen.getByText("Herkese açık talepler · alıcı adı gizli")).toBeInTheDocument();
 
-    // Maskeli satır: alıcı herkese açık sitedeki gibi — ad YOK, şehir + rozet.
+    // Maskeli satır: alıcı herkese açık sitedeki gibi — ad YOK, talebin açıldığı
+    // ÜLKE (bayrak + ad; 2026-10-04, şehir yerine) + rozet.
     const maskedRow = Array.from(list.querySelectorAll('[data-liste-satiri="1"]')).find((el) =>
       el.textContent?.includes("Maskeli diğer"),
     )! as HTMLElement;
-    expect(within(maskedRow).getByText("Alıcı gizli · Bursa")).toBeInTheDocument();
+    expect(within(maskedRow).getByText("Alıcı gizli")).toBeInTheDocument();
+    expect(within(maskedRow).getByText("Türkiye")).toBeInTheDocument();
+    expect(maskedRow.querySelector('img[src="/flags/4x3/tr.svg"]')).not.toBeNull();
+    expect(maskedRow.textContent).not.toContain("Bursa");
     expect(within(maskedRow).getByText("Doğrulanmış alıcı")).toBeInTheDocument();
     expect(maskedRow.textContent).not.toContain("Alıcı A.Ş.");
     // CTA: doğrulanmış ücretsiz → Paketler; satır → panel içi maskeli görünüm.
