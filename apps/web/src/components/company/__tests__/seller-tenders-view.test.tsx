@@ -206,7 +206,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
         : (["Davetli talep", "Bağlantılı talep", "Maskeli eşleşen", "Maskeli diğer"].find((x) => el.textContent?.includes(x)) ?? "?"),
     );
     expect(order).toEqual(["Davetli talep", "Bağlantılı talep", "—etiket—", "Maskeli eşleşen", "Maskeli diğer"]);
-    expect(screen.getByText("Herkese açık talepler · alıcı adı ve teklif Silver ile")).toBeInTheDocument();
+    expect(screen.getByText("Herkese açık talepler · alıcı adı gizli")).toBeInTheDocument();
 
     // Maskeli satır: alıcı herkese açık sitedeki gibi — ad YOK, şehir + rozet.
     const maskedRow = Array.from(list.querySelectorAll('[data-liste-satiri="1"]')).find((el) =>

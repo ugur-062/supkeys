@@ -37,6 +37,8 @@ async function publicListing() {
     status: "OPEN",
     visibility: "PUBLIC",
     closesAt: FUTURE,
+    // Maskeli küme vitrin kapısıyla kesişir (yayımlanmış olmalı).
+    publishedAt: new Date(),
     // Maskeli satır numarayla açılır; numarasız kayıt maskeli listeye girmez.
     number: `ROT-${String(600000 + ++seq)}`,
   });

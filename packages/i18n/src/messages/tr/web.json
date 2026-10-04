@@ -3580,7 +3580,7 @@
         "gonderdiktenSonraBuTurdaDegistiremezsin": "Gönderdikten sonra bu turda değiştiremezsiniz — yeni fiyat ancak alıcı yeni tur açarsa verilebilir.",
         "kaydedilemedi": "Kaydedilemedi",
         "henuzKaydedilmisSartYok": "Henüz kaydedilmiş şart yok — aşağıdakiler <strong>son yayımladığınız talepten</strong> türetildi. Kontrol edip kaydedin.",
-        "herkeseAcikSatinAlmaTaleplerini2": "Herkese açık alım taleplerini görmek ve teklif vermek Silver ile gelir. Talebin kalemleri, alıcı firma ve dosyalar paketle birlikte açılır.",
+        "herkeseAcikSatinAlmaTaleplerini2": "Bu talebin tam detayı, alıcısı, şartnamesi ve dosyaları Silver ile açılır; ücretsiz üyelikte talebi Açık Talepler'de alıcı adı gizli görürsünüz.",
         "tur3": "Tur {currentRound}",
         "teslimSekliOdemeKosuluPara2": "Teslim şekli, ödeme koşulu, para birimi, görünürlük ve süreyi bir kez belirleyin; her yeni satın alma talebi bunlarla başlasın.",
         "silverPaketi": "Silver paketi",
@@ -4538,7 +4538,7 @@
         "bilinmeyenAlici": "Alıcı",
         "gecmisEnYeni200Gosteriliyor": "Geçmiş taleplerin en yeni 200'ü gösteriliyor — daha eski tekliflerinize Tekliflerim'den ulaşabilirsiniz.",
         "ucretsizAltBaslik": "Önce davet edildiğiniz ve bağlı olduğunuz alıcıların talepleri; altında herkese açık talepler alıcı adı gizli — bunlara teklif Silver ile.",
-        "maskeliBolumEtiketi": "Herkese açık talepler · alıcı adı ve teklif Silver ile",
+        "maskeliBolumEtiketi": "Herkese açık talepler · alıcı adı gizli",
         "maskeliNot": "Alıcının adını görmek ve teklif vermek için Silver gerekir.",
         "maskeliNotDogrulan": "Önce ücretsiz doğrulan",
         "maskeliNotPaketler": "Paketleri gör"
@@ -6615,7 +6615,7 @@
         "kalemBirimi": "<num>{n, number}</num> <unit>kalem</unit>",
         "kilitliTaleplerBaslik": "Bu firmanın açık alım talepleri var",
         "kilitliTaleplerSayi": "{n, number} açık alım talebi",
-        "kilitliTaleplerAciklama": "Bu firmanın herkese açık talepleri burada Silver paketiyle listelenir; ücretsiz üyelikte onları Açık Talepler'de alıcı adı gizli görürsünüz. Firma sizi bir talebe davet ederse o talebi ücretsiz paketle de tam görürsünüz."
+        "kilitliTaleplerAciklama": "Bu firmanın herkese açık taleplerini görmek ve teklif vermek Silver paketiyle açılır. Firma sizi bir talebe davet ederse o talebi ücretsiz paketle de tam görürsünüz."
       },
       "page": {
         "yonlendiriliyor": "Yönlendiriliyor…"

@@ -369,6 +369,19 @@ describe("maskeli talepler — ücretsiz (STANDART) tedarikçi", () => {
     await expect(service.maskedPublicTender(std.auth, listing.number!)).rejects.toMatchObject({ status: 404 });
   });
 
+  it("vitrini KAPALI alıcı (publicListingsEnabled=false): talep maskeli de görünmez, görünüm 404 — herkese açık uçla aynı", async () => {
+    const { service } = makeService();
+    const { owner, listing } = await publicListing();
+    const std = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    expect((await service.maskedPublicTenders(std.auth)).map((r) => r.number)).toEqual([listing.number]);
+
+    await prisma.company.update({ where: { id: owner.company.id }, data: { publicListingsEnabled: false } });
+    const pub = new PublicMarketplaceService(prisma as unknown as PrismaBypassService);
+    await expect(pub.getByNumber(listing.number!)).rejects.toMatchObject({ status: 404 });
+    expect(await service.maskedPublicTenders(std.auth)).toEqual([]);
+    await expect(service.maskedPublicTender(std.auth, listing.number!)).rejects.toMatchObject({ status: 404 });
+  });
+
   it("kapılar DEĞİŞMEDİ: maskeli talebe teklif 403, tam detay 403 TIER_REQUIRED, belgeler kapalı", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();

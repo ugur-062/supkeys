@@ -3580,7 +3580,7 @@
         "gonderdiktenSonraBuTurdaDegistiremezsin": "Once submitted, it cannot be changed in this round — a new price can only be given if the buyer opens a new round.",
         "kaydedilemedi": "Could not save",
         "henuzKaydedilmisSartYok": "No saved terms yet — the values below were derived from <strong>your last published request</strong>. Review and save them.",
-        "herkeseAcikSatinAlmaTaleplerini2": "Viewing public buying requests and submitting quotes comes with Silver. The request''s line items, the buyer company and files unlock with the plan.",
+        "herkeseAcikSatinAlmaTaleplerini2": "The full details of this request, the buyer, the specifications and the files unlock with Silver; on the free plan you see this request in Open Requests with the buyer name hidden.",
         "tur3": "Round {currentRound}",
         "teslimSekliOdemeKosuluPara2": "Set the delivery term, payment term, currency, visibility and duration once; every new buying request starts with them.",
         "silverPaketi": "Silver plan",
@@ -4538,7 +4538,7 @@
         "bilinmeyenAlici": "Buyer",
         "gecmisEnYeni200Gosteriliyor": "Showing the 200 most recent past requests — find older quotes under My Quotes.",
         "ucretsizAltBaslik": "Requests you were invited to and requests from your connected buyers come first; below them, public requests with the buyer hidden — quoting on those needs Silver.",
-        "maskeliBolumEtiketi": "Public requests · buyer name and quoting with Silver",
+        "maskeliBolumEtiketi": "Public requests · buyer hidden",
         "maskeliNot": "Seeing the buyer's name and quoting require Silver.",
         "maskeliNotDogrulan": "Get verified for free first",
         "maskeliNotPaketler": "See plans"
@@ -6615,7 +6615,7 @@
         "kalemBirimi": "{n, plural, one {<num>#</num> <unit>line item</unit>} other {<num>#</num> <unit>line items</unit>}}",
         "kilitliTaleplerBaslik": "This company has open buying requests",
         "kilitliTaleplerSayi": "{n, plural, one {# open buying request} other {# open buying requests}}",
-        "kilitliTaleplerAciklama": "This company's public requests are listed here with the Silver plan; on the free plan you see them in Open Requests with the buyer name hidden. If the company invites you to a request, you can see it in full on the free plan too."
+        "kilitliTaleplerAciklama": "Viewing this company's public requests and quoting on them unlock with the Silver plan. If the company invites you to a request, you can see it in full on the free plan too."
       },
       "page": {
         "yonlendiriliyor": "Redirecting…"

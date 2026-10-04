@@ -3515,7 +3515,9 @@ export class CompanyListingsService {
    * saydığı küme ile AYNI): Silver olsaydı `sellerVisibleWhere`in göstereceği
    * PUBLIC talepler, eksi kendi/engelli/BAĞLI firmalarınki, eksi davetli
    * olduğu ve teklif verdiği talepler — onlar zaten `sellerTenders`te TAM
-   * satır olarak durur. Davetli ya da bağlı talep ASLA maskelenmez.
+   * satır olarak durur. Davetli ya da bağlı talep ASLA maskelenmez. Küme
+   * ayrıca vitrin kapısıyla (`marketplaceListingWhere`) kesişir: vitrini
+   * kapalı alıcının talebi maskeli de görünmez.
    */
   private maskedPublicWhere(o: {
     companyId: string;
@@ -3542,6 +3544,13 @@ export class CompanyListingsService {
           invitations: { none: { invitedCompanyId: o.companyId } },
           bids: { none: { bidderCompanyId: o.companyId } },
         },
+        // Herkese açık site kapısı (tek kaynak): maskeli satır/görünüm YALNIZ
+        // public `/talep/<slug>`ın anonim ziyaretçiye zaten gösterdiği
+        // taleplerden üretilir. Alıcı "PUBLIC ilanlarım vitrinde görünmesin"
+        // dediyse (`publicListingsEnabled=false`) o talepler ücretsiz üyeye de
+        // maskeli açılmaz — anonim tarafa kapalı veriyi en kalabalık üye
+        // kitlesine açmak gizlilik kuralını çiğner (inceleme 2026-10-04).
+        marketplaceListingWhere(new Date()),
       ],
     };
   }
