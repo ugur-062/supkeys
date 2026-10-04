@@ -105,44 +105,63 @@ export function BrowseTenderRow({
     label: tr("firma"),
     icon: "company" as const,
     // HÜCRE SIĞAR (son toparlama 2026-10-04, arayüz testi bulgusu): içerik
-    // `max-w-full` ile sütun genişliğine bağlı, uzun metin `truncate` + tam
-    // metin `title`da — eskiden maskeli satırın "Alıcı gizli · <bayrak>
-    // Türkiye"si içeriği kadar genişleyip KALEM sütununun üstüne biniyordu.
+    // `max-w-full` ile sütun genişliğine bağlı, tam metin `title`da — eskiden
+    // maskeli satırın "Alıcı gizli · <bayrak> Türkiye"si içeriği kadar
+    // genişleyip KALEM sütununun üstüne biniyordu.
+    // AD SARILIR (canlı öncesi son tur 2026-10-05): 1366–1440 px'te bayrak ad
+    // ile aynı satırı paylaşınca ad "QA Alı…"ya kısalıyordu. Artık ad en çok
+    // İKİ satıra sarılır (`line-clamp-2`, tam ad `title`da), bayrak + ülke adı
+    // maskeli satırdaki gibi KENDİ satırında. Kompakt pano satırı tek satır
+    // kalır (ad kısalır, yanında yalnız bayrak).
     value: t.owner ? (
-      <span className="flex min-w-0 max-w-full items-center gap-1.5">
-        <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50">
-          <Building2 className="h-3 w-3 text-emerald-600" aria-hidden />
+      compact ? (
+        <span className="flex min-w-0 max-w-full items-center gap-1.5">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50">
+            <Building2 className="h-3 w-3 text-emerald-600" aria-hidden />
+          </span>
+          <span className="min-w-0 truncate font-semibold text-slate-900" title={t.owner.name}>
+            {t.owner.name}
+          </span>
+          {t.ownerCountry ? <CountryFlag code={t.ownerCountry} /> : null}
         </span>
-        <span className="min-w-0 truncate font-semibold text-slate-900" title={t.owner.name}>
-          {t.owner.name}
+      ) : (
+        <span className="flex min-w-0 max-w-full flex-col items-start gap-1">
+          <span className="flex min-w-0 max-w-full items-center gap-1.5">
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50">
+              <Building2 className="h-3 w-3 text-emerald-600" aria-hidden />
+            </span>
+            <span className="line-clamp-2 min-w-0 break-words font-semibold text-slate-900" title={t.owner.name}>
+              {t.owner.name}
+            </span>
+          </span>
+          {/* Talebin açıldığı ülke — bayrak + ad kendi satırında (kısalırsa tam ad title'da). */}
+          {t.ownerCountry ? <CountryLabel code={t.ownerCountry} className="font-medium text-slate-600" /> : null}
         </span>
-        {/* Talebin açıldığı ülke — adı okunur bayrak (alt/title = ülke adı); bayrak küçülmez. */}
-        {t.ownerCountry ? <CountryFlag code={t.ownerCountry} /> : null}
-      </span>
+      )
     ) : (
       /* Alıcı gizli — herkese açık talep satırıyla aynı tarif (kimlik değil
          nitelik): talebin açıldığı ÜLKE (bayrak + ad; 2026-10-04, şehir
          yerine) + doğrulama rozeti. Ad/logo/slug hiç gelmez. "Alıcı gizli"
          ile ülke SARILIR (`flex-wrap`): sığarsa yan yana, sığmazsa ülke alt
          satıra iner — ayraç yok, bayrak ayraç görevi görür (satır başında
-         sarkan "·" olmasın). */
+         sarkan "·" olmasın). Etiket de kısalmaz, en çok iki satıra sarılır
+         (RU "Покупатель скрыт" 1440 px'te "Покупател…" oluyordu); rozet
+         KISA metni taşır (RU "Проверен"), tam metin `title`da. */
       <span className="flex min-w-0 max-w-full flex-col items-start gap-1">
         <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 text-slate-700">
           <span className="flex min-w-0 max-w-full items-center gap-1.5">
             <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-slate-100">
               <Lock className="h-3 w-3 text-slate-500" aria-hidden />
             </span>
-            <span className="min-w-0 truncate" title={tr("aliciGizli")}>
+            <span className="line-clamp-2 min-w-0 break-words" title={tr("aliciGizli")}>
               {tr("aliciGizli")}
             </span>
           </span>
           {t.ownerCountry ? <CountryLabel code={t.ownerCountry} className="font-medium text-slate-600" /> : null}
         </span>
         {t.ownerVerified ? (
-          <Badge tone="verified" size="sm" icon={false} className="max-w-full">
-            <span className="truncate" title={tr("dogrulanmisAlici")}>
-              {tr("dogrulanmisAlici")}
-            </span>
+          <Badge tone="verified" size="sm" icon={false} className="max-w-full" title={tr("dogrulanmisAlici")}>
+            <span className="truncate">{tr("dogrulanmisAliciKisa")}</span>
           </Badge>
         ) : null}
       </span>

@@ -750,6 +750,7 @@
     "card": {
       "buyer": "Buyer",
       "verifiedBuyer": "Verified buyer",
+      "verifiedBuyerShort": "Verified buyer",
       "items": "Items",
       "specsMembers": "specifications and documents with Silver",
       "visibility": "Visibility",
@@ -3209,6 +3210,7 @@
         "teklifVar": "On file",
         "aliciGizli": "Buyer hidden",
         "dogrulanmisAlici": "Verified buyer",
+        "dogrulanmisAliciKisa": "Verified buyer",
         "teklifVerSilver": "Submit quote · Silver"
       },
       "ihalelistview": {

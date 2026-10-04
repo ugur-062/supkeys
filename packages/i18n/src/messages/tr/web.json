@@ -750,6 +750,7 @@
     "card": {
       "buyer": "Alıcı",
       "verifiedBuyer": "Doğrulanmış alıcı",
+      "verifiedBuyerShort": "Doğrulanmış alıcı",
       "items": "Kalem",
       "specsMembers": "şartname ve belgeler Silver ile",
       "visibility": "Görünürlük",
@@ -3209,6 +3210,7 @@
         "teklifVar": "Kayıtlı",
         "aliciGizli": "Alıcı gizli",
         "dogrulanmisAlici": "Doğrulanmış alıcı",
+        "dogrulanmisAliciKisa": "Doğrulanmış alıcı",
         "teklifVerSilver": "Teklif ver · Silver"
       },
       "ihalelistview": {

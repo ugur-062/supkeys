@@ -750,6 +750,7 @@
     "card": {
       "buyer": "Покупатель",
       "verifiedBuyer": "Проверенный покупатель",
+      "verifiedBuyerShort": "Проверен",
       "items": "Позиции",
       "specsMembers": "спецификации и документы — на Silver",
       "visibility": "Видимость",
@@ -3209,6 +3210,7 @@
         "teklifVar": "Есть",
         "aliciGizli": "Покупатель скрыт",
         "dogrulanmisAlici": "Проверенный покупатель",
+        "dogrulanmisAliciKisa": "Проверен",
         "teklifVerSilver": "Отправить предложение · Silver"
       },
       "ihalelistview": {

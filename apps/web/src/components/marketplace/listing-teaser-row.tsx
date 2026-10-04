@@ -73,7 +73,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         label: t("buyer"),
         icon: "company",
         value: (
-          <span className="flex min-w-0 flex-col items-start gap-1">
+          <span className="flex min-w-0 max-w-full flex-col items-start gap-1">
             {/* ÜLKE ÖNCELİKLİ (son toparlama 2026-10-04): faaliyet ile ülke
                 tek satırda yarışınca EN/RU'da ülke "Tü…"/"Т…"ye kısalıyordu.
                 Artık SARILIR — sığarsa yan yana, sığmazsa ülke alt satıra
@@ -89,9 +89,13 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
               {l.company.country ? <CountryLabel code={l.company.country} /> : null}
               {!activityText && !l.company.country ? "—" : null}
             </span>
+            {/* Rozet hücreyi AŞMAZ (canlı öncesi son tur 2026-10-05): RU
+                "Проверенный покупатель" 1440 px'te ПОКУПАТЕЛЬ sütunundan
+                taşıyordu. Satırda KISA metin (RU "Проверен"; TR/EN aynı),
+                tam metin `title`da; yine sığmazsa `truncate`. */}
             {l.company.verified ? (
-              <Badge tone="verified" size="sm" icon={false}>
-                {t("verifiedBuyer")}
+              <Badge tone="verified" size="sm" icon={false} className="max-w-full" title={t("verifiedBuyer")}>
+                <span className="truncate">{t("verifiedBuyerShort")}</span>
               </Badge>
             ) : null}
           </span>

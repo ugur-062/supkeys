@@ -30,6 +30,7 @@ import { ListingTeaserRow } from "@/components/marketplace/listing-teaser-row";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { BuyerCountryScope, ScopeBesideBuyer, TargetScope } from "@/components/tenders/target-scope";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
 
 const render = (ui: ReactElement) =>
   rtlRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
@@ -84,8 +85,11 @@ describe("Açık Talepler FİRMA hücresi sütuna sığar (bulgu 1, yüksek)", (
     expect(root.className).toContain("max-w-full");
     expect(root.className).toContain("min-w-0");
 
+    // Etiket kısalmaz, en çok iki satıra sarılır (RU "Покупатель скрыт" → "Покупател…" bulgusu).
     const hidden = within(cell).getByText("Alıcı gizli");
-    expect(hidden.className).toContain("truncate");
+    expect(hidden.className).toContain("line-clamp-2");
+    expect(hidden.className).toContain("break-words");
+    expect(hidden.className).not.toContain("truncate");
     expect(hidden).toHaveAttribute("title", "Alıcı gizli");
 
     // "Alıcı gizli" ile ülke AYNI sarılan satırda; sığmazsa ülke alt satıra iner.
@@ -101,23 +105,48 @@ describe("Açık Talepler FİRMA hücresi sütuna sığar (bulgu 1, yüksek)", (
     // Satır başında sarkacak "·" ayracı yok.
     expect(line.textContent).not.toContain("·");
 
-    // Rozet de hücreyi aşmaz.
+    // Rozet de hücreyi aşmaz: kısa metin (RU "Проверен"), tam metin title'da.
     const badge = within(cell).getByText("Doğrulanmış alıcı");
     expect(badge.className).toContain("truncate");
     expect(badge.parentElement!.className).toContain("max-w-full");
+    expect(badge.parentElement!).toHaveAttribute("title", "Doğrulanmış alıcı");
   });
 
-  it("adı görünen alıcı + bayrak: ad kısalır (title tam ad), bayrak küçülmez", () => {
+  it("adı görünen alıcı (SILVER/GOLD): ad iki satıra sarılır (title tam ad), bayrak + ülke KENDİ satırında", () => {
+    // Canlı öncesi son tur: 1366–1440 px'te bayrak adla aynı satırı paylaşınca ad "QA Alı…"ya kısalıyordu.
     useCompanyAuthStore.setState({ company: { tier: "SILVER", companyVerificationStatus: "VERIFIED" } as never });
     const t = sellerRow();
     const { container } = render(<BrowseTenderRow t={t} />);
     const cell = firmaCell(container);
+    const root = cell.firstElementChild as HTMLElement;
+    expect(root.className).toContain("max-w-full");
+    expect(root.className).toContain("flex-col");
+
     const name = within(cell).getByText(t.owner!.name);
-    expect(name.className).toContain("truncate");
+    expect(name.className).toContain("line-clamp-2");
+    expect(name.className).toContain("break-words");
     expect(name.className).toContain("min-w-0");
+    expect(name.className).not.toContain("truncate");
     expect(name).toHaveAttribute("title", t.owner!.name);
-    expect((cell.firstElementChild as HTMLElement).className).toContain("max-w-full");
-    const flag = cell.querySelector('img[src="/flags/4x3/tr.svg"]') as HTMLImageElement;
+    // Ad satırında bayrak yok; bayrak + ülke adı ayrı satır (maskeli satırdaki CountryLabel).
+    const nameLine = name.parentElement!;
+    expect(nameLine.querySelector('img[src^="/flags/"]')).toBeNull();
+    const country = within(cell).getByText("Türkiye");
+    const label = country.parentElement!;
+    expect(label.parentElement).toBe(root);
+    expect(label).toHaveAttribute("title", "Türkiye");
+    expect(label.className).toContain("max-w-full");
+    expect(label.querySelector('img[src="/flags/4x3/tr.svg"]')).not.toBeNull();
+  });
+
+  it("kompakt pano satırı: ad tek satırda kısalır, yanında yalnız bayrak (küçülmez)", () => {
+    useCompanyAuthStore.setState({ company: { tier: "SILVER", companyVerificationStatus: "VERIFIED" } as never });
+    const t = sellerRow();
+    const { container } = render(<BrowseTenderRow t={t} compact />);
+    const name = within(container).getByText(t.owner!.name);
+    expect(name.className).toContain("truncate");
+    expect(name).toHaveAttribute("title", t.owner!.name);
+    const flag = name.parentElement!.querySelector('img[src="/flags/4x3/tr.svg"]') as HTMLImageElement;
     expect(flag.className).toContain("shrink-0");
     expect(flag).toHaveAttribute("alt", "Türkiye");
   });
@@ -165,6 +194,44 @@ describe("herkese açık talep satırı: ülke faaliyetten ÖNCELİKLİ (bulgu 2
     expect(label.querySelector('img[src="/flags/4x3/tr.svg"]')).not.toBeNull();
     expect(line.textContent).not.toContain("·");
     expect(container.textContent).not.toContain("Tü…");
+  });
+
+  it("doğrulama rozeti ALICI hücresini aşmaz: kısa metin truncate, rozet max-w-full, tam metin title'da", () => {
+    // Canlı öncesi son tur: RU "Проверенный покупатель" /ru/zayavki ve "Похожие" satırlarında 1440 px'te taşıyordu.
+    render(<ListingTeaserRow listing={card} />);
+    const text = screen.getByText("Doğrulanmış alıcı");
+    expect(text.className).toContain("truncate");
+    const badge = text.parentElement!;
+    expect(badge.className).toContain("max-w-full");
+    expect(badge).toHaveAttribute("title", "Doğrulanmış alıcı");
+    expect((badge.parentElement as HTMLElement).className).toContain("max-w-full");
+  });
+});
+
+describe("RU satır rozeti kısa, TR/EN değişmez (canlı öncesi son tur)", () => {
+  it("satır rozetinin kısa metni: RU 'Проверен', TR/EN tam metinle aynı; tam metin ayrı anahtarda kalır", () => {
+    const pick = (locale: "tr" | "en" | "ru") => {
+      type Row = { verifiedBuyer: string; verifiedBuyerShort: string; dogrulanmisAlici: string; dogrulanmisAliciKisa: string };
+      const m = messagesFor(locale, WEB_NAMESPACES) as unknown as {
+        web: { marketplace: { card: Row }; panel: { requests: { browsetenderrow: Row } } };
+      };
+      return {
+        cardFull: m.web.marketplace.card.verifiedBuyer,
+        cardShort: m.web.marketplace.card.verifiedBuyerShort,
+        rowFull: m.web.panel.requests.browsetenderrow.dogrulanmisAlici,
+        rowShort: m.web.panel.requests.browsetenderrow.dogrulanmisAliciKisa,
+      };
+    };
+    const ru = pick("ru");
+    expect(ru.cardShort).toBe("Проверен");
+    expect(ru.rowShort).toBe("Проверен");
+    expect(ru.cardFull).toBe("Проверенный покупатель");
+    expect(ru.rowFull).toBe("Проверенный покупатель");
+    for (const l of ["tr", "en"] as const) {
+      const v = pick(l);
+      expect(v.cardShort).toBe(v.cardFull);
+      expect(v.rowShort).toBe(v.rowFull);
+    }
   });
 });
 
