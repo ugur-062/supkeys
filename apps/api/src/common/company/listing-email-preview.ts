@@ -34,7 +34,11 @@ export type ListingLocalizer = (
   locale: Locale,
 ) => Promise<{ title: string; items?: { name: string }[] } | undefined>;
 
-export type PreviewRow = { label: string; value: string };
+/**
+ * `items`: kalem satırları ayrı ayrı — HTML madde işaretli liste çizer
+ * (e-posta tasarımı 2026-10-04); `value` düz metin için " · " birleşik hâl.
+ */
+export type PreviewRow = { label: string; value: string; items?: string[]; itemsNote?: string };
 
 /** Tek dil için bilgi satırları. */
 export async function listingPreviewRows(
@@ -55,12 +59,12 @@ export async function listingPreviewRows(
         `${loc?.items?.[i]?.name ?? it.name} — ${quantityDisplay(String(it.quantity), it.unitCode, it.unit, locale)}`,
     );
     const more = src.itemCount - shown.length;
-    if (more > 0) {
-      lines.push(tApi("api.notifications.listings.preview.more", { n: more }, locale));
-    }
+    const moreLine = more > 0 ? tApi("api.notifications.listings.preview.more", { n: more }, locale) : undefined;
     rows.push({
       label: tApi("api.notifications.listings.preview.items", { count: src.itemCount }, locale),
-      value: lines.join(" · "),
+      value: [...lines, ...(moreLine ? [moreLine] : [])].join(" · "),
+      items: lines,
+      ...(moreLine ? { itemsNote: moreLine } : {}),
     });
   }
   if (src.closesAt) {

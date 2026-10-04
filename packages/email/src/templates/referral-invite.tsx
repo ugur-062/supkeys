@@ -3,6 +3,7 @@ import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { ReferralInviteData } from "../types";
 import { InfoRows, MutedLink, Note, Paragraph } from "./_components/blocks";
 import { CtaButton } from "./_components/button";
+import { EmailEnvContext } from "./_components/email-env";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
 
@@ -24,6 +25,7 @@ export function makeReferralInviteSubject(
 export function ReferralInviteEmail(props: ReferralInviteData & { locale?: Locale }) {
   const locale = props.locale ?? DEFAULT_LOCALE;
   const t = emailT(locale);
+  const env = React.useContext(EmailEnvContext);
 
   return (
     <Layout
@@ -62,7 +64,9 @@ export function ReferralInviteEmail(props: ReferralInviteData & { locale?: Local
 
       <Note>
         {t("email.referralInvite.ignoreNote")}
-        {props.optOutUrl ? (
+        {/* Alt bilgide imzalı çıkış bağlantısı varsa ikinci bir "kapat"
+            bağlantısı basılmaz; yoksa (JWT_SECRET yok) opt-out burada. */}
+        {props.optOutUrl && !env.unsubscribeUrl ? (
           <>
             <br />
             {t.rich("email.referralInvite.optOut", {

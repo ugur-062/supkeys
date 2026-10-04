@@ -1,10 +1,12 @@
 import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type EmailTranslator, type Locale } from "../i18n";
 import type { TenderInviteDigestData, TenderInviteDigestEntry } from "../types";
-import { MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
+import { BulletList, MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
 import { CtaButton } from "./_components/button";
+import { EmailEnvContext } from "./_components/email-env";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
+import { inline } from "./_components/text";
 import { COLORS } from "./_components/tokens";
 import { formatInviteQuantity, infoLines } from "./tender-external-invite";
 
@@ -25,17 +27,10 @@ const cardTitle: React.CSSProperties = {
   lineHeight: "22px",
   fontWeight: 600,
   color: COLORS.slate900,
-  display: "block",
 };
 
-const cardLine: React.CSSProperties = { ...TEXT.small, display: "block" };
-
-const itemList: React.CSSProperties = {
-  margin: "8px 0 4px 0",
-  paddingLeft: "20px",
-  fontSize: "14px",
-  lineHeight: "22px",
-};
+// Kart satırları `<div>` (Outlook masaüstü span'de `display:block`u yok sayar).
+const cardLine: React.CSSProperties = { ...TEXT.small };
 
 const smallText: React.CSSProperties = { ...TEXT.body, fontSize: "14px", lineHeight: "22px" };
 
@@ -90,6 +85,8 @@ function entryLines(t: EmailTranslator, e: TenderInviteDigestEntry) {
 export function TenderInviteDigestEmail(props: TenderInviteDigestData & { locale?: Locale }) {
   const locale = props.locale ?? DEFAULT_LOCALE;
   const t = emailT(locale);
+  // Alt bilgide çıkış bağlantısı varsa not yalnız açıklama (bkz. tekli davet).
+  const env = React.useContext(EmailEnvContext);
   return (
     <Layout preview={t("email.tenderInviteDigest.preview", { count: props.invites.length })} locale={locale}>
       <Heading>{t("email.tenderInviteDigest.heading")}</Heading>
@@ -100,28 +97,22 @@ export function TenderInviteDigestEmail(props: TenderInviteDigestData & { locale
         const lines = entryLines(t, e);
         return (
           <Panel key={`${idx}-${e.ctaUrl}`} margin="0 0 12px 0" style={{ backgroundColor: COLORS.card }}>
-            <span className="r-muted" style={{ ...cardLine, fontWeight: 600 }}>
+            <div className="r-muted" style={{ ...cardLine, fontWeight: 600 }}>
               {e.inviterName}
-            </span>
-            <span className="r-strong" style={cardTitle}>
+            </div>
+            <div className="r-strong" style={cardTitle}>
               {e.tenderTitle}
-            </span>
+            </div>
             {lines.info.map((line) => (
-              <span key={line} className="r-muted" style={cardLine}>
-                {line}
-              </span>
+              <div key={line} className="r-muted" style={cardLine}>
+                {inline(line)}
+              </div>
             ))}
-            {lines.items.length > 0 ? (
-              <ul className="r-text" style={itemList}>
-                {lines.items.map((line, i) => (
-                  <li key={`${i}-${line}`}>{line}</li>
-                ))}
-              </ul>
-            ) : null}
+            {lines.items.length > 0 ? <BulletList items={lines.items} style={{ margin: "8px 0 4px 0" }} /> : null}
             {lines.more > 0 ? (
-              <span className="r-muted" style={cardLine}>
+              <div className="r-muted" style={cardLine}>
                 {t("email.tenderExternalInvite.moreItems", { count: lines.more })}
-              </span>
+              </div>
             ) : null}
             <CtaButton href={e.ctaUrl}>{t("email.tenderInviteDigest.cta")}</CtaButton>
           </Panel>
@@ -135,9 +126,11 @@ export function TenderInviteDigestEmail(props: TenderInviteDigestData & { locale
       </Paragraph>
 
       <Note>
-        {t.rich("email.tenderInviteDigest.footnote", {
-          optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
-        })}
+        {env.unsubscribeUrl
+          ? t("email.tenderInviteDigest.textFootnote")
+          : t.rich("email.tenderInviteDigest.footnote", {
+              optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
+            })}
       </Note>
     </Layout>
   );

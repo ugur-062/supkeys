@@ -1,10 +1,12 @@
 import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type EmailMessageKey, type EmailTranslator, type Locale } from "../i18n";
 import type { TenderExternalInviteData, TenderExternalInviteItem } from "../types";
-import { MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
+import { BulletList, MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
 import { CtaButton } from "./_components/button";
+import { EmailEnvContext } from "./_components/email-env";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
+import { inline } from "./_components/text";
 import { COLORS } from "./_components/tokens";
 
 /**
@@ -28,14 +30,9 @@ const panelTitle: React.CSSProperties = {
   color: COLORS.slate900,
 };
 
-const panelLine: React.CSSProperties = { ...TEXT.small, display: "block" };
-
-const itemList: React.CSSProperties = {
-  margin: "8px 0 0 0",
-  paddingLeft: "20px",
-  fontSize: "14px",
-  lineHeight: "22px",
-};
+// Panel satırları `<div>`: Outlook masaüstü satır içi öğede `display:block`u
+// yok sayar, span'ler tek satırda birleşiyordu.
+const panelLine: React.CSSProperties = { ...TEXT.small };
 
 const smallText: React.CSSProperties = { ...TEXT.body, fontSize: "14px", lineHeight: "22px" };
 
@@ -140,6 +137,10 @@ export function TenderExternalInviteEmail(
   const t = emailT(locale);
   const info = infoLines(t, props);
   const items = itemLines(t, props);
+  // Alt bilgide imzalı çıkış bağlantısı varsa (davet akışında her zaman) not
+  // yalnız açıklamayı taşır — aynı e-postada iki "kapat" bağlantısı olmasın.
+  // Çıkış bağlantısı basılamadıysa (JWT_SECRET yok) opt-out notta kalır.
+  const env = React.useContext(EmailEnvContext);
 
   return (
     <Layout
@@ -163,30 +164,26 @@ export function TenderExternalInviteEmail(
       </Paragraph>
 
       <Panel>
-        <span className="r-strong" style={panelTitle}>
+        <div className="r-strong" style={panelTitle}>
           {props.tenderTitle}
-        </span>
+        </div>
         {info.map((line) => (
-          <span key={line} className="r-muted" style={panelLine}>
-            {line}
-          </span>
+          <div key={line} className="r-muted" style={panelLine}>
+            {inline(line)}
+          </div>
         ))}
       </Panel>
 
       {items.lines.length > 0 ? (
         <Panel style={{ backgroundColor: COLORS.card }}>
-          <span className="r-strong" style={{ ...panelTitle, fontSize: "14px" }}>
+          <div className="r-strong" style={{ ...panelTitle, fontSize: "14px" }}>
             {t("email.tenderExternalInvite.itemsTitle", { count: items.total })}
-          </span>
-          <ul className="r-text" style={itemList}>
-            {items.lines.map((line, i) => (
-              <li key={`${i}-${line}`}>{line}</li>
-            ))}
-          </ul>
+          </div>
+          <BulletList items={items.lines} style={{ margin: "8px 0 0 0" }} />
           {items.more > 0 ? (
-            <span className="r-muted" style={{ ...panelLine, marginTop: "4px" }}>
+            <div className="r-muted" style={{ ...panelLine, paddingTop: "4px" }}>
               {t("email.tenderExternalInvite.moreItems", { count: items.more })}
-            </span>
+            </div>
           ) : null}
         </Panel>
       ) : null}
@@ -220,10 +217,12 @@ export function TenderExternalInviteEmail(
       ) : null}
 
       <Note>
-        {t.rich("email.tenderExternalInvite.footnote", {
-          inviterName: props.inviterName,
-          optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
-        })}
+        {env.unsubscribeUrl
+          ? t("email.tenderExternalInvite.textFootnote", { inviterName: props.inviterName })
+          : t.rich("email.tenderExternalInvite.footnote", {
+              inviterName: props.inviterName,
+              optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
+            })}
       </Note>
     </Layout>
   );

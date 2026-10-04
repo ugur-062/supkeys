@@ -207,6 +207,11 @@ export class MembershipScheduler implements OnModuleInit {
                 t("api.notifications.membership.sonaErdiAnaParagraf", {
                   limit: PRODUCT_LIMITS.STANDART ?? 0,
                 }),
+                t("api.notifications.membership.sonaErdiYukseltme"),
+              ],
+              // Firmada FİİLEN değişenler uzun metinde kaybolmasın: ayrı,
+              // madde işaretli kutuda (e-posta tasarımı 2026-10-04).
+              highlights: [
                 ...(kirpilan
                   ? [
                       t("api.notifications.membership.sonaErdiKirpilanUrun", {
@@ -217,7 +222,6 @@ export class MembershipScheduler implements OnModuleInit {
                 // Yukarıdaki iptal (bağlantı + referral + kuyruktaki talep
                 // davetleri) firmaya söylenir (arayüz testi D-173).
                 t("api.notifications.membership.sonaErdiDavetIptal"),
-                t("api.notifications.membership.sonaErdiYukseltme"),
               ],
               ctaLabel: t("api.notifications.membership.premiumaGec"),
               ctaUrl: appRoutes.premium(baseUrl, locale),

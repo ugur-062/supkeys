@@ -3,6 +3,7 @@ export { BaseEmailProvider } from "./providers/base";
 export { ResendProvider } from "./providers/resend";
 export { renderEmail } from "./render";
 export { inviteFromName } from "./templates/tender-external-invite";
+export { splitSentences } from "./templates/_components/text";
 export type { EmailEnv } from "./templates/_components/email-env";
 export type {
   EmailClientConfig,
@@ -12,6 +13,7 @@ export type {
   EmailTemplateData,
   NotificationCode,
   NotificationData,
+  NotificationEntry,
   NotificationInfoRow,
   PasswordResetData,
   ReferralInviteData,

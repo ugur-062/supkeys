@@ -50,6 +50,7 @@ import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { assertPostalCode } from "../../company-addresses/company-addresses.service";
 import { EmailService } from "../../email/email.service";
+import { splitSentences } from "@rothern/email";
 import { SupabaseAuthService, isSupabaseAuthAccessError } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
 import { ChangeSignupEmailDto, CompanySignupDto } from "../dto/company-signup.dto";
@@ -1486,6 +1487,7 @@ export class CompanyAuthService {
         {
           subjectKey: "api.notifications.companyAuth.ikiAdimliKilitBaslik",
           paragraphKeys: ["api.notifications.companyAuth.ikiAdimliKilitGovde"],
+          securityAlert: true,
           ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
           ctaPath: "/company/ayarlar",
           params: { dakika: TWO_FACTOR_WINDOW_MIN },
@@ -1641,12 +1643,27 @@ export class CompanyAuthService {
       ctaLabelKey: ApiMessageKey;
       ctaPath: string;
       params?: Record<string, string | number>;
+      /**
+       * Güvenlik bildirimi: son içerik paragrafının SON cümlesi ("Bu işlemi
+       * siz yapmadıysanız…") gövdeden ayrılıp CTA'nın altında uyarı kutusunda
+       * basılır (e-posta tasarımı 2026-10-04). Metin değişmez, yalnız yeri.
+       */
+      securityAlert?: boolean;
     },
     type: string,
     id: string,
   ) {
     const t = (key: ApiMessageKey) => tApi(key, msg.params, locale);
     const subject = t(msg.subjectKey);
+    const body = msg.paragraphKeys.map(t);
+    let alert: string | undefined;
+    if (msg.securityAlert && body.length > 0) {
+      const sentences = splitSentences(body[body.length - 1]!);
+      if (sentences.length >= 2) {
+        alert = sentences.pop();
+        body[body.length - 1] = sentences.join(" ");
+      }
+    }
     void this.email
       .send({
         to,
@@ -1657,12 +1674,10 @@ export class CompanyAuthService {
           data: {
             subject,
             heading: subject,
-            paragraphs: [
-              t(NOTIFY_GREETING_KEY),
-              ...msg.paragraphKeys.map(t),
-            ],
+            paragraphs: [t(NOTIFY_GREETING_KEY), ...body],
             ctaLabel: t(msg.ctaLabelKey),
             ctaUrl: localizeUrl(this.webBase(), msg.ctaPath, locale),
+            ...(alert ? { alert } : {}),
           },
         },
         context: { type, id },
@@ -1853,6 +1868,7 @@ export class CompanyAuthService {
       {
         subjectKey: "api.notifications.companyAuth.ikiAdimliAcildiBaslik",
         paragraphKeys: ["api.notifications.companyAuth.ikiAdimliAcildiGovde"],
+        securityAlert: true,
         ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
         ctaPath: "/company/ayarlar",
       },
@@ -1901,6 +1917,7 @@ export class CompanyAuthService {
       {
         subjectKey: "api.notifications.companyAuth.ikiAdimliKapatildiBaslik",
         paragraphKeys: ["api.notifications.companyAuth.ikiAdimliKapatildiGovde"],
+        securityAlert: true,
         ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
         ctaPath: "/company/ayarlar",
       },
@@ -2057,6 +2074,7 @@ export class CompanyAuthService {
       {
         subjectKey: "api.notifications.companyAuth.parolaDegistiBaslik",
         paragraphKeys: ["api.notifications.companyAuth.parolaDegistiGovde"],
+        securityAlert: true,
         ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
         ctaPath: "/company/ayarlar",
       },

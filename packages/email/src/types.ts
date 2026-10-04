@@ -128,7 +128,20 @@ export interface TenderInviteDigestData {
  */
 export interface NotificationInfoRow {
   label: string;
+  /** Boş dize → satır yalnız etiketle çizilir. */
   value: string;
+  /**
+   * Verilirse HTML'de değer yerine madde işaretli liste (talep kalemleri;
+   * `value` düz metin sürümü için " · " ile birleşik hâli taşır).
+   */
+  items?: string[];
+  /** Listenin altında gri satır ("+5 kalem daha"). */
+  itemsNote?: string;
+}
+/** Başlık + ikincil satır (özet e-postasında talep adı + son teklif tarihi). */
+export interface NotificationEntry {
+  title: string;
+  detail?: string;
 }
 /**
  * Tek kullanımlık kod (e-posta doğrulama, e-posta ile 2FA girişi, 2FA ayar
@@ -149,11 +162,20 @@ export interface NotificationData {
   preview?: string;
   heading: string;
   paragraphs: string[];
+  /** Öne çıkan maddeler — paragrafların altında, madde işaretli kutuda. */
+  highlights?: string[];
+  /** Başlık + ikincil satır listesi (bkz. `NotificationEntry`). */
+  entries?: NotificationEntry[];
   infoRows?: NotificationInfoRow[];
   /** Kodlu işlem e-postası (bkz. `NotificationCode`). */
   code?: NotificationCode;
   ctaLabel?: string;
   ctaUrl?: string;
+  /**
+   * Güvenlik uyarısı ("Bu işlemi siz yapmadıysanız…") — CTA'nın altında
+   * tonlu, sol şeritli kutu; düz metinde CTA'dan sonra ayrı paragraf.
+   */
+  alert?: string;
   /** Gövde altındaki sessiz not; kodlu e-postada verilmezse varsayılan "yok sayın" notu. */
   footerNote?: string;
 }

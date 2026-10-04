@@ -1,7 +1,7 @@
 import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { NotificationData } from "../types";
-import { CodeBlock, InfoRows, Note, Paragraph } from "./_components/blocks";
+import { Alert, CodeBlock, EntryList, HighlightPanel, InfoRows, Note, Paragraph } from "./_components/blocks";
 import { CtaButton } from "./_components/button";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
@@ -52,9 +52,15 @@ export function NotificationEmail(props: NotificationData & { locale?: Locale })
         <CodeBlock code={props.code.value} label={code.label} caption={code.validity} />
       ) : null}
 
+      {props.highlights?.length ? <HighlightPanel items={props.highlights} /> : null}
+
+      {props.entries?.length ? <EntryList entries={props.entries} /> : null}
+
       {props.infoRows && props.infoRows.length > 0 ? <InfoRows rows={props.infoRows} /> : null}
 
       {props.ctaUrl && props.ctaLabel ? <CtaButton href={props.ctaUrl}>{props.ctaLabel}</CtaButton> : null}
+
+      {props.alert ? <Alert>{props.alert}</Alert> : null}
 
       {footer ? <Note>{footer}</Note> : null}
     </Layout>
@@ -75,13 +81,22 @@ export function renderNotificationText(
     if (code.validity) lines.push(code.validity);
     lines.push("");
   }
+  if (props.highlights?.length) {
+    for (const h of props.highlights) lines.push(`- ${h}`);
+    lines.push("");
+  }
+  if (props.entries?.length) {
+    for (const e of props.entries) lines.push(e.detail ? `${e.title} — ${e.detail}` : e.title);
+    lines.push("");
+  }
   if (props.infoRows?.length) {
-    for (const row of props.infoRows) lines.push(`${row.label}: ${row.value}`);
+    for (const row of props.infoRows) lines.push(row.value ? `${row.label}: ${row.value}` : row.label);
     lines.push("");
   }
   if (props.ctaUrl && props.ctaLabel) {
     lines.push(`${props.ctaLabel}: ${props.ctaUrl}`, "");
   }
+  if (props.alert) lines.push(props.alert, "");
   const footer = code ? code.ignore : props.footerNote;
   if (footer) lines.push(footer, "");
   lines.push(emailT(locale)("email.layout.textSignature"));

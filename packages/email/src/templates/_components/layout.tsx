@@ -1,6 +1,6 @@
 import { Body, Container, Head, Html, Img, Preview, Text } from "@react-email/components";
 import * as React from "react";
-import { LOGO_CID, LOGO_HEIGHT, LOGO_WIDTH } from "../../assets/logo";
+import { LOGO_CID, LOGO_DARK_CID, LOGO_HEIGHT, LOGO_WIDTH } from "../../assets/logo";
 import { DEFAULT_LOCALE, emailT, type Locale } from "../../i18n";
 import { EmailEnvContext, privacyNoticeUrl, showsPrivacyNotice, siteHost } from "./email-env";
 import { COLORS, FONTS } from "./tokens";
@@ -18,11 +18,16 @@ interface LayoutProps {
  * gri sayfa zemininde DEĞİL, beyaz kartın başlığında. Görselin kendi beyaz
  * zemini kartla aynı renk → açık modda çerçeve görünmez.
  *
- * Koyu mod: Gmail/Outlook arka planı ve metni kendileri koyulaştırır, GÖRSELİ
- * değiştirmez ve `prefers-color-scheme`i okumaz → logonun beyaz zemini koyu
- * kartta küçük, yuvarlak köşeli bir rozet olarak bilinçli durur (bkz.
- * scripts/build-email-logo.mjs). Apple Mail/iOS Mail gibi medya sorgusunu
- * okuyan istemciler aşağıdaki `r-*` sınıflarıyla gerçek koyu temaya geçer.
+ * Koyu mod (ikinci tur, inceleme: "koyu modda logo yine beyaz dikdörtgen,
+ * metin sütunundan 8 px kaymış"): İKİ logo var. Apple Mail/iOS Mail gibi
+ * `prefers-color-scheme` okuyan istemciler ve Outlook.com koyu modu
+ * (`[data-ogsc]`) şeffaf zeminli açık logoya geçer (`r-logo-d`), beyaz zeminli
+ * olan gizlenir (`r-logo-l`). Gmail ve Outlook masaüstü medya sorgusunu
+ * okumaz, zemini kendisi koyulaştırır ama GÖRSELİ değiştirmez → orada beyaz
+ * zeminli logo, dar iç boşluklu küçük bir chip olarak metin sütunuyla AYNI
+ * hizada durur (bkz. scripts/build-email-logo.mjs). Koyu logo varsayılan
+ * olarak gizli (`display:none` + `mso-hide:all`), medya sorgusunu okumayan
+ * istemcide hiç görünmez.
  */
 const HEAD_CSS = `
 :root { color-scheme: light dark; supported-color-schemes: light dark; }
@@ -31,11 +36,13 @@ a { text-decoration-skip-ink: auto; }
 @media only screen and (max-width: 480px) {
   .r-wrap { padding: 20px 10px 24px 10px !important; }
   .r-pad { padding: 20px 20px 28px 20px !important; }
-  .r-pad-logo { padding: 22px 20px 0 12px !important; }
+  .r-pad-logo { padding: 22px 20px 0 20px !important; }
   .r-h1 { font-size: 20px !important; line-height: 28px !important; }
   .r-code { font-size: 32px !important; letter-spacing: 8px !important; padding-left: 8px !important; }
   .r-cta { width: 100% !important; }
   .r-cta .r-btn { display: block !important; text-align: center !important; }
+  .r-btn { padding: 12px 14px !important; font-size: 14px !important; text-wrap: balance; }
+  .r-panel { padding-left: 14px !important; padding-right: 14px !important; }
   .r-row-l, .r-row-v { display: block !important; width: auto !important; text-align: left !important; }
   .r-row-l { padding-bottom: 0 !important; white-space: normal !important; }
   .r-row-v { padding-top: 2px !important; border-top: 0 !important; }
@@ -49,10 +56,15 @@ a { text-decoration-skip-ink: auto; }
   .r-muted { color: #A1A1AA !important; }
   .r-box { background-color: #232326 !important; border-color: #3F3F46 !important; }
   .r-divider { border-color: #3F3F46 !important; }
+  .r-alert { border-left-color: #A1A1AA !important; }
   .r-code { color: #FAFAFA !important; }
   .r-btn { background-color: #FAFAFA !important; color: #18181B !important; }
   .r-foot { color: #A1A1AA !important; }
+  .r-logo-l { display: none !important; }
+  .r-logo-d { display: block !important; max-height: none !important; overflow: visible !important; }
 }
+[data-ogsc] .r-logo-l { display: none !important; }
+[data-ogsc] .r-logo-d { display: block !important; max-height: none !important; overflow: visible !important; }
 `;
 
 const main: React.CSSProperties = {
@@ -83,8 +95,19 @@ const cardCell: React.CSSProperties = {
   wordBreak: "break-word",
 };
 
+// Sol dolgu = içerik dolgusu: logonun beyaz zemini (koyu modda chip) metin
+// sütunuyla aynı hizada başlar; logo glifi 5 px içeride (görselin iç boşluğu).
 const logoCell: React.CSSProperties = {
-  padding: "28px 36px 0 28px",
+  padding: "28px 36px 0 36px",
+};
+
+// Koyu logo: medya sorgusu açana dek gizli. `mso-hide` Outlook masaüstü
+// (Word) için; `max-height`/`overflow` display'i yok sayan istemciler için.
+const darkLogoWrap: React.CSSProperties & Record<string, string | number> = {
+  display: "none",
+  maxHeight: 0,
+  overflow: "hidden",
+  msoHide: "all",
 };
 
 const logoStyle: React.CSSProperties = {
@@ -112,6 +135,7 @@ const footerLink: React.CSSProperties = { color: COLORS.slate600, textDecoration
 // Logo gömülü (inline CID) ek olarak gönderilir → uzak görsel engelleyen
 // istemcilerde ve dev'de (localhost) de görünür. Ek client.ts'te eklenir.
 const LOGO_SRC = `cid:${LOGO_CID}`;
+const LOGO_DARK_SRC = `cid:${LOGO_DARK_CID}`;
 
 export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutProps) {
   const t = emailT(locale);
@@ -141,18 +165,24 @@ export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutPro
           >
             <tbody>
               <tr>
-                {/* Logo görselinin içinde 8 px yatay boşluk var (koyu modda
-                    rozet dengeli dursun) → hücre 8 px daha az dolgu alır ki
-                    açık modda logo metin sütunuyla aynı hizada başlasın. */}
                 <td className="r-pad-logo" style={logoCell}>
                   <Img
                     src={LOGO_SRC}
                     alt="Rothern"
                     width={String(LOGO_WIDTH)}
                     height={String(LOGO_HEIGHT)}
-                    className="rothern-logo"
+                    className="r-logo-l"
                     style={logoStyle}
                   />
+                  <div className="r-logo-d" style={darkLogoWrap}>
+                    <Img
+                      src={LOGO_DARK_SRC}
+                      alt="Rothern"
+                      width={String(LOGO_WIDTH)}
+                      height={String(LOGO_HEIGHT)}
+                      style={logoStyle}
+                    />
+                  </div>
                 </td>
               </tr>
               <tr>

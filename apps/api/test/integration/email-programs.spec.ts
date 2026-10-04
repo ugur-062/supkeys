@@ -72,10 +72,12 @@ describe("akşam özeti", () => {
     expect(await svc.sendDigests(new Date("2026-10-07T15:30:00Z"))).toBe(1); // İstanbul 18:30
     const arg = email.send.mock.calls[0][0] as {
       context: { type: string };
-      templateData: { data: { infoRows: Array<{ label: string }>; ctaUrl: string } };
+      templateData: { data: { entries: Array<{ title: string; detail?: string }>; ctaUrl: string } };
     };
     expect(arg.context.type).toBe("listing_category_digest");
-    expect(arg.templateData.data.infoRows.map((r) => r.label.split(" (")[0])).toEqual(["Cıvata", "Rulman"]);
+    // Talep adı başlık, son teklif tarihi ikincil satır (e-posta tasarımı 2026-10-04).
+    expect(arg.templateData.data.entries.map((r) => r.title.split(" (")[0])).toEqual(["Cıvata", "Rulman"]);
+    expect(arg.templateData.data.entries.every((r) => typeof r.detail === "string" && r.detail.length > 0)).toBe(true);
     expect(arg.templateData.data.ctaUrl).toBe("http://localhost:3000/company/satis");
     expect(await prisma.emailDigestItem.count({ where: { sentAt: null } })).toBe(0);
     expect(await svc.sendDigests(new Date("2026-10-07T16:30:00Z"))).toBe(0);
@@ -127,8 +129,8 @@ describe("akşam özeti — günde TEK özet ve gönderim anında tercih (derin 
     clock.now = new Date("2026-10-08T15:00:00Z"); // İstanbul 18:00
     expect(await svc.sendDigests(clock.now)).toBe(1);
     expect(email.send).toHaveBeenCalledTimes(2);
-    const rows = (email.send.mock.calls[1]![0] as unknown as { templateData: { data: { infoRows: Array<{ label: string }> } } })
-      .templateData.data.infoRows.map((r) => r.label.split(" (")[0]);
+    const rows = (email.send.mock.calls[1]![0] as unknown as { templateData: { data: { entries: Array<{ title: string }> } } })
+      .templateData.data.entries.map((r) => r.title.split(" (")[0]);
     expect(rows.sort()).toEqual(["Rulman", "Somun"]);
     expect(await prisma.emailDigestItem.count({ where: { sentAt: null } })).toBe(0);
   });

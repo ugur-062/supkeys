@@ -1,5 +1,6 @@
 import { Text } from "@react-email/components";
 import * as React from "react";
+import { inline, paragraphChunks } from "./text";
 import { COLORS, FONTS } from "./tokens";
 
 /**
@@ -29,7 +30,11 @@ export const TEXT = {
   },
 } as const;
 
-/** Gövde paragrafı. */
+/**
+ * Gövde paragrafı. Düz metin verilirse talep/sipariş numaraları bölünmez ve
+ * çok uzun paragraf (telefonda 5+ satır) cümle gruplarına ayrılır; zengin
+ * içerik (t.rich) olduğu gibi basılır.
+ */
 export function Paragraph({
   children,
   style,
@@ -37,6 +42,17 @@ export function Paragraph({
   children: React.ReactNode;
   style?: React.CSSProperties;
 }) {
+  if (typeof children === "string") {
+    return (
+      <>
+        {paragraphChunks(children).map((chunk, i) => (
+          <Text key={i} className="r-text" style={{ ...TEXT.body, ...style }}>
+            {inline(chunk)}
+          </Text>
+        ))}
+      </>
+    );
+  }
   return (
     <Text className="r-text" style={{ ...TEXT.body, ...style }}>
       {children}
@@ -100,7 +116,7 @@ export function Panel({
   style?: React.CSSProperties;
 }) {
   return (
-    <Box className="r-box" margin={margin ?? "4px 0 20px 0"} style={{ ...panelCell, ...style }}>
+    <Box className="r-box r-panel" margin={margin ?? "4px 0 20px 0"} style={{ ...panelCell, ...style }}>
       {children}
     </Box>
   );
@@ -108,7 +124,34 @@ export function Panel({
 
 export interface InfoRow {
   label: string;
+  /** Boşsa satır yalnız etiketle, tek satır çizilir. */
   value: React.ReactNode;
+  /** Verilirse değer yerine madde işaretli liste (talep kalemleri). */
+  items?: string[];
+  /** Listenin altında gri satır ("+5 kalem daha"). */
+  itemsNote?: string;
+}
+
+const bulletList: React.CSSProperties = {
+  margin: "4px 0 0 0",
+  padding: "0 0 0 20px",
+  fontFamily: FONTS.sans,
+  fontSize: "14px",
+  lineHeight: "22px",
+  color: COLORS.slate700,
+};
+
+/** Madde işaretli kısa liste (kalemler, "ne değişti" maddeleri). */
+export function BulletList({ items, style }: { items: string[]; style?: React.CSSProperties }) {
+  return (
+    <ul className="r-text" style={{ ...bulletList, ...style }}>
+      {items.map((item, i) => (
+        <li key={`${i}-${item}`} style={{ margin: i === 0 ? 0 : "2px 0 0 0" }}>
+          {inline(item)}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 const rowLabel: React.CSSProperties = {
@@ -138,28 +181,48 @@ const rowValue: React.CSSProperties = {
 export function InfoRows({ rows, footer }: { rows: InfoRow[]; footer?: React.ReactNode }) {
   if (rows.length === 0) return null;
   return (
-    <Box className="r-box" margin="4px 0 20px 0" style={{ ...panelCell, padding: "4px 18px" }}>
+    <Box className="r-box r-panel" margin="4px 0 20px 0" style={{ ...panelCell, padding: "4px 18px" }}>
       <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} border={0}>
         <tbody>
           {rows.map((row, i) => {
             const divider = i > 0 ? { borderTop: `1px solid ${COLORS.surfaceBorder}` } : {};
+            const empty = row.value === "" || row.value == null;
             // Uzun değer (kalem listesi) ya da uzun etiket (talep başlığı)
-            // dar ekranda iki sütuna sığmaz → satır alt alta çizilir.
+            // dar ekranda iki sütuna sığmaz → satır alt alta çizilir. Satırlar
+            // `<div>`: Outlook masaüstü satır içi öğede `display:block`u yok
+            // sayar, span'ler tek satırda birleşiyordu.
             const stacked =
-              (typeof row.value === "string" && row.value.length > 34) || row.label.length > 26;
+              !!row.items?.length ||
+              empty ||
+              (typeof row.value === "string" && row.value.length > 34) ||
+              row.label.length > 26;
             if (stacked) {
               return (
                 <tr key={i}>
                   <td colSpan={2} className="r-divider" style={{ padding: "10px 0", ...divider }}>
-                    <span className="r-muted" style={{ ...rowLabel, padding: 0, display: "block" }}>
-                      {row.label}
-                    </span>
-                    <span
-                      className="r-strong"
-                      style={{ ...rowValue, fontWeight: 500, padding: "2px 0 0 0", textAlign: "left", display: "block" }}
-                    >
-                      {row.value}
-                    </span>
+                    <div className="r-muted" style={{ ...rowLabel, padding: 0 }}>
+                      {inline(row.label)}
+                    </div>
+                    {row.items?.length ? (
+                      <>
+                        <BulletList
+                          items={row.items}
+                          style={{ fontSize: "13px", lineHeight: "20px", color: COLORS.slate900 }}
+                        />
+                        {row.itemsNote ? (
+                          <div className="r-muted" style={{ ...TEXT.small, padding: "2px 0 0 0" }}>
+                            {row.itemsNote}
+                          </div>
+                        ) : null}
+                      </>
+                    ) : empty ? null : (
+                      <div
+                        className="r-strong"
+                        style={{ ...rowValue, fontWeight: 500, padding: "2px 0 0 0", textAlign: "left" }}
+                      >
+                        {inline(row.value)}
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
@@ -167,10 +230,10 @@ export function InfoRows({ rows, footer }: { rows: InfoRow[]; footer?: React.Rea
             return (
               <tr key={i}>
                 <td className="r-muted r-divider r-row-l" style={{ ...rowLabel, whiteSpace: "nowrap", ...divider }}>
-                  {row.label}
+                  {inline(row.label)}
                 </td>
                 <td className="r-strong r-divider r-row-v" style={{ ...rowValue, ...divider }}>
-                  {row.value}
+                  {inline(row.value)}
                 </td>
               </tr>
             );
@@ -189,6 +252,86 @@ export function InfoRows({ rows, footer }: { rows: InfoRow[]; footer?: React.Rea
           {footer}
         </Text>
       ) : null}
+    </Box>
+  );
+}
+
+export interface Entry {
+  title: string;
+  /** İkincil satır ("Son teklif: 12 Ekim 2026"); yoksa yalnız başlık. */
+  detail?: string;
+}
+
+/**
+ * Başlık + ikincil satır listesi (özet e-postasındaki talepler): asıl bilgi
+ * (talep adı) kalın, tarih gibi ayrıntı altında gri — talep kartlarıyla aynı
+ * hiyerarşi. Ayrıntısı olmayan satırda boş "—" basılmaz.
+ */
+export function EntryList({ entries }: { entries: Entry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <Box className="r-box r-panel" margin="4px 0 20px 0" style={{ ...panelCell, padding: "4px 18px" }}>
+      <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} border={0}>
+        <tbody>
+          {entries.map((e, i) => (
+            <tr key={i}>
+              <td
+                className="r-divider"
+                style={{ padding: "10px 0", ...(i > 0 ? { borderTop: `1px solid ${COLORS.surfaceBorder}` } : {}) }}
+              >
+                <div
+                  className="r-strong"
+                  style={{ fontFamily: FONTS.sans, fontSize: "14px", lineHeight: "21px", fontWeight: 600, color: COLORS.slate900 }}
+                >
+                  {inline(e.title)}
+                </div>
+                {e.detail ? (
+                  <div className="r-muted" style={{ ...TEXT.small, padding: "2px 0 0 0" }}>
+                    {inline(e.detail)}
+                  </div>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Box>
+  );
+}
+
+/** Öne çıkan maddeler ("3 ürününüz taslağa alındı", "davetler iptal edildi"). */
+export function HighlightPanel({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <Panel>
+      <BulletList items={items} style={{ margin: 0, color: COLORS.slate900 }} />
+    </Panel>
+  );
+}
+
+/**
+ * Güvenlik uyarısı ("Bu işlemi siz yapmadıysanız…"): kod bloğuyla aynı tonda
+ * kutu, sol kenarda koyu şerit — sıradan gövde metninde kaybolmasın.
+ */
+export function Alert({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      className="r-box r-panel r-alert"
+      margin="24px 0 0 0"
+      style={{
+        backgroundColor: COLORS.surfaceMuted,
+        border: `1px solid ${COLORS.surfaceBorder}`,
+        borderLeft: `3px solid ${COLORS.slate900}`,
+        borderRadius: "10px",
+        padding: "14px 18px",
+      }}
+    >
+      <Text
+        className="r-strong"
+        style={{ ...TEXT.body, fontSize: "14px", lineHeight: "22px", color: COLORS.slate900, margin: 0 }}
+      >
+        {inline(children)}
+      </Text>
     </Box>
   );
 }

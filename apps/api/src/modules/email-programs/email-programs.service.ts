@@ -224,11 +224,14 @@ export class EmailProgramsService {
                             : "api.notifications.digest.body",
                 ),
               ],
-              infoRows: shown.map((l, i) => ({
-                label: `${localized[i]?.title ?? l.title}${l.number ? ` (${l.number})` : ""}`,
-                value: l.closesAt
-                  ? t("api.notifications.digest.closesRow", { date: formatInviteDeadline(l.closesAt, locale) })
-                  : "—",
+              // Talep adı kalın başlık, son teklif tarihi altında ikincil satır
+              // (talep kartlarıyla aynı hiyerarşi); tarihi olmayan talepte boş
+              // "—" basılmaz, yalnız başlık (e-posta tasarımı 2026-10-04).
+              entries: shown.map((l, i) => ({
+                title: `${localized[i]?.title ?? l.title}${l.number ? ` (${l.number})` : ""}`,
+                ...(l.closesAt
+                  ? { detail: t("api.notifications.digest.closesRow", { date: formatInviteDeadline(l.closesAt, locale) }) }
+                  : {}),
               })),
               ctaLabel: t(
                 isInvite

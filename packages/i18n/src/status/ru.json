@@ -8505,9 +8505,9 @@
     "at": "2026-09-24"
   },
   "email.passwordReset.cta": {
-    "hash": "68c18a1add",
+    "hash": "d3c601c6f6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "email.passwordReset.greeting": {
     "hash": "0c268fb52c",
@@ -8521,11 +8521,6 @@
   },
   "email.passwordReset.ignoreNote": {
     "hash": "b3d10d4d31",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "email.passwordReset.infoTitle": {
-    "hash": "4967cef2f5",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -8545,9 +8540,9 @@
     "at": "2026-09-24"
   },
   "email.passwordReset.subject": {
-    "hash": "4a8140cb59",
+    "hash": "9ea176b150",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "email.passwordReset.textCta": {
     "hash": "60e71e6a17",
@@ -8590,9 +8585,9 @@
     "at": "2026-09-27"
   },
   "email.referralInvite.cta": {
-    "hash": "94288a0803",
+    "hash": "28e670adba",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "email.referralInvite.greeting": {
     "hash": "b6953841cf",
@@ -8611,11 +8606,6 @@
   },
   "email.referralInvite.infoNote": {
     "hash": "8122a046bc",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "email.referralInvite.infoTitle": {
-    "hash": "5500b489f5",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -8695,9 +8685,9 @@
     "at": "2026-09-24"
   },
   "email.tenderExternalInvite.cta": {
-    "hash": "e97b19a1a3",
+    "hash": "aa2af08a0b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-04"
   },
   "email.tenderExternalInvite.deliveryLine": {
     "hash": "058981697c",
@@ -8760,9 +8750,9 @@
     "at": "2026-09-27"
   },
   "email.tenderExternalInvite.preview": {
-    "hash": "74c655baa1",
+    "hash": "bef9ff818f",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "email.tenderExternalInvite.previewLink": {
     "hash": "4e24d25447",
@@ -8795,9 +8785,9 @@
     "at": "2026-09-27"
   },
   "email.tenderExternalInvite.subject": {
-    "hash": "6db146f879",
+    "hash": "8bb978e643",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "email.tenderExternalInvite.subjectItems": {
     "hash": "df9659a4e8",
@@ -8825,9 +8815,9 @@
     "at": "2026-09-30"
   },
   "email.tenderExternalInvite.textIntro": {
-    "hash": "a8818d2c19",
+    "hash": "8ddc13692c",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "email.tenderExternalInvite.textOptOut": {
     "hash": "f99e5f6a3d",
@@ -8845,14 +8835,14 @@
     "at": "2026-09-27"
   },
   "email.tenderExternalInvite.textReminderIntro": {
-    "hash": "fb8a467b6b",
+    "hash": "129583aa41",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-10-04"
   },
   "email.tenderInviteDigest.cta": {
-    "hash": "d474cacc01",
+    "hash": "d57149c5f0",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-04"
   },
   "email.tenderInviteDigest.footnote": {
     "hash": "ce0124eec9",
