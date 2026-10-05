@@ -6117,6 +6117,7 @@
       "inviteDelivery": {
         "failed": "The invitation was saved, but the email to {email} could not be sent. Try resending it.",
         "suppressed": "The invitation was saved, but no email could be sent to {email}: this address has previously rejected our emails permanently. Please use a different address.",
+        "undeliverable": "The invitation was saved, but no email could be sent to {email}: email cannot be delivered to this domain. Please use a different address.",
         "resend": "Resend",
         "resent": "The invitation email has been resent.",
         "resendFailed": "The invitation could not be resent"
@@ -6744,6 +6745,7 @@
         "gonderilemediDurum": "Not sent",
         "davetEPostasiGonderilemedi": "The invitation for {email} was saved, but the email could not be sent; please try again shortly.",
         "adresEPostaAlmiyor": "No email could be sent to {email}: this address has previously rejected our emails permanently. Please try a different address.",
+        "alanAdinaEPostaTeslimEdilemez": "No email could be sent to {email}: email cannot be delivered to this domain. Please try a different address.",
         "davetGonderilemediSayisi": "{n, plural, one {The email could not be sent to # address} other {The email could not be sent to # addresses}}",
         "atlandi": "Skipped",
         "firmaninEPostasiniYazinKayitliysa": "Enter the email address of the company. If it is already registered, a connection request is sent; if not, an invitation email goes out and you are connected permanently once it signs up. For several addresses, write one address per line (up to 50).",

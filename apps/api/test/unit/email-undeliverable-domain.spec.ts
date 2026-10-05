@@ -33,27 +33,27 @@ describe("undeliverableEmailReason", () => {
     "  a@firma.local  ",
     "a@firma.local.",
   ])("özel kullanımlı TLD engellenir: %s", (email) => {
-    expect(undeliverableEmailReason(email)).toMatch(/özel kullanımlı alan adı \(\.\w+\)/);
+    expect(undeliverableEmailReason(email)).toMatch(/special-use TLD \(\.\w+\)/);
   });
 
   it.each(["a@example.com", "a@example.net", "a@example.org", "a@mail.example.com", "a@Example.COM"])(
     "örnek alan adı (alt alan adı dahil) engellenir: %s",
     (email) => {
-      expect(undeliverableEmailReason(email)).toMatch(/örnek alan adı \(example\.(com|net|org)\)/);
+      expect(undeliverableEmailReason(email)).toMatch(/example domain \(example\.(com|net|org)\)/);
     },
   );
 
   it.each(["a@localhost", "root@intranet", "a@b"])("noktasız alan adı engellenir: %s", (email) => {
-    expect(undeliverableEmailReason(email)).toBe("noktasız alan adı");
+    expect(undeliverableEmailReason(email)).toBe("dotless domain");
   });
 
   it.each(["", "plain", "@firma.com", "a@"])("alan adı olmayan adres engellenir: %j", (email) => {
-    expect(undeliverableEmailReason(email)).toMatch(/geçersiz adres/);
+    expect(undeliverableEmailReason(email)).toMatch(/invalid address/);
   });
 
   it("boş etiketli alan adı engellenir", () => {
-    expect(undeliverableEmailReason("a@firma..com")).toBe("geçersiz alan adı");
-    expect(undeliverableEmailReason("a@.com")).toBe("geçersiz alan adı");
+    expect(undeliverableEmailReason("a@firma..com")).toBe("invalid domain (empty label)");
+    expect(undeliverableEmailReason("a@.com")).toBe("invalid domain (empty label)");
   });
 
   it.each([
@@ -68,6 +68,14 @@ describe("undeliverableEmailReason", () => {
     "a@local.com",
     "a@test.com.tr",
     "a@testing.io",
+    // Regresyon kilidi: IDN (Unicode ve punycode), Unicode TLD, gerçek alan
+    // adında sondaki kök noktası, büyük harf + artı adresi — yalnız son etiket
+    // ve son iki etiket karşılaştırıldığı için hepsi geçmeli.
+    "ali@müller.de",
+    "a@xn--mller-kva.de",
+    "a@пример.рф",
+    "ali@firma.com.",
+    "Ali+Teklif@Firma.COM",
   ])("gerçek alan adı geçer: %s", (email) => {
     expect(undeliverableEmailReason(email)).toBeNull();
   });
@@ -113,7 +121,7 @@ describe("EmailService — teslim edilemez alan adı kapısı", () => {
     const { svc, prisma, clientSend } = makeService();
     const res = await svc.send(email("demir@demofill.local"));
 
-    expect(res).toEqual({ emailLogId: "log1", sent: false });
+    expect(res).toEqual({ emailLogId: "log1", sent: false, skipReason: "undeliverable" });
     expect(clientSend).not.toHaveBeenCalled();
     // Suppression/çıkış sorgularına bile gitmez (saf kapı, en başta).
     expect(prisma.emailLog.findFirst).not.toHaveBeenCalled();
@@ -131,7 +139,7 @@ describe("EmailService — teslim edilemez alan adı kapısı", () => {
       provider: "resend",
     });
     expect(data.errorMessage.startsWith(EMAIL_SKIPPED_SUPPRESSED_PREFIX)).toBe(true);
-    expect(data.errorMessage).toContain("teslim edilemez alan adı");
+    expect(data.errorMessage).toContain("undeliverable domain");
     expect(data.errorMessage).toContain(".local");
     expect(data.payload).toBeUndefined();
     expect(data.failedAt).toBeInstanceOf(Date);
@@ -149,7 +157,10 @@ describe("EmailService — teslim edilemez alan adı kapısı", () => {
 
   it("kritik bağlamda (email_verify) bile Sentry alarmı ÜRETMEZ ve hata fırlatmaz", async () => {
     const { svc, clientSend } = makeService();
-    await expect(svc.send(email("yeni@firma.test", "email_verify"))).resolves.toMatchObject({ sent: false });
+    await expect(svc.send(email("yeni@firma.test", "email_verify"))).resolves.toMatchObject({
+      sent: false,
+      skipReason: "undeliverable",
+    });
     expect(clientSend).not.toHaveBeenCalled();
     expect(reportToSentry).not.toHaveBeenCalled();
   });

@@ -27,8 +27,9 @@ export function useInviteDeliveryToast() {
       toast.success(ctx.successMessage);
       return;
     }
-    if (res.emailFailureReason === "suppressed") {
-      toast.warning(t("suppressed", { email: ctx.email }), { duration: 12_000 });
+    // Kalıcı nedenler — yeniden gönder eylemi yok, farklı adres gerekir.
+    if (res.emailFailureReason === "suppressed" || res.emailFailureReason === "undeliverable") {
+      toast.warning(t(res.emailFailureReason, { email: ctx.email }), { duration: 12_000 });
       return;
     }
     toast.warning(t("failed", { email: ctx.email }), {

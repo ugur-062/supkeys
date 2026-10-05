@@ -50,6 +50,21 @@ export const EMAIL_SKIPPED_SUPPRESSED_PREFIX = "suppressed:";
 export const EMAIL_SKIPPED_OPTED_OUT_PREFIX = "opted_out:";
 
 /**
+ * `sent:false` dönüşünde gönderimin NEDEN atlandığı. Log öneki teslim
+ * edilemez alan adında da `suppressed:` kalır; ekran metni ise bu alana
+ * bakar — `.test`/example.com adresine "bu adres e-postalarımızı kalıcı
+ * olarak geri çevirdi" demek yanlış olurdu (canlı öncesi son tur).
+ */
+export type EmailSkipReason = "undeliverable" | "suppressed" | "opted_out";
+
+export interface EmailSendResult {
+  emailLogId: string;
+  sent: boolean;
+  /** Yalnız politika gereği atlanan gönderimde (`sent:false`) dolu. */
+  skipReason?: EmailSkipReason;
+}
+
+/**
  * Tekillik sorguları için "bu bağlam için gönderim denendi" süzgeci: FAILED
  * olmayan satırlar + politika gereği atlanan FAILED satırlar. Yalnız
  * `status: { not: "FAILED" }` ile süzmek, suppress/çıkış yapmış adrese her
@@ -230,9 +245,7 @@ export class EmailService implements OnModuleInit {
    * kullanıcı kalıcı mahsur ve nedenini göremiyor. Parça 1'de eklenen
    * dürüst-sinyal (`emailSent` / 2FA 503) bu yolda devre dışı kalıyordu.
    */
-  async send(
-    input: SendEmailInput,
-  ): Promise<{ emailLogId: string; sent: boolean }> {
+  async send(input: SendEmailInput): Promise<EmailSendResult> {
     return this.throttle.run(this.priorityFor(input), () => this.sendNow(input));
   }
 
@@ -277,9 +290,7 @@ export class EmailService implements OnModuleInit {
     }
   }
 
-  private async sendNow(
-    input: SendEmailInput,
-  ): Promise<{ emailLogId: string; sent: boolean }> {
+  private async sendNow(input: SendEmailInput): Promise<EmailSendResult> {
     // Teslim edilemez alan adı (canlı öncesi son tur): `.local`/`.test`/
     // example.com… adresine gönderim ORTAK Resend alan adında bounce üretir ve
     // canlı e-postaların itibarını düşürür. Sağlayıcıya gitmez; suppression
@@ -288,13 +299,13 @@ export class EmailService implements OnModuleInit {
     const undeliverable = undeliverableEmailReason(input.to.email);
     if (undeliverable) {
       this.logger.warn(
-        `Gönderim atlandı — ${undeliverable} (${maskEmail(input.to.email)}); ${input.templateData.template}`,
+        `Send skipped - ${undeliverable} (${maskEmail(input.to.email)}); ${input.templateData.template}`,
       );
       const skipped = await this.logSkipped(
         input,
-        `${EMAIL_SKIPPED_SUPPRESSED_PREFIX} teslim edilemez alan adı: ${undeliverable}`,
+        `${EMAIL_SKIPPED_SUPPRESSED_PREFIX} undeliverable domain: ${undeliverable}`,
       );
-      return { emailLogId: skipped.id, sent: false };
+      return { emailLogId: skipped.id, sent: false, skipReason: "undeliverable" };
     }
 
     // G-M2 suppression: kalıcı-bounce (hard) veya şikayet (complaint) almış
@@ -343,7 +354,7 @@ export class EmailService implements OnModuleInit {
           },
         });
       }
-      return { emailLogId: skipped.id, sent: false };
+      return { emailLogId: skipped.id, sent: false, skipReason: "suppressed" };
     }
 
     // Tek tık çıkış (2026-09-27): işlem dışı akışta adres o kapsamdan (ya da
@@ -355,7 +366,7 @@ export class EmailService implements OnModuleInit {
     if (scope && (await this.isOptedOut(input.to.email, scope))) {
       const skipped = await this.logSkipped(input, `${EMAIL_SKIPPED_OPTED_OUT_PREFIX} ${scope}`);
       this.logger.log(`skipped (opted out of "${scope}"): ${input.templateData.template}`);
-      return { emailLogId: skipped.id, sent: false };
+      return { emailLogId: skipped.id, sent: false, skipReason: "opted_out" };
     }
     const unsubscribe = scope ? this.unsubscribeLinks(input.to.email, scope, input.locale ?? "tr", stream) : null;
 

@@ -6117,6 +6117,7 @@
       "inviteDelivery": {
         "failed": "Davet kaydedildi ama {email} adresine e-posta gönderilemedi. Yeniden göndermeyi deneyin.",
         "suppressed": "Davet kaydedildi ama {email} adresine e-posta gönderilemedi: bu adres daha önce e-postalarımızı kalıcı olarak geri çevirdi. Farklı bir adres kullanın.",
+        "undeliverable": "Davet kaydedildi ama {email} adresine e-posta gönderilemedi: bu alan adına e-posta teslim edilemez. Farklı bir adres kullanın.",
         "resend": "Yeniden gönder",
         "resent": "Davet e-postası yeniden gönderildi.",
         "resendFailed": "Davet yeniden gönderilemedi"
@@ -6744,6 +6745,7 @@
         "gonderilemediDurum": "Gönderilemedi",
         "davetEPostasiGonderilemedi": "{email} için davet kaydedildi ama e-posta gönderilemedi; biraz sonra yeniden deneyin.",
         "adresEPostaAlmiyor": "{email} adresine e-posta gönderilemedi: bu adres daha önce e-postalarımızı kalıcı olarak geri çevirdi. Farklı bir adres deneyin.",
+        "alanAdinaEPostaTeslimEdilemez": "{email} adresine e-posta gönderilemedi: bu alan adına e-posta teslim edilemez. Farklı bir adres deneyin.",
         "davetGonderilemediSayisi": "{n, number} adrese e-posta gönderilemedi",
         "atlandi": "Atlandı",
         "firmaninEPostasiniYazinKayitliysa": "Firmanın e-postasını yazın. Kayıtlıysa bağlantı isteği gider, değilse davet e-postası; kaydolunca kalıcı bağlanırsınız. Birden çok adres için her satıra bir adres (en fazla 50).",

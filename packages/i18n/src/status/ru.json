@@ -1754,6 +1754,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.companyConnections.buAlanAdinaEPostaTeslimEdilemez": {
+    "hash": "21323b9a25",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "api.companyConnections.buEPostaAdresiDavetAlmak": {
     "hash": "6d4a68fc92",
     "status": "reviewed",
@@ -18639,6 +18644,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.company.connectionsView.alanAdinaEPostaTeslimEdilemez": {
+    "hash": "ff6ef6100e",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "web.panel.company.connectionsView.anasayfadanFirmaBulupBaglantiIstegi": {
     "hash": "3b2feff941",
     "status": "reviewed",
@@ -32413,6 +32423,11 @@
     "hash": "48f23cb178",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.settings.inviteDelivery.undeliverable": {
+    "hash": "502e111e0b",
+    "status": "reviewed",
+    "at": "2026-10-05"
   },
   "web.panel.settings.inviteUserDialog.davetDili": {
     "hash": "4a344623a5",

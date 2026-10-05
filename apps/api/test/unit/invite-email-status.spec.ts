@@ -173,6 +173,26 @@ describe("inviteByEmail (referral) — frenler + gerçek sonuç", () => {
     expect(batch.summary).toEqual({ request: 0, invited: 1, skipped: 0, failed: 1 });
     expect(batch.results[1]).toMatchObject({ email: "b@x.com", status: "failed", code: "FAILED" });
   });
+
+  it("teslim edilemez alan adı: tekil uçta undeliverable bayrağı, toplu uçta 'alan adına teslim edilemez' gerekçesi (code SUPPRESSED kalır)", async () => {
+    const skipped = { emailLogId: "e1", sent: false, skipReason: "undeliverable" };
+    const send = jest
+      .fn()
+      .mockResolvedValueOnce(skipped)
+      .mockResolvedValueOnce(skipped)
+      .mockResolvedValueOnce({ emailLogId: "e2", sent: false, skipReason: "suppressed" });
+    const { service } = rig({ send });
+    await expect(service.inviteByEmail(user, "a@firma.test")).resolves.toMatchObject({
+      delivery: "SUPPRESSED",
+      emailSent: false,
+      undeliverable: true,
+    });
+    const batch = await service.inviteByEmailBatch(user, ["b@firma.test", "c@firma.com"]);
+    expect(batch.results[0]).toMatchObject({ status: "failed", code: "SUPPRESSED" });
+    expect(batch.results[0]!.reason).toContain("teslim edilemez");
+    expect(batch.results[1]).toMatchObject({ status: "failed", code: "SUPPRESSED" });
+    expect(batch.results[1]!.reason).toContain("geri çevirdi");
+  });
 });
 
 describe("dış talep daveti — ALICININ dili kayda yazılır (2026-09-27)", () => {

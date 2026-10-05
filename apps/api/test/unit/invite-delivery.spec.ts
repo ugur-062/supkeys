@@ -28,6 +28,18 @@ describe("deliverInvite — teslim sonucu BEKLENİR ve dürüst döner", () => {
     });
   });
 
+  it("teslim edilemez alan adı → SUPPRESSED + undeliverable (ekran 'adres geri çevirdi' demez)", async () => {
+    await expect(
+      deliverInvite(async () => ({ sent: false, skipReason: "undeliverable" })),
+    ).resolves.toEqual({ delivery: "SUPPRESSED", undeliverable: true });
+  });
+
+  it.each(["suppressed", "opted_out"])("skipReason %s → yalın SUPPRESSED", async (skipReason) => {
+    await expect(deliverInvite(async () => ({ sent: false, skipReason }))).resolves.toEqual({
+      delivery: "SUPPRESSED",
+    });
+  });
+
   it("sağlayıcı hatası → FAILED + hata metni (istisna yutulmaz, sınıflanır)", async () => {
     const res = await deliverInvite(async () => {
       throw new Error("resend 500");

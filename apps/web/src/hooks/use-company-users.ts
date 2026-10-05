@@ -95,13 +95,14 @@ function invalidateUserCaches(qc: ReturnType<typeof useQueryClient>) {
 /**
  * Davet e-postasının GERÇEK teslim sonucu (2026-09-27) — API davet ve
  * yeniden gönder yanıtlarında döner. `suppressed`: adres daha önce kalıcı
- * geri döndü/şikâyet etti (yeniden göndermek işe yaramaz); `failed`:
+ * geri döndü/şikâyet etti (yeniden göndermek işe yaramaz); `undeliverable`:
+ * alan adına e-posta teslim edilemez (`.test`, example.com…); `failed`:
  * sağlayıcı hatası (yeniden gönder denenebilir). Eski API alanı döndürmez →
  * `emailSent` yoksa "gönderildi" varsayılır.
  */
 export interface InvitationEmailResult {
   emailSent?: boolean;
-  emailFailureReason?: "suppressed" | "failed";
+  emailFailureReason?: "suppressed" | "undeliverable" | "failed";
 }
 
 export function useInviteUser() {

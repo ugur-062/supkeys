@@ -92,6 +92,8 @@ export function useInviteByEmail() {
         /** Davet e-postasının GERÇEK sonucu (yalnız `invited`); eski API döndürmez. */
         delivery?: "SENT" | "FAILED" | "SUPPRESSED";
         emailSent?: boolean;
+        /** `SUPPRESSED`in alt nedeni: alan adına e-posta teslim edilemez (`.test`, example.com…). */
+        undeliverable?: boolean;
       }>("/company/connections/invite-by-email", body);
       return data;
     },

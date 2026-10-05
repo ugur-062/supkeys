@@ -314,7 +314,24 @@ describe("ConnectionsView", () => {
     await user.type(await screen.findByLabelText("Davet edilecek e-posta adresleri"), "x@y.com");
     await user.click(screen.getByRole("button", { name: "Davet gönder" }));
     expect(h.toast.warning).toHaveBeenCalledWith(expect.stringContaining("x@y.com"));
+    expect(h.toast.warning).toHaveBeenLastCalledWith(expect.stringContaining("geri çevirdi"));
     expect(h.toast.success).not.toHaveBeenCalled();
+
+    // Teslim edilemez alan adı: "adres geri çevirdi" DEĞİL, "alan adına teslim edilemez".
+    h.invite.mockResolvedValueOnce({
+      kind: "invited",
+      email: "x@firma.test",
+      delivery: "SUPPRESSED",
+      emailSent: false,
+      undeliverable: true,
+    });
+    const single = screen.getByLabelText("Davet edilecek e-posta adresleri");
+    await user.clear(single);
+    await user.type(single, "x@firma.test");
+    await user.click(screen.getByRole("button", { name: "Davet gönder" }));
+    expect(h.toast.warning).toHaveBeenLastCalledWith(
+      expect.stringContaining("bu alan adına e-posta teslim edilemez"),
+    );
 
     h.batch.mockResolvedValueOnce({
       summary: { request: 0, invited: 1, skipped: 0, failed: 1 },

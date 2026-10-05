@@ -716,6 +716,7 @@
     "buAdreseSonGunlerdeDavetGonderildi": "An invitation was already sent to this address in the last {days, plural, one {# day} other {# days}}",
     "gunlukDavetLimitineUlasildi": "The daily invitation limit has been reached ({cap} per day). Please try again tomorrow.",
     "buAdresEPostaAlamiyor": "This address has previously rejected our emails permanently or reported them as spam; no email was sent",
+    "buAlanAdinaEPostaTeslimEdilemez": "Email cannot be delivered to this domain; no email was sent",
     "gecersizEPostaAdresi": "Invalid email address",
     "onayGerekenUlke": "Invitations aren't sent to companies in this country without prior consent. If you know the company, add the address manually.",
     "kayitKapaliUlke": "Invitations aren't sent because companies from this country can't register on Rothern.",

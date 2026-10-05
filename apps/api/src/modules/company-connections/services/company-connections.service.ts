@@ -249,6 +249,8 @@ export class CompanyConnectionsService {
         email: prepared.email,
         delivery: res.delivery,
         emailSent: res.delivery === "SENT",
+        // SUPPRESSED'in alt nedeni — ekran "bu alan adına teslim edilemez" der.
+        ...(res.undeliverable ? { undeliverable: true as const } : {}),
       };
     } finally {
       release();
@@ -982,9 +984,11 @@ export class CompanyConnectionsService {
                   status: "failed",
                   code: out.delivery,
                   reason:
-                    out.delivery === "SUPPRESSED"
-                      ? tApi("api.companyConnections.buAdresEPostaAlamiyor")
-                      : tApi("api.companyConnections.gonderilemedi"),
+                    out.delivery !== "SUPPRESSED"
+                      ? tApi("api.companyConnections.gonderilemedi")
+                      : out.undeliverable
+                        ? tApi("api.companyConnections.buAlanAdinaEPostaTeslimEdilemez")
+                        : tApi("api.companyConnections.buAdresEPostaAlamiyor"),
                 };
         });
       }

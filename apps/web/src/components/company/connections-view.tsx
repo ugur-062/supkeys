@@ -817,9 +817,11 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
         if (res.kind === "invited" && res.emailSent === false) {
           // Davet kaydı var ama e-posta gitmedi — "gönderildi" DENMEZ.
           toast.warning(
-            res.delivery === "SUPPRESSED"
-              ? t("adresEPostaAlmiyor", { email: addr })
-              : t("davetEPostasiGonderilemedi", { email: addr }),
+            res.delivery !== "SUPPRESSED"
+              ? t("davetEPostasiGonderilemedi", { email: addr })
+              : res.undeliverable
+                ? t("alanAdinaEPostaTeslimEdilemez", { email: addr })
+                : t("adresEPostaAlmiyor", { email: addr }),
           );
           return;
         }

@@ -21,11 +21,18 @@ export interface InviteDeliveryResult {
   /** Süre sınırına takıldı — sonuç bilinmiyor, e-posta geç de olsa gidebilir. */
   timedOut?: boolean;
   error?: string;
+  /**
+   * `SUPPRESSED`in alt nedeni: alan adı teslim edilemez (`.test`, example.com…;
+   * bkz. email/undeliverable-domain.ts). `delivery` yine `SUPPRESSED` kalır
+   * (kayıt durumu/iptal davranışı aynı); yalnız ekran metni "bu alan adına
+   * e-posta teslim edilemez" der — "adres kalıcı geri çevirdi" değil.
+   */
+  undeliverable?: true;
 }
 
 /** `EmailService.send` sözleşmesi: suppress'te hata ATMAZ, `sent:false` döner. */
 export async function deliverInvite(
-  send: () => Promise<{ sent: boolean }>,
+  send: () => Promise<{ sent: boolean; skipReason?: string }>,
   timeoutMs = INVITE_SEND_TIMEOUT_MS,
 ): Promise<InviteDeliveryResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -35,7 +42,10 @@ export async function deliverInvite(
   try {
     const res = await Promise.race([send(), timeout]);
     if (res === "timeout") return { delivery: "FAILED", timedOut: true };
-    return { delivery: res.sent ? "SENT" : "SUPPRESSED" };
+    if (res.sent) return { delivery: "SENT" };
+    return res.skipReason === "undeliverable"
+      ? { delivery: "SUPPRESSED", undeliverable: true }
+      : { delivery: "SUPPRESSED" };
   } catch (err) {
     return {
       delivery: "FAILED",

@@ -32,19 +32,22 @@ export const UNDELIVERABLE_DOMAINS: ReadonlySet<string> = new Set([
 /**
  * Adres teslim edilemez bir alan adına mı gidiyor? Evetse günlüğe yazılacak
  * kısa neden (adres İÇERMEZ — yalnız alan adı sınıfı), değilse `null`.
+ * Neden metni iç tanıdır (günlük + EmailLog `errorMessage`): CLAUDE.md gereği
+ * İngilizce ASCII; kullanıcıya giden metin `skipReason: "undeliverable"`
+ * üzerinden katalogdan gelir.
  */
 export function undeliverableEmailReason(email: string): string | null {
   const value = (email ?? "").trim().toLowerCase();
   const at = value.lastIndexOf("@");
-  if (at <= 0 || at === value.length - 1) return "geçersiz adres (alan adı yok)";
+  if (at <= 0 || at === value.length - 1) return "invalid address (no domain)";
   // Sondaki kök noktası ("firma.local.") aynı alan adıdır.
   const domain = value.slice(at + 1).replace(/\.+$/, "");
-  if (!domain.includes(".")) return "noktasız alan adı";
+  if (!domain.includes(".")) return "dotless domain";
   const labels = domain.split(".");
-  if (labels.some((l) => l === "")) return "geçersiz alan adı";
+  if (labels.some((l) => l === "")) return "invalid domain (empty label)";
   const tld = labels[labels.length - 1]!;
-  if (UNDELIVERABLE_TLDS.has(tld)) return `özel kullanımlı alan adı (.${tld})`;
+  if (UNDELIVERABLE_TLDS.has(tld)) return `special-use TLD (.${tld})`;
   const base = labels.slice(-2).join(".");
-  if (UNDELIVERABLE_DOMAINS.has(base)) return `örnek alan adı (${base})`;
+  if (UNDELIVERABLE_DOMAINS.has(base)) return `example domain (${base})`;
   return null;
 }

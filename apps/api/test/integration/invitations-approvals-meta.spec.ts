@@ -100,6 +100,17 @@ describe("token'lı davet-kabul", () => {
     expect(ok).toMatchObject({ ok: true, emailSent: true });
   });
 
+  it("teslim edilemez alan adına davet: neden 'undeliverable' (ekran 'adres geri çevirdi' demez)", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false, skipReason: "undeliverable" });
+    const res = await service.invite(owner.auth, {
+      email: "yeni@firma.test",
+      permissions: ["buy:view"],
+    } as never);
+    expect(res).toMatchObject({ emailSent: false, emailFailureReason: "undeliverable" });
+  });
+
   it("davet: PENDING kayıt + 7 gün TTL + kabul linkli e-posta; mükerrer/kayıtlı e-posta reddedilir", async () => {
     const { service, email } = makeUsersService();
     const owner = await makeCompanyWithUser(prisma);
