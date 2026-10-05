@@ -131,7 +131,13 @@ describe("EmailUnsubscribeService", () => {
   });
 
   it("MU-05: kullanıcının adresi firmanın billingEmail'i de olsa tek tık çıkış o dalda da İŞLER", async () => {
-    const { user } = await makeCompanyWithUser(prisma);
+    const { user: created } = await makeCompanyWithUser(prisma);
+    // Fabrika adresi `@test.local`: teslim edilemez alan adı kapısı
+    // (undeliverable-domain.ts) onu sağlayıcıya hiç göndermez → gerçek alan adı.
+    const user = await prisma.companyUser.update({
+      where: { id: created.id },
+      data: { email: `mu05-${created.id}@firma.com` },
+    });
     const { svc, send } = makeEmail();
     const token = signUnsubscribeToken({ email: user.email, scope: "categoryMatch", locale: "tr" }, SECRET);
     await unsub().unsubscribe(token);

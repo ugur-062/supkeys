@@ -25,6 +25,7 @@ import {
 import { signUnsubscribeToken } from "./unsubscribe-token";
 import { maskEmail } from "../../common/logging/mask-email";
 import { SUPPRESSION_CLEAR_MARKER_WHERE } from "./suppression-marker";
+import { undeliverableEmailReason } from "./undeliverable-domain";
 import {
   EmailSendThrottle,
   emailIdempotencyKey,
@@ -40,7 +41,10 @@ export { isCriticalEmailContext, CRITICAL_EMAIL_CONTEXTS } from "./critical-cont
 /**
  * Politika gereği ATLANAN gönderimin EmailLog `errorMessage` önekleri
  * (suppress edilmiş adres / tek tık çıkış). Satır FAILED yazılır ama bu bir
- * teslim hatası değildir: yeniden denemek aynı sonucu verir.
+ * teslim hatası değildir: yeniden denemek aynı sonucu verir. Teslim edilemez
+ * alan adı (`.local`, `.test`, example.com…; bkz. undeliverable-domain.ts) da
+ * `suppressed:` önekiyle yazılır — aynı sınıf, tekillik süzgeci ve e2e
+ * "atlanan" listesi değişmeden kapsar.
  */
 export const EMAIL_SKIPPED_SUPPRESSED_PREFIX = "suppressed:";
 export const EMAIL_SKIPPED_OPTED_OUT_PREFIX = "opted_out:";
@@ -276,6 +280,23 @@ export class EmailService implements OnModuleInit {
   private async sendNow(
     input: SendEmailInput,
   ): Promise<{ emailLogId: string; sent: boolean }> {
+    // Teslim edilemez alan adı (canlı öncesi son tur): `.local`/`.test`/
+    // example.com… adresine gönderim ORTAK Resend alan adında bounce üretir ve
+    // canlı e-postaların itibarını düşürür. Sağlayıcıya gitmez; suppression
+    // gibi FAILED + `suppressed:` yazılır. Kritik bağlamda bile Sentry alarmı
+    // YOK: adres hiçbir zaman teslim edilemez, bu bir ops arızası değil.
+    const undeliverable = undeliverableEmailReason(input.to.email);
+    if (undeliverable) {
+      this.logger.warn(
+        `Gönderim atlandı — ${undeliverable} (${maskEmail(input.to.email)}); ${input.templateData.template}`,
+      );
+      const skipped = await this.logSkipped(
+        input,
+        `${EMAIL_SKIPPED_SUPPRESSED_PREFIX} teslim edilemez alan adı: ${undeliverable}`,
+      );
+      return { emailLogId: skipped.id, sent: false };
+    }
+
     // G-M2 suppression: kalıcı-bounce (hard) veya şikayet (complaint) almış
     // adrese gönderim yapma — Resend itibar riski + boşa gönderim. Mevcut
     // EmailLog verisinden kontrol (migration'sız). Soft/undetermined bounce
@@ -306,23 +327,10 @@ export class EmailService implements OnModuleInit {
       this.logger.warn(
         `Gönderim atlandı — adres ${suppressed.status} (${maskEmail(input.to.email)}); ${input.templateData.template}`,
       );
-      const skipped = await this.prisma.emailLog.create({
-        data: {
-          template: input.templateData.template,
-          toEmail: input.to.email,
-          toName: input.to.name,
-          subject: input.subject ?? input.templateData.template,
-          provider: this.providerName,
-          status: "FAILED",
-          errorMessage: `${EMAIL_SKIPPED_SUPPRESSED_PREFIX} adres daha önce ${suppressed.status}`,
-          failedAt: new Date(),
-          contextType: input.context?.type,
-          contextId: input.context?.id,
-          locale: input.locale,
-          attemptCount: 0,
-        },
-        select: { id: true },
-      });
+      const skipped = await this.logSkipped(
+        input,
+        `${EMAIL_SKIPPED_SUPPRESSED_PREFIX} adres daha önce ${suppressed.status}`,
+      );
       // Kritik e-posta suppress ise kullanıcı kalıcı mahsur (kod/reset gitmiyor)
       // → ops alarmı (PII yok).
       if (isCriticalEmailContext(input.context?.type)) {
@@ -345,23 +353,7 @@ export class EmailService implements OnModuleInit {
     const stream = streamForContext(input.context?.type);
     const scope = unsubscribeScopeFor(input.context?.type);
     if (scope && (await this.isOptedOut(input.to.email, scope))) {
-      const skipped = await this.prisma.emailLog.create({
-        data: {
-          template: input.templateData.template,
-          toEmail: input.to.email,
-          toName: input.to.name,
-          subject: input.subject ?? input.templateData.template,
-          provider: this.providerName,
-          status: "FAILED",
-          errorMessage: `${EMAIL_SKIPPED_OPTED_OUT_PREFIX} ${scope}`,
-          failedAt: new Date(),
-          contextType: input.context?.type,
-          contextId: input.context?.id,
-          locale: input.locale,
-          attemptCount: 0,
-        },
-        select: { id: true },
-      });
+      const skipped = await this.logSkipped(input, `${EMAIL_SKIPPED_OPTED_OUT_PREFIX} ${scope}`);
       this.logger.log(`skipped (opted out of "${scope}"): ${input.templateData.template}`);
       return { emailLogId: skipped.id, sent: false };
     }
@@ -469,6 +461,30 @@ export class EmailService implements OnModuleInit {
       }
       throw err;
     }
+  }
+
+  /**
+   * Politika gereği atlanan gönderimin EmailLog satırı (FAILED, payload'sız,
+   * deneme 0) — suppression, tek tık çıkış ve teslim edilemez alan adı ortak.
+   */
+  private logSkipped(input: SendEmailInput, errorMessage: string): Promise<{ id: string }> {
+    return this.prisma.emailLog.create({
+      data: {
+        template: input.templateData.template,
+        toEmail: input.to.email,
+        toName: input.to.name,
+        subject: input.subject ?? input.templateData.template,
+        provider: this.providerName,
+        status: "FAILED",
+        errorMessage,
+        failedAt: new Date(),
+        contextType: input.context?.type,
+        contextId: input.context?.id,
+        locale: input.locale,
+        attemptCount: 0,
+      },
+      select: { id: true },
+    });
   }
 
   /** Adres bu kapsamdan (ya da tüm isteğe bağlı e-postalardan) çıkmış mı? */
