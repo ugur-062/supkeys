@@ -102,6 +102,9 @@ services:
       #   EMAIL_FROM_ADDRESS_INVITE=davet@rothern.com        (kayıtsız adrese davet)
       #   EMAIL_FROM_ADDRESS_LIFECYCLE=haber@rothern.com     (karşılama serisi / özet)
       # Bkz. .env.production.example ve apps/api/src/modules/email/email-streams.ts.
+      # EMAIL_ALLOWLIST bu (canlı) serviste TANIMLANMAZ / BOŞ kalır: yalnız
+      # api-staging'de dolu (listede olmayan alıcıya e-posta gönderilmez — bkz.
+      # docs/release-process.md "Render api-staging ortamı").
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET

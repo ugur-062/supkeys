@@ -28,6 +28,7 @@ import { signUnsubscribeToken } from "./unsubscribe-token";
 import { maskEmail } from "../../common/logging/mask-email";
 import { SUPPRESSION_CLEAR_MARKER_WHERE } from "./suppression-marker";
 import { undeliverableEmailReason } from "./undeliverable-domain";
+import { EMAIL_ALLOWLIST_ENV, parseEmailAllowlist, type EmailAllowlist } from "./email-allowlist";
 import {
   EmailSendThrottle,
   emailIdempotencyKey,
@@ -50,14 +51,22 @@ export { isCriticalEmailContext, CRITICAL_EMAIL_CONTEXTS } from "./critical-cont
  */
 export const EMAIL_SKIPPED_SUPPRESSED_PREFIX = "suppressed:";
 export const EMAIL_SKIPPED_OPTED_OUT_PREFIX = "opted_out:";
+/**
+ * Staging alıcı izin listesinde (`EMAIL_ALLOWLIST`, bkz. email-allowlist.ts)
+ * olmayan alıcı: aynı `suppressed:` sınıfı (tekillik süzgeci kapsar), ayrı
+ * neden. e2e içerik testi bu öneki "atlandı" değil "çizildi, gönderilmedi"
+ * sayar — satır payload + çizilen konu taşır.
+ */
+export const EMAIL_SKIPPED_ALLOWLIST_REASON = `${EMAIL_SKIPPED_SUPPRESSED_PREFIX} allowlist: recipient not on ${EMAIL_ALLOWLIST_ENV}`;
 
 /**
  * `sent:false` dönüşünde gönderimin NEDEN atlandığı. Log öneki teslim
  * edilemez alan adında da `suppressed:` kalır; ekran metni ise bu alana
  * bakar — `.test`/example.com adresine "bu adres e-postalarımızı kalıcı
  * olarak geri çevirdi" demek yanlış olurdu (canlı öncesi son tur).
+ * `allowlist` yalnız staging'de (izin listesi doluyken) görülür.
  */
-export type EmailSkipReason = "undeliverable" | "suppressed" | "opted_out";
+export type EmailSkipReason = "undeliverable" | "allowlist" | "suppressed" | "opted_out";
 
 export interface EmailSendResult {
   emailLogId: string;
@@ -186,6 +195,8 @@ export class EmailService implements OnModuleInit {
   /** Akış başına gönderen (boş akış varsayılana düşer — bkz. email-streams). */
   private senders!: Record<EmailStream, { email: string; name?: string }>;
   private throttle: EmailSendThrottle;
+  /** Staging alıcı izin listesi; `null` = kapı yok (canlı). Açılışta bir kez okunur. */
+  private readonly allowlist: EmailAllowlist | null;
 
   constructor(
     private readonly config: ConfigService,
@@ -202,6 +213,21 @@ export class EmailService implements OnModuleInit {
         DEFAULT_EMAIL_SEND_CONCURRENCY,
       ),
     });
+    this.allowlist = parseEmailAllowlist(this.config.get<string>(EMAIL_ALLOWLIST_ENV));
+    if (this.allowlist) {
+      // Girdilerin kendisi yazılmaz (adres = PII); yalnız sayı.
+      this.logger.log(
+        `Recipient allowlist active (${EMAIL_ALLOWLIST_ENV}): ${this.allowlist.size} entries; other recipients are rendered and logged but not sent`,
+      );
+      if (this.allowlist.size === 0) {
+        this.logger.warn(`${EMAIL_ALLOWLIST_ENV} has no valid entries: no e-mail will be sent`);
+      }
+      if (this.allowlist.invalid > 0) {
+        this.logger.warn(
+          `${EMAIL_ALLOWLIST_ENV}: ${this.allowlist.invalid} invalid entries ignored (each entry needs exactly one "@")`,
+        );
+      }
+    }
   }
 
   onModuleInit() {
@@ -300,6 +326,16 @@ export class EmailService implements OnModuleInit {
       );
       return { emailLogId: skipped.id, sent: false, skipReason: "undeliverable" };
     }
+
+    // Alıcı izin listesi (staging, 2026-10-05 sahip kararı): `EMAIL_ALLOWLIST`
+    // doluysa listede olmayan alıcıya giden e-posta SAĞLAYICIYA GİTMEZ — staging
+    // test e-postaları ortak gönderenin Gmail itibarını (Promosyonlar) bozuyordu.
+    // Karar burada (teslim edilemez alan adının hemen ardından, saf, DB'siz)
+    // verilir; etkisi sağlayıcıya teslim anında uygulanır: suppression/çıkış
+    // kapıları canlıdaki gibi işler, satır payload ile açılır ve ÇİZİLİR (e2e
+    // içeriği günlükten okur), sonra FAILED + EMAIL_SKIPPED_ALLOWLIST_REASON.
+    // Yeniden deneme/Sentry yok. Boş değişken (canlı) = `null`, hiçbir şey değişmez.
+    const blockedByAllowlist = this.allowlist !== null && !this.allowlist.allows(input.to.email);
 
     // G-M2 suppression: kalıcı-bounce (hard) veya şikayet (complaint) almış
     // adrese gönderim yapma — Resend itibar riski + boşa gönderim. Mevcut
@@ -428,6 +464,23 @@ export class EmailService implements OnModuleInit {
       });
       this.logger.error(`Email ${log.id} render failed: ${errorMessage}`);
       throw err;
+    }
+
+    if (blockedByAllowlist) {
+      await this.prisma.emailLog.update({
+        where: { id: log.id },
+        data: {
+          status: "FAILED",
+          subject: rendered.subject,
+          errorMessage: EMAIL_SKIPPED_ALLOWLIST_REASON,
+          failedAt: new Date(),
+          attemptCount: 0,
+        },
+      });
+      this.logger.log(
+        `Send skipped - recipient not on allowlist (${maskEmail(input.to.email)}); ${input.templateData.template}`,
+      );
+      return { emailLogId: log.id, sent: false, skipReason: "allowlist" };
     }
 
     try {

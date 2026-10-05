@@ -1250,6 +1250,7 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Presigned GET `Content-Disposition` · IndexNow talep kapısı | `storage.service.ts` `contentDisposition()` · `seo-index.service.ts` `isListingIndexable` (⇔ `marketplaceIndexableWhere`) — LU-19 |
 | Firma slug rezervleri | `common/company/company-slug.ts` `RESERVED_COMPANY_SLUGS` (public/companies'e statik rota eklenirse buraya da) — LU-01 |
 | E-posta "gönderim denendi" süzgeci · suppression aklama | `email.service.ts` `EMAIL_LOG_HANDLED_WHERE` · `EmailSuppressionService.clear` — LU-18/04 |
+| Staging e-posta alıcı izin listesi | `modules/email/email-allowlist.ts` `parseEmailAllowlist` (env `EMAIL_ALLOWLIST`, canlıda boş) |
 | Satıcıya sayılan bilgi talebi engel süzgeci | `public-inquiry.service.ts` `inquiryNotFromBlockedWhere` — LU-18 |
 | Talep kalemi görsel sahipliği | `company-listings.service.ts` `assertListingItemImagesOwned` — LU-15 |
 | İçerik çevirisi model maliyeti | `content-translation.service.ts` `pricingFor(model)` — LU-17 |
@@ -2147,6 +2148,18 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   kapsar), `sent:false`, yeniden deneme/Sentry yok. Test fabrikası `@test.local` adres üretir:
   gerçek `EmailService`'le gönderim sınayan test gerçek alan adı (`@firma.com`) kullanır.
   Sözleşme `email-undeliverable-domain.spec`.
+  **Staging alıcı izin listesi (2026-10-05, sahip kararı):** env `EMAIL_ALLOWLIST` (virgüllü; tam
+  adres artı adresi dahil BİREBİR, `*` `@`'yi aşmayan joker: `*@firma.com`,
+  `uguray156+qa-kayit-*@gmail.com`; harf duyarsız) DOLUYSA listede olmayan alıcıya e-posta
+  sağlayıcıya GİTMEZ — staging test hacmi Gmail'de Rothern'i Promosyonlar'a düşürüyordu. Tek kaynak
+  `modules/email/email-allowlist.ts`; kurucuda BİR KEZ okunur (açılış günlüğü yalnız girdi sayısı);
+  karar `sendNow`'da teslim edilemez alan adının hemen ardından, etkisi sağlayıcı teslim anında:
+  suppression/çıkış kapıları canlıdaki gibi işler, satır payload ile açılır ve ÇİZİLİR, sonra FAILED +
+  `EMAIL_SKIPPED_ALLOWLIST_REASON` (`suppressed: allowlist: …`, çizilen konu, deneme 0), `sent:false`,
+  `skipReason: "allowlist"`, yeniden deneme/Sentry yok. e2e `staging-email-content` bu öneki atlanan
+  saymaz, içeriği tarar. **Canlıda BOŞ** (boş = kapı yok); geçerli girdisi olmayan dolu değer hiçbir
+  şey göndermez (kapalı kalır). Staging değeri/operatör adımı `docs/release-process.md`, O-71/O-72.
+  Sözleşme `email-allowlist.spec`.
 - **DAVET KUYRUĞU** (`external_listing_invites`, talep × adres): eskiden davet
   `CompanyReferralInvite`in kendisiydi ve (davet eden × adres) BENZERSİZ olduğu
   için alıcı aynı tedarikçiyi yalnız İLK talebine davet edebiliyordu. Artık

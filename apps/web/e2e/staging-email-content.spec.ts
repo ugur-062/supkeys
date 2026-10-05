@@ -21,6 +21,13 @@ const PLACEHOLDER = /\{\{|\$\{|\bundefined\b|\bnull\b|\[object Object\]/;
  * AYNI değerler (e2e Nest modülünü import etmesin diye kopya).
  */
 const ATLANAN_ONEKLER = ["suppressed:", "opted_out:"] as const;
+/**
+ * Staging alıcı İZİN LİSTESİ (`EMAIL_ALLOWLIST`, 2026-10-05): listede olmayan
+ * alıcıya e-posta sağlayıcıya gitmez ama satır ÇİZİLİP konu + payload ile
+ * yazılır (FAILED + bu önek). Atlanan sayılmaz: içerik denetimi aynen koşar.
+ * apps/api email.service.ts `EMAIL_SKIPPED_ALLOWLIST_REASON` ile aynı önek.
+ */
+const IZIN_LISTESI_ONEKI = "suppressed: allowlist";
 /** Admin suppression aklaması payload'sız bir SENT işaret satırı yazar (e-posta değil). */
 const ISARET_SABLONLARI = new Set(["suppression_clear"]);
 
@@ -62,6 +69,7 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
   const kotaDolu: string[] = [];
   const atlanan: string[] = [];
   const isaret: string[] = [];
+  const gonderilmedi: string[] = [];
 
   for (const r of rows) {
     const p = (r.payload ?? {}) as Record<string, unknown>;
@@ -71,12 +79,15 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
       isaret.push(etiket);
       continue;
     }
-    if (r.status === "FAILED" && ATLANAN_ONEKLER.some((o) => (r.errorMessage ?? "").startsWith(o))) {
+    const izinDisi = r.status === "FAILED" && (r.errorMessage ?? "").startsWith(IZIN_LISTESI_ONEKI);
+    if (izinDisi) {
+      gonderilmedi.push(etiket);
+    } else if (r.status === "FAILED" && ATLANAN_ONEKLER.some((o) => (r.errorMessage ?? "").startsWith(o))) {
       atlanan.push(`${etiket}: ${r.errorMessage}`);
       continue;
     }
 
-    if (r.status === "FAILED") {
+    if (r.status === "FAILED" && !izinDisi) {
       /**
        * Sağlayıcı KOTASI ürün hatası değil, ortam sınırı: staging ücretsiz
        * Resend kademesinde günde 100 e-posta gönderebiliyor ve yoğun test
@@ -129,6 +140,9 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
 
   if (atlanan.length > 0) {
     console.log(`   ⓘ ${atlanan.length} gönderim politika gereği atlandı (bastırılmış/abonelikten çıkmış adres, ürün hatası değil).`);
+  }
+  if (gonderilmedi.length > 0) {
+    console.log(`   ⓘ ${gonderilmedi.length} e-posta izin listesi dışında: çizildi ve içerik tarandı, sağlayıcıya gönderilmedi (EMAIL_ALLOWLIST).`);
   }
   if (isaret.length > 0) console.log(`   ⓘ ${isaret.length} suppression aklama işareti tarama dışı.`);
   if (kotaDolu.length > 0) {

@@ -65,6 +65,40 @@ Değişken listesi `render.yaml` ile aynı; staging'e özel değerler gitignore'
 `render.staging.env` dosyasında (repo kökü, yalnız yerel). Sırlar yenilenince
 Render'da elle güncellenir.
 
+**E-posta alıcı izin listesi (2026-10-05, sahip kararı).** Staging'in e2e ve
+zamanlayıcı e-postaları sahibin Gmail artı adreslerine günde yüzlerce test
+e-postası yolluyordu; Gmail bunları toplu posta saydı ve Rothern'i
+Promosyonlar'a atmaya başladı. `api-staging`de `EMAIL_ALLOWLIST` DOLU olmalı,
+canlıda BOŞ (boş = kapı yok, davranış birebir aynı):
+
+```
+EMAIL_ALLOWLIST=uguray156@gmail.com,uguray156+qa-kayit-*@gmail.com,uguray156+qa-ae-*@gmail.com
+```
+
+- Sözdizimi: virgülle ayrılmış (boşluk/satır sonu da ayraç); büyük/küçük harf
+  önemsiz. Tam adres artı adresi dahil BİREBİR eşleşir (`uguray156@gmail.com`
+  girdisi `uguray156+x@gmail.com`u kapsamaz). `*` yerel kısımda ya da alan
+  adında `@`'yi aşmayan herhangi bir diziye (boş dahil) eşleşir:
+  `*@firma.com`, `uguray156+qa-kayit-*@gmail.com`. Her girdide tek `@`
+  olmalı; geçersiz girdi yok sayılır (açılışta uyarı). Değer dolu ama hiç
+  geçerli girdi yoksa HİÇBİR e-posta gitmez (yanlış yazım staging'i herkese
+  göndermeye döndürmesin).
+- Listede olmayan alıcı: e-posta çizilir, `email_logs` satırı konu + payload
+  ile yazılır (`staging-email-content` içeriği buradan okur), `FAILED` +
+  `suppressed: allowlist: recipient not on EMAIL_ALLOWLIST`, `sent:false`;
+  yeniden deneme ve Sentry alarmı yok. Uygulama içi bildirimler etkilenmez.
+- Öneri neden bu üçü: ana kutu (admin girişi `uguray156@gmail.com`) + kayıt
+  e2e'lerinin adresleri (`qa-kayit-*`, `qa-ae-*`; kod veritabanından okunur,
+  ama ekranda "kod gönderilemedi" uyarısı çıkmasın). Rol hesaplarına
+  (`uguray156+qa-<rol>`) giden yüzlerce bildirim artık gitmez. Elle gezintide
+  demo hesap e-postalarını görmek için `,uguray156+demo-*@gmail.com` eklenebilir.
+- Açılış günlüğü: `Recipient allowlist active (EMAIL_ALLOWLIST): N entries`
+  (girdiler yazılmaz).
+- Ayrı adım: staging kendi gönderen alt alan adına taşınmalı (Resend'de
+  `mail.supkeys.com` doğrulanır → `EMAIL_FROM_ADDRESS=staging@mail.supkeys.com`);
+  açılış kapısı WEB_URL alan adının alt alan adlarını kabul eder. Operatör
+  eylemleri `docs/qa-launch-audit-2026-09-28.md` O-71/O-72.
+
 
 ## Gecelik e2e için GitHub sırları (2026-09-12)
 
