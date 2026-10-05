@@ -26,6 +26,17 @@ export const NOTIFICATION_PREF_KEYS = [
   // Karşılama serisi + haftalık görünürlük özeti (LIFECYCLE akışı, Faz 2) —
   // `lifecycle_*` bağlam tipleri bu anahtara düşer.
   "lifecycle",
+  // KEŞİF ALT TERCİHLERİ (e-posta akışları 2026-10-05, inceleme): ACTIVITY ve
+  // DISCOVERY tipleri aynı anahtarı paylaşınca keşif e-postasındaki tek tık
+  // çıkış (ör. AI daveti) çıkış bağlantısı taşımayan kendi işlem e-postasını
+  // (alıcının adıyla davet, teklif geçerliliği hatırlatması) da sessizce
+  // kapatıyordu. Keşif tipleri artık kendi anahtarında; üst anahtar
+  // (`PREF_KEY_PARENT`) hâlâ ana şalterdir — kapalıysa alt tür de gitmez
+  // (önceden kapatmış kullanıcı yeniden e-posta almaya başlamaz).
+  //  - `aiInvitation`: AI'ın önerdiği firmaya talep daveti, özeti, hatırlatması
+  //  - `growthNudges`: teklifsiz talep dürtmesi (talep sahibine)
+  "aiInvitation",
+  "growthNudges",
 ] as const;
 
 /**
@@ -36,6 +47,16 @@ export const NOTIFICATION_PREF_KEYS = [
 export const NOTIFICATION_FLAG_KEYS = ["categoryMatchInstant"] as const;
 
 export type NotificationPrefKey = (typeof NOTIFICATION_PREF_KEYS)[number];
+
+/**
+ * Alt tercih → üst (ana şalter) tercih. Üst kapalıysa alt türün e-postası da
+ * gitmez; alttan çıkmak üstü etkilemez. Ayarlar ekranı alt satırı üst
+ * kapalıyken pasif gösterir (web `NOTIFICATION_PREFS.parent`).
+ */
+export const PREF_KEY_PARENT: Partial<Record<NotificationPrefKey, NotificationPrefKey>> = {
+  aiInvitation: "invitation",
+  growthNudges: "reminder",
+};
 
 /**
  * Bildirim `type` etiketi → tercih anahtarı. `null` = transactional (kapatılamaz):
@@ -62,10 +83,13 @@ const PREF_KEY_BY_TYPE = {
   listing_category_digest: "categoryMatch",
   // AI'ın bulduğu ama alıcıya gösterilmeyen ücretsiz firmaya Silver/doğrulama çağrısı.
   listing_ai_match_locked: "categoryMatch",
-  // AI'ın önerdiği üyeye doğrudan talep daveti (+ akşam özeti) — davet tercihi.
-  listing_invitation_ai: "invitation",
-  listing_invitation_digest: "invitation",
-  listing_zero_bid: "reminder",
+  // AI'ın önerdiği üyeye doğrudan talep daveti (+ akşam özeti) ve o davetliye
+  // kapanış hatırlatması — AI daveti alt tercihi (üstü: `invitation`).
+  listing_invitation_ai: "aiInvitation",
+  listing_invitation_digest: "aiInvitation",
+  listing_reminder_ai: "aiInvitation",
+  // Teklifsiz talep dürtmesi — büyüme alt tercihi (üstü: `reminder`).
+  listing_zero_bid: "growthNudges",
   // Aşağıdakiler bilinçli olarak listelenmez → transactional:
   //   password_reset, referral_invite, bid_awarded, order_status_changed
 } as const satisfies Record<string, NotificationPrefKey>;
@@ -79,17 +103,43 @@ const PREF_KEY_BY_TYPE = {
 export type PrefKeyedNotificationType = keyof typeof PREF_KEY_BY_TYPE;
 export const PREF_KEYED_NOTIFICATION_TYPES = Object.keys(PREF_KEY_BY_TYPE) as PrefKeyedNotificationType[];
 
+/**
+ * Tipe özgü EK kapı anahtarları: AI davetlisine hatırlatma bir hatırlatmadır
+ * da — "hatırlatmalar" kapalıysa o da gitmez (eskiden `reminder`a bağlıydı).
+ */
+const EXTRA_GATE_KEYS_BY_TYPE: Partial<Record<PrefKeyedNotificationType, readonly NotificationPrefKey[]>> = {
+  listing_reminder_ai: ["reminder"],
+};
+
 type Prefs = Record<string, boolean> | null | undefined;
+
+/** Anahtar + varsa üst anahtarı (alt tercihin ana şalteri). */
+export function prefKeyWithParent(key: NotificationPrefKey): NotificationPrefKey[] {
+  const parent = PREF_KEY_PARENT[key];
+  return parent ? [key, parent] : [key];
+}
+
+/**
+ * Bu tipi KAPATAN tercih anahtarlarının hepsi (kendi + üst + tipe özgü ek);
+ * biri kapalıysa / o kapsamdan çıkılmışsa gönderilmez. Transactional tipte [].
+ */
+export function gatingPrefKeysForType(type: string | undefined | null): NotificationPrefKey[] {
+  const key = prefKeyForType(type);
+  if (!key) return [];
+  const extra = Object.hasOwn(EXTRA_GATE_KEYS_BY_TYPE, type!)
+    ? (EXTRA_GATE_KEYS_BY_TYPE[type as PrefKeyedNotificationType] ?? [])
+    : [];
+  return [...new Set([...prefKeyWithParent(key), ...extra])];
+}
 
 /**
  * Bu bildirim, alıcının tercihlerine göre gönderilmeli mi?
  * - Transactional tip (anahtarı yok) → her zaman true.
- * - Aksi halde tercih açıkça false değilse true (varsayılan açık).
+ * - Aksi halde kapı anahtarlarından (kendi + üst + ek) hiçbiri açıkça false
+ *   değilse true (varsayılan açık).
  */
 export function isNotificationEnabled(prefs: Prefs, type: string): boolean {
-  const key = prefKeyForType(type);
-  if (!key) return true; // transactional
-  return prefs?.[key] !== false;
+  return gatingPrefKeysForType(type).every((k) => prefs?.[k] !== false);
 }
 
 /** Bildirim tipinin tercih anahtarı; transactional tipte `null`. */

@@ -1,7 +1,11 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { i18nMessage } from "../../common/i18n/http-i18n";
-import { NOTIFICATION_PREF_KEYS } from "../../common/notifications/notification-prefs";
+import {
+  NOTIFICATION_PREF_KEYS,
+  isNotificationPrefKey,
+  prefKeyWithParent,
+} from "../../common/notifications/notification-prefs";
 import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
 import type { UnsubscribeScope } from "./email-streams";
 import { verifyUnsubscribeToken, type UnsubscribePayload } from "./unsubscribe-token";
@@ -114,8 +118,11 @@ export class EmailUnsubscribeService {
     if (scope === "invite") {
       return !!(await this.prisma.referralOptOut.findUnique({ where: { email }, select: { email: true } }));
     }
+    // Alt tercihte üst anahtar da sayılır (gönderim kapısıyla aynı kural:
+    // `invitation` kapalıysa `aiInvitation` e-postası da gitmez).
+    const scopes: string[] = isNotificationPrefKey(scope) ? prefKeyWithParent(scope) : [scope];
     const row = await this.prisma.emailOptOut.findFirst({
-      where: { email, scope: { in: [scope, "all"] } },
+      where: { email, scope: { in: [...scopes, "all"] } },
       select: { id: true },
     });
     if (row) return true;
@@ -127,6 +134,6 @@ export class EmailUnsubscribeService {
     if (!user) return false;
     return scope === "all"
       ? NOTIFICATION_PREF_KEYS.every((k) => prefs[k] === false)
-      : prefs[scope] === false;
+      : scopes.some((k) => prefs[k] === false);
   }
 }

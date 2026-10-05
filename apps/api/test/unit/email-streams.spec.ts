@@ -10,7 +10,10 @@ import {
   unsubscribeScopeFor,
 } from "../../src/modules/email/email-streams";
 import {
+  NOTIFICATION_PREF_KEYS,
   PREF_KEYED_NOTIFICATION_TYPES,
+  PREF_KEY_PARENT,
+  gatingPrefKeysForType,
   isNotificationEnabled,
   prefKeyForType,
 } from "../../src/common/notifications/notification-prefs";
@@ -95,6 +98,7 @@ describe("bildirim e-posta sınıfı (ACTIVITY / DISCOVERY)", () => {
     "listing_ai_match_locked",
     "listing_invitation_ai",
     "listing_invitation_digest",
+    "listing_reminder_ai",
     "ai_supplier_suggestions",
     "listing_zero_bid",
     "admin_announcement",
@@ -148,6 +152,45 @@ describe("bildirim e-posta sınıfı (ACTIVITY / DISCOVERY)", () => {
     expect(isNotificationEnabled({ invitation: false }, "listing_invitation")).toBe(false);
     expect(isNotificationEnabled({}, "bid_eliminated")).toBe(true);
     expect(isNotificationEnabled(null, "listing_reminder")).toBe(true);
+  });
+
+  it("tercih anahtarı ACTIVITY ve DISCOVERY tipleri arasında PAYLAŞILMAZ (keşifte tek tık çıkış kendi işlem e-postasını kapatmaz)", () => {
+    const classesOf = new Map<string, Set<string>>();
+    for (const t of PREF_KEYED_NOTIFICATION_TYPES) {
+      const k = prefKeyForType(t)!;
+      if (!classesOf.has(k)) classesOf.set(k, new Set());
+      classesOf.get(k)!.add(notificationEmailClass(t));
+    }
+    const mixed = [...classesOf].filter(([, classes]) => classes.size > 1).map(([key]) => key);
+    expect(mixed).toEqual([]);
+    // Alt tercih anahtarları ve üstleri katalogda.
+    for (const [child, parent] of Object.entries(PREF_KEY_PARENT)) {
+      expect(NOTIFICATION_PREF_KEYS).toContain(child);
+      expect(NOTIFICATION_PREF_KEYS).toContain(parent);
+    }
+    expect(unsubscribeScopeFor("listing_invitation_ai")).toBe("aiInvitation");
+    expect(unsubscribeScopeFor("listing_invitation_digest")).toBe("aiInvitation");
+    expect(unsubscribeScopeFor("listing_reminder_ai")).toBe("aiInvitation");
+    expect(unsubscribeScopeFor("listing_zero_bid")).toBe("growthNudges");
+  });
+
+  it("keşif alt tercihinden çıkmak işlem e-postasını kapatmaz; üst tercih ana şalterdir", () => {
+    // AI davetinden çıkan kullanıcıya alıcının adıyla davet ve hatırlatma gider.
+    expect(isNotificationEnabled({ aiInvitation: false }, "listing_invitation_ai")).toBe(false);
+    expect(isNotificationEnabled({ aiInvitation: false }, "listing_invitation")).toBe(true);
+    expect(isNotificationEnabled({ growthNudges: false }, "listing_zero_bid")).toBe(false);
+    expect(isNotificationEnabled({ growthNudges: false }, "listing_reminder")).toBe(true);
+    expect(isNotificationEnabled({ growthNudges: false }, "listing_evaluation_reminder")).toBe(true);
+    // Eskiden paylaşılan anahtarı kapatmış kullanıcı keşif e-postası almaya başlamaz.
+    expect(isNotificationEnabled({ invitation: false }, "listing_invitation_ai")).toBe(false);
+    expect(isNotificationEnabled({ invitation: false }, "listing_invitation_digest")).toBe(false);
+    expect(isNotificationEnabled({ reminder: false }, "listing_zero_bid")).toBe(false);
+    // AI davetlisine hatırlatma: davet ve hatırlatma şalterlerinin ikisi de kapatır.
+    expect(isNotificationEnabled({ reminder: false }, "listing_reminder_ai")).toBe(false);
+    expect(isNotificationEnabled({ invitation: false }, "listing_reminder_ai")).toBe(false);
+    expect(gatingPrefKeysForType("listing_reminder_ai").sort()).toEqual(["aiInvitation", "invitation", "reminder"]);
+    expect(gatingPrefKeysForType("listing_invitation")).toEqual(["invitation"]);
+    expect(gatingPrefKeysForType("bid_awarded")).toEqual([]);
   });
 
   it("ACTIVITY KVKK aydınlatma satırını korur (işlem dışı akış)", () => {
@@ -262,6 +305,8 @@ describe("unsubscribe-token", () => {
 
   it("kapsam beyaz listesi", () => {
     expect(isUnsubscribeScope("categoryMatch")).toBe(true);
+    expect(isUnsubscribeScope("aiInvitation")).toBe(true);
+    expect(isUnsubscribeScope("growthNudges")).toBe(true);
     expect(isUnsubscribeScope("invite")).toBe(true);
     expect(isUnsubscribeScope("all")).toBe(true);
     expect(isUnsubscribeScope("password_reset")).toBe(false);

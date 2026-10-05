@@ -10,9 +10,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
  * UI'da toggle olarak gösterilir; varsayılan tümü açık. Etiket katalogda:
  * `web.panel.settings.accountSettingsSection.notificationPref.<key>`.
  */
-export const NOTIFICATION_PREFS: { key: string }[] = [
+/**
+ * `parent`: alt tercihin ana şalteri (backend `PREF_KEY_PARENT`) — üst
+ * kapalıyken alt türün e-postası da gitmez; satır pasif ve girintili görünür.
+ */
+export const NOTIFICATION_PREFS: { key: string; parent?: string }[] = [
   { key: "invitation" },
+  { key: "aiInvitation", parent: "invitation" },
   { key: "reminder" },
+  { key: "growthNudges", parent: "reminder" },
   { key: "bidElimination" },
   { key: "listingClosed" },
   { key: "categoryMatch" },

@@ -436,18 +436,30 @@ export function NotificationPrefsSection() {
 
       <div className="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-100">
         {NOTIFICATION_PREFS.map((p) => {
-          const on = prefs[p.key] ?? true;
+          // Alt tercih: üst kapalıyken bu tür de gitmez → pasif + ipucu.
+          const parentOff = !!p.parent && prefs[p.parent] === false;
+          const on = !parentOff && (prefs[p.key] ?? true);
           return (
             <button
               key={p.key}
               type="button"
               role="switch"
               aria-checked={on}
+              disabled={parentOff}
               onClick={() => setPrefs({ ...prefs, [p.key]: !on })}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-100"
+              className={`flex w-full items-center justify-between gap-3 py-3 pr-4 text-left transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent ${
+                p.parent ? "pl-8" : "pl-4"
+              }`}
             >
-              <span className="text-sm text-zinc-900">
-                {t(`notificationPref.${p.key}` as never)}
+              <span className="min-w-0">
+                <span className="block text-sm text-zinc-900">
+                  {t(`notificationPref.${p.key}` as never)}
+                </span>
+                {parentOff ? (
+                  <span className="mt-0.5 block text-xs text-zinc-600">
+                    {t("notificationPrefParentOff")}
+                  </span>
+                ) : null}
               </span>
               <span
                 className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${

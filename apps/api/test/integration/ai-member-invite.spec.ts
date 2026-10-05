@@ -246,6 +246,83 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
   });
 });
 
+/**
+ * E-posta akışları incelemesi (2026-10-05): taslak/embargolu talebe eklenen AI
+ * davetlisi açılışta da AI daveti (`listing_invitation_ai`, DISCOVERY — tek tık
+ * çıkış başlığıyla) olarak duyurulur; elle eklenen davetli `listing_invitation`
+ * (ACTIVITY). Hatırlatma da aynı ayrımla.
+ */
+describe("açılış duyurusu — AI davetlisinin e-posta sınıfı zamanlamaya bağlı değil", () => {
+  it("taslakta AI daveti → yayınla → AI daveti (DISCOVERY, çıkış başlıklı); elle davetli ACTIVITY", async () => {
+    const { streamForContext, carriesOneClickUnsubscribe } = await import("../../src/modules/email/email-streams");
+    const { service, email } = makeService();
+    const { owner, listing } = await setup({ status: "DRAFT", publishedAt: null });
+    const ai = await categorySeller("AI Önerisi AŞ");
+    const manual = await categorySeller("Elle Davetli AŞ");
+    const { results } = await service.inviteDiscoveredMembers(owner.auth, listing.id, [ai.company.id]);
+    expect(results).toEqual([{ companyId: ai.company.id, status: "INVITED" }]);
+    await prisma.listingInvitation.create({
+      data: { listingId: listing.id, invitedCompanyId: manual.company.id, invitedById: owner.user.id },
+    });
+    // Taslakta e-posta gitmez.
+    await new Promise((r) => setTimeout(r, 100));
+    expect(email.send).not.toHaveBeenCalled();
+
+    await prisma.listing.update({ where: { id: listing.id }, data: { status: "OPEN", publishedAt: new Date() } });
+    await service.notifyListingInvitees(listing.id, "invitation");
+    await settle(() => email.send.mock.calls.length >= 2);
+    const byTo = new Map(
+      email.send.mock.calls.map((c) => [c[0].to.email as string, c[0] as { context: { type: string }; templateData: unknown }]),
+    );
+    const aiMail = byTo.get(ai.user.email)!;
+    expect(aiMail.context.type).toBe("listing_invitation_ai");
+    expect(carriesOneClickUnsubscribe(streamForContext(aiMail.context.type))).toBe(true);
+    // Gerekçe davet satırından (`aiReason`) okunur.
+    expect(JSON.stringify(aiMail.templateData)).toContain("kategori");
+    const manualMail = byTo.get(manual.user.email)!;
+    expect(manualMail.context.type).toBe("listing_invitation");
+    expect(streamForContext(manualMail.context.type)).toBe("ACTIVITY");
+    // Davet başına tek bildirim: ikisi de damgalı, zil ikisine de.
+    expect(await prisma.listingInvitation.count({ where: { listingId: listing.id, notifiedAt: null } })).toBe(0);
+    await settle(async () => (await prisma.notification.count({ where: { type: "listing_invitation", listingId: listing.id } })) >= 2);
+    expect(await prisma.notification.count({ where: { type: "listing_invitation", listingId: listing.id } })).toBe(2);
+
+    // Hatırlatma: AI davetlisine keşif sınıfında, elle davetliye ACTIVITY.
+    email.send.mockClear();
+    await service.notifyListingInvitees(listing.id, "reminder");
+    await settle(() => email.send.mock.calls.length >= 2);
+    const reminders = new Map(email.send.mock.calls.map((c) => [c[0].to.email as string, c[0].context.type as string]));
+    expect(reminders.get(ai.user.email)).toBe("listing_reminder_ai");
+    expect(reminders.get(manual.user.email)).toBe("listing_reminder");
+    expect(streamForContext("listing_reminder_ai")).toBe("NOTIFICATION");
+  });
+
+  it("açılışta AI davetlisi de günde 3 tavanına girer (fazlası akşam özeti)", async () => {
+    const { service, email } = makeService();
+    const { owner, listing } = await setup({ status: "DRAFT", publishedAt: null });
+    const busy = await categorySeller("Yoğun AŞ");
+    for (let i = 0; i < 3; i++) {
+      await prisma.emailLog.create({
+        data: {
+          template: "notification",
+          toEmail: busy.user.email,
+          subject: "s",
+          provider: "test",
+          status: "SENT",
+          contextType: "listing_invitation_ai",
+          contextId: `x${i}`,
+        },
+      });
+    }
+    await service.inviteDiscoveredMembers(owner.auth, listing.id, [busy.company.id]);
+    await prisma.listing.update({ where: { id: listing.id }, data: { status: "OPEN", publishedAt: new Date() } });
+    await service.notifyListingInvitees(listing.id, "invitation");
+    await settle(async () => (await prisma.emailDigestItem.count({ where: { kind: "INVITATION" } })) > 0);
+    expect(email.send).not.toHaveBeenCalled();
+    expect(await prisma.emailDigestItem.count({ where: { kind: "INVITATION", listingId: listing.id } })).toBe(1);
+  });
+});
+
 describe("CompanyListingsService.notifyHiddenAiMatches — alıcıya gösterilmeyen ücretsiz firmaya çağrı", () => {
   async function freeSeller(name: string, status: "VERIFIED" | "UNVERIFIED") {
     const s = await makeCompanyWithUser(prisma, { tier: "STANDART", name, companyVerificationStatus: status });

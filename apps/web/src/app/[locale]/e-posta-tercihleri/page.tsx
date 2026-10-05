@@ -28,6 +28,8 @@ type Scope =
   | "approvalPending"
   | "announcement"
   | "aiSuggestions"
+  | "aiInvitation"
+  | "growthNudges"
   | "invite"
   | "lifecycle"
   | "all";

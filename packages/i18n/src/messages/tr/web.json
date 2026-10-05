@@ -706,7 +706,9 @@
         "invite": "alım talebi davetleri",
         "lifecycle": "ipuçları ve öneriler",
         "all": "Rothern'den gelen tüm isteğe bağlı e-postalar",
-        "aiSuggestions": "AI tedarikçi önerileri"
+        "aiSuggestions": "AI tedarikçi önerileri",
+        "aiInvitation": "AI önerisiyle gelen talep davetleri",
+        "growthNudges": "teklif almayan talepleriniz için öneriler"
       }
     },
     "invitePreview": {
@@ -5820,7 +5822,9 @@
         "kaydedilemedi": "Kaydedilemedi",
         "notificationPref": {
           "invitation": "Alım talebi daveti aldığımda",
+          "aiInvitation": "AI önerisiyle bir alım talebine davet edildiğimde",
           "reminder": "Davetli olduğum alım talebinin kapanışı yaklaştığında",
+          "growthNudges": "Alım talebim teklif almadığında öneriler",
           "bidElimination": "Teklifim elendiğinde",
           "listingClosed": "Katıldığım alım talebi kapandığında",
           "categoryMatch": "Kategorime uygun yeni alım talebi açıldığında",
@@ -5835,7 +5839,8 @@
           "accountMail": "Şifre sıfırlama ve hesap/davet e-postaları"
         },
         "categoryMatchInstant": "Kategori e-postalarının hepsi anında gelsin",
-        "categoryMatchInstantHint": "Kapalıyken günde 3 e-posta anında gelir, fazlası akşam tek bir özette toplanır."
+        "categoryMatchInstantHint": "Kapalıyken günde 3 e-posta anında gelir, fazlası akşam tek bir özette toplanır.",
+        "notificationPrefParentOff": "Üstteki tercih kapalıyken bu e-postalar da gönderilmez."
       },
       "addressBookSection": {
         "adresSilinsinMi": "Adres silinsin mi?",

@@ -15,6 +15,7 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { localizeAppPath } from "../../common/company/app-routes";
 import { isCriticalEmailContext } from "./critical-contexts";
+import { gatingPrefKeysForType } from "../../common/notifications/notification-prefs";
 import {
   carriesOneClickUnsubscribe,
   privacyNoticeFor,
@@ -355,7 +356,10 @@ export class EmailService implements OnModuleInit {
     // alıcıyı (firma `billingEmail`i) ve davet adreslerini de kapsar.
     const stream = streamForContext(input.context?.type);
     const scope = unsubscribeScopeFor(input.context?.type);
-    if (scope && (await this.isOptedOut(input.to.email, scope))) {
+    // Bildirim tipinde kapı kendi kapsamın yanında ÜST tercih kapsamına da
+    // bakar (ör. `invitation`dan çıkmış adrese `aiInvitation` da gitmez).
+    const gateScopes = scope ? this.optOutScopes(input.context?.type, scope) : [];
+    if (scope && (await this.isOptedOut(input.to.email, gateScopes))) {
       const skipped = await this.logSkipped(input, `${EMAIL_SKIPPED_OPTED_OUT_PREFIX} ${scope}`);
       this.logger.log(`skipped (opted out of "${scope}"): ${input.templateData.template}`);
       return { emailLogId: skipped.id, sent: false, skipReason: "opted_out" };
@@ -363,13 +367,20 @@ export class EmailService implements OnModuleInit {
     // ACTIVITY (alıcının kendi işlemi): kapı yukarıda kapsamı uyguladı ama
     // çıkış başlığı/bağlantısı BASILMAZ — yalnız sessiz bildirim ayarları
     // bağlantısı (Gmail Promosyonlar sekmesi; sahip kararı 2026-10-05).
+    // Bağlantı jetonlu e-posta tercihleri SAYFASINA gider (oturum istemez):
+    // firma `billingEmail`i gibi hesabı olmayan alıcı da türü kapatabilsin
+    // (kayıtlıda tercihine, diğerinde email_opt_outs'a yazar; sayfa açılışı
+    // hiçbir şey değiştirmez, oradan Ayarlar › Bildirimler'e bağlantı var).
+    // Tek tık POST adresi başlığa konmaz.
     const unsubscribe =
       scope && carriesOneClickUnsubscribe(stream)
         ? this.unsubscribeLinks(input.to.email, scope, input.locale ?? "tr", stream)
         : null;
     const footerEnv: { unsubscribeUrl?: string; preferencesUrl?: string } =
       unsubscribe?.env ??
-      (stream === "ACTIVITY" ? { preferencesUrl: this.preferencesUrl(input.locale ?? "tr") } : {});
+      (stream === "ACTIVITY" && scope
+        ? { preferencesUrl: this.activityPreferencesUrl(input.to.email, scope, input.locale ?? "tr") }
+        : {});
 
     // Hassas tiplerde token/kod düz saklanmaz (bkz. REDACTED_CONTEXT_TYPES).
     // NOT: bu payload ile YENİDEN GÖNDERİM yapılamaz — admin-email-logs.resend
@@ -499,15 +510,27 @@ export class EmailService implements OnModuleInit {
     });
   }
 
-  /** Adres bu kapsamdan (ya da tüm isteğe bağlı e-postalardan) çıkmış mı? */
-  private async isOptedOut(email: string, scope: string): Promise<boolean> {
+  /**
+   * Çıkış kapısının baktığı kapsamlar: bildirim tipinde kapı anahtarlarının
+   * hepsi (kendi + üst + tipe özgü ek), diğer akışta yalnız kendi kapsamı.
+   */
+  private optOutScopes(
+    type: string | undefined,
+    scope: NonNullable<ReturnType<typeof unsubscribeScopeFor>>,
+  ): string[] {
+    const keys = gatingPrefKeysForType(type);
+    return keys.length > 0 ? keys : [scope];
+  }
+
+  /** Adres bu kapsamlardan (ya da tüm isteğe bağlı e-postalardan) çıkmış mı? */
+  private async isOptedOut(email: string, scopes: string[]): Promise<boolean> {
     const lower = email.trim().toLowerCase();
     const row = await this.prisma.emailOptOut.findFirst({
-      where: { email: lower, scope: { in: [scope, "all"] } },
+      where: { email: lower, scope: { in: [...scopes, "all"] } },
       select: { id: true },
     });
     if (row) return true;
-    if (scope !== "invite") return false;
+    if (!scopes.includes("invite")) return false;
     const invite = await this.prisma.referralOptOut.findUnique({
       where: { email: lower },
       select: { email: true },
@@ -518,6 +541,22 @@ export class EmailService implements OnModuleInit {
   /** Kayıtlı kullanıcının bildirim ayarları sayfası (alıcının dilinde). */
   private preferencesUrl(locale: Locale): string {
     return `${resolveWebUrl(this.config)}${localizeAppPath(PREFERENCES_PATH, locale)}`;
+  }
+
+  /**
+   * ACTIVITY alt bilgisindeki bildirim ayarları bağlantısı: jetonlu tercih
+   * sayfası (kapsam = tercih anahtarı). `JWT_SECRET` yoksa (yalnız yerel test)
+   * oturumlu Ayarlar › Bildirimler sayfasına düşer.
+   */
+  private activityPreferencesUrl(
+    email: string,
+    scope: NonNullable<ReturnType<typeof unsubscribeScopeFor>>,
+    locale: Locale,
+  ): string {
+    const secret = this.config.get<string>("JWT_SECRET");
+    if (!secret) return this.preferencesUrl(locale);
+    const token = signUnsubscribeToken({ email, scope, locale }, secret);
+    return `${resolveWebUrl(this.config)}${localizeAppPath(UNSUBSCRIBE_PAGE_PATH, locale)}?t=${token}`;
   }
 
   /**

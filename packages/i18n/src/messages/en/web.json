@@ -706,7 +706,9 @@
         "invite": "buying request invitations",
         "lifecycle": "tips and suggestions",
         "all": "all optional emails from Rothern",
-        "aiSuggestions": "AI supplier suggestions"
+        "aiSuggestions": "AI supplier suggestions",
+        "aiInvitation": "request invitations suggested by AI",
+        "growthNudges": "suggestions for your requests without bids"
       }
     },
     "invitePreview": {
@@ -5820,7 +5822,9 @@
         "kaydedilemedi": "Could not be saved",
         "notificationPref": {
           "invitation": "When I receive a buying request invitation",
+          "aiInvitation": "When I am invited to a purchase request on an AI suggestion",
           "reminder": "When a buying request I am invited to is about to close",
+          "growthNudges": "Suggestions when my purchase request receives no bids",
           "bidElimination": "When my quote is eliminated",
           "listingClosed": "When a buying request I took part in closes",
           "categoryMatch": "When a new buying request matching my category is opened",
@@ -5835,7 +5839,8 @@
           "accountMail": "Password reset and account/invitation emails"
         },
         "categoryMatchInstant": "Send every category email instantly",
-        "categoryMatchInstantHint": "When off, 3 emails a day arrive instantly and the rest are collected into one evening summary."
+        "categoryMatchInstantHint": "When off, 3 emails a day arrive instantly and the rest are collected into one evening summary.",
+        "notificationPrefParentOff": "These e-mails are not sent while the preference above is off."
       },
       "addressBookSection": {
         "adresSilinsinMi": "Delete address?",

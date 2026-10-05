@@ -100,8 +100,68 @@ describe("EmailService — çıkış başlıkları", () => {
     expect(send.mock.calls[0][0].headers).toBeUndefined();
     const env = (renderEmail as jest.Mock).mock.calls[0][2];
     expect(env.unsubscribeUrl).toBeUndefined();
-    expect(env.preferencesUrl).toBe("https://www.rothern.com/en/company/settings/notifications");
+    // Alt bilgi bağlantısı oturum istemeyen jetonlu tercih sayfası (kapsam =
+    // tercih anahtarı) — firma billingEmail'i gibi hesabı olmayan alıcı da
+    // türü kapatabilsin. Tek tık POST adresi YOK.
+    expect(env.preferencesUrl).toMatch(/^https:\/\/www\.rothern\.com\/en\/email-preferences\?t=[A-Za-z0-9_-]+$/);
+    expect(env.preferencesUrl).not.toContain("/api/email/unsubscribe");
     expect(env.privacyNotice).toBe(true);
+  });
+
+  it("ACTIVITY billingEmail alıcısı: başlık yok, alt bilgideki jetonlu sayfadan türü kapatır, sonra o tür GİTMEZ (inceleme)", async () => {
+    const { svc, send } = makeEmail();
+    await svc.send(mail("fatura@firma.com", "bid_eliminated"));
+    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    const url = (renderEmail as jest.Mock).mock.calls[0][2].preferencesUrl as string;
+    const token = new URL(url).searchParams.get("t")!;
+    const described = await unsub().describe(token);
+    expect(described).toMatchObject({ scope: "bidElimination", unsubscribed: false });
+    await unsub().unsubscribe(token);
+    expect(await prisma.emailOptOut.findMany({ select: { email: true, scope: true } })).toEqual([
+      { email: "fatura@firma.com", scope: "bidElimination" },
+    ]);
+    expect(await svc.send(mail("fatura@firma.com", "bid_lost"))).toMatchObject({ sent: false, skipReason: "opted_out" });
+    // Başka tür gider.
+    expect((await svc.send(mail("fatura@firma.com", "listing_closed"))).sent).toBe(true);
+  });
+
+  it("JWT_SECRET yoksa ACTIVITY alt bilgisi oturumlu ayarlar sayfasına düşer", async () => {
+    const noSecret = {
+      get: jest.fn((k: string) => (k === "WEB_URL" ? "https://www.rothern.com" : undefined)),
+      getOrThrow: jest.fn(),
+    };
+    const svc = new EmailService(noSecret as never, prisma as never);
+    (svc as unknown as { client: unknown }).client = { send: jest.fn().mockResolvedValue({ providerMessageId: "m" }) };
+    (svc as unknown as { providerName: string }).providerName = "resend";
+    await svc.send(mail("a@firma.com", "listing_closed"));
+    expect((renderEmail as jest.Mock).mock.calls[0][2].preferencesUrl).toBe(
+      "https://www.rothern.com/en/company/settings/notifications",
+    );
+  });
+
+  it("keşif alt tercihi: AI davetinden çıkmak alıcının adıyla daveti kapatmaz; eski `invitation` çıkışı AI davetini de kapatır (inceleme)", async () => {
+    const { svc, send } = makeEmail();
+    // AI davetindeki tek tık çıkış → kapsam aiInvitation.
+    await svc.send(mail("tedarik@firma.com", "listing_invitation_ai"));
+    const oneClick = send.mock.calls[0][0].headers["List-Unsubscribe"] as string;
+    const token = new URL(oneClick.slice(1, -1)).searchParams.get("t")!;
+    expect((await unsub().describe(token)).scope).toBe("aiInvitation");
+    await unsub().unsubscribe(token);
+    expect(await svc.send(mail("tedarik@firma.com", "listing_invitation_ai"))).toMatchObject({ sent: false });
+    expect(await svc.send(mail("tedarik@firma.com", "listing_reminder_ai"))).toMatchObject({ sent: false });
+    expect((await svc.send(mail("tedarik@firma.com", "listing_invitation"))).sent).toBe(true);
+    expect((await svc.send(mail("tedarik@firma.com", "listing_reminder"))).sent).toBe(true);
+
+    // Eskiden paylaşılan `invitation` kapsamından çıkmış adres AI davetini de almaz.
+    await prisma.emailOptOut.create({ data: { email: "eski@firma.com", scope: "invitation" } });
+    expect(await svc.send(mail("eski@firma.com", "listing_invitation_ai"))).toMatchObject({ sent: false });
+    expect(await svc.send(mail("eski@firma.com", "listing_invitation_digest"))).toMatchObject({ sent: false });
+    const t2 = signUnsubscribeToken({ email: "eski@firma.com", scope: "aiInvitation", locale: "tr" }, SECRET);
+    expect((await unsub().describe(t2)).unsubscribed).toBe(true);
+    // `reminder`dan çıkmış adres teklifsiz talep dürtmesini ve AI davetlisi hatırlatmasını almaz.
+    await prisma.emailOptOut.create({ data: { email: "hatir@firma.com", scope: "reminder" } });
+    expect(await svc.send(mail("hatir@firma.com", "listing_zero_bid"))).toMatchObject({ sent: false });
+    expect(await svc.send(mail("hatir@firma.com", "listing_reminder_ai"))).toMatchObject({ sent: false });
   });
 
   it("ACTIVITY işlem göndericisinden, keşif bildirimi kendi göndericisinden çıkar", async () => {

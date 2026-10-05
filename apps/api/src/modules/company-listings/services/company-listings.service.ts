@@ -281,6 +281,17 @@ export function carriedBidRevisable(
 /** Sayısal soru cevabı: noktalı kanonik ondalık ("12.5", "1500", "-3"). */
 const NUMBER_ANSWER_PATTERN = /^-?\d+(?:\.\d+)?$/;
 
+/**
+ * Davet satırındaki AI gerekçesi (`aiReason` Json) → e-posta gövdesi seçimi.
+ * Bozuk / eksik değer gerekçesiz gövdeye düşer.
+ */
+function parseAiReason(raw: unknown): { productName?: string; category?: boolean } {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const r = raw as Record<string, unknown>;
+  if (typeof r.productName === "string" && r.productName.trim()) return { productName: r.productName };
+  return r.category === true ? { category: true } : {};
+}
+
 @Injectable()
 export class CompanyListingsService {
   private readonly logger = new Logger(CompanyListingsService.name);
@@ -1329,6 +1340,7 @@ export class CompanyListingsService {
         number: true,
         type: true,
         companyId: true,
+        inviteShowName: true,
       },
     });
     if (!listing) return;
@@ -1337,8 +1349,17 @@ export class CompanyListingsService {
     const invs = await this.inOwnerContext(listing.companyId, () =>
       this.bypass.listingInvitation.findMany({
         where: { listingId },
-        select: { invitedCompanyId: true },
+        select: { invitedCompanyId: true, origin: true, aiReason: true, invitedCompany: { select: { country: true } } },
       }),
+    );
+    // AI KAYNAKLI DAVETLİ (e-posta akışları 2026-10-05, inceleme): taslak /
+    // embargolu talebe eklenen AI önerisi davetlisi açılışta da AI daveti
+    // olarak duyurulur (`listing_invitation_ai` — DISCOVERY: tek tık çıkış,
+    // günde 3 tavanı + akşam özeti). Eskiden açılış duyurusu onu alıcının
+    // adıyla davet edilmiş gibi `listing_invitation` (ACTIVITY, çıkış
+    // başlığı yok) gönderiyordu — sınıf zamanlamaya bağlıydı.
+    const aiInvitees = new Map(
+      invs.filter((iv) => iv.origin === "AI").map((iv) => [iv.invitedCompanyId, iv] as const),
     );
     // Hatırlatma yalnızca HENÜZ TEKLİF VERMEMİŞ davetlilere gider (davet ise
     // herkese). Teklif vermiş firmaları çıkar.
@@ -1364,6 +1385,22 @@ export class CompanyListingsService {
     // aynı anda elle eklenen davetli iki yoldan da e-posta alıyordu. Yalnız
     // damgayı alanlar bildirilir; hatırlatma ve yeni tur damgaya bakmaz.
     if (mode === "invitation") {
+      const aiTargets = targets.filter((id) => aiInvitees.has(id));
+      targets = targets.filter((id) => !aiInvitees.has(id));
+      if (aiTargets.length > 0) {
+        // Damgayı, tavanı, özeti ve zili `notifyAiMemberInvites` üstlenir.
+        // Hatası elle davetlilerin duyurusunu durdurmaz.
+        await this.notifyAiMemberInvites(
+          listing,
+          aiTargets,
+          (id) => parseAiReason(aiInvitees.get(id)?.aiReason),
+          new Map(aiTargets.map((id) => [id, aiInvitees.get(id)?.invitedCompany?.country ?? null] as const)),
+        ).catch((err) =>
+          this.logger.warn(
+            `AI invitee open notice failed (${listingId}): ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+      }
       targets = await this.claimInvitationNotices(listingId, targets);
     }
     const url = appRoutes.listing(this.webUrl(), listingId);
@@ -1417,6 +1454,10 @@ export class CompanyListingsService {
     for (const invitedCompanyId of targets) {
       const r = recipients.get(invitedCompanyId);
       if (!r) continue;
+      // AI davetlisine hatırlatma da keşif sınıfında (`listing_reminder_ai`,
+      // DISCOVERY); zil tipi aynı kalır (`listing_reminder`).
+      const emailType =
+        mode === "reminder" && aiInvitees.has(invitedCompanyId) ? "listing_reminder_ai" : content.type;
       this.notify(
         r,
         {
@@ -1428,7 +1469,7 @@ export class CompanyListingsService {
           ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
           infoRowsFor: (l) => preview.get(l),
         },
-        { type: content.type, id: listingId },
+        { type: emailType, id: listingId },
       );
     }
     // In-app kanal — davet/hatırlatma/yeni-tur hedeflerine (teklifçi portalı).

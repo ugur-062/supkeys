@@ -55,6 +55,13 @@ export type NotificationEmailClass = "ACTIVITY" | "DISCOVERY";
  * Emin olunamayan tip DISCOVERY'dir — çıkış başlığını korur (uyum açısından
  * güvenli taraf). `lifecycle_*` tipleri önekle LIFECYCLE akışına gider, bu
  * haritada yer almaz.
+ *
+ * Tercih anahtarı paylaşımı: DISCOVERY tipindeki tek tık çıkış YALNIZ kendi
+ * anahtarını kapatır. Keşif tipleri ACTIVITY tipleriyle anahtar paylaşmaz
+ * (`aiInvitation`, `growthNudges` — üstleri `invitation`/`reminder` ana
+ * şalterdir: üst kapalıysa keşif türü de gitmez, tersi değil). Paylaşılan
+ * kalan anahtarlar (`categoryMatch`, `announcement`, `aiSuggestions`) yalnız
+ * DISCOVERY tiplerini kapsar.
  */
 export const NOTIFICATION_EMAIL_CLASS: Record<PrefKeyedNotificationType, NotificationEmailClass> = {
   // ── ACTIVITY: alıcının KENDİ işlemi ya da ona DOĞRUDAN yönelen etkileşim ──
@@ -82,9 +89,12 @@ export const NOTIFICATION_EMAIL_CLASS: Record<PrefKeyedNotificationType, Notific
   listing_category_digest: "DISCOVERY",
   // AI'ın bulduğu ama gösterilmeyen firmaya yükseltme / doğrulama çağrısı.
   listing_ai_match_locked: "DISCOVERY",
-  // AI'ın önerdiği firmaya talep daveti ve davet özeti (alıcı seçmedi).
+  // AI'ın önerdiği firmaya talep daveti, davet özeti ve o davetliye kapanış
+  // hatırlatması (davet edilen firma bu ilişkiyi kendisi kurmadı). Talep
+  // taslak/embargoluyken eklenen AI davetlisi açılışta da bu tiple duyurulur.
   listing_invitation_ai: "DISCOVERY",
   listing_invitation_digest: "DISCOVERY",
+  listing_reminder_ai: "DISCOVERY",
   // Talep sahibine AI tedarikçi önerileri.
   ai_supplier_suggestions: "DISCOVERY",
   // Teklifsiz talep dürtmesi ("AI tedarikçilerini davet edin") — büyüme

@@ -12459,6 +12459,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.marketing.emailPrefs.scope.aiInvitation": {
+    "hash": "b926c9d6dd",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "web.marketing.emailPrefs.scope.aiSuggestions": {
     "hash": "555a8c025a",
     "status": "reviewed",
@@ -12488,6 +12493,11 @@
     "hash": "51eef5f7ae",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.growthNudges": {
+    "hash": "79d29b4762",
+    "status": "reviewed",
+    "at": "2026-10-05"
   },
   "web.marketing.emailPrefs.scope.invitation": {
     "hash": "6da0785f83",
@@ -29659,6 +29669,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.accountSettingsSection.notificationPref.aiInvitation": {
+    "hash": "22c0f32edf",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "web.panel.settings.accountSettingsSection.notificationPref.aiSuggestions": {
     "hash": "d0514a3286",
     "status": "reviewed",
@@ -29684,6 +29699,11 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "web.panel.settings.accountSettingsSection.notificationPref.growthNudges": {
+    "hash": "ea5d16b76d",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "web.panel.settings.accountSettingsSection.notificationPref.invitation": {
     "hash": "83f8b093b1",
     "status": "reviewed",
@@ -29703,6 +29723,11 @@
     "hash": "6d5beee177",
     "status": "reviewed",
     "at": "2026-10-01"
+  },
+  "web.panel.settings.accountSettingsSection.notificationPrefParentOff": {
+    "hash": "d4ba6bfc17",
+    "status": "reviewed",
+    "at": "2026-10-05"
   },
   "web.panel.settings.accountSettingsSection.pwStrength.guclu": {
     "hash": "9dd2b4d65e",
