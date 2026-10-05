@@ -195,6 +195,10 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
   ad. Emoji yardımcıları (`countryFlag`, `codeToFlag`, `PhoneCountry.flag`)
   silindi, geri getirme. Talep satırının alıcı hücresinde ülke kırpılmaz,
   alt satıra kayar.
+  Talep satırı alıcı hücresi (2026-10-05): ad `line-clamp-2` + `title`,
+  bayrak+ülke ayrı satır (`CountryLabel`); doğrulama rozeti satırda kısa
+  anahtar (`card.verifiedBuyerShort` / `browsetenderrow.dogrulanmisAliciKisa`;
+  RU 'Проверен'), tam metin `title`'da.
 - **Büyük Headless UI listesi tembel çizilir:** yüzlerce seçenekli Combobox
   açılış/kapanışta n² maliyetli. `CountryCombobox` ilk 60 satırı çizer
   (`OPTION_PAGE=60`), dibe kaydırdıkça çizilen sayıdan bir sayfa büyür, seçili
@@ -2111,6 +2115,14 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   gönderim de FAILED yazılır (`EMAIL_SKIPPED_SUPPRESSED_PREFIX`/`_OPTED_OUT_PREFIX`), yoksa
   zamanlayıcı her turda yeni satır yazar. `EmailService` `context.id`'ye e-posta adresi yazılmaz
   (Sentry `extra.contextId`'e düşer); günlükte adres her zaman `maskEmail`.
+  **Teslim edilemez alan adı (2026-10-05):** `EmailService` teslim edilemez alan adına
+  (`.local`/`.test`/`.invalid`/`.example`/`.localhost`/`.internal`, `example.com/.net/.org` + alt
+  alanları, noktasız alan adı) GÖNDERMEZ — tek kaynak `modules/email/undeliverable-domain.ts`
+  `undeliverableEmailReason`, `sendNow`'un en başında (DB'den önce). Satır FAILED +
+  `suppressed: teslim edilemez alan adı: …` (`EMAIL_LOG_HANDLED_WHERE` ve e2e atlanan önekleri
+  kapsar), `sent:false`, yeniden deneme/Sentry yok. Test fabrikası `@test.local` adres üretir:
+  gerçek `EmailService`'le gönderim sınayan test gerçek alan adı (`@firma.com`) kullanır.
+  Sözleşme `email-undeliverable-domain.spec`.
 - **DAVET KUYRUĞU** (`external_listing_invites`, talep × adres): eskiden davet
   `CompanyReferralInvite`in kendisiydi ve (davet eden × adres) BENZERSİZ olduğu
   için alıcı aynı tedarikçiyi yalnız İLK talebine davet edebiliyordu. Artık
@@ -3290,9 +3302,9 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **306 dosya / 3.528 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
-  **335 / 2.413** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 411 / 2.864; i18n 8.428 anahtar, en/ru
-  %100) — son kapı HEAD e1831a3d YEŞİL (9/9), 717 dosya / 6.392 test (2 LIVE atlandı), son toparlama 2026-10-04.
+- API **307 dosya / 3.576 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
+  **335 / 2.417** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 411 / 2.868; en/ru
+  %100) — son kapı HEAD 6cae0012 YEŞİL (13/13), 718 dosya / 6.444 test (2 LIVE atlandı), canlı öncesi son tur 2026-10-05.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
