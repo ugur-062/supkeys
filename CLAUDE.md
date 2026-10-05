@@ -2070,16 +2070,40 @@ ama aynı kişiye sık değil". Plan: Faz 0 altyapı → Faz 1 AI tedarikçi ke�
 Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
 
 - **AKIŞLAR** (tek kaynak `modules/email/email-streams.ts`): bağlam tipinden
-  türer — kullanıcının kapatabildiği tür NOTIFICATION, kayıtsız adrese davet
-  (`referral_invite`, `tender_external_invite`) INVITE, `lifecycle_*` LIFECYCLE,
-  kalan her şey TRANSACTIONAL. Akış başına gönderen İSTEĞE BAĞLI env
-  `EMAIL_FROM_ADDRESS_{NOTIFICATION,INVITE,LIFECYCLE}` (boşsa
-  `EMAIL_FROM_ADDRESS`; açılış kapısı alt alan adına izin verir). Öneri:
-  `talep@updates.rothern.com`, `davet@invite.rothern.com` — DNS (SPF/DKIM)
-  Resend'de alan adı eklenince; soğuk davet şikâyeti kodları spam'e sürüklemesin.
-- **TEK TIK ÇIKIŞ (RFC 8058):** işlem dışı her e-posta `List-Unsubscribe` +
+  türer — kayıtsız adrese davet (`referral_invite`, `tender_external_invite`) INVITE,
+  `lifecycle_*` LIFECYCLE, tercih anahtarı olmayan tip (kod/şifre/sipariş,
+  `bid_awarded`, `order_status_changed`, `message_received`...) TRANSACTIONAL.
+  **Tercih anahtarlı tipler (2026-10-05 sahip kararı)** `NOTIFICATION_EMAIL_CLASS`
+  haritasında ACTIVITY/DISCOVERY olarak sınıflanır (`Record<PrefKeyedNotificationType,…>`;
+  yeni tip eklenince derleme kırılır; emin değilsen DISCOVERY). **ACTIVITY** (alıcının
+  kendi işlemi: `listing_invitation`, `listing_reminder`, `bid_eliminated`, `bid_lost`,
+  `listing_closed(_owner)`, `listing_closing_changed`, `listing_evaluation(_reminder)`,
+  `approval_pending`): `List-Unsubscribe` YOK, gönderen `EMAIL_FROM_ADDRESS_ACTIVITY`
+  (boşsa `EMAIL_FROM_ADDRESS`), alt bilgide yalnız `preferencesUrl`
+  (`email.layout.preferencesOnly` / `textPreferencesOnly`) = JETONLU
+  `/e-posta-tercihleri?t=<kapsam>` sayfası (oturumsuz; `billingEmail` dahil her alıcı
+  türü kapatabilir; `JWT_SECRET` yoksa `/company/ayarlar/bildirimler`); çıkış kapısı
+  (EmailOptOut kapsam + `all`) yine uygulanır. **DISCOVERY** → NOTIFICATION akışı
+  (değişmedi: tek tık çıkış + kendi göndericisi): kategori eşleşmesi/özeti,
+  `listing_ai_match_locked`, `listing_invitation_ai`, `listing_invitation_digest`,
+  `listing_reminder_ai`, `ai_supplier_suggestions`, `listing_zero_bid`,
+  `admin_announcement`. Keşif tipi ACTIVITY tipiyle tercih anahtarı paylaşmaz
+  (`email-streams.spec` kilitler). **ALT TERCİHLER:** `notification-prefs.ts`
+  `PREF_KEY_PARENT` (`aiInvitation`→`invitation`, `growthNudges`→`reminder`) + tipe özgü
+  ek kapı (`listing_reminder_ai` ayrıca `reminder`); `gatingPrefKeysForType` hem
+  `isNotificationEnabled` hem EmailService opt-out kapısında (kendi + üst + ek kapsam +
+  `all`); Ayarlar alt satırı üst kapalıyken pasif (web `NOTIFICATION_PREFS.parent`).
+  AI davetlisi (`listing_invitation.origin='AI'`) açılış duyurusunda
+  `notifyAiMemberInvites`e devredilir (`listing_invitation_ai`, günde 3 tavanı/özet),
+  hatırlatması `listing_reminder_ai`; zil tipleri değişmedi. Akış başına gönderen
+  İSTEĞE BAĞLI env `EMAIL_FROM_ADDRESS_{ACTIVITY,NOTIFICATION,INVITE,LIFECYCLE}` (boşsa
+  `EMAIL_FROM_ADDRESS`) + `EMAIL_REPLY_TO`. Önerilen adresler (hepsi doğrulanmış
+  `rothern.com` Resend alan adında, yeni DNS yok): `hesap@` (işlem + ACTIVITY),
+  `bildirim@`, `davet@`, `haber@rothern.com`, yanıt `destek@rothern.com` (eski
+  `talep@updates` / `davet@invite` önerisinin yerine).
+- **TEK TIK ÇIKIŞ (RFC 8058):** NOTIFICATION/INVITE/LIFECYCLE e-postaları (`carriesOneClickUnsubscribe`) `List-Unsubscribe` +
   `List-Unsubscribe-Post` başlığı ve alt bilgide çıkış/tercih bağlantısı taşır
-  (düz metin dahil); kod/şifre/sipariş TAŞIMAZ. Jeton AES-256-GCM (adres +
+  (düz metin dahil); kod/şifre/sipariş ve ACTIVITY TAŞIMAZ. Jeton AES-256-GCM (adres +
   kapsam + dil; anahtar `JWT_SECRET`ten türetilmiş, DB satırı yok, süresiz).
   **KVKK aydınlatma satırı** (HTML Layout ve `renderEmail` düz metni aynı kural)
   `showsPrivacyNotice(env)` = `EmailEnv.privacyNotice || unsubscribeUrl`; EmailService
@@ -3302,9 +3326,9 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **307 dosya / 3.576 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
-  **335 / 2.417** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 411 / 2.868; en/ru
-  %100) — son kapı HEAD 6cae0012 YEŞİL (13/13), 718 dosya / 6.444 test (2 LIVE atlandı), canlı öncesi son tur 2026-10-05.
+- API **3.601 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
+  **336 / 2.419** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 412 / 2.870; en/ru
+  %100) — son kapı HEAD f7ae8f19 YEŞİL (9/9), 6.471 test (2 LIVE atlandı), e-posta akışları turu 2026-10-05.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
