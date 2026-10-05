@@ -56,12 +56,16 @@ export async function renderEmail(
   // bilgisiyle aynı kural: çıkış yalnız işlem dışı e-postada; aydınlatma
   // çıkışla birlikte ya da `privacyNotice` bayrağıyla).
   const privacy = showsPrivacyNotice(env);
-  if (!env.unsubscribeUrl && !privacy) return rendered;
+  if (!env.unsubscribeUrl && !env.preferencesUrl && !privacy) return rendered;
   const t = emailT(locale);
   const lines = [
     ...(env.unsubscribeUrl ? [t("email.layout.textUnsubscribe", { url: env.unsubscribeUrl })] : []),
     ...(env.unsubscribeUrl && env.preferencesUrl
       ? [t("email.layout.textPreferences", { url: env.preferencesUrl })]
+      : []),
+    // ACTIVITY bildirimi: çıkış yok, yalnız bildirim ayarları (HTML ile aynı kural).
+    ...(!env.unsubscribeUrl && env.preferencesUrl
+      ? [t("email.layout.textPreferencesOnly", { url: env.preferencesUrl })]
       : []),
     ...(privacy ? [t("email.layout.textPrivacy", { url: privacyNoticeUrl(env.siteUrl, locale) })] : []),
   ];

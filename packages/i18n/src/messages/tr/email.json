@@ -5,9 +5,11 @@
     "textSignature": "— Rothern",
     "unsubscribe": "Bu tür e-postaları almak istemiyorsanız <unsub>abonelikten çıkın</unsub>.",
     "unsubscribeWithPrefs": "Bu tür e-postaları almak istemiyorsanız <unsub>abonelikten çıkın</unsub> ya da <prefs>e-posta tercihlerinizi yönetin</prefs>.",
+    "preferencesOnly": "Bu e-postayı hesabınızdaki bir işlem nedeniyle aldınız. <prefs>Bildirim ayarlarınızı</prefs> dilediğiniz zaman değiştirebilirsiniz.",
     "privacy": "Kişisel verilerinizin işlenmesine ilişkin bilgi: <privacy>Aydınlatma Metni</privacy>.",
     "textUnsubscribe": "Abonelikten çıkmak için: {url}",
     "textPreferences": "E-posta tercihleri: {url}",
+    "textPreferencesOnly": "Bildirim ayarları: {url}",
     "textPrivacy": "Kişisel verilerin işlenmesi (Aydınlatma Metni): {url}"
   },
   "passwordReset": {

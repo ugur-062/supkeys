@@ -8439,6 +8439,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "email.layout.preferencesOnly": {
+    "hash": "70c0539ade",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "email.layout.privacy": {
     "hash": "c4de442580",
     "status": "reviewed",
@@ -8448,6 +8453,11 @@
     "hash": "da74054150",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "email.layout.textPreferencesOnly": {
+    "hash": "67d73f1b56",
+    "status": "reviewed",
+    "at": "2026-10-05"
   },
   "email.layout.textPrivacy": {
     "hash": "d44b9e11d0",

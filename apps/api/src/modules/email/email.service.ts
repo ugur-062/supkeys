@@ -16,8 +16,9 @@ import { resolveWebUrl } from "../../common/config/web-url";
 import { localizeAppPath } from "../../common/company/app-routes";
 import { isCriticalEmailContext } from "./critical-contexts";
 import {
-  STREAM_SENDER_ENV,
+  carriesOneClickUnsubscribe,
   privacyNoticeFor,
+  resolveStreamSenders,
   streamForContext,
   unsubscribeScopeFor,
   type EmailStream,
@@ -210,16 +211,7 @@ export class EmailService implements OnModuleInit {
     const replyTo = this.config.get<string>("EMAIL_REPLY_TO");
 
     this.providerName = provider;
-    const senderFor = (stream: EmailStream) => {
-      const v = (this.config.get<string>(STREAM_SENDER_ENV[stream]) ?? "").trim();
-      return { email: v || fromEmail, name: fromName };
-    };
-    this.senders = {
-      TRANSACTIONAL: { email: fromEmail, name: fromName },
-      NOTIFICATION: senderFor("NOTIFICATION"),
-      INVITE: senderFor("INVITE"),
-      LIFECYCLE: senderFor("LIFECYCLE"),
-    };
+    this.senders = resolveStreamSenders((k) => this.config.get<string>(k), fromEmail, fromName);
     this.client = createEmailClient({
       provider,
       from: { email: fromEmail, name: fromName },
@@ -368,7 +360,16 @@ export class EmailService implements OnModuleInit {
       this.logger.log(`skipped (opted out of "${scope}"): ${input.templateData.template}`);
       return { emailLogId: skipped.id, sent: false, skipReason: "opted_out" };
     }
-    const unsubscribe = scope ? this.unsubscribeLinks(input.to.email, scope, input.locale ?? "tr", stream) : null;
+    // ACTIVITY (alıcının kendi işlemi): kapı yukarıda kapsamı uyguladı ama
+    // çıkış başlığı/bağlantısı BASILMAZ — yalnız sessiz bildirim ayarları
+    // bağlantısı (Gmail Promosyonlar sekmesi; sahip kararı 2026-10-05).
+    const unsubscribe =
+      scope && carriesOneClickUnsubscribe(stream)
+        ? this.unsubscribeLinks(input.to.email, scope, input.locale ?? "tr", stream)
+        : null;
+    const footerEnv: { unsubscribeUrl?: string; preferencesUrl?: string } =
+      unsubscribe?.env ??
+      (stream === "ACTIVITY" ? { preferencesUrl: this.preferencesUrl(input.locale ?? "tr") } : {});
 
     // Hassas tiplerde token/kod düz saklanmaz (bkz. REDACTED_CONTEXT_TYPES).
     // NOT: bu payload ile YENİDEN GÖNDERİM yapılamaz — admin-email-logs.resend
@@ -402,7 +403,7 @@ export class EmailService implements OnModuleInit {
         siteUrl: resolveWebUrl(this.config),
         // KVKK aydınlatma: çıkıştan bağımsız (üye olmayan adrese işlem e-postası).
         privacyNotice: privacyNoticeFor(input.context?.type),
-        ...(unsubscribe?.env ?? {}),
+        ...footerEnv,
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -514,6 +515,11 @@ export class EmailService implements OnModuleInit {
     return !!invite;
   }
 
+  /** Kayıtlı kullanıcının bildirim ayarları sayfası (alıcının dilinde). */
+  private preferencesUrl(locale: Locale): string {
+    return `${resolveWebUrl(this.config)}${localizeAppPath(PREFERENCES_PATH, locale)}`;
+  }
+
   /**
    * Alt bilgi bağlantıları + RFC 8058 başlıkları. `JWT_SECRET` yoksa (yalnız
    * yerel test) jeton imzalanamaz → çıkış bağlantısı basılmaz, e-posta yine gider.
@@ -535,7 +541,7 @@ export class EmailService implements OnModuleInit {
         unsubscribeUrl: pageUrl,
         // Tercih ekranı yalnız hesabı olan alıcıya anlamlı; davet adresi
         // kayıtsızdır → bağlantı basılmaz.
-        ...(stream === "INVITE" ? {} : { preferencesUrl: `${web}${localizeAppPath(PREFERENCES_PATH, locale)}` }),
+        ...(stream === "INVITE" ? {} : { preferencesUrl: this.preferencesUrl(locale) }),
       },
       headers: {
         "List-Unsubscribe": `<${oneClickUrl}>`,

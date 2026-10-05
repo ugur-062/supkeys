@@ -5,9 +5,11 @@
     "textSignature": "— Rothern",
     "unsubscribe": "Don’t want these emails? <unsub>Unsubscribe</unsub>.",
     "unsubscribeWithPrefs": "Don’t want these emails? <unsub>Unsubscribe</unsub> or <prefs>manage your email preferences</prefs>.",
+    "preferencesOnly": "You received this email because of activity on your account. You can change your <prefs>notification settings</prefs> at any time.",
     "privacy": "How we process personal data: <privacy>Privacy notice</privacy>.",
     "textUnsubscribe": "Unsubscribe: {url}",
     "textPreferences": "Email preferences: {url}",
+    "textPreferencesOnly": "Notification settings: {url}",
     "textPrivacy": "Privacy notice: {url}"
   },
   "passwordReset": {

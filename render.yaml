@@ -93,8 +93,15 @@ services:
       # ── E-posta (Resend) ──
       - key: EMAIL_FROM_ADDRESS # doğrulanmış domain adresi (onboarding@resend.dev DEĞİL)
         sync: false
-      - key: EMAIL_REPLY_TO
+      - key: EMAIL_REPLY_TO # destek@rothern.com
         sync: false
+      # Akış başına gönderen — İSTEĞE BAĞLI, burada anahtar olarak listelenmez
+      # (boşsa EMAIL_FROM_ADDRESS'e düşer); gerekirse Render panelinden elle:
+      #   EMAIL_FROM_ADDRESS_ACTIVITY=hesap@rothern.com      (kendi işlem bildirimleri, çıkış başlığı yok)
+      #   EMAIL_FROM_ADDRESS_NOTIFICATION=bildirim@rothern.com (keşif bildirimleri, tek tık çıkış)
+      #   EMAIL_FROM_ADDRESS_INVITE=davet@rothern.com        (kayıtsız adrese davet)
+      #   EMAIL_FROM_ADDRESS_LIFECYCLE=haber@rothern.com     (karşılama serisi / özet)
+      # Bkz. .env.production.example ve apps/api/src/modules/email/email-streams.ts.
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET

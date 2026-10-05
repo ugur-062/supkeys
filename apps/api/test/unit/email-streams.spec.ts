@@ -1,11 +1,30 @@
-import { privacyNoticeFor, streamForContext, unsubscribeScopeFor } from "../../src/modules/email/email-streams";
+import { renderEmail } from "@rothern/email";
+import {
+  NOTIFICATION_EMAIL_CLASS,
+  carriesOneClickUnsubscribe,
+  notificationEmailClass,
+  privacyNoticeFor,
+  resolveStreamSenders,
+  streamForContext,
+  unclassifiedPrefKeyedTypes,
+  unsubscribeScopeFor,
+} from "../../src/modules/email/email-streams";
+import {
+  PREF_KEYED_NOTIFICATION_TYPES,
+  isNotificationEnabled,
+  prefKeyForType,
+} from "../../src/common/notifications/notification-prefs";
 import {
   isUnsubscribeScope,
   signUnsubscribeToken,
   verifyUnsubscribeToken,
 } from "../../src/modules/email/unsubscribe-token";
 import { maskEmail } from "../../src/modules/email/email-unsubscribe.service";
-import { checkProdSenderDomain } from "../../src/common/config/email-sender";
+import {
+  OPTIONAL_STREAM_SENDER_ENVS,
+  assertProdStreamSenders,
+  checkProdSenderDomain,
+} from "../../src/common/config/email-sender";
 
 /**
  * E-POSTA AKIŞLARI + TEK TIK ÇIKIŞ JETONU sözleşmesi (2026-09-27).
@@ -48,6 +67,168 @@ describe("email-streams", () => {
     for (const t of ["email_verify", "password_reset", "login_2fa", "order_status_changed", undefined]) {
       expect(privacyNoticeFor(t)).toBe(false);
     }
+  });
+});
+
+/**
+ * ACTIVITY / DISCOVERY ayrımı (sahip kararı 2026-10-05): bildirim e-postaları
+ * Gmail Promosyonlar sekmesine düşüyordu. Alıcının kendi işlemine dair
+ * bildirim çıkış başlığı taşımaz, işlem göndericisinden çıkar; keşif/öneri/özet
+ * değişmez.
+ */
+describe("bildirim e-posta sınıfı (ACTIVITY / DISCOVERY)", () => {
+  const ACTIVITY = [
+    "listing_invitation",
+    "listing_reminder",
+    "bid_eliminated",
+    "bid_lost",
+    "listing_closed",
+    "listing_closed_owner",
+    "listing_closing_changed",
+    "listing_evaluation",
+    "listing_evaluation_reminder",
+    "approval_pending",
+  ];
+  const DISCOVERY = [
+    "listing_category_match",
+    "listing_category_digest",
+    "listing_ai_match_locked",
+    "listing_invitation_ai",
+    "listing_invitation_digest",
+    "ai_supplier_suggestions",
+    "listing_zero_bid",
+    "admin_announcement",
+  ];
+
+  it("tercih anahtarlı HER tip sınıflı; haritada tercih anahtarı olmayan tip yok", () => {
+    expect(PREF_KEYED_NOTIFICATION_TYPES.length).toBeGreaterThan(0);
+    expect(unclassifiedPrefKeyedTypes()).toEqual([]);
+    for (const t of Object.keys(NOTIFICATION_EMAIL_CLASS)) expect(prefKeyForType(t)).not.toBeNull();
+    // Beklenen liste haritayla birebir: yeni tip bilinçli sınıflanmalı.
+    expect([...ACTIVITY, ...DISCOVERY].sort()).toEqual([...PREF_KEYED_NOTIFICATION_TYPES].sort());
+  });
+
+  it("alıcının kendi işlemi ACTIVITY akışında: çıkış başlığı yok, çıkış kapsamı (kapı için) korunur", () => {
+    for (const t of ACTIVITY) {
+      expect(notificationEmailClass(t)).toBe("ACTIVITY");
+      expect(streamForContext(t)).toBe("ACTIVITY");
+      expect(carriesOneClickUnsubscribe(streamForContext(t))).toBe(false);
+      expect(unsubscribeScopeFor(t)).toBe(prefKeyForType(t));
+    }
+  });
+
+  it("keşif / öneri / özet / duyuru NOTIFICATION akışında kalır ve tek tık çıkış taşır", () => {
+    for (const t of DISCOVERY) {
+      expect(notificationEmailClass(t)).toBe("DISCOVERY");
+      expect(streamForContext(t)).toBe("NOTIFICATION");
+      expect(carriesOneClickUnsubscribe(streamForContext(t))).toBe(true);
+    }
+    expect(streamForContext("listing_category_match")).toBe("NOTIFICATION");
+  });
+
+  it("bilinmeyen tip DISCOVERY'ye düşer (güvenli taraf); prototip adları tercih sayılmaz", () => {
+    expect(notificationEmailClass("yeni_bilinmeyen_tip")).toBe("DISCOVERY");
+    expect(notificationEmailClass("constructor")).toBe("DISCOVERY");
+    expect(prefKeyForType("constructor")).toBeNull();
+    expect(streamForContext("constructor")).toBe("TRANSACTIONAL");
+  });
+
+  it("akış başına çıkış başlığı kuralı", () => {
+    expect(carriesOneClickUnsubscribe("TRANSACTIONAL")).toBe(false);
+    expect(carriesOneClickUnsubscribe("ACTIVITY")).toBe(false);
+    expect(carriesOneClickUnsubscribe("NOTIFICATION")).toBe(true);
+    expect(carriesOneClickUnsubscribe("INVITE")).toBe(true);
+    expect(carriesOneClickUnsubscribe("LIFECYCLE")).toBe(true);
+  });
+
+  it("kullanıcı tercihi ACTIVITY tipinde de aynen uygulanır (kapalıysa gönderilmez)", () => {
+    expect(isNotificationEnabled({ bidElimination: false }, "bid_eliminated")).toBe(false);
+    expect(isNotificationEnabled({ listingClosed: false }, "listing_closed")).toBe(false);
+    expect(isNotificationEnabled({ approvalPending: false }, "approval_pending")).toBe(false);
+    expect(isNotificationEnabled({ invitation: false }, "listing_invitation")).toBe(false);
+    expect(isNotificationEnabled({}, "bid_eliminated")).toBe(true);
+    expect(isNotificationEnabled(null, "listing_reminder")).toBe(true);
+  });
+
+  it("ACTIVITY KVKK aydınlatma satırını korur (işlem dışı akış)", () => {
+    expect(privacyNoticeFor("bid_eliminated")).toBe(true);
+  });
+});
+
+describe("akış göndericisi seçimi", () => {
+  const FROM = "no-reply@rothern.com";
+
+  it("akış değişkeni yoksa (ya da boşsa) her akış EMAIL_FROM_ADDRESS'ten çıkar", () => {
+    const s = resolveStreamSenders((k) => (k === "EMAIL_FROM_ADDRESS_ACTIVITY" ? "   " : undefined), FROM, "Rothern");
+    for (const stream of ["TRANSACTIONAL", "ACTIVITY", "NOTIFICATION", "INVITE", "LIFECYCLE"] as const) {
+      expect(s[stream]).toEqual({ email: FROM, name: "Rothern" });
+    }
+  });
+
+  it("EMAIL_FROM_ADDRESS_ACTIVITY doluysa ACTIVITY ondan, keşif bildirimi kendi göndericisinden çıkar", () => {
+    const env: Record<string, string> = {
+      EMAIL_FROM_ADDRESS_ACTIVITY: " hesap@rothern.com ",
+      EMAIL_FROM_ADDRESS_NOTIFICATION: "bildirim@rothern.com",
+      EMAIL_FROM_ADDRESS_INVITE: "davet@rothern.com",
+      EMAIL_FROM_ADDRESS_LIFECYCLE: "haber@rothern.com",
+    };
+    const s = resolveStreamSenders((k) => env[k], FROM);
+    expect(s.TRANSACTIONAL.email).toBe(FROM);
+    expect(s.ACTIVITY.email).toBe("hesap@rothern.com");
+    expect(s.NOTIFICATION.email).toBe("bildirim@rothern.com");
+    expect(s.INVITE.email).toBe("davet@rothern.com");
+    expect(s.LIFECYCLE.email).toBe("haber@rothern.com");
+  });
+
+  it("canlı açılış kapısı EMAIL_FROM_ADDRESS_ACTIVITY'yi de denetler", () => {
+    expect(OPTIONAL_STREAM_SENDER_ENVS).toContain("EMAIL_FROM_ADDRESS_ACTIVITY");
+    const cfg = (v: string) =>
+      ({
+        get: (k: string) =>
+          ({ NODE_ENV: "production", WEB_URL: "https://www.rothern.com", EMAIL_FROM_ADDRESS_ACTIVITY: v })[k],
+      }) as never;
+    expect(() => assertProdStreamSenders(cfg("hesap@rothern.com"))).not.toThrow();
+    expect(() => assertProdStreamSenders(cfg("hesap@resend.dev"))).toThrow(/EMAIL_FROM_ADDRESS_ACTIVITY/);
+  });
+});
+
+describe("alt bilgi: ACTIVITY yalnız bildirim ayarları bağlantısı", () => {
+  const spec = {
+    template: "notification",
+    data: { subject: "S", heading: "Teklifiniz elendi", paragraphs: ["Merhaba,"] },
+  } as const;
+  const env = { siteUrl: "https://www.rothern.com", now: new Date("2026-10-05T09:00:00Z") };
+  const prefs = "https://www.rothern.com/company/ayarlar/bildirimler";
+
+  it.each([
+    ["tr", "Bildirim ayarlarınızı", "Bildirim ayarları:"],
+    ["en", "notification settings", "Notification settings:"],
+    ["ru", "Настройки уведомлений", "Настройки уведомлений:"],
+  ] as const)("%s: tercih bağlantısı var, çıkış satırı yok (HTML + düz metin)", async (locale, html, text) => {
+    const out = await renderEmail(spec, locale, { ...env, preferencesUrl: prefs, privacyNotice: true });
+    expect(out.html).toContain(html);
+    expect(out.html).toContain(`href="${prefs}"`);
+    expect(out.html).not.toMatch(/abonelikten çıkın|Unsubscribe|Отпишитесь/);
+    expect(out.text).toContain(`${text} ${prefs}`);
+    expect(out.text).not.toMatch(/Abonelikten çıkmak|Unsubscribe:|Отписаться:/);
+  });
+
+  it("DISCOVERY: çıkış + tercih satırı (eski varyant), sessiz varyant basılmaz", async () => {
+    const out = await renderEmail(spec, "tr", {
+      ...env,
+      unsubscribeUrl: "https://www.rothern.com/e-posta-tercihleri?t=x",
+      preferencesUrl: prefs,
+    });
+    expect(out.html).toContain("abonelikten çıkın");
+    expect(out.html).not.toContain("hesabınızdaki bir işlem");
+    expect(out.text).toContain("Abonelikten çıkmak için:");
+    expect(out.text).not.toContain("Bildirim ayarları:");
+  });
+
+  it("işlem e-postası: ne çıkış ne tercih bağlantısı", async () => {
+    const out = await renderEmail(spec, "tr", env);
+    expect(out.html).not.toContain(prefs);
+    expect(out.text).not.toContain(prefs);
   });
 });
 

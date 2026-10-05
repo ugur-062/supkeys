@@ -117,12 +117,14 @@ export function assertProdEmailSender(config: ConfigService): void {
 }
 
 /**
- * Akış göndericileri (2026-09-27): `EMAIL_FROM_ADDRESS_{NOTIFICATION,INVITE,
- * LIFECYCLE}` İSTEĞE BAĞLI — boşsa akış varsayılan göndericiye düşer. Doluysa
+ * Akış göndericileri (2026-09-27): `EMAIL_FROM_ADDRESS_{ACTIVITY,NOTIFICATION,
+ * INVITE,LIFECYCLE}` İSTEĞE BAĞLI — boşsa akış varsayılan göndericiye düşer
+ * (ACTIVITY 2026-10-05: alıcının kendi işlemine dair bildirimler). Doluysa
  * aynı alan adı kuralı işler (alt alan adı serbest: `davet@invite.rothern.com`).
  * Yanlış bir değer davetlerin sağlayıcı test alanından çıkmasına yol açardı.
  */
 export const OPTIONAL_STREAM_SENDER_ENVS = [
+  "EMAIL_FROM_ADDRESS_ACTIVITY",
   "EMAIL_FROM_ADDRESS_NOTIFICATION",
   "EMAIL_FROM_ADDRESS_INVITE",
   "EMAIL_FROM_ADDRESS_LIFECYCLE",

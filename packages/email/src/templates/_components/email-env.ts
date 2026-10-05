@@ -20,7 +20,12 @@ export interface EmailEnv {
    * çıkın" satırını basar — işlem e-postalarında (kod, şifre, sipariş) YOK.
    */
   unsubscribeUrl?: string;
-  /** Kayıtlı kullanıcının bildirim ayarları sayfası (varsa alt bilgide). */
+  /**
+   * Kayıtlı kullanıcının bildirim ayarları sayfası (varsa alt bilgide).
+   * `unsubscribeUrl` OLMADAN verilirse (alıcının kendi işlemine dair ACTIVITY
+   * bildirimi, 2026-10-05) alt bilgi çıkış satırı yerine yalnız sessiz bir
+   * "bildirim ayarları" bağlantısı basar.
+   */
   preferencesUrl?: string;
   /**
    * KVKK aydınlatma bağlantısını çıkış bağlantısından BAĞIMSIZ açar (derin

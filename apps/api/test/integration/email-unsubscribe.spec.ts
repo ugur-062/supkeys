@@ -8,6 +8,7 @@ import { renderEmail } from "@rothern/email";
 import { EmailService } from "../../src/modules/email/email.service";
 import { EmailUnsubscribeService } from "../../src/modules/email/email-unsubscribe.service";
 import { signUnsubscribeToken } from "../../src/modules/email/unsubscribe-token";
+import { resolveStreamSenders } from "../../src/modules/email/email-streams";
 import { AdminEmailLogsService } from "../../src/modules/email/admin-email-logs.service";
 import { NOTIFICATION_PREF_KEYS } from "../../src/common/notifications/notification-prefs";
 import { prisma, truncateAll } from "./test-db";
@@ -90,6 +91,51 @@ describe("EmailService — çıkış başlıkları", () => {
     expect(envs[1].privacyNotice).toBe(true);
     expect(envs[2].privacyNotice).toBe(false);
     expect(envs[3].privacyNotice).toBe(true);
+  });
+
+  it("ACTIVITY (kendi teklifim elendi) → çıkış başlığı YOK, alt bilgide yalnız bildirim ayarları (2026-10-05)", async () => {
+    const { svc, send } = makeEmail();
+    const res = await svc.send(mail("tedarik@firma.com", "bid_eliminated"));
+    expect(res.sent).toBe(true);
+    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    const env = (renderEmail as jest.Mock).mock.calls[0][2];
+    expect(env.unsubscribeUrl).toBeUndefined();
+    expect(env.preferencesUrl).toBe("https://www.rothern.com/en/company/settings/notifications");
+    expect(env.privacyNotice).toBe(true);
+  });
+
+  it("ACTIVITY işlem göndericisinden, keşif bildirimi kendi göndericisinden çıkar", async () => {
+    const { svc, send } = makeEmail();
+    const senders = (env: Record<string, string>) =>
+      resolveStreamSenders((k) => env[k], "no-reply@rothern.com", "Rothern");
+    (svc as unknown as { senders: unknown }).senders = senders({
+      EMAIL_FROM_ADDRESS_ACTIVITY: "hesap@rothern.com",
+      EMAIL_FROM_ADDRESS_NOTIFICATION: "bildirim@rothern.com",
+    });
+    await svc.send(mail("a@firma.com", "listing_closed"));
+    await svc.send(mail("a@firma.com", "listing_category_match"));
+    expect(send.mock.calls[0][0].from).toEqual({ email: "hesap@rothern.com", name: "Rothern" });
+    expect(send.mock.calls[1][0].from).toEqual({ email: "bildirim@rothern.com", name: "Rothern" });
+    expect(send.mock.calls[1][0].headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+
+    // Değişken yoksa ACTIVITY EMAIL_FROM_ADDRESS'e düşer.
+    (svc as unknown as { senders: unknown }).senders = senders({});
+    await svc.send(mail("a@firma.com", "approval_pending"));
+    expect(send.mock.calls[2][0].from).toEqual({ email: "no-reply@rothern.com", name: "Rothern" });
+  });
+
+  it("ACTIVITY: daha önce o kapsamdan ya da 'tümü'nden çıkmış adres yine atlanır", async () => {
+    const { svc, send } = makeEmail();
+    await prisma.emailOptOut.create({ data: { email: "muhasebe@firma.com", scope: "bidElimination" } });
+    await prisma.emailOptOut.create({ data: { email: "hepsi@firma.com", scope: "all" } });
+    const a = await svc.send(mail("muhasebe@firma.com", "bid_lost"));
+    const b = await svc.send(mail("hepsi@firma.com", "listing_closed"));
+    expect(a).toMatchObject({ sent: false, skipReason: "opted_out" });
+    expect(b).toMatchObject({ sent: false, skipReason: "opted_out" });
+    // Başka kapsam (listingClosed) gider.
+    const c = await svc.send(mail("muhasebe@firma.com", "listing_closed"));
+    expect(c.sent).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("davet akışında tercih bağlantısı yok (kayıtsız adres)", async () => {

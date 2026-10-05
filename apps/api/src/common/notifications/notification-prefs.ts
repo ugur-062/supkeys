@@ -41,7 +41,7 @@ export type NotificationPrefKey = (typeof NOTIFICATION_PREF_KEYS)[number];
  * Bildirim `type` etiketi → tercih anahtarı. `null` = transactional (kapatılamaz):
  * password_reset, referral_invite, bid_awarded, order_status_changed.
  */
-const PREF_KEY_BY_TYPE: Record<string, NotificationPrefKey | undefined> = {
+const PREF_KEY_BY_TYPE = {
   listing_invitation: "invitation",
   listing_reminder: "reminder",
   bid_eliminated: "bidElimination",
@@ -68,7 +68,16 @@ const PREF_KEY_BY_TYPE: Record<string, NotificationPrefKey | undefined> = {
   listing_zero_bid: "reminder",
   // Aşağıdakiler bilinçli olarak listelenmez → transactional:
   //   password_reset, referral_invite, bid_awarded, order_status_changed
-};
+} as const satisfies Record<string, NotificationPrefKey>;
+
+/**
+ * Tercih anahtarı olan (kullanıcının kapatabildiği) bildirim tipleri. E-posta
+ * akış sınıflaması (`email-streams.ts` `NOTIFICATION_EMAIL_CLASS`) bu tiplerin
+ * HER BİRİNİ kapsamak zorundadır — tip sistemi ve kapsama testi zorlar.
+ * `lifecycle_*` önekli tipler burada değil (önekle `lifecycle` anahtarına düşer).
+ */
+export type PrefKeyedNotificationType = keyof typeof PREF_KEY_BY_TYPE;
+export const PREF_KEYED_NOTIFICATION_TYPES = Object.keys(PREF_KEY_BY_TYPE) as PrefKeyedNotificationType[];
 
 type Prefs = Record<string, boolean> | null | undefined;
 
@@ -87,7 +96,10 @@ export function isNotificationEnabled(prefs: Prefs, type: string): boolean {
 export function prefKeyForType(type: string | undefined | null): NotificationPrefKey | null {
   if (!type) return null;
   if (type.startsWith("lifecycle_")) return "lifecycle";
-  return PREF_KEY_BY_TYPE[type] ?? null;
+  // Yalnız kendi anahtarı: "constructor" gibi prototip adları tercih sayılmaz.
+  return Object.hasOwn(PREF_KEY_BY_TYPE, type)
+    ? (PREF_KEY_BY_TYPE as Record<string, NotificationPrefKey>)[type]!
+    : null;
 }
 
 export function isNotificationPrefKey(v: unknown): v is NotificationPrefKey {

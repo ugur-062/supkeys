@@ -216,6 +216,18 @@ export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutPro
                   },
                 )}
               </>
+            ) : env.preferencesUrl ? (
+              <>
+                {/* ACTIVITY: çıkış yok, yalnız bildirim ayarları (sessiz). */}
+                <br />
+                {t.rich("email.layout.preferencesOnly", {
+                  prefs: (chunks: React.ReactNode) => (
+                    <a href={env.preferencesUrl} className="r-foot" style={footerLink}>
+                      {chunks}
+                    </a>
+                  ),
+                })}
+              </>
             ) : null}
             {/* KVKK aydınlatma: çıkış bağlantısıyla birlikte ya da üye
                 olmayan adrese giden işlem e-postasında (`privacyNotice`). */}
