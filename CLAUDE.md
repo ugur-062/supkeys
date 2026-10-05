@@ -3341,9 +3341,9 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **3.601 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
-  **336 / 2.419** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 412 / 2.870; en/ru
-  %100) — son kapı HEAD f7ae8f19 YEŞİL (9/9), 6.471 test (2 LIVE atlandı), e-posta akışları turu 2026-10-05.
+- API **3.630 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
+  **2.420** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 2.871; en/ru
+  %100) — son kapı HEAD 251e47b2 YEŞİL (9/9), 6.501 test (2 LIVE atlandı), staging e-posta izin listesi turu 2026-10-05.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
