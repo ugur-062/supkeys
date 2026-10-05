@@ -26,6 +26,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
+import { Badge } from "@/components/ui/badge";
 import { ListingTeaserRow } from "@/components/marketplace/listing-teaser-row";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { BuyerCountryScope, ScopeBesideBuyer, TargetScope } from "@/components/tenders/target-scope";
@@ -85,12 +86,29 @@ describe("Açık Talepler FİRMA hücresi sütuna sığar (bulgu 1, yüksek)", (
     expect(root.className).toContain("max-w-full");
     expect(root.className).toContain("min-w-0");
 
-    // Etiket kısalmaz, en çok iki satıra sarılır (RU "Покупатель скрыт" → "Покупател…" bulgusu).
-    const hidden = within(cell).getByText("Alıcı gizli");
+    // Etiket kısalmaz, en çok iki satıra sarılır (RU "Покупатель скрыт" → "Покупател…" bulgusu)
+    // ve YALNIZ BOŞLUKTA sarılır (gizli satır rozeti, staging 2026-10-05: `break-words`
+    // 1366 px'te "Покупате / ль скрыт" bölüyordu). Kilit karosu ilk sözcükten yer
+    // çalmasın diye kilit SONDA, son sözcükle aynı nowrap parçada küçük ikon.
+    const hidden = within(cell).getByTitle("Alıcı gizli");
     expect(hidden.className).toContain("line-clamp-2");
-    expect(hidden.className).toContain("break-words");
+    expect(hidden.className).toContain("break-normal");
+    expect(hidden.className).toContain("hyphens-none");
+    expect(hidden.className).not.toContain("break-words");
+    expect(hidden.className).not.toContain("break-all");
     expect(hidden.className).not.toContain("truncate");
+    expect(hidden.className).toContain("max-w-full");
     expect(hidden).toHaveAttribute("title", "Alıcı gizli");
+    const lock = hidden.querySelector("svg") as SVGElement;
+    expect(lock).not.toBeNull();
+    expect(lock.getAttribute("aria-hidden")).toBe("true");
+    const tail = lock.parentElement!;
+    expect(tail.parentElement).toBe(hidden);
+    expect(tail.className).toContain("whitespace-nowrap");
+    expect(tail.textContent).toBe("gizli");
+    expect(hidden.lastElementChild).toBe(tail);
+    expect(hidden.textContent).toBe("Alıcı gizli");
+    expect(hidden.querySelector(".rounded-md")).toBeNull(); // sol kilit karosu yok
 
     // "Alıcı gizli" ile ülke AYNI sarılan satırda; sığmazsa ülke alt satıra iner.
     const line = hidden.closest(".flex-wrap") as HTMLElement;
@@ -105,11 +123,28 @@ describe("Açık Talepler FİRMA hücresi sütuna sığar (bulgu 1, yüksek)", (
     // Satır başında sarkacak "·" ayracı yok.
     expect(line.textContent).not.toContain("·");
 
-    // Rozet de hücreyi aşmaz: kısa metin (RU "Проверен"), tam metin title'da.
-    const badge = within(cell).getByText("Doğrulanmış alıcı");
-    expect(badge.className).toContain("truncate");
-    expect(badge.parentElement!.className).toContain("max-w-full");
-    expect(badge.parentElement!).toHaveAttribute("title", "Doğrulanmış alıcı");
+    // Rozet hücreyi aşmaz ve "…" ile kısalmaz (gizli satır rozeti: TR 1280–1366 px'te
+    // "Doğrulanmış …" oluyordu): kısa metin (TR "Doğrulanmış", RU "Проверен"), sığmazsa
+    // BOŞLUKTA sarılır (`wrap`), tam metin title'da.
+    const badgeText = within(cell).getByText("Doğrulanmış");
+    expect(badgeText.className).not.toContain("truncate");
+    const badge = badgeText.parentElement!;
+    expect(badge.className).toContain("max-w-full");
+    expect(badge.className).toContain("whitespace-normal");
+    expect(badge.className).toContain("break-normal");
+    expect(badge.className).toContain("h-auto");
+    expect(badge.className).not.toContain("whitespace-nowrap");
+    expect(badge.className).not.toMatch(/(^|\s)h-5(\s|$)/);
+    expect(badge).toHaveAttribute("title", "Doğrulanmış alıcı");
+  });
+
+  it("adı görünen satırda uzun firma adı taşmaz: `break-words` (yalnız maskeli etiket boşlukta sarılır)", () => {
+    useCompanyAuthStore.setState({ company: { tier: "SILVER", companyVerificationStatus: "VERIFIED" } as never });
+    const t = sellerRow({ owner: { id: "c1", name: "Uzunboşluksuzfirmaadısanayiveticaretanonimşirketi" } });
+    const { container } = render(<BrowseTenderRow t={t} />);
+    const name = within(firmaCell(container)).getByText(t.owner!.name);
+    expect(name.className).toContain("break-words");
+    expect(name.className).toContain("line-clamp-2");
   });
 
   it("adı görünen alıcı (SILVER/GOLD): ad iki satıra sarılır (title tam ad), bayrak + ülke KENDİ satırında", () => {
@@ -156,7 +191,7 @@ describe("Açık Talepler FİRMA hücresi sütuna sığar (bulgu 1, yüksek)", (
       <BrowseTenderRow t={sellerRow({ id: "masked:ROT-1", masked: true, owner: null, ownerCountry: null })} />,
     );
     const cell = firmaCell(container);
-    expect(within(cell).getByText("Alıcı gizli")).toBeInTheDocument();
+    expect(within(cell).getByTitle("Alıcı gizli")).toHaveTextContent("Alıcı gizli");
     expect(cell.querySelector('img[src^="/flags/"]')).toBeNull();
   });
 });
@@ -208,8 +243,28 @@ describe("herkese açık talep satırı: ülke faaliyetten ÖNCELİKLİ (bulgu 2
   });
 });
 
-describe("RU satır rozeti kısa, TR/EN değişmez (canlı öncesi son tur)", () => {
-  it("satır rozetinin kısa metni: RU 'Проверен', TR/EN tam metinle aynı; tam metin ayrı anahtarda kalır", () => {
+describe("paylaşılan Badge `wrap` (gizli satır rozeti)", () => {
+  it("varsayılan rozet tek satır hap (h-5, nowrap); `wrap` boşlukta sarılan, içeriğe göre uzayan rozet", () => {
+    const { rerender } = rtlRender(<Badge tone="verified" size="sm">Doğrulanmış alıcı</Badge>);
+    let el = screen.getByText("Doğrulanmış alıcı");
+    expect(el.className).toContain("whitespace-nowrap");
+    expect(el.className).toContain("h-5");
+    expect(el.className).toContain("rounded-full");
+    rerender(<Badge tone="verified" size="sm" wrap>Doğrulanmış alıcı</Badge>);
+    el = screen.getByText("Doğrulanmış alıcı");
+    expect(el.className).not.toContain("whitespace-nowrap");
+    expect(el.className).toContain("whitespace-normal");
+    expect(el.className).toContain("break-normal");
+    expect(el.className).toContain("hyphens-none");
+    expect(el.className).toContain("h-auto");
+    expect(el.className).toContain("min-h-5");
+    expect(el.className).not.toMatch(/(^|\s)h-5(\s|$)/);
+    expect(el.className).not.toContain("rounded-full");
+  });
+});
+
+describe("satır rozeti kısa metni (canlı öncesi son tur + gizli satır rozeti)", () => {
+  it("kart rozeti: RU 'Проверен', TR/EN tam metin; panel satırı: TR 'Doğrulanmış' / EN 'Verified' / RU 'Проверен'; tam metin ayrı anahtarda kalır", () => {
     const pick = (locale: "tr" | "en" | "ru") => {
       type Row = { verifiedBuyer: string; verifiedBuyerShort: string; dogrulanmisAlici: string; dogrulanmisAliciKisa: string };
       const m = messagesFor(locale, WEB_NAMESPACES) as unknown as {
@@ -230,8 +285,16 @@ describe("RU satır rozeti kısa, TR/EN değişmez (canlı öncesi son tur)", ()
     for (const l of ["tr", "en"] as const) {
       const v = pick(l);
       expect(v.cardShort).toBe(v.cardFull);
-      expect(v.rowShort).toBe(v.rowFull);
     }
+    // Panel maskeli satırı: değer hücresi 1280 px'te 82, 1366 px'te 100 px — tam metin
+    // (TR 108 px rozet) sığmıyordu. Kısa biçim tek sözcük, tam metin `title`da.
+    const tr = pick("tr");
+    const en = pick("en");
+    expect(tr.rowShort).toBe("Doğrulanmış");
+    expect(tr.rowFull).toBe("Doğrulanmış alıcı");
+    expect(en.rowShort).toBe("Verified");
+    expect(en.rowFull).toBe("Verified buyer");
+    for (const v of [tr, en, ru]) expect(v.rowShort).not.toContain(" ");
   });
 });
 

@@ -1759,11 +1759,6 @@
     "status": "reviewed",
     "at": "2026-10-05"
   },
-  "api.companyConnections.buOrtamdaEPostaGonderilmedi": {
-    "hash": "9519262698",
-    "status": "reviewed",
-    "at": "2026-10-05"
-  },
   "api.companyConnections.buEPostaAdresiDavetAlmak": {
     "hash": "6d4a68fc92",
     "status": "reviewed",
@@ -1788,6 +1783,11 @@
     "hash": "bd00846805",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "api.companyConnections.buOrtamdaEPostaGonderilmedi": {
+    "hash": "9519262698",
+    "status": "reviewed",
+    "at": "2026-10-05"
   },
   "api.companyConnections.buRothernIdYeSahipFirma": {
     "hash": "bc83adce9d",
@@ -18674,11 +18674,6 @@
     "status": "reviewed",
     "at": "2026-10-05"
   },
-  "web.panel.company.connectionsView.izinListesiGonderilmedi": {
-    "hash": "3158809adc",
-    "status": "reviewed",
-    "at": "2026-10-05"
-  },
   "web.panel.company.connectionsView.anasayfadanFirmaBulupBaglantiIstegi": {
     "hash": "3b2feff941",
     "status": "reviewed",
@@ -19083,6 +19078,11 @@
     "hash": "e2c9e8fb53",
     "status": "reviewed",
     "at": "2026-10-01"
+  },
+  "web.panel.company.connectionsView.izinListesiGonderilmedi": {
+    "hash": "3158809adc",
+    "status": "reviewed",
+    "at": "2026-10-05"
   },
   "web.panel.company.connectionsView.kabulEt": {
     "hash": "b1af63fdf1",
@@ -22895,9 +22895,9 @@
     "at": "2026-10-04"
   },
   "web.panel.requests.browsetenderrow.dogrulanmisAliciKisa": {
-    "hash": "757c0e99fb",
+    "hash": "13eec1774a",
     "status": "reviewed",
-    "at": "2026-10-04"
+    "at": "2026-10-05"
   },
   "web.panel.requests.browsetenderrow.firma": {
     "hash": "439145df69",
@@ -32444,6 +32444,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.inviteDelivery.allowlist": {
+    "hash": "cb74bc288d",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "web.panel.settings.inviteDelivery.failed": {
     "hash": "ab37987241",
     "status": "reviewed",
@@ -32471,11 +32476,6 @@
   },
   "web.panel.settings.inviteDelivery.undeliverable": {
     "hash": "502e111e0b",
-    "status": "reviewed",
-    "at": "2026-10-05"
-  },
-  "web.panel.settings.inviteDelivery.allowlist": {
-    "hash": "cb74bc288d",
     "status": "reviewed",
     "at": "2026-10-05"
   },

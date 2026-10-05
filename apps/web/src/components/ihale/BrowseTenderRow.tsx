@@ -101,6 +101,12 @@ export function BrowseTenderRow({
       : myBase;
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
+  // Maskeli satır etiketi: son sözcük kilit ikonuyla tek parça (bkz. aşağıdaki not).
+  const hiddenLabel = tr("aliciGizli");
+  const hiddenSplit = hiddenLabel.lastIndexOf(" ") + 1;
+  const hiddenHead = hiddenLabel.slice(0, hiddenSplit);
+  const hiddenTail = hiddenLabel.slice(hiddenSplit);
+
   const firma = {
     label: tr("firma"),
     icon: "company" as const,
@@ -146,22 +152,35 @@ export function BrowseTenderRow({
          satıra iner — ayraç yok, bayrak ayraç görevi görür (satır başında
          sarkan "·" olmasın). Etiket de kısalmaz, en çok iki satıra sarılır
          (RU "Покупатель скрыт" 1440 px'te "Покупател…" oluyordu); rozet
-         KISA metni taşır (RU "Проверен"), tam metin `title`da. */
+         KISA metni taşır (RU "Проверен"), tam metin `title`da.
+         GİZLİ SATIR ROZETİ (staging 2026-10-05): değer hücresi 1280 px'te 82,
+         1366 px'te 100 px. (a) TR "Doğrulanmış alıcı" rozeti 108 px isteyip
+         "Doğrulanmış …"ya kısalıyordu → kısa metin TR "Doğrulanmış" / EN
+         "Verified" / RU "Проверен" ve rozet `wrap`: sığmazsa BOŞLUKTA sarılır,
+         "…" yok. (b) RU "Покупатель" (82 px) kilit karosunun (26 px)
+         yanına sığmayıp `break-words` ile "Покупате / ль" bölünüyordu →
+         etiket yalnız BOŞLUKTA sarılır (`break-normal`, tire yok) ve kilit
+         SONA, son sözcükle aynı `whitespace-nowrap` parçada küçük ikon olarak
+         geçer (U+2060 Chrome'da atomik satır içi öğeyi yapıştırmıyor): ilk
+         sözcük hücrenin tam genişliğini kullanır. Adı görünen satırdaki
+         uzun firma adları `break-words` ile taşmamaya devam eder. */
       <span className="flex min-w-0 max-w-full flex-col items-start gap-1">
         <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 text-slate-700">
-          <span className="flex min-w-0 max-w-full items-center gap-1.5">
-            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-slate-100">
-              <Lock className="h-3 w-3 text-slate-500" aria-hidden />
-            </span>
-            <span className="line-clamp-2 min-w-0 break-words" title={tr("aliciGizli")}>
-              {tr("aliciGizli")}
+          <span
+            className="line-clamp-2 min-w-0 max-w-full break-normal hyphens-none"
+            title={hiddenLabel}
+          >
+            {hiddenHead}
+            <span className="whitespace-nowrap">
+              {hiddenTail}
+              <Lock className="ml-1 inline-block size-3 align-[-1px] text-slate-500" aria-hidden />
             </span>
           </span>
           {t.ownerCountry ? <CountryLabel code={t.ownerCountry} className="font-medium text-slate-600" /> : null}
         </span>
         {t.ownerVerified ? (
-          <Badge tone="verified" size="sm" icon={false} className="max-w-full" title={tr("dogrulanmisAlici")}>
-            <span className="truncate">{tr("dogrulanmisAliciKisa")}</span>
+          <Badge tone="verified" size="sm" icon={false} wrap className="max-w-full" title={tr("dogrulanmisAlici")}>
+            <span className="min-w-0">{tr("dogrulanmisAliciKisa")}</span>
           </Badge>
         ) : null}
       </span>
