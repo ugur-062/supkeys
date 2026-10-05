@@ -198,7 +198,9 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
   Talep satırı alıcı hücresi (2026-10-05): ad `line-clamp-2` + `title`,
   bayrak+ülke ayrı satır (`CountryLabel`); doğrulama rozeti satırda kısa
   anahtar (`card.verifiedBuyerShort` / `browsetenderrow.dogrulanmisAliciKisa`;
-  RU 'Проверен'), tam metin `title`'da.
+  TR 'Doğrulanmış', EN 'Verified', RU 'Проверен'), tam metin `title`'da. Gizli
+  satırda rozet `Badge wrap` (yalnız boşlukta sarılır) ve 'Alıcı gizli' etiketi
+  kelime ortasından bölünmez (`break-normal`, kilit simgesi son kelimeye bağlı).
 - **Büyük Headless UI listesi tembel çizilir:** yüzlerce seçenekli Combobox
   açılış/kapanışta n² maliyetli. `CountryCombobox` ilk 60 satırı çizer
   (`OPTION_PAGE=60`), dibe kaydırdıkça çizilen sayıdan bir sayfa büyür, seçili

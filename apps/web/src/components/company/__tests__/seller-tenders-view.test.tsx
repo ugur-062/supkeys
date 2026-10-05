@@ -211,11 +211,13 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     const maskedRow = Array.from(list.querySelectorAll('[data-liste-satiri="1"]')).find((el) =>
       el.textContent?.includes("Maskeli diğer"),
     )! as HTMLElement;
-    expect(within(maskedRow).getByText("Alıcı gizli")).toBeInTheDocument();
+    // Etiket yalnız boşlukta sarılır (kilit simgesi son kelimeye bağlı) — tam metin title'da.
+    expect(within(maskedRow).getByTitle("Alıcı gizli")).toBeInTheDocument();
     expect(within(maskedRow).getByText("Türkiye")).toBeInTheDocument();
     expect(maskedRow.querySelector('img[src="/flags/4x3/tr.svg"]')).not.toBeNull();
     expect(maskedRow.textContent).not.toContain("Bursa");
-    expect(within(maskedRow).getByText("Doğrulanmış alıcı")).toBeInTheDocument();
+    // Rozet kısa metinle çizilir (TR "Doğrulanmış"), tam metin title'da.
+    expect(within(maskedRow).getByTitle("Doğrulanmış alıcı")).toHaveTextContent("Doğrulanmış");
     expect(maskedRow.textContent).not.toContain("Alıcı A.Ş.");
     // CTA: doğrulanmış ücretsiz → Paketler; satır → panel içi maskeli görünüm.
     expect(within(maskedRow).getByRole("link", { name: "Teklif ver · Silver" })).toHaveAttribute("href", "/company/premium");
