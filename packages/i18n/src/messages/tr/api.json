@@ -717,6 +717,7 @@
     "gunlukDavetLimitineUlasildi": "Günlük davet limitine ulaşıldı (günde {cap}). Yarın yeniden deneyin.",
     "buAdresEPostaAlamiyor": "Bu adres daha önce e-postalarımızı kalıcı olarak geri çevirdi ya da şikâyet etti; e-posta gönderilmedi",
     "buAlanAdinaEPostaTeslimEdilemez": "Bu alan adına e-posta teslim edilemez; e-posta gönderilmedi",
+    "buOrtamdaEPostaGonderilmedi": "Bu ortamda yalnız izin listesindeki adreslere e-posta gönderiliyor; e-posta gönderilmedi",
     "gecersizEPostaAdresi": "Geçersiz e-posta adresi",
     "onayGerekenUlke": "Bu ülkedeki firmalara önceden onay alınmadan davet gönderilmiyor. Firmayı tanıyorsanız adresi elle ekleyin.",
     "kayitKapaliUlke": "Bu ülkeden firmalar Rothern'e kayıt olamadığı için davet gönderilmiyor.",

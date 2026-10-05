@@ -251,6 +251,8 @@ export class CompanyConnectionsService {
         emailSent: res.delivery === "SENT",
         // SUPPRESSED'in alt nedeni — ekran "bu alan adına teslim edilemez" der.
         ...(res.undeliverable ? { undeliverable: true as const } : {}),
+        // Yalnız staging: alıcı EMAIL_ALLOWLIST'te yok — "bu ortamda gönderilmedi".
+        ...(res.allowlist ? { allowlist: true as const } : {}),
       };
     } finally {
       release();
@@ -988,7 +990,9 @@ export class CompanyConnectionsService {
                       ? tApi("api.companyConnections.gonderilemedi")
                       : out.undeliverable
                         ? tApi("api.companyConnections.buAlanAdinaEPostaTeslimEdilemez")
-                        : tApi("api.companyConnections.buAdresEPostaAlamiyor"),
+                        : out.allowlist
+                          ? tApi("api.companyConnections.buOrtamdaEPostaGonderilmedi")
+                          : tApi("api.companyConnections.buAdresEPostaAlamiyor"),
                 };
         });
       }

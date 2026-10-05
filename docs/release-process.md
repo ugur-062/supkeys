@@ -81,8 +81,14 @@ EMAIL_ALLOWLIST=uguray156@gmail.com,uguray156+qa-kayit-*@gmail.com,uguray156+qa-
   adında `@`'yi aşmayan herhangi bir diziye (boş dahil) eşleşir:
   `*@firma.com`, `uguray156+qa-kayit-*@gmail.com`. Her girdide tek `@`
   olmalı; geçersiz girdi yok sayılır (açılışta uyarı). Değer dolu ama hiç
-  geçerli girdi yoksa HİÇBİR e-posta gitmez (yanlış yazım staging'i herkese
-  göndermeye döndürmesin).
+  geçerli girdi yoksa — yalnız ayraçtan oluşan `,` / ` ; ` dahil — HİÇBİR
+  e-posta gitmez (yanlış ya da yarım yazım staging'i herkese göndermeye
+  döndürmesin). Kapıyı kaldırmak için değişkeni SİLİN; geçici "herkese
+  gönder" gerekirse `*@*`.
+- Davet ekranları (ekip daveti, "tedarikçini davet et") listede olmayan
+  adres için "bu ortamda yalnız izin listesindeki adreslere e-posta gidiyor"
+  der (`allowlist` alt nedeni) — "adres kalıcı geri çevirdi" değil; kayıt
+  durumu/iptal davranışı yine `SUPPRESSED`.
 - Listede olmayan alıcı: e-posta çizilir, `email_logs` satırı konu + payload
   ile yazılır (`staging-email-content` içeriği buradan okur), `FAILED` +
   `suppressed: allowlist: recipient not on EMAIL_ALLOWLIST`, `sent:false`;

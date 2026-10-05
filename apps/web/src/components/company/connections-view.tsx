@@ -821,7 +821,9 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
               ? t("davetEPostasiGonderilemedi", { email: addr })
               : res.undeliverable
                 ? t("alanAdinaEPostaTeslimEdilemez", { email: addr })
-                : t("adresEPostaAlmiyor", { email: addr }),
+                : res.allowlist
+                  ? t("izinListesiGonderilmedi", { email: addr })
+                  : t("adresEPostaAlmiyor", { email: addr }),
           );
           return;
         }

@@ -135,11 +135,13 @@ export function inviteRoleLine(roles: readonly CompanyRole[], locale: Locale): s
  * bakar. `suppressed`: adres daha önce kalıcı geri döndü/şikâyet etti
  * (yeniden göndermek işe yaramaz); `undeliverable`: alan adına e-posta
  * teslim edilemez (`.test`, example.com…; yeniden göndermek işe yaramaz);
+ * `allowlist`: yalnız staging — alıcı `EMAIL_ALLOWLIST`te yok, bu ortamda
+ * bilerek gönderilmedi;
  * `failed`: sağlayıcı hatası/zaman aşımı (yeniden gönder denenebilir).
  */
 export interface InvitationEmailResult {
   emailSent: boolean;
-  emailFailureReason?: "suppressed" | "undeliverable" | "failed";
+  emailFailureReason?: "suppressed" | "undeliverable" | "allowlist" | "failed";
 }
 
 @Injectable()
@@ -748,7 +750,13 @@ export class CompanyUsersService {
     return {
       emailSent: false,
       emailFailureReason:
-        res.delivery !== "SUPPRESSED" ? "failed" : res.undeliverable ? "undeliverable" : "suppressed",
+        res.delivery !== "SUPPRESSED"
+          ? "failed"
+          : res.undeliverable
+            ? "undeliverable"
+            : res.allowlist
+              ? "allowlist"
+              : "suppressed",
     };
   }
 

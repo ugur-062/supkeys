@@ -123,13 +123,15 @@ export class EmailProgramsService {
     const emails = [...new Set(items.map((i) => i.email))];
     // Günde TEK özet (derin denetim MU-14): adres × tür başına son gönderilen
     // özet. Eskiden 18:00 özetinden sonra düşen her kalem sonraki 15 dk'lık
-    // turda ayrı bir "özet" olarak gidiyordu.
+    // turda ayrı bir "özet" olarak gidiyordu. Politika gereği atlanan satır
+    // (suppress / çıkış / staging izin listesi) da "özet denendi" sayılır —
+    // yoksa aynı gün her turda yeni bir FAILED özet satırı yazılırdı (LU-18).
     const lastDigests = await this.prisma.emailLog.groupBy({
       by: ["toEmail", "contextType"],
       where: {
         toEmail: { in: emails },
         contextType: { in: [CATEGORY_DIGEST_CONTEXT, INVITATION_DIGEST_CONTEXT] },
-        status: { not: "FAILED" },
+        ...EMAIL_LOG_HANDLED_WHERE,
         queuedAt: { gte: new Date(now.getTime() - 2 * DAY_MS) },
       },
       _max: { queuedAt: true },

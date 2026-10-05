@@ -111,6 +111,17 @@ describe("token'lı davet-kabul", () => {
     expect(res).toMatchObject({ emailSent: false, emailFailureReason: "undeliverable" });
   });
 
+  it("staging izin listesinde olmayan adrese davet: neden 'allowlist' (ekran 'adres geri çevirdi' demez)", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false, skipReason: "allowlist" });
+    const res = await service.invite(owner.auth, {
+      email: "yeni@firma.com",
+      permissions: ["buy:view"],
+    } as never);
+    expect(res).toMatchObject({ emailSent: false, emailFailureReason: "allowlist" });
+  });
+
   it("davet: PENDING kayıt + 7 gün TTL + kabul linkli e-posta; mükerrer/kayıtlı e-posta reddedilir", async () => {
     const { service, email } = makeUsersService();
     const owner = await makeCompanyWithUser(prisma);

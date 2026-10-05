@@ -94,6 +94,8 @@ export function useInviteByEmail() {
         emailSent?: boolean;
         /** `SUPPRESSED`in alt nedeni: alan adına e-posta teslim edilemez (`.test`, example.com…). */
         undeliverable?: boolean;
+        /** `SUPPRESSED`in alt nedeni (yalnız staging): alıcı EMAIL_ALLOWLIST'te yok. */
+        allowlist?: boolean;
       }>("/company/connections/invite-by-email", body);
       return data;
     },

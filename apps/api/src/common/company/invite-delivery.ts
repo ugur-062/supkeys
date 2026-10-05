@@ -28,6 +28,13 @@ export interface InviteDeliveryResult {
    * e-posta teslim edilemez" der — "adres kalıcı geri çevirdi" değil.
    */
   undeliverable?: true;
+  /**
+   * `SUPPRESSED`in alt nedeni (yalnız staging): alıcı `EMAIL_ALLOWLIST`te yok,
+   * e-posta bu ortamda bilerek gönderilmedi. Kayıt/iptal davranışı yine
+   * `SUPPRESSED`; ekran "bu ortamda gönderilmedi (izin listesi)" der —
+   * "adres kalıcı geri çevirdi" değil.
+   */
+  allowlist?: true;
 }
 
 /** `EmailService.send` sözleşmesi: suppress'te hata ATMAZ, `sent:false` döner. */
@@ -43,9 +50,9 @@ export async function deliverInvite(
     const res = await Promise.race([send(), timeout]);
     if (res === "timeout") return { delivery: "FAILED", timedOut: true };
     if (res.sent) return { delivery: "SENT" };
-    return res.skipReason === "undeliverable"
-      ? { delivery: "SUPPRESSED", undeliverable: true }
-      : { delivery: "SUPPRESSED" };
+    if (res.skipReason === "undeliverable") return { delivery: "SUPPRESSED", undeliverable: true };
+    if (res.skipReason === "allowlist") return { delivery: "SUPPRESSED", allowlist: true };
+    return { delivery: "SUPPRESSED" };
   } catch (err) {
     return {
       delivery: "FAILED",

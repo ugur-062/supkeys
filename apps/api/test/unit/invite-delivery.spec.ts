@@ -34,6 +34,12 @@ describe("deliverInvite — teslim sonucu BEKLENİR ve dürüst döner", () => {
     ).resolves.toEqual({ delivery: "SUPPRESSED", undeliverable: true });
   });
 
+  it("staging izin listesi → SUPPRESSED + allowlist (ekran 'adres geri çevirdi' demez)", async () => {
+    await expect(
+      deliverInvite(async () => ({ sent: false, skipReason: "allowlist" })),
+    ).resolves.toEqual({ delivery: "SUPPRESSED", allowlist: true });
+  });
+
   it.each(["suppressed", "opted_out"])("skipReason %s → yalın SUPPRESSED", async (skipReason) => {
     await expect(deliverInvite(async () => ({ sent: false, skipReason }))).resolves.toEqual({
       delivery: "SUPPRESSED",

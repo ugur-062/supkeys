@@ -2157,8 +2157,10 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   suppression/çıkış kapıları canlıdaki gibi işler, satır payload ile açılır ve ÇİZİLİR, sonra FAILED +
   `EMAIL_SKIPPED_ALLOWLIST_REASON` (`suppressed: allowlist: …`, çizilen konu, deneme 0), `sent:false`,
   `skipReason: "allowlist"`, yeniden deneme/Sentry yok. e2e `staging-email-content` bu öneki atlanan
-  saymaz, içeriği tarar. **Canlıda BOŞ** (boş = kapı yok); geçerli girdisi olmayan dolu değer hiçbir
-  şey göndermez (kapalı kalır). Staging değeri/operatör adımı `docs/release-process.md`, O-71/O-72.
+  saymaz, içeriği tarar. **Canlıda BOŞ** (boş = kapı yok); geçerli girdisi olmayan dolu değer (yalnız
+  ayraç `,` dahil) hiçbir şey göndermez (kapalı kalır; herkese = `*@*`). Davet sonucu `deliverInvite`
+  `allowlist: true` alt nedeni taşır → ekran "bu ortamda gönderilmedi" (`emailFailureReason:
+  "allowlist"`), "geri çevirdi" değil. Özet tekilliği (`lastDigests`) `EMAIL_LOG_HANDLED_WHERE` ile. Staging değeri/operatör adımı `docs/release-process.md`, O-71/O-72.
   Sözleşme `email-allowlist.spec`.
 - **DAVET KUYRUĞU** (`external_listing_invites`, talep × adres): eskiden davet
   `CompanyReferralInvite`in kendisiydi ve (davet eden × adres) BENZERSİZ olduğu

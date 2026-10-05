@@ -56,16 +56,19 @@ function globToRegExp(entry: string): RegExp {
 }
 
 /**
- * Ham env değerinden izin listesi. Boş / tanımsız / yalnız ayraç → `null`
- * (kapı yok). Girdiler virgülle ayrılır; adreste boşluk olamayacağı için
- * satır sonu ve boşluk da ayraç sayılır.
+ * Ham env değerinden izin listesi. Yalnız boş / tanımsız / yalnız boşluk →
+ * `null` (kapı yok). Girdiler virgülle ayrılır; adreste boşluk olamayacağı
+ * için satır sonu ve boşluk da ayraç sayılır. Yalnız ayraçtan oluşan dolu
+ * değer (",", " ; ,") geçerli girdisi olmayan değer gibi KAPALI kapıdır
+ * (`size` 0) — panelde yarım düzenlenmiş değer herkese göndermeye dönmesin.
  */
 export function parseEmailAllowlist(raw: string | null | undefined): EmailAllowlist | null {
-  const entries = (raw ?? "")
+  const trimmed = (raw ?? "").trim();
+  if (trimmed === "") return null;
+  const entries = trimmed
     .split(/[,;\s]+/)
     .map(normalize)
     .filter((e) => e !== "");
-  if (entries.length === 0) return null;
 
   const exact = new Set<string>();
   const patterns: RegExp[] = [];

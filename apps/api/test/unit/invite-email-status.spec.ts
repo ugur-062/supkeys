@@ -193,6 +193,19 @@ describe("inviteByEmail (referral) — frenler + gerçek sonuç", () => {
     expect(batch.results[1]).toMatchObject({ status: "failed", code: "SUPPRESSED" });
     expect(batch.results[1]!.reason).toContain("geri çevirdi");
   });
+
+  it("staging izin listesi: tekil uçta allowlist bayrağı, toplu uçta 'bu ortamda gönderilmedi' gerekçesi ('geri çevirdi' DEĞİL)", async () => {
+    const skipped = { emailLogId: "e1", sent: false, skipReason: "allowlist" };
+    const send = jest.fn().mockResolvedValue(skipped);
+    const { service } = rig({ send });
+    const single = await service.inviteByEmail(user, "a@firma.com");
+    expect(single).toMatchObject({ delivery: "SUPPRESSED", emailSent: false, allowlist: true });
+    expect(single).not.toHaveProperty("undeliverable");
+    const batch = await service.inviteByEmailBatch(user, ["b@firma.com"]);
+    expect(batch.results[0]).toMatchObject({ status: "failed", code: "SUPPRESSED" });
+    expect(batch.results[0]!.reason).toContain("izin listesi");
+    expect(batch.results[0]!.reason).not.toContain("geri çevirdi");
+  });
 });
 
 describe("dış talep daveti — ALICININ dili kayda yazılır (2026-09-27)", () => {

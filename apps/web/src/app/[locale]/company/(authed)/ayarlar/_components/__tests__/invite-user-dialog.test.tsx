@@ -150,6 +150,16 @@ describe("InviteUserDialog", () => {
     expect(opts.action).toBeUndefined();
   });
 
+  it("staging izin listesi: 'bu ortamda gönderilmedi' uyarısı ('geri çevirdi' DEĞİL), yeniden gönder eylemi YOK", async () => {
+    h.invite.mockResolvedValue({ id: "inv1", email: "ali@firma.com", emailSent: false, emailFailureReason: "allowlist" });
+    await submitValid();
+    await waitFor(() => expect(h.toast.warning).toHaveBeenCalledTimes(1));
+    const [msg, opts] = h.toast.warning.mock.calls[0] as [string, { action?: unknown }];
+    expect(msg).toContain("izin listesindeki");
+    expect(msg).not.toContain("geri çevirdi");
+    expect(opts.action).toBeUndefined();
+  });
+
   it("Vazgeç girilen e-postayı ve dili sıfırlar — yeniden açılınca boş form (arayüz testi D-310)", () => {
     const onClose = vi.fn();
     const { rerender } = render(<InviteUserDialog open onClose={onClose} />);

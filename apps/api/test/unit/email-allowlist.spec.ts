@@ -23,8 +23,15 @@ import { EMAIL_ALLOWLIST_ENV, parseEmailAllowlist } from "../../src/modules/emai
  * konu + payload ile yazılır (e2e içeriği günlükten okur). Boş = kapı yok.
  */
 describe("parseEmailAllowlist", () => {
-  it.each([undefined, null, "", "   ", " , ,\n"])("boş/tanımsız değer kapı kurmaz: %j", (raw) => {
+  it.each([undefined, null, "", "   ", " \n\t"])("boş/tanımsız değer kapı kurmaz: %j", (raw) => {
     expect(parseEmailAllowlist(raw)).toBeNull();
+  });
+
+  it.each([",", ";", " , ,\n", " ; , "])("yalnız ayraçtan oluşan dolu değer KAPALI kapıdır (herkese açılmaz): %j", (raw) => {
+    const list = parseEmailAllowlist(raw)!;
+    expect(list).not.toBeNull();
+    expect(list.size).toBe(0);
+    expect(list.allows("uguray156@gmail.com")).toBe(false);
   });
 
   it("tam adres eşleşir; büyük/küçük harf ve boşluk önemsiz", () => {

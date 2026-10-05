@@ -333,6 +333,19 @@ describe("ConnectionsView", () => {
       expect.stringContaining("bu alan adına e-posta teslim edilemez"),
     );
 
+    // Staging izin listesi: "adres geri çevirdi" DEĞİL, "bu ortamda gönderilmedi".
+    h.invite.mockResolvedValueOnce({
+      kind: "invited",
+      email: "x@firma.com",
+      delivery: "SUPPRESSED",
+      emailSent: false,
+      allowlist: true,
+    });
+    await user.clear(single);
+    await user.type(single, "x@firma.com");
+    await user.click(screen.getByRole("button", { name: "Davet gönder" }));
+    expect(h.toast.warning).toHaveBeenLastCalledWith(expect.stringContaining("izin listesindeki"));
+
     h.batch.mockResolvedValueOnce({
       summary: { request: 0, invited: 1, skipped: 0, failed: 1 },
       results: [

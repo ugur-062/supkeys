@@ -1759,6 +1759,11 @@
     "status": "reviewed",
     "at": "2026-10-05"
   },
+  "api.companyConnections.buOrtamdaEPostaGonderilmedi": {
+    "hash": "9519262698",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "api.companyConnections.buEPostaAdresiDavetAlmak": {
     "hash": "6d4a68fc92",
     "status": "reviewed",
@@ -18669,6 +18674,11 @@
     "status": "reviewed",
     "at": "2026-10-05"
   },
+  "web.panel.company.connectionsView.izinListesiGonderilmedi": {
+    "hash": "3158809adc",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
   "web.panel.company.connectionsView.anasayfadanFirmaBulupBaglantiIstegi": {
     "hash": "3b2feff941",
     "status": "reviewed",
@@ -32461,6 +32471,11 @@
   },
   "web.panel.settings.inviteDelivery.undeliverable": {
     "hash": "502e111e0b",
+    "status": "reviewed",
+    "at": "2026-10-05"
+  },
+  "web.panel.settings.inviteDelivery.allowlist": {
+    "hash": "cb74bc288d",
     "status": "reviewed",
     "at": "2026-10-05"
   },

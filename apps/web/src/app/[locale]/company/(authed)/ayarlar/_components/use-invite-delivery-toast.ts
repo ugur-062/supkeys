@@ -28,7 +28,12 @@ export function useInviteDeliveryToast() {
       return;
     }
     // Kalıcı nedenler — yeniden gönder eylemi yok, farklı adres gerekir.
-    if (res.emailFailureReason === "suppressed" || res.emailFailureReason === "undeliverable") {
+    // `allowlist` (yalnız staging): bu ortamda o adrese yeniden gönderim de gitmez.
+    if (
+      res.emailFailureReason === "suppressed" ||
+      res.emailFailureReason === "undeliverable" ||
+      res.emailFailureReason === "allowlist"
+    ) {
       toast.warning(t(res.emailFailureReason, { email: ctx.email }), { duration: 12_000 });
       return;
     }

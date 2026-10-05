@@ -8,6 +8,7 @@
  *  - TEKLİFSİZ TALEP: kapanışa 12-72 saat, teklif yok → talebi açana bir kez.
  */
 import { EmailProgramsService } from "../../src/modules/email-programs/email-programs.service";
+import { EMAIL_SKIPPED_ALLOWLIST_REASON } from "../../src/modules/email/email.service";
 import { prisma, truncateAll } from "./test-db";
 import { connect, makeCompanyWithUser, makeListing } from "./factories";
 
@@ -133,6 +134,49 @@ describe("akşam özeti — günde TEK özet ve gönderim anında tercih (derin 
       .templateData.data.entries.map((r) => r.title.split(" (")[0]);
     expect(rows.sort()).toEqual(["Rulman", "Somun"]);
     expect(await prisma.emailDigestItem.count({ where: { sentAt: null } })).toBe(0);
+  });
+
+  it("politika gereği atlanan özet (suppress / staging izin listesi: FAILED + suppressed:) de 'özet denendi' sayılır — aynı akşam ikinci FAILED satırı yazılmaz", async () => {
+    const clock = { now: null as Date | null };
+    const email = {
+      send: jest.fn(async (a: { to: { email: string }; context: { type: string; id: string } }) => {
+        await prisma.emailLog.create({
+          data: {
+            template: "notification",
+            toEmail: a.to.email,
+            subject: "s",
+            provider: "test",
+            status: "FAILED",
+            errorMessage: EMAIL_SKIPPED_ALLOWLIST_REASON,
+            contextType: a.context.type,
+            contextId: a.context.id,
+            queuedAt: clock.now!,
+          },
+        });
+        return { emailLogId: "t", sent: false, skipReason: "allowlist" };
+      }),
+    };
+    const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const [a, b] = await Promise.all(
+      ["Cıvata", "Rulman"].map((title) =>
+        makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN", title, closesAt: new Date(Date.now() + 9 * DAY) }),
+      ),
+    );
+    const item = (listingId: string, createdAt: Date) =>
+      prisma.emailDigestItem.create({
+        data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId, createdAt },
+      });
+    await item(a!.id, new Date("2026-10-07T06:00:00Z"));
+    clock.now = new Date("2026-10-07T15:00:00Z"); // İstanbul 18:00
+    await svc.sendDigests(clock.now);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    await item(b!.id, new Date("2026-10-07T15:40:00Z"));
+    clock.now = new Date("2026-10-07T15:45:00Z");
+    await svc.sendDigests(clock.now);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    expect(await prisma.emailLog.count({ where: { toEmail: seller.user.email } })).toBe(1);
   });
 
   it("kuyruğa alındıktan sonra tercih kapatıldıysa (tek tık çıkış) özet gitmez, kalemler düşer", async () => {
