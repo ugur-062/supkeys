@@ -35,7 +35,7 @@ beforeEach(async () => {
 });
 
 /** Arka plandaki bildirim işi bitene dek bekle (fire-and-forget). */
-async function settle(check: () => Promise<boolean> | boolean, ms = 3_000) {
+async function settle(check: () => Promise<boolean> | boolean, ms = 10_000) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
     if (await check()) return;
@@ -231,7 +231,13 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
     });
 
     await service.inviteDiscoveredMembers(owner.auth, listing.id, [busy.company.id, mailed.company.id]);
-    await settle(async () => (await prisma.emailDigestItem.count({ where: { kind: "INVITATION" } })) > 0);
+    // Özet satırı döngüde, uygulama içi bildirim döngüden SONRA yazılır —
+    // ikisini de bekle (yalnız özeti beklemek yük altında yarışa düşer).
+    await settle(
+      async () =>
+        (await prisma.emailDigestItem.count({ where: { kind: "INVITATION" } })) > 0 &&
+        (await prisma.notification.count({ where: { type: "listing_invitation", listingId: listing.id } })) >= 2,
+    );
     expect(email.send).not.toHaveBeenCalled();
     const digest = await prisma.emailDigestItem.findMany({ select: { email: true, kind: true, listingId: true } });
     expect(digest).toEqual([{ email: busy.user.email, kind: "INVITATION", listingId: listing.id }]);
