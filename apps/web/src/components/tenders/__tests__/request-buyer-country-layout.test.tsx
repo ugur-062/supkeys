@@ -353,5 +353,7 @@ describe("hedef ülke kapsamı bayrakla (bulgu 3, düşük)", () => {
     rerender(<ScopeChip targetCountries={[]} />);
     expect(container.querySelector('img[src^="/flags/"]')).toBeNull();
     expect(screen.getByText("Tüm ülkeler")).toBeInTheDocument();
+    // Kısalan etiketin tamamı ipucunda (1280 px'te "Tüm ülk…").
+    expect(container.firstElementChild).toHaveAttribute("title", "Tüm ülkeler");
   });
 });

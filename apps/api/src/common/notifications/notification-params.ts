@@ -88,7 +88,9 @@ function dateFormatter(locale: Locale, style: DateParamStyle): Intl.DateTimeForm
       day: "numeric",
       month: "long",
       year: "numeric",
-      ...(style === "dateTime" ? { hour: "2-digit", minute: "2-digit" } : {}),
+      // 24 saat: İngilizcede "02:30 PM" çıkıyor, aynı karttaki zaman damgası ve
+      // e-postalar 24 saat yazıyordu (tarayıcı turu 2026-10-07).
+      ...(style === "dateTime" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" as const } : {}),
     });
     dateFormatters.set(key, f);
   }

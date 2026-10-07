@@ -361,15 +361,17 @@ export function CategorySelectorModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-3 border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3.5">
-            <span className="text-xs text-zinc-500">
+          {/* Dar ekranda sarılır: Rusça "Подтвердить (1)" 360–390 px'te diyaloğun
+              dışına taşıyordu (tarayıcı turu 2026-10-07). Düğmeler küçülmez, alt satıra iner. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3.5">
+            <span className="min-w-0 text-xs text-zinc-500">
               {mode === "multi" && draftIds.length > 0
                 ? tr("secimHazirOnaylaYaTiklayin", { n: draftIds.length })
                 : mode === "single" && draftIds.length === 1
                   ? tr("n1KategoriHazir")
                   : tr("listedenSecimYapin")}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <Button plain onClick={onClose}>
                 {tr("vazgec")}
               </Button>

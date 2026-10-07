@@ -111,4 +111,12 @@ describe("CategorySelectorModal — boş seçimi onaylama", () => {
     render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
     expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
   });
+
+  it("alt satır dar ekranda sarılır; düğme grubu küçülmez (RU 'Подтвердить (1)' taşmasın)", () => {
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
+    const group = screen.getByRole("button", { name: "Onayla" }).parentElement as HTMLElement;
+    expect(group.className).toContain("shrink-0");
+    expect(group.className).toContain("ml-auto");
+    expect((group.parentElement as HTMLElement).className).toContain("flex-wrap");
+  });
 });

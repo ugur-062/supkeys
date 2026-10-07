@@ -33,7 +33,11 @@ describe("formatNotificationParams — alıcının dilinde", () => {
   it("tarih-saat İstanbul saatiyle; Türkçe dışında (GMT+3) eklenir", () => {
     const p = { d: dateParam(LATE_UTC, "dateTime") };
     expect(formatNotificationParams(p, "tr")!.d).toBe("28 Eylül 2026 00:30");
-    expect(formatNotificationParams(p, "en")!.d).toMatch(/^September 28, 2026.*12:30\sAM \(GMT\+3\)$/);
+    // 24 saat (2026-10-07): "12:30 AM" değil — karttaki zaman damgası ve e-postalarla aynı.
+    expect(formatNotificationParams(p, "en")!.d).toMatch(/^September 28, 2026.*00:30 \(GMT\+3\)$/);
+    const afternoon = { d: dateParam(new Date("2026-10-15T11:30:00.000Z"), "dateTime") };
+    expect(formatNotificationParams(afternoon, "en")!.d).toMatch(/^October 15, 2026.*14:30 \(GMT\+3\)$/);
+    expect(formatNotificationParams(afternoon, "en")!.d).not.toMatch(/AM|PM/);
     expect(formatNotificationParams(p, "ru")!.d).toMatch(/^28 сентября 2026 г\..*00:30 \(GMT\+3\)$/);
   });
 

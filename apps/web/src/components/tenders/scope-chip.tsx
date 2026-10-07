@@ -28,7 +28,9 @@ export function ScopeChip({
   return (
     <span
       // İpucunda ülke ADLARI (2026-10-04): ham ISO kodu ("DE, AZ, TR") okunmuyordu.
-      title={open ? undefined : list.map((c) => countryDisplayName(c, locale)).join(", ")}
+      // Tüm ülkelere açık çipte ipucu etiketin kendisi: 1280 px'te sütun dar
+      // kalınca "Tüm ülk…" diye kısalıyor, tam metin okunamıyordu (2026-10-07).
+      title={open ? scopeLabel(list, ownerCountry) : list.map((c) => countryDisplayName(c, locale)).join(", ")}
       className={cn(
         "inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
         open ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-50 text-slate-600 ring-slate-200",
