@@ -155,6 +155,20 @@ export class RealtimeGateway
       if ((payload.tv ?? 0) !== user.tokenVersion) {
         throw new Error("Oturum geçersiz");
       }
+      // Çıkış yapılmış oturum (H2, 2026-10-07): aynı çerezle /rt de AÇILAMAZ
+      // — strateji ile aynı kapı (SessionRevocationService.isRevoked ile AYNI
+      // tablo; yukarıdaki kullanıcı kapısı gibi inline, handshake başına bir
+      // birincil-anahtar sorgusu). jti'siz eski jeton iptal edilemez → geçer.
+      // Oturum kimliği sokette saklanır; çıkışta o oturumun AÇIK soketleri de
+      // kapatılır (RealtimeService.disconnectSession).
+      if (typeof payload.jti === "string" && payload.jti.length > 0) {
+        const revoked = await this.prisma.revokedSession.findUnique({
+          where: { jti: payload.jti },
+          select: { jti: true },
+        });
+        if (revoked) throw new Error("Oturum iptal edilmiş");
+        client.data.sessionId = payload.jti;
+      }
 
       client.data.companyId = payload.companyId;
       // Yetki tablosu: oda aboneliği portal görüntüleme iznine bağlı (REST

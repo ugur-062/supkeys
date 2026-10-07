@@ -13,6 +13,27 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+/**
+ * İPTAL EDİLMİŞ OTURUM (2026-10-07, canlı öncesi sağlamlaştırma H2). Çıkışta
+ * YALNIZ o oturum sunucuda iptal edilir (öteki cihazlar açık kalır): JWT'nin
+ * `jti` claim'i (oturum kimliği — kayan yenilemede KORUNUR) buraya yazılır,
+ * JWT stratejileri + /rt geçidi + kayan yenileme bu tabloya bakar.
+ * `expiresAt` = o oturumun herhangi bir jetonunun yaşayabileceği en geç an;
+ * sonrası satır gereksizdir, gece temizliği siler. Firma kapsamlı DEĞİL
+ * (RLS politikası yok); yalnız PrismaBypassService okur/yazar.
+ */
+model RevokedSession {
+  /// JWT `jti` claim'i (UUID).
+  jti       String   @id
+  /// "company" | "admin"
+  realm     String
+  expiresAt DateTime
+  revokedAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("revoked_sessions")
+}
+
 model PasswordResetToken {
   id               String       @id @default(cuid())
   companyUserId    String?

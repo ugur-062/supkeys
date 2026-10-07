@@ -25,6 +25,7 @@ import { TenantContextMiddleware } from "./common/tenant/tenant-context.middlewa
 import { TenantContextInterceptor } from "./common/tenant/tenant-context.interceptor";
 import { genRequestId } from "./common/logging/request-id";
 import { PrismaModule } from "./common/prisma/prisma.module";
+import { SessionRevocationModule } from "./common/auth/session-revocation.module";
 import { AdminAuditModule } from "./modules/admin-audit/admin-audit.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AdminCompaniesModule } from "./modules/admin-companies/admin-companies.module";
@@ -204,6 +205,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     AdminCompaniesModule,
     AdminSystemModule,
     CronRegistryModule,
+    // Oturum bazlı iptal (çıkış = yalnız o oturum) — stratejiler, /rt, kayan yenileme.
+    SessionRevocationModule,
     // Birleşik firma sistemi
     CompanyAuthModule,
     CompanyBidDocumentsModule,

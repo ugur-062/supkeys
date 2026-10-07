@@ -60,6 +60,7 @@ import {
   permissionsForRoles,
 } from "../permissions/company-permissions.constants";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
+import { newSessionId } from "../../../common/auth/session-revocation.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { isReferralExpired } from "../../../common/company/invite-delivery";
 import {
@@ -2088,6 +2089,9 @@ export class CompanyAuthService {
       userId,
       companyId: user.companyId,
       tv: updated.tokenVersion,
+      // Parola değişimi tv++ ile TÜM eski oturumları düşürür; bu cihaz yeni
+      // oturum kimliğiyle sürer.
+      jti: newSessionId(),
     };
     return { ok: true, token: this.jwt.sign(payload) };
   }
@@ -2169,6 +2173,10 @@ export class CompanyAuthService {
       companyId: company.id,
       // Oturum sürümü — parola değişince artar, eski token'lar ölür.
       tv: user.tokenVersion,
+      // Oturum kimliği — çıkışta YALNIZ bu oturum iptal edilir (H2). Giriş,
+      // e-posta doğrulama, 2FA tamamlama, davet kabulü (createSession): hepsi
+      // buradan geçer.
+      jti: newSessionId(),
     };
 
     void this.audit.log({

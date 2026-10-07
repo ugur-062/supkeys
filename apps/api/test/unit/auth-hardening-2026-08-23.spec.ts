@@ -69,7 +69,7 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 const aged = (ageSec: number, extra: object = {}) =>
   jwt.sign({ type: "company", userId: "u1", iat: nowSec() - ageSec, ...extra }, { expiresIn: "1h" });
 async function run(ctx: ExecutionContext, body: unknown = {}) {
-  const i = new AuthCookieInterceptor(config, jwt);
+  const i = new AuthCookieInterceptor(config, jwt, { isRevoked: async () => false } as never);
   return firstValueFrom(i.intercept(ctx, { handle: () => of(body) } as CallHandler));
 }
 
@@ -162,7 +162,7 @@ describe("#3 AdminJwtStrategy tokenVersion kapısı", () => {
       platformAdmin: {
         findUnique: jest.fn(async () => ({ id: "a1", email: "a@x", firstName: "A", lastName: "B", role: "SUPER_ADMIN", isActive: true, tokenVersion })),
       },
-    } as never);
+    } as never, { isRevoked: async () => false } as never);
   it("tv eşleşiyorsa geçer; eşleşmiyorsa 401; tv claim'siz eski token yalnız tokenVersion=0 iken geçer", async () => {
     await expect(mk(1).validate({ sub: "a1", email: "a@x", role: "SUPER_ADMIN", type: "admin", tv: 1 })).resolves.toMatchObject({ id: "a1" });
     await expect(mk(1).validate({ sub: "a1", email: "a@x", role: "SUPER_ADMIN", type: "admin", tv: 0 })).rejects.toBeInstanceOf(UnauthorizedException);

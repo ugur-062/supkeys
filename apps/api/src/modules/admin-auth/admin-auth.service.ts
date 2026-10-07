@@ -22,6 +22,7 @@ import {
 import { SupabaseAuthService, isSupabaseAuthAccessError } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
+import { newSessionId } from "../../common/auth/session-revocation.service";
 
 /**
  * Kimlik hatasının KATALOG ANAHTARI — iki çağrı yeri (parola ve hesap
@@ -98,6 +99,8 @@ export class AdminAuthService {
       role: admin.role,
       type: "admin",
       tv: admin.tokenVersion,
+      // Oturum kimliği — çıkışta yalnız bu oturum iptal edilir (H2).
+      jti: newSessionId(),
     };
 
     // 2FA zorunlu rolde 2FA kapalıysa giriş YİNE verilir (kilitlenme yok) ama
@@ -217,6 +220,7 @@ export class AdminAuthService {
       role: updated.role,
       type: "admin",
       tv: updated.tokenVersion,
+      jti: newSessionId(),
     };
     return this.jwt.sign(payload);
   }

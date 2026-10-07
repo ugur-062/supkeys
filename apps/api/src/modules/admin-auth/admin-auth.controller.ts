@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   Res,
   UseGuards,
 } from "@nestjs/common";
@@ -13,12 +14,13 @@ import { ClientIp } from "../../common/http/client-ip.decorator";
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
 import { IsString, Length, MinLength } from "class-validator";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import {
   CurrentAdmin,
   type AuthenticatedAdmin,
 } from "../../common/decorators/current-admin.decorator";
 import { clearAuthCookies } from "../../common/auth/cookie";
+import { SessionRevocationService } from "../../common/auth/session-revocation.service";
 import { AdminAuthService } from "./admin-auth.service";
 import { AllowAnyAdminRole } from "./decorators/allow-any-admin-role.decorator";
 import { AllowWithoutAdmin2fa } from "./decorators/allow-without-admin-2fa.decorator";
@@ -58,12 +60,15 @@ export class AdminAuthController {
   constructor(
     private readonly adminAuthService: AdminAuthService,
     private readonly config: ConfigService,
+    private readonly sessions: SessionRevocationService,
   ) {}
 
+  /** Çıkış = çerez silinir VE yalnız o oturum sunucuda iptal edilir (H2; bkz. company). */
   @Post("logout")
   @HttpCode(HttpStatus.OK)
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     clearAuthCookies(res, "admin", this.config);
+    await this.sessions.revokeFromRequest(req, "admin");
     return { ok: true };
   }
 

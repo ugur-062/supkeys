@@ -8,6 +8,7 @@ import { authenticator } from "otplib";
 import { AdminAuthService } from "../../src/modules/admin-auth/admin-auth.service";
 import { AdminJwtStrategy } from "../../src/modules/admin-auth/strategies/admin-jwt.strategy";
 import { isEncryptedTotpSecret } from "../../src/common/auth/totp-secret-cipher";
+import { SessionRevocationService } from "../../src/common/auth/session-revocation.service";
 import { prisma, truncateAll } from "./test-db";
 
 const SECRET = "admin-revocation-test-secret-1234567890";
@@ -33,7 +34,11 @@ function makeService(cfg: typeof config = config) {
     audit as never,
     cfg as never,
   );
-  const strategy = new AdminJwtStrategy(cfg as never, prisma as never);
+  const strategy = new AdminJwtStrategy(
+    cfg as never,
+    prisma as never,
+    new SessionRevocationService(prisma as never, cfg as never),
+  );
   return { svc, strategy, supabaseAuth };
 }
 

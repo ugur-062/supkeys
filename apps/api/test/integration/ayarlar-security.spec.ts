@@ -14,6 +14,7 @@ import {
 import { CompanyJwtStrategy } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { makeCompanyWithUser, makeListing } from "./factories";
 import { extractCode, makeAuthService } from "./make-auth-service";
+import { SessionRevocationService } from "../../src/common/auth/session-revocation.service";
 import { prisma, truncateAll } from "./test-db";
 
 const validSignup = (over: Record<string, unknown> = {}) => ({
@@ -257,6 +258,10 @@ describe("changePassword + tokenVersion", () => {
     new CompanyJwtStrategy(
       { getOrThrow: () => "test-secret" } as never,
       prisma as never,
+      new SessionRevocationService(prisma as never, {
+        get: (_k: string, d?: string) => d,
+        getOrThrow: () => "test-secret",
+      } as never),
     );
 
   it("yanlış mevcut parola → Forbidden, tokenVersion değişmez", async () => {

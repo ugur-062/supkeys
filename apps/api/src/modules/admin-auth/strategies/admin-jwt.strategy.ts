@@ -5,6 +5,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
+import { SessionRevocationService } from "../../../common/auth/session-revocation.service";
 
 export interface AdminJwtPayload {
   sub: string;
@@ -15,6 +16,8 @@ export interface AdminJwtPayload {
   persistent?: boolean;
   /** Oturum sürümü — PlatformAdmin.tokenVersion ile eşleşmeli (iptal kapısı). */
   tv?: number;
+  /** Oturum kimliği — çıkışta yalnız bu oturum iptal edilir (bkz. company). */
+  jti?: string;
 }
 
 @Injectable()
@@ -22,6 +25,7 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaBypassService,
+    private readonly sessions: SessionRevocationService,
   ) {
     super({
       // Önce httpOnly cookie (yeni), geri düşüş Bearer header (geçiş uyumu).
@@ -39,9 +43,14 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
       throw new UnauthorizedException(i18nMessage("api.adminAuth.gecersizTokenTipi"));
     }
 
-    const admin = await this.prisma.platformAdmin.findUnique({
-      where: { id: payload.sub },
-    });
+    const [admin, revoked] = await Promise.all([
+      this.prisma.platformAdmin.findUnique({ where: { id: payload.sub } }),
+      this.sessions.isRevoked(payload.jti),
+    ]);
+    // Çıkış yapılmış oturum (H2) — yalnız o oturum; öteki cihazlar etkilenmez.
+    if (revoked) {
+      throw new UnauthorizedException(i18nMessage("api.adminAuth.oturumGecersizYenidenGirisYapin"));
+    }
 
     if (!admin || !admin.isActive) {
       throw new UnauthorizedException(i18nMessage("api.adminAuth.adminBulunamadiVeyaPasif"));

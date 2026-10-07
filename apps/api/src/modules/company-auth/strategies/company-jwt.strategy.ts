@@ -11,6 +11,7 @@ import type {
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
+import { SessionRevocationService } from "../../../common/auth/session-revocation.service";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { AUTH_COMPANY_SELECT } from "../../../common/company/auth-company-select";
 import { effectivePermissions } from "../permissions/company-permissions.constants";
@@ -23,6 +24,12 @@ export interface CompanyJwtPayload {
   companyId: string;
   /** Oturum sürümü — parola değişince artar; eski token'lar geçersizleşir. */
   tv?: number;
+  /**
+   * Oturum kimliği — kayan yenilemede KORUNUR; çıkışta `revoked_sessions`a
+   * yazılır (yalnız o oturum düşer). Eski jetonlarda yok → iptal edilemez
+   * ama geçerli kalır. Bkz. SessionRevocationService.
+   */
+  jti?: string;
   /**
    * "Oturumumu açık bırak" — kayan yenilemede cookie tipini belirler
    * (true/eksik → 30g kalıcı, false → tarayıcı-kapanınca-biten session).
@@ -60,6 +67,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaBypassService,
+    private readonly sessions: SessionRevocationService,
   ) {
     super({
       // Önce httpOnly cookie (yeni), geri düşüş Bearer header (geçiş uyumu).
@@ -80,12 +88,23 @@ export class CompanyJwtStrategy extends PassportStrategy(
     }
 
     // Roller + tier + sahiplik DB'den taze okunur (token'a güvenmeyiz).
-    const user = await this.prisma.companyUser.findUnique({
-      where: { id: payload.userId },
-      // Tam `company` satırı DEĞİL — yalnız kapının kullandığı 7 alan.
-      // TEK KAYNAK: AUTH_COMPANY_SELECT (P12 #12; gerekçe orada).
-      include: { company: { select: AUTH_COMPANY_SELECT } },
-    });
+    // Oturum iptali (çıkış) kullanıcı sorgusuyla PARALEL okunur — ek gidiş
+    // dönüş süresi eklemez.
+    const [user, revoked] = await Promise.all([
+      this.prisma.companyUser.findUnique({
+        where: { id: payload.userId },
+        // Tam `company` satırı DEĞİL — yalnız kapının kullandığı 7 alan.
+        // TEK KAYNAK: AUTH_COMPANY_SELECT (P12 #12; gerekçe orada).
+        include: { company: { select: AUTH_COMPANY_SELECT } },
+      }),
+      this.sessions.isRevoked(payload.jti),
+    ]);
+    // Çıkış yapılmış oturum: çerezin kopyası da artık geçmez (H2).
+    if (revoked) {
+      throw new UnauthorizedException(
+        i18nMessage("api.companyAuth.oturumGecersizLutfenYenidenGirisYapin"),
+      );
+    }
 
     if (!user || !user.isActive || user.deletedAt) {
       throw new UnauthorizedException(i18nMessage("api.companyAuth.kullaniciGecersiz"));

@@ -52,7 +52,7 @@ async function run(
   ctx: ExecutionContext,
   responseBody: unknown = {},
 ): Promise<unknown> {
-  const interceptor = new AuthCookieInterceptor(config, jwt);
+  const interceptor = new AuthCookieInterceptor(config, jwt, { isRevoked: async () => false } as never);
   const next = { handle: () => of(responseBody) } as CallHandler;
   return firstValueFrom(interceptor.intercept(ctx, next));
 }

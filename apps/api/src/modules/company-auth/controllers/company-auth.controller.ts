@@ -7,14 +7,17 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Req,
   Res,
   UseGuards,
 } from "@nestjs/common";
 import { ClientIp } from "../../../common/http/client-ip.decorator";
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { clearAuthCookies } from "../../../common/auth/cookie";
+import { SessionRevocationService } from "../../../common/auth/session-revocation.service";
+import { RealtimeService } from "../../realtime/realtime.service";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -47,12 +50,22 @@ export class CompanyAuthController {
     private readonly service: CompanyAuthService,
     private readonly passwordReset: PasswordResetService,
     private readonly config: ConfigService,
+    private readonly sessions: SessionRevocationService,
+    private readonly realtime: RealtimeService,
   ) {}
 
+  /**
+   * Çıkış = çerez silinir VE o oturum sunucuda iptal edilir (H2, 2026-10-07).
+   * Yalnız BU oturum: aynı kullanıcının öteki cihazları açık kalır (sahip
+   * kararı). Kapısız uç — süresi dolmuş/bozuk çerezle de çıkış yapılabilmeli;
+   * iptal yalnız imzası geçerli, jti taşıyan jeton için yazılır.
+   */
   @Post("logout")
   @HttpCode(HttpStatus.OK)
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     clearAuthCookies(res, "company", this.config);
+    const revoked = await this.sessions.revokeFromRequest(req, "company");
+    for (const sessionId of revoked) this.realtime.disconnectSession(sessionId);
     return { ok: true };
   }
 

@@ -26,6 +26,7 @@ import {
   ListingReasonDto,
 } from "../../src/modules/company-listings/dto/owner-action.dto";
 import { MAX_MONEY, MAX_QUANTITY } from "../../src/common/constants/money";
+import { SessionRevocationService } from "../../src/common/auth/session-revocation.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany, makeUser } from "./factories";
 
@@ -356,7 +357,11 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
 
 describe("CompanyJwtStrategy — token-tipi izolasyonu", () => {
   const config = { getOrThrow: () => "test-secret" };
-  const strategy = new CompanyJwtStrategy(config as never, prisma as never);
+  const strategy = new CompanyJwtStrategy(
+    config as never,
+    prisma as never,
+    new SessionRevocationService(prisma as never, config as never),
+  );
 
   afterAll(async () => {
     await truncateAll();
