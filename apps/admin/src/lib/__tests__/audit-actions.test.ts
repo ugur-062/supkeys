@@ -81,6 +81,17 @@ describe("audit action dictionary", () => {
     }
   });
 
+  // Sözleşme maddesi 5'in öbür yarısı: etiketler geçmiş satırlar için durur ama
+  // API artık 2FA denetim eylemi YAZMAZ. Bu test kırmızıysa API'de 2FA kodu
+  // duruyor demektir — admin paneli kod alanı göstermediği için o API ile
+  // yayına çıkmak hesapları kilitler (yayın sırası: önce API).
+  it("API hiçbir 2FA denetim eylemi yazmaz (2FA kaldırıldı 2026-10-07)", () => {
+    const written = [...actions]
+      .filter(([a]) => /2fa|two_?factor|totp/i.test(a))
+      .map(([a, f]) => `${a} (${f})`);
+    expect(written).toEqual([]);
+  });
+
   it("every API-written action has a label", () => {
     const missing = [...actions]
       .filter(([a]) => !(a in ACTION_LABELS))
