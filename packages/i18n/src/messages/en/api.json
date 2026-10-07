@@ -639,7 +639,6 @@
     "dosyaGenelRapor": "general-report",
     "dosyaTasarrufRaporu": "savings-report",
     "dosyaTeklifKarsilastirma": "quote-comparison",
-    "digerKategoriler": "Other",
     "basEnDusukCur": "Lowest ({currency})",
     "basEnYuksekCur": "Highest ({currency})",
     "basKazananCur": "Winning ({currency})",
@@ -1332,6 +1331,11 @@
         "subject": "Cancellation request withdrawn",
         "heading": "Cancellation request withdrawn",
         "body": "The seller withdrew the cancellation request for {hasNumber, select, yes {order {number}} other {the order}}; the order continues."
+      },
+      "cancelRequestWithdrawnDisputeEnded": {
+        "subject": "Cancellation request withdrawn — dispute closed",
+        "heading": "Cancellation request withdrawn — dispute closed",
+        "body": "The seller withdrew the cancellation request for {hasNumber, select, yes {order {number}} other {the order}}. The dispute is closed; the order continues."
       },
       "cancelApproved": {
         "subject": "Cancellation request approved",

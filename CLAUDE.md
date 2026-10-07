@@ -4001,9 +4001,10 @@ sağlamlaştırma. Operatör O-74…O-89.
 - **Kazandırma önizlemesi ve rapor özeti (28d7cd27, 91d097dd):** `awardPreview` aday teklif ve KYC kapılarını
   `award()` ile aynı yardımcıdan alır: `company-listings.service.ts` `loadAwardCandidateBid` (durum SUBMITTED,
   teklifçi askıda değil, geçerlilik, zorunlu belge) + `assertVerified`; önizlemeye ayrı kapı yazılmaz (sözleşme
-  `award-preview-parity.spec`). Rapor özeti (`CompanyReportsService.summary`) ay kovaları `appMonth` ile;
-  `reports-summary.spec` ay sınırı testleri eski yerel-saat hesabını yalnız süreç UTC'deyken kırmızıya düşürür
-  (yerelde `TZ=UTC` ile koş). `withdrawCancelRequest` yalnız ACCEPTED'da (DISPUTED 400; karar 174).
+  `award-preview-parity.spec`). Rapor özeti KALDIRILDI (kullanıcı kararı 2026-10-07): `POST /company/reports/summary`,
+  `CompanyReportsService.summary`, `reports-summary-charts.tsx`, `reports-summary.spec` ve
+  `web.panel.reports.reportsSummaryCharts.*` / `api.companyReports.digerKategoriler` anahtarları yok; aylık
+  grafikler Genel Bakış'ta (`dashboard-analytics`), Raporlar hub'ı yalnız rapor kartları. Geri eklenmez. `withdrawCancelRequest` yalnız ACCEPTED'da (DISPUTED 400; karar 174).
 - **Web / CI (2cd7eb06, 6c303499):** `PhoneInput` ülke seçicisi `flex-none`, numara kutusu `min-w-0 flex-1`
   (Firefox bayrağı eziyordu). `e2e-staging.yml` Safari adımı `!cancelled()` ile Chromium kızarsa da koşar. Web
   test dosyaları da `next lint` + `next build` lint aşamasından geçer: test içindeki sarmalayıcı bileşen
@@ -4019,7 +4020,7 @@ sağlamlaştırma. Operatör O-74…O-89.
   yükseltmez: yeni uyarıda override tabanı yükseltilir.
 - **Açık arayüz bulguları (2026-10-07 tarayıcı turu, düzeltilmedi):** RU kategori seçicide telefonda onay
   düğmesi taşıyor (ORTA); kazandırma diyaloğunda tutar yok; `reports-summary-charts.tsx` hiçbir sayfaya bağlı
-  değil; Açık Talepler 1280 px'te Görünürlük çipi kesiliyor; EN bildirimde iki tarih biçimi.
+  değildi (bileşen ve ucu kaldırıldı, 2026-10-07); Açık Talepler 1280 px'te Görünürlük çipi kesiliyor; EN bildirimde iki tarih biçimi.
 
 ## Bekleyen / Yapılacaklar
 

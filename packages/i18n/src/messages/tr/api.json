@@ -639,7 +639,6 @@
     "dosyaGenelRapor": "genel-rapor",
     "dosyaTasarrufRaporu": "tasarruf-raporu",
     "dosyaTeklifKarsilastirma": "teklif-karsilastirma",
-    "digerKategoriler": "Diğer",
     "basEnDusukCur": "En Düşük ({currency})",
     "basEnYuksekCur": "En Yüksek ({currency})",
     "basKazananCur": "Kazanan ({currency})",
@@ -1332,6 +1331,11 @@
         "subject": "İptal talebi geri çekildi",
         "heading": "İptal talebi geri çekildi",
         "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için satıcı iptal talebini geri çekti; sipariş devam ediyor."
+      },
+      "cancelRequestWithdrawnDisputeEnded": {
+        "subject": "İptal talebi geri çekildi — ihtilaf sona erdi",
+        "heading": "İptal talebi geri çekildi — ihtilaf sona erdi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için satıcı iptal talebini geri çekti. İhtilaf sona erdi; sipariş devam ediyor."
       },
       "cancelApproved": {
         "subject": "İptal talebi onaylandı",

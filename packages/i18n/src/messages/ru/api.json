@@ -639,7 +639,6 @@
     "dosyaGenelRapor": "obshchiy-otchet",
     "dosyaTasarrufRaporu": "otchet-ob-ekonomii",
     "dosyaTeklifKarsilastirma": "sravnenie-predlozheniy",
-    "digerKategoriler": "Прочее",
     "basEnDusukCur": "Минимум ({currency})",
     "basEnYuksekCur": "Максимум ({currency})",
     "basKazananCur": "Цена победителя ({currency})",
@@ -1332,6 +1331,11 @@
         "subject": "Запрос на отмену отозван",
         "heading": "Запрос на отмену отозван",
         "body": "Продавец отозвал запрос на отмену по {hasNumber, select, yes {заказу {number}} other {заказу}}; заказ продолжается."
+      },
+      "cancelRequestWithdrawnDisputeEnded": {
+        "subject": "Запрос на отмену отозван — спор завершён",
+        "heading": "Запрос на отмену отозван — спор завершён",
+        "body": "Продавец отозвал запрос на отмену по {hasNumber, select, yes {заказу {number}} other {заказу}}. Спор завершён; заказ продолжается."
       },
       "cancelApproved": {
         "subject": "Запрос на отмену одобрен",

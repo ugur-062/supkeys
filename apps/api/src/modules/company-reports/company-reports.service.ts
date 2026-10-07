@@ -6,8 +6,7 @@ import {
 } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import { YES_NO_ANSWER_VALUES, foldSearchText } from "@rothern/shared";
-import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
-import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
+import { tApi } from "../../common/i18n/i18n.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   awardedBidForItem,
@@ -19,7 +18,6 @@ import {
   tryToCurrency,
 } from "../../common/company/report-currency";
 import { convertAmount } from "../../common/currency/fx-rates";
-import { appMonth } from "../../common/time/app-calendar";
 
 /**
  * Raporlama motoru — eski sistemin (tenant-reports) birleşik Company modeline
@@ -44,23 +42,6 @@ export interface SavingsReportInput {
   rangeStart: string;
   rangeEnd: string;
   currency?: string;
-}
-
-export interface ReportsSummary {
-  /** Tutarların birimi — firmanın rapor para birimi (alan adları `…Try` geriye dönük). */
-  currency: string;
-  /** Son 6 ay — adet bazlı hacim + sipariş toplamı (rapor biriminde, TÜM siparişler). */
-  months: {
-    key: string;
-    label: string;
-    listings: number;
-    bids: number;
-    orderTotalTry: number;
-  }[];
-  /** Sonuçlanan taleplerden kazandırılanların oranı. */
-  winRate: { won: number; total: number };
-  orders: { count: number; avgTry: number | null };
-  categories: { name: string; count: number }[];
 }
 
 export interface BidComparisonInput {
@@ -1102,143 +1083,6 @@ export class CompanyReportsService {
       })),
       recommendedAwards: recommendedAwards.map((r) => ({ ...r, unitPrice: conv(r.unitPrice) ?? 0 })),
       roundHistory,
-    };
-  }
-
-  /**
-   * P2 (frontend denetimi §10.5): Raporlar hub özet grafikleri — adet bazlı
-   * aylık hacim (para birimi tuzağı yok), kazanma oranı, sipariş ortalaması
-   * (rapor para biriminde, tüm siparişler — 2026-09-27) ve kategori dağılımı.
-   * Kendi taleplerin + gelen teklifler.
-   */
-  async summary(companyId: string): Promise<ReportsSummary> {
-    // Ay kovaları ve pencere sınırları İSTANBUL takvimiyle (tek kaynak
-    // `app-calendar.ts`, derin denetim LU-07): sunucu UTC'de koşar; yerel
-    // `new Date(y, m, 1)` / `getMonth()` ile 1 Ekim 00:30 (TR) siparişi Eylül
-    // kovasına düşüyor, pencerenin ilk ayının ilk 3 saati hiç sayılmıyordu.
-    const now = new Date();
-    const start6 = appMonth(now, -5).start;
-    const start12 = appMonth(now, -11).start;
-    const monthKey = (d: Date) => appMonth(d).key;
-    const buckets = new Map<
-      string,
-      { label: string; listings: number; bids: number; orderTotalTry: number }
-    >();
-    for (let i = 5; i >= 0; i--) {
-      const m = appMonth(now, -i);
-      buckets.set(m.key, {
-        label: shortMonthLabel(m.labelDate),
-        listings: 0,
-        bids: 0,
-        orderTotalTry: 0,
-      });
-    }
-    const bump = (
-      at: Date,
-      field: "listings" | "bids",
-    ) => {
-      const b = buckets.get(monthKey(at));
-      if (b) b[field] += 1;
-    };
-
-    const [listingRows, bidRows, decisionRows, orderRows, catRows] =
-      await Promise.all([
-        this.prisma.listing.findMany({
-          where: { companyId, createdAt: { gte: start6 } },
-          select: { createdAt: true },
-        }),
-        this.prisma.listingBid.findMany({
-          where: {
-            listing: { companyId },
-            status: { in: [...REAL_BID] },
-            createdAt: { gte: start6 },
-          },
-          select: { createdAt: true },
-        }),
-        this.prisma.listing.findMany({
-          where: {
-            companyId,
-            status: { in: ["AWARDED", "CLOSED_NO_AWARD", "CANCELLED"] },
-            createdAt: { gte: start12 },
-          },
-          select: { status: true },
-        }),
-        this.prisma.companyOrder.findMany({
-          where: {
-            buyerCompanyId: companyId,
-            status: { notIn: ["REJECTED", "CANCELLED"] },
-            createdAt: { gte: start6 },
-          },
-          select: { createdAt: true, amount: true, currency: true },
-        }),
-        this.prisma.listing.findMany({
-          where: { companyId, createdAt: { gte: start12 } },
-          select: { categoryIds: true },
-        }),
-      ]);
-
-    for (const l of listingRows) bump(l.createdAt, "listings");
-    for (const b of bidRows) bump(b.createdAt, "bids");
-
-    // Sipariş toplamı RAPOR BİRİMİNDE (2026-09-27): her sipariş kendi
-    // biriminden güncel kurla çevrilir. Eskiden yalnız TRY siparişler sayılıyordu.
-    const reportCur = await this.reportCurrency(companyId);
-    let tryTotal = 0;
-    let tryCount = 0;
-    for (const o of orderRows) {
-      const amt = convertAmount(Number(o.amount), o.currency, reportCur);
-      if (amt == null) continue;
-      tryTotal += amt;
-      tryCount += 1;
-      const b = buckets.get(monthKey(o.createdAt));
-      if (b) b.orderTotalTry += amt;
-    }
-
-    const wonCount = decisionRows.filter((r) => r.status === "AWARDED").length;
-
-    // Kategori dağılımı — L1 segmentine katla (ilk 2 hane + "000000"),
-    // yoksa ham kod; ilk 5 + Diğer.
-    const catCounts = new Map<string, number>();
-    const rawIds = catRows.flatMap((r) => r.categoryIds);
-    for (const id of rawIds) {
-      const seg = id.length === 8 ? `${id.slice(0, 2)}000000` : id;
-      catCounts.set(seg, (catCounts.get(seg) ?? 0) + 1);
-    }
-    const top = [...catCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-    const catNames = top.length
-      ? await this.prisma.category.findMany({
-          where: { id: { in: top.map(([id]) => id) } },
-          select: { id: true, ...CATEGORY_NAME_SELECT },
-        })
-      : [];
-    const nameById = new Map(catNames.map((c) => [c.id, categoryName(c)]));
-    const rest = [...catCounts.values()].reduce((a, b) => a + b, 0) -
-      top.reduce((a, [, n]) => a + n, 0);
-    const categories = [
-      ...top.map(([id, count]) => ({
-        name: nameById.get(id) ?? id,
-        count,
-      })),
-      ...(rest > 0 ? [{ name: tApi("api.companyReports.digerKategoriler"), count: rest }] : []),
-    ];
-
-    return {
-      currency: reportCur,
-      months: [...buckets.entries()].map(([key, b]) => ({
-        key,
-        label: b.label,
-        listings: b.listings,
-        bids: b.bids,
-        orderTotalTry: Math.round(b.orderTotalTry * 100) / 100,
-      })),
-      winRate: { won: wonCount, total: decisionRows.length },
-      orders: {
-        count: tryCount,
-        avgTry: tryCount > 0 ? Math.round((tryTotal / tryCount) * 100) / 100 : null,
-      },
-      categories,
     };
   }
 }

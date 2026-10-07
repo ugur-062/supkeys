@@ -3864,11 +3864,6 @@
     "status": "reviewed",
     "at": "2026-09-29"
   },
-  "api.companyReports.digerKategoriler": {
-    "hash": "861fed125c",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "api.companyReports.dosyaGenelRapor": {
     "hash": "195178082a",
     "status": "reviewed",
@@ -7143,6 +7138,21 @@
     "hash": "ae5480a732",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.notifications.orders.cancelRequestWithdrawnDisputeEnded.body": {
+    "hash": "6e7493d5a7",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
+  "api.notifications.orders.cancelRequestWithdrawnDisputeEnded.heading": {
+    "hash": "545aafcfcb",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
+  "api.notifications.orders.cancelRequestWithdrawnDisputeEnded.subject": {
+    "hash": "545aafcfcb",
+    "status": "reviewed",
+    "at": "2026-10-07"
   },
   "api.notifications.orders.completed.body": {
     "hash": "1391cc6b0c",
@@ -21404,116 +21414,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.reports.reportsSummaryCharts.acikTalep": {
-    "hash": "0b2c6ae4fd",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.adetSon6Ay": {
-    "hash": "c864b3f15b",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.aylikAcikTalepVeVerilen": {
-    "hash": "f397cf9a92",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.aylikAlisHacmi": {
-    "hash": "e45704d23f",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.aylikSatisHacmi": {
-    "hash": "627be7551c",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.aylikTalepVeGelenTeklif": {
-    "hash": "314cbc42b2",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.eksenBin": {
-    "hash": "152f2c472c",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.eksenMilyon": {
-    "hash": "7d04c4d05b",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.gelenTeklif": {
-    "hash": "07032a7d3f",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.kategoriDagilimi": {
-    "hash": "6032ac3f0f",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.kazandirmaOrani": {
-    "hash": "e45415e6f1",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.kazanmaOrani": {
-    "hash": "bff5be96e6",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.performansOzeti": {
-    "hash": "cdf421d58f",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.satinAlmaTalebi": {
-    "hash": "0be4bb0075",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.siparislerCur": {
-    "hash": "95f2dd3713",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.reports.reportsSummaryCharts.siparislerOrtalamaCur": {
-    "hash": "78e388a4ad",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.reports.reportsSummaryCharts.son12AydaActiginizSatin": {
-    "hash": "4a84b73772",
-    "status": "reviewed",
-    "at": "2026-09-30"
-  },
-  "web.panel.reports.reportsSummaryCharts.son12AydaSonuclananSatin": {
-    "hash": "bcc99ac589",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.reports.reportsSummaryCharts.son12AydaTeklifVerdiginiz": {
-    "hash": "88c8532d16",
-    "status": "reviewed",
-    "at": "2026-09-30"
-  },
-  "web.panel.reports.reportsSummaryCharts.tutar": {
-    "hash": "01117c1e3e",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.verilenTeklif": {
-    "hash": "67097e4bf7",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.reports.reportsSummaryCharts.yuzde": {
-    "hash": "f059f4653d",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.reports.savingsReportView.adet": {
     "hash": "58b9935827",
     "status": "reviewed",
@@ -25690,9 +25590,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.icinKazandirmaOnayaGonderilecekSiparis": {
-    "hash": "f5e1c11423",
+    "hash": "67663c063a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-07"
   },
   "web.panel.requests.page.icinTeklifiniSec": {
     "hash": "fe2e610c15",
@@ -25803,6 +25703,21 @@
     "hash": "eb20401118",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.kalemBazliTutar": {
+    "hash": "c75c12ab03",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
+  "web.panel.requests.page.kalemBazliTutarSatiri": {
+    "hash": "a6055fea5b",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
+  "web.panel.requests.page.kalemBazliTutarToplamli": {
+    "hash": "3769e6d1ff",
+    "status": "reviewed",
+    "at": "2026-10-07"
   },
   "web.panel.requests.page.kalemBirimleriAnaBirimeCevrildi": {
     "hash": "af62b5c077",
@@ -26080,9 +25995,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.kazandirilsinMiBuIslemGeri": {
-    "hash": "bff04891ef",
+    "hash": "24e8321324",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-07"
   },
   "web.panel.requests.page.kazandirilsinMiSiparisOlusacak": {
     "hash": "ac8ee09d9e",
@@ -26913,6 +26828,11 @@
     "hash": "cd84302817",
     "status": "reviewed",
     "at": "2026-10-01"
+  },
+  "web.panel.requests.page.tutarTryKarsiligiyla": {
+    "hash": "938dcf0225",
+    "status": "reviewed",
+    "at": "2026-10-07"
   },
   "web.panel.requests.page.uygun": {
     "hash": "d20d8d1659",
@@ -37179,6 +37099,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.orderCancelRequestPanel.geriCekinceIhtilafBiterSiparisDevamEder": {
+    "hash": "249e64981f",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
+  "web.panel.trade.orderCancelRequestPanel.geriCekSiparisDevamEtsin": {
+    "hash": "53356a55f7",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
   "web.panel.trade.orderCancelRequestPanel.iptaliOnayla": {
     "hash": "8969438878",
     "status": "reviewed",
@@ -37199,10 +37129,20 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.orderCancelRequestPanel.iptalTalebiGeriCekildiSiparisDevamEdiyor": {
+    "hash": "831aa23980",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
   "web.panel.trade.orderCancelRequestPanel.iptalTalebiniGeriCek": {
     "hash": "4aaea83a92",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.orderCancelRequestPanel.iptalTalebiniGeriCekBaslik": {
+    "hash": "8f48eba951",
+    "status": "reviewed",
+    "at": "2026-10-07"
   },
   "web.panel.trade.orderCancelRequestPanel.iptalTalebiniReddet": {
     "hash": "4903c3fd1d",
@@ -37215,9 +37155,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.orderCancelRequestPanel.iptalTalebiReddedildiSiparisIhtilafli2": {
-    "hash": "fb6036fba3",
+    "hash": "7d102e1134",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-07"
   },
   "web.panel.trade.orderCancelRequestPanel.islemBasarisiz": {
     "hash": "9fdb432318",
@@ -37985,9 +37925,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.orderTimeline.iptalTalebiReddedildiIkiYonlu": {
-    "hash": "ba20aebcde",
+    "hash": "77c01f352b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-07"
   },
   "web.panel.trade.orderTimeline.odemeHesabi": {
     "hash": "809a378592",
@@ -39850,9 +39790,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.siparisIdPage.ihtilafSaticiGonderebilirVeyaIptaliOnaylayin": {
-    "hash": "7332906bcd",
+    "hash": "e14945b20c",
     "status": "reviewed",
-    "at": "2026-10-02"
+    "at": "2026-10-07"
   },
   "web.panel.trade.siparisIdPage.iptalEdildi": {
     "hash": "e15ad036b1",
@@ -40180,9 +40120,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.siparisIdPage.saticiIhtilafIptalReddedildiGonderebilirsiniz": {
-    "hash": "31702a39cc",
+    "hash": "e9ab53a7cf",
     "status": "reviewed",
-    "at": "2026-10-02"
+    "at": "2026-10-07"
   },
   "web.panel.trade.siparisIdPage.saticiIptalTalebinizKararBekliyor": {
     "hash": "84ec32169c",

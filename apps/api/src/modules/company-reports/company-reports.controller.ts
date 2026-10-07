@@ -121,13 +121,6 @@ export class CompanyReportsController {
     return this.service.listingOptions(user.companyId, query);
   }
 
-  /** Hub özet grafikleri (denetim §10.5) — kriter yok. */
-  @Post("summary")
-  summary(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    assertAllowed(user);
-    return this.service.summary(user.companyId);
-  }
-
   @Post("general")
   general(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
