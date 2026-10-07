@@ -6,6 +6,7 @@ import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-c
 import { AdminInspectionService } from "../../src/modules/admin-companies/admin-inspection.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser as makeCompanyWithUserBase, makeListing } from "./factories";
 
@@ -187,6 +188,14 @@ describe("#5 — üyelik yazımı CAS'li (kayıp güncelleme yok)", () => {
 });
 
 describe("#6 — elle REVOKE, cron downgrade'iyle aynı temizliği yapar", () => {
+  // Saklı paketin elle alınması: ücretsiz dönem anahtarı KAPALIyken efektif düşüştür (ücretli paketler dönünce aynen çalışmalı).
+  beforeEach(() => {
+    jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("bekleyen giden davetler silinir", async () => {
     const { service } = rig();
     const inviter = await makeCompanyWithUser(prisma, { tier: "GOLD" });
@@ -204,6 +213,52 @@ describe("#6 — elle REVOKE, cron downgrade'iyle aynı temizliği yapar", () =>
       where: { inviterCompanyId: inviter.company.id, status: "PENDING" },
     });
     expect(left).toBe(0);
+  });
+});
+
+describe("#6 (ücretsiz dönem) — temizlik EFEKTİF kademe düşüşüne bağlı", () => {
+  async function pendingInvite(inviter: { company: { id: string }; user: { id: string } }) {
+    const invitee = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: inviter.company.id,
+        inviteeCompanyId: invitee.company.id,
+        invitedById: inviter.user.id,
+        status: "PENDING",
+      },
+    });
+  }
+  const pendingCount = (companyId: string) =>
+    prisma.companyConnection.count({ where: { inviterCompanyId: companyId, status: "PENDING" } });
+
+  it("doğrulanmış firmanın saklı paketi alınsa da tam erişim sürer → bekleyen davetleri SİLİNMEZ, paket bildirimi gitmez", async () => {
+    const { service, notifications, email } = rig();
+    const inviter = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await pendingInvite(inviter);
+    await service.setTier(inviter.company.id, "STANDART", undefined, "admin-1");
+    expect(
+      (await prisma.company.findUniqueOrThrow({ where: { id: inviter.company.id } })).tier,
+    ).toBe("STANDART");
+    expect(await pendingCount(inviter.company.id)).toBe(1);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(notifications.pushToCompany).not.toHaveBeenCalled();
+    expect(email.send).not.toHaveBeenCalled();
+  });
+
+  it("doğrulaması geri alınan firma (saklı STANDART) sınırlı firmaya düşer → bekleyen giden davetleri silinir", async () => {
+    const { service } = rig();
+    const inviter = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await pendingInvite(inviter);
+    await service.setVerification(inviter.company.id, "REJECTED", "admin-1", "belge geçersiz");
+    expect(await pendingCount(inviter.company.id)).toBe(0);
+  });
+
+  it("doğrulaması geri alınan firma süresi dolmamış saklı paketini korur → davetleri kalır (kimse erişim yitirmez)", async () => {
+    const { service } = rig();
+    const inviter = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await pendingInvite(inviter);
+    await service.setVerification(inviter.company.id, "REJECTED", "admin-1", "belge geçersiz");
+    expect(await pendingCount(inviter.company.id)).toBe(1);
   });
 });
 

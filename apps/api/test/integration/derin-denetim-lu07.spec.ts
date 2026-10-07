@@ -14,6 +14,7 @@ import { CompanyConnectionsService } from "../../src/modules/company-connections
 import { ExternalInviteDispatcher } from "../../src/modules/company-connections/services/external-invite-dispatcher.service";
 import { ActionCenterService } from "../../src/modules/company-dashboard/action-center.service";
 import { CompanyDashboardService } from "../../src/modules/company-dashboard/company-dashboard.service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import type { Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing } from "./factories";
@@ -113,6 +114,14 @@ describe("referral 7 günlük freni ↔ dış talep daveti", () => {
 });
 
 describe("dış talep daveti paket kapısı", () => {
+  // Saklı SILVER ↔ GOLD ayrımı: ücretsiz dönem anahtarı KAPALIyken geçerli (ücretli paketler dönünce aynen çalışmalı).
+  beforeEach(() => {
+    jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("SILVER firma dış talep daveti kuyruğa ALAMAZ (iç davetle aynı GOLD kapısı)", async () => {
     const service = makeService();
     const owner = await makeCompanyWithUser(prisma, { tier: "SILVER" });
@@ -152,6 +161,50 @@ describe("dış talep daveti paket kapısı", () => {
     expect((await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "gitti@firma.com" } })).state).toBe("SENT");
     // SILVER bağlantı/referral daveti gönderebilir — referral satırları iptal edilmez.
     expect(await prisma.companyReferralInvite.count({ where: { status: "PENDING" } })).toBe(2);
+  });
+});
+
+describe("dış talep daveti — ücretsiz dönem: kapı firma doğrulaması", () => {
+  it("doğrulanmamış firma dış talep daveti kuyruğa ALAMAZ; metin doğrulama ister, paket anmaz", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" });
+    const listing = await openListing(owner.company.id, owner.user.id);
+    const err = await service
+      .inviteExternalForListing(owner.auth, listing.id, ["dis@firma.com"])
+      .catch((e: Error) => e);
+    expect(err).toMatchObject({ status: 403 });
+    expect((err as Error).message).toMatch(/firma doğrulaması gerekir/i);
+    expect((err as Error).message).not.toMatch(/silver|gold|paket/i);
+    expect(await prisma.externalListingInvite.count()).toBe(0);
+  });
+
+  it("doğrulanmış firma saklı kademesi STANDART olsa da kuyruğa alır (JWT efektif kademeyi taşır)", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const listing = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing({ ...owner.auth, tier: "GOLD" }, listing.id, ["dis@firma.com"]);
+    expect(await prisma.externalListingInvite.count({ where: { state: "QUEUED" } })).toBe(1);
+  });
+
+  it("admin doğrulanmış firmanın saklı paketini GOLD → SILVER yapsa da efektif kademe değişmez: kuyruk iptal EDİLMEZ", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, listing.id, ["kuyruk@firma.com"]);
+    const admin = new AdminCompaniesService(
+      prisma as never,
+      {} as never,
+      { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) } as never,
+      { pushToCompany: jest.fn().mockResolvedValue(1) } as never,
+      config as never,
+      new AuditService(prisma as never),
+      new EmailSuppressionService(prisma as never),
+    );
+    await admin.setTier(owner.company.id, "SILVER", 12, "admin-1");
+    expect(await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "kuyruk@firma.com" } })).toMatchObject({
+      state: "QUEUED",
+      cancelReason: null,
+    });
   });
 });
 

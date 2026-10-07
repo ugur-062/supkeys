@@ -10,6 +10,7 @@ import { NotFoundException } from "@nestjs/common";
 import { PublicProfileController } from "../../src/modules/public-profile/public-profile.controller";
 import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
@@ -102,8 +103,11 @@ describe("ürün vitrini — kapı", () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("STANDART (ücretsiz) firmanın vitrini de AÇIK — paket şartı kalktı (2026-09-06)", async () => {
-    const { company } = await seedCompanyWithProduct({ tier: "STANDART" });
+  it("sınırlı (doğrulanmamış, STANDART) firmanın vitrini de AÇIK — paket şartı kalktı (2026-09-06), doğrulama da şart değil", async () => {
+    const { company } = await seedCompanyWithProduct({
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
     const res = await service().listPublicProducts(company.slug as string);
     expect(res.total).toBe(1);
   });
@@ -201,7 +205,8 @@ describe("ürün vitrini — sızıntı", () => {
 });
 
 // T-18 / D-331 / D-192 (arayüz testi 2026-10-01): belge ADI herkese açık,
-// İNDİRME adresi üyeye; video ve belgeler Silver+ satıcının (efektif paket).
+// İNDİRME adresi üyeye; video ve belgeler efektif Silver+ satıcının — ücretsiz
+// dönemde bu DOĞRULANMIŞ satıcı demektir (doğrulanmamış firma saklı kademesiyle kalır).
 describe("ürün vitrini — belge ve video (paket + üyelik)", () => {
   beforeEach(async () => {
     await truncateAll();
@@ -220,20 +225,41 @@ describe("ürün vitrini — belge ve video (paket + üyelik)", () => {
     expect(JSON.stringify(one)).not.toContain("katalog.pdf");
   });
 
-  it("STANDART'a düşen satıcının videosu ve belgeleri servis edilmez (kayıt korunur)", async () => {
+  // Ücretsiz dönem: medyayı doğrulama açar — saklı kademe STANDART olsa da doğrulanmış satıcı servis eder.
+  it("doğrulanmış satıcı (saklı kademe STANDART): video döner, belge yalnız ADIYLA", async () => {
     const { company, product } = await seedCompanyWithProduct({ tier: "STANDART" }, media);
     const one = await service().getPublicProduct(company.slug as string, product.slug as string);
-    expect(one.product.videoUrl).toBeNull();
-    expect(one.product.documents).toBeNull();
-    const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: product.id } });
-    expect(row.videoUrl).toBe(media.videoUrl);
+    expect(one.product.videoUrl).toBe(media.videoUrl);
+    expect(one.product.documents).toEqual([{ title: "Katalog" }]);
+    expect(JSON.stringify(one)).not.toContain("katalog.pdf");
   });
+
+  // Sınırlı firma = DOĞRULANMAMIŞ firma (UNVERIFIED / PENDING / REJECTED): saklı kademesi STANDART.
+  it.each(["UNVERIFIED", "PENDING", "REJECTED"] as const)(
+    "%s (sınırlı) satıcının videosu ve belgeleri servis edilmez (kayıt korunur)",
+    async (status) => {
+      const { company, product } = await seedCompanyWithProduct(
+        { tier: "STANDART", companyVerificationStatus: status },
+        media,
+      );
+      const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+      expect(one.product.videoUrl).toBeNull();
+      expect(one.product.documents).toBeNull();
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: product.id } });
+      expect(row.videoUrl).toBe(media.videoUrl);
+    },
+  );
 
   // Yeniden doğrulama (webA-03): `buy:view` olmayan üye (satış koltuğu,
   // görüntüleyici) belgeyi hiçbir yerden indiremiyordu — üye ucu oturumla açık.
-  it("üye ucu: oturumlu üye indirme adresini alır; Silver altı satıcıda boş, engelde 404", async () => {
-    const { company, product } = await seedCompanyWithProduct({ tier: "SILVER" }, media);
-    const viewer = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+  it("üye ucu: oturumlu üye indirme adresini alır; sınırlı satıcıda boş, engelde 404", async () => {
+    // Doğrulanmamış satıcı saklı paketiyle yaşar: süresi dolunca STANDART'a düşer (tembel kural).
+    const { company, product } = await seedCompanyWithProduct(
+      { tier: "SILVER", companyVerificationStatus: "UNVERIFIED" },
+      media,
+    );
+    // İzleyicinin erişim düzeyi sorulmaz: sınırlı (doğrulanmamış) üye de indirir.
+    const viewer = await makeCompanyWithUser(prisma, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" });
     const got = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
     expect(got).toEqual({ documents: [{ url: "https://cdn.example.com/katalog.pdf", title: "Katalog" }] });
 
@@ -244,7 +270,11 @@ describe("ürün vitrini — belge ve video (paket + üyelik)", () => {
     const expired = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
     expect(expired).toEqual({ documents: [] });
 
-    await prisma.company.update({ where: { id: company.id }, data: { membershipEndAt: null } });
+    // Satıcı doğrulanınca (saklı paketi dolmuş olsa da) belgeler yeniden açılır.
+    await prisma.company.update({ where: { id: company.id }, data: { companyVerificationStatus: "VERIFIED" } });
+    const verified = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
+    expect(verified).toEqual({ documents: [{ url: "https://cdn.example.com/katalog.pdf", title: "Katalog" }] });
+
     await prisma.companyBlock.create({
       data: { blockerCompanyId: company.id, blockedCompanyId: viewer.company.id },
     });
@@ -253,14 +283,60 @@ describe("ürün vitrini — belge ve video (paket + üyelik)", () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("süresi dolmuş Gold = STANDART: medya gizlenir", async () => {
+  it("doğrulanmamış firmanın süresi dolmuş saklı Gold'u = STANDART: medya gizlenir", async () => {
     const { company, product } = await seedCompanyWithProduct(
-      { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) },
+      {
+        tier: "GOLD",
+        membershipEndAt: new Date(Date.now() - 86_400_000),
+        companyVerificationStatus: "UNVERIFIED",
+      },
       media,
     );
     const one = await service().getPublicProduct(company.slug as string, product.slug as string);
     expect(one.product.videoUrl).toBeNull();
     expect(one.product.documents).toBeNull();
+  });
+
+  describe("saklı paket (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Uyuyan paket kapısı: anahtar kapalıyken medyayı doğrulama değil saklı kademe + üyelik süresi açar.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("doğrulanmış STANDART satıcının videosu ve belgeleri servis edilmez (kayıt korunur)", async () => {
+      const { company, product } = await seedCompanyWithProduct({ tier: "STANDART" }, media);
+      const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+      expect(one.product.videoUrl).toBeNull();
+      expect(one.product.documents).toBeNull();
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: product.id } });
+      expect(row.videoUrl).toBe(media.videoUrl);
+    });
+
+    it("üye ucu: doğrulanmış Silver satıcının süresi dolunca belgeler boş döner", async () => {
+      const { company, product } = await seedCompanyWithProduct({ tier: "SILVER" }, media);
+      const viewer = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+      const got = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
+      expect(got).toEqual({ documents: [{ url: "https://cdn.example.com/katalog.pdf", title: "Katalog" }] });
+      await prisma.company.update({
+        where: { id: company.id },
+        data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+      });
+      const expired = await service().documentsForMember(viewer.company.id, company.slug as string, product.slug as string);
+      expect(expired).toEqual({ documents: [] });
+    });
+
+    it("doğrulanmış firmanın süresi dolmuş Gold'u = STANDART: medya gizlenir", async () => {
+      const { company, product } = await seedCompanyWithProduct(
+        { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) },
+        media,
+      );
+      const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+      expect(one.product.videoUrl).toBeNull();
+      expect(one.product.documents).toBeNull();
+    });
   });
 });
 

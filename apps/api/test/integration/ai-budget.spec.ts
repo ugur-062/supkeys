@@ -12,6 +12,7 @@
  */
 import "reflect-metadata";
 import { CompanyRole, Prisma } from "@rothern/db";
+import { ForbiddenException } from "@nestjs/common";
 import { AiBudgetService, AiBudgetExceededException } from "../../src/modules/ai/ai-budget.service";
 import { AiService, type AiCallOptions } from "../../src/modules/ai/ai.service";
 import type { AiConfig } from "../../src/modules/ai/ai.config";
@@ -99,7 +100,7 @@ function authFor(
   u: { id: string; email: string },
   companyId: string,
   roles: CompanyRole[],
-  over: { tier?: string; isOwner?: boolean } = {},
+  over: { tier?: string; isOwner?: boolean; verification?: string } = {},
 ) {
   return {
     userId: u.id,
@@ -109,7 +110,8 @@ function authFor(
     isOwner: over.isOwner ?? false,
     country: "TR",
     tier: over.tier ?? "GOLD",
-    companyVerificationStatus: "VERIFIED",
+    // Ücretsiz dönem: kısıtlı firma = DOĞRULANMAMIŞ firma (saklı kademesiyle kalır).
+    companyVerificationStatus: over.verification ?? "VERIFIED",
   } as never;
 }
 
@@ -173,17 +175,31 @@ describe("Faz AI-0 — erişim kapısı", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
-  it("STANDART/STANDART 403 (Silver+ şartı)", async () => {
+  it("doğrulanmamış firma (saklı STANDART) 403 — metin doğrulama ister, paket adı anmaz", async () => {
     const provider = new FakeProvider();
     const ai = makeAi(makeCfg(), provider);
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    for (const tier of ["STANDART", "STANDART"]) {
-      await expect(
-        ai.callAi(
-          authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier, isOwner: true }),
-          CALL,
-        ),
-      ).rejects.toThrow(/Silver/);
+    // Ücretsiz dönem: kısıtlı firma = doğrulanmamış firma; ret metni duruma göre ayrışır.
+    const expected: Record<string, RegExp> = {
+      UNVERIFIED: /AI özellikleri için firma doğrulaması gerekir/,
+      PENDING: /Firma doğrulamanız inceleniyor/,
+      REJECTED: /Firma doğrulamanız onaylanmadı/,
+    };
+    for (const verification of ["UNVERIFIED", "PENDING", "REJECTED"] as const) {
+      const co = await makeCompanyWithUser(prisma, {
+        tier: "STANDART",
+        companyVerificationStatus: verification,
+      });
+      const denied = ai.callAi(
+        authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+          tier: "STANDART",
+          isOwner: true,
+          verification,
+        }),
+        CALL,
+      );
+      await expect(denied).rejects.toThrow(ForbiddenException);
+      await expect(denied).rejects.toThrow(expected[verification]!);
+      await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
     }
     expect(provider.calls).toHaveLength(0);
   });
@@ -278,10 +294,16 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
       minTier: "STANDART",
       webSearch: true,
     };
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // Ücretsiz dönem: STANDART havuzu yalnız DOĞRULANMAMIŞ firmada geçerli
+    // (doğrulanmış firma en üst kademenin havuzunu kullanır).
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
     const auth = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
       tier: "STANDART",
       isOwner: true,
+      verification: "UNVERIFIED",
     });
 
     const eski = new FakeProvider();
@@ -336,10 +358,16 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
       prompt: "x".repeat(10_000),
       minTier: "STANDART",
     };
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // Ücretsiz dönem: STANDART havuzu yalnız DOĞRULANMAMIŞ firmada geçerli
+    // (doğrulanmış firma en üst kademenin havuzunu kullanır).
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
     const auth = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
       tier: "STANDART",
       isOwner: true,
+      verification: "UNVERIFIED",
     });
     await seedSpend(co.company.id, co.user.id, "0.056", {
       feature: "profile_enrich",

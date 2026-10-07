@@ -593,8 +593,12 @@ describe("K1 — oda aboneliği yetkisi (canSubscribeOrder / canSubscribeListing
       ).toBe(false);
     });
 
-    it("bağlantıyı kuran taraf paketsizse (STANDART) bağlantı GEÇERSİZ → katılamaz", async () => {
-      const owner = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    it("bağlantıyı kuran taraf doğrulanmamışsa (sınırlı firma, saklı kademe STANDART) bağlantı GEÇERSİZ → katılamaz; doğrulanınca geçerli olur", async () => {
+      // Ücretsiz dönem (2026-10-07): sınırlı firma = doğrulanmamış firma.
+      const owner = await makeCompanyWithUser(prisma, {
+        tier: "STANDART",
+        companyVerificationStatus: "UNVERIFIED",
+      });
       const other = await makeCompanyWithUser(prisma, {});
       await connect(prisma, owner.company.id, other.company.id, owner.user.id);
       const listing = await makeListing(prisma, {
@@ -605,6 +609,14 @@ describe("K1 — oda aboneliği yetkisi (canSubscribeOrder / canSubscribeListing
       expect(
         await trySubscribe(other.user.id, other.company.id, "listing", listing.id),
       ).toBe(false);
+      // Doğrulanan firma saklı kademesi STANDART kalsa da tam erişimli → bağlantı geçerli.
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: { companyVerificationStatus: "VERIFIED" },
+      });
+      expect(
+        await trySubscribe(other.user.id, other.company.id, "listing", listing.id),
+      ).toBe(true);
     });
 
     it("embargolu ilan (bidsOpenAt gelecekte): davetli ama teklifsiz firma katılamaz, teklifi olan katılır", async () => {

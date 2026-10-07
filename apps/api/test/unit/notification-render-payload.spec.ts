@@ -124,8 +124,10 @@ describe("renderPayload — ctaPath alıcının dilinde", () => {
   });
 
   it("ctaPath verilmişse ctaUrl YOK SAYILIR", () => {
-    const p = payload({ ctaUrl: `${BASE}/eski`, ctaPath: "/company/premium" });
-    expect(renderPayload(p, "en").ctaUrl).toBe("/en/company/plans");
+    // Paket sayfası kalktı (ücretsiz dönem); kilit CTA'ları doğrulama sayfasına gider.
+    const p = payload({ ctaUrl: `${BASE}/eski`, ctaPath: "/company/ayarlar/dogrulama" });
+    expect(renderPayload(p, "en").ctaUrl).toBe("/en/company/settings/verification");
+    expect(renderPayload(p, "ru").ctaUrl).toBe("/ru/kompaniya/nastroyki/verifikatsiya");
   });
 });
 

@@ -120,7 +120,9 @@ const asCompany = <T>(companyId: string, fn: () => Promise<T>): Promise<T> =>
 // Deterministik zaman damgaları (duvar saatine bağlı değil).
 const T0 = new Date("2026-09-01T09:00:00.000Z");
 const at = (minutes: number) => new Date(T0.getTime() + minutes * 60_000);
-// Süresi çoktan dolmuş paket (effectiveTier → STANDART); saatten bağımsız geçmiş.
+// Süresi çoktan dolmuş saklı paket; saatten bağımsız geçmiş. Ücretsiz dönemde
+// (2026-10-07) yalnız DOĞRULANMAMIŞ firmada efektif STANDART'a düşürür —
+// doğrulanmış firma saklı paketinden bağımsız tam erişimlidir.
 const LAPSED = new Date("2020-01-01T00:00:00.000Z");
 
 let seq = 0;
@@ -675,7 +677,7 @@ describe("R-8 — bağlantı kartı ürün önizlemesi (CompanyConnectionsServic
     await makeProduct(b.company.id, b.user.id, 60);
     await makeGateNegatives(b.company.id, b.user.id);
     await link(viewer, b, { minute: 30 });
-    // C: izleyeni DAVET ETTİ (C GOLD → bağlantı geçerli). 1 vitrin + 1 taslak.
+    // C: izleyeni DAVET ETTİ (C doğrulanmış → bağlantı geçerli). 1 vitrin + 1 taslak.
     const c = await firm();
     await publish(c.company.id);
     const c1 = await makeProduct(c.company.id, c.user.id, 50);
@@ -688,16 +690,22 @@ describe("R-8 — bağlantı kartı ürün önizlemesi (CompanyConnectionsServic
     await makeProduct(d.company.id, d.user.id, 90);
     await makeProduct(d.company.id, d.user.id, 80);
     await link(viewer, d, { minute: 50 });
-    // E: izleyeni davet etti ama STANDART; L: GOLD ama paketi DOLMUŞ → geçersiz, kart YOK.
-    const e = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // E: izleyeni davet etti ama SINIRLI (doğrulanmamış, saklı kademe STANDART);
+    // L: doğrulanmamış + saklı GOLD paketi DOLMUŞ → ikisi de geçersiz, kart YOK.
+    const e = await makeCompanyWithUser(prisma, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" });
     await publish(e.company.id);
     await makeProduct(e.company.id, e.user.id, 90);
     await link(e, viewer, { minute: 60 });
-    const lapsed = await firm();
+    const lapsed = await makeCompanyWithUser(prisma, { tier: "GOLD", companyVerificationStatus: "PENDING" });
     await prisma.company.update({ where: { id: lapsed.company.id }, data: { membershipEndAt: LAPSED } });
     await publish(lapsed.company.id);
     await makeProduct(lapsed.company.id, lapsed.user.id, 90);
     await link(lapsed, viewer, { minute: 70 });
+    // G: izleyeni davet etti, saklı paketi DOLMUŞ ama DOĞRULANMIŞ → ücretsiz
+    // dönemde tam erişimli, bağlantı GEÇERLİ → kart VAR (profil yayında değil → önizleme yok).
+    const g = await firm();
+    await prisma.company.update({ where: { id: g.company.id }, data: { membershipEndAt: LAPSED } });
+    await link(g, viewer, { minute: 80 });
     // F: bekleyen (PENDING) davet → aktif bağlantı değil, kart YOK.
     const f = await firm();
     await publish(f.company.id);
@@ -708,7 +716,9 @@ describe("R-8 — bağlantı kartı ürün önizlemesi (CompanyConnectionsServic
     const cards = await asCompany(viewer.company.id, () =>
       prodConnections().list(viewer.company.id),
     );
-    expect(cards.map((k) => k.company.id).sort()).toEqual([b.company.id, c.company.id, d.company.id].sort());
+    const expectedCards = [b.company.id, c.company.id, d.company.id, g.company.id].sort();
+    expect(cards.map((k) => k.company.id).sort()).toEqual(expectedCards);
+    expect(previewOf(cards, g.company.id)).toBeNull();
     expect(previewOf(cards, b.company.id)).toEqual({
       thumbnails: [b1.images[0], b2.images[0], b3.images[0]],
       total: 4,
@@ -721,7 +731,7 @@ describe("R-8 — bağlantı kartı ürün önizlemesi (CompanyConnectionsServic
     const broken = await asCompany(viewer.company.id, () =>
       preFixConnections().list(viewer.company.id),
     );
-    expect(broken.map((k) => k.company.id).sort()).toEqual([b.company.id, c.company.id, d.company.id].sort());
+    expect(broken.map((k) => k.company.id).sort()).toEqual(expectedCards);
     expect(previewOf(broken, b.company.id)).toBeNull();
     expect(previewOf(broken, c.company.id)).toBeNull();
   });

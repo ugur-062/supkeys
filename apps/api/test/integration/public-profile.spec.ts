@@ -7,6 +7,7 @@ import { prisma, truncateAll } from "./test-db";
 import { makeCompany, makeCompanyWithUser } from "./factories";
 import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
 import { buildDirectory } from "../../src/common/company/company-directory";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 
 const svc = new PublicProfileService(prisma as never);
 
@@ -36,13 +37,43 @@ describe("PublicProfile getBySlug — INV-TIER-1 (T7)", () => {
     await expect(svc.getBySlug(slug)).resolves.toBeTruthy();
   });
 
-  it("süresi DOLMUŞ PAKET profili GÖRÜNÜR kalır (paket şartı yok, 2026-09-06) ama Gold rozeti düşer (efektif STANDART)", async () => {
-    const slug = await publicCompany({
-      tier: "GOLD",
-      membershipEndAt: new Date(Date.now() - 86_400_000),
+  describe("saklı paket süresi (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Üyelik süresi makinesi anahtar kapalıyken geçerlidir; açıkken doğrulanmış firma hep en üst kademede.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
     });
-    const res = (await svc.getBySlug(slug)) as { goldMember: boolean };
-    expect(res.goldMember).toBe(false);
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("süresi DOLMUŞ PAKET profili GÖRÜNÜR kalır (paket şartı yok, 2026-09-06) ama Gold rozeti düşer (efektif STANDART)", async () => {
+      const slug = await publicCompany({
+        tier: "GOLD",
+        membershipEndAt: new Date(Date.now() - 86_400_000),
+      });
+      const res = (await svc.getBySlug(slug)) as { goldMember: boolean };
+      expect(res.goldMember).toBe(false);
+    });
+  });
+
+  it("ücretsiz dönem: rozet alanı efektif kademeyi izler — doğrulanmış firmada saklı paket dolsa da düşmez; doğrulanmamış firmada süresi dolmuş saklı paket düşer, profil GÖRÜNÜR kalır", async () => {
+    const expired = { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) };
+    const verified = (await svc.getBySlug(await publicCompany(expired))) as {
+      goldMember: boolean;
+      verified: boolean;
+    };
+    expect(verified).toMatchObject({ goldMember: true, verified: true });
+    for (const status of ["UNVERIFIED", "PENDING", "REJECTED"]) {
+      const res = (await svc.getBySlug(
+        await publicCompany({ ...expired, companyVerificationStatus: status }),
+      )) as { goldMember: boolean; verified: boolean };
+      expect(res).toMatchObject({ goldMember: false, verified: false });
+    }
+    // Saklı kademesi STANDART olan doğrulanmamış firma da aynı (sınırlı firma).
+    const limited = (await svc.getBySlug(
+      await publicCompany({ tier: "STANDART", companyVerificationStatus: "UNVERIFIED" }),
+    )) as { goldMember: boolean };
+    expect(limited.goldMember).toBe(false);
   });
 
   it("yanıtta membershipEndAt / tier iç alanları sızmaz", async () => {

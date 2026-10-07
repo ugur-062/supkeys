@@ -25,8 +25,8 @@
  *    dönüyordu. İki bağlamsız tüketici üzerinden, doğrudan (public metot,
  *    özel metot çağrısı YOK):
  *      · `notifyHiddenAiMatches` sahibin AKTİF bağlantısını atlamalı — bağlı
- *        ücretsiz firmaya "Silver'a geç" çağrısı gitmemeli;
- *      · `notifyCategoryMatchedCompanies` bağlı ücretsiz firmaya KİLİTLİ değil
+ *        sınırlı (doğrulanmamış) firmaya "firmanızı doğrulayın" çağrısı gitmemeli;
+ *      · `notifyCategoryMatchedCompanies` bağlı sınırlı firmaya KİLİTLİ değil
  *        AÇIK metni (talep bağlantısı) göndermeli.
  *    DERİNLİK SAVUNMASI: olağan akışta üst katman bu firmaları zaten eler
  *    (keşif `discoverRegisteredFor` AKTİF bağlantıları düşürür;
@@ -90,6 +90,15 @@ afterAll(async () => {
 });
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+
+/**
+ * ÜCRETSİZ DÖNEM (2026-10-07): SINIRLI firma = DOĞRULANMAMIŞ firma (saklı
+ * kademesi STANDART). Doğrulanmış firma saklı kademesinden bağımsız tam
+ * erişimlidir; factory varsayılanı VERIFIED + GOLD = tam erişimli firma.
+ */
+const LIMITED = { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" } as const;
+/** Kilitli duyurunun çağrısı: firma doğrulama sayfası. */
+const VERIFY_PATH = "/company/ayarlar/dogrulama";
 
 // Rakip tutarları AYIRT EDİCİ seçildi: yanıt JSON'unda "1111.11" / "2222.22"
 // geçmesi = rakip tutarı sızdı (id/tarih alanlarıyla çakışmaz).
@@ -594,11 +603,11 @@ describe("R-3 — teslim adresi: teklif verebilen tedarikçi sahibin adresini g�
     expect(bug.deliveryAddress).toBeNull();
   });
 
-  it("canBid KAPISI DEĞİŞMEDİ: teklif veremeyen tedarikçi (ücretsiz, bağsız, eski teklifi olduğu için talebi açabiliyor) adresi ALMAZ — KONTROL: aynı talepte canBid'li tedarikçi alır", async () => {
+  it("canBid KAPISI DEĞİŞMEDİ: teklif veremeyen tedarikçi (doğrulanmamış, bağsız, eski teklifi olduğu için talebi açabiliyor) adresi ALMAZ — KONTROL: aynı talepte canBid'li tedarikçi alır", async () => {
     const { listing } = await listingWithAddress();
-    // Ücretsiz + bağsız + davetsiz → canBid=false; eski (geri çekilmiş)
+    // Sınırlı (doğrulanmamış) + bağsız + davetsiz → canBid=false; eski (geri çekilmiş)
     // teklifi olduğu için `hidden` istisnası talebi AÇTIRIR (403 değil).
-    const free = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    const free = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
     await makeBid(prisma, {
       listingId: listing.id,
       bidderCompanyId: free.company.id,
@@ -689,7 +698,7 @@ describe("R-3 — teslim adresi: teklif verebilen tedarikçi sahibin adresini g�
 describe("R-7 — bağlamsız (cron) yolda sahibin AKTİF bağlantıları bulunur", () => {
   /**
    * PUBLIC ∧ OPEN ∧ yayınlanmış ∧ embargosuz talep (gizli AI eşleşmesinin ön
-   * şartı). Üç ücretsiz (STANDART → AI'ya önerilemez, "gizli" havuz) aday:
+   * şartı). Üç sınırlı (doğrulanmamış → AI'ya önerilemez, "gizli" havuz) aday:
    *  - connected: sahiple AKTİF + geçerli bağlantı (davetçi GOLD) → ATLANMALI
    *  - pending:   sahiple yalnız PENDING bağlantı → ACTIVE süzgeci korunmalı, alır
    *  - stranger:  bağsız → alır
@@ -712,9 +721,9 @@ describe("R-7 — bağlamsız (cron) yolda sahibin AKTİF bağlantıları bulunu
       publishedAt: new Date(),
       bidsOpenAt: null,
     });
-    const connected = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
-    const pending = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
-    const stranger = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    const connected = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
+    const pending = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
+    const stranger = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
     await connect(prisma, owner.company.id, connected.company.id, owner.user.id);
     await prisma.companyConnection.create({
       data: {
@@ -760,7 +769,7 @@ describe("R-7 — bağlamsız (cron) yolda sahibin AKTİF bağlantıları bulunu
     };
   }
 
-  it("KANIT-ÇİFTİ (notifyHiddenAiMatches): gizli AI eşleşmesi (bağlam YOK) bağlı ücretsiz firmayı atlar — ona 'Silver'a geç' e-postası/bildirimi gitmez; iki yuvada kısıtlı client → bağlantı görünmez, ona da gider (canlı belirti)", async () => {
+  it("KANIT-ÇİFTİ (notifyHiddenAiMatches): gizli AI eşleşmesi (bağlam YOK) bağlı sınırlı (doğrulanmamış) firmayı atlar — ona 'firmanızı doğrulayın' e-postası/bildirimi gitmez; iki yuvada kısıtlı client → bağlantı görünmez, ona da gider (canlı belirti)", async () => {
     // (a) canlı kablolama — runWithTenantContext YOK (cron/sistem yolu).
     const fa = await hiddenMatchFixture();
     const prod = production();
@@ -794,10 +803,10 @@ describe("R-7 — bağlamsız (cron) yolda sahibin AKTİF bağlantıları bulunu
 
   /**
    * Kategori duyurusu: PUBLIC ALIM talebi + satış ana segmenti uyan iki
-   * ücretsiz (STANDART, doğrulanmış) firma:
+   * sınırlı (saklı kademe STANDART, DOĞRULANMAMIŞ) firma:
    *  - connected: sahiple AKTİF + geçerli bağlantı, DAVETLİ DEĞİL → talebi
    *    görebilir, AÇIK metin + talep bağlantısı almalı
-   *  - stranger:  bağsız → KİLİTLİ metin + Paketler (KONTROL: her iki kablolamada)
+   *  - stranger:  bağsız → KİLİTLİ metin + doğrulama sayfası (KONTROL: her iki kablolamada)
    * Olağan akışta `announceListingOpen` önce `autoInviteConnections` ile
    * bağlı firmayı davet eder ve duyurudan çıkarır; burada duyuru tek başına
    * (bağlamsız) çağrılır → metodun `ownerConnected` sözleşmesi sınanır.
@@ -816,8 +825,8 @@ describe("R-7 — bağlamsız (cron) yolda sahibin AKTİF bağlantıları bulunu
       publishedAt: new Date(),
       categoryIds: [categoryCode],
     });
-    const connected = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
-    const stranger = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    const connected = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
+    const stranger = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
     for (const c of [connected, stranger]) {
       await prisma.company.update({
         where: { id: c.company.id },
@@ -851,23 +860,28 @@ describe("R-7 — bağlamsız (cron) yolda sahibin AKTİF bağlantıları bulunu
       const inApp = rows.filter((r) => r.companyId === c.company.id);
       return {
         emails: ctas.length,
-        // AÇIK: talebe doğrudan bağlantı; KİLİTLİ: panelin Paketler sayfası.
+        // AÇIK: talebe doğrudan bağlantı; KİLİTLİ: firma doğrulama sayfası
+        // (ücretsiz dönem — Paketler sayfası yok, hiçbir CTA oraya gitmez).
         emailOpen: ctas.some((u) => u.includes(`/company/ilan/${f.listing.id}`)),
-        emailLocked: ctas.some((u) => u.includes("/company/premium")),
+        emailLocked: ctas.some((u) => u.includes(VERIFY_PATH)),
+        emailPackages: ctas.some((u) => u.includes("/company/premium")),
         inAppLinksListing: inApp.some((r) => r.listingId === f.listing.id),
-        inAppLocked: inApp.some((r) => (r.ctaUrl ?? "").includes("/company/premium")),
+        inAppLocked: inApp.some((r) => (r.ctaUrl ?? "").includes(VERIFY_PATH)),
+        inAppPackages: inApp.some((r) => (r.ctaUrl ?? "").includes("/company/premium")),
       };
     };
     return { connected: who(f.connected), stranger: who(f.stranger) };
   }
 
-  it("KANIT-ÇİFTİ (notifyCategoryMatchedCompanies): kategori duyurusu (bağlam YOK) bağlı ücretsiz firmaya AÇIK metni + talep bağlantısını yollar; iki yuvada kısıtlı client → bağlantı görünmez, KİLİTLİ 'Silver'a geç' metni gider (canlı belirti) — KONTROL: bağsız ücretsiz firma iki kablolamada da kilitli", async () => {
+  it("KANIT-ÇİFTİ (notifyCategoryMatchedCompanies): kategori duyurusu (bağlam YOK) bağlı sınırlı (doğrulanmamış) firmaya AÇIK metni + talep bağlantısını yollar; iki yuvada kısıtlı client → bağlantı görünmez, KİLİTLİ 'firmanızı doğrulayın' metni gider (canlı belirti) — KONTROL: bağsız sınırlı firma iki kablolamada da kilitli", async () => {
     const locked = {
       emails: 1,
       emailOpen: false,
       emailLocked: true,
+      emailPackages: false,
       inAppLinksListing: false,
       inAppLocked: true,
+      inAppPackages: false,
     };
 
     // (a) canlı kablolama — bağlam YOK.
@@ -879,14 +893,16 @@ describe("R-7 — bağlamsız (cron) yolda sahibin AKTİF bağlantıları bulunu
         emails: 1,
         emailOpen: true,
         emailLocked: false,
+        emailPackages: false,
         inAppLinksListing: true,
         inAppLocked: false,
+        inAppPackages: false,
       },
       stranger: locked,
     });
 
     // (b) düzeltme öncesi: bağlamsız kısıtlı client bağlantıyı göremez →
-    // bağlı firma "ücretsiz ve bağsız" sayılır → kilitli metin + Paketler.
+    // bağlı firma "sınırlı ve bağsız" sayılır → kilitli metin + doğrulama sayfası.
     const fb = await categoryMatchFixture("26101100");
     const bug = preFix();
     await bug.service.notifyCategoryMatchedCompanies(fb.listing.id);

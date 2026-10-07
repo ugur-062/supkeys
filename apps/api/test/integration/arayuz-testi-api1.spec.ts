@@ -7,9 +7,13 @@
  *    hedef fiyatı opt-in olmadan görmez, üç ayarı hiç almaz.
  *  - D-043: kazandırılmış talepte sahip yanıtı sipariş(ler)i taşır
  *    (`myOrder` + kalem bazlıda `orders`); sipariş doğunca ETag değişir.
- *  - O-010 (kullanıcı kararı T-06): paketi düşen (ya da süresi biten) firma
- *    talebi DÜZENLEYEMEZ, kapanışı UZATAMAZ; öne çekme ve iptal serbest.
+ *  - O-010 (kullanıcı kararı T-06): kısıtlı firma talebi DÜZENLEYEMEZ, kapanışı
+ *    UZATAMAZ; öne çekme ve iptal serbest. Ücretsiz dönemde kısıtlı firma =
+ *    doğrulanmamış firma; paketi düşen / süresi biten firma kuralı anahtar
+ *    kapalı blokta sınanır.
  */
+import { ForbiddenException } from "@nestjs/common";
+import { FREE_PERIOD, effectiveTier } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { invite, makeCompanyWithUser, makeItem, makeListing } from "./factories";
 import { makeService } from "./make-service";
@@ -186,10 +190,27 @@ describe("D-043 — sahip yanıtında sipariş şeridi", () => {
   });
 });
 
-describe("O-010 — paketi düşen firma talebi düzenleyemez / kapanışı uzatamaz", () => {
-  async function openListing(tier: "SILVER" | "STANDART" | "GOLD", membershipEndAt?: Date) {
+describe("O-010 — kısıtlı (doğrulanmamış) firma talebi düzenleyemez / kapanışı uzatamaz", () => {
+  type Verification = "UNVERIFIED" | "PENDING" | "REJECTED" | "VERIFIED";
+  /**
+   * Ücretsiz dönem: kısıtlı firma = DOĞRULANMAMIŞ firma (saklı kademesiyle kalır);
+   * doğrulanmış firma tam erişimlidir. Auth nesnesi JWT stratejisiyle aynı
+   * fonksiyondan (`effectiveTier`) kurulur.
+   */
+  async function openListing(
+    tier: "SILVER" | "STANDART" | "GOLD",
+    verification: Verification,
+    membershipEndAt?: Date,
+  ) {
     const { service } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier });
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier,
+      companyVerificationStatus: verification,
+    });
+    if (membershipEndAt) {
+      await prisma.company.update({ where: { id: owner.company.id }, data: { membershipEndAt } });
+    }
     const closesAt = future(5);
     const listing = await makeListing(prisma, {
       companyId: owner.company.id,
@@ -201,7 +222,11 @@ describe("O-010 — paketi düşen firma talebi düzenleyemez / kapanışı uzat
       publishedAt: new Date(),
     });
     await makeItem(prisma, listing.id);
-    const auth = membershipEndAt ? { ...owner.auth, tier: "STANDART" } : owner.auth;
+    const auth = {
+      ...owner.auth,
+      tier: effectiveTier(tier, membershipEndAt ?? null, verification),
+      companyVerificationStatus: verification,
+    };
     return { service, owner, listing, closesAt, auth: auth as typeof owner.auth };
   }
 
@@ -217,31 +242,42 @@ describe("O-010 — paketi düşen firma talebi düzenleyemez / kapanışı uzat
       items: [{ name: "Yeni kalem", quantity: 1, unit: "adet" }],
     }) as never;
 
-  it.each(["SILVER", "STANDART"] as const)("%s: PATCH talep 403 (Gold gerekir), talep değişmez", async (tier) => {
-    const { service, auth, listing, closesAt } = await openListing(tier);
-    await expect(service.updateListing(auth, listing.id, editDto(closesAt))).rejects.toThrow(
-      /Gold paket/,
-    );
-    const row = await prisma.listing.findUniqueOrThrow({
-      where: { id: listing.id },
-      include: { items: true },
-    });
-    expect(row.title).not.toBe("Düzenlenmiş talep");
-    expect(row.items[0]!.name).not.toBe("Yeni kalem");
+  const PACKAGE_WORDS = /Silver|Gold|paket/i;
+
+  it.each(["SILVER", "STANDART"] as const)(
+    "doğrulanmamış + saklı %s: PATCH talep 403 (doğrulama ister, paket anmaz), talep değişmez",
+    async (tier) => {
+      const { service, auth, listing, closesAt } = await openListing(tier, "UNVERIFIED");
+      const denied = service.updateListing(auth, listing.id, editDto(closesAt));
+      await expect(denied).rejects.toThrow(ForbiddenException);
+      await expect(denied).rejects.toThrow(/için firma doğrulaması gerekir/);
+      await expect(denied).rejects.not.toThrow(PACKAGE_WORDS);
+      const row = await prisma.listing.findUniqueOrThrow({
+        where: { id: listing.id },
+        include: { items: true },
+      });
+      expect(row.title).not.toBe("Düzenlenmiş talep");
+      expect(row.items[0]!.name).not.toBe("Yeni kalem");
+    },
+  );
+
+  it("doğrulanmamış firmanın süresi biten saklı Gold'u da düzenleyemez (efektif kademe STANDART)", async () => {
+    const { service, auth, listing, closesAt } = await openListing("GOLD", "PENDING", future(-1));
+    expect(auth.tier).toBe("STANDART");
+    const denied = service.updateListing(auth, listing.id, editDto(closesAt));
+    await expect(denied).rejects.toThrow(/Firma doğrulamanız inceleniyor/);
+    await expect(denied).rejects.not.toThrow(PACKAGE_WORDS);
   });
 
-  it("süresi biten Gold da düzenleyemez (JWT stratejisi efektif kademeyi STANDART verir)", async () => {
-    const { service, auth, listing, closesAt } = await openListing("GOLD", future(-1));
-    await expect(service.updateListing(auth, listing.id, editDto(closesAt))).rejects.toThrow(
-      /Gold paket/,
+  it("doğrulaması reddedilmiş + saklı SILVER: kapanışı uzatma 403; öne çekme ve iptal serbest", async () => {
+    const { service, auth, listing, closesAt } = await openListing("SILVER", "REJECTED");
+    const denied = service.changeClosingTime(
+      auth,
+      listing.id,
+      new Date(closesAt.getTime() + 3 * DAY).toISOString(),
     );
-  });
-
-  it("SILVER: kapanışı uzatma 403; öne çekme ve iptal serbest", async () => {
-    const { service, auth, listing, closesAt } = await openListing("SILVER");
-    await expect(
-      service.changeClosingTime(auth, listing.id, new Date(closesAt.getTime() + 3 * DAY).toISOString()),
-    ).rejects.toThrow(/Gold paket/);
+    await expect(denied).rejects.toThrow(/Firma doğrulamanız onaylanmadı/);
+    await expect(denied).rejects.not.toThrow(PACKAGE_WORDS);
     expect(
       (await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } })).closesAt?.getTime(),
     ).toBe(closesAt.getTime());
@@ -257,13 +293,68 @@ describe("O-010 — paketi düşen firma talebi düzenleyemez / kapanışı uzat
     await expect(service.cancel(auth, listing.id, "vazgeçtik")).resolves.toBeDefined();
   });
 
-  it("GOLD: düzenleme ve uzatma serbest", async () => {
-    const { service, auth, listing, closesAt } = await openListing("GOLD");
-    await expect(
-      service.changeClosingTime(auth, listing.id, new Date(closesAt.getTime() + 3 * DAY).toISOString()),
-    ).resolves.toMatchObject({ ok: true });
-    await expect(
-      service.updateListing(auth, listing.id, editDto(future(9))),
-    ).resolves.toBeDefined();
+  it("doğrulanmış firma (saklı kademe ne olursa olsun) düzenler ve uzatır", async () => {
+    for (const tier of ["GOLD", "STANDART"] as const) {
+      const { service, auth, listing, closesAt } = await openListing(tier, "VERIFIED");
+      expect(auth.tier).toBe("GOLD");
+      await expect(
+        service.changeClosingTime(auth, listing.id, new Date(closesAt.getTime() + 3 * DAY).toISOString()),
+      ).resolves.toMatchObject({ ok: true });
+      await expect(
+        service.updateListing(auth, listing.id, editDto(future(9))),
+      ).resolves.toBeDefined();
+    }
+  });
+
+  describe("ücretli paket makinesi (anahtar kapalı) — T-06 paket düşüşü kuralı", () => {
+    // Ücretsiz dönem anahtarı kapatıldığı gün saklı kademe + süre yeniden belirleyici olmalı.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each(["SILVER", "STANDART"] as const)(
+      "doğrulanmış %s: PATCH talep ve kapanış uzatma 403, talep değişmez; öne çekme serbest",
+      async (tier) => {
+        const { service, auth, listing, closesAt } = await openListing(tier, "VERIFIED");
+        expect(auth.tier).toBe(tier);
+        await expect(
+          service.updateListing(auth, listing.id, editDto(closesAt)),
+        ).rejects.toThrow(ForbiddenException);
+        await expect(
+          service.changeClosingTime(
+            auth,
+            listing.id,
+            new Date(closesAt.getTime() + 3 * DAY).toISOString(),
+          ),
+        ).rejects.toThrow(ForbiddenException);
+        const row = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
+        expect(row.title).not.toBe("Düzenlenmiş talep");
+        expect(row.closesAt?.getTime()).toBe(closesAt.getTime());
+        await expect(
+          service.changeClosingTime(
+            auth,
+            listing.id,
+            new Date(closesAt.getTime() - 2 * DAY).toISOString(),
+          ),
+        ).resolves.toMatchObject({ ok: true });
+      },
+    );
+
+    it("süresi biten Gold da düzenleyemez (efektif kademe STANDART); süresi süren Gold düzenler", async () => {
+      const expired = await openListing("GOLD", "VERIFIED", future(-1));
+      expect(expired.auth.tier).toBe("STANDART");
+      await expect(
+        expired.service.updateListing(expired.auth, expired.listing.id, editDto(expired.closesAt)),
+      ).rejects.toThrow(ForbiddenException);
+
+      const live = await openListing("GOLD", "VERIFIED", future(30));
+      expect(live.auth.tier).toBe("GOLD");
+      await expect(
+        live.service.updateListing(live.auth, live.listing.id, editDto(future(9))),
+      ).resolves.toBeDefined();
+    });
   });
 });

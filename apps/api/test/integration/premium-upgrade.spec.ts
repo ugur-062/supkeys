@@ -5,6 +5,7 @@
  * Admin grant yolu ETKİLENMEZ (bu spec yalnız self-servis yolunu test eder).
  */
 import { makeAuthService } from "./make-auth-service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
@@ -30,13 +31,58 @@ async function eligibleCompany() {
   return co;
 }
 
-describe("Y2 — upgradeToPremium feature flag", () => {
+describe("ücretsiz dönem (anahtar AÇIK) — paket yükseltme ucu 410, hiçbir şey yazmaz", () => {
+  it.each(["VERIFIED", "UNVERIFIED"] as const)(
+    "%s firma: PREMIUM_SELF_UPGRADE_ENABLED açık olsa da 410 FREE_PERIOD; kademe/olay/denetim yazılmaz, metin paket anmaz",
+    async (status) => {
+      const { service, audit } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
+      const co = await makeCompanyWithUser(prisma, {
+        tier: "STANDART",
+        companyVerificationStatus: status,
+      });
+      const err = await service
+        .upgradeToPremium(co.user.id, co.company.id)
+        .then(() => null, (e: unknown) => e as { getStatus(): number; getResponse(): Record<string, unknown>; message: string });
+      expect(err).not.toBeNull();
+      expect(err!.getStatus()).toBe(410);
+      expect(err!.getResponse()).toMatchObject({ code: "FREE_PERIOD", statusCode: 410 });
+      expect(err!.message).toMatch(/doğrulama/i);
+      expect(err!.message).not.toMatch(/silver|gold|paket|premium/i);
+      const after = await prisma.company.findUniqueOrThrow({ where: { id: co.company.id } });
+      expect(after.tier).toBe("STANDART");
+      expect(await prisma.companyMembershipEvent.count()).toBe(0);
+      expect(audit.log).not.toHaveBeenCalled();
+    },
+  );
+
+  it("sahip olmayan kullanıcı da 410 alır (sahiplik denetimi koşmaz, bilgi sızmaz)", async () => {
+    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await expect(
+      service.upgradeToPremium("baska-kullanici", co.company.id),
+    ).rejects.toMatchObject({ status: 410 });
+  });
+});
+
+// Uyuyan ücretli-paket makinesi: aşağıdaki iki blok anahtar KAPALIYKEN self-servis yükseltme akışını sınar.
+const paidPlansOn = () => {
+  beforeEach(() => {
+    jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+};
+
+describe("Y2 — upgradeToPremium feature flag (ücretsiz dönem anahtarı KAPALI)", () => {
+  paidPlansOn();
+
   it("flag KAPALI (default) → 403, tier STANDARD kalır (önkoşullar tam olsa bile)", async () => {
     const { service } = makeAuthService(); // PREMIUM_SELF_UPGRADE_ENABLED unset
     const co = await eligibleCompany();
     await expect(
       service.upgradeToPremium(co.user.id, co.company.id),
-    ).rejects.toThrow(/manuel onayla|kapalı/i);
+    ).rejects.toMatchObject({ status: 403, response: { code: "FREE_PERIOD" } });
     const after = await prisma.company.findUniqueOrThrow({
       where: { id: co.company.id },
     });
@@ -79,7 +125,9 @@ describe("Y2 — upgradeToPremium feature flag", () => {
   });
 });
 
-describe("self-servis yükseltme iz bırakır (arayüz testi D-170)", () => {
+describe("self-servis yükseltme iz bırakır (arayüz testi D-170; ücretsiz dönem anahtarı KAPALI)", () => {
+  paidPlansOn();
+
   it("GRANT üyelik olayı + denetim kaydı yazılır", async () => {
     const { service, audit } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const co = await eligibleCompany();

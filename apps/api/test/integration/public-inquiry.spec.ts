@@ -13,6 +13,7 @@ import {
 import { PublicInquiryService } from "../../src/modules/public-inquiry/public-inquiry.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { REDACTED_CONTEXT_TYPES } from "../../src/modules/email/email.service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
 import { CompanyRole } from "@rothern/db";
@@ -937,14 +938,22 @@ describe("hesaba bağlama — TEMBEL ve idempotent", () => {
  * ÜCRETSİZ SATICI — anonim gelen talep (2026-09-06, "premium çekmek için"):
  * soruyu görür (mesaj, adet, alıcının şehri/faaliyeti), kimliği görmez (ad ve
  * firma adı sunucuda düşer), yanıt ucu paket kapılı; e-posta adı yazmaz.
+ *
+ * ÜCRETSİZ DÖNEM (2026-10-07): sınırlı satıcı = DOĞRULANMAMIŞ satıcı; e-posta
+ * paket değil firma doğrulaması ister. Doğrulanmış satıcı kimliği görür.
  */
-describe("ücretsiz satıcı — anonim gelen talep", () => {
+describe("sınırlı (doğrulanmamış) satıcı — anonim gelen talep", () => {
   beforeEach(async () => {
     await truncateAll();
   });
 
-  async function freeSellerWithProduct() {
-    const { company, user } = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+  async function freeSellerWithProduct(
+    status: "UNVERIFIED" | "PENDING" | "REJECTED" | "VERIFIED" = "UNVERIFIED",
+  ) {
+    const { company, user } = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      companyVerificationStatus: status,
+    });
     seq += 1;
     await prisma.company.update({
       where: { id: company.id },
@@ -1006,42 +1015,86 @@ describe("ücretsiz satıcı — anonim gelen talep", () => {
     expect(paid.items[0]!.companyName).toBe(buyer.company.name);
   });
 
-  it("satıcı e-postası: ücretsiz satıcıya ziyaretçi ADI yazılmaz, 'Silver' der; paketliye ad yazılır", async () => {
-    const mail = makeEmail();
-    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, mail as never);
-    const seller = await freeSellerWithProduct();
-    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-    await svc.createAsCompany({
+  const inquire = (
+    svc: PublicInquiryService,
+    buyer: { company: { id: string }; user: { email: string } },
+    target: { companySlug: string; productSlug: string },
+  ) =>
+    svc.createAsCompany({
       companyId: buyer.company.id,
       email: buyer.user.email,
       fullName: "Ayşe Demir",
-      companySlug: seller.companySlug,
-      productSlug: seller.productSlug,
+      companySlug: target.companySlug,
+      productSlug: target.productSlug,
       message: "Fiyat bilgisi rica ederim, teşekkürler.",
     });
-    await new Promise((r) => setTimeout(r, 50));
-    const toSeller = mail.sent.filter((m) => m.type === "public_inquiry_received");
-    expect(toSeller.length).toBeGreaterThan(0);
-    for (const m of toSeller) {
-      expect(m.body).toMatch(/Silver/);
-      expect(m.body).not.toContain("Ayşe Demir");
+
+  it("satıcı e-postası: doğrulanmamış satıcıya ziyaretçi ADI yazılmaz, doğrulama ister (paket anmaz); doğrulanmışa ad yazılır", async () => {
+    const mail = makeEmail();
+    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, mail as never);
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    for (const status of ["UNVERIFIED", "PENDING", "REJECTED"] as const) {
+      const seller = await freeSellerWithProduct(status);
+      await inquire(svc, buyer, seller);
+      await new Promise((r) => setTimeout(r, 50));
+      const toSeller = mail.sent.filter((m) => m.type === "public_inquiry_received");
+      expect(toSeller.length).toBeGreaterThan(0);
+      for (const m of toSeller) {
+        expect(m.body).toMatch(/yanıtlamak için doğrulanın/);
+        expect(m.body).toMatch(/Doğrulama ücretsizdir/);
+        expect(m.body).not.toContain("Ayşe Demir");
+        expect(m.body).not.toMatch(/silver|gold|paket|\/company\/premium/i);
+      }
+      mail.sent.length = 0;
     }
+
+    // Doğrulanmış satıcı — saklı kademe STANDART olsa da (erişimi doğrulama veriyor) ad yazılır.
+    const verifiedSeller = await freeSellerWithProduct("VERIFIED");
+    await inquire(svc, buyer, verifiedSeller);
+    await new Promise((r) => setTimeout(r, 50));
+    const toVerified = mail.sent.filter((m) => m.type === "public_inquiry_received");
+    expect(toVerified.length).toBeGreaterThan(0);
+    expect(toVerified[0]!.body).toContain("Ayşe Demir");
+    expect(toVerified[0]!.body).not.toMatch(/doğrulanın|silver|gold/i);
     mail.sent.length = 0;
 
     const { company: paidSeller, product } = await seedProduct();
-    await svc.createAsCompany({
-      companyId: buyer.company.id,
-      email: buyer.user.email,
-      fullName: "Ayşe Demir",
-      companySlug: paidSeller.slug as string,
-      productSlug: product.slug as string,
-      message: "Fiyat bilgisi rica ederim, teşekkürler.",
-    });
+    await inquire(svc, buyer, { companySlug: paidSeller.slug as string, productSlug: product.slug as string });
     await new Promise((r) => setTimeout(r, 50));
     const toPaid = mail.sent.filter((m) => m.type === "public_inquiry_received");
     expect(toPaid.length).toBeGreaterThan(0);
     expect(toPaid[0]!.body).toContain("Ayşe Demir");
     expect(toPaid[0]!.body).not.toMatch(/Silver/);
+  });
+
+  describe("saklı paket (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Uyuyan paket kapısı: anahtar kapalıyken ziyaretçi adını doğrulama değil saklı paket açar.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("satıcı e-postası: paketsiz (doğrulanmış STANDART) satıcıya ziyaretçi ADI yazılmaz; paketliye ad yazılır", async () => {
+      const mail = makeEmail();
+      const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, mail as never);
+      const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const seller = await freeSellerWithProduct("VERIFIED");
+      await inquire(svc, buyer, seller);
+      await new Promise((r) => setTimeout(r, 50));
+      const toSeller = mail.sent.filter((m) => m.type === "public_inquiry_received");
+      expect(toSeller.length).toBeGreaterThan(0);
+      for (const m of toSeller) expect(m.body).not.toContain("Ayşe Demir");
+      mail.sent.length = 0;
+
+      const { company: paidSeller, product } = await seedProduct();
+      await inquire(svc, buyer, { companySlug: paidSeller.slug as string, productSlug: product.slug as string });
+      await new Promise((r) => setTimeout(r, 50));
+      const toPaid = mail.sent.filter((m) => m.type === "public_inquiry_received");
+      expect(toPaid.length).toBeGreaterThan(0);
+      expect(toPaid[0]!.body).toContain("Ayşe Demir");
+    });
   });
 
   it("yanıt ucu paket kapılı (CompanyPaidTierGuard metadata'sı); okuma ucu değil", async () => {

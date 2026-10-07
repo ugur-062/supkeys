@@ -221,6 +221,14 @@ describe("Sahiplik devri (updateRoles)", () => {
   });
 });
 
+/**
+ * ÜCRETSİZ DÖNEM (2026-10-07): SINIRLI firma = DOĞRULANMAMIŞ firma (saklı
+ * kademesi STANDART). Doğrulanmış firma saklı kademesinden bağımsız tam erişimlidir.
+ */
+const LIMITED = { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" } as const;
+/** Kullanıcıya dönen ret metni paket adı anmaz. */
+const PACKAGE_WORDS = /silver|gold|paket/i;
+
 describe("Derin denetim MU-13 — devirde koltuk/paket kapısı ve işlem izni korunması", () => {
   it("devralan Satın Almacı'nın işlem izinleri SİLİNMEZ (açık talebi/siparişi yönetmeye devam eder)", async () => {
     const svc = makeUsersService();
@@ -237,16 +245,19 @@ describe("Derin denetim MU-13 — devirde koltuk/paket kapısı ve işlem izni k
     }
   });
 
-  it("ücretsiz pakette eski Kurucu kendine SATINALMA rolü seçemez; devir hiç olmamış gibi geri alınır", async () => {
+  it("doğrulanmamış (sınırlı) firmada eski Kurucu kendine SATINALMA rolü seçemez; devir hiç olmamış gibi geri alınır", async () => {
     const svc = makeUsersService();
-    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART", roles: [CompanyRole.SAHIP, CompanyRole.SATISCI] });
+    const owner = await makeCompanyWithUser(prisma, { ...LIMITED, roles: [CompanyRole.SAHIP, CompanyRole.SATISCI] });
     const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
-    await expect(
-      svc.updateUser(owner.auth, approver.id, {
+    const err = await svc
+      .updateUser(owner.auth, approver.id, {
         roles: [CompanyRole.SAHIP],
         previousOwnerRoles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI],
-      } as never),
-    ).rejects.toThrow(/Gold/i);
+      } as never)
+      .then(() => null, (e: Error) => e);
+    expect(err).toMatchObject({ status: 400 });
+    expect(err!.message).toMatch(/yalnız doğrulanmış firmada/i);
+    expect(err!.message).not.toMatch(PACKAGE_WORDS);
     const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
     expect(company.ownerUserId).toBe(owner.user.id);
     const oldOwner = await prisma.companyUser.findUniqueOrThrow({ where: { id: owner.user.id } });
@@ -255,8 +266,8 @@ describe("Derin denetim MU-13 — devirde koltuk/paket kapısı ve işlem izni k
 
   it("koltuk doluyken eski Kurucunun YENİ işlem rolü reddedilir (zincirle limit üstü koltuk açılamaz)", async () => {
     const svc = makeUsersService();
-    // STANDART: 2 koltuk. Kurucu işlem izinsiz; iki satışçı koltukları dolduruyor.
-    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART", roles: [CompanyRole.SAHIP] });
+    // Doğrulanmamış firma (saklı kademe STANDART): 2 koltuk. Kurucu işlem izinsiz; iki satışçı koltukları dolduruyor.
+    const owner = await makeCompanyWithUser(prisma, { ...LIMITED, roles: [CompanyRole.SAHIP] });
     await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
     await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
     const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);

@@ -9,14 +9,18 @@
  *  - D-193: doğrulanmış firmanın belgesi reddedilince e-posta statü kaybını
  *    ve kapanan adımları anlatır.
  *  - D-167: not silme denetim kaydı firmaya bağlı ve not metnini taşır.
- *  - D-210: "Paketiniz tanımlandı" e-postası marka adı + bitiş tarihi taşır.
- *  - D-173: üyelik süresi dolumu e-postası davet iptalini söyler.
+ *  - D-210: ücretsiz dönemde paket tanımlama firmaya paket adıyla duyurulmaz
+ *    (e-posta/bildirim yok); kayıt üyelik geçmişinde durur.
+ *  - D-173: erişim düşüşünde (doğrulamanın geri alınması) davet iptali firmaya
+ *    söylenir; üyelik zamanlayıcısı ücretsiz dönemde hiçbir şey yapmaz, süre
+ *    dolumu düşüşü anahtar kapalı blokta sınanır.
  */
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyDocsService } from "../../src/modules/company-docs/company-docs.service";
 import { MembershipScheduler } from "../../src/modules/company-auth/schedulers/membership.scheduler";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { sniffDocumentType } from "../../src/common/helpers/upload-validation";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
@@ -61,7 +65,7 @@ function adminRig() {
     audit,
     new EmailSuppressionService(prisma as never),
   );
-  return { svc, email, audit };
+  return { svc, email, audit, notifications };
 }
 
 type SentMail = {
@@ -375,46 +379,133 @@ describe("D-167 — not silme denetimi firmaya bağlı", () => {
   });
 });
 
-describe("D-210 — paket tanımlandı e-postası", () => {
-  it("paket adı marka adıyla (Gold) ve bitiş tarihiyle yazılır", async () => {
-    const { svc, email } = adminRig();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    const res = await svc.setTier(co.company.id, "GOLD", 12, undefined);
-    const mail = await sentMail(email);
-    const body = mail.templateData.data.paragraphs.join("\n");
-    expect(body).toContain("Gold paketi");
-    expect(body).not.toContain("GOLD");
-    const year = String(res.membershipEndAt!.getFullYear());
-    expect(body).toContain(`${year} tarihine kadar`);
-  });
+describe("D-210 — paket tanımlama firmaya paket adıyla duyurulmaz (ücretsiz dönem)", () => {
+  // Ücretsiz dönem (sahip kararı 2026-10-07): hiçbir bildirim/e-posta paket adı
+  // anmaz; "Paketiniz tanımlandı" e-postası kalktı. Kayıt üyelik geçmişinde durur.
+  it.each(["tr", "ru"] as const)(
+    "%s alıcı: setTier e-posta/bildirim göndermez; GRANT kaydı bitiş tarihiyle üyelik geçmişinde",
+    async (locale) => {
+      const { svc, email, notifications } = adminRig();
+      const co = await makeCompanyWithUser(prisma, {
+        tier: "STANDART",
+        companyVerificationStatus: "UNVERIFIED",
+      });
+      await prisma.companyUser.update({ where: { id: co.user.id }, data: { locale } });
+      const res = await svc.setTier(co.company.id, "GOLD", 12, undefined);
+      // notifyCompany `void` ile çağrılırdı — geç gelen gönderimi de yakala.
+      await new Promise((r) => setTimeout(r, 300));
+      expect(email.send).not.toHaveBeenCalled();
+      expect(notifications.pushToCompany).not.toHaveBeenCalled();
+      expect(await prisma.notification.count({ where: { companyId: co.company.id } })).toBe(0);
 
-  it("Rusça alıcıda tarih 'г.' ile biter, cümle çift noktayla bitmez (yeniden doğrulama NEW-1)", async () => {
-    const { svc, email } = adminRig();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    await prisma.companyUser.update({ where: { id: co.user.id }, data: { locale: "ru" } });
-    await svc.setTier(co.company.id, "GOLD", 12, undefined);
-    const body = (await sentMail(email)).templateData.data.paragraphs.join("\n");
-    expect(body).toMatch(/назначен тариф Gold \(действует до \d{1,2} \S+ \d{4} г\.\)\. Вы можете/);
-    expect(body).not.toContain("..");
-  });
+      const row = await prisma.company.findUniqueOrThrow({ where: { id: co.company.id } });
+      expect(row.tier).toBe("GOLD");
+      expect(row.membershipEndAt?.getTime()).toBe(res.membershipEndAt!.getTime());
+      const ev = await prisma.companyMembershipEvent.findFirstOrThrow({
+        where: { companyId: co.company.id, action: "GRANT" },
+      });
+      expect(ev.months).toBe(12);
+      expect(ev.endAfter?.getTime()).toBe(res.membershipEndAt!.getTime());
+    },
+  );
 });
 
-describe("D-173 — üyelik süresi dolumu e-postası", () => {
-  it("davet iptali paragrafı e-postada", async () => {
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
-    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
-    const scheduler = new MembershipScheduler(prisma as never, email as never, config as never);
-    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-    await prisma.company.update({
-      where: { id: co.company.id },
-      data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+describe("D-173 — erişim düşüşünde davet iptali firmaya söylenir", () => {
+  /** Giden bekleyen bağlantı daveti (düşüşte iptal edilir). */
+  async function pendingOutgoingInvite(inviter: { company: { id: string }; user: { id: string } }) {
+    const invitee = await makeCompanyWithUser(prisma, {});
+    return prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: inviter.company.id,
+        inviteeCompanyId: invitee.company.id,
+        invitedById: inviter.user.id,
+        status: "PENDING",
+        origin: "PREMIUM",
+      },
     });
-    await scheduler.downgradeExpired();
+  }
+
+  it("ücretsiz dönem: doğrulama geri alınınca davetler iptal edilir ve e-posta bunu söyler (paket adı yok)", async () => {
+    const { svc, email } = adminRig();
+    // Saklı kademe STANDART + doğrulanmış = tam erişim; doğrulama kalkınca efektif STANDART.
+    const co = await kycCompany("VERIFIED");
+    await prisma.company.update({ where: { id: co.company.id }, data: { tier: "STANDART" } });
+    const outgoing = await pendingOutgoingInvite(co);
+
+    await svc.reviewDocuments(
+      co.company.id,
+      { ...approvedAll(), tradeRegistry: { status: "REJECTED", reasonCode: "OUTDATED" } },
+      "adm1",
+    );
     const mail = await sentMail(email);
-    // 55d52924 (e-posta tasarımı): firmada fiilen değişenler uzun paragraflardan
-    // ayrı, madde işaretli highlights kutusunda gösterilir.
-    expect((mail.templateData.data.highlights ?? []).join("\n")).toContain(
+    expect(mail.subject).toBe("Firma doğrulamanız geri alındı");
+    const body = mail.templateData.data.paragraphs.join("\n");
+    expect(body).toContain(
       "taleplerinizde gönderim sırası bekleyen tedarikçi davetleri iptal edildi",
     );
+    expect(body).not.toMatch(/Silver|Gold|paket/i);
+    expect(await prisma.companyConnection.findUnique({ where: { id: outgoing.id } })).toBeNull();
+  });
+
+  it("ücretsiz dönem: saklı paketi süren firmada doğrulama kalkınca düşüş yok — davet durur, iptal paragrafı yazılmaz", async () => {
+    const { svc, email } = adminRig();
+    const co = await kycCompany("VERIFIED");
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { tier: "GOLD", membershipEndAt: new Date(Date.now() + 30 * 86_400_000) },
+    });
+    const outgoing = await pendingOutgoingInvite(co);
+    await svc.reviewDocuments(
+      co.company.id,
+      { ...approvedAll(), tradeRegistry: { status: "REJECTED", reasonCode: "OUTDATED" } },
+      "adm1",
+    );
+    const body = (await sentMail(email)).templateData.data.paragraphs.join("\n");
+    expect(body).not.toContain("davetleri iptal edildi");
+    expect(await prisma.companyConnection.findUnique({ where: { id: outgoing.id } })).not.toBeNull();
+  });
+
+  it("ücretsiz dönem: üyelik zamanlayıcısı hiçbir şey yapmaz (süresi dolan saklı paket, davet ve geçmiş olduğu gibi)", async () => {
+    const scheduler = new MembershipScheduler(prisma as never);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const past = new Date(Date.now() - 86_400_000);
+    await prisma.company.update({ where: { id: co.company.id }, data: { membershipEndAt: past } });
+    const outgoing = await pendingOutgoingInvite(co);
+    await scheduler.downgradeExpired();
+    const row = await prisma.company.findUniqueOrThrow({ where: { id: co.company.id } });
+    expect(row.tier).toBe("GOLD");
+    expect(row.membershipEndAt?.getTime()).toBe(past.getTime());
+    expect(await prisma.companyConnection.findUnique({ where: { id: outgoing.id } })).not.toBeNull();
+    expect(await prisma.companyMembershipEvent.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+
+  describe("ücretli paket makinesi (anahtar kapalı)", () => {
+    // Ücretli paketler döndüğü gün süre dolumu düşüşü ve davet iptali çalışmalı.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("süre dolumu: firma STANDART'a iner, giden bekleyen davet iptal, EXPIRE kaydı yazılır", async () => {
+      const scheduler = new MembershipScheduler(prisma as never);
+      const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const past = new Date(Date.now() - 86_400_000);
+      await prisma.company.update({
+        where: { id: co.company.id },
+        data: { membershipEndAt: past },
+      });
+      const outgoing = await pendingOutgoingInvite(co);
+      await scheduler.downgradeExpired();
+      const row = await prisma.company.findUniqueOrThrow({ where: { id: co.company.id } });
+      expect(row.tier).toBe("STANDART");
+      expect(row.membershipEndAt).toBeNull();
+      expect(await prisma.companyConnection.findUnique({ where: { id: outgoing.id } })).toBeNull();
+      const ev = await prisma.companyMembershipEvent.findFirstOrThrow({
+        where: { companyId: co.company.id, action: "EXPIRE" },
+      });
+      expect(ev.endBefore?.getTime()).toBe(past.getTime());
+    });
   });
 });

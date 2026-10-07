@@ -20,39 +20,59 @@ function ctx(user: unknown, minTier?: "SILVER" | "GOLD"): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
+// `user.tier` JWT strategy'nin hesapladığı EFEKTİF kademedir: ücretsiz dönemde
+// doğrulanmış firma GOLD taşır; kapıya takılan yalnız doğrulanmamış firmadır.
+const UNV = { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" };
+const VERIFY_TR = /firmanızın doğrulanması gerekir/i;
+const PACKAGE_WORD = /paket|silver|gold|premium|üyelik/i;
+
 describe("CompanyPaidTierGuard", () => {
   const guard = new CompanyPaidTierGuard(new Reflector());
 
-  it("varsayılan eşik SILVER: Silver ve Gold geçer, Standart 403", () => {
-    expect(guard.canActivate(ctx({ tier: "SILVER" }))).toBe(true);
-    expect(guard.canActivate(ctx({ tier: "GOLD" }))).toBe(true);
-    expect(() => guard.canActivate(ctx({ tier: "STANDART" }))).toThrow(
-      ForbiddenException,
-    );
-    expect(() => guard.canActivate(ctx({ tier: "STANDART" }))).toThrow(
-      /Silver veya üzeri/i,
-    );
+  it("varsayılan eşik SILVER: doğrulanmış (efektif Gold) ve saklı Silver geçer, doğrulanmamış Standart 403", () => {
+    expect(guard.canActivate(ctx({ tier: "GOLD", companyVerificationStatus: "VERIFIED" }))).toBe(true);
+    expect(guard.canActivate(ctx({ tier: "SILVER", companyVerificationStatus: "UNVERIFIED" }))).toBe(true);
+    expect(() => guard.canActivate(ctx(UNV))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(ctx(UNV))).toThrow(VERIFY_TR);
   });
 
-  it("@RequireTier(GOLD): Silver 403 (satınalma paneli), Gold geçer", () => {
-    expect(() => guard.canActivate(ctx({ tier: "SILVER" }, "GOLD"))).toThrow(
-      /Gold paket/,
-    );
-    expect(guard.canActivate(ctx({ tier: "GOLD" }, "GOLD"))).toBe(true);
+  it("@RequireTier(GOLD): doğrulanmamış saklı Silver 403 (satınalma paneli), doğrulanmış geçer", () => {
+    const silver = { tier: "SILVER", companyVerificationStatus: "UNVERIFIED" };
+    expect(() => guard.canActivate(ctx(silver, "GOLD"))).toThrow(VERIFY_TR);
+    expect(() => guard.canActivate(ctx(silver, "GOLD"))).not.toThrow(PACKAGE_WORD);
+    expect(guard.canActivate(ctx({ tier: "GOLD", companyVerificationStatus: "VERIFIED" }, "GOLD"))).toBe(true);
   });
 
-  it("paket reddi TIER_REQUIRED kodu + minTier taşır (web kilit kartı toast basmasın — arayüz testi O-044)", () => {
-    const body = (min: "SILVER" | "GOLD") => {
-      try {
-        guard.canActivate(ctx({ tier: "STANDART" }, min));
-      } catch (e) {
-        return (e as ForbiddenException).getResponse() as Record<string, unknown>;
-      }
-      throw new Error("beklenen 403 gelmedi");
-    };
-    expect(body("SILVER")).toMatchObject({ code: "TIER_REQUIRED", minTier: "SILVER", statusCode: 403 });
-    expect(body("GOLD")).toMatchObject({ code: "TIER_REQUIRED", minTier: "GOLD", statusCode: 403 });
-    expect(String(body("SILVER").message)).toMatch(/Silver veya üzeri/i);
+  const body = (user: Record<string, unknown>, min: "SILVER" | "GOLD") => {
+    try {
+      guard.canActivate(ctx(user, min));
+    } catch (e) {
+      return (e as ForbiddenException).getResponse() as Record<string, unknown>;
+    }
+    throw new Error("beklenen 403 gelmedi");
+  };
+
+  it("kademe reddi TIER_REQUIRED kodu + minTier taşır (web kilit kartı toast basmasın — arayüz testi O-044)", () => {
+    expect(body(UNV, "SILVER")).toMatchObject({ code: "TIER_REQUIRED", minTier: "SILVER", statusCode: 403 });
+    expect(body(UNV, "GOLD")).toMatchObject({ code: "TIER_REQUIRED", minTier: "GOLD", statusCode: 403 });
+    // Ücretsiz dönem: metin doğrulama ister, paket anmaz; web doğrulama akışına bağlar.
+    expect(String(body(UNV, "SILVER").message)).toMatch(VERIFY_TR);
+    expect(body(UNV, "SILVER")).toMatchObject({
+      verificationStatus: "UNVERIFIED",
+      verifyPath: "/company/ayarlar/dogrulama",
+    });
+  });
+
+  it("ret metni doğrulama durumuna göre ayrışır ve hiçbirinde paket sözcüğü geçmez", () => {
+    const msg = (status: string) =>
+      String(body({ tier: "STANDART", companyVerificationStatus: status }, "GOLD").message);
+    expect(msg("PENDING")).toMatch(/inceleniyor/i);
+    expect(msg("REJECTED")).toMatch(/yeniden/i);
+    expect(new Set([msg("UNVERIFIED"), msg("PENDING"), msg("REJECTED")]).size).toBe(3);
+    for (const s of ["UNVERIFIED", "PENDING", "REJECTED"]) {
+      expect(msg(s)).not.toMatch(PACKAGE_WORD);
+      expect(body({ tier: "STANDART", companyVerificationStatus: s }, "GOLD").verificationStatus).toBe(s);
+    }
   });
 
   it("kimlik yok → Forbidden", () => {
@@ -74,7 +94,10 @@ describe("CompanyPaidTierGuard — AI uçları gerçek metadata", () => {
     return {
       getHandler: () => handler,
       getClass: () => cls,
-      switchToHttp: () => ({ getRequest: () => ({ user: { tier } }) }),
+      // Doğrulanmamış firma saklı kademesiyle kalır (kapı eşiği ayrımı burada ölçülür).
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { tier, companyVerificationStatus: "UNVERIFIED" } }),
+      }),
     } as unknown as ExecutionContext;
   }
 
@@ -94,7 +117,7 @@ describe("CompanyPaidTierGuard — AI uçları gerçek metadata", () => {
     );
     for (const m of ["extract", "refine", "categorySuggestForItems", "titleSuggestForItems"]) {
       expect(() => guard.canActivate(route(TenderExtractController, m, "SILVER"))).toThrow(
-        /Gold paket/,
+        VERIFY_TR,
       );
       expect(guard.canActivate(route(TenderExtractController, m, "GOLD"))).toBe(true);
     }

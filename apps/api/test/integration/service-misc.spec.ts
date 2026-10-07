@@ -381,12 +381,14 @@ describe("addInvitations / roundHistory / updateListing — guard'lar", () => {
     ).rejects.toThrow(/davet/i);
   });
 
-  it("STANDARD (downgrade): yeni ilan işi başlatamaz — publish/yeni-tur/davet kilitli", async () => {
+  it("doğrulanmamış (sınırlı) firma: yeni ilan işi başlatamaz — publish/yeni-tur/davet kilitli; metin doğrulama ister, paket anmaz", async () => {
     const { service } = makeService();
-    // PAKET'ken ihale açmış, sonra STANDARD'a düşmüş firma.
+    // Ücretsiz dönem (2026-10-07): sınırlı firma = doğrulanmamış firma (saklı
+    // kademe STANDART) — ör. ihale açtıktan sonra doğrulaması geri alınmış firma.
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
     });
     const draft = await makeListing(prisma, {
       companyId: owner.company.id,
@@ -402,17 +404,26 @@ describe("addInvitations / roundHistory / updateListing — guard'lar", () => {
       status: "OPEN",
       closesAt: FUTURE,
     });
-    await expect(
-      service.publishListing(owner.auth, draft.id),
-    ).rejects.toThrow(/Gold paket/);
-    await expect(
-      service.addInvitations(owner.auth, open.id, ["ROT-0001"]),
-    ).rejects.toThrow(/Gold paket/);
-    await expect(
-      service.createNextRound(owner.auth, open.id, {
-        closesAt: FUTURE,
-      } as never),
-    ).rejects.toThrow(/Gold paket/);
+    const denied = (p: Promise<unknown>) => p.then(() => null, (e: Error) => e);
+    for (const attempt of [
+      () => service.publishListing(owner.auth, draft.id),
+      () => service.addInvitations(owner.auth, open.id, ["ROT-0001"]),
+      () => service.createNextRound(owner.auth, open.id, { closesAt: FUTURE } as never),
+    ]) {
+      const err = await denied(attempt());
+      expect(err).toMatchObject({ status: 403 });
+      expect(err!.message).toMatch(/firma doğrulaması gerekir/i);
+      expect(err!.message).not.toMatch(/silver|gold|paket/i);
+    }
+    // İncelemedeki / reddedilmiş firma durumuna özel metni alır.
+    for (const [status, pattern] of [
+      ["PENDING", /inceleniyor/i],
+      ["REJECTED", /yeniden başvurun/i],
+    ] as const) {
+      await expect(
+        service.publishListing({ ...owner.auth, companyVerificationStatus: status }, draft.id),
+      ).rejects.toThrow(pattern);
+    }
   });
 
   it("roundHistory sahip-dışı reddi + boş geçmiş []", async () => {

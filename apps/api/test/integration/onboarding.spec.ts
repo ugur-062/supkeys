@@ -8,6 +8,7 @@ import { CompanyRole, Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
 import { makeAuthService } from "./make-auth-service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 // Geçerli TCKN (test): 10000000146. Şahıs firmasında vergi no = TCKN.
@@ -53,9 +54,14 @@ beforeEach(async () => {
 describe("completeOnboarding", () => {
   it("geçerli veri → firma güncellenir + onboardingCompletedAt + adresler + rol", async () => {
     const { service } = makeAuthService();
-    // Factory GOLD doğurur; GOLD firmada onboarding satınalma koltuğunu korur
-    // (D-165, aşağıda) — burada ücretsiz paketteki kayıt sınanıyor.
-    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    // Factory VERIFIED + GOLD doğurur; tam erişimli firmada onboarding satınalma
+    // koltuğunu korur (D-165, aşağıda) — burada gerçek kayıt sınanıyor:
+    // onboarding'e giren firma henüz DOĞRULANMAMIŞTIR (sınırlı).
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
     const cat = await makeCategory();
 
     await service.completeOnboarding(
@@ -80,8 +86,8 @@ describe("completeOnboarding", () => {
     });
     // Faz R: SAHIP etikettir (op-izin vermez) — onboarding Kurucu'ya default
     // op-rol yazar (salt-okunur başlamasın). 2026-09-14'ten beri YALNIZ satış:
-    // satınalma koltuğu ücretsiz pakette kullanılamıyor ve iki koltuktan birini
-    // boşuna yakıyordu; GOLD'a geçişte açılıyor.
+    // satınalma koltuğu doğrulanmamış (sınırlı) firmada kullanılamıyor ve iki
+    // koltuktan birini boşuna yakıyordu; firma doğrulanınca açılıyor.
     expect(u.roles).toEqual([
       CompanyRole.SAHIP,
       CompanyRole.SATISCI,
@@ -275,9 +281,13 @@ describe("completeOnboarding", () => {
     expect(slugs[0]).not.toBe(slugs[1]);
   });
 
-  it("kurucu kayıtta YALNIZ satış koltuğu alır — satınalma koltuğu ücretsiz pakette yakılmaz", async () => {
+  it("kurucu kayıtta YALNIZ satış koltuğu alır — satınalma koltuğu doğrulanmamış firmada yakılmaz", async () => {
     const { service } = makeAuthService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
     const cat = await makeCategory();
     await service.completeOnboarding(
       owner.user.id,
@@ -292,9 +302,53 @@ describe("completeOnboarding", () => {
     expect(u.permissions).not.toContain("buy:listing:manage");
   });
 
-  it("GOLD'a geçişte kurucunun satınalma koltuğu AÇILIR", async () => {
+  it("firma DOĞRULANINCA kurucunun satınalma koltuğu AÇILIR (ücretsiz dönem: saklı kademe STANDART kalır)", async () => {
     const { service } = makeAuthService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    const cat = await makeCategory();
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto(cat.id) as never,
+    );
+    // İncelemede (PENDING) henüz açılmaz.
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "PENDING" },
+    });
+    await ensureOwnerBuySeat(prisma, owner.company.id);
+    expect(
+      (await prisma.companyUser.findUniqueOrThrow({ where: { id: owner.user.id } })).roles,
+    ).not.toContain(CompanyRole.SATIN_ALMACI);
+
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "VERIFIED" },
+    });
+    await ensureOwnerBuySeat(prisma, owner.company.id);
+
+    const u = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: owner.user.id },
+    });
+    expect(u.roles).toContain(CompanyRole.SATIN_ALMACI);
+    expect(u.permissions).toContain("buy:listing:manage");
+    expect(u.permissions).toContain("sell:bid:submit");
+    expect(
+      (await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } })).tier,
+    ).toBe("STANDART");
+  });
+
+  it("saklı kademe GOLD'a geçişte kurucunun satınalma koltuğu AÇILIR (doğrulanmamış firma saklı paketini korur)", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
     const cat = await makeCategory();
     await service.completeOnboarding(
       owner.user.id,
@@ -345,13 +399,14 @@ describe("completeOnboarding", () => {
     expect(u.permissions).not.toContain("ownership:transfer");
   });
 
-  it("STANDART kalırsa satınalma koltuğu AÇILMAZ — fail-safe", async () => {
+  it("doğrulanmamış + STANDART kalırsa satınalma koltuğu AÇILMAZ — fail-safe", async () => {
     const { service } = makeAuthService();
-    // TUZAK: factory varsayılanı GOLD doğuruyor — sınanan koşul açıkça
-    // kurulmazsa test sessizce yanlış şeyi doğrular (VERIFIED tuzağının kardeşi).
+    // TUZAK: factory varsayılanı VERIFIED + GOLD doğuruyor — sınanan koşul açıkça
+    // kurulmazsa test sessizce yanlış şeyi doğrular.
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
     });
     const cat = await makeCategory();
     await service.completeOnboarding(
@@ -630,7 +685,15 @@ describe("completeOnboarding — kayıtlı vergi numarası (derin denetim MU-16)
   });
 });
 
-describe("upgradeToPremium (Faz 3 kapısı)", () => {
+describe("upgradeToPremium (Faz 3 kapısı; ücretsiz dönem anahtarı KAPALI)", () => {
+  // Uyuyan self-servis paket yükseltme akışı: anahtar açıkken uç 410 döner (premium-upgrade.spec).
+  beforeEach(() => {
+    jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   /**
    * TEK ŞART: DOĞRULAMA (2026-09-15, kullanıcı kararı). 2FA ve web sitesi
    * şartları kaldırıldı.
@@ -693,7 +756,7 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
     });
     await expect(
       service.upgradeToPremium(other.id, owner.company.id),
-    ).rejects.toThrow(/sahibi/i);
+    ).rejects.toMatchObject({ status: 403, message: expect.stringMatching(/yetkiniz yok/i) });
     const c = await prisma.company.findUniqueOrThrow({
       where: { id: owner.company.id },
     });

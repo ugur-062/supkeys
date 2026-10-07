@@ -254,9 +254,13 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
 describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
   it("Aktifleştir: dolu firmada koltuk taşıyan pasif kişi geri açılamaz; koltuksuz kişi açılır", async () => {
     const { service } = rig();
-    // SILVER limit 4: Kurucu ST (1; satınalma koltuğu Gold altında sayılmaz)
-    // + üç satışçı (3) = 4/4.
-    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    // Ücretsiz dönem: koltuk sınırı yalnız DOĞRULANMAMIŞ firmada saklı kademeden
+    // gelir. Saklı SILVER limit 4: Kurucu ST (1; satınalma koltuğu en üst kademe
+    // altında sayılmaz) + üç satışçı (3) = 4/4.
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "SILVER",
+      companyVerificationStatus: "UNVERIFIED",
+    });
     await prisma.company.update({
       where: { id: co.company.id },
       data: { membershipEndAt: new Date(Date.now() + 30 * 86400_000) },
@@ -269,7 +273,7 @@ describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
     });
     await expect(
       service.setActive(co.company.id, passive.id, true, "admin-1"),
-    ).rejects.toThrow(/Koltuk dolu \(4\/4\)/);
+    ).rejects.toThrow(/Koltuk dolu \(4\/4\).*doğrulanmış firmalar daha fazla koltuk kullanır/);
     const still = await prisma.companyUser.findUniqueOrThrow({
       where: { id: passive.id },
       select: { isActive: true },
@@ -287,33 +291,52 @@ describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
     expect(re.isActive).toBe(true);
   });
 
-  it("Aktifleştir: Gold olmayan firmada satın almacı geri açılamaz (paket kapısı)", async () => {
+  it("Aktifleştir: doğrulanmamış firmada satın almacı geri açılamaz (doğrulama kapısı); doğrulanmış firmada açılır", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, {
       tier: "STANDART",
       roles: ["SAHIP", "SATISCI"],
+      companyVerificationStatus: "UNVERIFIED",
     });
     const buyer = await makeUser(prisma, co.company.id, ["SATIN_ALMACI"], {
       isActive: false,
     });
-    await expect(
-      service.setActive(co.company.id, buyer.id, true, "admin-1"),
-    ).rejects.toThrow(/yalnız Gold/);
+    const denied = service.setActive(co.company.id, buyer.id, true, "admin-1");
+    await expect(denied).rejects.toThrow(/yalnız doğrulanmış firmada verilebilir/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
+    expect(
+      (await prisma.companyUser.findUniqueOrThrow({ where: { id: buyer.id } })).isActive,
+    ).toBe(false);
+
+    // Doğrulanmış firma (saklı kademe STANDART olsa da) tam erişimli: satın almacı açılır.
+    const verified = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    const vBuyer = await makeUser(prisma, verified.company.id, ["SATIN_ALMACI"], {
+      isActive: false,
+    });
+    await service.setActive(verified.company.id, vBuyer.id, true, "admin-1");
+    expect(
+      (await prisma.companyUser.findUniqueOrThrow({ where: { id: vBuyer.id } })).isActive,
+    ).toBe(true);
   });
 
-  it("addUser: Gold olmayan firmaya Satın Almacı eklenemez; Supabase hesabı açılmaz", async () => {
+  it("addUser: doğrulanmamış firmaya Satın Almacı eklenemez; Supabase hesabı açılmaz", async () => {
     const { service, supabase } = rig();
     const co = await makeCompanyWithUser(prisma, {
       tier: "STANDART",
       roles: ["SAHIP", "SATISCI"],
+      companyVerificationStatus: "PENDING",
     });
-    await expect(
-      service.addUser(
-        co.company.id,
-        { email: "alici@firma.com", firstName: "A", lastName: "B", role: "SATIN_ALMACI" },
-        "admin-1",
-      ),
-    ).rejects.toThrow(/yalnız Gold/);
+    const denied = service.addUser(
+      co.company.id,
+      { email: "alici@firma.com", firstName: "A", lastName: "B", role: "SATIN_ALMACI" },
+      "admin-1",
+    );
+    // PENDING: ret metni "inceleniyor" der; paket adı anmaz.
+    await expect(denied).rejects.toThrow(/Firma doğrulamanız inceleniyor/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
     expect(supabase.createUser).not.toHaveBeenCalled();
     expect(
       await prisma.companyUser.count({ where: { email: "alici@firma.com" } }),
@@ -322,10 +345,12 @@ describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
 
   it("addUser: bekleyen koltuk daveti koltuk sayımına girer", async () => {
     const { service, supabase } = rig();
-    // STANDART limit 2: Kurucu satış koltuğu (1) + bekleyen satışçı daveti (1).
+    // Doğrulanmamış firma saklı kademesiyle kalır — STANDART limit 2: Kurucu
+    // satış koltuğu (1) + bekleyen satışçı daveti (1).
     const co = await makeCompanyWithUser(prisma, {
       tier: "STANDART",
       roles: ["SAHIP", "SATISCI"],
+      companyVerificationStatus: "UNVERIFIED",
     });
     await prisma.companyUserInvitation.create({
       data: {

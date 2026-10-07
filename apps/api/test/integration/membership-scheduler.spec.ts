@@ -4,6 +4,7 @@
  * temizliği. Gelen davetler ve süresi geçmemiş firmalar korunur.
  */
 import { MembershipScheduler } from "../../src/modules/company-auth/schedulers/membership.scheduler";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing } from "./factories";
 
@@ -15,15 +16,56 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-describe("MembershipScheduler.downgradeExpired", () => {
+describe("MembershipScheduler — ücretsiz dönem (anahtar AÇIK): zamanlayıcı hiçbir şey yapmaz", () => {
+  it("süresi dolmuş saklı paket satırına, giden davete dokunmaz; SEO tazelemesi ve EXPIRE olayı yok", async () => {
+    const seo = { companyChanged: jest.fn() };
+    const scheduler = new MembershipScheduler(prisma as never, undefined, seo as never);
+    const past = new Date(Date.now() - 86_400_000);
+    // Doğrulanmış ve doğrulanmamış: ikisine de dokunulmaz (erişimi effectiveTier'ın tembel kuralı belirler).
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const u = await makeCompanyWithUser(prisma, { tier: "SILVER", companyVerificationStatus: "UNVERIFIED" });
+    await prisma.company.updateMany({
+      where: { id: { in: [a.company.id, u.company.id] } },
+      data: { membershipEndAt: past },
+    });
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const outgoing = await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: u.company.id,
+        inviteeCompanyId: b.company.id,
+        invitedById: u.user.id,
+        status: "PENDING",
+        origin: "PREMIUM",
+      },
+    });
+
+    await scheduler.downgradeExpired();
+
+    const aAfter = await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } });
+    expect(aAfter.tier).toBe("GOLD");
+    expect(aAfter.membershipEndAt?.getTime()).toBe(past.getTime());
+    const uAfter = await prisma.company.findUniqueOrThrow({ where: { id: u.company.id } });
+    expect(uAfter.tier).toBe("SILVER");
+    expect(uAfter.membershipEndAt?.getTime()).toBe(past.getTime());
+    expect(
+      await prisma.companyConnection.findUnique({ where: { id: outgoing.id } }),
+    ).not.toBeNull();
+    expect(await prisma.companyMembershipEvent.count()).toBe(0);
+    expect(seo.companyChanged).not.toHaveBeenCalled();
+  });
+});
+
+describe("MembershipScheduler.downgradeExpired (ücretsiz dönem anahtarı KAPALI)", () => {
+  // Uyuyan ücretli-paket makinesi: anahtar kapandığı gün süre dolumu düşürmesi aynen çalışmalı.
+  beforeEach(() => {
+    jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("süresi biten PAKET → STANDARD + giden bekleyen davetler iptal; gelen davet & süresi geçmemiş firma korunur", async () => {
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
-    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
-    const scheduler = new MembershipScheduler(
-      prisma as never,
-      email as never,
-      config as never,
-    );
+    const scheduler = new MembershipScheduler(prisma as never);
     const past = new Date(Date.now() - 86_400_000);
     const future = new Date(Date.now() + 86_400_000);
 
@@ -120,16 +162,8 @@ describe("MembershipScheduler.downgradeExpired", () => {
   // sayfalarını tazeler (Silver+ video ve belgeler önbellekte kalmasın);
   // süresi geçmemiş firma için tazeleme yayılmaz.
   it("düşen firma için SEO tazelemesi yayılır, düşmeyen için yayılmaz", async () => {
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
-    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     const seo = { companyChanged: jest.fn() };
-    const scheduler = new MembershipScheduler(
-      prisma as never,
-      email as never,
-      config as never,
-      undefined,
-      seo as never,
-    );
+    const scheduler = new MembershipScheduler(prisma as never, undefined, seo as never);
     const a = await makeCompanyWithUser(prisma, { tier: "SILVER" });
     await prisma.company.update({
       where: { id: a.company.id },
@@ -146,13 +180,7 @@ describe("MembershipScheduler.downgradeExpired", () => {
   });
 
   it("düşecek firma yoksa hiçbir şeye dokunmaz", async () => {
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
-    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
-    const scheduler = new MembershipScheduler(
-      prisma as never,
-      email as never,
-      config as never,
-    );
+    const scheduler = new MembershipScheduler(prisma as never);
     const a = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // membershipEndAt null
     await scheduler.downgradeExpired();
     expect(
@@ -162,8 +190,6 @@ describe("MembershipScheduler.downgradeExpired", () => {
   });
 
   it("okuma ile claim arasında uzatılan firma DÜŞÜRÜLMEZ (derin denetim LU-06)", async () => {
-    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
-    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: a.company.id },
@@ -194,16 +220,11 @@ describe("MembershipScheduler.downgradeExpired", () => {
         });
       },
     });
-    const scheduler = new MembershipScheduler(
-      racing as never,
-      email as never,
-      config as never,
-    );
+    const scheduler = new MembershipScheduler(racing as never);
     await scheduler.downgradeExpired();
     const after = await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } });
     expect(after.tier).toBe("GOLD");
     expect(after.membershipEndAt?.getTime()).toBe(extendedTo.getTime());
-    expect(email.send).not.toHaveBeenCalled();
     expect(
       await prisma.companyMembershipEvent.count({
         where: { companyId: a.company.id, action: "EXPIRE" },

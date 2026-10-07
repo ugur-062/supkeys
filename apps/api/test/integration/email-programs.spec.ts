@@ -9,6 +9,7 @@
  */
 import { EmailProgramsService } from "../../src/modules/email-programs/email-programs.service";
 import { EMAIL_SKIPPED_ALLOWLIST_REASON } from "../../src/modules/email/email.service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { connect, makeCompanyWithUser, makeListing } from "./factories";
 
@@ -84,17 +85,42 @@ describe("akşam özeti", () => {
     expect(await svc.sendDigests(new Date("2026-10-07T16:30:00Z"))).toBe(0);
   });
 
-  it("hepsi kilitli (ücretsiz alıcı) → Silver teşviki, talep bağlantısı yok", async () => {
+  it("kilitliyken kuyruğa alınan talepler: firma o günden beri DOĞRULANDIYSA açıktır → açık talepler bağlantısı, paket teşviki yok", async () => {
     const { svc, email } = makeService();
-    const seller = await makeCompanyWithUser(prisma);
+    // Saklı kademe STANDART: erişimi yalnız doğrulama veriyor (ücretsiz dönem).
+    const seller = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const l = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
+    await prisma.emailDigestItem.create({
+      data: { email: seller.user.email, locale: "en", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
+    });
+    expect(await svc.sendDigests(new Date())).toBe(1);
+    const data = (email.send.mock.calls[0][0] as { templateData: { data: { ctaUrl: string } } }).templateData.data;
+    expect(data.ctaUrl).toBe("http://localhost:3000/en/company/sales");
+    expect(JSON.stringify(email.send.mock.calls[0][0])).not.toMatch(/silver|gold|\/plans/i);
+  });
+});
+
+describe("kilitli özet — saklı paket (ücretsiz dönem anahtarı KAPALI)", () => {
+  // Anahtar kapalıyken kilitli ∧ doğrulanmış firma oluşabilir; paket metinleri kaldırıldığı için ona özet gitmez.
+  beforeEach(() => {
+    jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("hepsi kilitli ∧ doğrulanmış (paketsiz) firma → e-posta gitmez, kalemler kuyruktan düşer", async () => {
+    const { svc, email } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const l = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
     await prisma.emailDigestItem.create({
       data: { email: seller.user.email, locale: "en", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
     });
     await svc.sendDigests(new Date());
-    const data = (email.send.mock.calls[0][0] as { templateData: { data: { ctaUrl: string } } }).templateData.data;
-    expect(data.ctaUrl).toBe("http://localhost:3000/en/company/plans");
+    expect(email.send).not.toHaveBeenCalled();
+    expect(await prisma.emailDigestItem.count({ where: { sentAt: null } })).toBe(0);
   });
 });
 
@@ -202,7 +228,23 @@ describe("akşam özeti — günde TEK özet ve gönderim anında tercih (derin 
   });
 });
 
-describe("kilitli özet — doğrulanmamış ücretsiz firma (2026-09-28)", () => {
+describe("kilitli özet — doğrulanmamış (sınırlı) firma", () => {
+  it("hepsi kilitli ve firma incelemede (PENDING) → 'doğrulanın' denmez: onay bekleniyor + durum bağlantısı", async () => {
+    const { svc, email } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { tier: "STANDART", companyVerificationStatus: "PENDING" });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const l = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
+    await prisma.emailDigestItem.create({
+      data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
+    });
+    await svc.sendDigests(new Date());
+    const data = (email.send.mock.calls[0][0] as { templateData: { data: { paragraphs: string[]; ctaUrl: string; ctaLabel: string } } }).templateData.data;
+    expect(data.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
+    expect(data.ctaLabel).toBe("Doğrulama durumunu gör");
+    expect(data.paragraphs.join(" ")).toMatch(/inceleniyor/);
+    expect(JSON.stringify(data)).not.toMatch(/silver|gold|\/company\/premium/i);
+  });
+
   it("hepsi kilitli ve firma doğrulanmamış → önce ücretsiz doğrulama", async () => {
     const { svc, email } = makeService();
     const seller = await makeCompanyWithUser(prisma, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" });
@@ -451,9 +493,9 @@ describe("haftalık görünürlük özeti", () => {
   });
 });
 
-describe("haftalık özet — ücretsiz firmaya Silver / doğrulama çağrısı (2026-09-28)", () => {
+describe("haftalık özet — sınırlı (doğrulanmamış) firmaya doğrulama çağrısı; paket anılmaz", () => {
   const monday = new Date("2026-10-05T07:10:00Z");
-  async function firm(tier: "STANDART" | "GOLD", status: "VERIFIED" | "UNVERIFIED", memberViews: number) {
+  async function firm(tier: "STANDART" | "GOLD", status: "VERIFIED" | "UNVERIFIED" | "PENDING", memberViews: number) {
     const c = await makeCompanyWithUser(prisma, { country: "TR", tier, companyVerificationStatus: status });
     await prisma.company.update({ where: { id: c.company.id }, data: { ownerUserId: c.user.id } });
     await prisma.companyUser.update({ where: { id: c.user.id }, data: { lastLoginAt: new Date(monday.getTime() - DAY) } });
@@ -471,25 +513,53 @@ describe("haftalık özet — ücretsiz firmaya Silver / doğrulama çağrısı 
     }
     return c;
   }
+  type Sent = { to: { email: string }; templateData: { data: { paragraphs: string[]; ctaUrl: string; ctaLabel: string } } };
   const sentFor = (email: { send: jest.Mock }, to: string) =>
-    (email.send.mock.calls.map((c) => c[0]) as Array<{ to: { email: string }; templateData: { data: { paragraphs: string[]; ctaUrl: string } } }>).find(
-      (a) => a.to.email === to,
-    )!.templateData.data;
+    (email.send.mock.calls.map((c) => c[0]) as Sent[]).find((a) => a.to.email === to)!.templateData.data;
+  const recipients = (email: { send: jest.Mock }) =>
+    (email.send.mock.calls.map((c) => c[0]) as Sent[]).map((a) => a.to.email);
 
-  it("ücretli → ziyaretçiler; ücretsiz doğrulanmış → üye sayısı + Silver; ücretsiz doğrulanmamış → önce doğrulama", async () => {
+  it("doğrulanmış (saklı kademe STANDART olsa da) → ziyaretçiler; incelemede → onay bekleniyor; doğrulanmamış → ücretsiz doğrulama", async () => {
     const email = loggingEmail({ now: monday });
     const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
-    const paid = await firm("GOLD", "VERIFIED", 2);
-    const free = await firm("STANDART", "VERIFIED", 2);
+    const full = await firm("STANDART", "VERIFIED", 2);
+    const pending = await firm("STANDART", "PENDING", 2);
     const unverified = await firm("STANDART", "UNVERIFIED", 0);
     expect(await svc.sendWeeklySummaries(monday)).toBe(3);
-    expect(sentFor(email, paid.user.email).ctaUrl).toBe("http://localhost:3000/company/sirketim/ziyaretciler");
-    const f = sentFor(email, free.user.email);
-    expect(f.ctaUrl).toBe("http://localhost:3000/company/premium");
-    expect(f.paragraphs[1]).toContain("2 tanesi Rothern üyesi firmalardan");
+    expect(sentFor(email, full.user.email).ctaUrl).toBe("http://localhost:3000/company/sirketim/ziyaretciler");
+    const p = sentFor(email, pending.user.email);
+    expect(p.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
+    expect(p.ctaLabel).toBe("Doğrulama durumunu gör");
+    expect(p.paragraphs[1]).toContain("doğrulamanız inceleniyor");
     const u = sentFor(email, unverified.user.email);
     expect(u.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
-    expect(u.paragraphs[1]).toContain("yalnız doğrulanmış Silver ve Gold");
+    expect(u.ctaLabel).toBe("Ücretsiz doğrulan");
+    expect(u.paragraphs[1]).toContain("Doğrulanmış firmalar profillerine bakan firmaların adlarını görür");
+    // Ücretsiz dönem: hiçbir haftalık özet paket adı ya da paket sayfası taşımaz.
+    expect(JSON.stringify(email.send.mock.calls)).not.toMatch(/silver|gold|\/company\/premium/i);
+  });
+
+  describe("saklı paket (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Anahtar kapalıyken ziyaretçi listesini saklı paket açar; paketsiz ∧ doğrulanmış firmaya paketsiz çağrı yok → özet gitmez.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("paketli → ziyaretçiler; paketsiz doğrulanmış → gitmez; paketsiz doğrulanmamış → önce doğrulama", async () => {
+      const email = loggingEmail({ now: monday });
+      const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
+      const paid = await firm("GOLD", "VERIFIED", 2);
+      const free = await firm("STANDART", "VERIFIED", 2);
+      const unverified = await firm("STANDART", "UNVERIFIED", 0);
+      expect(await svc.sendWeeklySummaries(monday)).toBe(2);
+      expect(recipients(email).sort()).toEqual([paid.user.email, unverified.user.email].sort());
+      expect(recipients(email)).not.toContain(free.user.email);
+      expect(sentFor(email, paid.user.email).ctaUrl).toBe("http://localhost:3000/company/sirketim/ziyaretciler");
+      expect(sentFor(email, unverified.user.email).ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
+    });
   });
 });
 

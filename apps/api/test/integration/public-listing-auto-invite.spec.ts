@@ -1,19 +1,22 @@
 /**
  * HERKESE AÇIK TALEP — bağlantılar OTOMATİK DAVETLİ + kategori duyurusu
  * (2026-09-27, kullanıcı: "herkese açık paylaşılsa bile mutlaka bağlantılarına
- * davet gitsin; ek olarak kategori uyumu olanlara da gitsin; ücretsizse
- * Silver'a geçmeye teşvik edelim").
+ * davet gitsin; ek olarak kategori uyumu olanlara da gitsin").
+ *
+ * ÜCRETSİZ DÖNEM (2026-10-07): sınırlı firma = DOĞRULANMAMIŞ firma. Kilitli
+ * duyuru paket değil firma doğrulaması ister; hiçbir e-posta paket anmaz.
  *
  * Sözleşme:
  *  - Yayın duyurusunda (announceListingOpen "invitation") alıcının GEÇERLİ
  *    bağlantılarının tamamı davetli olur — kategoriden bağımsız.
  *  - Davetliye kategori duyurusu GİTMEZ (tek e-posta: davet).
- *  - Kategorisi uyan bağlantısız ücretsiz firma Silver teşvikli e-posta alır
- *    (CTA panelin Paketler sayfası, talep bağlantısı YOK); ücretli firma
- *    doğrudan talebe giden e-posta alır.
+ *  - Kategorisi uyan bağlantısız DOĞRULANMAMIŞ firma doğrulama çağrılı e-posta
+ *    alır (CTA doğrulama sayfası, talep bağlantısı YOK; incelemedeyse "onay
+ *    bekleniyor"); doğrulanmış firma doğrudan talebe giden e-posta alır.
  *  - E-postalar talep önizlemesi taşır (kalemler + miktar, kapanış).
  *  - Görünürlük ülkesi dışındaki bağlantı ve PUBLIC olmayan talep: otomatik davet YOK.
  */
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { connect, makeCompanyWithUser, makeItem, makeListing } from "./factories";
 import { makeService } from "./make-service";
@@ -41,8 +44,19 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-async function seller(opts: { country?: string; tier?: "STANDART" | "SILVER"; cats?: string[]; email: string }) {
-  const c = await makeCompanyWithUser(prisma, { country: opts.country ?? "TR", tier: opts.tier ?? "STANDART" });
+async function seller(opts: {
+  country?: string;
+  tier?: "STANDART" | "SILVER";
+  /** Varsayılan VERIFIED (ücretsiz dönemde tam erişim); sınırlı firma için UNVERIFIED / PENDING. */
+  status?: "UNVERIFIED" | "PENDING" | "VERIFIED";
+  cats?: string[];
+  email: string;
+}) {
+  const c = await makeCompanyWithUser(prisma, {
+    country: opts.country ?? "TR",
+    tier: opts.tier ?? "STANDART",
+    ...(opts.status ? { companyVerificationStatus: opts.status } : {}),
+  });
   await prisma.company.update({
     where: { id: c.company.id },
     data: { sellerCategoryIds: opts.cats ?? [], billingEmail: opts.email },
@@ -51,14 +65,17 @@ async function seller(opts: { country?: string; tier?: "STANDART" | "SILVER"; ca
 }
 
 describe("herkese açık talep — bağlantılar otomatik davetli + kategori duyurusu", () => {
-  it("bağlantılar davet alır (kategoriden bağımsız), davetliye duyuru gitmez; ücretsiz firmaya Silver teşviki, ücretliye talep bağlantısı", async () => {
+  it("bağlantılar davet alır (kategoriden bağımsız), davetliye duyuru gitmez; doğrulanmamış firmaya doğrulama çağrısı, doğrulanmışa talep bağlantısı", async () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
-    const connNoCat = await seller({ cats: ["20000000"], email: "bagli@a.com" });
+    // Bağlantılı firmalardan biri sınırlı (doğrulanmamış): davet doğrulama gerektirmez.
+    const connNoCat = await seller({ cats: ["20000000"], status: "UNVERIFIED", email: "bagli@a.com" });
     const connCat = await seller({ cats: [SEG], email: "bagli-kat@b.com" });
-    const freeCat = await seller({ cats: [SEG], email: "ucretsiz@c.com" });
-    const paidCat = await seller({ cats: [SEG], tier: "SILVER", email: "silver@d.com" });
-    // Bağlantıları Gold alıcı başlatır (geçerlilik davet edenin paketinden).
+    await seller({ cats: [SEG], status: "UNVERIFIED", email: "dogrulanmamis@c.com" });
+    await seller({ cats: [SEG], status: "PENDING", email: "incelemede@e.com" });
+    // Saklı kademe STANDART: erişimi yalnız doğrulama veriyor.
+    await seller({ cats: [SEG], email: "dogrulanmis@d.com" });
+    // Bağlantıları tam erişimli alıcı başlatır (geçerlilik davet edenin erişiminden).
     await connect(prisma, owner.company.id, connNoCat.company.id, owner.user.id);
     await connect(prisma, owner.company.id, connCat.company.id, owner.user.id);
 
@@ -73,7 +90,7 @@ describe("herkese açık talep — bağlantılar otomatik davetli + kategori duy
     await makeItem(prisma, listing.id, { name: "Paslanmaz boru DN50", quantity: 1200 as never, unit: "metre", unitCode: "M" });
 
     await service.announceListingOpen(listing.id, "invitation");
-    const sends = await waitForSends(email, 4);
+    const sends = await waitForSends(email, 5);
 
     // Otomatik davet: iki bağlantı davetli, bağlantısızlar değil.
     const invited = await prisma.listingInvitation.findMany({
@@ -85,9 +102,11 @@ describe("herkese açık talep — bağlantılar otomatik davetli + kategori duy
     );
     expect(invited.every((i) => i.invitedById === owner.user.id)).toBe(true);
 
-    // Tam dört e-posta; kategorisi de uyan bağlantı YALNIZ davet alır.
+    // Tam beş e-posta; kategorisi de uyan bağlantı YALNIZ davet alır.
     const to = sends.map((s) => s.to.email).sort();
-    expect(to).toEqual(["bagli-kat@b.com", "bagli@a.com", "silver@d.com", "ucretsiz@c.com"].sort());
+    expect(to).toEqual(
+      ["bagli-kat@b.com", "bagli@a.com", "dogrulanmis@d.com", "dogrulanmamis@c.com", "incelemede@e.com"].sort(),
+    );
     const byTo = (e: string) => sends.find((s) => s.to.email === e)!;
 
     const inv = byTo("bagli@a.com");
@@ -98,18 +117,64 @@ describe("herkese açık talep — bağlantılar otomatik davetli + kategori duy
     expect(invRows).toContain("Son teklif tarihi");
     expect(byTo("bagli-kat@b.com").subject).toBe("Bir alım talebine davet edildiniz");
 
-    const free = byTo("ucretsiz@c.com");
-    expect(free.subject).toMatch(/Silver'a geçin/);
+    const free = byTo("dogrulanmamis@c.com");
+    expect(free.subject).toBe("Kategorinizde yeni bir alıcı var — teklif vermek için doğrulanın");
     const freePayload = JSON.stringify(free.templateData);
-    expect(freePayload).toContain("/company/premium");
+    expect(freePayload).toContain("/company/ayarlar/dogrulama");
+    expect(free.templateData.data.ctaLabel).toBe("Ücretsiz doğrulan");
     expect(freePayload).not.toContain("/company/ilan/");
     expect(JSON.stringify(free.templateData.data.infoRows)).toContain("Paslanmaz boru DN50");
     // Kategori duyurusu anonim: alıcı firmanın adı geçmez.
     expect(freePayload).not.toContain(owner.company.name);
 
-    const paid = byTo("silver@d.com");
-    expect(paid.subject).not.toMatch(/Silver/);
-    expect(JSON.stringify(paid.templateData)).toContain(`/company/ilan/${listing.id}`);
+    // İncelemedeki firma: "doğrulanın" denmez — onay bekleniyor + durum bağlantısı.
+    const pending = byTo("incelemede@e.com");
+    const pendingPayload = JSON.stringify(pending.templateData);
+    expect(pendingPayload).toMatch(/doğrulamanız inceleniyor/);
+    expect(pending.templateData.data.ctaLabel).toBe("Doğrulama durumunu gör");
+    expect(pendingPayload).toContain("/company/ayarlar/dogrulama");
+    expect(pendingPayload).not.toContain("/company/ilan/");
+
+    const full = byTo("dogrulanmis@d.com");
+    expect(full.subject).toBe("Size uygun yeni bir alım talebi yayınlandı");
+    expect(JSON.stringify(full.templateData)).toContain(`/company/ilan/${listing.id}`);
+
+    // Ücretsiz dönem: hiçbir e-posta paket adı ya da paket sayfası taşımaz.
+    expect(JSON.stringify(sends)).not.toMatch(/silver|gold|\/company\/premium|\/plans/i);
+  });
+
+  describe("saklı paket (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Uyuyan paket kapısı: anahtar kapalıyken kategori duyurusunu saklı paket açar; paketsiz ∧ doğrulanmış firmaya paketsiz çağrı yok → duyuru gitmez.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("paketli firmaya talep bağlantısı; paketsiz doğrulanmışa duyuru gitmez; paketsiz doğrulanmamışa doğrulama çağrısı", async () => {
+      const { service, email } = makeService();
+      const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
+      await seller({ cats: [SEG], tier: "SILVER", email: "silver@d.com" });
+      await seller({ cats: [SEG], email: "paketsiz@c.com" });
+      await seller({ cats: [SEG], status: "UNVERIFIED", email: "dogrulanmamis@c.com" });
+      const listing = await makeListing(prisma, {
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        visibility: "PUBLIC",
+        categoryIds: [CLASS],
+        number: "ROT-000078",
+      });
+      await service.announceListingOpen(listing.id, "invitation");
+      const sends = await waitForSends(email, 2);
+      expect(sends.map((s) => s.to.email).sort()).toEqual(["dogrulanmamis@c.com", "silver@d.com"]);
+      const paid = sends.find((s) => s.to.email === "silver@d.com")!;
+      expect(JSON.stringify(paid.templateData)).toContain(`/company/ilan/${listing.id}`);
+      const unverified = sends.find((s) => s.to.email === "dogrulanmamis@c.com")!;
+      expect(JSON.stringify(unverified.templateData)).toContain("/company/ayarlar/dogrulama");
+      expect(JSON.stringify(unverified.templateData)).not.toContain("/company/ilan/");
+      expect(JSON.stringify(sends)).not.toMatch(/silver'a|gold|\/company\/premium/i);
+    });
   });
 
   it("görünürlük ülkesi dışındaki bağlantı otomatik davet EDİLMEZ", async () => {

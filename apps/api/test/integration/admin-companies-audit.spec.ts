@@ -242,7 +242,7 @@ describe("üyelik yönetimi — event kayıtları + ek-süreli uzatma (Faz 3)", 
     const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     await expect(
       service.extendMembership(std.company.id, 3, "admin-1"),
-    ).rejects.toThrow(/paketli üyelikte/);
+    ).rejects.toThrow(/uzatılacak süreli bir erişim tanımı yok/);
   });
 
   it("membershipHistory + report toplamları (GRANT+EXTEND ay toplamı)", async () => {

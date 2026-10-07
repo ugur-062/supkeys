@@ -111,7 +111,11 @@ describe("AdminProductsService", () => {
   });
 
   describe("paket ürün tavanı (derin denetim MU-13)", () => {
-    const STD = { ...BASE, company: { ...BASE.company, tier: "STANDART", membershipEndAt: null } };
+    // Ücretsiz dönem: tavan yalnız DOĞRULANMAMIŞ firmada vardır (doğrulanmış firma tam yetkili).
+    const STD = {
+      ...BASE,
+      company: { ...BASE.company, tier: "STANDART", membershipEndAt: null, companyVerificationStatus: "UNVERIFIED" },
+    };
 
     it("efektif STANDART firmada tavan doluyken vitrinde olmayan ürün onaylanmaz, PENDING kalır", async () => {
       const { svc, prisma, audit } = rig(STD);
@@ -129,28 +133,55 @@ describe("AdminProductsService", () => {
       });
     });
 
-    it("süresi DOLMUŞ Silver (cron henüz koşmadı) efektif STANDART sayılır", async () => {
-      const expired = { ...BASE, company: { ...BASE.company, tier: "SILVER", membershipEndAt: new Date(Date.now() - 60_000) } };
+    it("doğrulanmış firma saklı STANDART olsa da tavana takılmaz (ücretsiz dönem: sayım yapılmaz)", async () => {
+      const { svc, prisma } = rig({ ...BASE, company: { ...STD.company, companyVerificationStatus: "VERIFIED" } });
+      prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
+      await svc.approve("i1", "admin1");
+      expect(prisma.companyItem.count).not.toHaveBeenCalled();
+      expect(prisma.companyItem.updateMany.mock.calls[0][0].data).toMatchObject({ isPublic: true });
+    });
+
+    it("süresi DOLMUŞ saklı Silver (doğrulanmamış firma) efektif STANDART sayılır", async () => {
+      const expired = {
+        ...BASE,
+        company: {
+          ...BASE.company,
+          tier: "SILVER",
+          membershipEndAt: new Date(Date.now() - 60_000),
+          companyVerificationStatus: "UNVERIFIED",
+        },
+      };
       const { svc, prisma } = rig(expired);
       prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
       await expect(svc.approve("i1", "admin1")).rejects.toThrow(BadRequestException);
       expect(prisma.companyItem.updateMany).not.toHaveBeenCalled();
-      // Arayüz testi D-174: metin paket süresinin dolduğunu söyler (yalnız "tavan dolu" değil).
-      await expect(svc.approve("i1", "admin1")).rejects.toThrow(/paket süresi dolduğu/);
+      // Ücretsiz dönem: metin paket anmaz; tavanın doğrulanmamış firmaya ait olduğunu söyler.
+      await expect(svc.approve("i1", "admin1")).rejects.toThrow(/doğrulanmamış firmalar/i);
+      await expect(svc.approve("i1", "admin1")).rejects.not.toThrow(/paket|silver|gold/i);
       const r = rig(expired);
       r.prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
       const out = await r.svc.approveMany(["i1"], "admin1");
-      expect(out.skipped[0].reason).toMatch(/paket süresi dolduğu/);
+      expect(out.skipped[0].reason).toMatch(/tavanı dolu/);
+      expect(out.skipped[0].reason).not.toMatch(/paket|silver|gold/i);
     });
 
     it("liste/detay satırı efektif kademeyi ve üyelik bitişini döndürür (arayüz testi D-174)", async () => {
       const end = new Date(Date.now() - 86_400_000);
-      const { svc } = rig({ ...BASE, company: { ...BASE.company, tier: "SILVER", membershipEndAt: end } });
+      // Doğrulanmamış + süresi dolmuş saklı paket → efektif STANDART.
+      const { svc } = rig({
+        ...BASE,
+        company: { ...BASE.company, tier: "SILVER", membershipEndAt: end, companyVerificationStatus: "UNVERIFIED" },
+      });
       const d = await svc.detail("i1");
       expect(d.company).toMatchObject({ tier: "SILVER", effectiveTier: "STANDART", membershipEndAt: end.toISOString() });
+      // Doğrulanmamış + süresiz saklı paket → paketini korur.
+      const kept = rig({ ...BASE, company: { ...BASE.company, companyVerificationStatus: "PENDING" } });
+      const k = await kept.svc.list({ status: "PENDING" });
+      expect(k.items[0].company).toMatchObject({ tier: "SILVER", effectiveTier: "SILVER", membershipEndAt: null });
+      // Doğrulanmış firma (ücretsiz dönem) → saklı kademe ne olursa olsun efektif en üst kademe.
       const ok = rig(BASE);
       const l = await ok.svc.list({ status: "PENDING" });
-      expect(l.items[0].company).toMatchObject({ tier: "SILVER", effectiveTier: "SILVER", membershipEndAt: null });
+      expect(l.items[0].company).toMatchObject({ tier: "SILVER", effectiveTier: "GOLD", membershipEndAt: null });
     });
 
     it("tavan altındaysa onaylanır; paketli kademede ve vitrindeki ürünün güncellemesinde sayım yapılmaz", async () => {
@@ -159,7 +190,7 @@ describe("AdminProductsService", () => {
       await a.svc.approve("i1", "admin1");
       expect(a.prisma.companyItem.updateMany.mock.calls[0][0].data).toMatchObject({ isPublic: true });
 
-      const b = rig(BASE); // SILVER, süresiz
+      const b = rig(BASE); // doğrulanmış (tam yetkili)
       await b.svc.approve("i1", "admin1");
       expect(b.prisma.companyItem.count).not.toHaveBeenCalled();
 
@@ -280,7 +311,7 @@ describe("AdminProductsService", () => {
     });
 
     it("paket tavanı dolu (efektif STANDART) ürün ATLANIR, yığın düşmez (derin denetim MU-13)", async () => {
-      const std = { ...BASE.company, tier: "STANDART" };
+      const std = { ...BASE.company, tier: "STANDART", companyVerificationStatus: "UNVERIFIED" };
       const r = coklu([
         { ...BASE, id: "a", company: std },
         { ...BASE, id: "b", isPublic: true, company: std },

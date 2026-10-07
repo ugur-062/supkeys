@@ -4,6 +4,7 @@
  */
 import { CompanyReviewsService } from "../../src/modules/company-reviews/company-reviews.service";
 import { isConnectionValid } from "../../src/common/company/valid-connection";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { makeDocsService } from "./make-docs-service";
 import { connect, makeCompanyWithUser, makeListing } from "./factories";
 import { prisma, truncateAll } from "./test-db";
@@ -19,11 +20,12 @@ beforeEach(async () => {
 });
 
 describe("#1 — 'geçerli bağlantı' TEK KAYNAK (belge ucu ilan detayıyla aynı kuralı uygular)", () => {
-  it("davet eden taraf paketten düşünce CONNECTIONS ilanın belgeleri de kapanır", async () => {
+  it("davet eden taraf doğrulamayı kaybedince CONNECTIONS ilanın belgeleri de kapanır", async () => {
     const { service } = makeDocsService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const viewer = await makeCompanyWithUser(prisma, { country: "TR" });
-    // Bağlantıyı VIEWER kurdu (inviter = viewer) → geçerlilik viewer'ın paketine bağlı.
+    // Saklı kademe STANDART: viewer'ın erişimi yalnız doğrulamadan geliyor (ücretsiz dönem).
+    const viewer = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    // Bağlantıyı VIEWER kurdu (inviter = viewer) → geçerlilik viewer'ın efektif kademesine bağlı.
     await connect(prisma, viewer.company.id, owner.company.id, viewer.user.id);
     const listing = await makeListing(prisma, {
       companyId: owner.company.id,
@@ -34,32 +36,107 @@ describe("#1 — 'geçerli bağlantı' TEK KAYNAK (belge ucu ilan detayıyla ayn
       visibility: "CONNECTIONS",
       closesAt: FUTURE,
     });
-    // Paketliyken görebilir.
-    await expect(service.list(viewer.auth, listing.id)).resolves.toBeDefined();
+    // Doğrulanmışken görebilir (JWT efektif kademeyi taşır).
+    await expect(
+      service.list({ ...viewer.auth, tier: "GOLD" }, listing.id),
+    ).resolves.toBeDefined();
 
-    // Davet eden taraf STANDART'a düşer → bağlantı artık GEÇERSİZ.
+    // Davet eden taraf doğrulamayı kaybeder → efektif STANDART → bağlantı artık GEÇERSİZ.
     await prisma.company.update({
       where: { id: viewer.company.id },
-      data: { tier: "STANDART", membershipEndAt: null },
+      data: { companyVerificationStatus: "UNVERIFIED" },
     });
-    await expect(service.list(viewer.auth, listing.id)).rejects.toThrow();
+    await expect(
+      service.list(
+        { ...viewer.auth, tier: "STANDART", companyVerificationStatus: "UNVERIFIED" },
+        listing.id,
+      ),
+    ).rejects.toThrow();
   });
 
-  it("kural yardımcısı: ADMIN kaynaklı bağlantı her zaman geçerli, süresi dolmuş paket geçersiz", () => {
+  describe("saklı paket (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Paket düşüşü makinesi anahtar kapalıyken geçerlidir; ücretli paketler dönünce aynen çalışmalı.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("davet eden taraf paketten düşünce CONNECTIONS ilanın belgeleri de kapanır", async () => {
+      const { service } = makeDocsService();
+      const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+      const viewer = await makeCompanyWithUser(prisma, { country: "TR" });
+      // Bağlantıyı VIEWER kurdu (inviter = viewer) → geçerlilik viewer'ın paketine bağlı.
+      await connect(prisma, viewer.company.id, owner.company.id, viewer.user.id);
+      const listing = await makeListing(prisma, {
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        type: "ALIM",
+        status: "OPEN",
+        format: "RFQ",
+        visibility: "CONNECTIONS",
+        closesAt: FUTURE,
+      });
+      // Paketliyken görebilir.
+      await expect(service.list(viewer.auth, listing.id)).resolves.toBeDefined();
+
+      // Davet eden taraf STANDART'a düşer → bağlantı artık GEÇERSİZ.
+      await prisma.company.update({
+        where: { id: viewer.company.id },
+        data: { tier: "STANDART", membershipEndAt: null },
+      });
+      await expect(service.list(viewer.auth, listing.id)).rejects.toThrow();
+    });
+
+    it("kural yardımcısı: süresi dolmuş paket geçersiz, süresiz paket geçerli", () => {
+      const past = new Date(Date.now() - 86_400_000);
+      expect(
+        isConnectionValid({
+          origin: "INVITE",
+          inviter: { tier: "SILVER", membershipEndAt: past, companyVerificationStatus: "VERIFIED" },
+        }),
+      ).toBe(false);
+      expect(
+        isConnectionValid({
+          origin: "INVITE",
+          inviter: { tier: "GOLD", membershipEndAt: null, companyVerificationStatus: "UNVERIFIED" },
+        }),
+      ).toBe(true);
+    });
+  });
+
+  it("kural yardımcısı: ADMIN kaynaklı bağlantı her zaman geçerli; doğrulanmış kuran geçerli, doğrulanmamış + saklı STANDART geçersiz", () => {
     const past = new Date(Date.now() - 86_400_000);
     expect(
       isConnectionValid({ origin: "ADMIN", inviter: null }),
     ).toBe(true);
+    // Ücretsiz dönem: doğrulanmış firma, saklı paketinin süresi dolmuş olsa da tam erişimli.
     expect(
       isConnectionValid({
         origin: "INVITE",
-        inviter: { tier: "SILVER", membershipEndAt: past },
+        inviter: { tier: "SILVER", membershipEndAt: past, companyVerificationStatus: "VERIFIED" },
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isConnectionValid({
         origin: "INVITE",
-        inviter: { tier: "GOLD", membershipEndAt: null },
+        inviter: { tier: "STANDART", membershipEndAt: null, companyVerificationStatus: "VERIFIED" },
+      }),
+    ).toBe(true);
+    for (const status of ["UNVERIFIED", "PENDING", "REJECTED"]) {
+      expect(
+        isConnectionValid({
+          origin: "INVITE",
+          inviter: { tier: "STANDART", membershipEndAt: null, companyVerificationStatus: status },
+        }),
+      ).toBe(false);
+    }
+    // Doğrulanmamış firma süresi dolmamış saklı paketini korur (kimse erişim yitirmez).
+    expect(
+      isConnectionValid({
+        origin: "INVITE",
+        inviter: { tier: "GOLD", membershipEndAt: null, companyVerificationStatus: "UNVERIFIED" },
       }),
     ).toBe(true);
   });

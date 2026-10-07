@@ -124,7 +124,7 @@ function authFor(
   u: { id: string; email: string },
   companyId: string,
   roles: CompanyRole[],
-  over: { tier?: string } = {},
+  over: { tier?: string; verification?: string } = {},
 ) {
   return {
     userId: u.id,
@@ -134,7 +134,8 @@ function authFor(
     isOwner: false,
     country: "TR",
     tier: over.tier ?? "GOLD",
-    companyVerificationStatus: "VERIFIED",
+    // Ücretsiz dönem: kısıtlı firma = DOĞRULANMAMIŞ firma (saklı kademesiyle kalır).
+    companyVerificationStatus: over.verification ?? "VERIFIED",
   } as never;
 }
 
@@ -158,17 +159,24 @@ beforeEach(async () => {
 });
 
 describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
-  it("Standart 403 + ONAYLAYICI 403 — sağlayıcıya gitmez", async () => {
+  it("doğrulanmamış firma (STANDART) 403 — doğrulama ister, paket adı anmaz + ONAYLAYICI 403 — sağlayıcıya gitmez", async () => {
     const provider = new FakeProvider();
     const { svc } = build(makeCfg(), provider);
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // Ücretsiz dönem: kısıtlı firma = doğrulanmamış firma (saklı kademe STANDART).
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
 
-    await expect(
-      svc.message(
-        authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier: "STANDART" }),
-        { message: "merhaba" },
-      ),
-    ).rejects.toThrow(/Silver/);
+    const denied = svc.message(
+      authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+        tier: "STANDART",
+        verification: "UNVERIFIED",
+      }),
+      { message: "merhaba" },
+    );
+    await expect(denied).rejects.toThrow(/AI özellikleri için firma doğrulaması gerekir/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
 
     const approver = await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(
@@ -179,20 +187,28 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
-  it("Silver + belge eki (derin denetim Y-05): belge → talep taslağı GOLD ister, sağlayıcıya gitmez", async () => {
+  it("doğrulanmamış + saklı Silver + belge eki (derin denetim Y-05): belge → talep taslağı en üst kademeyi ister, sağlayıcıya gitmez", async () => {
     const provider = new FakeProvider();
     const { svc } = build(makeCfg(), provider);
+    // Ücretsiz dönem: doğrulanmamış firma saklı kademesiyle (SILVER) kalır → AI-0
+    // kapısını geçer ama belge → talep taslağı (GOLD) kapısına takılır; ret metni
+    // paket değil doğrulama ister.
     const co = await makeCompanyWithUser(prisma, {
       tier: "SILVER",
       roles: [CompanyRole.SATIN_ALMACI],
+      companyVerificationStatus: "PENDING",
     });
     const silver = authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI], {
       tier: "SILVER",
+      verification: "PENDING",
     });
 
-    await expect(
-      svc.message(silver, { message: "", fileKeys: [`ai-extract/${co.company.id}/x.pdf`] }),
-    ).rejects.toThrow(/Gold paket/);
+    const denied = svc.message(silver, {
+      message: "",
+      fileKeys: [`ai-extract/${co.company.id}/x.pdf`],
+    });
+    await expect(denied).rejects.toThrow(/Firma doğrulamanız inceleniyor/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
     expect(provider.calls).toHaveLength(0);
     // Ret oturum açılmadan önce: geride boş "taslak" oturum kalmaz (A4 gözden geçirme).
     expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);

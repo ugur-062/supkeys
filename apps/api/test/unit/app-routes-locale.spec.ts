@@ -1,4 +1,6 @@
-import { appRoutes } from "../../src/common/company/app-routes";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { appRoutes, localizeAppPath } from "../../src/common/company/app-routes";
 
 /**
  * i18n Faz 3 — e-posta/bildirim derin bağlantıları ALICININ dilinde.
@@ -13,7 +15,6 @@ describe("appRoutes — dil farkında derin bağlantılar", () => {
     expect(appRoutes.listing(BASE, "abc123")).toBe(`${BASE}/company/ilan/abc123`);
     expect(appRoutes.order(BASE, "ord1")).toBe(`${BASE}/company/siparis/ord1`);
     expect(appRoutes.approvals(BASE)).toBe(`${BASE}/company/onaylar`);
-    expect(appRoutes.premium(BASE)).toBe(`${BASE}/company/premium`);
     expect(appRoutes.messagesWith(BASE, "cmp1")).toBe(
       `${BASE}/company/mesajlar?with=cmp1`,
     );
@@ -43,7 +44,6 @@ describe("appRoutes — dil farkında derin bağlantılar", () => {
       `${BASE}/en/company/order/ord1`,
     );
     expect(appRoutes.approvals(BASE, "en")).toBe(`${BASE}/en/company/approvals`);
-    expect(appRoutes.premium(BASE, "en")).toBe(`${BASE}/en/company/plans`);
     expect(appRoutes.inquiriesReceived(BASE, "en")).toBe(
       `${BASE}/en/company/sales/inquiries`,
     );
@@ -63,7 +63,6 @@ describe("appRoutes — dil farkında derin bağlantılar", () => {
     expect(appRoutes.approvals(BASE, "ru")).toBe(
       `${BASE}/ru/kompaniya/soglasovaniya`,
     );
-    expect(appRoutes.premium(BASE, "ru")).toBe(`${BASE}/ru/kompaniya/tarify`);
     expect(appRoutes.inquiriesReceived(BASE, "ru")).toBe(
       `${BASE}/ru/kompaniya/prodazhi/zaprosy`,
     );
@@ -79,5 +78,32 @@ describe("appRoutes — dil farkında derin bağlantılar", () => {
     expect(appRoutes.messagesWith(BASE, "cmp1", "ru")).toBe(
       `${BASE}/ru/kompaniya/soobshcheniya?with=cmp1`,
     );
+  });
+
+  it("paket sayfası kalktı (ücretsiz dönem): hiçbir kaynak dosya paket sayfasına bağlanmaz; kilit CTA'larının hedefi doğrulama sayfası her dilde çevrilir", () => {
+    // `/company/premium` web'den ve yol sözlüğünden (ROUTE_PATHNAMES) kalktı; web
+    // eski adresi doğrulama sayfasına 308'ler. Yardımcı uykuda durur (çevrilmiş
+    // karşılığı yok) ve HİÇBİR çağıranı olmamalı — e-posta/bildirim oraya bağlanamaz.
+    expect(appRoutes.premium(BASE)).toBe(`${BASE}/company/premium`);
+    expect(appRoutes.premium(BASE, "en")).not.toContain("/plans");
+    expect(appRoutes.premium(BASE, "ru")).not.toContain("/tarify");
+    const callers: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name.endsWith(".ts") && !full.endsWith(join("company", "app-routes.ts"))) {
+          const src = readFileSync(full, "utf8");
+          if (/appRoutes\s*\.\s*premium\b|["'`]\/company\/premium/.test(src)) callers.push(full);
+        }
+      }
+    };
+    walk(join(__dirname, "../../src"));
+    expect(callers).toEqual([]);
+
+    const verify = `${BASE}/company/ayarlar/dogrulama`;
+    expect(localizeAppPath(verify, "tr")).toBe(verify);
+    expect(localizeAppPath(verify, "en")).toBe(`${BASE}/en/company/settings/verification`);
+    expect(localizeAppPath(verify, "ru")).toBe(`${BASE}/ru/kompaniya/nastroyki/verifikatsiya`);
   });
 });

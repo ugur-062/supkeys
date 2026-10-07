@@ -5,7 +5,7 @@ import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 import { ShipOrderDto } from "../../src/modules/company-orders/dto/order-action.dto";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
-import { anyPackageWhere } from "../../src/common/company/effective-tier";
+import { FREE_PERIOD, anyPackageWhere } from "../../src/common/company/effective-tier";
 
 /**
  * AdminCompaniesService rig'i — GERÇEK constructor sırası:
@@ -116,6 +116,14 @@ describe("Denetim Dalga B-1", () => {
   });
 
   describe("P3/P4/P7 — INV-TIER-1 driftı (AI keşfi)", () => {
+    // Saklı paket süresi makinesi: ücretsiz dönem anahtarı KAPALIyken geçerli (açıkken doğrulanmış firma hep içeride).
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it("anyPackageWhere süresi DOLMUŞ paketliyi dışarıda bırakır", async () => {
       const now = new Date();
       const expired = await makeCompanyWithUser(prisma, { tier: "GOLD" });
@@ -136,6 +144,45 @@ describe("Denetim Dalga B-1", () => {
       expect(ids).toContain(live.company.id);
       // Ham `tier: { in: [...] }` filtresi bunu DAHİL ederdi.
       expect(ids).not.toContain(expired.company.id);
+    });
+  });
+
+  describe("ücretsiz dönem — anyPackageWhere doğrulamaya bakar (effectiveTier ile birebir)", () => {
+    it("doğrulanmış firma saklı kademesi/süresi ne olursa olsun içeride; doğrulanmamış firma saklı kademesiyle kalır", async () => {
+      const now = new Date();
+      const past = new Date(now.getTime() - 86_400_000);
+      const verifiedStd = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+      const verifiedExpired = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const unverifiedStd = await makeCompanyWithUser(prisma, {
+        tier: "STANDART",
+        companyVerificationStatus: "UNVERIFIED",
+      });
+      const pendingStd = await makeCompanyWithUser(prisma, {
+        tier: "STANDART",
+        companyVerificationStatus: "PENDING",
+      });
+      const unverifiedExpired = await makeCompanyWithUser(prisma, {
+        tier: "GOLD",
+        companyVerificationStatus: "REJECTED",
+      });
+      // Doğrulanmamış ama süresi dolmamış saklı paket: kimse erişim yitirmez.
+      const unverifiedLive = await makeCompanyWithUser(prisma, {
+        tier: "SILVER",
+        companyVerificationStatus: "UNVERIFIED",
+      });
+      await prisma.company.updateMany({
+        where: { id: { in: [verifiedExpired.company.id, unverifiedExpired.company.id] } },
+        data: { membershipEndAt: past },
+      });
+      const rows = await prisma.company.findMany({
+        where: { ...anyPackageWhere(now) },
+        select: { id: true },
+      });
+      expect(rows.map((r) => r.id).sort()).toEqual(
+        [verifiedStd.company.id, verifiedExpired.company.id, unverifiedLive.company.id].sort(),
+      );
+      void unverifiedStd;
+      void pendingStd;
     });
   });
 });

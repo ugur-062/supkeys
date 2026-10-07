@@ -147,7 +147,7 @@ function authFor(
   u: { id: string; email: string },
   companyId: string,
   roles: CompanyRole[],
-  over: { tier?: string } = {},
+  over: { tier?: string; verification?: string } = {},
 ) {
   return {
     userId: u.id,
@@ -157,7 +157,8 @@ function authFor(
     isOwner: false,
     country: "TR",
     tier: over.tier ?? "GOLD",
-    companyVerificationStatus: "VERIFIED",
+    // Ücretsiz dönem: kısıtlı firma = DOĞRULANMAMIŞ firma (saklı kademesiyle kalır).
+    companyVerificationStatus: over.verification ?? "VERIFIED",
   } as never;
 }
 
@@ -302,18 +303,25 @@ describe("Faz AI-1 — bütçe + erişim (AI-0 kapıları)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
-  it("Standart 403 (Silver+ şartı) + ONAYLAYICI 403 (SA/ST şartı) — dosya bile işlenmez", async () => {
+  it("doğrulanmamış firma (saklı STANDART) 403 — doğrulama ister, paket adı anmaz + ONAYLAYICI 403 (SA/ST şartı) — dosya bile işlenmez", async () => {
     const provider = new FakeProvider();
     const storage = new FakeStorage();
     const svc = makeService(makeCfg(), provider, storage);
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // Ücretsiz dönem: kısıtlı firma = doğrulanmamış firma.
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
 
-    await expect(
-      svc.extract(
-        authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], { tier: "STANDART" }),
-        { fileKeys: [keyFor(co.company.id, "x.pdf")], listingType: "ALIM" },
-      ),
-    ).rejects.toThrow(/Silver/);
+    const denied = svc.extract(
+      authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+        tier: "STANDART",
+        verification: "UNVERIFIED",
+      }),
+      { fileKeys: [keyFor(co.company.id, "x.pdf")], listingType: "ALIM" },
+    );
+    await expect(denied).rejects.toThrow(/AI özellikleri için firma doğrulaması gerekir/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
 
     const approver = await makeUser(prisma, co.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(
@@ -325,13 +333,18 @@ describe("Faz AI-1 — bütçe + erişim (AI-0 kapıları)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
-  it("Silver (derin denetim Y-05): ortak yükleme presign'ı açık (satış AI'ı), belge → talep çıkarımı GOLD ister", async () => {
+  it("doğrulanmamış + saklı Silver (derin denetim Y-05): ortak yükleme presign'ı açık (satış AI'ı), belge → talep çıkarımı en üst kademeyi ister", async () => {
     const provider = new FakeProvider();
     const storage = new FakeStorage();
     const svc = makeService(makeCfg(), provider, storage);
-    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    // Ücretsiz dönem: doğrulanmamış firma saklı kademesiyle (SILVER) kalır.
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "SILVER",
+      companyVerificationStatus: "REJECTED",
+    });
     const silver = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
       tier: "SILVER",
+      verification: "REJECTED",
     });
 
     // "Belgeden Fiyatla (AI)" + asistan dosyaları bu presign'dan geçer.
@@ -343,9 +356,9 @@ describe("Faz AI-1 — bütçe + erişim (AI-0 kapıları)", () => {
 
     // Talep AI'ı (GOLD) — asistan yolu da extract'ten geçtiği için kapı serviste.
     storage.files.set(up.key, makeSimplePdf([LONG_TEXT]));
-    await expect(
-      svc.extract(silver, { fileKeys: [up.key], listingType: "ALIM" }),
-    ).rejects.toThrow(/Gold paket/);
+    const denied = svc.extract(silver, { fileKeys: [up.key], listingType: "ALIM" });
+    await expect(denied).rejects.toThrow(/Firma doğrulamanız onaylanmadı/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
     expect(provider.calls).toHaveLength(0);
   });
 

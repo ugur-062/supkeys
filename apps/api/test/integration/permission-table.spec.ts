@@ -93,18 +93,20 @@ describe("setPermissions — kişi başına açık liste", () => {
     expect(notif).not.toBeNull();
   });
 
-  it("işlem tiki eklemek koltuk ister: Bronz'da koltuk doluyken onaylayıcıya 'Teklif verme' 400", async () => {
+  it("işlem tiki eklemek koltuk ister: doğrulanmamış (sınırlı) firmada koltuk doluyken onaylayıcıya 'Teklif verme' 400", async () => {
     const svc = makeUsersService();
-    // Kurucu ST + satışçı ST = 2/2 dolu (Gold altında satınalma koltuğu sayılmaz).
+    // Kurucu ST + satışçı ST = 2/2 dolu (sınırlı firmada satınalma koltuğu sayılmaz).
+    // Ücretsiz dönem: 2 koltuk sınırı DOĞRULANMAMIŞ firmanındır (doğrulanmış = tam erişim).
     const owner = await makeCompanyWithUser(prisma, {
       tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
       roles: ["SAHIP", "SATISCI"] as never,
     });
     await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
     const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
     await expect(
       svc.setPermissions(owner.auth, approver.id, ["approval:act", "sell:bid:submit"]),
-    ).rejects.toThrow(/Koltuk dolu/);
+    ).rejects.toThrow(/Koltuk dolu \(2\/2\).*doğrulanmış firmalar daha fazla koltuk/);
     // Koltuksuz tik (görüntüleme) geçer; işlem tiki görüntülemeyi örtük ekler.
     const res = await svc.setPermissions(owner.auth, approver.id, ["approval:act", "sell:view"]);
     expect(res.permissions).toEqual(["sell:view", "approval:act"]);

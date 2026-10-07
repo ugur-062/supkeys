@@ -20,6 +20,7 @@ import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
 import { DiscoveryRunsService } from "../../src/modules/ai/supplier-discovery/discovery-runs.service";
 import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
 import { makeService } from "./make-service";
@@ -149,30 +150,81 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
     expect(await prisma.listingInvitation.count({ where: { listingId: listing.id } })).toBe(1);
   });
 
-  it("ücretsiz ya da doğrulanmamış BAĞLANTISIZ üye AI yoluyla davet edilemez; bağlantılı ücretsiz üye edilir (2026-09-28)", async () => {
-    const { service } = makeService();
-    const { owner, listing } = await setup();
-    const free = await categorySeller("Ücretsiz AŞ");
-    await prisma.company.update({ where: { id: free.company.id }, data: { tier: "STANDART" } });
-    const unverified = await categorySeller("Belgesiz AŞ");
-    await prisma.company.update({ where: { id: unverified.company.id }, data: { companyVerificationStatus: "UNVERIFIED" } });
-    const connectedFree = await categorySeller("Bağlı Ücretsiz AŞ");
-    await prisma.company.update({ where: { id: connectedFree.company.id }, data: { tier: "STANDART" } });
-    await prisma.companyConnection.create({
+  /** Kategorisi uyan satıcı; saklı kademe ve doğrulama durumu açıkça kurulur. */
+  async function sellerWith(
+    name: string,
+    tier: "STANDART" | "SILVER",
+    status: "VERIFIED" | "UNVERIFIED" | "PENDING" | "REJECTED",
+  ) {
+    const s = await categorySeller(name);
+    await prisma.company.update({
+      where: { id: s.company.id },
+      data: { tier, companyVerificationStatus: status },
+    });
+    return s;
+  }
+  const connectToOwner = (owner: { company: { id: string }; user: { id: string } }, inviteeId: string) =>
+    prisma.companyConnection.create({
       data: {
         inviterCompanyId: owner.company.id,
-        inviteeCompanyId: connectedFree.company.id,
+        inviteeCompanyId: inviteeId,
         status: "ACTIVE",
         invitedById: owner.user.id,
       },
     });
+
+  it("doğrulanmamış BAĞLANTISIZ üye AI yoluyla davet edilemez; bağlantılı doğrulanmamış üye ve doğrulanmış üye (saklı kademesi ne olursa olsun) edilir (2026-09-28 / ücretsiz dönem)", async () => {
+    const { service } = makeService();
+    const { owner, listing } = await setup();
+    // Ücretsiz dönem: kısıtlı firma = doğrulanmamış firma (saklı paketi olsa da önerilmez).
+    const unverified = await sellerWith("Belgesiz AŞ", "STANDART", "UNVERIFIED");
+    const pendingPaid = await sellerWith("İncelemede Silver AŞ", "SILVER", "PENDING");
+    const rejected = await sellerWith("Reddedilmiş AŞ", "STANDART", "REJECTED");
+    const connectedUnverified = await sellerWith("Bağlı Belgesiz AŞ", "STANDART", "UNVERIFIED");
+    await connectToOwner(owner, connectedUnverified.company.id);
+    // Doğrulanmış firma tam erişimli: saklı STANDART olsa da AI yoluyla davet edilir.
+    const verifiedFree = await sellerWith("Doğrulanmış AŞ", "STANDART", "VERIFIED");
     const { results } = await service.inviteDiscoveredMembers(owner.auth, listing.id, [
-      free.company.id,
       unverified.company.id,
-      connectedFree.company.id,
+      pendingPaid.company.id,
+      rejected.company.id,
+      connectedUnverified.company.id,
+      verifiedFree.company.id,
     ]);
-    expect(results.map((r) => r.status)).toEqual(["NOT_ELIGIBLE", "NOT_ELIGIBLE", "INVITED"]);
-    expect(await prisma.listingInvitation.count({ where: { listingId: listing.id } })).toBe(1);
+    expect(results.map((r) => r.status)).toEqual([
+      "NOT_ELIGIBLE",
+      "NOT_ELIGIBLE",
+      "NOT_ELIGIBLE",
+      "INVITED",
+      "INVITED",
+    ]);
+    expect(await prisma.listingInvitation.count({ where: { listingId: listing.id } })).toBe(2);
+  });
+
+  describe("ücretli paket makinesi (anahtar kapalı)", () => {
+    // Ücretli paketler dönünce "AI önerisine yalnız Silver+ ∧ doğrulanmış" kuralı geri gelmeli.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("ücretsiz (STANDART) ya da doğrulanmamış BAĞLANTISIZ üye davet edilemez; bağlantılı ücretsiz üye edilir", async () => {
+      const { service } = makeService();
+      const { owner, listing } = await setup();
+      const free = await sellerWith("Ücretsiz AŞ", "STANDART", "VERIFIED");
+      const unverified = await sellerWith("Belgesiz AŞ", "SILVER", "UNVERIFIED");
+      const connectedFree = await sellerWith("Bağlı Ücretsiz AŞ", "STANDART", "VERIFIED");
+      await connectToOwner(owner, connectedFree.company.id);
+      const { results } = await service.inviteDiscoveredMembers(owner.auth, listing.id, [
+        free.company.id,
+        unverified.company.id,
+        connectedFree.company.id,
+      ]);
+      expect(results.map((r) => r.status)).toEqual(["NOT_ELIGIBLE", "NOT_ELIGIBLE", "INVITED"]);
+      expect(await prisma.listingInvitation.count({ where: { listingId: listing.id } })).toBe(1);
+    });
   });
 
   it("günlük tavan e-posta davetleriyle ORTAK: 59 dış davet + 2 üye → 1 INVITED, 1 DAILY_LIMIT", async () => {
@@ -324,7 +376,7 @@ describe("açılış duyurusu — AI davetlisinin e-posta sınıfı zamanlamaya 
 });
 
 describe("CompanyListingsService.notifyHiddenAiMatches — alıcıya gösterilmeyen ücretsiz firmaya çağrı", () => {
-  async function freeSeller(name: string, status: "VERIFIED" | "UNVERIFIED") {
+  async function freeSeller(name: string, status: "VERIFIED" | "UNVERIFIED" | "PENDING") {
     const s = await makeCompanyWithUser(prisma, { tier: "STANDART", name, companyVerificationStatus: status });
     await prisma.company.update({
       where: { id: s.company.id },
@@ -333,15 +385,19 @@ describe("CompanyListingsService.notifyHiddenAiMatches — alıcıya gösterilme
     return s;
   }
 
-  it("herkese açık talep: doğrulanmamışa doğrulama, doğrulanmışa Silver; alıcı kimliği ve talep bağlantısı yok", async () => {
+  it("herkese açık talep: doğrulanmamışa doğrulama, incelemedekine onay bekleme çağrısı; paket adı, alıcı kimliği ve talep bağlantısı yok; doğrulanmış firmaya gitmez", async () => {
     const { service, email } = makeService();
     const { listing } = await setup({ visibility: "PUBLIC" });
     const unverified = await freeSeller("Belgesiz AŞ", "UNVERIFIED");
-    const verified = await freeSeller("Doğrulanmış Ücretsiz AŞ", "VERIFIED");
+    const pending = await freeSeller("İncelemede AŞ", "PENDING");
+    // Ücretsiz dönem: doğrulanmış firma (saklı STANDART olsa da) alıcıya ZATEN
+    // önerilir → "gösterilmeyen firma" çağrısı almaz.
+    const verified = await freeSeller("Doğrulanmış AŞ", "VERIFIED");
     const paid = await categorySeller("Silver AŞ");
 
     const sent = await service.notifyHiddenAiMatches(listing.id, [
       unverified.company.id,
+      pending.company.id,
       verified.company.id,
       paid.company.id,
     ]);
@@ -351,14 +407,25 @@ describe("CompanyListingsService.notifyHiddenAiMatches — alıcıya gösterilme
     const u = JSON.stringify(byTo.get(unverified.user.email).templateData);
     expect(byTo.get(unverified.user.email).context).toEqual({ type: "listing_ai_match_locked", id: listing.id });
     expect(u).toContain("/company/ayarlar/dogrulama");
-    const v = JSON.stringify(byTo.get(verified.user.email).templateData);
-    expect(v).toContain("/company/premium");
-    for (const body of [u, v]) {
+    expect(u).toContain("ücretsiz doğrulayın");
+    const p = JSON.stringify(byTo.get(pending.user.email).templateData);
+    expect(p).toContain("incelemede");
+    expect(p).toContain("/company/ayarlar/dogrulama");
+    for (const body of [u, p]) {
       expect(body).not.toContain("/company/ilan/");
+      expect(body).not.toContain("/company/premium");
+      expect(body).not.toMatch(/Silver|Gold|paket/i);
       expect(body).not.toContain("Alıcı Makina AŞ");
     }
+    expect(byTo.has(verified.user.email)).toBe(false);
     expect(byTo.has(paid.user.email)).toBe(false);
-    expect(await prisma.notification.count({ where: { type: "listing_ai_match_locked" } })).toBeGreaterThanOrEqual(2);
+    await settle(async () => (await prisma.notification.count({ where: { type: "listing_ai_match_locked" } })) >= 2);
+    expect(await prisma.notification.count({ where: { type: "listing_ai_match_locked" } })).toBe(2);
+    expect(
+      await prisma.notification.count({
+        where: { type: "listing_ai_match_locked", companyId: { in: [verified.company.id, paid.company.id] } },
+      }),
+    ).toBe(0);
   });
 
   it("arayüz testi O-056: paketli ama doğrulanmamış firmaya paket metni gitmez — incelemedekine talep bağlantısı, doğrulanmamışa doğrulama", async () => {
@@ -407,7 +474,9 @@ describe("CompanyListingsService.notifyHiddenAiMatches — alıcıya gösterilme
   it("özel talepte gitmez; bu talep için kategori duyurusu almış adrese ikinci e-posta gitmez", async () => {
     const { service, email } = makeService();
     const { listing: priv } = await setup();
-    const a = await freeSeller("A AŞ", "VERIFIED");
+    // Doğrulanmamış firma = alıcıya gösterilmeyen firma (doğrulanmış firma zaten
+    // hiç çağrı almaz; test yanlış sebeple yeşil kalmasın).
+    const a = await freeSeller("A AŞ", "UNVERIFIED");
     expect(await service.notifyHiddenAiMatches(priv.id, [a.company.id])).toBe(0);
 
     const { listing: pub } = await setup({ visibility: "PUBLIC" });

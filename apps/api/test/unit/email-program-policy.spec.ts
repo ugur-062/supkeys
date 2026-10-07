@@ -3,6 +3,7 @@ import {
   digestDue,
   inLifecycleWindow,
   isLocalMonday,
+  LIFECYCLE_DAYS,
   lifecycleAllowed,
   localDayStart,
   nextLifecycleStep,
@@ -90,7 +91,6 @@ describe("karşılama serisi (davranışa bağlı)", () => {
     productCount: 0,
     verification: "UNVERIFIED",
     recentMatches: 5,
-    paid: false,
     sent: new Set(),
   };
   const at = (d: number) => new Date(base.onboardedAt!.getTime() + d * DAY);
@@ -110,17 +110,21 @@ describe("karşılama serisi (davranışa bağlı)", () => {
     expect(nextLifecycleStep({ ...base, onboardedAt: null }, at(20))).toBeNull();
   });
 
-  it("gün 21 ikinci doğrulama hatırlatması (hâlâ doğrulanmamışa); gün 24 Silver adımı yalnız DOĞRULANMIŞ ücretsize", () => {
+  it("gün 21 ikinci doğrulama hatırlatması (hâlâ doğrulanmamışa); paket tanıtan adım YOK (ücretsiz dönem)", () => {
     const early = new Set(["profile", "first_product", "verify", "market"] as const);
     expect(nextLifecycleStep({ ...base, sent: early }, at(20))).toBeNull();
     expect(nextLifecycleStep({ ...base, sent: early }, at(21))).toBe("verify_again");
-    // Doğrulanmamış: Silver adımı henüz gitmez (paket alımı doğrulama ister).
+    // İkinci hatırlatmadan sonra seri biter.
     const afterAgain = new Set([...early, "verify_again"] as const);
     expect(nextLifecycleStep({ ...base, sent: afterAgain }, at(25))).toBeNull();
-    // Doğrulandı → Silver adımı; ücretliye hiç gitmez; incelemedekine de gitmez.
+    // Paket adımı kaldırıldı: seri hiçbir durumda paket e-postası üretmez.
+    expect(Object.keys(LIFECYCLE_DAYS)).toEqual(["profile", "first_product", "verify", "market", "verify_again"]);
+    // Doğrulanan firmaya (tam yetkili) gün 24'te hiçbir şey gitmez; ikinci
+    // hatırlatma da gitmez. İncelemedekine de gitmez.
     const verified = { ...base, verification: "VERIFIED", sent: early };
-    expect(nextLifecycleStep(verified, at(24))).toBe("silver");
-    expect(nextLifecycleStep({ ...verified, paid: true }, at(24))).toBeNull();
+    for (const d of [21, 24, 40]) {
+      expect(nextLifecycleStep(verified, at(d))).toBeNull();
+    }
     expect(nextLifecycleStep({ ...base, verification: "PENDING", sent: early }, at(25))).toBeNull();
   });
 

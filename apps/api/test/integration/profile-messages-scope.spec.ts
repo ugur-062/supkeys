@@ -6,6 +6,7 @@ import { CompanyProfileService } from "../../src/modules/company-profile/company
 import { CompanyMessagesService } from "../../src/modules/company-messages/company-messages.service";
 import { CompanyBlocksService } from "../../src/modules/company-blocks/company-blocks.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { FREE_PERIOD, effectiveTierOf } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
@@ -187,13 +188,19 @@ describe("mesaj alıcı yönü paket kapısı (arayüz testi O-123)", () => {
     );
   }
 
-  it.each(["SILVER", "STANDART"] as const)(
-    "%s firma ALICI yönünde yazamaz (403 TIER_REQUIRED, izni olsa da); satıcı yönü açık",
-    async (tier) => {
+  // Ücretsiz dönem: sınırlı firma = DOĞRULANMAMIŞ firma; ret metni paket değil doğrulama ister.
+  it.each([
+    { tier: "SILVER", status: "UNVERIFIED", text: /Alıcı olarak mesaj göndermek için firma doğrulaması gerekir/ },
+    { tier: "STANDART", status: "UNVERIFIED", text: /Alıcı olarak mesaj göndermek için firma doğrulaması gerekir/ },
+    { tier: "STANDART", status: "PENDING", text: /doğrulamanız inceleniyor/ },
+    { tier: "STANDART", status: "REJECTED", text: /yeniden başvurun/ },
+  ] as const)(
+    "$status ($tier) firma ALICI yönünde yazamaz (403 TIER_REQUIRED, izni olsa da); satıcı yönü açık",
+    async ({ tier, status, text }) => {
       const svc = makeMsgService();
-      const a = await makeCompanyWithUser(prisma, { tier });
+      const a = await makeCompanyWithUser(prisma, { tier, companyVerificationStatus: status });
       const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-      // Kurucu SA+ST işlem rolleriyle kurulur → izin kapısı geçer; ret paketten.
+      // Kurucu SA+ST işlem rolleriyle kurulur → izin kapısı geçer; ret doğrulamadan.
       const err = await svc
         .send(a.auth, "satinalma", b.company.id, "merhaba")
         .catch((e: unknown) => e);
@@ -201,19 +208,70 @@ describe("mesaj alıcı yönü paket kapısı (arayüz testi O-123)", () => {
       expect((err as { getResponse: () => unknown }).getResponse()).toMatchObject({
         code: "TIER_REQUIRED",
         minTier: "GOLD",
+        verificationStatus: status,
+        verifyPath: "/company/ayarlar/dogrulama",
       });
-      expect(String((err as Error).message)).toMatch(/Gold/);
+      expect(String((err as Error).message)).toMatch(text);
+      expect(String((err as Error).message)).not.toMatch(/gold|silver|paket/i);
       expect(await prisma.messageThread.count()).toBe(0);
-      // Satıcı yönü her pakete açık (STANDART: mesaj ücretsiz).
+      // Satıcı yönü herkese açık (mesaj ücretsiz).
       await expect(
         svc.send(a.auth, "satis", b.company.id, "merhaba"),
       ).resolves.toMatchObject({ mine: true });
     },
   );
 
+  it("doğrulanmış firma (saklı kademe STANDART olsa da) ALICI yönünde yazar — efektif kademe GOLD", async () => {
+    const svc = makeMsgService();
+    const a = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    // JWT stratejisi auth.tier'ı efektif kademeden üretir (ücretsiz dönem: VERIFIED → GOLD).
+    const auth = {
+      ...a.auth,
+      tier: effectiveTierOf(a.company),
+    } as typeof a.auth;
+    expect(auth.tier).toBe("GOLD");
+    await expect(
+      svc.send(auth, "satinalma", b.company.id, "merhaba"),
+    ).resolves.toMatchObject({ mine: true });
+  });
+
+  describe("saklı paket (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Uyuyan paket kapısı: anahtar kapalıyken doğrulanmış ama Gold altı firma alıcı yönünde yazamaz.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each(["SILVER", "STANDART"] as const)(
+      "doğrulanmış %s firma ALICI yönünde yazamaz (403 TIER_REQUIRED); satıcı yönü açık",
+      async (tier) => {
+        const svc = makeMsgService();
+        const a = await makeCompanyWithUser(prisma, { tier });
+        const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+        expect(effectiveTierOf(a.company)).toBe(tier);
+        const err = await svc
+          .send(a.auth, "satinalma", b.company.id, "merhaba")
+          .catch((e: unknown) => e);
+        expect(err).toMatchObject({ status: 403 });
+        expect((err as { getResponse: () => unknown }).getResponse()).toMatchObject({
+          code: "TIER_REQUIRED",
+          minTier: "GOLD",
+        });
+        expect(await prisma.messageThread.count()).toBe(0);
+        await expect(
+          svc.send(a.auth, "satis", b.company.id, "merhaba"),
+        ).resolves.toMatchObject({ mine: true });
+      },
+    );
+  });
+
   it("paketi düşen firma eski ALICI konuşmasını okur ama yazamaz", async () => {
     const svc = makeMsgService();
-    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    // Doğrulanmamış firma saklı paketiyle yaşar → paket düşüşü ücretsiz dönemde de gerçek bir durum.
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD", companyVerificationStatus: "UNVERIFIED" });
     const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await svc.send(a.auth, "satinalma", b.company.id, "Gold iken yazdım");
     await svc.send(b.auth, "satis", a.company.id, "yanıt");
@@ -241,7 +299,7 @@ describe("mesaj alıcı yönü paket kapısı (arayüz testi O-123)", () => {
   // istisna açmaz.
   it("paketi düşen alıcı yalnız SÜREN siparişin satıcısına alıcı yönünde yazar", async () => {
     const svc = makeMsgService();
-    const a = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    const a = await makeCompanyWithUser(prisma, { tier: "SILVER", companyVerificationStatus: "UNVERIFIED" });
     const sup = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const done = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const order = (seller: string, status: "IN_DELIVERY" | "COMPLETED") =>
