@@ -3274,6 +3274,7 @@
         "onayDurumuDogrulanamadiTekrarDeneyin": "Onay durumu doğrulanamadı, tekrar deneyin",
         "kazandir": "Kazandır",
         "kazandirilsinMiBuIslemGeri": "\"{bidderName}\" kazandırılsın mı? Kazandırılacak tutar: {amount}. Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder ve sipariş oluşur.",
+        "teklifDegistiKazandirmaYapilmadi": "Teklif siz onaylarken değişti; kazandırma yapılmadı. Güncel tutarı inceleyip yeniden deneyin.",
         "evetKazandir": "Evet, kazandır",
         "kazandirmaOnayaGonderildi": "Kazandırma onaya gönderildi",
         "kazandirildiSiparisOlustu": "Kazandırıldı — sipariş {number} oluştu",

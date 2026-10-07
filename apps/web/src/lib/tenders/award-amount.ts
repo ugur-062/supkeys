@@ -6,8 +6,6 @@
  * kendi birimindeki toplam ve (yabancı birimde, sunucu verdiyse) `amountTry`.
  * İstemcide kur çevrimi YAPILMAZ.
  */
-import { lineAmount } from "@/lib/line-amount";
-
 type Money = (value: number | string, currency?: string | null) => string;
 
 export interface AwardAmountBid {
@@ -51,26 +49,35 @@ export interface ItemAwardGroup {
 
 /**
  * Kalem bazlı kazandırmada firma + para birimi başına tutar (sunucu da siparişi
- * firma + birim başına açar). Satır tutarı `lineAmount` ile kuruşa yuvarlanır;
- * birimler arası çevrim/toplam yapılmaz.
+ * firma + birim başına açar). Sunucuyla AYNI yuvarlama: grup içinde ham
+ * Σ(birim fiyat × miktar) biriktirilir ve kuruşa BİR KEZ, yarım yukarı
+ * yuvarlanır (API `buildItemGroups` → `roundMoney`). Satır satır yuvarlayıp
+ * toplamak kesirli miktarda sipariş tutarından sapıyordu (1,5 × 3,33 iki kez:
+ * 5,00 + 5,00 = 10,00; sipariş 9,99). Tam sayı aritmetiği (kuruş × binde bir)
+ * float çarpım hatasını dışarıda tutar; birimler arası çevrim/toplam yapılmaz.
  */
 export function itemAwardGroups(selections: readonly ItemAwardSelection[]): ItemAwardGroup[] {
-  const groups = new Map<string, ItemAwardGroup & { cents: number }>();
+  const groups = new Map<string, ItemAwardGroup & { milli: number }>();
   for (const s of selections) {
     const key = `${s.bidId}|${s.currency}`;
-    const cents = Math.round(lineAmount(s.quantity, s.unitPrice) * 100);
+    // kuruş × 1000 — yuvarlanmamış satır tutarı
+    const milli = Math.round(s.quantity * 1000) * Math.round(s.unitPrice * 100);
     const g = groups.get(key);
-    if (g) g.cents += cents;
+    if (g) g.milli += milli;
     else
       groups.set(key, {
         bidId: s.bidId,
         bidderName: s.bidderName,
         currency: s.currency,
         amount: 0,
-        cents,
+        milli,
       });
   }
-  return [...groups.values()].map(({ cents, ...g }) => ({ ...g, amount: cents / 100 }));
+  return [...groups.values()].map(({ milli, ...g }) => ({
+    ...g,
+    amount:
+      (milli >= 0 ? Math.floor((milli + 500) / 1000) : -Math.floor((-milli + 500) / 1000)) / 100,
+  }));
 }
 
 /**

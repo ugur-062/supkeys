@@ -283,4 +283,92 @@ describe("Kalem bazlı kazandırma onayı tutarı gösterir", () => {
     );
     expect(dialog).not.toHaveTextContent("toplam tutar");
   });
+
+  it("kesirli miktar: pencere tutarı sunucunun sipariş tutarıyla aynı yuvarlanır (1,5 × 3,33 iki kez → 9,99)", async () => {
+    h.detail = detail({
+      items: [
+        { id: "i1", name: "Rulman", quantity: "1.5", unit: "kg" },
+        { id: "i2", name: "Kayış", quantity: "1.5", unit: "kg" },
+      ],
+      bids: [
+        bid("b1", "Tedarik A", {
+          amount: "9.99",
+          items: [
+            { itemId: "i1", unitPrice: "3.33" },
+            { itemId: "i2", unitPrice: "3.33" },
+          ],
+        }),
+      ],
+    } as unknown as Partial<ListingDetail>);
+    const user = userEvent.setup();
+    render(<AwardAmountHarness />);
+    await user.click(screen.getByRole("button", { name: "Kalem-bazlı Kazandır" }));
+    await user.click(screen.getByRole("button", { name: "Onayla & Kazandır" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent(`Kazandırılacak tutar: Tedarik A: ${tr(9.99, "TRY")}.`);
+  });
+});
+
+describe("Pencere açıkken teklif değişirse kazandırma yapılmaz", () => {
+  const CHANGED = /Teklif siz onaylarken değişti; kazandırma yapılmadı/;
+
+  it("toplu kazandırma: onaylanan tutar güncel teklifle uyuşmuyorsa istek gitmez", async () => {
+    h.detail = detail();
+    const user = userEvent.setup();
+    const { rerender } = render(<AwardAmountHarness />);
+    await user.click(screen.getByRole("button", { name: "Kazandır" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent(`Kazandırılacak tutar: ${tr("12500.5", "TRY")}.`);
+    // Teklif veren bu sırada teklifini revize etti; detay tazelendi.
+    h.detail = detail({ bids: [bid("b1", "Tedarik A", { amount: "13900" })] } as unknown as Partial<ListingDetail>);
+    rerender(<AwardAmountHarness />);
+    await user.click(within(dialog).getByRole("button", { name: "Evet, kazandır" }));
+    await waitFor(() => expect(h.toast.error).toHaveBeenCalledWith(expect.stringMatching(CHANGED)));
+    expect(h.award).not.toHaveBeenCalled();
+  });
+
+  it("onaya giden kazandırma: not yazılırken teklif değiştiyse onaya gönderilmez", async () => {
+    h.preview.mockResolvedValue({ requiresApproval: true });
+    h.detail = detail();
+    const user = userEvent.setup();
+    const { rerender } = render(<AwardAmountHarness />);
+    await user.click(screen.getByRole("button", { name: "Kazandır" }));
+    const dialog = await screen.findByRole("dialog");
+    h.detail = detail({ bids: [bid("b1", "Tedarik A", { amount: "13900" })] } as unknown as Partial<ListingDetail>);
+    rerender(<AwardAmountHarness />);
+    await user.click(within(dialog).getByRole("button", { name: "Onaya Gönder" }));
+    await waitFor(() => expect(h.toast.error).toHaveBeenCalledWith(expect.stringMatching(CHANGED)));
+    expect(h.award).not.toHaveBeenCalled();
+  });
+
+  it("kalem bazlı kazandırma: seçili kalemin fiyatı değiştiyse istek gitmez", async () => {
+    const make = (price: string) =>
+      detail({
+        bids: [bid("b1", "Tedarik A", { items: [{ itemId: "i1", unitPrice: price }] })],
+      } as unknown as Partial<ListingDetail>);
+    h.detail = make("80");
+    const user = userEvent.setup();
+    const { rerender } = render(<AwardAmountHarness />);
+    await user.click(screen.getByRole("button", { name: "Kalem-bazlı Kazandır" }));
+    await user.click(screen.getByRole("button", { name: "Onayla & Kazandır" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent(`Kazandırılacak tutar: Tedarik A: ${tr(800, "TRY")}.`);
+    h.detail = make("95");
+    rerender(<AwardAmountHarness />);
+    await user.click(within(dialog).getByRole("button", { name: "Evet, kazandır" }));
+    await waitFor(() => expect(h.toast.error).toHaveBeenCalledWith(expect.stringMatching(CHANGED)));
+    expect(h.awardByItem).not.toHaveBeenCalled();
+  });
+
+  it("teklif değişmediyse kazandırma olağan sürer (kalem bazlı)", async () => {
+    h.detail = detail();
+    const user = userEvent.setup();
+    render(<AwardAmountHarness />);
+    await user.click(screen.getByRole("button", { name: "Kalem-bazlı Kazandır" }));
+    await user.click(screen.getByRole("button", { name: "Onayla & Kazandır" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Evet, kazandır" }));
+    await waitFor(() => expect(h.awardByItem).toHaveBeenCalledTimes(1));
+    expect(h.toast.error).not.toHaveBeenCalled();
+  });
 });

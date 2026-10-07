@@ -156,6 +156,42 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     );
   });
 
+  it("pencere açıkken teklif değiştiyse kazandırma yapılmaz (onaylanan tutar eskidi)", async () => {
+    h.detail = detail();
+    const { rerender } = render(<BidDetailPage />);
+    h.confirm.mockImplementation(async () => {
+      // Teklif veren, pencere açıkken teklifini revize etti; detay tazelendi.
+      h.detail = detail({ amount: "1650" });
+      rerender(<BidDetailPage />);
+      return true;
+    });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Kazandır" }));
+    const { toast } = await import("sonner");
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringMatching(/Teklif siz onaylarken değişti; kazandırma yapılmadı/),
+      ),
+    );
+    expect(h.award).not.toHaveBeenCalled();
+  });
+
+  it("onaya giden kazandırma: not yazılırken teklif değiştiyse onaya gönderilmez", async () => {
+    h.preview.mockResolvedValue({ requiresApproval: true });
+    h.detail = detail();
+    const user = userEvent.setup();
+    const { rerender } = render(<BidDetailPage />);
+    await user.click(screen.getByRole("button", { name: "Kazandır" }));
+    const dialog = await screen.findByRole("dialog");
+    h.detail = detail({ amount: "1650" });
+    rerender(<BidDetailPage />);
+    // Pencere açılış anındaki tutarı göstermeyi sürdürür; sessizce değişmez.
+    expect(dialog).toHaveTextContent(`Kazandırılacak tutar: ${formatMoney("1500", "TRY", "tr")}.`);
+    await user.click(screen.getByRole("button", { name: "Onaya Gönder" }));
+    const { toast } = await import("sonner");
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(h.award).not.toHaveBeenCalled();
+  });
+
   it("ön kontrol başarısızsa sessiz kazandırma yapılmaz (fail-closed)", async () => {
     h.preview.mockRejectedValue(new Error("x"));
     h.detail = detail();

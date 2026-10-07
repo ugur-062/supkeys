@@ -3274,6 +3274,7 @@
         "onayDurumuDogrulanamadiTekrarDeneyin": "Не удалось проверить статус согласования, повторите попытку",
         "kazandir": "Присудить",
         "kazandirilsinMiBuIslemGeri": "Присудить победу компании «{bidderName}»? Сумма присуждения: {amount}. Это действие НЕЛЬЗЯ ОТМЕНИТЬ: остальные предложения проигрывают, и создаётся заказ.",
+        "teklifDegistiKazandirmaYapilmadi": "Предложение изменилось, пока Вы подтверждали; победа не присуждена. Проверьте актуальную сумму и повторите попытку.",
         "evetKazandir": "Да, присудить",
         "kazandirmaOnayaGonderildi": "Присуждение отправлено на согласование",
         "kazandirildiSiparisOlustu": "Присуждено — создан заказ {number}",

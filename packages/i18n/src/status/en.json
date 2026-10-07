@@ -26554,6 +26554,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.teklifDegistiKazandirmaYapilmadi": {
+    "hash": "f3f696ae40",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
   "web.panel.requests.page.teklifDosyalari": {
     "hash": "9b8bed93d2",
     "status": "reviewed",

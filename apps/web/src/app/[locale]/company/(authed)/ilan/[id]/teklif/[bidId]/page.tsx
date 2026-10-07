@@ -38,7 +38,7 @@ import { formatNumber } from "@/i18n/format";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useParams, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useCompanyAuth,
   useHasCompanyPermission,
@@ -64,6 +64,12 @@ export default function BidDetailPage() {
   const searchParams = useSearchParams();
   const backHref = `/company/ilan/${id}${bidViewQuery(parseBidView(searchParams.get("teklifler")))}`;
   const { data: l, isLoading, isError, error, refetch } = useListingDetail(id);
+  // Onay penceresi açıkken gelen tazeleme — kazandırmadan hemen önce pencerede
+  // gösterilen tutar güncel veriyle karşılaştırılır (talep detayıyla aynı).
+  const latestListing = useRef(l);
+  useEffect(() => {
+    latestListing.current = l;
+  }, [l]);
   const confirm = useConfirm();
   const award = useAwardListing(id);
   const awardPreview = useAwardPreview(id);
@@ -71,7 +77,9 @@ export default function BidDetailPage() {
   const bidDocs = useBidDocuments(id);
   const [eliminateOpen, setEliminateOpen] = useState(false);
   // Onaya takılan kazandırma — onaycılara not dialogu (talep detayıyla aynı).
-  const [approvalNoteOpen, setApprovalNoteOpen] = useState(false);
+  // Pencerede yazan tutar açılış anında sabitlenir (null = kapalı): not
+  // yazılırken tutar sessizce değişmez, gönderimde güncel veriyle kıyaslanır.
+  const [approvalNoteAmount, setApprovalNoteAmount] = useState<string | null>(null);
   // B4: ihale detayındaki kapının AYNISI (backend assertListingManageRole
   // aynası) — hook'lar koşulsuz çağrılmalı, bu yüzden erken dönüşlerden ÖNCE.
   const { user, company } = useCompanyAuth();
@@ -158,9 +166,20 @@ export default function BidDetailPage() {
 
   // Kazandırma geri alınamaz → onay penceresi tutarı da söyler (kullanıcı
   // kararı 2026-10-07); başlıktaki tutarla aynı biçimleyici, çevrim yok.
-  const awardAmount = awardAmountLabel(bid, formatMoney, (amount, amountTry) =>
-    t("tutarTryKarsiligiyla", { amount, amountTry }),
-  );
+  const amountLabel = (b: typeof bid) =>
+    awardAmountLabel(b, formatMoney, (amount, amountTry) =>
+      t("tutarTryKarsiligiyla", { amount, amountTry }),
+    );
+  const awardAmount = amountLabel(bid);
+  // Sunucu onay anındaki GÜNCEL teklifle kazandırır; pencere açıkken teklif
+  // revize edildiyse (ilan OPEN iken mümkün) onaylanan tutar eskimiştir —
+  // fark varsa (ya da teklif artık yoksa) kazandırma YAPILMAZ.
+  const awardAmountUnchanged = (shown: string) => {
+    const current = latestListing.current?.bids?.find((b) => b.id === bid.id);
+    if (current && amountLabel(current) === shown) return true;
+    toast.error(t("teklifDegistiKazandirmaYapilmadi"));
+    return false;
+  };
 
   const runAward = async (approvalNote?: string) => {
     try {
@@ -194,7 +213,7 @@ export default function BidDetailPage() {
       return;
     }
     if (requiresApproval) {
-      setApprovalNoteOpen(true);
+      setApprovalNoteAmount(awardAmount);
       return;
     }
     if (
@@ -209,11 +228,17 @@ export default function BidDetailPage() {
       }))
     )
       return;
+    if (!awardAmountUnchanged(awardAmount)) return;
     await runAward();
   };
 
   const submitApprovalNote = async (note: string) => {
-    if (await runAward(note.trim() || undefined)) setApprovalNoteOpen(false);
+    if (approvalNoteAmount == null) return;
+    if (!awardAmountUnchanged(approvalNoteAmount)) {
+      setApprovalNoteAmount(null);
+      return;
+    }
+    if (await runAward(note.trim() || undefined)) setApprovalNoteAmount(null);
   };
 
   const submitEliminate = async (reason: string) => {
@@ -511,13 +536,13 @@ export default function BidDetailPage() {
 
       {/* Onay akışı devrede — başlatıcı notu (onaycılara iletilir, opsiyonel) */}
       <ReasonDialog
-        open={approvalNoteOpen}
-        onClose={() => setApprovalNoteOpen(false)}
+        open={approvalNoteAmount != null}
+        onClose={() => setApprovalNoteAmount(null)}
         onSubmit={submitApprovalNote}
         title={t("kazandirmayiOnayaGonder")}
         description={t("icinKazandirmaOnayaGonderilecekSiparis", {
           bidderName: bid.bidderName,
-          amount: awardAmount,
+          amount: approvalNoteAmount ?? awardAmount,
         })}
         confirmLabel={t("onayaGonder")}
         pending={award.isPending}

@@ -102,7 +102,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { MONEY_FRACTION } from "@/lib/line-amount";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useScrolledPast } from "@/hooks/use-scrolled-past";
 import { usePendingListingInvites } from "@/hooks/use-pending-listing-invites";
 import { isBidExpired } from "@/lib/tenders/bid-expiry";
@@ -219,6 +219,8 @@ const LISTING_STATUS_COLOR: Record<
   CANCELLED: "red",
 };
 
+type ItemAwardInput = { itemId: string; bidId: string; awardedQuantity?: number };
+
 export default function ListingDetailPage() {
   const t = useTranslations("web.panel.requests.page");
   const docKindLabel = useBidDocKindLabel();
@@ -263,6 +265,12 @@ export default function ListingDetailPage() {
   const catalogLock = useSubmitLock();
   const { data: l, isLoading, isFetching, isError, error, refetch } =
     useListingDetail(id);
+  // Onay penceresi açıkken gelen tazeleme (4 sn poll + WS) — kazandırmadan
+  // hemen önce pencerede gösterilen tutar GÜNCEL veriyle karşılaştırılır.
+  const latestListing = useRef(l);
+  useEffect(() => {
+    latestListing.current = l;
+  }, [l]);
   // 404 = erişim kalktı (kapalı-zarf gereği sebep söylenmez): bağlantı
   // pasifleşmiş, ilan kaldırılmış veya görünürlük değişmiş olabilir —
   // "Tekrar dene" bu durumda aynı 404'ü döndürür, kullanıcıyı döngüye sokma.
@@ -349,11 +357,7 @@ export default function ListingDetailPage() {
   } | null>(null);
   const [noteAction, setNoteAction] = useState<
     | { kind: "award"; bidId: string; bidderName: string; amount: string }
-    | {
-        kind: "itemAward";
-        itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[];
-        amountNote: string;
-      }
+    | { kind: "itemAward"; itemAwards: ItemAwardInput[]; amountNote: string }
     | null
   >(null);
 
@@ -372,6 +376,20 @@ export default function ListingDetailPage() {
     awardAmountLabel(b, fmtMoney, (amount, amountTry) =>
       t("tutarTryKarsiligiyla", { amount, amountTry }),
     );
+
+  /**
+   * Pencere tutarı tıklama anında yazılır; sunucu ise onay anındaki GÜNCEL
+   * teklifle kazandırır (ilan OPEN iken teklif revize edilebilir). Pencere
+   * açıkken teklif değiştiyse onaylanan tutar ile oluşacak sipariş ayrışırdı —
+   * mutasyondan hemen önce güncel veriyle yeniden hesaplanıp karşılaştırılır;
+   * fark varsa (ya da teklif artık yoksa) kazandırma YAPILMAZ.
+   */
+  const awardAmountUnchanged = (bidId: string, shown: string) => {
+    const current = latestListing.current?.bids?.find((b) => b.id === bidId);
+    if (current && awardAmountText(current) === shown) return true;
+    toast.error(t("teklifDegistiKazandirmaYapilmadi"));
+    return false;
+  };
 
   const handleAward = async (
     bidId: string,
@@ -408,6 +426,7 @@ export default function ListingDetailPage() {
       }))
     )
       return;
+    if (!awardAmountUnchanged(bidId, amount)) return;
     try {
       const res = await award.mutateAsync({ bidId });
       toast.success(
@@ -424,6 +443,15 @@ export default function ListingDetailPage() {
   const submitNoteAction = async (note: string) => {
     if (!noteAction) return;
     const approvalNote = note.trim() || undefined;
+    // Not yazılırken teklif değiştiyse pencerede yazan tutar eskimiştir.
+    if (
+      noteAction.kind === "award"
+        ? !awardAmountUnchanged(noteAction.bidId, noteAction.amount)
+        : !itemAwardAmountUnchanged(noteAction.itemAwards, noteAction.amountNote)
+    ) {
+      setNoteAction(null);
+      return;
+    }
     try {
       if (noteAction.kind === "award") {
         const res = await award.mutateAsync({
@@ -566,6 +594,52 @@ export default function ListingDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemAwardMode, l?.bids]);
 
+  /**
+   * Kalem bazlı kazandırılan tutar: firma + para birimi başına (sunucu
+   * siparişi de böyle açar). Birim fiyat seçicide gösterilen fiyattır; çevrim
+   * yapılmaz. Verilen ilan verisinden hesaplanır — onaydan sonra güncel veriyle
+   * yeniden hesaplanıp pencerede gösterilenle karşılaştırılır.
+   */
+  const itemAwardAmountNote = (
+    itemAwards: readonly ItemAwardInput[],
+    listing: typeof l,
+  ) => {
+    const awardGroups = itemAwardGroups(
+      itemAwards.flatMap((a) => {
+        const it = (listing?.items ?? []).find((x) => x.id === a.itemId);
+        const opt = rankBidsForItem(listing?.bids ?? [], a.itemId).find(
+          (o) => o.bidId === a.bidId,
+        );
+        if (!it || !opt) return [];
+        return [
+          {
+            quantity: a.awardedQuantity ?? Number(it.quantity),
+            unitPrice: opt.price,
+            currency: opt.currency,
+            bidId: opt.bidId,
+            bidderName: opt.bidderName,
+          },
+        ];
+      }),
+    );
+    if (awardGroups.length === 0) return "";
+    const { breakdown, total } = itemAwardSummary(awardGroups, fmtMoney, (bidderName, amount) =>
+      t("kalemBazliTutarSatiri", { bidderName, amount }),
+    );
+    return total != null
+      ? t("kalemBazliTutarToplamli", { total, breakdown })
+      : t("kalemBazliTutar", { breakdown });
+  };
+
+  const itemAwardAmountUnchanged = (
+    itemAwards: readonly ItemAwardInput[],
+    shown: string,
+  ) => {
+    if (itemAwardAmountNote(itemAwards, latestListing.current) === shown) return true;
+    toast.error(t("teklifDegistiKazandirmaYapilmadi"));
+    return false;
+  };
+
   const handleAwardByItem = async () => {
     const items = l?.items ?? [];
     // Kalem miktarını aşan kısmi miktar (arayüz testi D-104): sunucu 400
@@ -604,33 +678,7 @@ export default function ListingDetailPage() {
       );
       return;
     }
-    // Kazandırılan tutar: firma + para birimi başına (sunucu siparişi de böyle
-    // açar). Birim fiyat seçicide gösterilen fiyattır; çevrim yapılmaz.
-    const awardGroups = itemAwardGroups(
-      itemAwards.flatMap((a) => {
-        const it = items.find((x) => x.id === a.itemId);
-        const opt = bidsForItem(a.itemId).find((o) => o.bidId === a.bidId);
-        if (!it || !opt) return [];
-        return [
-          {
-            quantity: a.awardedQuantity ?? Number(it.quantity),
-            unitPrice: opt.price,
-            currency: opt.currency,
-            bidId: opt.bidId,
-            bidderName: opt.bidderName,
-          },
-        ];
-      }),
-    );
-    const { breakdown, total } = itemAwardSummary(awardGroups, fmtMoney, (bidderName, amount) =>
-      t("kalemBazliTutarSatiri", { bidderName, amount }),
-    );
-    const amountNote =
-      awardGroups.length === 0
-        ? ""
-        : total != null
-          ? t("kalemBazliTutarToplamli", { total, breakdown })
-          : t("kalemBazliTutar", { breakdown });
+    const amountNote = itemAwardAmountNote(itemAwards, l);
     if (requiresApproval) {
       setNoteAction({ kind: "itemAward", itemAwards, amountNote });
       return;
@@ -652,6 +700,7 @@ export default function ListingDetailPage() {
       }))
     )
       return;
+    if (!itemAwardAmountUnchanged(itemAwards, amountNote)) return;
     try {
       const res = await awardByItem.mutateAsync({ itemAwards });
       toast.success(

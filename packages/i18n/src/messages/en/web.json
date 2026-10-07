@@ -3274,6 +3274,7 @@
         "onayDurumuDogrulanamadiTekrarDeneyin": "Approval status could not be verified, try again",
         "kazandir": "Award",
         "kazandirilsinMiBuIslemGeri": "Award to \"{bidderName}\"? Award amount: {amount}. This action CANNOT BE UNDONE: the other quotes lose and an order is created.",
+        "teklifDegistiKazandirmaYapilmadi": "The quote changed while you were confirming; nothing was awarded. Review the current amount and try again.",
         "evetKazandir": "Yes, award",
         "kazandirmaOnayaGonderildi": "Award sent for approval",
         "kazandirildiSiparisOlustu": "Awarded — order {number} created",
