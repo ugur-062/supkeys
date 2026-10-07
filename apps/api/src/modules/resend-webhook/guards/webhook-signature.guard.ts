@@ -19,9 +19,10 @@ import { reportToSentry } from "../../../instrument";
  * set edilmiş + non-production ortamda devre dışı kalır. Production'da
  * `NODE_ENV` set edilmesi unutulsa bile secret yoksa 401 döner.
  *
- * IMPORTANT: Bu guard `request.rawBody`'ye erişmek zorunda; main.ts
- * `/webhooks/resend` için raw body parser ayarlanmış olmalı (`rawBody:
- * true` + body buffer saklama).
+ * IMPORTANT: Bu guard `request.rawBody`'ye erişmek zorunda; ham gövdeyi
+ * YALNIZ bu uç için `common/http/body-parser.ts` `configureBodyParser`
+ * saklar (main.ts çağırır; Nest'in `rawBody: true` seçeneği KULLANILMAZ).
+ * Uçtan uca sözleşme: test/integration/resend-webhook-e2e.spec.ts.
  */
 @Injectable()
 export class WebhookSignatureGuard implements CanActivate {

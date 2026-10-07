@@ -16,6 +16,7 @@ import helmet from "helmet";
 import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { CORS_EXPOSED_HEADERS, isCorsOriginAllowed } from "./common/cors-origin";
+import { configureBodyParser, HTTP_BODY_APP_OPTIONS } from "./common/http/body-parser";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
@@ -30,13 +31,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Pino logger devralınana kadar bootstrap loglarını tamponla.
     bufferLogs: true,
-    bodyParser: false,
-    /**
-     * V2-1 — Resend webhook svix signature verification için raw body gerekir.
-     * `rawBody: true` ile Nest, body parser tarafından buffer'ı `request.rawBody`'de
-     * saklar. Aşağıda webhook endpoint'i için raw verifier eklenir.
-     */
-    rawBody: true,
+    // Gövde ayrıştırıcıyı biz kurarız (aşağıda `configureBodyParser`); Resend
+    // webhook'unun ham gövdesi YALNIZ o uç için saklanır. `rawBody: true`
+    // VERİLMEZ — Nest özel `verify`ı ezer (bkz. common/http/body-parser.ts).
+    ...HTTP_BODY_APP_OPTIONS,
   });
   // Structured logger (Pino) — tüm Nest loglarını JSON + redaction ile üstlenir.
   app.useLogger(app.get(PinoLogger));
@@ -136,23 +134,9 @@ async function bootstrap() {
   // düşürüldü). Vergi levhası ve doc upload'ları için 5MB makul — TR
   // vergi levhası taramaları 3-4MB'a çıkabiliyor. V2.5'te R2 presigned'a
   // geçince 1MB'a düşürülecek. Auth ve diğer route'larda zaten ufak body.
-  app.useBodyParser("json", {
-    limit: "5mb",
-    /**
-     * Sadece `/api/webhooks/resend` için raw body sakla (svix verify gerekli).
-     * Diğer endpoint'ler için memory'i tutmuyoruz.
-     */
-    verify: (
-      req: { rawBody?: Buffer; url?: string },
-      _res: unknown,
-      buf: Buffer,
-    ) => {
-      const url = req.url ?? "";
-      if (url === "/api/webhooks/resend" || url.startsWith("/webhooks/resend")) {
-        req.rawBody = buf;
-      }
-    },
-  });
+  // Kablolama tek kaynak: common/http/body-parser.ts (uçtan uca test aynı
+  // fonksiyonu koşar — test/integration/resend-webhook-e2e.spec.ts).
+  configureBodyParser(app);
   // NOT: urlencoded body parser KALDIRILDI (güvenlik) — hiçbir endpoint form/
   // urlencoded gövde beklemiyordu (zero consumers, grep-verified); JSON-only API.
   // Parser'ı tutmak, form-urlencoded'ın *simple request* olması nedeniyle
