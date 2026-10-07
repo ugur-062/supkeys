@@ -3451,10 +3451,11 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **322 suite / 3.883 test** (3.881 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
-  **338 / 2.443** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 2.894) — son kapı HEAD c2606389 YEŞİL
-  (16/16; `pnpm audit --prod --audit-level high` ve kategori çeviri çakışması 0 dahil), 6.775 test geçti (2 LIVE
-  atlandı), canlı öncesi sağlamlaştırma + bildirim dili turu 2026-10-07. i18n cırcırı 99 dosya / 855 literal.
+- API **322 suite / 3.969 test** (3.967 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
+  **338 / 2.489** · admin **65 / 378** · i18n **11 / 65** (vitest toplamı 2.932) — son kapı HEAD 50a8fec4 YEŞİL
+  (kurulum, typecheck 7/7, lint 3/3, i18n:check, prisma validate, üç build, kategori çakışması 0,
+  `pnpm audit --prod --audit-level high` rc=0), 6.899 test geçti (2 LIVE atlandı), ücretsiz dönem turu 2026-10-07.
+  Kapı ajan yerine betikle koşulur: `/home/noah/rothern-qa-2026-10/gate-final.sh` + `gate-apijest/run.sh`.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
