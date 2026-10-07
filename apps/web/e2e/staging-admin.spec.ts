@@ -23,10 +23,7 @@ import {
  * 2) Destek (SUPPORT) rolü: personel ucundan açılır, firma detayına 403,
  *    ürün kuyruğuna 200; tarayıcıda firma sayfası "yetkiniz yok".
  * 3) Kategoriler (sonuçsuz aramalar) sayfası açılır.
- * Admin 2FA (MU-01): API production modunda koştuğu için staging'de de
- * SUPER_ADMIN'e 2FA ZORUNLU (ADMIN_2FA_REQUIRED_ROLES tanımsızsa). Hesapta 2FA
- * kuruluysa `E2E_ADMIN_TOTP_SECRET` verilmeli; yardımcılar (adminApiSession,
- * adminUiLogin) kodu kendisi üretir. SUPPORT rolü zorunlu listede değil.
+ * Admin girişi yalnız e-posta + şifre (yardımcılar: adminApiSession, adminUiLogin).
  */
 const DOC_KINDS = ["taxPlate", "tradeRegistry", "signatureCircular", "activityCert", "idFront", "idBack"] as const;
 const SUPPORT_EMAIL = "uguray156+qa-admin-destek@gmail.com";

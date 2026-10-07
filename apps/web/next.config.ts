@@ -138,7 +138,14 @@ const nextConfig: NextConfig = {
         rules.map((r) => ({ ...r, source: `/${l}${r.source}`, destination: localizedRedirectDestination(r.destination, l) })),
       ),
     ];
-    return withLocales([
+    return [
+      // İki adımlı doğrulama KALDIRILDI (2026-10-07): ayar sayfasının EN/RU DIŞ
+      // adresleri de yer imlerinde olabilir (rota haritasından silindi → 404
+      // olurdu). Türkçe iç yol aşağıdaki listede; hepsi Ayarlar anasayfasına.
+      { source: "/en/company/settings/2fa", destination: "/en/company/settings", permanent: true },
+      { source: "/ru/kompaniya/nastroyki/2fa", destination: "/ru/kompaniya/nastroyki", permanent: true },
+      ...withLocales([
+      { source: "/company/ayarlar/2fa", destination: "/company/ayarlar", permanent: true },
       // Firma dizini URL'i menü adıyla hizalandı (2026-09-04): "Firmalar" →
       // `/firmalar`. Eski adres e-posta/dış bağlantılarda olabilir.
       // Kök ve alt yol AYRI (2026-09-22): tek `:path*` kuralı kökte
@@ -228,7 +235,8 @@ const nextConfig: NextConfig = {
         destination: "/company/satinalma/raporlar",
         permanent: true,
       },
-    ]);
+      ]),
+    ];
   },
 };
 

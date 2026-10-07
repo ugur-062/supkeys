@@ -57,10 +57,6 @@ export function useHasCompanyPermission(permission: string): boolean {
   return user.permissions.includes(permission);
 }
 
-export type CompanyLoginResult =
-  | CompanyLoginResponse
-  | { twoFactorRequired: true; method?: "email" | "authenticator" };
-
 export function useCompanyLogin() {
   const queryClient = useQueryClient();
   const uiLocale = useLocale();
@@ -68,10 +64,9 @@ export function useCompanyLogin() {
     mutationFn: async (input: {
       email: string;
       password: string;
-      code?: string;
       rememberMe?: boolean;
     }) => {
-      const { data } = await companyApi.post<CompanyLoginResult>(
+      const { data } = await companyApi.post<CompanyLoginResponse>(
         "/company-auth/login",
         input,
       );
@@ -87,11 +82,11 @@ export function useCompanyLogin() {
       // giriş sayfasının dili AÇIK bir seçimdir. Hesabın kayıtlı dili farklıysa
       // hesaba yazılır — yoksa `LocaleUrlSync` paneli kayıtlı (eski) dile geri
       // atardı. Yönlendirmeden ÖNCE beklenir; hata girişi engellemez.
-      if ("user" in data && pickLocale(data.user?.locale) !== uiLocale) {
+      if (data?.user && pickLocale(data.user.locale) !== uiLocale) {
         await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
       }
       // Aynı sekmede önceki (başka) hesabın taslakları yeni hesaba geri yüklenmesin.
-      if ("user" in data && data.user?.id) bindSessionOwner(data.user.id);
+      if (data?.user?.id) bindSessionOwner(data.user.id);
       queryClient.clear();
     },
   });
