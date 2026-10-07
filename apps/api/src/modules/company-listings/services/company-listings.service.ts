@@ -5764,44 +5764,7 @@ export class CompanyListingsService {
     // INV-KYC-1: kazandırma sipariş (para-taahhüdü) doğurur → VERIFIED ister.
     this.assertVerified(user, "award");
 
-    const bid = await this.prisma.listingBid.findUnique({
-      where: { id: bidId },
-      select: {
-        id: true,
-        listingId: true,
-        bidderCompanyId: true,
-        amount: true,
-        currency: true,
-        exchangeRateSnapshot: true,
-        status: true,
-        submittedAt: true,
-        validityDays: true,
-        bidderCompany: { select: { isActive: true, isBlocked: true } },
-        items: { select: { itemId: true, unitPrice: true } },
-      },
-    });
-    if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
-      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
-    }
-    // Askıdaki / pasif teklifçiye sipariş yazılmaz (giriş yapamaz, sipariş
-    // PENDING'de takılırdı — derin denetim MU-20).
-    this.assertBidderAwardable(bid.bidderCompany);
-    // Geçerliliği dolmuş teklif kazandırılamaz (2026-09-19 inceleme): ekran
-    // "Geçerlilik doldu" rozeti basıyor ama sunucu kabul ediyordu → tedarikçinin
-    // artık bağlı olmadığı fiyata sipariş doğuyordu. Pazarlıkta geçerlilik
-    // SÜRESİZ (validityDays null → null döner), oradan etkilenmez.
-    this.assertBidValidityAlive(bid);
-
-    if (listing.requireBidDocument) {
-      const docCount = await this.prisma.listingBidDocument.count({
-        where: { bidId },
-      });
-      if (docCount === 0) {
-        throw new BadRequestException(
-          i18nMessage("api.companyListings.buSatinAlmaTalebiTeklifBelgesi"),
-        );
-      }
-    }
+    const bid = await this.loadAwardCandidateBid(listing, bidId);
 
     // Onay akışı varsa kazandırmayı askıya al (IN_AWARD_APPROVAL); yoksa uygula.
     // Onay eşiği TRY bazında olduğundan (conditionMinAmount) tutarı TRY'ye
@@ -5846,6 +5809,58 @@ export class CompanyListingsService {
       actorEmail: user.email,
       viaApproval: false,
     });
+  }
+
+  /**
+   * Tam kazandırmanın ADAY teklifi — `award()` ve `awardPreview()` için TEK
+   * KAYNAK. Önizleme eskiden yalnız "teklif bu talebe mi ait" diye bakıyordu:
+   * elenmiş/taslak, süresi dolmuş, askıdaki teklifçinin ya da belgesiz teklif
+   * için "onay gerekir/gerekmez" yanıtı dönüyor, kazandırma ise 400 veriyordu
+   * (ekran onay penceresini açıp sonra reddediliyordu). Salt-okunur.
+   */
+  private async loadAwardCandidateBid(
+    listing: { id: string; requireBidDocument: boolean },
+    bidId: string,
+  ) {
+    const bid = await this.prisma.listingBid.findUnique({
+      where: { id: bidId },
+      select: {
+        id: true,
+        listingId: true,
+        bidderCompanyId: true,
+        amount: true,
+        currency: true,
+        exchangeRateSnapshot: true,
+        status: true,
+        submittedAt: true,
+        validityDays: true,
+        bidderCompany: { select: { isActive: true, isBlocked: true } },
+        items: { select: { itemId: true, unitPrice: true } },
+      },
+    });
+    if (!bid || bid.listingId !== listing.id || bid.status !== "SUBMITTED") {
+      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
+    }
+    // Askıdaki / pasif teklifçiye sipariş yazılmaz (giriş yapamaz, sipariş
+    // PENDING'de takılırdı — derin denetim MU-20).
+    this.assertBidderAwardable(bid.bidderCompany);
+    // Geçerliliği dolmuş teklif kazandırılamaz (2026-09-19 inceleme): ekran
+    // "Geçerlilik doldu" rozeti basıyor ama sunucu kabul ediyordu → tedarikçinin
+    // artık bağlı olmadığı fiyata sipariş doğuyordu. Pazarlıkta geçerlilik
+    // SÜRESİZ (validityDays null → null döner), oradan etkilenmez.
+    this.assertBidValidityAlive(bid);
+
+    if (listing.requireBidDocument) {
+      const docCount = await this.prisma.listingBidDocument.count({
+        where: { bidId },
+      });
+      if (docCount === 0) {
+        throw new BadRequestException(
+          i18nMessage("api.companyListings.buSatinAlmaTalebiTeklifBelgesi"),
+        );
+      }
+    }
+    return bid;
   }
 
   /** Tam kazandırmayı uygula — sipariş oluştur, WON/LOST, AWARDED. */
@@ -6443,9 +6458,9 @@ export class CompanyListingsService {
    * gerçek award-anı kararı AYNI tutarı (toTryAmount) ve AYNI eleme mantığını
    * (approvals.wouldRequireApproval → buildApprovalPlan, TEK KAYNAK) kullanır —
    * eşik-altı tutar için doğrudan kazandırılır, yanıltıcı onay dialogu çıkmaz.
-   * Salt-okunur: sipariş/onay isteği OLUŞMAZ. assertListingManageRole burada
-   * çağrılmaz (denial audit yan etkisi olmasın); gerçek award() commit-anında
-   * tam yetki kapısını uygular.
+   * Salt-okunur: sipariş/onay isteği OLUŞMAZ. Yetki (sahip, buy:award, yönetim
+   * kapısı, KYC) ve aday teklif kapıları (`loadAwardCandidateBid`) award() ile
+   * aynı sırada uygulanır. Sözleşme: `award-preview-parity.spec`.
    */
   async awardPreview(
     user: AuthenticatedCompanyUser,
@@ -6459,6 +6474,7 @@ export class CompanyListingsService {
         companyId: true,
         type: true,
         status: true,
+        requireBidDocument: true,
         createdById: true,
         auctionRateSnapshot: true,
       },
@@ -6477,18 +6493,10 @@ export class CompanyListingsService {
     // olmayan operatör başkasının ilanında eşik yoklayamaz.
     this.assertListingManageRole(user, listing);
 
-    const bid = await this.prisma.listingBid.findUnique({
-      where: { id: bidId },
-      select: {
-        listingId: true,
-        amount: true,
-        currency: true,
-        exchangeRateSnapshot: true,
-      },
-    });
-    if (!bid || bid.listingId !== listingId) {
-      throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
-    }
+    // INV-KYC-1 + aday teklif kapıları: kazandırmanın reddedeceği istek için
+    // önizleme de AYNI hatayı verir (ekran fail-closed gösterir).
+    this.assertVerified(user, "award");
+    const bid = await this.loadAwardCandidateBid(listing, bidId);
     // award() ile BİREBİR aynı tutar hesabı: INV-FX-1 tek-baz (açılış → teklif
     // damgası); baz yoksa null → onay ZORUNLU (forceRequireApproval).
     const awardTry = this.toTryAmount(
