@@ -36,7 +36,7 @@ import {
   resolveCategoryAttributes,
 } from "../../common/company/category-attributes";
 import { catalogContentChanged, showcaseContentChanged } from "../../common/company/product-content-diff";
-import { effectiveTier } from "../../common/company/effective-tier";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
 import { pickFreeSlug } from "../../common/company/company-slug";
 import {
   hasPublicProfile,
@@ -961,7 +961,10 @@ export class CompanyItemsService {
         // Ücretsiz satıcı (2026-09-06): alıcıya gönderim anında dürüst not —
         // "soruyu görür, yanıtlamak için Silver'a geçmesi gerekir".
         freeMember: !tierAtLeast(effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus), PAID_TIER),
-        gold: effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus) === "GOLD",
+        // Ücretsiz dönemde paket alanı yanıta YAZILMAZ (sayfa kaynağında da paket adı olmasın, 2026-10-07).
+        ...(isFreePeriod()
+          ? {}
+          : { gold: effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus) === "GOLD" }),
         foundedYear: company.foundedYear,
         employeeCount: company.employeeCount,
         certifications: company.certifications.slice(0, 4),

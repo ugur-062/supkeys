@@ -19,6 +19,7 @@ import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/requ
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { SELLER_MARKET } from "@/lib/company/panel-market";
 import { HomeCompanyList } from "@/components/dashboard/home-company-list";
+import { FreePeriodNotice } from "@/components/company/free-period-notice";
 import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
 import { useEffect, useMemo, useState } from "react";
 import { useScrollToHash } from "@/hooks/use-scroll-to-hash";
@@ -180,6 +181,10 @@ export function SatisDashboardView() {
         onQueryChange={setTerm}
         ai={{ portal: "satis", ...aiAccess, onResult: onAiResult }}
       />
+
+      {/* Ücretsiz dönem (2026-10-07): doğrulanmamış firma girişte bu sayfaya
+          düşer — kısa "ücretsiz + yalnızca doğrulama" cümlesi burada bir kez. */}
+      <FreePeriodNotice />
 
       {scope === "suppliers" ? (
         /* "Firma" pili seçili: açık talepler yerine FİRMA listesi

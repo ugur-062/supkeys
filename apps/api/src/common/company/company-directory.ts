@@ -2,7 +2,7 @@ import type { PrismaClient } from "@rothern/db";
 import { CATEGORY_NAME_SELECT, categoryName } from "./category-name";
 import { isHiddenCategory } from "@rothern/shared";
 import { categorySegment, foldSearchText, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, stemPrefix, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
-import { effectiveTier } from "./effective-tier";
+import { effectiveTier, isFreePeriod } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
 import { cityFacet, cityIdsOf, countriesOf, productSearchClauses } from "./product-index";
 import { FAST_REPLY_HOURS } from "./reply-time";
@@ -364,7 +364,8 @@ export async function buildDirectory(
         logoUrl: r.logoUrl,
         verified: r.companyVerificationStatus === "VERIFIED",
         /** Kartta "Gold Üye" rozeti — `gold=1` süzgeci PROMPT 4'te vardı, karşılığı kartta yoktu. */
-        gold: isGold(r),
+        // Ücretsiz dönemde paket alanı yanıta YAZILMAZ (sayfa kaynağında da paket adı olmasın, 2026-10-07).
+        ...(isFreePeriod() ? {} : { gold: isGold(r) }),
         /** Kart açıklaması; test verisi herkese açık yüzeyde ÇIKMAZ (looksLikeProse). */
         about: looksLikeProse(r.aboutText) ? (r.aboutText as string) : null,
         foundedYear: r.foundedYear,
@@ -462,7 +463,7 @@ export async function directoryFacets(
     total: all.length,
     verified: rows.filter(others("verified")).filter((r) => r.companyVerificationStatus === "VERIFIED").length,
     withProducts: rows.filter(others("products")).filter((r) => r._count.items > 0).length,
-    gold: rows.filter(others("gold")).filter(isGold).length,
+    ...(isFreePeriod() ? {} : { gold: rows.filter(others("gold")).filter(isGold).length }),
     cities: cityFacet(cityCount),
     countries: [...countryCount.entries()]
       .map(([country, count]) => ({ country, count }))

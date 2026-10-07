@@ -1,5 +1,5 @@
 import { Prisma } from "@rothern/db";
-import { effectiveTier } from "../../../common/company/effective-tier";
+import { effectiveTier, isFreePeriod } from "../../../common/company/effective-tier";
 import type { TierName } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributesBatch } from "../../../common/company/category-attributes";
 
@@ -92,7 +92,7 @@ export interface ProductIndexCard {
     /** KYC tamam — kartta "Doğrulanmış" tiki. */
     verified: boolean;
     /** Efektif GOLD — kartta "Gold Üye" rozeti (paketin görünür karşılığı). */
-    gold: boolean;
+    gold?: boolean;
   };
 }
 
@@ -121,7 +121,10 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
       activities: r.company.activities,
       logoUrl: r.company.logoUrl,
       verified: r.company.companyVerificationStatus === "VERIFIED",
-      gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt, r.company.companyVerificationStatus) === "GOLD",
+      // Ücretsiz dönemde paket alanı yanıta YAZILMAZ (sayfa kaynağında da paket adı olmasın, 2026-10-07).
+      ...(isFreePeriod()
+        ? {}
+        : { gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt, r.company.companyVerificationStatus) === "GOLD" }),
     },
   };
 }

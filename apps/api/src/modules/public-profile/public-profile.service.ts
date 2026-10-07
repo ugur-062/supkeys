@@ -40,7 +40,7 @@ import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
-import { effectiveTier } from "../../common/company/effective-tier";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
 
 /**
  * Herkese açık (auth gerektirmeyen) firma profili. SEO sayfası bunu kullanır.
@@ -464,7 +464,10 @@ export class PublicProfileService {
         freeMember: !tierAtLeast(effectiveTier(company.tier as string, company.membershipEndAt as Date | null, company.companyVerificationStatus as string), PAID_TIER),
         /* Satıcı paneli (PROMPT 7) — kimlik değil NİTELİK: paket rozeti,
            kuruluş yılı, çalışan aralığı ve sertifikalar. İletişim YOK. */
-        gold: effectiveTier(company.tier as string, company.membershipEndAt as Date | null, company.companyVerificationStatus as string) === "GOLD",
+        // Ücretsiz dönemde paket alanı yanıta YAZILMAZ (sayfa kaynağında da paket adı olmasın, 2026-10-07).
+        ...(isFreePeriod()
+          ? {}
+          : { gold: effectiveTier(company.tier as string, company.membershipEndAt as Date | null, company.companyVerificationStatus as string) === "GOLD" }),
         foundedYear: company.foundedYear,
         employeeCount: company.employeeCount,
         certifications: company.certifications.slice(0, 4),
