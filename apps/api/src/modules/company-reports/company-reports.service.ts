@@ -19,6 +19,7 @@ import {
   tryToCurrency,
 } from "../../common/company/report-currency";
 import { convertAmount } from "../../common/currency/fx-rates";
+import { appMonth } from "../../common/time/app-calendar";
 
 /**
  * Raporlama motoru — eski sistemin (tenant-reports) birleşik Company modeline
@@ -1111,19 +1112,22 @@ export class CompanyReportsService {
    * Kendi taleplerin + gelen teklifler.
    */
   async summary(companyId: string): Promise<ReportsSummary> {
+    // Ay kovaları ve pencere sınırları İSTANBUL takvimiyle (tek kaynak
+    // `app-calendar.ts`, derin denetim LU-07): sunucu UTC'de koşar; yerel
+    // `new Date(y, m, 1)` / `getMonth()` ile 1 Ekim 00:30 (TR) siparişi Eylül
+    // kovasına düşüyor, pencerenin ilk ayının ilk 3 saati hiç sayılmıyordu.
     const now = new Date();
-    const start6 = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const start12 = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const monthKey = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const start6 = appMonth(now, -5).start;
+    const start12 = appMonth(now, -11).start;
+    const monthKey = (d: Date) => appMonth(d).key;
     const buckets = new Map<
       string,
       { label: string; listings: number; bids: number; orderTotalTry: number }
     >();
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      buckets.set(monthKey(d), {
-        label: shortMonthLabel(d),
+      const m = appMonth(now, -i);
+      buckets.set(m.key, {
+        label: shortMonthLabel(m.labelDate),
         listings: 0,
         bids: 0,
         orderTotalTry: 0,
