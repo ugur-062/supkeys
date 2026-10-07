@@ -1608,6 +1608,43 @@ gruplarda kabul edilir ('2.5' kod değildir).
 
 ## Paketler, İzinler, Koltuk
 
+> **ÜCRETSİZ DÖNEM (2026-10-07, kullanıcı kararı: "ilk süreçte tamamen ücretsiz; yeterli doygunluktan
+> sonra ücretliye geçeceğiz"). Anahtar AÇIKKEN bu bölümdeki paket ekranları / fiyat / Silver-Gold
+> anlatımı TARİHSEL kayıttır; geçerli kural aşağıdaki kutudur.**
+> - **Kural:** doğrulanan (VERIFIED) her firma tam yetkilidir (efektif kademe GOLD: limit, kota, AI
+>   bütçesi, koltuk, iki panel); doğrulanmamış firma (UNVERIFIED / PENDING / REJECTED) saklı kademesiyle
+>   kalır (bugünkü ücretsiz sınırlar); elinde süresi dolmamış saklı paket olan onu kaybetmez.
+> - **Tek anahtar** `common/company/effective-tier.ts` `FREE_PERIOD.VERIFIED_HAS_FULL_ACCESS` (true).
+>   `effectiveTier(tier, membershipEndAt, verificationStatus)` — üçüncü argüman ZORUNLU; select'lerde
+>   `EFFECTIVE_TIER_SELECT` + `effectiveTierOf(row)`; DB süzgeci `tierAtLeastWhere` (anahtar açıkken
+>   `… OR companyVerificationStatus = VERIFIED`). Ham `tier` karşılaştırması YAZILMAZ. Ücretliye dönüş =
+>   anahtarı `false` yapmak; DB kolonları, enum ve kademe makinesi yerinde; kaldırılan ekranlar git
+>   geçmişinden geri alınır.
+> - **Anahtar açıkken:** paket satın alma / yükseltme uçları 410 (`assertPackagePurchaseOpen`), üyelik
+>   zamanlayıcısı ve paket satan e-posta adımları hiçbir şey yapmaz, yetki reddi metinleri paket değil
+>   DOĞRULAMA ister (API `common/company/entitlement-required.ts`; yanıt gövdesi `TIER_REQUIRED` +
+>   `minTier` alan adlarını korur, `verificationStatus` / `verifyPath` ekler).
+> - **Metin kuralı:** hiçbir yüzeyde (site, panel, admin, e-posta, bildirim, API mesajı, SEO, asistan;
+>   TR/EN/RU) paket adı (Silver, Gold, Premium…) ya da üyelik fiyatı YAZMAZ. Kilitler doğrulama kapısıdır:
+>   web `components/company/verification-gate.tsx` (UNVERIFIED / PENDING / REJECTED ayrı metin) +
+>   `lib/public/member-gate.ts` (iki kapalı dal da `/company/ayarlar/dogrulama`). Fiyatlar bölümü ve
+>   `/company/premium*` sayfaları silindi; eski adresler yönlenir (`next.config.ts`). "Doğrulanmış" rozeti
+>   kalır, paket rozeti yok. Admin'de paket yönetimi yok, geçmiş denetim satırları nötr kademe adıyla.
+> - **"Ücretsiz" mesajı kısa ve öz:** ANA SAYFA yalnız "tamamen ücretsiz" der (alım talebi açmak, teklif
+>   vermek, vitrin) ve doğrulama ŞARTINI ANMAZ; hesap içinde (panel şeridi `verifyNudge`, doğrulama
+>   kapısı) ve doğrulama hatırlatma e-postasında tek cümle: "Rothern tamamen ücretsiz. Yalnızca firma
+>   doğrulamasıyla tüm alım taleplerinizi dijitale taşıyabilir ve teklif verebilirsiniz." Toplu duyuru
+>   e-postası kullanıcı istemeden gönderilmez.
+> - **Testler:** fikstürde KISITLI firma = doğrulanmamış firma (factory varsayılanı VERIFIED + GOLD;
+>   "doğrulanmış STANDART kısıtlıdır" varsayımı artık yanlış). Saklı paket makinesini (süre dolumu,
+>   Silver/Gold limitleri, satın alma) sınayan bloklar anahtarı kapatır
+>   (`jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false)`). Sözleşmeler: API
+>   `free-period.spec`, `effective-tier.spec`; i18n `public-tier-copy.test` (hiçbir katalog metni paket
+>   adı anmaz; ana sayfa "ücretsiz" der, doğrulama şartını anmaz); admin `no-plan-names.test`.
+> - **Sonuç:** doğrulanan her firma en üst AI kotasını alır (platform tavanı aynı). Sözleşme
+>   sayfalarında paket adı / ücret ifadeleri en küçük değişiklikle çıkarıldı (hukukçu incelemesi bekliyor).
+
+
 ### Üç paket
 Tek kaynak `@rothern/shared` `helpers/tier.ts` (`TIER_ORDER` STANDART<SILVER<GOLD,
 `PAID_TIER="SILVER"`, `BUYING_TIER="GOLD"`, `SEAT_LIMITS` 2/4/6). Bronz KALDIRILDI.
