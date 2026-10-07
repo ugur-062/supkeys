@@ -168,19 +168,20 @@ describe("UsersTab — kullanıcı kurtarma", () => {
     );
   });
 
-  it("Gold olmayan firmada Satın Almacı seçeneği kilitli (derin denetim MU-04)", async () => {
+  it("tam yetkili olmayan (doğrulanmamış) firmada Satın Almacı seçeneği kilitli; neden doğrulama (derin denetim MU-04)", async () => {
     const uev = userEvent.setup();
-    render(<UsersTab companyId="c1" canGrantBuy={false} />);
+    render(<UsersTab companyId="c1" canGrantBuy={false} verification="PENDING" />);
     await uev.click(screen.getByRole("button", { name: /Kullanıcı Ekle/ }));
     const dialog = await screen.findByRole("dialog");
     const buyer = within(dialog).getByRole("option", {
       name: /Satın Almacı/,
     }) as HTMLOptionElement;
     expect(buyer.disabled).toBe(true);
-    expect(buyer.textContent).toMatch(/yalnız Gold/);
+    expect(buyer.textContent).toMatch(/doğrulama gerekli/);
     expect(
-      within(dialog).getByText(/yalnız Gold pakette verilebilir/),
+      within(dialog).getByText(/yalnız doğrulanmış firmada verilebilir.*doğrulaması inceleniyor/),
     ).toBeInTheDocument();
+    expect(dialog.textContent).not.toMatch(/gold|silver|paket/i);
     const seller = within(dialog).getByRole("option", {
       name: "Satışçı",
     }) as HTMLOptionElement;

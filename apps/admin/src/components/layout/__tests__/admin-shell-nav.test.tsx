@@ -45,7 +45,6 @@ describe("AdminShell menü görünürlüğü (arayüz testi T-09 — matristen b
     for (const hidden of [
       "Firmalar",
       "Başvurular",
-      "Üyelik Raporu",
       "Büyüme",
       "Duyuru",
       "E-posta Kayıtları",
@@ -58,6 +57,8 @@ describe("AdminShell menü görünürlüğü (arayüz testi T-09 — matristen b
     for (const visible of ["Genel Bakış", "Ürünler", "Şikayetler", "Sistem Sağlığı", "Kategoriler"]) {
       expect(labels).toContain(visible);
     }
+    // Ücretsiz dönem: Üyelik Raporu hiçbir rolde menüde yok (ekran kaldırıldı).
+    expect(labels).not.toContain("Üyelik Raporu");
     expect(screen.queryByTestId("global-search")).not.toBeInTheDocument();
   });
 

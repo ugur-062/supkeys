@@ -56,7 +56,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "company.user.terms_accepted": "Kullanım koşulları kabul edildi",
   "company.ownership.transferred": "Firma sahipliği devredildi",
   "company.seats.selection_applied": "Koltuk seçimi uygulandı",
-  "company.membership.self_upgraded": "Paket self-servis yükseltildi",
+  "company.membership.self_upgraded": "Üyelik (eski): firma kendi değiştirdi",
 
   // Firma: ilanlar ve teklifler
   "company.listing.published": "İlan yayınlandı",
@@ -130,8 +130,8 @@ export const ACTION_LABELS: Record<string, string> = {
   // Admin: firma
   "admin.company.suspended": "Admin: firma askıya alındı",
   "admin.company.unsuspended": "Admin: firma askısı kaldırıldı",
-  "admin.company.tier_set": "Admin: paket değişti",
-  "admin.company.membership_extended": "Admin: üyelik uzatıldı",
+  "admin.company.tier_set": "Admin: üyelik (eski) değişti",
+  "admin.company.membership_extended": "Admin: üyelik (eski) uzatıldı",
   "admin.company.verification_set": "Admin: doğrulama değişti",
   "admin.company.docs_reviewed": "Admin: belgeler incelendi",
   "admin.company.doc_revision_reviewed": "Admin: belge güncellemesi incelendi",
@@ -225,7 +225,7 @@ export const ACTION_FILTERS: { value: string; label: string }[] = [
   { value: "company.user.", label: "Firma: kullanıcı ve rol" },
   { value: "company.ownership.", label: "Firma: sahiplik devri" },
   { value: "company.seats.", label: "Firma: koltuk seçimi" },
-  { value: "company.membership.", label: "Firma: paket yükseltme" },
+  { value: "company.membership.", label: "Firma: üyelik (eski)" },
   { value: "company.profile", label: "Firma: profil" },
   { value: "company.request_defaults.", label: "Firma: talep varsayılanları" },
   { value: "company.address.", label: "Firma: adresler" },

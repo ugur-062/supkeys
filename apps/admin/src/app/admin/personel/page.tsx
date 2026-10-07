@@ -157,7 +157,7 @@ function AddStaffDialog({
               onChange={(e) => set("role", e.target.value)}
             >
               <option value="SUPPORT">Destek — salt-okuma + kurtarma</option>
-              <option value="SALES">Satış — doğrulama + üyelik + müdahale</option>
+              <option value="SALES">Satış — doğrulama + müdahale</option>
               <option value="SUPER_ADMIN">Süper Admin — her şey</option>
             </Select>
           </label>

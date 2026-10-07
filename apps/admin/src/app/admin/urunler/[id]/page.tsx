@@ -18,7 +18,7 @@ import { toastApiError } from "@/lib/api";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { safeHttpUrl, WEB_ORIGIN, webAssetUrl } from "@/lib/safe-url";
-import { companyTierText, metaOf, VERIFY_META } from "@/lib/terms";
+import { metaOf, VERIFY_META } from "@/lib/terms";
 
 const PRICE_MODE: Record<string, string> = { FIXED: "Sabit fiyat", TIERED: "Kademeli", ON_REQUEST: "Teklif isteyin" };
 
@@ -98,7 +98,7 @@ function ProductReview({ id }: { id: string }) {
           <h1 className="text-admin-text text-xl font-semibold">{p.name}</h1>
           <p className="text-admin-text-muted mt-1 text-sm">
             <CompanyLink href={`/admin/firmalar/${p.company.id}`} className="hover:underline">{p.company.name}</CompanyLink>
-            {p.company.city ? ` · ${p.company.city}` : ""} · {companyTierText(p.company)} · {metaOf(VERIFY_META, p.company.verification).label}
+            {p.company.city ? ` · ${p.company.city}` : ""} · {metaOf(VERIFY_META, p.company.verification).label}
             {p.company.isBlocked ? " · ASKIDA" : ""}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">

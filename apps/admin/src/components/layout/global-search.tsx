@@ -1,6 +1,5 @@
 "use client";
 
-import { TIER_COLOR, TIER_LABEL } from "@/lib/terms";
 import { Badge } from "@/components/catalyst/badge";
 import { useGlobalSearch } from "@/hooks/use-admin-support";
 import { CountryFlag } from "@/components/country-flag";
@@ -201,12 +200,7 @@ export function GlobalSearch() {
                             {c.rothernId ?? ""}
                           </span>
                         </span>
-                        <span className="flex items-center gap-1.5">
-                          {c.isBlocked ? <Badge color="red">Askıda</Badge> : null}
-                          <Badge color={TIER_COLOR[c.tier] ?? "zinc"}>
-                            {TIER_LABEL[c.tier] ?? c.tier}
-                          </Badge>
-                        </span>
+                        {c.isBlocked ? <Badge color="red">Askıda</Badge> : null}
                       </button>
                     ))}
                   </div>

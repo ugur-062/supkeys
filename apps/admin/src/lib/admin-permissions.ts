@@ -11,9 +11,13 @@ import type { AdminRole } from "@/lib/auth/types";
  * `apps/api/test/unit/admin-action-roles-drift.spec.ts` her aksiyonu backend
  * route'unun `@RequireAdminRole` metadata'sıyla karşılaştırır → uyuşmazsa KIRILIR.
  * Backend değişince: O SPEC'İ + BURAYI birlikte güncelle (iki kopya, çapraz-ref).
+ *
+ * ÜCRETSİZ DÖNEM (2026-10-07): üyelik yönetimi ekranları panelden kaldırıldı;
+ * `setTier`, `extendMembership`, `viewMembershipReport` aksiyonları bu matristen
+ * çıktı (API uçları ve o spec'teki satırları duruyor). Ücretli üyelik dönünce
+ * ekranlarla birlikte git geçmişinden geri gelir.
  */
 export type AdminAction =
-  | "setTier" // POST companies/:id/tier
   | "suspend" // POST companies/:id/suspend
   | "unsuspend" // POST companies/:id/unsuspend
   | "deleteNote" // DELETE notes/:noteId
@@ -25,7 +29,6 @@ export type AdminAction =
   | "reject" // POST companies/:id/reject
   | "reviewDocs" // POST companies/:id/review
   | "reviewDocRevision" // POST companies/:id/doc-revisions/:revId/review (Faz Y A-modeli)
-  | "extendMembership" // POST companies/:id/membership/extend
   | "addNote" // POST companies/:id/notes
   | "notify" // POST companies/:id/notify
   | "resolveComplaint" // POST complaints/:id/resolve
@@ -51,8 +54,7 @@ export type AdminAction =
   // açılınca sorgu atmadan yetki kartı çizilir.
   | "viewAuditLogs" // GET admin/audit-logs (Denetim Kaydı + Güvenlik)
   | "viewEmailLogs" // GET admin/email-logs
-  | "viewGrowth" // GET admin/growth/invites
-  | "viewMembershipReport"; // GET admin/membership/report
+  | "viewGrowth"; // GET admin/growth/invites
 
 const SUPER: AdminRole[] = ["SUPER_ADMIN"];
 const KYC: AdminRole[] = ["SUPER_ADMIN", "SALES"];
@@ -61,7 +63,6 @@ const ANY: AdminRole[] = ["SUPER_ADMIN", "SALES", "SUPPORT"];
 const PRODUCT_REVIEW: AdminRole[] = ["SUPER_ADMIN", "SUPPORT"];
 
 export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
-  setTier: SUPER,
   suspend: SUPER,
   unsuspend: SUPER,
   deleteNote: SUPER,
@@ -73,7 +74,6 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   reject: KYC,
   reviewDocs: KYC,
   reviewDocRevision: KYC,
-  extendMembership: KYC,
   addNote: KYC,
   notify: KYC,
   resolveComplaint: KYC,
@@ -93,7 +93,6 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   viewAuditLogs: KYC,
   viewEmailLogs: KYC,
   viewGrowth: KYC,
-  viewMembershipReport: KYC,
 };
 
 /** Rol bu aksiyonu yapabilir mi? (frontend buton kapısı — backend otorite kalır) */

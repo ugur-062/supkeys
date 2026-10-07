@@ -191,7 +191,7 @@ export const EMAIL_CONTEXT_LABELS: Record<string, string> = {
   public_inquiry_reply: "Bilgi talebine yanıt",
   message_received: "Yeni mesaj",
   order_status_changed: "Sipariş durumu değişti",
-  membership_downgraded: "Üyelik sona erdi",
+  membership_downgraded: "Üyelik (eski): süre sonu bildirimi",
   approval_pending: "Onay bekleniyor",
   approval_decided: "Onay sonuçlandı",
   listing_invitation: "Talebe davet",

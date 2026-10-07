@@ -25,6 +25,17 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // ÜCRETSİZ DÖNEM (2026-10-07): üyelik raporu ekranı kaldırıldı (ücretli
+  // üyelik dönünce git geçmişinden geri gelir); eski adres firma listesine 308.
+  async redirects() {
+    return [
+      {
+        source: "/admin/uyelik-raporu",
+        destination: "/admin/firmalar",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 /**

@@ -23,18 +23,17 @@ import { DocsTab } from "./tabs/docs-tab";
 import { ListingsTab } from "./tabs/listings-tab";
 import { NotesTab } from "./tabs/notes-tab";
 import { OrdersTab } from "./tabs/orders-tab";
-import { MembershipTab } from "./tabs/membership-tab";
 import { NotifyDialog } from "./notify-dialog";
 import { SummaryTab } from "./tabs/summary-tab";
 import { UsersTab } from "./tabs/users-tab";
 
-import { TIER_COLOR, TIER_LABEL, VERIFY_META } from "@/lib/terms";
+import { hasFullAccess } from "@/lib/entitlement";
+import { VERIFY_META } from "@/lib/terms";
 import { toastApiError } from "@/lib/api";
 
 const TABS = [
   { key: "ozet", label: "Özet" },
   { key: "belgeler", label: "Belgeler" },
-  { key: "uyelik", label: "Üyelik" },
   { key: "kullanicilar", label: "Kullanıcılar" },
   { key: "ilanlar", label: "İlanlar" },
   { key: "siparisler", label: "Siparişler" },
@@ -58,6 +57,7 @@ export function CompanyDetailView({
   initialTab?: string;
 }) {
   const { data, isLoading, isError, error, refetch } = useCompanyDetail(companyId);
+  // Bilinmeyen sekme (kaldırılan `?tab=uyelik` dahil — ücretsiz dönem) Özet'e düşer.
   const [tab, setTab] = useState<TabKey>(
     TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : "ozet",
   );
@@ -118,7 +118,7 @@ export function CompanyDetailView({
 
   const meta = VERIFY_META[data.companyVerificationStatus] ?? VERIFY_META.UNVERIFIED;
   // KVKK ile anonimleştirilmiş firma salt okunur (D-208) — askı kaldırma
-  // KVKK gerekçesini siliyordu; bildirim/düzenleme/paket de anlamsız.
+  // KVKK gerekçesini siliyordu; bildirim/düzenleme de anlamsız.
   const anonymized = !!data.anonymized;
   const canNotify = canAdminDo(role, "notify") && !anonymized;
   const canSuspendAct =
@@ -141,9 +141,6 @@ export function CompanyDetailView({
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {anonymized ? null : <Badge color={meta.color}>{meta.label}</Badge>}
-            <Badge color={TIER_COLOR[data.tier] ?? "zinc"}>
-              {TIER_LABEL[data.tier]}
-            </Badge>
             {anonymized ? (
               <Badge color="zinc">KVKK ile anonimleştirildi</Badge>
             ) : data.isBlocked ? (
@@ -182,8 +179,6 @@ export function CompanyDetailView({
             ) : null}
           </div>
         </div>
-        {/* Üyelik yönetimi TEK yerden (Üyelik sekmesi) — header'daki kopya
-            kontrol farklı doğrulama/gerekçe kalitesiyle ikinci yol açıyordu. */}
         {!canNotify && !canSuspendAct ? null : (
           <div className="flex items-center gap-2">
             {canNotify ? (
@@ -277,16 +272,13 @@ export function CompanyDetailView({
       {/* Panel */}
       {tab === "ozet" ? <SummaryTab data={data} /> : null}
       {tab === "belgeler" ? <DocsTab companyId={companyId} data={data} /> : null}
-      {tab === "uyelik" ? <MembershipTab companyId={companyId} data={data} /> : null}
       {tab === "kullanicilar" ? <UsersTab
           companyId={companyId}
-          // Satınalma yetkisi yalnız efektif GOLD'da (süresi geçmiş GOLD = STANDART);
-          // API aynı kapıyı uygular, burada seçenek baştan kilitlenir.
-          canGrantBuy={
-            data.tier === "GOLD" &&
-            (!data.membershipEndAt ||
-              new Date(data.membershipEndAt).getTime() >= Date.now())
-          }
+          // Satınalma yetkisi yalnız tam yetkili firmada (ücretsiz dönem:
+          // doğrulanmış firma); API aynı kapıyı uygular, burada seçenek
+          // baştan kilitlenir.
+          canGrantBuy={hasFullAccess(data)}
+          verification={data.companyVerificationStatus}
         /> : null}
       {tab === "ilanlar" ? <ListingsTab companyId={companyId} /> : null}
       {tab === "siparisler" ? <OrdersTab companyId={companyId} /> : null}

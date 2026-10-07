@@ -5,7 +5,6 @@ import { Badge } from "@/components/catalyst/badge";
 import {
   Dropdown,
   DropdownButton,
-  DropdownDivider,
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
@@ -32,7 +31,6 @@ import {
   useAdminCompanies,
   useAdminCompanyStats,
   useCompanyAction,
-  useSetCompanyTier,
   type AdminCompanyListResponse,
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
@@ -48,18 +46,7 @@ import { safeFormat, toDateInput } from "@/lib/date";
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
-import {
-  remainingSentence,
-  revokeNotice,
-  tierGrantWarnings,
-} from "./[id]/_components/tier-warnings";
-
-import {
-  PAID_TIER_OPTIONS,
-  TIER_COLOR,
-  TIER_LABEL,
-  VERIFY_META,
-} from "@/lib/terms";
+import { VERIFY_META } from "@/lib/terms";
 
 const PAGE_SIZE = 25;
 
@@ -91,15 +78,13 @@ async function exportCsv(params: Record<string, string | undefined>) {
   }
   downloadCsv(
     `firmalar-${toDateInput()}.csv`, // yerel gün (D-142)
-    ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "Doğrulama", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"],
+    ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Doğrulama", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"],
     rows.map((c) => [
       c.name,
       c.rothernId ?? "",
       c.taxNumber ?? "",
       c.country,
       [c.stateRegion, c.city].filter(Boolean).join(" / "),
-      TIER_LABEL[c.tier] ?? c.tier,
-      c.membershipEndAt ? safeFormat(c.membershipEndAt, "yyyy-MM-dd") : "",
       c.anonymized
         ? KVKK_ANON_LABEL
         : (VERIFY_META[c.verification]?.label ?? c.verification),
@@ -115,10 +100,7 @@ async function exportCsv(params: Record<string, string | undefined>) {
 interface Filters {
   status?: string;
   country?: string;
-  tier?: string;
   blocked?: string;
-  /** "30" → 30 gün içinde bitecek paket üyelikler (pano bağlantısı, D-146). */
-  expiring?: string;
   search?: string;
   page?: number;
   [key: string]: string | number | boolean | undefined;
@@ -128,16 +110,14 @@ function FirmalarView() {
   const { filters, setFilters } = useListFilters<Filters>();
   // Rol-farkında kapı (F7, canAdminDo — backend @RequireAdminRole ile birebir).
   // Bu liste zaten SUPER_ADMIN/SALES'e açık (GET companies gated); İncele ikisine
-  // de görünür, Premium/Askı menüsü yalnız SUPER_ADMIN'e (setTier/suspend SUPER).
+  // de görünür, Askı menüsü yalnız SUPER_ADMIN'e (suspend/unsuspend SUPER).
   const { admin } = useAdminAuth();
   const role = admin?.role;
   const canWrite = role !== "SUPPORT";
   const query = useAdminCompanies({
     status: filters.status || undefined,
     country: filters.country || undefined,
-    tier: filters.tier || undefined,
     blocked: filters.blocked || undefined,
-    expiring: filters.expiring === "30" ? "30" : undefined,
     q: filters.search?.trim() || undefined,
     page: filters.page ?? 1,
     pageSize: PAGE_SIZE,
@@ -145,7 +125,6 @@ function FirmalarView() {
   // Ülke filtresi seçenekleri gerçek veriden (stats countryOptions — tüm ülkeler).
   const stats = useAdminCompanyStats();
   const act = useCompanyAction();
-  const tierAct = useSetCompanyTier();
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
   const page = query.data?.page ?? filters.page ?? 1;
@@ -160,9 +139,7 @@ function FirmalarView() {
       const n = await exportCsv({
         status: filters.status || undefined,
         country: filters.country || undefined,
-        tier: filters.tier || undefined,
         blocked: filters.blocked || undefined,
-        expiring: filters.expiring === "30" ? "30" : undefined,
         q: filters.search?.trim() || undefined,
       });
       toast.success(`${n} firma CSV'ye aktarıldı`);
@@ -173,32 +150,10 @@ function FirmalarView() {
     }
   };
 
-  const [prompt, setPrompt] = useState<
-    | { kind: "tierMonths"; row: AdminCompanyRow; tier: "SILVER" | "GOLD" }
-    | { kind: "revoke"; row: AdminCompanyRow }
-    | { kind: "suspendReason"; id: string }
-    | null
-  >(null);
-
-  // Promise döner: diyalog yalnız başarıda kapanır (hata dalında girilen
-  // değer kaybolmaz) ve onay düğmesi iş bitene dek kilitli kalır.
-  const runTier = (
-    id: string,
-    tier: "STANDART" | "SILVER" | "GOLD",
-    months?: number,
-    reason?: string,
-  ) =>
-    tierAct.mutateAsync({ id, tier, months, reason }).then(
-      () => {
-        toast.success(
-          tier !== "STANDART"
-            ? `${TIER_LABEL[tier]} paketi tanımlandı`
-            : "Paket kaldırıldı (Standart)",
-        );
-        setPrompt(null);
-      },
-      (e: unknown) => toastApiError(e),
-    );
+  const [prompt, setPrompt] = useState<{
+    kind: "suspendReason";
+    id: string;
+  } | null>(null);
 
   const runAction = (
     id: string,
@@ -218,7 +173,7 @@ function FirmalarView() {
     <div className="max-w-[1280px] space-y-6">
       <PageHeader
         title="Firmalar"
-        description="Firma hesapları — inceleme, doğrulama, üyelik ve askı yönetimi."
+        description="Firma hesapları — inceleme, doğrulama ve askı yönetimi."
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -250,28 +205,6 @@ function FirmalarView() {
               value: c.country,
               label: `${countryName(c.country)} (${c.count})`,
             })),
-          ]}
-        />
-        <FilterSelect
-          ariaLabel="Üyelik"
-          value={filters.tier ?? ""}
-          active={!!filters.tier}
-          onChange={(v) => setFilters({ tier: v })}
-          options={[
-            { value: "", label: "Tüm üyelikler" },
-            { value: "GOLD", label: "Gold" },
-            { value: "SILVER", label: "Silver" },
-            { value: "STANDART", label: "Standart" },
-          ]}
-        />
-        <FilterSelect
-          ariaLabel="Üyelik bitişi"
-          value={filters.expiring === "30" ? "30" : ""}
-          active={filters.expiring === "30"}
-          onChange={(v) => setFilters({ expiring: v })}
-          options={[
-            { value: "", label: "Tüm bitiş tarihleri" },
-            { value: "30", label: "30 gün içinde bitecek" },
           ]}
         />
         <FilterSelect
@@ -307,7 +240,6 @@ function FirmalarView() {
               <TableHeader>Firma</TableHeader>
               <TableHeader>Kod</TableHeader>
               <TableHeader>Ülke</TableHeader>
-              <TableHeader>Üyelik</TableHeader>
               <TableHeader>Doğrulama</TableHeader>
               <TableHeader>Şikayet</TableHeader>
               <TableHeader>Kayıt</TableHeader>
@@ -317,7 +249,7 @@ function FirmalarView() {
           <TableBody>
             {items.length === 0 ? (
               <TableStateRow
-                colSpan={8}
+                colSpan={7}
                 loading={query.isLoading}
                 error={query.isError}
                 onRetry={() => void query.refetch()}
@@ -357,16 +289,6 @@ function FirmalarView() {
                       {/* Yalnız bayrak (ad = alt/title); dosyası yoksa bileşen kısa metne ("KKTC") düşer — kod ikinci kez basılmaz. */}
                       <CountryFlag code={c.country} />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <Badge color={TIER_COLOR[c.tier] ?? "zinc"}>
-                        {TIER_LABEL[c.tier] ?? c.tier}
-                      </Badge>
-                      {c.tier !== "STANDART" && c.membershipEndAt ? (
-                        <span className="text-admin-text-muted ml-1.5 text-xs">
-                          → {safeFormat(c.membershipEndAt, "d MMM yy")}
-                        </span>
-                      ) : null}
-                    </TableCell>
                     <TableCell>
                       {c.anonymized ? (
                         <span className="text-admin-text-muted">—</span>
@@ -395,9 +317,10 @@ function FirmalarView() {
                           >
                             İncele
                           </Link>
-                          {/* KVKK ile anonimleştirilmiş firmada paket/askı
-                              işlemi yok (D-208; API 409). */}
-                          {canAdminDo(role, "setTier") && !c.anonymized ? (
+                          {/* KVKK ile anonimleştirilmiş firmada askı işlemi
+                              yok (D-208; API 409). */}
+                          {canAdminDo(role, c.isBlocked ? "unsuspend" : "suspend") &&
+                          !c.anonymized ? (
                           <Dropdown>
                             <DropdownButton
                               plain
@@ -407,34 +330,6 @@ function FirmalarView() {
                               <EllipsisVertical className="size-4 text-zinc-500" />
                             </DropdownButton>
                             <DropdownMenu anchor="bottom end">
-                              {PAID_TIER_OPTIONS.map((t) => (
-                                <DropdownItem
-                                  key={t}
-                                  onClick={() =>
-                                    setPrompt({
-                                      kind: "tierMonths",
-                                      row: c,
-                                      tier: t,
-                                    })
-                                  }
-                                >
-                                  <DropdownLabel>
-                                    {TIER_LABEL[t]} Tanımla
-                                  </DropdownLabel>
-                                </DropdownItem>
-                              ))}
-                              {/* Detaydaki Üyelik sekmesiyle aynı: gerekçeli
-                                  onay penceresi (arayüz testi O-046). */}
-                              {c.tier !== "STANDART" ? (
-                                <DropdownItem
-                                  onClick={() =>
-                                    setPrompt({ kind: "revoke", row: c })
-                                  }
-                                >
-                                  <DropdownLabel>Paketi Kaldır</DropdownLabel>
-                                </DropdownItem>
-                              ) : null}
-                              <DropdownDivider />
                               {c.isBlocked ? (
                                 <DropdownItem
                                   onClick={() =>
@@ -481,53 +376,6 @@ function FirmalarView() {
       </div>
 
       <PromptDialog
-        open={prompt?.kind === "tierMonths"}
-        title={`${prompt?.kind === "tierMonths" ? TIER_LABEL[prompt.tier] : ""} Paketi Tanımla`}
-        notice={
-          prompt?.kind === "tierMonths"
-            ? tierWarningNotice(prompt.row, prompt.tier)
-            : undefined
-        }
-        label="Kaç ay verilsin?"
-        type="number"
-        // Aralık PromptDialog'da doğrulanır (backend @Min(1) @Max(60)); dışı
-        // değer sessizce 12/60'a çevrilmez (arayüz testi O-074).
-        min={1}
-        max={60}
-        defaultValue="12"
-        required
-        confirmLabel="Tanımla"
-        onConfirm={(v) => {
-          if (prompt?.kind !== "tierMonths") return;
-          return runTier(prompt.row.id, prompt.tier, Number(v));
-        }}
-        onClose={() => setPrompt(null)}
-      />
-      <PromptDialog
-        open={prompt?.kind === "revoke"}
-        title="Paketi Kaldır"
-        notice={
-          prompt?.kind === "revoke"
-            ? revokeNotice(
-                remainingSentence(
-                  prompt.row.tier,
-                  prompt.row.membershipEndAt,
-                  (iso) => safeFormat(iso, "d MMMM yyyy"),
-                ),
-              )
-            : undefined
-        }
-        label="Gerekçe (opsiyonel — geçmişte görünür)"
-        placeholder="Örn. iade talebi"
-        maxLength={500}
-        confirmLabel="Kaldır"
-        onConfirm={(v) => {
-          if (prompt?.kind !== "revoke") return;
-          return runTier(prompt.row.id, "STANDART", undefined, v || undefined);
-        }}
-        onClose={() => setPrompt(null)}
-      />
-      <PromptDialog
         open={prompt?.kind === "suspendReason"}
         title="Firmayı Askıya Al"
         label="Askı sebebi (opsiyonel)"
@@ -541,25 +389,6 @@ function FirmalarView() {
         }}
         onClose={() => setPrompt(null)}
       />
-    </div>
-  );
-}
-
-/** Satır menüsünden paket tanımlarken sonuç uyarıları (D-191). */
-function tierWarningNotice(
-  row: AdminCompanyRow,
-  tier: "SILVER" | "GOLD",
-): React.ReactNode {
-  const warnings = tierGrantWarnings(
-    { tier: row.tier, verification: row.verification },
-    tier,
-  );
-  if (warnings.length === 0) return undefined;
-  return (
-    <div className="space-y-1">
-      {warnings.map((w) => (
-        <p key={w}>{w}</p>
-      ))}
     </div>
   );
 }

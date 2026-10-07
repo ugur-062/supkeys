@@ -7,10 +7,9 @@ const h = vi.hoisted(() => ({
   companies: { data: undefined as unknown, isLoading: false, isError: false },
   stats: { data: undefined as unknown, isLoading: false },
   actMutate: vi.fn(),
-  tierMutate: vi.fn((_v: unknown) => Promise.resolve()),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
   replace: vi.fn(),
-  // Rol-tabanlı buton kapısı (canAdminDo): tier/suspend yalnız SUPER_ADMIN'e görünür.
+  // Rol-tabanlı buton kapısı (canAdminDo): askı işlemleri yalnız SUPER_ADMIN'e görünür.
   admin: { role: "SUPER_ADMIN" } as { role: string } | null,
   apiGet: vi.fn(),
   toastApiError: vi.fn(),
@@ -44,10 +43,12 @@ vi.mock("@/hooks/use-admin-companies", () => ({
   },
   useAdminCompanyStats: () => h.stats,
   useCompanyAction: () => ({ mutate: h.actMutate, isPending: false }),
-  useSetCompanyTier: () => ({ mutateAsync: h.tierMutate, isPending: false }),
 }));
 
 import AdminFirmalarPage from "../page";
+
+/** Ücretsiz dönem: panelde üyelik kademesi adı ya da üyelik ücreti dili basılmaz. */
+const PLAN_WORDS = /\b(gold|silver|standart|premium|paket)/i;
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -104,10 +105,10 @@ describe("FirmalarView — durum tablosu", () => {
     expect(screen.getByText("Firma bulunamadı")).toBeInTheDocument();
   });
 
-  it("satır render eder — ülke ve üyelik bitişi dahil", () => {
+  it("satır render eder — ülke ve doğrulama durumu; üyelik adı ve bitişi YOK (ücretsiz dönem)", () => {
     const end = new Date("2026-06-01T00:00:00Z").toISOString();
     h.companies = {
-      data: paged([row({ tier: "GOLD", membershipEndAt: end })]),
+      data: paged([row({ tier: "GOLD", membershipEndAt: end, verification: "VERIFIED" })]),
       isLoading: false,
       isError: false,
     };
@@ -116,10 +117,11 @@ describe("FirmalarView — durum tablosu", () => {
     // Ülke hücresi: yalnız bayrak (kod metni yok) — erişilebilir ad = ülke adı
     const flag = screen.getByRole("img", { name: "Türkiye" });
     expect(flag).toHaveAttribute("src", "/flags/4x3/tr.svg");
-    // Gold rozet + bitiş tarihi ("Gold" ayrıca üyelik filtresi
-    // option'ında da geçer → getAllBy).
-    expect(screen.getAllByText("Gold").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/1 Haz 26/)).toBeInTheDocument();
+    const tr = screen.getByRole("link", { name: "Acme A.Ş." }).closest("tr")!;
+    expect(within(tr).getByText("Doğrulandı")).toBeInTheDocument();
+    expect(screen.queryByText(/1 Haz 26/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Üyelik" })).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(PLAN_WORDS);
   });
 
   it("İncele → firma detay sayfasına link verir", () => {
@@ -134,103 +136,8 @@ describe("FirmalarView — durum tablosu", () => {
   });
 });
 
-describe("FirmalarView — PAKET (tier) verme", () => {
-  it("Gold Tanımla → PromptDialog açılır (başlık 'Gold Paketi Tanımla')", async () => {
-    const user = userEvent.setup();
-    render(<AdminFirmalarPage />);
-    await user.click(
-      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
-    );
-    const dialog = await screen.findByRole("dialog");
-    expect(
-      within(dialog).getByText("Gold Paketi Tanımla"),
-    ).toBeInTheDocument();
-  });
-
-  it("ay '6' girilip onaylanınca months=6 ile tier mutate", async () => {
-    const user = userEvent.setup();
-    render(<AdminFirmalarPage />);
-    await user.click(
-      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
-    );
-    const dialog = await screen.findByRole("dialog");
-    const input = screen.getByLabelText(/Kaç ay verilsin/);
-    await user.clear(input);
-    await user.type(input, "6");
-    await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
-    expect(h.tierMutate).toHaveBeenCalledWith({
-      id: "c1",
-      tier: "GOLD",
-      months: 6,
-      reason: undefined,
-    });
-  });
-
-  it("varsayılan (12) korunursa months=12 ile mutate", async () => {
-    const user = userEvent.setup();
-    render(<AdminFirmalarPage />);
-    await user.click(
-      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
-    );
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
-    expect(h.tierMutate).toHaveBeenCalledWith({
-      id: "c1",
-      tier: "GOLD",
-      months: 12,
-      reason: undefined,
-    });
-  });
-
-  it.each(["0", "100", "2.5"])(
-    "geçersiz ay (%s) → alan hatası, Tanımla kapalı; sessizce 12/60'a çevrilmez (O-074)",
-    async (value) => {
-    const user = userEvent.setup();
-    render(<AdminFirmalarPage />);
-    await user.click(
-      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
-    );
-    const dialog = await screen.findByRole("dialog");
-    const input = screen.getByLabelText(/Kaç ay verilsin/);
-    await user.clear(input);
-    await user.type(input, value);
-    expect(within(dialog).getByText(/1-60 arası bir tam sayı/)).toBeInTheDocument();
-    const btn = within(dialog).getByRole("button", { name: "Tanımla" });
-    expect(btn).toBeDisabled();
-    await user.click(btn);
-    expect(h.tierMutate).not.toHaveBeenCalled();
-    },
-  );
-
-  it("Gold firmaya Silver tanımlarken düşürme uyarısı görünür (D-191)", async () => {
-    h.companies = {
-      data: paged([row({ tier: "GOLD", verification: "VERIFIED" })]),
-      isLoading: false,
-      isError: false,
-    };
-    const user = userEvent.setup();
-    render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Silver Tanımla" }));
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByRole("note")).toHaveTextContent(/Gold → Silver/);
-  });
-});
-
-describe("FirmalarView — Paketi Kaldır (O-046)", () => {
-  it("anında silmez: gerekçeli onay penceresi açılır, onayda gerekçeyle STANDART", async () => {
+describe("FirmalarView — ücretsiz dönem: üyelik yönetimi yok", () => {
+  it("satır menüsünde yalnız askı işlemi var; üyelik tanımlama/kaldırma yok", async () => {
     const end = new Date(Date.now() + 365 * 86_400_000).toISOString();
     h.companies = {
       data: paged([row({ tier: "GOLD", membershipEndAt: end })]),
@@ -240,25 +147,26 @@ describe("FirmalarView — Paketi Kaldır (O-046)", () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
     await user.click(screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Paketi Kaldır" }));
-    expect(h.tierMutate).not.toHaveBeenCalled();
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByRole("note")).toHaveTextContent(/Kalan süre/);
-    const input = within(dialog).getByLabelText(/Gerekçe/);
-    expect(input).toHaveAttribute("maxLength", "500");
-    await user.type(input, "iade talebi");
-    await user.click(within(dialog).getByRole("button", { name: "Kaldır" }));
-    expect(h.tierMutate).toHaveBeenCalledWith({
-      id: "c1",
-      tier: "STANDART",
-      months: undefined,
-      reason: "iade talebi",
-    });
+    const items = (await screen.findAllByRole("menuitem")).map((m) => m.textContent);
+    expect(items).toEqual(["Askıya Al"]);
+  });
+
+  it("üyelik ve üyelik bitişi süzgeçleri yok; eski ?tier= / ?expiring= adresi sorguya geçmez", () => {
+    h.search = "tier=GOLD&expiring=30";
+    h.companiesParams = [];
+    render(<AdminFirmalarPage />);
+    const last = h.companiesParams.at(-1) as Record<string, unknown>;
+    expect(last).not.toHaveProperty("tier");
+    expect(last).not.toHaveProperty("expiring");
+    expect(screen.queryByLabelText("Üyelik")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Üyelik bitişi")).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(PLAN_WORDS);
+    h.search = "";
   });
 });
 
 describe("FirmalarView — KVKK ile anonimleştirilmiş firma (D-208)", () => {
-  it("satırda paket/askı menüsü yok", () => {
+  it("satırda askı menüsü yok", () => {
     h.companies = {
       data: paged([row({ isBlocked: true, anonymized: true })]),
       isLoading: false,
@@ -300,7 +208,7 @@ describe("FirmalarView — KVKK ile anonimleştirilmiş firma (D-208)", () => {
 });
 
 describe("FirmalarView — rol kapısı (canAdminDo)", () => {
-  it("SALES: tier/askı işlemleri menüsü GÖRÜNMEZ (yalnız SUPER_ADMIN)", () => {
+  it("SALES: askı işlemleri menüsü GÖRÜNMEZ (yalnız SUPER_ADMIN)", () => {
     h.admin = { role: "SALES" };
     render(<AdminFirmalarPage />);
     expect(
@@ -308,7 +216,7 @@ describe("FirmalarView — rol kapısı (canAdminDo)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("SUPER_ADMIN: tier/askı işlemleri menüsü görünür", () => {
+  it("SUPER_ADMIN: askı işlemleri menüsü görünür", () => {
     h.admin = { role: "SUPER_ADMIN" };
     render(<AdminFirmalarPage />);
     expect(
@@ -395,26 +303,19 @@ describe("CSV dışa aktarımı (derin denetim LU-12)", () => {
     await vi.waitFor(() => expect(btn).not.toBeDisabled());
   });
 
-  it("başarıda dosya iner ve sayı toast'ı basılır", async () => {
+  it("başarıda dosya iner ve sayı toast'ı basılır; başlıkta üyelik sütunu yok", async () => {
     const user = userEvent.setup();
-    h.apiGet.mockResolvedValueOnce({ data: { items: [row()], total: 1 } });
+    h.apiGet.mockResolvedValueOnce({
+      data: { items: [row({ tier: "GOLD", verification: "VERIFIED" })], total: 1 },
+    });
     render(<AdminFirmalarPage />);
     await user.click(screen.getByRole("button", { name: /CSV/ }));
     await vi.waitFor(() => expect(h.downloadCsv).toHaveBeenCalledTimes(1));
     expect(h.toast.success).toHaveBeenCalledWith("1 firma CSV'ye aktarıldı");
-  });
-});
-
-describe("FirmalarPage — üyelik bitişi süzgeci (arayüz testi D-146)", () => {
-  it("?expiring=30 sorguya geçer ve süzgeç seçili görünür", () => {
-    h.search = "expiring=30";
-    h.companiesParams = [];
-    h.companies = { data: paged([]), isLoading: false, isError: false };
-    h.stats = { data: undefined, isLoading: false };
-    render(<AdminFirmalarPage />);
-    expect(h.companiesParams.at(-1)).toMatchObject({ expiring: "30" });
-    const select = screen.getByLabelText("Üyelik bitişi") as HTMLSelectElement;
-    expect(select.value).toBe("30");
-    h.search = "";
+    const [, header, rows] = h.downloadCsv.mock.calls[0] as [string, string[], unknown[][]];
+    expect(header).toContain("Doğrulama");
+    expect(header.join(" ")).not.toMatch(/Üyelik/);
+    expect(rows[0]).toContain("Doğrulandı");
+    expect(JSON.stringify(rows)).not.toMatch(PLAN_WORDS);
   });
 });

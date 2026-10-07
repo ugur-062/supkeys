@@ -14,7 +14,7 @@ import {
 import { safeFormat } from "@/lib/date";
 import { PRODUCT_REVIEW_STATUS } from "@/lib/status-labels";
 import { webAssetUrl } from "@/lib/safe-url";
-import { companyTierText } from "@/lib/terms";
+import { metaOf, VERIFY_META } from "@/lib/terms";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -80,7 +80,7 @@ function UrunlerView() {
     setPage(1);
   }
   /**
-   * TEK FİRMA KUYRUĞU — ücretsiz pakette ürün tavanı 50 (2026-09-14). Bir
+   * TEK FİRMA KUYRUĞU — doğrulanmamış firmada ürün tavanı 50 (2026-09-14). Bir
    * firmanın ürünlerini sayfa sayfa avlamak yerine adına tıklayıp hepsini tek
    * görünüme toplamak, toplu onayın gerçek çalışma biçimi.
    */
@@ -303,7 +303,7 @@ function UrunlerView() {
                       >
                         {p.company.name}
                       </button>
-                      <span className="text-admin-text-muted block text-xs">{p.company.city ?? "—"} · {companyTierText(p.company)}</span>
+                      <span className="text-admin-text-muted block text-xs">{p.company.city ?? "—"} · {metaOf(VERIFY_META, p.company.verification).label}</span>
                     </TableCell>
                     {/* Uzun kategori adı satırı genişletmesin — sarılır, 2 satırda kesilir (D-035). */}
                     <TableCell className="text-admin-text-muted min-w-[8rem] max-w-[14rem] text-xs whitespace-normal">

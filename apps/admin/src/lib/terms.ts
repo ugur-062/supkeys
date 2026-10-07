@@ -4,42 +4,7 @@
  * sayfada iki farklı adla görünmesini engeller.
  */
 
-import { safeFormat } from "./date";
-
 export type BadgeColor = "green" | "amber" | "red" | "zinc" | "blue";
-
-// ── Üyelik (tier) — Faz T: 4 kademe (STANDART paketsiz-pasif) ──
-export const TIER_LABEL: Record<string, string> = {
-  STANDART: "Standart",
-  SILVER: "Silver",
-  GOLD: "Gold",
-};
-export const TIER_COLOR: Record<string, "zinc" | "orange" | "sky" | "amber"> = {
-  STANDART: "zinc",
-  SILVER: "sky",
-  GOLD: "amber",
-};
-/** Paralı kademeler — grant menüsü/rozet mantığı için. */
-export const PAID_TIER_OPTIONS = ["SILVER", "GOLD"] as const;
-
-/**
- * Firma kademesi metni — EFEKTİF kademe (INV-TIER-1: süresi geçmiş paket
- * STANDART sayılır) ve süre bittiyse hangi paketin ne zaman bittiği. Ham
- * `tier` tek başına basılınca süresi dün biten firma "SILVER" görünüyor,
- * onay ise ücretsiz tavana takılıyordu (arayüz testi D-174).
- */
-export function companyTierText(c: {
-  tier: string;
-  effectiveTier?: string | null;
-  membershipEndAt?: string | null;
-}): string {
-  const eff = c.effectiveTier ?? c.tier;
-  const label = TIER_LABEL[eff] ?? eff;
-  if (eff === c.tier) return label;
-  const raw = TIER_LABEL[c.tier] ?? c.tier;
-  const end = c.membershipEndAt ? safeFormat(c.membershipEndAt, "d MMM yyyy", "") : "";
-  return `${label} (${raw} süresi doldu${end ? ` ${end}` : ""})`;
-}
 
 // ── Firma doğrulama durumu (KYC iç terimdir; ekranda "Doğrulama") ──
 export const VERIFY_META: Record<
@@ -139,17 +104,6 @@ export const REFERRAL_STATUS_META: Record<
   ACCEPTED: { label: "Kabul Edildi", color: "green" },
   CANCELLED: { label: "İptal", color: "zinc" },
   EXPIRED: { label: "Süresi Doldu", color: "zinc" },
-};
-
-// ── Üyelik geçmişi olayları ──
-export const MEMBERSHIP_ACTION_META: Record<
-  string,
-  { label: string; color: BadgeColor }
-> = {
-  GRANT: { label: "Tanımlandı", color: "green" },
-  EXTEND: { label: "Uzatıldı", color: "blue" },
-  REVOKE: { label: "Kaldırıldı", color: "red" },
-  EXPIRE: { label: "Süresi Doldu", color: "zinc" },
 };
 
 // ── Denetim kaydı varlık türleri (ham entityType ekrana çıkmasın) ──

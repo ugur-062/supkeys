@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { canAdminDo, ADMIN_ACTION_ROLES } from "../admin-permissions";
 
 describe("canAdminDo (F7: backend @RequireAdminRole ile birebir)", () => {
-  it("setTier yalnız SUPER_ADMIN — SALES görmez", () => {
-    expect(canAdminDo("SUPER_ADMIN", "setTier")).toBe(true);
-    expect(canAdminDo("SALES", "setTier")).toBe(false);
-    expect(canAdminDo("SUPPORT", "setTier")).toBe(false);
+  it("ücretsiz dönem: üyelik yönetimi aksiyonları matriste yok (ekranlar kaldırıldı)", () => {
+    for (const a of ["setTier", "extendMembership", "viewMembershipReport"]) {
+      expect(Object.keys(ADMIN_ACTION_ROLES)).not.toContain(a);
+    }
   });
   it("suspend/unsuspend/deleteNote/manageStaff/announce yalnız SUPER_ADMIN", () => {
     for (const a of [
@@ -25,8 +25,8 @@ describe("canAdminDo (F7: backend @RequireAdminRole ile birebir)", () => {
     expect(canAdminDo("SALES", "resolveComplaint")).toBe(true);
     expect(canAdminDo("SUPPORT", "resolveComplaint")).toBe(false);
   });
-  it("extendMembership/addNote/notify SUPER_ADMIN+SALES", () => {
-    for (const a of ["extendMembership", "addNote", "notify"] as const) {
+  it("addNote/notify SUPER_ADMIN+SALES", () => {
+    for (const a of ["addNote", "notify"] as const) {
       expect(canAdminDo("SALES", a)).toBe(true);
       expect(canAdminDo("SUPPORT", a)).toBe(false);
     }
@@ -38,7 +38,7 @@ describe("canAdminDo (F7: backend @RequireAdminRole ile birebir)", () => {
   });
   it("rol yoksa (null/undefined) her aksiyon false", () => {
     expect(canAdminDo(null, "recoverAccount")).toBe(false);
-    expect(canAdminDo(undefined, "setTier")).toBe(false);
+    expect(canAdminDo(undefined, "suspend")).toBe(false);
   });
   it("her aksiyon en az bir role izinli (boş matris satırı yok)", () => {
     for (const roles of Object.values(ADMIN_ACTION_ROLES)) {

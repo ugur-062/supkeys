@@ -26,9 +26,8 @@ export interface AdminProductRow {
     name: string;
     slug: string | null;
     city: string | null;
-    /** Ham DB kademesi — süresi geçmiş paketli firmada hâlâ SILVER/GOLD. */
+    /** Yetki kademesi alanları (API) — ekrana BASILMAZ; satırda doğrulama durumu gösterilir. */
     tier: string;
-    /** Efektif kademe (süre geçmişse STANDART) — ekranda bu gösterilir (D-174). */
     effectiveTier: string;
     membershipEndAt: string | null;
     verification: string;
@@ -121,7 +120,7 @@ export function useProductReview(id: string) {
 
 /**
  * TOPLU ONAY — otomatik onay DEĞİL: kararı yine admin verir, 50 ürün için
- * 50 tıklama 1 tıklamaya iner (ücretsiz pakette ürün tavanı 2026-09-14'te
+ * 50 tıklama 1 tıklamaya iner (doğrulanmamış firmada ürün tavanı 2026-09-14'te
  * 50'ye çıktı). Backend durum değiştirmiş satırları ATLAR ve gerekçesiyle
  * döner — yığın tek bir bayat kayıt yüzünden düşmez.
  */

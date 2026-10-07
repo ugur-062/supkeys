@@ -76,12 +76,29 @@ const ADDABLE_ROLES = [
   { value: "ONAYLAYICI", label: "Onaylayıcı" },
 ];
 
+/**
+ * Satınalma yetkisi kilidinin nedeni — firma doğrulama durumuna göre
+ * (ücretsiz dönem: doğrulama yeterli, satın alınacak bir şey yok).
+ */
+function buyLockNote(verification: string | undefined): string {
+  const base =
+    "Satınalma yetkisi (talep açma ve kazandırma) yalnız doğrulanmış firmada verilebilir.";
+  if (verification === "PENDING") {
+    return `${base} Firmanın doğrulaması inceleniyor — Belgeler sekmesinden sonuçlandırın.`;
+  }
+  if (verification === "REJECTED") {
+    return `${base} Firmanın doğrulaması reddedildi — firma yeniden başvurmalı.`;
+  }
+  return `${base} Firma henüz doğrulanmadı — Belgeler sekmesinden doğrulayın.`;
+}
+
 /** Doğrudan üye ekleme dialog'u — kullanıcıya şifre kurma e-postası gider. */
 function AddUserDialog({
   onConfirm,
   onClose,
   pending,
   canGrantBuy,
+  verification,
 }: {
   onConfirm: (v: {
     email: string;
@@ -91,8 +108,10 @@ function AddUserDialog({
   }) => unknown;
   onClose: () => void;
   pending: boolean;
-  /** Firma efektif GOLD mu — değilse Satın Almacı rolü verilemez (API kapısıyla aynı). */
+  /** Firma tam yetkili mi — değilse Satın Almacı rolü verilemez (API kapısıyla aynı). */
   canGrantBuy: boolean;
+  /** Kilidin nedeni metni için firmanın doğrulama durumu. */
+  verification?: string;
 }) {
   const [form, setForm] = useState({
     email: "",
@@ -154,7 +173,7 @@ function AddUserDialog({
                 const locked = r.value === "SATIN_ALMACI" && !canGrantBuy;
                 return (
                   <option key={r.value} value={r.value} disabled={locked}>
-                    {locked ? `${r.label} (yalnız Gold)` : r.label}
+                    {locked ? `${r.label} (doğrulama gerekli)` : r.label}
                   </option>
                 );
               })}
@@ -162,8 +181,7 @@ function AddUserDialog({
           </label>
           {!canGrantBuy ? (
             <p className="text-admin-text-muted text-xs">
-              Satınalma yetkisi yalnız Gold pakette verilebilir — talep açma ve
-              kazandırma diğer paketlerde kapalı.
+              {buyLockNote(verification)}
             </p>
           ) : null}
           <p className="text-admin-text-muted text-xs">
@@ -206,10 +224,13 @@ function AddUserDialog({
 export function UsersTab({
   companyId,
   canGrantBuy = true,
+  verification,
 }: {
   companyId: string;
-  /** Firma efektif GOLD mu (satınalma yetkisi verilebilir mi). */
+  /** Firma tam yetkili mi (satınalma yetkisi verilebilir mi). */
   canGrantBuy?: boolean;
+  /** Firmanın doğrulama durumu — kilit notu buna göre yazılır. */
+  verification?: string;
 }) {
   const query = useAdminCompanyUsers(companyId);
   const recovery = useUserRecoveryAction(companyId);
@@ -422,6 +443,7 @@ export function UsersTab({
         <AddUserDialog
           pending={addUser.isPending}
           canGrantBuy={canGrantBuy}
+          verification={verification}
           onConfirm={(v) =>
             addUser.mutateAsync(v).then(() => {
               toast.success(

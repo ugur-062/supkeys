@@ -83,9 +83,10 @@ beforeEach(() => {
 });
 
 describe("/admin/urunler/[id] — ürün incelemesi", () => {
-  it("başlıkta efektif kademe ve doğrulama etiketi (ham SILVER/VERIFIED yok)", () => {
+  it("başlıkta doğrulama etiketi; üyelik kademesi adı yok (ham SILVER/VERIFIED de yok)", () => {
     render(<AdminUrunDetayPage />);
-    expect(screen.getByText(/Standart \(Silver süresi doldu 1 Eki 2026\) · Doğrulandı/)).toBeInTheDocument();
+    expect(screen.getByText(/İzmir · Doğrulandı/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/standart|silver|gold|süresi doldu/i);
     expect(screen.queryByText(/VERIFIED/)).not.toBeInTheDocument();
   });
 

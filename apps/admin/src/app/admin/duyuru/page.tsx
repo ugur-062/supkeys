@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
 
 /**
- * Platform duyurusu — tüm firmalara veya segmente (üyelik/ülke) toplu
+ * Platform duyurusu — tüm firmalara veya ülke segmentine toplu
  * uygulama-içi bildirim + opsiyonel e-posta. Yalnız SUPER_ADMIN (BE guard).
  */
 function DuyuruView() {
@@ -26,7 +26,6 @@ function DuyuruView() {
   const [form, setForm] = useState({
     subject: "",
     message: "",
-    tier: "",
     country: "",
     sendEmail: false,
   });
@@ -43,7 +42,7 @@ function DuyuruView() {
   // Form değişince önceki kesin sayı geçersizdir.
   useEffect(() => {
     setExactTargets(null);
-  }, [form.tier, form.country]);
+  }, [form.country]);
 
   // Kaba ön-gösterge (form doldurulurken) — onay ekranında kesin sayıyla
   // değiştirilir. Kırılım süzgeçsiz olduğu için ÜST SINIR niteliğindedir.
@@ -56,9 +55,6 @@ function DuyuruView() {
           (c) => c.country === form.country,
         )?.count ?? 0
       );
-    }
-    if (form.tier) {
-      return d.tierBreakdown[form.tier as keyof typeof d.tierBreakdown] ?? 0;
     }
     return d.totalCompanies;
   })();
@@ -80,11 +76,6 @@ function DuyuruView() {
         {
           subject: form.subject.trim(),
           message: form.message.trim(),
-          tier: (form.tier || undefined) as
-            | "STANDART"
-            | "SILVER"
-            | "GOLD"
-            | undefined,
           country: form.country || undefined,
           sendEmail: form.sendEmail,
         },
@@ -96,7 +87,6 @@ function DuyuruView() {
           setForm({
             subject: "",
             message: "",
-            tier: "",
             country: "",
             sendEmail: false,
           });
@@ -144,21 +134,6 @@ function DuyuruView() {
           />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-admin-text-muted text-xs font-medium">
-              Üyelik segmenti
-            </span>
-            <Select
-              value={form.tier}
-              disabled={confirming}
-              onChange={(e) => set("tier", e.target.value)}
-            >
-              <option value="">Tüm üyelikler</option>
-              <option value="GOLD">Yalnız Gold</option>
-              <option value="SILVER">Yalnız Silver</option>
-              <option value="STANDART">Yalnız Standart</option>
-            </Select>
-          </label>
           <label className="flex flex-col gap-1">
             <span className="text-admin-text-muted text-xs font-medium">
               Ülke segmenti
@@ -246,11 +221,6 @@ function DuyuruView() {
                   {
                     subject: form.subject.trim(),
                     message: form.message.trim(),
-                    tier: (form.tier || undefined) as
-                      | "STANDART"
-                      | "SILVER"
-                      | "GOLD"
-                      | undefined,
                     country: form.country || undefined,
                     dryRun: true,
                   },

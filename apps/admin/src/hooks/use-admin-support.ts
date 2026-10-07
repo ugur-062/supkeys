@@ -55,7 +55,6 @@ export interface GlobalSearchResult {
     name: string;
     rothernId: string | null;
     country: string;
-    tier: string;
     isBlocked: boolean;
   }[];
   users: {
@@ -104,7 +103,6 @@ export function useAnnounce() {
     mutationFn: async (input: {
       subject: string;
       message: string;
-      tier?: "STANDART" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
       /** Göndermeden gerçek hedef sayısını sor (onay ekranı — Dalga B). */

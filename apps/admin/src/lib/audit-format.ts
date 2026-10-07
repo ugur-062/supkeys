@@ -24,7 +24,6 @@ import {
   CONNECTION_STATUS_META,
   DOC_STATUS_META,
   ENTITY_TYPE_LABEL,
-  TIER_LABEL,
   VERIFY_META,
   type BadgeColor,
 } from "./terms";
@@ -83,7 +82,7 @@ const KEY_LABEL: Record<string, string> = {
   reason: "gerekçe",
   note: "not",
   portal: "portal",
-  tier: "paket",
+  tier: "üyelik (eski)",
   months: "ay",
   role: "rol",
   roles: "roller",
@@ -296,7 +295,7 @@ const VALUE_BY_KEY: Record<string, Record<string, string>> = {
     place_bid: "Teklif verme",
     mark_order_received: "Teslim alındı işaretleme",
   },
-  origin: { INVITE: "Davet", PREMIUM: "Premium keşif", ADMIN: "Platform" },
+  origin: { INVITE: "Davet", PREMIUM: "Keşif", ADMIN: "Platform" },
   carryBids: { AUTO: "Otomatik", LAZY: "Tedarikçi onayıyla", NONE: "Aktarılmaz" },
   visibility: {
     PUBLIC: "Herkese açık",
@@ -460,6 +459,18 @@ const ADDRESS_TYPE_LABEL: Record<string, string> = {
   ILETISIM: "İletişim",
   TESLIMAT: "Teslimat",
 };
+/**
+ * GEÇMİŞ KAYIT DEĞERLERİ (ücretsiz dönem, 2026-10-07): eski denetim satırları
+ * `tier` alanında üyelik kademesi kodu taşır. Panel başka hiçbir yerde kademe
+ * adı basmaz; bu sözlük YALNIZ geçmiş satırların ham kod (STANDART/SILVER/GOLD)
+ * yerine kaydedildiği günkü adla okunması içindir. Yeni ekran bu sözlüğü
+ * KULLANMAZ.
+ */
+const LEGACY_TIER_VALUES: Record<string, string> = {
+  STANDART: "Standart",
+  SILVER: "Silver",
+  GOLD: "Gold",
+};
 const GENERIC_VALUES: Record<string, string> = {
   ...BID_VALUES,
   ...LISTING_VALUES,
@@ -467,7 +478,7 @@ const GENERIC_VALUES: Record<string, string> = {
   ...VERIFY_VALUES,
   ...COMPANY_ROLE_LABEL,
   ...ADMIN_ROLE_LABEL,
-  ...TIER_LABEL,
+  ...LEGACY_TIER_VALUES,
   ...LISTING_TYPE_LABEL,
   // Benzersiz kodlar — aile eşleşmese de (ör. firma detayı) çevrilir.
   ...APPROVAL_TYPE_LABEL,
@@ -488,7 +499,7 @@ function valueDict(action: string): Record<string, string>[] {
   if (/\.bid/.test(action)) return [BID_VALUES, LISTING_VALUES, GENERIC_VALUES];
   if (/\.listing/.test(action)) return [LISTING_VALUES, GENERIC_VALUES];
   if (/verification|docs|doc_revision/.test(action)) return [VERIFY_VALUES, GENERIC_VALUES];
-  if (/tier|membership/.test(action)) return [TIER_LABEL, GENERIC_VALUES];
+  if (/tier|membership/.test(action)) return [LEGACY_TIER_VALUES, GENERIC_VALUES];
   return [GENERIC_VALUES];
 }
 
@@ -572,7 +583,7 @@ export function formatAuditMetadata(
   metadata: Record<string, unknown> | null | undefined,
 ): string {
   if (!metadata || typeof metadata !== "object") return "";
-  // Paket kaldırma (tier_set → STANDART) ay vermez; eski kayıtlar önceki
+  // Üyelik kaldırma (eski; tier_set → STANDART) ay vermez; eski kayıtlar önceki
   // hibenin "months: 12"sini taşıyordu (arayüz testi son tur api-2) — gizlenir.
   if (action === "admin.company.tier_set" && metadata.tier === "STANDART" && "months" in metadata) {
     const { months: _months, ...rest } = metadata;

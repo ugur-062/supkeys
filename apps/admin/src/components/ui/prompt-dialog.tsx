@@ -20,7 +20,7 @@ interface PromptDialogProps {
   description?: string;
   /**
    * Alanın ÜSTÜNDE sarı uyarı kutusu — geri alınamaz/sonuçlu işlemin ne
-   * yapacağını onaydan önce söyler (ör. paket kaldırma: kalan süre silinir,
+   * yapacağını onaydan önce söyler (ör. askıya alma: firmanın işlemleri durur,
    * firmaya e-posta gider — arayüz testi O-046/D-191).
    */
   notice?: React.ReactNode;

@@ -87,8 +87,12 @@ describe("AdminDashboardPage — DashboardContent", () => {
     // "3" hem Açık Şikayet KPI'sında hem ülke dağılımında (TR=3) geçer.
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("İnceleme Bekleyen")).toBeInTheDocument();
-    // Tier breakdown alt yazısı
-    expect(screen.getByText(/1 gold · 0 silver · 3 standart/)).toBeInTheDocument();
+    // Toplam Firma alt yazısı doğrulama kırılımıdır (ücretsiz dönem: üyelik
+    // kademesi kırılımı API'den gelse de basılmaz).
+    expect(
+      screen.getByText("2 doğrulanmış · 1 doğrulanmamış · 1 reddedildi"),
+    ).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/gold|silver|standart|üyelik/i);
     // Kayıt hunisi (Faz 2) — 4 adım ve oran yüzdesi render olur.
     expect(screen.getByText("Kayıt Hunisi")).toBeInTheDocument();
     expect(screen.getByText("Kayıt tamamlandı")).toBeInTheDocument();
@@ -132,13 +136,14 @@ describe("AdminDashboardPage — DashboardContent", () => {
     ).toBeInTheDocument();
   });
 
-  it("süresi yaklaşan üyelikler gün rozeti ile listelenir", () => {
+  it("ücretsiz dönem: 'Süresi Yaklaşan Üyelikler' paneli yok (API alanı gelse de)", () => {
     const in10d = new Date(Date.now() + 10 * 86_400_000).toISOString();
     h.stats = {
       data: statsFixture({
         expiringMemberships: [
           { id: "e1", name: "Bitecek A.Ş.", rothernId: "SK-E1", membershipEndAt: in10d },
         ],
+        expiringMembershipsCount: 1,
       }),
       isLoading: false,
     };
@@ -146,18 +151,12 @@ describe("AdminDashboardPage — DashboardContent", () => {
     h.complaints = { data: { items: [], total: 0 }, isLoading: false };
     render(<AdminDashboardPage />);
 
-    expect(screen.getByText("Bitecek A.Ş.")).toBeInTheDocument();
-    expect(screen.getByText("10 gün")).toBeInTheDocument();
-    // "Tümünü Gör" süzülmüş listeye gider (arayüz testi D-146).
-    const panel = screen
-      .getByText("Süresi Yaklaşan Üyelikler")
-      .closest(".admin-card") as HTMLElement;
-    expect(
-      within(panel).getByRole("link", { name: "Tümünü Gör →" }).getAttribute("href"),
-    ).toBe("/admin/firmalar?expiring=30");
+    expect(screen.queryByText("Bitecek A.Ş.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Süresi Yaklaşan Üyelikler")).not.toBeInTheDocument();
+    expect(document.body.innerHTML).not.toContain("expiring=30");
   });
 
-  it("boş durum → 'Firma yok' + 'Açık şikayet yok' + üyelik boş mesajı", () => {
+  it("boş durum → 'Firma yok' + 'Açık şikayet yok'", () => {
     h.stats = { data: statsFixture({ countryBreakdown: [] }), isLoading: false };
     h.companies = { data: { items: [], total: 0 }, isLoading: false };
     h.complaints = { data: { items: [], total: 0 }, isLoading: false };
@@ -165,9 +164,6 @@ describe("AdminDashboardPage — DashboardContent", () => {
 
     expect(screen.getByText("Firma yok")).toBeInTheDocument();
     expect(screen.getByText("Açık şikayet yok")).toBeInTheDocument();
-    expect(
-      screen.getByText("30 gün içinde bitecek üyelik yok"),
-    ).toBeInTheDocument();
   });
 
   it("yükleniyor durumu → panellerde 'Yükleniyor…'", () => {
@@ -176,8 +172,8 @@ describe("AdminDashboardPage — DashboardContent", () => {
     h.complaints = { data: undefined, isLoading: true };
     render(<AdminDashboardPage />);
 
-    // 4 panel: üyelikler, ülke dağılımı, son firmalar, açık şikayetler.
-    expect(screen.getAllByText("Yükleniyor…")).toHaveLength(4);
+    // 3 panel: ülke dağılımı, son firmalar, açık şikayetler.
+    expect(screen.getAllByText("Yükleniyor…")).toHaveLength(3);
   });
 
   it("İnceleme Bekleyen kartı Başvurular kuyruğuna gider (queue=kyc evreni) — LU-11", () => {

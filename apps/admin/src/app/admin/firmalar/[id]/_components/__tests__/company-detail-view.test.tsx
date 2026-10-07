@@ -116,6 +116,27 @@ describe("CompanyDetailView — bulunamadı, pano, KVKK", () => {
     expect(screen.queryByText("Doğrulandı")).toBeNull();
   });
 
+  // Ücretsiz dönem (2026-10-07): üyelik sekmesi ve kademe rozeti yok; başlıkta
+  // doğrulama durumu gösterilir.
+  it("başlıkta doğrulama rozeti var; kademe rozeti ve Üyelik sekmesi yok (ham kademe GOLD olsa da)", () => {
+    h.detail.mockReturnValue({
+      data: company({ tier: "GOLD", membershipEndAt: "2027-01-01T00:00:00.000Z" }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<CompanyDetailView companyId="c1" initialTab="uyelik" />);
+    expect(screen.getByText("Doğrulandı")).toBeInTheDocument();
+    const tabs = screen
+      .getAllByRole("button")
+      .map((b) => b.textContent?.replace(/\d+$/, "") ?? "");
+    expect(tabs).toContain("Özet");
+    expect(tabs).toContain("Belgeler");
+    expect(tabs).not.toContain("Üyelik");
+    expect(document.body.textContent).not.toMatch(/gold|silver|standart|paket|üyelik/i);
+  });
+
   it("askıdaki normal firmada Askıyı Kaldır görünür", () => {
     h.detail.mockReturnValue({ data: company({ isBlocked: true }), isLoading: false, isError: false, error: null, refetch: vi.fn() });
     render(<CompanyDetailView companyId="c1" />);

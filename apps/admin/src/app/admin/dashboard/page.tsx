@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import {
@@ -18,7 +17,6 @@ import { safeFormat } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import {
   Building2,
-  CalendarClock,
   Clock,
   FilePlus2,
   Flag,
@@ -64,7 +62,7 @@ function DashboardContent() {
     <div className="max-w-[1400px] space-y-6">
       <PageHeader
         title="Genel Bakış"
-        description="Platform geneli — doğrulama, üyelik ve operasyon özeti."
+        description="Platform geneli — doğrulama ve operasyon özeti."
       />
 
       {/* Ana KPI'lar */}
@@ -76,7 +74,7 @@ function DashboardContent() {
           href={companyHref("/admin/firmalar")}
           sub={
             s
-              ? `${s.tierBreakdown.GOLD} gold · ${s.tierBreakdown.SILVER} silver · ${s.tierBreakdown.STANDART} standart`
+              ? `${s.verified} doğrulanmış · ${s.pendingKyc} doğrulanmamış · ${s.rejected} reddedildi`
               : undefined
           }
         />
@@ -148,51 +146,6 @@ function DashboardContent() {
       {/* items-start: kısa panel (ör. "açık şikayet yok") uzun panelin boyuna
           gerilip kocaman boşluk bırakmasın — her kart kendi boyunda dursun. */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        {/* Süresi yaklaşan üyelikler — yenileme satışı fırsatı */}
-        <Panel
-          title="Süresi Yaklaşan Üyelikler"
-          titleIcon={CalendarClock}
-          // Süzülmüş liste (aynı 30 gün tanımı) — süzgeçsiz firma listesine
-          // gidiyordu (arayüz testi D-146).
-          moreHref={companyHref("/admin/firmalar?expiring=30")}
-        >
-          {(s?.expiringMemberships ?? []).length === 0 ? (
-            <p className="text-admin-text-muted p-6 text-center text-sm">
-              {statsQ.isLoading
-                ? "Yükleniyor…"
-                : (s?.expiringMembershipsCount ?? 0) > 0
-                  ? `30 gün içinde bitecek ${s?.expiringMembershipsCount} üyelik var`
-                  : "30 gün içinde bitecek üyelik yok"}
-            </p>
-          ) : (
-            (s?.expiringMemberships ?? []).map((c) => {
-              const days = Math.ceil(
-                (new Date(c.membershipEndAt).getTime() - Date.now()) /
-                  86_400_000,
-              );
-              return (
-                <RowLink
-                  key={c.id}
-                  href={companyHref(`/admin/firmalar/${c.id}`)}
-                  className="flex items-center justify-between px-5 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-admin-text truncate font-semibold">
-                      {c.name}
-                    </p>
-                    <p className="text-admin-text-muted font-mono text-xs">
-                      {c.rothernId ?? "—"}
-                    </p>
-                  </div>
-                  <Badge color={days <= 7 ? "red" : "amber"}>
-                    {days} gün
-                  </Badge>
-                </RowLink>
-              );
-            })
-          )}
-        </Panel>
-
         {/* Ülke dağılımı */}
         <Panel
           title="Ülke Dağılımı"

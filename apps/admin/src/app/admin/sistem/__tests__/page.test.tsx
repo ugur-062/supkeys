@@ -81,7 +81,7 @@ beforeEach(() => {
 describe("Sistem — zamanlanmış işler (arayüz testi D-139)", () => {
   it("bilinen işler Türkçe ad ve zamanlamayla; ham enum/İngilizce metin yok; bilinmeyen iş API metniyle", () => {
     render(<AdminSistemPage />);
-    expect(screen.getByText("Süresi biten paket üyelikleri Standart'a düşür")).toBeInTheDocument();
+    expect(screen.getByText("Süresi dolan üyelik kayıtlarını kapat (eski)")).toBeInTheDocument();
     expect(screen.getByText("Eski profil/ürün görüntülenme kayıtlarını sil")).toBeInTheDocument();
     expect(screen.getByText("Her gece 04:20 (İstanbul)")).toBeInTheDocument();
     expect(screen.queryByText(/STANDARD/)).not.toBeInTheDocument();

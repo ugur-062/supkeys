@@ -46,9 +46,9 @@ const FIELDS: {
     key: "billingEmail",
     label: "Fatura e-postası",
     // Doluysa firma düzeyindeki TÜM e-postalar kullanıcılar yerine buraya
-    // gider (notifyCompanyEmail, pickCompanyRecipients, üyelik, sipariş) —
+    // gider (notifyCompanyEmail, pickCompanyRecipients, sipariş) —
     // yazım hatası firmanın e-posta akışını keser (derin denetim MU-02).
-    hint: "Doluysa firmaya giden tüm e-postalar (sipariş, doğrulama, üyelik, bildirim) kullanıcılar yerine bu adrese gider.",
+    hint: "Doluysa firmaya giden tüm e-postalar (sipariş, doğrulama, bildirim) kullanıcılar yerine bu adrese gider.",
     max: 200,
     type: "email",
   },

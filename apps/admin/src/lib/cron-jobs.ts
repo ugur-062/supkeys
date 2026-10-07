@@ -7,7 +7,7 @@
  */
 export const CRON_JOB_META: Record<string, { label: string; schedule: string }> = {
   "membership.downgradeExpired": {
-    label: "Süresi biten paket üyelikleri Standart'a düşür",
+    label: "Süresi dolan üyelik kayıtlarını kapat (eski)",
     schedule: "Her gün 03:00 + açılışta telafi",
   },
   "approvals.remind": {

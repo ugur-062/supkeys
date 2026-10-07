@@ -26,16 +26,9 @@ vi.mock("@/hooks/use-admin-support", () => ({
   useAddNote: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteNote: () => ({ mutate: vi.fn(), isPending: false }),
 }));
-vi.mock("@/hooks/use-admin-companies", () => ({
-  useSetCompanyTier: () => ({ mutate: vi.fn(), isPending: false }),
-  useExtendMembership: () => ({ mutate: vi.fn(), isPending: false }),
-  useMembershipHistory: () => h.failed,
-}));
 
 import { ConnectionsTab } from "../connections-tab";
 import { NotesTab } from "../notes-tab";
-import { MembershipTab } from "../membership-tab";
-import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -61,17 +54,6 @@ describe("firma detayı sekmeleri — hata ≠ boş", () => {
     expect(screen.getByText(/Notlar alınamadı/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
     expect(h.refetch).toHaveBeenCalled();
-  });
-
-  it("Üyelik geçmişi: 'Üyelik hareketi yok' yerine hata + Tekrar dene", () => {
-    render(
-      <MembershipTab
-        companyId="c1"
-        data={{ id: "c1", tier: "STANDART", membershipEndAt: null } as AdminCompanyDetail}
-      />,
-    );
-    expect(screen.queryByText("Üyelik hareketi yok")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
   });
 
   it("veri gelince boş metni yine gösterilir (gerileme yok)", () => {

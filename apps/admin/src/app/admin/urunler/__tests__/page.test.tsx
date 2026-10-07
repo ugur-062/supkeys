@@ -174,8 +174,9 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     alert.mockRestore();
   });
 
-  // Arayüz testi D-157 + D-174: göreli kapak vitrin kökeninde; efektif kademe gösterilir.
-  it("göreli kapak yolu vitrin kökenine bağlanır; süresi geçmiş paket efektif kademeyle yazılır", () => {
+  // Arayüz testi D-157: göreli kapak vitrin kökeninde. Ücretsiz dönem: firma
+  // satırında üyelik kademesi değil doğrulama durumu yazar.
+  it("göreli kapak yolu vitrin kökenine bağlanır; firma satırında doğrulama durumu yazar, üyelik adı yazmaz", () => {
     h.products = {
       data: {
         items: [
@@ -194,6 +195,7 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     const { container } = render(<AdminUrunlerPage />);
     const img = container.querySelector("img");
     expect(img?.getAttribute("src")).toMatch(/^https?:\/\/[^/]+\/categories\/elektrik\.webp$/);
-    expect(screen.getByText(/Standart \(Silver süresi doldu 1 Eki 2026\)/)).toBeInTheDocument();
+    expect(screen.getByText(/İzmir · Doğrulandı/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/standart|silver|gold|süresi doldu/i);
   });
 });
