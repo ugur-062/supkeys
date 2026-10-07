@@ -2,7 +2,7 @@ import { RothernLogo } from "@/components/brand/logo";
 import { LanguageSwitcher } from "@/components/marketing/language-switcher";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { useLocale, useTranslations } from "next-intl";
-import { categoriesHref, pricingHref } from "@/lib/public/anchors";
+import { categoriesHref } from "@/lib/public/anchors";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Link } from "@/i18n/navigation";
 import { SessionSwap } from "./member-cta";
@@ -40,7 +40,6 @@ export function MarketplaceFooter() {
       links: [
         { label: tn("howItWorks"), href: "/nasil-calisir" },
         { label: t("faq"), href: "/sss" },
-        { label: tn("pricing"), href: pricingHref(locale) },
         { label: t("about"), href: "/hakkimizda" },
         { label: t("contact"), href: "/iletisim" },
       ],

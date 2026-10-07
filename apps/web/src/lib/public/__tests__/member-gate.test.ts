@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  GOLD_HREF,
   VERIFY_HREF,
   buyingGate,
   connectGate,
@@ -43,7 +42,8 @@ describe("buyingGate", () => {
 
   it("kapalı kapının hedefi", () => {
     expect(gateHref("verify")).toBe(VERIFY_HREF);
-    expect(gateHref("upgrade")).toBe(GOLD_HREF);
+    // Ücretsiz dönem: iki kapalı dal da doğrulama sayfasına gider.
+    expect(gateHref("upgrade")).toBe(VERIFY_HREF);
     expect(gateHref("ok")).toBeNull();
   });
 });

@@ -419,7 +419,7 @@ export function ListingDetail({
                       </AccentLink>
                       <p className="mt-2 text-center text-xs text-zinc-500">{t("twoMinutes")}</p>
                       {/* Ücretsiz kayıt teklif SÖZÜ vermez: tanımadan teklif Silver. */}
-                      <p className="mt-2 text-center text-xs/5 text-zinc-500">{t("silverNote")}</p>
+                      <p className="mt-2 text-center text-xs/5 text-zinc-500">{t("verifyNote")}</p>
                       <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
                         {[t("perk1"), t("perk2"), t("perk3")].map((perk) => (
                           <li key={perk} className="flex gap-2">

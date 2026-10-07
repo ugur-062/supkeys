@@ -4,7 +4,7 @@ import { useNavLabel, useRoleLabel } from "@/i18n/domain";
 import { useTranslations } from "next-intl";
 import { userHasPermission } from "@/lib/company/permissions";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
-import { PremiumGate } from "@/components/company-shell/premium-gate";
+import { VerificationButton, VerificationGate, useVerificationGateCopy } from "@/components/company/verification-gate";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
@@ -16,7 +16,6 @@ import {
   type PortalKey,
 } from "@/lib/company/portals";
 import { Lock } from "lucide-react";
-import { useUpgradeHref, useVerifyFirst } from "@/components/company/silver-lock-card";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useEffect } from "react";
 
@@ -24,12 +23,13 @@ import { useEffect } from "react";
 /**
  * Portal erişim kapısı:
  * - Rolü uygunsa → içerik.
- * - Satınalma'ya rolü uygun ama STANDARD → Premium kapısı (PremiumGate).
+ * - Satınalma'ya rolü uygun ama efektif kademe yetmiyor (ücretsiz dönemde:
+ *   firma doğrulanmamış) → doğrulama kapısı (`VerificationGate`).
  * - Rolü uygun DEĞİLSE → "erişim yetkiniz yok" ekranı (sessiz yönlendirme YOK).
- * - Gold altındaki firma (paket düştü/bitti) Taleplerim ve Siparişlerim
- *   listelerini paket bandıyla AÇAR — mevcut işini bitirir, yeni iş kilitli
- *   (2026-10-01 kararı T-06, arayüz testi O-008). Paket kapısı ekranı da bu
- *   iki listeye bağlantı verir.
+ * - Satınalma erişimi olmayan firma Taleplerim ve Siparişlerim listelerini
+ *   doğrulama bandıyla AÇAR — mevcut işini bitirir, yeni iş kilitli
+ *   (2026-10-01 kararı T-06, arayüz testi O-008). Kapı ekranı da bu iki
+ *   listeye bağlantı verir.
  * - Eski yönlendirici adresler (`/satinalma/mesajlar`) kapısız geçer (D-264).
  */
 export function PortalGuard({
@@ -46,7 +46,7 @@ export function PortalGuard({
 
   const available = user ? accessiblePortals(user, company?.tier) : [];
   const allowed = available.includes(portal);
-  // Satınalma görüntüleme izni var ama kademe < GOLD (satınalma paneli) → paket kapısı.
+  // Satınalma görüntüleme izni var ama efektif kademe satınalma eşiğinin altında → doğrulama kapısı.
   const hasPurchasingRole = userHasPermission(user, "buy:view");
   const premiumLocked =
     portal === "satinalma" &&
@@ -75,7 +75,7 @@ export function PortalGuard({
     return (
       <div className="space-y-4">
         <BuyingWindDownLinks />
-        <PremiumGate requiredTier="GOLD" />
+        <VerificationGate title={t("windDownBaslik")} />
       </div>
     );
   }
@@ -88,15 +88,12 @@ export function PortalGuard({
 }
 
 /**
- * Gold altındaki firmada açık kalan satınalma listelerinin bandı: neden yeni
- * iş yapamadığını ÖNCEDEN söyler, paket ekranına götürür (T-06).
+ * Satınalma erişimi olmayan firmada açık kalan satınalma listelerinin bandı:
+ * neden yeni iş yapamadığını ÖNCEDEN söyler, doğrulama akışına götürür (T-06).
  */
 function BuyingWindDownBanner() {
   const t = useTranslations("web.panel.shell.portalGuard");
-  const tl = useTranslations("web.panel.trade.silverLockCard");
-  // Paket alımı doğrulama ister — tek kural useVerifyFirst (webC-2).
-  const verifyFirst = useVerifyFirst();
-  const href = useUpgradeHref();
+  const copy = useVerificationGateCopy();
   // Telefonda düğme metnin ALTINA iner (arayüz testi webC-2: düğme yanda
   // kalınca başlık ve açıklama kartın ~%45'lik sütununa sıkışıyordu);
   // sm ve üstünde yan yana.
@@ -109,20 +106,21 @@ function BuyingWindDownBanner() {
         <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{t("windDownBaslik")}</p>
-          <p className="mt-0.5 text-amber-800">{t("windDownAciklama")}</p>
+          <p className="mt-0.5 text-amber-800">
+            {t("windDownAciklama")}
+            {/* İnceleme/ret durumunda ne beklendiği de yazılır. */}
+            {copy.key === "unverified" ? null : ` ${copy.short}`}
+          </p>
         </div>
       </div>
-      <Link
-        href={href}
-        className="ml-7 shrink-0 self-start rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 sm:ml-0 sm:self-center"
-      >
-        {verifyFirst ? tl("onceUcretsizDogrulan") : t("paketleriGor")}
-      </Link>
+      <div className="ml-7 shrink-0 self-start sm:ml-0 sm:self-center">
+        <VerificationButton />
+      </div>
     </div>
   );
 }
 
-/** Paket kapısı ekranının üstünde: mevcut işlere giden iki liste (T-06). */
+/** Doğrulama kapısı ekranının üstünde: mevcut işlere giden iki liste (T-06). */
 function BuyingWindDownLinks() {
   const t = useTranslations("web.panel.shell.portalGuard");
   const tn = useNavLabel();

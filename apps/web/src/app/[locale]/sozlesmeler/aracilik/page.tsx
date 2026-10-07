@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/aracilik"
       title="Platform Aracılık ve Kullanım Sözleşmesi"
-      updatedAt="2026-09-22"
+      updatedAt="2026-10-07"
       sections={[
         {
           heading: "1. Konu ve Platformun Rolü",
@@ -77,7 +77,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
         {
           heading: "7. Ücretlendirme",
           paragraphs: [
-            "Platformun temel kullanım ve üyelik paketleri (paket kapsamları, süreleri ve ücretleri) Platform üzerinde ilan edilir. Ücretli pakete geçiş, ilgili paketin satın alınmasıyla yürürlüğe girer. Platform, paket kapsam ve ücretlerinde değişiklik yapma hakkını saklı tutar; değişiklikler mevcut ödenmiş dönemi etkilemez.",
+            "Platform'un kullanımı şu anda ücretsizdir. Ücretli hizmetler ileride sunulabilir; bu durumda kapsamları, süreleri ve ücretleri önceden duyurularak Platform üzerinde ilan edilir ve ücretli hizmet, satın alınmasıyla yürürlüğe girer. Platform, hizmet kapsam ve ücretlerinde değişiklik yapma hakkını saklı tutar; değişiklikler mevcut ödenmiş dönemi etkilemez.",
             "Platform, alıcı ile satıcı arasındaki mal/hizmet bedeli üzerinden taraflar arası ödemeye aracılık etmez; mal/hizmet bedelinin ödenmesi tarafların kendi aralarında gerçekleşir.",
           ],
         },

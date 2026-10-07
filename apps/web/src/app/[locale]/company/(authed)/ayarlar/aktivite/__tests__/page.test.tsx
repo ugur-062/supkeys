@@ -19,7 +19,7 @@ vi.mock("@/hooks/use-activity-log", () => ({
   }),
 }));
 vi.mock("@/components/company-shell/premium-only", () => ({
-  PremiumOnly: ({ children }: { children: ReactNode }) => <>{children}</>,
+  VerifiedOnly: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 vi.mock("../../_components/settings-shell", () => ({
   SettingsShell: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -43,8 +43,8 @@ beforeEach(() => {
   useCompanyAuthStore.setState({ company: { country: "TR", tier: "SILVER" } } as never);
 });
 
-describe("AktivitePage — paket kilidi (arayüz testi O-044)", () => {
-  it("STANDART firmada log isteği atılmaz (kilit kartı yeter, 403/toast yok); Silver'da atılır", () => {
+describe("AktivitePage — erişim kilidi (arayüz testi O-044)", () => {
+  it("efektif kademesi yetmeyen (doğrulanmamış) firmada log isteği atılmaz (kapı yeter, 403/toast yok); yetende atılır", () => {
     useCompanyAuthStore.setState({ company: { country: "TR", tier: "STANDART" } } as never);
     const { unmount } = render(<AktivitePage />);
     expect(h.enabled).toBe(false);

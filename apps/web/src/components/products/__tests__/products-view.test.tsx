@@ -337,7 +337,7 @@ describe("ProductsView", () => {
     // Excel şablonu görselsiz ürün üretiyordu, katalog çıkarımı çalışmıyordu.
     expect(screen.queryByRole("button", { name: /Toplu ekle/ })).toBeNull();
   });
-  it("ücretsiz paket: sekme düz sayı gösterir (D-196), tavan notundaki bağlantı panel içi paketlere gider (O-040)", async () => {
+  it("doğrulanmamış firma: sekme düz sayı gösterir (D-196), tavan notundaki bağlantı doğrulama akışına gider (O-040; ücretsiz dönem)", async () => {
     h.get.mockImplementation((url: string) => {
       if (url.includes("/categories/by-ids")) return Promise.resolve({ data: [] });
       return Promise.resolve({
@@ -350,8 +350,11 @@ describe("ProductsView", () => {
     expect(within(tabs).getByRole("tab", { name: /Yayında\s*0$/ })).toBeInTheDocument();
     expect(screen.queryByText("0/50")).toBeNull();
     expect(screen.getByText(/50\/50 kullanıldı/)).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: /Silver/ });
-    expect(link).toHaveAttribute("href", "/company/premium");
+    const note = screen.getByText(/50\/50 kullanıldı/);
+    expect(note).toHaveTextContent(/Doğrulanmamış firmada en fazla 50 ürün/);
+    expect(note).not.toHaveTextContent(/Silver|Gold|paket/i);
+    const link = screen.getByRole("link", { name: /Firma doğrulamasıyla sınırsız ürün/ });
+    expect(link).toHaveAttribute("href", "/company/ayarlar/dogrulama");
   });
 
   it("salt-okur kullanıcıya ?yeni=1 form AÇMAZ, liste görünür (O-099)", async () => {

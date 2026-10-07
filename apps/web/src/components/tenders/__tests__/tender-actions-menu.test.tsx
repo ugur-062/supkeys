@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 /**
  * Talep sahibinin eylem çubuğu + ⋮ menüsü (arayüz testi webB-04):
- *  - O-058 / T-06: Gold'u düşen firmada yeni iş eylemleri (davet, AI keşfi,
- *    kopyalama, düzenleme, pazarlık/yeni tur) yok; kilit notu doğru CTA'yı
- *    verir (doğrulanmamış → doğrulama, değilse Gold). Sonuçlandırma açık.
+ *  - O-058 / T-06: tam yetkisi olmayan (doğrulanmamış) firmada yeni iş
+ *    eylemleri (davet, AI keşfi, kopyalama, düzenleme, pazarlık/yeni tur) yok;
+ *    kilit notu doğrulama gerektiğini söyler ve CTA doğrulama durumunu izler
+ *    (başvur / durumu gör / yeniden başvur — hep doğrulama sayfası; ücretsiz
+ *    dönem 2026-10-07, paket adı yok). Görüntüleme/kapatma/iptal açık.
  *  - O-025: menüden "Yeni Tur Oluştur" RFQ talepte RFQ ile başlar; taşıma notu
  *    tipe göre (süresiz geçerlilik yalnız pazarlıkta).
  *  - D-249: vazgeçilen önceki denemenin seçimi yeni açılışa taşınmaz.
@@ -11,7 +13,7 @@
  */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mutation } = vi.hoisted(() => ({
   mutation: () => ({ mutateAsync: () => Promise.resolve(), isPending: false }),
@@ -59,7 +61,17 @@ vi.mock("@/components/catalyst/dropdown", () => ({
     ),
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { TenderActionsMenu } from "../tender-actions-menu";
+
+/** Kilit notunun bağlantısı doğrulama durumunu `/me` deposundan okur. */
+function setVerification(companyVerificationStatus: string) {
+  useCompanyAuthStore.setState({ company: { companyVerificationStatus } as never } as never);
+}
+afterEach(() => useCompanyAuthStore.setState({ company: null } as never));
+
+const VERIFY = "/company/ayarlar/dogrulama";
+const LOCK_NOTE = /Firmanız henüz doğrulanmadı.*firma doğrulaması gerektirir/;
 
 const base = {
   id: "l1",
@@ -68,8 +80,9 @@ const base = {
   internalNotes: null,
 };
 
-describe("TenderActionsMenu — paket kilidi (T-06)", () => {
-  it("Gold değilse yeni iş eylemleri yok, sonuçlandırma açık; CTA Gold'a", () => {
+describe("TenderActionsMenu — doğrulama kilidi (T-06)", () => {
+  it("yetkisiz firmada (inceleme sürüyor) yeni iş eylemleri yok, kapatma/iptal açık; CTA doğrulama durumuna", () => {
+    setVerification("PENDING");
     render(<TenderActionsMenu {...base} status="OPEN" canEdit buyLock="upgrade" />);
     for (const label of [
       "Tedarikçi Davet Et",
@@ -84,11 +97,12 @@ describe("TenderActionsMenu — paket kilidi (T-06)", () => {
     expect(screen.getByText("Satın Alma Talebini İptal Et")).toBeInTheDocument();
     expect(screen.getByText("Kapanış Zamanını Değiştir")).toBeInTheDocument();
     const note = screen.getByRole("note");
-    expect(note).toHaveTextContent(/Gold paket gerektirir/);
-    expect(within(note).getByRole("link")).toHaveAttribute("href", "/company/premium");
+    expect(note).toHaveTextContent(LOCK_NOTE);
+    expect(note).not.toHaveTextContent(/Silver|Gold|Platinum|paket/i);
+    expect(within(note).getByRole("link", { name: "Doğrulama durumunu gör" })).toHaveAttribute("href", VERIFY);
   });
 
-  it("Gold değilse kapanış diyaloğu 'ileri alabilirsiniz' demez; yalnız öne çekme notu (api1-01 yeniden doğrulama)", async () => {
+  it("kilitli firmada kapanış diyaloğu 'ileri alabilirsiniz' demez; yalnız öne çekme notu (api1-01 yeniden doğrulama)", async () => {
     render(<TenderActionsMenu {...base} status="OPEN" buyLock="upgrade" />);
     fireEvent.click(screen.getByRole("button", { name: "Kapanış Zamanını Değiştir" }));
     const dialog = await screen.findByRole("dialog");
@@ -97,7 +111,7 @@ describe("TenderActionsMenu — paket kilidi (T-06)", () => {
     expect(dialog).toHaveTextContent(/yalnız öne çekebilirsiniz/);
   });
 
-  it("Gold'da kapanış diyaloğu ileri/öne çekmeye izin verdiğini söyler", async () => {
+  it("tam yetkili firmada kapanış diyaloğu ileri/öne çekmeye izin verdiğini söyler", async () => {
     render(<TenderActionsMenu {...base} status="OPEN" />);
     fireEvent.click(screen.getByRole("button", { name: "Kapanış Zamanını Değiştir" }));
     const dialog = await screen.findByRole("dialog");
@@ -105,15 +119,25 @@ describe("TenderActionsMenu — paket kilidi (T-06)", () => {
     expect(dialog).not.toHaveTextContent(/yalnız öne çekebilirsiniz/);
   });
 
-  it("doğrulanmamış firmada CTA önce doğrulama", () => {
-    render(<TenderActionsMenu {...base} status="OPEN" buyLock="verify" />);
-    const link = within(screen.getByRole("note")).getByRole("link", { name: "Önce ücretsiz doğrulan" });
-    expect(link).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+  it("doğrulanmamış firmada CTA doğrulama başvurusu; reddedilmişte yeniden başvuru", () => {
+    setVerification("UNVERIFIED");
+    const first = render(<TenderActionsMenu {...base} status="OPEN" buyLock="verify" />);
+    const link = within(screen.getByRole("note")).getByRole("link", { name: "Firmanızı doğrulayın" });
+    expect(link).toHaveAttribute("href", VERIFY);
     // Doğrulanmamış firmada kazandırma da kapalı (API assertVerified):
     // not "kazandırma açık kalır" demez, doğrulama gerektiğini söyler.
     const note = screen.getByRole("note");
-    expect(note).toHaveTextContent(/kazandırma ise firma doğrulaması gerektirir/);
+    expect(note).toHaveTextContent(/kazandırmak firma doğrulaması gerektirir/);
+    expect(note).toHaveTextContent(/Görüntüleme, değerlendirme, kapatma ve iptal açık kalır/);
     expect(note).not.toHaveTextContent(/kazandırma, kapatma/);
+    first.unmount();
+
+    setVerification("REJECTED");
+    render(<TenderActionsMenu {...base} status="OPEN" buyLock="verify" />);
+    expect(within(screen.getByRole("note")).getByRole("link", { name: "Yeniden başvurun" })).toHaveAttribute(
+      "href",
+      VERIFY,
+    );
   });
 
   it.each(["AWARDED", "CANCELLED"])(
@@ -128,11 +152,11 @@ describe("TenderActionsMenu — paket kilidi (T-06)", () => {
     "%s talepte kilit notu çıkar",
     (status) => {
       render(<TenderActionsMenu {...base} status={status} buyLock="upgrade" />);
-      expect(screen.getByRole("note")).toHaveTextContent(/Gold paket gerektirir/);
+      expect(screen.getByRole("note")).toHaveTextContent(LOCK_NOTE);
     },
   );
 
-  it("Gold'da eylemler açık, kilit notu yok", () => {
+  it("tam yetkili firmada eylemler açık, kilit notu yok", () => {
     render(<TenderActionsMenu {...base} status="OPEN" canEdit />);
     expect(screen.getByText("Tedarikçi Davet Et")).toBeInTheDocument();
     expect(screen.getByText("Satın Alma Talebini Kopyala")).toBeInTheDocument();

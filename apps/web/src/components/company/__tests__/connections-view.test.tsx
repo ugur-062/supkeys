@@ -165,34 +165,40 @@ describe("ConnectionsView", () => {
     expect(screen.getByRole("button", { name: /Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("STANDART: Davet et KİLİTLİ düğme (Paketler'e), boş durum e-posta daveti önermez (O-097); izinsiz: hiç yok", () => {
+  it("doğrulanmamış firma: Davet et KİLİTLİ düğme (doğrulamaya), boş durum e-posta daveti önermez (O-097); izinsiz: hiç yok", () => {
     h.tier = "STANDART";
     h.connections = [];
-    const { unmount } = render(<ConnectionsView />);
+    const { unmount, container } = render(<ConnectionsView />);
     expect(screen.queryByRole("button", { name: /Davet et/ })).toBeNull();
-    expect(screen.getByRole("link", { name: /Silver ile davet et/ })).toHaveAttribute("href", "/company/premium");
+    expect(screen.getByRole("link", { name: /Davet için firma doğrulaması gerekir/ })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
     expect(screen.queryByText(/e-posta ile davet edin/)).toBeNull();
-    expect(screen.getByText(/Silver paketle açılır/)).toBeInTheDocument();
+    expect(screen.getByText(/e-postayla davet etmek firma doğrulamasıyla açılır/)).toBeInTheDocument();
+    // Ücretsiz dönem: paket adı ve paket sayfası hiçbir yerde yok.
+    expect(container.textContent).not.toMatch(/Silver|Gold|Platinum|paket/i);
+    expect(container.querySelector('a[href*="/company/premium"]')).toBeNull();
     unmount();
     h.perm = false;
     h.connections = [{ connectionId: "k1", origin: "INVITE", company: co(1), decidedAt: null }];
     render(<ConnectionsView />);
-    expect(screen.queryByRole("link", { name: /Silver ile davet et/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Davet için firma doğrulaması gerekir/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Daha fazla" })).toBeNull();
     expect(screen.getAllByText("Firma 1").length).toBeGreaterThan(0);
   });
 
-  it("STANDART + reddedilmiş doğrulama: kilitli davet önce doğrulamaya gider (webC-2, D-194 kuralı)", () => {
+  it("reddedilmiş doğrulama: kilitli davet yine doğrulamaya gider (webC-2, D-194 kuralı)", () => {
     h.tier = "STANDART";
     h.connections = [];
     useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
     try {
-      render(<ConnectionsView />);
-      expect(screen.queryByRole("link", { name: /Silver ile davet et/ })).toBeNull();
-      expect(screen.getByRole("link", { name: /Davet için önce doğrulanın/ })).toHaveAttribute(
+      const { container } = render(<ConnectionsView />);
+      expect(screen.getByRole("link", { name: /Davet için firma doğrulaması gerekir/ })).toHaveAttribute(
         "href",
         "/company/ayarlar/dogrulama",
       );
+      expect(container.querySelector('a[href*="/company/premium"]')).toBeNull();
     } finally {
       useCompanyAuthStore.setState({ company: null } as never);
     }

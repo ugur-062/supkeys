@@ -128,7 +128,7 @@ export function ProductActionBar({
           düğmesi — ray mobilde sayfanın en altında, eksikler yakında görünmüyordu. */}
       {publishLocked || blockedNotice ? (
         <div className="mt-2 space-y-1 text-xs text-amber-800" data-testid="product-action-bar-notes">
-          {publishLocked ? <p>{t("ucretsizPaketteYayindaOnaydaUrun")}</p> : null}
+          {publishLocked ? <p>{t("yayindaOnaydaUrunTavaniDoldu")}</p> : null}
           {blockedNotice ? (
             <p>
               <span className="sm:hidden">{t("yayindakiUrunEksikKisa")}</span>

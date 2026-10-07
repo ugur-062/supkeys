@@ -186,7 +186,7 @@ describe("ApprovalFlowsSection — yeni onaycı seçici varsayılanı (arayüz t
   });
 });
 
-describe("ApprovalFlowsSection — Gold kapısı (derin denetim LU-21)", () => {
+describe("ApprovalFlowsSection — erişim (doğrulama) kapısı (derin denetim LU-21; ücretsiz dönem)", () => {
   const flow = {
     id: "f1",
     name: "Büyük alımlar",
@@ -198,29 +198,30 @@ describe("ApprovalFlowsSection — Gold kapısı (derin denetim LU-21)", () => {
     createdAt: "2026-09-01T00:00:00.000Z",
   };
 
-  it("Gold altı: yeni akış / kopyala yok, paket notu var; düzenle ve sil kalır; openNew sihirbazı açmaz", () => {
+  it("erişim yetmiyor: yeni akış / kopyala yok, doğrulama notu var (paket adı yok); düzenle ve sil kalır; openNew sihirbazı açmaz", () => {
     h.tier = "SILVER";
     h.flows = [flow];
     render(<ApprovalFlowsSection canManage openNew />);
     expect(screen.queryByRole("button", { name: /Yeni Onay Akışı/i })).toBeNull();
     expect(screen.queryByRole("button", { name: "Kopyala" })).toBeNull();
-    expect(screen.getByText(/Gold paketle gelir/)).toBeInTheDocument();
+    const note = screen.getByText(/akış kopyalamak firma doğrulaması gerektirir/);
+    expect(note).not.toHaveTextContent(/Gold|Silver|paket/i);
     expect(screen.getByRole("button", { name: /Düzenle/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Devam: Onay Adımları/ })).toBeNull();
   });
 
-  it("Gold altı boş liste: 'İlk akışı oluştur' yok", () => {
+  it("erişim yetmiyor, boş liste: 'İlk akışı oluştur' yok", () => {
     h.tier = "STANDART";
     render(<ApprovalFlowsSection canManage />);
     expect(screen.queryByRole("button", { name: /İlk/i })).toBeNull();
-    expect(screen.getByText(/Gold paketle gelir/)).toBeInTheDocument();
+    expect(screen.getByText(/firma doğrulaması gerektirir/)).toBeInTheDocument();
   });
 
-  it("Gold: yeni akış ve kopyala görünür", () => {
+  it("tam erişim: yeni akış ve kopyala görünür", () => {
     h.flows = [flow];
     render(<ApprovalFlowsSection canManage />);
     expect(screen.getByRole("button", { name: /Yeni Onay Akışı/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Kopyala" })).toBeInTheDocument();
-    expect(screen.queryByText(/Gold paketle gelir/)).toBeNull();
+    expect(screen.queryByText(/firma doğrulaması gerektirir/)).toBeNull();
   });
 });

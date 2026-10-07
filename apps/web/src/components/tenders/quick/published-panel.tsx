@@ -62,7 +62,7 @@ export function PublishedPanel({
           type="button"
           onClick={() => setDiscoveryOpen(true)}
           disabled={!aiAvailable}
-          title={aiAvailable ? undefined : t("tedarikciOnerisiGoldPakette")}
+          title={aiAvailable ? undefined : t("tedarikciOnerisiDogrulama")}
           className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 hover:bg-blue-100 disabled:opacity-50"
         >
           <SparklesIcon aria-hidden className="size-4" />

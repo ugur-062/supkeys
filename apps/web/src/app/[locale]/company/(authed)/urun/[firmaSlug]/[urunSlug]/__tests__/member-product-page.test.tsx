@@ -38,7 +38,15 @@ vi.mock("@/components/marketplace/product-detail", () => ({
   ProductDetailBody: ({ cta }: { cta: ReactNode }) => <div data-testid="body">{cta}</div>,
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import MemberProductPage from "../page";
+
+const VERIFY = "/company/ayarlar/dogrulama";
+
+/** Uyarı kutusunun aşaması (doğrula / incelemede / yeniden başvur) `/me` deposundan okunur. */
+function setStoreCompany(company: typeof h.company) {
+  useCompanyAuthStore.setState({ company, isHydrated: true } as never);
+}
 
 const perms = (...p: string[]) => ({ id: "u", permissions: p, roles: [] });
 
@@ -47,36 +55,67 @@ beforeEach(() => {
   h.company = null;
   h.replace.mockClear();
   h.fetchedFor = "";
+  setStoreCompany(null);
 });
 
 /**
  * Arayüz testi Y-03 (kullanıcı kararı T-02): herkese açık sayfanın giriş/kayıt
- * dönüşü ve panel kartları bu adrese gelir — Gold olmayan üye Gold DUVARINA
- * değil ürüne + Gold uyarısına düşer.
+ * dönüşü ve panel kartları bu adrese gelir — tam yetkisi olmayan (doğrulanmamış)
+ * üye yetki DUVARINA değil ürüne + doğrulama uyarısına düşer. Ücretsiz dönem
+ * (2026-10-07): uyarı paket adı söylemez, tek eylem doğrulama akışıdır.
  */
 describe("Üyenin ürün sayfası", () => {
-  it("Gold ∧ satınalma görüntüleme → satınalma ürün sayfasına geçer", () => {
+  it("tam yetkili (doğrulanmış) ∧ satınalma görüntüleme → satınalma ürün sayfasına geçer", () => {
     h.user = perms("buy:view", "buy:inquiry:send");
     h.company = { tier: "GOLD", companyVerificationStatus: "VERIFIED", slug: "me" };
     render(<MemberProductPage />);
     expect(h.replace).toHaveBeenCalledWith("/company/satinalma/urunler/abc/urun-x");
   });
 
-  it("ücretsiz Kurucu (doğrulanmamış): ürün panelde + önce ücretsiz doğrulama uyarısı, yönlendirme YOK", () => {
+  it("doğrulanmamış Kurucu: ürün panelde + ücretsiz doğrulama uyarısı, yönlendirme YOK", () => {
     h.user = perms("buy:view", "sell:view");
     h.company = { tier: "STANDART", companyVerificationStatus: "UNVERIFIED", slug: "me" };
+    setStoreCompany(h.company);
     render(<MemberProductPage />);
     expect(h.replace).not.toHaveBeenCalled();
     expect(screen.getByTestId("body")).toBeInTheDocument();
-    expect(screen.getByText("Bilgi talebi Gold paketiyle gönderilir")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toBeInTheDocument();
+    const note = screen.getByRole("note");
+    expect(note).toHaveTextContent("Bilgi talebi göndermek için firma doğrulaması gerekir");
+    expect(note).toHaveTextContent("Doğrulama ücretsizdir; onaylandığında tüm özellikler açılır.");
+    expect(screen.getByRole("link", { name: "Firmanızı ücretsiz doğrulayın" })).toHaveAttribute("href", VERIFY);
+    // Paket adı ve paket sayfası yok.
+    expect(note).not.toHaveTextContent(/Silver|Gold|Platinum|paket/i);
+    expect(document.querySelector('a[href*="/company/premium"]')).toBeNull();
   });
 
-  it("Silver (doğrulanmış): Gold'a geç", () => {
+  it("doğrulaması incelemede: yeniden başvuru istenmez, durum bağlantısı", () => {
     h.user = perms("buy:view");
-    h.company = { tier: "SILVER", companyVerificationStatus: "VERIFIED", slug: "me" };
+    h.company = { tier: "STANDART", companyVerificationStatus: "PENDING", slug: "me" };
+    setStoreCompany(h.company);
     render(<MemberProductPage />);
-    expect(screen.getByRole("link", { name: "Gold paketine geç" })).toHaveAttribute("href", "/company/premium");
+    expect(h.replace).not.toHaveBeenCalled();
+    expect(screen.getByRole("note")).toHaveTextContent(/Doğrulamanız inceleniyor/);
+    expect(screen.getByRole("link", { name: "Doğrulama durumunu görün" })).toHaveAttribute("href", VERIFY);
+    expect(screen.queryByRole("link", { name: "Firmanızı ücretsiz doğrulayın" })).toBeNull();
+    expect(document.querySelector('a[href*="/company/premium"]')).toBeNull();
+  });
+
+  it("doğrulaması reddedilmiş: yeniden başvuru", () => {
+    h.user = perms("buy:view");
+    h.company = { tier: "STANDART", companyVerificationStatus: "REJECTED", slug: "me" };
+    setStoreCompany(h.company);
+    render(<MemberProductPage />);
+    expect(screen.getByRole("note")).toHaveTextContent(/başvurunuz onaylanmadı/);
+    expect(screen.getByRole("link", { name: "Yeniden başvurun" })).toHaveAttribute("href", VERIFY);
+  });
+
+  it("tam yetkili firma ama bilgi talebi izni yok: doğrulama uyarısı değil yetki notu (önce yetki, sonra izin)", () => {
+    h.user = perms("sell:view");
+    h.company = { tier: "GOLD", companyVerificationStatus: "VERIFIED", slug: "me" };
+    setStoreCompany(h.company);
+    render(<MemberProductPage />);
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(document.querySelector(`a[href="${VERIFY}"]`)).toBeNull();
   });
 
   it("satınalma görüntüleme yetkisi yok: panel ucu çağrılmaz, yetki notu + herkese açık sayfa", () => {

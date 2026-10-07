@@ -49,7 +49,8 @@ vi.mock("@/hooks/use-company-auth", () => ({
 }));
 vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) =>
-    sel({ user: { id: "u1" }, company: h.company }),
+    // Kurucu: doğrulama kapısı başvuru bağlantısını `company:manage` ile çizer.
+    sel({ user: { id: "u1", isOwner: true, roles: ["SAHIP"] }, company: h.company }),
 }));
 vi.mock("@/hooks/use-company-approvals", () => ({
   useCancelApproval: () => ({ mutateAsync: h.cancelApproval, isPending: false }),
@@ -140,13 +141,15 @@ describe("Talep detayı (sahip) — Yayınla / Onayı iptal et (S059)", () => {
     expect(visibleButtons("Onayı İptal Et")).toHaveLength(1);
   });
 
-  it("Gold olmayan firmada taslakta Yayınla yok; paket notu Gold'a yönlendirir (T-06)", () => {
-    h.company = { id: "c1", country: "TR", tier: "SILVER", companyVerificationStatus: "VERIFIED" };
+  it("doğrulanmamış firmada taslakta Yayınla yok; kilit notu doğrulamaya yönlendirir, paket adı yok (T-06; ücretsiz dönem)", () => {
+    h.company = { id: "c1", country: "TR", tier: "STANDART", companyVerificationStatus: "UNVERIFIED" };
     h.detail = detail();
     renderPage();
     expect(visibleButtons("Yayınla")).toHaveLength(0);
-    expect(screen.getByRole("note")).toHaveTextContent(/Gold paket gerektirir/);
-    expect(screen.getByRole("link", { name: "Gold'a geç" })).toHaveAttribute("href", "/company/premium");
+    const note = screen.getByRole("note");
+    expect(note).toHaveTextContent(/kazandırmak firma doğrulaması gerektirir/);
+    expect(note).not.toHaveTextContent(/Gold|Silver|paket/i);
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
   });
 
   it("yayınlanabilir değilse başlık kartında Yayınla yok", () => {

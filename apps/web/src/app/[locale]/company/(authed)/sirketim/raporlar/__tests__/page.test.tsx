@@ -38,28 +38,31 @@ describe("Raporlar hub — kartlar yetkiye göre", () => {
     expect(screen.queryByRole("link", { name: /İş Analizi/ })).toBeNull();
   });
 
-  it("satınalma rapor yetkisi var ama paket SILVER: üç rapor yerine tek kilitli Gold kartı (O-043)", () => {
+  it("satınalma rapor yetkisi var ama erişim yetmiyor (efektif SILVER): üç rapor yerine tek kilitli kart (O-043)", () => {
     setAuth(["buy:view", "buy:reports:view", "insights:view"], "SILVER");
     render(<RaporlarPage />);
     expect(screen.queryByRole("link", { name: /Tasarruf Raporu/ })).toBeNull();
     expect(screen.getByRole("link", { name: /İş Analizi/ })).not.toHaveTextContent(/ile açılır/);
     const locked = screen.getByRole("link", { name: /Satınalma raporları/ });
-    expect(locked).toHaveTextContent("Gold ile açılır");
+    expect(locked).toHaveTextContent("Doğrulama ile açılır");
+    expect(locked).toHaveTextContent(/firma doğrulamasıyla açılır/);
+    expect(locked).not.toHaveTextContent(/Gold|Silver|paket/i);
     expect(locked).toHaveAttribute("href", "/company/sirketim/raporlar/genel");
   });
 
   it("STANDART kurucu: iki kart da kilitli rozetle görünür, sayfa boş kalmaz (O-043)", () => {
     setAuth(["buy:view", "buy:reports:view", "sell:view", "insights:view"], "STANDART");
     render(<RaporlarPage />);
-    expect(screen.getByRole("link", { name: /İş Analizi/ })).toHaveTextContent("Silver ile açılır");
-    expect(screen.getByRole("link", { name: /Satınalma raporları/ })).toHaveTextContent("Gold ile açılır");
+    expect(screen.getByRole("link", { name: /İş Analizi/ })).toHaveTextContent("Doğrulama ile açılır");
+    expect(screen.getByRole("link", { name: /Satınalma raporları/ })).toHaveTextContent("Doğrulama ile açılır");
+    expect(screen.queryByText(/Gold|Silver/)).toBeNull();
     expect(screen.queryByText("Size açık rapor yok")).toBeNull();
   });
 
-  it("SILVER firmada yalnız buy:reports:view: kilitli Gold kartı (eskiden boş sayfa)", () => {
+  it("erişimi yetmeyen firmada yalnız buy:reports:view: kilitli kart (eskiden boş sayfa)", () => {
     setAuth(["buy:reports:view"], "SILVER");
     render(<RaporlarPage />);
-    expect(screen.getByRole("link", { name: /Satınalma raporları/ })).toHaveTextContent("Gold ile açılır");
+    expect(screen.getByRole("link", { name: /Satınalma raporları/ })).toHaveTextContent("Doğrulama ile açılır");
     expect(screen.queryByRole("link", { name: /İş Analizi/ })).toBeNull();
   });
 

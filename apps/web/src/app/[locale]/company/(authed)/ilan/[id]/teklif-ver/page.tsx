@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/format";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { useBidDeliveryTimeLabel, useBidDocKindLabel, useMoneyInputError, useSystemText, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
-import { SilverLockCard, UpgradeButtons } from "@/components/company/silver-lock-card";
+import { VerificationButton, VerificationLockCard } from "@/components/company/verification-gate";
 import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -614,8 +614,8 @@ export default function TeklifVerPage() {
     if (err?.status === 403 && err.data?.code === "TIER_REQUIRED") {
       return (
         <div className="mx-auto max-w-3xl px-4 py-10">
-          <SilverLockCard
-            title={tr("buHerkeseAcikTalebeTeklif")}
+          <VerificationLockCard
+            title={tr("buHerkeseAcikTalebeTeklifDogrulama")}
             description={tr("herkeseAcikSatinAlmaTaleplerini")}
           />
         </div>
@@ -665,13 +665,13 @@ export default function TeklifVerPage() {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <Lock className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
-        <Heading className="mt-3">{tr("teklifIcinSilverPaketiGerekir")}</Heading>
+        <Heading className="mt-3">{tr("teklifIcinDogrulamaGerekir")}</Heading>
         <Text className="mt-2 text-sm text-zinc-500">
           {tr("herkeseAcikSatinAlmaTaleplerine")}
         </Text>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-          {/* Doğrulama önce gerekiyorsa doğrulama birincil (webC-2). */}
-          <UpgradeButtons pricingLabel={tr("paketleriGor")} />
+          {/* Tek eylem doğrulama akışı (ücretsiz dönem 2026-10-07). */}
+          <VerificationButton />
           <Button href={detailHref} outline>
             {tr("satinAlmaTalebiDetayinaDon")}
           </Button>
@@ -823,7 +823,7 @@ export default function TeklifVerPage() {
         <Button
           outline
           disabled={!aiAllowed}
-          title={aiAllowed ? undefined : tr("belgedenFiyatlamaSilverVeUzeri")}
+          title={aiAllowed ? undefined : tr("belgedenFiyatlamaDogrulama")}
           onClick={() => setBidImport("ai")}
         >
           <Sparkles className="h-4 w-4" />

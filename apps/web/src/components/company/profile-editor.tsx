@@ -520,7 +520,7 @@ export function ProfileEditor({
               available: enrichTierOk && enrichSeatOk,
               unavailableReason: enrichTierOk
                 ? t("aiIleGuclendirmeIslemYetkisi")
-                : t("aiIleGuclendirmeSilverVeUzeri"),
+                : t("aiIleGuclendirmeDogrulama"),
               run: () =>
                 seoEnrich.mutateAsync({
                   kind: "company",

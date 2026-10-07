@@ -16,7 +16,7 @@ import { Button } from "@/components/catalyst/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ListSkeleton } from "@/components/list";
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
-import { PRICING_HREF, useUpgradeHref, useVerifyFirst } from "@/components/company/silver-lock-card";
+import { VerificationButton } from "@/components/company/verification-gate";
 import { useMaskedTender, type MaskedTenderResponse } from "@/hooks/use-seller-tenders";
 import { cn } from "@/lib/utils";
 import { BuyerCountryScope, TargetScope } from "@/components/tenders/target-scope";
@@ -34,7 +34,7 @@ type MaskedDetail = Extract<MaskedTenderResponse, { masked: true }>;
  * `/talep/<slug>` sayfasıyla AYNI serileştiriciden (`toPublicListingDetail`):
  * başlık, numara, kategori, kalem adı + miktar, şehir, kapanış, görünürlük,
  * usul, kapalı zarf notu. Alıcı adı, şartname, ek, iletişim YOK. Tek eylem
- * "Teklif ver · Silver" — doğrulama önce kuralı (`useUpgradeHref`).
+ * doğrulama düğmesi (`VerificationButton`; ücretsiz dönem 2026-10-07).
  *
  * Talep izleyene maskesiz açıksa (paket alındı, davet geldi, bağlantı kuruldu)
  * API `{ masked:false, id }` döner → tam detaya geçilir.
@@ -101,8 +101,6 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
   const deliveryTermLabel = useDeliveryTermLabel();
   const paymentCategoryLabel = usePaymentCategoryLabel();
   const closingUrgency = useClosingUrgency();
-  const upgradeHref = useUpgradeHref();
-  const verifyFirst = useVerifyFirst();
   const open = listing.status === "OPEN";
   const urgency = closingUrgency(listing.status, listing.closesAt);
   // Alıcının ŞEHRİ değil, talebin açıldığı ÜLKE (2026-10-04, kullanıcı kararı).
@@ -255,18 +253,10 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             {open ? (
               <>
-                <Button href={upgradeHref} className="w-full">
-                  {t("teklifVerSilver")}
-                </Button>
-                <p className="mt-3 text-xs/5 text-zinc-600">{verifyFirst ? t("ctaNotDogrulama") : t("ctaNot")}</p>
-                {verifyFirst ? (
-                  <Link
-                    href={PRICING_HREF}
-                    className="mt-2 inline-block text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950"
-                  >
-                    {t("paketleriGor")}
-                  </Link>
-                ) : null}
+                {/* Tek eylem doğrulama akışı; etiket doğrulama durumunu izler
+                    (ücretsiz dönem 2026-10-07). */}
+                <VerificationButton className="w-full" />
+                <p className="mt-3 text-xs/5 text-zinc-600">{t("ctaNot")}</p>
               </>
             ) : (
               <p className="text-sm text-zinc-600">{t("kapandi")}</p>

@@ -92,11 +92,6 @@ export function CompanyCard({
           {t("verified")}
         </Badge>
       ) : null}
-      {c.gold ? (
-        <Badge tone="gold" size="sm">
-          {t("goldMember")}
-        </Badge>
-      ) : null}
     </>
   );
 
@@ -325,11 +320,6 @@ export function CompanyCard({
               {c.verified ? (
                 <Badge tone="verified" size="sm" className="px-1">
                   <span className="sr-only">{t("verifiedCompany")}</span>
-                </Badge>
-              ) : null}
-              {c.gold ? (
-                <Badge tone="gold" size="sm" className="px-1">
-                  <span className="sr-only">{t("goldMember")}</span>
                 </Badge>
               ) : null}
             </span>

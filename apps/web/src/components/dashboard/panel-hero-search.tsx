@@ -10,6 +10,7 @@ import { BuildingOffice2Icon, ClipboardDocumentListIcon, CubeIcon } from "@heroi
 import { categoryVisual } from "@/lib/public/category-visual";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
+import { VERIFY_HREF } from "@/components/company/verification-gate";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { localizePath } from "@/i18n/href";
@@ -565,8 +566,8 @@ export function PanelHeroSearch({
         {ai ? (
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">
             {aiLock === "tier" ? (
-              <Link href="/company/premium" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
-                {t("silverIleAcilir")}
+              <Link href={VERIFY_HREF} className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
+                {t("aiDogrulamaIleAcilir")}
               </Link>
             ) : aiLock === "role" ? (
               /* Rol kısıtı: paket bağlantısı YOK — paket zaten yetiyor. */
@@ -702,7 +703,7 @@ export function PanelHeroSearch({
                   type="button"
                   aria-pressed={aiActive}
                   disabled={!ai.enabled}
-                  title={aiLock === "role" ? t("aiRolKilidi") : aiLock === "tier" ? t("silverVeUzeriPaketlerde") : undefined}
+                  title={aiLock === "role" ? t("aiRolKilidi") : aiLock === "tier" ? t("aiDogrulamaGerektirir") : undefined}
                   onClick={() => {
                     if (!ai.enabled) return;
                     const next = !aiMode;

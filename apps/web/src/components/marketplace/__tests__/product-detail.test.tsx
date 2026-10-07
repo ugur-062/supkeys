@@ -98,11 +98,13 @@ describe("ProductBreadcrumb", () => {
 });
 
 describe("ProductDetailBody", () => {
-  it("satıcı paneli niteliği gösterir: rozet, sertifika, kuruluş, çalışan", () => {
-    render(Body());
+  it("satıcı paneli niteliği gösterir: doğrulama rozeti, sertifika, kuruluş, çalışan — paket rozeti yok", () => {
+    const { container } = render(Body());
     expect(screen.getAllByText("Karadeniz Enerji A.Ş.").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Doğrulanmış firma").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Gold Üye").length).toBeGreaterThan(0);
+    // Ücretsiz dönem (2026-10-07): API `gold: true` döndürse de paket rozeti çizilmez.
+    expect(screen.queryByText("Gold Üye")).toBeNull();
+    expect(container.textContent).not.toMatch(/Gold|Silver/);
     expect(screen.getAllByText("ISO 9001").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Kuruluş 2008 · 50-100 çalışan").length).toBeGreaterThan(0);
   });

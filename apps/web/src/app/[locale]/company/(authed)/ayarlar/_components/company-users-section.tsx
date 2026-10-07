@@ -169,7 +169,7 @@ export function CompanyUsersSection({
       {seats && seats.overflow > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
           <span>
-            {t.rich("paketinizdeKoltukVarFazla", {
+            {t.rich("koltukSiniriFazla", {
               strong: (c) => <strong>{c}</strong>,
               // `overflow > 0` iken limit her zaman doludur; tip daraltması için yedek.
               limit: seats.limit ?? 0,
@@ -425,7 +425,7 @@ export function CompanyUsersSection({
       >
         <DialogTitle>{t("kalacakKoltuklariSec")}</DialogTitle>
         <DialogDescription>
-          {t("paketinizdeKoltukVarKalacak", { limit: seats?.limit ?? 0 })}
+          {t("koltukSiniriKalacak", { limit: seats?.limit ?? 0 })}
         </DialogDescription>
         <DialogBody className="space-y-2">
           {(users ?? [])

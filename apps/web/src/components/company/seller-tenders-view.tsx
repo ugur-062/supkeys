@@ -202,7 +202,7 @@ function RequestList({
           {t.title}
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          {isFree ? tr("ucretsizAltBaslik") : tr("bagliOldugunuzAlicilarinVeHerkese")}
+          {isFree ? tr("dogrulanmamisAltBaslik") : tr("bagliOldugunuzAlicilarinVeHerkese")}
         </p>
       </div>
 

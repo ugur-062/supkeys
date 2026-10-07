@@ -6,7 +6,7 @@ export default function AyarlarAktiviteLayout({ children }: { children: React.Re
   const t = useTranslations("web.panel.settings.ayarlarAktiviteLayout");
   return (
     <PermissionGate
-      // Silver altında önce paket kilidi (page.tsx PremiumOnly) — API sırası.
+      // Erişim eşiğinin altında önce doğrulama kapısı (page.tsx VerifiedOnly) — API sırası.
       tierFirst="SILVER"
       permission={["users:manage", "company:manage"]}
       title={t("aktiviteLoguYetkiGerektirir")}

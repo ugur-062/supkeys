@@ -13,7 +13,7 @@ import {
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
-import { SilverLockCard, UpgradeButtons } from "@/components/company/silver-lock-card";
+import { VerificationButton, VerificationLockCard } from "@/components/company/verification-gate";
 import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { CountryFlag, CountryLabel } from "@/components/ui/country-flag";
@@ -744,8 +744,8 @@ export default function ListingDetailPage() {
     if (tierRequired) {
       return (
         <div className="mx-auto max-w-3xl">
-          <SilverLockCard
-            title={t("buHerkeseAcikTalepSilver")}
+          <VerificationLockCard
+            title={t("buHerkeseAcikTalepDogrulama")}
             description={t("herkeseAcikSatinAlmaTaleplerini2")}
           />
         </div>
@@ -2049,14 +2049,14 @@ export default function ListingDetailPage() {
       {!l.canBid && biddingOpen ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
-            {t.rich("buIlanaTeklifVermekIcinSilverPaketi", {
+            {t.rich("buIlanaTeklifIcinDogrulama", {
               strong: (c) => <strong>{c}</strong>,
             })}
           </Text>
-          {/* Doğrulama önce gerekiyorsa doğrulama birincil (tek kural
-              useVerifyFirst; arayüz testi webC-2). */}
+          {/* Tek eylem doğrulama akışı; etiket doğrulama durumunu izler
+              (ücretsiz dönem 2026-10-07). */}
           <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-            <UpgradeButtons pricingLabel={t("paketleriGor")} />
+            <VerificationButton />
           </div>
         </div>
       ) : l.roleAllowsBid === false && biddingOpen ? (
@@ -2427,7 +2427,7 @@ export default function ListingDetailPage() {
               <Button
                 onClick={() => setDiscoveryOpen(true)}
                 disabled={!discoverTierOk}
-                title={discoverTierOk ? undefined : t("aiIleTedarikciBulmaGold")}
+                title={discoverTierOk ? undefined : t("aiIleTedarikciBulmaDogrulama")}
               >
                 <Sparkles data-slot="icon" />
                 {t("aiIleTedarikciBul")}

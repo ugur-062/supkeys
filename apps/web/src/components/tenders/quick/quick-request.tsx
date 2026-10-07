@@ -885,7 +885,7 @@ export function QuickRequest({
                           disabled={!aiAvailable || draftSuggest.isPending || namedItems.length === 0}
                           title={
                             !aiAvailable
-                              ? tr("aiOnerisiSilverVeUzeri")
+                              ? tr("aiOnerisiDogrulama")
                               : namedItems.length === 0
                                 ? tr("onceEnAzBirKalem")
                                 : undefined
@@ -950,7 +950,7 @@ export function QuickRequest({
                         type="button"
                         onClick={() => void writeDescription()}
                         disabled={!aiAvailable || seoEnrich.isPending}
-                        title={aiAvailable ? undefined : tr("aiIleAciklamaSilverVe")}
+                        title={aiAvailable ? undefined : tr("aiIleAciklamaDogrulama")}
                         className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
                       >
                         <SparklesIcon aria-hidden className="size-3.5" />
@@ -1079,7 +1079,7 @@ export function QuickRequest({
                       </span>
                       <span className="mt-0.5 block text-xs text-zinc-600">
                         {!discoveryAvailable
-                          ? tAi("goldOnly")
+                          ? tAi("verifiedOnly")
                           : visibility === "PRIVATE"
                             ? tAi("aiDiscoveryPrivateOff")
                             : tAi("aiDiscoveryHint")}

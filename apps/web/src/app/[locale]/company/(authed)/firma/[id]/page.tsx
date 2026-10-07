@@ -7,12 +7,7 @@ import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { tierAtLeast } from "@rothern/shared";
 import { buyingGate, memberProductHref } from "@/lib/public/member-gate";
-import {
-  PRICING_HREF,
-  SilverLockCard,
-  VERIFY_HREF,
-  useVerifyFirst,
-} from "@/components/company/silver-lock-card";
+import { VERIFY_HREF, VerificationLockCard } from "@/components/company/verification-gate";
 import { cameFromInApp } from "@/lib/nav-history";
 import { useRouter } from "@/i18n/navigation";
 import { formatDate } from "@/lib/format-date";
@@ -84,10 +79,6 @@ export default function CompanyProfilePage() {
   // olmayana orada Gold uyarısı (arayüz testi Y-03, D-038).
   const canInquire = buyingGate(me, myCompany, "inquiry") === "ok";
   const isPaid = tierAtLeast(myCompany?.tier ?? "STANDART", "SILVER");
-  // Paket alımı doğrulama ister: doğrulanmamış/reddedilmiş ücretsiz firmanın
-  // kilitli bağlantı CTA'sı önce doğrulamaya gider (tek kural useVerifyFirst;
-  // arayüz testi D-194 — Paketler'e gidip satın alırken geri atılıyordu).
-  const verifyFirst = useVerifyFirst();
   // Bu firmanın açık talepleri bizim SATIŞ tarafımızın işidir (davetli
   // olduğumuz alım talepleri): bölüm satış görüntüleme izniyle, "Teklif ver"
   // teklif verme izniyle çizilir. Yalnız satınalma izinli üye kartı açınca
@@ -221,9 +212,10 @@ export default function CompanyProfilePage() {
             {t("baglantiIstegiGonder")}
           </Button>
         ) : (
-          <Button outline href={verifyFirst ? VERIFY_HREF : PRICING_HREF}>
+          // Kilitli bağlantı eylemi doğrulama akışına gider (ücretsiz dönem 2026-10-07).
+          <Button outline href={VERIFY_HREF}>
             <Lock data-slot="icon" />
-            {verifyFirst ? t("baglantiIcinOnceDogrulanin") : t("baglantiIcinSilver")}
+            {t("baglantiIcinDogrulama")}
           </Button>
         )
       ) : null}
@@ -423,7 +415,7 @@ export default function CompanyProfilePage() {
         </div>
       )}
       {lockedListingCount > 0 ? (
-        <SilverLockCard
+        <VerificationLockCard
           className="mt-4"
           title={t("kilitliTaleplerBaslik")}
           meta={t("kilitliTaleplerSayi", { n: lockedListingCount })}

@@ -34,10 +34,11 @@ export function PermissionGate({
   backHref?: string;
   backLabel?: string;
   /**
-   * Paket kapısı izin kapısından ÖNCE (rol kontrolü paket kontrolünün
+   * Erişim (efektif kademe) kapısı izin kapısından ÖNCE (rol kontrolü onun
    * İÇİNDE; API de önce `TIER_REQUIRED` der): firma bu kademenin altındaysa
-   * izin notu çizilmez, içerik — sayfanın kendi `PremiumOnly` paket kilidi —
-   * gösterilir (arayüz testi T3). Yalnız içi PremiumOnly taşıyan sayfalarda.
+   * izin notu çizilmez, içerik — sayfanın kendi `VerifiedOnly` doğrulama
+   * kapısı — gösterilir (arayüz testi T3). Yalnız içi o kapıyı taşıyan
+   * sayfalarda. Ücretsiz dönemde kademenin altı = firma doğrulanmamış.
    */
   tierFirst?: "SILVER" | "GOLD";
   children: React.ReactNode;

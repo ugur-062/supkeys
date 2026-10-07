@@ -136,34 +136,28 @@ beforeEach(() => {
 });
 
 describe("Panel firma profili (derin denetim LU-20)", () => {
-  it("ücretsiz firmada 'Bağlantı İsteği Gönder' yerine Paketler'e giden kilitli CTA", () => {
+  it("erişimi yetmeyen firmada 'Bağlantı İsteği Gönder' yerine doğrulamaya giden kilitli CTA", () => {
     login("STANDART");
     render(<CompanyProfilePage />);
     expect(screen.queryByRole("button", { name: "Bağlantı İsteği Gönder" })).not.toBeInTheDocument();
-    const cta = screen.getByRole("link", { name: /Silver'a Geçin/ });
-    expect(cta).toHaveAttribute("href", "/company/premium");
+    const cta = screen.getByRole("link", { name: "Bağlantı için firma doğrulaması gerekir" });
+    expect(cta).toHaveAttribute("href", "/company/ayarlar/dogrulama");
   });
 
-  it("doğrulanmamış/reddedilmiş ücretsiz firmada kilitli bağlantı CTA'sı önce doğrulamaya gider; incelemedekinde Paketler (arayüz testi D-194)", () => {
-    for (const status of ["UNVERIFIED", "REJECTED"]) {
+  it("doğrulanmamış / incelemedeki / reddedilmiş firmada kilitli bağlantı CTA'sı doğrulama akışına gider, paket adı yok (arayüz testi D-194; ücretsiz dönem)", () => {
+    for (const status of ["UNVERIFIED", "PENDING", "REJECTED"]) {
       useCompanyAuthStore.setState({
         user: { isOwner: true, roles: ["SAHIP"], permissions: ["connections:manage", "buy:view"] },
         company: { tier: "STANDART", country: "TR", companyVerificationStatus: status },
       } as never);
       const { unmount } = render(<CompanyProfilePage />);
-      expect(screen.queryByRole("link", { name: /Silver'a Geçin/ })).not.toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /Önce Doğrulanın/ })).toHaveAttribute(
+      expect(screen.queryByRole("link", { name: /Silver|Gold|Paket/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Bağlantı için firma doğrulaması gerekir" })).toHaveAttribute(
         "href",
         "/company/ayarlar/dogrulama",
       );
       unmount();
     }
-    useCompanyAuthStore.setState({
-      user: { isOwner: true, roles: ["SAHIP"], permissions: ["connections:manage", "buy:view"] },
-      company: { tier: "STANDART", country: "TR", companyVerificationStatus: "PENDING" },
-    } as never);
-    render(<CompanyProfilePage />);
-    expect(screen.getByRole("link", { name: /Silver'a Geçin/ })).toHaveAttribute("href", "/company/premium");
   });
 
   it("Silver firmada bağlantı düğmesi görünür", () => {

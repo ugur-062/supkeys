@@ -8,7 +8,7 @@
  * Kilitlenen davranışlar, hepsi ya kullanıcı kararı ya da eski pilden DEVRALINAN
  * kural:
  *  · tek portallı üyede tuş HİÇ çizilmez (değiştirecek bir şey yok)
- *  · kilitli portal listede KALIR ve tıklanır — `PortalGuard` paket ekranını
+ *  · kilitli portal listede KALIR ve tıklanır — `PortalGuard` doğrulama kapısını
  *    açar; gizlemek kullanıcıya neyi kaçırdığını söylemezdi
  *  · tuş nerede olduğunu da söyler (aktif portalın adı etiket olarak)
  *  · tuş diğer üst çubuk düğmeleriyle AYNI AİLEDEN (çerçevesiz, ikon + etiket)
@@ -77,7 +77,7 @@ describe("PortalSwitch", () => {
     expect(screen.getByText(/Açık talepleri görür, teklif verir/)).toBeInTheDocument();
   });
 
-  it("kilitli portal listede KALIR ve paket kapısına gider", () => {
+  it("kilitli portal listede KALIR; notu paket adı değil firma doğrulamasıdır", () => {
     render(
       <PortalSwitch
         active="satis"
@@ -88,10 +88,11 @@ describe("PortalSwitch", () => {
     fireEvent.click(screen.getByRole("button", { name: /Panel değiştir/ }));
 
     // Gizlenmez: kullanıcı neyi kaçırdığını görmeli.
-    expect(screen.getByLabelText("Paketle açılır")).toBeInTheDocument();
-    expect(screen.getByText(/Gold paketiyle açılır/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Doğrulamayla açılır")).toBeInTheDocument();
+    expect(screen.getByText(/Firma doğrulamasıyla açılır/)).toBeInTheDocument();
     // İki cümle boşlukla ayrılır (derin denetim S071: "kazandırırsınız.Gold").
-    expect(screen.getByText(/Gold paketiyle açılır/).textContent).toMatch(/\. Gold paketiyle açılır\.$/);
+    expect(screen.getByText(/Firma doğrulamasıyla açılır/).textContent).toMatch(/\. Firma doğrulamasıyla açılır\.$/);
+    expect(document.body.textContent).not.toMatch(/gold|silver|paket/i);
     // Bağlantı yine portalın kendi yoluna gider — `PortalGuard` orada karşılar.
     const satinalma = screen.getByText(/Talep açar/).closest("a");
     expect(satinalma).toHaveAttribute("href", "/company/satinalma");

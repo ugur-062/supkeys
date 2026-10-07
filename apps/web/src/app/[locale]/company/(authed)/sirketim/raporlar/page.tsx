@@ -35,7 +35,7 @@ export default function SatinalmaRaporlarPage() {
       label: t("isAnalizi"),
       description: t("profilVeUrunGoruntulenmeleriKimligi"),
       icon: Eye,
-      lockedLabel: insightsOpen ? undefined : t("silverIleAcilir"),
+      lockedLabel: insightsOpen ? undefined : t("dogrulamaIleAcilir"),
     });
   }
   if (hasPurchasingPerm) {
@@ -68,7 +68,7 @@ export default function SatinalmaRaporlarPage() {
         label: t("satinalmaRaporlari"),
         description: t("satinalmaRaporlariKilitliAciklama"),
         icon: BarChart3,
-        lockedLabel: t("goldIleAcilir"),
+        lockedLabel: t("dogrulamaIleAcilir"),
       });
     }
   }

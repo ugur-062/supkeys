@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { VisitorsResponse } from "@/hooks/use-company-views";
 
@@ -48,27 +48,31 @@ describe("VisitorsView", () => {
     expect(screen.getAllByRole("link", { name: "Profili gör" })).toHaveLength(1);
   });
 
-  it("Standart paket: sayılar var, liste kilitli + paket bağlantısı", () => {
+  it("doğrulanmamış firma: sayılar var, liste kilitli + doğrulama bağlantısı (paket adı/sayfası yok)", () => {
     h.data = base({ locked: true, items: [] });
-    render(<VisitorsView />);
+    const { container } = render(<VisitorsView />);
     expect(screen.getByText("Kimliği bilinen firma").closest(".rounded-2xl")).toHaveTextContent("2");
     expect(screen.getByText(/2 firma profilinizi inceledi/)).toBeInTheDocument();
-    // PANELDEN ÇIKMAZ (2026-09-15): premium çağrıları panel içindeki paket
-    // sayfasına gider; Ayarlar hub'ı da pazarlama sayfası da doğru yer değil.
-    expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
+    // PANELDEN ÇIKMAZ (2026-09-15) + ücretsiz dönem (2026-10-07): kilidin tek
+    // eylemi panel içindeki doğrulama akışıdır; paket sayfası yok.
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(container.querySelector('a[href*="/company/premium"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/Silver|Gold|Platinum|paket/i);
     expect(screen.queryByText("Ziyaretçi A")).toBeNull();
   });
 
-  it("Standart + doğrulanmamış firma: birincil eylem doğrulama, paketler ikincil (arayüz testi D-194)", () => {
-    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "UNVERIFIED" } as never } as never);
+  it("kilitli liste, duruma göre TEK eylem: doğrulayın / incelemede / yeniden başvurun (arayüz testi D-194)", () => {
     try {
       h.data = base({ locked: true, items: [] });
-      render(<VisitorsView />);
-      expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
+      useCompanyAuthStore.setState({ company: { companyVerificationStatus: "UNVERIFIED" } as never } as never);
+      const first = render(<VisitorsView />);
+      expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute(
         "href",
         "/company/ayarlar/dogrulama",
       );
-      expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
       // Kilit kartı akışta: bölüm yüksekliği kart kadar büyür, mobilde başlık/
       // eylemler bulanık satırların sabit yüksekliğine kırpılmaz (yeniden doğrulama).
       const overlay = screen.getByTestId("visitors-lock-overlay");
@@ -76,7 +80,24 @@ describe("VisitorsView", () => {
       expect(overlay.className).toMatch(/\bcol-start-1\b.*\brow-start-1\b/);
       const section = screen.getByRole("region", { name: "Kimlikli ziyaretçi listesi (kilitli)" });
       expect(section.className).toMatch(/\bgrid\b/);
-      expect(section).toContainElement(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" }));
+      expect(section).toContainElement(screen.getByRole("link", { name: "Firmanızı doğrulayın" }));
+      expect(within(section).getAllByRole("link")).toHaveLength(1);
+      first.unmount();
+
+      useCompanyAuthStore.setState({ company: { companyVerificationStatus: "PENDING" } as never } as never);
+      const second = render(<VisitorsView />);
+      expect(screen.getByRole("link", { name: "Doğrulama durumunu gör" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      second.unmount();
+
+      useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
+      render(<VisitorsView />);
+      expect(screen.getByRole("link", { name: "Yeniden başvurun" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
     } finally {
       useCompanyAuthStore.setState({ company: null } as never);
     }

@@ -34,22 +34,19 @@ describe("ProductCard", () => {
   });
 
   it("ROZET HİYERARŞİSİ: kapakta EN FAZLA BİR rozet, firma sinyalleri firma satırında", () => {
-    // 2026-09-07 (kullanıcı bulgusu): "Gold Üye" METİN rozeti paketli firma
-    // çok olduğu için neredeyse her kartta çıkıyor, ayırt ediciliğini
-    // yitiriyordu — metin olarak kaldırıldı.
-    // Aynı gün ikinci tur: "Doğrulanmış" da kapaktan indi. Firma özelliği,
+    // Ücretsiz dönem (2026-10-07): paket rozeti ("Gold Üye") hiçbir biçimde
+    // çizilmez — API `gold: true` döndürse bile (ikon/sr-only dahil).
+    // 2026-09-07 ikinci tur: "Doğrulanmış" da kapaktan indi. Firma özelliği,
     // firma satırında ikon olarak duruyor; kapakta da basmak aynı olguyu
     // iki kez yazmaktı. Kapak artık ürüne ait tek sinyali taşır (çağıranın
     // rozeti ya da "Yeni").
     const { container } = render(<ProductCard product={product} companySlug="d" company={company} />);
-    // GÖRÜNEN metin rozeti yok — ikisi de yalnız ikon (+ sr-only etiket).
+    // GÖRÜNEN metin rozeti yok — yalnız ikon (+ sr-only etiket).
     const verified = screen.getByText("Doğrulanmış firma");
-    const gold = screen.getByText("Gold Üye");
     expect(verified.className).toContain("sr-only");
-    expect(gold.className).toContain("sr-only");
+    expect(container.textContent).not.toMatch(/Gold|Silver/);
     const cover = container.querySelector("article > div:first-child");
     expect(cover?.contains(verified)).toBe(false);
-    expect(cover?.contains(gold)).toBe(false);
     expect(screen.getByText(company.name).parentElement?.contains(verified)).toBe(true);
   });
 

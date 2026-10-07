@@ -5,7 +5,7 @@ import type { Locale } from "@rothern/i18n";
 import { formatNumber } from "@/i18n/format";
 import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { VisitsVisibilityCard } from "@/components/company/visits-visibility-card";
-import { UpgradeActions } from "@/components/company/silver-lock-card";
+import { VerificationActions } from "@/components/company/verification-gate";
 import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/company/company-logo";
 import { PeriodSelect } from "@/components/company/period-select";
@@ -167,11 +167,11 @@ function LockedList({ count }: { count: number }) {
         <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center shadow-sm sm:p-6">
           <LockClosedIcon aria-hidden className="mx-auto mb-2 size-7 text-amber-500" />
           <p className="font-semibold text-amber-900">
-            {count > 0 ? t("firmaProfiliniziInceledi", { n: count }) : t("kimlikliZiyaretciListesiSilverVe")}
+            {count > 0 ? t("firmaProfiliniziInceledi", { n: count }) : t("kimlikliZiyaretciListesiDogrulama")}
           </p>
           <p className="mt-1 text-sm text-amber-800">{t("firmaAdiSehirFaaliyetTipi")}</p>
-          {/* Doğrulanmamış firmada birincil eylem doğrulama (arayüz testi D-194). */}
-          <UpgradeActions ctaLabel={t("paketleriGor")} className="justify-center" />
+          {/* Tek eylem doğrulama akışı; not ve etiket doğrulama durumunu izler. */}
+          <VerificationActions className="justify-center" />
         </div>
       </div>
     </section>

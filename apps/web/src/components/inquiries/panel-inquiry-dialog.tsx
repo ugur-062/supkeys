@@ -160,7 +160,7 @@ export function PanelInquiryDialog({
               </p>
               {sellerFreeMember ? (
                 <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
-                  {t("buTedarikciUcretsizUyeSorunuzu")}
+                  {t("buTedarikciDogrulanmamis")}
                 </p>
               ) : null}
 

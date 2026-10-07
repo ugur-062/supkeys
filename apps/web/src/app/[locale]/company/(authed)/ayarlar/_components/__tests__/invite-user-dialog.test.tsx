@@ -38,6 +38,7 @@ vi.mock("@/hooks/use-company-users", () => ({
 vi.mock("@/components/company/permission-table", () => ({ PermissionTable: () => <div data-testid="perm-table" /> }));
 
 import { InviteUserDialog } from "../invite-user-dialog";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 beforeEach(() => {
   h.seats = { limit: 6, used: 1, pendingSeatInvites: 0, usedBuy: 1, usedSell: 0, tier: "GOLD" };
@@ -174,17 +175,31 @@ describe("InviteUserDialog", () => {
     expect(h.invite).not.toHaveBeenCalled();
   });
 
-  it("GOLD (en üst paket) koltuk doluyken 'paketi yükseltin' denmez, koltuk boşaltma söylenir (arayüz testi D-188)", () => {
+  it("tam erişimli (efektif GOLD) firmada koltuk doluyken doğrulama önerilmez, koltuk boşaltma söylenir (arayüz testi D-188)", () => {
     h.seats = { limit: 6, used: 6, pendingSeatInvites: 0, usedBuy: 3, usedSell: 3, tier: "GOLD" };
     render(<InviteUserDialog open onClose={() => {}} />);
     expect(screen.getByText(/bekleyen bir daveti iptal edin/)).toBeInTheDocument();
-    expect(screen.queryByText(/yükseltin/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/yükseltin|doğrulayın/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /doğrula/i })).not.toBeInTheDocument();
   });
 
-  it("alt pakette koltuk doluyken Paketler bağlantısı verilir", () => {
-    h.seats = { limit: 4, used: 4, pendingSeatInvites: 0, usedBuy: 0, usedSell: 4, tier: "SILVER" };
-    render(<InviteUserDialog open onClose={() => {}} />);
-    expect(screen.getByRole("link", { name: "paketi yükseltin" })).toHaveAttribute("href", "/company/premium");
+  // Eski sözleşme ("alt pakette Paketler bağlantısı") kalktı: daha fazla
+  // koltuk firma doğrulamasıyla gelir — paket adı/bağlantısı yok.
+  it.each([
+    ["UNVERIFIED", "Firmanızı doğrulayın"],
+    ["PENDING", "Doğrulama durumunu gör"],
+    ["REJECTED", "Yeniden başvurun"],
+  ])("doğrulanmamış firmada (%s) koltuk doluyken doğrulama akışına yönlendirilir", (status, cta) => {
+    h.seats = { limit: 2, used: 2, pendingSeatInvites: 0, usedBuy: 0, usedSell: 2, tier: "STANDART" };
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: status } as never } as never);
+    try {
+      render(<InviteUserDialog open onClose={() => {}} />);
+      const note = screen.getByText(/doğrulanmış firmalar daha fazla kullanıcıya işlem yetkisi verebilir/);
+      expect(note.textContent).not.toMatch(/paket|silver|gold|yükselt/i);
+      expect(screen.getByRole("link", { name: cta })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    } finally {
+      useCompanyAuthStore.setState({ company: null } as never);
+    }
   });
 });
 

@@ -6,12 +6,18 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 /**
  * Arayüz testi kapanış S-PUB-ADMIN: herkese açık firma profilindeki
- * "Bağlantı isteği gönder" paket ipucu taşımıyordu; ücretsiz üye ancak panel
- * firma kartında Silver kilidini görüyordu. Önce paket (Silver), sonra izin.
+ * "Bağlantı isteği gönder" ipucu taşımıyordu; yetkisiz üye ancak panel firma
+ * kartında kilidi görüyordu. Önce firmanın yetkisi (doğrulama), sonra izin.
+ *
+ * ÜCRETSİZ DÖNEM (2026-10-07): doğrulanmış firmanın `/me` kademesi efektif
+ * olarak en üst kademedir ("GOLD" — iç tanımlayıcı, arayüzde yazılmaz);
+ * doğrulanmamış firma "STANDART" kalır. Metinlerde paket adı geçmez.
  */
+const VERIFY = "/company/ayarlar/dogrulama";
+const PACKAGE_WORDS = /Gold|Silver|paket|premium/i;
 function signIn(
   tier: string | null,
-  status = "VERIFIED",
+  status = tier === "STANDART" ? "UNVERIFIED" : "VERIFIED",
   permissions: string[] = ["connections:manage"],
   slug = "baska-firma",
 ) {
@@ -43,38 +49,41 @@ describe("PublicConnectCta", () => {
     expect(screen.getByRole("link", { name: "Giriş bağlantısı" })).toBeInTheDocument();
   });
 
-  it("ücretsiz, doğrulanmış: kilitli '· Silver' paket sayfasına", () => {
-    signIn("STANDART");
-    renderCta();
-    expect(screen.queryByText("Giriş bağlantısı")).toBeNull();
-    const link = screen.getByRole("link", { name: "Bağlantı isteği gönder · Silver" });
-    expect(link).toHaveAttribute("href", "/company/premium");
-    expect(link).toHaveAttribute("title", "Bağlantı daveti göndermek Silver paketiyle açılır");
-  });
-
-  it("ücretsiz, doğrulanmamış: önce doğrulama", () => {
+  it("doğrulanmamış: kilitli bağlantı doğrulama sayfasına, paket adı yok", () => {
     signIn("STANDART", "UNVERIFIED");
-    renderCta();
-    expect(screen.getByRole("link", { name: "Bağlantı Silver ile — önce doğrulanın" })).toHaveAttribute(
-      "href",
-      "/company/ayarlar/dogrulama",
-    );
+    const { container } = renderCta();
+    expect(screen.queryByText("Giriş bağlantısı")).toBeNull();
+    const link = screen.getByRole("link", { name: "Bağlantı için firmanızı doğrulayın" });
+    expect(link).toHaveAttribute("href", VERIFY);
+    expect(link).toHaveAttribute("title", "Bağlantı daveti göndermek için firma doğrulaması gerekir");
+    expect(container.textContent).not.toMatch(PACKAGE_WORDS);
+    expect(link.getAttribute("title")).not.toMatch(PACKAGE_WORDS);
   });
 
-  it("paket kapısı izinden önce: izinsiz ücretsiz üyeye de Silver kilidi", () => {
-    signIn("STANDART", "VERIFIED", []);
+  it("doğrulama incelemede: 'inceleniyor' (yeniden başvuru istenmez); reddedilmiş: yeniden başvuru", () => {
+    signIn("STANDART", "PENDING");
+    const first = renderCta();
+    expect(screen.getByRole("link", { name: "Bağlantı için doğrulamanız inceleniyor" })).toHaveAttribute("href", VERIFY);
+    first.unmount();
+    signIn("STANDART", "REJECTED");
     renderCta();
-    expect(screen.getByRole("link", { name: "Bağlantı isteği gönder · Silver" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Bağlantı için doğrulamaya yeniden başvurun" })).toHaveAttribute("href", VERIFY);
   });
 
-  it("Silver ∧ izin: panel firma kartı", () => {
-    signIn("SILVER");
+  it("doğrulama kapısı izinden önce: izinsiz doğrulanmamış üyeye de doğrulama kilidi", () => {
+    signIn("STANDART", "UNVERIFIED", []);
+    renderCta();
+    expect(screen.getByRole("link", { name: "Bağlantı için firmanızı doğrulayın" })).toHaveAttribute("href", VERIFY);
+  });
+
+  it("doğrulanmış ∧ izin: panel firma kartı", () => {
+    signIn("GOLD");
     renderCta();
     expect(screen.getByRole("link", { name: "Bağlantı isteği gönder" })).toHaveAttribute("href", PANEL);
   });
 
-  it("Silver ama izin yok: davet sunulmaz, firma panelde açılır", () => {
-    signIn("SILVER", "VERIFIED", ["buy:view"]);
+  it("doğrulanmış ama izin yok: davet sunulmaz, firma panelde açılır", () => {
+    signIn("GOLD", "VERIFIED", ["buy:view"]);
     renderCta();
     expect(screen.queryByText(/Bağlantı isteği gönder/)).toBeNull();
     expect(screen.getByRole("link", { name: "Firmayı panelde aç" })).toHaveAttribute("href", PANEL);

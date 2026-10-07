@@ -30,8 +30,17 @@ vi.mock("@/hooks/use-company-auth", () => ({
 }));
 
 import { CompanyMessageThread } from "../company-message-thread";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+
+/** Doğrulama kapısı durumu oturum deposundan okur (verification-gate). */
+const setVerification = (status: string | null) =>
+  useCompanyAuthStore.setState({
+    user: null,
+    company: status ? { companyVerificationStatus: status } : null,
+  } as never);
 
 beforeEach(() => {
+  setVerification(null);
   h.roles = [];
   h.tier = "GOLD";
   h.verification = "VERIFIED";
@@ -132,39 +141,56 @@ describe("CompanyMessageThread composer gating", () => {
   });
 });
 
-describe("CompanyMessageThread — alıcı yönü paket kapısı (arayüz testi O-123)", () => {
-  it("SILVER firmada alıcı yönü: konuşma okunur, composer yerine Gold'a geç CTA'sı", () => {
+describe("CompanyMessageThread — alıcı yönü doğrulama kapısı (arayüz testi O-123; ücretsiz dönem)", () => {
+  it("doğrulaması incelemedeki firmada alıcı yönü: konuşma okunur, composer yerine doğrulama notu + durum bağlantısı", () => {
     h.roles = ["SATIN_ALMACI", "SATISCI"];
-    h.tier = "SILVER";
+    h.tier = "STANDART";
+    h.verification = "PENDING";
+    setVerification("PENDING");
     render(
       <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
     );
     expect(screen.getByText("Karşı Firma")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gönder" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Alıcı olarak mesaj göndermek Gold paketi gerektirir/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Gold'a geç" })).toHaveAttribute(
-      "href",
-      "/company/premium",
-    );
-  });
-
-  it("doğrulanmamış ücretsiz firmada CTA önce doğrulama", () => {
-    h.roles = ["SATIN_ALMACI"];
-    h.tier = "STANDART";
-    h.verification = "UNVERIFIED";
-    render(
-      <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
-    );
-    expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulanın" })).toHaveAttribute(
+    const note = screen.getByRole("note");
+    expect(note).toHaveTextContent(/Alıcı olarak mesaj göndermek firma doğrulaması gerektirir/);
+    // Paket adı / paket sayfası yok.
+    expect(note).not.toHaveTextContent(/Gold|Silver|paket/i);
+    expect(screen.getByRole("link", { name: "Doğrulama durumunu gör" })).toHaveAttribute(
       "href",
       "/company/ayarlar/dogrulama",
     );
   });
 
+  it("doğrulanmamış firmada bağlantı doğrulama başvurusuna gider", () => {
+    h.roles = ["SATIN_ALMACI"];
+    h.tier = "STANDART";
+    h.verification = "UNVERIFIED";
+    setVerification("UNVERIFIED");
+    render(
+      <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
+    );
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+  });
+
+  it("doğrulaması reddedilen firmada bağlantı 'Yeniden başvurun'", () => {
+    h.roles = ["SATIN_ALMACI"];
+    h.tier = "STANDART";
+    h.verification = "REJECTED";
+    setVerification("REJECTED");
+    render(
+      <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
+    );
+    expect(screen.getByRole("link", { name: "Yeniden başvurun" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+  });
+
   // Gözden geçirme (webA-08), T-06: süren siparişin satıcısına yazışma
   // kesilmez — sunucu istisnayı bildirir, composer açılır (rol yine şart).
-  it("SILVER firmada süren sipariş istisnası: Gold CTA yerine composer", () => {
+  it("erişimi yetmeyen firmada süren sipariş istisnası: doğrulama notu yerine composer", () => {
     h.roles = ["SATIN_ALMACI"];
     h.tier = "SILVER";
     h.sendOpenByOrder = true;
@@ -172,7 +198,7 @@ describe("CompanyMessageThread — alıcı yönü paket kapısı (arayüz testi 
       <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
     );
     expect(screen.getByRole("button", { name: "Gönder" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Gold'a geç" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/firma doğrulaması gerektirir/)).not.toBeInTheDocument();
   });
 
   it("süren sipariş istisnası rol kapısını aşmaz (etiket-only)", () => {

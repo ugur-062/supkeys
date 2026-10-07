@@ -72,10 +72,11 @@ function setCompany(tier: string, companyVerificationStatus = "VERIFIED") {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  setCompany("STANDART");
+  // Ücretsiz dönem: maskeli görünüme yalnız DOĞRULANMAMIŞ firma düşer.
+  setCompany("STANDART", "UNVERIFIED");
 });
 
-describe("MaskedRequestView (ücretsiz üyenin alıcı gizli talep görünümü, 2026-10-03)", () => {
+describe("MaskedRequestView (doğrulanmamış firmanın alıcı gizli talep görünümü, 2026-10-03)", () => {
   it("herkese açık detayı numarayla ister; alıcı gizli, kalemler ve kapalı zarf notu görünür", async () => {
     h.get.mockResolvedValue({ data: DETAIL });
     render(<MaskedRequestView number="ROT-000042" />);
@@ -91,26 +92,42 @@ describe("MaskedRequestView (ücretsiz üyenin alıcı gizli talep görünümü,
     expect(screen.getByText("Dikişsiz boru 3 inç")).toBeInTheDocument();
     expect(screen.getByText(/Kapalı zarf: teklifleri yalnız talep sahibi görür/)).toBeInTheDocument();
     expect(screen.getAllByText("ROT-000042").length).toBeGreaterThanOrEqual(1);
-    // Doğrulanmış ücretsiz: CTA Paketler'e.
-    expect(screen.getByRole("link", { name: "Teklif ver · Silver" })).toHaveAttribute("href", "/company/premium");
+    // Tek eylem doğrulama akışı; paket adı/sayfası yok (ücretsiz dönem 2026-10-07).
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(screen.getByText(/alıcının adını görmek için firma doğrulaması gerekir/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Silver|Gold|Platinum|paket/i);
     // Tam detaya ya da belge/mesaj eylemine bağlantı yok.
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
     expect(hrefs.some((x) => x.startsWith("/company/ilan/"))).toBe(false);
     expect(hrefs.some((x) => x.includes("mesaj"))).toBe(false);
+    expect(hrefs.some((x) => x.includes("/company/premium"))).toBe(false);
   });
 
-  it("doğrulanmamış ücretsiz: CTA doğrulamaya gider, Paketler ikincil", async () => {
-    setCompany("STANDART", "UNVERIFIED");
+  it("CTA doğrulama durumunu izler: incelemede → durum bağlantısı, reddedilmiş → yeniden başvuru; hep doğrulama sayfası", async () => {
+    setCompany("STANDART", "PENDING");
     h.get.mockResolvedValue({ data: DETAIL });
-    render(<MaskedRequestView number="ROT-000042" />);
-    expect(await screen.findByRole("link", { name: "Teklif ver · Silver" })).toHaveAttribute(
+    const first = render(<MaskedRequestView number="ROT-000042" />);
+    expect(await screen.findByRole("link", { name: "Doğrulama durumunu gör" })).toHaveAttribute(
       "href",
       "/company/ayarlar/dogrulama",
     );
-    expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
+    expect(screen.queryByRole("link", { name: "Firmanızı doğrulayın" })).toBeNull();
+    first.unmount();
+
+    setCompany("STANDART", "REJECTED");
+    render(<MaskedRequestView number="ROT-000042" />);
+    expect(await screen.findByRole("link", { name: "Yeniden başvurun" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
+    expect(hrefs.some((x) => x.includes("/company/premium"))).toBe(false);
   });
 
-  it("talep maskesiz görülebiliyorsa (davet/bağlantı/paket) tam detaya yönlendirir", async () => {
+  it("talep maskesiz görülebiliyorsa (davet/bağlantı/doğrulanmış firma) tam detaya yönlendirir", async () => {
     h.get.mockResolvedValue({ data: { masked: false, id: "cl_123" } });
     render(<MaskedRequestView number="ROT-000042" />);
     await waitFor(() => expect(h.replace).toHaveBeenCalledWith("/company/ilan/cl_123"));
@@ -127,6 +144,7 @@ describe("MaskedRequestView (ücretsiz üyenin alıcı gizli talep görünümü,
     h.get.mockResolvedValue({ data: { ...DETAIL, status: "AWARDED" } });
     render(<MaskedRequestView number="ROT-000042" />);
     expect(await screen.findByText("Bu talep teklife kapalı.")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Teklif ver · Silver" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Firmanızı doğrulayın" })).toBeNull();
+    expect(document.querySelector('a[href="/company/ayarlar/dogrulama"]')).toBeNull();
   });
 });

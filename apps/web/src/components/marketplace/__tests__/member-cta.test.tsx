@@ -8,9 +8,16 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 /**
  * Arayüz testi Y-03 / kullanıcı kararı T-02: herkese açık "Bilgi iste" /
- * "Talep aç" oturumlu ama Gold olmayan üyeye Gold gerektiğini TIKLAMADAN
- * önce söyler; misafir mevcut akışı aynen görür.
+ * "Talep aç" oturumlu ama firması doğrulanmamış üyeye firma doğrulaması
+ * gerektiğini TIKLAMADAN önce söyler; misafir mevcut akışı aynen görür.
+ *
+ * ÜCRETSİZ DÖNEM (2026-10-07): doğrulanmış firmanın `/me` kademesi efektif
+ * olarak en üst kademedir ("GOLD" — iç tanımlayıcı, arayüzde yazılmaz);
+ * doğrulanmamış firma "STANDART" kalır. Kapalı kapının iki dalı da doğrulama
+ * sayfasına gider; hiçbir metinde paket adı geçmez.
  */
+const VERIFY = "/company/ayarlar/dogrulama";
+const PACKAGE_WORDS = /Gold|Silver|paket|premium/i;
 function signIn(
   tier: string | null,
   status = "VERIFIED",
@@ -37,28 +44,38 @@ describe("MemberCta", () => {
     expect(screen.getByText("Bilgi iste (misafir)")).toBeInTheDocument();
   });
 
-  it("Gold ∧ yetki: doğrudan üye hedefi", () => {
+  it("doğrulanmış ∧ yetki: doğrudan üye hedefi", () => {
     signIn("GOLD");
     render(<MemberCta action="inquiry" member={member}>{guest}</MemberCta>);
     expect(screen.getByText("Bilgi iste (üye)")).toBeInTheDocument();
     expect(screen.queryByText("Bilgi iste (misafir)")).toBeNull();
   });
 
-  it("Silver, doğrulanmış: Gold uyarısı + Gold'a geç (duvar sürprizi yok)", () => {
-    signIn("SILVER");
-    render(<MemberCta action="inquiry" member={member}>{guest}</MemberCta>);
-    expect(screen.getByText("Bilgi talebi Gold paketiyle gönderilir")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Gold paketine geç" })).toHaveAttribute("href", "/company/premium");
+  it("doğrulama incelemede: doğrulama uyarısı + durum bağlantısı (duvar sürprizi yok, yeniden başvuru istenmez)", () => {
+    signIn("STANDART", "PENDING");
+    const { container } = render(<MemberCta action="inquiry" member={member}>{guest}</MemberCta>);
+    expect(screen.getByText("Bilgi talebi göndermek için firma doğrulaması gerekir")).toBeInTheDocument();
+    expect(screen.getByText(/Doğrulamanız inceleniyor/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Doğrulama durumunu görün" })).toHaveAttribute("href", VERIFY);
     expect(screen.queryByText("Bilgi iste (misafir)")).toBeNull();
+    expect(container.textContent).not.toMatch(PACKAGE_WORDS);
   });
 
-  // webA-03 yeniden doğrulama: herkese açık sayfa Silver satıcıya KENDİ ürünü
-  // için "Gold paketine geç" diyordu (panel ve üye sayfası D-230 notunu verir).
-  it("kendi ürünü: Gold uyarısı yerine 'sizin firmanıza ait' notu (paketten önce)", () => {
-    signIn("SILVER", "VERIFIED", ["buy:view"], "satici");
+  it("doğrulama reddedilmiş: yeniden başvuru", () => {
+    signIn("STANDART", "REJECTED");
+    render(<MemberCta action="inquiry" member={member}>{guest}</MemberCta>);
+    expect(screen.getByText(/Doğrulama başvurunuz onaylanmadı/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Yeniden başvurun" })).toHaveAttribute("href", VERIFY);
+  });
+
+  // webA-03 yeniden doğrulama: herkese açık sayfa yetkisiz satıcıya KENDİ ürünü
+  // için kapı uyarısı çiziyordu (panel ve üye sayfası D-230 notunu verir).
+  it("kendi ürünü: doğrulama uyarısı yerine 'sizin firmanıza ait' notu (yetki ve izinden önce)", () => {
+    signIn("STANDART", "UNVERIFIED", ["buy:view"], "satici");
     render(<MemberCta action="inquiry" sellerSlug="satici" member={member}>{guest}</MemberCta>);
     expect(screen.getByText(/Bu ürün sizin firmanıza ait/)).toBeInTheDocument();
-    expect(screen.queryByText("Gold paketine geç")).toBeNull();
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(screen.queryByText("Bilgi iste (misafir)")).toBeNull();
   });
 
@@ -68,30 +85,37 @@ describe("MemberCta", () => {
     expect(screen.getByText("Bilgi iste (üye)")).toBeInTheDocument();
   });
 
-  it("ücretsiz, doğrulanmamış: önce ücretsiz doğrulama", () => {
+  it("doğrulanmamış: ücretsiz doğrulama", () => {
     signIn("STANDART", "UNVERIFIED");
-    render(<MemberCta action="listing">{guest}</MemberCta>);
-    expect(screen.getByText("Talep açmak Gold paketiyle açılır")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
-      "href",
-      "/company/ayarlar/dogrulama",
-    );
+    const { container } = render(<MemberCta action="listing">{guest}</MemberCta>);
+    expect(screen.getByText("Talep açmak için firma doğrulaması gerekir")).toBeInTheDocument();
+    expect(screen.getByText(/Doğrulama ücretsizdir/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Firmanızı ücretsiz doğrulayın" })).toHaveAttribute("href", VERIFY);
+    expect(container.textContent).not.toMatch(PACKAGE_WORDS);
   });
 
-  it("Gold ama talep açma yetkisi yok: yetki notu", () => {
+  it("doğrulanmış ama talep açma yetkisi yok: yetki notu", () => {
     signIn("GOLD", "VERIFIED", ["buy:view"]);
     render(<MemberCta action="listing">{guest}</MemberCta>);
     expect(screen.getByText("Talep açmak için talep yönetme yetkisi gerekir.")).toBeInTheDocument();
   });
 
-  it("compact: kilitli bağlantı '… · Gold'", () => {
-    signIn("SILVER");
+  it("compact: kilitli bağlantı '… · Doğrulama gerekli'; incelemede '… · Doğrulama inceleniyor'", () => {
+    signIn("STANDART", "UNVERIFIED");
+    const { unmount } = render(
+      <MemberCta action="listing" compact compactLabel="Talep aç">
+        {guest}
+      </MemberCta>,
+    );
+    expect(screen.getByRole("link", { name: "Talep aç · Doğrulama gerekli" })).toHaveAttribute("href", VERIFY);
+    unmount();
+    signIn("STANDART", "PENDING");
     render(
       <MemberCta action="listing" compact compactLabel="Talep aç">
         {guest}
       </MemberCta>,
     );
-    expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
+    expect(screen.getByRole("link", { name: "Talep aç · Doğrulama inceleniyor" })).toHaveAttribute("href", VERIFY);
   });
 });
 
@@ -114,14 +138,14 @@ describe("SessionSwap", () => {
 describe("OpenRequestLink", () => {
   const listingPerms = ["buy:view", "buy:listing:manage"];
 
-  it("misafir: \"Talep aç · Gold\" kayda (dönüş adresi yok; paket tıklamadan önce — arayüz testi kapanış COPY)", () => {
+  it("misafir: yalın \"Talep aç\" kayda (dönüş adresi yok; etikette kilit/paket eki yok)", () => {
     render(<OpenRequestLink label="Talep aç" prefill="pano" />);
-    const href = screen.getByRole("link", { name: "Talep aç · Gold" }).getAttribute("href") ?? "";
+    const href = screen.getByRole("link", { name: "Talep aç" }).getAttribute("href") ?? "";
     expect(href).toContain("/company/kayit?intent=talep");
     expect(href).not.toContain("redirect");
   });
 
-  it("Gold ∧ talep yetkisi: doğrudan sihirbaz, arama terimi ön-dolu", () => {
+  it("doğrulanmış ∧ talep yetkisi: doğrudan sihirbaz, arama terimi ön-dolu", () => {
     signIn("GOLD", "VERIFIED", listingPerms);
     render(<OpenRequestLink label="Talep aç" prefill="pano kutusu" />);
     expect(screen.getByRole("link", { name: "Talep aç" })).toHaveAttribute(
@@ -130,34 +154,47 @@ describe("OpenRequestLink", () => {
     );
   });
 
-  it("Silver: kilitli 'Talep aç · Gold' paket sayfasına; doğrulanmamış ücretsiz: doğrulamaya", () => {
-    signIn("SILVER", "VERIFIED", listingPerms);
-    const { unmount } = render(<OpenRequestLink label="Talep aç" />);
-    expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
-    unmount();
+  it("incelemede: kilitli 'Talep aç · Doğrulama inceleniyor'; doğrulanmamış/reddedilmiş: '· Doğrulama gerekli' — hepsi doğrulamaya", () => {
+    signIn("STANDART", "PENDING", listingPerms);
+    const first = render(<OpenRequestLink label="Talep aç" />);
+    expect(screen.getByRole("link", { name: "Talep aç · Doğrulama inceleniyor" })).toHaveAttribute("href", VERIFY);
+    first.unmount();
     signIn("STANDART", "UNVERIFIED", listingPerms);
+    const second = render(<OpenRequestLink label="Talep aç" />);
+    expect(screen.getByRole("link", { name: "Talep aç · Doğrulama gerekli" })).toHaveAttribute("href", VERIFY);
+    second.unmount();
+    signIn("STANDART", "REJECTED", listingPerms);
     render(<OpenRequestLink label="Talep aç" />);
-    expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    expect(screen.getByRole("link", { name: "Talep aç · Doğrulama gerekli" })).toHaveAttribute("href", VERIFY);
   });
 
-  it("Gold ama talep yetkisi yok: bağlantı çizilmez", () => {
+  it("doğrulanmış ama talep yetkisi yok: bağlantı çizilmez", () => {
     signIn("GOLD", "VERIFIED", ["buy:view"]);
     render(<OpenRequestLink label="Talep aç" />);
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("boş durumun 'Talep aç' eylemi de üyenin paketine göre", () => {
-    signIn("SILVER", "VERIFIED", listingPerms);
+  it("boş durumun 'Talep aç' eylemi de üyenin doğrulama durumuna göre", () => {
+    signIn("STANDART", "UNVERIFIED", listingPerms);
     render(<PublicEmptyState title="Talep bulunamadı." openRequest={{ label: "Talep aç" }} />);
-    expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
+    expect(screen.getByRole("link", { name: "Talep aç · Doğrulama gerekli" })).toHaveAttribute("href", VERIFY);
   });
 });
 
 describe("RfqBanner (ürün sayfası 'Bir talep aç…')", () => {
-  it("misafir: 'Talep aç · Gold' kayda — paket tıklamadan önce (arayüz testi kapanış COPY, T-02)", () => {
+  it("misafir: yalın 'Talep aç' kayda — etikette paket adı yok (T-02)", () => {
     render(<RfqBanner prefill="pano" />);
-    const link = screen.getByRole("link", { name: /Talep aç · Gold/ });
+    const link = screen.getByRole("link", { name: "Talep aç" });
     expect(link.getAttribute("href")).toContain("/company/kayit?intent=talep");
+    expect(link.getAttribute("href")).not.toContain("redirect");
+  });
+
+  it("doğrulanmamış üye: kayıt bağlantısı yerine doğrulama uyarısı", () => {
+    signIn("STANDART", "UNVERIFIED", ["buy:view", "buy:listing:manage"]);
+    render(<RfqBanner prefill="pano" />);
+    expect(screen.getByText("Talep açmak için firma doğrulaması gerekir")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Firmanızı ücretsiz doğrulayın" })).toHaveAttribute("href", VERIFY);
+    expect(screen.queryByRole("link", { name: "Talep aç" })).toBeNull();
   });
 
   it("boş durumun 'Kategorilere göz at' bağlantısı dilin çapasına gider", () => {

@@ -66,28 +66,32 @@ describe("ListingDetail", () => {
     const info = screen.getByRole("heading", { name: "Talep bilgileri" }).parentElement as HTMLElement;
     expect(within(info).getByText("Son teklif tarihi")).toBeInTheDocument();
     expect(within(info).getByText("11 Eyl 2026")).toBeInTheDocument();
-    expect(screen.getByText(/teklif vermek Silver paketiyle açılır/)).toBeInTheDocument();
+    expect(screen.getByText(/belgeleri görmek ve teklif vermek için firma doğrulaması gerekir/)).toBeInTheDocument();
   });
 
   it("erken kapanmış talep: ileri tarihli son teklif tarihi ve teklif çağrısı yok", () => {
     render(<ListingDetail listing={{ ...base, status: "AWARDED" }} />);
     const info = screen.getByRole("heading", { name: "Talep bilgileri" }).parentElement as HTMLElement;
     expect(within(info).queryByText("Son teklif tarihi")).toBeNull();
-    expect(screen.queryByText(/teklif vermek Silver paketiyle/)).toBeNull();
-    expect(screen.getByText(/belgeleri görmek Silver paketiyle açılır/)).toBeInTheDocument();
+    expect(screen.queryByText(/teklif vermek için firma doğrulaması/)).toBeNull();
+    expect(screen.getByText(/belgeleri görmek için firma doğrulaması gerekir/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Kaydol — teklif firma doğrulamasıyla" })).toBeNull();
     expect(screen.getByText("Bu talep teklife kapalı.")).toBeInTheDocument();
   });
 
-  it("misafir: kapı başlığı, kayıt CTA'sı ve ödül listesi Silver'ı baştan söyler; 'üyelere/kayıtlı' vaadi yok (arayüz testi kapanış COPY)", () => {
+  it("misafir: kapı başlığı, kayıt CTA'sı ve ödül listesi firma doğrulamasını baştan söyler; 'üyelere/kayıtlı' vaadi ve paket adı yok (arayüz testi kapanış COPY)", () => {
     const { container } = render(<ListingDetail listing={base} />);
-    expect(screen.getByText("Alıcı firma, şartname ve ekli belgeler Silver paketiyle açılır")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Kaydol — teklif Silver paketiyle" })).toHaveAttribute(
+    expect(screen.getByText("Alıcı firma, şartname ve ekli belgeler doğrulanmış firmalara açılır")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Kaydol — teklif firma doğrulamasıyla" })).toHaveAttribute(
       "href",
       expect.stringContaining("/company/kayit?intent=teklif"),
     );
-    expect(screen.getByText("Silver ile: alıcı adı, şartname ve ekli belgeler")).toBeInTheDocument();
+    expect(screen.getByText(/tek şart ücretsiz firma doğrulamasıdır/)).toBeInTheDocument();
+    expect(screen.getByText("Firma doğrulamasıyla: alıcı adı, şartname ve ekli belgeler")).toBeInTheDocument();
     const text = container.textContent ?? "";
     expect(text).not.toMatch(/üyelere açık|kayıtlı (kullanıcı|firma)lara/);
     expect(text).not.toMatch(/Teklif vermek için kaydol/);
+    // Ücretsiz dönem (2026-10-07): hiçbir yerde paket adı yazmaz.
+    expect(text).not.toMatch(/Gold|Silver|paket|premium/i);
   });
 });

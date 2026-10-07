@@ -62,10 +62,8 @@ export const SETTINGS_PAGES = {
   // bir KART bırakılmıştı — aynı özelliğe iki giriş, ikisi de aynı yere gidiyor.
   // Tek giriş: Onaylar sayfasının başlığındaki "Onay akışları" düğmesi.
   //
-  // Doğrulama kartının açıklaması ÜCRETSİZ ODAKLI (2026-09-15, kullanıcı
-  // kararı): eskiden "Silver/Gold paketine geçişin ilk adımı" diyordu — yani
-  // paket satıyordu. Oysa doğrulama ücretsiz ve rozet pakete bağlı DEĞİL
-  // (`companyVerificationStatus`). Teşvik paketten değil rozetten gelmeli.
+  // Doğrulama kartı (ücretsiz dönem 2026-10-07): doğrulama ücretsizdir ve
+  // platformun bütün özelliklerini açar — kart bunu söyler, paket adı anmaz.
   dogrulama: { key: "dogrulama", href: "/company/ayarlar/dogrulama" },
 } as const satisfies Record<SettingsPageKey, SettingsPageRef>;
 

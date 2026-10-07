@@ -24,7 +24,7 @@ import {
 } from "@/hooks/use-company-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Link } from "@/i18n/navigation";
-import { PRICING_HREF, VerifyFirstLink } from "@/components/company/silver-lock-card";
+import { VerificationLink } from "@/components/company/verification-gate";
 import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { useEffect, useRef, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
@@ -60,12 +60,12 @@ export function InviteUserDialog({
     seats?.limit == null
       ? null
       : Math.max(0, seats.limit - seats.used - seats.pendingSeatInvites);
-  // Satınalma yetkisi yalnız GOLD'da verilebilir — talep açma/kazandırma
-  // ücretsiz pakette kapalı. Backend `assertSeatAvailable` aynı kuralı
+  // Satınalma yetkisi yalnız tam erişimli (efektif GOLD = doğrulanmış) firmada
+  // verilebilir — talep açma/kazandırma doğrulanmamış firmada kapalı. Backend `assertSeatAvailable` aynı kuralı
   // uyguluyor; buradaki yalnız aynası (kullanıcı kilidin sebebini görsün).
   const canGrantBuy = tierAtLeast(seats?.tier ?? "STANDART", BUYING_TIER);
   const seatsFull = freeSeats === 0;
-  // GOLD en üst paket: koltuk dolunca "yükseltin" denmez, koltuk boşaltılır
+  // Efektif GOLD = tam erişim: koltuk dolunca "doğrulayın" denmez, koltuk boşaltılır
   // (arayüz testi D-188; API seat-gate aynı ayrımı yapar).
   const topTier = tierAtLeast(seats?.tier ?? "STANDART", "GOLD");
   const [email, setEmail] = useState("");
@@ -183,21 +183,15 @@ export function InviteUserDialog({
             <p className="text-sm font-medium text-zinc-900">{t("yetkiler")}</p>
             {seatsFull ? (
               <p className="text-xs text-amber-700">
-                {topTier
-                  ? t("kullaniciHakkiDoluKoltukBosaltin")
-                  : (
-                    <>
-                      {t.rich("kullaniciHakkiDoluPaketYukseltin", {
-                        link: (c) => (
-                          <Link href={PRICING_HREF} className="font-semibold underline underline-offset-2">
-                            {c}
-                          </Link>
-                        ),
-                      })}
-                      {/* Paket alımı doğrulama ister (useVerifyFirst; webC-2). */}
-                      <VerifyFirstLink />
-                    </>
-                  )}
+                {topTier ? (
+                  t("kullaniciHakkiDoluKoltukBosaltin")
+                ) : (
+                  <>
+                    {t("kullaniciHakkiDoluDogrulama")}
+                    {/* Daha fazla koltuk firma doğrulamasıyla gelir (ücretsiz dönem). */}
+                    <VerificationLink />
+                  </>
+                )}
               </p>
             ) : null}
           </div>

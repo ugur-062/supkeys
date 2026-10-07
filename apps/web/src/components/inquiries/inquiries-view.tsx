@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { foldSearchText } from "@rothern/shared";
-import { SilverLockCard } from "@/components/company/silver-lock-card";
+import { VerificationLockCard } from "@/components/company/verification-gate";
 import { useActivityLabel, useCityLabel, useFormatDate } from "@/i18n/domain";
 import { upperForText } from "@/i18n/format";
 import { EmptyState } from "@/components/list";
@@ -145,16 +145,16 @@ export function InquiriesView({
         }
       />
 
-      {/* Ücretsiz satıcı (2026-09-06): soruyu görür, kimlik/iletişim/yanıt Silver ile. */}
+      {/* Doğrulanmamış satıcı: soruyu görür; kimlik/iletişim/yanıt firma doğrulamasıyla. */}
       {locked ? (
         <div className="mt-6">
-          <SilverLockCard
+          <VerificationLockCard
             title={
               totalCount > 0
-                ? tr("bilgiTalebiKimSorduguVe", { count: totalCount })
+                ? tr("bilgiTalebiKimSorduguDogrulama", { count: totalCount })
                 : tr("gelenSorulariGorursunuzKimSordugu")
             }
-            description={tr("ucretsizUyelikteAlicininSorusunuAdedini")}
+            description={tr("dogrulanmadanAlicininSorusunu")}
             // Kartın varsayılan dipnotu alım taleplerinden söz eder; bilgi
             // talebinde yanıltıcıydı (arayüz testi D-284).
             footnote={null}
@@ -405,7 +405,7 @@ function ThreadPane({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className={cn("text-sm font-semibold", t.title ? "text-zinc-950" : "text-zinc-500")}>
-              {t.title ?? tr("aliciKimligiSilverIleAcilir")}
+              {t.title ?? tr("aliciKimligiDogrulamaIleAcilir")}
             </p>
             {t.subtitle ? <span className="text-sm text-zinc-500">· {t.subtitle}</span> : null}
             {r ? (

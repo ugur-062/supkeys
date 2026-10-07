@@ -8,7 +8,12 @@ export type CompanyRole =
   | "SATISCI"
   | "ONAYLAYICI";
 
-/** Faz T: 4 kademe — STANDART paketsiz-pasif; sıra karşılaştırması @rothern/shared tierAtLeast. */
+/**
+ * Erişim kademesi — sıra karşılaştırması @rothern/shared `tierAtLeast`.
+ * ÜCRETSİZ DÖNEM (2026-10-07): API bu alanı EFEKTİF değerle doldurur
+ * (doğrulanmış firma tam erişim = GOLD; doğrulanmamış STANDART sınırları).
+ * Değerler yalnız kapı mantığında kullanılır, kullanıcıya ADIYLA gösterilmez.
+ */
 export type CompanyTier = "STANDART" | "SILVER" | "GOLD";
 
 export type CompanyVerificationStatus =
@@ -74,8 +79,8 @@ export interface CompanyLoginResponse {
 export interface CompanyMeResponse {
   user: CompanyUserDto;
   company: CompanyProfile;
-  /** Y2: self-servis premium yükseltme açık mı (backend flag — tek kaynak).
-   *  false ise "Premium'a Geç" CTA'sı gizlenir; premium manuel admin grant. */
+  /** Uyku hâlindeki backend bayrağı (ücretli paketler dönene dek web OKUMAZ);
+   *  alan adı API sözleşmesi olarak durur. */
   selfUpgradeEnabled: boolean;
 }
 

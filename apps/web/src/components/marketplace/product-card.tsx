@@ -482,16 +482,6 @@ export function ProductCard({
                     <span className="sr-only">{t("verifiedCompany")}</span>
                   </Badge>
                 ) : null}
-                {/* "Gold Üye" METİN rozeti olarak KALDIRILMIŞTI (2026-09-07):
-                    paketli firma çok, her kartta çıkıp ayırt ediciliğini
-                    yitiriyordu. İkon olarak geri geldi — tarama sırasında
-                    gürültü yapmıyor, "kimden alıyorum" sorusuna bakan
-                    kullanıcı için okunur (etiketi ekran okuyucuda). */}
-                {firm.gold ? (
-                  <Badge tone="gold" size="sm" className="shrink-0 px-1">
-                    <span className="sr-only">{t("goldMember")}</span>
-                  </Badge>
-                ) : null}
               </span>
               {firm.city ? (
                 <span className="mt-0.5 flex items-center gap-0.5 text-[11px] text-zinc-500">

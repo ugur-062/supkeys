@@ -5,7 +5,7 @@
  * (2026-09-10). Onay Akışları kartı KALDIRILDI (2026-09-14, kullanıcı kararı):
  * özellik Onaylar sayfasının kendi görünümünde, tek giriş oradaki düğme.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@/hooks/use-company-auth", () => ({ useCompanyAuth: () => ({ user: h.user, company: h.company }) }));
 
 import AyarlarPage from "../page";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 describe("AyarlarPage", () => {
   it("izinsiz kullanıcı yalnız kişisel kartları ve Firma Profili köprüsünü görür", () => {
@@ -51,16 +52,42 @@ describe("AyarlarPage", () => {
     expect(screen.getByText("Hesap Bilgileri")).toBeInTheDocument();
   });
 
-  it("Aktivite ve AI kartları Silver altında 'Silver ile açılır' rozeti taşır; Silver'da taşımaz (arayüz testi T3)", () => {
+  // Eski sözleşme (T3: "Silver ile açılır" rozeti) ücretsiz dönemde doğrulama
+  // rozetine döndü (2026-10-07): kilit mantığı aynı (efektif kademe), metin
+  // paket adı değil doğrulama durumudur.
+  it.each([
+    ["UNVERIFIED", "Doğrulama gerekir"],
+    ["PENDING", "Doğrulama inceleniyor"],
+    ["REJECTED", "Yeniden başvurun"],
+  ])("Aktivite ve AI kartları erişim yokken doğrulama rozeti taşır: %s → %s", (status, badge) => {
     h.user = { ...h.user, permissions: ["company:manage", "sell:bid:submit"] };
-    h.company = { companyVerificationStatus: "VERIFIED", tier: "STANDART" };
-    const { unmount } = render(<AyarlarPage />);
-    expect(screen.getByRole("link", { name: /Aktivite Logu/ })).toHaveTextContent("Silver ile açılır");
-    expect(screen.getByRole("link", { name: /AI Kullanımı/ })).toHaveTextContent("Silver ile açılır");
-    expect(screen.getByRole("link", { name: /Firma Bilgileri/ })).not.toHaveTextContent("Silver ile açılır");
-    unmount();
-    h.company = { companyVerificationStatus: "VERIFIED", tier: "SILVER" };
-    render(<AyarlarPage />);
-    expect(screen.queryByText("Silver ile açılır")).toBeNull();
+    h.company = { companyVerificationStatus: status, tier: "STANDART" };
+    useCompanyAuthStore.setState({ company: h.company as never, user: h.user as never } as never);
+    try {
+      render(<AyarlarPage />);
+      const aktivite = screen.getByRole("link", { name: /Aktivite Logu/ });
+      const ai = screen.getByRole("link", { name: /AI Kullanımı/ });
+      expect(within(aktivite).getByTestId("verification-badge")).toHaveTextContent(badge);
+      expect(within(ai).getByTestId("verification-badge")).toHaveTextContent(badge);
+      expect(within(screen.getByRole("link", { name: /Firma Bilgileri/ })).queryByTestId("verification-badge")).toBeNull();
+      expect(document.body.textContent).not.toMatch(/silver|gold|paket/i);
+    } finally {
+      useCompanyAuthStore.setState({ company: null, user: null } as never);
+    }
+  });
+
+  it("efektif kademe yeterliyse (doğrulanmış firma) rozet yok; doğrulama kartı paket anmaz", () => {
+    h.user = { ...h.user, permissions: ["company:manage", "sell:bid:submit"] };
+    h.company = { companyVerificationStatus: "VERIFIED", tier: "GOLD" };
+    useCompanyAuthStore.setState({ company: h.company as never, user: h.user as never } as never);
+    try {
+      render(<AyarlarPage />);
+      expect(screen.queryByTestId("verification-badge")).toBeNull();
+      const card = screen.getByRole("link", { name: /Doğrulama Belgeleri/ });
+      expect(card).toHaveTextContent("Doğrulandı");
+      expect(card.textContent).not.toMatch(/silver|gold|paket/i);
+    } finally {
+      useCompanyAuthStore.setState({ company: null, user: null } as never);
+    }
   });
 });

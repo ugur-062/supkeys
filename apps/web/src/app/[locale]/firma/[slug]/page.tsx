@@ -138,15 +138,13 @@ export default async function PublicCompanyProfile({
           // notu için `translatedFrom` — tek kaynak (arayüz testi O-018).
           profile={publicProfileViewData(p, locale)}
           actions={
-            // Oturumlu üyeye paket/izin kapısı tıklamadan önce (Silver; arayüz
-            // testi kapanış S-PUB-ADMIN) — misafir sunucunun giriş bağlantısını
+            // Oturumlu üyeye yetki/izin kapısı tıklamadan önce (arayüz testi
+            // kapanış S-PUB-ADMIN) — misafir sunucunun giriş bağlantısını
             // görür. Dil farkında Link: ham <a> dil önekini eklemiyor, EN/RU
             // ziyaretçi Türkçe giriş sayfasına düşüyordu (derin denetim LU-22).
             <PublicConnectCta companySlug={slug} panelHref={panelHref} className={CONNECT_CLS}>
-              {/* Misafir de paketi tıklamadan önce görür: "… · Silver"
-                  (arayüz testi kapanış COPY, T-02 — davet Silver ister). */}
               <Link href={loginHref(panelHref)} className={CONNECT_CLS}>
-                {t("connectLockedLabel", { label: t("connectCta") })}
+                {t("connectCta")}
               </Link>
             </PublicConnectCta>
           }

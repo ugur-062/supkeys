@@ -7,6 +7,7 @@ import { intlLocale } from "@/i18n/format";
 import { affixCurrency, currencySymbol } from "@/lib/tenders/labels";
 import { userHasPermission } from "@/lib/company/permissions";
 import { Link } from "@/i18n/navigation";
+import { VerificationLink } from "@/components/company/verification-gate";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -266,13 +267,10 @@ function FlowList({
 
       {!canCreate ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-sm text-amber-900">
-          <p>{t("yeniAkisGoldPakette")}</p>
-          <Link
-            href="/company/premium"
-            className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
-          >
-            {t("paketleriIncele")}
-          </Link>
+          <p>
+            {t("yeniAkisDogrulama")}
+            <VerificationLink className="text-amber-900 hover:text-amber-950" />
+          </p>
         </div>
       ) : null}
 

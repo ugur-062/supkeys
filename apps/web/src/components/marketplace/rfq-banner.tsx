@@ -27,7 +27,6 @@ export function RfqBanner({
   variant?: "public" | "panel";
 }) {
   const t = useTranslations("web.marketing.rfq");
-  const tGate = useTranslations("web.marketplace.memberGate");
   const POINTS = [
     { icon: POINT_ICONS[0], t: t("point1") },
     { icon: POINT_ICONS[1], t: t("point2") },
@@ -35,10 +34,11 @@ export function RfqBanner({
   ];
   const panelHref = `/company/satinalma/taleplerim/yeni${prefill ? `?q=${encodeURIComponent(prefill)}` : ""}`;
   /* Herkese açık yüz kayda DÖNÜŞ ADRESİ TAŞIMAZ (arayüz testi Y-03): yeni
-     firma STANDART doğar, satınalma sihirbazı Gold ister — `talep` niyetinin
-     bilinçli olarak yönlendirmesiz olması (signup-intent.ts) burada `redirect`
-     ile deliniyordu ve kayıt sonrası ilk ekran Gold duvarı oluyordu. Oturumlu
-     üyeye kapıyı `MemberCta` söyler (Gold ∧ yetki → doğrudan sihirbaz). */
+     firma doğrulanmamış doğar, satınalma sihirbazı firma doğrulaması ister —
+     `talep` niyetinin bilinçli olarak yönlendirmesiz olması (signup-intent.ts)
+     burada `redirect` ile deliniyordu ve kayıt sonrası ilk ekran kilit duvarı
+     oluyordu. Oturumlu üyeye kapıyı `MemberCta` söyler (tam yetki ∧ izin →
+     doğrudan sihirbaz). */
   const href = variant === "panel" ? panelHref : signupHref("talep");
   const blue = variant === "panel";
   return (
@@ -93,10 +93,8 @@ export function RfqBanner({
                   </AccentLink>
                 }
               >
-                {/* Misafir de paketi tıklamadan önce görür: "Talep aç · Gold"
-                    (arayüz testi kapanış COPY, T-02). */}
                 <AccentLink href={href} className={CTA_CLS}>
-                  {tGate("lockedLabel", { label: t("cta") })}
+                  {t("cta")}
                   <ArrowRightIcon aria-hidden className="size-4" />
                 </AccentLink>
               </MemberCta>

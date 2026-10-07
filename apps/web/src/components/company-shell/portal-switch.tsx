@@ -55,8 +55,9 @@ const NE_YAPAR: Record<PortalKey, string> = {
  *    kümesinden ayırır
  *  Renk yalnız bir ikon büyüklüğünde; "tek eylem rengi" kuralını zorlamaz.
  *
- * KİLİTLİ PORTAL: bugünkü davranış aynen — satır yine tıklanır, `PortalGuard`
- * paket ekranını açar (kilidi gizlemek kullanıcıya neyi kaçırdığını söylemezdi).
+ * KİLİTLİ PORTAL: satır yine tıklanır, `PortalGuard` doğrulama kapısını açar
+ * (kilidi gizlemek kullanıcıya neyi kaçırdığını söylemezdi). Ücretsiz dönem
+ * (2026-10-07): kilit notu paket adı değil "firma doğrulamasıyla açılır" der.
  */
 export function PortalSwitch({
   active,
@@ -67,7 +68,7 @@ export function PortalSwitch({
   active: PortalKey;
   /** Menüde görünen portallar (görüntüleme izni olanlar). */
   visiblePortals: readonly PortalKey[];
-  /** Gerçekten girilebilen portallar (paket kapısı geçilmiş). */
+  /** Gerçekten girilebilen portallar (efektif kademe kapısı geçilmiş). */
   available: readonly PortalKey[];
   onNavigate?: () => void;
 }) {
@@ -196,7 +197,7 @@ export function PortalSwitch({
                         {!acik ? (
                           <LockClosedIcon
                             className="size-3.5 text-zinc-400"
-                            aria-label={t("paketleAcilir")}
+                            aria-label={t("dogrulamaylaAcilir")}
                           />
                         ) : null}
                         {aktif ? (
@@ -209,7 +210,7 @@ export function PortalSwitch({
                       <span className="mt-0.5 block text-xs text-zinc-600">
                         {t(NE_YAPAR[p] as never)}
                         {/* JSX satır sonu boşluk üretmez — cümleler bitişmesin. */}
-                        {!acik ? ` ${t("goldPaketiyleAcilir")}` : ""}
+                        {!acik ? ` ${t("dogrulamaylaAcilirCumle")}` : ""}
                       </span>
                     </span>
                   </Link>

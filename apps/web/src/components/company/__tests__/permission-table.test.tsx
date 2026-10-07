@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * YETKİ TABLOSU — PAKET KAPISI SÖZLEŞMESİ.
+ * YETKİ TABLOSU — ERİŞİM KAPISI SÖZLEŞMESİ (ücretsiz dönem: kapı metni doğrulama der).
  *
  * Satınalma yetkisi yalnız GOLD'da verilebilir (2026-09-14, kullanıcı kararı):
  * talep açma ve kazandırma ücretsiz ve Silver pakette kapalı olduğu için yetki
@@ -62,11 +62,12 @@ function ciz(canGrantBuy: boolean, value: string[] = []) {
   );
 }
 
-describe("PermissionTable — satınalma paket kapısı", () => {
-  it("ücretsiz/Silver: satınalma işlem tiki KİLİTLİ ve sebebi yazar", () => {
+describe("PermissionTable — satınalma erişim kapısı", () => {
+  it("satınalma verilemeyen firma: işlem tiki KİLİTLİ ve sebebi (firma doğrulaması) yazar", () => {
     ciz(false);
     expect(kilitli("Talep açma ve yönetme")).toBe(true);
-    expect(screen.getByText(/işlem tikleri Gold pakette/)).toBeInTheDocument();
+    expect(screen.getByText(/işlem tikleri firma doğrulamasıyla açılır/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/gold|silver|paket/i);
   });
 
   it("ücretsiz/Silver: koltuksuz 'Satınalma görüntüleme' tiki SERBEST — API ve Görüntüleyici seti verir (arayüz testi T3)", () => {
@@ -82,7 +83,7 @@ describe("PermissionTable — satınalma paket kapısı", () => {
   it("Gold: satınalma tiki açılır", () => {
     ciz(true);
     expect(kilitli("Talep açma ve yönetme")).toBe(false);
-    expect(screen.queryByText(/işlem tikleri Gold pakette/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/işlem tikleri firma doğrulamasıyla açılır/)).not.toBeInTheDocument();
   });
 
   it("zaten verilmiş yetki kilitlenmez — mevcut yapılandırma sessizce bozulmaz", () => {
@@ -129,10 +130,10 @@ describe("PermissionTable — hazır set çipi paket/koltuk kapısından geçer 
     expect(onChange).toHaveBeenCalledWith(["sell:view", "sell:bid:submit"]);
   });
 
-  it("işaretli ama paketin vermediği satınalma tiki sebebini yazar ve kaldırılabilir", () => {
+  it("işaretli ama firmanın erişiminde olmayan satınalma tiki sebebini yazar ve kaldırılabilir", () => {
     cizOnChange({ canGrantBuy: false, value: ["buy:view", "buy:listing:manage"] });
     expect(kilitli("Talep açma ve yönetme")).toBe(false);
-    expect(screen.getByText("Gold pakette")).toBeInTheDocument();
+    expect(screen.getByText("Firma doğrulaması gerekir")).toBeInTheDocument();
   });
 });
 

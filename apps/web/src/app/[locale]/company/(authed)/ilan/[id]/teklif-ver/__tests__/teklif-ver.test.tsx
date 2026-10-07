@@ -165,14 +165,15 @@ describe("TeklifVerPage — kapılar", () => {
     ).toBeInTheDocument();
   });
 
-  it("herkese açık talep ücretsiz üyeye 403 TIER_REQUIRED → 'bulunamadı' DEĞİL Silver kilit kartı", () => {
+  it("herkese açık talep doğrulanmamış firmaya 403 TIER_REQUIRED → 'bulunamadı' DEĞİL doğrulama kilit kartı", () => {
     h.detail = undefined;
     h.error = { response: { status: 403, data: { code: "TIER_REQUIRED", minTier: "SILVER" } } };
     try {
       render(<TeklifVerPage />);
-      expect(screen.getByText(/Bu herkese açık talebe teklif Silver paketiyle açılır/)).toBeInTheDocument();
+      expect(screen.getByText(/Bu herkese açık talebe teklif firma doğrulamasıyla açılır/)).toBeInTheDocument();
       expect(screen.queryByText(/bulunamadı/)).toBeNull();
-      expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/company/premium");
+      expect(screen.queryByText(/Silver|Gold/)).toBeNull();
+      expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
     } finally {
       h.error = null;
     }
@@ -191,23 +192,24 @@ describe("TeklifVerPage — kapılar", () => {
     }
   });
 
-  it("teklif hakkı yok (ücretsiz, bağsız) → Silver kapısı", () => {
+  it("teklif hakkı yok (doğrulanmamış, bağsız) → doğrulama kapısı, paket adı yok", () => {
     h.detail = baseDetail({ canBid: false });
     render(<TeklifVerPage />);
-    expect(screen.getByText(/Teklif için Silver paketi gerekir/)).toBeInTheDocument();
+    expect(screen.getByText(/Teklif için firma doğrulaması gerekir/)).toBeInTheDocument();
+    expect(screen.queryByText(/Silver|Gold/)).toBeNull();
   });
 
-  it("teklif hakkı yok + doğrulaması reddedilmiş ücretsiz firma → önce doğrulama, Paketler ikincil (webC-2)", () => {
+  it("teklif hakkı yok + doğrulaması reddedilmiş firma → tek eylem 'Yeniden başvurun', paket bağlantısı yok (webC-2; ücretsiz dönem)", () => {
     h.detail = baseDetail({ canBid: false });
     const prev = useCompanyAuthStore.getState().company;
     useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
     try {
       render(<TeklifVerPage />);
-      expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
+      expect(screen.getByRole("link", { name: "Yeniden başvurun" })).toHaveAttribute(
         "href",
         "/company/ayarlar/dogrulama",
       );
-      expect(screen.getByRole("link", { name: "Paketleri Gör" })).toHaveAttribute("href", "/company/premium");
+      expect(screen.queryByRole("link", { name: /Paket/i })).toBeNull();
     } finally {
       useCompanyAuthStore.setState({ company: prev } as never);
     }

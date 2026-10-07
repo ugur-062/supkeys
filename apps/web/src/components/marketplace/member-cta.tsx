@@ -7,7 +7,14 @@ import { Link } from "@/i18n/navigation";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useAccentFill } from "@/components/ui/accent-fill";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
-import { buyingGate, gateHref, type BuyingAction, type BuyingGate } from "@/lib/public/member-gate";
+import {
+  buyingGate,
+  gateHref,
+  verificationStage,
+  type BuyingAction,
+  type BuyingGate,
+  type VerificationStage,
+} from "@/lib/public/member-gate";
 import { signupHref } from "@/lib/public/visibility";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +33,24 @@ export function useBuyingGate(action: BuyingAction): BuyingGate {
   return buyingGate(user, company, action);
 }
 
+/**
+ * Kapalı kapının metin aşaması (ücretsiz dönem, 2026-10-07): başvurulmamış →
+ * "doğrulayın", incelemede → "doğrulamanız inceleniyor", reddedilmiş →
+ * "yeniden başvurun". Kapı kapalıyken okunur; hidrasyondan önce "verify".
+ */
+export function useVerificationStage(): VerificationStage {
+  const hydrated = useHydrated();
+  const storeHydrated = useCompanyAuthStore((s) => s.isHydrated);
+  const company = useCompanyAuthStore((s) => s.company);
+  return hydrated && storeHydrated ? verificationStage(company) : "verify";
+}
+
+/** Aşamanın katalog anahtarı öneki: `verifyCta` / `pendingCta` / `reapplyCta` vb. */
+export const STAGE_CTA = { verify: "verifyCta", pending: "pendingCta", reapply: "reapplyCta" } as const;
+export const STAGE_NOTE = { verify: "verifyNote", pending: "pendingNote", reapply: "reapplyNote" } as const;
+/** Dar düğme etiketi: incelemede "· Doğrulama inceleniyor", diğerlerinde "· Doğrulama gerekli". */
+export const STAGE_LABEL = { verify: "lockedLabel", pending: "pendingLabel", reapply: "lockedLabel" } as const;
+
 /** Oturumdaki firmanın slug'ı (hidrasyondan sonra; öncesi `null`). */
 function useOwnCompanySlug(): string | null {
   const hydrated = useHydrated();
@@ -41,21 +66,20 @@ function OwnProductNote() {
 
 /**
  * HERKESE AÇIK CTA ADACIĞI (arayüz testi Y-03, kullanıcı kararı T-02):
- * "Bilgi iste" / "Talep aç" düğmeleri oturumu olan ama Gold olmayan üyeye
- * Gold gerektiğini TIKLAMADAN ÖNCE söyler (doğrulanmamışa önce ücretsiz
- * doğrulama, değilse Gold'a geçiş). Misafir mevcut akışı (giriş/kayıt) aynen
- * görür.
+ * "Bilgi iste" / "Talep aç" düğmeleri oturumu olan ama firması doğrulanmamış
+ * üyeye firma doğrulaması gerektiğini TIKLAMADAN ÖNCE söyler (ücretsiz dönem,
+ * 2026-10-07: doğrulanmış her firma tam yetkili; kademe adı/fiyat yazılmaz).
+ * Misafir mevcut akışı (giriş/kayıt) aynen görür.
  *
  * - misafir / hidrasyon öncesi → `children` (sunucunun bastığı misafir CTA'sı)
- * - Gold ∧ izin → `member` (verilmezse `children`; giriş bağlantısı oturumlu
- *   kullanıcıyı `next`e geçirir)
- * - Gold değil → `compact` ise kilitli bağlantı, değilse açıklamalı kutu
+ * - tam yetki ∧ izin → `member` (verilmezse `children`; giriş bağlantısı
+ *   oturumlu kullanıcıyı `next`e geçirir)
+ * - yetki yok → `compact` ise kilitli bağlantı, değilse açıklamalı kutu
+ *   (doğrulayın / doğrulamanız inceleniyor / yeniden başvurun)
  * - izin yok → izin notu (`compact`ta hiç çizilmez)
- * - `sellerSlug` oturumdaki firmanın kendisi → "kendi ürününüz" notu (paket ve
- *   izinden ÖNCE: kendi ürününe bilgi talebi hiçbir pakette gönderilmez; panel
- *   ve üye ürün sayfasıyla aynı kural — arayüz testi D-230, webA-03 yeniden
- *   doğrulama: herkese açık sayfa Silver satıcıya kendi ürünü için Gold
- *   satıyordu)
+ * - `sellerSlug` oturumdaki firmanın kendisi → "kendi ürününüz" notu (yetki ve
+ *   izinden ÖNCE: kendi ürününe bilgi talebi gönderilmez; panel ve üye ürün
+ *   sayfasıyla aynı kural — arayüz testi D-230)
  */
 export function MemberCta({
   action,
@@ -74,7 +98,7 @@ export function MemberCta({
   /** Yüzen düğme/satır içi bağlantı gibi dar yerler: kutu yerine kilitli bağlantı. */
   compact?: boolean;
   compactClassName?: string;
-  /** Kilitli bağlantının etiketi (ör. "Talep aç") — sonuna "· Gold" eklenir. */
+  /** Kilitli bağlantının etiketi (ör. "Talep aç") — sonuna "· Doğrulama gerekli" eklenir. */
   compactLabel?: string;
 }) {
   const gate = useBuyingGate(action);
@@ -92,10 +116,10 @@ export function MemberCta({
   return <BuyingGateNotice gate={gate} action={action} />;
 }
 
-/** Satınalma talep sihirbazı — Gold ∧ `buy:listing:manage` üyenin "Talep aç" hedefi. */
+/** Satınalma talep sihirbazı — tam yetkili ∧ `buy:listing:manage` üyenin "Talep aç" hedefi. */
 export const NEW_REQUEST_PATH = "/company/satinalma/taleplerim/yeni";
 
-/** Gold ∧ yetkili üyenin "Talep aç" hedefi (arama terimi ön-dolu). */
+/** Tam yetkili ∧ izinli üyenin "Talep aç" hedefi (arama terimi ön-dolu). */
 export function newRequestHref(prefill?: string): string {
   return `${NEW_REQUEST_PATH}${prefill ? `?q=${encodeURIComponent(prefill)}` : ""}`;
 }
@@ -105,14 +129,11 @@ export function newRequestHref(prefill?: string): string {
  * akış adımı, yüzen düğme) için TEK bileşen (arayüz testi webA-03 gözden
  * geçirme, T-02). Eskiden bu yerler çıplak `signupHref("talep")` basıyordu:
  * oturumlu üye kayıt sayfasına gidip oradan sessizce `/company`ye atılıyordu
- * — Gold olmayana önceden uyarı yoktu, Gold alıcı da sihirbaza ulaşmıyordu.
+ * — yetkisiz üyeye önceden uyarı yoktu, yetkili alıcı da sihirbaza ulaşmıyordu.
  *
- * misafir → kayıt (dönüş adresi TAŞIMAZ, Y-03) · Gold ∧ yetki → sihirbaz ·
- * Gold değil → kilitli "Talep aç · Gold" (doğrulama/paket) · yetki yok → hiç.
- *
- * Misafir etiketi de "Talep aç · Gold" (arayüz testi kapanış COPY, T-02):
- * yeni firma STANDART doğar, talep yayını Gold ister — kayıt bağlantısı
- * bunu tıklamadan önce söyler.
+ * misafir → kayıt (dönüş adresi TAŞIMAZ, Y-03; etiket yalın "Talep aç") ·
+ * tam yetki ∧ izin → sihirbaz · firma doğrulanmamış → kilitli "Talep aç ·
+ * Doğrulama gerekli" (doğrulama sayfası) · izin yok → hiç.
  */
 export function OpenRequestLink({
   label,
@@ -131,7 +152,6 @@ export function OpenRequestLink({
   trailing?: ReactNode;
 }) {
   const fill = useAccentFill();
-  const t = useTranslations("web.marketplace.memberGate");
   const cls = accent ? cn(className, fill) : className;
   return (
     <MemberCta
@@ -147,7 +167,7 @@ export function OpenRequestLink({
       }
     >
       <Link href={signupHref("talep")} className={cls}>
-        {t("lockedLabel", { label })}
+        {label}
         {trailing}
       </Link>
     </MemberCta>
@@ -166,12 +186,13 @@ function LockedGateLink({
   label?: string;
 }) {
   const t = useTranslations("web.marketplace.memberGate");
+  const stage = useVerificationStage();
   const href = gateHref(gate);
   if (!href) return null;
   return (
     <Link href={href} className={cn("inline-flex items-center gap-1.5", className)} title={action === "inquiry" ? t("inquiryTitle") : t("listingTitle")}>
       <LockClosedIcon aria-hidden className="size-4" />
-      {label ? t("lockedLabel", { label }) : t("upgradeCta")}
+      {label ? t(STAGE_LABEL[stage], { label }) : t(STAGE_CTA[stage])}
     </Link>
   );
 }
@@ -191,6 +212,7 @@ export function BuyingGateNotice({
   className?: string;
 }) {
   const t = useTranslations("web.marketplace.memberGate");
+  const stage = useVerificationStage();
   if (gate === "guest" || gate === "ok") return null;
   if (gate === "noPermission") {
     return (
@@ -210,12 +232,12 @@ export function BuyingGateNotice({
         {action === "inquiry" ? t("inquiryTitle") : t("listingTitle")}
       </p>
       <p className="mt-1 text-xs/5 text-amber-900">{t("body")}</p>
-      {gate === "verify" ? <p className="mt-1 text-xs/5 text-amber-900">{t("verifyNote")}</p> : null}
+      <p className="mt-1 text-xs/5 text-amber-900">{t(STAGE_NOTE[stage])}</p>
       <Link
         href={href}
         className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
       >
-        {gate === "verify" ? t("verifyCta") : t("upgradeCta")}
+        {t(STAGE_CTA[stage])}
       </Link>
     </div>
   );
@@ -224,7 +246,7 @@ export function BuyingGateNotice({
 /**
  * Oturum var mı (hidrasyondan sonra) — misafir CTA'sını üyenin hedefiyle
  * değiştirir (ör. `/firmalar` "Ücretsiz üye ol / Giriş yap" → üyeye "Firma
- * dizinine git"). Paket kararı hedef sayfada (`/company/firma-dizini`).
+ * dizinine git"). Yetki kararı hedef sayfada (`/company/firma-dizini`).
  */
 export function SessionSwap({ member, children }: { member: ReactNode; children: ReactNode }) {
   const hydrated = useHydrated();

@@ -1,7 +1,6 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
-import { pricingHref } from "@/lib/public/anchors";
+import { useTranslations } from "next-intl";
 
 import { stripLocale } from "@/i18n/href";
 
@@ -67,8 +66,6 @@ import { useEffect, useState } from "react";
 export function MarketingHeader() {
   const t = useTranslations("web.marketing.nav");
   const tl = useTranslations("web.marketplace.labels");
-  // Paket çapası dil başına (`#fiyatlar` / `#pricing` / `#tarify`).
-  const locale = useLocale();
   // Yayın anahtarı kapalıyken pazar yeri rotaları 404 döner (geri dönüş
   // senaryosu) — altbilgi gibi menü de o satırları HİÇ basmaz (arayüz testi O-004).
   const NAV = [
@@ -80,7 +77,6 @@ export function MarketingHeader() {
         ]
       : []),
     { name: t("howItWorks"), href: "/nasil-calisir" },
-    { name: t("pricing"), href: pricingHref(locale) },
   ];
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);

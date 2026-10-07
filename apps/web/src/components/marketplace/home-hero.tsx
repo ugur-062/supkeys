@@ -8,7 +8,7 @@ import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
 import { gateHref } from "@/lib/public/member-gate";
-import { NEW_REQUEST_PATH, useBuyingGate } from "./member-cta";
+import { NEW_REQUEST_PATH, STAGE_LABEL, useBuyingGate, useVerificationStage } from "./member-cta";
 import { usePublicBidGate } from "./listing-bid-cta";
 import { Suspense } from "react";
 
@@ -47,11 +47,13 @@ export function HomeHero() {
   const t = useTranslations("web.marketing.home");
   const supplier = audience === "supplier";
   const tGate = useTranslations("web.marketplace.memberGate");
-  /* ALICI "TALEP AÇ" NOTU üyenin paketine göre (arayüz testi webA-03 gözden
+  /* ALICI "TALEP AÇ" NOTU üyenin yetkisine göre (arayüz testi webA-03 gözden
      geçirme, T-02): eskiden herkese `signupHref("talep")` — oturumlu üye kayıt
-     sayfasından sessizce `/company`ye atılıyordu. Misafir → kayıt; Gold ∧
-     yetki → sihirbaz; Gold değil → "Talep aç · Gold" (doğrulama/paket); yetki
-     yok → not çizilmez. Kapı hidrasyondan önce "guest" (sunucu HTML'i aynı). */
+     sayfasından sessizce `/company`ye atılıyordu. Misafir → kayıt; tam yetki ∧
+     izin → sihirbaz; firma doğrulanmamış → "Talep aç · Doğrulama gerekli"
+     (doğrulama sayfası); izin yok → not çizilmez. Kapı hidrasyondan önce
+     "guest" (sunucu HTML'i aynı). Ücretsiz dönem (2026-10-07): kademe adı yok. */
+  const stage = useVerificationStage();
   const gate = useBuyingGate("listing");
   const lockedHref = gateHref(gate);
   const buyerCtaNote =
@@ -59,17 +61,17 @@ export function HomeHero() {
       ? undefined
       : {
           text: t("buyerCtaText"),
-          /* Misafire de "· Gold" (arayüz testi kapanış COPY, T-02): kayıt
-             STANDART açar, talep yayını Gold. Yalnız Gold ∧ yetkili çıplak. */
-          label: gate === "ok" ? t("buyerCtaLabel") : tGate("lockedLabel", { label: t("buyerCtaLabel") }),
+          /* Misafir ve tam yetkili yalın etiket; yalnız oturumlu ama firması
+             doğrulanmamış üyeye doğrulama eki. */
+          label: lockedHref ? tGate(STAGE_LABEL[stage], { label: t("buyerCtaLabel") }) : t("buyerCtaLabel"),
           href: lockedHref ?? (gate === "ok" ? NEW_REQUEST_PATH : signupHref("talep")),
         };
   /* TEDARİKÇİ "TEKLİF" NOTU da oturuma göre (arayüz testi kapanış webA-1):
      eskiden herkese "Ücretsiz kaydolun" basılıyordu — oturumlu üye kayıt
-     sayfasından panele atılıyor, teklif izni olmayan Silver üyeye de teklif
-     çağrısı yapılıyordu. Misafir → kayıt; Silver ∧ `sell:bid:submit` → panelin
-     açık talepler listesi; Silver değil → "· Silver" (doğrulama/paket); izin
-     yok → not çizilmez (önce paket, sonra izin). */
+     sayfasından panele atılıyor, teklif izni olmayan üyeye de teklif çağrısı
+     yapılıyordu. Misafir → kayıt; tam yetki ∧ `sell:bid:submit` → panelin açık
+     talepler listesi; firma doğrulanmamış → "· Doğrulama gerekli" (doğrulama
+     sayfası); izin yok → not çizilmez (önce firmanın yetkisi, sonra izin). */
   const tBid = useTranslations("web.marketplace.bidGate");
   const bidGate = usePublicBidGate();
   const bidLockedHref = gateHref(bidGate);
@@ -81,7 +83,7 @@ export function HomeHero() {
         : {
             text: t("supplierCtaText"),
             label: bidLockedHref
-              ? tBid("lockedLabel", { label: t("supplierMemberCtaLabel") })
+              ? tBid(STAGE_LABEL[stage], { label: t("supplierMemberCtaLabel") })
               : t("supplierMemberCtaLabel"),
             href: bidLockedHref ?? PANEL_TARGET.openRequests,
           };

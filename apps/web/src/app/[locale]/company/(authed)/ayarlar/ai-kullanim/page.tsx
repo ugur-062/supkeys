@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/catalyst/table";
-import { PremiumOnly } from "@/components/company-shell/premium-only";
+import { VerifiedOnly } from "@/components/company-shell/premium-only";
 import { useAiUsage } from "@/hooks/use-ai-usage";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { tierAtLeast } from "@rothern/shared";
@@ -63,7 +63,7 @@ export default function AiKullanimPage() {
   // AI özellik adı `web.domain.aiFeature` sözlüğünden; sözlükte yoksa "Diğer".
   const tf = useTranslations("web.domain.aiFeature");
   const locale = useLocale() as Locale;
-  // Paket kilitliyse (PremiumOnly kilit kartı çizer) istek hiç atılmaz (O-044).
+  // Erişim kilitliyse (VerifiedOnly doğrulama kapısı çizer) istek hiç atılmaz (O-044).
   const { company } = useCompanyAuth();
   const tierOk = !!company && tierAtLeast(company.tier, "SILVER");
   const { data, isLoading, isError, error, refetch } = useAiUsage(tierOk);
@@ -74,7 +74,7 @@ export default function AiKullanimPage() {
       page={SETTINGS_PAGES.ai}
       description={t("firmanizinAylikAiButcesininNe")}
     >
-      <PremiumOnly minTier="SILVER">
+      <VerifiedOnly minTier="SILVER">
         {isError ? (
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {forbidden
@@ -216,7 +216,7 @@ export default function AiKullanimPage() {
             ) : null}
           </div>
         ) : null}
-      </PremiumOnly>
+      </VerifiedOnly>
     </SettingsShell>
   );
 }

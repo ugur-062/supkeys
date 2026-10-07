@@ -7,7 +7,6 @@ import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import {
   useCompanyDocs,
   useDocLabels,
@@ -47,10 +46,6 @@ export default function DogrulamaPage() {
   // Banka Hesapları sahibe özel — yetkisizde düz metin (arayüz testi D-300).
   const canBilling = useHasCompanyPermission("billing:manage");
   const { data, isLoading, isError, refetch } = useCompanyDocs();
-  // Doğrulanmış başlığın metni pakete göre (D-175): Silver/Gold firmaya
-  // "artık paket satın alabilirsiniz" denmez. `/me` paketi efektiftir
-  // (süresi dolan paket STANDART — INV-TIER-1).
-  const tier = useCompanyAuthStore((s) => s.company?.tier);
   const upload = useUploadDoc();
   const submit = useSubmitDocs();
   const [busyKind, setBusyKind] = useState<DocKind | null>(null);
@@ -202,7 +197,7 @@ export default function DogrulamaPage() {
   return (
     <SettingsShell
       page={SETTINGS_PAGES.dogrulama}
-      description={t("dogrulamaUcretsizVePaketGerektirmez")}
+      description={t("dogrulamaAciklama")}
     >
       {/* Hata dalı (O-109): eskiden istek düşünce sonsuza dek "Yükleniyor…". */}
       {isError && !data ? (
@@ -249,11 +244,7 @@ export default function DogrulamaPage() {
             </div>
           ) : data.status === "VERIFIED" ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              {tier === "GOLD"
-                ? t("firmanizDogrulandiGold")
-                : tier === "SILVER"
-                  ? t("firmanizDogrulandiSilver")
-                  : t("firmanizDogrulandiHerkeseAcik")}
+              {t("firmanizDogrulandi")}
               {canManage ? (
                 <span className="mt-0.5 block text-xs text-emerald-700">
                   {t("onaylananBelgelerDegistirilemezBirBelge")}

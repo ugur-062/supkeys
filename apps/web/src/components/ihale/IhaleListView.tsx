@@ -147,7 +147,7 @@ export function IhaleListView({
           canCreate
             ? tr("ilkSatinAlmaTalebiniziBirkac")
             : hasCreatePermission
-              ? tr("yeniTalepGoldGerektirir")
+              ? tr("yeniTalepDogrulamaGerektirir")
               : tr("satinAlmaTalebiAcmaIslem")
         }
         variant="no-data"

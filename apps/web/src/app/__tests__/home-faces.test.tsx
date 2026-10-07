@@ -100,7 +100,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(document.getElementById("kategoriler")!.closest("[hidden]")).toBeNull();
   });
 
-  it("AI ile ara ANONİMDE ÇİZİLMEZ (Silver+ ∧ koltuk izni ister)", async () => {
+  it("AI ile ara ANONİMDE ÇİZİLMEZ (oturum ∧ koltuk izni ister)", async () => {
     const user = userEvent.setup();
     hero();
     expect(screen.queryByRole("button", { name: /AI ile ara/ })).toBeNull();
@@ -116,25 +116,52 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "/company/kayit?intent=teklif",
     );
     await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
-    // Misafir de paketi tıklamadan önce görür (arayüz testi kapanış COPY, T-02).
-    expect(screen.getByRole("link", { name: "Talep aç · Gold" })).toHaveAttribute(
+    // Misafir etiketi yalın (ücretsiz dönem 2026-10-07): paket/doğrulama eki yok.
+    expect(screen.getByRole("link", { name: "Talep aç" })).toHaveAttribute(
       "href",
       "/company/kayit?intent=talep",
     );
   });
 
-  it("oturumlu üyede alıcı 'Talep aç' notu paketine göre (T-02): Silver kilitli, Gold sihirbaz", async () => {
+  it("hero metinleri (ücretsiz dönem 2026-10-07): talep açmak ve teklif vermek tamamen ücretsiz; paket adı ve doğrulama şartı yazmaz", async () => {
+    const user = userEvent.setup();
+    const { container } = hero();
+    // Giriş cümlesi ve eylem notu: ücretsiz der, doğrulama ŞARTI koşmaz.
+    // (Dekor kartındaki "Doğrulanmış rozeti — Doğrulama ücretsiz" bir şart değil.)
+    const supplierLead = screen.getByText(/Teklif vermek tamamen ücretsiz\./);
+    const supplierNote = screen.getByText("Taleplere teklif vermek tamamen ücretsiz").closest("p")!;
+    for (const el of [supplierLead, supplierNote]) expect(el.textContent).not.toMatch(/doğrulama/i);
+    expect(container.textContent).not.toMatch(/Gold|Silver|paket|premium/i);
+    await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
+    const buyerLead = screen.getByText(/Alım talebi açmak tamamen ücretsiz\./);
+    const buyerNote = screen.getByText(/Alım talebi açmak ücretsiz\./).closest("p")!;
+    for (const el of [buyerLead, buyerNote]) expect(el.textContent).not.toMatch(/doğrulama/i);
+    expect(container.textContent).not.toMatch(/Gold|Silver|paket|premium/i);
+  });
+
+  it("oturumlu üyede alıcı 'Talep aç' notu firmanın doğrulamasına göre (T-02): doğrulanmamış kilitli, incelemede 'inceleniyor', doğrulanmış sihirbaz", async () => {
     const user = userEvent.setup();
     useCompanyAuthStore.setState({
       isHydrated: true,
       user: { id: "u", permissions: ["buy:view", "buy:listing:manage"], roles: [] } as never,
-      company: { tier: "SILVER", companyVerificationStatus: "VERIFIED" } as never,
+      company: { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" } as never,
     });
     try {
       const { unmount } = hero();
       await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
-      expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
+      expect(screen.getByRole("link", { name: "Talep aç · Doğrulama gerekli" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
       unmount();
+      useCompanyAuthStore.setState({ company: { tier: "STANDART", companyVerificationStatus: "PENDING" } as never });
+      const pending = hero();
+      expect(screen.getByRole("link", { name: "Talep aç · Doğrulama inceleniyor" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      pending.unmount();
+      // Doğrulanmış firmanın `/me` kademesi efektif olarak en üst kademedir.
       useCompanyAuthStore.setState({ company: { tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never });
       hero();
       expect(screen.getByRole("link", { name: /^Talep aç/ })).toHaveAttribute(
@@ -146,7 +173,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     }
   });
 
-  it("oturumlu üyede tedarikçi notu 'Ücretsiz kaydolun' DEMEZ (webA-1): Silver ∧ izin panel, ücretsiz '· Silver', izinsiz not yok", () => {
+  it("oturumlu üyede tedarikçi notu 'Ücretsiz kaydolun' DEMEZ (webA-1): doğrulanmış ∧ izin panel, doğrulanmamış '· Doğrulama gerekli', izinsiz not yok", () => {
     const signIn = (tier: string, status: string, permissions: string[]) =>
       useCompanyAuthStore.setState({
         isHydrated: true,
@@ -154,7 +181,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
         company: { tier, companyVerificationStatus: status } as never,
       });
     try {
-      signIn("SILVER", "VERIFIED", ["sell:view", "sell:bid:submit"]);
+      signIn("GOLD", "VERIFIED", ["sell:view", "sell:bid:submit"]);
       let r = hero();
       expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
       expect(screen.getByRole("link", { name: /^Açık talepleri görün$/ })).toHaveAttribute(
@@ -163,29 +190,30 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       );
       r.unmount();
 
-      signIn("STANDART", "VERIFIED", ["sell:view", "sell:bid:submit"]);
+      signIn("STANDART", "PENDING", ["sell:view", "sell:bid:submit"]);
       r = hero();
       expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
-      expect(screen.getByRole("link", { name: /Açık talepleri görün · Silver/ })).toHaveAttribute(
-        "href",
-        "/company/premium",
-      );
-      r.unmount();
-
-      signIn("STANDART", "UNVERIFIED", ["sell:view", "sell:bid:submit"]);
-      r = hero();
-      expect(screen.getByRole("link", { name: /Açık talepleri görün · Silver/ })).toHaveAttribute(
+      expect(screen.getByRole("link", { name: "Açık talepleri görün · Doğrulama inceleniyor" })).toHaveAttribute(
         "href",
         "/company/ayarlar/dogrulama",
       );
       r.unmount();
 
-      // Silver ama teklif izni yok (Satın Almacı / Görüntüleyici): teklif çağrısı yok.
-      signIn("SILVER", "VERIFIED", ["buy:view"]);
+      signIn("STANDART", "UNVERIFIED", ["sell:view", "sell:bid:submit"]);
+      r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: "Açık talepleri görün · Doğrulama gerekli" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      r.unmount();
+
+      // Doğrulanmış ama teklif izni yok (Satın Almacı / Görüntüleyici): teklif çağrısı yok.
+      signIn("GOLD", "VERIFIED", ["buy:view"]);
       hero();
       expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
       expect(screen.queryByRole("link", { name: /Açık talepleri görün/ })).toBeNull();
-      expect(screen.queryByText(/herkese açık taleplere Silver ile teklif verin/)).toBeNull();
+      expect(screen.queryByText("Taleplere teklif vermek tamamen ücretsiz")).toBeNull();
     } finally {
       useCompanyAuthStore.setState({ user: null, company: null });
     }
@@ -261,15 +289,17 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(within(list).getByRole("link", { name: /Tüm talepler \(16\)/ })).toBeInTheDocument();
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
-    expect(within(list).getAllByText(/şartname ve belgeler Silver ile/).length).toBe(3);
+    expect(within(list).getAllByText(/şartname ve belgeler doğrulanmış firmalara/).length).toBe(3);
+    expect(list.textContent).not.toMatch(/Gold|Silver|paket|premium/i);
     // SATIR düzeni (2026-09-10): kategori GÖRSELİ yok (v3 2026-09-19: sütun
     // ikon karoları var, fotoğraf yine yok), sütunlar panelle aynı.
     const rows = list.querySelector("ul")!;
     expect(within(rows).queryAllByRole("img")).toHaveLength(0);
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
-    // Misafir de paketi tıklamadan önce görür (arayüz testi kapanış COPY, T-02).
-    const teklif = within(list).getAllByRole("link", { name: "Teklif ver · Silver" });
+    // Misafir etiketi yalın (ücretsiz dönem 2026-10-07): davetli tedarikçi
+    // doğrulama olmadan da teklif verir; paket/doğrulama eki yok.
+    const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });
     expect(teklif).toHaveLength(3);
     // Tedarikçi yüzünde YEŞİL dolgulu düğme (2026-09-18, kullanıcı).
     expect(teklif[0]!.className).toContain("bg-emerald-600");
@@ -297,7 +327,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     useCompanyAuthStore.setState({
       isHydrated: true,
       user: { id: "u", permissions: ["sell:view", "sell:product:manage"], roles: [] } as never,
-      company: { tier: "STANDART", companyVerificationStatus: "VERIFIED" } as never,
+      company: { tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never,
     });
     try {
       const { unmount } = render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
@@ -306,7 +336,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       expect(screen.getByRole("link", { name: "Panelde açın" })).toHaveAttribute("href", "/company/satis#acik-talepler");
       expect(screen.getByRole("link", { name: "Ürün ekle" })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
       unmount();
-      // Vitrin yetkisi olmayan üyeye "Ürün ekle" çizilmez (önce paket, sonra izin; vitrin her pakette).
+      // Vitrin yetkisi olmayan üyeye "Ürün ekle" çizilmez (önce firmanın yetkisi, sonra izin; vitrin doğrulama istemez).
       useCompanyAuthStore.setState({ user: { id: "u", permissions: ["buy:view"], roles: [] } as never });
       render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
       expect(screen.queryByRole("link", { name: "Ürün ekle" })).toBeNull();

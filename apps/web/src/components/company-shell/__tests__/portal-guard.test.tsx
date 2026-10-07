@@ -25,9 +25,6 @@ vi.mock("@/lib/company/portal-store", () => ({
   usePortalStore: (sel: (s: { setLastPortal: typeof h.setLastPortal }) => unknown) =>
     sel({ setLastPortal: h.setLastPortal }),
 }));
-vi.mock("@/components/company-shell/premium-gate", () => ({
-  PremiumGate: () => <div data-testid="premium-gate">GATE</div>,
-}));
 
 import { PortalGuard } from "../portal-guard";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
@@ -52,7 +49,7 @@ describe("PortalGuard", () => {
     expect(h.replace).not.toHaveBeenCalled();
   });
 
-  it("satınalma rolü var ama STANDARD → premium kapısı (yönlendirme yok)", () => {
+  it("satınalma rolü var ama efektif kademe yetmiyor → doğrulama kapısı (yönlendirme yok)", () => {
     h.auth.user = { roles: ["YONETICI"] };
     h.auth.company = { tier: "STANDART" };
     render(
@@ -60,7 +57,7 @@ describe("PortalGuard", () => {
         <div data-testid="child">SATINALMA</div>
       </PortalGuard>,
     );
-    expect(screen.getByTestId("premium-gate")).toBeInTheDocument();
+    expect(screen.getByTestId("verification-gate")).toBeInTheDocument();
     expect(screen.queryByTestId("child")).not.toBeInTheDocument();
     expect(h.replace).not.toHaveBeenCalled();
   });
@@ -123,8 +120,8 @@ describe("PortalGuard — onaylayıcı-only (minimal kabuk)", () => {
   });
 });
 
-describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres (D-264)", () => {
-  it("STANDART + buy:view: Taleplerim listesi paket bandıyla AÇILIR", () => {
+describe("PortalGuard — satınalma erişimi olmayan firma (T-06, O-008) ve eski adres (D-264)", () => {
+  it("STANDART + buy:view: Taleplerim listesi doğrulama bandıyla AÇILIR (paket adı yok)", () => {
     h.auth.user = { roles: ["YONETICI"] };
     h.auth.company = { tier: "STANDART" };
     h.pathname = "/company/satinalma/taleplerim";
@@ -134,9 +131,10 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
       </PortalGuard>,
     );
     expect(screen.getByTestId("child")).toBeInTheDocument();
-    expect(screen.queryByTestId("premium-gate")).not.toBeInTheDocument();
-    expect(screen.getByText("Satınalma paneli Gold pakette")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Paketleri gör" })).toHaveAttribute("href", "/company/premium");
+    expect(screen.queryByTestId("verification-gate")).not.toBeInTheDocument();
+    expect(screen.getByText("Satınalma paneli firma doğrulamasıyla açılır")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    expect(screen.getByRole("status").textContent).not.toMatch(/gold|silver|paket/i);
     // Açık portal sayılmaz — son portal kaydı yapılmaz.
     expect(h.setLastPortal).not.toHaveBeenCalled();
   });
@@ -153,26 +151,29 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
     const banner = screen.getByRole("status");
     expect(banner).toHaveClass("flex-col", "sm:flex-row");
     // Düğme metin sütununun KARDEŞİ (aynı satırı paylaşan esnek öğe değil).
-    const link = screen.getByRole("link", { name: "Paketleri gör" });
-    expect(link.parentElement).toBe(banner);
-    expect(screen.getByText("Satınalma paneli Gold pakette").closest("div")?.parentElement?.parentElement).toBe(banner);
+    const link = screen.getByRole("link", { name: "Firmanızı doğrulayın" });
+    expect(link.closest("div.shrink-0")?.parentElement).toBe(banner);
+    expect(
+      screen.getByText("Satınalma paneli firma doğrulamasıyla açılır").closest("div")?.parentElement?.parentElement,
+    ).toBe(banner);
   });
 
-  it("doğrulaması reddedilmiş firmada bant önce doğrulamaya gider (useVerifyFirst, webC-2)", () => {
+  it.each([
+    ["PENDING", "Doğrulama durumunu gör", /Doğrulamanız inceleniyor/],
+    ["REJECTED", "Yeniden başvurun", /yeniden başvurun/],
+  ])("bant doğrulama durumunu ayrı metinle söyler: %s", (status, cta, note) => {
     h.auth.user = { roles: ["YONETICI"] };
     h.auth.company = { tier: "STANDART" };
     h.pathname = "/company/satinalma/taleplerim";
-    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: status } as never } as never);
     try {
       render(
         <PortalGuard portal="satinalma">
           <div data-testid="child">LISTE</div>
         </PortalGuard>,
       );
-      expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute(
-        "href",
-        "/company/ayarlar/dogrulama",
-      );
+      expect(screen.getByRole("link", { name: cta })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+      expect(screen.getByRole("status")).toHaveTextContent(note);
     } finally {
       useCompanyAuthStore.setState({ company: null } as never);
     }
@@ -190,7 +191,7 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
     expect(screen.getByTestId("child")).toBeInTheDocument();
   });
 
-  it("yeni talep formu ve pano Gold kapısında kalır; kapı ekranı mevcut listelere bağlantı verir", () => {
+  it("yeni talep formu ve pano doğrulama kapısında kalır; kapı ekranı mevcut listelere bağlantı verir", () => {
     h.auth.user = { roles: ["YONETICI"] };
     h.auth.company = { tier: "STANDART" };
     for (const path of ["/company/satinalma/taleplerim/yeni", "/company/satinalma"]) {
@@ -200,7 +201,7 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
           <div data-testid="child">X</div>
         </PortalGuard>,
       );
-      expect(screen.getByTestId("premium-gate")).toBeInTheDocument();
+      expect(screen.getByTestId("verification-gate")).toBeInTheDocument();
       expect(screen.queryByTestId("child")).not.toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Taleplerim" })).toHaveAttribute("href", "/company/satinalma/taleplerim");
       expect(screen.getByRole("link", { name: "Siparişlerim" })).toHaveAttribute("href", "/company/satinalma/siparisler");
@@ -208,7 +209,7 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
     }
   });
 
-  it("satınalma izni olmayan kullanıcıya liste açılmaz (rol kontrolü pakete bağlı değil)", () => {
+  it("satınalma izni olmayan kullanıcıya liste açılmaz (rol kontrolü erişim kademesine bağlı değil)", () => {
     h.auth.user = { roles: ["SATISCI"] };
     h.auth.company = { tier: "STANDART" };
     h.pathname = "/company/satinalma/taleplerim";
@@ -221,7 +222,7 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
     expect(screen.getByText(/erişim yetkiniz yok/)).toBeInTheDocument();
   });
 
-  it("eski /satinalma/mesajlar yönlendiricisi paket kapısına takılmaz", () => {
+  it("eski /satinalma/mesajlar yönlendiricisi doğrulama kapısına takılmaz", () => {
     h.auth.user = { roles: ["SATISCI"] };
     h.auth.company = { tier: "SILVER" };
     h.pathname = "/company/satinalma/mesajlar";
@@ -231,6 +232,6 @@ describe("PortalGuard — Gold altına düşen firma (T-06, O-008) ve eski adres
       </PortalGuard>,
     );
     expect(screen.getByTestId("child")).toBeInTheDocument();
-    expect(screen.queryByTestId("premium-gate")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("verification-gate")).not.toBeInTheDocument();
   });
 });

@@ -465,7 +465,7 @@ export function ProductShowcaseForm({
       return;
     }
     if (thenSubmit && publishLocked) {
-      toast.error(t("ucretsizPaketTavaniDolduDaha"));
+      toast.error(t("urunTavaniDolduDogrulama"));
       return;
     }
     if (thenSubmit && submitBlocked) return;
@@ -900,7 +900,7 @@ export function ProductShowcaseForm({
                     canManage
                       ? {
                           available: aiAvailable && patch.name.trim().length >= 2,
-                          unavailableReason: aiAvailable ? t("onceUrunAdiniYazin") : t("aiIleGuclendirmeSilverVe"),
+                          unavailableReason: aiAvailable ? t("onceUrunAdiniYazin") : t("aiIleGuclendirmeDogrulama"),
                           run: () =>
                             seoEnrich.mutateAsync({
                               kind: "product",

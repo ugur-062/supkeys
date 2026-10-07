@@ -50,7 +50,7 @@ import { SellerTendersView } from "../seller-tenders-view";
 import { maskedRowToSellerRow, type MaskedTenderApiRow } from "@/hooks/use-seller-tenders";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
-/** Firma paketi/doğrulaması — liste ve satır CTA'ları store'dan okur. */
+/** Firmanın efektif yetkisi/doğrulaması — liste ve satır CTA'ları store'dan okur. */
 function setCompany(tier: string, companyVerificationStatus = "VERIFIED") {
   useCompanyAuthStore.setState({ company: { tier, companyVerificationStatus } as never });
 }
@@ -148,7 +148,7 @@ beforeEach(() => {
   h.isLoading = false;
   h.isError = false;
   h.search = "";
-  // Varsayılan paketli (Silver) üye — ücretsiz senaryolar açıkça kurar.
+  // Varsayılan tam yetkili (doğrulanmış) firma — doğrulanmamış senaryolar açıkça kurar.
   setCompany("SILVER");
   h.get.mockResolvedValue({
     data: { id: "l1", items: [], itemCount: 0 },
@@ -183,8 +183,8 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(sidebar().getAllByRole("button", { name: /^(Uygunluk|Durum|Kategori|Kapanış|Alıcı|Alıcı ülkesi|Para birimi|Usul|Yayın tarihi)( ?\(\d+\))?$/ })).toHaveLength(9);
   });
 
-  it("ücretsiz üye (2026-10-03): davetli/bağlantılı satırlar ÜSTTE, altında alıcı gizli herkese açık talepler; kilit kartı YOK", () => {
-    setCompany("STANDART");
+  it("doğrulanmamış firma (2026-10-03): davetli/bağlantılı satırlar ÜSTTE, altında alıcı gizli herkese açık talepler; kilit kartı YOK", () => {
+    setCompany("STANDART", "UNVERIFIED");
     h.rows = [
       row({ title: "Davetli talep", invited: true }),
       row({ title: "Bağlantılı talep", invited: false, connected: true }),
@@ -192,9 +192,10 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
       masked({ title: "Maskeli diğer" }),
     ];
     render(<SellerTendersView />);
-    expect(screen.getByText(/alıcı adı gizli — bunlara teklif Silver ile/)).toBeInTheDocument();
-    // Büyük kilit kartı ve eski metin kalktı.
-    expect(screen.queryByText(/Silver ile açılacak/)).toBeNull();
+    expect(screen.getByText(/alıcı adı gizli — bunlara teklif firma doğrulamasıyla/)).toBeInTheDocument();
+    // Büyük kilit kartı ve eski metin kalktı; paket adı hiçbir yerde yok (ücretsiz dönem 2026-10-07).
+    expect(document.body.textContent).not.toMatch(/Silver|Gold|Platinum/);
+    expect(document.querySelector('a[href*="/company/premium"]')).toBeNull();
     expect(screen.queryByText(/herkese açık taleplerin tamamı/)).toBeNull();
 
     const list = screen.getByRole("region", { name: /listesi/i });
@@ -219,8 +220,11 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     // Rozet kısa metinle çizilir (TR "Doğrulanmış"), tam metin title'da.
     expect(within(maskedRow).getByTitle("Doğrulanmış alıcı")).toHaveTextContent("Doğrulanmış");
     expect(maskedRow.textContent).not.toContain("Alıcı A.Ş.");
-    // CTA: doğrulanmış ücretsiz → Paketler; satır → panel içi maskeli görünüm.
-    expect(within(maskedRow).getByRole("link", { name: "Teklif ver · Silver" })).toHaveAttribute("href", "/company/premium");
+    // CTA → doğrulama akışı; satır → panel içi maskeli görünüm.
+    expect(within(maskedRow).getByRole("link", { name: "Teklif ver · doğrulama gerekir" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
     const hrefs = within(maskedRow).getAllByRole("link").map((a) => a.getAttribute("href"));
     expect(hrefs.some((h) => h?.startsWith("/company/satis/acik-talep/ROT-9000"))).toBe(true);
     expect(hrefs.some((h) => h?.startsWith("/company/ilan/"))).toBe(false);
@@ -230,16 +234,24 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getByText("4 açık talep bulundu")).toBeInTheDocument();
   });
 
-  it("ücretsiz + doğrulanmamış: satır CTA'sı ve ince not DOĞRULAMAYA gider (doğrulama önce)", () => {
+  it("doğrulanmamış firma: satır CTA'sı ve ince not DOĞRULAMAYA gider; not bağlantısı doğrulama durumunu izler", () => {
     setCompany("STANDART", "UNVERIFIED");
     h.rows = [masked({ title: "Maskeli" })];
+    const first = render(<SellerTendersView />);
+    expect(screen.getByRole("link", { name: "Teklif ver · doğrulama gerekir" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    expect(screen.getByText(/Alıcının adını görmek ve teklif vermek için firma doğrulaması gerekir/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    first.unmount();
+
+    // İncelemede: yeniden başvuru istenmez, durum bağlantısı çizilir.
+    setCompany("STANDART", "PENDING");
     render(<SellerTendersView />);
-    expect(screen.getByRole("link", { name: "Teklif ver · Silver" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
-    expect(screen.getByRole("link", { name: "Önce ücretsiz doğrulan" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    expect(screen.queryByRole("link", { name: "Firmanızı doğrulayın" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Doğrulama durumunu gör" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
   });
 
-  it("ücretsiz üye: sıralama grup İÇİNDE — maskeli satır yakın kapanışla davetlinin üstüne çıkmaz", () => {
-    setCompany("STANDART");
+  it("doğrulanmamış firma: sıralama grup İÇİNDE — maskeli satır yakın kapanışla davetlinin üstüne çıkmaz", () => {
+    setCompany("STANDART", "UNVERIFIED");
     h.rows = [
       row({ title: "Davetli uzak", invited: true, closesAt: new Date(Date.now() + 30 * 86_400_000).toISOString() }),
       masked({ title: "Maskeli yakın", closesAt: new Date(Date.now() + 1 * 86_400_000).toISOString() }),
@@ -253,8 +265,8 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(texts).toEqual(["Davetli uzak", "Maskeli yakın", "Maskeli orta"]);
   });
 
-  it("ücretsiz üye: arama, kategori sayacı ve ALICI ÜLKESİ süzgeci maskeli satırları da kapsar (\"Teklif ver\"den ?q=ROT-…)", () => {
-    setCompany("STANDART");
+  it("doğrulanmamış firma: arama, kategori sayacı ve ALICI ÜLKESİ süzgeci maskeli satırları da kapsar (\"Teklif ver\"den ?q=ROT-…)", () => {
+    setCompany("STANDART", "UNVERIFIED");
     h.rows = [
       row({ title: "Davetli talep" }),
       masked({ title: "Kablo talebi", number: "ROT-000478" }),
@@ -282,16 +294,17 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.queryByText("Sonuç bulunamadı.")).toBeNull();
   });
 
-  it("paketli üye: maskeli bölüm ve kilit kartı yok; alt başlık paketli metni", () => {
+  it("doğrulanmış (tam yetkili) firma: maskeli bölüm ve kilit kartı yok; alt başlık tam yetkili metni", () => {
     h.rows = [row({})];
     render(<SellerTendersView />);
-    expect(screen.queryByText(/Silver ile açılacak/)).toBeNull();
+    expect(screen.queryByText(/doğrulama gerekir|firma doğrulaması gerekir/)).toBeNull();
+    expect(document.querySelector('a[href="/company/ayarlar/dogrulama"]')).toBeNull();
     expect(screen.queryByTestId("masked-section")).toBeNull();
     expect(screen.getByText(/süzün, sıralayın, teklif verin/)).toBeInTheDocument();
   });
 
   it("arama boş: süzgeç boş durumu (eski 'kilitli sonuç yok' dalı kalktı)", () => {
-    setCompany("STANDART");
+    setCompany("STANDART", "UNVERIFIED");
     h.search = "q=ROT-000478";
     try {
       render(<SellerTendersView />);

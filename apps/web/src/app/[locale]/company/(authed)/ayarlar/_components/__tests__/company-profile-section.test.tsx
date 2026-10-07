@@ -94,22 +94,21 @@ describe("CompanyProfileSection", () => {
     expect(screen.queryByText("Bekliyor")).not.toBeInTheDocument();
   });
 
-  it("üyelik: ücretli pakette bitiş tarihi, süresi dolmuşta 'doldu' + Yenile (arayüz testi D-029)", () => {
-    h.profile = baseProfile({
-      tier: "GOLD",
-      membership: { endsAt: "2026-12-31T09:00:00.000Z", expiredAt: null },
-    });
-    const { unmount } = render(<CompanyProfileSection />);
-    expect(screen.getByText("31 Aralık 2026 tarihine kadar")).toBeInTheDocument();
-    unmount();
-
-    h.profile = baseProfile({
-      tier: "STANDART",
-      membership: { endsAt: null, expiredAt: "2026-09-30T09:00:00.000Z" },
-    });
-    render(<CompanyProfileSection />);
-    expect(screen.getByText("Paket süresi 30 Eylül 2026 tarihinde doldu")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Yenile" })).toHaveAttribute("href", "/company/premium");
+  // Eski sözleşme (D-029: üyelik satırında paket rozeti, bitiş tarihi, "Yenile")
+  // ücretsiz dönemde KALKTI (2026-10-07): kimlik kartı paket adı, üyelik
+  // süresi ya da paket bağlantısı basmaz; doğrulama rozeti durur.
+  it.each([
+    ["GOLD", { endsAt: "2026-12-31T09:00:00.000Z", expiredAt: null }],
+    ["SILVER", { endsAt: "2026-12-31T09:00:00.000Z", expiredAt: null }],
+    ["STANDART", { endsAt: null, expiredAt: "2026-09-30T09:00:00.000Z" }],
+  ])("paket kartı yok: %s firmada üyelik satırı, paket adı ve yenileme bağlantısı çizilmez", (tier, membership) => {
+    h.profile = baseProfile({ tier, membership });
+    const { container } = render(<CompanyProfileSection />);
+    expect(screen.queryByText("Üyelik")).not.toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/\b(Gold|Silver|Standart)\b|paket|tarihine kadar|Yenile/i);
+    for (const a of screen.getAllByRole("link")) expect(a.getAttribute("href")).not.toContain("/company/premium");
+    // Doğrulama satırı ve bağlantısı yerinde.
+    expect(screen.getByText("Doğrulama")).toBeInTheDocument();
   });
 
   it("şahıs firmasında vergi no = TCKN → maskeli", () => {

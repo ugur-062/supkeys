@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { PermissionGate } from "@/components/company/permission-gate";
-import { PremiumOnly } from "@/components/company-shell/premium-only";
+import { VerifiedOnly } from "@/components/company-shell/premium-only";
 
 /**
  * İş Analizi = SATIŞ tarafının raporu: Silver+ ve "Ziyaret edenler ve iş
@@ -10,7 +10,7 @@ import { PremiumOnly } from "@/components/company-shell/premium-only";
 export default function IsAnaliziLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations("web.panel.reports.raporlarIsAnaliziLayout");
   return (
-    <PremiumOnly minTier="SILVER">
+    <VerifiedOnly minTier="SILVER">
       <PermissionGate
         permission="insights:view"
         title={t("isAnaliziYetkiGerektirir")}
@@ -18,6 +18,6 @@ export default function IsAnaliziLayout({ children }: { children: React.ReactNod
       >
         {children}
       </PermissionGate>
-    </PremiumOnly>
+    </VerifiedOnly>
   );
 }

@@ -28,7 +28,7 @@ import { countryDisplayName } from "@/i18n/domain";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { GOLD_HREF } from "@/lib/public/member-gate";
+import { useVerificationGateCopy } from "@/components/company/verification-gate";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import { Link } from "@/i18n/navigation";
@@ -84,6 +84,7 @@ export function SupplierDiscoveryModal({
   collected?: string[];
 }) {
   const tr = useTranslations("web.panel.requests.supplierDiscoveryModal");
+  const gateCopy = useVerificationGateCopy();
   const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
   const tAi = useTranslations("web.panel.requests.aiSuppliers");
   const tMember = useTranslations("web.panel.requests.memberInviteStatus");
@@ -555,13 +556,17 @@ export function SupplierDiscoveryModal({
                 <p role="alert" className="text-sm text-red-700">
                   {loadError}
                 </p>
-                {tierLocked ? (
+                {/* Kilit = firma doğrulanmamış: eylem doğrulama akışı, etiket
+                    doğrulama durumunu izler (ücretsiz dönem 2026-10-07). */}
+                {tierLocked && gateCopy.managerNote ? (
+                  <p className="text-sm text-zinc-600">{gateCopy.managerNote}</p>
+                ) : tierLocked && gateCopy.href ? (
                   <Link
-                    href={GOLD_HREF}
+                    href={gateCopy.href}
                     onClick={onClose}
                     className="text-sm font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-800"
                   >
-                    {tr("goldaGec")}
+                    {gateCopy.cta}
                   </Link>
                 ) : null}
               </div>

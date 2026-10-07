@@ -4,15 +4,14 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
  * HERKESE AÇIK SAYFA ÇAPALARI — dil başına (arayüz testi kapanış COPY:footer).
  *
  * Kök neden: bölüm id'leri ve onlara giden bağlantılar Türkçe sabitti
- * (`/nasil-calisir#fiyatlar`, `/#kategoriler`); dil farkında `Link` yolu
+ * (`/nasil-calisir#ozellikler`, `/#kategoriler`); dil farkında `Link` yolu
  * çeviriyor ama parçayı çevirmiyordu → EN/RU ziyaretçi
- * `/en/how-it-works#fiyatlar` görüyordu. Bölüm id'si de bağlantı da buradan
+ * `/en/how-it-works#ozellikler` görüyordu. Bölüm id'si de bağlantı da buradan
  * okunur; Türkçe adresler (paylaşılmış bağlantılar) aynen kalır.
  */
-export type PublicAnchor = "pricing" | "features" | "faq" | "categories" | "inquiry" | "products";
+export type PublicAnchor = "features" | "faq" | "categories" | "inquiry" | "products";
 
 const ANCHORS: Record<PublicAnchor, Record<Locale, string>> = {
-  pricing: { tr: "fiyatlar", en: "pricing", ru: "tarify" },
   features: { tr: "ozellikler", en: "features", ru: "vozmozhnosti" },
   faq: { tr: "sss", en: "faq", ru: "voprosy" },
   categories: { tr: "kategoriler", en: "categories", ru: "kategorii" },
@@ -42,9 +41,17 @@ export function anchorAliasIds(anchor: PublicAnchor, locale: string | null | und
   return [...new Set(Object.values(ANCHORS[anchor]))].filter((id) => id !== own);
 }
 
-/** "Fiyatlar" bağlantısı — nasıl çalışır sayfasının paket bölümü. */
-export function pricingHref(locale: string | null | undefined): string {
-  return `/nasil-calisir#${anchorId("pricing", locale)}`;
+/**
+ * KALDIRILAN FİYAT BÖLÜMÜNÜN ESKİ ÇAPALARI (ücretsiz dönem, 2026-10-07).
+ * Bölüm ve ona giden bağlantılar silindi; paylaşılmış eski bağlantılar
+ * (`/nasil-calisir#fiyatlar`, `/en/how-it-works#pricing`,
+ * `/ru/kak-eto-rabotaet#tarify`) "Nasıl çalışır" sayfasında anasayfaya
+ * yönlendirilir. Bölüm geri gelirse bu liste yeniden çapa tablosuna taşınır.
+ */
+const REMOVED_PRICING_ANCHOR_IDS: readonly string[] = ["fiyatlar", "pricing", "tarify"];
+
+export function isRemovedPricingAnchor(id: string): boolean {
+  return REMOVED_PRICING_ANCHOR_IDS.includes(id.toLowerCase());
 }
 
 /** "Kategoriler" bağlantısı — anasayfanın (alıcı yüzü) kategori vitrini. */

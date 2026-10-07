@@ -271,20 +271,6 @@ export function useViesCheck() {
   });
 }
 
-/** Faz 3 — doğrulama tamamsa premium'a (PAKET) geç. */
-export function useUpgradePremium() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post<{ ok: true; tier: string }>(
-        "/company-auth/upgrade-premium",
-      );
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),
-  });
-}
-
 /** Faz 2 — firma doğrulama sihirbazını tamamla. */
 export function useCompleteOnboarding() {
   const qc = useQueryClient();

@@ -263,8 +263,6 @@ const dictHook = (ns: string) => (): ((code: string) => string) => {
   return (code) => (t.has(code as never) ? t(code as never) : code);
 };
 
-/** Paket kademesi adı (`web.domain.tier`). */
-export const useTierLabel = dictHook("web.domain.tier");
 /** AI özellik adı (`AiUsage.feature`). */
 export const useAiFeatureLabel = dictHook("web.domain.aiFeature");
 /** Talep durumu (`web.domain.listingStatus`). */

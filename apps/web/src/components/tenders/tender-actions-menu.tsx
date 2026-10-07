@@ -23,7 +23,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { DateTimeInput } from "@/components/ui/date-time-input";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { Lock } from "lucide-react";
-import { gateHref } from "@/lib/public/member-gate";
+import { VerificationLink } from "@/components/company/verification-gate";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -45,7 +45,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { closesAtError } from "@/lib/tenders/closes-at";
 import { toLocalInput } from "@/lib/tenders/map-detail-to-form";
 import { parseAppWallClockInput } from "@/lib/time-zone";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
@@ -345,7 +345,7 @@ export function TenderActionsMenu({
     // T-06: paket kilidinde kapanış yalnız öne çekilir; uzatma Gold ister
     // (API changeClosingTime aynı kuralı uygular — burada sürpriz 403 yerine).
     if (locked && closesAt && next.getTime() > new Date(closesAt).getTime()) {
-      toast.error(t("kapanisUzatmaGoldGerektirir"));
+      toast.error(t("kapanisUzatmaDogrulamaGerektirir"));
       return;
     }
     try {
@@ -494,19 +494,13 @@ export function TenderActionsMenu({
           {/* Dar ekranda CTA metnin ALTINA iner (metin tam genişlik kullanır;
               yan sütunda metin ~125px'e sıkışıyordu — webB-04 yeniden doğrulama).
               pl-7 = ikon (16px) + gap-x-3 (12px): CTA metinle hizalı. */}
-          {/* Doğrulanmamış firmada kazandırma da kapalı (API assertVerified) —
-              ortak metin "kazandırma açık kalır" demesin. */}
-          <p className="min-w-0 flex-1">
-            {buyLock === "verify"
-              ? t("paketKilidiNotuDogrulama")
-              : t("paketKilidiNotu")}
-          </p>
-          <Link
-            href={gateHref(buyLock)!}
-            className="shrink-0 basis-full pl-7 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950 sm:basis-auto sm:pl-0"
-          >
-            {buyLock === "verify" ? t("onceUcretsizDogrulan") : t("goldaGec")}
-          </Link>
+          {/* Kilit = firma doğrulanmamış (ücretsiz dönem 2026-10-07): kazandırma da
+              doğrulama ister (API assertVerified) — tek metin, eylem doğrulama
+              akışı; etiket doğrulama durumunu izler. */}
+          <p className="min-w-0 flex-1">{t("dogrulamaKilidiNotu")}</p>
+          <span className="shrink-0 basis-full pl-7 sm:basis-auto sm:pl-0">
+            <VerificationLink className="text-amber-900 hover:text-amber-950" />
+          </span>
         </div>
       ) : null}
 

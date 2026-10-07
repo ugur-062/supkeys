@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * AI KULLANIMI — arayüz testi O-044 (paket kilitliyse istek atılmaz) ve D-172
+ * AI KULLANIMI — arayüz testi O-044 (erişim kilitliyse istek atılmaz) ve D-172
  * (havuz %100'ü aşınca "uyarı eşiği" değil "bütçe doldu — AI kapalı").
  */
 import { render, screen } from "@testing-library/react";
@@ -20,7 +20,7 @@ vi.mock("@/hooks/use-ai-usage", () => ({
   },
 }));
 vi.mock("@/components/company-shell/premium-only", () => ({
-  PremiumOnly: ({ children }: { children: ReactNode }) => <>{children}</>,
+  VerifiedOnly: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 vi.mock("../../_components/settings-shell", () => ({
   SettingsShell: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -47,7 +47,7 @@ beforeEach(() => {
 });
 
 describe("AiKullanimPage", () => {
-  it("STANDART firmada kullanım isteği atılmaz; Silver'da atılır (O-044)", () => {
+  it("efektif kademesi yetmeyen (doğrulanmamış) firmada kullanım isteği atılmaz; yetende atılır (O-044)", () => {
     useCompanyAuthStore.setState({ company: { country: "TR", tier: "STANDART" } } as never);
     const { unmount } = render(<AiKullanimPage />);
     expect(h.enabled).toBe(false);

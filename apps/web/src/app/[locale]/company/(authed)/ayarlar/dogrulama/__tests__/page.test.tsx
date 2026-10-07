@@ -183,15 +183,16 @@ describe("DogrulamaPage", () => {
     expect(h.refetch).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ["STANDART", /Artık paket satın alabilirsiniz/],
-    ["SILVER", /Silver paketinizle herkese açık taleplere teklif/],
-    ["GOLD", /Gold paketinizle talep yayınlayabilir/],
-  ])("VERIFIED başlığı pakete göre: %s (D-175)", (tier, text) => {
-    useCompanyAuthStore.setState({ company: { tier } } as never);
-    h.data = docs({ status: "VERIFIED", mersisNo: "1234567890123456" });
-    render(<DogrulamaPage />);
-    expect(screen.getByText(text)).toBeInTheDocument();
-    if (tier !== "STANDART") expect(screen.queryByText(/Artık paket satın alabilirsiniz/)).not.toBeInTheDocument();
-  });
+  // Eski sözleşme (D-175: VERIFIED başlığı pakete göre üç metin) ücretsiz
+  // dönemde KALKTI (2026-10-07): doğrulama yeterlidir, metin paket anmaz.
+  it.each(["STANDART", "SILVER", "GOLD"])(
+    "VERIFIED başlığı tek metin: bütün özellikler açık, paket adı yok (%s)",
+    (tier) => {
+      useCompanyAuthStore.setState({ company: { tier } } as never);
+      h.data = docs({ status: "VERIFIED", mersisNo: "1234567890123456" });
+      render(<DogrulamaPage />);
+      const box = screen.getByText(/Firmanız doğrulandı\. Platformun bütün özellikleri hesabınızda açık/);
+      expect(box.textContent).not.toMatch(/silver|gold|paket|satın alabilirsiniz/i);
+    },
+  );
 });

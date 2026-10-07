@@ -3,8 +3,6 @@
 import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { PRODUCT_LIMITS } from "@rothern/shared";
-import { usePricingPlans } from "@/lib/pricing/use-plans";
-import { formatUsd } from "@/lib/pricing/plans";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import {
   Disclosure,
@@ -20,10 +18,7 @@ import {
   EnvelopeIcon,
   PaperAirplaneIcon,
   ShareIcon,
-  ShieldCheckIcon,
   SparklesIcon,
-  Square3Stack3DIcon,
-  UserIcon,
   UserPlusIcon,
   ChartBarIcon,
   ChatBubbleLeftIcon,
@@ -47,17 +42,13 @@ import {
   UsersIcon,
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/20/solid";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { signupHref } from "@/lib/public/visibility";
-import { anchorId } from "@/lib/public/anchors";
+import { anchorId, isRemovedPricingAnchor } from "@/lib/public/anchors";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Paket kartları — ad/fiyat/özellikler TEK KAYNAKTAN (`lib/pricing/plans.ts`
- * yapı + `web.pricing` kataloğu metin; `usePricingPlans`). accent: pakete
- * hafif renk kimliği, yalnız bu sayfanın sunumu — kart gövdesi monokrom kalır.
- *
  * METİN KATALOGDA (i18n Faz 1): `web.marketing.howItWorks.*`. Önizleme
  * kartlarındaki örnek veriler (firma adları, tutarlar, tarihler) de dile
  * göre değişir — İngilizce sayfada Türkçe sahte panel görünmesin.
@@ -73,14 +64,6 @@ import { useEffect, useRef, useState } from "react";
  * sarar), eylem `ml-auto`.
  * Uzun RU etiketleri ("Добавить в контакты", "Международный") buna göre.
  */
-
-/* Mockup (2026-09-18): üç kart, ortadaki Silver "En popüler" (mavi çerçeve
-   + taç rozeti), Gold sarı çerçeve. Ad/fiyat/özellik tek kaynak `plans.ts`. */
-const PLAN_UI = {
-  standart: { icon: UserIcon, tone: "zinc" },
-  silver: { icon: Square3Stack3DIcon, tone: "blue" },
-  gold: { icon: TrophyIcon, tone: "amber" },
-} as const;
 
 function Reveal({
   children,
@@ -733,17 +716,13 @@ const HERO_STEP_TONES = ["bg-blue-50 text-blue-700", "bg-emerald-50 text-emerald
 export default function HomePage() {
   const t = useTranslations("web.marketing.howItWorks");
   const locale = useLocale();
-  const { plans, note } = usePricingPlans();
-  const pricingTiers = plans.map((p) => ({
-    slug: p.slug,
-    name: p.name,
-    price: p.monthlyUsd,
-    tagline: p.tagline,
-    features: p.features,
-    cta: p.cta,
-    subtitle: t(`plans.${p.slug}Subtitle`),
-    ...PLAN_UI[p.slug],
-  }));
+  /* FİYAT BÖLÜMÜ KALDIRILDI (ücretsiz dönem, 2026-10-07): paylaşılmış eski
+     `…#fiyatlar` / `#pricing` / `#tarify` bağlantıları anasayfaya döner. URL
+     parçası sunucuya gitmez; yönlendirme ancak istemcide yapılabilir. */
+  const router = useRouter();
+  useEffect(() => {
+    if (isRemovedPricingAnchor(window.location.hash.slice(1))) router.replace("/");
+  }, [router]);
   const faqs = [
     { q: t("faq.q1"), a: t("faq.a1") },
     { q: t("faq.q2"), a: t("faq.a2") },
@@ -1016,7 +995,7 @@ export default function HomePage() {
             </FormatCard>
 
             {/* AI — belgeden talep taslağı (2026-09-18, kullanıcı: "fiyat/min.
-                sipariş kartını beğenmedim, AI olabilir"). Ürün Silver+/Gold. */}
+                sipariş kartını beğenmedim, AI olabilir"). */}
             <FormatCard tag={t("formats.aiTag")} tagTone="violet" title={t("formats.aiTitle")} body={t("formats.aiBody")}>
               <div className="space-y-2">
                 <div className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2.5 ring-1 ring-zinc-200">
@@ -1061,99 +1040,6 @@ export default function HomePage() {
               </div>
             </FormatCard>
           </div>
-        </div>
-      </section>
-
-      {/* Üyelik */}
-      <section id={anchorId("pricing", locale)} className="relative isolate scroll-mt-24 overflow-hidden bg-white py-24 sm:py-32">
-        <SoftBlobs flip />
-        <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
-          <div className="flex items-center justify-center gap-3 text-xs font-semibold tracking-[0.2em] text-blue-600 uppercase">
-            <span aria-hidden className="h-px w-8 bg-blue-600" />
-            {t("pricing.eyebrow")}
-            <span aria-hidden className="h-px w-8 bg-blue-600" />
-          </div>
-          <p className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-            {t("pricing.title")}
-          </p>
-          <p className="mt-4 text-lg/8 text-zinc-600">{t("pricing.lead")}</p>
-        </div>
-        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-6 px-6 sm:mt-20 lg:max-w-7xl lg:grid-cols-3 lg:px-8">
-          {pricingTiers.map((tier) => {
-            const popular = tier.slug === "silver";
-            const ring =
-              tier.tone === "blue" ? "ring-2 ring-blue-500" : tier.tone === "amber" ? "ring-2 ring-amber-300" : "ring-1 ring-zinc-200";
-            const iconBox =
-              tier.tone === "blue" ? "bg-blue-50 text-blue-600" : tier.tone === "amber" ? "bg-amber-50 text-amber-600" : "bg-zinc-100 text-zinc-700";
-            const check =
-              tier.tone === "blue" ? "bg-blue-100 text-blue-700" : tier.tone === "amber" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600";
-            return (
-              <div
-                key={tier.slug}
-                className={`relative flex flex-col rounded-3xl bg-white p-8 transition hover:-translate-y-1 hover:shadow-xl ${ring}`}
-              >
-                {popular ? (
-                  <span className="absolute -top-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white shadow-md">
-                    <TrophyIcon className="size-3.5 text-amber-300" /> {t("plans.popular")}
-                  </span>
-                ) : null}
-                <div className="flex items-center gap-3">
-                  <span className={`flex size-14 items-center justify-center rounded-full ${iconBox}`}>
-                    <tier.icon className="size-7" />
-                  </span>
-                  <div>
-                    <div className="text-lg font-semibold text-zinc-950">{tier.name}</div>
-                    <div className="text-sm text-zinc-500">{tier.subtitle}</div>
-                  </div>
-                </div>
-                <p className="mt-6 flex items-baseline gap-x-2">
-                  {tier.price === null ? (
-                    <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">{t("plans.free")}</span>
-                  ) : (
-                    <>
-                      <span className="text-4xl font-bold tracking-tight whitespace-nowrap text-zinc-950 sm:text-5xl">{formatUsd(tier.price, locale)}</span>
-                      <span className="text-base text-zinc-500">{t("plans.perMonth")}</span>
-                    </>
-                  )}
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">{tier.price === null ? t("plans.forever") : t("plans.yearly")}</p>
-                <p className="mt-5 border-b border-zinc-200 pb-5 text-sm/6 text-zinc-600">{tier.tagline}</p>
-                <ul role="list" className="mt-5 flex-1 space-y-3 text-sm/6 text-zinc-700">
-                  {tier.features.map((f) => (
-                    <li key={f} className="flex gap-x-3">
-                      <span className={`mt-0.5 flex size-5 flex-none items-center justify-center rounded-full ${check}`}>
-                        <CheckIcon aria-hidden="true" className="size-3.5" />
-                      </span>
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                {/* Ücretli planda seçilen paket kayıt niyetiyle taşınır: kayıt +
-                    onboarding sonrası (ya da zaten girişliyse hemen) o paketin
-                    satın alma ekranına düşer (arayüz testi D-062). */}
-                <Link
-                  href={
-                    tier.price === null
-                      ? signupHref()
-                      : signupHref(undefined, `/company/premium/satin-al?paket=${tier.slug}`)
-                  }
-                  className={
-                    tier.price === null
-                      ? "mt-8 flex items-center justify-center gap-2 rounded-lg px-3.5 py-3 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
-                      : "mt-8 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3.5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                  }
-                >
-                  {tier.cta} <ArrowRightIcon className="size-4" />
-                </Link>
-              </div>
-            );
-          })}
-        </div>
-        <p className="mx-auto mt-8 max-w-2xl px-6 text-center text-xs text-zinc-500">{note}</p>
-        <div className="mx-auto mt-10 flex max-w-4xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6 text-sm text-zinc-600">
-          <span className="inline-flex items-center gap-2"><ShieldCheckIcon className="size-5 text-zinc-500" /> {t("pricing.trust1")}</span>
-          <span className="inline-flex items-center gap-2"><UsersIcon className="size-5 text-zinc-500" /> {t("pricing.trust2")}</span>
-          <span className="inline-flex items-center gap-2"><ChartBarIcon className="size-5 text-zinc-500" /> {t("pricing.trust3")}</span>
         </div>
       </section>
 

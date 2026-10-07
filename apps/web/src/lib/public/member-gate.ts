@@ -3,14 +3,19 @@ import { userHasPermission, type PermissionSubject } from "@/lib/company/permiss
 
 /**
  * ÜYE EYLEM KAPISI — satın alma tarafı eylemlerinin (bilgi talebi, talep açma,
- * satınalma firma dizini) PAKET + İZİN kararı TEK yerde (arayüz testi Y-03,
+ * satınalma firma dizini) YETKİ + İZİN kararı TEK yerde (arayüz testi Y-03,
  * kullanıcı kararı T-02 2026-10-01).
  *
- * Kök neden: herkese açık ve panel düğmeleri firmanın paketine bakmadan sabit
- * `/company/satinalma/*` adreslerine gidiyordu; satınalma bölümü Gold kapısının
- * arkasında olduğu için ücretsiz ve Silver üye "Bu sayfa Gold paketiyle açılır"
- * duvarına SÜRPRİZ olarak çarpıyordu. Kural (CLAUDE.md): rol denetimi paket
- * denetiminin İÇİNDE — önce paket (Gold), sonra izin.
+ * ÜCRETSİZ DÖNEM (kullanıcı kararı 2026-10-07): satın alınacak bir şey yok;
+ * DOĞRULANMIŞ her firma tam yetkilidir. API `company.tier` alanında EFEKTİF
+ * kademeyi taşır (tek kaynak `apps/api/.../effective-tier.ts`), bu yüzden
+ * kademe karşılaştırması burada AYNEN durur — ücretli dönem geri geldiğinde
+ * makine hazır. Değişen yalnız kapalı kapının anlamı ve hedefi: kullanıcıya
+ * kademe adı ya da fiyat söylenmez, "firma doğrulaması gerekir" denir ve
+ * doğrulama sayfasına gidilir.
+ *
+ * Kural (CLAUDE.md): rol denetimi yetki (kademe) denetiminin İÇİNDE — önce
+ * firmanın yetkisi, sonra kullanıcının izni.
  *
  * Saf modül: herkese açık istemci adacıkları da panel sayfaları da okur
  * (`web.panel` kataloğuna ve panel modüllerine bağımlılık YOK).
@@ -20,13 +25,17 @@ export type BuyingAction = "inquiry" | "listing" | "browse";
 export type BuyingGate =
   /** Oturum yok — misafir akışı (giriş/kayıt) aynen kalır. */
   | "guest"
-  /** Gold ∧ izin — eylem açık. */
+  /** Tam yetki ∧ izin — eylem açık. */
   | "ok"
-  /** Gold değil ve firma doğrulanmamış/reddedilmiş — önce ücretsiz doğrulama. */
+  /** Yetki yok ve firma doğrulanmamış/reddedilmiş — doğrulama (yeniden başvuru). */
   | "verify"
-  /** Gold değil (doğrulanmış ya da incelemede) — Gold'a geçiş. */
+  /**
+   * Yetki yok ama doğrulama başvurusu YAPILAMAZ: inceleme sürüyor (PENDING).
+   * Değerin adı ücretli dönemden kalma iç tanımlayıcıdır (panel bileşenleri
+   * de okur); kullanıcıya "doğrulamanız inceleniyor" denir.
+   */
   | "upgrade"
-  /** Gold ama üyede eylemin izni yok. */
+  /** Tam yetkili firma ama üyede eylemin izni yok. */
   | "noPermission";
 
 /** Eylemin API'deki izni (any-of değil, tek izin). */
@@ -36,10 +45,21 @@ export const BUYING_ACTION_PERMISSION: Record<BuyingAction, string> = {
   browse: "buy:view",
 };
 
-/** Doğrulama sayfası — paket satın almanın tek şartı. */
+/** Doğrulama sayfası — tam yetkinin tek şartı (başvuru, inceleme durumu, yeniden başvuru). */
 export const VERIFY_HREF = "/company/ayarlar/dogrulama";
-/** Panel içi paket sayfası (`PRICING_HREF` ile aynı adres). */
-export const GOLD_HREF = "/company/premium";
+/**
+ * Kapalı kapının kullanıcıya anlatılacak aşaması (metin seçimi için):
+ * başvurulmamış → "doğrulayın", incelemede → "doğrulamanız inceleniyor",
+ * reddedilmiş → "yeniden başvurun".
+ */
+export type VerificationStage = "verify" | "pending" | "reapply";
+
+export function verificationStage(company: GateCompany | null | undefined): VerificationStage {
+  const status = company?.companyVerificationStatus;
+  if (status === "PENDING") return "pending";
+  if (status === "REJECTED") return "reapply";
+  return "verify";
+}
 
 export interface GateCompany {
   tier?: string | null;
@@ -56,10 +76,10 @@ export function buyingGate(
   return userHasPermission(user, BUYING_ACTION_PERMISSION[action]) ? "ok" : "noPermission";
 }
 
-/** Paket dışı kapının dalı (Gold için de Silver için de aynı kural). */
+/** Yetkisiz kapının dalı (her eylem için aynı kural). */
 function lockedGate(company: GateCompany | null | undefined): "verify" | "upgrade" {
-  // SilverLockCard ile aynı kural: incelemedeki (PENDING) firmaya yeniden
-  // doğrulama denmez; paket sayfası gerisini söyler.
+  // İncelemedeki (PENDING) firmaya yeniden doğrulama denmez; doğrulama sayfası
+  // inceleme durumunu gösterir.
   const status = company?.companyVerificationStatus;
   return status && status !== "VERIFIED" && status !== "PENDING" ? "verify" : "upgrade";
 }
@@ -69,13 +89,13 @@ export const PUBLIC_BID_PERMISSION = "sell:bid:submit";
 
 /**
  * HERKESE AÇIK TALEBE TEKLİF KAPISI (arayüz testi webA-02 yeniden doğrulama):
- * PUBLIC talebi tam görmek ve ona tanımadan teklif vermek Silver ister (CLAUDE.md
- * paket tablosu; API `listingBidEligibility` ücretsiz firmaya bağsız/davetsiz
- * PUBLIC talebin tam detayını açmaz — yalnız alıcı gizli maskeli satır/görünüm,
- * 2026-10-03). Herkese açık "Teklif ver" düğmeleri oturumlu
- * ama Silver olmayan üyeye bunu TIKLAMADAN önce söyler — eskiden "ücretsiz
- * kaydol, teklif ver" deyip paneldeki Silver kilidine düşürüyordu. Sıra
- * aynı: önce paket (Silver), sonra izin (`sell:bid:submit`).
+ * PUBLIC talebi tam görmek ve ona tanımadan teklif vermek yetki ister (API
+ * `listingBidEligibility` doğrulanmamış firmaya bağsız/davetsiz PUBLIC talebin
+ * tam detayını açmaz — yalnız alıcı gizli maskeli satır/görünüm, 2026-10-03).
+ * Herkese açık "Teklif ver" düğmeleri oturumlu ama yetkisiz üyeye bunu
+ * TIKLAMADAN önce söyler — eskiden "ücretsiz kaydol, teklif ver" deyip
+ * paneldeki kilide düşürüyordu. Sıra aynı: önce firmanın yetkisi, sonra izin
+ * (`sell:bid:submit`).
  */
 export function publicBidGate(
   user: PermissionSubject | null | undefined,
@@ -91,10 +111,10 @@ export const CONNECT_PERMISSION = "connections:manage";
 
 /**
  * BAĞLANTI DAVETİ KAPISI (arayüz testi kapanış S-PUB-ADMIN): herkese açık firma
- * profilindeki "Bağlantı isteği gönder" eskiden oturuma bakmıyordu — ücretsiz
- * üye düğmeye basıp ancak panel firma kartında Silver kilidini görüyordu.
- * Davet Silver ister (API invite aynası, kullanıcı kararı T-02); sıra aynı:
- * önce paket, sonra izin (`connections:manage`).
+ * profilindeki "Bağlantı isteği gönder" eskiden oturuma bakmıyordu — yetkisiz
+ * üye düğmeye basıp ancak panel firma kartında kilidi görüyordu. Davet yetki
+ * ister (API invite aynası, kullanıcı kararı T-02); sıra aynı: önce firmanın
+ * yetkisi, sonra izin (`connections:manage`).
  */
 export function connectGate(
   user: PermissionSubject | null | undefined,
@@ -105,25 +125,26 @@ export function connectGate(
   return userHasPermission(user, CONNECT_PERMISSION) ? "ok" : "noPermission";
 }
 
-/** Kapalı kapının birincil eylemi (verify → doğrulama, upgrade → paketler). */
+/**
+ * Kapalı kapının birincil eylemi — iki dal da doğrulama sayfasına gider
+ * (başvuru / inceleme durumu / yeniden başvuru aynı sayfada).
+ */
 export function gateHref(gate: BuyingGate): string | null {
-  if (gate === "verify") return VERIFY_HREF;
-  if (gate === "upgrade") return GOLD_HREF;
-  return null;
+  return gate === "verify" || gate === "upgrade" ? VERIFY_HREF : null;
 }
 
 /**
- * Üyenin ürün sayfası — paket bilmeyen TEK iniş adresi. Herkese açık sayfadaki
- * giriş/kayıt dönüşü ve panel kartları buraya gider; sayfa Gold ∧ satınalma
- * görüntüleme yetkilisini satınalma ürün sayfasına geçirir, diğerlerine ürünü
- * panel kabuğunda Gold uyarısıyla gösterir (yüzeyde Gold duvarı YOK).
+ * Üyenin ürün sayfası — yetki bilmeyen TEK iniş adresi. Herkese açık sayfadaki
+ * giriş/kayıt dönüşü ve panel kartları buraya gider; sayfa tam yetkili ∧
+ * satınalma görüntüleme izinlisini satınalma ürün sayfasına geçirir,
+ * diğerlerine ürünü panel kabuğunda doğrulama uyarısıyla gösterir.
  */
 export function memberProductPath(companySlug: string, productSlug: string): string {
   return `/company/urun/${encodeURIComponent(companySlug)}/${encodeURIComponent(productSlug)}`;
 }
 
 /**
- * Paneldeki ürün kartının hedefi: Gold ∧ satınalma görüntüleme doğrudan
+ * Paneldeki ürün kartının hedefi: tam yetki ∧ satınalma görüntüleme doğrudan
  * satınalma ürün sayfasına (ara sıçrama yok), diğerleri üyenin ürün sayfasına.
  */
 export function memberProductHref(
@@ -137,13 +158,13 @@ export function memberProductHref(
     : memberProductPath(companySlug, productSlug);
 }
 
-/** Üyenin firma dizini — paket/izne göre satınalma ya da satış dizinine yönlendiren iniş adresi. */
+/** Üyenin firma dizini — yetki/izne göre satınalma ya da satış dizinine yönlendiren iniş adresi. */
 export const MEMBER_DIRECTORY_PATH = "/company/firma-dizini";
 
 /**
- * Firma dizini hedefi: Gold ∧ buy:view → satınalma dizini; satış görüntüleme
- * izni → satış dizini (Gold olmayan firmalar için zaten var); ikisi de yoksa
- * satınalma dizini (paket kapısı ne gerektiğini söyler).
+ * Firma dizini hedefi: tam yetki ∧ buy:view → satınalma dizini; satış
+ * görüntüleme izni → satış dizini; ikisi de yoksa satınalma dizini (kapı ne
+ * gerektiğini söyler).
  */
 export function memberDirectoryTarget(
   user: PermissionSubject | null | undefined,

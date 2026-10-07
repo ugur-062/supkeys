@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActivityLabel, useListingTerms, useSellerStateLabel, useFormatDate } from "@/i18n/domain";
 import { maskedRequestHref, type SellerTenderRow } from "@/hooks/use-seller-tenders";
-import { useUpgradeHref } from "@/components/company/silver-lock-card";
+import { VERIFY_HREF } from "@/components/company/verification-gate";
 import { Badge } from "@/components/ui/badge";
 import {
   closingUrgency,
@@ -63,7 +63,6 @@ export function BrowseTenderRow({
   const fromHref = "/company/satis#acik-talepler";
   const fromLabel = useListingTerms("ACIK_TALEP").title;
   const masked = t.masked === true;
-  const upgradeHref = useUpgradeHref();
   const detailHref = masked
     ? maskedRequestHref(t.number ?? "")
     : `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
@@ -262,7 +261,7 @@ export function BrowseTenderRow({
   const canBidNow = !my && t.canBid && t.status === "OPEN";
   const action = masked
     ? t.status === "OPEN"
-      ? { label: tr("teklifVerSilver"), href: upgradeHref }
+      ? { label: tr("teklifVerDogrulama"), href: VERIFY_HREF }
       : null
     : canBidNow
     ? { label: tr("teklifVer"), href: detailHref }

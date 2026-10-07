@@ -138,7 +138,20 @@ const nextConfig: NextConfig = {
         rules.map((r) => ({ ...r, source: `/${l}${r.source}`, destination: localizedRedirectDestination(r.destination, l) })),
       ),
     ];
-    return withLocales([
+    return [
+      // Paketler ve paket satın alma ekranları KALDIRILDI (ücretsiz dönem,
+      // 2026-10-07): doğrulanan firma tam erişimlidir, satın alınacak paket
+      // yok. Eski adresler (e-posta CTA'ları, yer imleri) doğrulama sayfasına
+      // gider. EN/RU DIŞ adresleri rota haritasından silindiği için burada
+      // açıkça yazılır (yoksa 404 olurdu); Türkçe iç yol aşağıdaki listede
+      // (`withLocales` `/en/company/premium` biçimini de kapsar).
+      { source: "/en/company/plans", destination: "/en/company/settings/verification", permanent: true },
+      { source: "/en/company/plans/checkout", destination: "/en/company/settings/verification", permanent: true },
+      { source: "/ru/kompaniya/tarify", destination: "/ru/kompaniya/nastroyki/verifikatsiya", permanent: true },
+      { source: "/ru/kompaniya/tarify/oformlenie", destination: "/ru/kompaniya/nastroyki/verifikatsiya", permanent: true },
+      ...withLocales([
+      { source: "/company/premium", destination: "/company/ayarlar/dogrulama", permanent: true },
+      { source: "/company/premium/satin-al", destination: "/company/ayarlar/dogrulama", permanent: true },
       // Firma dizini URL'i menü adıyla hizalandı (2026-09-04): "Firmalar" →
       // `/firmalar`. Eski adres e-posta/dış bağlantılarda olabilir.
       // Kök ve alt yol AYRI (2026-09-22): tek `:path*` kuralı kökte
@@ -159,6 +172,20 @@ const nextConfig: NextConfig = {
       { source: "/alim-talepleri/:number(rot-\\d+)", destination: "/talep/:number", permanent: true },
       // Detaylı sihirbaz KALDIRILDI (2026-09-19): eski adres hızlı karta (sorgu korunur).
       { source: "/company/satinalma/taleplerim/yeni/detayli", destination: "/company/satinalma/taleplerim/yeni", permanent: true },
+      // Herkese açık FİYAT bölümü KALDIRILDI (ücretsiz dönem, 2026-10-07):
+      // platform ilk dönemde ücretsiz, fiyat/paket sayfası yok. Ziyaretçinin
+      // elle yazdığı ya da dışarıda paylaşılmış fiyat adresleri her dilde
+      // anasayfaya döner (`withLocales` `/en/…` ve `/ru/…` kopyalarını üretir).
+      // GEÇİCİ (307): ücretli dönem geri geldiğinde bu adresler yeniden sayfa
+      // olabilir, tarayıcı/arama motoru yönlendirmeyi kalıcı önbelleğe almasın.
+      // `#fiyatlar` / `#pricing` / `#tarify` çapaları sunucuya gitmez; onları
+      // "Nasıl çalışır" sayfası istemcide anasayfaya çevirir (anchors.ts).
+      { source: "/fiyatlar", destination: "/", permanent: false },
+      { source: "/fiyatlandirma", destination: "/", permanent: false },
+      { source: "/paketler", destination: "/", permanent: false },
+      { source: "/pricing", destination: "/", permanent: false },
+      { source: "/plans", destination: "/", permanent: false },
+      { source: "/tarify", destination: "/", permanent: false },
       { source: "/giris", destination: "/company/login", permanent: true },
       { source: "/kayit", destination: "/company/kayit", permanent: true },
       {
@@ -228,7 +255,8 @@ const nextConfig: NextConfig = {
         destination: "/company/satinalma/raporlar",
         permanent: true,
       },
-    ]);
+      ]),
+    ];
   },
 };
 

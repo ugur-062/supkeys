@@ -112,15 +112,24 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("Silver altı: AI anahtarı devre dışı, 'Silver ile açılır' bağlantısı", () => {
+  it("doğrulanmamış firma: AI anahtarı devre dışı, 'firma doğrulamasıyla açılır' bağlantısı", () => {
     render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" ai={{ portal: "satis", enabled: false, onResult: vi.fn() }} />);
     expect(screen.getByRole("button", { name: /AI ile ara/ })).toBeDisabled();
-    // PANELDEN ÇIKMAZ (2026-09-15): premium çağrıları panel içindeki paket
-    // sayfasına gider; Ayarlar hub'ı da pazarlama sayfası da doğru yer değil.
-    expect(screen.getByRole("link", { name: "Silver ile açılır" })).toHaveAttribute("href", "/company/premium");
+    expect(screen.getByRole("button", { name: /AI ile ara/ })).toHaveAttribute(
+      "title",
+      "AI ile arama firma doğrulaması gerektirir",
+    );
+    // PANELDEN ÇIKMAZ (2026-09-15) + ücretsiz dönem (2026-10-07): kilit panel
+    // içindeki doğrulama akışına gider; paket adı/sayfası yok.
+    expect(screen.getByRole("link", { name: "AI ile arama firma doğrulamasıyla açılır" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(document.querySelector('a[href*="/company/premium"]')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Silver|Gold|Platinum/);
   });
 
-  it("rol kilidi paket kilidi gibi anlatılmaz: paket bağlantısı YOK, yetki notu var (arayüz testi O-050)", () => {
+  it("rol kilidi doğrulama kilidi gibi anlatılmaz: doğrulama bağlantısı YOK, yetki notu var (arayüz testi O-050)", () => {
     render(
       <PanelHeroSearch
         title="T"
@@ -133,8 +142,9 @@ describe("PanelHeroSearch — Europages 'Ne arıyorsunuz?' kutusu", () => {
     const btn = screen.getByRole("button", { name: /AI ile ara/ });
     expect(btn).toBeDisabled();
     expect(btn).toHaveAttribute("title", "AI ile arama, alım ya da satış yetkisi olan kullanıcılara açıktır.");
-    expect(screen.queryByRole("link", { name: "Silver ile açılır" })).toBeNull();
-    expect(screen.queryByText("Silver ve üzeri paketlerde")).toBeNull();
+    expect(screen.queryByRole("link", { name: "AI ile arama firma doğrulamasıyla açılır" })).toBeNull();
+    expect(document.querySelector('a[href="/company/ayarlar/dogrulama"]')).toBeNull();
+    expect(screen.queryByText(/firma doğrulaması gerektirir/)).toBeNull();
     expect(screen.getByText("AI ile arama, alım ya da satış yetkisi olan kullanıcılara açıktır.")).toBeInTheDocument();
   });
 });

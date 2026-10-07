@@ -5,7 +5,7 @@ import { ShieldCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 
-/** Doğrulama sayfası (paket satın almanın da tek şartı). */
+/** Doğrulama sayfası. */
 export const VERIFICATION_HREF = "/company/ayarlar/dogrulama";
 
 /**

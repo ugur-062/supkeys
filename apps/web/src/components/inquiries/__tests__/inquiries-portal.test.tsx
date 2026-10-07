@@ -84,7 +84,7 @@ beforeEach(() => {
   );
 });
 
-describe("InquiriesView — ücretsiz satıcı anonim görünüm (2026-09-06)", () => {
+describe("InquiriesView — doğrulanmamış satıcı anonim görünüm (2026-09-06; ücretsiz dönem)", () => {
   it("locked: kilit kartı + kimlik gizli + yanıt kutusu yok; soru ve alıcı şehri görünür", async () => {
     h.get.mockImplementation((url: string) =>
       url.includes("received")
@@ -107,12 +107,14 @@ describe("InquiriesView — ücretsiz satıcı anonim görünüm (2026-09-06)", 
         : Promise.resolve({ data: SENT }),
     );
     wrap(<InquiriesView portal="satis" />);
-    expect(await screen.findByText(/kim sorduğu ve yanıt Silver ile açılır/)).toBeInTheDocument();
+    expect(await screen.findByText(/kim sorduğu ve yanıt firma doğrulamasıyla açılır/)).toBeInTheDocument();
     expect(screen.getByText("Stok var mı?")).toBeInTheDocument();
     expect(screen.getByText(/İzmir/)).toBeInTheDocument();
     expect(screen.queryByText("Ayşe Demir")).toBeNull();
     expect(screen.queryByPlaceholderText("Yanıtınızı yazın…")).toBeNull();
-    expect(screen.getByRole("link", { name: "Silver paketine geç" })).toHaveAttribute("href", "/company/premium");
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    // Kilit paket adı söylemez.
+    expect(screen.queryByText(/Silver|Gold/)).toBeNull();
   });
 });
 
@@ -393,8 +395,8 @@ describe("InquiriesView — arayüz testi D-112/D-131/D-238/D-284", () => {
         : Promise.resolve({ data: SENT }),
     );
     wrap(<InquiriesView portal="satis" />);
-    expect(await screen.findByRole("link", { name: "Silver paketine geç" })).toBeInTheDocument();
-    expect(screen.queryByText(/bağlantılı firmaların taleplerini ücretsiz/)).toBeNull();
+    expect(await screen.findByRole("link", { name: "Firmanızı doğrulayın" })).toBeInTheDocument();
+    expect(screen.queryByText(/bağlantılı firmaların taleplerin/)).toBeNull();
   });
 
   it("arama yalnız yüklenenlerde: eski kayıtlar yüklenmediyse ipucu basılır (D-112)", async () => {

@@ -120,11 +120,13 @@ export function ProductDetail({
           cta={
             <>
               {/* "Bilgi iste" ÜYEYE (görünürlük v2): giriş sonrası üyenin
-                  ürün sayfasına döner (paket bilmeyen iniş adresi — Gold
-                  satınalma sayfasına geçer, diğerlerine Gold uyarısı). */}
+                  ürün sayfasına döner (yetki bilmeyen iniş adresi — tam
+                  yetkili alıcı satınalma sayfasına geçer, diğerlerine
+                  doğrulama uyarısı). `freeMember` API alan adıdır; ücretsiz
+                  dönemde "satıcı firma doğrulanmamış" demektir. */}
               {company.freeMember ? (
                 <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
-                  {t("freeMemberNote")}
+                  {t("unverifiedSellerNote")}
                 </p>
               ) : null}
               {/* Oturumlu ama Gold olmayan üye Gold gerektiğini TIKLAMADAN
@@ -157,8 +159,9 @@ export function ProductDetail({
                   </Link>{" "}
                   {t("twoMinutes")}
                 </p>
-                {/* Ücretsiz üyelik bilgi talebini AÇMAZ — sözü dürüst tut. */}
-                <p className="mt-2 text-center text-xs text-zinc-500">{t("inquiryGoldNote")}</p>
+                {/* Kayıt tek başına bilgi talebini AÇMAZ (firma doğrulaması
+                    ister) — sözü dürüst tut. */}
+                <p className="mt-2 text-center text-xs text-zinc-500">{t("inquiryVerifyNote")}</p>
               </MemberCta>
             </>
           }
@@ -624,11 +627,6 @@ function SellerSummary({
             {company.verified ? (
               <UiBadge tone="verified" size="sm" className="px-1">
                 <span className="sr-only">{t("verifiedCompany")}</span>
-              </UiBadge>
-            ) : null}
-            {company.gold ? (
-              <UiBadge tone="gold" size="sm" className="px-1">
-                <span className="sr-only">{t("goldMember")}</span>
               </UiBadge>
             ) : null}
           </p>

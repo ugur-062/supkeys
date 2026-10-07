@@ -461,7 +461,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByRole("link", { name: "Ürünleri yönet" })).toBeNull();
   });
 
-  describe("AI ile açıklamayı güçlendir — paket VE koltuk (arayüz testi O-105)", () => {
+  describe("AI ile açıklamayı güçlendir — firma yetkisi VE koltuk (arayüz testi O-105)", () => {
     const button = () => screen.getByRole("button", { name: /AI ile açıklamayı güçlendir/ });
 
     it("Yönetici hazır seti (işlem izni yok) → pasif + rol nedeni", () => {
@@ -471,13 +471,15 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       expect(screen.getByText(/işlem yetkisi gerekir/)).toBeInTheDocument();
     });
 
-    it("koltuk izni var ama paket STANDART → pasif + paket nedeni", () => {
+    it("koltuk izni var ama firma doğrulanmamış (yetkisiz) → pasif + doğrulama nedeni", () => {
       render(<ProfileEditor profile={{ ...PROFILE, tier: "STANDART" }} canEdit />);
       expect(button()).toBeDisabled();
-      expect(screen.getByText(/Silver ve üzeri/)).toBeInTheDocument();
+      expect(screen.getByText(/AI ile güçlendirme firma doğrulaması gerektirir/)).toBeInTheDocument();
+      // Ücretsiz dönem: neden cümlesinde paket adı geçmez.
+      expect(screen.queryByText(/Silver|Gold|Platinum/)).toBeNull();
     });
 
-    it("Silver+ ve koltuk izni → etkin", () => {
+    it("tam yetkili (doğrulanmış) firma ve koltuk izni → etkin", () => {
       render(<ProfileEditor profile={PROFILE} canEdit />);
       expect(button()).toBeEnabled();
     });

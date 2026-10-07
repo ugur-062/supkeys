@@ -4,8 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRoleLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { canSendMessages, messagingDirectionOpen } from "@/lib/company/portals";
-import { buyingGate, gateHref } from "@/lib/public/member-gate";
-import { Link } from "@/i18n/navigation";
+import { buyingGate } from "@/lib/public/member-gate";
+import { VerificationLink } from "@/components/company/verification-gate";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
@@ -79,7 +79,6 @@ export function CompanyMessageThread({
   const tierOpen =
     messagingDirectionOpen(portal, company?.tier) || sendOpenByOrder;
   const tierGate = tierOpen ? null : buyingGate(user, company, "listing");
-  const tierGateHref = tierGate ? gateHref(tierGate) : null;
   const canSend = canSendMessages(
     user,
     portal,
@@ -161,19 +160,16 @@ export function CompanyMessageThread({
       </div>
 
       {/* Input — paket (alıcı yönü Gold) + portal-yönlü işlem rolü */}
-      {tierGate && tierGateHref ? (
+      {tierGate === "verify" || tierGate === "upgrade" ? (
         <div
           role="note"
           className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900"
         >
           <Lock aria-hidden className="size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1">{t("aliciYonuGoldGerektirir")}</span>
-          <Link
-            href={tierGateHref}
-            className="shrink-0 font-semibold underline underline-offset-2 hover:text-amber-950"
-          >
-            {tierGate === "verify" ? t("onceUcretsizDogrulan") : t("goldaGec")}
-          </Link>
+          <span className="min-w-0 flex-1">
+            {t("aliciYonuDogrulamaGerektirir")}
+            <VerificationLink className="hover:text-amber-950" />
+          </span>
         </div>
       ) : !canSend ? (
         <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">

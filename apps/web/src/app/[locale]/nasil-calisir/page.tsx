@@ -5,10 +5,10 @@ import type { Metadata } from "next";
 import MarketingPage from "./marketing-page";
 
 /**
- * Eski anasayfa — pazarlama anlatısı, ürün önizlemeleri, paketler ve SSS.
- * Kök `/` pazar yerine dönünce (envanter önce) buraya taşındı; içerik AYNEN
- * korundu, yalnız adresi değişti. Header'daki `#ozellikler`/`#fiyatlar`/`#sss`
- * çapaları da bu sayfaya bakar.
+ * Eski anasayfa — pazarlama anlatısı, ürün önizlemeleri ve SSS.
+ * Kök `/` pazar yerine dönünce (envanter önce) buraya taşındı. Header'daki
+ * `#ozellikler`/`#sss` çapaları da bu sayfaya bakar. Fiyat bölümü ücretsiz
+ * dönemde KALDIRILDI (2026-10-07); eski çapası anasayfaya döner.
  */
 export const revalidate = 3600;
 

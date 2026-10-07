@@ -26,29 +26,29 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/iade"
       title="Teslimat, İptal ve İade Koşulları"
-      updatedAt="2026-07-26"
+      updatedAt="2026-10-07"
       sections={[
         {
           paragraphs: [
-            `Bu sayfa, ${OPERATOR.legalName} tarafından işletilen Rothern platformunda satılan dijital üyelik paketlerine (Silver, Gold — 6 aylık veya 1 yıllık dönem) ilişkin iptal ve iade koşullarını düzenler. Platform B2B niteliktedir; satın alma ticari faaliyet kapsamında yapılır ve tüketici mevzuatındaki cayma hakkı hükümleri uygulanmaz.`,
+            `Rothern platformunun kullanımı şu anda ücretsizdir; ücretli hizmetler ileride önceden duyurularak sunulabilir. Bu sayfa, ${OPERATOR.legalName} tarafından işletilen Rothern platformunda sunulabilecek ücretli dijital hizmetlere ilişkin iptal ve iade koşullarını düzenler. Platform B2B niteliktedir; satın alma ticari faaliyet kapsamında yapılır ve tüketici mevzuatındaki cayma hakkı hükümleri uygulanmaz.`,
           ],
         },
         {
           heading: "1. Teslimat (Dijital Hizmet)",
           paragraphs: [
-            "Satın alınan üyelik paketi dijital bir hizmettir; fiziksel kargo/teslimat yoktur. Paket, ödemenin onaylanmasıyla birlikte firma hesabınızda OTOMATİK ve DERHÂL aktive edilir — dönem süresi bu anda başlar ve tüm paket özellikleri anında kullanıma açılır.",
+            "Satın alınan ücretli hizmet dijital bir hizmettir; fiziksel kargo/teslimat yoktur. Hizmet, ödemenin onaylanmasıyla birlikte firma hesabınızda OTOMATİK ve DERHÂL aktive edilir — dönem süresi bu anda başlar ve hizmetin tüm özellikleri anında kullanıma açılır.",
           ],
         },
         {
           heading: "2. Aktivasyon Öncesi İptal",
           paragraphs: [
-            "Ödemesi alınmış ancak üyelik paketi hesabınızda henüz aktive edilmemişse, talebiniz üzerine bedelin tamamı kesintisiz iade edilir.",
+            "Ödemesi alınmış ancak ücretli hizmet hesabınızda henüz aktive edilmemişse, talebiniz üzerine bedelin tamamı kesintisiz iade edilir.",
           ],
         },
         {
           heading: "3. Aktivasyon Sonrası",
           paragraphs: [
-            "Paket, ödemenin onaylanmasıyla hesabınızda derhâl aktive edilir ve hizmet ifası başlar. Aktive edilmiş dönem bedeli; platformdan kaynaklanan sürekli ve esaslı bir hizmet verilememe durumu bulunmadıkça iade edilmez. Dönem sonunda otomatik yenileme yoktur — yeni dönem ancak sizin satın almanızla başlar.",
+            "Ücretli hizmet, ödemenin onaylanmasıyla hesabınızda derhâl aktive edilir ve hizmet ifası başlar. Aktive edilmiş dönem bedeli; platformdan kaynaklanan sürekli ve esaslı bir hizmet verilememe durumu bulunmadıkça iade edilmez. Dönem sonunda otomatik yenileme yoktur — yeni dönem ancak sizin satın almanızla başlar.",
           ],
         },
         {

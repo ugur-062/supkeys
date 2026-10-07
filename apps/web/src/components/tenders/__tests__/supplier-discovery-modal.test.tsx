@@ -145,37 +145,43 @@ describe("SupplierDiscoveryModal — dış davet", () => {
 });
 
 describe("SupplierDiscoveryModal — hata ve talep kipi metinleri (arayüz testi O-058, D-098)", () => {
-  it("öneri çağrısı reddedilince (403 paket kilidi) boş durum değil sunucunun nedeni görünür", async () => {
+  it("öneri çağrısı reddedilince (403 doğrulama kilidi) boş durum değil sunucunun nedeni görünür", async () => {
     h.discovery.mockRejectedValue({
       isAxiosError: true,
-      response: { status: 403, data: { message: "AI tedarikçi keşfi Gold paket gerektirir" } },
+      response: { status: 403, data: { message: "AI tedarikçi keşfi firma doğrulaması gerektirir" } },
     });
     render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Gold paket gerektirir");
+    expect(await screen.findByRole("alert")).toHaveTextContent("firma doğrulaması gerektirir");
     expect(screen.queryByText("Bu kategorilerde önerilebilecek yeni firma bulunamadı.")).toBeNull();
   });
 
-  it("403 TIER_REQUIRED: hata + Gold CTA'sı; davet akışını anlatan altbilgi yok (webB-04 yeniden doğrulama)", async () => {
+  it("403 TIER_REQUIRED: hata + doğrulama CTA'sı; davet akışını anlatan altbilgi yok (webB-04 yeniden doğrulama)", async () => {
     h.discovery.mockRejectedValue({
       isAxiosError: true,
       response: {
         status: 403,
-        data: { message: "Bu özellik Gold paket gerektirir.", code: "TIER_REQUIRED" },
+        data: { message: "Bu özellik firma doğrulaması gerektirir.", code: "TIER_REQUIRED" },
       },
     });
     render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Gold paket gerektirir");
-    expect(screen.getByRole("link", { name: "Gold'a geç" })).toHaveAttribute("href", "/company/premium");
+    expect(await screen.findByRole("alert")).toHaveTextContent("firma doğrulaması gerektirir");
+    // Tek eylem doğrulama akışı; paket sayfası yok (ücretsiz dönem 2026-10-07).
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(document.querySelector('a[href*="/company/premium"]')).toBeNull();
     expect(screen.queryByText(/doğrudan talebinize davet edilir/)).toBeNull();
   });
 
-  it("paket dışı hata: CTA yok, altbilgi yine gizli; başarıda altbilgi görünür", async () => {
+  it("kilit dışı hata: CTA yok, altbilgi yine gizli; başarıda altbilgi görünür", async () => {
     h.discovery.mockRejectedValueOnce({ isAxiosError: true, response: { status: 500, data: {} } });
     const { rerender } = render(
       <SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />,
     );
     expect(await screen.findByRole("alert")).toHaveTextContent("Öneriler yüklenemedi");
-    expect(screen.queryByRole("link", { name: "Gold'a geç" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Firmanızı doğrulayın" })).toBeNull();
+    expect(document.querySelector('a[href="/company/ayarlar/dogrulama"]')).toBeNull();
     expect(screen.queryByText(/doğrudan talebinize davet edilir/)).toBeNull();
     rerender(<SupplierDiscoveryModal isOpen={false} onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
     rerender(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);

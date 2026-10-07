@@ -13,7 +13,7 @@ import {
 } from "@/components/catalyst/table";
 import { Button } from "@/components/catalyst/button";
 import { SelectMenu } from "@/components/ui/select-menu";
-import { PremiumOnly } from "@/components/company-shell/premium-only";
+import { VerifiedOnly } from "@/components/company-shell/premium-only";
 import {
   useActivityLog,
   type ActivityLogRow,
@@ -69,7 +69,7 @@ export default function AktivitePage() {
   const { company } = useCompanyAuth();
   const [page, setPage] = useState(1);
   const [module, setModule] = useState("");
-  // Paket kilitliyse (PremiumOnly kilit kartı çizer) istek hiç atılmaz (O-044).
+  // Erişim kilitliyse (VerifiedOnly doğrulama kapısı çizer) istek hiç atılmaz (O-044).
   const tierOk = !!company && tierAtLeast(company.tier, "SILVER");
   const { data, isLoading, isError, error, refetch } = useActivityLog(page, module || undefined, tierOk);
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
@@ -208,7 +208,7 @@ export default function AktivitePage() {
       page={SETTINGS_PAGES.aktivite}
       description={t("firmanizdakiEylemKayitlariKimSatin")}
     >
-      <PremiumOnly minTier="SILVER">
+      <VerifiedOnly minTier="SILVER">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <label className="text-xs text-zinc-500" htmlFor="aktivite-modul">
@@ -326,7 +326,7 @@ export default function AktivitePage() {
             </>
           )}
         </div>
-      </PremiumOnly>
+      </VerifiedOnly>
     </SettingsShell>
   );
 }

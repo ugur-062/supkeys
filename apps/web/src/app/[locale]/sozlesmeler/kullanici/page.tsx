@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/kullanici"
       title="Kullanıcı Sözleşmesi"
-      updatedAt="2026-09-22"
+      updatedAt="2026-10-07"
       sections={[
         {
           heading: "1. Taraflar ve Konu",
@@ -75,7 +75,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
         {
           heading: "7. Hizmetin Kapsamı ve Değişiklikler",
           paragraphs: [
-            "Platform, hizmetin kapsamını, özelliklerini ve ücretsiz/ücretli paket içeriklerini değiştirme, geliştirme veya sonlandırma hakkını saklı tutar; Kullanıcı aleyhine esaslı değişiklikler makul süre önceden duyurulur.",
+            "Platform, hizmetin kapsamını, özelliklerini ve ücretsiz/ücretli hizmet içeriklerini değiştirme, geliştirme veya sonlandırma hakkını saklı tutar; Kullanıcı aleyhine esaslı değişiklikler makul süre önceden duyurulur.",
             "Platform'da yer alan yapay zekâ destekli özellikler (belgeden form doldurma, kategori önerisi, asistan) yalnızca yardımcı niteliktedir; üretilen çıktıların doğruluğunun kontrolü ve nihai karar Kullanıcı'ya aittir.",
           ],
         },

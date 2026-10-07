@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { countryDisplayName, useTierLabel } from "@/i18n/domain";
+import { countryDisplayName } from "@/i18n/domain";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import {
@@ -43,8 +43,6 @@ import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
 import { toast } from "sonner";
-import { formatDate } from "@/lib/format-date";
-import { PRICING_HREF, VerifyFirstLink } from "@/components/company/silver-lock-card";
 
 /**
  * Ayarlar › Firma Bilgileri — TİCARİ KAYIT.
@@ -138,7 +136,6 @@ export function CompanyProfileSection() {
   const t = useTranslations("web.panel.settings.companyProfileSection");
   const tTax = useTranslations("web.domain.taxId");
   const locale = useLocale() as Locale;
-  const tierLabel = useTierLabel();
   const verificationMeta = useVerificationMeta();
   const { data: profile, isLoading, isError, refetch } = useCompanyProfile();
   // Banka Hesapları sahibe özel (`billing:manage`): yetkisi olmayana bağlantı
@@ -300,42 +297,6 @@ export function CompanyProfileSection() {
                 ? t("kurucu")
                 : profile.authorizedTitle
               : "—"}
-          </DescriptionDetails>
-          <DescriptionTerm>{t("uyelik")}</DescriptionTerm>
-          <DescriptionDetails>
-            <span className="inline-flex flex-wrap items-center gap-2">
-              <Badge
-                color={
-                  profile.tier === "GOLD"
-                    ? "amber"
-                    : profile.tier === "STANDART"
-                      ? "zinc"
-                      : "blue"
-                }
-              >
-                {tierLabel(profile.tier)}
-              </Badge>
-              {/* Üyelik bitişi / süre dolumu (arayüz testi D-029). */}
-              {profile.tier !== "STANDART" && profile.membership?.endsAt ? (
-                <span className="text-xs text-zinc-600">
-                  {t("uyelikBitis", { date: formatDate(profile.membership.endsAt, "long", locale) })}
-                </span>
-              ) : profile.tier === "STANDART" && profile.membership?.expiredAt ? (
-                <>
-                  <span className="text-xs text-amber-800">
-                    {t("uyelikSuresiDoldu", { date: formatDate(profile.membership.expiredAt, "long", locale) })}
-                  </span>
-                  <Link
-                    href={PRICING_HREF}
-                    className="text-xs font-semibold text-zinc-700 underline hover:text-zinc-900"
-                  >
-                    {t("uyelikYenile")}
-                  </Link>
-                  {/* Yenileme de paket alımıdır — doğrulama önce (webC-2). */}
-                  <VerifyFirstLink className="text-xs text-zinc-700 hover:text-zinc-900" />
-                </>
-              ) : null}
-            </span>
           </DescriptionDetails>
           <DescriptionTerm>{t("dogrulama")}</DescriptionTerm>
           <DescriptionDetails>

@@ -51,7 +51,7 @@ export function CompanyFilters({
   const activityLabel = useActivityLabel();
   const { state, update } = useFilters<CompanyFilterState>();
   const selectedCityLabel = useCityFilterLabel(state.cities, facets.cities);
-  const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0) + (state.gold ? 1 : 0);
+  const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0);
   const categoryName = useCategoryNames(state.categories, facets);
   // Seçili ama listede olmayan (0 firmalı) kategori de adıyla ve tikli görünsün
   // ki kullanıcı kenar süzgecinden kaldırabilsin (ürün süzgeciyle aynı kalıp).
@@ -88,12 +88,11 @@ export function CompanyFilters({
       <Group
         title={t("companyProfile")}
         count={profileCount}
-        onClear={() => update({ verified: false, hasProducts: false, gold: false })}
+        onClear={() => update({ verified: false, hasProducts: false })}
         storageKey="dir-profile"
       >
         <Check id={`${idPrefix}-verified`} label={t("verified")} count={facets.verified} checked={state.verified} onChange={(on) => update({ verified: on })} />
         <Check id={`${idPrefix}-products`} label={t("hasProducts")} count={facets.withProducts} checked={state.hasProducts} onChange={(on) => update({ hasProducts: on })} />
-        <Check id={`${idPrefix}-gold`} label={t("goldMember")} count={facets.gold ?? 0} checked={state.gold} onChange={(on) => update({ gold: on })} />
       </Group>
       <Group
         title={t("activityType")}
@@ -160,7 +159,6 @@ export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }
   const chips: FilterChip[] = [];
   if (state.verified) chips.push({ key: "v", label: t("verified"), onRemove: () => update({ verified: false }) });
   if (state.hasProducts) chips.push({ key: "p", label: t("hasProducts"), onRemove: () => update({ hasProducts: false }) });
-  if (state.gold) chips.push({ key: "g", label: t("goldMember"), onRemove: () => update({ gold: false }) });
   if (state.connection)
     chips.push({
       key: "conn",

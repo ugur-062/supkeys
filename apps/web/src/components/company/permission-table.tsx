@@ -178,7 +178,7 @@ export function PermissionTable({
                   key={p.key}
                   type="button"
                   disabled={chipDisabled}
-                  title={tierLocked ? t("goldPakette") : t(`presetHint.${p.key}`)}
+                  title={tierLocked ? t("dogrulamaGerekir") : t(`presetHint.${p.key}`)}
                   aria-pressed={on}
                   onClick={() => applyPreset(p.key)}
                   className={cn(
@@ -220,7 +220,7 @@ export function PermissionTable({
                 {isSeatGroup ? (
                   <span className="ml-1.5 font-medium normal-case text-zinc-500">
                     {g.key === "buy" && !canGrantBuy
-                      ? t("islemTikleriGoldPakette")
+                      ? t("islemTikleriDogrulamayla")
                       : t("islemTikiKoltukSayar")}
                   </span>
                 ) : null}
@@ -278,7 +278,7 @@ export function PermissionTable({
                     : ownerOnly
                       ? t("yalnizKurucuVerir")
                       : tierBlock || tierNote
-                        ? t("goldPakette")
+                        ? t("dogrulamaGerekir")
                         : seatBlock
                           ? t("koltukDolu")
                           : seatViewImplied

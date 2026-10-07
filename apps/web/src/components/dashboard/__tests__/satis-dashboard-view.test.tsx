@@ -212,16 +212,19 @@ describe("SatisDashboardView", () => {
     expect(screen.queryByRole("link", { name: /Ürün ekle/ })).toBeNull();
   });
 
-  it("AI kilidinin nedeni: Silver altı → paket bağlantısı; Gold ama koltuk izni yok → yetki notu (arayüz testi O-050)", () => {
+  it("AI kilidinin nedeni: doğrulanmamış firma → doğrulama bağlantısı; tam yetkili ama koltuk izni yok → yetki notu (arayüz testi O-050)", () => {
     h.company = { name: "Örnek Ltd.", tier: "STANDART" };
     const { unmount } = render(<SatisDashboardView />);
-    expect(screen.getByRole("link", { name: "Silver ile açılır" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "AI ile arama firma doğrulamasıyla açılır" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
     unmount();
     h.company = { name: "Örnek Ltd.", tier: "GOLD" };
     h.user = { firstName: "Ada", permissions: ["company:manage"] };
     render(<SatisDashboardView />);
     expect(screen.getByRole("button", { name: /AI ile ara/ })).toBeDisabled();
-    expect(screen.queryByRole("link", { name: "Silver ile açılır" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "AI ile arama firma doğrulamasıyla açılır" })).toBeNull();
     expect(screen.getByText("AI ile arama, alım ya da satış yetkisi olan kullanıcılara açıktır.")).toBeInTheDocument();
   });
 
@@ -242,7 +245,7 @@ describe("SatisDashboardView", () => {
     expect(screen.getByTestId("seller-tenders")).toBeInTheDocument();
   });
 
-  it("öneride maskeli satır (ücretsiz üye): alıcı adı yerine 'Alıcı gizli', hedef panel içi maskeli görünüm", () => {
+  it("öneride maskeli satır (doğrulanmamış firma): alıcı adı yerine 'Alıcı gizli', hedef panel içi maskeli görünüm", () => {
     render(<SatisDashboardView />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "makara" } });
     const opt = screen.getByRole("option", { name: /Kablo makarası alımı/ });

@@ -53,11 +53,19 @@ describe("şehir değeri kalıcı adrese çevrilir (D-336, gözden geçirme)", (
 
 describe("firma dizini süzgeç URL şeması", () => {
   it("çoklu şehir/faaliyet/kategori, bayraklar ve sıralama", () => {
-    const f = parseCompanyFilters(new URLSearchParams("sehir=Ankara,İzmir&faaliyet=MANUFACTURER,BOGUS&kategori=39000000,abc&dogrulanmis=1&gold=1&sirala=urun&sayfa=2"));
-    expect(f).toMatchObject({ cities: ["ankara", "izmir"], activities: ["MANUFACTURER"], categories: ["39000000"], verified: true, hasProducts: false, gold: true, sort: "urun", page: 2 });
-    expect(toDirectoryParams(f)).toMatchObject({ city: "ankara,izmir", activity: "MANUFACTURER", category: "39000000", verified: true, gold: true, sort: "products", page: 2 });
+    const f = parseCompanyFilters(new URLSearchParams("sehir=Ankara,İzmir&faaliyet=MANUFACTURER,BOGUS&kategori=39000000,abc&dogrulanmis=1&urunlu=1&sirala=urun&sayfa=2"));
+    expect(f).toMatchObject({ cities: ["ankara", "izmir"], activities: ["MANUFACTURER"], categories: ["39000000"], verified: true, hasProducts: true, sort: "urun", page: 2 });
+    expect(toDirectoryParams(f)).toMatchObject({ city: "ankara,izmir", activity: "MANUFACTURER", category: "39000000", verified: true, hasProducts: true, sort: "products", page: 2 });
     expect(activeCompanyFilterCount(f)).toBe(6);
     expect(parseCompanyFilters(new URLSearchParams(buildCompanyFilterQuery(f)))).toEqual(f);
+  });
+  it("eski `?gold=1` süzgeci YOK SAYILIR (ücretsiz dönem 2026-10-07): süzgeçsiz dizin, adrese geri yazılmaz", () => {
+    const f = parseCompanyFilters(new URLSearchParams("gold=1"));
+    expect(f).toEqual(parseCompanyFilters({}));
+    expect(f).not.toHaveProperty("gold");
+    expect(toDirectoryParams(f)).not.toHaveProperty("gold");
+    expect(buildCompanyFilterQuery(f)).toBe("");
+    expect(activeCompanyFilterCount(f)).toBe(0);
   });
   it("eski `il` parametresi okunur", () => {
     expect(parseCompanyFilters({ il: "Bursa" }).cities).toEqual(["bursa"]);

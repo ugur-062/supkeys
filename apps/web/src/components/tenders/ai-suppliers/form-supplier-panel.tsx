@@ -365,7 +365,7 @@ export function FormSupplierPanel({
                 })
               : null}
           </p>
-          {!available ? <p className="mt-1 text-xs font-medium text-zinc-700">{t("goldOnly")}</p> : null}
+          {!available ? <p className="mt-1 text-xs font-medium text-zinc-700">{t("verifiedOnly")}</p> : null}
         </div>
         {available && !external.isPending ? (
           <Button

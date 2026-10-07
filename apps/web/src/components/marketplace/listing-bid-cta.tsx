@@ -9,6 +9,7 @@ import { AccentLink } from "@/components/ui/accent-fill";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { gateHref, publicBidGate, type BuyingGate } from "@/lib/public/member-gate";
 import { PANEL_TARGET } from "@/lib/public/visibility";
+import { STAGE_CTA, STAGE_LABEL, STAGE_NOTE, useVerificationStage } from "@/components/marketplace/member-cta";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,19 +28,18 @@ export function usePublicBidGate(): BuyingGate {
 
 /**
  * Teaser satırı/kartı "Teklif ver" eylemi (arayüz testi webA-02 yeniden
- * doğrulama): misafir → kayıt (niyet + panel dönüşü, `guestHref`); Silver ∧
- * yetki → doğrudan panel karşılığı; Silver değil → "Teklif ver · Silver"
- * doğrulama/paket sayfasına; Silver ama `sell:bid:submit` yok → `null`
- * (eylem çizilmez — paket önce, sonra izin). Eskiden yetkisiz üyeye de
+ * doğrulama): misafir → kayıt (niyet + panel dönüşü, `guestHref`; etiket
+ * yalın "Teklif ver"); tam yetki ∧ izin → doğrudan panel karşılığı; firma
+ * doğrulanmamış → "Teklif ver · Doğrulama gerekli" doğrulama sayfasına; tam
+ * yetkili ama `sell:bid:submit` yok → `null` (eylem çizilmez — önce firmanın
+ * yetkisi, sonra izin). Eskiden yetkisiz üyeye de
  * "Teklif ver" basılıyordu, talep sayfası ise aynı kişiye yetki notu
  * veriyordu (arayüz testi son tur webA-1); dar satırda `ListingBidCta`
  * `compact` ile aynı karar: yetki notu yer kaplamaz, satırın kendisi talep
  * sayfasına (yetki notuna) gider.
  *
- * MİSAFİR ETİKETİ DE "· Silver" (arayüz testi kapanış COPY: T-02 "CTA'lar
- * paketi baştan söyler"): eskiden yalnız oturumlu ücretsiz üye "Teklif ver ·
- * Silver" görüyordu, misafire çıplak "Teklif ver" → ücretsiz kayıt basılıyordu.
- * Hedef aynı kalır (kayıt; davetli tedarikçi ücretsizde de teklif verir).
+ * Ücretsiz dönem (2026-10-07): etiketlerde kademe adı yok; misafir hedefi
+ * aynı kalır (kayıt; davetli tedarikçi doğrulama olmadan da teklif verir).
  */
 export function usePublicBidAction(
   number: string,
@@ -48,21 +48,22 @@ export function usePublicBidAction(
 ): { label: string; href: string; locked: boolean } | null {
   const t = useTranslations("web.marketplace.bidGate");
   const gate = usePublicBidGate();
-  if (gate === "guest") return { label: t("lockedLabel", { label }), href: guestHref, locked: false };
+  const stage = useVerificationStage();
+  if (gate === "guest") return { label, href: guestHref, locked: false };
   if (gate === "noPermission") return null;
   const href = gateHref(gate);
-  if (href) return { label: t("lockedLabel", { label }), href, locked: true };
+  if (href) return { label: t(STAGE_LABEL[stage], { label }), href, locked: true };
   return { label, href: PANEL_TARGET.listing(number), locked: false };
 }
 
 /**
  * HERKESE AÇIK TALEP SAYFASI TEKLİF ADACIĞI. Eskiden oturumlu ücretsiz üye de
- * "Bu talebe teklif vermek için ücretsiz kaydol" görüp kayıt → panel → Silver
- * kilidi zincirine düşüyordu; PUBLIC talebe tanımadan teklif Silver ister.
+ * "Bu talebe teklif vermek için ücretsiz kaydol" görüp kayıt → panel → kilit
+ * zincirine düşüyordu; PUBLIC talebe tanımadan teklif firma doğrulaması ister.
  *
  * - misafir / hidrasyon öncesi → `children` (sunucunun bastığı misafir CTA'sı)
- * - Silver ∧ `sell:bid:submit` → panelde teklif
- * - Silver değil → açıklama + doğrulama/paket (davetliler için panel bağlantısı)
+ * - tam yetki ∧ `sell:bid:submit` → panelde teklif
+ * - firma doğrulanmamış → açıklama + doğrulama (davetliler için panel bağlantısı)
  * - yetki yok → yetki notu
  *
  * `compact`: sayfa gövdesindeki kilit kutusunun yerine tek satır (kenar
@@ -81,6 +82,7 @@ export function ListingBidCta({
 }) {
   const t = useTranslations("web.marketplace.bidGate");
   const gate = usePublicBidGate();
+  const stage = useVerificationStage();
   const panel = PANEL_TARGET.listing(number);
   if (gate === "guest") return <>{children}</>;
 
@@ -108,7 +110,7 @@ export function ListingBidCta({
   }
 
   const href = gateHref(gate) as string;
-  const cta = gate === "verify" ? t("verifyCta") : t("upgradeCta");
+  const cta = t(STAGE_CTA[stage]);
   if (compact) {
     return (
       <p className={cn("flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600", className)}>
@@ -130,7 +132,7 @@ export function ListingBidCta({
         {t("title")}
       </p>
       <p className="mt-1 text-xs/5 text-amber-900">{t("body")}</p>
-      {gate === "verify" ? <p className="mt-1 text-xs/5 text-amber-900">{t("verifyNote")}</p> : null}
+      <p className="mt-1 text-xs/5 text-amber-900">{t(STAGE_NOTE[stage])}</p>
       <Link
         href={href}
         className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-blue-700"

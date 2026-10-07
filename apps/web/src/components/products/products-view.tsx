@@ -11,7 +11,7 @@ import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { PRICING_HREF, VerifyFirstLink } from "@/components/company/silver-lock-card";
+import { VERIFY_HREF } from "@/components/company/verification-gate";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from "@/components/catalyst/dropdown";
 import { useProductArchive } from "./use-product-archive";
@@ -483,19 +483,17 @@ export function ProductsView() {
             publishLimitReached ? "bg-amber-50 text-amber-900 ring-1 ring-amber-600/20" : "bg-zinc-50 text-zinc-600"
           }`}
         >
-          {tr.rich("ucretsizPaketteEnFazlaUrun", {
+          {tr.rich("dogrulanmamisFirmadaEnFazlaUrun", {
             limit: productLimit,
             occupied,
             link: (c) => (
-              // Paket çağrısı paneli TERK ETMEZ (2026-09-15 kararı; arayüz testi O-040).
-              <Link href={PRICING_HREF} className="font-medium text-zinc-900 underline">
+              // Tavan doğrulamayla kalkar: bağlantı doğrulama akışına gider,
+              // paneli TERK ETMEZ (ücretsiz dönem 2026-10-07).
+              <Link href={VERIFY_HREF} className="font-medium text-zinc-900 underline">
                 {c}
               </Link>
             ),
           })}
-          {/* Paket alımı doğrulama ister — doğrulanmamış/reddedilmiş firmaya
-              doğrulama yolu da (tek kural useVerifyFirst; arayüz testi webC-2). */}
-          <VerifyFirstLink className="text-zinc-900" />
         </p>
       ) : null}
 

@@ -8,6 +8,7 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { useVerificationMeta } from "@/lib/company/verification-status";
+import { useVerificationGateCopy } from "@/components/company/verification-gate";
 import { useSettingsPages, type SettingsPageMeta } from "@/lib/company/settings-pages";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { COMPANY_PROFILE_PERMISSIONS } from "@/lib/company/portals";
@@ -23,10 +24,11 @@ interface SettingsCard extends SettingsPageMeta {
    */
   permission?: string | readonly string[];
   /**
-   * Sayfa bu paketle açılır (sayfadaki `PremiumOnly` ile aynı eşik). Kademe
-   * yetmiyorsa kart Raporlar hub'ı gibi "Silver ile açılır" rozeti taşır —
-   * paket kilidi izin kapısının İÇİNDE: izinsiz üye kartı hiç görmez
-   * (arayüz testi T3; eskiden tıklayınca sürpriz paket duvarı).
+   * Sayfanın erişim eşiği (sayfadaki `VerifiedOnly` ile aynı; efektif kademe).
+   * Kademe yetmiyorsa — ücretsiz dönemde: firma doğrulanmamışsa — kart
+   * "Doğrulama gerekir" rozeti taşır (duruma göre: inceleniyor / yeniden
+   * başvuru). Kilit izin kapısının İÇİNDE: izinsiz üye kartı hiç görmez
+   * (arayüz testi T3; eskiden tıklayınca sürpriz kapı).
    */
   minTier?: "SILVER";
 }
@@ -45,6 +47,7 @@ export default function AyarlarPage() {
   // sayfalardan ayrışmıştı).
   const pages = useSettingsPages();
   const verificationMeta = useVerificationMeta();
+  const gateCopy = useVerificationGateCopy();
   const { user, company } = useCompanyAuth();
 
   // Firma Ayarları ÜSTTE: firma hesabında günlük iş firma kartlarında.
@@ -65,7 +68,7 @@ export default function AyarlarPage() {
         { ...pages.adresler, icon: MapPin, permission: "addresses:manage" },
         { ...pages.banka, icon: Landmark, permission: "billing:manage" },
         { ...pages.kullanicilar, icon: UserPlus2, permission: "users:manage" },
-        // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
+        // Faz O — firma-yüzü aktivite logu (doğrulanmış firma; K+Y).
         { ...pages.aktivite, icon: Activity, permission: ["users:manage", "company:manage"], minTier: "SILVER" },
         // Faz AI-0 — koltuklu herkes kendi kullanımını, K+Y firma kırılımını görür.
         {
@@ -140,10 +143,13 @@ export default function AyarlarPage() {
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-950">
                         {s.title}
-                        {s.minTier && company && !tierAtLeast(company.tier, s.minTier) ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                        {s.minTier && company && gateCopy.badge && !tierAtLeast(company.tier, s.minTier) ? (
+                          <span
+                            data-testid="verification-badge"
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200"
+                          >
                             <Lock className="size-3" aria-hidden />
-                            {t("silverIleAcilir")}
+                            {gateCopy.badge}
                           </span>
                         ) : null}
                         {(() => {
