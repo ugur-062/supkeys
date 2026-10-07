@@ -177,16 +177,22 @@ export class AdminSystemController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     // Fat-finger koruması: mevcut kurdan 10x sapma reddedilir.
-    const current = await this.exchangeRates
-      .getCurrentRate(dto.currency as never)
-      .catch(() => null);
-    if (current && (dto.rate > current * 10 || dto.rate < current / 10)) {
+    // Tablo boşken kıyas YEDEK kura göre yapılır (getCurrentRate → FALLBACK).
+    // Kur okunamazsa hata YUTULMAZ: eskiden `.catch(() => null)` korumayı
+    // sessizce atlatıyordu (para yolu → fail-closed).
+    const current = await this.exchangeRates.getCurrentRate(dto.currency as never);
+    if (!(current > 0) || dto.rate > current * 10 || dto.rate < current / 10) {
       throw new BadRequestException(
         i18nMessage("api.adminSystem.girilenKurMevcutDegerdenAsiriSapiyor", { current: current }),
       );
     }
-    const rateDate = new Date();
-    rateDate.setHours(0, 0, 0, 0);
+    // Gün anahtarı UTC gece yarısı — TCMB satırıyla AYNI anahtar
+    // (`new Date("YYYY-AA-GG")`); kolon `@db.Date`, Prisma UTC gününü yazar.
+    // Eski `setHours(0,0,0,0)` sunucunun YEREL gece yarısıydı: UTC+3 süreçte
+    // satır DÜNE yazılıyor, bugünün TCMB satırı varken elle kur "ok" dönüp
+    // hiçbir etki yapmıyordu (en güncel satır olmuyordu).
+    const now = new Date();
+    const rateDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     await this.prisma.exchangeRate.upsert({
       where: {
         currency_rateDate: {

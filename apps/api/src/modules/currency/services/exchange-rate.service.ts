@@ -309,14 +309,25 @@ export class ExchangeRateService implements OnApplicationBootstrap {
     }
 
     const rateDate = new Date(fetched.date);
-    if (Number.isNaN(rateDate.getTime())) {
+    // Gidiş-dönüş denetimi: `new Date("2026-02-31")` hata vermez, 3 Mart'a
+    // kayar; ISO gün biçiminde olmayan değer de yerel saatle ayrıştırılırdı.
+    if (Number.isNaN(rateDate.getTime()) || rateDate.toISOString().slice(0, 10) !== fetched.date) {
       this.logger.error(`TCMB tarihi parse edilemedi: ${fetched.date}`);
       return { success: false, reason: "Invalid TCMB date" };
+    }
+    // İleri tarihli satır "en güncel" kalır ve hiç bayatlamaz: sonraki gerçek
+    // çekimler ve elle kur (bugün anahtarlı) onun gerisinde kalırdı. TCMB günü
+    // en geç bugündür; 1 günlük pay saat farkı içindir.
+    if (rateDate.getTime() > Date.now() + 86_400_000) {
+      this.logger.error(`TCMB tarihi gelecekte: ${fetched.date}`);
+      return { success: false, reason: "TCMB date is in the future" };
     }
 
     const upserts = TRACKED_CURRENCIES.flatMap((currency) => {
       const rate = fetched.rates[currency];
-      if (typeof rate !== "number" || !Number.isFinite(rate)) return [];
+      // Sıfır/negatif kur yazılmaz: para yolu `rate <= 0`ı reddeder ama satır
+      // "en güncel" olup o birimi bir sonraki çekime dek kilitlerdi.
+      if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) return [];
       return [
         this.prisma.exchangeRate.upsert({
           where: { currency_rateDate: { currency, rateDate } },
@@ -335,7 +346,7 @@ export class ExchangeRateService implements OnApplicationBootstrap {
     const persisted: Partial<Record<Currency, number>> = {};
     for (const c of TRACKED_CURRENCIES) {
       const v = fetched.rates[c];
-      if (typeof v === "number") persisted[c] = v;
+      if (typeof v === "number" && Number.isFinite(v) && v > 0) persisted[c] = v;
     }
 
     this.logger.log(

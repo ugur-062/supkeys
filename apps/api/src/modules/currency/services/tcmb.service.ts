@@ -88,7 +88,8 @@ export class TcmbService {
         const sellingStr = c.ForexSelling?.[0];
         if (!sellingStr) continue;
         const value = parseFloat(sellingStr);
-        if (!Number.isFinite(value)) continue;
+        // Sıfır/negatif değer kur değildir (yayınlanmamış birim) — eksik sayılır.
+        if (!Number.isFinite(value) || value <= 0) continue;
         // TCMB bazı birimleri 100'lük verir (JPY, KRW: ForexSelling 100 birim
         // karşılığı). Normalize: 1 birim = value / unit.
         const unitStr = c.Unit?.[0];
