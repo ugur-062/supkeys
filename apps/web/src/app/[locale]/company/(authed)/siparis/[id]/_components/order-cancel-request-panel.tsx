@@ -33,7 +33,10 @@ import { toast } from "sonner";
  * iptal talep eder (buton üst çubukta); burada:
  *  - Açık talep (ACCEPTED + cancelRequestedAt): satıcıya "Geri Çek"; alıcıya
  *    "Onayla" (→CANCELLED) / "Reddet" (→DISPUTED) + CONFIRMED ödeme iade uyarısı.
- *  - DISPUTED: iki-yönlü çıkış — alıcı "İptali Onayla", satıcı yukarıdan sevk.
+ *  - DISPUTED: alıcı "İptali Onayla"; satıcı yukarıdan sevk eder ya da talebini
+ *    geri çeker (kullanıcı kararı 2026-10-07) — ihtilaf biter, sipariş devam
+ *    eder. Geri çekme siparişi yeniden yürürlüğe soktuğu için onay penceresinden
+ *    geçer (açık talepteki geri çekme tek tık kalır: orada durum değişmez).
  */
 export function OrderCancelRequestPanel({
   order,
@@ -53,6 +56,10 @@ export function OrderCancelRequestPanel({
   // A1 (satıcı iptal talebi) DISPUTED'ı — ayıp ihbarı DISPUTED'ını (defectNotifiedAt
   // dolu) DIŞLA; onun kendi paneli (OrderDefectPanel) var.
   const disputed = order.status === "DISPUTED" && !order.defectNotifiedAt;
+  // API `withdrawCancelRequest` DISPUTED dalının aynası: ihtilaf satıcının KENDİ
+  // iptal talebinden doğmuş olmalı (cancelRequestedAt dolu, ayıp ihbarı yok).
+  const canWithdrawDisputed =
+    canAct && isSeller && disputed && !!order.cancelRequestedAt;
 
   const withdraw = useWithdrawCancelRequest(order.id);
   const approve = useCancelRequestDecision(order.id, "approve");
@@ -61,9 +68,11 @@ export function OrderCancelRequestPanel({
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   // Çift tık ikinci istek atmaz; pencere kapanırken düğme kilitli (FX-00).
   const approveLock = useDialogSubmitLock(approveOpen);
   const rejectLock = useDialogSubmitLock(rejectOpen);
+  const withdrawLock = useDialogSubmitLock(withdrawOpen);
 
   if (!pending && !disputed) return null;
 
@@ -88,6 +97,13 @@ export function OrderCancelRequestPanel({
 
   const doWithdraw = () =>
     run(withdraw.mutateAsync(), t("iptalTalebiGeriCekildi"));
+  const doWithdrawDisputed = async () => {
+    const ok = await run(
+      withdraw.mutateAsync(),
+      t("iptalTalebiGeriCekildiSiparisDevamEdiyor"),
+    );
+    if (ok) setWithdrawOpen(false);
+  };
   const doApprove = async () => {
     if (await run(approve.mutateAsync(undefined), t("iptalOnaylandiSiparisIptalEdildi"))) {
       setApproveOpen(false);
@@ -164,6 +180,18 @@ export function OrderCancelRequestPanel({
               </>
             ) : null}
 
+            {/* SATICI — DISPUTED'da da talebini geri çekebilir: ihtilaf biter,
+                sipariş devam eder (onay penceresiyle). */}
+            {canWithdrawDisputed ? (
+              <Button
+                outline
+                onClick={() => setWithdrawOpen(true)}
+                disabled={withdraw.isPending}
+              >
+                {t("iptalTalebiniGeriCek")}
+              </Button>
+            ) : null}
+
             {/* SATICI — DISPUTED'da sevk yönlendirmesi (buton üstteki ana aksiyonda). */}
             {isSeller && disputed ? (
               <p className="text-xs text-zinc-500">
@@ -176,6 +204,27 @@ export function OrderCancelRequestPanel({
           </div>
         </div>
       </div>
+
+      {/* Satıcı — ihtilaftaki talebi geri çekme onayı: sipariş DEVAM EDER. */}
+      <Dialog open={withdrawOpen} onClose={() => setWithdrawOpen(false)}>
+        <DialogTitle>{t("iptalTalebiniGeriCekBaslik")}</DialogTitle>
+        <DialogDescription>
+          {t("geriCekinceIhtilafBiterSiparisDevamEder")}
+        </DialogDescription>
+        <DialogActions>
+          <Button plain onClick={() => setWithdrawOpen(false)}>
+            {t("vazgec")}
+          </Button>
+          <Button
+            onClick={() =>
+              void withdrawLock.run(doWithdrawDisputed).catch(() => {})
+            }
+            disabled={withdraw.isPending || withdrawLock.locked}
+          >
+            {t("geriCekSiparisDevamEtsin")}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Alıcı onay dialogu — CONFIRMED ödeme varsa iade uyarısı (engelleme YOK). */}
       <Dialog open={approveOpen} onClose={() => setApproveOpen(false)}>

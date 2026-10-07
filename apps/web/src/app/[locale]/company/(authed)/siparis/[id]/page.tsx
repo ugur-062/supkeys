@@ -543,6 +543,7 @@ export default function OrderDetailPage() {
     <Text className="text-sm text-amber-700">
       {t("saticiIhtilafIptalReddedildiGonderebilirsiniz", {
         button: next.label,
+        withdraw: tCancel("iptalTalebiniGeriCek"),
       })}
     </Text>
   ) : next ? (

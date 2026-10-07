@@ -78,6 +78,15 @@ const ORDERS_LIST_CAP = 1000;
 const DEFECT_NOTICE_WINDOW_DAYS = 8;
 
 /**
+ * A1 ihtilafının (satıcı iptal talebini alıcı reddetti) ÖNCEKİ durumu. İptal
+ * talebi yalnız ACCEPTED'da açılır ve yalnız ACCEPTED'dan DISPUTED'a geçer;
+ * satıcı talebini ihtilafta geri çekince sipariş buraya döner. Talep başka bir
+ * durumda da açılabilir hâle gelirse önceki durum satıra damgalanmalı
+ * (ayıp ihbarındaki disputePrevStatus gibi), bu sabit yetmez.
+ */
+const A1_DISPUTE_PREV_STATUS = "ACCEPTED" as const satisfies CompanyOrderStatus;
+
+/**
  * Aynı kişinin aynı tutar + notla tekrar bildirimi bu pencere içinde mükerrer
  * sayılır (çift tık / ağ tekrarı — arayüz testi FX-00 O-002). Bilinçli iki
  * ayrı aynı tutarlı havale bu süreden sonra ya da farklı notla kaydedilir.
@@ -841,7 +850,9 @@ export class CompanyOrdersService {
   // ---- A1: Satıcı iptal talebi + DISPUTED (yalnız ACCEPTED) ----
   // Platform sözleşme icra etmez / para tutmaz / hakem değildir — katkısı NE
   // OLDUĞUNU DOĞRU KAYDETMEK (audit_logs). Satıcı çıkış talep eder; alıcı onaylar
-  // (→CANCELLED) ya da reddeder (→DISPUTED, saat durur, iki-yönlü çıkış açık).
+  // (→CANCELLED) ya da reddeder (→DISPUTED, saat durur). DISPUTED çıkışları:
+  // satıcı sevk eder (→IN_DELIVERY), satıcı talebini geri çeker (→ACCEPTED) ya
+  // da alıcı iptali sonradan onaylar (→CANCELLED).
 
   /** Satıcı ACCEPTED siparişte iptal talebi açar (gerekçe ZORUNLU, min 10).
    *  Durum ACCEPTED kalır (flag); otomatik onay YOK — alıcı karar verir. */
@@ -895,23 +906,63 @@ export class CompanyOrdersService {
     return { ok: true as const };
   }
 
-  /** Satıcı açık iptal talebini geri çeker — sipariş ACCEPTED'da kalır. */
+  /**
+   * Satıcı iptal talebini geri çeker. İki durumda geçerli (kullanıcı kararı
+   * 2026-10-07):
+   *  - ACCEPTED + açık talep: talep temizlenir, sipariş ACCEPTED'da kalır.
+   *  - A1-DISPUTED (alıcı talebi reddetti): ihtilaf sona erer, sipariş ihtilaftan
+   *    önceki durumuna döner ve devam eder.
+   * Ayıp ihbarı DISPUTED'ı (defectNotifiedAt dolu) buradan ÇÖZÜLMEZ (400) — o
+   * ihtilafın sahibi alıcıdır (`withdrawDefectNotice`). Sevkten sonra satırda
+   * kalan eski cancelRequestedAt damgası da bu yüzden tek başına yetmez; koşul
+   * `defectNotifiedAt: null` ile birlikte aranır.
+   *
+   * Dönülen durum: iptal talebi YALNIZ ACCEPTED'da açılır (`requestCancel`) ve
+   * yalnız ACCEPTED'dan ihtilafa döner (`rejectCancelRequest`) → A1 ihtilafının
+   * önceki durumu her zaman ACCEPTED'dır (disputePrevStatus yalnız ayıp ihbarında
+   * yazılır).
+   *
+   * Yarış: her dal TEK koşullu updateMany (durum + açık talep koşulu, count===1).
+   * Alıcının onayı (→CANCELLED) ya da satıcının sevki (→IN_DELIVERY) aynı satırı
+   * durum koşuluyla yazar; hangisi önce commit ederse öteki 0 satır eşler.
+   */
   async withdrawCancelRequest(user: AuthenticatedCompanyUser, id: string) {
     const order = await this.loadParticipant(user, id);
     if (order.sellerCompanyId !== user.companyId) {
       throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
     }
     this.assertOrderRole(user, "seller");
-    const res = await this.prisma.companyOrder.updateMany({
+    const cleared = {
+      cancelRequestedAt: null,
+      cancelRequestReason: null,
+      cancelRequestById: null,
+    };
+    const open = await this.prisma.companyOrder.updateMany({
       where: { id, status: "ACCEPTED", cancelRequestedAt: { not: null } },
-      data: {
-        cancelRequestedAt: null,
-        cancelRequestReason: null,
-        cancelRequestById: null,
-      },
+      data: cleared,
     });
-    if (res.count !== 1) {
-      throw new BadRequestException(i18nMessage("api.companyOrders.geriCekilecekAcikBirIptalTalebi"));
+    let endedDispute = false;
+    if (open.count !== 1) {
+      const disputed = await this.prisma.companyOrder.updateMany({
+        where: {
+          id,
+          status: "DISPUTED",
+          defectNotifiedAt: null,
+          cancelRequestedAt: { not: null },
+        },
+        data: {
+          status: A1_DISPUTE_PREV_STATUS,
+          disputedAt: null,
+          disputePrevStatus: null,
+          ...cleared,
+        },
+      });
+      if (disputed.count !== 1) {
+        throw new BadRequestException(
+          i18nMessage("api.companyOrders.geriCekilecekAcikBirIptalTalebi"),
+        );
+      }
+      endedDispute = true;
     }
     await this.audit.log({
       action: "company.order.cancel_request_withdrawn",
@@ -922,19 +973,40 @@ export class CompanyOrdersService {
       entityType: "company_order",
       entityId: id,
       critical: true,
-      metadata: { orderNumber: order.number },
+      metadata: endedDispute
+        ? {
+            orderNumber: order.number,
+            from: "DISPUTED",
+            to: A1_DISPUTE_PREV_STATUS,
+          }
+        : { orderNumber: order.number },
     });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
-    await this.notifyOrderParty(
-      id,
-      order.buyerCompanyId,
-      "api.notifications.orders.cancelRequestWithdrawn.subject",
-      "api.notifications.orders.cancelRequestWithdrawn.heading",
-      "api.notifications.orders.cancelRequestWithdrawn.body",
-      "satinalma",
-      this.orderParams(order.number),
-    );
-    return { ok: true as const };
+    // İhtilaftan dönüşte alıcıya ayrı metin: talep geri çekildi VE ihtilaf bitti.
+    if (endedDispute) {
+      await this.notifyOrderParty(
+        id,
+        order.buyerCompanyId,
+        "api.notifications.orders.cancelRequestWithdrawnDisputeEnded.subject",
+        "api.notifications.orders.cancelRequestWithdrawnDisputeEnded.heading",
+        "api.notifications.orders.cancelRequestWithdrawnDisputeEnded.body",
+        "satinalma",
+        this.orderParams(order.number),
+      );
+    } else {
+      await this.notifyOrderParty(
+        id,
+        order.buyerCompanyId,
+        "api.notifications.orders.cancelRequestWithdrawn.subject",
+        "api.notifications.orders.cancelRequestWithdrawn.heading",
+        "api.notifications.orders.cancelRequestWithdrawn.body",
+        "satinalma",
+        this.orderParams(order.number),
+      );
+    }
+    return endedDispute
+      ? { ok: true as const, status: A1_DISPUTE_PREV_STATUS }
+      : { ok: true as const };
   }
 
   /** Alıcı iptal talebini ONAYLAR → CANCELLED. DISPUTED'dan da çağrılabilir

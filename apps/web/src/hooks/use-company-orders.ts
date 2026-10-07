@@ -331,7 +331,9 @@ export function useRequestCancel(id: string) {
   });
 }
 
-/** A1 — Satıcı: açık iptal talebini geri çek. */
+/** A1 — Satıcı: iptal talebini geri çek. Açık talepte (ACCEPTED) sipariş aynen
+ *  sürer; alıcının reddiyle ihtilafa dönmüşse (DISPUTED) ihtilaf biter ve
+ *  sipariş ACCEPTED'a döner. */
 export function useWithdrawCancelRequest(id: string) {
   const qc = useQueryClient();
   return useMutation({
