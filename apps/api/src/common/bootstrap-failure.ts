@@ -20,7 +20,7 @@ import { Logger } from "@nestjs/common";
  *     için değerlidir). Boşaltma düşerse sebep zaten yazılmıştır.
  */
 
-export const BOOTSTRAP_FAILURE_PREFIX = "[Bootstrap] Uygulama başlatılamadı:";
+export const BOOTSTRAP_FAILURE_PREFIX = "[Bootstrap] Application failed to start:";
 
 export function formatBootstrapFailure(err: unknown): string {
   const reason = err instanceof Error ? (err.stack ?? err.message) : String(err);

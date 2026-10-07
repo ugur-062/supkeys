@@ -151,7 +151,7 @@ export class SessionRevocationService {
         const jti = await this.revokeToken(token, realm);
         if (jti) revoked.push(jti);
       } catch (err) {
-        const message = `Oturum iptali yazılamadı (${realm}) — çerez silindi ama jeton ömrü dolana dek geçerli: ${
+        const message = `Session revocation could not be written (${realm}) - cookie cleared but the token stays valid until it expires: ${
           err instanceof Error ? err.message : String(err)
         }`;
         this.logger.error(message);

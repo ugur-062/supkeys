@@ -166,7 +166,7 @@ export class RealtimeGateway
           where: { jti: payload.jti },
           select: { jti: true },
         });
-        if (revoked) throw new Error("Oturum iptal edilmiş");
+        if (revoked) throw new Error("Session revoked");
         client.data.sessionId = payload.jti;
       }
 

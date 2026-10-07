@@ -28,7 +28,7 @@ export class SessionRevocationScheduler implements OnModuleInit {
   async purge(): Promise<void> {
     return trackCronRun(this.cronRegistry, "sessions.purgeRevoked", async () => {
       const n = await this.sessions.purgeExpired();
-      if (n > 0) this.logger.log(`${n} süresi geçmiş oturum iptal kaydı silindi`);
+      if (n > 0) this.logger.log(`purged ${n} expired revoked-session rows`);
     });
   }
 }

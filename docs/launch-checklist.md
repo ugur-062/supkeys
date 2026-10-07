@@ -136,7 +136,7 @@ boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
       joker origin'i kapalı kalsın. *(2026-10-07'den beri AÇILIŞ KAPISI: `assertProdConfigSanity`
       canlıda — `NODE_ENV=production` + `WEB_URL` alan adı `rothern.com` — `CORS_ALLOW_VERCEL=true`
       ya da dolu `EMAIL_ALLOWLIST` görürse açılmayı REDDEDER; sebep Render günlüğünde
-      `[Bootstrap] Uygulama başlatılamadı: …` satırıyla yazılır. Staging (`supkeys.com`) etkilenmez.
+      `[Bootstrap] Application failed to start: …` satırıyla yazılır. Staging (`supkeys.com`) etkilenmez.
       Bilinçli istisna: `ALLOW_STAGING_ONLY_ENV=true` — canlıda tanımlanmaz.)*
 
 > ✅ **GEÇİŞ TAMAMLANDI (2026-07-25):** ham provider domain'leri

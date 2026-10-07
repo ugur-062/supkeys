@@ -40,7 +40,7 @@ export class RealtimeService {
         }
       }
     } catch (err) {
-      this.logger.warn(`Oturum soketleri kapatılamadı: ${String(err)}`);
+      this.logger.warn(`Could not close session sockets: ${String(err)}`);
     }
     return closed;
   }

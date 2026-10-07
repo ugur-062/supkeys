@@ -146,19 +146,19 @@ export function assertProdConfigSanity(config: ConfigService): void {
     const parts: string[] = [];
     if (stagingOnly.includes("cors_allow_vercel")) {
       parts.push(
-        "CORS_ALLOW_VERCEL=true canlıda olamaz — her *.vercel.app kökenine çerezli erişim açar " +
-          "(CSRF / veri sızıntısı). Çözüm: değişkeni silin ya da false yapın.",
+        "CORS_ALLOW_VERCEL=true is not allowed in live - it grants credentialed (cookie) access to " +
+          "every *.vercel.app origin (CSRF / data leak). Fix: delete the variable or set it to false.",
       );
     }
     if (stagingOnly.includes("email_allowlist")) {
       parts.push(
-        "EMAIL_ALLOWLIST canlıda dolu olamaz — listede olmayan hiçbir müşteriye e-posta gitmez " +
-          "(doğrulama kodu, davet, sipariş bildirimi sessizce kesilir). Çözüm: değişkeni silin.",
+        "EMAIL_ALLOWLIST must be empty in live - no e-mail reaches any customer who is not on the list " +
+          "(verification codes, invites, order notifications are silently dropped). Fix: delete the variable.",
       );
     }
     throw new Error(
-      `${parts.join(" ")} (Kapı yalnız WEB_URL alan adı ${CANONICAL_EMAIL_DOMAIN} iken çalışır; ` +
-        `canlı olmayan bir ortamda bilinçli istisna: ${STAGING_ONLY_ENV_OVERRIDE}=true.)`,
+      `${parts.join(" ")} (This gate only runs when the WEB_URL domain is ${CANONICAL_EMAIL_DOMAIN}; ` +
+        `deliberate exception for a non-live environment: ${STAGING_ONLY_ENV_OVERRIDE}=true.)`,
     );
   }
 

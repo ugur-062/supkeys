@@ -281,7 +281,7 @@ describe("assertProdConfigSanity — staging bayrakları", () => {
 
   it("canlı + CORS_ALLOW_VERCEL=true → THROW (mesaj değişkeni ve çözümü söyler)", () => {
     expect(() => assertProdConfigSanity(cfg({ ...LIVE_OK, CORS_ALLOW_VERCEL: "true" }))).toThrow(
-      /CORS_ALLOW_VERCEL=true canlıda olamaz/,
+      /CORS_ALLOW_VERCEL=true is not allowed in live/,
     );
   });
 
@@ -292,7 +292,7 @@ describe("assertProdConfigSanity — staging bayrakları", () => {
     } catch (e) {
       message = (e as Error).message;
     }
-    expect(message).toMatch(/EMAIL_ALLOWLIST canlıda dolu olamaz/);
+    expect(message).toMatch(/EMAIL_ALLOWLIST must be empty in live/);
     expect(message).toContain("ALLOW_STAGING_ONLY_ENV=true");
     expect(message).not.toContain("gizli-adres");
   });

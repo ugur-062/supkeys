@@ -26,9 +26,9 @@ export function resolveThrottleLimit(
   const limit = Number.isFinite(n) ? Math.floor(n) : Number.NaN;
   if (Number.isFinite(limit) && limit > 0) return limit;
   warn(
-    `${envName}=${JSON.stringify(raw.slice(0, 40))} geçersiz (boş, sayı değil ya da ≤ 0) — ` +
-      `varsayılan ${fallback} kullanılıyor. Sınırı değiştirmek için pozitif tam sayı verin, ` +
-      "varsayılan için değişkeni silin.",
+    `${envName}=${JSON.stringify(raw.slice(0, 40))} is invalid (empty, not a number or <= 0) - ` +
+      `using the default ${fallback}. Set a positive integer to change the limit, ` +
+      "or delete the variable to use the default.",
   );
   return fallback;
 }
