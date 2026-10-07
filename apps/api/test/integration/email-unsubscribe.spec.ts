@@ -38,6 +38,15 @@ function makeEmail() {
   return { svc, send };
 }
 
+/**
+ * Şikâyet geri bildirim başlıkları (Feedback-ID, X-Mailru-Msgtype) HER e-postada
+ * var; "çıkış başlığı yok" = `List-Unsubscribe*` anahtarı yok.
+ */
+function expectNoUnsubscribeHeaders(headers: Record<string, string> | undefined) {
+  const keys = Object.keys(headers ?? {}).map((k) => k.toLowerCase());
+  expect(keys.filter((k) => k.startsWith("list-unsubscribe"))).toEqual([]);
+}
+
 const unsub = () => new EmailUnsubscribeService(config as never, prisma as never, prisma as never);
 
 const mail = (to: string, type: string) =>
@@ -74,7 +83,7 @@ describe("EmailService — çıkış başlıkları", () => {
   it("işlem e-postası (email_verify) çıkış başlığı TAŞIMAZ", async () => {
     const { svc, send } = makeEmail();
     await svc.send(mail("u@firma.com", "email_verify"));
-    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    expectNoUnsubscribeHeaders(send.mock.calls[0][0].headers);
     expect((renderEmail as jest.Mock).mock.calls[0][2].unsubscribeUrl).toBeUndefined();
   });
 
@@ -87,7 +96,7 @@ describe("EmailService — çıkış başlıkları", () => {
     const envs = (renderEmail as jest.Mock).mock.calls.map((c) => c[2]);
     expect(envs[0]).toEqual(expect.objectContaining({ privacyNotice: true }));
     expect(envs[0].unsubscribeUrl).toBeUndefined();
-    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    expectNoUnsubscribeHeaders(send.mock.calls[0][0].headers);
     expect(envs[1].privacyNotice).toBe(true);
     expect(envs[2].privacyNotice).toBe(false);
     expect(envs[3].privacyNotice).toBe(true);
@@ -97,7 +106,7 @@ describe("EmailService — çıkış başlıkları", () => {
     const { svc, send } = makeEmail();
     const res = await svc.send(mail("tedarik@firma.com", "bid_eliminated"));
     expect(res.sent).toBe(true);
-    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    expectNoUnsubscribeHeaders(send.mock.calls[0][0].headers);
     const env = (renderEmail as jest.Mock).mock.calls[0][2];
     expect(env.unsubscribeUrl).toBeUndefined();
     // Alt bilgi bağlantısı oturum istemeyen jetonlu tercih sayfası (kapsam =
@@ -111,7 +120,7 @@ describe("EmailService — çıkış başlıkları", () => {
   it("ACTIVITY billingEmail alıcısı: başlık yok, alt bilgideki jetonlu sayfadan türü kapatır, sonra o tür GİTMEZ (inceleme)", async () => {
     const { svc, send } = makeEmail();
     await svc.send(mail("fatura@firma.com", "bid_eliminated"));
-    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    expectNoUnsubscribeHeaders(send.mock.calls[0][0].headers);
     const url = (renderEmail as jest.Mock).mock.calls[0][2].preferencesUrl as string;
     const token = new URL(url).searchParams.get("t")!;
     const described = await unsub().describe(token);
@@ -336,6 +345,6 @@ describe("AdminEmailLogsService.resend — dil ve bağlam korunur (derin denetim
     const res = await admin(svc).resend(legacy.id, "admin1");
     expect(res.sent).toBe(true);
     expect((renderEmail as jest.Mock).mock.calls[0][1]).toBeUndefined();
-    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    expectNoUnsubscribeHeaders(send.mock.calls[0][0].headers);
   });
 });

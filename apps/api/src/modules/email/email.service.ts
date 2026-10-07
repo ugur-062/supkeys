@@ -24,6 +24,7 @@ import {
   unsubscribeScopeFor,
   type EmailStream,
 } from "./email-streams";
+import { feedbackEnvironment, feedbackHeaders } from "./email-feedback-headers";
 import { signUnsubscribeToken } from "./unsubscribe-token";
 import { maskEmail } from "../../common/logging/mask-email";
 import { SUPPRESSION_CLEAR_MARKER_WHERE } from "./suppression-marker";
@@ -492,7 +493,18 @@ export class EmailService implements OnModuleInit {
           to: input.to,
           rendered,
           ...(sender ? { from: { email: sender.email, name: input.fromName ?? sender.name } } : {}),
-          ...(unsubscribe ? { headers: unsubscribe.headers } : {}),
+          // Şikâyet geri bildirim başlıkları HER e-postada (Gmail/Yandex
+          // `Feedback-ID`, Mail.ru `X-Mailru-Msgtype`); çıkış başlıkları yalnız
+          // taşıyan akışlarda eklenir (ACTIVITY / işlem: `List-Unsubscribe` YOK).
+          headers: {
+            ...feedbackHeaders({
+              contextType: input.context?.type,
+              template: input.templateData.template,
+              stream,
+              environment: feedbackEnvironment((k) => this.config.get<string>(k)),
+            }),
+            ...(unsubscribe ? unsubscribe.headers : {}),
+          },
         },
         log.id,
       );
