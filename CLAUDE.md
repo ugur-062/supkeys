@@ -1641,6 +1641,10 @@ gruplarda kabul edilir ('2.5' kod değildir).
 >   (`jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false)`). Sözleşmeler: API
 >   `free-period.spec`, `effective-tier.spec`; i18n `public-tier-copy.test` (hiçbir katalog metni paket
 >   adı anmaz; ana sayfa "ücretsiz" der, doğrulama şartını anmaz); admin `no-plan-names.test`.
+> - **Yanıtta paket alanı yok:** anahtar açıkken herkese açık / dizin / ürün yanıtları `gold` alanını ve
+>   dizin facet'indeki `gold` sayacını YAZMAZ (sayfa kaynağında da paket adı olmasın); web tipleri
+>   isteğe bağlı okur. Panel anasayfasında doğrulanmamış firmaya kısa bilgi tek bileşen:
+>   `components/company/free-period-notice.tsx` (Satış anasayfası; doğrulanmışa çizilmez).
 > - **Sonuç:** doğrulanan her firma en üst AI kotasını alır (platform tavanı aynı). Sözleşme
 >   sayfalarında paket adı / ücret ifadeleri en küçük değişiklikle çıkarıldı (hukukçu incelemesi bekliyor).
 
@@ -3452,9 +3456,9 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 ## Test & Kalite
 
 - API **322 suite / 3.969 test** (3.967 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
-  **338 / 2.489** · admin **65 / 378** · i18n **11 / 65** (vitest toplamı 2.932) — son kapı HEAD 50a8fec4 YEŞİL
+  **339 / 2.492** · admin **65 / 378** · i18n **11 / 65** (vitest toplamı 2.935) — son kapı HEAD 9391b6fc YEŞİL
   (kurulum, typecheck 7/7, lint 3/3, i18n:check, prisma validate, üç build, kategori çakışması 0,
-  `pnpm audit --prod --audit-level high` rc=0), 6.899 test geçti (2 LIVE atlandı), ücretsiz dönem turu 2026-10-07.
+  `pnpm audit --prod --audit-level high` rc=0), 6.902 test geçti (2 LIVE atlandı), ücretsiz dönem turu 2026-10-07.
   Kapı ajan yerine betikle koşulur: `/home/noah/rothern-qa-2026-10/gate-final.sh` + `gate-apijest/run.sh`.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
