@@ -64,7 +64,7 @@ bu tablo **çalışan staging'in gerçek yanıtıdır**. ✅ erişti · 🔒 403
 | `company/listings/discover-facets` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/listings/my-bids` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/listings/seller-tenders` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `company/listings/seller-tenders/locked-summary` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `company/listings/seller-tenders/masked` | sell:view | — | ✅ | ✅ | 🔒 | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `company/listings/tenders` | buy:view | — | ✅ | ✅ | ✅ | 🔒 | 🔒 | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ |
 | `company/messages/threads` | buy:view · sell:view | — | 400 | 400 | 400 | 400 | 🔒 | 400 | 400 | 400 | 400 | 400 | 400 |
 | `company/messages/unread-count` | buy:view · sell:view | — | ✅ | ✅ | ✅ | ✅ | 🔒 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
