@@ -846,7 +846,15 @@ export function useEliminateBid(id: string) {
 export function useAwardListing(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { bidId: string; approvalNote?: string }) => {
+    mutationFn: async (input: {
+      bidId: string;
+      approvalNote?: string;
+      /**
+       * Onay penceresinde gösterilen teklif tutarı (ham). Sunucu kazandırma
+       * anındaki tutar farklıysa 409 döner ve hiçbir şey yazmaz.
+       */
+      expectedAmount?: string;
+    }) => {
       const { data } = await companyApi.post<{
         orderId?: string;
         number?: string;
@@ -857,6 +865,10 @@ export function useAwardListing(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
       invalidateListingCaches(qc, { orders: true });
+    },
+    // 409 (teklif değişti) dahil her hatada güncel teklifleri çek.
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
     },
   });
 }

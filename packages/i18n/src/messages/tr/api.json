@@ -316,6 +316,7 @@
     "gecersizTeklif": "Geçersiz teklif",
     "buSatinAlmaTalebiTeklifBelgesi": "Bu satın alma talebi teklif belgesi zorunlu kılıyor; kazanan teklifin belgesi yok",
     "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "Talep durumu değişti; kazandırmayı tekrar deneyin",
+    "teklifDegistiKazandirmaYapilmadi": "Teklif değişti; kazandırma yapılmadı. Güncel tutarı inceleyip yeniden deneyin",
     "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "Teklifin geçerlilik süresi dolmuş; tedarikçiden süre uzatması isteyin ya da yeni tur açın",
     "teklifVerenFirmaAskidaKazandirilamaz": "Teklif veren firmanın hesabı askıda ya da pasif; bu teklif kazandırılamaz",
     "teklifArtikGecerliDegilGeriCekilmis": "Teklif artık geçerli değil (geri çekilmiş veya elenmiş) — kazandırılamaz",

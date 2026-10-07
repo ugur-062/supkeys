@@ -512,3 +512,74 @@ describe("awardPreview — kazandırma ile aynı kapılar", () => {
     expect(r.preview.requiresApproval).toBe(true);
   });
 });
+
+/**
+ * Kullanıcı kararı 2026-10-07: "Kazandır" onay penceresi TUTARI söyler. Pencerede
+ * gösterilen tutar istekle gelir (`expectedAmount`); sunucu kazandırma anındaki
+ * teklif tutarı farklıysa 409 döner ve HİÇBİR ŞEY yazmaz (talep OPEN iken teklif
+ * revize edilebilir — kullanıcı X'i onaylayıp Y ile sipariş oluşmasın).
+ */
+describe("award — pencerede gösterilen tutar (expectedAmount)", () => {
+  const untouched = async (ctx: Awaited<ReturnType<typeof build>>) => {
+    expect(await prisma.companyOrder.count()).toBe(0);
+    expect(await prisma.approvalRequest.count()).toBe(0);
+    expect(
+      (await prisma.listing.findUniqueOrThrow({ where: { id: ctx.listing.id } })).status,
+    ).toBe("OPEN");
+    expect(
+      (await prisma.listingBid.findUniqueOrThrow({ where: { id: ctx.bid.id } })).status,
+    ).toBe("SUBMITTED");
+  };
+
+  it("aynı tutar (ondalık yazımı farklı olsa da) → kazandırır", async () => {
+    const rig = makeRig();
+    const ctx = await build(rig, { threshold: null, amount: "1500" });
+    await rig.service.award(ctx.owner.auth, ctx.listing.id, ctx.bid.id, undefined, "1500.00");
+    expect(
+      (await prisma.listing.findUniqueOrThrow({ where: { id: ctx.listing.id } })).status,
+    ).toBe("AWARDED");
+    expect(await prisma.companyOrder.count()).toBe(1);
+  });
+
+  it("teklif pencere açıkken değişti → 409, sipariş/onay isteği yok, durum aynı", async () => {
+    const rig = makeRig();
+    const ctx = await build(rig, { threshold: null, amount: "1500" });
+    // Kullanıcı 1.400 gördü ve onayladı; teklif bu arada 1.500 olmuş.
+    await expect(
+      rig.service.award(ctx.owner.auth, ctx.listing.id, ctx.bid.id, undefined, "1400"),
+    ).rejects.toMatchObject({ status: 409 });
+    await untouched(ctx);
+    // Güncel tutarla yeniden onaylanınca kazandırır.
+    await rig.service.award(ctx.owner.auth, ctx.listing.id, ctx.bid.id, undefined, "1500");
+    expect(await prisma.companyOrder.count()).toBe(1);
+  });
+
+  it("onaya giden yolda da: farklı tutar → 409 ve onay isteği AÇILMAZ", async () => {
+    const rig = makeRig();
+    const ctx = await build(rig, { threshold: 1000, amount: "5000" });
+    await expect(
+      rig.service.award(ctx.owner.auth, ctx.listing.id, ctx.bid.id, "not", "4000"),
+    ).rejects.toMatchObject({ status: 409 });
+    await untouched(ctx);
+    const res = (await rig.service.award(
+      ctx.owner.auth,
+      ctx.listing.id,
+      ctx.bid.id,
+      "not",
+      "5000",
+    )) as { pendingApproval?: boolean };
+    expect(res.pendingApproval).toBe(true);
+    expect(await prisma.approvalRequest.count()).toBe(1);
+  });
+
+  it("tutar gönderilmezse (eski istemci) denetim yok; bozuk değer 409", async () => {
+    const rig = makeRig();
+    const ctx = await build(rig, { threshold: null, amount: "1500" });
+    await expect(
+      rig.service.award(ctx.owner.auth, ctx.listing.id, ctx.bid.id, undefined, "abc"),
+    ).rejects.toMatchObject({ status: 409 });
+    await untouched(ctx);
+    await rig.service.award(ctx.owner.auth, ctx.listing.id, ctx.bid.id);
+    expect(await prisma.companyOrder.count()).toBe(1);
+  });
+});

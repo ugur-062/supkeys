@@ -183,7 +183,13 @@ export default function BidDetailPage() {
 
   const runAward = async (approvalNote?: string) => {
     try {
-      const res = await award.mutateAsync({ bidId: bid.id, approvalNote });
+      // Pencerede gösterilen tutar sunucuya da gider; farklıysa 409 (teklif değişti).
+      const current = latestListing.current?.bids?.find((b) => b.id === bid.id) ?? bid;
+      const res = await award.mutateAsync({
+        bidId: bid.id,
+        approvalNote,
+        expectedAmount: String(current.amount),
+      });
       toast.success(
         res.pendingApproval
           ? t("kazandirmaOnayaGonderildi")

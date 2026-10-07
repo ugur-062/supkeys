@@ -5732,6 +5732,8 @@ export class CompanyListingsService {
     listingId: string,
     bidId: string,
     approvalNote?: string,
+    /** Onay penceresinde gösterilen tutar — farklıysa 409 (bkz. `assertAwardAmountAsConfirmed`). */
+    expectedAmount?: string,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -5765,6 +5767,8 @@ export class CompanyListingsService {
     this.assertVerified(user, "award");
 
     const bid = await this.loadAwardCandidateBid(listing, bidId);
+    // Onaya giden yolda da geçerli: onaycıya giden tutar pencerede yazan tutardır.
+    this.assertAwardAmountAsConfirmed(bid.amount, expectedAmount);
 
     // Onay akışı varsa kazandırmayı askıya al (IN_AWARD_APPROVAL); yoksa uygula.
     // Onay eşiği TRY bazında olduğundan (conditionMinAmount) tutarı TRY'ye
@@ -5804,11 +5808,38 @@ export class CompanyListingsService {
       }
       return { pendingApproval: true as const };
     }
-    return this.runFullAward(listingId, bidId, {
-      actorId: user.userId,
-      actorEmail: user.email,
-      viaApproval: false,
-    });
+    return this.runFullAward(
+      listingId,
+      bidId,
+      { actorId: user.userId, actorEmail: user.email, viaApproval: false },
+      expectedAmount,
+    );
+  }
+
+  /**
+   * Onay penceresinde GÖSTERİLEN tutar, kazandırma anındaki teklif tutarıyla aynı
+   * mı? (kullanıcı kararı 2026-10-07 — pencere tutarı söylüyor.) Talep OPEN iken
+   * teklif revize edilebilir; pencere açıkken tutar değişirse kullanıcı X'i
+   * onaylar, sipariş Y ile oluşurdu. İstemci de aynı denetimi yapar ama son
+   * veri çekimi ile istek arasındaki pencereyi yalnız sunucu kapatabilir.
+   * Ondalık karşılaştırma (INV-MONEY-1); beklenen tutar verilmemişse denetim yok.
+   */
+  private assertAwardAmountAsConfirmed(
+    actual: Prisma.Decimal | number | string,
+    expected: string | undefined,
+  ): void {
+    if (expected == null || expected === "") return;
+    let same = false;
+    try {
+      same = new Prisma.Decimal(expected).equals(new Prisma.Decimal(actual));
+    } catch {
+      same = false;
+    }
+    if (!same) {
+      throw new ConflictException(
+        i18nMessage("api.companyListings.teklifDegistiKazandirmaYapilmadi"),
+      );
+    }
   }
 
   /**
@@ -5914,6 +5945,8 @@ export class CompanyListingsService {
     listingId: string,
     bidId: string,
     actor: AwardActor,
+    /** Doğrudan kazandırmada pencerede gösterilen tutar (onay yolunda yok). */
+    expectedAmount?: string,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -5990,6 +6023,9 @@ export class CompanyListingsService {
         i18nMessage("api.companyListings.teklifArtikGecerliDegilGeriCekilmis"),
       );
     }
+    // Bu okuma tx'in sürüm kilidinin dayandığı okumadır: tutar burada da
+    // pencerede gösterilenle aynı olmalı (award() ile bu satır arasındaki revizyon).
+    this.assertAwardAmountAsConfirmed(bid.amount, expectedAmount);
     // Onay yolunda da geçerlilik + teklifçi durumu (MU-20).
     await this.assertWinningBidsAwardable(listingId, [bidId]);
 

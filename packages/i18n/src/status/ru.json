@@ -3224,6 +3224,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.companyListings.teklifDegistiKazandirmaYapilmadi": {
+    "hash": "429d1c8198",
+    "status": "reviewed",
+    "at": "2026-10-07"
+  },
   "api.companyListings.teklifDurumuDegistiElemeUygulanamadi": {
     "hash": "aba3ede661",
     "status": "reviewed",

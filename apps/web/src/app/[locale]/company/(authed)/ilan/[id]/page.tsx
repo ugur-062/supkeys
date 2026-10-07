@@ -391,6 +391,16 @@ export default function ListingDetailPage() {
     return false;
   };
 
+  /**
+   * Sunucuya giden "pencerede gösterilen tutar": `awardAmountUnchanged` az önce
+   * güncel teklifin pencerede yazanla aynı olduğunu doğruladı, yani güncel
+   * teklifin ham tutarı gösterilen tutardır. Sunucu farklı tutar görürse 409.
+   */
+  const expectedAwardAmount = (bidId: string) => {
+    const current = latestListing.current?.bids?.find((b) => b.id === bidId);
+    return current ? String(current.amount) : undefined;
+  };
+
   const handleAward = async (
     bidId: string,
     bidderName: string,
@@ -428,7 +438,10 @@ export default function ListingDetailPage() {
       return;
     if (!awardAmountUnchanged(bidId, amount)) return;
     try {
-      const res = await award.mutateAsync({ bidId });
+      const res = await award.mutateAsync({
+        bidId,
+        expectedAmount: expectedAwardAmount(bidId),
+      });
       toast.success(
         res.pendingApproval
           ? t("kazandirmaOnayaGonderildi")
@@ -457,6 +470,7 @@ export default function ListingDetailPage() {
         const res = await award.mutateAsync({
           bidId: noteAction.bidId,
           approvalNote,
+          expectedAmount: expectedAwardAmount(noteAction.bidId),
         });
         toast.success(
           res.pendingApproval

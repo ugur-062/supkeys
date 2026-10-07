@@ -117,7 +117,7 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     });
     render(<BidDetailPage />);
     await userEvent.setup().click(screen.getByRole("button", { name: "Kazandır" }));
-    await waitFor(() => expect(h.award).toHaveBeenCalledWith({ bidId: "b1", approvalNote: undefined }));
+    await waitFor(() => expect(h.award).toHaveBeenCalledWith({ bidId: "b1", approvalNote: undefined, expectedAmount: "1500" }));
     expect(h.preview).toHaveBeenCalledWith({ bidId: "b1" });
     const opts = h.confirm.mock.calls[0][0];
     expect(opts.destructive).toBe(true);
@@ -152,7 +152,7 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     await user.type(screen.getByRole("textbox"), "Bütçe onaylı");
     await user.click(screen.getByRole("button", { name: "Onaya Gönder" }));
     await waitFor(() =>
-      expect(h.award).toHaveBeenCalledWith({ bidId: "b1", approvalNote: "Bütçe onaylı" }),
+      expect(h.award).toHaveBeenCalledWith({ bidId: "b1", approvalNote: "Bütçe onaylı", expectedAmount: "1500" }),
     );
   });
 

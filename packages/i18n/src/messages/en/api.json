@@ -316,6 +316,7 @@
     "gecersizTeklif": "Invalid quote",
     "buSatinAlmaTalebiTeklifBelgesi": "This buying request requires a quote document; the winning quote has none",
     "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "The request status changed; try the award again",
+    "teklifDegistiKazandirmaYapilmadi": "The quote has changed; nothing was awarded. Review the current amount and try again",
     "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "The validity period of the quote has expired; ask the supplier for an extension or open a new round",
     "teklifVerenFirmaAskidaKazandirilamaz": "The quoting company's account is suspended or inactive; this quote cannot be awarded",
     "teklifArtikGecerliDegilGeriCekilmis": "The quote is no longer valid (withdrawn or eliminated) — it cannot be awarded",

@@ -233,7 +233,7 @@ export class CompanyListingsController {
     @Param("id") id: string,
     @Body() dto: AwardListingDto,
   ) {
-    return this.service.award(user, id, dto.bidId, dto.approvalNote);
+    return this.service.award(user, id, dto.bidId, dto.approvalNote, dto.expectedAmount);
   }
 
   // Ön kontrol: bu teklifi kazandırmak (bu tutarda) onaya takılır mı? Frontend

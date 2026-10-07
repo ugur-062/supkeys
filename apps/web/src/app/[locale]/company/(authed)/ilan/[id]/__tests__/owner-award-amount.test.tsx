@@ -154,7 +154,10 @@ describe("Kazandır onayı tutarı gösterir (kullanıcı kararı 2026-10-07)", 
     expect(dialog).not.toHaveTextContent("≈");
     expect(h.award).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "Evet, kazandır" }));
-    await waitFor(() => expect(h.award).toHaveBeenCalledWith({ bidId: "b1" }));
+    // Pencerede gösterilen tutar sunucuya da gider (sunucu farklıysa 409 döner).
+    await waitFor(() =>
+      expect(h.award).toHaveBeenCalledWith({ bidId: "b1", expectedAmount: "12500.5" }),
+    );
   });
 
   it("yabancı birimli teklif: kendi birimindeki tutar + sunucunun verdiği TRY karşılığı", async () => {
@@ -207,7 +210,11 @@ describe("Kazandır onayı tutarı gösterir (kullanıcı kararı 2026-10-07)", 
     expect(dialog).toHaveTextContent(/Sipariş şimdi oluşmaz/);
     await user.click(within(dialog).getByRole("button", { name: "Onaya Gönder" }));
     await waitFor(() =>
-      expect(h.award).toHaveBeenCalledWith({ bidId: "b1", approvalNote: undefined }),
+      expect(h.award).toHaveBeenCalledWith({
+        bidId: "b1",
+        approvalNote: undefined,
+        expectedAmount: "1200",
+      }),
     );
   });
 });
