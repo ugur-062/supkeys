@@ -34,7 +34,8 @@ const STATES = [
     status: "UNVERIFIED",
     key: "unverified",
     short: "Firma doğrulaması gerekir",
-    body: /doğrulanmış firmalara açıktır/,
+    // Ücretsiz dönem kısa cümlesi (kullanıcı, 2026-10-07).
+    body: /Rothern tamamen ücretsiz\. Yalnızca firma doğrulamasıyla/,
     cta: "Firmanızı doğrulayın",
   },
   {

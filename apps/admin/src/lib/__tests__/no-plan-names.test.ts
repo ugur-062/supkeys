@@ -34,9 +34,9 @@ function stripComments(src: string): string {
 const BANNED =
   /\b(Gold|Silver|Premium|Standart|gold|silver|premium|standart|Gümüş|Altın)\b|[Pp]aket|PAKET|ücretli|Ücretli|\b[Tt]arife/;
 
-const ALLOWED_HITS: Record<string, number> = {
-  "lib/audit-format.ts": 3,
-};
+// İstisna kalmadı (2026-10-07): geçmiş denetim satırlarının kademe kodları da
+// nötr adla okunur (`LEGACY_TIER_VALUES`: Temel / Orta kademe / Üst kademe).
+const ALLOWED_HITS: Record<string, number> = {};
 
 describe("admin: üyelik kademesi adı / üyelik ücreti dili yok (ücretsiz dönem)", () => {
   it("kaynakta ekrana basılabilecek kademe adı kalmadı", () => {
