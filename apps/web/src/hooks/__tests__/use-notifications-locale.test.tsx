@@ -33,9 +33,10 @@ const row = (title: string) => ({
 });
 
 function wrap(qc: QueryClient) {
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-  );
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  }
+  return Wrapper;
 }
 
 beforeEach(() => {
