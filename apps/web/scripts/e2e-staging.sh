@@ -14,6 +14,9 @@ export PLAYWRIGHT_VERCEL_BYPASS_ADMIN="${STAGING_VERCEL_BYPASS_ADMIN:-}"
 if [ -z "${E2E_ADMIN_PASSWORD:-}" ] && [ -f "$ROOT/render.staging.env" ]; then
   export E2E_ADMIN_PASSWORD="$(grep -E "^INITIAL_ADMIN_PASSWORD=" "$ROOT/render.staging.env" | head -1 | cut -d= -f2-)"
 fi
+# Admin 2FA (MU-01): staging SUPER_ADMIN'de 2FA kuruluysa .env.staging'e
+# E2E_ADMIN_TOTP_SECRET (authenticator base32 anahtarı) yazılır — `set -a` ile
+# zaten ihraç edilir; yoksa admin girişi kodsuz denenir.
 # Kayıt turu doğrulama kodunu ve temizliği VERİTABANINDAN yapar (posta
 # kutusuna bağımlı test kırılgan olur) — staging bağlantısı testlere geçer.
 export E2E_DATABASE_URL="${STAGING_DATABASE_URL:-}"

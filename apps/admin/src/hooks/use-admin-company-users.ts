@@ -14,6 +14,7 @@ export interface AdminCompanyUser {
   permissions?: string[];
   isActive: boolean;
   emailVerifiedAt: string | null;
+  twoFactorEnabled: boolean;
   lastLoginAt: string | null;
   deletedAt: string | null;
   createdAt: string;

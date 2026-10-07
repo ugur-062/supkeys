@@ -10,10 +10,13 @@ const idle = { mutate: vi.fn(), isPending: false };
 
 vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ admin: h.admin }),
+  useAdminMe: () => ({ data: h.admin }),
 }));
 vi.mock("@/hooks/use-admin-staff", () => ({
   useChangePassword: () => idle,
+  useTwoFactor: () => ({ setup: idle, enable: idle, disable: idle }),
 }));
+// Gerçek kabuğun içerik alanı <main>; uyarı bunun İÇİNDE, akışta olmalı.
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => (
     <main>{children}</main>
@@ -22,24 +25,72 @@ vi.mock("@/components/layout/admin-shell", () => ({
 
 import AdminSettingsPage from "../page";
 
+/** Kendisi ya da atalarından biri viewport'a sabitlenmiş mi (fixed/sticky)? */
+function isPinnedToViewport(el: HTMLElement | null): boolean {
+  for (let n = el; n; n = n.parentElement) {
+    const cls = n.getAttribute("class") ?? "";
+    if (/(^|\s)(fixed|sticky)(\s|$)/.test(cls)) return true;
+  }
+  return false;
+}
+
 beforeEach(() => {
   h.admin = null;
 });
 
-describe("AdminSettingsPage — 2FA kaldırıldı (2026-10-07)", () => {
-  it("yalnız şifre bölümü çizilir; 2FA bölümü, düğmesi ve uyarısı yok", () => {
-    // Eski API'den kalmış snapshot bayrakları da hiçbir şey çizdirmez.
-    h.admin = { id: "a1", twoFactorEnabled: true, twoFactorSetupRequired: true };
+describe("AdminSettingsPage — 2FA zorunlu uyarısı (boşluk taraması GB1)", () => {
+  it("zorunluyken uyarı sayfa akışında, 2FA düğmelerinin ÜSTÜNDE ve sabit değil", () => {
+    h.admin = {
+      id: "a1",
+      twoFactorEnabled: false,
+      twoFactorSetupRequired: true,
+    };
     render(<AdminSettingsPage />);
-    expect(screen.getByRole("button", { name: "Değiştir" })).toBeInTheDocument();
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("İki adımlı doğrulama (2FA) zorunlu");
+    // Ekrana sabitlenmiş katman düğmelerin üstüne biner (1366x768'de
+    // 'Etkinleştir' tıklanamıyordu) — uyarı normal akışta kalmalı.
+    expect(isPinnedToViewport(alert)).toBe(false);
+    expect(alert.closest("main")).not.toBeNull();
+
+    const setupButton = screen.getByRole("button", { name: "2FA Kur" });
+    expect(isPinnedToViewport(setupButton)).toBe(false);
+    // Uyarı düğmeden önce gelir: sayfanın sonuna binemez, düğmeyi aşağı iter.
+    expect(
+      alert.compareDocumentPosition(setupButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("zorunlu değilse uyarı çizilmez", () => {
+    h.admin = {
+      id: "a1",
+      twoFactorEnabled: false,
+      twoFactorSetupRequired: false,
+    };
+    render(<AdminSettingsPage />);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText(/2FA|iki adımlı/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2FA Kur" })).toBeInTheDocument();
+  });
+});
+
+describe("AdminSettingsPage — 2FA kapatma satırı (arayüz testi D-169)", () => {
+  it("'2FA'yı Kapat' daralıp kırılmaz; kod alanı sabit genişlikte", () => {
+    h.admin = { id: "a1", twoFactorEnabled: true, twoFactorSetupRequired: false };
+    render(<AdminSettingsPage />);
+    const button = screen.getByRole("button", { name: "2FA'yı Kapat" });
+    expect(button.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+    expect(button.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    // Catalyst Input'un kendi w-full'u className'i ezer → genişlik sarmalayıcıda.
+    const input = screen.getByLabelText("2FA kapatma kodu");
+    expect(input.closest(".w-32")?.className).toMatch(/(^|\s)shrink-0(\s|$)/);
   });
 });
 
 describe("AdminSettingsPage — geçici parola (arayüz testi D-025)", () => {
   it("geçici parolayla girildiyse şifre bölümünün üstünde kilit uyarısı", () => {
-    h.admin = { id: "a1", mustChangePassword: true };
+    h.admin = { id: "a1", twoFactorEnabled: false, mustChangePassword: true };
     render(<AdminSettingsPage />);
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Kendi şifrenizi belirleyin");

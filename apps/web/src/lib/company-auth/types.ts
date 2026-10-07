@@ -27,6 +27,13 @@ export interface CompanyUserDto {
   isOwner: boolean;
   /** Efektif izinler (rol + override + sahiplik) — UI kapıları için. */
   permissions?: string[];
+  twoFactorEnabled: boolean;
+  /**
+   * Açık 2FA'nın yöntemi (kapalıyken null). Ayarlar 2FA ekranı metni ve
+   * "E-postaya kod gönder" düğmesini buna göre seçer. Eski anlık görüntüde
+   * olmayabilir.
+   */
+  twoFactorMethod?: "AUTHENTICATOR" | "EMAIL" | null;
   notificationPrefs: Record<string, boolean> | null;
   lastLoginAt: string | null;
   /** Arayüz dili (tr/en/ru) — @rothern/i18n LOCALES; eski anlık görüntüde olmayabilir. */

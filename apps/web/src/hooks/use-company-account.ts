@@ -64,6 +64,78 @@ export function useChangePassword() {
   });
 }
 
+export function useSetup2fa() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post<{
+        otpauthUrl: string;
+        qrDataUrl: string;
+        secret: string;
+      }>("/company-auth/2fa/setup");
+      return data;
+    },
+  });
+}
+
+export function useEnable2fa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data } = await companyApi.post<{
+        ok: boolean;
+        /** Tek kullanımlık kurtarma kodları — YALNIZCA bu yanıtta görünür. */
+        recoveryCodes: string[];
+      }>("/company-auth/2fa/enable", { code });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),
+  });
+}
+
+export function useDisable2fa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data } = await companyApi.post("/company-auth/2fa/disable", {
+        code,
+      });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),
+  });
+}
+
+/**
+ * E-posta 2FA — kurulum/kapatma için e-postaya kod gönderir. `capped`: saatlik
+ * tavan dolu, yeni kod GİTMEDİ ama gelen kutusundaki son kod geçerli (tavan
+ * dolu + geçerli kod yoksa API 429 atar).
+ */
+export function useSendEmail2faCode() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post<{ sent: boolean; capped?: boolean }>(
+        "/company-auth/2fa/email/send-code",
+      );
+      return data;
+    },
+  });
+}
+
+/** E-postaya gelen kodla E-POSTA 2FA'yı açar (kurtarma kodları döner). */
+export function useEnableEmail2fa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data } = await companyApi.post<{
+        ok: boolean;
+        recoveryCodes: string[];
+      }>("/company-auth/2fa/email/enable", { code });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),
+  });
+}
+
 export function useUpdateNotificationPrefs() {
   const qc = useQueryClient();
   return useMutation({

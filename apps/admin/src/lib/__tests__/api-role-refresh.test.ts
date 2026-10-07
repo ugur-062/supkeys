@@ -65,7 +65,7 @@ describe("admin api — 403 sonrası rol tazeleme (arayüz testi D-224)", () => 
 
   it("auth uçlarının 403'ü /me döngüsü başlatmaz", async () => {
     const calls = stubAdapter(SALES);
-    await api.post("/admin/auth/change-password", {}).catch(() => undefined);
+    await api.post("/admin/auth/2fa/verify", {}).catch(() => undefined);
     await flush();
     expect(calls).not.toContain("/admin/auth/me");
   });

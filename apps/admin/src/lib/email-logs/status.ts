@@ -137,8 +137,6 @@ export function getTemplateLabel(template: string): string {
  */
 const REDACTED_CONTEXT_TYPES = new Set([
   "password_reset",
-  // Geçmiş kayıtlar için (2FA kaldırıldı 2026-10-07; yeni login_2fa e-postası
-  // gönderilmez): eski kod e-postası yeniden gönderilemez kalır.
   "login_2fa",
   "email_verify",
   "referral_invite",
@@ -182,8 +180,7 @@ export function emailResendBlock(log: {
  */
 export const EMAIL_CONTEXT_LABELS: Record<string, string> = {
   password_reset: "Şifre sıfırlama",
-  // Geçmiş kayıtlar için (2FA kaldırıldı 2026-10-07).
-  login_2fa: "Giriş doğrulama kodu (2FA — kaldırıldı)",
+  login_2fa: "Giriş doğrulama kodu",
   email_verify: "E-posta doğrulama kodu",
   referral_invite: "Firma daveti (kayıtsız)",
   tender_external_invite: "Talebe dış tedarikçi daveti",

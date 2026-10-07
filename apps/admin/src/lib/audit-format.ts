@@ -55,8 +55,6 @@ export function entityTypeLabel(type: string): string {
 // ── Başarısız giriş (auth.login_failed) ──
 export const LOGIN_FAIL_REASON_LABEL: Record<string, string> = {
   bad_credentials: "Hatalı e-posta veya şifre",
-  // 2FA kaldırıldı (2026-10-07): yeni kayıt yazılmaz; üç etiket geçmiş
-  // denetim satırları okunur kalsın diye durur.
   bad_2fa: "Hatalı doğrulama kodu (2FA)",
   bad_2fa_code: "Hatalı doğrulama kodu (2FA)",
   "2fa_locked": "2FA çok fazla hatalı deneme — kilitli",
@@ -180,7 +178,6 @@ const KEY_LABEL: Record<string, string> = {
   emailQueued: "kuyruğa alınan e-posta",
   body: "metin",
   setupEmailSent: "kurulum e-postası gönderildi",
-  // Geçmiş satırlar için (2FA kaldırıldı 2026-10-07).
   twoFactorSetupRequired: "2FA kurulumu gerekli",
   bidAmount: "teklif tutarı",
   bidCurrency: "teklif para birimi",

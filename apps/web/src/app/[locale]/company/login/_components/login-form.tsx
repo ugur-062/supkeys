@@ -15,7 +15,7 @@ import { normalizeOtpCode, OTP_LENGTH } from "@/lib/company-auth/otp-code";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import { Lock } from "lucide-react";
+import { Lock, ShieldCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -47,6 +47,11 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const resend = useResendEmailCode();
   const setAuth = useSetCompanyAuth();
   const [formError, setFormError] = useState<string | null>(null);
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState<
+    "email" | "authenticator"
+  >("authenticator");
+  const [code, setCode] = useState("");
   // E-posta doğrulanmamışsa: login yerine doğrulama modu.
   const [needsVerify, setNeedsVerify] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState("");
@@ -65,6 +70,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -74,13 +80,23 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const onSubmit = handleSubmit((data) => lock.run(() => doLogin(data)));
   const doLogin = async (data: FormData) => {
     setFormError(null);
+    // 2FA açıkken kod zorunlu: 6 haneli TOTP veya kurtarma kodu (XXXX-XXXX).
+    if (twoFactor && code.trim().length < 6) {
+      setFormError(t("codeRequired"));
+      return;
+    }
     try {
-      const res = await login.mutateAsync({ ...data, rememberMe: remember });
-      // Geçerli kimlik bilgisi her zaman oturum döner. Oturum taşımayan bir
-      // yanıt (kademeli yayında henüz güncellenmemiş API) panele GEÇİRİLMEZ —
-      // boş kullanıcıyla yönlendirme yerine genel hata gösterilir.
-      if (!res?.user) {
-        setFormError(t("failed"));
+      const res = await login.mutateAsync({
+        ...data,
+        code: twoFactor ? code.trim() : undefined,
+        rememberMe: remember,
+      });
+      if ("twoFactorRequired" in res) {
+        setTwoFactor(true);
+        // E-posta yönteminde backend kodu zaten gönderdi; UI mesajını uyarlar.
+        setTwoFactorMethod(res.method ?? "authenticator");
+        // Kod az önce gitti — "yeniden gönder" 60 sn sonra açılır.
+        if (res.method === "email") setCooldown(60);
         return;
       }
       // Cookie (API) + istemci snapshot'ı aynı "hatırla" tercihine göre.
@@ -148,6 +164,24 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       await resend.mutateAsync(verifyEmail);
       setCooldown(60);
       toast.success(tc("newCodeSent"));
+    } catch (err) {
+      setFormError(extractErrorMessage(err, tc("codeSendFailed")));
+    }
+  };
+
+  // E-posta 2FA kodunu YENİDEN gönder (arayüz testi D-346): kodsuz giriş
+  // isteği sunucuda yeni kod üretip gönderir — ayrı uç yok, aynı kapı (hız
+  // sınırı + şifre kontrolü) geçerli.
+  const resendTwoFactor = () => lock.run(doResendTwoFactor);
+  const doResendTwoFactor = async () => {
+    if (cooldown > 0) return;
+    setFormError(null);
+    try {
+      const res = await login.mutateAsync({ ...getValues(), code: undefined, rememberMe: remember });
+      if ("twoFactorRequired" in res) {
+        setCooldown(60);
+        toast.success(tc("newCodeSent"));
+      }
     } catch (err) {
       setFormError(extractErrorMessage(err, tc("codeSendFailed")));
     }
@@ -235,6 +269,33 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         ) : null}
       </Field>
 
+      {twoFactor ? (
+        <Field>
+          <Label>{tc("code")}</Label>
+          <Input
+            autoComplete="one-time-code"
+            autoFocus
+            maxLength={12}
+            placeholder={t("codePlaceholder2fa")}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            {twoFactorMethod === "email" ? t("hintEmail") : t("hintAuthenticator")}
+          </p>
+          {twoFactorMethod === "email" ? (
+            <button
+              type="button"
+              disabled={login.isPending || cooldown > 0 || lock.locked}
+              onClick={() => void resendTwoFactor()}
+              className="mt-1 text-xs font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+            >
+              {cooldown > 0 ? tc("resendIn", { s: cooldown }) : tc("resend")}
+            </button>
+          ) : null}
+        </Field>
+      ) : null}
+
       <div className="-mt-1 flex items-center justify-between">
         <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-zinc-600 select-none">
           <input
@@ -263,6 +324,10 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       <div className="flex items-center justify-center gap-3 pt-1 text-xs text-zinc-500">
         <span className="inline-flex items-center gap-1">
           <Lock className="h-3 w-3" aria-hidden="true" /> {t("ssl")}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span className="inline-flex items-center gap-1">
+          <ShieldCheck className="h-3 w-3" aria-hidden="true" /> {t("twoFa")}
         </span>
       </div>
     </form>

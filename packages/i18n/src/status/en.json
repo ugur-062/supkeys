@@ -9164,6 +9164,16 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.login.codePlaceholder2fa": {
+    "hash": "462d955f2c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.codeRequired": {
+    "hash": "f280f609e0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.auth.login.emailInvalid": {
     "hash": "cb207a350d",
     "status": "reviewed",
@@ -9176,6 +9186,16 @@
   },
   "web.auth.login.forgot": {
     "hash": "e9ca52ee1a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.hintAuthenticator": {
+    "hash": "fa9dbe7689",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.hintEmail": {
+    "hash": "46827aa8bf",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -9226,6 +9246,11 @@
   },
   "web.auth.login.title": {
     "hash": "e40600704c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.twoFa": {
+    "hash": "c9e61831f4",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -13180,9 +13205,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.howItWorks.control.teamB3": {
-    "hash": "4e811dad5e",
+    "hash": "bfd78120cb",
     "status": "reviewed",
-    "at": "2026-10-07"
+    "at": "2026-09-23"
   },
   "web.marketing.howItWorks.control.teamBody": {
     "hash": "c6db5c05b6",
@@ -31074,6 +31099,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarPage.acik": {
+    "hash": "2b7ced2726",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "web.panel.settings.ayarlarPage.ayarlar": {
     "hash": "e3258c515a",
     "status": "reviewed",
@@ -31096,6 +31126,11 @@
   },
   "web.panel.settings.ayarlarPage.hesabinizVeBildirimTercihleriniz": {
     "hash": "773626b7a9",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.ayarlarPage.kapali": {
+    "hash": "6786696697",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -32564,8 +32599,238 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.settingsPages.twoFactor.description": {
+    "hash": "96bff143aa",
+    "status": "reviewed",
+    "at": "2026-10-02"
+  },
+  "web.panel.settings.settingsPages.twoFactor.title": {
+    "hash": "c6a1ffcc17",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "web.panel.settings.settingsShell.ayarlar": {
     "hash": "e3258c515a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.acik": {
+    "hash": "2b7ced2726",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.adresine6HaneliKodGonderdik": {
+    "hash": "1d82af1778",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.settings.twoFactorSection.aktifYontemAuthenticator": {
+    "hash": "38050ecdd0",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.settings.twoFactorSection.aktifYontemEposta": {
+    "hash": "b1249a5c4e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.settings.twoFactorSection.anahtarKopyalandi": {
+    "hash": "dc9e52df0d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.authenticatorCihaziniziKaybedersenizBuKodlar": {
+    "hash": "6384d8d362",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.settings.twoFactorSection.authenticatorIleKur": {
+    "hash": "a55e81f269",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.authenticatorKullaniyorsanizUygulamadakiKodu": {
+    "hash": "504b2523ae",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.authenticatorUygulamasiGoogleAuthenticatorAu": {
+    "hash": "a419f764b8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.dogrulaAc": {
+    "hash": "180aa9cfd8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.dogrulamaKodu": {
+    "hash": "55c3d6fb9b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.dogrulamaKoduVeyaKurtarmaKodu": {
+    "hash": "d9c4478c6e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.ePostaErisiminiziKaybedersenizBuKodlar": {
+    "hash": "81ebc43e90",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.settings.twoFactorSection.ePostaIleIkiAdimli": {
+    "hash": "bd86382b97",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.ePostaIleKur": {
+    "hash": "5697f7379c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.ePostanizaDogrulamaKoduGonderildi": {
+    "hash": "1f57e9f163",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.ePostayaKodGonder": {
+    "hash": "caa7603788",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.gonderiliyor": {
+    "hash": "562056b57e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.ikiAdimliDogrulamaAcildi": {
+    "hash": "d82081efcb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.ikiAdimliDogrulamaKapatildi": {
+    "hash": "f7de2a3058",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kapali": {
+    "hash": "6786696697",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kapat": {
+    "hash": "9e6ecd5955",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kapatilamadi": {
+    "hash": "34be361990",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kapatmaIpucuAuthenticator": {
+    "hash": "b3b60a96d7",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.settings.twoFactorSection.kapatmaIpucuEposta": {
+    "hash": "ba9d7db132",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.settings.twoFactorSection.kodDogrulanamadi": {
+    "hash": "c1fd3347de",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kodGonderilemedi": {
+    "hash": "526eb983f4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kodlariKaydettim": {
+    "hash": "859ec77f86",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kodSiniriDoldu": {
+    "hash": "87c090cf1d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.settings.twoFactorSection.koduYenidenGonder": {
+    "hash": "15d0ab719b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kopyala": {
+    "hash": "0b613a663b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kurtarmaDosyasiBaslik": {
+    "hash": "ab95451a99",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kurtarmaDosyasiNot": {
+    "hash": "0926404241",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kurtarmaKodlarinizSimdiKaydedinBir": {
+    "hash": "67b19ff308",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kurtarmaKodlariPanoyaKopyalandi": {
+    "hash": "2fe61ccb26",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.kurulumBaslatilamadi": {
+    "hash": "661182187a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.n1AuthenticatorUygulamanizlaAsagidakiQr": {
+    "hash": "6393dbd745",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.n2faQrKodu": {
+    "hash": "274aff3c87",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.n2faYiKapat": {
+    "hash": "c0ae7b23da",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.n6HaneliKod": {
+    "hash": "fea176bc22",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.n6HaneliKodYaDa": {
+    "hash": "462d955f2c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.qrOkutamiyorsanizBuAnahtariUygulamaya": {
+    "hash": "094e3bf895",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.txtIndir": {
+    "hash": "c97b1a997e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.settings.twoFactorSection.vazgec": {
+    "hash": "14d2482077",
     "status": "reviewed",
     "at": "2026-09-24"
   },

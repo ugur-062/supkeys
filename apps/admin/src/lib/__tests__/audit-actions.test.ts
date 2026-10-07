@@ -60,36 +60,13 @@ describe("audit action dictionary", () => {
       "company.catalog_item.archived",
       "company.order.payment_rejected",
       "admin.announcement.email_completed",
+      "auth.2fa_enabled",
+      "admin.self.2fa_disabled",
       "ai.action_executed",
       "connection.external_tender_invite",
     ]) {
       expect(actions.has(a), a).toBe(true);
     }
-  });
-
-  it("geçmiş 2FA denetim satırlarının etiketleri durur (2FA kaldırıldı 2026-10-07)", () => {
-    for (const a of [
-      "auth.2fa_enabled",
-      "auth.2fa_disabled",
-      "auth.2fa_recovery_used",
-      "admin.self.2fa_enabled",
-      "admin.self.2fa_disabled",
-      "supplier.user_2fa_reset",
-      "tenant.user_2fa_reset",
-    ]) {
-      expect(ACTION_LABELS[a], a).toBeTruthy();
-    }
-  });
-
-  // Sözleşme maddesi 5'in öbür yarısı: etiketler geçmiş satırlar için durur ama
-  // API artık 2FA denetim eylemi YAZMAZ. Bu test kırmızıysa API'de 2FA kodu
-  // duruyor demektir — admin paneli kod alanı göstermediği için o API ile
-  // yayına çıkmak hesapları kilitler (yayın sırası: önce API).
-  it("API hiçbir 2FA denetim eylemi yazmaz (2FA kaldırıldı 2026-10-07)", () => {
-    const written = [...actions]
-      .filter(([a]) => /2fa|two_?factor|totp/i.test(a))
-      .map(([a, f]) => `${a} (${f})`);
-    expect(written).toEqual([]);
   });
 
   it("every API-written action has a label", () => {

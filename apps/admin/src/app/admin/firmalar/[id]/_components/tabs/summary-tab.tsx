@@ -177,7 +177,7 @@ function SuppressionWarning({ data }: { data: AdminCompanyDetail }) {
       </h3>
       <p className="mt-1 text-xs text-amber-800">
         Aşağıdaki adresler kalıcı bounce veya şikayet nedeniyle e-posta{" "}
-        <strong>alamıyor</strong> — doğrulama/şifre-sıfırlama kodları bu
+        <strong>alamıyor</strong> — doğrulama/şifre-sıfırlama/2FA kodları bu
         adreslere ulaşmaz. Adresi düzeltin veya (düzeldiyse) sistem panelinden
         suppression'ı temizleyin.
       </p>

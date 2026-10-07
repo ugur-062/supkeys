@@ -18,6 +18,7 @@ export const SETTINGS_PAGE_KEYS = [
   "hesap",
   "sifre",
   "bildirimler",
+  "twoFactor",
   "profil",
   "firma",
   "adresler",
@@ -46,6 +47,7 @@ export const SETTINGS_PAGES = {
   hesap: { key: "hesap", href: "/company/ayarlar/hesap-bilgileri" },
   sifre: { key: "sifre", href: "/company/ayarlar/sifre" },
   bildirimler: { key: "bildirimler", href: "/company/ayarlar/bildirimler" },
+  twoFactor: { key: "twoFactor", href: "/company/ayarlar/2fa" },
   // Firma Bilgileri = ticari kayıt, Firma Profili = Profilim (vitrin) —
   // ayrım korunur; bu kart yalnız Profilim'e köprü.
   profil: { key: "profil", href: "/company/sirketim/profil" },

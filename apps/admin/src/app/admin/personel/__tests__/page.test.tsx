@@ -77,6 +77,7 @@ describe("Şifre Sıfırla (derin denetim MU-21 — Süper Admin kendini kilitle
     lastName: "Soyad",
     role: "SUPER_ADMIN",
     isActive: true,
+    twoFactorEnabled: true,
     lastLoginAt: null,
     createdAt: "2026-09-01T00:00:00Z",
   });
@@ -117,6 +118,7 @@ describe("Pasifleştir onayı (arayüz testi D-222)", () => {
     lastName: "Soyad",
     role: "SALES",
     isActive: true,
+    twoFactorEnabled: false,
     lastLoginAt: null,
     createdAt: "2026-09-01T00:00:00Z",
   });

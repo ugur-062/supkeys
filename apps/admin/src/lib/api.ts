@@ -118,7 +118,7 @@ let lastRoleRefreshAt = 0;
  * oturum açıkken düşürülünce menü sayfa yenilenene kadar eski rolle çiziliyor,
  * her tıklama 403 toast'ı veriyordu. /me yeniden çekilip store güncellenir;
  * menü ve sayfa kapıları (`AdminRoleGate`) yeni rolle anında yeniden çizilir.
- * Auth uçlarının kendi 403'ü (geçici parola kilidi vb.) döngü yaratmasın diye atlanır.
+ * Auth uçlarının kendi 403'ü (2FA kurulumu vb.) döngü yaratmasın diye atlanır.
  */
 function refreshAdminSnapshotAfter403(url: string): void {
   if (url.includes("/admin/auth/")) return;

@@ -301,6 +301,11 @@ export function UsersTab({
                     ) : (
                       <Badge color="red">Pasif</Badge>
                     )}
+                    {u.twoFactorEnabled ? (
+                      <Badge color="blue" className="ml-1.5">
+                        2FA
+                      </Badge>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                     {u.lastLoginAt

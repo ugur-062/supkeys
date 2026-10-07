@@ -12,7 +12,7 @@ import { useSettingsPages, type SettingsPageMeta } from "@/lib/company/settings-
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { COMPANY_PROFILE_PERMISSIONS } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
-import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Sparkles, Store, UserPlus2, type LucideIcon } from "lucide-react";
+import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, type LucideIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
 interface SettingsCard extends SettingsPageMeta {
@@ -85,6 +85,7 @@ export default function AyarlarPage() {
         { ...pages.hesap, icon: IdCard },
         { ...pages.sifre, icon: Lock },
         { ...pages.bildirimler, icon: Bell },
+        { ...pages.twoFactor, icon: Shield },
       ],
     },
   ];
@@ -92,6 +93,10 @@ export default function AyarlarPage() {
   // P2 (denetim §10.5): karta durum rozeti — YALNIZ store'da hazır veriden
   // (ekstra istek yok). Durum bilinmiyorsa rozet basmayız.
   const badgeFor = (href: string): { label: string; tone: StatusTone } | null => {
+    if (href === "/company/ayarlar/2fa" && user)
+      return user.twoFactorEnabled
+        ? { label: t("acik"), tone: "done" }
+        : { label: t("kapali"), tone: "neutral" };
     if (href === "/company/ayarlar/dogrulama" && company) {
       // Tek kaynak: lib/company/verification-status (Doğrulama + Firma Bilgileri aynı sözlük).
       const m = verificationMeta(company.companyVerificationStatus);

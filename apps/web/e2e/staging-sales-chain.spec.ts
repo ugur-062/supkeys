@@ -38,7 +38,7 @@ test("ürün → onaya gönder → admin onayı → vitrin → bilgi talebi → 
 
   // ADMIN YOKLAMASI EN BAŞTA: ürün onaya gönderilince PENDING olur, inceleme
   // kilidi yüzünden satıcı geri çekemez, yalnız admin karar verir. Admin
-  // oturumu yoksa (ör. E2E_ADMIN_PASSWORD verilmemiş) her koşu
+  // oturumu yoksa (staging O-49: SUPER_ADMIN'de 2FA kurulu değil) her koşu
   // kuyruğa bir PENDING ürün bırakıyordu → hiçbir kayıt üretmeden atla.
   const adminProbe = await tryAdminApiSession();
   if (!adminProbe.session) {

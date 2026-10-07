@@ -79,9 +79,9 @@ describe("RequireAdminAuth", () => {
     expect(window.location.href).toBe("");
   });
 
-  it("hesapta eski 2FA bayrakları olsa da panel kilitlenmez (2FA kaldırıldı)", () => {
+  it("2FA kurulumu zorunlu (MU-01) + başka sayfa → içerik yok, Ayarlar'a yönlendirir", () => {
     h.state = {
-      admin: { id: "a1", twoFactorSetupRequired: true, twoFactorEnabled: false },
+      admin: { id: "a1", twoFactorSetupRequired: true },
       isHydrated: true,
     };
     render(
@@ -89,7 +89,22 @@ describe("RequireAdminAuth", () => {
         <div>gizli</div>
       </RequireAdminAuth>,
     );
-    expect(screen.getByText("gizli")).toBeInTheDocument();
+    expect(screen.queryByText("gizli")).not.toBeInTheDocument();
+    expect(window.location.href).toBe("/admin/settings");
+  });
+
+  it("2FA kurulumu zorunlu + Ayarlar sayfası → kurulum ekranı açılır, yönlendirme yok", () => {
+    h.pathname = "/admin/settings";
+    h.state = {
+      admin: { id: "a1", twoFactorSetupRequired: true },
+      isHydrated: true,
+    };
+    render(
+      <RequireAdminAuth>
+        <div>ayarlar</div>
+      </RequireAdminAuth>,
+    );
+    expect(screen.getByText("ayarlar")).toBeInTheDocument();
     expect(window.location.href).toBe("");
   });
 

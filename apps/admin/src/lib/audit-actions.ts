@@ -18,8 +18,6 @@ export const ACTION_LABELS: Record<string, string> = {
   "auth.login": "Giriş",
   "auth.login_failed": "Başarısız giriş",
   "auth.password_changed": "Şifre değiştirildi",
-  // 2FA kaldırıldı (2026-10-07): yeni kayıt yazılmaz; 2FA etiketleri geçmiş
-  // denetim satırları okunur kalsın diye durur (dosyadaki bütün `2fa` anahtarları).
   "auth.2fa_enabled": "İki adımlı doğrulama açıldı",
   "auth.2fa_disabled": "İki adımlı doğrulama kapatıldı",
   "auth.2fa_recovery_used": "2FA kurtarma kodu kullanıldı",

@@ -123,6 +123,7 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/company/sirketim/ziyaretciler": P("/company/sirketim/ziyaretciler", "/company/my-company/visitors", "/kompaniya/moya-kompaniya/posetiteli"),
   // ---- ayarlar -----------------------------------------------------------
   "/company/ayarlar": P("/company/ayarlar", "/company/settings", "/kompaniya/nastroyki"),
+  "/company/ayarlar/2fa": P("/company/ayarlar/2fa", "/company/settings/2fa", "/kompaniya/nastroyki/2fa"),
   "/company/ayarlar/adresler": P("/company/ayarlar/adresler", "/company/settings/addresses", "/kompaniya/nastroyki/adresa"),
   "/company/ayarlar/ai-kullanim": P("/company/ayarlar/ai-kullanim", "/company/settings/ai-usage", "/kompaniya/nastroyki/ispolzovanie-ai"),
   "/company/ayarlar/aktivite": P("/company/ayarlar/aktivite", "/company/settings/activity", "/kompaniya/nastroyki/aktivnost"),
