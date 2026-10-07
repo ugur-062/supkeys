@@ -17,6 +17,7 @@ import {
   renderStoredNotification,
   storedListingTitleRefs,
   toStoredI18n,
+  usableListingTitles,
 } from "./notification-i18n";
 import {
   formatNotificationParams,
@@ -578,7 +579,9 @@ export class NotificationService {
   /**
    * Bildirim satırları → OKUYANIN dilinde metin (TEK okuma yolu; bildirim
    * satırı döndüren her yüzey buradan geçer). Talep başlıkları sayfa başına TEK
-   * toplu çözümlemeyle okunur (N+1 yok). `i18n` kolonu yanıta YAZILMAZ (iç
+   * toplu çözümlemeyle okunur (N+1 yok); çeviri yalnız talebin kaynak başlığı
+   * bildirim anındakiyle aynıysa kullanılır (yeniden adlandırılan/silinen
+   * talepte saklanan başlık). `i18n` kolonu yanıta YAZILMAZ (iç
    * ayrıntı; yanıt biçimi eski istemciyle aynı). Fail-open: başlık okunamazsa
    * kaynak başlık, satır üretilemezse saklanan metin döner.
    */
@@ -598,17 +601,36 @@ export class NotificationService {
       }
     }
     let titles: Map<string, string> | undefined;
+    // Talebin GÜNCEL kaynak başlığı: çeviri yalnız satırda saklanan başlıkla
+    // aynıysa kullanılır (bkz. `usableListingTitles`). Yalnız çevirisi bulunan
+    // talepler için, sayfa başına TEK sorgu; okunamazsa saklanan başlık basılır.
+    let sourceTitles: Map<string, string> | undefined;
     if (refs.size > 0) {
       titles = await this.titles
         .resolve([...refs], locale)
         .catch(() => undefined);
+      if (titles && titles.size > 0) {
+        try {
+          const listings = await this.prisma.listing.findMany({
+            where: { id: { in: [...titles.keys()] } },
+            select: { id: true, title: true },
+          });
+          sourceTitles = new Map(listings.map((l) => [l.id, l.title] as const));
+        } catch {
+          sourceTitles = undefined;
+        }
+      }
     }
     return rows.map((r) => {
       const { i18n: _i18n, ...rest } = r;
       void _i18n;
       let text;
       try {
-        text = renderStoredNotification(r, locale, titles);
+        text = renderStoredNotification(
+          r,
+          locale,
+          usableListingTitles(parseStoredI18n(r.i18n), titles, sourceTitles),
+        );
       } catch {
         text = {
           title: r.title,

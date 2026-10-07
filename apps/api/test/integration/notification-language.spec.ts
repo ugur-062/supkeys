@@ -37,12 +37,13 @@ import {
 } from "../../src/modules/notifications/notification.service";
 import { RealtimeService } from "../../src/modules/realtime/realtime.service";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/decorators/current-company-user.decorator";
-import { makeCompany, makeUser } from "./factories";
+import { makeCompany, makeListing, makeUser } from "./factories";
 import { prisma, truncateAll } from "./test-db";
 
 const BASE = "https://www.rothern.com";
 const LISTING_ID = "lst-steel-1";
 const ORDER_ID = "ord-77";
+const LISTING_TITLE = "Çelik boru alımı";
 
 /** NBSP / dar NBSP -> bosluk (Intl ciktisi dile gore ozel bosluk basar). */
 const plain = (s: string | null) => (s ?? "").replace(/\s/g, " ");
@@ -103,6 +104,14 @@ async function seed() {
     roles: [CompanyRole.SATIN_ALMACI],
     isOwner: false,
   } as unknown as AuthenticatedCompanyUser;
+  // Okuma yolu ceviriyi yalniz talebin GUNCEL kaynak basligi satirda saklanan
+  // baslikla ayniysa kullanir -> talep satiri gercekten var olmali.
+  await makeListing(prisma, {
+    id: LISTING_ID,
+    companyId: co.id,
+    createdById: user.id,
+    title: LISTING_TITLE,
+  });
   return { co, user, auth };
 }
 
@@ -318,6 +327,10 @@ describe("GET /notifications — metin OKUYANIN guncel dilinde", () => {
   it("iki talep basligi basvurusu olan sayfa: basliklar TEK toplu sorguyla okunur", async () => {
     const { service, controller, titleCalls } = rig();
     const { user, auth } = await seed();
+    await prisma.listing.update({
+      where: { id: LISTING_ID },
+      data: { title: `Kaynak ${LISTING_ID}` },
+    });
     for (const id of [LISTING_ID, "lst-other", LISTING_ID]) {
       await service.pushToUser(user.id, {
         type: "listing_closing_changed",
@@ -343,6 +356,56 @@ describe("GET /notifications — metin OKUYANIN guncel dilinde", () => {
     // Cevirisi olan baslik cevrilmis, olmayan kaynak baslikla.
     expect(ru.filter((r) => r.body.includes("«Закупка стальных труб»"))).toHaveLength(2);
     expect(ru.filter((r) => r.body.includes("«Kaynak lst-other»"))).toHaveLength(1);
+  });
+
+  it("talep bildirimden SONRA yeniden adlandirilirsa / silinirse: guncel ceviri DEGIL, saklanan (bildirim anindaki) baslik — her dilde ayni surum", async () => {
+    const { service, controller } = rig();
+    const { user, auth } = await seed();
+    const push = (title: string) =>
+      service.pushToUser(user.id, {
+        type: "listing_closing_changed",
+        titleKey: "api.notifications.listings.closingChanged.title",
+        bodyKey: "api.notifications.listings.closingChanged.body",
+        params: {
+          title: listingTitleParam(LISTING_ID, title),
+          number: "ROT-000007",
+          direction: "advanced",
+          closesAt: dateParam(new Date("2026-11-04T09:00:00Z"), "dateTime"),
+        },
+        ctaPath: appRoutes.listing(BASE, LISTING_ID),
+      });
+    await push(LISTING_TITLE);
+    // Baslik hala ayni: ceviri kullanilir.
+    const before = await getList(controller, auth, "ru");
+    expect(before[0]!.body).toContain("«Закупка стальных труб»");
+
+    // Talep yeniden adlandirildi (rig'in ceviri kaynagi artik YENI basligin
+    // cevirisini temsil eder) + yeni baslikla ikinci bildirim.
+    await prisma.listing.update({
+      where: { id: LISTING_ID },
+      data: { title: "Gizli yeni baslik" },
+    });
+    await push("Gizli yeni baslik");
+    for (const lang of ["ru", "en", "tr"]) {
+      const list = await getList(controller, auth, lang);
+      expect(list).toHaveLength(2);
+      // Eski satir: bildirim anindaki baslik, hicbir dilde yeni ceviri yok.
+      const old = list.filter((r) => r.body.includes(LISTING_TITLE));
+      expect(old).toHaveLength(1);
+      expect(old[0]!.body).not.toContain("Закупка стальных труб");
+      expect(old[0]!.body).not.toContain("Steel pipe purchase");
+      expect(old[0]!.body).not.toContain("Gizli yeni baslik");
+    }
+    // Yeni satir (saklanan baslik = guncel baslik) cevrilmis basligi alir.
+    const ru = await getList(controller, auth, "ru");
+    expect(ru.filter((r) => r.body.includes("«Закупка стальных труб»"))).toHaveLength(1);
+
+    // Talep silindi: hicbir satir ceviri kullanmaz, liste yine doner.
+    await prisma.listing.delete({ where: { id: LISTING_ID } });
+    const gone = await getList(controller, auth, "ru");
+    expect(gone).toHaveLength(2);
+    expect(gone.some((r) => r.body.includes("Закупка стальных труб"))).toBe(false);
+    expect(gone.some((r) => r.body.includes(`«${LISTING_TITLE}»`))).toBe(true);
   });
 
   it("katalogdan dusmus anahtar ve bozuk i18n: saklanan metne duser, firlatmaz, ham anahtar basmaz", async () => {

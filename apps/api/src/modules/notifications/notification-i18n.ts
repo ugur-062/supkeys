@@ -155,6 +155,35 @@ export function storedListingTitleRefs(
   return i18n ? listingTitleRefs(i18n.params) : [];
 }
 
+/**
+ * Bu satir icin KULLANILABILIR cevrilmis basliklar (SAF). Okuma yolu basligi
+ * talebin GUNCEL cevirisinden okur; talep bildirimden SONRA yeniden
+ * adlandirildiysa (ya da silindiyse) o ceviri alicinin bildirim aninda gordugu
+ * basligin cevirisi DEGILDIR. Kural: ceviri yalniz talebin guncel kaynak
+ * basligi satirda saklanan `fallback` ile AYNIYSA kullanilir; degilse satir
+ * her dilde saklanan (bildirim anindaki) basligi basar. Boylece eski bildirim
+ * sonradan verilen basligi aciga cikarmaz ve ayni satir dile gore farkli
+ * baslik surumu gostermez. `sourceTitles` verilmezse (okunamadi) hicbir ceviri
+ * kullanilmaz.
+ */
+export function usableListingTitles(
+  i18n: StoredNotificationI18n | null,
+  titles: ReadonlyMap<string, string> | undefined,
+  sourceTitles: ReadonlyMap<string, string> | undefined,
+): ReadonlyMap<string, string> | undefined {
+  if (!i18n?.params || !titles || titles.size === 0 || !sourceTitles) {
+    return undefined;
+  }
+  const out = new Map<string, string>();
+  for (const v of Object.values(i18n.params)) {
+    if (typeof v !== "object" || v === null || !("$listingTitle" in v)) continue;
+    const id = v.$listingTitle;
+    const translated = titles.get(id);
+    if (translated && sourceTitles.get(id) === v.fallback) out.set(id, translated);
+  }
+  return out.size > 0 ? out : undefined;
+}
+
 type LooseTranslator = {
   (key: string, values?: Record<string, string | number>): string;
   has?: (key: string) => boolean;
