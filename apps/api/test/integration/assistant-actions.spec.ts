@@ -393,7 +393,9 @@ describe("proposePublishTender", () => {
     const en = await runWithLocale("en", () =>
       actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] }),
     );
-    expect(en.pending!.summary.join(" ")).toMatch(/11:59\sPM \(GMT\+3\)/);
+    // İngilizcede de 24 saat (2026-10-07; bildirim/e-posta ile aynı biçimleyici).
+    expect(en.pending!.summary.join(" ")).toMatch(/23:59 \(GMT\+3\)/);
+    expect(en.pending!.summary.join(" ")).not.toMatch(/\b[AP]M\b/);
 
     const res = await actions.confirm(owner.auth, session.id, en.pending!.id);
     expect(res.status).toBe("executed");
