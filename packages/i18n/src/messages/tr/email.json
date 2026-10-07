@@ -36,7 +36,7 @@
     "heading": "Rothern'e davet edildiniz",
     "greeting": "Merhaba,",
     "intro": "<b>{inviterName}</b>, sizinle Rothern üzerinden tedarik süreçlerini yürütmek için bağlantı kurmak istiyor. Rothern; teklif toplama, açık eksiltme, sipariş ve ödeme takibini tek yerde toplayan bir B2B tedarik platformudur.",
-    "autoConnect": "Bu e-posta ile kaydolduğunuzda <b>{inviterName}</b> ile bağlantınız otomatik kurulur — bu bağlantı kalıcıdır, üyelik türünden bağımsız çalışır.",
+    "autoConnect": "Bu e-posta ile kaydolduğunuzda <b>{inviterName}</b> ile bağlantınız otomatik kurulur.",
     "inviterLabel": "Davet eden:",
     "inviteeLabel": "Davet edilen:",
     "infoNote": "Bu adresle kaydolduğunuzda bağlantı otomatik kurulur.",

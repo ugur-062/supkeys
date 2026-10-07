@@ -69,7 +69,7 @@
   "apps/web/src/app/[locale]/dev/ui/gallery.tsx": 36,
   "apps/web/src/app/[locale]/sozlesmeler/aracilik/page.tsx": 36,
   "apps/web/src/app/[locale]/sozlesmeler/gizlilik/page.tsx": 16,
-  "apps/web/src/app/[locale]/sozlesmeler/iade/page.tsx": 14,
+  "apps/web/src/app/[locale]/sozlesmeler/iade/page.tsx": 15,
   "apps/web/src/app/[locale]/sozlesmeler/kullanici/page.tsx": 35,
   "apps/web/src/app/[locale]/sozlesmeler/kvkk/page.tsx": 47,
   "apps/web/src/app/[locale]/sozlesmeler/mesafeli-satis/page.tsx": 22,

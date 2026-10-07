@@ -69,8 +69,6 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/company/onboarding": P("/company/onboarding", "/company/onboarding", "/kompaniya/onboarding"),
   // ---- panel kökü ve ortak sayfalar ------------------------------------
   "/company": P("/company", "/company", "/kompaniya"),
-  "/company/premium": P("/company/premium", "/company/plans", "/kompaniya/tarify"),
-  "/company/premium/satin-al": P("/company/premium/satin-al", "/company/plans/checkout", "/kompaniya/tarify/oformlenie"),
   "/company/bildirimler": P("/company/bildirimler", "/company/notifications", "/kompaniya/uvedomleniya"),
   "/company/mesajlar": P("/company/mesajlar", "/company/messages", "/kompaniya/soobshcheniya"),
   "/company/onaylar": P("/company/onaylar", "/company/approvals", "/kompaniya/soglasovaniya"),

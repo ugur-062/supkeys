@@ -36,7 +36,7 @@
     "heading": "You’ve been invited to Rothern",
     "greeting": "Hello,",
     "intro": "<b>{inviterName}</b> would like to connect with you to run procurement through Rothern. Rothern is a B2B procurement platform that brings quote collection, reverse auctions, orders and payment tracking together in one place.",
-    "autoConnect": "When you sign up with this email, you are automatically connected with <b>{inviterName}</b> — this connection is permanent and works regardless of plan.",
+    "autoConnect": "When you sign up with this email address, your connection with <b>{inviterName}</b> is set up automatically.",
     "inviterLabel": "Invited by:",
     "inviteeLabel": "Invited:",
     "infoNote": "When you sign up with this address, the connection is created automatically.",

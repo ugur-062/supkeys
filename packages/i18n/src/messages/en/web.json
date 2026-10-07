@@ -11,7 +11,6 @@
   "marketing": {
     "nav": {
       "howItWorks": "How It Works",
-      "pricing": "Pricing",
       "login": "Log In",
       "signup": "Sign Up Free",
       "openMenu": "Open menu",
@@ -48,30 +47,30 @@
     },
     "home": {
       "supplierTitle": "Which request will you quote on?",
-      "supplierLead": "Sealed-bid requests from verified buyers. Quoting on requests you are invited to is free; public requests need the Silver plan.",
+      "supplierLead": "Sealed-bid requests from verified buyers. Quoting is completely free.",
       "supplierPlaceholder": "Search requests, industries or products",
-      "supplierCtaText": "Quote on invited requests right away, on public requests with Silver:",
+      "supplierCtaText": "Quoting on requests is completely free:",
       "supplierCtaLabel": "sign up free",
       "supplierMemberCtaLabel": "see open requests",
       "buyerTitle": "What product are you looking for?",
-      "buyerLead": "Browse verified suppliers' showcases with price and minimum order details.",
+      "buyerLead": "Browse verified suppliers' showcases with price and minimum order details. Posting a buying request is completely free.",
       "buyerPlaceholder": "Search products or industries...",
-      "buyerCtaText": "Can't find the product you need?",
+      "buyerCtaText": "Can't find the product you need? Posting a buying request is free.",
       "buyerCtaLabel": "Post a request",
       "categoriesCta": "Find suppliers now",
       "newestTitle": "Recently added products",
       "newestLead": "The latest products suppliers added to their showcases.",
       "demandsTitle": "What buyers are looking for right now",
-      "demandsLead": "Line items, quantities, scope and time left are public. Buyer name, specifications and documents open with the Silver plan; invited suppliers see them on a free account too.",
+      "demandsLead": "Line items, quantities, scope and time left are public. Quoting is completely free.",
       "allDemands": "All requests",
       "demandsEmpty": "After you sign up, requests are matched to your categories in your panel.",
       "signupFree": "Sign up free",
       "showcaseTitle": "Is your product in the showcase?",
-      "showcaseLead": "Publish your products with price and minimum order details so buyers can find you and send inquiries. The showcase is open on the free plan too.",
+      "showcaseLead": "Publish your products with price and minimum order details so buyers can find you and send inquiries. The showcase is completely free.",
       "addProduct": "Add product",
-      "seoParagraph": "Rothern is a B2B marketplace that lists products from manufacturers, distributors and service providers with price and minimum order details, and matches buying requests with sealed-bid quotes. Product and company profiles are public and signing up is free. A free account can quote on requests it is invited to; quoting on public requests and seeing buyer details need the Silver plan, and requesting information from suppliers and publishing buying requests need the Gold plan.",
+      "seoParagraph": "Rothern is a B2B marketplace that lists products from manufacturers, distributors and service providers with price and minimum order details, and matches buying requests with sealed-bid quotes. Product and company profiles are public. Posting buying requests, quoting and publishing products are completely free.",
       "metaTitle": "B2B marketplace: products, suppliers and buying requests",
-      "metaDescription": "Browse verified suppliers' products with price and MOQ and see open buying requests. Sign-up is free; quoting needs Silver, posting requests needs Gold.",
+      "metaDescription": "Browse verified suppliers' products with price and MOQ and see open buying requests. Posting requests and quoting are completely free.",
       "metaAbsoluteTitle": "Rothern — B2B marketplace: products, suppliers and buying requests",
       "comingSoonTitle": "Coming soon",
       "comingSoonDescription": "Rothern is currently in development. We'll be with you very soon.",
@@ -94,7 +93,7 @@
     "trustBand": {
       "eyebrow": "How it works",
       "title": "From request to quote, from quote to order",
-      "lead": "Browsing is free. Quoting on public requests and the buyer's identity need the Silver plan; no commission is charged.",
+      "lead": "Browsing is free. Quoting on public requests and the buyer's identity open with company verification; no commission is charged.",
       "step1Title": "Sign up and introduce your company",
       "step1Body": "One account makes you both a buyer and a seller. Pick your activity and categories; matching requests come to you.",
       "step2Title": "Submit sealed-bid quotes",
@@ -119,7 +118,7 @@
       "step1Body": "Find the product, company or category. Price and minimum order are shown on the card.",
       "step1Link": "Browse products",
       "step2Title": "Ask for a quote",
-      "step2Body": "Found it? Send the company an inquiry. Didn't? Post a request and let suppliers matching your category quote — both with the Gold plan.",
+      "step2Body": "Found it? Send the company an inquiry. Didn't? Post a request and let suppliers matching your category quote — both only need company verification.",
       "step2Link": "Post a request",
       "step3Title": "Compare sealed bids",
       "step3Body": "Bidders never see each other. Compare in one table and award; the order is created automatically.",
@@ -139,7 +138,7 @@
       "intro": "<b>Rothern</b> is a B2B sourcing marketplace that brings buyer and supplier companies together in one account. On Rothern, companies publish product showcases, post buying requests, collect sealed-bid quotes, negotiate, award, and follow the order through to delivery from a single panel.",
       "whatTitle": "What we do",
       "what1": "Industrial purchasing still runs largely on email, phone and Excel: the buyer pulls the supplier list out of their own notebook, compares quotes by hand, and there is no single place showing who quoted what and when. Rothern moves this flow into one panel — from posting the request to delivering the order, every step lives on the same record, and who did what and when stays auditable.",
-      "what2": "On the supplier side the issue is visibility: with the Silver plan, a company listing its products can quote on a public request posted by a buyer that has never heard of it. Matching is built on a four-level international category tree and the activity types companies declare.",
+      "what2": "On the supplier side the issue is visibility: a verified company listing its products can quote on a public request posted by a buyer that has never heard of it. Matching is built on a four-level international category tree and the activity types companies declare.",
       "oneAccountTitle": "One account, both sides",
       "oneAccountBody": "A company is usually both a buyer and a seller. On Rothern a single company account opens both panels: on the buying side you post requests and collect quotes; on the sales side you quote on others' requests and manage your product showcase. What each team member can do on each side is set separately in a permission table; you can define a manager who only approves, a viewer who cannot quote, or a salesperson who works only on the sales side.",
       "principlesTitle": "Our principles",
@@ -148,11 +147,11 @@
       "p2Title": "The buyer's identity belongs to the buyer.",
       "p2Body": "Public request pages do not show the buyer company's name: what you are looking for should not tell your competitors about your production plans. What is visible is attributes, not identity — city, country, industry, activity type.",
       "p3Title": "Being visible is free.",
-      "p3Body": "Creating a profile, appearing in the directory and publishing products cost nothing. Paid plans buy priority, not visibility itself: ranking, unlimited products, documents and video, access to public requests.",
+      "p3Body": "Creating a profile, appearing in the directory and publishing products cost nothing; the platform is currently free of charge. Company verification brings priority, not visibility itself: ranking, unlimited products, documents and video, access to public requests.",
       "p4Title": "We don't make up numbers.",
       "p4Body": "We show nothing we haven't measured. Counters like “40 suppliers viewed this product” do not appear on the site unless there is a real measurement behind them; if a field is empty, it looks empty.",
       "noIntermediationTitle": "We do not intermediate trade",
-      "noIntermediationBody": "The only thing sold through Rothern is subscription plans. The platform does not intermediate the value of goods and services between companies and does not carry money; contracts and payments run directly between the parties. The payment steps on the order screen are a record of the notifications the parties make to each other.",
+      "noIntermediationBody": "Using Rothern is currently free of charge. The platform does not intermediate the value of goods and services between companies and does not carry money; contracts and payments run directly between the parties. The payment steps on the order screen are a record of the notifications the parties make to each other.",
       "whoTitle": "Who can use it",
       "whoBody": "Companies from every country can register, except the United States and countries under comprehensive sanctions (Iran, North Korea, Syria, Cuba). The document set depends on the country; verification is always done by a person, and there is no automatic approval path. For details, see the <faq>frequently asked questions</faq> and <how>How it works</how> pages.",
       "operatorTitle": "Operator",
@@ -164,8 +163,8 @@
       "title": "Contact and Imprint",
       "intro": "Rothern is a B2B sourcing platform operated by {legalName}. For questions write to <support>{supportEmail}</support>; for requests about your personal data use <kvkk>{kvkkEmail}</kvkk>.",
       "whereTitle": "Where to write about what",
-      "supportTitle": "Account, plan and technical support",
-      "supportBody": "<mail>{email}</mail> — login problems, company verification, plan and seat questions, everything about publishing products and the request flow. Including your company name and, if relevant, the request/product address shortens the process.",
+      "supportTitle": "Account, membership and technical support",
+      "supportBody": "<mail>{email}</mail> — login problems, company verification, user seats, everything about publishing products and the request flow. Including your company name and, if relevant, the request/product address shortens the process.",
       "dataTitle": "Requests about personal data",
       "dataBody": "<mail>{email}</mail> — access, correction and deletion requests under data protection law (KVKK). This address is for data requests only; use the address above for support questions.",
       "abuseTitle": "Content reports and rule violations",
@@ -184,16 +183,16 @@
     },
     "faq": {
       "metaTitle": "Frequently asked questions",
-      "metaDesc": "How Rothern works: frequently asked questions about sealed-bid quotes, buyer anonymity, the free showcase and plans, verification, the category tree and user permissions.",
+      "metaDesc": "How Rothern works: frequently asked questions about sealed-bid quotes, buyer anonymity, the free showcase, company verification, the category tree and user permissions.",
       "title": "Frequently asked questions",
-      "intro": "The most common questions about how Rothern works. Process details are on the <how>How It Works</how> page; plans and prices are in the <pricing>pricing section</pricing>.",
+      "intro": "The most common questions about how Rothern works. Process details are on the <how>How It Works</how> page.",
       "notFound": "Didn't find your answer? Write to us from the <contact>contact page</contact>.",
       "g1": {
         "heading": "Platform",
         "q1": "What is Rothern?",
         "a1": "Rothern is a B2B sourcing marketplace that brings buyer and supplier companies together in one account. Companies publish product showcases, post buying requests, collect sealed-bid quotes and turn the winning quote into an order. The same company account works on both the buying and sales side; there is no need to open two accounts.",
         "q2": "Does Rothern intermediate transactions?",
-        "a2": "No. The only thing sold through Rothern is subscription plans. The platform does not intermediate the value of goods and services between companies and does not carry money; trade runs directly between the parties. The payment steps on the order screen are notifications the parties make to each other.",
+        "a2": "No. Using Rothern is currently free of charge. The platform does not intermediate the value of goods and services between companies and does not carry money; trade runs directly between the parties. The payment steps on the order screen are notifications the parties make to each other.",
         "q3": "Which countries can register?",
         "a3": "From every country except the United States and countries under comprehensive sanctions (Iran, North Korea, Syria, Cuba). The document set depends on the country: most countries provide a company registration certificate, a tax registration certificate and the authorized person's ID or passport; in China the 营业执照 (business license) carries registration, tax and representative details in one document, so no separate tax certificate is required."
       },
@@ -204,12 +203,12 @@
         "q2": "Why isn't the name of the company that posted the request visible?",
         "a2": "In a buying request, “who is buying” is direct competitive intelligence: a company looking for 40 tons of steel pipe reveals its production plan. That is why public request pages do not show the buyer's name, logo or profile link. What is visible is attributes, not identity: city, country, industry, activity type and the “Verified buyer” badge. The buyer's identity is disclosed to the other party during the quote process.",
         "q3": "What do I need to quote on a request?",
-        "a3": "You can quote on a request from a company that invited you or is connected to you with a free account and without document verification — the buyer already knows you. Quoting on a public request from a company that doesn't know you requires the Silver plan and company verification; since the platform is what brings you in, the platform vouches for you."
+        "a3": "You can quote on a request from a company that invited you or is connected to you without document verification — the buyer already knows you. Quoting on a public request from a company that doesn't know you requires company verification; since the platform is what brings you in, the platform vouches for you."
       },
       "g3": {
         "heading": "Products and prices",
         "q1": "Is the product showcase free?",
-        "a1": "Yes. With the free Standard plan you can create a company profile, appear in the directory and publish up to {n} products; company verification and the “Verified” badge are free as well. What paid plans add is standing out, not being visible: priority ranking in the directory, unlimited products, product documents and video, and access to public requests.",
+        "a1": "Yes. As soon as you sign up you can create a company profile, appear in the directory and publish up to {n} products; company verification and the “Verified” badge are free as well. What verification adds is standing out, not being visible: priority ranking in the directory, unlimited products, product documents and video, and access to public requests.",
         "q2": "Why do some products have no price?",
         "a2": "A price can take three forms: a fixed price, tiered pricing by quantity, or “price on request”. The third is not missing data but the seller's deliberate choice, and the platform does not penalize it — otherwise sellers would type an unreal price just to fill the field. Prices exclude VAT and are the seller's declaration.",
         "q3": "What does the “Verified” badge mean?",
@@ -222,7 +221,7 @@
         "q1": "Do I wait for approval to register?",
         "a1": "No. The account works immediately after email verification and a short setup step. Admin approval is only needed for document verification (KYC), and even that is required only where the platform vouches for you rather than for every action: quoting on a public request, publishing a request and awarding.",
         "q2": "Can several people from my team use the same account?",
-        "a2": "Yes. Users are invited to the company account and each person's permissions are set separately in a permission table: buying, sales, approval and administration. Every person who acts on the buying or sales side uses a “seat”; the number of seats depends on the plan. People who only view or approve do not use a seat.",
+        "a2": "Yes. Users are invited to the company account and each person's permissions are set separately in a permission table: buying, sales, approval and administration. Every person who acts on the buying or sales side uses a “seat”; the number of seats increases once the company is verified. People who only view or approve do not use a seat.",
         "q3": "What happens to my personal data?",
         "a3": "Rothern is the data controller under Turkish data protection law (KVKK). The notice and privacy policy are in the agreements section at the bottom of the site; you can send requests to {kvkkEmail}. You choose which fields of the company profile are public; contact details are shown only to registered members, not to visitors."
       }
@@ -248,11 +247,11 @@
       },
       "iade": {
         "metaTitle": "Delivery, Cancellation and Refund Terms",
-        "metaDesc": "Delivery, cancellation and refund terms for Rothern subscription plans; withdrawal and refund process (Turkish text)."
+        "metaDesc": "Delivery, cancellation and refund terms for Rothern's paid services; withdrawal and refund process (Turkish text)."
       },
       "mesafeli": {
         "metaTitle": "Distance Sales Agreement",
-        "metaDesc": "Distance sales terms for Rothern subscription plans: fees, payment, renewal, withdrawal and cancellation (Turkish text)."
+        "metaDesc": "Distance sales terms for Rothern's paid services: fees, payment, renewal, withdrawal and cancellation (Turkish text)."
       }
     },
     "inquiryVerify": {
@@ -346,25 +345,15 @@
       "s95": "Land, building and infrastructure investments."
     },
     "howItWorks": {
-      "metaTitle": "How it works — sealed-bid quotes, orders and plans",
-      "metaDesc": "How Rothern works: posting a buying request, collecting sealed-bid quotes, negotiation, awarding and order tracking. Plans and frequently asked questions.",
-      "plans": {
-        "standartSubtitle": "Free plan",
-        "silverSubtitle": "For growing businesses",
-        "goldSubtitle": "The most complete solution",
-        "popular": "Most popular",
-        "free": "Free",
-        "perMonth": "/month",
-        "forever": "Forever",
-        "yearly": "billed annually"
-      },
+      "metaTitle": "How it works — sealed-bid quotes, orders and company verification",
+      "metaDesc": "How Rothern works: posting a buying request, collecting sealed-bid quotes, negotiation, awarding and order tracking. Company verification and frequently asked questions.",
       "faq": {
         "q1": "Do buyers and suppliers register separately?",
         "a1": "No. Rothern has a single company account; the same account both buys and sells. The roles you assign to people (buying / sales) determine what they can see and do.",
         "q2": "Can suppliers see each other's quotes?",
         "a2": "Never. Sealed bids: each supplier sees only its own quote. The request owner sees all quotes and awards the best one.",
-        "q3": "What can I do on the Standard plan?",
-        "a3": "You publish your profile, open a showcase of up to {n} products, discover companies, and quote on requests from companies that invited you or are connected to you. You also see public requests, with the buyer hidden. Quoting on them and seeing the buyer, sending connection invitations, seeing the buyer's identity in incoming inquiries and replying, and priority ranking in the company directory come with Silver; posting your own buying requests comes with Gold. Company verification and the “Verified” badge are free.",
+        "q3": "What can I do before my company is verified?",
+        "a3": "You publish your profile, open a showcase of up to {n} products, discover companies, and quote on requests from companies that invited you or are connected to you. You also see public requests, with the buyer hidden. Quoting on them and seeing the buyer, sending connection invitations, seeing the buyer's identity in incoming inquiries and replying, priority ranking in the company directory and posting your own buying requests come with company verification. Company verification and the “Verified” badge are free.",
         "q4": "Does the platform handle payments?",
         "a4": "No. Payment is made directly between the parties; Rothern does not handle money. Payment is only marked as “paid” or “payment pending”. There is no per-seat fee.",
         "q5": "What happens after the order?",
@@ -468,7 +457,7 @@
         "catalog": "Company catalog",
         "download": "Download file",
         "rfqLine": "To work with this company",
-        "requestQuote": "Connection request · Silver"
+        "requestQuote": "Connection request"
       },
       "invite": {
         "title": "Invite a teammate",
@@ -488,13 +477,13 @@
         "badge": "The one platform for B2B trade",
         "title1": "<buy>Buy</buy> and <sell>sell.</sell>",
         "title2": "On one platform.",
-        "lead": "Discover verified companies and products, open your showcase and bring your products to new customers. Posting requests needs the Gold plan; quoting on public requests needs Silver.",
+        "lead": "Discover verified companies and products, open your showcase and bring your products to new customers. Posting requests and quoting on public requests only need company verification.",
         "ctaBuyer": "Explore as a buyer",
         "ctaSupplier": "Start as a supplier",
         "step1Title": "Discover",
         "step1Body": "Browse verified companies and products",
         "step2Title": "Connect",
-        "step2Body": "Accept invites and message; sending invites needs Silver",
+        "step2Body": "Accept invites and message; verify your company to send invites",
         "step3Title": "Trade",
         "step3Body": "Buy with confidence, sell your products"
       },
@@ -577,21 +566,13 @@
         "ap3": "Manager",
         "ap3r": "Pending"
       },
-      "pricing": {
-        "eyebrow": "More opportunities for your business",
-        "title": "Plans and pricing",
-        "lead": "Choose the plan that fits your trade goals and start right away.",
-        "trust1": "Secure and transparent platform",
-        "trust2": "Buyer and supplier in one account",
-        "trust3": "More business opportunities"
-      },
       "faqSection": {
         "title": "Frequently asked questions",
         "lead": "Didn't find the answer you were looking for? <mail>Email us</mail> and we'll get back to you shortly."
       },
       "cta": {
         "title": "Move your company to Rothern today",
-        "body": "Sign up free in a few minutes, invite your team, publish your showcase. Posting requests needs the Gold plan; quoting on public requests needs Silver. Transparent and auditable B2B trade.",
+        "body": "Sign up free in a few minutes, invite your team, publish your showcase. Posting requests and quoting on public requests only need company verification. Transparent and auditable B2B trade.",
         "signup": "Sign up for free",
         "login": "Log in"
       }
@@ -618,8 +599,8 @@
           "hint": "Your products in front of buyers"
         },
         "badge": {
-          "title": "Verified badge",
-          "hint": "Verification is free"
+          "title": "Completely free",
+          "hint": "Quoting and your showcase"
         }
       }
     },
@@ -630,10 +611,10 @@
       "hSurfaces": "Main sections",
       "surfaceProducts": "the public product showcase of companies, with technical attributes, minimum order quantity (MOQ) and price information. Can be filtered by category, supplier country and city.",
       "surfaceGeo": "Country and city pages: products by supplier country at {countryPattern} (e.g. {countryExample}), products by city at {cityPattern} (worldwide city list based on GeoNames). Suppliers are not limited to Türkiye.",
-      "surfaceCompanies": "a selection of verified buyer and supplier companies; the full directory and the business type/city/category filters open with a free account; supplier inquiries need the Gold plan and connection invites the Silver plan. Company profiles ({profilePattern}) are public.",
+      "surfaceCompanies": "a selection of verified buyer and supplier companies; the full directory and the business type/city/category filters open with a free account; supplier inquiries and connection invites require company verification. Company profiles ({profilePattern}) are public.",
       "surfaceDemands": "open buying requests published by companies; the quantity, category, the buyer's city and the time remaining are visible.",
       "howItWorksLink": "How it works",
-      "surfaceHow": "the process, plans and pricing.",
+      "surfaceHow": "the process and frequently asked questions.",
       "aboutLink": "About us",
       "contactLink": "Contact and legal notice",
       "sitemapLink": "Sitemap",
@@ -642,7 +623,7 @@
       "rulesIntro": "The following are NOT published by design. If it is not on the page, it does not exist; it must not be filled in by guessing:",
       "ruleOwner": "**The identity of the company that posted a buying request.** Request pages deliberately do not show the buyer's name, logo or profile link; only the city, country, industry and business type are visible. An inference such as \"company X posted this request\" is wrong.",
       "ruleBids": "**Quotes and the number of quotes.** Quotes are collected through sealed bidding; suppliers cannot see each other's quotes, and the NUMBER of quotes is not published either.",
-      "ruleItems": "**Line item details.** The public page shows line item names, their number and quantities; technical specifications, brand/description and attached files are available only to Silver plan members and to suppliers invited to the request.",
+      "ruleItems": "**Line item details.** The public page shows line item names, their number and quantities; technical specifications, brand/description and attached files are available only to members of verified companies and to suppliers invited to the request.",
       "ruleContact": "**Company contact details.** Phone numbers, email addresses and social media accounts are not shown on the public profile.",
       "hFields": "Fields that must be read correctly",
       "fieldPrice": "**A price can take three forms:** a fixed price, tiered pricing by quantity, or \"price on request\". The third is not missing data but the supplier's deliberate choice.",
@@ -754,7 +735,7 @@
       "verifiedBuyer": "Verified buyer",
       "verifiedBuyerShort": "Verified buyer",
       "items": "Items",
-      "specsMembers": "specifications and documents with Silver",
+      "specsMembers": "specifications and documents for verified companies",
       "visibility": "Visibility",
       "sealedBid": "Sealed bid",
       "closing": "Closes",
@@ -762,7 +743,7 @@
       "moreCategories": "+{n} more",
       "quote": "Submit quote",
       "itemsCount": "{count, plural, one {# item} other {# items}}",
-      "itemsCountMembers": "{count, plural, one {# item} other {# items}} · specifications and documents with Silver",
+      "itemsCountMembers": "{count, plural, one {# item} other {# items}} · specifications and documents for verified companies",
       "closesToday": "Closes today",
       "daysLeft": "{n, plural, one {# day left} other {# days left}}",
       "sector": "Industry",
@@ -788,7 +769,6 @@
       "new": "New",
       "minOrder": "Min. {qty}",
       "verifiedCompany": "Verified company",
-      "goldMember": "Gold member",
       "compare": "Compare",
       "newTab": "(opens in a new tab)"
     },
@@ -944,7 +924,6 @@
       "connected": "My connections",
       "notConnected": "Not connected yet",
       "hasProducts": "With products",
-      "goldMember": "Gold member",
       "activityType": "Activity type",
       "city": "City",
       "sortAZ": "A-Z",
@@ -982,10 +961,10 @@
       "productResults": "Product results",
       "inquire": "Request info",
       "openRequest": "Post a request",
-      "companyLead": "A selection of buyer and supplier companies on Rothern. The full directory and filters open with a free account; supplier inquiries need the Gold plan and connection invites the Silver plan.",
+      "companyLead": "A selection of buyer and supplier companies on Rothern. The full directory and filters open with a free account; supplier inquiries and connection invites only need company verification.",
       "membersOnlyTitle": "The full directory is for members",
       "membersOnlyTitleMember": "The full directory is in your panel",
-      "membersOnlyBody": "See every company, filter by activity type, city and category, and browse their profiles and products. Membership is free; buyer and supplier in one account. Requesting information from suppliers requires the Gold plan.",
+      "membersOnlyBody": "See every company, filter by activity type, city and category, and browse their profiles and products. Membership is free; buyer and supplier in one account. Requesting information from suppliers requires company verification.",
       "joinFree": "Join free",
       "login": "Log in",
       "listingPlaceholder": "Search request titles, items or categories",
@@ -1002,7 +981,6 @@
       "founded": "Founded {year}",
       "employees": "Employees: {n}",
       "verified": "Verified",
-      "goldMember": "Gold member",
       "fastReply": "Fast responder",
       "viewPortfolio": "View portfolio ({n})",
       "mainCategories": "Main categories",
@@ -1032,21 +1010,21 @@
     },
     "pages": {
       "productsMetaTitle": "{label} — company product showcase",
-      "productsMetaDesc": "The product catalog of supplier companies: technical specifications, minimum order and price details. Supplier inquiries are sent with the Gold plan.",
-      "productsLead": "Products companies put in their showcases. Filter by category, city and activity type; browsing is free, and inquiries to suppliers are sent with the Gold plan.",
+      "productsMetaDesc": "The product catalog of supplier companies: technical specifications, minimum order and price details. Verify your company to send inquiries.",
+      "productsLead": "Products companies put in their showcases. Filter by category, city and activity type; browsing is free, and sending inquiries to suppliers only needs company verification.",
       "companiesMetaTitle": "{label} — verified buyer and supplier companies",
-      "companiesMetaDesc": "A selection of verified buyer and supplier companies on Rothern. The full directory opens with a free account; inquiries need Gold, connection invites Silver.",
+      "companiesMetaDesc": "A selection of verified buyer and supplier companies on Rothern. The full directory opens with a free account; verify your company to inquire and connect.",
       "demandsMetaTitle": "{label} — open buying requests from around the world",
-      "demandsMetaDesc": "Browse open buying requests published by companies by category and city. Signing up is free; quoting on public requests needs the Silver plan.",
-      "demandsLead": "Companies' public buying requests. Line items are public; seeing the buyer, specifications and documents and submitting quotes open with the Silver plan (a free account is enough for requests you are invited to).",
+      "demandsMetaDesc": "Browse open buying requests published by companies by category and city. Signing up is free; verify your company to quote on public requests.",
+      "demandsLead": "Companies' public buying requests. Line items are public; seeing the buyer, specifications and documents and submitting quotes require company verification (not needed for requests you are invited to).",
       "categoryNotFoundTitle": "Category not found",
       "categoryNotFoundDesc": "No products are published in this category. Browse other categories in the product directory.",
       "categoryTitleTail": "{count, plural, one {# product} other {# products}}",
-      "categoryMetaDesc": "{count, plural, one {# product} other {# products}} in the {name} category. Compare companies; inquiries need the Gold plan. Showcases list specs, MOQ and price.",
-      "categoryLead": "{count, plural, one {# product} other {# products}} in the {name} category, from company showcases. Supplier inquiries are sent with the Gold plan.",
+      "categoryMetaDesc": "{count, plural, one {# product} other {# products}} in the {name} category. Compare companies; inquiries need company verification. Showcases list specs, MOQ and price.",
+      "categoryLead": "{count, plural, one {# product} other {# products}} in the {name} category, from company showcases. Sending supplier inquiries only needs company verification.",
       "cityNotFound": "City not found",
       "cityTitle": "Suppliers and products in {name}",
-      "cityMetaDescHas": "{count, plural, one {# product} other {# products}} from companies in {name}. Compare suppliers; inquiries need the Gold plan. Showcases list specs, MOQ and price.",
+      "cityMetaDescHas": "{count, plural, one {# product} other {# products}} from companies in {name}. Compare suppliers; inquiries need company verification. Showcases list specs, MOQ and price.",
       "cityMetaDescNone": "No products are published on Rothern for {name} yet. Browse suppliers in nearby cities or publish your buying request.",
       "cityLeadHas": "Products companies in {name} put in their Rothern showcases. Filter by category, activity type and price.",
       "cityLeadNone": "No products are published for {name} yet. Continue with the cities below or post a buying request.",
@@ -1062,16 +1040,17 @@
       "connectCta": "Send connection request",
       "gateStats": "Rothern ID and contact details",
       "gateAside": "Rating breakdown, order history and open requests",
-      "gateAsideHint": "Signing up is free — 2 minutes, no credit card. Sending {name} a connection invite needs the Silver plan; publishing requests and collecting quotes need Gold.",
+      "gateAsideHint": "Signing up is free — 2 minutes, no credit card. Company verification is all you need to send {name} a connection invite, publish requests and collect quotes.",
       "countryNotFound": "Country not found",
       "countryTitle": "Suppliers and products in {name}",
-      "countryMetaDescHas": "{count, plural, one {# product} other {# products}} from suppliers based in {name}. Compare suppliers; inquiries need the Gold plan. Showcases list specs, MOQ and price.",
+      "countryMetaDescHas": "{count, plural, one {# product} other {# products}} from suppliers based in {name}. Compare suppliers; inquiries need company verification. Showcases list specs, MOQ and price.",
       "countryMetaDescNone": "No products from suppliers based in {name} are published on Rothern yet. Browse suppliers in other countries or publish your buying request.",
       "countryLeadHas": "Products that companies based in {name} put in their Rothern showcases. Filter by city, category, activity type and price.",
       "countryLeadNone": "No products from suppliers based in {name} are published yet. Continue with other countries or post a buying request.",
-      "connectLockedLabel": "{label} · Silver",
-      "connectLockedTitle": "Sending connection invites needs the Silver plan",
-      "connectVerifyCta": "Connecting needs Silver — get verified first",
+      "connectPendingCta": "Connecting: your verification is under review",
+      "connectReapplyCta": "Reapply for verification to connect",
+      "connectLockedTitle": "Sending connection invites requires company verification",
+      "connectVerifyCta": "Verify your company to connect",
       "connectOpenInPanel": "Open company in panel"
     },
     "price": {
@@ -1081,7 +1060,7 @@
     "product": {
       "home": "Home",
       "sellerSite": "Company website",
-      "freeMemberNote": "This supplier is on the free plan: they can see your question but need the Silver plan to reply. Similar products from verified suppliers are below.",
+      "unverifiedSellerNote": "This supplier's company is not verified yet: they can see your question but must complete company verification to reply. Similar products from verified suppliers are below.",
       "inquire": "Request info",
       "noAccount": "No account yet?",
       "signupFree": "Sign up free",
@@ -1104,7 +1083,6 @@
       "founded": "Founded {year}",
       "employees": "Employees: {n}",
       "verifiedCompany": "Verified company",
-      "goldMember": "Gold member",
       "similarOthers": "Similar products — from other suppliers",
       "newIn": "New in {category}",
       "newInCategory": "New in this category",
@@ -1113,7 +1091,7 @@
       "docsLocked": "Log in to download documents",
       "docsLockedNote": "Document names are public; downloads are for members.",
       "docsLoadError": "Documents couldn't be loaded right now. Refresh the page and try again.",
-      "inquiryGoldNote": "Information requests are sent from the Gold plan's purchasing panel; signing up and browsing products are free."
+      "inquiryVerifyNote": "Sending information requests requires company verification; signing up, verification and browsing products are free."
     },
     "listing": {
       "number": "Request number",
@@ -1139,18 +1117,18 @@
       "itemsHeading": "Items ({count})",
       "itemFallback": "Item {n}",
       "gateLabel": "Buyer company, specification and attached documents",
-      "gateTitle": "Buyer company, specification and attached documents open with the Silver plan",
-      "gateHint": "Seeing the buyer's name, the technical specification and attached documents, and quoting, open with the Silver plan (invited suppliers see them on the free plan too). Signing up is free — 2 minutes, no credit card.",
-      "gateHintClosed": "Seeing the buyer's name, the technical specification and attached documents opens with the Silver plan (invited suppliers see them on the free plan too).",
+      "gateTitle": "Buyer company, specification and attached documents open to verified companies",
+      "gateHint": "Seeing the buyer's name, the technical specification and attached documents, and quoting, require company verification (invited suppliers see them without verification too). Signing up is free — 2 minutes, no credit card.",
+      "gateHintClosed": "Seeing the buyer's name, the technical specification and attached documents requires company verification (invited suppliers see them without verification too).",
       "infoHeading": "Request details",
-      "membersNote": "The specification text, payment note and attached documents are not shown on this page; they open with the Silver plan (invited suppliers see them on the free plan too). Quotes are collected as sealed bids — only the request owner sees the quotes received.",
+      "membersNote": "The specification text, payment note and attached documents are not shown on this page; they open to verified companies (invited suppliers see them without verification too). Quotes are collected as sealed bids — only the request owner sees the quotes received.",
       "buyer": "Buyer",
       "verifiedBuyer": "Verified buyer",
       "buyerCompany": "Buyer company",
-      "identityNote": "The buyer's company name is not shown on this page; it opens with the Silver plan (invited suppliers see it on the free plan too).",
-      "signupCta": "Sign up — quoting needs the Silver plan",
+      "identityNote": "The buyer's company name is not shown on this page; it opens to verified companies (invited suppliers see it without verification too).",
+      "signupCta": "Sign up — quoting needs company verification",
       "twoMinutes": "2 minutes · no credit card",
-      "perk1": "With Silver: buyer name, specification and attached documents",
+      "perk1": "With company verification: buyer name, specification and attached documents",
       "perk2": "Sealed-bid quotes — competitors never see them",
       "perk3": "New requests matching your category by email",
       "haveAccount": "Already have an account?",
@@ -1165,7 +1143,7 @@
       "trust3Body": "The platform takes no share of the transaction value.",
       "similar": "Similar open requests",
       "onlyCountriesCanBid": "{n, plural, one {Only suppliers based in {countries} can submit quotes.} other {Only suppliers based in {countries} can submit quotes.}}",
-      "silverNote": "Signing up is free. Quoting on public requests and the buyer's identity open with the Silver plan; the only requirement is free company verification."
+      "verifyNote": "Signing up is free. The only requirement for quoting on public requests and seeing the buyer's identity is free company verification."
     },
     "inquiry": {
       "failed": "The inquiry could not be sent",
@@ -1193,10 +1171,9 @@
     "autoTranslatedGeneric": "Automatic translation",
     "profile": {
       "verifiedTitle": "Identity-verified company",
-      "unverifiedTitle": "Identity not verified — verification is the first step to a Silver or Gold plan",
+      "unverifiedTitle": "Company identity not verified",
       "verified": "Verified",
       "unverified": "Not verified",
-      "goldMember": "Gold member",
       "readMore": "Read more",
       "about": "About",
       "aboutName": "About {name}",
@@ -1235,12 +1212,12 @@
         "aiAramasiBasarisizOlduTekrar": "AI search failed — please try again.",
         "neSattiginiziAnlatinUrunKapasite": "Describe what you sell: product, capacity, region…",
         "neAradiginiziAnlatinUrunAdet": "Describe what you need: product, quantity, city, lead time, budget…",
-        "silverIleAcilir": "Unlocks with Silver",
+        "aiDogrulamaIleAcilir": "AI search unlocks with company verification",
         "aramaKapsami": "Search scope",
         "urun": "Product",
         "firma": "Company",
         "aiIleAra": "Search with AI",
-        "silverVeUzeriPaketlerde": "Available on Silver and above",
+        "aiDogrulamaGerektirir": "AI search requires company verification",
         "aramayaDon": "Back to search",
         "yorumlaniyor": "Interpreting…",
         "aiIleBul": "Find with AI",
@@ -1271,15 +1248,19 @@
       "buyerCtaTail": "and let verified suppliers send you quotes."
     },
     "memberGate": {
-      "inquiryTitle": "Requesting information requires the Gold plan",
-      "listingTitle": "Opening buying requests requires the Gold plan",
-      "body": "You can browse products and companies on every plan. Requesting information from suppliers and opening buying requests are part of the Gold plan's purchasing panel.",
-      "verifyNote": "The only requirement for upgrading is free company verification.",
-      "verifyCta": "Get verified for free first",
-      "upgradeCta": "Upgrade to Gold",
+      "inquiryTitle": "Requesting information requires company verification",
+      "listingTitle": "Opening buying requests requires company verification",
+      "body": "You can browse products and companies without verification. Requesting information from suppliers and opening buying requests are available to verified companies.",
+      "verifyNote": "Verification is free; once approved, all features are unlocked.",
+      "verifyCta": "Verify your company for free",
+      "pendingCta": "View verification status",
+      "reapplyCta": "Reapply",
+      "pendingNote": "Your verification is under review; this feature unlocks automatically once it is approved.",
+      "reapplyNote": "Your verification request was not approved; fix the issues and reapply.",
+      "pendingLabel": "{label} · Verification in review",
       "noPermissionInquiry": "Requesting information requires the Purchaser role.",
       "noPermissionListing": "Opening requests requires permission to manage requests.",
-      "lockedLabel": "{label} · Gold",
+      "lockedLabel": "{label} · Verification required",
       "ownProduct": "This product belongs to your company; you can't request information about your own product.",
       "noBuyView": "Viewing product details in the panel requires purchasing view permission.",
       "publicProductPage": "Public product page",
@@ -1289,17 +1270,21 @@
       "directoryRedirect": "Redirecting to the company directory…"
     },
     "bidGate": {
-      "title": "Quoting on public requests requires the Silver plan",
-      "body": "On the free plan you see public requests with the buyer hidden; quoting on them and the buyer's identity open with the Silver plan. You can quote for free on requests from companies that invited you or are connected to you.",
-      "verifyNote": "The only requirement for the Silver plan is free company verification.",
-      "verifyCta": "Get verified for free first",
-      "upgradeCta": "Upgrade to Silver",
+      "title": "Quoting on public requests requires company verification",
+      "body": "Until your company is verified you see public requests with the buyer hidden; quoting on them and the buyer's identity open with company verification. You can quote without verification on requests from companies that invited you or are connected to you.",
+      "verifyNote": "Verification is free; once approved, all features are unlocked.",
+      "verifyCta": "Verify your company for free",
+      "pendingCta": "View verification status",
+      "reapplyCta": "Reapply",
+      "pendingNote": "Your verification is under review; this feature unlocks automatically once it is approved.",
+      "reapplyNote": "Your verification request was not approved; fix the issues and reapply.",
+      "pendingLabel": "{label} · Verification in review",
       "bidInPanel": "Quote in your panel",
       "openInPanel": "Open the request in your panel",
       "invitedInPanel": "Invited to this request? Quote in your panel",
       "noPermission": "Submitting quotes requires the quoting permission.",
-      "compactLocked": "Details and quoting open with the Silver plan.",
-      "lockedLabel": "{label} · Silver"
+      "compactLocked": "Details and quoting open with company verification.",
+      "lockedLabel": "{label} · Verification required"
     }
   },
   "domain": {
@@ -1503,11 +1488,6 @@
       "draftMine": "My draft quote",
       "invited": "Invited"
     },
-    "tier": {
-      "STANDART": "Standard",
-      "SILVER": "Silver",
-      "GOLD": "Gold"
-    },
     "aiFeature": {
       "test": "Test",
       "assistant": "Assistant",
@@ -1572,7 +1552,7 @@
       "company_signup": "Company registration",
       "company_ownership_transferred": "Ownership transferred",
       "company_user_permissions_changed": "User permissions changed",
-      "company_membership_self_upgraded": "Plan upgraded",
+      "company_membership_self_upgraded": "Access level updated",
       "company_approval_flow_created": "Approval flow created",
       "company_approval_flow_deleted": "Approval flow deleted",
       "company_approval_flow_duplicated": "Approval flow duplicated",
@@ -1892,48 +1872,9 @@
       "brandTitle": "The platform that brings buyers and suppliers together in one account",
       "brandSubtitle": "Product showcase · Buying requests · Sealed-bid quotes · Order tracking"
     },
-    "siteDescription": "The B2B trading platform that brings buyers and suppliers together in one account. Discover companies and open your showcase; collecting sealed-bid quotes needs Gold, quoting on public requests Silver.",
+    "siteDescription": "The B2B trading platform that brings buyers and suppliers together in one account. Discover companies and open your showcase; company verification is all you need to collect sealed-bid quotes and quote on public requests.",
     "siteOgDescription": "The B2B trading platform that brings buyers and suppliers together in one account.",
     "inShowcaseOf": "in the showcase of {where}"
-  },
-  "pricing": {
-    "note": "Prices are in USD and exclude VAT. Payment is taken upfront for an annual period; there is no monthly billing.",
-    "plans": {
-      "standart": {
-        "name": "Standard",
-        "tagline": "Open your showcase, buy and sell within your network.",
-        "cta": "Start for free",
-        "f1": "Public company profile and a showcase of {n} products — listed in the company directory",
-        "f2": "Quoting on requests from companies that invited you or are connected to you; seeing public requests with the buyer hidden",
-        "f3": "Accepting incoming connection invitations, messaging",
-        "f4": "Order, delivery & payment step tracking",
-        "f5": "2 seats"
-      },
-      "silver": {
-        "name": "Silver",
-        "tagline": "Supplier plan: be seen, get invited, quote, showcase your products.",
-        "cta": "Start with Silver",
-        "f1": "Priority ranking in the company directory",
-        "f2": "Unlimited products, product documents (PDF) and video",
-        "f3": "Buyer identity and unlimited quotes on public buying requests",
-        "f4": "Appear in buyers' AI supplier suggestions and get invited straight to requests",
-        "f5": "Sending connection invitations and seeing the buyer's identity in inquiries",
-        "f6": "Visitors and Business Insights",
-        "f7": "AI: pricing from documents, AI request search, chat assistant",
-        "f8": "4 sales seats"
-      },
-      "gold": {
-        "name": "Gold",
-        "tagline": "Both panels at once: manage buying & selling in one account.",
-        "cta": "Start with Gold",
-        "f1": "Everything in Silver",
-        "f2": "Posting buying requests — quote collection (RFQ) & negotiation/reverse auction",
-        "f3": "Awarding, approval flows, reports & templates",
-        "f4": "AI — request draft from documents, document attachments in the assistant, supplier discovery",
-        "f5": "“Gold member” badge — a trust mark on your profile, in the company directory and on your products",
-        "f6": "6 seats (buying and sales)"
-      }
-    }
   },
   "auth": {
     "reset": {
@@ -2152,7 +2093,7 @@
       "tcknLabel": "Turkish ID number *",
       "foreignIdLabel": "Authorized person ID no",
       "tcknInvalidPerson": "Enter a valid Turkish ID number",
-      "founderBox": "As the person who set up the company you are its <b>Founder</b> — you hold full administrative rights, including company settings, users and plan management. What you can do in operations depends on your plan: publishing requests requires the Gold plan.",
+      "founderBox": "As the person who set up the company you are its <b>Founder</b> — you hold full administrative rights, including company settings and users. Operations such as publishing requests open with company verification.",
       "sectorQuestion": "What do you buy and sell?",
       "sectorHint": "Select your concrete products and services — your industry is derived from your selection automatically. Open requests are forwarded to you based on this declaration; if you leave it empty you will receive no request notifications.",
       "sectorsFailed": "Industries could not be loaded.",
@@ -2170,7 +2111,7 @@
       "sumRoleValue": "Founder · sales access",
       "sumSectors": "Industries",
       "nextTitle": "What happens after sign-up?",
-      "nextBody": "Your account <b>opens immediately</b>: you can publish your profile and product showcase, accept connection invites and message, and quote on requests from companies that invited you or are connected to you. Sending connection invites, quoting on public requests and seeing the buyer's identity require the Silver plan; publishing requests and sending inquiries require the Gold plan; both also require company verification — upload your documents under <b>Settings → Verification</b> and submit them for review. Documents are reviewed manually by our team.",
+      "nextBody": "Your account <b>opens immediately</b>: you can publish your profile and product showcase, accept connection invites and message, and quote on requests from companies that invited you or are connected to you. Sending connection invites, quoting on public requests, seeing the buyer's identity, publishing requests and sending inquiries require company verification — upload your documents under <b>Settings → Verification</b> and submit them for review. Verification is free; documents are reviewed manually by our team.",
       "declarationAria": "I declare that the information I provided is accurate and up to date",
       "declaration": "I declare that the information I provided is accurate and up to date.",
       "back": "Back",
@@ -2318,19 +2259,18 @@
         "panelineDon": "Back to the {label} panel",
         "erisimYok": "You do not have access to the {label} panel",
         "rolGerekli": "To enter this panel you need the <strong>{role}</strong> role (or Manager / Founder). Contact your company manager for access.",
-        "windDownBaslik": "The purchasing panel is part of the Gold package",
-        "windDownAciklama": "You can still view and complete your existing purchase requests and orders (award, close, cancel). Opening a new request, inviting suppliers, extending the deadline and editing a request require the Gold package.",
-        "paketleriGor": "View packages",
+        "windDownBaslik": "The Buying panel opens with company verification",
+        "windDownAciklama": "You can still view and complete your existing buying requests and orders (award, close, cancel). Opening a new request, inviting suppliers, extending the deadline and editing a request require company verification.",
         "mevcutIslerAcik": "Your existing purchase requests and orders stay available:"
       },
       "portalSwitch": {
         "panelDegistirSuAn": "Switch panel — currently {label}",
         "panelDegistir": "Switch panel",
-        "paketleAcilir": "Unlocked with a plan",
         "suAnBuradasiniz": "You are here",
-        "goldPaketiyleAcilir": "Unlocked with the Gold plan.",
         "neYaparSatinalma": "Post requests, collect quotes and award them.",
-        "neYaparSatis": "See open requests, submit quotes and publish your products."
+        "neYaparSatis": "See open requests, submit quotes and publish your products.",
+        "dogrulamaylaAcilir": "Opens with verification",
+        "dogrulamaylaAcilirCumle": "Opens with company verification."
       },
       "shell": {
         "menu": "Menu",
@@ -2723,6 +2663,34 @@
         "aciklama": "This form has changes you haven't saved. They will be lost if you leave.",
         "ayril": "Leave",
         "kal": "Stay on form"
+      },
+      "verificationGate": {
+        "pageTitle": "This page requires company verification",
+        "managerNote": "Your company administrator can apply for verification; please let them know.",
+        "invitedFootnote": "You can quote on requests from companies that invited you or are connected to you without waiting for verification.",
+        "unverified": {
+          "short": "Company verification required",
+          "badge": "Verification required",
+          "body": "Rothern is completely free. Company verification is all you need to move all your buying requests online and to quote.",
+          "cta": "Verify your company"
+        },
+        "pending": {
+          "short": "Your verification is under review",
+          "badge": "Under review",
+          "body": "Our team is reviewing your documents. This feature opens automatically once you are approved; you do not need to upload the documents again.",
+          "cta": "View verification status"
+        },
+        "rejected": {
+          "short": "Your verification was not approved — apply again",
+          "badge": "Apply again",
+          "body": "Your verification application was not approved. Correct the rejected documents and apply again; this feature opens once you are approved.",
+          "cta": "Apply again"
+        },
+        "verified": {
+          "short": "Your company is verified",
+          "body": "Your company is verified; this feature will open on your account shortly. Refresh the page — if it persists, contact our support team.",
+          "cta": "Refresh page"
+        }
       }
     },
     "nav": {
@@ -2763,8 +2731,6 @@
         "profil": "Profile",
         "bildirimler": "Notifications",
         "onaylar": "Approvals",
-        "premium": "Plans",
-        "premiumSatinAl": "Buy a plan",
         "ilanDetayi": "Request Details",
         "siparisDetayi": "Order Details"
       }
@@ -2892,8 +2858,8 @@
         "satinAlmaTalebiDegerlendirmeyeAlindi": "Buying request moved to evaluation",
         "degerlendirmeyeAlinamadi": "Could not move to evaluation",
         "kapanisZamaniGuncellendi": "Closing time updated",
-        "kapanisUzatmaGoldGerektirir": "Extending the closing time requires the Gold plan; you can only bring the closing time forward.",
-        "kapanisYalnizOneCekilir": "Because your company is not on the Gold plan, you can only bring the closing time forward; extending it requires Gold.",
+        "kapanisUzatmaDogrulamaGerektirir": "Extending the closing time requires company verification; you can only bring the closing time forward.",
+        "kapanisYalnizOneCekilir": "Because your company is not verified, you can only bring the closing time forward; extending it requires company verification.",
         "guncellenemedi": "Could not update",
         "notlarKaydedildi": "Notes saved",
         "satinAlmaTalebiniDuzenle": "Edit buying request",
@@ -2909,10 +2875,7 @@
         "turGecmisi": "Round history",
         "yeniTurOlustur": "Create new round",
         "satinAlmaTalebiniIptalEt": "Cancel buying request",
-        "paketKilidiNotu": "Your company is not on the Gold plan: publishing, editing, inviting new suppliers, opening a new round and extending the closing time of this request require Gold. Viewing, evaluation, awarding, closing and cancelling remain available.",
-        "paketKilidiNotuDogrulama": "Your company is not on the Gold plan and is not verified yet: publishing, editing, inviting new suppliers, opening a new round and extending the closing time of this request require Gold, and awarding requires company verification. Viewing, evaluation, closing and cancelling remain available.",
-        "onceUcretsizDogrulan": "Get verified for free first",
-        "goldaGec": "Upgrade to Gold",
+        "dogrulamaKilidiNotu": "Your company is not verified yet: publishing, editing, inviting new suppliers, opening a new round, extending the closing time and awarding this request require company verification. Viewing, evaluating, closing and cancelling stay available.",
         "taslagiSil2": "Delete draft",
         "yeniKapanisTarihSaatiniSecin": "Select the new closing date/time. You can move it later or earlier.",
         "yeniKapanisSecin": "Select the new closing date/time.",
@@ -3113,7 +3076,6 @@
         }
       },
       "supplierDiscoveryModal": {
-        "goldaGec": "Upgrade to Gold",
         "onerilerYuklenemediTekrarDeneyin": "Suggestions could not be loaded — try again",
         "webAramasindaUygunFirmaBulunamadi": "No suitable companies were found in the web search",
         "bulunanFirmalarinYayinlanmisEPostasi": "The companies found have no published email address — invitations cannot be sent",
@@ -3213,7 +3175,7 @@
         "aliciGizli": "Buyer hidden",
         "dogrulanmisAlici": "Verified buyer",
         "dogrulanmisAliciKisa": "Verified",
-        "teklifVerSilver": "Submit quote · Silver"
+        "teklifVerDogrulama": "Submit quote · verification required"
       },
       "ihalelistview": {
         "veriAlinamadi": "Data could not be retrieved.",
@@ -3227,7 +3189,7 @@
         "satinAlmaTalebiAcmaIslem": "Opening a buying request requires an action role (Purchaser).",
         "satinAlmaTalebiListesi": "Buying request list",
         "satinAlmaTalebiAc": "Create buying request",
-        "yeniTalepGoldGerektirir": "Opening a new purchase request requires the Gold package."
+        "yeniTalepDogrulamaGerektirir": "Opening a new buying request requires company verification."
       },
       "ihalelistrow": {
         "favorilerdenCikar": "Remove from favorites",
@@ -3297,10 +3259,10 @@
         "kalemBazliKazandir": "Award by line item",
         "kalemKazandirilacakKalemSecilmeyenTeklifsiz": "{length, plural, one {# line item will be awarded} other {# line items will be awarded}}, {skipped, plural, one {# line item (unselected/no quote) will be skipped} other {# line items (unselected/no quote) will be skipped}}.",
         "kalemBazliKazandirilsinMi": "Award by line item?",
-        "buHerkeseAcikTalepSilver": "This public request is available with the Silver plan",
-        "herkeseAcikSatinAlmaTaleplerini": "Quoting on public buying requests and seeing the buyer come with Silver; on the free plan these requests appear in Open Requests with the buyer name hidden. You can quote for free on requests from companies that invited you or are connected to you.",
+        "buHerkeseAcikTalepDogrulama": "This public request unlocks with company verification",
+        "herkeseAcikSatinAlmaTaleplerini": "Quoting on public buying requests and seeing the buyer require a verified company; unverified companies see these requests in Open Requests with the buyer name hidden. You can quote without verification on requests from companies that invited you or are connected to you.",
         "satinAlmaTalebineUlasilamiyor": "The request cannot be accessed.",
-        "ilanKaldirilmisAdresHataliYa": "The request may have been removed, the address may be incorrect, or your access conditions may have changed (e.g. company connection or plan status). If you think something is wrong, contact the request owner.",
+        "ilanKaldirilmisAdresHataliYa": "The request may have been removed, the address may be incorrect, or your access conditions may have changed (e.g. company connection or verification status). If you think something is wrong, contact the request owner.",
         "paneleDon": "Back to panel",
         "ilanYuklenemedi": "The request could not be loaded.",
         "tekrarDene": "Try again",
@@ -3360,7 +3322,6 @@
         "taslagaDevamEt": "Continue draft",
         "yenidenTeklifVer": "Quote again",
         "yeniTeklifVer": "Submit new quote",
-        "paketleriGor": "View plans",
         "kalemler": "Line items",
         "sipariseGit": "Go to order",
         "teklifToplama": "Quote collection",
@@ -3374,7 +3335,7 @@
         "kapanis": "Closing",
         "onayiIptalEt": "Cancel approval",
         "aiIleTedarikciBul": "Find suppliers with AI",
-        "aiIleTedarikciBulmaGold": "AI supplier discovery is available on the Gold plan",
+        "aiIleTedarikciBulmaDogrulama": "AI supplier discovery requires company verification",
         "kategoriyeUyanFirmalariPlatformdanVe": "Finds companies matching the category on the platform and the web, and sends invitations to the ones you select.",
         "onayBekliyorYayinAskidaOnaylandiginda": "Awaiting approval — publication is on hold. Once approved, the buying request is published automatically.",
         "kazandirmaOnayiBekliyorOnaylandigindaKazandi": "Award awaiting approval. Once approved, the award is completed.",
@@ -3421,17 +3382,17 @@
         "evet": "Yes",
         "hayir": "No",
         "n50mbSiniriniAsiyor": "{join} exceeds the 50MB limit",
-        "buHerkeseAcikTalebeTeklif": "Quoting on this public request requires the Silver plan",
+        "buHerkeseAcikTalebeTeklifDogrulama": "Quoting on this public request unlocks with company verification",
         "kendiIlaninizaTeklifVeremezsiniz": "You cannot submit a quote on your own request",
-        "teklifIcinSilverPaketiGerekir": "The Silver plan is required to submit a quote",
-        "herkeseAcikSatinAlmaTaleplerine": "Quoting on public buying requests comes with Silver. You can quote for free on requests from companies that invited you or are connected to you.",
+        "teklifIcinDogrulamaGerekir": "Company verification is required to submit a quote",
+        "herkeseAcikSatinAlmaTaleplerine": "Only verified companies can quote on public buying requests. You can quote without verification on requests from companies that invited you or are connected to you.",
         "teklifinGonderildiSatinAlmaTalebi": "Your quote has been submitted — returning to the buying request details…",
         "teklifinGonderiliyor": "Submitting your quote…",
         "buSatinAlmaTalebineArtik": "Quotes can no longer be submitted for this buying request",
         "teklifiniziGeriCektinizYenidenTeklif": "You withdrew your quote — you cannot quote again",
         "teklifZatenVerildiDegisiklikIcin": "A quote has already been submitted — contact the buyer for changes",
         "excelSablonuIleFiyatla": "Price with Excel template",
-        "belgedenFiyatlamaSilverVeUzeri": "Pricing from a document is available on Silver and higher plans",
+        "belgedenFiyatlamaDogrulama": "Pricing from a document requires company verification",
         "kalemTeslimSuresiOpsiyonel": "Line item delivery time (optional)",
         "teslimSuresi": "Delivery time for {name}",
         "genelSureGecerli": "General time applies",
@@ -3553,7 +3514,7 @@
         "kalemBazliDagitimEkTasarrufSaglamiyor": "Splitting by line item brings no extra savings — a <strong>bulk award</strong> at the lowest total quote (<strong>{amount}</strong>) is the most economical option.",
         "kalemBazliDagitimTasarruf": "Split by line item: <strong>{itemized}</strong> · Lowest total quote: <strong>{bestTotal}</strong> → <strong>{pct} savings</strong>",
         "eksik": "Incomplete ({incompleteCount})",
-        "buIlanaTeklifVermekIcinSilverPaketi": "Submitting a quote for this request requires the <strong>Silver plan</strong> (a free account is enough if the company that opened it invites you or is connected to you).",
+        "buIlanaTeklifIcinDogrulama": "Submitting a quote for this request requires <strong>company verification</strong> (no verification is needed if the company that opened it invites you or is connected to you).",
         "gonderilmisTeklifGeriCekilemez": "A submitted quote cannot be withdrawn or edited — contact the buyer for changes. If the buyer eliminates your quote, you can submit a new one.",
         "mevcutTeklifin": "Your current quote: <strong>{money}</strong>",
         "dosyalar": "Files",
@@ -3592,10 +3553,9 @@
         "gonderdiktenSonraBuTurdaDegistiremezsin": "Once submitted, it cannot be changed in this round — a new price can only be given if the buyer opens a new round.",
         "kaydedilemedi": "Could not save",
         "henuzKaydedilmisSartYok": "No saved terms yet — the values below were derived from <strong>your last published request</strong>. Review and save them.",
-        "herkeseAcikSatinAlmaTaleplerini2": "The full details of this request, the buyer, the specifications and the files unlock with Silver; on the free plan you see this request in Open Requests with the buyer name hidden.",
+        "herkeseAcikSatinAlmaTaleplerini2": "The full details of this request, the buyer, the specifications and the files unlock with company verification; unverified companies see this request in Open Requests with the buyer name hidden.",
         "tur3": "Round {currentRound}",
         "teslimSekliOdemeKosuluPara2": "Set the delivery term, payment term, currency, visibility and duration once; every new buying request starts with them.",
-        "silverPaketi": "Silver plan",
         "satisci": "Salesperson",
         "sonYayimladiginizTalepten": "from your last published request",
         "tumKalemlere": "all line items",
@@ -3766,7 +3726,7 @@
         "belgedenDoldur": "Fill from document",
         "orn34IncDikissiz": "E.g. 3/4 inch seamless steel pipe purchase — 1,200 m",
         "bosBirakirsanizKalemlerdenTuretilir": "If left blank, it is derived from the line items.",
-        "aiOnerisiSilverVeUzeri": "AI suggestions are available on Silver and higher plans",
+        "aiOnerisiDogrulama": "AI suggestions require company verification",
         "onceEnAzBirKalem": "Enter at least one line item name first",
         "aiKalemleriAnalizEdiyor": "AI is analyzing the line items…",
         "aiIleBaslikVeKategori": "Find title and category with AI",
@@ -3777,7 +3737,7 @@
         "arananTedarikciTipiIstegeBagli": "Supplier type wanted (optional)",
         "istegeBagli": "optional",
         "kullanimAmaciTeknikSartTeslim": "Intended use, technical requirements, delivery expectations — suppliers can quote more accurately.",
-        "aiIleAciklamaSilverVe": "AI descriptions are available on Silver and higher plans",
+        "aiIleAciklamaDogrulama": "AI descriptions require company verification",
         "yaziliyor": "Writing…",
         "aiIleAciklamayiYaz": "Write the description with AI",
         "nereyeNeZamanaNasilOdeme": "Where, by when, and on what payment terms?",
@@ -3803,7 +3763,6 @@
         "disDavetlerGonderilemedi": "The request was published, but the invitation emails could not be sent; please retry from the request page.",
         "disDavetGonderildi": "{n, plural, one {# invitation email sent} other {# invitation emails sent}}",
         "disDavetGonderilmedi": "{n, plural, one {The invitation email was not sent to # address} other {The invitation email was not sent to # addresses}}",
-        "aiIleTedarikciBulmaGold": "AI supplier discovery is available on the Gold plan",
         "belgeler": "Documents",
         "sartnameTeknikResimSozlesmeTaslagi": "Specification, technical drawing, draft contract — suppliers see them when quoting. Optional.",
         "teklifKalitesi": "Quote quality",
@@ -3889,7 +3848,7 @@
         "davetlilerVeGorunurlukKuralinaUyan": "“{title}” — invitees and suppliers matching the visibility rule have been notified.",
         "talebiGor": "View request",
         "uygunTedarikciOnerVeDavet": "Suggest and invite suitable suppliers",
-        "tedarikciOnerisiGoldPakette": "Supplier suggestions are available on the Gold plan",
+        "tedarikciOnerisiDogrulama": "Supplier suggestions require company verification",
         "yeniTalepAc": "Post a new request",
         "davetEPostalari": "Invitation emails",
         "davetEPostalariGonderilemedi": "The invitation emails could not be sent; you can retry with “Find suppliers with AI” on the request page.",
@@ -4425,7 +4384,7 @@
         "searchAgain": "Search again",
         "noResults": "AI found no suitable companies. Try more specific item names and search again.",
         "failed": "The search couldn't be completed. Please try again.",
-        "goldOnly": "Finding suppliers with AI is available on the Gold plan.",
+        "verifiedOnly": "Finding suppliers with AI unlocks with company verification.",
         "bandTitle": "AI found {n, plural, one {# supplier} other {# suppliers}}",
         "bandAbroad": "({n, number} abroad)",
         "bandLead": "They're all pre-selected; remove the ones you don't want and invite the rest with one click. Invitations go out in each company's own language, during business hours in its country.",
@@ -4447,7 +4406,7 @@
         "summaryInSection1": "The companies AI found are in the list in section 1.",
         "goToList": "Go to list",
         "groupMembers": "Registered on Rothern",
-        "groupMembersLead": "Verified Silver and Gold members. They're invited straight to your request and notified in the app and by email. They don't need to be your contacts.",
+        "groupMembersLead": "Verified members. They're invited straight to your request and notified in the app and by email. They don't need to be your contacts.",
         "memberItems": "Matches line items: {items}",
         "memberCategories": "Matches category: {categories}",
         "memberAlsoWeb": "Also found on the web",
@@ -4504,9 +4463,8 @@
         "sonZiyaret": "Last visit",
         "kimlikliZiyaretciListesiKilitli": "Identified visitor list (locked)",
         "egeTekstilAS": "Ege Tekstil A.Ş.",
-        "kimlikliZiyaretciListesiSilverVe": "The identified visitor list is available on Silver and higher plans",
-        "firmaAdiSehirFaaliyetTipi": "Company name, city, activity type and the products they viewed are unlocked with the plan.",
-        "paketleriGor": "View plans",
+        "kimlikliZiyaretciListesiDogrulama": "The identified visitor list unlocks with company verification",
+        "firmaAdiSehirFaaliyetTipi": "Company name, city, activity type and the products they viewed unlock with company verification.",
         "dogrulanmisFirma": "Verified company",
         "baglantili": "Connected",
         "baktigi2": "Viewed:",
@@ -4514,13 +4472,6 @@
         "profiliGor": "View profile",
         "firmaProfiliniziInceledi": "{n, plural, one {# company viewed your profile} other {# companies viewed your profile}}",
         "ziyaretBirim": "{n, plural, one {# <unit>visit</unit>} other {# <unit>visits</unit>}}"
-      },
-      "silverLockCard": {
-        "baglantiDavetiyleGelenTalepleriUcretsiz": "You can quote for free on requests from companies that invited you or are connected to you.",
-        "silverPaketineGec": "Upgrade to Silver",
-        "onceDogrulanNot": "The only requirement for upgrading to Silver is verifying your company. Verification is free and takes a few minutes.",
-        "onceUcretsizDogrulan": "Get verified for free first",
-        "paketleriGor": "See plans"
       },
       "visitsVisibilityCard": {
         "ziyaretlerinizArtikAdinizlaGorunur": "Your visits are now shown with your name",
@@ -4549,11 +4500,9 @@
         "listesi": "{noun} list",
         "bilinmeyenAlici": "Buyer",
         "gecmisEnYeni200Gosteriliyor": "Showing the 200 most recent past requests — find older quotes under My Quotes.",
-        "ucretsizAltBaslik": "Requests you were invited to and requests from your connected buyers come first; below them, public requests with the buyer hidden — quoting on those needs Silver.",
+        "dogrulanmamisAltBaslik": "Requests you were invited to and requests from your connected buyers come first; below them, public requests with the buyer hidden — quoting on those requires company verification.",
         "maskeliBolumEtiketi": "Public requests · buyer hidden",
-        "maskeliNot": "Seeing the buyer's name and quoting require Silver.",
-        "maskeliNotDogrulan": "Get verified for free first",
-        "maskeliNotPaketler": "See plans"
+        "maskeliNot": "Company verification is required to see the buyer's name and submit a quote."
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Approvals require permission",
@@ -4830,11 +4779,9 @@
       },
       "permissionTable": {
         "yonetimTikiIleBirlikteGelir": "Comes with the selected management tick",
-        "islemTikleriGoldPakette": "· action ticks on the Gold plan only",
         "hazirSetler": "Presets",
         "hazirSetUygulaniyorAsagidanKisiye": "A preset is applied; you can customize it for this person below.",
         "kisiyeOzelYetkiKumesi": "Custom permission set.",
-        "goldPaketteAcilir": "· available on the Gold plan",
         "islemTikiKoltukSayar": "· an action tick uses a seat",
         "kurucudaOrtuk": "Implicit for the Founder",
         "yalnizKurucuVerir": "Only the Founder can grant",
@@ -4848,7 +4795,6 @@
           "YONETICI": "Views, manages, and approves; takes no actions",
           "GORUNTULEYICI": "View only, does not use a seat"
         },
-        "goldPakette": "Gold plan only",
         "koltukDolu": "No seats left",
         "koltuk": "seat",
         "group": {
@@ -4877,7 +4823,9 @@
           "templates_manage": "Templates",
           "addresses_manage": "Address book",
           "insights_view": "Visitors and business insights"
-        }
+        },
+        "dogrulamaGerekir": "Company verification required",
+        "islemTikleriDogrulamayla": "· action ticks open with company verification"
       },
       "catalogItemsView": {
         "katalogYuklenemedi": "The catalog could not be loaded. Please try again.",
@@ -5015,7 +4963,7 @@
       "productShowcaseForm": {
         "belgeYuklenemediYalnizPdfEn": "Document could not be uploaded — PDF only, up to 10 MB",
         "urunAdiZorunlu": "Product name is required",
-        "ucretsizPaketTavaniDolduDaha": "Free plan limit reached — switch to the Silver plan for more products.",
+        "urunTavaniDolduDogrulama": "Product limit reached — company verification is required for more products.",
         "urunTaslakOlarakEklendi": "Product added as a draft",
         "eksikKademeKaydedilmedi": "{n, plural, one {# incomplete tier was} other {# incomplete tiers were}} not saved — rows without a quantity and a price above 0 were removed from the form.",
         "kaydedildiIcerikDegisikligiYenidenIncelenece": "Saved — the content change will be reviewed again; the product stays published",
@@ -5067,11 +5015,11 @@
         "pdfEkle": "Add PDF",
         "youtubeVeyaVimeoBaglantisiUrun": "YouTube or Vimeo link — played embedded on the product page.",
         "videoBaglantisi": "Video link",
-        "urunBelgesiPdfKatalogTeknik": "Product documents (PDF catalog, technical datasheet) and video links are available on the Silver plan.",
+        "urunBelgesiPdfKatalogTeknik": "Product documents (PDF catalog, technical datasheet) and video links unlock with company verification.",
         "kendiWebSitenizdekiUrunSayfasi": "The product page on your own website — so visitors can go there too.",
         "urunSayfasiBaglantisi": "Product page link",
         "onceUrunAdiniYazin": "Enter the product name first.",
-        "aiIleGuclendirmeSilverVe": "AI enhancement is available on Silver and higher plans.",
+        "aiIleGuclendirmeDogrulama": "AI enhancement requires company verification.",
         "taslakUygulandiKontrolEdipKaydedin": "Draft applied — review and save",
         "varyasyonlariAyriUrunOlarakAcmayin": "Do not create variants as separate products — put differences such as color or size in the category-specific attributes. This keeps the catalog clean.",
         "urun": "Product",
@@ -5133,7 +5081,7 @@
           "ON_REQUEST": "Price on request"
         },
         "firmaProfilinizHenuzHerkeseAcikDegil": "Your company profile is not public yet: your products will not appear in the directory or on your company page until the profile is published. <link>Publish profile</link>.",
-        "ucretsizPaketteEnFazlaUrun": "On the free plan, up to {limit} products can be published or under review ({occupied}/{limit} used). Drafts are unlimited. <link>Unlimited products, documents and video with Silver</link>.",
+        "dogrulanmamisFirmadaEnFazlaUrun": "Until your company is verified, up to {limit} products can be published or under review ({occupied}/{limit} used). Drafts are unlimited. <link>Unlimited products, documents and video with company verification</link>.",
         "fiyatBirim": "{amount} / {unit}",
         "fiyatBirimKademeli": "{amount} / {unit} (tiered)",
         "dahaFazlaYukle": "Load more",
@@ -5177,7 +5125,7 @@
         "urun": "Product",
         "yeni": "New",
         "kaydedilmemisDegisiklik": "Unsaved changes",
-        "ucretsizPaketteYayindaOnaydaUrun": "The free plan limit for live or in-review products is reached — you can save a draft; upgrade to the Silver plan for more.",
+        "yayindaOnaydaUrunTavaniDoldu": "The limit for live or in-review products is reached — you can save a draft; company verification is required for more.",
         "kaydediliyor": "Saving…",
         "digerIslemler": "More actions",
         "taslakOlarakKaydet": "Save as draft",
@@ -5266,7 +5214,7 @@
         "bilgiTeklifIste": "Request info / quote",
         "kapat": "Close",
         "taleplerimiGor": "View my inquiries",
-        "buTedarikciUcretsizUyeSorunuzu": "This supplier is on the free plan: they will see your question but must upgrade to the Silver plan to reply. For a faster answer, you can also ask verified suppliers listed under similar products on the product page.",
+        "buTedarikciDogrulanmamis": "This supplier is not verified yet: they will see your question but must verify their company to reply. For a faster answer, you can also ask verified suppliers from the similar products on the product page.",
         "miktar": "Quantity",
         "orn500Adet": "e.g. 500 pcs",
         "ihtiyaciniziTeslimYeriniVeTermini": "Describe your need, the delivery location and the deadline.",
@@ -5284,9 +5232,9 @@
         "urunlerinizHakkindaGelenSorularYanitladikca": "Questions received about your products — as you reply, your answers appear in the buyer panel.",
         "tedarikciUrunleriHakkindaGonderdiginizSorula": "Questions you sent about supplier products and the replies received.",
         "urunAra": "Search products",
-        "bilgiTalebiKimSorduguVe": "{count, plural, one {# inquiry} other {# inquiries}} — the asker’s identity and replying unlock with Silver",
-        "gelenSorulariGorursunuzKimSordugu": "You can see incoming questions; the asker’s identity and replying unlock with Silver",
-        "ucretsizUyelikteAlicininSorusunuAdedini": "On the free plan, you can see the buyer’s question, quantity and city. The buyer’s identity, contact details and replying unlock with the Silver plan — buyers turn to verified suppliers.",
+        "bilgiTalebiKimSorduguDogrulama": "{count, plural, one {# inquiry} other {# inquiries}} — the asker’s identity and replying unlock with company verification",
+        "gelenSorulariGorursunuzKimSordugu": "You can see incoming questions; the asker’s identity and replying unlock with company verification",
+        "dogrulanmadanAlicininSorusunu": "Before verification, you can see the buyer’s question, quantity and city. The buyer’s identity, contact details and replying unlock with company verification — buyers turn to verified suppliers.",
         "yukleniyor": "Loading…",
         "dahaEskiTalepleriYukle": "Load older inquiries ({loaded, number}/{total, number})",
         "henuzBilgiTalebiYok": "No inquiries yet.",
@@ -5310,7 +5258,7 @@
         "aliciKimligiGizli": "Buyer identity hidden",
         "yanitBekliyor": "Awaiting reply",
         "listeyeDon": "Back to list",
-        "aliciKimligiSilverIleAcilir": "Buyer identity unlocks with Silver",
+        "aliciKimligiDogrulamaIleAcilir": "Buyer identity unlocks with company verification",
         "kayitliKullanici": "Registered user",
         "misafir": "Guest",
         "yanitlandi": "Replied",
@@ -5319,7 +5267,7 @@
         "siz": "You",
         "satici": "Seller",
         "saticiHenuzYanitlamadiYanitGelince": "The seller has not replied yet — when a reply arrives, it appears here and in your notifications.",
-        "yanitlamakVeAlicininIletisimBilgilerini": "Replying and viewing buyer contact details unlock with the Silver plan.",
+        "yanitlamakVeAlicininIletisimBilgilerini": "Replying and viewing buyer contact details unlock with company verification.",
         "yanitinizGonderildi": "Your reply has been sent",
         "yanitGonderilemedi": "Could not send reply",
         "yanitiniziYazin": "Write your reply…",
@@ -5772,14 +5720,11 @@
         "odeme": "Payment",
         "vade": "Payment term",
         "vadeGun": "{n, number} days",
-        "kapaliZarfNotu": "Sealed bid: only the request owner sees the quotes; bidders cannot see each other's prices or identities. The buyer's name, technical specifications and attached documents unlock with the Silver plan.",
+        "kapaliZarfNotu": "Sealed bid: only the request owner sees the quotes; bidders cannot see each other's prices or identities. The buyer's name, technical specifications and attached documents unlock with company verification.",
         "alici": "Buyer",
         "aliciGizli": "Buyer hidden",
         "dogrulanmisAlici": "Verified buyer",
-        "teklifVerSilver": "Submit quote · Silver",
-        "ctaNot": "Quoting on public requests and seeing the buyer's name unlock with the Silver plan.",
-        "ctaNotDogrulama": "The only requirement for the Silver plan is free company verification — verify your company first.",
-        "paketleriGor": "See plans",
+        "ctaNot": "Quoting on public requests and seeing the buyer's name require company verification.",
         "kapandi": "This request is closed for quotes."
       }
     },
@@ -5969,7 +5914,6 @@
         "yetkiliTCKimlikNo": "Authorized person Turkish ID no (TCKN)",
         "yetkiliKimlikNo": "Authorized person ID no",
         "yetkiliUnvani": "Authorized person title",
-        "uyelik": "Membership",
         "dogrulama": "Verification",
         "dogrulamaBelgeleri": "Verification documents",
         "unvan": "Legal name",
@@ -6020,10 +5964,7 @@
         "sehir": "City",
         "eyaletBolge": "State / region",
         "kimlikBilgilerindeHataVarsaYabanci": "If there is an error in your identity details, contact support to have it changed. The registration number and bank account details are managed on the <dogrulama>Verification Documents</dogrulama> page; order collection accounts are managed on the <banka>Bank Accounts</banka> page.",
-        "postaKodu5Hane": "In Türkiye the postal code must be 5 digits",
-        "uyelikBitis": "until {date}",
-        "uyelikSuresiDoldu": "Plan expired on {date}",
-        "uyelikYenile": "Renew"
+        "postaKodu5Hane": "In Türkiye the postal code must be 5 digits"
       },
       "companyUsersSection": {
         "pasifYapildi": "Deactivated",
@@ -6109,10 +6050,8 @@
         "koltuk": "Seats: <strong>{used}/{limit}</strong>",
         "koltukKirilimi": "(buying {usedBuy} · sales {usedSell})",
         "koltukKirilimiBekleyenDavet": "(buying {usedBuy} · sales {usedSell} · pending invitations {pending})",
-        "paketinizdeKoltukVarFazla": "Your plan includes <strong>{limit}</strong> seats and <strong>{overflow}</strong> are over the limit — no new action permission can be granted. Existing users keep working.",
         "kullanicilarYuklenemedi": "Users could not be loaded.",
         "ekiptenCikarilsinMi": "Remove <strong>{name}</strong> ({email}) from the team?",
-        "paketinizdeKoltukVarKalacak": "Your plan has {limit} seats. Choose the seats to keep (person · buying/sales) — for a seat you do not select, the action permissions in that group are removed; the account, viewing and other permissions stay unchanged, and the remaining team can finish the open work.",
         "davetEtti": "Invitation from {name}",
         "sonaErer": "Expires {when}",
         "adBosOlamaz": "First name cannot be empty",
@@ -6126,7 +6065,9 @@
         "pasifTaleplerDevredilir": "Live buying requests they opened are handed over to you or to the Founder",
         "pasifKoltukBosalir": "Their seat is freed; their permissions are kept, but reactivating them needs a free seat",
         "davetIptalEdilsinMi": "Cancel the invitation sent to <strong>{email}</strong>? The invitation link will stop working and any seat it reserved is freed.",
-        "yetkilerKaydedildiBilgilerKaydedilemedi": "Permissions were saved, but contact details could not be saved: {error}"
+        "yetkilerKaydedildiBilgilerKaydedilemedi": "Permissions were saved, but contact details could not be saved: {error}",
+        "koltukSiniriFazla": "Your company's seat limit is <strong>{limit}</strong> and <strong>{overflow}</strong> are over the limit — no new action permission can be granted. Existing users keep working.",
+        "koltukSiniriKalacak": "Your company's seat limit is {limit}. Choose the seats to keep (person · buying/sales) — for a seat you do not select, the action permissions in that group are removed; the account, viewing and other permissions stay unchanged, and the remaining team can finish the open work."
       },
       "inviteDelivery": {
         "failed": "The invitation was saved, but the email to {email} could not be sent. Try resending it.",
@@ -6153,7 +6094,7 @@
         "davetDili": "Invitation language",
         "davetDiliIpucu": "The invitation email and the acceptance page open in this language. The invitee can change it when accepting.",
         "kullaniciHakkiDoluKoltukBosaltin": "All user seats are taken — to grant transaction permissions, remove a user's transaction permissions or cancel a pending invitation.",
-        "kullaniciHakkiDoluPaketYukseltin": "All user seats are taken — <link>upgrade your plan</link> or free up a seat to grant transaction permissions."
+        "kullaniciHakkiDoluDogrulama": "All user seats are taken — verified companies can grant transaction permissions to more users. To grant one, free up a seat or verify your company."
       },
       "settingsShell": {
         "ayarlar": "Settings"
@@ -6215,7 +6156,7 @@
       "ayarlarAiKullanimPage": {
         "uyariEsigiAsildi": "Warning threshold exceeded",
         "firmanizinAylikAiButcesininNe": "How much of your monthly company AI budget has been used. When the budget runs out, AI features are switched off until the end of the month; you are notified when the warning threshold is reached.",
-        "aiKullaniminiYonetimYetkisiTasiyanlar": "AI usage can be viewed on the Silver plan and above by users with a management permission (company breakdown) and by users holding a buying/sales seat (their own usage).",
+        "aiKullaniminiYonetimYetkisiTasiyanlar": "AI usage can be viewed by users with a management permission (company breakdown) and by users holding a buying/sales seat (their own usage); the company must be verified.",
         "aiKullanimiYuklenemedi": "AI usage could not be loaded.",
         "yenidenDene": "Try again",
         "yukleniyor": "Loading…",
@@ -6246,7 +6187,7 @@
       "ayarlarAktivitePage": {
         "firmanizdakiEylemKayitlariKimSatin": "Records of actions in your company — who opened a buying request, who changed a role, who updated a bank account. Actions are recorded, not values; sensitive fields appear as masked references.",
         "modul": "Module",
-        "aktiviteLogunuYalnizKullaniciYonetimi": "The activity log can be viewed only by users with the “User management” or “Company management” permission, on the Silver plan and above.",
+        "aktiviteLogunuYalnizKullaniciYonetimi": "The activity log can be viewed only by users with the “User management” or “Company management” permission; the company must be verified.",
         "aktiviteLoguYuklenemedi": "The activity log could not be loaded.",
         "yenidenDene": "Try again",
         "yukleniyor": "Loading…",
@@ -6384,7 +6325,6 @@
         "mersisNo16Hane": "MERSİS number (16 digits)",
         "sicilKayitNo": "Registry / registration number",
         "gecerliIban": "Valid IBAN",
-        "dogrulamaUcretsizVePaketGerektirmez": "Verification is FREE and does not require a plan. A verified company shows the “Verified” badge on its profile and can purchase a plan; quoting on public requests additionally requires the Silver plan, and publishing requests requires the Gold plan. An unverified company appears to buyers as an “Unverified company”. Your documents are reviewed manually by our team.",
         "yukleniyor": "Loading…",
         "durum": "Status:",
         "baziBelgelerReddedildi": "Some documents were rejected",
@@ -6420,7 +6360,6 @@
         "bankaHesapNo": "Bank account number",
         "ticariSicilNo2": "Trade registry number",
         "hesapSahibi2": "Account holder",
-        "firmanizDogrulandiHerkeseAcik": "Your company is verified. You can now purchase a plan: quoting on public requests comes with Silver, publishing requests with Gold.",
         "dogrulamaIcindirSiparisTahsilat": "This is used for verification. Order collection accounts are kept in <banka>Bank Accounts</banka>.",
         "belgeGuncellemenizReddedildi": "Your document update was rejected — your current document remains valid.",
         "belgeGuncellemenizReddedildiGerekce": "Your document update was rejected: {reason} — your current document remains valid.",
@@ -6432,10 +6371,10 @@
         "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
         "idBothSidesHint": "If it is an ID card, upload the front and back in a single file (a PDF or a combined image).",
         "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved",
-        "firmanizDogrulandiSilver": "Your company is verified. With your Silver plan you can quote on public requests; upgrade to Gold to publish requests.",
-        "firmanizDogrulandiGold": "Your company is verified. With your Gold plan you can publish requests and quote on public requests.",
         "dogrulamaBilgileriYuklenemedi": "Verification details could not be loaded.",
-        "yenidenDene": "Try again"
+        "yenidenDene": "Try again",
+        "dogrulamaAciklama": "Verification is free. A verified company shows the “Verified” badge on its profile and gets every feature of the platform: you can quote on public requests, and publish and award buying requests. An unverified company appears to buyers as an “Unverified company”. Your documents are reviewed manually by our team.",
+        "firmanizDogrulandi": "Your company is verified. Every feature of the platform is open on your account: you can quote on public requests and publish buying requests."
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Company details require permission",
@@ -6446,7 +6385,6 @@
         "buSayfaKullaniciVeYetki": "This page requires the “Users and permissions” permission."
       },
       "ayarlarPage": {
-        "silverIleAcilir": "Unlocks with Silver",
         "acik": "On",
         "kapali": "Off",
         "ayarlar": "Settings",
@@ -6516,7 +6454,7 @@
         },
         "dogrulama": {
           "title": "Verification documents",
-          "description": "Free — a “Verified” badge on your profile; required for quoting on public requests (Silver) and publishing requests (Gold)"
+          "description": "Free — a “Verified” badge on your profile; all it takes to unlock every feature, including quoting on public requests and publishing requests"
         }
       },
       "verificationStatus": {
@@ -6605,8 +6543,7 @@
         "istekGonderildi": "Request sent",
         "sizeIstekGonderdiYanitla": "Sent you a request — Reply",
         "baglantiIstegiGonder": "Send connection request",
-        "baglantiIcinSilver": "Upgrade to Silver to connect",
-        "baglantiIcinOnceDogrulanin": "Connecting needs Silver — get verified first",
+        "baglantiIcinDogrulama": "Connecting requires company verification",
         "dahaFazla": "More",
         "baglantiyiKaldir": "Remove connection",
         "engelle": "Block",
@@ -6635,7 +6572,7 @@
         "kalemBirimi": "{n, plural, one {<num>#</num> <unit>line item</unit>} other {<num>#</num> <unit>line items</unit>}}",
         "kilitliTaleplerBaslik": "This company has open buying requests",
         "kilitliTaleplerSayi": "{n, plural, one {# open buying request} other {# open buying requests}}",
-        "kilitliTaleplerAciklama": "Viewing this company's public requests and quoting on them unlock with the Silver plan. If the company invites you to a request, you can see it in full on the free plan too."
+        "kilitliTaleplerAciklama": "Viewing this company's public requests and quoting on them unlock with company verification. If the company invites you to a request, you can see it in full without verification."
       },
       "page": {
         "yonlendiriliyor": "Redirecting…"
@@ -6796,9 +6733,8 @@
         "istekGeriCekilsinAciklama": "The connection request you sent to \"{name}\" will be withdrawn.",
         "davetIptalEdilsinMi": "Cancel the invitation?",
         "davetIptalAciklama": "The invitation sent to {email} will be cancelled; a company that signs up with this address will not be connected to you automatically.",
-        "silverIleDavetEt": "Invite with Silver",
-        "davetIcinOnceDogrulanin": "Get verified first to invite",
-        "gelenIstekleriKabulEdebilirsiniz": "You can accept connection requests sent to you here. Sending connection requests and email invitations is available with the Silver plan."
+        "davetIcinDogrulama": "Inviting requires company verification",
+        "gelenIstekleriKabulEdebilirsiniz": "You can accept connection requests sent to you here. Sending connection requests and email invitations unlocks with company verification."
       },
       "profileEditor": {
         "gecersizBaglantiYalnizHttpHttps": "Invalid link — only http/https addresses are accepted",
@@ -6806,7 +6742,7 @@
         "profilKaydedildi": "Profile saved",
         "ucretsizDogrulanin": "Get verified for free",
         "belgelerinizInceleniyorSonucBildirilecek": "Your documents are under review — you will be notified of the result.",
-        "profilinizdeDogrulanmisRozetiGorunurVe": "A “Verified” badge appears on your profile and you can submit quotes for public requests. No plan is required.",
+        "profilinizdeDogrulanmisRozetiGorunurVe": "A “Verified” badge appears on your profile and every feature of the platform opens to your company.",
         "belgeleriYukle": "Upload documents",
         "duzenlemeIcinFirmaYonetimiYetkisi": "Editing requires company management permission.",
         "sektor": "Industry",
@@ -6882,7 +6818,7 @@
         "duzenleFirmaBilgileri": "Edit → Company details",
         "duzenle": "Edit",
         "kaydedilemedi": "Could not save",
-        "aiIleGuclendirmeSilverVeUzeri": "AI enhancement is available on Silver and higher plans.",
+        "aiIleGuclendirmeDogrulama": "AI enhancement requires company verification.",
         "hizmetDeger": "Service: {value}",
         "sertifikaDeger": "Certificate: {value}",
         "enAz1Kategori": "At least 1 category",
@@ -7001,10 +6937,9 @@
         "rekabetinSizeKazandirdiginiGorunHedef": "See what competition has saved you — with line item detail against the target price.",
         "teklifKarsilastirmaRaporu": "Quote comparison report",
         "birSatinAlmaTalebineGelen": "Compare the quotes received for a buying request side by side, line item by line item.",
-        "silverIleAcilir": "Unlocks with Silver",
-        "goldIleAcilir": "Unlocks with Gold",
+        "dogrulamaIleAcilir": "Unlocks with verification",
         "satinalmaRaporlari": "Purchasing reports",
-        "satinalmaRaporlariKilitliAciklama": "The general purchase request, savings and bid comparison reports are part of the Gold package.",
+        "satinalmaRaporlariKilitliAciklama": "The general buying request, savings and quote comparison reports unlock with company verification.",
         "sizeAcikRaporYok": "No reports available to you",
         "raporlarYetkiyleAcilir": "Reports open with the “Visitors and business insights” or “Purchasing reports” permission. Contact your company administrator to request access."
       },
@@ -7271,8 +7206,7 @@
         "onayciYokAyarlardanRolVerin": "There is no active user who can be an approver. Grant a user the <strong>Approver</strong> role under <link>Settings → Users</link>.",
         "buKisiSirasiGeldigindeKazandirmayi": "When their turn comes, this person approves or rejects the award from the Approvals page. Only active users with the <strong>Founder, Manager or Approver</strong> role are listed; to add someone else, grant them the Approver role under <link>Settings → Users</link>.",
         "kendiniziOnayciSectiniz": "You selected yourself as the approver. For separation of duties, this step is assigned to another approver whenever <strong>you started the award yourself</strong>; if no suitable person is available, the award is rejected.",
-        "yeniAkisGoldPakette": "Creating new approval flows and copying flows comes with Gold. You can still edit, deactivate or delete your existing flows.",
-        "paketleriIncele": "View plans"
+        "yeniAkisDogrulama": "Creating new approval flows and copying flows requires company verification. You can still edit, deactivate or delete your existing flows."
       },
       "onaylarPage": {
         "onayladi": "approved",
@@ -7350,69 +7284,6 @@
         "sonrakiOnayciyaGecilir": "The request moves on to the next approver."
       }
     },
-    "premium": {
-      "premiumSatinAlPage": {
-        "yukleniyor": "Loading…"
-      },
-      "checkoutView": {
-        "paketSatinAlmadanOnceFirmanizi": "Verify your company before purchasing a plan. Verification is free.",
-        "yukleniyor": "Loading…",
-        "paketiFirmaKurucusuSatinAlabilir": "Only the company Founder can purchase a plan",
-        "buPaketinButunOzellikleriHesabinizda": "Every feature of this plan is already active in your account.",
-        "paketVeFaturaIslemleriYalniz": "Plan and billing actions are only carried out from the account of the company Founder.",
-        "paketlereDon": "Back to plans",
-        "paketAcilamadi": "The plan could not be activated",
-        "paketler": "Plans",
-        "degistir": "Change",
-        "odemeDonemi": "Billing period",
-        "yillikPesin": "Annual, paid upfront",
-        "n12AyKesintisizKullanim": "12 months of uninterrupted use",
-        "faturaBilgileri": "Billing details",
-        "unvan": "Legal name",
-        "firmaBilgileri": "Company information",
-        "ozet": "Summary",
-        "yillik": "{name} · annual",
-        "faturadaEklenir": "Added on the invoice",
-        "toplam": "Total",
-        "usdKdvHaric": "USD, excluding VAT",
-        "isleniyor": "Processing…",
-        "satinAl": "Buy",
-        "satinAlmaTalebiGonder": "Email us to purchase",
-        "paketiZatenFirmanizda": "Your company already has the {name} plan",
-        "mailKonu": "{name} plan purchase — {company}",
-        "mailGovde": "Hello,\n\nWe would like to purchase the {name} plan for {company} with an annual term.",
-        "paketiAcildi": "The {name} plan is active",
-        "paketiniSatinAl": "Purchase the {name} plan",
-        "ay": "/mo",
-        "kdv": "VAT",
-        "carpi12": "{amount} × 12",
-        "faturaUnvaniVeVergiKimligi": "The billing name and tax ID are taken from Company information.",
-        "dogrulamaIncelemedeBaslik": "Your verification is under review",
-        "dogrulamaIncelemedeMetin": "Our team is reviewing your documents. Once your company is approved you can buy the plan here; there is no need to upload your documents again.",
-        "dogrulamaDurumu": "Verification status"
-      },
-      "packagesView": {
-        "paketSatinAlmadanOnceFirmanizi": "Verify your company before purchasing a plan. Verification is free.",
-        "paketler": "Plans",
-        "buSayfaPaketiyleAcilir": "This page opens with the {requiredName} plan.",
-        "gorunmekUcretsizOneCikmakPaketli": "Being visible is free; standing out comes with a plan.",
-        "mevcutPaketiniz": "Your current plan",
-        "ucretsiz": "Free",
-        "suresiz": "No time limit",
-        "yillikOdemedeKdvHaric": "With annual billing, excluding VAT",
-        "satinAl": "Buy {name}",
-        "paketiFirmaKurucusuSatinAlabilir": "Only the company Founder can purchase a plan",
-        "onceUcretsizDogrulama": "Free verification first",
-        "kullaniyorsunuz": "In use",
-        "paketinizeDahil": "Included in your plan",
-        "paketi": "{name} plan",
-        "ay": "/mo",
-        "dogrulamaIncelemede": "Your verification is under review — you can buy once it is approved",
-        "durumuGor": "View status",
-        "bitis": "Ends on {date}",
-        "uyelikSuresiDoldu": "Your paid plan expired on {date} and your company moved to the Standard plan. Buy a plan again to restore its features."
-      }
-    },
     "inbox": {
       "bildirimlerPage": {
         "bildirimler": "Notifications",
@@ -7463,15 +7334,13 @@
         "mesajGondermekRoluGerektirir": "Sending messages requires the {role} role — you are only viewing this conversation.",
         "mesajYaz": "Write a message…",
         "enterIpucu": "Enter: send, Shift+Enter: new line",
-        "aliciYonuGoldGerektirir": "Messaging as a buyer requires the Gold plan — you can still view this conversation.",
-        "onceUcretsizDogrulan": "Get verified for free first",
-        "goldaGec": "Upgrade to Gold",
+        "aliciYonuDogrulamaGerektirir": "Messaging as a buyer requires company verification — you can still view this conversation.",
         "karakterSayaci": "{n, number}/{max, plural, one {# character} other {# characters}}"
       }
     },
     "verifyNudge": {
       "title": "Buyers will see your quote as coming from an “Unverified company”",
-      "body": "Verified companies earn buyers' trust and stand out in their lists. Verification is free, takes a few minutes and is the only requirement for upgrading to Silver.",
+      "body": "Rothern is completely free. Company verification is all you need to move all your buying requests online and to quote.",
       "cta": "Get verified for free",
       "requiredTitle": "Company verification is required to submit a quote",
       "requiredBody": "You have no connection with or invitation from the buyer of this public request; only verified companies can submit quotes on such requests. Save your quote as a draft now and submit it once verification is complete. Verification is free.",

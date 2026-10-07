@@ -11,7 +11,6 @@
   "marketing": {
     "nav": {
       "howItWorks": "Nasıl Çalışır",
-      "pricing": "Fiyatlar",
       "login": "Giriş Yap",
       "signup": "Ücretsiz Kaydol",
       "openMenu": "Menüyü aç",
@@ -48,30 +47,30 @@
     },
     "home": {
       "supplierTitle": "Hangi talebe teklif vereceksiniz?",
-      "supplierLead": "Doğrulanmış alıcıların kapalı zarf talepleri. Davet edildiğiniz talebe teklif ücretsiz; herkese açık taleplere Silver paketiyle.",
+      "supplierLead": "Doğrulanmış alıcıların kapalı zarf talepleri. Teklif vermek tamamen ücretsiz.",
       "supplierPlaceholder": "Talep, sektör veya ürün arayın",
-      "supplierCtaText": "Davetli taleplere hemen, herkese açık taleplere Silver ile teklif verin",
+      "supplierCtaText": "Taleplere teklif vermek tamamen ücretsiz",
       "supplierCtaLabel": "Ücretsiz kaydolun",
       "supplierMemberCtaLabel": "Açık talepleri görün",
       "buyerTitle": "Hangi ürünü arıyorsunuz?",
-      "buyerLead": "Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin.",
+      "buyerLead": "Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin. Alım talebi açmak tamamen ücretsiz.",
       "buyerPlaceholder": "Ürün veya sektör arayın...",
-      "buyerCtaText": "Aradığınız ürünü bulamadınız mı?",
+      "buyerCtaText": "Aradığınız ürünü bulamadınız mı? Alım talebi açmak ücretsiz.",
       "buyerCtaLabel": "Talep aç",
       "categoriesCta": "Şimdi tedarikçi bulun",
       "newestTitle": "Yeni eklenen ürünler",
       "newestLead": "Tedarikçilerin vitrinlerine en son eklediği ürünler.",
       "demandsTitle": "Alıcılar şu an bunları arıyor",
-      "demandsLead": "Kalemler, miktar, kapsam ve kalan süre herkese açık. Alıcı adı, şartname ve belgeler Silver paketiyle açılır; davetli tedarikçiler ücretsiz üyelikte de görür.",
+      "demandsLead": "Kalemler, miktar, kapsam ve kalan süre herkese açık. Teklif vermek tamamen ücretsiz.",
       "allDemands": "Tüm talepler",
       "demandsEmpty": "Talepler, kaydolduktan sonra panelinizde kategorinize göre eşleşir.",
       "signupFree": "Ücretsiz kaydolun",
       "showcaseTitle": "Ürününüz vitrinde mi?",
-      "showcaseLead": "Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin. Vitrin ücretsiz pakette de açık.",
+      "showcaseLead": "Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin. Vitrin tamamen ücretsiz.",
       "addProduct": "Ürün ekle",
-      "seoParagraph": "Rothern; üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan B2B pazar yeridir. Ürün ve firma profilleri herkese açık, kayıt ücretsizdir. Davet edildiğiniz taleplere ücretsiz hesapla teklif verilir; herkese açık taleplere teklif vermek ve alıcı bilgilerini görmek Silver, tedarikçiye bilgi talebi göndermek ve alım talebi yayımlamak Gold paketi gerektirir.",
+      "seoParagraph": "Rothern; üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır. Alım talebi oluşturmak, teklif vermek ve ürün yayımlamak tamamen ücretsizdir.",
       "metaTitle": "B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
-      "metaDescription": "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, açık alım taleplerini görün. Kayıt ücretsiz; teklif vermek Silver, talep açmak Gold ile.",
+      "metaDescription": "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, açık alım taleplerini görün. Alım talebi açmak ve teklif vermek tamamen ücretsiz.",
       "metaAbsoluteTitle": "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
       "comingSoonTitle": "Çok Yakında",
       "comingSoonDescription": "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz.",
@@ -94,7 +93,7 @@
     "trustBand": {
       "eyebrow": "Nasıl çalışır",
       "title": "Talepten teklife, tekliften siparişe",
-      "lead": "İncelemek ücretsiz. Herkese açık taleplere teklif ve alıcı kimliği Silver paketiyle; komisyon alınmaz.",
+      "lead": "İncelemek ücretsiz. Herkese açık taleplere teklif ve alıcı kimliği firma doğrulamasıyla açılır; komisyon alınmaz.",
       "step1Title": "Kaydol ve firmanı tanıt",
       "step1Body": "Tek hesapla hem alıcı hem satıcı olursun. Faaliyet alanını ve kategorilerini seç; eşleşen talepler sana gelsin.",
       "step2Title": "Kapalı zarf teklif ver",
@@ -119,7 +118,7 @@
       "step1Body": "Ürünü, firmayı veya kategoriyi bul. Fiyat ve minimum sipariş kartta yazar.",
       "step1Link": "Ürünlere göz at",
       "step2Title": "Teklif iste",
-      "step2Body": "Bulduysan firmaya bilgi talebi gönder, bulamadıysan talep aç — ikisi de Gold paketiyle; kategorinle eşleşen tedarikçiler teklif versin.",
+      "step2Body": "Bulduysan firmaya bilgi talebi gönder, bulamadıysan talep aç — ikisi için de firma doğrulaması yeterli; kategorinle eşleşen tedarikçiler teklif versin.",
       "step2Link": "Talep aç",
       "step3Title": "Kapalı zarfta karşılaştır",
       "step3Body": "Teklifçiler birbirini görmez. Tek tabloda karşılaştır, kazandır; sipariş kendiliğinden oluşur.",
@@ -139,7 +138,7 @@
       "intro": "<b>Rothern</b>, alıcı ve tedarikçi firmaları tek hesapta birleştiren bir B2B tedarik pazar yeridir. Firmalar Rothern üzerinde ürün vitrini yayımlar, satın alma talebi açar, kapalı zarf usulüyle teklif toplar, pazarlık yürütür, kazandırma yapar ve sipariş sürecini teslimata kadar tek panelden takip eder.",
       "whatTitle": "Ne yapıyoruz",
       "what1": "Endüstriyel alımda süreç hâlâ büyük ölçüde e-posta, telefon ve Excel üzerinden yürüyor: alıcı tedarikçi listesini kendi defterinden çıkarıyor, teklifleri elle karşılaştırıyor, kimin ne zaman ne teklif ettiği tek bir yerde durmuyor. Rothern bu akışı tek panele taşıyor — talep açmaktan siparişin teslimine kadar her adım aynı kayıt üzerinde yaşıyor ve kimin neyi ne zaman yaptığı denetlenebilir kalıyor.",
-      "what2": "Tedarikçi tarafında ise mesele görünürlük: ürününü listeleyen bir firma, Silver paketiyle kendisini hiç tanımayan bir alıcının açtığı herkese açık talebe teklif verebiliyor. Eşleşme, dört seviyeli uluslararası kategori ağacı ve firmaların beyan ettiği faaliyet tipleri üzerinden kuruluyor.",
+      "what2": "Tedarikçi tarafında ise mesele görünürlük: ürününü listeleyen doğrulanmış bir firma, kendisini hiç tanımayan bir alıcının açtığı herkese açık talebe teklif verebiliyor. Eşleşme, dört seviyeli uluslararası kategori ağacı ve firmaların beyan ettiği faaliyet tipleri üzerinden kuruluyor.",
       "oneAccountTitle": "Tek hesap, iki taraf",
       "oneAccountBody": "Bir firma çoğu zaman hem alıcıdır hem satıcı. Rothern'de tek firma hesabı iki paneli birden açar: satın alma tarafında talep açıp teklif toplarsınız, satış tarafında başkalarının taleplerine teklif verir ve ürün vitrininizi yönetirsiniz. Ekipteki her kişinin hangi tarafta ne yapabileceği tik tablosuyla ayrı ayrı belirlenir; yalnız onaylayan bir yönetici, teklif veremeyen bir görüntüleyici ya da yalnız satış tarafında çalışan bir satışçı tanımlanabilir.",
       "principlesTitle": "İlkelerimiz",
@@ -148,11 +147,11 @@
       "p2Title": "Alıcının kimliği alıcıya aittir.",
       "p2Body": "Herkese açık talep sayfalarında alıcı firmanın adı gösterilmez: ne aradığınız, üretim planınız hakkında rakiplerinize bilgi vermemelidir. Görünen şey kimlik değil niteliktir — şehir, ülke, sektör, faaliyet tipi.",
       "p3Title": "Görünmek ücretsizdir.",
-      "p3Body": "Profil açmak, dizinde yer almak ve ürün yayımlamak için ödeme gerekmez. Ücretli paketlerin karşılığı görünürlüğün kendisi değil önceliğidir: sıralama, sınırsız ürün, belge ve video, herkese açık taleplere erişim.",
+      "p3Body": "Profil açmak, dizinde yer almak ve ürün yayımlamak için ödeme gerekmez; platform şu anda ücretsizdir. Firma doğrulamasının karşılığı görünürlüğün kendisi değil önceliğidir: sıralama, sınırsız ürün, belge ve video, herkese açık taleplere erişim.",
       "p4Title": "Sayı uydurmayız.",
       "p4Body": "Ölçmediğimiz hiçbir şeyi göstermeyiz. “Şu ürünü 40 tedarikçi inceledi” türü sayaçlar, arkasında gerçek bir ölçüm olmadığı sürece sitede yer almaz; bir alan boşsa boş görünür.",
       "noIntermediationTitle": "Ticarete aracılık etmiyoruz",
-      "noIntermediationBody": "Rothern üzerinden satılan tek şey üyelik paketleridir. Firmalar arasındaki mal ve hizmet bedeline platform aracılık etmez, parayı taşımaz; sözleşme ve ödeme taraflar arasında doğrudan yürür. Sipariş ekranındaki ödeme adımları, tarafların birbirine yaptığı bildirimlerin kaydıdır.",
+      "noIntermediationBody": "Rothern'in kullanımı şu anda ücretsizdir. Firmalar arasındaki mal ve hizmet bedeline platform aracılık etmez, parayı taşımaz; sözleşme ve ödeme taraflar arasında doğrudan yürür. Sipariş ekranındaki ödeme adımları, tarafların birbirine yaptığı bildirimlerin kaydıdır.",
       "whoTitle": "Kimler kullanabilir",
       "whoBody": "Amerika Birleşik Devletleri ve kapsamlı yaptırım uygulanan ülkeler (İran, Kuzey Kore, Suriye, Küba) dışında dünyanın her ülkesinden firma kaydı alınıyor. Belge kümesi ülkeye göre değişiyor; doğrulama istisnasız insan eliyle yapılıyor, otomatik onay yolu bulunmuyor. Ayrıntılar için <faq>sık sorulan sorular</faq> ve <how>Nasıl Çalışır</how> sayfalarına bakabilirsiniz.",
       "operatorTitle": "İşletmeci",
@@ -165,7 +164,7 @@
       "intro": "Rothern, {legalName} tarafından işletilen B2B tedarik platformudur. Sorularınız için <support>{supportEmail}</support> adresine yazabilirsiniz; kişisel verilerinize ilişkin başvurular için <kvkk>{kvkkEmail}</kvkk> adresi kullanılır.",
       "whereTitle": "Hangi konuda nereye yazmalı",
       "supportTitle": "Hesap, üyelik ve teknik destek",
-      "supportBody": "<mail>{email}</mail> — giriş sorunları, firma doğrulaması, paket ve koltuk soruları, ürün yayımlama ve talep akışıyla ilgili her şey. Yazarken firma adınızı ve varsa ilgili talep/ürün adresini eklemeniz süreci kısaltır.",
+      "supportBody": "<mail>{email}</mail> — giriş sorunları, firma doğrulaması, kullanıcı koltukları, ürün yayımlama ve talep akışıyla ilgili her şey. Yazarken firma adınızı ve varsa ilgili talep/ürün adresini eklemeniz süreci kısaltır.",
       "dataTitle": "Kişisel verilere ilişkin başvurular",
       "dataBody": "<mail>{email}</mail> — KVKK kapsamındaki bilgi edinme, düzeltme ve silme talepleri. Bu adres yalnız veri başvuruları içindir; destek soruları için yukarıdaki adresi kullanın.",
       "abuseTitle": "İçerik bildirimi ve kural ihlali",
@@ -184,16 +183,16 @@
     },
     "faq": {
       "metaTitle": "Sık sorulan sorular",
-      "metaDesc": "Rothern nasıl çalışır: kapalı zarf teklif, alıcı kimliğinin gizliliği, ücretsiz vitrin ve paketler, doğrulama, kategori ağacı ve kullanıcı yetkileri hakkında sık sorulan sorular.",
+      "metaDesc": "Rothern nasıl çalışır: kapalı zarf teklif, alıcı kimliğinin gizliliği, ücretsiz vitrin, firma doğrulaması, kategori ağacı ve kullanıcı yetkileri hakkında sık sorulan sorular.",
       "title": "Sık sorulan sorular",
-      "intro": "Rothern'in nasıl çalıştığına dair en çok sorulanlar. Süreçlerin ayrıntısı <how>Nasıl Çalışır</how> sayfasında; paketler ve fiyatlar <pricing>fiyat bölümünde</pricing>.",
+      "intro": "Rothern'in nasıl çalıştığına dair en çok sorulanlar. Süreçlerin ayrıntısı <how>Nasıl Çalışır</how> sayfasında.",
       "notFound": "Cevabını bulamadınız mı? <contact>İletişim sayfasından</contact> yazabilirsiniz.",
       "g1": {
         "heading": "Platform",
         "q1": "Rothern nedir?",
         "a1": "Rothern, alıcı ve tedarikçi firmaları tek hesapta birleştiren bir B2B tedarik pazar yeridir. Firmalar ürün vitrini yayımlar, satın alma talebi açar, kapalı zarf usulüyle teklif toplar ve kazanan teklifi siparişe dönüştürür. Aynı firma hesabı hem alıcı hem satıcı tarafında çalışır; iki ayrı hesap açmak gerekmez.",
         "q2": "Rothern alım satıma aracılık ediyor mu?",
-        "a2": "Hayır. Rothern üzerinden satılan tek şey üyelik paketleridir. Firmalar arasındaki mal ve hizmet bedeline platform aracılık etmez, parayı taşımaz; ticaret taraflar arasında doğrudan yürür. Sipariş ekranındaki ödeme adımları tarafların birbirine yaptığı bildirimlerdir.",
+        "a2": "Hayır. Rothern'in kullanımı şu anda ücretsizdir. Firmalar arasındaki mal ve hizmet bedeline platform aracılık etmez, parayı taşımaz; ticaret taraflar arasında doğrudan yürür. Sipariş ekranındaki ödeme adımları tarafların birbirine yaptığı bildirimlerdir.",
         "q3": "Hangi ülkelerden kayıt alınıyor?",
         "a3": "Amerika Birleşik Devletleri ve kapsamlı yaptırım uygulanan ülkeler (İran, Kuzey Kore, Suriye, Küba) dışındaki tüm ülkelerden. Belge kümesi ülkeye göre değişir: çoğu ülkeden şirket sicil belgesi, vergi kayıt belgesi ve yetkilinin kimliği ya da pasaportu istenir; Çin'de 营业执照 (iş ruhsatı) sicil, vergi ve temsilci bilgisini tek belgede taşıdığı için ayrıca vergi belgesi istenmez."
       },
@@ -204,12 +203,12 @@
         "q2": "Alım talebini açan firmanın adı neden görünmüyor?",
         "a2": "Bir alım talebinde “kim alıyor” doğrudan rekabet istihbaratıdır: bir firmanın 40 ton çelik boru araması üretim planını açık eder. Bu yüzden herkese açık talep sayfalarında alıcının adı, logosu ve profil bağlantısı gösterilmez. Görünen bilgiler kimlik değil niteliktir: şehir, ülke, sektör, faaliyet tipi ve “Doğrulanmış alıcı” rozeti. Alıcının kimliği, teklif sürecinde karşı tarafa açılır.",
         "q3": "Bir talebe teklif vermek için ne gerekiyor?",
-        "a3": "Sizi davet eden ya da bağlantınız olan bir firmanın talebine ücretsiz hesapla, belge doğrulaması olmadan teklif verebilirsiniz — alıcı sizi zaten tanıyor. Herkese açık bir talebe tanımadan teklif vermek içinse Silver paket ve firma doğrulaması gerekir; oraya sokan platform olduğu için kefil de platformdur."
+        "a3": "Sizi davet eden ya da bağlantınız olan bir firmanın talebine belge doğrulaması olmadan teklif verebilirsiniz — alıcı sizi zaten tanıyor. Herkese açık bir talebe tanımadan teklif vermek içinse firma doğrulaması gerekir; oraya sokan platform olduğu için kefil de platformdur."
       },
       "g3": {
         "heading": "Ürünler ve fiyat",
         "q1": "Ürün vitrini ücretsiz mi?",
-        "a1": "Evet. Ücretsiz Standart üyelikle firma profili açabilir, dizinde yer alabilir ve {n} ürüne kadar yayımlayabilirsiniz; firma doğrulaması ve “Doğrulanmış” rozeti de ücretsizdir. Ücretli paketlerin getirdiği şey görünmek değil öne çıkmaktır: dizinde öncelikli sıralama, sınırsız ürün, ürün belgesi ve videosu ve herkese açık taleplere erişim.",
+        "a1": "Evet. Kayıt olur olmaz firma profili açabilir, dizinde yer alabilir ve {n} ürüne kadar yayımlayabilirsiniz; firma doğrulaması ve “Doğrulanmış” rozeti de ücretsizdir. Doğrulamanın getirdiği şey görünmek değil öne çıkmaktır: dizinde öncelikli sıralama, sınırsız ürün, ürün belgesi ve videosu ve herkese açık taleplere erişim.",
         "q2": "Bazı ürünlerde neden fiyat yazmıyor?",
         "a2": "Fiyat üç biçimde olabilir: sabit fiyat, miktara göre kademeli fiyat ya da “fiyat için teklif isteyin”. Üçüncüsü eksik veri değil, satıcının bilinçli tercihidir ve platform bunu cezalandırmaz — aksi hâlde satıcılar alanı doldurmak için gerçek olmayan bir fiyat yazardı. Fiyatlar KDV hariçtir ve satıcının beyanıdır.",
         "q3": "“Doğrulanmış” rozeti ne anlama geliyor?",
@@ -222,7 +221,7 @@
         "q1": "Kayıt olmak için onay bekliyor muyum?",
         "a1": "Hayır. Hesap, e-posta doğrulaması ve kısa bir kurulum adımından sonra hemen çalışır. Admin onayı yalnız belge doğrulaması (KYC) için gerekir ve o da her işlem için değil, platformun kefil olduğu yerlerde aranır: herkese açık talebe teklif, talep yayımlama ve kazandırma gibi.",
         "q2": "Ekibimden birkaç kişi aynı hesabı kullanabilir mi?",
-        "a2": "Evet. Firma hesabına kullanıcı davet edilir ve her kişinin yetkisi tik tablosuyla ayrı ayrı belirlenir: satın alma, satış, onaylama ve yönetim. Satın alma ve satış tarafında işlem yapan her kişi bir “koltuk” tüketir; koltuk sayısı pakete bağlıdır. Yalnız görüntüleyen ya da onaylayan kişiler koltuk tüketmez.",
+        "a2": "Evet. Firma hesabına kullanıcı davet edilir ve her kişinin yetkisi tik tablosuyla ayrı ayrı belirlenir: satın alma, satış, onaylama ve yönetim. Satın alma ve satış tarafında işlem yapan her kişi bir “koltuk” tüketir; koltuk sayısı firma doğrulandığında artar. Yalnız görüntüleyen ya da onaylayan kişiler koltuk tüketmez.",
         "q3": "Kişisel verilerim ne oluyor?",
         "a3": "Rothern, KVKK kapsamında veri sorumlusudur. Aydınlatma metni ve gizlilik politikası site altındaki sözleşmeler bölümündedir; başvurularınızı {kvkkEmail} adresine iletebilirsiniz. Firma profilinde herkese açık olan alanları siz seçersiniz; iletişim bilgileri ziyaretçilere değil yalnız kayıtlı üyelere gösterilir."
       }
@@ -248,11 +247,11 @@
       },
       "iade": {
         "metaTitle": "Teslimat, İptal ve İade Koşulları",
-        "metaDesc": "Rothern üyelik paketlerinde teslimat, iptal ve iade koşulları; cayma hakkı ve geri ödeme süreci."
+        "metaDesc": "Rothern'in ücretli hizmetlerinde teslimat, iptal ve iade koşulları; cayma hakkı ve geri ödeme süreci."
       },
       "mesafeli": {
         "metaTitle": "Mesafeli Satış Sözleşmesi",
-        "metaDesc": "Rothern üyelik paketlerinin mesafeli satış koşulları: ücret, ödeme, yenileme, cayma ve iptal."
+        "metaDesc": "Rothern'in ücretli hizmetlerine ilişkin mesafeli satış koşulları: ücret, ödeme, yenileme, cayma ve iptal."
       }
     },
     "inquiryVerify": {
@@ -346,25 +345,15 @@
       "s95": "Arazi, bina ve altyapı yatırımları."
     },
     "howItWorks": {
-      "metaTitle": "Nasıl çalışır — kapalı zarf teklif, sipariş ve paketler",
-      "metaDesc": "Rothern nasıl çalışır: satın alma talebi açma, kapalı zarf teklif toplama, pazarlık, kazandırma ve sipariş takibi. Paketler ve sık sorulan sorular.",
-      "plans": {
-        "standartSubtitle": "Ücretsiz Plan",
-        "silverSubtitle": "Büyüyen işletmeler için",
-        "goldSubtitle": "En kapsamlı çözüm",
-        "popular": "En popüler",
-        "free": "Ücretsiz",
-        "perMonth": "/ay",
-        "forever": "Sonsuza dek",
-        "yearly": "yıllık ödemede"
-      },
+      "metaTitle": "Nasıl çalışır — kapalı zarf teklif, sipariş ve firma doğrulaması",
+      "metaDesc": "Rothern nasıl çalışır: satın alma talebi açma, kapalı zarf teklif toplama, pazarlık, kazandırma ve sipariş takibi. Firma doğrulaması ve sık sorulan sorular.",
       "faq": {
         "q1": "Alıcı ve tedarikçi ayrı mı kayıt oluyor?",
         "a1": "Hayır. Rothern'de tek firma hesabı var; aynı hesap hem alış hem satış yapar. Kişilere atadığınız roller (satın alma / satış) neyi görüp yapabileceğini belirler.",
         "q2": "Tedarikçiler birbirinin teklifini görür mü?",
         "a2": "Asla. Kapalı zarf: her tedarikçi yalnızca kendi teklifini görür. Talep sahibi tüm teklifleri görür ve en iyisini kazandırır.",
-        "q3": "Standart üyelikle ne yapabilirim?",
-        "a3": "Profilinizi yayınlar, {n} ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri de alıcı adı gizli olarak görürsünüz. Bu taleplere teklif vermek ve alıcıyı görmek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak ve firma dizininde öncelikli sıra Silver ile; kendi satın alma talebinizi açmak Gold ile gelir. Firma doğrulaması ve “Doğrulanmış” rozeti ücretsizdir.",
+        "q3": "Firmamı doğrulamadan ne yapabilirim?",
+        "a3": "Profilinizi yayınlar, {n} ürüne kadar vitrin açar, firmaları keşfeder ve davet edildiğiniz ya da bağlantılı firmaların taleplerine teklif verirsiniz. Herkese açık talepleri de alıcı adı gizli olarak görürsünüz. Bu taleplere teklif vermek ve alıcıyı görmek, bağlantı daveti göndermek, gelen bilgi taleplerinde alıcı kimliğini görüp yanıtlamak, firma dizininde öncelikli sıra ve kendi satın alma talebinizi açmak firma doğrulamasıyla gelir. Firma doğrulaması ve “Doğrulanmış” rozeti ücretsizdir.",
         "q4": "Platform paraya aracılık ediyor mu?",
         "a4": "Hayır. Ödeme taraflar arasında doğrudan yapılır; Rothern paraya aracılık etmez; ödeme yalnızca “ödendi” ya da “ödeme bekleniyor” olarak işaretlenir. Koltuk başına ücret yoktur.",
         "q5": "Siparişten sonra ne oluyor?",
@@ -468,7 +457,7 @@
         "catalog": "Şirket Kataloğu",
         "download": "Dosyayı İndir",
         "rfqLine": "Bu firmayla çalışmak için",
-        "requestQuote": "Bağlantı isteği · Silver"
+        "requestQuote": "Bağlantı isteği"
       },
       "invite": {
         "title": "Ekip Arkadaşı Davet Et",
@@ -488,13 +477,13 @@
         "badge": "B2B ticaretin tek platformu",
         "title1": "<buy>Hem al</buy>, <sell>hem sat.</sell>",
         "title2": "Tek platformda.",
-        "lead": "Doğrulanmış firmaları ve ürünleri keşfedin, vitrininizi açın, ürünlerinizi yeni müşterilere ulaştırın. Talep açmak Gold, herkese açık taleplere teklif Silver paketiyle.",
+        "lead": "Doğrulanmış firmaları ve ürünleri keşfedin, vitrininizi açın, ürünlerinizi yeni müşterilere ulaştırın. Talep açmak ve herkese açık taleplere teklif vermek için firma doğrulaması yeterli.",
         "ctaBuyer": "Alıcı olarak keşfet",
         "ctaSupplier": "Tedarikçi olarak başla",
         "step1Title": "Keşfet",
         "step1Body": "Doğrulanmış firmaları ve ürünleri incele",
         "step2Title": "Bağlan",
-        "step2Body": "Gelen davetleri kabul et, mesajlaş; davet göndermek Silver ile",
+        "step2Body": "Gelen davetleri kabul et, mesajlaş; davet göndermek için firmanı doğrula",
         "step3Title": "Ticaret yap",
         "step3Body": "Güvenle alım yap, ürünlerini sat"
       },
@@ -577,21 +566,13 @@
         "ap3": "Yönetici",
         "ap3r": "Bekliyor"
       },
-      "pricing": {
-        "eyebrow": "İşiniz için daha fazla fırsat",
-        "title": "Planlar ve Fiyatlandırma",
-        "lead": "Ticaret hedeflerinize en uygun planı seçin, hemen başlayın.",
-        "trust1": "Güvenli ve şeffaf platform",
-        "trust2": "Alıcı ve tedarikçi tek hesapta",
-        "trust3": "Daha fazla iş fırsatı"
-      },
       "faqSection": {
         "title": "Sıkça sorulan sorular",
         "lead": "Aradığınız yanıtı bulamadınız mı? <mail>Bize e-posta gönderin</mail>, en kısa sürede dönelim."
       },
       "cta": {
         "title": "Firmanı bugün Rothern'e taşı",
-        "body": "Birkaç dakikada ücretsiz kaydol, ekibini davet et, vitrinini yayınla. Talep açmak Gold, herkese açık taleplere teklif Silver paketiyle. Şeffaf ve denetlenebilir B2B ticaret.",
+        "body": "Birkaç dakikada ücretsiz kaydol, ekibini davet et, vitrinini yayınla. Talep açmak ve herkese açık taleplere teklif vermek için firma doğrulaması yeterli. Şeffaf ve denetlenebilir B2B ticaret.",
         "signup": "Ücretsiz Kaydol",
         "login": "Giriş Yap"
       }
@@ -618,8 +599,8 @@
           "hint": "Ürünleriniz alıcıların önünde"
         },
         "badge": {
-          "title": "Doğrulanmış rozeti",
-          "hint": "Doğrulama ücretsiz"
+          "title": "Tamamen ücretsiz",
+          "hint": "Teklif vermek ve vitrin açmak"
         }
       }
     },
@@ -630,10 +611,10 @@
       "hSurfaces": "Ana yüzeyler",
       "surfaceProducts": "firmaların herkese açık ürün vitrini; teknik nitelik, minimum sipariş miktarı (MOQ) ve fiyat bilgisiyle. Kategori, satıcı ülkesi ve şehre göre süzülür.",
       "surfaceGeo": "Ülke ve şehir sayfaları: satıcı ülkesine göre ürünler {countryPattern} (ör. {countryExample}), şehre göre ürünler {cityPattern} (dünya geneli şehir listesi, GeoNames tabanlı). Tedarikçiler Türkiye ile sınırlı değildir.",
-      "surfaceCompanies": "doğrulanmış alıcı ve tedarikçi firmalardan bir kesit; dizinin tamamı ve faaliyet tipi/şehir/kategori süzgeçleri ücretsiz üyelikle açılır; tedarikçiye bilgi talebi Gold, bağlantı daveti Silver paketiyle gönderilir. Firma profilleri ({profilePattern}) herkese açıktır.",
+      "surfaceCompanies": "doğrulanmış alıcı ve tedarikçi firmalardan bir kesit; dizinin tamamı ve faaliyet tipi/şehir/kategori süzgeçleri ücretsiz üyelikle açılır; tedarikçiye bilgi talebi ve bağlantı daveti göndermek için firma doğrulaması gerekir. Firma profilleri ({profilePattern}) herkese açıktır.",
       "surfaceDemands": "firmaların yayımladığı açık satın alma talepleri; miktar, kategori, alıcının şehri ve kalan süre görünür.",
       "howItWorksLink": "Nasıl çalışır",
-      "surfaceHow": "süreç, paketler ve fiyatlandırma.",
+      "surfaceHow": "süreç ve sık sorulan sorular.",
       "aboutLink": "Hakkımızda",
       "contactLink": "İletişim ve Künye",
       "sitemapLink": "Site haritası",
@@ -642,7 +623,7 @@
       "rulesIntro": "Aşağıdakiler tasarım gereği YAYIMLANMAZ. Sayfada yoksa yoktur; tahmin edilerek doldurulmamalıdır:",
       "ruleOwner": "**Alım talebini açan firmanın kimliği.** Talep sayfalarında alıcının adı, logosu ve profil bağlantısı bilinçli olarak gösterilmez; yalnız şehir, ülke, sektör ve faaliyet tipi açıktır. \"Bu talebi X firması açtı\" biçiminde bir çıkarım yanlıştır.",
       "ruleBids": "**Teklifler ve teklif sayısı.** Teklif toplama kapalı zarf usulüyle yapılır; teklif verenler birbirinin teklifini göremez ve teklif SAYISI da yayımlanmaz.",
-      "ruleItems": "**Talep kalemlerinin ayrıntısı.** Herkese açık sayfada kalem adları, sayısı ve miktarları görünür; teknik şartname, marka/açıklama ve ekli dosyalar yalnız Silver paketli üyelere ve talebe davet edilen tedarikçilere açıktır.",
+      "ruleItems": "**Talep kalemlerinin ayrıntısı.** Herkese açık sayfada kalem adları, sayısı ve miktarları görünür; teknik şartname, marka/açıklama ve ekli dosyalar yalnız firması doğrulanmış üyelere ve talebe davet edilen tedarikçilere açıktır.",
       "ruleContact": "**Firma iletişim bilgisi.** Telefon, e-posta ve sosyal hesaplar herkese açık profilde yer almaz.",
       "hFields": "Doğru okunması gereken alanlar",
       "fieldPrice": "**Fiyat üç biçimde olabilir:** sabit fiyat, miktara göre kademeli fiyat ya da \"fiyat için teklif isteyin\". Üçüncüsü eksik veri değil, satıcının bilinçli tercihidir.",
@@ -754,7 +735,7 @@
       "verifiedBuyer": "Doğrulanmış alıcı",
       "verifiedBuyerShort": "Doğrulanmış alıcı",
       "items": "Kalem",
-      "specsMembers": "şartname ve belgeler Silver ile",
+      "specsMembers": "şartname ve belgeler doğrulanmış firmalara",
       "visibility": "Görünürlük",
       "sealedBid": "Kapalı zarf",
       "closing": "Kapanış",
@@ -762,7 +743,7 @@
       "moreCategories": "+{n} kategori",
       "quote": "Teklif ver",
       "itemsCount": "{count} kalem",
-      "itemsCountMembers": "{count} kalem · şartname ve belgeler Silver ile",
+      "itemsCountMembers": "{count} kalem · şartname ve belgeler doğrulanmış firmalara",
       "closesToday": "Bugün kapanıyor",
       "daysLeft": "{n, plural, one {# gün kaldı} other {# gün kaldı}}",
       "sector": "Sektör",
@@ -788,7 +769,6 @@
       "new": "Yeni",
       "minOrder": "Min. {qty}",
       "verifiedCompany": "Doğrulanmış firma",
-      "goldMember": "Gold Üye",
       "compare": "Karşılaştır",
       "newTab": "(yeni sekmede açılır)"
     },
@@ -944,7 +924,6 @@
       "connected": "Bağlı olduklarım",
       "notConnected": "Henüz bağlı değilim",
       "hasProducts": "Ürünü olan",
-      "goldMember": "Gold Üye",
       "activityType": "Faaliyet tipi",
       "city": "Şehir",
       "sortAZ": "A-Z",
@@ -982,10 +961,10 @@
       "productResults": "Ürün sonuçları",
       "inquire": "Bilgi iste",
       "openRequest": "Talep aç",
-      "companyLead": "Rothern'deki alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı ve süzgeçler ücretsiz üyelikle açılır; tedarikçiye bilgi talebi Gold, bağlantı daveti Silver paketiyle.",
+      "companyLead": "Rothern'deki alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı ve süzgeçler ücretsiz üyelikle açılır; bilgi talebi ve bağlantı daveti için firma doğrulaması yeterli.",
       "membersOnlyTitle": "Dizinin tamamı üyelere açık",
       "membersOnlyTitleMember": "Dizinin tamamı panelinizde",
-      "membersOnlyBody": "Tüm firmaları görün; faaliyet tipi, şehir ve kategoriye göre süzün, profillerini ve ürünlerini inceleyin. Üyelik ücretsizdir; alıcı ve tedarikçi tek hesapta. Tedarikçiye bilgi talebi göndermek Gold paketiyle açılır.",
+      "membersOnlyBody": "Tüm firmaları görün; faaliyet tipi, şehir ve kategoriye göre süzün, profillerini ve ürünlerini inceleyin. Üyelik ücretsizdir; alıcı ve tedarikçi tek hesapta. Tedarikçiye bilgi talebi göndermek için firma doğrulaması gerekir.",
       "joinFree": "Ücretsiz üye ol",
       "login": "Giriş yap",
       "listingPlaceholder": "Talep başlığı, kalem veya kategori arayın",
@@ -1002,7 +981,6 @@
       "founded": "Kuruluş {year}",
       "employees": "{n} çalışan",
       "verified": "Doğrulanmış",
-      "goldMember": "Gold Üye",
       "fastReply": "Hızlı yanıt veren",
       "viewPortfolio": "Portföyü görüntüle ({n})",
       "mainCategories": "Ana kategoriler",
@@ -1032,21 +1010,21 @@
     },
     "pages": {
       "productsMetaTitle": "{label} — firmaların ürün vitrini",
-      "productsMetaDesc": "Tedarikçi firmaların ürün kataloğu: teknik özellikler, minimum sipariş ve fiyat bilgisiyle. Tedarikçiye bilgi talebi Gold paketiyle gönderilir.",
-      "productsLead": "Firmaların vitrinlerine koyduğu ürünler. Kategori, şehir ve faaliyet tipine göre süzün; incelemek ücretsiz, tedarikçiye bilgi talebi Gold paketiyle gönderilir.",
+      "productsMetaDesc": "Tedarikçi firmaların ürün kataloğu: teknik özellikler, minimum sipariş ve fiyat bilgisiyle. Bilgi talebi göndermek için firma doğrulaması yeterli.",
+      "productsLead": "Firmaların vitrinlerine koyduğu ürünler. Kategori, şehir ve faaliyet tipine göre süzün; incelemek ücretsiz, tedarikçiye bilgi talebi göndermek için firma doğrulaması yeterli.",
       "companiesMetaTitle": "{label} — doğrulanmış alıcı ve tedarikçi firmalar",
-      "companiesMetaDesc": "Rothern'deki doğrulanmış alıcı ve tedarikçi firmalardan bir kesit. Tam dizin ücretsiz üyelikle açılır; bilgi talebi Gold, bağlantı daveti Silver ile.",
+      "companiesMetaDesc": "Rothern'deki doğrulanmış alıcı ve tedarikçi firmalardan bir kesit. Tam dizin ücretsiz üyelikle açılır; bilgi talebi ve bağlantı için firma doğrulaması yeterli.",
       "demandsMetaTitle": "{label} — dünyanın her yerinden açık alım talepleri",
-      "demandsMetaDesc": "Firmaların yayımladığı açık alım taleplerini kategoriye ve şehre göre inceleyin. Kayıt ücretsiz; herkese açık taleplere teklif Silver paketiyle verilir.",
-      "demandsLead": "Firmaların herkese açık alım talepleri. Kalemler herkese açık; alıcıyı, şartnameyi ve belgeleri görmek ve teklif vermek Silver paketiyle açılır (davet edildiğiniz taleplerde ücretsiz hesap yeter).",
+      "demandsMetaDesc": "Firmaların yayımladığı açık alım taleplerini kategoriye ve şehre göre inceleyin. Kayıt ücretsiz; herkese açık taleplere teklif için firma doğrulaması yeterli.",
+      "demandsLead": "Firmaların herkese açık alım talepleri. Kalemler herkese açık; alıcıyı, şartnameyi ve belgeleri görmek ve teklif vermek için firma doğrulaması gerekir (davet edildiğiniz taleplerde doğrulama gerekmez).",
       "categoryNotFoundTitle": "Kategori bulunamadı",
       "categoryNotFoundDesc": "Bu kategoride yayımlanmış ürün yok. Ürün dizininden diğer kategorilere göz atın.",
       "categoryTitleTail": "{count, number} ürün",
-      "categoryMetaDesc": "{name} kategorisinde {count, number} ürün. Firmaları karşılaştırın; bilgi talebi Gold paketiyle. Vitrinlerde özellik, MOQ ve fiyat.",
-      "categoryLead": "{name} kategorisinde {count, number} ürün, firmaların vitrinlerinden. Tedarikçiye bilgi talebi Gold paketiyle gönderilir.",
+      "categoryMetaDesc": "{name} kategorisinde {count, number} ürün. Firmaları karşılaştırın; bilgi talebi firma doğrulamasıyla. Vitrinlerde özellik, MOQ ve fiyat.",
+      "categoryLead": "{name} kategorisinde {count, number} ürün, firmaların vitrinlerinden. Tedarikçiye bilgi talebi göndermek için firma doğrulaması yeterli.",
       "cityNotFound": "Şehir bulunamadı",
       "cityTitle": "{name} tedarikçileri ve ürünleri",
-      "cityMetaDescHas": "{name} konumlu firmalardan {count} ürün. Tedarikçileri karşılaştırın; bilgi talebi Gold paketiyle. Vitrinlerde özellik, MOQ ve fiyat.",
+      "cityMetaDescHas": "{name} konumlu firmalardan {count} ürün. Tedarikçileri karşılaştırın; bilgi talebi firma doğrulamasıyla. Vitrinlerde özellik, MOQ ve fiyat.",
       "cityMetaDescNone": "{name} için Rothern'de henüz yayımlanmış ürün yok. Yakın şehirlerdeki tedarikçileri inceleyin ya da alım talebinizi yayımlayın.",
       "cityLeadHas": "{name} konumlu firmaların Rothern vitrinine koyduğu ürünler. Kategori, faaliyet tipi ve fiyat bilgisine göre süzün.",
       "cityLeadNone": "{name} için henüz yayımlanmış ürün yok. Aşağıdaki şehirlerden devam edebilir ya da alım talebi açabilirsiniz.",
@@ -1062,16 +1040,17 @@
       "connectCta": "Bağlantı isteği gönder",
       "gateStats": "Rothern ID ve iletişim",
       "gateAside": "Puan dağılımı, sipariş geçmişi ve açık talepler",
-      "gateAsideHint": "Kayıt ücretsiz — 2 dakika, kredi kartı yok. {name} firmasına bağlantı daveti göndermek Silver, talep açıp teklif toplamak Gold paketiyle.",
+      "gateAsideHint": "Kayıt ücretsiz — 2 dakika, kredi kartı yok. {name} firmasına bağlantı daveti göndermek, talep açıp teklif toplamak için firma doğrulaması yeterli.",
       "countryNotFound": "Ülke bulunamadı",
       "countryTitle": "{name} tedarikçileri ve ürünleri",
-      "countryMetaDescHas": "{name} merkezli tedarikçilerden {count} ürün. Tedarikçileri karşılaştırın; bilgi talebi Gold paketiyle. Vitrinlerde özellik, MOQ ve fiyat.",
+      "countryMetaDescHas": "{name} merkezli tedarikçilerden {count} ürün. Tedarikçileri karşılaştırın; bilgi talebi firma doğrulamasıyla. Vitrinlerde özellik, MOQ ve fiyat.",
       "countryMetaDescNone": "{name} merkezli tedarikçilerin Rothern'de henüz yayımlanmış ürünü yok. Diğer ülkelerdeki tedarikçileri inceleyin ya da alım talebinizi yayımlayın.",
       "countryLeadHas": "{name} merkezli firmaların Rothern vitrinine koyduğu ürünler. Şehir, kategori, faaliyet tipi ve fiyat bilgisine göre süzün.",
       "countryLeadNone": "{name} merkezli tedarikçilerin henüz yayımlanmış ürünü yok. Diğer ülkelerden devam edebilir ya da alım talebi açabilirsiniz.",
-      "connectLockedLabel": "{label} · Silver",
-      "connectLockedTitle": "Bağlantı daveti göndermek Silver paketiyle açılır",
-      "connectVerifyCta": "Bağlantı Silver ile — önce doğrulanın",
+      "connectPendingCta": "Bağlantı için doğrulamanız inceleniyor",
+      "connectReapplyCta": "Bağlantı için doğrulamaya yeniden başvurun",
+      "connectLockedTitle": "Bağlantı daveti göndermek için firma doğrulaması gerekir",
+      "connectVerifyCta": "Bağlantı için firmanızı doğrulayın",
       "connectOpenInPanel": "Firmayı panelde aç"
     },
     "price": {
@@ -1081,7 +1060,7 @@
     "product": {
       "home": "Anasayfa",
       "sellerSite": "Firmanın web sitesi",
-      "freeMemberNote": "Bu tedarikçi ücretsiz üye: sorunuzu görür, yanıt için Silver paketine geçmesi gerekir. Doğrulanmış tedarikçilerin benzer ürünleri aşağıda.",
+      "unverifiedSellerNote": "Bu tedarikçinin firması henüz doğrulanmamış: sorunuzu görür, yanıtlayabilmesi için firma doğrulamasını tamamlaması gerekir. Doğrulanmış tedarikçilerin benzer ürünleri aşağıda.",
       "inquire": "Bilgi iste",
       "noAccount": "Hesabınız yok mu?",
       "signupFree": "Ücretsiz kaydolun",
@@ -1104,7 +1083,6 @@
       "founded": "Kuruluş {year}",
       "employees": "{n} çalışan",
       "verifiedCompany": "Doğrulanmış firma",
-      "goldMember": "Gold Üye",
       "similarOthers": "Benzer ürünler — diğer tedarikçilerden",
       "newIn": "{category} içinde yeni",
       "newInCategory": "Kategoride yeni",
@@ -1113,7 +1091,7 @@
       "docsLocked": "Belgeyi indirmek için giriş yapın",
       "docsLockedNote": "Belge adları herkese açık; indirme üyelere açıktır.",
       "docsLoadError": "Belgeler şu an yüklenemedi. Sayfayı yenileyip yeniden deneyin.",
-      "inquiryGoldNote": "Bilgi talebi Gold paketinin satın alma panelinden gönderilir; kayıt ve ürün inceleme ücretsizdir."
+      "inquiryVerifyNote": "Bilgi talebi göndermek için firma doğrulaması gerekir; kayıt, doğrulama ve ürün inceleme ücretsizdir."
     },
     "listing": {
       "number": "Talep numarası",
@@ -1139,18 +1117,18 @@
       "itemsHeading": "Kalemler ({count})",
       "itemFallback": "Kalem {n}",
       "gateLabel": "Alıcı firma, şartname ve ekli belgeler",
-      "gateTitle": "Alıcı firma, şartname ve ekli belgeler Silver paketiyle açılır",
-      "gateHint": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek Silver paketiyle açılır (davetli tedarikçiler ücretsiz üyelikte de görür). Kayıt ücretsiz — 2 dakika, kredi kartı yok.",
-      "gateHintClosed": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek Silver paketiyle açılır (davetli tedarikçiler ücretsiz üyelikte de görür).",
+      "gateTitle": "Alıcı firma, şartname ve ekli belgeler doğrulanmış firmalara açılır",
+      "gateHint": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için firma doğrulaması gerekir (davetli tedarikçiler doğrulama olmadan da görür). Kayıt ücretsiz — 2 dakika, kredi kartı yok.",
+      "gateHintClosed": "Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek için firma doğrulaması gerekir (davetli tedarikçiler doğrulama olmadan da görür).",
       "infoHeading": "Talep bilgileri",
-      "membersNote": "Şartname metni, ödeme notu ve ekli belgeler bu sayfada gösterilmez; Silver paketiyle açılır (davetli tedarikçiler ücretsiz üyelikte de görür). Teklifler kapalı zarf esasıyla toplanır — gelen teklifleri yalnızca talep sahibi görür.",
+      "membersNote": "Şartname metni, ödeme notu ve ekli belgeler bu sayfada gösterilmez; doğrulanmış firmalara açılır (davetli tedarikçiler doğrulama olmadan da görür). Teklifler kapalı zarf esasıyla toplanır — gelen teklifleri yalnızca talep sahibi görür.",
       "buyer": "Alıcı",
       "verifiedBuyer": "Doğrulanmış alıcı",
       "buyerCompany": "Alıcı firma",
-      "identityNote": "Alıcı firmanın adı bu sayfada gösterilmez; Silver paketiyle açılır (davetli tedarikçiler ücretsiz üyelikte de görür).",
-      "signupCta": "Kaydol — teklif Silver paketiyle",
+      "identityNote": "Alıcı firmanın adı bu sayfada gösterilmez; doğrulanmış firmalara açılır (davetli tedarikçiler doğrulama olmadan da görür).",
+      "signupCta": "Kaydol — teklif firma doğrulamasıyla",
       "twoMinutes": "2 dakika · kredi kartı yok",
-      "perk1": "Silver ile: alıcı adı, şartname ve ekli belgeler",
+      "perk1": "Firma doğrulamasıyla: alıcı adı, şartname ve ekli belgeler",
       "perk2": "Kapalı zarf teklif — rakipler görmez",
       "perk3": "Kategorinle eşleşen yeni talepler e-postana",
       "haveAccount": "Hesabınız var mı?",
@@ -1165,7 +1143,7 @@
       "trust3Body": "Platform alım-satım bedelinden pay almaz.",
       "similar": "Benzer açık talepler",
       "onlyCountriesCanBid": "{n, plural, other {Yalnız {countries} merkezli tedarikçiler teklif verebilir.}}",
-      "silverNote": "Kayıt ücretsizdir. Herkese açık taleplere teklif ve alıcı kimliği Silver paketiyle açılır; tek şartı ücretsiz firma doğrulamasıdır."
+      "verifyNote": "Kayıt ücretsizdir. Herkese açık taleplere teklif ve alıcı kimliği için tek şart ücretsiz firma doğrulamasıdır."
     },
     "inquiry": {
       "failed": "Talep gönderilemedi",
@@ -1193,10 +1171,9 @@
     "autoTranslatedGeneric": "Otomatik çeviri",
     "profile": {
       "verifiedTitle": "Kimliği doğrulanmış firma",
-      "unverifiedTitle": "Kimlik doğrulaması yapılmamış firma — doğrulama, Silver/Gold paketine geçişin ilk adımıdır",
+      "unverifiedTitle": "Kimlik doğrulaması yapılmamış firma",
       "verified": "Doğrulanmış",
       "unverified": "Doğrulanmamış",
-      "goldMember": "Gold Üye",
       "readMore": "Daha fazlasını oku",
       "about": "Hakkında",
       "aboutName": "{name} hakkında",
@@ -1235,12 +1212,12 @@
         "aiAramasiBasarisizOlduTekrar": "AI araması başarısız oldu — tekrar deneyin.",
         "neSattiginiziAnlatinUrunKapasite": "Ne sattığınızı anlatın: ürün, kapasite, bölge…",
         "neAradiginiziAnlatinUrunAdet": "Ne aradığınızı anlatın: ürün, adet, şehir, teslim süresi, bütçe…",
-        "silverIleAcilir": "Silver ile açılır",
+        "aiDogrulamaIleAcilir": "AI ile arama firma doğrulamasıyla açılır",
         "aramaKapsami": "Arama kapsamı",
         "urun": "Ürün",
         "firma": "Firma",
         "aiIleAra": "AI ile ara",
-        "silverVeUzeriPaketlerde": "Silver ve üzeri paketlerde",
+        "aiDogrulamaGerektirir": "AI ile arama firma doğrulaması gerektirir",
         "aramayaDon": "Aramaya dön",
         "yorumlaniyor": "Yorumlanıyor…",
         "aiIleBul": "AI ile bul",
@@ -1271,15 +1248,19 @@
       "buyerCtaTail": "doğrulanmış tedarikçiler teklif versin."
     },
     "memberGate": {
-      "inquiryTitle": "Bilgi talebi Gold paketiyle gönderilir",
-      "listingTitle": "Talep açmak Gold paketiyle açılır",
-      "body": "Ürünleri ve firmaları her pakette inceleyebilirsiniz. Tedarikçiye bilgi talebi göndermek ve satın alma talebi açmak Gold paketinin satın alma panelindedir.",
-      "verifyNote": "Paketlere geçmenin tek şartı ücretsiz firma doğrulamasıdır.",
-      "verifyCta": "Önce ücretsiz doğrulan",
-      "upgradeCta": "Gold paketine geç",
+      "inquiryTitle": "Bilgi talebi göndermek için firma doğrulaması gerekir",
+      "listingTitle": "Talep açmak için firma doğrulaması gerekir",
+      "body": "Ürünleri ve firmaları doğrulama olmadan da inceleyebilirsiniz. Tedarikçiye bilgi talebi göndermek ve satın alma talebi açmak doğrulanmış firmalara açıktır.",
+      "verifyNote": "Doğrulama ücretsizdir; onaylandığında tüm özellikler açılır.",
+      "verifyCta": "Firmanızı ücretsiz doğrulayın",
+      "pendingCta": "Doğrulama durumunu görün",
+      "reapplyCta": "Yeniden başvurun",
+      "pendingNote": "Doğrulamanız inceleniyor; onaylandığında bu özellik kendiliğinden açılır.",
+      "reapplyNote": "Doğrulama başvurunuz onaylanmadı; eksikleri giderip yeniden başvurun.",
+      "pendingLabel": "{label} · Doğrulama inceleniyor",
       "noPermissionInquiry": "Bilgi istemek için Satın Almacı yetkisi gerekir.",
       "noPermissionListing": "Talep açmak için talep yönetme yetkisi gerekir.",
-      "lockedLabel": "{label} · Gold",
+      "lockedLabel": "{label} · Doğrulama gerekli",
       "ownProduct": "Bu ürün sizin firmanıza ait; kendi ürününüz için bilgi talebi gönderilmez.",
       "noBuyView": "Ürün ayrıntılarını panelde görmek için satınalma görüntüleme yetkisi gerekir.",
       "publicProductPage": "Ürünün herkese açık sayfası",
@@ -1289,17 +1270,21 @@
       "directoryRedirect": "Firma dizinine yönlendiriliyor…"
     },
     "bidGate": {
-      "title": "Herkese açık taleplere teklif Silver paketiyle verilir",
-      "body": "Ücretsiz üyelikte herkese açık talepleri alıcı adı gizli olarak görürsünüz; bunlara teklif vermek ve alıcı kimliği Silver paketiyle açılır. Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
-      "verifyNote": "Silver paketine geçmenin tek şartı ücretsiz firma doğrulamasıdır.",
-      "verifyCta": "Önce ücretsiz doğrulan",
-      "upgradeCta": "Silver paketine geç",
+      "title": "Herkese açık taleplere teklif vermek için firma doğrulaması gerekir",
+      "body": "Firmanız doğrulanana kadar herkese açık talepleri alıcı adı gizli olarak görürsünüz; bunlara teklif vermek ve alıcı kimliği firma doğrulamasıyla açılır. Davet edildiğiniz ve bağlantılı firmaların taleplerine doğrulama olmadan da teklif verirsiniz.",
+      "verifyNote": "Doğrulama ücretsizdir; onaylandığında tüm özellikler açılır.",
+      "verifyCta": "Firmanızı ücretsiz doğrulayın",
+      "pendingCta": "Doğrulama durumunu görün",
+      "reapplyCta": "Yeniden başvurun",
+      "pendingNote": "Doğrulamanız inceleniyor; onaylandığında bu özellik kendiliğinden açılır.",
+      "reapplyNote": "Doğrulama başvurunuz onaylanmadı; eksikleri giderip yeniden başvurun.",
+      "pendingLabel": "{label} · Doğrulama inceleniyor",
       "bidInPanel": "Panelde teklif ver",
       "openInPanel": "Talebi panelde aç",
       "invitedInPanel": "Bu talebe davetliyseniz panelde teklif verin",
       "noPermission": "Teklif vermek için teklif verme yetkisi gerekir.",
-      "compactLocked": "Ayrıntılar ve teklif Silver paketiyle açılır.",
-      "lockedLabel": "{label} · Silver"
+      "compactLocked": "Ayrıntılar ve teklif firma doğrulamasıyla açılır.",
+      "lockedLabel": "{label} · Doğrulama gerekli"
     }
   },
   "domain": {
@@ -1503,11 +1488,6 @@
       "draftMine": "Taslak Teklifim",
       "invited": "Davet Edildi"
     },
-    "tier": {
-      "STANDART": "Standart",
-      "SILVER": "Silver",
-      "GOLD": "Gold"
-    },
     "aiFeature": {
       "test": "Test",
       "assistant": "Asistan",
@@ -1572,7 +1552,7 @@
       "company_signup": "Firma kaydı",
       "company_ownership_transferred": "Kuruculuk devredildi",
       "company_user_permissions_changed": "Kullanıcı izinleri değişti",
-      "company_membership_self_upgraded": "Paket yükseltildi",
+      "company_membership_self_upgraded": "Erişim düzeyi güncellendi",
       "company_approval_flow_created": "Onay akışı oluşturuldu",
       "company_approval_flow_deleted": "Onay akışı silindi",
       "company_approval_flow_duplicated": "Onay akışı kopyalandı",
@@ -1892,48 +1872,9 @@
       "brandTitle": "Alıcı ve tedarikçiyi tek hesapta birleştiren platform",
       "brandSubtitle": "Ürün vitrini · Alım talebi · Kapalı zarf teklif · Sipariş takibi"
     },
-    "siteDescription": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu. Firma keşfet, vitrinini aç; kapalı zarf teklif toplamak Gold, herkese açık taleplere teklif Silver paketiyle.",
+    "siteDescription": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu. Firma keşfet, vitrinini aç; kapalı zarf teklif toplamak ve herkese açık taleplere teklif vermek için firma doğrulaması yeterli.",
     "siteOgDescription": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
     "inShowcaseOf": "{where} vitrininde"
-  },
-  "pricing": {
-    "note": "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme yıllık dönem için peşin alınır; aylık faturalama yoktur.",
-    "plans": {
-      "standart": {
-        "name": "Standart",
-        "tagline": "Vitrinini aç, çevren içinde al-sat.",
-        "cta": "Ücretsiz Başla",
-        "f1": "Herkese açık firma profili ve {n} ürünlük vitrin — firma dizininde yer",
-        "f2": "Davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verme; herkese açık talepleri alıcı adı gizli görme",
-        "f3": "Gelen bağlantı davetlerini kabul etme, mesajlaşma",
-        "f4": "Sipariş, teslim & ödeme adımı takibi",
-        "f5": "2 koltuk"
-      },
-      "silver": {
-        "name": "Silver",
-        "tagline": "Tedarikçi paketi: görün, davet al, teklif ver, ürünlerini sergile.",
-        "cta": "Silver'a Başla",
-        "f1": "Firma dizininde öncelikli sıra",
-        "f2": "Sınırsız ürün, ürün belgesi (PDF) ve video",
-        "f3": "Herkese açık satın alma taleplerinde alıcı kimliği ve sınırsız teklif",
-        "f4": "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
-        "f5": "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
-        "f6": "Ziyaret Edenler ve İş Analizi",
-        "f7": "Yapay zekâ: belgeden fiyatlama, AI ile talep arama, sohbet asistanı",
-        "f8": "4 satış koltuğu"
-      },
-      "gold": {
-        "name": "Gold",
-        "tagline": "İki panel birden: alış & satışı tek hesapta yönet.",
-        "cta": "Gold'a Başla",
-        "f1": "Silver'ın tamamı",
-        "f2": "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
-        "f3": "Kazandırma, onay akışları, raporlar & şablonlar",
-        "f4": "Yapay zekâ — belgeden talep taslağı, asistana belge ekleme, tedarikçi keşfi",
-        "f5": "“Gold Üye” rozeti — profilde, firma dizininde ve ürünlerde güven işareti",
-        "f6": "6 koltuk (satınalma ve satış)"
-      }
-    }
   },
   "auth": {
     "reset": {
@@ -2152,7 +2093,7 @@
       "tcknLabel": "T.C. Kimlik No *",
       "foreignIdLabel": "Yetkili Kimlik No",
       "tcknInvalidPerson": "Geçerli bir T.C. Kimlik No giriniz",
-      "founderBox": "Firmayı kurduğunuz için <b>Kurucu</b>sunuz — firma ayarları, kullanıcılar ve paket işlemleri dahil tüm yönetim yetkisi sizde. İşlem yetkileri paketinize bağlıdır: talep yayınlamak Gold paket ister.",
+      "founderBox": "Firmayı kurduğunuz için <b>Kurucu</b>sunuz — firma ayarları ve kullanıcılar dahil tüm yönetim yetkisi sizde. Talep yayınlamak gibi işlemler firma doğrulamasıyla açılır.",
       "sectorQuestion": "Ne alıp satıyorsunuz?",
       "sectorHint": "Somut ürün ve hizmetlerinizi seçin — sektörünüz seçiminizden otomatik belirlenir. Açık talepler size bu beyana göre iletilir; boş bırakırsanız hiçbir talep bildirimi almazsınız.",
       "sectorsFailed": "Sektörler yüklenemedi.",
@@ -2170,7 +2111,7 @@
       "sumRoleValue": "Kurucu · satış koltuğu",
       "sumSectors": "Sektörler",
       "nextTitle": "Kayıttan sonra ne olacak?",
-      "nextBody": "Hesabınız <b>hemen açılır</b>; profilinizi ve ürün vitrininizi yayınlayabilir, size gelen bağlantı davetlerini kabul edip mesajlaşabilir, davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verebilirsiniz. Bağlantı daveti göndermek, herkese açık taleplere teklif vermek ve alıcı kimliğini görmek Silver; talep yayınlamak ve bilgi talebi göndermek Gold paket ister; ikisi de firma doğrulaması gerektirir — belgelerinizi <b>Ayarlar → Doğrulama</b>'dan yükleyip onaya gönderin. Belgeleriniz ekibimizce elle incelenir.",
+      "nextBody": "Hesabınız <b>hemen açılır</b>; profilinizi ve ürün vitrininizi yayınlayabilir, size gelen bağlantı davetlerini kabul edip mesajlaşabilir, davet edildiğiniz ve bağlantılı firmaların taleplerine teklif verebilirsiniz. Bağlantı daveti göndermek, herkese açık taleplere teklif vermek, alıcı kimliğini görmek, talep yayınlamak ve bilgi talebi göndermek firma doğrulaması gerektirir — belgelerinizi <b>Ayarlar → Doğrulama</b>'dan yükleyip onaya gönderin. Doğrulama ücretsizdir; belgeleriniz ekibimizce elle incelenir.",
       "declarationAria": "Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim",
       "declaration": "Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim.",
       "back": "Geri",
@@ -2318,19 +2259,18 @@
         "panelineDon": "{label} paneline dön",
         "erisimYok": "{label} paneline erişim yetkiniz yok",
         "rolGerekli": "Bu panele girmek için <strong>{role}</strong> (veya Yönetici / Kurucu) rolüne sahip olmalısınız. Yetki için firma yöneticinizle görüşün.",
-        "windDownBaslik": "Satınalma paneli Gold pakette",
-        "windDownAciklama": "Mevcut satın alma taleplerinizi ve siparişlerinizi görüntüleyip sonuçlandırabilirsiniz (kazandırma, kapatma, iptal). Yeni talep açmak, tedarikçi davet etmek, süre uzatmak ve talebi düzenlemek Gold paket gerektirir.",
-        "paketleriGor": "Paketleri gör",
+        "windDownBaslik": "Satınalma paneli firma doğrulamasıyla açılır",
+        "windDownAciklama": "Mevcut satın alma taleplerinizi ve siparişlerinizi görüntüleyip sonuçlandırabilirsiniz (kazandırma, kapatma, iptal). Yeni talep açmak, tedarikçi davet etmek, süre uzatmak ve talebi düzenlemek için firma doğrulaması gerekir.",
         "mevcutIslerAcik": "Mevcut satın alma talepleriniz ve siparişleriniz açık kalır:"
       },
       "portalSwitch": {
         "panelDegistirSuAn": "Panel değiştir — şu an {label}",
         "panelDegistir": "Panel değiştir",
-        "paketleAcilir": "Paketle açılır",
         "suAnBuradasiniz": "Şu an buradasınız",
-        "goldPaketiyleAcilir": "Gold paketiyle açılır.",
         "neYaparSatinalma": "Talep açar, teklif toplar, kazandırırsınız.",
-        "neYaparSatis": "Açık talepleri görür, teklif verir, ürünlerinizi yayınlarsınız."
+        "neYaparSatis": "Açık talepleri görür, teklif verir, ürünlerinizi yayınlarsınız.",
+        "dogrulamaylaAcilir": "Doğrulamayla açılır",
+        "dogrulamaylaAcilirCumle": "Firma doğrulamasıyla açılır."
       },
       "shell": {
         "menu": "Menü",
@@ -2723,6 +2663,34 @@
         "aciklama": "Formda kaydetmediğiniz değişiklikler var. Ayrılırsanız kaybolur.",
         "ayril": "Ayrıl",
         "kal": "Formda kal"
+      },
+      "verificationGate": {
+        "pageTitle": "Bu sayfa firma doğrulaması gerektirir",
+        "managerNote": "Doğrulama başvurusunu firma yöneticiniz yapabilir; kendisine iletin.",
+        "invitedFootnote": "Davet edildiğiniz ve bağlantılı firmaların taleplerine doğrulama beklemeden teklif verebilirsiniz.",
+        "unverified": {
+          "short": "Firma doğrulaması gerekir",
+          "badge": "Doğrulama gerekir",
+          "body": "Rothern tamamen ücretsiz. Yalnızca firma doğrulamasıyla tüm alım taleplerinizi dijitale taşıyabilir ve teklif verebilirsiniz.",
+          "cta": "Firmanızı doğrulayın"
+        },
+        "pending": {
+          "short": "Doğrulamanız inceleniyor",
+          "badge": "Doğrulama inceleniyor",
+          "body": "Belgeleriniz ekibimizce inceleniyor. Onaylanınca bu özellik kendiliğinden açılır; belgeleri yeniden yüklemeniz gerekmez.",
+          "cta": "Doğrulama durumunu gör"
+        },
+        "rejected": {
+          "short": "Doğrulama başvurunuz onaylanmadı — yeniden başvurun",
+          "badge": "Yeniden başvurun",
+          "body": "Doğrulama başvurunuz onaylanmadı. Reddedilen belgeleri düzeltip yeniden başvurun; onaylanınca bu özellik açılır.",
+          "cta": "Yeniden başvurun"
+        },
+        "verified": {
+          "short": "Firmanız doğrulandı",
+          "body": "Firmanız doğrulandı; bu özellik hesabınızda birazdan açılır. Sayfayı yenileyin — sürerse destek ekibimize yazın.",
+          "cta": "Sayfayı yenile"
+        }
       }
     },
     "nav": {
@@ -2763,8 +2731,6 @@
         "profil": "Profil",
         "bildirimler": "Bildirimler",
         "onaylar": "Onaylar",
-        "premium": "Paketler",
-        "premiumSatinAl": "Paket satın al",
         "ilanDetayi": "Talep Detayı",
         "siparisDetayi": "Sipariş Detayı"
       }
@@ -2892,8 +2858,8 @@
         "satinAlmaTalebiDegerlendirmeyeAlindi": "Satın Alma Talebi değerlendirmeye alındı",
         "degerlendirmeyeAlinamadi": "Değerlendirmeye alınamadı",
         "kapanisZamaniGuncellendi": "Kapanış zamanı güncellendi",
-        "kapanisUzatmaGoldGerektirir": "Kapanışı uzatmak Gold paket gerektirir; kapanışı yalnız öne çekebilirsiniz.",
-        "kapanisYalnizOneCekilir": "Firmanız Gold pakette olmadığı için kapanışı yalnız öne çekebilirsiniz; uzatmak Gold paket gerektirir.",
+        "kapanisUzatmaDogrulamaGerektirir": "Kapanışı uzatmak firma doğrulaması gerektirir; kapanışı yalnız öne çekebilirsiniz.",
+        "kapanisYalnizOneCekilir": "Firmanız doğrulanmadığı için kapanışı yalnız öne çekebilirsiniz; uzatmak firma doğrulaması gerektirir.",
         "guncellenemedi": "Güncellenemedi",
         "notlarKaydedildi": "Notlar kaydedildi",
         "satinAlmaTalebiniDuzenle": "Satın Alma Talebini Düzenle",
@@ -2909,10 +2875,7 @@
         "turGecmisi": "Tur Geçmişi",
         "yeniTurOlustur": "Yeni Tur Oluştur",
         "satinAlmaTalebiniIptalEt": "Satın Alma Talebini İptal Et",
-        "paketKilidiNotu": "Firmanız Gold pakette değil: bu talebi yayınlamak, düzenlemek, yeni tedarikçi davet etmek, yeni tur açmak ve kapanışı uzatmak Gold paket gerektirir. Görüntüleme, değerlendirme, kazandırma, kapatma ve iptal açık kalır.",
-        "paketKilidiNotuDogrulama": "Firmanız Gold pakette değil ve henüz doğrulanmadı: bu talebi yayınlamak, düzenlemek, yeni tedarikçi davet etmek, yeni tur açmak ve kapanışı uzatmak Gold paket; kazandırma ise firma doğrulaması gerektirir. Görüntüleme, değerlendirme, kapatma ve iptal açık kalır.",
-        "onceUcretsizDogrulan": "Önce ücretsiz doğrulan",
-        "goldaGec": "Gold'a geç",
+        "dogrulamaKilidiNotu": "Firmanız henüz doğrulanmadı: bu talebi yayınlamak, düzenlemek, yeni tedarikçi davet etmek, yeni tur açmak, kapanışı uzatmak ve kazandırmak firma doğrulaması gerektirir. Görüntüleme, değerlendirme, kapatma ve iptal açık kalır.",
         "taslagiSil2": "Taslağı Sil",
         "yeniKapanisTarihSaatiniSecin": "Yeni kapanış tarih/saatini seçin. İleri alabilir veya öne çekebilirsiniz.",
         "yeniKapanisSecin": "Yeni kapanış tarih/saatini seçin.",
@@ -3113,7 +3076,6 @@
         }
       },
       "supplierDiscoveryModal": {
-        "goldaGec": "Gold'a geç",
         "onerilerYuklenemediTekrarDeneyin": "Öneriler yüklenemedi — tekrar deneyin",
         "webAramasindaUygunFirmaBulunamadi": "Web aramasında uygun firma bulunamadı",
         "bulunanFirmalarinYayinlanmisEPostasi": "Bulunan firmaların yayınlanmış e-postası yok — davet gönderilemez",
@@ -3213,7 +3175,7 @@
         "aliciGizli": "Alıcı gizli",
         "dogrulanmisAlici": "Doğrulanmış alıcı",
         "dogrulanmisAliciKisa": "Doğrulanmış",
-        "teklifVerSilver": "Teklif ver · Silver"
+        "teklifVerDogrulama": "Teklif ver · doğrulama gerekir"
       },
       "ihalelistview": {
         "veriAlinamadi": "Veri alınamadı.",
@@ -3227,7 +3189,7 @@
         "satinAlmaTalebiAcmaIslem": "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir.",
         "satinAlmaTalebiListesi": "Satın Alma Talebi listesi",
         "satinAlmaTalebiAc": "Satın Alma Talebi Aç",
-        "yeniTalepGoldGerektirir": "Yeni satın alma talebi açmak Gold paket gerektirir."
+        "yeniTalepDogrulamaGerektirir": "Yeni satın alma talebi açmak firma doğrulaması gerektirir."
       },
       "ihalelistrow": {
         "favorilerdenCikar": "Favorilerden çıkar",
@@ -3297,10 +3259,10 @@
         "kalemBazliKazandir": "Kalem-bazlı kazandır",
         "kalemKazandirilacakKalemSecilmeyenTeklifsiz": "{length} kalem kazandırılacak, {skipped} kalem (seçilmeyen/teklifsiz) atlanacak.",
         "kalemBazliKazandirilsinMi": "Kalem-bazlı kazandırılsın mı?",
-        "buHerkeseAcikTalepSilver": "Bu herkese açık talep Silver paketiyle açılır",
-        "herkeseAcikSatinAlmaTaleplerini": "Herkese açık alım taleplerine teklif vermek ve alıcıyı görmek Silver ile gelir; ücretsiz üyelikte bu talepler Açık Talepler'de alıcı adı gizli görünür. Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
+        "buHerkeseAcikTalepDogrulama": "Bu herkese açık talep firma doğrulamasıyla açılır",
+        "herkeseAcikSatinAlmaTaleplerini": "Herkese açık alım taleplerine teklif vermek ve alıcıyı görmek için firmanızın doğrulanmış olması gerekir; doğrulanmamış firmalar bu talepleri Açık Talepler'de alıcı adı gizli görür. Davet edildiğiniz ve bağlantılı firmaların taleplerine doğrulama olmadan da teklif verirsiniz.",
         "satinAlmaTalebineUlasilamiyor": "Talebe ulaşılamıyor.",
-        "ilanKaldirilmisAdresHataliYa": "Talep kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş olabilir (ör. firma bağlantısı veya paket durumu). Sorun olduğunu düşünüyorsanız talep sahibiyle iletişime geçin.",
+        "ilanKaldirilmisAdresHataliYa": "Talep kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş olabilir (ör. firma bağlantısı veya doğrulama durumu). Sorun olduğunu düşünüyorsanız talep sahibiyle iletişime geçin.",
         "paneleDon": "Panele Dön",
         "ilanYuklenemedi": "Talep yüklenemedi.",
         "tekrarDene": "Tekrar dene",
@@ -3360,7 +3322,6 @@
         "taslagaDevamEt": "Taslağa Devam Et",
         "yenidenTeklifVer": "Yeniden Teklif Ver",
         "yeniTeklifVer": "Yeni Teklif Ver",
-        "paketleriGor": "Paketleri Gör",
         "kalemler": "Kalemler",
         "sipariseGit": "Siparişe git",
         "teklifToplama": "Teklif Toplama",
@@ -3374,7 +3335,7 @@
         "kapanis": "Kapanış",
         "onayiIptalEt": "Onayı İptal Et",
         "aiIleTedarikciBul": "AI ile tedarikçi bul",
-        "aiIleTedarikciBulmaGold": "AI ile tedarikçi bulma Gold pakette",
+        "aiIleTedarikciBulmaDogrulama": "AI ile tedarikçi bulma firma doğrulaması gerektirir",
         "kategoriyeUyanFirmalariPlatformdanVe": "Kategoriye uyan firmaları platformdan ve webden bulur, seçtiklerinize davet gönderir.",
         "onayBekliyorYayinAskidaOnaylandiginda": "Onay bekliyor — yayın askıda. Onaylandığında satın alma talebi otomatik yayınlanır.",
         "kazandirmaOnayiBekliyorOnaylandigindaKazandi": "Kazandırma onayı bekliyor. Onaylandığında kazandırma tamamlanır.",
@@ -3421,17 +3382,17 @@
         "evet": "Evet",
         "hayir": "Hayır",
         "n50mbSiniriniAsiyor": "{join} 50MB sınırını aşıyor",
-        "buHerkeseAcikTalebeTeklif": "Bu herkese açık talebe teklif Silver paketiyle açılır",
+        "buHerkeseAcikTalebeTeklifDogrulama": "Bu herkese açık talebe teklif firma doğrulamasıyla açılır",
         "kendiIlaninizaTeklifVeremezsiniz": "Kendi talebinize teklif veremezsiniz",
-        "teklifIcinSilverPaketiGerekir": "Teklif için Silver paketi gerekir",
-        "herkeseAcikSatinAlmaTaleplerine": "Herkese açık alım taleplerine teklif vermek Silver ile gelir. Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
+        "teklifIcinDogrulamaGerekir": "Teklif için firma doğrulaması gerekir",
+        "herkeseAcikSatinAlmaTaleplerine": "Herkese açık alım taleplerine yalnız doğrulanmış firmalar teklif verebilir. Davet edildiğiniz ve bağlantılı firmaların taleplerine doğrulama olmadan da teklif verirsiniz.",
         "teklifinGonderildiSatinAlmaTalebi": "Teklifiniz gönderildi — alım talebi detayına dönülüyor…",
         "teklifinGonderiliyor": "Teklifiniz gönderiliyor…",
         "buSatinAlmaTalebineArtik": "Bu alım talebine artık teklif verilemez",
         "teklifiniziGeriCektinizYenidenTeklif": "Teklifinizi geri çektiniz — yeniden teklif veremezsiniz",
         "teklifZatenVerildiDegisiklikIcin": "Teklif zaten verildi — değişiklik için alıcıyla iletişime geçin",
         "excelSablonuIleFiyatla": "Excel Şablonu ile Fiyatla",
-        "belgedenFiyatlamaSilverVeUzeri": "Belgeden fiyatlama Silver ve üzeri paketlerde",
+        "belgedenFiyatlamaDogrulama": "Belgeden fiyatlama firma doğrulaması gerektirir",
         "kalemTeslimSuresiOpsiyonel": "Kalem Teslim Süresi (opsiyonel)",
         "teslimSuresi": "{name} teslim süresi",
         "genelSureGecerli": "Genel süre geçerli",
@@ -3553,7 +3514,7 @@
         "kalemBazliDagitimEkTasarrufSaglamiyor": "Kalem bazlı dağıtım ek tasarruf sağlamıyor — en düşük toplu teklif (<strong>{amount}</strong>) ile <strong>toplu kazandırma</strong> en ekonomik seçenek.",
         "kalemBazliDagitimTasarruf": "Kalem bazlı dağıtım: <strong>{itemized}</strong> · En düşük toplu teklif: <strong>{bestTotal}</strong> → <strong>{pct} tasarruf</strong>",
         "eksik": "Eksik ({incompleteCount})",
-        "buIlanaTeklifVermekIcinSilverPaketi": "Bu talebe teklif vermek için <strong>Silver paketi</strong> gerekir (talebi açan firma sizi davet ederse ya da bağlantınız olursa ücretsiz hesap yeter).",
+        "buIlanaTeklifIcinDogrulama": "Bu talebe teklif vermek için <strong>firma doğrulaması</strong> gerekir (talebi açan firma sizi davet ederse ya da bağlantınız olursa doğrulama aranmaz).",
         "gonderilmisTeklifGeriCekilemez": "Gönderilmiş teklif geri çekilemez ve düzenlenemez — değişiklik için alıcıyla iletişime geçin. Alıcı teklifinizi elerse yeniden teklif verebilirsiniz.",
         "mevcutTeklifin": "Mevcut teklifiniz: <strong>{money}</strong>",
         "dosyalar": "Dosyalar",
@@ -3592,10 +3553,9 @@
         "gonderdiktenSonraBuTurdaDegistiremezsin": "Gönderdikten sonra bu turda değiştiremezsiniz — yeni fiyat ancak alıcı yeni tur açarsa verilebilir.",
         "kaydedilemedi": "Kaydedilemedi",
         "henuzKaydedilmisSartYok": "Henüz kaydedilmiş şart yok — aşağıdakiler <strong>son yayımladığınız talepten</strong> türetildi. Kontrol edip kaydedin.",
-        "herkeseAcikSatinAlmaTaleplerini2": "Bu talebin tam detayı, alıcısı, şartnamesi ve dosyaları Silver ile açılır; ücretsiz üyelikte talebi Açık Talepler'de alıcı adı gizli görürsünüz.",
+        "herkeseAcikSatinAlmaTaleplerini2": "Bu talebin tam detayı, alıcısı, şartnamesi ve dosyaları firma doğrulamasıyla açılır; doğrulanmamış firmalar talebi Açık Talepler'de alıcı adı gizli görür.",
         "tur3": "Tur {currentRound}",
         "teslimSekliOdemeKosuluPara2": "Teslim şekli, ödeme koşulu, para birimi, görünürlük ve süreyi bir kez belirleyin; her yeni satın alma talebi bunlarla başlasın.",
-        "silverPaketi": "Silver paketi",
         "satisci": "Satışçı",
         "sonYayimladiginizTalepten": "son yayımladığınız talepten",
         "tumKalemlere": "tüm kalemlere",
@@ -3766,7 +3726,7 @@
         "belgedenDoldur": "Belgeden Doldur",
         "orn34IncDikissiz": "Örn. 3/4 inç dikişsiz çelik boru alımı — 1.200 m",
         "bosBirakirsanizKalemlerdenTuretilir": "Boş bırakırsanız kalemlerden türetilir.",
-        "aiOnerisiSilverVeUzeri": "AI önerisi Silver ve üzeri paketlerde",
+        "aiOnerisiDogrulama": "AI önerisi firma doğrulaması gerektirir",
         "onceEnAzBirKalem": "Önce en az bir kalem adı girin",
         "aiKalemleriAnalizEdiyor": "AI kalemleri analiz ediyor…",
         "aiIleBaslikVeKategori": "AI ile başlık ve kategori bul",
@@ -3777,7 +3737,7 @@
         "arananTedarikciTipiIstegeBagli": "Aranan tedarikçi tipi (isteğe bağlı)",
         "istegeBagli": "isteğe bağlı",
         "kullanimAmaciTeknikSartTeslim": "Kullanım amacı, teknik şart, teslim beklentisi — tedarikçi daha isabetli teklif verir.",
-        "aiIleAciklamaSilverVe": "AI ile açıklama Silver ve üzeri paketlerde",
+        "aiIleAciklamaDogrulama": "AI ile açıklama firma doğrulaması gerektirir",
         "yaziliyor": "Yazılıyor…",
         "aiIleAciklamayiYaz": "AI ile açıklamayı yaz",
         "nereyeNeZamanaNasilOdeme": "Nereye, ne zamana, nasıl ödeme?",
@@ -3803,7 +3763,6 @@
         "disDavetlerGonderilemedi": "Talep yayımlandı ama davet e-postaları gönderilemedi; talep sayfasından yeniden deneyin.",
         "disDavetGonderildi": "{n, number} davet e-postası gönderildi",
         "disDavetGonderilmedi": "{n, number} adrese davet e-postası gönderilmedi",
-        "aiIleTedarikciBulmaGold": "AI ile tedarikçi bulma Gold pakette",
         "belgeler": "Belgeler",
         "sartnameTeknikResimSozlesmeTaslagi": "Şartname, teknik resim, sözleşme taslağı — tedarikçi teklif verirken görür. İsteğe bağlı.",
         "teklifKalitesi": "Teklif kalitesi",
@@ -3889,7 +3848,7 @@
         "davetlilerVeGorunurlukKuralinaUyan": "“{title}” — davetliler ve görünürlük kuralına uyan tedarikçiler bilgilendirildi.",
         "talebiGor": "Talebi gör",
         "uygunTedarikciOnerVeDavet": "Uygun tedarikçi öner ve davet et",
-        "tedarikciOnerisiGoldPakette": "Tedarikçi önerisi Gold pakette",
+        "tedarikciOnerisiDogrulama": "Tedarikçi önerisi firma doğrulaması gerektirir",
         "yeniTalepAc": "Yeni talep aç",
         "davetEPostalari": "Davet e-postaları",
         "davetEPostalariGonderilemedi": "Davet e-postaları gönderilemedi; talep sayfasındaki “AI ile tedarikçi bul” ile yeniden deneyebilirsiniz.",
@@ -4425,7 +4384,7 @@
         "searchAgain": "Yeniden ara",
         "noResults": "AI uygun firma bulamadı. Kalem adlarını daha açık yazıp yeniden deneyin.",
         "failed": "Arama tamamlanamadı. Yeniden deneyin.",
-        "goldOnly": "AI ile tedarikçi bulma Gold pakette açılır.",
+        "verifiedOnly": "AI ile tedarikçi bulma firma doğrulamasıyla açılır.",
         "bandTitle": "AI {n, plural, other {# tedarikçi}} buldu",
         "bandAbroad": "(yurt dışından: {n, number})",
         "bandLead": "Hepsi seçili geldi; istemediklerinizi çıkarın ve tek tıkla davet edin. Davetler her firmanın kendi dilinde ve kendi ülkesinde mesai saatinde gider.",
@@ -4447,7 +4406,7 @@
         "summaryInSection1": "AI'ın bulduğu firmalar 1. bölümdeki listede.",
         "goToList": "Listeye git",
         "groupMembers": "Rothern'de kayıtlı",
-        "groupMembersLead": "Doğrulanmış Silver ve Gold üyeler. Doğrudan talebinize davet edilir; uygulamada ve e-postayla haberdar olurlar. Bağlantınız olmaları gerekmez.",
+        "groupMembersLead": "Doğrulanmış üyeler. Doğrudan talebinize davet edilir; uygulamada ve e-postayla haberdar olurlar. Bağlantınız olmaları gerekmez.",
         "memberItems": "Kalem eşleşmesi: {items}",
         "memberCategories": "Kategori eşleşmesi: {categories}",
         "memberAlsoWeb": "Web'de de bulundu",
@@ -4504,9 +4463,8 @@
         "sonZiyaret": "Son ziyaret",
         "kimlikliZiyaretciListesiKilitli": "Kimlikli ziyaretçi listesi (kilitli)",
         "egeTekstilAS": "Ege Tekstil A.Ş.",
-        "kimlikliZiyaretciListesiSilverVe": "Kimlikli ziyaretçi listesi Silver ve üzeri paketlerde",
-        "firmaAdiSehirFaaliyetTipi": "Firma adı, şehir, faaliyet tipi ve hangi ürünlere baktıkları paketle açılır.",
-        "paketleriGor": "Paketleri gör",
+        "kimlikliZiyaretciListesiDogrulama": "Kimlikli ziyaretçi listesi firma doğrulamasıyla açılır",
+        "firmaAdiSehirFaaliyetTipi": "Firma adı, şehir, faaliyet tipi ve hangi ürünlere baktıkları firma doğrulamasıyla açılır.",
         "dogrulanmisFirma": "Doğrulanmış firma",
         "baglantili": "Bağlantılı",
         "baktigi2": "Baktığı:",
@@ -4514,13 +4472,6 @@
         "profiliGor": "Profili gör",
         "firmaProfiliniziInceledi": "{n} firma profilinizi inceledi",
         "ziyaretBirim": "{n, number} <unit>ziyaret</unit>"
-      },
-      "silverLockCard": {
-        "baglantiDavetiyleGelenTalepleriUcretsiz": "Davet edildiğiniz ve bağlantılı firmaların taleplerine ücretsiz teklif verirsiniz.",
-        "silverPaketineGec": "Silver paketine geç",
-        "onceDogrulanNot": "Silver pakete geçmenin tek şartı firmanızı doğrulamaktır. Doğrulama ücretsizdir ve birkaç dakika sürer.",
-        "onceUcretsizDogrulan": "Önce ücretsiz doğrulan",
-        "paketleriGor": "Paketleri gör"
       },
       "visitsVisibilityCard": {
         "ziyaretlerinizArtikAdinizlaGorunur": "Ziyaretleriniz artık adınızla görünür",
@@ -4549,11 +4500,9 @@
         "listesi": "{noun} listesi",
         "bilinmeyenAlici": "Alıcı",
         "gecmisEnYeni200Gosteriliyor": "Geçmiş taleplerin en yeni 200'ü gösteriliyor — daha eski tekliflerinize Tekliflerim'den ulaşabilirsiniz.",
-        "ucretsizAltBaslik": "Önce davet edildiğiniz ve bağlı olduğunuz alıcıların talepleri; altında herkese açık talepler alıcı adı gizli — bunlara teklif Silver ile.",
+        "dogrulanmamisAltBaslik": "Önce davet edildiğiniz ve bağlı olduğunuz alıcıların talepleri; altında herkese açık talepler alıcı adı gizli — bunlara teklif firma doğrulamasıyla.",
         "maskeliBolumEtiketi": "Herkese açık talepler · alıcı adı gizli",
-        "maskeliNot": "Alıcının adını görmek ve teklif vermek için Silver gerekir.",
-        "maskeliNotDogrulan": "Önce ücretsiz doğrulan",
-        "maskeliNotPaketler": "Paketleri gör"
+        "maskeliNot": "Alıcının adını görmek ve teklif vermek için firma doğrulaması gerekir."
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Onaylar yetki gerektirir",
@@ -4830,11 +4779,9 @@
       },
       "permissionTable": {
         "yonetimTikiIleBirlikteGelir": "Seçili yönetim tikiyle birlikte gelir",
-        "islemTikleriGoldPakette": "· işlem tikleri Gold pakette",
         "hazirSetler": "Hazır setler",
         "hazirSetUygulaniyorAsagidanKisiye": "Hazır set uygulanıyor; aşağıdan kişiye özel değiştirebilirsiniz.",
         "kisiyeOzelYetkiKumesi": "Kişiye özel yetki kümesi.",
-        "goldPaketteAcilir": "· Gold pakette açılır",
         "islemTikiKoltukSayar": "· işlem tiki koltuk sayar",
         "kurucudaOrtuk": "Kurucuda örtük",
         "yalnizKurucuVerir": "Yalnız Kurucu verir",
@@ -4848,7 +4795,6 @@
           "YONETICI": "Görür, yönetir, onaylar; işlem yapmaz",
           "GORUNTULEYICI": "Yalnız görür, koltuk tüketmez"
         },
-        "goldPakette": "Gold pakette",
         "koltukDolu": "Koltuk dolu",
         "koltuk": "koltuk",
         "group": {
@@ -4877,7 +4823,9 @@
           "templates_manage": "Şablonlar",
           "addresses_manage": "Adres defteri",
           "insights_view": "Ziyaret edenler ve iş analizi"
-        }
+        },
+        "dogrulamaGerekir": "Firma doğrulaması gerekir",
+        "islemTikleriDogrulamayla": "· işlem tikleri firma doğrulamasıyla açılır"
       },
       "catalogItemsView": {
         "katalogYuklenemedi": "Katalog yüklenemedi. Lütfen tekrar deneyin.",
@@ -5015,7 +4963,7 @@
       "productShowcaseForm": {
         "belgeYuklenemediYalnizPdfEn": "Belge yüklenemedi — yalnız PDF, en fazla 10 MB",
         "urunAdiZorunlu": "Ürün adı zorunlu",
-        "ucretsizPaketTavaniDolduDaha": "Ücretsiz paket tavanı doldu — daha fazla ürün için Silver paketine geçin.",
+        "urunTavaniDolduDogrulama": "Ürün tavanı doldu — daha fazla ürün için firma doğrulaması gerekir.",
         "urunTaslakOlarakEklendi": "Ürün taslak olarak eklendi",
         "eksikKademeKaydedilmedi": "{n, plural, other {# eksik kademe}} kaydedilmedi — miktarı ve 0’dan büyük fiyatı olmayan satırlar formdan çıkarıldı.",
         "kaydedildiIcerikDegisikligiYenidenIncelenece": "Kaydedildi — içerik değişikliği yeniden incelenecek, ürün yayında kalıyor",
@@ -5067,11 +5015,11 @@
         "pdfEkle": "PDF ekle",
         "youtubeVeyaVimeoBaglantisiUrun": "YouTube veya Vimeo bağlantısı — ürün sayfasında gömülü oynatılır.",
         "videoBaglantisi": "Video bağlantısı",
-        "urunBelgesiPdfKatalogTeknik": "Ürün belgesi (PDF katalog, teknik föy) ve video bağlantısı Silver paketiyle açılır.",
+        "urunBelgesiPdfKatalogTeknik": "Ürün belgesi (PDF katalog, teknik föy) ve video bağlantısı firma doğrulamasıyla açılır.",
         "kendiWebSitenizdekiUrunSayfasi": "Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.",
         "urunSayfasiBaglantisi": "Ürün sayfası bağlantısı",
         "onceUrunAdiniYazin": "Önce ürün adını yazın.",
-        "aiIleGuclendirmeSilverVe": "AI ile güçlendirme Silver ve üzeri paketlerde.",
+        "aiIleGuclendirmeDogrulama": "AI ile güçlendirme firma doğrulaması gerektirir.",
         "taslakUygulandiKontrolEdipKaydedin": "Taslak uygulandı — kontrol edip kaydedin",
         "varyasyonlariAyriUrunOlarakAcmayin": "Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.",
         "urun": "Ürün",
@@ -5133,7 +5081,7 @@
           "ON_REQUEST": "Teklif isteyin"
         },
         "firmaProfilinizHenuzHerkeseAcikDegil": "Firma profiliniz henüz herkese açık değil: ürünleriniz profil yayınlanana kadar dizinde ve firma sayfanızda görünmez. <link>Profili yayınla</link>.",
-        "ucretsizPaketteEnFazlaUrun": "Ücretsiz pakette en fazla {limit} ürün yayında ya da onayda olabilir ({occupied}/{limit} kullanıldı). Taslak sınırsız. <link>Silver ile sınırsız ürün, belge ve video</link>.",
+        "dogrulanmamisFirmadaEnFazlaUrun": "Doğrulanmamış firmada en fazla {limit} ürün yayında ya da onayda olabilir ({occupied}/{limit} kullanıldı). Taslak sınırsız. <link>Firma doğrulamasıyla sınırsız ürün, belge ve video</link>.",
         "fiyatBirim": "{amount} / {unit}",
         "fiyatBirimKademeli": "{amount} / {unit} (kademeli)",
         "dahaFazlaYukle": "Daha fazla yükle",
@@ -5177,7 +5125,7 @@
         "urun": "Ürün",
         "yeni": "Yeni",
         "kaydedilmemisDegisiklik": "Kaydedilmemiş değişiklik",
-        "ucretsizPaketteYayindaOnaydaUrun": "Ücretsiz pakette yayında/onayda ürün tavanı doldu — taslak kaydedebilirsiniz, daha fazlası için Silver paketine geçin.",
+        "yayindaOnaydaUrunTavaniDoldu": "Yayında/onayda ürün tavanı doldu — taslak kaydedebilirsiniz; daha fazlası için firma doğrulaması gerekir.",
         "kaydediliyor": "Kaydediliyor…",
         "digerIslemler": "Diğer işlemler",
         "taslakOlarakKaydet": "Taslak olarak kaydet",
@@ -5266,7 +5214,7 @@
         "bilgiTeklifIste": "Bilgi / teklif iste",
         "kapat": "Kapat",
         "taleplerimiGor": "Taleplerimi gör",
-        "buTedarikciUcretsizUyeSorunuzu": "Bu tedarikçi ücretsiz üye: sorunuzu görür ama yanıtlamak için Silver paketine geçmesi gerekir. Hızlı yanıt için ürün sayfasındaki benzer ürünlerden doğrulanmış tedarikçilere de sorabilirsiniz.",
+        "buTedarikciDogrulanmamis": "Bu tedarikçi henüz doğrulanmadı: sorunuzu görür ama yanıtlayabilmesi için firmasını doğrulaması gerekir. Hızlı yanıt için ürün sayfasındaki benzer ürünlerden doğrulanmış tedarikçilere de sorabilirsiniz.",
         "miktar": "Miktar",
         "orn500Adet": "örn. 500 adet",
         "ihtiyaciniziTeslimYeriniVeTermini": "İhtiyacınızı, teslim yerini ve termini yazın.",
@@ -5284,9 +5232,9 @@
         "urunlerinizHakkindaGelenSorularYanitladikca": "Ürünleriniz hakkında gelen sorular — yanıtladıkça alıcı panelinde görünür.",
         "tedarikciUrunleriHakkindaGonderdiginizSorula": "Tedarikçi ürünleri hakkında gönderdiğiniz sorular ve gelen yanıtlar.",
         "urunAra": "Ürün ara",
-        "bilgiTalebiKimSorduguVe": "{count} bilgi talebi — kim sorduğu ve yanıt Silver ile açılır",
-        "gelenSorulariGorursunuzKimSordugu": "Gelen soruları görürsünüz; kim sorduğu ve yanıt Silver ile açılır",
-        "ucretsizUyelikteAlicininSorusunuAdedini": "Ücretsiz üyelikte alıcının sorusunu, adedini ve şehrini görürsünüz. Alıcının kimliği, iletişim bilgileri ve yanıt gönderme Silver paketiyle açılır — alıcı, doğrulanmış tedarikçilere yöneliyor.",
+        "bilgiTalebiKimSorduguDogrulama": "{count} bilgi talebi — kim sorduğu ve yanıt firma doğrulamasıyla açılır",
+        "gelenSorulariGorursunuzKimSordugu": "Gelen soruları görürsünüz; kim sorduğu ve yanıt firma doğrulamasıyla açılır",
+        "dogrulanmadanAlicininSorusunu": "Doğrulanmadan önce alıcının sorusunu, adedini ve şehrini görürsünüz. Alıcının kimliği, iletişim bilgileri ve yanıt gönderme firma doğrulamasıyla açılır — alıcı, doğrulanmış tedarikçilere yöneliyor.",
         "yukleniyor": "Yükleniyor…",
         "dahaEskiTalepleriYukle": "Daha eski talepleri yükle ({loaded, number}/{total, number})",
         "henuzBilgiTalebiYok": "Henüz bilgi talebi yok.",
@@ -5310,7 +5258,7 @@
         "aliciKimligiGizli": "Alıcı kimliği gizli",
         "yanitBekliyor": "Yanıt bekliyor",
         "listeyeDon": "Listeye dön",
-        "aliciKimligiSilverIleAcilir": "Alıcı kimliği Silver ile açılır",
+        "aliciKimligiDogrulamaIleAcilir": "Alıcı kimliği firma doğrulamasıyla açılır",
         "kayitliKullanici": "Kayıtlı kullanıcı",
         "misafir": "Misafir",
         "yanitlandi": "Yanıtlandı",
@@ -5319,7 +5267,7 @@
         "siz": "Siz",
         "satici": "Satıcı",
         "saticiHenuzYanitlamadiYanitGelince": "Satıcı henüz yanıtlamadı — yanıt gelince burada ve bildirimlerde görünür.",
-        "yanitlamakVeAlicininIletisimBilgilerini": "Yanıtlamak ve alıcının iletişim bilgilerini görmek Silver paketiyle açılır.",
+        "yanitlamakVeAlicininIletisimBilgilerini": "Yanıtlamak ve alıcının iletişim bilgilerini görmek firma doğrulamasıyla açılır.",
         "yanitinizGonderildi": "Yanıtınız gönderildi",
         "yanitGonderilemedi": "Yanıt gönderilemedi",
         "yanitiniziYazin": "Yanıtınızı yazın…",
@@ -5772,14 +5720,11 @@
         "odeme": "Ödeme",
         "vade": "Vade",
         "vadeGun": "{n, number} gün",
-        "kapaliZarfNotu": "Kapalı zarf: teklifleri yalnız talep sahibi görür, teklifçiler birbirinin fiyatını ve kimliğini göremez. Alıcının adı, teknik şartname ve ekli belgeler Silver paketiyle açılır.",
+        "kapaliZarfNotu": "Kapalı zarf: teklifleri yalnız talep sahibi görür, teklifçiler birbirinin fiyatını ve kimliğini göremez. Alıcının adı, teknik şartname ve ekli belgeler firma doğrulamasıyla açılır.",
         "alici": "Alıcı",
         "aliciGizli": "Alıcı gizli",
         "dogrulanmisAlici": "Doğrulanmış alıcı",
-        "teklifVerSilver": "Teklif ver · Silver",
-        "ctaNot": "Herkese açık taleplere teklif vermek ve alıcının adını görmek Silver paketiyle açılır.",
-        "ctaNotDogrulama": "Silver paketine geçmenin tek şartı ücretsiz firma doğrulamasıdır — önce firmanızı doğrulayın.",
-        "paketleriGor": "Paketleri gör",
+        "ctaNot": "Herkese açık taleplere teklif vermek ve alıcının adını görmek için firma doğrulaması gerekir.",
         "kapandi": "Bu talep teklife kapalı."
       }
     },
@@ -5969,7 +5914,6 @@
         "yetkiliTCKimlikNo": "Yetkili T.C. Kimlik No",
         "yetkiliKimlikNo": "Yetkili Kimlik No",
         "yetkiliUnvani": "Yetkili Unvanı",
-        "uyelik": "Üyelik",
         "dogrulama": "Doğrulama",
         "dogrulamaBelgeleri": "Doğrulama Belgeleri",
         "unvan": "Unvan",
@@ -6020,10 +5964,7 @@
         "sehir": "Şehir",
         "eyaletBolge": "Eyalet / bölge",
         "kimlikBilgilerindeHataVarsaYabanci": "Kimlik bilgilerinde hata varsa değişiklik için destek ile iletişime geçin. Sicil/kayıt numarası ve banka hesabı bilgileri <dogrulama>Doğrulama Belgeleri</dogrulama> sayfasından; sipariş tahsilat hesapları <banka>Banka Hesapları</banka> sayfasından yönetilir.",
-        "postaKodu5Hane": "Türkiye'de posta kodu 5 haneli olmalıdır",
-        "uyelikBitis": "{date} tarihine kadar",
-        "uyelikSuresiDoldu": "Paket süresi {date} tarihinde doldu",
-        "uyelikYenile": "Yenile"
+        "postaKodu5Hane": "Türkiye'de posta kodu 5 haneli olmalıdır"
       },
       "companyUsersSection": {
         "pasifYapildi": "Pasif yapıldı",
@@ -6109,10 +6050,8 @@
         "koltuk": "Koltuk: <strong>{used}/{limit}</strong>",
         "koltukKirilimi": "(satınalma {usedBuy} · satış {usedSell})",
         "koltukKirilimiBekleyenDavet": "(satınalma {usedBuy} · satış {usedSell} · bekleyen davet {pending})",
-        "paketinizdeKoltukVarFazla": "Paketinizde <strong>{limit}</strong> koltuk var, <strong>{overflow}</strong> koltuk fazla — yeni işlem yetkisi verilemez. Mevcut kullanıcılar çalışmaya devam eder.",
         "kullanicilarYuklenemedi": "Kullanıcılar yüklenemedi.",
         "ekiptenCikarilsinMi": "<strong>{name}</strong> ({email}) ekipten çıkarılsın mı?",
-        "paketinizdeKoltukVarKalacak": "Paketinizde {limit} koltuk var. Kalacak koltukları (kişi · satınalma/satış) seçin — seçilmeyen koltuğun o gruptaki işlem yetkileri kaldırılır; hesap, görüntüleme ve diğer yetkiler aynen kalır, açık işleri kalan ekip tamamlayabilir.",
         "davetEtti": "{name} davet etti",
         "sonaErer": "{when} sona erer",
         "adBosOlamaz": "Ad boş olamaz",
@@ -6126,7 +6065,9 @@
         "pasifTaleplerDevredilir": "Açtığı canlı satın alma talepleri size ya da Kurucuya devredilir",
         "pasifKoltukBosalir": "Koltuğu boşalır; yetkileri korunur, ancak tekrar aktif etmek için boş koltuk gerekir",
         "davetIptalEdilsinMi": "<strong>{email}</strong> adresine gönderilen davet iptal edilsin mi? Davet bağlantısı artık çalışmaz; ayırdığı koltuk varsa boşalır.",
-        "yetkilerKaydedildiBilgilerKaydedilemedi": "Yetkiler kaydedildi, ancak kişi bilgileri kaydedilemedi: {error}"
+        "yetkilerKaydedildiBilgilerKaydedilemedi": "Yetkiler kaydedildi, ancak kişi bilgileri kaydedilemedi: {error}",
+        "koltukSiniriFazla": "Firmanızın kullanıcı hakkı <strong>{limit}</strong> koltuk, <strong>{overflow}</strong> koltuk fazla — yeni işlem yetkisi verilemez. Mevcut kullanıcılar çalışmaya devam eder.",
+        "koltukSiniriKalacak": "Firmanızın kullanıcı hakkı {limit} koltuk. Kalacak koltukları (kişi · satınalma/satış) seçin — seçilmeyen koltuğun o gruptaki işlem yetkileri kaldırılır; hesap, görüntüleme ve diğer yetkiler aynen kalır, açık işleri kalan ekip tamamlayabilir."
       },
       "inviteDelivery": {
         "failed": "Davet kaydedildi ama {email} adresine e-posta gönderilemedi. Yeniden göndermeyi deneyin.",
@@ -6153,7 +6094,7 @@
         "davetDili": "Davet dili",
         "davetDiliIpucu": "Davet e-postası ve kabul sayfası bu dilde açılır. Davetli, kabul ederken dili değiştirebilir.",
         "kullaniciHakkiDoluKoltukBosaltin": "Kullanıcı hakkı dolu — işlem tiki vermek için bir kullanıcının işlem yetkisini kaldırın ya da bekleyen bir daveti iptal edin.",
-        "kullaniciHakkiDoluPaketYukseltin": "Kullanıcı hakkı dolu — işlem tikleri için <link>paketi yükseltin</link> ya da bir koltuğu boşaltın."
+        "kullaniciHakkiDoluDogrulama": "Kullanıcı hakkı dolu — doğrulanmış firmalar daha fazla kullanıcıya işlem yetkisi verebilir. İşlem tiki vermek için bir koltuğu boşaltın ya da firmanızı doğrulayın."
       },
       "settingsShell": {
         "ayarlar": "Ayarlar"
@@ -6215,7 +6156,7 @@
       "ayarlarAiKullanimPage": {
         "uyariEsigiAsildi": "Uyarı eşiği aşıldı",
         "firmanizinAylikAiButcesininNe": "Firmanızın aylık AI bütçesinin ne kadarı kullanıldı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır; uyarı eşiğine gelince haber verilir.",
-        "aiKullaniminiYonetimYetkisiTasiyanlar": "AI kullanımını yönetim yetkisi taşıyanlar (firma kırılımı) ile satınalma/satış koltuğu olanlar (kendi kullanımı), Silver ve üzeri pakette görebilir.",
+        "aiKullaniminiYonetimYetkisiTasiyanlar": "AI kullanımını yönetim yetkisi taşıyanlar (firma kırılımı) ile satınalma/satış koltuğu olanlar (kendi kullanımı) görebilir; firmanın doğrulanmış olması gerekir.",
         "aiKullanimiYuklenemedi": "AI kullanımı yüklenemedi.",
         "yenidenDene": "Yeniden dene",
         "yukleniyor": "Yükleniyor…",
@@ -6246,7 +6187,7 @@
       "ayarlarAktivitePage": {
         "firmanizdakiEylemKayitlariKimSatin": "Firmanızdaki eylem kayıtları — kim satın alma talebi açtı, kim rol değiştirdi, kim banka hesabı güncelledi. Değerler değil eylemler kaydedilir; hassas alanlar maskeli referansla görünür.",
         "modul": "Modül",
-        "aktiviteLogunuYalnizKullaniciYonetimi": "Aktivite logunu yalnız “Kullanıcı yönetimi” ya da “Firma yönetimi” yetkisi taşıyanlar, Silver ve üzeri pakette görüntüleyebilir.",
+        "aktiviteLogunuYalnizKullaniciYonetimi": "Aktivite logunu yalnız “Kullanıcı yönetimi” ya da “Firma yönetimi” yetkisi taşıyanlar görüntüleyebilir; firmanın doğrulanmış olması gerekir.",
         "aktiviteLoguYuklenemedi": "Aktivite logu yüklenemedi.",
         "yenidenDene": "Yeniden dene",
         "yukleniyor": "Yükleniyor…",
@@ -6384,7 +6325,6 @@
         "mersisNo16Hane": "MERSİS No (16 hane)",
         "sicilKayitNo": "Sicil / Kayıt No",
         "gecerliIban": "Geçerli IBAN",
-        "dogrulamaUcretsizVePaketGerektirmez": "Doğrulama ÜCRETSİZDİR ve paket gerektirmez. Doğrulanan firmanın profilinde “Doğrulanmış” rozeti görünür ve firma paket satın alabilir; herkese açık taleplere teklif vermek için ayrıca Silver, talep yayınlamak için Gold paket gerekir. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür. Belgeleriniz ekibimizce elle incelenir.",
         "yukleniyor": "Yükleniyor…",
         "durum": "Durum:",
         "baziBelgelerReddedildi": "Bazı belgeler reddedildi",
@@ -6420,7 +6360,6 @@
         "bankaHesapNo": "Banka Hesap No",
         "ticariSicilNo2": "Ticari Sicil No",
         "hesapSahibi2": "Hesap sahibi",
-        "firmanizDogrulandiHerkeseAcik": "Firmanız doğrulandı. Artık paket satın alabilirsiniz: herkese açık taleplere teklif Silver, talep yayını Gold paketle açılır.",
         "dogrulamaIcindirSiparisTahsilat": "Doğrulama içindir. Sipariş tahsilat hesapları <banka>Banka Hesapları</banka>nda.",
         "belgeGuncellemenizReddedildi": "Belge güncellemeniz reddedildi — mevcut belgeniz geçerliliğini koruyor.",
         "belgeGuncellemenizReddedildiGerekce": "Belge güncellemeniz reddedildi: {reason} — mevcut belgeniz geçerliliğini koruyor.",
@@ -6432,10 +6371,10 @@
         "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
         "idBothSidesHint": "Kimlik kartıysa ön ve arka yüzünü tek dosyada (PDF ya da birleştirilmiş görsel) yükleyin.",
         "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez",
-        "firmanizDogrulandiSilver": "Firmanız doğrulandı. Silver paketinizle herkese açık taleplere teklif verebilirsiniz; talep yayınlamak için Gold pakete geçebilirsiniz.",
-        "firmanizDogrulandiGold": "Firmanız doğrulandı. Gold paketinizle talep yayınlayabilir ve herkese açık taleplere teklif verebilirsiniz.",
         "dogrulamaBilgileriYuklenemedi": "Doğrulama bilgileri yüklenemedi.",
-        "yenidenDene": "Yeniden dene"
+        "yenidenDene": "Yeniden dene",
+        "dogrulamaAciklama": "Doğrulama ücretsizdir. Doğrulanan firmanın profilinde “Doğrulanmış” rozeti görünür ve platformun bütün özellikleri açılır: herkese açık taleplere teklif verebilir, satın alma talebi yayınlayıp kazandırabilirsiniz. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür. Belgeleriniz ekibimizce elle incelenir.",
+        "firmanizDogrulandi": "Firmanız doğrulandı. Platformun bütün özellikleri hesabınızda açık: herkese açık taleplere teklif verebilir ve satın alma talebi yayınlayabilirsiniz."
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Firma Bilgileri yetki gerektirir",
@@ -6446,7 +6385,6 @@
         "buSayfaKullaniciVeYetki": "Bu sayfa “Kullanıcı ve yetki” tikini ister."
       },
       "ayarlarPage": {
-        "silverIleAcilir": "Silver ile açılır",
         "acik": "Açık",
         "kapali": "Kapalı",
         "ayarlar": "Ayarlar",
@@ -6516,7 +6454,7 @@
         },
         "dogrulama": {
           "title": "Doğrulama Belgeleri",
-          "description": "Ücretsiz — profilinizde “Doğrulanmış” rozeti; herkese açık taleplere teklif (Silver) ve talep yayını (Gold) için ön koşul"
+          "description": "Ücretsiz — profilinizde “Doğrulanmış” rozeti; herkese açık taleplere teklif ve talep yayını dahil bütün özellikler için yeterli"
         }
       },
       "verificationStatus": {
@@ -6605,8 +6543,7 @@
         "istekGonderildi": "İstek gönderildi",
         "sizeIstekGonderdiYanitla": "Size istek gönderdi — Yanıtla",
         "baglantiIstegiGonder": "Bağlantı İsteği Gönder",
-        "baglantiIcinSilver": "Bağlantı İçin Silver'a Geçin",
-        "baglantiIcinOnceDogrulanin": "Bağlantı Silver İle — Önce Doğrulanın",
+        "baglantiIcinDogrulama": "Bağlantı için firma doğrulaması gerekir",
         "dahaFazla": "Daha fazla",
         "baglantiyiKaldir": "Bağlantıyı kaldır",
         "engelle": "Engelle",
@@ -6635,7 +6572,7 @@
         "kalemBirimi": "<num>{n, number}</num> <unit>kalem</unit>",
         "kilitliTaleplerBaslik": "Bu firmanın açık alım talepleri var",
         "kilitliTaleplerSayi": "{n, number} açık alım talebi",
-        "kilitliTaleplerAciklama": "Bu firmanın herkese açık taleplerini görmek ve teklif vermek Silver paketiyle açılır. Firma sizi bir talebe davet ederse o talebi ücretsiz paketle de tam görürsünüz."
+        "kilitliTaleplerAciklama": "Bu firmanın herkese açık taleplerini görmek ve teklif vermek firma doğrulamasıyla açılır. Firma sizi bir talebe davet ederse o talebi doğrulama olmadan da tam görürsünüz."
       },
       "page": {
         "yonlendiriliyor": "Yönlendiriliyor…"
@@ -6796,9 +6733,8 @@
         "istekGeriCekilsinAciklama": "\"{name}\" firmasına gönderdiğiniz bağlantı isteği geri çekilecek.",
         "davetIptalEdilsinMi": "Davet iptal edilsin mi?",
         "davetIptalAciklama": "{email} adresine gönderdiğiniz davet iptal edilecek; bu adresle kayıt olan firma size otomatik bağlanmaz.",
-        "silverIleDavetEt": "Silver ile davet et",
-        "davetIcinOnceDogrulanin": "Davet için önce doğrulanın",
-        "gelenIstekleriKabulEdebilirsiniz": "Size gelen bağlantı isteklerini buradan kabul edebilirsiniz. Bağlantı isteği göndermek ve e-postayla davet etmek Silver paketle açılır."
+        "davetIcinDogrulama": "Davet için firma doğrulaması gerekir",
+        "gelenIstekleriKabulEdebilirsiniz": "Size gelen bağlantı isteklerini buradan kabul edebilirsiniz. Bağlantı isteği göndermek ve e-postayla davet etmek firma doğrulamasıyla açılır."
       },
       "profileEditor": {
         "gecersizBaglantiYalnizHttpHttps": "Geçersiz bağlantı — yalnız http/https adresleri kabul edilir",
@@ -6806,7 +6742,7 @@
         "profilKaydedildi": "Profil kaydedildi",
         "ucretsizDogrulanin": "Ücretsiz doğrulanın",
         "belgelerinizInceleniyorSonucBildirilecek": "Belgeleriniz inceleniyor — sonuç bildirilecek.",
-        "profilinizdeDogrulanmisRozetiGorunurVe": "Profilinizde “Doğrulanmış” rozeti görünür ve herkese açık taleplere teklif verebilirsiniz. Paket gerekmez.",
+        "profilinizdeDogrulanmisRozetiGorunurVe": "Profilinizde “Doğrulanmış” rozeti görünür ve platformun bütün özellikleri firmanıza açılır.",
         "belgeleriYukle": "Belgeleri yükle",
         "duzenlemeIcinFirmaYonetimiYetkisi": "Düzenleme için firma yönetimi yetkisi gerekir.",
         "sektor": "Sektör",
@@ -6882,7 +6818,7 @@
         "duzenleFirmaBilgileri": "Düzenle → Firma Bilgileri",
         "duzenle": "Düzenle",
         "kaydedilemedi": "Kaydedilemedi",
-        "aiIleGuclendirmeSilverVeUzeri": "AI ile güçlendirme Silver ve üzeri paketlerde.",
+        "aiIleGuclendirmeDogrulama": "AI ile güçlendirme firma doğrulaması gerektirir.",
         "hizmetDeger": "Hizmet: {value}",
         "sertifikaDeger": "Sertifika: {value}",
         "enAz1Kategori": "En az 1 kategori",
@@ -7001,10 +6937,9 @@
         "rekabetinSizeKazandirdiginiGorunHedef": "Rekabetin size kazandırdığını görün — hedef fiyata göre kalem bazlı detayla.",
         "teklifKarsilastirmaRaporu": "Teklif Karşılaştırma Raporu",
         "birSatinAlmaTalebineGelen": "Bir satın alma talebine gelen teklifleri kalem bazında yan yana karşılaştırın.",
-        "silverIleAcilir": "Silver ile açılır",
-        "goldIleAcilir": "Gold ile açılır",
+        "dogrulamaIleAcilir": "Doğrulama ile açılır",
         "satinalmaRaporlari": "Satınalma raporları",
-        "satinalmaRaporlariKilitliAciklama": "Genel satın alma talebi, tasarruf ve teklif karşılaştırma raporları Gold pakette.",
+        "satinalmaRaporlariKilitliAciklama": "Genel satın alma talebi, tasarruf ve teklif karşılaştırma raporları firma doğrulamasıyla açılır.",
         "sizeAcikRaporYok": "Size açık rapor yok",
         "raporlarYetkiyleAcilir": "Raporlar “Ziyaret edenler ve iş analizi” ya da “Satınalma raporları” tikiyle açılır. Yetki için firma yöneticinize başvurun."
       },
@@ -7271,8 +7206,7 @@
         "onayciYokAyarlardanRolVerin": "Onaycı olabilecek aktif kullanıcı yok. <link>Ayarlar → Kullanıcılar</link>''dan bir kullanıcıya <strong>Onaylayıcı</strong> rolü verin.",
         "buKisiSirasiGeldigindeKazandirmayi": "Bu kişi, sırası geldiğinde kazandırmayı Onaylar sayfasından onaylar ya da reddeder. Yalnız <strong>Kurucu, Yönetici veya Onaylayıcı</strong> rolündeki aktif kullanıcılar listelenir; başka birini eklemek için <link>Ayarlar → Kullanıcılar</link>''dan Onaylayıcı rolü verin.",
         "kendiniziOnayciSectiniz": "Kendinizi onaycı seçtiniz. Görev ayrılığı gereği, bu adım <strong>kazandırmayı sizin başlattığınız</strong> durumlarda başka bir onaylayıcıya atanır; uygun kimse yoksa kazandırma reddedilir.",
-        "yeniAkisGoldPakette": "Yeni onay akışı kurmak ve akış kopyalamak Gold paketle gelir. Mevcut akışlarınızı düzenleyebilir, pasife alabilir ya da silebilirsiniz.",
-        "paketleriIncele": "Paketleri incele"
+        "yeniAkisDogrulama": "Yeni onay akışı kurmak ve akış kopyalamak firma doğrulaması gerektirir. Mevcut akışlarınızı düzenleyebilir, pasife alabilir ya da silebilirsiniz."
       },
       "onaylarPage": {
         "onayladi": "onayladı",
@@ -7350,69 +7284,6 @@
         "sonrakiOnayciyaGecilir": "Sonraki onaycıya geçilir."
       }
     },
-    "premium": {
-      "premiumSatinAlPage": {
-        "yukleniyor": "Yükleniyor…"
-      },
-      "checkoutView": {
-        "paketSatinAlmadanOnceFirmanizi": "Paket satın almadan önce firmanızı doğrulayın. Doğrulama ücretsizdir.",
-        "yukleniyor": "Yükleniyor…",
-        "paketiFirmaKurucusuSatinAlabilir": "Paketi firma kurucusu satın alabilir",
-        "buPaketinButunOzellikleriHesabinizda": "Bu paketin bütün özellikleri hesabınızda açık.",
-        "paketVeFaturaIslemleriYalniz": "Paket ve fatura işlemleri yalnız firma kurucusunun hesabından yapılır.",
-        "paketlereDon": "Paketlere dön",
-        "paketAcilamadi": "Paket açılamadı",
-        "paketler": "Paketler",
-        "degistir": "Değiştir",
-        "odemeDonemi": "Ödeme dönemi",
-        "yillikPesin": "Yıllık, peşin",
-        "n12AyKesintisizKullanim": "12 ay kesintisiz kullanım",
-        "faturaBilgileri": "Fatura bilgileri",
-        "unvan": "Unvan",
-        "firmaBilgileri": "Firma Bilgileri",
-        "ozet": "Özet",
-        "yillik": "{name} · yıllık",
-        "faturadaEklenir": "Faturada eklenir",
-        "toplam": "Toplam",
-        "usdKdvHaric": "USD, KDV hariç",
-        "isleniyor": "İşleniyor…",
-        "satinAl": "Satın al",
-        "satinAlmaTalebiGonder": "Satın almak için bize yazın",
-        "paketiZatenFirmanizda": "{name} paketi zaten firmanızda",
-        "mailKonu": "{name} paket satın alma — {company}",
-        "mailGovde": "Merhaba,\n\n{company} için {name} paketini yıllık dönemle satın almak istiyoruz.\n\n",
-        "paketiAcildi": "{name} paketi açıldı",
-        "paketiniSatinAl": "{name} paketini satın al",
-        "ay": "/ay",
-        "kdv": "KDV",
-        "carpi12": "{amount} × 12",
-        "faturaUnvaniVeVergiKimligi": "Fatura unvanı ve vergi kimliği Firma Bilgileri’nden alınır.",
-        "dogrulamaIncelemedeBaslik": "Doğrulamanız inceleniyor",
-        "dogrulamaIncelemedeMetin": "Belgeleriniz ekibimizce inceleniyor. Firmanız onaylanınca paketi buradan satın alabilirsiniz; belgeleri yeniden yüklemeniz gerekmez.",
-        "dogrulamaDurumu": "Doğrulama durumu"
-      },
-      "packagesView": {
-        "paketSatinAlmadanOnceFirmanizi": "Paket satın almadan önce firmanızı doğrulayın. Doğrulama ücretsizdir.",
-        "paketler": "Paketler",
-        "buSayfaPaketiyleAcilir": "Bu sayfa {requiredName} paketiyle açılır.",
-        "gorunmekUcretsizOneCikmakPaketli": "Görünmek ücretsiz, öne çıkmak paketli.",
-        "mevcutPaketiniz": "Mevcut paketiniz",
-        "ucretsiz": "Ücretsiz",
-        "suresiz": "Süresiz",
-        "yillikOdemedeKdvHaric": "Yıllık ödemede, KDV hariç",
-        "satinAl": "{name} satın al",
-        "paketiFirmaKurucusuSatinAlabilir": "Paketi firma kurucusu satın alabilir",
-        "onceUcretsizDogrulama": "Önce ücretsiz doğrulama",
-        "kullaniyorsunuz": "Kullanıyorsunuz",
-        "paketinizeDahil": "Paketinize dahil",
-        "paketi": "{name} paketi",
-        "ay": "/ay",
-        "dogrulamaIncelemede": "Doğrulamanız inceleniyor — onaylanınca satın alabilirsiniz",
-        "durumuGor": "Durumu gör",
-        "bitis": "Bitiş: {date}",
-        "uyelikSuresiDoldu": "Paket üyeliğinizin süresi {date} tarihinde doldu; firmanız Standart pakete geçti. Paketi yeniden satın alarak özelliklerini geri açabilirsiniz."
-      }
-    },
     "inbox": {
       "bildirimlerPage": {
         "bildirimler": "Bildirimler",
@@ -7463,15 +7334,13 @@
         "mesajGondermekRoluGerektirir": "Mesaj göndermek {role} rolü gerektirir — konuşmayı görüntülüyorsunuz.",
         "mesajYaz": "Mesaj yaz…",
         "enterIpucu": "Enter: gönder, Shift+Enter: yeni satır",
-        "aliciYonuGoldGerektirir": "Alıcı olarak mesaj göndermek Gold paketi gerektirir — konuşmayı görüntüleyebilirsiniz.",
-        "onceUcretsizDogrulan": "Önce ücretsiz doğrulanın",
-        "goldaGec": "Gold'a geç",
+        "aliciYonuDogrulamaGerektirir": "Alıcı olarak mesaj göndermek firma doğrulaması gerektirir — konuşmayı görüntüleyebilirsiniz.",
         "karakterSayaci": "{n, number}/{max, number} karakter"
       }
     },
     "verifyNudge": {
       "title": "Teklifiniz alıcıya “Doğrulanmamış firma” olarak görünür",
-      "body": "Doğrulanmış firmalar alıcıların gözünde güven kazanır ve listelerde öne çıkar. Doğrulama ücretsizdir, birkaç dakika sürer ve Silver pakete geçmenin de tek şartıdır.",
+      "body": "Rothern tamamen ücretsiz. Yalnızca firma doğrulamasıyla tüm alım taleplerinizi dijitale taşıyabilir ve teklif verebilirsiniz.",
       "cta": "Ücretsiz doğrulan",
       "requiredTitle": "Teklif göndermek için firma doğrulaması gerekir",
       "requiredBody": "Bu herkese açık talebin alıcısıyla bağlantınız ya da davetiniz yok; böyle taleplere yalnız doğrulanmış firmalar teklif gönderebilir. Teklifinizi şimdi taslak olarak kaydedin, doğrulama tamamlanınca gönderin. Doğrulama ücretsizdir.",

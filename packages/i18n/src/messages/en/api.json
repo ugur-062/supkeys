@@ -101,8 +101,6 @@
     "girisYapmadanOnceEPostaAdresinizi": "Verify your email address before signing in.",
     "dogrulamaKoduSuAndaGonderilemediLutfen": "The verification code could not be sent right now. Please try again in a few minutes.",
     "dogrulamaKoduHatali": "The verification code is incorrect",
-    "premiumSuAnManuelOnaylaVeriliyor": "Plans are currently granted by manual approval — self-service upgrade is temporarily unavailable",
-    "yalnizcaFirmaSahibiPaketYukseltebilir": "Only the company owner can upgrade the plan",
     "onceSirketBelgeleriniziDogrulatmalisiniz": "You must have your company documents verified first",
     "ikiAdimliDogrulamaZatenAcik": "Two-factor authentication is already enabled",
     "once2faKurulumunuBaslatin": "Start the 2FA setup first",
@@ -111,8 +109,6 @@
     "ePostaKoduBuYontemdeGecersiz": "Your two-factor authentication uses an authenticator app, so email codes cannot be used. Enter the code from the app or a recovery code.",
     "mevcutParolaHatali": "The current password is incorrect",
     "gecersizBildirimTercihi": "Invalid notification preference: {k}",
-    "buOzellikGoldPaketGerektirir": "This feature requires the Gold plan (buying panel).",
-    "buOzellikPaketVeyaUzeriGerektirir": "This feature requires the {tier} plan or higher.",
     "buUlkedenYeniKayitAlinmiyor": "New registrations from this country are not currently accepted.",
     "sahisFirmasiIcin11HaneliTckn": "Enter a valid 11-digit Turkish ID number (TCKN) for a sole proprietorship",
     "tuzelKisiIcin10HaneliVergiNo": "Enter a valid 10-digit tax number for a legal entity",
@@ -155,8 +151,7 @@
     "yalnizOnayBekleyenUrunOnaylanabilir": "Only a product awaiting approval can be approved",
     "urununUrlParcasiSlugYokFirma": "The product has no URL segment (slug) — the company must submit it again",
     "urunDurumuDegistiSayfayiYenileyin": "The product status changed — refresh the page",
-    "firmaninUrunTavaniDolu": "The company's plan limit for published products is reached ({limit}) — the product cannot be approved",
-    "firmaninPaketiDolduUrunTavaniDolu": "The company's plan has expired, so the free plan's limit for published products ({limit}) applies and is reached — the product cannot be approved",
+    "firmaninUrunTavaniDolu": "The company has reached its published product limit ({limit}) — the product cannot be approved. The limit applies to unverified companies.",
     "urunSecilmedi": "No product selected",
     "tekSeferdeEnFazlaUrunOnaylanabilir": "At most {BULKAPPROVEMAX, plural, one {# product} other {# products}} can be approved at once",
     "yalnizOnayBekleyenUrunReddedilebilir": "Only a product awaiting approval can be rejected",
@@ -190,9 +185,9 @@
     "gecersizBelgeTuru": "Invalid document type",
     "reddedilenRevizyonaGerekceGerekli": "A reason is required for a rejected revision",
     "revizyonAzOnceKararaBaglandi": "The revision was decided a moment ago",
-    "firmaninUyeligiAzOnceDegistiSayfayi": "The company's plan changed a moment ago — refresh the page and try again",
-    "uzatmaYalnizPaketliUyelikteOnceBir": "Extension is available only on a paid plan — assign a plan (Silver/Gold) first",
-    "buFirmaninUyeligiSuresizUzatilamazSure": "This company's plan has no end date — it cannot be extended. To set a term, assign the plan again first (with an end date).",
+    "firmaninUyeligiAzOnceDegistiSayfayi": "The company record changed a moment ago — refresh the page and try again",
+    "uzatmaYalnizPaketliUyelikteOnceBir": "This company has no time-limited access grant to extend",
+    "buFirmaninUyeligiSuresizUzatilamazSure": "This company’s access grant has no end date, so it cannot be extended. To set a term, grant it again with an end date.",
     "notEnAz3KarakterOlmali": "The note must be at least 3 characters",
     "notBulunamadi": "Note not found",
     "firmaAskiyaAlmaYetkisiYalnizSuper": "Only SUPER_ADMIN can suspend a company — you can resolve the complaint without suspending it",
@@ -255,9 +250,7 @@
     "hedefUlkeKayitKapali": "This country can't be targeted because registration is closed there: {c}. Rothern doesn't accept companies from this country; remove it from the visibility list.",
     "gecersizKategoriSecimi": "Invalid category selection",
     "ozelDavetliIlanEnAzBir": "A private (invite-only) request can be published with at least one invited company",
-    "icinGoldPaketSatinalmaPaneliGerekir": "{action} requires a Gold plan (buying panel). You can complete your existing buying requests, but you cannot start new request work.",
     "firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl": "Until your company verification is complete, {action} — upload your documents in Settings → Verification and submit them for review.",
-    "satinAlmaTalebiAcmakIcinGold": "A Gold plan (buying panel) is required to open a buying request.",
     "talepAcmakIcinTalepAcmaVe": "The ''Open and manage requests'' permission is required to open a request",
     "satinAlmaTalebiIcinFormatSecin": "Select a format for the buying request (Quote collection / Negotiation)",
     "pazarlikDogrudanAcilamazTalebiTeklifToplama": "A negotiation cannot be opened directly — open the request as Quote collection, then move it to a reverse auction round with ''Switch to negotiation''",
@@ -271,7 +264,6 @@
     "yayinIcinGecerliBirKapanisTarihi": "Publishing requires a valid closing date in the future",
     "ozelDavetliIlanYayinlamakIcinEn": "At least one company must be invited to publish a private (invite-only) request",
     "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "The request status changed; only a draft can be published",
-    "herkeseAcikTalepleriGormekVeTeklif": "A Silver plan is required to view the full public request and its buyer and to submit quotes; on the free plan you see this request in Open Requests with the buyer name hidden. You can quote for free on requests from companies that invited you or are connected to you.",
     "icinGuncelTcmbKuruBulunamadiBu": "No current TCMB rate was found for {cur} — a reverse or forward auction cannot be opened in this currency",
     "gecersizTeslimatFaturaAdresi": "Invalid delivery or billing address",
     "kendiIlaninizaTeklifVeremezsiniz": "You cannot submit a quote to your own request",
@@ -462,7 +454,6 @@
     "vadeliOdemeIcinGunSayisiZorunlu": "The number of days is required for deferred payment",
     "alimIcinFormatSecin": "Select a format for the buying request (Quote collection / Negotiation)",
     "ozelTalebeYalnizDavetliFirmalar": "Only invited companies can submit quotes to this private buying request",
-    "tekliIcinPremiumUyelikGerekir": "The Silver plan is required to submit a quote to this request",
     "productMatch": {
       "category": "Your product is in this category: {product}",
       "text": "Matches your product: {product}"
@@ -471,7 +462,11 @@
     "teklifGecerliligiAzOnceUzatildi": "The quote's validity period was just updated; refresh the page to check",
     "kazandirilacakMiktarKalemMiktariniAsamaz": "The award quantity for “{name}” cannot exceed the requested quantity",
     "firmaDogrulamanizIncelemede": "Your company verification is under review; until it is approved, {action}. There is no need to upload your documents again.",
-    "sayisalCevapGecersiz": "The answer to “{text}” must be a valid number."
+    "sayisalCevapGecersiz": "The answer to “{text}” must be a valid number.",
+    "icinFirmaDogrulamasiGerekir": "{action} requires company verification. You can complete your existing buying requests but cannot start new request work.",
+    "satinAlmaTalebiAcmakIcinDogrulama": "Creating a buying request requires company verification. Verification is free.",
+    "herkeseAcikTalepIcinDogrulama": "Seeing the full details and buyer of a public request and quoting on it requires company verification; until you are verified, you see this request in Open Requests with the buyer’s name hidden. You can quote on requests you are invited to and on requests from connected companies without verification.",
+    "teklifIcinDogrulamaGerekir": "Quoting on this request requires company verification"
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Request not found",
@@ -501,7 +496,7 @@
     "kendineMesajGonderemezsin": "You cannot send a message to yourself",
     "mesajlariGoruntulemekIcinYetkiGerekir": "The “{permission}” permission is required to view messages",
     "mesajGondermekIcinYetkiGerekir": "The “{permission}” permission is required to send messages",
-    "aliciOlarakMesajGoldGerektirir": "Messaging as a buyer requires the Gold plan (buying panel)."
+    "aliciOlarakMesajDogrulamaGerektirir": "Sending messages as a buyer requires company verification."
   },
   "companyListingTemplates": {
     "sablonIcerigiCokBuyukMaks500": "Template content is too large (max 500 KB)",
@@ -651,9 +646,6 @@
     "cevapHayir": "No",
     "soru": "Question"
   },
-  "companyViews": {
-    "isAnaliziSilverVeUzeriPaketlerde": "Business Insights is available on Silver and higher plans."
-  },
   "resendWebhook": {
     "svixIdHeaderZorunlu": "The svix-id header is required",
     "gecersizWebhookPayload": "Invalid webhook payload",
@@ -688,12 +680,10 @@
   },
   "companyConnections": {
     "tokenGerekli": "Token is required",
-    "baglantiDavetiGondermekIcinBirPaket": "Sending a connection invitation requires a plan (Silver+). Members without a plan can only accept incoming invitations.",
     "gecersizRothernIdXxxxXxxx": "Invalid Rothern ID (XXXX-XXXX)",
     "buRothernIdYeSahipFirma": "No company was found with this Rothern ID",
     "buEPostaAdresininBagliOldugu": "The company linked to this email address is no longer active",
     "buEPostaAdresiDavetAlmak": "This email address has opted out of receiving invitations",
-    "davetGondermekIcinBirPaketSilver": "Sending invitations requires a plan (Silver+).",
     "satinAlmaTalebiBulunamadi": "Buying request not found",
     "buSatinAlmaTalebiIcinDis": "You do not have permission to send external invitations for this buying request — you must be the user who manages the request and hold the relevant role",
     "yalnizTaslakAcikSatinAlmaTalebi": "External invitations can only be sent for a draft or open buying request",
@@ -721,7 +711,8 @@
     "gecersizEPostaAdresi": "Invalid email address",
     "onayGerekenUlke": "Invitations aren't sent to companies in this country without prior consent. If you know the company, add the address manually.",
     "kayitKapaliUlke": "Invitations aren't sent because companies from this country can't register on Rothern.",
-    "anonymousBuyer": "A buyer"
+    "anonymousBuyer": "A buyer",
+    "baglantiDavetiIcinDogrulama": "Sending connection invitations requires company verification. Unverified companies can only accept incoming invitations."
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Companies you are not connected to: {length, plural, one {# record} other {# records}}",
@@ -760,19 +751,19 @@
     "devirdeEskiKurucuTekrarKurucuOlamaz": "In a transfer the previous Founder cannot become Founder again",
     "kuruculukYalnizcaAktifBirKullaniciyaDevredilebil": "The Founder role can only be transferred to an active user",
     "firmaBulunamadi": "Company not found",
-    "satinalmaYetkisiYalnizGoldPaketteVerilebilir": "Buying permissions can only be granted on the Gold plan — creating requests and awarding are unavailable on other plans.",
     "koltukDoluDavetSuAnKabul": "All seats are taken — the invitation cannot be accepted right now; contact your company manager",
     "koltukSeciminiYalnizcaKurucuYapabilir": "Only the Founder can make the seat selection",
-    "buPaketteKoltukSiniriYok": "This plan has no seat limit",
     "secimListesindeKoltukKullanmayanBirKullanici": "The selection list contains a user who does not use a seat",
-    "enFazlaKoltukSecebilirsinizPaketLimiti": "You can select at most {limit, plural, one {# seat} other {# seats}} (plan limit)",
     "gecersizIzin": "Invalid permission: {permission}",
     "enAzBirAktifYonetimYetkilisiKalmali": "The company must keep at least one active administrator (Founder/Manager)",
-    "koltukDoluBekleyenDahil": "All seats are taken ({used, number} active + {pending, plural, one {# pending invitation} other {# pending invitations}} / {limit, number}) — upgrade your plan or free up a seat to grant purchasing/sales transaction permissions",
-    "koltukDoluIslemYetkisi": "All seats are taken ({used}/{limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions",
+    "koltukDoluBekleyenDahil": "All seats are taken ({used} active + {pending} pending invitations / {limit}) — free up a seat to grant buying/sales transaction permissions; verified companies get more seats",
+    "koltukDoluIslemYetkisi": "All seats are taken ({used}/{limit}) — free up a seat to grant buying/sales transaction permissions; verified companies get more seats",
     "koltukDoluBekleyenDahilEnUstPaket": "All seats are taken ({used, number} active + {pending, plural, one {# pending invitation} other {# pending invitations}} / {limit, number}) — to grant buying/sales transaction permissions, free up a seat: remove a user's transaction permissions or cancel a pending invitation",
     "koltukDoluIslemYetkisiEnUstPaket": "All seats are taken ({used}/{limit}) — to grant buying/sales transaction permissions, free up a seat: remove a user's transaction permissions or cancel a pending invitation",
-    "davetYenidenGonderimBekleyin": "This invitation was just sent. Wait {minutes, plural, one {# minute} other {# minutes}} before resending it."
+    "davetYenidenGonderimBekleyin": "This invitation was just sent. Wait {minutes, plural, one {# minute} other {# minutes}} before resending it.",
+    "satinalmaYetkisiIcinDogrulama": "Buying permissions can only be granted in a verified company — creating requests and awarding stay closed until the company is verified.",
+    "koltukSiniriYok": "Your company has no seat limit",
+    "enFazlaKoltukSecebilirsiniz": "You can select at most {limit} seats"
   },
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Template not found",
@@ -788,11 +779,9 @@
   },
   "ai": {
     "firmaBulunamadi": "Company not found",
-    "paketinizAiOzellikleriniIcermiyorSilverVeya": "Your plan does not include AI features — a Silver plan or higher is required.",
     "aiKullanimKaydiBulunamadi": "AI usage record not found",
     "onceBirAdBaslikYazin": "Enter a name or title first.",
     "aciklamaUretilemediBirkacOlguDahaEkleyip": "The description could not be generated — add a few more facts and try again.",
-    "ucretsizPaketteProfilAiIleBir": "On the free plan the profile can be filled in with AI once — a Silver plan or higher is required to generate it again.",
     "aiOzelligiSuAndaKullanilamiyor": "The AI feature is currently unavailable.",
     "onceFirmaWebSiteniziEkleyinProfilim": "Add your company website first (My Profile → Edit).",
     "gunlukAiProfilOlusturmaLimitineUlasildi": "The daily AI profile generation limit has been reached ({DAILYLIMIT}) — try again tomorrow.",
@@ -835,7 +824,6 @@
     "belgedenTalepTaslagiYalnizSatinAlma": "A request draft can be extracted from a document only in the Buying portal",
     "dosyaYuklenmemisGorunuyorLutfenTekrarDeneyin": "The file does not appear to have been uploaded — please try again",
     "aiOzelligiSuAndaKullanilamiyorYapilandirilmamis": "The AI feature is currently unavailable (not configured).",
-    "aiOzellikleriSilverVeyaUzeriPaket": "AI features require a Silver plan or higher.",
     "aiOzellikleriniYalnizcaBuAlandaIslem": "Only users with operational permissions in this area can use AI features.",
     "aiIstegiZamanAsiminaUgradiLutfen": "The AI request timed out — please try again.",
     "aiKullaniminiYalnizcaYonetimYaDa": "Only users with management or operational permissions can view AI usage.",
@@ -929,7 +917,9 @@
       "dailyCap": "The daily AI usage cap has been reached — try again tomorrow."
     },
     "bidPriceSalvaged": "The AI output hit its length limit — {n, plural, one {# row was} other {# rows were}} recovered; the rest of the document may not have been read (split the document and try again)",
-    "bidPriceUnreadable": "The document could not be read — the AI did not return a valid result; try the template instead"
+    "bidPriceUnreadable": "The document could not be read — the AI did not return a valid result; try the template instead",
+    "aiOzellikleriIcinDogrulama": "AI features require company verification.",
+    "profilAiBirKezDogrulama": "Unverified companies can fill in their profile with AI once — generating it again requires company verification."
   },
   "companyOrders": {
     "buIslemiYapamazsiniz": "You cannot perform this action",
@@ -979,14 +969,12 @@
     "ayniOdemeAzOnceBildirildi": "This payment was just reported and is awaiting the seller's confirmation"
   },
   "companyItems": {
-    "ucretsizPaketteEnFazlaUrunYayinda": "On the free plan at most {limit, plural, one {# product} other {# products}} can be published or awaiting review. To restore this product, first remove a product from the showcase or switch to the Silver plan.",
     "ilanBulunamadi": "Request not found",
     "urunBulunamadi": "Product not found",
     "urunIncelemedeEkibimizOnaylayanaYaDa": "The product is under review — it cannot be changed until our team approves it or requests changes.",
     "katalogKalemiBulunamadi": "Catalog line item not found",
     "urunAdiZorunlu": "Product name is required",
     "onayaGonderilemedi": "Could not be submitted for review — {join}",
-    "ucretsizPaketteEnFazlaUrunYayinda2": "On the free plan at most {limit, plural, one {# product} other {# products}} can be published or awaiting review. For more, switch to the Silver plan.",
     "katalogEnFazlaKalemTasiyabilirKullanmadiklariniz": "The catalog can carry at most {MAXCATALOGITEMS, plural, one {# line item} other {# line items}} — archive the ones you do not use",
     "kalemAdiZorunlu": "Line item name is required",
     "stokKoduKatalogdaZatenVarKod": "The stock code \"{code}\" already exists in the catalog — the code must be unique within the company",
@@ -999,7 +987,9 @@
       "price": "Fill in the fields of the selected price mode"
     },
     "nitelikDegeriGecersiz": "Invalid attribute value: only text, a number or a list is allowed; text can be up to {max, plural, one {# character} other {# characters}} and a list up to {items, plural, one {# item} other {# items}}.",
-    "ayniUrunAzOnceOlusturuldu": "A product with the same name was just created; continue from My products"
+    "ayniUrunAzOnceOlusturuldu": "A product with the same name was just created; continue from My products",
+    "urunTavaniGeriAlDogrulama": "Unverified companies can have at most {limit, plural, one {# product} other {# products}} published or awaiting review. To restore this product, first remove a product from your showcase or verify your company.",
+    "urunTavaniDogrulama": "Unverified companies can have at most {limit, plural, one {# product} other {# products}} published or awaiting review. For more, verify your company."
   },
   "guards": {
     "yetkisiz": "Unauthorized",
@@ -1447,16 +1437,16 @@
       },
       "seatSelection": {
         "title": "Your action permissions have been removed",
-        "body": "Because your plan was downgraded, some of your action permissions (seats) have been removed. Your account, view access and other permissions remain unchanged."
+        "body": "Because your company’s seat limit was reduced, some of your transaction permissions (seats) were removed. Your account, viewing access and other permissions remain unchanged."
       },
       "ownershipTransferred": {
         "toNewOwner": {
           "title": "Ownership of {company} has been transferred to you",
-          "body": "{other} has transferred ownership of {company} to you. You now hold all management rights, including plan and billing, deleting the company and transferring ownership; your menu has been updated to match."
+          "body": "{other} transferred the founder role of {company} to you. All management permissions, including billing, deleting the company and transferring the founder role, are now yours; your menu has been refreshed to match."
         },
         "toPreviousOwner": {
           "title": "You transferred ownership of {company}",
-          "body": "Ownership of {company} has been transferred to {other}. Plan and billing, company deletion and ownership transfer rights now belong to the new owner; your account continues with the role chosen during the transfer. If you did not do this, contact the new owner or our support team."
+          "body": "The founder role of {company} was transferred to {other}. Billing, deleting the company and transferring the founder role now belong to the new founder; your account continues with the role chosen during the transfer. If you did not do this, contact the new founder or our support team."
         }
       }
     },
@@ -1511,11 +1501,11 @@
         "cta": "View inquiry"
       },
       "sellerFree": {
-        "subject": "New inquiry about your product — Silver to reply",
+        "subject": "New inquiry about your product — get verified to reply",
         "heading": "A buyer asked about your product",
         "intro": "A buyer asked for information about your product “{product}”.",
         "introWithQuantity": "A buyer asked for information about your product “{product}” ({quantity}).",
-        "action": "On the free plan you can see the question; the buyer’s identity, contact details and replying are unlocked with the Silver plan.",
+        "action": "Until you are verified you only see the question; the buyer’s identity, contact details and the reply option unlock with company verification. Verification is free.",
         "cta": "View inquiry"
       }
     },
@@ -1526,8 +1516,8 @@
         "placeBid": "Submit a quote",
         "viewOrder": "View order",
         "viewOrders": "View orders",
-        "upgradeSilver": "Upgrade to Silver",
-        "verifyFree": "Get verified for free"
+        "verifyFree": "Get verified for free",
+        "verificationStatus": "View verification"
       },
       "closed": {
         "subject": "Quote submission closed for a buying request",
@@ -1546,16 +1536,16 @@
           "openSubject": "A new buying request that fits you was published",
           "openBody": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see the requested line items below — open the request and submit your quote.",
           "openInAppBody": "New buying request matching the categories you sell: “{title}” ({number}).",
-          "lockedSubject": "A new buyer in your category — upgrade to Silver to quote",
-          "lockedBody": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see what is requested below. On the free plan you cannot quote on public requests; upgrade to Silver to quote on this request and on other open requests in your category, and to stand out in the company directory. Requests your connections invite you to are always free.",
-          "lockedInAppTitle": "A new buyer in your category — upgrade to Silver to quote",
-          "lockedInAppBody": "A new buying request matching the categories you sell was published: “{title}”. Upgrade to Silver to quote on it.",
-          "lockedBodyUnverified": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see what is requested below. On the free plan you cannot quote on public requests, and the only requirement for upgrading to Silver is verifying your company for free. Get verified first, then quote on this request and other open requests in your category with Silver. Requests your connections invite you to are always free.",
-          "lockedInAppBodyUnverified": "A new buying request matching the categories you sell was published: “{title}”. To quote, verify your company for free first, then upgrade to Silver.",
+          "lockedSubject": "A new buyer in your category — get verified to quote",
+          "lockedInAppTitle": "A new buyer in your category — get verified to quote",
+          "lockedBodyUnverified": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see what is requested below. Quoting on public requests requires a verified company; verification is free. Once verified, you can quote on this request and on the other open requests in your category. Requests your connections invite you to do not require verification.",
+          "lockedInAppBodyUnverified": "A new buying request matching the categories you sell was published: “{title}”. Verify your company for free to quote.",
           "openBodyUnverified": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see the requested line items below. To quote on public requests, first verify your company for free; once verification is complete, you can submit a quote on this request. Requests your connections invite you to do not require verification.",
           "openInAppBodyUnverified": "New buying request matching the categories you sell: “{title}” ({number}). Verify your company for free first to submit a quote.",
           "openBodyPending": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see the requested line items below. Your company verification is under review; once it is approved, you can submit a quote on this request.",
-          "openInAppBodyPending": "New buying request matching the categories you sell: “{title}” ({number}). You can submit a quote once your company verification is approved."
+          "openInAppBodyPending": "New buying request matching the categories you sell: “{title}” ({number}). You can submit a quote once your company verification is approved.",
+          "lockedBodyPending": "A new buying request matching the categories you sell was published: “{title}” ({number}). You can see what is requested below. Your company verification is under review; once it is approved, you can quote on this request and on the other open requests in your category. Requests your connections invite you to do not require verification.",
+          "lockedInAppBodyPending": "A new buying request matching the categories you sell was published: “{title}”. You can quote once your company verification is approved."
         }
       },
       "invitation": {
@@ -1652,22 +1642,22 @@
       },
       "aiMatchLocked": {
         "subject": "A buyer is looking for what you sell",
-        "bodySilver": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because you’re on the free plan, you weren’t suggested to the buyer and can’t see the request. With Silver, you see this request and quote on it, and you appear in buyers’ AI supplier suggestions.",
-        "bodyVerify": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company is unverified and on the free plan, you weren’t suggested to the buyer and can’t see the request. Verify your company for free first — it’s the only requirement for upgrading to Silver; with Silver you can quote on this request and appear in buyers’ AI supplier suggestions.",
-        "inAppBodySilver": "AI found your company a good fit for the request “{title}”. Upgrade to Silver to see it and submit a quote.",
-        "inAppBodyVerify": "AI found your company a good fit for the request “{title}”. Verify your company for free first, then quote with Silver.",
+        "bodyVerify": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company is unverified, you weren’t suggested to the buyer and you can’t see the request. Verify your company for free; once verified, you can see this request, quote on it and appear in buyers’ AI supplier suggestions.",
+        "inAppBodyVerify": "AI found your company a good fit for the request “{title}”. Verify your company for free to see the request and quote.",
         "bodyPaidPending": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company verification is still under review, you haven’t been suggested to the buyer yet. You can already see the request; once your verification is approved, you can quote on it and appear in buyers’ AI supplier suggestions.",
         "bodyPaidVerify": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company is unverified, you weren’t suggested to the buyer. You can see the request; verify your company for free to quote on it and appear in buyers’ AI supplier suggestions.",
         "inAppBodyPaidPending": "AI found your company a good fit for the request “{title}”. You can see it now; you can quote once your verification is approved.",
         "inAppBodyPaidVerify": "AI found your company a good fit for the request “{title}”. Verify your company for free to submit a quote.",
-        "footer": "You’re receiving this because your showcase and categories matched a buyer’s search. You can turn off category notifications in Settings › Notifications."
+        "footer": "You’re receiving this because your showcase and categories matched a buyer’s search. You can turn off category notifications in Settings › Notifications.",
+        "bodyPending": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company verification is still under review, you haven’t been suggested to the buyer yet and you can’t see the request. Once your verification is approved, you can see this request, quote on it and appear in buyers’ AI supplier suggestions.",
+        "inAppBodyPending": "AI found your company a good fit for the request “{title}”. Once your verification is approved, you can see the request and quote."
       }
     },
     "adminCompanies": {
       "ulkeDegistiBaslik": "Country change: your verification documents need updating",
       "ulkeDegistiGovde": "Because your company’s country was updated, the required verification documents have changed. Upload the missing documents and resubmit your verification.",
       "dogrulamaOnaylandiBaslik": "Your company verification was approved",
-      "dogrulamaOnaylandiGovde": "Your company verification documents have been reviewed and approved. Your company now appears with the “Verified” badge and steps that require verification are unlocked. Publishing requests also requires the Gold plan and quoting on public requests requires the Silver plan; you can quote on requests you are invited to or that come from your connections without a plan.",
+      "dogrulamaOnaylandiGovde": "Your company is verified and now appears with the “Verified” badge. Every feature of the platform is unlocked for your account, completely free: you can publish buying requests and quote on requests.",
       "dogrulamaReddedildiBaslik": "Your company verification was rejected",
       "dogrulamaReddedildiGovde": "Your company verification documents were reviewed but could not be approved. Please update your documents and resubmit.",
       "baziBelgelerReddedildiBaslik": "Some of your documents were rejected",
@@ -1676,16 +1666,6 @@
       "belgeGuncellemesiOnaylandiGovde": "The new document you submitted has been reviewed and approved; it is now on file as your valid document.",
       "belgeGuncellemesiReddedildiBaslik": "Your document update was rejected",
       "belgeGuncellemesiReddedildiGovde": "The new document you submitted was not approved; your current document remains valid. You can review the reason and upload a new document.",
-      "paketSonlandirildiBaslik": "Your plan has ended",
-      "paketSonlandirildiAnaParagraf": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
-      "paketSonlandirildiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval.",
-      "paketSonlandirildiDavetIptal": "The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
-      "paketSonlandirildiGovde": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
-      "paketSonlandirildiGovdeKirpildi": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval. The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled.",
-      "paketTanimlandiBaslik": "Your plan has been activated",
-      "paketTanimlandiGovde": "The {paket} plan has been assigned to your company account. You can start using your plan benefits right away.",
-      "paketSilvereAlindiBaslik": "Your plan has been changed to Silver",
-      "paketSilvereAlindiGovde": "A platform administrator has moved your company to the Silver plan. Opening new requests, inviting new suppliers to existing requests, extending closing dates and editing requests are available with the Gold plan. You can still view your existing requests, evaluate and award the quotes you have received, close requests and complete ongoing orders. Supplier invitations waiting to be sent have been canceled. Your team’s buying permissions have not been deleted; they do not take up seats on Silver and become active again when you return to Gold. All your selling rights continue.",
       "askiyaAlindiBaslik": "Your account has been suspended",
       "askiyaAlindiGerekce": "Your company account has been suspended by a platform administrator. Reason: {gerekce}",
       "askiyaAlindiItiraz": "To appeal or for more information, please contact our support team.",
@@ -1731,7 +1711,8 @@
         "idFront": "Authorized signatory ID or passport",
         "idBack": "Authorized signatory ID — back"
       },
-      "paketTanimlandiGovdeBitisli": "The {paket} plan has been assigned to your company account and is valid until {bitis}. You can start using your plan benefits right away."
+      "dogrulamaGeriAlindiKirpilanUrun": "Unverified companies can have at most {limit, number} products published in their showcase; {adet} of your products above the limit were moved to drafts, not deleted. You can resubmit them for review once you are verified again.",
+      "dogrulamaGeriAlindiDavetIptal": "Your pending outgoing connection invitations and the supplier invitations queued for sending on your requests were cancelled."
     },
     "adminProducts": {
       "yayinaAlindiBaslik": "Your product has been published",
@@ -1790,14 +1771,6 @@
       "parolaDegistiGovde": "The password for your account has been changed. If you did not do this, reset your password immediately and contact support.",
       "hesapAyarlari": "Account settings"
     },
-    "membership": {
-      "sonaErdiKonu": "Your plan has expired",
-      "sonaErdiAnaParagraf": "Your plan has expired and your account has been moved to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; you see public requests with the buyer hidden; quoting on them, the buyer’s identity and replying to incoming information requests are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a paid plan), and up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
-      "sonaErdiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted. When you return to Silver you can submit them for review again; products go back to your showcase after administrator approval.",
-      "sonaErdiYukseltme": "To move to a plan again, you can upgrade from your account.",
-      "premiumaGec": "View plans",
-      "sonaErdiDavetIptal": "The pending connection invitations you sent and the supplier invitations waiting to be sent for your requests have been canceled."
-    },
     "ai": {
       "butceUyarisiBaslik": "AI budget alert",
       "butceUyarisiGovde": "Your company’s monthly AI usage has reached {yuzde}%. When the budget runs out, AI features are disabled until the end of the month.",
@@ -1815,16 +1788,16 @@
     "digest": {
       "subject": "{n, plural, one {# more request} other {# more requests}} opened in your categories today",
       "body": "You reached today’s limit for instant alerts, so we’ve collected the other requests opened today in one email:",
-      "bodyLocked": "Here are the other requests opened in your categories today. Upgrade to Silver to view them and submit quotes.",
       "closesRow": "Quote deadline: {date}",
       "cta": "View open requests",
       "footer": "To get every category email instantly, turn on “All instantly” in Settings › Notifications.",
       "invitationSubject": "You were invited to {n, plural, one {# more request} other {# more requests}} today",
       "invitationBody": "You reached today’s limit for instant alerts, so we’ve collected today’s other request invitations in one email:",
       "invitationCta": "View invitations",
-      "bodyLockedUnverified": "Here are the other requests opened in your categories today. You need Silver to view them and submit quotes, and the only requirement for Silver is verifying your company for free.",
+      "bodyLockedUnverified": "The other requests opened in your category today are below. Seeing these requests and quoting on them requires a verified company; verification is free.",
       "bodyUnverified": "You reached today’s limit for instant alerts, so we’ve collected the other requests opened today in one email. To quote on public requests, first verify your company for free; requests your connections invite you to don’t require verification.",
-      "bodyPending": "You reached today’s limit for instant alerts, so we’ve collected the other requests opened today in one email. Your company verification is under review; once it’s approved, you can quote on these requests from buyers you aren’t connected with."
+      "bodyPending": "You reached today’s limit for instant alerts, so we’ve collected the other requests opened today in one email. Your company verification is under review; once it’s approved, you can quote on these requests from buyers you aren’t connected with.",
+      "bodyLockedPending": "The other requests opened in your category today are below. Your company verification is under review; once it is approved, you can see these requests and quote on them."
     },
     "lifecycle": {
       "profile": {
@@ -1834,40 +1807,34 @@
       },
       "first_product": {
         "subject": "Add your first product so buyers can find you",
-        "body": "Products in your showcase appear in Google and Rothern search. The free plan lets you list up to 50 products.",
+        "body": "Products in your showcase appear on Google and in Rothern search. You can publish up to 50 products before verification; verified companies have no limit.",
         "cta": "Add product"
       },
       "verify": {
-        "subject": "Get verified for free and earn the “Verified” badge",
-        "body": "Verified companies stand out in buyers’ lists and receive more invitations. Uploading your documents takes a few minutes.",
+        "subject": "Rothern is completely free — one step: company verification",
+        "body": "Rothern is completely free. Company verification is all you need to move all your buying requests online and to quote. Uploading your documents takes a few minutes.",
         "cta": "Start verification"
       },
       "market": {
         "subject": "{n, plural, one {# request was} other {# requests were}} opened in your categories in the last 2 weeks",
         "body": "You can quote on buying requests in your categories from Open Requests.",
-        "bodyLocked": "Upgrade to Silver to view these requests and quote on them. On the free plan you can still quote on requests from buyers you’re connected with or who invite you.",
+        "bodyLocked": "Seeing these requests and quoting on them requires a verified company; verification is free. You can quote without verification on requests from buyers you are connected with or who invite you.",
         "cta": "View open requests",
-        "ctaLocked": "Upgrade to Silver"
+        "ctaLocked": "Get verified for free",
+        "bodyLockedPending": "Your company verification is under review; once it is approved, you can see these requests and quote on them. You can already quote on requests from buyers you are connected with or who invite you."
       },
       "weekly": {
         "subject": "Your company was viewed {n, plural, one {# time} other {# times}} this week",
         "body": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. See who looked on the Visitors page.",
         "cta": "See visitors",
-        "bodyFree": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days, {members, plural, one {# of them} other {# of them}} by Rothern member companies. Silver shows you which companies looked; with Silver you can also quote on public requests and appear in buyers’ AI supplier suggestions.",
-        "bodyFreeAnon": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. With Silver, you see the names of companies that viewed your profile, quote on public requests and appear in buyers’ AI supplier suggestions.",
-        "ctaFree": "Explore Silver",
-        "bodyUnverified": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. Verified companies stand out in buyers’ lists, and only verified Silver and Gold companies appear in AI supplier suggestions. Verification is free and takes a few minutes.",
-        "ctaUnverified": "Get verified for free"
+        "bodyUnverified": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. Verified companies see the names of the companies that viewed their profile, stand out in buyers’ lists and appear in AI supplier suggestions. Verification is free and takes a few minutes.",
+        "ctaUnverified": "Get verified for free",
+        "bodyPending": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. Your company verification is under review; once it is approved, you will see the names of the companies that viewed your profile on the Visitors page."
       },
       "verify_again": {
         "subject": "Unverified companies don’t appear in buyers’ AI suggestions",
-        "body": "Buyers use AI supplier suggestions when they create requests, and only verified Silver and Gold companies are included. When you submit a quote, the buyer also sees you as an “Unverified company”. Verification is free, uploading the documents takes a few minutes, and it’s the only requirement for upgrading to Silver.",
+        "body": "Buyers use AI supplier suggestions when they create requests; only verified companies appear in them. When you quote, the buyer also sees you as an “Unverified company”. Verification is free, uploading your documents takes a few minutes, and it unlocks every feature of the platform.",
         "cta": "Get verified for free"
-      },
-      "silver": {
-        "subject": "Your company is verified — now get in front of buyers",
-        "body": "With Silver, you see and quote on public buying requests, appear in buyers’ AI supplier suggestions and see the names of companies that viewed your profile.",
-        "cta": "Explore Silver"
       }
     },
     "zeroBid": {
@@ -2050,5 +2017,15 @@
       "LOST": "Not selected",
       "WITHDRAWN": "Withdrawn"
     }
+  },
+  "entitlement": {
+    "verificationRequired": "Using this feature requires company verification. Verification is free; upload your documents to apply.",
+    "verificationPending": "Your company verification is under review. This feature unlocks once it is approved.",
+    "verificationRejected": "Your company verification was not approved. To use this feature, update your documents and apply again.",
+    "notAvailable": "This feature is not available on your account.",
+    "purchaseClosed": "This action is no longer available. Rothern is free; company verification is all you need for every feature."
+  },
+  "companyViews": {
+    "isAnaliziIcinDogrulama": "Business Insights requires company verification."
   }
 }
