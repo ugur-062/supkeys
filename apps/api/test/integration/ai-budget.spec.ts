@@ -528,6 +528,72 @@ describe("Faz AI-0 — maliyet hesabı + türetilmiş bakiye", () => {
     expect(timedOut.costUsd.toNumber()).toBeGreaterThan(0); // tahmin korunur
   });
 
+  it("sağlayıcı hatasının temizlenmiş sebebi kullanım kaydına yazılır (metadata.providerReason); özellik bağlamı korunur, errorCode değişmez", async () => {
+    // Staging'de her çağrı 502 dönüyordu ve kayıtta yalnız `provider_error`
+    // vardı — Google'ın asıl yanıtı günlüğe bakmadan öğrenilemiyordu.
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const p = new FakeProvider();
+    p.failWith = new AiProviderError(
+      "Gemini hatası: {\"error\":{\"code\":400,\"message\":\"User location is not supported\"}}",
+      "provider_error",
+      undefined,
+      "http_400:FAILED_PRECONDITION:location_not_supported",
+    );
+    await expect(
+      makeAi(makeCfg(), p).callAi(co.auth, { ...CALL, metadata: { route: "text", pages: 3 } }),
+    ).rejects.toThrow(/sağlayıcısı hata/);
+
+    const row = await prisma.aiUsage.findFirstOrThrow({ where: { companyId: co.company.id } });
+    expect(row.status).toBe("FAILED");
+    expect(row.errorCode).toBe("provider_error");
+    expect(row.costUsd.toString()).toBe("0");
+    expect(row.metadata).toEqual({
+      route: "text",
+      pages: 3,
+      providerReason: "http_400:FAILED_PRECONDITION:location_not_supported",
+    });
+    // Ham sağlayıcı metni kayda GİRMEZ.
+    expect(JSON.stringify(row.metadata)).not.toContain("User location");
+  });
+
+  it("sebep kayda yazılmadan önce süzülür (serbest metin/sır sızmaz); sebep yoksa metadata'ya dokunulmaz", async () => {
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const budget = new AiBudgetService(prisma as never, makeCfg());
+    const est = new Prisma.Decimal("0.001");
+    const reserve = (metadata?: Record<string, unknown>) =>
+      budget.reserve({
+        companyId: co.company.id,
+        userId: co.user.id,
+        feature: "test",
+        metadata,
+        candidates: [{ model: FLASH, estimatedCostUsd: est, isPremium: false }],
+      });
+
+    const dirty = await reserve();
+    await budget.fail(dirty.id, {
+      errorCode: "provider_error",
+      reason: "http_403 key=AIzaSy-SECRET \"kullanici@firma.com\" " + "x".repeat(300),
+    });
+    const dirtyRow = await prisma.aiUsage.findUniqueOrThrow({ where: { id: dirty.id } });
+    const stored = (dirtyRow.metadata as { providerReason: string }).providerReason;
+    expect(stored).toMatch(/^[A-Za-z0-9_:]+$/);
+    expect(stored.length).toBeLessThanOrEqual(96);
+    expect(stored.startsWith("http_403")).toBe(true);
+    expect(stored).not.toContain("@");
+    expect(stored).not.toContain("-");
+
+    const plain = await reserve({ route: "pdf_vision" });
+    await budget.fail(plain.id, { errorCode: "timeout", keepEstimate: true });
+    const plainRow = await prisma.aiUsage.findUniqueOrThrow({ where: { id: plain.id } });
+    expect(plainRow.metadata).toEqual({ route: "pdf_vision" });
+    expect(plainRow.costUsd.toString()).toBe(est.toString()); // timeout: tahmin korunur
+
+    const bare = await reserve();
+    await budget.fail(bare.id, { errorCode: "provider_error" });
+    const bareRow = await prisma.aiUsage.findUniqueOrThrow({ where: { id: bare.id } });
+    expect(bareRow.metadata).toBeNull();
+  });
+
   it("bakiye TÜRETİLİR (SUM): FAILED(0) etkisiz, SETTLED + timeout-FAILED sayılır", async () => {
     const provider = new FakeProvider();
     const cfg = makeCfg({ budgets: { GOLD: 0.02 }, caps: { requestShare: 1, userShare: 1, dailyShare: 1 } });

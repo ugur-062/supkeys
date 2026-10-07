@@ -1,4 +1,5 @@
 import type { ConfigService } from "@nestjs/config";
+import { CANONICAL_EMAIL_DOMAIN, expectedSenderDomain } from "./email-sender";
 
 /**
  * Prod cookie/CSRF config sağlık kontrolü — saf fonksiyon (test edilebilir) +
@@ -15,7 +16,8 @@ import type { ConfigService } from "@nestjs/config";
  * Bu guard o yapısal-kırık kombinasyonu BOOT'ta yakalar → sessiz runtime 403
  * yerine gürültülü deploy hatası (fix: COOKIE_DOMAIN=.rothern.com).
  *
- * KAPSAM: yalnız cookie/CSRF tutarlılığı. WEB_URL ayrıca `assertProdWebUrl` ile,
+ * KAPSAM: cookie/CSRF tutarlılığı + RLS bypass + canlıda açık kalmış staging
+ * bayrakları (aşağıda `checkStagingOnlyEnv`). WEB_URL ayrıca `assertProdWebUrl` ile,
  * JWT_SECRET `checkJwtSecret` ile guard'lı (main.ts). Yalnız NODE_ENV=production
  * aktif — dev/test inert (full-suite yeşil kalır).
  *
@@ -69,8 +71,97 @@ export function checkRlsBypassConfig(env: {
   return null;
 }
 
+/**
+ * YALNIZ STAGING/ÖNİZLEME İÇİN OLAN BAYRAKLAR CANLIDA AÇIK KALAMAZ (canlı öncesi
+ * sağlamlaştırma, 2026-10-07).
+ *
+ * - `CORS_ALLOW_VERCEL=true`: HER `*.vercel.app` kökenine kimlik bilgili (çerezli)
+ *   erişim açar — canlıda CSRF / veri sızıntısı. Yalnız önizleme/demo içindir.
+ * - `EMAIL_ALLOWLIST` dolu: listede olmayan HİÇBİR alıcıya e-posta gitmez —
+ *   canlıda doğrulama kodu, davet, sipariş bildirimi sessizce kesilir (gönderim
+ *   "başarılı" görünür, günlük temizdir). Yalnız staging içindir.
+ *
+ * İkisi de bugüne kadar yalnız kontrol listesinde "gözle bak" maddesiydi; artık
+ * AÇILIŞ KAPISI.
+ *
+ * "CANLI" NASIL TANINIR: `NODE_ENV=production` staging'de de geçerlidir
+ * (Render'da o da production kipinde koşar) ve staging'de `EMAIL_ALLOWLIST`
+ * BİLEREK doludur. Bu yüzden kapı yalnız sitenin alan adı canlı alan adı
+ * (`rothern.com`, `WEB_URL`den — gönderen adresi kapısıyla AYNI türetme) iken
+ * çalışır. Staging (`staging.supkeys.com`) yeni bir ortam değişkeni GEREKTİRMEDEN
+ * açılmaya devam eder; doğru kurulmuş canlı (ikisi de boş/`false`) etkilenmez.
+ *
+ * AÇIK İSTİSNA: `ALLOW_STAGING_ONLY_ENV=true` — canlı alan adında koşan ama
+ * canlı OLMAYAN bir ortam (ör. `*.rothern.com` altında bir prova) için bilinçli
+ * kaçış. Canlı serviste TANIMLANMAZ.
+ */
+export const STAGING_ONLY_ENV_OVERRIDE = "ALLOW_STAGING_ONLY_ENV";
+
+export type StagingOnlyEnvRejection = "cors_allow_vercel" | "email_allowlist";
+
+/** Bu ortam canlı mı? `NODE_ENV=production` + site alan adı canlı alan adı. */
+export function isLiveEnvironment(env: {
+  nodeEnv: string | undefined;
+  webUrl: string | undefined;
+}): boolean {
+  if (env.nodeEnv !== "production") return false;
+  return expectedSenderDomain(env.webUrl) === CANONICAL_EMAIL_DOMAIN;
+}
+
+/**
+ * Canlıda açık kalmış staging bayrakları (boş dizi → sorun yok). Saf.
+ *
+ * `CORS_ALLOW_VERCEL`: jokeri kod yalnız tam `"true"` ile açar; burada boşluk /
+ * büyük harf farkı da ("TRUE", " true ") reddedilir — niyet açıktır ve yarım
+ * yazım sessizce "kapalı" sayılmasın. `false` / `0` / boş / tanımsız geçer.
+ * `EMAIL_ALLOWLIST`: `parseEmailAllowlist` ile aynı eşik — boşluk dışında
+ * herhangi bir karakter kapıyı etkinleştirir (yalnız ayraç `,` dahil: o hâlde
+ * hiçbir e-posta gitmez).
+ */
+export function checkStagingOnlyEnv(env: {
+  nodeEnv: string | undefined;
+  webUrl: string | undefined;
+  corsAllowVercel: string | undefined;
+  emailAllowlist: string | undefined;
+  override: string | undefined;
+}): StagingOnlyEnvRejection[] {
+  if (!isLiveEnvironment(env)) return [];
+  if ((env.override ?? "").trim().toLowerCase() === "true") return [];
+  const out: StagingOnlyEnvRejection[] = [];
+  if ((env.corsAllowVercel ?? "").trim().toLowerCase() === "true") out.push("cors_allow_vercel");
+  if ((env.emailAllowlist ?? "").trim() !== "") out.push("email_allowlist");
+  return out;
+}
+
 /** Boot guard (fail-closed): reddedilirse THROW → deploy fail. */
 export function assertProdConfigSanity(config: ConfigService): void {
+  const stagingOnly = checkStagingOnlyEnv({
+    nodeEnv: config.get<string>("NODE_ENV"),
+    webUrl: config.get<string>("WEB_URL"),
+    corsAllowVercel: config.get<string>("CORS_ALLOW_VERCEL"),
+    emailAllowlist: config.get<string>("EMAIL_ALLOWLIST"),
+    override: config.get<string>(STAGING_ONLY_ENV_OVERRIDE),
+  });
+  if (stagingOnly.length > 0) {
+    const parts: string[] = [];
+    if (stagingOnly.includes("cors_allow_vercel")) {
+      parts.push(
+        "CORS_ALLOW_VERCEL=true canlıda olamaz — her *.vercel.app kökenine çerezli erişim açar " +
+          "(CSRF / veri sızıntısı). Çözüm: değişkeni silin ya da false yapın.",
+      );
+    }
+    if (stagingOnly.includes("email_allowlist")) {
+      parts.push(
+        "EMAIL_ALLOWLIST canlıda dolu olamaz — listede olmayan hiçbir müşteriye e-posta gitmez " +
+          "(doğrulama kodu, davet, sipariş bildirimi sessizce kesilir). Çözüm: değişkeni silin.",
+      );
+    }
+    throw new Error(
+      `${parts.join(" ")} (Kapı yalnız WEB_URL alan adı ${CANONICAL_EMAIL_DOMAIN} iken çalışır; ` +
+        `canlı olmayan bir ortamda bilinçli istisna: ${STAGING_ONLY_ENV_OVERRIDE}=true.)`,
+    );
+  }
+
   if (
     checkRlsBypassConfig({
       rlsEnabled: config.get<string>("RLS_ENABLED"),

@@ -280,8 +280,13 @@ export class AiService {
         await this.budget.fail(reservation.id, {
           errorCode: err.code,
           usage: err.usage,
+          // Temizlenmiş sebep (ör. `http_400:FAILED_PRECONDITION`) kullanım
+          // kaydının metadata'sına yazılır — 502'ler günlüksüz teşhis edilsin.
+          reason: err.reason,
         });
-        this.logger.warn(`AI sağlayıcı hatası (${err.code}): ${err.message}`);
+        this.logger.warn(
+          `AI sağlayıcı hatası (${err.code}${err.reason ? `, ${err.reason}` : ""}): ${err.message}`,
+        );
         throw new BadGatewayException(
           i18nMessage("api.ai.saglayiciHataDondurdu"),
         );

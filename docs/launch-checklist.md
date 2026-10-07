@@ -95,6 +95,9 @@ Ayrıntı: `docs/r2-bucket-split.md` (Cloudflare kurulum + rollback).
 | `NEXT_PUBLIC_SITE_URL` | SEO canonical/sitemap/robots bozulur | **Vercel build-time — şart** |
 | `COOKIE_SAMESITE` | ⚠️ Boşsa prod'da `none` → **CsrfGuard komple bypass, CSRF açık** | **Same-site domain'de `lax`** (aşağıdaki sıralı adım) |
 | `CORS_ALLOW_VERCEL` | `true` ise **her `*.vercel.app`** credentials'lı istek atabilir (CSRF/veri sızıntısı) | Prod'da **boş/`false`**; yalnız preview/demo'da `true` |
+| `EMAIL_ALLOWLIST` | Doluysa listede olmayan **hiçbir müşteriye e-posta gitmez** (doğrulama kodu, davet, sipariş bildirimi sessizce kesilir) | Prod'da **tanımsız/boş**; yalnız `api-staging`de dolu |
+| `ALLOW_STAGING_ONLY_ENV` | Yukarıdaki iki açılış kapısını kaldırır | Prod'da **TANIMLANMAZ** (yalnız `*.rothern.com` altında koşan, canlı olmayan prova ortamı için bilinçli istisna) |
+| `THROTTLE_DEFAULT_LIMIT` / `THROTTLE_AUTH_LIMIT` / `THROTTLE_PUBLIC_LIMIT` | Boş / sayı değil / ≤ 0 değer **varsayılana** düşer (100 / 1000 / 600) ve açılışta `[Throttle]` uyarısı basar — eskiden boş değer 0 sınırı = tüm API 429 idi | Varsayılan için **silin**; değiştirmek için pozitif tam sayı |
 
 - [ ] `SENTRY_DSN`
 - [ ] `R2_PUBLIC_BASE_URL`
@@ -130,7 +133,11 @@ boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
       `assertProdConfigSanity` prod'da `none`/unset'i VE `COOKIE_DOMAIN`'siz `lax`'ı
       REDDEDER — yanlış kombinasyon deploy'da patlar; api canlıda ayakta ⇒ set edilmiş.)*
 - [ ] **4) `CORS_ALLOW_VERCEL` prod'da boş/`false`** (kod default false) — `*.vercel.app`
-      joker origin'i kapalı kalsın. (Render env'inden gözle doğrula.)
+      joker origin'i kapalı kalsın. *(2026-10-07'den beri AÇILIŞ KAPISI: `assertProdConfigSanity`
+      canlıda — `NODE_ENV=production` + `WEB_URL` alan adı `rothern.com` — `CORS_ALLOW_VERCEL=true`
+      ya da dolu `EMAIL_ALLOWLIST` görürse açılmayı REDDEDER; sebep Render günlüğünde
+      `[Bootstrap] Uygulama başlatılamadı: …` satırıyla yazılır. Staging (`supkeys.com`) etkilenmez.
+      Bilinçli istisna: `ALLOW_STAGING_ONLY_ENV=true` — canlıda tanımlanmaz.)*
 
 > ✅ **GEÇİŞ TAMAMLANDI (2026-07-25):** ham provider domain'leri
 > (`supkeys-web.vercel.app` + `rothern-api.onrender.com`, cross-site) fazı geride —

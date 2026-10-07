@@ -10,6 +10,7 @@ import {
   type AiTokenUsage,
   type AiToolCall,
 } from "./ai-provider.interface";
+import { providerFailureReason } from "./ai-provider-reason";
 
 /** İstek arayüzündeki küçük-harf seviye → SDK enum eşlemesi. */
 const THINKING_LEVELS = {
@@ -313,7 +314,14 @@ export class GeminiProvider extends BaseAiProvider {
       if (err instanceof AiProviderError) throw err;
       const msg = err instanceof Error ? err.message : String(err);
       // API anahtarı/istek gövdesi mesaja sızmasın diye sadece özet kod tutulur.
-      throw new AiProviderError(`Gemini hatası: ${msg}`, "provider_error");
+      // `reason`: kullanım kaydına yazılan temizlenmiş sebep (HTTP durumu +
+      // Google hata durumu) — günlüğe erişmeden teşhis için.
+      throw new AiProviderError(
+        `Gemini hatası: ${msg}`,
+        "provider_error",
+        undefined,
+        providerFailureReason(err),
+      );
     } finally {
       clearTimeout(timer);
     }

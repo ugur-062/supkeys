@@ -106,6 +106,34 @@ EMAIL_ALLOWLIST=uguray156@gmail.com,uguray156+qa-kayit-*@gmail.com,uguray156+qa-
   eylemleri `docs/qa-launch-audit-2026-09-28.md` O-71/O-72.
 
 
+**AI sağlayıcı hatası teşhisi (2026-10-07).** Sağlayıcı bir çağrıyı reddettiğinde
+(kullanıcıya 502 `api.ai.saglayiciHataDondurdu`) `ai_usage` satırı `FAILED` +
+`errorCode='provider_error'` olur ve Google'ın yanıtından TEMİZLENMİŞ sebep kodu
+`metadata.providerReason` alanına yazılır (yalnız HTTP durumu, Google hata durumu
+ve sabit ipuçları; serbest metin/sır yok — `ai-provider-reason.ts`). Aynı kod
+Render günlüğündeki `AI sağlayıcı hatası (provider_error, <kod>)` satırında da
+görünür. Sorgu:
+
+```sql
+SELECT "createdAt", feature, model, metadata->>'providerReason' AS sebep
+FROM ai_usage WHERE status = 'FAILED' AND "errorCode" = 'provider_error'
+ORDER BY "createdAt" DESC LIMIT 20;
+```
+
+| Sebep kodu | Anlamı | Yapılacak |
+|---|---|---|
+| `http_400:FAILED_PRECONDITION:location_not_supported` | AI Studio (API anahtarı kipi) Render veri merkezi IP'sini reddediyor | `GEMINI_SERVICE_ACCOUNT_JSON` + `GEMINI_VERTEX_PROJECT` / `GEMINI_VERTEX_LOCATION` girin (Vertex kipi) |
+| `http_400:INVALID_ARGUMENT:API_KEY_INVALID` | `GEMINI_API_KEY` geçersiz/silinmiş | Anahtarı yenileyin |
+| `http_403:PERMISSION_DENIED…` (`SERVICE_DISABLED`, `api_disabled`, `billing`) | Vertex AI API kapalı, `roles/aiplatform.user` eksik ya da faturalama kapalı | Google Cloud projesini düzeltin |
+| `http_404:NOT_FOUND:model_not_found` | `AI_MODEL_*` adı bu kipte tanınmıyor | Model adlarını düzeltin |
+| `oauth_invalid_grant` | Service account anahtarı silinmiş/bozuk | Yeni anahtar üretip `GEMINI_SERVICE_ACCOUNT_JSON`u güncelleyin |
+| `http_429…` / `http_503…` | Kota / kapasite | Geçici; sürerse kotayı yükseltin |
+
+Staging'de (2026-10-05 ölçümü) her AI çağrısı 1 saniyenin altında 502 dönüyordu:
+Google isteği doğrudan reddediyor. Render `api-staging`de sırayla
+`GEMINI_SERVICE_ACCOUNT_JSON`, `GEMINI_API_KEY`, `GEMINI_VERTEX_PROJECT` /
+`GEMINI_VERTEX_LOCATION` ve `AI_MODEL_*` kontrol edilmeli.
+
 ## Gecelik e2e için GitHub sırları (2026-09-12)
 
 `.github/workflows/e2e-staging.yml` her gece 04:00'te staging'e karşı koşar ve

@@ -16,6 +16,7 @@ import {
   type AiModelPricing,
 } from "./ai.config";
 import type { AiTokenUsage } from "./providers/ai-provider.interface";
+import { sanitizeProviderReason } from "./providers/ai-provider-reason";
 
 /**
  * Faz AI-0 — bütçe motoru. PARA (USD) sayar, token değil.
@@ -307,17 +308,44 @@ export class AiBudgetService {
    */
   async fail(
     id: string,
-    opts: { errorCode: string; keepEstimate?: boolean; usage?: AiTokenUsage },
+    opts: {
+      errorCode: string;
+      keepEstimate?: boolean;
+      usage?: AiTokenUsage;
+      /**
+       * Sağlayıcının temizlenmiş sebep kodu (ör. `http_400:FAILED_PRECONDITION:
+       * location_not_supported`). `metadata.providerReason` olarak saklanır —
+       * `errorCode` genel sınıf (`provider_error`) olarak KALIR (mevcut
+       * tüketiciler değişmez), yeni sütun/göç yok. Serbest metin/sır YAZILMAZ:
+       * değer burada bir kez daha süzülür.
+       */
+      reason?: string;
+    },
   ): Promise<void> {
+    const reason = sanitizeProviderReason(opts.reason);
     let costData: { costUsd?: Prisma.Decimal } = {};
-    if (opts.usage) {
+    let metadataData: { metadata?: Prisma.InputJsonValue } = {};
+    if (opts.usage || reason) {
       const row = await this.prisma.aiUsage.findUnique({
         where: { id },
-        select: { model: true },
+        select: { model: true, metadata: true },
       });
-      const pricing = row ? this.config.pricing[row.model] : undefined;
-      if (pricing) costData = { costUsd: costFromUsage(opts.usage, pricing) };
-    } else if (!opts.keepEstimate) {
+      if (opts.usage) {
+        const pricing = row ? this.config.pricing[row.model] : undefined;
+        if (pricing) costData = { costUsd: costFromUsage(opts.usage, pricing) };
+      }
+      if (reason) {
+        // Özellik bağlamı (route, sayfa sayısı…) KORUNUR; sebep yanına eklenir.
+        const existing =
+          row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+            ? (row.metadata as Record<string, Prisma.JsonValue>)
+            : {};
+        metadataData = {
+          metadata: { ...existing, providerReason: reason } as Prisma.InputJsonValue,
+        };
+      }
+    }
+    if (!opts.usage && !opts.keepEstimate) {
       costData = { costUsd: new Prisma.Decimal(0) };
     }
     await this.prisma.aiUsage.update({
@@ -327,6 +355,7 @@ export class AiBudgetService {
         errorCode: opts.errorCode,
         settledAt: new Date(),
         ...costData,
+        ...metadataData,
       },
     });
   }

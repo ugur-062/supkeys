@@ -7,6 +7,7 @@ import {
   PublicProductQueryDto,
 } from "./dto/public-product-query.dto";
 import { PublicMarketplaceService } from "./public-marketplace.service";
+import { DEFAULT_THROTTLE_PUBLIC_LIMIT, resolveThrottleLimit } from "../../common/http/throttle-limit";
 
 /**
  * Auth GEREKTİRMEYEN pazar yeri — herkese açık ilan/talep vitrini.
@@ -30,7 +31,7 @@ import { PublicMarketplaceService } from "./public-marketplace.service";
 @UseGuards(MarketplaceLiveGuard)
 @Throttle({
   default: {
-    limit: Number(process.env.THROTTLE_PUBLIC_LIMIT ?? 600),
+    limit: resolveThrottleLimit("THROTTLE_PUBLIC_LIMIT", DEFAULT_THROTTLE_PUBLIC_LIMIT),
     ttl: 60_000,
   },
 })

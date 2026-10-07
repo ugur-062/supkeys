@@ -105,6 +105,9 @@ services:
       # EMAIL_ALLOWLIST bu (canlı) serviste TANIMLANMAZ / BOŞ kalır: yalnız
       # api-staging'de dolu (listede olmayan alıcıya e-posta gönderilmez — bkz.
       # docs/release-process.md "Render api-staging ortamı").
+      # AÇILIŞ KAPISI: bu serviste (WEB_URL alan adı rothern.com) EMAIL_ALLOWLIST
+      # doluysa ya da CORS_ALLOW_VERCEL=true ise API açılmaz; ALLOW_STAGING_ONLY_ENV
+      # burada TANIMLANMAZ (bkz. apps/api/src/common/config/prod-config-sanity.ts).
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET

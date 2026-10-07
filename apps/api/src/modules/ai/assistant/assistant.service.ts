@@ -28,6 +28,7 @@ import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai.config";
 import { AiBudgetService, costFromUsage } from "../ai-budget.service";
 import { AiService } from "../ai.service";
 import {
+  AiProviderError,
   BaseAiProvider,
   type AiHistoryTurn,
   type AiTokenUsage,
@@ -389,6 +390,8 @@ export class AssistantService {
       await this.budget.fail(reservation.id, {
         errorCode: "provider_error",
         usage: sumHasTokens(totalUsage) ? totalUsage : undefined,
+        // Temizlenmiş sebep kullanım kaydına (metadata.providerReason).
+        reason: err instanceof AiProviderError ? err.reason : undefined,
       });
       const raw = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Asistan sağlayıcı hatası: ${raw}`);

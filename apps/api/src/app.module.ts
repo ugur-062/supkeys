@@ -8,6 +8,11 @@ import { ServerErrorSentryFilter } from "./common/logging/server-error-sentry.fi
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { throttleMessage } from "./common/http/throttle-message";
+import {
+  DEFAULT_THROTTLE_AUTH_LIMIT,
+  DEFAULT_THROTTLE_LIMIT,
+  resolveThrottleLimit,
+} from "./common/http/throttle-limit";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
 import { serializeRequestForLog } from "./common/logging/request-log-serializer";
 import { LoggerModule } from "nestjs-pino";
@@ -168,12 +173,13 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
         {
           name: "default",
           ttl: 60_000,
-          limit: Number(process.env.THROTTLE_DEFAULT_LIMIT ?? 100),
+          // Boş/NaN/≤0 env → varsayılan (0 sınırı tüm API'yi 429'a kilitlerdi).
+          limit: resolveThrottleLimit("THROTTLE_DEFAULT_LIMIT", DEFAULT_THROTTLE_LIMIT),
         },
         {
           name: "auth",
           ttl: 60_000,
-          limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 1000),
+          limit: resolveThrottleLimit("THROTTLE_AUTH_LIMIT", DEFAULT_THROTTLE_AUTH_LIMIT),
         },
       ],
     }),

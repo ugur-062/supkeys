@@ -24,6 +24,7 @@ import { assertAdmin2faConfig } from "./common/config/admin-2fa";
 import { assertProdEmailSender, assertProdStreamSenders } from "./common/config/email-sender";
 import { checkAiKey } from "./common/config/ai-config";
 import { reportToSentry } from "./instrument";
+import { reportBootstrapFailure } from "./common/bootstrap-failure";
 import { translateValidatorMessage } from "./common/error-messages";
 import { tApi } from "./common/i18n/i18n.service";
 
@@ -31,6 +32,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Pino logger devralınana kadar bootstrap loglarını tamponla.
     bufferLogs: true,
+    // Modül kurulumu düşerse Nest KENDİSİ `process.exit(1)` çağırmasın (tampon
+    // boşalmadan, sebep yazılmadan çıkardı): hata aşağıdaki `.catch`e fırlar,
+    // sebep orada stderr'e yazılır (bkz. common/bootstrap-failure.ts).
+    abortOnError: false,
     // Gövde ayrıştırıcıyı biz kurarız (aşağıda `configureBodyParser`); Resend
     // webhook'unun ham gövdesi YALNIZ o uç için saklanır. `rawBody: true`
     // VERİLMEZ — Nest özel `verify`ı ezer (bkz. common/http/body-parser.ts).
@@ -274,9 +279,10 @@ async function bootstrap() {
  * patlasın" garantisi sessizce kırılmıştı. Bu `.catch` onu geri veriyor.
  */
 bootstrap().catch((err: unknown) => {
-  new Logger("Bootstrap").error(
-    `Uygulama başlatılamadı: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
-  );
+  // `bufferLogs: true` yüzünden Logger satırı tamponda kalıp `process.exit`
+  // ile kayboluyordu (deploy kırmızı, günlükte sebep yok) — sebep ÖNCE
+  // eşzamanlı olarak stderr'e yazılır, sonra tampon boşaltılır.
+  reportBootstrapFailure(err);
   reportToSentry("bootstrap-failed", "error", {
     extra: { reason: err instanceof Error ? err.message : String(err) },
   });
