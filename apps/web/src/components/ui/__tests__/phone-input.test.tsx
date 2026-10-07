@@ -131,3 +131,28 @@ describe("PhoneInput — ülkeye göre ulusal önek ve varsayılan ülke", () =>
     expect(defaultPhoneCountry({ locale: "en", companyCountry: "ZZ" })).toBeNull();
   });
 });
+
+/**
+ * Firefox bayrak ezilmesi (canlı öncesi sağlamlaştırma H3): ülke seçici
+ * sarmalayıcısı küçülebilir esnek öğeydi; Firefox onu 16 px kırpıyor, 16×12
+ * bayrak 8×12 çiziliyordu. jsdom yerleşim hesaplamaz → sınıf sözleşmesi
+ * doğrulanır: seçici küçülmez, dar kapta numara kutusu daralır.
+ */
+describe("PhoneInput — ülke seçici küçülmez (Firefox bayrak)", () => {
+  it("seçici sarmalayıcısı flex-none, numara kutusu min-w-0 flex-1", () => {
+    render(<Harness initial="+90 5321234567" />);
+    const wrap = screen.getByTestId("phone-country");
+    expect(wrap.classList.contains("flex-none")).toBe(true);
+    expect(wrap.contains(countryBox())).toBe(true);
+    // Bayrağı taşıyan iç kutu da küçülmez.
+    expect(wrap.firstElementChild?.classList.contains("flex-none")).toBe(true);
+    const cls = numberBox().classList;
+    expect(cls.contains("min-w-0")).toBe(true);
+    expect(cls.contains("flex-1")).toBe(true);
+  });
+
+  it("ülke seçilmemişken (küre simgesi) de seçici küçülmez", () => {
+    render(<Harness defaultCountry="" />);
+    expect(screen.getByTestId("phone-country").classList.contains("flex-none")).toBe(true);
+  });
+});

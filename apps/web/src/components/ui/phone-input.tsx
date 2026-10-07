@@ -186,9 +186,15 @@ export function PhoneInput({
         disabled ? "opacity-50" : "",
       ].join(" ")}
     >
-      {/* Ülke seçici — bayrak + arama kodu. */}
-      <div className="relative flex items-center border-r border-zinc-950/10 bg-zinc-50">
-        <span className="pointer-events-none flex items-center pl-3">
+      {/* Ülke seçici — bayrak + arama kodu. `flex-none`: Firefox, numara
+          kutusunun (`w-full`) taşan genişliğini bu sarmalayıcıdan da kırpıyordu
+          (16 px) → 16×12 bayrak 8×12 çiziliyordu. Seçici ASLA küçülmez; dar
+          kapta yalnız numara kutusu daralır (`min-w-0 flex-1`). */}
+      <div
+        data-testid="phone-country"
+        className="relative flex flex-none items-center border-r border-zinc-950/10 bg-zinc-50"
+      >
+        <span className="pointer-events-none flex flex-none items-center pl-3">
           {current ? (
             <CountryFlag code={current.code} decorative />
           ) : (
@@ -237,7 +243,7 @@ export function PhoneInput({
         disabled={disabled}
         value={draft ?? parsed.national}
         onChange={(e) => setNational(e.target.value)}
-        className="w-full bg-transparent px-3 py-[calc(--spacing(2.5)-1px)] text-base/6 text-zinc-900 outline-none placeholder:text-zinc-400 sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6"
+        className="w-full min-w-0 flex-1 bg-transparent px-3 py-[calc(--spacing(2.5)-1px)] text-base/6 text-zinc-900 outline-none placeholder:text-zinc-400 sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6"
       />
     </div>
   );

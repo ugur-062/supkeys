@@ -114,7 +114,9 @@ jobs:
             --reporter=line,html
 
       - name: Safari motoru (gecelik ek koşum)
-        if: github.event_name == 'schedule'
+        # `!cancelled()`: koşulsuz `if` örtük `success()` taşır → Chromium adımı
+        # kızarınca Safari koşumu HİÇ çalışmıyordu (son 31 gecenin 29'u).
+        if: ${{ !cancelled() && github.event_name == 'schedule' }}
         working-directory: apps/web
         env:
           PLAYWRIGHT_BASE_URL: https://staging.supkeys.com
