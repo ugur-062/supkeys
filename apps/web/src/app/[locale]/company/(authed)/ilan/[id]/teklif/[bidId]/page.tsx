@@ -33,6 +33,7 @@ import { lostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
 import { formatDateTime } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useFormatMoney } from "@/components/ui/money";
+import { awardAmountLabel } from "@/lib/tenders/award-amount";
 import { formatNumber } from "@/i18n/format";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -155,6 +156,12 @@ export default function BidDetailPage() {
   // detayındaki satırla AYNI hesap; düğme pasif + ipucu.
   const bidExpired = isBidExpired(bid);
 
+  // Kazandırma geri alınamaz → onay penceresi tutarı da söyler (kullanıcı
+  // kararı 2026-10-07); başlıktaki tutarla aynı biçimleyici, çevrim yok.
+  const awardAmount = awardAmountLabel(bid, formatMoney, (amount, amountTry) =>
+    t("tutarTryKarsiligiyla", { amount, amountTry }),
+  );
+
   const runAward = async (approvalNote?: string) => {
     try {
       const res = await award.mutateAsync({ bidId: bid.id, approvalNote });
@@ -193,7 +200,10 @@ export default function BidDetailPage() {
     if (
       !(await confirm({
         title: t("kazandir"),
-        description: t("kazandirilsinMiBuIslemGeri", { bidderName: bid.bidderName }),
+        description: t("kazandirilsinMiBuIslemGeri", {
+          bidderName: bid.bidderName,
+          amount: awardAmount,
+        }),
         confirmLabel: t("evetKazandir"),
         destructive: true,
       }))
@@ -505,7 +515,10 @@ export default function BidDetailPage() {
         onClose={() => setApprovalNoteOpen(false)}
         onSubmit={submitApprovalNote}
         title={t("kazandirmayiOnayaGonder")}
-        description={t("icinKazandirmaOnayaGonderilecekSiparis", { bidderName: bid.bidderName })}
+        description={t("icinKazandirmaOnayaGonderilecekSiparis", {
+          bidderName: bid.bidderName,
+          amount: awardAmount,
+        })}
         confirmLabel={t("onayaGonder")}
         pending={award.isPending}
       />

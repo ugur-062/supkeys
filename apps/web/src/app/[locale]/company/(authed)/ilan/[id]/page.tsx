@@ -74,6 +74,12 @@ import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { useFormatMoney } from "@/components/ui/money";
+import {
+  awardAmountLabel,
+  itemAwardGroups,
+  itemAwardSummary,
+  type AwardAmountBid,
+} from "@/lib/tenders/award-amount";
 import { formatNumber, formatPercent, intlLocale } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -342,10 +348,11 @@ export default function ListingDetailPage() {
     bidderName: string;
   } | null>(null);
   const [noteAction, setNoteAction] = useState<
-    | { kind: "award"; bidId: string; bidderName: string }
+    | { kind: "award"; bidId: string; bidderName: string; amount: string }
     | {
         kind: "itemAward";
         itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[];
+        amountNote: string;
       }
     | null
   >(null);
@@ -358,7 +365,20 @@ export default function ListingDetailPage() {
   const [headerEl, setHeaderEl] = useState<HTMLDivElement | null>(null);
   const pastHeader = useScrolledPast(headerEl);
 
-  const handleAward = async (bidId: string, bidderName: string) => {
+  // Kazandırma geri alınamaz → onay penceresi TUTARI da söyler (kullanıcı
+  // kararı 2026-10-07). Teklif satırıyla aynı biçimleyici ve aynı değerler
+  // (yabancı birimde sunucunun verdiği `amountTry`); istemcide çevrim yok.
+  const awardAmountText = (b: AwardAmountBid) =>
+    awardAmountLabel(b, fmtMoney, (amount, amountTry) =>
+      t("tutarTryKarsiligiyla", { amount, amountTry }),
+    );
+
+  const handleAward = async (
+    bidId: string,
+    bidderName: string,
+    bidAmount: AwardAmountBid,
+  ) => {
+    const amount = awardAmountText(bidAmount);
     // Tıklama-anı ön kontrol: bu teklif BU TUTARDA onaya takılır mı? Sunucu,
     // gerçek award-anıyla AYNI tutarı+eleme mantığını kullanır. Takılıyorsa
     // not girişli dialog (onaycılara iletilir); değilse doğrudan "Kazandır" onayı.
@@ -373,7 +393,7 @@ export default function ListingDetailPage() {
       return;
     }
     if (requiresApproval) {
-      setNoteAction({ kind: "award", bidId, bidderName });
+      setNoteAction({ kind: "award", bidId, bidderName, amount });
       return;
     }
     if (
@@ -382,7 +402,7 @@ export default function ListingDetailPage() {
       // yolu bunu açıkça yazıyor, arayüz yazmıyordu.
       !(await confirm({
         title: t("kazandir"),
-        description: t("kazandirilsinMiBuIslemGeri", { bidderName: bidderName }),
+        description: t("kazandirilsinMiBuIslemGeri", { bidderName, amount }),
         confirmLabel: t("evetKazandir"),
         destructive: true,
       }))
@@ -584,8 +604,35 @@ export default function ListingDetailPage() {
       );
       return;
     }
+    // Kazandırılan tutar: firma + para birimi başına (sunucu siparişi de böyle
+    // açar). Birim fiyat seçicide gösterilen fiyattır; çevrim yapılmaz.
+    const awardGroups = itemAwardGroups(
+      itemAwards.flatMap((a) => {
+        const it = items.find((x) => x.id === a.itemId);
+        const opt = bidsForItem(a.itemId).find((o) => o.bidId === a.bidId);
+        if (!it || !opt) return [];
+        return [
+          {
+            quantity: a.awardedQuantity ?? Number(it.quantity),
+            unitPrice: opt.price,
+            currency: opt.currency,
+            bidId: opt.bidId,
+            bidderName: opt.bidderName,
+          },
+        ];
+      }),
+    );
+    const { breakdown, total } = itemAwardSummary(awardGroups, fmtMoney, (bidderName, amount) =>
+      t("kalemBazliTutarSatiri", { bidderName, amount }),
+    );
+    const amountNote =
+      awardGroups.length === 0
+        ? ""
+        : total != null
+          ? t("kalemBazliTutarToplamli", { total, breakdown })
+          : t("kalemBazliTutar", { breakdown });
     if (requiresApproval) {
-      setNoteAction({ kind: "itemAward", itemAwards });
+      setNoteAction({ kind: "itemAward", itemAwards, amountNote });
       return;
     }
     const skipped = items.length - itemAwards.length;
@@ -597,6 +644,7 @@ export default function ListingDetailPage() {
           (skipped > 0
             ? t("kalemKazandirilacakKalemSecilmeyenTeklifsiz", { length: itemAwards.length, skipped: skipped })
             : t("kalemBazliKazandirilsinMi")) +
+          (amountNote ? ` ${amountNote}` : "") +
           " " +
           t("buIslemGeriAlinamazKazananFirmaBasina"),
         confirmLabel: t("evetKazandir"),
@@ -1815,7 +1863,7 @@ export default function ListingDetailPage() {
                     </Button>
                     {hasAwardPermission ? (
                       <Button
-                        onClick={() => handleAward(b.id, b.bidderName)}
+                        onClick={() => handleAward(b.id, b.bidderName, b)}
                         disabled={award.isPending || bidExpired || !companyVerified}
                         title={
                           bidExpired
@@ -2498,8 +2546,15 @@ export default function ListingDetailPage() {
           title={t("kazandirmayiOnayaGonder")}
           description={
             noteAction?.kind === "award"
-              ? t("icinKazandirmaOnayaGonderilecekSiparis", { bidderName: noteAction.bidderName })
-              : t("kalemBazliKazandirmaOnayaGonderilecek")
+              ? t("icinKazandirmaOnayaGonderilecekSiparis", {
+                  bidderName: noteAction.bidderName,
+                  amount: noteAction.amount,
+                })
+              : noteAction?.kind === "itemAward"
+                ? [noteAction.amountNote, t("kalemBazliKazandirmaOnayaGonderilecek")]
+                    .filter(Boolean)
+                    .join(" ")
+                : undefined
           }
           confirmLabel={t("onayaGonder")}
           pending={award.isPending || awardByItem.isPending}

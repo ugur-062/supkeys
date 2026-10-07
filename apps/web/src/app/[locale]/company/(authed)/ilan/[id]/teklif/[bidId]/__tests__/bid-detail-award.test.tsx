@@ -5,6 +5,7 @@
  * ön kontrol (`award/preview`) yoktu → onaya takılan kazandırmada onaycılara
  * not girilemiyordu, onay metni geri alınamazlığı söylemiyordu.
  */
+import { formatMoney } from "@/components/ui/money";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -121,6 +122,18 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     const opts = h.confirm.mock.calls[0][0];
     expect(opts.destructive).toBe(true);
     expect(opts.description).toMatch(/GERİ ALINAMAZ/);
+    // Kullanıcı kararı 2026-10-07: geri alınamaz işlemde tutar da yazılır.
+    expect(opts.description).toContain(`Kazandırılacak tutar: ${formatMoney("1500", "TRY", "tr")}.`);
+  });
+
+  it("yabancı birimli teklif: onayda kendi birimi + sunucunun TRY karşılığı (2026-10-07)", async () => {
+    h.detail = detail({ amount: "1200", currency: "USD", amountTry: "58822.08" });
+    render(<BidDetailPage />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Kazandır" }));
+    await waitFor(() => expect(h.confirm).toHaveBeenCalled());
+    expect(h.confirm.mock.calls[0][0].description).toContain(
+      `Kazandırılacak tutar: ${formatMoney("1200", "USD", "tr")} (≈ ${formatMoney("58822.08", "TRY", "tr")}).`,
+    );
   });
 
   it("onaya takılan kazandırma: onay yerine not dialogu, not onaycılara iletilir", async () => {
@@ -131,6 +144,10 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     render(<BidDetailPage />);
     await user.click(screen.getByRole("button", { name: "Kazandır" }));
     expect(await screen.findByText("Kazandırmayı onaya gönder")).toBeInTheDocument();
+    // Onaya giden kazandırma da tutarı ve onaya gidişi söyler (2026-10-07).
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(`Kazandırılacak tutar: ${formatMoney("1500", "TRY", "tr")}.`);
+    expect(dialog).toHaveTextContent(/ONAYA gönderilecek/);
     expect(h.confirm).not.toHaveBeenCalled();
     await user.type(screen.getByRole("textbox"), "Bütçe onaylı");
     await user.click(screen.getByRole("button", { name: "Onaya Gönder" }));
