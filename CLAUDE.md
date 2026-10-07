@@ -3415,8 +3415,8 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 ## Test & Kalite
 
 - API **322 suite / 3.883 test** (3.881 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
-  **338 / 2.442** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 2.893) — son kapı HEAD 6c303499 YEŞİL
-  (16/16; `pnpm audit --prod --audit-level high` ve kategori çeviri çakışması 0 dahil), 6.774 test geçti (2 LIVE
+  **338 / 2.443** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 2.894) — son kapı HEAD c2606389 YEŞİL
+  (16/16; `pnpm audit --prod --audit-level high` ve kategori çeviri çakışması 0 dahil), 6.775 test geçti (2 LIVE
   atlandı), canlı öncesi sağlamlaştırma + bildirim dili turu 2026-10-07. i18n cırcırı 99 dosya / 855 literal.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
