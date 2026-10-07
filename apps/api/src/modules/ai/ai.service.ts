@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadGatewayException,
@@ -133,9 +134,9 @@ export class AiService {
       );
     }
     if (!tierAtLeast(user.tier, minTier)) {
-      throw new ForbiddenException(
-        i18nMessage("api.ai.aiOzellikleriSilverVeyaUzeriPaket"),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.ai.aiOzellikleriIcinDogrulama",
+      });
     }
     if (!hasCompanyPermission(user, anyOf)) {
       throw new ForbiddenException(
@@ -364,9 +365,9 @@ export class AiService {
     const enabled = this.config.enabled;
     const snapshot = await this.budget.usageSnapshot(user.companyId, user.userId);
     if (snapshot == null) {
-      throw new ForbiddenException(
-        i18nMessage("api.ai.paketinizAiOzellikleriniIcermiyorSilverVeya"),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.ai.aiOzellikleriIcinDogrulama",
+      });
     }
     const warnAtPercent = Math.round(this.config.caps.warnShare * 100);
 

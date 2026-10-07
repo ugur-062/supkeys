@@ -819,7 +819,7 @@ export class PublicInquiryService {
       }),
       this.prisma.company.findUnique({
         where: { id: companyId },
-        select: { tier: true, membershipEndAt: true, ownerUserId: true },
+        select: { tier: true, membershipEndAt: true, companyVerificationStatus: true, ownerUserId: true },
       }),
     ]);
     const required = [viewPermissionForPortal("satis")];
@@ -832,7 +832,7 @@ export class PublicInquiryService {
       )
       .slice(0, PublicInquiryService.MAX_SELLER_RECIPIENTS);
     const sellerPaid = seller
-      ? tierAtLeast(effectiveTier(seller.tier, seller.membershipEndAt), PAID_TIER)
+      ? tierAtLeast(effectiveTier(seller.tier, seller.membershipEndAt, seller.companyVerificationStatus), PAID_TIER)
       : true;
     const quantity = extra.quantity ?? null;
     // Metin ALICI BAŞINA, o kişinin diliyle (dil başına bir kez üretilir).
@@ -902,6 +902,7 @@ export class PublicInquiryService {
         isBlocked: true,
         tier: true,
         membershipEndAt: true,
+        companyVerificationStatus: true, // ücretsiz dönem: efektif kademe girdisi
       },
     });
     if (!company || !hasPublicProfile(company)) {

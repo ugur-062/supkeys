@@ -121,7 +121,7 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
       activities: r.company.activities,
       logoUrl: r.company.logoUrl,
       verified: r.company.companyVerificationStatus === "VERIFIED",
-      gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt) === "GOLD",
+      gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt, r.company.companyVerificationStatus) === "GOLD",
     },
   };
 }

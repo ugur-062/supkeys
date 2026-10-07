@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../../common/company/entitlement-required";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { currentLocale } from "../../../common/i18n/locale-context";
 import {
@@ -156,9 +157,7 @@ export class TenderExtractService {
     // asistan yolunu (fileKeys → extract) KAPSAMAZ ve ortak yükleme presign'ı
     // Silver'a açık (satış AI'ı "Belgeden Fiyatla" onu kullanır) — kapı burada.
     if (!tierAtLeast(user.tier, "GOLD")) {
-      throw new ForbiddenException(
-        i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir"),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus);
     }
 
     // IDOR: anahtarlar yalnız BU firmanın ai-extract klasöründen olabilir.

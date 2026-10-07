@@ -6,7 +6,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
-import { effectiveTier } from "../../common/company/effective-tier";
+import {
+  EFFECTIVE_TIER_SELECT,
+  effectiveTier,
+  effectiveTierOf,
+} from "../../common/company/effective-tier";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
 /**
@@ -29,7 +33,7 @@ export class CompanySupplierTemplatesService {
         inviterCompanyId: true,
         inviteeCompanyId: true,
         origin: true,
-        inviter: { select: { tier: true, membershipEndAt: true } },
+        inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
       },
     });
     const set = new Set<string>();
@@ -40,7 +44,7 @@ export class CompanySupplierTemplatesService {
       const valid =
         r.origin === "ADMIN" ||
         tierAtLeast(
-          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt),
+          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt, r.inviter.companyVerificationStatus),
           "SILVER",
         );
       if (!valid) continue;
@@ -113,10 +117,17 @@ export class CompanySupplierTemplatesService {
       },
     });
     if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
-    const members = await this.prisma.company.findMany({
+    const rows = await this.prisma.company.findMany({
       where: { id: { in: tpl.memberCompanyIds } },
-      select: { id: true, name: true, rothernId: true, tier: true },
+      select: { id: true, name: true, rothernId: true, ...EFFECTIVE_TIER_SELECT },
     });
+    // `tier` alanı EFEKTİF değeri taşır (INV-TIER-1; ham kademe yanıta çıkmaz).
+    const members = rows.map((m) => ({
+      id: m.id,
+      name: m.name,
+      rothernId: m.rothernId,
+      tier: effectiveTierOf(m),
+    }));
     return {
       id: tpl.id,
       name: tpl.name,

@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../../common/company/entitlement-required";
 import { categoryMatchInstantAllowed, localDayStart } from "../../../common/email/email-program-policy";
 import { COMPANY_DAILY_INVITE_CAP, utcDayStart } from "../../../common/company/external-invite-policy";
 import { productSearchClauses } from "../../../common/company/product-index";
@@ -476,7 +477,7 @@ export class CompanyListingsService {
         inviterCompanyId: true,
         inviteeCompanyId: true,
         origin: true,
-        inviter: { select: { tier: true, membershipEndAt: true } },
+        inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
       },
     });
     const connected = rows
@@ -867,9 +868,8 @@ export class CompanyListingsService {
     // listesine düşüp talebi aramak zorundaydı). Ücretsiz alıcı panelin
     // Paketler sayfasına (herkese açık fiyat sayfası paneli terk ettiriyordu).
     const url = appRoutes.listing(this.webUrl(), listing.id);
-    const pricingUrl = `${this.webUrl()}/company/premium`;
-    // Doğrulanmamış ücretsiz firmaya önce ücretsiz doğrulama (paket alımının
-    // tek şartı; 2026-09-28, kullanıcı: "Silver'a veya doğrulamaya yönlendirme").
+    // Talep kendisine KİLİTLİ firmaya tek çağrı firma DOĞRULAMASIDIR (ücretsiz
+    // dönem, sahip kararı 2026-10-07: paket adı/fiyat hiçbir metinde geçmez).
     const verifyUrl = `${this.webUrl()}/company/ayarlar/dogrulama`;
     // YÖN'e göre AYRI anahtar kümesi (i18n Faz 3). Cümleyi parçadan kurmak
     // ("satın alma talebi" + "Sattığınız" + "teklif vermek") Türkçede yürüyor
@@ -883,11 +883,11 @@ export class CompanyListingsService {
       openBody: "api.notifications.listings.categoryMatch.buy.openBody",
       openInAppBody: "api.notifications.listings.categoryMatch.buy.openInAppBody",
       lockedSubject: "api.notifications.listings.categoryMatch.buy.lockedSubject",
-      lockedBody: "api.notifications.listings.categoryMatch.buy.lockedBody",
       lockedInAppTitle: "api.notifications.listings.categoryMatch.buy.lockedInAppTitle",
-      lockedInAppBody: "api.notifications.listings.categoryMatch.buy.lockedInAppBody",
       lockedBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedBodyUnverified",
       lockedInAppBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedInAppBodyUnverified",
+      lockedBodyPending: "api.notifications.listings.categoryMatch.buy.lockedBodyPending",
+      lockedInAppBodyPending: "api.notifications.listings.categoryMatch.buy.lockedInAppBodyPending",
       openBodyUnverified: "api.notifications.listings.categoryMatch.buy.openBodyUnverified",
       openInAppBodyUnverified: "api.notifications.listings.categoryMatch.buy.openInAppBodyUnverified",
       openBodyPending: "api.notifications.listings.categoryMatch.buy.openBodyPending",
@@ -896,7 +896,7 @@ export class CompanyListingsService {
     } as const;
     const VERIFY_CTA = "api.notifications.listings.cta.verifyFree" as const;
     const FOOTER = "api.notifications.listings.categoryMatch.footerNote" as const;
-    const PLANS_CTA = "api.notifications.listings.cta.upgradeSilver" as const;
+    const STATUS_CTA = "api.notifications.listings.cta.verificationStatus" as const;
     // Alıcılar BAŞKA firmalardır → başlık onların dilinde. Duyuru yayın anında
     // gider; içerik çevirisi o an hazır değilse kaynak başlık basılır (bilinçli).
     const p = {
@@ -914,7 +914,7 @@ export class CompanyListingsService {
         (c) =>
           [
             c.id,
-            !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), PAID_TIER) && !ownerConnected.has(c.id),
+            !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt, c.companyVerificationStatus), PAID_TIER) && !ownerConnected.has(c.id),
           ] as const,
       ),
     );
@@ -926,6 +926,19 @@ export class CompanyListingsService {
             c.companyVerificationStatus !== "VERIFIED" &&
             c.companyVerificationStatus !== "PENDING",
         )
+        .map((c) => c.id),
+    );
+    // Kilitli ∧ doğrulaması İNCELEMEDE: "doğrulanın" denmez, onay beklendiği
+    // söylenir. Kilitli ∧ DOĞRULANMIŞ yalnız ücretsiz dönem anahtarı kapalıyken
+    // oluşur (paket metinleri kaldırıldı) → o firmaya duyuru gitmez.
+    const lockedPending = new Set(
+      candidates
+        .filter((c) => isFree.get(c.id) && c.companyVerificationStatus === "PENDING")
+        .map((c) => c.id),
+    );
+    const lockedNoCall = new Set(
+      candidates
+        .filter((c) => isFree.get(c.id) && c.companyVerificationStatus === "VERIFIED")
         .map((c) => c.id),
     );
     // ÜCRETLİ ama doğrulanmamış / incelemedeki firma (arayüz testi D-163):
@@ -976,6 +989,7 @@ export class CompanyListingsService {
     for (const c of sirali) {
       const to = recipients.get(c.id);
       if (!to) continue;
+      if (lockedNoCall.has(c.id)) continue;
       if (!isNotificationEnabled(to.prefs, "listing_category_match")) continue;
       const dayStart = localDayStart(now, timeZoneForCountry(countryOf.get(c.id)));
       const sentToday =
@@ -1013,10 +1027,10 @@ export class CompanyListingsService {
           ? {
               subjectKey: K.lockedSubject,
               headingKey: K.heading,
-              bodyKey: needsVerify.has(c.id) ? K.lockedBodyUnverified : K.lockedBody,
+              bodyKey: lockedPending.has(c.id) ? K.lockedBodyPending : K.lockedBodyUnverified,
               params: p,
-              ctaLabelKey: needsVerify.has(c.id) ? VERIFY_CTA : PLANS_CTA,
-              ctaUrl: (l) => localizeAppPath(needsVerify.has(c.id) ? verifyUrl : pricingUrl, l),
+              ctaLabelKey: lockedPending.has(c.id) ? STATUS_CTA : VERIFY_CTA,
+              ctaUrl: (l) => localizeAppPath(verifyUrl, l),
               footerNoteKey: FOOTER,
               infoRowsFor: (l) => preview.get(l),
             }
@@ -1059,7 +1073,7 @@ export class CompanyListingsService {
     const paidPendingIds = sirali
       .map((c) => c.id)
       .filter((id) => paidKyc.get(id) === "pending");
-    const freeIds = sirali.map((c) => c.id).filter((id) => isFree.get(id) && !needsVerify.has(id));
+    const freeIds = sirali.map((c) => c.id).filter((id) => lockedPending.has(id));
     const verifyIds = sirali.map((c) => c.id).filter((id) => needsVerify.has(id));
     if (paidIds.length > 0) {
       await this.notifications.pushToCompanies(paidIds, {
@@ -1074,15 +1088,15 @@ export class CompanyListingsService {
       });
     }
     if (freeIds.length > 0) {
-      // Ücretsiz üyeye tam talep bağlantısı VERİLMEZ (403 alırdı); satış
-      // anasayfası talebi alıcı adı gizli listeler, CTA paket sayfasına.
+      // Kilitli firmaya tam talep bağlantısı VERİLMEZ (403 alırdı); satış
+      // anasayfası talebi alıcı adı gizli listeler, CTA doğrulama sayfasına.
       await this.notifications.pushToCompanies(freeIds, {
         type: "listing_category_match",
         titleKey: K.lockedInAppTitle,
-        bodyKey: K.lockedInAppBody,
-        ctaLabelKey: PLANS_CTA,
+        bodyKey: K.lockedInAppBodyPending,
+        ctaLabelKey: STATUS_CTA,
         params: p,
-        ctaPath: pricingUrl,
+        ctaPath: verifyUrl,
         portal: matchPortal,
       });
     }
@@ -1717,9 +1731,10 @@ export class CompanyListingsService {
     action: ListingActionKey,
   ) {
     if (!tierAtLeast(user.tier, BUYING_TIER)) {
-      throw new ForbiddenException(
-        i18nMessage("api.companyListings.icinGoldPaketSatinalmaPaneliGerekir", { action: tApi(LISTING_ACTION_KEYS[action]) }),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyListings.icinFirmaDogrulamasiGerekir",
+        params: { action: tApi(LISTING_ACTION_KEYS[action]) },
+      });
     }
   }
 
@@ -1758,9 +1773,9 @@ export class CompanyListingsService {
 
     // Üç paket (2026-09-06): satınalma paneli = GOLD (Silver yalnız satış).
     if (!tierAtLeast(user.tier, BUYING_TIER)) {
-      throw new ForbiddenException(
-        i18nMessage("api.companyListings.satinAlmaTalebiAcmakIcinGold"),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyListings.satinAlmaTalebiAcmakIcinDogrulama",
+      });
     }
     // BK-A (kör-nokta denetimi): asDraft:false doğrudan status:OPEN üretir =
     // publishListing'in ürettiği aynı terminal durum → aynı KYC kapısı uygulanmalı.
@@ -4275,7 +4290,11 @@ export class CompanyListingsService {
     // "Teklif ver") gelen üye boş sayfa yerine paket ekranı görmeli. `code`
     // web'in dalı — `PremiumGate` benzeri kilit kartı.
     if (hidden) {
-      throw new ForbiddenException({ ...i18nMessage("api.companyListings.herkeseAcikTalepleriGormekVeTeklif", undefined, "TIER_REQUIRED"), statusCode: 403, minTier: PAID_TIER });
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyListings.herkeseAcikTalepIcinDogrulama",
+        code: "TIER_REQUIRED",
+        minTier: PAID_TIER,
+      });
     }
     // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
     // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
@@ -4830,11 +4849,14 @@ export class CompanyListingsService {
       viewerTier: user.tier,
     });
     if (!canBid) {
-      throw new ForbiddenException(
-        listing.visibility === "PRIVATE"
-          ? i18nMessage("api.companyListings.ozelTalebeYalnizDavetliFirmalar")
-          : i18nMessage("api.companyListings.tekliIcinPremiumUyelikGerekir"),
-      );
+      if (listing.visibility === "PRIVATE") {
+        throw new ForbiddenException(
+          i18nMessage("api.companyListings.ozelTalebeYalnizDavetliFirmalar"),
+        );
+      }
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyListings.teklifIcinDogrulamaGerekir",
+      });
     }
     return { isInvited, connected };
   }
@@ -8129,7 +8151,7 @@ export class CompanyListingsService {
           inviterCompanyId: true,
           inviteeCompanyId: true,
           origin: true,
-          inviter: { select: { tier: true, membershipEndAt: true } },
+          inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
         },
       }),
     ]);
@@ -8416,7 +8438,6 @@ export class CompanyListingsService {
     ]);
     const already = new Set([...mailed.map((m) => m.toEmail), ...pending.map((p) => p.email)]);
     const p = { title: listingTitleParam(listing.id, listing.title), number: listing.number ?? "—" };
-    const pricingUrl = `${this.webUrl()}/company/premium`;
     const verifyUrl = `${this.webUrl()}/company/ayarlar/dogrulama`;
     const K = "api.notifications.listings.aiMatchLocked" as const;
     const sentInCall = new Map<string, number>();
@@ -8432,12 +8453,12 @@ export class CompanyListingsService {
         ctaUrl: (l: Locale) => localizeAppPath(verifyUrl, l),
         ctaPath: verifyUrl,
       },
-      upgrade: {
-        bodyKey: `${K}.bodySilver`,
-        inAppBodyKey: `${K}.inAppBodySilver`,
-        ctaLabelKey: "api.notifications.listings.cta.upgradeSilver",
-        ctaUrl: (l: Locale) => localizeAppPath(pricingUrl, l),
-        ctaPath: pricingUrl,
+      pending: {
+        bodyKey: `${K}.bodyPending`,
+        inAppBodyKey: `${K}.inAppBodyPending`,
+        ctaLabelKey: "api.notifications.listings.cta.verificationStatus",
+        ctaUrl: (l: Locale) => localizeAppPath(verifyUrl, l),
+        ctaPath: verifyUrl,
       },
       paidPending: {
         bodyKey: `${K}.bodyPaidPending`,
@@ -8456,7 +8477,7 @@ export class CompanyListingsService {
     } as const;
     const inAppIds: Record<keyof typeof variants, string[]> = {
       verify: [],
-      upgrade: [],
+      pending: [],
       paidPending: [],
       paidVerify: [],
     };
@@ -8465,6 +8486,8 @@ export class CompanyListingsService {
       const to = recipients.get(c.id);
       if (!to || already.has(to.email)) continue;
       const kind = aiHiddenMatchKind(c);
+      // Söylenecek paketsiz çağrı yok (yalnız anahtar kapalıyken) → bildirim yok.
+      if (!kind) continue;
       const v = variants[kind];
       inAppIds[kind].push(c.id);
       if (!isNotificationEnabled(to.prefs, AI_MATCH_LOCKED_CONTEXT)) continue;
@@ -9413,7 +9436,7 @@ export class CompanyListingsService {
         inviterCompanyId: true,
         inviteeCompanyId: true,
         origin: true,
-        inviter: { select: { tier: true, membershipEndAt: true } },
+        inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
       },
     });
     return rows

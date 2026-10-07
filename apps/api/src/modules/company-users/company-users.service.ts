@@ -1,3 +1,4 @@
+import { entitlementDenial } from "../../common/company/entitlement-required";
 import { appRoutes } from "../../common/company/app-routes";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
@@ -1890,13 +1891,13 @@ export class CompanyUsersService {
       );
     }
     const result = await this.lockedAdminTx(actor.companyId, async (tx) => {
-      const { limit, tier } = await this.seatUsage(actor.companyId, tx);
+      const { limit, tier, verificationStatus } = await this.seatUsage(actor.companyId, tx);
       // Gold altında satınalma koltuğu sayılmaz ve seçilemez (O-069, DN-04):
       // kayıtlı satınalma izinleri dokunulmadan kalır (Gold'a dönünce geçerli),
       // seçim yalnız satış koltukları üzerinden yapılır.
       const buyCounts = tierAtLeast(tier, BUYING_TIER);
       if (limit == null) {
-        throw new BadRequestException(i18nMessage("api.companyUsers.buPaketteKoltukSiniriYok"));
+        throw new BadRequestException(i18nMessage("api.companyUsers.koltukSiniriYok"));
       }
       const company = await tx.company.findUnique({
         where: { id: actor.companyId },
@@ -1932,7 +1933,10 @@ export class CompanyUsersService {
         } else {
           if (k.group === "buy" && !buyCounts) {
             throw new BadRequestException(
-              i18nMessage("api.companyUsers.satinalmaYetkisiYalnizGoldPaketteVerilebilir"),
+              entitlementDenial(verificationStatus, {
+                key: "api.companyUsers.satinalmaYetkisiIcinDogrulama",
+                code: null,
+              }),
             );
           }
           const h = holders.find((x) => x.id === k.userId);
@@ -1946,7 +1950,7 @@ export class CompanyUsersService {
       }
       if (keep.size > limit) {
         throw new BadRequestException(
-          i18nMessage("api.companyUsers.enFazlaKoltukSecebilirsinizPaketLimiti", { limit: limit }),
+          i18nMessage("api.companyUsers.enFazlaKoltukSecebilirsiniz", { limit: limit }),
         );
       }
       const dropped: {

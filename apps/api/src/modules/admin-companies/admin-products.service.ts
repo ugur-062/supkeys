@@ -331,17 +331,11 @@ export class AdminProductsService {
   }
 
   /**
-   * Tavan hatası metni — paketi süresi geçmiş firmada (DB'de hâlâ SILVER/GOLD,
-   * efektif STANDART) "paket tavanı dolu (50)" yanıltıcıydı: admin başlıkta
-   * Silver görüp neden ücretsiz tavana takıldığını anlamıyordu (arayüz testi
-   * D-174). Bu durumda metin paket süresinin dolduğunu söyler.
+   * Tavan hatası metni. Ürün tavanı yalnız efektif alt kademede vardır
+   * (ücretsiz dönemde: DOĞRULANMAMIŞ firma); metin paket adı anmaz.
    */
-  private limitKey(
-    r: Row,
-  ): "api.adminCompanies.firmaninUrunTavaniDolu" | "api.adminCompanies.firmaninPaketiDolduUrunTavaniDolu" {
-    return effectiveTier(r.company.tier, r.company.membershipEndAt) !== r.company.tier
-      ? "api.adminCompanies.firmaninPaketiDolduUrunTavaniDolu"
-      : "api.adminCompanies.firmaninUrunTavaniDolu";
+  private limitKey(_r: Row): "api.adminCompanies.firmaninUrunTavaniDolu" {
+    return "api.adminCompanies.firmaninUrunTavaniDolu";
   }
 
   /**
@@ -375,7 +369,7 @@ export class AdminProductsService {
         },
       });
     const limit =
-      PRODUCT_LIMITS[effectiveTier(r.company.tier, r.company.membershipEndAt)] ?? null;
+      PRODUCT_LIMITS[effectiveTier(r.company.tier, r.company.membershipEndAt, r.company.companyVerificationStatus)] ?? null;
     if (limit == null || r.isPublic || !r.isActive) {
       const done = await write(this.prisma);
       return { count: done.count, limit: null };
@@ -594,7 +588,7 @@ export class AdminProductsService {
         slug: r.company.slug,
         city: r.company.city,
         tier: r.company.tier,
-        effectiveTier: effectiveTier(r.company.tier, r.company.membershipEndAt),
+        effectiveTier: effectiveTier(r.company.tier, r.company.membershipEndAt, r.company.companyVerificationStatus),
         membershipEndAt: r.company.membershipEndAt?.toISOString() ?? null,
         verification: r.company.companyVerificationStatus,
         isBlocked: r.company.isBlocked,

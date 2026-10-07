@@ -128,6 +128,7 @@ export class CompanyReviewsService {
         select: {
           tier: true,
           membershipEndAt: true,
+          companyVerificationStatus: true, // ücretsiz dönem: efektif kademe girdisi
           publicEnabled: true,
           isActive: true,
           isBlocked: true,

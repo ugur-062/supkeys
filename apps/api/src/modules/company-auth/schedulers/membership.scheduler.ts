@@ -1,17 +1,12 @@
-import { PAID_TIERS, PRODUCT_LIMITS } from "@rothern/shared";
+import { PAID_TIERS } from "@rothern/shared";
+import { isFreePeriod } from "../../../common/company/effective-tier";
 import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
 import {
   CronRegistryService,
   trackCronRun,
 } from "../../../common/cron/cron-registry.service";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
-import { EmailService } from "../../email/email.service";
-import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
-import { localeOf } from "../../notifications/notification.service";
-import { resolveWebUrl } from "../../../common/config/web-url";
-import { appRoutes } from "../../../common/company/app-routes";
 import { enforceProductLimit } from "../../../common/company/product-limit";
 import { cancelOutgoingReferralInvites } from "../../../common/company/downgrade-invites";
 import { SeoIndexService } from "../../seo-index/seo-index.service";
@@ -22,8 +17,6 @@ export class MembershipScheduler implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaBypassService,
-    private readonly email: EmailService,
-    private readonly config: ConfigService,
     // @Optional: testler scheduler'ı DI dışında elle `new`'ler.
     @Optional() private readonly cronRegistry?: CronRegistryService,
     // Paket düşünce herkese açık firma/ürün sayfaları tazelenir (Silver+
@@ -70,6 +63,13 @@ export class MembershipScheduler implements OnModuleInit {
   }
 
   private async doDowngradeExpired(): Promise<void> {
+    // ÜCRETSİZ DÖNEM: üyelik zamanlayıcısı HİÇBİR ŞEY yapmaz — satır yazmaz,
+    // davet iptal etmez, ürün kırpmaz, e-posta atmaz. Doğrulanmış firma zaten
+    // tam erişimli; doğrulanmamış firmanın süresi dolmuş saklı paketi
+    // `effectiveTier`'ın tembel kuralıyla anında düşer (erişim tarafı cron'a
+    // bağlı değil). Kalıcı düşürme, ücretli paketler dönünce (anahtar kapanınca)
+    // ilk koşuda yapılır.
+    if (isFreePeriod()) return;
     const expired = await this.prisma.company.findMany({
       where: {
         tier: { in: [...PAID_TIERS] },
@@ -79,18 +79,6 @@ export class MembershipScheduler implements OnModuleInit {
         id: true,
         name: true,
         membershipEndAt: true,
-        billingEmail: true,
-        users: {
-          where: { isActive: true, deletedAt: null },
-          select: {
-            email: true,
-            firstName: true,
-            lastName: true,
-            locale: true,
-          },
-          orderBy: { createdAt: "asc" },
-          take: 1,
-        },
       },
     });
     if (expired.length === 0) return;
@@ -155,12 +143,10 @@ export class MembershipScheduler implements OnModuleInit {
       `${ids.length} firmanın premium süresi doldu → STANDARD; giden bekleyen davetler iptal edildi`,
     );
     // Ücretsiz paket ürün tavanı (2026-09-06): tavanı aşan yayında ürünler
-    // taslağa çekilir (silinmez) — sayı e-postada söylenir.
-    const trimmed = new Map<string, number>();
+    // taslağa çekilir (silinmez).
     for (const c of downgraded) {
       try {
-        const r = await enforceProductLimit(this.prisma, c.id, "STANDART");
-        if (r.unpublished > 0) trimmed.set(c.id, r.unpublished);
+        await enforceProductLimit(this.prisma, c.id, "STANDART");
       } catch (err) {
         this.logger.warn(
           `Ürün tavanı uygulanamadı (${c.id}): ${err instanceof Error ? err.message : String(err)}`,
@@ -175,67 +161,9 @@ export class MembershipScheduler implements OnModuleInit {
     // kalıyordu. En iyi çaba: servis kendi hatasını yutar.
     for (const id of ids) this.seo?.companyChanged(id);
 
-    // Bilgilendirme e-postası (best-effort) — firma yetkisini kaybettiğini bilsin.
-    const baseUrl =
-      resolveWebUrl(this.config);
-    for (const c of downgraded) {
-      const email = c.billingEmail || c.users[0]?.email;
-      if (!email) continue;
-      const name = c.users[0]
-        ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
-        : c.name;
-      // E-POSTA DİLİ: firmanın EN ESKİ aktif üyesinin (pratikte kurucu) dili;
-      // yalnız `billingEmail` taşıyan, üyesi çözülmemiş firmada varsayılan.
-      const locale = localeOf(c.users[0]?.locale);
-      const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
-        tApi(key, values, locale);
-      const kirpilan = trimmed.get(c.id);
-      const subject = t("api.notifications.membership.sonaErdiKonu");
-      void this.email
-        .send({
-          to: { email, name },
-          subject,
-          locale,
-          templateData: {
-            template: "notification",
-            data: {
-              subject,
-              heading: subject,
-              paragraphs: [
-                t("api.notifications.common.greeting"),
-                // Ürün tavanı metne SABİT yazılmaz (10 → 50 değişiminde metin bayat kalmıştı).
-                t("api.notifications.membership.sonaErdiAnaParagraf", {
-                  limit: PRODUCT_LIMITS.STANDART ?? 0,
-                }),
-                t("api.notifications.membership.sonaErdiYukseltme"),
-              ],
-              // Firmada FİİLEN değişenler uzun metinde kaybolmasın: ayrı,
-              // madde işaretli kutuda (e-posta tasarımı 2026-10-04).
-              highlights: [
-                ...(kirpilan
-                  ? [
-                      t("api.notifications.membership.sonaErdiKirpilanUrun", {
-                        adet: kirpilan,
-                      }),
-                    ]
-                  : []),
-                // Yukarıdaki iptal (bağlantı + referral + kuyruktaki talep
-                // davetleri) firmaya söylenir (arayüz testi D-173).
-                t("api.notifications.membership.sonaErdiDavetIptal"),
-              ],
-              ctaLabel: t("api.notifications.membership.premiumaGec"),
-              ctaUrl: appRoutes.premium(baseUrl, locale),
-            },
-          },
-          context: { type: "membership_downgraded", id: c.id },
-        })
-        .catch((err: unknown) =>
-          this.logger.warn(
-            `Downgrade e-postası gönderilemedi (${c.id}): ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          ),
-        );
-    }
+    // BİLGİLENDİRME E-POSTASI YOK (ücretsiz dönem, sahip kararı 2026-10-07):
+    // "paketinizin süresi doldu" metni paket adı ve yükseltme çağrısı
+    // taşıyordu; hiçbir e-posta paket anamaz. Ücretli paketler dönünce bu blok
+    // ve `api.notifications.membership.*` metinleri git geçmişinden geri alınır.
   }
 }

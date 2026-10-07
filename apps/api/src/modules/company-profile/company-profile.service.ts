@@ -24,7 +24,7 @@ import {
   normalizeIban,
 } from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../common/company/company-slug";
-import { effectiveTier } from "../../common/company/effective-tier";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
 import { visibleTaxNumber } from "../../common/company/visible-tax-number";
 import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -143,7 +143,7 @@ export class CompanyProfileService {
     // penceresinde /me ile ıraksardı). membershipEndAt yalnız hesap içindi,
     // yanıttan çıkarılır.
     const { membershipEndAt, ...rest } = c;
-    const tier = effectiveTier(c.tier, membershipEndAt);
+    const tier = effectiveTier(c.tier, membershipEndAt, c.companyVerificationStatus);
     const base = {
       ...rest,
       tier,
@@ -183,6 +183,9 @@ export class CompanyProfileService {
     tier: string,
     membershipEndAt: Date | null,
   ): Promise<{ endsAt: Date | null; expiredAt: Date | null }> {
+    // Ücretsiz dönem: üyelik süresi/bitiş bandı gösterilmez (paket yok —
+    // doğrulama yeterli). Alan adları durur, değerler boş döner.
+    if (isFreePeriod()) return { endsAt: null, expiredAt: null };
     if (tier !== "STANDART") return { endsAt: membershipEndAt, expiredAt: null };
     const windowStart = Date.now() - MEMBERSHIP_EXPIRED_NOTICE_DAYS * 86_400_000;
     if (rawTier !== "STANDART" && membershipEndAt) {

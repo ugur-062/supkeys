@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
@@ -409,13 +410,9 @@ export class CompanyMessagesService {
       portal === "satinalma" &&
       !(await this.buyerDirectionOpen(user, otherCompanyId))
     ) {
-      throw new ForbiddenException({
-        ...i18nMessage(
-          "api.companyMessages.aliciOlarakMesajGoldGerektirir",
-          undefined,
-          "TIER_REQUIRED",
-        ),
-        statusCode: 403,
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyMessages.aliciOlarakMesajDogrulamaGerektirir",
+        code: "TIER_REQUIRED",
         minTier: BUYING_TIER,
       });
     }

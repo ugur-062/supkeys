@@ -43,7 +43,9 @@ export class CompanyPermissionsGuard implements CanActivate {
         COMPANY_TIER_KEY,
         [context.getHandler(), context.getClass()],
       );
-      if (min && !tierAtLeast(user.tier, min)) throw tierRequiredError(min);
+      if (min && !tierAtLeast(user.tier, min)) {
+        throw tierRequiredError(min, user.companyVerificationStatus);
+      }
       throw new ForbiddenException(i18nMessage("api.companyAuth.buIslemIcinYetkinizYok"));
     }
     return true;

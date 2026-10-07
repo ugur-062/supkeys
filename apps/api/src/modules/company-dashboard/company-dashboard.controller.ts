@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   Controller,
@@ -96,7 +97,7 @@ export class CompanyDashboardController {
     }
     // Rol kapısının İÇİNDE paket kapısı: alım tarafı Gold (D-026).
     if (side === "buy" && !tierAtLeast(user.tier, BUYING_TIER)) {
-      throw new ForbiddenException(i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir"));
+      throw entitlementForbidden(user.companyVerificationStatus);
     }
     return side === "sell"
       ? this.actionCenter.satis(user.companyId)

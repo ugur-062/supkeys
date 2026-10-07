@@ -188,7 +188,9 @@ class MarkUsedDto {
  */
 function assertCatalogWriteTier(user: AuthenticatedCompanyUser): void {
   if (hasCompanyPermission(user, "sell:product:manage")) return;
-  if (!tierAtLeast(user.tier, BUYING_TIER)) throw tierRequiredError(BUYING_TIER);
+  if (!tierAtLeast(user.tier, BUYING_TIER)) {
+    throw tierRequiredError(BUYING_TIER, user.companyVerificationStatus);
+  }
 }
 
 /**

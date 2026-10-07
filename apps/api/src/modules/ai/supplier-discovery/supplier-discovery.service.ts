@@ -547,7 +547,7 @@ export class SupplierDiscoveryService {
                 inviterCompanyId: true,
                 inviteeCompanyId: true,
                 origin: true,
-                inviter: { select: { tier: true, membershipEndAt: true } },
+                inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
               },
             }),
           ])

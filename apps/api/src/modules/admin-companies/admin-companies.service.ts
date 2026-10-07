@@ -3,9 +3,12 @@ import { createHash } from "crypto";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { resolveCityId } from "../../common/geo/geo-index";
 import {
+  BUYING_TIER,
   EU_VAT_COUNTRIES,
   PAID_TIERS,
   PRODUCT_LIMITS,
+  tierAtLeast,
+  type TierName,
   bankDetailsErrors,
   countryUsesIban,
   formatVerificationReason,
@@ -51,6 +54,7 @@ import { isNotificationEnabled } from "../../common/notifications/notification-p
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { enforceProductLimit } from "../../common/company/product-limit";
 import { ensureOwnerBuySeat } from "../../common/company/owner-buy-seat";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { EmailService } from "../email/email.service";
@@ -228,12 +232,6 @@ function docLabelKey(kind: DocKind, country: string | null): ApiMessageKey {
   const set = (country ?? "TR").toUpperCase() === "TR" ? "belgeTr" : "belge";
   return `api.notifications.adminCompanies.${set}.${kind}` as ApiMessageKey;
 }
-
-/** Paket kodunun e-postadaki adı (marka adı; dile göre değişmez). */
-const TIER_DISPLAY: Record<"SILVER" | "GOLD", string> = {
-  SILVER: "Silver",
-  GOLD: "Gold",
-};
 
 /**
  * KODLU RED GEREKÇESİ (2026-09-27) — saklanan dize `formatVerificationReason`
@@ -1354,6 +1352,7 @@ export class AdminCompaniesService {
               companyRejectionReason: formatVerificationReason("COUNTRY_CHANGED"),
             },
           });
+          await this.onVerificationChanged(id, "VERIFIED", "UNVERIFIED");
           void this.notifyCompany(id, {
             type: "company_verification",
             subjectKey: "api.notifications.adminCompanies.ulkeDegistiBaslik",
@@ -1541,6 +1540,8 @@ export class AdminCompaniesService {
     });
     // Bildirim yalnız gerçek geçişte (kararın tekrarı ikinci e-posta atmasın).
     if (wasSame) return { ok: true, unchanged: true };
+    // Ücretsiz dönem: doğrulama efektif kademeyi değiştirir (koltuk / temizlik).
+    const drop = await this.onVerificationChanged(id, c.companyVerificationStatus, status);
     // Firmaya sonucu bildir (in-app + e-posta) — onboarding için kritik.
     if (status === "VERIFIED") {
       void this.notifyCompany(id, {
@@ -1561,7 +1562,7 @@ export class AdminCompaniesService {
       void this.notifyCompany(
         id,
         c.companyVerificationStatus === "VERIFIED"
-          ? this.verificationRevokedMessage(reasonLine ? [reasonLine] : [], false)
+          ? this.verificationRevokedMessage(reasonLine ? [reasonLine] : [], false, drop)
           : {
               type: "company_verification",
               subjectKey: "api.notifications.adminCompanies.dogrulamaReddedildiBaslik",
@@ -1602,13 +1603,25 @@ export class AdminCompaniesService {
   private verificationRevokedMessage(
     lines: readonly AdminNotifyLine[],
     linesAreDocuments = true,
+    drop: { unpublished: number; invitesCancelled: boolean } = {
+      unpublished: 0,
+      invitesCancelled: false,
+    },
   ): AdminNotifyMessage {
     return {
       type: "company_verification",
       subjectKey: "api.notifications.adminCompanies.dogrulamaGeriAlindiBaslik",
       bodyKey: "api.notifications.adminCompanies.dogrulamaGeriAlindiGovde",
+      // Ürün tavanı metne SABİT yazılmaz.
+      params: { adet: drop.unpublished, limit: PRODUCT_LIMITS.STANDART ?? 0 },
       paragraphKeys: [
         "api.notifications.adminCompanies.dogrulamaGeriAlindiEtki",
+        // Ücretsiz dönem: doğrulama kaybı efektif kademeyi düşürür — firmada
+        // FİİLEN değişenler söylenir (taslağa alınan ürün, iptal edilen davet).
+        drop.unpublished > 0 &&
+          "api.notifications.adminCompanies.dogrulamaGeriAlindiKirpilanUrun",
+        drop.invitesCancelled &&
+          "api.notifications.adminCompanies.dogrulamaGeriAlindiDavetIptal",
         linesAreDocuments &&
           lines.length > 0 &&
           "api.notifications.adminCompanies.reddedilenBelgelerBaslik",
@@ -1757,6 +1770,8 @@ export class AdminCompaniesService {
       critical: true,
     });
     if (wasSame && !anyRejected) return { ok: true, unchanged: true };
+    // Ücretsiz dönem: doğrulama efektif kademeyi değiştirir (koltuk / temizlik).
+    const drop = await this.onVerificationChanged(id, c.companyVerificationStatus, status);
     if (status === "VERIFIED") {
       void this.notifyCompany(id, {
         type: "company_verification",
@@ -1784,7 +1799,7 @@ export class AdminCompaniesService {
       void this.notifyCompany(
         id,
         c.companyVerificationStatus === "VERIFIED"
-          ? this.verificationRevokedMessage(lines)
+          ? this.verificationRevokedMessage(lines, true, drop)
           : {
               type: "company_verification",
               subjectKey: "api.notifications.adminCompanies.baziBelgelerReddedildiBaslik",
@@ -1941,6 +1956,84 @@ export class AdminCompaniesService {
     return { ok: true, status: decision.status };
   }
 
+  /**
+   * EFEKTİF kademe düşüşünün temizliği — elle paket alma (`setTier`) ve
+   * ücretsiz dönemde doğrulamanın geri alınması AYNI kuralı uygular:
+   *  · satınalma panelini kaybeden firmanın kuyruktaki dış talep davetleri
+   *    iptal (derin denetim LU-07);
+   *  · alt kademeye inen firmanın GÖNDERDİĞİ bekleyen bağlantı/referral
+   *    davetleri iptal (kabul edilse `isConnectionValid` geçersiz sayardı — #6)
+   *    ve yayında ürün tavanı uygulanır (fazlası taslağa; silinmez).
+   * Düşüş yoksa hiçbir şey yapmaz. Dönüş: taslağa alınan ürün sayısı ve
+   * davet iptali yapıldı mı (bildirim metni için).
+   */
+  private async applyEffectiveTierDrop(
+    id: string,
+    effBefore: TierName,
+    effAfter: TierName,
+  ): Promise<{ unpublished: number; invitesCancelled: boolean }> {
+    if (tierAtLeast(effAfter, effBefore)) return { unpublished: 0, invitesCancelled: false };
+    if (effAfter !== "STANDART") {
+      if (tierAtLeast(effBefore, BUYING_TIER) && !tierAtLeast(effAfter, BUYING_TIER)) {
+        await cancelQueuedListingInvites(this.prisma, [id]);
+      }
+      return { unpublished: 0, invitesCancelled: false };
+    }
+    await this.prisma.$transaction([
+      this.prisma.companyConnection.deleteMany({
+        where: { inviterCompanyId: id, status: "PENDING" },
+      }),
+      ...cancelOutgoingReferralInvites(this.prisma, [id]),
+    ]);
+    const trimmed = await enforceProductLimit(this.prisma, id, "STANDART").catch(() => ({
+      unpublished: 0,
+    }));
+    return { unpublished: trimmed.unpublished, invitesCancelled: true };
+  }
+
+  /**
+   * ÜCRETSİZ DÖNEM: doğrulama durumu EFEKTİF kademeyi belirler (doğrulanmış =
+   * tam erişim). Durum değişince paket değişiminin yan etkileri burada koşar:
+   *  · VERIFIED oldu → kurucunun satınalma koltuğu açılır (`ensureOwnerBuySeat`
+   *    — kayıtta verilmiyor; satınalma paneli tam bu anda kullanılabilir olur);
+   *  · VERIFIED'dan çıktı → `applyEffectiveTierDrop` (saklı paketi süren firma
+   *    onu korur, düşüş olmaz).
+   * Herkese açık yüzey (belge/video, rozetler) değiştiği için sayfalar
+   * tazelenir. Anahtar kapalıyken hiçbir şey yapmaz. Best-effort: doğrulama
+   * kararı bu yüzden geri alınmaz.
+   */
+  private async onVerificationChanged(
+    id: string,
+    from: string,
+    to: string,
+  ): Promise<{ unpublished: number; invitesCancelled: boolean }> {
+    const none = { unpublished: 0, invitesCancelled: false };
+    if (!isFreePeriod() || from === to) return none;
+    try {
+      const c = await this.prisma.company.findUnique({
+        where: { id },
+        select: { tier: true, membershipEndAt: true },
+      });
+      if (!c) return none;
+      const effBefore = effectiveTier(c.tier, c.membershipEndAt, from);
+      const effAfter = effectiveTier(c.tier, c.membershipEndAt, to);
+      if (effBefore === effAfter) return none;
+      this.seo?.companyChanged(id);
+      if (tierAtLeast(effAfter, effBefore)) {
+        await ensureOwnerBuySeat(this.prisma, id);
+        return none;
+      }
+      return await this.applyEffectiveTierDrop(id, effBefore, effAfter);
+    } catch (err) {
+      this.logger.warn(
+        `Verification entitlement side effects failed (${id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return none;
+    }
+  }
+
   /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */
   async setTier(
     id: string,
@@ -1951,7 +2044,12 @@ export class AdminCompaniesService {
   ) {
     const before = await this.prisma.company.findUnique({
       where: { id },
-      select: { membershipEndAt: true, tier: true, isActive: true },
+      select: {
+        membershipEndAt: true,
+        tier: true,
+        isActive: true,
+        companyVerificationStatus: true,
+      },
     });
     if (!before) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     this.assertNotAnonymized(before);
@@ -2021,67 +2119,22 @@ export class AdminCompaniesService {
     // ve belgeleri): firma ve ürün sayfaları tazelensin (arayüz testi D-192
     // yeniden doğrulama — eskiden paket değişimi hiçbir tazeleme yaymıyordu).
     if (tier !== before.tier) this.seo?.companyChanged(id);
-    // GOLD → SILVER: satınalma paneli kapandı; kuyruktaki dış talep davetleri
-    // (BUYING_TIER işi) iptal (derin denetim LU-07) — bağlantı/referral davetleri SILVER'da geçerli.
-    if (tier === "SILVER" && before.tier === "GOLD") {
-      await cancelQueuedListingInvites(this.prisma, [id]);
-      // Satınalma panelini kaybeden firmaya haber (arayüz testi O-065): eskiden
-      // bildirim yalnız STANDART'a düşüşte ve STANDART'tan çıkışta gidiyordu.
-      // Satınalma koltukları Gold altında sayılmaz (`readSeatUsage`); kayıtlı
-      // izinler silinmez, Gold'a dönünce yeniden geçerli olur (DN-04).
-      void this.notifyCompany(id, {
-        type: "membership_downgraded",
-        subjectKey: "api.notifications.adminCompanies.paketSilvereAlindiBaslik",
-        paragraphKeys: ["api.notifications.adminCompanies.paketSilvereAlindiGovde"],
-      });
-    }
-    // #6: elle REVOKE, otomatik süre-dolma yolunun (membership.scheduler)
-    // temizliğini yapmıyordu. STANDART davet gönderemez; firmanın GÖNDERDİĞİ
-    // bekleyen davetler kalırsa karşı taraf kabul ettiğinde `isConnectionValid`
-    // bağlantıyı geçersiz sayar ("kabul ettim ama bağlantı yok" hayaleti).
-    if (tier === "STANDART" && before.tier !== "STANDART") {
-      await this.prisma.$transaction([
-        this.prisma.companyConnection.deleteMany({
-          where: { inviterCompanyId: id, status: "PENDING" },
-        }),
-        ...cancelOutgoingReferralInvites(this.prisma, [id]),
-      ]);
-      // Ücretsiz paket ürün tavanı (2026-09-06): tavanı aşan yayında ürünler
-      // taslağa çekilir (silinmez) — üyelik cron'uyla aynı kural.
-      const trimmed = await enforceProductLimit(this.prisma, id, "STANDART").catch(() => ({ unpublished: 0 }));
-      const kirpildi = trimmed.unpublished > 0;
-      void this.notifyCompany(id, {
-        type: "membership_downgraded",
-        subjectKey: "api.notifications.adminCompanies.paketSonlandirildiBaslik",
-        // Çok paragraflı: in-app satırı birleşmiş metnin anahtarını taşır.
-        bodyKey: kirpildi
-          ? "api.notifications.adminCompanies.paketSonlandirildiGovdeKirpildi"
-          : "api.notifications.adminCompanies.paketSonlandirildiGovde",
-        paragraphKeys: [
-          "api.notifications.adminCompanies.paketSonlandirildiAnaParagraf",
-          kirpildi &&
-            "api.notifications.adminCompanies.paketSonlandirildiKirpilanUrun",
-          "api.notifications.adminCompanies.paketSonlandirildiDavetIptal",
-        ],
-        // Ürün tavanı metne SABİT yazılmaz (10 → 50 değişiminde metin bayat kalmıştı).
-        params: { adet: trimmed.unpublished, limit: PRODUCT_LIMITS.STANDART ?? 0 },
-      });
-    } else if (tier !== "STANDART" && before.tier === "STANDART") {
-      // Paket adı ham kod değil marka adı + bitiş tarihi (arayüz testi D-210).
-      void this.notifyCompany(id, {
-        type: "membership_granted",
-        subjectKey: "api.notifications.adminCompanies.paketTanimlandiBaslik",
-        paragraphKeys: [
-          membershipEndAt
-            ? "api.notifications.adminCompanies.paketTanimlandiGovdeBitisli"
-            : "api.notifications.adminCompanies.paketTanimlandiGovde",
-        ],
-        params: {
-          paket: TIER_DISPLAY[tier],
-          ...(membershipEndAt ? { bitis: dateParam(membershipEndAt) } : {}),
-        },
-      });
-    }
+    // YAN ETKİLER EFEKTİF KADEMEYE GÖRE (ücretsiz dönem, sahip kararı
+    // 2026-10-07): saklı kademe değişse de firmanın EFEKTİF kademesi
+    // değişmeyebilir — doğrulanmış firma saklı STANDART'a alınsa da tam
+    // erişimlidir; ürünleri kırpılmaz, davetleri iptal edilmez. Anahtar
+    // kapalıyken efektif = saklı (+süre) → eski davranışla birebir.
+    //
+    // FİRMAYA BİLDİRİM YOK: "paketiniz tanımlandı / sonlandırıldı / … alındı"
+    // metinleri paket adı taşıyordu; hiçbir bildirim/e-posta paket anamaz.
+    // Kayıt denetim izinde ve üyelik geçmişinde durur. Ücretli paketler dönünce
+    // bildirimler ve `api.notifications.adminCompanies.paket*` metinleri git
+    // geçmişinden geri alınır.
+    await this.applyEffectiveTierDrop(
+      id,
+      effectiveTier(before.tier, before.membershipEndAt, before.companyVerificationStatus),
+      effectiveTier(tier, membershipEndAt, before.companyVerificationStatus),
+    );
     return { ok: true, tier, membershipEndAt };
   }
 

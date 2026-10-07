@@ -61,7 +61,7 @@ export const PUBLIC_PRODUCT_SELECT = {
      D-192: paketi düşen firmanın videosu/belgeleri servis edilmeye devam
      ediyordu). Seçim projeksiyonda durduğu için bu beyaz listeyi kullanan
      her uç (herkese açık ürün, panel ürün keşfi) kuralı kendiliğinden alır. */
-  company: { select: { tier: true, membershipEndAt: true } },
+  company: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
 } satisfies Prisma.CompanyItemSelect;
 
 export type PublicProductRow = Prisma.CompanyItemGetPayload<{
@@ -114,9 +114,11 @@ export type PublicProductCard = Pick<
  * gelince medya yeniden görünür (fail-closed ama yıkıcı değil).
  */
 function mediaAllowed(r: PublicProductRow): boolean {
-  const c = r.company as { tier: string; membershipEndAt: Date | null } | undefined;
+  const c = r.company as
+    | { tier: string; membershipEndAt: Date | null; companyVerificationStatus: string }
+    | undefined;
   if (!c) return false;
-  return tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), PRODUCT_MEDIA_TIER);
+  return tierAtLeast(effectiveTier(c.tier, c.membershipEndAt, c.companyVerificationStatus), PRODUCT_MEDIA_TIER);
 }
 
 /**

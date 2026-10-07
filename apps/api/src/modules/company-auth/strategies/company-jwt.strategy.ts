@@ -142,7 +142,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
       firstName: user.firstName,
       lastName: user.lastName,
       roles: effectiveRoles,
-      tier: effectiveTier(user.company.tier, user.company.membershipEndAt),
+      tier: effectiveTier(user.company.tier, user.company.membershipEndAt, user.company.companyVerificationStatus),
       companyVerificationStatus: user.company.companyVerificationStatus,
       country: user.company.country,
       isOwner,

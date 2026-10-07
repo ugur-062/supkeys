@@ -147,7 +147,7 @@ export class PublicProfileService {
       updatedAt: c.updatedAt,
       // Faz T: "Gold Üye" rozeti (yalnız GOLD; güven iddiası TAŞIMAZ).
       goldMember:
-        effectiveTier(c.tier as string, c.membershipEndAt as Date | null) ===
+        effectiveTier(c.tier as string, c.membershipEndAt as Date | null, c.companyVerificationStatus as string) ===
         "GOLD",
       // KYC tamam — "Doğrulanmış" rozeti. Yalnız admin `setVerification`.
       verified: c.companyVerificationStatus === "VERIFIED",
@@ -461,10 +461,10 @@ export class PublicProfileService {
         activities: company.activities,
         verified: company.companyVerificationStatus === "VERIFIED",
         // Ücretsiz satıcı: ziyaretçiye "yanıtlayamayabilir" notu (2026-09-06).
-        freeMember: !tierAtLeast(effectiveTier(company.tier as string, company.membershipEndAt as Date | null), PAID_TIER),
+        freeMember: !tierAtLeast(effectiveTier(company.tier as string, company.membershipEndAt as Date | null, company.companyVerificationStatus as string), PAID_TIER),
         /* Satıcı paneli (PROMPT 7) — kimlik değil NİTELİK: paket rozeti,
            kuruluş yılı, çalışan aralığı ve sertifikalar. İletişim YOK. */
-        gold: effectiveTier(company.tier as string, company.membershipEndAt as Date | null) === "GOLD",
+        gold: effectiveTier(company.tier as string, company.membershipEndAt as Date | null, company.companyVerificationStatus as string) === "GOLD",
         foundedYear: company.foundedYear,
         employeeCount: company.employeeCount,
         certifications: company.certifications.slice(0, 4),

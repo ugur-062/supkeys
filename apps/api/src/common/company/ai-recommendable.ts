@@ -10,7 +10,8 @@ import { anyPackageWhere, effectiveTier } from "./effective-tier";
  * Bağlantısız üye AI önerisine (kalemler paneli, yayın sonrası tur, keşif
  * penceresi) ve AI yoluyla doğrudan talep davetine YALNIZ efektif SILVER+ ∧
  * doğrulanmış ∧ aktif ∧ askıda değilse girer. "Alıcıların AI önerilerinde
- * çıkmak" Silver'ın ve doğrulamanın karşılığıdır. Bağlantılı firma bu kurala
+ * çıkmak" doğrulamanın karşılığıdır (ücretsiz dönemde doğrulanmış firma zaten
+ * efektif en üst kademededir). Bağlantılı firma bu kurala
  * GİRMEZ (alıcı zaten tanıyor); alıcının elle yaptığı davet de (bağlantı
  * seçicisi, `addInvitations`) bu kuraldan etkilenmez.
  */
@@ -37,7 +38,7 @@ export function isAiRecommendable(row: AiRecommendableRow): boolean {
     row.isActive &&
     !row.isBlocked &&
     row.companyVerificationStatus === "VERIFIED" &&
-    tierAtLeast(effectiveTier(row.tier, row.membershipEndAt), "SILVER")
+    tierAtLeast(effectiveTier(row.tier, row.membershipEndAt, row.companyVerificationStatus), "SILVER")
   );
 }
 
@@ -52,22 +53,25 @@ export const AI_RECOMMENDABLE_SELECT = {
 
 /**
  * AI'ın bulduğu ama alıcıya GÖSTERİLMEYEN firmaya giden çağrının türü
- * (`notifyHiddenAiMatches`). Neden önerilmediğine göre metin ve CTA değişir —
- * yalnız doğrulama durumuna bakmak Silver+ ∧ incelemedeki firmaya "Ücretsiz
- * pakettesiniz, talebi göremiyorsunuz, Silver'a geçin" diyordu (arayüz testi
- * O-056). Paketli firma talebi ZATEN görür; ona yalnız doğrulama anlatılır.
- *  - `verify`         : ücretsiz ∧ doğrulanmamış → önce ücretsiz doğrulama
- *  - `upgrade`        : ücretsiz ∧ doğrulanmış/incelemede → Silver
- *  - `paidPending`    : paketli ∧ doğrulama incelemede → talebi görebilir, onay bekliyor
- *  - `paidVerify`     : paketli ∧ doğrulanmamış/reddedilmiş → talebi görebilir, doğrulansın
+ * (`notifyHiddenAiMatches`). Neden önerilmediğine göre metin ve CTA değişir
+ * (arayüz testi O-056). Metinler paket adı ANMAZ (ücretsiz dönem, sahip kararı
+ * 2026-10-07): tek çağrı firma DOĞRULAMASIDIR.
+ *  - `verify`      : talebi göremiyor ∧ doğrulanmamış/reddedilmiş → doğrulansın
+ *  - `pending`     : talebi göremiyor ∧ doğrulama incelemede → onay bekliyor
+ *  - `paidPending` : talebi görebiliyor (saklı paket) ∧ incelemede → onay bekliyor
+ *  - `paidVerify`  : talebi görebiliyor (saklı paket) ∧ doğrulanmamış → doğrulansın
+ *  - `null`        : talebi göremiyor ∧ DOĞRULANMIŞ — yalnız ücretsiz dönem
+ *                    anahtarı kapalıyken oluşur; söylenecek paketsiz bir çağrı
+ *                    yok → bildirim gönderilmez.
  */
-export type AiHiddenMatchKind = "verify" | "upgrade" | "paidPending" | "paidVerify";
+export type AiHiddenMatchKind = "verify" | "pending" | "paidPending" | "paidVerify";
 
 export function aiHiddenMatchKind(
   row: Pick<AiRecommendableRow, "tier" | "membershipEndAt" | "companyVerificationStatus">,
-): AiHiddenMatchKind {
-  const paid = tierAtLeast(effectiveTier(row.tier, row.membershipEndAt), "SILVER");
+): AiHiddenMatchKind | null {
+  const paid = tierAtLeast(effectiveTier(row.tier, row.membershipEndAt, row.companyVerificationStatus), "SILVER");
   const status = row.companyVerificationStatus;
   if (paid) return status === "PENDING" ? "paidPending" : "paidVerify";
-  return status === "VERIFIED" || status === "PENDING" ? "upgrade" : "verify";
+  if (status === "VERIFIED") return null;
+  return status === "PENDING" ? "pending" : "verify";
 }

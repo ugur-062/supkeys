@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../../common/company/entitlement-required";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
@@ -203,9 +204,9 @@ export class ProfileEnrichService {
           basarili >= FREE_TIER_ENRICH_LIMIT ||
           ucretliCagri >= FREE_TIER_PAID_CALL_LIMIT
         ) {
-          throw new ForbiddenException(
-            i18nMessage("api.ai.ucretsizPaketteProfilAiIleBir"),
-          );
+          throw entitlementForbidden(user.companyVerificationStatus, {
+            key: "api.ai.profilAiBirKezDogrulama",
+          });
         }
         // Suren deneme (X23): basari izi henuz yazilmamis olabilir. Pencere
         // icindeki denemeler (gunluk sinir geregi en fazla birkac satir) ve

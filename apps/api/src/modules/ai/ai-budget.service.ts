@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   ForbiddenException,
@@ -130,15 +131,21 @@ export class AiBudgetService {
   private async limitsFor(
     companyId: string,
     db: Prisma.TransactionClient | PrismaService,
-  ): Promise<{ pool: number | null; requestShare: number; dailyShare: number }> {
+  ): Promise<{
+    pool: number | null;
+    requestShare: number;
+    dailyShare: number;
+    verificationStatus: string;
+  }> {
     const company = await db.company.findUnique({
       where: { id: companyId },
-      select: { tier: true, membershipEndAt: true },
+      select: { tier: true, membershipEndAt: true, companyVerificationStatus: true },
     });
     if (!company) throw new NotFoundException(i18nMessage("api.ai.firmaBulunamadi"));
-    const tier = effectiveTier(company.tier, company.membershipEndAt);
+    const tier = effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus);
     const pool = this.config.monthlyBudgetUsd[tier];
     return {
+      verificationStatus: company.companyVerificationStatus,
       pool: pool != null && pool > 0 ? pool : null,
       requestShare:
         this.config.caps.requestShareByTier?.[tier] ?? this.config.caps.requestShare,
@@ -183,11 +190,14 @@ export class AiBudgetService {
       // penceresi firma bazında serileşir (TOCTOU kapalı).
       await tx.$queryRaw`SELECT id FROM companies WHERE id = ${args.companyId} FOR UPDATE`;
 
-      const { pool, requestShare, dailyShare } = await this.limitsFor(args.companyId, tx);
+      const { pool, requestShare, dailyShare, verificationStatus } = await this.limitsFor(
+        args.companyId,
+        tx,
+      );
       if (pool == null) {
-        throw new ForbiddenException(
-          i18nMessage("api.ai.paketinizAiOzellikleriniIcermiyorSilverVeya"),
-        );
+        throw entitlementForbidden(verificationStatus, {
+          key: "api.ai.aiOzellikleriIcinDogrulama",
+        });
       }
       const poolD = new Prisma.Decimal(pool);
       const scopeMonth = { companyId: args.companyId, createdAt: { gte: monthStartUtc(now) } };

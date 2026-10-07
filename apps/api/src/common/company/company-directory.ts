@@ -59,8 +59,8 @@ export const DIRECTORY_PAGE_SIZE = 20;
 const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
 
 /** Efektif GOLD — süzgeç (`gold=1`), sıra ve kart rozeti aynı hesabı okur. */
-const isGold = (r: { tier: string; membershipEndAt: Date | null }) =>
-  effectiveTier(r.tier as TierName, r.membershipEndAt) === "GOLD";
+const isGold = (r: { tier: string; membershipEndAt: Date | null; companyVerificationStatus: string }) =>
+  effectiveTier(r.tier as TierName, r.membershipEndAt, r.companyVerificationStatus) === "GOLD";
 
 /**
  * FİRMA DİZİNİ — TEK KAYNAK (2026-09-04): herkese açık `/firmalar` ile panelin
@@ -192,8 +192,8 @@ export async function directoryRows(
     orderBy: [{ updatedAt: "desc" }],
     take: 5000,
   });
-  const paidRank = (r: { tier: string; membershipEndAt: Date | null }) =>
-    tierAtLeast(effectiveTier(r.tier as TierName, r.membershipEndAt), PAID_TIER) ? 0 : 1;
+  const paidRank = (r: { tier: string; membershipEndAt: Date | null; companyVerificationStatus: string }) =>
+    tierAtLeast(effectiveTier(r.tier as TierName, r.membershipEndAt, r.companyVerificationStatus), PAID_TIER) ? 0 : 1;
   const eligible = rows.filter((r) => {
     const productCount = r._count.items;
     if (q.hasProducts && productCount === 0) return false;

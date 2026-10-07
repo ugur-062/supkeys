@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../../common/company/entitlement-required";
 import { currentLocale } from "../../../common/i18n/locale-context";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { tApi } from "../../../common/i18n/i18n.service";
@@ -117,7 +118,7 @@ export class AssistantService {
         throw new ForbiddenException(i18nMessage("api.ai.belgedenTalepTaslagiYalnizSatinAlma"));
       }
       if (!tierAtLeast(user.tier, "GOLD")) {
-        throw new ForbiddenException(i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir"));
+        throw entitlementForbidden(user.companyVerificationStatus);
       }
     }
 

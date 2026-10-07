@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../../common/company/entitlement-required";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   REVIEW_SUMMARY_SELECT,
@@ -209,9 +210,9 @@ export class CompanyConnectionsService {
    */
   async invite(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
     if (!tierAtLeast(user.tier, "SILVER")) {
-      throw new ForbiddenException(
-        i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyConnections.baglantiDavetiIcinDogrulama",
+      });
     }
     const code = normalizeShortCode(rothernIdRaw);
     if (!validateShortCode(code)) {
@@ -310,9 +311,9 @@ export class CompanyConnectionsService {
     | { kind: "send"; email: string; inviteId: string; token: string; inviterName: string; locale: Locale }
   > {
     if (!tierAtLeast(user.tier, "SILVER")) {
-      throw new ForbiddenException(
-        i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyConnections.baglantiDavetiIcinDogrulama",
+      });
     }
     const email = emailRaw.trim().toLowerCase();
 
@@ -548,11 +549,10 @@ export class CompanyConnectionsService {
     // satış paketi — GOLD'dan düşürülen firma iç davet atamayıp dış adreslere
     // talep daveti kuyruğa alabiliyordu (derin denetim LU-07).
     if (!tierAtLeast(user.tier, BUYING_TIER)) {
-      throw new ForbiddenException(
-        i18nMessage("api.companyListings.icinGoldPaketSatinalmaPaneliGerekir", {
-          action: tApi("api.companyListings.actionInviteSupplier"),
-        }),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyListings.icinFirmaDogrulamasiGerekir",
+        params: { action: tApi("api.companyListings.actionInviteSupplier") },
+      });
     }
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
@@ -912,9 +912,9 @@ export class CompanyConnectionsService {
     entries: ReadonlyArray<string | { email: string; locale?: string | null }>,
   ) {
     if (!tierAtLeast(user.tier, "SILVER")) {
-      throw new ForbiddenException(
-        i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyConnections.baglantiDavetiIcinDogrulama",
+      });
     }
     // Normalize + sıra korumalı dedupe; adres başına dil (yeni istemci).
     const seen = new Set<string>();
@@ -1171,6 +1171,7 @@ export class CompanyConnectionsService {
           billingEmail: true,
           tier: true,
           membershipEndAt: true,
+          companyVerificationStatus: true, // ücretsiz dönem: efektif kademe girdisi
           users: {
             where: { isActive: true, deletedAt: null },
             select: {
@@ -1214,7 +1215,7 @@ export class CompanyConnectionsService {
             // açık → alıcının EFEKTİF paketine göre (ret ekranına düşmesin).
             ctaUrl: appRoutes.connections(
               baseUrl,
-              tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), BUYING_TIER) ? "satinalma" : "satis",
+              tierAtLeast(effectiveTier(c.tier, c.membershipEndAt, c.companyVerificationStatus), BUYING_TIER) ? "satinalma" : "satis",
               locale,
               cta.view,
             ),
@@ -1376,7 +1377,7 @@ export class CompanyConnectionsService {
         (r) =>
           r.origin === "ADMIN" ||
           tierAtLeast(
-            effectiveTier(r.inviter.tier, r.inviter.membershipEndAt),
+            effectiveTier(r.inviter.tier, r.inviter.membershipEndAt, r.inviter.companyVerificationStatus),
             "SILVER",
           ),
       )
@@ -1392,7 +1393,7 @@ export class CompanyConnectionsService {
             rothernId: other.rothernId,
             // INV-TIER-1: gösterilen tier rozeti efektif (süresi-dolmuş PAKET
             // paketli göstermesin).
-            tier: effectiveTier(other.tier, other.membershipEndAt),
+            tier: effectiveTier(other.tier, other.membershipEndAt, other.companyVerificationStatus),
             city: other.city,
             country: other.country,
             industry: other.industry,
@@ -1937,7 +1938,7 @@ export class CompanyConnectionsService {
         name: c.name,
         // Faz T: "Gold Üye" rozeti (adlandırma bilinçli — güven iddiası taşımaz).
         goldMember:
-          effectiveTier(c.tier, c.membershipEndAt) === "GOLD",
+          effectiveTier(c.tier, c.membershipEndAt, c.companyVerificationStatus) === "GOLD",
         verified: c.companyVerificationStatus === "VERIFIED",
         industry: c.industry,
         activities: c.activities,

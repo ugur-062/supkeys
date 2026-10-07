@@ -69,7 +69,7 @@ export function inLifecycleWindow(now: Date, timeZone: string): boolean {
   return zonedParts(now, timeZone).hour === LIFECYCLE_LOCAL_HOUR;
 }
 
-export type LifecycleStep = "profile" | "first_product" | "verify" | "market" | "verify_again" | "silver";
+export type LifecycleStep = "profile" | "first_product" | "verify" | "market" | "verify_again";
 
 export interface LifecycleState {
   /** Onboarding bitiş anı (yoksa seri başlamaz). */
@@ -79,8 +79,6 @@ export interface LifecycleState {
   verification: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED" | string;
   /** Son 14 günde kategorisine düşen talep sayısı (pazar adımı için). */
   recentMatches: number;
-  /** Efektif SILVER+ (Silver adımı ücretliye gitmez). */
-  paid: boolean;
   /** Daha önce gönderilmiş adımlar. */
   sent: ReadonlySet<LifecycleStep>;
 }
@@ -91,14 +89,14 @@ export const LIFECYCLE_DAYS: Record<LifecycleStep, number> = {
   first_product: 3,
   verify: 7,
   market: 14,
-  // 2026-09-28 (kullanıcı: "ücretsizleri Silver'a çekecek şeyler; doğrulamaya
-  // da teşvik"): hâlâ doğrulanmamışa ikinci hatırlatma, doğrulanmış ücretsize
-  // Silver'ın ne kazandırdığı. Seri 30 günlük pencerede.
+  // 2026-09-28: hâlâ doğrulanmamışa ikinci hatırlatma. Seri 30 günlük
+  // pencerede. Paket tanıtan "silver" adımı ücretsiz dönemde KALDIRILDI (sahip
+  // kararı 2026-10-07: hiçbir e-posta paket satmaz; doğrulama yeterli) —
+  // ücretli paketler dönünce git geçmişinden geri alınır.
   verify_again: 21,
-  silver: 24,
 };
 
-const ORDER: readonly LifecycleStep[] = ["profile", "first_product", "verify", "market", "verify_again", "silver"];
+const ORDER: readonly LifecycleStep[] = ["profile", "first_product", "verify", "market", "verify_again"];
 
 /**
  * Sıradaki karşılama e-postası — DAVRANIŞA BAĞLI: adım zaten tamamlandıysa
@@ -115,9 +113,6 @@ export function nextLifecycleStep(s: LifecycleState, now: Date): LifecycleStep |
     verify: verified,
     market: s.recentMatches === 0,
     verify_again: verified,
-    // Paket alımı doğrulama ister → doğrulanmamışa Silver adımı henüz gitmez
-    // (doğrulanınca pencere içinde gider); ücretliye hiç gitmez.
-    silver: s.paid || s.verification !== "VERIFIED",
   };
   for (const step of ORDER) {
     if (s.sent.has(step) || done[step]) continue;

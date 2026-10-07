@@ -1,3 +1,4 @@
+import { entitlementDenial } from "./entitlement-required";
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import {
@@ -47,10 +48,10 @@ export async function readSeatUsage(
 ) {
   const company = await db.company.findUnique({
     where: { id: companyId },
-    select: { tier: true, membershipEndAt: true, ownerUserId: true },
+    select: { tier: true, membershipEndAt: true, companyVerificationStatus: true, ownerUserId: true },
   });
   if (!company) throw new NotFoundException(i18nMessage("api.companyUsers.firmaBulunamadi"));
-  const tier = effectiveTier(company.tier, company.membershipEndAt);
+  const tier = effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus);
   const limit = SEAT_LIMITS[tier];
   const [users, invites] = await Promise.all([
     db.companyUser.findMany({
@@ -90,6 +91,8 @@ export async function readSeatUsage(
     limit,
     /** Efektif kademe — koltuk kapısı buy grubunu buna göre reddeder. */
     tier,
+    /** Doğrulama durumu — ret metni paket değil doğrulama ister (ücretsiz dönem). */
+    verificationStatus: company.companyVerificationStatus,
     used,
     usedBuy,
     usedSell: active.sell,
@@ -137,12 +140,15 @@ export async function assertSeatAvailable(
 ): Promise<void> {
   const need = opts.groups.size;
   if (need <= 0 && !opts.addsBuyPermission) return;
-  const { limit, used, pendingSeatInvites, tier } = await readSeatUsage(db, companyId, {
+  const { limit, used, pendingSeatInvites, tier, verificationStatus } = await readSeatUsage(db, companyId, {
     excludeInvitationId: opts.excludeInvitationId,
   });
   if ((opts.groups.has("buy") || opts.addsBuyPermission) && !tierAtLeast(tier, BUYING_TIER)) {
     throw new BadRequestException(
-      i18nMessage("api.companyUsers.satinalmaYetkisiYalnizGoldPaketteVerilebilir"),
+      entitlementDenial(verificationStatus, {
+        key: "api.companyUsers.satinalmaYetkisiIcinDogrulama",
+        code: null,
+      }),
     );
   }
   if (need <= 0 || limit == null) return;
@@ -151,8 +157,9 @@ export async function assertSeatAvailable(
     if (opts.context === "accept") {
       throw new ConflictException(i18nMessage("api.companyUsers.koltukDoluDavetSuAnKabul"));
     }
-    // GOLD en üst paket: "paketi yükseltin" denmez, yalnız koltuk boşaltma
-    // yolu söylenir (arayüz testi D-188).
+    // En üst kademe (doğrulanmış firma): "doğrulanın" denmez, yalnız koltuk
+    // boşaltma yolu söylenir (arayüz testi D-188). Doğrulanmamış firmada metin
+    // daha fazla koltuk için DOĞRULAMAYI önerir (paket adı yok).
     const top = tierAtLeast(tier, "GOLD");
     throw new BadRequestException(
       opts.includePending && pendingSeatInvites > 0

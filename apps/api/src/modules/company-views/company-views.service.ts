@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ForbiddenException, Injectable, Logger, Optional } from "@nestjs/common";
 import { tierAtLeast } from "@rothern/shared";
@@ -284,7 +285,9 @@ export class CompanyViewsService {
   /** İş Analizi — Silver+ (Raporlar kapısıyla aynı). Dönem ve önceki dönem karşılaştırmalı. */
   async insights(user: AuthenticatedCompanyUser, opts: { days?: number } = {}) {
     if (!tierAtLeast(user.tier, "SILVER")) {
-      throw new ForbiddenException(i18nMessage("api.companyViews.isAnaliziSilverVeUzeriPaketlerde"));
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.companyViews.isAnaliziIcinDogrulama",
+      });
     }
     const days = clampDays(opts.days);
     const now = new Date();

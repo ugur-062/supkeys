@@ -41,6 +41,7 @@ import { ensureUniqueCompanySlug } from "../../../common/company/company-slug";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { ensureOwnerBuySeat } from "../../../common/company/owner-buy-seat";
+import { assertPackagePurchaseOpen } from "../../../common/company/entitlement-required";
 import { NOTIFICATION_FLAG_KEYS, NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import {
   PrismaService,
@@ -1298,12 +1299,18 @@ export class CompanyAuthService {
   // PREMIUM'A GEÇ (Faz 3) — doğrulama tamamsa tier=PAKET
   // ============================================================
   async upgradeToPremium(userId: string, companyId: string) {
+    // ÜCRETSİZ DÖNEM (sahip kararı 2026-10-07): satın alınacak bir şey yok —
+    // doğrulanmış firma zaten tam erişimli. Uç 410 Gone döner ve HİÇBİR ŞEY
+    // yazmaz (kademe, üyelik olayı, denetim satırı, koltuk). İlk satırda:
+    // sahiplik/doğrulama denetimleri de koşmaz. `PREMIUM_SELF_UPGRADE_ENABLED`
+    // bu dönemde ANLAMSIZDIR (açık olsa da 410).
+    assertPackagePurchaseOpen();
     // Y2: self-servis premium ödeme entegrasyonuna kadar KAPALI (flag default
     // false). Endpoint silinmedi — ödeme gelince PREMIUM_SELF_UPGRADE_ENABLED=true
     // ile açılır. Bugün premium yalnız admin grant ile verilir. Bkz. INV-TIER-1.
     if (this.config.get<string>("PREMIUM_SELF_UPGRADE_ENABLED") !== "true") {
       throw new ForbiddenException(
-        i18nMessage("api.companyAuth.premiumSuAnManuelOnaylaVeriliyor"),
+        i18nMessage("api.entitlement.purchaseClosed", undefined, "FREE_PERIOD"),
       );
     }
     // Kullanıcı satırı ARTIK OKUNMUYOR — 2FA şartı kalktı (aşağıdaki not).
@@ -1321,11 +1328,11 @@ export class CompanyAuthService {
     // GÜVENLİK: faturalandırma/paket işlemi yalnız firma sahibinde (billing:manage
     // OWNER_ONLY). Sahip olmayan doğrulanmış kullanıcı tier'ı yükseltemez.
     if (company.ownerUserId !== userId) {
-      throw new ForbiddenException(i18nMessage("api.companyAuth.yalnizcaFirmaSahibiPaketYukseltebilir"));
+      throw new ForbiddenException(i18nMessage("api.companyAuth.buIslemIcinYetkinizYok"));
     }
     // INV-TIER-1: efektif tier — süresi-dolmuş (lazy) PAKET firma "zaten premium"
     // engeline takılmadan yenileyebilsin; efektif STANDARD ise yükseltme akışına girer.
-    if (effectiveTier(company.tier, company.membershipEndAt) === "GOLD") {
+    if (effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus) === "GOLD") {
       return { ok: true as const, tier: "GOLD" };
     }
     if (company.companyVerificationStatus !== "VERIFIED") {
@@ -2257,7 +2264,7 @@ export class CompanyAuthService {
       rothernId: company.rothernId,
       // INV-TIER-1: efektif tier (süre-dolma penceresinde ham PAKET görünse de
       // STANDARD döner) — /me'yi okuyan web shell tek kaynaktan görür.
-      tier: effectiveTier(company.tier, company.membershipEndAt),
+      tier: effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus),
       country: company.country,
       companyVerificationStatus: company.companyVerificationStatus,
       onboardingCompletedAt: company.onboardingCompletedAt,
@@ -2269,7 +2276,7 @@ export class CompanyAuthService {
       // henüz yok; Silver+ açılınca bu bayrak kapı olacak).
       features: {
         ai: tierAtLeast(
-          effectiveTier(company.tier, company.membershipEndAt),
+          effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus),
           "SILVER",
         ),
       },

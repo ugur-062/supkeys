@@ -9,7 +9,7 @@ import { formatInviteDeadline } from "../../common/company/invite-delivery";
 import { listingTitleParam } from "../../common/notifications/notification-params";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { looksLikeProse, tierAtLeast } from "@rothern/shared";
-import { effectiveTier } from "../../common/company/effective-tier";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
 import { isConnectionValid } from "../../common/company/valid-connection";
 import { timeZoneForCountry } from "../../common/time/country-time-zone";
 import {
@@ -183,8 +183,20 @@ export class EmailProgramsService {
             .localizeListings(shown.map((l) => ({ title: l.title })), shown.map((l) => l.id), locale)
             .catch(() => shown.map((l) => ({ title: l.title })))
         : shown.map((l) => ({ title: l.title }));
-      const allLocked = !isInvite && group.every((g) => g.locked);
+      // KİLİTLİ ÖZET (ücretsiz dönem, sahip kararı 2026-10-07): paket adı
+      // geçmez; tek çağrı firma doğrulamasıdır. `locked` kuyruğa alınırken
+      // damgalanır — firma o günden beri DOĞRULANDIYSA talepler artık açıktır
+      // (ücretsiz dönemde doğrulanmış = tam erişim). Anahtar kapalıyken kilitli
+      // ∧ doğrulanmış firmaya söylenecek paketsiz bir çağrı yok → özet gitmez.
+      const status = verificationOf.get(group[0]!.companyId);
+      const everyLocked = !isInvite && group.every((g) => g.locked);
+      if (everyLocked && status === "VERIFIED" && !isFreePeriod()) {
+        await markSent();
+        continue;
+      }
+      const allLocked = everyLocked && status !== "VERIFIED";
       const verifyFirst = allLocked && unverifiedIds.has(group[0]!.companyId);
+      const lockedPending = allLocked && !verifyFirst;
       // Kilitsiz (ücretli ya da bağlantılı) ama doğrulanmamış / incelemedeki
       // firma: anlık e-postadaki D-163 ipucu özette de verilir — bağlantısız
       // alıcının talebine teklif KYC ister (yeniden doğrulama api1-02).
@@ -217,8 +229,8 @@ export class EmailProgramsService {
                     ? "api.notifications.digest.invitationBody"
                     : verifyFirst
                       ? "api.notifications.digest.bodyLockedUnverified"
-                      : allLocked
-                        ? "api.notifications.digest.bodyLocked"
+                      : lockedPending
+                        ? "api.notifications.digest.bodyLockedPending"
                         : paidKyc === "unverified"
                           ? "api.notifications.digest.bodyUnverified"
                           : paidKyc === "pending"
@@ -240,16 +252,14 @@ export class EmailProgramsService {
                   ? "api.notifications.digest.invitationCta"
                   : verifyFirst || paidKyc === "unverified"
                     ? "api.notifications.listings.cta.verifyFree"
-                    : allLocked
-                      ? "api.notifications.listings.cta.upgradeSilver"
+                    : lockedPending
+                      ? "api.notifications.listings.cta.verificationStatus"
                       : "api.notifications.digest.cta",
               ),
               ctaUrl: `${this.web}${localizeAppPath(
-                verifyFirst || paidKyc === "unverified"
+                verifyFirst || lockedPending || paidKyc === "unverified"
                   ? "/company/ayarlar/dogrulama"
-                  : allLocked
-                    ? "/company/premium"
-                    : "/company/satis",
+                  : "/company/satis",
                 locale,
               )}`,
               footerNote: t("api.notifications.digest.footer"),
@@ -290,7 +300,7 @@ export class EmailProgramsService {
         inviterCompanyId: true,
         inviteeCompanyId: true,
         origin: true,
-        inviter: { select: { tier: true, membershipEndAt: true } },
+        inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
       },
     });
     const connected = new Set(
@@ -397,11 +407,10 @@ export class EmailProgramsService {
           distinct: ["listingId"],
         }),
       ]);
-      const free = !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "SILVER");
+      const free = !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt, c.companyVerificationStatus), "SILVER");
       const step = nextLifecycleStep(
         {
           onboardedAt: c.onboardingCompletedAt,
-          paid: !free,
           hasProfileText: !!c.aboutText && looksLikeProse(c.aboutText),
           productCount,
           verification: c.companyVerificationStatus,
@@ -411,7 +420,18 @@ export class EmailProgramsService {
         now,
       );
       if (!step) continue;
-      if (await this.sendLifecycleEmail(c.id, owner, step, { matches: matches.length, free })) sent++;
+      // Kilitli pazar adımı doğrulama çağrısıdır; kilitli ∧ DOĞRULANMIŞ firma
+      // (yalnız ücretsiz dönem anahtarı kapalıyken) için paketsiz çağrı yok.
+      if (step === "market" && free && c.companyVerificationStatus === "VERIFIED") continue;
+      if (
+        await this.sendLifecycleEmail(c.id, owner, step, {
+          matches: matches.length,
+          free,
+          pending: c.companyVerificationStatus === "PENDING",
+        })
+      ) {
+        sent++;
+      }
     }
     return sent;
   }
@@ -420,7 +440,7 @@ export class EmailProgramsService {
     companyId: string,
     owner: Owner,
     step: LifecycleStep,
-    p: { matches: number; free: boolean },
+    p: { matches: number; free: boolean; pending: boolean },
   ): Promise<boolean> {
     const locale: Locale = isLocale(owner.locale) ? owner.locale : "tr";
     const t = (key: ApiMessageKey, v?: Record<string, string | number>) => tApi(key, v, locale);
@@ -428,16 +448,23 @@ export class EmailProgramsService {
       profile: { cta: "/company/sirketim/profil" },
       first_product: { cta: "/company/satis/urunlerim?yeni=1" },
       verify: { cta: "/company/ayarlar/dogrulama" },
-      market: { cta: p.free ? "/company/premium" : "/company/satis" },
+      market: { cta: p.free ? "/company/ayarlar/dogrulama" : "/company/satis" },
       verify_again: { cta: "/company/ayarlar/dogrulama" },
-      silver: { cta: "/company/premium" },
     }[step];
     const base = `api.notifications.lifecycle.${step}` as const;
     const locked = step === "market" && p.free;
-    const bodyKey = (locked ? `${base}.bodyLocked` : `${base}.body`) as ApiMessageKey;
-    // Kilitli pazar e-postası paket sayfasına gider: düğme de "Silver'a geç"
-    // der, "Açık talepleri gör" değil (derin denetim boşluk taraması GA2).
-    const ctaKey = (locked ? `${base}.ctaLocked` : `${base}.cta`) as ApiMessageKey;
+    const bodyKey = (
+      locked ? (p.pending ? `${base}.bodyLockedPending` : `${base}.bodyLocked`) : `${base}.body`
+    ) as ApiMessageKey;
+    // Kilitli pazar e-postası DOĞRULAMA sayfasına gider: düğme de doğrulamayı
+    // söyler, "Açık talepleri gör" değil (derin denetim boşluk taraması GA2).
+    const ctaKey = (
+      locked
+        ? p.pending
+          ? "api.notifications.listings.cta.verificationStatus"
+          : `${base}.ctaLocked`
+        : `${base}.cta`
+    ) as ApiMessageKey;
     const subject = t(`${base}.subject` as ApiMessageKey, { n: p.matches });
     try {
       const res = await this.email.send({
@@ -473,14 +500,6 @@ export class EmailProgramsService {
     });
     if (views.length === 0) return 0;
     const countOf = new Map(views.map((v) => [v.targetCompanyId, v._count._all]));
-    // Üye firmaların (kimlikli, panel) görüntülemeleri — ücretsize "hangi
-    // firmalar olduğunu Silver'da görün" çağrısı için.
-    const memberViews = await this.prisma.companyView.groupBy({
-      by: ["targetCompanyId"],
-      where: { viewedAt: { gte: new Date(now.getTime() - 7 * DAY_MS) }, viewerCompanyId: { not: null } },
-      _count: { _all: true },
-    });
-    const membersOf = new Map(memberViews.map((v) => [v.targetCompanyId, v._count._all]));
     const companies = await this.prisma.company.findMany({
       where: { id: { in: [...countOf.keys()] }, isActive: true, isBlocked: false, ownerUserId: { not: null } },
       select: { id: true, country: true, ownerUserId: true, tier: true, membershipEndAt: true, companyVerificationStatus: true },
@@ -504,24 +523,29 @@ export class EmailProgramsService {
       if (!owner || !this.lifecycleOn(owner) || !weeklySummaryAllowed(owner.lastLoginAt, now, week)) continue;
       const locale: Locale = isLocale(owner.locale) ? owner.locale : "tr";
       const n = countOf.get(c.id) ?? 0;
-      const members = membersOf.get(c.id) ?? 0;
-      const t = (key: ApiMessageKey) => tApi(key, { n, members }, locale);
+      const t = (key: ApiMessageKey) => tApi(key, { n }, locale);
       const subject = t("api.notifications.lifecycle.weekly.subject");
-      // Ücretli: ziyaretçi listesi. Ücretsiz + doğrulanmamış: önce doğrulama
-      // (paket alımının tek şartı). Ücretsiz + doğrulanmış/incelemede: Silver.
-      const free = !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "SILVER");
-      const unverified = c.companyVerificationStatus !== "VERIFIED" && c.companyVerificationStatus !== "PENDING";
-      const variant = !free ? "paid" : unverified ? "unverified" : "free";
+      // Ziyaretçi listesi açık firma: liste bağlantısı. Kapalı firma: tek çağrı
+      // firma doğrulaması (incelemedeyse "onay bekleniyor"); paket adı geçmez.
+      // Kapalı ∧ DOĞRULANMIŞ yalnız ücretsiz dönem anahtarı kapalıyken oluşur →
+      // paketsiz çağrı yok, özet gitmez.
+      const free = !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt, c.companyVerificationStatus), "SILVER");
+      if (free && c.companyVerificationStatus === "VERIFIED") continue;
+      const variant = !free
+        ? "paid"
+        : c.companyVerificationStatus === "PENDING"
+          ? "pending"
+          : "unverified";
       const W = {
         paid: {
           body: "api.notifications.lifecycle.weekly.body",
           cta: "api.notifications.lifecycle.weekly.cta",
           path: "/company/sirketim/ziyaretciler",
         },
-        free: {
-          body: members > 0 ? "api.notifications.lifecycle.weekly.bodyFree" : "api.notifications.lifecycle.weekly.bodyFreeAnon",
-          cta: "api.notifications.lifecycle.weekly.ctaFree",
-          path: "/company/premium",
+        pending: {
+          body: "api.notifications.lifecycle.weekly.bodyPending",
+          cta: "api.notifications.listings.cta.verificationStatus",
+          path: "/company/ayarlar/dogrulama",
         },
         unverified: {
           body: "api.notifications.lifecycle.weekly.bodyUnverified",

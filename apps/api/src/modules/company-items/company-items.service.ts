@@ -1,3 +1,4 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { tApi } from "../../common/i18n/i18n.service";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
@@ -522,9 +523,10 @@ export class CompanyItemsService {
               },
             });
             if (occupied >= limit) {
-              throw new ForbiddenException(
-                i18nMessage("api.companyItems.ucretsizPaketteEnFazlaUrunYayinda", { limit: limit }),
-              );
+              throw entitlementForbidden(user.companyVerificationStatus, {
+                key: "api.companyItems.urunTavaniGeriAlDogrulama",
+                params: { limit: limit },
+              });
             }
           }
           return tx.companyItem.update({ where: { id }, data: { isActive } });
@@ -958,8 +960,8 @@ export class CompanyItemsService {
         verified: company.companyVerificationStatus === "VERIFIED",
         // Ücretsiz satıcı (2026-09-06): alıcıya gönderim anında dürüst not —
         // "soruyu görür, yanıtlamak için Silver'a geçmesi gerekir".
-        freeMember: !tierAtLeast(effectiveTier(company.tier, company.membershipEndAt), PAID_TIER),
-        gold: effectiveTier(company.tier, company.membershipEndAt) === "GOLD",
+        freeMember: !tierAtLeast(effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus), PAID_TIER),
+        gold: effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus) === "GOLD",
         foundedYear: company.foundedYear,
         employeeCount: company.employeeCount,
         certifications: company.certifications.slice(0, 4),
@@ -1356,9 +1358,10 @@ export class CompanyItemsService {
           },
         });
         if (occupied >= limit) {
-          throw new ForbiddenException(
-            i18nMessage("api.companyItems.ucretsizPaketteEnFazlaUrunYayinda2", { limit: limit }),
-          );
+          throw entitlementForbidden(user.companyVerificationStatus, {
+            key: "api.companyItems.urunTavaniDogrulama",
+            params: { limit: limit },
+          });
         }
       }
       const updated = await tx.companyItem.update({
