@@ -8,6 +8,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useLocale } from "next-intl";
 
 export type NotificationPortal = "satinalma" | "satis";
 
@@ -27,11 +28,26 @@ export interface AppNotification {
 /** Query anahtarı — LiveToasts ile PAYLAŞILIR (perf turu, P10). */
 export const NOTIFICATION_KEY = ["company-notifications"] as const;
 
+/**
+ * Liste/akış anahtarları DİLİ içerir (2026-10-07): API bildirim metnini
+ * OKUYANIN güncel diliyle üretir (`Accept-Language`), yani yanıt dile bağlıdır.
+ * Anahtarda dil olmasaydı dil değişince zil ve Bildirimler sayfası önbellekteki
+ * eski dildeki metni göstermeye devam ederdi. Dil SONDA: `[...KEY, "list"]` /
+ * `[...KEY, "feed"]` önekli tazelemeler her dili kapsar.
+ */
+export function notificationListKey(portal: NotificationPortal | undefined, locale: string) {
+  return [...NOTIFICATION_KEY, "list", portal ?? "all", locale] as const;
+}
+export function notificationFeedKey(locale: string) {
+  return [...NOTIFICATION_KEY, "feed", locale] as const;
+}
+
 /** Bildirim listesi — AKTİF portal (+ ortak). */
 export function useNotifications(portal?: NotificationPortal, enabled = true) {
   const user = useCompanyAuthStore((s) => s.user);
+  const locale = useLocale();
   return useQuery({
-    queryKey: [...NOTIFICATION_KEY, "list", portal ?? "all"],
+    queryKey: notificationListKey(portal, locale),
     queryFn: async () => {
       const { data } = await companyApi.get<AppNotification[]>("/notifications", {
         params: portal ? { portal } : undefined,
@@ -59,8 +75,9 @@ export function notificationCursor(n: Pick<AppNotification, "createdAt" | "id">)
  */
 export function useNotificationFeed(enabled = true) {
   const user = useCompanyAuthStore((s) => s.user);
+  const locale = useLocale();
   return useInfiniteQuery({
-    queryKey: [...NOTIFICATION_KEY, "feed"],
+    queryKey: notificationFeedKey(locale),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const { data } = await companyApi.get<AppNotification[]>("/notifications", {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavLabel } from "@/i18n/domain";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { notificationHref, stripLocale } from "@/i18n/href";
 
 import type { AppNotification } from "@/hooks/use-notifications";
@@ -24,7 +24,7 @@ import { Bell, MessageSquare, X } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { NOTIFICATION_KEY } from "@/hooks/use-notifications";
+import { NOTIFICATION_KEY, notificationListKey } from "@/hooks/use-notifications";
 import { MESSAGE_KEYS } from "@/hooks/use-company-messages";
 
 /**
@@ -156,6 +156,9 @@ export function LiveToasts() {
   const synced = useCompanyPermissionsSynced();
   const qc = useQueryClient();
   const router = useRouter();
+  // Bildirim metni API'de OKUYANIN diliyle üretilir → önbellek anahtarı dili
+  // taşır (zil ile AYNI anahtar; dil değişince eski dildeki kart metni kalmaz).
+  const locale = useLocale();
   const closeLabel = tr("kapat");
 
   useEffect(() => {
@@ -177,7 +180,7 @@ export function LiveToasts() {
     const fetchNotifications = () =>
       qc
         .fetchQuery({
-          queryKey: [...NOTIFICATION_KEY, "list", "all"],
+          queryKey: notificationListKey(undefined, locale),
           queryFn: async () => {
             const { data } =
               await companyApi.get<AppNotification[]>("/notifications");
@@ -335,7 +338,7 @@ export function LiveToasts() {
       socket.off("notification.new", handleNotification);
       socket.off("message.new", handleMessage);
     };
-  }, [user, synced, qc, router, closeLabel]);
+  }, [user, synced, qc, router, closeLabel, locale]);
 
   return null;
 }

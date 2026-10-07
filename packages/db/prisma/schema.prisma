@@ -2575,6 +2575,11 @@ model Notification {
   body      String
   ctaUrl    String?
   ctaLabel  String?
+  // Metnin ÜRETİM GİRDİLERİ (2026-10-07): { v, titleKey, bodyKey, ctaLabelKey,
+  // params, ctaPath }. Okuma yolu satırı OKUYANIN güncel diliyle yeniden üretir;
+  // title/body/ctaLabel/ctaUrl yazma anındaki dilde yedek olarak durur. NULL =
+  // eski satır (yalnız metin saklandı, yeniden üretilemez).
+  i18n      Json?
   listingId String? // bağlam referansı (opsiyonel)
 
   readAt    DateTime?
