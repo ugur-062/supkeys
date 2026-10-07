@@ -1287,6 +1287,10 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Kayıtsız alıcının dili (davetler) | `@rothern/i18n` `recipient-locale.ts` (`recipientLocale`, `localeForCountry`) |
 | Para birimi listesi · sembol · sembolün yeri | `@rothern/shared` `constants/currencies.ts` (`CURRENCY_CODES`, `CURRENCY_SYMBOLS`, `affixCurrency`) · API kur tablosu `common/currency/fx-rates.ts` |
 | Bildirimde tarih/tutar/talep başlığı (alıcının dilinde) | `common/notifications/notification-params.ts` |
+| Bildirim metninin okuma anında yeniden üretimi | `modules/notifications/notification-i18n.ts` · `NotificationService.localizeRows` |
+| Oturum iptali (çıkış) | `common/auth/session-revocation.service.ts` |
+| `THROTTLE_*` env okuma · gövde ayrıştırıcı / ham gövde | `common/http/throttle-limit.ts` (`resolveThrottleLimit`) · `common/http/body-parser.ts` |
+| E-posta geri bildirim başlıkları | `modules/email/email-feedback-headers.ts` |
 | AI çıktı dili kuralı | `common/i18n/ai-language.ts` |
 | Sistemin yazdığı metin (kodlu) · KYC red gerekçesi | `@rothern/shared` `helpers/system-text.ts` · `helpers/verification-reason.ts` |
 | Web para/sayı/tarih biçimi | `src/i18n/format.ts` (`intlLocale`, `formatPercent`, `upperForText`) · `components/ui/money.tsx` (`useFormatMoney`) · `lib/format-date.ts` (`useFormatDate`) |
@@ -1470,6 +1474,32 @@ EN/RU adları da içerir** (2026-09-24) — tek kaynak `@rothern/shared`
 `apply-category-names-i18n` koşulur. Sözleşme:
 `test/unit/category-name.spec.ts`, `category-translation.spec.ts`, web
 `marketplace.test` "categoryHref".
+
+**KATEGORİ ADI KURALLARI — İNGİLİZCE KAYNAK ARIBA (2026-10-07, kullanıcı: "kategorilerin
+orijinali İngilizce, Ariba'dan çektim, UNSPSC kullanmıyoruz"; e24a0191).** Katalog = 2026-09-01
+tarihli iki SAP Ariba dışa aktarımı (Türkçe arayüzden): 158.018 adın ~143.700'ü İngilizce,
+~14.300'ü Ariba'nın kendi Türkçesi. Görünür 19.132 kategoride 9.045 satırın Ariba adı İngilizce
+(İngilizce asıl `category-translations.curated.tsv` 3. sütununda), 10.087 satırın Ariba adı Türkçe
+(İngilizce asıl dosyada yok).
+- EN: Ariba kaynağı İngilizce olan satırda EN = Ariba'daki ad (birebir). Yalnız harf /
+  tekil-çoğul / boşluk farkı varsa eldeki temiz ad kalır; Ariba adındaki açık yazım hatası elle
+  düzeltilir (16 satır, `Z9a`).
+- EN: Ariba kaynağı Türkçe olan satırda EN gözden geçirilmiş karşılıktır. Kullanıcının
+  İndirilenler klasöründeki UNSPSC listesi (UNGM, 2026-06-24) YALNIZ karşılaştırma için kullanıldı
+  (ortak kodların %92'sinde Ariba İngilizcesiyle aynı); katalog kaynağı değildir.
+- TR/RU: sektör terimi; L1 Başlık Düzeni, L2–L4 cümle düzeni; "A ve B ve C" → "A, B ve C".
+- TR ad tekilliği: `check-category-translations` çakışma 0 olmadan uygulanmaz.
+- Ariba'nın Türkçe adı düzeltilen satır `category-translations.curated.tsv` sonundaki bölüme
+  `<kod> ⇥ <yeni TR> ⇥ <Ariba'daki TR>` olarak yazılır (eski ad aramada kalır).
+- EN/RU adı Türkçeden MODELLE yeniden üretme (2026-09-23 toplu çevirisi İngilizce aslı olan
+  satırların ~5.300'ünde EN'i Ariba'dan saptırmıştı: "Shackle" → "Sling latch"). Birleştirme
+  betiği TR/EN alanında Kiril, RU alanında Kiril dışı metni reddeder.
+- Uygulama sırası (staging + canlı, dağıtımdan SONRA; O-74): `check-category-translations` →
+  `apply-category-translations` → `apply-category-names-i18n` (son ikisi önce `-- --dry`; ilk satır
+  hedef veritabanını basar). Canlıda bu adım koşulmadan hiçbir kategoride EN/RU ad yok.
+- Kalan: Ariba adı Türkçe olup UNSPSC karşılığı da bulunmayan ~6.700 satırda EN hâlâ Türkçeden
+  çeviri (gözden geçirilmiş). Kesin çözüm Ariba'nın İNGİLİZCE arayüzünden dışa aktarım (O-75).
+  Sayılar ve yöntem `docs/qa-ui-test-2026-10-01.md` § Kategori adları incelemesi.
 
 **KATALOG SADELEŞTİRME — 29 SEGMENT GİZLİ (2026-09-19, kullanıcı kararı:
 "endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
@@ -2163,6 +2193,17 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   ayraç `,` dahil) hiçbir şey göndermez (kapalı kalır; herkese = `*@*`). Davet sonucu `deliverInvite`
   `allowlist: true` alt nedeni taşır → ekran "bu ortamda gönderilmedi" (`emailFailureReason:
   "allowlist"`), "geri çevirdi" değil. Özet tekilliği (`lastDigests`) `EMAIL_LOG_HANDLED_WHERE` ile. Staging değeri/operatör adımı `docs/release-process.md`, O-71/O-72.
+  **Şikâyet geri bildirim başlıkları (2026-10-07):** her e-posta (ACTIVITY ve işlem dahil)
+  `Feedback-ID: <bağlam tipi>:<akış>:<ortam>:rothern` (Gmail FBL + Yandex Postmaster; SenderId sabit
+  5–15 karakter) ve `X-Mailru-Msgtype: <bağlam tipi>` (Mail.ru Postmaster) taşır. Tek kaynak
+  `modules/email/email-feedback-headers.ts` (`feedbackHeaders`, `sanitizeFeedbackToken`,
+  `feedbackEnvironment`: APP_ENV → SENTRY_ENVIRONMENT → NODE_ENV; tanınmayan = dev). Değerler yalnız
+  `[A-Za-z0-9_-]`, alan ≤40 karakter, KİŞİSEL VERİ YOK (context.id, alıcı, firma adı girmez; `@`
+  içeren tip `other`); bağlam yoksa şablon adı. Bunlar çıkış başlığı değildir: `List-Unsubscribe`
+  kuralı aynen (`carriesOneClickUnsubscribe`). Sağlayıcıya giden `headers` artık HİÇBİR gönderimde
+  undefined değil → 'çıkış başlığı yok' testi `headers` undefined beklemez, `List-Unsubscribe*`
+  anahtarının yokluğuna bakar (`email-unsubscribe.spec` `expectNoUnsubscribeHeaders`). Sözleşme
+  `test/unit/email-feedback-headers.spec.ts`. Operatör O-81…O-86.
   Sözleşme `email-allowlist.spec`.
 - **DAVET KUYRUĞU** (`external_listing_invites`, talep × adres): eskiden davet
   `CompanyReferralInvite`in kendisiydi ve (davet eden × adres) BENZERSİZ olduğu
@@ -2431,6 +2472,28 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
 - Davet bildirimi `listing_invitations.notifiedAt` koşullu damgasıyla davet başına tek (`claimInvitationNotices`, FX-00).
 - Admin bildiriminde satır bazlı parametreli paragraf `AdminNotifyMessage.lines` (`keyParams` alıcının dilinde);
   e-postada paket adı marka (Gold/Silver), ham kod değil. Admin eliyle eklenen üye `requestAccountSetup` (api2-02/03).
+
+**BİLDİRİM OKUYANIN DİLİNDE — METİN OKUMA ANINDA ÜRETİLİR (2026-10-07, kullanıcı bildirimi; 165d74b8,
+0e82e78e):** uygulama içi bildirim yazma anındaki dilde donmaz; satır üretim GİRDİLERİNİ saklar, metin her
+okumada okuyanın güncel diliyle yeniden üretilir.
+- `Notification.i18n` (JSONB, migration `20261007150000_notification_i18n`) = `{ v, titleKey, bodyKey,
+  ctaLabelKey, params (Date → ISO), ctaPath }`; `title`/`body`/`ctaLabel`/`ctaUrl` yazma anındaki dilde YEDEK
+  olarak yazılmaya devam eder.
+- **Yazan taraf KATALOG ANAHTARI + tipli parametre + `ctaPath` verir; ÖNCEDEN ÇEVRİLMİŞ METİN VERMEZ.**
+  Düz metinli satır dil değişince çevrilmez (bugün yalnız admin duyurusu / serbest admin mesajı).
+- Tek okuma yolu `NotificationService.localizeRows` (`listForUser` çağırır): satırı `currentLocale()` ile
+  yeniden üretir, talep başlıkları sayfa başına tek toplu çözümleme, üretilemeyen parça (silinmiş anahtar,
+  eksik parametre, bozuk JSON) saklanan metne düşer, `i18n` kolonu yanıta yazılmaz. Saf mantık
+  `modules/notifications/notification-i18n.ts`. Bildirim satırı döndüren YENİ yüzey `localizeRows`'tan geçer.
+- Talep başlığı çevirisi yalnız `Listing.title` satırda saklanan `$listingTitle.fallback` ile birebir aynıysa
+  kullanılır (`usableListingTitles`; yeniden adlandırılan/silinen talepte her dilde bildirim anındaki başlık
+  basılır). `listingTitleParam` çağıranları fallback olarak HER ZAMAN ham `listing.title` verir (kısaltma /
+  biçimleme yapma), yoksa çeviri hiç kullanılmaz. Bu yolu sınayan testte gerçek `Listing` satırı olmalı.
+- Eski satırın (i18n NULL) `ctaUrl`'i `relocalizeCtaUrl` ile yalnız `ROUTE_PATHNAMES`'in tanıdığı yolda
+  çevrilir; başlık ve gövdesi saklandığı dilde kalır. BACKFILL YOK, yazılmaz (yalnız üretilmiş metin saklıydı).
+- Web: liste/akış sorgu anahtarı dili taşır (`notificationListKey`, `notificationFeedKey`; dil SONDA, önekli
+  tazeleme her dili kapsar).
+- Sözleşme: API `notification-language.spec`, web `use-notifications-locale.test`.
 
 ## Panel — pazar bölgesi ve anasayfalar
 
@@ -3120,7 +3183,15 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- **Son sekiz migration arayüz testinden (2026-10-01/03), staging VE canlıda BEKLİYOR (O-56;
+- **Son iki migration 2026-10-07'den, staging VE canlıda BEKLİYOR:** `20261007090000_revoked_sessions`
+  (yalnız yeni tablo; yeni API bunsuz her kimlikli istekte 500 verir → API ÖNCE; O-76) ve
+  `20261007150000_notification_i18n` (`notifications.i18n` JSONB, nullable, metadata-only; O-77). İkisi de
+  eklemeli, backfill yok. Canlı koda (`62f0c26`) göre fark **29 migration dosyası**
+  (`git diff --name-only 62f0c26 HEAD -- packages/db/prisma/migrations | cut -d/ -f5 | sort -u | wc -l`);
+  i18n'in beşi canlı DB'ye uygulanmış olduğundan açılışta 24'ü koşar. İlk 27'si canlı dökümü kopyasında
+  prova edildi (2026-10-07; döküm dönüşü için önce `CREATE EXTENSION pg_trgm SCHEMA public`,
+  `docs/backup-restore-drill.md`).
+- **Önceki sekiz migration arayüz testinden (2026-10-01/03), staging VE canlıda BEKLİYOR (O-56;
   API web/admin'le aynı pencerede ve önce, O-57):** `20261001120000_listing_invitation_notified_at`,
   `20261001150000_listing_bid_submit_count` (DEFAULT 0 + gönderilmişlere UPDATE),
   `20261001180000_notification_zero_bid_portal_backfill` (salt DML),
@@ -3129,7 +3200,7 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
   `20261002160000_notification_admin_listing_portal_backfill` ve
   `20261003090000_notification_admin_order_cancelled_portal_backfill` (ikisi salt DML, arayüz testi kapanış; O-56
   listesine henüz eklenmedi). Hepsi eklemeli/idempotent; eski
-  veriye uydurma backfill yazılmaz (bilinmeyen geçmiş NULL/varsayılan kalır). Bekleyen toplam 22.
+  veriye uydurma backfill yazılmaz (bilinmeyen geçmiş NULL/varsayılan kalır). Bekleyen toplam üstteki maddede.
 - Öncesi derin denetim DÜŞÜK turundan (2026-09-30, O-40): `20260930120000_notification_cron_indexes_fx_precision` — notifications'a 2 index +
   `listing_bid_items.fxToBase` DECIMAL(24,12) (ölçek genişlemesi tabloyu yeniden yazar,
   snapshot). Damga her yerde 12 ondalıkla üretilir (saklanan = hesaplanan). Ardından
@@ -3343,9 +3414,10 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **3.630 test** (2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 31 parti) · web
-  **2.420** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 2.871; en/ru
-  %100) — son kapı HEAD 251e47b2 YEŞİL (9/9), 6.501 test (2 LIVE atlandı), staging e-posta izin listesi turu 2026-10-05.
+- API **322 suite / 3.883 test** (3.881 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
+  **338 / 2.442** · admin **65 / 386** · i18n **11 / 65** (vitest toplamı 2.893) — son kapı HEAD 6c303499 YEŞİL
+  (16/16; `pnpm audit --prod --audit-level high` ve kategori çeviri çakışması 0 dahil), 6.774 test geçti (2 LIVE
+  atlandı), canlı öncesi sağlamlaştırma + bildirim dili turu 2026-10-07. i18n cırcırı 99 dosya / 855 literal.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
@@ -3871,6 +3943,83 @@ kapanış 2026-10-02/03) `docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın d
   YALNIZ me, change-password, 2fa/setup, 2fa/enable; başka uca EKLENMEZ (`admin-password-change-enforcement.spec`
   tarar); diğerleri 403 `ADMIN_PASSWORD_CHANGE_REQUIRED`, panel yalnız /admin/settings. Admin `code/kbd/.font-mono`'da
   Inter `calt` kapalı.
+
+## CANLI ÖNCESİ SAĞLAMLAŞTIRMA 2026-10-07 — kalıcı kurallar
+
+Ayrıntı ve bulunan hatalar: `docs/qa-ui-test-2026-10-01.md` § Test edilmemiş alanlar taraması ve canlı öncesi
+sağlamlaştırma. Operatör O-74…O-89.
+
+- **API açılış ve yapılandırma sağlamlığı (de872176, eb487b15):** (1) Açılış hatası sebebi
+  `common/bootstrap-failure.ts` `reportBootstrapFailure` ile process.exit'ten ÖNCE eşzamanlı olarak stderr'e
+  yazılır (`[Bootstrap] Application failed to start: …`); `bufferLogs:true` tamponu yalnız `app.listen()` içinde
+  boşaldığından tamponlu Nest Logger tek başına sebebi taşıyamaz. `NestFactory.create` `abortOnError:false` ile
+  çağrılır (aksi halde Nest kendi sessiz process.exit(1)'ini yapar). (2) `THROTTLE_*` env değerleri YALNIZ
+  `common/http/throttle-limit.ts` `resolveThrottleLimit` ile okunur — `Number(process.env.X ?? n)` YASAK (boş
+  değer 0 sınırı = her istek 429). Boş/NaN/≤0 → varsayılan + uyarı. (3) `assertProdConfigSanity` canlıda
+  `CORS_ALLOW_VERCEL=true` ve dolu `EMAIL_ALLOWLIST` ile açılmaz. 'Canlı' = `NODE_ENV=production` + `WEB_URL`
+  alan adı `rothern.com` (`isLiveEnvironment`; staging de production kipinde koştuğu için NODE_ENV tek başına
+  yetmez). Bilinçli istisna env `ALLOW_STAGING_ONLY_ENV=true` — canlıda tanımlanmaz. (4) AI sağlayıcı hatası:
+  `AiProviderError.reason` + `ai_usage.metadata.providerReason` temizlenmiş sebep kodu taşır
+  (`providers/ai-provider-reason.ts`: HTTP durumu + Google hata durumu + sabit ipucu; serbest metin/sır
+  YAZILMAZ). `errorCode` genel sınıf olarak kalır (`provider_error`), göç yok. Teşhis sorgusu ve kod tablosu:
+  `docs/release-process.md`. (5) Yeni API günlük satırı ve iç `Error`/açılış kapısı metni İngilizce ASCII
+  (i18n cırcırı; taban `--force` ile YÜKSELTİLMEZ, metin çevrilir).
+- **OTURUM BAZLI İPTAL (db1c942c; sahip kararı 2026-10-05):** çıkış yalnız O oturumu sunucuda iptal eder, öteki
+  cihazlar açık kalır; parola değişimi eskisi gibi `tokenVersion` ile TÜM cihazları düşürür. Tek kaynak
+  `common/auth/session-revocation.service.ts` (`SessionRevocationModule` @Global). Jeton veren HER yol
+  `jti: newSessionId()` koyar (firma `buildLoginResponse` + `changePassword`, admin `login` + `rotateSession`);
+  yeni bir jeton verme yolu eklenirse jti'siz bırakılmaz. Oturum = aynı jti'yi taşıyan jeton zinciri: kayan
+  yenileme jti'yi KORUR, jti'siz eski jetona ilk yenilemede jti verir. Çıkış uçları (kapısız; çerez + Bearer)
+  imzası geçerli jetonun jti'sini `revoked_sessions`a yazar (migration `20261007090000_revoked_sessions`);
+  `expiresAt` = şimdi + azami jeton ömrü (sunulan jetonun exp'i DEĞİL — çalınmış kopya daha geç exp almış
+  olabilir). ÜÇ kapı aynı tabloya bakar ve üçü de şart: (1) `CompanyJwtStrategy`/`AdminJwtStrategy` (kullanıcı
+  sorgusuyla paralel), (2) `RealtimeGateway` handshake (inline `prisma.revokedSession`, kurucu değişmedi;
+  `client.data.sessionId` + çıkışta `RealtimeService.disconnectSession`), (3) `AuthCookieInterceptor.maybeSlide`
+  — interceptor kapısız uçlarda da çalışır, denetlenmezse iptal edilmiş çerez herkese açık uçtan taze jeton alıp
+  satırın ömrünü aşar. Önbellek YALNIZ pozitif ("iptal edildi"); "iptal edilmedi" önbelleğe ALINMAZ (çok örnekte
+  öteki örnek eski jetonu kabul ederdi). jti'siz jeton iptal edilemez ama geçerlidir. Temizlik cron'u
+  `sessions.purgeRevoked` (04:50; admin `lib/cron-jobs.ts` etiketi var). Sözleşme
+  `session-logout-revocation.spec` (gerçek HTTP: `NestFactory` + gerçek denetleyici/strateji/interceptor;
+  paralel ajan varken izole veritabanında koşulur).
+- **Kur satırı gün anahtarı ve TCMB kapıları (414c1eab):** `exchange_rates.rateDate` (`@db.Date`) HER yazımda
+  UTC gece yarısı (`Date.UTC(y, m, d)` ya da `new Date("YYYY-AA-GG")`); `setHours(0,0,0,0)` YASAK (UTC+3 süreçte
+  satır düne yazılır, elle kur etkisiz kalır). `refreshFromTcmb` takvimde olmayan günü (ISO gidiş-dönüş),
+  bugünden 1 günden ileri tarihi ve `rate <= 0`'ı yazmaz. Elle kurun 10 kat sapma koruması `getCurrentRate`
+  hatasını yutmaz; tablo boşken YEDEK kura göre ölçer. Kur servisini gerçek gövdesiyle sınayan spec'ler:
+  `exchange-rate-service.spec` (TCMB HTTP taklidi `new TcmbService({ get: () => of({ data: xml }) })`),
+  `admin-system-rates.spec` (gerçek HTTP: `NestFactory.create` + sahte `admin-jwt` passport stratejisi,
+  `@nestjs/testing`/supertest yok). `POST admin/system/refresh-rates` SUPER_ADMIN + SALES, `rates/manual` yalnız
+  SUPER_ADMIN (karar 173). Bayatlık eşiği 7 gün: uzun tatilde elle kur girilir, API yeniden başlayınca TCMB aynı
+  günün elle kurunu ezer (O-88).
+- **Gövde ayrıştırıcı kablolaması (16187c41):** TEK KAYNAK `apps/api/src/common/http/body-parser.ts`
+  (`HTTP_BODY_APP_OPTIONS`, `configureBodyParser`, `shouldKeepRawBody`); main.ts ve
+  `test/integration/resend-webhook-e2e.spec.ts` aynı fonksiyonu kullanır. NestFactory'ye `rawBody: true`
+  VERİLMEZ: Nest `app.useBodyParser`a verilen özel `verify`ı kendi rawBodyParser'ıyla ezer ve ham gövdeyi her
+  istekte saklar. Ham gövde yalnız `/api/webhooks/resend` yolunda tutulur (sorgu dizgisi ve sondaki `/` yok
+  sayılır). Supertest bağımlılık DEĞİL: HTTP uçtan uca testleri `app.listen(0)` + global `fetch` ile yazılır.
+  `AiScheduler.cleanupExtractFiles` `ai-extract/` ile başlamayan anahtarı silmez.
+- **Kazandırma önizlemesi ve rapor özeti (28d7cd27, 91d097dd):** `awardPreview` aday teklif ve KYC kapılarını
+  `award()` ile aynı yardımcıdan alır: `company-listings.service.ts` `loadAwardCandidateBid` (durum SUBMITTED,
+  teklifçi askıda değil, geçerlilik, zorunlu belge) + `assertVerified`; önizlemeye ayrı kapı yazılmaz (sözleşme
+  `award-preview-parity.spec`). Rapor özeti (`CompanyReportsService.summary`) ay kovaları `appMonth` ile;
+  `reports-summary.spec` ay sınırı testleri eski yerel-saat hesabını yalnız süreç UTC'deyken kırmızıya düşürür
+  (yerelde `TZ=UTC` ile koş). `withdrawCancelRequest` yalnız ACCEPTED'da (DISPUTED 400; karar 174).
+- **Web / CI (2cd7eb06, 6c303499):** `PhoneInput` ülke seçicisi `flex-none`, numara kutusu `min-w-0 flex-1`
+  (Firefox bayrağı eziyordu). `e2e-staging.yml` Safari adımı `!cancelled()` ile Chromium kızarsa da koşar. Web
+  test dosyaları da `next lint` + `next build` lint aşamasından geçer: test içindeki sarmalayıcı bileşen
+  ADLANDIRILIR (`react/display-name` üretim derlemesini kırar); web test dosyası ekleyen değişiklikte
+  `pnpm --filter @rothern/web lint` koş.
+- **Test tuzakları:** test dosyalarında jeton benzeri yüksek entropili sabitler gitleaks commit kancasına
+  (generic-api-key) takılır; düşük entropili sahte değer kullan (ör. `"ornek_jeton-".repeat(3)`). Paralel ajan
+  varken jest'i konteynerde geçici veritabanında koş (`CREATE DATABASE …` + `DATABASE_URL`/`DIRECT_URL`), sonunda
+  sil; ortak `rothern_test`'te 40P01 / FK hataları ürün hatası değildir.
+- **Bağımlılık tabanları (kök pnpm overrides; c0d1043a, efd5e2c3):** engine.io ≥6.6.11, axios ≥1.20.0,
+  proxy-addr ≥2.0.8, sharp ≥0.35.5, brace-expansion ≥5.0.12, source-map-js ≥1.2.2. Kapı
+  `pnpm audit --prod --audit-level high` rc=0 (kalan 14 orta + 3 düşük, ayrı karar). Eski taban kilitli sürümü
+  yükseltmez: yeni uyarıda override tabanı yükseltilir.
+- **Açık arayüz bulguları (2026-10-07 tarayıcı turu, düzeltilmedi):** RU kategori seçicide telefonda onay
+  düğmesi taşıyor (ORTA); kazandırma diyaloğunda tutar yok; `reports-summary-charts.tsx` hiçbir sayfaya bağlı
+  değil; Açık Talepler 1280 px'te Görünürlük çipi kesiliyor; EN bildirimde iki tarih biçimi.
 
 ## Bekleyen / Yapılacaklar
 

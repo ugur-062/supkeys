@@ -267,6 +267,11 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 
 172. **Talep listelerinde şehir yerine alıcı ülkesi süzgeci** — **KARAR VERİLDİ (sahip kararı 2026-10-04):** talep satırları şehir yerine alıcı ülkesini gösterdiği için alıcı şehri süzgeci kaldırıldı. Herkese açık `/alim-talepleri` alıcı ülkesini `?aliciUlke=<ISO,...>` ile süzer (API `buyerCountry`, `facets.buyerCountries`); `?ulke=` teklif verebilecek tedarikçi ülkesi olarak kalır. Panel Açık Talepler'de `?ulke=` alıcı ülkesidir. Eski `?sehir=`/`?il=` bağlantıları ve API `city` parametresi kabul edilip yok sayılır. Alıcı şehri hiçbir talep yükünde yok (bd32f484). Ayrıntı: `docs/qa-ui-test-2026-10-01.md` "Son toparlama (2026-10-04)".
 
+**Canlı öncesi sağlamlaştırma (2026-10-07):**
+
+173. **Kurları yenile ucu SALES'e açık** (H4): `POST /admin/system/refresh-rates` SUPER_ADMIN + SALES (`admin-permissions.ts` `refreshRates` ve `docs/audit-findings-authz.md` ile aynı); `rates/manual` yalnız SUPER_ADMIN. *Varsayılan:* değiştirilmedi, testle sabitlendi (SUPPORT 403, SALES 200). Yalnız SUPER_ADMIN istenirse controller'daki `@RequireAdminRole`, `apps/admin/src/lib/admin-permissions.ts` ve `admin-action-roles-drift.spec` birlikte değişir.
+174. **İptal talebini geri çekme DISPUTED'da reddediliyor** (H6): `withdrawCancelRequest` yalnız ACCEPTED + açık taleple çalışır. Alıcı reddedip sipariş DISPUTED olunca satıcı geri çekmede 400 alır; `approveCancelRequest` ise DISPUTED'ı kabul eder. *Varsayılan:* değiştirilmedi, testle sabitlendi (`order-cancel-request-withdraw.spec`). Asimetri bilinçli değilse geri çekme DISPUTED'da da açılır.
+
 ### Regresyon
 
 - **İlk kapı (HEAD 806c0e77):** 7 kapının 6'sı yeşil. `i18n:check` cırcırı 5 API dosyasında tabanı aştı: yeni Türkçe günlük ve iç hata literalleri (2171890b, da98caca, 73d31761, 9a276af3, 5507c878). a6d09191 bu metinleri İngilizce ASCII'ye çevirdi; cırcır yeşile döndü.

@@ -49,6 +49,7 @@
 | Tarih | Yapan | PITR hedefi | Sonuç | Süre | Not |
 |---|---|---|---|---|---|
 | — | — | — | henüz yapılmadı | — | ilk prova Supabase Pro'ya geçince |
+| 2026-10-07 | Claude (yerel) | PITR değil: 2026-09-26 `pg_dump` dosyası → yerel postgres:17 | döndü; 27 migration + kurulum betikleri sorunsuz, sayımlar önce/sonra aynı | — | canlıya dokunulmadı; PITR yolu hâlâ denenmedi. Ön koşul: `pg_trgm` + `rothern_app` rolü |
 
 ## Bilinen tuzaklar
 
@@ -59,4 +60,22 @@
   Geri dönülen an ile bugünkü kod arasında migration varsa `migrate deploy`
   gerekir; `migrate dev` ASLA (sıfırlar).
 - **Cron'lar:** restore projesine bağlanan bir API örneği zamanlanmış işleri de
-  koşar (e-posta gönderir!). Provada `RESEND_API_KEY`'i boş bırak.
+  koşar (e-posta gönderir!). `RESEND_API_KEY`'i BOŞ BIRAKMA: boş anahtarla API
+  açılmaz (`new Resend('')` "Missing API key" fırlatır; sebep günlükte
+  `[Bootstrap] Application failed to start: …`). Güvenli yol: geçerli biçimde
+  sahte bir anahtar (`re_prova_gecersiz`) **ve** hiçbir alıcıyla eşleşmeyen
+  `EMAIL_ALLOWLIST` (ör. `kimse@prova.invalid`). İzin listesi doluyken listede
+  olmayan alıcıya e-posta sağlayıcıya GİTMEZ; satır `email_logs`a `FAILED` +
+  `suppressed: allowlist: …` olarak yazılır (2026-10-07 provasında 0 e-posta).
+  Prova API'sinin `WEB_URL`'i `rothern.com` altında VE `NODE_ENV=production` ise
+  dolu `EMAIL_ALLOWLIST` açılışı keser: `WEB_URL`'i staging alan adında bırak
+  (ya da yalnız o prova ortamında `ALLOW_STAGING_ONLY_ENV=true`; canlıda ASLA).
+- **`pg_dump` dosyasından dönüş (PITR değil; runbook 4. adımdaki yedek):** döküm
+  yalnız `public` şemasını taşır. `pg_restore`'dan ÖNCE hedef veritabanında
+  `CREATE EXTENSION pg_trgm SCHEMA public;` çalıştır; yoksa
+  `categories_nameTr_trgm_idx` ve `categories_searchText_trgm_idx` "operator
+  class public.gin_trgm_ops does not exist" ile kurulamaz. Döküm yalnız
+  `rothern_app` rolüne GRANT verir: rol hedefte önceden var olmalı. 2026-10-07'de
+  `prod-before-i18n-migrations-20260926-2329.dump` yerel postgres:17'ye bu
+  sırayla sorunsuz döndü; ardından `migrate deploy` 27 migration'ı 4,5 sn'de
+  uyguladı (`migrate dev` ASLA).
