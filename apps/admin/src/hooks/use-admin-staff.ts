@@ -11,7 +11,6 @@ export interface StaffRow {
   lastName: string;
   role: AdminRole;
   isActive: boolean;
-  twoFactorEnabled: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 }
@@ -78,34 +77,4 @@ export function useChangePassword() {
     // RequireAdminAuth paneli açar.
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "auth", "me"] }),
   });
-}
-
-export function useTwoFactor() {
-  const qc = useQueryClient();
-  const invalidate = () =>
-    qc.invalidateQueries({ queryKey: ["admin", "auth", "me"] });
-  const setup = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post<{
-        secret: string;
-        otpauthUrl: string;
-        /** QR görseli (data: URL) — eski API'de yok, elle anahtar yedeği kalır. */
-        qrDataUrl?: string;
-      }>("/admin/auth/2fa/setup");
-      return data;
-    },
-  });
-  const enable = useMutation({
-    mutationFn: async (input: { secret: string; code: string }) => {
-      await api.post("/admin/auth/2fa/enable", input);
-    },
-    onSuccess: invalidate,
-  });
-  const disable = useMutation({
-    mutationFn: async (input: { code: string }) => {
-      await api.post("/admin/auth/2fa/disable", input);
-    },
-    onSuccess: invalidate,
-  });
-  return { setup, enable, disable };
 }

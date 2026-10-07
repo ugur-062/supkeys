@@ -35,7 +35,6 @@ function user(id: string, over: Record<string, unknown> = {}) {
     roles: ["SATISCI"],
     isActive: true,
     emailVerifiedAt: "2026-01-01T00:00:00.000Z",
-    twoFactorEnabled: false,
     lastLoginAt: null,
     deletedAt: null,
     createdAt: "2026-01-01T00:00:00.000Z",

@@ -25,9 +25,6 @@ export function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   // "Oturumumu açık bırak" — varsayılan işaretli; işaretsiz → tarayıcı kapanınca çıkış.
   const [remember, setRemember] = useState(true);
-  // 2FA — API "2FA_REQUIRED" dönerse kod alanı açılır, istek kodla tekrarlanır.
-  const [needsCode, setNeedsCode] = useState(false);
-  const [code, setCode] = useState("");
   const router = useRouter();
   const login = useAdminLogin();
 
@@ -41,20 +38,13 @@ export function AdminLoginForm() {
 
   const onSubmit = (values: LoginValues) => {
     login.mutate(
-      {
-        ...values,
-        rememberMe: remember,
-        ...(needsCode && code.trim() ? { code: code.trim() } : {}),
-      },
+      { ...values, rememberMe: remember },
       {
       onSuccess: (data) => {
         toast.success(`Hoş geldiniz, ${data.admin.firstName}`);
-        // 2FA zorunlu ama kurulmamış (MU-01) ya da geçici parolayla girildi
-        // (D-025) → doğrudan Ayarlar (kurulum / şifre değiştir).
+        // Geçici parolayla girildi (D-025) → doğrudan Ayarlar (şifre değiştir).
         router.push(
-          data.admin.twoFactorSetupRequired || data.admin.mustChangePassword
-            ? "/admin/settings"
-            : "/admin/dashboard",
+          data.admin.mustChangePassword ? "/admin/settings" : "/admin/dashboard",
         );
       },
       onError: (err) => {
@@ -62,13 +52,6 @@ export function AdminLoginForm() {
           const msg =
             (err.response?.data as { message?: string } | undefined)?.message ??
             "Giriş başarısız";
-          if (msg === "2FA_REQUIRED") {
-            setNeedsCode(true);
-            toast.info("Doğrulama kodunuzu girin (authenticator uygulaması)");
-            return;
-          }
-          // Hatalı 2FA kodu — alan temizlensin, tekrar denemesi kolay olsun.
-          if (needsCode) setCode("");
           toast.error(msg);
         } else {
           toast.error("Bir sorun oluştu");
@@ -130,23 +113,6 @@ export function AdminLoginForm() {
           </button>
         </div>
       </Field>
-
-      {needsCode ? (
-        <Field>
-          <Label htmlFor="code" required>
-            Doğrulama kodu (2FA)
-          </Label>
-          <Input
-            id="code"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="123456"
-            autoFocus
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-        </Field>
-      ) : null}
 
       <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-admin-text select-none">
         <input

@@ -4,8 +4,8 @@ import { useAdminAuthStore } from "@/lib/auth/store";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-/** 2FA zorunlu ama kurulmamış admin'in girebildiği TEK sayfa (kurulum burada). */
-export const TWO_FACTOR_SETUP_PATH = "/admin/settings";
+/** Geçici parolayla giren admin'in girebildiği TEK sayfa (şifre burada değişir). */
+export const PASSWORD_CHANGE_PATH = "/admin/settings";
 
 /**
  * Zustand persist localStorage hydration boundary — SSR/CSR mismatch'i önler.
@@ -35,12 +35,11 @@ export function AuthHydrationBoundary({
 /**
  * Korumalı admin sayfaları için. Token yoksa /admin/login'e yönlendirir.
  *
- * 2FA zorunluluğu (derin denetim MU-01): `twoFactorSetupRequired` iken yalnız
- * Ayarlar (2FA kurulumu) açılır, diğer sayfalar oraya yönlendirilir. Sunucu
- * zaten 403 döner; bu kapı boş/kırık sayfa yerine kurulum ekranını gösterir.
- * Bayrak login yanıtından ve /me'den (admin layout'undaki
- * AdminMeRefresher tazeler) gelir. `mustChangePassword` (geçici parola, arayüz
- * testi D-025) aynı kilidi açar: kendi şifresi konana dek yalnız Ayarlar.
+ * Geçici parola kilidi (arayüz testi D-025): `mustChangePassword` iken yalnız
+ * Ayarlar (şifre değiştirme) açılır, diğer sayfalar oraya yönlendirilir.
+ * Sunucu zaten 403 döner; bu kapı boş/kırık sayfa yerine şifre ekranını
+ * gösterir. Bayrak login yanıtından ve /me'den (admin layout'undaki
+ * AdminMeRefresher tazeler) gelir. Başka hiçbir hesap durumu paneli kilitlemez.
  */
 export function RequireAdminAuth({
   children,
@@ -50,20 +49,18 @@ export function RequireAdminAuth({
   // Oturum httpOnly cookie'de; istemci sinyali `admin` (persist snapshot).
   const { admin, isHydrated } = useAdminAuthStore();
   const pathname = usePathname();
-  // Geçici parola (D-025) da aynı kilidi kullanır: şifre Ayarlar'da değişir.
-  const setupLocked =
-    (!!admin?.twoFactorSetupRequired || !!admin?.mustChangePassword) &&
-    pathname !== TWO_FACTOR_SETUP_PATH;
+  const passwordLocked =
+    !!admin?.mustChangePassword && pathname !== PASSWORD_CHANGE_PATH;
 
   useEffect(() => {
     if (isHydrated && !admin) {
       window.location.href = "/admin/login";
-    } else if (isHydrated && setupLocked) {
-      window.location.href = TWO_FACTOR_SETUP_PATH;
+    } else if (isHydrated && passwordLocked) {
+      window.location.href = PASSWORD_CHANGE_PATH;
     }
-  }, [isHydrated, admin, setupLocked]);
+  }, [isHydrated, admin, passwordLocked]);
 
-  if (!isHydrated || !admin || setupLocked) {
+  if (!isHydrated || !admin || passwordLocked) {
     return null;
   }
 

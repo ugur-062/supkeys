@@ -68,7 +68,7 @@ describe("AdminLoginForm", () => {
     expect(h.push).toHaveBeenCalledWith("/admin/dashboard");
   });
 
-  it("2FA zorunlu ama kurulmamış (MU-01) → doğrudan /admin/settings'e yönlenir", async () => {
+  it("eski API'den 2FA bayrağı gelse de panele girilir; kod alanı hiç açılmaz (2FA kaldırıldı)", async () => {
     const user = userEvent.setup();
     h.mutate.mockImplementation((_values, opts) =>
       opts.onSuccess({
@@ -78,7 +78,8 @@ describe("AdminLoginForm", () => {
     render(<AdminLoginForm />);
     await submit(user);
 
-    expect(h.push).toHaveBeenCalledWith("/admin/settings");
+    expect(h.push).toHaveBeenCalledWith("/admin/dashboard");
+    expect(screen.queryByLabelText(/doğrulama kodu/i)).not.toBeInTheDocument();
   });
 
   it("geçici parolayla giriş (D-025) → doğrudan /admin/settings'e yönlenir", async () => {

@@ -208,7 +208,7 @@ function PersonelView() {
     from: AdminRole;
     to: AdminRole;
   } | null>(null);
-  // Şifre sıfırlama da geri alınamaz (parola + 2FA + oturumlar düşer) → onay.
+  // Şifre sıfırlama da geri alınamaz (parola + oturumlar düşer) → onay.
   const [resetPrompt, setResetPrompt] = useState<{
     id: string;
     email: string;
@@ -313,15 +313,6 @@ function PersonelView() {
                       ) : (
                         <Badge color="red">Pasif</Badge>
                       )}
-                      {s.twoFactorEnabled ? (
-                        <Badge color="blue" className="ml-1.5">
-                          2FA
-                        </Badge>
-                      ) : (
-                        <Badge color="amber" className="ml-1.5">
-                          2FA yok
-                        </Badge>
-                      )}
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                       {s.lastLoginAt
@@ -331,8 +322,8 @@ function PersonelView() {
                     <TableCell>
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Kendi satırında YOK (derin denetim MU-21): kendi
-                            şifresini sıfırlayan tek Süper Admin parolasız,
-                            2FA'sız ve oturumsuz kalıp panele dönemiyordu.
+                            şifresini sıfırlayan tek Süper Admin parolasız
+                            ve oturumsuz kalıp panele dönemiyordu.
                             Kendi şifresi → Ayarlar → Şifre Değiştir. */}
                         {isSelf ? null : (
                           <Button
@@ -441,7 +432,7 @@ function PersonelView() {
           <DialogBody>
             <p className="text-admin-text text-sm">
               <strong>{resetPrompt.email}</strong> için yeni geçici şifre
-              üretilecek. Mevcut şifre ve 2FA kaldırılır, açık oturumları
+              üretilecek. Mevcut şifre geçersiz olur, açık oturumları
               kapanır.
             </p>
           </DialogBody>
