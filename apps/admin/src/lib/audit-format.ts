@@ -467,9 +467,11 @@ const ADDRESS_TYPE_LABEL: Record<string, string> = {
  * KULLANMAZ.
  */
 const LEGACY_TIER_VALUES: Record<string, string> = {
-  STANDART: "Standart",
-  SILVER: "Silver",
-  GOLD: "Gold",
+  // Paket adı hiçbir yerde yazmaz (kullanıcı kararı 2026-10-07) — geçmiş
+  // satırlar da nötr kademe adıyla okunur.
+  STANDART: "Temel",
+  SILVER: "Orta kademe",
+  GOLD: "Üst kademe",
 };
 const GENERIC_VALUES: Record<string, string> = {
   ...BID_VALUES,

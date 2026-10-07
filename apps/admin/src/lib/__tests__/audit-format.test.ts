@@ -34,12 +34,12 @@ describe("audit-format", () => {
       "sonra: Satıcı onayı bekliyor",
     );
     expect(formatAuditMetadata("admin.company.tier_set", { tier: "GOLD", from: "STANDART" })).toBe(
-      "üyelik (eski): Gold · önce: Standart",
+      "üyelik (eski): Üst kademe · önce: Temel",
     );
     // Üyelik kaldırma satırı (eski) ay göstermez (eski kayıt months: 12 taşısa da).
     expect(
       formatAuditMetadata("admin.company.tier_set", { from: "GOLD", tier: "STANDART", months: 12 }),
-    ).toBe("önce: Gold · üyelik (eski): Standart");
+    ).toBe("önce: Üst kademe · üyelik (eski): Temel");
   });
 
   it("portal, giriş hatası, mantıksal ve iç içe değerler; bilinmeyen ham kalır", () => {

@@ -56,7 +56,7 @@ export function UiGallery() {
 
       <Section title="Badge">
         <Badge tone="verified">Doğrulanmış</Badge>
-        <Badge tone="gold">Gold Üye</Badge>
+        <Badge tone="gold">Öne çıkan</Badge>
         <Badge tone="new">Yeni</Badge>
         <Badge tone="neutral">Üretici</Badge>
         <Badge tone="danger">3 gün kaldı</Badge>
