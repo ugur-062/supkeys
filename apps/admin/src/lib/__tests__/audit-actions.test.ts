@@ -60,12 +60,24 @@ describe("audit action dictionary", () => {
       "company.catalog_item.archived",
       "company.order.payment_rejected",
       "admin.announcement.email_completed",
-      "auth.2fa_enabled",
-      "admin.self.2fa_disabled",
       "ai.action_executed",
       "connection.external_tender_invite",
     ]) {
       expect(actions.has(a), a).toBe(true);
+    }
+  });
+
+  it("geçmiş 2FA denetim satırlarının etiketleri durur (2FA kaldırıldı 2026-10-07)", () => {
+    for (const a of [
+      "auth.2fa_enabled",
+      "auth.2fa_disabled",
+      "auth.2fa_recovery_used",
+      "admin.self.2fa_enabled",
+      "admin.self.2fa_disabled",
+      "supplier.user_2fa_reset",
+      "tenant.user_2fa_reset",
+    ]) {
+      expect(ACTION_LABELS[a], a).toBeTruthy();
     }
   });
 
