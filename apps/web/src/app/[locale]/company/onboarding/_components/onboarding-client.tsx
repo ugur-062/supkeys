@@ -27,7 +27,7 @@ import {
   readOnboardingDraft,
   saveOnboardingDraft,
 } from "@/lib/company-auth/onboarding-draft";
-import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
+import { cleanPostal, isInvalidTrPostal, postalInputMaxLength } from "@/lib/company/postal-code";
 import { errorToastedGlobally, extractErrorMessage, extractFieldErrors } from "@/lib/tenders/error";
 import {
   TURKEY_LOCATIONS,
@@ -106,12 +106,87 @@ const STEP_OF_FIELD: Partial<Record<FieldKey, number>> = {
 };
 const stepOfField = (field: FieldKey): number => STEP_OF_FIELD[field] ?? 0;
 
+/** Formun bütün alan anahtarları (API gövdesindeki adlarla aynı). */
+export const ONBOARDING_FORM_KEYS = Object.keys(INITIAL_FORM) as FieldKey[];
+
+/**
+ * HATA YUVASI OLAN ALANLAR: `data-field` kutusu ve altında `FieldError` taşıyan
+ * alanlar — sunucunun reddi bunların ALTINDA gösterilebilir. Listede olmayan
+ * alanın (mahalle, eyalet/bölge, firma türü, faaliyet tipi, teslimat ilçesi …)
+ * reddi adımın hata kutusunda gösterilir (bkz. `stepError`). Bir alana hata
+ * yuvası eklenince buraya da eklenir; koşullu çizilen yuvalar `hasErrorSlot`ta.
+ */
+const ERROR_SLOT_FIELDS: ReadonlySet<FieldKey> = new Set<FieldKey>([
+  "legalName",
+  "country",
+  "legalFormLocal",
+  "taxNumber",
+  "taxOffice",
+  "website",
+  "city",
+  "district",
+  "postalCode",
+  "addressLine",
+  "deliveryCity",
+  "deliveryPostalCode",
+  "deliveryAddressLine",
+  "authorizedTckn",
+  "mainCategoryIds",
+  "declarationAccepted",
+]);
+
+/** Alanın hata yuvası formun BU hâlinde çizili mi (koşullu alanlar dahil)? */
+function hasErrorSlot(field: FieldKey, f: OnboardingForm): boolean {
+  if (!ERROR_SLOT_FIELDS.has(field)) return false;
+  switch (field) {
+    case "legalFormLocal":
+      return f.companyType === "OTHER";
+    case "taxOffice":
+    case "district":
+      return f.country === "TR";
+    case "deliveryCity":
+    case "deliveryPostalCode":
+    case "deliveryAddressLine":
+      return !f.deliverySameAsBilling;
+    default:
+      return true;
+  }
+}
+
 /** Alan kutusunda odağı alabilen ilk denetim (Headless onay kutusu `span[role=checkbox]`). */
 const FOCUSABLE = 'input:not([type="hidden"]), select, textarea, button, [role="checkbox"]';
 
-/** Alanın (`data-field`) ilk denetimine odaklanır; alan o an çizili değilse hiçbir şey yapmaz. */
-function focusFieldIn(root: HTMLElement | null, field: FieldKey): void {
-  root?.querySelector<HTMLElement>(`[data-field="${field}"]`)?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+/**
+ * Odaklanan alanın KAYDIRMA PAYI (kayıt denetimi 2026-10 resignup-3). Tarayıcı
+ * odaklanan kutuyu görünüm alanının kenarına yaslıyordu: kutu y = 0'a geliyor,
+ * üstündeki etiket ekranın dışında kalıyordu (1280 px'te "Firma Unvanı",
+ * telefonda yarısı kesik "Web siteniz"). Pay kutunun "görünür olması gereken
+ * alanını" etiketi (üstte; iki satıra saran etiket dahil) ve hata / ipucu
+ * satırlarını (altta) kapsayacak kadar büyütür. Sınıf sihirbaz kartına
+ * verilir; `data-field` kutularının odaklanabilir denetimlerine iner
+ * (`FOCUSABLE` ile aynı liste — Catalyst `Input` kendi `className`ini
+ * sarmalayıcıya verdiği için pay alan başına yazılamaz).
+ */
+const FIELD_SCROLL_MARGIN =
+  "[&_[data-field]_:is(input,select,textarea,button,[role=checkbox])]:scroll-mt-20 [&_[data-field]_:is(input,select,textarea,button,[role=checkbox])]:scroll-mb-16";
+
+/**
+ * Alanın (`data-field`) ilk denetimine odaklanır ve alanı etiketiyle birlikte
+ * görünür kılar; alan o an çizili değilse hiçbir şey yapmaz (`false`).
+ *
+ * Kaydırma odaktan AYRI yapılır: `focus()`un kendi kaydırması kutuyu kenara
+ * yaslar ve payı her tarayıcıda uygulamaz; `scrollIntoView` kaydırma payını
+ * (`FIELD_SCROLL_MARGIN`) her zaman uygular. `nearest`: alan payıyla birlikte
+ * zaten görünüyorsa sayfa oynamaz.
+ */
+function focusFieldIn(root: HTMLElement | null, field: FieldKey): boolean {
+  const control = root
+    ?.querySelector<HTMLElement>(`[data-field="${field}"]`)
+    ?.querySelector<HTMLElement>(FOCUSABLE);
+  if (!control) return false;
+  control.focus({ preventScroll: true });
+  control.scrollIntoView?.({ block: "nearest" });
+  return true;
 }
 
 /**
@@ -271,6 +346,9 @@ export function OnboardingClient() {
   const t = useTranslations("web.auth.onboarding");
   const tc = useTranslations("web.auth.common");
   const tTax = useTranslations("web.domain.taxId");
+  // Sektör listesi yüklenemeyince seçicinin yerine çizilen satır, seçicinin
+  // kendi "Yeniden dene" etiketini kullanır (her dilde aynı sözcük).
+  const tPicker = useTranslations("web.shared.companyCategoryPicker");
   const locale = useLocale();
   const activityLabel = useActivityLabel();
   const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
@@ -286,7 +364,7 @@ export function OnboardingClient() {
   const finishLock = useSubmitLock();
   // Seçiciyle ortak sorgu anahtarı → aynı seçenek. Sihirbaz sektör listesini
   // seçiciden ÖNCE ister (1. adımdan beri bağlı), yani isteğin politikasını o
-  // belirler; hatayı da kendi satırında "Tekrar dene" ile gösterir (2. adım).
+  // belirler; hatayı da kendi satırında "Yeniden dene" ile gösterir (2. adım).
   const roots = useRoots({ inlineError: true });
 
   const STEPS = [t("step1"), t("step2"), t("step3")];
@@ -300,11 +378,21 @@ export function OnboardingClient() {
   /** "Devam" / "Tamamla"ya basılmış adımlar: o adımın eksikleri alan altında görünür. */
   const [attempted, setAttempted] = useState<readonly number[]>([]);
   /**
-   * Sunucunun reddi: `field` doluysa o alanın altında, değilse özet adımındaki
-   * kutuda. `at` reddedilen değerin (alan ya da formun tamamı) anlık
-   * görüntüsüdür — değer düzeltildiği an hata kendiliğinden kaybolur.
+   * Sunucunun reddi. `field` hatanın sahibi alandır (bilinmiyorsa `null`):
+   *  - alanın hata yuvası çiziliyse (`hasErrorSlot`) hata o alanın ALTINDA;
+   *  - yuvası yoksa alanın adımındaki hata kutusunda, alanın adıyla
+   *    (`boxMessage`) — eskiden sihirbaz o adıma dönüyor ama hiçbir şey
+   *    göstermiyordu (kayıt denetimi 2026-10 resignup-1);
+   *  - sahibi bilinmiyorsa özet adımındaki kutuda.
+   * `at` reddedilen değerin (alan ya da formun tamamı) anlık görüntüsüdür —
+   * değer düzeltildiği an hata kendiliğinden kaybolur.
    */
-  const [serverError, setServerError] = useState<{ message: string; field: FieldKey | null; at: string } | null>(null);
+  const [serverError, setServerError] = useState<{
+    message: string;
+    boxMessage: string;
+    field: FieldKey | null;
+    at: string;
+  } | null>(null);
   const isTR = f.country === "TR";
   const isSole = f.companyType === "SOLE_PROPRIETOR";
   // Kimlik doğrulama — backend company-auth.service.completeOnboarding ile BİREBİR
@@ -474,8 +562,21 @@ export function OnboardingClient() {
     if (client && (attempted.includes(stepIndex) || live)) return client;
     return serverError?.field === field && JSON.stringify(f[field]) === serverError.at ? serverError.message : null;
   };
-  const generalError =
-    serverError && !serverError.field && JSON.stringify(f) === serverError.at ? serverError.message : null;
+  /**
+   * ADIMIN HATA KUTUSU (resignup-1): alanın altında gösterilemeyen sunucu
+   * reddi — sahibi bilinmeyen (özet adımı) ya da hata yuvası olmayan alan
+   * (alanın adımı). Görünür ve duyurulur (`role="alert"`), odak kutuya gider.
+   */
+  const serverErrorLive =
+    serverError && JSON.stringify(serverError.field ? f[serverError.field] : f) === serverError.at
+      ? serverError
+      : null;
+  const stepError =
+    serverErrorLive &&
+    !(serverErrorLive.field && hasErrorSlot(serverErrorLive.field, f)) &&
+    (serverErrorLive.field ? stepOfField(serverErrorLive.field) : 2) === step
+      ? serverErrorLive.boxMessage
+      : null;
 
   // ADIM GEÇİŞİ (signup-tr-7): yeni adım kaydırma konumunu koruyup ortasından
   // açılıyordu (telefonda başlık ve ilk zorunlu alan ekranın 580 px üstünde).
@@ -486,28 +587,36 @@ export function OnboardingClient() {
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   // Adım adlarının kimliği: adım başlığı adını göstergedeki etiketten alır.
   const stepLabelId = useId();
-  // Sektör listesi yüklenemediğinde "Tekrar dene"yi açıklayan metinlerin kimliği.
+  // Sektör listesi yüklenemediğinde "Yeniden dene"yi açıklayan metinlerin kimliği.
   const sectorErrorId = useId();
-  const pendingNavRef = useRef<{ field: FieldKey | null } | null>(null);
-  const goTo = (target: number, field: FieldKey | null = null) => {
-    if (target === step) {
-      if (field) focusFieldIn(cardRef.current, field);
+  // Adımın hata kutusu (alanın altında gösterilemeyen sunucu reddi).
+  const stepErrorRef = useRef<HTMLDivElement>(null);
+  /** Geçişin odak hedefi: bir alan, adımın hata kutusu ya da (null) adım başlığı. */
+  type NavTarget = FieldKey | "stepError" | null;
+  const pendingNavRef = useRef<{ to: NavTarget } | null>(null);
+  const goTo = (target: number, to: NavTarget = null) => {
+    if (target === step && to !== "stepError") {
+      if (to) focusFieldIn(cardRef.current, to);
       return;
     }
-    pendingNavRef.current = { field };
-    setStep(target);
+    // Hata kutusu bir sonraki çizimde belirir (adım değişmese de) → odak efektte.
+    pendingNavRef.current = { to };
+    if (target !== step) setStep(target);
   };
   useEffect(() => {
     const nav = pendingNavRef.current;
     if (!nav) return;
     pendingNavRef.current = null;
-    if (nav.field) {
-      focusFieldIn(cardRef.current, nav.field);
+    if (nav.to === "stepError" && stepErrorRef.current) {
+      stepErrorRef.current.focus({ preventScroll: true });
+      stepErrorRef.current.scrollIntoView?.({ block: "center" });
       return;
     }
+    if (nav.to && nav.to !== "stepError" && focusFieldIn(cardRef.current, nav.to)) return;
     stepHeadingRef.current?.focus({ preventScroll: true });
     titleRef.current?.scrollIntoView?.({ block: "start" });
-  }, [step]);
+    // `serverError`: kutu adım değişmeden de belirebilir (özet adımındaki ret).
+  }, [step, serverError]);
 
   /** Adımın eksiklerini gösterir ve ilk hatalı alana gider (gerekirse o adıma döner). */
   const revealErrors = (stepIndex: number) => {
@@ -592,16 +701,57 @@ export function OnboardingClient() {
       clearOnboardingDraft(userId);
       window.location.href = localizePath("/company", runtimeLocale());
     } catch (err) {
-      // Hata, sahibi olan alanın adımında ve alanın altında gösterilir; alan
-      // tanınmıyorsa bu adımdaki kutuda. İkisi de değer düzeltilince kaybolur.
+      // Hata, sahibi olan alanın adımında gösterilir: alanın hata yuvası varsa
+      // altında, yoksa o adımın hata kutusunda (alanın adıyla); alan
+      // tanınmıyorsa bu adımdaki kutuda. Hepsi değer düzeltilince kaybolur.
       const field = serverErrorField(err, f);
       setServerError({
         message: extractErrorMessage(err, t("saveFailed")),
+        boxMessage: extractErrorMessage(err, t("saveFailed"), fieldLabels()),
         field,
         at: JSON.stringify(field ? f[field] : f),
       });
-      if (field) goTo(stepOfField(field), field);
+      goTo(field ? stepOfField(field) : step, field && hasErrorSlot(field, f) ? field : "stepError");
     }
+  };
+
+  /**
+   * DTO alan anahtarı → ekrandaki etiket (zorunluluk yıldızı olmadan). Hata
+   * kutusu reddedilen alanı ADIYLA söyler: doğrulama iletisi alan adını
+   * taşımaz ("En fazla 100 karakter olabilir").
+   */
+  const fieldLabels = (): Record<string, string> => {
+    const plain = (label: string) => label.replace(/\s*\*$/, "");
+    const delivery = (label: string) => `${t("deliveryAddress")} – ${plain(label)}`;
+    const cityLabel = isTR ? t("province") : t("city");
+    const labels: Partial<Record<FieldKey, string>> = {
+      country: plain(t("country")),
+      legalName: plain(t("legalName")),
+      companyType: plain(t("companyTypeLabel")),
+      legalFormLocal: t("legalFormLocal"),
+      taxNumber: plain(isTR ? t("taxTr") : tTax(`label.${taxKey}` as never)),
+      taxOffice: plain(t("taxOffice")),
+      website: t("website"),
+      city: plain(cityLabel),
+      cityId: plain(cityLabel),
+      district: plain(t("district")),
+      stateRegion: t("stateRegion"),
+      neighborhood: t("neighborhood"),
+      postalCode: t("postalCode"),
+      addressLine: plain(t("addressLine")),
+      deliveryCity: delivery(cityLabel),
+      deliveryCityId: delivery(cityLabel),
+      deliveryStateRegion: delivery(t("stateRegion")),
+      deliveryDistrict: delivery(t("deliveryDistrict")),
+      deliveryNeighborhood: delivery(t("neighborhood")),
+      deliveryPostalCode: delivery(t("postalCode")),
+      deliveryAddressLine: delivery(t("addressLine")),
+      authorizedTckn: plain(isTR ? t("tcknLabel") : t("foreignIdLabel")),
+      mainCategoryIds: t("pickerLabel"),
+      subCategoryIds: t("pickerLabel"),
+      activities: t("sumActivities"),
+    };
+    return labels as Record<string, string>;
   };
 
   if (!isHydrated || !authUser || me.isLoading) {
@@ -655,6 +805,19 @@ export function OnboardingClient() {
   const sectorsUnavailable = roots.isError && roots.data === undefined;
   const categoryError = fieldError("mainCategoryIds");
   const declarationError = fieldError("declarationAccepted");
+  // Adımın hata kutusu: 1. ve 2. adımda adımın BAŞINDA (kullanıcı adımın başına
+  // döndürülür), özet adımında "Tamamla"nın hemen üstünde. Odaklanabilir
+  // (`tabIndex={-1}`): ret sonrası odak buraya gelir, klavye sırası kutudan sürer.
+  const stepErrorBox = stepError ? (
+    <div
+      ref={stepErrorRef}
+      role="alert"
+      tabIndex={-1}
+      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+    >
+      {stepError}
+    </div>
+  ) : null;
 
   return (
     <OnboardingShell
@@ -697,7 +860,7 @@ export function OnboardingClient() {
         ))}
       </ol>
 
-      <div ref={cardRef} className="mt-6 card p-5">
+      <div ref={cardRef} className={`mt-6 card p-5 ${FIELD_SCROLL_MARGIN}`}>
         {/* Adım başlığı: adım değişince odak buraya taşınır (ekran okuyucu
             yeni adımı duyurur, klavye sırası adımın başından sürer). Görsel
             karşılığı üstteki adım göstergesi olduğundan yalnız ekran okuyucuya;
@@ -714,6 +877,7 @@ export function OnboardingClient() {
         </h2>
         {step === 0 ? (
           <div className="space-y-3">
+            {stepErrorBox}
             <Field data-field="legalName">
               <Label>{t("legalName")}</Label>
               <Input
@@ -922,7 +1086,7 @@ export function OnboardingClient() {
                 <Input
                   value={f.postalCode}
                   inputMode={isTR ? "numeric" : undefined}
-                  maxLength={isTR ? 5 : 12}
+                  maxLength={postalInputMaxLength(isTR, 12)}
                   invalid={!!fieldError("postalCode")}
                   onChange={(e) => set("postalCode")(cleanPostal(e.target.value, isTR))}
                 />
@@ -1017,7 +1181,7 @@ export function OnboardingClient() {
                     <Input
                       value={f.deliveryPostalCode}
                       inputMode={isTR ? "numeric" : undefined}
-                      maxLength={isTR ? 5 : 12}
+                      maxLength={postalInputMaxLength(isTR, 12)}
                       invalid={!!fieldError("deliveryPostalCode")}
                       onChange={(e) => set("deliveryPostalCode")(cleanPostal(e.target.value, isTR))}
                     />
@@ -1041,6 +1205,7 @@ export function OnboardingClient() {
 
         {step === 1 ? (
           <div className="space-y-3">
+            {stepErrorBox}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <Label>{tc("firstName")}</Label>
@@ -1086,13 +1251,18 @@ export function OnboardingClient() {
                   web-auth-6): sektör listesi yüklenemeyince seçici çizilmez;
                   sarmalayıcı yalnız seçici dalındayken "Devam"ın işaretleyip
                   odaklayacağı bir öğe kalmıyor, basış görünür ve duyulur bir
-                  sonuç vermiyordu. Artık odak "Tekrar dene"ye gider ve
+                  sonuç vermiyordu. Artık odak "Yeniden dene"ye gider ve
                   kategori hatası yükleme hatasının altında yazılır; düğme iki
                   metne de `aria-describedby` ile bağlıdır. */}
               <div data-field="mainCategoryIds">
                 {sectorsUnavailable ? (
                   <>
-                    <p className="text-xs text-rose-600">
+                    {/* Kategori pencerelerindeki yükleme hatası satırıyla AYNI
+                        dil (kayıt denetimi 2026-10 recategory-new-6):
+                        `role="alert"` (belirdiği an okunur) ve seçicinin kendi
+                        "Yeniden dene" etiketi — satır seçicinin yerine çizilir;
+                        eskiden düz paragraftı ve "Tekrar dene" diyordu. */}
+                    <div role="alert" className="text-xs text-rose-600">
                       <span id={`${sectorErrorId}-load`}>{t("sectorsFailed")}</span>{" "}
                       <button
                         type="button"
@@ -1104,9 +1274,9 @@ export function OnboardingClient() {
                         }
                         className="font-semibold underline"
                       >
-                        {t("retry")}
+                        {tPicker("yenidenDene")}
                       </button>
-                    </p>
+                    </div>
                     {categoryError ? (
                       <p id={`${sectorErrorId}-required`} className="mt-1.5 text-xs text-rose-600">
                         {categoryError}
@@ -1248,11 +1418,7 @@ export function OnboardingClient() {
               <Label className="cursor-pointer">{t("declaration")}</Label>
               <FieldError message={declarationError} className="col-start-2 row-start-2" />
             </CheckboxField>
-            {generalError ? (
-              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {generalError}
-              </div>
-            ) : null}
+            {stepErrorBox}
           </div>
         ) : null}
 

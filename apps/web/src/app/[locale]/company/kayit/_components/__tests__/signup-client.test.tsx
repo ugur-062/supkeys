@@ -11,6 +11,8 @@ const h = vi.hoisted(() => ({
   changeEmailAsync: vi.fn(),
   search: "",
   storeUser: null as { id: string } | null,
+  hydrated: true,
+  probe: "none" as "pending" | "found" | "none",
   setAuth: vi.fn(),
   replace: vi.fn(),
   toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() },
@@ -25,7 +27,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) =>
-    sel({ user: h.storeUser, isHydrated: true }),
+    sel({ user: h.storeUser, isHydrated: h.hydrated }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanySignup: () => ({ mutateAsync: h.signupAsync, isPending: false }),
@@ -33,6 +35,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useResendEmailCode: () => ({ mutateAsync: h.resendAsync, isPending: false }),
   useChangeSignupEmail: () => ({ mutateAsync: h.changeEmailAsync, isPending: false }),
   useSetCompanyAuth: () => h.setAuth,
+  useCompanySessionProbe: () => h.probe,
 }));
 
 import { CompanySignupClient } from "../signup-client";
@@ -76,6 +79,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.search = "";
   h.storeUser = null;
+  h.hydrated = true;
+  h.probe = "none";
   sessionStorage.clear();
 });
 afterEach(() => {
@@ -103,12 +108,12 @@ describe("CompanySignupClient — form aşaması", () => {
 
     expect(h.signupAsync).not.toHaveBeenCalled();
     const expected: Array<[string, string]> = [
-      ["Ad", "Adınızı girin."],
-      ["Soyad", "Soyadınızı girin."],
-      ["Kurumsal e-posta", "Geçerli bir e-posta adresi giriniz"],
-      ["Telefon", "Seçili ülke için geçerli bir telefon numarası girin."],
+      ["Ad", "Adınızı girin"],
+      ["Soyad", "Soyadınızı girin"],
+      ["Kurumsal e-posta", "Geçerli bir e-posta adresi girin"],
+      ["Telefon", "Telefon numaranızı girin"],
       ["Şifre", "En az 10 karakter"],
-      ["Şifre (tekrar)", "Şifrenizi tekrar girin."],
+      ["Şifre (tekrar)", "Şifrenizi tekrar girin"],
     ];
     for (const [label, message] of expected) {
       const input = screen.getByLabelText(label, { exact: true });
@@ -120,8 +125,8 @@ describe("CompanySignupClient — form aşaması", () => {
     const boxes = screen.getAllByRole("checkbox");
     expect(boxes.slice(0, 3).every((b) => b.getAttribute("aria-invalid") === "true")).toBe(true);
     expect(boxes.slice(3).some((b) => b.hasAttribute("aria-invalid"))).toBe(false);
-    expect(boxes[0]).toHaveAccessibleDescription("Devam etmek için bu onay gereklidir.");
-    expect(screen.getAllByText("Devam etmek için bu onay gereklidir.")).toHaveLength(3);
+    expect(boxes[0]).toHaveAccessibleDescription("Devam etmek için bu onay gereklidir");
+    expect(screen.getAllByText("Devam etmek için bu onay gereklidir")).toHaveLength(3);
     // Odak ilk geçersiz alanda.
     expect(screen.getByLabelText("Ad")).toHaveFocus();
   });
@@ -137,9 +142,9 @@ describe("CompanySignupClient — form aşaması", () => {
     expect(h.signupAsync).not.toHaveBeenCalled();
     expect(kvkk).toHaveAttribute("aria-invalid", "true");
     expect(kvkk).toHaveFocus();
-    expect(screen.getAllByText("Devam etmek için bu onay gereklidir.")).toHaveLength(1);
+    expect(screen.getAllByText("Devam etmek için bu onay gereklidir")).toHaveLength(1);
     await user.click(kvkk);
-    expect(screen.queryByText("Devam etmek için bu onay gereklidir.")).toBeNull();
+    expect(screen.queryByText("Devam etmek için bu onay gereklidir")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
     expect(h.signupAsync).toHaveBeenCalledTimes(1);
   });
@@ -153,7 +158,7 @@ describe("CompanySignupClient — form aşaması", () => {
       await user.clear(email);
       await fill(user, email, bad);
       await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
-      expect(screen.getByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+      expect(screen.getByText("Geçerli bir e-posta adresi girin")).toBeInTheDocument();
       expect(email).toHaveAttribute("aria-invalid", "true");
       expect(email).toHaveFocus();
     }
@@ -178,13 +183,13 @@ describe("CompanySignupClient — form aşaması", () => {
     await user.clear(ad);
     await user.type(ad, "   ");
     await user.click(submit);
-    expect(screen.getByText("Adınızı girin.")).toBeInTheDocument();
+    expect(screen.getByText("Adınızı girin")).toBeInTheDocument();
     expect(h.signupAsync).not.toHaveBeenCalled();
     await user.clear(ad);
     await user.type(ad, "Li");
     await user.clear(screen.getByLabelText("Soyad", { exact: true }));
     await user.type(screen.getByLabelText("Soyad", { exact: true }), "W");
-    expect(screen.queryByText("Adınızı girin.")).toBeNull();
+    expect(screen.queryByText("Adınızı girin")).toBeNull();
     await user.click(submit);
     expect(h.signupAsync).toHaveBeenCalledWith(
       expect.objectContaining({ firstName: "Li", lastName: "W" }),
@@ -203,12 +208,12 @@ describe("CompanySignupClient — form aşaması", () => {
     await user.type(phone, "89161234567");
     await user.tab();
     expect(
-      screen.getByText("Seçili ülke için geçerli bir telefon numarası girin."),
+      screen.getByText("Seçili ülke için geçerli bir telefon numarası girin"),
     ).toBeInTheDocument();
     // Arayüz testi 2026-10 code-auth-11: hata yalnız kırmızı çerçeve değil —
     // numara kutusu `aria-invalid` olur ve ileti ona bağlanır.
     expect(phone).toHaveAttribute("aria-invalid", "true");
-    expect(phone).toHaveAccessibleDescription("Seçili ülke için geçerli bir telefon numarası girin.");
+    expect(phone).toHaveAccessibleDescription("Seçili ülke için geçerli bir telefon numarası girin");
     await user.click(submit);
     expect(h.signupAsync).not.toHaveBeenCalled();
     // Kısa ama geçerli numara (eskiden "en az 10 hane" kuralı reddediyordu).
@@ -548,7 +553,7 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
     // Şifresiz gönderim: istek yok, alan hatası + odak.
     await user.click(screen.getByRole("button", { name: "Kodu yeni adrese gönder" }));
     expect(h.changeEmailAsync).not.toHaveBeenCalled();
-    expect(screen.getByText("Şifrenizi girin.")).toBeInTheDocument();
+    expect(screen.getByText("Şifrenizi girin")).toBeInTheDocument();
     expect(password).toHaveAttribute("aria-invalid", "true");
     expect(password).toHaveFocus();
 
@@ -579,11 +584,11 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
     const send = screen.getByRole("button", { name: "Kodu yeni adrese gönder" });
     expect(send).toBeEnabled();
     await user.click(send);
-    expect(screen.getByText("Yeni adres mevcut adresle aynı.")).toBeInTheDocument();
+    expect(screen.getByText("Yeni adres mevcut adresle aynı")).toBeInTheDocument();
     const input = screen.getByLabelText("Yeni e-posta adresi");
     await user.clear(input);
     await fill(user, input, "ada@firma");
-    expect(screen.getByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+    expect(screen.getByText("Geçerli bir e-posta adresi girin")).toBeInTheDocument();
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(h.changeEmailAsync).not.toHaveBeenCalled();
   });
@@ -632,7 +637,7 @@ describe("CompanySignupClient — kod adımı (code-auth-3, login-8, signup-tr-2
     await user.type(input, "123");
     await user.click(verify);
     expect(h.verifyAsync).not.toHaveBeenCalled();
-    expect(screen.getByText("6 haneli doğrulama kodunu girin.")).toBeInTheDocument();
+    expect(screen.getByText("6 haneli doğrulama kodunu girin")).toBeInTheDocument();
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(input).toHaveFocus();
   });
@@ -730,5 +735,138 @@ describe("CompanySignupClient — alan yerleşimi ve erişilebilirlik (code-auth
     render(<CompanySignupClient />);
     await user.click(screen.getByText("Telefon", { selector: "label" }));
     expect(screen.getByLabelText("Telefon")).toHaveFocus();
+  });
+});
+
+/**
+ * Kayıt denetimi 2026-10 üçüncü tur: ret sonrası odak (resignup-4), geri sayım
+ * metni (relogin-3), girişli ziyaretçi (relogin-4).
+ */
+describe("CompanySignupClient — kayıt denetimi 2026-10 üçüncü tur", () => {
+  const rejection = (message: string) =>
+    Object.assign(new AxiosError(message), { response: { status: 400, data: { message } } });
+
+  async function reachVerify(user: ReturnType<typeof userEvent.setup>) {
+    h.signupAsync.mockResolvedValue({ email: "ada@firma.com" });
+    render(<CompanySignupClient />);
+    await fillValidForm(user);
+    await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
+    await screen.findByText("E-postanızı doğrulayın");
+  }
+  /** Yenilemeyle geri gelen kod adımı: şifre bellekte yok (taslağa yazılmaz). */
+  function restoreVerifyStep() {
+    sessionStorage.setItem(
+      "rothern:signup-draft",
+      JSON.stringify({
+        firstName: "Ada",
+        lastName: "Yılmaz",
+        email: "ada@firma.com",
+        phone: "+90 5551112233",
+        consents: { terms: true, mediation: true, kvkk: true, marketing: false, profile: false },
+        verifyEmail: "ada@firma.com",
+        emailSeed: "",
+      }),
+    );
+    render(<CompanySignupClient />);
+  }
+
+  // resignup-4: düğme istek sürerken pasifleşiyor, hata kutusu çıktığında odak
+  // <body>'de kalıyordu — klavye kullanıcısı sayfanın başından sekmeliyordu.
+  it("yanlış kod: hata kutusu + odak kod alanına döner (giriş sayfasıyla aynı)", async () => {
+    const user = userEvent.setup();
+    h.verifyAsync.mockRejectedValue(rejection("Kod geçersiz veya süresi dolmuş"));
+    await reachVerify(user);
+    const input = screen.getByLabelText("Doğrulama kodu");
+    await user.type(input, "000000");
+    await user.click(screen.getByRole("button", { name: "Doğrula ve Giriş Yap" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Kod geçersiz veya süresi dolmuş");
+    expect(input).toHaveFocus();
+  });
+
+  it("e-posta düzeltmede yanlış şifre: odak şifre alanına döner", async () => {
+    const user = userEvent.setup();
+    h.changeEmailAsync.mockRejectedValue(rejection("E-posta veya şifre hatalı"));
+    restoreVerifyStep();
+    await screen.findByText("E-postanızı doğrulayın");
+    await user.click(screen.getByRole("button", { name: "← E-posta adresini değiştir" }));
+    const email = screen.getByLabelText("Yeni e-posta adresi");
+    const password = screen.getByLabelText("Şifre", { exact: true });
+    await user.clear(email);
+    await fill(user, email, "ada@firma.com.tr");
+    await fill(user, password, "Yanlis!Sifre9");
+    await user.click(screen.getByRole("button", { name: "Kodu yeni adrese gönder" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("E-posta veya şifre hatalı");
+    expect(password).toHaveFocus();
+  });
+
+  it("e-posta düzeltme reddi, şifre sorulmuyorken (bellekte): odak yeni adres alanına döner", async () => {
+    const user = userEvent.setup();
+    h.changeEmailAsync.mockRejectedValue(rejection("Bu e-posta adresi kullanılıyor"));
+    await reachVerify(user);
+    await user.click(screen.getByRole("button", { name: "← E-posta adresini değiştir" }));
+    expect(screen.queryByLabelText("Şifre", { exact: true })).toBeNull();
+    const email = screen.getByLabelText("Yeni e-posta adresi");
+    await user.clear(email);
+    await fill(user, email, "dolu@firma.com");
+    await user.click(screen.getByRole("button", { name: "Kodu yeni adrese gönder" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Bu e-posta adresi kullanılıyor");
+    expect(email).toHaveFocus();
+  });
+
+  // relogin-3: "Yeniden gönder (59sn)" okunacak bilgidir; pasif düğmeyi
+  // soluklaştıran %50 opaklık zinc-500'ü beyazda zinc-400'den açık bırakıyordu.
+  it("geri sayım sürerken düğme pasif ama SOLUK DEĞİL; geri sayım yokken pasif düğme soluklaşır", async () => {
+    const user = userEvent.setup();
+    await reachVerify(user);
+    const counting = screen.getByRole("button", { name: /Yeniden gönder \(\d+sn\)/ });
+    expect(counting).toBeDisabled();
+    expect(counting.className).toContain("text-zinc-500");
+    expect(counting.className).not.toContain("opacity-50");
+    // Pasif düğme üzerine gelince koyulaşmaz (tıklanabilir gibi görünmesin).
+    expect(counting.className).toContain("enabled:hover:text-zinc-800");
+    expect(counting.className).not.toMatch(/(^|\s)hover:text-zinc-800/);
+  });
+
+  it("geri sayım yokken (kod gönderilemedi) düğme etkin; pasifleşirse soluk görünür", async () => {
+    const user = userEvent.setup();
+    h.signupAsync.mockResolvedValue({ email: "ada@firma.com", emailSent: false });
+    render(<CompanySignupClient />);
+    await fillValidForm(user);
+    await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
+    await screen.findByText("E-postanızı doğrulayın");
+    const resend = screen.getByRole("button", { name: "Kod gelmedi mi? Yeniden gönder" });
+    expect(resend).toBeEnabled();
+    expect(resend.className).toContain("disabled:opacity-50");
+  });
+
+  // relogin-4: girişli ziyaretçi tam kayıt formunu ~300 ms görüyor, sonra
+  // panele gidiyordu. Giriş sayfasıyla aynı yükleme durumu.
+  it("girişli ziyaretçi formu GÖRMEZ: yükleme durumu + yönlendirme", () => {
+    h.storeUser = { id: "u1" };
+    render(<CompanySignupClient />);
+    expect(screen.getByRole("status")).toHaveTextContent("Oturumunuz denetleniyor…");
+    expect(screen.queryByLabelText("Ad")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Hesap Oluştur" })).toBeNull();
+    expect(h.replace).toHaveBeenCalledWith("/company");
+  });
+
+  it("depo yüklenmeden form çizilmez (sunucu HTML'i ve ilk boyama yükleme durumudur)", () => {
+    h.hydrated = false;
+    render(<CompanySignupClient />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Ad")).toBeNull();
+    expect(h.replace).not.toHaveBeenCalled();
+  });
+
+  it("'hatırla' kapalıyken `/me` yoklanırken form yok; oturum yoksa form açılır", () => {
+    h.probe = "pending";
+    const view = render(<CompanySignupClient />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Ad")).toBeNull();
+    h.probe = "none";
+    view.rerender(<CompanySignupClient />);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByLabelText("Ad")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hesap Oluştur" })).toBeInTheDocument();
   });
 });

@@ -41,7 +41,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
-import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
+import { cleanPostal, isInvalidTrPostal, postalInputMaxLength } from "@/lib/company/postal-code";
 import { toast } from "sonner";
 
 /**
@@ -502,7 +502,7 @@ export function CompanyProfileSection() {
               <Input
                 value={form.postalCode}
                 inputMode={isTR ? "numeric" : undefined}
-                maxLength={isTR ? 5 : 20}
+                maxLength={postalInputMaxLength(isTR, 20)}
                 invalid={Boolean(postalError)}
                 onChange={(e) => set({ postalCode: cleanPostal(e.target.value, isTR) })}
               />

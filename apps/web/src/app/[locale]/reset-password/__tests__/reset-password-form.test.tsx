@@ -303,6 +303,49 @@ describe("ResetPasswordForm — kurallar görünür kontrol listesi (login-3, lo
     expect(h.confirm).not.toHaveBeenCalled();
   });
 
+  // relogin-1: 35 büyük Kiril harf + "ж1!" (38 karakter, 74 bayt) beş kuralı
+  // karşılar ama form onu reddeder. Kırmızı "şifre çok uzun" iletisinin hemen
+  // altında çubuk dolu yeşil, etiket "Çok Güçlü" ve beş kural da işaretliydi.
+  it("üst sınırı aşan şifre: etiket 'Çok Güçlü' demez, liste üst sınırı karşılanmamış gösterir", async () => {
+    const user = userEvent.setup();
+    await renderForm();
+    const tooLong = "Я".repeat(35) + "ж1!";
+    const input = screen.getByLabelText("Yeni Şifre");
+    await user.click(input);
+    await user.paste(tooLong);
+    const meter = screen.getByRole("status");
+    expect(within(meter).queryByText("Çok Güçlü")).toBeNull();
+    expect(within(meter).getByText("Orta")).toBeInTheDocument();
+    // Çubuk dolu yeşil değil.
+    const bar = meter.querySelector<HTMLElement>("[style*='width']")!;
+    expect(bar.className).not.toContain("bg-emerald-500");
+    expect(bar.style.width).toBe("80%");
+    // Üst sınır öteki kuralların yanında, karşılanmamış olarak.
+    const list = within(meter).getByRole("list");
+    const max = within(list).getByText("En fazla 72 karakter");
+    expect(max.className).toContain("text-red-600");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(6);
+    // Gönderimde alan iletisi aynı sebebi söyler; istek atılmaz.
+    await user.click(screen.getByLabelText("Şifreyi Tekrar"));
+    await user.paste(tooLong);
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(input).toHaveAccessibleDescription(/Şifre çok uzun/);
+    expect(h.confirm).not.toHaveBeenCalled();
+  });
+
+  it("sınırın içindeki güçlü şifre: 'Çok Güçlü', çubuk dolu yeşil, üst sınır satırı yok", async () => {
+    const user = userEvent.setup();
+    await renderForm();
+    await user.click(screen.getByLabelText("Yeni Şifre"));
+    await user.paste("Guclu!Parola9");
+    const meter = screen.getByRole("status");
+    expect(within(meter).getByText("Çok Güçlü")).toBeInTheDocument();
+    const bar = meter.querySelector<HTMLElement>("[style*='width']")!;
+    expect(bar.className).toContain("bg-emerald-500");
+    expect(within(meter).queryByText("En fazla 72 karakter")).toBeNull();
+    expect(within(meter).getAllByRole("listitem")).toHaveLength(5);
+  });
+
   it("iki şifre alanı da 72 karakter tavanı taşır", async () => {
     await renderForm();
     expect(screen.getByLabelText("Yeni Şifre")).toHaveAttribute("maxlength", "72");

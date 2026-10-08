@@ -9,7 +9,6 @@ import {
   firstUnmetPasswordRule,
   PASSWORD_ERROR_KEY,
   PASSWORD_MAX_LENGTH,
-  usePasswordRules,
 } from "@/lib/company-auth/password-rules";
 import { extractErrorMessage, extractFieldErrors } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -131,7 +130,6 @@ function useResetLinkCheck(token: string, enabled: boolean): { state: LinkCheck;
 export function ResetPasswordForm() {
   const t = useTranslations("web.auth.reset");
   const tp = useTranslations("web.auth.password");
-  const { rules: PW_RULES, strength } = usePasswordRules();
   const schema = useMemo(() => makeSchema(tp), [tp]);
   const params = useSearchParams();
   const router = useRouter();
@@ -160,7 +158,6 @@ export function ResetPasswordForm() {
     defaultValues: { newPassword: "", confirmPassword: "" },
   });
   const typed = useWatch({ control, name: "newPassword" }) ?? "";
-  const pwScore = PW_RULES.filter((r) => r.test(typed)).length;
 
   // Başarı ekranı bağlantı denetiminden ÖNCE: şifre değişince jeton tüketilir;
   // geç gelen "geçersiz" yanıtı başarı kartını ezmesin.
@@ -270,7 +267,7 @@ export function ResetPasswordForm() {
           (arayüz testi 2026-10 login-3). Eskiden yalnız girdinin yer
           tutucusundaydı: her dilde ve her genişlikte kesiliyor, ilk tuşta da
           kayboluyordu. Yazmadan önce de, yazarken de okunur. */}
-      <PasswordStrength password={typed} rules={PW_RULES} score={pwScore} label={strength(pwScore)} live />
+      <PasswordStrength password={typed} live />
 
       <Field>
         <Label>{t("confirmPassword")}</Label>

@@ -144,9 +144,14 @@ export function IhaleListView({
         icon={ClipboardList}
         title={tr("henuzSatinAlmaTalebiYok")}
         description={
+          // Neden sırası API ile aynı (rol denetimi paket denetiminin İÇİNDE):
+          // önce firma doğrulaması, sonra rol. Doğrulanmamış firmanın
+          // Kurucusuna "Satın Almacı rolü gerekir" deniyordu — üstteki bant
+          // doğrulama derken (kayıt denetimi 2026-10 resignup-8); rolü
+          // verilse de doğrulamasız talep açamaz.
           canCreate
             ? tr("ilkSatinAlmaTalebiniziBirkac")
-            : hasCreatePermission
+            : !tierAllowsCreate
               ? tr("yeniTalepDogrulamaGerektirir")
               : tr("satinAlmaTalebiAcmaIslem")
         }

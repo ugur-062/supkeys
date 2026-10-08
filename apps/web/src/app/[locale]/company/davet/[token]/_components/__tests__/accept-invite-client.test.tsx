@@ -107,18 +107,18 @@ describe("AcceptInviteClient", () => {
     render(<AcceptInviteClient token="tok" />);
     expect(submitButton()).toBeEnabled();
     // Basılmadan önce hiçbir alan hata taşımaz.
-    expect(screen.queryByText("Adınızı girin.")).toBeNull();
+    expect(screen.queryByText("Adınızı girin")).toBeNull();
     expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
 
     await user.click(submitButton());
 
     expect(h.acceptAsync).not.toHaveBeenCalled();
-    expect(screen.getByText("Adınızı girin.")).toBeInTheDocument();
-    expect(screen.getByText("Soyadınızı girin.")).toBeInTheDocument();
+    expect(screen.getByText("Adınızı girin")).toBeInTheDocument();
+    expect(screen.getByText("Soyadınızı girin")).toBeInTheDocument();
     expect(screen.getByText("En az 10 karakter", { selector: "[data-slot='error']" })).toBeInTheDocument();
-    expect(screen.getByText("Şifrenizi tekrar girin.")).toBeInTheDocument();
+    expect(screen.getByText("Şifrenizi tekrar girin")).toBeInTheDocument();
     // Üç zorunlu onayın her biri kendi iletisini taşır; isteğe bağlı ikisi taşımaz.
-    expect(screen.getAllByText("Devam etmek için bu onay gereklidir.")).toHaveLength(3);
+    expect(screen.getAllByText("Devam etmek için bu onay gereklidir")).toHaveLength(3);
     for (const el of [screen.getByLabelText("Ad"), screen.getByLabelText("Soyad", { exact: true }), password(), passwordRepeat()]) {
       expect(el).toHaveAttribute("aria-invalid", "true");
     }
@@ -126,13 +126,13 @@ describe("AcceptInviteClient", () => {
     expect(screen.getByPlaceholderText("5XX XXX XX XX")).not.toHaveAttribute("aria-invalid");
     // İleti alana bağlı (ekran okuyucu alanla birlikte okur).
     const first = screen.getByLabelText("Ad");
-    expect(first).toHaveAccessibleDescription("Adınızı girin.");
+    expect(first).toHaveAccessibleDescription("Adınızı girin");
     // Odak DOM sırasındaki ilk geçersiz alanda.
     await waitFor(() => expect(first).toHaveFocus());
 
     // Hatalar düzeltildikçe kendiliğinden kalkar.
     await fill(user, first, "Ada");
-    expect(screen.queryByText("Adınızı girin.")).toBeNull();
+    expect(screen.queryByText("Adınızı girin")).toBeNull();
     await user.click(submitButton());
     await waitFor(() => expect(screen.getByLabelText("Soyad", { exact: true })).toHaveFocus());
   });
@@ -158,10 +158,11 @@ describe("AcceptInviteClient", () => {
     render(<AcceptInviteClient token="tok" />);
     expect(password()).toHaveAttribute("maxLength", "72");
     expect(passwordRepeat()).toHaveAttribute("maxLength", "72");
-    // 73 karakter yazılır: iki alan da 72'de keser, "eşleşmiyor" çıkmaz.
+    // 73 karakter YAPIŞTIRILIR (146 tuş vuruşu tam koşuda 15 sn sınırını aşıyordu):
+    // iki alan da 72'de keser, "eşleşmiyor" çıkmaz.
     const long = `Aa1!${"x".repeat(69)}`;
-    await user.type(password(), long);
-    await user.type(passwordRepeat(), long);
+    await fill(user, password(), long);
+    await fill(user, passwordRepeat(), long);
     expect(password()).toHaveValue(long.slice(0, 72));
     expect(passwordRepeat()).toHaveValue(long.slice(0, 72));
     expect(screen.queryByText("Şifreler eşleşmiyor")).toBeNull();

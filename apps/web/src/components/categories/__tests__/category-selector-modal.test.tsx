@@ -450,10 +450,43 @@ describe("CategorySelectorModal — dal başına tek seçim", () => {
     expect(screen.getByRole("checkbox", { name: "Somunlar" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Ankraj somunları" })).toBeChecked();
     expect(screen.getByText("1/50")).toBeInTheDocument();
-    // Sessizce düşürülmez: tek cümleyle söylenir.
-    expect(screen.getByRole("status")).toHaveTextContent(/Aynı daldan tek seçim tutulur/);
+    // Sessizce düşürülmez: tek cümleyle söylenir (bir seçim düştü → tekil).
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Aynı daldan tek seçim tutulur; bu daldaki diğer seçiminiz kaldırıldı.",
+    );
     await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
     expect(onConfirm).toHaveBeenCalledWith([COM.id]);
+  });
+
+  // recategory-new-4: iki yaprak düşerken not "diğer seçiminiz" (tekil) diyordu.
+  it("singlePickPerBranch: birden çok seçim düşünce not kaç seçimin kaldırıldığını söyler", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    render(
+      <CategorySelectorModal
+        isOpen
+        onClose={() => {}}
+        value={[]}
+        onConfirm={() => {}}
+        minSelectableLevel={2}
+        singlePickPerBranch
+        maxSelection={50}
+      />,
+    );
+    await openToCommodities(user);
+    await user.click(screen.getByRole("checkbox", { name: "Ankraj somunları" }));
+    await user.click(screen.getByRole("checkbox", { name: "Kör somunlar" }));
+    await user.click(screen.getByRole("checkbox", { name: "Cıvatalar" }));
+    expect(screen.getByText("3/50")).toBeInTheDocument();
+    // Henüz hiçbir seçim düşmedi → not yok.
+    expect(screen.queryByText(/Aynı daldan tek seçim tutulur/)).toBeNull();
+
+    await user.click(screen.getByRole("checkbox", { name: "Hırdavat" }));
+
+    expect(screen.getByText("1/50")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Aynı daldan tek seçim tutulur; bu daldaki diğer 3 seçiminiz kaldırıldı.",
+    );
   });
 
   it("singlePickPerBranch: aile işaretlenince altındaki sınıf ve emtialar düşer; kardeş dal kalır", async () => {
@@ -645,6 +678,45 @@ describe("highlightRanges — aramayla aynı kural", () => {
   it("yazılan biçim geçmiyorsa kök vurgulanır (ek toleransı: 'boruları' → 'boru')", () => {
     expect(cut("Çelik borular", "çelik boruları")).toEqual(["Çelik", "boru"]);
     expect(cut("Steel pipe fittings", "pipes")).toEqual(["pipe"]);
+  });
+
+  // recategory-new-5: "and" her satırda boyanıyordu (81 vurgu).
+  it("İngilizce ve Rusça bağlaçlar vurgulanmaz", () => {
+    const q = "Manufacturing Components and Supplies";
+    expect(cut("Manufacturing Components and Supplies", q)).toEqual(["Manufacturing", "Components", "Supplies"]);
+    expect(cut("Sand castings and casting assemblies", q)).toEqual([]);
+    expect(cut("Permanent mold castings and components", q)).toEqual(["components"]);
+    expect(cut("Parts for the top of the unit or the base", "parts for the top of base or unit")).toEqual([
+      "Parts",
+      "top",
+      "unit",
+      "base",
+    ]);
+    expect(cut("Оборудование для сварки и пайки", "оборудование для сварки или пайки")).toEqual([
+      "Оборудование",
+      "сварки",
+      "пайки",
+    ]);
+    // Bağlacı İÇEREN sözcük elenmez.
+    expect(cut("Android tablets", "android")).toEqual(["Android"]);
+  });
+
+  // category-2 + recategory-new-3: kök API ile aynı fonksiyondan (categorySearchStem).
+  it("üst üste Türkçe ek ve Rusça çekim: aramanın bulduğu kök vurgulanır", () => {
+    expect(cut("Rulmanlar ve yataklar", "rulmanlarının")).toEqual(["Rulman"]);
+    expect(cut("Borular, boru hatları", "borularının")).toEqual(["Boru", "boru"]);
+    expect(cut("Hidrolik pompalar", "hidrolik pompası")).toEqual(["Hidrolik", "pompa"]);
+    expect(cut("Оборудование для сварки и пайки", "сварка")).toEqual(["сварк"]);
+    expect(cut("Электрические кабели и аксессуары", "кабель")).toEqual(["кабел"]);
+    expect(cut("Сварные стальные трубы", "стальная труба")).toEqual(["стальн", "труб"]);
+  });
+
+  it("kök yalnız SÖZCÜK BAŞINDA vurgulanır; yazılan biçim sözcük içinde de", () => {
+    // "nakliye" → kök "nakli": "kayNAKLIlı" içinde boyanmaz (API de eşleştirmez).
+    expect(cut("Solvent kaynaklı boru düzenekleri", "nakliye")).toEqual([]);
+    expect(cut("Nakliyat sandıkları (nakliyat)", "nakliye")).toEqual(["Nakli", "nakli"]);
+    // Yazılan biçim eskisi gibi alt dizgi: "yağ" → "Tereyağı".
+    expect(cut("Tereyağı", "yağ")).toEqual(["yağ"]);
   });
 
   it("örtüşen aralıklar birleşir; eşleşme yoksa boş", () => {

@@ -30,3 +30,17 @@ export function resendEmailCodeOutcome(
   if (res?.capped) return "capped";
   return res?.sent === false ? "failed" : "sent";
 }
+
+/**
+ * "YENİDEN GÖNDER" DÜĞMESİNİN PASİF GÖRÜNÜMÜ (arayüz testi 2026-10 relogin-3).
+ *
+ * Geri sayım sürerken düğme pasiftir ama metni ("Yeniden gönder (59sn)")
+ * kullanıcının OKUDUĞU bilgidir. Pasif düğmeyi soluklaştıran `opacity-50`,
+ * zinc-500 metni beyazda zinc-400'den de açık bırakıyordu (kural: küçük metin
+ * en az tam güçte zinc-500). Soluklaştırma yalnız istek sürerken uygulanır;
+ * geri sayımda renk tam kalır, düğme yalnız tıklanamaz görünür (imleç).
+ * Üzerine gelme rengi ayrıca `enabled:` ile sınırlıdır (çağıranın sınıfında).
+ */
+export function resendDisabledClass(countingDown: boolean): string {
+  return countingDown ? "disabled:cursor-default" : "disabled:opacity-50";
+}

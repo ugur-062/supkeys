@@ -18,7 +18,6 @@ import {
   firstUnmetPasswordRule,
   PASSWORD_ERROR_KEY,
   PASSWORD_MAX_LENGTH,
-  usePasswordRules,
 } from "@/lib/company-auth/password-rules";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
@@ -27,7 +26,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 
 /**
@@ -44,10 +43,9 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const t = useTranslations("web.auth.invite");
   const tc = useTranslations("web.auth.common");
   const tp = useTranslations("web.auth.password");
-  // Zorunlu alan iletileri kayıt formununkilerle AYNI metin ("Adınızı girin."
+  // Zorunlu alan iletileri kayıt formununkilerle AYNI metin ("Adınızı girin"
   // …): iki form aynı alanı aynı cümleyle ister, ayrı anahtar açılmadı.
   const ts = useTranslations("web.auth.signup");
-  const { rules: PW_RULES, strength } = usePasswordRules();
   const router = useRouter();
   const { data: preview, isLoading, error: previewError } =
     useInvitationPreview(token);
@@ -80,12 +78,8 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const pwScore = useMemo(
-    () => PW_RULES.filter((r) => r.test(form.password)).length,
-    [PW_RULES, form.password],
-  );
   // Kurallar TEK kaynaktan (`password-rules.ts`): kayıt, sıfırlama, davet aynı
-  // — 72 UTF-8 bayt üst sınırı dahil (denetim listesindeki beş kural onu saymaz).
+  // — 72 UTF-8 bayt üst sınırı dahil (kontrol listesi onu yalnız aşıldığında gösterir).
   const pwUnmet = firstUnmetPasswordRule(form.password);
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
@@ -292,7 +286,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
           {fieldError.password ? <ErrorMessage>{fieldError.password}</ErrorMessage> : null}
         </Field>
         {form.password || submitted ? (
-          <PasswordStrength password={form.password} rules={PW_RULES} score={pwScore} label={strength(pwScore)} live />
+          <PasswordStrength password={form.password} live />
         ) : null}
 
         <Field>

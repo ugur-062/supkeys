@@ -19,7 +19,7 @@ import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import { isValidPhone } from "@/lib/company/phone";
-import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
+import { cleanPostal, isInvalidTrPostal, postalInputMaxLength } from "@/lib/company/postal-code";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
   useAddresses,
@@ -431,7 +431,7 @@ function AddressDialog({
             <Input
               value={f.postalCode}
               inputMode={isTR ? "numeric" : undefined}
-              maxLength={isTR ? 5 : 20}
+              maxLength={postalInputMaxLength(isTR, 20)}
               invalid={touched && Boolean(postalError)}
               onChange={(e) => set({ postalCode: cleanPostal(e.target.value, isTR) })}
             />

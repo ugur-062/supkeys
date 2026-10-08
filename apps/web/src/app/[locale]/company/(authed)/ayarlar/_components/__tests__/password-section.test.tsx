@@ -43,6 +43,25 @@ describe("PasswordSection", () => {
     expect(h.mutateAsync).not.toHaveBeenCalled();
   });
 
+  // relogin-1 (aynı çelişki bu ekranın kendi ölçerinde): 74 baytlık şifre
+  // reddedilir; ölçer "Güçlü" demez, liste üst sınırı karşılanmamış gösterir.
+  it("üst sınırı aşan şifre: ölçer 'Güçlü' demez, listede üst sınır satırı çıkar, istek atılmaz", async () => {
+    const user = userEvent.setup();
+    render(<PasswordSection />);
+    const next = screen.getByLabelText("Yeni Şifre");
+    await user.click(next);
+    await user.paste("Я".repeat(35) + "ж1!");
+    expect(screen.queryByText("Güçlü")).toBeNull();
+    expect(screen.queryByText("İyi")).toBeNull();
+    expect(screen.getByText("Orta")).toBeInTheDocument();
+    expect(screen.getByText("En fazla 72 karakter")).toBeInTheDocument();
+    await user.clear(next);
+    await user.paste("Guclu!Parola9xyz");
+    expect(screen.getByText("Güçlü")).toBeInTheDocument();
+    expect(screen.queryByText("En fazla 72 karakter")).toBeNull();
+    expect(h.mutateAsync).not.toHaveBeenCalled();
+  });
+
   it("9 karakterlik şifre gönderilmez", async () => {
     await fill("Parola12!");
     expect(h.mutateAsync).not.toHaveBeenCalled();

@@ -1,3 +1,5 @@
+import { usePortalStore } from "@/lib/company/portal-store";
+
 /**
  * TARAYICIDA KALAN FİRMA VERİSİ (yayın denetimi 2026-09-28 Bölüm 5).
  *
@@ -43,6 +45,17 @@ export function clearTenantSessionData(): void {
     for (const k of TENANT_LOCAL_KEYS) window.localStorage.removeItem(k);
   } catch {
     /* yok say */
+  }
+  // HATIRLANAN PANEL (arayüz testi 2026-10 relogin-2): "son ziyaret edilen
+  // panel" kalıcı depoda (`rothern-company-portal`) duruyor ve çıkışta
+  // silinmiyordu — aynı tarayıcıda SONRA giriş yapan kişi önceki kullanıcının
+  // paneline (`/company/satis`) düşüyordu. Yalnız `lastPortal` sıfırlanır;
+  // kenar çubuğunun sabitleme tercihi cihaza aittir, kalır. Depo değişikliği
+  // kalıcı kayda da yazar (persist).
+  try {
+    usePortalStore.setState({ lastPortal: null });
+  } catch {
+    /* depolama kapalı — bellekteki değer yine sıfırlanır */
   }
 }
 

@@ -11,7 +11,7 @@ import {
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
 import { isPlausibleEmail } from "@/lib/company-auth/email";
-import { resendEmailCodeOutcome } from "@/lib/company-auth/resend-code";
+import { resendDisabledClass, resendEmailCodeOutcome } from "@/lib/company-auth/resend-code";
 import { setCompanyRemember } from "@/lib/company-auth/store";
 import { normalizeOtpCode, OTP_LENGTH } from "@/lib/company-auth/otp-code";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -49,10 +49,11 @@ export type CompanyLoginStep = "login" | "twoFactor" | "verify";
  * İkincil bağlantılar (yeniden gönder, başka e-posta): metin en az zinc-500
  * (12 px zinc-400 beyazda 2,6:1'di — arayüz testi 2026-10 login-9) ve dokunma
  * alanı en az 32 px yüksek (login-10). `-mt-2` / `last:-mb-2`: dolgu dokunma
- * alanını büyütür, form uzamaz.
+ * alanını büyütür, form uzamaz. Pasif görünüm düğmenin kendisinde
+ * (`resendDisabledClass`): geri sayım metni soluklaşmaz (relogin-3).
  */
 const SECONDARY_LINK =
-  "-mt-2 w-full py-2 text-center text-zinc-500 last:-mb-2 hover:text-zinc-800 disabled:opacity-50";
+  "-mt-2 w-full py-2 text-center text-zinc-500 last:-mb-2 enabled:hover:text-zinc-800";
 
 export function CompanyLoginForm({
   nextPath,
@@ -308,7 +309,7 @@ export function CompanyLoginForm({
           type="button"
           disabled={resend.isPending || cooldown > 0 || lock.locked}
           onClick={() => void handleResend()}
-          className={`${SECONDARY_LINK} text-sm`}
+          className={`${SECONDARY_LINK} text-sm ${resendDisabledClass(cooldown > 0)}`}
         >
           {cooldown > 0
             ? tc("resendIn", { s: cooldown })
@@ -377,7 +378,7 @@ export function CompanyLoginForm({
               type="button"
               disabled={login.isPending || cooldown > 0 || lock.locked}
               onClick={() => void resendTwoFactor()}
-              className="-mt-1 -mb-2 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+              className={`-mt-1 -mb-2 py-2 text-xs font-medium text-zinc-500 enabled:hover:text-zinc-800 ${resendDisabledClass(cooldown > 0)}`}
             >
               {cooldown > 0 ? tc("resendIn", { s: cooldown }) : tc("resend")}
             </button>

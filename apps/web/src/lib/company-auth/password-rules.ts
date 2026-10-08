@@ -54,6 +54,11 @@ export function passwordByteLength(p: string): number {
   return new TextEncoder().encode(p).length;
 }
 
+/** Şifre üst sınırı (72 UTF-8 bayt) aşıyor mu? Form böyle bir şifreyi reddeder. */
+export function isPasswordTooLong(p: string): boolean {
+  return passwordByteLength(p) > PASSWORD_MAX_BYTES;
+}
+
 /**
  * Karşılanmayan İLK kural (hepsi tamamsa `null`). `max`: şifre 72 UTF-8 baytı
  * aşıyor — alanın `maxLength`i bunu yakalayamaz (karakter sayar), o yüzden
@@ -61,7 +66,7 @@ export function passwordByteLength(p: string): number {
  * bununla seçilir — her form aynı sırayla aynı kuralı söyler.
  */
 export function firstUnmetPasswordRule(p: string): PasswordRuleKey | "max" | null {
-  if (passwordByteLength(p) > PASSWORD_MAX_BYTES) return "max";
+  if (isPasswordTooLong(p)) return "max";
   return TESTS.find((r) => !r.test(p))?.key ?? null;
 }
 
@@ -85,15 +90,38 @@ export function strengthLevel(score: number, total: number = TESTS.length): numb
   return Math.max(0, Math.min(2, score));
 }
 
+/**
+ * Güç çubuğunun ve etiketinin puanı (0..5): karşılanan kural sayısı.
+ *
+ * ÜST SINIRI AŞAN ŞİFRE TAM PUAN ALAMAZ (arayüz testi 2026-10 relogin-1): beş
+ * kuralı da karşılayan ama 72 baytı aşan şifreyi form reddeder; eskiden çubuk
+ * dolu yeşil, etiket "Çok Güçlü" ve beş kural da işaretliydi — kırmızı "şifre
+ * çok uzun" iletisinin hemen altında. Böyle şifrede puan bir eksik sayılır
+ * (etiket "Orta"yı aşmaz, çubuk dolmaz) ve kontrol listesi üst sınır satırını
+ * karşılanmamış olarak gösterir (`PasswordStrength`, `web.auth.pwRules.max`).
+ * Puanı formlar KENDİ hesaplamaz — tek kaynak burası.
+ */
+export function passwordScore(p: string): number {
+  const met = TESTS.filter((r) => r.test(p)).length;
+  return isPasswordTooLong(p) ? Math.min(met, TESTS.length - 1) : met;
+}
+
 export function usePasswordRules(): {
   rules: PasswordRule[];
   /** 0..rules.length → "Çok Zayıf" … "Çok Güçlü" (eksik zorunlu kuralda en çok "Orta") */
   strength: (score: number) => string;
+  /**
+   * Üst sınır satırının metni ("En fazla 72 karakter"). Beş kuralın yanında
+   * YALNIZ sınır aşıldığında, karşılanmamış olarak çizilir (`isPasswordTooLong`):
+   * sınırın içindeki şifrede listeyi kalabalıklaştırmaz.
+   */
+  maxLabel: string;
 } {
   const t = useTranslations("web.auth.pwRules");
   const ts = useTranslations("web.auth.strength");
   return {
     rules: TESTS.map((r) => ({ ...r, label: t(r.key) })),
     strength: (score) => ts(`s${strengthLevel(score)}` as never),
+    maxLabel: t("max"),
   };
 }

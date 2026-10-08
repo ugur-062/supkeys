@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
+import { usePortalStore } from "@/lib/company/portal-store";
 import { bindSessionOwner, clearTenantSessionData } from "../tenant-storage";
 
 // Yayın denetimi 2026-09-28 Bölüm 5: çıkış tarayıcıdaki firma verisini silmiyordu.
@@ -39,5 +40,36 @@ describe("tarayıcıdaki firma verisi", () => {
     bindSessionOwner("u2");
     expect(sessionStorage.getItem("quick-request-draft")).toBeNull();
     expect(sessionStorage.getItem("rothern.session-owner")).toBe("u2");
+  });
+
+  // Arayüz testi 2026-10 relogin-2: "son ziyaret edilen panel" çıkışta
+  // silinmiyordu — aynı tarayıcıda sonra giriş yapan kişi önceki kullanıcının
+  // paneline (`/company/satis`) düşüyordu.
+  describe("hatırlanan panel", () => {
+    const stored = () => JSON.parse(localStorage.getItem("rothern-company-portal") ?? "null") as {
+      state: { lastPortal: string | null; sidebarPinned: boolean };
+    } | null;
+
+    beforeEach(() => {
+      usePortalStore.setState({ lastPortal: "satis", sidebarPinned: false });
+    });
+
+    it("açık çıkış: hatırlanan panel sıfırlanır (bellekte ve kalıcı kayıtta); kenar çubuğu tercihi kalır", () => {
+      expect(stored()?.state.lastPortal).toBe("satis");
+      clearTenantSessionData();
+      expect(usePortalStore.getState().lastPortal).toBeNull();
+      expect(stored()?.state.lastPortal).toBeNull();
+      // Cihaz tercihi: kimin girdiğinden bağımsız.
+      expect(usePortalStore.getState().sidebarPinned).toBe(false);
+      expect(stored()?.state.sidebarPinned).toBe(false);
+    });
+
+    it("oturum düşüp aynı sekmede FARKLI kullanıcı girerse de sıfırlanır; aynı kullanıcıda korunur", () => {
+      bindSessionOwner("u1");
+      bindSessionOwner("u1");
+      expect(usePortalStore.getState().lastPortal).toBe("satis");
+      bindSessionOwner("u2");
+      expect(usePortalStore.getState().lastPortal).toBeNull();
+    });
   });
 });

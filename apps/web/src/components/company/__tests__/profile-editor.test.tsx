@@ -154,6 +154,30 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByText(/Kaydedilmemiş değişiklikler/)).not.toBeInTheDocument();
   });
 
+  // resignup-7: aynı adlı ikinci firma `…-2` adresini alır; önizleme adresi
+  // addan yeniden üretiyor, ÖTEKİ firmanın sayfasını gösteriyordu.
+  it("'Google'da böyle görünür' önizlemesi firmanın KAYITLI adresini gösterir (addan üretmez)", () => {
+    render(
+      <ProfileEditor
+        profile={{
+          ...PROFILE,
+          name: "Öztürk Çelik Yapı Sanayi ve Ticaret Ltd. Şti.",
+          slug: "ozturk-celik-yapi-sanayi-ve-ticaret-2",
+        }}
+        canEdit
+      />,
+    );
+    const card = within(screen.getByRole("complementary")).getByRole("region", { name: "Arama görünürlüğü" });
+    const url = within(card).getByText(/\/firma\//);
+    expect(url.textContent).toMatch(/\/firma\/ozturk-celik-yapi-sanayi-ve-ticaret-2$/);
+  });
+
+  it("henüz adresi olmayan profilde (slug yok) önizleme addan türetilen taslağı gösterir", () => {
+    render(<ProfileEditor profile={{ ...PROFILE, slug: null }} canEdit />);
+    const card = within(screen.getByRole("complementary")).getByRole("region", { name: "Arama görünürlüğü" });
+    expect(within(card).getByText(/\/firma\//).textContent).toMatch(/\/firma\/demo-firma$/);
+  });
+
   it("başlıktaki konum ortak bayrakla: TR bayrağı + Türkiye, şehir yanında (son toparlama 2026-10-04)", () => {
     const { container } = render(<ProfileEditor profile={PROFILE} canEdit />);
     const flag = container.querySelector('img[src="/flags/4x3/tr.svg"]');

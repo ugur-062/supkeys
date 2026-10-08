@@ -273,12 +273,19 @@ describe("CompanyProfileSection", () => {
     const user = userEvent.setup();
     render(<CompanyProfileSection />);
     const postal = screen.getByLabelText("Posta kodu");
-    expect(postal).toHaveAttribute("maxLength", "5");
+    // Yerel `maxLength` YOK (resignup-2): tarayıcı yapıştırılan metni rakam dışı
+    // ayıklanmadan önce keserdi; beş rakam sınırını `cleanPostal` uygular.
+    expect(postal).not.toHaveAttribute("maxLength");
     await user.clear(postal);
     await user.type(postal, "AB12C");
     expect(postal).toHaveValue("12");
     expect(screen.getByText(/posta kodu 5 haneli/)).toBeInTheDocument();
     expect(saveButton()).toBeDisabled();
+    // Boşluklu / önekli kod yapıştırılınca beş rakam korunur, fazlası kesilir.
+    await user.clear(postal);
+    await user.click(postal);
+    await user.paste(" TR-34 710 99");
+    expect(postal).toHaveValue("34710");
   });
 
   it("alanlarda DTO tavanı maxLength olarak var (D-307)", () => {

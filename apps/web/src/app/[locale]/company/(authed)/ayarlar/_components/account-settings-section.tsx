@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
 import {
   firstUnmetPasswordRule,
+  isPasswordTooLong,
   PASSWORD_DIGIT_RE,
   PASSWORD_ERROR_KEY,
   PASSWORD_LOWER_RE,
@@ -259,6 +260,9 @@ function pwStrength(p: string): { score: number; label: PwStrengthKey | null; co
   if (PASSWORD_UPPER_RE.test(p) && PASSWORD_LOWER_RE.test(p)) s++;
   if (PASSWORD_DIGIT_RE.test(p) && PASSWORD_SPECIAL_RE.test(p)) s++;
   s = Math.min(4, s);
+  // Üst sınırı (72 bayt) aşan şifre reddedilir: ölçer ona "Güçlü" / "İyi"
+  // demez (arayüz testi 2026-10 relogin-1; ortak `passwordScore` ile aynı kural).
+  if (isPasswordTooLong(p)) s = Math.min(2, s);
   if (s <= 1) return { score: s, label: "zayif", color: "bg-red-500" };
   if (s === 2) return { score: s, label: "orta", color: "bg-amber-500" };
   if (s === 3) return { score: s, label: "iyi", color: "bg-blue-500" };
@@ -273,7 +277,7 @@ export function PasswordSection() {
   const changePassword = useChangePassword();
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
 
-  const { rules: pwRules } = usePasswordRules();
+  const { rules: pwRules, maxLabel: pwMaxLabel } = usePasswordRules();
   const strength = pwStrength(pw.next);
   // Alan hataları SATIR İÇİ (gereksinim listesi zaten görünür; toast tekrar etmez).
   const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
@@ -287,8 +291,8 @@ export function PasswordSection() {
     // sıfırlamayla aynı): beş gereksinim + 72 UTF-8 BAYT üst sınırı. Eskiden
     // yalnız aşağıdaki beş madde denetleniyordu — alanın `maxLength`i karakter
     // saydığı için 72 baytı aşan şifre (Türkçe/Kiril harf 2, emoji 4 bayt)
-    // formdan geçip sunucuda reddediliyordu. Üst sınır listede yer almaz,
-    // iletisi ayrıdır.
+    // formdan geçip sunucuda reddediliyordu. Üst sınır listeye yalnız
+    // aşıldığında girer (aşağıda); iletisi ayrıdır.
     const unmet = firstUnmetPasswordRule(pw.next);
     if (unmet === "max") next.next = tp(PASSWORD_ERROR_KEY[unmet]);
     else if (unmet) next.next = t("yeniSifreAsagidakiGereksinimlerinTumunuKarsilamali");
@@ -365,6 +369,14 @@ export function PasswordSection() {
                       </li>
                     );
                   })}
+                  {/* Üst sınır yalnız AŞILDIĞINDA (her zaman ✕): reddedilecek
+                      şifrede liste "hepsi tamam" demez (relogin-1). */}
+                  {isPasswordTooLong(pw.next) ? (
+                    <li className="flex items-center gap-2 text-xs">
+                      <X className="h-3.5 w-3.5 text-red-500" />
+                      <span className="text-red-600">{pwMaxLabel}</span>
+                    </li>
+                  ) : null}
                 </ul>
               </div>
             ) : null}

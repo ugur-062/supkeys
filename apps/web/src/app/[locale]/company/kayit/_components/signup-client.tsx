@@ -9,6 +9,7 @@ import {
 
 import { ConsentRows, type Consents } from "@/components/auth/consent-rows";
 import { PasswordStrength } from "@/components/auth/password-strength";
+import { SessionCheck } from "@/components/auth/session-check";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
@@ -22,16 +23,16 @@ import {
   useSetCompanyAuth,
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
+import { useCompanySessionWait } from "@/hooks/use-company-session-wait";
 import { isPlausibleEmail } from "@/lib/company-auth/email";
 import { loginLinkFromSignup } from "@/lib/company-auth/next-path";
 import {
   firstUnmetPasswordRule,
   PASSWORD_ERROR_KEY,
   PASSWORD_MAX_LENGTH,
-  usePasswordRules,
 } from "@/lib/company-auth/password-rules";
 import { normalizeOtpCode, OTP_LENGTH } from "@/lib/company-auth/otp-code";
-import { resendEmailCodeOutcome } from "@/lib/company-auth/resend-code";
+import { resendDisabledClass, resendEmailCodeOutcome } from "@/lib/company-auth/resend-code";
 import { clearSignupDraft, readSignupDraft, saveSignupDraft } from "@/lib/company-auth/signup-draft";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
@@ -43,7 +44,7 @@ import { isValidPhoneNumber } from "@rothern/shared";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
@@ -51,19 +52,25 @@ import { toast } from "sonner";
 /**
  * Kod adımının ikincil bağlantıları (yeniden gönder, adresi değiştir, vazgeç):
  * metin en az zinc-500 (12 px zinc-400 beyazda 2,6:1'di) ve dokunma alanı en
- * az 32 px yüksek (arayüz testi 2026-10 signup-tr-20, login-10).
+ * az 32 px yüksek (arayüz testi 2026-10 signup-tr-20, login-10). Pasif görünüm
+ * düğmenin kendisinde (`resendDisabledClass`): geri sayım metni soluklaşmaz
+ * (relogin-3).
  */
 const SECONDARY_LINK =
   // `-mt-2` / `last:-mb-2`: dolgu dokunma alanını büyütür, form uzamaz.
-  "-mt-2 w-full py-2 text-center text-zinc-500 last:-mb-2 hover:text-zinc-800 disabled:opacity-50";
+  "-mt-2 w-full py-2 text-center text-zinc-500 last:-mb-2 enabled:hover:text-zinc-800";
 
 export function CompanySignupClient() {
   const t = useTranslations("web.auth.signup");
   const tc = useTranslations("web.auth.common");
   const tp = useTranslations("web.auth.password");
-  const { rules: PW_RULES, strength } = usePasswordRules();
   const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
+  // Girişli ziyaretçi formu GÖRMEZ (arayüz testi 2026-10 relogin-4): giriş
+  // sayfasıyla AYNI kural ve aynı yükleme durumu — eskiden tam kayıt formu
+  // ~300 ms görünüyor, sonra panele gidiliyordu. Oturum durumu bilinene dek
+  // ve aşağıdaki "zaten girişli" yönlendirmesi sürerken form çizilmez.
+  const waiting = useCompanySessionWait();
   const router = useRouter();
   // BK-CONN-1: davet linkinden gelen referral token'ı (`/company/kayit?ref=`) —
   // yalnız bu davet ACTIVE bağlantı olur; diğer davetler PENDING istek kalır.
@@ -219,10 +226,6 @@ export function CompanySignupClient() {
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const pwScore = useMemo(
-    () => PW_RULES.filter((r) => r.test(form.password)).length,
-    [PW_RULES, form.password],
-  );
   // Kurallar TEK kaynaktan (`password-rules.ts`): kayıt, sıfırlama, davet aynı.
   const pwUnmet = firstUnmetPasswordRule(form.password);
   const confirmOk =
@@ -253,11 +256,17 @@ export function CompanySignupClient() {
     firstName: submitted && !firstNameOk ? t("firstNameRequired") : null,
     lastName: submitted && !lastNameOk ? t("lastNameRequired") : null,
     email: submitted && !emailOk ? t("emailInvalid") : null,
+    // Üç ayrı durum, üç ayrı ileti (kayıt denetimi 2026-10 resignup-5): ülke
+    // seçilmeden rakam yazıldı → "önce ülke kodu"; alan BOŞ → "numaranızı
+    // girin" (İngilizce arayüzde seçili ülke yokken "seçili ülke için geçerli
+    // numara" deniyordu); numara var ama ülkesine uymuyor → "seçili ülke için".
     phone:
       (submitted || phoneTouched) && !phoneValid
         ? phoneNeedsCountry
           ? tc("phoneCountryRequired")
-          : t("phoneInvalid")
+          : form.phone.trim()
+            ? t("phoneInvalid")
+            : t("phoneRequired")
         : null,
     password: submitted && pwUnmet ? tp(PASSWORD_ERROR_KEY[pwUnmet]) : null,
     passwordConfirm:
@@ -272,6 +281,8 @@ export function CompanySignupClient() {
   const signupForm = useFocusFirstInvalid();
   const changeForm = useFocusFirstInvalid();
   const codeInput = useRef<HTMLInputElement>(null);
+  const newEmailInput = useRef<HTMLInputElement>(null);
+  const changePasswordInput = useRef<HTMLInputElement>(null);
 
   // Kayıt / kod doğrulama / yeniden gönder / e-posta düzeltme tek uçuşta: çift
   // tık ikinci istek atıp başarının yanına "zaten hesap var" hatası koymaz
@@ -336,6 +347,9 @@ export function CompanySignupClient() {
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, tc("codeVerifyFailed")));
+      // Düğme istek sürerken pasifleşip odağı <body>'ye düşürür; hata sonrası
+      // odak kod alanına döner — giriş sayfasıyla aynı (resignup-4).
+      codeInput.current?.focus();
     }
   };
 
@@ -404,8 +418,28 @@ export function CompanySignupClient() {
       }
     } catch (err) {
       setError(extractErrorMessage(err, t("changeEmailFailed")));
+      // Odak <body>'de kalmaz (resignup-4): şifre soruluyorsa şifre alanına
+      // (ret çoğunlukla yanlış şifredir), sorulmuyorsa yeni adres alanına.
+      (needsPassword ? changePasswordInput : newEmailInput).current?.focus();
     }
   };
+
+  const loginFooter = (
+    <>
+      {tc("haveAccount")}{" "}
+      <Link href={loginHref} className="font-semibold text-zinc-900 hover:underline">
+        {tc("login")}
+      </Link>
+    </>
+  );
+
+  if (waiting) {
+    return (
+      <AuthShell title={t("title")} subtitle={t("subtitle")} footer={loginFooter}>
+        <SessionCheck />
+      </AuthShell>
+    );
+  }
 
   if (step === "verify" && newEmail != null) {
     return (
@@ -427,6 +461,7 @@ export function CompanySignupClient() {
           <Field>
             <Label>{t("newEmail")}</Label>
             <Input
+              ref={newEmailInput}
               type="email"
               autoComplete="email"
               autoFocus
@@ -441,6 +476,7 @@ export function CompanySignupClient() {
               <Label>{tc("password")}</Label>
               <Description className="text-xs/5! sm:text-xs/5!">{t("changeEmailPasswordHint")}</Description>
               <PasswordInput
+                ref={changePasswordInput}
                 autoComplete="current-password"
                 maxLength={PASSWORD_MAX_LENGTH}
                 invalid={!!changePasswordError}
@@ -527,7 +563,7 @@ export function CompanySignupClient() {
             type="button"
             disabled={resend.isPending || cooldown > 0 || lock.locked}
             onClick={() => void handleResend()}
-            className={`${SECONDARY_LINK} text-sm`}
+            className={`${SECONDARY_LINK} text-sm ${resendDisabledClass(cooldown > 0)}`}
           >
             {cooldown > 0
               ? tc("resendIn", { s: cooldown })
@@ -555,14 +591,7 @@ export function CompanySignupClient() {
     <AuthShell
       title={t("title")}
       subtitle={t("subtitle")}
-      footer={
-        <>
-          {tc("haveAccount")}{" "}
-          <Link href={loginHref} className="font-semibold text-zinc-900 hover:underline">
-            {tc("login")}
-          </Link>
-        </>
-      }
+      footer={loginFooter}
     >
       {/* `noValidate`: tarayıcının kendi baloncuğu (tarayıcı dilinde, sayfa
           dilinde değil) çıkmaz; hatalar alanın altında, sayfa dilinde. */}
@@ -645,7 +674,7 @@ export function CompanySignupClient() {
           {fieldError.password ? <ErrorMessage>{fieldError.password}</ErrorMessage> : null}
         </Field>
         {form.password || submitted ? (
-          <PasswordStrength password={form.password} rules={PW_RULES} score={pwScore} label={strength(pwScore)} live />
+          <PasswordStrength password={form.password} live />
         ) : null}
 
         <Field>

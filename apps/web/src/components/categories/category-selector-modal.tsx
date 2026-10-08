@@ -33,8 +33,8 @@ function DisclosureSpacer() {
 import {
   type CategoryCatalog,
   categoryAncestors,
+  categorySearchStem,
   foldSearchText,
-  stemPrefix,
   tokenizeQuery,
 } from "@rothern/shared";
 import {
@@ -263,8 +263,11 @@ export function CategorySelectorModal({
       return;
     }
     // Sessizce düşürmek "seçtiğim kayboldu" dedirtir — tek cümleyle söylenir.
-    if (kept.length !== draftIds.length) {
-      setFlash({ text: tr("ayniDaldanTekSecimTutulur"), tone: "info" });
+    // Kaç seçim düştüyse o söylenir: aile işaretlenince altındaki iki yaprak
+    // düşerken not "diğer seçiminiz" (tekil) diyordu (recategory-new-4).
+    const removed = draftIds.length - kept.length;
+    if (removed > 0) {
+      setFlash({ text: tr("ayniDaldanTekSecimTutulur", { n: removed }), tone: "info" });
     }
     setDraftIds([...kept, id]);
   };
@@ -1338,12 +1341,23 @@ function findAll(hay: string[], needle: string[]): number[] {
   return hits;
 }
 
+/** Harf ya da rakam — sözcük sınırı denetimi için. */
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+
 /**
  * Vurgulanacak aralıklar — ARAMAYLA AYNI KURAL: sorgu kelimelere bölünür
  * (`tokenizeQuery`), her kelime ayrı aranır, sırası önemsiz. Eskiden sorgunun
  * TAMAMI tek parça aranıyordu → "paslanmaz sac" 21 sonuç getiriyor, hiçbiri
- * vurgulanmıyordu. Kelime yazıldığı biçimde geçmiyorsa kökü denenir
- * (`stemPrefix` — API ek toleransıyla aynı fonksiyon: "boruları" → "boru").
+ * vurgulanmıyordu.
+ *
+ * Bağlaçlar vurgulanmaz (`tokenizeQuery` üç dilde eler): "Manufacturing
+ * Components and Supplies" sorgusu bütün satırlardaki "and"i boyuyordu
+ * (recategory-new-5).
+ *
+ * Kelime yazıldığı biçimde geçmiyorsa KÖKÜ denenir — API ile aynı fonksiyon
+ * (`categorySearchStem`: "boruları" → "boru", "rulmanlarının" → "rulman",
+ * "сварка" → "сварк") ve aynı yer: kök yalnız bir sözcüğün BAŞINDA vurgulanır
+ * ("nakliye" kökü "nakli", "kayNAKLIlı" içinde boyanmaz).
  */
 export function highlightRanges(text: string, query: string): Array<[number, number]> {
   const trimmed = query.trim();
@@ -1359,10 +1373,10 @@ export function highlightRanges(text: string, query: string): Array<[number, num
     let needle = Array.from(folded);
     let hits = findAll(hay, needle);
     if (hits.length === 0) {
-      const stem = stemPrefix(folded);
-      if (stem !== folded && stem.length >= 2) {
+      const stem = categorySearchStem(folded);
+      if (stem !== folded) {
         needle = Array.from(stem);
-        hits = findAll(hay, needle);
+        hits = findAll(hay, needle).filter((at) => at === 0 || !WORD_CHAR.test(hay[at - 1]));
       }
     }
     for (const at of hits) ranges.push([at, at + needle.length]);

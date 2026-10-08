@@ -256,9 +256,9 @@ describe("CompanyLoginForm — e-posta denetimi (code-auth-7, login-6)", () => {
       await user.type(email, bad);
       await user.type(screen.getByLabelText("Şifre"), "x");
       await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
-      expect(await screen.findByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+      expect(await screen.findByText("Geçerli bir e-posta adresi girin")).toBeInTheDocument();
       expect(email).toHaveAttribute("aria-invalid", "true");
-      expect(email).toHaveAccessibleDescription("Geçerli bir e-posta adresi giriniz");
+      expect(email).toHaveAccessibleDescription("Geçerli bir e-posta adresi girin");
       expect(email).toHaveFocus();
     }
     expect(h.loginAsync).not.toHaveBeenCalled();
@@ -274,7 +274,7 @@ describe("CompanyLoginForm — e-posta denetimi (code-auth-7, login-6)", () => {
     expect(h.loginAsync).toHaveBeenCalledWith(
       expect.objectContaining({ email: "satis&pazarlama@firma.com" }),
     );
-    expect(screen.queryByText("Geçerli bir e-posta adresi giriniz")).toBeNull();
+    expect(screen.queryByText("Geçerli bir e-posta adresi girin")).toBeNull();
   });
 });
 
@@ -371,7 +371,7 @@ describe("CompanyLoginForm — kod adımı ve odak (login-8, login-15, code-auth
     await user.type(screen.getByLabelText("Doğrulama kodu"), "12");
     await user.click(verify);
     expect(h.verifyAsync).not.toHaveBeenCalled();
-    expect(screen.getByText("6 haneli doğrulama kodunu girin.")).toBeInTheDocument();
+    expect(screen.getByText("6 haneli doğrulama kodunu girin")).toBeInTheDocument();
     expect(screen.getByLabelText("Doğrulama kodu")).toHaveAttribute("aria-invalid", "true");
   });
 
@@ -399,6 +399,45 @@ describe("CompanyLoginForm — okunurluk ve dokunma alanları (login-5, login-9,
       expect(btn.className).toContain("text-zinc-500");
       expect(btn.className).toContain("py-2");
     }
+  });
+
+  // relogin-3: "Yeniden gönder (59sn)" okunacak bilgidir. Pasif düğmeyi
+  // soluklaştıran %50 opaklık zinc-500'ü beyazda zinc-400'den açık bırakıyordu
+  // (doğrulama adımında 14 px, iki adımlı doğrulama adımında 12 px).
+  it("doğrulama adımı: geri sayım sürerken 'Yeniden gönder' pasif ama SOLUK DEĞİL", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true, sent: true });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    const counting = await screen.findByRole("button", { name: /Yeniden gönder \(\d+sn\)/ });
+    expect(counting).toBeDisabled();
+    expect(counting.className).toContain("text-zinc-500");
+    expect(counting.className).not.toContain("opacity-50");
+    expect(counting.className).not.toMatch(/(^|\s)hover:text-zinc-800/);
+  });
+
+  it("doğrulama adımı: geri sayım yokken (kod gönderilemedi) düğme etkin; pasifleşirse soluklaşır", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true, sent: false });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    const resend = await screen.findByRole("button", { name: "Kodu yeniden gönder" });
+    expect(resend).toBeEnabled();
+    expect(resend.className).toContain("disabled:opacity-50");
+  });
+
+  it("iki adımlı doğrulama (e-posta): geri sayım sürerken 'Yeniden gönder' pasif ama SOLUK DEĞİL", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockResolvedValue({ twoFactorRequired: true, method: "email" });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    const counting = await screen.findByRole("button", { name: /Yeniden gönder \(\d+sn\)/ });
+    expect(counting).toBeDisabled();
+    expect(counting.className).toContain("text-zinc-500");
+    expect(counting.className).not.toContain("opacity-50");
+    expect(counting.className).not.toMatch(/(^|\s)hover:text-zinc-800/);
   });
 
   it("'Oturumumu açık bırak' etiketi ve 'Şifremi unuttum' bağlantısı en az 32 px (min-h-8); bağlantı soru işaretsiz", () => {

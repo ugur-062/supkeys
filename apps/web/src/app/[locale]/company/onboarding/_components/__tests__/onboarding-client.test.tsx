@@ -79,6 +79,7 @@ vi.mock("@/hooks/use-company-account", () => ({
 vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => []) }));
 
 import {
+  ONBOARDING_FORM_KEYS,
   OnboardingClient,
   formatOnboardingAddress,
   initialOnboardingCountry,
@@ -208,7 +209,7 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     const legal = screen.getByLabelText("Firma Unvanı *");
     for (const msg of [
       "Firma unvanını yazın (en az 2 karakter)",
-      "10 haneli geçerli vergi numarası giriniz",
+      "10 haneli geçerli vergi numarası girin",
       "Vergi dairesini yazın",
       "İl seçin",
       "İlçe seçin",
@@ -510,13 +511,19 @@ describe("OnboardingClient — adım 2 (kişi + sektör)", () => {
     expect(screen.queryByRole("button", { name: "Tamamla" })).toBeNull();
   });
 
-  it("kategori yüklenemezse hata + 'Tekrar dene'", async () => {
+  // recategory-new-6: satır kategori pencerelerindeki yükleme hatasıyla aynı
+  // dili konuşur — "Yeniden dene" (eskiden "Tekrar dene") ve `role="alert"`
+  // (eskiden düz paragraf, belirdiğinde okunmuyordu).
+  it("kategori yüklenemezse duyurulan hata satırı + seçicilerle aynı 'Yeniden dene'", async () => {
     const user = userEvent.setup();
     h.roots.isError = true;
     h.roots.data = undefined;
     await goStep2(user);
-    expect(screen.getByText(/Sektörler yüklenemedi/i)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Sektörler yüklenemedi.");
+    const retry = within(alert).getByRole("button", { name: "Yeniden dene" });
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+    await user.click(retry);
     expect(h.roots.refetch).toHaveBeenCalled();
   });
 });
@@ -1081,11 +1088,14 @@ describe("OnboardingClient — adım geçişi başa kaydırır ve odağı adım 
       expect(screen.getAllByRole("heading", { name: /Şirket bilgileri/i })).toHaveLength(1);
       expect(scrollIntoView).toHaveBeenCalledTimes(2);
 
-      // Eksik alanla basılan "Devam" adımı değiştirmez: başa kaydırma yok, odak alanda.
+      // Eksik alanla basılan "Devam" adımı değiştirmez: BAŞA kaydırma yok, odak
+      // alanda; alanın kendisi görünür kılınır (resignup-3, aşağıdaki describe).
       await user.clear(screen.getByLabelText("Vergi Dairesi *"));
       await user.click(screen.getByRole("button", { name: "Devam" }));
-      expect(scrollIntoView).toHaveBeenCalledTimes(2);
       expect(screen.getByLabelText("Vergi Dairesi *")).toHaveFocus();
+      expect(scrollIntoView).toHaveBeenCalledTimes(3);
+      expect(scrollIntoView.mock.contexts[2]).toBe(screen.getByLabelText("Vergi Dairesi *"));
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
     } finally {
       Element.prototype.scrollIntoView = original;
     }
@@ -1290,12 +1300,12 @@ describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
 
   // web-auth-6: seçici çizilmeyince `data-field` sarmalayıcısı da yoktu —
   // "Devam"ın işaretleyip odaklayacağı öğe kalmıyor, basış sonuçsuz görünüyordu.
-  it("sektör listesi yüklenemediyse 'Devam': odak 'Tekrar dene'de, kategori hatası yükleme hatasının altında ve düğmeye bağlı", async () => {
+  it("sektör listesi yüklenemediyse 'Devam': odak 'Yeniden dene'de, kategori hatası yükleme hatasının altında ve düğmeye bağlı", async () => {
     const user = userEvent.setup();
     h.roots.isError = true;
     h.roots.data = undefined;
     open(1, { mainCategoryIds: [] });
-    const retry = screen.getByRole("button", { name: "Tekrar dene" });
+    const retry = screen.getByRole("button", { name: "Yeniden dene" });
     expect(retry).toHaveAccessibleDescription("Sektörler yüklenemedi.");
     expect(screen.queryByText("En az bir ürün ya da hizmet seçin")).toBeNull();
     const next = screen.getByRole("button", { name: "Devam" });
@@ -1357,5 +1367,213 @@ describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
     open(step, { declarationAccepted: true });
     expect(h.rootsArgs).toHaveBeenCalled();
     for (const [options] of h.rootsArgs.mock.calls) expect(options).toEqual({ inlineError: true });
+  });
+});
+
+/**
+ * Kayıt denetimi 2026-10 üçüncü tur: hata yuvası olmayan alanın reddi
+ * (resignup-1), yapıştırılan posta kodu (resignup-2), odaklanan alanın
+ * etiketi (resignup-3).
+ */
+describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
+  /** Geçerli, beyanı onaylı TR taslağı özet adımında (yenileme sonrası durum). */
+  const openSummary = (over: Record<string, unknown> = {}) => {
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        step: 2,
+        f: {
+          country: "TR",
+          legalName: "Örnek Ltd.",
+          taxNumber: "1234567890",
+          taxOffice: "Kadıköy VD",
+          city: "İstanbul",
+          district: "Kadıköy",
+          postalCode: "34710",
+          addressLine: "Moda Cad. No:1",
+          authorizedTckn: "10000000146",
+          mainCategoryIds: ["cat1"],
+          subCategoryIds: [],
+          declarationAccepted: true,
+          ...over,
+        },
+      }),
+    );
+    return render(<OnboardingClient />);
+  };
+  const reject = (errors: Record<string, string>) =>
+    h.completeAsync.mockRejectedValue(apiError(400, { message: "Doğrulama hatası", errors }));
+
+  /** İleti duyuruluyor mu: `role="alert"` içinde ya da geçersiz bir denetimin açıklaması. */
+  const announced = (node: HTMLElement): boolean =>
+    node.closest('[role="alert"]') !== null ||
+    Array.from(document.querySelectorAll('[aria-invalid="true"]')).some((el) =>
+      (el.getAttribute("aria-describedby") ?? "").split(/\s+/).includes(node.id),
+    );
+
+  // resignup-1: API mahalle (150 karakter), faaliyet tipi, firma türü gibi
+  // hata yuvası OLMAYAN bir alanı reddedince sihirbaz o alanın adımına dönüyor
+  // ve HİÇBİR ŞEY göstermiyordu (ileti yok, kutu yok, odak <body>'de). Formun
+  // her alanı için: ret görünür ve duyurulur.
+  it.each(ONBOARDING_FORM_KEYS)("sunucu '%s' alanını reddederse ileti görünür ve duyurulur", async (key) => {
+    const user = userEvent.setup();
+    reject({ [key]: "sunucu reddi" });
+    openSummary();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const message = await screen.findByText(/sunucu reddi/, {}, SLOW);
+    expect(message).toBeVisible();
+    expect(announced(message)).toBe(true);
+  });
+
+  // Koşullu çizilen yuvalar: yuva çiziliyken ret ALANIN ALTINDA (kutu yok),
+  // çizili değilken kutuda. `hasErrorSlot` ile JSX ayrışırsa bu satırlar kırılır.
+  const SEPARATE_DELIVERY = {
+    deliverySameAsBilling: false,
+    deliveryCity: "Ankara",
+    deliveryPostalCode: "06100",
+    deliveryAddressLine: "Depo Sok. No:2",
+  };
+  const GERMANY = { country: "DE", taxNumber: "DE123456789", city: "Berlin", district: "", taxOffice: "", authorizedTckn: "" };
+  it.each([
+    ["deliveryCity", SEPARATE_DELIVERY, "field"],
+    ["deliveryPostalCode", SEPARATE_DELIVERY, "field"],
+    ["deliveryAddressLine", SEPARATE_DELIVERY, "field"],
+    ["legalFormLocal", { companyType: "OTHER", legalFormLocal: "GmbH" }, "field"],
+    ["taxOffice", GERMANY, "box"],
+    ["district", GERMANY, "box"],
+  ] as const)("koşullu yuva — '%s' reddi: %o → %s", async (key, over, where) => {
+    const user = userEvent.setup();
+    reject({ [key]: "sunucu reddi" });
+    openSummary(over);
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const message = await screen.findByText(/sunucu reddi/, {}, SLOW);
+    expect(announced(message)).toBe(true);
+    if (where === "box") {
+      expect(message).toHaveAttribute("role", "alert");
+      expect(message).toHaveFocus();
+    } else {
+      // Alanın altında: geçersiz denetimin açıklaması, odak o denetimde; kutu yok.
+      const control = document.activeElement as HTMLElement;
+      expect(control).toHaveAttribute("aria-invalid", "true");
+      expect(control).toHaveAccessibleDescription(/sunucu reddi/);
+      expect(control.closest(`[data-field="${key}"]`)).not.toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+    }
+  });
+
+  it("hata yuvası olmayan alan (mahalle): alanın adımına döner, ret adımın başındaki kutuda ALAN ADIYLA, odak kutuda", async () => {
+    const user = userEvent.setup();
+    reject({ neighborhood: "En fazla 100 karakter olabilir" });
+    openSummary();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+
+    const box = await screen.findByRole("alert", {}, SLOW);
+    expect(box).toHaveTextContent("Mahalle: En fazla 100 karakter olabilir");
+    // 1. adım (mahalle orada) ve odak kutuda — <body>'de değil.
+    expect(screen.getByRole("heading", { name: "Adım 1/3" })).toBeInTheDocument();
+    expect(box).toHaveFocus();
+    // Kutu adımın başında: ilk alandan önce gelir.
+    expect(
+      box.compareDocumentPosition(screen.getByLabelText("Firma Unvanı *")) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Başka bir alanı değiştirmek kutuyu silmez; reddedilen alanı değiştirmek siler.
+    await fill(user, screen.getByLabelText("Web siteniz"), "ornek.com");
+    expect(screen.getByRole("alert")).toHaveTextContent("Mahalle:");
+    await fill(user, screen.getByLabelText("Mahalle"), "Caferağa");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("2. adımın yuvasız alanı (faaliyet tipi): kutu o adımda, öteki adımlarda görünmez", async () => {
+    const user = userEvent.setup();
+    reject({ activities: "Geçersiz faaliyet tipi" });
+    openSummary();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const box = await screen.findByRole("alert", {}, SLOW);
+    expect(box).toHaveTextContent("Faaliyet Tipi: Geçersiz faaliyet tipi");
+    expect(screen.getByRole("heading", { name: "Adım 2/3" })).toBeInTheDocument();
+    expect(box).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Geri" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("yuvası o an çizili olmayan alan (ayrı teslimat adresi kapalıyken teslimat ili) da kutuda gösterilir", async () => {
+    const user = userEvent.setup();
+    reject({ deliveryCity: "Teslimat ili zorunlu" });
+    openSummary();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const box = await screen.findByRole("alert", {}, SLOW);
+    expect(box).toHaveTextContent("Teslimat Adresi – İl: Teslimat ili zorunlu");
+    expect(screen.getByRole("heading", { name: "Adım 1/3" })).toBeInTheDocument();
+  });
+
+  it("sahibi bilinmeyen ret: özet adımındaki kutu odağı alır (odak <body>'de kalmaz)", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockRejectedValue(apiError(400, { message: "Firma doğrulaması zaten tamamlanmış" }));
+    openSummary();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const box = await screen.findByRole("alert", {}, SLOW);
+    expect(box).toHaveTextContent("Firma doğrulaması zaten tamamlanmış");
+    expect(screen.getByRole("button", { name: "Tamamla" })).toBeInTheDocument();
+    expect(box).toHaveFocus();
+  });
+
+  // resignup-2: alanın `maxLength`i (5) yapıştırılan metni rakam dışı
+  // karakterler ayıklanmadan ÖNCE kesiyordu: " 34710" → "3471", "TR-34710" → "34".
+  it.each([" 34710", "34 710", "TR-34710", "34710-1234"])(
+    "Türkiye posta kodu: yapıştırılan '%s' beş rakamı korur",
+    async (pasted) => {
+      const user = userEvent.setup();
+      render(<OnboardingClient />);
+      const postal = screen.getByLabelText("Posta Kodu");
+      await user.click(postal);
+      await user.paste(pasted);
+      expect(postal).toHaveValue("34710");
+    },
+  );
+
+  it("Türkiye posta kodu: ayrı teslimat adresinin kutusu da aynı kuralla temizler; yabancı ülkede 12 karakter sınırı kalır", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await user.click(screen.getByRole("checkbox", { name: /teslimat adresi olarak kullan/i }));
+    const delivery = screen.getAllByLabelText("Posta Kodu")[1]!;
+    await user.click(delivery);
+    await user.paste(" 06 100");
+    expect(delivery).toHaveValue("06100");
+    expect(delivery).not.toHaveAttribute("maxlength");
+    await pickCountry(user, "alman", "Almanya");
+    expect(screen.getAllByLabelText("Posta Kodu")[0]).toHaveAttribute("maxlength", "12");
+  }, LONG);
+
+  // resignup-3: tarayıcı odaklanan kutuyu görünüm alanının kenarına yaslıyor,
+  // üstündeki etiket ekran dışında kalıyordu. Odak kaydırmasız verilir, alan
+  // kaydırma payıyla (etiket + hata satırı) görünür kılınır.
+  it("ilk hatalı alana gidiş: odak kaydırmasız, alan kaydırma payıyla görünür kılınır", async () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    try {
+      const user = userEvent.setup();
+      render(<OnboardingClient />);
+      focus.mockClear();
+      await user.click(screen.getByRole("button", { name: "Devam" }));
+      const legal = screen.getByLabelText("Firma Unvanı *");
+      expect(legal).toHaveFocus();
+      // Tarayıcının kendi (kenara yaslayan) kaydırması kapalı…
+      const call = focus.mock.calls.findIndex((_, i) => focus.mock.contexts[i] === legal);
+      expect(focus.mock.calls[call]).toEqual([{ preventScroll: true }]);
+      // …alanı payıyla birlikte görünür kılan kaydırma açık.
+      expect(scrollIntoView.mock.contexts.at(-1)).toBe(legal);
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
+      // Pay kartta tanımlı ve `data-field` kutularındaki denetimlere iner.
+      const card = legal.closest('[class*="scroll-mt-"]');
+      expect(card).not.toBeNull();
+      expect(card!.className).toContain("[&_[data-field]_:is(input,select,textarea,button,[role=checkbox])]:scroll-mt-20");
+      expect(card!.className).toContain("[&_[data-field]_:is(input,select,textarea,button,[role=checkbox])]:scroll-mb-16");
+      expect(legal.closest("[data-field]")).not.toBeNull();
+    } finally {
+      focus.mockRestore();
+      Element.prototype.scrollIntoView = original;
+    }
   });
 });

@@ -531,7 +531,11 @@ function ConnectionTableRow({
             </span>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-zinc-900">{row.email}</div>
-              <div className="truncate text-xs text-zinc-500">{t("kaydoluncaOtomatikBaglanir")}</div>
+              {/* Ne olacağını TAM söyler (kayıt denetimi 2026-10 reinvite-new-1):
+                  bağlantı yalnız davet e-postasındaki bağlantıyla kaydolunca
+                  kendiliğinden kurulur; sonradan kaydolan firma istek alır.
+                  Cümle kırpılmaz, alt satıra sarar (tablo `nowrap`). */}
+              <div className="text-xs whitespace-normal text-zinc-500">{t("kaydoluncaOtomatikBaglanir")}</div>
             </div>
           </div>
         </TableCell>

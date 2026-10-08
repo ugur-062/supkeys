@@ -499,7 +499,11 @@ export function ProfileEditor({
             })}
             snippet={snippetFromMetadata(
               companySeo({
-                slug: generateSlug(profile.name) || "firma",
+                // Önizleme firmanın KAYITLI adresini gösterir (kayıt denetimi
+                // 2026-10 resignup-7): aynı adlı ikinci firma `…-2` alır; addan
+                // yeniden üretilen adres öteki firmanın sayfasıydı. Henüz
+                // yayınlanmamış profilde (slug yok) addan türetilen taslak.
+                slug: profile.slug || generateSlug(profile.name) || "firma",
                 name: profile.name,
                 industry: draft.industry || null,
                 city: profile.city,

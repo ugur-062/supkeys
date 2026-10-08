@@ -146,6 +146,48 @@ describe("PortalGuard — satınalma erişimi olmayan firma (T-06, O-008) ve esk
     expect(h.setLastPortal).not.toHaveBeenCalled();
   });
 
+  // resignup-8: az önce kaydolmuş, hiç talebi ve alım siparişi olmayan firmaya
+  // bant "mevcut taleplerinizi … sonuçlandırabilirsiniz" diyordu.
+  it.each([
+    ["hiç işi olmayan firma", [], []],
+    ["yalnız SATICI olduğu siparişi olan firma", [], [{ role: "seller" as const }]],
+    ["veri henüz gelmedi", undefined, undefined],
+  ])("bant mevcut işlerden söz ETMEZ — %s: yalnız doğrulama gerektiği yazar", (_name, requests, orders) => {
+    h.auth.user = { roles: ["YONETICI"] };
+    h.auth.company = { tier: "STANDART" };
+    h.pathname = "/company/satinalma/taleplerim";
+    h.requests = requests;
+    h.orders = orders;
+    render(
+      <PortalGuard portal="satinalma">
+        <div data-testid="child">LISTE</div>
+      </PortalGuard>,
+    );
+    const banner = screen.getByRole("status");
+    expect(banner).toHaveTextContent("Satınalma paneli firma doğrulamasıyla açılır");
+    expect(banner).toHaveTextContent("Satın alma talebi açmak ve tedarikçi davet etmek için firma doğrulaması gerekir.");
+    expect(banner.textContent).not.toMatch(/Mevcut|sonuçlandır|kazandırma/);
+  });
+
+  it.each([
+    ["talebi olan firma", [{ id: "l1" }], []],
+    ["alım siparişi olan firma", [], [{ role: "buyer" as const }]],
+  ])("bant mevcut işleri YALNIZ işi olan firmaya anlatır — %s", (_name, requests, orders) => {
+    h.auth.user = { roles: ["YONETICI"] };
+    h.auth.company = { tier: "STANDART" };
+    h.pathname = "/company/satinalma/siparisler";
+    h.requests = requests;
+    h.orders = orders;
+    render(
+      <PortalGuard portal="satinalma">
+        <div data-testid="child">SIPARIS</div>
+      </PortalGuard>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Mevcut satın alma taleplerinizi ve siparişlerinizi görüntüleyip sonuçlandırabilirsiniz",
+    );
+  });
+
   it("bant telefonda dikey: düğme metnin altına iner, sm'de yan yana (webC-2)", () => {
     h.auth.user = { roles: ["YONETICI"] };
     h.auth.company = { tier: "SILVER" };

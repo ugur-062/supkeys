@@ -97,6 +97,11 @@ export function PortalGuard({
 function BuyingWindDownBanner() {
   const t = useTranslations("web.panel.shell.portalGuard");
   const copy = useVerificationGateCopy();
+  // "Mevcut talepleriniz…" cümlesi YALNIZ mevcut işi olan firmaya (kayıt
+  // denetimi 2026-10 resignup-8): az önce kaydolmuş, hiç talebi ve alım
+  // siparişi olmayan firmaya var olmayan işlerinden söz ediliyordu. Veri
+  // gelene dek de kısa metin (yalnız "doğrulamayla açılır") çizilir.
+  const hasExistingWork = useHasExistingBuyingWork();
   // Telefonda düğme metnin ALTINA iner (arayüz testi webC-2: düğme yanda
   // kalınca başlık ve açıklama kartın ~%45'lik sütununa sıkışıyordu);
   // sm ve üstünde yan yana.
@@ -110,7 +115,7 @@ function BuyingWindDownBanner() {
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{t("windDownBaslik")}</p>
           <p className="mt-0.5 text-amber-800">
-            {t("windDownAciklama")}
+            {hasExistingWork ? t("windDownAciklama") : t("windDownAciklamaYeni")}
             {/* İnceleme/ret durumunda ne beklendiği de yazılır. */}
             {copy.key === "unverified" ? null : ` ${copy.short}`}
           </p>
@@ -121,6 +126,18 @@ function BuyingWindDownBanner() {
       </div>
     </div>
   );
+}
+
+/**
+ * Firmanın satınalma tarafında MEVCUT işi var mı: en az bir satın alma talebi
+ * ya da alıcısı olduğu bir sipariş. Veri, Taleplerim ve Siparişlerim
+ * listelerinin kendi sorgularıdır (aynı önbellek); yüklenene dek `false`.
+ * Kapı ekranının bağlantıları ve açık kalan listelerin bandı aynı ölçüyü okur.
+ */
+function useHasExistingBuyingWork(): boolean {
+  const requests = useTenders();
+  const orders = useOrders();
+  return (requests.data?.length ?? 0) > 0 || (orders.data ?? []).some((o) => o.role === "buyer");
 }
 
 /**
@@ -136,10 +153,7 @@ function BuyingWindDownBanner() {
 function BuyingWindDownLinks() {
   const t = useTranslations("web.panel.shell.portalGuard");
   const tn = useNavLabel();
-  const requests = useTenders();
-  const orders = useOrders();
-  const hasExistingWork =
-    (requests.data?.length ?? 0) > 0 || (orders.data ?? []).some((o) => o.role === "buyer");
+  const hasExistingWork = useHasExistingBuyingWork();
   if (!hasExistingWork) return null;
   return (
     <p className="mx-auto max-w-3xl rounded-xl bg-zinc-50 px-4 py-3 text-center text-sm text-zinc-600 ring-1 ring-zinc-950/5">

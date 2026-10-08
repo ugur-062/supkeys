@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   firstUnmetPasswordRule,
+  isPasswordTooLong,
   passwordByteLength,
+  passwordScore,
+  strengthLevel,
   PASSWORD_DIGIT_RE,
   PASSWORD_ERROR_KEY,
   PASSWORD_LOWER_RE,
@@ -118,5 +121,36 @@ describe("şifre kuralları Unicode bilir", () => {
       digit: "digit",
       special: "special",
     });
+  });
+});
+
+// Arayüz testi 2026-10 relogin-1: beş kuralı karşılayan ama 72 baytı aşan şifre
+// formda reddedilir; güç çubuğu dolu yeşil, etiket "Çok Güçlü" çıkıyordu.
+describe("güç puanı üst sınırı bilir", () => {
+  // 35 büyük Kiril harf + "ж1!" = 38 karakter, 74 bayt (bulgudaki şifre).
+  const tooLong = "Я".repeat(35) + "ж1!";
+
+  it("üst sınırı aşan şifre TAM PUAN alamaz; etiket kademesi 'Orta'yı (2) aşmaz", () => {
+    expect(tooLong).toHaveLength(38);
+    expect(passwordByteLength(tooLong)).toBe(74);
+    expect(isPasswordTooLong(tooLong)).toBe(true);
+    expect(firstUnmetPasswordRule(tooLong)).toBe("max");
+    expect(passwordScore(tooLong)).toBe(4);
+    expect(strengthLevel(passwordScore(tooLong))).toBe(2);
+  });
+
+  it("sınırın içindeki şifrede puan karşılanan kural sayısıdır", () => {
+    expect(passwordScore("")).toBe(0);
+    expect(passwordScore("abc")).toBe(1);
+    expect(passwordScore("Guclu!Parola9")).toBe(5);
+    expect(strengthLevel(passwordScore("Guclu!Parola9"))).toBe(5);
+    // Tam sınırda (72 bayt) hâlâ tam puan.
+    const atLimit = "Aa1!" + "я".repeat(34);
+    expect(isPasswordTooLong(atLimit)).toBe(false);
+    expect(passwordScore(atLimit)).toBe(5);
+  });
+
+  it("çok uzun VE eksik kurallı şifrede puan eksik kuraldan da düşer (4'ü aşmaz)", () => {
+    expect(passwordScore("я".repeat(40))).toBe(2); // uzunluk + küçük harf
   });
 });

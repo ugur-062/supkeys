@@ -81,22 +81,22 @@ describe("CompanyForgotPasswordClient", () => {
       await user.clear(email);
       await user.type(email, bad);
       await user.type(email, "{Enter}");
-      expect(screen.getByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+      expect(screen.getByText("Geçerli bir e-posta adresi girin")).toBeInTheDocument();
       expect(email).toHaveAttribute("aria-invalid", "true");
-      expect(email).toHaveAccessibleDescription("Geçerli bir e-posta adresi giriniz");
+      expect(email).toHaveAccessibleDescription("Geçerli bir e-posta adresi girin");
       expect(email).toHaveFocus();
     }
     expect(h.post).not.toHaveBeenCalled();
     // Yazmaya başlayınca hata kalkar.
     await user.type(email, "x");
-    expect(screen.queryByText("Geçerli bir e-posta adresi giriniz")).toBeNull();
+    expect(screen.queryByText("Geçerli bir e-posta adresi girin")).toBeNull();
   });
 
   it("boş alanla gönderim de alan hatası verir (sessiz pasif düğme yok)", async () => {
     const user = userEvent.setup();
     render(<CompanyForgotPasswordClient />);
     await user.click(screen.getByRole("button", { name: "Sıfırlama bağlantısı gönder" }));
-    expect(screen.getByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+    expect(screen.getByText("Geçerli bir e-posta adresi girin")).toBeInTheDocument();
     expect(h.post).not.toHaveBeenCalled();
   });
 
