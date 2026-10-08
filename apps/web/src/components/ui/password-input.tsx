@@ -27,6 +27,17 @@ import { forwardRef, useState, type ComponentPropsWithoutRef } from "react";
  * Catalyst `Input` `className`'i SARMALAYICI span'e verir: `pr-10` oraya
  * yazılınca dolgu kutunun dışında kalıyor, göz tuşu girişin yanında ayrı bir
  * kutucukta görünüyordu (arayüz testi D-352). Dolgu iç `<input>`a gider.
+ *
+ * Arayüz testi 2026-10 (login-5/10, signup-enru-9, signup-tr-13):
+ *  · Kök `data-slot="control"` taşır. Catalyst `<Field>` etiketle denetim
+ *    arasındaki 12 px boşluğu yalnız etiketin hemen ardındaki
+ *    `data-slot="control"` öğesine koyar; kök onu taşımadığı için "Şifre"
+ *    etiketi kutusuna yapışık (4 px), "E-posta" etiketi 16 px yukarıdaydı.
+ *    Hata iletisi de (`ErrorMessage`) aynı kuralla standart boşluğu alır.
+ *  · Etiket ve hata bağı Headless'tan gelir: iç `Input` `<Field>` bağlamından
+ *    id / `aria-labelledby` / `aria-describedby` alır, `invalid` →
+ *    `aria-invalid`. Hata `<Field>` içinde `ErrorMessage` olarak çizilmeli.
+ *  · Göz tuşu dokunma alanı 32×32 px (eskiden 20×20): simge aynı, dolgu büyüdü.
  */
 type Props = Omit<ComponentPropsWithoutRef<typeof Input>, "type">;
 
@@ -39,7 +50,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
   const Ikon = gorunur ? EyeOff : Eye;
 
   return (
-    <div className="relative">
+    <div data-slot="control" className="relative">
       <Input
         ref={ref}
         type={gorunur ? "text" : "password"}
@@ -52,7 +63,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
         /* Etiket DURUMA göre değişir: ekran okuyucu bir sonraki eylemi okur. */
         aria-label={gorunur ? t("sifreyiGizle") : t("sifreyiGoster")}
         onClick={() => setGorunur((v) => !v)}
-        className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+        className="absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-2 text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-zinc-900"
       >
         <Ikon className="h-4 w-4" aria-hidden />
       </button>

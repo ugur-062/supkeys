@@ -6,7 +6,10 @@ import { pickLocale } from "@rothern/i18n";
 import { runtimeLocale } from "@/i18n/runtime";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { isCompanyLoggingOut, markCompanyLoggingOut } from "@/lib/company-auth/logout-flag";
+import type { ResendEmailCodeResult } from "@/lib/company-auth/resend-code";
+import { clearSignupDraft } from "@/lib/company-auth/signup-draft";
+import { companyRememberEnabled, useCompanyAuthStore } from "@/lib/company-auth/store";
 import { bindSessionOwner, clearTenantSessionData } from "@/lib/company-auth/tenant-storage";
 import type {
   CompanyLoginResponse,
@@ -14,7 +17,7 @@ import type {
   CompanySignupInput,
 } from "@/lib/company-auth/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function useCompanyAuth() {
   const user = useCompanyAuthStore((s) => s.user);
@@ -61,6 +64,32 @@ export type CompanyLoginResult =
   | CompanyLoginResponse
   | { twoFactorRequired: true; method?: "email" | "authenticator" };
 
+/**
+ * GİRİŞ SAYFASININ DİLİ HESABA YAZILIR — ve yanıt YENİ dille döner.
+ *
+ * i18n (2026-09-23, kullanıcı: "İngilizce seçtiğim hâlde panel Türkçe"): giriş
+ * sayfasının dili AÇIK bir seçimdir; hesabın kayıtlı dili farklıysa hesaba
+ * yazılır — yoksa `LocaleUrlSync` paneli kayıtlı (eski) dile geri atardı.
+ *
+ * Arayüz testi 2026-10 code-auth-6: yazma bekleniyor ama yanıtı atılıyordu.
+ * Form depoyu GİRİŞ yanıtındaki eski dille (`user.locale: "tr"`) dolduruyor,
+ * `LocaleUrlSync` adresi önce eski dile çeviriyor, `/me` gelince yeniden yeni
+ * dile dönüyordu: iki fazladan tam yeniden bağlanma, arada eski dilde ekran ve
+ * `/company` kökündeki tek seferlik kayıt niyeti ilk bağlanmada tüketilip
+ * ikincide kayboluyordu. Yazma başarılıysa dönen kullanıcı yeni dili taşır;
+ * başarısızsa giriş engellenmez, hesap eski dilinde kalır.
+ */
+async function withPageLocale<T extends CompanyLoginResponse>(data: T, uiLocale: string): Promise<T> {
+  const wanted = pickLocale(uiLocale);
+  if (!wanted || pickLocale(data.user?.locale) === wanted) return data;
+  try {
+    await companyApi.patch("/company-auth/me", { locale: wanted }, { skipErrorToast: true });
+    return { ...data, user: { ...data.user, locale: wanted } };
+  } catch {
+    return data;
+  }
+}
+
 export function useCompanyLogin() {
   const queryClient = useQueryClient();
   const uiLocale = useLocale();
@@ -70,28 +99,24 @@ export function useCompanyLogin() {
       password: string;
       code?: string;
       rememberMe?: boolean;
-    }) => {
+    }): Promise<CompanyLoginResult> => {
       const { data } = await companyApi.post<CompanyLoginResult>(
         "/company-auth/login",
         input,
       );
-      return data;
+      return "user" in data ? withPageLocale(data, uiLocale) : data;
     },
     // Dalga B-4: girişte önbellek TEMİZLENMİYORDU. Çıkışta temizleniyor ama
     // çıkış zaten sert yönlendirme yapıyor; asıl riskli yol oturumun 401 ile
     // düşmesi: kullanıcı SPA'da kalıyor, BAŞKA bir hesapla giriş yapıyor ve
     // TanStack Query önceki hesabın önbelleğini servis ediyor (ihale listesi,
     // teklifler, mesajlar). Girişte de sıfırdan başla.
-    onSuccess: async (data) => {
-      // i18n (2026-09-23, kullanıcı: "İngilizce seçtiğim hâlde panel Türkçe"):
-      // giriş sayfasının dili AÇIK bir seçimdir. Hesabın kayıtlı dili farklıysa
-      // hesaba yazılır — yoksa `LocaleUrlSync` paneli kayıtlı (eski) dile geri
-      // atardı. Yönlendirmeden ÖNCE beklenir; hata girişi engellemez.
-      if ("user" in data && pickLocale(data.user?.locale) !== uiLocale) {
-        await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
-      }
+    onSuccess: (data) => {
+      if (!("user" in data)) return;
       // Aynı sekmede önceki (başka) hesabın taslakları yeni hesaba geri yüklenmesin.
-      if ("user" in data && data.user?.id) bindSessionOwner(data.user.id);
+      if (data.user?.id) bindSessionOwner(data.user.id);
+      // Oturum açıldı: yarım kalmış kayıt taslağı (kod adımı dahil) kapanır.
+      clearSignupDraft();
       queryClient.clear();
     },
   });
@@ -136,25 +161,27 @@ export function useVerifyEmail() {
         "/company-auth/verify-email",
         input,
       );
-      return data;
+      // İlk doğrulama oturum açar → girişle aynı dil eşitlemesi (yanıt yeni
+      // dille döner, bkz. `withPageLocale`).
+      return "user" in data ? withPageLocale(data, uiLocale) : data;
     },
-    // İlk doğrulama oturum açar → girişle aynı hijyen: dil eşitleme, sekme
-    // sahibi bağlama, önceki hesabın önbelleğini temizleme.
-    onSuccess: async (data) => {
+    // Girişle aynı hijyen: sekme sahibi bağlama, önceki hesabın önbelleğini
+    // temizleme. Hesap doğrulandı (ya da zaten doğrulanmış) → kayıt taslağı
+    // ve kod adımı kapanır.
+    onSuccess: (data) => {
+      clearSignupDraft();
       if (!("user" in data)) return;
-      if (pickLocale(data.user?.locale) !== uiLocale) {
-        await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
-      }
       if (data.user?.id) bindSessionOwner(data.user.id);
       queryClient.clear();
     },
   });
 }
 
+/** Yanıtın anlamı: `lib/company-auth/resend-code.ts` `resendEmailCodeOutcome`. */
 export function useResendEmailCode() {
   return useMutation({
     mutationFn: async (email: string) => {
-      const { data } = await companyApi.post<{ success: true }>(
+      const { data } = await companyApi.post<ResendEmailCodeResult>(
         "/company-auth/resend-email-code",
         { email },
       );
@@ -327,6 +354,85 @@ export function useCompanyMe(
   return query;
 }
 
+/**
+ * ANLIK GÖRÜNTÜ YOK ≠ OTURUM YOK (arayüz testi 2026-10 login-1).
+ *
+ * "Oturumumu açık bırak" işaretsizken anlık görüntü sessionStorage'dadır, yani
+ * SEKMEYE özeldir. Ctrl/orta tık, yer imi ya da e-postadaki bağlantıyla açılan
+ * YENİ sekmede anlık görüntü yoktur ama oturum çerezi geçerlidir: nöbetçi
+ * `/me`ye hiç sormadan giriş formuna atıyordu. Bu kanca o durumda `/me`yi BİR
+ * KEZ yoklar; oturum varsa depoyu doldurur, yoksa "yok" der.
+ *
+ *  - `pending`: karar verilmedi (depo yükleniyor ya da yoklama sürüyor) —
+ *    çağıran yönlendirmez, form çizmez.
+ *  - `found`: oturum var (`user` dolu).
+ *  - `none`: oturum yok.
+ *
+ * Yoklama YALNIZ "hatırla" kapalıyken ve bu sayfa yüklemesinde hiç kullanıcı
+ * görülmediyse yapılır: "hatırla" açıkken anlık görüntü sekmeler arası
+ * paylaşılır (yokluğu oturumsuzluktur), oturum bu sayfada düştüyse (401) ya da
+ * kullanıcı çıkış yaptıysa sorulacak bir şey kalmamıştır. Sayfa yüklemesi
+ * başına tek istek (modül düzeyi söz; StrictMode çift efekti dahil).
+ */
+export type CompanySessionProbe = "pending" | "found" | "none";
+
+let sessionProbe: Promise<CompanyMeResponse | null> | null = null;
+
+function probeCompanySession(): Promise<CompanyMeResponse | null> {
+  sessionProbe ??= companyApi
+    .get<CompanyMeResponse>("/company-auth/me", { skipErrorToast: true })
+    .then(
+      ({ data }) => (data?.user?.id ? data : null),
+      () => null,
+    );
+  return sessionProbe;
+}
+
+/** Yalnız testler için: sayfa yüklemesi başına tek yoklama sözünü sıfırlar. */
+export function resetCompanySessionProbe(): void {
+  sessionProbe = null;
+}
+
+export function useCompanySessionProbe(): CompanySessionProbe {
+  const user = useCompanyAuthStore((s) => s.user);
+  const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
+  const setMe = useCompanyAuthStore((s) => s.setMe);
+  const queryClient = useQueryClient();
+  const hadUser = useRef(false);
+  const [answer, setAnswer] = useState<"pending" | "none">("pending");
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (user) {
+      hadUser.current = true;
+      return;
+    }
+    if (hadUser.current || isCompanyLoggingOut() || companyRememberEnabled()) {
+      setAnswer("none");
+      return;
+    }
+    let alive = true;
+    void probeCompanySession().then((me) => {
+      if (!alive) return;
+      if (!me) {
+        setAnswer("none");
+        return;
+      }
+      bindSessionOwner(me.user.id);
+      // Kabuk `/me`yi yeniden çekmesin: yanıt sorgu önbelleğine de konur.
+      queryClient.setQueryData(["company-auth", "me"], me);
+      setMe(me);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [isHydrated, user, setMe, queryClient]);
+
+  if (!isHydrated) return "pending";
+  if (user) return "found";
+  return answer;
+}
+
 /** Çıkış isteğinin en uzun bekleneceği süre (ms). */
 export const LOGOUT_WAIT_MS = 3000;
 
@@ -334,6 +440,9 @@ export function useCompanyLogout() {
   const clear = useCompanyAuthStore((s) => s.clear);
   const queryClient = useQueryClient();
   return async () => {
+    // Açık çıkış: nöbetçi `?next=<son sayfa>` eklemesin — düz giriş sayfasına
+    // bu kanca götürür (arayüz testi 2026-10 login-2, bkz. `logout-flag.ts`).
+    markCompanyLoggingOut();
     // Derin denetim MU-21: istek beklenmeden yönlendirilince tarayıcı bekleyen
     // logout isteğini iptal edebiliyordu → httpOnly oturum çerezi silinmeden
     // kalıyordu. Yanıt beklenir; API askıda kalırsa en çok LOGOUT_WAIT_MS.

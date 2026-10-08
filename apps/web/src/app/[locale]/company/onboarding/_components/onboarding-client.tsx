@@ -1,6 +1,6 @@
 "use client";
 
-import { countryDisplayName } from "@/i18n/domain";
+import { countryDisplayName, useActivityLabel } from "@/i18n/domain";
 import { localizePath } from "@/i18n/href";
 import { runtimeLocale } from "@/i18n/runtime";
 
@@ -12,7 +12,7 @@ import { Select } from "@/components/catalyst/select";
 import { CompanyActivityPicker } from "@/components/categories/company-activity-picker";
 import { CompanyCategoryPicker } from "@/components/categories/company-category-picker";
 import { RothernLogo } from "@/components/brand/logo";
-import { useRoots } from "@/hooks/use-categories";
+import { useCategoriesByIds, useRoots } from "@/hooks/use-categories";
 import { useUpdateMe } from "@/hooks/use-company-account";
 import {
   useCompanyLogout,
@@ -24,35 +24,95 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { clearInvitePrefill, readInvitePrefill } from "@/lib/company-auth/invite-prefill";
 import {
   clearOnboardingDraft,
+  readOnboardingDraft,
   saveOnboardingDraft,
-  takeOnboardingDraft,
 } from "@/lib/company-auth/onboarding-draft";
-import { extractErrorMessage } from "@/lib/tenders/error";
+import { cleanPostal, isInvalidTrPostal } from "@/lib/company/postal-code";
+import { errorToastedGlobally, extractErrorMessage, extractFieldErrors } from "@/lib/tenders/error";
 import {
-  MAX_COMPANY_MAIN_CATEGORIES,
   TURKEY_LOCATIONS,
+  deepestCategoryPicks,
   isValidTaxIdForCountry,
   isValidTckn,
   EU_VAT_COUNTRIES,
   foldSearchText,
   isRegistrationOpen,
+  maskNationalId,
   normalizeTaxId,
   parsePhone,
+  provinceDisplayName,
   registrationCountries,
   taxIdLabelKey,
 } from "@rothern/shared";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
+import { Description as HeadlessDescription } from "@headlessui/react";
+import axios from "axios";
 import { Check } from "lucide-react";
 import { LOCALES, LOCALE_LABELS, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 const COMPANY_TYPE_VALUES = ["LIMITED", "JOINT_STOCK", "SOLE_PROPRIETOR", "OTHER"] as const;
 /** Kayda açık ülke kodları (kapalı liste hariç — `REGISTRATION_BLOCKED`). */
 const REGISTRATION_CODES = registrationCountries().map((c) => c.code);
+
+/** Taslak, son değişiklikten bu kadar sonra yazılır (her tuşta depoya yazmamak için). */
+const DRAFT_SAVE_DELAY_MS = 400;
+
+const INITIAL_FORM = {
+  // Başlangıç ülkesi `/me` gelince kurulur (bkz. initialOnboardingCountry).
+  country: "",
+  legalName: "",
+  companyType: "LIMITED",
+  legalFormLocal: "",
+  taxNumber: "",
+  taxOffice: "",
+  website: "",
+  city: "",
+  /** Dünya şehir listesi kaydı (TR dışı seçiciden; 2026-09-27). */
+  cityId: null as number | null,
+  district: "",
+  stateRegion: "",
+  neighborhood: "",
+  postalCode: "",
+  addressLine: "",
+  deliverySameAsBilling: true,
+  deliveryCity: "",
+  deliveryCityId: null as number | null,
+  deliveryStateRegion: "",
+  deliveryDistrict: "",
+  deliveryNeighborhood: "",
+  deliveryPostalCode: "",
+  deliveryAddressLine: "",
+  authorizedTckn: "",
+  mainCategoryIds: [] as string[],
+  subCategoryIds: [] as string[],
+  activities: [] as string[],
+  declarationAccepted: false,
+};
+type OnboardingForm = typeof INITIAL_FORM;
+type FieldKey = keyof OnboardingForm;
+
+/** Alanın sahibi adım: 1 = kişi + kategori, 2 = özet + beyan, diğer her şey 0 (şirket). */
+const STEP_OF_FIELD: Partial<Record<FieldKey, number>> = {
+  authorizedTckn: 1,
+  mainCategoryIds: 1,
+  subCategoryIds: 1,
+  activities: 1,
+  declarationAccepted: 2,
+};
+const stepOfField = (field: FieldKey): number => STEP_OF_FIELD[field] ?? 0;
+
+/** Alan kutusunda odağı alabilen ilk denetim (Headless onay kutusu `span[role=checkbox]`). */
+const FOCUSABLE = 'input:not([type="hidden"]), select, textarea, button, [role="checkbox"]';
+
+/** Alanın (`data-field`) ilk denetimine odaklanır; alan o an çizili değilse hiçbir şey yapmaz. */
+function focusFieldIn(root: HTMLElement | null, field: FieldKey): void {
+  root?.querySelector<HTMLElement>(`[data-field="${field}"]`)?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+}
 
 /**
  * Ülke alanının BAŞLANGIÇ değeri (2026-09-27): eskiden her kayıt "TR" ile
@@ -71,11 +131,6 @@ export function initialOnboardingCountry(phone: string | null | undefined, local
   return "";
 }
 
-/** Posta kodu: TR'de 5 rakam; diğer ülkelerde harf/rakam/boşluk/tire (SW1A 1AA, 1012 AB, K1A 0B1). */
-function cleanPostal(v: string, tr: boolean): string {
-  return tr ? v.replace(/\D/g, "") : v.toUpperCase().replace(/[^A-Z0-9 -]/g, "");
-}
-
 /**
  * Ön doldurulan (davet/AI keşfi) şehri Türkiye il listesine eşler — Türkçe
  * harf ve büyük/küçük harf duyarsız ("Istanbul", "ISTANBUL" → "İstanbul").
@@ -86,6 +141,58 @@ export function matchTurkeyProvince(raw: string | null | undefined): string {
   const key = foldSearchText(raw ?? "");
   if (!key) return "";
   return TURKEY_LOCATIONS.find((l) => foldSearchText(l.il) === key)?.il ?? "";
+}
+
+/**
+ * İl seçenekleri (kayıt denetimi 2026-10 login-17): DEĞER her dilde Türkçe il
+ * adıdır (saklanan şehir metni ve ilçe listesi ona bağlı), ETİKET arayüz
+ * dilindedir (`provinceDisplayName`: EN Istanbul / Izmir, RU Kiril). Türkçe
+ * dışında liste o dilin alfabesine göre sıralanır — Rusça ekranda "Стамбул"
+ * Türkçe "İ" sırasında durmasın.
+ */
+export function provinceOptions(locale: string): { value: string; label: string }[] {
+  const rows = TURKEY_LOCATIONS.map((l) => ({ value: l.il, label: provinceDisplayName(l.il, locale) }));
+  return locale === "tr" ? rows : rows.sort((a, b) => a.label.localeCompare(b.label, locale));
+}
+
+/**
+ * "Web siteniz" kabul edilir mi (kayıt denetimi 2026-10 signup-tr-5)? Alan
+ * isteğe bağlı: boş değer geçerli. Dolu değer boşluk içeremez ve noktalı bir
+ * alan adı taşımalıdır; `http://` / `https://` isteğe bağlı, alan adından
+ * sonra port, yol, sorgu gelebilir. Eskiden "ornek firma sitesi" gibi serbest
+ * metin kabul ediliyor, `https://ornek firma sitesi` olarak kaydedilip
+ * herkese açık profilin yapılandırılmış verisine giriyordu.
+ *
+ * Dolu değer kuralı API `common/company/website-address.ts`
+ * `isValidWebsiteAddress` ile AYNI algoritmadır (etiketler her alfabeden harf
+ * / rakam / tire, baş ve sonda tire yok; son etiket en az 2 karakter ve harf
+ * içerir — IP adresi ya da "1.5" site değildir; başka şema ve kullanıcı
+ * bölümü — "info@firma.com" bir e-postadır — reddedilir). Biri değişirse
+ * diğeri de değişir: form, API'nin reddedeceği değeri kabul etmemeli.
+ *
+ * Etiket ilk karakterinden sonra birleşen işaret (\p{M}) ve sıfır genişlikli
+ * birleştirici / ayırıcı da taşıyabilir: Tayca, Hintçe, Tamilce, Bengalce
+ * ünlüleri birleşen işaretle yazar ("ธุรกิจ.ไทย", "कंपनी.com"), Farsça sözcük
+ * içinde U+200C kullanır, Latin harf ayrık aksanla gelebilir ("s" + U+0327).
+ * Bunlar olmadan o ülkelerin geçerli alan adları reddediliyordu.
+ */
+const WEBSITE_SCHEME = /^https?:\/\//i;
+const WEBSITE_ANY_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
+const WEBSITE_HOST_LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{M}\p{N}‌‍-]{0,61}[\p{L}\p{M}\p{N}])?$/u;
+
+export function isAcceptableWebsite(raw: string): boolean {
+  const value = raw.trim();
+  if (!value) return true;
+  if (/\s/.test(value)) return false;
+  const rest = value.replace(WEBSITE_SCHEME, "");
+  if (WEBSITE_ANY_SCHEME.test(rest)) return false;
+  const authority = rest.split(/[/?#]/, 1)[0] ?? "";
+  if (!authority || authority.includes("@")) return false;
+  const host = authority.replace(/:\d{1,5}$/, "");
+  const labels = host.split(".");
+  if (labels.length < 2 || !labels.every((label) => WEBSITE_HOST_LABEL.test(label))) return false;
+  const topLevel = labels[labels.length - 1]!;
+  return topLevel.length >= 2 && /\p{L}/u.test(topLevel);
 }
 
 /**
@@ -116,11 +223,56 @@ export function formatOnboardingAddress(a: {
   );
 }
 
+/**
+ * Sunucunun reddettiği gönderimde hatanın SAHİBİ alan (kayıt denetimi 2026-10
+ * signup-tr-6): hata o alanın adımında, alanın altında gösterilir. DTO
+ * doğrulaması alan adını `errors` haritasında verir; servis kuralları katalog
+ * anahtarıyla (`i18nKey`) ya da `code` ile tanınır. Tanınmayan hata `null`
+ * döner ve özet adımındaki genel kutuda kalır.
+ */
+const SERVER_ERROR_FIELD: Record<string, FieldKey> = {
+  "api.companyAuth.gecersizUlkeSecimi": "country",
+  "api.companyAuth.buUlkedenYeniKayitAlinmiyor": "country",
+  "api.companyAuth.yerelHukukiYapiZorunlu": "legalFormLocal",
+  "api.companyAuth.sahisFirmasiIcin11HaneliTckn": "taxNumber",
+  "api.companyAuth.tuzelKisiIcin10HaneliVergiNo": "taxNumber",
+  "api.companyAuth.gecerliBirVergiSicilNumarasiGiriniz": "taxNumber",
+  "api.companyAuth.vergiDairesiZorunlu": "taxOffice",
+  "api.companyAuth.ilceZorunlu": "district",
+  "api.companyAuth.yetkiliTCKimlikNoGecersiz": "authorizedTckn",
+  "api.companyAddresses.trPostaKodu5Hane": "postalCode",
+};
+
+export function serverErrorField(err: unknown, f: OnboardingForm): FieldKey | null {
+  const dtoField = Object.keys(extractFieldErrors(err) ?? {})
+    .map((k) => k.split(".")[0]!)
+    .find((k): k is FieldKey => k in f);
+  if (dtoField) return dtoField;
+  if (!axios.isAxiosError(err)) return null;
+  const data = err.response?.data as { i18nKey?: unknown; code?: unknown } | undefined;
+  const key = typeof data?.i18nKey === "string" ? data.i18nKey : "";
+  if (data?.code === "TAX_NUMBER_TAKEN") return "taxNumber";
+  if (data?.code === "WEBSITE_INVALID") return "website";
+  const known = SERVER_ERROR_FIELD[key];
+  if (known === "postalCode") {
+    // API hangi posta kodunu reddettiğini söylemez: fatura kodu kurala
+    // uyuyorsa reddedilen ayrı teslimat adresininkidir.
+    const delivery =
+      !f.deliverySameAsBilling && !isInvalidTrPostal(f.postalCode) && isInvalidTrPostal(f.deliveryPostalCode);
+    return delivery ? "deliveryPostalCode" : "postalCode";
+  }
+  if (known) return known;
+  // Kategori beyanı kuralları (`category-selection.helper`).
+  if (key.startsWith("api.helpers.")) return "mainCategoryIds";
+  return null;
+}
+
 export function OnboardingClient() {
   const t = useTranslations("web.auth.onboarding");
   const tc = useTranslations("web.auth.common");
   const tTax = useTranslations("web.domain.taxId");
   const locale = useLocale();
+  const activityLabel = useActivityLabel();
   const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
   const authUser = useCompanyAuthStore((s) => s.user);
   const userId = authUser?.id ?? "";
@@ -132,7 +284,10 @@ export function OnboardingClient() {
   // Çift tık iki VIES isteği / iki denetim kaydı üretmesin (arayüz testi FX-00 D-350).
   const viesLock = useSubmitLock();
   const finishLock = useSubmitLock();
-  const roots = useRoots();
+  // Seçiciyle ortak sorgu anahtarı → aynı seçenek. Sihirbaz sektör listesini
+  // seçiciden ÖNCE ister (1. adımdan beri bağlı), yani isteğin politikasını o
+  // belirler; hatayı da kendi satırında "Tekrar dene" ile gösterir (2. adım).
+  const roots = useRoots({ inlineError: true });
 
   const STEPS = [t("step1"), t("step2"), t("step3")];
   const companyTypes = COMPANY_TYPE_VALUES.map((value) => ({ value, label: t(`companyType.${value}`) }));
@@ -141,38 +296,15 @@ export function OnboardingClient() {
      formun sonunda reddedilmez. Seçici aranabilir (`CountryCombobox`). */
 
   const [step, setStep] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [f, setF] = useState({
-    // Başlangıç ülkesi `/me` gelince kurulur (bkz. initialOnboardingCountry).
-    country: "",
-    legalName: "",
-    companyType: "LIMITED",
-    legalFormLocal: "",
-    taxNumber: "",
-    taxOffice: "",
-    website: "",
-    city: "",
-    /** Dünya şehir listesi kaydı (TR dışı seçiciden; 2026-09-27). */
-    cityId: null as number | null,
-    district: "",
-    stateRegion: "",
-    neighborhood: "",
-    postalCode: "",
-    addressLine: "",
-    deliverySameAsBilling: true,
-    deliveryCity: "",
-    deliveryCityId: null as number | null,
-    deliveryStateRegion: "",
-    deliveryDistrict: "",
-    deliveryNeighborhood: "",
-    deliveryPostalCode: "",
-    deliveryAddressLine: "",
-    authorizedTckn: "",
-    mainCategoryIds: [] as string[],
-    subCategoryIds: [] as string[],
-    activities: [] as string[],
-    declarationAccepted: false,
-  });
+  const [f, setF] = useState(INITIAL_FORM);
+  /** "Devam" / "Tamamla"ya basılmış adımlar: o adımın eksikleri alan altında görünür. */
+  const [attempted, setAttempted] = useState<readonly number[]>([]);
+  /**
+   * Sunucunun reddi: `field` doluysa o alanın altında, değilse özet adımındaki
+   * kutuda. `at` reddedilen değerin (alan ya da formun tamamı) anlık
+   * görüntüsüdür — değer düzeltildiği an hata kendiliğinden kaybolur.
+   */
+  const [serverError, setServerError] = useState<{ message: string; field: FieldKey | null; at: string } | null>(null);
   const isTR = f.country === "TR";
   const isSole = f.companyType === "SOLE_PROPRIETOR";
   // Kimlik doğrulama — backend company-auth.service.completeOnboarding ile BİREBİR
@@ -180,7 +312,7 @@ export function OnboardingClient() {
   // TR yetkili için isValidTckn). Eski "length>=4 / ===11" gevşek gate'i kapatır.
   const taxNumberValid = isValidTaxIdForCountry(f.taxNumber, f.country, isSole);
   const tcknValid = isTR ? isValidTckn(f.authorizedTckn) : true;
-  const set = (k: keyof typeof f) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
+  const set = (k: FieldKey) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
   const [countryReady, setCountryReady] = useState(false);
   useEffect(() => {
     if (countryReady || !me.data) return;
@@ -189,9 +321,10 @@ export function OnboardingClient() {
     // firma bilgisi formu başlatır — ad, site, ülke, şehir; kullanıcı düzeltebilir.
     const invite = readInvitePrefill();
     const inviteCountry = invite?.country && isRegistrationOpen(invite.country) ? invite.country.toUpperCase() : null;
-    // Dil değişiminden önce saklanan taslak (sihirbaz yeniden bağlandı) geri
-    // gelir — yalnız bilinen alanlar, aynı türdeyse (onboarding-draft.ts).
-    const draft = takeOnboardingDraft(userId);
+    // Saklanan taslak (sayfa yenilendi ya da dil değişimi sihirbazı yeniden
+    // bağladı) geri gelir — yalnız bilinen alanlar, aynı türdeyse
+    // (onboarding-draft.ts). Okumak silmez: ikinci yenileme de aynı taslağı bulur.
+    const draft = readOnboardingDraft(userId);
     if (draft) setStep(Math.min(Math.max(Math.trunc(draft.step), 0), 2));
     setF((prev) => {
       const s = draft ? mergeDraft(prev, draft.f) : prev;
@@ -209,6 +342,33 @@ export function OnboardingClient() {
     });
     setCountryReady(true);
   }, [countryReady, me.data, locale, userId]);
+
+  /**
+   * TASLAK SÜREKLİ YAZILIR (kayıt denetimi 2026-10 signup-tr-2 / code-auth-14):
+   * sayfa yenilenince sihirbaz boş 1. adıma dönüyordu. Form açılışta
+   * tohumlandıktan sonra her değişiklik kısa bir gecikmeyle saklanır; tohumun
+   * kendisi (kullanıcı henüz bir şey yazmadı) yazılmaz. Tamamlanınca ve
+   * çıkışta taslak silinir — `leavingRef` bekleyen yazmanın silinen taslağı
+   * geri getirmesini engeller.
+   */
+  const savedDraftRef = useRef<string | null>(null);
+  const leavingRef = useRef(false);
+  useEffect(() => {
+    if (!countryReady || !userId || leavingRef.current) return;
+    const snapshot = JSON.stringify({ step, f });
+    if (savedDraftRef.current === null) {
+      savedDraftRef.current = snapshot;
+      return;
+    }
+    if (savedDraftRef.current === snapshot) return;
+    const timer = window.setTimeout(() => {
+      if (leavingRef.current) return;
+      saveOnboardingDraft(userId, { step, f });
+      savedDraftRef.current = snapshot;
+    }, DRAFT_SAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [countryReady, userId, step, f]);
+
   /**
    * Ana ve alt kategori TEK yazmada güncellenir: seçici ikisini birlikte
    * üretiyor (segment, seçilen yapraklardan türetiliyor) ve iki ayrı `set`
@@ -229,6 +389,7 @@ export function OnboardingClient() {
     }
   }, [me.data]);
 
+  const provinces = useMemo(() => provinceOptions(locale), [locale]);
   const ilceler = useMemo(
     () => TURKEY_LOCATIONS.find((l) => l.il === f.city)?.ilceler ?? [],
     [f.city],
@@ -237,30 +398,126 @@ export function OnboardingClient() {
     () => TURKEY_LOCATIONS.find((l) => l.il === f.deliveryCity)?.ilceler ?? [],
     [f.deliveryCity],
   );
+  // Özet adımı: kullanıcının seçtiği ürün/hizmetler (ata zinciri değil).
+  const pickedIds = useMemo(() => deepestCategoryPicks(f.subCategoryIds), [f.subCategoryIds]);
+  // Adlar seçiciyle (`CompanyCategoryPicker`) AYNI id listesi ve AYNI seçenekle
+  // istenir: seçimler + sektörler, `inlineError`. Yalnız o zaman sorgu anahtarı
+  // ortaktır ve ek istek gitmez. Eskiden yalnız seçimler soruluyordu — anahtar
+  // hiç tutmuyor, her seçim değişikliğinde ikinci bir `by-ids` isteği
+  // varsayılan seçeneklerle çıkıyordu (429'da üç otomatik tekrar, 5xx'te genel
+  // toast; kayıt denetimi 2026-10 webcat-5).
+  const categoryNameIds = useMemo(
+    () => [...new Set([...pickedIds, ...f.mainCategoryIds])],
+    [pickedIds, f.mainCategoryIds],
+  );
+  const pickedCats = useCategoriesByIds(categoryNameIds, { inlineError: true });
 
   const taxKey = taxIdLabelKey(f.country);
-  const step1Valid =
-    !!f.country &&
-    f.legalName.trim().length >= 2 &&
-    (f.companyType !== "OTHER" || f.legalFormLocal.trim().length >= 2) &&
-    taxNumberValid &&
-    // TR'de vergi dairesi zorunlu (backend @400) — gate'e ekli.
-    (isTR ? f.taxOffice.trim().length > 0 : true) &&
-    f.city.trim().length >= 2 &&
-    (isTR ? !!f.district : true) &&
-    f.addressLine.trim().length >= 5 &&
-    // Ayrı teslimat adresi seçiliyse il + açık adres zorunlu (BE @Length ile
-    // uyumlu — boş bırakılırsa 400 yerine burada engelle).
-    (f.deliverySameAsBilling ||
-      (f.deliveryCity.trim().length >= 2 &&
-        f.deliveryAddressLine.trim().length >= 5));
-  // Tavan shared'den: DTO (`onboarding.dto.ts`) ve servis
-  // (`category-selection.helper.ts`) AYNI sabiti okuyor. Elle yazılan "3"
-  // burada duruyordu ve ayarlar ekranıyla sessizce ayrışmıştı.
-  const step2Valid =
-    tcknValid &&
-    f.mainCategoryIds.length >= 1 &&
-    f.mainCategoryIds.length <= MAX_COMPANY_MAIN_CATEGORIES;
+
+  /**
+   * ADIM DENETİMİ (kayıt denetimi 2026-10 code-auth-9 / signup-tr-9): "Devam"
+   * ve "Tamamla" sessizce pasif kalmaz. Basılınca adımın geçersiz her alanı
+   * kendi altında hatasını gösterir ve ilk hatalı alan odaklanır. Kurallar
+   * API ile aynı (DTO uzunlukları, `completeOnboarding` servis kuralları);
+   * sıra ekrandaki alan sırasıdır — ilk satır odaklanacak alandır.
+   */
+  const rule = (ok: boolean, field: FieldKey, message: string): [FieldKey, string][] =>
+    ok ? [] : [[field, message]];
+  const taxInvalidMessage = isTR ? (isSole ? t("tcknInvalid") : t("vknInvalid")) : t("taxForeignInvalid");
+  const cityMissingMessage = isTR ? t("errProvince") : t("errCity");
+  const errorsByStep: [FieldKey, string][][] = [
+    [
+      ...rule(f.legalName.trim().length >= 2, "legalName", t("errLegalName")),
+      ...rule(!!f.country, "country", t("errCountry")),
+      ...rule(
+        f.companyType !== "OTHER" || f.legalFormLocal.trim().length >= 2,
+        "legalFormLocal",
+        t("legalFormLocalRequired"),
+      ),
+      ...rule(taxNumberValid, "taxNumber", taxInvalidMessage),
+      // TR'de vergi dairesi zorunlu (backend 400).
+      ...rule(!isTR || f.taxOffice.trim().length > 0, "taxOffice", t("errTaxOffice")),
+      ...rule(isAcceptableWebsite(f.website), "website", t("errWebsite")),
+      ...rule(f.city.trim().length >= 2, "city", cityMissingMessage),
+      ...rule(!isTR || !!f.district, "district", t("errDistrict")),
+      // TR posta kodu 5 rakam — adres defteri ve API `assertPostalCode` ile
+      // aynı kural (`lib/company/postal-code.ts`); boş serbest.
+      ...rule(!isTR || !isInvalidTrPostal(f.postalCode), "postalCode", t("errPostalTr")),
+      ...rule(f.addressLine.trim().length >= 5, "addressLine", t("errAddressLine")),
+      // Ayrı teslimat adresi seçiliyse il/şehir + açık adres zorunlu (BE @Length).
+      ...(f.deliverySameAsBilling
+        ? []
+        : [
+            ...rule(f.deliveryCity.trim().length >= 2, "deliveryCity", cityMissingMessage),
+            ...rule(!isTR || !isInvalidTrPostal(f.deliveryPostalCode), "deliveryPostalCode", t("errPostalTr")),
+            ...rule(f.deliveryAddressLine.trim().length >= 5, "deliveryAddressLine", t("errAddressLine")),
+          ]),
+    ],
+    [
+      ...rule(tcknValid, "authorizedTckn", t("tcknInvalidPerson")),
+      // Kategori ZORUNLU (DTO `@ArrayMinSize(1)`). Üst sınırı (sektör tavanı)
+      // seçici kendi uyarısıyla uygular; aşan bir değer yine de gelirse
+      // API'nin reddi bu alanın altında gösterilir (`serverErrorField`).
+      ...rule(f.mainCategoryIds.length >= 1, "mainCategoryIds", t("categoryRequired")),
+    ],
+    [...rule(f.declarationAccepted, "declarationAccepted", t("errDeclaration"))],
+  ];
+
+  /**
+   * Alanın altında gösterilecek hata. İstemci kuralı, adımına basıldıktan
+   * sonra görünür (`live`: kimlik numaraları yazılırken de — eski davranış);
+   * kural geçiyorsa sunucunun o alan için verdiği ret, değer değişene dek.
+   */
+  const fieldError = (field: FieldKey, live = false): string | null => {
+    const stepIndex = stepOfField(field);
+    const client = errorsByStep[stepIndex]!.find(([k]) => k === field)?.[1] ?? null;
+    if (client && (attempted.includes(stepIndex) || live)) return client;
+    return serverError?.field === field && JSON.stringify(f[field]) === serverError.at ? serverError.message : null;
+  };
+  const generalError =
+    serverError && !serverError.field && JSON.stringify(f) === serverError.at ? serverError.message : null;
+
+  // ADIM GEÇİŞİ (signup-tr-7): yeni adım kaydırma konumunu koruyup ortasından
+  // açılıyordu (telefonda başlık ve ilk zorunlu alan ekranın 580 px üstünde).
+  // Geçişte sihirbazın başına kaydırılır ve odak adım başlığına taşınır;
+  // hedef bir alan ise (eksik/reddedilen) odak o alana gider.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  // Adım adlarının kimliği: adım başlığı adını göstergedeki etiketten alır.
+  const stepLabelId = useId();
+  // Sektör listesi yüklenemediğinde "Tekrar dene"yi açıklayan metinlerin kimliği.
+  const sectorErrorId = useId();
+  const pendingNavRef = useRef<{ field: FieldKey | null } | null>(null);
+  const goTo = (target: number, field: FieldKey | null = null) => {
+    if (target === step) {
+      if (field) focusFieldIn(cardRef.current, field);
+      return;
+    }
+    pendingNavRef.current = { field };
+    setStep(target);
+  };
+  useEffect(() => {
+    const nav = pendingNavRef.current;
+    if (!nav) return;
+    pendingNavRef.current = null;
+    if (nav.field) {
+      focusFieldIn(cardRef.current, nav.field);
+      return;
+    }
+    stepHeadingRef.current?.focus({ preventScroll: true });
+    titleRef.current?.scrollIntoView?.({ block: "start" });
+  }, [step]);
+
+  /** Adımın eksiklerini gösterir ve ilk hatalı alana gider (gerekirse o adıma döner). */
+  const revealErrors = (stepIndex: number) => {
+    setAttempted((a) => (a.includes(stepIndex) ? a : [...a, stepIndex]));
+    goTo(stepIndex, errorsByStep[stepIndex]![0]?.[0] ?? null);
+  };
+  const next = () => {
+    if (errorsByStep[step]!.length > 0) revealErrors(step);
+    else goTo(step + 1);
+  };
 
   const isEuVat = EU_VAT_COUNTRIES.has(f.country);
   const checkVies = () => viesLock.run(doCheckVies);
@@ -286,7 +543,14 @@ export function OnboardingClient() {
   };
 
   const submit = async () => {
-    setError(null);
+    // Önceki adımlar da denetlenir: yenilemeyle geri gelen taslak sihirbazı
+    // doğrudan son adımda açabilir.
+    const firstInvalidStep = errorsByStep.findIndex((list) => list.length > 0);
+    if (firstInvalidStep !== -1) {
+      revealErrors(firstInvalidStep);
+      return;
+    }
+    setServerError(null);
     try {
       await complete.mutateAsync({
         legalName: f.legalName.trim(),
@@ -324,10 +588,19 @@ export function OnboardingClient() {
       });
       toast.success(t("completed"));
       clearInvitePrefill();
+      leavingRef.current = true;
       clearOnboardingDraft(userId);
       window.location.href = localizePath("/company", runtimeLocale());
     } catch (err) {
-      setError(extractErrorMessage(err, t("saveFailed")));
+      // Hata, sahibi olan alanın adımında ve alanın altında gösterilir; alan
+      // tanınmıyorsa bu adımdaki kutuda. İkisi de değer düzeltilince kaybolur.
+      const field = serverErrorField(err, f);
+      setServerError({
+        message: extractErrorMessage(err, t("saveFailed")),
+        field,
+        at: JSON.stringify(field ? f[field] : f),
+      });
+      if (field) goTo(stepOfField(field), field);
     }
   };
 
@@ -368,9 +641,30 @@ export function OnboardingClient() {
     return <OwnerMustCompleteNotice />;
   }
 
+  // Özet: il adı arayüz dilinde (saklanan değer Türkçe ad kalır).
+  const shownCity = (city: string) => (isTR ? provinceDisplayName(city, locale) : city);
+  const pickedNames = pickedIds
+    .map((id) => pickedCats.data?.find((c) => c.id === id)?.nameTr ?? id)
+    .join(", ");
+  // Sektör listesi YOK ve yüklenemedi. `isError` tek başına yetmez (kayıt
+  // denetimi 2026-10 webcat-8): TanStack Query onu, eldeki liste dururken arka
+  // plan tazelemesi düştüğünde de kurar. O durumda seçici (ve açık kategori
+  // penceresi) sökülüp yerine hata satırı geliyor, onaylanmamış seçimler
+  // sorulmadan kayboluyordu. Liste eldeyse seçici kalır — pencerenin kendi
+  // kuralıyla aynı (hata yalnız gösterilecek veri yokken).
+  const sectorsUnavailable = roots.isError && roots.data === undefined;
+  const categoryError = fieldError("mainCategoryIds");
+  const declarationError = fieldError("declarationAccepted");
+
   return (
-    <OnboardingShell onBeforeLocaleSwitch={() => saveOnboardingDraft(userId, { step, f })}>
-      <h1 className="text-2xl font-bold text-zinc-900">{t("title")}</h1>
+    <OnboardingShell
+      onBeforeLocaleSwitch={() => saveOnboardingDraft(userId, { step, f })}
+      onBeforeLogout={() => {
+        // Çıkış taslağı siler; bekleyen yazma onu geri getirmesin.
+        leavingRef.current = true;
+      }}
+    >
+      <h1 ref={titleRef} className="scroll-mt-28 text-2xl font-bold text-zinc-900">{t("title")}</h1>
       <p className="mt-1 text-sm text-zinc-500">{t("lead")}</p>
 
       {/* Adım göstergesi */}
@@ -392,7 +686,10 @@ export function OnboardingClient() {
             >
               {i < step ? <Check className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={`text-xs ${i === step ? "font-semibold text-zinc-900" : "text-zinc-500"}`}>
+            <span
+              id={`${stepLabelId}-${i}`}
+              className={`text-xs ${i === step ? "font-semibold text-zinc-900" : "text-zinc-500"}`}
+            >
               {s}
             </span>
             {i < STEPS.length - 1 ? <span className="h-px flex-1 bg-zinc-200" /> : null}
@@ -400,19 +697,40 @@ export function OnboardingClient() {
         ))}
       </ol>
 
-      <div className="mt-6 card p-5">
+      <div ref={cardRef} className="mt-6 card p-5">
+        {/* Adım başlığı: adım değişince odak buraya taşınır (ekran okuyucu
+            yeni adımı duyurur, klavye sırası adımın başından sürer). Görsel
+            karşılığı üstteki adım göstergesi olduğundan yalnız ekran okuyucuya;
+            adımın ADI metne yazılmaz, göstergedeki etiketten açıklama olarak
+            okunur — aynı ad sayfada ikinci bir başlık/metin olarak çoğalmaz
+            (sayfa başlığı da "Şirket bilgileri"). */}
+        <h2
+          ref={stepHeadingRef}
+          tabIndex={-1}
+          aria-describedby={`${stepLabelId}-${step}`}
+          className="sr-only"
+        >
+          {t("stepOf", { current: step + 1, total: STEPS.length })}
+        </h2>
         {step === 0 ? (
           <div className="space-y-3">
-            <Field>
+            <Field data-field="legalName">
               <Label>{t("legalName")}</Label>
-              <Input value={f.legalName} maxLength={150} onChange={(e) => set("legalName")(e.target.value)} />
+              <Input
+                value={f.legalName}
+                maxLength={150}
+                invalid={!!fieldError("legalName")}
+                onChange={(e) => set("legalName")(e.target.value)}
+              />
+              <FieldError message={fieldError("legalName")} />
             </Field>
-            <Field>
+            <Field data-field="country">
               <Label>{t("country")}</Label>
               <CountryCombobox
                 value={f.country}
                 codes={REGISTRATION_CODES}
                 ariaLabel={t("country")}
+                invalid={!!fieldError("country")}
                 onChange={(code) =>
                   // Ülke değişince ülkeye-özel alanları temizle (TR il/ilçe/vergi
                   // dairesi ↔ yabancı şehir/eyalet karışmasın). Aynı ülkeyi
@@ -436,73 +754,89 @@ export function OnboardingClient() {
                   }))
                 }
               />
+              <FieldError message={fieldError("country")} />
             </Field>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Field>
-                  <Label>{t("companyTypeLabel")}</Label>
-                  <Select value={f.companyType} onChange={(e) => set("companyType")(e.target.value)}>
-                    {companyTypes.map((ct) => (
-                      <option key={ct.value} value={ct.value}>{ct.label}</option>
-                    ))}
-                  </Select>
+            {/* ETİKETLER ORTAK SATIRDA (sm ve üstü; kayıt denetimi 2026-10
+                signup-enru-4): iki sütunun etiketleri aynı ızgara satırını
+                paylaşır, kutular ikinci satırda başlar. Eskiden her sütun
+                etiketini kendi içinde taşıyordu; Rusça vergi etiketi iki
+                satıra sarınca vergi kutusu Firma Türü kutusunun 25 px altına
+                düşüyordu. Alanlar `contents`: çocukları doğrudan ızgaraya
+                yerleşir, etiket-kutu bağı (Field) aynen kalır. Telefonda tek
+                sütun, kaynak sırasıyla. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-[auto_auto_1fr] sm:gap-x-3">
+              <Field className="contents">
+                <Label className="sm:col-start-1 sm:row-start-1 sm:self-end">{t("companyTypeLabel")}</Label>
+                <Select
+                  className="sm:col-start-1 sm:row-start-2"
+                  value={f.companyType}
+                  onChange={(e) => set("companyType")(e.target.value)}
+                >
+                  {companyTypes.map((ct) => (
+                    <option key={ct.value} value={ct.value}>{ct.label}</option>
+                  ))}
+                </Select>
+              </Field>
+              {/* Ayrı Field: aynı Field içinde Headless ikinci kontrolü de
+                  "Firma Türü" etiketine bağlıyordu (D-353). */}
+              {f.companyType === "OTHER" ? (
+                <Field className="mt-2 sm:col-start-1 sm:row-start-3" data-field="legalFormLocal">
+                  <Label className="sr-only">{t("legalFormLocal")}</Label>
+                  <Input
+                    value={f.legalFormLocal}
+                    maxLength={80}
+                    placeholder={t("legalFormLocalPlaceholder")}
+                    invalid={!!fieldError("legalFormLocal")}
+                    onChange={(e) => set("legalFormLocal")(e.target.value)}
+                  />
+                  <FieldError message={fieldError("legalFormLocal")} />
                 </Field>
-                {/* Ayrı Field: aynı Field içinde Headless ikinci kontrolü de
-                    "Firma Türü" etiketine bağlıyordu (D-353). */}
-                {f.companyType === "OTHER" ? (
-                  <Field className="mt-2">
-                    <Label className="sr-only">{t("legalFormLocal")}</Label>
-                    <Input
-                      value={f.legalFormLocal}
-                      maxLength={80}
-                      placeholder={t("legalFormLocalPlaceholder")}
-                      onChange={(e) => set("legalFormLocal")(e.target.value)}
-                    />
-                  </Field>
-                ) : null}
-              </div>
-              <Field>
-                <Label>{isTR ? t("taxTr") : `${tTax(`label.${taxKey}` as never)} *`}</Label>
-                <Input
-                  value={f.taxNumber}
-                  maxLength={40}
-                  onChange={(e) =>
-                    set("taxNumber")(
-                      isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
-                    )
-                  }
-                />
-                {/* Biçim ipucu arayüz dilinde, ülkenin resmî adıyla (2026-09-27;
-                    eskiden profildeki "БИН (BIN) — 12 hane" metni İngilizce
-                    ekranda olduğu gibi basılıyordu). */}
-                {f.country && !isTR ? (
-                  <p className="mt-1 text-xs text-zinc-500">{tTax(`hint.${taxKey}` as never)}</p>
-                ) : null}
-                {f.taxNumber.trim() && !taxNumberValid ? (
-                  <p className="mt-1 text-xs text-red-600">
-                    {isTR
-                      ? isSole
-                        ? t("tcknInvalid")
-                        : t("vknInvalid")
-                      : t("taxForeignInvalid")}
-                  </p>
-                ) : null}
-                {isEuVat ? (
-                  <button
-                    type="button"
-                    disabled={f.taxNumber.trim().length < 4 || vies.isPending || viesLock.locked}
-                    onClick={() => void checkVies()}
-                    className="mt-1 text-xs font-semibold text-blue-600 hover:underline disabled:opacity-50"
-                  >
-                    {vies.isPending ? t("viesChecking") : t("viesCheck")}
-                  </button>
-                ) : null}
+              ) : null}
+              <Field className="contents" data-field="taxNumber">
+                <Label className="mt-3 sm:col-start-2 sm:row-start-1 sm:mt-0 sm:self-end">
+                  {isTR ? t("taxTr") : `${tTax(`label.${taxKey}` as never)} *`}
+                </Label>
+                <div data-slot="control" className="sm:col-start-2 sm:row-span-2 sm:row-start-2">
+                  <Input
+                    value={f.taxNumber}
+                    maxLength={40}
+                    invalid={!!fieldError("taxNumber", !!f.taxNumber.trim())}
+                    onChange={(e) =>
+                      set("taxNumber")(
+                        isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
+                      )
+                    }
+                  />
+                  {/* Biçim ipucu arayüz dilinde, ülkenin resmî adıyla (2026-09-27;
+                      eskiden profildeki "БИН (BIN) — 12 hane" metni İngilizce
+                      ekranda olduğu gibi basılıyordu). */}
+                  {f.country && !isTR ? (
+                    <p className="mt-1 text-xs text-zinc-500">{tTax(`hint.${taxKey}` as never)}</p>
+                  ) : null}
+                  <FieldError message={fieldError("taxNumber", !!f.taxNumber.trim())} />
+                  {isEuVat ? (
+                    <button
+                      type="button"
+                      disabled={f.taxNumber.trim().length < 4 || vies.isPending || viesLock.locked}
+                      onClick={() => void checkVies()}
+                      className="mt-1 text-xs font-semibold text-blue-600 hover:underline disabled:opacity-50"
+                    >
+                      {vies.isPending ? t("viesChecking") : t("viesCheck")}
+                    </button>
+                  ) : null}
+                </div>
               </Field>
             </div>
             {isTR ? (
-              <Field>
+              <Field data-field="taxOffice">
                 <Label>{t("taxOffice")}</Label>
-                <Input value={f.taxOffice} maxLength={60} onChange={(e) => set("taxOffice")(e.target.value)} />
+                <Input
+                  value={f.taxOffice}
+                  maxLength={60}
+                  invalid={!!fieldError("taxOffice")}
+                  onChange={(e) => set("taxOffice")(e.target.value)}
+                />
+                <FieldError message={fieldError("taxOffice")} />
               </Field>
             ) : null}
             {/* WEB SİTESİ — ZORUNLU DEĞİL, TEŞVİKLİ (2026-09-15, kullanıcı
@@ -510,48 +844,64 @@ export function OnboardingClient() {
                 imalatçıyı kapıda elerdi — bizim için o firma sitesi olup hiç
                 ürün eklemeyenden daha değerli. Bedel kapıda değil sonuçta:
                 giren firmanın profilini AI dolduruyor, girmeyen elle yazana
-                kadar arama eşiğini geçemiyor. */}
-            <Field>
+                kadar arama eşiğini geçemiyor. Yazıldıysa bir web adresi
+                olmalı (`isAcceptableWebsite`). */}
+            <Field data-field="website">
               <Label>{t("website")}</Label>
               <Input
                 value={f.website}
                 maxLength={200}
                 placeholder={t("websitePlaceholder")}
+                invalid={!!fieldError("website")}
                 onChange={(e) => set("website")(e.target.value)}
               />
+              <FieldError message={fieldError("website")} />
               <p className="mt-1 text-xs text-zinc-500">{t.rich("websiteHint", { b })}</p>
             </Field>
             {isTR ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field>
+                <Field data-field="city">
                   <Label>{t("province")}</Label>
-                  <Select value={f.city} onChange={(e) => { set("city")(e.target.value); set("district")(""); }}>
+                  <Select
+                    value={f.city}
+                    invalid={!!fieldError("city")}
+                    onChange={(e) => { set("city")(e.target.value); set("district")(""); }}
+                  >
                     <option value="">{t("select")}</option>
-                    {TURKEY_LOCATIONS.map((l) => (
-                      <option key={l.il} value={l.il}>{l.il}</option>
+                    {provinces.map((p) => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
                     ))}
                   </Select>
+                  <FieldError message={fieldError("city")} />
                 </Field>
-                <Field>
+                <Field data-field="district">
                   <Label>{t("district")}</Label>
-                  <Select value={f.district} disabled={ilceler.length === 0} onChange={(e) => set("district")(e.target.value)}>
+                  <Select
+                    value={f.district}
+                    disabled={ilceler.length === 0}
+                    invalid={!!fieldError("district")}
+                    onChange={(e) => set("district")(e.target.value)}
+                  >
                     <option value="">{t("select")}</option>
                     {ilceler.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </Select>
+                  <FieldError message={fieldError("district")} />
                 </Field>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field>
+                <Field data-field="city">
                   <Label>{t("city")}</Label>
                   <CityCombobox
                     country={f.country}
                     value={f.city}
                     ariaLabel={t("city")}
+                    invalid={!!fieldError("city")}
                     onChange={({ city, cityId }) => setF((s) => ({ ...s, city, cityId }))}
                   />
+                  <FieldError message={fieldError("city")} />
                 </Field>
                 <Field>
                   <Label>{t("stateRegion")}</Label>
@@ -567,14 +917,27 @@ export function OnboardingClient() {
                   <Input value={f.neighborhood} maxLength={100} onChange={(e) => set("neighborhood")(e.target.value)} />
                 </Field>
               ) : null}
-              <Field>
+              <Field data-field="postalCode">
                 <Label>{t("postalCode")}</Label>
-                <Input value={f.postalCode} maxLength={12} onChange={(e) => set("postalCode")(cleanPostal(e.target.value, isTR))} />
+                <Input
+                  value={f.postalCode}
+                  inputMode={isTR ? "numeric" : undefined}
+                  maxLength={isTR ? 5 : 12}
+                  invalid={!!fieldError("postalCode")}
+                  onChange={(e) => set("postalCode")(cleanPostal(e.target.value, isTR))}
+                />
+                <FieldError message={fieldError("postalCode")} />
               </Field>
             </div>
-            <Field>
+            <Field data-field="addressLine">
               <Label>{t("addressLine")}</Label>
-              <Input value={f.addressLine} maxLength={500} onChange={(e) => set("addressLine")(e.target.value)} />
+              <Input
+                value={f.addressLine}
+                maxLength={500}
+                invalid={!!fieldError("addressLine")}
+                onChange={(e) => set("addressLine")(e.target.value)}
+              />
+              <FieldError message={fieldError("addressLine")} />
             </Field>
             {/* CheckboxField + Label: metne tıklamak da kutuyu değiştirir (O-120). */}
             <CheckboxField>
@@ -589,17 +952,19 @@ export function OnboardingClient() {
                     düz metin şehir `cityId` taşımıyor, eyalet hiç sorulmuyordu. */}
                 {isTR ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field>
+                    <Field data-field="deliveryCity">
                       <Label>{t("deliveryProvince")}</Label>
                       <Select
                         value={f.deliveryCity}
+                        invalid={!!fieldError("deliveryCity")}
                         onChange={(e) => setF((s) => ({ ...s, deliveryCity: e.target.value, deliveryDistrict: "" }))}
                       >
                         <option value="">{t("select")}</option>
-                        {TURKEY_LOCATIONS.map((l) => (
-                          <option key={l.il} value={l.il}>{l.il}</option>
+                        {provinces.map((p) => (
+                          <option key={p.value} value={p.value}>{p.label}</option>
                         ))}
                       </Select>
+                      <FieldError message={fieldError("deliveryCity")} />
                     </Field>
                     <Field>
                       <Label>{t("deliveryDistrict")}</Label>
@@ -617,16 +982,18 @@ export function OnboardingClient() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field>
+                    <Field data-field="deliveryCity">
                       <Label>{t("deliveryCity")}</Label>
                       <CityCombobox
                         country={f.country}
                         value={f.deliveryCity}
                         ariaLabel={t("deliveryCity")}
+                        invalid={!!fieldError("deliveryCity")}
                         onChange={({ city, cityId }) =>
                           setF((s) => ({ ...s, deliveryCity: city, deliveryCityId: cityId }))
                         }
                       />
+                      <FieldError message={fieldError("deliveryCity")} />
                     </Field>
                     <Field>
                       <Label>{t("stateRegion")}</Label>
@@ -645,14 +1012,27 @@ export function OnboardingClient() {
                       <Input value={f.deliveryNeighborhood} maxLength={100} onChange={(e) => set("deliveryNeighborhood")(e.target.value)} />
                     </Field>
                   ) : null}
-                  <Field>
+                  <Field data-field="deliveryPostalCode">
                     <Label>{t("postalCode")}</Label>
-                    <Input value={f.deliveryPostalCode} maxLength={12} onChange={(e) => set("deliveryPostalCode")(cleanPostal(e.target.value, isTR))} />
+                    <Input
+                      value={f.deliveryPostalCode}
+                      inputMode={isTR ? "numeric" : undefined}
+                      maxLength={isTR ? 5 : 12}
+                      invalid={!!fieldError("deliveryPostalCode")}
+                      onChange={(e) => set("deliveryPostalCode")(cleanPostal(e.target.value, isTR))}
+                    />
+                    <FieldError message={fieldError("deliveryPostalCode")} />
                   </Field>
                 </div>
-                <Field>
+                <Field data-field="deliveryAddressLine">
                   <Label>{t("addressLine")}</Label>
-                  <Input value={f.deliveryAddressLine} maxLength={500} onChange={(e) => set("deliveryAddressLine")(e.target.value)} />
+                  <Input
+                    value={f.deliveryAddressLine}
+                    maxLength={500}
+                    invalid={!!fieldError("deliveryAddressLine")}
+                    onChange={(e) => set("deliveryAddressLine")(e.target.value)}
+                  />
+                  <FieldError message={fieldError("deliveryAddressLine")} />
                 </Field>
               </div>
             )}
@@ -672,20 +1052,19 @@ export function OnboardingClient() {
               </Field>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field>
+              <Field data-field="authorizedTckn">
                 <Label>{isTR ? t("tcknLabel") : t("foreignIdLabel")}</Label>
                 <Input
                   value={f.authorizedTckn}
                   maxLength={isTR ? 11 : 30}
+                  invalid={!!fieldError("authorizedTckn", !!f.authorizedTckn.trim())}
                   onChange={(e) =>
                     set("authorizedTckn")(
                       isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
                     )
                   }
                 />
-                {isTR && f.authorizedTckn.trim() && !tcknValid ? (
-                  <p className="mt-1 text-xs text-red-600">{t("tcknInvalidPerson")}</p>
-                ) : null}
+                <FieldError message={fieldError("authorizedTckn", !!f.authorizedTckn.trim())} />
               </Field>
               <div className="rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
                 {t.rich("founderBox", { b })}
@@ -703,29 +1082,51 @@ export function OnboardingClient() {
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-500">{t("sectorHint")}</p>
               </div>
-              {roots.isError ? (
-                <p className="text-xs text-rose-600">
-                  {t("sectorsFailed")}{" "}
-                  <button
-                    type="button"
-                    onClick={() => roots.refetch()}
-                    className="font-semibold underline"
-                  >
-                    {t("retry")}
-                  </button>
-                </p>
-              ) : (
-                <CompanyCategoryPicker
-                  value={{
-                    mainIds: f.mainCategoryIds,
-                    subIds: f.subCategoryIds,
-                  }}
-                  onChange={setKategoriler}
-                  label={t("pickerLabel")}
-                  hint={t("pickerHint")}
-                  modalTitle={t("pickerLabel")}
-                />
-              )}
+              {/* `data-field` İKİ dalı da sarar (kayıt denetimi 2026-10
+                  web-auth-6): sektör listesi yüklenemeyince seçici çizilmez;
+                  sarmalayıcı yalnız seçici dalındayken "Devam"ın işaretleyip
+                  odaklayacağı bir öğe kalmıyor, basış görünür ve duyulur bir
+                  sonuç vermiyordu. Artık odak "Tekrar dene"ye gider ve
+                  kategori hatası yükleme hatasının altında yazılır; düğme iki
+                  metne de `aria-describedby` ile bağlıdır. */}
+              <div data-field="mainCategoryIds">
+                {sectorsUnavailable ? (
+                  <>
+                    <p className="text-xs text-rose-600">
+                      <span id={`${sectorErrorId}-load`}>{t("sectorsFailed")}</span>{" "}
+                      <button
+                        type="button"
+                        onClick={() => roots.refetch()}
+                        aria-describedby={
+                          categoryError
+                            ? `${sectorErrorId}-load ${sectorErrorId}-required`
+                            : `${sectorErrorId}-load`
+                        }
+                        className="font-semibold underline"
+                      >
+                        {t("retry")}
+                      </button>
+                    </p>
+                    {categoryError ? (
+                      <p id={`${sectorErrorId}-required`} className="mt-1.5 text-xs text-rose-600">
+                        {categoryError}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <CompanyCategoryPicker
+                    value={{
+                      mainIds: f.mainCategoryIds,
+                      subIds: f.subCategoryIds,
+                    }}
+                    onChange={setKategoriler}
+                    label={t("pickerLabel")}
+                    hint={t("pickerHint")}
+                    modalTitle={t("pickerLabel")}
+                    error={categoryError ?? undefined}
+                  />
+                )}
+              </div>
 
               <CompanyActivityPicker
                 value={f.activities}
@@ -737,6 +1138,9 @@ export function OnboardingClient() {
 
         {step === 2 ? (
           <div className="space-y-3">
+            {/* ÖZET kaydedilecek her şeyi listeler (signup-tr-14): web sitesi,
+                ayrı teslimat adresi, kimlik no (maskeli), seçilen ürün ve
+                hizmetler ile faaliyet tipleri de burada. */}
             <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
               <Summary label={t("sumLegalName")} value={f.legalName} />
               <Summary
@@ -754,6 +1158,7 @@ export function OnboardingClient() {
                 value={normalizeTaxId(f.taxNumber, f.country)}
               />
               {isTR ? <Summary label={t("sumTaxOffice")} value={f.taxOffice} /> : null}
+              <Summary label={t("sumWebsite")} value={f.website.trim()} />
               <Summary
                 label={t("sumAddress")}
                 value={formatOnboardingAddress({
@@ -762,9 +1167,25 @@ export function OnboardingClient() {
                   neighborhood: f.neighborhood,
                   postalCode: f.postalCode,
                   district: f.district,
-                  city: f.city,
+                  city: shownCity(f.city),
                   stateRegion: f.stateRegion,
                 })}
+              />
+              <Summary
+                label={t("sumDeliveryAddress")}
+                value={
+                  f.deliverySameAsBilling
+                    ? t("sumDeliverySame")
+                    : formatOnboardingAddress({
+                        isTR,
+                        addressLine: f.deliveryAddressLine,
+                        neighborhood: f.deliveryNeighborhood,
+                        postalCode: f.deliveryPostalCode,
+                        district: f.deliveryDistrict,
+                        city: shownCity(f.deliveryCity),
+                        stateRegion: f.deliveryStateRegion,
+                      })
+                }
               />
               <Summary
                 label={t("sumCountry")}
@@ -774,6 +1195,14 @@ export function OnboardingClient() {
                 label={t("sumAuthorized")}
                 value={[user?.firstName, user?.lastName].filter(Boolean).join(" ")}
               />
+              {/* Kimlik no MASKELİ (Firma Bilgileri ile aynı `maskNationalId`);
+                  yurt dışında isteğe bağlı — boşsa satır çizilmez. */}
+              {f.authorizedTckn.trim() ? (
+                <Summary
+                  label={isTR ? t("sumTckn") : t("sumForeignId")}
+                  value={maskNationalId(f.authorizedTckn.trim())}
+                />
+              ) : null}
               {/* Satınalma koltuğu BURADA YAZILMAZ: talep açmak Gold paket
                   ister, yeni firma STANDART doğar. Eskiden "Kurucu · satınalma
                   koltuğu · satış koltuğu" yazıyordu — kullanılamayan bir yetkiyi
@@ -787,6 +1216,8 @@ export function OnboardingClient() {
                   .map((c) => c.nameTr)
                   .join(", ")}
               />
+              <Summary label={t("sumProducts")} value={pickedNames} />
+              <Summary label={t("sumActivities")} value={f.activities.map(activityLabel).join(", ")} />
             </dl>
             {/* Sırada ne olduğunu ÜLKEDEN BAĞIMSIZ olarak söyler. Kayıt için
                 admin onayı GEREKMEZ — hesap hemen çalışır; doğrulama yalnız
@@ -797,32 +1228,42 @@ export function OnboardingClient() {
               <p className="font-medium">{t("nextTitle")}</p>
               <p className="mt-1">{t.rich("nextBody", { b })}</p>
             </div>
-            <CheckboxField className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
-              <Checkbox aria-label={t("declarationAria")} checked={f.declarationAccepted} onChange={(v) => set("declarationAccepted")(v)} />
+            {/* Hata CheckboxField'in İÇİNDE (kayıt denetimi 2026-10 web-auth-1):
+                Headless `Description` kutunun `aria-describedby`ına bağlanır,
+                kutu `aria-invalid` olur — sihirbazın öteki alanlarıyla aynı.
+                Eskiden hata alanın dışında düz bir paragraftı: odak kutuya
+                gidiyor ama ekran okuyucu yalnız etiketi okuyordu. Izgarada
+                etiketin altına oturur (2. sütun, 2. satır; onay satırlarıyla
+                aynı yerleşim). */}
+            <CheckboxField
+              data-field="declarationAccepted"
+              className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3"
+            >
+              <Checkbox
+                aria-label={t("declarationAria")}
+                aria-invalid={declarationError ? true : undefined}
+                checked={f.declarationAccepted}
+                onChange={(v) => set("declarationAccepted")(v)}
+              />
               <Label className="cursor-pointer">{t("declaration")}</Label>
+              <FieldError message={declarationError} className="col-start-2 row-start-2" />
             </CheckboxField>
-          </div>
-        ) : null}
-
-        {error ? (
-          <div role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
+            {generalError ? (
+              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {generalError}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
         <div className="mt-5 flex justify-between">
-          <Button plain disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
+          <Button plain disabled={step === 0} onClick={() => goTo(step - 1)}>
             {t("back")}
           </Button>
           {step < 2 ? (
-            <Button
-              disabled={(step === 0 && !step1Valid) || (step === 1 && !step2Valid)}
-              onClick={() => setStep((s) => s + 1)}
-            >
-              {t("next")}
-            </Button>
+            <Button onClick={next}>{t("next")}</Button>
           ) : (
-            <Button disabled={!f.declarationAccepted || complete.isPending || finishLock.locked} onClick={() => void finishLock.run(submit)}>
+            <Button disabled={complete.isPending || finishLock.locked} onClick={() => void finishLock.run(submit)}>
               {complete.isPending || finishLock.locked ? t("saving") : t("finish")}
             </Button>
           )}
@@ -833,6 +1274,21 @@ export function OnboardingClient() {
 }
 
 /**
+ * Alan altı hata metni. `Field` içinde çizilir: Headless `Description` kutuya
+ * `aria-describedby` ile bağlanır — odak hatalı alana taşındığında ekran
+ * okuyucu hatayı da okur. (Catalyst `ErrorMessage` değil: onun `data-slot`u
+ * Field'in 12 px üst boşluk kuralını tetikler; buradaki hatalar kutunun hemen
+ * altında, ipucu satırlarıyla aynı ölçüde durur.)
+ *
+ * `className` üst boşluğun yerini alır: `CheckboxField` ızgarasında boşluğu
+ * ızgara verir, hata yalnız hücresini söyler (`col-start-2 row-start-2`).
+ */
+function FieldError({ message, className = "mt-1" }: { message: string | null; className?: string }) {
+  if (!message) return null;
+  return <HeadlessDescription className={`${className} text-xs text-red-600`}>{message}</HeadlessDescription>;
+}
+
+/**
  * Sihirbazın üst çubuğu (arayüz testi O-122): logo, dil seçici ve "Oturumu
  * kapat". Eskiden yalın kapsayıcıydı — ortak bilgisayarda ya da yanlış
  * hesapla kaydolan kurucu onboarding bitene kadar çıkamıyordu.
@@ -840,10 +1296,13 @@ export function OnboardingClient() {
 function OnboardingShell({
   children,
   onBeforeLocaleSwitch,
+  onBeforeLogout,
 }: {
   children: ReactNode;
   /** Dil değişimi sihirbazı yeniden bağlar — girilenler önce saklanır. */
   onBeforeLocaleSwitch?: () => void;
+  /** Çıkıştan hemen önce (taslak yazımı durdurulur). */
+  onBeforeLogout?: () => void;
 }) {
   const t = useTranslations("web.auth.onboarding");
   const logout = useCompanyLogout();
@@ -855,7 +1314,13 @@ function OnboardingShell({
         <RothernLogo variant="full-light" size="sm" className="hidden sm:block" />
         <div className="flex items-center gap-2">
           <OnboardingLanguageSelect onBeforeSwitch={onBeforeLocaleSwitch} />
-          <Button plain onClick={() => void logout()}>
+          <Button
+            plain
+            onClick={() => {
+              onBeforeLogout?.();
+              void logout();
+            }}
+          >
             {t("logout")}
           </Button>
         </div>
@@ -871,7 +1336,7 @@ function OnboardingShell({
  * Yalnız adresi değiştirmek işe yaramaz — LocaleUrlSync hesabın kayıtlı diline
  * geri döndürür (kasıtlı). Yönlendirme `[locale]` bölümünü değiştirip
  * sihirbazı yeniden bağladığı için girilenler yönlendirmeden ÖNCE saklanır
- * (`onBeforeSwitch`); hesap güncellenemezse saklanmaz.
+ * (`onBeforeSwitch`).
  */
 function OnboardingLanguageSelect({ onBeforeSwitch }: { onBeforeSwitch?: () => void }) {
   const t = useTranslations("web.auth.onboarding");
@@ -885,7 +1350,10 @@ function OnboardingLanguageSelect({ onBeforeSwitch }: { onBeforeSwitch?: () => v
       const st = useCompanyAuthStore.getState();
       if (st.user && st.company) st.setMe({ user: { ...st.user, locale: next }, company: st.company });
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("languageFailed")));
+      // TEK hata mesajı (code-auth-13): 5xx ve ağ hatasını istek katmanı zaten
+      // "Sunucu hatası" / "Bağlantı hatası" olarak gösterir; üstüne ikinci
+      // toast basılmaz.
+      if (!errorToastedGlobally(err)) toast.error(extractErrorMessage(err, t("languageFailed")));
     }
   };
   return (

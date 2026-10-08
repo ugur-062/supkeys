@@ -10,6 +10,8 @@ import {
   useSetCompanyAuth,
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
+import { isPlausibleEmail } from "@/lib/company-auth/email";
+import { resendEmailCodeOutcome } from "@/lib/company-auth/resend-code";
 import { setCompanyRemember } from "@/lib/company-auth/store";
 import { normalizeOtpCode, OTP_LENGTH } from "@/lib/company-auth/otp-code";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -19,22 +21,46 @@ import { Lock, ShieldCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+/**
+ * E-posta ön denetimi kayıtla AYNI gevşek kural (`isPlausibleEmail`; arayüz
+ * testi 2026-10 code-auth-7): zod `.email()` kaydın ve API'nin kabul ettiği
+ * adresleri (`satis&pazarlama@firma.com`, ASCII dışı alan adı) reddediyor,
+ * böyle bir hesap formdan giriş yapamıyordu. Adres kırpılarak gönderilir.
+ */
 function makeSchema(msg: { emailInvalid: string; passwordRequired: string }) {
   return z.object({
-    email: z.string().email(msg.emailInvalid),
+    email: z.string().trim().refine(isPlausibleEmail, msg.emailInvalid),
     password: z.string().min(1, msg.passwordRequired),
   });
 }
 
 type FormData = z.infer<ReturnType<typeof makeSchema>>;
 
-export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
+/** Formun gösterdiği adım — sayfa kabuğu kod adımlarında dil seçiciyi gizler. */
+export type CompanyLoginStep = "login" | "twoFactor" | "verify";
+
+/**
+ * İkincil bağlantılar (yeniden gönder, başka e-posta): metin en az zinc-500
+ * (12 px zinc-400 beyazda 2,6:1'di — arayüz testi 2026-10 login-9) ve dokunma
+ * alanı en az 32 px yüksek (login-10). `-mt-2` / `last:-mb-2`: dolgu dokunma
+ * alanını büyütür, form uzamaz.
+ */
+const SECONDARY_LINK =
+  "-mt-2 w-full py-2 text-center text-zinc-500 last:-mb-2 hover:text-zinc-800 disabled:opacity-50";
+
+export function CompanyLoginForm({
+  nextPath,
+  onStepChange,
+}: {
+  nextPath: string;
+  onStepChange?: (step: CompanyLoginStep) => void;
+}) {
   const t = useTranslations("web.auth.login");
   const tc = useTranslations("web.auth.common");
   const schema = useMemo(
@@ -52,14 +78,23 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     "email" | "authenticator"
   >("authenticator");
   const [code, setCode] = useState("");
+  // Kod alanının kendi hatası (boş/eksik kod): alanın altında, `aria-invalid`
+  // + `aria-describedby` ile (arayüz testi 2026-10 code-auth-9).
+  const [codeError, setCodeError] = useState<string | null>(null);
   // E-posta doğrulanmamışsa: login yerine doğrulama modu.
   const [needsVerify, setNeedsVerify] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
+  const [verifyCodeError, setVerifyCodeError] = useState<string | null>(null);
+  // Doğrulama moduna geçerken kod gönderimi DÜŞTÜ (hata, hız sınırı, saatlik
+  // tavan): ekran "gönderilen kodu girin" demez (arayüz testi 2026-10 login-7).
+  const [codeUnsent, setCodeUnsent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   // "Oturumumu açık bırak" — varsayılan işaretli; işaretliyken kayan 30g
   // oturum (aktifken hiç düşmez), işaretsiz → tarayıcı kapanınca biter.
   const [remember, setRemember] = useState(true);
+  const twoFactorInput = useRef<HTMLInputElement>(null);
+  const verifyInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -67,12 +102,42 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     return () => clearTimeout(timer);
   }, [cooldown]);
 
+  // Kod adımlarında dil seçici çizilmez (arayüz testi 2026-10 login-8): adım
+  // bileşen durumundadır; dil değişimi sayfayı yeni ön ekle yeniden bağlar,
+  // kullanıcı boş giriş formuna döner ve bir kod e-postası daha gider.
+  const step: CompanyLoginStep = needsVerify ? "verify" : twoFactor ? "twoFactor" : "login";
+  useEffect(() => {
+    onStepChange?.(step);
+  }, [step, onStepChange]);
+
   const {
     register,
     handleSubmit,
     getValues,
+    setFocus,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+
+  /** Kod gönderimi sonucu → ekran. "Gönderildi" yalnız kod gerçekten çıktıysa. */
+  const sendVerifyCode = async (email: string, { announce }: { announce: boolean }) => {
+    try {
+      const outcome = resendEmailCodeOutcome(await resend.mutateAsync(email));
+      if (outcome === "sent") {
+        setCodeUnsent(false);
+        setCooldown(60);
+        if (announce) toast.success(tc("newCodeSent"));
+        return;
+      }
+      // Saatlik tavanda son gönderilen kod hâlâ geçerli olabilir → "gönderilen
+      // kodu girin" metni kalır; gönderim hatasında kalmaz.
+      setCodeUnsent(outcome === "failed");
+      setFormError(outcome === "capped" ? t("codeCapped") : t("codeNotSent"));
+    } catch (err) {
+      // 429 (dakikada 3) ve ağ hatası: sunucunun metni bekleme süresini taşır.
+      setCodeUnsent(true);
+      setFormError(extractErrorMessage(err, tc("codeSendFailed")));
+    }
+  };
 
   // Giriş / kod doğrulama / yeniden gönder tek uçuşta: çift tık ikinci istek
   // atmaz (arayüz testi FX-00 D-064; tek kullanımlık kod sunucuda da atomik).
@@ -82,7 +147,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     setFormError(null);
     // 2FA açıkken kod zorunlu: 6 haneli TOTP veya kurtarma kodu (XXXX-XXXX).
     if (twoFactor && code.trim().length < 6) {
-      setFormError(t("codeRequired"));
+      setCodeError(t("codeRequired"));
+      twoFactorInput.current?.focus();
       return;
     }
     try {
@@ -115,18 +181,21 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         err.response?.status === 403 &&
         (err.response.data as { code?: string })?.code === "EMAIL_NOT_VERIFIED"
       ) {
-        setVerifyEmail(data.email.trim());
+        setVerifyEmail(data.email);
         setNeedsVerify(true);
         setFormError(null);
-        try {
-          await resend.mutateAsync(data.email.trim());
-          setCooldown(60);
-        } catch {
-          // Kod gönderimi başarısızsa kullanıcı butonla yeniden deneyebilir.
-        }
+        setVerifyCodeError(null);
+        // Gönderim düşerse ekran bunu SÖYLER (eskiden hata yutuluyor, "gönderilen
+        // kodu girin" yazıyordu); kullanıcı düğmeyle yeniden dener.
+        await sendVerifyCode(data.email, { announce: false });
         return;
       }
       setFormError(extractErrorMessage(err, t("failed")));
+      // Düğme istek sürerken pasifleşip odağı <body>'ye düşürür; hata sonrası
+      // odak bilinçli taşınır (arayüz testi 2026-10 login-15): 2FA adımında kod
+      // alanına, değilse şifre alanına — kullanıcı yeniden yazmaya hazır.
+      if (twoFactor) twoFactorInput.current?.focus();
+      else setFocus("password");
     }
   };
 
@@ -153,6 +222,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       router.replace(nextPath);
     } catch (err) {
       setFormError(extractErrorMessage(err, tc("codeVerifyFailed")));
+      verifyInput.current?.focus();
     }
   };
 
@@ -160,13 +230,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const doResend = async () => {
     if (cooldown > 0 || resend.isPending) return;
     setFormError(null);
-    try {
-      await resend.mutateAsync(verifyEmail);
-      setCooldown(60);
-      toast.success(tc("newCodeSent"));
-    } catch (err) {
-      setFormError(extractErrorMessage(err, tc("codeSendFailed")));
-    }
+    await sendVerifyCode(verifyEmail, { announce: true });
   };
 
   // E-posta 2FA kodunu YENİDEN gönder (arayüz testi D-346): kodsuz giriş
@@ -177,7 +241,13 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     if (cooldown > 0) return;
     setFormError(null);
     try {
-      const res = await login.mutateAsync({ ...getValues(), code: undefined, rememberMe: remember });
+      const values = getValues();
+      const res = await login.mutateAsync({
+        ...values,
+        email: values.email.trim(),
+        code: undefined,
+        rememberMe: remember,
+      });
       if ("twoFactorRequired" in res) {
         setCooldown(60);
         toast.success(tc("newCodeSent"));
@@ -191,42 +261,54 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     return (
       // `<form>`: Enter kodu gönderir (arayüz testi D-090).
       <form
+        noValidate
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          if (verifyCode.length === OTP_LENGTH) void submitVerify();
+          if (verifyCode.length !== OTP_LENGTH) {
+            setVerifyCodeError(t("codeLength"));
+            verifyInput.current?.focus();
+            return;
+          }
+          void submitVerify();
         }}
       >
         <p className="text-sm text-zinc-600">
-          {tc.rich("codeSentTo", { email: verifyEmail, b: (chunks) => <strong>{chunks}</strong> })}
+          {codeUnsent
+            ? t.rich("codeEnterFor", { email: verifyEmail, b: (chunks) => <strong>{chunks}</strong> })
+            : tc.rich("codeSentTo", { email: verifyEmail, b: (chunks) => <strong>{chunks}</strong> })}
         </p>
         <Field>
           <Label>{tc("code")}</Label>
           <Input
+            ref={verifyInput}
             inputMode="numeric"
             autoComplete="one-time-code"
+            // Adım açılınca odak kod alanında (arayüz testi 2026-10 login-8).
+            autoFocus
             placeholder={tc("codePlaceholder")}
+            invalid={!!verifyCodeError}
             value={verifyCode}
-            onChange={(e) => setVerifyCode(normalizeOtpCode(e.target.value))}
+            onChange={(e) => {
+              setVerifyCode(normalizeOtpCode(e.target.value));
+              setVerifyCodeError(null);
+            }}
           />
+          {verifyCodeError ? <ErrorMessage>{verifyCodeError}</ErrorMessage> : null}
         </Field>
         {formError ? (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {formError}
           </div>
         ) : null}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={verifyCode.length !== OTP_LENGTH || verify.isPending || lock.locked}
-        >
+        <Button type="submit" className="w-full" disabled={verify.isPending || lock.locked}>
           {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
         </Button>
         <button
           type="button"
           disabled={resend.isPending || cooldown > 0 || lock.locked}
           onClick={() => void handleResend()}
-          className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+          className={`${SECONDARY_LINK} text-sm`}
         >
           {cooldown > 0
             ? tc("resendIn", { s: cooldown })
@@ -241,9 +323,11 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           onClick={() => {
             setNeedsVerify(false);
             setVerifyCode("");
+            setVerifyCodeError(null);
+            setCodeUnsent(false);
             setFormError(null);
           }}
-          className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"
+          className={`${SECONDARY_LINK} text-xs`}
         >
           {t("useAnotherEmail")}
         </button>
@@ -252,34 +336,39 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    // `noValidate`: tarayıcının kendi baloncuğu (tarayıcı dilinde, sayfa dilinde
+    // değil) çıkmaz; "abc" gibi adres de sayfa dilindeki alan hatasını alır
+    // (arayüz testi 2026-10 login-6). react-hook-form ilk hatalı alanı odaklar.
+    <form noValidate onSubmit={onSubmit} className="space-y-5">
       <Field>
         <Label>{tc("email")}</Label>
         <Input type="email" autoComplete="email" autoFocus invalid={!!errors.email} {...register("email")} />
-        {errors.email ? (
-          <ErrorMessage className="mt-1">{errors.email.message}</ErrorMessage>
-        ) : null}
+        {errors.email ? <ErrorMessage>{errors.email.message}</ErrorMessage> : null}
       </Field>
 
       <Field>
         <Label>{tc("password")}</Label>
         <PasswordInput autoComplete="current-password" invalid={!!errors.password} {...register("password")} />
-        {errors.password ? (
-          <ErrorMessage className="mt-1">{errors.password.message}</ErrorMessage>
-        ) : null}
+        {errors.password ? <ErrorMessage>{errors.password.message}</ErrorMessage> : null}
       </Field>
 
       {twoFactor ? (
         <Field>
           <Label>{tc("code")}</Label>
           <Input
+            ref={twoFactorInput}
             autoComplete="one-time-code"
             autoFocus
             maxLength={12}
             placeholder={t("codePlaceholder2fa")}
+            invalid={!!codeError}
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => {
+              setCode(e.target.value);
+              setCodeError(null);
+            }}
           />
+          {codeError ? <ErrorMessage>{codeError}</ErrorMessage> : null}
           <p className="mt-1 text-xs text-zinc-500">
             {twoFactorMethod === "email" ? t("hintEmail") : t("hintAuthenticator")}
           </p>
@@ -288,7 +377,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
               type="button"
               disabled={login.isPending || cooldown > 0 || lock.locked}
               onClick={() => void resendTwoFactor()}
-              className="mt-1 text-xs font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+              className="-mt-1 -mb-2 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
             >
               {cooldown > 0 ? tc("resendIn", { s: cooldown }) : tc("resend")}
             </button>
@@ -296,8 +385,11 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         </Field>
       ) : null}
 
-      <div className="-mt-1 flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-zinc-600 select-none">
+      {/* Dokunma alanları en az 32 px yüksek (arayüz testi 2026-10 login-10):
+          etiket ve bağlantı dolguyla 16 → 32 px olur; `-mt-3 mb-3` satırın
+          eski yerini korur (form uzamaz). */}
+      <div className="-mt-3 mb-3 flex items-center justify-between gap-3">
+        <label className="flex min-h-8 cursor-pointer items-center gap-2 py-2 text-xs font-medium text-zinc-600 select-none">
           <input
             type="checkbox"
             checked={remember}
@@ -306,7 +398,10 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           />
           {t("remember")}
         </label>
-        <Link href="/company/sifremi-unuttum" className="text-xs font-medium text-zinc-500 hover:text-zinc-900">
+        <Link
+          href="/company/sifremi-unuttum"
+          className="inline-flex min-h-8 items-center py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900"
+        >
           {t("forgot")}
         </Link>
       </div>

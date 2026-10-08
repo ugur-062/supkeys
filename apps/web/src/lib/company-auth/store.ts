@@ -17,10 +17,21 @@ export function setCompanyRemember(remember: boolean): void {
   window.localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
 }
 
-function rememberEnabled(): boolean {
+/**
+ * "Oturumumu açık bırak" açık mı (varsayılan açık)? Kapalıyken anlık görüntü
+ * sessionStorage'dadır, yani SEKMEYE özeldir: yeni sekmede anlık görüntü
+ * olmaması "oturum yok" demek DEĞİLDİR — bkz. `useCompanySessionProbe`.
+ */
+export function companyRememberEnabled(): boolean {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(REMEMBER_KEY) !== "0";
+  try {
+    return window.localStorage.getItem(REMEMBER_KEY) !== "0";
+  } catch {
+    return true;
+  }
 }
+
+const rememberEnabled = companyRememberEnabled;
 
 /** remember bayrağına göre localStorage ya da sessionStorage'a yazan depolama. */
 const rememberAwareStorage = {

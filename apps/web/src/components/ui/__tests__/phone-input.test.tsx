@@ -8,6 +8,7 @@ vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) => sel({ company: null }),
 }));
 
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { PhoneInput, defaultPhoneCountry } from "../phone-input";
 
 let last = "";
@@ -154,5 +155,77 @@ describe("PhoneInput — ülke seçici küçülmez (Firefox bayrak)", () => {
   it("ülke seçilmemişken (küre simgesi) de seçici küçülmez", () => {
     render(<Harness defaultCountry="" />);
     expect(screen.getByTestId("phone-country").classList.contains("flex-none")).toBe(true);
+  });
+});
+
+/**
+ * Arayüz testi 2026-10 code-auth-11: numara kutusu Catalyst `<Field>`e bağlı —
+ * görünen etikete tıklamak kutuyu odaklar, hata `aria-invalid` +
+ * `aria-describedby` ile duyurulur (eskiden yalnız çerçeve kızarıyordu).
+ */
+describe("PhoneInput — Field etiketi ve hata bağı", () => {
+  function InField({ invalid = false, onBlur }: { invalid?: boolean; onBlur?: () => void }) {
+    const [v, setV] = useState("");
+    return (
+      <Field>
+        <Label>Cep telefonu</Label>
+        <PhoneInput value={v} onChange={setV} invalid={invalid} onBlur={onBlur} />
+        {invalid ? <ErrorMessage>Geçerli bir numara girin.</ErrorMessage> : null}
+      </Field>
+    );
+  }
+
+  it("görünen etiket numara kutusunun adıdır; etikete tıklamak kutuyu odaklar", async () => {
+    const user = userEvent.setup();
+    render(<InField />);
+    const box = screen.getByLabelText("Cep telefonu");
+    expect(box).toHaveAttribute("type", "tel");
+    await user.click(screen.getByText("Cep telefonu"));
+    expect(box).toHaveFocus();
+    // Ülke seçici kendi adını korur.
+    expect(screen.getByLabelText("Ülke kodu").tagName).toBe("SELECT");
+  });
+
+  it("geçersizken aria-invalid olur ve hata iletisi kutuya bağlanır; geçerliyken ikisi de yok", () => {
+    const { rerender } = render(<InField invalid />);
+    const box = screen.getByLabelText("Cep telefonu");
+    expect(box).toHaveAttribute("aria-invalid", "true");
+    expect(box).toHaveAccessibleDescription("Geçerli bir numara girin.");
+    rerender(<InField />);
+    expect(box).not.toHaveAttribute("aria-invalid");
+    expect(box).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("kök Field'in doğrudan çocuğu: etiketin ardında data-slot=control, hatadan önce de o", () => {
+    render(<InField invalid />);
+    expect(screen.getByText("Cep telefonu").nextElementSibling).toHaveAttribute("data-slot", "control");
+    expect(screen.getByText("Geçerli bir numara girin.").previousElementSibling).toHaveAttribute("data-slot", "control");
+  });
+
+  it("onBlur yalnız odak denetimin TAMAMINDAN çıkınca çalışır (seçici ↔ numara geçişi sayılmaz)", async () => {
+    const user = userEvent.setup();
+    const onBlur = vi.fn();
+    render(
+      <>
+        <InField onBlur={onBlur} />
+        <button type="button">dışarı</button>
+      </>,
+    );
+    await user.click(screen.getByLabelText("Cep telefonu"));
+    await user.click(screen.getByLabelText("Ülke kodu"));
+    expect(onBlur).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "dışarı" }));
+    expect(onBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it("Field dışında aria-label erişilebilir addır (bağımsız kullanım bozulmaz)", () => {
+    render(<PhoneInput value="" onChange={() => {}} ariaLabel="İrtibat telefonu" />);
+    expect(screen.getByLabelText("İrtibat telefonu")).toHaveAttribute("type", "tel");
+  });
+
+  it("küçük simgeler ve yer tutucu zinc-400 değil (beyazda 2,6:1)", () => {
+    const { container } = render(<Harness />);
+    expect(container.innerHTML).not.toContain("text-zinc-400");
+    expect(numberBox().className).toContain("placeholder:text-zinc-500");
   });
 });

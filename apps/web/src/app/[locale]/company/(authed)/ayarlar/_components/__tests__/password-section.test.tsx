@@ -14,6 +14,7 @@ vi.mock("@/hooks/use-company-account", () => ({
 vi.mock("@/hooks/use-company-auth", () => ({ useCompanyAuth: () => ({ user: null }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { PASSWORD_MAX_LENGTH } from "@/lib/company-auth/password-rules";
 import { PasswordSection } from "../account-settings-section";
 
 beforeEach(() => vi.clearAllMocks());
@@ -68,5 +69,78 @@ describe("PasswordSection", () => {
     h.mutateAsync.mockResolvedValue({ ok: true });
     await fill("Yeni!Sifre123");
     expect(h.mutateAsync).toHaveBeenCalledWith({ currentPassword: "Eski!Sifre12", newPassword: "Yeni!Sifre123" });
+  });
+
+  /**
+   * ÜST SINIR 72 UTF-8 BAYT — kayıt, davet ve sıfırlamayla AYNI yardımcıdan
+   * (`firstUnmetPasswordRule`). Eskiden bu form yalnız beş gereksinimi
+   * denetliyordu: alanın `maxLength`i karakter saydığı için 72 baytı aşan şifre
+   * formdan geçip sunucuda reddediliyordu.
+   */
+  describe("üst sınır 72 bayt (kayıt ve sıfırlamayla ortak yardımcı)", () => {
+    /** Uzun şifreler tek `paste` ile (tuş tuş yazmak her tuşta formu yeniden çizer). */
+    async function fillPasted(next: string) {
+      const user = userEvent.setup();
+      render(<PasswordSection />);
+      for (const [label, text] of [
+        ["Mevcut Şifre", "Eski!Sifre12"],
+        ["Yeni Şifre", next],
+        ["Yeni Şifre (Tekrar)", next],
+      ] as const) {
+        await user.click(screen.getByLabelText(label));
+        await user.paste(text);
+      }
+      await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    }
+    const TOO_LONG = "Şifre çok uzun. En fazla 72 karakter olabilir; ç, ğ, ı, ö, ş, ü gibi harfler ve Kiril harfleri 2, emojiler 4 karakter sayılır.";
+
+    it("72 karakter ama 73 bayt: gönderilmez, ileti kayıt formundakiyle aynı ve alana bağlı", async () => {
+      // Beş gereksinimin hepsi tamam; alanın maxLength'i (72 karakter) kesmez.
+      const password = "Aa1!" + "x".repeat(67) + "ş";
+      expect(password).toHaveLength(72);
+      await fillPasted(password);
+      const field = screen.getByLabelText("Yeni Şifre");
+      expect(field).toHaveValue(password);
+      expect(h.mutateAsync).not.toHaveBeenCalled();
+      expect(screen.getByText(TOO_LONG)).toBeInTheDocument();
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveAccessibleDescription(TOO_LONG);
+      // Gereksinim listesi tamam olduğu için "gereksinimleri karşılamalı" denmez.
+      expect(screen.queryByText("Yeni şifre aşağıdaki gereksinimlerin tümünü karşılamalı")).toBeNull();
+    });
+
+    it("40 karakter ama 76 bayt (Kiril harf 2 bayt) gönderilmez", async () => {
+      await fillPasted("Aa1!" + "я".repeat(36));
+      expect(h.mutateAsync).not.toHaveBeenCalled();
+      expect(screen.getByText(TOO_LONG)).toBeInTheDocument();
+    });
+
+    it("tam 72 bayt (38 karakter, Kiril) gönderilir", async () => {
+      h.mutateAsync.mockResolvedValue({ ok: true });
+      const password = "Aa1!" + "я".repeat(34);
+      await fillPasted(password);
+      expect(h.mutateAsync).toHaveBeenCalledWith({ currentPassword: "Eski!Sifre12", newPassword: password });
+    });
+
+    it("üç şifre alanı da ortak tavanı taşır", () => {
+      render(<PasswordSection />);
+      for (const label of ["Mevcut Şifre", "Yeni Şifre", "Yeni Şifre (Tekrar)"]) {
+        expect(screen.getByLabelText(label)).toHaveAttribute("maxlength", String(PASSWORD_MAX_LENGTH));
+      }
+    });
+  });
+
+  // Güç ölçer de ortak desenleri okur: kendi ASCII desenleri "Ç"yi büyük harf
+  // saymıyor ("İyi"de kalıyordu), "ş"yi özel karakter sayıyordu.
+  it("güç ölçer Unicode bilir: Türkçe büyük harf sayılır, harf özel karakter sayılmaz", async () => {
+    const user = userEvent.setup();
+    render(<PasswordSection />);
+    const field = screen.getByLabelText("Yeni Şifre");
+    await user.click(field);
+    await user.paste("Çiçekşifre12!ğü");
+    expect(screen.getByText("Güçlü")).toBeInTheDocument();
+    await user.clear(field);
+    await user.paste("şifreşifreşifre12");
+    expect(screen.getByText("Orta")).toBeInTheDocument();
   });
 });

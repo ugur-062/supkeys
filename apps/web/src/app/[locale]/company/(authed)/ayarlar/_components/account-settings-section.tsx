@@ -29,7 +29,17 @@ import { useEffect, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
-import { PASSWORD_MIN_LENGTH, usePasswordRules } from "@/lib/company-auth/password-rules";
+import {
+  firstUnmetPasswordRule,
+  PASSWORD_DIGIT_RE,
+  PASSWORD_ERROR_KEY,
+  PASSWORD_LOWER_RE,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_SPECIAL_RE,
+  PASSWORD_UPPER_RE,
+  usePasswordRules,
+} from "@/lib/company-auth/password-rules";
 
 const card = "rounded-xl border border-zinc-950/10 bg-white p-5";
 
@@ -232,9 +242,11 @@ function ReadRow({
   );
 }
 
-// Şifre gereksinimleri kayıt/davetle ORTAK kaynaktan (`usePasswordRules`) —
+// Şifre gereksinimleri kayıt/davetle ORTAK kaynaktan (`password-rules.ts`) —
 // buradaki ayrı kopya 8 karakter + özel karaktersiz kabul ediyordu (yayın
-// denetimi 2026-09-28 Bölüm 9).
+// denetimi 2026-09-28 Bölüm 9). Güç ölçer de aynı desenleri okur: kendi ASCII
+// desenleri "Ç"yi büyük harf saymıyor, "ş"yi özel karakter sayıyordu — kural
+// listesi tamamken ölçer düşük, eksikken yüksek gösteriyordu.
 
 /** Güç etiketi `pwStrength.<label>` katalog anahtarı; boş şifrede etiket yok ("—"). */
 type PwStrengthKey = "zayif" | "orta" | "iyi" | "guclu";
@@ -244,8 +256,8 @@ function pwStrength(p: string): { score: number; label: PwStrengthKey | null; co
   let s = 0;
   if (p.length >= PASSWORD_MIN_LENGTH) s++;
   if (p.length >= PASSWORD_MIN_LENGTH + 4) s++;
-  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
-  if (/\d/.test(p) && /[^A-Za-z0-9]/.test(p)) s++;
+  if (PASSWORD_UPPER_RE.test(p) && PASSWORD_LOWER_RE.test(p)) s++;
+  if (PASSWORD_DIGIT_RE.test(p) && PASSWORD_SPECIAL_RE.test(p)) s++;
   s = Math.min(4, s);
   if (s <= 1) return { score: s, label: "zayif", color: "bg-red-500" };
   if (s === 2) return { score: s, label: "orta", color: "bg-amber-500" };
@@ -256,12 +268,13 @@ function pwStrength(p: string): { score: number; label: PwStrengthKey | null; co
 /** Şifre Değiştir — göster/gizle + güç ölçer + gereksinim listesi. */
 export function PasswordSection() {
   const t = useTranslations("web.panel.settings.accountSettingsSection");
+  // Üst sınır iletisi kayıt ve sıfırlama formlarıyla ORTAK (sunucunun iletisiyle aynı metin).
+  const tp = useTranslations("web.auth.password");
   const changePassword = useChangePassword();
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
 
   const { rules: pwRules } = usePasswordRules();
   const strength = pwStrength(pw.next);
-  const allMet = pwRules.every((r) => r.test(pw.next));
   // Alan hataları SATIR İÇİ (gereksinim listesi zaten görünür; toast tekrar etmez).
   const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
 
@@ -270,7 +283,15 @@ export function PasswordSection() {
   const doSave = async () => {
     const next: typeof errors = {};
     if (!pw.current) next.current = t("mevcutSifreniziGirin");
-    if (!allMet) next.next = t("yeniSifreAsagidakiGereksinimlerinTumunuKarsilamali");
+    // Kurallar TEK yardımcıdan (`firstUnmetPasswordRule`; kayıt, davet ve
+    // sıfırlamayla aynı): beş gereksinim + 72 UTF-8 BAYT üst sınırı. Eskiden
+    // yalnız aşağıdaki beş madde denetleniyordu — alanın `maxLength`i karakter
+    // saydığı için 72 baytı aşan şifre (Türkçe/Kiril harf 2, emoji 4 bayt)
+    // formdan geçip sunucuda reddediliyordu. Üst sınır listede yer almaz,
+    // iletisi ayrıdır.
+    const unmet = firstUnmetPasswordRule(pw.next);
+    if (unmet === "max") next.next = tp(PASSWORD_ERROR_KEY[unmet]);
+    else if (unmet) next.next = t("yeniSifreAsagidakiGereksinimlerinTumunuKarsilamali");
     else if (pw.current && pw.current === pw.next) next.next = t("yeniSifreEskiSifreyleAyniOlamaz");
     if (pw.next !== pw.confirm) next.confirm = t("yeniSifrelerEslesmiyor");
     setErrors(next);
@@ -304,7 +325,7 @@ export function PasswordSection() {
             <PasswordInput
               autoComplete={fld.auto}
               value={pw[fld.key]}
-              maxLength={72}
+              maxLength={PASSWORD_MAX_LENGTH}
               invalid={!!errors[fld.key]}
               onChange={(e) => setPw({ ...pw, [fld.key]: e.target.value })}
             />

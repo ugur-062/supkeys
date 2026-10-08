@@ -97,6 +97,19 @@ describe("CompanyTopbar — dar ekran çakışması (arayüz testi O-049)", () =
   });
 });
 
+/**
+ * Kayıt denetimi 2026-10 signup-enru-7: ad her genişlikte 160 px'te
+ * kesiliyordu ("Анастасия Воскре…", metin 200 px) — 1024 px ve üstünde üst
+ * çubukta yüzlerce piksel boş yer varken. Tavan genişliğe göre büyür.
+ */
+describe("CompanyTopbar — kullanıcı adı", () => {
+  it("ad 768-1023 px'te 160 px, 1024 px ve üstünde 256 px'e kadar kesilmeden yazılır", () => {
+    h.auth.user = { ...user(["buy:view"]), firstName: "Анастасия", lastName: "Воскресенская" };
+    render(<CompanyTopbar activePortal="satinalma" onOpenMobileNav={() => {}} />);
+    const name = screen.getByText("Анастасия Воскресенская");
+    expect(name).toHaveClass("max-w-40", "lg:max-w-64", "truncate");
+  });
+});
 
 /**
  * Panel içi dil seçici (arayüz testi son tur S-BUY): üst çubukta dil yoktu;

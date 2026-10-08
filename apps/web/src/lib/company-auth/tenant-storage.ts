@@ -23,6 +23,8 @@ const TENANT_SESSION_PREFIXES = [
   "rothern:quick-ai-suppliers",
   // Dil değişiminde korunan onboarding taslağı (onboarding-draft.ts).
   "rothern:onboarding-draft",
+  // Kayıt formu taslağı: ad, e-posta, telefon, onaylar, kod adımı (signup-draft.ts).
+  "rothern:signup-draft",
 ];
 const TENANT_LOCAL_KEYS = ["rothern.panel.recent-searches"];
 const OWNER_KEY = "rothern.session-owner";

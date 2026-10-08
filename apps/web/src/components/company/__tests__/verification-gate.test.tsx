@@ -61,7 +61,10 @@ describe("VerificationGate (sayfa kapısı)", () => {
     const gate = screen.getByTestId("verification-gate");
     expect(gate).toHaveAttribute("data-state", key);
     expect(screen.getByRole("heading", { name: "Bu sayfa firma doğrulaması gerektirir" })).toBeInTheDocument();
-    expect(screen.getByText(short)).toBeInTheDocument();
+    // Durum satırı yalnız başlığın söylemediğini taşır: doğrulanmamış firmada
+    // "Firma doğrulaması gerekir" başlığın tekrarıdır, çizilmez (signup-tr-18).
+    if (key === "unverified") expect(screen.queryByText(short)).not.toBeInTheDocument();
+    else expect(screen.getByText(short)).toBeInTheDocument();
     expect(screen.getByText(body)).toBeInTheDocument();
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(1);
@@ -98,10 +101,22 @@ describe("VerificationGate (sayfa kapısı)", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("çağıranın başlığı kullanılır", () => {
+  it("çağıranın başlığı kullanılır; doğrulanmamış firmada aynı şey ikinci kez yazılmaz", () => {
     setCompany("UNVERIFIED");
     render(<VerificationGate title="Satınalma paneli firma doğrulamasıyla açılır" />);
     expect(screen.getByRole("heading", { name: "Satınalma paneli firma doğrulamasıyla açılır" })).toBeInTheDocument();
+    // Eskiden başlığın hemen altında "Firma doğrulaması gerekir" de yazıyordu.
+    expect(screen.queryByText("Firma doğrulaması gerekir")).not.toBeInTheDocument();
+  });
+
+  it("çağıranın başlığıyla da inceleme / ret durumu ayrı satırda kalır", () => {
+    setCompany("PENDING");
+    const { unmount } = render(<VerificationGate title="Satınalma paneli firma doğrulamasıyla açılır" />);
+    expect(screen.getByText("Doğrulamanız inceleniyor")).toBeInTheDocument();
+    unmount();
+    setCompany("REJECTED");
+    render(<VerificationGate title="Satınalma paneli firma doğrulamasıyla açılır" />);
+    expect(screen.getByText("Doğrulama başvurunuz onaylanmadı — yeniden başvurun")).toBeInTheDocument();
   });
 });
 

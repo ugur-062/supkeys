@@ -68,13 +68,46 @@ describe("CompanyForgotPasswordClient", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Çok fazla istek");
   });
 
-  it("geçersiz e-postayla buton pasif — istek atılmaz", async () => {
+  // Arayüz testi 2026-10 login-6: "abc" yazınca düğme sessizce pasif kalıyor,
+  // Enter hiçbir şey yapmıyordu. Düğme açık; basınca sayfa dilinde alan hatası.
+  it("geçersiz e-posta: düğme AÇIK, basınca alan hatası + odak, istek atılmaz", async () => {
     const user = userEvent.setup();
     render(<CompanyForgotPasswordClient />);
-    await user.type(screen.getByLabelText("E-posta"), "gecersiz");
-    expect(
-      screen.getByRole("button", { name: "Sıfırlama bağlantısı gönder" }),
-    ).toBeDisabled();
+    const email = screen.getByLabelText("E-posta");
+    const submit = screen.getByRole("button", { name: "Sıfırlama bağlantısı gönder" });
+    expect(email.closest("form")).toHaveAttribute("novalidate");
+    expect(submit).toBeEnabled();
+    for (const bad of ["abc", "abc@", "a b@c.com"]) {
+      await user.clear(email);
+      await user.type(email, bad);
+      await user.type(email, "{Enter}");
+      expect(screen.getByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+      expect(email).toHaveAttribute("aria-invalid", "true");
+      expect(email).toHaveAccessibleDescription("Geçerli bir e-posta adresi giriniz");
+      expect(email).toHaveFocus();
+    }
     expect(h.post).not.toHaveBeenCalled();
+    // Yazmaya başlayınca hata kalkar.
+    await user.type(email, "x");
+    expect(screen.queryByText("Geçerli bir e-posta adresi giriniz")).toBeNull();
+  });
+
+  it("boş alanla gönderim de alan hatası verir (sessiz pasif düğme yok)", async () => {
+    const user = userEvent.setup();
+    render(<CompanyForgotPasswordClient />);
+    await user.click(screen.getByRole("button", { name: "Sıfırlama bağlantısı gönder" }));
+    expect(screen.getByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+    expect(h.post).not.toHaveBeenCalled();
+  });
+
+  it("Türkçe metin 'siz' kipinde (arayüz testi 2026-10 login-13)", async () => {
+    const user = userEvent.setup();
+    h.post.mockResolvedValue({ data: { success: true } });
+    render(<CompanyForgotPasswordClient />);
+    expect(screen.getByText("E-posta adresinize sıfırlama bağlantısı gönderelim")).toBeInTheDocument();
+    expect(screen.getByText("Hatırladınız mı?", { exact: false })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("E-posta"), "ada@firma.com");
+    await user.click(screen.getByRole("button", { name: "Sıfırlama bağlantısı gönder" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Gelen kutunuzu (ve spam klasörünüzü) kontrol edin.");
   });
 });

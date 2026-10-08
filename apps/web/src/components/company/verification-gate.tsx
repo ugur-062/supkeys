@@ -233,6 +233,13 @@ export function VerificationLockCard({
  * SAYFA KAPISI — kilitli segmentin (Raporlar, Şablonlar, Aktivite, AI
  * Kullanımı, satınalma paneli…) yerine çizilir. Paket kartları, fiyat ya da
  * paket adı YOK: başlık + duruma göre açıklama + doğrulama eylemi.
+ *
+ * Başlığın altındaki durum satırı yalnız başlığın SÖYLEMEDİĞİ bir şey
+ * taşıdığında çizilir (inceleniyor / onaylanmadı / doğrulandı). Doğrulanmamış
+ * firmada satır "Firma doğrulaması gerekir" der — başlık ("… firma
+ * doğrulaması gerektirir", "… firma doğrulamasıyla açılır") bunu zaten
+ * söylüyor; aynı cümle alt alta iki kez yazılıyordu (kayıt denetimi 2026-10
+ * signup-tr-18).
  */
 export function VerificationGate({ title }: { title?: string }) {
   const t = useTranslations(NS);
@@ -248,7 +255,9 @@ export function VerificationGate({ title }: { title?: string }) {
         <Lock aria-hidden className="size-5 text-zinc-600" />
       </span>
       <h1 className="mt-4 text-lg font-bold tracking-tight text-zinc-950">{title ?? t("pageTitle")}</h1>
-      <p className="mt-1 text-sm font-semibold text-zinc-800">{copy.short}</p>
+      {copy.key === "unverified" ? null : (
+        <p className="mt-1 text-sm font-semibold text-zinc-800">{copy.short}</p>
+      )}
       <VerificationActions className="justify-center" />
     </div>
   );

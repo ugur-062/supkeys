@@ -22,6 +22,7 @@ vi.mock("@/i18n/runtime", () => ({ runtimeLocale: () => "tr" }));
 vi.mock("@/i18n/href", () => ({ localizePath: (p: string) => p }));
 vi.mock("next-intl", () => ({ useLocale: () => "tr" }));
 
+import { isCompanyLoggingOut, resetCompanyLoggingOut } from "@/lib/company-auth/logout-flag";
 import { useCompanyLogout } from "../use-company-auth";
 
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -30,6 +31,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetCompanyLoggingOut();
   Object.defineProperty(window, "location", {
     writable: true,
     configurable: true,
@@ -66,6 +68,24 @@ describe("useCompanyLogout (derin denetim MU-21 — çerez silinmeden sayfa değ
     await act(async () => {
       await result.current();
     });
+    expect(window.location.href).toBe("/company/login");
+  });
+
+  // Arayüz testi 2026-10 login-2: anlık görüntü silinmeden ÖNCE "açık çıkış"
+  // işareti konur → panel nöbetçisi `?next=<son sayfa>` ile yarışa girmez,
+  // çıkış düz giriş sayfasında biter.
+  it("anlık görüntü silinmeden önce 'açık çıkış' işaretini koyar; düz giriş sayfasına gider", async () => {
+    let flagAtClear: boolean | null = null;
+    h.clear.mockImplementation(() => {
+      flagAtClear = isCompanyLoggingOut();
+    });
+    h.post.mockResolvedValue({ data: { ok: true } });
+    const { result } = renderHook(() => useCompanyLogout(), { wrapper });
+    expect(isCompanyLoggingOut()).toBe(false);
+    await act(async () => {
+      await result.current();
+    });
+    expect(flagAtClear).toBe(true);
     expect(window.location.href).toBe("/company/login");
   });
 });

@@ -12,7 +12,7 @@ import { PasswordStrength } from "@/components/auth/password-strength";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
-import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
+import { Description, ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
@@ -22,9 +22,19 @@ import {
   useSetCompanyAuth,
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
-import { usePasswordRules } from "@/lib/company-auth/password-rules";
-import { normalizeOtpCode } from "@/lib/company-auth/otp-code";
+import { isPlausibleEmail } from "@/lib/company-auth/email";
+import { loginLinkFromSignup } from "@/lib/company-auth/next-path";
+import {
+  firstUnmetPasswordRule,
+  PASSWORD_ERROR_KEY,
+  PASSWORD_MAX_LENGTH,
+  usePasswordRules,
+} from "@/lib/company-auth/password-rules";
+import { normalizeOtpCode, OTP_LENGTH } from "@/lib/company-auth/otp-code";
+import { resendEmailCodeOutcome } from "@/lib/company-auth/resend-code";
+import { clearSignupDraft, readSignupDraft, saveSignupDraft } from "@/lib/company-auth/signup-draft";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { api } from "@/lib/api";
 import { saveInvitePrefill, type InvitePrefill } from "@/lib/company-auth/invite-prefill";
@@ -37,6 +47,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
+
+/**
+ * Kod adımının ikincil bağlantıları (yeniden gönder, adresi değiştir, vazgeç):
+ * metin en az zinc-500 (12 px zinc-400 beyazda 2,6:1'di) ve dokunma alanı en
+ * az 32 px yüksek (arayüz testi 2026-10 signup-tr-20, login-10).
+ */
+const SECONDARY_LINK =
+  // `-mt-2` / `last:-mb-2`: dolgu dokunma alanını büyütür, form uzamaz.
+  "-mt-2 w-full py-2 text-center text-zinc-500 last:-mb-2 hover:text-zinc-800 disabled:opacity-50";
 
 export function CompanySignupClient() {
   const t = useTranslations("web.auth.signup");
@@ -63,10 +82,15 @@ export function CompanySignupClient() {
    * Mekanizma duruyor: `?intent=vitrin` ürün formuna, `?redirect=` geldiği
    * kayda döndürür. Paket satışı devreye girince soru geri gelebilir.
    */
-  const intent: SignupIntent = parseSignupIntent(searchParams.get("intent")) ?? "ikisi";
+  const intentParam = parseSignupIntent(searchParams.get("intent"));
+  const intent: SignupIntent = intentParam ?? "ikisi";
   // "Teklif ver" / "Bilgi iste"den gelen geri dönüş yolu — kayıt + onboarding
   // sonrası aynı kayda döner (yalnız site içi; sessionStorage'a yazılır).
   const redirect = searchParams.get("redirect");
+  // Hesabı olan ziyaretçi için giriş bağlantısı dönüş hedefini taşır: davet
+  // e-postasından gelen kişi girişten sonra davet edildiği talebi açar
+  // (arayüz testi 2026-10 code-auth-8).
+  const loginHref = loginLinkFromSignup({ target: redirect, ref: referralToken, intent: intentParam });
   const signup = useCompanySignup();
   const verify = useVerifyEmail();
   const resend = useResendEmailCode();
@@ -77,10 +101,11 @@ export function CompanySignupClient() {
   // kaydı `?email=` ile açar: talepler hesaba E-POSTA eşleşmesiyle bağlanır,
   // alan boş gelirse başka adresle kaydolup yanıtı kaybediyordu (derin
   // denetim LU-22). Kullanıcı yine değiştirebilir.
+  const emailSeed = (searchParams.get("email") ?? "").trim().slice(0, 254);
   const [form, setForm] = useState(() => ({
     firstName: "",
     lastName: "",
-    email: (searchParams.get("email") ?? "").trim().slice(0, 254),
+    email: emailSeed,
     phone: "",
     password: "",
     passwordConfirm: "",
@@ -107,12 +132,20 @@ export function CompanySignupClient() {
   const [error, setError] = useState<string | null>(null);
   // Telefon hatası alandan ÇIKINCA gösterilir (yazarken her hanede uyarı çıkmasın).
   const [phoneTouched, setPhoneTouched] = useState(false);
+  // "Hesap Oluştur"a basıldı: geçersiz her alan iletisini gösterir (arayüz
+  // testi 2026-10 signup-tr-8 — düğme eskiden sessizce pasif kalıyordu).
+  const [submitted, setSubmitted] = useState(false);
   const [step, setStep] = useState<"form" | "verify">("form");
   const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState<string | null>(null);
   // Kod adımında e-posta düzeltme (null = kapalı). Forma dönüp YENİDEN kayıt
   // açmak ikinci firma + yetim hesap bırakıyordu; artık aynı hesabın adresi
   // değişir (derin denetim LU-22).
   const [newEmail, setNewEmail] = useState<string | null>(null);
+  // Geri yüklenen kod adımında şifre bellekte yoktur (taslağa ASLA yazılmaz);
+  // adres düzeltme formu onu yeniden sorar.
+  const [changePassword, setChangePassword] = useState("");
+  const [changeTried, setChangeTried] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   // Kayıtta e-posta zaten kayıtlı (409): hata yanında giriş bağlantısı —
   // doğrulanmamış hesap girişte kod adımına geçer (arayüz testi D-066).
@@ -121,6 +154,53 @@ export function CompanySignupClient() {
   // (`/company` kökü niyeti onboarding'den sonra okur); aşağıdaki "zaten
   // girişli" kestirmesi devreye girip onboarding'i atlatmasın.
   const justVerified = useRef(false);
+
+  /**
+   * TASLAK (arayüz testi 2026-10 code-auth-5/10, signup-enru-1, signup-tr-15):
+   * dil değişimi ve yenileme aynı duruma döner — alanlar, onaylar ve açıksa
+   * kod adımı. Şifreler yazılmaz. Geri yükleme bağlandıktan SONRA efektte
+   * (ilk çizim sunucu HTML'iyle aynı kalır → hidrasyon uyuşmazlığı yok);
+   * yazma efekti geri yükleme bitmeden çalışmaz, yoksa boş ilk durum taslağı
+   * ezerdi. Ayrıntı: `lib/company-auth/signup-draft.ts`.
+   */
+  const [draftReady, setDraftReady] = useState(false);
+  const draftClosed = useRef(false);
+  useEffect(() => {
+    const draft = readSignupDraft();
+    if (draft) {
+      // Yeni bir `?email=` bağlantısıyla gelindiyse bağlantıdaki adres kazanır.
+      const keepTypedEmail = draft.emailSeed === emailSeed;
+      setForm((f) => ({
+        ...f,
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        email: draft.verifyEmail ?? ((keepTypedEmail ? draft.email : "") || f.email || draft.email),
+        phone: draft.phone,
+      }));
+      setConsents(draft.consents);
+      if (draft.verifyEmail) setStep("verify");
+    }
+    setDraftReady(true);
+    // Yalnız bağlanırken: taslak bu sekmenin önceki durumudur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!draftReady || draftClosed.current) return;
+    saveSignupDraft({
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      phone: form.phone,
+      consents,
+      verifyEmail: step === "verify" ? form.email.trim() : null,
+      emailSeed,
+    });
+  }, [draftReady, form.firstName, form.lastName, form.email, form.phone, consents, step, emailSeed]);
+  /** Hesap doğrulandı / zaten doğrulanmış: taslak kapanır, yeniden yazılmaz. */
+  const closeDraft = () => {
+    draftClosed.current = true;
+    clearSignupDraft();
+  };
 
   // ZATEN GİRİŞLİ ziyaretçi (arayüz testi O-113): "Teklif ver" / "Bilgi iste"
   // gibi kayıt CTA'larından geldiyse `redirect`e (yoksa niyetin hedefine)
@@ -143,7 +223,8 @@ export function CompanySignupClient() {
     () => PW_RULES.filter((r) => r.test(form.password)).length,
     [PW_RULES, form.password],
   );
-  const pwOk = pwScore === PW_RULES.length;
+  // Kurallar TEK kaynaktan (`password-rules.ts`): kayıt, sıfırlama, davet aynı.
+  const pwUnmet = firstUnmetPasswordRule(form.password);
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
   const allConsents = consents.terms && consents.mediation && consents.kvkk;
@@ -151,17 +232,46 @@ export function CompanySignupClient() {
   // hata "seçili ülke için geçerli numara" değil "önce ülke kodunu seçin"
   // (arayüz testi son tur webA-1).
   const [phoneNeedsCountry, setPhoneNeedsCountry] = useState(false);
+  // Ülke koduna göre ulusal uzunluk — API DTO ile TEK KAYNAK (2026-09-27;
+  // eskiden "en az 10 hane": Andorra/Lüksemburg reddediliyordu).
   const phoneValid = isValidPhoneNumber(form.phone);
+  const firstNameOk = form.firstName.trim().length >= 1;
+  const lastNameOk = form.lastName.trim().length >= 1;
+  // Girişle AYNI gevşek kural (`isPlausibleEmail`); asıl doğrulama API'de.
+  const emailOk = isPlausibleEmail(form.email);
   const formValid =
-    form.firstName.trim().length >= 1 &&
-    form.lastName.trim().length >= 1 &&
-    /\S+@\S+\.\S+/.test(form.email) &&
-    // Ülke koduna göre ulusal uzunluk — API DTO ile TEK KAYNAK (2026-09-27;
-    // eskiden "en az 10 hane": Andorra/Lüksemburg reddediliyordu).
-    phoneValid &&
-    pwOk &&
-    confirmOk &&
-    allConsents;
+    firstNameOk && lastNameOk && emailOk && phoneValid && pwUnmet === null && confirmOk && allConsents;
+
+  /**
+   * Alan hataları. Düğmeye basılana dek yalnız eskiden de canlı olan ikisi
+   * görünür (telefon: alandan çıkınca; şifre tekrarı: yazarken); basıldıktan
+   * sonra geçersiz HER alan iletisini taşır ve düzeltildikçe kendiliğinden
+   * kalkar. İleti alanın `<Field>`i içinde `ErrorMessage`dır → Headless onu
+   * girdinin `aria-describedby`ına bağlar; `invalid` → `aria-invalid`.
+   */
+  const fieldError = {
+    firstName: submitted && !firstNameOk ? t("firstNameRequired") : null,
+    lastName: submitted && !lastNameOk ? t("lastNameRequired") : null,
+    email: submitted && !emailOk ? t("emailInvalid") : null,
+    phone:
+      (submitted || phoneTouched) && !phoneValid
+        ? phoneNeedsCountry
+          ? tc("phoneCountryRequired")
+          : t("phoneInvalid")
+        : null,
+    password: submitted && pwUnmet ? tp(PASSWORD_ERROR_KEY[pwUnmet]) : null,
+    passwordConfirm:
+      form.passwordConfirm && !confirmOk
+        ? tp("mismatch")
+        : submitted && !form.passwordConfirm
+          ? t("passwordRepeatRequired")
+          : null,
+    consents: submitted && !allConsents ? t("consentRequired") : null,
+  };
+
+  const signupForm = useFocusFirstInvalid();
+  const changeForm = useFocusFirstInvalid();
+  const codeInput = useRef<HTMLInputElement>(null);
 
   // Kayıt / kod doğrulama / yeniden gönder / e-posta düzeltme tek uçuşta: çift
   // tık ikinci istek atıp başarının yanına "zaten hesap var" hatası koymaz
@@ -214,11 +324,13 @@ export function CompanySignupClient() {
       const res = await verify.mutateAsync({ email: form.email.trim(), code });
       // Güvenlik: e-posta zaten doğrulanmışsa token DÖNMEZ → normal girişe yönlendir.
       if ("alreadyVerified" in res) {
+        closeDraft();
         toast.info(t("alreadyVerified"));
-        router.replace("/company/login");
+        router.replace(loginHref);
         return;
       }
       justVerified.current = true;
+      closeDraft();
       rememberSignupIntent(intent, redirect);
       setAuth({ user: res.user, company: res.company });
       router.replace("/company");
@@ -232,27 +344,57 @@ export function CompanySignupClient() {
     if (cooldown > 0 || resend.isPending) return;
     setError(null);
     try {
-      await resend.mutateAsync(form.email.trim());
-      setCooldown(60);
-      toast.success(tc("newCodeSent"));
+      // "Gönderildi" yalnız kod GERÇEKTEN çıktıysa (arayüz testi 2026-10
+      // code-auth-3): saatlik tavanda ya da gönderim hatasında API
+      // `sent: false` döner; başarı toast'ı ve 60 sn bekleme YOK.
+      const outcome = resendEmailCodeOutcome(await resend.mutateAsync(form.email.trim()));
+      if (outcome === "sent") {
+        setCooldown(60);
+        toast.success(tc("newCodeSent"));
+      } else {
+        setError(outcome === "capped" ? t("codeCapped") : tc("codeSendFailed"));
+      }
     } catch (err) {
       setError(extractErrorMessage(err, tc("codeSendFailed")));
     }
   };
+
+  // E-posta düzeltme formu: şifre bellekteyse (kayıt bu sayfa yüklemesinde
+  // yapıldı) sorulmaz; geri yüklenen kod adımında sorulur.
+  const needsPassword = !form.password;
+  const newEmailValue = newEmail ?? "";
+  const newEmailError = !changeTried
+    ? null
+    : !isPlausibleEmail(newEmailValue)
+      ? t("emailInvalid")
+      : newEmailValue.trim().toLowerCase() === form.email.trim().toLowerCase()
+        ? t("newEmailSame")
+        : null;
+  const changePasswordError = changeTried && needsPassword && !changePassword ? t("passwordRequired") : null;
+  const changeValid =
+    isPlausibleEmail(newEmailValue) &&
+    newEmailValue.trim().toLowerCase() !== form.email.trim().toLowerCase() &&
+    (!needsPassword || changePassword.length > 0);
 
   const submitNewEmail = () => lock.run(doSubmitNewEmail);
   const doSubmitNewEmail = async () => {
     if (newEmail == null || changeEmail.isPending) return;
     setError(null);
     try {
+      const password = form.password || changePassword;
       const res = await changeEmail.mutateAsync({
         email: form.email.trim(),
-        password: form.password,
+        password,
         newEmail: newEmail.trim(),
       });
-      setForm((f) => ({ ...f, email: res.email }));
+      // Şifre doğrulandı → bellekte tutulur (yalnız bellekte; ikinci bir
+      // düzeltmede yeniden sorulmaz).
+      setForm((f) => ({ ...f, email: res.email, password: f.password || password }));
       setNewEmail(null);
+      setChangePassword("");
+      setChangeTried(false);
       setCode("");
+      setCodeError(null);
       if (res.emailSent === false) {
         setCooldown(0);
         setError(t("codeNotSent"));
@@ -269,9 +411,16 @@ export function CompanySignupClient() {
     return (
       <AuthShell title={t("changeEmailTitle")} subtitle={t("changeEmailSubtitle")} footer={null} hideLanguageSwitcher>
         <form
+          ref={changeForm.ref}
+          noValidate
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!changeValid) {
+              setChangeTried(true);
+              changeForm.focusFirstInvalid();
+              return;
+            }
             void submitNewEmail();
           }}
         >
@@ -280,34 +429,44 @@ export function CompanySignupClient() {
             <Input
               type="email"
               autoComplete="email"
+              autoFocus
+              invalid={!!newEmailError}
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
             />
+            {newEmailError ? <ErrorMessage>{newEmailError}</ErrorMessage> : null}
           </Field>
+          {needsPassword ? (
+            <Field>
+              <Label>{tc("password")}</Label>
+              <Description className="text-xs/5! sm:text-xs/5!">{t("changeEmailPasswordHint")}</Description>
+              <PasswordInput
+                autoComplete="current-password"
+                maxLength={PASSWORD_MAX_LENGTH}
+                invalid={!!changePasswordError}
+                value={changePassword}
+                onChange={(e) => setChangePassword(e.target.value)}
+              />
+              {changePasswordError ? <ErrorMessage>{changePasswordError}</ErrorMessage> : null}
+            </Field>
+          ) : null}
           {error ? (
             <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           ) : null}
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={
-              changeEmail.isPending ||
-              lock.locked ||
-              !/\S+@\S+\.\S+/.test(newEmail) ||
-              newEmail.trim().toLowerCase() === form.email.trim().toLowerCase()
-            }
-          >
+          <Button type="submit" className="w-full" disabled={changeEmail.isPending || lock.locked}>
             {changeEmail.isPending ? tc("sending") : t("sendToNewEmail")}
           </Button>
           <button
             type="button"
             onClick={() => {
               setNewEmail(null);
+              setChangePassword("");
+              setChangeTried(false);
               setError(null);
             }}
-            className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"
+            className={`${SECONDARY_LINK} text-xs`}
           >
             {t("cancelChangeEmail")}
           </button>
@@ -326,39 +485,49 @@ export function CompanySignupClient() {
       >
         {/* `<form>`: Enter kodu gönderir (arayüz testi D-090). */}
         <form
+          noValidate
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (code.length === 6) void submitCode();
+            if (code.length !== OTP_LENGTH) {
+              setCodeError(t("codeLength"));
+              codeInput.current?.focus();
+              return;
+            }
+            void submitCode();
           }}
         >
           <Field>
             <Label>{tc("code")}</Label>
             <Input
+              ref={codeInput}
               inputMode="numeric"
               autoComplete="one-time-code"
+              // Adım açılınca odak kod alanında (arayüz testi 2026-10 login-8).
+              autoFocus
               placeholder={tc("codePlaceholder")}
+              invalid={!!codeError}
               value={code}
-              onChange={(e) => setCode(normalizeOtpCode(e.target.value))}
+              onChange={(e) => {
+                setCode(normalizeOtpCode(e.target.value));
+                setCodeError(null);
+              }}
             />
+            {codeError ? <ErrorMessage>{codeError}</ErrorMessage> : null}
           </Field>
           {error ? (
             <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           ) : null}
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={code.length !== 6 || verify.isPending || lock.locked}
-          >
+          <Button type="submit" className="w-full" disabled={verify.isPending || lock.locked}>
             {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
           </Button>
           <button
             type="button"
             disabled={resend.isPending || cooldown > 0 || lock.locked}
             onClick={() => void handleResend()}
-            className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+            className={`${SECONDARY_LINK} text-sm`}
           >
             {cooldown > 0
               ? tc("resendIn", { s: cooldown })
@@ -370,9 +539,10 @@ export function CompanySignupClient() {
             type="button"
             onClick={() => {
               setNewEmail(form.email);
+              setChangeTried(false);
               setError(null);
             }}
-            className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"
+            className={`${SECONDARY_LINK} text-xs`}
           >
             {t("changeEmail")}
           </button>
@@ -388,77 +558,117 @@ export function CompanySignupClient() {
       footer={
         <>
           {tc("haveAccount")}{" "}
-          <Link href="/company/login" className="font-semibold text-zinc-900 hover:underline">
+          <Link href={loginHref} className="font-semibold text-zinc-900 hover:underline">
             {tc("login")}
           </Link>
         </>
       }
     >
+      {/* `noValidate`: tarayıcının kendi baloncuğu (tarayıcı dilinde, sayfa
+          dilinde değil) çıkmaz; hatalar alanın altında, sayfa dilinde. */}
       <form
+        ref={signupForm.ref}
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          if (formValid) void submitForm();
+          if (!formValid) {
+            setSubmitted(true);
+            signupForm.focusFirstInvalid();
+            return;
+          }
+          void submitForm();
         }}
         className="space-y-3"
       >
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <Label>{tc("firstName")}</Label>
-            <Input value={form.firstName} maxLength={80} onChange={(e) => set("firstName")(e.target.value)} />
+            <Input
+              autoComplete="given-name"
+              value={form.firstName}
+              maxLength={80}
+              invalid={!!fieldError.firstName}
+              onChange={(e) => set("firstName")(e.target.value)}
+            />
+            {fieldError.firstName ? <ErrorMessage>{fieldError.firstName}</ErrorMessage> : null}
           </Field>
           <Field>
             <Label>{tc("lastName")}</Label>
-            <Input value={form.lastName} maxLength={80} onChange={(e) => set("lastName")(e.target.value)} />
+            <Input
+              autoComplete="family-name"
+              value={form.lastName}
+              maxLength={80}
+              invalid={!!fieldError.lastName}
+              onChange={(e) => set("lastName")(e.target.value)}
+            />
+            {fieldError.lastName ? <ErrorMessage>{fieldError.lastName}</ErrorMessage> : null}
           </Field>
         </div>
 
         <Field>
           <Label>{t("corporateEmail")}</Label>
-          <Input type="email" autoComplete="email" value={form.email} onChange={(e) => set("email")(e.target.value)} />
+          <Input
+            type="email"
+            autoComplete="email"
+            maxLength={254}
+            invalid={!!fieldError.email}
+            value={form.email}
+            onChange={(e) => set("email")(e.target.value)}
+          />
+          {fieldError.email ? <ErrorMessage>{fieldError.email}</ErrorMessage> : null}
         </Field>
 
         <Field>
           <Label>{tc("phone")}</Label>
-          <div
-            onBlur={(e) => {
-              // Ülke seçiciden numara kutusuna geçiş "alandan çıkış" sayılmaz.
-              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPhoneTouched(true);
-            }}
-          >
-            <PhoneInput
-              value={form.phone}
-              onChange={set("phone")}
-              onCountryMissingChange={setPhoneNeedsCountry}
-              invalid={phoneTouched && !phoneValid}
-            />
-          </div>
-          {phoneTouched && !phoneValid ? (
-            <ErrorMessage>{phoneNeedsCountry ? tc("phoneCountryRequired") : t("phoneInvalid")}</ErrorMessage>
-          ) : null}
+          {/* Kök `<Field>`in DOĞRUDAN çocuğu: etiket boşluğu (data-slot) ve
+              etiket/hata bağı Headless'tan gelir (arayüz testi 2026-10
+              code-auth-11, signup-enru-9). "Alandan çıkış" `onBlur` prop'uyla. */}
+          <PhoneInput
+            value={form.phone}
+            onChange={set("phone")}
+            onCountryMissingChange={setPhoneNeedsCountry}
+            onBlur={() => setPhoneTouched(true)}
+            invalid={!!fieldError.phone}
+          />
+          {fieldError.phone ? <ErrorMessage>{fieldError.phone}</ErrorMessage> : null}
         </Field>
 
         <Field>
           <Label>{tc("password")}</Label>
-          <PasswordInput autoComplete="new-password" maxLength={72} value={form.password} onChange={(e) => set("password")(e.target.value)} />
+          <PasswordInput
+            autoComplete="new-password"
+            maxLength={PASSWORD_MAX_LENGTH}
+            invalid={!!fieldError.password}
+            value={form.password}
+            onChange={(e) => set("password")(e.target.value)}
+          />
+          {fieldError.password ? <ErrorMessage>{fieldError.password}</ErrorMessage> : null}
         </Field>
-        {form.password ? (
+        {form.password || submitted ? (
           <PasswordStrength password={form.password} rules={PW_RULES} score={pwScore} label={strength(pwScore)} live />
         ) : null}
 
         <Field>
           <Label>{t("passwordRepeat")}</Label>
+          {/* İki alanda AYNI tavan: tekrar alanı sınırsızken 72 karakterden uzun
+              şifre ilkinde kesiliyor, ikincisinde kesilmiyor ve "eşleşmiyor"
+              diyordu (arayüz testi 2026-10 code-auth-12, signup-tr-19). */}
           <PasswordInput
             autoComplete="new-password"
-            invalid={!!(form.passwordConfirm && !confirmOk)}
+            maxLength={PASSWORD_MAX_LENGTH}
+            invalid={!!fieldError.passwordConfirm}
             value={form.passwordConfirm}
             onChange={(e) => set("passwordConfirm")(e.target.value)}
           />
-          {form.passwordConfirm && !confirmOk ? (
-            <ErrorMessage className="mt-1">{tp("mismatch")}</ErrorMessage>
-          ) : null}
+          {fieldError.passwordConfirm ? <ErrorMessage>{fieldError.passwordConfirm}</ErrorMessage> : null}
         </Field>
 
-        <ConsentRows consents={consents} onChange={setConsents} showProviders />
+        <ConsentRows
+          consents={consents}
+          onChange={setConsents}
+          showProviders
+          requiredError={fieldError.consents}
+        />
 
         {error ? (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -466,7 +676,7 @@ export function CompanySignupClient() {
             {accountExists ? (
               <>
                 {" "}
-                <Link href="/company/login" className="font-semibold underline underline-offset-2">
+                <Link href={loginHref} className="font-semibold underline underline-offset-2">
                   {t("accountExistsLogin")}
                 </Link>
               </>
@@ -474,7 +684,7 @@ export function CompanySignupClient() {
           </div>
         ) : null}
 
-        <Button type="submit" className="w-full" disabled={!formValid || signup.isPending || lock.locked}>
+        <Button type="submit" className="w-full" disabled={signup.isPending || lock.locked}>
           {signup.isPending || lock.locked ? t("creating") : t("submit")}
         </Button>
       </form>

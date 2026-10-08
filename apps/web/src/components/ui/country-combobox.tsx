@@ -2,7 +2,7 @@
 
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/react";
 import { CheckIcon, ChevronDownIcon } from "@heroicons/react/16/solid";
-import { COUNTRIES, foldSearchText } from "@rothern/shared";
+import { COUNTRIES, foldSearchText, hasFlagAsset } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
@@ -15,6 +15,14 @@ import { CountryFlag } from "@/components/ui/country-flag";
  * daha eklenir (bkz. `onScroll`). `max-h-72` kutuda ~9 satır görünür.
  */
 const OPTION_PAGE = 60;
+
+/**
+ * Ada ve ISO koduna EK arama sözcükleri. KKTC'nin kodu `XN` (ISO dışı) ve
+ * bayrak dosyası yok: satırda "KKTC" rozeti yazıyor ama "kktc" araması hiçbir
+ * şey bulmuyordu (kayıt denetimi 2026-10 signup-tr-12). Üç dildeki yaygın
+ * kısaltma aranır.
+ */
+const SEARCH_ALIASES: Record<string, string> = { XN: "KKTC TRNC ТРСК" };
 
 /**
  * ARANABİLİR ÜLKE SEÇİCİ (2026-09-27, kayıt tüm ülkelere açıldı): 245 ülkelik
@@ -36,6 +44,7 @@ export function CountryCombobox({
   ariaLabel,
   id,
   disabled = false,
+  invalid = false,
   className,
   placeholder,
 }: {
@@ -46,6 +55,8 @@ export function CountryCombobox({
   ariaLabel?: string;
   id?: string;
   disabled?: boolean;
+  /** Alan hatalıysa kırmızı çerçeve + `aria-invalid` (hata metni çağıranda). */
+  invalid?: boolean;
   className?: string;
   /** Kutu boşken yazı (varsayılan "Ülke ara…"; ekleme kipinde "+ Ülke ekle"). */
   placeholder?: string;
@@ -60,7 +71,11 @@ export function CountryCombobox({
     const allowed = codesKey === null ? null : new Set(codesKey.split(","));
     const rows = COUNTRIES.filter((c) => !allowed || allowed.has(c.code)).map((c) => {
       const label = countryDisplayName(c.code, locale);
-      return { code: c.code, label, hay: foldSearchText(`${label} ${c.name} ${c.code}`) };
+      return {
+        code: c.code,
+        label,
+        hay: foldSearchText(`${label} ${c.name} ${c.code} ${SEARCH_ALIASES[c.code] ?? ""}`),
+      };
     });
     const [tr, rest] = [rows.filter((r) => r.code === "TR"), rows.filter((r) => r.code !== "TR")];
     return [...tr, ...rest.sort((a, b) => a.label.localeCompare(b.label, locale))];
@@ -97,7 +112,12 @@ export function CountryCombobox({
             value={o}
             className="group flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-zinc-950 select-none data-focus:bg-zinc-100"
           >
-            <span className="flex w-5 shrink-0 justify-center">
+            {/* Sabit genişlik YOK (signup-tr-12): bayraklar 16 px, dosyası
+                olmayan kodun metin rozeti ("KKTC") daha geniş — 20 px'lik
+                kutuda ortalanınca rozet bayraklardan solda başlıyor ve ülke
+                adına yapışıyordu. Sola yaslı + ortak boşluk: sol kenar ve
+                ada uzaklık bayraklarla aynı. */}
+            <span className="flex min-w-4 shrink-0 items-center">
               <CountryFlag code={o.code} decorative />
             </span>
             <span className="flex-1 truncate">{o.label}</span>
@@ -109,7 +129,9 @@ export function CountryCombobox({
   );
   const selected = options.find((o) => o.code === value) ?? null;
   // Arama yazılırken kutudaki metin seçili ülke değil → bayrak gizlenir.
-  const showFlag = !!selected && !query;
+  // Bayrak dosyası olmayan ülkede (KKTC) kutuya metin rozeti çizilmez: rozet
+  // bayrak için ayrılan dolgudan geniştir, ülke adının üstüne binerdi.
+  const showFlag = !!selected && !query && hasFlagAsset(selected.code);
 
   return (
     <Combobox
@@ -132,6 +154,7 @@ export function CountryCombobox({
         <ComboboxInput
           id={id}
           aria-label={ariaLabel}
+          aria-invalid={invalid || undefined}
           displayValue={(o: (typeof options)[number] | null) => o?.label ?? ""}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -140,9 +163,10 @@ export function CountryCombobox({
           placeholder={placeholder ?? t("placeholder")}
           autoComplete="off"
           className={cn(
-            "block w-full rounded-lg border border-zinc-950/10 bg-white py-[calc(--spacing(2.5)-1px)] pr-9 sm:py-[calc(--spacing(1.5)-1px)] text-base/6",
+            "block w-full rounded-lg border bg-white py-[calc(--spacing(2.5)-1px)] pr-9 sm:py-[calc(--spacing(1.5)-1px)] text-base/6",
+            invalid ? "border-red-500" : "border-zinc-950/10 focus:border-zinc-950/20",
             showFlag ? "pl-9 sm:pl-8.5" : "pl-[calc(--spacing(3.5)-1px)] sm:pl-[calc(--spacing(3)-1px)]",
-            "text-zinc-950 placeholder:text-zinc-500 focus:border-zinc-950/20 focus:outline-none disabled:opacity-50 sm:text-sm/6",
+            "text-zinc-950 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50 sm:text-sm/6",
           )}
         />
         {showFlag ? (

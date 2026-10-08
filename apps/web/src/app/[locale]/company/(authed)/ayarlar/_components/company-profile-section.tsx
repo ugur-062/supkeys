@@ -97,6 +97,39 @@ const EMPTY_FORM: FormState = {
   activities: [],
 };
 
+/**
+ * Dört kategori listesi KÜMEDİR: sıranın anlamı yok (eşleştirme `hasSome`,
+ * gösterim sektöre göre gruplanır). Seçici ise listeyi her onayda yeniden
+ * kurar — değişiklik yapmadan "Onayla"ya basmak ya da bir seçimi kaldırıp
+ * geri eklemek aynı kümeyi BAŞKA sırayla döndürür. Sıralı karşılaştırma bunu
+ * değişiklik sayıyor, form "kaydedilmemiş değişiklik" diyor ve Kaydet aynı
+ * beyanı yeniden yazıyordu (arayüz testi 2026-10 code-category-6).
+ */
+const CATEGORY_KEYS = [
+  "buyerCategoryIds",
+  "sellerCategoryIds",
+  "buyerSubCategoryIds",
+  "sellerSubCategoryIds",
+] as const satisfies readonly (keyof FormState)[];
+type CategoryKey = (typeof CATEGORY_KEYS)[number];
+const isCategoryKey = (k: keyof FormState): k is CategoryKey =>
+  (CATEGORY_KEYS as readonly string[]).includes(k);
+
+/** Aynı kodlar mı (sıra ve tekrar sayılmaz)? */
+function sameCodeSet(a: readonly string[], b: readonly string[]): boolean {
+  const left = new Set(a);
+  const right = new Set(b);
+  if (left.size !== right.size) return false;
+  for (const code of left) if (!right.has(code)) return false;
+  return true;
+}
+
+/** Alan değişti mi — kategori listelerinde küme, diğerlerinde değer karşılaştırması. */
+function fieldChanged<K extends keyof FormState>(k: K, now: FormState, base: FormState): boolean {
+  if (isCategoryKey(k)) return !sameCodeSet(now[k], base[k]);
+  return JSON.stringify(now[k]) !== JSON.stringify(base[k]);
+}
+
 /** Profil → form; aynı fonksiyon "kirli mi" karşılaştırmasının tabanıdır. */
 function toForm(p: CompanyProfile): FormState {
   return {
@@ -157,7 +190,8 @@ export function CompanyProfileSection() {
     if (!initial) return {} as Partial<FormState>;
     const out: Partial<FormState> = {};
     for (const k of Object.keys(form) as (keyof FormState)[]) {
-      if (JSON.stringify(form[k]) !== JSON.stringify(initial[k])) {
+      // Kategori listesinde yalnız SIRA değiştiyse alan değişmiş sayılmaz.
+      if (fieldChanged(k, form, initial)) {
         (out as Record<string, unknown>)[k] = form[k];
       }
     }
@@ -188,7 +222,18 @@ export function CompanyProfileSection() {
     isTR && changed.postalCode !== undefined && isInvalidTrPostal(form.postalCode)
       ? t("postaKodu5Hane")
       : null;
-  const hasError = Boolean(nameError || kepError || postalError);
+  // SIFIR KATEGORİ (arayüz testi 2026-10 category-11): "Ne alırım" ve "Ne
+  // satarım" birlikte boşaltılamaz — API bunu 400 ile reddeder (kategorisiz
+  // firma hiç talep bildirimi almaz). Eskiden istek atılıyor, yalnız API
+  // metni toast olarak çıkıyor, iki seçici nötr boş durumda kalıyordu. Artık
+  // ileti iki seçicinin ÜSTÜNDE (seçicinin `error` prop'u) ve istek atılmaz.
+  // Yalnız kategoriye DOKUNULDUYSA: bugün kategorisiz duran eski firma başka
+  // alanını (şehir…) kaydedebilmeli — API de yalnız kategori gönderen isteği
+  // denetler.
+  const categoriesTouched = CATEGORY_KEYS.some((k) => changed[k] !== undefined);
+  const categoriesEmpty = CATEGORY_KEYS.every((k) => form[k].length === 0);
+  const categoryError = categoriesTouched && categoriesEmpty ? t("ikiListeBirlikteBosOlamaz") : null;
+  const hasError = Boolean(nameError || kepError || postalError || categoryError);
 
   // Çift tık iki istek / iki toast / iki denetim kaydı üretmesin (arayüz testi FX-00 D-132).
   const saveLock = useSubmitLock();
@@ -506,6 +551,7 @@ export function CompanyProfileSection() {
             hint={t("satinAldiklarinizTedarikciOnerileriVe")}
             modalTitle={t("alisKategorileriniz")}
             accent="blue"
+            error={categoryError ?? undefined}
           />
           <CompanyCategoryPicker
             value={{
@@ -519,6 +565,7 @@ export function CompanyProfileSection() {
             hint={t("tedarikEdebildiklerinizYeniBirAlim")}
             modalTitle={t("satisKategorileriniz")}
             accent="emerald"
+            error={categoryError ?? undefined}
           />
         </div>
       </section>

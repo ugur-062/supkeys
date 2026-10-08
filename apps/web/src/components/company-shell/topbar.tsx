@@ -198,7 +198,12 @@ export function CompanyTopbar({
                   alt=""
                 />
                 <span className="hidden text-left md:block">
-                  <span className="block max-w-40 truncate text-sm font-semibold text-zinc-900">
+                  {/* Ad tavanı genişliğe göre (kayıt denetimi 2026-10
+                      signup-enru-7): 768-1023 px'te üst çubukta yalnız ~12 px
+                      boşluk var → 160 px; 1024 px ve üstünde yüzlerce piksel
+                      boşken "Анастасия Воскресенская" 160 px'te kesiliyordu
+                      → 256 px. Daha uzun ad yine kısalır. */}
+                  <span className="block max-w-40 truncate text-sm font-semibold text-zinc-900 lg:max-w-64">
                     {user.firstName} {user.lastName}
                   </span>
                   <span className="block text-xs leading-tight text-zinc-500">

@@ -1,26 +1,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogPanel,
-  DialogTitle,
-} from "@headlessui/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/catalyst/badge";
-import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
-import { Input, InputGroup } from "@/components/catalyst/input";
-import { IconButton } from "@/components/ui/icon-button";
-import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
+import { ChevronRight, FolderTree, Loader2, X } from "lucide-react";
 import {
-  ChevronRight,
-  FolderTree,
-  Loader2,
-  Sparkles,
-  X,
-} from "lucide-react";
+  CategoryDialogNotices,
+  CategoryDialogShell,
+  CategorySearchField,
+  type DialogFlash,
+  SelectionCounter,
+  sameIdSet,
+} from "./category-dialog-shell";
+import { LoadError } from "./category-load-error";
 
 /** Sol disclosure oku — ▸ kapalı, ▾ açık (90° döner). Klasör ikonu yok. */
 function Disclosure({ open }: { open: boolean }) {
@@ -37,7 +30,13 @@ function Disclosure({ open }: { open: boolean }) {
 function DisclosureSpacer() {
   return <span className="w-4 shrink-0" aria-hidden />;
 }
-import type { CategoryCatalog } from "@rothern/shared";
+import {
+  type CategoryCatalog,
+  categoryAncestors,
+  foldSearchText,
+  stemPrefix,
+  tokenizeQuery,
+} from "@rothern/shared";
 import {
   type CategoryNode,
   type SearchTreeClass,
@@ -49,6 +48,7 @@ import {
   useRoots,
 } from "@/hooks/use-categories";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { plainBreadcrumb } from "./category-breadcrumb";
 
 interface Props {
   isOpen: boolean;
@@ -73,12 +73,37 @@ interface Props {
    * 2026-09-29). `null` → onaylanır.
    */
   validate?: (ids: string[]) => string | null;
+  /**
+   * Seçilebilen EN ÜST seviye. `3` (varsayılan): sınıf + emtia — talep/ilan
+   * kategorisinin kuralı (backend kapısı `level ≥ 3`), DEĞİŞMEZ. `2`: aile de
+   * işaretlenebilir — firma beyanı (kök kural "firma ALT kategori L2-4";
+   * API `minLevel: 2`). Bütün bir ailede çalışan firma onu tek seçimle beyan
+   * eder; eskiden sınıfları tek tek işaretleyip 50 tavanına takılıyordu.
+   */
+  minSelectableLevel?: 2 | 3;
+  /**
+   * Dal başına TEK seçim: bir kod işaretlenince taslaktaki ataları ve
+   * altındakiler düşer. Firma beyanı bunu ister — depo ata zincirini zaten
+   * yazıyor ve gösterim yalnız en derin kodu çiziyor (`deepestCategoryPicks`);
+   * sınıf + kendi emtiası birlikte işaretlenince sayaç "2" derken onaydan
+   * sonra tek çip kalıyordu.
+   */
+  singlePickPerBranch?: boolean;
+  /** Tavan aşımı uyarısı — çağıranın kendi sözcüğüyle ("ürün/hizmet"). */
+  limitMessage?: string;
+}
+
+/** `a` ile `b` aynı dalda mı (biri ötekinin atası). Hiyerarşi koddan okunur. */
+function sameBranch(a: string, b: string): boolean {
+  if (a === b) return false;
+  return categoryAncestors(a).includes(b) || categoryAncestors(b).includes(a);
 }
 
 /**
  * V2-6 — PratisPro tarzı modal kategori seçici. 4-seviye lazy loading:
  *  Segment → Family → Class (seçilebilir) → Commodity (seçilebilir).
- * Sadece Class + Commodity seçilebilir; Segment + Family accordion başlığı.
+ * Varsayılan: Class + Commodity seçilebilir, Segment + Family accordion
+ * başlığı; `minSelectableLevel={2}` ile Family de seçilebilir (firma beyanı).
  *
  * Draft state pattern: kullanıcı "Onayla" yapana kadar parent onChange tetiklenmez.
  */
@@ -93,12 +118,23 @@ export function CategorySelectorModal({
   description,
   catalog = "full",
   validate,
+  minSelectableLevel = 3,
+  singlePickPerBranch = false,
+  limitMessage,
 }: Props) {
   const tr = useTranslations("web.shared.categorySelectorModal");
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
-  const [warningMsg, setWarningMsg] = useState<string | null>(null);
+  /**
+   * Kısa ömürlü bildirim — listenin ÜSTÜNE biner, yerleşimi itmez (araya
+   * giren satır listeyi parmağın altından kaydırıyordu).
+   */
+  const [flash, setFlash] = useState<DialogFlash | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const chipListRef = useRef<HTMLUListElement>(null);
+  /** Klavyeyle kaldırılan çipin sırası — odak sıradaki çipe taşınır. */
+  const refocusChip = useRef<number | null>(null);
   /** `validate` reddi — kendiliğinden kaybolmaz; seçim değişince silinir. */
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
@@ -112,21 +148,51 @@ export function CategorySelectorModal({
     new Set(),
   );
 
-  const { data: roots, isLoading: rootsLoading } = useRoots();
-  const { data: searchTree, isLoading: searchLoading } =
-    useCategorySearchTree(debouncedSearch, catalog);
+  const {
+    data: roots,
+    isLoading: rootsLoading,
+    isError: rootsError,
+    isFetching: rootsFetching,
+    refetch: refetchRoots,
+    // Hata listenin yerinde "Yeniden dene" ile çizilir → genel toast ve 429'da
+    // otomatik tekrar yok (arama ve ad sorgularıyla aynı politika).
+  } = useRoots({ inlineError: true });
+  const {
+    data: searchTree,
+    isLoading: searchLoading,
+    isError: searchError,
+    isFetching: searchFetching,
+    refetch: refetchSearch,
+  } = useCategorySearchTree(debouncedSearch, catalog, { inlineError: true });
   // Seçilen kategorilerin breadcrumb'larını getir — header chip listesi için.
   // `isPlaceholderData`: yeni seçim eklenince sorgu anahtarı değişir ve cevap
   // gelene kadar ÖNCEKİ liste döner — o sırada listede olmayan id "silinmiş"
   // değil, henüz yükleniyor.
-  const { data: selectedInfo, isPlaceholderData } = useCategoriesByIds(draftIds);
+  const {
+    data: selectedInfo,
+    isPlaceholderData,
+    isError: namesError,
+    isFetching: namesFetching,
+    refetch: refetchNames,
+  } = useCategoriesByIds(draftIds, { inlineError: true });
   // O(1) lookup için Map'e dönüştür — N seçimde linear .find() yerine.
   const selectedInfoMap = useMemo(() => {
     if (!selectedInfo) return null;
     return new Map(selectedInfo.map((c) => [c.id, c]));
   }, [selectedInfo]);
+  /**
+   * Ad isteği DÜŞTÜ — "…" (yükleniyor) ya da "silinmiş" değil; ayrı durum.
+   * Yeniden deneme sürerken (istek yolda) hata sayılmaz: çipler "…" gösterir.
+   */
+  const namesFailed = !!namesError && !namesFetching;
+  /** Veri yokken yolda olan istek = yükleniyor (ilk yükleme ya da yeniden deneme). */
+  const rootsBusy = rootsLoading || (!!rootsFetching && roots === undefined);
+  const searchBusy = searchLoading || (!!searchFetching && searchTree === undefined);
 
-  const isSearching = debouncedSearch.trim().length >= 2;
+  // Kutu boşaltılınca (X düğmesi) gecikmeli değeri beklemeden ağaca dönülür.
+  const isSearching =
+    search.trim().length >= 2 && debouncedSearch.trim().length >= 2;
+  const dirty = !sameIdSet(draftIds, value);
 
   // Modal her açılışta draft'ı parent value'ya sıfırlar.
   useEffect(() => {
@@ -136,21 +202,32 @@ export function CategorySelectorModal({
     setExpandedSegments(new Set());
     setExpandedFamilies(new Set());
     setExpandedClasses(new Set());
-    setWarningMsg(null);
+    setFlash(null);
     setConfirmError(null);
   }, [isOpen, value]);
 
   useEffect(() => {
     setConfirmError(null);
+    // Çip klavyeyle kaldırıldıysa odak <body>'ye düşmesin: sıradaki çipin
+    // düğmesine, çip kalmadıysa arama kutusuna.
+    const idx = refocusChip.current;
+    if (idx === null) return;
+    refocusChip.current = null;
+    const buttons = chipListRef.current?.querySelectorAll<HTMLButtonElement>(
+      "button[data-chip-remove]",
+    );
+    const next = buttons?.[Math.min(idx, (buttons?.length ?? 1) - 1)];
+    (next ?? searchRef.current)?.focus();
   }, [draftIds]);
 
   useEffect(() => {
-    if (!warningMsg) return;
-    const t = setTimeout(() => setWarningMsg(null), 3000);
+    if (!flash) return;
+    // Bilgi notu bir cümle; okunacak kadar kalır.
+    const t = setTimeout(() => setFlash(null), flash.tone === "info" ? 6000 : 3000);
     return () => clearTimeout(t);
-  }, [warningMsg]);
+  }, [flash]);
 
-  // Scroll lock + ESC + focus trap'i Headless Dialog yönetir.
+  // Scroll lock + ESC + focus trap'i Headless Dialog yönetir (kabuk).
 
   const toggle = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) =>
     (id: string) => {
@@ -171,11 +248,25 @@ export function CategorySelectorModal({
       setDraftIds(draftIds.filter((x) => x !== id));
       return;
     }
-    if (draftIds.length >= maxSelection) {
-      setWarningMsg(tr("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection }));
+    // Dal başına tek seçim: yeni kodun ataları ve altındakiler taslaktan düşer
+    // → sayaç, "Onayla (n)" ve onaydan sonra çizilen çipler aynı sayıyı verir.
+    const kept = singlePickPerBranch
+      ? draftIds.filter((x) => !sameBranch(x, id))
+      : draftIds;
+    if (kept.length >= maxSelection) {
+      setFlash({
+        text:
+          limitMessage ??
+          tr("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection }),
+        tone: "warn",
+      });
       return;
     }
-    setDraftIds([...draftIds, id]);
+    // Sessizce düşürmek "seçtiğim kayboldu" dedirtir — tek cümleyle söylenir.
+    if (kept.length !== draftIds.length) {
+      setFlash({ text: tr("ayniDaldanTekSecimTutulur"), tone: "info" });
+    }
+    setDraftIds([...kept, id]);
   };
 
   const handleConfirm = () => {
@@ -199,192 +290,214 @@ export function CategorySelectorModal({
       ? tr("satinAlmaTalebiIcin1")
       : tr("tedarikEdebildiginizKategorileriIsaretleyinI");
 
+  const retryLabel = tr("yenidenDene");
+  const selectFamily = minSelectableLevel === 2;
+
   return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-[60]">
-      <DialogBackdrop
-        transition
-        className="fixed inset-0 bg-zinc-950/45 backdrop-blur-[2px] transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
+    <CategoryDialogShell
+      isOpen={isOpen}
+      onClose={onClose}
+      dirty={dirty}
+      title={title ?? tr("kategoriSec")}
+      description={description ?? defaultDescription}
+      icon={<FolderTree className="h-5 w-5 text-zinc-700" />}
+      footerStatus={
+        mode === "multi" && draftIds.length > 0
+          ? tr("secimHazirOnaylaYaTiklayin", { n: draftIds.length })
+          : mode === "single" && draftIds.length === 1
+            ? tr("n1KategoriHazir")
+            : tr("listedenSecimYapin")
+      }
+      // Başlangıçta seçim varsa boş seçim de onaylanabilir — "Tümünü temizle"
+      // sonrası düğme kapalı kalıyor, temizleme kaydedilemiyordu (arayüz testi D-345).
+      confirmDisabled={draftIds.length === 0 && value.length === 0}
+      confirmLabel={
+        draftIds.length > 0 ? tr("onaylaN", { n: draftIds.length }) : tr("onayla")
+      }
+      onConfirm={handleConfirm}
+    >
+      <CategorySearchField
+        value={search}
+        onChange={setSearch}
+        inputRef={searchRef}
+        placeholder={tr("kategoriAra")}
+        // Tek karakterde arama başlamaz (API en az 2 ister); ağaç yerinde
+        // kalıyor ve kullanıcı neden sonuç gelmediğini bilmiyordu.
+        helper={
+          search.trim().length === 1 ? (
+            <span role="status">{tr("aramakIcinEnAz2Karakter")}</span>
+          ) : (
+            tr("kategoriAraOrnCelikKablo")
+          )
+        }
       />
-      <div className="fixed inset-0 flex w-screen items-start justify-center p-2 pt-4 sm:p-4 sm:pt-6">
-        <DialogPanel
-          transition
-          className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 outline-none transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150 data-closed:data-enter:scale-95 lg:max-w-3xl"
-        >
-          {/* Header */}
-          <div className="flex items-start justify-between gap-4 border-b border-zinc-950/5 px-6 py-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-100">
-                <FolderTree className="h-5 w-5 text-zinc-700" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold text-zinc-950">
-                  {title ?? tr("kategoriSec")}
-                </DialogTitle>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  {description ?? defaultDescription}
-                </p>
-              </div>
-            </div>
-            <IconButton aria-label={tr("kapat")} onClick={onClose}>
-              <X className="h-5 w-5" />
-            </IconButton>
-          </div>
 
-          {/* Search bar */}
-          <div className="border-b border-zinc-950/5 px-6 py-4">
-            <InputGroup>
-              <MagnifyingGlassIcon data-slot="icon" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={tr("kategoriAraOrnCelikKablo")}
-                className={search ? "[&_input]:pr-9" : undefined}
-              />
-            </InputGroup>
-          </div>
-
-          {/* Seçilenler — chip listesi (mode=multi'de görünür) */}
-          {mode === "multi" ? (
-            <div className="border-b border-zinc-950/5 bg-zinc-50/60 px-6 py-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                  <Sparkles className="h-3.5 w-3.5 text-zinc-500" />
-                  {tr("seciminiz")}
-                  <span className="ml-1 rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white">
-                    {draftIds.length}/{maxSelection}
-                  </span>
-                </span>
-                {draftIds.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setDraftIds([])}
-                    className="text-xs font-semibold text-zinc-500 hover:text-danger-600"
-                  >
-                    {tr("tumunuTemizle")}
-                  </button>
-                ) : null}
-              </div>
-              {draftIds.length === 0 ? (
-                <p className="py-1 text-xs italic text-zinc-400">
-                  {tr("henuzSecimYokAsagidakiListeden")}
-                </p>
-              ) : (
-                <ul className="flex flex-wrap gap-2">
-                  {draftIds.map((id) => {
-                    const info = selectedInfoMap?.get(id);
-                    const loading = selectedInfoMap === null || (isPlaceholderData && !info);
-                    const missing = !loading && !info;
-                    return (
-                      <li key={id}>
-                        <Badge
-                          color="zinc"
-                          className={`gap-1 ${missing ? "italic" : ""}`}
-                          title={info?.breadcrumb}
-                        >
-                          <span className="max-w-[260px] truncate">
-                            {info?.nameTr ??
-                              (loading ? "…" : tr("silinmisKategori"))}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => toggleSelection(id)}
-                            className="-mr-1 rounded-full p-0.5 hover:text-danger-600"
-                            aria-label={tr("kaldir")}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          ) : draftIds.length > 0 ? (
-            <div className="border-b border-zinc-950/5 bg-zinc-50/60 px-6 py-2.5">
-              <span className="block text-xs font-semibold text-zinc-700">
-                {tr("secili", {
-                  name:
-                    singleInfo?.nameTr ??
-                    (singleLoading ? "…" : tr("silinmisKategori")),
-                })}
-              </span>
-              {/* Tam yol — "Aksesuarlar" gibi bağlamsız yaprak adları için. */}
-              {singleInfo?.breadcrumb ? (
-                <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                  {singleInfo.breadcrumb}
-                </span>
+      {/* Seçilenler — chip listesi (mode=multi'de görünür) */}
+      {mode === "multi" ? (
+        <div className="shrink-0 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2.5 sm:px-6 sm:py-3">
+          <SelectionCounter
+            label={tr("seciminiz")}
+            count={draftIds.length}
+            max={maxSelection}
+            clearLabel={tr("tumunuTemizle")}
+            // Düğme temizleyince DOM'dan gider: klavyeyle tetiklendiyse odak
+            // <body>'ye düşmesin, arama kutusuna geçsin (çip kaldırmayla aynı kural).
+            onClear={(viaKeyboard) => {
+              if (viaKeyboard) searchRef.current?.focus();
+              setDraftIds([]);
+            }}
+          />
+          {draftIds.length === 0 ? (
+            <p className="mt-2 py-1 text-xs italic text-zinc-500">
+              {tr("henuzSecimYokAsagidakiListeden")}
+            </p>
+          ) : (
+            <>
+              {namesFailed ? (
+                <LoadError
+                  compact
+                  message={tr("secimAdlariYuklenemedi")}
+                  retryLabel={retryLabel}
+                  onRetry={() => void refetchNames?.()}
+                />
               ) : null}
-            </div>
-          ) : null}
-
-          {(confirmError ?? warningMsg) ? (
-            <div
-              role={confirmError ? "alert" : undefined}
-              className="border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-xs font-medium text-amber-800"
-            >
-              ⚠️ {confirmError ?? warningMsg}
-            </div>
-          ) : null}
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto px-5 py-3">
-            {isSearching ? (
-              <SearchResults
-                loading={searchLoading}
-                segments={searchTree?.segments ?? []}
-                truncated={searchTree?.truncated}
-                query={debouncedSearch.trim()}
-                selected={draftIds}
-                mode={mode}
-                onToggle={toggleSelection}
-              />
-            ) : rootsLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
-              </div>
-            ) : (
-              <SegmentList
-                roots={roots ?? []}
-                expandedSegments={expandedSegments}
-                expandedFamilies={expandedFamilies}
-                expandedClasses={expandedClasses}
-                onToggleSegment={toggle(setExpandedSegments)}
-                onToggleFamily={toggle(setExpandedFamilies)}
-                onToggleClass={toggle(setExpandedClasses)}
-                selected={draftIds}
-                onToggleSelection={toggleSelection}
-                mode={mode}
-                catalog={catalog}
-              />
-            )}
-          </div>
-
-          {/* Footer */}
-          {/* Dar ekranda sarılır: Rusça "Подтвердить (1)" 360–390 px'te diyaloğun
-              dışına taşıyordu (tarayıcı turu 2026-10-07). Düğmeler küçülmez, alt satıra iner. */}
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3.5">
-            <span className="min-w-0 text-xs text-zinc-500">
-              {mode === "multi" && draftIds.length > 0
-                ? tr("secimHazirOnaylaYaTiklayin", { n: draftIds.length })
-                : mode === "single" && draftIds.length === 1
-                  ? tr("n1KategoriHazir")
-                  : tr("listedenSecimYapin")}
+              {/* Yükseklik SINIRLI ve kendi içinde kayar: sınırsızken her seçim
+                  şeridi büyütüyor, 15-20 seçimde liste 24 px'e iniyor, alt satır
+                  (Vazgeç / Onayla) pencerenin dışına itiliyordu. `py-1`: 32 px'lik
+                  kaldırma hedefleri ilk/son satırda kırpılmasın.
+                  `-mr-1 pr-1`: kaldırma düğmesi çipin 4 px dışına taşar (32 px
+                  hedef, çipi büyütmeden); sağ kenara dayanan çipte bu taşma
+                  şeridi 4 px yana kaydırılabilir yapıyor, klasik kaydırma
+                  çubuklu pencerede yatay çubuk çıkarıyordu. Taşma artık şeridin
+                  kendi iç boşluğuna düşer (çipler eski hizasında kalır);
+                  `overflow-x-hidden` şeridin yana kaymasını her durumda kapatır
+                  (`overflow-y-auto` tek başına x eksenini de `auto` yapar). */}
+              <ul
+                ref={chipListRef}
+                aria-label={tr("seciminiz")}
+                className="mt-1 -mr-1 flex max-h-24 flex-wrap gap-2 overflow-x-hidden overflow-y-auto overscroll-contain py-1 pr-1 sm:max-h-32 [@media(max-height:520px)]:max-h-12"
+              >
+                {draftIds.map((id, index) => {
+                  const info = selectedInfoMap?.get(id);
+                  const loading =
+                    !namesFailed &&
+                    (selectedInfoMap === null || (isPlaceholderData && !info));
+                  const missing = !loading && !namesFailed && !info;
+                  // Ad düştüyse çip kodu gösterir: seçimler ayırt edilir ve
+                  // kaldırılabilir kalır ("…" kalıcı görünüyordu).
+                  const label =
+                    info?.nameTr ??
+                    (namesFailed ? id : loading ? "…" : tr("silinmisKategori"));
+                  return (
+                    <li key={id} className="max-w-full">
+                      <Badge
+                        color="zinc"
+                        className={`max-w-full gap-1 ${missing ? "italic" : ""}`}
+                        title={plainBreadcrumb(info?.breadcrumb) || undefined}
+                      >
+                        {/* Adın TAMAMI: sabit piksel tavanı yok, uzun ad sarılır. */}
+                        <span className="min-w-0 break-words">{label}</span>
+                        <button
+                          type="button"
+                          data-chip-remove
+                          onClick={(e) => {
+                            // Klavye tetiklemesinde `detail` 0'dır; dokunmada
+                            // odak taşınmaz (arama kutusu klavyeyi açardı).
+                            if (e.detail === 0) refocusChip.current = index;
+                            toggleSelection(id);
+                          }}
+                          className="-my-1.5 -mr-2.5 -ml-2.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full hover:text-danger-600 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-zinc-900"
+                          aria-label={tr("seciminiKaldir", { name: info?.nameTr ?? id })}
+                        >
+                          <X className="h-3 w-3" aria-hidden />
+                        </button>
+                      </Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
+      ) : draftIds.length > 0 ? (
+        <div className="shrink-0 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2.5 sm:px-6">
+          <span className="block text-xs font-semibold text-zinc-700">
+            {tr("secili", {
+              name:
+                singleInfo?.nameTr ??
+                (namesFailed
+                  ? draftIds[0]
+                  : singleLoading
+                    ? "…"
+                    : tr("silinmisKategori")),
+            })}
+          </span>
+          {/* Tam yol — "Aksesuarlar" gibi bağlamsız yaprak adları için. */}
+          {singleInfo?.breadcrumb ? (
+            <span className="mt-0.5 block truncate text-xs text-zinc-500">
+              {plainBreadcrumb(singleInfo.breadcrumb)}
             </span>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <Button plain onClick={onClose}>
-                {tr("vazgec")}
-              </Button>
-              {/* Başlangıçta seçim varsa boş seçim de onaylanabilir — "Tümünü temizle"
-                  sonrası düğme kapalı kalıyor, temizleme kaydedilemiyordu (arayüz testi D-345). */}
-              <Button onClick={handleConfirm} disabled={draftIds.length === 0 && value.length === 0}>
-                {draftIds.length > 0 ? tr("onaylaN", { n: draftIds.length }) : tr("onayla")}
-              </Button>
+          ) : null}
+          {namesFailed && !singleInfo ? (
+            <LoadError
+              compact
+              message={tr("secimAdlariYuklenemedi")}
+              retryLabel={retryLabel}
+              onRetry={() => void refetchNames?.()}
+            />
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* Onay reddi + kısa bildirim: kısa ekranda kayan bölümün tepesine yapışır. */}
+      <CategoryDialogNotices rejection={confirmError} flash={flash} />
+
+      {/* Body */}
+      <div className="flex min-h-0 flex-1 flex-col [@media(max-height:520px)]:flex-none">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-5 [@media(max-height:520px)]:overflow-visible">
+          {isSearching ? (
+            <SearchResults
+              loading={searchBusy}
+              // Düşen istek "sonuç bulunamadı" DEĞİLDİR — ayrı durum + yeniden dene.
+              error={!!searchError && searchTree === undefined}
+              onRetry={() => void refetchSearch?.()}
+              segments={searchTree?.segments ?? []}
+              truncated={searchTree?.truncated}
+              query={debouncedSearch.trim()}
+              selected={draftIds}
+              mode={mode}
+              onToggle={toggleSelection}
+              selectFamily={selectFamily}
+            />
+          ) : rootsBusy ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
             </div>
-          </div>
-        </DialogPanel>
+          ) : rootsError && roots === undefined ? (
+            <LoadError
+              message={tr("kategorilerYuklenemedi")}
+              retryLabel={retryLabel}
+              onRetry={() => void refetchRoots?.()}
+            />
+          ) : (
+            <SegmentList
+              roots={roots ?? []}
+              expandedSegments={expandedSegments}
+              expandedFamilies={expandedFamilies}
+              expandedClasses={expandedClasses}
+              onToggleSegment={toggle(setExpandedSegments)}
+              onToggleFamily={toggle(setExpandedFamilies)}
+              onToggleClass={toggle(setExpandedClasses)}
+              selected={draftIds}
+              onToggleSelection={toggleSelection}
+              mode={mode}
+              catalog={catalog}
+              selectFamily={selectFamily}
+            />
+          )}
+        </div>
       </div>
-    </Dialog>
+    </CategoryDialogShell>
   );
 }
 
@@ -404,6 +517,8 @@ interface SegmentListProps {
   onToggleSelection: (id: string) => void;
   mode: "single" | "multi";
   catalog: CategoryCatalog;
+  /** Aile (L2) satırı da onay kutusu taşır — `minSelectableLevel={2}`. */
+  selectFamily: boolean;
 }
 
 function SegmentList({
@@ -418,6 +533,7 @@ function SegmentList({
   onToggleSelection,
   mode,
   catalog,
+  selectFamily,
 }: SegmentListProps) {
   const t = useTranslations("web.shared.categorySelectorModal");
   if (roots.length === 0) {
@@ -452,6 +568,7 @@ function SegmentList({
         <button
           type="button"
           onClick={() => onToggleSegment(segment.id)}
+          aria-expanded={isExpanded}
           className={`flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left transition-colors ${
             isExpanded ? "bg-zinc-50" : "hover:bg-zinc-50"
           }`}
@@ -481,6 +598,7 @@ function SegmentList({
             selected={selected}
             onToggleSelection={onToggleSelection}
             mode={mode}
+            selectFamily={selectFamily}
           />
         ) : null}
       </li>
@@ -491,7 +609,7 @@ function SegmentList({
     <div className="space-y-5">
       {malSegments.length > 0 ? (
         <section>
-          <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
             {t("malVeEkipman")}
           </h3>
           <ul className="space-y-0.5">{malSegments.map(renderSegment)}</ul>
@@ -500,12 +618,27 @@ function SegmentList({
 
       {hizmetSegments.length > 0 ? (
         <section>
-          <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          <h3 className="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
             {t("hizmetler")}
           </h3>
           <ul className="space-y-0.5">{hizmetSegments.map(renderSegment)}</ul>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+/** Ağaç dalının içinde satır içi yükleme hatası (aile / sınıf / emtia listesi). */
+function BranchLoadError({ onRetry }: { onRetry: () => void }) {
+  const t = useTranslations("web.shared.categorySelectorModal");
+  return (
+    <div className="ml-6">
+      <LoadError
+        compact
+        message={t("buBolumYuklenemedi")}
+        retryLabel={t("yenidenDene")}
+        onRetry={onRetry}
+      />
     </div>
   );
 }
@@ -520,6 +653,7 @@ interface FamilyListProps {
   onToggleSelection: (id: string) => void;
   mode: "single" | "multi";
   catalog: CategoryCatalog;
+  selectFamily: boolean;
 }
 
 function FamilyList({
@@ -532,9 +666,15 @@ function FamilyList({
   onToggleSelection,
   mode,
   catalog,
+  selectFamily,
 }: FamilyListProps) {
   const t = useTranslations("web.shared.categorySelectorModal");
-  const { data: families, isLoading } = useChildren(segmentId, 1, catalog);
+  const {
+    data: families,
+    isLoading,
+    isError,
+    refetch,
+  } = useChildren(segmentId, 1, catalog);
 
   if (isLoading) {
     return (
@@ -543,12 +683,16 @@ function FamilyList({
       </div>
     );
   }
+  // Düşen istek boş dal gibi çizilmez (eskiden grup açılıyor, altı boş kalıyordu).
+  if (isError) return <BranchLoadError onRetry={() => void refetch?.()} />;
 
   // V2-6.5 — Tek family chain'i atla. Family seviyesinde sadece 1 alt
   // kategori varsa, kullanıcıya "A → tek-B → C..." şeklinde anlamsız bir
-  // ara seviye göstermek yerine direkt Class'ları render et. Family ID
-  // selection'da kullanılmaz (sadece accordion grup başlığı idi).
-  if (families && families.length === 1) {
+  // ara seviye göstermek yerine direkt Class'ları render et. Aile
+  // SEÇİLEBİLİR olduğunda (firma beyanı) atlanmaz: satırı görünmeli ki
+  // işaretlenebilsin; altı yine kendiliğinden açık gelir.
+  const single = families?.length === 1;
+  if (families && single && !selectFamily) {
     return (
       <div className="ml-[15px] mt-0.5 border-l border-zinc-950/5 pl-2">
         <ClassList
@@ -567,38 +711,92 @@ function FamilyList({
   return (
     <ul className="ml-[15px] mt-0.5 space-y-0.5 border-l border-zinc-950/5 pl-2">
       {(families ?? []).map((family) => {
-        const isExpanded = expandedFamilies.has(family.id);
+        const isExpanded = single || expandedFamilies.has(family.id);
         const childCount = family._count?.children ?? 0;
         const famSelCount = selected.filter((id) =>
           id.startsWith(family.code.slice(0, 4)),
         ).length;
+        const isSelected = selected.includes(family.id);
+        const counters = (
+          <>
+            {famSelCount > 0 ? (
+              <span
+                className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white"
+                title={t("buDaldaSecim", { n: famSelCount })}
+              >
+                {famSelCount}
+              </span>
+            ) : null}
+            {childCount > 0 ? (
+              <span className="text-xs tabular-nums text-zinc-500">
+                {childCount}
+              </span>
+            ) : null}
+          </>
+        );
         return (
           <li key={family.id}>
-            <button
-              type="button"
-              onClick={() => onToggleFamily(family.id)}
-              className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors ${
-                isExpanded ? "bg-zinc-50" : "hover:bg-zinc-50"
-              }`}
-            >
-              <Disclosure open={isExpanded} />
-              <span className="flex-1 text-sm font-medium text-zinc-800">
-                {family.nameTr}
-              </span>
-              {famSelCount > 0 ? (
-                <span
-                  className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white"
-                  title={t("buDaldaSecim", { n: famSelCount })}
+            {selectFamily ? (
+              // Sınıf satırıyla aynı dizilim: ok (aç/kapa) · onay kutusu · ad.
+              // Ada tıklamak eskisi gibi dalı açar; seçim onay kutusuyla.
+              <div
+                className={`flex items-center gap-2 rounded-lg px-2 py-2 transition-colors ${
+                  isSelected
+                    ? "bg-zinc-50 ring-1 ring-zinc-950/10"
+                    : isExpanded
+                      ? "bg-zinc-50"
+                      : "hover:bg-zinc-50"
+                }`}
+              >
+                {single ? (
+                  <DisclosureSpacer />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onToggleFamily(family.id)}
+                    className="-ml-1 shrink-0 rounded p-0.5 hover:bg-zinc-100"
+                    aria-expanded={isExpanded}
+                    aria-label={`${isExpanded ? t("daralt") : t("genislet")}: ${family.nameTr}`}
+                  >
+                    <Disclosure open={isExpanded} />
+                  </button>
+                )}
+                <Checkbox
+                  checked={isSelected}
+                  onChange={() => onToggleSelection(family.id)}
+                  className="flex-shrink-0"
+                  aria-label={family.nameTr}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    single ? onToggleSelection(family.id) : onToggleFamily(family.id)
+                  }
+                  aria-expanded={single ? undefined : isExpanded}
+                  className={`flex-1 text-left text-sm font-medium ${
+                    isSelected ? "text-zinc-950" : "text-zinc-800"
+                  }`}
                 >
-                  {famSelCount}
+                  {family.nameTr}
+                </button>
+                {counters}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onToggleFamily(family.id)}
+                aria-expanded={isExpanded}
+                className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors ${
+                  isExpanded ? "bg-zinc-50" : "hover:bg-zinc-50"
+                }`}
+              >
+                <Disclosure open={isExpanded} />
+                <span className="flex-1 text-sm font-medium text-zinc-800">
+                  {family.nameTr}
                 </span>
-              ) : null}
-              {childCount > 0 ? (
-                <span className="text-xs tabular-nums text-zinc-400">
-                  {childCount}
-                </span>
-              ) : null}
-            </button>
+                {counters}
+              </button>
+            )}
 
             {isExpanded ? (
               <ClassList
@@ -637,7 +835,12 @@ function ClassList({
   mode,
   catalog,
 }: ClassListProps) {
-  const { data: classes, isLoading } = useChildren(familyId, 2, catalog);
+  const {
+    data: classes,
+    isLoading,
+    isError,
+    refetch,
+  } = useChildren(familyId, 2, catalog);
 
   if (isLoading) {
     return (
@@ -646,6 +849,7 @@ function ClassList({
       </div>
     );
   }
+  if (isError) return <BranchLoadError onRetry={() => void refetch?.()} />;
 
   return (
     <ul className="ml-[15px] mt-0.5 space-y-0.5 border-l border-zinc-950/5 pl-2">
@@ -707,7 +911,8 @@ function ClassRow({
             type="button"
             onClick={() => onToggleExpand(cls.id)}
             className="-ml-1 shrink-0 rounded p-0.5 hover:bg-zinc-100"
-            aria-label={isExpanded ? t("daralt") : t("genislet")}
+            aria-expanded={isExpanded}
+            aria-label={`${isExpanded ? t("daralt") : t("genislet")}: ${cls.nameTr}`}
           >
             <Disclosure open={isExpanded} />
           </button>
@@ -732,7 +937,7 @@ function ClassRow({
           {cls.nameTr}
         </button>
         {hasCommodities ? (
-          <span className="text-xs tabular-nums text-zinc-400">
+          <span className="text-xs tabular-nums text-zinc-500">
             {commodityCount}
           </span>
         ) : null}
@@ -763,10 +968,14 @@ function CommodityList({
   classId,
   selected,
   onToggleSelection,
-  mode,
   catalog,
 }: CommodityListProps) {
-  const { data: commodities, isLoading } = useChildren(classId, 3, catalog);
+  const {
+    data: commodities,
+    isLoading,
+    isError,
+    refetch,
+  } = useChildren(classId, 3, catalog);
 
   if (isLoading) {
     return (
@@ -775,6 +984,7 @@ function CommodityList({
       </div>
     );
   }
+  if (isError) return <BranchLoadError onRetry={() => void refetch?.()} />;
 
   return (
     <ul className="ml-[15px] mt-0.5 space-y-0.5 border-l border-zinc-950/5 pl-2">
@@ -814,6 +1024,9 @@ function CommodityList({
 
 interface SearchResultsProps {
   loading: boolean;
+  /** İstek düştü — "sonuç bulunamadı" değil, yeniden denenebilir hata. */
+  error: boolean;
+  onRetry: () => void;
   segments: SearchTreeSegment[];
   /** Backend 200 sonuç tavanına takıldı — "aramayı daraltın" notu gösterilir. */
   truncated?: boolean;
@@ -821,6 +1034,15 @@ interface SearchResultsProps {
   selected: string[];
   mode: "single" | "multi";
   onToggle: (id: string) => void;
+  selectFamily: boolean;
+}
+
+/**
+ * Arama ağacında çizilecek bir şeyi olan aileler. Aile SEÇİLEMEZKEN sınıfı
+ * olmayan aile boş başlıktır → çizilmez; seçilebiliyorsa kendisi bir satırdır.
+ */
+function visibleFamilies(segment: SearchTreeSegment, selectFamily: boolean) {
+  return segment.families.filter((f) => selectFamily || f.classes.length > 0);
 }
 
 /**
@@ -828,15 +1050,23 @@ interface SearchResultsProps {
  * parent path'leri (Segment → Family → Class → Commodity) ile birlikte
  * tree olarak gösterir. Path başlıkları auto-expanded, kardeş kategoriler
  * gizli — sadece match yolundaki düğümler render olur.
+ *
+ * API'nin döndürdüğü HER sınıf bir satırdır ve işaretlenebilir: adı eşleşen
+ * ailenin (ya da sektörün) sınıfları `isMatch=false` ve emtiasız gelir;
+ * eskiden bunlar hiç çizilmiyor, aile altı boş bir başlık olarak kalıyordu
+ * ("hırdavat": 21 sınıf döndü, 6 onay kutusu çizildi).
  */
 function SearchResults({
   loading,
+  error,
+  onRetry,
   segments,
   truncated,
   query,
   selected,
   mode,
   onToggle,
+  selectFamily,
 }: SearchResultsProps) {
   const t = useTranslations("web.shared.categorySelectorModal");
   if (loading) {
@@ -847,7 +1077,19 @@ function SearchResults({
     );
   }
 
-  if (segments.length === 0) {
+  if (error) {
+    return (
+      <LoadError
+        message={t("aramaTamamlanamadi")}
+        retryLabel={t("yenidenDene")}
+        onRetry={onRetry}
+      />
+    );
+  }
+
+  const shown = segments.filter((s) => visibleFamilies(s, selectFamily).length > 0);
+
+  if (shown.length === 0) {
     return (
       <div className="py-12 text-center">
         <p className="text-sm font-medium text-zinc-700">
@@ -868,7 +1110,7 @@ function SearchResults({
         </p>
       ) : null}
       <ul className="space-y-3">
-        {segments.map((seg) => (
+        {shown.map((seg) => (
           <SearchSegmentBlock
             key={seg.id}
             segment={seg}
@@ -876,6 +1118,7 @@ function SearchResults({
             selected={selected}
             onToggle={onToggle}
             mode={mode}
+            selectFamily={selectFamily}
           />
         ))}
       </ul>
@@ -889,21 +1132,25 @@ function SearchSegmentBlock({
   selected,
   onToggle,
   mode,
+  selectFamily,
 }: {
   segment: SearchTreeSegment;
   query: string;
   selected: string[];
   onToggle: (id: string) => void;
   mode: "single" | "multi";
+  selectFamily: boolean;
 }) {
   return (
     <li>
       <div className="flex items-center gap-2 px-2 py-2 text-sm font-semibold text-zinc-900">
         <Disclosure open />
-        <span>{segment.nameTr}</span>
+        <span>
+          <HighlightMatch text={segment.nameTr} query={query} />
+        </span>
       </div>
       <ul className="ml-[15px] space-y-1 border-l border-zinc-950/5 pl-2">
-        {segment.families.map((fam) => (
+        {visibleFamilies(segment, selectFamily).map((fam) => (
           <SearchFamilyBlock
             key={fam.id}
             family={fam}
@@ -911,6 +1158,7 @@ function SearchSegmentBlock({
             selected={selected}
             onToggle={onToggle}
             mode={mode}
+            selectFamily={selectFamily}
           />
         ))}
       </ul>
@@ -924,31 +1172,62 @@ function SearchFamilyBlock({
   selected,
   onToggle,
   mode,
+  selectFamily,
 }: {
   family: SearchTreeFamily;
   query: string;
   selected: string[];
   onToggle: (id: string) => void;
   mode: "single" | "multi";
+  selectFamily: boolean;
 }) {
+  const isSelected = selected.includes(family.id);
+  const hasClasses = family.classes.length > 0;
   return (
     <li>
-      <div className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-zinc-700">
-        <Disclosure open />
-        <span>{family.nameTr}</span>
-      </div>
-      <ul className="ml-[15px] space-y-0.5 border-l border-zinc-950/5 pl-2">
-        {family.classes.map((cls) => (
-          <SearchClassBlock
-            key={cls.id}
-            cls={cls}
-            query={query}
-            selected={selected}
-            onToggle={onToggle}
-            mode={mode}
+      {selectFamily ? (
+        <div
+          className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 ${
+            isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
+          }`}
+        >
+          {hasClasses ? <Disclosure open /> : <DisclosureSpacer />}
+          <Checkbox
+            checked={isSelected}
+            onChange={() => onToggle(family.id)}
+            className="flex-shrink-0"
+            aria-label={family.nameTr}
           />
-        ))}
-      </ul>
+          <button
+            type="button"
+            onClick={() => onToggle(family.id)}
+            className="flex-1 text-left text-sm font-medium text-zinc-700"
+          >
+            <HighlightMatch text={family.nameTr} query={query} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-zinc-700">
+          <Disclosure open />
+          <span>
+            <HighlightMatch text={family.nameTr} query={query} />
+          </span>
+        </div>
+      )}
+      {hasClasses ? (
+        <ul className="ml-[15px] space-y-0.5 border-l border-zinc-950/5 pl-2">
+          {family.classes.map((cls) => (
+            <SearchClassBlock
+              key={cls.id}
+              cls={cls}
+              query={query}
+              selected={selected}
+              onToggle={onToggle}
+              mode={mode}
+            />
+          ))}
+        </ul>
+      ) : null}
     </li>
   );
 }
@@ -958,7 +1237,6 @@ function SearchClassBlock({
   query,
   selected,
   onToggle,
-  mode,
 }: {
   cls: SearchTreeClass;
   query: string;
@@ -971,42 +1249,33 @@ function SearchClassBlock({
 
   return (
     <li>
-      {cls.isMatch ? (
-        <div
-          className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 ${
-            isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
+      {/* Sınıf HER ZAMAN seçilebilir satırdır — `isMatch` yalnız vurguyu
+          belirler (adı eşleşen ailenin sınıfları `isMatch=false` gelir). */}
+      <div
+        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 ${
+          isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
+        }`}
+      >
+        {hasCommodities ? <Disclosure open /> : <DisclosureSpacer />}
+        <Checkbox
+          checked={isSelected}
+          onChange={() => onToggle(cls.id)}
+          className="flex-shrink-0"
+          aria-label={cls.nameTr}
+        />
+        <button
+          type="button"
+          onClick={() => onToggle(cls.id)}
+          className={`flex-1 text-left text-sm ${
+            hasCommodities ? "font-medium text-zinc-700" : "text-zinc-700"
           }`}
         >
-          <DisclosureSpacer />
-          <Checkbox
-            checked={isSelected}
-            onChange={() => onToggle(cls.id)}
-            className="flex-shrink-0"
-            aria-label={cls.nameTr}
-          />
-          <button
-            type="button"
-            onClick={() => onToggle(cls.id)}
-            className="flex-1 text-left text-sm text-zinc-700"
-          >
-            <HighlightMatch text={cls.nameTr} query={query} />
-          </button>
-        </div>
-      ) : hasCommodities ? (
-        <div className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-zinc-600">
-          <Disclosure open />
-          <span>{cls.nameTr}</span>
-        </div>
-      ) : null}
+          <HighlightMatch text={cls.nameTr} query={query} />
+        </button>
+      </div>
 
       {hasCommodities ? (
-        <ul
-          className={`space-y-0.5 ${
-            cls.isMatch
-              ? "ml-[15px] border-l border-zinc-950/5 pl-2"
-              : "ml-[15px] border-l border-zinc-950/5 pl-2"
-          }`}
-        >
+        <ul className="ml-[15px] space-y-0.5 border-l border-zinc-950/5 pl-2">
           {cls.commodities.map((com) => {
             const comSelected = selected.includes(com.id);
             return (
@@ -1040,45 +1309,94 @@ function SearchClassBlock({
 }
 
 /**
- * Uzunluk-koruyan TR katlama — vurgu konumu için karakter-karakter eşleme.
- * (shared `foldSearchText` boşluk tekilleştirdiğinden index kayar; burada
- * her karakter tek karaktere katlanır ki katlanmış index = orijinal index.)
+ * Uzunluk-koruyan katlama — vurgu konumu için karakter-karakter eşleme.
+ * Kural tek kaynaktan (`foldSearchText`: TR harfleri, şapkalar, Kiril й/ё);
+ * o fonksiyon boşluk tekilleştirdiği için metnin tamamına uygulanamaz (index
+ * kayar) → her karakter TEK karaktere katlanır, katlanmış index = özgün index.
  */
-const HIGHLIGHT_FOLD: Record<string, string> = {
-  ç: "c", Ç: "c", ş: "s", Ş: "s", ğ: "g", Ğ: "g", ü: "u", Ü: "u",
-  ö: "o", Ö: "o", ı: "i", İ: "i", â: "a", Â: "a", î: "i", Î: "i",
-  û: "u", Û: "u",
-};
-function foldForHighlight(s: string): string {
-  return Array.from(s)
-    .map((ch) => HIGHLIGHT_FOLD[ch] ?? ch.toLowerCase())
-    .join("");
+function foldChars(s: string): string[] {
+  return Array.from(s).map((ch) => {
+    const folded = Array.from(foldSearchText(ch));
+    return folded.length === 1 ? folded[0] : ch.toLowerCase();
+  });
+}
+
+/** `needle` dizisinin `hay` içindeki bütün başlangıç konumları. */
+function findAll(hay: string[], needle: string[]): number[] {
+  const hits: number[] = [];
+  if (needle.length === 0 || needle.length > hay.length) return hits;
+  for (let i = 0; i + needle.length <= hay.length; i++) {
+    let ok = true;
+    for (let j = 0; j < needle.length; j++) {
+      if (hay[i + j] !== needle[j]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) hits.push(i);
+  }
+  return hits;
 }
 
 /**
- * Eşleşen substring'i vurgular — TR-katlanmış karşılaştırma: "iskele" sorgusu
+ * Vurgulanacak aralıklar — ARAMAYLA AYNI KURAL: sorgu kelimelere bölünür
+ * (`tokenizeQuery`), her kelime ayrı aranır, sırası önemsiz. Eskiden sorgunun
+ * TAMAMI tek parça aranıyordu → "paslanmaz sac" 21 sonuç getiriyor, hiçbiri
+ * vurgulanmıyordu. Kelime yazıldığı biçimde geçmiyorsa kökü denenir
+ * (`stemPrefix` — API ek toleransıyla aynı fonksiyon: "boruları" → "boru").
+ */
+export function highlightRanges(text: string, query: string): Array<[number, number]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const hay = foldChars(text);
+  const tokens = tokenizeQuery(trimmed);
+  const words = tokens.length > 0 ? tokens : [trimmed];
+
+  const ranges: Array<[number, number]> = [];
+  for (const word of words) {
+    const folded = foldSearchText(word);
+    if (!folded) continue;
+    let needle = Array.from(folded);
+    let hits = findAll(hay, needle);
+    if (hits.length === 0) {
+      const stem = stemPrefix(folded);
+      if (stem !== folded && stem.length >= 2) {
+        needle = Array.from(stem);
+        hits = findAll(hay, needle);
+      }
+    }
+    for (const at of hits) ranges.push([at, at + needle.length]);
+  }
+
+  // Örtüşen / bitişik aralıklar birleşir ("çelik" + "çelik boru").
+  ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged: Array<[number, number]> = [];
+  for (const r of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+    else merged.push([r[0], r[1]]);
+  }
+  return merged;
+}
+
+/**
+ * Eşleşen parçaları vurgular — katlanmış karşılaştırma: "iskele" sorgusu
  * "İskele sistemleri"ni, "jenerator" "jeneratör"ü vurgular (backend araması da
  * aynı katlamayla eşleştiğinden vurgu sonuçla tutarlı).
  */
 function HighlightMatch({ text, query }: { text: string; query: string }) {
-  const trimmed = query.trim();
-  if (!trimmed) return <>{text}</>;
-  const foldedText = foldForHighlight(text);
-  const foldedQuery = foldForHighlight(trimmed);
-  if (!foldedQuery) return <>{text}</>;
+  const ranges = highlightRanges(text, query);
+  if (ranges.length === 0) return <>{text}</>;
 
   const chars = Array.from(text);
   const parts: Array<{ str: string; hit: boolean }> = [];
   let cursor = 0;
-  let idx = foldedText.indexOf(foldedQuery);
-  while (idx !== -1) {
-    if (idx > cursor) {
-      parts.push({ str: chars.slice(cursor, idx).join(""), hit: false });
+  for (const [from, to] of ranges) {
+    if (from > cursor) {
+      parts.push({ str: chars.slice(cursor, from).join(""), hit: false });
     }
-    const end = idx + Array.from(foldedQuery).length;
-    parts.push({ str: chars.slice(idx, end).join(""), hit: true });
-    cursor = end;
-    idx = foldedText.indexOf(foldedQuery, end);
+    parts.push({ str: chars.slice(from, to).join(""), hit: true });
+    cursor = to;
   }
   if (cursor < chars.length) {
     parts.push({ str: chars.slice(cursor).join(""), hit: false });

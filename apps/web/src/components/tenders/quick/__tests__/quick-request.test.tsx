@@ -26,6 +26,8 @@ const h = vi.hoisted(() => ({
   denied: [] as string[],
   existingDocs: [] as unknown[],
   verification: "VERIFIED",
+  // `useCategoriesByIds` çağrıları (id listesi + seçenek).
+  byIds: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -94,7 +96,10 @@ vi.mock("@/hooks/use-ai-seo-enrich", () => ({ useAiSeoEnrich: () => ({ mutateAsy
 vi.mock("@/hooks/use-company-items", () => ({ useCatalogItems: () => ({ data: { items: [] } }) }));
 vi.mock("@/components/tenders/ai-import/ai-import-dialog", () => ({ AiImportDialog: () => null }));
 vi.mock("@/hooks/use-categories", () => ({
-  useCategoriesByIds: () => ({ data: [{ id: "39121600", nameTr: "Dağıtım panoları" }] }),
+  useCategoriesByIds: (...args: unknown[]) => {
+    h.byIds(...args);
+    return { data: [{ id: "39121600", nameTr: "Dağıtım panoları" }] };
+  },
   useCategorySearchTree: () => ({ data: { segments: [{ id: "40000000", code: "40000000", nameTr: "Boru", level: 1, segmentLetter: null, families: [{ id: "40170000", code: "40170000", nameTr: "Borular", level: 2, classes: [{ id: "40171500", code: "40171500", nameTr: "Çelik borular", level: 3, isMatch: true, commodities: [] }] }] }] } }),
 }));
 vi.mock("@/components/categories/category-selector-button", () => ({
@@ -456,6 +461,19 @@ describe("QuickRequest", () => {
     h.verification = "UNVERIFIED";
     wrap(<QuickRequest />);
     expect(await screen.findByText(/belgeleri yükleyin/)).toBeInTheDocument();
+  });
+
+  // Kayıt denetimi 2026-10 webcat-5: kategori düğmesi aynı sorgu anahtarını
+  // `inlineError` ile okur (hata kendi satırında). Seçeneksiz ikinci gözlemci
+  // aynı ad hatasına genel toast da basıyordu.
+  it("kategori adları düğmeyle AYNI seçenekle istenir (satır içi hata; genel toast yok)", async () => {
+    h.byIds.mockClear();
+    wrap(<QuickRequest />);
+    await screen.findByLabelText(/^Kalem Adı/);
+    fireEvent.click(screen.getByRole("button", { name: "Kategori seç" }));
+    await screen.findByText("Kategori: 39121600");
+    expect(h.byIds).toHaveBeenCalledWith(["39121600"], { inlineError: true });
+    for (const [, options] of h.byIds.mock.calls) expect(options).toEqual({ inlineError: true });
   });
 
   it("boş kartta 'son taleplerden başla' çipi görünür", async () => {

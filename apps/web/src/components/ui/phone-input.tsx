@@ -8,6 +8,7 @@ import {
   phoneNationalLength,
   stripTrunkPrefix,
 } from "@rothern/shared";
+import { Input as HeadlessInput } from "@headlessui/react";
 import { useLocale, useTranslations } from "next-intl";
 import { countryDisplayName } from "@/i18n/domain";
 import { useMemo, useState } from "react";
@@ -31,6 +32,16 @@ import { CountryFlag } from "@/components/ui/country-flag";
  * önek atılır (TR 0532 → +90 532, GB 07911 → +44 7911, RU/KZ "8 916…" → +7 916,
  * HU "06 30…" → +36 30; İtalya'da 0 numaranın parçası, atılmaz). Ortak kodda
  * (+1, +44, +7) seçili ülke korunur. Arap-Hint/Farsça rakamlar çevrilir.
+ *
+ * YARDIMCI TEKNOLOJİ BAĞI (arayüz testi 2026-10 code-auth-11): numara kutusu
+ * Headless `Input`tur — düz `<input>` Catalyst `<Field>`e bağlanmıyordu.
+ * `<Field>` içinde id'yi, etiketi (`aria-labelledby`; görünen etikete tıklamak
+ * kutuyu odaklar) ve hata/açıklama metnini (`aria-describedby`) bağlamdan
+ * alır; `invalid` → `aria-invalid`. Eskiden hatada yalnız çerçeve
+ * kızarıyordu: ekran okuyucu ne geçersiz durumu ne iletiyi duyuyordu. Hata
+ * `<Field>` içinde `ErrorMessage` olarak çizilmeli; kök `<Field>`in DOĞRUDAN
+ * çocuğu olmalı (sarmalayıcı div `data-slot="control"` boşluğunu düşürür —
+ * "alandan çıkış" için `onBlur` prop'u var).
  */
 
 /**
@@ -83,6 +94,7 @@ export function PhoneInput({
   ariaLabel,
   defaultCountry,
   onCountryMissingChange,
+  onBlur,
 }: {
   value: string;
   onChange: (fullValue: string) => void;
@@ -103,6 +115,12 @@ export function PhoneInput({
    * sessizce düşmez.
    */
   onCountryMissingChange?: (missing: boolean) => void;
+  /**
+   * Odak denetimin TAMAMINDAN çıkınca (ülke seçiciden numara kutusuna geçiş
+   * sayılmaz). Formlar "alandan çıkınca hata göster" için kullanır; kökü bir
+   * div'e sarmaya gerek kalmaz.
+   */
+  onBlur?: () => void;
 }) {
   const t = useTranslations("web.shared.phoneInput");
   const locale = useLocale();
@@ -179,6 +197,13 @@ export function PhoneInput({
     // kişi kutusundan 12 px yukarıda duruyordu (arayüz testi webC-09, D-311).
     <div
       data-slot="control"
+      onBlur={
+        onBlur
+          ? (e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onBlur();
+            }
+          : undefined
+      }
       className={[
         "flex items-stretch overflow-hidden rounded-lg border bg-white shadow-sm",
         "focus-within:ring-2 focus-within:ring-zinc-950",
@@ -198,7 +223,7 @@ export function PhoneInput({
           {current ? (
             <CountryFlag code={current.code} decorative />
           ) : (
-            <GlobeAltIcon aria-hidden className="size-4 text-zinc-400" />
+            <GlobeAltIcon aria-hidden className="size-4 text-zinc-500" />
           )}
         </span>
         <span className="pointer-events-none pl-1.5 text-sm text-zinc-600">
@@ -219,7 +244,7 @@ export function PhoneInput({
           {optionNodes}
         </select>
         <svg
-          className="pointer-events-none mr-2 ml-1 h-4 w-4 text-zinc-400"
+          className="pointer-events-none mr-2 ml-1 h-4 w-4 text-zinc-500"
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"
@@ -232,8 +257,10 @@ export function PhoneInput({
         </svg>
       </div>
 
-      {/* Ulusal numara. */}
-      <input
+      {/* Ulusal numara — Headless `Input`: `<Field>` etiketine ve hata iletisine
+          bağlanır (id, aria-labelledby, aria-describedby), `invalid` →
+          aria-invalid. `<Field>` dışında `aria-label` erişilebilir addır. */}
+      <HeadlessInput
         id={id}
         type="tel"
         inputMode="tel"
@@ -241,9 +268,10 @@ export function PhoneInput({
         autoComplete={autoComplete}
         placeholder={placeholder ?? (code ? nationalPlaceholder(code) : t("placeholderIntl"))}
         disabled={disabled}
+        invalid={invalid}
         value={draft ?? parsed.national}
         onChange={(e) => setNational(e.target.value)}
-        className="w-full min-w-0 flex-1 bg-transparent px-3 py-[calc(--spacing(2.5)-1px)] text-base/6 text-zinc-900 outline-none placeholder:text-zinc-400 sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6"
+        className="w-full min-w-0 flex-1 bg-transparent px-3 py-[calc(--spacing(2.5)-1px)] text-base/6 text-zinc-900 outline-none placeholder:text-zinc-500 sm:py-[calc(--spacing(1.5)-1px)] sm:text-sm/6"
       />
     </div>
   );

@@ -10,6 +10,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { CityCombobox } from "../city-combobox";
 import { CountryCombobox } from "../country-combobox";
+import { PasswordInput } from "../password-input";
 import { PhoneInput } from "../phone-input";
 
 /**
@@ -26,12 +27,16 @@ function controlAfter(label: string): HTMLElement {
 }
 
 describe("Field içindeki özel denetimler Catalyst Input ile aynı yerleşimi alır", () => {
-  it("Ülke, İl, Telefon ve düz Input etiketten sonra data-slot=control taşır", () => {
+  it("Ülke, İl, Telefon, Şifre ve düz Input etiketten sonra data-slot=control taşır", () => {
     render(
       <>
         <Field>
           <Label>İlgili kişi</Label>
           <Input value="" onChange={() => {}} />
+        </Field>
+        <Field>
+          <Label>Şifre alanı</Label>
+          <PasswordInput value="" onChange={() => {}} />
         </Field>
         <Field>
           <Label>Telefon alanı</Label>
@@ -47,7 +52,7 @@ describe("Field içindeki özel denetimler Catalyst Input ile aynı yerleşimi a
         </Field>
       </>,
     );
-    for (const label of ["İlgili kişi", "Telefon alanı", "Ülke alanı", "İl alanı"]) {
+    for (const label of ["İlgili kişi", "Şifre alanı", "Telefon alanı", "Ülke alanı", "İl alanı"]) {
       expect(controlAfter(label)).toHaveAttribute("data-slot", "control");
     }
   });

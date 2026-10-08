@@ -5,9 +5,12 @@
  *  - doğrulama durumu 4 değerli tek kaynaktan (UNVERIFIED "Bekliyor" DEĞİL);
  *  - PENDING/VERIFIED'da firma adı + yasal unvan kilitli (backend aynası);
  *  - Kaydet yalnız değişiklik varsa aktif ve YALNIZ değişen alanı gönderir;
- *  - TR dışı firmada Vergi Dairesi / KEP çizilmez, vergi etiketi ülkeden.
+ *  - TR dışı firmada Vergi Dairesi / KEP çizilmez, vergi etiketi ülkeden;
+ *  - kategori listeleri KÜMEDİR: yalnız sırası değişen liste formu kirletmez;
+ *  - iki kategori seçicisi birlikte boşalırsa hata SEÇİCİLERİN üstünde çıkar
+ *    ve istek atılmaz (yalnız toast değil).
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AxiosError, AxiosHeaders } from "axios";
@@ -18,6 +21,14 @@ const h = vi.hoisted(() => ({
   confirm: vi.fn(),
   push: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
+  /** Sahte kategori seçicilerinin son prop'ları (etiket → value/onChange). */
+  pickers: {} as Record<
+    string,
+    {
+      value: { mainIds: string[]; subIds: string[] };
+      onChange: (next: { mainIds: string[]; subIds: string[] }) => void;
+    }
+  >,
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -34,10 +45,26 @@ vi.mock("@/hooks/use-company-profile", () => ({
 // Kategori seçicisi katalog uçlarına gider (useRoots / useCategoriesByIds) —
 // bu dosya KİMLİK/KİLİT/kirli-alan sözleşmesini sınıyor, katalog ağacını değil.
 // Kendi sözleşmesi `company-category-picker.test.tsx` içinde.
+//
+// Sahte seçici formun ona verdiği DEĞERİ ve HATAYI gösterir, `onChange`i de
+// testin çağırabileceği yere koyar (`h.pickers[etiket]`): form ile seçici
+// arasındaki sözleşme (value / onChange / error) gerçek bileşensiz sınanır.
 vi.mock("@/components/categories/company-category-picker", () => ({
-  CompanyCategoryPicker: ({ label }: { label: string }) => (
-    <div data-testid="kategori-secici">{label}</div>
-  ),
+  CompanyCategoryPicker: (props: {
+    label: string;
+    value: { mainIds: string[]; subIds: string[] };
+    onChange: (next: { mainIds: string[]; subIds: string[] }) => void;
+    error?: string;
+  }) => {
+    h.pickers[props.label] = { value: props.value, onChange: props.onChange };
+    return (
+      <div data-testid="kategori-secici" data-label={props.label}>
+        {props.label}
+        <output data-testid={`deger-${props.label}`}>{JSON.stringify(props.value)}</output>
+        {props.error ? <p data-testid={`hata-${props.label}`}>{props.error}</p> : null}
+      </div>
+    );
+  },
 }));
 
 import { CompanyProfileSection } from "../company-profile-section";
@@ -79,6 +106,7 @@ describe("CompanyProfileSection", () => {
     h.push.mockReset();
     h.toast.success.mockReset();
     h.toast.error.mockReset();
+    h.pickers = {};
     h.profile = baseProfile();
   });
 
@@ -258,6 +286,125 @@ describe("CompanyProfileSection", () => {
     expect(screen.getByLabelText("Firma adı")).toHaveAttribute("maxLength", "200");
     expect(screen.getByLabelText("Yasal unvan")).toHaveAttribute("maxLength", "200");
     expect(screen.getByLabelText("Açık adres")).toHaveAttribute("maxLength", "500");
+  });
+
+  /* ---------------- Kategoriler: sıra ve boş beyan ---------------- */
+
+  const BUY = "Ne alırım";
+  const SELL = "Ne satarım";
+  const CATEGORY_ERROR = /En az bir sektör ya da ürün\/hizmet seçili kalmalı/;
+  const withCategories = () =>
+    baseProfile({
+      buyerCategoryIds: ["39000000", "40000000"],
+      buyerSubCategoryIds: ["39120000", "39121000"],
+      sellerCategoryIds: ["31000000", "39000000"],
+      sellerSubCategoryIds: ["31170000", "31171500", "31171501"],
+    });
+  /** Seçicinin `onChange`ini çağırır (kullanıcı seçimi onayladı / kaldırdı). */
+  const pick = (label: string, next: { mainIds: string[]; subIds: string[] }) =>
+    act(() => h.pickers[label]!.onChange(next));
+
+  // Arayüz testi 2026-10 code-category-6: seçici değişiklik yapılmadan
+  // onaylanınca (ya da bir seçim kaldırılıp geri eklenince) AYNI kümeyi başka
+  // sırayla döndürür; form kirleniyor ve Kaydet aynı beyanı yeniden yazıyordu.
+  it("kategori listesinin yalnız SIRASI değişirse form kirlenmez (Kaydet pasif, uyarı yok)", () => {
+    h.profile = withCategories();
+    render(<CompanyProfileSection />);
+    pick(BUY, { mainIds: ["40000000", "39000000"], subIds: ["39121000", "39120000"] });
+    pick(SELL, { mainIds: ["39000000", "31000000"], subIds: ["31171501", "31170000", "31171500"] });
+    // Ekran yeni sırayı gösterir, ama kaydedilecek bir şey yoktur.
+    expect(screen.getByTestId(`deger-${BUY}`)).toHaveTextContent('"mainIds":["40000000","39000000"]');
+    expect(screen.queryByText("Kaydedilmemiş değişiklikler var")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Vazgeç" })).not.toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("gerçek değişiklikte yalnız DEĞİŞEN kategori listesi gönderilir; sırası değişen öteki liste gitmez", async () => {
+    h.profile = withCategories();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    // Alış: aynı küme, başka sıra. Satış: bir alt seçim eklendi, ana liste yalnız yer değiştirdi.
+    pick(BUY, { mainIds: ["40000000", "39000000"], subIds: ["39121000", "39120000"] });
+    pick(SELL, {
+      mainIds: ["39000000", "31000000"],
+      subIds: ["31170000", "31171500", "31171501", "39120000"],
+    });
+    expect(screen.getByText("Kaydedilmemiş değişiklikler var")).toBeInTheDocument();
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({
+      sellerSubCategoryIds: ["31170000", "31171500", "31171501", "39120000"],
+    });
+  });
+
+  it("bir kod eklenip çıkarılması değişikliktir (küme farklı): eleman sayısı aynı kalsa da", async () => {
+    h.profile = withCategories();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    pick(BUY, { mainIds: ["39000000", "41000000"], subIds: ["39120000", "39121000"] });
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledWith({ buyerCategoryIds: ["39000000", "41000000"] }));
+  });
+
+  // Arayüz testi 2026-10 category-11: iki seçici de boşaltılıp Kaydet'e
+  // basılınca PATCH 400 dönüyor, yalnız API metni toast oluyordu.
+  it("iki seçici birlikte boşalınca hata İKİ SEÇİCİDE çıkar, Kaydet pasif, istek atılmaz", async () => {
+    h.profile = withCategories();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    expect(screen.queryByTestId(`hata-${BUY}`)).not.toBeInTheDocument();
+
+    // Yalnız biri boş: serbest (yalnız satan firma alış beyanı bırakmayabilir).
+    pick(BUY, { mainIds: [], subIds: [] });
+    expect(screen.queryByTestId(`hata-${BUY}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`hata-${SELL}`)).not.toBeInTheDocument();
+    expect(saveButton()).toBeEnabled();
+
+    // İkisi de boş: ileti iki seçicide, ekrandaki adlarla.
+    pick(SELL, { mainIds: [], subIds: [] });
+    for (const label of [BUY, SELL]) {
+      expect(screen.getByTestId(`hata-${label}`)).toHaveTextContent(CATEGORY_ERROR);
+      expect(screen.getByTestId(`hata-${label}`)).toHaveTextContent(/Ne alırım.*Ne satarım/);
+    }
+    expect(saveButton()).toBeDisabled();
+    await user.click(saveButton());
+    expect(h.update).not.toHaveBeenCalled();
+    expect(h.toast.error).not.toHaveBeenCalled();
+
+    // Bir seçim geri gelince hata kalkar ve kayıt yalnız değişen listeleri yollar.
+    pick(SELL, { mainIds: ["31000000"], subIds: [] });
+    expect(screen.queryByTestId(`hata-${BUY}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`hata-${SELL}`)).not.toBeInTheDocument();
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({
+      buyerCategoryIds: [],
+      buyerSubCategoryIds: [],
+      sellerCategoryIds: ["31000000"],
+      sellerSubCategoryIds: [],
+    });
+  });
+
+  it("Vazgeç boş beyan hatasını da geri alır", async () => {
+    h.profile = withCategories();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    pick(BUY, { mainIds: [], subIds: [] });
+    pick(SELL, { mainIds: [], subIds: [] });
+    expect(screen.getByTestId(`hata-${SELL}`)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(screen.queryByTestId(`hata-${SELL}`)).not.toBeInTheDocument();
+    expect(screen.getByTestId(`deger-${SELL}`)).toHaveTextContent('"mainIds":["31000000","39000000"]');
+  });
+
+  it("zaten kategorisiz duran eski firmada hata yok; başka alan kaydedilir ve kategori gönderilmez", async () => {
+    // baseProfile dört listeyi de boş verir (kapıdan önce kaydolmuş firma).
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    expect(screen.queryByTestId(`hata-${BUY}`)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("İlçe"), "X");
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledWith({ district: "KadıköyX" }));
   });
 
   it("yabancı firmada kimlik notu MERSİS anmaz; TR'de anar (D-137)", () => {

@@ -231,3 +231,189 @@ describe("CompanyLoginForm — arayüz testi webA-02", () => {
     expect(screen.queryByRole("button", { name: /yeniden gönder/i })).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Arayüz testi 2026-10 (kayıt/giriş incelemesi)
+// ---------------------------------------------------------------------------
+function rejected(status: number, data: Record<string, unknown>) {
+  return new AxiosError("hata", "ERR_BAD_REQUEST", undefined, undefined, {
+    status,
+    data,
+    statusText: "x",
+    headers: {},
+    config: {} as never,
+  } as never);
+}
+
+describe("CompanyLoginForm — e-posta denetimi (code-auth-7, login-6)", () => {
+  it("form noValidate: 'abc' sayfa dilinde alan hatası alır, istek atılmaz, odak alanda", async () => {
+    const user = userEvent.setup();
+    render(<CompanyLoginForm nextPath="/company" />);
+    const email = screen.getByLabelText("E-posta");
+    expect(email.closest("form")).toHaveAttribute("novalidate");
+    for (const bad of ["abc", "abc@", "a b@c.com", "a@b"]) {
+      await user.clear(email);
+      await user.type(email, bad);
+      await user.type(screen.getByLabelText("Şifre"), "x");
+      await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
+      expect(await screen.findByText("Geçerli bir e-posta adresi giriniz")).toBeInTheDocument();
+      expect(email).toHaveAttribute("aria-invalid", "true");
+      expect(email).toHaveAccessibleDescription("Geçerli bir e-posta adresi giriniz");
+      expect(email).toHaveFocus();
+    }
+    expect(h.loginAsync).not.toHaveBeenCalled();
+  });
+
+  it("kayıt ve API'nin kabul ettiği adresler girişte de kabul edilir; adres kırpılarak gönderilir", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockResolvedValue({ twoFactorRequired: true });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await user.type(screen.getByLabelText("E-posta"), "  satis&pazarlama@firma.com ");
+    await user.type(screen.getByLabelText("Şifre"), "parola123");
+    await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
+    expect(h.loginAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "satis&pazarlama@firma.com" }),
+    );
+    expect(screen.queryByText("Geçerli bir e-posta adresi giriniz")).toBeNull();
+  });
+});
+
+describe("CompanyLoginForm — doğrulama kodu gönderimi dürüst (code-auth-3, login-7)", () => {
+  it("otomatik gönderim DÜŞTÜ (429): hata gösterilir, 'gönderilen kodu girin' denmez, yeniden gönder hemen açık", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockRejectedValue(rejected(429, { message: "Çok fazla deneme yapıldı. Lütfen bir dakika bekleyip yeniden deneyin." }));
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Çok fazla deneme yapıldı");
+    expect(screen.queryByText(/gönderilen 6 haneli kodu girin/i)).toBeNull();
+    expect(screen.getByText(/adresi için 6 haneli doğrulama kodunu girin/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kodu yeniden gönder" })).toBeEnabled();
+    expect(h.toast.success).not.toHaveBeenCalled();
+  });
+
+  it("otomatik gönderimde saatlik tavan (capped): bir saat sonra deneyin; geri sayım başlamaz", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true, sent: false, capped: true });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Çok fazla kod istediniz. Yeni kod bir saat sonra gönderilebilir",
+    );
+    // Son gönderilen kod hâlâ geçerli olabilir → kod alanı ve metin durur.
+    expect(screen.getByText(/gönderilen 6 haneli kodu girin/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kodu yeniden gönder" })).toBeEnabled();
+  });
+
+  it("elle 'yeniden gönder' sent:false dönerse başarı toast'ı YOK, hata var", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValueOnce({ success: true, sent: false });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Doğrulama kodu şu anda gönderilemedi");
+
+    h.resendAsync.mockResolvedValueOnce({ success: true, sent: true });
+    await user.click(screen.getByRole("button", { name: "Kodu yeniden gönder" }));
+    expect(h.toast.success).toHaveBeenCalledWith("Yeni kod gönderildi");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(/gönderilen 6 haneli kodu girin/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Yeniden gönder \(\d+sn\)/ })).toBeDisabled();
+  });
+});
+
+describe("CompanyLoginForm — kod adımı ve odak (login-8, login-15, code-auth-9)", () => {
+  it("adımı sayfa kabuğuna bildirir; doğrulama adımında odak kod alanında", async () => {
+    const user = userEvent.setup();
+    const onStepChange = vi.fn();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true, sent: true });
+    render(<CompanyLoginForm nextPath="/company" onStepChange={onStepChange} />);
+    expect(onStepChange).toHaveBeenLastCalledWith("login");
+    await login(user);
+    await screen.findByText(/gönderilen 6 haneli kodu girin/i);
+    expect(onStepChange).toHaveBeenLastCalledWith("verify");
+    expect(screen.getByLabelText("Doğrulama kodu")).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: /Başka bir e-postayla giriş yap/ }));
+    expect(onStepChange).toHaveBeenLastCalledWith("login");
+  });
+
+  it("2FA adımı da bildirilir; kodsuz gönderimde hata KOD ALANINDA (aria-invalid) ve odak orada", async () => {
+    const user = userEvent.setup();
+    const onStepChange = vi.fn();
+    h.loginAsync.mockResolvedValue({ twoFactorRequired: true, method: "authenticator" });
+    render(<CompanyLoginForm nextPath="/company" onStepChange={onStepChange} />);
+    await login(user);
+    await screen.findByText(/iki adımlı doğrulama açık/i);
+    expect(onStepChange).toHaveBeenLastCalledWith("twoFactor");
+    h.loginAsync.mockClear();
+    await user.click(screen.getByRole("button", { name: "Giriş Yap" }));
+    expect(h.loginAsync).not.toHaveBeenCalled();
+    const code = screen.getByLabelText("Doğrulama kodu");
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(code).toHaveAccessibleDescription(/Doğrulama kodunu ya da kurtarma kodunuzu girin/);
+    expect(code).toHaveFocus();
+  });
+
+  it("doğrulama adımında eksik kodla gönderim: alan hatası, istek yok", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    await screen.findByText(/gönderilen 6 haneli kodu girin/i);
+    const verify = screen.getByRole("button", { name: "Doğrula ve Giriş Yap" });
+    expect(verify).toBeEnabled();
+    await user.type(screen.getByLabelText("Doğrulama kodu"), "12");
+    await user.click(verify);
+    expect(h.verifyAsync).not.toHaveBeenCalled();
+    expect(screen.getByText("6 haneli doğrulama kodunu girin.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Doğrulama kodu")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("başarısız girişten sonra odak <body>'ye düşmez: şifre alanına gider", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(rejected(401, { message: "E-posta veya şifre hatalı" }));
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("E-posta veya şifre hatalı");
+    expect(screen.getByLabelText("Şifre")).toHaveFocus();
+  });
+});
+
+describe("CompanyLoginForm — okunurluk ve dokunma alanları (login-5, login-9, login-10)", () => {
+  it("'Başka bir e-postayla giriş yap' zinc-400 değil; ikincil bağlantılar en az 32 px yüksek", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await login(user);
+    await screen.findByText(/gönderilen 6 haneli kodu girin/i);
+    for (const name of [/Başka bir e-postayla giriş yap/, /Yeniden gönder/]) {
+      const btn = screen.getByRole("button", { name });
+      expect(btn.className).not.toContain("text-zinc-400");
+      expect(btn.className).toContain("text-zinc-500");
+      expect(btn.className).toContain("py-2");
+    }
+  });
+
+  it("'Oturumumu açık bırak' etiketi ve 'Şifremi unuttum' bağlantısı en az 32 px (min-h-8); bağlantı soru işaretsiz", () => {
+    render(<CompanyLoginForm nextPath="/company" />);
+    expect(screen.getByText("Oturumumu açık bırak").className).toContain("min-h-8");
+    const forgot = screen.getByRole("link", { name: "Şifremi unuttum" });
+    expect(forgot.className).toContain("min-h-8");
+    expect(forgot).toHaveAttribute("href", "/company/sifremi-unuttum");
+  });
+
+  it("E-posta ve Şifre etiketlerinin ardındaki öğe data-slot=control taşır (etiket boşluğu eşit)", () => {
+    render(<CompanyLoginForm nextPath="/company" />);
+    for (const label of ["E-posta", "Şifre"]) {
+      const el = screen.getByText(label, { selector: "label" }).nextElementSibling;
+      expect(el, label).toHaveAttribute("data-slot", "control");
+    }
+  });
+});

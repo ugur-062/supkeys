@@ -51,6 +51,55 @@ describe("CountryCombobox (2026-09-27, kayıt tüm ülkelere açık)", () => {
     expect(container.querySelector('[data-slot="control"] img')).toBeNull();
   });
 
+  // Kayıt denetimi 2026-10 signup-tr-12: satırda "KKTC" yazıyor ama "kktc"
+  // araması "Eşleşen ülke yok" diyordu; rozet 20 px'lik bayrak kutusundan
+  // taşıp bayraklardan solda başlıyor ve ülke adına yapışıyordu.
+  it("KKTC kısaltmayla da bulunur ve rozeti bayraklarla aynı hizada, aynı boşlukla durur", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const box = screen.getByRole("combobox", { name: "Ülke" });
+    for (const q of ["kktc", "KKTC", "trnc", "трск"]) {
+      await user.clear(box);
+      await user.type(box, q);
+      expect(await screen.findByRole("option", { name: /Kuzey Kıbrıs Türk Cumhuriyeti/ })).toBeInTheDocument();
+      expect(screen.getAllByRole("option")).toHaveLength(1);
+    }
+    await user.clear(box);
+    await user.type(box, "kıbrıs");
+    const kktc = await screen.findByRole("option", { name: /Kuzey Kıbrıs Türk Cumhuriyeti/ });
+    const cyprus = screen.getByRole("option", { name: /^Kıbrıs$/ });
+    const slot = (opt: HTMLElement) => opt.firstElementChild as HTMLElement;
+    // Rozet metin, bayrak görsel — ikisi de aynı kutu kuralında.
+    expect(slot(kktc).textContent).toBe("KKTC");
+    expect(slot(cyprus).querySelector('img[src="/flags/4x3/cy.svg"]')).not.toBeNull();
+    for (const opt of [kktc, cyprus]) {
+      // Kutu içeriği kadar geniş (sabit genişlik + ortalama YOK): sol kenar
+      // satırın başında, ada uzaklık satırın ortak boşluğu (gap-2).
+      expect(slot(opt)).toHaveClass("min-w-4", "shrink-0");
+      expect(slot(opt).className).not.toMatch(/(^|\s)w-5(\s|$)|justify-center/);
+      expect(opt).toHaveClass("gap-2");
+    }
+  });
+
+  it("KKTC seçiliyken kutuya rozet çizilmez (ad zaten yazıyor; rozet bayrak dolgusuna sığmaz)", () => {
+    const { container } = render(<Harness initial="XN" />);
+    const box = screen.getByRole("combobox", { name: "Ülke" });
+    expect(box).toHaveValue("Kuzey Kıbrıs Türk Cumhuriyeti");
+    expect(container.querySelector('[data-slot="control"]')?.textContent ?? "").not.toContain("KKTC");
+    // Bayrak dolgusu yalnız bayrak çizilirken.
+    expect(box.className).not.toMatch(/(^|\s)pl-9(\s|$)/);
+  });
+
+  it("invalid: kutu hatalı işaretlenir (aria-invalid + kırmızı çerçeve)", () => {
+    const { rerender } = render(<CountryCombobox value="" onChange={() => {}} ariaLabel="Ülke" invalid />);
+    const box = screen.getByRole("combobox", { name: "Ülke" });
+    expect(box).toHaveAttribute("aria-invalid", "true");
+    expect(box).toHaveClass("border-red-500");
+    rerender(<CountryCombobox value="" onChange={() => {}} ariaLabel="Ülke" />);
+    expect(box).not.toHaveAttribute("aria-invalid");
+    expect(box).not.toHaveClass("border-red-500");
+  });
+
   it("izin verilmeyen kod (kayda kapalı ülke) listede çıkmaz", async () => {
     const user = userEvent.setup();
     render(<Harness codes={["TR", "DE"]} />);

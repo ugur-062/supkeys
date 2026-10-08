@@ -2,12 +2,17 @@
 
 import { useTranslations } from "next-intl";
 import { foldSearchText } from "@rothern/shared";
-import { Input, InputGroup } from "@/components/catalyst/input";
-import { Button } from "@/components/ui/button";
-import { useRoots } from "@/hooks/use-categories";
-import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
-import { Check, ChevronRight, Loader2, Plus, Tag, X as XIcon } from "lucide-react";
+import { useCategoriesByIds, useRoots } from "@/hooks/use-categories";
+import { Check, ChevronRight, Layers, Loader2, Plus, Tag, X as XIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CategoryDialogNotices,
+  CategoryDialogShell,
+  CategorySearchField,
+  SelectionCounter,
+  sameIdSet,
+} from "./category-dialog-shell";
+import { LoadError } from "./category-load-error";
 
 interface Props {
   value: string[];
@@ -38,7 +43,8 @@ export function SegmentOnlyPicker({
 }: Props) {
   const t = useTranslations("web.shared.segmentOnlyPicker");
   const [open, setOpen] = useState(false);
-  const { data: segments } = useRoots();
+  // Hata penceresinin içinde satır içi gösterilir (aynı sorgu anahtarı).
+  const { data: segments } = useRoots({ inlineError: true });
 
   const selectedSegments = useMemo(
     () => (segments ?? []).filter((s) => value.includes(s.id)),
@@ -87,21 +93,16 @@ export function SegmentOnlyPicker({
             {selectedSegments.map((seg) => (
               <span
                 key={seg.id}
-                className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
-                title={seg.nameTr}
+                className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
               >
-                <Tag className="h-3 w-3" />
-                {seg.segmentLetter ? (
-                  <span className="tabular-nums text-zinc-500">
-                    {seg.segmentLetter}.
-                  </span>
-                ) : null}
-                <span className="max-w-[220px] truncate">{seg.nameTr}</span>
+                <Tag className="h-3 w-3 shrink-0" />
+                {/* Segment harfi ("B.", "AN.") iç koddur — hiçbir yerde gösterilmez. */}
+                <span className="min-w-0 break-words">{seg.nameTr}</span>
                 {!disabled ? (
                   <button
                     type="button"
                     onClick={() => onChange(value.filter((x) => x !== seg.id))}
-                    className="ml-1 rounded hover:text-rose-600"
+                    className="-my-2 -mr-2 -ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded hover:text-rose-600"
                     aria-label={t("kaldir", { name: seg.nameTr })}
                   >
                     <XIcon className="h-3 w-3" />
@@ -114,7 +115,7 @@ export function SegmentOnlyPicker({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="flex items-center gap-1 text-sm font-semibold text-zinc-600 hover:text-zinc-700"
+              className="inline-flex min-h-8 items-center gap-1 text-sm font-semibold text-zinc-600 hover:text-zinc-700"
             >
               <Plus className="h-4 w-4" />
               {t("kategoriEkleDuzenle")}
@@ -141,7 +142,7 @@ export function SegmentOnlyPicker({
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Modal — popup overlay (CategorySelectorModal'la aynı kabuk)
+// Modal — CategorySelectorModal'la AYNI kabuk (`CategoryDialogShell`)
 // ─────────────────────────────────────────────────────────────────────
 
 interface ModalProps {
@@ -154,6 +155,15 @@ interface ModalProps {
   description: string;
 }
 
+/**
+ * "Sektör geneli" penceresi — yalnız L1 (sektör) listesi.
+ *
+ * Kabuk ürün/hizmet penceresiyle ortak: Headless Dialog (portal + `z-[60]` →
+ * asistan çekmecesinin üstünde, odak kilitli), `dvh` yüksekliği, aynı başlık /
+ * sayaç / alt satır, onaylanmamış değişiklikte kapatmadan önce soru.
+ * Satırlarda segment harfi ("B.", "AN.") YOK: Ariba'nın iç kodu, 29 sektör
+ * gizli olduğu için aralıklı görünüyordu.
+ */
 export function SegmentOnlyModal({
   isOpen,
   onClose,
@@ -169,7 +179,26 @@ export function SegmentOnlyModal({
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const { data: segments, isLoading } = useRoots();
+  // Hata listenin yerinde "Yeniden dene" ile çizilir → genel toast ve 429'da
+  // otomatik tekrar yok.
+  const { data: segments, isLoading, isError, isFetching, refetch } = useRoots({
+    inlineError: true,
+  });
+
+  /**
+   * Kayıtlı ama listede OLMAYAN sektör (gizlenmiş segment): sayaçta sayılıyor
+   * ama satırı olmadığı için ne görülebiliyor ne kaldırılabiliyordu ("1/5,
+   * liste boş"). Adı `by-ids`ten alınır (gizli süzgeci yok) ve listenin
+   * başında çizilir; kaldırılıp onaylanınca bir daha gelmez.
+   */
+  const unlistedIds = useMemo(() => {
+    if (!segments) return [];
+    const listed = new Set(segments.map((s) => s.id));
+    return value.filter((id) => !listed.has(id));
+  }, [segments, value]);
+  const { data: unlistedInfo } = useCategoriesByIds(unlistedIds, {
+    inlineError: true,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -184,31 +213,24 @@ export function SegmentOnlyModal({
     return () => clearTimeout(t);
   }, [warningMsg]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    queueMicrotask(() => searchRef.current?.focus());
-    return () => {
-      document.body.style.overflow = original;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [isOpen, onClose]);
+  // Scroll lock + ESC + focus trap + ilk odak (arama kutusu) kabukta.
+
+  const rows = useMemo(() => {
+    const names = new Map((unlistedInfo ?? []).map((c) => [c.id, c.nameTr]));
+    const unlisted = unlistedIds.map((id) => ({
+      id,
+      // Ad gelene dek kod: satır yine tanınır ve kaldırılabilir.
+      nameTr: names.get(id) ?? id,
+    }));
+    return [...unlisted, ...(segments ?? [])];
+  }, [segments, unlistedIds, unlistedInfo]);
 
   const filteredSegments = useMemo(() => {
     // TR-katlanmış karşılaştırma — "insaat" da "İnşaat"ı bulur.
     const q = foldSearchText(search);
-    if (!q) return segments ?? [];
-    return (segments ?? []).filter((s) =>
-      foldSearchText(s.nameTr).includes(q),
-    );
-  }, [segments, search]);
-
-  if (!isOpen) return null;
+    if (!q) return rows;
+    return rows.filter((s) => foldSearchText(s.nameTr).includes(q));
+  }, [rows, search]);
 
   const toggle = (id: string) => {
     if (draftIds.includes(id)) {
@@ -228,126 +250,108 @@ export function SegmentOnlyModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-6 pb-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="segment-only-modal-title"
+    <CategoryDialogShell
+      isOpen={isOpen}
+      onClose={onClose}
+      dirty={!sameIdSet(draftIds, value)}
+      title={title}
+      description={description}
+      icon={<Layers className="h-5 w-5 text-zinc-700" />}
+      // Başlangıçta seçim varsa boş seçim de onaylanabilir — "Tümünü temizle"
+      // sonrası düğme kapalı kalıyor, temizleme kaydedilemiyordu (arayüz testi D-345).
+      confirmDisabled={draftIds.length === 0 && value.length === 0}
+      confirmLabel={
+        draftIds.length > 0 ? tr("onaylaN", { n: draftIds.length }) : tr("onayla")
+      }
+      onConfirm={handleConfirm}
     >
-      <div
-        className="flex max-h-[88vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2
-            id="segment-only-modal-title"
-            className="text-lg font-bold text-zinc-900"
-          >
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 hover:bg-slate-100"
-            aria-label={tr("kapat")}
-          >
-            <XIcon className="h-5 w-5 text-slate-600" />
-          </button>
-        </div>
+      <CategorySearchField
+        value={search}
+        onChange={setSearch}
+        inputRef={searchRef}
+        placeholder={tr("kategoriAra")}
+      />
 
-        {/* Search + summary */}
-        <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-          <InputGroup>
-            <MagnifyingGlassIcon data-slot="icon" />
-            <Input
-              ref={searchRef}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={tr("kategoriAra")}
-            />
-          </InputGroup>
-          <p className="mt-2 text-xs text-slate-500">{description}</p>
-          <div className="mt-3 flex items-center justify-between text-sm">
-            <span className="text-slate-600">
-              {tr("kategoriSecildiMax", { n: draftIds.length, max: maxSelection })}
-            </span>
-            {draftIds.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => setDraftIds([])}
-                className="text-sm font-semibold text-zinc-600 hover:text-zinc-700"
-              >
-                {tr("tumSecimiTemizle")}
-              </button>
-            ) : null}
-          </div>
-          {warningMsg ? (
-            <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              ⚠️ {warningMsg}
-            </div>
-          ) : null}
-        </div>
+      <div className="shrink-0 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2.5 sm:px-6 sm:py-3">
+        <SelectionCounter
+          label={tr("seciminiz")}
+          count={draftIds.length}
+          max={maxSelection}
+          countLabel={tr("kategoriSecildiMax", {
+            n: draftIds.length,
+            max: maxSelection,
+          })}
+          clearLabel={tr("tumSecimiTemizle")}
+          // Düğme temizleyince DOM'dan gider: klavyeyle tetiklendiyse odak
+          // <body>'ye düşmesin, arama kutusuna geçsin.
+          onClear={(viaKeyboard) => {
+            if (viaKeyboard) searchRef.current?.focus();
+            setDraftIds([]);
+          }}
+        />
+      </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-2 py-3">
-          {isLoading ? (
+      {/* Tavan uyarısı: kısa ekranda kayan bölümün tepesine yapışır. */}
+      <CategoryDialogNotices
+        flash={warningMsg ? { text: warningMsg, tone: "warn" } : null}
+      />
+
+      {/* Body */}
+      <div className="flex min-h-0 flex-1 flex-col [@media(max-height:520px)]:flex-none">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-5 [@media(max-height:520px)]:overflow-visible">
+          {isLoading || (isFetching && segments === undefined) ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
             </div>
+          ) : isError && segments === undefined ? (
+            // Düşen istek "Sonuç bulunamadı" DEĞİLDİR.
+            <LoadError
+              message={tr("sektorlerYuklenemedi")}
+              retryLabel={tr("yenidenDene")}
+              onRetry={() => void refetch?.()}
+            />
           ) : filteredSegments.length === 0 ? (
-            <div className="py-12 text-center text-sm text-slate-500">
+            <div className="py-12 text-center text-sm text-zinc-500">
               {tr("sonucBulunamadi")}
             </div>
           ) : (
-            <ul className="space-y-0.5" role="listbox">
+            <ul className="space-y-0.5" role="listbox" aria-multiselectable="true" aria-label={title}>
               {filteredSegments.map((segment) => {
                 const isSelected = draftIds.includes(segment.id);
                 return (
-                  <li key={segment.id}>
+                  <li key={segment.id} role="presentation">
                     <button
                       type="button"
                       role="option"
                       aria-selected={isSelected}
                       onClick={() => toggle(segment.id)}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors ${
                         isSelected
-                          ? "bg-zinc-50 hover:bg-zinc-100"
-                          : "hover:bg-slate-50"
+                          ? "bg-zinc-50 ring-1 ring-zinc-950/10"
+                          : "hover:bg-zinc-50"
                       }`}
                     >
-                      <div
+                      <span
+                        aria-hidden
                         className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 ${
                           isSelected
-                            ? "border-zinc-500 bg-zinc-500"
-                            : "border-slate-300 bg-white"
+                            ? "border-zinc-900 bg-zinc-900"
+                            : "border-zinc-300 bg-white"
                         }`}
                       >
                         {isSelected ? (
                           <Check className="h-3.5 w-3.5 text-white" />
                         ) : null}
-                      </div>
-                      <div className="flex flex-1 items-center gap-2">
-                        {segment.segmentLetter ? (
-                          <span
-                            className={`tabular-nums text-xs ${
-                              isSelected ? "text-zinc-600" : "text-zinc-500"
-                            }`}
-                          >
-                            {segment.segmentLetter}.
-                          </span>
-                        ) : null}
-                        <span
-                          className={`text-sm ${
-                            isSelected
-                              ? "font-semibold text-zinc-900"
-                              : "text-slate-700"
-                          }`}
-                        >
-                          {segment.nameTr}
-                        </span>
-                      </div>
+                      </span>
+                      <span
+                        className={`min-w-0 flex-1 text-sm ${
+                          isSelected
+                            ? "font-semibold text-zinc-900"
+                            : "text-zinc-700"
+                        }`}
+                      >
+                        {segment.nameTr}
+                      </span>
                     </button>
                   </li>
                 );
@@ -355,19 +359,7 @@ export function SegmentOnlyModal({
             </ul>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-          <Button variant="ghost" onClick={onClose}>
-            {tr("vazgec")}
-          </Button>
-          {/* Başlangıçta seçim varsa boş seçim de onaylanabilir — "Tümünü temizle"
-              sonrası düğme kapalı kalıyor, temizleme kaydedilemiyordu (arayüz testi D-345). */}
-          <Button onClick={handleConfirm} disabled={draftIds.length === 0 && value.length === 0}>
-            {draftIds.length > 0 ? tr("onaylaN", { n: draftIds.length }) : tr("onayla")}
-          </Button>
-        </div>
       </div>
-    </div>
+    </CategoryDialogShell>
   );
 }

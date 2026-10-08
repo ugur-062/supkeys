@@ -11,6 +11,9 @@ const h = vi.hoisted(() => ({
   pathname: "/company/satinalma",
   replace: vi.fn(),
   setLastPortal: vi.fn(),
+  // Kapı ekranındaki "mevcut işler" bandının verisi (Taleplerim + Siparişlerim).
+  requests: undefined as unknown[] | undefined,
+  orders: undefined as Array<{ role: "buyer" | "seller" }> | undefined,
 }));
 
 vi.mock("@/hooks/use-company-auth", () => ({
@@ -21,6 +24,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: h.replace }),
   usePathname: () => h.pathname,
 }));
+vi.mock("@/hooks/use-company-tenders", () => ({ useTenders: () => ({ data: h.requests }) }));
+vi.mock("@/hooks/use-company-orders", () => ({ useOrders: () => ({ data: h.orders }) }));
 vi.mock("@/lib/company/portal-store", () => ({
   usePortalStore: (sel: (s: { setLastPortal: typeof h.setLastPortal }) => unknown) =>
     sel({ setLastPortal: h.setLastPortal }),
@@ -33,6 +38,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.canAct = false;
   h.pathname = "/company/satinalma";
+  h.requests = undefined;
+  h.orders = undefined;
 });
 
 describe("PortalGuard", () => {
@@ -194,6 +201,8 @@ describe("PortalGuard — satınalma erişimi olmayan firma (T-06, O-008) ve esk
   it("yeni talep formu ve pano doğrulama kapısında kalır; kapı ekranı mevcut listelere bağlantı verir", () => {
     h.auth.user = { roles: ["YONETICI"] };
     h.auth.company = { tier: "STANDART" };
+    h.requests = [{ id: "l1" }];
+    h.orders = [];
     for (const path of ["/company/satinalma/taleplerim/yeni", "/company/satinalma"]) {
       h.pathname = path;
       const { unmount } = render(
@@ -207,6 +216,52 @@ describe("PortalGuard — satınalma erişimi olmayan firma (T-06, O-008) ve esk
       expect(screen.getByRole("link", { name: "Siparişlerim" })).toHaveAttribute("href", "/company/satinalma/siparisler");
       unmount();
     }
+  });
+
+  // Kayıt denetimi 2026-10 signup-tr-18: az önce kaydolmuş firmaya "mevcut satın
+  // alma talepleriniz ve siparişleriniz açık kalır" deniyordu; altında aynı
+  // şeyi söyleyen iki başlık vardı.
+  it.each([
+    ["hiç talebi ve siparişi yok", [], []],
+    ["yalnız satış siparişi var", [], [{ role: "seller" as const }]],
+    ["listeler henüz yüklenmedi", undefined, undefined],
+  ])("mevcut işi olmayan firma (%s): 'açık kalır' bandı yok, kapı tek başlıkla", (_ad, requests, orders) => {
+    h.auth.user = { roles: ["YONETICI"] };
+    h.auth.company = { tier: "STANDART" };
+    h.requests = requests;
+    h.orders = orders;
+    render(
+      <PortalGuard portal="satinalma">
+        <div data-testid="child">X</div>
+      </PortalGuard>,
+    );
+    const gate = screen.getByTestId("verification-gate");
+    expect(screen.queryByText(/açık kalır/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Taleplerim" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Siparişlerim" })).not.toBeInTheDocument();
+    // Tek başlık; hemen altında aynı cümle ikinci kez yazmaz.
+    expect(screen.getByRole("heading", { name: "Satınalma paneli firma doğrulamasıyla açılır" })).toBeInTheDocument();
+    expect(gate).not.toHaveTextContent("Firma doğrulaması gerekir");
+    expect(screen.getByRole("link", { name: "Firmanızı doğrulayın" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+  });
+
+  it.each([
+    ["talebi var", [{ id: "l1" }], []],
+    ["alım siparişi var", [], [{ role: "buyer" as const }]],
+  ])("mevcut işi olan firma (%s): bant iki listeye götürür", (_ad, requests, orders) => {
+    h.auth.user = { roles: ["YONETICI"] };
+    h.auth.company = { tier: "STANDART" };
+    h.requests = requests;
+    h.orders = orders;
+    render(
+      <PortalGuard portal="satinalma">
+        <div data-testid="child">X</div>
+      </PortalGuard>,
+    );
+    expect(screen.getByText(/Mevcut satın alma talepleriniz ve siparişleriniz açık kalır/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Taleplerim" })).toHaveAttribute("href", "/company/satinalma/taleplerim");
+    expect(screen.getByRole("link", { name: "Siparişlerim" })).toHaveAttribute("href", "/company/satinalma/siparisler");
+    expect(screen.getByTestId("verification-gate")).toBeInTheDocument();
   });
 
   it("satınalma izni olmayan kullanıcıya liste açılmaz (rol kontrolü erişim kademesine bağlı değil)", () => {

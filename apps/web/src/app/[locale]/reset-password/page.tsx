@@ -17,8 +17,10 @@ type ResetSearchParams = Promise<{ setup?: string | string[] }>;
 /**
  * Admin'in açtığı hesabın kurulum bağlantısı `setup=1` taşır (API
  * PasswordResetService.requestAccountSetup): aynı token akışı, ama metin
- * "Şifreni sıfırla / Hatırladın mı?" yerine yeni hesaba uygun "Şifreni
- * belirle" (arayüz testi api2-02 yeniden doğrulama). Yalnız görünüm ipucu.
+ * "Şifrenizi sıfırlayın / Hatırladınız mı?" yerine yeni hesaba uygun
+ * "Şifrenizi belirleyin" (arayüz testi api2-02 yeniden doğrulama). Yalnız
+ * görünüm ipucu. Kimlik akışı metinleri baştan sona "siz" (arayüz testi
+ * 2026-10 login-13).
  */
 async function isSetup(searchParams: ResetSearchParams): Promise<boolean> {
   const v = (await searchParams).setup;

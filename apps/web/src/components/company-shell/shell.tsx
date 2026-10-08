@@ -28,6 +28,7 @@ import {
   viewablePortals,
 } from "./sidebar";
 import { CompanyTopbar } from "./topbar";
+import { useCompanyDocumentTitle } from "./document-title";
 import { ButtonAccentProvider, accentForPortal } from "@/components/ui/button-accent";
 
 /** Ray genişlikleri — içerik payı raya EŞLİK eder (hover'da da itilir, 2026-09-10). */
@@ -40,6 +41,8 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   // Login sonrası /me ile firma + roller tazelenir.
   useCompanyMe();
   const pathname = usePathname();
+  // Sekme başlığı "<sayfa adı> · Rothern" — rota etiketinden, arayüz dilinde.
+  useCompanyDocumentTitle(pathname);
   const { company, user } = useCompanyAuth();
   const pinned = usePortalStore((s) => s.sidebarPinned);
   const lastPortal = usePortalStore((s) => s.lastPortal);

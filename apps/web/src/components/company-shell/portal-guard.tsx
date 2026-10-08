@@ -6,6 +6,8 @@ import { userHasPermission } from "@/lib/company/permissions";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { VerificationButton, VerificationGate, useVerificationGateCopy } from "@/components/company/verification-gate";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useOrders } from "@/hooks/use-company-orders";
+import { useTenders } from "@/hooks/use-company-tenders";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
   accessiblePortals,
@@ -29,7 +31,8 @@ import { useEffect } from "react";
  * - Satınalma erişimi olmayan firma Taleplerim ve Siparişlerim listelerini
  *   doğrulama bandıyla AÇAR — mevcut işini bitirir, yeni iş kilitli
  *   (2026-10-01 kararı T-06, arayüz testi O-008). Kapı ekranı da bu iki
- *   listeye bağlantı verir.
+ *   listeye bağlantı verir — YALNIZ firmanın gerçekten talebi ya da alım
+ *   siparişi varsa (`BuyingWindDownLinks`).
  * - Eski yönlendirici adresler (`/satinalma/mesajlar`) kapısız geçer (D-264).
  */
 export function PortalGuard({
@@ -120,10 +123,24 @@ function BuyingWindDownBanner() {
   );
 }
 
-/** Doğrulama kapısı ekranının üstünde: mevcut işlere giden iki liste (T-06). */
+/**
+ * Doğrulama kapısı ekranının üstünde: mevcut işlere giden iki liste (T-06).
+ *
+ * YALNIZ mevcut işi olan firmaya çizilir (kayıt denetimi 2026-10
+ * signup-tr-18): az önce kaydolmuş, hiç talebi ve siparişi olmayan firmaya
+ * "mevcut talepleriniz ve siparişleriniz açık kalır" demek yanlış bir şey
+ * anlatıyordu. Veri, bağlantıların götürdüğü iki listenin kendi sorgularıdır
+ * (Taleplerim, Siparişlerim — alıcı tarafı); yüklenene dek ve ikisi de boşsa
+ * bant yoktur, yalnız doğrulama kapısı görünür.
+ */
 function BuyingWindDownLinks() {
   const t = useTranslations("web.panel.shell.portalGuard");
   const tn = useNavLabel();
+  const requests = useTenders();
+  const orders = useOrders();
+  const hasExistingWork =
+    (requests.data?.length ?? 0) > 0 || (orders.data ?? []).some((o) => o.role === "buyer");
+  if (!hasExistingWork) return null;
   return (
     <p className="mx-auto max-w-3xl rounded-xl bg-zinc-50 px-4 py-3 text-center text-sm text-zinc-600 ring-1 ring-zinc-950/5">
       {t("mevcutIslerAcik")}{" "}

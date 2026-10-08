@@ -78,11 +78,16 @@ export function CityCombobox({
     // alanlardan 12 px yukarıda ve daha yüksek duruyordu (arayüz testi D-311/D-138).
     <div data-slot="control" className={cn("relative w-full", className)}>
       {/* Headless `Input`: Catalyst `<Field><Label>` bağlamındaki etiketi bağlar
-          (düz <input> etiketsiz kalıyordu — erişilebilir ad ve testler). */}
+          (düz <input> etiketsiz kalıyordu — erişilebilir ad ve testler).
+          `invalid` Headless'a da verilir → `aria-invalid="true"`: eskiden
+          yalnız kırmızı çerçeveydi, hata yardımcı teknolojiye işaretlenmiyordu
+          (Ülke seçici, Select ve Input işaretliyor; kayıt denetimi 2026-10
+          web-auth-3). */}
       <HeadlessInput
         id={id}
         type="text"
         role="combobox"
+        invalid={invalid}
         aria-label={ariaLabel}
         aria-expanded={open && options.length > 0}
         aria-controls={listId}

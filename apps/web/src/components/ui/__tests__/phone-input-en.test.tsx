@@ -78,3 +78,27 @@ describe("PhoneInput — İngilizce, ülke seçilmeden numara", () => {
     expect(countryBox().value).toBe("DE");
   });
 });
+
+/**
+ * Arayüz testi 2026-10 signup-enru-5: ülke seçilmemişken gösterilen yer tutucu
+ * 390 px telefonda kesiliyordu ("With country code, e.g. +4"). Numara
+ * kutusunun metin alanı orada ~204 px; 16 px yazıda ~22 karakter sığar. Küre
+ * simgesi, "+" öneki ve "önce ülke kodunu seçin" hatası kodun gerektiğini
+ * zaten söyler — yer tutucu yalnız örneği taşır.
+ */
+describe("PhoneInput — ülkesiz yer tutucu telefona sığar", () => {
+  it.each(["tr", "en", "ru"] as const)("%s: en çok 22 karakter ve örnek numarayı taşır", async (locale) => {
+    const { messagesFor, WEB_NAMESPACES } = await import("@rothern/i18n/messages");
+    const messages = messagesFor(locale, WEB_NAMESPACES) as unknown as {
+      web: { shared: { phoneInput: { placeholderIntl: string } } };
+    };
+    const text = messages.web.shared.phoneInput.placeholderIntl;
+    expect(text.length, text).toBeLessThanOrEqual(22);
+    expect(text).toContain("+49 30 1234567");
+  });
+
+  it("ülke seçilmemişken numara kutusu o yer tutucuyu gösterir", () => {
+    render(<Harness />);
+    expect(numberBox()).toHaveAttribute("placeholder", "ör. +49 30 1234567");
+  });
+});

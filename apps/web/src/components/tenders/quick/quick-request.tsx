@@ -340,7 +340,10 @@ export function QuickRequest({
       }),
     [watched.title, watched.description, watched.categoryIds, items],
   );
-  const { data: catRows = [] } = useCategoriesByIds(watched.categoryIds ?? []);
+  // Kategori düğmesiyle (`CategorySelectorButton`) aynı sorgu anahtarı → aynı
+  // seçenek: ad hatasını düğme kendi satırında gösterir; seçeneksiz ikinci
+  // gözlemci aynı hataya genel toast da basıyordu (kayıt denetimi 2026-10 webcat-5).
+  const { data: catRows = [] } = useCategoriesByIds(watched.categoryIds ?? [], { inlineError: true });
   const selectedAddress = (addresses.data ?? []).find((a) => a.id === watched.deliveryAddressId) ?? null;
   // Hook'lar erken dönüşlerden (yayın sonrası / iskelet) ÖNCE — sıra değişmez.
   const publicCount = useCompanySearch({ category: (watched.categoryIds ?? []).join(",") || undefined }, watched.visibility === "PUBLIC");
