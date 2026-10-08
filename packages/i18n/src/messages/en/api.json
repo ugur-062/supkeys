@@ -484,9 +484,10 @@
     "firmaBulunamadi": "Company not found",
     "firmaAdiEnAz2Karakter": "Company name must be at least 2 characters",
     "enFazlaUrunHizmetSecebilirsiniz": "You can select up to {MAXCOMPANYSUBPICKS, plural, one {# product/service} other {# products/services}}",
-    "enAzBirAnaKategoriSecili": "At least one main category must stay selected — request notifications cannot be sent to a company without a category.",
+    "enAzBirAnaKategoriSecili": "At least one industry or product/service must stay selected — request notifications cannot be sent to a company without a selection.",
     "gecerliBirKepAdresiGiriniz": "Enter a valid KEP address",
     "gecerliBirIbanGiriniz": "Enter a valid IBAN",
+    "gecerliBirWebSitesiGiriniz": "Enter a valid website address (for example: www.yourcompany.com)",
     "dogrulamaInceleniyorKilitliAlanlar": "Verification is under review; the company name, legal name, identity and IBAN details cannot be changed",
     "firmanizDogrulandiKilitliAlanlar": "Your company is verified; the company name, legal name, identity and IBAN details cannot be changed — contact support to make changes"
   },
@@ -1095,21 +1096,12 @@
       "adBosOlamaz": "First name cannot be empty",
       "soyadBosOlamaz": "Last name cannot be empty",
       "gecerliBirTelefonGiriniz": "Enter a valid phone number",
-      "parolaEnAz10KarakterOlmali": "Password must be at least 10 characters",
-      "parolaEnFazla72Karakter": "Password must be at most 72 characters",
-      "parolaEnAzBirKucukHarfIcermeli": "Password must contain at least one lowercase letter",
-      "parolaEnAzBirBuyukHarfIcermeli": "Password must contain at least one uppercase letter",
-      "parolaEnAzBirRakamIcermeli": "Password must contain at least one digit",
-      "parolaEnAzBirOzelKarakterIcermeli": "Password must contain at least one special character",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "You must accept the user agreement",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "You must accept the intermediation and use agreement",
       "kvkkAydinlatmaMetniniOnaylamalisiniz": "You must confirm the KVKK privacy notice",
       "enAzBirRolSecin": "Select at least one role"
     },
     "account": {
-      "enAzBirBuyukHarfAZ": "At least one uppercase letter (A-Z)",
-      "enAzBirKucukHarfAz": "At least one lowercase letter (a-z)",
-      "enAzBirRakam": "At least one digit",
       "altiHaneliKodGirin": "Enter the 6-digit code"
     },
     "companyLogin": {
@@ -1127,7 +1119,7 @@
       "gecerliBirEPostaAdresiGiriniz": "Enter a valid email address",
       "gecerliBirTelefonGiriniz": "Enter a valid phone number",
       "parolaEnAz10KarakterOlmali": "The password must be at least 10 characters",
-      "parolaEnFazla72Karakter": "Password must be at most 72 characters",
+      "parolaEnFazla72Karakter": "The password is too long. It can be at most 72 characters; accented and Cyrillic letters count as 2 characters, emoji as 4.",
       "parolaEnAzBirKucukHarfIcermeli": "Password must contain at least one lowercase letter",
       "parolaEnAzBirBuyukHarfIcermeli": "Password must contain at least one uppercase letter",
       "parolaEnAzBirRakamIcermeli": "Password must contain at least one digit",
@@ -1140,11 +1132,6 @@
     "onboarding": {
       "beyaniOnaylamalisiniz": "You must confirm the declaration",
       "gecersizUlkeKodu": "Invalid country code"
-    },
-    "confirmPasswordReset": {
-      "parolaEnAzBirKucukHarfIcermeli": "Password must contain at least one lowercase letter",
-      "parolaEnAzBirBuyukHarfIcermeli": "Password must contain at least one uppercase letter",
-      "parolaEnAzBirRakamIcermeli": "Password must contain at least one digit"
     },
     "createInquiry": {
       "gecersizFirmaAdresi": "Invalid company link",

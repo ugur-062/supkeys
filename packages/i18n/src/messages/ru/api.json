@@ -484,9 +484,10 @@
     "firmaBulunamadi": "Компания не найдена",
     "firmaAdiEnAz2Karakter": "Название компании должно содержать не менее 2 символов",
     "enFazlaUrunHizmetSecebilirsiniz": "Вы можете выбрать не более {MAXCOMPANYSUBPICKS, plural, one {# товара/услуги} few {# товаров/услуг} many {# товаров/услуг} other {# товаров/услуг}}",
-    "enAzBirAnaKategoriSecili": "Должна остаться выбранной хотя бы одна основная категория — компании без категории нельзя отправлять уведомления о запросах.",
+    "enAzBirAnaKategoriSecili": "Должна остаться выбранной хотя бы одна отрасль либо товар/услуга — компании без выбранных позиций нельзя отправлять уведомления о запросах.",
     "gecerliBirKepAdresiGiriniz": "Введите корректный адрес KEP",
     "gecerliBirIbanGiriniz": "Введите корректный IBAN",
+    "gecerliBirWebSitesiGiriniz": "Введите корректный адрес сайта (например: www.yourcompany.com)",
     "dogrulamaInceleniyorKilitliAlanlar": "Проверка на рассмотрении; название компании, полное наименование, идентификационные данные и IBAN изменить нельзя",
     "firmanizDogrulandiKilitliAlanlar": "Ваша компания проверена; название компании, полное наименование, идентификационные данные и IBAN изменить нельзя — для изменений обратитесь в поддержку"
   },
@@ -1095,21 +1096,12 @@
       "adBosOlamaz": "Имя не может быть пустым",
       "soyadBosOlamaz": "Фамилия не может быть пустой",
       "gecerliBirTelefonGiriniz": "Введите корректный номер телефона",
-      "parolaEnAz10KarakterOlmali": "Пароль должен содержать не менее 10 символов",
-      "parolaEnFazla72Karakter": "Пароль не должен превышать 72 символа",
-      "parolaEnAzBirKucukHarfIcermeli": "Пароль должен содержать хотя бы одну строчную букву",
-      "parolaEnAzBirBuyukHarfIcermeli": "Пароль должен содержать хотя бы одну заглавную букву",
-      "parolaEnAzBirRakamIcermeli": "Пароль должен содержать хотя бы одну цифру",
-      "parolaEnAzBirOzelKarakterIcermeli": "Пароль должен содержать хотя бы один специальный символ",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "Вы должны принять пользовательское соглашение",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Вы должны принять соглашение о посредничестве и использовании",
       "kvkkAydinlatmaMetniniOnaylamalisiniz": "Вы должны подтвердить уведомление KVKK",
       "enAzBirRolSecin": "Выберите хотя бы одну роль"
     },
     "account": {
-      "enAzBirBuyukHarfAZ": "Минимум одна заглавная буква (A-Z)",
-      "enAzBirKucukHarfAz": "Минимум одна строчная буква (a-z)",
-      "enAzBirRakam": "Минимум одна цифра",
       "altiHaneliKodGirin": "Введите 6-значный код"
     },
     "companyLogin": {
@@ -1127,7 +1119,7 @@
       "gecerliBirEPostaAdresiGiriniz": "Введите корректный адрес электронной почты",
       "gecerliBirTelefonGiriniz": "Введите корректный номер телефона",
       "parolaEnAz10KarakterOlmali": "Пароль должен содержать не менее 10 символов",
-      "parolaEnFazla72Karakter": "Пароль не должен превышать 72 символа",
+      "parolaEnFazla72Karakter": "Пароль слишком длинный. Допускается не более 72 символов; буквы кириллицы и буквы с диакритическими знаками считаются за 2 символа, эмодзи — за 4.",
       "parolaEnAzBirKucukHarfIcermeli": "Пароль должен содержать хотя бы одну строчную букву",
       "parolaEnAzBirBuyukHarfIcermeli": "Пароль должен содержать хотя бы одну заглавную букву",
       "parolaEnAzBirRakamIcermeli": "Пароль должен содержать хотя бы одну цифру",
@@ -1140,11 +1132,6 @@
     "onboarding": {
       "beyaniOnaylamalisiniz": "Вы должны подтвердить заявление",
       "gecersizUlkeKodu": "Недопустимый код страны"
-    },
-    "confirmPasswordReset": {
-      "parolaEnAzBirKucukHarfIcermeli": "Пароль должен содержать хотя бы одну строчную букву",
-      "parolaEnAzBirBuyukHarfIcermeli": "Пароль должен содержать хотя бы одну заглавную букву",
-      "parolaEnAzBirRakamIcermeli": "Пароль должен содержать хотя бы одну цифру"
     },
     "createInquiry": {
       "gecersizFirmaAdresi": "Недопустимая ссылка на компанию",

@@ -484,9 +484,10 @@
     "firmaBulunamadi": "Firma bulunamadı",
     "firmaAdiEnAz2Karakter": "Firma adı en az 2 karakter olmalı",
     "enFazlaUrunHizmetSecebilirsiniz": "En fazla {MAXCOMPANYSUBPICKS} ürün/hizmet seçebilirsiniz",
-    "enAzBirAnaKategoriSecili": "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
+    "enAzBirAnaKategoriSecili": "En az bir sektör ya da ürün/hizmet seçili kalmalı — seçimi olmayan firmaya talep bildirimi gönderilemez.",
     "gecerliBirKepAdresiGiriniz": "Geçerli bir KEP adresi giriniz",
     "gecerliBirIbanGiriniz": "Geçerli bir IBAN giriniz",
+    "gecerliBirWebSitesiGiriniz": "Geçerli bir web sitesi adresi giriniz (örnek: www.firmaniz.com)",
     "dogrulamaInceleniyorKilitliAlanlar": "Doğrulama inceleniyor; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez",
     "firmanizDogrulandiKilitliAlanlar": "Firmanız doğrulandı; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin"
   },
@@ -1095,28 +1096,19 @@
       "adBosOlamaz": "Ad boş olamaz",
       "soyadBosOlamaz": "Soyad boş olamaz",
       "gecerliBirTelefonGiriniz": "Geçerli bir telefon giriniz",
-      "parolaEnAz10KarakterOlmali": "Şifre en az 10 karakter olmalı",
-      "parolaEnFazla72Karakter": "Şifre en fazla 72 karakter",
-      "parolaEnAzBirKucukHarfIcermeli": "Şifre en az bir küçük harf içermeli",
-      "parolaEnAzBirBuyukHarfIcermeli": "Şifre en az bir büyük harf içermeli",
-      "parolaEnAzBirRakamIcermeli": "Şifre en az bir rakam içermeli",
-      "parolaEnAzBirOzelKarakterIcermeli": "Şifre en az bir özel karakter içermeli",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "Kullanıcı sözleşmesini kabul etmelisiniz",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Aracılık ve kullanım sözleşmesini kabul etmelisiniz",
       "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK aydınlatma metnini onaylamalısınız",
       "enAzBirRolSecin": "En az bir rol seçin"
     },
     "account": {
-      "enAzBirBuyukHarfAZ": "En az bir büyük harf (A-Z)",
-      "enAzBirKucukHarfAz": "En az bir küçük harf (a-z)",
-      "enAzBirRakam": "En az bir rakam",
       "altiHaneliKodGirin": "6 haneli kod girin"
     },
     "companyLogin": {
       "gecerliBirEpostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz"
     },
     "companyForgotPassword": {
-      "gecerliEpostaGirin": "Geçerli e-posta girin"
+      "gecerliEpostaGirin": "Geçerli bir e-posta adresi giriniz"
     },
     "adminLogin": {
       "gecerliBirEpostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz"
@@ -1127,7 +1119,7 @@
       "gecerliBirEPostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz",
       "gecerliBirTelefonGiriniz": "Geçerli bir telefon giriniz",
       "parolaEnAz10KarakterOlmali": "Şifre en az 10 karakter olmalı",
-      "parolaEnFazla72Karakter": "Şifre en fazla 72 karakter",
+      "parolaEnFazla72Karakter": "Şifre çok uzun. En fazla 72 karakter olabilir; ç, ğ, ı, ö, ş, ü gibi harfler ve Kiril harfleri 2, emojiler 4 karakter sayılır.",
       "parolaEnAzBirKucukHarfIcermeli": "Şifre en az bir küçük harf içermeli",
       "parolaEnAzBirBuyukHarfIcermeli": "Şifre en az bir büyük harf içermeli",
       "parolaEnAzBirRakamIcermeli": "Şifre en az bir rakam içermeli",
@@ -1140,11 +1132,6 @@
     "onboarding": {
       "beyaniOnaylamalisiniz": "Beyanı onaylamalısınız",
       "gecersizUlkeKodu": "Geçersiz ülke kodu"
-    },
-    "confirmPasswordReset": {
-      "parolaEnAzBirKucukHarfIcermeli": "Şifre en az bir küçük harf içermeli",
-      "parolaEnAzBirBuyukHarfIcermeli": "Şifre en az bir büyük harf içermeli",
-      "parolaEnAzBirRakamIcermeli": "Şifre en az bir rakam içermeli"
     },
     "createInquiry": {
       "gecersizFirmaAdresi": "Geçersiz firma adresi",
