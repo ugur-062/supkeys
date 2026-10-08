@@ -2265,8 +2265,9 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   sonra durur · talep yayında değilse bekler, kapanınca düşer · kapanışa 6-48
   saat kala TEK hatırlatma · B2B'de önceden onay isteyen ülkelere (Almanya,
   Kanada — `COLD_INVITE_CONSENT_COUNTRIES`, hukuk görüşü gelene dek) AI'ın
-  bulduğu adrese davet GİTMEZ (`CONSENT_REQUIRED`), elle yazılan gider. Kayıt olunca adrese gelmiş TÜM açık talep davetleri
-  (başka alıcılarınki dahil) `ListingInvitation` olur (`attachExternalListingInvites`).
+  bulduğu adrese davet GİTMEZ (`CONSENT_REQUIRED`), elle yazılan gider. E-posta adresi KANITLANINCA (kod doğrulaması; 2026-10-08'e dek kayıt anında) adrese gelmiş TÜM açık talep davetleri
+  (başka alıcılarınki dahil) `ListingInvitation` olur (`attachExternalListingInvites`); kayıtta yalnız kullanılan
+  `ref` jetonunun daveti bağlanır (bkz. "KAYIT · GİRİŞ · KATEGORİ SEÇİCİ TURU").
   Web QUEUED'u başarı sayar (`isInviteAccepted`).
   Dış talep daveti BUYING_TIER (GOLD) ister; admin GOLD→SILVER'da kuyruktaki satırlar
   `cancelQueuedListingInvites` ile iptal edilir. Talep daveti e-postası `ExternalListingInvite`
@@ -3455,10 +3456,10 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **322 suite / 3.969 test** (3.967 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
-  **339 / 2.492** · admin **65 / 378** · i18n **11 / 65** (vitest toplamı 2.935) — son kapı HEAD 9391b6fc YEŞİL
+- API **327 suite / 4.320 test** (4.318 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
+  **354 / 2.880** · admin **65 / 378** · i18n **12 / 83** (vitest toplamı 3.341) — son kapı HEAD 0f8c940c YEŞİL
   (kurulum, typecheck 7/7, lint 3/3, i18n:check, prisma validate, üç build, kategori çakışması 0,
-  `pnpm audit --prod --audit-level high` rc=0), 6.902 test geçti (2 LIVE atlandı), ücretsiz dönem turu 2026-10-07.
+  `pnpm audit --prod --audit-level high` rc=0), 7.659 test geçti (2 LIVE atlandı), kayıt · giriş · kategori turu 2026-10-08.
   Kapı ajan yerine betikle koşulur: `/home/noah/rothern-qa-2026-10/gate-final.sh` + `gate-apijest/run.sh`.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
@@ -3859,9 +3860,11 @@ kapanış 2026-10-02/03) `docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın d
   `ssr-throttle-bypass.spec`, `ssr-visitor.test`.
 - **Başka firmanın sektörü** `localizeIndustry` (ürün satıcı kartı, bağlantılar,
   sipariş karşı tarafı) — çapraz-firma okumada serbest metin çevrilmeden basılmaz.
-- **Şifre politikası tek:** kayıt, davet kabulü, değiştirme, sıfırlama = 10
-  karakter + küçük/büyük harf + rakam + özel (`password-policy-parity.spec`;
-  web `usePasswordRules` / `PASSWORD_MIN_LENGTH`).
+- **Şifre politikası tek:** kayıt, davet kabulü, değiştirme, sıfırlama, Ayarlar › Şifre = 10
+  karakter – 72 UTF-8 BAYT + küçük `\p{Ll}` / büyük `\p{Lu}` harf + rakam `[0-9]` + özel
+  `[^\p{L}\p{N}\s]` (Türkçe ve Kiril harf harftir; 2026-10-08). Tek kaynak API
+  `common/auth/password-policy.ts` (`@PasswordPolicy()`) ⇔ web `lib/company-auth/password-rules.ts`;
+  DTO'ya elle regex yazılmaz (`password-policy-parity.spec` iki dosyayı karşılaştırır).
 - **E-posta:** işlem dışı her e-postada + üye olmayan adrese giden işlem e-postalarında
   (`PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES`: company_user_invitation,
   public_inquiry_verify — güvenli taraf, avukat teyidi bekliyor; yeni üye dışı işlem akışı
@@ -4066,6 +4069,92 @@ sağlamlaştırma. Operatör O-74…O-89.
 - **Açık arayüz bulguları (2026-10-07 tarayıcı turu, düzeltilmedi):** RU kategori seçicide telefonda onay
   düğmesi taşıyor (ORTA); kazandırma diyaloğunda tutar yok; `reports-summary-charts.tsx` hiçbir sayfaya bağlı
   değildi (bileşen ve ucu kaldırıldı, 2026-10-07); Açık Talepler 1280 px'te Görünürlük çipi kesiliyor; EN bildirimde iki tarih biçimi.
+
+## KAYIT · GİRİŞ · KATEGORİ SEÇİCİ TURU 2026-10-08 — kalıcı kurallar
+
+Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve kategori seçici turu.
+
+- **ADRES KANITLANMADAN HİÇBİR ŞEY BAĞLANMAZ.** (1) Kayıtta yalnız KULLANILAN `referralToken`'ın daveti
+  bağlanır; e-postayla eşleşen davetler (bağlantı isteği + talep daveti) kod doğrulanınca, hesabın O ANKİ
+  adresiyle bağlanır — tek kaynak `CompanyAuthService.bindInvitationsOfProvenAddress` (`verifyEmail` ve admin
+  e-posta değişikliği doğrulanmamış kaydı doğrulanmış yaptığında). (2) E-postası doğrulanmamış hesap hiçbir
+  davet/bağlantı yolunda "kayıtlı" SAYILMAZ: `prepareReferralInvite` (inviteByEmail/Batch),
+  `inviteExternalForListing`, `ExternalInviteDispatcher.addressState`, `SupplierDiscoveryService.annotate`
+  (adres ve alan adı eşleşmesi) `emailVerifiedAt != null` ister; e-posta → üye eşlemesi yapan YENİ kod aynı
+  kuralı uygular. (3) Adrese gönderilen her sır adresle birlikte ölür: `changeSignupEmail` ve admin
+  `changeEmail` açık e-posta kodlarını kapatır ve şifre sıfırlama / hesap kurma bağlantı satırlarını siler
+  (taşımayla aynı transaction); `issueEmailCode` ve `PasswordResetService` göndermeden önce adresin hâlâ
+  hesabın adresi olduğunu kilitli okumayla doğrular. Test fabrikası kullanıcıyı DOĞRULANMAMIŞ doğurur:
+  "kayıtlı üye" sınayan test `emailVerifiedAt` damgalar. Sözleşme `address-proof.spec`,
+  `referral-signup.spec`, `auth-signup.spec`. Bilinen sınır (karar bekliyor): doğrulanmamış kayıt adresi
+  tutar — gerçek sahibin kaydı ve o adrese ekip daveti 409 alır; doğrulanmamış kayıtlar temizlenmiyor.
+- **Hız sınırı deposu BİZİM:** `common/http/throttler-storage.ts` `PerKeyThrottlerStorage`
+  (`ThrottlerModule.forRoot({ storage })`). `@nestjs/throttler` 6.5 bellek deposu bir anahtarın engeli
+  bitince o throttler adındaki TÜM anahtarların süre dolum zamanlayıcılarını iptal ediyordu → hiç sınırı
+  aşmamış istemci 429 alıyordu. Kütüphane deposuna DÖNÜLMEZ; `throttler-storage.spec` kütüphane hatasını da
+  yeniden üretir. Anahtar başına bağımsız sayaç, zamanlayıcı yok, boştaki anahtar süpürülür; durum örnek başına.
+- **`resend-email-code`** `{ success, sent, capped? }` döner (saatlik 5 kod tavanı / gönderim hatası →
+  `sent:false`); web "yeni kod gönderildi" demeden önce buna bakar (`lib/company-auth/resend-code.ts`).
+- **Şifre sıfırlama:** `forgot-password` yanıtı işi BEKLEMEDEN döner (`requestForCompanyInBackground`;
+  kayıtlı ve kayıtsız adres aynı sürede yanıtlanır, hata yalnız günlükte). Bağlantı sayfası açılışta
+  `POST /api/auth/password-reset/check { token }` → `{ valid }` sorar (salt okur, tek adres, confirm ile aynı
+  jeton kuralları).
+- **Web sitesi kuralı** tek kaynak API `common/company/website-address.ts` (`assertWebsiteAddress`: noktalı
+  alan adı, boşluksuz, http/https isteğe bağlı, IDN kabul; onboarding + profil güncellemede yalnız DEĞİŞEN
+  değere; 400 `WEBSITE_INVALID`) ⇔ web onboarding `WEBSITE_HOST_LABEL` / `isAcceptableWebsite` (ayna — biri
+  değişirse diğeri de).
+- **Kullanıcı metni LIKE'a `likeLiteral` ile girer** (`common/prisma/like-literal.ts`): kategori, ürün, talep,
+  firma dizini aramaları ve AI kategori ipucu; `%` `_` `\` düz karakterdir. Yeni `contains` araması aynı
+  yardımcıyı kullanır (admin aramaları ve Onaylar araması henüz bağlanmadı).
+- **Kategori araması — yazılan sözcük BİRİNCİL:** yazılan biçimi taşıyan satırlar önce çekilir ve sıralanır,
+  200 tavanını önce onlar doldurur; kök eşleşmeleri (`categorySearchStem` = `stemPrefix`, en az 4 karakter)
+  yalnız kalan yeri doldurur, yazılan sözcüğü taşıyan satırın önüne geçemez ve kök YALNIZ SÖZCÜK BAŞINDA
+  aranır (`stemAtWordStart`: "nakliye" kökü "nakli", "kayNAKLIlı" içinde eşleşmez; amaç çekimleri bulmak —
+  boru → boruları). Sektör (L1) adıyla arama o sektörü aileleri ve sınıflarıyla açar (en fazla 3 sektör,
+  `parentMatch`). Pazar yeri kategori önerisi aynı kural (`suggestCategories`: önce yazılan biçim, 5'ten azsa
+  kök). **Satır sırası** eşleşme sınıfıyla (`categoryRowRank`): (0) AD yazılan sözcüğü taşır → (1) AD kökü
+  sözcük başında taşır → (2) yazılan sözcük yalnız eş anlamlıda → (3) yalnız kök, yalnız eş anlamlıda; çok
+  sözcüklü sorguda en kötü sözcük belirler. Adının TAMAMI sorguya eşit olan sektör / aile / sınıf en başta;
+  sektörler en iyi satırına göre sıralanır, sonra ağırlığa (çok sayıda kısmi eşleşme tam adı geçemez); aile
+  tavanı (20) sıralamadan SONRA. `categorySearchStem` `@rothern/shared` `search-fold`'da (web vurgusu aynı
+  kuralı kullanır) ve YALNIZ kategori aramasına özgüdür: üst üste iki Türkçe ek köke iner (rulmanlarının →
+  rulman; yalnız dilbilgisinin izin verdiği iki konumda, körlemesine tekrar yok), Kiril sözcükte Rusça ad /
+  sıfat çekim eki düşer (сварка, кабели, стальные трубы). Ürün araması `stemPrefix`'te kalır (Rusça çekim
+  yok). `tokenizeQuery` durak sözcükleri TR + EN (and, or, the, of, for) + RU (и, или, для): aranmaz ve
+  vurgulanmaz.
+- **Firma kategori beyanı sunucuda da normalize:** `normalizeCategorySelection` (onboarding + profil
+  güncelleme) ata zincirini ve segmenti ekler, tavanlar ondan SONRA; web'in bugünkü gövdesi aynen saklanır.
+  Profil güncellemede firmada ZATEN kayıtlı gizli segment kodu reddedilmez (`validateIds` `allowHidden`),
+  yeni eklenen gizli kod reddedilir. Ayarlar formu kategori listelerini KÜME olarak kıyaslar (sıra değişimi
+  kirli saymaz).
+- **Kategori pencereleri tek kabuk** `components/categories/category-dialog-shell.tsx`: yükseklik `dvh`,
+  seçim şeridi tavanlı ve kendi içinde kayar, liste kullanılabilir yükseklikte kalır, Vazgeç / Onayla HER
+  ZAMAN görünür (360×640, 50 seçim); onaylanmamış değişiklikle Escape / arka plan / X sorar ("Seçime dön"
+  birincil), Vazgeç sormaz; bildirimler `CategoryDialogNotices`. `CategorySelectorModal`: `minSelectableLevel`
+  (firma beyanı 2 → aile seçilebilir; talep formu varsayılan 3, DEĞİŞMEDİ) ve `singlePickPerBranch` (yalnız
+  firma beyanı: bir dalda tek seçim — işaretlenen öğe işaretli ata ve torunlarını düşürür, sayaç = saklanan).
+  Yükleme hatası ayrı durum + "Yeniden dene" (`category-load-error.tsx`; `use-categories` `{ inlineError }` →
+  global toast yok, 4xx/429'da otomatik tekrar yok) — "sonuç bulunamadı" ya da "…" DEĞİL. Çip adın tamamını
+  gösterir (sabit px tavan yok, kutudan taşmaz); sektör harfi ("B.", "AN.") arayüzde basılmaz; kaldır
+  düğmeleri en az 32×32 px ve öğeyi adlandırır; arama kutusu kısa yer tutucu + ayrı örnek satırı (her örnek
+  sözcük o dilde sonuç vermeli).
+- **Kayıt / giriş / onboarding / davet kabul formları:** gönder düğmesi sessizce pasif BIRAKILMAZ — basınca
+  her geçersiz alanda satır içi hata (aria-invalid + bağlı açıklama) ve ilk hataya odak
+  (`lib/company-auth/use-focus-first-invalid.ts`); formlar `noValidate` (tarayıcı balonu yok). Kayıt taslağı
+  (şifreler HARİÇ; kod adımı dahil) `lib/company-auth/signup-draft.ts`, onboarding taslağı
+  `onboarding-draft.ts` ile sessionStorage'da sürekli tutulur (önekler `TENANT_SESSION_PREFIXES`'te):
+  yenileme ve dil değişimi yazılanı kaybettirmez. Onboarding'de adım değişince sayfa başa kayar ve odak adım
+  başlığına gider; TR posta kodu kendi adımında denetlenir. `next` / `redirect` yalnız normalize edilmiş yol
+  `/company` altında kalıyorsa ve giriş sayfasının kendisi değilse kabul edilir
+  (`lib/company-auth/next-path.ts`); çıkış düz giriş sayfasına iner (`next=` yok) ve hatırlanan portalı sıfırlar
+  (`clearTenantSessionData`); kayıt ↔ giriş bağlantıları `redirect` / `next` / `ref` taşır. Alan hata
+  metinleri tek kalıp: sonda nokta yok, "-in" emir kipi ("girin", "yazın"; `auth-form-copy.test` kilitler).
+  Davet metinleri gerçeği söyler: davet e-postasındaki bağlantıyla kayıt hemen bağlar, sonradan aynı adresle
+  kayıt kabul edilecek bir İSTEK oluşturur. "Oturumumu açık bırak" kapalıyken anlık görüntüsü olmayan sekme girişe
+  atmadan önce `/company-auth/me`'yi bir kez sorar (4 sn tavan). Girişte sayfa dili hesaba yazılınca store
+  aynı anda güncellenir (eski dile sekme yok). `PasswordInput` ve `PhoneInput` kökleri `data-slot="control"`
+  taşır. Panel sayfalarının sekme başlığı rota etiketinden (`company-shell/document-title.ts`,
+  "<sayfa> · Rothern").
 
 ## Bekleyen / Yapılacaklar
 
