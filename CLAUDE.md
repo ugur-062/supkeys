@@ -3468,10 +3468,12 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **327 suite / 4.320 test** (4.318 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 33 parti) · web
-  **354 / 2.880** · admin **65 / 378** · i18n **12 / 83** (vitest toplamı 3.341) — son kapı HEAD 0f8c940c YEŞİL
+- API **331 suite / 4.632 test** (4.630 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 34 parti) · web
+  **355 / 2.998** · admin **66 / 393** · i18n **13 / 94** (vitest toplamı 3.485) — son kapı YEŞİL
   (kurulum, typecheck 7/7, lint 3/3, i18n:check, prisma validate, üç build, kategori çakışması 0,
-  `pnpm audit --prod --audit-level high` rc=0), 7.659 test geçti (2 LIVE atlandı), kayıt · giriş · kategori turu 2026-10-08.
+  `pnpm audit --prod --audit-level high` rc=0), 8.115 test geçti (2 LIVE atlandı), yeni kayıt akışı turu 2026-10-08.
+  `ayarlar-security.spec` "legacy DÜZ METİN secret" TOTP testi ARA SIRA kırmızı (zaman adımı sınırı) — tek
+  başına yeniden koşuda yeşil, gerileme sayılmaz.
   Kapı ajan yerine betikle koşulur: `/home/noah/rothern-qa-2026-10/gate-final.sh` + `gate-apijest/run.sh`.
   Playwright `--list` 26 dosya / 112 test (son ölçüm 2026-09-30).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
@@ -4177,7 +4179,9 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   kodu `mainIds`'te, o segmentten alt kod yok. Sektör kutusunun erişilebilir adı "<sektör> · sektörün tamamı".
   Yükleme hatası ayrı durum + "Yeniden dene" (`category-load-error.tsx`; `use-categories` `{ inlineError }` →
   global toast yok, 4xx/429'da otomatik tekrar yok) — "sonuç bulunamadı" ya da "…" DEĞİL. Çip adın tamamını
-  gösterir (sabit px tavan yok, kutudan taşmaz); sektör harfi ("B.", "AN.") arayüzde basılmaz; kaldır
+  gösterir (sabit px tavan yok, kutudan taşmaz) — yalnız pencerenin SEÇİM ŞERİDİNDE bir çip en fazla 3 satır
+  tutar (`SelectionStrip`; uzun "sektörün tamamı" çipinde ad 2 satıra kırpılır, ek kendi satırında kalır) ve
+  şerit kayıyorsa görünür ipucu taşır; tam ad listede, sayfa kartında ve erişilebilir adda durur; sektör harfi ("B.", "AN.") arayüzde basılmaz; kaldır
   düğmeleri en az 32×32 px ve öğeyi adlandırır; arama kutusu kısa yer tutucu + ayrı örnek satırı (her örnek
   sözcük o dilde sonuç vermeli).
 - **Kayıt / giriş / onboarding / davet kabul formları:** gönder düğmesi sessizce pasif BIRAKILMAZ — basınca
