@@ -157,21 +157,151 @@ describe("admin firma düzeltme — kayda kapalı ülke + hukuki yapı", () => {
     const { svc, prisma } = rig({ country: "DE" });
     await expect(svc.updateProfile("c1", { companyType: "OTHER" }, "a1")).rejects.toThrow();
     expect(prisma.company.update).not.toHaveBeenCalled();
-    await svc.updateProfile("c1", { companyType: "OTHER", legalFormLocal: " GmbH " }, "a1");
+    // Ülkenin listesinde OLMAYAN ad serbest metindir: istenen tür ("Diğer") saklanır.
+    await svc.updateProfile("c1", { companyType: "OTHER", legalFormLocal: " Stiftung " }, "a1");
     expect(prisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ companyType: "OTHER", legalFormLocal: "GmbH" }) }),
+      expect.objectContaining({ data: { companyType: "OTHER", legalFormLocal: "Stiftung" } }),
     );
   });
 
-  it("'Diğer'den çıkınca yerel ad temizlenir; 'Diğer' değilken gelen yerel ad yazılmaz", async () => {
+  // İnceleme 2026-10-08 (admin-type-correction-erases-local-name). Bu sürümden
+  // önce kaydolan her yabancı firma "Diğer + yerel ad" (OTHER + GmbH) olarak
+  // saklı. Admin türü düzeltirken adı AYNEN gönderdiğinde ad, "değişmeyeni
+  // atla" kuralıyla istekten düşüyor, "ad verilmedi" sayılıp SİLİNİYORDU —
+  // admin kutuda GmbH'yı ve başarı bildirimini görüyor, firma "Limited Şirket"
+  // olarak (adsız) kalıyordu.
+  it("tür düzeltilirken kayıtlı yerel ad AYNEN gönderilirse ad korunur (Diğer + GmbH → Limited + GmbH)", async () => {
     const a = rig({ country: "DE", companyType: "OTHER", legalFormLocal: "GmbH" });
-    await a.svc.updateProfile("c1", { companyType: "LIMITED" }, "a1");
+    await expect(a.svc.updateProfile("c1", { companyType: "LIMITED", legalFormLocal: "GmbH" }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["companyType"] });
     expect(a.prisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ companyType: "LIMITED", legalFormLocal: null }) }),
+      expect.objectContaining({ data: { companyType: "LIMITED" } }),
     );
+    // Listesi olmayan ülkede de (eşleme yok): ad istekte olduğu sürece silinmez.
+    const b = rig({ country: "KE", companyType: "OTHER", legalFormLocal: "Ltd" });
+    await expect(b.svc.updateProfile("c1", { companyType: "LIMITED", legalFormLocal: " Ltd " }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["companyType"] });
+    expect(b.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { companyType: "LIMITED" } }),
+    );
+    // Eski admin paketi adı hiç göndermez: kayıtlı ad listede zaten YENİ türün
+    // adıysa kalır (GmbH = DE'de Limited), değilse eskisi gibi silinir.
+    const c = rig({ country: "DE", companyType: "OTHER", legalFormLocal: "GmbH" });
+    await expect(c.svc.updateProfile("c1", { companyType: "LIMITED" }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["companyType"] });
+    expect(c.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { companyType: "LIMITED" } }),
+    );
+  });
+
+  // EŞLEMENİN SAHİBİ API (2026-10-08): yerel ad firmanın ülkesinin listesindeyse
+  // saklanan tür listeden gelir, istek hangi türü taşırsa taşısın (`@rothern/
+  // shared` `resolveLegalForm`, onboarding ile aynı). Listede olmayan ad isteğin
+  // türünü korur.
+  it("yerel ad ülkenin listesindeyse tür LİSTEDEN yazılır; yanıt ezilen türü `mappedCompanyType` ile söyler", async () => {
+    // Admin "Diğer" seçip "GmbH" yazdı: GmbH, DE'de Limited → Limited kalır, yalnız ad yazılır.
+    const a = rig({ country: "DE" });
+    await expect(a.svc.updateProfile("c1", { companyType: "OTHER", legalFormLocal: " GmbH " }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["legalFormLocal"], mappedCompanyType: "LIMITED" });
+    expect(a.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { legalFormLocal: "GmbH" } }),
+    );
+    // Yanlış tür + listedeki ad: "Anonim" + GmbH gönderildi, Limited saklanır.
+    const b = rig({ country: "DE", companyType: "OTHER", legalFormLocal: "GmbH" });
+    await expect(b.svc.updateProfile("c1", { companyType: "JOINT_STOCK", legalFormLocal: "GmbH" }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["companyType"], mappedCompanyType: "LIMITED" });
+    expect(b.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { companyType: "LIMITED" } }),
+    );
+    // Sonuç kayıtlı hâlle aynı: hiçbir şey yazılmaz, ama yanıt nedenini söyler.
+    const c = rig({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" });
+    await expect(c.svc.updateProfile("c1", { companyType: "JOINT_STOCK", legalFormLocal: "GmbH" }, "a1"))
+      .resolves.toEqual({ ok: true, changed: [], mappedCompanyType: "LIMITED" });
+    expect(c.prisma.company.update).not.toHaveBeenCalled();
+    // Yalnız ad değişir (tür gönderilmez): tür yeni adın türüne çekilir.
+    const d = rig({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" });
+    await expect(d.svc.updateProfile("c1", { legalFormLocal: "e.K." }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["legalFormLocal", "companyType"], mappedCompanyType: "SOLE_PROPRIETOR" });
+    expect(d.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { legalFormLocal: "e.K.", companyType: "SOLE_PROPRIETOR" } }),
+    );
+    // Kişisel vergi numarası: Rus "ИП" hangi türle gelirse gelsin şahıs işletmesidir.
+    const e = rig({ country: "RU", companyType: "OTHER", legalFormLocal: "Самозанятый" });
+    await e.svc.updateProfile("c1", { companyType: "OTHER", legalFormLocal: "ИП" }, "a1");
+    expect(e.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { legalFormLocal: "ИП", companyType: "SOLE_PROPRIETOR" } }),
+    );
+    // Eşleme istekle DEĞİŞEN ülkeye göredir: DE → KE (listesiz) + "GmbH" serbest metindir.
+    const f = rig({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" });
+    await expect(f.svc.updateProfile("c1", { country: "KE", companyType: "OTHER", legalFormLocal: "GmbH" }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["country", "companyType"] });
+    // Türkiye'de liste yok: genel tür olduğu gibi yazılır, yanıt bayrak taşımaz.
+    const g = rig();
+    await expect(g.svc.updateProfile("c1", { companyType: "SOLE_PROPRIETOR" }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["companyType"] });
+    // Hukuki yapıya dokunmayan istek eski kaydı yeniden eşlemez.
+    const h = rig({ country: "DE", companyType: "OTHER", legalFormLocal: "GmbH" });
+    await expect(h.svc.updateProfile("c1", { name: "Acme GmbH" }, "a1"))
+      .resolves.toEqual({ ok: true, changed: ["name"] });
+    expect(h.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { name: "Acme GmbH" } }),
+    );
+  });
+
+  // 2026-10-08: yerel ad HER türle saklanır (kayıt sihirbazı ülkenin yerel
+  // yapılarını listeler: LIMITED + "GmbH"). Eskiden "Diğer" dışındaki türde
+  // gelen yerel ad atılıyor, türü değişmeyen firmanın adı düzeltilemiyordu.
+  it("yerel ad her türle yazılır; tür değişip yeni ad verilmezse eski ad silinir", async () => {
+    // Tür aynı kalırken yalnız yerel ad düzeltilir.
+    const a = rig({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" });
+    await expect(a.svc.updateProfile("c1", { legalFormLocal: " UG (haftungsbeschränkt) " }, "a1"))
+      .resolves.toMatchObject({ changed: ["legalFormLocal"] });
+    expect(a.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { legalFormLocal: "UG (haftungsbeschränkt)" } }),
+    );
+    // Yerel adı olmayan firmaya, türü "Diğer" değilken yerel ad eklenir.
     const b = rig({ country: "DE" });
-    await expect(b.svc.updateProfile("c1", { legalFormLocal: "GmbH" }, "a1")).resolves.toMatchObject({ changed: [] });
-    expect(b.prisma.company.update).not.toHaveBeenCalled();
+    await expect(b.svc.updateProfile("c1", { legalFormLocal: "GmbH" }, "a1"))
+      .resolves.toMatchObject({ changed: ["legalFormLocal"] });
+    expect(b.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { legalFormLocal: "GmbH" } }),
+    );
+    // Tür değişir, yerel ad verilmez → eski ad o türe aitti, silinir (kayıtta görünür).
+    for (const before of ["OTHER", "LIMITED"]) {
+      const c = rig({ country: "DE", companyType: before, legalFormLocal: "GmbH" });
+      await expect(c.svc.updateProfile("c1", { companyType: "JOINT_STOCK" }, "a1"))
+        .resolves.toMatchObject({ changed: ["companyType", "legalFormLocal"] });
+      expect(c.prisma.company.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { companyType: "JOINT_STOCK", legalFormLocal: null } }),
+      );
+    }
+    // Tür ve yeni yerel ad birlikte → ikisi de yazılır.
+    const d = rig({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" });
+    await d.svc.updateProfile("c1", { companyType: "JOINT_STOCK", legalFormLocal: "AG" }, "a1");
+    expect(d.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { companyType: "JOINT_STOCK", legalFormLocal: "AG" } }),
+    );
+    // "Diğer"e geçiş: eski yerel ad serbest metin olarak geçerli kalır (ad
+    // ülkenin listesinde değilse — listedeki ad türünü kendisi belirler).
+    const e = rig({ country: "DE", companyType: "LIMITED", legalFormLocal: "Stiftung" });
+    await expect(e.svc.updateProfile("c1", { companyType: "OTHER" }, "a1"))
+      .resolves.toMatchObject({ changed: ["companyType"] });
+    expect(e.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { companyType: "OTHER" } }),
+    );
+    // Yerel ad boşaltılır (tür "Diğer" değil) → silinir; "Diğer"de boşaltılamaz.
+    const f = rig({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" });
+    await f.svc.updateProfile("c1", { legalFormLocal: "" }, "a1");
+    expect(f.prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { legalFormLocal: null } }),
+    );
+    const g = rig({ country: "DE", companyType: "OTHER", legalFormLocal: "Stiftung" });
+    await expect(g.svc.updateProfile("c1", { legalFormLocal: "" }, "a1")).rejects.toThrow();
+    expect(g.prisma.company.update).not.toHaveBeenCalled();
+    // Eski, adsız bir "Diğer" kaydında hukuki yapıya dokunmayan düzeltme reddedilmez.
+    const h = rig({ country: "DE", companyType: "OTHER", legalFormLocal: null });
+    await expect(h.svc.updateProfile("c1", { companyType: "OTHER", name: "Acme e.V." }, "a1"))
+      .resolves.toMatchObject({ changed: ["name"] });
   });
 
   it("ülke değişince eksik belge → gerekçe KODLU (COUNTRY_CHANGED), Türkçe cümle değil", async () => {

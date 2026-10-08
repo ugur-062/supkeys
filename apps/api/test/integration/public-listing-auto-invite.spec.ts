@@ -18,7 +18,7 @@
  */
 import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
-import { connect, makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { connect, makeCompanyWithUser, makeItem, makeListing, proveAccounts } from "./factories";
 import { makeService } from "./make-service";
 
 const SEG = "10000000";
@@ -61,6 +61,9 @@ async function seller(opts: {
     where: { id: c.company.id },
     data: { sellerCategoryIds: opts.cats ?? [], billingEmail: opts.email },
   });
+  // A real member (its e-mail address is proven); `status` above is the
+  // company verification. The sign-up placeholder has its own test below.
+  await proveAccounts(prisma, c.company.id);
   return c;
 }
 
@@ -238,5 +241,41 @@ describe("herkese açık talep — bağlantılar otomatik davetli + kategori duy
     expect(rows).toContain("Line items (2)");
     expect(rows).toContain("Pipe DN50 — 1,200 m");
     expect(rows).toContain("Elbow — 3 pieces");
+  });
+
+  it("a connection without a proven account (sign-up placeholder) is not invited automatically; once its address is proven it is (review CLEAN-4)", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
+    // What a sign-up through the buyer's referral link leaves before the code
+    // is entered: an ACTIVE connection to a company whose only account is
+    // unverified (the factory default). It is deleted after 7 days with its
+    // rows, so no invitation may be written for it.
+    const placeholder = await makeCompanyWithUser(prisma, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" });
+    const member = await seller({ email: "uye@a.com" });
+    await connect(prisma, owner.company.id, placeholder.company.id, owner.user.id);
+    await connect(prisma, owner.company.id, member.company.id, owner.user.id);
+    const publish = async () => {
+      const listing = await makeListing(prisma, {
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        visibility: "PUBLIC",
+        categoryIds: [CLASS],
+        closesAt: new Date(Date.now() + 5 * 86_400_000),
+      });
+      await service.announceListingOpen(listing.id, "invitation");
+      await waitForSends(email, 1);
+      return (
+        await prisma.listingInvitation.findMany({ where: { listingId: listing.id }, select: { invitedCompanyId: true } })
+      )
+        .map((i) => i.invitedCompanyId)
+        .sort();
+    };
+
+    expect(await publish()).toEqual([member.company.id]);
+    // Nothing was mailed to the unproven address either.
+    expect(email.send.mock.calls.map((c) => (c[0] as Sent).to.email)).not.toContain(placeholder.user.email);
+
+    await proveAccounts(prisma, placeholder.company.id);
+    expect(await publish()).toEqual([member.company.id, placeholder.company.id].sort());
   });
 });

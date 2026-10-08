@@ -33,6 +33,7 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
+import { UnverifiedSignupCleanupService } from "../company-auth/services/unverified-signup-cleanup.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
   ALL_COMPANY_PERMISSIONS,
@@ -159,7 +160,25 @@ export class CompanyUsersService {
     // Faz K: seat-selection bildirimi — @Optional: elle kurulan test rig'leri
     // 6-parametreli kalabilir (push best-effort, yoksa sessiz atlanır).
     @Optional() private readonly notifications?: NotificationService,
+    // Expired unverified sign-ups (owner decision 2026-10-08). @Optional for
+    // the hand-built test rigs; `CompanyAuthModule` exports it. Without it an
+    // address held by such a sign-up answers 409 exactly as before.
+    @Optional() private readonly unverifiedSignups?: UnverifiedSignupCleanupService,
   ) {}
+
+  /**
+   * Is `email` the address of a live account? An address held by an EXPIRED
+   * unverified sign-up does not count: that sign-up is removed first (the
+   * nightly job would remove it anyway) and the invitation goes on.
+   */
+  private async isAddressTaken(email: string): Promise<boolean> {
+    const existing = await this.prisma.companyUser.findUnique({
+      where: { email },
+      select: { id: true, deletedAt: true },
+    });
+    if (!existing || existing.deletedAt) return false;
+    return !(await this.unverifiedSignups?.releaseAddress(email, "team_invite"));
+  }
 
   async list(companyId: string) {
     const [users, company] = await Promise.all([
@@ -247,11 +266,7 @@ export class CompanyUsersService {
     this.assertCanGrantRoles(actor, roles);
     const email = dto.email.toLowerCase().trim();
 
-    const existing = await this.prisma.companyUser.findUnique({
-      where: { email },
-      select: { id: true, deletedAt: true },
-    });
-    if (existing && !existing.deletedAt) {
+    if (await this.isAddressTaken(email)) {
       throw new ConflictException(i18nMessage("api.companyUsers.buEPostaZatenKayitli"));
     }
     await this.assertInvitationMailBudget(actor.companyId);
@@ -548,11 +563,9 @@ export class CompanyUsersService {
     if (!inv.company.isActive || inv.company.isBlocked) {
       throw new BadRequestException(i18nMessage("api.companyUsers.firmaHesabiAktifDegil"));
     }
-    const existing = await this.prisma.companyUser.findUnique({
-      where: { email: inv.email },
-      select: { id: true, deletedAt: true },
-    });
-    if (existing && !existing.deletedAt) {
+    // Same release as at `invite`: the invitation can outlive a sign-up that
+    // took the address after it was sent (a resend extends the invitation).
+    if (await this.isAddressTaken(inv.email)) {
       throw new ConflictException(i18nMessage("api.companyUsers.buEPostaIleZatenBir"));
     }
 

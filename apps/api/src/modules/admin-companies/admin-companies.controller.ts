@@ -202,7 +202,12 @@ export class UpdateCompanyProfileDto {
   @IsIn(["JOINT_STOCK", "LIMITED", "SOLE_PROPRIETOR", "OTHER"])
   companyType?: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER";
 
-  /** Yerel hukuki yapı adı (GmbH, LLC, ООО…) — onboarding DTO'suyla aynı tavan. */
+  /**
+   * Yerel hukuki yapı adı (GmbH, ООО, Sole trader…) — onboarding DTO'suyla aynı
+   * tavan; her `companyType` ile kabul edilir (2026-10-08), OTHER iken zorunlu.
+   * Ad firmanın ülkesinin listesindeyse saklanan tür LİSTEDEN gelir (serviste,
+   * `resolveLegalForm`); yanıt ezilen türü `mappedCompanyType` ile bildirir.
+   */
   @IsOptional()
   @IsString()
   @MaxLength(80)

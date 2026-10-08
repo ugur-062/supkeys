@@ -16,7 +16,7 @@ import { DEFAULT_TIME_ZONE } from "../../src/common/time/country-time-zone";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { makeBid, makeCompanyWithUser, makeItem, makeListing, proveAccounts } from "./factories";
 import { makeService } from "./make-service";
 import { runWithLocale } from "../../src/common/i18n/locale-context";
 
@@ -84,6 +84,8 @@ function fullDraft(overrides: Record<string, unknown> = {}) {
 /** Aktif bağlantılı + kodlu davetli firma kurar (publish/invite akışları için). */
 async function makeConnectedInvitee(ownerCompanyId: string, ownerUserId: string, name = "Davetli AŞ") {
   const invitee = await makeCompanyWithUser(prisma, { name });
+  // A real member: its address is proven (a sign-up placeholder gets no request invitation).
+  await proveAccounts(prisma, invitee.company.id);
   const code = await giveCode(invitee.company.id);
   await prisma.companyConnection.create({
     data: {
@@ -166,6 +168,7 @@ describe("proposeSendInvites", () => {
     const actions = makeActions();
     const owner = await makeCompanyWithUser(prisma);
     const invitee = await makeCompanyWithUser(prisma);
+    await proveAccounts(prisma, invitee.company.id);
     await prisma.companyConnection.create({
       data: {
         inviterCompanyId: owner.company.id,

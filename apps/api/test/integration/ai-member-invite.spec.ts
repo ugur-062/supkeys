@@ -22,7 +22,7 @@ import { DiscoveryRunsService } from "../../src/modules/ai/supplier-discovery/di
 import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { makeCompanyWithUser, makeItem, makeListing, proveAccounts } from "./factories";
 import { makeService } from "./make-service";
 
 const DAY = 24 * 3_600_000;
@@ -63,6 +63,8 @@ async function setup(extra: Record<string, unknown> = {}) {
 
 async function productSeller(name: string) {
   const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name });
+  // A real member: its address is proven (a sign-up placeholder gets no request invitation).
+  await proveAccounts(prisma, s.company.id);
   await prisma.company.update({
     where: { id: s.company.id },
     data: { slug: `s-${s.company.id}`, publicEnabled: true },
@@ -84,6 +86,7 @@ async function productSeller(name: string) {
 
 async function categorySeller(name: string, country = "TR") {
   const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name, country });
+  await proveAccounts(prisma, s.company.id);
   await prisma.company.update({
     where: { id: s.company.id },
     data: { sellerCategoryIds: ["31000000"], sellerSubCategoryIds: ["31161600"] },

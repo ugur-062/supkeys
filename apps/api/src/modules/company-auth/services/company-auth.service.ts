@@ -17,6 +17,7 @@ import {
   HttpStatus,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -25,7 +26,7 @@ import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
 import * as crypto from "node:crypto";
 import * as QRCode from "qrcode";
-import { CompanyRole, Prisma, type Company, type CompanyUser } from "@rothern/db";
+import { CompanyRole, Prisma, type Company, type CompanyType, type CompanyUser } from "@rothern/db";
 import {
   generateShortCode,
   tierAtLeast,
@@ -36,6 +37,7 @@ import {
   EU_VAT_COUNTRIES,
   normalizeDigits,
   normalizeTaxId,
+  resolveLegalForm,
 } from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../../common/company/company-slug";
 import { effectiveTier } from "../../../common/company/effective-tier";
@@ -71,6 +73,7 @@ import {
   totpEncKey,
 } from "../../../common/auth/totp-secret-cipher";
 import { maskEmail } from "../../../common/logging/mask-email";
+import { UnverifiedSignupCleanupService } from "./unverified-signup-cleanup.service";
 
 /** Her bildirim e-postasının ilk paragrafı (alıcının dilinde). */
 const NOTIFY_GREETING_KEY = "api.notifications.common.greeting" as ApiMessageKey;
@@ -139,6 +142,11 @@ export class CompanyAuthService {
     // self-yönetim metodları (getMe/changePassword/2FA-setup) main'de RLS-korumalı
     // kalır. bkz. bu servisteki this.bypass kullanımları.
     private readonly bypass: PrismaBypassService,
+    // Expired unverified sign-ups (owner decision 2026-10-08). @Optional only
+    // for the hand-built test rigs that predate it; the module always
+    // provides it (`unverified-signup-rule.spec` checks the wiring) and
+    // without it sign-up answers 409 for a held address exactly as before.
+    @Optional() private readonly unverifiedSignups?: UnverifiedSignupCleanupService,
   ) {}
 
   // ============================================================
@@ -152,7 +160,11 @@ export class CompanyAuthService {
       where: { email },
       select: { id: true },
     });
-    if (existing) {
+    // An address held by an EXPIRED unverified sign-up is not taken: that
+    // sign-up is removed first (the nightly job would remove it anyway) and
+    // this one goes on. Every other holder - verified, not yet expired,
+    // protected by the rule - and a removal that failed keep the 409.
+    if (existing && !(await this.unverifiedSignups?.releaseAddress(email, "signup"))) {
       throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
     }
 
@@ -338,14 +350,28 @@ export class CompanyAuthService {
     }
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
     await this.closeEmailCodes(userId); // eskileri kapat
-    const created = await this.bypass.emailVerificationCode.create({
-      data: {
-        companyUserId: userId,
-        codeHash: this.hashCode(code),
-        expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MIN * 60_000),
-      },
-      select: { id: true },
-    });
+    let created: { id: string };
+    try {
+      created = await this.bypass.emailVerificationCode.create({
+        data: {
+          companyUserId: userId,
+          codeHash: this.hashCode(code),
+          expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MIN * 60_000),
+        },
+        select: { id: true },
+      });
+    } catch (err) {
+      // The account was deleted between the caller's look-up and this insert
+      // (removal of an expired unverified sign-up, review CLEAN-5): the
+      // foreign key refuses the row. There is no account to mail a code to -
+      // same answer as a mail that could not be sent, not an unhandled
+      // database error (HTTP 500).
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+        this.logger.warn(`Verification code not issued: the account no longer exists (user=${userId})`);
+        return { sent: false };
+      }
+      throw err;
+    }
     // A code proves the address it is MAILED to, and the row does not store
     // that address (arayuz testi 2026-10 code-auth-1). A caller that read the
     // address before a concurrent "change e-mail" (resend, the tail of
@@ -802,16 +828,27 @@ export class CompanyAuthService {
         i18nMessage("api.companyAuth.buUlkedenYeniKayitAlinmiyor"),
       );
     }
-    // Hukuki yapı "Diğer" (2026-09-27): yerel yapı adı zorunlu (GmbH, LLC…).
-    const legalFormLocal = dto.legalFormLocal?.trim() || null;
-    if (dto.companyType === "OTHER" && (!legalFormLocal || legalFormLocal.length < 2)) {
+    // Hukuki yapının yerel adı (GmbH, ООО, Sole trader…) HER tür için saklanır
+    // (2026-10-08: sihirbaz ülkenin yerel yapılarını listeler, seçilen ad
+    // buraya gelir); "Diğer"de zorunlu (2026-09-27).
+    // EŞLEMENİN SAHİBİ API (`resolveLegalForm`): ad ülkenin listesindeyse tür
+    // listeden gelir, istemcinin gönderdiği tür ne olursa olsun — eski web
+    // paketi ya da doğrudan çağrı "ИП"yi OTHER diye gönderse de şahıs işletmesi
+    // olarak kaydolur (vergi numarası başka firmalara gösterilmez). Listede
+    // olmayan ad istemcinin türünü korur.
+    const { type: companyType, name: legalFormLocal } = resolveLegalForm(
+      country,
+      dto.companyType as CompanyType,
+      dto.legalFormLocal,
+    );
+    if (companyType === "OTHER" && (!legalFormLocal || legalFormLocal.length < 2)) {
       throw new BadRequestException(i18nMessage("api.companyAuth.yerelHukukiYapiZorunlu"));
     }
     // Dünya şehir listesi kaydı (2026-09-27): şehir sayfası/süzgeç/"Yakınımda".
     const cityId = resolveCityId(country, dto.city, dto.cityId);
     const cityName = storedCityName(cityId, dto.city) ?? dto.city.trim();
     const deliveryCityId = resolveCityId(country, dto.deliveryCity ?? dto.city, dto.deliveryCityId);
-    const isSole = dto.companyType === "SOLE_PROPRIETOR";
+    const isSole = companyType === "SOLE_PROPRIETOR";
     // Saklanan değer NORMALİZE (etiket/ülke öneki atılmış, rakamlar ASCII) —
     // web formu aynı fonksiyonla denetler (2026-09-27).
     const taxNumber = normalizeTaxId(dto.taxNumber, country);
@@ -895,8 +932,8 @@ export class CompanyAuthService {
         data: {
           name: dto.legalName.trim(),
           legalName: dto.legalName.trim(),
-          companyType: dto.companyType,
-          legalFormLocal: dto.companyType === "OTHER" ? legalFormLocal : null,
+          companyType,
+          legalFormLocal,
           country,
           taxNumber,
           taxOffice: dto.taxOffice?.trim() || null,

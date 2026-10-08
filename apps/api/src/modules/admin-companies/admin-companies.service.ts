@@ -11,6 +11,7 @@ import {
   type TierName,
   bankDetailsErrors,
   countryUsesIban,
+  findLocalLegalForm,
   formatVerificationReason,
   isRegistrationOpen,
   isValidAccountNumber,
@@ -24,6 +25,7 @@ import {
   normalizeSwift,
   normalizeTaxId,
   parseVerificationReason,
+  resolveLegalForm,
   type VerificationReasonCode,
 } from "@rothern/shared";
 import { assertBankDetails } from "../../common/company/bank-details";
@@ -1095,6 +1097,10 @@ export class AdminCompaniesService {
    * Yalnız gönderilen alanlar değişir; öncesi/sonrası audit'e yazılır.
    * Vergi no/ülke gibi alanların değişimi KYC kararını OTOMATİK bozmaz —
    * gerekiyorsa admin belgeleri yeniden inceler (bilinçli ayrım).
+   *
+   * Yanıt `{ ok, changed, mappedCompanyType? }`: `mappedCompanyType` yalnız
+   * saklanan hukuki yapı türünü yerel ad belirlediyse ve bu, isteğin taşıdığı
+   * (ya da dokunmadığı) türden farklıysa gelir (bkz. aşağıda HUKUKİ YAPI).
    */
   async updateProfile(
     id: string,
@@ -1205,25 +1211,61 @@ export class AdminCompaniesService {
       before.country ??
       "TR"
     ).toUpperCase();
-    // HUKUKİ YAPI (2026-09-27) — onboarding kuralının aynısı: "Diğer" (OTHER)
-    // iken yerel ad (GmbH, LLC, ООО…) ZORUNLU; OTHER değilse yerel ad tutulmaz.
-    if ("companyType" in data || "legalFormLocal" in data) {
-      const type = ("companyType" in data ? data.companyType : before.companyType) ?? null;
-      if (type === "OTHER") {
-        const local = ("legalFormLocal" in data ? data.legalFormLocal : before.legalFormLocal) ?? "";
-        if (local.trim().length < 2) {
-          throw new BadRequestException(
-            i18nMessage("api.adminCompanies.yerelHukukiYapiZorunlu"),
-          );
-        }
-      } else if (before.legalFormLocal || "legalFormLocal" in data) {
-        if (before.legalFormLocal) {
-          changes.legalFormLocal = { from: before.legalFormLocal, to: null };
-          data.legalFormLocal = null;
+    // HUKUKİ YAPI — onboarding kuralının aynısı (2026-10-08): yerel ad (GmbH,
+    // ООО, Sole trader…) HER türle saklanır; "Diğer" (OTHER) iken ZORUNLU
+    // (2026-09-27). Yerel ad BİR TÜRE AİTTİR: tür değişir ve İSTEK yerel ad
+    // taşımazsa eski ad silinir ("GmbH" yazan bir Anonim Şirket kalmasın).
+    // İki istisna: "Diğer"e geçişte eski ad serbest metin olarak geçerlidir;
+    // eski ad listede zaten YENİ türün adıysa kalır ("Diğer + GmbH" → Limited).
+    //
+    // "İstek yerel ad taşıyor mu" sorusu İSTEĞE sorulur (`input`), süzülmüş
+    // `data`ya değil: kayıtlı adla AYNI gönderilen ad yukarıdaki "değişmeyeni
+    // atla" kuralıyla `data`dan düşer. Eskiden o durumda ad "verilmedi" sayılıp
+    // siliniyordu — "Diğer + GmbH" kaydının türünü "Limited"e düzelten admin,
+    // adı açıkça gönderdiği hâlde GmbH'yı kaybediyordu.
+    //
+    // EŞLEMENİN SAHİBİ API (`resolveLegalForm`, onboarding ile aynı): sonuçtaki
+    // yerel ad firmanın (bu istekle değişiyorsa YENİ) ülkesinin listesindeyse
+    // tür listeden gelir, istek hangi türü taşırsa taşısın. İstenen (ya da
+    // dokunulmamış) tür listeyle ezildiyse yanıt `mappedCompanyType` taşır —
+    // admin ekranı "tür yerel ada göre kaydedildi" diyebilsin.
+    let mappedCompanyType: string | undefined;
+    if (input.companyType !== undefined || input.legalFormLocal !== undefined || "country" in data) {
+      const requestedType = ("companyType" in data ? data.companyType : before.companyType) ?? null;
+      let local = ("legalFormLocal" in data ? data.legalFormLocal : before.legalFormLocal) ?? null;
+      if (
+        "companyType" in data &&
+        input.legalFormLocal === undefined &&
+        requestedType !== "OTHER" &&
+        findLocalLegalForm(effectiveCountry, local)?.type !== requestedType
+      ) {
+        local = null;
+      }
+      const resolved = resolveLegalForm(effectiveCountry, requestedType, local);
+      if (resolved.type !== requestedType) mappedCompanyType = resolved.type ?? undefined;
+      // Sonuç kayıtlı değerle aynıysa alan yazılmaz (audit gürültüsü olmasın).
+      const apply = (key: "companyType" | "legalFormLocal", value: string | null) => {
+        const prev = before[key] ?? null;
+        if (value === prev) {
+          delete data[key];
+          delete changes[key];
         } else {
-          delete data.legalFormLocal;
-          delete changes.legalFormLocal;
+          data[key] = value;
+          changes[key] = { from: prev, to: value };
         }
+      };
+      apply("companyType", resolved.type);
+      apply("legalFormLocal", resolved.name);
+      // "Diğer"de yerel ad zorunlu — yalnız hukuki yapı bu istekle DEĞİŞİYORSA
+      // (eski, adsız bir "Diğer" kaydında başka alan düzeltilebilsin).
+      if (
+        ("companyType" in data || "legalFormLocal" in data) &&
+        resolved.type === "OTHER" &&
+        (resolved.name ?? "").length < 2
+      ) {
+        throw new BadRequestException(
+          i18nMessage("api.adminCompanies.yerelHukukiYapiZorunlu"),
+        );
       }
     }
     // Vergi no onboarding ile AYNI biçimde saklanır ve doğrulanır (derin
@@ -1293,7 +1335,7 @@ export class AdminCompaniesService {
       }
     }
     if (Object.keys(data).length === 0) {
-      return { ok: true, changed: [] };
+      return { ok: true, changed: [], ...(mappedCompanyType ? { mappedCompanyType } : {}) };
     }
     // Şehir ya da ülke değiştiyse dünya şehir listesi kaydı yeniden eşlenir (2026-09-27).
     const writeData: Record<string, string | number | null> = { ...data };
@@ -1375,7 +1417,11 @@ export class AdminCompaniesService {
       entityId: id,
       metadata: { changes },
     });
-    return { ok: true, changed: Object.keys(data) };
+    return {
+      ok: true,
+      changed: Object.keys(data),
+      ...(mappedCompanyType ? { mappedCompanyType } : {}),
+    };
   }
 
   /**

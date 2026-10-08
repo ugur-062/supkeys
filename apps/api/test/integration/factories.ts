@@ -76,6 +76,23 @@ export async function makeUser(
   });
 }
 
+/**
+ * Marks every account of the given companies as having a PROVEN e-mail
+ * address (`emailVerifiedAt`). `makeUser` creates accounts unverified, like a
+ * fresh self sign-up; a spec that needs a real member stamps it.
+ *
+ * Needed wherever a company must be INVITABLE to a request: a company without
+ * a proven account is a sign-up placeholder for the paths that write request
+ * invitations (automatic invitation of connections, manual invitation, AI
+ * member invitation - `src/common/company/proven-account.ts`) and gets no row.
+ */
+export async function proveAccounts(prisma: PrismaClient, ...companyIds: string[]) {
+  await prisma.companyUser.updateMany({
+    where: { companyId: { in: companyIds }, emailVerifiedAt: null },
+    data: { emailVerifiedAt: new Date() },
+  });
+}
+
 /** Firma + sahibi (createdById için) + auth-user nesnesi bir arada. */
 export async function makeCompanyWithUser(
   prisma: PrismaClient,

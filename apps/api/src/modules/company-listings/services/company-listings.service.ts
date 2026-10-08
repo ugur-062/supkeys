@@ -128,6 +128,7 @@ import { MY_BIDS_MAX_PAGE_SIZE, type MyBidsQueryDto } from "../dto/my-bids-query
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { hasReadContext } from "../../../common/company/full-read-context";
 import { isConnectionValid } from "../../../common/company/valid-connection";
+import { HAS_PROVEN_ACCOUNT_WHERE } from "../../../common/company/proven-account";
 import {
   AI_RECOMMENDABLE_SELECT,
   aiHiddenMatchKind,
@@ -461,6 +462,11 @@ export class CompanyListingsService {
    * seçimi), otomatik davet aşmaz. Yalnız ilk açılışta (yeni tur mevcut
    * davetlileri kullanır). BYPASS: embargolu talepte açılış cron'dan gelir
    * (tenant bağlamı yok); bağlantı tablosu RLS'li.
+   *
+   * Also excluded (review CLEAN-4): a connection without a proven account -
+   * the placeholder of a sign-up through a referral link whose e-mail is
+   * still unverified. It cannot sign in, and it is deleted after 7 days with
+   * its rows; an invitation written here would be lost with it.
    */
   private async autoInviteConnections(listingId: string): Promise<number> {
     const listing = await this.bypass.listing.findUnique({
@@ -490,6 +496,7 @@ export class CompanyListingsService {
         id: { in: connected.filter((id) => !blocked.has(id) && id !== listing.companyId) },
         isActive: true,
         isBlocked: false,
+        ...HAS_PROVEN_ACCOUNT_WHERE,
         ...(listing.targetCountries.length > 0 ? { country: { in: listing.targetCountries } } : {}),
       },
       select: { id: true },
@@ -1817,7 +1824,6 @@ export class CompanyListingsService {
     // Davet edilecek firmaları çöz: rothernId → companyId, bağlı olmalı.
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
-      const connected = new Set(await this.connectedCompanyIds(user.companyId));
       const codes = dto.invitations
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
@@ -1825,6 +1831,10 @@ export class CompanyListingsService {
         where: { rothernId: { in: codes } },
         select: { id: true },
       });
+      const connected = await this.invitableConnectedIds(
+        user.companyId,
+        targets.map((t) => t.id),
+      );
       inviteCompanyIds = connectedInvitees(
         targets.map((t) => t.id),
         { selfCompanyId: user.companyId, connected },
@@ -2112,7 +2122,6 @@ export class CompanyListingsService {
     const priorInvited = new Set(priorInvites.map((i) => i.invitedCompanyId));
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
-      const connected = new Set(await this.connectedCompanyIds(user.companyId));
       const codes = dto.invitations
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
@@ -2120,6 +2129,14 @@ export class CompanyListingsService {
         where: { rothernId: { in: codes } },
         select: { id: true },
       });
+      // The proven-account condition is part of `connected`, i.e. it applies
+      // to NEW invitees only: a prior invitee stays through `alsoAllowed`
+      // (the invitation a referral token bound for a placeholder must not be
+      // dropped because the buyer saved the form).
+      const connected = await this.invitableConnectedIds(
+        user.companyId,
+        targets.map((t) => t.id),
+      );
       inviteCompanyIds = connectedInvitees(
         targets.map((t) => t.id),
         { selfCompanyId: user.companyId, connected, alsoAllowed: priorInvited },
@@ -7956,7 +7973,6 @@ export class CompanyListingsService {
     }
     this.assertInviteWindowOpen(listing);
 
-    const connected = new Set(await this.connectedCompanyIds(user.companyId));
     const codes = (rothernIds ?? [])
       .map((c) => normalizeShortCode(c))
       .filter((c) => validateShortCode(c));
@@ -7964,6 +7980,10 @@ export class CompanyListingsService {
       where: { rothernId: { in: codes } },
       select: { id: true },
     });
+    const connected = await this.invitableConnectedIds(
+      user.companyId,
+      targets.map((t) => t.id),
+    );
     const wanted = connectedInvitees(
       targets.map((t) => t.id),
       { selfCompanyId: user.companyId, connected },
@@ -8122,7 +8142,11 @@ export class CompanyListingsService {
     const [blockedList, companies, existing, externalToday, memberToday, conns] = await Promise.all([
       this.blocks.blockedCompanyIds(user.companyId),
       this.bypass.company.findMany({
-        where: { id: { in: ids }, isActive: true, isBlocked: false },
+        // Proven account (review CLEAN-4): a CONNECTED company is invited
+        // here without the recommendable rule, and a connection can be the
+        // placeholder of an unverified sign-up -> NOT_ELIGIBLE like any
+        // company this query does not return.
+        where: { id: { in: ids }, isActive: true, isBlocked: false, ...HAS_PROVEN_ACCOUNT_WHERE },
         select: {
           id: true,
           country: true,
@@ -9417,6 +9441,34 @@ export class CompanyListingsService {
     // 2026-09-21: tek kural `countryCanSee` — boş liste herkes, dolu liste
     // yalnız o ülkeler (sahibin ülkesi de listede olabilir).
     return countryCanSee(targetCountries, viewerCountry);
+  }
+
+  /**
+   * The connections of `companyId` among `targetIds` that may be given a NEW
+   * request invitation: validly connected AND with a proven account (review
+   * CLEAN-4, `common/company/proven-account.ts`). A connection can be the
+   * placeholder of a sign-up through a referral link whose e-mail is still
+   * unverified; it cannot sign in and is deleted after 7 days with its rows,
+   * so an invitation written for it would be lost. It is treated like a
+   * company that is not connected (dropped from the list).
+   *
+   * Only for WRITING invitations. What a connection may see or do is still
+   * `connectedCompanyIds`. BYPASS: `company_users` is under row-level
+   * security and these are other companies' users.
+   */
+  private async invitableConnectedIds(
+    companyId: string,
+    targetIds: readonly string[],
+  ): Promise<Set<string>> {
+    if (targetIds.length === 0) return new Set();
+    const connected = new Set(await this.connectedCompanyIds(companyId));
+    const wanted = [...new Set(targetIds)].filter((id) => connected.has(id));
+    if (wanted.length === 0) return new Set();
+    const proven = await this.bypass.company.findMany({
+      where: { id: { in: wanted }, ...HAS_PROVEN_ACCOUNT_WHERE },
+      select: { id: true },
+    });
+    return new Set(proven.map((c) => c.id));
   }
 
   private async connectedCompanyIds(companyId: string): Promise<string[]> {

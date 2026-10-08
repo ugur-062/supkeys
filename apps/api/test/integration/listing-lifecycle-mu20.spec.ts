@@ -27,6 +27,7 @@ import {
   makeItem,
   makeListing,
   makeUser,
+  proveAccounts,
 } from "./factories";
 import { makeService } from "./make-service";
 
@@ -102,6 +103,9 @@ describe("düzenleme davetleri fark olarak uygular (S030)", () => {
     }
     await connect(prisma, owner.company.id, kept.company.id, owner.user.id);
     await connect(prisma, owner.company.id, added.company.id, owner.user.id);
+    // Real members: a NEW invitee needs a proven account (a sign-up placeholder
+    // gets no request invitation); prior invitees stay as they are.
+    await proveAccounts(prisma, kept.company.id, added.company.id);
     const listing = await makeListing(prisma, {
       companyId: owner.company.id,
       createdById: owner.user.id,

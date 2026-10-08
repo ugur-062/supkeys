@@ -4,6 +4,7 @@
  */
 import { ConflictException } from "@nestjs/common";
 import { ensureOwnerBuySeat } from "../../src/common/company/owner-buy-seat";
+import { CompanyProfileService } from "../../src/modules/company-profile/company-profile.service";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
@@ -579,7 +580,8 @@ describe("completeOnboarding", () => {
       ...dto(cat.id),
       country: "DE",
       companyType: "OTHER",
-      legalFormLocal: "GmbH",
+      // Ülkenin listesinde olmayan yapı: serbest metin, tür "Diğer" kalır.
+      legalFormLocal: "Stiftung",
       taxNumber: "DE811234567",
       taxOffice: undefined,
       district: undefined,
@@ -590,7 +592,7 @@ describe("completeOnboarding", () => {
     const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
     expect(c.country).toBe("DE");
     expect(c.companyType).toBe("OTHER");
-    expect(c.legalFormLocal).toBe("GmbH");
+    expect(c.legalFormLocal).toBe("Stiftung");
     // Eyalet adres defterine de yazılır (sipariş kaydında kaybolmasın).
     const fatura = await prisma.companyAddress.findFirstOrThrow({ where: { companyId: owner.company.id, type: "FATURA" } });
     expect(fatura).toMatchObject({ country: "DE", stateRegion: "Bayern", city: "München" });
@@ -612,6 +614,101 @@ describe("completeOnboarding", () => {
         authorizedTckn: undefined,
       } as never),
     ).rejects.toThrow(/hukuki yapı/i);
+  });
+
+  // 2026-10-08: kayıt sihirbazı seçilen ülkenin yerel yapılarını listeler
+  // (`@rothern/shared` `localLegalForms`); seçilen yerel ad türüyle birlikte
+  // gelir ve HER türde saklanır. Eskiden yalnız "Diğer"de saklanıyor, GmbH
+  // seçen firmanın kaydında yalnız "LIMITED" kalıyordu.
+  it.each([
+    ["DE", "LIMITED", " GmbH ", "DE811234567", "GmbH"],
+    ["RU", "SOLE_PROPRIETOR", "ИП", "770708389312", "ИП"],
+    ["GB", "JOINT_STOCK", "PLC", "GB123456789", "PLC"],
+    // Yerel ad göndermeyen istemci (eski web paketi, genel liste) → boş kalır.
+    ["DE", "LIMITED", undefined, "DE811234568", null],
+    ["DE", "JOINT_STOCK", "   ", "DE811234569", null],
+  ] as const)("yerel hukuki yapı adı her türle saklanır — %s %s %j", async (country, companyType, sent, taxNumber, stored) => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(owner.user.id, owner.company.id, {
+      ...dto(cat.id),
+      country,
+      companyType,
+      legalFormLocal: sent,
+      taxNumber,
+      taxOffice: undefined,
+      district: undefined,
+      neighborhood: undefined,
+      city: "City",
+      authorizedTckn: undefined,
+    } as never);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.companyType).toBe(companyType);
+    expect(c.legalFormLocal).toBe(stored);
+    // Firma Bilgileri ekranının okuduğu uç ikisini birlikte döner.
+    const profile = await new CompanyProfileService(prisma as never, {} as never, {} as never, {} as never).get(
+      owner.company.id,
+    );
+    expect(profile).toMatchObject({ country, companyType, legalFormLocal: stored });
+  });
+
+  // EŞLEMENİN SAHİBİ API (2026-10-08): yerel ad firmanın ülkesinin listesindeyse
+  // (`@rothern/shared` `resolveLegalForm`) saklanan tür LİSTEDEN gelir, istemci
+  // hangi türü gönderirse göndersin. Tek işlevsel tür SOLE_PROPRIETOR'dur
+  // (vergi numarasını başka firmalardan gizler): eşleme yalnız web formunda
+  // kalsaydı eski web paketi ("Diğer + ИП") ya da doğrudan çağrı kişisel
+  // numarayı açıkta bırakırdı. Listede olmayan ad istemcinin türünü korur.
+  it.each([
+    // Eski web paketi: her yabancı firma "Diğer + yerel ad" gönderir.
+    ["DE", "OTHER", "GmbH", "DE811234570", "LIMITED", "GmbH"],
+    ["RU", "OTHER", "ИП", "770708389313", "SOLE_PROPRIETOR", "ИП"],
+    ["RU", "OTHER", " Самозанятый ", "770708389314", "SOLE_PROPRIETOR", "Самозанятый"],
+    // Tür yanlış gelse de listedeki adın türü yazılır.
+    ["DE", "SOLE_PROPRIETOR", "AG", "DE811234571", "JOINT_STOCK", "AG"],
+    ["CA", "JOINT_STOCK", "Corporation", "123456789", "LIMITED", "Corporation"],
+    // Ayrık aksanla gelen ad listedeki (bileşik) yazımıyla saklanır.
+    ["CH", "OTHER", "Sa\u0300rl", "CHE123456789", "LIMITED", "Sàrl"],
+    // Listede olmayan ad, başka ülkenin yapısı ve listesiz ülke: istemcinin türü kalır.
+    ["DE", "LIMITED", "Stiftung", "DE811234572", "LIMITED", "Stiftung"],
+    ["FR", "OTHER", "GmbH", "FR12345678901", "OTHER", "GmbH"],
+    ["KE", "JOINT_STOCK", "GmbH", "P051234567Z", "JOINT_STOCK", "GmbH"],
+  ] as const)(
+    "tür yerel addan gelir (API eşler) — %s istemci %s + %j",
+    async (country, sentType, sentName, taxNumber, storedType, storedName) => {
+      const { service } = makeAuthService();
+      const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+      const cat = await makeCategory();
+      await service.completeOnboarding(owner.user.id, owner.company.id, {
+        ...dto(cat.id),
+        country,
+        companyType: sentType,
+        legalFormLocal: sentName,
+        taxNumber,
+        taxOffice: undefined,
+        district: undefined,
+        neighborhood: undefined,
+        city: "City",
+        authorizedTckn: undefined,
+      } as never);
+      const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+      expect([c.companyType, c.legalFormLocal]).toEqual([storedType, storedName]);
+    },
+  );
+
+  it("Türkiye listesizdir: eşleme yok, 'Diğer' + serbest metin istemcinin türüyle kaydolur (vergi no kuralı o türe göre)", async () => {
+    const { service } = makeAuthService();
+    const cat = await makeCategory();
+    // Tür "Diğer" (şahıs değil) → 10 haneli VKN beklenir.
+    const tr = await makeCompanyWithUser(prisma, { country: "TR" });
+    await service.completeOnboarding(tr.user.id, tr.company.id, {
+      ...dto(cat.id),
+      companyType: "OTHER",
+      legalFormLocal: "Kooperatif",
+      taxNumber: "1234567890",
+    } as never);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: tr.company.id } });
+    expect([c.companyType, c.legalFormLocal]).toEqual(["OTHER", "Kooperatif"]);
   });
 
   it("KKTC (XN) kabul edilir — ISO listesinde olmamasına rağmen", async () => {

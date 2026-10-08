@@ -1,5 +1,6 @@
 import { JwtService } from "@nestjs/jwt";
 import { CompanyAuthService } from "../../src/modules/company-auth/services/company-auth.service";
+import { UnverifiedSignupCleanupService } from "../../src/modules/company-auth/services/unverified-signup-cleanup.service";
 import { prisma } from "./test-db";
 
 let authSeq = 0;
@@ -17,6 +18,10 @@ export function makeAuthService(env: Record<string, string> = {}) {
       return { authId };
     }),
     deleteUser: jest.fn(async () => undefined),
+    // Reports its result (removal of an expired unverified sign-up).
+    deleteUserStrict: jest.fn(async (authId: string) => {
+      for (const [e, id] of byEmail) if (id === authId) byEmail.delete(e);
+    }),
     verifyPassword: jest.fn(async (email: string) => {
       const authId = byEmail.get(email.toLowerCase().trim());
       if (!authId) throw new Error("bad credentials");
@@ -46,6 +51,21 @@ export function makeAuthService(env: Record<string, string> = {}) {
     }),
   };
 
+  // Real service, like in the module (the parameter is @Optional only for
+  // older hand-built rigs): sign-up for an address held by an expired
+  // unverified sign-up removes that sign-up first. The removal is switched on
+  // here as it is on the deployed services (NODE_ENV=production); under jest
+  // (NODE_ENV=test) it would be off. A spec that needs it off passes
+  // `{ UNVERIFIED_SIGNUP_PURGE_ENABLED: "false" }`.
+  const unverifiedSignups = new UnverifiedSignupCleanupService(
+    prisma as never,
+    supabaseAuth as never,
+    audit as never,
+    {
+      get: (key: string) =>
+        key === "UNVERIFIED_SIGNUP_PURGE_ENABLED" ? (env[key] ?? "true") : lookup(key),
+    } as never,
+  );
   const service = new CompanyAuthService(
     prisma as never,
     jwt,
@@ -54,8 +74,9 @@ export function makeAuthService(env: Record<string, string> = {}) {
     email as never,
     config as never,
     prisma as never, // bypass client — testte owner test-db prisma (RLS yok)
+    unverifiedSignups,
   );
-  return { service, supabaseAuth, audit, email, jwt };
+  return { service, supabaseAuth, audit, email, jwt, unverifiedSignups };
 }
 
 /**

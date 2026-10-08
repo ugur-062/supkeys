@@ -54,6 +54,13 @@ type AuthErrorLike = {
 };
 
 /**
+ * The auth service's own "this user does not exist" error code (auth-js reads
+ * it from the reply body). The HTTP status alone does not say this: a 404 can
+ * also come from the gateway in front of the auth service.
+ */
+const AUTH_USER_NOT_FOUND_CODE = "user_not_found";
+
+/**
  * Supabase "zayıf parola" reddi mi? (Derin denetim X17.) Sızmış parola
  * koruması iki projede AÇIK: admin createUser / updateUserById HIBP'de geçen
  * parolayı 422 `weak_password` ile reddeder. Yalnız 422'ye bakılmaz —
@@ -348,6 +355,63 @@ export class SupabaseAuthService {
     if (error) {
       this.logger.error(`deleteUser failed for ${authId}: ${error.message}`);
       // throw etme — domain'den silindiyse auth'ta zaten olmayabilir
+    }
+  }
+
+  /**
+   * Deletes the auth user and REPORTS the result. `deleteUser` above only logs
+   * a failure, which is right for a clean-up after the fact; this one is for a
+   * caller that must not go on unless the sign-in identity is really gone
+   * (removal of an expired unverified sign-up - the address must become free).
+   *
+   * Resolves ONLY when the auth service itself has said that the user does not
+   * exist afterwards:
+   *  - the delete succeeded;
+   *  - the delete answered with the auth service's own `user_not_found` code
+   *    (already missing, e.g. the retry of a run whose database commit failed
+   *    after the provider had deleted the user). A bare HTTP 404 is NOT that
+   *    answer: a gateway that cannot route `/auth/v1` (wrong path in
+   *    `SUPABASE_URL`, provider incident) also answers 404, the user still
+   *    exists, and a caller that went on would delete the only row that knows
+   *    the auth id - the address would stay registered at the provider with
+   *    nothing left to release it;
+   *  - the delete failed on OUR side (client time-out after the server acted,
+   *    connection dropped, unreadable answer) and ONE look-up of the user then
+   *    answers `user_not_found`: the delete did happen. Without this look-up
+   *    the caller rolls back and keeps a row whose auth id is dead; if that
+   *    account is verified before the next run it can never sign in again.
+   * Everything else - outage, rejected key, rate limit, a user that is still
+   * there, a look-up that fails too - throws, also when the client itself
+   * throws.
+   */
+  async deleteUserStrict(authId: string): Promise<void> {
+    const { error } = await this.admin.auth.admin.deleteUser(authId);
+    if (!error) return;
+    const e = error as AuthErrorLike;
+    if (e.code === AUTH_USER_NOT_FOUND_CODE) return;
+    if (await this.isAuthUserGone(authId)) {
+      this.logger.warn(
+        `deleteUserStrict: the delete of ${authId} failed on our side (status=${e.status ?? 0}) but the provider no longer has the user; treated as deleted`,
+      );
+      return;
+    }
+    this.logger.error(
+      `deleteUserStrict failed for ${authId} (status=${e.status ?? 0}): ${error.message}`,
+    );
+    throw new Error(`auth user ${authId} could not be deleted (status=${e.status ?? 0})`);
+  }
+
+  /**
+   * Does the auth service say, in its own words, that this user does not
+   * exist? True only for its `user_not_found` answer. A user that is found, a
+   * gateway 404 and a look-up that fails are all "not known to be gone".
+   */
+  private async isAuthUserGone(authId: string): Promise<boolean> {
+    try {
+      const { error } = await this.admin.auth.admin.getUserById(authId);
+      return (error as AuthErrorLike | null)?.code === AUTH_USER_NOT_FOUND_CODE;
+    } catch {
+      return false;
     }
   }
 

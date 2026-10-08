@@ -7,7 +7,9 @@ import { PasswordResetModule } from "../password-reset/password-reset.module";
 import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
 import { CompanyAuthController } from "./controllers/company-auth.controller";
 import { MembershipScheduler } from "./schedulers/membership.scheduler";
+import { UnverifiedSignupScheduler } from "./schedulers/unverified-signup.scheduler";
 import { CompanyAuthService } from "./services/company-auth.service";
+import { UnverifiedSignupCleanupService } from "./services/unverified-signup-cleanup.service";
 import { CompanyJwtStrategy } from "./strategies/company-jwt.strategy";
 
 @Module({
@@ -28,7 +30,16 @@ import { CompanyJwtStrategy } from "./strategies/company-jwt.strategy";
     }),
   ],
   controllers: [CompanyAuthController],
-  providers: [CompanyAuthService, CompanyJwtStrategy, MembershipScheduler],
-  exports: [CompanyAuthService],
+  providers: [
+    CompanyAuthService,
+    CompanyJwtStrategy,
+    MembershipScheduler,
+    UnverifiedSignupCleanupService,
+    UnverifiedSignupScheduler,
+  ],
+  // The cleanup service is exported for the team invitation path
+  // (`CompanyUsersService`): an address held by an expired unverified sign-up
+  // is released there too.
+  exports: [CompanyAuthService, UnverifiedSignupCleanupService],
 })
 export class CompanyAuthModule {}

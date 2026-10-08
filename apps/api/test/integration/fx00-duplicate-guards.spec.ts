@@ -26,7 +26,7 @@ import { EmailSuppressionService } from "../../src/modules/email/email-suppressi
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { PublicInquiryService } from "../../src/modules/public-inquiry/public-inquiry.service";
 import { TEST_DB_URL } from "./env";
-import { connect, makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { connect, makeBid, makeCompanyWithUser, makeItem, makeListing, proveAccounts } from "./factories";
 import { extractCode, makeAuthService } from "./make-auth-service";
 import { makeService } from "./make-service";
 import { prisma, truncateAll } from "./test-db";
@@ -510,6 +510,8 @@ describe("FX-00 D-177 — davet bildirimi davet başına tek gönderim", () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const conn = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    // A real member: only a connection with a proven account is invited automatically.
+    await proveAccounts(prisma, conn.company.id);
     await prisma.company.update({ where: { id: conn.company.id }, data: { billingEmail: "bagli@fx00.test" } });
     await connect(prisma, owner.company.id, conn.company.id, owner.user.id);
     const listing = await makeListing(prisma, {

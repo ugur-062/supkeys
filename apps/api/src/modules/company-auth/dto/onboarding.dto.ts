@@ -26,7 +26,7 @@ export enum CompanyTypeDto {
   JOINT_STOCK = "JOINT_STOCK",
   LIMITED = "LIMITED",
   SOLE_PROPRIETOR = "SOLE_PROPRIETOR",
-  /** Diğer (GmbH, LLC, ООО, kooperatif…) — yerel adı `legalFormLocal`. */
+  /** Diğer (kooperatif, ortaklık, listede olmayan yapı…) — yerel adı `legalFormLocal`, ZORUNLU. */
   OTHER = "OTHER",
 }
 
@@ -43,7 +43,17 @@ export class CompleteOnboardingDto {
   @IsEnum(CompanyTypeDto)
   companyType!: CompanyTypeDto;
 
-  /** `companyType = OTHER` iken ZORUNLU (serviste): "GmbH", "LLC", "ООО"… */
+  /**
+   * Hukuki yapının YEREL adı ("GmbH", "ООО", "Sole trader"…). HER `companyType`
+   * ile kabul edilir ve saklanır (2026-10-08): web sihirbazı seçilen ülkenin
+   * yerel yapılarını listeler (`@rothern/shared` `localLegalForms`), seçilen
+   * ad buraya, eşlendiği tür `companyType`a yazılır. `companyType = OTHER`
+   * iken ZORUNLU (serviste, en az 2 karakter).
+   *
+   * EŞLEMENİN SAHİBİ API'DİR: ad firmanın ülkesinin listesindeyse saklanan tür
+   * LİSTEDEN gelir, gönderilen `companyType` ne olursa olsun (`resolveLegalForm`);
+   * listede olmayan ad gönderilen türü korur.
+   */
   @IsOptional()
   @IsString()
   @MaxLength(80)
