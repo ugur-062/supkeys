@@ -312,14 +312,16 @@ export function CompanyProfileSection() {
             </span>
           </DescriptionDetails>
           {/* "Firma Türü" faaliyet tipiyle (Üretici/Distribütör…) karışıyordu —
-              bu alan HUKUKİ yapı. */}
+              bu alan HUKUKİ yapı. Kayıtta seçilen YEREL ad (GmbH, ООО, Sole
+              trader…) varsa o basılır — her türde saklanır (2026-10-08);
+              yoksa türün arayüz dilindeki adı. */}
           <DescriptionTerm>{t("hukukiYapi")}</DescriptionTerm>
           <DescriptionDetails>
-            {profile.companyType
-              ? profile.companyType === "OTHER" && profile.legalFormLocal
-                ? profile.legalFormLocal
-                : t(`companyType.${profile.companyType as CompanyType}` as never)
-              : "—"}
+            {profile.legalFormLocal?.trim()
+              ? profile.legalFormLocal.trim()
+              : profile.companyType
+                ? t(`companyType.${profile.companyType as CompanyType}` as never)
+                : "—"}
           </DescriptionDetails>
           <DescriptionTerm>{taxLabel}</DescriptionTerm>
           <DescriptionDetails className="tabular-nums">{taxValue}</DescriptionDetails>

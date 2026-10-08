@@ -14,11 +14,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const h = vi.hoisted(() => ({
-  /** Modal "Onayla"ya basınca hangi yaprakların döneceği. */
-  altSecim: [] as string[],
-  segmentSecim: [] as string[],
+  /**
+   * Pencere "Onayla"ya basınca dönen seçim kümesinin TAMAMI: tamamı beyan
+   * edilen sektörlerin kodu (L1) + diğer dallardaki en derin kodlar.
+   */
+  secim: [] as string[],
   sonDeger: null as { mainIds: string[]; subIds: string[] } | null,
-  /** Sahte ürün/hizmet penceresine geçen son özellikler. */
+  /** Sahte pencereye geçen son özellikler. */
   modalProps: null as Record<string, unknown> | null,
   /** `by-ids` cevabı — null ise varsayılan ("Yaprak <kod>"). */
   byIds: null as null | ((ids: string[]) => unknown),
@@ -53,8 +55,9 @@ vi.mock("@/hooks/use-categories", () => ({
   },
 }));
 
-// İki modal da ağır (biri 1000+ satır, ikisi de katalog uçlarına gider).
-// Burada sınanan şey seçim ARAYÜZÜ değil, onaydan SONRAKİ türetme.
+// Pencere ağır (1000+ satır, katalog uçlarına gider) ve kendi sözleşmesi
+// `category-selector-modal.test.tsx` içinde. Burada sınanan şey seçim ARAYÜZÜ
+// değil: pencereye GİDEN küme (kayıtlı değerden) ve onaydan SONRAKİ türetme.
 // Sahte modal, gerçeğin onay sözleşmesini taklit eder: önce `validate`,
 // reddederse onaylamaz ve metni modal İÇİNDE gösterir (modal açık kalır).
 vi.mock("@/components/categories/category-selector-modal", async () => {
@@ -72,9 +75,9 @@ vi.mock("@/components/categories/category-selector-modal", async () => {
           <button
             type="button"
             onClick={() => {
-              const e = validate?.(h.altSecim) ?? null;
+              const e = validate?.(h.secim) ?? null;
               if (e) setHata(e);
-              else onConfirm(h.altSecim);
+              else onConfirm(h.secim);
             }}
           >
             alt-onayla
@@ -85,18 +88,6 @@ vi.mock("@/components/categories/category-selector-modal", async () => {
     },
   };
 });
-vi.mock("@/components/categories/segment-only-picker", () => ({
-  SegmentOnlyModal: ({
-    onConfirm,
-  }: {
-    onConfirm: (ids: string[]) => void;
-  }) => (
-    <button type="button" onClick={() => onConfirm(h.segmentSecim)}>
-      segment-onayla
-    </button>
-  ),
-}));
-
 import { CompanyCategoryPicker } from "../company-category-picker";
 
 function Harness({
@@ -123,8 +114,7 @@ function Harness({
 }
 
 beforeEach(() => {
-  h.altSecim = [];
-  h.segmentSecim = [];
+  h.secim = [];
   h.sonDeger = null;
   h.modalProps = null;
   h.byIds = null;
@@ -149,7 +139,7 @@ function Stateful({ mainIds, subIds }: { mainIds: string[]; subIds: string[] }) 
 describe("CompanyCategoryPicker — segment türetme", () => {
   it("alt kategori seçilince SEGMENT koddan türetilir", async () => {
     const user = userEvent.setup();
-    h.altSecim = ["39121600", "39131700"];
+    h.secim = ["39121600", "39131700"];
     render(<Harness />);
     await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ }));
     await user.click(screen.getByRole("button", { name: "alt-onayla" }));
@@ -167,7 +157,7 @@ describe("CompanyCategoryPicker — segment türetme", () => {
 
   it("iki ayrı segmentten seçim iki segment üretir", async () => {
     const user = userEvent.setup();
-    h.altSecim = ["39121600", "43211500"];
+    h.secim = ["39121600", "43211500"];
     render(<Harness />);
     await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ }));
     await user.click(screen.getByRole("button", { name: "alt-onayla" }));
@@ -178,7 +168,7 @@ describe("CompanyCategoryPicker — segment türetme", () => {
   it("tavan aşılırsa seçim UYGULANMAZ ve gerekçe yazılır", async () => {
     const user = userEvent.setup();
     // Altı ayrı segment — tavan 5.
-    h.altSecim = [
+    h.secim = [
       "39121600",
       "40121600",
       "41121600",
@@ -246,51 +236,266 @@ describe("CompanyCategoryPicker — segment türetme", () => {
     expect(h.sonDeger?.subIds.sort()).toEqual(["39130000", "39131700"]);
   });
 
-  it("sektör geneli modalından segment kaldırılırsa öksüz yaprak bırakılmaz", async () => {
+  it("pencerede bir sektörün seçimleri kaldırılırsa sektör de düşer; öksüz kayıt kalmaz", async () => {
     const user = userEvent.setup();
-    h.segmentSecim = ["43000000"]; // 39 çıkarıldı
+    h.secim = ["43211500"]; // 39'un altındaki seçim kaldırıldı
     render(
       <Harness
         mainIds={["39000000", "43000000"]}
         subIds={["39121600", "43211500"]}
       />,
     );
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("button", { name: "segment-onayla" }));
+    await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ }));
+    await user.click(await screen.findByRole("button", { name: "alt-onayla" }));
 
-    expect(h.sonDeger).toEqual({
-      mainIds: ["43000000"],
-      subIds: ["43211500"],
+    expect(h.sonDeger?.mainIds).toEqual(["43000000"]);
+    expect(h.sonDeger?.subIds.sort()).toEqual(["43210000", "43211500"]);
+  });
+});
+
+/**
+ * SEKTÖRÜN TAMAMI — TEK PENCERE (2026-10-08, kullanıcı: "üst başlıktan
+ * seçemiyorlar"). Sektör artık ürün/hizmetle AYNI pencerede işaretlenir; ayrı
+ * "Sektör geneli ekle" bağlantısı ve ikinci pencere yok.
+ *
+ * Değer sözleşmesi DEĞİŞMEDİ ve API'nin aldığı şekil budur: "sektörün tamamı"
+ * = sektör kodu `mainIds`te, o sektörden hiçbir kod `subIds`te yok. Bu blok
+ * iki yönü de kilitler: kayıtlı değer pencereye doğru kümeyle gider, pencereden
+ * dönen küme aynı şekle çevrilir.
+ */
+describe("CompanyCategoryPicker — sektörün tamamı aynı pencerede", () => {
+  async function ac(user: ReturnType<typeof userEvent.setup>, dolu = true) {
+    await user.click(
+      screen.getByRole("button", { name: dolu ? /Ürün \/ hizmet ekle/ : /Ürün \/ hizmet seçin/ }),
+    );
+    await screen.findByTestId("alt-modal");
+  }
+  const onayla = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getByRole("button", { name: "alt-onayla" }));
+
+  it("ayrı 'Sektör geneli ekle' bağlantısı yok: tek ekleme düğmesi + kısa ipucu", () => {
+    const IPUCU = "Sektörün tamamını da seçebilirsiniz.";
+    const { unmount } = render(<Harness />);
+    // Boş durum: tek düğme; ipucu düğmenin içinde.
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ })).toHaveTextContent(IPUCU);
+    expect(screen.queryByRole("button", { name: /Sektör geneli/ })).toBeNull();
+    unmount();
+
+    render(<Harness mainIds={["39000000"]} subIds={["39120000", "39121600"]} />);
+    // Dolu durum: iki kaldırma düğmesi + TEK ekleme düğmesi.
+    expect(
+      screen.getAllByRole("button").filter((b) => !/kaldır/.test(b.getAttribute("aria-label") ?? "")),
+    ).toEqual([screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ })]);
+    expect(screen.queryByRole("button", { name: /Sektör geneli/ })).toBeNull();
+    expect(screen.getByText(IPUCU)).toBeInTheDocument();
+  });
+
+  it("pencere her seviyeyi işaretletir: sektör dahil, iki tavanla (5 sektör + 50 ürün/hizmet)", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await ac(user, false);
+    expect(h.modalProps).toMatchObject({
+      catalog: "full",
+      mode: "multi",
+      // Sektör satırı da onay kutusu taşır (= sektörün tamamı).
+      minSelectableLevel: 1,
+      singlePickPerBranch: true,
+      // 50 = sektör ALTINDAKİ seçim; 5 = toplam sektör.
+      maxSelection: 50,
+      maxSectors: 5,
+      limitMessage: "En fazla 50 ürün/hizmet seçebilirsiniz.",
+      description: "Sektörün tamamını ya da altındaki ürün ve hizmetleri işaretleyin.",
     });
   });
 
-  it("yaprağı olmayan segment 'sektörün tamamı' olarak işaretlenir", () => {
-    render(<Harness mainIds={["39000000"]} />);
-    expect(screen.getByText(/Sektörün tamamı/)).toBeInTheDocument();
+  it("işaretlenen sektör ana eksene yazılır, alt eksen o sektörde BOŞ kalır (API'nin aldığı şekil)", async () => {
+    const user = userEvent.setup();
+    h.secim = ["39000000"];
+    render(<Harness />);
+    await ac(user, false);
+    await onayla(user);
+    expect(h.sonDeger).toEqual({ mainIds: ["39000000"], subIds: [] });
+  });
+
+  it("sektörün tamamı + başka sektörden ürün: ikisi de ana eksende, zincir yalnız ürünün", async () => {
+    const user = userEvent.setup();
+    h.secim = ["40000000", "39121600"];
+    render(<Harness />);
+    await ac(user, false);
+    await onayla(user);
+    expect(h.sonDeger).toEqual({
+      mainIds: ["40000000", "39000000"],
+      subIds: ["39120000", "39121600"],
+    });
+  });
+
+  it("kayıtlı değer pencereye doğru açılır: tamamı beyan edilen sektör KOD olarak, diğerleri en derin kodla", async () => {
+    const user = userEvent.setup();
+    // 39: türetilmiş (altında seçim var) · 40: tamamı · 43: türetilmiş, iki seçim.
+    render(
+      <Harness
+        mainIds={["39000000", "40000000", "43000000"]}
+        subIds={["39120000", "39121600", "39121614", "43210000", "43211500", "43220000"]}
+      />,
+    );
+    await ac(user);
+    // Kartlarla aynı sıra; ata zinciri (3912…, 391216…, 4321…) pencereye gitmez.
+    expect(h.modalProps?.value).toEqual(["39121614", "40000000", "43211500", "43220000"]);
+  });
+
+  it("eski kayıt biçimleri de doğru açılır: zinciri yazılmamış yaprak, sektörü eksik seçim, gizli sektör", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <Harness mainIds={["39000000", "43000000"]} subIds={["39121600", "43211500"]} />,
+    );
+    await ac(user);
+    expect(h.modalProps?.value).toEqual(["39121600", "43211500"]);
+    unmount();
+
+    // Sektörü ana eksende olmayan seçim: kartı çizilir, pencereye de gider.
+    const eksik = render(<Harness mainIds={[]} subIds={["39120000", "39121600"]} />);
+    await ac(user);
+    expect(h.modalProps?.value).toEqual(["39121600"]);
+    eksik.unmount();
+
+    // Gizlenmiş sektörün tamamı (sektör listesinde yok): pencerede çip olarak
+    // durur ve oradan kaldırılabilir.
+    render(<Harness mainIds={["56000000"]} />);
+    await ac(user);
+    expect(h.modalProps?.value).toEqual(["56000000"]);
+  });
+
+  it("sektörün tamamı, altından bir seçimle değiştirilince sektör türetilmiş olur (ana eksende kalır)", async () => {
+    const user = userEvent.setup();
+    h.secim = ["40101500"];
+    render(<Harness mainIds={["40000000"]} />);
+    await ac(user);
+    await onayla(user);
+    expect(h.sonDeger).toEqual({
+      mainIds: ["40000000"],
+      subIds: ["40100000", "40101500"],
+    });
+  });
+
+  it("alt seçimler sektörün tamamıyla değiştirilince alt eksen o sektörde boşalır", async () => {
+    const user = userEvent.setup();
+    h.secim = ["39000000", "43211500"];
+    render(
+      <Harness
+        mainIds={["39000000", "43000000"]}
+        subIds={["39120000", "39121600", "39130000", "39131700", "43210000", "43211500"]}
+      />,
+    );
+    await ac(user);
+    await onayla(user);
+    expect(h.sonDeger).toEqual({
+      mainIds: ["39000000", "43000000"],
+      subIds: ["43210000", "43211500"],
+    });
+  });
+
+  it("kartta sektörün tamamı adıyla söylenir; ürün çipi çizilmez", () => {
+    render(
+      <Harness mainIds={["39000000", "40000000"]} subIds={["39120000", "39121600"]} />,
+    );
+    const tamami = screen.getByText("Sektörün tamamı — bu sektördeki bütün ürün ve hizmetleri kapsar.");
+    // Yalnız tamamı beyan edilen sektörün (40) kartında.
+    expect(screen.getAllByText(/Sektörün tamamı —/)).toHaveLength(1);
+    const kart = tamami.closest("li") as HTMLElement;
+    expect(kart).toHaveTextContent("Dağıtım Sistemleri");
+    expect(kart.querySelectorAll('button[aria-label$="seçimini kaldır"]')).toHaveLength(0);
+    // Uzun cümle dar kartta sarılır, taşmaz.
+    expect(tamami.className).toContain("break-words");
+  });
+
+  it("çip kaldırılırken tamamı beyan edilmiş diğer sektör korunur", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness
+        mainIds={["40000000", "39000000"]}
+        subIds={["39120000", "39121600", "39130000", "39131700"]}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Yaprak 39131700 seçimini kaldır/ }));
+    expect(h.sonDeger).toEqual({
+      mainIds: ["40000000", "39000000"],
+      subIds: ["39120000", "39121600"],
+    });
+  });
+
+  // Tavanlar: sektör işareti ürün/hizmet DEĞİLDİR.
+  it("50'lik tavan sektör ALTINDAKİ seçimleri sayar: 50 seçim + 2 sektör işareti onaylanır, 51 seçim reddedilir", async () => {
+    const user = userEvent.setup();
+    // Tek sektörden (31) 50 ayrı sınıf.
+    const elli = Array.from({ length: 50 }, (_, i) => `3116${String(10 + i)}00`);
+    h.secim = ["39000000", "40000000", ...elli];
+    const { unmount } = render(<Harness />);
+    await ac(user, false);
+    await onayla(user);
+    expect(screen.queryByTestId("modal-hata")).toBeNull();
+    expect(h.sonDeger?.mainIds).toEqual(["39000000", "40000000", "31000000"]);
+    unmount();
+
+    h.sonDeger = null;
+    h.secim = ["39000000", ...elli, "31170000"];
+    render(<Harness />);
+    await ac(user, false);
+    await onayla(user);
+    expect(screen.getByTestId("modal-hata")).toHaveTextContent("En fazla 50 ürün/hizmet seçebilirsiniz.");
+    expect(h.sonDeger).toBeNull();
+  });
+
+  it("5'lik tavan işaretli sektörleri ve diğer seçimlerin sektörlerini BİRLİKTE sayar", async () => {
+    const user = userEvent.setup();
+    // Dört sektörün tamamı + beşinci sektörden bir ürün = 5 → geçer.
+    h.secim = ["39000000", "40000000", "41000000", "42000000", "43211500"];
+    const { unmount } = render(<Harness />);
+    await ac(user, false);
+    await onayla(user);
+    expect(h.sonDeger?.mainIds).toHaveLength(5);
+    unmount();
+
+    // Beş sektörün tamamı + altıncı sektörden bir ürün = 6 → reddedilir.
+    h.sonDeger = null;
+    h.secim = ["39000000", "40000000", "41000000", "42000000", "43000000", "44121600"];
+    render(<Harness />);
+    await ac(user, false);
+    await onayla(user);
+    expect(screen.getByTestId("modal-hata")).toHaveTextContent(
+      "Seçimleriniz 6 ayrı sektöre yayılıyor; en fazla 5 sektör beyan edilebilir.",
+    );
+    expect(h.sonDeger).toBeNull();
+  });
+
+  // Pencere `value` her değiştiğinde taslağını ona sıfırlar. Küme adlara bağlı
+  // kurulsaydı ad isteği yanıtlandığında (ya da her yeniden çizimde) yeni bir
+  // dizi doğar, kullanıcının penceredeki işaretleri silinirdi.
+  it("pencereye giden küme yeniden çizimde AYNI dizidir (açık pencerenin taslağı sıfırlanmaz)", async () => {
+    const user = userEvent.setup();
+    const mainIds = ["39000000", "40000000"];
+    const subIds = ["39120000", "39121600"];
+    h.byIds = () => ({ data: undefined });
+    const { rerender } = render(<Harness mainIds={mainIds} subIds={subIds} />);
+    await ac(user);
+    const ilk = h.modalProps?.value;
+    expect(ilk).toEqual(["39121600", "40000000"]);
+
+    // Adlar geldi → seçici yeniden çizilir.
+    h.byIds = (ids) => ({ data: ids.map((id) => ({ id, nameTr: `Ad ${id}` })) });
+    rerender(<Harness mainIds={mainIds} subIds={subIds} />);
+    expect(screen.getByText("Ad 39121600")).toBeInTheDocument();
+    expect(h.modalProps?.value).toBe(ilk);
   });
 });
 
 // Kayıt denetimi 2026-10 (category-6/-13/-14, code-category-3/-7): firma beyanı
-// aile (L2) seçebilir, dal başına tek seçim tutar ve tavanı kendi sözcüğüyle söyler.
-describe("CompanyCategoryPicker — ürün/hizmet penceresine geçenler", () => {
-  it("L2 seçimi, dal başına tek seçim ve 'ürün/hizmet' sözcüklü tavan uyarısı", async () => {
-    const user = userEvent.setup();
-    render(<Harness />);
-    await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ }));
-    await screen.findByTestId("alt-modal");
-    expect(h.modalProps).toMatchObject({
-      catalog: "full",
-      mode: "multi",
-      maxSelection: 50,
-      minSelectableLevel: 2,
-      singlePickPerBranch: true,
-      limitMessage: "En fazla 50 ürün/hizmet seçebilirsiniz.",
-    });
-  });
-
+// aile (L2) seçebilir. (Pencereye geçen özellikler — seviye, dal kuralı,
+// tavanlar — yukarıdaki "sektörün tamamı aynı pencerede" bloğunda kilitli.)
+describe("CompanyCategoryPicker — aile (L2) seçimi", () => {
   it("aile (L2) seçimi: segment ana eksene, aile alt eksene yazılır ve çip olarak görünür", async () => {
     const user = userEvent.setup();
-    h.altSecim = ["39120000"];
+    h.secim = ["39120000"];
     render(<Harness />);
     await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ }));
     await user.click(await screen.findByRole("button", { name: "alt-onayla" }));
@@ -328,9 +533,14 @@ describe("CompanyCategoryPicker — çipler ve dokunma hedefleri", () => {
       expect(b.className).toMatch(/\bsize-8\b/);
       expect(b.className).toContain("shrink-0");
     }
-    for (const name of [/Ürün \/ hizmet ekle/, /Sektör geneli ekle/]) {
-      expect(screen.getByRole("button", { name }).className).toMatch(/\bmin-h-8\b/);
-    }
+    const ekle = screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ });
+    expect(ekle.className).toMatch(/\bmin-h-8\b/);
+    // Düğme küçülmez; yanındaki ipucu dar ekranda sarılır ve taşmaz.
+    expect(ekle.className).toContain("shrink-0");
+    expect((ekle.parentElement as HTMLElement).className).toContain("flex-wrap");
+    const ipucu = ekle.nextElementSibling as HTMLElement;
+    expect(ipucu.className).toContain("min-w-0");
+    expect(ipucu.className).toContain("break-words");
     const ikon = screen.getByText("Elektrik Malzemeleri").parentElement!.querySelector("svg")!;
     expect(ikon.getAttribute("class")).toContain("shrink-0");
   });
@@ -393,12 +603,12 @@ describe("CompanyCategoryPicker — fare/dokunmayla kaldırma odağı (ve sayfay
   });
 });
 
-// webcat-7 (açık bulgu code-category-6): türetme "Sektör geneli" segmentlerini
+// webcat-7 (açık bulgu code-category-6): türetme tamamı beyan edilen sektörleri
 // başa alıyordu. Pencereyi hiçbir şeye dokunmadan onaylamak `mainIds`i yeni
 // sırayla döndürüyor; Ayarlar dizileri sıralı karşılaştırdığı için form
 // kirleniyor, "Kaydet" açılıyor ve sayfadan çıkış uyarısı çıkıyordu.
 describe("CompanyCategoryPicker — değişmeyen beyan onChange üretmez; kayıtlı sıra korunur", () => {
-  // 40 "Sektör geneli" ile eklenmiş (altında seçim yok); 39'un altında tek seçim.
+  // 40'ın tamamı beyan edilmiş (altında seçim yok); 39'un altında tek seçim.
   const KAYITLI = {
     mainIds: ["39000000", "40000000"],
     subIds: ["39120000", "39121000", "39121001"],
@@ -406,16 +616,19 @@ describe("CompanyCategoryPicker — değişmeyen beyan onChange üretmez; kayıt
 
   it("pencere hiçbir şeye dokunmadan onaylanırsa onChange çağrılmaz", async () => {
     const user = userEvent.setup();
-    h.altSecim = ["39121001"];
     render(<Harness {...KAYITLI} />);
     await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ }));
-    await user.click(await screen.findByRole("button", { name: "alt-onayla" }));
+    await screen.findByTestId("alt-modal");
+    // Pencere kendisine verilen kümeyi aynen geri verir.
+    h.secim = [...(h.modalProps?.value as string[])];
+    expect(h.secim).toEqual(["39121001", "40000000"]);
+    await user.click(screen.getByRole("button", { name: "alt-onayla" }));
     expect(h.sonDeger).toBeNull();
   });
 
   it("aynı seçimler farklı sırayla dönerse de onChange çağrılmaz (sıra farkı değişiklik değildir)", async () => {
     const user = userEvent.setup();
-    h.altSecim = ["39131700", "39121600"];
+    h.secim = ["40000000", "39131700", "39121600"];
     render(
       <Harness
         mainIds={["39000000", "40000000"]}
@@ -429,7 +642,7 @@ describe("CompanyCategoryPicker — değişmeyen beyan onChange üretmez; kayıt
 
   it("yeni seçim eklenince kayıtlı sıra korunur: sektör kartları yer değiştirmez, yeniler sona eklenir", async () => {
     const user = userEvent.setup();
-    h.altSecim = ["43211500", "39121001"];
+    h.secim = ["43211500", "39121001", "40000000"];
     render(<Harness {...KAYITLI} />);
     await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ }));
     await user.click(await screen.findByRole("button", { name: "alt-onayla" }));
@@ -439,7 +652,7 @@ describe("CompanyCategoryPicker — değişmeyen beyan onChange üretmez; kayıt
     });
   });
 
-  it("çip kaldırınca 'Sektör geneli' kartı başa geçmez", async () => {
+  it("çip kaldırınca tamamı beyan edilen sektörün kartı başa geçmez", async () => {
     const user = userEvent.setup();
     render(
       <Harness
@@ -454,21 +667,13 @@ describe("CompanyCategoryPicker — değişmeyen beyan onChange üretmez; kayıt
     });
   });
 
-  it("sektör geneli penceresi aynı kümeyi farklı sırayla döndürürse onChange çağrılmaz", async () => {
+  it("pencereden eklenen sektör (tamamı) sona gelir; kayıtlı sıra korunur", async () => {
     const user = userEvent.setup();
-    h.segmentSecim = ["43000000", "39000000"];
+    // 43'ün tamamı kayıtlı; 44'ün tamamı pencerede en başta işaretlendi.
+    h.secim = ["44000000", "43000000", "39121600"];
     render(<Harness mainIds={["39000000", "43000000"]} subIds={["39120000", "39121600"]} />);
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("button", { name: "segment-onayla" }));
-    expect(h.sonDeger).toBeNull();
-  });
-
-  it("sektör geneli penceresinden eklenen sektör sona gelir; kayıtlı sıra korunur", async () => {
-    const user = userEvent.setup();
-    h.segmentSecim = ["44000000", "43000000", "39000000"];
-    render(<Harness mainIds={["39000000", "43000000"]} subIds={["39120000", "39121600"]} />);
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("button", { name: "segment-onayla" }));
+    await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ }));
+    await user.click(await screen.findByRole("button", { name: "alt-onayla" }));
     expect(h.sonDeger).toEqual({
       mainIds: ["39000000", "43000000", "44000000"],
       subIds: ["39120000", "39121600"],

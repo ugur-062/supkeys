@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PASSWORD } from "./staging-helpers";
 import { cleanupSignup, closeDb, db } from "./db-helpers";
-import { dogrulamaKodu, kayitFormu, onboarding } from "./signup-flow";
+import { aktifAdim, dogrulamaKodu, kayitFormu, onboarding } from "./signup-flow";
 
 /**
  * KAYIT → DOĞRULAMA KODU → ONBOARDING (2026-09-12).
@@ -13,6 +13,11 @@ import { dogrulamaKodu, kayitFormu, onboarding } from "./signup-flow";
  *
  * Adımlar `signup-flow.ts`te ORTAK (2026-09-13): aynı yolu canlı yolculuk
  * testi de yürüyor, kopyalansaydı biri sessizce bayatlardı.
+ *
+ * Adım sırası 2026-10-08'de değişti: Şirket bilgileri (ülke en başta, hukuki
+ * yapı ülkeye göre) → Faaliyet alanı (kategori seçici) → Yetkili ve onay
+ * (kimlik no + özet + beyan). Bu test adımları o sırayla yürür ve her geçişte
+ * adım göstergesinin geçerli adımını doğrular.
  */
 const stamp = Date.now().toString(36).toUpperCase();
 const EMAIL = `uguray156+qa-kayit-${stamp.toLowerCase()}@gmail.com`;
@@ -27,6 +32,29 @@ test("yeni firma: kayıt formu → e-posta kodu → onboarding → panel", async
 
   await kayitFormu(page, { email: EMAIL, sifre: PASSWORD, ad: "QA", soyad: `Kayıt ${stamp}` });
   await dogrulamaKodu(page, EMAIL);
+
+  // ── 1. adım: ülke ilk alan, altındaki alanlar ona göre ───────────────
+  await expect(page.getByRole("heading", { name: "Şirket bilgileri" })).toBeVisible({ timeout: 60_000 });
+  await expect(aktifAdim(page)).toContainText("Şirket bilgileri");
+  const ulke = page.getByRole("combobox", { name: /^Ülke/ });
+  await expect(ulke, "kayıt telefonunun ülkesiyle açılır").toHaveValue("Türkiye");
+  await expect(page.getByText("Aşağıdaki alanlar seçtiğiniz ülkeye göre düzenlenir.")).toBeVisible();
+  // Ülke kutusu firma unvanından ÖNCE gelir.
+  const [ulkeY, unvanY] = await Promise.all([
+    ulke.boundingBox().then((b) => b?.y ?? 0),
+    page.getByLabel(/Firma Unvanı/).boundingBox().then((b) => b?.y ?? 0),
+  ]);
+  expect(ulkeY, "ülke ilk alandır").toBeLessThan(unvanY);
+  // Türkiye'de hukuki yapı bugünkü genel listedir; kişisel alan bu adımda yok.
+  await expect(page.getByLabel(/^Hukuki Yapı/).locator("option")).toHaveText([
+    "Limited Şirket",
+    "Anonim Şirket",
+    "Şahıs Firması",
+    "Diğer",
+  ]);
+  await expect(page.getByLabel(/T\.C\. Kimlik No/)).toHaveCount(0);
+
+  // ── 2. ve 3. adım: ortak yardımcı yeni sırayla yürür ─────────────────
   await onboarding(page, `QA Kayıt Firması ${stamp} Ltd. Şti.`);
 
   await expect(page.getByText(`QA Kayıt ${stamp}`).first()).toBeVisible({ timeout: 30_000 });
@@ -41,4 +69,8 @@ test("yeni firma: kayıt formu → e-posta kodu → onboarding → panel", async
   expect(company!.tier, "yeni firma ücretsiz pakette").toBe("STANDART");
   expect(company!.companyVerificationStatus, "yeni firma doğrulanmamış").toBe("UNVERIFIED");
   expect(company!.onboardingCompletedAt, "onboarding tamamlandı").toBeTruthy();
+  // Türkiye genel listeden seçer: tür yazılır, yerel yapı adı boş kalır.
+  expect(company!.country, "kayıt ülkesi").toBe("TR");
+  expect(company!.companyType, "hukuki yapı türü").toBe("LIMITED");
+  expect(company!.legalFormLocal, "Türkiye'de yerel yapı adı tutulmaz").toBeNull();
 });

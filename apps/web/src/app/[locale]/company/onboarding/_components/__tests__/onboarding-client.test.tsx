@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -25,12 +26,14 @@ const h = vi.hoisted(() => ({
   meRefetch: vi.fn(),
   meArgs: vi.fn(),
   updateMeAsync: vi.fn(),
-  // Seçilen ürün/hizmetlerin adları (seçici ve özet aynı sorguyu okur).
+  // Seçilen ürün/hizmetlerin adları (özet aynı sorguyu okur).
   cats: [] as Array<{ id: string; nameTr: string }>,
-  // `useCategoriesByIds` çağrıları (id listesi + seçenek) — sihirbaz ve seçici.
+  // Sihirbazın `useCategoriesByIds` çağrıları (id listesi + seçenek).
   byIds: vi.fn(),
-  // `useRoots` çağrıları (seçenek) — sihirbaz ve seçici.
+  // Sihirbazın `useRoots` çağrıları (seçenek).
   rootsArgs: vi.fn(),
+  // Sahte kategori seçicisine verilen prop'lar (her çizimde).
+  pickerProps: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -43,9 +46,6 @@ vi.mock("@/hooks/use-categories", () => ({
     h.rootsArgs(...args);
     return h.roots;
   },
-  // Alt kategori seçici (CategorySelectorButton) seçili kodların adını bu
-  // hook'tan çözer. Onboarding'e 2026-09-01'de eklendi; mock'a yazılmazsa
-  // vitest "No export is defined" ile patlar.
   useCategoriesByIds: (...args: unknown[]) => {
     h.byIds(...args);
     return { data: h.cats };
@@ -78,25 +78,95 @@ vi.mock("@/hooks/use-company-account", () => ({
 
 vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => []) }));
 
+/**
+ * SAHTE KATEGORİ SEÇİCİSİ. Sihirbaz seçiciyi yalnız SÖZLEŞMESİYLE kullanır
+ * (`value` / `onChange` / `label` / `hint` / `modalTitle` / `error`); penceresi
+ * ve katalog ağacı seçicinin kendi testlerinde (`components/categories/
+ * __tests__`) ve kayıt e2e'sinde sınanır. Bu dosya ADIM sözleşmesini sınıyor:
+ * seçici hangi adımda çizilir, değeri nereye yazılır, hata ona nasıl verilir,
+ * sihirbaz onu ne zaman söker. Firma Bilgileri testi de aynı yolu izler.
+ *
+ * Sahte seçici bir düğme ("Ürün / hizmet seçin") ve açılınca tek seçenekli bir
+ * pencere çizer; pencerenin açık olması YEREL durumdur — seçici sökülüp yeniden
+ * bağlanırsa kapanır (webcat-8 sözleşmesi bununla sınanır).
+ */
+vi.mock("@/components/categories/company-category-picker", () => ({
+  CompanyCategoryPicker: (props: {
+    value: { mainIds: string[]; subIds: string[] };
+    onChange: (next: { mainIds: string[]; subIds: string[] }) => void;
+    label: string;
+    hint: string;
+    modalTitle: string;
+    error?: string;
+  }) => {
+    h.pickerProps(props);
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- sahte bileşen, kendisi bir bileşendir
+    const [open, setOpen] = useState(false);
+    return (
+      <div data-testid="kategori-secici">
+        <p>{props.label}</p>
+        <p>{props.hint}</p>
+        {/* Gerçek seçici gibi: hata `role="alert"` ile duyurulur ve seçimi açan
+            düğmenin açıklamasıdır. */}
+        <button
+          type="button"
+          aria-describedby={props.error ? "kategori-hatasi" : undefined}
+          onClick={() => setOpen(true)}
+        >
+          Ürün / hizmet seçin
+        </button>
+        <output data-testid="kategori-degeri">{JSON.stringify(props.value)}</output>
+        {props.error ? (
+          <p id="kategori-hatasi" role="alert" data-testid="kategori-hatasi">
+            {props.error}
+          </p>
+        ) : null}
+        {open ? (
+          <div role="dialog" aria-label={props.modalTitle}>
+            <button
+              type="button"
+              onClick={() => {
+                props.onChange({ mainIds: ["cat1"], subIds: [] });
+                setOpen(false);
+              }}
+            >
+              Yazılım & IT seç
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+}));
+
 import {
   ONBOARDING_FORM_KEYS,
   OnboardingClient,
+  applyCountryChange,
+  defaultLegalForm,
   formatOnboardingAddress,
   initialOnboardingCountry,
   isAcceptableWebsite,
+  legalFormSelection,
   matchTurkeyProvince,
   mergeDraft,
+  pickLegalForm,
   provinceOptions,
+  sanitizeLegalForm,
   serverErrorField,
 } from "../onboarding-client";
 
 const DRAFT_KEY = "rothern:onboarding-draft:u1";
+/** Taslağın bugünkü sürümü (`onboarding-draft.ts` `ONBOARDING_DRAFT_VERSION`). */
+const DRAFT_VERSION = 2;
 /**
  * Çok adımlı akış testleri (üç adım + seçiciler) tam paket paralel koşarken
  * 15 sn varsayılanını aşabiliyor; bekleyen sorgular da 1 sn varsayılanını.
  */
 const LONG = 40_000;
 const SLOW = { timeout: 5_000 };
+
+type User = ReturnType<typeof userEvent.setup>;
 
 /** API hata gövdesi (axios biçiminde) — `extractErrorMessage` / `serverErrorField` bunu okur. */
 const apiError = (status: number, data: Record<string, unknown>) => ({
@@ -111,18 +181,25 @@ const apiError = (status: number, data: Record<string, unknown>) => ({
  * testleri 15 sn zaman aşımına itiyordu. Tuş-tuş davranışı sınanan alanlar
  * (telefon, IBAN, kod…) testin kendisinde `user.type` ile kalır.
  */
-async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
+async function fill(user: User, el: HTMLElement, text: string) {
   await user.click(el);
   await user.paste(text);
 }
 
-/** Özet adımındaki bir satırın değeri (`<dt>` etiketinin `<dd>`si). */
+/** Özet bölümündeki bir satırın değeri (`<dt>` etiketinin `<dd>`si). */
 function summaryValue(label: string): string | null {
   return screen.getByText(label, { selector: "dt" }).nextElementSibling?.textContent ?? null;
 }
 
-// LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
-async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
+/** Görünen adım: "Adım 2/3" başlığı (adı göstergedeki etiketten okunur). */
+const stepHeading = (n: 1 | 2 | 3) => screen.getByRole("heading", { name: `Adım ${n}/3` });
+const queryStepHeading = (n: 1 | 2 | 3) => screen.queryByRole("heading", { name: `Adım ${n}/3` });
+
+const legalFormSelect = () => screen.getByLabelText("Hukuki Yapı *") as HTMLSelectElement;
+const optionTexts = (select: HTMLElement) => within(select).getAllByRole("option").map((o) => o.textContent);
+
+// LIMITED (tüzel, Türkiye'de ön seçili) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
+async function fillStep1TR(user: User) {
   await fill(user, screen.getByLabelText("Firma Unvanı *"), "Örnek Ltd.");
   await fill(user, screen.getByLabelText("Vergi No / TCKN *"), "1234567890");
   await fill(user, screen.getByLabelText("Vergi Dairesi *"), "Kadıköy VD");
@@ -130,6 +207,65 @@ async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText("İlçe *"), "Kadıköy");
   await fill(user, screen.getByLabelText("Açık Adres *"), "Moda Cad. No:1");
 }
+
+/** 2. adımda (Faaliyet alanı) sahte seçiciden bir sektör seçer. */
+async function pickSector(user: User) {
+  await user.click(screen.getByRole("button", { name: "Ürün / hizmet seçin" }));
+  await user.click(screen.getByRole("button", { name: "Yazılım & IT seç" }));
+}
+
+/** Geçerli bir TR formuyla 2. adıma (Faaliyet alanı) gelir. */
+async function goStep2(user: User) {
+  render(<OnboardingClient />);
+  await fillStep1TR(user);
+  await user.click(screen.getByRole("button", { name: "Devam" }));
+}
+
+/** Geçerli bir TR formu + seçilmiş sektörle 3. adıma (Yetkili ve onay) gelir. */
+async function goStep3(user: User) {
+  await goStep2(user);
+  await pickSector(user);
+  await user.click(screen.getByRole("button", { name: "Devam" }));
+}
+
+/** Depoya bugünkü sürümde bir taslak yazar (yenileme sonrası durum). */
+function storeDraft(step: number, f: Record<string, unknown>, key = DRAFT_KEY) {
+  sessionStorage.setItem(key, JSON.stringify({ v: DRAFT_VERSION, step, f }));
+}
+const readDraft = () => JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? "null");
+
+/** Her adımı geçerli, TR'de kayıtlı bir firmanın alanları. */
+const VALID_TR = {
+  country: "TR",
+  legalName: "Örnek Ltd.",
+  companyType: "LIMITED",
+  taxNumber: "1234567890",
+  taxOffice: "Kadıköy VD",
+  city: "İstanbul",
+  district: "Kadıköy",
+  postalCode: "34710",
+  addressLine: "Moda Cad. No:1",
+  authorizedTckn: "10000000146",
+  mainCategoryIds: ["cat1"],
+  subCategoryIds: [],
+  declarationAccepted: false,
+};
+/** Almanya'da kayıtlı firma (yerel yapı listeden: GmbH → LIMITED). */
+const GERMANY = {
+  country: "DE",
+  companyType: "LIMITED",
+  legalFormLocal: "GmbH",
+  taxNumber: "DE123456789",
+  taxOffice: "",
+  city: "Berlin",
+  district: "",
+  authorizedTckn: "",
+};
+/** `step` adımında açılan geçerli taslak. */
+const open = (step: number, over: Record<string, unknown> = {}) => {
+  storeDraft(step, { ...VALID_TR, ...over });
+  return render(<OnboardingClient />);
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -148,7 +284,7 @@ beforeEach(() => {
 });
 
 /** Aranabilir ülke seçicide (Combobox) ülke seç — 245 ülkelik native liste yerine (2026-09-27). */
-async function pickCountry(user: ReturnType<typeof userEvent.setup>, query: string, name: string) {
+async function pickCountry(user: User, query: string, name: string) {
   const box = screen.getByRole("combobox", { name: /^Ülke/ });
   await user.clear(box);
   await user.type(box, query);
@@ -181,7 +317,102 @@ describe("OnboardingClient — Kurucu olmayan üye", () => {
   });
 });
 
-describe("OnboardingClient — adım 1 (şirket)", () => {
+/**
+ * ADIMLAR (2026-10-08): Şirket bilgileri (ülke başta) → Faaliyet alanı →
+ * Yetkili ve onay. Eskiden 2. adım kişisel bilgiyle kategori seçimini
+ * karıştırıyor, ülke unvanın altında duruyordu.
+ */
+describe("OnboardingClient — adımlar ve içerikleri", () => {
+  it("adım göstergesi üç adımı yeni adlarıyla, sırasıyla gösterir; ilk adım geçerli adımdır", () => {
+    render(<OnboardingClient />);
+    const steps = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(steps.map((li) => li.textContent)).toEqual(["1Şirket bilgileri", "2Faaliyet alanı", "3Yetkili ve onay"]);
+    expect(steps[0]).toHaveAttribute("aria-current", "step");
+    expect(steps[1]).not.toHaveAttribute("aria-current");
+    expect(stepHeading(1)).toHaveAccessibleDescription("Şirket bilgileri");
+    expect(screen.queryByText("Kişisel Bilgiler")).toBeNull();
+    expect(screen.queryByText("Özet & Beyan")).toBeNull();
+  });
+
+  it("1. adım: ÜLKE ilk alandır ve altındaki alanların ona göre düzenlendiğini söyler; sıra ülke → unvan → hukuki yapı → vergi no → vergi dairesi → web sitesi → adres", () => {
+    render(<OnboardingClient />);
+    const inOrder = [
+      screen.getByRole("combobox", { name: /^Ülke/ }),
+      screen.getByText("Aşağıdaki alanlar seçtiğiniz ülkeye göre düzenlenir."),
+      screen.getByLabelText("Firma Unvanı *"),
+      legalFormSelect(),
+      screen.getByLabelText("Vergi No / TCKN *"),
+      screen.getByLabelText("Vergi Dairesi *"),
+      screen.getByLabelText("Web siteniz"),
+      screen.getByLabelText("İl *"),
+      screen.getByLabelText("İlçe *"),
+      screen.getByLabelText("Mahalle"),
+      screen.getByLabelText("Posta Kodu"),
+      screen.getByLabelText("Açık Adres *"),
+    ];
+    for (let i = 1; i < inOrder.length; i++) {
+      expect(
+        inOrder[i - 1]!.compareDocumentPosition(inOrder[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+        `${i}. öğe bir öncekinden sonra gelmeli`,
+      ).toBeTruthy();
+    }
+    // Not ülke alanının içinde, kutunun altında.
+    expect(inOrder[0]!.closest("[data-field=country]")).toContainElement(inOrder[1]!);
+    // Kişisel alan ve kategori seçici bu adımda yok.
+    expect(screen.queryByLabelText("T.C. Kimlik No *")).toBeNull();
+    expect(screen.queryByTestId("kategori-secici")).toBeNull();
+  });
+
+  it("2. adım (Faaliyet alanı): ne alıp sattığı + faaliyet tipi; kişisel hiçbir alan yok", async () => {
+    const user = userEvent.setup();
+    await goStep2(user);
+    expect(stepHeading(2)).toHaveAccessibleDescription("Faaliyet alanı");
+    expect(screen.getByText("Ne alıp satıyorsunuz?")).toBeInTheDocument();
+    expect(screen.getByTestId("kategori-secici")).toBeInTheDocument();
+    expect(screen.getByText("Faaliyet tipiniz")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Üretici/ })).toBeInTheDocument();
+    for (const personal of ["Ad", "Soyad", "T.C. Kimlik No *", "Yetkili Kimlik No"]) {
+      expect(screen.queryByLabelText(personal)).toBeNull();
+    }
+    expect(screen.queryByText(/Kurucu/)).toBeNull();
+    expect(screen.queryByLabelText("Firma Unvanı *")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tamamla" })).toBeNull();
+  });
+
+  it("3. adım (Yetkili ve onay): ad (salt okunur) → kimlik no → kurucu notu → özet → beyan → Tamamla", async () => {
+    const user = userEvent.setup();
+    await goStep3(user);
+    expect(stepHeading(3)).toHaveAccessibleDescription("Yetkili ve onay");
+    const first = screen.getByLabelText("Ad");
+    const last = screen.getByLabelText("Soyad");
+    expect(first).toHaveValue("Ada");
+    expect(last).toHaveValue("Yılmaz");
+    expect(first).toBeDisabled();
+    expect(last).toBeDisabled();
+    const inOrder = [
+      screen.getByRole("heading", { name: "Yetkili kişi" }),
+      first,
+      screen.getByLabelText("T.C. Kimlik No *"),
+      screen.getByText(/tüm yönetim yetkisi sizde/),
+      screen.getByRole("heading", { name: "Özet" }),
+      screen.getByText("Firma Unvanı", { selector: "dt" }),
+      screen.getByText("Kayıttan sonra ne olacak?"),
+      screen.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/i }),
+      screen.getByRole("button", { name: "Tamamla" }),
+    ];
+    for (let i = 1; i < inOrder.length; i++) {
+      expect(
+        inOrder[i - 1]!.compareDocumentPosition(inOrder[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+        `${i}. öğe bir öncekinden sonra gelmeli`,
+      ).toBeTruthy();
+    }
+    // Kategori seçici ve şirket alanları bu adımda yok.
+    expect(screen.queryByTestId("kategori-secici")).toBeNull();
+    expect(screen.queryByLabelText("Firma Unvanı *")).toBeNull();
+  }, LONG);
+});
+
+describe("OnboardingClient — adım 1 (şirket bilgileri)", () => {
   it("DAVETLE GELEN FİRMA (Faz 3): AI keşfinin bulduğu ad, site ve ülke formu başlatır", async () => {
     sessionStorage.setItem(
       "rothern:invite-prefill",
@@ -190,8 +421,10 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     render(<OnboardingClient />);
     expect((await screen.findByLabelText("Firma Unvanı *")) as HTMLInputElement).toHaveValue("Viti Srl");
     expect(screen.getByLabelText(/Web siteniz/)).toHaveValue("viti.it");
-    // Ülke İtalya → Türkiye'ye özgü il seçici çizilmez.
+    // Ülke İtalya → Türkiye'ye özgü il seçici çizilmez; hukuki yapı İtalya'nın listesinden, seçimsiz.
     expect(screen.queryByLabelText("İl *")).toBeNull();
+    expect(legalFormSelect()).toHaveValue("");
+    expect(optionTexts(legalFormSelect())).toContain("S.r.l.");
   });
 
   // Kayıt denetimi 2026-10 (code-auth-9, signup-tr-9): "Devam" sessizce pasif
@@ -217,12 +450,14 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     ]) {
       expect(screen.getByText(msg)).toBeInTheDocument();
     }
+    // Türkiye'de hukuki yapı ön seçili gelir → o alanda hata yok.
+    expect(screen.queryByText("Hukuki yapınızı seçin")).toBeNull();
     expect(legal).toHaveFocus();
     expect(legal).toHaveAttribute("aria-invalid", "true");
     // Hata kutuya bağlı: odak alana gelince ekran okuyucu hatayı da okur.
     expect(legal).toHaveAccessibleDescription("Firma unvanını yazın (en az 2 karakter)");
     // Hâlâ 1. adım.
-    expect(screen.queryByLabelText("T.C. Kimlik No *")).toBeNull();
+    expect(stepHeading(1)).toBeInTheDocument();
     // Düzeltilen alanın hatası kaybolur.
     await fill(user, legal, "Örnek Ltd.");
     expect(screen.queryByText("Firma unvanını yazın (en az 2 karakter)")).toBeNull();
@@ -239,7 +474,7 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     await user.click(screen.getByRole("button", { name: "Devam" }));
     expect(screen.getByText("Açık adresi yazın (en az 5 karakter)")).toBeInTheDocument();
     expect(address).toHaveFocus();
-    expect(screen.queryByLabelText("T.C. Kimlik No *")).toBeNull();
+    expect(queryStepHeading(2)).toBeNull();
   });
 
   // code-auth-4 / signup-tr-6: TR posta kodu kendi adımında, ortak kuralla
@@ -257,7 +492,7 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     await user.click(screen.getByRole("button", { name: "Devam" }));
     expect(screen.getByText("Türkiye adresinde posta kodu 5 haneli olmalıdır")).toBeInTheDocument();
     expect(postal).toHaveFocus();
-    expect(screen.queryByLabelText("T.C. Kimlik No *")).toBeNull();
+    expect(queryStepHeading(2)).toBeNull();
     await user.type(postal, "0");
     expect(screen.queryByText("Türkiye adresinde posta kodu 5 haneli olmalıdır")).toBeNull();
 
@@ -272,7 +507,7 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     expect(deliveryPostal).toHaveFocus();
     await user.type(deliveryPostal, "100");
     await user.click(screen.getByRole("button", { name: "Devam" }));
-    expect(screen.getByLabelText("T.C. Kimlik No *")).toBeInTheDocument();
+    expect(stepHeading(2)).toBeInTheDocument();
   }, LONG);
 
   // signup-tr-5: serbest metin "web sitesi" olarak kaydedilip herkese açık
@@ -288,12 +523,12 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
       screen.getByText("Geçerli bir web sitesi adresi yazın (ör. ornekfirma.com) ya da alanı boş bırakın"),
     ).toBeInTheDocument();
     expect(site).toHaveFocus();
-    expect(screen.queryByLabelText("T.C. Kimlik No *")).toBeNull();
+    expect(queryStepHeading(2)).toBeNull();
     await user.clear(site);
     await fill(user, site, "www.ozturkcelik.com.tr");
     expect(screen.queryByText(/Geçerli bir web sitesi adresi yazın/)).toBeNull();
     await user.click(screen.getByRole("button", { name: "Devam" }));
-    expect(screen.getByLabelText("T.C. Kimlik No *")).toBeInTheDocument();
+    expect(stepHeading(2)).toBeInTheDocument();
   }, LONG);
 
   // API `website-address.spec.ts` ile aynı örnekler: birleşen işaretle yazan
@@ -307,7 +542,7 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
       "நிறுவனம்.com",
       "কোম্পানি.com",
       "کتاب‌خانه.com",
-      "şirket.com",
+      "şirket.com",
       "https://www.บริษัท.com/th?x=1",
     ]) {
       expect(isAcceptableWebsite(ok), ok).toBe(true);
@@ -379,16 +614,15 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
 
     await pickCountry(user, "Kazak", "Kazakistan");
     expect(screen.queryByLabelText("İl *")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Vergi Dairesi *")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Şehir *")).toBeInTheDocument();
     expect(screen.getByLabelText("Eyalet / Bölge")).toBeInTheDocument();
   });
 
   it("TR alanları dolunca 'Devam' 2. adıma geçer", async () => {
     const user = userEvent.setup();
-    render(<OnboardingClient />);
-    await fillStep1TR(user);
-    await user.click(screen.getByRole("button", { name: "Devam" }));
-    expect(screen.getByLabelText("T.C. Kimlik No *")).toBeInTheDocument();
+    await goStep2(user);
+    expect(stepHeading(2)).toBeInTheDocument();
     expect(screen.queryByLabelText("Firma Unvanı *")).toBeNull();
   });
 
@@ -408,23 +642,29 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Devam" }));
     expect(screen.getByLabelText("Vergi No / TCKN *")).toHaveFocus();
-    expect(screen.queryByLabelText("T.C. Kimlik No *")).toBeNull();
+    expect(queryStepHeading(2)).toBeNull();
+    // Şahıs firmasında aynı 11 hane geçerli bir TCKN'dir (kural türe bağlı).
+    await user.selectOptions(legalFormSelect(), "SOLE_PROPRIETOR");
+    expect(screen.queryByText(/10 haneli geçerli vergi numarası/i)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(stepHeading(2)).toBeInTheDocument();
   });
 
-  // signup-enru-4: Rusça vergi etiketi iki satıra sarınca vergi kutusu Firma
-  // Türü kutusunun 25 px altına düşüyordu. İki etiket aynı ızgara satırında,
+  // signup-enru-4: Rusça vergi etiketi iki satıra sarınca vergi kutusu hukuki
+  // yapı kutusunun 25 px altına düşüyordu. İki etiket aynı ızgara satırında,
   // iki kutu bir alt satırda başlar (yerleşim jsdom'da ölçülemez; sözleşme
   // ızgara yerleşimidir).
-  it("Firma Türü / vergi no satırı: etiketler ortak satırda, kutular altındaki satırda", () => {
+  it("Hukuki yapı / vergi no satırı: etiketler ortak satırda, kutular altındaki satırda", () => {
     render(<OnboardingClient />);
-    const typeSelect = screen.getByLabelText("Firma Türü *");
+    const typeSelect = legalFormSelect();
     const taxInput = screen.getByLabelText("Vergi No / TCKN *");
-    const typeLabel = screen.getByText("Firma Türü *");
+    const typeLabel = screen.getByText("Hukuki Yapı *");
     const taxLabel = screen.getByText("Vergi No / TCKN *");
     for (const label of [typeLabel, taxLabel]) expect(label).toHaveClass("sm:row-start-1", "sm:self-end");
     expect(typeLabel).toHaveClass("sm:col-start-1");
     expect(taxLabel).toHaveClass("sm:col-start-2");
-    const typeBox = typeSelect.closest('[data-slot="control"]')!;
+    // Kutu + alan altı hata aynı hücrede: hücre, alanın doğrudan çocuğu olan sarmalayıcıdır.
+    const typeBox = typeSelect.closest("div[data-slot='control']")!;
     const taxBox = taxInput.closest("div[data-slot='control']")!;
     expect(typeBox).toHaveClass("sm:col-start-1", "sm:row-start-2");
     expect(taxBox).toHaveClass("sm:col-start-2", "sm:row-start-2");
@@ -432,84 +672,445 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     const grid = typeLabel.parentElement!.parentElement!;
     expect(grid).toHaveClass("grid", "sm:grid-cols-2");
     expect(taxLabel.parentElement!.parentElement).toBe(grid);
+    expect(typeBox.parentElement).toBe(typeLabel.parentElement);
     expect(typeLabel.parentElement).toHaveClass("contents");
     expect(taxLabel.parentElement).toHaveClass("contents");
   });
 });
 
-describe("OnboardingClient — adım 2 (kişi + sektör)", () => {
-  async function goStep2(user: ReturnType<typeof userEvent.setup>) {
+/**
+ * HUKUKİ YAPI ÜLKEYE GÖRE (2026-10-08). Seçici seçilen ülkenin YEREL yapılarını
+ * listeler (tek kaynak `@rothern/shared` `localLegalForms`), her yapı mevcut
+ * türe eşlenir, seçilen yerel ad `legalFormLocal` olarak gider. Listesi olmayan
+ * ülke, Türkiye ve KKTC bugünkü genel dört seçeneği görür.
+ */
+describe("OnboardingClient — hukuki yapı ülkeye göre", () => {
+  const GENERIC = ["Limited Şirket", "Anonim Şirket", "Şahıs Firması", "Diğer"];
+
+  it("Türkiye: bugünkü dört seçenek, 'Limited Şirket' ön seçili", () => {
     render(<OnboardingClient />);
-    await fillStep1TR(user);
-    await user.click(screen.getByRole("button", { name: "Devam" }));
-  }
-
-  // 2026-09-14: ekran TEK soru soruyor — kullanıcı somut ürün/hizmeti seçer,
-  // segment koddan TÜRETİLİR. Bir segmentin tamamında çalışan firma için
-  // "Sektör geneli ekle" kaçış yolu duruyor ve bu testler onu kullanıyor
-  // (birim testte katalog ağacı mock'lu, yaprak seçimi yolu e2e'de).
-  async function pickSector(
-    user: ReturnType<typeof userEvent.setup>,
-    name: RegExp,
-  ) {
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
-  }
-
-  it("sektör modalı: aç → option aria-selected toggle → onayla, seçim yansır", async () => {
-    const user = userEvent.setup();
-    await goStep2(user);
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    const opt = screen.getByRole("option", { name: /Yazılım & IT/ });
-    expect(opt).toHaveAttribute("aria-selected", "false");
-    await user.click(opt);
-    expect(opt).toHaveAttribute("aria-selected", "true");
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
-    // Modal kapanır, seçili çip trigger'da görünür.
-    expect(screen.getByText("Yazılım & IT")).toBeInTheDocument();
+    expect(optionTexts(legalFormSelect())).toEqual(GENERIC);
+    expect(legalFormSelect()).toHaveValue("LIMITED");
   });
 
-  it("TCKN (11 hane) + en az 1 sektör → 'Devam' özet adımına geçer", async () => {
+  it.each([
+    ["kktc", "Kuzey Kıbrıs"],
+    // Listesi olmayan ülke.
+    ["Kenya", "Kenya"],
+  ])("%s: bugünkü genel dört seçenek, 'Limited Şirket' ön seçili", async (query, name) => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await pickCountry(user, query, name);
+    expect(optionTexts(legalFormSelect())).toEqual(GENERIC);
+    expect(legalFormSelect()).toHaveValue("LIMITED");
+  });
+
+  it.each([
+    ["Alman", "Almanya", ["GmbH", "UG (haftungsbeschränkt)", "AG", "KG", "OHG", "GbR", "e.K."]],
+    ["Rusya", "Rusya", ["ООО", "АО", "ПАО", "ИП", "Самозанятый"]],
+    ["Birleşik Kr", "Birleşik Krallık", ["Ltd", "PLC", "LLP", "Sole trader"]],
+  ])("%s: ülkenin yerel yapıları + 'Diğer'; ön seçim yok, genel adlar yok", async (query, name, forms) => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await pickCountry(user, query, name);
+    const options = optionTexts(legalFormSelect());
+    expect(options[0]).toBe("Seçin…");
+    expect(options.at(-1)).toBe("Diğer");
+    expect(options).toEqual(expect.arrayContaining(forms));
+    for (const generic of GENERIC.slice(0, 3)) expect(options).not.toContain(generic);
+    expect(legalFormSelect()).toHaveValue("");
+  });
+
+  it("yerel listede seçim yapılmadan 'Devam': seçicinin altında hata, odak seçicide; seçince kalkar", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await pickCountry(user, "Alman", "Almanya");
+    await fill(user, screen.getByLabelText("Firma Unvanı *"), "Müller Handel");
+    expect(screen.queryByText("Hukuki yapınızı seçin")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    const select = legalFormSelect();
+    expect(select).toHaveFocus();
+    expect(select).toHaveAttribute("aria-invalid", "true");
+    expect(select).toHaveAccessibleDescription("Hukuki yapınızı seçin");
+    expect(select.closest("[data-field=companyType]")).toContainElement(screen.getByText("Hukuki yapınızı seçin"));
+    await user.selectOptions(select, "GmbH");
+    expect(select).toHaveValue("GmbH");
+    expect(screen.queryByText("Hukuki yapınızı seçin")).toBeNull();
+    expect(select).not.toHaveAttribute("aria-invalid");
+  });
+
+  it.each([
+    ["GmbH", "LIMITED"],
+    ["AG", "JOINT_STOCK"],
+    ["KG", "OTHER"],
+    ["e.K.", "SOLE_PROPRIETOR"],
+    // Tek kişilik iş statüsü de listede (inceleme 2026-10-08): "Diğer"e yazılıp
+    // OTHER kaydolsaydı kişisel vergi numarası başka firmalara açık kalırdı.
+    ["Freiberufler", "SOLE_PROPRIETOR"],
+  ])("DE '%s' seçimi → companyType %s + legalFormLocal yerel ad olarak gönderilir; özet yerel adı yazar", async (name, type) => {
+    const user = userEvent.setup();
+    h.completeAsync.mockResolvedValue({ ok: true });
+    open(0, { ...GERMANY, companyType: "", legalFormLocal: "", declarationAccepted: true });
+    await user.selectOptions(legalFormSelect(), name);
+    expect(legalFormSelect()).toHaveValue(name);
+    // Listeden seçimde serbest metin kutusu açılmaz ("KG" türü "Diğer"le aynı olsa da).
+    expect(screen.queryByLabelText("Hukuki yapı (yerel adıyla)")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(summaryValue("Hukuki Yapı")).toBe(name);
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ country: "DE", companyType: type, legalFormLocal: name }),
+    );
+  }, LONG);
+
+  it("genel listede (TR) 'Diğer' dışındaki seçimde legalFormLocal gönderilmez; özet türün adını yazar", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockResolvedValue({ ok: true });
+    open(2, { companyType: "JOINT_STOCK", declarationAccepted: true });
+    expect(summaryValue("Hukuki Yapı")).toBe("Anonim Şirket");
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).toHaveBeenCalledTimes(1);
+    const body = h.completeAsync.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body.companyType).toBe("JOINT_STOCK");
+    expect(body).not.toHaveProperty("legalFormLocal");
+  });
+
+  it("'Diğer' her listede serbest metin ister; örnekler ülkeye göre (Türk firmasına 'GmbH, LLC' önerilmez)", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    // Türkiye: Türk hukukundaki öteki yapılar.
+    await user.selectOptions(legalFormSelect(), "OTHER");
+    const free = () => screen.getByLabelText("Hukuki yapı (yerel adıyla)");
+    expect(free()).toHaveAttribute("placeholder", "ör. kooperatif, kollektif şirket, adi ortaklık");
+    await fill(user, screen.getByLabelText("Firma Unvanı *"), "Örnek Koop.");
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(free()).toHaveFocus();
+    expect(free()).toHaveAccessibleDescription("Hukuki yapınızı yazın");
+    await fill(user, free(), "Kooperatif");
+    expect(screen.queryByText("Hukuki yapınızı yazın")).toBeNull();
+
+    // Yerel listesi olan ülke: listedeki yapılar örnek gösterilmez.
+    await pickCountry(user, "Alman", "Almanya");
+    expect(screen.queryByLabelText("Hukuki yapı (yerel adıyla)")).toBeNull();
+    await user.selectOptions(legalFormSelect(), "OTHER");
+    expect(free()).toHaveValue("");
+    // Örnekler listede OLMAYAN yapılardır (17 ülkenin listesinde kooperatif var:
+    // eskiden örnek "kooperatif"ti, İtalyan kooperatifi onu serbest metin yazıp
+    // listedeki "Società cooperativa" yerine "Diğer" olarak kaydoluyordu).
+    expect(free()).toHaveAttribute("placeholder", "Yerel adıyla yazın (ör. vakıf, dernek, şube)");
+
+    // Listesi olmayan ülke: genel örnekler.
+    await pickCountry(user, "Kenya", "Kenya");
+    await user.selectOptions(legalFormSelect(), "OTHER");
+    expect(free()).toHaveAttribute("placeholder", "ör. GmbH, LLC, S.A., kooperatif");
+  }, LONG);
+
+  it("'Diğer' + serbest metin: companyType OTHER ve yazılan ad gönderilir", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockResolvedValue({ ok: true });
+    open(2, { ...GERMANY, companyType: "OTHER", legalFormLocal: " Stiftung ", declarationAccepted: true });
+    expect(summaryValue("Hukuki Yapı")).toBe("Stiftung");
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ companyType: "OTHER", legalFormLocal: "Stiftung" }),
+    );
+  });
+
+  // Yerel yapıların bir kısmı da "Diğer" türüne eşlenir (KG, OHG…). Serbest
+  // metin kutusu, yazılan metin listedeki bir ada denk gelse de kapanmamalı.
+  it("'Diğer'de yazarken metin listedeki bir yapının adına denk gelse de kutu açık kalır ('KGaA' yazarken 'KG'de kapanmaz)", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockResolvedValue({ ok: true });
+    open(0, { ...GERMANY, companyType: "", legalFormLocal: "", declarationAccepted: true });
+    await user.selectOptions(legalFormSelect(), "OTHER");
+    const free = screen.getByLabelText("Hukuki yapı (yerel adıyla)");
+    await user.type(free, "KG");
+    expect(legalFormSelect()).toHaveValue("OTHER");
+    expect(free).toBeInTheDocument();
+    expect(free).toHaveFocus();
+    await user.type(free, "aA");
+    expect(free).toHaveValue("KGaA");
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ companyType: "OTHER", legalFormLocal: "KGaA" }),
+    );
+  }, LONG);
+
+  it("'Diğer'e elle listedeki bir yapı yazılırsa eşlendiği türle gönderilir (tek kaynak yerel yapı listesi)", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockResolvedValue({ ok: true });
+    open(0, { ...GERMANY, companyType: "", legalFormLocal: "", declarationAccepted: true });
+    await user.selectOptions(legalFormSelect(), "OTHER");
+    await fill(user, screen.getByLabelText("Hukuki yapı (yerel adıyla)"), " GmbH ");
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(summaryValue("Hukuki Yapı")).toBe("GmbH");
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ companyType: "LIMITED", legalFormLocal: "GmbH" }),
+    );
+  }, LONG);
+
+  it("yardımcılar: başlangıç seçimi, seçici değeri, seçimin form karşılığı", () => {
+    expect(defaultLegalForm("TR")).toEqual({ companyType: "LIMITED", legalFormLocal: "" });
+    expect(defaultLegalForm("XN")).toEqual({ companyType: "LIMITED", legalFormLocal: "" });
+    expect(defaultLegalForm("KE")).toEqual({ companyType: "LIMITED", legalFormLocal: "" });
+    expect(defaultLegalForm("")).toEqual({ companyType: "LIMITED", legalFormLocal: "" });
+    expect(defaultLegalForm("DE")).toEqual({ companyType: "", legalFormLocal: "" });
+
+    const value = (country: string, companyType: string, legalFormLocal = "") =>
+      legalFormSelection({ country, companyType, legalFormLocal });
+    expect(value("TR", "JOINT_STOCK")).toBe("JOINT_STOCK");
+    expect(value("TR", "")).toBe("");
+    expect(value("TR", "OTHER", "Kooperatif")).toBe("OTHER");
+    expect(value("DE", "LIMITED", "GmbH")).toBe("GmbH");
+    expect(value("DE", "OTHER", "Stiftung")).toBe("OTHER");
+    // "Diğer" türüne eşlenen yerel yapı listeden seçilmiştir, serbest metin değildir.
+    expect(value("DE", "OTHER", "KG")).toBe("KG");
+    // Yerel listesi olan ülkede yerel adı olmayan tür seçim sayılmaz.
+    expect(value("DE", "LIMITED")).toBe("");
+    // BAŞKA ÜLKENİN yapısı hiçbir zaman seçili görünmez.
+    expect(value("FR", "LIMITED", "GmbH")).toBe("");
+    expect(value("DE", "LIMITED", "ООО")).toBe("");
+
+    expect(pickLegalForm("TR", "SOLE_PROPRIETOR")).toEqual({ companyType: "SOLE_PROPRIETOR", legalFormLocal: "" });
+    expect(pickLegalForm("RU", "ИП")).toEqual({ companyType: "SOLE_PROPRIETOR", legalFormLocal: "ИП" });
+    expect(pickLegalForm("DE", "KG")).toEqual({ companyType: "OTHER", legalFormLocal: "KG" });
+    expect(pickLegalForm("DE", "OTHER")).toEqual({ companyType: "OTHER", legalFormLocal: "" });
+    expect(pickLegalForm("DE", "")).toEqual({ companyType: "", legalFormLocal: "" });
+    // Yerel listesi olan ülkede genel tür değeri ve başka ülkenin yapısı seçilemez.
+    expect(pickLegalForm("DE", "LIMITED")).toEqual({ companyType: "", legalFormLocal: "" });
+    expect(pickLegalForm("DE", "ООО")).toEqual({ companyType: "", legalFormLocal: "" });
+    expect(pickLegalForm("TR", "GmbH")).toEqual({ companyType: "LIMITED", legalFormLocal: "" });
+  });
+
+  it("sanitizeLegalForm: ülkeyle tutarsız seçim düşer; tür yerel adın eşlendiği türe çekilir; 'Diğer' metni kalır", () => {
+    const clean = (country: string, companyType: string, legalFormLocal = "") => {
+      const out = sanitizeLegalForm({ country, companyType, legalFormLocal, legalName: "X" });
+      expect(out.legalName).toBe("X");
+      return [out.companyType, out.legalFormLocal];
+    };
+    expect(clean("DE", "LIMITED", "GmbH")).toEqual(["LIMITED", "GmbH"]);
+    // Tür yanlış gelse de yerel adın eşlendiği tür yazılır (tek kaynak shared).
+    expect(clean("DE", "SOLE_PROPRIETOR", "AG")).toEqual(["JOINT_STOCK", "AG"]);
+    expect(clean("DE", "LIMITED")).toEqual(["", ""]);
+    expect(clean("FR", "LIMITED", "GmbH")).toEqual(["", ""]);
+    expect(clean("TR", "LIMITED", "GmbH")).toEqual(["LIMITED", ""]);
+    expect(clean("TR", "", "")).toEqual(["LIMITED", ""]);
+    expect(clean("TR", "BOZUK", "")).toEqual(["LIMITED", ""]);
+    expect(clean("TR", "OTHER", "Kooperatif")).toEqual(["OTHER", "Kooperatif"]);
+    expect(clean("DE", "OTHER", "Stiftung")).toEqual(["OTHER", "Stiftung"]);
+    expect(clean("DE", "OTHER", "KG")).toEqual(["OTHER", "KG"]);
+    // "Diğer"e elle yazılmış listedeki yapı eşlendiği türe çekilir.
+    expect(clean("DE", "OTHER", "GmbH")).toEqual(["LIMITED", "GmbH"]);
+  });
+});
+
+/**
+ * ÜLKE DEĞİŞİMİ (2026-10-08): hukuki yapı, vergi no ve adresin ülkeye bağlı
+ * parçaları sıfırlanır; gerisi kalır; başka ülkenin listesinden bir değer
+ * hiçbir zaman seçili kalmaz. Aynı ülkeyi yeniden seçmek hiçbir şeyi silmez.
+ */
+describe("OnboardingClient — ülke değişimi", () => {
+  const FULL = {
+    country: "TR",
+    legalName: "Örnek Ltd.",
+    companyType: "SOLE_PROPRIETOR",
+    legalFormLocal: "",
+    taxNumber: "10000000146",
+    taxOffice: "Kadıköy VD",
+    website: "ornek.com",
+    city: "İstanbul",
+    cityId: 745044 as number | null,
+    district: "Kadıköy",
+    stateRegion: "",
+    neighborhood: "Caferağa",
+    postalCode: "34710",
+    addressLine: "Moda Cad. No:1",
+    deliverySameAsBilling: false,
+    deliveryCity: "Ankara",
+    deliveryCityId: 323786 as number | null,
+    deliveryStateRegion: "",
+    deliveryDistrict: "Çankaya",
+    deliveryNeighborhood: "Kızılay",
+    deliveryPostalCode: "06100",
+    deliveryAddressLine: "Depo Sok. No:2",
+    authorizedTckn: "10000000146",
+    mainCategoryIds: ["cat1"],
+    subCategoryIds: ["39120000"],
+    activities: ["MANUFACTURER"],
+    declarationAccepted: true,
+  };
+
+  it("applyCountryChange: yalnız ülkeye bağlı alanlar sıfırlanır; hukuki yapı yeni ülkenin başlangıcına döner", () => {
+    expect([...ONBOARDING_FORM_KEYS].sort()).toEqual(Object.keys(FULL).sort());
+    const next = applyCountryChange(FULL, "DE");
+    const reset = {
+      country: "DE",
+      // Almanya'nın yerel listesi var → seçimsiz.
+      companyType: "",
+      legalFormLocal: "",
+      taxNumber: "",
+      taxOffice: "",
+      city: "",
+      cityId: null,
+      district: "",
+      stateRegion: "",
+      neighborhood: "",
+      postalCode: "",
+      deliveryCity: "",
+      deliveryCityId: null,
+      deliveryStateRegion: "",
+      deliveryDistrict: "",
+      deliveryNeighborhood: "",
+      deliveryPostalCode: "",
+    };
+    expect(next).toEqual({ ...FULL, ...reset });
+    // Kalanlar: unvan, web sitesi, açık adresler, teslimat tercihi, yetkili kimlik no, kategoriler, faaliyet, beyan.
+    const kept = Object.keys(FULL).filter((k) => !(k in reset));
+    expect(kept.sort()).toEqual(
+      [
+        "legalName", "website", "addressLine", "deliverySameAsBilling", "deliveryAddressLine",
+        "authorizedTckn", "mainCategoryIds", "subCategoryIds", "activities", "declarationAccepted",
+      ].sort(),
+    );
+    // Listesi olmayan ülkeye geçiş genel listenin başlangıcına döner (önceki "Şahıs Firması" taşınmaz).
+    expect(applyCountryChange(FULL, "KE")).toMatchObject({ country: "KE", companyType: "LIMITED", legalFormLocal: "" });
+  });
+
+  it("applyCountryChange: aynı ülke yeniden seçilirse form AYNI nesnedir; yerel seçim başka ülkeye taşınmaz", () => {
+    expect(applyCountryChange(FULL, "TR")).toBe(FULL);
+    const german = { ...FULL, country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" };
+    expect(applyCountryChange(german, "DE")).toBe(german);
+    for (const code of ["FR", "AT", "TR", "KE", "RU"]) {
+      const moved = applyCountryChange(german, code);
+      expect(moved.legalFormLocal).toBe("");
+      expect(legalFormSelection(moved)).toBe(code === "TR" || code === "KE" ? "LIMITED" : "");
+    }
+  });
+
+  it("D-065: aynı ülkeyi yeniden seçmek il/ilçe/vergi dairesini silmez; ülke değişince ülkeye bağlı alanlar sıfırlanır, gerisi kalır", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await fillStep1TR(user);
+    await user.selectOptions(legalFormSelect(), "JOINT_STOCK");
+    await fill(user, screen.getByLabelText("Web siteniz"), "ornek.com");
+    await fill(user, screen.getByLabelText("Mahalle"), "Caferağa");
+    await fill(user, screen.getByLabelText("Posta Kodu"), "34710");
+    await pickCountry(user, "Türk", "Türkiye");
+    expect(screen.getByLabelText("İl *")).toHaveValue("İstanbul");
+    expect(screen.getByLabelText("İlçe *")).toHaveValue("Kadıköy");
+    expect(screen.getByLabelText("Vergi Dairesi *")).toHaveValue("Kadıköy VD");
+    expect(screen.getByLabelText("Vergi No / TCKN *")).toHaveValue("1234567890");
+    expect(legalFormSelect()).toHaveValue("JOINT_STOCK");
+
+    await pickCountry(user, "Alman", "Almanya");
+    // Sıfırlananlar.
+    expect(legalFormSelect()).toHaveValue("");
+    expect(screen.getByLabelText("KDV no (VAT) ya da vergi no *")).toHaveValue("");
+    expect(screen.getByLabelText("Şehir *")).toHaveValue("");
+    expect(screen.getByLabelText("Eyalet / Bölge")).toHaveValue("");
+    expect(screen.getByLabelText("Posta Kodu")).toHaveValue("");
+    // Kalanlar.
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("Örnek Ltd.");
+    expect(screen.getByLabelText("Web siteniz")).toHaveValue("ornek.com");
+    expect(screen.getByLabelText("Açık Adres *")).toHaveValue("Moda Cad. No:1");
+
+    // Almanya'da seçilen yapı Fransa'ya taşınmaz; Türkiye'ye dönünce de genel liste başlangıcı gelir.
+    await user.selectOptions(legalFormSelect(), "GmbH");
+    await pickCountry(user, "Fransa", "Fransa");
+    expect(legalFormSelect()).toHaveValue("");
+    expect(optionTexts(legalFormSelect())).not.toContain("GmbH");
+    expect(optionTexts(legalFormSelect())).toContain("SARL");
+    await pickCountry(user, "Türk", "Türkiye");
+    expect(legalFormSelect()).toHaveValue("LIMITED");
+    // Türkiye'ye dönüşte eski il / ilçe / mahalle / vergi dairesi geri gelmez.
+    expect(screen.getByLabelText("İl *")).toHaveValue("");
+    expect(screen.getByLabelText("Mahalle")).toHaveValue("");
+    expect(screen.getByLabelText("Vergi Dairesi *")).toHaveValue("");
+  }, LONG);
+
+  it("ülke son adımdan dönülüp değiştirilince yetkili kimlik no, kategori ve beyan kalır", async () => {
+    const user = userEvent.setup();
+    open(2, { declarationAccepted: true });
+    await user.click(screen.getByRole("button", { name: "Geri" }));
+    await user.click(screen.getByRole("button", { name: "Geri" }));
+    await pickCountry(user, "Alman", "Almanya");
+    await waitFor(() => {
+      expect(readDraft()).toMatchObject({
+        step: 0,
+        f: {
+          country: "DE",
+          companyType: "",
+          taxNumber: "",
+          city: "",
+          legalName: "Örnek Ltd.",
+          addressLine: "Moda Cad. No:1",
+          authorizedTckn: "10000000146",
+          mainCategoryIds: ["cat1"],
+          declarationAccepted: true,
+        },
+      });
+    }, SLOW);
+  });
+});
+
+describe("OnboardingClient — adım 2 (faaliyet alanı)", () => {
+  it("seçici sözleşmesi: etiket / ipucu / pencere başlığı katalogdan; seçim ana ve alt kategoriyi TEK yazmada günceller", async () => {
     const user = userEvent.setup();
     await goStep2(user);
-    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await pickSector(user, /Yazılım & IT/);
+    const props = h.pickerProps.mock.calls.at(-1)![0];
+    expect(props).toMatchObject({
+      value: { mainIds: [], subIds: [] },
+      label: "Ürün ve hizmetleriniz",
+      modalTitle: "Ürün ve hizmetleriniz",
+      error: undefined,
+    });
+    expect(props.hint).toMatch(/^Alıp sattığınız her şeyi tek listede işaretleyin/);
+    await pickSector(user);
+    expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('{"mainIds":["cat1"],"subIds":[]}');
+    // Ara tur yok: seçiciye hiçbir çizimde tutarsız çift verilmez.
+    act(() => props.onChange({ mainIds: ["cat2"], subIds: ["39120000"] }));
+    await waitFor(() =>
+      expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('{"mainIds":["cat2"],"subIds":["39120000"]}'),
+    );
+    for (const [p] of h.pickerProps.mock.calls) {
+      expect([
+        '{"mainIds":[],"subIds":[]}',
+        '{"mainIds":["cat1"],"subIds":[]}',
+        '{"mainIds":["cat2"],"subIds":["39120000"]}',
+      ]).toContain(JSON.stringify(p.value));
+    }
+  });
+
+  it("en az 1 sektör → 'Devam' son adıma geçer", async () => {
+    const user = userEvent.setup();
+    await goStep2(user);
+    await pickSector(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(stepHeading(3)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tamamla" })).toBeInTheDocument();
   });
 
   // code-category-11 / category-11 / signup-tr-9: kategori zorunlu ama ipucu
   // "boş bırakırsanız…" diyor, "Devam" açıklamasız pasif kalıyordu.
-  it("kategori seçilmeden 'Devam': seçicide hata + odak seçicide; ipucu boş bırakmayı önermez", async () => {
+  it("kategori seçilmeden 'Devam': hata seçiciye verilir + odak seçicide; ipucu boş bırakmayı önermez", async () => {
     const user = userEvent.setup();
     await goStep2(user);
-    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
     expect(screen.queryByText(/boş bırakırsanız/)).toBeNull();
     expect(screen.getByText(/En az bir seçim zorunludur\./)).toBeInTheDocument();
-    expect(screen.queryByText("En az bir ürün ya da hizmet seçin")).toBeNull();
+    expect(screen.queryByTestId("kategori-hatasi")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Devam" }));
-    expect(screen.getByText("En az bir ürün ya da hizmet seçin")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ })).toHaveFocus();
-    expect(screen.queryByRole("button", { name: "Tamamla" })).toBeNull();
+    expect(screen.getByTestId("kategori-hatasi")).toHaveTextContent("En az bir ürün ya da hizmet seçin");
+    expect(screen.getByRole("button", { name: "Ürün / hizmet seçin" })).toHaveFocus();
+    expect(queryStepHeading(3)).toBeNull();
     // Seçim yapılınca hata kalkar.
-    await pickSector(user, /Yazılım & IT/);
-    expect(screen.queryByText("En az bir ürün ya da hizmet seçin")).toBeNull();
+    await pickSector(user);
+    expect(screen.queryByTestId("kategori-hatasi")).toBeNull();
   }, LONG);
-
-  // B: yetkili TCKN checksum'lı doğrulanır (backend isValidTckn birebir).
-  it("geçersiz TCKN (checksum hatalı) → hata + 'Devam' adımı geçirmez", async () => {
-    const user = userEvent.setup();
-    await goStep2(user);
-    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000140");
-    await pickSector(user, /Yazılım & IT/);
-    expect(
-      screen.getByText(/Geçerli bir T\.C\. Kimlik No/i),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Devam" }));
-    expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveFocus();
-    expect(screen.queryByRole("button", { name: "Tamamla" })).toBeNull();
-  });
 
   // recategory-new-6: satır kategori pencerelerindeki yükleme hatasıyla aynı
   // dili konuşur — "Yeniden dene" (eskiden "Tekrar dene") ve `role="alert"`
@@ -521,26 +1122,61 @@ describe("OnboardingClient — adım 2 (kişi + sektör)", () => {
     await goStep2(user);
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Sektörler yüklenemedi.");
+    expect(screen.queryByTestId("kategori-secici")).toBeNull();
     const retry = within(alert).getByRole("button", { name: "Yeniden dene" });
     expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
     await user.click(retry);
     expect(h.roots.refetch).toHaveBeenCalled();
   });
+
+  it("faaliyet tipi açıklaması katalogdan (arayüz dili); seçim özetde", async () => {
+    const user = userEvent.setup();
+    await goStep2(user);
+    expect(screen.getByText("Ürünü kendi tesisinde imal ediyor")).toBeInTheDocument();
+    await pickSector(user);
+    await user.click(screen.getByRole("button", { name: /^Üretici/ }));
+    await user.click(screen.getByRole("button", { name: /^Hizmet sağlayıcı/ }));
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(summaryValue("Faaliyet Tipi")).toBe("Üretici, Hizmet sağlayıcı");
+  }, LONG);
 });
 
-describe("OnboardingClient — adım 3 (özet + gönderim)", () => {
+describe("OnboardingClient — adım 3 (yetkili ve onay)", () => {
+  it("TCKN boşken 'Tamamla': hata kimlik alanının altında, odak orada (beyandan önce); gönderim yok", async () => {
+    const user = userEvent.setup();
+    await goStep3(user);
+    const tckn = screen.getByLabelText("T.C. Kimlik No *");
+    expect(screen.queryByText("Geçerli bir T.C. Kimlik No girin")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).not.toHaveBeenCalled();
+    expect(tckn).toHaveFocus();
+    expect(tckn).toHaveAttribute("aria-invalid", "true");
+    expect(tckn).toHaveAccessibleDescription("Geçerli bir T.C. Kimlik No girin");
+    // Aynı basışta beyan eksiği de gösterilir.
+    expect(screen.getByText("Tamamlamak için beyanı onaylayın")).toBeInTheDocument();
+    expect(stepHeading(3)).toBeInTheDocument();
+  }, LONG);
+
+  // B: yetkili TCKN checksum'lı doğrulanır (backend isValidTckn birebir).
+  it("geçersiz TCKN (checksum hatalı) → yazarken hata + 'Tamamla' göndermez", async () => {
+    const user = userEvent.setup();
+    await goStep3(user);
+    const tckn = screen.getByLabelText("T.C. Kimlik No *");
+    // Alan yalnız rakam alır, 11 hanede durur.
+    await user.type(tckn, "1000a0000140999");
+    expect(tckn).toHaveValue("10000000140");
+    expect(screen.getByText(/Geçerli bir T\.C\. Kimlik No/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/i }));
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(tckn).toHaveFocus();
+    expect(h.completeAsync).not.toHaveBeenCalled();
+  }, LONG);
+
   it("beyan onayı + Tamamla → completeOnboarding beklenen payload'la çağrılır", async () => {
     const user = userEvent.setup();
     h.completeAsync.mockResolvedValue({ ok: true });
-    render(<OnboardingClient />);
-    await fillStep1TR(user);
-    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await goStep3(user);
     await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    // Sektör: "Sektör geneli ekle" → seç → onayla.
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
-    await user.click(screen.getByRole("button", { name: "Devam" }));
 
     // Beyan onaylanmadan "Tamamla" pasif DEĞİL: basılınca neyin eksik olduğunu
     // söyler, gönderim yapılmaz, odak onay kutusuna gider.
@@ -560,13 +1196,36 @@ describe("OnboardingClient — adım 3 (özet + gönderim)", () => {
       expect.objectContaining({
         legalName: "Örnek Ltd.",
         country: "TR",
+        companyType: "LIMITED",
         taxNumber: "1234567890",
         authorizedTckn: "10000000146",
         mainCategoryIds: ["cat1"],
+        subCategoryIds: [],
         declarationAccepted: true,
       }),
     );
   }, LONG);
+
+  it("yurt dışı: kimlik no isteğe bağlıdır, etiketi ve ipucu hangi numaranın istendiğini söyler; boşken tamamlanır", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockResolvedValue({ ok: true });
+    open(2, { ...GERMANY, declarationAccepted: true });
+    expect(screen.queryByLabelText("T.C. Kimlik No *")).toBeNull();
+    const id = screen.getByLabelText("Yetkili Kimlik No");
+    expect(id).toHaveAttribute("maxLength", "30");
+    expect(id.closest("[data-field=authorizedTckn]")).toContainElement(
+      screen.getByText("İsteğe bağlı — pasaport ya da ulusal kimlik numaranız"),
+    );
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).toHaveBeenCalledTimes(1);
+    expect((h.completeAsync.mock.calls[0]![0] as Record<string, unknown>).authorizedTckn).toBeUndefined();
+  });
+
+  it("Türkiye: kimlik no ipucu çizilmez (etiket kendini açıklar)", () => {
+    open(2);
+    expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveAttribute("maxLength", "11");
+    expect(screen.queryByText(/pasaport ya da ulusal kimlik/)).toBeNull();
+  });
 });
 
 /**
@@ -579,6 +1238,7 @@ describe("OnboardingClient — VIES (AB ülkeleri)", () => {
     const user = userEvent.setup();
     h.viesAsync.mockResolvedValue({ valid: true, name: "ACME GmbH" });
     render(<OnboardingClient />);
+    expect(screen.queryByRole("button", { name: /VIES ile doğrula/i })).toBeNull();
     await pickCountry(user, "Alman", "Almanya");
     await user.type(screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
 
@@ -604,46 +1264,44 @@ describe("OnboardingClient — VIES (AB ülkeleri)", () => {
 
 /**
  * Yabancı firma (2026-09-27): ayrı teslimat adresinde dünya şehir seçici +
- * eyalet/bölge; özet ekranı "TCKN"/"Vergi dairesi" göstermez, "Diğer" hukuki
- * yapıda yerel adı basar.
+ * eyalet/bölge; özet "TCKN"/"Vergi dairesi" göstermez, hukuki yapıyı yerel
+ * adıyla basar (2026-10-08: yerel ad seçiciden gelir, "Diğer"e yazılmaz).
  */
 describe("OnboardingClient — yabancı firma", () => {
-  it("DE: ayrı teslimat eyaleti gönderilir; özet yerel hukuki yapı + yabancı vergi etiketi", async () => {
+  it("DE: yerel hukuki yapı listeden seçilir, ayrı teslimat eyaleti gönderilir; özet yerel yapı + yabancı vergi etiketi", async () => {
     const user = userEvent.setup();
     h.completeAsync.mockResolvedValue({ ok: true });
     render(<OnboardingClient />);
     await pickCountry(user, "Alman", "Almanya");
     await fill(user, screen.getByLabelText("Firma Unvanı *"), "Müller Handel");
-    await user.selectOptions(screen.getByLabelText("Firma Türü *"), "OTHER");
-    await fill(user, screen.getByLabelText(/Hukuki yapı \(yerel/i), "GmbH");
+    await user.selectOptions(legalFormSelect(), "GmbH");
+    // Listeden seçimde serbest metin kutusu açılmaz.
+    expect(screen.queryByLabelText(/Hukuki yapı \(yerel/i)).toBeNull();
     await fill(user, screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
     await user.type(screen.getByLabelText("Şehir *"), "München");
-    await user.type(screen.getAllByLabelText("Eyalet / Bölge")[0], "Bayern");
+    await user.type(screen.getAllByLabelText("Eyalet / Bölge")[0]!, "Bayern");
     await fill(user, screen.getByLabelText("Açık Adres *"), "Leopoldstr. 1");
     await user.click(screen.getByRole("checkbox", { name: /teslimat adresi olarak kullan/i }));
     const cities = screen.getAllByLabelText("Şehir *");
     expect(cities).toHaveLength(2);
-    await user.type(cities[1], "Hamburg");
+    await user.type(cities[1]!, "Hamburg");
     const states = screen.getAllByLabelText("Eyalet / Bölge");
     expect(states).toHaveLength(2);
-    await user.type(states[1], "Hamburg");
-    await fill(user, screen.getAllByLabelText("Açık Adres *")[1], "Hafenstr. 2");
+    await user.type(states[1]!, "Hamburg");
+    await fill(user, screen.getAllByLabelText("Açık Adres *")[1]!, "Hafenstr. 2");
     await user.click(screen.getByRole("button", { name: "Devam" }));
 
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
+    await pickSector(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
 
     // AB ülkesi: etiket katalogdan (web.domain.taxId.label.EU), değer normalize.
-    expect(screen.getByText("KDV no (VAT) ya da vergi no")).toBeInTheDocument();
-    expect(screen.getByText("811234567")).toBeInTheDocument();
+    expect(summaryValue("KDV no (VAT) ya da vergi no")).toBe("811234567");
     expect(screen.queryByText("Vergi No / TCKN")).not.toBeInTheDocument();
     expect(screen.queryByText("Vergi Dairesi")).not.toBeInTheDocument();
-    expect(screen.getByText("GmbH")).toBeInTheDocument();
-    // Ayrı teslimat adresi özetde (signup-tr-14); yurt dışında kimlik no boşsa satırı yok.
+    expect(summaryValue("Ülke")).toBe("Almanya");
+    expect(summaryValue("Hukuki Yapı")).toBe("GmbH");
+    // Ayrı teslimat adresi özetde (signup-tr-14).
     expect(summaryValue("Teslimat Adresi")).toBe("Hafenstr. 2, Hamburg, Hamburg");
-    expect(screen.queryByText("Yetkili Kimlik No")).toBeNull();
 
     await user.click(screen.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/i }));
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
@@ -652,6 +1310,7 @@ describe("OnboardingClient — yabancı firma", () => {
         country: "DE",
         // Ülke öneki atılır (tek kaynak shared normalizeTaxId; API aynı).
         taxNumber: "811234567",
+        companyType: "LIMITED",
         legalFormLocal: "GmbH",
         stateRegion: "Bayern",
         deliverySameAsBilling: false,
@@ -660,7 +1319,7 @@ describe("OnboardingClient — yabancı firma", () => {
         deliveryAddressLine: "Hafenstr. 2",
       }),
     );
-  }, 40_000); // Dört adımlı tam form + iki birleşik seçici: tam pakette yük altında 15 sn yetmiyor.
+  }, 40_000); // Üç adımlı tam form + iki birleşik seçici: tam pakette yük altında 15 sn yetmiyor.
 });
 
 /**
@@ -681,7 +1340,7 @@ describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", 
     expect(initialOnboardingCountry("", "en")).toBe("");
   });
 
-  it("+7 telefonlu kullanıcı: Rusya ile açılır, ИНН etiketi + ipucu, önekli numara kabul", async () => {
+  it("+7 telefonlu kullanıcı: Rusya ile açılır — Rus hukuki yapıları, ИНН etiketi + ipucu, önekli numara kabul", async () => {
     const user = userEvent.setup();
     h.meData = {
       user: { firstName: "Ivan", lastName: "Petrov", phone: "+7 9161234567" },
@@ -689,6 +1348,8 @@ describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", 
     };
     render(<OnboardingClient />);
     expect(screen.queryByLabelText("İl *")).not.toBeInTheDocument();
+    expect(optionTexts(legalFormSelect())).toEqual(expect.arrayContaining(["ООО", "АО", "ПАО", "ИП", "Diğer"]));
+    expect(legalFormSelect()).toHaveValue("");
     const tax = screen.getByLabelText("Vergi kimlik no (ИНН / ОГРН) *");
     expect(screen.getByText(/ИНН: şirkette 10/)).toBeInTheDocument();
     // 9 hane → geçersiz (INN 10/12 hane).
@@ -705,14 +1366,6 @@ describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", 
     expect(screen.getByLabelText("Mahalle")).toBeInTheDocument();
     await pickCountry(user, "Kazak", "Kazakistan");
     expect(screen.queryByLabelText("Mahalle")).not.toBeInTheDocument();
-  });
-
-  it("faaliyet tipi açıklaması katalogdan (arayüz dili)", async () => {
-    const user = userEvent.setup();
-    render(<OnboardingClient />);
-    await fillStep1TR(user);
-    await user.click(screen.getByRole("button", { name: "Devam" }));
-    expect(screen.getByText("Ürünü kendi tesisinde imal ediyor")).toBeInTheDocument();
   });
 });
 
@@ -771,19 +1424,6 @@ describe("OnboardingClient — arayüz testi webA-09", () => {
     expect(h.meArgs).toHaveBeenCalledWith(true, { skipErrorToast: true });
   });
 
-  it("D-065: aynı ülkeyi yeniden seçmek il/ilçe/vergi dairesini silmez; ülke değişince vergi no temizlenir", async () => {
-    const user = userEvent.setup();
-    render(<OnboardingClient />);
-    await fillStep1TR(user);
-    await pickCountry(user, "Türk", "Türkiye");
-    expect(screen.getByLabelText("İl *")).toHaveValue("İstanbul");
-    expect(screen.getByLabelText("İlçe *")).toHaveValue("Kadıköy");
-    expect(screen.getByLabelText("Vergi Dairesi *")).toHaveValue("Kadıköy VD");
-    expect(screen.getByLabelText("Vergi No / TCKN *")).toHaveValue("1234567890");
-    await pickCountry(user, "Alman", "Almanya");
-    expect(screen.getByLabelText("KDV no (VAT) ya da vergi no *")).toHaveValue("");
-  });
-
   it("D-344: ön doldurulan şehir Türkçe duyarsız eşlenir, eşleşmezse il boş ve ilçe kapalı", async () => {
     expect(matchTurkeyProvince("Istanbul")).toBe("İstanbul");
     expect(matchTurkeyProvince("IZMIR")).toBe("İzmir");
@@ -819,13 +1459,13 @@ describe("OnboardingClient — arayüz testi webA-09", () => {
     ).toBe("Caferağa, Moda Cad. No:1, 34710 Kadıköy / İstanbul");
   });
 
-  it("D-342 / D-353: alanlar DTO sınırlarını taşır; 'Hukuki yapı' kendi adıyla", async () => {
+  it("D-342 / D-353: alanlar DTO sınırlarını taşır; serbest hukuki yapı kutusu kendi adıyla", async () => {
     const user = userEvent.setup();
     render(<OnboardingClient />);
     expect(screen.getByLabelText("Firma Unvanı *")).toHaveAttribute("maxLength", "150");
     expect(screen.getByLabelText("Açık Adres *")).toHaveAttribute("maxLength", "500");
-    await user.selectOptions(screen.getByLabelText("Firma Türü *"), "OTHER");
-    expect(screen.getAllByLabelText("Firma Türü *")).toHaveLength(1);
+    await user.selectOptions(legalFormSelect(), "OTHER");
+    expect(screen.getAllByLabelText("Hukuki Yapı *")).toHaveLength(1);
     expect(screen.getByLabelText("Hukuki yapı (yerel adıyla)")).toHaveAttribute("maxLength", "80");
   });
 
@@ -853,29 +1493,38 @@ describe("OnboardingClient — taslak yenilemede ve dil değişiminde korunur", 
     expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull();
     await fillStep1TR(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
+    await pickSector(user);
+    await user.click(screen.getByRole("button", { name: "Devam" }));
     await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
     // Dil seçiciye dokunulmadı: taslağı yazan sürekli kayıt.
     await waitFor(() => {
-      const draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? "null");
-      expect(draft).toMatchObject({
-        step: 1,
-        f: { legalName: "Örnek Ltd.", district: "Kadıköy", authorizedTckn: "10000000146", mainCategoryIds: ["cat1"] },
+      expect(readDraft()).toMatchObject({
+        v: DRAFT_VERSION,
+        step: 2,
+        f: {
+          country: "TR",
+          legalName: "Örnek Ltd.",
+          companyType: "LIMITED",
+          district: "Kadıköy",
+          authorizedTckn: "10000000146",
+          mainCategoryIds: ["cat1"],
+        },
       });
     }, SLOW);
 
-    // F5 = yeniden bağlanma.
+    // F5 = yeniden bağlanma: son adım, aynı değerler.
     first.unmount();
     const second = render(<OnboardingClient />);
+    expect(stepHeading(3)).toBeInTheDocument();
     expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveValue("10000000146");
-    expect(screen.getByText("Yazılım & IT")).toBeInTheDocument();
+    expect(summaryValue("Sektörler")).toBe("Yazılım & IT");
     // Okumak silmez: hemen ardından gelen ikinci yenileme de aynı taslağı bulur.
     expect(sessionStorage.getItem(DRAFT_KEY)).not.toBeNull();
     second.unmount();
     render(<OnboardingClient />);
     expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveValue("10000000146");
+    await user.click(screen.getByRole("button", { name: "Geri" }));
+    expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('"mainIds":["cat1"]');
     await user.click(screen.getByRole("button", { name: "Geri" }));
     expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("Örnek Ltd.");
     expect(screen.getByLabelText("İlçe *")).toHaveValue("Kadıköy");
@@ -887,35 +1536,91 @@ describe("OnboardingClient — taslak yenilemede ve dil değişiminde korunur", 
     const first = render(<OnboardingClient />);
     await fillStep1TR(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
-    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
+    await pickSector(user);
     await user.selectOptions(screen.getByRole("combobox", { name: "Dil" }), "en");
     expect(h.updateMeAsync).toHaveBeenCalledWith({ locale: "en" });
     // Gecikme beklenmez: yönlendirme hemen gelir.
-    expect(JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? "null")).toMatchObject({
-      step: 1,
-      f: { authorizedTckn: "10000000146" },
-    });
+    expect(readDraft()).toMatchObject({ v: DRAFT_VERSION, step: 1, f: { mainCategoryIds: ["cat1"] } });
 
     // LocaleUrlSync yönlendirmesi = yeniden bağlanma.
     first.unmount();
     render(<OnboardingClient />);
-    expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveValue("10000000146");
+    expect(stepHeading(2)).toBeInTheDocument();
+    expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('"mainIds":["cat1"]');
     await user.click(screen.getByRole("button", { name: "Geri" }));
     expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("Örnek Ltd.");
     expect(screen.getByLabelText("İlçe *")).toHaveValue("Kadıköy");
   }, LONG);
 
+  // 2026-10-08: adım sırası ve hukuki yapı alanlarının anlamı değişti; eski
+  // biçimdeki taslağın `step: 1`i artık başka bir adımdır. Taslak ATILMAZ
+  // (inceleme 2026-10-08: dağıtım anında kaydın ortasındaki kurucu yazdığı her
+  // şeyi kaybediyordu): alan adları aynı kaldığından değerler korunur, sihirbaz
+  // yeni sıranın İLK adımından açılır.
+  it.each([
+    ["sürümsüz", { step: 1 }],
+    ["sürüm 1", { v: 1, step: 2 }],
+  ])("ESKİ BİÇİMDEKİ taslak (%s) atılmaz: 1. adımda açılır, yazılanlar yerinde", async (_label, head) => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ ...head, f: { ...VALID_TR, legalName: "Eski Taslak A.Ş." } }),
+    );
+    render(<OnboardingClient />);
+    expect(stepHeading(1)).toBeInTheDocument();
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("Eski Taslak A.Ş.");
+    expect(screen.getByLabelText("Vergi No / TCKN *")).toHaveValue("1234567890");
+    expect(screen.getByLabelText("İlçe *")).toHaveValue("Kadıköy");
+    // Türkiye'de genel liste: eski seçim (Limited Şirket) aynen geçerli.
+    expect(legalFormSelect()).toHaveValue("LIMITED");
+    // Sonraki adımların alanları da korunur: kategori (2.), kimlik no (3.).
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('"mainIds":["cat1"]');
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveValue("10000000146");
+  });
+
+  // Eski sihirbaz her ülkeye genel dört türü sunuyordu; yabancı firma "Diğer"e
+  // yerel adını yazıyordu. Yeni sihirbaz taslağı ülkenin listesiyle uzlaştırır.
+  it("ESKİ taslakta yabancı firma: 'Diğer'e yazılmış listedeki ad seçili gelir; genel tür seçimsiz açılır (yeniden seçilir)", () => {
+    const foreign = { ...VALID_TR, ...GERMANY, legalName: "Müller Handel" };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 2, f: { ...foreign, companyType: "OTHER", legalFormLocal: "GmbH" } }));
+    const first = render(<OnboardingClient />);
+    expect(stepHeading(1)).toBeInTheDocument();
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("Müller Handel");
+    expect(legalFormSelect()).toHaveValue("GmbH");
+    first.unmount();
+
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ step: 2, f: { ...foreign, companyType: "LIMITED", legalFormLocal: "" } }));
+    render(<OnboardingClient />);
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("Müller Handel");
+    expect(legalFormSelect()).toHaveValue("");
+  });
+
+  it("bu kodun bilmediği sürümün taslağı okunmaz ve silinir: sihirbaz boş 1. adımda açılır", () => {
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ v: DRAFT_VERSION + 1, step: 2, f: { ...VALID_TR, legalName: "Gelecek Taslak A.Ş." } }),
+    );
+    render(<OnboardingClient />);
+    expect(stepHeading(1)).toBeInTheDocument();
+    expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("");
+    expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+  });
+
+  it("taslaktaki hukuki yapı ülkenin listesinde yoksa seçimsiz açılır; listedeyse seçili gelir", () => {
+    const view = open(0, { country: "FR", companyType: "LIMITED", legalFormLocal: "GmbH", taxNumber: "FR12345678901" });
+    expect(legalFormSelect()).toHaveValue("");
+    view.unmount();
+    open(0, { country: "FR", companyType: "LIMITED", legalFormLocal: "SARL", taxNumber: "FR12345678901" });
+    expect(legalFormSelect()).toHaveValue("SARL");
+  });
+
   it("onboarding tamamlanınca taslak silinir ve geri yazılmaz", async () => {
     const user = userEvent.setup();
     h.completeAsync.mockResolvedValue({ ok: true });
-    render(<OnboardingClient />);
-    await fillStep1TR(user);
-    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await goStep3(user);
     await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
-    await user.click(screen.getByRole("button", { name: "Devam" }));
     await waitFor(() => expect(sessionStorage.getItem(DRAFT_KEY)).not.toBeNull(), SLOW);
     // Beyan işaretlenir işaretlenmez gönderilir: bekleyen taslak yazımı
     // tamamlanan onboarding'in taslağını geri getirmemeli.
@@ -940,10 +1645,7 @@ describe("OnboardingClient — taslak yenilemede ve dil değişiminde korunur", 
   it("başka kullanıcının taslağı okunmaz; hiçbir şey yazılmadıysa taslak oluşmaz", async () => {
     const user = userEvent.setup();
     h.updateMeAsync.mockRejectedValue(new Error("x"));
-    sessionStorage.setItem(
-      "rothern:onboarding-draft:u2",
-      JSON.stringify({ step: 1, f: { legalName: "Başkası A.Ş." } }),
-    );
+    storeDraft(1, { legalName: "Başkası A.Ş." }, "rothern:onboarding-draft:u2");
     render(<OnboardingClient />);
     expect(screen.getByLabelText("Firma Unvanı *")).toHaveValue("");
     await user.selectOptions(screen.getByRole("combobox", { name: "Dil" }), "en");
@@ -967,74 +1669,81 @@ describe("OnboardingClient — taslak yenilemede ve dil değişiminde korunur", 
 });
 
 /** Kayıt denetimi 2026-10 — özet, adım geçişi, sunucu hatası, il adları. */
-describe("OnboardingClient — özet adımı kaydedilecek her şeyi listeler (signup-tr-14)", () => {
-  it("web sitesi, kimlik no (maskeli), teslimat adresi, faaliyet tipleri ve seçilen ürün/hizmetler özetde", async () => {
+describe("OnboardingClient — özet kaydedilecek şirket ve faaliyet bilgilerini listeler (signup-tr-14)", () => {
+  it("ülke, web sitesi, adres, teslimat adresi, sektörler ve faaliyet tipleri özetde; yetkili adı ve kimlik no üstteki alanlarda — özette yinelenmez", async () => {
     const user = userEvent.setup();
     render(<OnboardingClient />);
     await fillStep1TR(user);
     await fill(user, screen.getByLabelText(/Web siteniz/), "www.ozturkcelik.com.tr");
     await fill(user, screen.getByLabelText("Posta Kodu"), "34710");
     await user.click(screen.getByRole("button", { name: "Devam" }));
-    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
+    await pickSector(user);
     await user.click(screen.getByRole("button", { name: /^Üretici/ }));
     await user.click(screen.getByRole("button", { name: /^Hizmet sağlayıcı/ }));
     await user.click(screen.getByRole("button", { name: "Devam" }));
+    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
 
+    expect(summaryValue("Ülke")).toBe("Türkiye");
+    expect(summaryValue("Firma Unvanı")).toBe("Örnek Ltd.");
+    expect(summaryValue("Hukuki Yapı")).toBe("Limited Şirket");
+    expect(summaryValue("Vergi No / TCKN")).toBe("1234567890");
+    expect(summaryValue("Vergi Dairesi")).toBe("Kadıköy VD");
     expect(summaryValue("Web Sitesi")).toBe("www.ozturkcelik.com.tr");
     expect(summaryValue("Adres")).toBe("Moda Cad. No:1, 34710 Kadıköy / İstanbul");
     expect(summaryValue("Teslimat Adresi")).toBe("Fatura adresiyle aynı");
-    // Kimlik no açık yazılmaz.
-    expect(summaryValue("T.C. Kimlik No")).toBe("100******46");
-    expect(screen.queryByText("10000000146")).toBeNull();
+    expect(summaryValue("Rol")).toBe("Kurucu · satış koltuğu");
     expect(summaryValue("Sektörler")).toBe("Yazılım & IT");
     expect(summaryValue("Faaliyet Tipi")).toBe("Üretici, Hizmet sağlayıcı");
-    // Bu testte yalnız "sektör geneli" seçildi → tek tek seçilen ürün/hizmet yok.
+    // Bu testte yalnız sektörün tamamı seçildi → tek tek seçilen ürün/hizmet yok.
     expect(summaryValue("Ürün ve Hizmetler")).toBe("—");
+    // Özetin ilk satırı ülke (alanların adımlardaki sırası).
+    const terms = Array.from(document.querySelectorAll("dl dt")).map((dt) => dt.textContent);
+    expect(terms.slice(0, 3)).toEqual(["Ülke", "Firma Unvanı", "Hukuki Yapı"]);
+    // Yetkilinin adı ve kimlik numarası aynı ekranda alan olarak duruyor.
+    expect(terms).not.toContain("Yetkili");
+    expect(terms).not.toContain("T.C. Kimlik No");
+    // Kimlik no ekrana düz metin olarak basılmaz (yalnız alanın değeri).
+    expect(screen.queryByText("10000000146")).toBeNull();
   }, LONG);
 
-  /** Geçerli, özet adımında duran bir TR taslağı (yenileme sonrası durum). */
-  const summaryDraft = (over: Record<string, unknown> = {}) => ({
-    step: 2,
-    f: {
-      country: "TR",
-      legalName: "Örnek Ltd.",
-      taxNumber: "1234567890",
-      taxOffice: "Kadıköy VD",
-      city: "İstanbul",
-      district: "Kadıköy",
-      postalCode: "34710",
-      addressLine: "Moda Cad. No:1",
-      authorizedTckn: "10000000146",
+  /** Geçerli, son adımda duran bir TR taslağı (yenileme sonrası durum). */
+  const openSummaryDraft = (over: Record<string, unknown> = {}) =>
+    open(2, {
       mainCategoryIds: ["39000000"],
       // Depoda ata zinciri de durur; özet yalnız kullanıcının seçtiğini yazar.
       subCategoryIds: ["39120000", "39121600", "39121614"],
       declarationAccepted: true,
       ...over,
-    },
-  });
+    });
 
   it("seçilen ürün/hizmetler adlarıyla listelenir (ata zinciri değil, kullanıcının seçtiği)", () => {
     h.cats = [{ id: "39121614", nameTr: "Kablo kanalları" }];
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(summaryDraft()));
-    render(<OnboardingClient />);
+    openSummaryDraft();
     expect(screen.getByRole("button", { name: "Tamamla" })).toBeInTheDocument();
     expect(summaryValue("Ürün ve Hizmetler")).toBe("Kablo kanalları");
   });
 
-  // Yenilemeyle geri gelen taslak sihirbazı doğrudan özet adımında açabilir:
+  // Yenilemeyle geri gelen taslak sihirbazı doğrudan son adımda açabilir:
   // "Tamamla" önceki adımları da denetler, eksik alanın adımına döner.
-  it("özet adımında açılan taslakta önceki adım geçersizse 'Tamamla' göndermez, o alanın adımına döner", async () => {
+  it("son adımda açılan taslakta önceki adım geçersizse 'Tamamla' göndermez, o alanın adımına döner", async () => {
     const user = userEvent.setup();
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(summaryDraft({ postalCode: "123" })));
-    render(<OnboardingClient />);
+    openSummaryDraft({ postalCode: "123" });
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
     expect(h.completeAsync).not.toHaveBeenCalled();
     const postal = await screen.findByLabelText("Posta Kodu", {}, SLOW);
     expect(postal).toHaveFocus();
     expect(screen.getByText("Türkiye adresinde posta kodu 5 haneli olmalıdır")).toBeInTheDocument();
+    expect(stepHeading(1)).toBeInTheDocument();
+  });
+
+  it("son adımda açılan taslakta kategori yoksa 'Tamamla' 2. adıma döner, hata seçicide", async () => {
+    const user = userEvent.setup();
+    openSummaryDraft({ mainCategoryIds: [], subCategoryIds: [] });
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("kategori-hatasi", {}, SLOW)).toHaveTextContent("En az bir ürün ya da hizmet seçin");
+    expect(stepHeading(2)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ürün / hizmet seçin" })).toHaveFocus();
   });
 
   it("ayrı teslimat adresi (TR) özetde kendi satırında", async () => {
@@ -1047,10 +1756,7 @@ describe("OnboardingClient — özet adımı kaydedilecek her şeyi listeler (si
     await fill(user, screen.getAllByLabelText("Posta Kodu")[1]!, "06100");
     await fill(user, screen.getAllByLabelText("Açık Adres *")[1]!, "Depo Sok. No:2");
     await user.click(screen.getByRole("button", { name: "Devam" }));
-    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
+    await pickSector(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
     expect(summaryValue("Teslimat Adresi")).toBe("Depo Sok. No:2, 06100 Çankaya / Ankara");
   }, LONG);
@@ -1070,31 +1776,46 @@ describe("OnboardingClient — adım geçişi başa kaydırır ve odağı adım 
       await user.click(screen.getByRole("button", { name: "Devam" }));
       // Başlık "Adım 2/3"; adımın adı göstergedeki etiketten açıklama olarak okunur
       // (ad sayfada ikinci bir başlık metni olarak çoğalmaz — e2e adımları
-      // "Kişisel Bilgiler" / "Özet & Beyan" metnini tek öğe olarak arar).
-      const second = screen.getByRole("heading", { name: "Adım 2/3" });
+      // geçerli adımı göstergedeki `aria-current` öğesinden okur).
+      const second = stepHeading(2);
       expect(second).toHaveFocus();
-      expect(second).toHaveAccessibleDescription("Kişisel Bilgiler");
-      expect(screen.getAllByText("Kişisel Bilgiler")).toHaveLength(1);
+      expect(second).toHaveAccessibleDescription("Faaliyet alanı");
+      expect(screen.getAllByText("Faaliyet alanı")).toHaveLength(1);
       expect(screen.getAllByRole("heading", { name: /Şirket bilgileri/i })).toHaveLength(1);
+      expect(screen.getAllByRole("listitem").find((li) => li.getAttribute("aria-current") === "step")).toHaveTextContent(
+        "Faaliyet alanı",
+      );
       expect(scrollIntoView).toHaveBeenCalledTimes(1);
       // Kaydırılan öğe sihirbazın başlığı (üstünde yalnız logo çubuğu var).
       expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByRole("heading", { level: 1, name: "Şirket bilgileri" }));
       expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "start" });
 
-      await user.click(screen.getByRole("button", { name: "Geri" }));
-      const first = screen.getByRole("heading", { name: "Adım 1/3" });
-      expect(first).toHaveFocus();
-      expect(first).toHaveAccessibleDescription("Şirket Bilgileri");
-      expect(screen.getAllByRole("heading", { name: /Şirket bilgileri/i })).toHaveLength(1);
+      // Son adıma geçiş de aynı: başa kaydırma + odak başlıkta.
+      await pickSector(user);
+      await user.click(screen.getByRole("button", { name: "Devam" }));
+      const third = stepHeading(3);
+      expect(third).toHaveFocus();
+      expect(third).toHaveAccessibleDescription("Yetkili ve onay");
+      expect(screen.getAllByText("Yetkili ve onay")).toHaveLength(1);
       expect(scrollIntoView).toHaveBeenCalledTimes(2);
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "start" });
+
+      await user.click(screen.getByRole("button", { name: "Geri" }));
+      expect(stepHeading(2)).toHaveFocus();
+      await user.click(screen.getByRole("button", { name: "Geri" }));
+      const first = stepHeading(1);
+      expect(first).toHaveFocus();
+      expect(first).toHaveAccessibleDescription("Şirket bilgileri");
+      expect(screen.getAllByRole("heading", { name: /Şirket bilgileri/i })).toHaveLength(1);
+      expect(scrollIntoView).toHaveBeenCalledTimes(4);
 
       // Eksik alanla basılan "Devam" adımı değiştirmez: BAŞA kaydırma yok, odak
       // alanda; alanın kendisi görünür kılınır (resignup-3, aşağıdaki describe).
       await user.clear(screen.getByLabelText("Vergi Dairesi *"));
       await user.click(screen.getByRole("button", { name: "Devam" }));
       expect(screen.getByLabelText("Vergi Dairesi *")).toHaveFocus();
-      expect(scrollIntoView).toHaveBeenCalledTimes(3);
-      expect(scrollIntoView.mock.contexts[2]).toBe(screen.getByLabelText("Vergi Dairesi *"));
+      expect(scrollIntoView).toHaveBeenCalledTimes(5);
+      expect(scrollIntoView.mock.contexts[4]).toBe(screen.getByLabelText("Vergi Dairesi *"));
       expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
     } finally {
       Element.prototype.scrollIntoView = original;
@@ -1103,29 +1824,19 @@ describe("OnboardingClient — adım geçişi başa kaydırır ve odağı adım 
 });
 
 describe("OnboardingClient — sunucu hatası alanın adımında gösterilir (signup-tr-6)", () => {
-  /** Adım 3'e kadar geçerli bir TR formu doldurur ve beyanı onaylar. */
-  async function fillToSummary(user: ReturnType<typeof userEvent.setup>) {
-    render(<OnboardingClient />);
-    await fillStep1TR(user);
-    await fill(user, screen.getByLabelText("Posta Kodu"), "34710");
-    await user.click(screen.getByRole("button", { name: "Devam" }));
-    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
-    await user.click(screen.getByRole("button", { name: "Devam" }));
-    await user.click(screen.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/i }));
-  }
+  /** Geçerli, beyanı onaylı TR formu son adımda (yenileme sonrası durum). */
+  const openReady = (over: Record<string, unknown> = {}) => open(2, { declarationAccepted: true, ...over });
 
-  it("alanı bilinen ret: sihirbaz o alanın adımına döner, hata alanın altında, değer düzeltilince kaybolur", async () => {
+  it("alanı bilinen ret (1. adım): sihirbaz o alanın adımına döner, hata alanın altında, değer düzeltilince kaybolur", async () => {
     const user = userEvent.setup();
     const message = "Türkiye adresinde posta kodu 5 haneli olmalıdır";
     h.completeAsync.mockRejectedValue(apiError(400, { message, i18nKey: "api.companyAddresses.trPostaKodu5Hane" }));
-    await fillToSummary(user);
+    openReady();
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
 
-    // 1. adım, hata Posta Kodu alanında — özet adımında kırmızı kutu değil.
+    // 1. adım, hata Posta Kodu alanında — son adımda kırmızı kutu değil.
     const postal = await screen.findByLabelText("Posta Kodu", {}, SLOW);
+    expect(stepHeading(1)).toBeInTheDocument();
     expect(postal).toHaveFocus();
     expect(postal).toHaveAttribute("aria-invalid", "true");
     expect(postal).toHaveAccessibleDescription(message);
@@ -1144,10 +1855,67 @@ describe("OnboardingClient — sunucu hatası alanın adımında gösterilir (si
     expect(screen.queryByRole("alert")).toBeNull();
   }, LONG);
 
-  it("alanı bilinmeyen ret: yalnız özet adımındaki kutuda; herhangi bir değer değişince kaybolur", async () => {
+  it("kategori reddi (2. adımın alanı): sihirbaz 'Faaliyet alanı'na döner, hata seçiciye verilir, odak seçicide", async () => {
+    const user = userEvent.setup();
+    const message = "Geçersiz alt kategori seçimi";
+    h.completeAsync.mockRejectedValue(apiError(400, { message, i18nKey: "api.helpers.gecersizAltKategoriSecimi" }));
+    openReady({ mainCategoryIds: ["cat2"] });
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(await screen.findByTestId("kategori-hatasi", {}, SLOW)).toHaveTextContent(message);
+    expect(stepHeading(2)).toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Ürün / hizmet seçin" });
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAccessibleDescription(message);
+    // Hata yalnız seçicide: adımın hata kutusu ayrıca çizilmez.
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    // Seçim değişince hata kalkar.
+    await pickSector(user);
+    await waitFor(() => expect(screen.queryByTestId("kategori-hatasi")).toBeNull());
+  });
+
+  it("yetkili kimlik no reddi (son adımın alanı): adım değişmez, hata kimlik alanının altında, odak orada", async () => {
+    const user = userEvent.setup();
+    const message = "Yetkili T.C. Kimlik No geçersiz";
+    h.completeAsync.mockRejectedValue(apiError(400, { message, i18nKey: "api.companyAuth.yetkiliTCKimlikNoGecersiz" }));
+    openReady();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const tckn = screen.getByLabelText("T.C. Kimlik No *");
+    await waitFor(() => expect(tckn).toHaveAccessibleDescription(message), SLOW);
+    expect(stepHeading(3)).toBeInTheDocument();
+    expect(tckn).toHaveFocus();
+    expect(tckn).toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("hukuki yapı reddi: 1. adıma döner, hata seçicinin altında; 'Diğer'in yerel adı reddedilirse serbest metin kutusunun altında", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockRejectedValue(apiError(400, { message: "Doğrulama hatası", errors: { companyType: "Geçersiz değer" } }));
+    const first = openReady({ ...GERMANY });
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    await waitFor(() => expect(legalFormSelect()).toHaveAccessibleDescription(/Geçersiz değer/), SLOW);
+    expect(legalFormSelect()).toHaveFocus();
+    expect(stepHeading(1)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    // Başka bir yapı seçilince hata kalkar.
+    await user.selectOptions(legalFormSelect(), "AG");
+    expect(screen.queryByText(/Geçersiz değer/)).toBeNull();
+    first.unmount();
+
+    sessionStorage.clear();
+    h.completeAsync.mockRejectedValue(
+      apiError(400, { message: "Hukuki yapınızı yazın", i18nKey: "api.companyAuth.yerelHukukiYapiZorunlu" }),
+    );
+    openReady({ companyType: "OTHER", legalFormLocal: "Xy" });
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const free = await screen.findByLabelText("Hukuki yapı (yerel adıyla)", {}, SLOW);
+    expect(free).toHaveFocus();
+    expect(free).toHaveAccessibleDescription("Hukuki yapınızı yazın");
+  });
+
+  it("alanı bilinmeyen ret: yalnız son adımdaki kutuda; herhangi bir değer değişince kaybolur", async () => {
     const user = userEvent.setup();
     h.completeAsync.mockRejectedValue(apiError(400, { message: "Firma doğrulaması zaten tamamlanmış" }));
-    await fillToSummary(user);
+    openReady();
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
     expect(await screen.findByRole("alert", {}, SLOW)).toHaveTextContent("Firma doğrulaması zaten tamamlanmış");
     // Geri gidince kutu peşinden gelmez.
@@ -1155,7 +1923,7 @@ describe("OnboardingClient — sunucu hatası alanın adımında gösterilir (si
     expect(screen.queryByRole("alert")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Geri" }));
     expect(screen.queryByRole("alert")).toBeNull();
-    // Bir değer düzeltilip özete dönülünce kutu yok ("Tamamla"ya basılmadan).
+    // Bir değer düzeltilip son adıma dönülünce kutu yok ("Tamamla"ya basılmadan).
     await fill(user, screen.getByLabelText("Mahalle"), "Caferağa");
     await user.click(screen.getByRole("button", { name: "Devam" }));
     await user.click(screen.getByRole("button", { name: "Devam" }));
@@ -1164,9 +1932,10 @@ describe("OnboardingClient — sunucu hatası alanın adımında gösterilir (si
   }, LONG);
 
   it("serverErrorField: DTO alanı, katalog anahtarı ve kodla sahibi alanı bulur", () => {
-    const f = { postalCode: "34710", deliveryPostalCode: "", deliverySameAsBilling: true, website: "", taxNumber: "" };
+    const f = { postalCode: "34710", deliveryPostalCode: "", deliverySameAsBilling: true, website: "", taxNumber: "", companyType: "LIMITED" };
     const of = (data: Record<string, unknown>, form = f) => serverErrorField(apiError(400, data), form as never);
     expect(of({ message: "Doğrulama hatası", errors: { website: "…" } })).toBe("website");
+    expect(of({ message: "Doğrulama hatası", errors: { companyType: "…" } })).toBe("companyType");
     expect(of({ message: "x", i18nKey: "api.companyAddresses.trPostaKodu5Hane" })).toBe("postalCode");
     // Fatura kodu kurala uyuyorsa reddedilen ayrı teslimat adresininkidir.
     expect(
@@ -1177,6 +1946,7 @@ describe("OnboardingClient — sunucu hatası alanın adımında gösterilir (si
     ).toBe("deliveryPostalCode");
     expect(of({ message: "x", code: "WEBSITE_INVALID" })).toBe("website");
     expect(of({ message: "x", code: "TAX_NUMBER_TAKEN" })).toBe("taxNumber");
+    expect(of({ message: "x", i18nKey: "api.companyAuth.yerelHukukiYapiZorunlu" })).toBe("legalFormLocal");
     expect(of({ message: "x", i18nKey: "api.companyAuth.yetkiliTCKimlikNoGecersiz" })).toBe("authorizedTckn");
     expect(of({ message: "x", i18nKey: "api.helpers.gecersizAltKategoriSecimi" })).toBe("mainCategoryIds");
     expect(of({ message: "bilinmeyen" })).toBeNull();
@@ -1199,7 +1969,7 @@ describe("OnboardingClient — il adları arayüz dilinde (login-17)", () => {
     expect(ru).toHaveLength(81);
     expect(ru.find((p) => p.value === "İstanbul")!.label).toBe("Стамбул");
     // Kiril etiketler, Kiril sırasında — hiçbir etiket Latin harfle kalmaz.
-    for (const p of ru) expect(p.label).toMatch(/^[\u0400-\u04FF]/);
+    for (const p of ru) expect(p.label).toMatch(/^[Ѐ-ӿ]/);
     const labels = ru.map((p) => p.label);
     expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b, "ru")));
     // Değerler her dilde aynı Türkçe il adları (saklanan metin + ilçe listesi).
@@ -1222,30 +1992,6 @@ describe("OnboardingClient — il adları arayüz dilinde (login-17)", () => {
  * sökülmez (webcat-8), ad isteği seçiciyle ortak (webcat-5).
  */
 describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
-  /** Geçerli bir TR taslağı; `step` adımında açılır (yenileme sonrası durum). */
-  const draft = (step: number, over: Record<string, unknown> = {}) => ({
-    step,
-    f: {
-      country: "TR",
-      legalName: "Örnek Ltd.",
-      taxNumber: "1234567890",
-      taxOffice: "Kadıköy VD",
-      city: "İstanbul",
-      district: "Kadıköy",
-      postalCode: "34710",
-      addressLine: "Moda Cad. No:1",
-      authorizedTckn: "10000000146",
-      mainCategoryIds: ["cat1"],
-      subCategoryIds: [],
-      declarationAccepted: false,
-      ...over,
-    },
-  });
-  const open = (step: number, over: Record<string, unknown> = {}) => {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft(step, over)));
-    return render(<OnboardingClient />);
-  };
-
   // web-auth-1: hata CheckboxField'in dışında düz paragraftı — odak kutuya
   // gidiyor, ekran okuyucu yalnız etiketi ve "işaretli değil"i okuyordu.
   it("beyan kutusu: 'Tamamla'da kutu aria-invalid olur ve hata kutunun açıklamasıdır; işaretlenince ikisi de kalkar", async () => {
@@ -1272,11 +2018,9 @@ describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
   it("yabancı şehir ve teslimat şehri: 'Devam'da kırmızı çerçeveyle birlikte aria-invalid", async () => {
     const user = userEvent.setup();
     open(0, {
-      country: "DE",
+      ...GERMANY,
       taxNumber: "DE811234567",
-      taxOffice: "",
       city: "",
-      district: "",
       postalCode: "80331",
       addressLine: "Leopoldstr. 1",
       deliverySameAsBilling: false,
@@ -1325,33 +2069,32 @@ describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
   it("sektör listesi eldeyken tazeleme düşerse seçici ve açık penceresi yerinde kalır", async () => {
     const user = userEvent.setup();
     const view = open(1, { mainCategoryIds: [] });
-    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
-    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
-    expect(screen.getByRole("option", { name: /Yazılım & IT/ })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: "Ürün / hizmet seçin" }));
+    expect(screen.getByRole("dialog", { name: "Ürün ve hizmetleriniz" })).toBeInTheDocument();
     // Arka plan tazelemesi düştü: hata + eldeki liste.
     h.roots.isError = true;
     view.rerender(<OnboardingClient />);
     expect(screen.queryByText(/Sektörler yüklenemedi/)).toBeNull();
-    // Onaylanmamış seçim duruyor, onaylanabiliyor.
-    expect(screen.getByRole("option", { name: /Yazılım & IT/ })).toHaveAttribute("aria-selected", "true");
-    await user.click(screen.getByRole("button", { name: /Onayla/ }));
-    expect(screen.getByText("Yazılım & IT")).toBeInTheDocument();
+    // Pencere açık kaldı (seçici sökülüp yeniden bağlanmadı), seçim yapılabiliyor.
+    expect(screen.getByRole("dialog", { name: "Ürün ve hizmetleriniz" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Yazılım & IT seç" }));
+    expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('"mainIds":["cat1"]');
   });
 
   // webcat-5: sihirbaz yalnız seçimleri soruyordu; seçici seçimler + sektörleri
   // sorduğu için sorgu anahtarı hiç tutmuyor, ikinci bir `by-ids` isteği
   // varsayılan seçeneklerle (429'da üç tekrar, 5xx'te genel toast) çıkıyordu.
+  // Seçicinin kendi isteği kendi testinde; burada sihirbazın isteği kilitli.
   it.each([
     [1, "seçici çizili (2. adım)"],
-    [2, "özet adımı"],
-  ])("ad isteği seçiciyle AYNI id listesi ve seçenekle yapılır — %i: %s", (step) => {
+    [2, "özet (son adım)"],
+  ])("ad isteği seçiciyle AYNI id listesi (seçimler + sektörler) ve seçenekle yapılır — %i: %s", (step) => {
     open(step, {
       mainCategoryIds: ["39000000"],
       // Depoda ata zinciri de durur; adı sorulan kullanıcının seçtiği yapraktır.
       subCategoryIds: ["39120000", "39121600", "39121614"],
       declarationAccepted: true,
     });
-    // Seçilen yaprağın adını soran HER çağrı (sihirbaz + adım 2'de seçici).
     const asks = h.byIds.mock.calls.filter(([ids]) => (ids as string[]).includes("39121614"));
     expect(asks.length).toBeGreaterThan(0);
     const signatures = new Set(
@@ -1376,31 +2119,8 @@ describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
  * etiketi (resignup-3).
  */
 describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
-  /** Geçerli, beyanı onaylı TR taslağı özet adımında (yenileme sonrası durum). */
-  const openSummary = (over: Record<string, unknown> = {}) => {
-    sessionStorage.setItem(
-      DRAFT_KEY,
-      JSON.stringify({
-        step: 2,
-        f: {
-          country: "TR",
-          legalName: "Örnek Ltd.",
-          taxNumber: "1234567890",
-          taxOffice: "Kadıköy VD",
-          city: "İstanbul",
-          district: "Kadıköy",
-          postalCode: "34710",
-          addressLine: "Moda Cad. No:1",
-          authorizedTckn: "10000000146",
-          mainCategoryIds: ["cat1"],
-          subCategoryIds: [],
-          declarationAccepted: true,
-          ...over,
-        },
-      }),
-    );
-    return render(<OnboardingClient />);
-  };
+  /** Geçerli, beyanı onaylı TR taslağı son adımda (yenileme sonrası durum). */
+  const openSummary = (over: Record<string, unknown> = {}) => open(2, { declarationAccepted: true, ...over });
   const reject = (errors: Record<string, string>) =>
     h.completeAsync.mockRejectedValue(apiError(400, { message: "Doğrulama hatası", errors }));
 
@@ -1411,10 +2131,10 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
       (el.getAttribute("aria-describedby") ?? "").split(/\s+/).includes(node.id),
     );
 
-  // resignup-1: API mahalle (150 karakter), faaliyet tipi, firma türü gibi
-  // hata yuvası OLMAYAN bir alanı reddedince sihirbaz o alanın adımına dönüyor
-  // ve HİÇBİR ŞEY göstermiyordu (ileti yok, kutu yok, odak <body>'de). Formun
-  // her alanı için: ret görünür ve duyurulur.
+  // resignup-1: API mahalle (150 karakter), faaliyet tipi gibi hata yuvası
+  // OLMAYAN bir alanı reddedince sihirbaz o alanın adımına dönüyor ve HİÇBİR
+  // ŞEY göstermiyordu (ileti yok, kutu yok, odak <body>'de). Formun her alanı
+  // için: ret görünür ve duyurulur.
   it.each(ONBOARDING_FORM_KEYS)("sunucu '%s' alanını reddederse ileti görünür ve duyurulur", async (key) => {
     const user = userEvent.setup();
     reject({ [key]: "sunucu reddi" });
@@ -1425,6 +2145,32 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
     expect(announced(message)).toBe(true);
   });
 
+  // Reddedilen alan SAHİBİ adımda gösterilir (2026-10-08 adım sırası).
+  it.each([
+    ["country", 1],
+    ["legalName", 1],
+    ["companyType", 1],
+    ["taxNumber", 1],
+    ["addressLine", 1],
+    ["neighborhood", 1],
+    ["mainCategoryIds", 2],
+    ["subCategoryIds", 2],
+    ["activities", 2],
+    ["authorizedTckn", 3],
+    ["declarationAccepted", 3],
+  ] as const)("sunucu '%s' alanını reddederse sihirbaz %i. adımdadır", async (key, step) => {
+    const user = userEvent.setup();
+    reject({ [key]: "sunucu reddi" });
+    openSummary();
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    await screen.findByText(/sunucu reddi/, {}, SLOW);
+    // Adım göstergesinden okunur (rol sorgusu değil): odak ülke kutusuna gelince
+    // açılan liste sayfanın kalanını yardımcı teknolojiden gizler.
+    expect(document.querySelector('li[aria-current="step"]')).toHaveTextContent(
+      ["Şirket bilgileri", "Faaliyet alanı", "Yetkili ve onay"][step - 1]!,
+    );
+  });
+
   // Koşullu çizilen yuvalar: yuva çiziliyken ret ALANIN ALTINDA (kutu yok),
   // çizili değilken kutuda. `hasErrorSlot` ile JSX ayrışırsa bu satırlar kırılır.
   const SEPARATE_DELIVERY = {
@@ -1433,12 +2179,15 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
     deliveryPostalCode: "06100",
     deliveryAddressLine: "Depo Sok. No:2",
   };
-  const GERMANY = { country: "DE", taxNumber: "DE123456789", city: "Berlin", district: "", taxOffice: "", authorizedTckn: "" };
   it.each([
     ["deliveryCity", SEPARATE_DELIVERY, "field"],
     ["deliveryPostalCode", SEPARATE_DELIVERY, "field"],
     ["deliveryAddressLine", SEPARATE_DELIVERY, "field"],
-    ["legalFormLocal", { companyType: "OTHER", legalFormLocal: "GmbH" }, "field"],
+    ["companyType", {}, "field"],
+    ["companyType", GERMANY, "field"],
+    ["legalFormLocal", { companyType: "OTHER", legalFormLocal: "Kooperatif" }, "field"],
+    // Listeden seçilen yerel adın serbest metin kutusu yok → adımın kutusunda.
+    ["legalFormLocal", GERMANY, "box"],
     ["taxOffice", GERMANY, "box"],
     ["district", GERMANY, "box"],
   ] as const)("koşullu yuva — '%s' reddi: %o → %s", async (key, over, where) => {
@@ -1470,11 +2219,11 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
     const box = await screen.findByRole("alert", {}, SLOW);
     expect(box).toHaveTextContent("Mahalle: En fazla 100 karakter olabilir");
     // 1. adım (mahalle orada) ve odak kutuda — <body>'de değil.
-    expect(screen.getByRole("heading", { name: "Adım 1/3" })).toBeInTheDocument();
+    expect(stepHeading(1)).toBeInTheDocument();
     expect(box).toHaveFocus();
-    // Kutu adımın başında: ilk alandan önce gelir.
+    // Kutu adımın başında: ilk alandan (ülke) önce gelir.
     expect(
-      box.compareDocumentPosition(screen.getByLabelText("Firma Unvanı *")) & Node.DOCUMENT_POSITION_FOLLOWING,
+      box.compareDocumentPosition(screen.getByRole("combobox", { name: /^Ülke/ })) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     // Başka bir alanı değiştirmek kutuyu silmez; reddedilen alanı değiştirmek siler.
     await fill(user, screen.getByLabelText("Web siteniz"), "ornek.com");
@@ -1490,8 +2239,12 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
     const box = await screen.findByRole("alert", {}, SLOW);
     expect(box).toHaveTextContent("Faaliyet Tipi: Geçersiz faaliyet tipi");
-    expect(screen.getByRole("heading", { name: "Adım 2/3" })).toBeInTheDocument();
+    expect(stepHeading(2)).toBeInTheDocument();
     expect(box).toHaveFocus();
+    // Kutu adımın başında: kategori seçiciden önce.
+    expect(
+      box.compareDocumentPosition(screen.getByTestId("kategori-secici")) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Geri" }));
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -1503,18 +2256,32 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
     const box = await screen.findByRole("alert", {}, SLOW);
     expect(box).toHaveTextContent("Teslimat Adresi – İl: Teslimat ili zorunlu");
-    expect(screen.getByRole("heading", { name: "Adım 1/3" })).toBeInTheDocument();
+    expect(stepHeading(1)).toBeInTheDocument();
   });
 
-  it("sahibi bilinmeyen ret: özet adımındaki kutu odağı alır (odak <body>'de kalmaz)", async () => {
+  it("listeden seçilen yerel hukuki yapı reddedilirse kutu alanı adıyla söyler", async () => {
+    const user = userEvent.setup();
+    reject({ legalFormLocal: "En fazla 80 karakter olabilir" });
+    openSummary(GERMANY);
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    const box = await screen.findByRole("alert", {}, SLOW);
+    expect(box).toHaveTextContent("Hukuki yapı (yerel adıyla): En fazla 80 karakter olabilir");
+    expect(stepHeading(1)).toBeInTheDocument();
+  });
+
+  it("sahibi bilinmeyen ret: son adımdaki kutu 'Tamamla'nın üstünde, odağı alır (odak <body>'de kalmaz)", async () => {
     const user = userEvent.setup();
     h.completeAsync.mockRejectedValue(apiError(400, { message: "Firma doğrulaması zaten tamamlanmış" }));
     openSummary();
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
     const box = await screen.findByRole("alert", {}, SLOW);
     expect(box).toHaveTextContent("Firma doğrulaması zaten tamamlanmış");
-    expect(screen.getByRole("button", { name: "Tamamla" })).toBeInTheDocument();
+    const finish = screen.getByRole("button", { name: "Tamamla" });
     expect(box).toHaveFocus();
+    // Beyan kutusundan sonra, "Tamamla"dan önce.
+    const declaration = screen.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/i });
+    expect(declaration.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(box.compareDocumentPosition(finish) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   // resignup-2: alanın `maxLength`i (5) yapıştırılan metni rakam dışı
@@ -1571,6 +2338,8 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
       expect(card!.className).toContain("[&_[data-field]_:is(input,select,textarea,button,[role=checkbox])]:scroll-mt-20");
       expect(card!.className).toContain("[&_[data-field]_:is(input,select,textarea,button,[role=checkbox])]:scroll-mb-16");
       expect(legal.closest("[data-field]")).not.toBeNull();
+      // Hukuki yapı seçicisi de pay alan bir `data-field` kutusunda.
+      expect(legalFormSelect().closest("[data-field=companyType]")).not.toBeNull();
     } finally {
       focus.mockRestore();
       Element.prototype.scrollIntoView = original;

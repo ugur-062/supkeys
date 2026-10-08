@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PASSWORD, QA, apiGet, apiPost, apiSession, daysFromNow, gotoRetry, qaDeliveryAddressId } from "./staging-helpers";
 import { cleanupSignup, closeDb, db } from "./db-helpers";
-import { dogrulamaKodu, kayitFormu } from "./signup-flow";
+import { aktifAdim, dogrulamaKodu, kategoriAraVeSec, kayitFormu } from "./signup-flow";
 
 /**
  * GÖRÜNÜRLÜK ÜLKESİ — YABANCI TEDARİKÇİ GÖZÜYLE (2026-09-21, kullanıcı:
@@ -44,7 +44,8 @@ test("BAE'deki tedarikçi: tüm-ülkeler ve yalnız-AE talebini görür, yalnız
   await page.getByRole("option", { name: /Birleşik Arap Emirlikleri/ }).first().click();
   await page.waitForTimeout(300);
   await page.getByLabel(/Firma Unvanı/).fill(`QA Gulf Supplier ${stamp} LLC`);
-  await page.getByLabel(/Firma Türü/).selectOption({ index: 1 });
+  // Hukuki yapı ülkenin YEREL listesinden (2026-10-08): BAE'de LLC / FZE / FZCO…
+  await page.getByLabel(/^Hukuki Yapı/).selectOption("LLC");
   // Vergi kimliği etiketi ülke profilinden (BAE: "TRN ya da ticaret ruhsatı no").
   await page.getByLabel(/TRN|Vergi|Sicil/).first().fill("100234567890003");
   const sehir = page.getByLabel(/^Şehir \*/).first();
@@ -53,17 +54,13 @@ test("BAE'deki tedarikçi: tüm-ülkeler ve yalnız-AE talebini görür, yalnız
   else await sehir.fill("Dubai");
   await page.getByLabel(/Açık Adres/).first().fill("Jebel Ali Free Zone, Warehouse 12, Dubai");
   await page.getByRole("button", { name: "Devam" }).click();
-  await expect(page.getByText("Kişisel Bilgiler")).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: /Ürün \/ hizmet (seçin|ekle)/ }).first().click();
-  const kategoriAra = page.getByPlaceholder(/Kategori ara/);
-  await expect(kategoriAra).toBeVisible({ timeout: 15_000 });
-  await kategoriAra.fill("Vida");
-  const ilkKutu = page.getByRole("dialog").getByRole("checkbox").first();
-  await expect(ilkKutu).toBeVisible({ timeout: 15_000 });
-  await ilkKutu.click();
-  await page.getByRole("button", { name: /^Onayla/ }).click();
+  // Adımlar (2026-10-08): Şirket bilgileri → Faaliyet alanı → Yetkili ve onay.
+  await expect(aktifAdim(page)).toContainText("Faaliyet alanı", { timeout: 30_000 });
+  // Kategori penceresi adımları ortak yardımcıda: arar, SONUÇTAN bir sınıf
+  // satırı işaretler (penceredeki ilk kutu ağacın ilk sektörüdür = sektörün tamamı).
+  await kategoriAraVeSec(page, "Vida");
   await page.getByRole("button", { name: "Devam" }).click();
-  await expect(page.getByText("Özet & Beyan")).toBeVisible({ timeout: 30_000 });
+  await expect(aktifAdim(page)).toContainText("Yetkili ve onay", { timeout: 30_000 });
   const beyan = page.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/ });
   await beyan.click();
   await page.getByRole("button", { name: "Tamamla" }).click();

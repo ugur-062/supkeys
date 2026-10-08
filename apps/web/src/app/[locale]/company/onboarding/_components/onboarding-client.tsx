@@ -35,9 +35,10 @@ import {
   isValidTaxIdForCountry,
   isValidTckn,
   EU_VAT_COUNTRIES,
+  findLocalLegalForm,
   foldSearchText,
   isRegistrationOpen,
-  maskNationalId,
+  localLegalForms,
   normalizeTaxId,
   parsePhone,
   provinceDisplayName,
@@ -56,6 +57,11 @@ import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 const COMPANY_TYPE_VALUES = ["LIMITED", "JOINT_STOCK", "SOLE_PROPRIETOR", "OTHER"] as const;
+type CompanyTypeValue = (typeof COMPANY_TYPE_VALUES)[number];
+const isCompanyType = (value: string): value is CompanyTypeValue =>
+  (COMPANY_TYPE_VALUES as readonly string[]).includes(value);
+/** "Diğer": hem genel hem yerel listede son seçenek; yapı adı serbest metinle yazılır. */
+const OTHER_LEGAL_FORM: CompanyTypeValue = "OTHER";
 /** Kayda açık ülke kodları (kapalı liste hariç — `REGISTRATION_BLOCKED`). */
 const REGISTRATION_CODES = registrationCountries().map((c) => c.code);
 
@@ -66,6 +72,11 @@ const INITIAL_FORM = {
   // Başlangıç ülkesi `/me` gelince kurulur (bkz. initialOnboardingCountry).
   country: "",
   legalName: "",
+  /**
+   * Hukuki yapı (bkz. `legalFormSelection`). `companyType` API enum değeridir;
+   * yerel listesi olan ülkede seçim yapılmadan önce BOŞTUR. `legalFormLocal`
+   * seçilen yerel yapının adı ya da "Diğer"de yazılan serbest metindir.
+   */
   companyType: "LIMITED",
   legalFormLocal: "",
   taxNumber: "",
@@ -96,14 +107,27 @@ const INITIAL_FORM = {
 type OnboardingForm = typeof INITIAL_FORM;
 type FieldKey = keyof OnboardingForm;
 
-/** Alanın sahibi adım: 1 = kişi + kategori, 2 = özet + beyan, diğer her şey 0 (şirket). */
+/**
+ * ADIMLAR (2026-10-08, kullanıcı: "kayıt kısmında ülke bazlı her şeyi ve
+ * kategori seçimini daha mantıklı hale getir"):
+ *  0 · Şirket bilgileri — ÜLKE en başta (altındaki alanlar ona göre çizilir),
+ *      unvan, hukuki yapı, vergi no (+ vergi dairesi), web sitesi, adres.
+ *  1 · Faaliyet alanı — ne alıp sattığı (kategori seçici) + faaliyet tipi;
+ *      kişisel hiçbir şey yok.
+ *  2 · Yetkili ve onay — ad (salt okunur), yetkili kimlik no, kurucu notu,
+ *      özet, beyan, "Tamamla".
+ * Eskiden 2. adım kişisel bilgiyle kategori seçimini karıştırıyor, ülke unvanın
+ * altında duruyordu. Alanın sahibi adım: aşağıda yazmayan her alan 0 (şirket).
+ * Adım sırası değişirse taslak sürümü de artar (`onboarding-draft.ts`).
+ */
 const STEP_OF_FIELD: Partial<Record<FieldKey, number>> = {
-  authorizedTckn: 1,
   mainCategoryIds: 1,
   subCategoryIds: 1,
   activities: 1,
+  authorizedTckn: 2,
   declarationAccepted: 2,
 };
+const LAST_STEP = 2;
 const stepOfField = (field: FieldKey): number => STEP_OF_FIELD[field] ?? 0;
 
 /** Formun bütün alan anahtarları (API gövdesindeki adlarla aynı). */
@@ -112,13 +136,14 @@ export const ONBOARDING_FORM_KEYS = Object.keys(INITIAL_FORM) as FieldKey[];
 /**
  * HATA YUVASI OLAN ALANLAR: `data-field` kutusu ve altında `FieldError` taşıyan
  * alanlar — sunucunun reddi bunların ALTINDA gösterilebilir. Listede olmayan
- * alanın (mahalle, eyalet/bölge, firma türü, faaliyet tipi, teslimat ilçesi …)
+ * alanın (mahalle, eyalet/bölge, faaliyet tipi, teslimat ilçesi …)
  * reddi adımın hata kutusunda gösterilir (bkz. `stepError`). Bir alana hata
  * yuvası eklenince buraya da eklenir; koşullu çizilen yuvalar `hasErrorSlot`ta.
  */
 const ERROR_SLOT_FIELDS: ReadonlySet<FieldKey> = new Set<FieldKey>([
-  "legalName",
   "country",
+  "legalName",
+  "companyType",
   "legalFormLocal",
   "taxNumber",
   "taxOffice",
@@ -135,12 +160,16 @@ const ERROR_SLOT_FIELDS: ReadonlySet<FieldKey> = new Set<FieldKey>([
   "declarationAccepted",
 ]);
 
-/** Alanın hata yuvası formun BU hâlinde çizili mi (koşullu alanlar dahil)? */
-function hasErrorSlot(field: FieldKey, f: OnboardingForm): boolean {
+/**
+ * Alanın hata yuvası formun BU hâlinde çizili mi (koşullu alanlar dahil)?
+ * `freeLegalForm`: "Diğer"in serbest metin kutusu açık mı (listeden seçilen
+ * yerel yapının kutusu yoktur).
+ */
+function hasErrorSlot(field: FieldKey, f: OnboardingForm, freeLegalForm: boolean): boolean {
   if (!ERROR_SLOT_FIELDS.has(field)) return false;
   switch (field) {
     case "legalFormLocal":
-      return f.companyType === "OTHER";
+      return freeLegalForm;
     case "taxOffice":
     case "district":
       return f.country === "TR";
@@ -204,6 +233,101 @@ export function initialOnboardingCountry(phone: string | null | undefined, local
   if (locale === "tr") return "TR";
   if (locale === "ru") return "RU";
   return "";
+}
+
+/**
+ * HUKUKİ YAPI — ÜLKEYE GÖRE (2026-10-08). Seçici, seçilen ülkenin YEREL
+ * yapılarını listeler (`@rothern/shared` `localLegalForms`: DE GmbH / UG / AG /
+ * KG…, RU ООО / АО / ИП…) ve sonda "Diğer"i (serbest metin). Listesi olmayan
+ * ülke — Türkiye ve KKTC dahil — bugünkü genel dört seçeneği görür (Limited /
+ * Anonim / Şahıs / Diğer).
+ *
+ * Formda iki alan durur, ikisi de API gövdesine gider:
+ *  · `companyType` — platform enum değeri (yerel yapının eşlendiği tür).
+ *  · `legalFormLocal` — seçilen yerel yapının adı ya da "Diğer"de yazılan metin;
+ *    genel listede "Diğer" dışında BOŞ.
+ * Yerel listesi olan ülkede seçim yapılmadan önce `companyType` boştur
+ * (varsayılan bir yapı sessizce kaydedilmez; "Devam" seçim ister). Genel liste
+ * bugünkü gibi "Limited Şirket" ön seçili açılır.
+ *
+ * Yerel yapıların bir kısmı da `OTHER` türüne eşlenir (KG, OHG, LLP…): "Diğer"
+ * ile aynı tür, ama listeden seçilmiştir. İkisini AD ayırır — ad ülkenin
+ * listesindeyse seçim o yapıdır, değilse serbest metindir.
+ */
+type LegalFormFields = Pick<OnboardingForm, "country" | "companyType" | "legalFormLocal">;
+type LegalFormChoice = Pick<OnboardingForm, "companyType" | "legalFormLocal">;
+
+/** Ülkenin başlangıç seçimi: yerel liste varsa seçimsiz, yoksa "Limited Şirket". */
+export function defaultLegalForm(country: string): LegalFormChoice {
+  return { companyType: localLegalForms(country).length > 0 ? "" : "LIMITED", legalFormLocal: "" };
+}
+
+/**
+ * Seçicinin değeri: genel listede enum değeri, yerel listede yapının adı,
+ * "Diğer"de `OTHER`, seçim yoksa "". Yerel ad YALNIZ o ülkenin listesinde
+ * aranır — başka ülkenin yapısı hiçbir zaman seçili görünmez.
+ */
+export function legalFormSelection(f: LegalFormFields): string {
+  if (localLegalForms(f.country).length === 0) return isCompanyType(f.companyType) ? f.companyType : "";
+  const local = findLocalLegalForm(f.country, f.legalFormLocal);
+  if (local) return local.name;
+  return f.companyType === OTHER_LEGAL_FORM ? OTHER_LEGAL_FORM : "";
+}
+
+/** Seçicide yapılan seçimin form karşılığı (yerel ad → eşlendiği tür + ad). */
+export function pickLegalForm(country: string, value: string): LegalFormChoice {
+  if (value === OTHER_LEGAL_FORM) return { companyType: OTHER_LEGAL_FORM, legalFormLocal: "" };
+  const local = findLocalLegalForm(country, value);
+  if (local) return { companyType: local.type, legalFormLocal: local.name };
+  if (localLegalForms(country).length === 0 && isCompanyType(value)) return { companyType: value, legalFormLocal: "" };
+  return defaultLegalForm(country);
+}
+
+/**
+ * Hukuki yapıyı ÜLKEYLE tutarlı kılar (açılış tohumu, geri gelen taslak,
+ * gönderim): ülkenin listesinde olmayan yerel ad ya da tanınmayan tür seçimi
+ * düşürür; listedeki ad her zaman eşlendiği türle birlikte yazılır ("Diğer"e
+ * elle "GmbH" yazan firma LIMITED + GmbH olarak kaydolur). "Diğer"in listede
+ * olmayan serbest metnine dokunulmaz.
+ */
+export function sanitizeLegalForm<F extends LegalFormFields>(f: F): F {
+  const selected = legalFormSelection(f);
+  if (selected === OTHER_LEGAL_FORM) return f;
+  return { ...f, ...(selected ? pickLegalForm(f.country, selected) : defaultLegalForm(f.country)) };
+}
+
+/**
+ * ÜLKE DEĞİŞİMİ: ülkeye bağlı alanlar sıfırlanır, gerisi kalır.
+ *  · Sıfırlananlar: hukuki yapı (yeni ülkenin başlangıcına döner — başka
+ *    ülkenin yapısı seçili kalamaz), vergi no ve vergi dairesi (biçimi ülkeye
+ *    özgü; D-065), adresin ülkeye bağlı parçaları — il / şehir (+ dünya şehir
+ *    kaydı), ilçe, eyalet / bölge, mahalle, posta kodu; ayrı teslimat
+ *    adresinde de aynıları.
+ *  · Kalanlar: unvan, web sitesi, açık adres satırları, teslimat tercihi,
+ *    yetkili kimlik no, kategori ve faaliyet seçimleri, beyan.
+ * Aynı ülkeyi yeniden seçmek hiçbir şeyi silmez.
+ */
+export function applyCountryChange(f: OnboardingForm, code: string): OnboardingForm {
+  if (code === f.country) return f;
+  return {
+    ...f,
+    country: code,
+    ...defaultLegalForm(code),
+    taxNumber: "",
+    taxOffice: "",
+    city: "",
+    cityId: null,
+    district: "",
+    stateRegion: "",
+    neighborhood: "",
+    postalCode: "",
+    deliveryCity: "",
+    deliveryCityId: null,
+    deliveryDistrict: "",
+    deliveryStateRegion: "",
+    deliveryNeighborhood: "",
+    deliveryPostalCode: "",
+  };
 }
 
 /**
@@ -303,7 +427,7 @@ export function formatOnboardingAddress(a: {
  * signup-tr-6): hata o alanın adımında, alanın altında gösterilir. DTO
  * doğrulaması alan adını `errors` haritasında verir; servis kuralları katalog
  * anahtarıyla (`i18nKey`) ya da `code` ile tanınır. Tanınmayan hata `null`
- * döner ve özet adımındaki genel kutuda kalır.
+ * döner ve son adımdaki genel kutuda kalır.
  */
 const SERVER_ERROR_FIELD: Record<string, FieldKey> = {
   "api.companyAuth.gecersizUlkeSecimi": "country",
@@ -375,6 +499,8 @@ export function OnboardingClient() {
 
   const [step, setStep] = useState(0);
   const [f, setF] = useState(INITIAL_FORM);
+  /** Kullanıcı hukuki yapı seçicisinde "Diğer"i seçti (bkz. `isFreeLegalForm`). */
+  const [choseOtherLegalForm, setChoseOtherLegalForm] = useState(false);
   /** "Devam" / "Tamamla"ya basılmış adımlar: o adımın eksikleri alan altında görünür. */
   const [attempted, setAttempted] = useState<readonly number[]>([]);
   /**
@@ -383,7 +509,7 @@ export function OnboardingClient() {
    *  - yuvası yoksa alanın adımındaki hata kutusunda, alanın adıyla
    *    (`boxMessage`) — eskiden sihirbaz o adıma dönüyor ama hiçbir şey
    *    göstermiyordu (kayıt denetimi 2026-10 resignup-1);
-   *  - sahibi bilinmiyorsa özet adımındaki kutuda.
+   *  - sahibi bilinmiyorsa son adımdaki kutuda ("Tamamla"nın üstünde).
    * `at` reddedilen değerin (alan ya da formun tamamı) anlık görüntüsüdür —
    * değer düzeltildiği an hata kendiliğinden kaybolur.
    */
@@ -413,20 +539,22 @@ export function OnboardingClient() {
     // bağladı) geri gelir — yalnız bilinen alanlar, aynı türdeyse
     // (onboarding-draft.ts). Okumak silmez: ikinci yenileme de aynı taslağı bulur.
     const draft = readOnboardingDraft(userId);
-    if (draft) setStep(Math.min(Math.max(Math.trunc(draft.step), 0), 2));
+    if (draft) setStep(Math.min(Math.max(Math.trunc(draft.step), 0), LAST_STEP));
     setF((prev) => {
       const s = draft ? mergeDraft(prev, draft.f) : prev;
       const country = s.country || inviteCountry || initial;
       // TR'de şehir il listesinden seçilir: ön doldurulan ad listeye eşlenir,
       // eşleşmezse boş kalır (D-344).
       const prefillCity = country === "TR" ? matchTurkeyProvince(invite?.city) : invite?.city || "";
-      return {
+      // Hukuki yapı ülkenin listesine göre kurulur: yerel listesi olan ülkede
+      // seçimsiz açılır; taslaktan gelen seçim o ülkenin listesinde yoksa düşer.
+      return sanitizeLegalForm({
         ...s,
         country,
         legalName: s.legalName || invite?.companyName || "",
         website: s.website || invite?.website || "",
         city: s.city || prefillCity,
-      };
+      });
     });
     setCountryReady(true);
   }, [countryReady, me.data, locale, userId]);
@@ -486,7 +614,7 @@ export function OnboardingClient() {
     () => TURKEY_LOCATIONS.find((l) => l.il === f.deliveryCity)?.ilceler ?? [],
     [f.deliveryCity],
   );
-  // Özet adımı: kullanıcının seçtiği ürün/hizmetler (ata zinciri değil).
+  // Özet (son adım): kullanıcının seçtiği ürün/hizmetler (ata zinciri değil).
   const pickedIds = useMemo(() => deepestCategoryPicks(f.subCategoryIds), [f.subCategoryIds]);
   // Adlar seçiciyle (`CompanyCategoryPicker`) AYNI id listesi ve AYNI seçenekle
   // istenir: seçimler + sektörler, `inlineError`. Yalnız o zaman sorgu anahtarı
@@ -501,6 +629,30 @@ export function OnboardingClient() {
   const pickedCats = useCategoriesByIds(categoryNameIds, { inlineError: true });
 
   const taxKey = taxIdLabelKey(f.country);
+  // Hukuki yapı seçenekleri: ülkenin yerel yapıları; listesi olmayan ülkede
+  // (Türkiye ve KKTC dahil) genel dört seçenek.
+  const localForms = localLegalForms(f.country);
+  // "Diğer"in serbest metin kutusu açık mı? Kullanıcı "Diğer"i seçtiyse kutu,
+  // yazdığı metin listedeki bir yapının adına denk gelse de AÇIK kalır ("KGaA"
+  // yazarken "KG"de kutu kapanıp seçim listeye atlamasın). Geri gelen taslakta
+  // bayrak yoktur: metin listede değilse serbest metindir.
+  const isFreeLegalForm =
+    f.companyType === OTHER_LEGAL_FORM && (choseOtherLegalForm || !findLocalLegalForm(f.country, f.legalFormLocal));
+  const legalFormValue = isFreeLegalForm ? OTHER_LEGAL_FORM : legalFormSelection(f);
+  // "Diğer"in örnekleri ülkeye göre: Türk firmasına "GmbH, LLC" önerilmez;
+  // yerel listesi olan ülkede örnekler listeye BİLEREK alınmayan yapılardır
+  // (vakıf, dernek, şube — `@rothern/shared` `data/legal-forms.ts`). Listedeki
+  // bir yapı (ör. kooperatif) örnek gösterilirse kurucu onu serbest metin
+  // yazar ve "Diğer" olarak kaydolur.
+  const legalFormPlaceholder =
+    localForms.length > 0
+      ? t("legalFormLocalPlaceholderListed")
+      : isTR || f.country === "XN"
+        ? t("legalFormLocalPlaceholderTr")
+        : t("legalFormLocalPlaceholder");
+  // Özet: yerel yapı adı ya da "Diğer"de yazılan metin; yoksa genel türün adı.
+  const legalFormText =
+    f.legalFormLocal.trim() || companyTypes.find((ct) => ct.value === f.companyType)?.label;
 
   /**
    * ADIM DENETİMİ (kayıt denetimi 2026-10 code-auth-9 / signup-tr-9): "Devam"
@@ -515,13 +667,11 @@ export function OnboardingClient() {
   const cityMissingMessage = isTR ? t("errProvince") : t("errCity");
   const errorsByStep: [FieldKey, string][][] = [
     [
-      ...rule(f.legalName.trim().length >= 2, "legalName", t("errLegalName")),
       ...rule(!!f.country, "country", t("errCountry")),
-      ...rule(
-        f.companyType !== "OTHER" || f.legalFormLocal.trim().length >= 2,
-        "legalFormLocal",
-        t("legalFormLocalRequired"),
-      ),
+      ...rule(f.legalName.trim().length >= 2, "legalName", t("errLegalName")),
+      // Yerel listesi olan ülkede yapı seçilmeden ilerlenmez (ön seçim yok).
+      ...rule(legalFormValue !== "", "companyType", t("errLegalForm")),
+      ...rule(!isFreeLegalForm || f.legalFormLocal.trim().length >= 2, "legalFormLocal", t("legalFormLocalRequired")),
       ...rule(taxNumberValid, "taxNumber", taxInvalidMessage),
       // TR'de vergi dairesi zorunlu (backend 400).
       ...rule(!isTR || f.taxOffice.trim().length > 0, "taxOffice", t("errTaxOffice")),
@@ -542,13 +692,15 @@ export function OnboardingClient() {
           ]),
     ],
     [
-      ...rule(tcknValid, "authorizedTckn", t("tcknInvalidPerson")),
       // Kategori ZORUNLU (DTO `@ArrayMinSize(1)`). Üst sınırı (sektör tavanı)
       // seçici kendi uyarısıyla uygular; aşan bir değer yine de gelirse
       // API'nin reddi bu alanın altında gösterilir (`serverErrorField`).
       ...rule(f.mainCategoryIds.length >= 1, "mainCategoryIds", t("categoryRequired")),
     ],
-    [...rule(f.declarationAccepted, "declarationAccepted", t("errDeclaration"))],
+    [
+      ...rule(tcknValid, "authorizedTckn", t("tcknInvalidPerson")),
+      ...rule(f.declarationAccepted, "declarationAccepted", t("errDeclaration")),
+    ],
   ];
 
   /**
@@ -573,8 +725,8 @@ export function OnboardingClient() {
       : null;
   const stepError =
     serverErrorLive &&
-    !(serverErrorLive.field && hasErrorSlot(serverErrorLive.field, f)) &&
-    (serverErrorLive.field ? stepOfField(serverErrorLive.field) : 2) === step
+    !(serverErrorLive.field && hasErrorSlot(serverErrorLive.field, f, isFreeLegalForm)) &&
+    (serverErrorLive.field ? stepOfField(serverErrorLive.field) : LAST_STEP) === step
       ? serverErrorLive.boxMessage
       : null;
 
@@ -589,6 +741,8 @@ export function OnboardingClient() {
   const stepLabelId = useId();
   // Sektör listesi yüklenemediğinde "Yeniden dene"yi açıklayan metinlerin kimliği.
   const sectorErrorId = useId();
+  // Son adımın bölüm başlıkları ("Yetkili kişi", "Özet").
+  const sectionId = useId();
   // Adımın hata kutusu (alanın altında gösterilemeyen sunucu reddi).
   const stepErrorRef = useRef<HTMLDivElement>(null);
   /** Geçişin odak hedefi: bir alan, adımın hata kutusu ya da (null) adım başlığı. */
@@ -615,7 +769,7 @@ export function OnboardingClient() {
     if (nav.to && nav.to !== "stepError" && focusFieldIn(cardRef.current, nav.to)) return;
     stepHeadingRef.current?.focus({ preventScroll: true });
     titleRef.current?.scrollIntoView?.({ block: "start" });
-    // `serverError`: kutu adım değişmeden de belirebilir (özet adımındaki ret).
+    // `serverError`: kutu adım değişmeden de belirebilir (son adımdaki ret).
   }, [step, serverError]);
 
   /** Adımın eksiklerini gösterir ve ilk hatalı alana gider (gerekirse o adıma döner). */
@@ -660,11 +814,16 @@ export function OnboardingClient() {
       return;
     }
     setServerError(null);
+    // Hukuki yapı tek kaynaktan (`@rothern/shared` yerel yapı listesi): listedeki
+    // ad eşlendiği türle gider — "Diğer"e elle yazılmış olsa da.
+    const legalForm = sanitizeLegalForm(f);
     try {
       await complete.mutateAsync({
         legalName: f.legalName.trim(),
-        companyType: f.companyType,
-        ...(f.companyType === "OTHER" ? { legalFormLocal: f.legalFormLocal.trim() } : {}),
+        companyType: legalForm.companyType,
+        // Seçilen yerel yapının adı (GmbH, ООО…) ya da "Diğer"de yazılan metin;
+        // genel listenin öteki seçeneklerinde alan gönderilmez.
+        ...(legalForm.legalFormLocal.trim() ? { legalFormLocal: legalForm.legalFormLocal.trim() } : {}),
         country: f.country,
         taxNumber: normalizeTaxId(f.taxNumber, f.country),
         taxOffice: f.taxOffice.trim() || undefined,
@@ -711,7 +870,10 @@ export function OnboardingClient() {
         field,
         at: JSON.stringify(field ? f[field] : f),
       });
-      goTo(field ? stepOfField(field) : step, field && hasErrorSlot(field, f) ? field : "stepError");
+      goTo(
+        field ? stepOfField(field) : step,
+        field && hasErrorSlot(field, f, isFreeLegalForm) ? field : "stepError",
+      );
     }
   };
 
@@ -806,7 +968,7 @@ export function OnboardingClient() {
   const categoryError = fieldError("mainCategoryIds");
   const declarationError = fieldError("declarationAccepted");
   // Adımın hata kutusu: 1. ve 2. adımda adımın BAŞINDA (kullanıcı adımın başına
-  // döndürülür), özet adımında "Tamamla"nın hemen üstünde. Odaklanabilir
+  // döndürülür), son adımda "Tamamla"nın hemen üstünde. Odaklanabilir
   // (`tabIndex={-1}`): ret sonrası odak buraya gelir, klavye sırası kutudan sürer.
   const stepErrorBox = stepError ? (
     <div
@@ -878,6 +1040,26 @@ export function OnboardingClient() {
         {step === 0 ? (
           <div className="space-y-3">
             {stepErrorBox}
+            {/* ÜLKE EN BAŞTA: hukuki yapı listesi, vergi no etiketi ve kuralı,
+                vergi dairesi ve adres parçaları ona göre çizilir. Not bunu
+                söyler — kullanıcı önce ülkeyi doğrulasın, sonra alanları
+                doldursun (ülke değişince ülkeye bağlı alanlar sıfırlanır,
+                bkz. `applyCountryChange`). */}
+            <Field data-field="country">
+              <Label>{t("country")}</Label>
+              <CountryCombobox
+                value={f.country}
+                codes={REGISTRATION_CODES}
+                ariaLabel={t("country")}
+                invalid={!!fieldError("country")}
+                onChange={(code) => {
+                  if (code !== f.country) setChoseOtherLegalForm(false);
+                  setF((s) => applyCountryChange(s, code));
+                }}
+              />
+              <FieldError message={fieldError("country")} />
+              <p className="mt-1 text-xs text-zinc-500">{t("countryNote")}</p>
+            </Field>
             <Field data-field="legalName">
               <Label>{t("legalName")}</Label>
               <Input
@@ -888,68 +1070,55 @@ export function OnboardingClient() {
               />
               <FieldError message={fieldError("legalName")} />
             </Field>
-            <Field data-field="country">
-              <Label>{t("country")}</Label>
-              <CountryCombobox
-                value={f.country}
-                codes={REGISTRATION_CODES}
-                ariaLabel={t("country")}
-                invalid={!!fieldError("country")}
-                onChange={(code) =>
-                  // Ülke değişince ülkeye-özel alanları temizle (TR il/ilçe/vergi
-                  // dairesi ↔ yabancı şehir/eyalet karışmasın). Aynı ülkeyi
-                  // yeniden seçmek hiçbir şeyi silmez; vergi no da ülkeye özgü
-                  // biçimde olduğundan ülke değişince temizlenir (D-065).
-                  setF((s) => code === s.country ? s : ({
-                    ...s,
-                    country: code,
-                    taxNumber: "",
-                    city: "",
-                    cityId: null,
-                    district: "",
-                    taxOffice: "",
-                    stateRegion: "",
-                    postalCode: "",
-                    deliveryCity: "",
-                    deliveryCityId: null,
-                    deliveryDistrict: "",
-                    deliveryStateRegion: "",
-                    deliveryPostalCode: "",
-                  }))
-                }
-              />
-              <FieldError message={fieldError("country")} />
-            </Field>
             {/* ETİKETLER ORTAK SATIRDA (sm ve üstü; kayıt denetimi 2026-10
                 signup-enru-4): iki sütunun etiketleri aynı ızgara satırını
                 paylaşır, kutular ikinci satırda başlar. Eskiden her sütun
                 etiketini kendi içinde taşıyordu; Rusça vergi etiketi iki
-                satıra sarınca vergi kutusu Firma Türü kutusunun 25 px altına
+                satıra sarınca vergi kutusu hukuki yapı kutusunun 25 px altına
                 düşüyordu. Alanlar `contents`: çocukları doğrudan ızgaraya
                 yerleşir, etiket-kutu bağı (Field) aynen kalır. Telefonda tek
                 sütun, kaynak sırasıyla. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-[auto_auto_1fr] sm:gap-x-3">
-              <Field className="contents">
+              <Field className="contents" data-field="companyType">
                 <Label className="sm:col-start-1 sm:row-start-1 sm:self-end">{t("companyTypeLabel")}</Label>
-                <Select
-                  className="sm:col-start-1 sm:row-start-2"
-                  value={f.companyType}
-                  onChange={(e) => set("companyType")(e.target.value)}
-                >
-                  {companyTypes.map((ct) => (
-                    <option key={ct.value} value={ct.value}>{ct.label}</option>
-                  ))}
-                </Select>
+                {/* Kutu + hata tek ızgara hücresinde (vergi no sütunuyla aynı kalıp). */}
+                <div data-slot="control" className="sm:col-start-1 sm:row-start-2">
+                  <Select
+                    value={legalFormValue}
+                    invalid={!!fieldError("companyType")}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setChoseOtherLegalForm(value === OTHER_LEGAL_FORM);
+                      setF((s) => ({ ...s, ...pickLegalForm(s.country, value) }));
+                    }}
+                  >
+                    {localForms.length > 0 ? (
+                      <>
+                        {/* Ülkenin yerel yapıları, yerel yazımıyla (veri — çevrilmez). */}
+                        <option value="">{t("select")}</option>
+                        {localForms.map((form) => (
+                          <option key={form.name} value={form.name}>{form.name}</option>
+                        ))}
+                        <option value={OTHER_LEGAL_FORM}>{t("companyType.OTHER")}</option>
+                      </>
+                    ) : (
+                      companyTypes.map((ct) => (
+                        <option key={ct.value} value={ct.value}>{ct.label}</option>
+                      ))
+                    )}
+                  </Select>
+                  <FieldError message={fieldError("companyType")} />
+                </div>
               </Field>
               {/* Ayrı Field: aynı Field içinde Headless ikinci kontrolü de
-                  "Firma Türü" etiketine bağlıyordu (D-353). */}
-              {f.companyType === "OTHER" ? (
+                  seçicinin etiketine bağlıyordu (D-353). */}
+              {isFreeLegalForm ? (
                 <Field className="mt-2 sm:col-start-1 sm:row-start-3" data-field="legalFormLocal">
                   <Label className="sr-only">{t("legalFormLocal")}</Label>
                   <Input
                     value={f.legalFormLocal}
                     maxLength={80}
-                    placeholder={t("legalFormLocalPlaceholder")}
+                    placeholder={legalFormPlaceholder}
                     invalid={!!fieldError("legalFormLocal")}
                     onChange={(e) => set("legalFormLocal")(e.target.value)}
                   />
@@ -1203,39 +1372,13 @@ export function OnboardingClient() {
           </div>
         ) : null}
 
+        {/* FAALİYET ALANI: firmanın NE alıp sattığı (kategori seçici) ve NASIL
+            çalıştığı (faaliyet tipi). Kişisel alan yok — yetkili bilgisi son
+            adımda. Adımın tek işi bu olduğundan ayrı bir kutu çerçevesi yok. */}
         {step === 1 ? (
           <div className="space-y-3">
             {stepErrorBox}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field>
-                <Label>{tc("firstName")}</Label>
-                <Input value={user?.firstName ?? ""} readOnly disabled />
-              </Field>
-              <Field>
-                <Label>{tc("lastName")}</Label>
-                <Input value={user?.lastName ?? ""} readOnly disabled />
-              </Field>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field data-field="authorizedTckn">
-                <Label>{isTR ? t("tcknLabel") : t("foreignIdLabel")}</Label>
-                <Input
-                  value={f.authorizedTckn}
-                  maxLength={isTR ? 11 : 30}
-                  invalid={!!fieldError("authorizedTckn", !!f.authorizedTckn.trim())}
-                  onChange={(e) =>
-                    set("authorizedTckn")(
-                      isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
-                    )
-                  }
-                />
-                <FieldError message={fieldError("authorizedTckn", !!f.authorizedTckn.trim())} />
-              </Field>
-              <div className="rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
-                {t.rich("founderBox", { b })}
-              </div>
-            </div>
-            <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4">
+            <div className="space-y-4">
               {/* Grup etiketi — tek input'a bağlı değil, bu yüzden Headless
                   <Label> (Field gerektirir) yerine düz element. */}
               <div>
@@ -1306,89 +1449,123 @@ export function OnboardingClient() {
           </div>
         ) : null}
 
+        {/* YETKİLİ VE ONAY: önce yetkili kişi (ad kayıttan gelir, salt okunur;
+            kimlik no burada sorulur), sonra önceki iki adımın özeti, beyan ve
+            "Tamamla". Yetkilinin adı ve kimlik numarası aynı ekranda alan
+            olarak durduğundan özette yinelenmez. */}
         {step === 2 ? (
-          <div className="space-y-3">
-            {/* ÖZET kaydedilecek her şeyi listeler (signup-tr-14): web sitesi,
-                ayrı teslimat adresi, kimlik no (maskeli), seçilen ürün ve
-                hizmetler ile faaliyet tipleri de burada. */}
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-              <Summary label={t("sumLegalName")} value={f.legalName} />
-              <Summary
-                label={t("sumCompanyType")}
-                value={
-                  f.companyType === "OTHER" && f.legalFormLocal.trim()
-                    ? f.legalFormLocal.trim()
-                    : companyTypes.find((ct) => ct.value === f.companyType)?.label
-                }
-              />
-              {/* Yabancıya "Vergi No / TCKN" ve boş "Vergi dairesi" satırı
-                  gösterilmez — form etiketiyle aynı dil (2026-09-27). */}
-              <Summary
-                label={isTR ? t("sumTax") : tTax(`label.${taxKey}` as never)}
-                value={normalizeTaxId(f.taxNumber, f.country)}
-              />
-              {isTR ? <Summary label={t("sumTaxOffice")} value={f.taxOffice} /> : null}
-              <Summary label={t("sumWebsite")} value={f.website.trim()} />
-              <Summary
-                label={t("sumAddress")}
-                value={formatOnboardingAddress({
-                  isTR,
-                  addressLine: f.addressLine,
-                  neighborhood: f.neighborhood,
-                  postalCode: f.postalCode,
-                  district: f.district,
-                  city: shownCity(f.city),
-                  stateRegion: f.stateRegion,
-                })}
-              />
-              <Summary
-                label={t("sumDeliveryAddress")}
-                value={
-                  f.deliverySameAsBilling
-                    ? t("sumDeliverySame")
-                    : formatOnboardingAddress({
-                        isTR,
-                        addressLine: f.deliveryAddressLine,
-                        neighborhood: f.deliveryNeighborhood,
-                        postalCode: f.deliveryPostalCode,
-                        district: f.deliveryDistrict,
-                        city: shownCity(f.deliveryCity),
-                        stateRegion: f.deliveryStateRegion,
-                      })
-                }
-              />
-              <Summary
-                label={t("sumCountry")}
-                value={f.country ? countryDisplayName(f.country, locale) : null}
-              />
-              <Summary
-                label={t("sumAuthorized")}
-                value={[user?.firstName, user?.lastName].filter(Boolean).join(" ")}
-              />
-              {/* Kimlik no MASKELİ (Firma Bilgileri ile aynı `maskNationalId`);
-                  yurt dışında isteğe bağlı — boşsa satır çizilmez. */}
-              {f.authorizedTckn.trim() ? (
+          <div className="space-y-5">
+            <section aria-labelledby={`${sectionId}-authorized`} className="space-y-3">
+              <h3 id={`${sectionId}-authorized`} className="text-sm font-semibold text-zinc-900">
+                {t("authorizedHeading")}
+              </h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field>
+                  <Label>{tc("firstName")}</Label>
+                  <Input value={user?.firstName ?? ""} readOnly disabled />
+                </Field>
+                <Field>
+                  <Label>{tc("lastName")}</Label>
+                  <Input value={user?.lastName ?? ""} readOnly disabled />
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field data-field="authorizedTckn">
+                  <Label>{isTR ? t("tcknLabel") : t("foreignIdLabel")}</Label>
+                  <Input
+                    value={f.authorizedTckn}
+                    maxLength={isTR ? 11 : 30}
+                    invalid={!!fieldError("authorizedTckn", !!f.authorizedTckn.trim())}
+                    onChange={(e) =>
+                      set("authorizedTckn")(
+                        isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
+                      )
+                    }
+                  />
+                  <FieldError message={fieldError("authorizedTckn", !!f.authorizedTckn.trim())} />
+                  {/* Yurt dışında alan isteğe bağlıdır ve hangi numaranın
+                      istendiği etiketten anlaşılmıyordu (TR etiketi kendini
+                      açıklar: "T.C. Kimlik No *"). */}
+                  {isTR ? null : <p className="mt-1 text-xs text-zinc-500">{t("foreignIdHint")}</p>}
+                </Field>
+                <div className="rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
+                  {t.rich("founderBox", { b })}
+                </div>
+              </div>
+            </section>
+            <section aria-labelledby={`${sectionId}-summary`} className="space-y-3">
+              <div>
+                <h3 id={`${sectionId}-summary`} className="text-sm font-semibold text-zinc-900">
+                  {t("summaryHeading")}
+                </h3>
+                <p className="mt-0.5 text-xs text-zinc-500">{t("summaryHint")}</p>
+              </div>
+              {/* ÖZET kaydedilecek her şeyi listeler (signup-tr-14): web sitesi,
+                  ayrı teslimat adresi, seçilen ürün ve hizmetler ile faaliyet
+                  tipleri de burada. */}
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                {/* Satırlar adımlardaki alan sırasıyla: ülke en başta. */}
                 <Summary
-                  label={isTR ? t("sumTckn") : t("sumForeignId")}
-                  value={maskNationalId(f.authorizedTckn.trim())}
+                  label={t("sumCountry")}
+                  value={f.country ? countryDisplayName(f.country, locale) : null}
                 />
-              ) : null}
-              {/* Satınalma koltuğu BURADA YAZILMAZ: talep açmak Gold paket
-                  ister, yeni firma STANDART doğar. Eskiden "Kurucu · satınalma
-                  koltuğu · satış koltuğu" yazıyordu — kullanılamayan bir yetkiyi
-                  vaat ediyor, üstelik ücretsiz paketin 2 koltuğunun ikisini de
-                  kurucuya yüklüyordu (ilk çalışan davetinde "koltuk dolu"). */}
-              <Summary label={t("sumRole")} value={t("sumRoleValue")} />
-              <Summary
-                label={t("sumSectors")}
-                value={(roots.data ?? [])
-                  .filter((c) => f.mainCategoryIds.includes(c.id))
-                  .map((c) => c.nameTr)
-                  .join(", ")}
-              />
-              <Summary label={t("sumProducts")} value={pickedNames} />
-              <Summary label={t("sumActivities")} value={f.activities.map(activityLabel).join(", ")} />
-            </dl>
+                <Summary label={t("sumLegalName")} value={f.legalName} />
+                {/* Hukuki yapı: seçilen yerel ad (GmbH, ООО…) ya da "Diğer"de
+                    yazılan metin; genel listede türün adı. */}
+                <Summary label={t("sumCompanyType")} value={legalFormText} />
+                {/* Yabancıya "Vergi No / TCKN" ve boş "Vergi dairesi" satırı
+                    gösterilmez — form etiketiyle aynı dil (2026-09-27). */}
+                <Summary
+                  label={isTR ? t("sumTax") : tTax(`label.${taxKey}` as never)}
+                  value={normalizeTaxId(f.taxNumber, f.country)}
+                />
+                {isTR ? <Summary label={t("sumTaxOffice")} value={f.taxOffice} /> : null}
+                <Summary label={t("sumWebsite")} value={f.website.trim()} />
+                <Summary
+                  label={t("sumAddress")}
+                  value={formatOnboardingAddress({
+                    isTR,
+                    addressLine: f.addressLine,
+                    neighborhood: f.neighborhood,
+                    postalCode: f.postalCode,
+                    district: f.district,
+                    city: shownCity(f.city),
+                    stateRegion: f.stateRegion,
+                  })}
+                />
+                <Summary
+                  label={t("sumDeliveryAddress")}
+                  value={
+                    f.deliverySameAsBilling
+                      ? t("sumDeliverySame")
+                      : formatOnboardingAddress({
+                          isTR,
+                          addressLine: f.deliveryAddressLine,
+                          neighborhood: f.deliveryNeighborhood,
+                          postalCode: f.deliveryPostalCode,
+                          district: f.deliveryDistrict,
+                          city: shownCity(f.deliveryCity),
+                          stateRegion: f.deliveryStateRegion,
+                        })
+                  }
+                />
+                {/* Satınalma koltuğu BURADA YAZILMAZ: talep açmak Gold paket
+                    ister, yeni firma STANDART doğar. Eskiden "Kurucu · satınalma
+                    koltuğu · satış koltuğu" yazıyordu — kullanılamayan bir yetkiyi
+                    vaat ediyor, üstelik ücretsiz paketin 2 koltuğunun ikisini de
+                    kurucuya yüklüyordu (ilk çalışan davetinde "koltuk dolu"). */}
+                <Summary label={t("sumRole")} value={t("sumRoleValue")} />
+                <Summary
+                  label={t("sumSectors")}
+                  value={(roots.data ?? [])
+                    .filter((c) => f.mainCategoryIds.includes(c.id))
+                    .map((c) => c.nameTr)
+                    .join(", ")}
+                />
+                <Summary label={t("sumProducts")} value={pickedNames} />
+                <Summary label={t("sumActivities")} value={f.activities.map(activityLabel).join(", ")} />
+              </dl>
+            </section>
             {/* Sırada ne olduğunu ÜLKEDEN BAĞIMSIZ olarak söyler. Kayıt için
                 admin onayı GEREKMEZ — hesap hemen çalışır; doğrulama yalnız
                 para taahhüdü doğuran işlemlerin (talep yayınlama, teklif
@@ -1426,7 +1603,7 @@ export function OnboardingClient() {
           <Button plain disabled={step === 0} onClick={() => goTo(step - 1)}>
             {t("back")}
           </Button>
-          {step < 2 ? (
+          {step < LAST_STEP ? (
             <Button onClick={next}>{t("next")}</Button>
           ) : (
             <Button disabled={complete.isPending || finishLock.locked} onClick={() => void finishLock.run(submit)}>

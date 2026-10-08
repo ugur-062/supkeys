@@ -25,16 +25,15 @@ import { Input, InputGroup } from "@/components/catalyst/input";
 import { IconButton } from "@/components/ui/icon-button";
 
 /**
- * KATEGORİ PENCERELERİNİN ORTAK KABUĞU — ürün/hizmet penceresi
- * (`CategorySelectorModal`) ve "Sektör geneli" penceresi (`SegmentOnlyModal`).
+ * KATEGORİ PENCERESİNİN KABUĞU — `CategorySelectorModal` (talep / ürün
+ * kategorisi ve firma beyanı aynı pencereyi kullanır).
  *
- * İkisi ayrı ayrı çiziliyordu ve ayrışmıştı (2026-10 kayıt denetimi):
- *  - "Sektör geneli" elle yazılmış `div role=dialog` idi: odak kilidi yoktu
- *    (33. Tab arkadaki sayfaya düşüyordu) ve `z-50` ile asistan çekmecesinin
- *    ALTINDA kalıyordu (1568 px altında "Onayla" çekmecenin altındaydı).
- *  - Yükseklik `vh` ile sınırlıydı: telefonda adres çubuğu görünürken `vh`
- *    büyük görünüm alanıdır, alt satır (Vazgeç / Onayla) kesiliyordu.
- *  - Sözcükler ve görünüm farklıydı ("Tüm Seçimi Temizle", "max", köşeli alt).
+ * Kabuk ayrı bir bileşen çünkü garantileri pencerenin içeriğinden bağımsız
+ * (2026-10 kayıt denetimi): eskiden ikinci bir "Sektör geneli" penceresi elle
+ * yazılmış `div role=dialog` idi — odak kilidi yoktu, `z-50` ile asistan
+ * çekmecesinin ALTINDA kalıyordu, yüksekliği `vh` ile sınırlıydı (telefonda
+ * adres çubuğu görünürken alt satır kesiliyordu). O pencere 2026-10-08'de
+ * kalktı (sektör artık aynı pencerede işaretleniyor); garantiler burada durur.
  *
  * Kabuğun garantileri:
  *  - Headless `Dialog`: portal + `z-[60]` (çekmecenin üstü), odak kilidi,
@@ -396,12 +395,25 @@ export function CategorySearchField({
   );
 }
 
+/** İki tavanlı sayaçta bir tavanın rozeti. */
+export interface SelectionTally {
+  /** Görünen metin: "Sektör 2/5". */
+  text: string;
+  /** Ekran okuyucu için tam cümle: "2 sektörde seçim var (en fazla 5)". */
+  srText: string;
+}
+
 interface SelectionCounterProps {
   label: string;
   count: number;
   max: number;
-  /** Sayacın tam cümlesi (ekran okuyucu): "2 sektör seçildi (en fazla 5)". */
-  countLabel?: string;
+  /**
+   * İKİ TAVANLI sayaç (firma beyanı: sektör + ürün/hizmet). Verilince tek
+   * "n/max" rozeti yerine her tavan KENDİ ADIYLA ayrı rozet olur — tek sayı
+   * hangi tavana ne kadar kaldığını söylemez. `count` yine "Tümünü temizle"yi
+   * açar; `max` o kipte basılmaz.
+   */
+  tallies?: SelectionTally[];
   clearLabel: string;
   /**
    * Seçimi boşaltır. `viaKeyboard`: düğme klavyeyle tetiklendi (`detail` 0).
@@ -412,28 +424,59 @@ interface SelectionCounterProps {
   onClear: (viaKeyboard: boolean) => void;
 }
 
-/** "SEÇİMLERİNİZ 3/50 … Tümünü temizle" satırı — iki pencerede aynı. */
+/**
+ * "SEÇİMLERİNİZ 3/50 … Tümünü temizle" satırı.
+ *
+ * İki tavanlı kipte (`tallies`) rozetler dar ekranda KENDİ satırına iner:
+ * 360 px'te başlık + iki adlı rozet + "Tümünü temizle" tek satıra sığmıyor
+ * (RU: "Товары / услуги 12/50"). Geniş ekranda hepsi tek satırda, rozetler
+ * başlığın yanında. Tek tavanlı kipin yerleşimi DEĞİŞMEDİ.
+ */
 export function SelectionCounter({
   label,
   count,
   max,
-  countLabel,
+  tallies,
   clearLabel,
   onClear,
 }: SelectionCounterProps) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div
+      className={
+        tallies
+          ? "flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5"
+          : "flex items-center justify-between gap-3"
+      }
+    >
       <span className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
         <Sparkles className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden />
         {label}
-        <span className="ml-1 rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white tabular-nums">
-          {/* Rolsüz <span>'de aria-label geçersizdir; tam cümle gizli metinle verilir. */}
-          <span aria-hidden={countLabel ? true : undefined}>
-            {count}/{max}
+        {tallies ? null : (
+          <span className="ml-1 rounded-full bg-zinc-900 px-1.5 py-0.5 text-xs font-bold text-white tabular-nums">
+            <span>
+              {count}/{max}
+            </span>
           </span>
-          {countLabel ? <span className="sr-only">{countLabel}</span> : null}
-        </span>
+        )}
       </span>
+      {tallies ? (
+        <span
+          data-slot="tallies"
+          className="order-last flex min-w-0 basis-full flex-wrap gap-x-1.5 gap-y-1 sm:order-none sm:mr-auto sm:basis-auto"
+        >
+          {tallies.map((tally, i) => (
+            <span
+              // Sıra sabit (sektör, ürün/hizmet); metin her seçimde değişir.
+              key={i}
+              className="max-w-full rounded-full bg-zinc-900 px-2 py-0.5 text-xs font-bold break-words text-white tabular-nums"
+            >
+              {/* Rolsüz <span>'de aria-label geçersizdir; tam cümle gizli metinle verilir. */}
+              <span aria-hidden>{tally.text}</span>
+              <span className="sr-only">{tally.srText}</span>
+            </span>
+          ))}
+        </span>
+      ) : null}
       {count > 0 ? (
         // Dokunma hedefi 32 px; eksi kenar boşluğu satırı büyütmesin diye.
         <button

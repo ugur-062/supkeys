@@ -43,7 +43,7 @@ export interface CompanyProfile {
   taxNumber: string | null;
   taxOffice: string | null;
   companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER" | null;
-  /** `companyType = OTHER` iken yerel hukuki yapı (GmbH, LLC…). */
+  /** Hukuki yapının yerel adı (GmbH, ООО…): kayıtta seçilen yapı ya da "Diğer"de yazılan metin; her türde dolu olabilir. */
   legalFormLocal?: string | null;
   authorizedTckn: string | null;
   authorizedTitle: string | null;

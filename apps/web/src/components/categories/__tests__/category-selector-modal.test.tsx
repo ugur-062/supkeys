@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -13,6 +14,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * sınırlı, aile (L2) seçimi, dal başına tek seçim, adı eşleşen ailenin
  * sınıfları, çok kelimeli vurgu, yükleme hatası ayrı durum, kapatmadan önce
  * soru, arama kutusu (kısa yer tutucu / temizle / 2 karakter ipucu), a11y.
+ *
+ * 2026-10-08: firma beyanında sektör (L1) satırı da işaretlenir ve iki tavan
+ * (sektör + sektör altındaki seçim) ayrı sayılır; talep formu değişmedi.
  */
 type Node = { id: string; code: string; nameTr: string; level: number; _count?: { children: number } };
 type Q<T> = { data: T; isLoading?: boolean; isError?: boolean; isFetching?: boolean; refetch?: () => void };
@@ -548,6 +552,464 @@ describe("CategorySelectorModal — dal başına tek seçim", () => {
     await openToCommodities(user);
     await user.click(screen.getByRole("checkbox", { name: "Cıvatalar" }));
     expect(screen.getByRole("status")).toHaveTextContent("En fazla 1 kategori seçebilirsiniz");
+  });
+});
+
+// 2026-10-08 (kullanıcı: "üst başlıktan seçemiyorlar"): firma beyanında sektörün
+// tamamı ayrı bir bağlantının açtığı ikinci pencereden seçiliyordu; ağaçtaki
+// sektör satırı yalnız aç/kapa başlığıydı. Artık `minSelectableLevel={1}` ile
+// sektör satırı da işaretlenir. Talep formu (varsayılan, L3+) DEĞİŞMEDİ.
+describe("CategorySelectorModal — sektör (L1) seçimi", () => {
+  const S39: Node = { id: "39000000", code: "39000000", nameTr: "Elektrik Malzemeleri", level: 1 };
+  const S40: Node = { id: "40000000", code: "40000000", nameTr: "Dağıtım Sistemleri", level: 1 };
+  const S41: Node = { id: "41000000", code: "41000000", nameTr: "Laboratuvar Ekipmanları", level: 1 };
+  const NOTE = "Sektörün tamamı seçili: bu sektördeki bütün ürün ve hizmetleri kapsar.";
+
+  /**
+   * Sektör kutusunun erişilebilir adı (inceleme CAT-R1): çıplak sektör adı
+   * DEĞİL — kutu sektörün TAMAMINI beyan eder ve adı bunu söyler. Çıplak ad,
+   * dalı açan düğmenin adıdır.
+   */
+  const whole = (name: string) => `${name} · sektörün tamamı`;
+  const sectorBox = (name: string) => screen.getByRole("checkbox", { name: whole(name) });
+
+  /** Firma beyanının pencereyi açtığı biçim. */
+  function renderCompany(props: Partial<ComponentProps<typeof CategorySelectorModal>> = {}) {
+    const onConfirm = vi.fn();
+    render(
+      <CategorySelectorModal
+        isOpen
+        onClose={() => {}}
+        value={[]}
+        onConfirm={onConfirm}
+        minSelectableLevel={1}
+        singlePickPerBranch
+        maxSelection={50}
+        maxSectors={5}
+        limitMessage="En fazla 50 ürün/hizmet seçebilirsiniz."
+        {...props}
+      />,
+    );
+    return { onConfirm };
+  }
+
+  it("sektör satırı onay kutusu taşır: kutu sektörün TAMAMINI işaretler, ada tıklamak yalnız dalı açar", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    const { onConfirm } = renderCompany();
+    const box = sectorBox("Üretim Bileşenleri");
+    expect(box).not.toBeChecked();
+    expect(screen.queryByText(NOTE)).toBeNull();
+
+    // Ada tıklamak işaretlemez — ağaçta gezinen kullanıcı yanlışlıkla bütün
+    // sektörü beyan etmesin.
+    await user.click(screen.getByRole("button", { name: "Üretim Bileşenleri" }));
+    expect(screen.getByRole("checkbox", { name: "Hırdavat" })).toBeInTheDocument();
+    expect(box).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Daralt: Üretim Bileşenleri" })).toHaveAttribute("aria-expanded", "true");
+
+    // Başlık satırında işaretlemenin tek yolu kutudur → dokunma hedefi kutunun
+    // çevresinde 8 px büyütülür (telefonda 34, geniş ekranda 32 px); aile de aynı.
+    for (const tick of [box, screen.getByRole("checkbox", { name: "Hırdavat" })]) {
+      expect(tick.className).toMatch(/(^|\s)after:-inset-2(\s|$)/);
+      expect(tick.className).toMatch(/(^|\s)after:absolute(\s|$)/);
+      expect(tick.className).toMatch(/(^|\s)relative(\s|$)/);
+    }
+
+    await user.click(box);
+    expect(box).toBeChecked();
+    // İşaretli sektör, altındaki her şeyi kapsadığını söyler (alttaki kutular boş görünür).
+    expect(screen.getByText(NOTE)).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Hırdavat" })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
+    expect(onConfirm).toHaveBeenCalledWith([SEG.id]);
+  });
+
+  it("varsayılan (talep formu) ve aile kipinde sektör satırı onay kutusu TAŞIMAZ: tek aç/kapa düğmesi", async () => {
+    seedTree();
+    const { unmount } = render(
+      <CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} catalog="discovery" />,
+    );
+    // Kapalı ağaçta HİÇ onay kutusu yok (ada bakmadan: sektör kutusunun adı
+    // "… · sektörün tamamı"dır, çıplak adla aramak boşuna geçerdi).
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Genişlet: Üretim Bileşenleri" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Üretim Bileşenleri" })).toHaveAttribute("aria-expanded", "false");
+    // Tek rozetli sayaç: iki tavanlı rozetler yok.
+    expect(screen.getByText("0/20")).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="tallies"]')).toBeNull();
+    unmount();
+
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} minSelectableLevel={2} />);
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(document.querySelector('[data-slot="tallies"]')).toBeNull();
+  });
+
+  it("dal kuralı sektörü de kapsar: sektör işaretlenince altındakiler, altından işaretlenince sektör düşer (bildirimle)", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    const { onConfirm } = renderCompany();
+    await openToCommodities(user);
+    await user.click(screen.getByRole("checkbox", { name: "Ankraj somunları" }));
+    await user.click(screen.getByRole("checkbox", { name: "Cıvatalar" }));
+    expect(screen.getByText("Ürün / hizmet 2/50")).toBeInTheDocument();
+
+    await user.click(sectorBox("Üretim Bileşenleri"));
+    expect(sectorBox("Üretim Bileşenleri")).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Ankraj somunları" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Cıvatalar" })).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Aynı daldan tek seçim tutulur; bu daldaki diğer 2 seçiminiz kaldırıldı.",
+    );
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 0/50")).toBeInTheDocument();
+    expect(screen.getByText(NOTE)).toBeInTheDocument();
+
+    // İşaretli sektörün altından bir öğe: sektör işaretinin YERİNE geçer.
+    await user.click(screen.getByRole("checkbox", { name: "Cıvatalar" }));
+    expect(sectorBox("Üretim Bileşenleri")).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Aynı daldan tek seçim tutulur; bu daldaki diğer seçiminiz kaldırıldı.",
+    );
+    expect(screen.queryByText(NOTE)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
+    expect(onConfirm).toHaveBeenCalledWith([CLS2.id]);
+  });
+
+  it("seçim şeridinde sektör çipi 'sektörün tamamı' olduğunu söyler; ürün çipi söylemez", () => {
+    h.byIds = {
+      data: [{ id: SEG.id, nameTr: "Üretim Bileşenleri", breadcrumb: "P. Üretim Bileşenleri" }, A],
+      isPlaceholderData: false,
+    };
+    renderCompany({ value: [SEG.id, A.id] });
+    const [sector, product] = within(screen.getByRole("list", { name: "Seçimleriniz" })).getAllByRole("listitem");
+    expect(sector).toHaveTextContent("Üretim Bileşenleri · sektörün tamamı");
+    expect(product.textContent).toBe("Kablo");
+    // Ad aynı kalır: kaldırma düğmesi sektörü adıyla söyler.
+    expect(screen.getByRole("button", { name: "Üretim Bileşenleri seçimini kaldır" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Onayla (2)" })).toBeInTheDocument();
+  });
+
+  it("arama sonucunda sektör de işaretlenir (ada tıklamak da işaretler); talep formunda başlık kalır", async () => {
+    const user = userEvent.setup();
+    h.search = {
+      data: {
+        segments: [
+          {
+            id: SEG.id,
+            code: SEG.code,
+            nameTr: SEG.nameTr,
+            level: 1,
+            segmentLetter: "P",
+            isMatch: true,
+            families: [{ id: FAM.id, code: FAM.code, nameTr: "Hırdavat", level: 2, classes: [] }],
+          },
+        ],
+      },
+      isLoading: false,
+    };
+    const { onConfirm } = renderCompany();
+    await user.type(searchBox(), "üretim");
+    const box = await screen.findByRole("checkbox", { name: whole("Üretim Bileşenleri") });
+    // Ad vurgu parçalarına bölünür (<mark>Üretim</mark> + " Bileşenleri"); jsdom
+    // erişilebilir adı parçaları kırparak birleştirir → boşluk isteğe bağlı.
+    await user.click(screen.getByRole("button", { name: /^Üretim\s*Bileşenleri$/ }));
+    expect(box).toBeChecked();
+    expect(screen.getByText(NOTE)).toBeInTheDocument();
+    // Altındaki aile de işaretlenebilir; işaretlenince sektörün yerine geçer.
+    await user.click(screen.getByRole("checkbox", { name: "Hırdavat" }));
+    expect(box).not.toBeChecked();
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
+    expect(onConfirm).toHaveBeenCalledWith([SEG.id]);
+  });
+
+  it("arama: altı boş dönen sektör firma beyanında çizilir (kendisi bir satır); talep formunda çizilmez", async () => {
+    const user = userEvent.setup();
+    h.search = {
+      data: { segments: [{ id: SEG.id, code: SEG.code, nameTr: SEG.nameTr, level: 1, segmentLetter: "P", families: [] }] },
+      isLoading: false,
+    };
+    const { unmount } = render(
+      <CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} catalog="discovery" />,
+    );
+    await user.type(searchBox(), "üretim");
+    expect(await screen.findByText("“üretim” için sonuç bulunamadı")).toBeInTheDocument();
+    unmount();
+
+    renderCompany();
+    await user.type(searchBox(), "üretim");
+    expect(await screen.findByRole("checkbox", { name: whole("Üretim Bileşenleri") })).toBeInTheDocument();
+  });
+
+  it("iki tavan AYRI sayaçla gösterilir: sektör (yayılım) + sektör altındaki seçim", () => {
+    h.byIds = { data: [A], isPlaceholderData: false };
+    renderCompany({ value: [A.id] });
+    // Tek "1/50" rozeti yerine iki adlı rozet.
+    expect(screen.queryByText("1/50")).toBeNull();
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 1/50")).toBeInTheDocument();
+    // Ekran okuyucu tam cümleyi duyar; görünen kısaltma ona gizli.
+    expect(screen.getByText("Sektör 1/5")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("1 sektörde seçim var (en fazla 5)").className).toContain("sr-only");
+    expect(screen.getByText("1 ürün/hizmet seçildi (en fazla 50)").className).toContain("sr-only");
+
+    // Dar ekranda rozetler kendi satırına iner (360 px'te başlık + iki rozet +
+    // "Tümünü temizle" tek satıra sığmaz); geniş ekranda başlığın yanında.
+    const tallies = document.querySelector('[data-slot="tallies"]') as HTMLElement;
+    for (const c of ["order-last", "basis-full", "flex-wrap", "sm:order-none", "sm:basis-auto"]) {
+      expect(tallies.className.split(/\s+/)).toContain(c);
+    }
+    expect((tallies.parentElement as HTMLElement).className.split(/\s+/)).toContain("flex-wrap");
+  });
+
+  it("sektör tavanı: YENİ sektöre giren işaret reddedilir ve nedeni söylenir; var olan sektöre eklemek serbest", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.roots = { data: [SEG, S39, S40], isLoading: false };
+    h.byIds = { data: [A], isPlaceholderData: false };
+    renderCompany({ value: [A.id], maxSectors: 2 }); // A = 39… → sektör 1/2
+    expect(screen.getByText("Sektör 1/2")).toBeInTheDocument();
+
+    await user.click(sectorBox("Üretim Bileşenleri"));
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+
+    // Üçüncü sektör: reddedilir, nedeni söylenir.
+    await user.click(sectorBox("Dağıtım Sistemleri"));
+    expect(sectorBox("Dağıtım Sistemleri")).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "En fazla 2 sektörde seçim yapabilirsiniz. Başka bir sektör eklemek için önce birini kaldırın.",
+    );
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+
+    // Zaten seçim olan sektörün TAMAMINI işaretlemek sektör sayısını değiştirmez.
+    await user.click(sectorBox("Elektrik Malzemeleri"));
+    expect(sectorBox("Elektrik Malzemeleri")).toBeChecked();
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 0/50")).toBeInTheDocument();
+
+    // Tamamı işaretli sektörün altından seçim de (aynı sektör) serbest.
+    await openToCommodities(user);
+    await user.click(screen.getByRole("checkbox", { name: "Cıvatalar" }));
+    expect(screen.getByRole("checkbox", { name: "Cıvatalar" })).toBeChecked();
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 1/50")).toBeInTheDocument();
+    // Aynı sektörden ikinci (kardeş dal) seçim de: sektör sayısı yine 2.
+    await user.click(screen.getByRole("checkbox", { name: "Somunlar" }));
+    expect(screen.getByRole("checkbox", { name: "Somunlar" })).toBeChecked();
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 2/50")).toBeInTheDocument();
+  });
+
+  it("sektör işareti ürün/hizmet tavanına girmez; tavan sektör altındaki seçimde çağıranın sözcüğüyle uyarır", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.roots = { data: [SEG, S40], isLoading: false };
+    h.byIds = { data: [A], isPlaceholderData: false };
+    renderCompany({ value: [A.id], maxSelection: 1, limitMessage: "En fazla 1 ürün/hizmet seçebilirsiniz." });
+    expect(screen.getByText("Ürün / hizmet 1/1")).toBeInTheDocument();
+
+    // Ürün/hizmet tavanı doluyken sektör işareti yine eklenir.
+    await user.click(sectorBox("Dağıtım Sistemleri"));
+    expect(sectorBox("Dağıtım Sistemleri")).toBeChecked();
+    expect(screen.getByText("Sektör 2/5")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 1/1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Onayla (2)" })).toBeInTheDocument();
+
+    // Sektör altından ikinci seçim: reddedilir.
+    await openToCommodities(user);
+    await user.click(screen.getByRole("checkbox", { name: "Cıvatalar" }));
+    expect(screen.getByRole("checkbox", { name: "Cıvatalar" })).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("En fazla 1 ürün/hizmet seçebilirsiniz.");
+  });
+
+  // İnceleme CAT-R1: sektör kutusunun erişilebilir adı çıplak sektör adıydı —
+  // yanındaki aç/kapa ve ad düğmesiyle aynı. Ekran okuyucu "Üretim Bileşenleri,
+  // onay kutusu" diyor, Space'ten sonra yalnız "işaretli" duyuluyordu: kutunun
+  // sektörün TAMAMINI beyan ettiğini (aile / sınıf kutuları tek öğedir) hiçbir
+  // şey söylemiyordu. Açıklama satırı da kutuya bağlı değildi.
+  it("erişilebilirlik: sektör kutusunun ADI 'sektörün tamamı' der; işaretliyken açıklaması kapsamı söyler", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    renderCompany();
+    const box = sectorBox("Üretim Bileşenleri");
+    // Çıplak ad kutunun adı değildir: o ad dalı açan düğmeye aittir.
+    expect(screen.queryByRole("checkbox", { name: "Üretim Bileşenleri" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Üretim Bileşenleri" })).toBeInTheDocument();
+    expect(box).not.toHaveAttribute("aria-description");
+
+    // Klavyeyle: odak kutuda, Space. Hiçbir seçim düşmediği için bildirim de
+    // çıkmaz — anlamı kutunun adı ve açıklaması taşır.
+    box.focus();
+    await user.keyboard(" ");
+    expect(box).toBeChecked();
+    expect(screen.queryByRole("status")).toBeNull();
+    // Açıklama görünen satırla AYNI metindir (aria-describedby'ı Headless
+    // Checkbox kendi değeriyle ezer; aria-description yerinde kalır).
+    expect(box).toHaveAttribute("aria-description", NOTE);
+    expect(box).toHaveAccessibleDescription(NOTE);
+    expect(screen.getByText(NOTE)).toBeInTheDocument();
+
+    // Aile ve sınıf kutuları TEK öğedir: adları yalnız kendi adlarıdır.
+    await openToCommodities(user);
+    for (const name of ["Hırdavat", "Somunlar", "Ankraj somunları"]) {
+      const tick = screen.getByRole("checkbox", { name });
+      expect(tick).toHaveAccessibleName(name);
+      expect(tick).not.toHaveAttribute("aria-description");
+    }
+
+    // İşaret kalkınca açıklama da kalkar.
+    box.focus();
+    await user.keyboard(" ");
+    expect(box).not.toBeChecked();
+    expect(box).not.toHaveAttribute("aria-description");
+  });
+
+  it("erişilebilirlik: arama sonucundaki sektör kutusu da aynı adı ve açıklamayı taşır", async () => {
+    const user = userEvent.setup();
+    h.search = {
+      data: {
+        segments: [
+          {
+            id: SEG.id,
+            code: SEG.code,
+            nameTr: SEG.nameTr,
+            level: 1,
+            segmentLetter: "P",
+            isMatch: true,
+            families: [{ id: FAM.id, code: FAM.code, nameTr: "Hırdavat", level: 2, classes: [] }],
+          },
+        ],
+      },
+      isLoading: false,
+    };
+    renderCompany();
+    await user.type(searchBox(), "üretim");
+    const box = await screen.findByRole("checkbox", { name: whole("Üretim Bileşenleri") });
+    expect(screen.queryByRole("checkbox", { name: "Üretim Bileşenleri" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "Hırdavat" })).toHaveAccessibleName("Hırdavat");
+    expect(box).not.toHaveAttribute("aria-description");
+    await user.click(box);
+    expect(box).toBeChecked();
+    expect(box).toHaveAttribute("aria-description", NOTE);
+  });
+
+  // İnceleme CAT-R2: e2e kayıt yardımcısı (`e2e/signup-flow.ts`
+  // `kategoriAraVeSec`) "penceredeki ilk onay kutusu"na tıklıyordu; sektör
+  // satırı kutu taşıdığından bu, kapalı ağacın ilk sektörüydü (sektörün tamamı)
+  // ve arama hiç sınanmıyordu. Yardımcı artık sonuç ağacının ÜÇÜNCÜ düzeyindeki
+  // ilk kutuya tıklar ve "Ürün / hizmet 1/…" sayacını doğrular. O dosya yerelde
+  // koşulamaz; dayandığı DOM sözleşmesi burada kilitlidir — bu test kırılırsa
+  // yardımcıdaki konum da güncellenmelidir.
+  it("e2e sözleşmesi: kapalı ağaçta üçüncü düzey liste yok; arama sonucunda oradaki ilk kutu SINIF satırıdır", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.roots = { data: [SEG, S39], isLoading: false };
+    h.search = {
+      data: {
+        segments: [
+          {
+            id: SEG.id,
+            code: SEG.code,
+            nameTr: SEG.nameTr,
+            level: 1,
+            segmentLetter: "P",
+            families: [
+              {
+                id: FAM.id,
+                code: FAM.code,
+                nameTr: "Hırdavat",
+                level: 2,
+                classes: [
+                  {
+                    id: CLS.id,
+                    code: CLS.code,
+                    nameTr: "Somunlar",
+                    level: 3,
+                    isMatch: true,
+                    commodities: [{ id: COM.id, code: COM.code, nameTr: "Ankraj somunları", level: 4, isMatch: true }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      isLoading: false,
+    };
+    renderCompany();
+    const dialog = screen.getByRole("dialog");
+    const classLevelTick = () => dialog.querySelector('ul ul ul [role="checkbox"]');
+
+    // Sonuç gelmeden: kutular var (sektörler) ama hiçbiri üçüncü düzeyde değil
+    // → yardımcının konumu eşleşmez, sonucu BEKLER.
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(2);
+    expect(classLevelTick()).toBeNull();
+
+    await user.type(searchBox(), "somun");
+    const somunlar = await screen.findByRole("checkbox", { name: "Somunlar" });
+    // Penceredeki İLK kutu sektördür (eski adımın tıkladığı); üçüncü düzeydeki
+    // ilk kutu sınıf satırıdır (aile ikinci, emtia dördüncü düzeyde).
+    expect(within(dialog).getAllByRole("checkbox")[0]).toBe(sectorBox("Üretim Bileşenleri"));
+    expect(classLevelTick()).toBe(somunlar);
+
+    // Sınıf işareti "Ürün / hizmet" sayacına girer …
+    await user.click(somunlar);
+    expect(screen.getByText("Ürün / hizmet 1/50")).toBeInTheDocument();
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+    // … sektörün tamamı girmez: yardımcının doğruladığı fark budur.
+    await user.click(sectorBox("Üretim Bileşenleri"));
+    expect(screen.getByText("Ürün / hizmet 0/50")).toBeInTheDocument();
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+  });
+
+  // İnceleme 2026-10-08 (ek gözlem): tavanın ÜSTÜNDE kayıtlı eski beyanda
+  // (Ayarlar ekranı eskiden 10 sektöre izin veriyordu) sektörün tamamı yerine o
+  // sektörden bir öğe işaretlemek — ya da tersi — "en fazla N sektör" diye
+  // reddediliyordu. Oysa sektör EKLENMİYOR: tavan, dal kuralı sektör işaretini
+  // düşürdükten SONRA kalanlara bakıyor ve aynı sektörü "yeni" sayıyordu.
+  it("sektör tavanı tam ölçülür: tavanın üstündeki kayıtlı beyanda AYNI sektör içindeki değişim serbest, yeni sektör yasak", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.roots = { data: [SEG, S39, S40, S41], isLoading: false };
+    // Üç sektörün tamamı kayıtlı, tavan 2 → 3/2 (eski veri).
+    renderCompany({ value: [SEG.id, S39.id, S40.id], maxSectors: 2 });
+    expect(screen.getByText("Sektör 3/2")).toBeInTheDocument();
+
+    // Sektörün tamamı → aynı sektörden bir sınıf: sektör sayısı değişmez.
+    await openToCommodities(user);
+    await user.click(screen.getByRole("checkbox", { name: "Cıvatalar" }));
+    expect(screen.getByRole("checkbox", { name: "Cıvatalar" })).toBeChecked();
+    expect(sectorBox("Üretim Bileşenleri")).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Aynı daldan tek seçim tutulur; bu daldaki diğer seçiminiz kaldırıldı.",
+    );
+    expect(screen.getByText("Sektör 3/2")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 1/50")).toBeInTheDocument();
+
+    // Tersi de: sınıf → aynı sektörün tamamı.
+    await user.click(sectorBox("Üretim Bileşenleri"));
+    expect(sectorBox("Üretim Bileşenleri")).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Cıvatalar" })).not.toBeChecked();
+    expect(screen.getByText("Sektör 3/2")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 0/50")).toBeInTheDocument();
+
+    // YENİ (dördüncü) sektör: reddedilir, nedeni söylenir.
+    await user.click(sectorBox("Laboratuvar Ekipmanları"));
+    expect(sectorBox("Laboratuvar Ekipmanları")).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "En fazla 2 sektörde seçim yapabilirsiniz. Başka bir sektör eklemek için önce birini kaldırın.",
+    );
+    expect(screen.getByText("Sektör 3/2")).toBeInTheDocument();
+
+    // Bir sektör kaldırılınca tavana inilir (2/2); kaldırılan sektör artık
+    // YENİ sektördür — geri eklenemez (tavanın üstüne dönüş yok).
+    await user.click(sectorBox("Dağıtım Sistemleri"));
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+    await user.click(sectorBox("Dağıtım Sistemleri"));
+    expect(sectorBox("Dağıtım Sistemleri")).not.toBeChecked();
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
   });
 });
 

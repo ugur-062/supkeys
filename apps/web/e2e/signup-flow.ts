@@ -82,14 +82,74 @@ export async function dogrulamaKodu(page: Page, email: string): Promise<string> 
   return kod;
 }
 
-/** Üç adımlı onboarding; sonunda panele düşer. */
+/**
+ * Sihirbazın GEÇERLİ adımı: adım göstergesindeki `aria-current="step"` öğesi.
+ * Adım adları göstergede HER ZAMAN yazılıdır (üçü birden) — düz metin araması
+ * adımın gerçekten değiştiğini kanıtlamaz.
+ */
+export function aktifAdim(page: Page) {
+  return page.locator('li[aria-current="step"]');
+}
+
+/**
+ * Firma kategori penceresini açar, ARAR, sonuçlardan bir SINIF satırını
+ * işaretler ve onaylar. "Faaliyet alanı" adımında çağrılır.
+ *
+ * NEDEN "PENCEREDEKİ İLK ONAY KUTUSU" DEĞİL (inceleme CAT-R2, 2026-10-08):
+ * firma beyanında sektör satırı da onay kutusu taşır (kutu = sektörün TAMAMI)
+ * ve sektör listesi pencere açılmadan önbellektedir. Eski adım terimi yazıp
+ * `dialog.getByRole("checkbox").first()`e tıklıyordu: arama 300 ms gecikmeyle
+ * başladığı için bulunan kutu sonuç değil, kapalı AĞACIN ilk sektörüydü. Hangi
+ * terim yazılırsa yazılsın firma aynı sektörün tamamını beyan ediyor
+ * (`subIds` boş), ara-sonra-seç adımı hiç sınanmıyordu; akış yine tamamlandığı
+ * için hiçbir şey kırmızıya dönmüyordu.
+ *
+ * Bu yüzden iki şey açıkça yapılır:
+ *  1. SONUÇ BEKLENİR ve bir sonuç satırı işaretlenir. Sonuç ağacı iç içe
+ *     listedir (sektör › aile › sınıf › emtia); üçüncü düzeydeki ilk kutu bir
+ *     SINIF satırıdır. Kapalı ağaçta iç içe liste yoktur → bu konum yalnız
+ *     sonuçlar çizilince eşleşir, bekleme kendiliğinden olur. (DOM sözleşmesi
+ *     yerelde `category-selector-modal.test.tsx` "e2e sözleşmesi" testiyle
+ *     kilitli — bu dosya yerelde koşulamaz.)
+ *  2. İşaretin sektör ALTINDAN bir seçim olduğu doğrulanır: sektör işareti
+ *     "Ürün / hizmet" sayacına girmez. Sayaç 1 değilse adım kırmızıya döner.
+ */
+export async function kategoriAraVeSec(page: Page, terim: string): Promise<void> {
+  await page.getByRole("button", { name: /Ürün \/ hizmet (seçin|ekle)/ }).first().click();
+  const pencere = page.getByRole("dialog");
+  const kategoriAra = pencere.getByPlaceholder(/Kategori ara/);
+  await expect(kategoriAra).toBeVisible({ timeout: 15_000 });
+  await kategoriAra.fill(terim);
+  const sinifKutusu = pencere.locator("ul ul ul").getByRole("checkbox").first();
+  // Artık gerçekten arama yanıtı beklenir (eski adım beklemiyordu) → süre geniş.
+  await expect(sinifKutusu, `"${terim}" araması sınıf düzeyinde sonuç getirdi`).toBeVisible({ timeout: 30_000 });
+  await sinifKutusu.click();
+  await expect(sinifKutusu).toHaveAttribute("aria-checked", "true");
+  await expect(
+    pencere.getByText(/^Ürün \/ hizmet 1\/\d+$/),
+    "sektörün tamamı değil, sektör altından tek seçim",
+  ).toBeVisible();
+  const onayla = pencere.getByRole("button", { name: /^Onayla/ });
+  await expect(onayla).toBeEnabled({ timeout: 10_000 });
+  await onayla.click();
+}
+
+/**
+ * Üç adımlı onboarding; sonunda panele düşer. Adımlar (2026-10-08):
+ * Şirket bilgileri (ülke en başta) → Faaliyet alanı (kategori + faaliyet tipi)
+ * → Yetkili ve onay (kimlik no, özet, beyan).
+ */
 export async function onboarding(page: Page, firmaUnvani: string): Promise<void> {
-  // 1 — Şirket Bilgileri
+  // 1 — Şirket bilgileri
   // Onboarding başlığı "Şirket bilgileri" (2026-09-27); adım etiketi ve açıklama da
   // aynı sözcükleri taşır → düz metin 4 öğe bulur, başlık rolüyle aranır.
   await expect(page.getByRole("heading", { name: "Şirket bilgileri" })).toBeVisible({ timeout: 60_000 });
+  await expect(aktifAdim(page)).toContainText("Şirket bilgileri");
+  // Ülke ilk alandır ve kayıt telefonunun ülkesiyle (Türkiye) açılır; hukuki
+  // yapı listesi, vergi alanları ve adres ona göre çizilir. Türkiye'de hukuki
+  // yapı genel listeden seçilir (Limited / Anonim / Şahıs / Diğer).
   await page.getByLabel(/Firma Unvanı/).fill(firmaUnvani);
-  await page.getByLabel(/Firma Türü/).selectOption({ index: 1 });
+  await page.getByLabel(/^Hukuki Yapı/).selectOption("LIMITED");
   await page.getByLabel(/Vergi No|Vergi \/ Sicil No/).first().fill(gecerliVergiNo());
   await page.getByLabel(/Vergi Dairesi/).fill("Tuzla");
   const il = page.getByLabel(/^İl \*/).first();
@@ -99,29 +159,19 @@ export async function onboarding(page: Page, firmaUnvani: string): Promise<void>
   await page.getByLabel(/Açık Adres/).first().fill("Organize Sanayi Bölgesi 7. Cadde No 3");
   await page.getByRole("button", { name: "Devam" }).click();
 
-  // 2 — Kişisel Bilgiler + sektör
-  await expect(page.getByText("Kişisel Bilgiler")).toBeVisible({ timeout: 30_000 });
-  const tckn = page.getByLabel(/T\.C\. Kimlik No|Yetkili Kimlik No/);
-  if ((await tckn.count()) > 0) await tckn.first().fill(gecerliTckn());
+  // 2 — Faaliyet alanı: yalnız kategori seçici + faaliyet tipi (kişisel alan yok)
+  await expect(aktifAdim(page)).toContainText("Faaliyet alanı", { timeout: 30_000 });
   // KATEGORİ SEÇİCİ TEK SORU SORAR (2026-09-14): eski "Sektör seçmek için
   // tıklayın" (L1 modalı) kalktı; boş durumda "Ürün / hizmet seçin" düğmesi
   // CategorySelectorModal'ı açar. Bu yardımcı 2026-09-16 RLS turunda eski
   // metinle kırıldı (staging-signup + prod-journey aynı yardımcıyı kullanır).
-  await page.getByRole("button", { name: /Ürün \/ hizmet (seçin|ekle)/ }).first().click();
-  const kategoriAra = page.getByPlaceholder(/Kategori ara/);
-  await expect(kategoriAra).toBeVisible({ timeout: 15_000 });
-  await kategoriAra.fill("Makine");
-  // Sonuçlar ağaç olarak açılır; SEÇİM yaprak satırının onay kutusuyla yapılır
-  // (metne tıklamak seçmez, "Onayla" pasif kalır — 2026-09-16 ekran görüntüsü).
-  const ilkKutu = page.getByRole("dialog").getByRole("checkbox").first();
-  await expect(ilkKutu).toBeVisible({ timeout: 15_000 });
-  await ilkKutu.click();
-  await expect(page.getByRole("button", { name: /^Onayla/ })).toBeEnabled({ timeout: 10_000 });
-  await page.getByRole("button", { name: /^Onayla/ }).click();
+  await kategoriAraVeSec(page, "Makine");
   await page.getByRole("button", { name: "Devam" }).click();
 
-  // 3 — Özet & Beyan
-  await expect(page.getByText("Özet & Beyan")).toBeVisible({ timeout: 30_000 });
+  // 3 — Yetkili ve onay: yetkili kimlik no (TR'de zorunlu), özet, beyan
+  await expect(aktifAdim(page)).toContainText("Yetkili ve onay", { timeout: 30_000 });
+  const tckn = page.getByLabel(/T\.C\. Kimlik No|Yetkili Kimlik No/);
+  if ((await tckn.count()) > 0) await tckn.first().fill(gecerliTckn());
   const beyan = page.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/ });
   await beyan.click();
   await expect(beyan).toHaveAttribute("aria-checked", "true");

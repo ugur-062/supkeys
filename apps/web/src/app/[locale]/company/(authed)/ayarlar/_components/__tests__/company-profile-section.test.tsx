@@ -147,6 +147,26 @@ describe("CompanyProfileSection", () => {
     expect(screen.queryByText("98765432109")).not.toBeInTheDocument();
   });
 
+  // 2026-10-08: kayıt sihirbazı ülkenin yerel hukuki yapılarını listeler; seçilen
+  // yerel ad HER türde saklanır ve burada o basılır. Eskiden yalnız "Diğer"de
+  // basılıyordu — GmbH seçen firma "Limited Şirket" görürdü.
+  it.each([
+    ["LIMITED", "GmbH", "DE"],
+    ["JOINT_STOCK", "PLC", "GB"],
+    ["SOLE_PROPRIETOR", "ИП", "RU"],
+    ["OTHER", "Kooperatif", "TR"],
+  ])("hukuki yapı: yerel ad varsa o basılır — %s / %s", (companyType, legalFormLocal, country) => {
+    h.profile = baseProfile({ companyType, legalFormLocal, country });
+    render(<CompanyProfileSection />);
+    expect(screen.getByText("Hukuki Yapı").nextElementSibling).toHaveTextContent(new RegExp(`^${legalFormLocal}$`));
+  });
+
+  it.each([null, undefined, "", "   "])("hukuki yapı: yerel ad yoksa (%j) türün adı basılır", (legalFormLocal) => {
+    h.profile = baseProfile({ companyType: "LIMITED", legalFormLocal });
+    render(<CompanyProfileSection />);
+    expect(screen.getByText("Hukuki Yapı").nextElementSibling).toHaveTextContent(/^Limited Şirket$/);
+  });
+
   it("UNVERIFIED'da firma adı ve yasal unvan düzenlenebilir; Kaydet değişiklik yokken pasif", () => {
     render(<CompanyProfileSection />);
     expect(screen.getByLabelText("Firma adı")).toBeEnabled();
