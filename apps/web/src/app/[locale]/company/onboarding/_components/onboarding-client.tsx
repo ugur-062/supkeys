@@ -602,7 +602,12 @@ export function OnboardingClient() {
   // Kimlik doğrulama — backend company-auth.service.completeOnboarding ile BİREBİR
   // (isValidTaxIdForCountry: TR strict VKN(10)/TCKN(11) checksum, yabancı gevşek;
   // TR yetkili için isValidTckn). Eski "length>=4 / ===11" gevşek gate'i kapatır.
-  const taxNumberValid = isValidTaxIdForCountry(f.taxNumber, f.country, isSole);
+  // Ülke seçilmeden vergi no ÖLÇÜLMEZ: kural ülkeye bağlı ve boş ülke Türkiye sayılıyordu —
+  // ülkesiz açılan (İngilizce) formda yazılan Alman / İngiliz numarası anında "geçersiz"
+  // görünüyordu (tarayıcı kontrolü D1, 2026-10-08). Ülke hatası zaten adımı durdurur.
+  const taxNumberValid = f.country
+    ? isValidTaxIdForCountry(f.taxNumber, f.country, isSole)
+    : f.taxNumber.trim().length > 0;
   const tcknValid = isTR ? isValidTckn(f.authorizedTckn) : true;
   const set = (k: FieldKey) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
   const [countryReady, setCountryReady] = useState(false);

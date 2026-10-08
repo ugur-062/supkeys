@@ -486,6 +486,33 @@ describe("OnboardingClient — adım 1 (şirket bilgileri)", () => {
     expect(queryStepHeading(2)).toBeNull();
   });
 
+  // Tarayıcı kontrolü D1 (2026-10-08): ülke boşken vergi no Türkiye kuralıyla ölçülüyor,
+  // yazılan Alman numarası anında "geçersiz" görünüyordu. Kural ülkeye bağlıdır.
+  it("ülke boşken yazılan vergi no geçersiz işaretlenmez; ülke seçilince o ülkenin kuralı uygulanır", async () => {
+    const locale = vi.spyOn(nextIntl, "useLocale").mockReturnValue("en");
+    try {
+      h.meData = {
+        user: { firstName: "Ada", lastName: "Yılmaz", phone: null },
+        company: { onboardingCompletedAt: null },
+      };
+      const user = userEvent.setup();
+      render(<OnboardingClient />);
+      const tax = document.querySelector<HTMLInputElement>('[data-field="taxNumber"] input')!;
+      expect(tax).not.toBeNull();
+      await user.click(tax);
+      await user.paste("DE818062107");
+      expect(tax).toHaveValue("DE818062107");
+      expect(tax).not.toHaveAttribute("aria-invalid", "true");
+      // Boş bırakılırsa "Devam"da yine zorunludur (ülke hatasıyla birlikte).
+      await user.clear(tax);
+      await user.click(screen.getByRole("button", { name: "Devam" }));
+      await act(async () => void (await new Promise((r) => setTimeout(r, 0))));
+      expect(tax).toHaveAttribute("aria-invalid", "true");
+    } finally {
+      locale.mockRestore();
+    }
+  }, LONG);
+
   // Kayıt arayüz testi 2026-10 D-03: ülke ilk alandır → boşken ilk hatalı alan
   // odur. Odak ülke kutusuna gelince 60 satırlık liste kendiliğinden açılıyor,
   // "Ülke seçin" hatasını ve altındaki alanları örtüyor, sayfayı kilitliyordu.
