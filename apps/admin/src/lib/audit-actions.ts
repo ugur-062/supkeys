@@ -25,6 +25,7 @@ export const ACTION_LABELS: Record<string, string> = {
   // Firma: kayıt ve profil
   "company.signup": "Firma kaydı",
   "company.signup_email_changed": "Kayıt e-postası düzeltildi (doğrulama öncesi)",
+  "company.signup_expired": "Doğrulanmayan kayıt silindi (7 gün, otomatik)",
   "company.vies_checked": "VIES vergi no sorgusu",
   "company.profile.updated": "Firma profili güncellendi",
   "company.profile_enrich_attempt": "Profil zenginleştirme denemesi",

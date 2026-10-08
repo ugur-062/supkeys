@@ -173,7 +173,7 @@ export interface AdminCompanyDetail {
   district?: string | null;
   neighborhood?: string | null;
   postalCode?: string | null;
-  /** Hukuki yapı; OTHER iken yerel adı `legalFormLocal`. */
+  /** Hukuki yapı türü; firmanın yerel yapı adı `legalFormLocal`. */
   companyType?: CompanyTypeCode | null;
   /** Yetkili kimlik no — API MASKELİ döner (ilk 3 + son 2). */
   authorizedTckn?: string | null;
@@ -218,7 +218,7 @@ export interface AdminCompanyDetail {
   bankName?: string | null;
   /** Kayıtlı ülke IBAN kullanıyor mu (API, 2026-09-27) — değilse `iban` = hesap no. */
   usesIban?: boolean;
-  /** `companyType = OTHER` iken yerel hukuki yapı. */
+  /** Hukuki yapının yerel adı (GmbH, ООО…) — her türde dolu olabilir; OTHER iken zorunlu. */
   legalFormLocal?: string | null;
   /** Ülkenin zorunlu belge seti (API — tek kaynak). */
   requiredDocs?: DocKind[];
@@ -417,10 +417,13 @@ export function useUpdateCompanyProfile() {
       id: string;
       patch: CompanyProfilePatch;
     }) => {
-      const { data } = await api.post<{ ok: boolean; changed: string[] }>(
-        `/admin/companies/${id}/profile`,
-        patch,
-      );
+      // `mappedCompanyType`: API yerel adı firmanın ülkesinin hukuki yapı
+      // listesinde bulup türü ORADAN yazdıysa (istenen türden farklıysa) gelir.
+      const { data } = await api.post<{
+        ok: boolean;
+        changed: string[];
+        mappedCompanyType?: CompanyTypeCode;
+      }>(`/admin/companies/${id}/profile`, patch);
       return data;
     },
     onSuccess: (_d, { id }) => {

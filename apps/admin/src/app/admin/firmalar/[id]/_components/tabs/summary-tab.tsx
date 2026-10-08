@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { EditProfileDialog } from "../edit-profile-dialog";
 import { reasonText } from "../verification-reason";
 
-/** Hukuki yapı etiketi (admin Türkçe); OTHER iken yerel ad (GmbH, LLC…) eklenir. */
+/** Platform hukuki yapı türünün adı (admin Türkçe). */
 const COMPANY_TYPE_LABELS: Record<string, string> = {
   JOINT_STOCK: "Anonim Şirket",
   LIMITED: "Limited Şirket",
@@ -25,12 +25,17 @@ const COMPANY_TYPE_LABELS: Record<string, string> = {
   OTHER: "Diğer",
 };
 
+/**
+ * Hukuki yapı: firmanın YEREL adı (GmbH, ООО, Sole trader…) varsa o öne
+ * yazılır, platform türü parantezde kalır — "GmbH (Limited Şirket)". Yerel ad
+ * her türde saklanır (2026-10-08: kayıt sihirbazı ülkenin yerel yapılarını
+ * listeler); eskiden yalnız "Diğer"de gösteriliyordu.
+ */
 function companyTypeText(data: AdminCompanyDetail): string | null {
-  if (!data.companyType) return null;
-  const label = COMPANY_TYPE_LABELS[data.companyType] ?? data.companyType;
-  return data.companyType === "OTHER" && data.legalFormLocal
-    ? `${label} — ${data.legalFormLocal}`
-    : label;
+  const local = data.legalFormLocal?.trim() || null;
+  const label = data.companyType ? (COMPANY_TYPE_LABELS[data.companyType] ?? data.companyType) : null;
+  if (local) return label ? `${local} (${label})` : local;
+  return label;
 }
 
 /**

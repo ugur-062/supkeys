@@ -85,7 +85,8 @@ describe("EditProfileDialog", () => {
   it("hukuki yapı Diğer seçilince yerel ad zorunlu, ikisi birlikte gönderilir", async () => {
     const user = userEvent.setup();
     render(<EditProfileDialog companyId="c1" data={data({ country: "DE", companyType: "LIMITED" })} onClose={() => {}} />);
-    expect(screen.queryByLabelText("Yerel hukuki yapı")).not.toBeInTheDocument();
+    // Yerel ad kutusu her türde açık (2026-10-08); "Diğer" dışında isteğe bağlı.
+    expect(screen.getByLabelText("Yerel hukuki yapı")).toHaveValue("");
     await user.selectOptions(screen.getByLabelText("Hukuki yapı"), "OTHER");
     await user.click(screen.getByRole("button", { name: "Kaydet" }));
     expect(h.mutate).not.toHaveBeenCalled();
@@ -117,6 +118,148 @@ describe("EditProfileDialog", () => {
       { id: "c1", patch: { legalFormLocal: "GmbH & Co. KG" } },
       expect.anything(),
     );
+  });
+
+  /**
+   * 2026-10-08: kayıt sihirbazı ülkenin yerel yapılarını listeler; yerel ad
+   * HER türle saklanır (LIMITED + "GmbH"). Eskiden kutu yalnız "Diğer"de
+   * açılıyordu — GmbH'yi UG'ye düzeltmek için türü "Diğer"e çevirmek gerekirdi.
+   */
+  it("yerel ad her türde görünür ve tür değişmeden düzeltilir; boşaltılınca boş değer gider", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditProfileDialog
+        companyId="c1"
+        data={data({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" })}
+        onClose={() => {}}
+      />,
+    );
+    const local = screen.getByLabelText("Yerel hukuki yapı");
+    expect(local).toHaveValue("GmbH");
+    expect(local).toHaveAttribute("maxLength", "80");
+    await user.clear(local);
+    await user.type(local, "UG (haftungsbeschränkt)");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenLastCalledWith(
+      { id: "c1", patch: { legalFormLocal: "UG (haftungsbeschränkt)" } },
+      expect.anything(),
+    );
+
+    await user.clear(local);
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenLastCalledWith({ id: "c1", patch: { legalFormLocal: "" } }, expect.anything());
+    expect(h.toast.error).not.toHaveBeenCalled();
+  });
+
+  it("tür değişince yerel ad kutusu boşalır (eski ad yeni türe taşınmaz); kayıtlı türe dönünce geri gelir", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditProfileDialog
+        companyId="c1"
+        data={data({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" })}
+        onClose={() => {}}
+      />,
+    );
+    const type = screen.getByLabelText("Hukuki yapı");
+    const local = screen.getByLabelText("Yerel hukuki yapı");
+    await user.selectOptions(type, "JOINT_STOCK");
+    expect(local).toHaveValue("");
+    // Kayıtlı türe dönüş: kayıtlı ad geri gelir, gönderilecek değişiklik kalmaz.
+    await user.selectOptions(type, "LIMITED");
+    expect(local).toHaveValue("GmbH");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).not.toHaveBeenCalled();
+
+    // Yeni tür + yeni yerel ad birlikte gider; ad yazılmazsa boş gider (API eskisini siler).
+    await user.selectOptions(type, "JOINT_STOCK");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenLastCalledWith(
+      { id: "c1", patch: { companyType: "JOINT_STOCK", legalFormLocal: "" } },
+      expect.anything(),
+    );
+    await user.type(local, "AG");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenLastCalledWith(
+      { id: "c1", patch: { companyType: "JOINT_STOCK", legalFormLocal: "AG" } },
+      expect.anything(),
+    );
+
+    // "Diğer"e geçiş: yazılı ad serbest metin olarak kalır.
+    await user.selectOptions(type, "OTHER");
+    expect(local).toHaveValue("AG");
+  });
+
+  /**
+   * İnceleme 2026-10-08 (admin-type-correction-erases-local-name). Bu sürümden
+   * önce kaydolan her yabancı firma "Diğer + yerel ad" olarak saklı. Admin türü
+   * düzeltince kutu boşalır; aynı adı yeniden yazıp kaydedince pencere yalnız
+   * türü gönderiyordu (ad kayıtlı değerle aynı → "değişmedi") ve API, adsız
+   * gelen tür değişikliğinde eski adı SİLİYORDU: admin kutuda GmbH'yı ve
+   * başarı bildirimini görüyor, firma adsız "Limited Şirket" kalıyordu.
+   */
+  it("tür değişirken yerel ad kayıtlı adla AYNI olsa da gönderilir (Diğer + GmbH → Limited + GmbH)", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditProfileDialog
+        companyId="c1"
+        data={data({ country: "DE", companyType: "OTHER", legalFormLocal: "GmbH" })}
+        onClose={() => {}}
+      />,
+    );
+    const local = screen.getByLabelText("Yerel hukuki yapı");
+    await user.selectOptions(screen.getByLabelText("Hukuki yapı"), "LIMITED");
+    expect(local).toHaveValue("");
+    await user.type(local, "GmbH");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenLastCalledWith(
+      { id: "c1", patch: { companyType: "LIMITED", legalFormLocal: "GmbH" } },
+      expect.anything(),
+    );
+  });
+
+  /**
+   * Türün sahibi API'dir (2026-10-08): yerel ad firmanın ülkesinin listesindeyse
+   * tür oradan yazılır. Admin'in seçtiği tür ezildiyse yanıt `mappedCompanyType`
+   * taşır; pencere bunu söyler — yalnız "Güncellendi" demek "seçtiğim tür
+   * kaydedildi" diye okunurdu.
+   */
+  it("API türü yerel addan yazdıysa bildirim hangi türün kaydedildiğini söyler; hiçbir alan değişmediyse 'Güncellendi' denmez", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(
+      <EditProfileDialog
+        companyId="c1"
+        data={data({ country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" })}
+        onClose={onClose}
+      />,
+    );
+    await user.selectOptions(screen.getByLabelText("Hukuki yapı"), "JOINT_STOCK");
+    await user.type(screen.getByLabelText("Yerel hukuki yapı"), "GmbH");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenLastCalledWith(
+      { id: "c1", patch: { companyType: "JOINT_STOCK", legalFormLocal: "GmbH" } },
+      expect.anything(),
+    );
+
+    const { onSuccess } = h.mutate.mock.calls.at(-1)![1] as { onSuccess: (r: unknown) => void };
+
+    // GmbH, DE'de Limited: API hiçbir şey yazmadı (kayıt zaten Limited + GmbH).
+    onSuccess({ ok: true, changed: [], mappedCompanyType: "LIMITED" });
+    expect(h.toast.info).toHaveBeenCalledWith(expect.stringMatching(/"Limited Şirket" olarak kaydedildi.*"GmbH"/));
+    expect(h.toast.success).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    // Başka alan da değiştiyse ikisi birlikte: ne kaydedildi + kaç alan.
+    vi.clearAllMocks();
+    onSuccess({ ok: true, changed: ["companyType", "name"], mappedCompanyType: "SOLE_PROPRIETOR" });
+    expect(h.toast.info).toHaveBeenCalledWith(expect.stringMatching(/"Şahıs Firması" olarak kaydedildi/));
+    expect(h.toast.success).toHaveBeenCalledWith("Güncellendi (2 alan)");
+
+    // Eşleme yoksa eskisi gibi yalnız başarı bildirimi.
+    vi.clearAllMocks();
+    onSuccess({ ok: true, changed: ["companyType"] });
+    expect(h.toast.info).not.toHaveBeenCalled();
+    expect(h.toast.success).toHaveBeenCalledWith("Güncellendi (1 alan)");
   });
 
   it("ülke ya da firma adı boşaltılınca istek gitmez, alanı söyleyen uyarı (D-201)", async () => {

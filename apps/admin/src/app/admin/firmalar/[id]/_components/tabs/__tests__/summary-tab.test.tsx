@@ -50,15 +50,29 @@ function data(over: Record<string, unknown> = {}) {
 }
 
 /**
- * Admin özeti (2026-09-27): hukuki yapı (OTHER → yerel ad), posta kodu,
- * maskeli yetkili kimliği, VIES sonucu ve kodlu red gerekçesi.
+ * Admin özeti (2026-09-27): hukuki yapı (yerel ad + platform türü), posta
+ * kodu, maskeli yetkili kimliği, VIES sonucu ve kodlu red gerekçesi.
  */
 describe("SummaryTab — kimlik bilgileri", () => {
-  it("hukuki yapı OTHER iken yerel adı, posta kodu ve maskeli yetkili kimliği çizer", () => {
+  it("hukuki yapının yerel adını, posta kodunu ve maskeli yetkili kimliğini çizer", () => {
     render(<SummaryTab data={data()} />);
-    expect(screen.getByText("Diğer — GmbH")).toBeInTheDocument();
+    expect(screen.getByText("GmbH (Diğer)")).toBeInTheDocument();
     expect(screen.getByText("80331")).toBeInTheDocument();
     expect(screen.getByText("C01***89")).toBeInTheDocument();
+  });
+
+  // 2026-10-08: yerel ad HER türde saklanır (kayıt sihirbazı ülkenin yerel
+  // yapılarını listeler) — eskiden yalnız "Diğer"de basılıyordu.
+  it.each([
+    [{ companyType: "LIMITED", legalFormLocal: "GmbH" }, "GmbH (Limited Şirket)"],
+    [{ companyType: "JOINT_STOCK", legalFormLocal: "ПАО" }, "ПАО (Anonim Şirket)"],
+    [{ companyType: "SOLE_PROPRIETOR", legalFormLocal: "Sole trader" }, "Sole trader (Şahıs Firması)"],
+    [{ companyType: "LIMITED", legalFormLocal: null }, "Limited Şirket"],
+    [{ companyType: "LIMITED", legalFormLocal: "  " }, "Limited Şirket"],
+    [{ companyType: null, legalFormLocal: "GmbH" }, "GmbH"],
+  ])("hukuki yapı satırı: %j → %s", (over, text) => {
+    render(<SummaryTab data={data(over)} />);
+    expect(screen.getByText("Hukuki yapı").nextElementSibling?.textContent).toBe(text);
   });
 
   it("AB firmasında VIES kaydı yoksa 'Sorgulanmadı'; kayıt varsa sonuç + VIES'teki ad", () => {
@@ -106,7 +120,10 @@ describe("SummaryTab — kimlik bilgileri", () => {
   });
 
   it("AB dışı ve kayıtsız firmada VIES satırı yok", () => {
-    render(<SummaryTab data={data({ country: "TR", viesSupported: false, companyType: "LIMITED" })} />);
+    // Türk Limited şirketi: yerel ad yok (genel listeden seçildi) → türün adı.
+    render(
+      <SummaryTab data={data({ country: "TR", viesSupported: false, companyType: "LIMITED", legalFormLocal: null })} />,
+    );
     expect(screen.queryByText("VIES (AB KDV)")).not.toBeInTheDocument();
     expect(screen.getByText("Limited Şirket")).toBeInTheDocument();
   });

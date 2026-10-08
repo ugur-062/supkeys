@@ -26,6 +26,10 @@ export const CRON_JOB_META: Record<string, { label: string; schedule: string }> 
     label: "Süresi geçmiş oturum iptal kayıtlarını sil (çıkış yapılan oturumlar)",
     schedule: "Her gece 04:50 (İstanbul)",
   },
+  "signup.purgeUnverified": {
+    label: "E-postası 7 gündür doğrulanmayan kayıtları sil (adres yeniden kullanılabilir)",
+    schedule: "Her gece 05:10 (İstanbul)",
+  },
   "views.replyTimes": {
     label: "Firmaların ortanca ilk yanıt süresini hesapla (\"hızlı yanıt\")",
     schedule: "Her gece 04:35 (İstanbul)",

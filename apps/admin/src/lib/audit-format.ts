@@ -285,6 +285,10 @@ const VALUE_BY_KEY: Record<string, Record<string, string>> = {
     AI_AUTO: "AI (otomatik)",
     onboarding: "Kayıt sırasında",
     letter_of_credit: "Akreditif",
+    // company.signup_expired (doğrulanmamış kaydın 7 gün sonra silinmesi): neyin tetiklediği.
+    cron: "Gecelik iş",
+    signup: "Aynı adresle yeni kayıt",
+    team_invite: "Aynı adrese ekip daveti",
   },
   via: { ai_assistant: "AI asistan", complaint: "Şikayet" },
   actionType: {
