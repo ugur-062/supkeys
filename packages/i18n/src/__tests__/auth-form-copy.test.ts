@@ -57,6 +57,7 @@ const FIELD_ERRORS = [
   "auth.onboarding.taxForeignInvalid",
   "auth.onboarding.tcknInvalidPerson",
   "auth.onboarding.legalFormLocalRequired",
+  "auth.onboarding.errLegalForm",
   "auth.onboarding.errLegalName",
   "auth.onboarding.errCountry",
   "auth.onboarding.errTaxOffice",
@@ -91,6 +92,59 @@ describe("kimlik formları — alan hataları tek biçimde (resignup-6)", () => 
     expect(at(rawMessages("tr", "web"), "auth.signup.phoneRequired")).not.toMatch(/ülke/i);
     expect(at(rawMessages("en", "web"), "auth.signup.phoneRequired")).not.toMatch(/country/i);
     expect(at(rawMessages("ru", "web"), "auth.signup.phoneRequired")).not.toMatch(/стран/i);
+  });
+});
+
+/**
+ * Onboarding sihirbazı (inceleme 2026-10-08).
+ *
+ * 1) SON ADIMIN ADI YETKİLİYİ ANAR. Adım "yetkili kişi" bölümüyle (ad + kimlik
+ *    no — Türkiye'de zorunlu) açılır. Rusça ad eski son adımın adı olarak
+ *    kalmıştı ("Итог и заявление" = özet ve beyan): adım adından doldurulacak
+ *    kişisel bir alan kaldığı anlaşılmıyordu.
+ *
+ * 2) RUSÇA ADIM ADLARI 360 px'TE ADIM GÖSTERGESİNE SIĞAR. Göstergede daralmayan
+ *    genişlik = daireler ve boşluklar (140 px) + her adın EN UZUN sözcüğü;
+ *    360 px'lik ekranda 328 px yer var. Ölçüm (Chromium, derlemenin Inter
+ *    yazı tipi, 2026-10-08):
+ *      · "Подписант и итог"            → 314 px gerekir, 14 px pay (2 satır);
+ *      · "Представитель и заявление"   → 345 px gerekir, 17 px TAŞAR.
+ *    Kiril harfte sözcük başına ≈ 7,7 px/harf: üç adın en uzun sözcükleri
+ *    toplam 23 harfte sığıyor, 27 harfte taşıyor → tavan 24. Ad değişirse
+ *    tarayıcıda yeniden ölçülür; bu test yalnız kaba bir bekçidir.
+ *
+ * 3) "DİĞER" KUTUSUNUN ÖRNEĞİ LİSTEDEKİ BİR YAPI DEĞİLDİR. Yerel hukuki yapı
+ *    listesi olan ülkede örnek "kooperatif"ti; 17 ülkenin listesinde kooperatif
+ *    var (Società cooperativa, eG, Genossenschaft…) → örneği izleyen kurucu
+ *    onu serbest metin yazıp "Diğer" olarak kaydoluyordu. Örnekler bilerek
+ *    listeye alınmayan yapılardır: vakıf, dernek, şube (`@rothern/shared`
+ *    `data/legal-forms.ts`; karşı sözleşme api `legal-forms.spec`).
+ */
+describe("onboarding sihirbazı metinleri (inceleme 2026-10-08)", () => {
+  it("son adımın adı yetkili kişiyi anar (üç dilde)", () => {
+    const PERSON = { tr: /yetkili/i, en: /authorized person/i, ru: /подписант|представител/i };
+    for (const locale of LOCALES) {
+      expect([locale, at(rawMessages(locale, "web"), "auth.onboarding.step3")]).toEqual([
+        locale,
+        expect.stringMatching(PERSON[locale]),
+      ]);
+    }
+  });
+
+  it("ru: adım adlarının en uzun sözcükleri 360 px'lik adım göstergesine sığar (toplam ≤ 24 harf)", () => {
+    const web = rawMessages("ru", "web");
+    const longest = ["step1", "step2", "step3"].map((key) =>
+      Math.max(...at(web, `auth.onboarding.${key}`).split(/\s+/).map((word) => word.length)),
+    );
+    expect(longest.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(24);
+  });
+
+  it("yerel listesi olan ülkede 'Diğer' kutusunun örneği kooperatif (listedeki yapı) değildir", () => {
+    const COOPERATIVE = { tr: /kooperatif/i, en: /co-?operative/i, ru: /кооператив/i };
+    for (const locale of LOCALES) {
+      const text = at(rawMessages(locale, "web"), "auth.onboarding.legalFormLocalPlaceholderListed");
+      expect([locale, text]).toEqual([locale, expect.not.stringMatching(COOPERATIVE[locale])]);
+    }
   });
 });
 

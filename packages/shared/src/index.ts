@@ -21,6 +21,7 @@ export * from "./data/turkey-locations";
 export * from "./data/countries";
 export * from "./data/country-names-i18n";
 export * from "./data/country-profiles";
+export * from "./data/legal-forms";
 export * from "./data/phone-codes";
 export * from "./data/iban-countries";
 export * from "./data/geo-special-cities";

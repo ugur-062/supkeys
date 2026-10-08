@@ -9144,6 +9144,11 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
+  "web.auth.onboarding.authorizedHeading": {
+    "hash": "72ff2b363c",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
   "web.auth.onboarding.back": {
     "hash": "4928cfc92f",
     "status": "reviewed",
@@ -9180,7 +9185,7 @@
     "at": "2026-10-08"
   },
   "web.auth.onboarding.companyTypeLabel": {
-    "hash": "613d74447d",
+    "hash": "5946673cac",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9191,6 +9196,11 @@
   },
   "web.auth.onboarding.country": {
     "hash": "46dbb3c3d0",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.auth.onboarding.countryNote": {
+    "hash": "06cfb00e74",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9254,6 +9264,11 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
+  "web.auth.onboarding.errLegalForm": {
+    "hash": "98f2131673",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
   "web.auth.onboarding.errLegalName": {
     "hash": "63d20c6e20",
     "status": "reviewed",
@@ -9281,6 +9296,11 @@
   },
   "web.auth.onboarding.finish": {
     "hash": "1133f332a9",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.auth.onboarding.foreignIdHint": {
+    "hash": "8f8be3e210",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9316,6 +9336,16 @@
   },
   "web.auth.onboarding.legalFormLocalPlaceholder": {
     "hash": "77a2d6e8ac",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.auth.onboarding.legalFormLocalPlaceholderListed": {
+    "hash": "8d19590ab0",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.auth.onboarding.legalFormLocalPlaceholderTr": {
+    "hash": "1a2c6c774f",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9430,7 +9460,7 @@
     "at": "2026-10-08"
   },
   "web.auth.onboarding.sectorHint": {
-    "hash": "7a6477d7df",
+    "hash": "9691e011e4",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9455,17 +9485,17 @@
     "at": "2026-10-08"
   },
   "web.auth.onboarding.step1": {
-    "hash": "cbdf988ae2",
+    "hash": "ae813a633f",
     "status": "reviewed",
     "at": "2026-10-08"
   },
   "web.auth.onboarding.step2": {
-    "hash": "e535e8f6bf",
+    "hash": "6c2a3f8540",
     "status": "reviewed",
     "at": "2026-10-08"
   },
   "web.auth.onboarding.step3": {
-    "hash": "29751cb1c2",
+    "hash": "5cbcf6af88",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9484,13 +9514,8 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.auth.onboarding.sumAuthorized": {
-    "hash": "c1eef45a36",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
   "web.auth.onboarding.sumCompanyType": {
-    "hash": "d8dd1130d8",
+    "hash": "a065aa698c",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9509,13 +9534,18 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.auth.onboarding.sumForeignId": {
-    "hash": "aca0a1ac1b",
+  "web.auth.onboarding.sumLegalName": {
+    "hash": "3170851259",
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.auth.onboarding.sumLegalName": {
-    "hash": "3170851259",
+  "web.auth.onboarding.summaryHeading": {
+    "hash": "915daefe83",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.auth.onboarding.summaryHint": {
+    "hash": "bf92dfef03",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -9546,11 +9576,6 @@
   },
   "web.auth.onboarding.sumTaxOffice": {
     "hash": "3d7824d26b",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.auth.onboarding.sumTckn": {
-    "hash": "786448536e",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -10182,437 +10207,442 @@
   "web.domain.auditAction.company_address_created": {
     "hash": "d5bb2d61e9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_address_deleted": {
     "hash": "3f6822f90e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_address_updated": {
     "hash": "fe9c6d5230",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_approved": {
     "hash": "ba3282c651",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_flow_created": {
     "hash": "aeeaf4dc86",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_flow_deleted": {
     "hash": "efd69b1bd2",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_flow_duplicated": {
     "hash": "be028de27d",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_flow_status_changed": {
     "hash": "f9c7dd3daf",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_flow_updated": {
     "hash": "7d7db3ce9f",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_rejected": {
     "hash": "f80931c1db",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_approval_step_approved": {
     "hash": "97c47cb4ea",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_bank_account_created": {
     "hash": "8da1c8af8a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_bank_account_deleted": {
     "hash": "b0d5cde219",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_bank_account_updated": {
     "hash": "6e54cab535",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_bid_document_added": {
     "hash": "92956a8b32",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_bid_document_removed": {
     "hash": "6712a9e66a",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_bid_submitted": {
     "hash": "de5470d8c1",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_bid_validity_extended": {
     "hash": "f7fc2d7911",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_catalog_item_archived": {
     "hash": "152292dfe6",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_catalog_item_bulk_imported": {
     "hash": "df19b10abe",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_catalog_item_created": {
     "hash": "84d2a0985e",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_catalog_item_restored": {
     "hash": "ce1c170afe",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_catalog_item_updated": {
     "hash": "fab61b9c83",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_connection_accepted": {
     "hash": "efb915c406",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_connection_auto_created": {
     "hash": "7edd48a719",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_connection_blocked": {
     "hash": "a51eef670b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_connection_disconnected": {
     "hash": "975659dbe9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_connection_rejected": {
     "hash": "4dc0a43beb",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_connection_requested": {
     "hash": "505fbfdbd9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_connection_unblocked": {
     "hash": "1d4e3c6c41",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_docs_revision_submitted": {
     "hash": "ea1143e92e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_docs_submitted": {
     "hash": "4d2208310a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_docs_uploaded": {
     "hash": "ff62847295",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_ai_member_invited": {
     "hash": "e8fb53f44b",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_award_reverted_on_rejection": {
     "hash": "74dcf26840",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_awarded": {
     "hash": "ffbe4468a3",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_cancelled": {
     "hash": "b01cf1dac1",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_closed_no_award": {
     "hash": "d62511aef0",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_document_added": {
     "hash": "4d027e03a3",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_document_removed": {
     "hash": "3e81189503",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_evaluation_started": {
     "hash": "1edd1cb4a4",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_manage_denied": {
     "hash": "146fe9a149",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_next_round_created": {
     "hash": "e73a52e685",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_listing_published": {
     "hash": "f0b98f87df",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_membership_self_upgraded": {
     "hash": "03dd41f8dd",
     "status": "reviewed",
-    "at": "2026-10-07"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_accepted": {
     "hash": "286e56c447",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_cancel_request_approved": {
     "hash": "389a624dc5",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_cancel_request_withdrawn": {
     "hash": "5a846734b9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_cancel_requested": {
     "hash": "dfea694c17",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_cancelled": {
     "hash": "40088e8ffd",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_completed": {
     "hash": "0f50862886",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_defect_notice_withdrawn": {
     "hash": "248baeec87",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_defect_notified": {
     "hash": "af7db520e7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_disputed": {
     "hash": "a5bd966ce7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_lc_accepted": {
     "hash": "68c1799fa3",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_lc_opened": {
     "hash": "28e3ed0ea1",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_payment_confirmed": {
     "hash": "82a8777069",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_payment_rejected": {
     "hash": "c06b924fa9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_received": {
     "hash": "9a59259ad2",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_rejected": {
     "hash": "05e473ea8a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_order_shipped": {
     "hash": "bc74c76eb7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_ownership_transferred": {
     "hash": "9d9a0ad992",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_product_submitted": {
     "hash": "6cc4119aa7",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_product_unpublished": {
     "hash": "e3b07af7b1",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_product_updated": {
     "hash": "e52a840b0c",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_profile_enrich_attempt": {
     "hash": "9ca9835f3c",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_profile_enrich_settled": {
     "hash": "6c19c27119",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_profile_enriched": {
     "hash": "f02d48561a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_profile_updated": {
     "hash": "300a894a99",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_request_defaults_updated": {
     "hash": "809e2666da",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_seats_selection_applied": {
     "hash": "15e25de4df",
     "status": "reviewed",
-    "at": "2026-10-02"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_signup": {
     "hash": "6d10f590f3",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_signup_email_changed": {
     "hash": "7b30299fb4",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
+  },
+  "web.domain.auditAction.company_signup_expired": {
+    "hash": "3a20dd05cd",
+    "status": "reviewed",
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_active_changed": {
     "hash": "7c29fde626",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_invitation_accepted": {
     "hash": "2fa90955aa",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_invitation_cancelled": {
     "hash": "1f638a7fde",
     "status": "reviewed",
-    "at": "2026-10-02"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_invited": {
     "hash": "92a583df83",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_last_admin_denied": {
     "hash": "cbb3235a93",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_permissions_changed": {
     "hash": "99bc2a79f5",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_permissions_overridden": {
     "hash": "46c803ab61",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_profile_updated": {
     "hash": "89f2edf5a3",
     "status": "reviewed",
-    "at": "2026-10-02"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_removed": {
     "hash": "43da635885",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_role_change_denied": {
     "hash": "05cd0b814f",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_roles_changed": {
     "hash": "4e16958b3e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_user_terms_accepted": {
     "hash": "8daac1f837",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditAction.company_vies_checked": {
     "hash": "9f0b662b8a",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-08"
   },
   "web.domain.auditActionOther": {
     "hash": "95d797a8dc",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-08"
   },
   "web.domain.bidDeliveryTime.M2_3": {
     "hash": "594149fd0b",
@@ -40909,6 +40939,11 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
+  "web.shared.categorySelectorModal.enFazlaSektordeSecimYapabilirsiniz": {
+    "hash": "d384754657",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
   "web.shared.categorySelectorModal.genislet": {
     "hash": "13aabc6bb7",
     "status": "reviewed",
@@ -40999,6 +41034,26 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
+  "web.shared.categorySelectorModal.sayacSektor": {
+    "hash": "bfca26c6a8",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.shared.categorySelectorModal.sayacSektorOkunus": {
+    "hash": "ea9c79a1b3",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.shared.categorySelectorModal.sayacUrunHizmet": {
+    "hash": "6bbfb91a85",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.shared.categorySelectorModal.sayacUrunHizmetOkunus": {
+    "hash": "4fb4ea0542",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
   "web.shared.categorySelectorModal.secili": {
     "hash": "18a2fd29fb",
     "status": "reviewed",
@@ -41031,6 +41086,16 @@
   },
   "web.shared.categorySelectorModal.secimlerinizOnaylanmadi": {
     "hash": "9574714f5b",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.shared.categorySelectorModal.sektorunTamami": {
+    "hash": "7c2ae83e9f",
+    "status": "reviewed",
+    "at": "2026-10-08"
+  },
+  "web.shared.categorySelectorModal.sektorunTamamiSecili": {
+    "hash": "ee117eb686",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -41084,11 +41149,6 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.shared.companyCategoryPicker.birSektorunTamamindaCalisiyorsanizBuradan": {
-    "hash": "8efc59105c",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
   "web.shared.companyCategoryPicker.enFazlaUrunHizmetSecebilirsiniz": {
     "hash": "e51c1a9260",
     "status": "reviewed",
@@ -41109,33 +41169,23 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.shared.companyCategoryPicker.sektorGeneli": {
-    "hash": "489e840638",
+  "web.shared.companyCategoryPicker.sektorunTamami": {
+    "hash": "86b2a49774",
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.shared.companyCategoryPicker.sektorGeneliEkle": {
-    "hash": "4e407e7f5a",
+  "web.shared.companyCategoryPicker.sektorunTamaminiDaSecebilirsiniz": {
+    "hash": "885b344ac8",
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.shared.companyCategoryPicker.sektorunTamamiBuAlandakiHer": {
-    "hash": "e16aa9ba3b",
+  "web.shared.companyCategoryPicker.sektorunTamaminiYaDaAltindaki": {
+    "hash": "e84a645982",
     "status": "reviewed",
     "at": "2026-10-08"
   },
   "web.shared.companyCategoryPicker.sektorunuVeAltindakiSecimleriKaldir": {
     "hash": "6f10178411",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.companyCategoryPicker.sektorunuzSeciminizdenOtomatikBelirlenir": {
-    "hash": "7c23ded0a1",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.companyCategoryPicker.tamOlarakNeAlipSattiginizi": {
-    "hash": "e5cdc898cc",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -41426,91 +41476,6 @@
   },
   "web.shared.searchVisibilityCard.yuzde": {
     "hash": "f059f4653d",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.enFazlaKategoriSecebilirsiniz": {
-    "hash": "d91566f552",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.faaliyetAlanlariniz": {
-    "hash": "3f4c676a6b",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.faaliyetAlanlariniziSecin": {
-    "hash": "01527891bc",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.kaldir": {
-    "hash": "9ef59d4278",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.kapat": {
-    "hash": "9e6ecd5955",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.kategoriAra": {
-    "hash": "020b5e727b",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.kategoriEkleDuzenle": {
-    "hash": "779c4f4728",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.kategoriSecildiMax": {
-    "hash": "2d9e9c160d",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.onayla": {
-    "hash": "d13ec38062",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.onaylaN": {
-    "hash": "ff8b417f6f",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.seciminiz": {
-    "hash": "314f9b0777",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.sektorlerYuklenemedi": {
-    "hash": "3433f52cfb",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.sonucBulunamadi": {
-    "hash": "cdf964e758",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.tedarikEdebileceginizAnaKategorileriSecin": {
-    "hash": "8fbadcb358",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.tumSecimiTemizle": {
-    "hash": "d2932f10d8",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.vazgec": {
-    "hash": "14d2482077",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.shared.segmentOnlyPicker.yenidenDene": {
-    "hash": "7ba41f54b2",
     "status": "reviewed",
     "at": "2026-10-08"
   },
