@@ -1,5 +1,5 @@
 import { Reflector } from "@nestjs/core";
-import { ThrottlerException, ThrottlerStorageService } from "@nestjs/throttler";
+import { ThrottlerException } from "@nestjs/throttler";
 import {
   ClientIpThrottlerGuard,
   DEFAULT_SSR_CLIENT_LIMIT,
@@ -11,6 +11,7 @@ import {
   ssrClientIp,
   ssrClientLimit,
 } from "../../src/common/http/client-ip-throttler.guard";
+import { PerKeyThrottlerStorage } from "../../src/common/http/throttler-storage";
 
 /**
  * Web SSR → API hız sınırı muafiyeti (yayın denetimi 2026-09-28 Bölüm 11):
@@ -69,8 +70,12 @@ describe("ClientIpThrottlerGuard — SSR bucket", () => {
     } as unknown as import("@nestjs/common").ExecutionContext;
   }
 
+  // The guard is built with the storage the app really uses (app.module.ts
+  // passes PerKeyThrottlerStorage to ThrottlerModule.forRoot), not the library
+  // default: the SSR buckets are just more keys of that storage. It keeps no
+  // timers, so there is nothing to shut down after a test.
   async function makeGuard() {
-    const storage = new ThrottlerStorageService();
+    const storage = new PerKeyThrottlerStorage();
     const guard = new ClientIpThrottlerGuard(
       {
         throttlers: [
@@ -95,7 +100,8 @@ describe("ClientIpThrottlerGuard — SSR bucket", () => {
     await expect(guard.canActivate(ctx(ssr, ProductsCtrl.prototype.list))).resolves.toBe(true);
     // 4th call from any Vercel IP, any public endpoint → 429.
     await expect(guard.canActivate(ctx(ssr, ProductsCtrl.prototype.facets))).rejects.toBeInstanceOf(ThrottlerException);
-    storage.onApplicationShutdown();
+    // Two IPs, two endpoints: still ONE counter in the storage.
+    expect(storage.size).toBe(1);
   });
 
   it("SSR bucket does not consume the per-IP bucket; untrusted request still uses it", async () => {
@@ -107,7 +113,8 @@ describe("ClientIpThrottlerGuard — SSR bucket", () => {
     const anon = { ...req({ headers: {} }), ip: "1.2.3.4" };
     for (let i = 0; i < 100; i++) await guard.canActivate(ctx(anon, ProductsCtrl.prototype.list));
     await expect(guard.canActivate(ctx(anon, ProductsCtrl.prototype.list))).rejects.toBeInstanceOf(ThrottlerException);
-    storage.onApplicationShutdown();
+    // SSR bucket + the visitor's own "default" and "auth" counters for this endpoint.
+    expect(storage.size).toBe(3);
   });
 
   /**
@@ -133,7 +140,8 @@ describe("ClientIpThrottlerGuard — SSR bucket", () => {
     await expect(guard.canActivate(ctx(other, ProductsCtrl.prototype.list))).resolves.toBe(true);
     const isr = { ...req(), ip: "1.2.3.4" };
     for (let i = 0; i < 3; i++) await expect(guard.canActivate(ctx(isr, ProductsCtrl.prototype.list))).resolves.toBe(true);
-    storage.onApplicationShutdown();
+    // One counter per attributed visitor + the shared one for unattributed renders.
+    expect(storage.size).toBe(3);
   });
 
   it("client IP header without a valid secret is ignored (plain per-IP bucket)", async () => {
@@ -145,7 +153,9 @@ describe("ClientIpThrottlerGuard — SSR bucket", () => {
     }
     const next = { ...req({ headers: { [SSR_CLIENT_IP_HEADER]: "10.0.1.1" } }), ip: "1.2.3.4" };
     await expect(guard.canActivate(ctx(next, ProductsCtrl.prototype.list))).rejects.toBeInstanceOf(ThrottlerException);
-    storage.onApplicationShutdown();
+    // 101 different header values created no counters of their own: only the
+    // real client IP's "default" and "auth" counters exist.
+    expect(storage.size).toBe(2);
   });
 
   it("ssrClientIp: only literal IPs; ssrClientLimit: env override, invalid → default", () => {

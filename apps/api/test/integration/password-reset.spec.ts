@@ -4,7 +4,7 @@
  * yarış koruması (iki eşzamanlı confirm → parola yalnız bir kez set edilir).
  */
 import * as crypto from "node:crypto";
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Logger } from "@nestjs/common";
 import { PasswordResetService } from "../../src/modules/password-reset/password-reset.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
@@ -213,5 +213,231 @@ describe("PasswordResetService", () => {
       where: { companyUserId: owner.user.id },
     });
     expect(used?.usedAt).not.toBeNull();
+  });
+});
+
+/**
+ * login-16 (arayüz testi 2026-10): kullanılmış ya da yenisiyle değiştirilmiş
+ * bağlantı tam formu gösteriyor, kullanıcı ölü olduğunu yeni şifreyi iki kez
+ * yazıp gönderince öğreniyordu. `checkResetToken` sayfa açılırken sorulur:
+ * confirm ile AYNI kurallar, ama hiçbir şey yazmaz.
+ */
+describe("PasswordResetService.checkResetToken — salt okuma (login-16)", () => {
+  it("geçerli bağlantı → valid: true; token TÜKETİLMEZ, sonra confirm çalışır", async () => {
+    const { service, supabaseAuth } = rig();
+    const owner = await userWithAuth();
+    const plain = await makeToken(owner.user.id);
+    const before = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: owner.user.id },
+      select: { tokenVersion: true },
+    });
+
+    // Kaç kez sorulursa sorulsun aynı yanıt.
+    for (let i = 0; i < 3; i++) {
+      expect(await service.checkResetToken(plain)).toEqual({ valid: true });
+    }
+    const tok = await prisma.passwordResetToken.findFirstOrThrow({
+      where: { companyUserId: owner.user.id },
+    });
+    expect(tok.usedAt).toBeNull();
+    expect(supabaseAuth.updatePassword).not.toHaveBeenCalled();
+    expect(
+      (await prisma.companyUser.findUniqueOrThrow({ where: { id: owner.user.id } })).tokenVersion,
+    ).toBe(before.tokenVersion);
+
+    await expect(service.confirmPasswordReset(plain, "Guclu-Parola-2026!")).resolves.toEqual({
+      success: true,
+    });
+    // Kullanılan bağlantı artık geçersiz.
+    expect(await service.checkResetToken(plain)).toEqual({
+      valid: false,
+      message: "Bu bağlantı zaten kullanılmış",
+    });
+  });
+
+  it("bilinmeyen / kullanılmış / süresi dolmuş bağlantı → valid: false (confirm'ün metniyle)", async () => {
+    const { service } = rig();
+    const owner = await userWithAuth();
+    const used = await makeToken(owner.user.id, { usedAt: new Date() });
+    const expired = await makeToken(owner.user.id, { expiresAt: new Date(Date.now() - 1000) });
+
+    const cases: Array<[string, string]> = [
+      ["hic-uretilmemis-token", "Geçersiz veya kullanılmış bağlantı"],
+      ["", "Geçersiz veya kullanılmış bağlantı"],
+      [used, "Bu bağlantı zaten kullanılmış"],
+      [expired, "Bağlantının süresi dolmuş"],
+    ];
+    for (const [token, message] of cases) {
+      expect(await service.checkResetToken(token)).toEqual({ valid: false, message });
+      // confirm aynı bağlantıyı aynı nedenle reddeder (tek kural kaynağı).
+      await expect(service.confirmPasswordReset(token, "Guclu-Parola-2026!")).rejects.toMatchObject({
+        status: 403,
+        response: { message },
+      });
+    }
+  });
+
+  it("yenisiyle DEĞİŞTİRİLEN bağlantı geçersiz, yeni bağlantı geçerli", async () => {
+    const { service, email } = rig();
+    const owner = await userWithAuth();
+    const tokenOf = (call: number) =>
+      /token=([0-9a-f]{64})/.exec(
+        email.send.mock.calls[call]![0].templateData.data.resetUrl as string,
+      )![1]!;
+
+    await service.requestForCompany(owner.user.email);
+    const first = tokenOf(0);
+    expect(await service.checkResetToken(first)).toEqual({ valid: true });
+
+    await service.requestForCompany(owner.user.email);
+    const second = tokenOf(1);
+    expect(second).not.toBe(first);
+    expect(await service.checkResetToken(first)).toEqual({
+      valid: false,
+      message: "Geçersiz veya kullanılmış bağlantı",
+    });
+    expect(await service.checkResetToken(second)).toEqual({ valid: true });
+  });
+
+  it("pasif ya da Supabase'e bağlı olmayan hesabın bağlantısı geçersiz (confirm ile aynı)", async () => {
+    const { service } = rig();
+    const passive = await userWithAuth();
+    const passiveToken = await makeToken(passive.user.id);
+    await prisma.companyUser.update({ where: { id: passive.user.id }, data: { isActive: false } });
+    expect(await service.checkResetToken(passiveToken)).toMatchObject({ valid: false });
+    await expect(service.confirmPasswordReset(passiveToken, "x")).rejects.toThrow(ForbiddenException);
+
+    const unlinked = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.companyUser.update({ where: { id: unlinked.user.id }, data: { authId: null } });
+    const unlinkedToken = await makeToken(unlinked.user.id);
+    expect(await service.checkResetToken(unlinkedToken)).toMatchObject({ valid: false });
+    await expect(service.confirmPasswordReset(unlinkedToken, "x")).rejects.toThrow(ForbiddenException);
+  });
+});
+
+/**
+ * login-14 (arayüz testi 2026-10): "şifremi unuttum" kayıtlı adreste token +
+ * e-posta işini yanıttan ÖNCE bekliyordu; yanıt süresi adresin kayıtlı olup
+ * olmadığını ele veriyordu (yerelde ~75 ms'ye karşı ~13 ms). Herkese açık uç
+ * artık `requestForCompanyInBackground` çağırır: yanıt hemen, iş arkada.
+ */
+describe("PasswordResetService.requestForCompanyInBackground (login-14)", () => {
+  /** Dışarıdan açılan kapı — "iş hâlâ sürüyor" anını sabitlemek için. */
+  function gate() {
+    let open!: () => void;
+    const closed = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    return { closed, open };
+  }
+
+  it("yanıt token ve e-posta işi BİTMEDEN döner; iş arkada tamamlanır", async () => {
+    const { service, email } = rig();
+    const owner = await userWithAuth();
+    const mail = gate();
+    email.send.mockImplementation(async () => {
+      await mail.closed;
+      return { emailLogId: "t", sent: true };
+    });
+
+    // Eşzamanlı (Promise değil) yanıt: çağıran hiçbir şeyi bekleyemez.
+    const res = service.requestForCompanyInBackground(owner.user.email);
+    expect(res).toEqual({ success: true });
+    expect(email.send).not.toHaveBeenCalled();
+    expect(await prisma.passwordResetToken.count()).toBe(0);
+
+    // E-posta sağlayıcısı yanıt vermeden iş bitmez; kapı açılınca biter.
+    let idle = false;
+    const done = service.whenIdle().then(() => {
+      idle = true;
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    expect(idle).toBe(false);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    mail.open();
+    await done;
+
+    expect(
+      await prisma.passwordResetToken.count({
+        where: { companyUserId: owner.user.id, usedAt: null },
+      }),
+    ).toBe(1);
+    expect(email.send.mock.calls[0]![0].templateData.data.resetUrl).toMatch(
+      /reset-password\?token=[0-9a-f]{64}$/,
+    );
+  });
+
+  it("kayıtlı ve kayıtsız adres AYNI yanıtı, aynı anda alır; kayıtsızda hiçbir şey üretilmez", async () => {
+    const { service, email } = rig();
+    const owner = await userWithAuth();
+
+    const known = service.requestForCompanyInBackground(owner.user.email);
+    const unknown = service.requestForCompanyInBackground("yok@firma.com");
+    expect(known).toEqual(unknown);
+    expect(known).toEqual({ success: true });
+
+    await service.whenIdle();
+    expect(await prisma.passwordResetToken.count()).toBe(1);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    expect(email.send.mock.calls[0]![0].to.email).toBe(owner.user.email);
+  });
+
+  it("arkadaki hata yanıtı bozmaz: loglanır (adres maskeli), reddedilmemiş söz bırakmaz", async () => {
+    const errorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+    try {
+      const email = { send: jest.fn() };
+      const broken = {
+        companyUser: { findFirst: jest.fn().mockRejectedValue(new Error("db connection lost")) },
+      };
+      const service = new PasswordResetService(
+        broken as never,
+        email as never,
+        { get: jest.fn() } as never,
+        { updatePassword: jest.fn() } as never,
+      );
+
+      expect(service.requestForCompanyInBackground("Kisi@Firma.com")).toEqual({ success: true });
+      await expect(service.whenIdle()).resolves.toBeUndefined();
+
+      expect(email.send).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      const line = String(errorSpy.mock.calls[0]![0]);
+      expect(line).toContain("db connection lost");
+      expect(line).toContain("k***@firma.com");
+      expect(line).not.toContain("kisi@firma.com");
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("süreç kapanırken (onModuleDestroy) süren iş beklenir", async () => {
+    const { service, email } = rig();
+    const owner = await userWithAuth();
+    const mail = gate();
+    email.send.mockImplementation(async () => {
+      await mail.closed;
+      return { emailLogId: "t", sent: true };
+    });
+
+    service.requestForCompanyInBackground(owner.user.email);
+    let destroyed = false;
+    const destroy = service.onModuleDestroy().then(() => {
+      destroyed = true;
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    expect(destroyed).toBe(false);
+    mail.open();
+    await destroy;
+    expect(destroyed).toBe(true);
+    expect(email.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("admin yolu (requestForCompany) eskisi gibi BEKLER", async () => {
+    const { service, email } = rig();
+    const owner = await userWithAuth();
+    await service.requestForCompany(owner.user.email);
+    // Beklenen çağrı döndüğünde iş bitmiştir; arkada bir şey kalmaz.
+    expect(email.send).toHaveBeenCalledTimes(1);
+    expect(await prisma.passwordResetToken.count()).toBe(1);
   });
 });

@@ -36,15 +36,19 @@ async function signupUser() {
 }
 
 describe("e-posta kodu üretim tavanı", () => {
-  it("saatte en fazla 5 kod üretilir; 6. resend yeni kod ÜRETMEZ ve e-posta göndermez ama generic başarı döner", async () => {
+  it("saatte en fazla 5 kod üretilir; 6. resend yeni kod ÜRETMEZ, e-posta göndermez ve bunu söyler (sent:false + capped)", async () => {
     const { service, email, mail, user } = await signupUser();
     const countCodes = () => prisma.emailVerificationCode.count({ where: { companyUserId: user.id } });
     expect(await countCodes()).toBe(1); // signup kodu
-    for (let i = 0; i < 4; i++) await service.resendEmailCode(mail);
+    for (let i = 0; i < 4; i++) {
+      await expect(service.resendEmailCode(mail)).resolves.toEqual({ success: true, sent: true });
+    }
     expect(await countCodes()).toBe(5);
     const sentBefore = email.send.mock.calls.length;
     const res = await service.resendEmailCode(mail);
-    expect(res).toEqual({ success: true }); // enumeration sızdırmaz
+    // Arayuz testi code-auth-3: the answer used to be a bare { success: true }
+    // and the screen said "new code sent" although nothing was sent.
+    expect(res).toEqual({ success: true, sent: false, capped: true });
     expect(await countCodes()).toBe(5); // yeni kod YOK
     expect(email.send.mock.calls.length).toBe(sentBefore); // e-posta YOK
     // Mevcut (5.) kod hâlâ geçerli: usedAt null + süresi dolmamış

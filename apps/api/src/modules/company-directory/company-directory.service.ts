@@ -5,6 +5,7 @@ import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
+import { likeLiteral } from "../../common/prisma/like-literal";
 
 /**
  * Firma dizini — kiracılar ARASI okuma (başka firmaları listeler), bu yüzden
@@ -66,13 +67,15 @@ export class CompanyDirectoryService {
         : {}),
       ...(tokens.length
         ? {
+            // `likeLiteral`: `%` / `_` joker değil düz karakter (ortak dizin
+            // kurucusu `common/company/company-directory.ts` ile aynı kural).
             AND: tokens.map((t) => ({
               OR: [
-                { name: { contains: t, mode: "insensitive" as const } },
-                { industry: { contains: t, mode: "insensitive" as const } },
-                { aboutText: { contains: t, mode: "insensitive" as const } },
+                { name: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                { industry: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                { aboutText: { contains: likeLiteral(t), mode: "insensitive" as const } },
                 { services: { has: t } },
-                { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
+                { searchTextI18n: { contains: likeLiteral(stemPrefix(foldSearchText(t))) } },
               ],
             })),
           }

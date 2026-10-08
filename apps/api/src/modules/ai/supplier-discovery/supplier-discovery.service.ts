@@ -466,8 +466,15 @@ export class SupplierDiscoveryService {
     const db = this.reader;
     const [optOuts, users, invited, recent, hostCompanies, mx] = await Promise.all([
       db.referralOptOut.findMany({ where: { email: { in: emails } }, select: { email: true } }),
+      // MEMBER = an account whose e-mail is VERIFIED (arayuz testi 2026-10
+      // authsec-4; same rule as the dispatcher's `addressState` and
+      // `inviteExternalForListing`). An unverified sign-up proves nothing
+      // about the address, and its company can never be AI-recommendable:
+      // counted as a member, the candidate was dropped from the list and the
+      // address got neither a member invitation nor an e-mail invitation for
+      // as long as that sign-up existed.
       db.companyUser.findMany({
-        where: { email: { in: emails }, deletedAt: null },
+        where: { email: { in: emails }, deletedAt: null, emailVerifiedAt: { not: null } },
         select: { email: true, companyId: true },
       }),
       listingId
@@ -501,6 +508,8 @@ export class SupplierDiscoveryService {
     // kayıtlı: <o üye>" olur ve davet ona giderdi. Üyenin o alan adında (ya da
     // alt alan adında) e-postası olan etkin bir kullanıcısı varsa eşleşir;
     // yoksa aday dış davet adayı olarak kalır.
+    // The address that proves the domain must itself be proven: only a user
+    // with a VERIFIED e-mail counts (authsec-4, same rule as the lookup above).
     const hostMatched = hostCompanies.filter((c) => {
       const h = websiteHost(c.website);
       return !!h && hosts.includes(h);
@@ -508,7 +517,12 @@ export class SupplierDiscoveryService {
     const domainUsers =
       hostMatched.length > 0
         ? await db.companyUser.findMany({
-            where: { companyId: { in: hostMatched.map((c) => c.id) }, deletedAt: null, isActive: true },
+            where: {
+              companyId: { in: hostMatched.map((c) => c.id) },
+              deletedAt: null,
+              isActive: true,
+              emailVerifiedAt: { not: null },
+            },
             select: { companyId: true, email: true },
           })
         : [];

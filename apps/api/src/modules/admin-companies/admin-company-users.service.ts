@@ -197,18 +197,86 @@ export class AdminCompanyUsersService {
     if (user.authId) {
       await this.supabase.updateEmail(user.authId, email);
     }
-    await this.prisma.companyUser.update({
-      where: { id: userId },
-      data: {
-        email,
-        emailVerifiedAt: new Date(),
-        tokenVersion: { increment: 1 },
-      },
-    });
+    const data = {
+      email,
+      emailVerifiedAt: new Date(),
+      tokenVersion: { increment: 1 },
+    };
+    // A SECRET PROVES THE ADDRESS IT WAS MAILED TO, so everything mailed to
+    // the old address dies WITH that address (arayuz testi 2026-10 authsec-2;
+    // the rule `changeSignupEmail` already applies): open e-mail codes (2FA
+    // login code, verification code) and password-reset / account-setup
+    // links. Before, the account moved and they stayed usable: the 72 h setup
+    // link of a member added with a wrong address still set the password of
+    // the corrected account, and a login code read in the old mailbox still
+    // logged in at the new address.
+    const closeCodes = (db: Prisma.TransactionClient) =>
+      db.emailVerificationCode.updateMany({
+        where: { companyUserId: userId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+    // DOĞRULANMAMIŞ kayıt bu değişiklikle doğrulanmış OLUYORSA yeni adrese
+    // gönderilmiş davetler de bağlanır — e-posta doğrulamasındaki (verifyEmail)
+    // AYNI kural, aynı fonksiyon (arayüz testi 2026-10 code-auth-1 devamı).
+    // Eskiden bu yol `verifyEmail`den geçmediği için o hesabın davetleri hiç
+    // bağlanmıyordu. Geçişi KOŞULLU güncelleme belirler (`emailVerifiedAt:
+    // null`): kullanıcı aynı anda kendi kodunu girdiyse bağlama orada yapılmıştır
+    // ve burada tekrarlanmaz; zaten doğrulanmış hesabın adres değişikliği
+    // eskisi gibi davet bağlamaz.
+    let verifiedByThisChange: boolean;
+    try {
+      // Codes are closed once up front, outside the transaction (as in
+      // `changeSignupEmail`): a verification in flight with an old code then
+      // either finishes first or finds no code, instead of holding the code
+      // row while this transaction holds the user row.
+      await closeCodes(this.prisma);
+      // The move and the clean-up are ONE transaction, the move first: a code
+      // or link written before the clean-up statements is removed by them,
+      // and one written later is dropped by its issuer, whose address check
+      // (a locking read of the user row) waits for this commit and then sees
+      // the new address.
+      verifiedByThisChange = await this.prisma.$transaction(async (tx) => {
+        const stamped =
+          (
+            await tx.companyUser.updateMany({
+              where: { id: userId, emailVerifiedAt: null },
+              data,
+            })
+          ).count === 1;
+        if (!stamped) {
+          await tx.companyUser.update({ where: { id: userId }, data });
+        }
+        await closeCodes(tx);
+        // Every row, also a link that is being confirmed right now (claimed =
+        // `usedAt` set): a failed password update gives such a link back.
+        await tx.passwordResetToken.deleteMany({ where: { companyUserId: userId } });
+        return stamped;
+      });
+    } catch (e) {
+      // Our write did not happen: the login source goes back to the address
+      // the row really has, so the two do not drift apart.
+      if (user.authId) {
+        const authId = user.authId;
+        const row = await this.prisma.companyUser
+          .findUnique({ where: { id: userId }, select: { email: true } })
+          .catch(() => null);
+        await this.supabase.updateEmail(authId, row?.email ?? user.email).catch((rollbackErr: unknown) =>
+          this.logger.error(
+            `Admin email change rollback failed (user=${userId}): ${
+              rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
+            }`,
+          ),
+        );
+      }
+      throw e;
+    }
     await this.log(companyId, "admin.user.email_changed", userId, adminId, {
       from: user.email,
       to: email,
     });
+    if (verifiedByThisChange) {
+      await this.companyAuth.bindInvitationsOfProvenAddress({ id: userId, email, companyId });
+    }
     return { ok: true, email };
   }
 

@@ -466,6 +466,50 @@ describe("completeOnboarding", () => {
     expect(c.postalCode).toBe("A15E3K");
   });
 
+  it("web sitesi: alan adı olmayan metin reddedilir; geçerli adres https ile kaydedilir (arayüz testi signup-tr-5)", async () => {
+    const { service } = makeAuthService();
+    const cat = await makeCategory();
+    const a = await makeCompanyWithUser(prisma, { country: "TR" });
+    for (const bad of ["ornek firma sitesi", "firma", "info@firma.com", "ftp://firma.com"]) {
+      await expect(
+        service.completeOnboarding(a.user.id, a.company.id, dto(cat.id, { website: bad }) as never),
+      ).rejects.toMatchObject({
+        status: 400,
+        response: { i18nKey: "api.companyProfile.gecerliBirWebSitesiGiriniz", code: "WEBSITE_INVALID" },
+      });
+    }
+    // Reddedilen istek hiçbir şey yazmaz: firma hâlâ onboarding'de.
+    let c = await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } });
+    expect(c.onboardingCompletedAt).toBeNull();
+    expect(c.website).toBeNull();
+
+    await service.completeOnboarding(
+      a.user.id,
+      a.company.id,
+      dto(cat.id, { website: " www.ornek-firma.com.tr " }) as never,
+    );
+    c = await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } });
+    expect(c.website).toBe("https://www.ornek-firma.com.tr");
+
+    // Şemalı adres olduğu gibi; boş alan = web sitesi yok (isteğe bağlı).
+    const b = await makeCompanyWithUser(prisma, { country: "TR" });
+    await service.completeOnboarding(
+      b.user.id,
+      b.company.id,
+      dto(cat.id, { taxNumber: "10000000214", authorizedTckn: "10000000214", website: "http://firma.com/tr" }) as never,
+    );
+    expect((await prisma.company.findUniqueOrThrow({ where: { id: b.company.id } })).website).toBe(
+      "http://firma.com/tr",
+    );
+    const d = await makeCompanyWithUser(prisma, { country: "TR" });
+    await service.completeOnboarding(
+      d.user.id,
+      d.company.id,
+      dto(cat.id, { taxNumber: "10000000382", authorizedTckn: "10000000382", website: "   " }) as never,
+    );
+    expect((await prisma.company.findUniqueOrThrow({ where: { id: d.company.id } })).website).toBeNull();
+  });
+
   it("TR'de yetkili TCKN yoksa reddedilir", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -602,6 +646,41 @@ describe("completeOnboarding", () => {
         dto("x", { mainCategoryIds: [] }) as never,
       ),
     ).rejects.toThrow();
+  });
+
+  it("zincirsiz yaprak + yanlış segment: ata zinciri ve segment sunucuda eklenir (code-category-8)", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    // Gerçek katalogdaki gibi id = 8 haneli kod (hiyerarşi koddan türer).
+    const rows: Array<[string, number, string | null]> = [
+      ["11000000", 1, null],
+      ["39000000", 1, null],
+      ["39120000", 2, "39000000"],
+      ["39121600", 3, "39120000"],
+      ["39121614", 4, "39121600"],
+    ];
+    for (const [code, level, parentId] of rows) {
+      await prisma.category.create({
+        data: { id: code, code, nameTr: `Kategori ${code}`, level, parentId, isActive: true },
+      });
+    }
+
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto("11000000", { subCategoryIds: ["39121614"] }) as never,
+    );
+
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    // Alt kodun segmenti ana eksende, ata zinciri alt eksende — dört alana da.
+    expect(c.sellerCategoryIds).toEqual(["11000000", "39000000"]);
+    expect(c.buyerCategoryIds).toEqual(["11000000", "39000000"]);
+    expect(c.sellerSubCategoryIds).toEqual(["39121614", "39120000", "39121600"]);
+    expect(c.buyerSubCategoryIds).toEqual(["39121614", "39120000", "39121600"]);
   });
 
   it("GÜVENLİK: sahip olmayan kullanıcı onboarding yapamaz (rol yükseltme engeli)", async () => {

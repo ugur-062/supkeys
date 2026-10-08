@@ -230,12 +230,25 @@ export class ExternalInviteDispatcher {
     );
   }
 
-  /** Adresin davet geçmişi (90 gün) + ilgi sinyali + engeller. */
+  /**
+   * Adresin davet geçmişi (90 gün) + ilgi sinyali + engeller.
+   *
+   * `registered` = adres DOĞRULANMIŞ bir hesabın adresi. E-postası
+   * doğrulanmamış kayıt "kayıtlı" SAYILMAZ (arayüz testi 2026-10 code-auth-1
+   * devamı): adresin sahibi olduğu kanıtlanmamış bir kayıt — başkasının
+   * adresiyle açılmış da olabilir — o adrese giden davet e-postalarını
+   * durduruyor, kuyruktaki satırları REGISTERED diye iptal ettiriyordu. Davet
+   * ancak adres doğrulanınca hesaba bağlanır (`verifyEmail`), o ana dek adres
+   * kayıtsız bir adres gibi davet almaya devam eder.
+   */
   private async addressState(email: string, now: Date) {
     const since = new Date(now.getTime() - INVITE_PAUSE_WINDOW_DAYS * DAY_MS);
     const [optOut, user, history, clicked] = await Promise.all([
       this.prisma.referralOptOut.findUnique({ where: { email }, select: { email: true } }),
-      this.prisma.companyUser.findFirst({ where: { email, deletedAt: null }, select: { id: true } }),
+      this.prisma.companyUser.findFirst({
+        where: { email, deletedAt: null, emailVerifiedAt: { not: null } },
+        select: { id: true },
+      }),
       this.prisma.emailLog.findMany({
         // Adrese giden referral (bağlantı daveti) e-postası da davet
         // geçmişidir — yalnız talep davetleri sayılınca aynı adrese referral
@@ -317,7 +330,11 @@ export class ExternalInviteDispatcher {
       out.cancelled += await this.cancel(group.map((g) => g.id), "OPTED_OUT");
       return out;
     }
-    // Kayıt olmuş adres: kayıt anında davetler talebe bağlandı (acceptReferralInvites).
+    // Kayıtlı (e-postası DOĞRULANMIŞ) adres: davetleri hesaba zaten bağlandı,
+    // e-posta gerekmez. Bağlama iki aşamalıdır (`acceptReferralInvites`):
+    // KAYITTA yalnız kullanılan davet jetonunun daveti, adrese gönderilmiş
+    // diğer davetler E-POSTA DOĞRULANINCA (adres o an kanıtlanır). Doğrulanmamış
+    // kayıt burada "kayıtlı" değildir (bkz. `addressState`) → daveti gider.
     if (state.registered) {
       out.cancelled += await this.cancel(group.map((g) => g.id), "REGISTERED");
       return out;
@@ -342,7 +359,7 @@ export class ExternalInviteDispatcher {
       const next = nextBusinessWindow(hold, timeZoneForCountry(inv.country));
       const closesAt = inv.listing.closesAt;
       // Beklenecek süre talebin kapanışını aşıyorsa e-posta gitmez; davet
-      // kaydı kalır (adres kayıt olursa talebe yine bağlanır).
+      // kaydı kalır (adres kayıt olup e-postasını doğrularsa talebe yine bağlanır).
       if (closesAt && next.getTime() > closesAt.getTime() - 12 * HOUR_MS) {
         out.cancelled += await this.cancel([inv.id], "FREQUENCY");
         continue;
@@ -491,8 +508,9 @@ export class ExternalInviteDispatcher {
   }
 
   /**
-   * Kapanıştan önce TEK hatırlatma: e-postası gitmiş, adres kayıt olmamış ve
-   * çıkmamış; son 48 saatte başka davet e-postası almamış.
+   * Kapanıştan önce TEK hatırlatma: e-postası gitmiş, adres kayıt olmamış
+   * (doğrulanmış hesabı yok) ve çıkmamış; son 48 saatte başka davet e-postası
+   * almamış.
    */
   private async sendReminders(now: Date, budget: number, builder: InviteContentBuilder): Promise<number> {
     const candidates = (await this.prisma.externalListingInvite.findMany({

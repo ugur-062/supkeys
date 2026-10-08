@@ -143,6 +143,8 @@ describe("inviteExternalForListing — kuyruğa alma", () => {
     const service = makeService();
     const owner = await makeCompanyWithUser(prisma);
     const registered = await makeCompanyWithUser(prisma);
+    // Kayıtlı = e-postası doğrulanmış hesap (fabrika doğrulama damgası yazmaz).
+    await prisma.companyUser.update({ where: { id: registered.user.id }, data: { emailVerifiedAt: new Date() } });
     const listing = await openListing(owner.company.id, owner.user.id);
     await prisma.referralOptOut.create({ data: { email: "istemiyor@x.com" } });
     const res = await service.inviteExternalForListing(owner.auth, listing.id, [
@@ -154,6 +156,47 @@ describe("inviteExternalForListing — kuyruğa alma", () => {
     expect(byEmail["istemiyor@x.com"]).toBe("OPTED_OUT");
     expect(byEmail[registered.user.email.toLowerCase()]).toBe("SKIPPED_REGISTERED");
     expect(byEmail["bozuk-adres"]).toBe("INVALID");
+  });
+
+  /**
+   * Arayüz testi 2026-10 code-auth-1 devamı: e-postası DOĞRULANMAMIŞ kayıt
+   * adresin sahibini kanıtlamaz (başkasının adresiyle açılmış olabilir).
+   * Eskiden o adrese davet SKIPPED_REGISTERED ile atlanıyordu.
+   */
+  it("e-postası doğrulanmamış kayıt 'kayıtlı' sayılmaz: adres davet alır; doğrulanınca SKIPPED_REGISTERED", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const l1 = await openListing(owner.company.id, owner.user.id);
+    const l2 = await openListing(owner.company.id, owner.user.id);
+    const signup = await makeCompanyWithUser(prisma);
+    await prisma.companyUser.update({
+      where: { id: signup.user.id },
+      data: { email: "dogrulanmamis@firma.com", emailVerifiedAt: null },
+    });
+
+    const before = await service.inviteExternalForListing(owner.auth, l1.id, ["Dogrulanmamis@Firma.com"]);
+    expect(before.results).toEqual([
+      expect.objectContaining({ email: "dogrulanmamis@firma.com", status: "QUEUED" }),
+    ]);
+    expect(await prisma.externalListingInvite.count({ where: { email: "dogrulanmamis@firma.com" } })).toBe(1);
+
+    await prisma.companyUser.update({ where: { id: signup.user.id }, data: { emailVerifiedAt: new Date() } });
+    const after = await service.inviteExternalForListing(owner.auth, l2.id, ["dogrulanmamis@firma.com"]);
+    expect(after.results[0]!.status).toBe("SKIPPED_REGISTERED");
+    expect(await prisma.externalListingInvite.count({ where: { email: "dogrulanmamis@firma.com" } })).toBe(1);
+  });
+
+  it("silinmiş (deletedAt) hesap doğrulanmış olsa da kayıtlı sayılmaz (değişmedi)", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await openListing(owner.company.id, owner.user.id);
+    const gone = await makeCompanyWithUser(prisma);
+    await prisma.companyUser.update({
+      where: { id: gone.user.id },
+      data: { email: "ayrildi@firma.com", emailVerifiedAt: new Date(), deletedAt: new Date() },
+    });
+    const res = await service.inviteExternalForListing(owner.auth, listing.id, ["ayrildi@firma.com"]);
+    expect(res.results[0]!.status).toBe("QUEUED");
   });
 
   it("firma günlük tavanı 60: fazlası DAILY_LIMIT", async () => {
@@ -445,12 +488,52 @@ describe("ExternalInviteDispatcher — gönderim", () => {
     await service.inviteExternalForListing(owner.auth, listing.id, ["cikti@x.com", "katildi@x.com"]);
     await prisma.referralOptOut.create({ data: { email: "cikti@x.com" } });
     const joined = await makeCompanyWithUser(prisma);
-    await prisma.companyUser.update({ where: { id: joined.user.id }, data: { email: "katildi@x.com" } });
+    await prisma.companyUser.update({
+      where: { id: joined.user.id },
+      data: { email: "katildi@x.com", emailVerifiedAt: new Date() },
+    });
 
     await d.dispatch();
     expect(email.send).not.toHaveBeenCalled();
     const reasons = (await prisma.externalListingInvite.findMany({ orderBy: { email: "asc" } })).map((i) => i.cancelReason);
     expect(reasons).toEqual(["OPTED_OUT", "REGISTERED"]);
+  });
+
+  /**
+   * Arayüz testi 2026-10 code-auth-1 devamı: adresle açılmış ama e-postası
+   * DOĞRULANMAMIŞ kayıt (adresin sahibi olmayabilir) kuyruktaki daveti
+   * REGISTERED diye iptal ettiriyor, adrese e-posta gitmiyordu.
+   */
+  it("e-postası doğrulanmamış kayıt daveti DURDURMAZ; doğrulandıktan sonra gelen davet REGISTERED ile düşer", async () => {
+    const service = makeService();
+    const { d, email } = makeDispatcher();
+    const owner = await makeCompanyWithUser(prisma);
+    const l1 = await openListing(owner.company.id, owner.user.id);
+    const l2 = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, l1.id, ["bekleyen@x.com"]);
+    const signup = await makeCompanyWithUser(prisma);
+    await prisma.companyUser.update({
+      where: { id: signup.user.id },
+      data: { email: "bekleyen@x.com", emailVerifiedAt: null },
+    });
+
+    const first = await d.dispatch();
+    expect(first.sent).toBe(1);
+    expect(lastSend(email).to.email).toBe("bekleyen@x.com");
+    expect(
+      await prisma.externalListingInvite.findFirstOrThrow({ where: { listingId: l1.id } }),
+    ).toMatchObject({ state: "SENT", cancelReason: null });
+
+    // Yeni davet kuyruğa girdikten SONRA adres doğrulanır → gönderim anında düşer.
+    await service.inviteExternalForListing(owner.auth, l2.id, ["bekleyen@x.com"]);
+    await prisma.companyUser.update({ where: { id: signup.user.id }, data: { emailVerifiedAt: new Date() } });
+    await makeDue();
+    email.send.mockClear();
+    await d.dispatch();
+    expect(email.send).not.toHaveBeenCalled();
+    expect(
+      await prisma.externalListingInvite.findFirstOrThrow({ where: { listingId: l2.id } }),
+    ).toMatchObject({ state: "CANCELLED", cancelReason: "REGISTERED" });
   });
 
   it("kapıdan önce kuyruğa girmiş kayda kapalı ülke daveti gönderim anında düşer (MU-09)", async () => {

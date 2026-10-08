@@ -6,6 +6,7 @@
  */
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany, makeUser } from "./factories";
+import { extractCode, makeAuthService } from "./make-auth-service";
 import { CompanyAuthService } from "../../src/modules/company-auth/services/company-auth.service";
 
 function svc() {
@@ -47,21 +48,40 @@ async function referral(
 }
 
 // acceptReferralInvites private → cast ile çağır.
-const consume = (
+type Binder = {
+  acceptReferralInvites: (
+    match: { token: string } | { email: string },
+    id: string,
+    actorEmail: string,
+  ) => Promise<void>;
+};
+
+/** Sign-up stage: only the invitation of the referral token that was used. */
+const bindToken = (
+  service: CompanyAuthService,
+  token: string,
+  newCompanyId: string,
+  signupEmail: string,
+) => (service as unknown as Binder).acceptReferralInvites({ token }, newCompanyId, signupEmail);
+
+/** Verification stage: the invitations sent to the address that was proven. */
+const bindProvenEmail = (service: CompanyAuthService, email: string, newCompanyId: string) =>
+  (service as unknown as Binder).acceptReferralInvites({ email }, newCompanyId, email);
+
+/**
+ * Both stages in the order the real flow runs them (code-auth-1): the token
+ * at sign-up, the address once it is verified. The rule set below is about the
+ * end state, which the split must not change.
+ */
+async function consume(
   service: CompanyAuthService,
   email: string,
   newCompanyId: string,
   token?: string,
-) =>
-  (
-    service as unknown as {
-      acceptReferralInvites: (
-        e: string,
-        id: string,
-        t?: string,
-      ) => Promise<void>;
-    }
-  ).acceptReferralInvites(email, newCompanyId, token);
+) {
+  if (token) await bindToken(service, token, newCompanyId, email);
+  await bindProvenEmail(service, email, newCompanyId);
+}
 
 describe("BK-CONN-1: referral signup token-kapsamlı bağlantı", () => {
   it("iki firma aynı e-postayı davet etti; A'nın token'ıyla kayıt → A ACTIVE, B PENDING", async () => {
@@ -268,5 +288,249 @@ describe("davet kabul e-postası onboarding'de, gerçek firma adıyla", () => {
 
     const invited = await prisma.listingInvitation.findMany({ where: { invitedCompanyId: c.id }, select: { listingId: true } });
     expect(invited.map((i) => i.listingId)).toEqual([dOk.id]);
+  });
+});
+
+/**
+ * Arayuz testi 2026-10 code-auth-1: the sign-up address is NOT proven, so
+ * nothing is bound by address at sign-up (only the referral token that was
+ * used). Invitations sent to an address are bound when that address is
+ * verified, with the address the account has at that moment. Before the fix
+ * an unverified sign-up with someone else's address took that address's
+ * invitations and kept them after "change e-mail".
+ */
+describe("code-auth-1: invitations are bound by address only once the address is proven", () => {
+  const signupDto = (email: string, over: Record<string, unknown> = {}) => ({
+    firstName: "Ada",
+    lastName: "Yılmaz",
+    email,
+    phone: "+90 555 111 22 33",
+    password: "Guclu!Parola9",
+    termsAccepted: true,
+    mediationAccepted: true,
+    kvkkAccepted: true,
+    ...over,
+  });
+
+  /** A buyer with a pending referral invitation + a request invitation for `email`. */
+  async function buyerInviting(email: string, token: string) {
+    const company = await makeCompany(prisma, { tier: "GOLD" });
+    const user = await makeUser(prisma, company.id, ["SAHIP"] as never);
+    const invite = await referral(company.id, user.id, email, token);
+    const listing = await prisma.listing.create({
+      data: { companyId: company.id, createdById: user.id, type: "ALIM", title: "t", status: "OPEN", visibility: "PRIVATE" },
+    });
+    await prisma.externalListingInvite.create({
+      data: {
+        listingId: listing.id,
+        inviterCompanyId: company.id,
+        referralInviteId: invite.id,
+        email,
+        locale: "tr",
+        state: "SENT",
+      },
+    });
+    return { company, user, invite, listing };
+  }
+
+  const companyOf = async (email: string) =>
+    (await prisma.companyUser.findUniqueOrThrow({ where: { email }, select: { companyId: true } })).companyId;
+
+  async function boundTo(companyId: string) {
+    const [connections, listingInvitations, accepted] = await Promise.all([
+      prisma.companyConnection.findMany({
+        where: { inviteeCompanyId: companyId },
+        select: { inviterCompanyId: true, status: true },
+      }),
+      prisma.listingInvitation.findMany({ where: { invitedCompanyId: companyId }, select: { listingId: true } }),
+      prisma.companyReferralInvite.findMany({ where: { acceptedCompanyId: companyId }, select: { id: true } }),
+    ]);
+    return {
+      connections,
+      listings: listingInvitations.map((l) => l.listingId),
+      acceptedInvites: accepted.map((a) => a.id),
+    };
+  }
+  const NOTHING = { connections: [], listings: [], acceptedInvites: [] };
+
+  it("the finding: sign-up with someone else's address, then change e-mail and verify -> the address's invitations are NOT taken", async () => {
+    const { service, email } = makeAuthService();
+    const X = "tedarikci@hedef.com";
+    const Y = "saldirgan@baska.com";
+    const buyer = await buyerInviting(X, "tok-x");
+
+    await service.signup(signupDto(X) as never);
+    const companyId = await companyOf(X);
+    expect(await boundTo(companyId)).toEqual(NOTHING); // X is not proven
+
+    await service.changeSignupEmail({ email: X, password: "Guclu!Parola9", newEmail: Y });
+    const verified = (await service.verifyEmail(Y, extractCode(email))) as { token?: string };
+    expect(verified.token).toBeTruthy();
+
+    expect(await boundTo(companyId)).toEqual(NOTHING);
+    const invite = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: buyer.invite.id } });
+    expect(invite.status).toBe("PENDING"); // still waiting for the real owner of X
+    expect(invite.acceptedCompanyId).toBeNull();
+  });
+
+  it("a code mailed to the attacker's own address cannot verify (and bind) the address the account was changed to", async () => {
+    const { service, email } = makeAuthService();
+    const OWN = "saldirgan@kendi.com";
+    const X = "tedarikci@hedef2.com";
+    const buyer = await buyerInviting(X, "tok-x2");
+
+    await service.signup(signupDto(OWN) as never);
+    const companyId = await companyOf(OWN);
+    // Hourly cap reached: change-email cannot issue a new code any more. The
+    // last code (read in the attacker's mailbox) used to stay valid.
+    for (let i = 0; i < 4; i++) await service.resendEmailCode(OWN);
+    const ownCode = extractCode(email);
+    await service.changeSignupEmail({ email: OWN, password: "Guclu!Parola9", newEmail: X });
+
+    await expect(service.verifyEmail(X, ownCode)).rejects.toThrow();
+
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: X } });
+    expect(user.emailVerifiedAt).toBeNull();
+    expect(await boundTo(companyId)).toEqual(NOTHING);
+    const invite = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: buyer.invite.id } });
+    expect(invite.status).toBe("PENDING");
+  });
+
+  it("typo corrected with change e-mail: the CORRECT address gets its invitations at verification, the typo address gets none", async () => {
+    const { service, email } = makeAuthService();
+    const TYPO = "ayse@frima.com";
+    const REAL = "ayse@firma.com";
+    const buyer = await buyerInviting(REAL, "tok-real");
+    const otherBuyer = await buyerInviting(TYPO, "tok-typo"); // somebody else's address
+
+    await service.signup(signupDto(TYPO) as never);
+    const companyId = await companyOf(TYPO);
+    await service.changeSignupEmail({ email: TYPO, password: "Guclu!Parola9", newEmail: REAL });
+    expect(await boundTo(companyId)).toEqual(NOTHING); // nothing before the code is entered
+
+    await service.verifyEmail(REAL, extractCode(email));
+
+    expect(await boundTo(companyId)).toEqual({
+      // No token was used -> a request the new firm can accept, not an active connection.
+      connections: [{ inviterCompanyId: buyer.company.id, status: "PENDING" }],
+      listings: [buyer.listing.id],
+      acceptedInvites: [buyer.invite.id],
+    });
+    const typoInvite = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: otherBuyer.invite.id } });
+    expect(typoInvite.status).toBe("PENDING");
+  });
+
+  it("plain sign-up: nothing is bound until the code is verified, then the address's invitations are", async () => {
+    const { service, email } = makeAuthService();
+    const X = "satis@uretici.com";
+    const buyer = await buyerInviting(X, "tok-plain");
+
+    await service.signup(signupDto(X) as never);
+    const companyId = await companyOf(X);
+    expect(await boundTo(companyId)).toEqual(NOTHING);
+
+    // A wrong code proves nothing.
+    const code = extractCode(email);
+    await expect(service.verifyEmail(X, code === "000000" ? "111111" : "000000")).rejects.toThrow();
+    expect(await boundTo(companyId)).toEqual(NOTHING);
+
+    await service.verifyEmail(X, code);
+    expect(await boundTo(companyId)).toEqual({
+      connections: [{ inviterCompanyId: buyer.company.id, status: "PENDING" }],
+      listings: [buyer.listing.id],
+      acceptedInvites: [buyer.invite.id],
+    });
+  });
+
+  it("referral token: its invitation is bound at sign-up (also for a different address); other invitations to the sign-up address wait for verification", async () => {
+    const { service, email } = makeAuthService();
+    const INFO = "info@tedarikci.com";
+    const PERSONAL = "ahmet@tedarikci.com";
+    const viaToken = await buyerInviting(INFO, "tok-info-2");
+    const byAddress = await buyerInviting(PERSONAL, "tok-personal");
+    const unrelated = await buyerInviting("baskasi@firma.com", "tok-unrelated");
+
+    await service.signup(signupDto(PERSONAL, { referralToken: "tok-info-2" }) as never);
+    const companyId = await companyOf(PERSONAL);
+    expect(await boundTo(companyId)).toEqual({
+      connections: [{ inviterCompanyId: viaToken.company.id, status: "ACTIVE" }],
+      listings: [viaToken.listing.id],
+      acceptedInvites: [viaToken.invite.id],
+    });
+
+    await service.verifyEmail(PERSONAL, extractCode(email));
+    const after = await boundTo(companyId);
+    expect(after.connections).toHaveLength(2);
+    expect(after.connections).toEqual(
+      expect.arrayContaining([
+        { inviterCompanyId: viaToken.company.id, status: "ACTIVE" },
+        { inviterCompanyId: byAddress.company.id, status: "PENDING" },
+      ]),
+    );
+    expect(after.listings.sort()).toEqual([viaToken.listing.id, byAddress.listing.id].sort());
+    expect(after.acceptedInvites.sort()).toEqual([viaToken.invite.id, byAddress.invite.id].sort());
+    const other = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: unrelated.invite.id } });
+    expect(other.status).toBe("PENDING");
+  });
+
+  it("sign-up stage alone never matches by address (two firms invited the same address, one token used)", async () => {
+    const service = svc();
+    const EMAIL = "ortak@firma.com";
+    const withToken = await buyerInviting(EMAIL, "tok-used");
+    const sameAddress = await buyerInviting(EMAIL, "tok-other");
+    const c = await makeCompany(prisma, { tier: "STANDART" });
+
+    await bindToken(service, "tok-used", c.id, EMAIL);
+
+    expect(await boundTo(c.id)).toEqual({
+      connections: [{ inviterCompanyId: withToken.company.id, status: "ACTIVE" }],
+      listings: [withToken.listing.id],
+      acceptedInvites: [withToken.invite.id],
+    });
+    const waiting = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: sameAddress.invite.id } });
+    expect(waiting.status).toBe("PENDING");
+  });
+
+  it("an unknown token binds nothing (and never falls back to every pending invitation)", async () => {
+    const { service } = makeAuthService();
+    const X = "yeni@uretici.com";
+    await buyerInviting(X, "tok-real-one");
+    await buyerInviting("baska@firma.com", "tok-someone-else");
+
+    await service.signup(signupDto(X, { referralToken: "tok-does-not-exist" }) as never);
+
+    expect(await boundTo(await companyOf(X))).toEqual(NOTHING);
+    expect(await prisma.companyReferralInvite.count({ where: { status: "PENDING" } })).toBe(2);
+  });
+
+  it("an account that is already verified does not bind again through verify-email", async () => {
+    const { service, email } = makeAuthService();
+    const X = "dogrulanmis@firma.com";
+    await service.signup(signupDto(X) as never);
+    const companyId = await companyOf(X);
+    await service.verifyEmail(X, extractCode(email));
+    const later = await buyerInviting(X, "tok-later"); // invited after the account was verified
+
+    await expect(service.verifyEmail(X, "000000")).resolves.toEqual({ alreadyVerified: true });
+
+    expect(await boundTo(companyId)).toEqual(NOTHING);
+    const invite = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: later.invite.id } });
+    expect(invite.status).toBe("PENDING");
+  });
+
+  it("a binding error at verification does not cost the user the session", async () => {
+    const { service, email } = makeAuthService();
+    const X = "hata@firma.com";
+    await buyerInviting(X, "tok-err");
+    await service.signup(signupDto(X) as never);
+    const spy = jest
+      .spyOn(service as unknown as Binder, "acceptReferralInvites")
+      .mockRejectedValueOnce(new Error("db down"));
+
+    const verified = (await service.verifyEmail(X, extractCode(email))) as { token?: string };
+
+    expect(spy).toHaveBeenCalledWith({ email: X }, await companyOf(X), X);
+    expect(verified.token).toBeTruthy();
+    spy.mockRestore();
   });
 });

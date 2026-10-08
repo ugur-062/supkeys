@@ -73,7 +73,10 @@ export class CompanyAuthController {
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   forgotPassword(@Body() dto: CompanyForgotPasswordDto) {
-    return this.passwordReset.requestForCompany(dto.email);
+    // Yanıt HEMEN döner; token + e-posta işi arkada (arayüz testi 2026-10
+    // login-14): kayıtlı adreste yanıt daha geç geliyordu, süre adresin
+    // kayıtlı olduğunu ele veriyordu.
+    return this.passwordReset.requestForCompanyInBackground(dto.email);
   }
 
   @Post("signup")

@@ -19,6 +19,7 @@ import { publicProductWhere } from "./public-profile-gate";
 import { geoIndex } from "../geo/geo-index";
 import { currentLocale } from "../i18n/locale-context";
 import { fxRate } from "../currency/fx-rates";
+import { likeLiteral } from "../prisma/like-literal";
 
 /**
  * ÜRÜN DİZİNİ — where/orderBy/facet TEK KAYNAK (2026-09-04).
@@ -214,14 +215,19 @@ export function productSearchClauses(
   // uyan firmanın TÜM ürünleri "aramaya uyan ürün" sayılırdı.
   // `searchTextI18n`: kaynak + EN/RU çevirileri (içerik çevirisi servisi
   // yazar) — "steel pipe" Türkçe "Çelik boru" kaydını bulur.
+  // JOKER YOK (`likeLiteral`, kategori aramasıyla aynı kural — arayüz testi
+  // 2026-10 category-17): Prisma `contains` değeri LIKE desenine olduğu gibi
+  // koyar; "%%" her ürünle, "a_" "a" + herhangi bir karakterle eşleşiyordu.
   const withCompany = opts.includeCompanyName ?? true;
   return tokens.map((t) => {
-    const needle = stemPrefix(foldSearchText(t));
+    const needle = likeLiteral(stemPrefix(foldSearchText(t)));
     return {
       OR: [
         { searchText: { contains: needle } },
         { searchTextI18n: { contains: needle } },
-        ...(withCompany ? [{ company: { name: { contains: t, mode: "insensitive" as const } } }] : []),
+        ...(withCompany
+          ? [{ company: { name: { contains: likeLiteral(t), mode: "insensitive" as const } } }]
+          : []),
       ],
     };
   });

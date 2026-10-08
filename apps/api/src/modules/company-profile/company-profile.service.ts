@@ -11,7 +11,10 @@ import {
   NotFoundException, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  MAX_COMPANY_MAIN_CATEGORIES,
+  MAX_COMPANY_SUB_CATEGORIES,
   MAX_COMPANY_SUB_PICKS,
+  categoryAncestors,
   deepestCategoryPicks,
   generateSlug,
   countryUsesIban,
@@ -32,8 +35,10 @@ import {
   assertUploadedObjectValid,
   MAX_IMAGE_BYTES,
 } from "../../common/helpers/upload-validation";
+import { normalizeCategorySelection } from "../../common/helpers/category-selection.helper";
 import { AuditService } from "../audit/audit.service";
 import { assertPostalCode } from "../company-addresses/company-addresses.service";
+import { assertWebsiteAddress } from "../../common/company/website-address";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { CategoryService } from "../categories/services/category.service";
@@ -320,27 +325,88 @@ export class CompanyProfileService {
         );
       }
     };
-    if (dto.buyerSubCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.buyerSubCategoryIds, {
-        minLevel: 2,
+    // SUNUCU DA DEPOLAMA BİÇİMİNE GETİRİR (code-category-8): kayıt yoluyla aynı
+    // dönüşüm (`normalizeCategorySelection`) — alt kodun ata zinciri alt
+    // listeye, segmenti ana listeye. Eskiden yalnız tarayıcı yapıyordu; web
+    // dışı istemci yaprağı zincirsiz, alt kodu segmenti ana listede olmadan
+    // yazabiliyordu. Tavanlar ve doğrulama dönüşümden SONRAKİ listeye bakar.
+    //
+    // İstek ekseni KISMEN gönderebilir (form yalnız değişen alanı yollar) →
+    // gelmeyen taraf kayıtlı değerden tamamlanır. Kayıtlı taraf yalnız dönüşüm
+    // onu DEĞİŞTİRDİYSE yazılır ve yalnız EKLENEN kodları doğrulanır: isteğin
+    // dokunmadığı eski kayıt bu yüzden reddedilmez.
+    const kategoriyeDokunuyor =
+      dto.buyerCategoryIds !== undefined ||
+      dto.buyerSubCategoryIds !== undefined ||
+      dto.sellerCategoryIds !== undefined ||
+      dto.sellerSubCategoryIds !== undefined;
+    if (kategoriyeDokunuyor) {
+      const kayitli = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          buyerCategoryIds: true,
+          buyerSubCategoryIds: true,
+          sellerCategoryIds: true,
+          sellerSubCategoryIds: true,
+        },
       });
-      seciminiDenetle(dto.buyerSubCategoryIds);
-      data.buyerSubCategoryIds = [...new Set(dto.buyerSubCategoryIds)];
-    }
-    if (dto.sellerSubCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.sellerSubCategoryIds, {
-        minLevel: 2,
-      });
-      seciminiDenetle(dto.sellerSubCategoryIds);
-      data.sellerSubCategoryIds = [...new Set(dto.sellerSubCategoryIds)];
-    }
-    if (dto.buyerCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.buyerCategoryIds, { exactLevel: 1 });
-      data.buyerCategoryIds = [...new Set(dto.buyerCategoryIds)];
-    }
-    if (dto.sellerCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.sellerCategoryIds, { exactLevel: 1 });
-      data.sellerCategoryIds = [...new Set(dto.sellerCategoryIds)];
+      // GİZLİ SEGMENT MUAFİYETİ (code-category-12): firmada ZATEN duran kod
+      // (ve onun koddan türeyen ataları) gizli segmentte diye reddedilmez —
+      // segment gizlenmeden önce yapılmış beyan, formun her kayıtta geri
+      // gönderdiği bir değerdir ve başka değişikliğin kaydını engelliyordu.
+      // Yeni eklenen kod gizli listeye karşı eskisi gibi denetlenir.
+      const zatenBeyanda = new Set(
+        [
+          ...(kayitli?.buyerCategoryIds ?? []),
+          ...(kayitli?.buyerSubCategoryIds ?? []),
+          ...(kayitli?.sellerCategoryIds ?? []),
+          ...(kayitli?.sellerSubCategoryIds ?? []),
+        ].flatMap((code) => [code, ...categoryAncestors(code)]),
+      );
+      const ayniListe = (a: readonly string[], b: readonly string[]) =>
+        a.length === b.length && a.every((code, i) => code === b[i]);
+      const ekseniIsle = async (
+        mainKey: "buyerCategoryIds" | "sellerCategoryIds",
+        subKey: "buyerSubCategoryIds" | "sellerSubCategoryIds",
+      ) => {
+        const gelenMain = dto[mainKey];
+        const gelenSub = dto[subKey];
+        if (gelenMain === undefined && gelenSub === undefined) return;
+        const oncekiMain = kayitli?.[mainKey] ?? [];
+        const oncekiSub = kayitli?.[subKey] ?? [];
+        const { mainIds, subIds } = normalizeCategorySelection(
+          gelenMain ?? oncekiMain,
+          gelenSub ?? oncekiSub,
+        );
+        const mainYazilir = gelenMain !== undefined || !ayniListe(mainIds, oncekiMain);
+        const subYazilir = gelenSub !== undefined || !ayniListe(subIds, oncekiSub);
+        if (subYazilir) {
+          if (subIds.length > MAX_COMPANY_SUB_CATEGORIES) {
+            throw new BadRequestException(i18nMessage("api.helpers.altKategoriBeyaniFazlaGenis"));
+          }
+          seciminiDenetle(subIds);
+          await this.categories.validateIds(
+            gelenSub !== undefined ? subIds : subIds.filter((code) => !oncekiSub.includes(code)),
+            { minLevel: 2, allowHidden: zatenBeyanda },
+          );
+          data[subKey] = subIds;
+        }
+        if (mainYazilir) {
+          // DTO tavanı gelen listeye bakar; türeyen segmentlerle aşılabilir.
+          if (mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
+            throw new BadRequestException(
+              i18nMessage("api.helpers.n1ArasiAnaKategoriSecmelisiniz", { MAXCOMPANYMAINCATEGORIES: MAX_COMPANY_MAIN_CATEGORIES }),
+            );
+          }
+          await this.categories.validateIds(
+            gelenMain !== undefined ? mainIds : mainIds.filter((code) => !oncekiMain.includes(code)),
+            { exactLevel: 1, allowHidden: zatenBeyanda },
+          );
+          data[mainKey] = mainIds;
+        }
+      };
+      await ekseniIsle("buyerCategoryIds", "buyerSubCategoryIds");
+      await ekseniIsle("sellerCategoryIds", "sellerSubCategoryIds");
     }
 
     // SIFIR KATEGORİ KAPISI — iki eksen BİRDEN boşalamaz.
@@ -420,6 +486,7 @@ export class CompanyProfileService {
         bankName: true,
         country: true,
         postalCode: true,
+        website: true,
       },
     });
     const kycLocked =
@@ -504,6 +571,16 @@ export class CompanyProfileService {
       (dto.postalCode.trim() || null) !== (kycBefore?.postalCode ?? null)
     ) {
       assertPostalCode(kycBefore?.country ?? "TR", dto.postalCode);
+    }
+    // Web sitesi: kayıt (onboarding) ile AYNI kural — nokta taşıyan, boşluksuz
+    // alan adı (arayüz testi signup-tr-5). Posta kodu gibi yalnız DEĞİŞEN
+    // değerde: form kayıtlı değeri her kayıtta geri gönderir, kuraldan önce
+    // kaydedilmiş hatalı adres başka alanın kaydını engellemesin. Boş = silme.
+    if (
+      dto.website !== undefined &&
+      (dto.website.trim() || null) !== (kycBefore?.website ?? null)
+    ) {
+      assertWebsiteAddress(dto.website);
     }
     // Şehir → dünya şehir listesi kaydı (2026-09-27; şehir sayfası/süzgeç).
     if (dto.city !== undefined || dto.cityId !== undefined) {

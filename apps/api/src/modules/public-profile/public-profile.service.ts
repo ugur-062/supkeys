@@ -38,6 +38,7 @@ import {
 } from "../company-reviews/review-summary";
 import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { likeLiteral } from "../../common/prisma/like-literal";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
@@ -366,10 +367,11 @@ export class PublicProfileService {
         : {}),
       ...(tokens.length
         ? // Token KATLANIR (ham "Çelik" katlanmış sütunda hiç eşleşmiyordu) +
-          // çok dilli sütun (ürün dizini `productSearchClauses` ile aynı kural).
+          // çok dilli sütun (ürün dizini `productSearchClauses` ile aynı kural;
+          // `likeLiteral` dahil — `%` / `_` joker değil düz karakter).
           {
             AND: tokens.map((t) => {
-              const needle = stemPrefix(foldSearchText(t));
+              const needle = likeLiteral(stemPrefix(foldSearchText(t)));
               return { OR: [{ searchText: { contains: needle } }, { searchTextI18n: { contains: needle } }] };
             }),
           }

@@ -192,7 +192,20 @@ describe("firma seçimi — TAM katalog", () => {
       [SEG],
       [LEAF_FULL_ONLY],
     );
-    expect(res.subIds).toEqual([LEAF_FULL_ONLY]);
+    // Yaprak ata zinciriyle saklanır (code-category-8: dönüşüm sunucuda da).
+    expect(res.subIds).toEqual([LEAF_FULL_ONLY, FAM, CLS]);
     expect(res.mainNames).toEqual(["Ambalaj malzemeleri"]);
+  });
+
+  it("ana liste yanlış segmenti taşısa da alt kodun segmenti eklenir (code-category-8)", async () => {
+    await makeCategory({ code: "11000000", nameTr: "Mineraller", level: 1 });
+    const res = await validateCategorySelection(
+      prisma as unknown as PrismaService,
+      ["11000000"],
+      [LEAF_BOTH],
+    );
+    expect(res.mainIds).toEqual(["11000000", SEG]);
+    expect(res.subIds).toEqual([LEAF_BOTH, FAM, CLS]);
+    expect(res.mainNames).toEqual(["Mineraller", "Ambalaj malzemeleri"]);
   });
 });

@@ -4,6 +4,8 @@ import { hiddenCategoryWhere, isHiddenCategory, listingSlug } from "@rothern/sha
 import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemPrefix } from "@rothern/shared";
+import { likeLiteral } from "../../common/prisma/like-literal";
+import { categorySearchStem, stemAtWordStart } from "../categories/services/category-search-rank";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
@@ -50,6 +52,8 @@ import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "../../common/company/p
 const PAGE_SIZE = 24;
 /** Talep kartları büyük (teaser) — sayfa başına 12 (PROMPT 4). Ürün dizini 24'te kalır. */
 const LISTING_PAGE_SIZE = 12;
+/** Arama önerisinde (typeahead) gösterilen en fazla kategori. */
+const SUGGEST_CATEGORY_LIMIT = 5;
 /**
  * Facet hesabı BELLEKTE yapılır (kategori kodları `String[]`, Prisma dizi
  * elemanına groupBy yapamaz). Ham SQL yazmamamın sebebi drift: görünürlük
@@ -219,6 +223,10 @@ export class PublicMarketplaceService {
    * (katlanmış kaynak + EN/RU çeviriler, kalem adları dahil; içerik çevirisi
    * servisi yazar). Ham ILIKE dalları sütun henüz dolmamış talepler için
    * yedek. Token AND, alanlar OR.
+   *
+   * Desene giden her kullanıcı metni `likeLiteral`den geçer: `%` ve `_` joker
+   * değil düz karakterdir ("%%" eskiden yayındaki HER talebi döndürüyordu).
+   * `keywords: { has }` desen değil tam eşleşmedir, ona uygulanmaz.
    */
   private searchWhere(raw?: string): Prisma.ListingWhereInput {
     const tokens = raw ? tokenizeQuery(raw) : [];
@@ -226,10 +234,10 @@ export class PublicMarketplaceService {
     return {
       AND: tokens.map((t) => ({
         OR: [
-          { title: { contains: t, mode: "insensitive" as const } },
-          { description: { contains: t, mode: "insensitive" as const } },
+          { title: { contains: likeLiteral(t), mode: "insensitive" as const } },
+          { description: { contains: likeLiteral(t), mode: "insensitive" as const } },
           { keywords: { has: t } },
-          { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
+          { searchTextI18n: { contains: likeLiteral(stemPrefix(foldSearchText(t))) } },
         ],
       })),
     };
@@ -477,6 +485,53 @@ export class PublicMarketplaceService {
   }
 
   /**
+   * KATEGORİ ÖNERİSİ (en fazla `SUGGEST_CATEGORY_LIMIT`) — kategori aramasıyla
+   * (`CategoryService.searchHierarchical`) AYNI kural:
+   *   · önce YAZILAN kelimeyi taşıyan kategoriler;
+   *   · yer kalırsa kelimenin KÖKÜYLE eşleşenler ("boruları" → "boru",
+   *     "pipes" → "pipe"; `categorySearchStem` — 4 karakterden kısa kök
+   *     kullanılmaz), daha önce bulunanlar hariç;
+   *   · `%` / `_` joker değil düz karakterdir (`likeLiteral`).
+   * Tek süzgeç kökken öneri yalnız düzeye göre sıralandığı için kökün başka
+   * sözcükte geçtiği üst düzey satırlar beş yerin hepsini alıyordu: "kaplin"
+   * (kök "kapl" ⊂ kaplama / kaplı) hiçbir kaplin önermiyor, "cıvata" (kök
+   * "civa") "Toksik ve tehlikeli atık temizliği" ile açılıyordu
+   * (marketplace-suggest-stem-outranks-typed).
+   */
+  private async suggestCategories(tokens: string[]) {
+    const terms = tokens.map((t) => {
+      const fold = foldSearchText(t);
+      return { fold, stem: categorySearchStem(fold) };
+    });
+    const find = (form: "fold" | "stem", take: number, exclude: string[] = []) =>
+      this.prisma.category.findMany({
+        where: {
+          inDiscovery: true,
+          level: { gte: 2 },
+          ...hiddenCategoryWhere(),
+          ...(exclude.length ? { id: { notIn: exclude } } : {}),
+          // Kök yalnız sözcük başında aranır (`stemAtWordStart`); yazılan biçim düz alt dizgi.
+          AND: terms.map((t) =>
+            form === "fold" || t.stem === t.fold
+              ? { searchText: { contains: likeLiteral(t.fold) } }
+              : { OR: stemAtWordStart("searchText", likeLiteral(t.stem)) },
+          ),
+        },
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
+        orderBy: [{ level: "asc" }],
+        take,
+      });
+    const typed = await find("fold", SUGGEST_CATEGORY_LIMIT);
+    if (typed.length >= SUGGEST_CATEGORY_LIMIT || terms.every((t) => t.stem === t.fold)) return typed;
+    const byStem = await find(
+      "stem",
+      SUGGEST_CATEGORY_LIMIT - typed.length,
+      typed.map((c) => c.id),
+    );
+    return [...typed, ...byStem];
+  }
+
+  /**
    * ARAMA ÖNERİSİ — hero kutusunda yazarken: ürün + kategori + firma.
    * Kapılar liste uçlarıyla aynı; kategori yalnız discovery L2+.
    */
@@ -506,22 +561,13 @@ export class PublicMarketplaceService {
         : [],
       // Kategori önerisi HER kapsamda: kategori hem ürün hem talep listesini
       // süzer, kullanıcının aradığı çoğu zaman dalın kendisidir.
-      this.prisma.category.findMany({
-        where: {
-          inDiscovery: true,
-          level: { gte: 2 },
-          ...hiddenCategoryWhere(),
-          AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })),
-        },
-        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
-        orderBy: [{ level: "asc" }],
-        take: 5,
-      }),
+      this.suggestCategories(tokens),
       want("companies")
         ? this.prisma.company.findMany({
             where: {
               ...PUBLIC_PROFILE_WHERE,
-              name: { contains: q, mode: "insensitive" },
+              // Joker yok: "%%" her firmayı öneriyordu.
+              name: { contains: likeLiteral(q), mode: "insensitive" },
             },
             select: { name: true, slug: true, city: true, logoUrl: true },
             take: 5,

@@ -5,15 +5,55 @@ import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
   MAX_COMPANY_SUB_PICKS,
+  categoryLevel,
   deepestCategoryPicks,
+  expandCompanyCategorySelection,
 } from "@rothern/shared";
 import type { PrismaService } from "../prisma/prisma.service";
+
+/**
+ * BEYANI DEPOLAMA BİÇİMİNE GETİRİR — web'in uyguladığı dönüşümün sunucudaki
+ * karşılığı (code-category-8). Kural tek kaynakta
+ * (`expandCompanyCategorySelection`):
+ *  · her alt kodun ATA ZİNCİRİ (L2/L3) alt listede,
+ *  · her alt kodun SEGMENTİ ana listede.
+ *
+ * Eskiden bu yalnız tarayıcıda yapılıyordu; web dışı bir istemci (ya da bayat
+ * paket) yaprağı zincirsiz, alt kodu segmenti ana listede olmadan
+ * yazabiliyordu. Zincirsiz yaprak, alıcı bir üst seviyede talep açtığında dar
+ * eksende eşleşmez (bkz. shared `company-category-selection.ts` başlığı).
+ *
+ * SIRA KORUNUR: gelen kodlar yerinde kalır, yalnız EKSİK ata/segment sona
+ * eklenir → web'in bugün gönderdiği (zaten tam) beyan AYNEN saklanır.
+ *
+ * Geçersiz biçimli kod ve alt listeye yazılmış segment burada ATILMAZ; listede
+ * kalır ki çağıranın doğrulaması eskisi gibi reddetsin (sessiz düzeltme yok).
+ */
+export function normalizeCategorySelection(
+  mainRaw: readonly string[] | null | undefined,
+  subRaw: readonly string[] | null | undefined,
+): { mainIds: string[]; subIds: string[] } {
+  const main = Array.from(new Set((mainRaw ?? []).filter(Boolean)));
+  const sub = Array.from(new Set((subRaw ?? []).filter(Boolean)));
+  const expanded = expandCompanyCategorySelection(
+    sub.filter((code) => categoryLevel(code) >= 2),
+    main,
+  );
+  return {
+    mainIds: Array.from(new Set([...main, ...expanded.mainIds])),
+    subIds: Array.from(new Set([...sub, ...expanded.subIds])),
+  };
+}
 
 /**
  * Birleşik kategori seçimi doğrulaması (alıcı + tedarikçi ortak).
  * - main: 1-N ANA kategori (segment, level 1) — tavan tek kaynak shared'de
  * - sub: 0-N ALT kategori (level 2-4 — family/class/commodity)
  * Hepsi mevcut + aktif olmalı. mainNames, ana kategori sırasıyla döner.
+ *
+ * Beyan ÖNCE depolama biçimine getirilir (`normalizeCategorySelection`),
+ * tavanlar ve varlık denetimi o hâle uygulanır; dönen `mainIds`/`subIds`
+ * saklanacak listelerdir.
  *
  * `inDiscovery` SÜZGECİ YOK — bilinçli. Firmanın "hangi alandayım" beyanı TAM
  * Ariba kataloğundan yapılır; talep/ilan kategorisi ise Discovery alt
@@ -25,8 +65,7 @@ export async function validateCategorySelection(
   mainRaw: string[],
   subRaw: string[],
 ): Promise<{ mainIds: string[]; subIds: string[]; mainNames: string[] }> {
-  const mainIds = Array.from(new Set((mainRaw ?? []).filter(Boolean)));
-  const subIds = Array.from(new Set((subRaw ?? []).filter(Boolean)));
+  const { mainIds, subIds } = normalizeCategorySelection(mainRaw, subRaw);
 
   if (mainIds.length < 1 || mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
     throw new BadRequestException(

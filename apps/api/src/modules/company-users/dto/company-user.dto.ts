@@ -13,10 +13,10 @@ import {
   IsString,
   Matches,
   MaxLength,
-  MinLength,
   ValidateNested,
 } from "class-validator";
 
+import { PasswordPolicy } from "../../../common/auth/password-policy";
 import { tApi } from "../../../common/i18n/i18n.service";
 import { IsIntlPhone, NormalizePhone } from "../../company-auth/dto/phone.validator";
 
@@ -94,13 +94,9 @@ export class AcceptCompanyInvitationDto {
   @IsIntlPhone({ allowEmpty: true }, { message: () => tApi("api.dto.companyUser.gecerliBirTelefonGiriniz") })
   phone?: string;
 
-  @IsString()
-  @MinLength(10, { message: () => tApi("api.dto.companyUser.parolaEnAz10KarakterOlmali") })
-  @MaxLength(72, { message: () => tApi("api.dto.companyUser.parolaEnFazla72Karakter") })
-  @Matches(/[a-z]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirKucukHarfIcermeli") })
-  @Matches(/[A-Z]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirBuyukHarfIcermeli") })
-  @Matches(/[0-9]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirRakamIcermeli") })
-  @Matches(/[^a-zA-Z0-9]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirOzelKarakterIcermeli") })
+  // Kayıt, şifre değiştirme ve sıfırlamayla AYNI kural — tek kaynak
+  // `common/auth/password-policy.ts`.
+  @PasswordPolicy()
   password!: string;
 
   @IsBoolean()

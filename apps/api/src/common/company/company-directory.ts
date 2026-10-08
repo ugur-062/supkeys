@@ -6,6 +6,7 @@ import { effectiveTier, isFreePeriod } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
 import { cityFacet, cityIdsOf, countriesOf, productSearchClauses } from "./product-index";
 import { FAST_REPLY_HOURS } from "./reply-time";
+import { likeLiteral } from "../prisma/like-literal";
 
 type Db = Pick<PrismaClient, "company" | "category" | "companyItem">;
 
@@ -128,15 +129,20 @@ export async function directoryRows(
               {
                 OR: [
                   {
+                    // Desene giden kullanıcı metni `likeLiteral`den geçer:
+                    // `%` / `_` joker değil ("%%" dizindeki HER firmayı
+                    // döndürüyordu). `services: { has }` tam eşleşmedir.
                     AND: tokens.map((t) => ({
                       OR: [
-                        { name: { contains: t, mode: "insensitive" as const } },
-                        { industry: { contains: t, mode: "insensitive" as const } },
-                        { aboutText: { contains: t, mode: "insensitive" as const } },
+                        { name: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                        { industry: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                        { aboutText: { contains: likeLiteral(t), mode: "insensitive" as const } },
                         { services: { has: t } },
-                        ...(opts.matchRothernId ? [{ rothernId: { contains: t.toUpperCase() } }] : []),
+                        ...(opts.matchRothernId
+                          ? [{ rothernId: { contains: likeLiteral(t.toUpperCase()) } }]
+                          : []),
                         // Katlanmış kaynak + EN/RU çeviri (sektör/hizmet/tanıtım).
-                        { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
+                        { searchTextI18n: { contains: likeLiteral(stemPrefix(foldSearchText(t))) } },
                       ],
                     })),
                   },

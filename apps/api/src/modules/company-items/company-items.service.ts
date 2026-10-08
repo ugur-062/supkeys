@@ -79,6 +79,7 @@ import {
   type PublishBlocker,
 } from "../../common/company/product-completion";
 import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
+import { likeLiteral } from "../../common/prisma/like-literal";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { CompanyViewsService } from "../company-views/company-views.service";
 import { AuditService } from "../audit/audit.service";
@@ -300,11 +301,14 @@ export class CompanyItemsService {
               // ile küçültür, 'ışık' 'Işık Direği'ni bulmazdı. `searchText`
               // ad/marka/MPN'den katlanır; ham kollar kod araması ve
               // searchText'i henüz dolmamış eski kayıtlar için kalır.
-              { searchText: { contains: folded } },
-              { name: { contains: q!, mode: "insensitive" } },
-              { code: { contains: q!, mode: "insensitive" } },
-              { brand: { contains: q!, mode: "insensitive" } },
-              { mpn: { contains: q!, mode: "insensitive" } },
+              // Aranan metin desene düz karakter olarak girer (`likeLiteral`):
+              // stok kodu / MPN'deki "_" tek karakter jokeri, "%" her şey
+              // demek DEĞİL ("AB_12" eskiden "AB-12" ve "ABX12"yi de buluyordu).
+              { searchText: { contains: likeLiteral(folded) } },
+              { name: { contains: likeLiteral(q!), mode: "insensitive" } },
+              { code: { contains: likeLiteral(q!), mode: "insensitive" } },
+              { brand: { contains: likeLiteral(q!), mode: "insensitive" } },
+              { mpn: { contains: likeLiteral(q!), mode: "insensitive" } },
             ],
           }
         : {}),
@@ -1003,7 +1007,8 @@ export class CompanyItemsService {
           ? { categoryId: { startsWith: categoryPrefix(opts.category) as string } }
           : {}),
         ...(tokens.length
-          ? { AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })) }
+          ? // Joker yok (`likeLiteral`) — ürün dizini `productSearchClauses` ile aynı kural.
+            { AND: tokens.map((t) => ({ searchText: { contains: likeLiteral(foldSearchText(t)) } })) }
           : {}),
       },
       select: {

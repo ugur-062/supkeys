@@ -321,15 +321,27 @@ export class CompanyConnectionsService {
     // kullanıcı e-postasına referral maili göndermek boşa gider (o e-postayla
     // yeniden kayıt olunamaz). Kullanıcı pasif ama FİRMA aktifse istek yine
     // firmaya gider; firma pasifse anlamlı hata verilir.
+    //
+    // REGISTERED = an account whose e-mail is VERIFIED (arayuz testi 2026-10
+    // authsec-1; same rule as `inviteExternalForListing` and the dispatcher's
+    // `addressState`). An unverified sign-up has not proven that it owns the
+    // address: anyone can type a supplier's address at sign-up, and the
+    // request used to go straight to that account's company - which then
+    // moved to its own mailbox ("change e-mail"), verified there and accepted
+    // the request. Such an address is handled like an unregistered one: the
+    // invitation is stored and mailed TO THE ADDRESS, and it becomes a pending
+    // request only for the account that proves that address
+    // (`acceptReferralInvites`, `{ email }` branch, at e-mail verification).
     const existing = await this.prisma.companyUser.findUnique({
       where: { email },
       select: {
+        emailVerifiedAt: true,
         company: {
           select: { id: true, name: true, isActive: true, isBlocked: true },
         },
       },
     });
-    if (existing?.company) {
+    if (existing?.company && existing.emailVerifiedAt) {
       if (!existing.company.isActive || existing.company.isBlocked) {
         throw new BadRequestException(
           i18nMessage("api.companyConnections.buEPostaAdresininBagliOldugu"),
@@ -611,8 +623,15 @@ export class CompanyConnectionsService {
       }),
       this.prisma.referralOptOut.findMany({ where: { email: { in: emails } }, select: { email: true } }),
       // Kayıtlı kullanıcı başka firmanın kiracısı → bypass (RLS açıkken ana
-      // istemci göremez ve adres "kayıtsız" sanılırdı).
-      this.bypass.companyUser.findMany({ where: { email: { in: emails }, deletedAt: null }, select: { email: true } }),
+      // istemci göremez ve adres "kayıtsız" sanılırdı). Yalnız e-postası
+      // DOĞRULANMIŞ hesap kayıtlı sayılır (dağıtıcının `addressState`iyle aynı
+      // kural): doğrulanmamış kayıt adresin sahibini kanıtlamaz — başkasının
+      // adresiyle açılmış bir kayıt o adrese davet gitmesini engelliyordu
+      // (arayüz testi 2026-10 code-auth-1 devamı).
+      this.bypass.companyUser.findMany({
+        where: { email: { in: emails }, deletedAt: null, emailVerifiedAt: { not: null } },
+        select: { email: true },
+      }),
       this.prisma.externalListingInvite.findMany({
         where: { listingId: listing.id, email: { in: emails } },
         select: { email: true },

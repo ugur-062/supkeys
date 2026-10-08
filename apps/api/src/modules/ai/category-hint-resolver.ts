@@ -2,6 +2,7 @@ import { foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
 import { hiddenCategoryWhere } from "@rothern/shared";
 import type { PrismaService } from "../../common/prisma/prisma.service";
 import { CATEGORY_NAME_SELECT, type CategoryNameRow } from "../../common/company/category-name";
+import { likeLiteral } from "../../common/prisma/like-literal";
 
 /**
  * MODEL İFADESİ → GERÇEK KATEGORİ KODU — TEK KAYNAK (AI arama; katalogdan
@@ -74,7 +75,14 @@ export async function resolveCategoryHints(
   const distinct = [...new Set(hints.filter((h): h is string => !!h))].slice(0, MAX_HINTS);
   if (distinct.length === 0) return out;
 
-  const clauseFor = (ts: string[]) => ({ AND: ts.map((t) => ({ searchText: { contains: stemPrefix(t) } })) });
+  // İpucu modelden gelir, model de kullanıcı metninden üretir: `%` / `_`
+  // taşıyabilir. Desene düz karakter olarak girer (`likeLiteral`). Puanlama
+  // (`score`) zaten düz `includes` olduğu için jokerli ipucu yanlış koda
+  // ÇÖZÜLMÜYORDU; zararı havuzdaydı: "%%" tek başına `POOL_TAKE` satırı
+  // dolduruyor, aynı çağrıdaki gerçek ipuçları havuzda yer bulamıyordu.
+  const clauseFor = (ts: string[]) => ({
+    AND: ts.map((t) => ({ searchText: { contains: likeLiteral(stemPrefix(t)) } })),
+  });
   const clauses = distinct
     .map((h) => tokensOf(h))
     .filter((ts) => ts.length > 0)

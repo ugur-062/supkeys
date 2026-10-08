@@ -14,10 +14,14 @@ import {
   tokenizeQuery,
   type CategoryCatalog,
 } from "@rothern/shared";
+import { likeLiteral } from "../../../common/prisma/like-literal";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
   categoryCodePrefix,
   categoryMatchScore,
+  categoryNameMatchesAll,
+  categorySearchStem,
+  stemAtWordStart,
   relevanceWeight,
 } from "./category-search-rank";
 
@@ -49,6 +53,25 @@ export const CATEGORY_SEARCH_RESULT_CAP = 200;
  * yapılır; havuz yalnız hafif alanları taşır.
  */
 const CATEGORY_SEARCH_POOL = 1000;
+/** Adı / eş anlamlısı eşleşip BÜTÜN sınıflarıyla açılan en fazla aile (L2). */
+const CATEGORY_SEARCH_FAMILY_CAP = 20;
+/**
+ * Adı eşleşen en fazla sektör (L1) — her biri bütün aileleri ve sınıflarıyla
+ * döner (category-18). "makineleri" gibi tek kelime beş sektörün adında
+ * geçer; hepsi açılsaydı yüzlerce satır eklenirdi. Aşılırsa `truncated`.
+ */
+const CATEGORY_SEARCH_SECTOR_CAP = 3;
+
+/**
+ * Kökün HAM (katlanmamış) karşılığı. `nameTr`/`nameEn`/`nameRu` ILIKE
+ * yedekleri katlanmamış kolona bakar, kök de ham yazılır ("Boruları" →
+ * "Boru"). Katlama harf sayısını değiştirdiyse (bitişik harf, ayrık aksan)
+ * önek güvenle kesilemez; o durumda kelimenin kendisi kalır.
+ */
+function rawStemOf(raw: string, stem: string): string {
+  const cut = raw.slice(0, stem.length);
+  return foldSearchText(cut) === stem ? cut : raw;
+}
 
 @Injectable()
 export class CategoryService {
@@ -186,17 +209,26 @@ export class CategoryService {
       nameTr: string;
       level: number;
       segmentLetter: string | null;
+      /** Sektörün KENDİ adı sorguyla eşleşti (category-18). */
+      isMatch: boolean;
       families: Array<{
         id: string;
         code: string;
         nameTr: string;
         level: number;
+        /** Ailenin kendisi sorguyla eşleşti (ad / eş anlamlı / kod öneki). */
+        isMatch: boolean;
         classes: Array<{
           id: string;
           code: string;
           nameTr: string;
           level: number;
           isMatch: boolean;
+          /**
+           * Sınıf, ailesi ya da sektörü eşleştiği için listede (category-18):
+           * kendi adı eşleşmese de SEÇİLEBİLİR satır olarak gösterilir.
+           */
+          parentMatch: boolean;
           commodities: Array<{
             id: string;
             code: string;
@@ -246,20 +278,57 @@ export class CategoryService {
         return true;
       })
       .slice(0, CATEGORY_SEARCH_MAX_TOKENS);
-    const nameFilter = tokens.length
-      ? {
-          AND: tokens.map((t) => ({
-            OR: [
-              { searchText: { contains: foldSearchText(t) } },
-              { nameTr: { contains: t, mode: "insensitive" as const } },
-            ],
-          })),
-        }
+    // EK TOLERANSI (code-category-2) — YAZILAN KELİME BİRİNCİL
+    // (cat-search-stem-displaces-typed-word). Her kelime iki biçimde aranır:
+    //   · yazıldığı gibi → BİRİNCİL satırlar (ek toleransından önceki süzgeç);
+    //   · KÖKÜYLE ("çelik boruları" → "celik" + "boru", "pipes" → "pipe";
+    //     `categorySearchStem`, ürün aramasıyla aynı ortak kural + 4 karakter
+    //     tabanı) → yalnız kökle gelen DOLGU satırları.
+    // Kök kelimenin öneki olduğundan kök süzgeci birincil satırları da kapsar;
+    // ama kök başka sözcüklerin İÇİNDE de geçer ("nakliye" → "nakli" ⊂
+    // "kaynaklı"). Tek süzgeç kökken o satırlar 200 tavanını ve segment
+    // ağırlığını dolduruyor, yazılan kelimeyi taşıyan satırlar kesiliyor ya da
+    // arkaya düşüyordu (ölçüm: "nakliye" 46 eşleşmenin 41'i kayboldu). Bu
+    // yüzden iki biçim AYRI çekilir: birincil satırlar her düzeyde önde durur
+    // ve tavan onları kesmez; dolgu satırları yalnız kalan yeri doldurur.
+    // Kökü kelimeyle aynı olan sorguda (ek yok, yalnız rakam, 4 karakterden
+    // kısa kök) kök sorgusu HİÇ atılmaz: sonuç ek toleransından öncekiyle
+    // aynıdır.
+    //
+    // JOKER YOK (category-17): Prisma `contains` değeri LIKE desenine olduğu
+    // gibi koyar; "%%" / "__" bütün satırlarla, "a_" "a" + herhangi bir
+    // karakterle eşleşiyordu. Desene giden her kullanıcı metni `likeLiteral`
+    // ile kaçırılır → `%`, `_` ve `\` yalnız kendisiyle eşleşir.
+    const terms = tokens.map((raw) => {
+      const fold = foldSearchText(raw);
+      const stem = categorySearchStem(fold);
+      return { raw, fold, stem, rawStem: rawStemOf(raw, stem) };
+    });
+    // KÖK YALNIZ SÖZCÜK BAŞINDA ARANIR (`stemAtWordStart`, 2026-10-08): düz alt
+    // dizgi olarak arandığında "nakliye" 46 birincil satırın arkasına 153
+    // alakasız "kaynaklı …" satırı dolduruyor ve sonuç kesiliyordu. Yazılan
+    // biçim eskisi gibi düz alt dizgidir.
+    const termFilter = (form: "typed" | "stem") => ({
+      AND: terms.map((t) => ({
+        OR:
+          form === "typed" || t.stem === t.fold
+            ? [
+                { searchText: { contains: likeLiteral(t.fold) } },
+                { nameTr: { contains: likeLiteral(t.raw), mode: "insensitive" as const } },
+              ]
+            : [
+                ...stemAtWordStart("searchText", likeLiteral(t.stem)),
+                ...stemAtWordStart("nameTr", likeLiteral(t.rawStem), true),
+              ],
+      })),
+    });
+    const typedFilter = terms.length
+      ? termFilter("typed")
       : // Tek anlamlı kelime kalmadı ("ve ile" gibi) — bütün ifadeyi ara.
         {
           OR: [
-            { searchText: { contains: folded } },
-            { nameTr: { contains: q, mode: "insensitive" as const } },
+            { searchText: { contains: likeLiteral(folded) } },
+            { nameTr: { contains: likeLiteral(q), mode: "insensitive" as const } },
           ],
         };
 
@@ -267,9 +336,25 @@ export class CategoryService {
     // eşleşir ("43230000" → aile "4323", "31161603" → tam kod). Metin yolu
     // da açık kalır (eş anlamlıda geçen model numarası gibi).
     const codePrefix = categoryCodePrefix(q);
-    const matchFilter = codePrefix
-      ? { OR: [{ code: { startsWith: codePrefix } }, nameFilter] }
-      : nameFilter;
+    const withCode = <F extends object>(filter: F) =>
+      codePrefix ? { OR: [{ code: { startsWith: codePrefix } }, filter] } : filter;
+    const typedMatch = withCode(typedFilter);
+    const stemMatch = terms.some((t) => t.stem !== t.fold) ? withCode(termFilter("stem")) : null;
+    /** Aynı sorguyu yazılan biçimle ve (kökü farklı kelime varsa) kökle koşar. */
+    const bothForms = <T>(run: (match: typeof typedMatch) => Promise<T[]>): Promise<[T[], T[]]> =>
+      Promise.all([run(typedMatch), stemMatch ? run(stemMatch) : Promise.resolve<T[]>([])]);
+    /**
+     * Birincil satırlar önce; kök sorgusundan yalnız birincil OLMAYANLAR
+     * eklenir. `typed` kendi tavanına takılmadıysa geçerlidir (takıldıysa kök
+     * satırının birincil olup olmadığı bilinemez — çağıran dolguyu kullanmaz).
+     */
+    const typedFirst = <T extends { id: string }>(typed: T[], stem: T[]) => {
+      const typedIds = new Set(typed.map((r) => r.id));
+      return [
+        ...typed.map((row) => ({ row, primary: true })),
+        ...stem.filter((r) => !typedIds.has(r.id)).map((row) => ({ row, primary: false })),
+      ];
+    };
 
     // ALAKA SIRASI (O-022): eşleşen L3/L4 adayları hafif alanlarla çekilir,
     // puanlanır (ad başı / tam sözcük > ad içi > yalnız eş anlamlı; kod
@@ -294,25 +379,36 @@ export class CategoryService {
       level: { in: [3, 4] },
       ...categoryCatalogWhere(catalog),
     };
-    const pool = await this.prisma.category.findMany({
-      where: { ...baseWhere, ...matchFilter },
-      select: poolSelect,
-      orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
-      take: CATEGORY_SEARCH_POOL,
-    });
-    const poolFull = pool.length >= CATEGORY_SEARCH_POOL;
-    if (poolFull && tokens.length > 0) {
-      // Çok geniş sorgu: havuz eş anlamlı eşleşmeleriyle dolmuş olabilir →
-      // ADINDA geçenler ayrıca çekilir ki alakalı satır havuz dışında kalmasın.
+    const [typedPool, stemPool] = await bothForms((match) =>
+      this.prisma.category.findMany({
+        where: { ...baseWhere, ...match },
+        select: poolSelect,
+        orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
+        take: CATEGORY_SEARCH_POOL,
+      }),
+    );
+    /**
+     * Çok geniş sorgu: havuz eş anlamlı eşleşmeleriyle dolmuş olabilir →
+     * ADINDA geçenler ayrıca çekilir ki alakalı satır havuz dışında kalmasın.
+     */
+    const addNameRows = async (pool: typeof typedPool, form: "typed" | "stem") => {
+      if (pool.length < CATEGORY_SEARCH_POOL || terms.length === 0) return;
       const byName = await this.prisma.category.findMany({
         where: {
           ...baseWhere,
-          AND: tokens.map((t) => ({
-            OR: [
-              { nameTr: { contains: t, mode: "insensitive" as const } },
-              { nameEn: { contains: t, mode: "insensitive" as const } },
-              { nameRu: { contains: t, mode: "insensitive" as const } },
-            ],
+          AND: terms.map((t) => ({
+            OR:
+              form === "typed" || t.stem === t.fold
+                ? [
+                    { nameTr: { contains: likeLiteral(t.raw), mode: "insensitive" as const } },
+                    { nameEn: { contains: likeLiteral(t.raw), mode: "insensitive" as const } },
+                    { nameRu: { contains: likeLiteral(t.raw), mode: "insensitive" as const } },
+                  ]
+                : [
+                    ...stemAtWordStart("nameTr", likeLiteral(t.rawStem), true),
+                    ...stemAtWordStart("nameEn", likeLiteral(t.rawStem), true),
+                    ...stemAtWordStart("nameRu", likeLiteral(t.rawStem), true),
+                  ],
           })),
         },
         select: poolSelect,
@@ -320,10 +416,26 @@ export class CategoryService {
         take: CATEGORY_SEARCH_POOL,
       });
       const seen = new Set(pool.map((r) => r.id));
-      for (const r of byName) if (!seen.has(r.id)) pool.push(r);
-    }
+      for (const r of byName) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        pool.push(r);
+      }
+    };
+    const typedFull = typedPool.length >= CATEGORY_SEARCH_POOL;
+    await addNameRows(typedPool, "typed");
+    // DOLGU: yalnız kökle gelen satırlar, birincil satırların bıraktığı yere.
+    // Birincil havuz kendi tavanına takıldıysa sonuç tavanının beş katı
+    // birincil satır zaten var; dolgu ne gerekir ne de güvenle ayrılabilir.
+    const room = Math.max(0, CATEGORY_SEARCH_RESULT_CAP - typedPool.length);
+    if (room > 0) await addNameRows(stemPool, "stem");
+    const fillPool = typedFull
+      ? []
+      : typedFirst(typedPool, stemPool)
+          .filter((x) => !x.primary)
+          .map((x) => x.row);
 
-    const foldedTokens = tokens.map((t) => foldSearchText(t));
+    const foldedTokens = terms.map((t) => t.fold);
     const scoreOf = (row: {
       code: string;
       nameTr: string;
@@ -333,16 +445,21 @@ export class CategoryService {
       codePrefix && row.code.startsWith(codePrefix)
         ? 100 + (row.code === codePrefix.padEnd(8, "0") ? 50 : 0)
         : categoryMatchScore(row, foldedTokens, folded);
-    const scored = pool
-      .map((row) => ({ row, score: scoreOf(row) }))
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          a.row.level - b.row.level ||
-          a.row.sortOrder - b.row.sortOrder,
-      );
-    const top = scored.slice(0, CATEGORY_SEARCH_RESULT_CAP);
-    const scoreById = new Map(scored.map((x) => [x.row.id, x.score] as const));
+    const ranked = (rows: typeof typedPool, primary: boolean) =>
+      rows
+        .map((row) => ({ row, score: scoreOf(row), primary }))
+        .sort(
+          (a, b) =>
+            b.score - a.score ||
+            a.row.level - b.row.level ||
+            a.row.sortOrder - b.row.sortOrder,
+        );
+    // 200 tavanı: önce birincil satırlar (puan sırasıyla), kalan yer dolguya.
+    const top = [
+      ...ranked(typedPool, true).slice(0, CATEGORY_SEARCH_RESULT_CAP),
+      ...(room > 0 ? ranked(fillPool, false).slice(0, room) : []),
+    ];
+    const rankById = new Map(top.map((x) => [x.row.id, x] as const));
 
     // Yalnız ağaca girecek satırların ata zinciri.
     const chainRows = top.length
@@ -369,25 +486,83 @@ export class CategoryService {
     // Family (L2) adıyla arama da bulsun: eşleşen family'lerin TÜM Class'ları
     // sonuç ağacına eklenir — "Pano ve dağıtım sistemleri" yazan kullanıcı
     // altındaki seçilebilir detayları görür (Class/Commodity adı eşleşmese de).
-    const famMatches = await this.prisma.category.findMany({
-      where: {
-        isActive: true,
-        level: 2,
-        ...matchFilter,
-        ...hiddenCategoryWhere(),
-      },
-      include: {
-        parent: true,
-        children: {
-          where: { isActive: true, level: 3 },
-          orderBy: { sortOrder: "asc" },
+    // Aile tavanı da önce birincil ailelere: kökle eşleşen aileler katalog
+    // sırasında önde olsa bile adı yazılan kelimeyi taşıyan aileyi düşüremez.
+    const [typedFams, stemFams] = await bothForms((match) =>
+      this.prisma.category.findMany({
+        where: {
+          isActive: true,
+          level: 2,
+          ...match,
+          ...hiddenCategoryWhere(),
         },
-      },
-      take: 20,
-      orderBy: { sortOrder: "asc" },
-    });
+        include: {
+          parent: true,
+          children: {
+            where: { isActive: true, level: 3 },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        take: CATEGORY_SEARCH_FAMILY_CAP,
+        orderBy: { sortOrder: "asc" },
+      }),
+    );
+    const famMatches = typedFirst(typedFams, stemFams).slice(0, CATEGORY_SEARCH_FAMILY_CAP);
 
-    if (matched.length === 0 && famMatches.length === 0) {
+    // SEKTÖR (L1) adıyla arama da bulsun (category-18): listede görünen sektör
+    // adını ("Elektrik Sistemleri ve Aydınlatma") yazan kullanıcı "sonuç
+    // bulunamadı" görüyordu — arama yalnız L2-L4'e bakıyordu. Adı eşleşen
+    // sektör BÜTÜN aileleri ve onların sınıflarıyla döner; kullanıcı aradığını
+    // oradan açar. Ölçüt AD (her kelime adın bir sözcüğünün BAŞINDA geçmeli,
+    // `categoryNameMatchesAll`): süzgeç eş anlamlıya ve sözcük içine de
+    // baktığından ad ayrıca denetlenir. Kod araması ve yalnız bağlaçtan oluşan
+    // sorgu ("ve") sektör döndürmez. Sektör tavanında da adı yazılan kelimeyi
+    // taşıyan sektör, yalnız kökle eşleşenden önce gelir.
+    const [typedSectors, stemSectors] =
+      !codePrefix && terms.length > 0
+        ? await bothForms((match) =>
+            this.prisma.category.findMany({
+              where: { isActive: true, level: 1, ...match, ...hiddenCategoryWhere() },
+              select: {
+                id: true,
+                code: true,
+                ...CATEGORY_NAME_SELECT,
+                level: true,
+                segmentLetter: true,
+                sortOrder: true,
+              },
+              orderBy: { sortOrder: "asc" },
+            }),
+          )
+        : [[], []];
+    const sectorNameMatches = typedFirst(typedSectors, stemSectors)
+      .filter((x) => categoryNameMatchesAll(x.row, foldedTokens, folded))
+      .map((x) => ({ ...x, score: scoreOf(x.row) }))
+      .sort(
+        (a, b) =>
+          Number(b.primary) - Number(a.primary) ||
+          b.score - a.score ||
+          a.row.sortOrder - b.row.sortOrder,
+      );
+    const sectorMatches = sectorNameMatches.slice(0, CATEGORY_SEARCH_SECTOR_CAP);
+    const sectorFamilies = sectorMatches.length
+      ? await this.prisma.category.findMany({
+          where: {
+            isActive: true,
+            level: 2,
+            parentId: { in: sectorMatches.map((x) => x.row.id) },
+          },
+          include: {
+            children: {
+              where: { isActive: true, level: 3 },
+              orderBy: { sortOrder: "asc" },
+            },
+          },
+          orderBy: { sortOrder: "asc" },
+        })
+      : [];
+
+    if (matched.length === 0 && famMatches.length === 0 && sectorMatches.length === 0) {
       // Sonuçsuz aramalar keywords/taksonomi kürasyonunun ham girdisi —
       // log drain'de "Kategori araması sonuçsuz" ile toplanır.
       // Kod araması kürasyon kuyruğuna YAZILMAZ: eş anlamlı ekleyerek
@@ -402,19 +577,62 @@ export class CategoryService {
       return { segments: [], truncated: false };
     }
 
-    interface ClassAcc {
+    /**
+     * Bir düğümün sıralama anahtarı (cat-search-stem-displaces-typed-word).
+     * Yazılan kelimeyi taşıyan (BİRİNCİL) satırların katkısı `score` /
+     * `weight`te, yalnız kökle gelen (DOLGU) satırlarınki `fillScore` /
+     * `fillWeight`te birikir — iki katkı hiç toplanmaz:
+     *   · birincil eşleşmesi olan düğümün sırasına dolgu karışmaz (sıra, ek
+     *     toleransından önceki ile aynı kalır);
+     *   · alt ağacında yalnız dolgu olan düğüm (`stemOnly`) kendi düzeyinde
+     *     en sona düşer; böyle düğümler kendi aralarında kök puanıyla dizilir.
+     */
+    interface RankKeys {
+      /** En iyi alaka puanı (kendisi ya da alt ağacı) — birincil satırlar. */
+      score: number;
+      /** Alt ağaçtaki birincil ad eşleşmelerinin toplam ağırlığı (`relevanceWeight`). */
+      weight: number;
+      fillScore: number;
+      fillWeight: number;
+      /** Alt ağaçta birincil eşleşme var. */
+      typed: boolean;
+      /** Alt ağaçta yalnız kökle gelen eşleşme var. */
+      fill: boolean;
+    }
+    const newRank = (): RankKeys => ({
+      score: 0,
+      weight: 0,
+      fillScore: 0,
+      fillWeight: 0,
+      typed: false,
+      fill: false,
+    });
+    const credit = (acc: RankKeys, score: number, primary: boolean) => {
+      if (primary) {
+        acc.typed = true;
+        acc.score = Math.max(acc.score, score);
+        acc.weight += relevanceWeight(score);
+      } else {
+        acc.fill = true;
+        acc.fillScore = Math.max(acc.fillScore, score);
+        acc.fillWeight += relevanceWeight(score);
+      }
+    };
+    const stemOnly = (acc: RankKeys) => acc.fill && !acc.typed;
+
+    interface ClassAcc extends RankKeys {
       id: string;
       code: string;
       nameTr: string;
       level: number;
       sortOrder: number;
       isMatch: boolean;
-      /** En iyi alaka puanı (kendisi ya da altındaki emtia) — sıralama. */
-      score: number;
-      /** Alt ağaçtaki ad eşleşmelerinin toplam ağırlığı (`relevanceWeight`). */
-      weight: number;
-      /** Sınıfın KENDİ adının puanı (eşleşmediyse 0). */
+      /** Ailesi ya da sektörü eşleştiği için listede (category-18). */
+      parentMatch: boolean;
+      /** Sınıfın KENDİ adının puanı — birincil eşleşmeyse (değilse 0). */
       ownScore: number;
+      /** Sınıfın KENDİ adının puanı — yalnız kökle eşleştiyse (değilse 0). */
+      fillOwnScore: number;
       commodities: Map<
         string,
         {
@@ -425,29 +643,28 @@ export class CategoryService {
           sortOrder: number;
           isMatch: boolean;
           score: number;
-          weight: number;
+          /** Yazılan kelimeyi taşıyor (yalnız kökle gelmedi). */
+          primary: boolean;
         }
       >;
     }
-    interface FamilyAcc {
+    interface FamilyAcc extends RankKeys {
       id: string;
       code: string;
       nameTr: string;
       level: number;
       sortOrder: number;
-      score: number;
-      weight: number;
+      isMatch: boolean;
       classes: Map<string, ClassAcc>;
     }
-    interface SegmentAcc {
+    interface SegmentAcc extends RankKeys {
       id: string;
       code: string;
       nameTr: string;
       level: number;
       segmentLetter: string | null;
       sortOrder: number;
-      score: number;
-      weight: number;
+      isMatch: boolean;
       families: Map<string, FamilyAcc>;
     }
 
@@ -472,6 +689,66 @@ export class CategoryService {
       segmentLetter: string | null;
       sortOrder: number;
     };
+    /** Aile ve sınıf düğümü — `segmentLetter` yalnız sektörde okunur. */
+    type TreeNode = Omit<CatNode, "segmentLetter">;
+
+    // Düğüm yoksa kurar, varsa olanı döner — eşleşme, aile ve sektör döngüleri
+    // aynı ağacı doldurur.
+    const segAccOf = (segment: CatNode): SegmentAcc => {
+      let acc = segmentMap.get(segment.id);
+      if (!acc) {
+        acc = {
+          id: segment.id,
+          code: segment.code,
+          nameTr: categoryName(segment),
+          level: segment.level,
+          segmentLetter: segment.segmentLetter,
+          sortOrder: segment.sortOrder,
+          isMatch: false,
+          ...newRank(),
+          families: new Map(),
+        };
+        segmentMap.set(segment.id, acc);
+      }
+      return acc;
+    };
+    const famAccOf = (segAcc: SegmentAcc, family: TreeNode): FamilyAcc => {
+      let acc = segAcc.families.get(family.id);
+      if (!acc) {
+        acc = {
+          id: family.id,
+          code: family.code,
+          nameTr: categoryName(family),
+          level: family.level,
+          sortOrder: family.sortOrder,
+          isMatch: false,
+          ...newRank(),
+          classes: new Map(),
+        };
+        segAcc.families.set(family.id, acc);
+      }
+      return acc;
+    };
+    const clsAccOf = (famAcc: FamilyAcc, cls: TreeNode): ClassAcc => {
+      let acc = famAcc.classes.get(cls.id);
+      if (!acc) {
+        acc = {
+          id: cls.id,
+          code: cls.code,
+          nameTr: categoryName(cls),
+          level: cls.level,
+          sortOrder: cls.sortOrder,
+          isMatch: false,
+          parentMatch: false,
+          ...newRank(),
+          ownScore: 0,
+          fillOwnScore: 0,
+          commodities: new Map(),
+        };
+        famAcc.classes.set(cls.id, acc);
+      }
+      return acc;
+    };
 
     for (const cat of matched) {
       // Tüm match level 3 veya 4. Parent zinciri 4-seviye yukarı çıkar.
@@ -492,66 +769,22 @@ export class CategoryService {
       }
 
       if (!segment || !family || !cls) continue;
-      const rowScore = scoreById.get(cat.id) ?? 0;
+      const { score: rowScore, primary } = rankById.get(cat.id) ?? { score: 0, primary: true };
 
-      let segAcc = segmentMap.get(segment.id);
-      if (!segAcc) {
-        segAcc = {
-          id: segment.id,
-          code: segment.code,
-          nameTr: categoryName(segment),
-          level: segment.level,
-          segmentLetter: segment.segmentLetter,
-          sortOrder: segment.sortOrder,
-          score: 0,
-          weight: 0,
-          families: new Map(),
-        };
-        segmentMap.set(segment.id, segAcc);
-      }
+      const segAcc = segAccOf(segment);
+      const famAcc = famAccOf(segAcc, family);
+      credit(segAcc, rowScore, primary);
+      credit(famAcc, rowScore, primary);
 
-      let famAcc = segAcc.families.get(family.id);
-      if (!famAcc) {
-        famAcc = {
-          id: family.id,
-          code: family.code,
-          nameTr: categoryName(family),
-          level: family.level,
-          sortOrder: family.sortOrder,
-          score: 0,
-          weight: 0,
-          classes: new Map(),
-        };
-        segAcc.families.set(family.id, famAcc);
-      }
-      const rowWeight = relevanceWeight(rowScore);
-      segAcc.score = Math.max(segAcc.score, rowScore);
-      famAcc.score = Math.max(famAcc.score, rowScore);
-      segAcc.weight += rowWeight;
-      famAcc.weight += rowWeight;
-
-      let clsAcc = famAcc.classes.get(cls.id);
-      if (!clsAcc) {
-        clsAcc = {
-          id: cls.id,
-          code: cls.code,
-          nameTr: categoryName(cls),
-          level: cls.level,
-          sortOrder: cls.sortOrder,
-          isMatch: false,
-          score: 0,
-          weight: 0,
-          ownScore: 0,
-          commodities: new Map(),
-        };
-        famAcc.classes.set(cls.id, clsAcc);
-      }
+      const clsAcc = clsAccOf(famAcc, cls);
       if (cat.level === 3 && cat.id === cls.id) {
+        // Yalnız kökle gelen satır da EŞLEŞMEDİR (vurgu + seçilebilir); yalnız
+        // sıralamada geride durur.
         clsAcc.isMatch = true;
-        clsAcc.ownScore = rowScore;
+        if (primary) clsAcc.ownScore = rowScore;
+        else clsAcc.fillOwnScore = rowScore;
       }
-      clsAcc.score = Math.max(clsAcc.score, rowScore);
-      clsAcc.weight += rowWeight;
+      credit(clsAcc, rowScore, primary);
 
       if (commodity) {
         if (!clsAcc.commodities.has(commodity.id)) {
@@ -563,67 +796,45 @@ export class CategoryService {
             sortOrder: commodity.sortOrder,
             isMatch: true,
             score: rowScore,
-            weight: rowWeight,
+            primary,
           });
         }
       }
     }
 
     // Family eşleşmeleri: segment→family bloğu kur, Class çocuklarını ekle
-    // (isMatch=false — vurgu yalnız ada eşleşen düğümde kalır).
-    for (const fam of famMatches) {
+    // (isMatch=false — vurgu yalnız ada eşleşen düğümde kalır). Sınıflar
+    // `parentMatch` ile İŞARETLENİR (category-18): kendi adı eşleşmeyen, emtiası
+    // da olmayan sınıfı arayüz hiç çizmiyordu → aile çıplak başlık kalıyordu.
+    // İşaret "ailesi eşleşti, seçilebilir satır olarak listele" demektir.
+    for (const { row: fam, primary } of famMatches) {
       const segment = fam.parent;
       if (!segment) continue;
       const famScore = scoreOf(fam);
-      let segAcc = segmentMap.get(segment.id);
-      if (!segAcc) {
-        segAcc = {
-          id: segment.id,
-          code: segment.code,
-          nameTr: categoryName(segment),
-          level: segment.level,
-          segmentLetter: segment.segmentLetter,
-          sortOrder: segment.sortOrder,
-          score: 0,
-          weight: 0,
-          families: new Map(),
-        };
-        segmentMap.set(segment.id, segAcc);
-      }
-      let famAcc = segAcc.families.get(fam.id);
-      if (!famAcc) {
-        famAcc = {
-          id: fam.id,
-          code: fam.code,
-          nameTr: categoryName(fam),
-          level: fam.level,
-          sortOrder: fam.sortOrder,
-          score: 0,
-          weight: 0,
-          classes: new Map(),
-        };
-        segAcc.families.set(fam.id, famAcc);
-      }
-      segAcc.score = Math.max(segAcc.score, famScore);
-      famAcc.score = Math.max(famAcc.score, famScore);
-      segAcc.weight += relevanceWeight(famScore);
-      famAcc.weight += relevanceWeight(famScore);
-      for (const cls of fam.children) {
-        if (!famAcc.classes.has(cls.id)) {
-          famAcc.classes.set(cls.id, {
-            id: cls.id,
-            code: cls.code,
-            nameTr: categoryName(cls),
-            level: cls.level,
-            sortOrder: cls.sortOrder,
-            isMatch: false,
-            score: 0,
-            weight: 0,
-            ownScore: 0,
-            commodities: new Map(),
-          });
-        }
-      }
+      const segAcc = segAccOf(segment);
+      const famAcc = famAccOf(segAcc, fam);
+      famAcc.isMatch = true;
+      credit(segAcc, famScore, primary);
+      credit(famAcc, famScore, primary);
+      for (const cls of fam.children) clsAccOf(famAcc, cls).parentMatch = true;
+    }
+
+    // Sektör eşleşmeleri (category-18): sektör, BÜTÜN aileleri ve sınıflarıyla.
+    // Sınıflar yukarıdaki gibi `parentMatch`; aileler kendileri eşleşmediyse
+    // `isMatch=false` kalır. Sektörün puanı yalnız KENDİ sırasını etkiler —
+    // altındaki ailelerin sırası gerçek eşleşmelerin ağırlığıyla, sonra katalog
+    // sırasıyla (eşleşmesi olmayan aile sona düşer).
+    const sectorById = new Map(sectorMatches.map((x) => [x.row.id, x] as const));
+    for (const { row, score, primary } of sectorMatches) {
+      const segAcc = segAccOf(row);
+      segAcc.isMatch = true;
+      credit(segAcc, score, primary);
+    }
+    for (const fam of sectorFamilies) {
+      const sector = fam.parentId ? sectorById.get(fam.parentId) : undefined;
+      if (!sector) continue;
+      const famAcc = famAccOf(segAccOf(sector.row), fam);
+      for (const cls of fam.children) clsAccOf(famAcc, cls).parentMatch = true;
     }
 
     // SIRALAMA (O-022, yeniden doğrulama). Segment ve aile alt ağaçlarındaki
@@ -640,12 +851,25 @@ export class CategoryService {
     // sınıfının altında gömülmesin), sonra ağırlık (onlarca "… vana" emtiası
     // olan "Valflar", tek "Vana kutusu" emtiası olan sınıfın önünde); emtia
     // yaprakları kendi puanıyla. Eşitte katalog sırası.
-    const byWeight = <T extends { sortOrder: number; score: number; weight: number }>(
+    //
+    // YAZILAN KELİME ÖNCE (bkz. `RankKeys`): her düzeyde, alt ağacında yalnız
+    // kökle gelen eşleşme olan düğüm (emtiada: yalnız kökle gelen satır)
+    // ötekilerin ARKASINDA; puanı ne olursa olsun yazılan kelimeyi taşıyan
+    // satırın — yalnız eş anlamlısında taşısa bile — önüne geçemez.
+    const byWeight = <T extends RankKeys & { sortOrder: number }>(a: T, b: T) => {
+      const aStemOnly = stemOnly(a);
+      if (aStemOnly !== stemOnly(b)) return aStemOnly ? 1 : -1;
+      return aStemOnly
+        ? b.fillWeight - a.fillWeight || b.fillScore - a.fillScore || a.sortOrder - b.sortOrder
+        : b.weight - a.weight || b.score - a.score || a.sortOrder - b.sortOrder;
+    };
+    const ownScoreOf = (cls: ClassAcc) => (stemOnly(cls) ? cls.fillOwnScore : cls.ownScore);
+    const byOwnName = (a: ClassAcc, b: ClassAcc) =>
+      Number(stemOnly(a)) - Number(stemOnly(b)) || ownScoreOf(b) - ownScoreOf(a) || byWeight(a, b);
+    const byScore = <T extends { sortOrder: number; score: number; primary: boolean }>(
       a: T,
       b: T,
-    ) => b.weight - a.weight || b.score - a.score || a.sortOrder - b.sortOrder;
-    const byScore = <T extends { sortOrder: number; score: number }>(a: T, b: T) =>
-      b.score - a.score || a.sortOrder - b.sortOrder;
+    ) => Number(b.primary) - Number(a.primary) || b.score - a.score || a.sortOrder - b.sortOrder;
 
     const segments = Array.from(segmentMap.values())
       .sort(byWeight)
@@ -655,6 +879,7 @@ export class CategoryService {
         nameTr: categoryName(seg),
         level: seg.level,
         segmentLetter: seg.segmentLetter,
+        isMatch: seg.isMatch,
         families: Array.from(seg.families.values())
           .sort(byWeight)
           .map((fam) => ({
@@ -662,14 +887,16 @@ export class CategoryService {
             code: fam.code,
             nameTr: categoryName(fam),
             level: fam.level,
+            isMatch: fam.isMatch,
             classes: Array.from(fam.classes.values())
-              .sort((a, b) => b.ownScore - a.ownScore || byWeight(a, b))
+              .sort(byOwnName)
               .map((cls) => ({
                 id: cls.id,
                 code: cls.code,
                 nameTr: categoryName(cls),
                 level: cls.level,
                 isMatch: cls.isMatch,
+                parentMatch: cls.parentMatch,
                 commodities: Array.from(cls.commodities.values())
                   .sort(byScore)
                   .map((com) => ({
@@ -684,7 +911,13 @@ export class CategoryService {
       }));
 
     // 200 tavanına çarptıysak kullanıcı bilsin — sessiz kırpma yanıltıcı.
-    return { segments, truncated: poolFull || pool.length > CATEGORY_SEARCH_RESULT_CAP };
+    return {
+      segments,
+      truncated:
+        typedFull ||
+        typedPool.length + fillPool.length > CATEGORY_SEARCH_RESULT_CAP ||
+        sectorNameMatches.length > CATEGORY_SEARCH_SECTOR_CAP,
+    };
   }
 
   /**
@@ -775,10 +1008,18 @@ export class CategoryService {
    *   - `exactLevel`: her ID'nin level'ı tam olarak verilen değer olmalı
    *     (tedarikçi → 1 ile çağrılır; sadece ana başlık/Segment kabul).
    * Numeric arg geriye uyum için minLevel olarak yorumlanır.
+   *
+   * `allowHidden` (code-category-12): gizli segment süzgecinden MUAF kodlar —
+   * firmanın beyanında ZATEN duran kodlar. Segment gizlenmeden önce kaydedilmiş
+   * kod, başka bir değişikliğin kaydını engellemesin diye; varlık, `isActive`
+   * ve seviye kuralı onlara da uygulanır. Listede olmayan (yeni eklenen) gizli
+   * kod eskisi gibi "geçersiz"dir.
    */
   async validateIds(
     ids: string[],
-    options: number | { minLevel?: number; exactLevel?: number } = {
+    options:
+      | number
+      | { minLevel?: number; exactLevel?: number; allowHidden?: Iterable<string> } = {
       minLevel: 3,
     },
   ): Promise<void> {
@@ -786,12 +1027,22 @@ export class CategoryService {
 
     const opts =
       typeof options === "number" ? { minLevel: options } : options;
+    const allowHidden = new Set(opts.allowHidden ?? []);
 
-    const found = await this.prisma.category.findMany({
+    const rows = await this.prisma.category.findMany({
       // Gizli segmentin kodu "geçersiz" sayılır — seçicide zaten görünmez.
-      where: { id: { in: ids }, isActive: true, ...hiddenCategoryWhere() },
+      // Muaf kod varken süzgeç sorguda değil aşağıda, kod bazında uygulanır.
+      where: {
+        id: { in: ids },
+        isActive: true,
+        ...(allowHidden.size === 0 ? hiddenCategoryWhere() : {}),
+      },
       select: { id: true, level: true },
     });
+    const found =
+      allowHidden.size === 0
+        ? rows
+        : rows.filter((c) => allowHidden.has(c.id) || !isHiddenCategory(c.id));
 
     const foundIds = new Set(found.map((c) => c.id));
     const missing = ids.filter((id) => !foundIds.has(id));

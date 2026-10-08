@@ -92,7 +92,10 @@ beforeAll(async () => {
       { provide: AdminAuthService, useValue: adminService },
       {
         provide: PasswordResetService,
-        useValue: { requestForCompany: async () => ({ ok: true }) },
+        useValue: {
+          requestForCompany: async () => ({ ok: true }),
+          requestForCompanyInBackground: () => ({ success: true }),
+        },
       },
       { provide: RealtimeService, useValue: realtime },
       SessionRevocationService,

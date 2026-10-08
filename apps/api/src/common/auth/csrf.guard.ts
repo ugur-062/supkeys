@@ -22,6 +22,8 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  */
 const PRE_SESSION_PUBLIC_PATHS: readonly RegExp[] = [
   /^(?:\/api)?\/auth\/password-reset\/confirm$/,
+  // Bağlantı denetimi (salt okuma) — tek adres, confirm'ün yanında.
+  /^(?:\/api)?\/auth\/password-reset\/check$/,
   /^(?:\/api)?\/company\/invitations\/[^/]+\/accept$/,
 ];
 

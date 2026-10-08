@@ -14,6 +14,7 @@ import {
   resolveThrottleLimit,
 } from "./common/http/throttle-limit";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
+import { PerKeyThrottlerStorage } from "./common/http/throttler-storage";
 import { serializeRequestForLog } from "./common/logging/request-log-serializer";
 import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
@@ -168,7 +169,13 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     // 429 metni kullanıcıya gösterilir (giriş formu API mesajını basar) —
     // kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi
     // (2026-09-19 incelemesinde staging giriş ekranında görüldü).
+    //
+    // STORAGE: our own (common/http/throttler-storage.ts), NOT the library
+    // default. The library storage cancels the expiry timers of every key
+    // under a throttler name whenever one key's block ends, so other clients'
+    // hits never expire and they get false 429s (arayuz testi code-auth-2).
     ThrottlerModule.forRoot({
+      storage: new PerKeyThrottlerStorage(),
       errorMessage: () => throttleMessage(),
       throttlers: [
         {

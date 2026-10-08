@@ -64,10 +64,23 @@ function rig() {
   return { service, blocks, messages, email, notifications };
 }
 
+/**
+ * A REGISTERED address = an account whose e-mail is VERIFIED (authsec-1). The
+ * factory creates users without the stamp; members that an invitation by
+ * e-mail must recognise get it here.
+ */
+async function markEmailVerified(...userIds: string[]) {
+  await prisma.companyUser.updateMany({
+    where: { id: { in: userIds } },
+    data: { emailVerifiedAt: new Date() },
+  });
+}
+
 /** İki PAKET firma + rothernId'ler. */
 async function twoCompanies() {
   const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
   const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+  await markEmailVerified(a.user.id, b.user.id);
   const aCode = await giveRothernId(a.company.id);
   const bCode = await giveRothernId(b.company.id);
   return { a, b, aCode, bCode };
@@ -492,6 +505,7 @@ describe("toplu e-posta daveti", () => {
     const { a, b, bCode } = await twoCompanies();
     // a ile c zaten bağlı olsun.
     const c = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await markEmailVerified(c.user.id);
     await giveRothernId(c.company.id);
     await prisma.companyConnection.create({
       data: {

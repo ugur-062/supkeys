@@ -17,7 +17,7 @@ import { resolveCityId } from "../../src/common/geo/geo-index";
 // alır; her test kendi firmalarını kurduğu için önbellek turlar arasında
 // bayat kalır ve süzgeç boş dönerdi.
 import { resetEmployeeValueCache } from "../../src/common/company/product-index";
-import { productPriceBase } from "@rothern/shared";
+import { foldSearchText, productPriceBase } from "@rothern/shared";
 import { fxRate, resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 const service = () =>
@@ -420,6 +420,70 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     const onlyProducts = await service().suggest("pano", "products");
     expect(onlyProducts.products.map((p) => p.name)).toContain("Dağıtım panosu");
     expect(onlyProducts.companies).toEqual([]);
+  });
+
+  it("öneri: kategori kökle aranır (kategori aramasıyla aynı kural) ve % / _ joker değildir", async () => {
+    await prisma.category.createMany({
+      data: [
+        { id: "40000000", code: "40000000", nameTr: "Dağıtım Sistemleri", searchText: "dagitim sistemleri", level: 1, inDiscovery: true },
+        { id: "40170000", code: "40170000", nameTr: "Çelik boru ve bağlantı", searchText: "celik boru ve baglanti steel pipe", level: 2, parentId: "40000000", inDiscovery: true },
+        { id: "40171500", code: "40171500", nameTr: "Vana grubu", searchText: "vana grubu", level: 3, parentId: "40170000", inDiscovery: true },
+      ],
+    });
+    const names = async (q: string) => (await service().suggest(q)).categories.map((c) => c.name);
+    // Yalın biçim (önceki davranış) + Türkçe ek + İngilizce çoğul.
+    expect(await names("çelik boru")).toEqual(["Çelik boru ve bağlantı"]);
+    expect(await names("çelik boruları")).toEqual(["Çelik boru ve bağlantı"]);
+    expect(await names("steel pipes")).toEqual(["Çelik boru ve bağlantı"]);
+    // Kelimelerden biri hiçbir biçimde geçmiyorsa öneri yok (AND).
+    expect(await names("çelik hidrolikleri")).toEqual([]);
+    // Joker yok: "%%" her kategoriyle, "va_a" "vana" ile eşleşirdi.
+    expect(await names("%%")).toEqual([]);
+    expect(await names("va_a")).toEqual([]);
+  });
+
+  it("öneri: yazılan kelimeyi taşıyan kategori ÖNCE, yalnız kökle gelen kalan yeri doldurur; 4 karakterden kısa kök kullanılmaz", async () => {
+    const cat = (id: string, nameTr: string, level: number, keywords = "") => ({
+      id, code: id, nameTr, searchText: foldSearchText(`${nameTr} ${keywords}`), level, inDiscovery: true,
+    });
+    // "kaplin" → kök "kapl" (kaplama / kaplı / kaplar): beş AİLE yalnız kökle
+    // eşleşir. Öneri düzeye göre sıralandığı için beş yerin hepsini onlar
+    // alıyor, hiçbir kaplin önerilmiyordu.
+    const kokle = [
+      cat("14110000", "Lamine kağıtlar", 2, "kaplama"),
+      cat("14120000", "Kuşe kağıtlar", 2, "kaplı kağıt"),
+      cat("24110000", "Konteynerler ve depolama ürünleri", 2, "kaplar"),
+      cat("30130000", "Taş kaplamalar", 2),
+      cat("72150000", "Yüzey kaplama hizmetleri", 2),
+    ];
+    await prisma.category.createMany({
+      data: [
+        ...kokle,
+        cat("31163000", "Kaplinler", 3),
+        cat("40141700", "Akış kaplinleri", 3),
+        // "cıvata" → kök "civa": aile yalnız eş anlamlısındaki "cıva" ile eşleşir.
+        cat("76120000", "Toksik ve tehlikeli atık temizliği", 2, "cıva"),
+        cat("31161600", "Cıvatalar", 3),
+        cat("31171500", "Rulmanlar ve yataklar", 3),
+        // "copies" → kök "cop" (3 karakter): "copper" ile eşleşiyordu.
+        cat("31130000", "Bakır dövme parçalar", 2, "copper forgings"),
+      ],
+    });
+    const names = async (q: string) => (await service().suggest(q)).categories.map((c) => c.name);
+
+    const kaplin = await names("kaplin");
+    expect(kaplin).toHaveLength(5);
+    expect(kaplin.slice(0, 2).sort()).toEqual(["Akış kaplinleri", "Kaplinler"]);
+    // Kalan üç yer kökle gelenlerden; aynı kategori iki kez önerilmez.
+    expect(kokle.map((c) => c.nameTr)).toEqual(expect.arrayContaining(kaplin.slice(2)));
+    expect(new Set(kaplin).size).toBe(5);
+
+    expect(await names("cıvata")).toEqual(["Cıvatalar", "Toksik ve tehlikeli atık temizliği"]);
+    // Yazılan biçim hiçbir yerde geçmiyorsa kök yine bulur (ek toleransı).
+    expect(await names("rulmanları")).toEqual(["Rulmanlar ve yataklar"]);
+    // Kısa kök kullanılmaz: "copies" bakır sınıflarını önermez.
+    expect(await names("copies")).toEqual([]);
+    expect(await names("fries")).toEqual([]);
   });
 
   it("mega menü: L1 + L2, sayı yalnız yayında ürünlerden", async () => {

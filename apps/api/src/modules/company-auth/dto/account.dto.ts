@@ -12,6 +12,7 @@ import {
   ValidateIf,
 } from "class-validator";
 
+import { PasswordPolicy } from "../../../common/auth/password-policy";
 import { tApi } from "../../../common/i18n/i18n.service";
 import { IsIntlPhone, NormalizePhone } from "./phone.validator";
 
@@ -53,14 +54,9 @@ export class ChangePasswordDto {
 
   // Politika kayıt/davet DTO'suyla AYNI (yayın denetimi 2026-09-28 Bölüm 9):
   // değiştirme ve sıfırlama 8 karakter + özel karaktersiz kabul ediyordu —
-  // kayıtta konan kural sıfırlamayla zayıflatılabiliyordu.
-  @IsString()
-  @MinLength(10, { message: () => tApi("api.dto.companySignup.parolaEnAz10KarakterOlmali") })
-  @MaxLength(72)
-  @Matches(/[A-Z]/, { message: () => tApi("api.dto.account.enAzBirBuyukHarfAZ") })
-  @Matches(/[a-z]/, { message: () => tApi("api.dto.account.enAzBirKucukHarfAz") })
-  @Matches(/[0-9]/, { message: () => tApi("api.dto.account.enAzBirRakam") })
-  @Matches(/[^a-zA-Z0-9]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirOzelKarakterIcermeli") })
+  // kayıtta konan kural sıfırlamayla zayıflatılabiliyordu. Kural artık TEK
+  // kaynakta (`common/auth/password-policy.ts`), dört yol aynı dekoratörü taşır.
+  @PasswordPolicy()
   newPassword!: string;
 }
 

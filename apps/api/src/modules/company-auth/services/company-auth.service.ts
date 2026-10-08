@@ -50,6 +50,7 @@ import {
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { assertPostalCode } from "../../company-addresses/company-addresses.service";
+import { assertWebsiteAddress } from "../../../common/company/website-address";
 import { EmailService } from "../../email/email.service";
 import { splitSentences } from "@rothern/email";
 import { SupabaseAuthService, isSupabaseAuthAccessError } from "../../supabase-auth/supabase-auth.service";
@@ -242,17 +243,27 @@ export class CompanyAuthService {
       userAgent: ctx?.userAgent,
     });
 
-    await this.acceptReferralInvites(
-      email,
-      result.company.id,
-      dto.referralToken,
-    ).catch((err) =>
-      this.logger.error(
-        `Referans daveti bağlama hatası (${maskEmail(email)}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      ),
-    );
+    // Invitation binding has TWO stages (arayuz testi 2026-10 code-auth-1).
+    // The sign-up address is not proven yet, so nothing is matched by e-mail
+    // here: only the invitation of the referral token that was used is bound
+    // (the token comes from the invite link = consent, BK-CONN-1). Invitations
+    // addressed to the e-mail address are bound in `verifyEmail`, once the
+    // address is proven and with the address the account has at that moment.
+    // Before, an unverified sign-up took the invitations of any address it
+    // typed and kept them after "change e-mail".
+    if (dto.referralToken) {
+      await this.acceptReferralInvites(
+        { token: dto.referralToken },
+        result.company.id,
+        email,
+      ).catch((err) =>
+        this.logger.error(
+          `Referans daveti bağlama hatası (${maskEmail(email)}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }
 
     // 3) 6-haneli doğrulama kodu üret + e-posta gönder. Token DÖNMEZ — kullanıcı
     //    önce kodu doğrulamalı (verifyEmail token verir). failure-aware (1b):
@@ -272,6 +283,26 @@ export class CompanyAuthService {
 
   private hashCode(code: string): string {
     return crypto.createHash("sha256").update(code).digest("hex");
+  }
+
+  /** Closes every outstanding code of the account (a closed code never verifies). */
+  private async closeEmailCodes(userId: string): Promise<void> {
+    await this.bypass.emailVerificationCode.updateMany({
+      where: { companyUserId: userId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+  }
+
+  /**
+   * Is `email` still the address of the account? Locking read (FOR SHARE): it
+   * waits for an uncommitted address change on the row and then sees the new
+   * value, so a code is never kept for an address the account just left.
+   * Single autocommit statement - no lock is held afterwards.
+   */
+  private async isCurrentAddress(userId: string, email: string): Promise<boolean> {
+    const rows = await this.bypass.$queryRaw<{ id: string }[]>`
+      SELECT id FROM company_users WHERE id = ${userId} AND email = ${email} FOR SHARE`;
+    return rows.length === 1;
   }
 
   /**
@@ -306,17 +337,31 @@ export class CompanyAuthService {
       return { sent: false, capped: true };
     }
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
-    await this.bypass.emailVerificationCode.updateMany({
-      where: { companyUserId: userId, usedAt: null },
-      data: { usedAt: new Date() }, // eskileri kapat
-    });
-    await this.bypass.emailVerificationCode.create({
+    await this.closeEmailCodes(userId); // eskileri kapat
+    const created = await this.bypass.emailVerificationCode.create({
       data: {
         companyUserId: userId,
         codeHash: this.hashCode(code),
         expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MIN * 60_000),
       },
+      select: { id: true },
     });
+    // A code proves the address it is MAILED to, and the row does not store
+    // that address (arayuz testi 2026-10 code-auth-1). A caller that read the
+    // address before a concurrent "change e-mail" (resend, the tail of
+    // sign-up) would otherwise leave a code mailed to the OLD address that
+    // verifies the NEW one. Checked after the row exists and before the mail
+    // goes out; the locking read waits for an address change in flight.
+    if (!(await this.isCurrentAddress(userId, email))) {
+      await this.bypass.emailVerificationCode.updateMany({
+        where: { id: created.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      this.logger.warn(
+        `Verification code dropped: the account address changed while the code was being issued (user=${userId})`,
+      );
+      return { sent: false };
+    }
     // 2FA ayar kodu giriş koduyla aynı kritik bağlamda (login_2fa) gider.
     const isLogin = kind === "login" || kind === "twoFactor";
     // Metin ALICININ dilinde (katalog anahtarı + ICU parametresi).
@@ -523,11 +568,69 @@ export class CompanyAuthService {
         include: { company: true },
       });
     });
+    // The address is proven NOW (the conditional stamp above lets exactly one
+    // request through, and only for an account that was unverified until this
+    // call): bind the invitations sent to it. The address is read from the
+    // row just stamped, i.e. the CURRENT one - after "change e-mail" the
+    // corrected address gets its own invitations and the first, never proven
+    // address gets none (arayuz testi 2026-10 code-auth-1). Only self sign-up
+    // creates unverified accounts; invited and admin-created users are stamped
+    // at creation and never reach this line.
+    await this.bindInvitationsOfProvenAddress(updatedUser);
     return this.buildLoginResponse(updatedUser, updatedUser.company);
   }
 
-  /** Kodu yeniden gönder (enumeration'a karşı her zaman genel yanıt). */
-  async resendEmailCode(email: string) {
+  /**
+   * Binds the invitations sent to an address at the moment that address is
+   * PROVEN for an account that was unverified until then: connection requests
+   * of the referral invitations, the invitations marked ACCEPTED, request
+   * invitations attached (rules in `acceptReferralInvites`, `{ email }` branch).
+   *
+   * TWO CALLERS, both right after their own conditional "unverified ->
+   * verified" stamp, so the binding runs once per account:
+   *  - `verifyEmail` (the user typed the code mailed to the address);
+   *  - the admin e-mail change of an unverified sign-up, which marks the
+   *    account verified without a code (the admin confirmed the identity) and
+   *    used to leave the new address's invitations unbound for good.
+   *
+   * Fail-open: a binding error is logged and must not cost the caller the
+   * session (or the admin the e-mail change that is already written).
+   */
+  async bindInvitationsOfProvenAddress(account: {
+    id: string;
+    email: string;
+    companyId: string;
+  }): Promise<void> {
+    await this.acceptReferralInvites(
+      { email: account.email },
+      account.companyId,
+      account.email,
+    ).catch((err) =>
+      this.logger.error(
+        `Invitation binding for the proven address failed (user=${account.id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+  }
+
+  /**
+   * Kodu yeniden gönder.
+   *
+   * `sent` is honest for an EXISTING UNVERIFIED account (arayuz testi 2026-10
+   * code-auth-3): `sent: false` = no mail left (hourly cap -> also
+   * `capped: true`, the last code stays valid until it expires; or the mail
+   * could not be sent / the address is suppressed). The result used to be
+   * thrown away and the screen said "new code sent" while nothing was sent.
+   *
+   * An unknown address and an already verified one keep answering exactly
+   * like a successful send (`sent: true`), so the endpoint tells nothing new
+   * about them. What it can reveal about an unverified account, sign-up
+   * already reveals with its 409 for a taken address.
+   */
+  async resendEmailCode(
+    email: string,
+  ): Promise<{ success: true; sent: boolean; capped?: boolean }> {
     const normalized = email.toLowerCase().trim();
     const user = await this.bypass.companyUser.findUnique({
       where: { email: normalized },
@@ -538,16 +641,17 @@ export class CompanyAuthService {
         locale: true,
       },
     });
-    if (user && !user.emailVerifiedAt) {
-      await this.issueEmailCode(
-        user.id,
-        normalized,
-        user.firstName,
-        "verify",
-        localeOf(user.locale),
-      );
+    if (!user || user.emailVerifiedAt) {
+      return { success: true as const, sent: true };
     }
-    return { success: true as const };
+    const { sent, capped } = await this.issueEmailCode(
+      user.id,
+      normalized,
+      user.firstName,
+      "verify",
+      localeOf(user.locale),
+    );
+    return { success: true as const, sent, ...(capped ? { capped: true } : {}) };
   }
 
   /**
@@ -593,12 +697,47 @@ export class CompanyAuthService {
       // Önce Supabase (giriş kaynağı); domain güncellemesi düşerse geri alınır.
       await this.supabaseAuth.updateEmail(authId, newEmail);
       try {
-        await this.bypass.companyUser.update({
-          where: { id: user.id },
-          data: { email: newEmail },
+        // A code proves the address it was MAILED to, so the codes mailed to
+        // the old address must die WITH that address (arayuz testi 2026-10
+        // code-auth-1; invitations are bound to whatever address gets
+        // verified). The new code issued below is not enough: at the hourly
+        // cap none is issued and the old ones stayed valid, so the new address
+        // could be "verified" with a code read in the old mailbox.
+        // Closed once up front (a verification in flight with an old code then
+        // either finishes first and makes the move fail, or finds no code),
+        // then the move and a second close are one transaction: the address
+        // changes only while the account is STILL unverified and still has the
+        // address checked above, and no code issued in between survives it.
+        await this.closeEmailCodes(user.id);
+        await this.bypass.$transaction(async (tx) => {
+          const moved = await tx.companyUser.updateMany({
+            where: { id: user.id, email, emailVerifiedAt: null },
+            data: { email: newEmail },
+          });
+          if (moved.count !== 1) throw invalid();
+          await tx.emailVerificationCode.updateMany({
+            where: { companyUserId: user.id, usedAt: null },
+            data: { usedAt: new Date() },
+          });
+          // Same rule for the password-reset link (arayuz testi 2026-10
+          // authsec-3): "forgot password" also mails one for an unverified
+          // account, the link does not know which address it went to, and it
+          // kept setting the password after the account had moved and was
+          // verified. EVERY row goes, also a link that is being confirmed
+          // right now (claimed = `usedAt` set): a failed password update gives
+          // such a link back, and it must not come back for the new address.
+          // After the move in the same transaction, like the codes: a link
+          // written later is dropped by its issuer (`PasswordResetService`
+          // checks the address after writing the row).
+          await tx.passwordResetToken.deleteMany({ where: { companyUserId: user.id } });
         });
       } catch (e) {
-        await this.supabaseAuth.updateEmail(authId, email).catch((rollbackErr: unknown) =>
+        // Our write did not happen: Supabase goes back to the address the row
+        // really has (the old one, unless a parallel change won the race).
+        const row = await this.bypass.companyUser
+          .findUnique({ where: { id: user.id }, select: { email: true } })
+          .catch(() => null);
+        await this.supabaseAuth.updateEmail(authId, row?.email ?? email).catch((rollbackErr: unknown) =>
           this.logger.error(
             `Signup email change rollback failed (user=${user.id}): ${
               rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
@@ -620,7 +759,8 @@ export class CompanyAuthService {
       });
     }
 
-    // Eski adrese giden kod geçersiz olur (issueEmailCode eskileri kapatır).
+    // Eski adrese giden kodlar yukarıda kapatıldı (saatlik tavanda yeni kod
+    // üretilmese de); yeni kod yalnız yeni adrese gider.
     const { sent } = await this.issueEmailCode(user.id, newEmail, user.firstName);
     return { email: newEmail, verificationRequired: true as const, emailSent: sent };
   }
@@ -638,7 +778,7 @@ export class CompanyAuthService {
     // tek seferliktir (tekrar çağrı adresleri silip rolleri yeniden yazardı).
     const existing = await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { ownerUserId: true, onboardingCompletedAt: true },
+      select: { ownerUserId: true, onboardingCompletedAt: true, website: true },
     });
     if (!existing) throw new UnauthorizedException();
     if (existing.ownerUserId !== userId) {
@@ -704,6 +844,14 @@ export class CompanyAuthService {
       }
     }
 
+    // Web sitesi: nokta taşıyan, boşluksuz bir alan adı olmalı (şema isteğe
+    // bağlı). Alan her metni kabul ediyordu: "ornek firma sitesi" →
+    // "https://ornek firma sitesi" olarak kaydediliyor, herkese açık profilin
+    // JSON-LD `sameAs`ına yazılıyordu (arayüz testi signup-tr-5). Kural profil
+    // güncellemesiyle AYNI ve yalnız DEĞİŞEN değere uygulanır.
+    const website = normalizeWebsite(dto.website);
+    if (website !== existing.website) assertWebsiteAddress(website);
+
     // Posta kodu: adres defteriyle AYNI kural (TR'de 5 rakam) — kayıt ikisini
     // de adres defterine yazar, kural yalnız arayüzdeydi (arayüz testi webC-09).
     assertPostalCode(country, dto.postalCode);
@@ -752,7 +900,7 @@ export class CompanyAuthService {
           country,
           taxNumber,
           taxOffice: dto.taxOffice?.trim() || null,
-          website: normalizeWebsite(dto.website),
+          website,
           /**
            * PROFİL OTOMATİK YAYINA ALINIR (2026-09-15, kullanıcı kararı:
            * "profiller otomatik yayına alınsın").
@@ -900,12 +1048,28 @@ export class CompanyAuthService {
   /**
    * Yeni kayıt olan firmaya gönderilmiş bekleyen e-posta davetlerini işler:
    * her biri için davet eden firma ile ACTIVE INVITE bağlantı kurar (kalıcı).
+   *
+   * TWO CALLERS, ONE RULE SET (arayuz testi 2026-10 code-auth-1). `match`
+   * says what has been proven:
+   *  - `{ token }` at sign-up: the invitation of the referral token that was
+   *    used, whatever address it was sent to. Nothing is matched by e-mail.
+   *  - `{ email }` at e-mail verification: every invitation sent to the
+   *    address that was just proven.
+   * A call never mixes the two. The token invitation is handled first in
+   * time (sign-up precedes verification), so the ACTIVE connection it creates
+   * is still not downgraded by a later e-mail match (upsert `update: {}`).
    */
   private async acceptReferralInvites(
-    email: string,
+    match: { token: string } | { email: string },
     newCompanyId: string,
-    usedToken?: string,
+    /** Address of the account, for the audit trail. */
+    actorEmail: string,
   ): Promise<void> {
+    const usedToken = "token" in match ? match.token : undefined;
+    const provenEmail = "email" in match ? match.email.toLowerCase() : undefined;
+    // Prisma reads an `undefined` filter value as "no filter": never run the
+    // query without a real token or address (it would match every invitation).
+    if (!usedToken && !provenEmail) return;
     // 2026-09-27 davet denetimi: (1) KULLANILAN token'ın daveti, kayıt
     // e-postası davet adresinden FARKLI olsa da eşleşir — AI keşfinin bulduğu
     // adresler çoğu kez info@ kutusudur, tedarikçi kişisel adresiyle kaydolunca
@@ -916,7 +1080,7 @@ export class CompanyAuthService {
     const found = await this.bypass.companyReferralInvite.findMany({
       where: {
         status: "PENDING",
-        OR: [{ email }, ...(usedToken ? [{ token: usedToken }] : [])],
+        ...(usedToken ? { token: usedToken } : { email: provenEmail }),
       },
       select: {
         id: true,
@@ -928,12 +1092,7 @@ export class CompanyAuthService {
       },
     });
     const now = new Date();
-    // Kullanılan token ÖNCE işlenir: aynı firmanın e-postayla eşleşen ikinci
-    // daveti bağlantıyı önce PENDING yaratırsa (upsert update:{}) ACTIVE
-    // hiç yazılmazdı.
-    const invites = found
-      .filter((inv) => !isReferralExpired(inv.updatedAt, now))
-      .sort((a, b) => Number(b.token === usedToken) - Number(a.token === usedToken));
+    const invites = found.filter((inv) => !isReferralExpired(inv.updatedAt, now));
     for (const inv of invites) {
       if (inv.inviterCompanyId === newCompanyId) continue;
       // BK-CONN-1: rıza yalnız KULLANILAN davet linki için verildi. O token'ın
@@ -973,7 +1132,7 @@ export class CompanyAuthService {
         action: "company.connection.auto_created",
         actorType: "company",
         actorId: null,
-        actorEmail: email,
+        actorEmail,
         tenantId: newCompanyId,
         entityType: "company_connection",
         entityId: conn.id,
@@ -996,17 +1155,25 @@ export class CompanyAuthService {
     // yeni firmaya platform içi davet olur — alıcı o tedarikçiyi o talebe
     // KENDİSİ davet etti (başka alıcıların davetleri de; bağlantı rızası ayrı,
     // yukarıda). Kapalı zarf etkisi yok: firma panelde talebi davetlilerinde görür.
-    await this.attachExternalListingInvites(email, newCompanyId, invites.map((i) => i.id));
+    // Same split as above: by address only when the address is the proven one
+    // (e-mail verification); at sign-up only the rows of the token's invitation.
+    await this.attachExternalListingInvites(provenEmail, newCompanyId, invites.map((i) => i.id));
   }
 
   private async attachExternalListingInvites(
-    email: string,
+    /** Proven address, or undefined when only the token's invitation is bound. */
+    email: string | undefined,
     newCompanyId: string,
     referralIds: string[],
   ): Promise<void> {
+    const matchers = [
+      ...(email ? [{ email: email.toLowerCase() }] : []),
+      ...(referralIds.length ? [{ referralInviteId: { in: referralIds } }] : []),
+    ];
+    if (matchers.length === 0) return;
     const rows = await this.bypass.externalListingInvite.findMany({
       where: {
-        OR: [{ email: email.toLowerCase() }, ...(referralIds.length ? [{ referralInviteId: { in: referralIds } }] : [])],
+        OR: matchers,
         listing: { status: { in: ["DRAFT", "OPEN"] } },
         // İPTAL EDİLMİŞ DAVET BAĞLANMAZ (derin denetim 2026-09-29 MU-16): alıcı
         // referral'ı iptal ettiyse ya da paketi düştüyse (ikisi de referral'ı

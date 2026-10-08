@@ -538,6 +538,9 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
   it("tur platform üyelerini önerir (MEMBER, gerekçeli); web'de adresi üyeyle eşleşen aynı satıra katılır; tek tık üyeyi talebe davet eder", async () => {
     const { owner, listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
     const member = await categorySeller("Bağlantı Ltd");
+    // An address found on the web matches a member only through an account
+    // whose e-mail is VERIFIED (authsec-4); the factory leaves it unverified.
+    await prisma.companyUser.update({ where: { id: member.user.id }, data: { emailVerifiedAt: new Date() } });
     // Gerekçe rozeti katalogdaki adı okur.
     await prisma.category.create({
       data: { id: "31161600", code: "31161600", nameTr: "Vidalar", level: 3, isActive: true } as never,

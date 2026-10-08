@@ -6,8 +6,8 @@ import {
   IsString,
   Matches,
   MaxLength,
-  MinLength,
 } from "class-validator";
+import { PasswordPolicy } from "../../../common/auth/password-policy";
 import { tApi } from "../../../common/i18n/i18n.service";
 import { IsIntlPhone, NormalizePhone } from "./phone.validator";
 
@@ -42,14 +42,9 @@ export class CompanySignupDto {
   @IsIntlPhone({}, { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") })
   phone!: string;
 
-  // En az 10 karakter; büyük + küçük + rakam + özel karakter.
-  @IsString()
-  @MinLength(10, { message: () => tApi("api.dto.companySignup.parolaEnAz10KarakterOlmali") })
-  @MaxLength(72, { message: () => tApi("api.dto.companySignup.parolaEnFazla72Karakter") })
-  @Matches(/[a-z]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirKucukHarfIcermeli") })
-  @Matches(/[A-Z]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirBuyukHarfIcermeli") })
-  @Matches(/[0-9]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirRakamIcermeli") })
-  @Matches(/[^a-zA-Z0-9]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirOzelKarakterIcermeli") })
+  // En az 10 karakter, en çok 72 UTF-8 bayt; küçük + büyük harf + rakam + özel karakter — kural TEK
+  // kaynakta (`common/auth/password-policy.ts`).
+  @PasswordPolicy()
   password!: string;
 
   // Zorunlu sözleşmeler — kabul edilmeden kayıt tamamlanamaz.
