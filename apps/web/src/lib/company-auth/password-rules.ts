@@ -111,7 +111,7 @@ export function usePasswordRules(): {
   /** 0..rules.length → "Çok Zayıf" … "Çok Güçlü" (eksik zorunlu kuralda en çok "Orta") */
   strength: (score: number) => string;
   /**
-   * Üst sınır satırının metni ("En fazla 72 karakter"). Beş kuralın yanında
+   * Üst sınır satırının metni ("Çok uzun (… en fazla 72)"; sınır BAYT ölçülür, metin bunu söyler). Beş kuralın yanında
    * YALNIZ sınır aşıldığında, karşılanmamış olarak çizilir (`isPasswordTooLong`):
    * sınırın içindeki şifrede listeyi kalabalıklaştırmaz.
    */

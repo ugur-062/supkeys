@@ -54,11 +54,11 @@ describe("PasswordSection", () => {
     expect(screen.queryByText("Güçlü")).toBeNull();
     expect(screen.queryByText("İyi")).toBeNull();
     expect(screen.getByText("Orta")).toBeInTheDocument();
-    expect(screen.getByText("En fazla 72 karakter")).toBeInTheDocument();
+    expect(screen.getByText("Çok uzun (ş, ö, я gibi harfler 2 sayılır; en fazla 72)")).toBeInTheDocument();
     await user.clear(next);
     await user.paste("Guclu!Parola9xyz");
     expect(screen.getByText("Güçlü")).toBeInTheDocument();
-    expect(screen.queryByText("En fazla 72 karakter")).toBeNull();
+    expect(screen.queryByText("Çok uzun (ş, ö, я gibi harfler 2 sayılır; en fazla 72)")).toBeNull();
     expect(h.mutateAsync).not.toHaveBeenCalled();
   });
 

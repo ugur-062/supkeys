@@ -2024,7 +2024,7 @@
     },
     "pwRules": {
       "len": "At least 10 characters",
-      "max": "At most 72 characters",
+      "max": "Too long (letters like ş, ö, я count as 2; at most 72)",
       "lower": "Lowercase letter",
       "upper": "Uppercase letter",
       "digit": "Digit",

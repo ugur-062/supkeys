@@ -2024,7 +2024,7 @@
     },
     "pwRules": {
       "len": "En az 10 karakter",
-      "max": "En fazla 72 karakter",
+      "max": "Çok uzun (ş, ö, я gibi harfler 2 sayılır; en fazla 72)",
       "lower": "Küçük harf",
       "upper": "Büyük harf",
       "digit": "Rakam",

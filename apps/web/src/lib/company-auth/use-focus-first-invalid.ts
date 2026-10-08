@@ -18,7 +18,19 @@ export function useFocusFirstInvalid<T extends HTMLElement = HTMLFormElement>() 
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!tick) return;
-    ref.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    const control = ref.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (!control) return;
+    // Tarayıcının kendi odak kaydırması kutuyu pencerenin üst kenarına yaslar ve
+    // ETİKETİ ekranın dışında bırakır (duman testi 2026-10-08: "Ad" etiketi
+    // y = -34). Odak kaydırmasız verilir; alanın kabı (etiket + kutu + ileti)
+    // tam görünmüyorsa ortalanır.
+    control.focus({ preventScroll: true });
+    const box = control.closest<HTMLElement>('[data-slot="field"]') ?? control;
+    const rect = box.getBoundingClientRect();
+    const margin = 8;
+    if (rect.top < margin || rect.bottom > window.innerHeight - margin) {
+      box.scrollIntoView?.({ block: "center" });
+    }
   }, [tick]);
   const focusFirstInvalid = useCallback(() => setTick((n) => n + 1), []);
   return { ref, focusFirstInvalid };

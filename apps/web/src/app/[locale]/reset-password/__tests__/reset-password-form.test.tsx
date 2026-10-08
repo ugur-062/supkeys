@@ -322,7 +322,7 @@ describe("ResetPasswordForm — kurallar görünür kontrol listesi (login-3, lo
     expect(bar.style.width).toBe("80%");
     // Üst sınır öteki kuralların yanında, karşılanmamış olarak.
     const list = within(meter).getByRole("list");
-    const max = within(list).getByText("En fazla 72 karakter");
+    const max = within(list).getByText("Çok uzun (ş, ö, я gibi harfler 2 sayılır; en fazla 72)");
     expect(max.className).toContain("text-red-600");
     expect(within(list).getAllByRole("listitem")).toHaveLength(6);
     // Gönderimde alan iletisi aynı sebebi söyler; istek atılmaz.
@@ -342,7 +342,7 @@ describe("ResetPasswordForm — kurallar görünür kontrol listesi (login-3, lo
     expect(within(meter).getByText("Çok Güçlü")).toBeInTheDocument();
     const bar = meter.querySelector<HTMLElement>("[style*='width']")!;
     expect(bar.className).toContain("bg-emerald-500");
-    expect(within(meter).queryByText("En fazla 72 karakter")).toBeNull();
+    expect(within(meter).queryByText("Çok uzun (ş, ö, я gibi harfler 2 sayılır; en fazla 72)")).toBeNull();
     expect(within(meter).getAllByRole("listitem")).toHaveLength(5);
   });
 
