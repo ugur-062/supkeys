@@ -452,7 +452,9 @@ davette kalemler olsun ki cazip gelsin, dil kusursuz, filtreler dahil tüm
   ülkeye göre (`isValidPhoneNumber`/`IsIntlPhone`), varsayılan ülke dilden.
   "IBAN isteğe bağlı" ülkeler (BR, CR, DO…) hesap no + SWIFT kabul eder; IBAN
   uzunluğu ülkeye göre. Kapalı ülke banka ülkesi ve admin ülke düzenlemesinde de
-  reddedilir. Onboarding ülkeyi telefon/dilden başlatır (EN'de seçim zorunlu),
+  reddedilir. Onboarding ülkeyi dilden başlatır (tr → TR, ru → RU; EN'de seçim
+  zorunlu) — kayıt telefon sormaz (2026-10-08); telefonu kayıtlı eski hesapta
+  numaranın ülkesi önce gelir (`initialOnboardingCountry`),
   mahalle adres satırına eklenir (yalnız TR), yabancı firma Firma Bilgileri'nde
   eyalet/bölge düzenler. Onboarding başlığı "Şirket bilgileri" (doğrulama DEĞİL).
 - **TALEP KONUMU = ALICI ÜLKESİ, ŞEHİR YOK (2026-10-04, sahip kararı):**
@@ -3468,10 +3470,10 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **331 suite / 4.632 test** (4.630 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 34 parti) · web
-  **355 / 2.998** · admin **66 / 393** · i18n **13 / 94** (vitest toplamı 3.485) — son kapı YEŞİL
+- API **331 suite / 4.642 test** (4.640 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 34 parti) · web
+  **356 / 3.010** · admin **66 / 393** · i18n **13 / 96** (vitest toplamı 3.499) — son kapı YEŞİL
   (kurulum, typecheck 7/7, lint 3/3, i18n:check, prisma validate, üç build, kategori çakışması 0,
-  `pnpm audit --prod --audit-level high` rc=0), 8.115 test geçti (2 LIVE atlandı), yeni kayıt akışı turu 2026-10-08.
+  `pnpm audit --prod --audit-level high` rc=0), 8.139 test geçti (2 LIVE atlandı), kayıtta telefon kaldırma turu 2026-10-08.
   `ayarlar-security.spec` "legacy DÜZ METİN secret" TOTP testi ARA SIRA kırmızı (zaman adımı sınırı) — tek
   başına yeniden koşuda yeşil, gerileme sayılmaz.
   Kapı ajan yerine betikle koşulur: `/home/noah/rothern-qa-2026-10/gate-final.sh` + `gate-apijest/run.sh`.
@@ -4209,6 +4211,18 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   site, sokak adresi, kategoriler kalır). Taslak sürümü 2; eski biçimli taslak ATILMAZ, alanları korunup 1.
   adımdan açılır. Sunucu hatası alanın sahibi olan adıma yönlenir. e2e `signup-flow.ts`
   (`kategoriAraVeSec`) yeni sıraya göre.
+- **KAYIT VE DAVET KABUL TELEFON SORMAZ (2026-10-08, sahip kararı):** numara doğrulanmıyordu (kod gitmez),
+  başka firmaya gösterilmiyordu (talep ve sipariş teslimat adresi irtibat telefonunu ve firma fatura
+  telefonunu gösterir — onlar aynen) ve tek kullanımı onboarding ülke tahminiydi. API: `CompanySignupDto.phone`
+  isteğe bağlı (yok / null / boş → `CompanyUser.phone` null; eski web paketinin gönderdiği numara eskisi gibi
+  doğrulanır ve saklanır), davet kabulünde de isteğe bağlı; migration yok; API web'den ÖNCE dağıtılır (eski
+  API telefonsuz kaydı 400 ile reddeder). Ayarlar › Hesap Bilgileri'nde telefon İSTEĞE BAĞLI kalır (boş
+  geçilir, kayıtlı numara silinir, yazılan `isValidPhone` ile doğrulanır). Kullanıcı telefonunu VAR sayan kod
+  yazılmaz: gösterim boş değerde "—", ülke varsayılanı dilden. Kayıt taslağı telefon taşımaz (eski taslaktaki
+  `phone` okunmaz). `PhoneInput` ve öteki kullanıcıları (adres defteri, ekip üyesi düzenleme) aynen.
+  Sözleşmeler: api `phone-dto.spec`, `auth-signup.spec`, `invitations-approvals-meta.spec`; web
+  `signup-client.test`, `accept-invite-client.test`, `account-info-section.test`, `signup-draft.test`,
+  `onboarding-client.test`; i18n `auth-form-copy.test`.
 
 ## Bekleyen / Yapılacaklar
 
