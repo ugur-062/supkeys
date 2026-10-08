@@ -113,6 +113,33 @@ describe("CompanyProfileView — düzen", () => {
     expect(container.querySelector('[class*="-mt-12"]')).not.toBeNull();
   });
 
+  // Arayüz testi D-04: "ООО «Уралсварпромкабель»" — tek sözcük 24 px kalın yazıda
+  // 297 px; telefonda başlık sütunu 180 px (360) / 210 px (390). h1 sarılan bir
+  // flex satırının öğesi olduğu için en dar hâli o sözcüktü: kartın dışına taşıyor,
+  // kart (`overflow-hidden`) adı kesiyordu ("«Уралсварпромкаб"). jsdom yerleşim
+  // hesaplamaz → daralma zinciri sınıf sözleşmesiyle sabitlenir (ölçüm tarayıcıda:
+  // 360 px'te ad üç satır, kartın 31 px içinde).
+  it("uzun tek sözcüklü ad başlığın İÇİNDE bölünür: h1 sütuna kadar daralır, kırpılmaz", () => {
+    for (const layout of ["columns", "stacked"] as const) {
+      const { unmount } = render(
+        <CompanyProfileView profile={{ ...base, name: "ООО «Уралсварпромкабель»" }} layout={layout} />,
+      );
+      const h1 = screen.getByRole("heading", { level: 1, name: "ООО «Уралсварпромкабель»" });
+      // Flex öğesi en uzun sözcüğün altına inebilir ve sığmayan sözcüğü böler.
+      expect(h1.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      expect(h1.className).toMatch(/(^|\s)break-words(\s|$)/);
+      // Kırpma / tek satıra zorlama yok: ad TAM okunur.
+      expect(h1.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap|line-clamp-\d+|overflow-hidden)(\s|$)/);
+      // Zincirin geri kalanı da daralabilir: metin sütunu ve logo + metin satırı.
+      const column = h1.parentElement?.parentElement as HTMLElement;
+      expect(column.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      expect((column.parentElement as HTMLElement).className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      // Rozetler h1'in kardeşi kalır (başlık metni yalnız ad).
+      expect(h1.textContent).toBe("ООО «Уралсварпромкабель»");
+      unmount();
+    }
+  });
+
   it("ürünler 'hakkında' bölümünden ÖNCE ve ızgaranın DIŞINDA (tam genişlik)", () => {
     const { container } = render(
       <CompanyProfileView profile={rich} main={<div data-testid="urunler">ürünler</div>} />,

@@ -119,10 +119,14 @@ export function CompanyCard({
           <div className="flex min-w-0 items-start gap-3">
             <Avatar name={c.name} src={c.logoUrl} size={64} />
             <div className="min-w-0">
+              {/* Ad bağlantısı sarılan flex satırının öğesi: `min-w-0 break-words`
+                  olmadan en dar hâli en uzun sözcüğüdür — tek sözcüklü uzun ad
+                  telefonda kartın dışına taşar (arayüz testi D-04, profil
+                  başlığıyla aynı kök neden). */}
               <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold text-zinc-950">
                 <Link
                   href={href ?? `/firma/${c.slug}`}
-                  className="after:absolute after:inset-0 after:content-[''] hover:text-blue-700 focus:outline-none"
+                  className="min-w-0 break-words after:absolute after:inset-0 after:content-[''] hover:text-blue-700 focus:outline-none"
                 >
                   {c.name}
                 </Link>
@@ -308,11 +312,14 @@ export function CompanyCard({
           {/* Ad İKİ SATIRA kadar sarar, rozetler adın peşinden akar
               (2026-09-07): tek satır + `truncate` üç sütunlu ızgarada
               "Kayseri Mobily…" gibi okunamaz kısaltmalar üretiyordu. Rozetler
-              `inline-flex` olduğu için ad kısaysa yine aynı satırda kalır. */}
+              `inline-flex` olduğu için ad kısaysa yine aynı satırda kalır.
+              `break-words` (arayüz testi D-04): iki satır kutusu taşanı keser
+              (`overflow: hidden`) — sütundan uzun TEK sözcük bölünmeden kesilip
+              "…" bile almıyordu; artık ikinci satıra bölünür. */}
           <h3 className="text-[15px] font-semibold text-zinc-950">
             <Link
               href={href ?? `/firma/${c.slug}`}
-              className="line-clamp-2 after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
+              className="line-clamp-2 break-words after:absolute after:inset-0 after:content-[''] hover:text-zinc-600 focus:outline-none"
             >
               {c.name}
             </Link>

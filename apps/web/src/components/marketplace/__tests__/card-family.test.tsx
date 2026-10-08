@@ -152,6 +152,28 @@ describe("CompanyCard", () => {
     expect(screen.getByText("Türkiye, Kocaeli")).toBeTruthy();
   });
 
+  // Arayüz testi D-04 (profil başlığıyla aynı ad): tek sözcüklü uzun ad kartta da
+  // kesilmesin / kartın dışına taşmasın. Tile: iki satır kutusu taşanı keser →
+  // sözcük bölünebilmeli. Wide: ad sarılan flex satırının öğesi → daralabilmeli.
+  it("D-04: uzun tek sözcüklü ad kartın içinde bölünür (tile iki satır, wide sınırsız)", () => {
+    const long = { ...base, name: "ООО «Уралсварпромкабель»" };
+    const { unmount } = render(<CompanyCard company={long} />);
+    const tile = screen.getByRole("link", { name: long.name });
+    expect(tile.className).toMatch(/(^|\s)line-clamp-2(\s|$)/);
+    expect(tile.className).toMatch(/(^|\s)break-words(\s|$)/);
+    expect(tile.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap)(\s|$)/);
+    unmount();
+
+    render(<CompanyCard company={long} variant="wide" />);
+    const wideLink = screen.getByRole("link", { name: long.name });
+    expect(wideLink.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    expect(wideLink.className).toMatch(/(^|\s)break-words(\s|$)/);
+    expect(wideLink.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap|line-clamp-\d+)(\s|$)/);
+    // Başlık satırı sarılır; kimlik sütunu daralabilir.
+    expect((wideLink.parentElement as HTMLElement).className).toContain("flex-wrap");
+    expect((wideLink.closest("h3")?.parentElement as HTMLElement).className).toMatch(/(^|\s)min-w-0(\s|$)/);
+  });
+
   it("eski dizin yanıtında yeni alanlar yoksa çökmez", () => {
     render(<CompanyCard company={base} />);
     expect(screen.getByText("3 ürün")).toBeTruthy();

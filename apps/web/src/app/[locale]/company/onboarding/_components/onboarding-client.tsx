@@ -31,6 +31,7 @@ import { cleanPostal, isInvalidTrPostal, postalInputMaxLength } from "@/lib/comp
 import { errorToastedGlobally, extractErrorMessage, extractFieldErrors } from "@/lib/tenders/error";
 import {
   TURKEY_LOCATIONS,
+  categorySegment,
   deepestCategoryPicks,
   isValidTaxIdForCountry,
   isValidTckn,
@@ -52,7 +53,7 @@ import axios from "axios";
 import { Check } from "lucide-react";
 import { LOCALES, LOCALE_LABELS, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FocusEvent, type ReactNode } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
@@ -252,7 +253,10 @@ export function initialOnboardingCountry(phone: string | null | undefined, local
  *
  * Yerel yapıların bir kısmı da `OTHER` türüne eşlenir (KG, OHG, LLP…): "Diğer"
  * ile aynı tür, ama listeden seçilmiştir. İkisini AD ayırır — ad ülkenin
- * listesindeyse seçim o yapıdır, değilse serbest metindir.
+ * listesindeyse seçim o yapıdır, değilse serbest metindir. Tek istisna
+ * serbest metin kutusunun DÜZENLENDİĞİ andır: yazılırken hiçbir şey kendi
+ * kendine değişmez; yazılan ad listedeki bir yapıysa seçim, kutu odağı
+ * bırakınca ya da adım gönderilince o yapıya çevrilir (`settleTypedLegalForm`).
  */
 type LegalFormFields = Pick<OnboardingForm, "country" | "companyType" | "legalFormLocal">;
 type LegalFormChoice = Pick<OnboardingForm, "companyType" | "legalFormLocal">;
@@ -294,6 +298,47 @@ export function sanitizeLegalForm<F extends LegalFormFields>(f: F): F {
   const selected = legalFormSelection(f);
   if (selected === OTHER_LEGAL_FORM) return f;
   return { ...f, ...(selected ? pickLegalForm(f.country, selected) : defaultLegalForm(f.country)) };
+}
+
+/**
+ * "Diğer"e YAZILAN ad ülkenin listesindeki bir yapıysa seçimi o yapıya çevirir
+ * (eşlendiği tür + listedeki yazım); değilse formu AYNI nesne olarak döner.
+ * Serbest metin kutusu odağı bırakınca ve 1. adım gönderilince çağrılır —
+ * yazılırken ÇAĞRILMAZ (kayıt arayüz testi 2026-10 D-02). API aynı eşlemeyi
+ * zaten yapar (`resolveLegalForm`); burası ekranın kaydedilecek olanı
+ * göstermesi içindir.
+ */
+export function settleTypedLegalForm<F extends LegalFormFields>(f: F): F {
+  if (f.companyType !== OTHER_LEGAL_FORM || !findLocalLegalForm(f.country, f.legalFormLocal)) return f;
+  const next = sanitizeLegalForm(f);
+  return next.companyType === f.companyType && next.legalFormLocal === f.legalFormLocal ? f : next;
+}
+
+/**
+ * KATEGORİ BEYANI — 2. ADIMDAKİ KARTLARLA AYNI GRUPLAR VE SIRA (kayıt arayüz
+ * testi 2026-10 CAT-D2). Özet beyanı kartların gösterdiği gibi okur: sektör →
+ * kullanıcının o sektörde seçtikleri. Altı BOŞ grup = sektörün TAMAMI beyan
+ * edildi (değer sözleşmesi: kod `mainIds`te, o sektörden hiçbir kod `subIds`te
+ * yok). Sıra kartların sırasıdır: önce kayıtlı sektör sırası, her sektörde
+ * seçim sırası.
+ *
+ * `CompanyCategoryPicker`ın kart gruplamasının (`gruplar`) AYNASIDIR — biri
+ * değişirse diğeri de. Eskiden özet sektörleri katalog sırasıyla ve işaretsiz
+ * yazıyor, tamamı beyan edilen sektör "Ürün ve Hizmetler: —" olarak görünüyordu.
+ */
+export function categoryDeclarationGroups(
+  mainIds: readonly string[],
+  subIds: readonly string[],
+): { sector: string; picks: string[] }[] {
+  const groups = new Map<string, string[]>();
+  for (const id of mainIds) groups.set(id, []);
+  for (const id of deepestCategoryPicks(subIds)) {
+    const sector = categorySegment(id);
+    if (!sector) continue;
+    if (!groups.has(sector)) groups.set(sector, []);
+    groups.get(sector)!.push(id);
+  }
+  return [...groups].map(([sector, picks]) => ({ sector, picks }));
 }
 
 /**
@@ -473,6 +518,9 @@ export function OnboardingClient() {
   // Sektör listesi yüklenemeyince seçicinin yerine çizilen satır, seçicinin
   // kendi "Yeniden dene" etiketini kullanır (her dilde aynı sözcük).
   const tPicker = useTranslations("web.shared.companyCategoryPicker");
+  // Özet, tamamı beyan edilen sektörü kategori penceresinin çipiyle AYNI sözle
+  // yazar ("<sektör> · sektörün tamamı").
+  const tCategoryDialog = useTranslations("web.shared.categorySelectorModal");
   const locale = useLocale();
   const activityLabel = useActivityLabel();
   const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
@@ -499,8 +547,8 @@ export function OnboardingClient() {
 
   const [step, setStep] = useState(0);
   const [f, setF] = useState(INITIAL_FORM);
-  /** Kullanıcı hukuki yapı seçicisinde "Diğer"i seçti (bkz. `isFreeLegalForm`). */
-  const [choseOtherLegalForm, setChoseOtherLegalForm] = useState(false);
+  /** "Diğer"in serbest metin kutusu düzenleniyor: odak kutuda (bkz. `isFreeLegalForm`). */
+  const [editingLegalFormText, setEditingLegalFormText] = useState(false);
   /** "Devam" / "Tamamla"ya basılmış adımlar: o adımın eksikleri alan altında görünür. */
   const [attempted, setAttempted] = useState<readonly number[]>([]);
   /**
@@ -593,6 +641,81 @@ export function OnboardingClient() {
   const setKategoriler = (v: { mainIds: string[]; subIds: string[] }) =>
     setF((s) => ({ ...s, mainCategoryIds: v.mainIds, subCategoryIds: v.subIds }));
 
+  /**
+   * "DİĞER"E YAZILAN AD — YAZARKEN HİÇBİR ŞEY DEĞİŞMEZ (kayıt arayüz testi
+   * 2026-10 D-02). Yazılan ad ülkenin listesindeki bir yapıysa seçim o yapıya
+   * çevrilir ve kutu kapanır; ama yalnız kutu odağı BIRAKINCA ya da adım
+   * gönderilince (`next`). Eskiden karar "kullanıcı bu oturumda Diğer'i seçti"
+   * bayrağına bağlıydı; bayrak taslakta saklanmadığı için yenileme / dil
+   * değişiminden sonra "KGaA" yazarken "KG"de kutu kapanıyor, seçim listedeki
+   * "KG"ye atlıyor, odak <body>'ye düşüyor ve kalan harfler kayboluyordu.
+   *
+   * BASIŞ SÜRERKEN ERTELENİR: kutu kapanınca altındaki her şey yukarı kayar.
+   * Odağı bir basış aldıysa (fareyle "Devam"a, bir onay kutusuna…) kayma
+   * basışla bırakış arasına düşer — bırakış başka öğeye gelir ve tıklama
+   * kaybolur. Bu yüzden basış (mousedown … mouseup) sürerken çevirme,
+   * bırakıştan sonraki göreve bırakılır: tıklama teslim edilmiş olur.
+   * Bekleyen çevirme, kutu yeniden odaklanınca ya da seçim değişince düşer
+   * (`cancelPendingSettle`) — düzenleme sürerken kutu kapatılmaz.
+   */
+  const pressingRef = useRef(false);
+  const settleAfterPressRef = useRef(false);
+  const settleTimerRef = useRef<number | null>(null);
+  const cancelPendingSettle = useCallback(() => {
+    settleAfterPressRef.current = false;
+    if (settleTimerRef.current !== null) {
+      window.clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+  }, []);
+  /** Düzenlemeyi bitirir: yazılan ad listedeki bir yapıysa seçim ona çevrilir. */
+  const settleLegalForm = useCallback(() => {
+    cancelPendingSettle();
+    setEditingLegalFormText(false);
+    setF(settleTypedLegalForm);
+  }, [cancelPendingSettle]);
+  useEffect(() => {
+    const onPress = () => {
+      pressingRef.current = true;
+    };
+    const onRelease = () => {
+      pressingRef.current = false;
+      if (!settleAfterPressRef.current) return;
+      settleAfterPressRef.current = false;
+      // `click` bırakışla aynı görevde gelir; çevirme bir sonraki görevde.
+      settleTimerRef.current = window.setTimeout(settleLegalForm, 0);
+    };
+    // Bırakışı sayfaya gelmeyen basış (yerel <select> listesi, pencere dışı
+    // bırakış) "sürüyor" kalmasın: klavye kullanılıyorsa basış bitmiştir.
+    const onKeyDown = () => {
+      pressingRef.current = false;
+    };
+    // `mousedown` / `mouseup`: dokunmada da odak bu ikisinin arasında değişir.
+    // Sürükleme `mouseup` üretmez, `dragend` üretir.
+    document.addEventListener("mousedown", onPress, true);
+    document.addEventListener("mouseup", onRelease, true);
+    document.addEventListener("dragend", onRelease, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("mousedown", onPress, true);
+      document.removeEventListener("mouseup", onRelease, true);
+      document.removeEventListener("dragend", onRelease, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+      if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
+    };
+  }, [settleLegalForm]);
+  const onLegalFormTextFocus = () => {
+    cancelPendingSettle();
+    setEditingLegalFormText(true);
+  };
+  const onLegalFormTextBlur = (e: FocusEvent<HTMLInputElement>) => {
+    // Pencere / sekme odağı kaybetti: kutu hâlâ belgenin etkin öğesi, kullanıcı
+    // alandan çıkmadı (geri dönünce yazmayı sürdürür) → çevirme yok.
+    if (document.activeElement === e.currentTarget) return;
+    if (pressingRef.current) settleAfterPressRef.current = true;
+    else settleLegalForm();
+  };
+
   useEffect(() => {
     if (isHydrated && !authUser && typeof window !== "undefined") {
       window.location.href = localizePath("/company/login", runtimeLocale());
@@ -614,7 +737,8 @@ export function OnboardingClient() {
     () => TURKEY_LOCATIONS.find((l) => l.il === f.deliveryCity)?.ilceler ?? [],
     [f.deliveryCity],
   );
-  // Özet (son adım): kullanıcının seçtiği ürün/hizmetler (ata zinciri değil).
+  // Kullanıcının seçtiği ürün/hizmetler (ata zinciri değil) — ad isteğinin
+  // anahtarı; özetteki sıra için bkz. `categoryGroups`.
   const pickedIds = useMemo(() => deepestCategoryPicks(f.subCategoryIds), [f.subCategoryIds]);
   // Adlar seçiciyle (`CompanyCategoryPicker`) AYNI id listesi ve AYNI seçenekle
   // istenir: seçimler + sektörler, `inlineError`. Yalnız o zaman sorgu anahtarı
@@ -627,23 +751,32 @@ export function OnboardingClient() {
     [pickedIds, f.mainCategoryIds],
   );
   const pickedCats = useCategoriesByIds(categoryNameIds, { inlineError: true });
+  // Özet beyanı 2. adımdaki kartların gruplarıyla ve sırasıyla yazar (CAT-D2).
+  const categoryGroups = useMemo(
+    () => categoryDeclarationGroups(f.mainCategoryIds, f.subCategoryIds),
+    [f.mainCategoryIds, f.subCategoryIds],
+  );
 
   const taxKey = taxIdLabelKey(f.country);
   // Hukuki yapı seçenekleri: ülkenin yerel yapıları; listesi olmayan ülkede
   // (Türkiye ve KKTC dahil) genel dört seçenek.
   const localForms = localLegalForms(f.country);
-  // "Diğer"in serbest metin kutusu açık mı? Kullanıcı "Diğer"i seçtiyse kutu,
-  // yazdığı metin listedeki bir yapının adına denk gelse de AÇIK kalır ("KGaA"
-  // yazarken "KG"de kutu kapanıp seçim listeye atlamasın). Geri gelen taslakta
-  // bayrak yoktur: metin listede değilse serbest metindir.
+  // "Diğer"in serbest metin kutusu açık mı? Tür "Diğer" ve yazılan ad ülkenin
+  // listesinde DEĞİLSE (boş dahil) açıktır. Kutu DÜZENLENİRKEN ad listedeki bir
+  // yapıya denk gelse de açık kalır ("KGaA" yazarken "KG"de kapanıp seçim
+  // listeye atlamasın) — yenilemeyle / dil değişimiyle geri gelen taslakta da:
+  // düzenleme kutuya odaklanınca başlar, taslakta saklanan bir bayrağa bağlı
+  // değildir. Odak kutudan çıkınca listedeki ad yapıya çevrilir (`settleLegalForm`).
   const isFreeLegalForm =
-    f.companyType === OTHER_LEGAL_FORM && (choseOtherLegalForm || !findLocalLegalForm(f.country, f.legalFormLocal));
+    f.companyType === OTHER_LEGAL_FORM && (editingLegalFormText || !findLocalLegalForm(f.country, f.legalFormLocal));
   const legalFormValue = isFreeLegalForm ? OTHER_LEGAL_FORM : legalFormSelection(f);
   // "Diğer"in örnekleri ülkeye göre: Türk firmasına "GmbH, LLC" önerilmez;
-  // yerel listesi olan ülkede örnekler listeye BİLEREK alınmayan yapılardır
-  // (vakıf, dernek, şube — `@rothern/shared` `data/legal-forms.ts`). Listedeki
-  // bir yapı (ör. kooperatif) örnek gösterilirse kurucu onu serbest metin
-  // yazar ve "Diğer" olarak kaydolur.
+  // yerel listesi olan ülkede örnek listeye BİLEREK alınmayan bir yapıdır
+  // (vakıf — `@rothern/shared` `data/legal-forms.ts`). Listedeki bir yapı (ör.
+  // kooperatif) örnek gösterilirse kurucu onu serbest metin yazar ve "Diğer"
+  // olarak kaydolur. Metinler KISA tutulur: yer tutucu kutusuna sığmalı (yarım
+  // genişlikte 270 px, 360 px'lik telefonda 260 px; D-01) — ölçüm ve bekçi
+  // `packages/i18n` `onboarding-copy.test`.
   const legalFormPlaceholder =
     localForms.length > 0
       ? t("legalFormLocalPlaceholderListed")
@@ -778,6 +911,13 @@ export function OnboardingClient() {
     goTo(stepIndex, errorsByStep[stepIndex]![0]?.[0] ?? null);
   };
   const next = () => {
+    // Adım gönderilirken "Diğer"e yazılan ad listedeki bir yapıysa ona çevrilir
+    // (odak kutudan çıkmadan da gönderilebilir; basışla gelen çevirme henüz
+    // bekliyor olabilir). Adımın geçerliliğini değiştirmez: listedeki adlar en
+    // az 2 karakterdir. Listede olmayan ada dokunulmaz — düzenleme sürebilir.
+    if (step === 0 && f.companyType === OTHER_LEGAL_FORM && findLocalLegalForm(f.country, f.legalFormLocal)) {
+      settleLegalForm();
+    }
     if (errorsByStep[step]!.length > 0) revealErrors(step);
     else goTo(step + 1);
   };
@@ -955,7 +1095,22 @@ export function OnboardingClient() {
 
   // Özet: il adı arayüz dilinde (saklanan değer Türkçe ad kalır).
   const shownCity = (city: string) => (isTR ? provinceDisplayName(city, locale) : city);
-  const pickedNames = pickedIds
+  /**
+   * ÖZETTE KATEGORİ BEYANI (CAT-D2) — kartlarla aynı gruplar, aynı sıra:
+   *  · "Sektörler": her sektör kendi satırında; tamamı beyan edilen sektör
+   *    pencere ve kartlardaki gibi "<sektör> · sektörün tamamı" diye yazılır;
+   *  · "Ürün ve Hizmetler": yalnız tek tek seçim varsa çizilir (yalnız sektörün
+   *    tamamı beyan edildiğinde boş "—" satırı basılmaz).
+   * Sektör adı seçicideki gibi önce sektör listesinden, yoksa ad isteğinden
+   * (liste gizli sektörleri taşımaz, düşmüş de olabilir).
+   */
+  const categoryName = (id: string) =>
+    roots.data?.find((c) => c.id === id)?.nameTr ?? pickedCats.data?.find((c) => c.id === id)?.nameTr ?? id;
+  const sectorLines = categoryGroups.map(({ sector, picks }) =>
+    picks.length > 0 ? categoryName(sector) : `${categoryName(sector)} · ${tCategoryDialog("sektorunTamami")}`,
+  );
+  const pickedNames = categoryGroups
+    .flatMap((group) => group.picks)
     .map((id) => pickedCats.data?.find((c) => c.id === id)?.nameTr ?? id)
     .join(", ");
   // Sektör listesi YOK ve yüklenemedi. `isError` tek başına yetmez (kayıt
@@ -1053,7 +1208,10 @@ export function OnboardingClient() {
                 ariaLabel={t("country")}
                 invalid={!!fieldError("country")}
                 onChange={(code) => {
-                  if (code !== f.country) setChoseOtherLegalForm(false);
+                  if (code !== f.country) {
+                    cancelPendingSettle();
+                    setEditingLegalFormText(false);
+                  }
                   setF((s) => applyCountryChange(s, code));
                 }}
               />
@@ -1088,7 +1246,10 @@ export function OnboardingClient() {
                     invalid={!!fieldError("companyType")}
                     onChange={(e) => {
                       const value = e.target.value;
-                      setChoseOtherLegalForm(value === OTHER_LEGAL_FORM);
+                      // Listeden seçim serbest metin düzenlemesini bitirir ("KG"
+                      // listeden seçildiyse kutu açılmaz); bekleyen çevirme düşer.
+                      cancelPendingSettle();
+                      setEditingLegalFormText(false);
                       setF((s) => ({ ...s, ...pickLegalForm(s.country, value) }));
                     }}
                   >
@@ -1121,6 +1282,9 @@ export function OnboardingClient() {
                     placeholder={legalFormPlaceholder}
                     invalid={!!fieldError("legalFormLocal")}
                     onChange={(e) => set("legalFormLocal")(e.target.value)}
+                    // Yazarken hiçbir şey değişmez; listedeki ad odak çıkınca çevrilir.
+                    onFocus={onLegalFormTextFocus}
+                    onBlur={onLegalFormTextBlur}
                   />
                   <FieldError message={fieldError("legalFormLocal")} />
                 </Field>
@@ -1555,14 +1719,8 @@ export function OnboardingClient() {
                     vaat ediyor, üstelik ücretsiz paketin 2 koltuğunun ikisini de
                     kurucuya yüklüyordu (ilk çalışan davetinde "koltuk dolu"). */}
                 <Summary label={t("sumRole")} value={t("sumRoleValue")} />
-                <Summary
-                  label={t("sumSectors")}
-                  value={(roots.data ?? [])
-                    .filter((c) => f.mainCategoryIds.includes(c.id))
-                    .map((c) => c.nameTr)
-                    .join(", ")}
-                />
-                <Summary label={t("sumProducts")} value={pickedNames} />
+                <Summary label={t("sumSectors")} lines={sectorLines} />
+                {pickedNames ? <Summary label={t("sumProducts")} value={pickedNames} /> : null}
                 <Summary label={t("sumActivities")} value={f.activities.map(activityLabel).join(", ")} />
               </dl>
             </section>
@@ -1737,12 +1895,21 @@ export function mergeDraft<F extends Record<string, unknown>>(base: F, draft: Re
   return out as F;
 }
 
-function Summary({ label, value }: { label: string; value?: string | null }) {
+/**
+ * Özet satırı. `lines`: çok değerli satır — her değer kendi `<dd>`sinde, alt
+ * alta (sektör adları virgül içerebilir, virgülle birleştirilmez).
+ */
+function Summary({ label, value, lines }: { label: string; value?: string | null; lines?: readonly string[] }) {
   // min-w-0 + break-words: boşluksuz uzun unvan kartın dışına taşmasın (D-343).
+  const values = lines && lines.length > 0 ? lines : [value || "—"];
   return (
     <div className="min-w-0">
       <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="font-medium break-words text-zinc-900">{value || "—"}</dd>
+      {values.map((text, i) => (
+        <dd key={i} className="font-medium break-words text-zinc-900">
+          {text}
+        </dd>
+      ))}
     </div>
   );
 }

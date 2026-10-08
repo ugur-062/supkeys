@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Derin denetim 2026-09-29:
@@ -54,6 +54,7 @@ vi.mock("@/hooks/use-categories", () => ({
   },
 }));
 
+import { chipNeedsSplit, STRIP_CHIP_MAX_LINES, stripOverflow } from "../category-dialog-shell";
 import { CategorySelectorModal, highlightRanges } from "../category-selector-modal";
 
 const A = { id: "39121600", nameTr: "Kablo", breadcrumb: "AN. Elektrik › Kablo" };
@@ -234,15 +235,20 @@ describe("CategorySelectorModal — yerleşim sözleşmesi (50 seçimde alt sat�
 
 // category-7 / signup-enru-3 / signup-tr-21 / category-10.
 describe("CategorySelectorModal — seçim çipleri", () => {
-  it("adın tamamı gösterilir (sabit piksel tavanı ve kırpma yok), yol ipucunda segment harfi yok", () => {
-    h.byIds = { data: [A], isPlaceholderData: false };
-    render(<CategorySelectorModal isOpen onClose={() => {}} value={[A.id]} onConfirm={() => {}} />);
+  it("ad sarılır (sabit piksel tavanı ve tek satır kırpması yok); şeritte en çok 3 satır, tamamı ipucunda; yol ipucunda segment harfi yok", () => {
+    const B = { id: "39121700", nameTr: "Pano" };
+    h.byIds = { data: [A, B], isPlaceholderData: false };
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[A.id, B.id]} onConfirm={() => {}} />);
     const name = screen.getByText("Kablo");
     expect(name.className).not.toMatch(/max-w-\[\d+px\]|truncate/);
     expect(name.className).toContain("break-words");
+    // CAT-D3: çok uzun ad şeridi tek başına doldurmasın — satır tavanı YALNIZ şeritte.
+    expect(name.className).toMatch(new RegExp(`(^|\\s)line-clamp-${STRIP_CHIP_MAX_LINES}(\\s|$)`));
     const chip = name.parentElement as HTMLElement;
     expect(chip.className).toContain("max-w-full");
     expect(chip).toHaveAttribute("title", "Elektrik › Kablo");
+    // Yol yoksa ipucu adın kendisi: kırpılan adın tamamı okunabilir kalır.
+    expect(screen.getByText("Pano").parentElement).toHaveAttribute("title", "Pano");
   });
 
   it("kaldırma düğmesi öğeyi adıyla söyler ve en az 32 px'lik hedef taşır", async () => {
@@ -292,6 +298,222 @@ describe("CategorySelectorModal — seçim çipleri", () => {
     await user.click(screen.getByRole("button", { name: "Tümünü temizle" }));
     expect(screen.getByText("0/20")).toBeInTheDocument();
     expect(searchBox()).not.toHaveFocus();
+  });
+});
+
+// Arayüz testi CAT-D3 (360×640, Rusça): dört satırlık sektör çipi şeridi tek
+// başına dolduruyor, sayaç "3" derken tek çip görünüyordu; telefonda kaydırma
+// çubuğu görünmediği için gerisinin varlığını hiçbir şey söylemiyordu.
+describe("CategorySelectorModal — seçim şeridi kaydığını söyler, çok uzun çip şeridi doldurmaz (CAT-D3)", () => {
+  const STRIP = "Seçimleriniz";
+  const more = () => document.querySelector('[data-slot="strip-more"]') as HTMLElement | null;
+  const fadeTop = () => document.querySelector('[data-slot="strip-fade-top"]');
+  const fadeBottom = () => document.querySelector('[data-slot="strip-fade-bottom"]');
+
+  /**
+   * jsdom yerleşim hesaplamaz → şeridin ve çiplerin kutuları burada verilir:
+   * şerit `viewHeight` px, çipler alt alta (`rows` = çip yükseklikleri, 4 px üst
+   * boşluk + 8 px aralık — gerçek şeridin ölçüleri), kaydırma hesaba katılır.
+   */
+  function stubStripLayout(viewHeight: number, rows: number[]) {
+    const rect = (top: number, height: number) =>
+      ({ top, bottom: top + height, height, left: 0, right: 312, width: 312, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.tagName === "UL" && this.getAttribute("aria-label") === STRIP) return rect(0, viewHeight);
+      const list = this.parentElement;
+      if (this.tagName === "LI" && list?.getAttribute("aria-label") === STRIP) {
+        const i = Array.from(list.children).indexOf(this);
+        const top = 4 + rows.slice(0, i).reduce((sum, height) => sum + height + 8, 0) - list.scrollTop;
+        return rect(top, rows[i] ?? 25);
+      }
+      return rect(0, 0);
+    });
+  }
+
+  /** Ekli çipin (ad + satır içi ek) akış yüksekliği ve satır yüksekliği (20 px). */
+  function stubRunHeight(height: () => number) {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute("data-chip-run") ? height() : 0;
+    });
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((el: Element, pseudo?: string | null) => {
+      const style = real(el, pseudo);
+      if (!(el instanceof HTMLElement) || !el.hasAttribute("data-chip-run")) return style;
+      return new Proxy(style, {
+        get: (target, key) => (key === "lineHeight" ? "20px" : Reflect.get(target, key)),
+      });
+    });
+  }
+
+  const three = (names: [string, string, string]) => {
+    const ids = [SEG.id, "31171500", "47130000"];
+    h.byIds = { data: ids.map((id, i) => ({ id, nameTr: names[i] })), isPlaceholderData: false };
+    return ids;
+  };
+  const renderCompany = (value: string[]) =>
+    render(
+      <CategorySelectorModal
+        isOpen
+        onClose={() => {}}
+        value={value}
+        onConfirm={() => {}}
+        minSelectableLevel={1}
+        singlePickPerBranch
+        maxSelection={50}
+        maxSectors={5}
+      />,
+    );
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("stripOverflow: kesilen tek çip 'kayıyor' demektir; SAYI yalnız yarıdan fazlası gizli çipleri sayar", () => {
+    const view = { top: 0, bottom: 96 };
+    // 65 px'lik çip + %76'sı görünen çip + tamamen gizli çip (testçinin ölçtüğü vaka, kırpmadan sonra).
+    expect(stripOverflow(view, [{ top: 4, bottom: 69 }, { top: 77, bottom: 102 }, { top: 110, bottom: 135 }])).toEqual({ above: 0, below: 1, cut: true });
+    // Son satırın yalnız 4 pikseli kesik: şerit kayar (ipucu var) ama gizli çip yok (sayı yok).
+    expect(stripOverflow(view, [{ top: 4, bottom: 30 }, { top: 74, bottom: 100 }])).toEqual({ above: 0, below: 0, cut: true });
+    // Sona kaydırılmış: yukarıda kalan sayılır; altta kesik yok.
+    expect(stripOverflow(view, [{ top: -39, bottom: 26 }, { top: 34, bottom: 59 }, { top: 67, bottom: 92 }])).toEqual({ above: 1, below: 0, cut: false });
+    // Kesirli ölçü payı (1 px): sığan çip kesik sayılmaz.
+    expect(stripOverflow(view, [{ top: 70.6, bottom: 96.6 }])).toEqual({ above: 0, below: 0, cut: false });
+    expect(stripOverflow(view, [])).toEqual({ above: 0, below: 0, cut: false });
+  });
+
+  it("chipNeedsSplit: akış 3 satırı aşınca böl; satır yüksekliği okunamazsa bölme", () => {
+    expect(STRIP_CHIP_MAX_LINES).toBe(3);
+    expect(chipNeedsSplit(80, 20)).toBe(true);
+    expect(chipNeedsSplit(60, 20)).toBe(false);
+    expect(chipNeedsSplit(60.5, 20)).toBe(false);
+    expect(chipNeedsSplit(80, Number.NaN)).toBe(false);
+    expect(chipNeedsSplit(80, 0)).toBe(false);
+  });
+
+  it("gizli çip varken alt kenarda '+N' ipucu durur; görsel ipucudur (aria-hidden, sekme sırasının dışında)", () => {
+    stubStripLayout(96, [65, 25, 25]);
+    renderCompany(three(["Kolluk ve Emniyet Ekipmanları", "Rulmanlar", "Temizlik Malzemeleri"]));
+    const pill = more();
+    expect(pill).not.toBeNull();
+    expect(pill).toHaveTextContent("+1");
+    expect(pill).toHaveAttribute("aria-hidden", "true");
+    expect(pill).toHaveAttribute("tabindex", "-1");
+    expect(fadeBottom()).not.toBeNull();
+    expect(fadeTop()).toBeNull();
+    // Şeridin kendi sözleşmesi aynen: liste yine sınırlı ve kendi içinde kayar.
+    const strip = screen.getByRole("list", { name: STRIP });
+    expect(strip.className).toMatch(/\bmax-h-24\b/);
+    expect(strip.className).toContain("overflow-y-auto");
+    // İpucu listenin DIŞINDA: çip sayısı ve liste öğeleri değişmez.
+    expect(within(strip).getAllByRole("listitem")).toHaveLength(3);
+    expect(strip.contains(pill)).toBe(false);
+  });
+
+  it("hepsi sığıyorsa ipucu yok", () => {
+    stubStripLayout(96, [25, 25]);
+    h.byIds = { data: [A, { id: "39121700", nameTr: "Pano" }], isPlaceholderData: false };
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[A.id, "39121700"]} onConfirm={() => {}} />);
+    expect(more()).toBeNull();
+    expect(fadeBottom()).toBeNull();
+    expect(fadeTop()).toBeNull();
+  });
+
+  it("ipucuna basınca şerit aşağı kayar; sona gelince ipucu kalkar, üst kenar solar; odak taşınmaz", async () => {
+    stubStripLayout(96, [65, 25, 25]);
+    renderCompany(three(["Kolluk ve Emniyet Ekipmanları", "Rulmanlar", "Temizlik Malzemeleri"]));
+    const strip = screen.getByRole("list", { name: STRIP });
+    await waitFor(() => expect(searchBox()).toHaveFocus());
+
+    // `mousedown` engellenir: tarayıcı odağı düğmeye taşımaz (arama kutusunda kalır).
+    expect(fireEvent.mouseDown(more()!)).toBe(false);
+    fireEvent.click(more()!);
+    expect(strip.scrollTop).toBeGreaterThan(0);
+    expect(searchBox()).toHaveFocus();
+
+    // Kullanıcı sona kaydırır (şerit 135 px içerik, 96 px görünür → 39 px + alt boşluk).
+    strip.scrollTop = 43;
+    fireEvent.scroll(strip);
+    expect(more()).toBeNull();
+    expect(fadeBottom()).toBeNull();
+    expect(fadeTop()).not.toBeNull();
+
+    // Başa dönünce ipucu geri gelir.
+    strip.scrollTop = 0;
+    fireEvent.scroll(strip);
+    expect(more()).toHaveTextContent("+1");
+    expect(fadeTop()).toBeNull();
+  });
+
+  it("yalnız birkaç pikseli kesilen son satır: sayısız ok (şerit kayıyor), satır soldurulmaz", () => {
+    // 4 + 65 + 8 = 77 → ikinci çip 77..102: 96 px'lik şeritte 19 px'i görünür (%76).
+    stubStripLayout(96, [65, 25]);
+    h.byIds = { data: [A, { id: "39121700", nameTr: "Pano" }], isPlaceholderData: false };
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[A.id, "39121700"]} onConfirm={() => {}} />);
+    expect(more()).not.toBeNull();
+    expect(more()!.textContent).toBe("");
+    expect(more()!.querySelector("svg")).not.toBeNull();
+    expect(fadeBottom()).toBeNull();
+  });
+
+  it("çip kaldırılınca ipucu yeniden ölçülür", async () => {
+    const user = userEvent.setup();
+    stubStripLayout(96, [45, 25, 25]);
+    renderCompany(three(["Elektrik Malzemeleri", "Rulmanlar", "Temizlik Malzemeleri"]));
+    // 4 + 45 + 8 + 25 + 8 = 90 → üçüncü çipin yalnız 6 pikseli görünür.
+    expect(more()).toHaveTextContent("+1");
+    await user.click(screen.getByRole("button", { name: "Rulmanlar seçimini kaldır" }));
+    expect(more()).toBeNull();
+  });
+
+  it("ekli (sektörün tamamı) çip: ek adın peşinden akar; 3 satırı aşınca ad kırpılır ve ek KENDİ satırında kalır", () => {
+    let runHeight = 80; // dört satır (360 px'te Rusça en uzun sektör adı)
+    stubRunHeight(() => runHeight);
+    const ids = three(["Оборудование для правоохранительных органов, национальной безопасности и охраны", "Rulmanlar", "Temizlik Malzemeleri"]);
+    const view = renderCompany(ids);
+    const [sector, product] = within(screen.getByRole("list", { name: STRIP })).getAllByRole("listitem");
+    expect(sector.className).toMatch(/(^|\s)group\/chip(\s|$)/);
+
+    const run = sector.querySelector("[data-chip-run]") as HTMLElement;
+    const inline = run.querySelector("span.whitespace-nowrap") as HTMLElement;
+    const row = sector.querySelector('[data-slot="chip-suffix-row"]') as HTMLElement;
+    // Akış kipi (varsayılan): ad kırpılmaz, ek satır içinde, ek satırı gizli.
+    expect(run.className).not.toMatch(/(^|\s)(line-clamp-\d|truncate)(\s|$)/);
+    expect(inline).toHaveTextContent("· sektörün tamamı");
+    expect(row.className).toMatch(/(^|\s)hidden(\s|$)/);
+    // Bölünmüş kip sınıfları `<li>`deki işarete bağlı.
+    expect(run.className).toContain("group-data-[split]/chip:line-clamp-2");
+    expect(inline.className).toContain("group-data-[split]/chip:invisible");
+    expect(row.className).toContain("group-data-[split]/chip:block");
+    expect(row).toHaveTextContent("· sektörün tamamı");
+
+    // Dört satır → şerit çipi böler; eksiz çip ölçülmez (düz CSS kırpması).
+    expect(sector).toHaveAttribute("data-split");
+    expect(product).not.toHaveAttribute("data-split");
+    expect(product.querySelector("[data-chip-run]")).toBeNull();
+    // Adın tamamı kaldırma düğmesinin adında ve ipucunda durur.
+    expect(
+      screen.getByRole("button", {
+        name: "Оборудование для правоохранительных органов, национальной безопасности и охраны seçimini kaldır",
+      }),
+    ).toBeInTheDocument();
+    expect(sector.querySelector("[title]")).toHaveAttribute(
+      "title",
+      "Оборудование для правоохранительных органов, национальной безопасности и охраны",
+    );
+
+    // Genişleyince (akış 3 satıra iner) çip kendiliğinden eski hâline döner.
+    runHeight = 60;
+    view.rerender(
+      <CategorySelectorModal
+        isOpen
+        onClose={() => {}}
+        value={ids}
+        onConfirm={() => {}}
+        minSelectableLevel={1}
+        singlePickPerBranch
+        maxSelection={50}
+        maxSectors={5}
+      />,
+    );
+    expect(sector).not.toHaveAttribute("data-split");
   });
 });
 

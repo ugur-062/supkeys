@@ -1,4 +1,5 @@
 import {
+  companyContentLang,
   companySeo as companySeo0,
   companyTitle,
   listingSeo as listingSeo0,
@@ -362,6 +363,68 @@ describe("çok dilli graf (2026-09-27 SEO denetimi)", () => {
     ]);
     const de = graphOf(companySeo0({ slug: "acme", name: "Acme GmbH", industry: null, city: "Munich", country: "DE", aboutText: null, logoUrl: null, coverImageUrl: null, foundedYear: null, employeeCount: null, categories: [], productCount: 0 }, EN).jsonLd)[0]!;
     expect((de.address as Record<string, unknown>).addressCountry).toBe("DE");
+  });
+
+  // Arayüz testi D-05: tanıtım / sektör / hizmet yazmamış yeni firmanın EN ve RU
+  // sayfası `"inLanguage":"tr"` diyordu (sayfada Türkçe hiçbir şey yokken).
+  // Çeviri satırı olmayan kayıt için API "hazır: tr, kaynak: tr" varsayar; dil
+  // durumu (hreflang / kanonik / noindex) o varsayımı izlemeye DEVAM eder,
+  // `inLanguage` ise sayfada kaynak dilde basılan metin yoksa sayfanın dilidir.
+  describe("firma: çevrilebilir metni olmayan firmada ProfilePage.inLanguage sayfanın dili (D-05)", () => {
+    const RU = { locale: "ru" as const, t: seoT("ru") };
+    const bare: CompanySeoInput = {
+      slug: "ooo-uralsvarpromkabel",
+      name: "ООО «Уралсварпромкабель»",
+      industry: null,
+      city: null,
+      country: "RU",
+      aboutText: null,
+      logoUrl: null,
+      coverImageUrl: null,
+      foundedYear: null,
+      employeeCount: null,
+      categories: [],
+      productCount: 0,
+      // Tanıtımı olmayan profil kalite eşiğini geçmez → API `indexable: false`.
+      indexable: false,
+      readyLocales: ["tr"],
+      sourceLocale: "tr",
+      services: [],
+    };
+    const pageLang = (input: CompanySeoInput, opts: Parameters<typeof companySeo0>[1]) =>
+      graphOf(companySeo0(input, opts).jsonLd).find((n) => n["@type"] === "ProfilePage")?.inLanguage;
+
+    it("metinsiz firma: EN sayfa en-US, RU sayfa ru-RU, TR sayfa tr-TR", () => {
+      expect(pageLang(bare, EN)).toBe("en-US");
+      expect(pageLang(bare, RU)).toBe("ru-RU");
+      expect(pageLang(bare, T)).toBe("tr-TR");
+      // `services` verilmeyen çağıran (Profilim parçacık önizlemesi) da aynı sonucu alır.
+      expect(pageLang({ ...bare, services: undefined }, EN)).toBe("en-US");
+      // Yalnız boşluk metin değildir.
+      expect(pageLang({ ...bare, industry: "  ", services: [""] }, RU)).toBe("ru-RU");
+    });
+
+    it("kaynak dilde basılan metin VARSA kural aynen: inLanguage kaynağın dili", () => {
+      expect(pageLang({ ...bare, aboutText: "1998'den beri kaynak teli ve kablo üretiyoruz." }, EN)).toBe("tr");
+      expect(pageLang({ ...bare, industry: "Kablo" }, EN)).toBe("tr");
+      expect(pageLang({ ...bare, services: ["Kurulum"] }, RU)).toBe("tr");
+      // Çevirisi hazır dilde sayfanın dili; kaynağı bilinmeyen ("und") içerikte dil yazılmaz.
+      expect(pageLang({ ...bare, industry: "Cable", readyLocales: ["tr", "en"] }, EN)).toBe("en-US");
+      expect(pageLang({ ...bare, aboutText: "Wir fertigen Schweißdraht.", readyLocales: [], sourceLocale: "und" }, EN)).toBe("en-US");
+      expect(companyContentLang({ ...bare, industry: "Kablo" }, "en")).toBe("tr");
+      expect(companyContentLang(bare, "en")).toBeUndefined();
+    });
+
+    it("dil durumu DEĞİŞMEZ: hreflang yalnız hazır dil, sayfa noindex kalır, kanonik kendi adresi", () => {
+      for (const opts of [EN, RU]) {
+        const meta = companySeo0(bare, opts).metadata;
+        expect(Object.keys(meta.alternates?.languages ?? {})).toEqual(["tr", "x-default"]);
+        expect(meta.robots).toMatchObject({ index: false });
+      }
+      expect(companySeo0(bare, EN).metadata.alternates?.canonical).toBe(`${S}/en/companies/ooo-uralsvarpromkabel`);
+      // `inLanguage` hâlâ yalnız sayfa düğümünde (varlık düğümünde geçersiz özellik).
+      expect(graphOf(companySeo0(bare, EN).jsonLd)[0]).not.toHaveProperty("inLanguage");
+    });
   });
 
   it("talep: görsel yoksa talebin kendi OG kartı; Demand @id dilden bağımsız; kaynak dilde gösterimde inLanguage kaynağın", () => {

@@ -223,6 +223,34 @@ describe("ProductDetailBody", () => {
   });
 });
 
+// Arayüz testi D-04: satıcı kutusunda ad tek satır + `truncate` idi — 360 px'te
+// "ООО «Уралсварпромкабе…" (215 px ad, 204 px yer). Firma kartıyla aynı kural:
+// iki satıra kadar sarar, uzun tek sözcük bölünür; bayrak ve rozet ilk satırda.
+describe("ProductDetailBody — satıcı adı (D-04)", () => {
+  it("ad iki satıra kadar sarar ve sözcük içinde bölünebilir; tek satıra kırpılmaz", () => {
+    const name = "ООО «Уралсварпромкабель»";
+    const { container } = render(Body({ company: { ...company, name } }));
+    const links = screen
+      .getAllByRole("link", { name })
+      .filter((a) => a.getAttribute("href") === "/firma/karadeniz-enerji" && a.className.includes("font-semibold"));
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.className).toMatch(/(^|\s)line-clamp-2(\s|$)/);
+      expect(link.className).toMatch(/(^|\s)break-words(\s|$)/);
+      expect(link.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      expect(link.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap)(\s|$)/);
+      // Satır üstten hizalı: bayrak ve doğrulama rozeti adın İLK satırında kalır.
+      const row = link.parentElement as HTMLElement;
+      expect(row.className).toMatch(/(^|\s)items-start(\s|$)/);
+      expect(row.className).not.toMatch(/(^|\s)items-center(\s|$)/);
+      const flag = row.querySelector('img[src="/flags/4x3/tr.svg"]');
+      expect(flag?.className).toMatch(/(^|\s)mt-1(\s|$)/);
+      expect(flag?.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    }
+    expect(container.querySelector("a.truncate.font-semibold")).toBeNull();
+  });
+});
+
 describe("brandIsSeller", () => {
   it("marka firma adının parçasıysa çip basılmaz; gerçek marka 'Marka:' ile kalır", () => {
     expect(brandIsSeller("Demo Gold", "Demo Gold Makina")).toBe(true);

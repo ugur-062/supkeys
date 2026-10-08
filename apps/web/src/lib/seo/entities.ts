@@ -363,6 +363,33 @@ export interface CompanySeoInput {
   /** Dil durumu (API): hreflang yalnız hazır diller. */
   readyLocales?: string[];
   sourceLocale?: string;
+  /**
+   * Sayfada basılan hizmet çipleri — tanıtım ve sektörle birlikte firmanın
+   * ÇEVRİLEN üç alanından biri (`companyContentLang`). Verilmezse yok sayılır.
+   */
+  services?: string[];
+}
+
+/**
+ * Firma sayfasında KAYNAK dilde basılan metnin dili — `ProfilePage.inLanguage`
+ * bunu söyler (kural: sayfa düğümü sayfanın dilini taşır; kaynak dilde
+ * gösterilen içerik varsa onun dilini — `contentLangOf`).
+ *
+ * Firmada çevrilen metin YOKSA (tanıtım, sektör, hizmet — içerik çevirisinin
+ * üç alanı) sayfada kaynak dilde basılan hiçbir şey de yoktur: ad özel isim,
+ * geri kalan her şey arayüz dilinde. O durumda `undefined` → sayfanın dili.
+ * Eskiden yalnız dil durumuna bakılıyordu: çeviri satırı olmayan kayıt için API
+ * "hazır: tr, kaynak: tr" varsayar (`readyLocales`), bu da metinsiz her yeni
+ * firmanın EN/RU sayfasına — sahibi Türkiye'de olmasa bile — `inLanguage: "tr"`
+ * yazdırıyordu (arayüz testi D-05). Dil durumunun kendisi (hreflang, kanonik,
+ * `noindex`) DEĞİŞMEZ: onlar `readyLocales` / `indexable`dan okunur.
+ */
+export function companyContentLang(
+  c: Pick<CompanySeoInput, "aboutText" | "industry" | "services" | "readyLocales" | "sourceLocale">,
+  locale: Locale,
+): string | undefined {
+  const hasText = [c.aboutText, c.industry, ...(c.services ?? [])].some((v) => !!v?.trim());
+  return hasText ? contentLangOf(c, locale) : undefined;
 }
 
 function httpUrls(values: (string | null | undefined)[]): string[] {
@@ -461,7 +488,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
     url,
     name: title,
     description,
-    inLanguage: contentLangOf(c, locale) ?? LANG_TAG[locale],
+    inLanguage: companyContentLang(c, locale) ?? LANG_TAG[locale],
     isPartOf: { "@id": SITE_ID() },
     mainEntity: { "@id": companyId },
     breadcrumb: { "@id": `${url}#breadcrumb` },

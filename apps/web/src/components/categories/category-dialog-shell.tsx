@@ -2,13 +2,16 @@
 
 import { useTranslations } from "next-intl";
 import {
+  useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from "react";
 import {
   Description,
@@ -19,7 +22,7 @@ import {
   Field,
 } from "@headlessui/react";
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
-import { Sparkles, X } from "lucide-react";
+import { ChevronDown, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/catalyst/button";
 import { Input, InputGroup } from "@/components/catalyst/input";
 import { IconButton } from "@/components/ui/icon-button";
@@ -486,6 +489,239 @@ export function SelectionCounter({
         >
           {clearLabel}
         </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Bir kutunun dikey kenarları (görüş alanı koordinatı). */
+interface VerticalEdges {
+  top: number;
+  bottom: number;
+}
+
+/** Şeridin görünen kutusuna göre çiplerin durumu. */
+export interface StripOverflow {
+  /** Yukarıda GİZLİ çip sayısı (yarıdan fazlası görünen alanın üstünde). */
+  above: number;
+  /** Aşağıda GİZLİ çip sayısı (yarıdan fazlası görünen alanın altında) — haptaki "+N". */
+  below: number;
+  /** Alt kenarda kesilen çip var: şerit aşağı kayabilir — ipucu bununla açılır. */
+  cut: boolean;
+}
+
+/**
+ * Şeridin görünen kutusunun DIŞINDA kalan çipler — saf, testte doğrudan ölçülür.
+ *
+ * İki ayrı soru:
+ *  - `cut`: şerit aşağı kayıyor mu? Alt kenarı kesilen TEK çip yeter (1 px
+ *    pay: kesirli ölçüler — ölçekli geçiş, 2x ekran — sığan çipi kesik saymasın).
+ *  - `below` / `above`: kaç çip GİZLİ? Çip, yarıdan fazlası görünen alanın
+ *    dışındaysa gizlidir (orta noktası kenarın ötesinde). Birkaç pikseli kesilen
+ *    çip görülmüştür: tam görünmeyen her çipi saymak, üç çipin biri neredeyse
+ *    tam görünürken "+3" dedirtiyordu.
+ */
+export function stripOverflow(
+  view: VerticalEdges,
+  chips: readonly VerticalEdges[],
+): StripOverflow {
+  let above = 0;
+  let below = 0;
+  let cut = false;
+  for (const chip of chips) {
+    const middle = (chip.top + chip.bottom) / 2;
+    if (middle > view.bottom) below += 1;
+    else if (middle < view.top) above += 1;
+    if (chip.bottom > view.bottom + 1) cut = true;
+  }
+  return { above, below, cut };
+}
+
+const NO_OVERFLOW: StripOverflow = { above: 0, below: 0, cut: false };
+
+/** Şeritte bir çipin metni en çok kaç satır tutar (ad + "· sektörün tamamı" eki). */
+export const STRIP_CHIP_MAX_LINES = 3;
+
+/**
+ * Ekli çipin (ad + satır içi ek) akış yüksekliği tavanı aşıyor mu — aşıyorsa
+ * çip "bölünür": ad iki satıra kırpılır, ek kendi satırına iner. Saf.
+ */
+export function chipNeedsSplit(runHeight: number, lineHeight: number): boolean {
+  if (!(lineHeight > 0)) return false;
+  return runHeight > STRIP_CHIP_MAX_LINES * lineHeight + 1;
+}
+
+interface SelectionStripProps {
+  /** Listenin erişilebilir adı ("Seçimleriniz"). */
+  label: string;
+  /** Çip listesi (`<ul>`) — çağıran, klavyeyle kaldırmada odağı buradan taşır. */
+  listRef: RefObject<HTMLUListElement | null>;
+  /** `<li>` çipler. */
+  children: ReactNode;
+}
+
+/**
+ * SEÇİM ŞERİDİ — seçilen çipler; yüksekliği SINIRLI ve kendi içinde kayar
+ * (sınırsızken 15-20 seçimde liste 24 px'e iniyor, Vazgeç / Onayla pencerenin
+ * dışına itiliyordu).
+ *
+ * Arayüz testi CAT-D3 (360×640, Rusça): dört satırlık bir sektör çipi şeridi
+ * tek başına dolduruyor, sayaç "3" derken tek çip görünüyordu; telefonda
+ * kaydırma çubuğu yer kaplamadığı için gerisinin varlığını hiçbir şey
+ * söylemiyordu. İki kural:
+ *
+ * 1) ÇİP ŞERİTTE EN ÇOK 3 SATIR (`STRIP_CHIP_MAX_LINES`). Eksiz çip düz CSS ile
+ *    kırpılır (`line-clamp-3`, çağıranda). "· sektörün tamamı" EKLİ çipte ek
+ *    adın peşinden akar (çoğu ad böyle 1-2 satır tutar); düz kırpma eki de
+ *    keserdi ve çipin bütün sektörü beyan ettiği okunmazdı. Bu yüzden ekli çip
+ *    ÖLÇÜLÜR (`data-chip-run`): akış tavanı aşıyorsa `<li>` `data-split` alır —
+ *    ad iki satıra kırpılır, ek kendi satırında görünür kalır (çağıranın
+ *    sınıfları). İşaret React durumu değil DOM özniteliği: yalnız yerleşimden
+ *    türeyen sunum bilgisi; her ölçümde akış kipine dönülüp YENİDEN karar
+ *    verilir (genişlik değişince çip kendiliğinden eski hâline döner, kipler
+ *    arasında salınım olmaz). Adın tamamı listede, sayfadaki kartta, çipin
+ *    ipucunda ve kaldırma düğmesinin adında durur.
+ *
+ * 2) ŞERİT KAYDIĞINI SÖYLER. Alt kenarda kesilen çip oldukça (şerit aşağı
+ *    kayabildikçe) ortada "⌄" hapı durur; yarıdan fazlası gizli çip varsa hap
+ *    sayısını da söyler ("⌄ +N") ve alt kenar solar. Yalnız birkaç pikseli
+ *    kesilen son satırda ok tek başına kalır — neredeyse tam görünen satır
+ *    soldurulmaz. Yukarıda gizli çip kaldıysa üst kenar solar. Hap şeridi bir
+ *    ekran aşağı kaydırır. Hap yalnız
+ *    GÖRSEL ipucu: ekran okuyucu listenin tamamını zaten okur, klavye çiplerin
+ *    kaldırma düğmeleriyle gezer (odak şeridi kendiliğinden kaydırır) →
+ *    `aria-hidden` + sekme sırasının dışında.
+ *
+ * Ölçüm: her çizimden sonra (çip eklendi / kaldırıldı, adlar geldi), şeridin ya
+ * da bir çipin kutusu değişince (pencere boyutu, yön, geç yüklenen yazı tipi)
+ * ve kaydırmada (yalnız sayım).
+ *
+ * `-mr-1 pr-1`: kaldırma düğmesi çipin 4 px dışına taşar (32 px hedef, çipi
+ * büyütmeden); sağ kenara dayanan çipte bu taşma şeridi 4 px yana
+ * kaydırılabilir yapıyor, klasik kaydırma çubuklu pencerede yatay çubuk
+ * çıkarıyordu. Taşma şeridin kendi iç boşluğuna düşer; `overflow-x-hidden`
+ * yana kaymayı her durumda kapatır (`overflow-y-auto` tek başına x eksenini de
+ * `auto` yapar). `py-1`: 32 px'lik kaldırma hedefleri ilk/son satırda kırpılmasın.
+ */
+export function SelectionStrip({ label, listRef, children }: SelectionStripProps) {
+  const [overflow, setOverflow] = useState(NO_OVERFLOW);
+
+  /** Görünen alanın dışındaki çipleri sayar (kaydırmada da çağrılır). */
+  const count = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const next = stripOverflow(
+      el.getBoundingClientRect(),
+      Array.from(el.children, (chip) => chip.getBoundingClientRect()),
+    );
+    // Değişmediyse aynı nesne: her çizimden sonra ölçmek döngüye girmez.
+    setOverflow((prev) =>
+      prev.above === next.above && prev.below === next.below && prev.cut === next.cut
+        ? prev
+        : next,
+    );
+  }, [listRef]);
+
+  /** Ekli çiplerin kipini (akış / bölünmüş) yeniden belirler, sonra sayar. */
+  const measure = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const runs = Array.from(el.querySelectorAll<HTMLElement>("[data-chip-run]"));
+    // Önce hepsi akış kipine: karar her zaman adın + ekin doğal yüksekliğinden.
+    for (const run of runs) run.closest("li")?.removeAttribute("data-split");
+    const split = runs.filter((run) =>
+      chipNeedsSplit(run.offsetHeight, parseFloat(getComputedStyle(run).lineHeight)),
+    );
+    for (const run of split) run.closest("li")?.setAttribute("data-split", "");
+    count();
+  }, [listRef, count]);
+
+  // Her çizimden sonra, boyamadan önce.
+  useLayoutEffect(measure);
+
+  // Kutu değişimleri: şeridin kendisi + her çip (çizimde liste yeniden bağlanır).
+  // Ölçüm çip kutularını DEĞİŞTİREBİLİR (bölünme) → gözlemcinin geri çağrısı
+  // içinde değil, bir sonraki karede yapılır: geri çağrı içinde gözlenen kutuyu
+  // değiştirmek tarayıcıda "ResizeObserver loop" hatası üretir (hata olayı
+  // istemci hata bildirimine de düşerdi).
+  const observer = useRef<ResizeObserver | null>(null);
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
+    observer.current = ro;
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+      observer.current = null;
+    };
+  }, [measure]);
+  useEffect(() => {
+    const ro = observer.current;
+    const el = listRef.current;
+    if (!ro || !el) return;
+    ro.disconnect();
+    ro.observe(el);
+    for (const chip of Array.from(el.children)) ro.observe(chip);
+  });
+
+  const showMore = () => {
+    const el = listRef.current;
+    if (!el) return;
+    // Bir ekran eksi bir satır: son görünen satır kaydırmadan sonra da görünür.
+    el.scrollTop += Math.max(el.clientHeight - 32, 24);
+    count();
+  };
+
+  return (
+    <div className="relative mt-1">
+      <ul
+        ref={listRef}
+        aria-label={label}
+        onScroll={count}
+        className="-mr-1 flex max-h-24 flex-wrap gap-2 overflow-x-hidden overflow-y-auto overscroll-contain scroll-smooth py-1 pr-1 motion-reduce:scroll-auto sm:max-h-32 [@media(max-height:520px)]:max-h-12"
+      >
+        {children}
+      </ul>
+      {overflow.above > 0 ? (
+        <span
+          aria-hidden
+          data-slot="strip-fade-top"
+          className="pointer-events-none absolute inset-x-0 top-0 h-3 bg-gradient-to-b from-zinc-50 to-transparent"
+        />
+      ) : null}
+      {overflow.below > 0 ? (
+        <span
+          aria-hidden
+          data-slot="strip-fade-bottom"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-zinc-50 to-transparent"
+        />
+      ) : null}
+      {overflow.cut ? (
+        <>
+          {/* Hap şeridin alt kenarına BİNER (`-bottom-2`): yarısı şeridin altındaki
+              iç boşluğa düşer, yarım görünen çipin yazısını daha az örter.
+              Dokunma hedefi görünmeyen çerçeveyle büyür (hap 20 px). Basınca
+              odak taşınmaz (`mousedown` engellenir): arama kutusundaki odak ve
+              açık ekran klavyesi yerinde kalır. */}
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden
+            data-slot="strip-more"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={showMore}
+            className={`absolute -bottom-2 left-1/2 inline-flex h-5 -translate-x-1/2 items-center gap-0.5 rounded-full bg-white text-xs font-semibold text-zinc-700 tabular-nums shadow-sm ring-1 ring-zinc-950/15 after:absolute after:-inset-x-4 after:-inset-y-1.5 hover:text-zinc-950 ${
+              overflow.below > 0 ? "pr-2 pl-1" : "px-1"
+            }`}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+            {overflow.below > 0 ? `+${overflow.below}` : null}
+          </button>
+        </>
       ) : null}
     </div>
   );

@@ -618,10 +618,15 @@ function SellerSummary({
       <div className="flex items-start gap-3">
         <Avatar name={company.name} src={company.logoUrl} size={48} />
         <div className="min-w-0">
-          <p className="flex min-w-0 items-center gap-1.5">
+          {/* Ad İKİ SATIRA kadar sarar (arayüz testi D-04; firma kartıyla aynı
+              kural): tek satır + `truncate` 360 px'te "ООО «Уралсварпромкабе…"
+              diye kesiyordu. Uzun tek sözcük sütun içinde bölünür. Satır üstten
+              hizalı: bayrak (`mt-1`, 12 px → 20 px'lik satırın ortası) ve
+              rozet adın İLK satırında kalır; tek satırlık adda görünüm aynı. */}
+          <p className="flex min-w-0 items-start gap-1.5">
             {/* Satıcı firmanın ülkesi — kartlarla aynı küçük bayrak (2026-10-04). */}
-            <CountryFlag code={company.country} />
-            <Link href={companyHref} className="truncate text-sm font-semibold text-zinc-950 hover:text-zinc-600">
+            <CountryFlag code={company.country} className="mt-1" />
+            <Link href={companyHref} className="line-clamp-2 min-w-0 break-words text-sm font-semibold text-zinc-950 hover:text-zinc-600">
               {company.name}
             </Link>
             {company.verified ? (

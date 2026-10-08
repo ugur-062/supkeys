@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -150,5 +150,108 @@ describe("CountryCombobox (2026-09-27, kayıt tüm ülkelere açık)", () => {
     await user.click(screen.getByRole("button", { name: "Ülke listesini aç" }));
     const opt = await screen.findByRole("option", { name: /Zimbabve/ });
     expect(opt).toHaveAttribute("aria-selected", "true");
+  });
+});
+
+/**
+ * Kayıt arayüz testi 2026-10 D-03: `immediate` listeyi kutu HER odaklandığında
+ * açıyordu — formun odağı hatalı alana kendisi taşıdığında da. Kayıt
+ * sihirbazında boş ülkeyle "Devam": 60 satırlık liste kendiliğinden açılıp
+ * "Ülke seçin" hatasını ve altındaki alanları örtüyordu.
+ */
+describe("CountryCombobox — liste kullanıcı isteyince açılır (D-03)", () => {
+  const box = () => screen.getByRole("combobox", { name: "Ülke" });
+  /** Headless listeyi odaktan sonraki mikro görevde açar; bir görev beklenir. */
+  const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))));
+  const expectClosed = () => {
+    expect(box()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  };
+
+  it("formun (betiğin) taşıdığı odak listeyi açmaz; odak kutuda kalır", async () => {
+    render(
+      <>
+        <button type="button">Devam</button>
+        <Harness initial="" />
+      </>,
+    );
+    const user = userEvent.setup();
+    // "Devam"a basılır, form odağı ilk hatalı alana — ülke kutusuna — taşır.
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    await settle();
+    act(() => box().focus({ preventScroll: true }));
+    await settle();
+    expect(box()).toHaveFocus();
+    expectClosed();
+  });
+
+  it("klavyeyle 'Devam' (Enter) sonrası taşınan odak da listeyi açmaz", async () => {
+    const user = userEvent.setup();
+    function Form() {
+      return (
+        <>
+          <Harness initial="" />
+          <button type="button" onClick={() => box().focus()}>
+            Devam
+          </button>
+        </>
+      );
+    }
+    render(<Form />);
+    screen.getByRole("button", { name: "Devam" }).focus();
+    await user.keyboard("{Enter}");
+    await settle();
+    expect(box()).toHaveFocus();
+    expectClosed();
+  });
+
+  it("odak kutuya taşındıktan sonra kutuya tıklamak listeyi açar (yeni odak olayı beklenmez)", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="" />);
+    act(() => box().focus());
+    await settle();
+    expectClosed();
+    await user.click(box());
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    expect(box()).toHaveAttribute("aria-expanded", "true");
+    expect(box()).toHaveFocus();
+  });
+
+  it("kutuya tıklamak (odak başka yerdeyken) listeyi açar; açık listede ikinci tıklama kapatmaz", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(box());
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.click(box());
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(box()).toHaveFocus();
+  });
+
+  it("Tab ile gelen odak listeyi açar (klavye gezinmesi kullanıcının odağıdır)", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button type="button">Önceki</button>
+        <Harness />
+      </>,
+    );
+    screen.getByRole("button", { name: "Önceki" }).focus();
+    await user.tab();
+    expect(box()).toHaveFocus();
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+  });
+
+  it("taşınan odaktan sonra yazmak ve ok tuşu listeyi açar", async () => {
+    const user = userEvent.setup();
+    render(<Harness initial="" />);
+    act(() => box().focus());
+    await settle();
+    expectClosed();
+    await user.keyboard("{ArrowDown}");
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(expectClosed);
+    await user.keyboard("alm");
+    expect(await screen.findByRole("option", { name: /Almanya/ })).toBeInTheDocument();
   });
 });

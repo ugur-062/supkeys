@@ -11,6 +11,7 @@ import {
   CategorySearchField,
   type DialogFlash,
   SelectionCounter,
+  SelectionStrip,
   sameIdSet,
 } from "./category-dialog-shell";
 import { LoadError } from "./category-load-error";
@@ -466,22 +467,9 @@ export function CategorySelectorModal({
                   onRetry={() => void refetchNames?.()}
                 />
               ) : null}
-              {/* Yükseklik SINIRLI ve kendi içinde kayar: sınırsızken her seçim
-                  şeridi büyütüyor, 15-20 seçimde liste 24 px'e iniyor, alt satır
-                  (Vazgeç / Onayla) pencerenin dışına itiliyordu. `py-1`: 32 px'lik
-                  kaldırma hedefleri ilk/son satırda kırpılmasın.
-                  `-mr-1 pr-1`: kaldırma düğmesi çipin 4 px dışına taşar (32 px
-                  hedef, çipi büyütmeden); sağ kenara dayanan çipte bu taşma
-                  şeridi 4 px yana kaydırılabilir yapıyor, klasik kaydırma
-                  çubuklu pencerede yatay çubuk çıkarıyordu. Taşma artık şeridin
-                  kendi iç boşluğuna düşer (çipler eski hizasında kalır);
-                  `overflow-x-hidden` şeridin yana kaymasını her durumda kapatır
-                  (`overflow-y-auto` tek başına x eksenini de `auto` yapar). */}
-              <ul
-                ref={chipListRef}
-                aria-label={tr("seciminiz")}
-                className="mt-1 -mr-1 flex max-h-24 flex-wrap gap-2 overflow-x-hidden overflow-y-auto overscroll-contain py-1 pr-1 sm:max-h-32 [@media(max-height:520px)]:max-h-12"
-              >
+              {/* Yüksekliği sınırlı, kendi içinde kayan ve kaydığını söyleyen
+                  şerit — yerleşim kuralları ve "⌄ +N" ipucu `SelectionStrip`te. */}
+              <SelectionStrip listRef={chipListRef} label={tr("seciminiz")}>
                 {draftIds.map((id, index) => {
                   const info = selectedInfoMap?.get(id);
                   const loading =
@@ -497,26 +485,52 @@ export function CategorySelectorModal({
                   // "sektörün tamamı" olduğunu söyler (ad aynı kalır).
                   const wholeSector = selectSector && isSectorCode(id);
                   return (
-                    <li key={id} className="max-w-full">
+                    // `group/chip`: şerit çok uzun EKLİ çipi ölçüp `<li>`ye
+                    // `data-split` yazar (bkz. `SelectionStrip`); sınıflar ona bakar.
+                    <li key={id} className="group/chip max-w-full">
                       <Badge
                         color="zinc"
                         className={`max-w-full gap-1 ${missing ? "italic" : ""}`}
-                        title={plainBreadcrumb(info?.breadcrumb) || undefined}
+                        // Yol yoksa ad: şeritte kırpılan adın tamamı ipucunda okunur.
+                        title={plainBreadcrumb(info?.breadcrumb) || info?.nameTr || undefined}
                       >
-                        {/* Adın TAMAMI: sabit piksel tavanı yok, uzun ad sarılır. */}
-                        <span className="min-w-0 break-words">
-                          {label}
-                          {wholeSector ? (
-                            <>
-                              {" "}
-                              {/* Ayraç ek ile birlikte sarılır (satır sonunda
-                                  tek başına "·" kalmasın). */}
-                              <span className="font-normal whitespace-nowrap text-zinc-500">
+                        {/* ÇİP ŞERİTTE EN ÇOK 3 SATIR (arayüz testi CAT-D3): uzun
+                            bir sektör adı 360 px'te dört satır tutup şeridi tek
+                            başına dolduruyordu. Sabit piksel tavanı yok; sığan
+                            ad tam yazılır. Adın TAMAMI listede, sayfadaki
+                            kartta, çipin ipucunda ve kaldırma düğmesinin
+                            adında durur. */}
+                        {wholeSector ? (
+                          // Ek adın peşinden akar. Üç satırı aşan çipte şerit
+                          // `data-split` yazar: ad iki satıra kırpılır, satır
+                          // içi ek gizlenir (yer tutar → ölçüm değişmez) ve ek
+                          // KENDİ satırında görünür — kırpma eki kesmesin, çip
+                          // bütün sektörü beyan ettiğini hep söylesin.
+                          <span className="min-w-0">
+                            <span
+                              data-chip-run
+                              className="block break-words group-data-[split]/chip:line-clamp-2"
+                            >
+                              <span data-slot="chip-name">{label}</span>{" "}
+                              <span className="font-normal whitespace-nowrap text-zinc-500 group-data-[split]/chip:invisible">
                                 · {tr("sektorunTamami")}
                               </span>
-                            </>
-                          ) : null}
-                        </span>
+                            </span>
+                            <span
+                              data-slot="chip-suffix-row"
+                              className="hidden font-normal whitespace-nowrap text-zinc-500 group-data-[split]/chip:block"
+                            >
+                              · {tr("sektorunTamami")}
+                            </span>
+                          </span>
+                        ) : (
+                          <span
+                            data-slot="chip-name"
+                            className="line-clamp-3 min-w-0 break-words"
+                          >
+                            {label}
+                          </span>
+                        )}
                         <button
                           type="button"
                           data-chip-remove
@@ -535,7 +549,7 @@ export function CategorySelectorModal({
                     </li>
                   );
                 })}
-              </ul>
+              </SelectionStrip>
             </>
           )}
         </div>

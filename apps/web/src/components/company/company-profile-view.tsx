@@ -272,8 +272,15 @@ export function CompanyProfileView({
                 {/* Rozetler h1'in KARDEŞİ (2026-09-22 yayın taraması): h1 metni
                     "Ege Tekstil…DoğrulanmışGold Üye" diye okunuyordu (arama motoru
                     ve ekran okuyucu için kirli başlık). */}
+                {/* `min-w-0 break-words` (arayüz testi D-04): h1 sarılan bir flex
+                    satırının öğesi — en dar hâli en uzun sözcüğüydü. Tek sözcüklü
+                    uzun ad ("«Уралсварпромкабель»", 24 px kalın yazıda 297 px)
+                    telefonda 180 px'lik sütuna sığmayıp kartın dışına taşıyor,
+                    kart da (`overflow-hidden`) adı kesiyordu. Artık sütuna kadar
+                    daralır ve sığmayan sözcük sütun içinde bölünür; boşlukta
+                    sarılabilen ad eskisi gibi boşlukta sarılır. */}
                 <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">{p.name}</h1>
+                <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">{p.name}</h1>
                   {p.verified ? (
                     <span
                       className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"

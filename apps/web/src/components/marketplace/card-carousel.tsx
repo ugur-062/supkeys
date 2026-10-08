@@ -72,8 +72,12 @@ export function CardCarousel({
 
   return (
     <section>
+      {/* `min-w-0 break-words`: başlık sarılan flex satırının öğesi ve firma adı
+          taşıyabilir ("… ile keşfedilecek daha fazla ürün") — satırdan uzun tek
+          sözcük telefonda satırın dışına taşmasın (arayüz testi D-04 ile aynı kök
+          neden; 360 px'te 34 harflik tek sözcük 31 px taşıyordu). */}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 id={headingId} className="text-xl font-semibold tracking-tight text-zinc-950">
+        <h2 id={headingId} className="min-w-0 break-words text-xl font-semibold tracking-tight text-zinc-950">
           {heading}
         </h2>
         <div className="flex items-center gap-3">

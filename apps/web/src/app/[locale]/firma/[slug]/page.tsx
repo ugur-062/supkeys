@@ -68,6 +68,9 @@ function seoInput(slug: string, p: PublicProfile, products?: { name: string; slu
     updatedAt: p.updatedAt ?? null,
     readyLocales: p.readyLocales,
     sourceLocale: p.sourceLocale,
+    // Sayfada basılan çevrilebilir metin (tanıtım + sektör + hizmet) yoksa
+    // `inLanguage` sayfanın dilidir — bkz. `companyContentLang`.
+    services: p.services,
   };
 }
 

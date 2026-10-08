@@ -5,7 +5,7 @@ import { CheckIcon, ChevronDownIcon } from "@heroicons/react/16/solid";
 import { COUNTRIES, foldSearchText, hasFlagAsset } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { countryDisplayName } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -36,6 +36,24 @@ const SEARCH_ALIASES: Record<string, string> = { XN: "KKTC TRNC ТРСК" };
  * "TR"/"DE" harfleri olarak basılıyordu. `<input>` değerine görsel giremez →
  * seçili ülkenin bayrağı kutunun SOLUNA mutlak konumlu çizilir, metin dolgusu
  * yalnız o zaman genişler; seçenek satırlarında ad yanında, dekoratif.
+ *
+ * LİSTE KULLANICI İSTEYİNCE AÇILIR (kayıt arayüz testi 2026-10 D-03).
+ * Headless `immediate` listeyi kutu HER odaklandığında açar — odağı formun
+ * kendisi taşıdığında da. Kayıt sihirbazında ülke ilk alandır: boş ülkeyle
+ * "Devam"a basınca odak (ilk hatalı alan) bu kutuya geliyor, 60 satırlık liste
+ * kendiliğinden açılıp "Ülke seçin" hatasını ve altındaki alanları örtüyor,
+ * sayfanın gerisini kilitliyordu; alttaki alana yapılan tıklama ülke seçiyordu.
+ *
+ * Kural: odak KULLANICIDAN geldiyse liste açılır — kutuya basış (mousedown) ya
+ * da Tab ile gezinme. İkisi de odak olayından hemen önce, aynı görevde olur;
+ * işaret bir sonraki görevde söner (`markUserFocus`). Başka her odak (formun
+ * hataya taşıdığı odak, pencerenin ilk alana verdiği odak, Catalyst `Label`
+ * tıklamasının betikle verdiği odak, sekmeye geri dönüş) kutuyu KAPALI bırakır:
+ * Headless, bizim `onFocus`umuz olayı `preventDefault` ile işaretlediyse kendi
+ * odak işleyicisini çalıştırmaz (belgelenmiş birleştirme kuralı; yan etkisi:
+ * o odakta Headless'ın `data-focus` özniteliği yazılmaz — kutu stilini CSS
+ * `:focus` ile alır). Liste her zaman yazarak, ok tuşlarıyla, sağdaki düğmeyle
+ * ve kutuya tıklayarak açılır — odak zaten kutudayken de (bkz. `openOnClick`).
  */
 export function CountryCombobox({
   value,
@@ -133,6 +151,36 @@ export function CountryCombobox({
   // bayrak için ayrılan dolgudan geniştir, ülke adının üstüne binerdi.
   const showFlag = !!selected && !query && hasFlagAsset(selected.code);
 
+  // Odak kullanıcıdan mı geldi? (bkz. bileşen açıklaması, D-03)
+  const userFocusRef = useRef(false);
+  const markUserFocus = useCallback(() => {
+    userFocusRef.current = true;
+    // Odak, basışın / Tab'ın varsayılan eylemidir: aynı görevde gelir.
+    window.setTimeout(() => {
+      userFocusRef.current = false;
+    }, 0);
+  }, []);
+  useEffect(() => {
+    // Tab tuşu odağın geldiği öğede değil, ÖNCEKİ öğede basılır → belge düzeyinde.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab" && !e.altKey && !e.ctrlKey && !e.metaKey) markUserFocus();
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [markUserFocus]);
+  /**
+   * Odak zaten kutudayken tıklama yeni bir odak olayı üretmez (hata sonrası
+   * taşınan odak, seçimden sonra kapanan liste): liste kapalıysa odak
+   * tazelenir, `immediate` listeyi açar. Liste açıksa tıklama imleci taşır.
+   */
+  const openOnClick = (input: HTMLInputElement) => {
+    if (input.getAttribute("aria-expanded") === "true") return;
+    userFocusRef.current = true;
+    input.blur();
+    input.focus({ preventScroll: true });
+    userFocusRef.current = false;
+  };
+
   return (
     <Combobox
       value={selected}
@@ -160,6 +208,12 @@ export function CountryCombobox({
             setQuery(e.target.value);
             setLimit(OPTION_PAGE);
           }}
+          onMouseDown={markUserFocus}
+          onFocus={(e) => {
+            // Kullanıcıdan gelmeyen odak listeyi açmaz (Headless'ın işleyicisi atlanır).
+            if (!userFocusRef.current) e.preventDefault();
+          }}
+          onClick={(e) => openOnClick(e.currentTarget)}
           placeholder={placeholder ?? t("placeholder")}
           autoComplete="off"
           className={cn(
