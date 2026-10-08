@@ -7,7 +7,6 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
-import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import {
   useAcceptInvitation,
@@ -21,7 +20,6 @@ import {
 } from "@/lib/company-auth/password-rules";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
-import { isValidPhoneNumber } from "@rothern/shared";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
@@ -36,8 +34,12 @@ import { useSubmitLock } from "@/hooks/use-submit-lock";
  * Form kayıt formuyla AYNI kalıptadır (arayüz testi 2026-10 code-auth-9/12,
  * signup-enru-9): gönder düğmesi sessizce pasif kalmaz — basılınca geçersiz
  * her alan iletisini altında gösterir, `aria-invalid` olur ve odak ilk
- * geçersiz alana gider; iki şifre alanı da aynı tavanda durur; telefon kutusu
- * `<Field>`in doğrudan çocuğudur (etiket boşluğu ve etiket/hata bağı).
+ * geçersiz alana gider; iki şifre alanı da aynı tavanda durur.
+ *
+ * TELEFON SORULMAZ (sahip kararı 2026-10-08, kayıt formuyla aynı gerekçe):
+ * numara doğrulanmıyordu ve başka firmalara gösterilmiyordu. İsteyen üye
+ * Ayarlar › Hesap Bilgileri'nden ekler; API alanı isteğe bağlı kabul etmeyi
+ * sürdürür (eski web paketi).
  */
 export function AcceptInviteClient({ token }: { token: string }) {
   const t = useTranslations("web.auth.invite");
@@ -58,7 +60,6 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
-    phone: "",
     password: "",
     passwordConfirm: "",
   });
@@ -70,8 +71,6 @@ export function AcceptInviteClient({ token }: { token: string }) {
     profile: false,
   });
   const [error, setError] = useState<string | null>(null);
-  // Telefon hatası alandan ÇIKINCA gösterilir (yazarken her hanede uyarı çıkmasın).
-  const [phoneTouched, setPhoneTouched] = useState(false);
   // Gönder düğmesine basıldı: geçersiz her alan iletisini gösterir.
   const [submitted, setSubmitted] = useState(false);
 
@@ -83,36 +82,22 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const pwUnmet = firstUnmetPasswordRule(form.password);
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
-  // Telefon isteğe bağlı; yazıldıysa kayıt formuyla AYNI kural (ülkeye göre
-  // ulusal uzunluk, tek kaynak `isValidPhoneNumber`; API DTO'su da aynı) —
-  // eksik numara sessizce kaydediliyordu (arayüz testi O-121).
-  // Ülkesiz yazılan numara (İngilizce arayüz) değeri BOŞ bırakır; boş
-  // sayılıp sessizce düşmesin, "önce ülke kodunu seçin" desin (arayüz testi
-  // son tur webA-1).
-  const [phoneNeedsCountry, setPhoneNeedsCountry] = useState(false);
-  const phoneValid = !phoneNeedsCountry && (!form.phone.trim() || isValidPhoneNumber(form.phone));
   const firstNameOk = form.firstName.trim().length >= 1;
   const lastNameOk = form.lastName.trim().length >= 1;
   const allConsents = consents.terms && consents.mediation && consents.kvkk;
   const formValid =
-    firstNameOk && lastNameOk && phoneValid && pwUnmet === null && confirmOk && allConsents;
+    firstNameOk && lastNameOk && pwUnmet === null && confirmOk && allConsents;
 
   /**
-   * Alan hataları. Düğmeye basılana dek yalnız eskiden de canlı olan ikisi
-   * görünür (telefon: alandan çıkınca; şifre tekrarı: yazarken); basıldıktan
-   * sonra geçersiz HER alan iletisini taşır ve düzeltildikçe kendiliğinden
-   * kalkar. İleti alanın `<Field>`i içinde `ErrorMessage`dır → Headless onu
-   * girdinin `aria-describedby`ına bağlar; `invalid` → `aria-invalid`.
+   * Alan hataları. Düğmeye basılana dek yalnız şifre tekrarı uyarısı görünür
+   * (yazarken); basıldıktan sonra geçersiz HER alan iletisini taşır ve
+   * düzeltildikçe kendiliğinden kalkar. İleti alanın `<Field>`i içinde
+   * `ErrorMessage`dır → Headless onu girdinin `aria-describedby`ına bağlar;
+   * `invalid` → `aria-invalid`.
    */
   const fieldError = {
     firstName: submitted && !firstNameOk ? ts("firstNameRequired") : null,
     lastName: submitted && !lastNameOk ? ts("lastNameRequired") : null,
-    phone:
-      (submitted || phoneTouched) && !phoneValid
-        ? phoneNeedsCountry
-          ? tc("phoneCountryRequired")
-          : t("phoneInvalid")
-        : null,
     password: submitted && pwUnmet ? tp(PASSWORD_ERROR_KEY[pwUnmet]) : null,
     passwordConfirm:
       form.passwordConfirm && !confirmOk
@@ -143,7 +128,6 @@ export function AcceptInviteClient({ token }: { token: string }) {
       const res = await accept.mutateAsync({
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
-        phone: form.phone.trim() || undefined,
         password: form.password,
         termsAccepted: consents.terms,
         mediationAccepted: consents.mediation,
@@ -255,24 +239,6 @@ export function AcceptInviteClient({ token }: { token: string }) {
             {fieldError.lastName ? <ErrorMessage>{fieldError.lastName}</ErrorMessage> : null}
           </Field>
         </div>
-
-        <Field>
-          <Label>{t("phoneOptional")}</Label>
-          {/* Kök `<Field>`in DOĞRUDAN çocuğu: Catalyst etiketle denetim
-              arasındaki boşluğu yalnız etiketin hemen ardındaki
-              `data-slot="control"` öğesine koyar (CLAUDE.md, webC-09). Eski
-              sarmalayıcı div o kuralı düşürüyor, "Telefon" etiketi kutusuna
-              diğer alanlardan 12 px daha yakın duruyordu. "Alandan çıkış"
-              `onBlur` prop'uyla (ülke seçiciden numaraya geçiş sayılmaz). */}
-          <PhoneInput
-            value={form.phone}
-            onChange={set("phone")}
-            onCountryMissingChange={setPhoneNeedsCountry}
-            onBlur={() => setPhoneTouched(true)}
-            invalid={!!fieldError.phone}
-          />
-          {fieldError.phone ? <ErrorMessage>{fieldError.phone}</ErrorMessage> : null}
-        </Field>
 
         <Field>
           <Label>{tc("password")}</Label>

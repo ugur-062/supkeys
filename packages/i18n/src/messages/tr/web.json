@@ -1923,8 +1923,6 @@
       "password": "Şifre",
       "firstName": "Ad",
       "lastName": "Soyad",
-      "phone": "Telefon",
-      "phoneCountryRequired": "Önce ülke kodunu seçin ya da numarayı +kod ile yazın (ör. +1 202 555 0143)",
       "code": "Doğrulama kodu",
       "codePlaceholder": "000000",
       "verifying": "Doğrulanıyor…",
@@ -1994,8 +1992,6 @@
       "codeSent": "Doğrulama kodu e-postanıza gönderildi",
       "failed": "Kayıt başarısız",
       "alreadyVerified": "E-postanız zaten doğrulanmış. Lütfen giriş yapın.",
-      "phoneInvalid": "Seçili ülke için geçerli bir telefon numarası girin",
-      "phoneRequired": "Telefon numaranızı girin",
       "changeEmailTitle": "E-posta adresinizi düzeltin",
       "changeEmailSubtitle": "Doğrulama kodunu yeni adrese göndereceğiz. Hesabınız ve bilgileriniz korunur.",
       "newEmail": "Yeni e-posta adresi",
@@ -2050,7 +2046,6 @@
       "backToLogin": "Giriş sayfasına dön",
       "subtitle": "{company} sizi ekibine davet ediyor.",
       "loginLink": "Giriş yapın",
-      "phoneOptional": "Telefon (opsiyonel)",
       "joining": "Katılıyor…",
       "submit": "Daveti Kabul Et ve Katıl",
       "failed": "Davet kabul edilemedi",
@@ -2061,7 +2056,6 @@
         "ONAYLAYICI": "Onaylayıcı",
         "VIEWER": "Görüntüleyici"
       },
-      "phoneInvalid": "Seçili ülke için geçerli bir telefon numarası girin ya da alanı boş bırakın",
       "otherSession": "Bu tarayıcıda <b>{current}</b> olarak oturum açık. Daveti kabul ederseniz o oturum kapanır ve <b>{invited}</b> hesabıyla devam edersiniz."
     },
     "onboarding": {

@@ -10,9 +10,11 @@
  *    tarayıcı bunu kendiliğinden yapar) boş forma döndürüyor, aynı bilgilerle
  *    yeniden kayıt 409 veriyor, tek yol giriş sayfası kalıyordu.
  *
- * Saklananlar: ad, soyad, e-posta, telefon, onay kutuları ve kod adımı açıksa
- * kodun gittiği adres. ŞİFRELER ASLA YAZILMAZ — tip de taşımaz; geri yüklenen
- * kod adımında "e-posta adresini değiştir" formu şifreyi yeniden sorar.
+ * Saklananlar: ad, soyad, e-posta, onay kutuları ve kod adımı açıksa kodun
+ * gittiği adres. ŞİFRELER ASLA YAZILMAZ — tip de taşımaz; geri yüklenen kod
+ * adımında "e-posta adresini değiştir" formu şifreyi yeniden sorar. Telefon
+ * 2026-10-08'de formdan kalktı: eski sürümün yazdığı taslaktaki `phone` alanı
+ * okunmaz ve geri yazılmaz.
  *
  * Oturum deposunda (sekmeye özel, sekme kapanınca silinir). Öneki
  * `tenant-storage.ts` `TENANT_SESSION_PREFIXES`te: çıkışta ve aynı sekmede
@@ -34,7 +36,6 @@ export interface SignupDraft {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
   consents: SignupDraftConsents;
   /** Kod adımı açıksa kodun gönderildiği adres; form adımında `null`. */
   verifyEmail: string | null;
@@ -55,7 +56,6 @@ function isEmpty(d: SignupDraft): boolean {
     !d.firstName &&
     !d.lastName &&
     !d.email &&
-    !d.phone &&
     CONSENT_KEYS.every((k) => !d.consents[k])
   );
 }
@@ -72,7 +72,6 @@ export function saveSignupDraft(draft: SignupDraft): void {
       firstName: draft.firstName,
       lastName: draft.lastName,
       email: draft.email,
-      phone: draft.phone,
       consents: {
         terms: draft.consents.terms,
         mediation: draft.consents.mediation,
@@ -104,7 +103,6 @@ export function readSignupDraft(): SignupDraft | null {
       firstName: str(p.firstName, 80),
       lastName: str(p.lastName, 80),
       email: str(p.email, 254),
-      phone: str(p.phone, 40),
       consents: {
         terms: c.terms === true,
         mediation: c.mediation === true,

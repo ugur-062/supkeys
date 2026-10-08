@@ -84,11 +84,14 @@ export interface CompanyMeResponse {
   selfUpgradeEnabled: boolean;
 }
 
+/**
+ * Kayıt gövdesi. Telefon YOK (sahip kararı 2026-10-08): form sormaz, API
+ * alanı isteğe bağlı kabul eder (eski web paketi göndermeye devam edebilir).
+ */
 export interface CompanySignupInput {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
   password: string;
   termsAccepted: boolean;
   mediationAccepted: boolean;

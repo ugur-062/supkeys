@@ -242,10 +242,10 @@ export function useInvitationPreview(token: string) {
   });
 }
 
+/** Davet kabul gövdesi — telefon sorulmaz (2026-10-08); API alanı isteğe bağlı kabul eder. */
 export interface AcceptInvitationInput {
   firstName: string;
   lastName: string;
-  phone?: string;
   password: string;
   termsAccepted: boolean;
   mediationAccepted: boolean;

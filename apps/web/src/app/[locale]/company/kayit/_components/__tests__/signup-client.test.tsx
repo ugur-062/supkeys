@@ -42,10 +42,10 @@ import { CompanySignupClient } from "../signup-client";
 
 /**
  * Kurulum alanını TEK `paste` olayıyla doldurur (son toparlama 2026-10-04).
- * Karakter karakter `user.type` her tuşta tüm formu (telefon/ülke seçicisi
- * dahil) yeniden çizdiriyordu; tam suite paralel koşarken bu kurulum adımları
- * testleri 15 sn zaman aşımına itiyordu. Tuş-tuş davranışı sınanan alanlar
- * (telefon, IBAN, kod…) testin kendisinde `user.type` ile kalır.
+ * Karakter karakter `user.type` her tuşta tüm formu yeniden çizdiriyordu; tam
+ * suite paralel koşarken bu kurulum adımları testleri 15 sn zaman aşımına
+ * itiyordu. Tuş-tuş davranışı sınanan alanlar (kod…) testin kendisinde
+ * `user.type` ile kalır.
  */
 async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
   await user.click(el);
@@ -56,7 +56,6 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await fill(user, screen.getByLabelText("Ad"), "Ada");
   await fill(user, screen.getByLabelText("Soyad", { exact: true }), "Yılmaz");
   await fill(user, screen.getByLabelText("Kurumsal e-posta"), "ada@firma.com");
-  await fill(user, screen.getByLabelText("Telefon"), "5551112233");
   await fill(user, screen.getByLabelText("Şifre", { exact: true }), "Guclu!Parola9");
   await fill(user, screen.getByLabelText("Şifre (tekrar)"), "Guclu!Parola9");
   // Erişilebilir ad görünen metnin kendisi (arayüz testi O-120, Field/Label).
@@ -111,7 +110,6 @@ describe("CompanySignupClient — form aşaması", () => {
       ["Ad", "Adınızı girin"],
       ["Soyad", "Soyadınızı girin"],
       ["Kurumsal e-posta", "Geçerli bir e-posta adresi girin"],
-      ["Telefon", "Telefon numaranızı girin"],
       ["Şifre", "En az 10 karakter"],
       ["Şifre (tekrar)", "Şifrenizi tekrar girin"],
     ];
@@ -196,35 +194,47 @@ describe("CompanySignupClient — form aşaması", () => {
     );
   });
 
-  it("telefon ülke uzunluğuna göre: TR'de 11 hane geçersiz, Andorra'da 6 hane geçerli", async () => {
+  // Sahip kararı 2026-10-08: kayıt telefonu SORMAZ (numara doğrulanmıyordu,
+  // başka firmaya gösterilmiyordu; ülke onboarding'in ilk alanı).
+  it("telefon alanı YOK: ne etiket, ne ülke kodu seçici, ne tel kutusu", () => {
+    render(<CompanySignupClient />);
+    expect(screen.queryByLabelText("Telefon")).toBeNull();
+    expect(screen.queryByText(/telefon/i)).toBeNull();
+    expect(screen.queryByLabelText("Ülke kodu")).toBeNull();
+    expect(document.querySelector('input[type="tel"]')).toBeNull();
+    // Formun alanları sırasıyla: ad, soyad, e-posta, şifre, şifre tekrarı.
+    const form = screen.getByRole("button", { name: "Hesap Oluştur" }).closest("form")!;
+    const labels = Array.from(form.querySelectorAll("label[data-slot='label']"))
+      .slice(0, 5)
+      .map((l) => l.textContent);
+    expect(labels).toEqual(["Ad", "Soyad", "Kurumsal e-posta", "Şifre", "Şifre (tekrar)"]);
+  });
+
+  it("telefonsuz form geçerlidir: kayıt isteği gider ve gövdede `phone` YOKTUR", async () => {
     const user = userEvent.setup();
     h.signupAsync.mockResolvedValue({ email: "ada@firma.com" });
     render(<CompanySignupClient />);
     await fillValidForm(user);
-    const phone = screen.getByLabelText("Telefon");
-    const submit = screen.getByRole("button", { name: "Hesap Oluştur" });
-    // Rus kullanıcı bayrağı değiştirmeden "8 916…" yazdı → "+90 89161234567" GEÇMEZ.
-    await user.clear(phone);
-    await user.type(phone, "89161234567");
-    await user.tab();
-    expect(
-      screen.getByText("Seçili ülke için geçerli bir telefon numarası girin"),
-    ).toBeInTheDocument();
-    // Arayüz testi 2026-10 code-auth-11: hata yalnız kırmızı çerçeve değil —
-    // numara kutusu `aria-invalid` olur ve ileti ona bağlanır.
-    expect(phone).toHaveAttribute("aria-invalid", "true");
-    expect(phone).toHaveAccessibleDescription("Seçili ülke için geçerli bir telefon numarası girin");
-    await user.click(submit);
-    expect(h.signupAsync).not.toHaveBeenCalled();
-    // Kısa ama geçerli numara (eskiden "en az 10 hane" kuralı reddediyordu).
-    await user.selectOptions(screen.getByLabelText("Ülke kodu"), "AD");
-    await user.clear(phone);
-    await user.type(phone, "312345");
-    expect(phone).not.toHaveAttribute("aria-invalid");
-    await user.click(submit);
-    expect(h.signupAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ phone: "+376 312345" }),
+    await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
+    expect(h.signupAsync).toHaveBeenCalledTimes(1);
+    const body = h.signupAsync.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty("phone");
+    expect(Object.keys(body).sort()).toEqual(
+      [
+        "email",
+        "firstName",
+        "kvkkAccepted",
+        "lastName",
+        "marketingConsent",
+        "mediationAccepted",
+        "password",
+        "profileImprovementConsent",
+        "referralToken",
+        "termsAccepted",
+      ].sort(),
     );
+    // Telefonla ilgili hiçbir hata metni çıkmadı.
+    expect(screen.queryByText(/telefon/i)).toBeNull();
   });
 
   it("tüm alanlar geçerli + onaylar → buton aktif; submit trimli veri gönderir", async () => {
@@ -477,11 +487,12 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
     const first = render(<CompanySignupClient />);
     await fillValidForm(user);
     await user.click(screen.getByRole("checkbox", { name: "Pazarlama ve analitik / ticari ileti (opsiyonel)" }));
-    // Depoda şifre YOK.
+    // Depoda şifre YOK; telefon alanı da yok (form sormuyor).
     const raw = sessionStorage.getItem(DRAFT_KEY) ?? "";
     expect(raw).toContain("ada@firma.com");
     expect(raw).not.toContain("Guclu!Parola9");
     expect(raw).not.toMatch(/password/i);
+    expect(raw).not.toMatch(/phone/i);
 
     // Dil seçici / yenileme = sayfa ağacı yeniden bağlanır.
     first.unmount();
@@ -489,7 +500,6 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
     expect(screen.getByLabelText("Ad")).toHaveValue("Ada");
     expect(screen.getByLabelText("Soyad", { exact: true })).toHaveValue("Yılmaz");
     expect(screen.getByLabelText("Kurumsal e-posta")).toHaveValue("ada@firma.com");
-    expect(screen.getByLabelText("Telefon")).toHaveValue("5551112233");
     expect(screen.getByLabelText("Şifre", { exact: true })).toHaveValue("");
     expect(screen.getByLabelText("Şifre (tekrar)")).toHaveValue("");
     for (const name of [
@@ -534,6 +544,7 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
         firstName: "Ada",
         lastName: "Yılmaz",
         email: "ada@firma.com",
+        // Eski sürümün yazdığı taslak telefon taşır: okunmaz, akış bozulmaz.
         phone: "+90 5551112233",
         consents: { terms: true, mediation: true, kvkk: true, marketing: false, profile: false },
         verifyEmail: "ada@firma.com",
@@ -565,10 +576,13 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
       newEmail: "ada@firma.com.tr",
     });
     expect(await screen.findByText(/ada@firma\.com\.tr adresine gönderilen/)).toBeInTheDocument();
-    // Yeni adres taslağa yazılır; şifre yine yazılmaz.
+    // Yeni adres taslağa yazılır; şifre yine yazılmaz. Eski taslaktaki telefon
+    // geri yazılmaz.
     const raw = sessionStorage.getItem(DRAFT_KEY) ?? "";
     expect(raw).toContain('"verifyEmail":"ada@firma.com.tr"');
     expect(raw).not.toContain("Guclu!Parola9");
+    expect(raw).not.toContain("5551112233");
+    expect(raw).not.toMatch(/phone/i);
   });
 
   it("e-posta düzeltme: aynı adres ve bozuk adres alan hatası alır (düğme sessizce pasif değil)", async () => {
@@ -599,7 +613,6 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
         firstName: "Ada",
         lastName: "",
         email: "ada@firma.com",
-        phone: "",
         consents: { terms: false, mediation: false, kvkk: false, marketing: false, profile: false },
         verifyEmail: null,
         emailSeed,
@@ -724,17 +737,10 @@ describe("CompanySignupClient — giriş bağlantıları dönüş hedefini taş�
 describe("CompanySignupClient — alan yerleşimi ve erişilebilirlik (code-auth-11, signup-enru-9)", () => {
   it("her etiketin hemen ardındaki öğe data-slot=control taşır (etiket boşluğu tüm alanlarda aynı)", () => {
     render(<CompanySignupClient />);
-    for (const label of ["Ad", "Soyad", "Kurumsal e-posta", "Telefon", "Şifre", "Şifre (tekrar)"]) {
+    for (const label of ["Ad", "Soyad", "Kurumsal e-posta", "Şifre", "Şifre (tekrar)"]) {
       const el = screen.getByText(label, { exact: true, selector: "label" }).nextElementSibling;
       expect(el, label).toHaveAttribute("data-slot", "control");
     }
-  });
-
-  it("görünen 'Telefon' etiketine tıklamak numara kutusunu odaklar", async () => {
-    const user = userEvent.setup();
-    render(<CompanySignupClient />);
-    await user.click(screen.getByText("Telefon", { selector: "label" }));
-    expect(screen.getByLabelText("Telefon")).toHaveFocus();
   });
 });
 
@@ -761,7 +767,6 @@ describe("CompanySignupClient — kayıt denetimi 2026-10 üçüncü tur", () =>
         firstName: "Ada",
         lastName: "Yılmaz",
         email: "ada@firma.com",
-        phone: "+90 5551112233",
         consents: { terms: true, mediation: true, kvkk: true, marketing: false, profile: false },
         verifyEmail: "ada@firma.com",
         emailSeed: "",

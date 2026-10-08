@@ -40,7 +40,10 @@ export function gecerliTckn(): string {
   throw new Error("geçerli TCKN üretilemedi");
 }
 
-/** Kayıt formu → doğrulama kodu. Kod veritabanından çözülür (posta kutusuna bağımlı test kırılgan olur). */
+/**
+ * Kayıt formu → doğrulama kodu. Kod veritabanından çözülür (posta kutusuna bağımlı test kırılgan olur).
+ * Form telefonu SORMAZ (sahip kararı 2026-10-08): alanlar ad, soyad, e-posta, şifre, şifre tekrarı.
+ */
 export async function kayitFormu(
   page: Page,
   opts: { email: string; sifre: string; ad: string; soyad: string },
@@ -49,7 +52,6 @@ export async function kayitFormu(
   await page.getByLabel("Ad", { exact: true }).fill(opts.ad);
   await page.getByLabel("Soyad").fill(opts.soyad);
   await page.getByLabel("Kurumsal e-posta").fill(opts.email);
-  await page.getByLabel("Telefon").fill("0555 111 22 33");
   await page.getByLabel("Şifre", { exact: true }).fill(opts.sifre);
   await page.getByLabel("Şifre (tekrar)").fill(opts.sifre);
   // Headless UI kutusu native <input> değil (role=checkbox span) → check()
@@ -145,9 +147,10 @@ export async function onboarding(page: Page, firmaUnvani: string): Promise<void>
   // aynı sözcükleri taşır → düz metin 4 öğe bulur, başlık rolüyle aranır.
   await expect(page.getByRole("heading", { name: "Şirket bilgileri" })).toBeVisible({ timeout: 60_000 });
   await expect(aktifAdim(page)).toContainText("Şirket bilgileri");
-  // Ülke ilk alandır ve kayıt telefonunun ülkesiyle (Türkiye) açılır; hukuki
-  // yapı listesi, vergi alanları ve adres ona göre çizilir. Türkiye'de hukuki
-  // yapı genel listeden seçilir (Limited / Anonim / Şahıs / Diğer).
+  // Ülke ilk alandır ve arayüz diliyle açılır (Türkçe → Türkiye; kayıt telefonu
+  // sormaz, 2026-10-08); hukuki yapı listesi, vergi alanları ve adres ona göre
+  // çizilir. Türkiye'de hukuki yapı genel listeden seçilir (Limited / Anonim /
+  // Şahıs / Diğer).
   await page.getByLabel(/Firma Unvanı/).fill(firmaUnvani);
   await page.getByLabel(/^Hukuki Yapı/).selectOption("LIMITED");
   await page.getByLabel(/Vergi No|Vergi \/ Sicil No/).first().fill(gecerliVergiNo());

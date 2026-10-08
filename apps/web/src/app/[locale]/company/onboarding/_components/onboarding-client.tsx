@@ -222,9 +222,15 @@ function focusFieldIn(root: HTMLElement | null, field: FieldKey): boolean {
 /**
  * Ülke alanının BAŞLANGIÇ değeri (2026-09-27): eskiden her kayıt "TR" ile
  * açılıyordu — Rus kullanıcı fark etmeden Türk firması olarak kaydoluyor, VKN
- * kuralına takılıyordu. Sıra: kayıtta girilen telefonun ülkesi (kayda açıksa) →
- * arayüz dili (tr → TR, ru → RU) → boş (İngilizce arayüz birçok ülkeden
- * kullanılır; ülke bilinçli seçilmeden form ilerlemez).
+ * kuralına takılıyordu. Kural ARAYÜZ DİLİ: tr → TR, ru → RU, öteki diller boş
+ * (İngilizce arayüz birçok ülkeden kullanılır; ülke bilinçli seçilmeden form
+ * ilerlemez).
+ *
+ * KAYIT FORMU TELEFONU SORMAZ (sahip kararı 2026-10-08) → yeni hesapta `phone`
+ * null'dır ve doğrudan dil kuralı işler. Telefonu KAYITLI hesapta (karar
+ * öncesi açılmış ve onboarding'i bitmemiş kayıt, telefonu hâlâ gönderen eski
+ * web paketi) numaranın ülkesi — kayda açıksa — eskisi gibi önce gelir; kimse
+ * telefonu VAR saymaz.
  */
 export function initialOnboardingCountry(phone: string | null | undefined, locale: string): string {
   if (phone?.trim().startsWith("+")) {
@@ -351,9 +357,33 @@ export function categoryDeclarationGroups(
  *  · Kalanlar: unvan, web sitesi, açık adres satırları, teslimat tercihi,
  *    yetkili kimlik no, kategori ve faaliyet seçimleri, beyan.
  * Aynı ülkeyi yeniden seçmek hiçbir şeyi silmez.
+ *
+ * İLK SEÇİM (ülke boşken) bir ülke DEĞİŞİMİ değildir: kayıtta telefon
+ * sorulmadığı için İngilizce arayüzde form ülkesiz açılır ve alttaki alanlar
+ * yazılabilir durumdadır — kullanıcı önce vergi no / şehri yazıp sonra ülkeyi
+ * seçerse yazdıkları SİLİNMEZ (inceleme R2, 2026-10-08). Yalnız hukuki yapı
+ * yeni ülkenin başlangıcına döner ve şehir kaydı kimliği bırakılır (ülkesiz
+ * aranan şehir başka ülkeden olabilir; metin kalır, sunucu yeniden eşler).
+ * Türkiye seçilirse şehir il listesine eşlenir, eyalet / bölge boşalır.
  */
 export function applyCountryChange(f: OnboardingForm, code: string): OnboardingForm {
   if (code === f.country) return f;
+  if (f.country === "") {
+    const toTr = code === "TR";
+    return {
+      ...f,
+      country: code,
+      ...defaultLegalForm(code),
+      city: toTr ? matchTurkeyProvince(f.city) : f.city,
+      cityId: null,
+      district: "",
+      stateRegion: toTr ? "" : f.stateRegion,
+      deliveryCity: toTr ? matchTurkeyProvince(f.deliveryCity) : f.deliveryCity,
+      deliveryCityId: null,
+      deliveryDistrict: "",
+      deliveryStateRegion: toTr ? "" : f.deliveryStateRegion,
+    };
+  }
   return {
     ...f,
     country: code,

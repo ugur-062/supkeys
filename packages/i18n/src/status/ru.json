@@ -8804,16 +8804,6 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.auth.common.phone": {
-    "hash": "40314f8828",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.auth.common.phoneCountryRequired": {
-    "hash": "0ad77aae39",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
   "web.auth.common.resend": {
     "hash": "15d0ab719b",
     "status": "reviewed",
@@ -8961,16 +8951,6 @@
   },
   "web.auth.invite.otherSession": {
     "hash": "0516362a3e",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.auth.invite.phoneInvalid": {
-    "hash": "ce4d913384",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.auth.invite.phoneOptional": {
-    "hash": "487c82cda1",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -10011,16 +9991,6 @@
   },
   "web.auth.signup.passwordRequired": {
     "hash": "ff699235e5",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.auth.signup.phoneInvalid": {
-    "hash": "67fc61ae38",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.auth.signup.phoneRequired": {
-    "hash": "a5103228de",
     "status": "reviewed",
     "at": "2026-10-08"
   },

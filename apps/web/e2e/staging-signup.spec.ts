@@ -37,7 +37,8 @@ test("yeni firma: kayıt formu → e-posta kodu → onboarding → panel", async
   await expect(page.getByRole("heading", { name: "Şirket bilgileri" })).toBeVisible({ timeout: 60_000 });
   await expect(aktifAdim(page)).toContainText("Şirket bilgileri");
   const ulke = page.getByRole("combobox", { name: /^Ülke/ });
-  await expect(ulke, "kayıt telefonunun ülkesiyle açılır").toHaveValue("Türkiye");
+  // Kayıt telefonu sormaz (2026-10-08): ülke arayüz dilinden gelir (Türkçe → Türkiye).
+  await expect(ulke, "arayüz diliyle (Türkçe → Türkiye) açılır").toHaveValue("Türkiye");
   await expect(page.getByText("Aşağıdaki alanlar seçtiğiniz ülkeye göre düzenlenir.")).toBeVisible();
   // Ülke kutusu firma unvanından ÖNCE gelir.
   const [ulkeY, unvanY] = await Promise.all([
@@ -62,6 +63,7 @@ test("yeni firma: kayıt formu → e-posta kodu → onboarding → panel", async
   // ── Veritabanı durumu: ücretsiz ve doğrulanmamış doğmalı ────────────
   const user = await db().companyUser.findUnique({ where: { email: EMAIL } });
   expect(user, "kayıt kullanıcısı").toBeTruthy();
+  expect(user!.phone, "kayıt telefonu sormaz → telefon boş").toBeNull();
   expect(user!.emailVerifiedAt, "e-posta doğrulandı").toBeTruthy();
   const company = await db().company.findUnique({ where: { id: user!.companyId } });
   expect(company, "firma oluştu").toBeTruthy();

@@ -32,10 +32,9 @@ import { AcceptInviteClient } from "../accept-invite-client";
 
 /**
  * Kurulum alanını TEK `paste` olayıyla doldurur (son toparlama 2026-10-04).
- * Karakter karakter `user.type` her tuşta tüm formu (telefon/ülke seçicisi
- * dahil) yeniden çizdiriyordu; tam suite paralel koşarken bu kurulum adımları
- * testleri 15 sn zaman aşımına itiyordu. Tuş-tuş davranışı sınanan alanlar
- * (telefon, IBAN, kod…) testin kendisinde `user.type` ile kalır.
+ * Karakter karakter `user.type` her tuşta tüm formu yeniden çizdiriyordu; tam
+ * suite paralel koşarken bu kurulum adımları testleri 15 sn zaman aşımına
+ * itiyordu.
  */
 async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
   await user.click(el);
@@ -62,41 +61,44 @@ const password = () => screen.getByLabelText("Şifre", { exact: true });
 const passwordRepeat = () => screen.getByLabelText(/Şifre \(/);
 
 describe("AcceptInviteClient", () => {
-  // Arayüz testi O-121: eksik numara kaydediliyordu (istemci kontrolü yoktu).
-  // 2026-10: düğme artık pasifleşmez — basılınca numara alanı işaretlenir,
-  // odak ona gider ve istek atılmaz.
-  it("eksik telefon: satır içi uyarı, gönderim durur ve odak numaraya gider; boş telefon serbest", async () => {
-    const user = userEvent.setup();
-    h.acceptAsync.mockResolvedValue({ user: { id: "u1" }, company: { id: "c1" } });
+  // Sahip kararı 2026-10-08: davet kabul formu telefonu SORMAZ (kayıt formuyla
+  // aynı gerekçe: numara doğrulanmıyordu, başka firmaya gösterilmiyordu).
+  it("telefon alanı YOK: ne etiket, ne ülke kodu seçici, ne tel kutusu", () => {
     render(<AcceptInviteClient token="tok" />);
-    await fillRequired(user);
-    expect(submitButton()).toBeEnabled();
-    const phone = screen.getByPlaceholderText("5XX XXX XX XX");
-    await user.type(phone, "532123");
-    await user.tab();
-    expect(screen.getByText(/geçerli bir telefon numarası girin/)).toBeInTheDocument();
-    // Sessizce pasif DEĞİL: tıklanabilir, ama eksik numarayla kabul isteği gitmez.
-    expect(submitButton()).toBeEnabled();
-    await user.click(submitButton());
-    expect(h.acceptAsync).not.toHaveBeenCalled();
-    expect(phone).toHaveAttribute("aria-invalid", "true");
-    await waitFor(() => expect(phone).toHaveFocus());
-    await user.clear(phone);
-    await user.type(phone, "5321234567");
-    expect(screen.queryByText(/geçerli bir telefon numarası girin/)).toBeNull();
-    await user.click(submitButton());
-    await waitFor(() => expect(h.acceptAsync).toHaveBeenCalledTimes(1));
-    expect(h.acceptAsync.mock.calls[0]![0]).toMatchObject({ phone: "+90 5321234567", firstName: "Ada" });
+    expect(screen.queryByText(/telefon/i)).toBeNull();
+    expect(screen.queryByLabelText("Ülke kodu")).toBeNull();
+    expect(screen.queryByPlaceholderText("5XX XXX XX XX")).toBeNull();
+    expect(document.querySelector('input[type="tel"]')).toBeNull();
+    // Formun alanları sırasıyla: ad, soyad, şifre, şifre tekrarı.
+    const labels = Array.from(submitButton().closest("form")!.querySelectorAll("label[data-slot='label']"))
+      .slice(0, 4)
+      .map((l) => l.textContent);
+    expect(labels).toEqual(["Ad", "Soyad", "Şifre", "Şifre (tekrar)"]);
   });
 
-  it("boş telefonla (isteğe bağlı) kabul gider; telefon gövdede yok", async () => {
+  it("kabul gider; gövdede `phone` YOKTUR ve panele yönlenir", async () => {
     const user = userEvent.setup();
     h.acceptAsync.mockResolvedValue({ user: { id: "u1" }, company: { id: "c1" } });
     render(<AcceptInviteClient token="tok" />);
     await fillRequired(user);
+    expect(submitButton()).toBeEnabled();
     await user.click(submitButton());
     await waitFor(() => expect(h.acceptAsync).toHaveBeenCalledTimes(1));
-    expect(h.acceptAsync.mock.calls[0]![0].phone).toBeUndefined();
+    const body = h.acceptAsync.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty("phone");
+    expect(body).toMatchObject({ firstName: "Ada", lastName: "Yılmaz", password: "Guclu!Parola9" });
+    expect(Object.keys(body).sort()).toEqual(
+      [
+        "firstName",
+        "kvkkAccepted",
+        "lastName",
+        "marketingConsent",
+        "mediationAccepted",
+        "password",
+        "profileImprovementConsent",
+        "termsAccepted",
+      ].sort(),
+    );
     await waitFor(() => expect(h.replace).toHaveBeenCalledWith("/company"));
   });
 
@@ -122,8 +124,6 @@ describe("AcceptInviteClient", () => {
     for (const el of [screen.getByLabelText("Ad"), screen.getByLabelText("Soyad", { exact: true }), password(), passwordRepeat()]) {
       expect(el).toHaveAttribute("aria-invalid", "true");
     }
-    // Telefon isteğe bağlı: boşken hata almaz.
-    expect(screen.getByPlaceholderText("5XX XXX XX XX")).not.toHaveAttribute("aria-invalid");
     // İleti alana bağlı (ekran okuyucu alanla birlikte okur).
     const first = screen.getByLabelText("Ad");
     expect(first).toHaveAccessibleDescription("Adınızı girin");
@@ -184,33 +184,15 @@ describe("AcceptInviteClient", () => {
     expect(password()).toHaveAccessibleDescription(/72/);
   });
 
-  // CLAUDE.md "Arayüz tuzakları" (webC-09): `<Field>` içindeki özel denetim
-  // etiketin HEMEN ardından gelen `data-slot="control"` kökü olmalı — araya
-  // giren sarmalayıcı div etiket boşluğunu düşürür (Telefon etiketi 12 px kayar).
-  it("telefon kutusu etiketin hemen ardındaki data-slot=control öğesidir (diğer alanlarla aynı boşluk)", () => {
+  // CLAUDE.md "Arayüz tuzakları" (webC-09): `<Field>` içindeki denetim etiketin
+  // HEMEN ardından gelen `data-slot="control"` kökü olmalı — araya giren
+  // sarmalayıcı div etiket boşluğunu düşürür.
+  it("her etiketin hemen ardındaki öğe data-slot=control taşır (etiket boşluğu tüm alanlarda aynı)", () => {
     render(<AcceptInviteClient token="tok" />);
-    const controlAfterLabel = (labelText: string | RegExp) => {
-      const label = screen.getByText(labelText, { selector: "[data-slot='label']" });
-      return label.nextElementSibling;
-    };
-    const phoneControl = controlAfterLabel("Telefon (opsiyonel)");
-    expect(phoneControl).toHaveAttribute("data-slot", "control");
-    expect(phoneControl).toContainElement(screen.getByPlaceholderText("5XX XXX XX XX"));
-    // Aynı kural öteki alanlarda da sağlanıyor (kıyas).
-    expect(controlAfterLabel("Ad")).toHaveAttribute("data-slot", "control");
-    expect(controlAfterLabel("Şifre")).toHaveAttribute("data-slot", "control");
-    // Görünen etiket numara kutusunun erişilebilir adıdır.
-    expect(screen.getByLabelText("Telefon (opsiyonel)")).toBe(screen.getByPlaceholderText("5XX XXX XX XX"));
-  });
-
-  it("telefon hatası alana bağlı ErrorMessage'dır (aria-describedby)", async () => {
-    const user = userEvent.setup();
-    render(<AcceptInviteClient token="tok" />);
-    const phone = screen.getByPlaceholderText("5XX XXX XX XX");
-    await user.type(phone, "532123");
-    await user.tab();
-    expect(phone).toHaveAttribute("aria-invalid", "true");
-    expect(phone).toHaveAccessibleDescription(/geçerli bir telefon numarası girin/);
+    for (const label of ["Ad", "Soyad", "Şifre", "Şifre (tekrar)"]) {
+      const el = screen.getByText(label, { selector: "[data-slot='label']" }).nextElementSibling;
+      expect(el, label).toHaveAttribute("data-slot", "control");
+    }
   });
 
   // Arayüz testi D-348: başka hesapla oturum açıkken uyarı.

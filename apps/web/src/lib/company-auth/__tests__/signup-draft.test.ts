@@ -8,7 +8,6 @@ const draft: SignupDraft = {
   firstName: "Ada",
   lastName: "Yılmaz",
   email: "ada@firma.com",
-  phone: "+90 5551112233",
   consents,
   verifyEmail: null,
   emailSeed: "",
@@ -43,7 +42,6 @@ describe("kayıt taslağı", () => {
       firstName: "",
       lastName: "",
       email: "",
-      phone: "",
       consents: { terms: false, mediation: false, kvkk: false, marketing: false, profile: false },
     });
     expect(sessionStorage.getItem(SIGNUP_DRAFT_KEY)).toBeNull();
@@ -61,11 +59,39 @@ describe("kayıt taslağı", () => {
       firstName: "",
       lastName: "",
       email: "",
-      phone: "",
       consents: { terms: false, mediation: false, kvkk: true, marketing: false, profile: false },
       verifyEmail: null,
       emailSeed: "",
     });
+  });
+
+  // Sahip kararı 2026-10-08: kayıt formu telefonu sormaz. Sürüm geçişinde açık
+  // sekmedeki eski taslak `phone` taşıyabilir.
+  it("TELEFON taslağa yazılmaz ve eski taslaktan okunmaz", () => {
+    // Çağıran yanlışlıkla telefon verse bile depoya gitmez (alanlar tek tek kopyalanır).
+    saveSignupDraft({ ...draft, phone: "+90 5551112233" } as SignupDraft);
+    const raw = sessionStorage.getItem(SIGNUP_DRAFT_KEY) ?? "";
+    expect(raw).toContain("ada@firma.com");
+    expect(raw).not.toMatch(/phone/i);
+    expect(raw).not.toContain("5551112233");
+
+    // Eski sürümün yazdığı taslak: öteki alanlar geri gelir, telefon gelmez.
+    sessionStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify({ ...draft, phone: "+90 5551112233" }));
+    const restored = readSignupDraft();
+    expect(restored).toEqual(draft);
+    expect(restored).not.toHaveProperty("phone");
+  });
+
+  it("yalnız telefon taşıyan eski taslak boş sayılır: yeniden yazılınca depoda yer tutmaz", () => {
+    const empty = { terms: false, mediation: false, kvkk: false, marketing: false, profile: false };
+    sessionStorage.setItem(
+      SIGNUP_DRAFT_KEY,
+      JSON.stringify({ firstName: "", lastName: "", email: "", phone: "+90 5551112233", consents: empty, verifyEmail: null, emailSeed: "" }),
+    );
+    const restored = readSignupDraft();
+    expect(restored).toEqual({ firstName: "", lastName: "", email: "", consents: empty, verifyEmail: null, emailSeed: "" });
+    saveSignupDraft(restored!);
+    expect(sessionStorage.getItem(SIGNUP_DRAFT_KEY)).toBeNull();
   });
 
   it("clearSignupDraft siler", () => {

@@ -4,7 +4,7 @@ import { rawMessages, type MessageTree } from "../messages";
 
 /**
  * Kayıt · giriş · onboarding · davet metinleri (kayıt denetimi 2026-10 üçüncü
- * tur). İki sözleşme:
+ * tur). Sözleşmeler:
  *
  * 1) ALAN HATALARI TEK BİÇİMDE (resignup-6). Aynı formda "Adınızı girin." ile
  *    "Geçerli bir e-posta adresi giriniz", "Vergi dairesini yazın" ile
@@ -18,6 +18,9 @@ import { rawMessages, type MessageTree } from "../messages";
  *    kurulur" diyordu; oysa bağlantı yalnız davet e-postasındaki bağlantıyla
  *    kaydolunca hemen kurulur — sonradan davet edilen adresle kaydolan firmaya
  *    kabul etmesi gereken bir İSTEK gider.
+ *
+ * 3) KAYIT VE DAVET TELEFON SORMAZ (sahip kararı 2026-10-08). Bu formların
+ *    kataloğunda telefon anahtarı kalmaz.
  */
 function at(tree: MessageTree, path: string): string {
   const node = path
@@ -29,15 +32,12 @@ function at(tree: MessageTree, path: string): string {
 
 /** `web.auth` altında bir alanın ALTINDA gösterilen tek cümlelik hata iletileri. */
 const FIELD_ERRORS = [
-  "auth.common.phoneCountryRequired",
   "auth.login.emailInvalid",
   "auth.login.passwordRequired",
   "auth.login.codeRequired",
   "auth.login.codeLength",
   "auth.forgot.emailInvalid",
   "auth.signup.emailInvalid",
-  "auth.signup.phoneInvalid",
-  "auth.signup.phoneRequired",
   "auth.signup.firstNameRequired",
   "auth.signup.lastNameRequired",
   "auth.signup.passwordRepeatRequired",
@@ -45,7 +45,6 @@ const FIELD_ERRORS = [
   "auth.signup.consentRequired",
   "auth.signup.codeLength",
   "auth.signup.newEmailSame",
-  "auth.invite.phoneInvalid",
   "auth.password.min",
   "auth.password.lower",
   "auth.password.upper",
@@ -88,10 +87,19 @@ describe("kimlik formları — alan hataları tek biçimde (resignup-6)", () => 
     expect(offenders).toEqual([]);
   });
 
-  it("boş telefon için ayrı ileti var ve 'seçili ülke' demez (resignup-5)", () => {
-    expect(at(rawMessages("tr", "web"), "auth.signup.phoneRequired")).not.toMatch(/ülke/i);
-    expect(at(rawMessages("en", "web"), "auth.signup.phoneRequired")).not.toMatch(/country/i);
-    expect(at(rawMessages("ru", "web"), "auth.signup.phoneRequired")).not.toMatch(/стран/i);
+  // Sahip kararı 2026-10-08: kayıt ve davet kabul formları telefonu SORMAZ
+  // (numara doğrulanmıyordu, başka firmaya gösterilmiyordu). Formların
+  // kataloğunda telefon etiketi / telefon hatası kalmaz — kalan anahtar hiçbir
+  // koddan okunmayan yetim anahtar olurdu. Telefon yalnız Ayarlar › Hesap
+  // Bilgileri'nde (`panel.settings.accountSettingsSection.telefon`) ve ortak
+  // `shared.phoneInput` bileşeninde yaşar.
+  it.each(LOCALES)("%s: kayıt, davet ve ortak kimlik metinlerinde telefon anahtarı yok", (locale) => {
+    const auth = rawMessages(locale, "web").auth as MessageTree;
+    for (const section of ["common", "signup", "invite"]) {
+      const keys = Object.keys(auth[section] as MessageTree);
+      expect(keys.length).toBeGreaterThan(0);
+      expect([locale, section, keys.filter((key) => /phone|telefon/i.test(key))]).toEqual([locale, section, []]);
+    }
   });
 });
 

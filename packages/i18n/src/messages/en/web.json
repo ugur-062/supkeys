@@ -1923,8 +1923,6 @@
       "password": "Password",
       "firstName": "First name",
       "lastName": "Last name",
-      "phone": "Phone",
-      "phoneCountryRequired": "Select a country code first, or type the number with its +code (e.g. +1 202 555 0143)",
       "code": "Verification code",
       "codePlaceholder": "000000",
       "verifying": "Verifying…",
@@ -1994,8 +1992,6 @@
       "codeSent": "The verification code has been sent to your email",
       "failed": "Sign-up failed",
       "alreadyVerified": "Your email is already verified. Please log in.",
-      "phoneInvalid": "Enter a valid phone number for the selected country",
-      "phoneRequired": "Enter your phone number",
       "changeEmailTitle": "Correct your email address",
       "changeEmailSubtitle": "We'll send the verification code to the new address. Your account and details are kept.",
       "newEmail": "New email address",
@@ -2050,7 +2046,6 @@
       "backToLogin": "Back to the login page",
       "subtitle": "{company} is inviting you to its team.",
       "loginLink": "Log in",
-      "phoneOptional": "Phone (optional)",
       "joining": "Joining…",
       "submit": "Accept the invitation and join",
       "failed": "The invitation could not be accepted",
@@ -2061,7 +2056,6 @@
         "ONAYLAYICI": "Approver",
         "VIEWER": "Viewer"
       },
-      "phoneInvalid": "Enter a valid phone number for the selected country, or leave the field empty",
       "otherSession": "You are signed in as <b>{current}</b> in this browser. If you accept the invitation, that session ends and you continue as <b>{invited}</b>."
     },
     "onboarding": {

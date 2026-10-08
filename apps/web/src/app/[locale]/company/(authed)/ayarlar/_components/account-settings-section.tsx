@@ -194,7 +194,14 @@ export function AccountInfoSection() {
                 <Label>{t("telefon")}</Label>
                 <PhoneInput
                   value={info.phone}
-                  onChange={(v) => setInfo({ ...info, phone: v })}
+                  invalid={!!errors.phone}
+                  onChange={(v) => {
+                    setInfo({ ...info, phone: v });
+                    // Telefon isteğe bağlı: reddedilen numara silinince form "değişmemiş"
+                    // sayılır ve Kaydet pasifleşir — hata burada temizlenmezse ekranda
+                    // kalırdı (inceleme R1, 2026-10-08).
+                    if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+                  }}
                 />
                 {errors.phone ? <ErrorMessage>{errors.phone}</ErrorMessage> : null}
               </Field>

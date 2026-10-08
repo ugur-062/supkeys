@@ -490,12 +490,13 @@ describe("OnboardingClient — adım 1 (şirket bilgileri)", () => {
   // odur. Odak ülke kutusuna gelince 60 satırlık liste kendiliğinden açılıyor,
   // "Ülke seçin" hatasını ve altındaki alanları örtüyor, sayfayı kilitliyordu.
   it("ülke boşken 'Devam': odak ülke kutusuna gelir ama liste kendiliğinden açılmaz; hata görünür ve kutuya bağlı", async () => {
-    // İngilizce arayüz + kayda kapalı ülkenin telefonu → ülke boş açılır
-    // (`initialOnboardingCountry`); metinler sahte çevirmenle yine Türkçe.
+    // İngilizce arayüz + telefonsuz hesap (kayıt telefonu sormaz, 2026-10-08)
+    // → ülke boş açılır (`initialOnboardingCountry`); metinler sahte çevirmenle
+    // yine Türkçe.
     const locale = vi.spyOn(nextIntl, "useLocale").mockReturnValue("en");
     try {
       h.meData = {
-        user: { firstName: "Ada", lastName: "Yılmaz", phone: "+989123456700" },
+        user: { firstName: "Ada", lastName: "Yılmaz", phone: null },
         company: { onboardingCompletedAt: null },
       };
       const user = userEvent.setup();
@@ -1190,6 +1191,45 @@ describe("OnboardingClient — ülke değişimi", () => {
     expect(applyCountryChange(FULL, "KE")).toMatchObject({ country: "KE", companyType: "LIMITED", legalFormLocal: "" });
   });
 
+  // İnceleme R2 (2026-10-08): kayıtta telefon sorulmadığı için İngilizce arayüzde
+  // form ÜLKESİZ açılır; kullanıcı alanları yazıp ülkeyi sonra seçebilir.
+  it("applyCountryChange: İLK seçim (ülke boşken) yazılanları silmez; yalnız hukuki yapı ve şehir kimliği yenilenir", () => {
+    const blank = {
+      ...FULL,
+      country: "",
+      companyType: "JOINT_STOCK",
+      legalFormLocal: "",
+      taxNumber: "DE811910074",
+      taxOffice: "",
+      city: "Munich",
+      cityId: 4242,
+      district: "",
+      stateRegion: "Bayern",
+      neighborhood: "",
+      postalCode: "80687",
+    } as typeof FULL;
+    const de = applyCountryChange(blank, "DE");
+    expect(de).toMatchObject({
+      country: "DE",
+      taxNumber: "DE811910074",
+      city: "Munich",
+      cityId: null,
+      stateRegion: "Bayern",
+      postalCode: "80687",
+      legalName: FULL.legalName,
+      website: FULL.website,
+      addressLine: FULL.addressLine,
+    });
+    // Listeli ülkede eski genel tür seçili kalamaz: yeni ülkenin başlangıcı.
+    expect(de.companyType).not.toBe("JOINT_STOCK");
+
+    // Türkiye seçilirse yazılan şehir il listesine eşlenir, eyalet / bölge boşalır.
+    const tr = applyCountryChange({ ...blank, city: "istanbul", postalCode: "34710" }, "TR");
+    expect(tr).toMatchObject({ country: "TR", city: "İstanbul", cityId: null, stateRegion: "", postalCode: "34710", taxNumber: "DE811910074" });
+    // Listede olmayan şehir Türkiye için boş kalır (İl "Seçin…" gösterir).
+    expect(applyCountryChange(blank, "TR").city).toBe("");
+  });
+
   it("applyCountryChange: aynı ülke yeniden seçilirse form AYNI nesnedir; yerel seçim başka ülkeye taşınmaz", () => {
     expect(applyCountryChange(FULL, "TR")).toBe(FULL);
     const german = { ...FULL, country: "DE", companyType: "LIMITED", legalFormLocal: "GmbH" };
@@ -1532,11 +1572,25 @@ describe("OnboardingClient — yabancı firma", () => {
 });
 
 /**
- * 2026-09-27 uluslararası denetim: ülke artık "TR" ön seçili DEĞİL — kayıt
- * telefonunun ülkesi, yoksa arayüz dili, yoksa boş (bilinçli seçim).
+ * 2026-09-27 uluslararası denetim: ülke artık "TR" ön seçili DEĞİL — arayüz
+ * dili (tr → TR, ru → RU), öteki dillerde boş (bilinçli seçim).
+ *
+ * 2026-10-08 (sahip kararı): kayıt formu telefonu SORMAZ → yeni hesapta
+ * `phone` null'dır, ülke yalnız dil kuralından gelir. Telefonu kayıtlı hesapta
+ * (karar öncesi kayıt, eski web paketi) numaranın ülkesi eskisi gibi önce gelir.
  */
 describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", () => {
-  it("initialOnboardingCountry: telefon ülkesi → dil → boş", () => {
+  it("initialOnboardingCountry: telefonsuz hesap (yeni kayıt) → dil kuralı", () => {
+    for (const none of [null, undefined, "", "   "]) {
+      expect(initialOnboardingCountry(none, "tr")).toBe("TR");
+      expect(initialOnboardingCountry(none, "ru")).toBe("RU");
+      // İngilizce (ve kural tanımayan her dil): boş — ülke bilinçli seçilir.
+      expect(initialOnboardingCountry(none, "en")).toBe("");
+      expect(initialOnboardingCountry(none, "de")).toBe("");
+    }
+  });
+
+  it("initialOnboardingCountry: telefonu kayıtlı hesap (eski kayıt) → telefon ülkesi → dil → boş", () => {
     expect(initialOnboardingCountry("+7 9161234567", "en")).toBe("RU");
     expect(initialOnboardingCountry("+7 7011234567", "tr")).toBe("KZ");
     expect(initialOnboardingCountry("+49 301234567", "ru")).toBe("DE");
@@ -1544,12 +1598,42 @@ describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", 
     expect(initialOnboardingCountry("+1 2025550123", "en")).toBe("CA");
     // Çok alan kodlu NANP ülkesi alan kodundan (derin denetim LU-10).
     expect(initialOnboardingCountry("+1 8291234567", "en")).toBe("DO");
-    expect(initialOnboardingCountry(null, "ru")).toBe("RU");
-    expect(initialOnboardingCountry(null, "tr")).toBe("TR");
-    expect(initialOnboardingCountry("", "en")).toBe("");
+    // Kayda kapalı ülkenin telefonu (İran) → dil kuralına düşer.
+    expect(initialOnboardingCountry("+989123456700", "en")).toBe("");
+    expect(initialOnboardingCountry("+989123456700", "tr")).toBe("TR");
   });
 
-  it("+7 telefonlu kullanıcı: Rusya ile açılır — Rus hukuki yapıları, ИНН etiketi + ipucu, önekli numara kabul", async () => {
+  // Yeni kayıt: `/me` `user.phone` null döner. Ülke arayüz diliyle açılır;
+  // "null" metni ya da ülkesiz kilitlenme yok.
+  it("telefonsuz hesap, Rusça arayüz: Rusya ile açılır — Rus hukuki yapıları ve ИНН etiketi", () => {
+    const locale = vi.spyOn(nextIntl, "useLocale").mockReturnValue("ru");
+    try {
+      h.meData = {
+        user: { firstName: "Ivan", lastName: "Petrov", phone: null },
+        company: { onboardingCompletedAt: null },
+      };
+      render(<OnboardingClient />);
+      expect(screen.getByRole("combobox", { name: /^Ülke/ })).not.toHaveValue("");
+      expect(screen.queryByLabelText("İl *")).not.toBeInTheDocument();
+      expect(optionTexts(legalFormSelect())).toEqual(expect.arrayContaining(["ООО", "АО", "ИП", "Diğer"]));
+      expect(screen.getByLabelText("Vergi kimlik no (ИНН / ОГРН) *")).toBeInTheDocument();
+    } finally {
+      locale.mockRestore();
+    }
+  });
+
+  it("telefonsuz hesap, Türkçe arayüz: Türkiye ile açılır (il listesi, genel hukuki yapı listesi)", () => {
+    h.meData = {
+      user: { firstName: "Ada", lastName: "Yılmaz", phone: null },
+      company: { onboardingCompletedAt: null },
+    };
+    render(<OnboardingClient />);
+    expect(screen.getByRole("combobox", { name: /^Ülke/ })).toHaveValue("Türkiye");
+    expect(screen.getByLabelText("İl *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mahalle")).toBeInTheDocument();
+  });
+
+  it("+7 telefonlu kullanıcı (eski kayıt): Rusya ile açılır — Rus hukuki yapıları, ИНН etiketi + ipucu, önekli numara kabul", async () => {
     const user = userEvent.setup();
     h.meData = {
       user: { firstName: "Ivan", lastName: "Petrov", phone: "+7 9161234567" },

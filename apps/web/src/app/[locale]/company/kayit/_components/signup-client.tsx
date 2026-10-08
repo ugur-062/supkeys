@@ -15,7 +15,6 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
 import { Description, ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
-import { PhoneInput } from "@/components/ui/phone-input";
 import {
   useChangeSignupEmail,
   useCompanySignup,
@@ -40,7 +39,6 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { api } from "@/lib/api";
 import { saveInvitePrefill, type InvitePrefill } from "@/lib/company-auth/invite-prefill";
 import { Link } from "@/i18n/navigation";
-import { isValidPhoneNumber } from "@rothern/shared";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
@@ -109,11 +107,14 @@ export function CompanySignupClient() {
   // alan boş gelirse başka adresle kaydolup yanıtı kaybediyordu (derin
   // denetim LU-22). Kullanıcı yine değiştirebilir.
   const emailSeed = (searchParams.get("email") ?? "").trim().slice(0, 254);
+  // TELEFON SORULMAZ (sahip kararı 2026-10-08): numara doğrulanmıyordu (kod
+  // gitmez), başka firmalara gösterilmiyordu ve tek kullanımı onboarding'de
+  // ülke tahminiydi — ülke artık o ekranın ilk alanı. İsteyen kullanıcı
+  // Ayarlar › Hesap Bilgileri'nden ekler (isteğe bağlı).
   const [form, setForm] = useState(() => ({
     firstName: "",
     lastName: "",
     email: emailSeed,
-    phone: "",
     password: "",
     passwordConfirm: "",
   }));
@@ -137,8 +138,6 @@ export function CompanySignupClient() {
     profile: false,
   });
   const [error, setError] = useState<string | null>(null);
-  // Telefon hatası alandan ÇIKINCA gösterilir (yazarken her hanede uyarı çıkmasın).
-  const [phoneTouched, setPhoneTouched] = useState(false);
   // "Hesap Oluştur"a basıldı: geçersiz her alan iletisini gösterir (arayüz
   // testi 2026-10 signup-tr-8 — düğme eskiden sessizce pasif kalıyordu).
   const [submitted, setSubmitted] = useState(false);
@@ -182,7 +181,6 @@ export function CompanySignupClient() {
         firstName: draft.firstName,
         lastName: draft.lastName,
         email: draft.verifyEmail ?? ((keepTypedEmail ? draft.email : "") || f.email || draft.email),
-        phone: draft.phone,
       }));
       setConsents(draft.consents);
       if (draft.verifyEmail) setStep("verify");
@@ -197,12 +195,11 @@ export function CompanySignupClient() {
       firstName: form.firstName,
       lastName: form.lastName,
       email: form.email,
-      phone: form.phone,
       consents,
       verifyEmail: step === "verify" ? form.email.trim() : null,
       emailSeed,
     });
-  }, [draftReady, form.firstName, form.lastName, form.email, form.phone, consents, step, emailSeed]);
+  }, [draftReady, form.firstName, form.lastName, form.email, consents, step, emailSeed]);
   /** Hesap doğrulandı / zaten doğrulanmış: taslak kapanır, yeniden yazılmaz. */
   const closeDraft = () => {
     draftClosed.current = true;
@@ -231,43 +228,24 @@ export function CompanySignupClient() {
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
   const allConsents = consents.terms && consents.mediation && consents.kvkk;
-  // Ülke seçilmeden numara yazıldı (İngilizce arayüzde varsayılan ülke yok):
-  // hata "seçili ülke için geçerli numara" değil "önce ülke kodunu seçin"
-  // (arayüz testi son tur webA-1).
-  const [phoneNeedsCountry, setPhoneNeedsCountry] = useState(false);
-  // Ülke koduna göre ulusal uzunluk — API DTO ile TEK KAYNAK (2026-09-27;
-  // eskiden "en az 10 hane": Andorra/Lüksemburg reddediliyordu).
-  const phoneValid = isValidPhoneNumber(form.phone);
   const firstNameOk = form.firstName.trim().length >= 1;
   const lastNameOk = form.lastName.trim().length >= 1;
   // Girişle AYNI gevşek kural (`isPlausibleEmail`); asıl doğrulama API'de.
   const emailOk = isPlausibleEmail(form.email);
   const formValid =
-    firstNameOk && lastNameOk && emailOk && phoneValid && pwUnmet === null && confirmOk && allConsents;
+    firstNameOk && lastNameOk && emailOk && pwUnmet === null && confirmOk && allConsents;
 
   /**
-   * Alan hataları. Düğmeye basılana dek yalnız eskiden de canlı olan ikisi
-   * görünür (telefon: alandan çıkınca; şifre tekrarı: yazarken); basıldıktan
-   * sonra geçersiz HER alan iletisini taşır ve düzeltildikçe kendiliğinden
-   * kalkar. İleti alanın `<Field>`i içinde `ErrorMessage`dır → Headless onu
-   * girdinin `aria-describedby`ına bağlar; `invalid` → `aria-invalid`.
+   * Alan hataları. Düğmeye basılana dek yalnız şifre tekrarı uyarısı görünür
+   * (yazarken); basıldıktan sonra geçersiz HER alan iletisini taşır ve
+   * düzeltildikçe kendiliğinden kalkar. İleti alanın `<Field>`i içinde
+   * `ErrorMessage`dır → Headless onu girdinin `aria-describedby`ına bağlar;
+   * `invalid` → `aria-invalid`.
    */
   const fieldError = {
     firstName: submitted && !firstNameOk ? t("firstNameRequired") : null,
     lastName: submitted && !lastNameOk ? t("lastNameRequired") : null,
     email: submitted && !emailOk ? t("emailInvalid") : null,
-    // Üç ayrı durum, üç ayrı ileti (kayıt denetimi 2026-10 resignup-5): ülke
-    // seçilmeden rakam yazıldı → "önce ülke kodu"; alan BOŞ → "numaranızı
-    // girin" (İngilizce arayüzde seçili ülke yokken "seçili ülke için geçerli
-    // numara" deniyordu); numara var ama ülkesine uymuyor → "seçili ülke için".
-    phone:
-      (submitted || phoneTouched) && !phoneValid
-        ? phoneNeedsCountry
-          ? tc("phoneCountryRequired")
-          : form.phone.trim()
-            ? t("phoneInvalid")
-            : t("phoneRequired")
-        : null,
     password: submitted && pwUnmet ? tp(PASSWORD_ERROR_KEY[pwUnmet]) : null,
     passwordConfirm:
       form.passwordConfirm && !confirmOk
@@ -297,7 +275,6 @@ export function CompanySignupClient() {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email: form.email.trim(),
-        phone: form.phone,
         password: form.password,
         termsAccepted: consents.terms,
         mediationAccepted: consents.mediation,
@@ -645,21 +622,6 @@ export function CompanySignupClient() {
             onChange={(e) => set("email")(e.target.value)}
           />
           {fieldError.email ? <ErrorMessage>{fieldError.email}</ErrorMessage> : null}
-        </Field>
-
-        <Field>
-          <Label>{tc("phone")}</Label>
-          {/* Kök `<Field>`in DOĞRUDAN çocuğu: etiket boşluğu (data-slot) ve
-              etiket/hata bağı Headless'tan gelir (arayüz testi 2026-10
-              code-auth-11, signup-enru-9). "Alandan çıkış" `onBlur` prop'uyla. */}
-          <PhoneInput
-            value={form.phone}
-            onChange={set("phone")}
-            onCountryMissingChange={setPhoneNeedsCountry}
-            onBlur={() => setPhoneTouched(true)}
-            invalid={!!fieldError.phone}
-          />
-          {fieldError.phone ? <ErrorMessage>{fieldError.phone}</ErrorMessage> : null}
         </Field>
 
         <Field>
