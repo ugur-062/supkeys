@@ -36,6 +36,11 @@ services:
         value: 7d
       - key: LOG_LEVEL
         value: info
+      # UNVERIFIED_SIGNUP_PURGE_ENABLED burada TANIMLANMAZ: doğrulanmamış kayıt
+      # temizliği (7 gün) NODE_ENV=production iken kendiliğinden açık (bu servis
+      # ve api-staging). Acil durdurma: panelden "false". Bu ortamın auth
+      # anahtarlarıyla açılan bir veritabanı KOPYASINDA "false" zorunlu
+      # (.env.production.example, docs/backup-restore-drill.md).
       # Render trafiği Cloudflare'den geçer → gerçek istemci IP'si cf-connecting-ip
       # (throttle/audit). Self-host/CF'siz kurulumda false bırak.
       - key: TRUST_CF_CONNECTING_IP

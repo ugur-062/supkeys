@@ -241,8 +241,15 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
   alınırken VE dağıtıcının gönderim anında denetlenir (MANUAL dahil `COUNTRY_BLOCKED`);
   talep `targetCountries`inde 400 `TARGET_COUNTRY_BLOCKED` (sessiz süzme yok); Talep
   Şartları normalize kapalı ülkeyi süzer, liste boşalırsa firma ülkesine daralır.
-- **Hukuki yapı `OTHER`** + `Company.legalFormLocal` (GmbH, LLC, ООО,
-  kooperatif…); "Diğer" seçilince yerel ad zorunlu.
+- **Hukuki yapı ÜLKEYE GÖRE (2026-10-08, kullanıcı: "ülke bazlı her şeyi daha mantıklı yap"):** tek
+  kaynak `@rothern/shared` `data/legal-forms.ts` — 50 ülkenin yerel türleri (DE GmbH / UG / AG…, RU ООО /
+  АО / ИП…), her biri `CompanyType` enum'una eşli (`localLegalForms`, `findLocalLegalForm`,
+  `resolveLegalForm`); her listede en az bir `SOLE_PROPRIETOR` vardır; kâr amacı gütmeyen yapılar ve
+  şubeler bilinçli YOK ("Diğer" + serbest metin). TR, KKTC ve listesi olmayan ülke eski dört seçenekli genel
+  listeyi görür. Seçilen yerel ad HER tür için `Company.legalFormLocal`'e yazılır ve hukuki yapının
+  gösterildiği her yerde o basılır; "Diğer" seçilince yerel ad zorunlu. **Eşlemenin doğruluk kaynağı API:**
+  ad ülkenin listesindeyse saklanan `companyType` listeden gelir (onboarding + admin düzenleme). Yeni ülke /
+  tür = yalnız o dosyaya satır.
 - **Adres:** `CompanyAddress.stateRegion`; ülke tam listeye göre doğrulanır;
   her adres gösteriminde ülke (`usePlaceLabel`); hızlı talep "adres ekle" ülke
   seçer (eskiden "TR"ye SABİTTİ); posta kodunda harf serbest (TR hariç).
@@ -1289,6 +1296,10 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Bildirimde tarih/tutar/talep başlığı (alıcının dilinde) | `common/notifications/notification-params.ts` |
 | Bildirim metninin okuma anında yeniden üretimi | `modules/notifications/notification-i18n.ts` · `NotificationService.localizeRows` |
 | Oturum iptali (çıkış) | `common/auth/session-revocation.service.ts` |
+| Doğrulanmamış kayıt temizliği (7 gün) · e-postası kanıtlanmış hesap süzgeci | `modules/company-auth/services/unverified-signup-cleanup.service.ts` · `common/company/proven-account.ts` |
+| Ülkeye göre hukuki yapı listesi + enum eşlemesi | `@rothern/shared` `data/legal-forms.ts` (`resolveLegalForm`) |
+| Şifre politikası · web sitesi biçimi · LIKE kaçışı | `common/auth/password-policy.ts` · `common/company/website-address.ts` · `common/prisma/like-literal.ts` |
+| Hız sınırı deposu | `common/http/throttler-storage.ts` (`PerKeyThrottlerStorage`) |
 | `THROTTLE_*` env okuma · gövde ayrıştırıcı / ham gövde | `common/http/throttle-limit.ts` (`resolveThrottleLimit`) · `common/http/body-parser.ts` |
 | E-posta geri bildirim başlıkları | `modules/email/email-feedback-headers.ts` |
 | AI çıktı dili kuralı | `common/i18n/ai-language.ts` |
@@ -1387,8 +1398,9 @@ genişlerdi. Gösterim `deepestCategoryPicks` ile yalnız kullanıcının seçti
 Kural: seçim eklenince zincir + segment belirir · seçim silinince zinciri gider
 ve o segmentte başka seçim kalmadıysa **segment de düşer** (aksi hâlde tek
 yaprağı silen firma sessizce segmentin tamamından bildirim almaya başlardı) ·
-segment silinince altındakiler de gider. Bütün sektörde çalışan firma için
-"Sektör geneli ekle" kaçış yolu (yaprağı olmayan segment = "her şeyi yaparım").
+segment silinince altındakiler de gider. Bütün sektörde çalışan firma sektör
+satırını AYNI pencerede işaretler (yaprağı olmayan segment = "her şeyi yaparım"; 2026-10-08'e dek ayrı
+"Sektör geneli ekle" penceresiydi).
 **Kayıtta kategori ZORUNLU** — üç katman: arayüz `step2Valid`, DTO
 `@ArrayMinSize(1)`, servis `validateCategorySelection`.
 Kayıt ve Ayarlar AYNI bileşeni kullanır (`CompanyActivityPicker` de öyle).
@@ -3573,7 +3585,7 @@ pnpm --filter @rothern/api test:db:down
 
 ### Zamanlanmış işler (cron) — çift tetikleme kilidi
 
-19 `@Cron` işi var (2026-09-28 sayımı) ve hepsi tek ortak sarmalayıcıdan
+20 `@Cron` işi var (2026-10-08 sayımı; admin `cron-jobs.test` API kayıt anahtarlarını etiket listesiyle karşılaştırır) ve hepsi tek ortak sarmalayıcıdan
 geçmeli (`trackCronRun`). 2026-09-12'de **advisory lock** eklendi: ikinci bir API
 örneği açıldığı gün her iş iki kez koşacaktı (çift hatırlatma, çift özet,
 çift temizlik). Kilit `CronLockService`'te, `trackCronRun` onu
@@ -4086,8 +4098,33 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   (taşımayla aynı transaction); `issueEmailCode` ve `PasswordResetService` göndermeden önce adresin hâlâ
   hesabın adresi olduğunu kilitli okumayla doğrular. Test fabrikası kullanıcıyı DOĞRULANMAMIŞ doğurur:
   "kayıtlı üye" sınayan test `emailVerifiedAt` damgalar. Sözleşme `address-proof.spec`,
-  `referral-signup.spec`, `auth-signup.spec`. Bilinen sınır (karar bekliyor): doğrulanmamış kayıt adresi
-  tutar — gerçek sahibin kaydı ve o adrese ekip daveti 409 alır; doğrulanmamış kayıtlar temizlenmiyor.
+  `referral-signup.spec`, `auth-signup.spec`. Doğrulanmamış kayıt adresi 7 gün sonra
+  kendiliğinden bırakır (aşağıdaki "DOĞRULANMAMIŞ KAYIT TEMİZLİĞİ" maddesi).
+- **DOĞRULANMAMIŞ KAYIT TEMİZLİĞİ (kullanıcı kararı 2026-10-08: "7 gün sonra kendiliğinden silinsin").**
+  Tek kaynak `modules/company-auth/services/unverified-signup-cleanup.service.ts`:
+  `UNVERIFIED_SIGNUP_TTL_DAYS = 7`, tek kural `signupPurgeSkipReason`, tek silme `removeIfExpired`. Silinen
+  YALNIZ kayıt formundan açılmış yer tutucu: e-postası hiç doğrulanmamış, hiç giriş yapmamış, davetle
+  gelmemiş, firmasının tek kullanıcısı ve Kurucusu, onboarding tamamlanmamış, admin kararı ve hiçbir iş
+  kaydı yok. Company ilişkilerinin HER BİRİ "engeller" ya da "bağımlı" diye sınıflıdır (yeni ilişki
+  sınıflanmazsa `unverified-signup-rule.spec` kırmızı). İki yol, aynı fonksiyon: gecelik iş
+  `signup.purgeUnverified` (05:10, gece başına en fazla `UNVERIFIED_SIGNUP_MAX_REMOVALS_PER_RUN` = 500) ve
+  tembel yol — süresi dolmuş doğrulanmamış kaydın tuttuğu adresle yeni kayıt / ekip daveti / davet kabulü
+  gelince önce o kayıt silinir (silinemezse eskisi gibi 409). Hâlâ geçerli doğrulama kodu olan hesap
+  atlanır (`verification_pending`), ama en fazla `UNVERIFIED_SIGNUP_PENDING_GRACE_DAYS` = 1 gün ("yeniden
+  gönder" ile adres süresiz tutulamaz). Sıra: tek transaction'da kilitler → kural yeniden → jetonla
+  bağlanmış referral davetleri PENDING'e döner → firma silinir (cascade) → EN SON kimlik sağlayıcı kullanıcısı
+  (`SupabaseAuthService.deleteUserStrict`: yalnız sağlayıcının kendi `user_not_found` yanıtı "zaten yok"
+  sayılır, hata olursa bir kez `getUserById` ile sorulur; başarısızlık her şeyi geri alır). Audit
+  `company.signup_expired` (e-posta maskeli). **ANAHTAR `UNVERIFIED_SIGNUP_PURGE_ENABLED`:** "true" /
+  "false" kazanır; tanımsızken YALNIZ `NODE_ENV=production`'da açık (Render staging + canlı ek ayar
+  istemez), başka her yerde kapalı. **Veritabanı KOPYASI üzerinde açılan API'de `false` verilir**
+  (`docs/backup-restore-drill.md`): kopya, kaynağıyla aynı kimlik sağlayıcı projesini paylaşır ve bayat
+  satırlara bakıp kaynağın gerçek kimliklerini silerdi; yerel arayüz test yığını bu yüzden açıkça kapalı.
+  Talep daveti yazan her yol (otomatik bağlantı daveti, elle davet, AI üye daveti) yalnız e-postası
+  kanıtlanmış hesabı olan firmaya satır yazar (`common/company/proven-account.ts`
+  `HAS_PROVEN_ACCOUNT_WHERE`) — yer tutucu silinince alıcının oluşturduğu hiçbir şey kaybolmaz. Sözleşme
+  `unverified-signup-cleanup.spec`, `unverified-signup-rule.spec`, `supabase-auth-delete-strict.spec`,
+  admin `cron-jobs.test` (API kayıt anahtarları ⇔ admin etiket listesi).
 - **Hız sınırı deposu BİZİM:** `common/http/throttler-storage.ts` `PerKeyThrottlerStorage`
   (`ThrottlerModule.forRoot({ storage })`). `@nestjs/throttler` 6.5 bellek deposu bir anahtarın engeli
   bitince o throttler adındaki TÜM anahtarların süre dolum zamanlayıcılarını iptal ediyordu → hiç sınırı
@@ -4131,8 +4168,13 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   seçim şeridi tavanlı ve kendi içinde kayar, liste kullanılabilir yükseklikte kalır, Vazgeç / Onayla HER
   ZAMAN görünür (360×640, 50 seçim); onaylanmamış değişiklikle Escape / arka plan / X sorar ("Seçime dön"
   birincil), Vazgeç sormaz; bildirimler `CategoryDialogNotices`. `CategorySelectorModal`: `minSelectableLevel`
-  (firma beyanı 2 → aile seçilebilir; talep formu varsayılan 3, DEĞİŞMEDİ) ve `singlePickPerBranch` (yalnız
-  firma beyanı: bir dalda tek seçim — işaretlenen öğe işaretli ata ve torunlarını düşürür, sayaç = saklanan).
+  (firma beyanı **1** → SEKTÖR satırı da işaretlenir = sektörün tamamı; talep formu varsayılan 3, DEĞİŞMEDİ),
+  `singlePickPerBranch` (yalnız firma beyanı: bir dalda tek seçim — işaretlenen öğe işaretli ata ve
+  torunlarını düşürür, sektör dahil; sayaç = saklanan) ve `maxSectors` (firma beyanı 5: iki sayaç "Sektör
+  n/5" · "Ürün / hizmet n/50", sınır işaretleme anında da denetlenir). **TEK PENCERE (kullanıcı 2026-10-08:
+  "üst başlıktan seçemiyorlar"):** ayrı "Sektör geneli ekle" bağlantısı ve ikinci pencere
+  (`segment-only-picker.tsx`) KALDIRILDI; geri eklenmez. Değer sözleşmesi aynı: sektörün tamamı = segment
+  kodu `mainIds`'te, o segmentten alt kod yok. Sektör kutusunun erişilebilir adı "<sektör> · sektörün tamamı".
   Yükleme hatası ayrı durum + "Yeniden dene" (`category-load-error.tsx`; `use-categories` `{ inlineError }` →
   global toast yok, 4xx/429'da otomatik tekrar yok) — "sonuç bulunamadı" ya da "…" DEĞİL. Çip adın tamamını
   gösterir (sabit px tavan yok, kutudan taşmaz); sektör harfi ("B.", "AN.") arayüzde basılmaz; kaldır
@@ -4155,6 +4197,14 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   aynı anda güncellenir (eski dile sekme yok). `PasswordInput` ve `PhoneInput` kökleri `data-slot="control"`
   taşır. Panel sayfalarının sekme başlığı rota etiketinden (`company-shell/document-title.ts`,
   "<sayfa> · Rothern").
+- **ONBOARDING ADIMLARI (2026-10-08):** 1 "Şirket bilgileri" — ÜLKE ilk alan (altındakiler ülkeye göre
+  düzenlenir), unvan, hukuki yapı, vergi no (+ TR vergi dairesi), web sitesi, adres · 2 "Faaliyet alanı" —
+  kategori seçimi + faaliyet tipi (kişisel alan yok) · 3 "Yetkili ve onay" — ad (salt okunur), yetkili
+  kimlik no, kurucu notu, özet, beyan. Ülke değişince yalnız ülkeye bağlı alanlar sıfırlanır
+  (`applyCountryChange`: hukuki yapı, vergi no / dairesi, il-şehir, ilçe, bölge, mahalle, posta kodu; unvan,
+  site, sokak adresi, kategoriler kalır). Taslak sürümü 2; eski biçimli taslak ATILMAZ, alanları korunup 1.
+  adımdan açılır. Sunucu hatası alanın sahibi olan adıma yönlenir. e2e `signup-flow.ts`
+  (`kategoriAraVeSec`) yeni sıraya göre.
 
 ## Bekleyen / Yapılacaklar
 

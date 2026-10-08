@@ -106,6 +106,34 @@ EMAIL_ALLOWLIST=uguray156@gmail.com,uguray156+qa-kayit-*@gmail.com,uguray156+qa-
   eylemleri `docs/qa-launch-audit-2026-09-28.md` O-71/O-72.
 
 
+**Doğrulanmamış kayıt temizliği anahtarı (2026-10-08).** E-postası 7 gündür
+doğrulanmamış kayıt silinir: gece 05:10 işi (`signup.purgeUnverified`, gecede en
+fazla 500 kayıt; fazlası ertesi geceye kalır ve günlüğe
+`… stopped at the cap of 500 removals per run …` yazılır) ve kayıt / ekip daveti
+anında adresin serbest bırakılması. İkisi de TEK anahtara bağlıdır:
+
+| `UNVERIFIED_SIGNUP_PURGE_ENABLED` | Sonuç |
+|---|---|
+| `true` | AÇIK (ortam ne olursa olsun) |
+| `false` | KAPALI (ortam ne olursa olsun) |
+| tanımsız / boş | yalnız `NODE_ENV=production` iken AÇIK; diğer her yerde KAPALI |
+| başka bir değer (`1`, `TRUE`, `off`…) | KAPALI + açılışta uyarı |
+
+- `api` (canlı) ve `api-staging` production kipinde koştuğu için ikisinde de
+  **değişken TANIMLANMAZ**; iş kendiliğinden açıktır. Yerel geliştirme, testler
+  ve betikler kapalıdır.
+- **Acil durdurma:** Render panelinde `UNVERIFIED_SIGNUP_PURGE_ENABLED=false`
+  (deploy gerekmez). Kapalıyken gece işi hiçbir şey yapmaz ve Sistem sayfasında
+  "hiç koşmadı" görünür; tutulan adrese kayıt / ekip daveti eskisi gibi 409 alır.
+- Açılış günlüğü durumu bir kez yazar: `Unverified sign-up purge is ON (…)` ya
+  da `… is OFF (…)`; production kipinde kapalıysa satır uyarı düzeyindedir.
+- **Veritabanı KOPYASI** (yedekten dönüş provası, staging dökümüyle kurulan
+  yerel ortam) kaynağının auth projesine bağlanıyorsa `false` ZORUNLU: silme
+  auth sağlayıcısındaki kullanıcıyı da kalıcı siler ve kararı kopyanın bayat
+  satırlarına göre verir (`docs/backup-restore-drill.md` "Bilinen tuzaklar").
+- İlk gece birikmiş kayıtların en fazla 500'ü silinir; her silme denetim
+  kaydına `company.signup_expired` olarak düşer.
+
 **AI sağlayıcı hatası teşhisi (2026-10-07).** Sağlayıcı bir çağrıyı reddettiğinde
 (kullanıcıya 502 `api.ai.saglayiciHataDondurdu`) `ai_usage` satırı `FAILED` +
 `errorCode='provider_error'` olur ve Google'ın yanıtından TEMİZLENMİŞ sebep kodu

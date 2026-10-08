@@ -32,10 +32,14 @@
 5. **Uygulamayı bağla (isteğe bağlı ama önerilir).** Staging API'sini geçici
    olarak restore projesine yönlendir (`DATABASE_URL`/`DIRECT_URL`), giriş yap,
    bir talep aç. Amaç: şema + veri + Auth birlikte çalışıyor mu?
+   **Bağlamadan ÖNCE o API'ye `UNVERIFIED_SIGNUP_PURGE_ENABLED=false` ver**
+   (gerekçe aşağıda "Bilinen tuzaklar"; temizlikte geri al).
    **Auth kullanıcıları ayrı taşınır** — `auth.users` PITR ile gelir, ama
    restore projesinin API anahtarları FARKLIDIR; env'leri güncellemeden giriş
    çalışmaz. Provanın en sık takıldığı yer burasıdır.
-6. **Temizle.** Restore projesini SİL (ücret işlemesin), staging env'ini geri al.
+6. **Temizle.** Restore projesini SİL (ücret işlemesin), staging env'ini geri al
+   (`UNVERIFIED_SIGNUP_PURGE_ENABLED` satırını da SİL — staging'de tanımsız
+   kalmalı, yoksa temizlik orada kapalı kalır).
 
 ## Kurtarma hedefleri
 
@@ -70,6 +74,20 @@
   Prova API'sinin `WEB_URL`'i `rothern.com` altında VE `NODE_ENV=production` ise
   dolu `EMAIL_ALLOWLIST` açılışı keser: `WEB_URL`'i staging alan adında bırak
   (ya da yalnız o prova ortamında `ALLOW_STAGING_ONLY_ENV=true`; canlıda ASLA).
+- **Doğrulanmamış kayıt temizliği kaynağın GİRİŞ KİMLİKLERİNİ siler:** yedekten
+  dönülen kopyaya bağlanan API MUTLAKA `UNVERIFIED_SIGNUP_PURGE_ENABLED=false`
+  ile açılır. Bu iş (gece 05:10 + kayıt / ekip daveti anında) e-postası 7 gündür
+  doğrulanmamış kaydı siler ve auth sağlayıcısındaki (Supabase) kullanıcıyı da
+  KALICI siler; kararı KENDİ veritabanının satırlarına göre verir. Kopya,
+  kaynağıyla aynı auth projesini kullanıyorsa (staging dökümü staging auth
+  anahtarlarıyla, canlı dökümü canlı auth anahtarlarıyla açılırsa; staging
+  dökümüyle kurulan yerel test ortamı da böyledir) döküm anında doğrulanmamış
+  olup SONRADAN doğrulanan hesapların giriş kimliği kaynakta silinir: hesap
+  doğrulanmış görünür ama bir daha giriş yapamaz, şifre sıfırlama da
+  onarmaz. Değişken tanımsızken iş yalnız
+  `NODE_ENV=production` ile AÇIKTIR (staging de production kipinde koşar);
+  başka kipte kapalıdır ama provada kipe güvenmeyin, `false` yazın. Açılış
+  günlüğünde durumu doğrulayın: `Unverified sign-up purge is OFF …`.
 - **`pg_dump` dosyasından dönüş (PITR değil; runbook 4. adımdaki yedek):** döküm
   yalnız `public` şemasını taşır. `pg_restore`'dan ÖNCE hedef veritabanında
   `CREATE EXTENSION pg_trgm SCHEMA public;` çalıştır; yoksa
