@@ -486,6 +486,54 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     expect(await names("fries")).toEqual([]);
   });
 
+  // recategory-new-1 / new-2: öneri de kategori aramasının sırasını kullanır.
+  it("öneri sırası: tam ad > adı yazılan kelimeyi taşıyan > adı kökü taşıyan > yalnız eş anlamlı; tavan sıradan SONRA", async () => {
+    const cat = (id: string, nameTr: string, level: number, keywords = "", names: { nameEn?: string; nameRu?: string } = {}) => ({
+      id,
+      code: id,
+      nameTr,
+      ...names,
+      searchText: foldSearchText(`${nameTr} ${keywords} ${names.nameEn ?? ""} ${names.nameRu ?? ""}`),
+      level,
+      inDiscovery: true,
+      sortOrder: Number(id.slice(2, 4)),
+    });
+    await prisma.category.createMany({
+      data: [
+        // Altı AİLE yazılan biçimi yalnız eş anlamlısında taşır: düzeye göre
+        // ilk beşi almak, adı eşleşen sınıf ve emtiayı hiç önermiyordu.
+        ...[10, 11, 12, 13, 14, 15].map((n) => cat(`41${n}0000`, `Test cihazları ${n}`, 2, "hidrolik pompası")),
+        cat("40151500", "Pompalar", 3),
+        cat("40151501", "Yakıt pompası", 4),
+        // "hardware": adı (İngilizce) sorguya eşit aile, adında kelime geçen ailelerden önce.
+        cat("30110000", "Bilgisayar donanım bakımı", 2, "", { nameEn: "Computer hardware maintenance" }),
+        cat("30120000", "Donanım kiralama", 2, "", { nameEn: "Hardware rental" }),
+        cat("31160000", "Hırdavat", 2, "", { nameEn: "Hardware" }),
+        cat("31171500", "Rulmanlar ve yataklar", 3),
+        cat("26121600", "Elektrik kablosu", 3, "", { nameRu: "Электрические кабели" }),
+      ],
+    });
+    const names = async (q: string) => (await service().suggest(q)).categories.map((c) => c.name);
+
+    const pump = await names("pompası");
+    expect(pump).toHaveLength(5);
+    expect(pump.slice(0, 2)).toEqual(["Yakıt pompası", "Pompalar"]);
+    expect(pump.slice(2)).toEqual(["Test cihazları 10", "Test cihazları 11", "Test cihazları 12"]);
+
+    expect(await names("hardware")).toEqual(["Hırdavat", "Donanım kiralama", "Bilgisayar donanım bakımı"]);
+    // Üst üste ek ve Rusça çekim: kategori aramasıyla aynı kök.
+    expect(await names("rulmanlarının")).toEqual(["Rulmanlar ve yataklar"]);
+    expect(await names("кабель")).toEqual(["Elektrik kablosu"]);
+    // Yalnız bağlaçtan oluşan sorgu: süzgeç boş kalıp ilk beş kategori
+    // önerilmez; kategori aramasındaki gibi bütün ifade aranır.
+    for (const q of ["the", "and the", "для"]) {
+      expect({ q, names: await names(q) }).toEqual({ q, names: [] });
+    }
+    expect(await names("ve")).toEqual(["Rulmanlar ve yataklar"]);
+    // Bağlaçlı sorguda bağlaç aranmaz.
+    expect(await names("rulmanlar and yataklar")).toEqual(["Rulmanlar ve yataklar"]);
+  });
+
   it("mega menü: L1 + L2, sayı yalnız yayında ürünlerden", async () => {
     // Katalog test DB'sinde boş — menü kaynağı Category tablosudur.
     await prisma.category.createMany({

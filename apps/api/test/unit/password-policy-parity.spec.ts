@@ -249,7 +249,8 @@ describe("şifre politikası — web kuralları API ile aynı", () => {
     // Web paketi buradan çalıştırılamaz → ölçünün kendisi kaynakta aranır:
     // UTF-8 bayt sayan yardımcı ve onu `PASSWORD_MAX_BYTES` ile kıyaslayan satır.
     expect(source).toMatch(/new TextEncoder\(\)\.encode\(p\)\.length/);
-    expect(source).toMatch(/if \(passwordByteLength\(p\) > PASSWORD_MAX_BYTES\) return "max";/);
+    expect(source).toMatch(/return passwordByteLength\(p\) > PASSWORD_MAX_BYTES;/);
+    expect(source).toMatch(/if \(isPasswordTooLong\(p\)\) return "max";/);
     expect(source).not.toMatch(/p\.length > PASSWORD_MAX_LENGTH/);
   });
 

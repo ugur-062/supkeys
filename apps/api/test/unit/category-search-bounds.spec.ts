@@ -7,7 +7,10 @@ import {
 } from "../../src/modules/categories/services/category.service";
 import {
   categoryMatchScore,
+  categoryNameKey,
   categoryNameMatchesAll,
+  categoryRowRank,
+  compareCategoryRank,
   CATEGORY_WORD_BOUNDARIES,
 } from "../../src/modules/categories/services/category-search-rank";
 import { likeLiteral } from "../../src/common/prisma/like-literal";
@@ -70,10 +73,11 @@ describe("CategoryService.searchHierarchical bounds", () => {
 });
 
 /**
- * code-category-2 + cat-search-stem-displaces-typed-word: the word as typed is
- * the primary filter (the pre-stem predicate); a term with a different stem
- * adds a second query with the stem (shared `stemPrefix`, same rule as product
- * search), whose rows only fill the places the typed rows leave. Digits-only
+ * code-category-2 + recategory-new-1: every word is asked as typed (substring)
+ * and, when its stem differs (`categorySearchStem`), a second query asks the
+ * stem at a word start. The rows of both queries are merged and ordered by
+ * `categoryRowRank` (name + typed word, name + stem, synonyms + typed word,
+ * synonyms + stem); the result cap applies after that order. Digits-only
  * (code) queries are unchanged.
  */
 describe("CategoryService.searchHierarchical stem tolerance", () => {
@@ -170,7 +174,7 @@ describe("CategoryService.searchHierarchical stem tolerance", () => {
     return { service, nameNeedles, shown };
   }
 
-  it("stem-only rows fill only the places typed rows leave under the result cap", async () => {
+  it("rows whose name carries the typed word come first; name-stem rows take the places left under the cap", async () => {
     // 150 typed rows: all shown, first; 50 of the 300 stem-only rows fill the rest.
     const some = poolRig(150, 300);
     const partly = await some.service.searchHierarchical("kablolar");
@@ -194,12 +198,62 @@ describe("CategoryService.searchHierarchical stem tolerance", () => {
     expect(all.truncated).toBe(false);
   });
 
-  it("a full typed pool is widened by name with the TYPED word only; stem rows are not used", async () => {
+  it("both full pools are widened by name: the typed word, and the stem at a word start", async () => {
+    // A name that carries the stem ranks above a row that has the typed word only
+    // in its synonyms, so the stem pool is consulted even when the typed pool is full.
     const { service, nameNeedles, shown } = poolRig(1000, 300);
     const res = await service.searchHierarchical("kablolar");
-    expect(nameNeedles).toEqual(["kablolar"]);
+    expect(nameNeedles).toEqual(["kablolar", "^kablo"]);
+    // 1000 names carry the typed word: they fill the 200 places.
     expect(shown(res)).toHaveLength(200);
     expect(shown(res).every((id) => id.startsWith("typed"))).toBe(true);
+    expect(res.truncated).toBe(true);
+  });
+
+  /**
+   * recategory-new-1: the order under the cap is by match class, not by "typed
+   * anywhere first". Rows: `syn` has the typed word only in its synonyms, `name`
+   * carries the stem in its name, `deep` has only the stem, only in its synonyms.
+   */
+  it("a name that carries the stem outranks a typed word found only in synonyms, under the cap too", async () => {
+    const segment = { id: "40000000", code: "40000000", nameTr: "Dagitim", nameEn: null, nameRu: null, level: 1, segmentLetter: null, sortOrder: 0, parent: null };
+    const family = { ...segment, id: "40150000", code: "40150000", nameTr: "Akiskan", level: 2, parent: segment };
+    const cls = { ...segment, id: "40151500", code: "40151500", nameTr: "Aksam", level: 3, parent: family };
+    const row = (prefix: string, i: number, nameTr: string, keywords: string) => ({
+      id: `${prefix}${i}`,
+      code: `${prefix}${i}`,
+      nameTr: `${nameTr} ${i}`,
+      nameEn: null,
+      nameRu: null,
+      level: 4,
+      sortOrder: i,
+      searchText: foldSearchText(`${nameTr} ${i} ${keywords}`),
+    });
+    // Catalogue order is the reverse of the expected order.
+    const deep = Array.from({ length: 30 }, (_, i) => row("deep", i, "Conta takimi", "pompa parcasi"));
+    const syn = Array.from({ length: 150 }, (_, i) => row("syn", i, "Test cihazi", "pompasi"));
+    const name = Array.from({ length: 100 }, (_, i) => row("name", i, "Hidrolik pompalar", ""));
+    const typedName = [row("typed", 0, "Yakit pompasi", "")];
+    const all = [...deep, ...syn, ...name, ...typedName];
+    const byId = new Map(all.map((r) => [r.id, { ...r, parent: cls }] as const));
+    const findMany = jest.fn(async (args: { where: Record<string, unknown>; take?: number }) => {
+      const where = args.where as { id?: { in: string[] }; level?: unknown; AND?: Array<{ OR: Array<Record<string, { contains?: string }>> }> };
+      if (where.id) return where.id.in.map((id) => byId.get(id));
+      if (typeof where.level === "number") return [];
+      // Typed query: rows whose search text has "pompasi"; stem query: every row.
+      const typed = where.AND?.[0]?.OR[0]?.searchText?.contains === "pompasi";
+      return (typed ? all.filter((r) => r.searchText.includes("pompasi")) : all).slice(0, args.take);
+    });
+    const service = new CategoryService({ category: { findMany }, categorySearchMiss: { upsert: jest.fn() } } as unknown as PrismaService);
+
+    const res = await service.searchHierarchical("pompası");
+
+    const ids = res.segments.flatMap((s) => s.families.flatMap((f) => f.classes.flatMap((c) => c.commodities.map((m) => m.id))));
+    expect(ids).toHaveLength(200);
+    expect(ids[0]).toBe("typed0");
+    expect(ids.slice(1, 101).every((id) => id.startsWith("name"))).toBe(true);
+    // 99 places are left for the 150 synonym rows; the stem-in-synonym rows get none.
+    expect(ids.slice(101).every((id) => id.startsWith("syn"))).toBe(true);
     expect(res.truncated).toBe(true);
   });
 
@@ -268,6 +322,170 @@ describe("categoryMatchScore with stem matches", () => {
     expect(score("Bakır dövme parçalar", "copies", "Copper forgings")).toBe(0);
     // The word itself still scores.
     expect(score("Ad", "fries", "French fries")).toBe(3);
+  });
+});
+
+/**
+ * recategory-new-1 / new-2: the place of a row. First the whole-name match,
+ * then the match class (worst word decides), then the score.
+ */
+describe("categoryRowRank", () => {
+  const rank = (nameTr: string, query: string, keywords = "", extra: { nameEn?: string; nameRu?: string } = {}) => {
+    const tokens = query.split(" ").map((w) => foldSearchText(w));
+    return categoryRowRank(
+      { nameTr, ...extra, searchText: foldSearchText(`${nameTr} ${keywords} ${extra.nameEn ?? ""} ${extra.nameRu ?? ""}`) },
+      tokens,
+      foldSearchText(query),
+    );
+  };
+
+  it("match class: name + typed, name + stem at a word start, synonyms + typed, synonyms + stem", () => {
+    expect(rank("Yakıt pompası", "pompası").matchClass).toBe(0);
+    expect(rank("Hidrolik pompalar", "pompası").matchClass).toBe(1);
+    expect(rank("Basınç test cihazı", "pompası", "hidrolik pompası").matchClass).toBe(2);
+    expect(rank("Conta takımı", "pompası", "pompa parçası").matchClass).toBe(3);
+  });
+
+  it("the typed word inside a name word is class 0; the stem inside a word is not a name match", () => {
+    // "yağ" in "Tereyağı": the name carries the typed word.
+    expect(rank("Tereyağı", "yağ").matchClass).toBe(0);
+    // "nakliye" -> stem "nakli" sits inside "kaynaklı": the name does not count.
+    expect(rank("Solvent kaynaklı boru", "nakliye", "nakliye").matchClass).toBe(2);
+    expect(rank("Solvent kaynaklı boru", "nakliye", "nakliyat").matchClass).toBe(3);
+  });
+
+  it("a name word that is an inflection of the stem is class 1 even when it happens to start with the typed form", () => {
+    const ru = (nameRu: string) => rank("Ad", "труба", "", { nameRu }).matchClass;
+    expect(ru("Медная труба")).toBe(0);
+    // "трубах" = "труба" + "х" by spelling, but it is the stem "труб" + case ending, like "трубы".
+    expect(ru("Инструменты для бурения на обсадных трубах")).toBe(1);
+    expect(ru("Сварные стальные трубы")).toBe(1);
+    // No inflection reading: the typed form as the start of another word stays class 0.
+    expect(rank("Motorlu araçlar", "motor").matchClass).toBe(0);
+    expect(rank("Pompasız sistemler", "pompası").matchClass).toBe(0);
+  });
+
+  it("several words: the worst word decides the class", () => {
+    // hidrolik: name; pompası: stem in the name.
+    expect(rank("Hidrolik pompalar", "hidrolik pompası").matchClass).toBe(1);
+    // hidrolik: name; pompası: only in the synonyms.
+    expect(rank("Hidrolik basınç test cihazı", "hidrolik pompası", "pompası").matchClass).toBe(2);
+    // pompası: stem in the name; hidrolik: only in the synonyms.
+    expect(rank("Pompa verimi test ekipmanı", "hidrolik pompası", "hidrolik").matchClass).toBe(2);
+    expect(rank("Hidrolik pompası", "hidrolik pompası").matchClass).toBe(0);
+  });
+
+  it("the name may be in any language", () => {
+    expect(rank("Hırdavat", "hardware", "", { nameEn: "Hardware" }).matchClass).toBe(0);
+    expect(rank("Boya", "красители", "", { nameRu: "Красители и пигменты" }).matchClass).toBe(0);
+    expect(rank("Kablolar", "кабель", "", { nameRu: "Электрические кабели" }).matchClass).toBe(1);
+  });
+
+  it("exact: the whole name equals the query, in any language, folded and without punctuation", () => {
+    expect(rank("Hırdavat", "hardware", "", { nameEn: "Hardware" }).exact).toBe(true);
+    expect(rank("Hırdavat", "HIRDAVAT").exact).toBe(true);
+    expect(rank("Boyalar", "красители", "", { nameRu: "Красители" }).exact).toBe(true);
+    expect(rank("Borular, boru hatları ve boru bağlantı elemanları", "borular boru hatları ve boru bağlantı elemanları").exact).toBe(true);
+    expect(rank("Muhtelif hırdavat", "hırdavat").exact).toBe(false);
+    expect(rank("Hırdavat", "hırdavatı").exact).toBe(false);
+    expect(rank("Bilgisayar servisleri", "hardware", "hardware").exact).toBe(false);
+  });
+
+  it("a row without search text still gets its class from the name", () => {
+    expect(categoryRowRank({ nameTr: "Kablolar" }, ["kablolar"], "kablolar")).toEqual({
+      exact: true,
+      matchClass: 0,
+      score: 4,
+      wordMatch: true,
+    });
+    expect(categoryRowRank({ nameTr: "Kablo tesisatı" }, ["kablolar"], "kablolar").matchClass).toBe(1);
+    expect(categoryRowRank({ nameTr: "Bağlantı elemanları" }, ["kablolar"], "kablolar").matchClass).toBe(3);
+  });
+
+  it("order: exact name, then class, then score", () => {
+    const rows = [
+      { id: "syn-stem", r: rank("Conta takımı", "pompalar", "pompa parçası") },
+      { id: "syn", r: rank("Basınç test cihazı", "pompalar", "pompalar") },
+      { id: "stem-name", r: rank("Pompa gövdesi", "pompalar") },
+      { id: "inside", r: rank("Motopompalar", "pompalar") },
+      { id: "later-word", r: rank("Hidrolik pompalar", "pompalar") },
+      { id: "first-word", r: rank("Pompalar ve kompresörler", "pompalar") },
+      { id: "exact", r: rank("Pompalar", "pompalar") },
+    ];
+    expect(rows.map((x) => [x.id, x.r.matchClass])).toEqual([
+      ["syn-stem", 3],
+      ["syn", 2],
+      ["stem-name", 1],
+      ["inside", 0],
+      ["later-word", 0],
+      ["first-word", 0],
+      ["exact", 0],
+    ]);
+    const sorted = [...rows].sort((a, b) => compareCategoryRank(a.r, b.r)).map((x) => x.id);
+    expect(sorted).toEqual(["exact", "first-word", "later-word", "inside", "stem-name", "syn", "syn-stem"]);
+  });
+
+  it("wordMatch: every word is a name word or an inflection of it (typed or stem), not just the start of one", () => {
+    expect(rank("Tekstil iplikleri", "tekstil").wordMatch).toBe(true);
+    expect(rank("Metaller, Mineraller, Tekstil ve Doğal Malzemeler", "tekstil").wordMatch).toBe(true);
+    // Inflection of the typed word, and the stem as a word.
+    expect(rank("Rulmanlar ve yataklar", "rulman").wordMatch).toBe(true);
+    expect(rank("Hidrolik pompalar", "hidrolik pompası").wordMatch).toBe(true);
+    expect(rank("Ad", "сварка", "", { nameRu: "Оборудование для сварки и пайки" }).wordMatch).toBe(true);
+    // Only the start of another word, inside a word, or in the synonyms.
+    expect(rank("Motorlu araçlar", "motor").wordMatch).toBe(false);
+    expect(rank("Vanadyum", "vana").wordMatch).toBe(false);
+    expect(rank("Tereyağı", "yağ").wordMatch).toBe(false);
+    expect(rank("Basınç test cihazı", "pompa", "pompa").wordMatch).toBe(false);
+    // One weak word is enough to lose it.
+    expect(rank("Motorlu taşıt rulmanları", "motor rulman").wordMatch).toBe(false);
+    expect(rank("Motor rulmanları", "motor rulman").wordMatch).toBe(true);
+  });
+
+  it("wordMatch with a shown name looks at that name only; class and score still use every language", () => {
+    const row = { nameTr: "Motorlu araçlar", nameEn: "Motor vehicles", searchText: "motorlu araclar motor vehicles" };
+    // Any language (no shown name): the English name carries the word.
+    expect(categoryRowRank(row, ["motor"], "motor").wordMatch).toBe(true);
+    // Turkish reader sees "Motorlu araçlar": only the start of a word.
+    const tr = categoryRowRank(row, ["motor"], "motor", row.nameTr);
+    expect(tr).toMatchObject({ wordMatch: false, matchClass: 0, score: 4 });
+    // English reader sees "Motor vehicles".
+    expect(categoryRowRank(row, ["motor"], "motor", row.nameEn).wordMatch).toBe(true);
+  });
+
+  it("categoryNameKey folds, drops punctuation and collapses spaces", () => {
+    expect(categoryNameKey("  Borular,  boru hatları (çelik) ")).toBe("borular boru hatlari celik");
+    expect(categoryNameKey("Красители")).toBe("красители");
+    expect(categoryNameKey(" , ")).toBe("");
+  });
+});
+
+/**
+ * recategory-new-3: Russian case endings are inflections of the same word, so
+ * a name with the plural ranks like the Turkish / English plural does.
+ */
+describe("categoryMatchScore with Russian word forms", () => {
+  const score = (nameRu: string, token: string) =>
+    categoryMatchScore({ nameTr: "Ad", nameRu }, [foldSearchText(token)], foldSearchText(token));
+
+  it("typed base form: the plural in the name is the same word (4 first word, 3 later)", () => {
+    expect(score("Подшипники и вкладыши", "подшипник")).toBe(4);
+    expect(score("Фланцевые подшипники", "подшипник")).toBe(3);
+    // A derived word only starts with it.
+    expect(score("Подшипниковые узлы", "подшипник")).toBe(2);
+  });
+
+  it("typed plural / case form finds the base form through the stem, below the typed form", () => {
+    const plural = score("Электрические кабели", "кабели");
+    const base = score("Силовой кабель", "кабели");
+    const derived = score("Кабельные жгуты", "кабели");
+    expect(plural).toBe(3);
+    expect(base).toBeLessThan(plural);
+    expect(base).toBeGreaterThan(derived);
+    expect(derived).toBeGreaterThan(0);
+    // "сварка" -> "сварк": the genitive in the family name.
+    expect(score("Оборудование для сварки и пайки", "сварка")).toBeGreaterThan(0);
+    expect(score("Оборудование для пайки", "сварка")).toBe(0);
   });
 });
 

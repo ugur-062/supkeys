@@ -8,6 +8,7 @@
  */
 import { foldSearchText, tokenizeQuery } from "@rothern/shared";
 import { CategoryService } from "../../src/modules/categories/services/category.service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 
@@ -638,15 +639,17 @@ describe("CategoryService.searchTree — Türkçe ek ve İngilizce çoğul toler
 });
 
 /**
- * YAZILAN KELİME BİRİNCİL (cat-search-stem-displaces-typed-word,
- * cat-search-short-english-stem). Süzgeç yalnız kökle arıyordu ve kök başka
- * sözcüklerin içinde de geçiyordu ("nakliye" → "nakli" ⊂ "kaynaklı"): yalnız
- * kökle gelen satırlar 200 tavanını dolduruyor, yazılan kelimeyi taşıyan
- * satırlar kesiliyor ya da arkaya düşüyordu. Kural: yazılan kelimeyi taşıyan
- * satırlar ayrı çekilir, hep önde durur ve tavan onları kesmez; yalnız kökle
- * gelenler kalan yeri doldurur. 4 karakterden kısa kök hiç kullanılmaz.
+ * ADI YAZILAN KELİMEYİ TAŞIYAN ÖNCE (cat-search-stem-displaces-typed-word,
+ * cat-search-short-english-stem; sıra recategory-new-1 ile yeniden kuruldu).
+ * Süzgeç yalnız kökle arıyordu ve kök başka sözcüklerin içinde de geçiyordu
+ * ("nakliye" → "nakli" ⊂ "kaynaklı"): yalnız kökle gelen satırlar 200 tavanını
+ * dolduruyor, yazılan kelimeyi taşıyan satırlar kesiliyor ya da arkaya
+ * düşüyordu. Kural: kök yalnız SÖZCÜK BAŞINDA aranır; sıra — adı yazılan
+ * kelimeyi taşıyan > adı kökü taşıyan > yazılan kelime yalnız eş anlamlıda >
+ * kök yalnız eş anlamlıda; tavan bu sıradan sonra. 4 karakterden kısa kök
+ * hiç kullanılmaz.
  */
-describe("CategoryService.searchTree — yazılan kelime birincil, kök kalan yeri doldurur", () => {
+describe("CategoryService.searchTree — adı yazılan kelimeyi taşıyan önce, sonra kök", () => {
   type Tree = Awaited<ReturnType<CategoryService["searchHierarchical"]>>;
   const flatClasses = (res: Tree) => res.segments.flatMap((s) => s.families.flatMap((f) => f.classes));
   /** Ağaçtaki EŞLEŞEN satırların (L3 + L4) kodları, ağaç sırasıyla. */
@@ -704,9 +707,10 @@ describe("CategoryService.searchTree — yazılan kelime birincil, kök kalan ye
     expect(await prisma.categorySearchMiss.count()).toBe(0);
   });
 
-  it("'mobilya': 'Mobil …' satırları (kök 'mobil') 'Mobilya cilaları'nın ve eş anlamlıdan gelenin önüne geçemez", async () => {
+  it("'mobilya': 'Mobil …' satırları (kök 'mobil') 'Mobilya cilaları'nın önüne geçemez; yalnız eş anlamlıdan gelen onların da arkasında", async () => {
     // Katalogda ÖNCE gelen segment: üç sınıf yalnız kökle eşleşir; toplam
     // ağırlıkları (3 × 2,75²) tek "Mobilya cilaları"nınkini (4²) geçiyordu.
+    // Sıra (recategory-new-1): ad + yazılan kelime > ad + kök > yalnız eş anlamlı.
     await makeCategory({ code: "25000000", nameTr: "Araçlar", level: 1, sortOrder: 0 });
     await makeCategory({ code: "25100000", nameTr: "Motorlu taşıtlar", level: 2, parentId: "25000000" });
     await makeCategory({ code: "25101600", nameTr: "Mobil medya aracı", level: 3, parentId: "25100000", sortOrder: 0 });
@@ -721,18 +725,18 @@ describe("CategoryService.searchTree — yazılan kelime birincil, kök kalan ye
 
     const res = await service().searchHierarchical("mobilya");
 
-    expect(res.segments.map((s) => s.code)).toEqual(["31000000", "30000000", "25000000"]);
+    expect(res.segments.map((s) => s.code)).toEqual(["31000000", "25000000", "30000000"]);
     expect(flatClasses(res).map((c) => c.nameTr)).toEqual([
       "Mobilya cilaları",
-      "Büro donanımı",
       "Mobil medya aracı",
       "Mobil ofis aracı",
       "Mobil atölye aracı",
+      "Büro donanımı",
     ]);
     expect(res.truncated).toBe(false);
   });
 
-  it("'cıvata': aynı aile ve aynı sınıf içinde de yalnız kökle ('civa') gelen satır yazılan kelimeyi taşıyanın arkasında", async () => {
+  it("'cıvata': aynı aile ve aynı sınıf içinde de adı yalnız kökü ('civa') taşıyan satır, adı yazılan kelimeyi taşıyanın arkasında", async () => {
     await makeCategory({ code: "31000000", nameTr: "Üretim bileşenleri", level: 1 });
     await makeCategory({ code: "31160000", nameTr: "Donanım", level: 2, parentId: "31000000" });
     // Katalog sırası bilerek TERS.
@@ -746,11 +750,11 @@ describe("CategoryService.searchTree — yazılan kelime birincil, kök kalan ye
     const res = await service().searchHierarchical("cıvata");
 
     const cls = flatClasses(res);
-    // Sınıf: ad eşleşmesi > yalnız eş anlamlı (yazılan kelime) > yalnız kök.
+    // Sınıf, alt ağacındaki EN İYİ satırla dizilir: adı "cıvata" taşıyan sınıf >
+    // adı "cıvata" taşıyan emtiası olan sınıf > yalnız kökü taşıyan sınıf.
     expect(cls.map((c) => c.nameTr)).toEqual(["Cıvatalar", "Somunlar ve pullar", "Cıva buharlı lambalar"]);
-    // Emtia: yalnız kökle gelen "Cıva tuzu" (2,75) eş anlamlıdan gelen
-    // "Altıgen somun"un (0) önüne geçemez.
-    expect(cls[1]!.commodities.map((c) => c.nameTr)).toEqual(["Saplama cıvata", "Altıgen somun", "Cıva tuzu"]);
+    // Emtia: ad + yazılan kelime > ad + kök ("Cıva tuzu") > yalnız eş anlamlı.
+    expect(cls[1]!.commodities.map((c) => c.nameTr)).toEqual(["Saplama cıvata", "Cıva tuzu", "Altıgen somun"]);
     // Yalnız kökle gelen satır da EŞLEŞMEDİR (vurgu + seçilebilir).
     expect(cls[2]!.isMatch).toBe(true);
   });
@@ -797,6 +801,407 @@ describe("CategoryService.searchTree — yazılan kelime birincil, kök kalan ye
     // 4 karakterlik kök hâlâ çalışır: "pipes" → "pipe".
     await makeCategory({ code: "25172000", nameTr: "Çelik boru", level: 3, parentId: "25170000", nameEn: "Steel pipe" });
     expect(flatClasses(await service().searchHierarchical("pipes")).map((c) => c.code)).toEqual(["25172000"]);
+  });
+});
+
+/**
+ * recategory-new-1. "hidrolik pompası": eş anlamlısında "pompası" geçen
+ * laboratuvar cihazları, adı "Hidrolik pompalar" olan satırın önündeydi
+ * (22. sıra) — "yazılan kelime nerede geçerse geçsin önce" kuralı yüzünden.
+ * Sıra artık eşleşme sınıfıyla: adı kökü taşıyan satır, kelimeyi yalnız eş
+ * anlamlısında taşıyanın önünde.
+ */
+describe("CategoryService.searchTree — eşleşme sınıfı (recategory-new-1)", () => {
+  type Tree = Awaited<ReturnType<CategoryService["searchHierarchical"]>>;
+  const rows = (res: Tree) =>
+    res.segments.flatMap((s) =>
+      s.families.flatMap((f) => f.classes.flatMap((c) => [`C:${c.nameTr}`, ...c.commodities.map((m) => `M:${m.nameTr}`)])),
+    );
+
+  async function pumps() {
+    // Katalogda ÖNCE: laboratuvar cihazları yazılan biçimi eş anlamlılarında taşır.
+    await makeCategory({ code: "41000000", nameTr: "Laboratuvar Ekipmanı", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "41110000", nameTr: "Ölçüm, gözlem ve test cihazları", level: 2, parentId: "41000000" });
+    await makeCategory({ code: "41112200", nameTr: "Basınç ölçüm ve kontrol cihazları", level: 3, parentId: "41110000", sortOrder: 0 });
+    await makeCategory({ code: "41112201", nameTr: "Hidrolik basınç test cihazı", level: 4, parentId: "41112200", keywords: "hidrolik pompası test" });
+    await makeCategory({ code: "41112300", nameTr: "Mekanik cihazlar", level: 3, parentId: "41110000", sortOrder: 1 });
+    await makeCategory({ code: "41112301", nameTr: "Hidrolik test cihazı", level: 4, parentId: "41112300", keywords: "pompası" });
+    await makeCategory({ code: "41112302", nameTr: "Pompa verimi test ekipmanı", level: 4, parentId: "41112300", keywords: "hidrolik pompası" });
+    await makeCategory({ code: "40000000", nameTr: "Dağıtım ve İklimlendirme Sistemleri", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "40150000", nameTr: "Endüstriyel pompalar ve kompresörler", level: 2, parentId: "40000000" });
+    await makeCategory({ code: "40151500", nameTr: "Pompalar", level: 3, parentId: "40150000" });
+    await makeCategory({ code: "40151501", nameTr: "Hava pompaları", level: 4, parentId: "40151500", sortOrder: 0 });
+    await makeCategory({ code: "40151502", nameTr: "Hidrolik pompalar", level: 4, parentId: "40151500", sortOrder: 1 });
+  }
+
+  it("'hidrolik pompası': 'Pompalar › Hidrolik pompalar' en üstte, eş anlamlıdan gelenler arkada", async () => {
+    await pumps();
+
+    const res = await service().searchHierarchical("hidrolik pompası");
+
+    expect(res.segments.map((s) => s.code)).toEqual(["40000000", "41000000"]);
+    expect(rows(res)).toEqual([
+      "C:Pompalar",
+      "M:Hidrolik pompalar",
+      // Kalan üç emtiada kelimelerden biri yalnız eş anlamlıda: sınıfları aynı,
+      // aralarında puan sıralar (adı "Hidrolik" ile başlayan 4 > adı "pompa"
+      // kökünü taşıyan 2,75); iki eşleşmeli sınıf tek eşleşmelinin önünde.
+      "C:Mekanik cihazlar",
+      "M:Hidrolik test cihazı",
+      "M:Pompa verimi test ekipmanı",
+      "C:Basınç ölçüm ve kontrol cihazları",
+      "M:Hidrolik basınç test cihazı",
+    ]);
+    expect(res.truncated).toBe(false);
+  });
+
+  it("yalın, çoğul ve iyelikli yazım aynı satırı ilk sıraya koyar", async () => {
+    await pumps();
+    for (const q of ["hidrolik pompa", "hidrolik pompalar", "hidrolik pompası", "hidrolik pompaları", "hidrolik pompalarının"]) {
+      const res = await service().searchHierarchical(q);
+      expect({ q, first: rows(res).slice(0, 2) }).toEqual({ q, first: ["C:Pompalar", "M:Hidrolik pompalar"] });
+    }
+  });
+});
+
+/**
+ * recategory-new-2. Adı sorguya EŞİT olan grup, adında o kelime geçen çok
+ * satırlı başka sektörün arkasında kalıyordu ("hardware": "Hardware" ailesi
+ * 85 satırın 11.'si; "Красители": 40 satırın 19.'su; "tekstil": Tekstil
+ * sektörü 145 satırın 29.'undan başlıyordu).
+ */
+describe("CategoryService.searchTree — tam ad ve sektör sırası (recategory-new-2)", () => {
+  it("'hardware': adı sorguya eşit AİLE, adında kelime geçen 12 satırlı sektörün önünde", async () => {
+    // Katalogda ÖNCE ve çok satırlı: eski ağırlık sırası bunu öne alıyordu.
+    await makeCategory({ code: "30000000", nameTr: "Teknoloji Hizmetleri", nameEn: "Technology Services", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "30110000", nameTr: "Bilgisayar hizmetleri", nameEn: "Computer services", level: 2, parentId: "30000000" });
+    await makeCategory({ code: "30111500", nameTr: "Donanım bakımı", nameEn: "Hardware maintenance and support", level: 3, parentId: "30110000" });
+    for (let i = 1; i <= 12; i++) {
+      await makeCategory({
+        code: `301115${String(i).padStart(2, "0")}`,
+        nameTr: `Donanım hizmeti ${i}`,
+        nameEn: `Hardware service ${i}`,
+        level: 4,
+        parentId: "30111500",
+        sortOrder: i,
+      });
+    }
+    await makeCategory({ code: "31000000", nameTr: "Üretim Bileşenleri", nameEn: "Manufacturing Components", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "31160000", nameTr: "Hırdavat", nameEn: "Hardware", level: 2, parentId: "31000000" });
+    await makeCategory({ code: "31161500", nameTr: "Vidalar", nameEn: "Screws", level: 3, parentId: "31160000", sortOrder: 0 });
+    await makeCategory({ code: "31161600", nameTr: "Cıvatalar", nameEn: "Bolts", level: 3, parentId: "31160000", sortOrder: 1 });
+
+    for (const q of ["hardware", "Hardware", "HARDWARE"]) {
+      const res = await service().searchHierarchical(q);
+      expect({ q, segs: res.segments.map((s) => s.code) }).toEqual({ q, segs: ["31000000", "30000000"] });
+      const fam = res.segments[0]!.families[0]!;
+      expect(fam).toMatchObject({ code: "31160000", isMatch: true });
+      // Ailenin sınıfları seçilebilir satır olarak altında.
+      expect(fam.classes.map((c) => [c.code, c.parentMatch])).toEqual([
+        ["31161500", true],
+        ["31161600", true],
+      ]);
+    }
+  });
+
+  it("'Красители': Rusça adı sorguya eşit aile, adında kelime geçen reaktif satırlarının önünde", async () => {
+    await makeCategory({ code: "41000000", nameTr: "Laboratuvar Ekipmanı", nameRu: "Лабораторное оборудование", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "41110000", nameTr: "Test cihazları", nameRu: "Приборы для испытаний", level: 2, parentId: "41000000" });
+    await makeCategory({ code: "41116000", nameTr: "Test kitleri", nameRu: "Наборы для тестирования", level: 3, parentId: "41110000" });
+    for (let i = 1; i <= 9; i++) {
+      await makeCategory({
+        code: `4111600${i}`,
+        nameTr: `Reaktif ${i}`,
+        nameRu: `Реагенты, растворы и красители ${i}`,
+        level: 4,
+        parentId: "41116000",
+        sortOrder: i,
+      });
+    }
+    await makeCategory({ code: "12000000", nameTr: "Kimyasal Maddeler", nameRu: "Химические вещества", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "12170000", nameTr: "Boyar maddeler", nameRu: "Красители", level: 2, parentId: "12000000" });
+    await makeCategory({ code: "12171500", nameTr: "Boyalar", nameRu: "Красители флуоресцентные", level: 3, parentId: "12170000" });
+
+    const res = await service().searchHierarchical("Красители");
+
+    expect(res.segments.map((s) => s.code)).toEqual(["12000000", "41000000"]);
+    expect(res.segments[0]!.families[0]).toMatchObject({ code: "12170000", isMatch: true });
+  });
+
+  it("'tekstil': adı kelimeyi taşıyan SEKTÖR, yalnız emtiası eşleşen çok satırlı sektörün önünde; sonra ailesi eşleşen", async () => {
+    await makeCategory({ code: "41000000", nameTr: "Laboratuvar Ekipmanı", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "41110000", nameTr: "Ölçüm ve test cihazları", level: 2, parentId: "41000000" });
+    await makeCategory({ code: "41114600", nameTr: "Malzeme test cihazları", level: 3, parentId: "41110000" });
+    for (let i = 1; i <= 8; i++) {
+      await makeCategory({ code: `4111460${i}`, nameTr: `Tekstil test cihazı ${i}`, level: 4, parentId: "41114600", sortOrder: i });
+    }
+    await makeCategory({ code: "23000000", nameTr: "Endüstriyel Üretim Makineleri", level: 1, sortOrder: 1 });
+    await makeCategory({ code: "23120000", nameTr: "Tekstil ve kumaş makineleri", level: 2, parentId: "23000000" });
+    await makeCategory({ code: "23121500", nameTr: "Dokuma tezgahları", level: 3, parentId: "23120000" });
+    // Katalog sırasında EN SONDA.
+    await makeCategory({ code: "11000000", nameTr: "Metaller, Mineraller, Tekstil ve Doğal Malzemeler", level: 1, sortOrder: 9 });
+    await makeCategory({ code: "11150000", nameTr: "Elyaflar ve iplikler", level: 2, parentId: "11000000", sortOrder: 1 });
+    await makeCategory({ code: "11151600", nameTr: "Tekstil iplikleri", level: 3, parentId: "11150000" });
+    await makeCategory({ code: "11100000", nameTr: "Mineraller ve cevherler", level: 2, parentId: "11000000", sortOrder: 0 });
+    await makeCategory({ code: "11101500", nameTr: "Mineraller", level: 3, parentId: "11100000" });
+
+    const res = await service().searchHierarchical("tekstil");
+
+    expect(res.segments.map((s) => [s.code, s.isMatch])).toEqual([
+      ["11000000", true],
+      ["23000000", false],
+      ["41000000", false],
+    ]);
+    // Sektörün içinde: eşleşmesi olan aile önce, yalnız sektör yüzünden listelenen sonda.
+    expect(res.segments[0]!.families.map((f) => f.code)).toEqual(["11150000", "11100000"]);
+    expect(res.segments[1]!.families[0]).toMatchObject({ code: "23120000", isMatch: true });
+  });
+
+  it("adı sorguya eşit aile, katalog sırasında önde gelen 25 eş anlamlı ailenin arkasında tavana takılmaz", async () => {
+    await makeCategory({ code: "30000000", nameTr: "Yapı malzemeleri", level: 1, sortOrder: 0 });
+    for (let i = 0; i < 25; i++) {
+      const fam = `30${10 + i}0000`;
+      const no = String(i).padStart(2, "0");
+      await makeCategory({ code: fam, nameTr: `Bağlantı grubu ${no}`, level: 2, parentId: "30000000", sortOrder: i, keywords: "vida" });
+      await makeCategory({ code: `${fam.slice(0, 4)}1500`, nameTr: `Montaj seti ${no}`, level: 3, parentId: fam });
+    }
+    await makeCategory({ code: "31000000", nameTr: "Üretim bileşenleri", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "31990000", nameTr: "Vida", level: 2, parentId: "31000000", sortOrder: 99 });
+    await makeCategory({ code: "31991500", nameTr: "Ağaç bağlantıları", level: 3, parentId: "31990000" });
+
+    const res = await service().searchHierarchical("vida");
+
+    expect(res.segments[0]!.code).toBe("31000000");
+    expect(res.segments[0]!.families[0]).toMatchObject({ code: "31990000", isMatch: true });
+    expect(res.segments[0]!.families[0]!.classes.map((c) => [c.code, c.parentMatch])).toEqual([["31991500", true]]);
+    // Aile tavanı 20: tam ad + eş anlamlı ailelerin ilk 19'u.
+    expect(res.segments.flatMap((s) => s.families).filter((f) => f.isMatch)).toHaveLength(20);
+  });
+
+  it("adı sorguya eşit SINIF da kendi sektörünü öne alır; tam adlı EMTİA sektör sırasını değiştirmez", async () => {
+    await makeCategory({ code: "26000000", nameTr: "Güç dağıtımı", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "26120000", nameTr: "Tel ürünleri", level: 2, parentId: "26000000" });
+    await makeCategory({ code: "26121600", nameTr: "Kablo aksesuarları", level: 3, parentId: "26120000" });
+    for (let i = 1; i <= 6; i++) {
+      await makeCategory({ code: `2612160${i}`, nameTr: `Kablo pabucu ${i}`, level: 4, parentId: "26121600", sortOrder: i });
+    }
+    await makeCategory({ code: "39000000", nameTr: "Elektrik sistemleri", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "39120000", nameTr: "Tesisat malzemeleri", level: 2, parentId: "39000000" });
+    await makeCategory({ code: "39121500", nameTr: "Kablo", level: 3, parentId: "39120000" });
+    await makeCategory({ code: "11000000", nameTr: "Hammaddeler", level: 1, sortOrder: 9 });
+    await makeCategory({ code: "11100000", nameTr: "Metaller", level: 2, parentId: "11000000" });
+    await makeCategory({ code: "11101500", nameTr: "Adi metaller", level: 3, parentId: "11100000" });
+    await makeCategory({ code: "11101501", nameTr: "Kablo", level: 4, parentId: "11101500" });
+
+    const res = await service().searchHierarchical("kablo");
+
+    // Tam adlı sınıf (39) > adı kelimeyi taşıyan sınıf + altı emtia (26) > tek emtia (11).
+    expect(res.segments.map((s) => s.code)).toEqual(["39000000", "26000000", "11000000"]);
+  });
+
+  it("'motor': adı yalnız kelimeyle BAŞLAYAN aile ('Motorlu araçlar') 'genel olan önce' sırasını almaz", async () => {
+    await makeCategory({ code: "25000000", nameTr: "Araçlar", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "25100000", nameTr: "Motorlu araçlar", level: 2, parentId: "25000000" });
+    await makeCategory({ code: "25101500", nameTr: "Binek otomobiller", level: 3, parentId: "25100000" });
+    await makeCategory({ code: "26000000", nameTr: "Güç üretimi", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "26100000", nameTr: "Güç kaynakları", level: 2, parentId: "26000000" });
+    await makeCategory({ code: "26101500", nameTr: "Motor bileşenleri", level: 3, parentId: "26100000" });
+    await makeCategory({ code: "26101501", nameTr: "Motor takozları", level: 4, parentId: "26101500" });
+
+    const res = await service().searchHierarchical("motor");
+
+    expect(res.segments.map((s) => s.code)).toEqual(["26000000", "25000000"]);
+  });
+});
+
+/**
+ * category-2 / code-category-2 (kalan kısım): üst üste iki ek köke inmiyordu —
+ * "rulmanlarının" 3 satır ("rulman" 87), "borularının" boru ailesini hiç
+ * getirmiyordu.
+ */
+describe("CategoryService.searchTree — üst üste Türkçe ek (category-2)", () => {
+  type Tree = Awaited<ReturnType<CategoryService["searchHierarchical"]>>;
+  const matched = (res: Tree) =>
+    res.segments
+      .flatMap((s) => s.families.flatMap((f) => f.classes))
+      .flatMap((c) => [...(c.isMatch ? [c.code] : []), ...c.commodities.map((m) => m.code)])
+      .sort();
+
+  async function bearings() {
+    await makeCategory({ code: "31000000", nameTr: "Üretim bileşenleri", level: 1 });
+    await makeCategory({ code: "31170000", nameTr: "Yataklar ve dişliler", level: 2, parentId: "31000000" });
+    await makeCategory({ code: "31171500", nameTr: "Rulmanlar ve yataklar", level: 3, parentId: "31170000" });
+    await makeCategory({ code: "31171501", nameTr: "Rulman bilyası", level: 4, parentId: "31171500", sortOrder: 0 });
+    await makeCategory({ code: "31171502", nameTr: "Tekerlek rulmanları", level: 4, parentId: "31171500", sortOrder: 1 });
+    await makeCategory({ code: "31171503", nameTr: "Burç", level: 4, parentId: "31171500", sortOrder: 2 });
+    await makeCategory({ code: "40000000", nameTr: "Dağıtım sistemleri", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "40170000", nameTr: "Borular, boru hatları ve boru bağlantı elemanları", level: 2, parentId: "40000000" });
+    await makeCategory({ code: "40171500", nameTr: "Ticari borular", level: 3, parentId: "40170000" });
+    await makeCategory({ code: "40171501", nameTr: "Asitleştirme hava boruları", level: 4, parentId: "40171500" });
+  }
+
+  it("'rulmanlarının' = 'rulmanları' = 'rulman': aynı satırlar", async () => {
+    await bearings();
+    const base = matched(await service().searchHierarchical("rulman"));
+    expect(base).toEqual(["31171500", "31171501", "31171502"]);
+    for (const q of ["rulmanları", "rulmanlarının", "rulmanlarını", "rulmanlarda", "rulmanların"]) {
+      expect({ q, codes: matched(await service().searchHierarchical(q)) }).toEqual({ q, codes: base });
+    }
+    expect(await prisma.categorySearchMiss.count()).toBe(0);
+  });
+
+  it("'borularının': boru ailesi sınıflarıyla gelir ve ilk sıradadır", async () => {
+    await bearings();
+    const res = await service().searchHierarchical("borularının");
+    const fam = res.segments[0]!.families[0]!;
+    expect(fam).toMatchObject({ code: "40170000", isMatch: true });
+    expect(fam.classes.map((c) => c.code)).toEqual(["40171500"]);
+    expect(matched(res)).toEqual(["40171500", "40171501"]);
+  });
+
+  it("'cıvatalarının' 'cıvata'da durur: 'Cıva …' satırlarını getirmez", async () => {
+    await makeCategory({ code: "31000000", nameTr: "Üretim bileşenleri", level: 1 });
+    await makeCategory({ code: "31160000", nameTr: "Hırdavat", level: 2, parentId: "31000000" });
+    await makeCategory({ code: "31161600", nameTr: "Cıvatalar", level: 3, parentId: "31160000", sortOrder: 0 });
+    await makeCategory({ code: "31161700", nameTr: "Cıva buharlı lambalar", level: 3, parentId: "31160000", sortOrder: 1 });
+    expect(matched(await service().searchHierarchical("cıvatalarının"))).toEqual(["31161600"]);
+  });
+});
+
+/**
+ * recategory-new-3. Rusça kelime biçimleri: "сварка" hiçbir şey bulmuyordu
+ * (aile adı "… для сварки и пайки"), "кабели" 28 satır ("кабель" 183),
+ * "стальные трубы" 7 ("стальная труба" 19).
+ */
+describe("CategoryService.searchTree — Rusça kelime biçimleri (recategory-new-3)", () => {
+  type Tree = Awaited<ReturnType<CategoryService["searchHierarchical"]>>;
+  const matched = (res: Tree) =>
+    res.segments
+      .flatMap((s) => s.families.flatMap((f) => [...(f.isMatch ? [f.code] : []), ...f.classes.flatMap((c) => [...(c.isMatch ? [c.code] : []), ...c.commodities.map((m) => m.code)])]))
+      .sort();
+
+  async function russian() {
+    await makeCategory({ code: "23000000", nameTr: "Endüstriyel makineler", nameRu: "Промышленное оборудование", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "23270000", nameTr: "Kaynak ve lehim ekipmanı", nameRu: "Оборудование и материалы для сварки и пайки", level: 2, parentId: "23000000" });
+    await makeCategory({ code: "23271400", nameTr: "Kaynak makineleri", nameRu: "Сварочное оборудование", level: 3, parentId: "23270000" });
+    await makeCategory({ code: "23271401", nameTr: "Ark kaynağı", nameRu: "Дуговая сварка", level: 4, parentId: "23271400" });
+    await makeCategory({ code: "26000000", nameTr: "Güç dağıtımı", nameRu: "Распределение электроэнергии", level: 1, sortOrder: 1 });
+    await makeCategory({ code: "26120000", nameTr: "Teller ve kablolar", nameRu: "Электрические провода, кабели и жгуты", level: 2, parentId: "26000000" });
+    await makeCategory({ code: "26121600", nameTr: "Elektrik kablosu", nameRu: "Электрические кабели и аксессуары", level: 3, parentId: "26120000", sortOrder: 0 });
+    await makeCategory({ code: "26121601", nameTr: "Isıtma kablosu", nameRu: "Нагревательный кабель", level: 4, parentId: "26121600", sortOrder: 0 });
+    await makeCategory({ code: "26121602", nameTr: "Kablo demeti", nameRu: "Кабельная сборка", level: 4, parentId: "26121600", sortOrder: 1 });
+    await makeCategory({ code: "26101100", nameTr: "AC motorlar", nameRu: "Электродвигатели переменного тока", level: 3, parentId: "26120000", sortOrder: 1 });
+    await makeCategory({ code: "26101101", nameTr: "Motor tamir kiti", nameRu: "Ремкомплект электродвигателя", level: 4, parentId: "26101100" });
+    await makeCategory({ code: "40000000", nameTr: "Dağıtım sistemleri", nameRu: "Системы распределения", level: 1, sortOrder: 2 });
+    await makeCategory({ code: "40170000", nameTr: "Borular", nameRu: "Трубки и трубные фитинги", level: 2, parentId: "40000000" });
+    await makeCategory({ code: "40171500", nameTr: "Kaynaklı çelik borular", nameRu: "Сварные стальные трубы", level: 3, parentId: "40170000" });
+    await makeCategory({ code: "40171501", nameTr: "Delikli boru", nameRu: "Сварная стальная перфорированная труба", level: 4, parentId: "40171500" });
+    await makeCategory({ code: "40171502", nameTr: "Bakır boru", nameRu: "Медная труба", level: 4, parentId: "40171500", sortOrder: 1 });
+    await makeCategory({ code: "31000000", nameTr: "Üretim bileşenleri", nameRu: "Производственные комплектующие", level: 1, sortOrder: 3 });
+    await makeCategory({ code: "31170000", nameTr: "Yataklar", nameRu: "Подшипники, втулки и шестерни", level: 2, parentId: "31000000" });
+    await makeCategory({ code: "31171500", nameTr: "Rulmanlar", nameRu: "Подшипники и вкладыши", level: 3, parentId: "31170000" });
+    await makeCategory({ code: "31171501", nameTr: "Flanşlı rulman", nameRu: "Фланцевый подшипник", level: 4, parentId: "31171500" });
+  }
+
+  it("'сварка': '… для сварки и пайки' ailesi bulunur ve kürasyon kuyruğuna yazılmaz", async () => {
+    await russian();
+
+    const res = await service().searchHierarchical("сварка");
+
+    expect(res.segments.map((s) => s.code)).toEqual(["23000000"]);
+    expect(res.segments[0]!.families[0]).toMatchObject({ code: "23270000", isMatch: true });
+    // Yazılan biçimi adında taşıyan emtia da orada; sıfat ("Сварочное") ayrı köktür.
+    expect(matched(res)).toEqual(["23270000", "23271401"]);
+    expect(await prisma.categorySearchMiss.count()).toBe(0);
+  });
+
+  it("yalın hâl ile çoğul / çekimli hâl aynı kategorileri bulur", async () => {
+    await russian();
+    const pairs: Array<[string, string, string[]]> = [
+      ["кабель", "кабели", ["26120000", "26121600", "26121601", "26121602"]],
+      ["стальная труба", "стальные трубы", ["40171500", "40171501"]],
+      ["подшипник", "подшипники", ["31170000", "31171500", "31171501"]],
+      ["электродвигатель", "электродвигатели", ["26101100", "26101101"]],
+    ];
+    for (const [base, form, codes] of pairs) {
+      const a = matched(await service().searchHierarchical(base));
+      const b = matched(await service().searchHierarchical(form));
+      expect({ base, codes: a }).toEqual({ base, codes });
+      expect({ form, codes: b }).toEqual({ form, codes });
+    }
+  });
+
+  it("'сварка' (Rusça arayüz): adı eşleşen AİLENİN sektörü, çok emtialı sektörün önünde; öncelik okuyucunun gördüğü ada bakar", async () => {
+    await makeCategory({ code: "23000000", nameTr: "Endüstriyel makineler", nameRu: "Промышленное оборудование", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "23270000", nameTr: "Kaynak ve lehim ekipmanı", nameRu: "Оборудование и материалы для сварки и пайки", level: 2, parentId: "23000000" });
+    await makeCategory({ code: "23271400", nameTr: "Kaynak makineleri", nameRu: "Сварочное оборудование", level: 3, parentId: "23270000" });
+    // Çok satırlı sektör: yedi emtia adı kökü çekimli taşır ("сваркой").
+    await makeCategory({ code: "31000000", nameTr: "Üretim bileşenleri", nameRu: "Производственные комплектующие", level: 1, sortOrder: 9 });
+    await makeCategory({ code: "31300000", nameTr: "İmal düzenekler", nameRu: "Сборные узлы", level: 2, parentId: "31000000" });
+    await makeCategory({ code: "31301500", nameTr: "Ultrasonik düzenekler", nameRu: "Конструкционные узлы", level: 3, parentId: "31300000" });
+    for (let i = 1; i <= 7; i++) {
+      await makeCategory({
+        code: `3130150${i}`,
+        nameTr: `Düzenek ${i}`,
+        nameRu: `Узел ${i} с ультразвуковой сваркой`,
+        level: 4,
+        parentId: "31301500",
+        sortOrder: i,
+      });
+    }
+
+    const ru = await runWithLocale("ru", () => service().searchHierarchical("сварка"));
+    expect(ru.segments.map((s) => s.code)).toEqual(["23000000", "31000000"]);
+    expect(ru.segments[0]!.families[0]).toMatchObject({ code: "23270000", isMatch: true });
+
+    // Türkçe arayüzde Rusça ad görünmez: "genel olan önce" uygulanmaz, ağırlık sıralar.
+    const tr = await runWithLocale("tr", () => service().searchHierarchical("сварка"));
+    expect(tr.segments.map((s) => s.code)).toEqual(["31000000", "23000000"]);
+  });
+
+  it("yazılan biçimi adında taşıyan satır, yalnız kökü taşıyanın önünde ('кабели')", async () => {
+    await russian();
+    const res = await service().searchHierarchical("кабели");
+    const cls = res.segments[0]!.families[0]!.classes.find((c) => c.code === "26121600")!;
+    expect(cls.isMatch).toBe(true);
+    // "Нагревательный кабель" (yalın hâl, çekim) > "Кабельная сборка" (türetme).
+    expect(cls.commodities.map((c) => c.code)).toEqual(["26121601", "26121602"]);
+  });
+});
+
+/**
+ * recategory-new-5. "and", "or", "the", "of", "for" ve Rusça "или", "для"
+ * bağlaçtır: AND süzgecine girmez (ve web vurgulamaz).
+ */
+describe("CategoryService.searchTree — İngilizce ve Rusça bağlaçlar (recategory-new-5)", () => {
+  const classesOf = (res: Awaited<ReturnType<CategoryService["searchHierarchical"]>>) =>
+    res.segments.flatMap((s) => s.families.flatMap((f) => f.classes)).map((c) => c.code);
+
+  it("bağlaç sonucu daraltmaz: adında '&' / virgül olan kategori bağlaçlı sorguyla bulunur", async () => {
+    await makeCategory({ code: "40000000", nameTr: "Dağıtım sistemleri", nameEn: "Distribution Systems", nameRu: "Системы распределения", level: 1 });
+    await makeCategory({ code: "40170000", nameTr: "Akışkan iletimi", nameEn: "Fluid handling", nameRu: "Транспортировка жидкостей", level: 2, parentId: "40000000" });
+    await makeCategory({ code: "40171500", nameTr: "Boru, bağlantı", nameEn: "Pipes, fittings", nameRu: "Насосы, компрессоры", level: 3, parentId: "40170000" });
+
+    for (const q of ["pipes and fittings", "pipes or fittings", "fittings for the pipes", "fittings of pipes", "насосы или компрессоры", "компрессоры для насосы"]) {
+      expect({ q, codes: classesOf(await service().searchHierarchical(q)) }).toEqual({ q, codes: ["40171500"] });
+    }
+    expect(await prisma.categorySearchMiss.count()).toBe(0);
+  });
+
+  it("İngilizce sektör adı tam yazılınca sektör tam ad olarak ilk sırada", async () => {
+    await makeCategory({ code: "41000000", nameTr: "Laboratuvar Ekipmanı", nameEn: "Laboratory Equipment", level: 1, sortOrder: 0 });
+    await makeCategory({ code: "41110000", nameTr: "Test cihazları", nameEn: "Test instruments", level: 2, parentId: "41000000" });
+    await makeCategory({ code: "41111500", nameTr: "Sarf malzemeleri", nameEn: "Components and supplies for manufacturing tests", level: 3, parentId: "41110000" });
+    await makeCategory({ code: "31000000", nameTr: "Üretim Bileşenleri ve Malzemeleri", nameEn: "Manufacturing Components and Supplies", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "31100000", nameTr: "Dökümler", nameEn: "Castings and casting assemblies", level: 2, parentId: "31000000" });
+    await makeCategory({ code: "31101500", nameTr: "Kum dökümler", nameEn: "Sand castings and casting assemblies", level: 3, parentId: "31100000" });
+
+    const res = await service().searchHierarchical("Manufacturing Components and Supplies");
+
+    expect(res.segments.map((s) => [s.code, s.isMatch])).toEqual([
+      ["31000000", true],
+      ["41000000", false],
+    ]);
   });
 });
 

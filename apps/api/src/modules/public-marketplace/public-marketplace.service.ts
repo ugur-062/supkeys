@@ -5,7 +5,12 @@ import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemPrefix } from "@rothern/shared";
 import { likeLiteral } from "../../common/prisma/like-literal";
-import { categorySearchStem, stemAtWordStart } from "../categories/services/category-search-rank";
+import {
+  categoryRowRank,
+  categorySearchStem,
+  compareCategoryRank,
+  stemAtWordStart,
+} from "../categories/services/category-search-rank";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
@@ -54,6 +59,13 @@ const PAGE_SIZE = 24;
 const LISTING_PAGE_SIZE = 12;
 /** Arama önerisinde (typeahead) gösterilen en fazla kategori. */
 const SUGGEST_CATEGORY_LIMIT = 5;
+/**
+ * Öneri için sıralanan aday sayısı (yazılan biçim ve kök için ayrı ayrı).
+ * Tavan sıradan SONRA uygulanır: yalnız düzeye göre ilk beşi almak, adı
+ * kelimeyi taşıyan kategoriyi eş anlamlısında taşıyan üst düzey satırların
+ * arkasında bırakıyordu.
+ */
+const SUGGEST_CATEGORY_POOL = 100;
 /**
  * Facet hesabı BELLEKTE yapılır (kategori kodları `String[]`, Prisma dizi
  * elemanına groupBy yapamaz). Ham SQL yazmamamın sebebi drift: görünürlük
@@ -486,30 +498,39 @@ export class PublicMarketplaceService {
 
   /**
    * KATEGORİ ÖNERİSİ (en fazla `SUGGEST_CATEGORY_LIMIT`) — kategori aramasıyla
-   * (`CategoryService.searchHierarchical`) AYNI kural:
-   *   · önce YAZILAN kelimeyi taşıyan kategoriler;
-   *   · yer kalırsa kelimenin KÖKÜYLE eşleşenler ("boruları" → "boru",
-   *     "pipes" → "pipe"; `categorySearchStem` — 4 karakterden kısa kök
-   *     kullanılmaz), daha önce bulunanlar hariç;
-   *   · `%` / `_` joker değil düz karakterdir (`likeLiteral`).
+   * (`CategoryService.searchHierarchical`) AYNI kural ve AYNI sıra
+   * (`categoryRowRank`):
+   *   · adının tamamı sorguya eşit olan;
+   *   · adı YAZILAN kelimeyi taşıyan;
+   *   · adı kelimenin KÖKÜNÜ bir sözcüğün başında taşıyan ("boruları" → "boru",
+   *     "rulmanlarının" → "rulman", "pipes" → "pipe", "кабели" → "кабел";
+   *     `categorySearchStem` — 4 karakterden kısa kök kullanılmaz);
+   *   · yazılan kelimeyi yalnız eş anlamlısında taşıyan;
+   *   · kökü yalnız eş anlamlısında taşıyan.
+   *   Eşitte üst düzey önce. `%` / `_` joker değil düz karakterdir (`likeLiteral`).
    * Tek süzgeç kökken öneri yalnız düzeye göre sıralandığı için kökün başka
    * sözcükte geçtiği üst düzey satırlar beş yerin hepsini alıyordu: "kaplin"
    * (kök "kapl" ⊂ kaplama / kaplı) hiçbir kaplin önermiyor, "cıvata" (kök
    * "civa") "Toksik ve tehlikeli atık temizliği" ile açılıyordu
    * (marketplace-suggest-stem-outranks-typed).
+   *
+   * Yalnız bağlaçtan oluşan sorguda ("ve", "the") kelime kalmaz; kategori
+   * aramasındaki gibi bütün ifade tek kelime sayılır. Eskiden süzgeç boş
+   * kalıyor, ilk beş kategori öneriliyordu.
    */
-  private async suggestCategories(tokens: string[]) {
-    const terms = tokens.map((t) => {
-      const fold = foldSearchText(t);
-      return { fold, stem: categorySearchStem(fold) };
-    });
-    const find = (form: "fold" | "stem", take: number, exclude: string[] = []) =>
+  private async suggestCategories(tokens: string[], query: string) {
+    const phrase = foldSearchText(query);
+    const folded = tokens.map((t) => foldSearchText(t)).filter(Boolean);
+    const terms = folded.length
+      ? folded.map((fold) => ({ fold, stem: categorySearchStem(fold) }))
+      : [{ fold: phrase, stem: phrase }];
+    if (!phrase) return [];
+    const find = (form: "fold" | "stem") =>
       this.prisma.category.findMany({
         where: {
           inDiscovery: true,
           level: { gte: 2 },
           ...hiddenCategoryWhere(),
-          ...(exclude.length ? { id: { notIn: exclude } } : {}),
           // Kök yalnız sözcük başında aranır (`stemAtWordStart`); yazılan biçim düz alt dizgi.
           AND: terms.map((t) =>
             form === "fold" || t.stem === t.fold
@@ -517,18 +538,26 @@ export class PublicMarketplaceService {
               : { OR: stemAtWordStart("searchText", likeLiteral(t.stem)) },
           ),
         },
-        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
-        orderBy: [{ level: "asc" }],
-        take,
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true, sortOrder: true, searchText: true },
+        orderBy: [{ level: "asc" }, { sortOrder: "asc" }, { id: "asc" }],
+        take: SUGGEST_CATEGORY_POOL,
       });
-    const typed = await find("fold", SUGGEST_CATEGORY_LIMIT);
-    if (typed.length >= SUGGEST_CATEGORY_LIMIT || terms.every((t) => t.stem === t.fold)) return typed;
-    const byStem = await find(
-      "stem",
-      SUGGEST_CATEGORY_LIMIT - typed.length,
-      typed.map((c) => c.id),
-    );
-    return [...typed, ...byStem];
+    const [typed, byStem] = await Promise.all([
+      find("fold"),
+      terms.some((t) => t.stem !== t.fold) ? find("stem") : Promise.resolve([]),
+    ]);
+    const seen = new Set(typed.map((c) => c.id));
+    return [...typed, ...byStem.filter((c) => !seen.has(c.id))]
+      .map((row) => ({ row, rank: categoryRowRank(row, folded, phrase) }))
+      .sort(
+        (a, b) =>
+          compareCategoryRank(a.rank, b.rank) ||
+          a.row.level - b.row.level ||
+          a.row.sortOrder - b.row.sortOrder ||
+          a.row.id.localeCompare(b.row.id),
+      )
+      .slice(0, SUGGEST_CATEGORY_LIMIT)
+      .map((x) => x.row);
   }
 
   /**
@@ -561,7 +590,7 @@ export class PublicMarketplaceService {
         : [],
       // Kategori önerisi HER kapsamda: kategori hem ürün hem talep listesini
       // süzer, kullanıcının aradığı çoğu zaman dalın kendisidir.
-      this.suggestCategories(tokens),
+      this.suggestCategories(tokens, q),
       want("companies")
         ? this.prisma.company.findMany({
             where: {
