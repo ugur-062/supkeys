@@ -5,6 +5,9 @@
  */
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CompanyRole } from "@prisma/client";
+import { plainToInstance } from "class-transformer";
+import { validateSync } from "class-validator";
+import { AcceptCompanyInvitationDto } from "../../src/modules/company-users/dto/company-user.dto";
 import { CompanyApprovalsService } from "../../src/modules/company-approvals/company-approvals.service";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
@@ -211,6 +214,8 @@ describe("token'lı davet-kabul", () => {
     expect(user.companyId).toBe(owner.company.id);
     expect(user.roles).toEqual(["ONAYLAYICI"]); // davet anındaki rol
     expect(user.firstName).toBe("Deniz"); // kullanıcı kendi girdi
+    // Eski web paketi telefonu göndermeyi sürdürebilir: gelen numara saklanır.
+    expect(user.phone).toBe("+90 555 000 11 22");
     expect(user.emailVerifiedAt).not.toBeNull(); // link e-postaya gitti
     expect(user.invitedById).toBe(owner.user.id);
     expect(user.termsAcceptedAt).not.toBeNull();
@@ -227,6 +232,30 @@ describe("token'lı davet-kabul", () => {
     await expect(
       service.acceptInvitation(inv.token, ACCEPT_DTO as never),
     ).rejects.toThrow(/zaten kabul/i);
+  });
+
+  // Sahip kararı 2026-10-08: davet kabul formu telefonu sormaz; API alanı
+  // isteğe bağlı kabul etmeyi sürdürür.
+  it("kabul telefonsuz: gövde DTO'dan geçer, üye phone=null ile açılır", async () => {
+    const { service } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const res = await service.invite(owner.auth, {
+      email: "telefonsuz@firma.com",
+      roles: ["ONAYLAYICI"],
+    } as never);
+    const inv = await prisma.companyUserInvitation.findUniqueOrThrow({ where: { id: res.id } });
+
+    const { phone: _phone, ...body } = ACCEPT_DTO;
+    const dto = plainToInstance(AcceptCompanyInvitationDto, body);
+    expect(validateSync(dto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+    await service.acceptInvitation(inv.token, dto);
+
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: "telefonsuz@firma.com" } });
+    expect(user.phone).toBeNull();
+    expect(user.firstName).toBe("Deniz");
+    // Ekip listesi "null" yazısı değil boş değer alır.
+    const row = (await service.list(owner.company.id)).find((u) => u.id === user.id);
+    expect(row?.phone).toBeNull();
   });
 
   it("süre dolumu: okumada EXPIRED'a düşer; yeniden gönder token+süreyi yeniler; iptal CANCELLED", async () => {

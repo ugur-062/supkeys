@@ -20,14 +20,40 @@ function phoneErrors<T extends object>(cls: new () => T, body: Record<string, un
 }
 
 describe("telefon DTO — ülke uzunluğu", () => {
-  it("kayıt: kısa ama geçerli numara kabul, 11 haneli TR numarası red", () => {
+  // Eski web paketi telefonu göndermeyi sürdürebilir: gelen numara eskisi gibi doğrulanır.
+  it("kayıt: gönderilen numara doğrulanır — kısa ama geçerli kabul, 11 haneli TR numarası red", () => {
     expect(phoneErrors(CompanySignupDto, { phone: "+376 312345" }).errors).toHaveLength(0);
     expect(phoneErrors(CompanySignupDto, { phone: "+352 4711" }).errors).toHaveLength(0);
     expect(phoneErrors(CompanySignupDto, { phone: "+90 555 111 22 33" }).errors).toHaveLength(0);
     expect(phoneErrors(CompanySignupDto, { phone: "+90 89161234567" }).errors).toHaveLength(1);
     expect(phoneErrors(CompanySignupDto, { phone: "+7 9161234567" }).errors).toHaveLength(0);
     expect(phoneErrors(CompanySignupDto, { phone: "abc" }).errors).toHaveLength(1);
-    expect(phoneErrors(CompanySignupDto, {}).errors).toHaveLength(1);
+    expect(phoneErrors(CompanySignupDto, { phone: "+90 532" }).errors).toHaveLength(1);
+    // Dize olmayan değer "telefon yok" sayılmaz.
+    expect(phoneErrors(CompanySignupDto, { phone: 5551112233 }).errors).toHaveLength(1);
+  });
+
+  // Sahip kararı 2026-10-08: kayıt formu telefonu sormaz → alan isteğe bağlı.
+  it("kayıt: telefon YOK / null / boş dize = numara verilmedi (hata yok)", () => {
+    expect(phoneErrors(CompanySignupDto, {}).errors).toHaveLength(0);
+    expect(phoneErrors(CompanySignupDto, { phone: undefined }).errors).toHaveLength(0);
+    expect(phoneErrors(CompanySignupDto, { phone: null }).errors).toHaveLength(0);
+    expect(phoneErrors(CompanySignupDto, { phone: "" }).errors).toHaveLength(0);
+    expect(phoneErrors(CompanySignupDto, { phone: "   " }).errors).toHaveLength(0);
+  });
+
+  it("kayıt: telefonsuz tam gövde hiçbir alanda hata vermez", () => {
+    const dto = plainToInstance(CompanySignupDto, {
+      firstName: "Ada",
+      lastName: "Yılmaz",
+      email: "ada@firma.com",
+      password: "Guclu!Parola9",
+      termsAccepted: true,
+      mediationAccepted: true,
+      kvkkAccepted: true,
+    });
+    expect(validateSync(dto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+    expect(dto.phone).toBeUndefined();
   });
 
   it("Arap-Hint rakamlar ASCII'ye çevrilir ve öyle saklanır", () => {

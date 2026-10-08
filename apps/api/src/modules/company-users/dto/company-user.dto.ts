@@ -87,6 +87,8 @@ export class AcceptCompanyInvitationDto {
   // Kayıt ve hesap bilgileriyle AYNI kural (arayüz testi O-121): ülke koduna
   // göre ulusal uzunluk, tek kaynak `isValidPhoneNumber`. Eski "10-20
   // karakter" düzenli ifadesi "+90 532123" gibi eksik numarayı kabul ediyordu.
+  // Web davet kabul formu 2026-10-08'den beri telefonu SORMAZ (sahip kararı);
+  // alan eski web paketi için isteğe bağlı kalır, yoksa null yazılır.
   @IsOptional()
   @NormalizePhone()
   @IsString()

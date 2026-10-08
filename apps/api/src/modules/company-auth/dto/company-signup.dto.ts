@@ -17,7 +17,7 @@ import { IsIntlPhone, NormalizePhone } from "./phone.validator";
  * onboarding + belge/2FA ile premium (ihale açma) açılır.
  *
  * Firma ünvanı signup'ta SORULMAZ — onboarding Adım 1'de alınır (firma geçici
- * adla açılır). Signup: kişi bilgisi + telefon + zorunlu sözleşmeler.
+ * adla açılır). Signup: kişi bilgisi + zorunlu sözleşmeler.
  */
 export class CompanySignupDto {
   @IsString()
@@ -34,13 +34,22 @@ export class CompanySignupDto {
   @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
   email!: string;
 
-  // "+<ülke kodu> <numara>" (web `PhoneInput`); uzunluk ülkeye göre —
-  // tek kaynak `isValidPhoneNumber` (bkz. phone.validator.ts).
+  // TELEFON İSTEĞE BAĞLI (sahip kararı 2026-10-08): kayıt formu artık sormaz
+  // (numara doğrulanmıyordu, başka firmaya gösterilmiyordu). Alan yoksa / null
+  // / boşsa `CompanyUser.phone` null yazılır. Eski web paketi göndermeyi
+  // sürdürebilir: gelen numara eskisi gibi doğrulanır ve saklanır —
+  // "+<ülke kodu> <numara>", uzunluk ülkeye göre, tek kaynak
+  // `isValidPhoneNumber` (bkz. phone.validator.ts). DAĞITIM SIRASI: API
+  // web'den ÖNCE — eski API telefonsuz gövdeyi 400 ile reddeder.
+  @IsOptional()
   @NormalizePhone()
   @IsString()
   @MaxLength(30)
-  @IsIntlPhone({}, { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") })
-  phone!: string;
+  @IsIntlPhone(
+    { allowEmpty: true },
+    { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") },
+  )
+  phone?: string | null;
 
   // En az 10 karakter, en çok 72 UTF-8 bayt; küçük + büyük harf + rakam + özel karakter — kural TEK
   // kaynakta (`common/auth/password-policy.ts`).

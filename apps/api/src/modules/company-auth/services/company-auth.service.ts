@@ -200,7 +200,9 @@ export class CompanyAuthService {
             locale: currentLocale(),
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
-            phone: dto.phone.trim(),
+            // Kayıt formu telefonu sormaz (2026-10-08); eski web paketinin
+            // gönderdiği numara saklanır, yoksa null.
+            phone: dto.phone?.trim() || null,
             // Faz R: Kurucu ETİKETİ işlem yetkisi vermez → kuran kişiye op-rol
             // default eklenir; SAHIP-only başlasaydı ilk teklife kadar
             // salt-okunur kalırdı.

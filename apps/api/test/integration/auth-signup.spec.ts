@@ -5,6 +5,10 @@
 import { HttpException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { PrismaClient } from "@rothern/db";
+import { plainToInstance } from "class-transformer";
+import { validateSync } from "class-validator";
+import { UpdateMeDto } from "../../src/modules/company-auth/dto/account.dto";
+import { CompanySignupDto } from "../../src/modules/company-auth/dto/company-signup.dto";
 import { CompanyAuthService } from "../../src/modules/company-auth/services/company-auth.service";
 import { TEST_DB_URL } from "./env";
 import { prisma, truncateAll } from "./test-db";
@@ -65,6 +69,100 @@ describe("signup", () => {
     const dto = validSignup();
     await service.signup(dto as never);
     await expect(service.signup(dto as never)).rejects.toThrow();
+  });
+});
+
+/**
+ * Sahip kararı 2026-10-08: kayıt formu telefonu SORMAZ (numara doğrulanmıyordu,
+ * başka firmaya gösterilmiyordu). API alanı isteğe bağlı kabul eder; eski web
+ * paketinin gönderdiği numara eskisi gibi doğrulanır ve saklanır.
+ *
+ * Gövde, HTTP yolundaki global ValidationPipe ile AYNI seçeneklerle DTO'dan
+ * geçirilir (whitelist + transform + forbidNonWhitelisted) ve servise o örnek
+ * verilir — "istek kabul edilir" ile "null saklanır" tek testte kanıtlanır.
+ */
+describe("telefon isteğe bağlı — kayıt ve hesap bilgileri", () => {
+  const throughPipe = (body: Record<string, unknown>) => {
+    const dto = plainToInstance(CompanySignupDto, body);
+    const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    return { dto, errors };
+  };
+  const bodyWithoutPhone = () => {
+    const { phone: _phone, ...rest } = validSignup();
+    return rest as Record<string, unknown>;
+  };
+
+  it("telefonsuz gövde kabul edilir; kullanıcı phone=null ile oluşur, /me null döner", async () => {
+    const { service } = makeAuthService();
+    const body = bodyWithoutPhone();
+    expect(body).not.toHaveProperty("phone");
+    const { dto, errors } = throughPipe(body);
+    expect(errors).toEqual([]);
+
+    const res = (await service.signup(dto)) as { verificationRequired?: boolean };
+    expect(res.verificationRequired).toBe(true);
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: dto.email } });
+    expect(user.phone).toBeNull();
+    // Hesap ekranı "null" yazısı değil boş değer alır.
+    const me = await service.getMe(user.id);
+    expect(me.user.phone).toBeNull();
+  });
+
+  it.each([null, "", "   "])("telefon %p = numara verilmedi → null saklanır", async (phone) => {
+    const { service } = makeAuthService();
+    const { dto, errors } = throughPipe({ ...bodyWithoutPhone(), phone });
+    expect(errors).toEqual([]);
+    await service.signup(dto);
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: dto.email } });
+    expect(user.phone).toBeNull();
+  });
+
+  it("eski web paketi: gönderilen telefon doğrulanır ve normalize edilerek saklanır", async () => {
+    const { service } = makeAuthService();
+    const { dto, errors } = throughPipe({ ...bodyWithoutPhone(), phone: " +90 555 111 22 33 " });
+    expect(errors).toEqual([]);
+    await service.signup(dto);
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: dto.email } });
+    expect(user.phone).toBe("+90 555 111 22 33");
+  });
+
+  it("eski web paketi: bozuk telefon hâlâ reddedilir (alan hatası phone)", () => {
+    for (const phone of ["+90 89161234567", "+90 532", "abc"]) {
+      const { errors } = throughPipe({ ...bodyWithoutPhone(), phone });
+      expect(errors.map((e) => e.property)).toEqual(["phone"]);
+    }
+  });
+
+  // Ayarlar › Hesap Bilgileri: telefon İSTEĞE BAĞLI kalır — telefonsuz hesap
+  // öteki alanlarını kaydeder, numara ekler ve eklediği numarayı siler.
+  it("telefonsuz hesap: ad güncellenir (telefon null kalır) → numara eklenir → silinir", async () => {
+    const { service } = makeAuthService();
+    const { dto } = throughPipe(bodyWithoutPhone());
+    await service.signup(dto);
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: dto.email } });
+    const phoneOf = async () =>
+      (await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id } })).phone;
+    const patch = (body: Record<string, unknown>) => {
+      const patchDto = plainToInstance(UpdateMeDto, body);
+      expect(validateSync(patchDto, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+      return service.updateMe(user.id, patchDto);
+    };
+
+    // Web formu boş telefonu "" olarak gönderir.
+    const renamed = await patch({ firstName: "Adile", lastName: "Yılmaz", phone: "" });
+    expect(renamed.user).toMatchObject({ firstName: "Adile", phone: null });
+    expect(await phoneOf()).toBeNull();
+
+    const added = await patch({ phone: "+90 532 123 45 67" });
+    expect(added.user.phone).toBe("+90 532 123 45 67");
+
+    const cleared = await patch({ phone: "" });
+    expect(cleared.user.phone).toBeNull();
+    expect(await phoneOf()).toBeNull();
+
+    // Yazılan numara eskisi gibi doğrulanır.
+    const bad = plainToInstance(UpdateMeDto, { phone: "+90 532" });
+    expect(validateSync(bad).map((e) => e.property)).toEqual(["phone"]);
   });
 });
 
