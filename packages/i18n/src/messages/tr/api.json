@@ -828,6 +828,12 @@
     "aiOzelligiSuAndaKullanilamiyorYapilandirilmamis": "AI özelliği şu anda kullanılamıyor (yapılandırılmamış).",
     "aiOzellikleriniYalnizcaBuAlandaIslem": "AI özelliklerini yalnızca bu alanda işlem yetkisi taşıyan kullanıcılar kullanabilir.",
     "aiIstegiZamanAsiminaUgradiLutfen": "AI isteği zaman aşımına uğradı — lütfen tekrar deneyin.",
+    "webSearch": {
+      "tooManyRunning": "Aynı anda en fazla {max} web araması yürütebilirsiniz — süren aramalardan birinin bitmesini bekleyin.",
+      "busy": "Web araması şu an çok yoğun — birkaç dakika sonra tekrar deneyin.",
+      "notFound": "Arama bulunamadı ya da süresi doldu — yeniden arayın.",
+      "failed": "Web araması tamamlanamadı — lütfen tekrar deneyin."
+    },
     "aiKullaniminiYalnizcaYonetimYaDa": "AI kullanımını yalnızca yönetim ya da işlem yetkisi taşıyan kullanıcılar görüntüleyebilir.",
     "belgeCokUzunEnFazlaDosyaIlgiliBolumuSecin": "Belge çok uzun (en fazla {maxPages} dosya) — ilgili bölümü seçin",
     "assistant": {
@@ -873,6 +879,9 @@
         "heading": "Sipariş TESLİM ALINDI işaretlenecek: {number}",
         "seller": "Satıcı: {seller} · Tutar: {amount}",
         "note": "Satıcıya bildirim gider; sorun varsa teslim sonrası kusur bildirimi ayrıca yapılabilir."
+      },
+      "toolNote": {
+        "retiredCategory": "Bu talebin önceki kategorilerinden biri artık kullanılmıyor."
       },
       "payment": {
         "unspecified": "belirtilmedi",

@@ -862,6 +862,7 @@
       "filtersTitle": "Süzgeçler",
       "clear": "Temizle",
       "showResults": "Sonuçları göster ({total})",
+      "showResultsPlain": "Sonuçları göster",
       "noOptions": "Seçenek yok",
       "showLess": "Daha az göster",
       "showAll": "Tümünü göster ({n})",
@@ -1724,7 +1725,8 @@
       "description": "Açıklama en az {minDescription} karakter olmalı",
       "images": "En az 1 görsel eklenmeli",
       "keywords": "En az 1 anahtar kelime eklenmeli",
-      "price": "Seçilen fiyat modunun alanları doldurulmalı"
+      "price": "Seçilen fiyat modunun alanları doldurulmalı",
+      "categoryNotCurrent": "Kategori artık kullanılmıyor, güncel bir kategori seçilmeli"
     },
     "profileItem": {
       "logo": "Logo",
@@ -2850,6 +2852,7 @@
         "adiVeyaNumarasiAra": "Satın alma talebi adı veya numarası ara…",
         "siralama": "Sıralama",
         "tumDurumlar": "Tüm Durumlar ({length})",
+        "tumDurumlarSayisiz": "Tüm Durumlar",
         "durumFiltresi": "Durum filtresi",
         "tumGorunurlukler": "Tüm Görünürlükler",
         "tumUlkelereAcik": "Tüm ülkelere açık",
@@ -3120,7 +3123,6 @@
         "hicbiriDavetEdilemiyor": "Arama firma buldu, ancak hiçbiri bu talebe yeni davet edilemiyor. Nedenleri aşağıda.",
         "gecersizAdresSayisi": "{n, plural, other {# seçili adayın}} e-posta adresi geçersiz; düzeltilene dek davet gönderilmez",
         "webAramasiBasarisizTekrarDeneyin": "Web araması başarısız — tekrar deneyin",
-        "davetEPostasiGonderildi": "{length} davet e-postası gönderildi",
         "davetlerGonderilemedi": "Davetler gönderilemedi",
         "davetGonderildi": "{length} davet gönderildi",
         "firmasinaBaglantiDavetiGonderildi": "{name} firmasına bağlantı daveti gönderildi",
@@ -3133,8 +3135,9 @@
         "platformda": "Platformda",
         "webDeAraAi": "Web''de Ara (AI)",
         "bolgeOpsOrnIstanbulEge": "Bölge (ops. — örn. İstanbul, Ege)",
+        "bolgeYerTutucu": "Bölge (örn. İstanbul)",
         "aiTalebinizinKategorisineUygunFirmalari": "AI, talebinizin kategorisine uygun firmaları web''de arar. E-posta yalnız açıkça yayınlanmışsa gelir — göndermeden önce siz doğrularsınız.",
-        "webDeAraniyor": "Web''de aranıyor… Bu arama yaklaşık 1,5 dakikaya kadar sürebilir.",
+        "webDeAraniyorSure": "Web''de aranıyor… Arama genellikle bir-iki dakika sürer; yoğun saatlerde daha uzun sürebilir.",
         "sec": "{name} seç",
         "ePostaAdresiniDogrulayinGirin": "E-posta adresini doğrulayın / girin",
         "gonderildi": "Gönderildi",
@@ -3152,20 +3155,27 @@
         "davetGonderildi2": "Davet gönderildi",
         "davetKabulEdilinceFirmaBaglantilariniza": "Davet kabul edilince firma bağlantılarınıza eklenir; davetli talebinize buradan davet edebilir, herkese açık talebinizi zaten görebilir hâle gelir.",
         "atlandi": "atlandı",
-        "atlandiSatiri": "{email}: {reason}",
         "webDeAra": "Web''de Ara",
         "davetEPostasiGonderN": "Davet E-postası Gönder ({n})",
         "baglantiDavetiGonder": "Bağlantı daveti gönder",
         "davetDiliFirma": "{name} için davet dili",
         "davetDiliIpucu": "Davet e-postası satırda seçilen dilde gider; varsayılan dil firmanın ülkesinden gelir.",
-        "davetlerSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir.",
-        "hepsiniTalebeDavetEt": "Hepsini talebe davet et ({n, number})",
+        "ozetSirayaAlindi": "{n, plural, other {# davet sıraya alındı}}",
+        "ozetGonderildi": "{n, plural, other {# davet gönderildi}}",
+        "ozetGonderilemedi": "{n, plural, other {# adrese gönderilemedi}} (nedeni satırında)",
+        "grupGucluEslesenler": "Güçlü eşleşenler",
+        "gucluEslesenleriDavetEt": "Güçlü eşleşenleri davet et ({n, number})",
+        "grupAyniSektorde": "Aynı sektörde",
+        "ayniSektordeAciklama": "Bu üyeler benzer alanda faaliyet gösteriyor; talebinizdeki kalemleri sattıkları doğrulanmadı. Uygun gördüklerinizi tek tek davet edin.",
         "talebeDavetli": "Talebe davetli",
         "talebeDavetEt": "Talebe davet et",
         "talebeDavetEtFirma": "{name} firmasını talebe davet et",
         "uyeDogrudanTalebeDavet": "Rothern üyeleri doğrudan talebinize davet edilir — bağlantınız olmaları gerekmez; uygulamada ve e-postayla haberdar olurlar.",
         "talebeOzelDisDavetNotu": "Web''de bulunan firmalara bu talebe özel davet e-postası gider; kaydolan firma talebinize davetli olarak katılır.",
         "gecenSure": "Geçen süre: {s, number} sn",
+        "gecenSureDakika": "Geçen süre: {m, number} dk {s, number} sn",
+        "aramaYaridaKesildi": "Web araması yarıda kesildi — yeniden arayın",
+        "aramaCokUzunSurdu": "Web araması beklenenden uzun sürdü ve sonuç alınamadı — yeniden arayın",
         "aramaSurerkenKapatabilirsiniz": "Pencereyi kapatabilirsiniz: arama sürer, sonuçlar yeniden açtığınızda burada olur.",
         "aramaTamamlandi": "Web araması tamamlandı — sonuçları görmek için pencereyi yeniden açın",
         "aramaTamamlandiSekmede": "Web araması tamamlandı — sonuçlar “{tab}” sekmesinde",
@@ -3744,6 +3754,7 @@
       },
       "recentRequests": {
         "kalemlerVeKategoriKopyalandiMiktarlari": "Kalemler ve kategori kopyalandı — miktarları kontrol edin",
+        "kalemlerKopyalandiMiktarlari": "Kalemler kopyalandı — miktarları kontrol edin",
         "talepKopyalanamadi": "Talep kopyalanamadı",
         "kopyalaniyor": "Kopyalanıyor…",
         "sonTaleplerdenBasla": "Son taleplerden başla:"
@@ -4431,6 +4442,9 @@
         "bandNotSent": "{n, plural, other {# gönderilmedi}}",
         "bandNone": "Bu talep için uygun tedarikçi bulunamadı.",
         "statusLead": "Bulunan tedarikçiler sizin adınıza davet edildi; onaylamanız gereken bir şey yok. Rothern üyeleri talebi hemen görür; diğerlerine davet e-postası kendi dillerinde ve kendi ülkelerinde mesai saatinde gider.",
+        "statusLeadPartial": "Bulunan tedarikçilerin bir kısmı sizin adınıza davet edildi; onaylamanız gereken bir şey yok. Gönderilmeyen davetlerin nedeni satırında yazar. Rothern üyeleri talebi hemen görür; diğerlerine davet e-postası kendi dillerinde ve kendi ülkelerinde mesai saatinde gider.",
+        "statusLeadNoneSent": "Bulunan tedarikçilere davet gönderilmedi; nedenleri aşağıdaki satırlarda yazar.",
+        "statusLeadAutoOff": "Sıradaki davetler, AI tedarikçi araması kapatıldığı ya da talep yalnız davet ettiğiniz firmalara açıldığı için gönderilmedi. Talebi düzenleyip bu ayarı geri alırsanız davetler yeniden sıraya girer.",
         "dismiss": "Gizle",
         "showList": "Listeyi göster",
         "hideList": "Listeyi gizle",
@@ -4451,7 +4465,8 @@
           "QUEUED": "Davet sırada",
           "ALREADY_INVITED": "Zaten davetliydi",
           "NOT_SENT": "Gönderilmedi",
-          "WAITING": "Sırada"
+          "WAITING": "Sırada",
+          "NOT_INVITED": "Davet edilmedi"
         },
         "reason": {
           "DAILY_LIMIT": "Günlük davet sınırınız doldu",
@@ -4468,6 +4483,8 @@
           "ALLOWLIST": "Bu ortamda gönderilmedi (test alıcı listesi)",
           "LISTING_CLOSED": "Talep kapandı",
           "CANCELLED": "Davet iptal edildi",
+          "AUTO_INVITE_OFF": "AI tedarikçi araması kapatıldı ya da talep yalnız davet edilen firmalara açıldı",
+          "WEAK_MATCH": "Yalnız genel sektör eşleşti; otomatik davet kalem ya da alt kategori eşleşmesi olan firmalara gider. Dilerseniz “AI ile tedarikçi bul” penceresinden davet edebilirsiniz",
           "FAILED": "E-posta gönderilemedi"
         }
       },
@@ -6038,6 +6055,7 @@
         "kullaniciCikarildi": "Kullanıcı çıkarıldı",
         "cikarilamadi": "Çıkarılamadı",
         "kullanicilar": "Kullanıcılar ({length})",
+        "kullanicilarSayisiz": "Kullanıcılar",
         "uyeDavetEt": "Üye Davet Et",
         "satinalmaVeSatisIslemYetkisi": "— satınalma ve satış işlem yetkisi ayrı koltuk sayar",
         "kalacakKoltuklariSec": "Kalacak Koltukları Seç",
@@ -6877,7 +6895,8 @@
           "undo": "Önceki metne dön",
           "remaining": "Kalan AI tanıtım önerisi hakkınız: {n}.",
           "remainingVerify": "Firmanızı doğrulayınca bu sınır kalkar.",
-          "restored": "Kaydedilmemiş taslağınız geri yüklendi — saklamak için Kaydet''e, silmek için Vazgeç''e basın."
+          "restored": "Kaydedilmemiş taslağınız geri yüklendi — saklamak için Kaydet''e, silmek için Vazgeç''e basın.",
+          "restoredBar": "“Hakkında” taslağınız geri yüklendi."
         },
         "firmaniziKisacaTanitinNeUretir": "Firmanızı kısaca tanıtın — ne üretir/satar, kimlere, hangi bölgede…",
         "kaldir": "{v} kaldır",
@@ -6965,6 +6984,7 @@
       "marketListLayout": {
         "suzgecler": "Süzgeçler",
         "sayfaBasina": "Sayfa başına",
+        "suzgeclerYuklenemedi": "Süzgeçler yüklenemedi.",
         "filtreleriTemizle": "Filtreleri temizle",
         "aramayiKaldir": "Aramayı kaldır"
       },
@@ -7430,7 +7450,8 @@
       "kategorisiniKaldir": "{label} kategorisini kaldır",
       "degistir": "Değiştir",
       "kategoriEkleDuzenle": "Kategori Ekle / Düzenle",
-      "oncekiKategoriKullanilmiyor": "Önceki kategori artık kullanılmıyor. Lütfen güncel bir kategori seçin."
+      "oncekiKategoriKullanilmiyor": "Önceki kategori artık kullanılmıyor. Lütfen güncel bir kategori seçin.",
+      "oncekiKategoriKullanilmiyorIstegeBagli": "Önceki kategori artık kullanılmıyor. Güncel bir kategori seçebilirsiniz; seçmeden de kaydedebilirsiniz."
     },
     "categorySelectorModal": {
       "kategoriSec": "Kategori Seç",

@@ -828,6 +828,12 @@
     "aiOzelligiSuAndaKullanilamiyorYapilandirilmamis": "The AI feature is currently unavailable (not configured).",
     "aiOzellikleriniYalnizcaBuAlandaIslem": "Only users with operational permissions in this area can use AI features.",
     "aiIstegiZamanAsiminaUgradiLutfen": "The AI request timed out — please try again.",
+    "webSearch": {
+      "tooManyRunning": "You can run at most {max} web searches at the same time — wait for one of the running searches to finish.",
+      "busy": "Web search is very busy right now — please try again in a few minutes.",
+      "notFound": "The search was not found or has expired — please search again.",
+      "failed": "The web search could not be completed — please try again."
+    },
     "aiKullaniminiYalnizcaYonetimYaDa": "Only users with management or operational permissions can view AI usage.",
     "belgeCokUzunEnFazlaDosyaIlgiliBolumuSecin": "The document is too long (at most {maxPages, plural, one {# file} other {# files}}) — select the relevant section",
     "assistant": {
@@ -873,6 +879,9 @@
         "heading": "Order will be marked RECEIVED: {number}",
         "seller": "Seller: {seller} · Amount: {amount}",
         "note": "The seller is notified; if there is a problem, a defect report can still be filed after delivery."
+      },
+      "toolNote": {
+        "retiredCategory": "One of this request's previous categories is no longer in use."
       },
       "payment": {
         "unspecified": "not specified",

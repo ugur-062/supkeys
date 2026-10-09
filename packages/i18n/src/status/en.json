@@ -734,6 +734,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.ai.assistant.toolNote.retiredCategory": {
+    "hash": "6e7a4d141d",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "api.ai.belgeCokUzunEnFazlaDosya": {
     "hash": "3b009c86f2",
     "status": "reviewed",
@@ -998,6 +1003,26 @@
     "hash": "2c92cb0dea",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.ai.webSearch.busy": {
+    "hash": "cfb4b629b8",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "api.ai.webSearch.failed": {
+    "hash": "9df4f686bf",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "api.ai.webSearch.notFound": {
+    "hash": "bf10f192df",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "api.ai.webSearch.tooManyRunning": {
+    "hash": "14397e163a",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "api.auth.csrfDogrulamasiBasarisiz": {
     "hash": "28468d7846",
@@ -11254,6 +11279,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.domain.publishBlocker.categoryNotCurrent": {
+    "hash": "dc80dffe1b",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.domain.publishBlocker.description": {
     "hash": "5b95a7e333",
     "status": "reviewed",
@@ -15929,6 +15959,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.filters.showResultsPlain": {
+    "hash": "3b01f3f40b",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.marketplace.filters.sortAZ": {
     "hash": "50d6325b81",
     "status": "reviewed",
@@ -19469,6 +19504,11 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
+  "web.panel.company.profileEditor.aboutAi.restoredBar": {
+    "hash": "c00ac488bc",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.company.profileEditor.aboutAi.rewrite": {
     "hash": "1ae3d335e4",
     "status": "reviewed",
@@ -20333,6 +20373,11 @@
     "hash": "86333cd38c",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.market.marketListLayout.suzgeclerYuklenemedi": {
+    "hash": "92d3c3c2fa",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.market.marketSearch.ara": {
     "hash": "b07bcee1b9",
@@ -21904,6 +21949,11 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
+  "web.panel.requests.aiSuppliers.outcome.NOT_INVITED": {
+    "hash": "3d6b3cdc0e",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.aiSuppliers.outcome.NOT_SENT": {
     "hash": "e0df1a6701",
     "status": "reviewed",
@@ -21921,6 +21971,11 @@
   },
   "web.panel.requests.aiSuppliers.reason.ALLOWLIST": {
     "hash": "4e49f38e03",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.aiSuppliers.reason.AUTO_INVITE_OFF": {
+    "hash": "1e6d944d42",
     "status": "reviewed",
     "at": "2026-10-09"
   },
@@ -21994,6 +22049,11 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
+  "web.panel.requests.aiSuppliers.reason.WEAK_MATCH": {
+    "hash": "6fd62f2de5",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.aiSuppliers.secondRound": {
     "hash": "62ac657928",
     "status": "reviewed",
@@ -22021,6 +22081,21 @@
   },
   "web.panel.requests.aiSuppliers.statusLead": {
     "hash": "1a491b5607",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.aiSuppliers.statusLeadAutoOff": {
+    "hash": "2511b70006",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.aiSuppliers.statusLeadNoneSent": {
+    "hash": "b8feb7156f",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.aiSuppliers.statusLeadPartial": {
+    "hash": "c1e3a26a85",
     "status": "reviewed",
     "at": "2026-10-09"
   },
@@ -23733,6 +23808,11 @@
     "hash": "2399435431",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.ihalelerView.tumDurumlarSayisiz": {
+    "hash": "ad37f94970",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.requests.ihalelerView.tumGorunurlukler": {
     "hash": "e4acf45768",
@@ -27424,6 +27504,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.recentRequests.kalemlerKopyalandiMiktarlari": {
+    "hash": "99662d4b67",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.recentRequests.kalemlerVeKategoriKopyalandiMiktarlari": {
     "hash": "6c138384cd",
     "status": "reviewed",
@@ -28124,6 +28209,11 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
+  "web.panel.requests.supplierDiscoveryModal.aramaCokUzunSurdu": {
+    "hash": "3f0fb4fe10",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.supplierDiscoveryModal.aramaHatasiSekmede": {
     "hash": "3c6d6a5fc3",
     "status": "reviewed",
@@ -28144,15 +28234,20 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
+  "web.panel.requests.supplierDiscoveryModal.aramaYaridaKesildi": {
+    "hash": "343f5551b2",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.supplierDiscoveryModal.atlandi": {
     "hash": "c30f4cf5fd",
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.requests.supplierDiscoveryModal.atlandiSatiri": {
-    "hash": "7910cb2fc7",
+  "web.panel.requests.supplierDiscoveryModal.ayniSektordeAciklama": {
+    "hash": "728ba029d3",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-09"
   },
   "web.panel.requests.supplierDiscoveryModal.baglantiDavetiGonder": {
     "hash": "86c1fb8be9",
@@ -28164,6 +28259,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.bolgeYerTutucu": {
+    "hash": "993fc6c01c",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.supplierDiscoveryModal.buKategorilerdeOnerilebilecekYeniFirma": {
     "hash": "5ddd24a77c",
     "status": "reviewed",
@@ -28171,11 +28271,6 @@
   },
   "web.panel.requests.supplierDiscoveryModal.bulunamadiIpucu": {
     "hash": "c18b734829",
-    "status": "reviewed",
-    "at": "2026-10-09"
-  },
-  "web.panel.requests.supplierDiscoveryModal.bulunanFirmalarDavetEdilemiyor": {
-    "hash": "c5ecab8ab7",
     "status": "reviewed",
     "at": "2026-10-09"
   },
@@ -28198,11 +28293,6 @@
     "hash": "a1b06658b1",
     "status": "reviewed",
     "at": "2026-10-09"
-  },
-  "web.panel.requests.supplierDiscoveryModal.davetEPostasiGonderildi": {
-    "hash": "14fe2248c2",
-    "status": "reviewed",
-    "at": "2026-09-27"
   },
   "web.panel.requests.supplierDiscoveryModal.davetEPostasiGonderN": {
     "hash": "320cd11620",
@@ -28234,11 +28324,6 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.requests.supplierDiscoveryModal.davetlerSirayaAlindi": {
-    "hash": "47fde3b7fc",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
   "web.panel.requests.supplierDiscoveryModal.ePostaAdresiFirma": {
     "hash": "454c6bdb31",
     "status": "reviewed",
@@ -28264,8 +28349,8 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
-  "web.panel.requests.supplierDiscoveryModal.gecersizAdresAtlandi": {
-    "hash": "292ac54aaf",
+  "web.panel.requests.supplierDiscoveryModal.gecenSureDakika": {
+    "hash": "d3b36a5dc3",
     "status": "reviewed",
     "at": "2026-10-09"
   },
@@ -28284,6 +28369,21 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.grupAyniSektorde": {
+    "hash": "66ccc050eb",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.supplierDiscoveryModal.grupGucluEslesenler": {
+    "hash": "6198ecb119",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.supplierDiscoveryModal.gucluEslesenleriDavetEt": {
+    "hash": "9cb03a49ee",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.supplierDiscoveryModal.gucluEslesme": {
     "hash": "6502a3cb95",
     "status": "reviewed",
@@ -28293,11 +28393,6 @@
     "hash": "00e06b8fde",
     "status": "reviewed",
     "at": "2026-09-28"
-  },
-  "web.panel.requests.supplierDiscoveryModal.hepsiniTalebeDavetEt": {
-    "hash": "6f664e863b",
-    "status": "reviewed",
-    "at": "2026-09-27"
   },
   "web.panel.requests.supplierDiscoveryModal.hicbiriDavetEdilemiyor": {
     "hash": "80b06b7716",
@@ -28364,6 +28459,21 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.ozetGonderildi": {
+    "hash": "85ceda7eec",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.supplierDiscoveryModal.ozetGonderilemedi": {
+    "hash": "6a5b9a0cbb",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.supplierDiscoveryModal.ozetSirayaAlindi": {
+    "hash": "3eb2060c16",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.supplierDiscoveryModal.platformda": {
     "hash": "44e5f0ba90",
     "status": "reviewed",
@@ -28376,11 +28486,6 @@
   },
   "web.panel.requests.supplierDiscoveryModal.sec": {
     "hash": "425a4a9afd",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.requests.supplierDiscoveryModal.seciliAdaylarinEPostaAdreslerini": {
-    "hash": "772f35da55",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -28474,15 +28579,10 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.requests.supplierDiscoveryModal.webDeAraniyor": {
-    "hash": "db6a8d0445",
+  "web.panel.requests.supplierDiscoveryModal.webDeAraniyorSure": {
+    "hash": "7bed0868ce",
     "status": "reviewed",
     "at": "2026-10-09"
-  },
-  "web.panel.requests.supplierDiscoveryModal.webDeAraniyor3060": {
-    "hash": "1800424186",
-    "status": "reviewed",
-    "at": "2026-09-27"
   },
   "web.panel.requests.supplierDiscoveryModal.yakindaDavetAldi": {
     "hash": "0f5e51fc4a",
@@ -31873,6 +31973,11 @@
     "hash": "878160a851",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.settings.companyUsersSection.kullanicilarSayisiz": {
+    "hash": "df59fa4d29",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.settings.companyUsersSection.kullanicilarYuklenemedi": {
     "hash": "2234ac2c5d",
@@ -41026,6 +41131,11 @@
   },
   "web.shared.categorySelectorButton.oncekiKategoriKullanilmiyor": {
     "hash": "931b38143f",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.shared.categorySelectorButton.oncekiKategoriKullanilmiyorIstegeBagli": {
+    "hash": "6df2cdf314",
     "status": "reviewed",
     "at": "2026-10-09"
   },

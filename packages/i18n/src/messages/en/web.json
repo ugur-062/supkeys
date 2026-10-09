@@ -862,6 +862,7 @@
       "filtersTitle": "Filters",
       "clear": "Clear",
       "showResults": "Show results ({total})",
+      "showResultsPlain": "Show results",
       "noOptions": "No options",
       "showLess": "Show less",
       "showAll": "Show all ({n})",
@@ -1724,7 +1725,8 @@
       "description": "The description must be at least {minDescription} characters",
       "images": "At least 1 image must be added",
       "keywords": "At least 1 keyword must be added",
-      "price": "The fields of the selected price mode must be filled in"
+      "price": "The fields of the selected price mode must be filled in",
+      "categoryNotCurrent": "The category is no longer in use, a current category must be selected"
     },
     "profileItem": {
       "logo": "Logo",
@@ -2850,6 +2852,7 @@
         "adiVeyaNumarasiAra": "Search buying requests by name or number…",
         "siralama": "Sort",
         "tumDurumlar": "All statuses ({length})",
+        "tumDurumlarSayisiz": "All statuses",
         "durumFiltresi": "Status filter",
         "tumGorunurlukler": "All visibilities",
         "tumUlkelereAcik": "Open to all countries",
@@ -3120,7 +3123,6 @@
         "hicbiriDavetEdilemiyor": "The search found companies, but none of them can be newly invited to this request. The reasons are listed below.",
         "gecersizAdresSayisi": "{n, plural, one {# selected candidate has} other {# selected candidates have}} an invalid email address; no invitation is sent until it is corrected",
         "webAramasiBasarisizTekrarDeneyin": "Web search failed — try again",
-        "davetEPostasiGonderildi": "{length, plural, one {# invitation email sent} other {# invitation emails sent}}",
         "davetlerGonderilemedi": "Invitations could not be sent",
         "davetGonderildi": "{length, plural, one {# invitation sent} other {# invitations sent}}",
         "firmasinaBaglantiDavetiGonderildi": "Connection invitation sent to {name}",
@@ -3133,8 +3135,9 @@
         "platformda": "On the platform",
         "webDeAraAi": "Search the web (AI)",
         "bolgeOpsOrnIstanbulEge": "Region (optional — e.g. Istanbul, Aegean)",
+        "bolgeYerTutucu": "Region (e.g. Istanbul)",
         "aiTalebinizinKategorisineUygunFirmalari": "AI searches the web for companies that match the category of your request. An email address is included only if it is publicly published — you verify it before sending.",
-        "webDeAraniyor": "Searching the web… This can take up to about 1.5 minutes.",
+        "webDeAraniyorSure": "Searching the web… A search usually takes one to two minutes and can take longer at busy times.",
         "sec": "Select {name}",
         "ePostaAdresiniDogrulayinGirin": "Verify / enter the email address",
         "gonderildi": "Sent",
@@ -3152,20 +3155,27 @@
         "davetGonderildi2": "Invitation sent",
         "davetKabulEdilinceFirmaBaglantilariniza": "Once the invitation is accepted, the company is added to your connections; you can invite them to your invitation-only request from here, and they will already be able to see your public request.",
         "atlandi": "skipped",
-        "atlandiSatiri": "{email}: {reason}",
         "webDeAra": "Search the web",
         "davetEPostasiGonderN": "Send invitation email ({n})",
         "baglantiDavetiGonder": "Send connection invitation",
         "davetDiliFirma": "Invitation language for {name}",
         "davetDiliIpucu": "Each invitation email is sent in the language selected on its row; the default language is based on the company’s country.",
-        "davetlerSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country.",
-        "hepsiniTalebeDavetEt": "Invite all to the request ({n, number})",
+        "ozetSirayaAlindi": "{n, plural, one {# invitation queued} other {# invitations queued}}",
+        "ozetGonderildi": "{n, plural, one {# invitation sent} other {# invitations sent}}",
+        "ozetGonderilemedi": "{n, plural, one {# address could not be invited (see its row for the reason)} other {# addresses could not be invited (see their rows for the reason)}}",
+        "grupGucluEslesenler": "Strong matches",
+        "gucluEslesenleriDavetEt": "Invite strong matches ({n, number})",
+        "grupAyniSektorde": "In the same industry",
+        "ayniSektordeAciklama": "These members work in a similar field, but it is not confirmed that they sell the items in your request. Invite the ones that fit one by one.",
         "talebeDavetli": "Invited to the request",
         "talebeDavetEt": "Invite to request",
         "talebeDavetEtFirma": "Invite {name} to the request",
         "uyeDogrudanTalebeDavet": "Rothern members are invited straight to your request — they don't need to be your contacts; they're notified in the app and by email.",
         "talebeOzelDisDavetNotu": "Companies found on the web receive an invitation email for this request; once a company signs up, it joins your request as an invitee.",
         "gecenSure": "Elapsed: {s, number} s",
+        "gecenSureDakika": "Elapsed: {m, number} min {s, number} s",
+        "aramaYaridaKesildi": "The web search was interrupted — search again",
+        "aramaCokUzunSurdu": "The web search took longer than expected and returned no result — search again",
         "aramaSurerkenKapatabilirsiniz": "You can close this window: the search keeps running and the results will be here when you reopen it.",
         "aramaTamamlandi": "The web search has finished — reopen the window to see the results",
         "aramaTamamlandiSekmede": "The web search has finished — the results are on the “{tab}” tab",
@@ -3744,6 +3754,7 @@
       },
       "recentRequests": {
         "kalemlerVeKategoriKopyalandiMiktarlari": "Line items and category copied — check the quantities",
+        "kalemlerKopyalandiMiktarlari": "Line items copied — check the quantities",
         "talepKopyalanamadi": "Could not copy the request",
         "kopyalaniyor": "Copying…",
         "sonTaleplerdenBasla": "Start from a recent request:"
@@ -4431,6 +4442,9 @@
         "bandNotSent": "{n, plural, other {# not sent}}",
         "bandNone": "No suitable suppliers were found for this request.",
         "statusLead": "The suppliers found were invited on your behalf; there is nothing for you to confirm. Rothern members see the request right away; the others receive an invitation email in their own language, during business hours in their country.",
+        "statusLeadPartial": "Some of the suppliers found were invited on your behalf; there is nothing for you to confirm. Where an invitation was not sent, the reason is shown on its row. Rothern members see the request right away; the others receive an invitation email in their own language, during business hours in their country.",
+        "statusLeadNoneSent": "No invitations were sent to the suppliers found; the rows below show why.",
+        "statusLeadAutoOff": "The queued invitations were not sent because the AI supplier search was switched off or the request was limited to the companies you invite. If you edit the request and undo that setting, the invitations are queued again.",
         "dismiss": "Hide",
         "showList": "Show list",
         "hideList": "Hide list",
@@ -4451,7 +4465,8 @@
           "QUEUED": "Invitation queued",
           "ALREADY_INVITED": "Already invited",
           "NOT_SENT": "Not sent",
-          "WAITING": "Waiting"
+          "WAITING": "Waiting",
+          "NOT_INVITED": "Not invited"
         },
         "reason": {
           "DAILY_LIMIT": "Your daily invitation limit is reached",
@@ -4468,6 +4483,8 @@
           "ALLOWLIST": "Not sent in this environment (test recipient list)",
           "LISTING_CLOSED": "The request is closed",
           "CANCELLED": "The invitation was cancelled",
+          "AUTO_INVITE_OFF": "The AI supplier search was switched off or the request was limited to invited companies",
+          "WEAK_MATCH": "Only the general industry matched; automatic invitations go to companies that match a line item or a subcategory. You can invite this company from the “Find suppliers with AI” window",
           "FAILED": "The email couldn't be sent"
         }
       },
@@ -6038,6 +6055,7 @@
         "kullaniciCikarildi": "User removed",
         "cikarilamadi": "Could not remove",
         "kullanicilar": "Users ({length})",
+        "kullanicilarSayisiz": "Users",
         "uyeDavetEt": "Invite a member",
         "satinalmaVeSatisIslemYetkisi": "— buying and sales action permissions use separate seats",
         "kalacakKoltuklariSec": "Choose the seats to keep",
@@ -6877,7 +6895,8 @@
           "undo": "Restore the previous text",
           "remaining": "AI description suggestions left: {n}.",
           "remainingVerify": "This limit is lifted once your company is verified.",
-          "restored": "Your unsaved draft has been restored — press Save to keep it or Cancel to discard it."
+          "restored": "Your unsaved draft has been restored — press Save to keep it or Cancel to discard it.",
+          "restoredBar": "Your “About” draft has been restored."
         },
         "firmaniziKisacaTanitinNeUretir": "Introduce your company briefly — what it makes or sells, for whom, in which region…",
         "kaldir": "Remove {v}",
@@ -6965,6 +6984,7 @@
       "marketListLayout": {
         "suzgecler": "Filters",
         "sayfaBasina": "Per page",
+        "suzgeclerYuklenemedi": "Filters could not be loaded.",
         "filtreleriTemizle": "Clear filters",
         "aramayiKaldir": "Remove search"
       },
@@ -7430,7 +7450,8 @@
       "kategorisiniKaldir": "Remove the {label} category",
       "degistir": "Change",
       "kategoriEkleDuzenle": "Add / edit categories",
-      "oncekiKategoriKullanilmiyor": "The previous category is no longer in use. Please select a current category."
+      "oncekiKategoriKullanilmiyor": "The previous category is no longer in use. Please select a current category.",
+      "oncekiKategoriKullanilmiyorIstegeBagli": "The previous category is no longer in use. You can select a current category or save without one."
     },
     "categorySelectorModal": {
       "kategoriSec": "Select category",
