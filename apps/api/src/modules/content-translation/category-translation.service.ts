@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { Locale } from "@rothern/i18n";
-import { hiddenCategoryWhere } from "@rothern/shared";
+import { HIDDEN_SEGMENTS, hiddenCategoryWhere } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "./content-translation.service";
 import {
@@ -20,9 +20,23 @@ import {
  * Kategori adı EN/RU toplu çevirisi (i18n Faz 4) — TEK SEFERLİK iş: staging'de
  * koşar, sonuç `export-category-names-i18n` ile depoya (TSV) yazılır; canlı ve
  * yeniden seed TSV'den okur, model çağrısı yapmaz. Görünür segmentlerdeki
- * (gizli 29 segment hariç) tüm satırlar; `nameEn`/`nameRu` NULL olanlar.
+ * (gizli segmentler hariç — `HIDDEN_SEGMENTS`) tüm satırlar; `nameEn`/`nameRu`
+ * NULL olanlar. Nitelik çevirisi de aynı kapsamda (`visibleAttributeWhere`).
  */
 const CATEGORY_WORKERS = 4;
+
+/**
+ * Prisma `where` parçası — gizli bir segmentin düğümünde tanımlı nitelik
+ * satırlarını dışarıda bırakır (`categoryId` = 8 haneli kod;
+ * `hiddenCategoryWhere`in nitelik tablosundaki karşılığı, aynı kaynaktan).
+ * Gizli dalın nitelikleri toplu çeviriye GİRMEZ (2026-10-09):
+ * her parti niteliğin KATEGORİ ADINI bağlam olarak modele yollar ve gizli
+ * kategorinin adı hiçbir model istemine yazılmaz; o dallar arayüzde zaten
+ * seçilemez. Depodaki TSV'den gelen hazır çeviriler yerinde kalır.
+ */
+export function visibleAttributeWhere(): { NOT: { categoryId: { startsWith: string } }[] } {
+  return { NOT: HIDDEN_SEGMENTS.map((p) => ({ categoryId: { startsWith: p } })) };
+}
 
 /**
  * Toplu çevirinin başlamama gerekçesi — makine kodu (yanıtta ve denetim
@@ -136,10 +150,13 @@ export class CategoryTranslationService {
   private attrProgress = { done: 0, failed: 0, batches: 0, costUsd: 0, startedAt: null as string | null, finishedAt: null as string | null, lastError: null as string | null };
 
   async attributeStatus() {
+    // Kapsam koşumla AYNI (görünür dallar): gizli dalın satırı çevrilmediği
+    // için sayılırsa "çevrildi = toplam" hiçbir zaman tutmazdı.
+    const visible = visibleAttributeWhere();
     const [total, en, ru] = await Promise.all([
-      this.prisma.categoryAttribute.count(),
-      this.prisma.categoryAttribute.count({ where: { nameEn: { not: null } } }),
-      this.prisma.categoryAttribute.count({ where: { nameRu: { not: null } } }),
+      this.prisma.categoryAttribute.count({ where: { ...visible } }),
+      this.prisma.categoryAttribute.count({ where: { ...visible, nameEn: { not: null } } }),
+      this.prisma.categoryAttribute.count({ where: { ...visible, nameRu: { not: null } } }),
     ]);
     return { total, translated: { en, ru }, running: this.attrRunning, progress: this.attrProgress };
   }
@@ -159,11 +176,11 @@ export class CategoryTranslationService {
 
   private async runAttributes(): Promise<void> {
     const rows = await this.prisma.categoryAttribute.findMany({
-      where: { OR: [{ nameEn: null }, { nameRu: null }] },
+      where: { ...visibleAttributeWhere(), OR: [{ nameEn: null }, { nameRu: null }] },
       select: { id: true, categoryId: true, nameTr: true, unit: true, options: true },
       orderBy: [{ categoryId: "asc" }, { sortOrder: "asc" }],
     });
-    const cats = await this.prisma.category.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.categoryId))] } }, select: { id: true, nameTr: true } });
+    const cats = await this.prisma.category.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.categoryId))] }, ...hiddenCategoryWhere() }, select: { id: true, nameTr: true } });
     const catName = new Map(cats.map((c) => [c.id, c.nameTr]));
     this.logger.log(`Attribute translation: ${rows.length} rows to translate`);
     const batches: AttributeBatchRow[][] = [];

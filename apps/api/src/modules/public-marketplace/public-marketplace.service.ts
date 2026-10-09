@@ -1,6 +1,6 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
-import { hiddenCategoryWhere, isHiddenCategory, listingSlug } from "@rothern/shared";
+import { hiddenCategoryWhere, isHiddenCategory, listingSlug, visibleCategoryId, visibleCategoryIds } from "@rothern/shared";
 import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemPrefix } from "@rothern/shared";
@@ -93,10 +93,16 @@ export class PublicMarketplaceService {
     @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
+  /**
+   * Kod → ad haritası (kart, detay, facet adı, seçili kategori, popüler
+   * kategoriler). GİZLİ SEGMENTİN KODU ÇÖZÜLMEZ (2026-10-09): bu servisin ada
+   * çevirdiği her kod buradan geçer, dolayısıyla eski bir talebin / ürünün
+   * gizli kategorisi hiçbir yanıtta ad olarak çıkamaz.
+   */
   private async resolveCategories(
     codes: string[],
   ): Promise<Map<string, { id: string; name: string; level: number; slug: string }>> {
-    const unique = [...new Set(codes)].filter(Boolean);
+    const unique = [...new Set(visibleCategoryIds(codes))];
     if (unique.length === 0) return new Map();
     const rows = await this.prisma.category.findMany({
       where: { id: { in: unique } },
@@ -213,11 +219,15 @@ export class PublicMarketplaceService {
    * yok; eşleşen ilan kimlikleri ham SQL ile alınır (`unnest` + `LIKE`),
    * sorgu `id IN (...)` ile daralır. Tavan 5000 — facet tarama tavanıyla
    * aynı ölçek. Yaprak kod verilirse doğrudan `has`.
+   *
+   * GİZLİ SEGMENT kodu süzgeç DEĞİLDİR (2026-10-09): elle yazılmış ya da eski
+   * bir yer iminden gelen `?category=46000000` kategori seçilmemiş gibi
+   * davranır — gizli dal süzülerek gezilemez (`facets` de aynı kuralı okur).
    */
   private async listingCategoryWhere(
     code?: string,
   ): Promise<Prisma.ListingWhereInput> {
-    if (!code) return {};
+    if (!code || isHiddenCategory(code)) return {};
     const prefix = categoryPrefix(code);
     if (!prefix) return {};
     if (prefix.length === 8) return { categoryIds: { has: code } };
@@ -335,7 +345,10 @@ export class PublicMarketplaceService {
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
     type Row = (typeof scanned)[number];
 
-    const prefix = q.category ? categoryPrefix(q.category) : null;
+    // Gizli segmentin kodu süzgeç değildir (liste ucuyla aynı kural, bkz.
+    // `listingCategoryWhere`): sayaçlar süzülmez, `selectedCategory` null.
+    const category = visibleCategoryId(q.category) ?? undefined;
+    const prefix = category ? categoryPrefix(category) : null;
     const buyerCountries = buyerCountryList(q.buyerCountry);
     const buyerSet = new Set(buyerCountries);
     const dayMs = 86_400_000;
@@ -378,8 +391,8 @@ export class PublicMarketplaceService {
     for (const r of forScope) for (const c of r.targetCountries) countryCount.set(c, (countryCount.get(c) ?? 0) + 1);
     if (country && /^[A-Z]{2}$/.test(country) && !countryCount.has(country)) countryCount.set(country, 0);
 
-    const cats = await this.resolveCategories([...catCount.keys(), ...(q.category ? [q.category] : [])]);
-    const selected = q.category ? cats.get(q.category) : undefined;
+    const cats = await this.resolveCategories([...catCount.keys(), ...(category ? [category] : [])]);
+    const selected = category ? cats.get(category) : undefined;
     return {
       categories: [...catCount.entries()]
         .map(([id, count]) => {
@@ -735,9 +748,12 @@ export class PublicMarketplaceService {
       : 0;
     // "Popüler aramalar" — arama logu YOK; yedek: ürün sayısı en yüksek 20
     // ALT kategori (L3 sınıf). Etiket web'de "Popüler kategoriler".
+    // Gizli segmentin sınıfı SAYILMAZ (2026-10-09): eski bir ürün yüzünden
+    // anasayfaya gizli kategoriye giden çip çıkmasın, 20 yerden birini de
+    // tüketmesin (ad çözümü de gizliyi vermez — `resolveCategories`).
     const l3 = new Map<string, number>();
     for (const r of catRows) {
-      if (r.categoryId && r.categoryId.length === 8) {
+      if (r.categoryId && r.categoryId.length === 8 && !isHiddenCategory(r.categoryId)) {
         const cls = `${r.categoryId.slice(0, 6)}00`;
         l3.set(cls, (l3.get(cls) ?? 0) + 1);
       }
@@ -828,7 +844,11 @@ export class PublicMarketplaceService {
     });
     const truncated = rows.length > FACET_SCAN_CAP;
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
-    const prefix = q.category ? categoryPrefix(q.category) : null;
+    // Gizli segmentin kodu süzgeç değildir (2026-10-09; liste ucunda
+    // `productIndexWhere` aynı kuralı uygular): sayaçlar süzülmez, seçili
+    // kategori / alt dal / nitelik facet'i dönmez.
+    const category = visibleCategoryId(q.category) ?? undefined;
+    const prefix = category ? categoryPrefix(category) : null;
     const inCategory = prefix ? scanned.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : scanned;
     const sel = {
       city: q.city,
@@ -846,14 +866,14 @@ export class PublicMarketplaceService {
     // `attributes` facet'i ham satırı ister (JSON alanı), sayaçlar eşlenmişi.
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), sel);
     const catCounts = contextualFacetCounts(scanned.map(toFacetRow), sel).categories;
-    const subCounts = subCategoryCounts(inCategory, q.category);
+    const subCounts = subCategoryCounts(inCategory, category);
     // Seçili kategori de çözülür: ürünü olmasa bile çipte/başlıkta ADI
     // yazsın (panel ucuyla aynı kural, bkz. company-items.service).
     const cats = await this.resolveCategories([
       ...new Set([
         ...catCounts.map(([id]) => id),
         ...subCounts.map(([id]) => id),
-        ...(q.category ? [q.category] : []),
+        ...(category ? [category] : []),
       ]),
     ]);
     const named = (pairs: [string, number][]) =>
@@ -864,7 +884,7 @@ export class PublicMarketplaceService {
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
-    const selected = q.category ? cats.get(q.category) : undefined;
+    const selected = category ? cats.get(category) : undefined;
     return {
       categories: named(catCounts),
       /** Seçili kategorinin BİR ALT seviyesi — kategori sayfasının çipleri. */
@@ -883,7 +903,7 @@ export class PublicMarketplaceService {
       moq: ctx.moq,
       currency: sel.currency,
       priceHistogram: ctx.priceHistogram,
-      attributes: await attributeFacets(this.prisma, q.category, inCategory),
+      attributes: await attributeFacets(this.prisma, category, inCategory),
       truncated,
     };
   }

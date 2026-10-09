@@ -16,6 +16,8 @@ import {
   MAX_COMPANY_SUB_PICKS,
   categoryAncestors,
   deepestCategoryPicks,
+  isHiddenCategory,
+  visibleCategoryIds,
   generateSlug,
   countryUsesIban,
   isValidAccountNumber,
@@ -103,6 +105,31 @@ const SELECT = {
   onboardingCompletedAt: true,
 } as const;
 
+/**
+ * The four declaration arrays AS SHOWN to the company itself: without the
+ * codes under a hidden segment (owner rule 2026-10-09 - a hidden category is
+ * shown to nobody, the declaring company included). A legacy code stays in
+ * the record, and matching keeps reading it there, until the category
+ * declaration is saved the next time (`update` drops it then). The settings
+ * form is seeded from this answer, so it never sends a hidden code back.
+ */
+function withVisibleCategories<
+  T extends {
+    buyerCategoryIds: string[];
+    buyerSubCategoryIds: string[];
+    sellerCategoryIds: string[];
+    sellerSubCategoryIds: string[];
+  },
+>(c: T): T {
+  return {
+    ...c,
+    buyerCategoryIds: visibleCategoryIds(c.buyerCategoryIds),
+    buyerSubCategoryIds: visibleCategoryIds(c.buyerSubCategoryIds),
+    sellerCategoryIds: visibleCategoryIds(c.sellerCategoryIds),
+    sellerSubCategoryIds: visibleCategoryIds(c.sellerSubCategoryIds),
+  };
+}
+
 @Injectable()
 export class CompanyProfileService {
   constructor(
@@ -150,7 +177,7 @@ export class CompanyProfileService {
     const { membershipEndAt, ...rest } = c;
     const tier = effectiveTier(c.tier, membershipEndAt, c.companyVerificationStatus);
     const base = {
-      ...rest,
+      ...withVisibleCategories(rest),
       tier,
       membership: await this.membershipStatus(companyId, c.tier, tier, membershipEndAt),
     };
@@ -350,19 +377,19 @@ export class CompanyProfileService {
           sellerSubCategoryIds: true,
         },
       });
-      // GİZLİ SEGMENT MUAFİYETİ (code-category-12): firmada ZATEN duran kod
-      // (ve onun koddan türeyen ataları) gizli segmentte diye reddedilmez —
-      // segment gizlenmeden önce yapılmış beyan, formun her kayıtta geri
-      // gönderdiği bir değerdir ve başka değişikliğin kaydını engelliyordu.
-      // Yeni eklenen kod gizli listeye karşı eskisi gibi denetlenir.
-      const zatenBeyanda = new Set(
-        [
-          ...(kayitli?.buyerCategoryIds ?? []),
-          ...(kayitli?.buyerSubCategoryIds ?? []),
-          ...(kayitli?.sellerCategoryIds ?? []),
-          ...(kayitli?.sellerSubCategoryIds ?? []),
-        ].flatMap((code) => [code, ...categoryAncestors(code)]),
-      );
+      // HIDDEN SEGMENTS - LEGACY DECLARATIONS (code-category-12, tightened by
+      // the owner rule of 2026-10-09). A code that is ALREADY stored (and the
+      // ancestors derived from it) is not rejected for being under a hidden
+      // segment: the form sends the stored value back on every save, and that
+      // used to block every other change. But it is not KEPT either: whenever
+      // the category declaration is saved, hidden codes leave all four arrays
+      // (they are shown nowhere, so nobody could remove them by hand). A NEW
+      // hidden code is still rejected by `validateIds`.
+      //
+      // The exemption is PER AXIS (audit F25): a hidden code stored only on
+      // the buying side is "new" on the selling side and is rejected there.
+      // Until this change one set covered both axes, so such a code (and its
+      // ancestors) could be copied from one axis to the other.
       const ayniListe = (a: readonly string[], b: readonly string[]) =>
         a.length === b.length && a.every((code, i) => code === b[i]);
       const ekseniIsle = async (
@@ -371,12 +398,25 @@ export class CompanyProfileService {
       ) => {
         const gelenMain = dto[mainKey];
         const gelenSub = dto[subKey];
-        if (gelenMain === undefined && gelenSub === undefined) return;
         const oncekiMain = kayitli?.[mainKey] ?? [];
         const oncekiSub = kayitli?.[subKey] ?? [];
+        if (gelenMain === undefined && gelenSub === undefined) {
+          // The request does not touch this axis: nothing is re-derived or
+          // re-validated here; only its hidden legacy codes are dropped.
+          const main = visibleCategoryIds(oncekiMain);
+          const sub = visibleCategoryIds(oncekiSub);
+          if (main.length !== oncekiMain.length) data[mainKey] = main;
+          if (sub.length !== oncekiSub.length) data[subKey] = sub;
+          return;
+        }
+        const buEksendeKayitli = new Set(
+          [...oncekiMain, ...oncekiSub].flatMap((code) => [code, ...categoryAncestors(code)]),
+        );
+        const eskiGizlileriAt = (ids: readonly string[]) =>
+          ids.filter((code) => !(isHiddenCategory(code) && buEksendeKayitli.has(code)));
         const { mainIds, subIds } = normalizeCategorySelection(
-          gelenMain ?? oncekiMain,
-          gelenSub ?? oncekiSub,
+          eskiGizlileriAt(gelenMain ?? oncekiMain),
+          eskiGizlileriAt(gelenSub ?? oncekiSub),
         );
         const mainYazilir = gelenMain !== undefined || !ayniListe(mainIds, oncekiMain);
         const subYazilir = gelenSub !== undefined || !ayniListe(subIds, oncekiSub);
@@ -385,9 +425,11 @@ export class CompanyProfileService {
             throw new BadRequestException(i18nMessage("api.helpers.altKategoriBeyaniFazlaGenis"));
           }
           seciminiDenetle(subIds);
+          // No `allowHidden`: the stored hidden codes are already out of the
+          // list, so every hidden code still here is a NEW one -> rejected.
           await this.categories.validateIds(
             gelenSub !== undefined ? subIds : subIds.filter((code) => !oncekiSub.includes(code)),
-            { minLevel: 2, allowHidden: zatenBeyanda },
+            { minLevel: 2 },
           );
           data[subKey] = subIds;
         }
@@ -400,7 +442,7 @@ export class CompanyProfileService {
           }
           await this.categories.validateIds(
             gelenMain !== undefined ? mainIds : mainIds.filter((code) => !oncekiMain.includes(code)),
-            { exactLevel: 1, allowHidden: zatenBeyanda },
+            { exactLevel: 1 },
           );
           data[mainKey] = mainIds;
         }
@@ -426,9 +468,16 @@ export class CompanyProfileService {
     // Yalnız kategori alanına DOKUNAN istek denetlenir. Varlığa bakan bir kapı,
     // bugün sıfır kategoriyle duran eski bir firmanın şehrini bile
     // güncellemesini engellerdi (KYC kilidinde öğrenilen ders).
+    //
+    // `data.*` counts too: a main list can be written without being in the
+    // request. Dropping hidden legacy codes can EMPTY a main list from a
+    // request that sent only the sub list or only the other axis; a company
+    // must not be left without any category that way either.
     if (
       dto.buyerCategoryIds !== undefined ||
-      dto.sellerCategoryIds !== undefined
+      dto.sellerCategoryIds !== undefined ||
+      data.buyerCategoryIds !== undefined ||
+      data.sellerCategoryIds !== undefined
     ) {
       const mevcut = await this.prisma.company.findUnique({
         where: { id: companyId },
@@ -637,7 +686,7 @@ export class CompanyProfileService {
         void this.translations?.enqueue("COMPANY", companyId);
       }
     }
-    return c;
+    return withVisibleCategories(c);
   }
 
   /** Tek kaynak `common/company/company-slug.ts` — kayıt akışı da onu okur. */

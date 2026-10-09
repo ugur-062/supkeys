@@ -2,6 +2,7 @@ import { entitlementForbidden } from "../../../common/company/entitlement-requir
 import { categoryMatchInstantAllowed, localDayStart } from "../../../common/email/email-program-policy";
 import { COMPANY_DAILY_INVITE_CAP, utcDayStart } from "../../../common/company/external-invite-policy";
 import { productSearchClauses } from "../../../common/company/product-index";
+import { declaresRequestCategory, relaxedItemMatch } from "../../../common/company/item-product-match";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { timeZoneForCountry } from "../../../common/time/country-time-zone";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
@@ -15,7 +16,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { foldSearchText, hiddenCategoryWhere, isHiddenCategory, isOrderRejectedReason, listingPath } from "@rothern/shared";
+import { foldSearchText, hiddenCategoryWhere, isHiddenCategory, isOrderRejectedReason, listingPath, visibleCategoryIds } from "@rothern/shared";
 import {
   CompanyRole,
   ListingType,
@@ -77,8 +78,13 @@ import { ContentTranslationService } from "../../content-translation/content-tra
 import { currentLocale } from "../../../common/i18n/locale-context";
 import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
 import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
+import { subjectName } from "@rothern/email";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
-import { PENDING_AI_SUGGESTION_RUN_WHERE } from "../../../common/company/ai-suggestions";
+import {
+  COUNTED_AUTO_RUN_WHERE,
+  isCountedAutoRun,
+  PENDING_AI_SUGGESTION_RUN_WHERE,
+} from "../../../common/company/ai-suggestions";
 import {
   PUBLIC_LISTING_SELECT,
   excerptOf,
@@ -109,7 +115,7 @@ import {
 } from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
-import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
+import { gatingPrefKeysForType, isNotificationEnabled } from "../../../common/notifications/notification-prefs";
 import {
   dateParam,
   formatAmount,
@@ -259,6 +265,20 @@ interface ListingNotifyData {
 
 /** AI'ın bulduğu ama alıcıya gösterilmeyen ücretsiz firmaya Silver/doğrulama çağrısı. */
 export const AI_MATCH_LOCKED_CONTEXT = "listing_ai_match_locked";
+/**
+ * Herkese açık talepte anonim kategori duyurusunun yayın sonrası keşif turunu
+ * EN FAZLA bekleyeceği süre (tur satırının yazıldığı andan). Tur bu sürede
+ * davet aşamasını bitirmediyse (kuyruk dolu, süreç öldü) duyuru beklemeden
+ * gider — bkz. `CompanyListingsService.holdForDiscovery` (gözden geçirme AI-4).
+ *
+ * ARAMA SÜRELERİYLE BİRLİKTE DEĞİŞİR (round 5 gözden geçirme, R5-08): keşif
+ * işi turlarını art arda işler ve aramalarını bu sürenin 2 dk altında bitirir
+ * (`TICK_SEARCH_BUDGET_MS`, `discovery-runs.service.ts`); bir turun en kötü
+ * araması (`BACKGROUND_SEARCH_TIMING`: 5 dk) o bütçeye sığmalıdır. Bu sayıyı
+ * küçültmek ya da arama sürelerini büyütmek sözleşme testini
+ * (`supplier-discovery-external.spec.ts` "R5-08") kırar.
+ */
+export const DISCOVERY_HOLD_MS = 10 * 60_000;
 
 /**
  * RFQ'da "Yeni Tur" AUTO taşımasıyla bu tura SUBMITTED gelmiş ve bu turda henüz
@@ -292,6 +312,38 @@ function parseAiReason(raw: unknown): { productName?: string; category?: boolean
   const r = raw as Record<string, unknown>;
   if (typeof r.productName === "string" && r.productName.trim()) return { productName: r.productName };
   return r.category === true ? { category: true } : {};
+}
+
+/**
+ * The category codes an edit WRITES (hidden segments, owner rule 2026-10-09:
+ * a legacy record stays, only its hidden category disappears from every read;
+ * matching and notification keep using the full stored codes).
+ *
+ * The owner never sees a code under a hidden segment (`getOne` returns the
+ * visible codes only), so the edit form cannot send it back - and cannot keep
+ * or restore it either. Writing the submitted list as it is would therefore
+ * delete the hidden codes of a PUBLISHED request on any edit (a new title, a
+ * new closing date), and with them its category match for the suppliers who
+ * declared that segment. So:
+ *  - OPEN: the stored hidden codes are carried over on the server. If the
+ *    visible part is untouched the stored list is written back AS IT IS (same
+ *    order: the first two stored codes are the relevance keys); if the owner
+ *    changed the visible categories, the new choice comes first and the hidden
+ *    codes follow.
+ *  - DRAFT: the submitted list is written as it is, so the hidden code leaves
+ *    with the save - the publish gate (`publishListing`) asks for exactly that.
+ * A NEW hidden code never reaches this point (`validateListingBusinessRules`).
+ */
+function categoryIdsAfterEdit(
+  existing: { status: string; categoryIds: readonly string[] },
+  submitted: readonly string[],
+): string[] {
+  const hidden = existing.categoryIds.filter((code) => isHiddenCategory(code));
+  if (existing.status !== "OPEN" || hidden.length === 0) return [...submitted];
+  const before = visibleCategoryIds(existing.categoryIds);
+  const after = visibleCategoryIds(submitted);
+  const untouched = before.length === after.length && before.every((code, i) => code === after[i]);
+  return untouched ? [...existing.categoryIds] : [...new Set([...submitted, ...hidden])];
 }
 
 @Injectable()
@@ -716,7 +768,15 @@ export class CompanyListingsService {
    * Alıcılar `companyRecipients` ile çözülür → billingEmail yoksa firmanın ilk
    * aktif kullanıcısına düşer (hiçbir eşleşen firma sessizce atlanmaz).
    */
-  async notifyCategoryMatchedCompanies(listingId: string) {
+  async notifyCategoryMatchedCompanies(
+    listingId: string,
+    /**
+     * Duyurunun ULAŞACAĞI firmalar belli olunca (e-postalar çıkmadan, çeviri
+     * beklenmeden) çağrılır. Keşif turu aynı firmalara ayrıca "sizi arayan bir
+     * alıcı var" çağrısı göndermesin diye bunu bekler (gözden geçirme AI-4).
+     */
+    onTargets?: (companyIds: string[]) => void,
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -775,13 +835,30 @@ export class CompanyListingsService {
     // DAVETLİLER HARİÇ (2026-09-27): herkese açık talepte bağlantılar artık
     // otomatik davetli (`autoInviteConnections`) ve davet e-postası alıyor;
     // kategorisi de uyan davetliye ikinci bir duyuru gitmesin.
+    //
+    // AI DAVETLİSİ ADAY KÜMESİNDE KALIR (ikinci gözden geçirme A-2). Duyuru
+    // artık keşif turunun davet aşamasını bekliyor (`holdForDiscovery`): turun
+    // davet ettiği üye bu noktada davetlidir ve firma adını taşıyan daveti
+    // (`listing_invitation_ai`) alır. Ama o e-postayı KAPATMIŞ üye (AI davet
+    // e-postaları ya da bütün davet e-postaları kapalı, kategori e-postaları
+    // açık) davetli diye duyurudan da düşüyor, talep için HİÇ e-posta
+    // almıyordu — duyuru yayın anında giderken alıyordu. Kural aşağıdaki
+    // döngüde: AI davetlisi duyuruyu YALNIZ davet e-postası kapalıysa alır
+    // (tek talep, tek e-posta); zil bildirimi davet bildirimidir.
     const invited = await this.bypass.listingInvitation.findMany({
       where: { listingId },
-      select: { invitedCompanyId: true },
+      select: { invitedCompanyId: true, origin: true },
     });
+    const aiInvited = new Set(invited.filter((i) => i.origin === "AI").map((i) => i.invitedCompanyId));
     const candidates = await this.prisma.company.findMany({
       where: {
-        id: { notIn: [listing.companyId, ...blocked, ...invited.map((i) => i.invitedCompanyId)] },
+        id: {
+          notIn: [
+            listing.companyId,
+            ...blocked,
+            ...invited.filter((i) => i.origin !== "AI").map((i) => i.invitedCompanyId),
+          ],
+        },
         // Paket şartı YOK (2026-09-06): ücretsiz firma da haber alır — talep ona
         // kilitli, duyuru Silver'a geçmeye çağırır (dönüşüm tetiği: gerçek bir
         // talep, kendi kategorisinde, göremiyor). Efektif kademe aşağıda metni seçer.
@@ -863,6 +940,11 @@ export class CompanyListingsService {
               ? ranked
               : [...on, ...ranked.filter((c) => !uyan(c.id))];
           })();
+
+    // Duyurunun ulaştığı firmalar = davetli OLMAYANLAR (AI davetlisi keşif
+    // turunun kendi daveti; gösterilmeyen eşleşme çağrısı onu zaten atlar).
+    const announced = sirali.filter((c) => !aiInvited.has(c.id));
+    onTargets?.(announced.map((c) => c.id));
 
     // Teklifçi portalı (ALIM→satış, SATIS→satınalma) — e-posta fallback'i de
     // bu portalın rolüne göre süzülür.
@@ -991,12 +1073,39 @@ export class CompanyListingsService {
     });
     const sentInCall = new Map<string, number>();
     const countryOf = new Map(candidates.map((c) => [c.id, c.country]));
+    // AI DAVETLİSİNİN DAVET E-POSTASI AÇIK MI? (A-2) İki kayıt vardır ve
+    // gönderim ikisine de bakar: kullanıcının tercihi (`prefs`) ve adresin
+    // çıkış kaydı (`email_opt_outs` — `EmailService` aynı kapsamlara bakar).
+    // Fatura adresi alıcısında tercih YOKTUR (`prefs` boş), yalnız çıkış kaydı
+    // vardır; yalnız tercihe bakılsaydı e-postadaki "çıkış" bağlantısıyla AI
+    // davetlerinden çıkmış fatura adresi yine e-postasız kalırdı.
+    const aiInviteeEmails = sirali
+      .filter((c) => aiInvited.has(c.id))
+      .map((c) => recipients.get(c.id)?.email.trim().toLowerCase())
+      .filter((e): e is string => !!e);
+    const aiInviteOptedOut = new Set(
+      aiInviteeEmails.length === 0
+        ? []
+        : (
+            await this.bypass.emailOptOut.findMany({
+              where: { email: { in: aiInviteeEmails }, scope: { in: gatingPrefKeysForType("listing_invitation_ai") } },
+              select: { email: true },
+            })
+          ).map((r) => r.email),
+    );
+    const aiInviteMailOpen = (to: Recipient) =>
+      isNotificationEnabled(to.prefs, "listing_invitation_ai") && !aiInviteOptedOut.has(to.email.trim().toLowerCase());
     let sent = 0;
     let digested = 0;
     for (const c of sirali) {
       const to = recipients.get(c.id);
       if (!to) continue;
-      if (lockedNoCall.has(c.id)) continue;
+      // AI davetlisi (A-2): firma adını taşıyan daveti alıyorsa duyuru gitmez.
+      // Davetli talebi görür ve teklif verir → ona kilitli / doğrulama metni
+      // değil AÇIK metin gider.
+      const invitee = aiInvited.has(c.id);
+      if (invitee && aiInviteMailOpen(to)) continue;
+      if (!invitee && lockedNoCall.has(c.id)) continue;
       if (!isNotificationEnabled(to.prefs, "listing_category_match")) continue;
       const dayStart = localDayStart(now, timeZoneForCountry(countryOf.get(c.id)));
       const sentToday =
@@ -1017,7 +1126,7 @@ export class CompanyListingsService {
               companyId: c.id,
               kind: "CATEGORY_MATCH",
               listingId: listing.id,
-              locked: !!isFree.get(c.id),
+              locked: !invitee && !!isFree.get(c.id),
             },
             update: {},
           })
@@ -1030,7 +1139,7 @@ export class CompanyListingsService {
       sentInCall.set(to.email, (sentInCall.get(to.email) ?? 0) + 1);
       this.notify(
         to,
-        isFree.get(c.id)
+        !invitee && isFree.get(c.id)
           ? {
               subjectKey: K.lockedSubject,
               headingKey: K.heading,
@@ -1041,7 +1150,7 @@ export class CompanyListingsService {
               footerNoteKey: FOOTER,
               infoRowsFor: (l) => preview.get(l),
             }
-          : paidKyc.get(c.id) === "unverified"
+          : !invitee && paidKyc.get(c.id) === "unverified"
             ? {
                 subjectKey: K.openSubject,
                 headingKey: K.heading,
@@ -1056,7 +1165,7 @@ export class CompanyListingsService {
                 subjectKey: K.openSubject,
                 headingKey: K.heading,
                 bodyKey:
-                  paidKyc.get(c.id) === "pending" ? K.openBodyPending : K.openBody,
+                  !invitee && paidKyc.get(c.id) === "pending" ? K.openBodyPending : K.openBody,
                 params: p,
                 ctaLabelKey: K.openCta,
                 ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
@@ -1071,17 +1180,18 @@ export class CompanyListingsService {
     // portalındaki (ALIM→satış, SATIS→satınalma) aktif kullanıcılarına. Portal
     // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
     // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
-    const paidIds = sirali
+    // AI davetlisi burada YOK: onun zili davet bildirimidir (`notifyAiMemberInvites`).
+    const paidIds = announced
       .map((c) => c.id)
       .filter((id) => !isFree.get(id) && !paidKyc.has(id));
-    const paidUnverifiedIds = sirali
+    const paidUnverifiedIds = announced
       .map((c) => c.id)
       .filter((id) => paidKyc.get(id) === "unverified");
-    const paidPendingIds = sirali
+    const paidPendingIds = announced
       .map((c) => c.id)
       .filter((id) => paidKyc.get(id) === "pending");
-    const freeIds = sirali.map((c) => c.id).filter((id) => lockedPending.has(id));
-    const verifyIds = sirali.map((c) => c.id).filter((id) => needsVerify.has(id));
+    const freeIds = announced.map((c) => c.id).filter((id) => lockedPending.has(id));
+    const verifyIds = announced.map((c) => c.id).filter((id) => needsVerify.has(id));
     if (paidIds.length > 0) {
       await this.notifications.pushToCompanies(paidIds, {
         type: "listing_category_match",
@@ -1148,7 +1258,7 @@ export class CompanyListingsService {
         isBuyDemand ? "satıcı" : "alıcı"
       })`,
     );
-    return sirali;
+    return announced;
   }
 
   /**
@@ -1211,20 +1321,43 @@ export class CompanyListingsService {
   // davet/teklif satırlarını tarar. Ana client'la RLS açıldığında bağlamsız
   // çağrı 0 satır döner — hata yok, log yok, bildirim sessizce hiç gitmez;
   // istek yolundan gelen çağrı da sahibin bağlamıyla davetlileri göremezdi.
-  /** Yayında otomatik AI keşfi açık talep için tur (daha önce açılmadıysa). */
-  private async enqueueDiscoveryRun(listingId: string): Promise<void> {
-    const l = await this.bypass.listing.findUnique({
-      where: { id: listingId },
-      select: { aiDiscovery: true, companyId: true, targetCountries: true },
-    });
-    if (!l?.aiDiscovery) return;
-    const existing = await this.bypass.supplierDiscoveryRun.findFirst({
-      where: { listingId, trigger: { in: ["PUBLISH", "SECOND_ROUND"] } },
-      select: { id: true },
-    });
-    if (existing) return;
-    await this.bypass.supplierDiscoveryRun.create({
-      data: { listingId, companyId: l.companyId, trigger: "PUBLISH", targetCountries: l.targetCountries },
+  /**
+   * Yayında otomatik AI keşfi açık talep için tur (daha önce açılmadıysa).
+   * `created`: talebin İLK otomatik turunu BU çağrı yazdı · `requeued`: alıcının
+   * ayarı yüzünden aramadan düşmüş turun yerine yenisini bu çağrı yazdı ·
+   * `exists`: tur zaten var · `off`: kutu kapalı / özel talep. Talep satırı
+   * kilitlenir: eşzamanlı iki çağrı (yayın + düzenleme + dakikalık iş) iki
+   * yayın turu yazamaz — bekletilen duyurunun "ilk çağrı" işleri (bağlantıların
+   * otomatik daveti) tam bir kez koşsun diye de turu yazan çağrı tektir
+   * (gözden geçirme AI-4).
+   *
+   * KAPAT-AÇ GERİ ALINABİLİR (ikinci gözden geçirme A-3): kutu kapalıyken /
+   * talep özeldeyken işlenen tur `discovery_off` / `private_listing` ile düşer.
+   * O satır "tur var" SAYILMAZ (`isCountedAutoRun`) — alıcı kutuyu yeniden
+   * açınca yeni tur yazılır; yoksa talep "otomatik arama açık" görünür, kimse
+   * aranmazdı.
+   */
+  private async enqueueDiscoveryRun(listingId: string): Promise<"created" | "requeued" | "exists" | "off"> {
+    return this.bypass.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${listingId} FOR UPDATE`;
+      const l = await tx.listing.findUnique({
+        where: { id: listingId },
+        select: { aiDiscovery: true, visibility: true, companyId: true, targetCountries: true },
+      });
+      // Özel talepte otomatik arama YOK (2026-10-08): tur artık bulduğunu
+      // KENDİSİ davet ediyor — yalnız davetlilerin gördüğü talebe yabancı firma
+      // çağrılmaz. Ekran kutuyu özelde kapatır; kural burada da (API'den gelen
+      // ya da sonradan özele çevrilen talep).
+      if (!l?.aiDiscovery || l.visibility === "PRIVATE") return "off" as const;
+      const runs = await tx.supplierDiscoveryRun.findMany({
+        where: { listingId, trigger: { in: ["PUBLISH", "SECOND_ROUND"] } },
+        select: { trigger: true, state: true, error: true },
+      });
+      if (runs.some(isCountedAutoRun)) return "exists" as const;
+      await tx.supplierDiscoveryRun.create({
+        data: { listingId, companyId: l.companyId, trigger: "PUBLISH", targetCountries: l.targetCountries },
+      });
+      return runs.length > 0 ? ("requeued" as const) : ("created" as const);
     });
   }
 
@@ -1243,10 +1376,120 @@ export class CompanyListingsService {
     await this.enqueueDiscoveryRun(listingId);
   }
 
+  /**
+   * ANONİM KATEGORİ DUYURUSU OTOMATİK DAVETİ BEKLER (2026-10-09, gözden
+   * geçirme AI-4; sahip: davet edilen üyenin e-postası HANGİ firmanın davet
+   * ettiğini söylesin, bir talep aynı üyeye iki e-posta üretmesin).
+   *
+   * Herkese açık + otomatik araması açık talepte eski sıra şuydu: yayında
+   * anonim kategori duyurusu ("size uygun yeni bir alım talebi yayınlandı")
+   * kategorisi uyan herkese gider, bir dakika sonra keşif turu aynı üyeleri
+   * talebe davet eder — ama "bu talep için e-posta almış adrese ikincisi
+   * gitmez" kuralı firma adını taşıyan daveti düşürür. Üye yalnız anonim
+   * duyuruyu alıyordu.
+   *
+   * Artık: bu talepte açılış duyurusu İKİ ADIMDA yapılır.
+   *  1. İLK ÇAĞRI (turu yazan çağrı): bağlantılar otomatik davetli olur,
+   *     davetliler bildirilir, keşif turu kuyruğa girer. Anonim duyuru
+   *     GÖNDERİLMEZ ve `openNotifiedAt` damgalanmaz — "duyuru tamamlanmadı".
+   *  2. SALIVERME: tur davet aşamasını bitirdi (DONE) ya da düştü (FAILED),
+   *     tur `DISCOVERY_HOLD_MS` (10 dk) içinde bitmedi, ya da kutu kapatıldı /
+   *     talep artık herkese açık değil → `announceListingOpen` her zamanki
+   *     claim'i alır (`openNotifiedAt` koşullu damgası — duyuru TAM BİR KEZ) ve
+   *     anonim duyuruyu gönderir. Turun davet ettiği üyeler artık davetlidir:
+   *     duyurunun "davetliler hariç" kuralı onları dışarıda bırakır ve firma
+   *     adını taşıyan daveti alırlar.
+   *
+   * ÇÖKMEYE DAYANIKLI: bekleme bellekte tutulmaz. Durum veritabanındadır
+   * (damgasız OPEN talep + yayın turu satırı) ve iki yerden yeniden okunur:
+   * tur biterken `DiscoveryRunsService.closingNotices` ve her dakika
+   * `ListingScheduler.announceOpened` (bu talepleri de tarar). Yeni kolon yok.
+   *
+   * ESKİSİ GİBİ davranan talepler (dönüş `false`): otomatik araması kapalı,
+   * özel / bağlantılara açık, kategorisiz, yeni tur ve açılış tarihi verilmiş
+   * (embargolu) talep — onlarda duyuru açılış anında tek adımda gider.
+   */
+  private async holdForDiscovery(listingId: string, now: Date): Promise<boolean> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        status: true,
+        openNotifiedAt: true,
+        bidsOpenAt: true,
+        closesAt: true,
+        currentRound: true,
+        visibility: true,
+        aiDiscovery: true,
+        type: true,
+        categoryIds: true,
+      },
+    });
+    if (!l || l.status !== "OPEN" || l.openNotifiedAt) return false;
+    if (l.bidsOpenAt || l.currentRound > 1) return false;
+    if (l.closesAt && l.closesAt.getTime() <= now.getTime()) return false;
+    if (l.visibility !== "PUBLIC" || !l.aiDiscovery || l.type !== "ALIM" || l.categoryIds.length === 0) return false;
+    const queued = await this.enqueueDiscoveryRun(listingId);
+    if (queued === "off") return false;
+    const notifyInvitees = () =>
+      void this.notifyListingInvitees(listingId, "invitation").catch((err) =>
+        this.logger.warn(
+          `Invitee notice failed while the announcement is held (${listingId}): ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
+    if (queued === "created" || queued === "requeued") {
+      // İlk adım: anonim duyuru dışındaki her şey ŞİMDİ (bağlantılar ve
+      // formda seçilen davetliler beklemez; talep listelerde tazelenir).
+      // `requeued`: aramadan düşmüş turun yerine yenisi yazıldı — ilk adım o
+      // turun çağrısında yapılmıştı; bağlantılar yeniden otomatik davet
+      // EDİLMEZ (alıcı arada birini çıkardıysa geri eklenmesin), duyuru yeni
+      // turu bekler.
+      if (queued === "created") {
+        await this.autoInviteConnections(listingId).catch((err) =>
+          this.logger.warn(
+            `Auto-invite of connections failed (${listingId}): ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+      }
+      notifyInvitees();
+      this.realtime?.pingListing(listingId);
+      return true;
+    }
+    // Beklenen tur = sayılan tur (aramadan düşmüş eski satır değil).
+    const run = await this.bypass.supplierDiscoveryRun.findFirst({
+      where: { listingId, ...COUNTED_AUTO_RUN_WHERE },
+      orderBy: { createdAt: "desc" },
+      select: { state: true, createdAt: true },
+    });
+    if (!run || (run.state !== "PENDING" && run.state !== "RUNNING")) return false;
+    if (run.createdAt.getTime() <= now.getTime() - DISCOVERY_HOLD_MS) return false;
+    // Beklerken eklenen davetli (düzenleme) duyuruyu beklemesin — davet başına
+    // tek bildirim hakkı (`notifiedAt`) yinelemeyi önler.
+    notifyInvitees();
+    return true;
+  }
+
+  /**
+   * Keşif turu bitti → bekletilen anonim duyuruyu sal (bkz. `holdForDiscovery`).
+   * Yalnız BEKLETİLEN talepte iş yapar (damgasız, açılış tarihsiz, ilk tur);
+   * embargolu talebin ve yeni turun duyurusu dakikalık işindir. Duyurunun
+   * ulaştığı firmaları döner (duyuru bu çağrıda salınmadıysa boş).
+   */
+  async releaseHeldAnnouncement(listingId: string): Promise<string[]> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: { status: true, openNotifiedAt: true, bidsOpenAt: true, currentRound: true },
+    });
+    if (!l || l.status !== "OPEN" || l.openNotifiedAt || l.bidsOpenAt || l.currentRound > 1) return [];
+    const out = await this.announceListingOpen(listingId, "invitation", { awaitCategoryTargets: true });
+    return out.categoryCompanyIds;
+  }
+
   async announceListingOpen(
     listingId: string,
     kind: "invitation" | "newRound",
-  ) {
+    /** `awaitCategoryTargets`: kategori duyurusunun ulaşacağı firmalar belli olana dek bekle (e-postalar beklenmez). */
+    opts: { awaitCategoryTargets?: boolean } = {},
+  ): Promise<{ status: "announced" | "held" | "skipped"; categoryCompanyIds: string[] }> {
     // Atomik claim (closeExpired/reminder ile aynı desen): koşulları sağlayan
     // İLK çağrı damgayı basar ve duyuruyu atar; yarışan ikinci çağrı (cron
     // overlap / publish+cron) count=0 alıp sessizce döner — çift bildirim yok.
@@ -1256,6 +1499,10 @@ export class CompanyListingsService {
     // kapsadıysa davetliler teklif veremeyecekleri talebe davet edilmesin,
     // AI keşfi kapalı talebe tur açmasın — closeExpired zaten kapatır.
     const now = new Date();
+    // Otomatik davet bekleniyorsa damga ŞİMDİ basılmaz (AI-4).
+    if (kind === "invitation" && (await this.holdForDiscovery(listingId, now))) {
+      return { status: "held", categoryCompanyIds: [] };
+    }
     const claimed = await this.bypass.listing.updateMany({
       where: {
         id: listingId,
@@ -1268,7 +1515,7 @@ export class CompanyListingsService {
       },
       data: { openNotifiedAt: new Date() },
     });
-    if (claimed.count !== 1) return;
+    if (claimed.count !== 1) return { status: "skipped", categoryCompanyIds: [] };
     // Açık eksiltme kur damgası AÇILIŞ GÜNÜ kuruyla tazelenir — embargolu
     // (gelecek açılışlı) turu cron tam açılışta buradan geçirir; anında açılan
     // turda yayın günü zaten açılış günüdür (aynı gün → aynı kur, zararsız).
@@ -1302,14 +1549,24 @@ export class CompanyListingsService {
     // HERKESE AÇIK TALEPTE BAĞLANTILAR OTOMATİK DAVETLİ (2026-09-27) — davet
     // bildiriminden ÖNCE (aynı duyuruya girsinler) ve kategori duyurusundan
     // önce (davetliye ikinci e-posta gitmesin). Hata duyuruyu durdurmaz.
+    //
+    // Bekletilmiş duyuruda (AI-4) bu adım İLK çağrıda yapıldı (yayın turu
+    // satırı onun izidir) → yinelenmez: alıcı beklerken bir bağlantıyı
+    // davetlilerden çıkardıysa saliverme onu geri eklemesin.
     if (kind === "invitation") {
-      await this.autoInviteConnections(listingId).catch((err) =>
-        this.logger.warn(
-          `Auto-invite of connections failed (${listingId}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        ),
-      );
+      const firstStepDone =
+        (await this.bypass.supplierDiscoveryRun.count({
+          where: { listingId, trigger: { in: ["PUBLISH", "SECOND_ROUND"] } },
+        })) > 0;
+      if (!firstStepDone) {
+        await this.autoInviteConnections(listingId).catch((err) =>
+          this.logger.warn(
+            `Auto-invite of connections failed (${listingId}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+      }
     }
     // Fire-and-forget: reddi (DB flake vb.) UNHANDLED rejection'a düşmesin →
     // prod'da süreç çökme riski (kardeşi 563 gibi .catch — notifyListingInvitees
@@ -1321,17 +1578,27 @@ export class CompanyListingsService {
         }`,
       ),
     );
+    let categoryCompanyIds: string[] = [];
     if (kind === "invitation") {
-      void this.notifyCategoryMatchedCompanies(listingId).catch((err) =>
-        this.logger.warn(
-          `Kategori eşleşme bildirimi başarısız (${listingId}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        ),
-      );
+      // Arka planda gider (çeviri ≤60 sn beklenir); ulaşacağı firmalar ise
+      // hemen bellidir — isteyen çağıran (keşif turu) yalnız onu bekler.
+      const targets = new Promise<string[]>((resolve) => {
+        void this.notifyCategoryMatchedCompanies(listingId, resolve)
+          .then((rows) => resolve(rows.map((c) => c.id)))
+          .catch((err) => {
+            this.logger.warn(
+              `Kategori eşleşme bildirimi başarısız (${listingId}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+            resolve([]);
+          });
+      });
+      if (opts.awaitCategoryTargets) categoryCompanyIds = await targets;
       // AI TEDARİKÇİ KEŞFİ (2026-09-27, Faz 1): talepte açıksa yayın anında
       // tur kuyruğa girer; dakikalık iş (`DiscoveryRunsService`) platform
-      // bütçesiyle yurt içi + yurt dışı arar, alıcıya tek tık davet önerir.
+      // bütçesiyle yurt içi + yurt dışı arar ve bulduğunu talebi yayınlayan
+      // kişi adına KENDİSİ davet eder (2026-10-08; alıcı onayı yok).
       // Yalnız satır yazılır (AI modülüne bağımlılık yok); hata duyuruyu durdurmaz.
       await this.enqueueDiscoveryRun(listingId).catch((err) =>
         this.logger.warn(
@@ -1341,6 +1608,7 @@ export class CompanyListingsService {
     }
     // Embargolu ilan açılış anında görünür OLUR — listeler tazelensin.
     this.realtime?.pingListing(listingId);
+    return { status: "announced", categoryCompanyIds };
   }
 
   // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #3): BYPASS client.
@@ -1658,7 +1926,17 @@ export class CompanyListingsService {
    */
   private async validateListingBusinessRules(
     dto: CreateListingDto,
-    opts: { format: ListingFormat | null; inviteCount: number },
+    opts: {
+      format: ListingFormat | null;
+      inviteCount: number;
+      /**
+       * Codes the request ALREADY holds (edit only). They are not checked
+       * again: a code saved before its segment was hidden, or before a rule
+       * was tightened, must not block an unrelated edit. `create` passes
+       * nothing, so every code of a new request goes through the gate.
+       */
+      storedCategoryIds?: readonly string[];
+    },
   ) {
     // Pazarlıkta minimum azaltma payı YOK (2026-07-13'te kaldırıldı — çıpa
     // etkisi; turda-tek-teklif kuralı sembolik indirimi zaten caydırıyor).
@@ -1701,17 +1979,25 @@ export class CompanyListingsService {
     // Kapının YERİ burası, istemci değil: `catalog` query parametresi yalnız
     // hangi ağacın gösterileceğini seçer. İstemci onu göndermese ya da elle
     // discovery dışı bir kod yollasa da talep/ilan o kodu TAŞIYAMAZ.
-    if (dto.categoryIds?.length) {
+    //
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): a NEW code must be visible
+    // (`hiddenCategoryWhere`). Only the codes this save ADDS are checked: the
+    // edit form sends the stored list back, and a legacy request whose
+    // category sits in a hidden segment could otherwise not be saved at all
+    // (title, closing date, invitees - every edit answered 400).
+    const stored = new Set(opts.storedCategoryIds ?? []);
+    const added = [...new Set(dto.categoryIds ?? [])].filter((code) => !stored.has(code));
+    if (added.length) {
       const found = await this.prisma.category.count({
         where: {
-          code: { in: dto.categoryIds },
+          code: { in: added },
           level: { gte: 3 },
           isActive: true,
           inDiscovery: true,
           ...hiddenCategoryWhere(),
         },
       });
-      if (found !== new Set(dto.categoryIds).size) {
+      if (found !== added.length) {
         throw new BadRequestException(i18nMessage("api.companyListings.gecersizKategoriSecimi"));
       }
     }
@@ -2035,6 +2321,8 @@ export class CompanyListingsService {
         format: true,
         createdById: true,
         openNotifiedAt: true,
+        // The category gate checks only the codes this edit ADDS.
+        categoryIds: true,
       },
     });
     // Faz 3 — tx İÇİNDE toplanır, commit'ten SONRA R2'dan silinir (tx geri
@@ -2147,6 +2435,7 @@ export class CompanyListingsService {
     await this.validateListingBusinessRules(dto, {
       format,
       inviteCount: finalInvitedCount,
+      storedCategoryIds: existing.categoryIds,
     });
     await this.assertListingAddressesOwned(
       user.companyId,
@@ -2213,7 +2502,9 @@ export class CompanyListingsService {
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
           closesAt: dto.closesAt ? new Date(dto.closesAt) : null,
-          categoryIds: dto.categoryIds ?? [],
+          // A published request keeps the hidden legacy codes the owner cannot
+          // see; a draft drops them with the save (`categoryIdsAfterEdit`).
+          categoryIds: categoryIdsAfterEdit(existing, dto.categoryIds ?? []),
           // Yinelenen tercih tavanı boşa harcamasın (gövde elle de gelebilir).
           preferredActivities: [
             ...new Set(dto.preferredActivities ?? []),
@@ -2317,8 +2608,27 @@ export class CompanyListingsService {
       // Davetleri FARK olarak uygula: formdan çıkarılan davetler silinir,
       // formda kalanlar (AI dahil) dokunulmadan kalır, yalnız yeni firmalar
       // eklenir (mevcut satır yeniden yazılmaz → yeni davetli kümesi doğru).
+      //
+      // FORMUN BİLEMEYECEĞİ AI DAVETİ SİLİNMEZ (gözden geçirme AI-3): form
+      // davetli listesini açılışta bir kez okur; düzenleme yalnız teklif
+      // yokken mümkün — tam da yayın turunun (yayından 1-3 dk sonra) ve ikinci
+      // turun davet ettiği pencere. Form açıkken turun davet ettiği üye
+      // gövdede yoktur, ama alıcı onu ÇIKARMADI: "ABC İnşaat sizi davet etti"
+      // e-postasını almış tedarikçinin daveti yazım hatası düzeltilirken
+      // siliniyor, bağlantısı talebi açmıyordu. Form listesini okuduğu anı
+      // (`invitationsAsOf`) geri gönderir; o andan SONRA yazılmış AI daveti
+      // kalır. Formun gösterdiği AI davetlisini çıkarmak yine siler (MU-20).
+      // `origin` nullable → koşul NOT ile değil açık OR ile (NULL satır
+      // NOT'tan da elenirdi, LU-18).
+      const formReadAt = dto.invitationsAsOf ? new Date(dto.invitationsAsOf) : null;
       await tx.listingInvitation.deleteMany({
-        where: { listingId, invitedCompanyId: { notIn: inviteCompanyIds } },
+        where: {
+          listingId,
+          invitedCompanyId: { notIn: inviteCompanyIds },
+          ...(formReadAt
+            ? { OR: [{ origin: null }, { origin: { not: "AI" } }, { createdAt: { lte: formReadAt } }] }
+            : {}),
+        },
       });
       const stillInvited = new Set(
         (
@@ -2461,6 +2771,7 @@ export class CompanyListingsService {
         format: true,
         allowedCurrencies: true,
         primaryCurrency: true,
+        categoryIds: true,
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
@@ -2469,6 +2780,19 @@ export class CompanyListingsService {
     this.assertListingManageRole(user, listing);
     if (listing.status !== "DRAFT") {
       throw new BadRequestException(i18nMessage("api.companyListings.yalnizcaTaslakIlanYayinlanabilir"));
+    }
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): a draft saved before its
+    // category was hidden must not go live as a brand-new request in a
+    // category nobody can see (it would also start the category announcement
+    // and the supplier search for that category). The edit gate tolerates the
+    // stored code; the gate for it is here. The owner never sees the hidden
+    // code (detail returns visible codes only), so saving the edit form of a
+    // DRAFT drops it (`categoryIdsAfterEdit`) - the message asks for exactly
+    // that.
+    if (listing.categoryIds.some((code) => isHiddenCategory(code))) {
+      throw new BadRequestException(
+        i18nMessage("api.companyListings.taslakKategorisiGuncelDegil", undefined, "LISTING_CATEGORY_NOT_CURRENT"),
+      );
     }
     // Taslak, tarih/davet kontrolünü atlayarak kaydedilebildiğinden yayında
     // yeniden doğrula (create'in non-draft yoluyla aynı kurallar):
@@ -2930,7 +3254,11 @@ export class CompanyListingsService {
 
     // Kategori ADLARI (liste satırındaki Kategori kolonu, 2026-08-04) —
     // sellerTenders ile aynı desen: ilk 2 ad + kalan sayaç.
-    const catIds = [...new Set(rows.flatMap((r) => r.categoryIds))];
+    // Hidden segments (owner rule 2026-10-09): a legacy request keeps its
+    // stored codes, but a category under a hidden segment is not shown to
+    // anyone, its owner included - no name, no raw code, no count.
+    const shownOf = new Map(rows.map((r) => [r.id, visibleCategoryIds(r.categoryIds)] as const));
+    const catIds = [...new Set([...shownOf.values()].flat())];
     const cats = catIds.length
       ? await this.prisma.category.findMany({
           where: { id: { in: catIds } },
@@ -2956,12 +3284,13 @@ export class CompanyListingsService {
 
     return rows.map((r) => {
       const u = umap.get(r.createdById);
+      const shown = shownOf.get(r.id) ?? [];
       return {
-        categories: r.categoryIds.slice(0, 2).map((id) => ({
+        categories: shown.slice(0, 2).map((id) => ({
           code: id,
           name: cmap.get(id) ?? id,
         })),
-        extraCategoryCount: Math.max(0, r.categoryIds.length - 2),
+        extraCategoryCount: Math.max(0, shown.length - 2),
         id: r.id,
         tenderNumber: r.number ?? "—",
         title: r.title,
@@ -2970,7 +3299,7 @@ export class CompanyListingsService {
         status: r.status,
         isInternational: r.isInternational,
         targetCountries: r.targetCountries,
-        categoryIds: r.categoryIds,
+        categoryIds: shown,
         createdById: r.createdById,
         createdBy: {
           firstName: u?.firstName ?? "—",
@@ -3240,7 +3569,9 @@ export class CompanyListingsService {
       }),
       this.prisma.category.findMany({
         where: {
-          code: { in: [...new Set(all.flatMap((l) => l.categoryIds.slice(0, 2)))] },
+          // Names only for what the row SHOWS: the first two VISIBLE codes
+          // (a code under a hidden segment is never resolved to a name).
+          code: { in: [...new Set(all.flatMap((l) => visibleCategoryIds(l.categoryIds).slice(0, 2)))] },
         },
         select: { code: true, ...CATEGORY_NAME_SELECT },
       }),
@@ -3304,8 +3635,15 @@ export class CompanyListingsService {
         viewerTier: user.tier,
       });
       const canBid = tierAllowsBid && roleAllowsBid;
+      // DISPLAY list: codes under a hidden segment are dropped (owner rule
+      // 2026-10-09). Matching above and below (`categoryMatch`, product
+      // match, affinity) keeps reading the full stored `l.categoryIds`.
+      const shownCategoryIds = visibleCategoryIds(l.categoryIds);
       return {
         _open: l.status === "OPEN",
+        // Affinity lookup keys - the first two STORED codes, as before the
+        // display list was filtered (relevance is unchanged for legacy rows).
+        _affinityCodes: l.categoryIds.slice(0, 2),
         id: l.id,
         number: l.number,
         title: l.title,
@@ -3344,10 +3682,10 @@ export class CompanyListingsService {
         productMatch: pm.matched,
         matchedProduct: pm.product,
         _productReason: productMatchReason(pm),
-        categories: l.categoryIds
+        categories: shownCategoryIds
           .slice(0, 2)
           .map((code) => ({ code, name: catName.get(code) ?? code })),
-        extraCategoryCount: Math.max(0, l.categoryIds.length - 2),
+        extraCategoryCount: Math.max(0, shownCategoryIds.length - 2),
       };
     });
 
@@ -3369,7 +3707,7 @@ export class CompanyListingsService {
     if (this.affinity) {
       try {
         // TEK toplu sorgu: ilan×kategori başına sorgu N×M tur ederdi.
-        const allCats = [...new Set(rows.flatMap((r) => r.categories.map((c) => c.code)))];
+        const allCats = [...new Set(rows.flatMap((r) => r._affinityCodes))];
         const profile = await this.affinity.profileFor(
           companyId,
           allCats,
@@ -3378,8 +3716,8 @@ export class CompanyListingsService {
         for (const r of rows) {
           let best = 0;
           let reasons: AffinityReasons | null = null;
-          for (const c of r.categories) {
-            const hit = profile.get(c.code);
+          for (const code of r._affinityCodes) {
+            const hit = profile.get(code);
             if (hit && hit.score > best) {
               best = hit.score;
               reasons = hit.reasons;
@@ -3418,7 +3756,7 @@ export class CompanyListingsService {
     );
     // Yardımcı alanlar dışarı sızmasın; gerekçe: ürün eşleşmesi varsa ürün
     // ADIYLA (somut), yoksa ilgi motorunun metni.
-    const mapped = rows.map(({ _open, _productReason, ...r }) => ({
+    const mapped = rows.map(({ _open, _productReason, _affinityCodes, ...r }) => ({
       ...r,
       matchScore: affinityByListing.get(r.id)?.score ?? 0,
       matchReason: _productReason ?? affinityByListing.get(r.id)?.reason ?? null,
@@ -3611,7 +3949,9 @@ export class CompanyListingsService {
 
   /** Herkese açık yansıtmanın kategori haritası (kod → ad, okuyucunun dilinde). */
   private async publicCategoryMap(codes: string[]): Promise<PublicCategoryMap> {
-    const unique = [...new Set(codes)].filter(Boolean);
+    // A code under a hidden segment never gets a name (owner rule 2026-10-09):
+    // the masked rows and the masked detail draw their chips from this map.
+    const unique = [...new Set(visibleCategoryIds(codes))];
     if (unique.length === 0) return new Map();
     const rows = await this.prisma.category.findMany({
       where: { id: { in: unique } },
@@ -3967,6 +4307,11 @@ export class CompanyListingsService {
       const needsApproval =
         listing.status === "IN_APPROVAL" ||
         listing.status === "IN_AWARD_APPROVAL";
+      // Davetli listesinin okunduğu an — düzenleme formu aynen geri gönderir
+      // (`CreateListingDto.invitationsAsOf`, gözden geçirme AI-3). Okumadan
+      // ÖNCE alınır: arada yazılan davet hem listede hem "sonradan" sayılır
+      // (silinmez); tersi, formun görmediği daveti sildirirdi.
+      const invitationsAsOf = new Date();
       const [bids, invitations, pendingApproval, totalBidCount, orders] =
         await Promise.all([
         this.prisma.listingBid.findMany({
@@ -4045,6 +4390,11 @@ export class CompanyListingsService {
         // İstemci bunu bir sonraki istekte If-None-Match ile geri gönderir.
         etag: fp,
         isOwner: true,
+        // Owner only: the request still stores a category that is no longer
+        // offered (hidden segment). Neither the code nor its name is returned
+        // (`categoryIds` above is the visible list); the edit form uses this
+        // flag to say "the previous category is no longer in use".
+        hasRetiredCategory: listing.categoryIds.some((code) => isHiddenCategory(code)),
         // İÇ yol (`/talep/rot-000042-…`); web dile göre çevirir. Vitrinde değilse null.
         publicPath: inVitrine && listing.number ? listingPath(listing.number, listing.title) : null,
         // F7: buton izin-kapısı için — kazandır/ele assertListingManageRole
@@ -4102,6 +4452,7 @@ export class CompanyListingsService {
           rothernId: iv.invitedCompany.rothernId,
           createdAt: iv.createdAt,
         })),
+        invitationsAsOf: invitationsAsOf.toISOString(),
         bids: rankedBids.map((b) => ({
           id: b.id,
           bidderName: b.bidderCompany.name,
@@ -8106,7 +8457,13 @@ export class CompanyListingsService {
    * ve davete yazılır; e-posta "vitrininizdeki X ürünü nedeniyle" der.
    * Davetli firma ücretsiz paketteyse de talebi görür ve teklif verir.
    */
-  async inviteDiscoveredMembers(user: AuthenticatedCompanyUser, listingId: string, companyIdsRaw: string[]) {
+  async inviteDiscoveredMembers(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    companyIdsRaw: string[],
+    /** `auto`: yayın sonrası keşif turu talebi yayınlayan kişi ADINA davet etti (iz kaydına yazılır; kurallar aynı). */
+    opts: { auto?: boolean } = {},
+  ) {
     this.assertPaidForNewListingWork(user, "inviteSupplier");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -8213,27 +8570,46 @@ export class CompanyListingsService {
     if (toAdd.length === 0) return { results };
 
     // Gerekçe: vitrinde kalemi satan ürünün adı; yoksa kategori eşleşmesi.
+    //
+    // KEŞİFLE AYNI EŞLEŞTİRİCİ (round 5 gözden geçirme, R5-06): keşif
+    // (`SupplierDiscoveryService.discoverRegisteredFor`) kalemin tam adı hiçbir
+    // ürün bulmadığında gevşek kuralı da kullanıyor; burası yalnız tam adı
+    // arıyordu. Yalnız gevşek kuralla bulunan üyenin penceresi "kalem
+    // eşleşmesi" gösterirken davet e-postası ürünü anmıyordu. Kural tek
+    // kaynakta (`item-product-match.ts`): tam ad önce; bulamadıysa `strict`
+    // her davetlide, `weak` yalnız talebin kategorisini beyan eden davetlide.
+    const categoryMatch = deriveCategoryMatchCandidates(listing.categoryIds);
+    const inCategory = (id: string) => declaresRequestCategory(byId.get(id)!, categoryMatch);
     const productOf = new Map<string, string>();
+    const productsOf = (companyIds: string[], where: Prisma.CompanyItemWhereInput) =>
+      companyIds.length === 0
+        ? Promise.resolve([] as Array<{ companyId: string; name: string }>)
+        : this.bypass.companyItem.findMany({
+            where: { AND: [{ companyId: { in: companyIds } }, publicProductWhere(), where] },
+            select: { companyId: true, name: true },
+            // Kararlı: aynı davet aynı ürünü anar (firma başına ilk satır alınır).
+            orderBy: [{ companyId: "asc" }, { id: "asc" }],
+            take: 50,
+          });
     for (const it of listing.items) {
       const clauses = productSearchClauses(it.name, { includeCompanyName: false });
       if (clauses.length === 0) continue;
-      const rows = await this.bypass.companyItem.findMany({
-        where: { AND: [{ companyId: { in: toAdd } }, publicProductWhere(), ...clauses] },
-        select: { companyId: true, name: true },
-        take: 50,
-      });
+      let rows = await productsOf(toAdd, { AND: clauses });
+      if (rows.length === 0) {
+        const relaxed = relaxedItemMatch(it.name);
+        if (relaxed) {
+          rows = [
+            ...(relaxed.strict ? await productsOf(toAdd, relaxed.strict) : []),
+            ...(relaxed.weak ? await productsOf(toAdd.filter(inCategory), relaxed.weak) : []),
+          ];
+        }
+      }
       for (const r of rows) if (!productOf.has(r.companyId)) productOf.set(r.companyId, r.name);
     }
-    const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(listing.categoryIds);
-    const seg = new Set(segmentIds);
-    const sub = new Set(subCandidates);
     const reasonOf = (id: string): { productName?: string; category?: boolean } => {
       const product = productOf.get(id);
       if (product) return { productName: product };
-      const c = byId.get(id)!;
-      return c.sellerSubCategoryIds.some((x) => sub.has(x)) || c.sellerCategoryIds.some((x) => seg.has(x))
-        ? { category: true }
-        : {};
+      return inCategory(id) ? { category: true } : {};
     };
 
     await this.bypass.listingInvitation.createMany({
@@ -8242,7 +8618,11 @@ export class CompanyListingsService {
         invitedCompanyId: cid,
         invitedById: user.userId,
         origin: "AI",
-        aiReason: reasonOf(cid),
+        // `auto`: satırı yayın sonrası keşif turu yazdı. Pencereden yapılan
+        // davet de `origin: "AI"` taşır; sürdürülen tur kendi davetini bu
+        // işaretten tanır (`DiscoveryRunsService.autoInvite`, A-4). E-posta
+        // gerekçesi (`parseAiReason`) işareti okumaz.
+        aiReason: opts.auto ? { ...reasonOf(cid), auto: true } : reasonOf(cid),
       })),
       skipDuplicates: true,
     });
@@ -8254,7 +8634,7 @@ export class CompanyListingsService {
       tenantId: user.companyId,
       entityType: "listing",
       entityId: listingId,
-      metadata: { invited: toAdd.length },
+      metadata: { invited: toAdd.length, ...(opts.auto ? { auto: true } : {}) },
     });
 
     // OPEN ve embargo yoksa bildirim (arka planda; önizleme çevirisi beklenir).
@@ -8310,11 +8690,24 @@ export class CompanyListingsService {
     const alreadyMailed = new Set(sameListing.map((r) => r.toEmail));
     const now = new Date();
     const sentInCall = new Map<string, number>();
+    const showInviter = listing.inviteShowName && !!owner?.name;
     const p = {
       title: listingTitleParam(listing.id, listing.title),
       number: listing.number ?? "—",
-      inviter: owner?.name ?? "",
     };
+    // E-posta konusundaki `{inviter}`. Ad gizliyse parametre de BOŞ: anonim
+    // metne sonradan `{inviter}` eklense de sızmaz.
+    // Subject length (round 5, AI-MAIL-1): the subject's only free part is the
+    // company name - a very long one is shortened so the whole subject stays
+    // within the invitation subject limit (`@rothern/email` `subjectName`).
+    // The body row and the in-app text below carry the full name.
+    const subjectInviter = (l: Locale): string =>
+      showInviter
+        ? subjectName(
+            (inviter) => tApi("api.notifications.listings.aiInvitation.subject", { inviter }, l),
+            owner!.name,
+          )
+        : "";
     for (const cid of companyIds) {
       const to = recipients.get(cid);
       if (!to || !isNotificationEnabled(to.prefs, "listing_invitation_ai")) continue;
@@ -8341,32 +8734,46 @@ export class CompanyListingsService {
       this.notify(
         to,
         {
-          subjectKey:
-            listing.inviteShowName && owner?.name
-              ? "api.notifications.listings.aiInvitation.subject"
-              : "api.notifications.listings.aiInvitation.subjectAnon",
+          subjectKey: showInviter
+            ? "api.notifications.listings.aiInvitation.subject"
+            : "api.notifications.listings.aiInvitation.subjectAnon",
           headingKey: "api.notifications.listings.invitation.title",
           bodyKey: reason.productName
             ? "api.notifications.listings.aiInvitation.bodyProduct"
             : reason.category
               ? "api.notifications.listings.aiInvitation.bodyCategory"
               : "api.notifications.listings.aiInvitation.body",
-          params: { ...p, product: reason.productName ?? "" },
+          params: { ...p, inviter: subjectInviter(to.locale), product: reason.productName ?? "" },
           ctaLabelKey: "api.notifications.listings.cta.viewRequest",
           ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
-          infoRowsFor: (l) => preview.get(l),
+          // DAVET EDEN FİRMA gövdede de yazar (2026-10-08, sahip: "şu şirket
+          // sizi davet etti diyecek, şirket adı da verilsin") — eskiden yalnız
+          // konudaydı. Ad gizliyse (`inviteShowName` kapalı) satır YOK.
+          infoRowsFor: (l) => [
+            ...(showInviter
+              ? [{ label: tApi("api.notifications.listings.aiInvitation.inviterRow", undefined, l), value: owner!.name }]
+              : []),
+            ...(preview.get(l) ?? []),
+          ],
           footerNoteKey: "api.notifications.listings.aiInvitation.footer",
         },
         { type: "listing_invitation_ai", id: listing.id },
       );
     }
+    // WHO INVITED, in the app too (round 5, AI-NOTIF-1; owner: the invitation
+    // says which company invited). The e-mail named the company, the in-app
+    // row said only "you have been invited". Same switch as the e-mail: with
+    // `inviteShowName` off the generic text stays and the name is NOT among
+    // the stored parameters (`Notification.i18n` keeps them).
     await this.notifications.pushToCompanies(companyIds, {
       type: "listing_invitation",
       portal,
       titleKey: "api.notifications.listings.invitation.title",
-      bodyKey: "api.notifications.listings.invitation.inAppBody",
+      bodyKey: showInviter
+        ? "api.notifications.listings.aiInvitation.inAppBodyInviter"
+        : "api.notifications.listings.invitation.inAppBody",
       ctaLabelKey: "api.notifications.listings.cta.viewRequest",
-      params: { title: p.title, number: p.number },
+      params: showInviter ? { ...p, inviter: owner!.name } : p,
       ctaPath: appRoutes.listing(this.webUrl(), listing.id),
       listingId: listing.id,
     });
@@ -9392,7 +9799,17 @@ export class CompanyListingsService {
       // kararı: talep konumu şehir değil ülke). Herkese açık kartta da var —
       // şehirden az tanımlayıcı; alıcı şehri bu yanıta eklenmez.
       ownerCountry: l.company.country,
-      categoryIds: l.categoryIds,
+      // HIDDEN SEGMENTS (owner rule 2026-10-09): owner and bidder both get the
+      // VISIBLE codes only - a category under a hidden segment is not shown to
+      // anyone, the request's owner included (the record keeps its stored
+      // codes; matching reads them from the database, not from this answer).
+      // The edit form is seeded from this list and sends it back: the save
+      // passes the gate (`validateListingBusinessRules` checks added codes
+      // only). What the save writes is decided on the server
+      // (`categoryIdsAfterEdit`): a DRAFT loses the hidden legacy code with
+      // that save, a PUBLISHED request keeps it. The manual supplier search
+      // reads the stored codes by `listingId`, not this list.
+      categoryIds: visibleCategoryIds(l.categoryIds),
       keywords: l.keywords,
       terms: l.terms,
       requireAllItems: l.requireAllItems,

@@ -1,24 +1,46 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
+import { ForbiddenException, HttpException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { isLocale, type Locale } from "@rothern/i18n";
 import type { DiscoveryTrigger } from "@rothern/db";
+import { countryCanSee, hiddenCategoryWhere, visibleCategoryIds } from "@rothern/shared";
 import { PrismaBypassService, PrismaService } from "../../../common/prisma/prisma.service";
+import { CATEGORY_NAME_SELECT } from "../../../common/company/category-name";
+import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { tApi } from "../../../common/i18n/i18n.service";
 import { appRoutes } from "../../../common/company/app-routes";
+import {
+  COUNTED_AUTO_RUN_WHERE,
+  isCountedAutoRun,
+  RUN_ERROR_DISCOVERY_OFF,
+  RUN_ERROR_PRIVATE_LISTING,
+} from "../../../common/company/ai-suggestions";
+import { AUTH_COMPANY_SELECT } from "../../../common/company/auth-company-select";
+import { inviteReachesAddress } from "../../../common/company/external-invite-policy";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import { runWithLocale } from "../../../common/i18n/locale-context";
 import { listingTitleParam } from "../../../common/notifications/notification-params";
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
-import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import { runWithTenantContext } from "../../../common/tenant/tenant-context";
+import {
+  toAuthenticatedCompanyUser,
+  type AuthenticatedCompanyUser,
+} from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyConnectionsService } from "../../company-connections/services/company-connections.service";
+import {
+  inviteAddressHistories,
+  queuedInviteCanLeave,
+} from "../../company-connections/services/external-invite-dispatcher.service";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
-import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
+import { CompanyListingsService, DISCOVERY_HOLD_MS } from "../../company-listings/services/company-listings.service";
 import { EmailService } from "../../email/email.service";
 import { NotificationService } from "../../notifications/notification.service";
 import { AiService } from "../ai.service";
 import {
+  BACKGROUND_SEARCH_TIMING,
+  failedPassNote,
   SupplierDiscoveryService,
-  websiteHost,
+  worstSearchMs,
   type AnnotatedCandidate,
   type DiscoveryAiRunner,
   type DiscoveryCandidate,
@@ -26,11 +48,53 @@ import {
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
-/** Sonuç bu kadar süre sonra (alıcı panelde işlem yapmadıysa) bildirilir. */
-const NOTIFY_AFTER_MS = 10 * MINUTE_MS;
-/** Takılı kalmış tur bu sürede FAILED sayılır (istek zaman aşımları ~2 dk). */
-const STUCK_AFTER_MS = 15 * MINUTE_MS;
-/** Bir turda işlenen en fazla tur (her biri ~1 dk: paralel iki web araması). */
+/**
+ * DAKİKALIK İŞİN ARAMA BÜTÇESİ (round 5 gözden geçirme, R5-08).
+ *
+ * Herkese açık talepte anonim kategori duyurusu turun davetlerini en fazla
+ * `DISCOVERY_HOLD_MS` (10 dk, tur satırının yazıldığı andan) bekler. Dakikalık
+ * iş turları ART ARDA işler; arama süreleri yalnız `STUCK_AFTER_MS` ile
+ * karşılaştırılmıştı — sağlayıcı yavaşken (geçiş düşer, yeniden denenir) işin
+ * ikinci turu davet aşamasına duyurusu çoktan salındıktan sonra varıyor, davet
+ * edilen üye firma adını taşıyan daveti hiç almıyordu.
+ *
+ * Kural: iş, başladığı andan bu süre içinde SON turunun aramasını bitirmiş
+ * olmalı. Bir tur daha ancak en kötü araması (`worstSearchMs`: 5 dk) bu
+ * bütçeye hâlâ sığıyorsa başlatılır (`fitsInTick`); sığmıyorsa tur PENDING
+ * kalır ve bir sonraki dakikanın işi onu İLK tur olarak alır. Bütçe duyuru
+ * beklemesinden türer: 1 dk tur işi bekledi + 1 dk aramanın çevresi (platform
+ * üyeleri, işaretleme, davetler) düşülür → 8 dk. Dakikalık iş de en fazla bu
+ * kadar meşgul kalır.
+ *
+ * KALAN SINIR: önündeki işin tamamını (8 dk) bekleyen tur yine duyurudan sonra
+ * davet edebilir — bekleme bir ÜST SINIRDIR (kuyruk doluyken duyuru beklemez),
+ * garanti değil.
+ */
+export const TICK_SEARCH_BUDGET_MS = DISCOVERY_HOLD_MS - 2 * MINUTE_MS;
+
+/** Can one more run start `elapsedMs` into the tick (its worst-case search still ends inside the budget)? */
+export function fitsInTick(elapsedMs: number): boolean {
+  return elapsedMs + worstSearchMs(BACKGROUND_SEARCH_TIMING) <= TICK_SEARCH_BUDGET_MS;
+}
+
+/**
+ * Takılı kalmış tur bu sürede ele alınır. Dakikalık iş art arda en fazla
+ * `RUNS_PER_TICK` tur işler ve her turun `startedAt`i İŞİN başlangıcıdır; iş
+ * aramalarını `TICK_SEARCH_BUDGET_MS` (8 dk) içinde bitirir → bu süre onun
+ * ÜSTÜNDE kalmalı (sözleşme testi `supplier-discovery-external.spec.ts`
+ * "R5-08"). Arama sürelerini ya da duyuru beklemesini büyütürken bunu da büyüt.
+ */
+export const STUCK_AFTER_MS = 15 * MINUTE_MS;
+/**
+ * Adayları yazılmış ama davet aşaması yarıda kalmış (süreç öldü) tur bu süre
+ * içinde KALDIĞI YERDEN sürdürülür; daha eskisi FAILED olur.
+ */
+const RESUME_WINDOW_MS = 6 * HOUR_MS;
+/**
+ * Bir işte işlenen en fazla tur (her biri olağan durumda ~1 dk: paralel iki
+ * web araması; geçişi düşüp yeniden denenen tur en fazla 5 dk). İkinci tur
+ * yalnız işin arama bütçesine sığıyorsa başlar — bkz. `TICK_SEARCH_BUDGET_MS`.
+ */
 const RUNS_PER_TICK = 2;
 /** İkinci tur: teklif sayısı bunun altındaysa. */
 const SECOND_ROUND_MAX_BIDS = 3;
@@ -41,6 +105,54 @@ const DEFAULT_DAILY_USD = 15;
 export const AI_SUGGESTIONS_NOTIFICATION = "ai_supplier_suggestions";
 
 /**
+ * Sonuç mesajının metni — hangi sayı sıfır değilse ona göre (gözden geçirme
+ * AI-6). Anahtarlar açık yazılır (katalogda aranabilsin).
+ */
+const RESULT_TEXT = {
+  both: {
+    body: "api.notifications.discovery.invitedBodyBoth",
+    subject: "api.notifications.discovery.invitedEmailSubjectBoth",
+  },
+  members: {
+    body: "api.notifications.discovery.invitedBodyMembers",
+    subject: "api.notifications.discovery.invitedEmailSubjectMembers",
+  },
+  emails: {
+    body: "api.notifications.discovery.invitedBodyEmails",
+    subject: "api.notifications.discovery.invitedEmailSubjectEmails",
+  },
+} as const;
+
+/** Bulduğunu KENDİSİ davet eden turlar (yayın + ikinci tur). */
+const AUTO_TRIGGERS: DiscoveryTrigger[] = ["PUBLISH", "SECOND_ROUND"];
+
+/**
+ * ADAYIN DAVET SONUCU (ekran: yayın paneli + talep sayfası bandı).
+ *  - INVITED: üye talebe davetli oldu / davet e-postası gönderildi
+ *  - QUEUED: davet e-postası kuyrukta (alıcının ülkesinde mesai saatinde gider)
+ *  - ALREADY_INVITED: tur bulduğunda zaten davetliydi
+ *  - NOT_SENT: gönderilmedi (+ `inviteReason`)
+ *  - WAITING: tur sürüyor, sıra bu adaya gelmedi
+ */
+export type CandidateInviteState = "INVITED" | "QUEUED" | "ALREADY_INVITED" | "NOT_SENT" | "WAITING";
+
+/**
+ * Davet aşamasının aday satırına yazdığı "gönderilmedi" durumları (kolon serbest
+ * metin). Kuyruğa giren/davet edilen aday INVITED, zaten davetli olan
+ * ALREADY_INVITED yazılır; SUGGESTED / MEMBER = sıra henüz gelmedi.
+ */
+const NOT_SENT_STATUSES = new Set([
+  "DAILY_LIMIT",
+  "NOT_ELIGIBLE",
+  "NOT_ALLOWED",
+  "OPTED_OUT",
+  "SKIPPED_REGISTERED",
+  "COUNTRY_BLOCKED",
+  "CONSENT_REQUIRED",
+  "INVALID",
+]);
+
+/**
  * YAYIN SONRASI OTOMATİK TEDARİKÇİ KEŞFİ (2026-09-27, Faz 1; kullanıcı: "talep
  * açıldıktan sonra bile şirketler bulundu, tek tıkla davet gönder diyelim;
  * uluslararası ise yurt dışı dahil").
@@ -49,13 +161,39 @@ export const AI_SUGGESTIONS_NOTIFICATION = "ai_supplier_suggestions";
  *    dakikalık iş (`tick`) işler. Maliyet PLATFORMUN (`callAiSystem`): alıcının
  *    edinme kanalı değil, platformun; günlük USD tavanı `AI_DISCOVERY_DAILY_USD`.
  *  - Arama kapsamı talebin görünürlük ülkesinden (boş = yurt içi + yurt dışı).
- *  - Adaylar işaretlenir (zaten davetli, üye, onay isteyen ülke) ve SEÇİLİ
- *    listelenir; alıcı istemediğini çıkarıp tek tıkla davet eder (kuyruk,
- *    `AI_AUTO`).
- *  - Alıcı 10 dk içinde ekranda işlem yapmadıysa talebi AÇAN kişiye bildirim +
- *    e-posta ("N tedarikçi bulundu"); e-postadaki düğme listeyi AÇAR, gönderim
- *    uygulama içinde (güvenlik tarayıcıları bağlantıyı açabilir).
- *  - Süre yarılandığında teklif 3'ten azsa İKİNCİ TUR (önceki adaylar hariç).
+ *  - Adaylar işaretlenir (zaten davetli, üye, onay isteyen ülke) ve kaydedilir.
+ *  - TUR BULDUĞUNU KENDİSİ DAVET EDER (2026-10-08, sahip: "kutu seçiliyse AI
+ *    arasın ve göndersin, bir daha sormasın; arkada arasın, bulabildiğine
+ *    göndersin"). Alıcının onayı YOK; davet talebi YAYINLAYAN kişi adına
+ *    (`createdById` — talebi yalnız açan kişi yayınlayabilir) ve MEVCUT davet
+ *    yollarından geçer, hiçbir fren atlanmaz:
+ *      · Rothern üyesi → `inviteDiscoveredMembers` (doğrudan talebe),
+ *      · diğerleri → `inviteExternalForListing(…, "AI_AUTO")` (e-posta kuyruğu).
+ *    Kapılar o metotlarda (paket, yönetim izni, talep durumu, günlük firma
+ *    tavanı, engel/askı, ülke, çıkış, kayıtlı adres, onay isteyen ülke, kayda
+ *    kapalı ülke); gönderim frenleri dağıtıcıda (platform tavanı + fren, adres
+ *    başına 7 gün + özet, staging izin listesi). Yayınlayan kişi/firma artık
+ *    davet edemiyorsa (pasif, askıda, paket düştü, izin alındı) davet GİTMEZ.
+ *    ÖZEL talepte tur hiç koşmaz.
+ *  - Tur bitince talebi yayınlayana SONUÇ bildirimi + e-posta: İKİ sayı ayrı
+ *    söylenir — talebe davet edilen Rothern üyesi ve sıraya alınan davet
+ *    e-postası (talep kapanmadan gidemeyecek adres sayılmaz); ikisi de sıfırsa
+ *    hiçbir şey gitmez.
+ *  - Tur, kuyruğa yazıldığı andaki değil İŞLENDİĞİ andaki talebi okur
+ *    (2026-10-09, gözden geçirme AI-2): kutu kapatıldıysa (`discovery_off`) ya
+ *    da talep özele çevrildiyse koşmaz; arama talebin GÜNCEL görünürlük
+ *    ülkeleriyle yapılır; davet aşaması da (sürdürülen tur dahil) kutuya bakar.
+ *  - HERKESE AÇIK talepte anonim kategori duyurusu turun davet aşamasını
+ *    BEKLER (gözden geçirme AI-4, `CompanyListingsService.announceListingOpen`):
+ *    tur biter bitmez `releaseHeldAnnouncement` çağrılır; turun davet ettiği
+ *    üye firma adını taşıyan daveti alır, duyuruya girmez.
+ *  - Süre yarılandığında teklif 3'ten azsa İKİNCİ TUR (önceki adaylar hariç);
+ *    o da bulduğunu kendisi davet eder.
+ *  - ÇÖKMEYE DAYANIKLI: adaylar yazıldıktan sonra süreç ölürse tur RUNNING
+ *    kalır; dakikalık iş kirayı devralıp davet aşamasını kaldığı yerden
+ *    sürdürür. Aynı adaya ikinci davet OLMAZ: sıra aday durumundan okunur
+ *    (SUGGESTED/MEMBER = bekliyor) ve davet tabloları (talep × firma, talep ×
+ *    adres) benzersizdir.
  *  - ROTHERN ÜYELERİ (2026-09-28, kullanıcı: "sistemimize kayıtlıysa ayrıca
  *    gösterelim, kategori ya da kalem eşleşmesi var diye"): tur platform
  *    dizinini de tarar (model çağrısı yok, AI kapalıyken de); web aramasında
@@ -66,6 +204,9 @@ export const AI_SUGGESTIONS_NOTIFICATION = "ai_supplier_suggestions";
 @Injectable()
 export class DiscoveryRunsService {
   private readonly logger = new Logger(DiscoveryRunsService.name);
+
+  /** Elapsed-time clock of a tick; replaceable in tests (no real waiting). */
+  clock: () => number = () => Date.now();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -79,23 +220,32 @@ export class DiscoveryRunsService {
     @Optional() private readonly listings?: CompanyListingsService,
   ) {}
 
-  /** Talep için tur kuyruğa al (aynı talepte bekleyen/koşan tur varsa yenisi açılmaz). */
+  /**
+   * Talep için tur kuyruğa al (aynı talepte bekleyen/koşan tur varsa yenisi
+   * açılmaz). Talep satırı kilitlenir — `CompanyListingsService.enqueueDiscoveryRun`
+   * ile AYNI kilit: yayın turu telafisi (dakikalık iş) ile düzenleme kaydı aynı
+   * anda "tur yok" görüp iki tur yazamaz (ikinci gözden geçirme A-3: kutu
+   * yeniden açılınca ikisi de aynı talebe tur yazmaya aday).
+   */
   async enqueue(listingId: string, trigger: DiscoveryTrigger): Promise<string | null> {
-    const listing = await this.bypass.listing.findUnique({
-      where: { id: listingId },
-      select: { id: true, companyId: true, targetCountries: true },
+    return this.bypass.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${listingId} FOR UPDATE`;
+      const listing = await tx.listing.findUnique({
+        where: { id: listingId },
+        select: { id: true, companyId: true, targetCountries: true },
+      });
+      if (!listing) return null;
+      const active = await tx.supplierDiscoveryRun.findFirst({
+        where: { listingId, state: { in: ["PENDING", "RUNNING"] } },
+        select: { id: true },
+      });
+      if (active) return active.id;
+      const run = await tx.supplierDiscoveryRun.create({
+        data: { listingId, companyId: listing.companyId, trigger, targetCountries: listing.targetCountries },
+        select: { id: true },
+      });
+      return run.id;
     });
-    if (!listing) return null;
-    const active = await this.bypass.supplierDiscoveryRun.findFirst({
-      where: { listingId, state: { in: ["PENDING", "RUNNING"] } },
-      select: { id: true },
-    });
-    if (active) return active.id;
-    const run = await this.bypass.supplierDiscoveryRun.create({
-      data: { listingId, companyId: listing.companyId, trigger, targetCountries: listing.targetCountries },
-      select: { id: true },
-    });
-    return run.id;
   }
 
   // ------------------------------------------------------------------ iş
@@ -103,10 +253,8 @@ export class DiscoveryRunsService {
   async tick(
     now: Date = new Date(),
   ): Promise<{ processed: number; notified: number; secondRounds: number; caughtUp: number }> {
-    await this.bypass.supplierDiscoveryRun.updateMany({
-      where: { state: "RUNNING", startedAt: { lt: new Date(now.getTime() - STUCK_AFTER_MS) } },
-      data: { state: "FAILED", error: "stuck", finishedAt: now },
-    });
+    const began = this.clock();
+    let notified = await this.recoverStuckRuns(now);
     const caughtUp = await this.catchUpPublishRuns(now);
     const secondRounds = await this.scheduleSecondRounds(now);
     const pending = await this.bypass.supplierDiscoveryRun.findMany({
@@ -117,10 +265,70 @@ export class DiscoveryRunsService {
     });
     let processed = 0;
     for (const r of pending) {
-      if (await this.process(r.id, now)) processed++;
+      // A further run only while its worst-case search still fits the tick
+      // (R5-08); otherwise it stays PENDING for the next minute's tick.
+      if (processed > 0 && !fitsInTick(this.clock() - began)) {
+        this.logger.warn(`discovery tick: search budget used, run ${r.id} waits for the next tick`);
+        break;
+      }
+      const out = await this.runOnce(r.id, now);
+      if (out.claimed) processed++;
+      if (out.notified) notified++;
     }
-    const notified = await this.notifyReady(now);
     return { processed, notified, secondRounds, caughtUp };
+  }
+
+  /**
+   * TAKILI TURLAR. Adayları yazılmış otomatik tur (arama bitti, süreç davet
+   * aşamasında öldü) kirası devralınarak KALDIĞI YERDEN sürdürülür — arama
+   * yeniden koşmaz, davet edilmiş adaya ikinci davet gitmez. Adayı olmayan
+   * (arama sırasında ölen) ya da `RESUME_WINDOW_MS`'ten eski tur FAILED olur.
+   * Sonuç bildirimi gönderilen tur sayısını döner.
+   */
+  private async recoverStuckRuns(now: Date): Promise<number> {
+    const cutoff = new Date(now.getTime() - STUCK_AFTER_MS);
+    const stuck = { state: "RUNNING" as const, startedAt: { lt: cutoff } };
+    const resumable = {
+      trigger: { in: AUTO_TRIGGERS },
+      createdAt: { gt: new Date(now.getTime() - RESUME_WINDOW_MS) },
+      candidates: { some: {} },
+    };
+    const dead = await this.bypass.supplierDiscoveryRun.findMany({
+      where: { ...stuck, NOT: resumable },
+      select: { id: true },
+      take: 200,
+    });
+    for (const d of dead) {
+      // Satır başına koşullu: bitiş damgasını alan süreç kapanış duyurularını
+      // (bekletilen kategori duyurusu + gösterilmeyen eşleşmeler) bir kez yapar.
+      const failed = await this.bypass.supplierDiscoveryRun.updateMany({
+        where: { id: d.id, ...stuck, NOT: resumable },
+        data: { state: "FAILED", error: "stuck", finishedAt: now },
+      });
+      if (failed.count === 1) await this.closingNotices(d.id, { hidden: true });
+    }
+    const rows = await this.bypass.supplierDiscoveryRun.findMany({
+      where: { ...stuck, ...resumable },
+      orderBy: { startedAt: "asc" },
+      take: RUNS_PER_TICK,
+      select: { id: true },
+    });
+    let notified = 0;
+    for (const r of rows) {
+      // Kira: ikinci örnek aynı turu sürdürmesin (koşul satırda yeniden değerlendirilir).
+      const leased = await this.bypass.supplierDiscoveryRun.updateMany({
+        where: { id: r.id, ...stuck },
+        data: { startedAt: now },
+      });
+      if (leased.count !== 1) continue;
+      try {
+        if (await this.inviteAndFinish(r.id, now)) notified++;
+      } catch (err) {
+        // Tur RUNNING kalır; kira dolunca yeniden denenir (pencere bitince FAILED).
+        this.logger.warn(`discovery run ${r.id} resume failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    return notified;
   }
 
   /**
@@ -134,16 +342,22 @@ export class DiscoveryRunsService {
    * duyuru yazar), teklife açık, otomatik araması açık ve yayın/ikinci tur
    * satırı olmayan talepler kuyruğa alınır. Duyuru ile yarışmasın diye damga
    * en az 2 dk eski olmalı.
+   *
+   * "Turu olmayan" = SAYILAN turu olmayan (`COUNTED_AUTO_RUN_WHERE`, ikinci
+   * gözden geçirme A-3): kutu kapalıyken / talep özeldeyken aramadan düşen tur
+   * sayılmaz — alıcı kutuyu yeniden açtıysa (düzenleme kaydı turu yazamadıysa
+   * da) yayın turu buradan yeniden kuyruğa girer.
    */
   private async catchUpPublishRuns(now: Date): Promise<number> {
     const rows = await this.bypass.listing.findMany({
       where: {
         status: "OPEN",
         aiDiscovery: true,
+        visibility: { not: "PRIVATE" },
         openNotifiedAt: { lte: new Date(now.getTime() - 2 * MINUTE_MS) },
         OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
         closesAt: { gt: now },
-        discoveryRuns: { none: { trigger: { in: ["PUBLISH", "SECOND_ROUND"] } } },
+        discoveryRuns: { none: COUNTED_AUTO_RUN_WHERE },
       },
       orderBy: { openNotifiedAt: "asc" },
       select: { id: true },
@@ -151,9 +365,23 @@ export class DiscoveryRunsService {
     });
     let n = 0;
     for (const l of rows) {
-      if (await this.enqueue(l.id, "PUBLISH")) n++;
+      if (await this.enqueueQuietly(l.id, "PUBLISH")) n++;
     }
     return n;
+  }
+
+  /**
+   * Dakikalık işin kuyruğa alması: tek talebin hatası (ör. talep satırı kilidi
+   * beklenirken transaction zaman aşımı) turu DURDURMAZ — o talep bir sonraki
+   * dakikada yeniden denenir, bekleyen turlar bu dakikada işlenir.
+   */
+  private async enqueueQuietly(listingId: string, trigger: DiscoveryTrigger): Promise<string | null> {
+    return this.enqueue(listingId, trigger).catch((err) => {
+      this.logger.warn(
+        `discovery enqueue failed (${listingId}, ${trigger}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    });
   }
 
   private async spentTodayUsd(now: Date): Promise<number> {
@@ -181,14 +409,24 @@ export class DiscoveryRunsService {
 
   /** Tek turu işler; atomik sahiplenme (iki örnek aynı turu koşmaz). */
   async process(runId: string, now: Date = new Date()): Promise<boolean> {
+    return (await this.runOnce(runId, now)).claimed;
+  }
+
+  /**
+   * Tur: arama → adayları yaz → (otomatik turda) davet et → DONE → sonuç
+   * bildirimi. `notified`: talebi yayınlayana sonuç mesajı gönderildi.
+   */
+  private async runOnce(runId: string, now: Date): Promise<{ claimed: boolean; notified: boolean }> {
     const claimed = await this.bypass.supplierDiscoveryRun.updateMany({
       where: { id: runId, state: "PENDING" },
       data: { state: "RUNNING", startedAt: now },
     });
-    if (claimed.count === 0) return false;
+    if (claimed.count === 0) return { claimed: false, notified: false };
+    let notified = false;
+    // Koşullu (takılı tur süpürmesi aynı satırı FAILED yapmış olabilir).
     const fail = (error: string) =>
-      this.bypass.supplierDiscoveryRun.update({
-        where: { id: runId },
+      this.bypass.supplierDiscoveryRun.updateMany({
+        where: { id: runId, state: "RUNNING" },
         data: { state: "FAILED", error: error.slice(0, 300), finishedAt: new Date() },
       });
 
@@ -197,11 +435,12 @@ export class DiscoveryRunsService {
       select: {
         listingId: true,
         companyId: true,
-        targetCountries: true,
         listing: {
           select: {
             status: true,
             visibility: true,
+            aiDiscovery: true,
+            targetCountries: true,
             categoryIds: true,
             createdById: true,
             items: { select: { name: true }, orderBy: { lineNo: "asc" }, take: 15 },
@@ -211,7 +450,23 @@ export class DiscoveryRunsService {
     });
     if (!run.listing || !run.listingId || run.listing.status !== "OPEN") {
       await fail("listing_not_open");
-      return true;
+      return { claimed: true, notified };
+    }
+    // Özel talepte otomatik arama YOK: tur bulduğunu kendisi davet ediyor;
+    // yalnız davetlilerin gördüğü talebe yabancı firma çağrılmaz (kuyruğa
+    // yazıldıktan sonra özele çevrilen talep de buraya düşer).
+    if (run.listing.visibility === "PRIVATE") {
+      await fail(RUN_ERROR_PRIVATE_LISTING);
+      await this.closingNotices(runId, { hidden: false });
+      return { claimed: true, notified };
+    }
+    // Kutu, tur kuyruktayken KAPATILDI (gözden geçirme AI-2): alıcı aramayı
+    // istemiyor — model bütçesi harcanmaz, onun adına kimse davet edilmez.
+    // (Kuyruk dolu olduğunda tur dakikalarca bekleyebilir.)
+    if (!run.listing.aiDiscovery) {
+      await fail(RUN_ERROR_DISCOVERY_OFF);
+      await this.closingNotices(runId, { hidden: false });
+      return { claimed: true, notified };
     }
     try {
       const [owner, creator, previous] = await Promise.all([
@@ -219,7 +474,7 @@ export class DiscoveryRunsService {
         this.bypass.companyUser.findUnique({ where: { id: run.listing.createdById }, select: { locale: true } }),
         this.bypass.supplierDiscoveryCandidate.findMany({
           where: { run: { listingId: run.listingId }, runId: { not: runId } },
-          select: { email: true, website: true, memberCompanyId: true },
+          select: { name: true, email: true, website: true, memberCompanyId: true },
         }),
       ]);
       const locale: Locale = isLocale(creator?.locale) ? creator.locale : "tr";
@@ -240,30 +495,10 @@ export class DiscoveryRunsService {
           return [] as DiscoveryCandidate[];
         });
 
-      // 1b) Alıcıya GÖSTERİLMEYEN ücretsiz/doğrulanmamış eşleşmeler (2026-09-28):
-      // alıcı onları görmez; platform onlara Silver/doğrulama çağrısı gönderir.
-      // Yalnız herkese açık talep (Silver'a geçen talebi görebilsin) ve güçlü
-      // eşleşme (alt kategori ya da vitrinde kalem) — segment düzeyi zaten
-      // kategori duyurusunun işi.
-      if (run.listing.visibility === "PUBLIC" && this.listings) {
-        await this.discovery
-          .discoverRegisteredFor(run.companyId, {
-            categoryIds: run.listing.categoryIds,
-            itemNames,
-            listingId: run.listingId,
-            locale,
-            pool: "hidden",
-          })
-          .then((r) =>
-            this.listings!.notifyHiddenAiMatches(
-              run.listingId!,
-              r.candidates.filter((c) => c.strongMatch && !c.alreadyInvited).map((c) => c.companyId),
-            ),
-          )
-          .catch((err) =>
-            this.logger.warn(`discovery run ${runId} hidden notify failed: ${err instanceof Error ? err.message : String(err)}`),
-          );
-      }
+      // 1b) Alıcıya GÖSTERİLMEYEN ücretsiz/doğrulanmamış eşleşmelere çağrı
+      // turun SONUNDA gider (`closingNotices`): herkese açık talepte anonim
+      // kategori duyurusu turu bekler ve bu çağrı ondan SONRA gelmelidir —
+      // yoksa aynı firmaya bir talep için iki e-posta giderdi (AI-4).
 
       // 2) Web araması — AI açık ve platform bütçesi yetiyorsa.
       let web: AnnotatedCandidate[] = [];
@@ -282,20 +517,55 @@ export class DiscoveryRunsService {
             spent += res.costUsd ?? 0;
             return res;
           };
+          // Earlier candidates: the ADDRESS is never suggested again; the
+          // COMPANY (another mailbox of it) is excluded too - unless this
+          // request's invitation to that candidate never reached it (failed,
+          // or dropped before it left: R5-04). Such a company can only be
+          // reached through another mailbox.
+          const previousEmails = [
+            ...new Set(previous.map((p) => p.email?.trim().toLowerCase()).filter((e): e is string => !!e)),
+          ];
+          const unreached = new Set(
+            previousEmails.length === 0
+              ? []
+              : (
+                  await this.bypass.externalListingInvite.findMany({
+                    where: { listingId: run.listingId, email: { in: previousEmails } },
+                    select: { email: true, state: true, sentAt: true },
+                  })
+                )
+                  .filter((i) => !inviteReachesAddress(i))
+                  .map((i) => i.email),
+          );
           const found = await this.discovery.searchWeb(
             {
               buyerCountry: owner?.country ?? null,
-              targetCountries: run.targetCountries,
+              // Talebin GÜNCEL ülkeleri (AI-2): tur satırındaki kopya kuyruğa
+              // yazıldığı ana aittir; alıcı o arada "yalnız Türkiye"ye
+              // daralttıysa yurt dışı geçişi koşmaz.
+              targetCountries: run.listing.targetCountries,
               categoryIds: run.listing.categoryIds,
               itemNames,
               locale,
-              excludeEmails: previous.map((p) => p.email).filter((e): e is string => !!e),
-              excludeHosts: previous.map((p) => websiteHost(p.website)).filter((h): h is string => !!h),
+              excludeEmails: previousEmails,
+              excludeCompanies: previous.filter((p) => !(p.email && unreached.has(p.email.trim().toLowerCase()))),
             },
             runner,
+            // Arka plan: HTTP sınırı yok — araştırma çağrısına uzun süre ve
+            // düşen geçişe TEK yeniden deneme (round 5, D1).
+            BACKGROUND_SEARCH_TIMING,
           );
           costUsd = found.costUsd;
           web = await this.discovery.annotate(run.companyId, run.listingId, found.companies, now);
+          // EKSİK ARAMA: bir geçiş yeniden denemeden sonra da düştü, diğeri
+          // yanıt verdi. Tur DÜŞMEZ — yanıt veren geçişin adayları (ve platform
+          // üyeleri) işlenir, düşen geçiş hata notuna yazılır ("DONE + not";
+          // hiç aday çıkmadıysa aşağıda FAILED). Bütün geçişler düşerse
+          // `searchWeb` fırlatır → catch.
+          if (found.failedPasses.length > 0) {
+            webError = failedPassNote(found.failedPasses);
+            this.logger.warn(`discovery run ${runId} web search incomplete: ${webError}`);
+          }
         } catch (err) {
           webError = err instanceof Error ? err.message : String(err);
           costUsd = spent > 0 ? spent : null;
@@ -304,24 +574,387 @@ export class DiscoveryRunsService {
       }
 
       const rows = mergeCandidates(platform, web, seenMembers, owner?.country ?? null);
-      if (rows.length > 0) {
-        await this.bypass.supplierDiscoveryCandidate.createMany({ data: rows.map((r) => ({ runId, ...r })) });
+      if (rows.length === 0) {
+        const ended = await this.bypass.supplierDiscoveryRun.updateMany({
+          where: { id: runId, state: "RUNNING" },
+          data: {
+            state: webError ? "FAILED" : "DONE",
+            error: webError ? webError.slice(0, 300) : null,
+            finishedAt: new Date(),
+            costUsd,
+          },
+        });
+        if (ended.count === 1) await this.closingNotices(runId, { hidden: true });
+        return { claimed: true, notified };
       }
-      // Web yolu düştü ama üye bulundu → tur yine DONE (öneri var); hata not düşer.
-      await this.bypass.supplierDiscoveryRun.update({
-        where: { id: runId },
-        data: {
-          state: webError && rows.length === 0 ? "FAILED" : "DONE",
-          error: webError ? webError.slice(0, 300) : null,
-          finishedAt: new Date(),
-          costUsd,
-        },
-      });
+      // Adaylar + maliyet DAVETTEN ÖNCE yazılır (tur RUNNING kalır): süreç
+      // davet ortasında ölürse arama yeniden koşmaz, harcama kaybolmaz ve
+      // `recoverStuckRuns` kalan adayları davet eder. Web yolu düştü ama üye
+      // bulundu → tur yine tamamlanır; hata not düşer.
+      await this.bypass.$transaction([
+        this.bypass.supplierDiscoveryCandidate.createMany({ data: rows.map((r) => ({ runId, ...r })) }),
+        this.bypass.supplierDiscoveryRun.update({
+          where: { id: runId },
+          data: { error: webError ? webError.slice(0, 300) : null, costUsd },
+        }),
+      ]);
     } catch (err) {
       this.logger.warn(`discovery run ${runId} failed: ${err instanceof Error ? err.message : String(err)}`);
-      await fail(err instanceof Error ? err.message : String(err));
+      const failed = await fail(err instanceof Error ? err.message : String(err)).catch(() => ({ count: 0 }));
+      if (failed.count === 1) await this.closingNotices(runId, { hidden: true });
+      return { claimed: true, notified };
     }
+    try {
+      notified = await this.inviteAndFinish(runId, now);
+    } catch (err) {
+      // Beklenmeyen hata (DB): tur RUNNING kalır, kira dolunca sürdürülür.
+      this.logger.warn(`discovery run ${runId} invite phase failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return { claimed: true, notified };
+  }
+
+  /**
+   * DAVET AŞAMASI + KAPANIŞ (yeni tur ve sürdürülen takılı tur aynı yoldan).
+   * Otomatik turda bekleyen adaylar davet edilir, tur DONE olur, bekletilen
+   * kategori duyurusu salınır (`closingNotices`) ve en az bir davet varsa
+   * talebi yayınlayana SONUÇ mesajı gider (`notifiedAt` DONE ile aynı ifadede
+   * damgalanır: mesaj en fazla bir kez).
+   */
+  private async inviteAndFinish(runId: string, now: Date): Promise<boolean> {
+    const run = await this.bypass.supplierDiscoveryRun.findUnique({
+      where: { id: runId },
+      select: {
+        id: true,
+        listingId: true,
+        companyId: true,
+        trigger: true,
+        createdAt: true,
+        listing: {
+          select: {
+            id: true,
+            companyId: true,
+            title: true,
+            number: true,
+            type: true,
+            createdById: true,
+            status: true,
+            visibility: true,
+            aiDiscovery: true,
+            targetCountries: true,
+            closesAt: true,
+          },
+        },
+      },
+    });
+    if (!run) return false;
+    if (run.listing && AUTO_TRIGGERS.includes(run.trigger)) await this.autoInvite(run, run.listing);
+    const counts = run.listing ? await this.invitedCounts(runId, run.listing, now) : { members: 0, emails: 0 };
+    const tell = counts.members + counts.emails > 0;
+    const done = await this.bypass.supplierDiscoveryRun.updateMany({
+      where: { id: runId, state: "RUNNING" },
+      data: { state: "DONE", finishedAt: new Date(), ...(tell ? { notifiedAt: now } : {}) },
+    });
+    if (done.count !== 1) return false;
+    // Önce bekletilen duyuru (tedarikçiler beklemesin), sonra alıcıya sonuç.
+    await this.closingNotices(runId, { hidden: true });
+    if (!tell || !run.listing) return false;
+    await this.notifyCreator(run.listing.id, run.listing, counts).catch((err) =>
+      this.logger.warn(`discovery notify failed (${runId}): ${err instanceof Error ? err.message : String(err)}`),
+    );
     return true;
+  }
+
+  /**
+   * TURUN KAPANIŞ DUYURULARI — tur bitiş damgasını (DONE / FAILED) alan süreç
+   * bir kez çağırır; hiçbir hata turu etkilemez.
+   *
+   *  1. BEKLETİLEN KATEGORİ DUYURUSU (gözden geçirme AI-4): herkese açık
+   *     talepte anonim duyuru turun davet aşamasını bekliyordu; tur bitti →
+   *     hemen salınır (`releaseHeldAnnouncement`; duyurunun TEK SEFERLİK hakkı
+   *     orada, `openNotifiedAt` koşullu damgası). Bu çağrı kaybolursa (süreç
+   *     öldü) dakikalık `listing.announceOpened` işi aynı duyuruyu salar.
+   *  2. ALICIYA GÖSTERİLMEYEN ücretsiz/doğrulanmamış güçlü eşleşmelere
+   *     doğrulama çağrısı (2026-09-28) — duyurudan SONRA ve duyurunun ulaştığı
+   *     firmalar hariç: bir talep aynı firmaya iki e-posta üretmesin. Yalnız
+   *     herkese açık talep (doğrulanan firma talebi görebilsin) ve güçlü
+   *     eşleşme (alt kategori ya da vitrinde kalem) — segment düzeyi zaten
+   *     kategori duyurusunun işi. Model çağrısı yok; sürdürülen turda da çalışır.
+   */
+  private async closingNotices(runId: string, opts: { hidden: boolean }): Promise<void> {
+    const listings = this.listings;
+    if (!listings) return;
+    try {
+      const run = await this.bypass.supplierDiscoveryRun.findUnique({
+        where: { id: runId },
+        select: {
+          listingId: true,
+          companyId: true,
+          listing: {
+            select: {
+              status: true,
+              visibility: true,
+              categoryIds: true,
+              createdById: true,
+              items: { select: { name: true }, orderBy: { lineNo: "asc" }, take: 15 },
+            },
+          },
+        },
+      });
+      if (!run?.listing || !run.listingId) return;
+      const listingId = run.listingId;
+      const announced = new Set(
+        await listings.releaseHeldAnnouncement(listingId).catch((err) => {
+          this.logger.warn(`held announcement release failed (${runId}): ${err instanceof Error ? err.message : String(err)}`);
+          return [] as string[];
+        }),
+      );
+      if (!opts.hidden || run.listing.visibility !== "PUBLIC" || run.listing.status !== "OPEN") return;
+      const creator = await this.bypass.companyUser.findUnique({
+        where: { id: run.listing.createdById },
+        select: { locale: true },
+      });
+      const hidden = await this.discovery.discoverRegisteredFor(run.companyId, {
+        categoryIds: run.listing.categoryIds,
+        itemNames: run.listing.items.map((i) => i.name),
+        listingId,
+        locale: isLocale(creator?.locale) ? creator.locale : "tr",
+        pool: "hidden",
+      });
+      await listings.notifyHiddenAiMatches(
+        listingId,
+        hidden.candidates.filter((c) => c.strongMatch && !c.alreadyInvited && !announced.has(c.companyId)).map((c) => c.companyId),
+      );
+    } catch (err) {
+      this.logger.warn(`discovery run ${runId} closing notices failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * SONUÇ MESAJININ İKİ SAYISI (gözden geçirme AI-6) — ayrı ayrı:
+   *  - `members`: turun talebe DOĞRUDAN davet ettiği Rothern üyesi;
+   *  - `emails`: turun sıraya aldığı ve talep kapanmadan GİDEBİLECEK davet
+   *    e-postası. Kuyruk satırı tek başına "davet edildi" demek değildir: bu
+   *    hafta başka alıcıdan davet almış adresin 7 günlük freni kapanıştan
+   *    sonra bitiyorsa dağıtıcı satırı `FREQUENCY` ile düşürür ve e-posta hiç
+   *    gitmez; öyle adres sayılmaz (kural dağıtıcıyla AYNI fonksiyon:
+   *    `queuedInviteCanLeave`). Durum listesi her adayı yine tek tek gösterir.
+   */
+  private async invitedCounts(
+    runId: string,
+    listing: { id: string; closesAt: Date | null },
+    now: Date,
+  ): Promise<{ members: number; emails: number }> {
+    const invited = await this.bypass.supplierDiscoveryCandidate.findMany({
+      where: { runId, status: "INVITED" },
+      select: { email: true, memberCompanyId: true },
+    });
+    const members = invited.filter((c) => c.memberCompanyId).length;
+    const addresses = [
+      ...new Set(invited.filter((c) => !c.memberCompanyId && c.email).map((c) => c.email!.trim().toLowerCase())),
+    ];
+    if (addresses.length === 0) return { members, emails: 0 };
+    const [rows, histories] = await Promise.all([
+      this.bypass.externalListingInvite.findMany({
+        where: { listingId: listing.id, email: { in: addresses } },
+        select: { email: true, state: true, source: true, country: true, sendAfter: true },
+      }),
+      inviteAddressHistories(this.bypass, addresses, now),
+    ]);
+    const emails = rows.filter(
+      (r) =>
+        r.state === "SENT" ||
+        (r.state === "QUEUED" && queuedInviteCanLeave(r, histories.get(r.email), listing.closesAt, now)),
+    ).length;
+    return { members, emails };
+  }
+
+  /**
+   * Talebi YAYINLAYAN kişi — davetler onun adına yapılır. Talebi yalnız açan
+   * kişi yönetebildiği (`listingManageDenial`) için yayınlayan = `createdById`.
+   * Oturum kapısıyla (`CompanyJwtStrategy.validate`) aynı etkinlik kuralı:
+   * kullanıcı pasif/silinmiş ya da firma pasif/askıdaysa KİMSE davet edilmez.
+   * Paket, yönetim izni ve talep durumu davet metotlarının kendi kapılarında.
+   */
+  private async inviterFor(listing: { companyId: string; createdById: string }): Promise<AuthenticatedCompanyUser | null> {
+    const user = await this.bypass.companyUser.findUnique({
+      where: { id: listing.createdById },
+      select: {
+        id: true,
+        companyId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        roles: true,
+        permissions: true,
+        locale: true,
+        isActive: true,
+        deletedAt: true,
+        company: { select: AUTH_COMPANY_SELECT },
+      },
+    });
+    if (!user || !user.isActive || user.deletedAt || user.companyId !== listing.companyId) return null;
+    if (!user.company.isActive || user.company.isBlocked) return null;
+    return toAuthenticatedCompanyUser(user);
+  }
+
+  /**
+   * Turun BEKLEYEN adaylarını davet eder (durum SUGGESTED / MEMBER) ve her
+   * adaya sonucunu yazar. Yeniden çağrılabilir: işlenmiş aday bir daha
+   * okunmaz.
+   *
+   * YARIDA KALAN ÇAĞRI (gözden geçirme AI-5): davet edilip durumu yazılamadan
+   * süreç ölen aday ikinci denemede davet metodundan ALREADY_INVITED alır —
+   * ama onu davet eden BU TURDU. Öyle aday (davet satırı tur başladıktan sonra
+   * ve TURUN KENDİ izleriyle yazılmış) INVITED sayılır; yoksa sürdürülen tur
+   * "kimse davet edilmedi" der, alıcıya sonuç mesajı gitmez ve durum listesi
+   * kendi davet ettiğini "zaten davetliydi" gösterirdi. Tur başlamadan önce
+   * davetli olan (alıcının elle daveti) ALREADY_INVITED kalır.
+   *
+   * "Turun kendi izi" (ikinci gözden geçirme A-4): adreste kaynak `AI_AUTO`
+   * (pencere `AI_FORM` yazar); üyede `aiReason.auto = true`. Üyede yalnız
+   * `origin: "AI"`ye bakmak yetmez — alıcının tur takılıyken "AI ile tedarikçi
+   * bul" penceresinden yaptığı davet de aynı kaynağı taşır ve sürdürülen tur
+   * onu kendi daveti sayıp sonuç mesajında "1 üye davet edildi" diyordu.
+   *
+   * Tur İŞLENDİĞİ andaki talebi okur (AI-2): kutu kapatıldıysa ya da talep
+   * özele çevrildiyse kimse davet edilmez (NOT_ALLOWED); arama sürerken
+   * daraltılan görünürlük ülkesinin dışında kalan adres NOT_ELIGIBLE olur.
+   *
+   * Davet metodunun REDDİ (HTTP hatası: paket düşmüş, izin alınmış, talep
+   * kapanmış…) adaylara NOT_ALLOWED yazar; beklenmeyen hata (DB) fırlatılır —
+   * tur RUNNING kalır ve sürdürülür.
+   */
+  private async autoInvite(
+    run: { id: string; createdAt: Date },
+    listing: {
+      id: string;
+      companyId: string;
+      createdById: string;
+      status: string;
+      visibility: string;
+      aiDiscovery: boolean;
+      targetCountries: string[];
+    },
+  ): Promise<void> {
+    const runId = run.id;
+    const pending = await this.bypass.supplierDiscoveryCandidate.findMany({
+      where: {
+        runId,
+        OR: [
+          { status: "SUGGESTED", email: { not: null } },
+          { status: "MEMBER", memberCompanyId: { not: null } },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, email: true, country: true, status: true, memberCompanyId: true },
+    });
+    if (pending.length === 0) return;
+    const mark = async (ids: string[], status: string) => {
+      if (ids.length === 0) return;
+      await this.bypass.supplierDiscoveryCandidate.updateMany({ where: { id: { in: ids } }, data: { status } });
+    };
+    const members = pending.filter((c) => c.status === "MEMBER" && c.memberCompanyId);
+    const found = pending.filter((c) => c.status === "SUGGESTED" && c.email);
+    const listings = this.listings;
+    const actor =
+      listing.status === "OPEN" && listing.visibility !== "PRIVATE" && listing.aiDiscovery && listings
+        ? await this.inviterFor(listing)
+        : null;
+    if (!actor || !listings) {
+      await mark(pending.map((c) => c.id), "NOT_ALLOWED");
+      return;
+    }
+    // Ülkesi bilinen ve talebin GÜNCEL görünürlük ülkelerine uymayan adres
+    // (arama sürerken daraltıldı) davet edilmez — üyede aynı kuralı
+    // `inviteDiscoveredMembers` uygular.
+    const outOfScope = found.filter((c) => c.country && !countryCanSee(listing.targetCountries, c.country));
+    await mark(outOfScope.map((c) => c.id), "NOT_ELIGIBLE");
+    const externals = found.filter((c) => !outOfScope.includes(c));
+    // Davet metotları kiracı istemcisini ve istek dilini okur: yayınlayan
+    // kişinin firma bağlamı + kendi dili (kayıtsız alıcının dili yine ülkeden;
+    // bu yalnız son geri düşüş).
+    await runWithTenantContext({ companyId: actor.companyId, realm: "company" }, () =>
+      runWithLocale(actor.locale, async () => {
+        if (members.length > 0) {
+          try {
+            const { results } = await listings.inviteDiscoveredMembers(
+              actor,
+              listing.id,
+              members.map((c) => c.memberCompanyId!),
+              { auto: true },
+            );
+            const st = new Map(results.map((r) => [r.companyId, r.status as string]));
+            const again = [...st].filter(([, status]) => status === "ALREADY_INVITED").map(([id]) => id);
+            const mine = new Set(
+              again.length === 0
+                ? []
+                : (
+                    await this.bypass.listingInvitation.findMany({
+                      where: {
+                        listingId: listing.id,
+                        invitedCompanyId: { in: again },
+                        origin: "AI",
+                        // Turun KENDİ satırı (`inviteDiscoveredMembers` `auto`
+                        // işareti): alıcının "AI ile tedarikçi bul" penceresinden
+                        // yaptığı davet de `origin: "AI"` taşır (A-4).
+                        aiReason: { path: ["auto"], equals: true },
+                        createdAt: { gte: run.createdAt },
+                      },
+                      select: { invitedCompanyId: true },
+                    })
+                  ).map((i) => i.invitedCompanyId),
+            );
+            // Sonuçta olmayan üye = istek üst sınırına sığmadı (günlük tavan).
+            const by = groupBy(members, (c) => {
+              const status = st.get(c.memberCompanyId!) ?? "DAILY_LIMIT";
+              return status === "ALREADY_INVITED" && mine.has(c.memberCompanyId!) ? "INVITED" : status;
+            });
+            for (const [status, rows] of by) await mark(rows.map((c) => c.id), status);
+          } catch (err) {
+            if (!(err instanceof HttpException)) throw err;
+            this.logger.warn(`discovery run ${runId}: member invites refused (${err.message})`);
+            await mark(members.map((c) => c.id), "NOT_ALLOWED");
+          }
+        }
+        if (externals.length > 0) {
+          try {
+            const { results } = await this.connections.inviteExternalForListing(
+              actor,
+              listing.id,
+              externals.map((c) => ({ email: c.email!, country: c.country })),
+              "AI_AUTO",
+            );
+            const st = new Map(results.map((r) => [r.email, r.status as string]));
+            const again = [...st].filter(([, status]) => status === "ALREADY_INVITED").map(([email]) => email);
+            const mine = new Set(
+              again.length === 0
+                ? []
+                : (
+                    await this.bypass.externalListingInvite.findMany({
+                      where: {
+                        listingId: listing.id,
+                        email: { in: again },
+                        source: "AI_AUTO",
+                        createdAt: { gte: run.createdAt },
+                      },
+                      select: { email: true },
+                    })
+                  ).map((i) => i.email),
+            );
+            const by = groupBy(externals, (c) => {
+              const email = c.email!.trim().toLowerCase();
+              const r = st.get(email) ?? "DAILY_LIMIT";
+              return r === "QUEUED" || (r === "ALREADY_INVITED" && mine.has(email)) ? "INVITED" : r;
+            });
+            for (const [status, rows] of by) await mark(rows.map((c) => c.id), status);
+          } catch (err) {
+            if (!(err instanceof HttpException)) throw err;
+            this.logger.warn(`discovery run ${runId}: e-mail invites refused (${err.message})`);
+            await mark(externals.map((c) => c.id), "NOT_ALLOWED");
+          }
+        }
+      }),
+    );
   }
 
   /**
@@ -334,18 +967,35 @@ export class DiscoveryRunsService {
       where: {
         status: "OPEN",
         aiDiscovery: true,
+        visibility: { not: "PRIVATE" },
         publishedAt: { not: null },
         closesAt: { gt: new Date(now.getTime() + 24 * HOUR_MS) },
         // Uygunluk elemeleri SORGUDA (derin denetim X21/S015): eskiden sirasiz
         // `take: 200` penceresi ikinci turunu almis / yayin turu olmayan /
         // turu suren taleplerle dolup kalanlari hic degerlendirmiyordu.
+        // Aramadan düşen tur (kutu kapalıydı / talep özeldi) sayılmaz
+        // (`COUNTED_AUTO_RUN_WHERE`, A-3): öyle bir satır ne "yayın turu var"
+        // demektir ne de talebin iki turluk hakkından yer.
         AND: [
-          { discoveryRuns: { some: { trigger: "PUBLISH" } } },
+          { discoveryRuns: { some: { ...COUNTED_AUTO_RUN_WHERE, trigger: "PUBLISH" } } },
           {
             discoveryRuns: {
               none: {
-                OR: [{ trigger: "SECOND_ROUND" }, { state: { in: ["PENDING", "RUNNING"] } }],
+                OR: [
+                  { ...COUNTED_AUTO_RUN_WHERE, trigger: "SECOND_ROUND" },
+                  { state: { in: ["PENDING", "RUNNING"] } },
+                ],
               },
+            },
+          },
+          // ESKİ AKIŞTAN KALAN TALEP (2026-10-08): yayın turunun adayları
+          // alıcının onayını bekliyordu ve alıcı onaylamadı (SUGGESTED/MEMBER
+          // kaldı). İkinci tur artık bulduğunu KENDİSİ davet ettiği için böyle
+          // bir talebe açılmaz — alıcının onaylamadığı aramanın devamı onun
+          // adına davet göndermesin. Yeni tur onay bekleyen aday bırakmaz.
+          {
+            discoveryRuns: {
+              none: { trigger: "PUBLISH", candidates: { some: { status: { in: ["SUGGESTED", "MEMBER"] } } } },
             },
           },
         ],
@@ -355,7 +1005,7 @@ export class DiscoveryRunsService {
         publishedAt: true,
         closesAt: true,
         _count: { select: { bids: { where: { status: "SUBMITTED" } } } },
-        discoveryRuns: { select: { trigger: true, state: true } },
+        discoveryRuns: { select: { trigger: true, state: true, error: true } },
       },
       // Deterministik: kapanisi en yakin (yari suresi once dolan) once.
       orderBy: [{ closesAt: "asc" }, { id: "asc" }],
@@ -364,104 +1014,46 @@ export class DiscoveryRunsService {
     let n = 0;
     for (const l of rows) {
       if (!l.publishedAt || !l.closesAt) continue;
-      const auto = l.discoveryRuns.filter((r) => r.trigger === "PUBLISH" || r.trigger === "SECOND_ROUND");
+      const auto = l.discoveryRuns.filter(isCountedAutoRun);
       if (auto.length === 0 || auto.length >= MAX_AUTO_RUNS) continue;
       if (auto.some((r) => r.trigger === "SECOND_ROUND")) continue;
       if (l.discoveryRuns.some((r) => r.state === "PENDING" || r.state === "RUNNING")) continue;
       const half = l.publishedAt.getTime() + (l.closesAt.getTime() - l.publishedAt.getTime()) / 2;
       if (now.getTime() < half || l._count.bids >= SECOND_ROUND_MAX_BIDS) continue;
-      if (await this.enqueue(l.id, "SECOND_ROUND")) n++;
-    }
-    return n;
-  }
-
-  /** Alıcı ekranda işlem yapmadıysa talebi açan kişiye bildirim + e-posta. */
-  private async notifyReady(now: Date): Promise<number> {
-    const runs = await this.bypass.supplierDiscoveryRun.findMany({
-      where: {
-        state: "DONE",
-        notifiedAt: null,
-        dismissedAt: null,
-        trigger: { in: ["PUBLISH", "SECOND_ROUND"] },
-        finishedAt: { lte: new Date(now.getTime() - NOTIFY_AFTER_MS) },
-        listing: { status: "OPEN" },
-      },
-      select: {
-        id: true,
-        listingId: true,
-        listing: { select: { title: true, number: true, createdById: true } },
-        candidates: { select: { status: true, scope: true, email: true, memberCompanyId: true } },
-      },
-      take: 50,
-    });
-    let n = 0;
-    for (const run of runs) {
-      // Atomik sahiplenme: aynı anda koşan ikinci tur (kilit fail-open / çok
-      // örnek) aynı koşu için ikinci bildirimi üretmesin (derin denetim MU-14).
-      const claimed = await this.bypass.supplierDiscoveryRun.updateMany({
-        where: { id: run.id, notifiedAt: null },
-        data: { notifiedAt: now },
-      });
-      if (claimed.count !== 1) continue;
-      if (!run.listing || !run.listingId) continue;
-      const open = await this.stillOpenCandidates(run.listingId, run.candidates);
-      if (open.length === 0) continue;
-      const abroad = open.filter((c) => c.scope === "ABROAD").length;
-      await this.notifyCreator(run.listingId, run.listing, open.length, abroad).catch((err) =>
-        this.logger.warn(`discovery notify failed (${run.id}): ${err instanceof Error ? err.message : String(err)}`),
-      );
-      n++;
+      if (await this.enqueueQuietly(l.id, "SECOND_ROUND")) n++;
     }
     return n;
   }
 
   /**
-   * Hâlâ davet edilebilir adaylar: ham durum SUGGESTED/MEMBER VE talebe henüz
-   * davetli değil. Pencereden firma kimliğiyle (`inviteMembers`) ya da formdan
-   * adresle yapılan davet aday satırını güncellemez; ekran (`forListing`) durumu
-   * davetlerden hesaplar, bildirim de aynı kaynağa bakar — hepsi davet edilmişse
-   * "kalanları davet edin" e-postası gitmez (derin denetim boşluk taraması GA3).
+   * SONUÇ MESAJI — talebi yayınlayana bildirim + e-posta (tercih
+   * `aiSuggestions`). İKİ sayı AYRI söylenir (gözden geçirme AI-6): talebe
+   * davet edilen Rothern üyesi ve sıraya alınan davet e-postası; "N tedarikçi
+   * davet edildi" toplamı henüz gitmemiş (ve belki hiç gitmeyecek) e-postayı
+   * davet sayıyordu. Sıfır olan taraf cümleye girmez (üç ayrı anahtar — iki
+   * çoğulu tek cümlede koşula bağlamak EN/RU'da tutmaz). Onaylanacak bir şey
+   * yok; bağlantı (`?ai-davet=1`) talep sayfasındaki durum listesini açık
+   * getirir. Metin "AI buldu" demez (tur AI kapalıyken de platform üyeleriyle
+   * sonuç üretir; karar 74).
    */
-  private async stillOpenCandidates<T extends { status: string; email: string | null; memberCompanyId: string | null }>(
-    listingId: string,
-    candidates: T[],
-  ): Promise<T[]> {
-    const open = candidates.filter((c) => c.status === "SUGGESTED" || c.status === "MEMBER");
-    const emails = open.filter((c) => c.status === "SUGGESTED" && c.email).map((c) => c.email!);
-    const memberIds = open.filter((c) => c.status === "MEMBER" && c.memberCompanyId).map((c) => c.memberCompanyId!);
-    const [invitedEmails, invitedMembers] = await Promise.all([
-      emails.length
-        ? this.bypass.externalListingInvite.findMany({ where: { listingId, email: { in: emails } }, select: { email: true } })
-        : [],
-      memberIds.length
-        ? this.bypass.listingInvitation.findMany({
-            where: { listingId, invitedCompanyId: { in: memberIds } },
-            select: { invitedCompanyId: true },
-          })
-        : [],
-    ]);
-    const invited = new Set(invitedEmails.map((i) => i.email));
-    const invitedMember = new Set(invitedMembers.map((i) => i.invitedCompanyId));
-    return open.filter((c) =>
-      c.status === "MEMBER"
-        ? !(c.memberCompanyId && invitedMember.has(c.memberCompanyId))
-        : !(c.email && invited.has(c.email)),
-    );
-  }
-
   private async notifyCreator(
     listingId: string,
     listing: { title: string; number: string | null; createdById: string },
-    count: number,
-    abroad: number,
+    counts: { members: number; emails: number },
   ): Promise<void> {
-    const params = { title: listingTitleParam(listingId, listing.title), n: count, abroad };
+    const text =
+      counts.members > 0 && counts.emails > 0
+        ? RESULT_TEXT.both
+        : counts.members > 0
+          ? RESULT_TEXT.members
+          : RESULT_TEXT.emails;
+    const params = { title: listingTitleParam(listingId, listing.title), members: counts.members, emails: counts.emails };
     const path = `/company/ilan/${listingId}?ai-davet=1`;
     await this.notifications?.pushToUser(listing.createdById, {
       type: AI_SUGGESTIONS_NOTIFICATION,
-      titleKey: "api.notifications.discovery.title",
-      bodyKey: "api.notifications.discovery.body",
-      ctaLabelKey: "api.notifications.discovery.cta",
+      titleKey: "api.notifications.discovery.invitedTitle",
+      bodyKey: text.body,
+      ctaLabelKey: "api.notifications.discovery.invitedCta",
       params,
       ctaPath: path,
       listingId,
@@ -479,20 +1071,27 @@ export class DiscoveryRunsService {
     const locale: Locale = isLocale(user.locale) ? user.locale : "tr";
     const title = listing.title;
     const t = (key: Parameters<typeof tApi>[0]) =>
-      tApi(key, { n: count, abroad, title, number: listing.number ?? "—" }, locale);
+      tApi(key, { members: counts.members, emails: counts.emails, title, number: listing.number ?? "—" }, locale);
+    const subject = t(text.subject);
     await this.email.send({
       to: { email: user.email, name: user.firstName },
       locale,
-      subject: t("api.notifications.discovery.emailSubject"),
+      subject,
       templateData: {
         template: "notification",
         data: {
-          subject: t("api.notifications.discovery.emailSubject"),
-          heading: t("api.notifications.discovery.emailHeading"),
-          paragraphs: [tApi("api.notifications.common.greeting", undefined, locale), t("api.notifications.discovery.emailBody")],
-          ctaLabel: t("api.notifications.discovery.cta"),
+          subject,
+          heading: t("api.notifications.discovery.invitedTitle"),
+          paragraphs: [
+            tApi("api.notifications.common.greeting", undefined, locale),
+            t("api.notifications.discovery.invitedEmailIntro"),
+            ...(counts.members > 0 ? [t("api.notifications.discovery.invitedEmailMembers")] : []),
+            ...(counts.emails > 0 ? [t("api.notifications.discovery.invitedEmailEmails")] : []),
+            t("api.notifications.discovery.invitedEmailOutro"),
+          ],
+          ctaLabel: t("api.notifications.discovery.invitedCta"),
           ctaUrl: `${appRoutes.listing(resolveWebUrl(this.config), listingId, locale)}?ai-davet=1`,
-          footerNote: t("api.notifications.discovery.emailFooter"),
+          footerNote: t("api.notifications.discovery.invitedEmailFooter"),
         },
       },
       context: { type: AI_SUGGESTIONS_NOTIFICATION, id: listingId },
@@ -504,7 +1103,16 @@ export class DiscoveryRunsService {
   private async ownListing(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
-      select: { id: true, type: true, createdById: true, status: true, aiDiscovery: true, bidsOpenAt: true },
+      select: {
+        id: true,
+        type: true,
+        createdById: true,
+        status: true,
+        visibility: true,
+        aiDiscovery: true,
+        bidsOpenAt: true,
+        categoryIds: true,
+      },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyConnections.satinAlmaTalebiBulunamadi"));
     if (listingManageDenial(user, listing)) {
@@ -513,7 +1121,17 @@ export class DiscoveryRunsService {
     return listing;
   }
 
-  /** Talebin keşif sonuçları (tüm turlar, en yeni önce) — bant ve yayın paneli. */
+  /**
+   * Talebin keşif sonuçları (tüm turlar, en yeni önce) — yayın paneli ve talep
+   * sayfası bandı. YALNIZ DURUM: her aday davet sonucunu taşır (`invite` +
+   * `inviteReason` + kuyruktaysa `sendAfter`); onaylanacak bir şey yoktur.
+   *
+   * Sonucun kaynağı aday satırı tek başına DEĞİL (GA3): davet tabloları okunur
+   * — e-posta daveti gönderildi mi, kuyrukta mı, dağıtıcı düşürdü mü
+   * (`external_listing_invites.state` + `cancelReason`); üye talebe davetli mi
+   * (`listing_invitations`). Pencereden/elle sonradan davet edilen aday da
+   * böylece "davet edildi" görünür.
+   */
   async forListing(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.ownListing(user, listingId);
     const runs = await this.prisma.supplierDiscoveryRun.findMany({
@@ -548,94 +1166,73 @@ export class DiscoveryRunsService {
         },
       },
     });
-    // Ekrandan (pencere/form) sonradan davet edilmiş adres/üye de "davet edildi" görünsün.
     const emails = runs.flatMap((r) => r.candidates.map((c) => c.email)).filter((e): e is string => !!e);
     const memberIds = runs.flatMap((r) => r.candidates.map((c) => c.memberCompanyId)).filter((m): m is string => !!m);
-    const [invitedEmails, invitedMembers] = await Promise.all([
+    const [queueRows, invitedMembers] = await Promise.all([
       this.prisma.externalListingInvite.findMany({
         where: { listingId, email: { in: emails } },
-        select: { email: true },
+        select: { email: true, state: true, cancelReason: true, sendAfter: true },
       }),
       this.prisma.listingInvitation.findMany({
         where: { listingId, invitedCompanyId: { in: memberIds } },
         select: { invitedCompanyId: true },
       }),
     ]);
-    const invited = new Set(invitedEmails.map((i) => i.email));
+    const queueByEmail = new Map(queueRows.map((i) => [i.email, i]));
     const invitedMember = new Set(invitedMembers.map((i) => i.invitedCompanyId));
+    const shownBadges = runs.some((r) => r.candidates.some((c) => c.matchedCategories.length > 0))
+      ? await this.visibleBadgeNames(listing.categoryIds)
+      : new Set<string>();
     return {
-      aiDiscovery: listing.aiDiscovery,
+      // Özel talepte otomatik arama yok (tur hiç yazılmaz) — ekran beklemesin.
+      aiDiscovery: listing.aiDiscovery && listing.visibility !== "PRIVATE",
       listingStatus: listing.status,
       // Embargolu talep: otomatik tur açılışta yazılır — ekran "aranıyor" değil
       // "açılınca başlar" der ve boşuna yoklamaz (derin denetim 2026-09-29 S090).
       startsAt: listing.bidsOpenAt && listing.bidsOpenAt > new Date() ? listing.bidsOpenAt.toISOString() : null,
-      runs: runs.map((r) => ({
-        ...r,
-        candidates: r.candidates.map((c) => ({
-          ...c,
-          status:
-            c.status === "MEMBER" && c.memberCompanyId && invitedMember.has(c.memberCompanyId)
-              ? "INVITED"
-              : c.status === "SUGGESTED" && c.email && invited.has(c.email)
-                ? "INVITED"
-                : c.status,
-        })),
-      })),
+      runs: runs.map((r) => {
+        const active = r.state === "PENDING" || r.state === "RUNNING";
+        return {
+          ...r,
+          candidates: r.candidates.map((c) => {
+            const queue = c.email ? queueByEmail.get(c.email) : undefined;
+            const memberInvited = !!c.memberCompanyId && invitedMember.has(c.memberCompanyId);
+            return {
+              ...c,
+              matchedCategories: c.matchedCategories.filter((n) => shownBadges.has(n)),
+              status:
+                c.status === "MEMBER" && memberInvited
+                  ? "INVITED"
+                  : c.status === "SUGGESTED" && queue
+                    ? "INVITED"
+                    : c.status,
+              ...candidateInvite({ status: c.status, memberCompanyId: c.memberCompanyId, memberInvited, queue, active }),
+            };
+          }),
+        };
+      }),
     };
   }
 
   /**
-   * Seçilen adaylara tek tıkla davet: Rothern üyesi → DOĞRUDAN talebe
-   * (`inviteDiscoveredMembers`, bağlantı şartı yok, günlük tavan davet
-   * kuyruğuyla ortak); diğerleri → e-posta kuyruğu (`AI_AUTO`).
+   * Aday satırındaki rozet adları tur ANINDA dondurulur (`matchedCategories`
+   * ad saklar, kod değil) — segment sonradan gizlendiyse eski turun satırı
+   * gizli kategorinin adını taşır (2026-10-09). Rozet her zaman TALEBİN kendi
+   * kategori zincirinden bir düğümdür (eşleşme = firma beyanı ∩ zincir), bu
+   * yüzden okuma BEYAZ LİSTE uygular: saklanan ad yalnız talebin bugünkü
+   * zincirindeki GÖRÜNÜR bir kategorinin adıysa (üç dilden biri) döner. Gizli
+   * segmentin adı, katalogdan kalkmış eski ad ve talepten çıkarılmış kategori
+   * düşer (kapalı tarafa düşer). Zincir en fazla birkaç birincil anahtar okuması.
    */
-  async invite(user: AuthenticatedCompanyUser, listingId: string, candidateIds: string[]) {
-    await this.ownListing(user, listingId);
-    const cands = await this.prisma.supplierDiscoveryCandidate.findMany({
-      where: {
-        id: { in: candidateIds.slice(0, 60) },
-        OR: [
-          { status: "SUGGESTED", email: { not: null } },
-          { status: "MEMBER", memberCompanyId: { not: null } },
-        ],
-        run: { listingId, companyId: user.companyId },
-      },
-      select: { id: true, email: true, country: true, status: true, memberCompanyId: true },
+  private async visibleBadgeNames(categoryIds: readonly string[]): Promise<Set<string>> {
+    const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(visibleCategoryIds(categoryIds));
+    const chain = [...segmentIds, ...subCandidates];
+    if (chain.length === 0) return new Set();
+    const rows = await this.prisma.category.findMany({
+      where: { id: { in: chain }, ...hiddenCategoryWhere() },
+      select: CATEGORY_NAME_SELECT,
     });
-    const members = cands.filter((c) => c.status === "MEMBER" && c.memberCompanyId);
-    const externals = cands.filter((c) => c.status === "SUGGESTED" && c.email);
-
-    let memberResults: Array<{ companyId: string; status: string }> = [];
-    if (members.length > 0 && this.listings) {
-      ({ results: memberResults } = await this.listings.inviteDiscoveredMembers(
-        user,
-        listingId,
-        members.map((c) => c.memberCompanyId!),
-      ));
-      const st = new Map(memberResults.map((r) => [r.companyId, r.status]));
-      for (const c of members) {
-        const r = st.get(c.memberCompanyId!);
-        const next = r === "INVITED" ? "INVITED" : r === "ALREADY_INVITED" ? "ALREADY_INVITED" : null;
-        if (next) await this.prisma.supplierDiscoveryCandidate.update({ where: { id: c.id }, data: { status: next } });
-      }
-    }
-
-    let results: Awaited<ReturnType<CompanyConnectionsService["inviteExternalForListing"]>>["results"] = [];
-    if (externals.length > 0) {
-      ({ results } = await this.connections.inviteExternalForListing(
-        user,
-        listingId,
-        externals.map((c) => ({ email: c.email!, country: c.country })),
-        "AI_AUTO",
-      ));
-      const statusOf = new Map(results.map((r) => [r.email, r.status]));
-      for (const c of externals) {
-        const st = statusOf.get(c.email!);
-        const next = st === "QUEUED" ? "INVITED" : st === "ALREADY_INVITED" ? "ALREADY_INVITED" : null;
-        if (next) await this.prisma.supplierDiscoveryCandidate.update({ where: { id: c.id }, data: { status: next } });
-      }
-    }
-    return { results, memberResults };
+    return new Set(rows.flatMap((r) => [r.nameTr, r.nameEn, r.nameRu]).filter((n): n is string => !!n));
   }
 
   /** Formdan/pencereden seçilen üyeler (aday kaydı olmadan, firma kimliğiyle). */
@@ -733,3 +1330,60 @@ export function mergeCandidates(
   }
   return rows;
 }
+
+function groupBy<T>(rows: T[], keyOf: (row: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = keyOf(r);
+    const list = out.get(k);
+    if (list) list.push(r);
+    else out.set(k, [r]);
+  }
+  return out;
+}
+
+/**
+ * Kuyruk satırına yazılan iptal nedeni → ekranın nedeni. Dağıtıcı: OPTED_OUT ·
+ * REGISTERED · PAUSED · FREQUENCY · SUPPRESSED · ALLOWLIST · COUNTRY_BLOCKED ·
+ * LISTING_CLOSED (aynen geçer); alıcı davet bağlantısını iptal etti →
+ * CANCELLED; firmanın paketi düştü → NOT_ALLOWED.
+ */
+function queueCancelReason(reason: string | null): string {
+  // `AUTO_INVITE_OFF`: talep özele çevrildi ya da otomatik arama kapatıldı —
+  // turun kuyruğa aldığı davet gönderilmeden düştü (AI-1).
+  if (reason === "REFERRAL_CANCELLED" || reason === "AUTO_INVITE_OFF") return "CANCELLED";
+  if (reason === "INVITER_DOWNGRADED") return "NOT_ALLOWED";
+  return reason ?? "FAILED";
+}
+
+/**
+ * Adayın davet sonucu — SAF. Öncelik: tur bulduğunda zaten davetliydi →
+ * üyenin talep daveti → e-posta kuyruğu satırı → aday satırına yazılan
+ * "gönderilmedi" nedeni → tur sürüyorsa bekliyor.
+ */
+export function candidateInvite(c: {
+  status: string;
+  memberCompanyId: string | null;
+  memberInvited: boolean;
+  queue?: { state: string; cancelReason: string | null; sendAfter: Date } | undefined;
+  /** Tur sürüyor (PENDING / RUNNING). */
+  active: boolean;
+}): { invite: CandidateInviteState; inviteReason: string | null; sendAfter: string | null } {
+  const out = (invite: CandidateInviteState, inviteReason: string | null = null, sendAfter: string | null = null) => ({
+    invite,
+    inviteReason,
+    sendAfter,
+  });
+  if (c.status === "ALREADY_INVITED") return out("ALREADY_INVITED");
+  if (c.memberCompanyId && c.memberInvited) return out("INVITED");
+  // Üye e-posta kuyruğuna girmez; adresi eşleşse de kuyruk satırı ona ait sayılmaz.
+  if (!c.memberCompanyId && c.queue) {
+    if (c.queue.state === "SENT") return out("INVITED");
+    if (c.queue.state === "QUEUED") return out("QUEUED", null, c.queue.sendAfter.toISOString());
+    return out("NOT_SENT", c.queue.state === "FAILED" ? "FAILED" : queueCancelReason(c.queue.cancelReason));
+  }
+  if (NOT_SENT_STATUSES.has(c.status)) return out("NOT_SENT", c.status === "SKIPPED_REGISTERED" ? "REGISTERED" : c.status);
+  if ((c.status === "SUGGESTED" || c.status === "MEMBER") && c.active) return out("WAITING");
+  return out("NOT_SENT");
+}
+

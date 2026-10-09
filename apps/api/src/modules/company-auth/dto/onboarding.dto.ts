@@ -80,9 +80,10 @@ export class CompleteOnboardingDto {
   taxOffice?: string;
 
   /**
-   * Firma web sitesi — STANDART'ta OPSİYONEL; ücretli paketlerde zorunlu
-   * (Rothern profili + AI zenginleştirme bu siteden beslenir). Zorunluluk
-   * paket akışında/profil oluşturmada uygulanır, onboarding'de dayatılmaz.
+   * Firma web sitesi — İSTEĞE BAĞLI; onboarding'de dayatılmaz. Adres yalnız
+   * firma profilinde gösterilir: AI siteyi OKUMAZ (profil tanıtımı önerisi
+   * platformdaki veriden yazılır, 2026-10-08). Biçim kuralı serviste, yalnız
+   * değişen değere (`assertWebsiteAddress`).
    */
   @IsOptional()
   @IsString()

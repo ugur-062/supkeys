@@ -207,7 +207,7 @@ describe("e-posta tasarımı — ikinci tur gövde parçaları", () => {
     expect(out.text).toContain("- 3 ürününüz taslağa alındı.");
   });
 
-  it("davette alt bilgide çıkış bağlantısı varsa notta ikinci 'kapat' bağlantısı yok; yoksa notta kalır", async () => {
+  it("davette TEK çıkış bağlantısı: imzalı çıkış varsa o, yoksa davetin kendi bağlantısı — HTML ve düz metin aynı", async () => {
     const data = {
       inviterName: "Acme",
       tenderTitle: "Boru",
@@ -222,9 +222,12 @@ describe("e-posta tasarımı — ikinci tur gövde parçaları", () => {
     });
     expect(withUnsub.html).not.toContain("davet-kapat?token=t");
     expect(withUnsub.html).toContain("e-posta-tercihleri?t=x");
-    expect(withUnsub.text).toContain("davet-kapat?token=t"); // düz metin opt-out satırı aynen
+    // Düz mektup (2026-10-09): düz metin de aynı tek bağlantıyı taşır (eskiden ikisini de basıyordu).
+    expect(withUnsub.text).not.toContain("davet-kapat?token=t");
+    expect(withUnsub.text).toContain("Bu tür davetleri kapatın: https://www.rothern.com/e-posta-tercihleri?t=x");
     const noUnsub = await renderEmail({ template: "tender_external_invite", data }, "tr", env);
     expect(noUnsub.html).toContain("davet-kapat?token=t");
+    expect(noUnsub.text).toContain("Bu tür davetleri kapatın: https://www.rothern.com/davet-kapat?token=t");
   });
 });
 

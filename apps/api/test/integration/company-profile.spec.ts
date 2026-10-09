@@ -585,6 +585,11 @@ describe("company-profile — alt kategoriler", () => {
       ["56100000", "Konut mobilyaları", 2, "56000000"],
       ["56101500", "Mobilyalar", 3, "56100000"],
       ["44000000", "Ofis ekipmanı", 1, null],
+      // Hidden since 2026-10-09 (segment 46) and since 2026-09-19 (segment 10).
+      ["46000000", "Kolluk, Ulusal Güvenlik ve Emniyet Ekipmanları", 1, null],
+      ["46180000", "Kişisel güvenlik ve koruma", 2, "46000000"],
+      ["46181500", "Koruyucu giysiler", 3, "46180000"],
+      ["10000000", "Canlı Bitki ve Hayvan Malzemeleri", 1, null],
     ];
     for (const [code, nameTr, level, parentId] of rows) {
       await prisma.category.create({
@@ -805,7 +810,14 @@ describe("company-profile — alt kategoriler", () => {
     });
   });
 
-  describe("kayıtlı gizli segment kodu kaydı engellemez (code-category-12)", () => {
+  /**
+   * Owner rule 2026-10-09 ("a category that is not on the home page is shown
+   * nowhere"): a stored code under a hidden segment still does not BLOCK the
+   * save (code-category-12), but it is no longer KEPT - whenever the category
+   * declaration is saved, hidden codes leave all four arrays. Nobody can see
+   * them, so nobody could remove them by hand.
+   */
+  describe("kayıtlı gizli segment kodu kaydı engellemez, kayıtta düşer (code-category-12 + 2026-10-09)", () => {
     async function hiddenDeclared() {
       await seedTree();
       await seedExtra();
@@ -813,52 +825,136 @@ describe("company-profile — alt kategoriler", () => {
       await prisma.company.update({
         where: { id: owner.company.id },
         data: {
-          sellerCategoryIds: ["56000000"],
-          sellerSubCategoryIds: ["56100000", "56101500"],
+          sellerCategoryIds: ["46000000"],
+          sellerSubCategoryIds: ["46180000", "46181500"],
         },
       });
       return owner;
     }
 
-    it("kayıtlı gizli kodlar aynen gelir, yanına görünür ürün eklenir → kaydedilir", async () => {
+    it("kayıtlı gizli kodlar aynen gelir, yanına görünür ürün eklenir → kaydedilir, gizli kodlar DÜŞER", async () => {
       const owner = await hiddenDeclared();
       const svc = makeServiceWithCategories();
 
-      await svc.update(owner.company.id, {
-        sellerCategoryIds: ["56000000", "31000000"],
-        sellerSubCategoryIds: ["56100000", "56101500", "31170000", "31171500"],
+      const res = await svc.update(owner.company.id, {
+        sellerCategoryIds: ["46000000", "31000000"],
+        sellerSubCategoryIds: ["46180000", "46181500", "31170000", "31171500"],
       } as never);
 
       const row = await beyan(owner.company.id);
-      expect(row.sellerCategoryIds).toEqual(["56000000", "31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual([
-        "56100000",
-        "56101500",
-        "31170000",
-        "31171500",
-      ]);
+      expect(row.sellerCategoryIds).toEqual(["31000000"]);
+      expect(row.sellerSubCategoryIds).toEqual(["31170000", "31171500"]);
+      expect(res.sellerCategoryIds).toEqual(["31000000"]);
+      expect(res.sellerSubCategoryIds).toEqual(["31170000", "31171500"]);
     });
 
-    it("zincirsiz kayıtlı gizli yaprak: koddan türeyen ataları da muaf", async () => {
+    it("zincirsiz kayıtlı gizli yaprak: koddan türeyen ataları da muaf — hepsi düşer", async () => {
       const owner = await hiddenDeclared();
       await prisma.company.update({
         where: { id: owner.company.id },
-        data: { sellerSubCategoryIds: ["56101500"] },
+        data: { sellerSubCategoryIds: ["46181500"] },
       });
       const svc = makeServiceWithCategories();
 
+      // Yalnız alt liste gelir; ana listede kayıtlı gizli segment de düşer.
       await svc.update(owner.company.id, {
-        sellerSubCategoryIds: ["56101500", "31171500"],
+        sellerSubCategoryIds: ["46181500", "46180000", "31171500"],
       } as never);
 
       const row = await beyan(owner.company.id);
-      expect(row.sellerCategoryIds).toEqual(["56000000", "31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual([
-        "56101500",
-        "31171500",
-        "56100000",
-        "31170000",
-      ]);
+      expect(row.sellerCategoryIds).toEqual(["31000000"]);
+      expect(row.sellerSubCategoryIds).toEqual(["31171500", "31170000"]);
+    });
+
+    it("form gizli kodu GÖRMEDEN kaydeder (yalnız görünür kodlar gelir) → gizli kodlar yine düşer", async () => {
+      const owner = await hiddenDeclared();
+      const svc = makeServiceWithCategories();
+
+      await svc.update(owner.company.id, {
+        sellerSubCategoryIds: ["31171500"],
+      } as never);
+
+      const row = await beyan(owner.company.id);
+      expect(row.sellerCategoryIds).toEqual(["31000000"]);
+      expect(row.sellerSubCategoryIds).toEqual(["31171500", "31170000"]);
+    });
+
+    it("isteğin dokunmadığı eksendeki gizli kodlar da düşer; görünür kodları aynen kalır", async () => {
+      const owner = await hiddenDeclared();
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: {
+          buyerCategoryIds: ["46000000", "39000000"],
+          buyerSubCategoryIds: ["46180000"],
+        },
+      });
+      const svc = makeServiceWithCategories();
+
+      // Yalnız SATIŞ ekseni kaydedilir.
+      await svc.update(owner.company.id, {
+        sellerCategoryIds: ["31000000"],
+        sellerSubCategoryIds: ["31170000"],
+      } as never);
+
+      expect(await beyan(owner.company.id)).toEqual({
+        buyerCategoryIds: ["39000000"],
+        buyerSubCategoryIds: [],
+        sellerCategoryIds: ["31000000"],
+        sellerSubCategoryIds: ["31170000"],
+      });
+    });
+
+    it("kategoriye dokunmayan kayıt beyanı DEĞİŞTİRMEZ (eski kod eşleştirme için durur) ama yanıtta gösterilmez", async () => {
+      const owner = await hiddenDeclared();
+      const svc = makeServiceWithCategories();
+
+      const res = await svc.update(owner.company.id, { district: "Kadıköy" } as never);
+
+      const row = await beyan(owner.company.id);
+      expect(row.sellerCategoryIds).toEqual(["46000000"]);
+      expect(row.sellerSubCategoryIds).toEqual(["46180000", "46181500"]);
+      expect(res.sellerCategoryIds).toEqual([]);
+      expect(res.sellerSubCategoryIds).toEqual([]);
+    });
+
+    it("get(): firmanın kendi profilinde gizli segment kodu DÖNMEZ (dört dizi), görünür kodlar döner", async () => {
+      const owner = await hiddenDeclared();
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: {
+          sellerCategoryIds: ["46000000", "31000000"],
+          sellerSubCategoryIds: ["46180000", "46181500", "31170000"],
+          buyerCategoryIds: ["10000000"],
+          buyerSubCategoryIds: ["46181500"],
+        },
+      });
+      const svc = makeServiceWithCategories();
+
+      for (const canSeeSensitive of [true, false]) {
+        const me = await svc.get(owner.company.id, canSeeSensitive);
+        expect(me.sellerCategoryIds).toEqual(["31000000"]);
+        expect(me.sellerSubCategoryIds).toEqual(["31170000"]);
+        expect(me.buyerCategoryIds).toEqual([]);
+        expect(me.buyerSubCategoryIds).toEqual([]);
+        expect(JSON.stringify(me)).not.toMatch(/"(46|10)\d{6}"/);
+      }
+    });
+
+    it("yalnız gizli beyanı olan firma kategori kaydında kategorisiz KALAMAZ (alt liste tek başına gelse de)", async () => {
+      const owner = await hiddenDeclared();
+      const svc = makeServiceWithCategories();
+
+      // Form gizli kodları geri yollar, görünür bir şey eklemez → iki eksen de
+      // boş kalırdı; sıfır kategori kapısı ana liste gönderilmese de çalışır.
+      await expect(
+        svc.update(owner.company.id, {
+          sellerSubCategoryIds: ["46180000", "46181500"],
+        } as never),
+      ).rejects.toThrow(/En az bir sektör ya da ürün\/hizmet seçili kalmalı/);
+      // Reddedilen kayıt hiçbir şeyi değiştirmez.
+      const row = await beyan(owner.company.id);
+      expect(row.sellerCategoryIds).toEqual(["46000000"]);
+      expect(row.sellerSubCategoryIds).toEqual(["46180000", "46181500"]);
     });
 
     it("YENİ eklenen gizli kod reddedilir (kayıtlı gizli kodu olan firmada da)", async () => {
@@ -867,10 +963,28 @@ describe("company-profile — alt kategoriler", () => {
 
       await expect(
         svc.update(owner.company.id, {
-          sellerCategoryIds: ["56000000", "44000000"],
+          sellerCategoryIds: ["46000000", "10000000"],
         } as never),
       ).rejects.toThrow(NotFoundException);
-      expect((await beyan(owner.company.id)).sellerCategoryIds).toEqual(["56000000"]);
+      expect((await beyan(owner.company.id)).sellerCategoryIds).toEqual(["46000000"]);
+    });
+
+    it("muafiyet EKSEN BAZINDA (F25): yalnız satışta kayıtlı gizli kod alış eksenine YENİ eklenemez", async () => {
+      const owner = await hiddenDeclared();
+      const svc = makeServiceWithCategories();
+
+      // 46000000 ve 46181500 satış ekseninde kayıtlı; alış ekseninde yok.
+      await expect(
+        svc.update(owner.company.id, { buyerCategoryIds: ["46000000"] } as never),
+      ).rejects.toThrow(NotFoundException);
+      await expect(
+        svc.update(owner.company.id, { buyerSubCategoryIds: ["46181500"] } as never),
+      ).rejects.toThrow(NotFoundException);
+      const row = await beyan(owner.company.id);
+      expect(row.buyerCategoryIds).toEqual([]);
+      expect(row.buyerSubCategoryIds).toEqual([]);
+      // Reddedilen istek satış eksenindeki eski beyana da dokunmadı.
+      expect(row.sellerCategoryIds).toEqual(["46000000"]);
     });
 
     it("beyanında gizli kod OLMAYAN firma gizli segment ekleyemez (kural değişmedi)", async () => {
@@ -881,12 +995,12 @@ describe("company-profile — alt kategoriler", () => {
 
       await expect(
         svc.update(owner.company.id, {
-          sellerCategoryIds: ["56000000"],
+          sellerCategoryIds: ["46000000"],
         } as never),
       ).rejects.toThrow(NotFoundException);
       await expect(
         svc.update(owner.company.id, {
-          sellerSubCategoryIds: ["56101500"],
+          sellerSubCategoryIds: ["46181500"],
         } as never),
       ).rejects.toThrow(NotFoundException);
     });

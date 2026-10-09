@@ -8,9 +8,10 @@
  * Sözleşme:
  *  - Talep açılınca `aiDiscovery` açıksa tur kuyruğa girer (announceListingOpen).
  *  - Tur PLATFORMUN bütçesiyle koşar (`callAiSystem`); günlük USD tavanı aşılırsa koşmaz.
- *  - Adaylar işaretlenir ve kaydedilir; alıcı seçtiklerini tek tıkla davet eder
- *    (kuyruk, AI_AUTO) — aynı adres ikinci kez önerilmez/davet edilmez.
- *  - Alıcı ekranda işlem yapmadıysa 10 dk sonra talebi açan kişiye bildirim + e-posta (bir kez).
+ *  - Adaylar işaretlenir ve kaydedilir; tur bulduğunu KENDİSİ davet eder
+ *    (2026-10-08: onay yok; kuyruk AI_AUTO) — aynı adres ikinci kez
+ *    önerilmez/davet edilmez. Davet akışının tam sözleşmesi (frenler, çökme
+ *    dayanıklılığı, sonuç mesajı): `ai-auto-invite.spec.ts`.
  *  - Süre yarılandı, teklif < 3 → ikinci tur (önceki adaylar hariç).
  */
 import { AuditService } from "../../src/modules/audit/audit.service";
@@ -62,6 +63,7 @@ function makeRuns(opts: { ai: ReturnType<typeof fakeAi>; config?: Record<string,
     config as never,
     email as never,
     notifications as never,
+    makeListingsService().service,
   );
   return { runs, email, notifications };
 }
@@ -179,9 +181,10 @@ describe("DiscoveryRunsService", () => {
     const run = await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId! }, include: { candidates: true } });
     expect(run.state).toBe("DONE");
     expect(Number(run.costUsd)).toBeCloseTo(0.12);
+    // Bulunanlar aynı turda davet edildi (kuyruk); onay beklenmez.
     expect(run.candidates.map((c) => [c.name, c.scope, c.status, c.matchedItems])).toEqual([
-      ["Cıvata AŞ", "LOCAL", "SUGGESTED", [1]],
-      ["Viti Srl", "ABROAD", "SUGGESTED", [1]],
+      ["Cıvata AŞ", "LOCAL", "INVITED", [1]],
+      ["Viti Srl", "ABROAD", "INVITED", [1]],
     ]);
     expect(ai.callAiSystem).toHaveBeenCalledTimes(4);
   });
@@ -228,23 +231,19 @@ describe("DiscoveryRunsService", () => {
     expect(ai.callAiSystem).not.toHaveBeenCalled();
   });
 
-  it("tek tık davet: seçilenler kuyruğa (AI_AUTO) girer, aday INVITED olur; ikinci kez davet edilmez", async () => {
+  it("tur bulduğunu kendisi kuyruğa (AI_AUTO) alır; ekran durumu okur, onay ucu yoktur", async () => {
     const ai = fakeAi([[{ name: "Viti Srl", email: "info@viti.it", country: "IT", reason: "r" }], []]);
     const { runs } = makeRuns({ ai });
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const l = await openListing(owner.company.id, owner.user.id);
     await runs.process((await runs.enqueue(l.id, "PUBLISH"))!);
-    const view = await runs.forListing(owner.auth, l.id);
-    const cand = view.runs[0]!.candidates[0]!;
-    expect(cand.status).toBe("SUGGESTED");
 
-    const { results } = await runs.invite(owner.auth, l.id, [cand.id]);
-    expect(results[0]!.status).toBe("QUEUED");
     const queued = await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "info@viti.it" } });
     expect(queued.source).toBe("AI_AUTO");
-    expect((await runs.forListing(owner.auth, l.id)).runs[0]!.candidates[0]!.status).toBe("INVITED");
-    // Aynı aday yeniden gönderilemez (SUGGESTED değil).
-    expect((await runs.invite(owner.auth, l.id, [cand.id])).results).toEqual([]);
+    const cand = (await runs.forListing(owner.auth, l.id)).runs[0]!.candidates[0]!;
+    expect(cand).toMatchObject({ status: "INVITED", invite: "QUEUED", inviteReason: null });
+    // Aday onaylama yolu kaldırıldı — davet yalnız turun kendisinden.
+    expect((runs as unknown as { invite?: unknown }).invite).toBeUndefined();
   });
 
   it("başka firma sonuçları göremez", async () => {
@@ -255,19 +254,24 @@ describe("DiscoveryRunsService", () => {
     await expect(runs.forListing(other.auth, l.id)).rejects.toMatchObject({ status: 404 });
   });
 
-  it("10 dk sonra talebi açana bildirim + e-posta (bir kez); bant kapatıldıysa gitmez", async () => {
+  it("tur bitince talebi açana SONUÇ bildirimi + e-posta (bir kez, beklemeden); bant kapatmak sonucu etkilemez", async () => {
     const ai = fakeAi([[{ name: "Viti Srl", email: "info@viti.it", country: "IT", reason: "r" }], []]);
     const { runs, email, notifications } = makeRuns({ ai });
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const l = await openListing(owner.company.id, owner.user.id);
     await runs.process((await runs.enqueue(l.id, "PUBLISH"))!);
 
-    await runs.tick(new Date(Date.now() + 2 * 60_000));
-    expect(notifications.pushToUser).not.toHaveBeenCalled();
-    await runs.tick(new Date(Date.now() + 11 * 60_000));
     expect(notifications.pushToUser).toHaveBeenCalledWith(
       owner.user.id,
-      expect.objectContaining({ type: "ai_supplier_suggestions", ctaPath: `/company/ilan/${l.id}?ai-davet=1`, portal: "satinalma" }),
+      expect.objectContaining({
+        type: "ai_supplier_suggestions",
+        titleKey: "api.notifications.discovery.invitedTitle",
+        ctaPath: `/company/ilan/${l.id}?ai-davet=1`,
+        portal: "satinalma",
+        // İki sayı ayrı (gözden geçirme AI-6): üye yok, 1 davet e-postası sırada.
+        bodyKey: "api.notifications.discovery.invitedBodyEmails",
+        params: expect.objectContaining({ members: 0, emails: 1 }),
+      }),
     );
     expect(email.send).toHaveBeenCalledWith(
       expect.objectContaining({ context: { type: "ai_supplier_suggestions", id: l.id } }),
@@ -275,76 +279,22 @@ describe("DiscoveryRunsService", () => {
     await runs.tick(new Date(Date.now() + 20 * 60_000));
     expect(notifications.pushToUser).toHaveBeenCalledTimes(1);
 
-    // Kapatılan bant: yeni tur bildirilmez.
-    const l2 = await openListing(owner.company.id, owner.user.id);
-    const ai2 = fakeAi([[{ name: "Tubi Srl", email: "info@tubi.it", country: "IT", reason: "r" }], []]);
-    const r2 = makeRuns({ ai: ai2 });
-    await r2.runs.process((await r2.runs.enqueue(l2.id, "PUBLISH"))!);
-    await r2.runs.dismiss(owner.auth, l2.id);
-    await r2.runs.tick(new Date(Date.now() + 11 * 60_000));
-    expect(r2.notifications.pushToUser).not.toHaveBeenCalled();
+    // Bandı gizlemek yalnız ekranı kapatır.
+    await runs.dismiss(owner.auth, l.id);
+    expect((await runs.forListing(owner.auth, l.id)).runs[0]!.dismissedAt).not.toBeNull();
+    await runs.tick(new Date(Date.now() + 40 * 60_000));
+    expect(notifications.pushToUser).toHaveBeenCalledTimes(1);
   });
 
-  it("pencereden/formdan zaten davet edilmiş adaylar bildirimde sayılmaz; hepsi davetliyse bildirim + e-posta gitmez (GA3)", async () => {
-    const { runs, email, notifications } = makeRuns({ ai: fakeAi([]) });
-    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD", country: "TR" });
-    const m1 = await makeCompanyWithUser(prisma, { tier: "SILVER", country: "TR" });
-    const m2 = await makeCompanyWithUser(prisma, { tier: "SILVER", country: "TR" });
-    const ref = await prisma.companyReferralInvite.create({
-      data: { inviterCompanyId: owner.company.id, email: "ref@x.com", invitedById: owner.user.id },
-    });
-    const seed = async (withExternal: boolean) => {
-      const l = await openListing(owner.company.id, owner.user.id);
-      await prisma.supplierDiscoveryRun.create({
-        data: {
-          listingId: l.id,
-          companyId: owner.company.id,
-          trigger: "PUBLISH",
-          state: "DONE",
-          finishedAt: new Date(Date.now() - 11 * 60_000),
-          candidates: {
-            create: [
-              { name: "Üye 1", status: "MEMBER", memberCompanyId: m1.company.id, scope: "LOCAL", source: "PLATFORM" },
-              { name: "Üye 2", status: "MEMBER", memberCompanyId: m2.company.id, scope: "LOCAL", source: "PLATFORM" },
-              { name: "Viti Srl", status: "SUGGESTED", email: "info@viti.it", scope: "ABROAD", source: "WEB" },
-            ],
-          },
-        },
-      });
-      // Pencere yolu (`inviteMembers`) aday satırını güncellemez; davet yalnız
-      // listing_invitations / external_listing_invites tablosunda.
-      await prisma.listingInvitation.createMany({
-        data: [m1.company.id, m2.company.id].map((id) => ({ listingId: l.id, invitedCompanyId: id, invitedById: owner.user.id })),
-      });
-      if (withExternal) {
-        await prisma.externalListingInvite.create({
-          data: {
-            listingId: l.id,
-            inviterCompanyId: owner.company.id,
-            referralInviteId: ref.id,
-            email: "info@viti.it",
-            locale: "it",
-          },
-        });
-      }
-      return l;
-    };
-
-    // Üçü de davetli → bildirim yok, tur yine de bildirildi sayılır (tekrar denenmez).
-    const all = await seed(true);
-    await runs.tick(new Date());
-    expect(notifications.pushToUser).not.toHaveBeenCalled();
-    expect(email.send).not.toHaveBeenCalled();
-    expect((await prisma.supplierDiscoveryRun.findFirstOrThrow({ where: { listingId: all.id } })).notifiedAt).not.toBeNull();
-
-    // Yalnız dış aday kaldı → sayı 1, yurt dışı 1.
-    const partial = await seed(false);
-    await runs.tick(new Date());
+  it("e-posta bildirimi kapalı kullanıcıya sonuç e-postası gitmez; uygulama içi bildirim gider", async () => {
+    const ai = fakeAi([[{ name: "Viti Srl", email: "info@viti.it", country: "IT", reason: "r" }], []]);
+    const { runs, email, notifications } = makeRuns({ ai });
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.companyUser.update({ where: { id: owner.user.id }, data: { notificationPrefs: { aiSuggestions: false } } });
+    const l = await openListing(owner.company.id, owner.user.id);
+    await runs.process((await runs.enqueue(l.id, "PUBLISH"))!);
     expect(notifications.pushToUser).toHaveBeenCalledTimes(1);
-    expect(notifications.pushToUser).toHaveBeenCalledWith(
-      owner.user.id,
-      expect.objectContaining({ listingId: partial.id, params: expect.objectContaining({ n: 1, abroad: 1 }) }),
-    );
+    expect(email.send).not.toHaveBeenCalled();
   });
 
   it("süre yarılandı + teklif az → İKİNCİ TUR bir kez; önceki adaylar yeniden önerilmez", async () => {

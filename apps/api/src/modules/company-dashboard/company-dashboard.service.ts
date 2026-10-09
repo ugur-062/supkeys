@@ -11,6 +11,7 @@ import {
   reportCurrencyOf,
   tryToCurrency,
 } from "../../common/company/report-currency";
+import { breakdownSegmentOf } from "./category-breakdown";
 
 /**
  * "Acme Tedarik Ltd." → "ACM..." anonim kısa görünüm. Türkçe büyütme yalnız
@@ -467,11 +468,14 @@ export class CompanyDashboardService {
     // Derin denetim 2026-09-29 S026: kod segmente YUVARLANIR (analitiğin
     // `categorySavings`'i ile aynı anahtar) ve ad okuyucunun dilinde üretilir;
     // eskiden talebin L3/L4 kodunun Türkçe adı basılıyordu.
-    const segmentOf = (code: string | undefined): string | null =>
-      code ? `${code.slice(0, 2)}000000` : null;
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): the key is the segment of the
+    // first VISIBLE category (`breakdownSegmentOf`). A request whose
+    // categories are all hidden has no key and falls into the existing
+    // "uncategorized" bucket below - its amount stays in the totals and is
+    // never printed under the hidden segment's name.
     const segCodes = [
       ...new Set(
-        listings.map((l) => segmentOf(l.categoryIds[0])).filter((c): c is string => !!c),
+        listings.map((l) => breakdownSegmentOf(l.categoryIds)).filter((c): c is string => !!c),
       ),
     ];
     const catLabel = await this.resolveCategoryLabels(segCodes);
@@ -507,7 +511,7 @@ export class CompanyDashboardService {
           savings: tryToCurrency(savings, reportCur) ?? 0,
           volume: tryToCurrency(volume, reportCur) ?? 0,
           categoryLabel:
-            catLabel.get(segmentOf(l.categoryIds[0]) ?? "") ?? uncategorized,
+            catLabel.get(breakdownSegmentOf(l.categoryIds) ?? "") ?? uncategorized,
         };
     });
 

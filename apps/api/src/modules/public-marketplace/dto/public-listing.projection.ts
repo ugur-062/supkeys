@@ -1,5 +1,5 @@
 import { Prisma } from "@rothern/db";
-import { listingSlug } from "@rothern/shared";
+import { listingSlug, visibleCategoryIds } from "@rothern/shared";
 
 /**
  * HERKESE AÇIK İLAN YANSITMASI — kapalı zarfın YAPISAL güvencesi.
@@ -220,7 +220,7 @@ export interface PublicListing {
   /** Satırlar: sıra + miktar + birim; AD YOK. */
   items: PublicListingItemRow[];
   company: PublicListingCompany;
-  /** Kategori kodlarının çözülmüş adları (kod → ad); eksik kod atlanır. */
+  /** Kategori kodlarının çözülmüş adları (kod → ad); eksik ve GİZLİ segment kodu atlanır. */
   categories: { id: string; name: string; level: number }[];
   /**
    * Dil durumu (i18n SEO, 2026-09-27) — YALNIZ detay yanıtında: talebin kendi
@@ -304,8 +304,18 @@ export function deriveCover(row: {
 /** Çözülmüş kategori (kod → ad, okuyucunun dilinde) — kart ve detay aynı haritayı okur. */
 export type PublicCategoryMap = Map<string, { id: string; name: string; level: number }>;
 
+/**
+ * GİZLİ SEGMENT BURADA DÜŞER (2026-10-09, sahip kuralı: "anasayfada olmayan
+ * kategori talepte, üründe ya da başka yerde de gösterilmesin"). Süzgeç HARİTADA
+ * değil KODDA: haritayı üç ayrı çağıran kuruyor (herkese açık liste/detay,
+ * panelin maskeli satırı ve maskeli görünümü) ve biri süzmeyi unutsa bile eski
+ * talebin gizli kategorisi ada/çipe/bağlantıya dönüşemez. Kayıt (`Listing.
+ * categoryIds`) değişmez; eşleştirme ve bildirim kodların tamamını okur.
+ */
 const categoriesOf = (row: PublicListingRow, cats: PublicCategoryMap) =>
-  row.categoryIds.map((id) => cats.get(id)).filter((c): c is NonNullable<typeof c> => !!c);
+  visibleCategoryIds(row.categoryIds)
+    .map((id) => cats.get(id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
 
 /**
  * KART YANSITMASI — TEK KAYNAK. Herkese açık liste (`PublicMarketplaceService.list`)
@@ -352,7 +362,8 @@ export function toPublicListingDetail(row: PublicListingRow, cats: PublicCategor
     allowedCurrencies: row.allowedCurrencies,
     isInternational: row.isInternational,
     targetCountries: row.targetCountries,
-    categoryIds: row.categoryIds,
+    // Ham kod da gizlenir: istemci ton/ikon/bağlantıyı koddan türetebiliyor.
+    categoryIds: visibleCategoryIds(row.categoryIds),
     preferredActivities: row.preferredActivities,
     keywords: row.keywords,
     requireAllItems: row.requireAllItems,

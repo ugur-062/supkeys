@@ -6,6 +6,7 @@ import {
   MIN_QUANTITY,
   getUnit,
   normalizeUnit,
+  visibleCategoryIds,
   type AiFieldFlag,
   type AiMissingField,
   type AiTenderDraft,
@@ -253,13 +254,16 @@ export function sanitizeAiDraft(
     // Backend'in DB'ye karşı doğruladığı öneri — revive/refine döngülerinde
     // kaybolmasın diye taşınır; model bu alanı üretMEZ (üretse de yalnız
     // string id biçimi geçer, servis DB'de yeniden doğrular).
-    suggestedCategoryIds: (Array.isArray(r.suggestedCategoryIds)
-      ? r.suggestedCategoryIds
-      : []
-    )
-      .filter((c): c is string => typeof c === "string" && c.trim() !== "")
-      .map((c) => c.trim().slice(0, 64))
-      .slice(0, 10),
+    // Gizli segmentteki kod TAŞINMAZ (2026-10-09): segment gizlenmeden önce
+    // önerilmiş kod eski oturumdan / istemcideki taslaktan geri gelirdi — onay
+    // kartı ve form gizli kategoriyi gösterir, yayın 400 alırdı. Boşalan liste
+    // "kategori eksik" sayılır ve kalemlerden yeniden önerilir (öneri servisi
+    // yalnız görünür segmentlerden seçer).
+    suggestedCategoryIds: visibleCategoryIds(
+      (Array.isArray(r.suggestedCategoryIds) ? r.suggestedCategoryIds : [])
+        .filter((c): c is string => typeof c === "string" && c.trim() !== "")
+        .map((c) => c.trim().slice(0, 64)),
+    ).slice(0, 10),
     // Kaynak işareti: belge yolları her zaman belgeden; "refine" (oturumdan
     // revive, istemci/model taslağı) gelen değeri korur — model argümanındaki
     // değeri çağıran önceki taslakla ezer (assistant propose_tender_draft).

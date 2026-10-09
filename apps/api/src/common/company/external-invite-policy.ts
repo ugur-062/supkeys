@@ -1,3 +1,4 @@
+import type { Prisma } from "@rothern/db";
 import { REGISTRATION_BLOCKED } from "@rothern/shared";
 
 /**
@@ -105,8 +106,14 @@ export function coldInviteDailyCap(
   // eskiden `Math.max(1, …)` 0'ı yutup varsayılan tavanla göndermeye devam
   // ediyordu (yayın denetimi 2026-09-28 Bölüm 5).
   if (cfg.max === 0 || cfg.base === 0) return { cap: 0, braked: null };
-  const base = Math.max(1, cfg.base ?? DEFAULT_COLD_INVITE_BASE_DAILY);
-  const max = Math.max(base, cfg.max ?? DEFAULT_COLD_INVITE_MAX_DAILY);
+  // A CONFIGURED MAXIMUM ALWAYS CAPS (round 5, D15 / AI-OPS-1): the maximum
+  // used to be raised to the base (`Math.max(base, max)`), so any
+  // `COLD_INVITE_MAX_DAILY` between 1 and the base (150 by default) was
+  // silently ignored - a stack set to 50 sent up to 150 a day. The maximum is
+  // the operator's ceiling: when it is below the base, the base (first-week
+  // value, warm-up floor and brake floor) comes down to it. Undefined = default.
+  const max = Math.max(1, cfg.max ?? DEFAULT_COLD_INVITE_MAX_DAILY);
+  const base = Math.min(max, Math.max(1, cfg.base ?? DEFAULT_COLD_INVITE_BASE_DAILY));
   const weeks = stats.firstSentAt ? Math.max(0, Math.floor((now.getTime() - stats.firstSentAt.getTime()) / (7 * DAY_MS))) : 0;
   // ISINMA HACME BAĞLI (yayın denetimi 2026-09-28 B5-14): takvim tek başına
   // yetmez — haftalarca az gönderen platformun tavanı yine ikiye katlanıp bir
@@ -130,6 +137,59 @@ export function coldInviteDailyCap(
 export type InviteSourceKind = "MANUAL" | "AI_FORM" | "AI_AUTO";
 
 /**
+ * Kuyruk satırının iptal nedeni: yayın sonrası keşif turunun kuyruğa aldığı
+ * (`AI_AUTO`) davet, alıcı talebi ÖZELE çevirdiği ya da otomatik arama kutusunu
+ * KAPATTIĞI için e-posta gitmeden düştü (gözden geçirme AI-1). Adres davet
+ * EDİLMEDİ: kayıtta talebe bağlanmaz; alıcı aynı adresi kendisi davet ederse
+ * satır yeniden kuyruğa girer.
+ */
+export const AUTO_INVITE_OFF_REASON = "AUTO_INVITE_OFF";
+
+/**
+ * OTOMATİK DAVET ARTIK GEÇERSİZ — TEK TANIM (2026-10-09, gözden geçirme AI-1;
+ * ikinci gözden geçirme A-1). Yayın sonrası keşif turunun kuyruğa aldığı
+ * (`AI_AUTO`) davet, alıcı talebi ÖZELE çevirdiyse ("yalnız seçtiğim firmalar")
+ * ya da otomatik arama kutusunu KAPATTIYSA geçersizdir. Bu satırlar alıcının
+ * mesai saatini (hafta sonu, 7 günlük adres freni) bekler — pencere saatler /
+ * günler sürer ve o arada alıcı kararını değiştirebilir. Elle (`MANUAL`) ve
+ * pencereden seçilerek (`AI_FORM`) gönderilen davet alıcının bilinçli
+ * seçimidir, dokunulmaz (özel talebe adres davet edilebilir).
+ *
+ * Üç okuyucu AYNI tanımı kullanır, ayrışmasınlar:
+ *  - dağıtıcı: kuyruktaki satırı düşürür, sırası gelmişi okumaz, hatırlatmayı
+ *    göndermez (`ExternalInviteDispatcher`);
+ *  - dağıtıcı: talep yeniden herkese açık + kutu açık olunca düşen satırı geri
+ *    alır (tanımın TERSİ);
+ *  - kayıt: e-postası HİÇ gitmemiş (`sentAt` boş) böyle bir satır adres
+ *    kanıtlanınca talebe BAĞLANMAZ (`attachExternalListingInvites`) — satırın
+ *    kuyruk durumu ne olursa olsun (bekliyor, başka nedenle düşmüş…).
+ *
+ * Yalnız tip: bu dosya saf kalır (Prisma çalışma zamanı içe aktarılmaz).
+ */
+export const AUTO_INVITE_OFF_WHERE: Prisma.ExternalListingInviteWhereInput = {
+  source: "AI_AUTO",
+  listing: { OR: [{ visibility: "PRIVATE" }, { aiDiscovery: false }] },
+};
+
+/**
+ * DID THIS REQUEST'S INVITATION REACH THE ADDRESS, OR CAN IT STILL (round 5
+ * review, R5-04)? A queue row is written for every invitation, whatever became
+ * of it. Only a row that was sent or is still waiting says "this company is
+ * invited to this request": a row that FAILED or was CANCELLED before it left
+ * (hard bounce `SUPPRESSED`, staging `ALLOWLIST`, `AUTO_INVITE_OFF`...) reached
+ * nobody, so it must not lock the OTHER mailboxes of that company - they are
+ * the only way left to reach it. The exact address of such a row stays
+ * "already invited" (the row exists; the buyer re-invites it by hand).
+ *
+ * Readers: `SupplierDiscoveryService.annotate` (company-level "already
+ * invited") and the second discovery round (which earlier candidates still
+ * exclude their whole company).
+ */
+export function inviteReachesAddress(row: { state: string; sentAt?: Date | null }): boolean {
+  return row.state === "QUEUED" || row.state === "SENT" || !!row.sentAt;
+}
+
+/**
  * Bu adrese şimdi davet e-postası gidebilir mi? `null` = gidebilir; tarih =
  * o zamana dek bekle (7 gün freni).
  */
@@ -142,6 +202,18 @@ export function inviteHoldUntil(p: {
   if (p.source === "MANUAL" || p.engaged || !p.lastInviteEmailAt) return null;
   const until = new Date(p.lastInviteEmailAt.getTime() + INVITE_HOLD_DAYS * DAY_MS);
   return until > p.now ? until : null;
+}
+
+/**
+ * Davet e-postası talebin kapanışından en az bu kadar önce çıkabilmeli; 7 gün
+ * freni daha geç bitiyorsa e-posta HİÇ gitmez (kuyruk satırı `FREQUENCY` ile
+ * düşer). Dağıtıcı ve "kaç davet e-postası sıraya alındı" sonuç mesajı
+ * (gözden geçirme AI-6) AYNI kuralı okur.
+ */
+export const INVITE_MIN_HOURS_BEFORE_CLOSE = 12;
+
+export function inviteMissesClosing(sendAt: Date, closesAt: Date | null): boolean {
+  return !!closesAt && sendAt.getTime() > closesAt.getTime() - INVITE_MIN_HOURS_BEFORE_CLOSE * 3_600_000;
 }
 
 /** İlgi göstermeyen adrese yeterince yazıldı mı (duraklat)? */

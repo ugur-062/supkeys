@@ -289,6 +289,113 @@ describe("davet kabul e-postası onboarding'de, gerçek firma adıyla", () => {
     const invited = await prisma.listingInvitation.findMany({ where: { invitedCompanyId: c.id }, select: { listingId: true } });
     expect(invited.map((i) => i.listingId)).toEqual([dOk.id]);
   });
+
+  it("AI-1: talep özele çevrildiği için gönderilmeden DÜŞEN otomatik davet (AUTO_INVITE_OFF) kayıtta bağlanmaz; aynı alıcının gitmiş daveti bağlanır", async () => {
+    // Yayın sonrası keşif turu adresi iki talebe kuyruğa aldı. Alıcı ilkini
+    // "yalnız seçtiğim firmalar"a çevirdi → dağıtıcı satırı e-posta gitmeden
+    // düşürdü. Bağlantı jetonu (referral) ise GEÇERLİ: ikinci talebin daveti
+    // gitti. Adres kaydolunca özel talebi GÖRMEMELİ — hiç davet edilmedi.
+    const service = svc();
+    const a = await makeCompany(prisma, { tier: "GOLD" });
+    const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
+    const c = await makeCompany(prisma, { tier: "GOLD" }); // yeni kaydolan
+    const EMAIL = "bulunan@firma.com";
+    const ra = await referral(a.id, aUser.id, EMAIL, "tok-a");
+    const nowPrivate = await prisma.listing.create({
+      data: { companyId: a.id, createdById: aUser.id, type: "ALIM", title: "t", status: "OPEN", visibility: "PRIVATE" },
+    });
+    const stillPublic = await prisma.listing.create({
+      data: { companyId: a.id, createdById: aUser.id, type: "ALIM", title: "t", status: "OPEN", visibility: "PUBLIC", aiDiscovery: true },
+    });
+    await prisma.externalListingInvite.create({
+      data: {
+        listingId: nowPrivate.id,
+        inviterCompanyId: a.id,
+        referralInviteId: ra.id,
+        email: EMAIL,
+        locale: "tr",
+        source: "AI_AUTO",
+        state: "CANCELLED",
+        cancelReason: "AUTO_INVITE_OFF",
+      },
+    });
+    await prisma.externalListingInvite.create({
+      data: { listingId: stillPublic.id, inviterCompanyId: a.id, referralInviteId: ra.id, email: EMAIL, locale: "tr", source: "AI_AUTO", state: "SENT" },
+    });
+
+    await consume(service, EMAIL, c.id, "tok-a");
+
+    const invited = await prisma.listingInvitation.findMany({ where: { invitedCompanyId: c.id }, select: { listingId: true } });
+    expect(invited.map((i) => i.listingId)).toEqual([stillPublic.id]);
+  });
+
+  it("A-1: e-postası HİÇ gitmemiş otomatik davet, talep artık özelse ya da kutu kapalıysa kayıtta BAĞLANMAZ — satır kuyrukta beklese de, başka nedenle (FREQUENCY, PAUSED, ALLOWLIST) düşmüş olsa da", async () => {
+    // İkinci gözden geçirmenin senaryosu: adres iki gün önce başka bir alıcıdan
+    // davet aldı; A'nın yayın sonrası turu adresi kuyruğa aldı, dağıtıcı satırı
+    // FREQUENCY ile düşürdü (e-posta hiç gitmedi, A'nın ekranı "gönderilmedi"
+    // diyor). A sonra talebi "yalnız seçtiğim firmalar"a çevirdi. Dağıtıcı
+    // yalnız KUYRUKTAKİ satırı `AUTO_INVITE_OFF` yapar — bu satır eski nedeniyle
+    // kalır. Adres başka alıcının bağlantısıyla kaydolup adresini doğrulayınca
+    // A'nın ÖZEL talebine davetli oluyor, talebi görüp teklif verebiliyordu.
+    const service = svc();
+    const a = await makeCompany(prisma, { tier: "GOLD" });
+    const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
+    const c = await makeCompany(prisma, { tier: "GOLD" }); // yeni kaydolan
+    const EMAIL = "bulunan@firma.com";
+    const ra = await referral(a.id, aUser.id, EMAIL, "tok-a");
+    type Row = {
+      visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE";
+      aiDiscovery: boolean;
+      source: "MANUAL" | "AI_FORM" | "AI_AUTO";
+      state: "QUEUED" | "SENT" | "CANCELLED";
+      cancelReason?: string;
+      sent?: boolean;
+      bound: boolean;
+    };
+    const rows: Record<string, Row> = {
+      // Hiç gitmemiş otomatik davet + talep özel / kutu kapalı → BAĞLANMAZ.
+      "özel, FREQUENCY ile düşmüş": { visibility: "PRIVATE", aiDiscovery: false, source: "AI_AUTO", state: "CANCELLED", cancelReason: "FREQUENCY", bound: false },
+      "özel, PAUSED ile düşmüş": { visibility: "PRIVATE", aiDiscovery: false, source: "AI_AUTO", state: "CANCELLED", cancelReason: "PAUSED", bound: false },
+      "özel, ALLOWLIST ile düşmüş": { visibility: "PRIVATE", aiDiscovery: true, source: "AI_AUTO", state: "CANCELLED", cancelReason: "ALLOWLIST", bound: false },
+      "özel, hâlâ kuyrukta (dağıtıcı dakikası koşmadı)": { visibility: "PRIVATE", aiDiscovery: false, source: "AI_AUTO", state: "QUEUED", bound: false },
+      "herkese açık ama kutu kapalı, hâlâ kuyrukta": { visibility: "PUBLIC", aiDiscovery: false, source: "AI_AUTO", state: "QUEUED", bound: false },
+      // DENETİM — bağlanmaya devam edenler.
+      "özel, e-postası GERÇEKTEN gitmiş otomatik davet": { visibility: "PRIVATE", aiDiscovery: false, source: "AI_AUTO", state: "SENT", sent: true, bound: true },
+      "özel, alıcının ELLE yazdığı adres": { visibility: "PRIVATE", aiDiscovery: false, source: "MANUAL", state: "QUEUED", bound: true },
+      "özel, alıcının pencereden SEÇTİĞİ adres": { visibility: "PRIVATE", aiDiscovery: false, source: "AI_FORM", state: "CANCELLED", cancelReason: "FREQUENCY", bound: true },
+      "herkese açık + kutu açık, FREQUENCY ile düşmüş": { visibility: "PUBLIC", aiDiscovery: true, source: "AI_AUTO", state: "CANCELLED", cancelReason: "FREQUENCY", bound: true },
+      "bağlantılara açık + kutu açık, kuyrukta": { visibility: "CONNECTIONS", aiDiscovery: true, source: "AI_AUTO", state: "QUEUED", bound: true },
+    };
+    const listingOf: Record<string, string> = {};
+    for (const [name, r] of Object.entries(rows)) {
+      const l = await prisma.listing.create({
+        data: { companyId: a.id, createdById: aUser.id, type: "ALIM", title: name, status: "OPEN", visibility: r.visibility, aiDiscovery: r.aiDiscovery },
+      });
+      listingOf[name] = l.id;
+      await prisma.externalListingInvite.create({
+        data: {
+          listingId: l.id,
+          inviterCompanyId: a.id,
+          referralInviteId: ra.id,
+          email: EMAIL,
+          locale: "tr",
+          source: r.source,
+          state: r.state,
+          cancelReason: r.cancelReason ?? null,
+          sentAt: r.sent ? new Date(Date.now() - 24 * 3_600_000) : null,
+        },
+      });
+    }
+
+    // Kayıt başka bir yoldan (jeton yok); adres doğrulanınca adrese gelmiş davetler bağlanır.
+    await consume(service, EMAIL, c.id, undefined);
+
+    const invited = new Set(
+      (await prisma.listingInvitation.findMany({ where: { invitedCompanyId: c.id }, select: { listingId: true } })).map((i) => i.listingId),
+    );
+    const got = Object.fromEntries(Object.keys(rows).map((name) => [name, invited.has(listingOf[name]!)]));
+    expect(got).toEqual(Object.fromEntries(Object.entries(rows).map(([name, r]) => [name, r.bound])));
+  });
 });
 
 /**

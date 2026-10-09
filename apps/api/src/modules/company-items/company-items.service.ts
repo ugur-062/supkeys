@@ -27,7 +27,11 @@ import {
   isCurrencyCode,
   productPriceBase,
   isHttpsUrl,
-  productVideoEmbedUrl } from "@rothern/shared";
+  productVideoEmbedUrl,
+  hiddenCategoryWhere,
+  isHiddenCategory,
+  visibleCategoryId,
+  visibleCategoryIds } from "@rothern/shared";
 import { fxRate, resolveCompanyCurrency } from "../../common/currency/fx-rates";
 import {
   ATTRIBUTE_LIST_MAX_ITEMS,
@@ -289,10 +293,13 @@ export class CompanyItemsService {
     const q = opts.q?.trim();
     // TR-katlanmış arama: 'İ'/aksan sorunsuz (kategori aramasıyla aynı yol).
     const folded = q ? foldSearchText(q) : null;
+    // A code under a hidden segment is not a filter anyone can pick: it
+    // behaves as if no category filter was given (owner rule 2026-10-09).
+    const categoryFilter = visibleCategoryId(opts.categoryId);
     const where: Prisma.CompanyItemWhereInput = {
       companyId,
       isActive: !opts.archived,
-      ...(opts.categoryId ? { categoryId: opts.categoryId } : {}),
+      ...(categoryFilter ? { categoryId: categoryFilter } : {}),
       ...(opts.status ? SHOWCASE_STATUS_WHERE[opts.status] : {}),
       ...(folded
         ? {
@@ -373,6 +380,7 @@ export class CompanyItemsService {
 
   async create(user: AuthenticatedCompanyUser, input: CatalogItemInput) {
     const data = this.normalize(input);
+    await this.assertCategoryAllowed(data.categoryId, null);
     // Arama metni `update` ile AYNI formül — yoksa katlanmış arama yeni kalemi
     // ilk düzenlemeye kadar bulamazdı (derin denetim LU-08).
     const searchText = foldSearchText(
@@ -410,7 +418,18 @@ export class CompanyItemsService {
     // satış izniyle değişir — `setActive` ile aynı kural.
     this.assertCanTouchShowcase(user, before);
     this.assertNotInReview(before);
-    const patch = this.normalize({ ...this.toInput(before), ...input });
+    const merged = { ...this.toInput(before), ...input };
+    // LEGACY CATEGORY (owner rule 2026-10-09): a stored category under a
+    // hidden segment is shown nowhere, so a form cannot send it back. An
+    // EMPTY value for it is therefore not a decision to clear it: the stored
+    // code stays (the showcase path does the same, `normalizeShowcase`), and
+    // an unrelated edit of a published legacy product is not stopped by the
+    // "category required" gate. Replacing it with a current category works.
+    if (!merged.categoryId?.trim() && isHiddenCategory(before.categoryId)) {
+      merged.categoryId = before.categoryId;
+    }
+    const patch = this.normalize(merged);
+    await this.assertCategoryAllowed(patch.categoryId, before.categoryId);
     // MODERASYON (derin denetim Y-07, 2026-09-29): bu uç eskiden yalnız PENDING
     // kilidine bakıp yayındaki (APPROVED) ürünün adını/açıklamasını/kategorisini
     // admin görmeden değiştiriyordu — vitrin yolunu (`updateShowcase`) atlatmanın
@@ -584,6 +603,7 @@ export class CompanyItemsService {
     if (source.length === 0) {
       return { added: 0, skipped: 0, truncated: 0 };
     }
+    const importCategoryId = visibleCategoryIds(listing.categoryIds)[0] ?? null;
     // Okuma, tavan ve yazma TEK kilitte (arayüz testi FX-00 O-061): çift tık
     // iki isteği de boş kataloğu okuyup kalemleri iki kez yazıyordu (malzeme
     // kodu olmayan kalemi tekil anahtar korumuyor); eşzamanlı içe aktarmalar
@@ -622,7 +642,9 @@ export class CompanyItemsService {
           // (denetimin peşine düştüğü sınıf: uydurma varsayılan).
           unitCode: it.unitCode ?? normalizeUnit(it.unit),
           // İlanın ilk kategorisi makul bir varsayılan; kullanıcı düzeltebilir.
-          categoryId: listing.categoryIds[0] ?? null,
+          // First VISIBLE one: a legacy request under a hidden segment must
+          // not seed NEW catalogue items with its hidden code.
+          categoryId: importCategoryId,
           targetPrice: it.targetPrice,
         });
       }
@@ -683,7 +705,13 @@ export class CompanyItemsService {
     const page = Math.max(1, q.page ?? 1);
     const size = Math.min(Math.max(q.pageSize ?? PRODUCT_PAGE_SIZE, 1), 48);
     // Fiyat süzgecinin para birimi: seçilmediyse FİRMANIN ülkesinden.
-    q = { ...q, currency: resolveCompanyCurrency(q.currency, user.country) };
+    // `category`: a code under a hidden segment (hand-typed or bookmarked
+    // `?category=`) behaves as if no category filter was given.
+    q = {
+      ...q,
+      currency: resolveCompanyCurrency(q.currency, user.country),
+      category: visibleCategoryId(q.category) ?? undefined,
+    };
     const where = productIndexWhere(q, [{ companyId: { notIn: await this.hiddenCompanyIds(user.companyId) } }], {
       employeeValues: await employeeValuesQuery(this.prisma, q.employees),
     });
@@ -763,7 +791,14 @@ export class CompanyItemsService {
   async discoverFacets(user: AuthenticatedCompanyUser, q: ProductIndexParams = {}) {
     // Histogram firmanın para biriminde (seçilmediyse ülkesinden) — liste
     // ucuyla AYNI çözüm, yoksa sınırlar bir birimde gösterilip ötekinde süzülürdü.
-    q = { ...q, currency: resolveCompanyCurrency(q.currency, user.country) };
+    // `category` under a hidden segment = no category filter (list endpoint
+    // does the same): no `selectedCategory` name, no sub-branches, and the
+    // counts are those of the unfiltered index.
+    q = {
+      ...q,
+      currency: resolveCompanyCurrency(q.currency, user.country),
+      category: visibleCategoryId(q.category) ?? undefined,
+    };
     const raw = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
@@ -817,7 +852,11 @@ export class CompanyItemsService {
       ]),
     ];
     const cats = ids.length
-      ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, ...CATEGORY_NAME_SELECT, level: true } })
+      ? await this.prisma.category.findMany({
+          // Names are resolved for visible codes only (single source).
+          where: { id: { in: ids }, ...hiddenCategoryWhere() },
+          select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
+        })
       : [];
     const byId = new Map(cats.map((c) => [c.id, c]));
     const named = (pairs: [string, number][]) =>
@@ -929,11 +968,17 @@ export class CompanyItemsService {
        döndürüyordu; panel ucu yalnız `categoryId` veriyordu, dolayısıyla
        panelde kırıntının kategori adımı ve başlığın üstündeki kategori hapı
        HİÇ çizilmiyordu — aynı gövde, iki yüzeyde farklı görünüyordu. */
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): a legacy product keeps its
+    // stored category, but a category under a hidden segment is shown to
+    // nobody - no name, no breadcrumb step, no pill, no raw code. Attribute
+    // labels still come from the stored category (product data, not the
+    // category itself).
+    const shownCategoryId = visibleCategoryId(row.categoryId);
     const [attributeDefs, category] = await Promise.all([
       resolveCategoryAttributes(this.prisma, row.categoryId),
-      row.categoryId
+      shownCategoryId
         ? this.prisma.category.findUnique({
-            where: { id: row.categoryId },
+            where: { id: shownCategoryId },
             select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
@@ -942,6 +987,7 @@ export class CompanyItemsService {
     void this.views?.recordPanelView(user, { companyId: company.id, productId: row.id });
     const product = {
       ...toPublicProduct(row),
+      categoryId: shownCategoryId,
       attributeList: labelAttributes(row.attributes, attributeDefs),
         category: category ? { id: category.id, name: categoryName(category) } : null,
         priceAmount: row.priceAmount?.toString() ?? null,
@@ -999,12 +1045,14 @@ export class CompanyItemsService {
   ): Promise<DiscoverProductRow[]> {
     const take = Math.min(Math.max(opts.limit ?? 12, 1), 48);
     const tokens = opts.q ? tokenizeQuery(opts.q) : [];
+    // A code under a hidden segment is not a filter (owner rule 2026-10-09).
+    const category = visibleCategoryId(opts.category);
     const rows = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
         companyId: { notIn: await this.hiddenCompanyIds(user.companyId) },
-        ...(opts.category && isCategoryCode(opts.category)
-          ? { categoryId: { startsWith: categoryPrefix(opts.category) as string } }
+        ...(category && isCategoryCode(category)
+          ? { categoryId: { startsWith: categoryPrefix(category) as string } }
           : {}),
         ...(tokens.length
           ? // Joker yok (`likeLiteral`) — ürün dizini `productSearchClauses` ile aynı kural.
@@ -1050,7 +1098,8 @@ export class CompanyItemsService {
         excerpt: flat ? (flat.length <= 140 ? flat : `${flat.slice(0, 139)}…`) : null,
         images: r.images,
         unit: r.unit,
-        categoryId: r.categoryId,
+        // Display-only on the card (tone / photo): hidden code is not sent.
+        categoryId: visibleCategoryId(r.categoryId),
         priceMode: r.priceMode,
         priceAmount: r.priceAmount?.toString() ?? null,
         priceTiers: r.priceTiers,
@@ -1179,6 +1228,7 @@ export class CompanyItemsService {
   ) {
     const before = await this.requireOwn(user.companyId, id);
     this.assertNotInReview(before);
+    await this.assertCategoryAllowed(input.categoryId, before.categoryId);
     // Belge (PDF) ve video PAKETLİ özellik (`PRODUCT_MEDIA_TIER`, 2026-09-06).
     // Ücretsiz firmada bu iki alan DOKUNULMADAN kalır: yeni eklenemez (yükleme
     // ucu da paket kapılı), paketi biten firmanın mevcut belgesi de kaydetme
@@ -1269,6 +1319,8 @@ export class CompanyItemsService {
     // ama orada atılan 400 yetim taslak bırakır, yeniden deneme mükerrer
     // korumasına — DUPLICATE_PRODUCT — takılırdı).
     this.assertShowcaseLinks({ videoUrl: null, externalUrl: null }, input, tierAtLeast(user.tier, PRODUCT_MEDIA_TIER));
+    // Category gate BEFORE the record is opened, for the same reason.
+    await this.assertCategoryAllowed(input.categoryId, null);
     const base = this.normalize({
       name,
       unit: input.unit ?? "adet",
@@ -1329,7 +1381,7 @@ export class CompanyItemsService {
   async publish(user: AuthenticatedCompanyUser, id: string) {
     const row = await this.requireOwn(user.companyId, id);
     this.assertNotInReview(row);
-    this.assertPublishable(productPublishBlockerCodes(this.toProductLike(row)));
+    this.assertPublishable(productPublishBlockerCodes(this.publishGateLike(row)), this.hasOutdatedCategory(row));
     // Ücretsiz pakette YAYINDA + ONAY BEKLEYEN ürün tavanı (`PRODUCT_LIMITS`,
     // 2026-09-06). Zaten yayında/bekleyen ürünü yeniden göndermek sayılmaz;
     // taslak sınırsız — kapı yalnız kuyruğa GİRİŞ anında.
@@ -1583,21 +1635,76 @@ export class CompanyItemsService {
    * Hem 400 gövdesi hem vitrin DTO'sundaki `publishBlockers` buradan geçer;
    * ayrışsalardı ekran bir dilde, hata başka dilde olurdu.
    */
-  private publishBlockerTexts(blockers: PublishBlocker[]): string[] {
+  private publishBlockerTexts(blockers: PublishBlocker[], outdatedCategory = false): string[] {
     return blockers.map((b) =>
-      tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
+      // `outdatedCategory`: the product HAS a stored category, but under a
+      // hidden segment - the text asks for a current one instead of saying
+      // that none was chosen.
+      b.code === "category" && outdatedCategory
+        ? tApi("api.companyItems.publishBlocker.categoryNotCurrent")
+        : tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
     );
   }
 
   /** Yayın kapısı eksikleri varsa `publish` ile AYNI 400 (tek metin). */
-  private assertPublishable(blockers: PublishBlocker[]) {
+  private assertPublishable(blockers: PublishBlocker[], outdatedCategory = false) {
     if (blockers.length > 0) {
       throw new BadRequestException(
         i18nMessage("api.companyItems.onayaGonderilemedi", {
-          join: this.publishBlockerTexts(blockers).join(", "),
+          join: this.publishBlockerTexts(blockers, outdatedCategory).join(", "),
         }),
       );
     }
+  }
+
+  /**
+   * PRODUCT CATEGORY GATE (owner rule 2026-10-09). A NEW or CHANGED category
+   * must be an active code of the catalogue that is not under a hidden
+   * segment. Before this gate the value was stored as sent (any string), so a
+   * new product could still be saved, reviewed and published under a hidden
+   * segment.
+   *
+   * Checked ONLY WHEN THE VALUE CHANGES: the forms send the stored value back
+   * on every save, and a legacy product whose category was hidden later must
+   * stay editable (price, description, re-review). Do not move this into the
+   * shared publish gate (`productPublishBlockerCodes`): `assertStaysPublishable`
+   * and the admin approval would then stop edits of legacy published products.
+   */
+  private async assertCategoryAllowed(
+    next: string | null | undefined,
+    stored: string | null | undefined,
+  ): Promise<void> {
+    const code = next?.trim();
+    if (!code || code === stored) return;
+    const known =
+      isCategoryCode(code) &&
+      !isHiddenCategory(code) &&
+      (await this.prisma.category.count({
+        where: { id: code, isActive: true, ...hiddenCategoryWhere() },
+      })) === 1;
+    if (!known) {
+      throw new BadRequestException(
+        i18nMessage("api.companyItems.kategoriGecersizYaDaGuncelDegil", undefined, "INVALID_CATEGORY"),
+      );
+    }
+  }
+
+  /** Not public yet AND the stored category is under a hidden segment. */
+  private hasOutdatedCategory(r: { isPublic: boolean; categoryId: string | null }): boolean {
+    return !r.isPublic && isHiddenCategory(r.categoryId);
+  }
+
+  /**
+   * PUBLISH-GATE VIEW of a product. For a product that is NOT public yet, a
+   * category under a hidden segment counts as no category: sending it for
+   * review would put a brand-new product on the shop window under a category
+   * nobody can see (the admin approval applies the same view). A product that
+   * is ALREADY public keeps its stored category here, so nothing blocks the
+   * edits and the re-review of a legacy published product.
+   */
+  private publishGateLike(r: Parameters<typeof this.toProductLike>[0] & { isPublic: boolean }): ProductLike {
+    const like = this.toProductLike(r);
+    return this.hasOutdatedCategory(r) ? { ...like, categoryId: null } : like;
   }
 
   /**
@@ -1666,7 +1773,10 @@ export class CompanyItemsService {
     mpn: string | null;
     specification: string | null;
   }): Promise<ProductShowcase> {
-    const like = this.toProductLike(r);
+    // Checklist, score and blockers read the SAME view as `publish`: a draft
+    // whose stored category is under a hidden segment shows the category step
+    // as open, with a text that asks for a current category.
+    const like = this.publishGateLike(r);
     const defs = await this.resolveAttributes(r.categoryId);
     const completion = productCompletion(like, {
       requiredAttributeKeys: defs.filter((d) => d.isRequired).map((d) => d.key),
@@ -1704,7 +1814,7 @@ export class CompanyItemsService {
       mpn: r.mpn,
       specification: r.specification,
       completion,
-      publishBlockers: this.publishBlockerTexts(productPublishBlockerCodes(like)),
+      publishBlockers: this.publishBlockerTexts(productPublishBlockerCodes(like), this.hasOutdatedCategory(r)),
       attributeDefs: defs,
     };
   }

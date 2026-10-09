@@ -1,6 +1,6 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { CompanyActivity, Prisma } from "@rothern/db";
-import { foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
+import { foldSearchText, stemPrefix, tokenizeQuery, visibleCategoryId } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
@@ -49,19 +49,25 @@ export class CompanyDirectoryService {
     const pageSize = 24;
     const page = Math.max(1, q.page ?? 1);
     const tokens = q.q ? tokenizeQuery(q.q) : [];
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): a hidden code in `?category=`
+    // behaves as if no category filter was given - the same rule as the shared
+    // directory builder (`common/company/company-directory.ts`). Without it the
+    // filter still worked and listed exactly the companies that had declared
+    // the hidden segment.
+    const category = visibleCategoryId(q.category);
     const where: Prisma.CompanyWhereInput = {
       ...PUBLIC_PROFILE_WHERE,
       ...(q.city ? { city: q.city } : {}),
       ...(q.activity
         ? { activities: { has: q.activity as CompanyActivity } }
         : {}),
-      ...(q.category
+      ...(category
         ? {
             OR: [
-              { buyerCategoryIds: { has: q.category } },
-              { buyerSubCategoryIds: { has: q.category } },
-              { sellerCategoryIds: { has: q.category } },
-              { sellerSubCategoryIds: { has: q.category } },
+              { buyerCategoryIds: { has: category } },
+              { buyerSubCategoryIds: { has: category } },
+              { sellerCategoryIds: { has: category } },
+              { sellerSubCategoryIds: { has: category } },
             ],
           }
         : {}),

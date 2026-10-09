@@ -5,7 +5,8 @@ import { DiscoveryRunsService } from "./discovery-runs.service";
 
 /**
  * AI tedarikçi keşfi turları — her dakika (2026-09-27, Faz 1): bekleyen
- * turları işler, alıcıya "N tedarikçi bulundu" bildirir, ikinci turu açar.
+ * turları işler (arar, bulduğunu davet eder, alıcıya "N tedarikçi davet
+ * edildi" bildirir), yarıda kalmış turu sürdürür, ikinci turu açar.
  */
 @Injectable()
 export class DiscoveryRunsScheduler implements OnModuleInit {
@@ -19,7 +20,7 @@ export class DiscoveryRunsScheduler implements OnModuleInit {
   onModuleInit(): void {
     this.cronRegistry?.register(
       "discovery.runs",
-      "AI supplier discovery runs (after publish, second round, buyer notice)",
+      "AI supplier discovery runs (search and invite after publish, second round, result notice)",
       "her dakika",
     );
   }

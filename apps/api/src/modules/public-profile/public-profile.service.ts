@@ -11,6 +11,8 @@ import {
   stemPrefix,
   tierAtLeast,
   tokenizeQuery,
+  visibleCategoryId,
+  visibleCategoryIds,
 } from "@rothern/shared";
 import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
 import {
@@ -266,9 +268,15 @@ export class PublicProfileService {
   /**
    * Kategori kodlarını L1 segment adına indirger (firma beyanı L1'de;
    * alt kategori beyanları ayrı alanda ve ziyaretçiye basılmaz).
+   *
+   * GİZLİ SEGMENT ÇÖZÜLMEZ (2026-10-09, sahip kuralı: "anasayfada olmayan
+   * kategori hiçbir yerde gösterilmez"): segment gizlenmeden önce beyan edilmiş
+   * kod firmada durur (eşleştirme okur) ama herkese açık profilde ad olarak
+   * çıkmaz. Süzgeç 12'lik kesmeden ÖNCE — gizli kod görünür bir kategorinin
+   * yerini de tüketmesin.
    */
   private async resolveCategoryNames(ids: string[]) {
-    const uniq = [...new Set(ids.filter((id) => /^\d{8}$/.test(id)))].slice(
+    const uniq = [...new Set(visibleCategoryIds(ids).filter((id) => /^\d{8}$/.test(id)))].slice(
       0,
       12,
     );
@@ -311,7 +319,8 @@ export class PublicProfileService {
     const counts = new Map<string, number>();
     for (const r of rows) {
       const seen = new Set<string>();
-      for (const id of [...r.sellerCategoryIds, ...r.buyerCategoryIds]) {
+      // Gizli segment SAYILMAZ: ad da sayı da dönmez, ilk 8'den yer de tüketmez.
+      for (const id of visibleCategoryIds([...r.sellerCategoryIds, ...r.buyerCategoryIds])) {
         if (!/^\d{8}$/.test(id)) continue;
         const seg = `${id.slice(0, 2)}000000`;
         if (seen.has(seg)) continue;
@@ -357,13 +366,16 @@ export class PublicProfileService {
     const page = Math.max(1, q?.page ?? 1);
     const tokens = q?.q ? tokenizeQuery(q.q) : [];
 
+    // Gizli segmentin kodu süzgeç değildir (2026-10-09; ürün dizini ve talep
+    // listesiyle aynı kural): `?categoryId=46000000` kategori seçilmemiş gibi.
+    const categoryId = visibleCategoryId(q?.categoryId);
     const where: Prisma.CompanyItemWhereInput = {
       ...publicProductWhere(),
       companyId: company.id,
-      ...(q?.categoryId && isCategoryCode(q.categoryId)
+      ...(categoryId && isCategoryCode(categoryId)
         ? // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik"
           // seçen ziyaretçi altındaki yaprakları da görür.
-          { categoryId: { startsWith: categoryPrefix(q.categoryId) as string } }
+          { categoryId: { startsWith: categoryPrefix(categoryId) as string } }
         : {}),
       ...(tokens.length
         ? // Token KATLANIR (ham "Çelik" katlanmış sütunda hiç eşleşmiyordu) +
@@ -418,12 +430,16 @@ export class PublicProfileService {
     // sayfasına bağlanır (2026-09-27 SEO denetimi): L3/L4 kodun sayfası yok,
     // süzgeçli dizin adresi (`/urunler?kategori=`) kanoniği `/urunler` olan
     // bir varyanttı. Gizli segmentin sayfası 404 → halka yazılmaz.
+    // Gizli segmentteki eski ürünün KENDİ kategorisi de çözülmez (2026-10-09):
+    // ad kırıntıda / hapta / JSON-LD'de çıkmaz; ürün yayında kalır. Nitelik
+    // tanımları ham koddan okunur (etiketler kategori adı taşımaz).
     const segmentId = segmentCodeOf(row.categoryId);
+    const shownCategoryId = visibleCategoryId(row.categoryId);
     const [attributeDefs, category, segment] = await Promise.all([
       resolveCategoryAttributes(this.prisma, row.categoryId),
-      row.categoryId
+      shownCategoryId
         ? this.prisma.category.findUnique({
-            where: { id: row.categoryId },
+            where: { id: shownCategoryId },
             select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,

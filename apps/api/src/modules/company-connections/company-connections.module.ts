@@ -9,12 +9,13 @@ import { CompanyConnectionsController } from "./controllers/company-connections.
 import { CompanyDirectoryController } from "./controllers/company-directory.controller";
 import { CompanyConnectionsService } from "./services/company-connections.service";
 import { ExternalInviteDispatcher } from "./services/external-invite-dispatcher.service";
+import { ListingEmailInvitesService } from "./services/listing-email-invites.service";
 import { ExternalInviteScheduler } from "./schedulers/external-invite.scheduler";
 
 @Module({
   imports: [CompanyAuthModule, CompanyBlocksModule, EmailModule, NotificationModule, CompanyViewsModule],
   controllers: [CompanyConnectionsController, CompanyDirectoryController, ReferralOptOutController, ReferralVisitController, InvitePreviewController],
-  providers: [CompanyConnectionsService, ExternalInviteDispatcher, ExternalInviteScheduler],
+  providers: [CompanyConnectionsService, ListingEmailInvitesService, ExternalInviteDispatcher, ExternalInviteScheduler],
   // Faz AI-2: asistan araçları bu servisi kullanıcı kimliğiyle çağırır.
   exports: [CompanyConnectionsService, ExternalInviteDispatcher],
 })

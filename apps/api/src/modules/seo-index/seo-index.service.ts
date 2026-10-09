@@ -9,6 +9,7 @@ import {
   listingPath,
   productPath,
   segmentCodeOf,
+  visibleCategoryId,
 } from "@rothern/shared";
 import { LOCALES } from "@rothern/i18n";
 import { localizeAppPath } from "../../common/company/app-routes";
@@ -279,7 +280,11 @@ export class SeoIndexService {
     country: string | null,
     visible: boolean,
   ): Promise<SeoChange> {
-    const segment = segmentCodeOf(categoryId);
+    // Gizli segmentin kategori sayfası YOK (web 404): gizli segmentteki eski
+    // ürün yayımlanınca / güncellenince o adres ne tazelenir ne de IndexNow'a
+    // gider (2026-10-09 — eskiden `/urunler/kategori/46000000-…` üç dilde
+    // Bing/Yandex'e bildiriliyordu). Ürünün ve firmanın kendi sayfası gider.
+    const segment = visibleCategoryId(segmentCodeOf(categoryId));
     const cat = segment
       ? await this.prisma.category.findUnique({ where: { id: segment }, select: { nameTr: true } })
       : null;

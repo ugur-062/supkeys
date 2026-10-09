@@ -1,6 +1,6 @@
 import type { TenderExternalInviteData } from "@rothern/email";
 import type { Locale } from "@rothern/i18n";
-import { listingPath } from "@rothern/shared";
+import { hiddenCategoryWhere, listingPath, visibleCategoryIds } from "@rothern/shared";
 import { Prisma } from "@rothern/db";
 import type { PrismaBypassService } from "../prisma/prisma.service";
 import type { ContentTranslationService } from "../../modules/content-translation/content-translation.service";
@@ -15,7 +15,8 @@ import { tApi } from "../i18n/i18n.service";
  *
  * Tekli davet, hatırlatma ve özet e-postası aynı olgulardan üretilir; alan
  * seçimi BEYAZ LİSTE: başlık, numara, ilk kalemler (ad + miktar + birim),
- * kalem sayısı, teslim yeri (yalnız şehir + ülke), son teklif tarihi, kategori,
+ * kalem sayısı, teslim yeri (yalnız şehir + ülke), son teklif tarihi, kategori
+ * (yalnız GÖRÜNÜR segmenttekiler — `visibleCategoryIds`),
  * aranan tedarikçi tipi, vitrindeyse herkese açık sayfa ve DAVET EDEN FİRMANIN
  * ADI (alıcı bu tedarikçiyi kendisi davet etti — herkese açık sayfadaki
  * anonimlik kuralı genel duyurular içindir). Hedef fiyat, marka/şartname/belge,
@@ -78,11 +79,18 @@ export class InviteContentBuilder {
     let hit = this.facts.get(listing.id);
     if (!hit) {
       hit = (async () => {
+        // Gizli segmentteki kategori e-postaya / önizleme sayfasına YAZILMAZ
+        // (2026-10-09): eski talep durur, kayıtsız alıcıya yalnız görünür
+        // kategorileri gider. Süzme kırpmadan ÖNCE — gizli kod görünür olanın
+        // yerini kapmasın. Eşleştirme saklanan kodların tamamını kullanır.
+        const shownCategoryIds = visibleCategoryIds(listing.categoryIds).slice(0, 3);
         const [cats, place, vitrine] = await Promise.all([
-          this.prisma.category.findMany({
-            where: { id: { in: listing.categoryIds.slice(0, 3) } },
-            select: CATEGORY_NAME_SELECT,
-          }),
+          shownCategoryIds.length > 0
+            ? this.prisma.category.findMany({
+                where: { id: { in: shownCategoryIds }, ...hiddenCategoryWhere() },
+                select: CATEGORY_NAME_SELECT,
+              })
+            : Promise.resolve([]),
           listing.deliveryAddressId
             ? this.prisma.companyAddress.findFirst({
                 where: { id: listing.deliveryAddressId, companyId: listing.companyId },

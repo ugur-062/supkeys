@@ -243,6 +243,73 @@ describe("AdminProductsService", () => {
   });
 
   /**
+   * HIDDEN SEGMENTS (owner rule 2026-10-09; audit F13 / F24). A category under
+   * a hidden segment is shown nowhere - its name is not resolved in the review
+   * queue either; the row says so with `hiddenCategory`. A product that is NOT
+   * public yet cannot be approved with such a category (approval is the moment
+   * a product goes public); the re-review of an ALREADY public legacy product
+   * still works.
+   */
+  describe("gizli segmentteki kategori (2026-10-09)", () => {
+    const LEGACY = { ...BASE, categoryId: "46181500" };
+    /** Catalogue mock that would name ANY code it is asked for. */
+    function named(row: Record<string, unknown>) {
+      const r = rig(row);
+      r.prisma.category.findMany = jest.fn(({ where }: { where: { id: { in: string[] } } }) =>
+        Promise.resolve(where.id.in.map((id) => ({ id, nameTr: `Ad ${id}` }))),
+      ) as never;
+      return r;
+    }
+
+    it("kuyruk ve detay: gizli kategorinin ADI çözülmez, `hiddenCategory` işaretlenir; görünür kategori eskisi gibi", async () => {
+      const hidden = named(LEGACY);
+      const list = await hidden.svc.list({ status: "PENDING" });
+      expect(list.items[0]).toMatchObject({ categoryName: null, hiddenCategory: true });
+      const detail = await hidden.svc.detail("i1");
+      expect(detail).toMatchObject({ categoryName: null, hiddenCategory: true });
+      expect(JSON.stringify([list, detail])).not.toContain("Ad 46181500");
+      // The hidden code is never sent to the name query.
+      for (const call of (hidden.prisma.category.findMany as jest.Mock).mock.calls) {
+        expect(call[0].where.id.in).not.toContain("46181500");
+      }
+
+      const visible = named(BASE);
+      const row = (await visible.svc.list({ status: "PENDING" })).items[0];
+      expect(row).toMatchObject({ categoryName: "Ad 39000000", hiddenCategory: false });
+    });
+
+    it("vitrinde OLMAYAN ürün gizli kategoriyle onaylanmaz (tek ve toplu); metin güncel kategori ister", async () => {
+      const tek = rig(LEGACY);
+      await expect(tek.svc.approve("i1", "a")).rejects.toThrow(
+        /yayın koşullarını karşılamıyor.*Kategori artık kullanılmıyor, güncel bir kategori seçilmeli/,
+      );
+      expect(tek.prisma.companyItem.updateMany).not.toHaveBeenCalled();
+      expect(tek.audit.log).not.toHaveBeenCalled();
+
+      const r = rig(BASE);
+      r.prisma.companyItem.findUnique = jest.fn(({ where }: { where: { id: string } }) =>
+        Promise.resolve(where.id === "b" ? { ...LEGACY, id: "b" } : { ...BASE, id: where.id }),
+      ) as never;
+      const out = await r.svc.approveMany(["a", "b"], "adm1");
+      expect(out.approved).toBe(1);
+      expect(out.skipped).toEqual([
+        { id: "b", reason: expect.stringMatching(/Kategori artık kullanılmıyor/) },
+      ]);
+    });
+
+    it("ZATEN vitrindeki eski ürünün güncelleme onayı engellenmez", async () => {
+      const pub = new Date("2026-08-01T00:00:00Z");
+      const { svc, prisma } = rig({ ...LEGACY, isPublic: true, publishedAt: pub });
+      await svc.approve("i1", "admin1");
+      expect(prisma.companyItem.updateMany.mock.calls[0][0].data).toMatchObject({
+        reviewStatus: "APPROVED",
+        isPublic: true,
+        publishedAt: pub,
+      });
+    });
+  });
+
+  /**
    * TOPLU ONAY (2026-09-14) — otomatik onay DEĞİL: karar yine admin'in, 50
    * ürün için 50 tıklama 1'e iniyor (ücretsiz pakette ürün tavanı 50 oldu).
    */

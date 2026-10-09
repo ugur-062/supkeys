@@ -34,6 +34,14 @@ import {
  *   YONETICI, ONAYLAYICI → 403 (Faz R salt-okunur modeliyle tutarlı).
  */
 
+/**
+ * The AI call ran out of time (`callAi`). Still a 503 with the same message; a
+ * class of its own so that a caller can tell "timed out - trying again helps"
+ * from the other 503s (round 5 review, R5-03: an incomplete supplier search
+ * reports WHY a pass failed).
+ */
+export class AiTimeoutException extends ServiceUnavailableException {}
+
 export interface AiCallOptions {
   feature: string;
   prompt: string;
@@ -60,14 +68,6 @@ export interface AiCallOptions {
    * Bütçe rezervasyonu ve premium eşiği doğru çalışsın diye tahmine eklenir.
    */
   extraInputTokenEstimate?: number;
-  /**
-   * Bu cagridan SONRA ayni ozellikte yapilacak bagli metin cagrisinin
-   * (varsayilan model, grounding yok) prompt+system karakter ust siniri.
-   * Rezervasyon, birikimli tavanlarda (havuz/kullanici/gun) o cagriya da yer
-   * kaldigini dogrular; yer yoksa ILK cagri para harcamadan reddedilir
-   * (profil zenginlestirme grounded yolu, derin denetim MU-06).
-   */
-  followUpInputChars?: number;
   /** AiUsage.metadata'ya yazılacak özellik bağlamı (route, sayfa sayısı vb.). */
   metadata?: Record<string, unknown>;
   /**
@@ -78,6 +78,21 @@ export interface AiCallOptions {
    * zaten "low" (boş-yanıt fix'i, 2026-07-28). Verilmezse sağlayıcı varsayılanı.
    */
   thinkingLevel?: "minimal" | "low" | "medium" | "high";
+  /**
+   * Per-call timeout (ms) instead of the global `AI_TIMEOUT_MS` (round 5, D1).
+   * Only for a call that is known to need longer: the grounded supplier
+   * research takes 45-75 s and the 60 s default cut 15 % of them. An
+   * interactive caller keeps the whole HTTP request below the proxy limit
+   * (Cloudflare 100 s) itself. Keep it well below the reservation reaper
+   * (10 min, `ai.scheduler.ts`).
+   */
+  timeoutMs?: number;
+  /**
+   * Absolute end of the call (epoch ms), the provider's own retries included:
+   * without it every retry of a transient provider error gets the full
+   * `timeoutMs` again. A caller with a wall-clock budget passes it.
+   */
+  deadlineAt?: number;
 }
 
 export interface AiCallResult {
@@ -112,14 +127,14 @@ export class AiService {
    * `anyOf`: özelliğin istediği izinler (herhangi biri yeter). Varsayılan:
    * herhangi bir İŞLEM izni (koltuk) — yetki tablosu 2026-09-05; etiket-only
    * Kurucu/Yönetici, Onaylayıcı ve salt görüntüleyici → 403. Ürün çıkarımı
-   * `sell:product:manage`, profil zenginleştirme `company:manage` geçirir.
+   * `sell:product:manage`, profil tanıtımı önerisi `company:manage` geçirir.
    */
   /**
    * `minTier` — VARSAYILAN "SILVER" ve öyle KALMALI; AI özellikleri paketli
-   * özelliktir. Tek istisna profil zenginleştirme: ücretsiz firmanın profilini
-   * doldurmak PLATFORMUN işine yarıyor (indekslenebilir sayfa = organik
-   * büyüme), o yüzden orada "STANDART" geçiliyor ve çağrı sayısı firma başına
-   * ayrıca sınırlanıyor. Yeni bir özelliğe bu parametreyi vermeden önce
+   * özelliktir. Tek istisna profil tanıtımı önerisi: tam erişimi olmayan
+   * firmanın tanıtım metni de PLATFORMUN işine yarıyor (indekslenebilir sayfa =
+   * organik büyüme), o yüzden orada "STANDART" geçiliyor ve öneri sayısı firma
+   * başına ayrıca sınırlanıyor. Yeni bir özelliğe bu parametreyi vermeden önce
    * "bedelini kim ödüyor, karşılığında ne kazanıyoruz" sorusunu yanıtla.
    */
   assertAiAccess(
@@ -187,21 +202,6 @@ export class AiService {
         { grounded: options.webSearch === true },
       );
 
-    // Bagli takip cagrisi: varsayilan (ucuz) modelle, cikti tavaniyla —
-    // takip cagrisinin premium adayi dusse de bu fallback tahmini sigar.
-    const followUpCostUsd =
-      options.followUpInputChars != null
-        ? costFromUsage(
-            {
-              inputTokens: Math.ceil(options.followUpInputChars / 4),
-              outputTokens: this.config.maxOutputTokens,
-              cacheReadTokens: 0,
-              cacheWriteTokens: 0,
-            },
-            this.config.pricing[models.default]!,
-          )
-        : undefined;
-
     // Premium alt-bütçesi doluysa reserve() fallback'e (ucuz model) düşer —
     // premium'a yükseltme YAPILMAZ, Flash'la devam edilir.
     const candidates = premiumWanted
@@ -210,13 +210,11 @@ export class AiService {
             model: models.premium,
             estimatedCostUsd: estimateFor(models.premium),
             isPremium: true,
-            followUpCostUsd,
           },
           {
             model: baseModel,
             estimatedCostUsd: estimateFor(baseModel),
             isPremium: false,
-            followUpCostUsd,
           },
         ]
       : [
@@ -224,7 +222,6 @@ export class AiService {
             model: baseModel,
             estimatedCostUsd: estimateFor(baseModel),
             isPremium: false,
-            followUpCostUsd,
           },
         ];
 
@@ -247,7 +244,8 @@ export class AiService {
         webSearch: options.webSearch,
         thinkingLevel: options.thinkingLevel,
         maxOutputTokens: this.config.maxOutputTokens,
-        timeoutMs: this.config.timeoutMs,
+        timeoutMs: options.timeoutMs ?? this.config.timeoutMs,
+        deadlineAt: options.deadlineAt,
       });
       // Grounding (Google Search) TOKEN DIŞI, istek başına ücretlidir —
       // maliyete dahil edilmezse bütçe gerçek faturayı ölçmez (denetim P6).
@@ -271,7 +269,7 @@ export class AiService {
           errorCode: "timeout",
           keepEstimate: true,
         });
-        throw new ServiceUnavailableException(
+        throw new AiTimeoutException(
           i18nMessage("api.ai.aiIstegiZamanAsiminaUgradiLutfen"),
         );
       }
@@ -312,7 +310,10 @@ export class AiService {
    * Kullanıcının tetiklediği her şey `callAi` (bütçe + erişim kapısı) kalır.
    */
   async callAiSystem(
-    options: Pick<AiCallOptions, "prompt" | "system" | "responseSchema" | "webSearch" | "thinkingLevel">,
+    options: Pick<
+      AiCallOptions,
+      "prompt" | "system" | "responseSchema" | "webSearch" | "thinkingLevel" | "timeoutMs" | "deadlineAt"
+    >,
   ): Promise<AiCallResult & { costUsd: number }> {
     if (!this.isEnabled) {
       throw new ServiceUnavailableException(
@@ -328,7 +329,8 @@ export class AiService {
       webSearch: options.webSearch,
       thinkingLevel: options.thinkingLevel,
       maxOutputTokens: this.config.maxOutputTokens,
-      timeoutMs: this.config.timeoutMs,
+      timeoutMs: options.timeoutMs ?? this.config.timeoutMs,
+      deadlineAt: options.deadlineAt,
     });
     const cost = costFromUsage(result.usage, this.config.pricing[model]!, {
       grounded: options.webSearch === true,

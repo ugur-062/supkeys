@@ -36,7 +36,9 @@ function rig(opts: {
         number: "ROT-000042",
         status: "OPEN",
         closesAt: new Date("2026-10-04T22:30:00Z"),
-        categoryIds: ["46181700"],
+        // GÖRÜNÜR kategori (e2e/test kuralı 31161500): 46 gizli segment (`HIDDEN_SEGMENTS`),
+        // gizli kodun davete yazılmaması `external-invite-content.spec`te kilitli.
+        categoryIds: ["31161500"],
         type: "ALIM",
         createdById: "u1",
         deliveryAddressId: "a1",
@@ -83,7 +85,7 @@ function rig(opts: {
     company: { findUnique: jest.fn().mockResolvedValue({ name: "Alıcı A.Ş." }) },
     category: {
       findMany: jest.fn().mockResolvedValue([
-        { nameTr: "Baş koruma", nameEn: "Head protection", nameRu: "Защита головы" },
+        { nameTr: "Vidalar", nameEn: "Screws", nameRu: "Винты" },
       ]),
     },
     emailLog: {

@@ -1,5 +1,10 @@
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import { ArrayMaxSize, IsArray, IsOptional, IsString, MaxLength } from "class-validator";
+import {
+  COMPANY_PROFILE_LIMITS,
+  COMPANY_SERVICE_MAX_LENGTH,
+  COMPANY_SERVICES_MAX,
+} from "@rothern/shared";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -9,14 +14,31 @@ import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permi
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { ProfileEnrichService } from "./profile-enrich.service";
 
-class EnrichDto {
+/**
+ * Gövde İSTEĞE BAĞLI: Profilim taslağındaki (henüz kaydedilmemiş olabilecek)
+ * sektör ve hizmetler — tavanlar PATCH /company/profile DTO'suyla aynı
+ * sabitlerden. Web sitesi adresi ALINMAZ (özellik web'e çıkmaz); eski istemcinin
+ * yolladığı `website` alanı `forbidNonWhitelisted` ile 400 döner, AI çağrılmaz.
+ */
+export class ProfileDescriptionDto {
   @IsOptional()
   @IsString()
-  @MaxLength(200)
-  website?: string;
+  @MaxLength(COMPANY_PROFILE_LIMITS.industry)
+  industry?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(COMPANY_SERVICES_MAX)
+  @IsString({ each: true })
+  @MaxLength(COMPANY_SERVICE_MAX_LENGTH, { each: true })
+  services?: string[];
 }
 
-/** Rothern profilini web sitesinden AI ile oluştur — SILVER+ (kapı serviste). */
+/**
+ * Profil tanıtımı önerisi — firmanın platformdaki verisinden (ürünler, sektör,
+ * hizmetler, kategoriler) YALNIZ tanıtım taslağı yazar; web'e çıkmaz, kaydetmez.
+ * Her pakete açık; adet ve günlük sınır serviste.
+ */
 @Controller("company/ai/profile-enrich")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class ProfileEnrichController {
@@ -26,7 +48,7 @@ export class ProfileEnrichController {
   @RequireCompanyPermission("company:manage")
   enrich(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() dto: EnrichDto,
+    @Body() dto: ProfileDescriptionDto,
   ) {
     return this.service.enrich(user, dto);
   }

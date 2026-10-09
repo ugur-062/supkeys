@@ -119,6 +119,39 @@ describe("SeoIndexService", () => {
     ]);
   });
 
+  it("gizli segmentteki eski ürün: kategori sayfası ne tazelenir ne bildirilir; ürün ve firma gider", async () => {
+    // 46 (2026-10-09'da gizlendi) — `/urunler/kategori/46000000-…` web'de 404.
+    const categoryFind = jest.fn().mockResolvedValue({ nameTr: "Kolluk ve Emniyet Ekipmanları" });
+    const prisma = makePrisma({ category: { findUnique: categoryFind } });
+    (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({
+      slug: "balistik-yelek",
+      isPublic: true,
+      isActive: true,
+      categoryId: "46181500",
+      company: { slug: "acme-metal", cityId: null, country: null, publicEnabled: true },
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.productChanged("item1");
+    await flushSoon(svc);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [revalidateCall, indexNowCall] = fetchMock.mock.calls;
+    const body = JSON.parse(revalidateCall[1].body);
+    expect(body.paths).toEqual(expect.arrayContaining(["/firma/acme-metal/urun/balistik-yelek", "/firma/acme-metal", "/urunler"]));
+    expect(body.paths.filter((p: string) => p.includes("/kategori/"))).toEqual([]);
+    const inBody = JSON.parse(indexNowCall[1].body);
+    expect(inBody.urlList).toEqual([
+      "https://www.rothern.com/firma/acme-metal/urun/balistik-yelek",
+      "https://www.rothern.com/en/companies/acme-metal/products/balistik-yelek",
+      "https://www.rothern.com/ru/kompanii/acme-metal/tovary/balistik-yelek",
+      "https://www.rothern.com/firma/acme-metal",
+      "https://www.rothern.com/en/companies/acme-metal",
+      "https://www.rothern.com/ru/kompanii/acme-metal",
+    ]);
+    // Gizli segmentin adı için kategori tablosuna hiç gidilmez.
+    expect(categoryFind).not.toHaveBeenCalled();
+  });
+
   it("vitrinden çekilen ürün: IndexNow'a GİTMEZ, web yine tazelenir", async () => {
     const prisma = makePrisma();
     (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({

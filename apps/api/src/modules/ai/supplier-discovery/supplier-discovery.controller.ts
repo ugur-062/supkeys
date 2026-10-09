@@ -2,6 +2,7 @@ import { RequireTier } from "../../company-auth/decorators/require-tier.decorato
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
   IsIn,
   IsOptional,
@@ -56,11 +57,25 @@ class DiscoveryDto {
   targetCountries?: string[];
 }
 
-class ExternalDiscoveryDto extends DiscoveryDto {
+export class ExternalDiscoveryDto extends DiscoveryDto {
   @IsOptional()
   @IsString()
   @MaxLength(60)
   region?: string;
+
+  /**
+   * Only these search passes (round 5 review, R5-03): the retry of an
+   * incomplete search sends the scopes that did not answer, so the pass that
+   * did is not searched - and billed - a second time. Omitted = every pass.
+   * NEW FIELD: an API without it rejects the body (`forbidNonWhitelisted`) -
+   * deploy the API before the web that sends it.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(2)
+  @ArrayUnique()
+  @IsIn(["LOCAL", "ABROAD"], { each: true })
+  scopes?: Array<"LOCAL" | "ABROAD">;
 }
 
 /**

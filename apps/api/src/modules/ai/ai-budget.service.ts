@@ -44,14 +44,6 @@ export interface ReserveCandidate {
   model: string;
   estimatedCostUsd: Prisma.Decimal;
   isPremium: boolean;
-  /**
-   * Bu cagriya BAGLI takip cagrisinin tahmini (orn. grounded profil metnini
-   * semaya ceviren ikinci cagri). Havuz/kullanici/gun tavanlarinda tahmine
-   * EKLENEREK kontrol edilir ama REZERVE EDILMEZ (satir yalniz kendi
-   * tahminini tutar). Amac: ilk cagri ucretliyken ikincinin tavana takilip
-   * parayi bosa yakmasi yapisal olarak kapansin (derin denetim MU-06).
-   */
-  followUpCostUsd?: Prisma.Decimal;
 }
 
 export interface ReserveResult {
@@ -215,17 +207,14 @@ export class AiBudgetService {
       for (let i = 0; i < args.candidates.length; i++) {
         const cand = args.candidates[i]!;
         const est = cand.estimatedCostUsd;
-        // Istek tavani yalniz BU cagri icindir; birikimli tavanlar bagli
-        // takip cagrisina da yer kalmasini ister (`followUpCostUsd`).
-        const need = cand.followUpCostUsd ? est.add(cand.followUpCostUsd) : est;
         const denial: BudgetDenial | null =
           est.gt(poolD.mul(requestShare))
             ? "request_cap"
-            : monthSpend.add(need).gt(poolD)
+            : monthSpend.add(est).gt(poolD)
               ? "pool"
-              : userSpend.add(need).gt(poolD.mul(caps.userShare))
+              : userSpend.add(est).gt(poolD.mul(caps.userShare))
                 ? "user_cap"
-                : daySpend.add(need).gt(poolD.mul(dailyShare))
+                : daySpend.add(est).gt(poolD.mul(dailyShare))
                   ? "daily_cap"
                   : cand.isPremium &&
                       premiumSpend.add(est).gt(poolD.mul(caps.premiumShare))

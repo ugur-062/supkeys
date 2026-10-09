@@ -67,6 +67,7 @@ import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 import { newSessionId } from "../../../common/auth/session-revocation.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { isReferralExpired } from "../../../common/company/invite-delivery";
+import { AUTO_INVITE_OFF_REASON, AUTO_INVITE_OFF_WHERE } from "../../../common/company/external-invite-policy";
 import {
   decryptTotpSecret,
   encryptTotpSecret,
@@ -1220,7 +1221,23 @@ export class CompanyAuthService {
         // koşulu iptalden önce SENT olmuş satırları da kapsar; satır koşulu
         // ikinci emniyet.
         referralInvite: { status: { not: "CANCELLED" } },
-        NOT: { state: "CANCELLED", cancelReason: { in: ["REFERRAL_CANCELLED", "INVITER_DOWNGRADED"] } },
+        NOT: [
+          // `AUTO_INVITE_OFF`: the buyer made the request private or switched the
+          // automatic search off before the queued invitation left - the address
+          // was never invited, so signing up must not open the request.
+          { state: "CANCELLED", cancelReason: { in: ["REFERRAL_CANCELLED", "INVITER_DOWNGRADED", AUTO_INVITE_OFF_REASON] } },
+          // Second review A-1: the dispatcher relabels QUEUED rows only. An
+          // automatic (AI_AUTO) invitation that never left - still queued
+          // because the dispatcher minute has not run, or dropped earlier for
+          // another reason (FREQUENCY, PAUSED, SUPPRESSED, ALLOWLIST...) - keeps
+          // its old state for good, and was bound here although the request is
+          // now private ("only the firms I chose") or the option is off. The
+          // rule is read from the request as it is NOW, whatever the row's
+          // state. A row that was really e-mailed (`sentAt`) stays bindable:
+          // that supplier was invited while the request was public. Rows the
+          // buyer invited himself (MANUAL / AI_FORM) are not touched.
+          { ...AUTO_INVITE_OFF_WHERE, sentAt: null },
+        ],
       },
       select: {
         listingId: true,

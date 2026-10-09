@@ -372,6 +372,76 @@ describe("proposePublishTender", () => {
     expect(text).not.toContain("Kişisel koruyucu donanım");
   });
 
+  /**
+   * GİZLİ SEGMENT (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
+   * üründe ya da başka yerde de gösterilmesin"). Segment gizlenmeden önce
+   * önerilmiş kod eski oturumun taslağında durur: onay kartı gizli kategorinin
+   * adını yazıyor, onay da yayın kapısında 400 alıyordu.
+   */
+  describe("eski oturumun taslağındaki gizli kategori önerisi", () => {
+    async function seedHidden() {
+      await prisma.category.create({
+        data: { id: "46181700", code: "46181700", nameTr: "Baş koruma", nameEn: "Head protection", level: 3, isActive: true, sortOrder: 0 },
+      });
+    }
+    async function ownerWithAddress() {
+      const owner = await makeCompanyWithUser(prisma);
+      await prisma.companyAddress.create({
+        data: { companyId: owner.company.id, type: "TESLIMAT", title: "Depo", addressLine: "Test Mah. 1", city: "İstanbul" },
+      });
+      return owner;
+    }
+
+    it("yalnız gizli kod kalmışsa kart ÇIKMAZ: öneri yok sayılır (kategori yeniden önerilir), oturuma onay yazılmaz", async () => {
+      const actions = makeActions();
+      await seedHidden();
+      const owner = await ownerWithAddress();
+      const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+      const session = await makeSession(owner.user.id, owner.company.id, fullDraft({ suggestedCategoryIds: ["46181700"] }));
+
+      const out = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
+      expect(out.ok).toBe(false);
+      // Taslak zorunlu alanı eksik sayılır: "category" (model kategoriyi yeniden önerir).
+      expect(out.problem).toMatch(/eksik/i);
+      expect(out.problem).toMatch(/kategori/i);
+      expect(out.problem).not.toContain("Baş koruma");
+      expect(out.pending).toBeUndefined();
+      expect((await prisma.aiChatSession.findUniqueOrThrow({ where: { id: session.id } })).pendingAction).toBeNull();
+    });
+
+    it("karışık öneri (46 + görünür): kart yalnız görünür kategoriyi yazar; onay talebi görünür kategoriyle açar", async () => {
+      const actions = makeActions();
+      await seedCategory();
+      await seedHidden();
+      const owner = await ownerWithAddress();
+      const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+      const session = await makeSession(
+        owner.user.id,
+        owner.company.id,
+        fullDraft({ suggestedCategoryIds: ["46181700", "30991900"] }),
+      );
+
+      for (const locale of ["tr", "en"] as const) {
+        const out = await runWithLocale(locale, () =>
+          actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] }),
+        );
+        expect(out.ok).toBe(true);
+        const text = out.pending!.summary.join(" ");
+        expect(text).toContain("Kişisel koruyucu donanım (KKD)");
+        expect(text).not.toContain("Baş koruma");
+        expect(text).not.toContain("Head protection");
+        expect(JSON.stringify(out.pending)).not.toContain("46181700");
+      }
+
+      const pending = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
+      const res = await actions.confirm(owner.auth, session.id, pending.pending!.id);
+      expect(res.status).toBe("executed");
+      const listing = await prisma.listing.findFirstOrThrow({ where: { companyId: owner.company.id } });
+      expect(listing.status).toBe("OPEN");
+      expect(listing.categoryIds).toEqual(["30991900"]);
+    });
+  });
+
   it("MU-07: kapanis kartta Istanbul saatiyle ve okuyucunun dilinde (ham UTC ISO yok); yalniz gun → 23:59", async () => {
     const actions = makeActions();
     await seedCategory();

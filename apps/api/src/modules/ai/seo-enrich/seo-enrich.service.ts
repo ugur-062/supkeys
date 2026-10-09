@@ -1,7 +1,8 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { currentLocale } from "../../../common/i18n/locale-context";
-import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
-import type { AiSeoEnrichInput, AiSeoEnrichResult } from "@rothern/shared";
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import { hiddenCategoryWhere, type AiSeoEnrichInput, type AiSeoEnrichResult } from "@rothern/shared";
+import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AiService, type AiCallResult } from "../ai.service";
 import { clampSentences, isMostlyCjk, lowerCaseWords } from "../ai-text";
@@ -30,7 +31,45 @@ const KEYWORD_MAX = 10;
  */
 @Injectable()
 export class SeoEnrichService {
-  constructor(private readonly ai: AiService) {}
+  private readonly logger = new Logger(SeoEnrichService.name);
+
+  constructor(
+    private readonly ai: AiService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /**
+   * İstemcinin gönderdiği kategori ADI isteme yalnız GÖRÜNÜR bir katalog
+   * kategorisinin adıysa girer (2026-10-09, "anasayfada olmayan kategori hiçbir
+   * yerde gösterilmesin" — model istemi dahil). İstemci adı saklanan koddan
+   * çözer; gizli segmentte kalmış eski ürünün/talebin kategorisi böylece modele
+   * hiç yazılmaz, açıklamaya da sızmaz. BEYAZ LİSTE: katalogda karşılığı
+   * olmayan serbest metin de düşer (kapalı tarafa düşer). Ad üç dilden biriyle
+   * birebir eşleşir (istemci `categories/by-ids` yanıtındaki adı yollar).
+   * Sorgu düşerse satır yazılmaz — taslak kategorisiz üretilir.
+   */
+  private async visibleCategoryName(raw: string | null | undefined): Promise<string | null> {
+    const name = raw?.slice(0, 200).trim();
+    if (!raw || !name) return null;
+    // Ham ve kırpılmış hâl birlikte aranır: katalog satırı baştaki/sondaki
+    // boşlukla saklıysa görünür kategori yanlışlıkla düşmesin.
+    const spellings = [...new Set([raw.slice(0, 200), name])];
+    try {
+      const hit = await this.prisma.category.findFirst({
+        where: {
+          AND: [
+            hiddenCategoryWhere(),
+            { OR: [{ nameTr: { in: spellings } }, { nameEn: { in: spellings } }, { nameRu: { in: spellings } }] },
+          ],
+        },
+        select: { id: true },
+      });
+      return hit ? name : null;
+    } catch (err) {
+      this.logger.warn(`seo_enrich: category name check failed: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  }
 
   async enrich(user: AuthenticatedCompanyUser, input: AiSeoEnrichInput): Promise<AiSeoEnrichResult> {
     this.ai.assertAiAccess(user);
@@ -40,7 +79,7 @@ export class SeoEnrichService {
       kind: input.kind,
       name: name.slice(0, 200),
       description: (input.description ?? "").slice(0, SEO_ENRICH_MAX_DESCRIPTION) || null,
-      categoryName: input.categoryName?.slice(0, 200) ?? null,
+      categoryName: await this.visibleCategoryName(input.categoryName),
       facts: (input.facts ?? []).map((f) => f.replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean).slice(0, SEO_ENRICH_MAX_FACTS),
       keywords: normalizeKeywords(input.keywords ?? []).slice(0, KEYWORD_INPUT_MAX),
       brand: input.brand?.slice(0, 100) ?? null,

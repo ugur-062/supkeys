@@ -30,9 +30,9 @@ export class ExternalInviteScheduler implements OnModuleInit {
   async dispatch(): Promise<void> {
     return trackCronRun(this.cronRegistry, "externalInvite.dispatch", async () => {
       const r = await this.dispatcher.dispatch();
-      if (r.sent || r.reminders || r.cancelled) {
+      if (r.sent || r.reminders || r.cancelled || r.resumed) {
         this.logger.log(
-          `invites: sent=${r.sent} reminders=${r.reminders} deferred=${r.deferred} cancelled=${r.cancelled} cap=${r.cap.cap}`,
+          `invites: sent=${r.sent} reminders=${r.reminders} deferred=${r.deferred} cancelled=${r.cancelled} resumed=${r.resumed} cap=${r.cap.cap}`,
         );
       }
     });

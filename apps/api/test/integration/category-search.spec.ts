@@ -1517,15 +1517,16 @@ describe("CategoryService.searchTree — sektör adı ölçütü (sector-name-cr
     });
     await makeCategory({ code: "72100000", nameTr: "Bina bakım hizmetleri", level: 2, parentId: "72000000" });
     await makeCategory({ code: "72101500", nameTr: "Bina destek hizmetleri", level: 3, parentId: "72100000" });
-    await makeCategory({ code: "46000000", nameTr: "Savunma ve Güvenlik", level: 1, sortOrder: 5 });
-    await makeCategory({ code: "46190000", nameTr: "Yangından korunma", level: 2, parentId: "46000000" });
-    await makeCategory({ code: "46191600", nameTr: "Acil durum ekipmanı", level: 3, parentId: "46190000" });
+    // Fikstür segmenti 47 (görünür): 46 segmenti 2026-10-09'da gizlendi.
+    await makeCategory({ code: "47000000", nameTr: "Temizlik Ekipmanı ve Malzemeleri", level: 1, sortOrder: 5 });
+    await makeCategory({ code: "47130000", nameTr: "Temizlik malzemeleri", level: 2, parentId: "47000000" });
+    await makeCategory({ code: "47131900", nameTr: "Acil durum emici pedleri", level: 3, parentId: "47130000" });
 
     const res = await service().searchHierarchical("acil");
 
-    // Yalnız gerçek eşleşmenin zinciri; sektör 72 ve 46 "eşleşmiş sektör" değil.
-    expect(res.segments.map((s) => [s.code, s.isMatch])).toEqual([["46000000", false]]);
-    expect(res.segments[0]!.families.flatMap((f) => f.classes).map((c) => c.code)).toEqual(["46191600"]);
+    // Yalnız gerçek eşleşmenin zinciri; sektör 72 ve 47 "eşleşmiş sektör" değil.
+    expect(res.segments.map((s) => [s.code, s.isMatch])).toEqual([["47000000", false]]);
+    expect(res.segments[0]!.families.flatMap((f) => f.classes).map((c) => c.code)).toEqual(["47131900"]);
   });
 
   it("sözcük BAŞI yeterli: yarım yazılan kelime ('elektrik sist') sektörü yine açar", async () => {

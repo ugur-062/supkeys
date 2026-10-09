@@ -12,6 +12,7 @@ import {
   isHiddenCategory,
   foldSearchText,
   tokenizeQuery,
+  visibleCategoryIds,
   type CategoryCatalog,
 } from "@rothern/shared";
 import { likeLiteral } from "../../../common/prisma/like-literal";
@@ -978,12 +979,21 @@ export class CategoryService {
    * yine döner — kullanıcı eski seçimi görür ama yeni kategori seçim
    * listesinde (getRoots/getChildren) görünmez. Hard-delete'lenmiş id boş
    * döner (findMany doğal davranış).
+   *
+   * GİZLİ SEGMENT ÇÖZÜLMEZ (2026-10-09, sahip kuralı: "anasayfada olmayan
+   * kategori talepte, üründe ya da başka yerde de gösterilmesin"). Bu uç
+   * SAKLANMIŞ kodu ada + kırıntıya çeviren GENEL çözücüdür (talep detayı,
+   * Ayarlar › Kategoriler çipleri, onay detayı, ürün formu — hepsi buraya
+   * sorar); gizli segmentin kodu hiç dönmez, `isActive` muafiyeti ona UZANMAZ.
+   * Web sözleşmesi: dönmeyen id için hiçbir şey çizilmez (çip, kırıntı,
+   * "Yükleniyor…" iskeleti dahil).
    */
   async getByIds(ids: string[]) {
-    if (ids.length === 0) return [];
+    const visible = visibleCategoryIds(ids);
+    if (visible.length === 0) return [];
 
     const cats = await this.prisma.category.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: visible } },
       include: {
         parent: {
           include: {

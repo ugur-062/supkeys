@@ -3,6 +3,7 @@ import {
   BUYING_TIER,
   CURRENCY_CODES,
   SELL_SEAT_PERMISSIONS,
+  isHiddenCategory,
   tierAtLeast,
 } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
@@ -366,6 +367,43 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   if (v === null || typeof v !== "object") return false;
   const proto = Object.getPrototypeOf(v);
   return proto === Object.prototype || proto === null;
+}
+
+const CATEGORY_CODE_RE = /^\d{8}$/;
+/** Kategori taşıyan alan adları: categoryIds, categories, category, segment, sellerSubCategoryIds… */
+const CATEGORY_KEY_RE = /categor|segment/i;
+
+function isHiddenCode(v: unknown): boolean {
+  return typeof v === "string" && CATEGORY_CODE_RE.test(v) && isHiddenCategory(v);
+}
+
+/** Kategori referansı (`{ id | code, name… }`) gizli bir segmentte mi? */
+function isHiddenCategoryRef(v: unknown): boolean {
+  return isPlainObject(v) && (isHiddenCode(v.id) || isHiddenCode(v.code));
+}
+
+/**
+ * Araç sonucu MODEL GİRDİSİDİR: gizli segmentteki kategori (kod, ad, referans
+ * nesnesi) modele hiç gitmez (2026-10-09 — "anasayfada olmayan kategori hiçbir
+ * yerde gösterilmesin"; model 8 haneli koddan kategori adını kendi bilgisiyle
+ * de söyleyebilir). Köprülenen servisler kendi okumalarında süzer; bu geçiş
+ * asistanın KENDİ güvencesidir — yeni bir servis alanı süzmeyi unutsa da eski
+ * kaydın gizli kategorisi sohbete çıkmaz. Yalnız kategori taşıyan alanlarda
+ * (`CATEGORY_KEY_RE`) çalışır: dizi → gizli kod/referans düşer, tekil değer →
+ * `null`. Kaydın kendisi ve diğer alanları aynen kalır.
+ */
+export function redactHiddenCategories(value: unknown, categoryField = false): unknown {
+  if (Array.isArray(value)) {
+    const kept = categoryField ? value.filter((v) => !isHiddenCode(v) && !isHiddenCategoryRef(v)) : value;
+    return kept.map((v) => redactHiddenCategories(v, categoryField));
+  }
+  if (!isPlainObject(value)) return categoryField && isHiddenCode(value) ? null : value;
+  if (categoryField && isHiddenCategoryRef(value)) return null;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    out[key] = redactHiddenCategories(v, CATEGORY_KEY_RE.test(key));
+  }
+  return out;
 }
 
 /**

@@ -2,6 +2,7 @@ import {
   coldInviteDailyCap,
   inviteHoldUntil,
   invitePaused,
+  inviteReachesAddress,
   registrationBlockedCountry,
   reminderDue,
 } from "../../src/common/company/external-invite-policy";
@@ -60,6 +61,39 @@ describe("coldInviteDailyCap", () => {
     expect(coldInviteDailyCap({ firstSentAt: null, sent7d: 40, complaints7d: 2, hardBounces7d: 0, sentYesterday: 40 }, NOW).braked).toBe(
       "complaints",
     );
+  });
+
+  // Round 5, D15 / AI-OPS-1: the stack ran with COLD_INVITE_MAX_DAILY=50 and the
+  // dispatcher logged cap=150 - the maximum was raised to the base.
+  it("a configured maximum below the base caps the day: 50 means 50, not the 150 base", () => {
+    const old = new Date(NOW.getTime() - 60 * DAY); // 5000 by calendar
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { max: 50 }).cap).toBe(50);
+    // Neither the calendar nor the volume warm-up lifts it above the maximum.
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: old }, NOW, { max: 50 }).cap).toBe(50);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: old, peakDay7d: 4000 }, NOW, { max: 50 }).cap).toBe(50);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: old, peakDay7d: 10 }, NOW, { max: 50 }).cap).toBe(50);
+    // An explicit base above the maximum loses too.
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { base: 150, max: 149 }).cap).toBe(149);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { base: 300, max: 1 }).cap).toBe(1);
+  });
+
+  it("the brake never exceeds a maximum below the base, and halves from the capped base", () => {
+    const old = new Date(NOW.getTime() - 60 * DAY);
+    expect(
+      coldInviteDailyCap({ firstSentAt: old, sent7d: 2000, complaints7d: 5, hardBounces7d: 0, sentYesterday: 900 }, NOW, { max: 50 }),
+    ).toEqual({ cap: 50, braked: "complaints" });
+    expect(
+      coldInviteDailyCap({ firstSentAt: old, sent7d: 40, complaints7d: 2, hardBounces7d: 0, sentYesterday: 10 }, NOW, { max: 50 }),
+    ).toEqual({ cap: 25, braked: "complaints" });
+  });
+
+  it("unchanged around the fix: 0 stops, undefined = defaults, a maximum above the base is the warm-up ceiling", () => {
+    const old = new Date(NOW.getTime() - 60 * DAY);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { max: 0 }).cap).toBe(0);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, {}).cap).toBe(150);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { base: undefined, max: undefined }).cap).toBe(150);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { max: 400 }).cap).toBe(150);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: old }, NOW, { max: 400 }).cap).toBe(400);
   });
 });
 
@@ -150,5 +184,23 @@ describe("kayda kapalı ülke (X24)", () => {
     expect(registrationBlockedCountry("NO", countryFromEmailDomain("post@firma.as"))).toBe(false);
     expect(registrationBlockedCountry("AS")).toBe(true);
     expect(timeZoneForCountry("AS")).toBe("Pacific/Pago_Pago");
+  });
+});
+
+/**
+ * Round 5 review, R5-04: a queue row exists for every invitation, whatever
+ * became of it. Only a row that was sent or still waits says "this company is
+ * invited" - a failed / dropped one must not lock the company's other mailboxes.
+ */
+describe("inviteReachesAddress", () => {
+  it("sent or still queued reaches the address; failed or cancelled before it left does not", () => {
+    expect(inviteReachesAddress({ state: "QUEUED" })).toBe(true);
+    expect(inviteReachesAddress({ state: "SENT", sentAt: NOW })).toBe(true);
+    expect(inviteReachesAddress({ state: "FAILED", sentAt: null })).toBe(false);
+    expect(inviteReachesAddress({ state: "CANCELLED", sentAt: null })).toBe(false);
+  });
+
+  it("a row that was sent stays reached whatever its state says later", () => {
+    expect(inviteReachesAddress({ state: "CANCELLED", sentAt: NOW })).toBe(true);
   });
 });

@@ -355,8 +355,9 @@ describe("ürün vitrini — arama ve sitemap", () => {
     const { company } = await seedCompanyWithProduct({}, { categoryId: "39122215" });
     // Segment kodu verildi; yaprak ürün yine gelmeli.
     expect((await service().listPublicProducts(company.slug as string, { categoryId: "39000000" })).total).toBe(1);
-    // Başka segment eşleşmemeli.
-    expect((await service().listPublicProducts(company.slug as string, { categoryId: "50000000" })).total).toBe(0);
+    // Başka segment eşleşmemeli (görünür bir segment: gizli segmentin kodu
+    // süzgeç sayılmaz — `hidden-category-public-surfaces.spec.ts`).
+    expect((await service().listPublicProducts(company.slug as string, { categoryId: "40000000" })).total).toBe(0);
   });
 
   it("sitemap yalnız kapıdan geçenleri döner", async () => {

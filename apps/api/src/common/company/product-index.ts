@@ -12,6 +12,7 @@ import {
   stemPrefix,
   tokenizeQuery,
   isHiddenCategory,
+  visibleCategoryId,
 } from "@rothern/shared";
 import { resolveCategoryAttributes } from "./category-attributes";
 import { FAST_REPLY_HOURS } from "./reply-time";
@@ -256,7 +257,15 @@ export function attributeClauses(raw?: string[]): Prisma.CompanyItemWhereInput[]
   return out;
 }
 
-/** Kategori süzgeci ALT AĞACI kapsar (`categoryPrefix`, seviye × 2 hane). */
+/**
+ * Kategori süzgeci ALT AĞACI kapsar (`categoryPrefix`, seviye × 2 hane).
+ *
+ * HAM KOD, bilinçli: gizli segment süzgeci BURAYA KONMAZ. İlişkili ürün
+ * blokları (`related-products.ts`) ürünün KENDİ saklanmış kodundan yukarı
+ * çıkarak bu fonksiyonu çağırır; gizli segmentteki eski ürünün "benzer
+ * ürünler"i burada süzülseydi boşalırdı. Kullanıcıdan gelen süzgeç değeri
+ * (`?category=`) `productIndexWhere` içinde `visibleCategoryId`den geçer.
+ */
 export function productCategoryWhere(code?: string): Prisma.CompanyItemWhereInput {
   const prefix = code ? categoryPrefix(code) : null;
   if (!prefix) return {};
@@ -337,7 +346,12 @@ export function productIndexWhere(
   ];
   return {
     ...publicProductWhere(),
-    ...productCategoryWhere(q.category),
+    // Gizli segmentin kodu süzgeç DEĞİLDİR (2026-10-09, sahip kuralı:
+    // "anasayfada olmayan kategori hiçbir yerde gösterilmez / sunulmaz"):
+    // elle yazılmış ya da eski yer iminden gelen `?kategori=46000000` kategori
+    // seçilmemiş gibi davranır. Tek yer: herkese açık `/urunler`, panelin
+    // "Ürün Ara"sı ve AI arama sayımı aynı fonksiyonu okur.
+    ...productCategoryWhere(visibleCategoryId(q.category) ?? undefined),
     ...(and.length ? { AND: and } : {}),
   };
 }
@@ -622,13 +636,16 @@ export interface AttributeFacet {
  * Tanımlar kategori ağacından MİRASLA gelir (panel ürün formunda sorulanla
  * AYNI kaynak), sayımlar taranan ürünlerden. Değeri OLMAYAN nitelik listeye
  * girmez — hiçbir şeyi daraltmayan süzgeç satırı gösterilmez.
+ *
+ * Gizli segmentin kodu "kategori seçili değil" sayılır (liste süzgeciyle aynı
+ * kural, bkz. `productIndexWhere`) → nitelik süzgeci sunulmaz.
  */
 export async function attributeFacets(
   prisma: Parameters<typeof resolveCategoryAttributes>[0],
   category: string | undefined,
   rows: { attributes: unknown }[],
 ): Promise<AttributeFacet[]> {
-  if (!category || !/^\d{8}$/.test(category)) return [];
+  if (!category || !/^\d{8}$/.test(category) || isHiddenCategory(category)) return [];
   const defs = (await resolveCategoryAttributes(prisma, category)).filter((d) =>
     FACETABLE_ATTRIBUTE_TYPES.has(d.type),
   );
@@ -671,11 +688,16 @@ export async function attributeFacets(
  * olduğunu göstermek için. Sektör listesi (`contextualFacetCounts.categories`)
  * hep L1'e yuvarlar; bu, seçili kodun seviyesi + 1'e yuvarlar. Yaprak (L4)
  * seçiliyse alt dal yoktur → boş döner.
+ *
+ * GİZLİ SEGMENT kodu verilirse de boş döner (2026-10-09): `?kategori=46000000`
+ * gizli segmentin ailelerini ürün sayılarıyla listeliyordu — gizli dalın alt
+ * kırılımı sunulmaz. Görünür bir kodun alt dalları aynı segmenttedir, ayrıca
+ * süzmeye gerek yok.
  */
 /** Yalnız `categoryId` okur — ham Prisma satırı da geçsin diye dar tip
  *  (`ProductFacetRow` istemek çağıranı gereksizce `toFacetRow`a zorlardı). */
 export function subCategoryCounts(rows: { categoryId: string | null }[], category?: string): [string, number][] {
-  if (!category || !/^\d{8}$/.test(category)) return [];
+  if (!category || !/^\d{8}$/.test(category) || isHiddenCategory(category)) return [];
   const level = categoryLevel(category);
   if (level === 0 || level >= 4) return [];
   const child = (level + 1) as 2 | 3 | 4;

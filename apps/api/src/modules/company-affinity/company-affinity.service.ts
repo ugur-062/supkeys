@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { visibleCategoryIds } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { tApi } from "../../common/i18n/i18n.service";
 
@@ -254,12 +255,20 @@ export class CompanyAffinityService {
     // 6) Beyan — en zayıf sinyal ama SOĞUK BAŞLANGIÇ için şart: hiç davranışı
     //    olmayan yeni firma da bir yerde görünmeli. Sönüm uygulanmaz (beyan
     //    "şu an" geçerlidir, geçmiş bir olay değil).
+    //
+    //    HIDDEN SEGMENTS (owner rule 2026-10-09): a declaration under a hidden
+    //    segment is a legacy value that leaves the company record at its next
+    //    category save and is shown nowhere - it is not copied into this
+    //    derived table either (it would also use up part of the fixed score
+    //    budget for a category nobody can pick). The BEHAVIOUR signals above
+    //    are untouched: they follow the stored codes of real requests and
+    //    products, as matching does.
     for (const c of companies) {
       const m = bucketOf(c.id);
-      for (const code of [...c.buyerCategoryIds, ...c.buyerSubCategoryIds]) {
+      for (const code of visibleCategoryIds([...c.buyerCategoryIds, ...c.buyerSubCategoryIds])) {
         this.addWithLeak(m, code, "buy", W.declared, "declared");
       }
-      for (const code of [...c.sellerCategoryIds, ...c.sellerSubCategoryIds]) {
+      for (const code of visibleCategoryIds([...c.sellerCategoryIds, ...c.sellerSubCategoryIds])) {
         this.addWithLeak(m, code, "sell", W.declared, "declared");
       }
     }

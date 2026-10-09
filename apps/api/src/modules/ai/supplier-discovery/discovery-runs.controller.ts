@@ -11,15 +11,6 @@ import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
 import { DiscoveryRunsService } from "./discovery-runs.service";
 
-class InviteCandidatesDto {
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(60)
-  @IsString({ each: true })
-  @MaxLength(40, { each: true })
-  candidateIds!: string[];
-}
-
 class InviteMembersDto {
   @IsArray()
   @ArrayMinSize(1)
@@ -30,9 +21,11 @@ class InviteMembersDto {
 }
 
 /**
- * Yayın sonrası AI tedarikçi önerileri (2026-09-27, Faz 1): talep sayfasındaki
- * bant ve yayın paneli okur; alıcı seçtiklerini tek tıkla davet eder. Talep
- * açmak GOLD olduğu için kapı da GOLD; yönetme izni talep yönetimiyle aynı.
+ * Yayın sonrası AI tedarikçi keşfi (2026-09-27, Faz 1): talep sayfasındaki
+ * bant ve yayın paneli DURUMU okur. Tur bulduğunu kendisi davet eder
+ * (2026-10-08) — aday onaylama ucu (`POST …/invite`) KALDIRILDI. `invite-members`
+ * elle açılan "AI ile tedarikçi bul" penceresinin ucudur. Talep açmak GOLD
+ * olduğu için kapı da GOLD; yönetme izni talep yönetimiyle aynı.
  */
 @Controller("company/ai/supplier-discovery/listings/:listingId")
 @RequireTier("GOLD")
@@ -44,16 +37,6 @@ export class DiscoveryRunsController {
   @RequireCompanyPermission("buy:listing:manage")
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Param("listingId") listingId: string) {
     return this.service.forListing(user, listingId);
-  }
-
-  @Post("invite")
-  @RequireCompanyPermission("buy:listing:manage")
-  invite(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("listingId") listingId: string,
-    @Body() dto: InviteCandidatesDto,
-  ) {
-    return this.service.invite(user, listingId, dto.candidateIds);
   }
 
   /**

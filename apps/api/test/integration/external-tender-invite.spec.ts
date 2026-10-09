@@ -570,6 +570,28 @@ describe("ExternalInviteDispatcher — gönderim", () => {
     expect(await prisma.externalListingInvite.count({ where: { state: "QUEUED" } })).toBe(2);
   });
 
+  // Round 5, D15 / AI-OPS-1: the stack ran with COLD_INVITE_MAX_DAILY=50 (base
+  // unset = 150) and the dispatcher logged cap=150.
+  it("platform maximum below the base is the cap the dispatcher uses and reports (COLD_INVITE_MAX_DAILY=50)", async () => {
+    expect(await makeDispatcher({ config: { COLD_INVITE_MAX_DAILY: "50" } }).d.capStatus()).toEqual({
+      cap: 50,
+      braked: null,
+      sentToday: 0,
+    });
+    // Enforced in a round: maximum 2 -> two e-mails leave, the third waits.
+    const service = makeService();
+    const { d, email } = makeDispatcher({ config: { COLD_INVITE_MAX_DAILY: "2" } });
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, listing.id, ["a@x.com", "b@x.com", "c@x.com"]);
+    const r = await d.dispatch();
+    expect(r.cap.cap).toBe(2);
+    expect(email.send).toHaveBeenCalledTimes(2);
+    expect(await prisma.externalListingInvite.count({ where: { state: "QUEUED" } })).toBe(1);
+    // Unset stays the default base.
+    expect((await makeDispatcher().d.capStatus()).cap).toBe(150);
+  });
+
   it("kapanıştan önce TEK hatırlatma", async () => {
     const service = makeService();
     const { d, email } = makeDispatcher();

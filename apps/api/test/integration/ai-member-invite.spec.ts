@@ -12,8 +12,9 @@
  *  - Gerekçe: vitrinde kalemi satan ürün adı, yoksa kategori eşleşmesi.
  *  - E-posta alıcının yerel gününde 3'ü geçmez, fazlası akşam özetine
  *    (INVITATION); bu talep için zaten e-posta almış adrese ikincisi gitmez.
- *  - Keşif turu platform üyelerini de önerir; web'de adresi üyeyle eşleşen
- *    aday aynı satıra katılır (BOTH); tek tık davet üyeyi talebe davet eder.
+ *  - Keşif turu platform üyelerini de bulur; web'de adresi üyeyle eşleşen
+ *    aday aynı satıra katılır (BOTH); tur üyeyi talebe KENDİSİ davet eder
+ *    (2026-10-08, onay yok — tam sözleşme `ai-auto-invite.spec.ts`).
  */
 import { foldSearchText } from "@rothern/shared";
 import { AuditService } from "../../src/modules/audit/audit.service";
@@ -128,6 +129,75 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
     expect(toProduct.subject).toContain("Alıcı Makina AŞ");
     const body = JSON.stringify((email.send.mock.calls.find((c) => c[0].to.email === byProduct.user.email)![0] as { templateData: unknown }).templateData);
     expect(body).toContain("M6 Cıvata DIN 933");
+  });
+
+  /**
+   * Round 5 gözden geçirme, R5-06 — keşif kalemin tam adı ürün bulmadığında
+   * gevşek kuralı da kullanıyor (`item-product-match.ts`); davet gerekçesi
+   * yalnız tam adı arıyordu. Canlıdaki D5 örneği: FIN PA1 Smoke Makina
+   * "Hidrolik silindir 80 mm çift etkili" kalemi için yalnız gevşek kuralla
+   * bulunuyor, pencere "kalem eşleşmesi" gösteriyor, davet e-postası ürünü
+   * ("FIN PA1 Smoke Hidrolik Silindir 80 mm") anmıyordu.
+   */
+  it("R5-06: yalnız gevşek kuralla eşleşen üyenin daveti de ürünü anar (keşifle aynı eşleştirici); iki nitelik sözcüğüyle eşleşen kategori dışı ürün anılmaz", async () => {
+    const { service, email } = makeService();
+    const { owner, listing } = await setup();
+    await prisma.listingItem.deleteMany({ where: { listingId: listing.id } });
+    await makeItem(prisma, listing.id, { lineNo: 1, name: "Hidrolik silindir 80 mm çift etkili" });
+    await makeItem(prisma, listing.id, { lineNo: 2, name: "Hidrolik pres 40 ton C tipi" });
+    const product = async (name: string, productName: string, declares: Record<string, string[]> = {}) => {
+      const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name });
+      await proveAccounts(prisma, s.company.id);
+      await prisma.company.update({
+        where: { id: s.company.id },
+        data: { slug: `s-${s.company.id}`, publicEnabled: true, ...declares },
+      });
+      await prisma.companyItem.create({
+        data: {
+          companyId: s.company.id,
+          createdById: s.user.id,
+          name: productName,
+          unit: "adet",
+          slug: `u-${s.company.id}`,
+          isPublic: true,
+          publishedAt: new Date(),
+          searchText: foldSearchText(productName),
+        },
+      });
+      return s;
+    };
+    // Talebin segmentinde; kalemin dört anlamlı sözcüğünden ikisi (zayıf eşleşme + kategori).
+    const weak = await product("FIN PA1 Smoke Makina", "FIN PA1 Smoke Hidrolik Silindir 80 mm", {
+      sellerCategoryIds: ["31000000"],
+    });
+    // Kategori beyanı yok; ikinci kalemin iki anlamlı sözcüğünün ikisi (kesin eşleşme).
+    const strict = await product("Pres AŞ", "Hidrolik Pres");
+    // Kategori dışı, yalnız "çift etkili": keşifte aday değildir; elle davet edilse de ürünü gerekçe olmaz.
+    const qualifiers = await product("Valf AŞ", "Çift etkili pnömatik valf", { sellerCategoryIds: ["52000000"] });
+
+    const { results } = await service.inviteDiscoveredMembers(owner.auth, listing.id, [
+      weak.company.id,
+      strict.company.id,
+      qualifiers.company.id,
+    ]);
+    expect(results.map((r) => r.status)).toEqual(["INVITED", "INVITED", "INVITED"]);
+    const rows = await prisma.listingInvitation.findMany({
+      where: { listingId: listing.id },
+      select: { invitedCompanyId: true, aiReason: true },
+    });
+    expect(new Map(rows.map((r) => [r.invitedCompanyId, r.aiReason]))).toEqual(
+      new Map<string, unknown>([
+        [weak.company.id, { productName: "FIN PA1 Smoke Hidrolik Silindir 80 mm" }],
+        [strict.company.id, { productName: "Hidrolik Pres" }],
+        [qualifiers.company.id, {}],
+      ]),
+    );
+    await settle(() => email.send.mock.calls.length >= 3);
+    const bodyTo = (to: string) =>
+      JSON.stringify((email.send.mock.calls.find((c) => c[0].to.email === to)![0] as { templateData: unknown }).templateData);
+    expect(bodyTo(weak.user.email)).toContain("FIN PA1 Smoke Hidrolik Silindir 80 mm");
+    expect(bodyTo(strict.user.email)).toContain("Hidrolik Pres");
+    expect(bodyTo(qualifiers.user.email)).not.toContain("pnömatik valf");
   });
 
   it("engelli, pasif ve ülkesi uymayan NOT_ELIGIBLE; zaten davetli ALREADY_INVITED", async () => {
@@ -298,6 +368,95 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
     expect(digest).toEqual([{ email: busy.user.email, kind: "INVITATION", listingId: listing.id }]);
     // Uygulama içi bildirim ikisine de gider.
     expect(await prisma.notification.count({ where: { type: "listing_invitation", listingId: listing.id } })).toBeGreaterThanOrEqual(2);
+  });
+
+  /**
+   * Round 5, AI-NOTIF-1 (owner: the invitation says which company invited).
+   * The e-mail named the inviting company; the in-app row of the same
+   * invitation said only "you have been invited to the request".
+   */
+  describe("in-app invitation names the inviting company (round 5, AI-NOTIF-1)", () => {
+    const inApp = (listingId: string, companyId: string) =>
+      prisma.notification.findFirst({ where: { type: "listing_invitation", listingId, companyId } });
+
+    it("name shown: the row names the company; catalog key + typed params, re-rendered in the reader's language", async () => {
+      const { service, notifications } = makeService();
+      const { owner, listing } = await setup({ number: "ROT-000833" });
+      const seller = await categorySeller("Bağlantı Ltd");
+      await service.inviteDiscoveredMembers(owner.auth, listing.id, [seller.company.id]);
+      await settle(async () => !!(await inApp(listing.id, seller.company.id)));
+      const row = (await inApp(listing.id, seller.company.id))!;
+      expect(row.title).toBe("Alım talebi daveti");
+      expect(row.body).toBe(`Alıcı Makina AŞ sizi “${listing.title}” (ROT-000833) alım talebine davet etti.`);
+      // Not pre-translated text: the row keeps the key and the raw inputs
+      // (request title as `$listingTitle` with the RAW title as fallback).
+      expect(row.i18n).toMatchObject({
+        titleKey: "api.notifications.listings.invitation.title",
+        bodyKey: "api.notifications.listings.aiInvitation.inAppBodyInviter",
+        params: {
+          inviter: "Alıcı Makina AŞ",
+          number: "ROT-000833",
+          title: { $listingTitle: listing.id, fallback: listing.title },
+        },
+      });
+      const [en] = await notifications.listForUser(seller.user.id, {}, undefined, "en");
+      expect(en!.body).toBe(`Alıcı Makina AŞ invited you to the buying request “${listing.title}” (ROT-000833).`);
+      const [ru] = await notifications.listForUser(seller.user.id, {}, undefined, "ru");
+      expect(ru!.body).toBe(
+        `Alıcı Makina AŞ приглашает Вас к участию в заявке на закупку «${listing.title}» (ROT-000833).`,
+      );
+    });
+
+    it("name hidden (inviteShowName off): the generic text stays and the name is not stored in the row", async () => {
+      const { service, email } = makeService();
+      const { owner, listing } = await setup({ number: "ROT-000834", inviteShowName: false });
+      const seller = await categorySeller("Bağlantı Ltd");
+      await service.inviteDiscoveredMembers(owner.auth, listing.id, [seller.company.id]);
+      await settle(async () => !!(await inApp(listing.id, seller.company.id)) && email.send.mock.calls.length >= 1);
+      const row = (await inApp(listing.id, seller.company.id))!;
+      expect(row.body).toBe(`“${listing.title}” (ROT-000834) alım talebine davet edildiniz.`);
+      expect(row.i18n).toMatchObject({ bodyKey: "api.notifications.listings.invitation.inAppBody" });
+      expect(JSON.stringify(row)).not.toContain("Alıcı Makina");
+      // The e-mail stays anonymous as before.
+      expect(JSON.stringify(email.send.mock.calls[0]![0])).not.toContain("Alıcı Makina");
+    });
+
+    it("opening announcement of a draft's AI invitee uses the same text (one path)", async () => {
+      const { service } = makeService();
+      const { owner, listing } = await setup({ number: "ROT-000835", status: "DRAFT", publishedAt: null });
+      const seller = await categorySeller("Bağlantı Ltd");
+      await service.inviteDiscoveredMembers(owner.auth, listing.id, [seller.company.id]);
+      await prisma.listing.update({ where: { id: listing.id }, data: { status: "OPEN", publishedAt: new Date() } });
+      await service.notifyListingInvitees(listing.id, "invitation");
+      await settle(async () => !!(await inApp(listing.id, seller.company.id)));
+      expect((await inApp(listing.id, seller.company.id))!.body).toBe(
+        `Alıcı Makina AŞ sizi “${listing.title}” (ROT-000835) alım talebine davet etti.`,
+      );
+    });
+  });
+
+  // Round 5, AI-MAIL-1: the member invitation subject carries the company name
+  // only; a very long name must not make an over-long subject.
+  it("member invitation subject stays within 110 characters with a very long company name; the body row keeps the full name", async () => {
+    const longName =
+      "Kuzey Marmara Ağır Sanayi Makine İmalat Taahhüt İnşaat Turizm Gıda Sanayi ve Dış Ticaret Anonim Şirketi";
+    const { service, email } = makeService();
+    const { owner, listing } = await setup();
+    await prisma.company.update({ where: { id: owner.company.id }, data: { name: longName } });
+    const seller = await categorySeller("Bağlantı Ltd");
+    await service.inviteDiscoveredMembers(owner.auth, listing.id, [seller.company.id]);
+    await settle(() => email.send.mock.calls.length >= 1);
+    const sent = email.send.mock.calls[0]![0] as { subject: string; templateData: unknown };
+    expect([...sent.subject].length).toBeLessThanOrEqual(110);
+    expect(sent.subject).toMatch(/^Kuzey Marmara Ağır Sanayi .+… sizi bir alım talebine davet etti$/);
+    expect(JSON.stringify(sent.templateData)).toContain(longName);
+    // A short name is not touched.
+    email.send.mockClear();
+    await prisma.company.update({ where: { id: owner.company.id }, data: { name: "Alıcı Makina AŞ" } });
+    const other = await categorySeller("Diğer Ltd");
+    await service.inviteDiscoveredMembers(owner.auth, listing.id, [other.company.id]);
+    await settle(() => email.send.mock.calls.length >= 1);
+    expect((email.send.mock.calls[0]![0] as { subject: string }).subject).toBe("Alıcı Makina AŞ sizi bir alım talebine davet etti");
   });
 });
 
@@ -538,7 +697,7 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
     return { runs, ai };
   }
 
-  it("tur platform üyelerini önerir (MEMBER, gerekçeli); web'de adresi üyeyle eşleşen aynı satıra katılır; tek tık üyeyi talebe davet eder", async () => {
+  it("tur platform üyelerini bulur (gerekçeli); web'de adresi üyeyle eşleşen aynı satıra katılır; tur üyeyi talebe kendisi davet eder", async () => {
     const { owner, listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
     const member = await categorySeller("Bağlantı Ltd");
     // An address found on the web matches a member only through an account
@@ -561,19 +720,18 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
     const view = await runs.forListing(owner.auth, listing.id);
     const cands = view.runs[0]!.candidates;
     const m = cands.find((c) => c.memberCompanyId === member.company.id)!;
-    expect(m).toMatchObject({ status: "MEMBER", source: "BOTH", email: null });
+    // Üye aynı turda doğrudan talebe davet edildi (onay yok).
+    expect(m).toMatchObject({ status: "INVITED", invite: "INVITED", source: "BOTH", email: null });
     expect(m.matchedCategories).toEqual(["Vidalar"]);
     expect(cands.filter((c) => c.name === "Bağlantı Ltd")).toHaveLength(1);
-    expect(cands.find((c) => c.email === "satis@civata.com.tr")!.status).toBe("SUGGESTED");
-
-    const res = await runs.invite(owner.auth, listing.id, cands.map((c) => c.id));
-    expect(res.memberResults).toEqual([{ companyId: member.company.id, status: "INVITED" }]);
-    expect(res.results.map((r) => r.status)).toEqual(["QUEUED"]);
+    expect(cands.find((c) => c.email === "satis@civata.com.tr")).toMatchObject({ status: "INVITED", invite: "QUEUED" });
     expect(
       await prisma.listingInvitation.findFirst({ where: { listingId: listing.id, invitedCompanyId: member.company.id }, select: { origin: true } }),
     ).toEqual({ origin: "AI" });
-    const after = await runs.forListing(owner.auth, listing.id);
-    expect(after.runs[0]!.candidates.find((c) => c.memberCompanyId === member.company.id)!.status).toBe("INVITED");
+    // Üyenin adresine ayrıca e-posta daveti kuyruğa girmez.
+    expect(
+      (await prisma.externalListingInvite.findMany({ where: { listingId: listing.id }, select: { email: true, source: true } })),
+    ).toEqual([{ email: "satis@civata.com.tr", source: "AI_AUTO" }]);
   });
 
   it("AI kapalıyken de üyeler önerilir (model çağrısı yok); üye yoksa tur FAILED", async () => {
@@ -586,7 +744,8 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
     const run = await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId! }, include: { candidates: true } });
     expect(run.state).toBe("DONE");
     expect(run.error).toBe("ai_disabled");
-    expect(run.candidates.map((c) => [c.name, c.status, c.source])).toEqual([["Bağlantı Ltd", "MEMBER", "PLATFORM"]]);
+    // Model çağrısı olmadan bulunan üye de aynı turda davet edilir.
+    expect(run.candidates.map((c) => [c.name, c.status, c.source])).toEqual([["Bağlantı Ltd", "INVITED", "PLATFORM"]]);
     expect(ai.callAiSystem).not.toHaveBeenCalled();
 
     const { listing: l2 } = await setup({ aiDiscovery: true, visibility: "PUBLIC", categoryIds: ["43211500"] });

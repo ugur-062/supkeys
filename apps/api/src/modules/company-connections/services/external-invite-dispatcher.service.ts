@@ -12,12 +12,15 @@ import {
   type InviteListing,
 } from "../../../common/company/external-invite-content";
 import {
+  AUTO_INVITE_OFF_REASON,
+  AUTO_INVITE_OFF_WHERE,
   coldInviteDailyCap,
   INVITE_DIGEST_MAX,
   INVITE_MAX_ATTEMPTS,
   INVITE_PAUSE_WINDOW_DAYS,
   INVITE_RETRY_MINUTES,
   inviteHoldUntil,
+  inviteMissesClosing,
   invitePaused,
   REMINDER_BEFORE_CLOSE_HOURS,
   REMINDER_MIN_LEFT_HOURS,
@@ -69,6 +72,9 @@ function sendableListingWhere(now: Date): Prisma.ListingWhereInput {
   };
 }
 
+/** Bir turda geri alınan en fazla düşmüş otomatik davet (bkz. `resumeAutoInvites`). */
+const RESUME_BATCH = 300;
+
 const DUE_SELECT = {
   id: true,
   listingId: true,
@@ -97,12 +103,89 @@ type DueInvite = {
   listing: InviteListing;
 };
 
+/** Adresin davet geçmişi (90 gün) + ilgi sinyali — 7 gün freni ve duraklatma bununla. */
+export interface InviteAddressHistory {
+  lastInviteEmailAt: Date | null;
+  sends90d: number;
+  engaged: boolean;
+}
+
+/**
+ * Adreslerin davet geçmişi — TEK KAYNAK (dağıtıcı gönderim kararı + keşif
+ * turunun sonuç mesajı; gözden geçirme AI-6). Adrese giden referral (bağlantı
+ * daveti) e-postası da davet geçmişidir: yalnız talep davetleri sayılınca aynı
+ * adrese referral ertesi gün AI talep daveti gidebiliyordu (derin denetim LU-07).
+ */
+export async function inviteAddressHistories(
+  prisma: Pick<PrismaBypassService, "emailLog" | "companyReferralInvite">,
+  emails: readonly string[],
+  now: Date,
+): Promise<Map<string, InviteAddressHistory>> {
+  const out = new Map<string, InviteAddressHistory>(
+    emails.map((e) => [e, { lastInviteEmailAt: null, sends90d: 0, engaged: false }]),
+  );
+  if (emails.length === 0) return out;
+  const since = new Date(now.getTime() - INVITE_PAUSE_WINDOW_DAYS * DAY_MS);
+  const [history, clicked] = await Promise.all([
+    prisma.emailLog.findMany({
+      where: {
+        toEmail: { in: [...emails] },
+        contextType: { in: [INVITE_CONTEXT, "referral_invite"] },
+        status: { not: "FAILED" },
+        queuedAt: { gte: since },
+      },
+      orderBy: { queuedAt: "desc" },
+      select: { toEmail: true, queuedAt: true },
+    }),
+    prisma.companyReferralInvite.findMany({
+      where: { email: { in: [...emails] }, lastClickedAt: { gte: since } },
+      select: { email: true },
+    }),
+  ]);
+  for (const h of history) {
+    const row = out.get(h.toEmail);
+    if (!row) continue;
+    row.sends90d++;
+    // En yeni önce sıralı: ilk görülen son gönderimdir.
+    row.lastInviteEmailAt ??= h.queuedAt;
+  }
+  for (const c of clicked) {
+    const row = out.get(c.email);
+    if (row) row.engaged = true;
+  }
+  return out;
+}
+
+/**
+ * Kuyruktaki davet e-postası talep kapanmadan GİDEBİLİR Mİ? Dağıtıcının
+ * `processAddress` kararının saf karşılığı (duraklatma → 7 gün freni → frenin
+ * bittiği mesai penceresi kapanışa sığıyor mu); sonuç mesajı gidemeyecek adresi
+ * "sıraya alındı" diye saymasın (gözden geçirme AI-6). Çıkış / kayıtlı adres /
+ * platform tavanı gibi SONRADAN belli olan nedenler burada öngörülmez.
+ */
+export function queuedInviteCanLeave(
+  row: { source: InviteSourceKind; country: string | null; sendAfter: Date },
+  history: InviteAddressHistory | undefined,
+  closesAt: Date | null,
+  now: Date,
+): boolean {
+  const h = history ?? { lastInviteEmailAt: null, sends90d: 0, engaged: false };
+  // Sırası talebin kapanışından sonra gelen satır kapanışta düşer (LISTING_CLOSED).
+  if (closesAt && row.sendAfter.getTime() >= closesAt.getTime()) return false;
+  if (invitePaused({ engaged: h.engaged, unengagedSends90d: h.sends90d, source: row.source })) return false;
+  const hold = inviteHoldUntil({ source: row.source, engaged: h.engaged, lastInviteEmailAt: h.lastInviteEmailAt, now });
+  if (!hold) return true;
+  return !inviteMissesClosing(nextBusinessWindow(hold, timeZoneForCountry(row.country)), closesAt);
+}
+
 export interface DispatchReport {
   cap: ColdInviteCap;
   sent: number;
   deferred: number;
   cancelled: number;
   reminders: number;
+  /** Alıcı kararından döndüğü için yeniden kuyruğa alınan otomatik davet. */
+  resumed: number;
 }
 
 /**
@@ -130,7 +213,14 @@ export class ExternalInviteDispatcher {
   ) {}
 
   async dispatch(now: Date = new Date()): Promise<DispatchReport> {
-    const report: DispatchReport = { cap: { cap: 0, braked: null }, sent: 0, deferred: 0, cancelled: 0, reminders: 0 };
+    const report: DispatchReport = {
+      cap: { cap: 0, braked: null },
+      sent: 0,
+      deferred: 0,
+      cancelled: 0,
+      reminders: 0,
+      resumed: 0,
+    };
 
     // Kapanmış / iptal edilmiş talebin bekleyen davetleri artık gitmez.
     const closed = await this.prisma.externalListingInvite.updateMany({
@@ -138,6 +228,17 @@ export class ExternalInviteDispatcher {
       data: { state: "CANCELLED", cancelReason: "LISTING_CLOSED" },
     });
     report.cancelled += closed.count;
+
+    // Talep özele çevrildi ya da otomatik arama kapatıldı → turun kuyruğa
+    // aldığı davetler düşer (kayıt bağlamaz, ekran "iptal edildi" der).
+    const autoOff = await this.prisma.externalListingInvite.updateMany({
+      where: { state: "QUEUED", ...AUTO_INVITE_OFF_WHERE },
+      data: { state: "CANCELLED", cancelReason: AUTO_INVITE_OFF_REASON },
+    });
+    report.cancelled += autoOff.count;
+    // ...alıcı kararından döndüyse (talep yeniden herkese açık, kutu yeniden
+    // açık) aynı satırlar geri alınır: kapat-aç hiçbir daveti kaybettirmez.
+    report.resumed = await this.resumeAutoInvites(now);
 
     report.cap = await this.dailyCap(now);
     let remaining = report.cap.cap - (await this.sentToday(now));
@@ -148,7 +249,15 @@ export class ExternalInviteDispatcher {
 
     const due = (await this.prisma.externalListingInvite.findMany({
       // İptal edilmiş bağlantı jetonunun kuyruğu gitmez (iptal kuyruğu da düşürür; yarışa karşı).
-      where: { state: "QUEUED", sendAfter: { lte: now }, listing: sendableListingWhere(now), referralInvite: { status: { not: "CANCELLED" } } },
+      // `NOT AUTO_INVITE_OFF_WHERE`: yukarıdaki iptalden SONRA özele çevrilen
+      // talebin satırı da bu turda okunmaz (sonraki tur iptal eder).
+      where: {
+        state: "QUEUED",
+        sendAfter: { lte: now },
+        listing: sendableListingWhere(now),
+        referralInvite: { status: { not: "CANCELLED" } },
+        NOT: AUTO_INVITE_OFF_WHERE,
+      },
       orderBy: { sendAfter: "asc" },
       take: DUE_BATCH,
       select: DUE_SELECT,
@@ -173,6 +282,57 @@ export class ExternalInviteDispatcher {
 
     if (remaining > 0) report.reminders = await this.sendReminders(now, remaining, builder);
     return report;
+  }
+
+  /**
+   * KARARDAN DÖNÜŞ (2026-10-09, ikinci gözden geçirme A-3): alıcı kutuyu bir
+   * an kapatıp yeniden açtı ya da talebi özele çevirip geri aldı. O arada
+   * koşan tur satırları `AUTO_INVITE_OFF` ile düşürmüştü ve hiçbir şey onları
+   * geri almıyordu — sonuç mesajı "sıraya alındı" demişti, e-posta hiç
+   * gitmiyordu. Geçerlilik talebin O ANKİ hâlinden okunur (`AUTO_INVITE_OFF_WHERE`
+   * ve tersi): talep yeniden herkese/bağlantılara açık VE kutu açıksa satır
+   * yeniden kuyruğa girer.
+   *
+   * Yalnız turun kendi satırı (`AI_AUTO`), e-postası hiç gitmemiş ve bu nedenle
+   * düşmüş olan; başka nedenle düşen (çıkış, 7 gün freni…) ve alıcının
+   * bağlantısını iptal ettiği adres geri gelmez. Sırası geçmiş satır alıcının
+   * ülkesindeki ilk mesai penceresine yeniden planlanır (AI davetinin saat
+   * kuralı); gönderim frenlerinin hepsi yine `processAddress`te uygulanır.
+   */
+  private async resumeAutoInvites(now: Date): Promise<number> {
+    const rows = await this.prisma.externalListingInvite.findMany({
+      where: {
+        state: "CANCELLED",
+        cancelReason: AUTO_INVITE_OFF_REASON,
+        source: "AI_AUTO",
+        sentAt: null,
+        referralInvite: { status: { not: "CANCELLED" } },
+        listing: {
+          status: "OPEN",
+          visibility: { not: "PRIVATE" },
+          aiDiscovery: true,
+          OR: [{ closesAt: null }, { closesAt: { gt: now } }],
+        },
+      },
+      orderBy: { id: "asc" },
+      take: RESUME_BATCH,
+      select: { id: true, country: true, sendAfter: true },
+    });
+    let resumed = 0;
+    for (const row of rows) {
+      const sendAfter =
+        row.sendAfter.getTime() > now.getTime()
+          ? row.sendAfter
+          : nextBusinessWindow(now, timeZoneForCountry(row.country), Math.floor(Math.random() * 45));
+      // Koşullu: alıcı aynı adresi o an elle davet ettiyse (satır onun daveti
+      // olarak canlandı) ya da ikinci bir örnek geri aldıysa dokunulmaz.
+      const r = await this.prisma.externalListingInvite.updateMany({
+        where: { id: row.id, state: "CANCELLED", cancelReason: AUTO_INVITE_OFF_REASON },
+        data: { state: "QUEUED", cancelReason: null, sendAfter },
+      });
+      resumed += r.count;
+    }
+    return resumed;
   }
 
   /** Bugün (UTC) giden davet e-postası — tavan sayımı. */
@@ -242,38 +402,15 @@ export class ExternalInviteDispatcher {
    * kayıtsız bir adres gibi davet almaya devam eder.
    */
   private async addressState(email: string, now: Date) {
-    const since = new Date(now.getTime() - INVITE_PAUSE_WINDOW_DAYS * DAY_MS);
-    const [optOut, user, history, clicked] = await Promise.all([
+    const [optOut, user, histories] = await Promise.all([
       this.prisma.referralOptOut.findUnique({ where: { email }, select: { email: true } }),
       this.prisma.companyUser.findFirst({
         where: { email, deletedAt: null, emailVerifiedAt: { not: null } },
         select: { id: true },
       }),
-      this.prisma.emailLog.findMany({
-        // Adrese giden referral (bağlantı daveti) e-postası da davet
-        // geçmişidir — yalnız talep davetleri sayılınca aynı adrese referral
-        // ertesi gün AI talep daveti gidebiliyordu (derin denetim LU-07).
-        where: {
-          toEmail: email,
-          contextType: { in: [INVITE_CONTEXT, "referral_invite"] },
-          status: { not: "FAILED" },
-          queuedAt: { gte: since },
-        },
-        orderBy: { queuedAt: "desc" },
-        select: { queuedAt: true },
-      }),
-      this.prisma.companyReferralInvite.findFirst({
-        where: { email, lastClickedAt: { gte: since } },
-        select: { id: true },
-      }),
+      inviteAddressHistories(this.prisma, [email], now),
     ]);
-    return {
-      optedOut: !!optOut,
-      registered: !!user,
-      lastInviteEmailAt: history[0]?.queuedAt ?? null,
-      sends90d: history.length,
-      engaged: !!clicked,
-    };
+    return { optedOut: !!optOut, registered: !!user, ...histories.get(email)! };
   }
 
   private async cancel(ids: string[], reason: string): Promise<number> {
@@ -360,7 +497,7 @@ export class ExternalInviteDispatcher {
       const closesAt = inv.listing.closesAt;
       // Beklenecek süre talebin kapanışını aşıyorsa e-posta gitmez; davet
       // kaydı kalır (adres kayıt olup e-postasını doğrularsa talebe yine bağlanır).
-      if (closesAt && next.getTime() > closesAt.getTime() - 12 * HOUR_MS) {
+      if (inviteMissesClosing(next, closesAt)) {
         out.cancelled += await this.cancel([inv.id], "FREQUENCY");
         continue;
       }
@@ -414,8 +551,11 @@ export class ExternalInviteDispatcher {
         where: { id: { in: [...new Set(batch.map((b) => b.referralInviteId))] } },
         data: { updatedAt: now },
       });
-    } else if (sent === "SUPPRESSED") {
-      out.cancelled += await this.cancel(batch.map((b) => b.id), "SUPPRESSED");
+    } else if (sent === "SUPPRESSED" || sent === "ALLOWLIST") {
+      // `ALLOWLIST` (staging alıcı izin listesi, 2026-10-08): adres engelli
+      // DEĞİL, bu ortamda gönderilmedi — yayın paneli/bant nedeni ayrı söyler
+      // (eskiden o da SUPPRESSED yazılıyor, ekran "adres geri çevirdi" diyordu).
+      out.cancelled += await this.cancel(batch.map((b) => b.id), sent);
     } else {
       for (const b of batch) {
         const attempts = b.attempts + 1;
@@ -442,7 +582,9 @@ export class ExternalInviteDispatcher {
     batch: DueInvite[],
     builder: InviteContentBuilder,
     reminder: boolean,
-  ): Promise<"SENT" | "SUPPRESSED" | "FAILED"> {
+  ): Promise<"SENT" | "SUPPRESSED" | "ALLOWLIST" | "FAILED"> {
+    const outcome = (res: { sent: boolean; skipReason?: string }) =>
+      res.sent ? ("SENT" as const) : res.skipReason === "allowlist" ? ("ALLOWLIST" as const) : ("SUPPRESSED" as const);
     const baseUrl = resolveWebUrl(this.config);
     const first = batch[0]!;
     const locale = (isLocale(first.locale) ? first.locale : "tr") as Locale;
@@ -470,7 +612,7 @@ export class ExternalInviteDispatcher {
           },
           context: { type: INVITE_CONTEXT, id: first.id },
         });
-        return res.sent ? "SENT" : "SUPPRESSED";
+        return outcome(res);
       }
       const entries: TenderInviteDigestEntry[] = [];
       for (const inv of batch) {
@@ -498,7 +640,7 @@ export class ExternalInviteDispatcher {
         templateData: { template: "tender_invite_digest", data: { invites: entries, optOutUrl } },
         context: { type: INVITE_CONTEXT, id: first.id },
       });
-      return res.sent ? "SENT" : "SUPPRESSED";
+      return outcome(res);
     } catch (err) {
       this.logger.error(
         `invite send failed (${first.id}): ${err instanceof Error ? err.message : String(err)}`,
@@ -522,6 +664,9 @@ export class ExternalInviteDispatcher {
         // edilmiş jetonun hatırlatması gitmez — iptal SENT satırı SENT bırakır
         // ve bağlantı önizlemede 404 açardı (derin denetim MU-14).
         referralInvite: { status: "PENDING" },
+        // Özele çevrilen / otomatik araması kapatılan talebe turun davet
+        // ettiği adrese HATIRLATMA da gitmez (yeni bir e-posta olurdu).
+        NOT: AUTO_INVITE_OFF_WHERE,
         listing: {
           ...sendableListingWhere(now),
           closesAt: {

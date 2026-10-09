@@ -93,7 +93,9 @@ describe("nitelik mirası", () => {
   it("kategorisi olmayan/tanınmayan kodda boş döner — form yine çalışır", async () => {
     expect(await service().resolveAttributes(null)).toEqual([]);
     expect(await service().resolveAttributes("bozuk")).toEqual([]);
-    expect(await service().resolveAttributes("77000000")).toEqual([]);
+    // Katalogda HİÇ olmayan kod (77000000 gerçek bir segmentti ve 2026-10-09'da
+    // gizlendi: "tanınmayan kod" örneği gizli bir segmentin koduna dayanmasın).
+    expect(await service().resolveAttributes("99990000")).toEqual([]);
   });
 });
 

@@ -14,6 +14,7 @@ import {
   periodStart,
   type SavingsPeriod,
 } from "./time-savings.service";
+import { breakdownSegmentOf } from "./category-breakdown";
 
 /**
  * Pano analitiği — panel başına TEK toplu uç. Tüm seriler MEVCUT zaman
@@ -399,7 +400,8 @@ export class DashboardAnalyticsService {
       for (const l of awardedAll.filter(
         (l) => l.awardedAt! >= start && l.awardedAt! < end,
       )) {
-        const seg = l.categoryIds[0] ? `${l.categoryIds[0].slice(0, 2)}000000` : null;
+        // Hidden segments are never a chart label (`breakdownSegmentOf`).
+        const seg = breakdownSegmentOf(l.categoryIds);
         if (!seg) continue;
         const sv = savingsVolumeOf(l);
         const agg = catAgg.get(seg) ?? { savings: 0, volume: 0 };
@@ -769,9 +771,8 @@ export class DashboardAnalyticsService {
       const catAgg = new Map<string, { won: number; decided: number }>();
       for (const b of bids) {
         if (b.status === "SUBMITTED") continue;
-        const seg = b.listing.categoryIds[0]
-          ? `${b.listing.categoryIds[0].slice(0, 2)}000000`
-          : null;
+        // Hidden segments are never a chart label (`breakdownSegmentOf`).
+        const seg = breakdownSegmentOf(b.listing.categoryIds);
         if (!seg) continue;
         const cur = catAgg.get(seg) ?? { won: 0, decided: 0 };
         cur.decided += 1;

@@ -8,7 +8,9 @@
  *     `catalog` parametresi göndermesine bağlı değil.
  *   • Firma "hangi alandasınız" seçimi TAM kataloğu görür — o 13 yaprak dahil.
  *   • Gösterim uçları (`children`, `search-tree`) `catalog`'a uyar.
- *   • `by-ids` süzmez: kayıtlı bir kodu her hâlükârda çözebilmeli.
+ *   • `by-ids` KATALOĞA göre süzmez: kayıtlı bir kodu discovery dışı olsa da
+ *     çözebilmeli. (Gizli SEGMENT ayrı kural — o kod hiç çözülmez:
+ *     `hidden-category-public-surfaces.spec.ts`.)
  */
 import { foldSearchText } from "@rothern/shared";
 import { CategoryService } from "../../src/modules/categories/services/category.service";
@@ -141,7 +143,7 @@ describe("gösterim uçları — catalog parametresi", () => {
     expect(discCodes).not.toContain(LEAF_FULL_ONLY);
   });
 
-  it("by-ids SÜZMEZ — firma kendi seçtiği kodu her zaman çözebilmeli", async () => {
+  it("by-ids KATALOĞA göre SÜZMEZ — firma kendi seçtiği discovery dışı kodu çözebilmeli", async () => {
     const rows = await service().getByIds([LEAF_FULL_ONLY]);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.nameTr).toBe("Plastik Kasalar");

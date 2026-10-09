@@ -1,5 +1,5 @@
 import { Prisma } from "@rothern/db";
-import { PRODUCT_MEDIA_TIER, tierAtLeast } from "@rothern/shared";
+import { PRODUCT_MEDIA_TIER, tierAtLeast, visibleCategoryId } from "@rothern/shared";
 import { effectiveTier } from "../../../common/company/effective-tier";
 
 /**
@@ -30,6 +30,15 @@ import { effectiveTier } from "../../../common/company/effective-tier";
  * Europages kalıbı: fiyat, kademe tablosu, para birimi ve MOQ ziyaretçiye
  * açık — vitrin ancak fiyatıyla vitrindir. Aynı gün önce kapatılıp aynı gün
  * geri açıldı; üyeye kapalı kalan tek şey "Bilgi iste" formu ve iletişim.
+ *
+ * ── GİZLİ SEGMENTİN KODU YANITA YAZILMAZ (2026-10-09) ────────────────────
+ * Sahip kuralı: "anasayfada olmayan kategori talepte, üründe ya da başka
+ * yerde de gösterilmesin". `categoryId` bu yansıtmada yalnız GÖSTERİM içindir
+ * (istemci ton, kategori görseli ve bağlantıyı koddan türetir); gizli segmentin
+ * altındaki eski ürün yayında kalır ama kodu `null` döner (`visibleCategoryId`).
+ * Satır SEÇİMİ ham kodu taşımaya devam eder — nitelik etiketleri ve ilişkili
+ * ürün blokları satırdan okur. Sahibin kendi düzenleme formu bu yansıtmayı
+ * KULLANMAZ (kendi serileştiricisi, ham kod).
  */
 export const PUBLIC_PRODUCT_SELECT = {
   // İç kimlik yalnız ÇEVİRİ eşlemesi için (i18n Faz 1e); mapper yanıta YAZMAZ.
@@ -147,7 +156,7 @@ export function toPublicProduct(
     mpn: r.mpn,
     unit: r.unit,
     unitCode: r.unitCode,
-    categoryId: r.categoryId,
+    categoryId: visibleCategoryId(r.categoryId),
     images: r.images,
     videoUrl: media ? r.videoUrl : null,
     externalUrl: r.externalUrl,
@@ -176,7 +185,7 @@ export function toPublicProductCard(r: PublicProductRow): PublicProductCard {
     priceCurrency: r.priceCurrency,
     moq: r.moq?.toString() ?? null,
     unit: r.unit,
-    categoryId: r.categoryId,
+    categoryId: visibleCategoryId(r.categoryId),
     excerpt: flat ? (flat.length <= 160 ? flat : `${flat.slice(0, 159)}…`) : null,
   };
 }

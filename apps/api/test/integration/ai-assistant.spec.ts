@@ -406,6 +406,101 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     expect(row.status).toBe("Yayında");
     expect(row.statusCode).toBe("OPEN");
   });
+
+  /**
+   * GİZLİ SEGMENT (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
+   * üründe ya da başka yerde de gösterilmesin"). Araç sonucu model girdisidir:
+   * eski talebin / eski firma beyanının gizli kategorisi (kod, ad, referans)
+   * modele gitmez; kayıt ve görünür kategorisi aynen gider.
+   */
+  it("gizli segment: araç sonuçlarında eski kaydın gizli kategorisi modele gitmez (liste, detay, bağlantılar)", async () => {
+    const provider = new FakeProvider();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    await prisma.category.createMany({
+      data: [
+        { id: "46181700", code: "46181700", nameTr: "Baş koruma", nameEn: "Head protection", level: 3, isActive: true, sortOrder: 0 },
+        { id: "30191500", code: "30191500", nameTr: "İskeleler", level: 3, isActive: true, sortOrder: 0 },
+      ],
+    });
+    const legacy = await makeListing(prisma, {
+      companyId: a.company.id,
+      createdById: a.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      title: "ESKI-TALEP",
+      categoryIds: ["46181700", "30191500"],
+    });
+    provider.steps = [
+      {
+        toolCalls: [
+          { name: "list_my_tenders", args: { type: "ALIM" } },
+          { name: "get_tender_detail", args: { id: legacy.id } },
+          { name: "list_my_connections", args: {} },
+        ],
+      },
+      { text: "tamam" },
+    ];
+    const { svc, connections } = build(makeCfg(), provider);
+    connections.list.mockResolvedValue([
+      {
+        rothernId: "RTH-9",
+        name: "Bağlantı AŞ",
+        categories: [
+          { id: "46000000", name: "Kolluk ve emniyet ekipmanları" },
+          { id: "30000000", name: "Yapı malzemeleri" },
+        ],
+        sellerCategoryIds: ["46000000", "30000000"],
+        sellerSubCategoryIds: ["46181700"],
+      },
+    ]);
+
+    await svc.message(authFor(a.user, a.company.id, [CompanyRole.SATIN_ALMACI]), { message: "taleplerimi göster" });
+
+    const responses = toolResponses(provider.calls[1]!);
+    expect(responses).toHaveLength(3);
+    const json = JSON.stringify(responses);
+    // Kayıtlar geldi: talep (liste + detay) ve bağlantı; görünür kategori duruyor.
+    expect(json).toContain("ESKI-TALEP");
+    expect(json).toContain("30191500");
+    expect(json).toContain("Bağlantı AŞ");
+    expect(json).toContain("Yapı malzemeleri");
+    for (const hidden of ["46181700", "46000000", "Baş koruma", "Head protection", "Kolluk"]) {
+      expect(json).not.toContain(hidden);
+    }
+  });
+
+  it("gizli segment: eski oturum taslağındaki gizli kategori önerisi taslak bağlamına ve yanıta girmez", async () => {
+    const provider = new FakeProvider();
+    provider.steps = [{ text: "Taslağınız duruyor." }];
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const session = await prisma.aiChatSession.create({
+      data: {
+        companyId: co.company.id,
+        userId: co.user.id,
+        title: "eski oturum",
+        tenderDraft: {
+          title: "500 adet baret alımı",
+          deliveryTerm: "DOMESTIC_DELIVERED",
+          bidsCloseAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+          items: [{ name: "Baret", quantity: 500, unit: "adet" }],
+          suggestedCategoryIds: ["46181700"],
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    const reply = await svc.message(authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]), {
+      sessionId: session.id,
+      message: "taslağım ne durumda?",
+    });
+
+    // Modele giden sistem istemi taslağı taşır ama gizli kodu taşımaz.
+    expect(provider.calls[0]!.system).toContain("500 adet baret alımı");
+    expect(provider.calls[0]!.system).not.toContain("46181700");
+    // İstemciye dönen taslak: öneri boş, kategori eksik (form gizli kategoriyle açılmaz).
+    expect(reply.tenderDraft!.draft.suggestedCategoryIds).toEqual([]);
+    expect(reply.tenderDraft!.missingRequired).toContain("category");
+  });
 });
 
 describe("Faz AI-2 — injection + nötr hata + oturum", () => {

@@ -441,32 +441,34 @@ describe("pazar yeri — süzgeç ve arama", () => {
     expect((await service().list({})).items).toHaveLength(2);
   });
 
+  // Kodlar GÖRÜNÜR segmentten (40 — akışkan/vana): gizli segmentin kodu süzgeç
+  // değildir (2026-10-09), o davranış `hidden-category-public-surfaces.spec.ts`te.
   it("kategori koduna göre süzer", async () => {
     await seedPublicListing({ categoryIds: ["31000000"] });
-    await seedPublicListing({ categoryIds: ["50000000"], title: "Gıda alımı" });
-    const res = await service().list({ category: "50000000" });
+    await seedPublicListing({ categoryIds: ["40000000"], title: "Vana alımı" });
+    const res = await service().list({ category: "40000000" });
     // L1 seçimi ALT AĞACI kapsar: L3 kod taşıyan ilan segment süzgecine girer
     // (eskiden `has` tam eşleşme → facet "12 ilan" derken liste boş çıkıyordu).
-    await seedPublicListing({ categoryIds: ["50131700"], title: "Meyve alımı" });
-    expect((await service().list({ category: "50000000" })).total).toBe(2);
-    expect((await service().list({ category: "51000000" })).total).toBe(0);
-    expect((await service().list({ category: "50131700" })).total).toBe(1);
+    await seedPublicListing({ categoryIds: ["40141600"], title: "Küresel vana alımı" });
+    expect((await service().list({ category: "40000000" })).total).toBe(2);
+    expect((await service().list({ category: "41000000" })).total).toBe(0);
+    expect((await service().list({ category: "40141600" })).total).toBe(1);
     expect(res.items).toHaveLength(1);
-    expect(res.items[0]?.title).toBe("Gıda alımı");
+    expect(res.items[0]?.title).toBe("Vana alımı");
   });
 
   it("facet seçili kategorinin adını döner — yaprak dahil (arayüz testi D-061)", async () => {
     await prisma.category.createMany({
       data: [
-        { id: "50000000", code: "50000000", nameTr: "Gıda", level: 1, isActive: true },
-        { id: "50131700", code: "50131700", nameTr: "Meyveler", nameEn: "Fruits", level: 3, isActive: true },
+        { id: "40000000", code: "40000000", nameTr: "Akışkan Sistemleri", level: 1, isActive: true },
+        { id: "40141600", code: "40141600", nameTr: "Vanalar", nameEn: "Valves", level: 3, isActive: true },
       ] as never,
     });
-    await seedPublicListing({ categoryIds: ["50131700"], title: "Meyve alımı" });
+    await seedPublicListing({ categoryIds: ["40141600"], title: "Küresel vana alımı" });
     // Talep sayfası çipi yaprağa bağlanır; `categories` yalnız segment sayar,
     // aktif çip adı `selectedCategory`den.
-    const leaf = await service().facets({ category: "50131700" });
-    expect(leaf.selectedCategory).toEqual({ id: "50131700", name: "Meyveler", level: 3 });
+    const leaf = await service().facets({ category: "40141600" });
+    expect(leaf.selectedCategory).toEqual({ id: "40141600", name: "Vanalar", level: 3 });
     expect((await service().facets({})).selectedCategory).toBeNull();
     expect((await service().facets({ category: "99999999" })).selectedCategory).toBeNull();
   });

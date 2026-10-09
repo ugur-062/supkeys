@@ -59,6 +59,55 @@ export interface AuthenticatedCompanyUser {
   locale: string;
 }
 
+/**
+ * DB satırından `AuthenticatedCompanyUser` — TEK KAYNAK. İstek yolu (`validate`)
+ * ve kullanıcı ADINA koşan sistem işleri (yayın sonrası AI keşfinin talebi
+ * yayınlayan kişi adına yaptığı davetler — `DiscoveryRunsService`) aynı
+ * eşlemeyi kullanır: efektif paket, efektif izinler, sahiplik normalizasyonu.
+ * Etkinlik denetimi (kullanıcı/firma pasif, askıda) ÇAĞIRANDA.
+ */
+export function toAuthenticatedCompanyUser(user: {
+  id: string;
+  companyId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  roles: CompanyRole[];
+  permissions: string[];
+  locale: string;
+  company: {
+    ownerUserId: string | null;
+    tier: CompanyTier;
+    membershipEndAt: Date | null;
+    companyVerificationStatus: CompanyVerificationStatus;
+    country: string;
+  };
+}): AuthenticatedCompanyUser {
+  const isOwner = user.company.ownerUserId === user.id;
+  const effectiveRoles =
+    isOwner && !user.roles.includes("SAHIP")
+      ? (["SAHIP", ...user.roles] as typeof user.roles)
+      : user.roles;
+  return {
+    userId: user.id,
+    companyId: user.companyId,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    roles: effectiveRoles,
+    tier: effectiveTier(user.company.tier, user.company.membershipEndAt, user.company.companyVerificationStatus),
+    companyVerificationStatus: user.company.companyVerificationStatus,
+    country: user.company.country,
+    isOwner,
+    permissions: effectivePermissions({
+      isOwner,
+      permissions: user.permissions,
+      roles: user.roles,
+    }),
+    locale: user.locale,
+  };
+}
+
 @Injectable()
 export class CompanyJwtStrategy extends PassportStrategy(
   Strategy,
@@ -130,28 +179,6 @@ export class CompanyJwtStrategy extends PassportStrategy(
     // İstek dili: Accept-Language yoksa kullanıcının kayıtlı dili (i18n Faz 0).
     applyUserLocale(user.locale);
 
-    const isOwner = user.company.ownerUserId === user.id;
-    const effectiveRoles =
-      isOwner && !user.roles.includes("SAHIP")
-        ? (["SAHIP", ...user.roles] as typeof user.roles)
-        : user.roles;
-    return {
-      userId: user.id,
-      companyId: user.companyId,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      roles: effectiveRoles,
-      tier: effectiveTier(user.company.tier, user.company.membershipEndAt, user.company.companyVerificationStatus),
-      companyVerificationStatus: user.company.companyVerificationStatus,
-      country: user.company.country,
-      isOwner,
-      permissions: effectivePermissions({
-        isOwner,
-        permissions: user.permissions,
-        roles: user.roles,
-      }),
-      locale: user.locale,
-    };
+    return toAuthenticatedCompanyUser(user);
   }
 }

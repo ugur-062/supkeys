@@ -84,6 +84,9 @@ export class CategoryController {
    * KATALOG SÜZGECİ YOK, bilinçli: burada iş KAYITLI bir kodu çözmek. Firma
    * discovery dışı bir yaprağı beyan edebiliyor; süzülseydi kendi seçtiği
    * kategori kendi ekranında "…" olarak görünürdü.
+   *
+   * GİZLİ SEGMENT ise ÇÖZÜLMEZ (2026-10-09): kayıtlı olsa da ad/kırıntı dönmez
+   * — istemci dönmeyen id için hiçbir şey çizmez (bkz. `getByIds`).
    */
   @Get("by-ids")
   getByIds(@Query("ids") idsParam?: string): Promise<unknown> {

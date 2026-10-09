@@ -2,7 +2,7 @@ import { i18nMessage } from "../../common/i18n/http-i18n";
 import { tApi } from "../../common/i18n/i18n.service";
 import { BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, type ProductReviewStatus } from "@rothern/db";
-import { PRODUCT_LIMITS, productPath, productPublishBlockerCodes, type ProductLike } from "@rothern/shared";
+import { PRODUCT_LIMITS, isHiddenCategory, productPath, productPublishBlockerCodes, visibleCategoryIds, type ProductLike } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { effectiveTier } from "../../common/company/effective-tier";
@@ -85,7 +85,15 @@ export interface AdminProductRow {
   cover: string | null;
   imageCount: number;
   categoryId: string | null;
+  /** Never the name of a category under a hidden segment (then `null`). */
   categoryName: string | null;
+  /**
+   * The stored category is under a hidden segment: it is shown nowhere on the
+   * site and its name is not resolved here either. The screen uses the flag
+   * to say WHY the category is empty (a product that is not public yet cannot
+   * be approved until the seller picks a current category).
+   */
+  hiddenCategory: boolean;
   reviewStatus: ProductReviewStatus;
   isPublic: boolean;
   submittedAt: string | null;
@@ -309,9 +317,16 @@ export class AdminProductsService {
    * null, varsa istek dilinde virgüllü metin.
    */
   private blockerTexts(r: Row): string | null {
+    // HIDDEN SEGMENTS (owner rule 2026-10-09) - same view as the company side
+    // (`CompanyItemsService.publishGateLike`): for a product that is NOT
+    // public yet, a category under a hidden segment counts as no category, so
+    // approval cannot put a new product on the shop window under a category
+    // nobody can see. An ALREADY public product (update re-review) keeps its
+    // stored category: approving edits of legacy products still works.
+    const outdatedCategory = !r.isPublic && isHiddenCategory(r.categoryId);
     const like: ProductLike = {
       name: r.name,
-      categoryId: r.categoryId,
+      categoryId: outdatedCategory ? null : r.categoryId,
       description: r.description,
       images: r.images,
       keywords: r.keywords,
@@ -325,7 +340,9 @@ export class AdminProductsService {
     if (blockers.length === 0) return null;
     return blockers
       .map((b) =>
-        tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
+        b.code === "category" && outdatedCategory
+          ? tApi("api.companyItems.publishBlocker.categoryNotCurrent")
+          : tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
       )
       .join(", ");
   }
@@ -575,6 +592,7 @@ export class AdminProductsService {
       imageCount: r.images.length,
       categoryId: r.categoryId,
       categoryName: r.categoryId ? (catNames.get(r.categoryId) ?? null) : null,
+      hiddenCategory: isHiddenCategory(r.categoryId),
       reviewStatus: r.reviewStatus,
       isPublic: r.isPublic,
       submittedAt: r.submittedAt?.toISOString() ?? null,
@@ -597,7 +615,10 @@ export class AdminProductsService {
   }
 
   private async categoryNames(ids: (string | null)[]): Promise<Map<string, string>> {
-    const unique = [...new Set(ids.filter((i): i is string => !!i))];
+    // Names of visible categories only: a category under a hidden segment is
+    // not shown by name anywhere, the review queue included (the row carries
+    // `hiddenCategory` instead).
+    const unique = [...new Set(visibleCategoryIds(ids))];
     if (!unique.length) return new Map();
     const rows = await this.prisma.category.findMany({ where: { id: { in: unique } }, select: { id: true, nameTr: true } });
     return new Map(rows.map((c) => [c.id, c.nameTr]));

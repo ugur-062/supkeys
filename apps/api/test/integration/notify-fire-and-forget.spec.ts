@@ -50,9 +50,10 @@ describe("void bildirim reddi → çağıran etkilenmez + unhandled rejection YO
     process.on("unhandledRejection", onRej);
     try {
       // Çağıran, reddeden void-bildirimden ETKİLENMEZ (resolve).
+      // (Dönüş artık duyurunun sonucunu taşır — gözden geçirme AI-4.)
       await expect(
         internal.announceListingOpen(l.id, "invitation"),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({ status: "announced", categoryCompanyIds: [] });
       // Mikrotask kuyruğunu boşalt — .catch olmasaydı burada unhandledRejection düşerdi.
       await new Promise((r) => setImmediate(r));
       // mockRestore çağrı verisini sıfırlar → assert'ler restore'dan ÖNCE.

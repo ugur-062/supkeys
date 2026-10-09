@@ -284,12 +284,14 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
     await expect(reserve).rejects.toThrow(/aylık AI bütçesi doldu/);
   });
 
-  it("paket bazında istek tavanı: STANDART'ta grounded profil çağrısı sığar, diğer paketler %5'te kalır (derin denetim S013/X21)", async () => {
+  it("paket bazında istek tavanı (requestShareByTier): yalnız o pakette genişler, diğer paketler %5'te kalır (derin denetim S013/X21)", async () => {
     // Gerçek sayılar: STANDART havuzu 0,5 USD, çıktı tavanı 8192 token.
-    // Grounded tahmin = 0,035 (istek ücreti) + 8192×2,5/1M ≈ 0,056 USD;
-    // genel %5 pay 0,025 USD tavan verir → her seferinde request_cap idi.
+    // Web aramalı tahmin = 0,035 (istek ücreti) + 8192×2,5/1M ≈ 0,056 USD;
+    // genel %5 pay 0,025 USD tavan verir → her seferinde request_cap.
+    // (Mekanizma testi: profil tanıtımı önerisi 2026-10-08'den beri web'e
+    // çıkmaz; web araması tedarikçi keşfinde kullanılır.)
     const GROUNDED: AiCallOptions = {
-      feature: "profile_enrich",
+      feature: "test",
       prompt: "x".repeat(800),
       minTier: "STANDART",
       webSearch: true,
@@ -337,25 +339,19 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
       new FakeProvider(),
     );
     await expect(
-      goldAi.callAi(gold.auth, { feature: "profile_enrich", prompt: "x".repeat(800), webSearch: true }),
+      goldAi.callAi(gold.auth, { feature: "test", prompt: "x".repeat(800), webSearch: true }),
     ).rejects.toThrow(AiBudgetExceededException);
   });
 
-  it("bağlı takip çağrısına bütçede yer yoksa ücretli ilk çağrı HİÇ başlamaz; aynı gün timeout sonrası tam akış sığar (MU-06 gözden geçirme)", async () => {
-    // Profil grounded akışı: 1) grounded çağrı ~0,056  2) şema çağrısı ~0,021.
-    // Önceki timeout FAILED satırı tahmini (0,056) KORUR. Eski günlük tavan
-    // (0,5 × %25 = 0,125): grounded 0,112 ile geçiyor, şema çağrısı daily_cap
-    // ile düşüyordu — grounded ücreti boşa, kullanıcıya taslak yok.
-    const GROUNDED: AiCallOptions = {
+  it("paket bazında günlük tavan (dailyShareByTier): zaman aşımı tahmini KORUNUR, günün sonraki denemesi yine sığar (MU-06 gözden geçirme)", async () => {
+    // Profil tanıtımı önerisi: tek metin çağrısı, tahmin ≈ 8192×2,5/1M ≈ 0,021 USD.
+    // Zaman aşımına düşen deneme tahminini KORUR (FAILED satır, fail-closed).
+    // Günün önceki denemeleri tahminiyle kalmışken genel günlük pay
+    // (0,5 × %25 = 0,125) yeni çağrıyı daily_cap ile düşürür; STANDART payı
+    // 0,5 (0,25 USD) ile sığar.
+    const CALL_STANDART: AiCallOptions = {
       feature: "profile_enrich",
-      prompt: "x".repeat(800),
-      minTier: "STANDART",
-      webSearch: true,
-      followUpInputChars: 10_500,
-    };
-    const SEMA: AiCallOptions = {
-      feature: "profile_enrich",
-      prompt: "x".repeat(10_000),
+      prompt: "x".repeat(4000),
       minTier: "STANDART",
     };
     // Ücretsiz dönem: STANDART havuzu yalnız DOĞRULANMAMIŞ firmada geçerli
@@ -369,14 +365,14 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
       isOwner: true,
       verification: "UNVERIFIED",
     });
-    await seedSpend(co.company.id, co.user.id, "0.056", {
+    await seedSpend(co.company.id, co.user.id, "0.11", {
       feature: "profile_enrich",
       status: "FAILED",
       errorCode: "timeout",
     });
 
-    // Eski günlük tavan: takip çağrısına yer yok → grounded çağrı sağlayıcıya
-    // GİTMEDEN reddedilir (para yanmaz, rezervasyon satırı açılmaz).
+    // Genel günlük pay: 0,11 + 0,021 > 0,125 → sağlayıcıya GİTMEDEN reddedilir
+    // (para yanmaz, rezervasyon satırı açılmaz).
     const eski = new FakeProvider();
     const aiEski = makeAi(
       makeCfg({
@@ -386,16 +382,15 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
       }),
       eski,
     );
-    await expect(aiEski.callAi(auth, GROUNDED)).rejects.toThrow(AiBudgetExceededException);
+    await expect(aiEski.callAi(auth, CALL_STANDART)).rejects.toThrow(AiBudgetExceededException);
     expect(eski.calls).toHaveLength(0);
-    // Takip bildirimi olmadan grounded geçerdi (0,112 ≤ 0,125) — boşa harcama yolu.
     expect(
       await prisma.aiUsage.count({ where: { companyId: co.company.id, status: "RESERVED" } }),
     ).toBe(0);
 
-    // STANDART günlük payı 0,5 (0,25 USD): timeout sonrası tam akış sığar.
+    // STANDART günlük payı 0,5 (0,25 USD): aynı gün yeni deneme sığar.
     const yeni = new FakeProvider();
-    yeni.usage = { inputTokens: 300, outputTokens: 4000, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    yeni.usage = { inputTokens: 1000, outputTokens: 400, cacheReadTokens: 0, cacheWriteTokens: 0 };
     const aiYeni = makeAi(
       makeCfg({
         budgets: { STANDART: 0.5 },
@@ -404,17 +399,15 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
       }),
       yeni,
     );
-    await expect(aiYeni.callAi(auth, GROUNDED)).resolves.toMatchObject({ text: "cevap" });
-    await expect(aiYeni.callAi(auth, SEMA)).resolves.toMatchObject({ text: "cevap" });
-    expect(yeni.calls).toHaveLength(2);
+    await expect(aiYeni.callAi(auth, CALL_STANDART)).resolves.toMatchObject({ text: "cevap" });
+    expect(yeni.calls).toHaveLength(1);
 
-    // Takip tahmini REZERVE EDİLMEZ: satır yalnız kendi maliyetini tutar.
+    // Satır yalnız kendi (gerçek) maliyetini tutar.
     const rows = await prisma.aiUsage.findMany({
       where: { companyId: co.company.id, status: "SETTLED" },
-      orderBy: { createdAt: "asc" },
     });
-    expect(rows).toHaveLength(2);
-    expect(rows[0]!.costUsd.toNumber()).toBeLessThan(0.05);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.costUsd.toNumber()).toBeLessThan(0.01);
   });
 
   it("YARIŞ: kalan bütçeye tek istek sığarken 2 eşzamanlı istek → TAM 1 başarılı", async () => {

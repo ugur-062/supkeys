@@ -17,7 +17,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { BUYING_TIER, EMAIL_MAX_LENGTH, isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
+import { BUYING_TIER, EMAIL_MAX_LENGTH, isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER, visibleCategoryIds } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { buildDirectory, directoryFacets, type DirectoryParams, type DirectoryScope } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
@@ -62,6 +62,7 @@ import {
 } from "../../../common/company/invite-delivery";
 import { isLocale, recipientLocale, type Locale } from "@rothern/i18n";
 import {
+  AUTO_INVITE_OFF_REASON,
   COMPANY_DAILY_INVITE_CAP,
   coldInviteBlockedByCountry,
   registrationBlockedCountry,
@@ -634,7 +635,7 @@ export class CompanyConnectionsService {
       }),
       this.prisma.externalListingInvite.findMany({
         where: { listingId: listing.id, email: { in: emails } },
-        select: { email: true },
+        select: { id: true, email: true, state: true, cancelReason: true },
       }),
       this.prisma.companyReferralInvite.findMany({
         where: { inviterCompanyId: user.companyId, email: { in: emails } },
@@ -643,7 +644,20 @@ export class CompanyConnectionsService {
     ]);
     const optOutSet = new Set(optOuts.map((o) => o.email));
     const registeredSet = new Set(registered.map((r) => r.email.toLowerCase()));
-    const alreadySet = new Set(alreadyForListing.map((e) => e.email));
+    // GÖNDERİLMEDEN DÜŞEN OTOMATİK DAVET (gözden geçirme AI-1): yayın sonrası
+    // keşif turunun kuyruğa aldığı adres, alıcı talebi özele çevirdiği / kutuyu
+    // kapattığı için e-posta gitmeden iptal edildi (`AUTO_INVITE_OFF`). Alıcı o
+    // adresi şimdi KENDİSİ davet ediyorsa (elle ya da pencereden seçerek) bu
+    // "zaten davetli" DEĞİLDİR — satır alıcının daveti olarak yeniden kuyruğa
+    // girer. Otomatik tur (AI_AUTO) düşen satırı canlandırmaz.
+    const revivable = new Map(
+      source === "AI_AUTO"
+        ? []
+        : alreadyForListing
+            .filter((e) => e.state === "CANCELLED" && e.cancelReason === AUTO_INVITE_OFF_REASON)
+            .map((e) => [e.email, e.id] as const),
+    );
+    const alreadySet = new Set(alreadyForListing.filter((e) => !revivable.has(e.email)).map((e) => e.email));
     const referralBy = new Map(referrals.map((r) => [r.email, r]));
     const inviterLocale = currentLocale();
 
@@ -748,18 +762,36 @@ export class CompanyConnectionsService {
           ? now
           : nextBusinessWindow(now, timeZoneForCountry(country), Math.floor(Math.random() * 45));
       try {
-        await this.prisma.externalListingInvite.create({
-          data: {
-            listingId: listing.id,
-            inviterCompanyId: user.companyId,
-            referralInviteId: referral.id,
-            email,
-            locale,
-            country,
-            source,
-            sendAfter,
-          },
-        });
+        const revived = revivable.get(email);
+        if (revived) {
+          // Koşullu: eşzamanlı ikinci istek satırı önce canlandırdıysa dokunulmaz.
+          await this.prisma.externalListingInvite.updateMany({
+            where: { id: revived, state: "CANCELLED", cancelReason: AUTO_INVITE_OFF_REASON },
+            data: {
+              referralInviteId: referral.id,
+              state: "QUEUED",
+              cancelReason: null,
+              source,
+              locale,
+              country,
+              sendAfter,
+              attempts: 0,
+            },
+          });
+        } else {
+          await this.prisma.externalListingInvite.create({
+            data: {
+              listingId: listing.id,
+              inviterCompanyId: user.companyId,
+              referralInviteId: referral.id,
+              email,
+              locale,
+              country,
+              source,
+              sendAfter,
+            },
+          });
+        }
       } catch (e) {
         // Eşzamanlı ikinci istek aynı (talep, adres) satırını yazdıysa.
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -1881,6 +1913,14 @@ export class CompanyConnectionsService {
           })
         : Promise.resolve(0);
 
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): the declared categories a
+    // member sees on the profile are the VISIBLE ones only - a legacy
+    // declaration under a hidden segment stays in the record (matching still
+    // reads it) but is never drawn as a chip. Filtered BEFORE the cap of 12,
+    // so hidden codes do not use up the visible slots.
+    const shownCategoryIds = [
+      ...new Set(visibleCategoryIds([...c.sellerCategoryIds, ...c.buyerCategoryIds]).filter(isCategoryCode)),
+    ].slice(0, 12);
     const [listings, reviewRows, products, productCount, catRows, lockedListingCount] = await Promise.all([
       this.prisma.listing.findMany({
         where: {
@@ -1940,14 +1980,14 @@ export class CompanyConnectionsService {
       }),
       this.bypass.companyItem.count({ where: { ...publicProductWhere(), companyId: c.id } }),
       this.prisma.category.findMany({
-        where: { id: { in: [...c.sellerCategoryIds, ...c.buyerCategoryIds].filter(isCategoryCode).slice(0, 12) } },
+        where: { id: { in: shownCategoryIds } },
         select: { id: true, ...CATEGORY_NAME_SELECT },
       }),
       lockedListingCountQuery,
     ]);
     const reviewSummary = buildReviewSummary(reviewRows, { revealNames: true });
     const catName = new Map(catRows.map((r) => [r.id, categoryName(r)]));
-    const categories = [...new Set([...c.sellerCategoryIds, ...c.buyerCategoryIds])]
+    const categories = shownCategoryIds
       .filter((id) => catName.has(id))
       .map((id) => ({ id, name: catName.get(id) as string }));
 
@@ -1996,7 +2036,13 @@ export class CompanyConnectionsService {
     // Ürün adları/özetleri ve talep başlıkları da aynı kural (derin denetim
     // 2026-09-29 S025): herkese açık profil ızgarası ürünleri çeviriyordu, üye
     // panelde Türkçe görüyordu — üye, ziyaretçinin gördüğü her şeyi görür.
-    const listingRows = listings.map(({ _count, ...l }) => ({ ...l, itemCount: _count.items }));
+    // `categoryIds` on the request row is display-only (category tone of the
+    // card): codes under a hidden segment are not sent.
+    const listingRows = listings.map(({ _count, ...l }) => ({
+      ...l,
+      categoryIds: visibleCategoryIds(l.categoryIds),
+      itemCount: _count.items,
+    }));
     const productCards = products.map(toProductIndexCard);
     const locale = currentLocale();
     const translate = this.translations && !isSelf ? this.translations : null;

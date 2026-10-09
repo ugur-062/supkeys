@@ -19,7 +19,9 @@ import {
   type AiActionResult,
   type AiPendingAction,
   type BidDeliveryTime,
+  hiddenCategoryWhere,
   normalizeUnit,
+  visibleCategoryIds,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
@@ -211,11 +213,16 @@ export class AssistantActionsService {
     dto.invitations = invitees.map((c) => c.rothernId!);
 
     // Kategori adı onay kartında okuyucunun dilinde (eskiden `nameTr` ham —
-    // EN/RU arayüzde Türkçe kategori adı basıyordu).
-    const cats = await this.prisma.category.findMany({
-      where: { id: { in: dto.categoryIds ?? [] } },
-      select: CATEGORY_NAME_SELECT,
-    });
+    // EN/RU arayüzde Türkçe kategori adı basıyordu). Gizli segmentteki kod
+    // taslakta zaten kalmaz (`sanitizeAiDraft`); kart sorgusu da süzer — kartta
+    // gizli kategorinin adı hiçbir yoldan çıkmaz (2026-10-09).
+    const cardCategoryIds = visibleCategoryIds(dto.categoryIds);
+    const cats = cardCategoryIds.length
+      ? await this.prisma.category.findMany({
+          where: { id: { in: cardCategoryIds }, ...hiddenCategoryWhere() },
+          select: CATEGORY_NAME_SELECT,
+        })
+      : [];
     return this.storePending(user, sessionId, {
       type: "publish_tender",
       severity: "critical",

@@ -266,28 +266,55 @@ export class ListingScheduler implements OnModuleInit {
   }
 
   private async doAnnounceOpened(): Promise<void> {
+    const now = new Date();
     const due = await this.prisma.listing.findMany({
       where: {
         status: "OPEN",
         openNotifiedAt: null,
-        bidsOpenAt: { not: null, lte: new Date() },
-        // Kapanışı geçmiş talep duyurulmaz (claim aynı kuralı uygular, X08);
-        // burada da süzülür ki take penceresini doldurmasın.
-        OR: [{ closesAt: null }, { closesAt: { gt: new Date() } }],
+        AND: [
+          // Kapanışı geçmiş talep duyurulmaz (claim aynı kuralı uygular, X08);
+          // burada da süzülür ki take penceresini doldurmasın.
+          { OR: [{ closesAt: null }, { closesAt: { gt: now } }] },
+          {
+            OR: [
+              // Embargosu biten talep (açılış saati geldi).
+              { bidsOpenAt: { not: null, lte: now } },
+              // ANONİM DUYURUSU OTOMATİK DAVETİ BEKLEYEN talep (gözden geçirme
+              // AI-4, `CompanyListingsService.holdForDiscovery`): açılış
+              // tarihsiz, ilk turda, yayın turu yazılmış ama damgasız. Yayın
+              // turu satırı damgadan ÖNCE yalnız bu yolda yazılır — eski
+              // kayıtlarda bu şekil oluşmaz. Bekleme bellekte tutulmadığı için
+              // süreç yeniden başlasa da duyuru buradan salınır: tur bittiyse
+              // ya da 10 dakikayı aştıysa `announceListingOpen` claim'i alır;
+              // tur sürüyorsa çağrı hiçbir şey göndermeden döner.
+              {
+                bidsOpenAt: null,
+                currentRound: 1,
+                discoveryRuns: { some: { trigger: { in: ["PUBLISH", "SECOND_ROUND"] } } },
+              },
+            ],
+          },
+        ],
       },
-      select: { id: true, currentRound: true },
+      select: { id: true, currentRound: true, bidsOpenAt: true },
+      // Bekleyenler pencereyi doldurup embargosu biteni geciktirmesin.
+      orderBy: [{ bidsOpenAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
       take: 100,
     });
     if (due.length === 0) return;
     let announced = 0;
     for (const l of due) {
       try {
-        await this.listings.announceListingOpen(
+        const out = await this.listings.announceListingOpen(
           l.id,
           l.currentRound > 1 ? "newRound" : "invitation",
         );
+        // Bekleyen talep bu turda salınmadı: sayılmaz (dakikada bir "duyuruldu"
+        // günlüğü olmasın). Arama motoru bildirimi yalnız embargosu biten
+        // talep için (bekleyen talep yayınlandığı an zaten bildirildi).
+        if (out?.status === "held") continue;
         announced++;
-        this.seo?.listingChanged(l.id);
+        if (l.bidsOpenAt) this.seo?.listingChanged(l.id);
       } catch (err) {
         this.logger.error(
           `Açılış duyurusu gönderilemedi (${l.id}): ${

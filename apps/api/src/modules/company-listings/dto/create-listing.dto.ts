@@ -412,6 +412,18 @@ export class CreateListingDto {
   @ArrayMaxSize(MAX_LISTING_INVITATIONS)
   invitations?: string[];
 
+  /**
+   * DÜZENLEME: formun davetli listesini OKUDUĞU an — sahip detayının
+   * `invitationsAsOf` alanı aynen geri gönderilir (gözden geçirme AI-3).
+   * Davetler fark olarak uygulanır (gövdede olmayan davetli silinir); form
+   * açıkken yayın sonrası keşif turunun davet ettiği üye gövdede YOKTUR, ama
+   * alıcı onu çıkarmadı — formun bilemeyeceği AI daveti silinmez. Göndermeyen
+   * (eski) istemcide davranış eskisi gibi. Oluşturmada yok sayılır.
+   */
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  invitationsAsOf?: string;
+
   // İhale kategorisi ana konuyu tanımlar (detay kalemlerde) — AI önerisi
   // tavanıyla hizalı: en fazla 3. Fazla kategori PUBLIC ihalede alakasız
   // firmalara kategori-eşleşme bildirimi saçar.

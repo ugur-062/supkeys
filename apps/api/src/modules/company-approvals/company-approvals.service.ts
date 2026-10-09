@@ -11,6 +11,7 @@ import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { LOCALES } from "@rothern/i18n";
+import { visibleCategoryIds } from "@rothern/shared";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaService, PrismaBypassService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -2061,7 +2062,8 @@ export class CompanyApprovalsService {
         number: r.listing.number,
         title: r.listing.title,
         type: r.listing.type,
-        categoryIds: r.listing.categoryIds,
+        // Display-only here: codes under a hidden segment are not sent.
+        categoryIds: visibleCategoryIds(r.listing.categoryIds),
         closesAt: r.listing.closesAt,
         itemCount: r.listing.items.length,
         totalQuantity,

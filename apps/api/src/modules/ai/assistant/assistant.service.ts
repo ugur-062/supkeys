@@ -50,6 +50,7 @@ import {
   canListMyTenders,
   canSearchOpen,
   localizeToolCodes,
+  redactHiddenCategories,
   toolDefsForUser,
   trimList,
   type ToolStatusKind,
@@ -588,8 +589,11 @@ export class AssistantService {
     // D-357: durum/teslim/ödeme kodları istek dilinde etikete çevrilir —
     // model ham kodu ("OPEN") görüp kendi çevirisini uydurmasın.
     const locale = currentLocale();
+    // Gizli segmentteki kategori modele gitmez (kod / ad / referans) — boyut
+    // tavanından (`capObject` metne çevirir) ÖNCE.
+    const shown = <T>(rows: T) => redactHiddenCategories(rows) as T;
     const labeled = <T>(rows: T, kind: ToolStatusKind) =>
-      localizeToolCodes(rows, kind, locale) as T;
+      localizeToolCodes(shown(rows), kind, locale) as T;
     try {
       switch (call.name) {
         case TOOL_NAMES.listMyTenders: {
@@ -626,7 +630,7 @@ export class AssistantService {
           return this.capObject(labeled(await this.orders.getOne(user, id), "order"));
         }
         case TOOL_NAMES.listMyConnections:
-          return trimList(await this.connections.list(user.companyId));
+          return trimList(shown(await this.connections.list(user.companyId)));
         default:
           return { ...NEUTRAL_ERROR };
       }
