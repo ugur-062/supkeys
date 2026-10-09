@@ -21989,3 +21989,8 @@
 81161709	Sesli mesaj yönetim hizmeti	Sesli mesaj Yönetim Hizmeti
 81161710	Sesli mesaj destek hizmeti	Sesli mesaj Destek Hizmeti
 81161711	Videokonferans hizmeti	Videokonferans Hizmeti
+
+# 2026-10-09 (kullanıcı kararı): 78 segmentinin adı "Lojistik". Aynı adı taşıyan
+# yaprak (81141601, Tedarik zinciri yönetimi altında) ad tekilliği için ayrıştırıldı.
+78000000	Lojistik	Taşıma, Depolama ve Posta Hizmetleri
+81141601	Lojistik yönetimi	Lojistik

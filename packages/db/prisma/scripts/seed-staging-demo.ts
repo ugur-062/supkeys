@@ -21,6 +21,11 @@
  *
  * GÜVENLİK: DATABASE_URL staging proje referansını içermiyorsa DURUR; şifre
  * repoya yazılmaz, ortam değişkeninden okunur.
+ *
+ * VERİ `lib/staging-demo-data.ts`te. GİZLİ SEGMENT (2026-10-09): betik Prisma
+ * ile DOĞRUDAN yazar → gizli segmentteki (`HIDDEN_SEGMENTS`) tek bir kod bile
+ * varsa hiçbir şey yazmadan DURUR (`assertVisibleSeedCategories`) ve katalog
+ * sorguları gizli segmenti süzer (`lib/seed-category-guard.ts`).
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -33,13 +38,7 @@ for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split(
   }
 }
 
-import {
-  type CompanyActivity,
-  type CompanyRole,
-  type CompanyTier,
-  type Prisma,
-  PrismaClient,
-} from "@prisma/client";
+import { type Prisma, PrismaClient } from "@prisma/client";
 import {
   countSeats,
   expandCompanyCategorySelection,
@@ -52,7 +51,15 @@ import {
   SEAT_LIMITS,
 } from "@rothern/shared";
 import { createClient } from "@supabase/supabase-js";
+import {
+  assertVisibleSeedCategories,
+  existingVisiblePick,
+  resolveVisibleDiscoveryCategory,
+  type FindSeedCategory,
+} from "./lib/seed-category-guard";
+import { COMPANIES, type CompanySpec, photo, stagingDemoCategoryRefs, stagingDemoPhotoRefs } from "./lib/staging-demo-data";
 
+const SCRIPT = "seed-staging-demo";
 const STAGING_REF = "tmqwyypvxxkwrxequksu";
 const MAILBOX = "uguray156";
 const PASSWORD = process.env.STAGING_DEMO_PASSWORD ?? "";
@@ -77,164 +84,6 @@ const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SE
 });
 
 const demoEmail = (slug: string) => `${MAILBOX}+demo-${slug}@gmail.com`;
-const photo = (segment: string) => `/categories/${segment.slice(0, 2)}000000.webp`;
-
-/* ───────────────────────── Tanımlar ───────────────────────── */
-
-type UserSpec = { slug: string; firstName: string; lastName: string; roles: CompanyRole[]; owner?: boolean; label: string };
-
-type ProductSpec = {
-  name: string;
-  /** L3 discovery kodu ya da segment + anahtar kelime ile çözülür. */
-  cat: string;
-  catKw?: string;
-  desc: string;
-  brand?: string;
-  unit: string;
-  kw: string[];
-  price?: number;
-  tiers?: { minQty: number; unitPrice: number }[];
-  moq?: number;
-};
-
-type CompanySpec = {
-  key: string;
-  name: string;
-  legalName: string;
-  tier: CompanyTier;
-  verified: boolean;
-  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR";
-  taxNumber: string;
-  city: string;
-  district: string;
-  industry: string;
-  activities: CompanyActivity[];
-  about: string;
-  services: string[];
-  certs: string[];
-  founded: number;
-  employees: string;
-  /** Seçim (kullanıcının seçtiği derinlik) — ata zinciri betikte türetilir. */
-  sellPicks: string[];
-  buyPicks: string[];
-  users: UserSpec[];
-  products: ProductSpec[];
-};
-
-const COMPANIES: CompanySpec[] = [
-  {
-    key: "gold",
-    name: "Demo Gold Makina",
-    legalName: "Demo Gold Makina Sanayi ve Ticaret A.Ş.",
-    tier: "GOLD",
-    verified: true,
-    companyType: "JOINT_STOCK",
-    taxNumber: "9200000011",
-    city: "İstanbul",
-    district: "Tuzla",
-    industry: "Makine ve proses ekipmanı",
-    activities: ["MANUFACTURER", "IMPORTER_EXPORTER"],
-    founded: 2004,
-    employees: "51-250",
-    about:
-      "Tuzla'daki 9 bin metrekarelik tesisimizde gıda ve kimya sanayi için paslanmaz proses ekipmanı, konveyör ve basınçlı hava sistemleri üretiyoruz. Tasarımdan devreye almaya kadar anahtar teslim çalışıyor, 22 ülkeye ihracat yapıyoruz.",
-    services: ["Proje mühendisliği", "Montaj ve devreye alma", "Yedek parça ve bakım"],
-    certs: ["ISO 9001", "CE", "ISO 14001"],
-    sellPicks: ["24101500", "40151600"],
-    buyPicks: ["31000000", "39000000"],
-    users: [
-      { slug: "gold-kurucu", label: "Kurucu", firstName: "Deniz", lastName: "Kurucu", roles: ["SAHIP", "SATIN_ALMACI", "SATISCI"], owner: true },
-      { slug: "gold-yonetici", label: "Yönetici", firstName: "Ece", lastName: "Yönetici", roles: ["YONETICI"] },
-      { slug: "gold-satinalmaci", label: "Satınalmacı", firstName: "Mert", lastName: "Satınalma", roles: ["SATIN_ALMACI"] },
-      { slug: "gold-satisci", label: "Satışçı", firstName: "Selin", lastName: "Satış", roles: ["SATISCI"] },
-      { slug: "gold-onaylayici", label: "Onaylayıcı", firstName: "Onur", lastName: "Onay", roles: ["ONAYLAYICI"] },
-    ],
-    products: [
-      { name: "Modüler Bant Konveyör 600 mm", cat: "24101500", catKw: "konveyör", unit: "m", brand: "Demo Gold", kw: ["konveyör", "bant konveyör", "gıda hattı"], price: 36500, moq: 3,
-        desc: "Paslanmaz çelik gövdeli, modüler plastik bantlı konveyör. 600 mm bant genişliği, frekans kontrollü tahrik ve yıkanabilir tasarım; gıda ve ambalaj hatları için metre bazında üretilir." },
-      { name: "Vidalı Hava Kompresörü 22 kW 8 bar", cat: "40151600", catKw: "kompresör", unit: "adet", brand: "Demo Gold", kw: ["kompresör", "vidalı kompresör", "basınçlı hava"], price: 318000, moq: 1,
-        desc: "22 kW gücünde, 8 bar çalışma basıncında, dakikada 3,6 m³ hava üreten invertörlü vidalı kompresör. Entegre kurutucu seçeneği, kurulum ve iki yıl garanti dahildir." },
-      { name: "Paslanmaz Karıştırıcılı Tank 2000 L", cat: "23000000", catKw: "tank", unit: "adet", brand: "Demo Gold", kw: ["karıştırıcı tank", "paslanmaz tank", "proses"],
-        desc: "AISI 316L paslanmaz çelikten 2000 litrelik ceketli karıştırıcılı tank. Isıtma ve soğutma ceketi, CIP temizleme başlığı ve seviye sensörüyle gıda ve kozmetik üretimine uygundur." },
-      { name: "Endüstriyel Dişli Motor Redüktör", cat: "26000000", catKw: "redüktör", unit: "adet", brand: "Demo Gold", kw: ["redüktör", "dişli motor", "tahrik"],
-        tiers: [{ minQty: 1, unitPrice: 14200 }, { minQty: 10, unitPrice: 12900 }, { minQty: 50, unitPrice: 11800 }],
-        desc: "Helisel dişli, 0,75–7,5 kW aralığında motorlu redüktör. Konveyör, karıştırıcı ve vinç tahriklerinde kullanılır; yüksek verimli dişli seti ve IP55 motor koruma sınıfıyla sunulur." },
-      { name: "Pnömatik Silindir Seti (ISO 15552)", cat: "40000000", catKw: "silindir", unit: "set", brand: "Demo Gold", kw: ["pnömatik silindir", "ISO 15552", "otomasyon"], price: 2450, moq: 10,
-        desc: "ISO 15552 standardında çift etkili pnömatik silindir seti. 32–100 mm piston çapı, manyetik piston ve ayarlı yastıklama; otomasyon hatları için bağlantı elemanlarıyla birlikte gönderilir." },
-    ],
-  },
-  {
-    key: "silver",
-    name: "Demo Silver Elektrik",
-    legalName: "Demo Silver Elektrik Malzemeleri Ltd. Şti.",
-    tier: "SILVER",
-    verified: true,
-    companyType: "LIMITED",
-    taxNumber: "9200000022",
-    city: "Bursa",
-    district: "Nilüfer",
-    industry: "Elektrik malzemeleri",
-    activities: ["DISTRIBUTOR"],
-    founded: 2011,
-    employees: "11-50",
-    about:
-      "Bursa merkezli elektrik malzemeleri toptancısıyız. Kablo, pano, şalt malzemesi ve LED aydınlatmada 12 markanın yetkili bayisiyiz; projeye özel fiyat veriyor, Marmara bölgesindeki şantiyelere ertesi gün teslim ediyoruz.",
-    services: ["Proje tedariki", "Şantiye teslimi", "Teknik ürün desteği"],
-    certs: ["ISO 9001"],
-    sellPicks: ["39121600", "26121600"],
-    buyPicks: [],
-    users: [
-      { slug: "silver-kurucu", label: "Kurucu", firstName: "Can", lastName: "Kurucu", roles: ["SAHIP", "SATISCI"], owner: true },
-      { slug: "silver-satisci", label: "Satışçı", firstName: "Buse", lastName: "Satış", roles: ["SATISCI"] },
-      { slug: "silver-onaylayici", label: "Onaylayıcı", firstName: "Okan", lastName: "Onay", roles: ["ONAYLAYICI"] },
-    ],
-    products: [
-      { name: "NYY Enerji Kablosu 3x2,5 mm²", cat: "26121600", catKw: "kablo", unit: "m", brand: "Demo Silver", kw: ["NYY kablo", "enerji kablosu", "yeraltı kablosu"],
-        tiers: [{ minQty: 100, unitPrice: 48 }, { minQty: 1000, unitPrice: 43 }],
-        desc: "PVC izoleli, bakır iletkenli 0,6/1 kV NYY enerji kablosu. Toprak altı, kablo kanalı ve dış ortam tesisatlarına uygundur; 100 ve 500 metrelik makaralarda stoktan sevk edilir." },
-      { name: "Sıva Üstü Dağıtım Panosu 24 Modül", cat: "39121600", catKw: "pano", unit: "adet", brand: "Demo Silver", kw: ["dağıtım panosu", "sigorta kutusu", "pano"], price: 1650, moq: 5,
-        desc: "IP65 koruma sınıfında, 24 modüllü sıva üstü dağıtım panosu. Şeffaf kapak, N ve PE baraları dahil; konut, dükkân ve şantiye elektrik tesisatları için hazır montaj kitiyle gelir." },
-      { name: "Kaçak Akım Rölesi 4P 40A 30mA", cat: "39121600", catKw: "röle", unit: "adet", brand: "Demo Silver", kw: ["kaçak akım rölesi", "RCD", "şalt"], price: 890, moq: 10,
-        desc: "Dört kutuplu, 40 amper, 30 mA hassasiyetli kaçak akım koruma rölesi. EN 61008 standardına uygun, raya montajlı; insan hayatını ve tesisatı toprak kaçaklarına karşı korur." },
-      { name: "LED Endüstriyel Yüksek Tavan Armatürü 150W", cat: "39000000", catKw: "aydınlatma", unit: "adet", brand: "Demo Silver", kw: ["LED armatür", "high bay", "fabrika aydınlatma"],
-        desc: "150 watt, 21.000 lümen LED yüksek tavan armatürü. Alüminyum soğutucu gövde, IP65 koruma ve beş yıl garanti; depo, fabrika ve spor salonu aydınlatmasında enerji tasarrufu sağlar." },
-    ],
-  },
-  {
-    key: "ucretsiz",
-    name: "Demo Ücretsiz Tekstil",
-    legalName: "Demo Ücretsiz Tekstil Ltd. Şti.",
-    tier: "STANDART",
-    verified: false,
-    companyType: "LIMITED",
-    taxNumber: "9200000033",
-    city: "Denizli",
-    district: "Merkezefendi",
-    industry: "Ev tekstili",
-    activities: ["MANUFACTURER"],
-    founded: 2016,
-    employees: "11-50",
-    about:
-      "Denizli'de pamuklu havlu, bornoz ve nevresim üretiyoruz. Kendi dokuma ve konfeksiyon atölyemizde otel, spa ve perakende markaları için özel ölçü ve nakışlı ürün hazırlıyor, küçük partilere de üretim yapıyoruz.",
-    services: ["Özel nakış", "Otel tekstili", "Fason konfeksiyon"],
-    certs: ["OEKO-TEX Standard 100"],
-    sellPicks: ["52121700"],
-    buyPicks: ["11000000"],
-    users: [
-      { slug: "ucretsiz-kurucu", label: "Kurucu", firstName: "Aylin", lastName: "Kurucu", roles: ["SAHIP", "SATISCI"], owner: true },
-      { slug: "ucretsiz-satisci", label: "Satışçı", firstName: "Emre", lastName: "Satış", roles: ["SATISCI"] },
-    ],
-    products: [
-      { name: "Pamuklu Otel Havlusu 70x140 cm", cat: "52121700", catKw: "havlu", unit: "adet", brand: "Demo Tekstil", kw: ["otel havlusu", "pamuklu havlu", "banyo havlusu"],
-        tiers: [{ minQty: 50, unitPrice: 165 }, { minQty: 500, unitPrice: 139 }],
-        desc: "Yüzde yüz pamuk, 500 gr/m² ağırlığında beyaz otel havlusu. Endüstriyel yıkamaya dayanıklı dokuma, çift kat kenar dikişi ve isteğe bağlı logo nakışıyla otel ve spa işletmelerine üretilir." },
-      { name: "Waffle Bornoz Unisex", cat: "52121700", catKw: "bornoz", unit: "adet", brand: "Demo Tekstil", kw: ["bornoz", "waffle bornoz", "spa"], price: 420, moq: 20,
-        desc: "Hafif waffle dokuma pamuklu bornoz, standart ve büyük beden seçenekli. Kuşaklı, iki cepli kesim; spa, otel ve hamam işletmeleri için logo nakışı ve özel renk seçeneğiyle hazırlanır." },
-      { name: "Ranforce Nevresim Takımı Çift Kişilik", cat: "52121500", catKw: "nevresim", unit: "takım", brand: "Demo Tekstil", kw: ["nevresim takımı", "ranforce", "otel tekstili"],
-        desc: "Yüzde yüz pamuk ranforce kumaştan çift kişilik nevresim takımı. Nevresim, çarşaf ve iki yastık kılıfından oluşur; renk haslığı yüksek boyalar ve fermuarlı kapanışla uzun ömürlü kullanım sunar." },
-    ],
-  },
-];
 
 /* ───────────────────────── Yardımcılar ───────────────────────── */
 
@@ -272,44 +121,25 @@ function trIban(bank: string, account: string): string {
   return iban;
 }
 
+/**
+ * Betiğin TEK katalog sorgusu. `where` her zaman `lib/seed-category-guard`dan
+ * gelir ve gizli segment süzgecini (`hiddenCategoryWhere()`) taşır — anahtar
+ * kelime yedeği ("tank", "redüktör", "silindir") gizli segmente düşemez.
+ */
+const findCat: FindSeedCategory = (where) => prisma.category.findFirst({ where, select: { id: true }, orderBy: { id: "asc" } });
 const catCache = new Map<string, string>();
-/** Kod geçerli L3+ discovery ise onu; değilse anahtar kelimeyle segmentte en yakın L3. */
+/** Kod geçerli L3+ discovery ise onu; değilse anahtar kelimeyle GÖRÜNÜR katalogda en yakın L3. */
 async function resolveCat(code: string, kw?: string): Promise<string> {
   const key = `${code}|${kw ?? ""}`;
   const cached = catCache.get(key);
   if (cached) return cached;
-  let found = await prisma.category.findFirst({ where: { id: code, inDiscovery: true, level: { gte: 3 } }, select: { id: true } });
-  if (!found && kw) {
-    found =
-      (await prisma.category.findFirst({
-        where: { inDiscovery: true, level: 3, id: { startsWith: code.slice(0, 2) }, nameTr: { contains: kw, mode: "insensitive" } },
-        select: { id: true },
-        orderBy: { id: "asc" },
-      })) ??
-      (await prisma.category.findFirst({
-        where: { inDiscovery: true, level: 3, nameTr: { contains: kw, mode: "insensitive" } },
-        select: { id: true },
-        orderBy: { id: "asc" },
-      }));
-  }
-  if (!found) {
-    found = await prisma.category.findFirst({
-      where: { inDiscovery: true, level: 3, id: { startsWith: code.slice(0, 2) } },
-      select: { id: true },
-      orderBy: { id: "asc" },
-    });
-  }
-  if (!found) throw new Error(`Kategori çözülemedi: ${code} (${kw ?? "-"})`);
-  catCache.set(key, found.id);
-  return found.id;
+  const id = await resolveVisibleDiscoveryCategory(findCat, SCRIPT, code, kw);
+  catCache.set(key, id);
+  return id;
 }
 
-/** Seçim kodu katalogda yoksa segmentine düşer (beyan boş kalmasın). */
-async function existingPick(code: string): Promise<string | null> {
-  if (await prisma.category.findFirst({ where: { id: code }, select: { id: true } })) return code;
-  const seg = `${code.slice(0, 2)}000000`;
-  return (await prisma.category.findFirst({ where: { id: seg }, select: { id: true } })) ? seg : null;
-}
+/** Seçim kodu katalogda yoksa segmentine düşer (beyan boş kalmasın); gizli kod DURDURUR. */
+const existingPick = (code: string) => existingVisiblePick(findCat, SCRIPT, code);
 
 function assertSpecs(): void {
   const problems: string[] = [];
@@ -530,6 +360,9 @@ async function ensureConnection(a: { companyId: string; ownerId: string }, b: { 
 
 async function main() {
   assertSpecs();
+  // GİZLİ SEGMENT KAPISI — ilk yazımdan (auth kullanıcısı dahil) ÖNCE.
+  // Kodlar VE görseller: gizli segmentin fotoğrafı da o kategoriyi gösterir.
+  assertVisibleSeedCategories(SCRIPT, [...stagingDemoCategoryRefs(), ...stagingDemoPhotoRefs()]);
   const ids: Record<string, { companyId: string; ownerId: string; slug: string }> = {};
   for (const [i, c] of COMPANIES.entries()) {
     ids[c.key] = await ensureCompany(c, i);

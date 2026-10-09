@@ -1,17 +1,15 @@
-import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { ReferralInviteData } from "../types";
-import { InfoRows, MutedLink, Note, Paragraph } from "./_components/blocks";
-import { CtaButton } from "./_components/button";
-import { EmailEnvContext } from "./_components/email-env";
-import { Heading } from "./_components/heading";
-import { Layout } from "./_components/layout";
+import { siteHost, type EmailEnv } from "./_components/email-env";
+import { letterFooter, type Letter } from "./_components/plain-letter";
 
-/** Etiket katalogda iki noktalı ("Davet eden:"); tablo sütununda iki nokta düşer. */
-const label = (s: string) => s.replace(/[:：]\s*$/, "");
-
-/** Cümle içinde kalın yazılan parça — çeviride sözcük sırası değişse de yerini korur. */
-const bold = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
+/**
+ * Kayıtlı olmayan firmaya "katıl" daveti — DÜZ MEKTUP (2026-10-09, bkz.
+ * `_components/plain-letter.tsx`): görsel, kart, tablo, düğme yok; tek ana
+ * bağlantı (kayıt) + çıkış + aydınlatma metni. Metin olanı söyler: bağlantıyla
+ * kaydolunca bağlantı kurulur, sonradan aynı adresle kaydolunca davet kabul
+ * edilecek bir istek olarak görünür (koşulsuz "otomatik" vaadi yok).
+ */
 
 export function makeReferralInviteSubject(
   props: ReferralInviteData,
@@ -22,87 +20,31 @@ export function makeReferralInviteSubject(
   });
 }
 
-export function ReferralInviteEmail(props: ReferralInviteData & { locale?: Locale }) {
-  const locale = props.locale ?? DEFAULT_LOCALE;
-  const t = emailT(locale);
-  const env = React.useContext(EmailEnvContext);
-
-  return (
-    <Layout
-      preview={t("email.referralInvite.preview", {
-        inviterName: props.inviterName,
-      })}
-      locale={locale}
-    >
-      <Heading>{t("email.referralInvite.heading")}</Heading>
-
-      <Paragraph>{t("email.referralInvite.greeting")}</Paragraph>
-
-      <Paragraph>
-        {t.rich("email.referralInvite.intro", {
-          inviterName: props.inviterName,
-          b: bold,
-        })}
-      </Paragraph>
-
-      <Paragraph>
-        {t.rich("email.referralInvite.autoConnect", {
-          inviterName: props.inviterName,
-          b: bold,
-        })}
-      </Paragraph>
-
-      <InfoRows
-        rows={[
-          { label: label(t("email.referralInvite.inviterLabel")), value: props.inviterName },
-          { label: label(t("email.referralInvite.inviteeLabel")), value: props.email },
-        ]}
-        footer={t("email.referralInvite.infoNote")}
-      />
-
-      <CtaButton href={props.registerUrl}>{t("email.referralInvite.cta")}</CtaButton>
-
-      <Note>
-        {t("email.referralInvite.ignoreNote")}
-        {/* Alt bilgide imzalı çıkış bağlantısı varsa ikinci bir "kapat"
-            bağlantısı basılmaz; yoksa (JWT_SECRET yok) opt-out burada. */}
-        {props.optOutUrl && !env.unsubscribeUrl ? (
-          <>
-            <br />
-            {t.rich("email.referralInvite.optOut", {
-              optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
-            })}
-          </>
-        ) : null}
-      </Note>
-    </Layout>
-  );
-}
-
-export function renderReferralInviteText(
+export function buildReferralInviteLetter(
   props: ReferralInviteData,
   locale: Locale = DEFAULT_LOCALE,
-): string {
+  env: EmailEnv = {},
+): Letter {
   const t = emailT(locale);
-  return [
-    t("email.referralInvite.textTitle"),
-    "",
-    t("email.referralInvite.textIntro", { inviterName: props.inviterName }),
-    "",
-    t("email.referralInvite.textAbout"),
-    "",
-    t("email.referralInvite.textAutoConnect", {
-      email: props.email,
-      inviterName: props.inviterName,
-    }),
-    "",
-    t("email.referralInvite.textCta", { url: props.registerUrl }),
-    "",
-    t("email.referralInvite.textIgnore"),
-    ...(props.optOutUrl
-      ? [t("email.referralInvite.textOptOut", { url: props.optOutUrl })]
-      : []),
-    "",
-    t("email.layout.textSignature"),
-  ].join("\n");
+  return {
+    blocks: [
+      { kind: "text", text: t("email.referralInvite.greeting") },
+      { kind: "text", text: t("email.referralInvite.opening", { inviterName: props.inviterName }) },
+      { kind: "text", text: t("email.referralInvite.about") },
+      {
+        kind: "text",
+        text: t("email.referralInvite.autoConnect", { inviterName: props.inviterName, email: props.email }),
+      },
+      { kind: "links", links: [{ label: t("email.referralInvite.cta"), url: props.registerUrl }] },
+      { kind: "text", text: t("email.referralInvite.ignoreNote") },
+      { kind: "text", text: t("email.layout.textSignature") },
+    ],
+    footer: letterFooter(
+      t,
+      locale,
+      env,
+      t("email.referralInvite.footerReason", { inviterName: props.inviterName, site: siteHost(env.siteUrl) }),
+      props.optOutUrl,
+    ),
+  };
 }

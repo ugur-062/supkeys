@@ -39,8 +39,9 @@ export const MAX_LISTING_HORIZON_MS = 2 * 365 * 24 * 60 * 60 * 1000;
 
 /**
  * Firma profili hizmet çipi uzunluk tavanı — PATCH /company/profile DTO'su,
- * AI profil doldurma kırpması ve web ChipEditor aynı sabiti okur (derin denetim
- * S069: AI 80'e kırpıp DTO 60'ta reddedince Kaydet 400 düşüyordu).
+ * AI tanıtım önerisi ucunun gövdesi (taslak hizmetler) ve web ChipEditor aynı
+ * sabiti okur (derin denetim S069: iki taraf ayrı tavan kullanınca Kaydet 400
+ * düşüyordu).
  */
 export const COMPANY_SERVICE_MAX_LENGTH = 60;
 

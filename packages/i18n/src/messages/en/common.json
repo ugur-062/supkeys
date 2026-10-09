@@ -6,7 +6,7 @@
     "conflict": "This action is not possible in the current state",
     "unprocessable": "Invalid data",
     "server": "Server error, please try again",
-    "network": "Connection error, please check your internet connection",
+    "network": "The server could not be reached. Check your connection and try again.",
     "moreFields": "{n, plural, one {+# more field} other {+# more fields}}",
     "uploadFailed": "The file could not be uploaded — please try again",
     "fileReadFailed": "The file could not be read"

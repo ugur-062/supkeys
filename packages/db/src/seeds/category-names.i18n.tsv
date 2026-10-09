@@ -18107,7 +18107,7 @@
 77141703	Inorganics testing of soil or sludge or solid waste	Анализ почвы, осадка или твердых отходов на неорганические вещества
 77141704	Semi-volatile organics testing of soil or sludge or solid waste	Анализ почвы, осадка или твердых отходов на полулетучие органические вещества
 77141705	Volatile organics testing of soil or sludge or solid waste	Анализ почвы, осадка или твердых отходов на летучие органические вещества
-78000000	Transportation and Storage and Mail Services	Услуги транспорта, хранения и почты
+78000000	Logistics	Логистика
 78100000	Mail and cargo transport	Почтовые и грузовые перевозки
 78101500	Air cargo transport	Грузовые авиаперевозки
 78101501	Domestic air cargo transport	Внутренние грузовые авиаперевозки
@@ -18723,7 +18723,7 @@
 81141511	Quality control and quality assurance consultancy services	Консультационные услуги по контролю и обеспечению качества
 81141512	Equipment inspection and verification services	Услуги по инспекции и проверке оборудования
 81141600	Supply chain management	Управление цепями поставок
-81141601	Logistics	Логистика
+81141601	Logistics management	Управление логистикой
 81141602	Transit analysis	Анализ транзита
 81141603	Transport finance or economics	Экономика или финансирование транспорта
 81141604	Transport facilitation	Упрощение транспортных процедур

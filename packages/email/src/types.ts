@@ -34,7 +34,8 @@ export interface ReferralInviteData {
   /**
    * Tek tık "davet almak istemiyorum" (`/davet-kapat?token=`) — dış talep
    * davetiyle AYNI mekanizma (İYS/ETK hijyeni). Eski çağıranlar için isteğe
-   * bağlı; verilmezse bağlantı satırı çizilmez.
+   * bağlı. Mektup TEK çıkış bağlantısı basar: gönderim servisinin imzalı
+   * çıkış sayfası varsa o, yoksa bu adres.
    */
   optOutUrl?: string;
 }
@@ -107,7 +108,10 @@ export interface TenderInviteDigestEntry {
   /** İlk kalemler (özette en fazla 3). */
   items?: TenderExternalInviteItem[];
   itemCount?: number;
-  /** Kayıt + talebe dönüş bağlantısı (o davet edenin jetonu). */
+  /**
+   * Talebin jetonlu bağlantısı (o davet edenin jetonu). Düz mektup YALNIZ ilk
+   * talebinkini basar (soğuk e-postada en fazla dört bağlantı, 2026-10-09).
+   */
   ctaUrl: string;
 }
 

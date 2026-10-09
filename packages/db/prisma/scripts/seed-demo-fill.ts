@@ -5,11 +5,18 @@
  *
  * Çalıştır:  cd packages/db && npx tsx prisma/scripts/seed-demo-fill.ts
  * Idempotent: her koşuda @demofill.local firmaları silinip yeniden kurulur.
+ *
+ * ESKİ betik: yerini `seed-marketplace-demo` aldı (aynı `@demofill.local` işareti).
+ * GİZLİ SEGMENT (2026-10-09): kategori havuzu yalnız GÖRÜNÜR segmentlerden
+ * (`visibleActiveFamilyWhere`, kod sırasıyla) seçilir ve yazımdan önce bir kez
+ * daha denetlenir. Süzgeçsiz ve sırasız hâliyle havuzun 24 ailesinin tamamı
+ * gizli segment 10'du (canlı bitki/hayvan) ve firma beyanına, talebe yazılıyordu.
  */
 import { PrismaClient, type CompanyRole, type CompanyTier } from "@prisma/client";
 import { prepareScriptDatabase } from "./lib/script-env";
 import { createClient } from "@supabase/supabase-js";
 import { permissionsForRoles } from "@rothern/shared";
+import { assertVisibleSeedCategories, visibleActiveFamilyWhere } from "./lib/seed-category-guard";
 
 const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-demo-fill") });
 const supabase = createClient(
@@ -153,9 +160,10 @@ async function main() {
     console.log(`🧹 ${prevIds.length} eski demo firma silindi`);
   }
 
-  // 1) Kategori havuzu (geçerli UNSPSC kodları).
-  const cats = (await prisma.category.findMany({ where: { level: 2, isActive: true }, select: { code: true }, take: 24 })).map((c) => c.code);
+  // 1) Kategori havuzu: GÖRÜNÜR segmentlerin aileleri, kod sırasıyla (kararlı).
+  const cats = (await prisma.category.findMany({ where: visibleActiveFamilyWhere(), select: { code: true }, orderBy: { code: "asc" }, take: 24 })).map((c) => c.code);
   if (!cats.length) throw new Error("Kategori bulunamadı — önce kategori seed'ini çalıştırın.");
+  assertVisibleSeedCategories("seed-demo-fill", cats.map((code) => ({ source: "category pool", code })));
   const cat = (idx: number) => cats[idx % cats.length]!;
 
   // 2) Firmalar + owner + auth.

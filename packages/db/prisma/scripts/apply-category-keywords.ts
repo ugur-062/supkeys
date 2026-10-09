@@ -16,6 +16,9 @@
  * seed'in yazdığı düşen adları ("Hazır Beton" → 30111505) sessizce silerdi.
  *
  * Çalıştırma: `pnpm --filter @rothern/db apply-category-keywords`
+ *   --dry   yalnız ne değişeceğini yazar, DB'ye dokunmaz (kardeş betikler
+ *           `apply-category-translations` / `apply-category-names-i18n` ile aynı;
+ *           2026-10-09'a kadar bu bayrak YOKTU: `-- --dry` yok sayılıp hemen yazıyordu)
  * Idempotent; TSV'de olmayan kategorilere dokunmaz, DEĞİŞMEYEN satırı yazmaz.
  */
 import { PrismaClient, Prisma } from "@prisma/client";
@@ -35,6 +38,7 @@ const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("apply-ca
 const CHUNK = 500;
 
 async function main() {
+  const dry = process.argv.includes("--dry");
   const dir = path.resolve(__dirname, "../../src/seeds");
   const {
     byCode: entries,
@@ -71,6 +75,12 @@ async function main() {
     rows.push({ code, kw, st: categorySearchText({ ...cat, keywords: kw }) });
   }
   console.log(`   ${rows.length} satır değişiyor, ${cats.length - rows.length} zaten güncel\n`);
+
+  if (dry) {
+    rows.slice(0, 20).forEach((r) => console.log(`   ${r.code}  -> ${r.kw.slice(0, 100)}`));
+    console.log(`\n(--dry) ${rows.length} row(s) would change; nothing written to the database.`);
+    return;
+  }
 
   let done = 0;
   for (let i = 0; i < rows.length; i += CHUNK) {

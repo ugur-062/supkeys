@@ -57,9 +57,16 @@ export type CategoryCatalogWhere = { inDiscovery?: true } & HiddenCategoryWhere;
  * önerisi ve doğrulama kapıları hepsi buradan okur. Geri almak = listeden
  * çıkarmak.
  *
- * Kalan 29 segment: malzeme (11 12 13 14 15 30 31 32), makine/ekipman
- * (20 21 22 23 24 25 26 27 39 40 41 46 47), endüstriyel hizmet (71 72 73 76
- * 77 78 81) + 95 (yapılar ve altyapı).
+ * 2026-10-09 (kullanıcı kararı): 46 (Kolluk, Ulusal Güvenlik ve Emniyet
+ * Ekipmanları) ve 77 (Çevre Hizmetleri) de gizlendi — "anasayfadan kaldır;
+ * anasayfada olmayan kategori talepte, üründe ya da başka yerde de
+ * gösterilmesin". Anasayfa vitrini görünür segmentlerin TAMAMINI çizer
+ * (`buildShowcase` limit 100), yani "anasayfada görünen" = "bu listede
+ * olmayan"; kategori gösteren her yüzey bu listeden okur.
+ *
+ * Kalan 27 segment: malzeme (11 12 13 14 15 30 31 32), makine/ekipman
+ * (20 21 22 23 24 25 26 27 39 40 41 47), endüstriyel hizmet (71 72 73 76
+ * 78 81) + 95 (yapılar ve altyapı).
  */
 export const HIDDEN_SEGMENTS: readonly string[] = [
   "10", // Canlı bitkiler, hayvanlar
@@ -67,6 +74,7 @@ export const HIDDEN_SEGMENTS: readonly string[] = [
   "43", // Bilgisayar, yazılım, telekom
   "44", // Ofis ekipmanı
   "45", // Baskı, fotoğraf, ses-video
+  "46", // Kolluk, ulusal güvenlik ve emniyet ekipmanları (2026-10-09)
   "48", // Hizmet sektörü ekipmanı
   "49", // Spor
   "50", // Gıda ve içecek
@@ -80,6 +88,7 @@ export const HIDDEN_SEGMENTS: readonly string[] = [
   "60", // Eğitim gereçleri, oyuncak
   "64", // Finansal araçlar
   "70", // Tarım ve balıkçılık hizmetleri
+  "77", // Çevre hizmetleri (2026-10-09)
   "80", // Profesyonel ve idari hizmetler
   "82", // Kreatif hizmetler
   "83", // Kamu sektörü hizmetleri
@@ -99,6 +108,26 @@ const HIDDEN_SET: ReadonlySet<string> = new Set(HIDDEN_SEGMENTS);
 export function isHiddenCategory(code: string | null | undefined): boolean {
   if (!code || code.length < 2) return false;
   return HIDDEN_SET.has(code.slice(0, 2));
+}
+
+/**
+ * SAKLANMIŞ kodları GÖSTERİME hazırlar: gizli segmentin altındaki kodlar düşer,
+ * sıra korunur. Kural (2026-10-09, kullanıcı): "anasayfada olmayan kategori
+ * talepte, üründe ya da başka yerde de gösterilmesin" — kataloğu GEZDİREN
+ * yüzeyler `hiddenCategoryWhere` ile zaten süzülüyordu; saklanmış bir kodu ada
+ * / etikete / bağlantıya / sayıya çeviren her okuma da BURADAN geçer (eski
+ * kayıt durur, yalnız gizli kategorisi görünmez). Eşleştirme ve bildirim
+ * saklanan kodların TAMAMINI kullanmaya devam eder — bu yardımcı oraya girmez.
+ */
+export function visibleCategoryIds<T extends string | null | undefined>(ids: readonly T[] | null | undefined): string[] {
+  const out: string[] = [];
+  for (const id of ids ?? []) if (id && !isHiddenCategory(id)) out.push(id);
+  return out;
+}
+
+/** Tek kod için aynı kural: gizliyse `null`. */
+export function visibleCategoryId(id: string | null | undefined): string | null {
+  return id && !isHiddenCategory(id) ? id : null;
 }
 
 export type HiddenCategoryWhere = { NOT: { id: { startsWith: string } }[] };

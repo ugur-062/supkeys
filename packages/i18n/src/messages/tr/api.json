@@ -261,6 +261,7 @@
     "buSatinAlmaTalebineAzOnce": "Bu satın alma talebine az önce teklif verildi; düzenleme yapılamaz",
     "yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": "Yalnızca taslak talep silinebilir; yayınlanmış talep iptal edilir",
     "yalnizcaTaslakIlanYayinlanabilir": "Yalnızca taslak talep yayınlanabilir",
+    "taslakKategorisiGuncelDegil": "Bu taslaktaki bir kategori artık kullanılmıyor. Talebi düzenleyip güncel bir kategori seçin ve kaydedin; ardından yeniden yayınlayın.",
     "yayinIcinGecerliBirKapanisTarihi": "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
     "ozelDavetliIlanYayinlamakIcinEn": "Özel (davetli) talep yayınlamak için en az bir firma davet edilmeli",
     "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "Talep durumu değişti; yalnızca taslak yayınlanabilir",
@@ -784,12 +785,12 @@
     "onceBirAdBaslikYazin": "Önce bir ad/başlık yazın.",
     "aciklamaUretilemediBirkacOlguDahaEkleyip": "Açıklama üretilemedi — birkaç olgu daha ekleyip tekrar deneyin.",
     "aiOzelligiSuAndaKullanilamiyor": "AI özelliği şu anda kullanılamıyor.",
-    "onceFirmaWebSiteniziEkleyinProfilim": "Önce firma web sitenizi ekleyin (Profilim → Düzenle).",
-    "gunlukAiProfilOlusturmaLimitineUlasildi": "Günlük AI profil oluşturma limitine ulaşıldı ({DAILYLIMIT}) — yarın tekrar deneyin.",
-    "profilAiTaslagiHazirlaniyor": "Profil AI taslağı şu an hazırlanıyor — birkaç dakika sonra tekrar deneyin.",
+    "profilTanitimiIcinBilgiYok": "Tanıtım yazabilmemiz için önce sektörünüzü, hizmetlerinizi, faaliyet kategorilerinizi ya da bir ürününüzü ekleyin.",
+    "gunlukAiProfilOlusturmaLimitineUlasildi": "Günlük AI tanıtım önerisi sınırına ulaşıldı ({DAILYLIMIT}) — yarın tekrar deneyin.",
+    "profilAiTaslagiHazirlaniyor": "Tanıtım taslağınız şu an hazırlanıyor — birkaç dakika sonra tekrar deneyin.",
     "aiSuAnYanitVeremediBirkac": "AI şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
     "aiCiktisiIslenemediLutfenTekrarDeneyin": "AI çıktısı işlenemedi — lütfen tekrar deneyin.",
-    "sitedenYeterliBilgiCikarilamadiProfiliElle": "Siteden yeterli bilgi çıkarılamadı — profili elle doldurabilirsiniz.",
+    "profilTanitimiYazilamadi": "AI bu bilgilerle tanıtım yazamadı — metni elle yazabilir ya da sektör, hizmet ve ürün ekleyip tekrar deneyebilirsiniz.",
     "neAradiginiziBirkacKelimeyleYazin": "Ne aradığınızı birkaç kelimeyle yazın.",
     "enFazlaKarakter": "En fazla {SEARCHINTENTMAXTEXT} karakter.",
     "aramaYorumlanamadiTekrarDeneyin": "Arama yorumlanamadı — tekrar deneyin.",
@@ -920,7 +921,8 @@
     "bidPriceSalvaged": "AI çıktısı uzunluk tavanına çarptı — {n, plural, other {# satır}} kurtarıldı; belgenin devamı okunmamış olabilir (belgeyi bölerek yeniden deneyin)",
     "bidPriceUnreadable": "Belge okunamadı — AI geçerli sonuç döndürmedi; şablonu deneyin",
     "aiOzellikleriIcinDogrulama": "AI özellikleri için firma doğrulaması gerekir.",
-    "profilAiBirKezDogrulama": "Doğrulanmamış firmalar profili AI ile bir kez doldurabilir — tekrar oluşturmak için firma doğrulaması gerekir."
+    "profilTanitimHakkiDoldu": "Doğrulanmamış firmalar toplam {limit} AI tanıtım önerisi alabilir; hakkınız doldu. Daha fazlası için firmanızı doğrulayın.",
+    "profilTanitimDenemeSiniriDoldu": "Doğrulanmamış firmalar için AI tanıtım önerisinin toplam deneme sınırına ({limit}) ulaşıldı; taslak üretmeyen denemeler de bu sınıra sayılır. Daha fazlası için firmanızı doğrulayın."
   },
   "companyOrders": {
     "buIslemiYapamazsiniz": "Bu işlemi yapamazsınız",
@@ -979,9 +981,11 @@
     "katalogEnFazlaKalemTasiyabilirKullanmadiklariniz": "Katalog en fazla {MAXCATALOGITEMS} kalem taşıyabilir — kullanmadıklarınızı arşivleyin",
     "kalemAdiZorunlu": "Kalem adı zorunlu",
     "stokKoduKatalogdaZatenVarKod": "\"{code}\" stok kodu katalogda zaten var — kod firma içinde tekil olmalı",
+    "kategoriGecersizYaDaGuncelDegil": "Seçilen kategori geçersiz ya da artık kullanılmıyor. Güncel bir kategori seçin.",
     "publishBlocker": {
       "name": "Ürün adı en az {minName} karakter olmalı",
       "category": "Kategori seçilmeli",
+      "categoryNotCurrent": "Kategori artık kullanılmıyor, güncel bir kategori seçilmeli",
       "description": "Açıklama en az {minDescription} karakter olmalı",
       "images": "En az 1 görsel eklenmeli",
       "keywords": "En az 1 anahtar kelime eklenmeli",
@@ -1081,13 +1085,6 @@
   },
   "auth": {
     "csrfDogrulamasiBasarisiz": "CSRF doğrulaması başarısız"
-  },
-  "common": {
-    "gecersizWebSitesiAdresi": "Geçersiz web sitesi adresi",
-    "sadeceHttpHttpsAdresleriDesteklenir": "Sadece http/https adresleri desteklenir",
-    "buAdresCekilemez": "Bu adres çekilemez",
-    "webSitesineUlasilamadi": "Web sitesine ulaşılamadı",
-    "webSayfasiCokBuyuk": "Web sayfası çok büyük"
   },
   "dto": {
     "companyUser": {
@@ -1625,7 +1622,9 @@
         "body": "“{title}” ({number}) alım talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; ayrıntılar ve teklif için talebi açın.",
         "bodyProduct": "“{title}” ({number}) alım talebine davet edildiniz. Sizi vitrininizdeki “{product}” ürünü nedeniyle önerdik; talep edilen kalemler aşağıda.",
         "bodyCategory": "“{title}” ({number}) alım talebine davet edildiniz. Talep, sattığınız kategoriyle eşleşiyor; talep edilen kalemler aşağıda.",
-        "footer": "Bu davet, Rothern'in tedarikçi önerisiyle gönderildi. Talep davetlerini Ayarlar › Bildirimler'den kapatabilirsiniz."
+        "footer": "Bu davet, Rothern'in tedarikçi önerisiyle gönderildi. Talep davetlerini Ayarlar › Bildirimler'den kapatabilirsiniz.",
+        "inviterRow": "Davet eden firma",
+        "inAppBodyInviter": "{inviter} sizi “{title}” ({number}) alım talebine davet etti."
       },
       "aiMatchLocked": {
         "subject": "Bir alıcı sattığınız ürünleri arıyor",
@@ -1767,10 +1766,19 @@
       "title": "Uygun tedarikçiler bulundu",
       "body": "“{title}” talebiniz için {n, plural, other {# uygun tedarikçi}} bulundu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Tek tıkla davet edebilirsiniz.",
       "cta": "Tedarikçileri gör",
-      "emailSubject": "Talebiniz için {n, plural, other {# tedarikçi}} bulundu",
-      "emailHeading": "Talebinize uygun tedarikçiler bulundu",
-      "emailBody": "“{title}” ({number}) talebiniz için {n, plural, other {# uygun tedarikçi}} bulundu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Listeyi açın; istemediklerinizi çıkarıp kalanları tek tıkla davet edin. Davetler her tedarikçinin kendi dilinde ve kendi ülkesinde mesai saatinde gönderilir.",
-      "emailFooter": "Teklif sayısı az kalırsa süre yarılandığında bir kez daha arama yapılır."
+      "invitedTitle": "Otomatik tedarikçi araması tamamlandı",
+      "invitedBodyBoth": "Otomatik tedarikçi araması “{title}” talebinize {members, plural, other {# Rothern üyesini}} davet etti; {emails, plural, other {# firmaya}} davet e-postası sıraya alındı.",
+      "invitedBodyMembers": "Otomatik tedarikçi araması “{title}” talebinize {members, plural, other {# Rothern üyesini}} davet etti.",
+      "invitedBodyEmails": "Otomatik tedarikçi araması “{title}” talebiniz için {emails, plural, other {# firmaya}} davet e-postasını sıraya aldı.",
+      "invitedCta": "Davet edilenleri gör",
+      "invitedEmailSubjectBoth": "Talebinize {members, plural, other {# Rothern üyesi}} davet edildi, {emails, plural, other {# davet e-postası}} sırada",
+      "invitedEmailSubjectMembers": "Talebinize {members, plural, other {# Rothern üyesi}} davet edildi",
+      "invitedEmailSubjectEmails": "Talebiniz için {emails, plural, other {# davet e-postası}} sıraya alındı",
+      "invitedEmailIntro": "Yayınlarken açtığınız otomatik tedarikçi araması “{title}” ({number}) talebiniz için tamamlandı.",
+      "invitedEmailMembers": "{members, plural, other {# Rothern üyesi}} talebe davet edildi; talebi hemen görürler.",
+      "invitedEmailEmails": "{emails, plural, other {# firmaya}} davet e-postası sıraya alındı. E-posta, firmanın kendi dilinde ve kendi ülkesindeki mesai saatinde gönderilir; talep kapanmadan gönderilemeyecek adresler bu sayıya dahil değildir.",
+      "invitedEmailOutro": "Kimin davet edildiğini ve hangi e-postanın gittiğini talep sayfasında görebilirsiniz.",
+      "invitedEmailFooter": "Teklif sayısı az kalırsa süre yarılandığında bir kez daha arama yapılır ve bulunanlar davet edilir."
     },
     "digest": {
       "subject": "Bugün kategorinizde {n, plural, other {# talep}} daha açıldı",
@@ -1788,8 +1796,8 @@
     },
     "lifecycle": {
       "profile": {
-        "subject": "Profilinizi 1 dakikada AI ile doldurun",
-        "body": "Alıcılar tedarikçi seçerken önce profile bakar. Web sitenizi girin, AI tanıtım metninizi hazırlasın — ücretsiz ve bir kez.",
+        "subject": "Tanıtım metninizi AI ile 1 dakikada yazın",
+        "body": "Alıcılar tedarikçi seçerken önce profile bakar. AI, firma bilgilerinizden ve vitrindeki ürünlerinizden tanıtım metninizin taslağını yazar; siz kontrol edip kaydedersiniz.",
         "cta": "Profili doldur"
       },
       "first_product": {
@@ -1827,8 +1835,8 @@
     "zeroBid": {
       "subject": "“{title}” talebiniz henüz teklif almadı",
       "heading": "Talebiniz teklif bekliyor",
-      "body": "“{title}” ({number}) talebiniz {closesAt} tarihinde kapanıyor ve henüz teklif gelmedi. AI'ın bulduğu tedarikçileri tek tıkla davet edin ya da teklif süresini uzatın.",
-      "inAppBody": "“{title}” talebiniz henüz teklif almadı. AI'ın bulduğu tedarikçileri davet edin ya da süreyi uzatın.",
+      "body": "“{title}” ({number}) talebiniz {closesAt} tarihinde kapanıyor ve henüz teklif gelmedi. Talep sayfasındaki “AI ile tedarikçi bul” ile yeni tedarikçiler davet edin ya da teklif süresini uzatın.",
+      "inAppBody": "“{title}” talebiniz henüz teklif almadı. “AI ile tedarikçi bul” ile yeni tedarikçiler davet edin ya da süreyi uzatın.",
       "cta": "Talebi aç"
     }
   },

@@ -15,10 +15,12 @@ import type {
   SendEmailResult,
 } from "./types";
 
-/** Tüm e-postalar Rothern layout'unu kullanır ve logoyu `cid:rothern-logo`
- *  (koyu modda `cid:rothern-logo-dark`) ile referanslar → iki logo da her
- *  gönderime gömülü (inline) ek olarak eklenir. Böylece
- *  uzak görsel engelleyen istemcilerde (Gmail vb.) ve dev'de de görünür. */
+/** Marka kabuğunu (`Layout`) kullanan e-postalar logoyu `cid:rothern-logo`
+ *  (koyu modda `cid:rothern-logo-dark`) ile referanslar → logo gömülü (inline)
+ *  ek olarak gider; uzak görsel engelleyen istemcilerde (Gmail vb.) ve dev'de
+ *  de görünür. Ek YALNIZ HTML'i onu referanslıyorsa eklenir (`referencedLogos`):
+ *  düz mektup biçimindeki soğuk davetler (bkz. `plain-letter.tsx`) görsel
+ *  taşımaz, onlara HİÇBİR ek gitmez. */
 const LOGO_ATTACHMENTS: EmailAttachment[] = [
   {
     filename: LOGO_FILENAME,
@@ -35,6 +37,11 @@ const LOGO_ATTACHMENTS: EmailAttachment[] = [
     inlineContentId: LOGO_DARK_CID,
   },
 ];
+
+/** HTML'in `cid:` ile gerçekten referansladığı logo ekleri. */
+export function referencedLogos(html: string): EmailAttachment[] {
+  return LOGO_ATTACHMENTS.filter((a) => html.includes(`"cid:${a.inlineContentId}"`));
+}
 
 export class EmailClient {
   readonly provider: BaseEmailProvider;
@@ -72,8 +79,8 @@ export class EmailClient {
       ...input,
       from: input.from ?? this.from,
       replyTo: input.replyTo ?? this.replyTo,
-      // Gömülü Rothern logoları + çağıranın (varsa) ekleri.
-      attachments: [...LOGO_ATTACHMENTS, ...(input.attachments ?? [])],
+      // HTML'in referansladığı gömülü logolar + çağıranın (varsa) ekleri.
+      attachments: [...referencedLogos(input.rendered.html), ...(input.attachments ?? [])],
     });
   }
 }

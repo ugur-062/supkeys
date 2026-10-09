@@ -261,6 +261,7 @@
     "buSatinAlmaTalebineAzOnce": "A quote was just submitted for this buying request; it can no longer be edited",
     "yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": "Only a draft request can be deleted; a published request is canceled",
     "yalnizcaTaslakIlanYayinlanabilir": "Only a draft request can be published",
+    "taslakKategorisiGuncelDegil": "A category in this draft is no longer in use. Edit the request, choose a current category and save it, then publish again.",
     "yayinIcinGecerliBirKapanisTarihi": "Publishing requires a valid closing date in the future",
     "ozelDavetliIlanYayinlamakIcinEn": "At least one company must be invited to publish a private (invite-only) request",
     "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "The request status changed; only a draft can be published",
@@ -784,12 +785,12 @@
     "onceBirAdBaslikYazin": "Enter a name or title first.",
     "aciklamaUretilemediBirkacOlguDahaEkleyip": "The description could not be generated — add a few more facts and try again.",
     "aiOzelligiSuAndaKullanilamiyor": "The AI feature is currently unavailable.",
-    "onceFirmaWebSiteniziEkleyinProfilim": "Add your company website first (My Profile → Edit).",
-    "gunlukAiProfilOlusturmaLimitineUlasildi": "The daily AI profile generation limit has been reached ({DAILYLIMIT}) — try again tomorrow.",
-    "profilAiTaslagiHazirlaniyor": "Your AI profile draft is already being prepared — try again in a few minutes.",
+    "profilTanitimiIcinBilgiYok": "To write a description we first need your industry, your services, your business categories or a product — please add at least one.",
+    "gunlukAiProfilOlusturmaLimitineUlasildi": "The daily limit for AI description suggestions has been reached ({DAILYLIMIT}) — try again tomorrow.",
+    "profilAiTaslagiHazirlaniyor": "Your description draft is already being prepared — try again in a few minutes.",
     "aiSuAnYanitVeremediBirkac": "The AI could not respond right now — try again in a few seconds.",
     "aiCiktisiIslenemediLutfenTekrarDeneyin": "The AI output could not be processed — please try again.",
-    "sitedenYeterliBilgiCikarilamadiProfiliElle": "Not enough information could be extracted from the website — you can fill in the profile manually.",
+    "profilTanitimiYazilamadi": "AI could not write a description from this information — you can write it yourself, or add your industry, services and products and try again.",
     "neAradiginiziBirkacKelimeyleYazin": "Describe what you are looking for in a few words.",
     "enFazlaKarakter": "At most {SEARCHINTENTMAXTEXT, plural, one {# character} other {# characters}}.",
     "aramaYorumlanamadiTekrarDeneyin": "The search could not be interpreted — try again.",
@@ -920,7 +921,8 @@
     "bidPriceSalvaged": "The AI output hit its length limit — {n, plural, one {# row was} other {# rows were}} recovered; the rest of the document may not have been read (split the document and try again)",
     "bidPriceUnreadable": "The document could not be read — the AI did not return a valid result; try the template instead",
     "aiOzellikleriIcinDogrulama": "AI features require company verification.",
-    "profilAiBirKezDogrulama": "Unverified companies can fill in their profile with AI once — generating it again requires company verification."
+    "profilTanitimHakkiDoldu": "Unverified companies can get {limit} AI description suggestions in total, and you have used all of them. Verify your company to get more.",
+    "profilTanitimDenemeSiniriDoldu": "The total attempt limit for AI description suggestions for unverified companies ({limit}) has been reached; attempts that did not produce a draft count toward it too. Verify your company to get more."
   },
   "companyOrders": {
     "buIslemiYapamazsiniz": "You cannot perform this action",
@@ -979,9 +981,11 @@
     "katalogEnFazlaKalemTasiyabilirKullanmadiklariniz": "The catalog can carry at most {MAXCATALOGITEMS, plural, one {# line item} other {# line items}} — archive the ones you do not use",
     "kalemAdiZorunlu": "Line item name is required",
     "stokKoduKatalogdaZatenVarKod": "The stock code \"{code}\" already exists in the catalog — the code must be unique within the company",
+    "kategoriGecersizYaDaGuncelDegil": "The selected category is invalid or no longer in use. Choose a current category.",
     "publishBlocker": {
       "name": "The product name must be at least {minName, plural, one {# character} other {# characters}}",
       "category": "A category must be selected",
+      "categoryNotCurrent": "The category is no longer in use, a current category must be selected",
       "description": "The description must be at least {minDescription, plural, one {# character} other {# characters}}",
       "images": "At least 1 image must be added",
       "keywords": "At least 1 keyword must be added",
@@ -1081,13 +1085,6 @@
   },
   "auth": {
     "csrfDogrulamasiBasarisiz": "CSRF validation failed"
-  },
-  "common": {
-    "gecersizWebSitesiAdresi": "Invalid website address",
-    "sadeceHttpHttpsAdresleriDesteklenir": "Only http/https addresses are supported",
-    "buAdresCekilemez": "This address cannot be fetched",
-    "webSitesineUlasilamadi": "The website could not be reached",
-    "webSayfasiCokBuyuk": "The web page is too large"
   },
   "dto": {
     "companyUser": {
@@ -1625,7 +1622,9 @@
         "body": "You’ve been invited to the buying request “{title}” ({number}). The requested line items are below; open the request for details and to submit a quote.",
         "bodyProduct": "You’ve been invited to the buying request “{title}” ({number}). We suggested you because of “{product}” in your showcase; the requested line items are below.",
         "bodyCategory": "You’ve been invited to the buying request “{title}” ({number}). The request matches the category you sell in; the requested line items are below.",
-        "footer": "This invitation was sent based on Rothern’s supplier suggestions. You can turn off request invitations in Settings › Notifications."
+        "footer": "This invitation was sent based on Rothern’s supplier suggestions. You can turn off request invitations in Settings › Notifications.",
+        "inviterRow": "Invited by",
+        "inAppBodyInviter": "{inviter} invited you to the buying request “{title}” ({number})."
       },
       "aiMatchLocked": {
         "subject": "A buyer is looking for what you sell",
@@ -1767,10 +1766,19 @@
       "title": "Matching suppliers found",
       "body": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request “{title}”{abroad, plural, =0 {} other { (# abroad)}}. You can invite them with one click.",
       "cta": "View suppliers",
-      "emailSubject": "{n, plural, one {# supplier} other {# suppliers}} found for your request",
-      "emailHeading": "Suppliers found for your request",
-      "emailBody": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request “{title}” ({number}){abroad, plural, =0 {} other { — # of them abroad}}. Open the list, remove the ones you don’t want and invite the rest with one click. Invitations are sent in each supplier’s own language, during business hours in their country.",
-      "emailFooter": "If you still have few quotes when half of the time has passed, we will search once more."
+      "invitedTitle": "Automatic supplier search finished",
+      "invitedBodyBoth": "The automatic supplier search invited {members, plural, one {# Rothern member} other {# Rothern members}} to your request “{title}” and queued {emails, plural, one {# invitation email} other {# invitation emails}} for other companies.",
+      "invitedBodyMembers": "The automatic supplier search invited {members, plural, one {# Rothern member} other {# Rothern members}} to your request “{title}”.",
+      "invitedBodyEmails": "The automatic supplier search queued {emails, plural, one {# invitation email} other {# invitation emails}} for your request “{title}”.",
+      "invitedCta": "See who was invited",
+      "invitedEmailSubjectBoth": "{members, plural, one {# Rothern member} other {# Rothern members}} invited to your request, {emails, plural, one {# invitation email} other {# invitation emails}} queued",
+      "invitedEmailSubjectMembers": "{members, plural, one {# Rothern member was} other {# Rothern members were}} invited to your request",
+      "invitedEmailSubjectEmails": "{emails, plural, one {# invitation email was} other {# invitation emails were}} queued for your request",
+      "invitedEmailIntro": "The automatic supplier search you switched on when publishing has finished for your request “{title}” ({number}).",
+      "invitedEmailMembers": "{members, plural, one {# Rothern member was} other {# Rothern members were}} invited to the request; they can see it right away.",
+      "invitedEmailEmails": "{emails, plural, one {# invitation email was} other {# invitation emails were}} queued for companies that are not members. Each email is sent in the company’s own language, during business hours in its country; addresses that cannot be emailed before the request closes are not counted.",
+      "invitedEmailOutro": "You can see who was invited and which emails have been sent on the request page.",
+      "invitedEmailFooter": "If you still have few quotes when half of the time has passed, we will search once more and invite the suppliers found."
     },
     "digest": {
       "subject": "{n, plural, one {# more request} other {# more requests}} opened in your categories today",
@@ -1788,8 +1796,8 @@
     },
     "lifecycle": {
       "profile": {
-        "subject": "Fill in your profile with AI in one minute",
-        "body": "Buyers check the profile first when choosing a supplier. Enter your website and AI will draft your company description — free, one time.",
+        "subject": "Write your company description with AI in one minute",
+        "body": "Buyers check the profile first when choosing a supplier. AI drafts your company description from your company details and the products in your showcase; you review it and save.",
         "cta": "Complete profile"
       },
       "first_product": {
@@ -1827,8 +1835,8 @@
     "zeroBid": {
       "subject": "Your request “{title}” hasn’t received any quotes yet",
       "heading": "Your request is waiting for quotes",
-      "body": "Your request “{title}” ({number}) closes on {closesAt} and hasn’t received any quotes yet. Invite the suppliers AI found with one click, or extend the quote deadline.",
-      "inAppBody": "Your request “{title}” hasn’t received any quotes yet. Invite the suppliers AI found or extend the deadline.",
+      "body": "Your request “{title}” ({number}) closes on {closesAt} and hasn’t received any quotes yet. Invite more suppliers with “Find suppliers with AI” on the request page, or extend the quote deadline.",
+      "inAppBody": "Your request “{title}” hasn’t received any quotes yet. Invite more suppliers with “Find suppliers with AI” or extend the deadline.",
       "cta": "Open request"
     }
   },

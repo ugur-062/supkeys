@@ -165,9 +165,8 @@ describe("davet metinleri olanı söyler (reinvite-new-1)", () => {
   const VIA_LINK = { tr: /bağlantıyla|düğmeyle|adresten/i, en: /link|button/i, ru: /ссылк|кнопк/i };
 
   const SURFACES: Array<["web" | "email", string]> = [
-    // Davet e-postası: gövde paragrafı + tablo altı not birlikte, düz metin sürümü.
-    ["email", "referralInvite.autoConnect+referralInvite.infoNote"],
-    ["email", "referralInvite.textAutoConnect"],
+    // Davet e-postası (2026-10-09 düz mektup: HTML ve düz metin aynı tek paragraf).
+    ["email", "referralInvite.autoConnect"],
     // Alıcının bekleyen davet satırı ve davet penceresinin açıklaması.
     ["web", "panel.company.connectionsView.kaydoluncaOtomatikBaglanir"],
     ["web", "panel.company.connectionsView.firmaninEPostasiniYazinKayitliysa"],
@@ -189,10 +188,11 @@ describe("davet metinleri olanı söyler (reinvite-new-1)", () => {
   it("e-posta yer tutucuları korunur (şablon aynı değişkenleri verir)", () => {
     for (const locale of LOCALES) {
       const email = rawMessages(locale, "email");
-      expect(at(email, "referralInvite.autoConnect")).toContain("<b>{inviterName}</b>");
-      const text = at(email, "referralInvite.textAutoConnect");
+      const text = at(email, "referralInvite.autoConnect");
       expect(text).toContain("{inviterName}");
       expect(text).toContain("{email}");
+      // Düz mektup: metin etiket taşımaz (kalın yazı / bağlantı etiketi yok).
+      expect(text).not.toMatch(/<[a-z]/i);
     }
   });
 });

@@ -6,7 +6,7 @@
     "conflict": "Bu işlem mevcut durumda yapılamaz",
     "unprocessable": "Geçersiz veri",
     "server": "Sunucu hatası, lütfen tekrar deneyin",
-    "network": "Bağlantı hatası, internet bağlantınızı kontrol edin",
+    "network": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
     "moreFields": "{n, plural, other {+# alan daha}}",
     "uploadFailed": "Dosya yüklenemedi — lütfen tekrar deneyin",
     "fileReadFailed": "Dosya okunamadı"

@@ -1,45 +1,25 @@
-import * as React from "react";
 import { DEFAULT_LOCALE, emailT, type EmailMessageKey, type EmailTranslator, type Locale } from "../i18n";
 import type { TenderExternalInviteData, TenderExternalInviteItem } from "../types";
-import { BulletList, MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
-import { CtaButton } from "./_components/button";
-import { EmailEnvContext } from "./_components/email-env";
-import { Heading } from "./_components/heading";
-import { Layout } from "./_components/layout";
-import { inline } from "./_components/text";
-import { COLORS } from "./_components/tokens";
+import { siteHost, type EmailEnv } from "./_components/email-env";
+import { letterFooter, type Letter, type LetterBlock, type LetterLink } from "./_components/plain-letter";
 
 /**
- * Faz C — dış tedarikçi daveti ("X sizi 'Y' satın alma talebine davet etti").
+ * Faz C — dış tedarikçi daveti ("X sizden teklif istiyor").
  *
- * 2026-09-27 (kullanıcı: "kalemler hakkında bilgi verilmeli ki şirkete cazip
- * gelsin ve kayıt olmak istesin"): talep başlığı + numara, ilk kalemler
- * ("ad — miktar birim", birim ve sayı biçimi ALICININ dilinde), toplam kalem
- * sayısı, teslim yeri (yalnız şehir + ülke), son teklif tarihi, kategori(ler),
- * aranan tedarikçi tipi, kapalı zarf ve ücretsiz teklif cümleleri, vitrindeki
- * talebin herkese açık sayfası. Kapalı zarf/anonimlik: hedef fiyat, marka,
+ * DÜZ MEKTUP (2026-10-09, sahip: "AI'ın bulduğu, hiç kayıt olmamış firmalara
+ * giden davet Promosyonlar'a ya da spam'e düşmemeli"): logo/görsel, kart,
+ * renkli kutu, düğme YOK — bkz. `_components/plain-letter.tsx`. Mektup tek
+ * `Letter` modelinden çizilir; HTML ve düz metin aynı şeyi söyler.
+ *
+ * İçerik BEYAZ LİSTE (2026-09-27): davet eden firmanın adı (izinliyse), talep
+ * başlığı + numara, ilk kalemler ("ad — miktar birim", birim ve sayı biçimi
+ * ALICININ dilinde), toplam kalem sayısı, teslim yeri (yalnız şehir + ülke),
+ * son teklif tarihi, kategori(ler), aranan tedarikçi tipi. Hedef fiyat, marka,
  * şartname, belge, ticari şart ve tam adres yükte YOK (bkz. types.ts).
- * Konu satırında emoji YOK — soğuk davette spam puanını yükseltiyordu.
- * Alt bilgide kim-neden-gönderdi açıklaması + tek tık opt-out (İYS/ETK).
+ * Bağlantılar: kayıt (ana), kayıtsız önizleme (yoksa vitrindeki herkese açık
+ * sayfa), tek çıkış bağlantısı, aydınlatma metni — en fazla dört.
+ * Metin olgusal: ünlem, emoji, vurgu için büyük harf, pazarlama sözcüğü yok.
  */
-
-const panelTitle: React.CSSProperties = {
-  fontSize: "15px",
-  lineHeight: "22px",
-  fontWeight: 600,
-  color: COLORS.slate900,
-};
-
-// Panel satırları `<div>`: Outlook masaüstü satır içi öğede `display:block`u
-// yok sayar, span'ler tek satırda birleşiyordu.
-const panelLine: React.CSSProperties = { ...TEXT.small };
-
-const smallText: React.CSSProperties = { ...TEXT.body, fontSize: "14px", lineHeight: "22px" };
-
-const secondaryLink: React.CSSProperties = { ...TEXT.small, margin: "12px 0 0 0" };
-
-/** Cümle içinde kalın yazılan parça — çeviride sözcük sırası değişse de yerini korur. */
-const bold = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
 
 /**
  * "1.200 m" / "1,200 pieces" / "1 200 рулонов" — sayı ve birim TEK ICU
@@ -61,7 +41,7 @@ function supplierTypeLabels(t: EmailTranslator, codes: readonly string[] | undef
     .map((k) => t(k));
 }
 
-/** HTML ve düz metin sürümünün ORTAK bilgi satırları (ikisi ayrışmasın). */
+/** Talebin bilgi satırları (tekli davet ve özet ortak). */
 export function infoLines(
   t: EmailTranslator,
   props: Pick<TenderExternalInviteData, "supplierTypes" | "tenderNumber" | "categories" | "deliveryPlace" | "closesAt">,
@@ -83,35 +63,128 @@ export function infoLines(
   ];
 }
 
-function itemLines(t: EmailTranslator, props: TenderExternalInviteData): { lines: string[]; total: number; more: number } {
-  const items = props.items ?? [];
-  const total = Math.max(props.itemCount ?? items.length, items.length);
+/**
+ * Kalem satırları ("- ad — miktar birim") + gösterilmeyenler için "+N kalem
+ * daha". `limit` verilirse yalnız ilk `limit` kalem (özet e-postası).
+ */
+export function itemLines(
+  t: EmailTranslator,
+  props: Pick<TenderExternalInviteData, "items" | "itemCount">,
+  limit?: number,
+): { lines: string[]; total: number } {
+  const all = props.items ?? [];
+  const items = limit === undefined ? all : all.slice(0, limit);
+  const total = Math.max(props.itemCount ?? all.length, all.length);
+  const more = total - items.length;
   return {
-    lines: items.map((i) =>
-      t("email.tenderExternalInvite.itemLine", { name: i.name, qty: formatInviteQuantity(t, i) }),
-    ),
+    lines: [
+      ...items.map(
+        (i) => `- ${t("email.tenderExternalInvite.itemLine", { name: i.name, qty: formatInviteQuantity(t, i) })}`,
+      ),
+      ...(items.length > 0 && more > 0 ? [t("email.tenderExternalInvite.moreItems", { count: more })] : []),
+    ],
     total,
-    more: total - items.length,
   };
+}
+
+/**
+ * SUBJECT LENGTH - one rule for every invitation subject (round 5, AI-MAIL-1;
+ * owner: these mails must not look like advertising). Two ordinary item names
+ * made a 142-155 character subject: inboxes cut it and a long, list-like
+ * subject reads as promotion. Limits:
+ *  - an item name in a subject is at most `SUBJECT_ITEM_NAME_MAX` characters
+ *    (cut at a word boundary, ellipsis);
+ *  - the whole subject is at most `SUBJECT_MAX_LENGTH` characters: when two
+ *    names do not fit, one name is used and the "+N" count grows by one; a
+ *    name is shortened further only when even one does not fit, and a very
+ *    long company name gives way last.
+ * The body is not affected (it always carries the full names). Lengths are
+ * counted in characters (code points), not UTF-16 units.
+ */
+export const SUBJECT_MAX_LENGTH = 110;
+export const SUBJECT_ITEM_NAME_MAX = 40;
+/** A name is not cut below this to make room for another part of the subject. */
+const SUBJECT_NAME_FLOOR = 20;
+const ELLIPSIS = "…";
+
+const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
+const textLength = (text: string): number => Array.from(text).length;
+
+/**
+ * `text` in at most `max` characters: cut at the last word boundary (a single
+ * long word is cut inside), separators left hanging at the cut are dropped
+ * and an ellipsis marks the cut. Text that fits is returned as it is (white
+ * space collapsed).
+ */
+export function truncateAtWord(text: string, max: number): string {
+  const chars = Array.from(oneLine(text));
+  if (chars.length <= max) return chars.join("");
+  if (max <= 0) return "";
+  const head = chars.slice(0, max - 1);
+  let cut = head.length;
+  if (chars[max - 1] !== " ") {
+    const lastSpace = head.lastIndexOf(" ");
+    // A boundary in the first half would drop most of the name: cut inside the word.
+    if (lastSpace >= Math.ceil(head.length / 2)) cut = lastSpace;
+  }
+  const kept = head
+    .slice(0, cut)
+    .join("")
+    .replace(/[\s,;:\-–—/(&+]+$/u, "");
+  return `${kept}${ELLIPSIS}`;
+}
+
+/**
+ * The name to print in a subject that carries ONE free name (company name):
+ * unchanged when `render(name)` fits, otherwise shortened to the room the
+ * fixed text leaves. Callers that render the subject themselves (API
+ * notification subjects from a catalog key) pass the result as the parameter.
+ */
+export function subjectName(render: (name: string) => string, name: string, max: number = SUBJECT_MAX_LENGTH): string {
+  const clean = oneLine(name);
+  if (textLength(render(clean)) <= max) return clean;
+  return truncateAtWord(clean, Math.max(SUBJECT_NAME_FLOOR, max - textLength(render(""))));
+}
+
+/** `render(name)` within the subject limit (see `subjectName`). */
+export function fitSubject(render: (name: string) => string, name: string, max: number = SUBJECT_MAX_LENGTH): string {
+  const subject = render(subjectName(render, name, max));
+  // Unreachable with today's catalogs (fixed text is short); a later, longer
+  // sentence must still not produce an over-long subject.
+  return textLength(subject) <= max ? subject : truncateAtWord(subject, max);
 }
 
 /**
  * Konudaki kalem özeti: ilk iki kalem adı + "+N kalem" ("M6 cıvata, Rulman +1
  * kalem"). Kalem yoksa talep başlığı. Konu kişiye özel ve somut olsun diye
  * (2026-09-27, kullanıcı: "şirket adı ve kalemler daha etkili olur").
+ *
+ * `budget` = characters the rest of the subject leaves for the summary (see
+ * SUBJECT LENGTH above): two names -> one name with the count adjusted -> one
+ * name shortened to the room left (never below the floor; the caller then
+ * shortens the company name).
  */
 export function inviteSubjectItems(
   t: EmailTranslator,
   props: Pick<TenderExternalInviteData, "items" | "itemCount" | "tenderTitle">,
+  budget: number = Number.POSITIVE_INFINITY,
 ): string {
   const items = props.items ?? [];
-  if (items.length === 0) return props.tenderTitle;
-  const names = items.slice(0, 2).map((i) => i.name);
+  if (items.length === 0) return truncateAtWord(props.tenderTitle, Math.max(SUBJECT_NAME_FLOOR, budget));
   const total = Math.max(props.itemCount ?? items.length, items.length);
-  const more = total - names.length;
-  return more > 0
-    ? `${names.join(", ")} ${t("email.tenderExternalInvite.subjectMore", { count: more })}`
-    : names.join(", ");
+  const names = items.slice(0, 2).map((i) => truncateAtWord(i.name, SUBJECT_ITEM_NAME_MAX));
+  const summary = (shown: string[]): string => {
+    const more = total - shown.length;
+    return more > 0
+      ? `${shown.join(", ")} ${t("email.tenderExternalInvite.subjectMore", { count: more })}`
+      : shown.join(", ");
+  };
+  for (let n = names.length; n >= 1; n--) {
+    const text = summary(names.slice(0, n));
+    if (textLength(text) <= budget) return text;
+  }
+  const tail = textLength(summary([""]));
+  return summary([truncateAtWord(names[0], Math.max(SUBJECT_NAME_FLOOR, budget - tail))]);
 }
 
 export function makeTenderExternalInviteSubject(
@@ -119,10 +192,11 @@ export function makeTenderExternalInviteSubject(
   locale: Locale = DEFAULT_LOCALE,
 ): string {
   const t = emailT(locale);
-  const items = inviteSubjectItems(t, props);
-  return props.reminder
-    ? t("email.tenderExternalInvite.reminderSubject", { inviterName: props.inviterName, items })
-    : t("email.tenderExternalInvite.subjectItems", { inviterName: props.inviterName, items });
+  const key = props.reminder ? "email.tenderExternalInvite.reminderSubject" : "email.tenderExternalInvite.subjectItems";
+  const render = (inviterName: string, items: string): string => t(key, { inviterName, items });
+  const inviter = oneLine(props.inviterName);
+  const items = inviteSubjectItems(t, props, SUBJECT_MAX_LENGTH - textLength(render(inviter, "")));
+  return fitSubject((name) => render(name, items), inviter);
 }
 
 /** Gönderenin görünen adı: "ABC İnşaat (Rothern üzerinden)" — alıcının dilinde. */
@@ -130,140 +204,62 @@ export function inviteFromName(inviterName: string, locale: Locale = DEFAULT_LOC
   return emailT(locale)("email.tenderExternalInvite.fromName", { inviterName });
 }
 
-export function TenderExternalInviteEmail(
-  props: TenderExternalInviteData & { locale?: Locale },
-) {
-  const locale = props.locale ?? DEFAULT_LOCALE;
-  const t = emailT(locale);
-  const info = infoLines(t, props);
-  const items = itemLines(t, props);
-  // Alt bilgide imzalı çıkış bağlantısı varsa (davet akışında her zaman) not
-  // yalnız açıklamayı taşır — aynı e-postada iki "kapat" bağlantısı olmasın.
-  // Çıkış bağlantısı basılamadıysa (JWT_SECRET yok) opt-out notta kalır.
-  const env = React.useContext(EmailEnvContext);
-
-  return (
-    <Layout
-      preview={t("email.tenderExternalInvite.preview", {
-        inviterName: props.inviterName,
-        tenderTitle: props.tenderTitle,
-      })}
-      locale={locale}
-    >
-      <Heading>
-        {t(props.reminder ? "email.tenderExternalInvite.reminderHeading" : "email.tenderExternalInvite.heading")}
-      </Heading>
-
-      <Paragraph>{t("email.tenderExternalInvite.greeting")}</Paragraph>
-
-      <Paragraph>
-        {t.rich(props.reminder ? "email.tenderExternalInvite.reminderIntro" : "email.tenderExternalInvite.intro", {
-          inviterName: props.inviterName,
-          b: bold,
-        })}
-      </Paragraph>
-
-      <Panel>
-        <div className="r-strong" style={panelTitle}>
-          {props.tenderTitle}
-        </div>
-        {info.map((line) => (
-          <div key={line} className="r-muted" style={panelLine}>
-            {inline(line)}
-          </div>
-        ))}
-      </Panel>
-
-      {items.lines.length > 0 ? (
-        <Panel style={{ backgroundColor: COLORS.card }}>
-          <div className="r-strong" style={{ ...panelTitle, fontSize: "14px" }}>
-            {t("email.tenderExternalInvite.itemsTitle", { count: items.total })}
-          </div>
-          <BulletList items={items.lines} style={{ margin: "8px 0 0 0" }} />
-          {items.more > 0 ? (
-            <div className="r-muted" style={{ ...panelLine, paddingTop: "4px" }}>
-              {t("email.tenderExternalInvite.moreItems", { count: items.more })}
-            </div>
-          ) : null}
-        </Panel>
-      ) : null}
-
-      <Paragraph style={smallText}>
-        {t("email.tenderExternalInvite.sealedBid")}
-        <br />
-        {t("email.tenderExternalInvite.freeToQuote")}
-      </Paragraph>
-
-      <Paragraph style={smallText}>
-        {t("email.tenderExternalInvite.howTo", {
-          inviterName: props.inviterName,
-        })}
-      </Paragraph>
-
-      <CtaButton href={props.registerUrl}>{t("email.tenderExternalInvite.cta")}</CtaButton>
-
-      {props.previewUrl ? (
-        <Paragraph style={secondaryLink}>
-          {t.rich("email.tenderExternalInvite.previewLink", {
-            link: (chunks: React.ReactNode) => <MutedLink href={props.previewUrl ?? undefined}>{chunks}</MutedLink>,
-          })}
-        </Paragraph>
-      ) : props.publicUrl ? (
-        <Paragraph style={secondaryLink}>
-          {t.rich("email.tenderExternalInvite.publicLink", {
-            link: (chunks: React.ReactNode) => <MutedLink href={props.publicUrl ?? undefined}>{chunks}</MutedLink>,
-          })}
-        </Paragraph>
-      ) : null}
-
-      <Note>
-        {env.unsubscribeUrl
-          ? t("email.tenderExternalInvite.textFootnote", { inviterName: props.inviterName })
-          : t.rich("email.tenderExternalInvite.footnote", {
-              inviterName: props.inviterName,
-              optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
-            })}
-      </Note>
-    </Layout>
-  );
-}
-
-export function renderTenderExternalInviteText(
+/**
+ * Davet mektubu (hatırlatmada yalnız açılış cümlesi değişir). Selamdan sonraki
+ * ilk cümle olgunun kendisidir — gelen kutusu önizlemesi de odur.
+ */
+export function buildTenderExternalInviteLetter(
   props: TenderExternalInviteData,
   locale: Locale = DEFAULT_LOCALE,
-): string {
+  env: EmailEnv = {},
+): Letter {
   const t = emailT(locale);
   const items = itemLines(t, props);
-  return [
-    t(props.reminder ? "email.tenderExternalInvite.textReminderIntro" : "email.tenderExternalInvite.textIntro", {
-      inviterName: props.inviterName,
-      tenderTitle: props.tenderTitle,
-    }),
-    ...infoLines(t, props),
+  // Önizleme bağlantısı varsa herkese açık sayfa basılmaz (iki içerik bağlantısı).
+  const second: LetterLink | null = props.previewUrl
+    ? { label: t("email.tenderExternalInvite.previewLabel"), url: props.previewUrl }
+    : props.publicUrl
+      ? { label: t("email.tenderExternalInvite.publicLabel"), url: props.publicUrl }
+      : null;
+  const blocks: LetterBlock[] = [
+    { kind: "text", text: t("email.tenderExternalInvite.greeting") },
+    {
+      kind: "text",
+      text: t(props.reminder ? "email.tenderExternalInvite.reminderOpening" : "email.tenderExternalInvite.opening", {
+        inviterName: props.inviterName,
+      }),
+    },
+    {
+      kind: "lines",
+      lines: [t("email.tenderExternalInvite.titleLine", { title: props.tenderTitle }), ...infoLines(t, props)],
+    },
     ...(items.lines.length > 0
       ? [
-          "",
-          t("email.tenderExternalInvite.itemsTitle", { count: items.total }),
-          ...items.lines.map((l) => `- ${l}`),
-          ...(items.more > 0 ? [t("email.tenderExternalInvite.moreItems", { count: items.more })] : []),
+          {
+            kind: "lines" as const,
+            lines: [t("email.tenderExternalInvite.itemsTitle", { count: items.total }), ...items.lines],
+          },
         ]
       : []),
-    "",
-    t("email.tenderExternalInvite.sealedBid"),
-    t("email.tenderExternalInvite.freeToQuote"),
-    "",
-    t("email.tenderExternalInvite.textCta", { url: props.registerUrl }),
-    ...(props.previewUrl
-      ? [t("email.tenderExternalInvite.textPreviewLink", { url: props.previewUrl })]
-      : props.publicUrl
-        ? [t("email.tenderExternalInvite.textPublicLink", { url: props.publicUrl })]
-        : []),
-    "",
-    // HTML alt notuyla aynı bilgi: kim, neden gönderdi (İYS/ETK, teslim
-    // edilebilirlik) + imza (derin denetim boşluk taraması GA2).
-    t("email.tenderExternalInvite.textFootnote", { inviterName: props.inviterName }),
-    t("email.tenderExternalInvite.textOptOut", { url: props.optOutUrl }),
-    "",
-    t("email.layout.textSignature"),
-  ].join("\n");
+    { kind: "text", text: t("email.tenderExternalInvite.howTo", { inviterName: props.inviterName }) },
+    {
+      kind: "lines",
+      lines: [t("email.tenderExternalInvite.sealedBid"), t("email.tenderExternalInvite.freeToQuote")],
+    },
+    {
+      kind: "links",
+      links: [{ label: t("email.tenderExternalInvite.cta"), url: props.registerUrl }, ...(second ? [second] : [])],
+    },
+    { kind: "text", text: t("email.layout.textSignature") },
+  ];
+  return {
+    blocks,
+    footer: letterFooter(
+      t,
+      locale,
+      env,
+      t("email.tenderExternalInvite.footerReason", { inviterName: props.inviterName, site: siteHost(env.siteUrl) }),
+      props.optOutUrl,
+    ),
+  };
 }

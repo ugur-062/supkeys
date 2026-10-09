@@ -1,40 +1,27 @@
-import * as React from "react";
-import { DEFAULT_LOCALE, emailT, type EmailTranslator, type Locale } from "../i18n";
+import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { TenderInviteDigestData, TenderInviteDigestEntry } from "../types";
-import { BulletList, MutedLink, Note, Panel, Paragraph, TEXT } from "./_components/blocks";
-import { CtaButton } from "./_components/button";
-import { EmailEnvContext } from "./_components/email-env";
-import { Heading } from "./_components/heading";
-import { Layout } from "./_components/layout";
-import { inline } from "./_components/text";
-import { COLORS } from "./_components/tokens";
-import { formatInviteQuantity, infoLines } from "./tender-external-invite";
+import { siteHost, type EmailEnv } from "./_components/email-env";
+import { letterFooter, type Letter, type LetterBlock } from "./_components/plain-letter";
+import { fitSubject, infoLines, itemLines } from "./tender-external-invite";
 
 /**
  * BİRDEN ÇOK TALEP DAVETİ, TEK E-POSTA (2026-09-27, teslim edilebilirlik Faz 0b).
  *
  * Kayıtsız bir adrese 7 günde en fazla bir davet e-postası gider; o sürede
  * başka alıcılar da davet ettiyse davetler kaybolmaz, burada birlikte gelir
- * ("ABC İnşaat ve 2 alıcı daha sizden teklif istiyor"). Her talep kartı tekli
+ * ("ABC İnşaat ve 2 alıcı daha sizden teklif istiyor"). Her talep tekli
  * davetin içerik kurallarıyla aynı: davet eden firma, başlık, numara, teslim
  * yeri (şehir + ülke), son tarih, ilk kalemler; hedef fiyat/şartname/belge YOK.
- * Her kartın bağlantısı o davet edenin jetonunu taşır (kayıt olunca bağlantı
- * + talep daveti o firmayla kurulur).
+ *
+ * DÜZ MEKTUP (2026-10-09, bkz. `_components/plain-letter.tsx`): talepler
+ * numaralı düz satırlar. TEK ana bağlantı var — ilk talebin önizlemesi (o
+ * davet edenin jetonu; oradan kayıt). Talep başına bağlantı BASILMAZ: soğuk
+ * e-postada en fazla dört bağlantı (ana + çıkış + aydınlatma). Adres
+ * doğrulanınca bu adrese gelmiş açık talep davetlerinin hepsi hesaba bağlanır
+ * (`attachExternalListingInvites`), mektup da bunu söyler.
  */
 
-const cardTitle: React.CSSProperties = {
-  fontSize: "15px",
-  lineHeight: "22px",
-  fontWeight: 600,
-  color: COLORS.slate900,
-};
-
-// Kart satırları `<div>` (Outlook masaüstü span'de `display:block`u yok sayar).
-const cardLine: React.CSSProperties = { ...TEXT.small };
-
-const smallText: React.CSSProperties = { ...TEXT.body, fontSize: "14px", lineHeight: "22px" };
-
-/** Özette kalem önizlemesi — kart kısa kalsın. */
+/** Özette talep başına kalem önizlemesi — mektup kısa kalsın. */
 export const DIGEST_ITEM_PREVIEW = 3;
 
 /**
@@ -60,104 +47,62 @@ export function makeTenderInviteDigestSubject(
 ): string {
   const t = emailT(locale);
   const inviters = distinctInviters(data.invites);
-  const first = inviters[0] ?? "";
-  return inviters.length <= 1
-    ? t("email.tenderInviteDigest.subjectSameBuyer", { first, count: data.invites.length })
-    : t("email.tenderInviteDigest.subject", { first, count: inviters.length - 1 });
-}
-
-function entryLines(t: EmailTranslator, e: TenderInviteDigestEntry) {
-  const items = (e.items ?? []).slice(0, DIGEST_ITEM_PREVIEW);
-  const total = Math.max(e.itemCount ?? items.length, items.length);
-  return {
-    info: infoLines(t, {
-      tenderNumber: e.tenderNumber,
-      categories: [],
-      deliveryPlace: e.deliveryPlace,
-      closesAt: e.closesAt,
-      supplierTypes: [],
-    }),
-    items: items.map((i) => t("email.tenderExternalInvite.itemLine", { name: i.name, qty: formatInviteQuantity(t, i) })),
-    more: total - items.length,
-  };
-}
-
-export function TenderInviteDigestEmail(props: TenderInviteDigestData & { locale?: Locale }) {
-  const locale = props.locale ?? DEFAULT_LOCALE;
-  const t = emailT(locale);
-  // Alt bilgide çıkış bağlantısı varsa not yalnız açıklama (bkz. tekli davet).
-  const env = React.useContext(EmailEnvContext);
-  return (
-    <Layout preview={t("email.tenderInviteDigest.preview", { count: props.invites.length })} locale={locale}>
-      <Heading>{t("email.tenderInviteDigest.heading")}</Heading>
-      <Paragraph>{t("email.tenderExternalInvite.greeting")}</Paragraph>
-      <Paragraph>{t("email.tenderInviteDigest.intro")}</Paragraph>
-
-      {props.invites.map((e, idx) => {
-        const lines = entryLines(t, e);
-        return (
-          <Panel key={`${idx}-${e.ctaUrl}`} margin="0 0 12px 0" style={{ backgroundColor: COLORS.card }}>
-            <div className="r-muted" style={{ ...cardLine, fontWeight: 600 }}>
-              {e.inviterName}
-            </div>
-            <div className="r-strong" style={cardTitle}>
-              {e.tenderTitle}
-            </div>
-            {lines.info.map((line) => (
-              <div key={line} className="r-muted" style={cardLine}>
-                {inline(line)}
-              </div>
-            ))}
-            {lines.items.length > 0 ? <BulletList items={lines.items} style={{ margin: "8px 0 4px 0" }} /> : null}
-            {lines.more > 0 ? (
-              <div className="r-muted" style={cardLine}>
-                {t("email.tenderExternalInvite.moreItems", { count: lines.more })}
-              </div>
-            ) : null}
-            <CtaButton href={e.ctaUrl}>{t("email.tenderInviteDigest.cta")}</CtaButton>
-          </Panel>
-        );
-      })}
-
-      <Paragraph style={{ ...smallText, marginTop: "8px" }}>
-        {t("email.tenderExternalInvite.sealedBid")}
-        <br />
-        {t("email.tenderExternalInvite.freeToQuote")}
-      </Paragraph>
-
-      <Note>
-        {env.unsubscribeUrl
-          ? t("email.tenderInviteDigest.textFootnote")
-          : t.rich("email.tenderInviteDigest.footnote", {
-              optout: (chunks: React.ReactNode) => <MutedLink href={props.optOutUrl}>{chunks}</MutedLink>,
-            })}
-      </Note>
-    </Layout>
+  // Same length rule as the single invitation (round 5, AI-MAIL-1): this
+  // subject lists no item names, its only free part is the company name - a
+  // very long one is shortened so the whole subject stays within the limit.
+  return fitSubject(
+    (first) =>
+      inviters.length <= 1
+        ? t("email.tenderInviteDigest.subjectSameBuyer", { first, count: data.invites.length })
+        : t("email.tenderInviteDigest.subject", { first, count: inviters.length - 1 }),
+    inviters[0] ?? "",
   );
 }
 
-export function renderTenderInviteDigestText(data: TenderInviteDigestData, locale: Locale = DEFAULT_LOCALE): string {
+export function buildTenderInviteDigestLetter(
+  data: TenderInviteDigestData,
+  locale: Locale = DEFAULT_LOCALE,
+  env: EmailEnv = {},
+): Letter {
   const t = emailT(locale);
-  return [
-    t("email.tenderInviteDigest.textIntro", { count: data.invites.length }),
-    "",
-    ...data.invites.flatMap((e) => {
-      const lines = entryLines(t, e);
-      return [
-        t("email.tenderInviteDigest.textItem", { inviterName: e.inviterName, tenderTitle: e.tenderTitle, url: e.ctaUrl }),
-        ...lines.info.map((l) => `  ${l}`),
-        ...lines.items.map((l) => `  - ${l}`),
-        ...(lines.more > 0 ? [`  ${t("email.tenderExternalInvite.moreItems", { count: lines.more })}`] : []),
-        "",
-      ];
-    }),
-    t("email.tenderExternalInvite.sealedBid"),
-    t("email.tenderExternalInvite.freeToQuote"),
-    "",
-    // HTML alt notuyla aynı bilgi + imza (derin denetim boşluk taraması GA2).
-    t("email.tenderInviteDigest.textFootnote"),
-    t("email.tenderInviteDigest.textOptOut", { url: data.optOutUrl }),
-    "",
-    t("email.layout.textSignature"),
-  ].join("\n");
+  const first = data.invites[0];
+  const blocks: LetterBlock[] = [
+    { kind: "text", text: t("email.tenderExternalInvite.greeting") },
+    { kind: "text", text: t("email.tenderInviteDigest.opening", { count: data.invites.length }) },
+    ...data.invites.map((e, idx) => ({
+      kind: "lines" as const,
+      lines: [
+        t("email.tenderInviteDigest.entryLine", {
+          index: idx + 1,
+          inviterName: e.inviterName,
+          tenderTitle: e.tenderTitle,
+        }),
+        ...infoLines(t, {
+          tenderNumber: e.tenderNumber,
+          categories: [],
+          deliveryPlace: e.deliveryPlace,
+          closesAt: e.closesAt,
+          supplierTypes: [],
+        }),
+        ...itemLines(t, e, DIGEST_ITEM_PREVIEW).lines,
+      ],
+    })),
+    { kind: "text", text: t("email.tenderInviteDigest.howTo") },
+    {
+      kind: "lines",
+      lines: [t("email.tenderExternalInvite.sealedBid"), t("email.tenderExternalInvite.freeToQuote")],
+    },
+    ...(first ? [{ kind: "links" as const, links: [{ label: t("email.tenderInviteDigest.cta"), url: first.ctaUrl }] }] : []),
+    { kind: "text", text: t("email.layout.textSignature") },
+  ];
+  return {
+    blocks,
+    footer: letterFooter(
+      t,
+      locale,
+      env,
+      t("email.tenderInviteDigest.footerReason", { site: siteHost(env.siteUrl) }),
+      data.optOutUrl,
+    ),
+  };
 }

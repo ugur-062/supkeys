@@ -15,6 +15,7 @@
  * ("" = boş), API profili null/number kullanır. İkisi de olduğu gibi verilir;
  * doluluk kararı burada tek yerde.
  */
+import { visibleCategoryIds } from "../constants/category-catalog";
 export interface ProfileCompletenessInput {
   logoUrl?: string | null;
   coverImageUrl?: string | null;
@@ -80,7 +81,9 @@ export function profileCompleteness(p: ProfileCompletenessInput): ProfileComplet
     {
       key: "categories",
       label: "Faaliyet kategorileri",
-      done: (p.buyerCategoryIds?.length ?? 0) + (p.sellerCategoryIds?.length ?? 0) > 0,
+      // Yalnız GÖRÜNÜR kodlar sayılır (2026-10-09): tek beyanı gizli segmentte
+      // olan firmanın hiçbir yüzeyde kategorisi görünmez → madde eksik sayılır.
+      done: visibleCategoryIds([...(p.buyerCategoryIds ?? []), ...(p.sellerCategoryIds ?? [])]).length > 0,
     },
   ];
   const done = items.filter((i) => i.done).length;

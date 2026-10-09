@@ -1205,7 +1205,7 @@ export const CATEGORY_ATTRIBUTES: Record<string, AttrDef[]> = {
     { key: "atik_kodu", nameTr: "Atık kodu", type: "TEXT" },
   ],
 
-  // ── 78 · Taşıma, Depolama ve Posta Hizmetleri ──
+  // ── 78 · Lojistik (Ariba adı: Taşıma, Depolama ve Posta Hizmetleri) ──
   "78000000": [
     {
       key: "tasima_modu",
