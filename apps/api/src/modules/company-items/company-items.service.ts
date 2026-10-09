@@ -1183,9 +1183,22 @@ export class CompanyItemsService {
    * Mantık `common/company/category-attributes.ts`de TEK KAYNAK; herkese açık
    * ürün sayfası da aynı çözümleyiciden okuyor (panelde sorulan nitelik ile
    * vitrinde gösterilen etiket ayrışmasın).
+   *
+   * THE ATTRIBUTE FORM OF A HIDDEN CATEGORY IS NOT OFFERED (live re-check
+   * 2026-10-09, CP-01). This is the resolver of the FORM: `GET
+   * company/items/attributes/:categoryId`, the owner's showcase answer
+   * (`attributeDefs`, the "required attributes" step) and the save path. A
+   * steel pipe stored under a hidden segment was offered "live animal / feed /
+   * fertilizer" fields, and the answer carried the hidden segment's code in
+   * `definedAt`. For a category under a hidden segment the form has no
+   * fields - the same answer as for a product without a category.
+   *
+   * The stored attribute VALUES of a legacy product stay (`normalizeShowcase`),
+   * and the pages that only LABEL stored values keep reading the raw resolver
+   * (`resolveCategoryAttributes`: public and panel product page).
    */
   async resolveAttributes(categoryId: string | null | undefined) {
-    return resolveCategoryAttributes(this.prisma, categoryId);
+    return resolveCategoryAttributes(this.prisma, visibleCategoryId(categoryId));
   }
 
   /**
@@ -1269,7 +1282,14 @@ export class CompanyItemsService {
         this.toProductLike({
           ...before,
           ...patch,
-          attributes: patch.attributes === Prisma.DbNull ? null : (patch.attributes as Prisma.JsonValue),
+          // No `attributes` in the patch = the stored values stay (legacy
+          // product under a hidden category, see `normalizeShowcase`).
+          attributes:
+            patch.attributes === undefined
+              ? before.attributes
+              : patch.attributes === Prisma.DbNull
+                ? null
+                : (patch.attributes as Prisma.JsonValue),
           priceTiers: patch.priceTiers === Prisma.DbNull ? null : (patch.priceTiers as Prisma.JsonValue),
         }),
         contentChanged,
@@ -1539,6 +1559,13 @@ export class CompanyItemsService {
       ...new Set((input.keywords ?? []).map((k) => k.trim()).filter(Boolean)),
     ];
     const categoryId = input.categoryId?.trim() || before.categoryId;
+    // LEGACY PRODUCT UNDER A HIDDEN CATEGORY (CP-01): the form offers no
+    // attribute fields for it (`resolveAttributes` is empty), so it cannot
+    // send the stored values back. "No field is defined" must not read as
+    // "delete them": the attribute column is left untouched while the product
+    // stays under the hidden category. A change to a current category goes
+    // through the normal rule below (only keys defined there are kept).
+    const keepStoredAttributes = isHiddenCategory(categoryId);
 
     // Nitelikler: yalnız o kategoride TANIMLI anahtarlar geçer. Tanımsız
     // anahtar sessizce düşer — istemcinin uydurduğu alan veriyi kirletmesin.
@@ -1590,10 +1617,12 @@ export class CompanyItemsService {
           .filter(Boolean)
           .join(" "),
       ),
-      attributes:
-        Object.keys(attributes).length > 0
-          ? (attributes as Prisma.InputJsonValue)
-          : Prisma.DbNull,
+      ...(keepStoredAttributes
+        ? {}
+        : {
+            attributes:
+              Object.keys(attributes).length > 0 ? (attributes as Prisma.InputJsonValue) : Prisma.DbNull,
+          }),
       videoUrl: input.videoUrl?.trim() || null,
       externalUrl: input.externalUrl?.trim() || null,
       documents: input.documents ? (input.documents as Prisma.InputJsonValue) : Prisma.DbNull,

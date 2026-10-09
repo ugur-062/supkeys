@@ -467,6 +467,13 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     for (const hidden of ["46181700", "46000000", "Baş koruma", "Head protection", "Kolluk"]) {
       expect(json).not.toContain(hidden);
     }
+    // CP-08: the detail's raw flag for the edit form is not model input - the
+    // model gets a plain sentence (it had quoted "(hasRetiredCategory: true)").
+    expect(json).not.toContain("hasRetiredCategory");
+    // Responses come back in call order: list, detail, connections.
+    expect(responses[1]).toMatchObject({
+      data: { categoryNote: "Bu talebin önceki kategorilerinden biri artık kullanılmıyor." },
+    });
   });
 
   it("gizli segment: eski oturum taslağındaki gizli kategori önerisi taslak bağlamına ve yanıta girmez", async () => {

@@ -43,9 +43,30 @@ const TENANT_ACTIVITY_MODULE_PREFIXES: Record<string, string[]> = {
   bid: ["company.bid.", "company.bid_document."],
   approval: ["company.approval.", "company.approval_flow."],
   user: ["company.user.", "company.ownership."],
-  profile: ["company.profile.", "company.profile_enriched"],
+  // `company.profile_enrich` = the three AI description suggestion actions
+  // (`_attempt`, `_settled`, `company.profile_enriched`). Only the last one
+  // was listed here, so the attempt rows showed under "All" and vanished
+  // under the profile filter (same class as S017; live re-check PD-R5).
+  profile: ["company.profile.", "company.profile_enrich"],
   signup: ["company.signup"],
 };
+
+/**
+ * THE COMPANY'S OWN PROFILE RECORDS in the admin company "Denetim" tab (live
+ * re-check 2026-10-09, PD-R5). The tab searches the audit log by company id.
+ * A company-actor row matched only through `entityId`, so "company profile
+ * updated" (written with the company as its entity) was listed while the AI
+ * description suggestion rows of the same minutes were not: they carry the
+ * company only in `tenantId` (`company.profile_enrich_attempt` and
+ * `company.profile_enriched` have no entity, `company.profile_enrich_settled`
+ * points at the attempt row). They are records about the company itself, like
+ * the profile update, so the tab lists them too.
+ *
+ * Deliberately narrow: only this action family. The rest of the company's own
+ * activity (requests, quotes, users...) still stays out of the tab - it would
+ * drown the admin interventions the tab is for.
+ */
+export const COMPANY_PROFILE_ACTION_PREFIX = "company.profile";
 
 /**
  * V2-7+ — Güvenlik denetim izi (OWASP A09). Append-only.
@@ -277,6 +298,9 @@ export class AuditService {
         // `tenantId`=firma ile yazılır (arayüz testi D-205). Yalnız admin
         // aktörü — firmanın kendi etkinliği bu görünümü boğmasın.
         { tenantId: term, actorType: "admin" },
+        // ...and the company's own PROFILE records (profile update, AI
+        // description suggestion): see `COMPANY_PROFILE_ACTION_PREFIX`.
+        { tenantId: term, action: { startsWith: COMPANY_PROFILE_ACTION_PREFIX } },
         // Iki firmali admin mudahalesi (siparis iptali, baglanti daveti):
         // ikinci taraf `metadata.counterpartyCompanyId` ile yazilir — o
         // firmanin sekmesinde de gorunur (arayuz testi api2-02 yeniden

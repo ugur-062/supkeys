@@ -36,7 +36,7 @@ describe("emailInviteOutcome - queue row -> what the buyer is told", () => {
     ["CANCELLED", "COUNTRY_BLOCKED", "NOT_SENT", "COUNTRY_BLOCKED", null],
     // Withdrawn by the buyer's own action / switch.
     ["CANCELLED", "REFERRAL_CANCELLED", "NOT_SENT", "CANCELLED", null],
-    ["CANCELLED", "AUTO_INVITE_OFF", "NOT_SENT", "CANCELLED", null],
+    ["CANCELLED", "AUTO_INVITE_OFF", "NOT_SENT", "AUTO_INVITE_OFF", null],
     ["CANCELLED", "INVITER_DOWNGRADED", "NOT_SENT", "NOT_ALLOWED", null],
     ["CANCELLED", null, "NOT_SENT", "FAILED", null],
     ["FAILED", null, "NOT_SENT", "FAILED", null],

@@ -38,6 +38,10 @@ import { prisma, truncateAll } from "./test-db";
 import { ListingScheduler } from "../../src/modules/company-listings/schedulers/listing.scheduler";
 import { connect, makeCompanyWithUser, makeItem, makeListing, proveAccounts } from "./factories";
 import { makeService as makeListingsService } from "./make-service";
+import { holdInviteSendWindowOpen } from "./invite-send-window";
+
+// These suites test other rules with the real clock; the send-time business window is covered in invite-send-window.spec.ts.
+holdInviteSendWindowOpen();
 
 const MIN = 60_000;
 const DAY = 24 * 3_600_000;
@@ -1169,8 +1173,8 @@ describe("AI-1: özele çevrilen ya da kutusu kapatılan talebin kuyruktaki OTOM
     ]);
     // Durum listesi nedenini söyler.
     expect(outcomes(await r.runs.forListing(owner.auth, l.id))).toEqual({
-      "Cıvata AŞ": "NOT_SENT:CANCELLED",
-      "Viti Srl": "NOT_SENT:CANCELLED",
+      "Cıvata AŞ": "NOT_SENT:AUTO_INVITE_OFF",
+      "Viti Srl": "NOT_SENT:AUTO_INVITE_OFF",
     });
     // Sonraki turlar da göndermez.
     await makeDue();
@@ -1989,8 +1993,8 @@ describe("A-3: kutuyu kapatıp yeniden açmak (ya da talebi özele çevirip geri
       `${TR_WEB.email} AI_AUTO CANCELLED AUTO_INVITE_OFF`,
     ]);
     expect(outcomes(await r.runs.forListing(owner.auth, l.id))).toEqual({
-      "Cıvata AŞ": "NOT_SENT:CANCELLED",
-      "Viti Srl": "NOT_SENT:CANCELLED",
+      "Cıvata AŞ": "NOT_SENT:AUTO_INVITE_OFF",
+      "Viti Srl": "NOT_SENT:AUTO_INVITE_OFF",
     });
     // Sırası çoktan geçmiş olsun: geri alınan satır eski saatiyle değil, alıcının
     // ülkesindeki ilk mesai penceresiyle planlanır (AI davetinin saat kuralı).

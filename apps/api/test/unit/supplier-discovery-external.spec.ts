@@ -29,6 +29,7 @@ import { inviteReachesAddress } from "../../src/common/company/external-invite-p
 import { companyMailDomain, domainOwnName, isFreeMailDomain, ownsMailDomain } from "../../src/common/net/free-mail-domains";
 import {
   declaresRequestCategory,
+  productInRequestCategoryWhere,
   relaxedItemMatch,
   significantItemTokens,
   strictCoverage,
@@ -1156,6 +1157,28 @@ describe("D5 — kalemin anlamlı sözcükleri (gevşek ürün eşleşmesi)", ()
     expect(declaresRequestCategory({ sellerCategoryIds: [], sellerSubCategoryIds: ["40141700"] }, request)).toBe(true);
     expect(declaresRequestCategory({ sellerCategoryIds: ["52000000"], sellerSubCategoryIds: ["52150000"] }, request)).toBe(false);
     expect(declaresRequestCategory({ sellerCategoryIds: ["40000000"], sellerSubCategoryIds: [] }, { segmentIds: [], subCandidates: [] })).toBe(false);
+  });
+
+  /**
+   * Canlı doğrulama 2026-10-09, N2 — zayıf eşleşmeyi yalnız FİRMANIN beyanı
+   * doğruluyordu: ürününü talebin sınıfına (27131700) koymuş ama firma beyanını
+   * doldurmamış satıcı bulunmuyordu. Eşleşen ürünün KENDİ kategorisi de
+   * doğrular: talebin kategorisiyle aynı aile (aynı sınıfı da kapsar).
+   */
+  it("N2: eşleşen ürünün kendi kategorisi talebin kategorisindeyse (aynı aile) zayıf eşleşmeyi doğrular; segment düzeyindeki talep kodu hiçbir ürünü doğrulamaz", () => {
+    // Sınıf düzeyinde talep → ailesi (ilk dört hane): aynı sınıf, kardeş sınıf ve ailenin kendisi.
+    expect(productInRequestCategoryWhere(["27131700"])).toEqual({ categoryId: { startsWith: "2713" } });
+    // Yaprak ve aile düzeyindeki kod da aynı aileye iner; aynı aile bir kez sorulur.
+    expect(productInRequestCategoryWhere(["27131701", "27130000", "27131500"])).toEqual({ categoryId: { startsWith: "2713" } });
+    // İki ayrı aile: biri yeter.
+    expect(productInRequestCategoryWhere(["27131700", "40141700"])).toEqual({
+      OR: [{ categoryId: { startsWith: "2713" } }, { categoryId: { startsWith: "4014" } }],
+    });
+    // Segment düzeyi aile adlandırmaz ("yalnız segment" zaten en zayıf basamak); geçersiz kod ve kategorisiz arama da.
+    expect(productInRequestCategoryWhere(["27000000"])).toBeNull();
+    expect(productInRequestCategoryWhere(["27000000", "40141700"])).toEqual({ categoryId: { startsWith: "4014" } });
+    expect(productInRequestCategoryWhere(["abc", ""])).toBeNull();
+    expect(productInRequestCategoryWhere([])).toBeNull();
   });
 });
 

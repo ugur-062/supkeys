@@ -5,6 +5,7 @@
  * etiket arayüzle aynı katalogdan gelir, kod `...Code` alanında kalır.
  */
 import { localizeToolCodes } from "../../src/modules/ai/assistant/assistant-tools";
+import { assistantSystemPrompt } from "../../src/modules/ai/assistant/assistant.prompts";
 
 describe("localizeToolCodes", () => {
   it("talep listesi: status etiket olur, kod statusCode'a ayrılır (tr)", () => {
@@ -86,5 +87,57 @@ describe("localizeToolCodes", () => {
     expect(out.statusCode).toBeUndefined();
     expect(out.payments).toEqual([{ status: "PENDING" }]);
     expect(out.createdAt).toBe(when);
+  });
+});
+
+/**
+ * Live re-check 2026-10-09, CP-08: an assistant answer about a legacy request
+ * read "... (hasRetiredCategory: true)". The owner's request detail carries
+ * that flag for the edit form; the model got it raw and quoted it. Fixed at
+ * the source (the model is handed a sentence, not the flag) and in the prompt
+ * (field names are never quoted).
+ */
+describe("raw flag of the request detail is not handed to the model (CP-08)", () => {
+  const detail = (flag: boolean) => ({
+    id: "l1",
+    number: "ROT-000834",
+    status: "OPEN",
+    categoryIds: ["31161500"],
+    hasRetiredCategory: flag,
+  });
+
+  it.each([
+    ["tr", "Bu talebin önceki kategorilerinden biri artık kullanılmıyor."],
+    ["en", "One of this request's previous categories is no longer in use."],
+    ["ru", "Одна из прежних категорий этого запроса больше не используется."],
+  ] as const)("%s: the flag becomes a plain sentence in the reply language", (locale, sentence) => {
+    const out = localizeToolCodes(detail(true), "listing", locale) as Record<string, unknown>;
+
+    expect(out.categoryNote).toBe(sentence);
+    expect(out).not.toHaveProperty("hasRetiredCategory");
+    expect(JSON.stringify(out)).not.toContain("hasRetiredCategory");
+    // The rest of the record is untouched.
+    expect(out).toMatchObject({ id: "l1", number: "ROT-000834", statusCode: "OPEN", categoryIds: ["31161500"] });
+  });
+
+  it("nothing to say when no stored category is retired: the flag is dropped, no note is added", () => {
+    const out = localizeToolCodes(detail(false), "listing", "tr") as Record<string, unknown>;
+    expect(out).not.toHaveProperty("hasRetiredCategory");
+    expect(out).not.toHaveProperty("categoryNote");
+  });
+
+  it("also inside a list and a nested record", () => {
+    const out = localizeToolCodes([{ listing: detail(true) }], "bid", "en");
+    expect(JSON.stringify(out)).not.toContain("hasRetiredCategory");
+    expect(JSON.stringify(out)).toContain("One of this request's previous categories is no longer in use.");
+  });
+
+  it("prompt rule: field names and raw true/false values of tool results are never written to the user", () => {
+    const p = assistantSystemPrompt("tr");
+    expect(p).toContain("10. ALAN ADLARI");
+    expect(p).toContain('"(hasRetiredCategory: true)" YANLIŞ');
+    expect(p).toContain("ham true/false/null değerlerini kullanıcıya GÖSTERME");
+    // Still before the language rules, which stay last.
+    expect(p.indexOf("10. ALAN ADLARI")).toBeLessThan(p.indexOf("YANIT DİLİ:"));
   });
 });

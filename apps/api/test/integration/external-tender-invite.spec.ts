@@ -21,6 +21,10 @@ import { ExternalInviteDispatcher } from "../../src/modules/company-connections/
 import { Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { holdInviteSendWindowOpen } from "./invite-send-window";
+
+// These suites test other rules with the real clock; the send-time business window is covered in invite-send-window.spec.ts.
+holdInviteSendWindowOpen();
 
 type SendArg = {
   to: { email: string };

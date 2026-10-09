@@ -23,6 +23,10 @@ import { ListingEmailInvitesService } from "../../src/modules/company-connection
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
+import { holdInviteSendWindowOpen } from "./invite-send-window";
+
+// These suites test other rules with the real clock; the send-time business window is covered in invite-send-window.spec.ts.
+holdInviteSendWindowOpen();
 
 const DAY = 24 * 3_600_000;
 
@@ -178,7 +182,7 @@ describe("ListingEmailInvitesService.forListing", () => {
         locale: "tr",
         source: "AI_AUTO",
         invite: "NOT_SENT",
-        reason: "CANCELLED",
+        reason: "AUTO_INVITE_OFF",
         sendAfter: null,
         sentAt: null,
         createdAt: iso(switchedOff.createdAt),

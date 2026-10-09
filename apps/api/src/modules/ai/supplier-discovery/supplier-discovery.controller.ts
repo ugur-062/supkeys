@@ -1,5 +1,6 @@
 import { RequireTier } from "../../company-auth/decorators/require-tier.decorator";
-import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   ArrayMaxSize,
   ArrayUnique,
@@ -78,6 +79,9 @@ export class ExternalDiscoveryDto extends DiscoveryDto {
   scopes?: Array<"LOCAL" | "ABROAD">;
 }
 
+/** Status polls of the asynchronous web search allowed per minute and client address. */
+export const SEARCH_STATUS_POLLS_PER_MINUTE = 600;
+
 /**
  * "AI ile daha fazla tedarikçiye eriş" — dizin keşfi. Silver+ (ihale açan
  * zaten Silver+); yalnız firmaların kendi ilan ettiği profil alanları okunur.
@@ -97,7 +101,12 @@ export class SupplierDiscoveryController {
     return this.service.discoverRegistered(user, dto);
   }
 
-  /** Faz B — web araması (Google Search grounding, AI bütçesinden). */
+  /**
+   * Faz B — web araması (Google Search grounding, AI bütçesinden), TEK İSTEKTE.
+   * Eski istemciler için durur: gündüz araştırma 70-80 sn sürdüğünde vekilin
+   * 100 sn sınırına sığmıyor (canlı doğrulama 2026-10-09, N1). Pencere
+   * aşağıdaki iki ucu kullanır.
+   */
   @Post("external")
   @RequireCompanyPermission("buy:listing:manage")
   discoverExternal(
@@ -105,5 +114,39 @@ export class SupplierDiscoveryController {
     @Body() dto: ExternalDiscoveryDto,
   ) {
     return this.service.discoverExternal(user, dto);
+  }
+
+  /**
+   * ASYNCHRONOUS WEB SEARCH (N1) - start. Same body as `external`. Answers
+   * 201 `{ searchId }` at once; the search runs in the background of the API
+   * process. What is known before the provider is called is answered here as
+   * `external` does (400 validation, 403 permission / verification / budget,
+   * 429 three searches of this user already running, 503 AI not configured /
+   * registry full).
+   */
+  @Post("external/start")
+  @RequireCompanyPermission("buy:listing:manage")
+  startExternal(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ExternalDiscoveryDto,
+  ) {
+    return this.service.startExternalSearch(user, dto);
+  }
+
+  /**
+   * ASYNCHRONOUS WEB SEARCH (N1) - status, polled every 3 s by the window:
+   * `{ status: RUNNING | DONE | FAILED, startedAt, result?, error? }`; `result`
+   * is the body of `external`. 404: unknown, forgotten (kept 15 minutes; lost
+   * on a restart) or another user's search.
+   *
+   * Own rate limit: an in-memory read, polled by every open window - the
+   * default 100/min per address is reached by a few users behind one office
+   * address (each search polls 20 times a minute).
+   */
+  @Get("external/searches/:searchId")
+  @Throttle({ default: { limit: SEARCH_STATUS_POLLS_PER_MINUTE, ttl: 60_000 } })
+  @RequireCompanyPermission("buy:listing:manage")
+  externalSearch(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Param("searchId") searchId: string) {
+    return this.service.externalSearchStatus(user, searchId);
   }
 }

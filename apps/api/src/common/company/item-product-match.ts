@@ -1,6 +1,6 @@
-import { foldSearchText, stemPrefix, tokenizeQuery, UNITS, type UnitDimension } from "@rothern/shared";
+import { categoryAtLevel, foldSearchText, stemPrefix, tokenizeQuery, UNITS, type UnitDimension } from "@rothern/shared";
 import type { Prisma } from "@rothern/db";
-import { productSearchClauses } from "./product-index";
+import { productCategoryWhere, productSearchClauses } from "./product-index";
 
 /**
  * LINE ITEM -> SHOWCASE PRODUCT, RELAXED MATCH (round 5, D5) — single source.
@@ -27,15 +27,27 @@ import { productSearchClauses } from "./product-index";
  * qualifiers, so the rule has two levels:
  *
  *  - WEAK coverage - at least TWO significant tokens (the single one when the
- *    item has only one): counts ONLY for a company that also declares the
- *    request's category (segment or sub-category, `declaresRequestCategory`).
- *    Without that the hit is ignored: no item match, no candidate.
+ *    item has only one): counts ONLY when a category corroborates it:
+ *      a) the company declares the request's category (segment or
+ *         sub-category, `declaresRequestCategory`), or
+ *      b) the matched PRODUCT itself sits in the request's category - the same
+ *         family, which includes the same class (`productInRequestCategoryWhere`).
+ *    Without either the hit is ignored: no item match, no candidate.
  *  - STRICT coverage - EVERY significant token when the item has two or three,
  *    MORE THAN HALF when it has four or more (3 of 4, 3 of 5, 4 of 6): counts
  *    for any company. A single-token item has no strict level.
  *
  * Either way a relaxed hit makes a STRONG match only together with a category
- * match of the company; the full-name match stays strong on its own.
+ * match - of the company (a) or of the matched product (b); the full-name
+ * match stays strong on its own.
+ *
+ * WHY (b) (live re-check 2026-10-09, N2). A seller lists its product in exactly
+ * the request's class and never fills the company's own category declaration:
+ * "FIN PA1 Smoke Hidrolik Silindir 80 mm" in 27131700 was not offered for
+ * "Hidrolik silindir 80 mm cift etkili" in 27131700 (two of four tokens - below
+ * strict), while three unrelated companies that only declared the SEGMENT were.
+ * The product's own category is a narrower corroboration than a declared
+ * segment (which already counts): a family is one branch of that segment.
  *
  * Callers (keep them on this file - a second matcher is how the window and the
  * invitation e-mail came to disagree, R5-06): `SupplierDiscoveryService.
@@ -111,8 +123,10 @@ export interface RelaxedItemMatch {
    */
   strict: Prisma.CompanyItemWhereInput | null;
   /**
-   * WEAK coverage - an item match only for a company that declares the
-   * request's category. null: nothing weaker than `strict` (two tokens).
+   * WEAK coverage - an item match only with a category corroboration: the
+   * company declares the request's category, or the product is in it
+   * (`productInRequestCategoryWhere`). null: nothing weaker than `strict`
+   * (two tokens).
    */
   weak: Prisma.CompanyItemWhereInput | null;
 }
@@ -173,4 +187,23 @@ export function declaresRequestCategory(
     company.sellerSubCategoryIds.some((c) => request.subCandidates.includes(c)) ||
     company.sellerCategoryIds.some((c) => request.segmentIds.includes(c))
   );
+}
+
+/**
+ * Product condition "the product's OWN category is in the request's category":
+ * the same FAMILY (level 2) as one of the request's codes - a product filed in
+ * the request's class, in a sibling class of that family or at the family
+ * itself. A request code at segment level names no family and corroborates
+ * nothing (a segment is what the "segment only" tier already is). null when no
+ * request code reaches a family.
+ *
+ * Raw codes on purpose: matching uses every stored code, also one under a
+ * hidden segment (only the DISPLAY of a category is filtered).
+ */
+export function productInRequestCategoryWhere(requestCategoryCodes: readonly string[]): Prisma.CompanyItemWhereInput | null {
+  const families = [
+    ...new Set(requestCategoryCodes.map((c) => categoryAtLevel(c, 2)).filter((c): c is string => !!c)),
+  ];
+  if (families.length === 0) return null;
+  return families.length === 1 ? productCategoryWhere(families[0]) : { OR: families.map((f) => productCategoryWhere(f)) };
 }

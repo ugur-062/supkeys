@@ -200,6 +200,82 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
     expect(bodyTo(qualifiers.user.email)).not.toContain("pnömatik valf");
   });
 
+  /**
+   * Gözden geçirme R6-4 — N2'den beri keşif, ürününü talebin KENDİ kategorisine
+   * koymuş ama firma beyanını doldurmamış satıcıyı güçlü eşleşme sayıyor ve
+   * otomatik tur onu davet ediyor (AUTO-MEMBER-1). Davet gerekçesi zayıf
+   * eşleşmeyi yalnız firma beyanıyla kabul ediyordu: bu davet `{ auto: true }`
+   * yazılıyor, e-posta ürünü anmıyordu — durum listesi "kalem eşleşmesi" derken.
+   * Ürünün kendi kategorisi (aynı aile) burada da doğrular; başka ailedeki
+   * ürün ve segment düzeyindeki talep doğrulamaz (keşifle aynı kural).
+   */
+  it("R6-4: ürünü talebin kategorisinde olan beyansız satıcının otomatik daveti ürünü anar; başka ailedeki ürün anılmaz", async () => {
+    const { service, email } = makeService();
+    const { owner, listing } = await setup({ categoryIds: ["27131700"] });
+    await prisma.listingItem.deleteMany({ where: { listingId: listing.id } });
+    await makeItem(prisma, listing.id, { lineNo: 1, name: "Hidrolik silindir 80 mm çift etkili" });
+    // Firma beyanı YOK; kalemin dört anlamlı sözcüğünden ikisini taşıyan ürün (zayıf eşleşme).
+    const product = async (name: string, productName: string, categoryId: string | null) => {
+      const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name });
+      await proveAccounts(prisma, s.company.id);
+      await prisma.company.update({ where: { id: s.company.id }, data: { slug: `s-${s.company.id}`, publicEnabled: true } });
+      await prisma.companyItem.create({
+        data: {
+          companyId: s.company.id,
+          createdById: s.user.id,
+          name: productName,
+          unit: "adet",
+          slug: `u-${s.company.id}`,
+          isPublic: true,
+          publishedAt: new Date(),
+          searchText: foldSearchText(productName),
+          categoryId,
+        },
+      });
+      return s;
+    };
+    const sameClass = await product("FIN PA1 Smoke Makina", "FIN PA1 Smoke Hidrolik Silindir 80 mm", "27131700");
+    const sameFamily = await product("Aynı Aile AŞ", "Hidrolik Silindir 63 mm", "27131500");
+    const otherFamily = await product("Başka Aile AŞ", "Hidrolik Silindir 100 mm", "27121600");
+    const uncategorised = await product("Kategorisiz AŞ", "Hidrolik Silindir 50 mm", null);
+
+    const { results } = await service.inviteDiscoveredMembers(
+      owner.auth,
+      listing.id,
+      [sameClass.company.id, sameFamily.company.id, otherFamily.company.id, uncategorised.company.id],
+      { auto: true },
+    );
+    expect(results.map((r) => r.status)).toEqual(["INVITED", "INVITED", "INVITED", "INVITED"]);
+    const reasons = async () =>
+      new Map(
+        (
+          await prisma.listingInvitation.findMany({
+            where: { listingId: listing.id },
+            select: { invitedCompanyId: true, aiReason: true },
+          })
+        ).map((r) => [r.invitedCompanyId, r.aiReason]),
+      );
+    expect(await reasons()).toEqual(
+      new Map<string, unknown>([
+        [sameClass.company.id, { productName: "FIN PA1 Smoke Hidrolik Silindir 80 mm", auto: true }],
+        [sameFamily.company.id, { productName: "Hidrolik Silindir 63 mm", auto: true }],
+        [otherFamily.company.id, { auto: true }],
+        [uncategorised.company.id, { auto: true }],
+      ]),
+    );
+    await settle(() => email.send.mock.calls.length >= 4);
+    const bodyTo = (to: string) =>
+      JSON.stringify((email.send.mock.calls.find((c) => c[0].to.email === to)![0] as { templateData: unknown }).templateData);
+    expect(bodyTo(sameClass.user.email)).toContain("FIN PA1 Smoke Hidrolik Silindir 80 mm");
+    expect(bodyTo(otherFamily.user.email)).not.toContain("Hidrolik Silindir 100 mm");
+
+    // Talep segment düzeyindeyse (aile yok) ürünün kategorisi hiçbir şeyi doğrulamaz.
+    await prisma.listingInvitation.deleteMany({ where: { listingId: listing.id } });
+    await prisma.listing.update({ where: { id: listing.id }, data: { categoryIds: ["27000000"] } });
+    await service.inviteDiscoveredMembers(owner.auth, listing.id, [sameClass.company.id], { auto: true });
+    expect((await reasons()).get(sameClass.company.id)).toEqual({ auto: true });
+  });
+
   it("engelli, pasif ve ülkesi uymayan NOT_ELIGIBLE; zaten davetli ALREADY_INVITED", async () => {
     const { service, blocks } = makeService();
     const { owner, listing } = await setup({ targetCountries: ["TR"] });
@@ -694,7 +770,7 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
       notifications as never,
       listings.service,
     );
-    return { runs, ai };
+    return { runs, ai, listings };
   }
 
   it("tur platform üyelerini bulur (gerekçeli); web'de adresi üyeyle eşleşen aynı satıra katılır; tur üyeyi talebe kendisi davet eder", async () => {
@@ -753,5 +829,122 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
     const id2 = await runs.enqueue(l2.id, "PUBLISH");
     await runs.process(id2!);
     expect((await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: id2! } })).state).toBe("FAILED");
+  });
+
+  /**
+   * Canlı doğrulama 2026-10-09, AUTO-MEMBER-1 — tur eşleştiricinin döndürdüğü
+   * HER üyeyi davet ediyordu, kendisinin "güçlü değil" dediklerini de (yalnız
+   * üst segment uyuyor): elektrik talebine yalnız o segmentte çalışan bir firma,
+   * hidrolik silindir talebine bir hırdavatçı ve iki makine imalatçısı. Davet
+   * alıcıya sorulmadan, onun adına gittiği için yalnız GÜÇLÜ eşleşmeye gider.
+   */
+  describe("AUTO-MEMBER-1 — otomatik tur yalnız güçlü eşleşen üyeyi davet eder", () => {
+    /** Doğrulanmış üye; yalnız talebin ÜST segmentini beyan ediyor (alt kategori yok, ürün yok). */
+    async function segmentSeller(name: string) {
+      const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name });
+      await proveAccounts(prisma, s.company.id);
+      await prisma.company.update({ where: { id: s.company.id }, data: { sellerCategoryIds: ["31000000"] } });
+      return s;
+    }
+    const candidatesOf = async (runId: string) =>
+      (
+        await prisma.supplierDiscoveryCandidate.findMany({
+          where: { runId },
+          select: { name: true, status: true, source: true },
+          orderBy: { name: "asc" },
+        })
+      ).map((c) => [c.name, c.status, c.source]);
+    const invitedTo = async (listingId: string) =>
+      (await prisma.listingInvitation.findMany({ where: { listingId }, select: { invitedCompanyId: true } })).map(
+        (i) => i.invitedCompanyId,
+      );
+
+    it("alt kategorisi / kalemi eşleşen üye davet edilir; yalnız segmenti uyan üye WEAK_MATCH yazılır: davet yok, durum listesi nedenini söyler, alıcı pencereden yine davet edebilir", async () => {
+      const { owner, listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
+      const bySubCategory = await categorySeller("Bağlantı Ltd");
+      const byProduct = await productSeller("Cıvata AŞ");
+      const segmentOnly = await segmentSeller("Karadeniz Enerji A.Ş.");
+      const { runs, ai } = makeRuns([]);
+      // Web araması kapalı: yalnız platform eşleştiricisinin döndürdükleri.
+      ai.isEnabled = false;
+      const runId = (await runs.enqueue(listing.id, "PUBLISH"))!;
+      await runs.process(runId);
+
+      expect(await candidatesOf(runId)).toEqual([
+        ["Bağlantı Ltd", "INVITED", "PLATFORM"],
+        ["Cıvata AŞ", "INVITED", "PLATFORM"],
+        ["Karadeniz Enerji A.Ş.", "WEAK_MATCH", "PLATFORM"],
+      ]);
+      expect((await invitedTo(listing.id)).sort()).toEqual([bySubCategory.company.id, byProduct.company.id].sort());
+      // Tur bitti (bekleyen aday yok) ve sonuç mesajı yalnız davet edilen iki üyeyi sayar.
+      const run = await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId } });
+      expect(run.state).toBe("DONE");
+      expect(run.notifiedAt).not.toBeNull();
+
+      const view = await runs.forListing(owner.auth, listing.id);
+      const row = (name: string) => view.runs[0]!.candidates.find((c) => c.name === name)!;
+      expect(row("Karadeniz Enerji A.Ş.")).toMatchObject({ status: "WEAK_MATCH", invite: "NOT_SENT", inviteReason: "WEAK_MATCH" });
+      expect(row("Bağlantı Ltd")).toMatchObject({ status: "INVITED", invite: "INVITED", inviteReason: null });
+
+      // Elle açılan pencerede üye durur: alıcı isterse davet eder; durum listesi artık "davet edildi" der.
+      const { results } = await runs.inviteMembers(owner.auth, listing.id, [segmentOnly.company.id]);
+      expect(results).toEqual([{ companyId: segmentOnly.company.id, status: "INVITED" }]);
+      const after = await runs.forListing(owner.auth, listing.id);
+      expect(after.runs[0]!.candidates.find((c) => c.name === "Karadeniz Enerji A.Ş.")).toMatchObject({
+        status: "INVITED",
+        invite: "INVITED",
+        inviteReason: null,
+      });
+    });
+
+    it("yalnız zayıf eşleşen üye bulunduysa kimse davet edilmez: tur DONE, sonuç mesajı yok; üyeler anonim kategori duyurusunu yine alır; ikinci turu da kilitlemez", async () => {
+      const { listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
+      const hardware = await segmentSeller("Demir Hırdavat Ltd.");
+      const machines = await segmentSeller("RV FX00 Maschinenbau");
+      const { runs, ai, listings } = makeRuns([]);
+      ai.isEnabled = false;
+      const runId = (await runs.enqueue(listing.id, "PUBLISH"))!;
+      await runs.process(runId);
+      expect(await candidatesOf(runId)).toEqual([
+        ["Demir Hırdavat Ltd.", "WEAK_MATCH", "PLATFORM"],
+        ["RV FX00 Maschinenbau", "WEAK_MATCH", "PLATFORM"],
+      ]);
+      expect(await invitedTo(listing.id)).toEqual([]);
+      const run = await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId } });
+      expect([run.state, run.notifiedAt]).toEqual(["DONE", null]);
+      // "Onay bekleyen aday" (SUGGESTED / MEMBER) kalmadı: ikinci tur süzgeci bu turu eski akış saymaz.
+      expect(
+        await prisma.supplierDiscoveryCandidate.count({ where: { runId, status: { in: ["SUGGESTED", "MEMBER"] } } }),
+      ).toBe(0);
+      // Davet edilmedikleri için duyurunun "davetliler hariç" kuralına takılmazlar: tur bitince salınan
+      // anonim kategori duyurusu ikisine de gider (firma adını taşıyan AI daveti değil).
+      await settle(() => listings.email.send.mock.calls.length >= 2);
+      const mails = listings.email.send.mock.calls.map((c) => c[0] as { to: { email: string }; context: { type: string } });
+      expect(mails.map((m) => [m.to.email, m.context.type]).sort()).toEqual(
+        [
+          [hardware.user.email, "listing_category_match"],
+          [machines.user.email, "listing_category_match"],
+        ].sort(),
+      );
+    });
+
+    it("web araması aynı üyeyi bu talep için de bulduysa (ikinci kaynak) yalnız segmenti uyan üye de davet edilir (BOTH)", async () => {
+      const { listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
+      const found = await segmentSeller("Karadeniz Enerji A.Ş.");
+      const notFound = await segmentSeller("Demir Hırdavat Ltd.");
+      await prisma.companyUser.update({ where: { id: found.user.id }, data: { emailVerifiedAt: new Date() } });
+      const { runs } = makeRuns([
+        [{ name: "Karadeniz Enerji A.Ş.", email: found.user.email, country: "TR", reason: "r", items: [1] }],
+        [],
+      ]);
+      const runId = (await runs.enqueue(listing.id, "PUBLISH"))!;
+      await runs.process(runId);
+      expect(await candidatesOf(runId)).toEqual([
+        ["Demir Hırdavat Ltd.", "WEAK_MATCH", "PLATFORM"],
+        ["Karadeniz Enerji A.Ş.", "INVITED", "BOTH"],
+      ]);
+      expect(await invitedTo(listing.id)).toEqual([found.company.id]);
+      expect(await invitedTo(listing.id)).not.toContain(notFound.company.id);
+    });
   });
 });

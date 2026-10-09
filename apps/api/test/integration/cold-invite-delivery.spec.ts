@@ -23,6 +23,10 @@ import { INVITE_CONTEXT_TYPES } from "../../src/modules/email/email-streams";
 import { verifyUnsubscribeToken } from "../../src/modules/email/unsubscribe-token";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { holdInviteSendWindowOpen } from "./invite-send-window";
+
+// These suites test other rules with the real clock; the send-time business window is covered in invite-send-window.spec.ts.
+holdInviteSendWindowOpen();
 
 const WEB = "https://www.rothern.com";
 const WEB_HOST = "www.rothern.com";

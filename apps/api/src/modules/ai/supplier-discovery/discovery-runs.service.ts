@@ -137,11 +137,35 @@ const AUTO_TRIGGERS: DiscoveryTrigger[] = ["PUBLISH", "SECOND_ROUND"];
 export type CandidateInviteState = "INVITED" | "QUEUED" | "ALREADY_INVITED" | "NOT_SENT" | "WAITING";
 
 /**
+ * WEAK MATCH - a platform member the automatic run found but does NOT invite
+ * (live re-check 2026-10-09, AUTO-MEMBER-1).
+ *
+ * The run invites in the buyer's name without asking. The member matcher also
+ * returns companies it marks as not strong (`strongMatch` false: only the
+ * top-level segment fits, or a relaxed item hit no category corroborates) -
+ * right for the manual window, where the buyer picks, but the run invited them
+ * all: an electrical firm, a hardware shop and two machine builders to a
+ * hydraulic cylinder request. Now only a STRONG match is invited; the others
+ * are written with this status ("not sent", reason `WEAK_MATCH` on the status
+ * list) and nothing else happens to them: the anonymous category announcement
+ * still reaches a company that declares the segment (it excludes INVITEES
+ * only), and the buyer can still invite it from the "find suppliers" window -
+ * the status list then shows it as invited.
+ *
+ * Written when the candidates are saved (`mergeCandidates`), not at invitation
+ * time: `strongMatch` is not stored, and a resumed run reads only the rows.
+ */
+export const MEMBER_WEAK_MATCH = "WEAK_MATCH";
+
+/**
  * Davet aşamasının aday satırına yazdığı "gönderilmedi" durumları (kolon serbest
  * metin). Kuyruğa giren/davet edilen aday INVITED, zaten davetli olan
  * ALREADY_INVITED yazılır; SUGGESTED / MEMBER = sıra henüz gelmedi.
+ * `WEAK_MATCH` aday yazılırken konur (otomatik tur yalnız güçlü eşleşen üyeyi
+ * davet eder — `MEMBER_WEAK_MATCH`).
  */
 const NOT_SENT_STATUSES = new Set([
+  MEMBER_WEAK_MATCH,
   "DAILY_LIMIT",
   "NOT_ELIGIBLE",
   "NOT_ALLOWED",
@@ -200,6 +224,10 @@ const NOT_SENT_STATUSES = new Set([
  *    adresi/sitesi bir üyeyle eşleşen aday da üye sayılır (kaynak BOTH). Üye
  *    adayı (`status = MEMBER`, `memberCompanyId`) e-posta davetine değil
  *    DOĞRUDAN TALEBE davet edilir (`inviteDiscoveredMembers`, bağlantı şartı yok).
+ *  - YALNIZ GÜÇLÜ EŞLEŞEN ÜYE (2026-10-09, AUTO-MEMBER-1): platform dizininin
+ *    güçlü saymadığı üye (yalnız segment) otomatik davet EDİLMEZ; aday satırı
+ *    `WEAK_MATCH` yazılır (`MEMBER_WEAK_MATCH`). Web aramasının da bulduğu üye
+ *    davet edilir.
  */
 @Injectable()
 export class DiscoveryRunsService {
@@ -435,6 +463,7 @@ export class DiscoveryRunsService {
       select: {
         listingId: true,
         companyId: true,
+        trigger: true,
         listing: {
           select: {
             status: true,
@@ -573,7 +602,11 @@ export class DiscoveryRunsService {
         }
       }
 
-      const rows = mergeCandidates(platform, web, seenMembers, owner?.country ?? null);
+      // A run that invites by itself takes only STRONG member matches
+      // (AUTO-MEMBER-1); the rest is recorded as `WEAK_MATCH`, not invited.
+      const rows = mergeCandidates(platform, web, seenMembers, owner?.country ?? null, {
+        strongMembersOnly: AUTO_TRIGGERS.includes(run.trigger),
+      });
       if (rows.length === 0) {
         const ended = await this.bypass.supplierDiscoveryRun.updateMany({
           where: { id: runId, state: "RUNNING" },
@@ -1201,7 +1234,7 @@ export class DiscoveryRunsService {
               ...c,
               matchedCategories: c.matchedCategories.filter((n) => shownBadges.has(n)),
               status:
-                c.status === "MEMBER" && memberInvited
+                (c.status === "MEMBER" || c.status === MEMBER_WEAK_MATCH) && memberInvited
                   ? "INVITED"
                   : c.status === "SUGGESTED" && queue
                     ? "INVITED"
@@ -1274,12 +1307,19 @@ type CandidateRow = {
  * aday platform satırına katılır (kaynak BOTH, kalemler birleşir); platformda
  * çıkmayan web üyesi kendi satırıyla üye sayılır. Önceki turlarda önerilmiş
  * üye yeniden önerilmez.
+ *
+ * `strongMembersOnly` (the automatic run, AUTO-MEMBER-1): a platform member
+ * the matcher does not call a strong match is written `WEAK_MATCH` instead of
+ * `MEMBER` - recorded, not invited (`MEMBER_WEAK_MATCH`). When the web search
+ * found the same company for this request, that second source decides: it is
+ * invited after all.
  */
 export function mergeCandidates(
   platform: DiscoveryCandidate[],
   web: AnnotatedCandidate[],
   seenMembers: Set<string>,
   buyerCountry: string | null,
+  opts: { strongMembersOnly?: boolean } = {},
 ): CandidateRow[] {
   const scopeOf = (country: string | null) =>
     country && buyerCountry ? (country === buyerCountry ? "LOCAL" : "ABROAD") : null;
@@ -1292,7 +1332,11 @@ export function mergeCandidates(
     reason: null,
     matchedItems: p.matchedItems,
     scope: scopeOf(p.country),
-    status: p.alreadyInvited ? "ALREADY_INVITED" : "MEMBER",
+    status: p.alreadyInvited
+      ? "ALREADY_INVITED"
+      : opts.strongMembersOnly && !p.strongMatch
+        ? MEMBER_WEAK_MATCH
+        : "MEMBER",
     recentlyInvited: false,
     memberCompanyId: p.companyId,
     matchedCategories: p.matchedCategories,
@@ -1304,6 +1348,7 @@ export function mergeCandidates(
       const hit = byMember.get(c.memberCompanyId);
       if (hit) {
         hit.source = "BOTH";
+        if (hit.status === MEMBER_WEAK_MATCH) hit.status = "MEMBER";
         hit.matchedItems = [...new Set([...hit.matchedItems, ...c.matchedItems])].sort((a, b) => a - b);
         hit.reason = hit.reason ?? c.reason;
         continue;
@@ -1350,8 +1395,11 @@ function groupBy<T>(rows: T[], keyOf: (row: T) => string): Map<string, T[]> {
  */
 function queueCancelReason(reason: string | null): string {
   // `AUTO_INVITE_OFF`: talep özele çevrildi ya da otomatik arama kapatıldı —
-  // turun kuyruğa aldığı davet gönderilmeden düştü (AI-1).
-  if (reason === "REFERRAL_CANCELLED" || reason === "AUTO_INVITE_OFF") return "CANCELLED";
+  // turun kuyruğa aldığı davet gönderilmeden düştü (AI-1). Kendi koduyla döner
+  // (canlı doğrulama AUTO-UI-7): ekran nedenin alıcının KENDİ ayarı olduğunu ve
+  // ayar geri alınınca davetin yeniden sıraya gireceğini söyler; `CANCELLED`
+  // yalnız alıcının bağlantıyı elle iptal etmesidir.
+  if (reason === "REFERRAL_CANCELLED") return "CANCELLED";
   if (reason === "INVITER_DOWNGRADED") return "NOT_ALLOWED";
   return reason ?? "FAILED";
 }

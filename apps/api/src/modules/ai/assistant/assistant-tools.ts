@@ -14,6 +14,7 @@ import {
   orderStatusLabel,
   paymentCategoryLabel,
 } from "../../../common/i18n/listing-terms-label";
+import { tApi } from "../../../common/i18n/i18n.service";
 import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
 import type { AiToolDef } from "../providers/ai-provider.interface";
 
@@ -406,6 +407,11 @@ export function redactHiddenCategories(value: unknown, categoryField = false): u
   return out;
 }
 
+/** Field of the owner's request detail (`CompanyListingsService.getOne`) that the web edit form reads. */
+export const RETIRED_CATEGORY_FLAG = "hasRetiredCategory";
+/** What the model gets in its place: a plain sentence under a neutral name. */
+export const RETIRED_CATEGORY_NOTE_KEY = "categoryNote";
+
 /**
  * Arayüz testi D-357 (kök düzeltme): araç sonuçlarındaki durum / teslim /
  * ödeme KODLARINI modele vermeden önce istek dilinde etikete çevirir —
@@ -426,6 +432,16 @@ export function localizeToolCodes(
   if (!isPlainObject(value)) return value;
   const out: Record<string, unknown> = {};
   for (const [key, v] of Object.entries(value)) {
+    // RAW FLAG -> PLAIN NOTE (live re-check 2026-10-09, CP-08). The owner's
+    // request detail tells the edit form with `hasRetiredCategory` that a
+    // stored category is under a hidden segment (no code, no name). The model
+    // got the same raw flag and wrote it into its answer: "(hasRetiredCategory:
+    // true)". The model is handed a sentence in the reply language instead,
+    // from the catalogue; `false` carries nothing worth saying and is dropped.
+    if (key === RETIRED_CATEGORY_FLAG) {
+      if (v === true) out[RETIRED_CATEGORY_NOTE_KEY] = tApi("api.ai.assistant.toolNote.retiredCategory", undefined, locale);
+      continue;
+    }
     if (typeof v === "string") {
       let label: string | null = null;
       if (key === "status" && kind === "listing") label = listingStatusLabel(v, locale);

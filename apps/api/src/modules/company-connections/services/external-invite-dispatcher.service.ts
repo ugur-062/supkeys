@@ -15,17 +15,19 @@ import {
   AUTO_INVITE_OFF_REASON,
   AUTO_INVITE_OFF_WHERE,
   coldInviteDailyCap,
+  coldInviteSendAt,
   INVITE_DIGEST_MAX,
   INVITE_MAX_ATTEMPTS,
   INVITE_PAUSE_WINDOW_DAYS,
   INVITE_RETRY_MINUTES,
+  INVITE_WINDOW_JITTER_MINUTES,
   inviteHoldUntil,
   inviteMissesClosing,
   invitePaused,
-  REMINDER_BEFORE_CLOSE_HOURS,
+  REMINDER_EARLY_HOURS,
   REMINDER_MIN_LEFT_HOURS,
   registrationBlockedCountry,
-  reminderDue,
+  reminderLeavesNow,
   utcDayStart,
   type ColdInviteCap,
   type InviteSourceKind,
@@ -74,6 +76,35 @@ function sendableListingWhere(now: Date): Prisma.ListingWhereInput {
 
 /** Bir turda geri alınan en fazla düşmüş otomatik davet (bkz. `resumeAutoInvites`). */
 const RESUME_BATCH = 300;
+
+/** Reminder candidates read per page of the scan (`sendReminders`). */
+const REMINDER_SCAN_PAGE = DUE_BATCH;
+
+/**
+ * What the reminder scan reads of a candidate: enough to decide whether its
+ * reminder may leave now. The letter's content (`DUE_SELECT`: the request with
+ * its items) is loaded only for a row that is about to be sent.
+ */
+const REMINDER_SCAN_SELECT = {
+  id: true,
+  email: true,
+  country: true,
+  source: true,
+  sentAt: true,
+  listing: { select: { closesAt: true } },
+} as const;
+
+type ReminderCandidate = {
+  id: string;
+  email: string;
+  country: string | null;
+  source: InviteSourceKind;
+  sentAt: Date | null;
+  listing: { closesAt: Date | null };
+};
+
+/** Letters that wait for the same window start do not all leave in its first minute. */
+const windowJitter = () => Math.floor(Math.random() * INVITE_WINDOW_JITTER_MINUTES);
 
 const DUE_SELECT = {
   id: true,
@@ -195,6 +226,8 @@ export interface DispatchReport {
  * (kurallar `external-invite-policy.ts`te, burada yalnız uygulanır):
  *  - talep YAYINDA değilse bekler; kapanmış/iptal talebin davetleri düşer
  *  - platform günlük tavanı (ölçüme bağlı ısınma + fren)
+ *  - AI'ın bulduğu adrese yalnız alıcının ülkesinde hafta içi 09-16 — pencere
+ *    GÖNDERİM ANINDA yeniden denetlenir (`coldInviteSendAt`, AUTO-HOURS-1)
  *  - adres başına 7 gün (AI kaynaklı); bekleyenler tek e-postada toplanır
  *  - ilgi göstermiş adrese fren yok; 3 yanıtsız e-postadan sonra duraklar
  *  - çıkmış/kayıtlı adrese gitmez; çeviri 10 dk içinde gelmezse özgün metin
@@ -245,23 +278,12 @@ export class ExternalInviteDispatcher {
     if (report.cap.braked) {
       this.logger.warn(`cold invite brake (${report.cap.braked}): cap=${report.cap.cap}`);
     }
-    if (remaining <= 0) return report;
-
-    const due = (await this.prisma.externalListingInvite.findMany({
-      // İptal edilmiş bağlantı jetonunun kuyruğu gitmez (iptal kuyruğu da düşürür; yarışa karşı).
-      // `NOT AUTO_INVITE_OFF_WHERE`: yukarıdaki iptalden SONRA özele çevrilen
-      // talebin satırı da bu turda okunmaz (sonraki tur iptal eder).
-      where: {
-        state: "QUEUED",
-        sendAfter: { lte: now },
-        listing: sendableListingWhere(now),
-        referralInvite: { status: { not: "CANCELLED" } },
-        NOT: AUTO_INVITE_OFF_WHERE,
-      },
-      orderBy: { sendAfter: "asc" },
-      take: DUE_BATCH,
-      select: DUE_SELECT,
-    })) as unknown as DueInvite[];
+    const due = await this.dueInvites(now);
+    if (remaining <= 0) {
+      // Nothing can leave now, but the planned time shown to the buyer stays true.
+      report.deferred += await this.replanOutsideWindow(due, now);
+      return report;
+    }
 
     const byEmail = new Map<string, DueInvite[]>();
     for (const inv of due) {
@@ -282,6 +304,60 @@ export class ExternalInviteDispatcher {
 
     if (remaining > 0) report.reminders = await this.sendReminders(now, remaining, builder);
     return report;
+  }
+
+  /** Rows whose turn has come and whose request can be sent for (one run's batch). */
+  private async dueInvites(now: Date): Promise<DueInvite[]> {
+    return (await this.prisma.externalListingInvite.findMany({
+      // İptal edilmiş bağlantı jetonunun kuyruğu gitmez (iptal kuyruğu da düşürür; yarışa karşı).
+      // `NOT AUTO_INVITE_OFF_WHERE`: yukarıdaki iptalden SONRA özele çevrilen
+      // talebin satırı da bu turda okunmaz (sonraki tur iptal eder).
+      where: {
+        state: "QUEUED",
+        sendAfter: { lte: now },
+        listing: sendableListingWhere(now),
+        referralInvite: { status: { not: "CANCELLED" } },
+        NOT: AUTO_INVITE_OFF_WHERE,
+      },
+      orderBy: { sendAfter: "asc" },
+      take: DUE_BATCH,
+      select: DUE_SELECT,
+    })) as unknown as DueInvite[];
+  }
+
+  /**
+   * THE DAILY CAP IS USED UP (or set to 0): nothing is sent in this run, and
+   * the rows keep their place. A row whose window has closed in the meantime
+   * would keep a PAST `sendAfter` until the cap is released at 00:00 UTC, and
+   * the request page would show that past time as the planned one. Such a row
+   * is moved to the start of its next window here (AUTO-HOURS-1); a row whose
+   * window is open now is left alone - it leaves as soon as the cap allows.
+   *
+   * No lease is taken: the conditional update is atomic and a second instance
+   * finds the row already moved.
+   */
+  private async replanOutsideWindow(due: DueInvite[], now: Date): Promise<number> {
+    const opensAtOf = (inv: DueInvite, engaged: boolean, jitterMinutes = 0) =>
+      coldInviteSendAt({ source: inv.source, engaged, country: inv.country, at: now, jitterMinutes });
+    // Rows that wait inside their window (the usual case while the cap is
+    // used up) cost nothing more than the read above.
+    const rows = due.filter((inv) => opensAtOf(inv, false).getTime() > now.getTime());
+    if (rows.length === 0) return 0;
+    const histories = await inviteAddressHistories(this.prisma, [...new Set(rows.map((r) => r.email))], now);
+    const jitterByEmail = new Map<string, number>();
+    let moved = 0;
+    for (const inv of rows) {
+      const jitter = jitterByEmail.get(inv.email) ?? windowJitter();
+      jitterByEmail.set(inv.email, jitter);
+      const opensAt = opensAtOf(inv, histories.get(inv.email)?.engaged ?? false, jitter);
+      if (opensAt.getTime() <= now.getTime()) continue;
+      const r = await this.prisma.externalListingInvite.updateMany({
+        where: { id: inv.id, state: "QUEUED", sendAfter: { lte: now } },
+        data: { sendAfter: opensAt },
+      });
+      moved += r.count;
+    }
+    return moved;
   }
 
   /**
@@ -323,7 +399,7 @@ export class ExternalInviteDispatcher {
       const sendAfter =
         row.sendAfter.getTime() > now.getTime()
           ? row.sendAfter
-          : nextBusinessWindow(now, timeZoneForCountry(row.country), Math.floor(Math.random() * 45));
+          : nextBusinessWindow(now, timeZoneForCountry(row.country), windowJitter());
       // Koşullu: alıcı aynı adresi o an elle davet ettiyse (satır onun daveti
       // olarak canlandı) ya da ikinci bir örnek geri aldıysa dokunulmaz.
       const r = await this.prisma.externalListingInvite.updateMany({
@@ -477,6 +553,21 @@ export class ExternalInviteDispatcher {
       return out;
     }
 
+    // RECIPIENT'S BUSINESS HOURS, RE-CHECKED AT SEND TIME (AUTO-HOURS-1). The
+    // window was applied only when the row was queued; a row that became
+    // sendable later (translation wait, stack down, daily cap released at
+    // 00:00 UTC) left at once, also at night. `windowed(inv, at)` is the
+    // earliest moment the letter may leave at or after `at`: `at` itself for a
+    // typed address and for an address that opened an invitation link,
+    // otherwise inside the recipient country's weekday 09-16 window. Every
+    // `sendAfter` written below for a waiting row goes through it, so the
+    // planned time the buyer sees is the time the letter really leaves.
+    // One spread per address and run: the letters of one address that wait for
+    // the same window keep ONE planned time and still leave in a single digest.
+    const jitter = windowJitter();
+    const windowed = (inv: DueInvite, at: Date) =>
+      coldInviteSendAt({ source: inv.source, engaged: state.engaged, country: inv.country, at, jitterMinutes: jitter });
+
     const sendable: DueInvite[] = [];
     for (const inv of group) {
       if (invitePaused({ engaged: state.engaged, unengagedSends90d: state.sends90d, source: inv.source })) {
@@ -490,7 +581,15 @@ export class ExternalInviteDispatcher {
         now,
       });
       if (!hold) {
-        sendable.push(inv);
+        const opensAt = windowed(inv, now);
+        if (opensAt.getTime() <= now.getTime()) {
+          sendable.push(inv);
+          continue;
+        }
+        // Outside the window: not sent, planned for the next window start. A
+        // request that closes before that drops the row then (LISTING_CLOSED).
+        await this.prisma.externalListingInvite.update({ where: { id: inv.id }, data: { sendAfter: opensAt } });
+        out.deferred++;
         continue;
       }
       const next = nextBusinessWindow(hold, timeZoneForCountry(inv.country));
@@ -519,9 +618,12 @@ export class ExternalInviteDispatcher {
           ? await this.translations.ensureTranslated("LISTING", inv.listingId, [locale], 1_500).catch(() => false)
           : true;
       if (!translated && now.getTime() - inv.createdAt.getTime() < TRANSLATION_GRACE_MS) {
+        // The 2-minute step stays inside the window too: a step taken at 15:59
+        // ends after hours, so the row is planned for the next window start
+        // (by then the translation is there, or the grace period is over).
         await this.prisma.externalListingInvite.update({
           where: { id: inv.id },
-          data: { sendAfter: new Date(now.getTime() + 2 * 60_000) },
+          data: { sendAfter: windowed(inv, new Date(now.getTime() + 2 * 60_000)) },
         });
         out.deferred++;
         continue;
@@ -564,7 +666,7 @@ export class ExternalInviteDispatcher {
           data:
             attempts >= INVITE_MAX_ATTEMPTS
               ? { attempts, state: "FAILED" }
-              : { attempts, sendAfter: new Date(now.getTime() + INVITE_RETRY_MINUTES * 60_000) },
+              : { attempts, sendAfter: windowed(b, new Date(now.getTime() + INVITE_RETRY_MINUTES * 60_000)) },
         });
       }
       out.deferred += batch.length;
@@ -652,51 +754,129 @@ export class ExternalInviteDispatcher {
   /**
    * Kapanıştan önce TEK hatırlatma: e-postası gitmiş, adres kayıt olmamış
    * (doğrulanmış hesabı yok) ve çıkmamış; son 48 saatte başka davet e-postası
-   * almamış.
+   * almamış. The reminder is one more cold letter, so it keeps the same send
+   * window as the invitation (`coldInviteSendAt`, AUTO-HOURS-1). WHEN it may
+   * leave is one rule, `reminderLeavesNow`: inside the 6-48 hour reminder
+   * period in a minute of the recipient's window - or, when that period has no
+   * such minute (it lies in the weekend), in the last window before it (R6-1).
+   *
+   * EVERY CANDIDATE IS LOOKED AT (round 6 review, R6-2; the scan rule of
+   * MU-14). The candidates used to be cut to `budget * 2` rows, oldest first,
+   * BEFORE the window was checked. A row whose window is closed is skipped
+   * without being marked, so the same rows filled that batch every minute and
+   * the reminders behind them never got their turn: a typed address behind two
+   * waiting ones, Tokyo's whole business day behind three hundred European
+   * rows. Now the candidates are read page by page (keyset on `sentAt, id`,
+   * the order stays "oldest invitation first") until `budget` reminders are
+   * sent or there is no candidate left. The scan reads a few columns
+   * (`REMINDER_SCAN_SELECT`) and decides without a query; address checks are
+   * ONE batch per page, and the letter's content is loaded only for a row that
+   * is sent - a night's worth of waiting reminders costs one small query per
+   * page a minute.
    */
   private async sendReminders(now: Date, budget: number, builder: InviteContentBuilder): Promise<number> {
-    const candidates = (await this.prisma.externalListingInvite.findMany({
-      where: {
-        state: "SENT",
-        reminderSentAt: null,
-        sentAt: { lte: new Date(now.getTime() - DAY_MS) },
-        // İptal edilmiş (davet eden vazgeçti / paketi düştü) ya da kabul
-        // edilmiş jetonun hatırlatması gitmez — iptal SENT satırı SENT bırakır
-        // ve bağlantı önizlemede 404 açardı (derin denetim MU-14).
-        referralInvite: { status: "PENDING" },
-        // Özele çevrilen / otomatik araması kapatılan talebe turun davet
-        // ettiği adrese HATIRLATMA da gitmez (yeni bir e-posta olurdu).
-        NOT: AUTO_INVITE_OFF_WHERE,
-        listing: {
-          ...sendableListingWhere(now),
-          closesAt: {
-            gt: new Date(now.getTime() + REMINDER_MIN_LEFT_HOURS * HOUR_MS),
-            lte: new Date(now.getTime() + REMINDER_BEFORE_CLOSE_HOURS * HOUR_MS),
-          },
+    const where: Prisma.ExternalListingInviteWhereInput = {
+      state: "SENT",
+      reminderSentAt: null,
+      sentAt: { lte: new Date(now.getTime() - DAY_MS) },
+      // İptal edilmiş (davet eden vazgeçti / paketi düştü) ya da kabul
+      // edilmiş jetonun hatırlatması gitmez — iptal SENT satırı SENT bırakır
+      // ve bağlantı önizlemede 404 açardı (derin denetim MU-14).
+      referralInvite: { status: "PENDING" },
+      // Özele çevrilen / otomatik araması kapatılan talebe turun davet
+      // ettiği adrese HATIRLATMA da gitmez (yeni bir e-posta olurdu).
+      NOT: AUTO_INVITE_OFF_WHERE,
+      listing: {
+        ...sendableListingWhere(now),
+        // Up to `REMINDER_EARLY_HOURS`: a reminder whose period has no window
+        // minute leaves before the period (`reminderLeavesNow`).
+        closesAt: {
+          gt: new Date(now.getTime() + REMINDER_MIN_LEFT_HOURS * HOUR_MS),
+          lte: new Date(now.getTime() + REMINDER_EARLY_HOURS * HOUR_MS),
         },
       },
-      orderBy: { sentAt: "asc" },
-      take: Math.min(budget * 2, DUE_BATCH),
-      select: { ...DUE_SELECT, sentAt: true, reminderSentAt: true },
-    })) as unknown as Array<DueInvite & { sentAt: Date | null; reminderSentAt: Date | null }>;
+    };
+    // Candidates share countries and requests: the window is asked once per
+    // (kind of address, country, moment) and run, not once per row.
+    const windowAt = new Map<string, Date>();
+    const sendAt = (c: ReminderCandidate, engaged: boolean, at: Date): Date => {
+      const key = `${c.source}|${engaged}|${c.country ?? ""}|${at.getTime()}`;
+      let answer = windowAt.get(key);
+      if (!answer) {
+        answer = coldInviteSendAt({ source: c.source, engaged, country: c.country, at });
+        windowAt.set(key, answer);
+      }
+      return answer;
+    };
+    /** May the reminder leave now, for an address with / without an interest signal? */
+    const leavesNow = (c: ReminderCandidate, engaged: boolean) =>
+      reminderLeavesNow({
+        closesAt: c.listing.closesAt,
+        sentAt: c.sentAt,
+        reminderSentAt: null,
+        now,
+        sendAt: (at) => sendAt(c, engaged, at),
+      });
 
     let sent = 0;
-    const seen = new Set<string>();
-    for (const inv of candidates) {
-      if (sent >= budget) break;
-      if (seen.has(inv.email)) continue;
-      seen.add(inv.email);
-      if (!reminderDue({ closesAt: inv.listing.closesAt, sentAt: inv.sentAt, reminderSentAt: inv.reminderSentAt, now })) {
-        continue;
+    /** One reminder letter per address and run. */
+    const tried = new Set<string>();
+    let after: { sentAt: Date; id: string } | null = null;
+    while (sent < budget) {
+      const page = (await this.prisma.externalListingInvite.findMany({
+        where: after
+          ? { AND: [where, { OR: [{ sentAt: { gt: after.sentAt } }, { sentAt: after.sentAt, id: { gt: after.id } }] }] }
+          : where,
+        orderBy: [{ sentAt: "asc" }, { id: "asc" }],
+        take: REMINDER_SCAN_PAGE,
+        select: REMINDER_SCAN_SELECT,
+      })) as unknown as ReminderCandidate[];
+      if (page.length === 0) break;
+      const last = page[page.length - 1]!;
+      after = last.sentAt ? { sentAt: last.sentAt, id: last.id } : null;
+
+      // Decided without a query: a row that could not leave now whatever its
+      // address history says (window closed and not in the period, period not
+      // reached, a country closed to registration).
+      const possible = page.filter(
+        (c) =>
+          !registrationBlockedCountry(c.country, countryFromEmailDomain(c.email)) &&
+          (leavesNow(c, false) || leavesNow(c, true)),
+      );
+      if (possible.length > 0) {
+        // The address checks of the page in one batch (interest signal, last
+        // invitation letter, opt-out, proven account) - not three queries per address.
+        const emails = [...new Set(possible.map((c) => c.email))];
+        const [histories, optOuts, users] = await Promise.all([
+          inviteAddressHistories(this.prisma, emails, now),
+          this.prisma.referralOptOut.findMany({ where: { email: { in: emails } }, select: { email: true } }),
+          this.prisma.companyUser.findMany({
+            where: { email: { in: emails }, deletedAt: null, emailVerifiedAt: { not: null } },
+            select: { email: true },
+          }),
+        ]);
+        const closed = new Set([...optOuts.map((o) => o.email), ...users.map((u) => u.email)]);
+        for (const c of possible) {
+          if (sent >= budget) break;
+          if (tried.has(c.email) || closed.has(c.email)) continue;
+          const history = histories.get(c.email);
+          if (!leavesNow(c, history?.engaged ?? false)) continue;
+          if (history?.lastInviteEmailAt && now.getTime() - history.lastInviteEmailAt.getTime() < 2 * DAY_MS) continue;
+          tried.add(c.email);
+          // The content is read now, and only if the row still waits for its
+          // reminder (a second instance may have sent it in the meantime).
+          const inv = (await this.prisma.externalListingInvite.findFirst({
+            where: { id: c.id, state: "SENT", reminderSentAt: null },
+            select: DUE_SELECT,
+          })) as unknown as DueInvite | null;
+          if (!inv) continue;
+          const res = await this.sendBatch(inv.email, [inv], builder, true);
+          if (res === "FAILED") continue;
+          await this.prisma.externalListingInvite.update({ where: { id: inv.id }, data: { reminderSentAt: now } });
+          if (res === "SENT") sent++;
+        }
       }
-      if (registrationBlockedCountry(inv.country, countryFromEmailDomain(inv.email))) continue;
-      const st = await this.addressState(inv.email, now);
-      if (st.optedOut || st.registered) continue;
-      if (st.lastInviteEmailAt && now.getTime() - st.lastInviteEmailAt.getTime() < 2 * DAY_MS) continue;
-      const res = await this.sendBatch(inv.email, [inv], builder, true);
-      if (res === "FAILED") continue;
-      await this.prisma.externalListingInvite.update({ where: { id: inv.id }, data: { reminderSentAt: now } });
-      if (res === "SENT") sent++;
+      if (page.length < REMINDER_SCAN_PAGE || !after) break;
     }
     return sent;
   }

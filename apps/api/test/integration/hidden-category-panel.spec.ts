@@ -19,6 +19,9 @@
  *  - DATA-09    affinity builder
  *  - R2         (review) an edit of a PUBLISHED request keeps its hidden codes
  *  - R3         (review) `?category=<hidden>` on the legacy member directory
+ *  - CP-01      (live re-check) the attribute form of a hidden category is not offered
+ *  - CP-06      (live re-check) a draft with a hidden AND a visible category is published
+ *  - CP-07      (live re-check) request templates never carry a hidden code
  *
  * Fixtures are legacy rows written straight to the database with a 46xxxxxx
  * or 10xxxxxx code, exactly what the records of that time look like.
@@ -38,7 +41,9 @@ import { CompanyDirectoryService } from "../../src/modules/company-directory/com
 import { breakdownSegmentOf } from "../../src/modules/company-dashboard/category-breakdown";
 import { CompanyDashboardService } from "../../src/modules/company-dashboard/company-dashboard.service";
 import { DashboardAnalyticsService } from "../../src/modules/company-dashboard/dashboard-analytics.service";
+import { CompanyItemsController } from "../../src/modules/company-items/company-items.controller";
 import { CompanyItemsService } from "../../src/modules/company-items/company-items.service";
+import { CompanyListingTemplatesService } from "../../src/modules/company-listing-templates/company-listing-templates.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
@@ -454,10 +459,31 @@ describe("request edit (F14) and publish of a draft (F15)", () => {
     expect(await prisma.listing.count()).toBe(0);
   });
 
-  it("F15 a draft that still carries a hidden category cannot be published; the message asks for a current category", async () => {
+  it("CP-06 a draft with one hidden and one visible category is published: the hidden codes leave the stored list, the visible ones stay in order", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, {});
-    const draft = await legacyListing(owner, [HID_CLS, CLS], { status: "DRAFT" });
+    // What the owner sees on the detail and in the edit form: the current
+    // categories, no note - the request looks complete.
+    const draft = await legacyListing(owner, [HID_CLS, CLS2, OLD_CLS, CLS], { status: "DRAFT" });
+    await makeItem(prisma, draft.id);
+    expect(((await service.getOne(owner.auth, draft.id)) as { categoryIds: string[] }).categoryIds).toEqual([CLS2, CLS]);
+
+    // It used to answer 400 "select a current category" although one was shown.
+    const published = await service.publishListing(owner.auth, draft.id);
+
+    expect(published.status).toBe("OPEN");
+    expect(await stored(draft.id)).toEqual([CLS2, CLS]);
+    const row = await prisma.listing.findUniqueOrThrow({ where: { id: draft.id } });
+    expect(row.publishedAt).toBeInstanceOf(Date);
+    expectNoHiddenCategory(published);
+    // A second publish is the usual "only a draft can be published".
+    await expect(service.publishListing(owner.auth, draft.id)).rejects.toThrow(BadRequestException);
+  });
+
+  it("F15 a draft with NO visible category left cannot be published; the message asks for a current category", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const draft = await legacyListing(owner, [HID_CLS, OLD_CLS], { status: "DRAFT" });
     await makeItem(prisma, draft.id);
 
     const err = await service.publishListing(owner.auth, draft.id).then(() => null, (e: unknown) => e);
@@ -473,10 +499,13 @@ describe("request edit (F14) and publish of a draft (F15)", () => {
     // The message does not name the hidden category.
     expect((err as BadRequestException).message).not.toContain(HID_CLS_NAME);
     expect((await prisma.listing.findUniqueOrThrow({ where: { id: draft.id } })).status).toBe("DRAFT");
+    // Refused = nothing written: the stored codes are still there.
+    expect(await stored(draft.id)).toEqual([HID_CLS, OLD_CLS]);
 
-    // The way out the message describes: save the edit form, publish again.
+    // The way out the message describes: choose a current category in the edit form, save, publish again.
     const detail = (await service.getOne(owner.auth, draft.id)) as { categoryIds: string[] };
-    await service.updateListing(owner.auth, draft.id, body({ asDraft: true, categoryIds: detail.categoryIds }));
+    expect(detail.categoryIds).toEqual([]);
+    await service.updateListing(owner.auth, draft.id, body({ asDraft: true, categoryIds: [CLS] }));
     const published = await service.publishListing(owner.auth, draft.id);
     expect(published.status).toBe("OPEN");
     expect(await stored(draft.id)).toEqual([CLS]);
@@ -680,6 +709,186 @@ async function seedSeller(product: Record<string, unknown>) {
   });
   return { company, item };
 }
+
+/* ------------------------------------------------------------------ */
+/* ATTRIBUTE FORM (live re-check CP-01)                                 */
+/* ------------------------------------------------------------------ */
+
+describe("CP-01 the attribute form of a hidden category is not offered - also to the product's owner", () => {
+  /** Field sets as the catalogue seeds them: one per segment, inherited by every code below. */
+  async function seedAttributes() {
+    await prisma.categoryAttribute.createMany({
+      data: [
+        { categoryId: HID_SEG, groupKey: "urun_grubu", nameTr: "Ürün grubu", type: "SINGLE_SELECT", options: ["Kişisel koruyucu donanım", "Yangın güvenliği"], isRequired: true, sortOrder: 0 },
+        { categoryId: HID_SEG, groupKey: "sertifika", nameTr: "Sertifika", type: "MULTI_SELECT", options: ["CE", "EN 166"], isRequired: true, sortOrder: 1 },
+        { categoryId: OLD_SEG, groupKey: "urun_grubu", nameTr: "Ürün grubu", type: "SINGLE_SELECT", options: ["Canlı hayvan", "Yem", "Gübre"], isRequired: true, sortOrder: 0 },
+        { categoryId: SEG, groupKey: "malzeme", nameTr: "Malzeme", type: "SINGLE_SELECT", options: ["Çelik", "Paslanmaz"], isRequired: true, sortOrder: 0 },
+      ],
+    });
+  }
+  const storedAttributes = async (id: string) => (await prisma.companyItem.findUniqueOrThrow({ where: { id } })).attributes;
+
+  it("GET company/items/attributes/:categoryId: a hidden code answers like 'no category' - no fields, no segment code", async () => {
+    await seedAttributes();
+    const controller = new CompanyItemsController(items());
+
+    for (const code of [HID_SEG, HID_FAM, HID_CLS, HID_CLS2, OLD_SEG, OLD_CLS]) {
+      expect(await controller.attributes(code)).toEqual([]);
+    }
+    // A visible category still gets its inherited fields.
+    const visible = await controller.attributes(CLS);
+    expect(visible.map((d) => [d.key, d.definedAt, d.isRequired])).toEqual([["malzeme", SEG, true]]);
+  });
+
+  it("owner's showcase of a legacy product: no attribute definitions and no 'required attributes' step from the hidden category; the stored values are still returned", async () => {
+    await seedAttributes();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const kept = { urun_grubu: "Canlı hayvan" };
+    // A steel pipe stored under segment 10: it was offered "live animal / feed / fertilizer".
+    const published = await legacyProduct(owner, {
+      name: "Çelik boru",
+      categoryId: OLD_CLS,
+      attributes: kept,
+      isPublic: true,
+      publishedAt: new Date(),
+      reviewStatus: "APPROVED",
+      slug: "celik-boru",
+    });
+    // A draft under segment 46 with none of that segment's required fields filled.
+    const draft = await legacyProduct(owner, { name: "Koruyucu gözlük", categoryId: HID_CLS, attributes: Prisma.DbNull });
+
+    const a = await items().getShowcase(owner.auth, published.id);
+    const b = await items().getShowcase(owner.auth, draft.id);
+
+    expect(a.attributeDefs).toEqual([]);
+    expect(b.attributeDefs).toEqual([]);
+    expect(a.attributes).toEqual(kept);
+    // The rail does not ask for starred fields of a category the owner cannot see.
+    expect(a.completion.missing.map((m) => m.key)).not.toContain("attributes");
+    expect(b.completion.missing.map((m) => m.key)).not.toContain("attributes");
+    // The draft still has its category step open (unchanged rule).
+    expect(b.completion.missing.map((m) => m.key)).toContain("category");
+    for (const showcase of [a, b]) {
+      const json = JSON.stringify(showcase.attributeDefs) + JSON.stringify(showcase.completion);
+      expect(json).not.toContain(HID_SEG);
+      expect(json).not.toContain(OLD_SEG);
+      expect(json).not.toMatch(/Canlı hayvan|Yem|Gübre|Kişisel koruyucu donanım|Yangın güvenliği/);
+    }
+  });
+
+  it("saving a legacy product keeps its stored attribute values: the form has no fields for them and sends none back", async () => {
+    await seedAttributes();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const kept = { urun_grubu: "Kişisel koruyucu donanım", sertifika: ["CE"] };
+    const product = await legacyProduct(owner, {
+      attributes: kept,
+      isPublic: true,
+      publishedAt: new Date(),
+      reviewStatus: "APPROVED",
+      slug: "koruyucu-is-elbisesi",
+    });
+
+    // The form sends an empty attribute set (no field is drawn).
+    const saved = await items().updateShowcase(owner.auth, product.id, { ...COMPLETE, attributes: {} });
+    expect(await storedAttributes(product.id)).toEqual(kept);
+    expect(saved.attributes).toEqual(kept);
+    // Nothing changed in the content: the product is not sent back to review.
+    expect(saved.reviewStatus).toBe("APPROVED");
+    // A hand-made request cannot write a value under the hidden category's keys either.
+    await items().updateShowcase(owner.auth, product.id, { attributes: { urun_grubu: "Yangın güvenliği", uydurma: "x" } });
+    expect(await storedAttributes(product.id)).toEqual(kept);
+    // The stored category did not move.
+    expect(await categoryOf(product.id)).toBe(HID_CLS);
+  });
+
+  it("moving the product to a current category: that category's fields apply, the hidden category's values are not carried over", async () => {
+    await seedAttributes();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const product = await legacyProduct(owner, { attributes: { urun_grubu: "Kişisel koruyucu donanım" } });
+
+    const saved = await items().updateShowcase(owner.auth, product.id, {
+      categoryId: CLS,
+      attributes: { malzeme: "Çelik", urun_grubu: "Kişisel koruyucu donanım" },
+    });
+
+    expect(saved.attributeDefs.map((d) => d.key)).toEqual(["malzeme"]);
+    expect(await storedAttributes(product.id)).toEqual({ malzeme: "Çelik" });
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* REQUEST TEMPLATES (live re-check CP-07)                              */
+/* ------------------------------------------------------------------ */
+
+describe("CP-07 request templates never carry a category under a hidden segment", () => {
+  const templates = () => new CompanyListingTemplatesService(prisma as unknown as PrismaService);
+  const storedPayload = async (id: string) =>
+    (await prisma.listingTemplate.findUniqueOrThrow({ where: { id } })).payload as Record<string, unknown>;
+
+  it("save: hidden codes sent by hand are stripped before the row is written; everything else is stored as sent", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+    const payload = {
+      title: "Baret ve vida alımı",
+      description: "Eski şartname no 46181500",
+      categoryIds: [HID_CLS, CLS, OLD_CLS, CLS2],
+      keywords: ["baret", "vida"],
+      items: [
+        { name: "Baret", quantity: 5, unit: "adet", categoryId: HID_CLS2 },
+        { name: "Vida M8", quantity: 100, unit: "adet", categoryId: CLS },
+      ],
+      // Free text in a category-named field is not a code and is left alone.
+      categoryHint: "46 numaralı şartnameye göre",
+      visibility: "PUBLIC",
+    };
+
+    const saved = await templates().save(owner.auth, { name: "  Baret şablonu ", payload });
+
+    expect(saved.name).toBe("Baret şablonu");
+    expect(await storedPayload(saved.id)).toEqual({
+      ...payload,
+      categoryIds: [CLS, CLS2],
+      items: [
+        { name: "Baret", quantity: 5, unit: "adet", categoryId: null },
+        { name: "Vida M8", quantity: 100, unit: "adet", categoryId: CLS },
+      ],
+    });
+    // The caller's object is not changed.
+    expect(payload.categoryIds).toEqual([HID_CLS, CLS, OLD_CLS, CLS2]);
+  });
+
+  it("read: a template saved before its segment was hidden is listed without the hidden code; the row is not rewritten", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+    const legacy = await prisma.listingTemplate.create({
+      data: {
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        name: "Eski şablon",
+        payload: { title: "Koruyucu giysi", categoryIds: [HID_CLS, CLS], items: [{ name: "Tulum", quantity: 1, unit: "adet" }] },
+      },
+    });
+
+    const rows = await templates().list(owner.company.id);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.payload).toEqual({
+      title: "Koruyucu giysi",
+      categoryIds: [CLS],
+      items: [{ name: "Tulum", quantity: 1, unit: "adet" }],
+    });
+    expectNoHiddenCategory(rows);
+    expect((await storedPayload(legacy.id)).categoryIds).toEqual([HID_CLS, CLS]);
+  });
+
+  it("a template without a hidden code is stored and listed exactly as sent", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+    const payload = { title: "Vida alımı", categoryIds: [CLS], items: [{ name: "Vida", quantity: 10, unit: "adet" }], note: null };
+
+    const saved = await templates().save(owner.auth, { name: "Vida", payload });
+
+    expect(await storedPayload(saved.id)).toEqual(payload);
+    expect((await templates().list(owner.company.id))[0]!.payload).toEqual(payload);
+  });
+});
 
 describe("panel product discovery", () => {
   it("F08 panel product page: a legacy product is shown without its hidden category (no name, no code)", async () => {

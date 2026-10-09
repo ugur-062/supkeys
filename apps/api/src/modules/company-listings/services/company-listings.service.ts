@@ -2,7 +2,11 @@ import { entitlementForbidden } from "../../../common/company/entitlement-requir
 import { categoryMatchInstantAllowed, localDayStart } from "../../../common/email/email-program-policy";
 import { COMPANY_DAILY_INVITE_CAP, utcDayStart } from "../../../common/company/external-invite-policy";
 import { productSearchClauses } from "../../../common/company/product-index";
-import { declaresRequestCategory, relaxedItemMatch } from "../../../common/company/item-product-match";
+import {
+  declaresRequestCategory,
+  productInRequestCategoryWhere,
+  relaxedItemMatch,
+} from "../../../common/company/item-product-match";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { timeZoneForCountry } from "../../../common/time/country-time-zone";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
@@ -2785,11 +2789,18 @@ export class CompanyListingsService {
     // category was hidden must not go live as a brand-new request in a
     // category nobody can see (it would also start the category announcement
     // and the supplier search for that category). The edit gate tolerates the
-    // stored code; the gate for it is here. The owner never sees the hidden
-    // code (detail returns visible codes only), so saving the edit form of a
-    // DRAFT drops it (`categoryIdsAfterEdit`) - the message asks for exactly
-    // that.
-    if (listing.categoryIds.some((code) => isHiddenCategory(code))) {
+    // stored code; the gate for it is here.
+    //
+    // The owner never sees the hidden code (detail and edit form show the
+    // visible codes only). So (live re-check CP-06):
+    //  - a VISIBLE category remains -> the request the owner sees is complete.
+    //    Publishing drops the hidden codes from the stored list, exactly as
+    //    saving the edit form of a DRAFT does (`categoryIdsAfterEdit`). It used
+    //    to answer "select a current category" while one was on the screen.
+    //  - NO visible category is left -> refused; the owner picks a current one.
+    const publishedCategoryIds = visibleCategoryIds(listing.categoryIds);
+    const dropsHiddenCategory = publishedCategoryIds.length !== listing.categoryIds.length;
+    if (dropsHiddenCategory && publishedCategoryIds.length === 0) {
       throw new BadRequestException(
         i18nMessage("api.companyListings.taslakKategorisiGuncelDegil", undefined, "LISTING_CATEGORY_NOT_CURRENT"),
       );
@@ -2840,11 +2851,19 @@ export class CompanyListingsService {
     // GUARD (closeNoAward/award simetrisi): yalnız DRAFT iken yayınla —
     // eşzamanlı çift-publish'te ikinci çağrı count=0 alır → announceListingOpen
     // yalnız kazanan çağrıda çalışır, tek duyuru (Tur-3 denetimi #11, INV-SM-1).
+    // The hidden codes leave in the SAME write that opens the request, and
+    // only if the category list is still the one read above (a draft saved in
+    // between is not overwritten with a stale list - that publish answers 409).
     const published = await this.prisma.listing.updateMany({
-      where: { id: listingId, status: "DRAFT" },
+      where: {
+        id: listingId,
+        status: "DRAFT",
+        ...(dropsHiddenCategory ? { categoryIds: { equals: listing.categoryIds } } : {}),
+      },
       data: {
         status: "OPEN",
         publishedAt: new Date(),
+        ...(dropsHiddenCategory ? { categoryIds: publishedCategoryIds } : {}),
         ...(auctionSnapshot ? { auctionRateSnapshot: auctionSnapshot } : {}),
       },
     });
@@ -8577,9 +8596,18 @@ export class CompanyListingsService {
     // arıyordu. Yalnız gevşek kuralla bulunan üyenin penceresi "kalem
     // eşleşmesi" gösterirken davet e-postası ürünü anmıyordu. Kural tek
     // kaynakta (`item-product-match.ts`): tam ad önce; bulamadıysa `strict`
-    // her davetlide, `weak` yalnız talebin kategorisini beyan eden davetlide.
+    // her davetlide, `weak` yalnız kategorinin doğruladığı davetlide — firma
+    // talebin kategorisini beyan ediyor YA DA eşleşen ürünün KENDİ kategorisi
+    // talebin kategorisinde (`productInRequestCategoryWhere`).
+    //
+    // İKİNCİ DOĞRULAMA (gözden geçirme R6-4): keşif, ürününü talebin sınıfına
+    // koymuş ama firma beyanını doldurmamış satıcıyı da güçlü eşleşme sayıyor
+    // (N2) ve otomatik tur onu davet ediyor; burası zayıf eşleşmeyi yalnız
+    // beyanla kabul ettiği için o davet gerekçesiz yazılıyor (`{ auto: true }`),
+    // e-posta ürünü anmıyordu — durum listesi ise "kalem eşleşmesi" diyordu.
     const categoryMatch = deriveCategoryMatchCandidates(listing.categoryIds);
     const inCategory = (id: string) => declaresRequestCategory(byId.get(id)!, categoryMatch);
+    const inRequestCategory = productInRequestCategoryWhere(listing.categoryIds);
     const productOf = new Map<string, string>();
     const productsOf = (companyIds: string[], where: Prisma.CompanyItemWhereInput) =>
       companyIds.length === 0
@@ -8601,6 +8629,9 @@ export class CompanyListingsService {
           rows = [
             ...(relaxed.strict ? await productsOf(toAdd, relaxed.strict) : []),
             ...(relaxed.weak ? await productsOf(toAdd.filter(inCategory), relaxed.weak) : []),
+            ...(relaxed.weak && inRequestCategory
+              ? await productsOf(toAdd, { AND: [relaxed.weak, inRequestCategory] })
+              : []),
           ];
         }
       }

@@ -311,6 +311,107 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       ]);
     });
 
+    /**
+     * Canlı doğrulama 2026-10-09, N2 — FIN PA1 Smoke Makina'nın yayındaki ürünü
+     * "FIN PA1 Smoke Hidrolik Silindir 80 mm" talebin KENDİ kategorisinde
+     * (27131700), ama firma o segmenti beyan etmemiş. Kalemin dört anlamlı
+     * sözcüğünden ikisini taşıyor (kesin düzeyin altında) ve zayıf eşleşme
+     * yalnız firmanın beyanıyla doğrulandığı için bulunmuyordu; pencere yalnız
+     * segmenti uyan üç alakasız üyeyi öneriyordu. Eşleşen ürünün kendi
+     * kategorisi de doğrular (aynı aile; aynı sınıfı kapsar).
+     */
+    describe("N2 — eşleşen ürünün kendi kategorisi zayıf eşleşmeyi doğrular", () => {
+      const REQUEST = "27131700";
+      const ITEM = "Hidrolik silindir 80 mm çift etkili";
+      /** Satıcının yayındaki ürünlerini bu kategoriye koyar (firma beyanına dokunmaz). */
+      const fileUnder = (s: { company: { id: string } }, categoryId: string) =>
+        prisma.companyItem.updateMany({ where: { companyId: s.company.id }, data: { categoryId } });
+      const byName = (res: { candidates: Array<{ name: string; strongMatch: boolean; matchedItems: number[] }> }) =>
+        Object.fromEntries(res.candidates.map((c) => [c.name, [c.strongMatch, c.matchedItems]]));
+
+      it("ürünü talebin sınıfında olan satıcı firma beyanı olmadan da bulunur, güçlü eşleşmedir ve yalnız segmenti uyan üyelerin üstünde gelir", async () => {
+        const buyer = await makeCompanyWithUser(prisma);
+        const fin = await seller("FIN PA1 Smoke Makina", ["FIN PA1 Smoke Hidrolik Silindir 80 mm"]);
+        await fileUnder(fin, REQUEST);
+        // Canlıda önerilen üçü: yalnız talebin segmentini beyan ediyorlar.
+        for (const name of ["RV FX00 Alpha Maschinenbau", "RV FX00 Beta Maschinenbau", "Demir Hırdavat Ltd."]) {
+          await seller(name, [], {}, { sellerCategoryIds: ["27000000"] });
+        }
+        const res = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: [REQUEST], itemNames: [ITEM] });
+        expect(res.candidates.map((c) => [c.name, c.strongMatch, c.matchedItems])[0]).toEqual([
+          "FIN PA1 Smoke Makina",
+          true,
+          [1],
+        ]);
+        expect(byName(res)).toEqual({
+          "FIN PA1 Smoke Makina": [true, [1]],
+          "RV FX00 Alpha Maschinenbau": [false, []],
+          "RV FX00 Beta Maschinenbau": [false, []],
+          "Demir Hırdavat Ltd.": [false, []],
+        });
+        // Kategorisiz aramada doğrulayacak kategori yok: zayıf eşleşme yine sayılmaz (R5-01 korunur).
+        const noCategory = await svc().discoverRegistered(buyer.auth, { type: "ALIM", itemNames: [ITEM] });
+        expect(noCategory.candidates).toEqual([]);
+      });
+
+      it("doğrulayan: aynı sınıf, aynı ailedeki başka sınıf, yaprak; doğrulamayan: başka aile (aynı segment), başka segment, kategorisiz ürün", async () => {
+        const buyer = await makeCompanyWithUser(prisma);
+        const product = ["Hidrolik Silindir 80 mm"];
+        await fileUnder(await seller("Aynı Sınıf AŞ", product), "27131700");
+        await fileUnder(await seller("Yaprak AŞ", product), "27131701");
+        await fileUnder(await seller("Aynı Aile AŞ", product), "27131500");
+        await fileUnder(await seller("Aile Düzeyi AŞ", product), "27130000");
+        await fileUnder(await seller("Başka Aile AŞ", product), "27121600");
+        await fileUnder(await seller("Segment Düzeyi AŞ", product), "27000000");
+        await fileUnder(await seller("Başka Segment AŞ", product), "40141700");
+        await seller("Kategorisiz AŞ", product);
+        // R5-01'in alakasız ürünü (yalnız iki NİTELİK sözcüğü) başka bir ailede: yine aday değil.
+        await fileUnder(await seller("Valf AŞ", ["Çift etkili pnömatik valf"]), "40141600");
+        const res = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: [REQUEST], itemNames: [ITEM] });
+        expect(byName(res)).toEqual({
+          "Aynı Sınıf AŞ": [true, [1]],
+          "Yaprak AŞ": [true, [1]],
+          "Aynı Aile AŞ": [true, [1]],
+          "Aile Düzeyi AŞ": [true, [1]],
+        });
+        // Talep segment düzeyindeyse (aile yok) ürünün kategorisi hiçbir şeyi doğrulamaz.
+        const segmentRequest = await svc().discoverRegistered(buyer.auth, {
+          type: "ALIM",
+          categoryIds: ["27000000"],
+          itemNames: [ITEM],
+        });
+        expect(segmentRequest.candidates).toEqual([]);
+      });
+
+      it("zayıf düzeyi olmayan kalemde (iki sözcük) kesin eşleşme her firmada sayılır; ürün talebin kategorisindeyse GÜÇLÜ olur", async () => {
+        const buyer = await makeCompanyWithUser(prisma);
+        await fileUnder(await seller("Kategoride Pres AŞ", ["Hidrolik Pres"]), "27131700");
+        await fileUnder(await seller("Başka Ailede Pres AŞ", ["Hidrolik Pres"]), "23151500");
+        const res = await svc().discoverRegistered(buyer.auth, {
+          type: "ALIM",
+          categoryIds: [REQUEST],
+          itemNames: ["Hidrolik pres 40 ton C tipi"],
+        });
+        expect(byName(res)).toEqual({
+          "Kategoride Pres AŞ": [true, [1]],
+          "Başka Ailede Pres AŞ": [false, [1]],
+        });
+      });
+
+      it("gösterilmeyen havuz ve uygunluk aynı kuralla: doğrulanmamış satıcı gösterilmeyen havuzda güçlü eşleşir, alıcıya önerilmez; ülke dışı satıcı düşer", async () => {
+        const buyer = await makeCompanyWithUser(prisma);
+        const product = ["FIN PA1 Smoke Hidrolik Silindir 80 mm"];
+        await fileUnder(await seller("Uygun AŞ", product), REQUEST);
+        await fileUnder(await seller("Doğrulanmamış Ltd", product, LIMITED), REQUEST);
+        await fileUnder(await seller("Alman GmbH", product, { country: "DE" }), REQUEST);
+        const input = { categoryIds: [REQUEST], itemNames: [ITEM], targetCountries: ["TR"] };
+        const shown = await svc().discoverRegistered(buyer.auth, { type: "ALIM", ...input });
+        expect(byName(shown)).toEqual({ "Uygun AŞ": [true, [1]] });
+        const hidden = await svc().discoverRegisteredFor(buyer.company.id, { ...input, pool: "hidden" });
+        expect(byName(hidden)).toEqual({ "Doğrulanmamış Ltd": [true, [1]] });
+      });
+    });
+
     it("sıra: kalemin tam adı > talebin alt kategorisi > gevşek kalem eşleşmesi > yalnız segment (gevşek eşleşen kalem sayısı fazla olsa da)", async () => {
       const buyer = await makeCompanyWithUser(prisma);
       await seller("Tam Ad AŞ", ["M6 Cıvata DIN 933"]);

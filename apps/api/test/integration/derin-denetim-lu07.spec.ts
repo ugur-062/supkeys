@@ -18,6 +18,10 @@ import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 import type { Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing } from "./factories";
+import { holdInviteSendWindowOpen } from "./invite-send-window";
+
+// These suites test other rules with the real clock; the send-time business window is covered in invite-send-window.spec.ts.
+holdInviteSendWindowOpen();
 
 type SendArg = { to: { email: string }; templateData: { template: string }; context: { type: string; id: string } };
 
