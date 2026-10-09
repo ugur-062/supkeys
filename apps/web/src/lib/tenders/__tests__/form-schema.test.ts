@@ -50,6 +50,31 @@ describe("tenderFormSchema", () => {
     expect(tenderFormSchema.safeParse(validForm()).success).toBe(true);
   });
 
+  /**
+   * Gözden geçirme R-WEB-01 (2026-10-09): yayındaki talebin tek kategorisi gizli
+   * segmentteyse form kategorisiz açılır; `categoryRequired: false` o formda
+   * "en az 1 kategori" kuralını kaldırır (değişmeyen eski değer ilgisiz
+   * düzenlemeyi engellemez). Varsayılan şema — yeni talep, taslağın yayını —
+   * kategoriyi ZORUNLU tutar.
+   */
+  it("kategori varsayılan olarak zorunlu; categoryRequired:false yalnız alt sınırı kaldırır (üst sınır 3 durur)", () => {
+    const required = tenderFormSchema.safeParse(validForm({ categoryIds: [] }));
+    expect(required.success).toBe(false);
+    expect(required.error?.issues.map((i) => [i.path[0], i.message])).toEqual([["categoryIds", "En az 1 kategori seçmelisiniz"]]);
+
+    const optional = makeTenderFormSchema((key, values) => tTr(`web.panel.requests.${key}`, values), { categoryRequired: false });
+    expect(optional.safeParse(validForm({ categoryIds: [] })).success).toBe(true);
+    expect(optional.safeParse(validForm({ categoryIds: ["cat-1"] })).success).toBe(true);
+    const tooMany = optional.safeParse(validForm({ categoryIds: ["c1", "c2", "c3", "c4"] }));
+    expect(tooMany.success).toBe(false);
+    expect(tooMany.error?.issues[0]?.path).toEqual(["categoryIds"]);
+    // Kalan kurallar aynen: kategorisiz form başka bir eksikle yine durur.
+    expect(optional.safeParse(validForm({ categoryIds: [], deliveryTerm: undefined })).success).toBe(false);
+    // Açıkça `true` = varsayılan.
+    const explicit = makeTenderFormSchema((key, values) => tTr(`web.panel.requests.${key}`, values), { categoryRequired: true });
+    expect(explicit.safeParse(validForm({ categoryIds: [] })).success).toBe(false);
+  });
+
   it("teslim şekli zorunlu; teslimat adresi OPSİYONEL (W2 — hizmet/lojistik)", () => {
     expect(
       tenderFormSchema.safeParse(validForm({ deliveryTerm: undefined }))

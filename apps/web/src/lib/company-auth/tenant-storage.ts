@@ -20,13 +20,17 @@ const TENANT_SESSION_PREFIXES = [
   "ai-tender-draft",
   "ai-search-intent",
   "rothern:invite-prefill",
-  // Hızlı talep AI tedarikçi keşfi sonuçları (dış adresler + eşleşen üyeler)
-  // ve `:auto` bayrağı — form-supplier-panel.tsx RESULTS_KEY / AUTO_KEY.
+  // Hızlı talep formunun ESKİ AI tedarikçi panelinin sonuçları (dış adresler +
+  // eşleşen üyeler) ve `:auto` bayrağı. Panel 2026-10-08'de kaldırıldı; önek
+  // açık oturumlarda kalmış anahtarlar çıkışta silinsin diye duruyor.
   "rothern:quick-ai-suppliers",
   // Dil değişiminde korunan onboarding taslağı (onboarding-draft.ts).
   "rothern:onboarding-draft",
   // Kayıt formu taslağı: ad, e-posta, telefon, onaylar, kod adımı (signup-draft.ts).
   "rothern:signup-draft",
+  // Profilim "Hakkında" kutusunun kaydedilmemiş taslağı — AI tanıtım önerisi
+  // dahil (lib/company/profile-about-draft.ts).
+  "rothern:profile-about-draft",
 ];
 const TENANT_LOCAL_KEYS = ["rothern.panel.recent-searches"];
 const OWNER_KEY = "rothern.session-owner";

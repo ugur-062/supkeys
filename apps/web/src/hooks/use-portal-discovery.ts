@@ -13,7 +13,7 @@ import type {
 } from "@/lib/public/marketplace-api";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import type { SellerTenderRow } from "./use-seller-tenders";
+import { withVisibleRowCategories, type SellerTenderRow } from "./use-seller-tenders";
 
 /**
  * PANO KEŞİF BLOĞU — veri katmanı.
@@ -67,7 +67,8 @@ export function useDiscoverListings(limit = 6) {
       const { data } = await companyApi.get<SellerTenderRow[]>(
         `/company/listings/seller-tenders?type=ALIM&limit=${limit}&openOnly=true`,
       );
-      return data;
+      // Aynı uç, aynı kural: gizli segmentteki kategori satıra girmez.
+      return data.map(withVisibleRowCategories);
     },
     staleTime: 30_000,
   });

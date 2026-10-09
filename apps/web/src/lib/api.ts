@@ -1,6 +1,7 @@
 import { runtimeLocale, tRuntime } from "@/i18n/runtime";
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
+import { isServiceUnreachable } from "./company-auth/service-health";
 import { resolveApiBaseUrl } from "./resolve-api-url";
 
 // Genel (auth'suz) axios instance — public uçlar (ör. /reset-password confirm).
@@ -123,7 +124,10 @@ api.interceptors.response.use(
 
     // Network (no response)
     if (!error.response) {
-      toast.error(tRuntime("common.errors.network"));
+      // Panelin "Sunucuya şu anda ulaşılamıyor" notu görünürken ikinci bir uyarı
+      // basılmaz (canlı doğrulama OUT-3; panelde bu örneği kategori okumaları
+      // kullanır). Not yokken — herkese açık sayfalar dahil — eskisi gibi.
+      if (!isServiceUnreachable()) toast.error(tRuntime("common.errors.network"));
       return Promise.reject(error);
     }
 

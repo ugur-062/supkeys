@@ -1,4 +1,4 @@
-import type { AiTenderDraft } from "@rothern/shared";
+import { visibleCategoryIds, type AiTenderDraft } from "@rothern/shared";
 import { toDateInput, toLocalInput } from "./map-detail-to-form";
 import {
   DEFAULT_FORM_VALUES,
@@ -61,7 +61,8 @@ export function mapAiDraftToForm(
     // Backend'in DB'ye karşı doğruladığı kategori önerisi — ön-seçim olarak
     // gelir, kullanıcı 2. adımda değiştirebilir. (?? []: eski oturum taslakları
     // bu alanı taşımayabilir.)
-    categoryIds: (draft.suggestedCategoryIds ?? []).slice(0, 3),
+    // Gizli segment önerisi (eski oturum taslağı) ön-seçime girmez (2026-10-09).
+    categoryIds: visibleCategoryIds(draft.suggestedCategoryIds).slice(0, 3),
     primaryCurrency:
       (currency as TenderFormData["primaryCurrency"] | null) ??
       base.primaryCurrency,

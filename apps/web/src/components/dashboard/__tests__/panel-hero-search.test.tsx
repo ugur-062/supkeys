@@ -468,3 +468,49 @@ describe("PanelHeroSearch — öneri listesi ve combobox rolü (arayüz testi we
     expect(band.className).not.toMatch(/(^|\s)z-10(\s|$)/);
   });
 });
+
+describe("PanelHeroSearch — iki yüzlü sayfada sabit yükseklik (canlı doğrulama 2026-10-09, HEAD-01)", () => {
+  it("`titleSizer` / `leadSizer`: öteki yüzün metni görünmez ölçü olarak AYNI hücrede; başlığın kendi metni tek kalır", () => {
+    render(
+      <PanelHeroSearch
+        title="Yeni siparişler bulun"
+        plainTitle
+        titleSizer="Yeni tedarikçiler bulun"
+        lead="Kısa cümle"
+        leadSizer="Çok daha uzun, iki satıra saran alt cümle"
+        placeholder="p"
+        action="/x"
+      />,
+    );
+    const h1 = screen.getByRole("heading", { level: 1, name: "Yeni siparişler bulun" });
+    // Ölçü <h1>'in DIŞINDA: başlığın metni yalnız kendi cümlesi.
+    expect(h1).toHaveTextContent(/^Yeni siparişler bulun$/);
+    expect(screen.queryByRole("heading", { name: "Yeni tedarikçiler bulun" })).toBeNull();
+    const titleSizer = screen.getByText("Yeni tedarikçiler bulun");
+    expect(titleSizer).toHaveAttribute("aria-hidden", "true");
+    expect(titleSizer.className).toContain("invisible");
+    // Aynı ızgara hücresi + aynı tipografi → blok uzun olanın yüksekliğini alır.
+    expect(titleSizer.parentElement).toBe(h1.parentElement);
+    expect(h1.parentElement?.className).toContain("grid");
+    for (const cls of ["[grid-area:1/1]", "mt-3", "text-4xl", "font-bold", "sm:text-5xl", "text-balance"]) {
+      expect(h1.className).toContain(cls);
+      expect(titleSizer.className).toContain(cls);
+    }
+    const lead = screen.getByText("Kısa cümle");
+    const leadSizer = screen.getByText("Çok daha uzun, iki satıra saran alt cümle");
+    expect(leadSizer).toHaveAttribute("aria-hidden", "true");
+    expect(leadSizer.parentElement).toBe(lead.parentElement);
+    for (const cls of ["[grid-area:1/1]", "mt-3", "max-w-xl", "text-base/7"]) {
+      expect(lead.className).toContain(cls);
+      expect(leadSizer.className).toContain(cls);
+    }
+  });
+
+  it("ölçü verilmezse (panel anasayfaları) sarmalayıcı çizilmez", () => {
+    render(<PanelHeroSearch title="Yeni siparişler bulun" plainTitle lead="Kısa cümle" placeholder="p" action="/x" />);
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.className).not.toContain("grid-area");
+    expect(h1.parentElement?.className).not.toMatch(/(^|\s)grid(\s|$)/);
+    expect(screen.getByText("Kısa cümle").className).not.toContain("grid-area");
+  });
+});

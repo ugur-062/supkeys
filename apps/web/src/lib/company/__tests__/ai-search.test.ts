@@ -106,6 +106,31 @@ describe("ai-search — yorum → URL süzgeci", () => {
   });
 });
 
+// 2026-10-09 (sahip kararı): AI yorumu gizli segmentte bir kategori döndürse
+// bile (eski API) süzgeç adresine yazılmaz ve bantta adı çip olmaz.
+describe("ai-search — gizli segmentteki kategori YOK sayılır", () => {
+  const hidden = { ...base, category: { id: "46181500", name: "Koruyucu giysi" } };
+
+  it("satınalma: ürün süzgecine kategori yazılmaz; diğer parçalar yerinde", () => {
+    const sp = new URLSearchParams(intentToProductQuery(hidden));
+    expect(sp.has("kategori")).toBe(false);
+    expect(sp.get("q")).toBe("kompanzasyon panosu");
+    expect(sp.get("sehir")).toBe("istanbul");
+  });
+
+  it("satış: açık talep süzgecine gizli sektör yazılmaz", () => {
+    const sp = new URLSearchParams(intentToRequestQuery({ ...hidden, portal: "satis" }));
+    expect(sp.has("kategori")).toBe(false);
+  });
+
+  it("adreste elle duran ?kategori= olsa bile gizli kategori adı çip olmaz", () => {
+    const sp = new URLSearchParams("q=x&kategori=46181500");
+    const chips = intentChips(hidden, sp, fmt());
+    expect(chips.find((c) => c.param === "kategori")).toBeUndefined();
+    expect(JSON.stringify(chips)).not.toContain("Koruyucu giysi");
+  });
+});
+
 describe("aiSearchAccess — hero AI kapısı ve kilit nedeni (arayüz testi O-050)", () => {
   const buyer = { permissions: ["buy:listing:manage"] };
   const admin = { permissions: ["company:manage"] };

@@ -4,8 +4,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChevronRight, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import type { CategoryCatalog } from "@rothern/shared";
+import { isHiddenCategory, type CategoryCatalog } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
+import { resolvedCategoryIds } from "@/lib/visible-categories";
 import { plainBreadcrumb } from "./category-breadcrumb";
 import { LoadError } from "./category-load-error";
 
@@ -32,11 +33,26 @@ interface Props {
    * backend'de (`company-listings.service.ts`).
    */
   catalog?: CategoryCatalog;
+  /**
+   * "Önceki kategori artık kullanılmıyor" notunu çağıran ister. Not normalde
+   * `value`daki gizli koddan türer; gizli kodu değere HİÇ koymayan form (talep
+   * formu: kod tohumda düşer) alanı boş bırakır ve nedenini alan kendi başına
+   * bilemez — kaydın eski kategori taşıdığını bilen çağıran söyler.
+   */
+  retiredHint?: boolean;
 }
 
 /**
  * V2-6 — Form alanı kategori seçici. Boşken dashed CTA; doluyken chip listesi
  * + "Değiştir" linki. Modal'ı tetikler. value/onChange controlled state.
+ *
+ * ÇİZİLEN = ADI ÇÖZÜLEN (2026-10-09): `value`daki gizli segment kodu (eski
+ * kayıt) ve ad cevabı geldiği hâlde satırı olmayan kod HİÇ çizilmez — çip,
+ * ham kod ya da bitmeyen "…" yok; geriye çizilecek seçim kalmadıysa alan boş
+ * durumuyla (kesikli "kategori seçin" kutusu) açılır. Çipi kaldırmak ve
+ * pencereyi onaylamak değeri çizilenlerden yeniden kurar: kullanıcı kategori
+ * alanına dokunduğunda görmediği kod değerde kalmaz. Dokunmadıysa `onChange`
+ * çağrılmaz — değişmeyen eski değer ilgisiz bir düzenlemeyi engellemez.
  */
 export function CategorySelectorButton({
   value,
@@ -49,6 +65,7 @@ export function CategorySelectorButton({
   modalDescription,
   disabled,
   catalog = "full",
+  retiredHint = false,
 }: Props) {
   const t = useTranslations("web.shared.categorySelectorButton");
   // Ad hatası metni pencereyle ortak (aynı durum, aynı cümle).
@@ -56,12 +73,20 @@ export function CategorySelectorButton({
   const [isOpen, setIsOpen] = useState(false);
   const {
     data: selectedCategories,
+    isPlaceholderData,
     isError: namesError,
     isFetching: namesFetching,
     refetch: refetchNames,
   } = useCategoriesByIds(value, { inlineError: true });
   // Yeniden deneme yoldayken hata sayılmaz (çip "…" gösterir).
   const namesFailed = !!namesError && !namesFetching;
+  // Cevap önceki seçiminse (placeholder) yeni eklenen kimlik "yok" değil,
+  // yükleniyordur → o sırada yalnız gizli kodlar düşer, diğerleri "…" kalır.
+  const shown = resolvedCategoryIds(value, isPlaceholderData ? undefined : selectedCategories);
+  // Kayıtlı değer artık sunulmayan (gizli segment) bir kategori taşıyor: alan
+  // boş görünür ama kullanıcı NEDENİNİ bilmeli — kategorinin adını anmadan.
+  // Değerde gizli kod yoksa (çağıran onu hiç koymadıysa) çağıranın işareti geçerli.
+  const retired = retiredHint || value.some((id) => isHiddenCategory(id));
 
   const defaultPlaceholder =
     mode === "single"
@@ -71,7 +96,7 @@ export function CategorySelectorButton({
   return (
     <>
       <div>
-        {value.length === 0 ? (
+        {shown.length === 0 ? (
           <button
             type="button"
             onClick={() => !disabled && setIsOpen(true)}
@@ -110,7 +135,7 @@ export function CategorySelectorButton({
         ) : (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              {value.map((id) => {
+              {shown.map((id) => {
                 const cat = selectedCategories?.find((c) => c.id === id);
                 // Ad isteği düştüyse "…" kalıcı kalmasın — kod gösterilir.
                 const label = cat?.nameTr ?? (namesFailed ? id : "…");
@@ -129,7 +154,7 @@ export function CategorySelectorButton({
                       // Dokunma hedefi 32 px; eksi kenar boşluğu çipi büyütmez.
                       <button
                         type="button"
-                        onClick={() => onChange(value.filter((x) => x !== id))}
+                        onClick={() => onChange(shown.filter((x) => x !== id))}
                         className="-my-2 -mr-2 -ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded hover:text-rose-600"
                         aria-label={t("kategorisiniKaldir", { label: cat?.nameTr ?? id })}
                       >
@@ -163,6 +188,9 @@ export function CategorySelectorButton({
           </div>
         )}
 
+        {retired ? (
+          <p className="mt-1.5 text-xs text-amber-700">{t("oncekiKategoriKullanilmiyor")}</p>
+        ) : null}
         {error ? (
           <p className="mt-1.5 text-xs text-rose-600">{error}</p>
         ) : null}
@@ -179,6 +207,9 @@ export function CategorySelectorButton({
         <CategorySelectorModal
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
+          // Ham değer: pencere gizli kodları kendisi düşürür. `shown` ad
+          // cevabına bağlı — o geçseydi adlar her yenilendiğinde dizi kimliği
+          // değişir, açık pencere taslağını kayıtlı değere sıfırlardı.
           value={value}
           onConfirm={onChange}
           mode={mode}

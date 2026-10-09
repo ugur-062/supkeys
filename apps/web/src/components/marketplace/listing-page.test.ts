@@ -5,7 +5,7 @@ vi.mock("@/lib/public/marketplace-api", () => ({
   fetchListing: (n: string) => fetchListing(n),
 }));
 
-const { resolveListingPage } = await import("./listing-page");
+const { resolveListingPage, similarListingsSegment } = await import("./listing-page");
 
 const listing = (over: Record<string, unknown> = {}) => ({
   number: "ROT-000057",
@@ -67,5 +67,23 @@ describe("resolveListingPage", () => {
     fetchListing.mockResolvedValue(listing());
     await resolveListingPage("rot-000057-abb-salt-malzeme", "ALIM");
     expect(fetchListing).toHaveBeenCalledWith("ROT-000057");
+  });
+});
+
+// 2026-10-09 (sahip kararı): gizli segmentteki eski talebin sayfasında "benzer
+// açık talepler" gizli kodla sorulmaz — API o kodu süzgeçsiz sayar, blok
+// ilgisiz talepleri "benzer" diye gösterirdi.
+describe("similarListingsSegment", () => {
+  it("ilk GÖRÜNÜR kategori kodunun segmenti", () => {
+    expect(similarListingsSegment(["39121600"])).toBe("39000000");
+    expect(similarListingsSegment(["46181500", "31161500", "39121600"])).toBe("31000000");
+    expect(similarListingsSegment(["bozuk", "40141700"])).toBe("40000000");
+  });
+
+  it("görünür kategorisi olmayan talepte null — blok çizilmez, gizli kod sorguya girmez", () => {
+    expect(similarListingsSegment(["46181500"])).toBeNull();
+    expect(similarListingsSegment(["46181500", "77101500", "10000000"])).toBeNull();
+    expect(similarListingsSegment([])).toBeNull();
+    expect(similarListingsSegment(undefined)).toBeNull();
   });
 });

@@ -1,3 +1,5 @@
+import { isHiddenCategory } from "@rothern/shared";
+
 /**
  * KATEGORİ FOTOĞRAFLARI — 58 üst kategori (UNSPSC segment), hepsi dolu
  * (2026-09-04). Dosya: `apps/web/public/categories/<8 haneli kod>.webp`,
@@ -27,9 +29,16 @@ export const CATEGORY_PHOTOS: ReadonlySet<string> = new Set<string>([
   "90000000", "91000000", "92000000", "93000000", "94000000", "95000000",
 ]);
 
-/** Segment kodunun fotoğrafı — yalnız manifestteki TAM kod (`23000000`). */
+/**
+ * Segment kodunun fotoğrafı — yalnız manifestteki TAM kod (`23000000`).
+ *
+ * GİZLİ SEGMENT (2026-10-09): gizli segmentin fotoğrafı HİÇBİR yüzeyde
+ * verilmez (`null` → çağıran nötr yedeğe düşer). Görselsiz eski bir ürünün
+ * kartında o segmentin fotoğrafı, adını yazmadan kategoriyi göstermek olurdu.
+ * Manifest ve dosyalar 58 segmentin tamamını tutar (katalog birebir).
+ */
 export function categoryPhotoSrc(code: string): string | null {
-  return CATEGORY_PHOTOS.has(code) ? `/categories/${code}.webp` : null;
+  return CATEGORY_PHOTOS.has(code) && !isHiddenCategory(code) ? `/categories/${code}.webp` : null;
 }
 
 /**

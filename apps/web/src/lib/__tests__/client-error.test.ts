@@ -52,6 +52,22 @@ describe("reportClientError", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]).toEqual(["/api/client-error", expect.objectContaining({ method: "POST" })]);
   });
+
+  /**
+   * YÖNLENDİRME DÖNGÜSÜ (2026-10-08, staging'de ölçüldü): Vercel dağıtım
+   * koruması arkasında `x-vercel-set-bypass-cookie` taşıyan istek 307 +
+   * Set-Cookie ile KENDİ adresine yönlenir. Bildirim çerezsiz gittiği için
+   * çerez hiç yazılmaz; tarayıcı aynı 307'yi 20 kez izleyip
+   * `net::ERR_TOO_MANY_REDIRECTS` basıyordu. Uç yönlendirme dönmez → izlenmez.
+   */
+  it("çerezsiz gider ve yönlendirmeyi İZLEMEZ (redirect: manual) — döngü olmaz", async () => {
+    const { reportClientError } = await load();
+    reportClientError(new TypeError("boom"), { kind: "boundary" });
+    const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(init.credentials).toBe("omit");
+    expect(init.redirect).toBe("manual");
+    expect(init.keepalive).toBe(true);
+  });
 });
 
 describe("installGlobalErrorReporter", () => {

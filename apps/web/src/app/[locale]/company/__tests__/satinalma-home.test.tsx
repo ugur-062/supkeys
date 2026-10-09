@@ -101,13 +101,11 @@ beforeEach(() => {
 describe("Satınalma anasayfası", () => {
   it("hero arama + ürün önerisi + kategori vitrini + yeni eklenenler", () => {
     renderPage();
-    // Başlık SORU kipinde ve iki satırlı (2026-09-08 kullanıcı kararı):
-    // 2026-09-17, kullanıcı kararı: "Hangi ürünü arıyorsunuz?" TEK RENK
-    // (siyah, vurgu sözcüğü yok) — satış panosu da tek renk.
-    // NOT: erişilebilir ad tek dizeye kaynıyor — ikinci satırı ayıran şey
-    // `block` sınıfı ve jsdom Tailwind'i uygulamadığı için araya boşluk
-    // girmiyor. Bu yüzden ad birinci satırdan, vurgu satırı metinden bakılır.
-    const h1 = screen.getByRole("heading", { level: 1, name: "Hangi ürünü arıyorsunuz?" });
+    // Başlık 2026-10-08'de değişti (kullanıcı kararı): soru kipi kalktı →
+    // "Yeni tedarikçiler bulun" (satış panosu "Yeni siparişler bulun").
+    // 2026-09-17 kararı geçerli: TEK RENK (siyah, vurgu sözcüğü yok) — h1
+    // içinde renkli `span` olmaz.
+    const h1 = screen.getByRole("heading", { level: 1, name: "Yeni tedarikçiler bulun" });
     expect(h1.querySelector("span")).toBeNull();
     expect(screen.getByRole("heading", { name: /Size uygun ürünler|Aramalarınıza göre/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Yeni eklenen ürünler" })).toBeInTheDocument();

@@ -975,19 +975,31 @@ describe("TeklifVerPage — arayüz testi son tur S-SELL", () => {
     await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
     await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
     const submit = screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!;
-    await user.click(submit);
-    expect(await screen.findByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
-    // Çift tıkın ikinci tıkı pencerenin perdesine düşer → Headless onClose.
-    // Aynı kapatma yolu Escape'le tetiklenir: açılıştan hemen sonra YOK
-    // sayılmalı (pencere açık kalır), biraz sonra yine kapatabilmeli.
-    await user.keyboard("{Escape}");
-    // Kapanış geçişi (100 ms) bitecek kadar bekle — pencere hâlâ açık olmalı.
-    await new Promise((r) => setTimeout(r, 300));
-    expect(screen.getByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
-    await new Promise((r) => setTimeout(r, 300));
-    await user.keyboard("{Escape}");
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Teklifi Gönder" })).toBeNull(),
-    );
+    // Koruma penceresi (`CONFIRM_CLOSE_GUARD_MS`) `Date.now()` ile ölçülür. Saat
+    // GERÇEK bırakılırsa test makinenin hızına bağlanır: yük altında pencerenin
+    // bulunması + tuş vuruşu 500 ms'yi aşıyor, ilk Escape pencereyi kapatıyordu
+    // (tam kapıda iki kez, tek başına koşuda beşte bir kırmızı — 2026-10-09).
+    // Saat sabitlenir; "hemen sonra" ve "biraz sonra" açıkça verilir.
+    const openedAt = Date.now();
+    const now = vi.spyOn(Date, "now").mockReturnValue(openedAt);
+    try {
+      await user.click(submit);
+      expect(await screen.findByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
+      // Çift tıkın ikinci tıkı pencerenin perdesine düşer → Headless onClose.
+      // Aynı kapatma yolu Escape'le tetiklenir: açılıştan hemen sonra YOK
+      // sayılmalı (pencere açık kalır), biraz sonra yine kapatabilmeli.
+      now.mockReturnValue(openedAt + 100);
+      await user.keyboard("{Escape}");
+      // Kapanış geçişi (100 ms) bitecek kadar bekle — pencere hâlâ açık olmalı.
+      await new Promise((r) => setTimeout(r, 300));
+      expect(screen.getByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
+      now.mockReturnValue(openedAt + 5_000);
+      await user.keyboard("{Escape}");
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "Teklifi Gönder" })).toBeNull(),
+      );
+    } finally {
+      now.mockRestore();
+    }
   });
 });

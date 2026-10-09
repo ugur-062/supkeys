@@ -14,6 +14,11 @@ describe("segmentTaglineKey", () => {
     expect(segmentTaglineKey("99000000")).toBe("fallback");
     expect(segmentTaglineKey(undefined)).toBe("fallback");
   });
+  it("gizli segment kendi sloganını almaz (2026-10-09) — nötr anahtar", () => {
+    expect(segmentTaglineKey("46000000")).toBe("fallback");
+    expect(segmentTaglineKey("77101500")).toBe("fallback");
+    expect(segmentTaglineKey("10000000")).toBe("fallback");
+  });
   it.each(LOCALES)("sloganlar her dilde var ve sayı/istatistik taşımaz (%s)", (locale) => {
     const t = createWebTranslator(locale);
     for (const key of [...TAGLINE_SEGMENTS.map((s) => `s${s}`), "fallback"]) {

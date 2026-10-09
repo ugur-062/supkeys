@@ -69,6 +69,29 @@ describe("Talep davet önizlemesi", () => {
     await waitFor(() => expect(sessionStorage.getItem("rothern:invite-prefill")).toContain("info@firma.com"));
   });
 
+  // 2026-10-09 (sahip kararı; arayüz denetimi W-15): kategori adları API'den
+  // hazır gelir ve gizli segmenttekiler orada düşer (web kodu görmez). Görünür
+  // kategorisi kalmayan eski talepte alan boş/eksik gelir: "Kategoriler:"
+  // satırı hiç çizilmez — başlıksız değer ya da çökme olmaz.
+  it("görünür kategorisi olmayan talep: 'Kategoriler' satırı çizilmez (boş dizi, eksik alan, boş ad)", async () => {
+    for (const categories of [[], undefined, null, ["", "  "]]) {
+      h.get.mockResolvedValue({ data: { ...preview, categories } });
+      const { unmount } = render(<Page />);
+      expect(await screen.findByText("ABC İnşaat sizden teklif istiyor")).toBeInTheDocument();
+      expect(screen.queryByText(/Kategoriler/)).toBeNull();
+      // Sayfanın geri kalanı yerinde.
+      expect(screen.getByText("M6 cıvata")).toBeInTheDocument();
+      expect(screen.getByTestId("invite-meta-deadline")).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("kategori adları boş girdiler ayıklanarak yazılır (sahipsiz virgül yok)", async () => {
+    h.get.mockResolvedValue({ data: { ...preview, categories: ["Cıvatalar", "", "Somunlar"] } });
+    render(<Page />);
+    expect(await screen.findByText("Cıvatalar, Somunlar")).toBeInTheDocument();
+  });
+
   it("kayıtlı adres giriş CTA'sı talebe döner", async () => {
     h.get.mockResolvedValue({ data: { ...preview, accepted: true } });
     render(<Page />);

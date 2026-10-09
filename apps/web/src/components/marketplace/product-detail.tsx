@@ -38,6 +38,7 @@ import { CountryFlag } from "@/components/ui/country-flag";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { MapPinIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
+import { visibleCategoryRef } from "@/lib/visible-categories";
 
 /**
  * Ürün sayfası — SUNUCU bileşeni.
@@ -69,6 +70,11 @@ export function ProductDetail({
   const price = productPrice(product, priceLabels);
   const locale = useLocale();
   const seoT = useSeoT();
+  // Gizli segment (2026-10-09): kırıntı adımı 404 veren bir kategori sayfasına
+  // bağlanmaz, "… kategorisinde yeni" başlığı gizli adı taşımaz. API `segment`i
+  // ve `category`yi zaten boş döner; burası ikinci kat.
+  const segment = visibleCategoryRef(product.segment);
+  const category = visibleCategoryRef(product.category);
 
   /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
      `lib/seo/entities.ts` `productSeo` hem `generateMetadata`yı hem buradaki
@@ -97,8 +103,8 @@ export function ProductDetail({
             // SEGMENT açılış sayfası (2026-09-27): L3 kodu süzgeç adresine
             // (`/urunler?kategori=`, kanoniği dizin) gidiyordu — JSON-LD
             // kırıntısıyla aynı halka.
-            ...(product.segment
-              ? [{ label: product.segment.name, href: categoryHref(product.segment) }]
+            ...(segment
+              ? [{ label: segment.name, href: categoryHref(segment) }]
               : []),
             { label: company.name, href: `/firma/${companySlug}` },
           ]}
@@ -170,7 +176,7 @@ export function ProductDetail({
         {/* İLİŞKİLİ BLOKLAR (Europages) — panel aynı bileşeni panel adresleriyle kullanır. */}
         <RelatedRows
           related={related}
-          categoryName={product.category?.name ?? null}
+          categoryName={category?.name ?? null}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
         />
       </div>
@@ -292,6 +298,10 @@ export function ProductDetailBody({
   // çizilmez. API paketi düşen satıcının videosunu zaten boş döner (Y-11, D-192).
   const videoEmbed = productVideoEmbedUrl(product.videoUrl);
   const documents = (product.documents ?? []) as ProductDocument[];
+  // Kategori hapı yalnız GÖRÜNÜR kategoride (2026-10-09): gizli segmentteki
+  // eski ürün dört yüzeyde de (herkese açık sayfa, satınalma sayfası, üye iniş
+  // sayfası, sahibin önizlemesi) hapsız çizilir — başlık doğrudan başlar.
+  const category = visibleCategoryRef(product.category);
 
   return (
     <>
@@ -329,9 +339,9 @@ export function ProductDetailBody({
               buradan KALDIRILDI — aynı iki bilgi hemen altındaki satıcı
               kartında (ikonlu rozet + pin) zaten duruyor ve iki kez
               okunuyordu. "Teslim alanı" YOK: o kolon şemada yok, uydurulmaz. */}
-          {product.category ? (
+          {category ? (
             <span className="mb-2 inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">
-              {product.category.name}
+              {category.name}
             </span>
           ) : null}
           <Heading

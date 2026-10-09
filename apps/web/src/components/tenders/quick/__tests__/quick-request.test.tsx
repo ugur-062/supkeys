@@ -69,7 +69,6 @@ vi.mock("@/hooks/use-supplier-discovery", () => ({
   useExternalSupplierDiscovery: () => ({ mutateAsync: h.externalSearch, isPending: false }),
   useSupplierDiscovery: () => ({ mutateAsync: h.platformSearch, isPending: false }),
   useListingDiscovery: () => ({ data: undefined }),
-  useInviteDiscoveryCandidates: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDismissListingDiscovery: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock("@/components/tenders/wizard/catalog-picker-dialog", () => ({ CatalogPickerDialog: () => null }));
@@ -103,8 +102,13 @@ vi.mock("@/hooks/use-categories", () => ({
   useCategorySearchTree: () => ({ data: { segments: [{ id: "40000000", code: "40000000", nameTr: "Boru", level: 1, segmentLetter: null, families: [{ id: "40170000", code: "40170000", nameTr: "Borular", level: 2, classes: [{ id: "40171500", code: "40171500", nameTr: "Çelik borular", level: 3, isMatch: true, commodities: [] }] }] }] } }),
 }));
 vi.mock("@/components/categories/category-selector-button", () => ({
-  CategorySelectorButton: ({ value, onChange, modalDescription }: { value: string[]; onChange: (ids: string[]) => void; modalDescription?: string }) => (
-    <button type="button" data-description={modalDescription} onClick={() => onChange(["39121600"])}>{value.length ? `Kategori: ${value[0]}` : "Kategori seç"}</button>
+  // `retiredHint`: form, gizli kodu değerden ÇIKARDIĞI için alanın kendi
+  // "önceki kategori kullanılmıyor" notunu ayrıca ister (gözden geçirme R-WEB-01).
+  CategorySelectorButton: ({ value, onChange, modalDescription, retiredHint }: { value: string[]; onChange: (ids: string[]) => void; modalDescription?: string; retiredHint?: boolean }) => (
+    <>
+      <button type="button" data-description={modalDescription} data-retired-hint={String(!!retiredHint)} onClick={() => onChange(["39121600"])}>{value.length ? `Kategori: ${value[0]}` : "Kategori seç"}</button>
+      {value.length ? <button type="button" onClick={() => onChange([])}>Kategorileri boşalt</button> : null}
+    </>
   ),
 }));
 
@@ -228,12 +232,19 @@ describe("QuickRequest", () => {
       expect(within(region).getByRole("checkbox", { name: "Beta Kimya seç" })).toBeChecked();
       fireEvent.click(within(region).getByRole("checkbox", { name: "Beta Kimya seç" }));
       expect(screen.getByText(/2 bağlantınızdan 1 firma görecek; çıkardığınız 1 firma talebi görmez/)).toBeInTheDocument();
+      // Talep artık yalnız seçilenlere açılacak (özel) → AI kutusu işaretli
+      // görünüp sessizce kapanmaz: kapalı ve nedenini söyler.
+      const ai = screen.getByRole("checkbox", { name: /AI yurt içinde ve yurt dışında tedarikçi bulsun ve davet etsin/ });
+      expect(ai).toBeDisabled();
+      expect(ai).not.toBeChecked();
+      expect(screen.getByText(/Bağlantılarınızdan bazılarını çıkardınız/)).toBeInTheDocument();
       fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
       fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
       await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
       const body = h.create.mock.calls[0][0];
       expect(body.visibility).toBe("PRIVATE");
       expect(body.invitations).toEqual(["EGEM-0001"]);
+      expect(body.aiDiscovery).toBe(false);
     } finally {
       h.connections = [];
     }
@@ -303,10 +314,10 @@ describe("QuickRequest", () => {
     expect(h.create.mock.calls[1][0].items[0]).toMatchObject({ name: "vida M8" });
   }, 30_000);
 
-  it("AI keşfinden eklenen dış davetler yayından ÖNCE gitmez; yayında talebe özel uçla ALICININ diliyle gider, sonuç panelde", async () => {
-    // Yayın öncesi modal alıcıları forma ekler (modal burada sahte) — taslakta
-    // saklanan liste geri yüklenir. Eski taslak düz adres taşıyabilir: dili
-    // kuraldan türetilir (.kz → Rusça).
+  it("ESKİ TASLAK: saklanmış dış davet seçimleri yayından ÖNCE gitmez; yayında talebe özel uçla ALICININ diliyle gider, sonuç panelde", async () => {
+    // Form artık kendisi tedarikçi aramıyor (2026-10-08); daha önce saklanmış
+    // taslaktaki liste bozulmadan geri yüklenir. Çok eski taslak düz adres
+    // taşıyabilir: dili kuraldan türetilir (.kz → Rusça).
     sessionStorage.setItem(
       "quick-request-draft",
       JSON.stringify({ externalInvites: ["info@firma.kz", { email: "satis@kask.com", locale: "en", country: "DE" }] }),
@@ -338,77 +349,86 @@ describe("QuickRequest", () => {
     expect(screen.getByText("1 davet sıraya alındı — e-postalar alıcının ülkesinde mesai saatinde gönderilir")).toBeInTheDocument();
   }, 30_000);
 
-  it("KALEMLER PANELİ: AI'ın bulduğu firmalar SEÇİLİ gelir; çıkarılan gitmez; yayında kalanlara AI_FORM daveti", async () => {
-    // 2026-09-27, kullanıcı: "kalemler kısmında AI ile tedarikçi bul; aday
-    // seçme şansı olsun ama otomatik seçili olsun".
+  it("AI KUTUSU (2026-10-08): form kendisi tedarikçi ARAMAZ, kalemlerin altında AI tedarikçi kutusu YOK; kutu 'bulsun ve davet etsin' der, yayın yalnız aiDiscovery gönderir", async () => {
+    // Sahip: "kutu seçildiği anda AI arasın ve göndersin, bir daha soru
+    // sormasın; kutu falan gelmesine gerek yok, arkada arasın".
     sessionStorage.clear();
     h.create.mockResolvedValue({ id: "l7", number: "ROT-000070" });
-    h.sendExternal.mockReset().mockResolvedValue([{ email: "info@viti.it", status: "QUEUED" }]);
-    h.externalSearch.mockReset().mockResolvedValue([
-      { name: "Viti Srl", email: "info@viti.it", country: "IT", city: "Milano", website: "viti.it", reason: "Cıvata üreticisi", matchedItems: [1], scope: "ABROAD", status: "SUGGESTED" },
-      { name: "Cıvata AŞ", email: "satis@civata.com.tr", country: "TR", city: "Bursa", website: null, reason: "Yerli üretici", matchedItems: [1], scope: "LOCAL", status: "SUGGESTED" },
-      { name: "Davetli Ltd", email: "eski@davetli.com", country: "TR", city: null, website: null, reason: "r", matchedItems: [], scope: "LOCAL", status: "ALREADY_INVITED" },
-    ]);
-    wrap(<QuickRequest />);
-    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "M6 cıvata" } });
-    fireEvent.click(await screen.findByRole("button", { name: "AI ile tedarikçi bul" }));
-    await waitFor(() => expect(h.externalSearch).toHaveBeenCalledWith(expect.objectContaining({ itemNames: ["M6 cıvata"] })));
-    // İki uygun aday seçili; zaten davetli olan kilitli ve seçili değil.
-    const viti = await screen.findByLabelText("Viti Srl seç");
-    expect(viti).toBeChecked();
-    expect(screen.getByLabelText("Cıvata AŞ seç")).toBeChecked();
-    expect(screen.getByLabelText("Davetli Ltd seç")).toBeDisabled();
-    expect(screen.getByText("Zaten davetli")).toBeInTheDocument();
-    expect(screen.getByText(/Yayında 2 firmaya davet gidecek/)).toBeInTheDocument();
-    // Yalnız API'nin kalemle eşleştirdiği adaylar "sağlayabilir" (O-057):
-    // eşleşmesi boş dönen (Davetli Ltd) o kalemi karşılamış sayılmaz.
-    expect(screen.getAllByText("Sağlayabileceği kalemler: M6 cıvata").length).toBe(2);
-    // Alıcı yerli firmayı çıkarır.
-    fireEvent.click(screen.getByLabelText("Cıvata AŞ seç"));
-    expect(screen.getByText(/Yayında 1 firmaya davet gidecek/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
-    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
-    await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
-    // Yayında otomatik arama ve firma adı varsayılan AÇIK gider.
-    expect(h.create.mock.calls[0][0]).toMatchObject({ aiDiscovery: expect.any(Boolean), inviteShowName: true });
-    await waitFor(() =>
-      expect(h.sendExternal).toHaveBeenCalledWith({
-        listingId: "l7",
-        invites: [{ email: "info@viti.it", locale: "en", country: "IT" }],
-        source: "AI_FORM",
-      }),
-    );
+    h.sendExternal.mockReset();
+    h.inviteMembers.mockReset();
+    h.externalSearch.mockClear();
+    h.platformSearch.mockClear();
+    const timers = vi.spyOn(globalThis, "setTimeout");
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "M6 cıvata" } });
+      // Eski panelin hiçbir parçası yok: başlık, "AI ile tedarikçi bul" düğmesi, aday listesi.
+      expect(screen.queryByText("Bu kalemleri kim satıyor?")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "AI ile tedarikçi bul" })).not.toBeInTheDocument();
+      expect(document.getElementById("ai-tedarikci")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Listeye git" })).not.toBeInTheDocument();
+      // 5 sn'lik kendiliğinden arama zamanlayıcısı da kurulmaz.
+      expect(timers.mock.calls.filter((c) => c[1] === 5_000)).toHaveLength(0);
+
+      // Kutu ne yapacağını söyler; varsayılan açık.
+      const ai = screen.getByRole("checkbox", { name: /^Yayınlayınca AI yurt içinde ve yurt dışında tedarikçi bulsun ve davet etsin/ });
+      expect(ai).toBeChecked();
+      expect(ai).toBeEnabled();
+      expect(screen.getByText(/Arka planda çalışır: bulduğu firmaları sizin adınıza, talebin kalemleriyle birlikte kendisi davet eder; ayrıca onay istemez\./)).toBeInTheDocument();
+      expect(screen.getByText(/Ücretsiz\./)).toBeInTheDocument();
+      // AI-UI-4: başlık dar ekranda sarınca simge ezilmez (flex satırında shrink-0) ve ilk satırla hizalı kalır.
+      const sparkle = ai.closest("label")!.querySelector("svg")!;
+      expect(sparkle).toHaveClass("h-4", "w-4", "shrink-0");
+      expect(sparkle.parentElement).toHaveClass("items-start");
+      // Özel talepte kullanılamaz.
+      fireEvent.click(screen.getByRole("button", { name: /^Seçtiklerim/ }));
+      expect(ai).toBeDisabled();
+      expect(ai).not.toBeChecked();
+      // AI-UI-3: neden, tıklanan seçeneğin KENDİ adını söyler — form bu seçeneğe hiçbir yerde "Özel" demez.
+      const reason = screen.getByText(/seçiliyken AI tedarikçi arayıp davet etmez/);
+      expect(reason).toHaveTextContent("“Seçtiklerim” seçiliyken AI tedarikçi arayıp davet etmez; talebi yalnız davet ettiğiniz firmalar görür.");
+      expect(ai.closest("label")).not.toHaveTextContent(/Özel/);
+      fireEvent.click(screen.getByRole("button", { name: /^Bağlantılarım/ }));
+      expect(ai).toBeChecked();
+
+      fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+      expect(h.create.mock.calls[0][0]).toMatchObject({ aiDiscovery: true, inviteShowName: true });
+      // Aramayı ve daveti sunucudaki tur yapar: formdan arama/davet isteği çıkmaz.
+      expect(await screen.findByText("Talebiniz yayında")).toBeInTheDocument();
+      expect(h.externalSearch).not.toHaveBeenCalled();
+      expect(h.platformSearch).not.toHaveBeenCalled();
+      expect(h.sendExternal).not.toHaveBeenCalled();
+      expect(h.inviteMembers).not.toHaveBeenCalled();
+      // Yayın panelinde onaylanacak bir şey yok.
+      expect(screen.queryByRole("button", { name: /firmaya davet gönder/ })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    } finally {
+      timers.mockRestore();
+    }
   }, 30_000);
 
-  it("KALEMLER PANELİ — ROTHERN ÜYELERİ: en üstte, gerekçeli ve SEÇİLİ; yayında talebe DOĞRUDAN davet edilir", async () => {
-    // 2026-09-28, kullanıcı: "sistemimize kayıtlıysa ayrıca gösterelim,
-    // kategori veya kalem eşleşmesi var diye; davet ederken en üstte seçili".
-    sessionStorage.clear();
+  it("ESKİ TASLAK — ROTHERN ÜYELERİ: saklanmış üye + dış davet seçimleri bozulmadan okunur, 'Kime' özeti sayar, yayında talebe DOĞRUDAN davet edilir", async () => {
+    // AI paneli kaldırılmadan önce saklanmış taslak (`QuickDraft.memberInvites` /
+    // `externalInvites`): alıcının o gün seçtiği firmalar kaybolmaz.
+    sessionStorage.setItem(
+      "quick-request-draft",
+      JSON.stringify({
+        memberInvites: [
+          { companyId: "co1", name: "Bağlantı AŞ" },
+          { companyId: "co2", name: "Somun Ltd" },
+          { bozuk: true },
+        ],
+        externalInvites: [{ email: "info@viti.it", locale: "en", country: "IT" }],
+      }),
+    );
     h.create.mockResolvedValue({ id: "l8", number: "ROT-000080" });
     h.sendExternal.mockReset().mockResolvedValue([{ email: "info@viti.it", status: "QUEUED" }]);
     h.inviteMembers.mockReset().mockResolvedValue([{ companyId: "co1", status: "INVITED" }]);
-    h.platformSearch.mockReset().mockResolvedValue([
-      { companyId: "co1", name: "Bağlantı AŞ", city: "Bursa", country: "TR", rothernId: "R1", matchedCategories: ["Cıvatalar"], strongMatch: true, matchedItems: [1], connectionStatus: "NONE", alreadyInvited: false },
-      { companyId: "co2", name: "Somun Ltd", city: null, country: "TR", rothernId: "R2", matchedCategories: [], strongMatch: true, matchedItems: [1], connectionStatus: "NONE", alreadyInvited: false },
-    ]);
-    h.externalSearch.mockReset().mockResolvedValue([
-      { name: "Viti Srl", email: "info@viti.it", country: "IT", city: "Milano", website: "viti.it", reason: "r", matchedItems: [1], scope: "ABROAD", status: "SUGGESTED" },
-      // Web'de bulunan ama adresi üyeyle eşleşen firma → üye satırına katılır.
-      { name: "Bağlantı AŞ", email: "satis@baglanti.com", country: "TR", city: "Bursa", website: null, reason: "r", matchedItems: [1], scope: "LOCAL", status: "MEMBER", memberCompanyId: "co1" },
-    ]);
     wrap(<QuickRequest />);
-    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "M6 cıvata" } });
-    fireEvent.click(await screen.findByRole("button", { name: "AI ile tedarikçi bul" }));
-    const member = await screen.findByLabelText("Bağlantı AŞ seç");
-    await waitFor(() => expect(member).toBeChecked());
-    // Üye grubu listenin başında; web'de de bulunan üye tek satır.
-    const groups = screen.getAllByRole("region").filter((r) => /Rothern'de kayıtlı|Yurt dışı/.test(r.getAttribute("aria-label") ?? ""));
-    expect(groups[0]).toHaveAccessibleName("Rothern'de kayıtlı");
-    expect(screen.getAllByLabelText("Bağlantı AŞ seç")).toHaveLength(1);
-    expect(screen.getByText("Web'de de bulundu")).toBeInTheDocument();
-    expect(screen.getByText("Kategori eşleşmesi: Cıvatalar")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText(/Yayında 3 firmaya davet gidecek/)).toBeInTheDocument());
-    // D-092: "Kime" özeti ve rozet AI davetlerini de sayar; bağlantısızken "kimse görmez" demez.
+    expect(await screen.findByText(/Talebe doğrudan davet edilecek Rothern üyeleri \(2\)/)).toBeInTheDocument();
+    // D-092: "Kime" özeti ve rozet bu davetleri de sayar; bağlantısızken "kimse görmez" demez.
     expect(screen.getByText("Yayında ayrıca AI ile bulunan 3 firmaya davet gider.")).toBeInTheDocument();
     expect(screen.queryByText(/Bağlantınız olmadığı için bu talebi kimse görmez/)).toBeNull();
     expect(screen.getAllByText("Bağlantılarım · 3 davet").length).toBeGreaterThan(0);
@@ -416,13 +436,16 @@ describe("QuickRequest", () => {
     expect(screen.getByText("Yalnız davet ettiğiniz 3 firma görecek.")).toBeInTheDocument();
     expect(screen.queryByText(/Henüz kimse davet edilmedi/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Bağlantılarım/ }));
+    // Kaldırılan panele giden bağlantı yok.
+    expect(screen.queryByRole("button", { name: "Listeye git" })).not.toBeInTheDocument();
     // Alıcı bir üyeyi çıkarır.
-    fireEvent.click(screen.getByLabelText("Somun Ltd seç"));
+    fireEvent.click(screen.getByRole("button", { name: "Somun Ltd davetini kaldır" }));
     expect(screen.getByText(/Talebe doğrudan davet edilecek Rothern üyeleri \(1\)/)).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "M6 cıvata" } });
     fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
     fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
     await waitFor(() => expect(h.inviteMembers).toHaveBeenCalledWith({ listingId: "l8", companyIds: ["co1"] }));
-    // Üyeye e-posta daveti GİTMEZ; yalnız web adayı kuyruğa.
+    // Üyeye e-posta daveti GİTMEZ; yalnız dış adres kuyruğa.
     await waitFor(() =>
       expect(h.sendExternal).toHaveBeenCalledWith({
         listingId: "l8",
@@ -778,6 +801,42 @@ describe("QuickRequest", () => {
       }
     }, 30_000);
 
+    it("AI-3: düzenleme kaydı formun davetli listesini OKUDUĞU anı geri gönderir (form açıkken turun davet ettiği üye silinmesin); sonradan yenilenen detay damgayı değiştirmez", async () => {
+      // Form davetli listesini açılışta bir kez okur. Sunucu, o andan SONRA
+      // otomatik tedarikçi aramasının yazdığı daveti — gövdede olmasa da —
+      // silmemek için bu damgaya bakar.
+      const readAt = "2026-10-09T08:00:00.000Z";
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+      const ui = (asOf: string) => (
+        <QueryClientProvider client={qc}>
+          <QuickRequest mode="edit" listingId="e1" listingStatus="OPEN" initialValues={listing()} invitationsAsOf={asOf} />
+        </QueryClientProvider>
+      );
+      const view = render(ui(readAt));
+      const save = await screen.findByRole("button", { name: "Değişiklikleri kaydet" });
+      // Sayfa detayı yeniden çekti (odak) — form eski listeyle kaldı, damga da.
+      view.rerender(ui("2026-10-09T08:05:00.000Z"));
+      fireEvent.click(save);
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect(h.update.mock.calls[0][0]).toMatchObject({ invitations: ["BETA-0001"], invitationsAsOf: readAt });
+    }, 30_000);
+
+    it("AI-3: taslak kaydı da damgayı taşır; damga vermeyen (eski API) detayda alan hiç yazılmaz", async () => {
+      const first = wrap(
+        <QuickRequest mode="edit" listingId="e1" listingStatus="DRAFT" initialValues={listing()} invitationsAsOf="2026-10-09T08:00:00.000Z" />,
+      );
+      fireEvent.click(await screen.findByRole("button", { name: "Taslağı kaydet" }));
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect(h.update.mock.calls[0][0]).toMatchObject({ asDraft: true, invitationsAsOf: "2026-10-09T08:00:00.000Z" });
+      first.unmount();
+
+      h.update.mockClear();
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="DRAFT" initialValues={listing()} />);
+      fireEvent.click(await screen.findByRole("button", { name: "Taslağı kaydet" }));
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect("invitationsAsOf" in h.update.mock.calls[0][0]).toBe(false);
+    }, 30_000);
+
     it("O-087: düzenlemede 4. bölüm talebin mevcut belgelerini (FilesTab) gösterir, sayaç onlardan", async () => {
       h.existingDocs = [{ id: "d1" }, { id: "d2" }];
       wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="DRAFT" initialValues={listing()} />);
@@ -794,6 +853,162 @@ describe("QuickRequest", () => {
       await waitFor(() => expect(h.publish).toHaveBeenCalledTimes(1));
       expect(h.update).toHaveBeenCalledTimes(1);
       expect(h.update.mock.calls[0][0]).toMatchObject({ visibility: "PRIVATE", primaryCurrency: "USD" });
+    }, 30_000);
+
+    /**
+     * GİZLİ SEGMENT (2026-10-09, sahip kararı; arayüz denetimi W-11): eski
+     * talebin gizli kategorisi (46 = kolluk/emniyet) forma hiç girmez — çip
+     * olarak çizilmez, kayda/yayına gönderilmez. Görünür kategorisi kalmayan
+     * talepte formun kendi "kategori zorunlu" kuralı güncel bir kategori ister.
+     */
+    it("düzenleme: gizli kategori forma girmez; görünür kategori kalır ve kayıt yalnız onu gönderir", async () => {
+      wrap(
+        <QuickRequest
+          mode="edit"
+          listingId="e1"
+          listingStatus="DRAFT"
+          initialValues={{ ...listing(), categoryIds: ["46181500", "39121600"] }}
+        />,
+      );
+      expect(await screen.findByRole("button", { name: "Kategori: 39121600" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Taslağı kaydet" }));
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect(h.update.mock.calls[0][0].categoryIds).toEqual(["39121600"]);
+      // Kategori adları da yalnız görünür kimlikle istenir (AI açıklama isteğine gizli ad sızmaz).
+      expect(h.byIds.mock.calls.every((c) => !(c[0] as string[]).includes("46181500"))).toBe(true);
+    }, 30_000);
+
+    it("düzenleme: yalnız gizli kategorisi olan talep kategorisiz açılır; yayın 'kategori zorunlu' ile durur", async () => {
+      wrap(
+        <QuickRequest
+          mode="edit"
+          listingId="e1"
+          listingStatus="DRAFT"
+          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+        />,
+      );
+      expect(await screen.findByRole("button", { name: "Kategori seç" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Kategori: 46/ })).toBeNull();
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      expect(await screen.findByText("En az 1 kategori seçmelisiniz")).toBeInTheDocument();
+      expect(h.update).not.toHaveBeenCalled();
+      expect(h.publish).not.toHaveBeenCalled();
+    }, 30_000);
+
+    /**
+     * YAYINDAKİ ESKİ TALEP (gözden geçirme R-WEB-01). Sahip kuralı: değişmeyen
+     * eski değer ilgisiz bir düzenlemeyi ENGELLEMEZ. Yayındaki (teklifsiz)
+     * talebin tek kategorisi gizliyse form kategorisiz açılır; "Değişiklikleri
+     * kaydet" yeni talebin "en az 1 kategori" kuralına takılıyor, kapanış
+     * tarihi kategori seçmeden uzatılamıyordu. Taslağın yayın kapısı AYNEN durur.
+     */
+    it("yayındaki talep: tek kategorisi gizliyse kategori seçmeden kaydedilir; alan nedenini söyler", async () => {
+      wrap(
+        <QuickRequest
+          mode="edit"
+          listingId="e1"
+          listingStatus="OPEN"
+          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+        />,
+      );
+      const field = await screen.findByRole("button", { name: "Kategori seç" });
+      expect(screen.queryByRole("button", { name: /Kategori: 46/ })).toBeNull();
+      // Alan neden boş (kategorinin adı anılmadan) ve kayıt neden engellenmiyor.
+      expect(field).toHaveAttribute("data-retired-hint", "true");
+      expect(screen.getByText("Bu talebin güncel bir kategorisi yok. Kategori seçmeden de kaydedebilirsiniz.")).toBeInTheDocument();
+      expect(screen.queryByText("Yayın için başlık ve kategori gerekli.")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Değişiklikleri kaydet" }));
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect(h.update.mock.calls[0][0].categoryIds).toEqual([]);
+      expect(h.update.mock.calls[0][0].asDraft).toBeUndefined();
+      expect(screen.queryByText("En az 1 kategori seçmelisiniz")).toBeNull();
+      expect(h.publish).not.toHaveBeenCalled();
+      await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/e1"));
+    }, 30_000);
+
+    it("yayındaki talep: güncel API detayı gizli kodu hiç vermez (kategori listesi boş) — kayıt yine engellenmez", async () => {
+      // Form, kategorinin kullanımdan kalktığını bilemez (liste zaten boş geldi):
+      // "önceki kategori" demez, yalnız kategorisiz kaydedilebildiğini söyler.
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="OPEN" initialValues={{ ...listing(), categoryIds: [] }} />);
+      const field = await screen.findByRole("button", { name: "Kategori seç" });
+      expect(field).toHaveAttribute("data-retired-hint", "false");
+      expect(screen.getByText("Bu talebin güncel bir kategorisi yok. Kategori seçmeden de kaydedebilirsiniz.")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Değişiklikleri kaydet" }));
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect(h.update.mock.calls[0][0].categoryIds).toEqual([]);
+    }, 30_000);
+
+    it("yayındaki talep: sayfa 'kullanımdan kalkan kategori' bilgisini verirse (retiredCategory) alan notu çizilir", async () => {
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="OPEN" retiredCategory initialValues={{ ...listing(), categoryIds: [] }} />);
+      expect(await screen.findByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "true");
+    }, 30_000);
+
+    it("yayındaki talep: kategorisiz açılan formda güncel kategori seçilirse o gönderilir; notlar kalkar", async () => {
+      wrap(
+        <QuickRequest
+          mode="edit"
+          listingId="e1"
+          listingStatus="OPEN"
+          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+        />,
+      );
+      fireEvent.click(await screen.findByRole("button", { name: "Kategori seç" }));
+      const field = await screen.findByRole("button", { name: "Kategori: 39121600" });
+      expect(field).toHaveAttribute("data-retired-hint", "false");
+      expect(screen.queryByText(/Bu talebin güncel bir kategorisi yok/)).toBeNull();
+      expect(screen.getByText("Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Değişiklikleri kaydet" }));
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect(h.update.mock.calls[0][0].categoryIds).toEqual(["39121600"]);
+    }, 30_000);
+
+    it("yayındaki talep: GÖRÜNÜR kategorisi varken hepsini kaldırmak değişikliktir — 'kategori zorunlu' durdurur", async () => {
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="OPEN" initialValues={listing()} />);
+      fireEvent.click(await screen.findByRole("button", { name: "Kategorileri boşalt" }));
+      const field = await screen.findByRole("button", { name: "Kategori seç" });
+      // Kategoriyi kullanıcı kaldırdı: "kullanılmıyor" / "kategorisiz kaydedilir" notu yok.
+      expect(field).toHaveAttribute("data-retired-hint", "false");
+      expect(screen.queryByText(/Bu talebin güncel bir kategorisi yok/)).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Değişiklikleri kaydet" }));
+      expect((await screen.findAllByText("En az 1 kategori seçmelisiniz")).length).toBeGreaterThan(0);
+      expect(h.update).not.toHaveBeenCalled();
+    }, 30_000);
+
+    it("taslak: tek kategorisi gizliyse alan nedenini söyler; kategori ZORUNLU kalır (yayın kapısı aynen)", async () => {
+      wrap(
+        <QuickRequest
+          mode="edit"
+          listingId="e1"
+          listingStatus="DRAFT"
+          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+        />,
+      );
+      expect(await screen.findByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "true");
+      // Taslakta "kategorisiz kaydedebilirsiniz" denmez: yayın için kategori gerekir.
+      expect(screen.queryByText(/Bu talebin güncel bir kategorisi yok/)).toBeNull();
+      expect(screen.getByText("Yayın için başlık ve kategori gerekli.")).toBeInTheDocument();
+    }, 30_000);
+
+    it("şablon tohumundaki gizli kategori forma girmez; alan nedenini söyler, yeni talepte kategori zorunlu kalır", async () => {
+      // Şablon yükü eşleyiciden geçmez: ham kod buraya kadar gelir.
+      wrap(<QuickRequest seedTerms initialValues={{ ...listing(), categoryIds: ["10151500"] }} />);
+      expect(await screen.findByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "true");
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      expect((await screen.findAllByText("En az 1 kategori seçmelisiniz")).length).toBeGreaterThan(0);
+      expect(h.create).not.toHaveBeenCalled();
+    }, 30_000);
+
+    it("oturum taslağındaki gizli kategori geri yüklenmez (taslak eşleyiciden geçmez)", async () => {
+      sessionStorage.setItem(
+        "quick-request-draft",
+        JSON.stringify({ title: "Eski taslak", description: "", items: [{ ...DEFAULT_FORM_VALUES.items[0]!, name: "eldiven" }], categoryIds: ["46181500"], keywords: [], deliveryAddressId: "", visibility: "PUBLIC", invitedSupplierIds: [], bidsCloseAt: "" }),
+      );
+      wrap(<QuickRequest />);
+      expect(await screen.findByText("Kaldığınız taslak geri yüklendi.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Kategori seç" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Kategori: 46/ })).toBeNull();
+      // Alan neden boş: taslağın kategorisi kullanımdan kalktı (R-WEB-01).
+      expect(screen.getByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "true");
     }, 30_000);
 
     it("kopya/şablon tohumu (seedTerms) kendi şartlarıyla açılır; kapanış boşsa profilden dolar", async () => {

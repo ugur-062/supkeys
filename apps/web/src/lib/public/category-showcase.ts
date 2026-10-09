@@ -26,9 +26,8 @@ export const SHOWCASE_ORDER = [
   "26000000", // Güç üretim ve dağıtımı
   "25000000", // Araçlar ve bileşenleri
   "32000000", // Elektronik bileşenler
-  "78000000", // Taşıma, depolama, posta
+  "78000000", // Lojistik (2026-10-09'a dek "Taşıma, Depolama ve Posta Hizmetleri")
   "22000000", // Ağır iş ekipmanı
-  "46000000", // İş güvenliği ve emniyet
   "72000000", // İnşaat ve tesis bakım hizmetleri
 ] as const;
 

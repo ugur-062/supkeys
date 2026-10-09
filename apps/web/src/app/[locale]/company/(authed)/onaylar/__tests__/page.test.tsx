@@ -5,8 +5,9 @@
  * istekler" tek listeden (history ucu ÇAĞRILMAZ) çiplerle süzülür; kartta
  * Alış/Satış rozeti ve çift numara yok; adımlar katlanır; karar aksiyonları.
  */
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   decide: vi.fn(),
@@ -15,6 +16,13 @@ const h = vi.hoisted(() => ({
   tab: null as string | null,
   perms: [] as string[],
   pendingOpts: [] as unknown[],
+  /** Sorgu durumu: `ok` yanıt geldi · `loading` ilk yükleme · `error` okunamadı (kesinti). */
+  status: "ok" as "ok" | "loading" | "error",
+  refetchPending: vi.fn(),
+  refetchAll: vi.fn(),
+  /** GERÇEK liste kancaları (TanStack sorguları) koşsun — çevrimdışı / duraklatılmış sorgu testi. */
+  real: false,
+  get: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -54,16 +62,33 @@ const ALL = [
   },
 ];
 
-vi.mock("@/hooks/use-company-approvals", () => ({
-  usePendingApprovals: (opts: unknown) => {
-    h.pendingOpts.push(opts);
-    return { data: PENDING, isLoading: false, isError: false, refetch: vi.fn() };
-  },
-  useAllApprovals: () => ({ data: ALL, isLoading: false, isError: false, refetch: vi.fn() }),
-  useApprovalHistory: h.history,
-  useDecideApproval: () => ({ mutateAsync: h.decide, isPending: false }),
-  useCancelApproval: () => ({ mutateAsync: h.cancel, isPending: false }),
-}));
+vi.mock("@/lib/company-auth/api", () => ({ companyApi: { get: h.get } }));
+vi.mock("@/hooks/use-company-approvals", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/use-company-approvals")>();
+  /** TanStack Query sonucunun sayfanın okuduğu kesiti (ilk yüklemede `isPending` + `isLoading`). */
+  const fake = (data: unknown[], refetch: () => unknown) => ({
+    data: h.status === "ok" ? data : undefined,
+    isPending: h.status === "loading",
+    isLoading: h.status === "loading",
+    isError: h.status === "error",
+    refetch,
+  });
+  // `h.real` ise GERÇEK kanca koşar; seçim test boyunca sabittir (kanca sırası değişmez).
+  return {
+    usePendingApprovals: (opts: { enabled?: boolean }) => {
+      h.pendingOpts.push(opts);
+      const query = h.real ? actual.usePendingApprovals : () => fake(PENDING, h.refetchPending);
+      return query(opts);
+    },
+    useAllApprovals: (filters: { search?: string }) => {
+      const query = h.real ? actual.useAllApprovals : () => fake(ALL, h.refetchAll);
+      return query(filters);
+    },
+    useApprovalHistory: h.history,
+    useDecideApproval: () => ({ mutateAsync: h.decide, isPending: false }),
+    useCancelApproval: () => ({ mutateAsync: h.cancel, isPending: false }),
+  };
+});
 
 import OnaylarPage from "../page";
 
@@ -74,6 +99,15 @@ beforeEach(() => {
   h.tab = null;
   h.perms = ["approval:act", "approvals:manage", "buy:view"];
   h.pendingOpts = [];
+  h.status = "ok";
+  h.refetchPending.mockClear();
+  h.refetchAll.mockClear();
+  h.real = false;
+  h.get.mockReset();
+});
+afterEach(() => {
+  // Çevrimdışı testi ağı kapatır; sonraki testler çevrimiçi başlasın.
+  onlineManager.setOnline(true);
 });
 
 describe("OnaylarPage", () => {
@@ -183,5 +217,85 @@ describe("OnaylarPage", () => {
     } finally {
       ALL.splice(2);
     }
+  });
+
+  /**
+   * Canlı doğrulama OUT-2 (API kesintisi): sekmeler hata kartının yanında
+   * "Sıra sizde 0 · Tüm istekler 0" yazıyordu. Okunamayan sayı 0 değildir —
+   * rozet yalnız yanıt geldiyse çizilir.
+   */
+  it("liste okunamadı (kesinti): sekmede '0' rozeti YOK, hata kartı + Tekrar dene; boş durum çizilmez", () => {
+    h.status = "error";
+    render(<OnaylarPage />);
+    const tabs = within(screen.getByRole("tablist"));
+    expect(tabs.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Sıra sizde", "Tüm istekler"]);
+    expect(screen.getByRole("alert")).toHaveTextContent("Kayıtlar yüklenemedi");
+    expect(screen.queryByText("Sıra sizde bekleyen onay yok")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Yeniden Dene" }));
+    expect(h.refetchPending).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Tüm istekler/ }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Kayıtlar yüklenemedi");
+    fireEvent.click(screen.getByRole("button", { name: "Yeniden Dene" }));
+    expect(h.refetchAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("yüklenirken de rozet yok (henüz okunmadı); yanıt gelince gerçek sayı (0 dahil)", () => {
+    h.status = "loading";
+    const { unmount } = render(<OnaylarPage />);
+    expect(within(screen.getByRole("tablist")).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Sıra sizde", "Tüm istekler"]);
+    unmount();
+
+    h.status = "ok";
+    const kept = PENDING.splice(0);
+    try {
+      render(<OnaylarPage />);
+      const tabs = within(screen.getByRole("tablist"));
+      expect(tabs.getByRole("tab", { name: /Sıra sizde/ })).toHaveTextContent("Sıra sizde0");
+      expect(tabs.getByRole("tab", { name: /Tüm istekler/ })).toHaveTextContent("Tüm istekler2");
+    } finally {
+      PENDING.push(...kept);
+    }
+  });
+
+  /**
+   * Gözden geçirme REV-2: cihaz çevrimdışıyken TanStack sorguyu DURAKLATIR —
+   * istek gitmez, hata da olmaz (`isLoading` false, `isError` false, veri yok).
+   * İskelet `isLoading`e bağlıyken yanıt hiç gelmediği hâlde "Sıra sizde bekleyen
+   * onay yok" (bekleyen onayı olan onaycıya) ve "Kayıt bulunamadı" çiziliyordu.
+   * Gerçek kancalar + gerçek sorgu istemcisi.
+   */
+  it("cihaz çevrimdışı (sorgular duraklatıldı): iki görünümde de 'yok' iddiası yok, iskelet; bağlantı dönünce liste gelir", async () => {
+    h.real = true;
+    h.get.mockImplementation((url: string) =>
+      Promise.resolve({ data: url === "/company/approvals/pending" ? PENDING : ALL }),
+    );
+    onlineManager.setOnline(false);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const { container } = render(
+      <QueryClientProvider client={qc}>
+        <OnaylarPage />
+      </QueryClientProvider>,
+    );
+    const expectNoClaim = () => {
+      expect(screen.queryByText("Sıra sizde bekleyen onay yok")).toBeNull();
+      expect(screen.queryByText(/Kayıt bulunamadı/)).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(container.querySelector(".animate-pulse")).not.toBeNull();
+    };
+    expectNoClaim();
+    // Okunmamış sayı rozet olarak basılmaz.
+    expect(within(screen.getByRole("tablist")).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Sıra sizde", "Tüm istekler"]);
+    fireEvent.click(screen.getByRole("tab", { name: /Tüm istekler/ }));
+    expectNoClaim();
+    // Duraklatılan sorgu istek ATMAZ: ne hata ne yanıt var.
+    expect(h.get).not.toHaveBeenCalled();
+
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByText("Kablo alımı")).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /Sıra sizde/ }));
+    expect(screen.getByRole("link", { name: "Çelik boru alımı" })).toBeInTheDocument();
+    qc.clear();
   });
 });

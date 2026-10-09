@@ -158,12 +158,24 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     // "45000000" yazıyordu. Ad `categories` listesinde aranıyordu; o liste
     // yalnız L1 segmentleri ve YALNIZ ürünü olanları taşır. Sunucu artık
     // seçili kategoriyi ayrı alanda döndürüyor.
-    h.search = "kategori=45000000";
-    h.selectedCategory = { id: "45000000", name: "Baskı, Fotoğraf ve Ses-Video", level: 1 };
+    h.search = "kategori=41000000";
+    h.selectedCategory = { id: "41000000", name: "Laboratuvar ve Ölçüm Ekipmanları", level: 1 };
     render(<PanelProductIndex />);
     // Ad hem çipte hem kenar süzgecinde (ve mobil çekmecede) geçer.
-    expect(screen.getAllByText("Baskı, Fotoğraf ve Ses-Video").length).toBeGreaterThan(0);
-    expect(screen.queryByText("45000000")).toBeNull();
+    expect(screen.getAllByText("Laboratuvar ve Ölçüm Ekipmanları").length).toBeGreaterThan(0);
+    expect(screen.queryByText("41000000")).toBeNull();
+  });
+
+  // 2026-10-09 (sahip kararı; arayüz denetimi W-12): gizli segment kodu süzgeç
+  // değildir — panel dizini de adını ya da ham kodunu aktif çip olarak basmaz.
+  it("?kategori=<gizli segment> süzgeç sayılmaz: ne ad ne ham kod çip olur", () => {
+    h.search = "kategori=46000000";
+    h.selectedCategory = { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları", level: 1 };
+    render(<PanelProductIndex />);
+    expect(screen.queryByText("Kolluk ve Emniyet Ekipmanları")).toBeNull();
+    expect(screen.queryByText("46000000")).toBeNull();
+    const aside = screen.getByRole("complementary", { name: "Süzgeçler" });
+    expect(within(aside).getByRole("button", { name: /Tüm filtreleri sıfırla/ })).toBeDisabled();
   });
 
   it("kenar süzgeci + sayaç + sıralama; uygunluk rozeti ve özellik maddesi yalnız verilende", () => {

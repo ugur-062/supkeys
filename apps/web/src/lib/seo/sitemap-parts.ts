@@ -7,7 +7,7 @@ import {
   type SitemapSummary,
 } from "@/lib/public/marketplace-api";
 import { cityProductPath } from "@/lib/public/city";
-import { countryProductPath } from "@rothern/shared";
+import { countryProductPath, isHiddenCategory } from "@rothern/shared";
 import { LOCALES, type Locale } from "@rothern/i18n";
 import { localizedAlternates } from "@/i18n/href";
 import { landingIndexable } from "@/lib/seo/landing";
@@ -169,8 +169,10 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
     }
     case "categories": {
       const s = await fetchSitemapSummary();
+      // Gizli segmentin sayfası 404'tür — site haritasına adresi YAZILMAZ
+      // (2026-10-09; API özeti de süzer, burası ikinci kat).
       return s.categories
-        .filter((c) => c.count > 0)
+        .filter((c) => c.count > 0 && !isHiddenCategory(c.id))
         .flatMap((c) => located(categoryHref(c), { lastmod: c.lastmod, changefreq: "daily", priority: 0.8 }));
     }
     case "cities": {

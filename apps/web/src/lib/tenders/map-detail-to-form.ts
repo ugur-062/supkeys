@@ -1,5 +1,5 @@
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import { MONEY_DECIMALS } from "@rothern/shared";
+import { MONEY_DECIMALS, isHiddenCategory, visibleCategoryIds } from "@rothern/shared";
 import { toAppWallClockInput } from "@/lib/time-zone";
 import {
   DEFAULT_FORM_VALUES,
@@ -50,6 +50,23 @@ export function copyTitle(title: string): string {
 }
 
 /**
+ * Talep, artık sunulmayan (gizli segment) bir kategori taşıyor mu?
+ *
+ * `mapDetailToForm` o kodu forma vermez; alan boş açılır ve form nedenini
+ * `initialValues`ten bilemez. Düzenleme sayfası cevabı `QuickRequest
+ * retiredCategory` ile verir, alan "önceki kategori artık kullanılmıyor" der
+ * (kategorinin adı anılmaz).
+ *
+ * KAYNAK: güncel API sahibine yalnız GÖRÜNÜR kodları döndürür ve saklanan
+ * gizli kodu `hasRetiredCategory` işaretiyle haber verir (kod / ad gelmez).
+ * Saklanan kodları taşıyan yanıtta (eski API, şablon, oturum taslağı) cevap
+ * kodlardan okunur.
+ */
+export function hasRetiredCategory(l: Pick<ListingDetail, "categoryIds" | "hasRetiredCategory">): boolean {
+  return l.hasRetiredCategory === true || (l.categoryIds ?? []).some((id) => isHiddenCategory(id));
+}
+
+/**
  * ListingDetail → wizard form (mapToInput'un tersi). Düzenle ve Kopyala
  * akışları paylaşır. `forCopy=true` ise tarih/davet gibi kopyaya taşınmaması
  * gereken alanlar boşaltılır.
@@ -63,7 +80,13 @@ export function mapDetailToForm(
   const primary = (l.primaryCurrency as Currency) ?? "TRY";
   return {
     ...DEFAULT_FORM_VALUES,
-    categoryIds: l.categoryIds ?? [],
+    // Gizli segmentteki kod forma TAŞINMAZ (2026-10-09): düzenlemede ve kopyada
+    // çip olarak görünmez, yeni talebe ön-seçili gelmez. Görünür kategorisi
+    // kalmayan talepte formun kendi "kategori zorunlu" kuralı güncel bir
+    // kategori ister (yayın kapısı gizli kodu zaten reddeder). TEK İSTİSNA
+    // yayındaki talebin düzenlemesi: orada kategori zorunlu değildir, eski
+    // değer ilgisiz bir düzenlemeyi engellemez (`QuickRequest` categoryOptional).
+    categoryIds: visibleCategoryIds(l.categoryIds),
     preferredActivities: l.preferredActivities ?? [],
     title: forCopy ? copyTitle(l.title) : l.title,
     description: l.description ?? "",

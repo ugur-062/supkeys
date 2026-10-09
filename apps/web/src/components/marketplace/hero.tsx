@@ -11,6 +11,7 @@ import { categoryHref } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * Pazar yeri hero'su — v2 (2026-09-04, Europages kalıbı) + ALICIYIM /
@@ -24,7 +25,7 @@ import { Link } from "@/i18n/navigation";
  * Sunucu HER ZAMAN alıcı yüzünü basar (hidrasyon kuralı); tercih istemcide.
  */
 export function MarketplaceHero({
-  popular = [],
+  popular: allPopular = [],
 }: {
   /** Arama kutusunun altındaki hızlı çipler — ürün sayısı en yüksek alt kategoriler. */
   popular?: { id: string; name: string; count: number }[];
@@ -32,6 +33,8 @@ export function MarketplaceHero({
   const t = useTranslations("web.marketplace.hero");
   const { audience } = useAudience();
   const supplier = audience === "supplier";
+  // Hızlı çipler gizli segmentin alt kategorisini taşımaz (2026-10-09).
+  const popular = visibleCategoryRefs(allPopular);
   return (
     <div className="relative isolate overflow-hidden bg-white">
       <GradientBlob className="-top-40 sm:-top-80" position="left" />

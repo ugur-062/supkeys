@@ -5,9 +5,10 @@
  * görünüm çipleri (Bağlantılarım · Gelen istekler · Bekleyenler, sayılı),
  * altında dense tablo; 50'şer çizim; izinsiz üye salt-okunur.
  */
-import { render, screen, within } from "@testing-library/react";
+import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   tier: "GOLD",
@@ -17,6 +18,12 @@ const h = vi.hoisted(() => ({
   outgoing: [] as unknown[],
   referrals: [] as unknown[],
   blocks: [] as unknown[],
+  /** Sorgu durumu: `ok` yanıt geldi · `loading` ilk yükleme · `error` okunamadı (kesinti). */
+  status: {} as Record<string, "ok" | "loading" | "error">,
+  refetch: {} as Record<string, ReturnType<typeof vi.fn>>,
+  /** GERÇEK liste kancaları (TanStack sorguları) koşsun — çevrimdışı / duraklatılmış sorgu testi. */
+  real: false,
+  get: vi.fn(),
   search: "",
   confirm: vi.fn(),
   unblock: vi.fn(),
@@ -41,21 +48,43 @@ vi.mock("next/navigation", async (orig) => ({
   ...(await orig<typeof import("next/navigation")>()),
   useSearchParams: () => new URLSearchParams(h.search),
 }));
-vi.mock("@/hooks/use-company-connections", () => ({
-  useConnectionSelf: () => ({ data: { rothernId: "AAAA-0001" } }),
-  useConnections: () => ({ data: h.connections, isLoading: false }),
-  useIncomingInvites: () => ({ data: h.incoming, isLoading: false }),
-  useOutgoingInvites: () => ({ data: h.outgoing, isLoading: false }),
-  useReferralInvites: () => ({ data: h.referrals }),
-  useRespondInvite: () => ({ mutateAsync: h.respond, isPending: false, variables: undefined }),
-  useCancelReferralInvite: () => ({ mutateAsync: h.cancelReferral, isPending: false, variables: undefined }),
-  useDisconnect: () => ({ mutateAsync: h.disconnect, isPending: false, variables: undefined }),
-  useBlocks: () => ({ data: h.blocks, isLoading: false }),
-  useUnblockCompany: () => ({ mutateAsync: h.unblock, isPending: false, variables: undefined }),
-  useBlockCompany: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useInviteByEmail: () => ({ mutateAsync: h.invite, isPending: false }),
-  useInviteByEmailBatch: () => ({ mutateAsync: h.batch, isPending: false }),
-}));
+/** TanStack Query sonucunun bileşenin okuduğu kesiti. */
+const listQuery = (name: string, data: unknown[]) => {
+  const status = h.status[name] ?? "ok";
+  h.refetch[name] ??= vi.fn();
+  return {
+    data: status === "ok" ? data : undefined,
+    // İlk yüklemede istek sürer: TanStack'te hem `isPending` hem `isLoading`.
+    isPending: status === "loading",
+    isLoading: status === "loading",
+    isError: status === "error",
+    refetch: h.refetch[name],
+  };
+};
+vi.mock("@/lib/company-auth/api", () => ({ companyApi: { get: h.get } }));
+vi.mock("@/hooks/use-company-connections", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/use-company-connections")>();
+  // `h.real` ise GERÇEK kanca koşar; seçim test boyunca sabittir (kanca sırası değişmez).
+  const list = (real: () => unknown, name: string, data: () => unknown[]) => () => {
+    const query = h.real ? real : () => listQuery(name, data());
+    return query();
+  };
+  return {
+    useConnectionSelf: () => ({ data: { rothernId: "AAAA-0001" } }),
+    useConnections: list(actual.useConnections, "connections", () => h.connections),
+    useIncomingInvites: list(actual.useIncomingInvites, "incoming", () => h.incoming),
+    useOutgoingInvites: list(actual.useOutgoingInvites, "outgoing", () => h.outgoing),
+    useReferralInvites: list(actual.useReferralInvites, "referrals", () => h.referrals),
+    useRespondInvite: () => ({ mutateAsync: h.respond, isPending: false, variables: undefined }),
+    useCancelReferralInvite: () => ({ mutateAsync: h.cancelReferral, isPending: false, variables: undefined }),
+    useDisconnect: () => ({ mutateAsync: h.disconnect, isPending: false, variables: undefined }),
+    useBlocks: list(actual.useBlocks, "blocks", () => h.blocks),
+    useUnblockCompany: () => ({ mutateAsync: h.unblock, isPending: false, variables: undefined }),
+    useBlockCompany: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useInviteByEmail: () => ({ mutateAsync: h.invite, isPending: false }),
+    useInviteByEmailBatch: () => ({ mutateAsync: h.batch, isPending: false }),
+  };
+});
 
 import { ConnectionsView } from "../connections-view";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
@@ -85,9 +114,16 @@ beforeEach(() => {
   h.outgoing = [];
   h.referrals = [];
   h.blocks = [];
+  h.status = {};
+  h.refetch = {};
+  h.real = false;
   h.search = "";
   h.confirm.mockResolvedValue(true);
   h.invite.mockResolvedValue({ kind: "invited", email: "x@y.com" });
+});
+afterEach(() => {
+  // Çevrimdışı testi ağı kapatır; sonraki testler çevrimiçi başlasın.
+  onlineManager.setOnline(true);
 });
 
 describe("ConnectionsView", () => {
@@ -366,5 +402,115 @@ describe("ConnectionsView", () => {
     expect(h.toast.warning).toHaveBeenLastCalledWith("1 adrese e-posta gönderilemedi");
     expect(await screen.findByText("c@d.com")).toBeInTheDocument();
     expect(screen.getAllByText("Gönderilemedi").length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Canlı doğrulama OUT-2 (API kesintisi): bağlantısı olan firmaya çipler
+   * "Bağlantılarım 0 · Gelen istekler 0 · Bekleyenler 0 · Engellenenler 0",
+   * liste de "Henüz bağlantınız yok" + "Firma bul" çiziyordu — hata kartı yoktu.
+   * Kural: boş durum yalnız BAŞARILI ve boş yanıtta; okunamayan sayı 0 değildir.
+   */
+  describe("liste durumları — hata ≠ boş, okunamayan sayı ≠ 0", () => {
+    const chipTexts = () =>
+      within(screen.getByRole("group", { name: "Görünüm" }))
+        .getAllByRole("button")
+        .map((b) => b.textContent);
+
+    it("kesinti: sıfır rozeti ve 'Henüz bağlantınız yok' YOK; hata kartı + Tekrar dene yeniden çeker", async () => {
+      const user = userEvent.setup();
+      h.status = { connections: "error", incoming: "error", outgoing: "error", referrals: "error", blocks: "error" };
+      render(<ConnectionsView />);
+      expect(chipTexts()).toEqual(["Bağlantılarım", "Gelen istekler", "Bekleyenler", "Engellenenler"]);
+      expect(screen.queryByText("Henüz bağlantınız yok")).toBeNull();
+      expect(screen.getByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
+      await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+      expect(h.refetch.connections).toHaveBeenCalledTimes(1);
+      expect(h.refetch.incoming).not.toHaveBeenCalled();
+    });
+
+    it("kesinti her görünümde hata kartı verir — 'yok' iddiası hiçbirinde çizilmez", async () => {
+      const user = userEvent.setup();
+      h.status = { connections: "error", incoming: "error", outgoing: "ok", referrals: "error", blocks: "error" };
+      render(<ConnectionsView />);
+      await user.click(screen.getByRole("button", { name: /Gelen istekler/ }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.queryByText("Bekleyen istek yok")).toBeNull();
+      await user.click(screen.getByRole("button", { name: /Engellenenler/ }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.queryByText("Engellediğiniz firma yok")).toBeNull();
+      // Bekleyenler iki uçtan okur: biri düştüyse sayı da liste de bilinmiyor.
+      await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Bekleyenler/ })).toHaveTextContent(/^Bekleyenler$/);
+      await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+      expect(h.refetch.referrals).toHaveBeenCalledTimes(1);
+      expect(h.refetch.outgoing).not.toHaveBeenCalled();
+    });
+
+    it("yüklenirken de rozet yok (henüz okunmadı), iskelet çizilir", () => {
+      h.status = { connections: "loading", incoming: "loading", outgoing: "loading", referrals: "loading", blocks: "loading" };
+      render(<ConnectionsView />);
+      expect(chipTexts()).toEqual(["Bağlantılarım", "Gelen istekler", "Bekleyenler", "Engellenenler"]);
+      expect(screen.queryByText("Henüz bağlantınız yok")).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("BAŞARILI ve boş yanıt: gerçek sıfır rozeti + boş durum (hata kartı değil)", () => {
+      h.connections = [];
+      render(<ConnectionsView />);
+      expect(chipTexts()).toEqual(["Bağlantılarım0", "Gelen istekler0", "Bekleyenler0", "Engellenenler0"]);
+      expect(screen.getByText("Henüz bağlantınız yok")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    /**
+     * Gözden geçirme REV-2: cihaz çevrimdışıyken TanStack sorguyu DURAKLATIR —
+     * istek gitmez, hata da olmaz (`isLoading` false, `isError` false, veri yok).
+     * İskelet `isLoading`e bağlıyken liste boş durum dalına düşüyor, okunamayan
+     * sayı (`null`) yüzünden "Eşleşen bağlantı yok — “” ile eşleşen bağlantınız
+     * bulunamadı." yazıyordu. Gerçek kancalar + gerçek sorgu istemcisi.
+     */
+    it("cihaz çevrimdışı (sorgular duraklatıldı): hiçbir görünümde 'yok' iddiası yok, iskelet; bağlantı dönünce liste gelir", async () => {
+      const user = userEvent.setup();
+      h.real = true;
+      h.get.mockImplementation((url: string) =>
+        Promise.resolve({ data: url === "/company/connections" ? h.connections : [] }),
+      );
+      onlineManager.setOnline(false);
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+      const { container } = render(
+        <QueryClientProvider client={qc}>
+          <ConnectionsView />
+        </QueryClientProvider>,
+      );
+      const skeleton = () => container.querySelector(".animate-pulse");
+      const claims = [
+        "Eşleşen bağlantı yok",
+        "Henüz bağlantınız yok",
+        "Bekleyen istek yok",
+        "Bekleyen isteğiniz yok",
+        "Engellediğiniz firma yok",
+      ];
+      const expectNoClaim = () => {
+        for (const claim of claims) expect(screen.queryByText(claim)).toBeNull();
+        expect(screen.queryByRole("alert")).toBeNull();
+        expect(skeleton()).not.toBeNull();
+      };
+      expectNoClaim();
+      // Okunmamış sayı rozet olarak basılmaz.
+      expect(chipTexts()).toEqual(["Bağlantılarım", "Gelen istekler", "Bekleyenler", "Engellenenler"]);
+      for (const name of [/Gelen istekler/, /Bekleyenler/, /Engellenenler/, /Bağlantılarım/]) {
+        await user.click(screen.getByRole("button", { name }));
+        expectNoClaim();
+      }
+      // Duraklatılan sorgu istek ATMAZ: ne hata ne yanıt var.
+      expect(h.get).not.toHaveBeenCalled();
+
+      act(() => onlineManager.setOnline(true));
+      expect(await screen.findByText("Firma 1")).toBeInTheDocument();
+      expect(skeleton()).toBeNull();
+      expect(within(screen.getByRole("group", { name: "Görünüm" })).getByRole("button", { name: /Bağlantılarım/ })).toHaveTextContent("2");
+      qc.clear();
+    });
   });
 });

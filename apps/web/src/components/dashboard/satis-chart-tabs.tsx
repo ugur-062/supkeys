@@ -31,6 +31,7 @@ import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
 import { useFormatPercent } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
+import { visibleBreakdownRows } from "@/lib/visible-categories";
 
 /** Gelir sekmesi — trend + kazanma yığını + TL pipeline. */
 export function SatisGelirTab({
@@ -200,6 +201,8 @@ export function SatisMusteriTab({
     );
   }
   const AXIS = { fontSize: 11, fill: "#94a3b8" };
+  // Gizli segment satırı çizilmez (2026-10-09); asıl süzgeç API'de.
+  const categoryWinRate = visibleBreakdownRows(analytics.categoryWinRate);
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
@@ -271,9 +274,9 @@ export function SatisMusteriTab({
         subtitle={t("hangiKategorilerdeGucluyuzKararaBaglanan")}
         ariaLabel={t("kategoriBazliKazanmaOrani2")}
       >
-        {analytics.categoryWinRate.length > 0 ? (
+        {categoryWinRate.length > 0 ? (
           <ul className="space-y-2.5">
-            {analytics.categoryWinRate.map((c) => (
+            {categoryWinRate.map((c) => (
               <li key={c.label}>
                 <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
                   <span className="truncate text-slate-600" title={c.label}>

@@ -59,6 +59,37 @@ describe("TasarrufTab — kategori tutarı satırdan", () => {
   });
 });
 
+/**
+ * 2026-10-09 (sahip kararı; arayüz denetimi W-14): gizli segmentin tutarı
+ * API'de "diğer" kovasına gider, satır gizli adla GELMEZ. Web yalnız etiketi
+ * alır; ikinci kat olarak gizli olduğunu kanıtlayabildiği satırı (segment
+ * kodu ya da ham kod etiketi) çizmez — ada bakarak tahmin yürütmez.
+ */
+describe("TasarrufTab — kategori kırılımında gizli segment satırı çizilmez", () => {
+  it("segment kodu gizli olan satır ve ham gizli kod etiketi düşer; diğer satırlar kalır", () => {
+    render(
+      <TasarrufTab
+        data={{
+          ...data,
+          categoryYear: [
+            { id: "46000000", label: "Kolluk ve Emniyet Ekipmanları", percent: 40, amount: 9000 },
+            { label: "77000000", percent: 12, amount: 300 },
+            { id: "39000000", label: "Elektrik Malzemeleri", percent: 25, amount: 1234 },
+            { label: "Kategorisiz", percent: 5, amount: 50 },
+          ],
+        }}
+        period="year"
+        analytics={analytics}
+      />,
+    );
+    expect(screen.getByText("Elektrik Malzemeleri")).toBeInTheDocument();
+    expect(screen.getByText("Kategorisiz")).toBeInTheDocument();
+    expect(screen.queryByText(/Kolluk/)).toBeNull();
+    expect(screen.queryByText("77000000")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/9\.000/);
+  });
+});
+
 describe("TasarrufTab — boş durum CTA'sı izne bağlı (arayüz testi T3)", () => {
   afterEach(() => useCompanyAuthStore.setState({ user: null } as never));
 

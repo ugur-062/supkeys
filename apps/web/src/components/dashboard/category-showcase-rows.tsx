@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
+import { isHiddenCategory } from "@rothern/shared";
 
 /**
  * KATEGORİ VİTRİNİ — promo kart + 5×2 ızgara, ÜÇ SATIR (2026-09-07).
@@ -45,8 +46,19 @@ export interface ShowcaseRow {
  * olduğu için ızgara bir satır uzadığında düzen bozulmaz. Hiç tam blok
  * oluşmadıysa (çok küçük katalog) kısa blok yine de çizilir: boş bırakmak
  * yerine az kategoriyle göstermek doğru.
+ *
+ * VİTRİN = GÖRÜNÜR SEGMENTLERİN TAMAMI (2026-10-09, sahip kararı: "anasayfada
+ * olmayan kategori başka yerde de gösterilmesin"). Kural bu listeye dayanır,
+ * o yüzden iki şey burada da kilitli:
+ *  - gizli segment (`HIDDEN_SEGMENTS`) girdide gelse bile blok olmaz
+ *    (`buildShowcase` de süzer; burası çizimden önceki son kat);
+ *  - TEK KALAN segment kaybolmaz: sayı 11'in katından bir fazlaysa (12, 23,
+ *    34…) son segment promo olarak alınıp ızgarası boş kaldığı için blok
+ *    atılıyor, o segment anasayfada hiç görünmüyordu. Artık önceki bloğun
+ *    ızgarasına eklenir (ilk bloksa tek başına çizilir).
  */
-export function toShowcaseRows(all: ShowcaseCategory[], rows = 3, perRow = 10): ShowcaseRow[] {
+export function toShowcaseRows(input: ShowcaseCategory[], rows = 3, perRow = 10): ShowcaseRow[] {
+  const all = input.filter((c) => !isHiddenCategory(c.id));
   const out: ShowcaseRow[] = [];
   let i = 0;
   for (let r = 0; r < rows; r++) {
@@ -55,7 +67,12 @@ export function toShowcaseRows(all: ShowcaseCategory[], rows = 3, perRow = 10): 
     i += 1;
     const items = all.slice(i, i + perRow);
     i += items.length;
-    if (items.length === 0) break;
+    if (items.length === 0) {
+      const previous = out[out.length - 1];
+      if (previous) previous.items = [...previous.items, promo];
+      else out.push({ promo, items });
+      break;
+    }
     out.push({ promo, items });
   }
   // Satır tavanı dolduysa kalanları son ızgaraya ekle — kategori kaybolmasın.
@@ -93,6 +110,8 @@ export function CategoryShowcaseRows({
           className="grid gap-6 lg:grid-cols-[clamp(17rem,22vw,21rem)_1fr]"
         >
           <PromoCard category={row.promo} href={hrefFor(row.promo)} ctaLabel={ctaLabel} visual={visual} />
+          {/* Tek segmentli vitrinde ızgara boştur — boş liste çizilmez. */}
+          {row.items.length > 0 ? (
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {row.items.map((c) => (
               <li key={c.id}>
@@ -106,6 +125,7 @@ export function CategoryShowcaseRows({
               </li>
             ))}
           </ul>
+          ) : null}
         </section>
       ))}
     </div>

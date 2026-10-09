@@ -9,7 +9,7 @@ import { QuickRequest } from "@/components/tenders/quick/quick-request";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
-import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
+import { hasRetiredCategory, mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
 import { useParams } from "next/navigation";
 
 export default function EditTenderPage() {
@@ -43,6 +43,8 @@ export default function EditTenderPage() {
   // Düzenleme de HIZLI KARTLA (2026-09-19: detaylı sihirbaz kaldırıldı).
   // Durum geçer: teklifsiz OPEN talepte kaydet yayın ucunu çağırmaz (Y-20).
   // Sayfa başlığı + Vazgeç (D-244): talep detayına döner, kayıt yapmaz.
+  // `retiredCategory`: eşleyici gizli kategoriyi forma vermez; alanın neden boş
+  // olduğunu form buradan öğrenir (gözden geçirme R-WEB-01).
   return (
     <PageContainer>
       <PageHeader
@@ -55,7 +57,15 @@ export default function EditTenderPage() {
         }
       />
       <div className="mt-6">
-        <QuickRequest key={id} mode="edit" listingId={id} listingStatus={l.status} initialValues={mapDetailToForm(l)} />
+        <QuickRequest
+          key={id}
+          mode="edit"
+          listingId={id}
+          listingStatus={l.status}
+          initialValues={mapDetailToForm(l)}
+          invitationsAsOf={l.invitationsAsOf}
+          retiredCategory={hasRetiredCategory(l)}
+        />
       </div>
     </PageContainer>
   );

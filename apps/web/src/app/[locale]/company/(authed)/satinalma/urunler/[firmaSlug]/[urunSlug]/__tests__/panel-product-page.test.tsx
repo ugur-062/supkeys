@@ -10,6 +10,10 @@ const h = vi.hoisted(() => ({
   category: null as { id: string; name: string } | null,
   trail: [] as { label: string; href: string }[],
   rfq: 0,
+  /** İlişkili ürünler geldi mi (`RelatedRows` yalnız veriyle çizilir). */
+  related: false,
+  /** `RelatedRows`e geçen son kategori adı ("… içinde yeni" başlığı). */
+  relatedCategoryName: undefined as string | null | undefined,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -28,14 +32,19 @@ vi.mock("@/hooks/use-portal-discovery", () => ({
       company: { name: "ABC", slug: "abc", website: h.website, freeMember: false },
     },
   }),
-  useRelatedProducts: () => ({ data: undefined }),
+  useRelatedProducts: () => ({
+    data: h.related ? { fromCompany: { items: [], total: 0 }, similar: [], popular: [] } : undefined,
+  }),
 }));
 vi.mock("@/components/marketplace/product-detail", () => ({
   ProductBreadcrumb: ({ trail }: { trail: { label: string; href: string }[] }) => {
     h.trail = trail;
     return null;
   },
-  RelatedRows: () => null,
+  RelatedRows: ({ categoryName }: { categoryName: string | null }) => {
+    h.relatedCategoryName = categoryName;
+    return null;
+  },
   ProductDetailBody: ({ sellerSite, cta }: { sellerSite: ReactNode; cta: ReactNode }) => (
     <div>
       {sellerSite}
@@ -62,6 +71,8 @@ beforeEach(() => {
   h.category = null;
   h.trail = [];
   h.rfq = 0;
+  h.related = false;
+  h.relatedCategoryName = undefined;
 });
 
 describe("Panel ürün sayfası (derin denetim LU-22)", () => {
@@ -109,6 +120,20 @@ describe("Panel ürün sayfası (derin denetim LU-22)", () => {
     h.category = { id: "39121000", name: "Panolar" };
     render(<PanelProductPage />);
     expect(h.trail.map((s) => s.label)).toContain("Panolar");
+  });
+
+  // 2026-10-09 (sahip kararı; arayüz denetimi W-05): D-023 yalnız kırıntıyı
+  // kapatmıştı; gizli kategori adı "… içinde yeni" başlığına hâlâ gidiyordu.
+  it("gizli segmentteki kategori 'kategoride yeni' başlığına da gitmez; görünür kategori gider", () => {
+    h.related = true;
+    h.category = { id: "46181500", name: "Koruyucu giysi" };
+    const { unmount } = render(<PanelProductPage />);
+    expect(h.relatedCategoryName).toBeNull();
+    expect(h.trail.map((s) => s.label)).not.toContain("Koruyucu giysi");
+    unmount();
+    h.category = { id: "39121000", name: "Panolar" };
+    render(<PanelProductPage />);
+    expect(h.relatedCategoryName).toBe("Panolar");
   });
 
   it("talep açma bandı yalnız buy:listing:manage ile (O-079)", () => {

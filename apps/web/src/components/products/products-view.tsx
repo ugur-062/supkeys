@@ -33,6 +33,7 @@ import { useCategoriesByIds } from "@/hooks/use-categories";
 import { formatDate } from "@/lib/format-date";
 import { productStatusKey } from "@/lib/company/product-status";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { ArrowLeftIcon, EllipsisVerticalIcon, EyeIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Thumb } from "@/components/ui/thumb";
 import { affixCurrency } from "@/lib/tenders/labels";
@@ -134,7 +135,11 @@ export function ProductsView() {
   // Arama GECİKMELİ (arayüz testi D-286): her tuş ayrı istek atıyordu.
   const debouncedQ = useDebouncedValue(q.trim(), 300);
   const showcase = useShowcaseItems(debouncedQ, tab);
-  const { isLoading } = showcase;
+  // "Yükleniyor" `isPending`e bağlı, `isLoading`e değil (gözden geçirme REV-2):
+  // çevrimdışı cihazda sorgu DURAKLAR (istek yok, hata yok, veri yok) ve
+  // `isLoading` false kalır — "Henüz ürün yok." + "Yeni ürün ekle" çiziliyordu.
+  // Arama / sekme değişiminde önceki liste yer tutucudur: pending değil.
+  const { isPending } = showcase;
   const data = showcase.data?.pages[0];
   const items = useMemo(() => showcase.data?.pages.flatMap((p) => p.items) ?? [], [showcase.data]);
   // Sekme süzgeci istemcide (liste zaten geldi); SAYAÇLAR sunucudan ve firma
@@ -497,8 +502,13 @@ export function ProductsView() {
         </p>
       ) : null}
 
-      {isLoading ? (
+      {isPending ? (
         <p className="mt-8 text-sm text-zinc-500">{tr("yukleniyor")}</p>
+      ) : showcase.isError && !showcase.data ? (
+        /* HATA ≠ BOŞ (canlı doğrulama OUT-2): API kesintisinde 93 ürünü olan
+           firmaya "Henüz ürün yok." + "Yeni ürün ekle" çiziliyordu. Boş durum
+           yalnız başarılı ve boş yanıtta; okunamayan liste hata kartı alır. */
+        <ErrorState className="mt-4" onRetry={() => void showcase.refetch()} />
       ) : visible.length === 0 ? (
         /* Ortak EmptyState (1d): ikon + başlık + tek satır + TEK eylem. */
         <EmptyState

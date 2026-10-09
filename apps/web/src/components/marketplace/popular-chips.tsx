@@ -2,13 +2,17 @@ import { useTranslations } from "next-intl";
 import { MARKETPLACE_ROUTES, categoryHref } from "@/lib/public/marketplace";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * "POPÜLER KATEGORİLER" çip'leri — arama logu yok; ürün sayısı en yüksek
  * 20 alt kategori (`public/stats.popularCategories`). Boşsa çizilmez.
  */
-export function PopularChips({ items }: { items: { id: string; name: string; count: number }[] }) {
+export function PopularChips({ items: all }: { items: { id: string; name: string; count: number }[] }) {
   const t = useTranslations("web.marketplace.popularChips");
+  // Gizli segmentin alt kategorisi çip olmaz (2026-10-09): adı, sayısı ve
+  // süzgeç bağlantısı birlikte düşer; hiç kalmadıysa bölüm çizilmez.
+  const items = visibleCategoryRefs(all);
   if (items.length === 0) return null;
   return (
     <section className="mx-auto max-w-7xl px-6 py-10 lg:px-8">

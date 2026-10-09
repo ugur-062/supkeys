@@ -3,7 +3,13 @@
 import { useTranslations } from "next-intl";
 
 import { AudienceSwitch, useAudience } from "./audience-switch";
-import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
+import {
+  HERO_LEAD_CLASS,
+  HERO_TITLE_CLASS,
+  HeroDecor,
+  PanelHeroSearch,
+  SizedSlot,
+} from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
@@ -133,7 +139,12 @@ export function HomeHero() {
           key="supplier"
           title={t("supplierTitle")}
           plainTitle
+          /* Öteki yüzün metinleri görünmez ölçü (2026-10-09): yeni başlıklar
+             telefonda farklı satır sayısına sarıyordu, geçişte arama kutusu
+             24 px oynuyordu. Blok artık iki yüzde aynı yükseklikte. */
+          titleSizer={t("buyerTitle")}
           lead={t("supplierLead")}
+          leadSizer={t("buyerLead")}
           placeholder={t("supplierPlaceholder")}
           action={MARKETPLACE_ROUTES.demands}
           /* Talep aramaları SATIŞ son aramalarına yazılır (arayüz testi
@@ -153,7 +164,9 @@ export function HomeHero() {
           key="buyer"
           title={t("buyerTitle")}
           plainTitle
+          titleSizer={t("supplierTitle")}
           lead={t("buyerLead")}
+          leadSizer={t("supplierLead")}
           placeholder={t("buyerPlaceholder")}
           action={MARKETPLACE_ROUTES.products}
           accent="blue"
@@ -196,10 +209,14 @@ function HeroShell() {
       {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
       <HeroDecor widgets={SELLER_WIDGETS} objects={SELLER_OBJECTS} accent="emerald" />
       <div className="mx-auto w-full max-w-4xl text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          {t("supplierTitle")}
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{t("supplierLead")}</p>
+        {/* Ölçü yuvaları hero ile AYNI (`SizedSlot`): kabuk öteki yüzün
+            metnine de yer ayırır, hidrasyonda başlık zıplamaz. */}
+        <SizedSlot sizer={t("buyerTitle")} sizerClassName={HERO_TITLE_CLASS}>
+          <h1 className={`[grid-area:1/1] ${HERO_TITLE_CLASS} text-zinc-950`}>{t("supplierTitle")}</h1>
+        </SizedSlot>
+        <SizedSlot sizer={t("buyerLead")} sizerClassName={HERO_LEAD_CLASS}>
+          <p className={`[grid-area:1/1] ${HERO_LEAD_CLASS} text-zinc-500`}>{t("supplierLead")}</p>
+        </SizedSlot>
       </div>
     </section>
   );

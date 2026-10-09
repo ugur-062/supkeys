@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SHOWCASE_ORDER, buildShowcase } from "./category-showcase";
 import { isHiddenCategory } from "@rothern/shared";
+import { MAPPED_SEGMENTS } from "./category-visual";
 
 const segments = [
   { id: "23000000", name: "Makine" },
@@ -58,5 +59,25 @@ describe("anasayfa kategori seçkisi", () => {
       productCovers: [],
     });
     expect(out.map((c) => c.id)).toEqual(["23000000", "31000000", "39000000", "30000000"]);
+  });
+  // 2026-10-09 (sahip kararı): 46 ve 77 anasayfadan kalktı. Bu sınama paylaşılan
+  // paketin DERLENMİŞ hâlini okur — eski derlemede kural boşa geçerdi (W-20).
+  it("46 (kolluk/emniyet) ve 77 (çevre hizmetleri) gizlidir: vitrine ve küratörlü sıraya girmez", () => {
+    expect(isHiddenCategory("46000000")).toBe(true);
+    expect(isHiddenCategory("46181500")).toBe(true);
+    expect(isHiddenCategory("77000000")).toBe(true);
+    expect(SHOWCASE_ORDER).not.toContain("46000000");
+    expect(SHOWCASE_ORDER).not.toContain("77000000");
+    const out = buildShowcase({
+      segments: [...segments, { id: "46000000", name: "Kolluk ve Emniyet" }, { id: "77000000", name: "Çevre Hizmetleri" }],
+      counts: [{ id: "46000000", count: 40 }, { id: "77000000", count: 7 }],
+      productCovers: [{ categoryId: "46181500", image: "k.webp" }],
+    });
+    expect(out.map((c) => c.id)).toEqual(["23000000", "31000000", "39000000", "30000000"]);
+  });
+  it("görünür segment sayısı 27'dir (58 − 31 gizli) — anasayfa hepsini çizer", () => {
+    const all = Array.from({ length: 100 }, (_, i) => `${String(i).padStart(2, "0")}000000`).filter((code) => MAPPED_SEGMENTS.includes(code.slice(0, 2)));
+    expect(all).toHaveLength(58);
+    expect(all.filter((code) => !isHiddenCategory(code))).toHaveLength(27);
   });
 });

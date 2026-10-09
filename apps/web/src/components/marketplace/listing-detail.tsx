@@ -30,6 +30,7 @@ import { Link } from "@/i18n/navigation";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /** Tarih geçmiş mi (çizim dışı yardımcı; `Date.now` bileşen gövdesinde okunmaz). */
 function isPast(iso: string): boolean {
@@ -72,6 +73,10 @@ export function ListingDetail({
   // tarihi 6 Eki" yanıltıyordu (arayüz testi D-073). Tarih yalnız açık
   // talepte ya da gerçekten geçmişse gösterilir.
   const showDeadline = !!listing.closesAt && (state === "open" || isPast(listing.closesAt));
+  // Gizli segmentteki kategori çip, ad ya da süzgeç bağlantısı olarak ÇİZİLMEZ
+  // (2026-10-09): eski talep durur, görünür kategorisi kalmadıysa çip satırı
+  // hiç açılmaz. API de süzer; burası ikinci kat.
+  const categories = visibleCategoryRefs(listing.categories);
 
   /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
      `listingSeo` hem sayfanın metasını hem bu grafiği üretir. Sahibin adı
@@ -180,9 +185,9 @@ export function ListingDetail({
               {listing.title}
             </Heading>
             <AutoTranslatedNote from={listing.translatedFrom} className="mt-2" />
-            {listing.categories.length > 0 ? (
+            {categories.length > 0 ? (
               <ul className="mt-4 flex flex-wrap gap-2">
-                {listing.categories.map((c) => (
+                {categories.map((c) => (
                   <li key={c.id}>
                     <Link
                       // Çip adıyla AYNI kategoriye gider (arayüz testi D-061):

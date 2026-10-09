@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import { cityDisplayName, countryDisplayName, useActivityLabel } from "@/i18n/domain";
 import { useLocale, useTranslations } from "next-intl";
@@ -207,6 +208,10 @@ export function CompanyProfileView({
   const activityLabel = useActivityLabel();
   const locale = useLocale();
   const services = p.services ?? [];
+  // Beyan çipleri yalnız GÖRÜNÜR segmentler (2026-10-09): gizli segmentte eski
+  // beyanı olan firmanın o sektörü ziyaretçiye de sahibine de çizilmez; başka
+  // künye alanı yoksa "Şirket bilgileri" kartı bu yüzden boş açılmaz.
+  const categories = visibleCategoryRefs(p.categories);
   const location = [cityDisplayName(p.city, locale), p.country ? countryDisplayName(p.country, locale) : null].filter(Boolean).join(", ");
 
   return (
@@ -496,7 +501,7 @@ export function CompanyProfileView({
             p.employeeCount ||
             p.industry ||
             location ||
-            p.categories?.length ||
+            categories.length ||
             p.website ||
             p.linkedinUrl ||
             p.instagramUrl ||
@@ -537,9 +542,9 @@ export function CompanyProfileView({
                 ) : null}
               </dl>
 
-              {p.categories?.length ? (
+              {categories.length ? (
                 <div className="mt-4 flex flex-wrap gap-1.5 border-t border-zinc-100 pt-4">
-                  {p.categories.map((c) => (
+                  {categories.map((c) => (
                     <span
                       key={c.id}
                       className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"

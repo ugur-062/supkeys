@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MyBid, MyBidsPage, MyBidsQuery } from "@/hooks/use-company-listings";
 
 /**
@@ -16,6 +17,12 @@ const h = vi.hoisted(() => ({
   search: "",
   calls: [] as unknown[],
   page: null as unknown,
+  /** Sorgu okunamadı (kesinti): veri yok, `isError`. */
+  failed: false,
+  refetch: vi.fn(),
+  /** GERÇEK `useMyBids` (TanStack sorgusu) koşsun — çevrimdışı / duraklatılmış sorgu testi. */
+  real: false,
+  get: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -23,12 +30,26 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(h.search),
   usePathname: () => "/company/satis/tekliflerim",
 }));
-vi.mock("@/hooks/use-company-listings", () => ({
-  useMyBids: (q: MyBidsQuery) => {
-    h.calls.push(q);
-    return { data: h.page, isLoading: false, isError: false, refetch: vi.fn() };
-  },
-}));
+vi.mock("@/lib/company-auth/api", () => ({ companyApi: { get: h.get } }));
+vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/use-company-listings")>();
+  /** TanStack Query sonucunun bileşenin okuduğu kesiti (yanıt geldi ya da okunamadı). */
+  const settled = () => ({
+    data: h.failed ? undefined : h.page,
+    isPending: false,
+    isLoading: false,
+    isError: h.failed,
+    refetch: h.refetch,
+  });
+  return {
+    useMyBids: (q: MyBidsQuery) => {
+      h.calls.push(q);
+      // Seçim test boyunca sabittir (kanca sırası değişmez).
+      const query = h.real ? actual.useMyBids : settled;
+      return query(q);
+    },
+  };
+});
 
 import { buildMyBidsQuery, MyBidsList, parseMyBidsUrl } from "../my-bids-list";
 
@@ -76,7 +97,69 @@ beforeEach(() => {
   h.search = "";
   h.calls = [];
   h.page = pageOf([bid()]);
+  h.failed = false;
+  h.refetch.mockClear();
+  h.real = false;
+  h.get.mockReset();
   window.history.replaceState(null, "", "/company/satis/tekliflerim");
+});
+afterEach(() => {
+  // Çevrimdışı testi ağı kapatır; sonraki testler çevrimiçi başlasın.
+  onlineManager.setOnline(true);
+});
+
+/**
+ * Canlı doğrulama OUT-2 (API kesintisi): hata kartının üstünde "0 teklif"
+ * yazıyordu (aynı hesap az önce "418 teklif" gösteriyordu). Okunamayan toplam
+ * 0 değildir; boş durum yalnız başarılı ve boş yanıtta.
+ */
+describe("MyBidsList — liste durumları (OUT-2)", () => {
+  it("liste okunamadı: '0 teklif' ve 'Henüz teklif vermediniz' YOK; hata kartı + Tekrar dene", async () => {
+    h.failed = true;
+    const { container } = render(<MyBidsList />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
+    expect(container.textContent).not.toMatch(/\d+\s*teklif/);
+    expect(screen.queryByText("Henüz teklif vermediniz")).toBeNull();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("BAŞARILI ve boş yanıt: gerçek '0 teklif' + boş durum (hata kartı değil)", () => {
+    h.page = pageOf([], { total: 0, counts: { all: 0, active: 0, won: 0 } });
+    const { container } = render(<MyBidsList />);
+    expect(container.textContent).toMatch(/0\s*teklif/);
+    expect(screen.getByText("Henüz teklif vermediniz")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  /**
+   * Gözden geçirme REV-2: cihaz çevrimdışıyken TanStack sorguyu DURAKLATIR —
+   * istek gitmez, hata da olmaz (`isLoading` false, `isError` false, veri yok).
+   * İskelet `isLoading`e bağlıyken yanıt hiç gelmediği hâlde "0 teklif" ve
+   * "Henüz teklif vermediniz" çiziliyordu. Gerçek kanca + gerçek sorgu istemcisi.
+   */
+  it("cihaz çevrimdışı (sorgu duraklatıldı): '0 teklif' ve 'Henüz teklif vermediniz' YOK, iskelet; bağlantı dönünce liste gelir", async () => {
+    h.real = true;
+    h.get.mockResolvedValue({ data: pageOf([bid()]) });
+    onlineManager.setOnline(false);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const { container } = render(
+      <QueryClientProvider client={qc}>
+        <MyBidsList />
+      </QueryClientProvider>,
+    );
+    expect(container.textContent).not.toMatch(/\d+\s*teklif/);
+    expect(screen.queryByText("Henüz teklif vermediniz")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(container.querySelector(".animate-pulse")).not.toBeNull();
+    // Duraklatılan sorgu istek ATMAZ: ne hata ne yanıt var.
+    expect(h.get).not.toHaveBeenCalled();
+
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByRole("link", { name: "Çelik boru alımı" })).toBeInTheDocument();
+    expect(h.get).toHaveBeenCalledWith("/company/listings/my-bids", expect.anything());
+    qc.clear();
+  });
 });
 
 describe("MyBidsList — sunucu tarafı sayfa/süzgeç (O-005)", () => {

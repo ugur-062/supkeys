@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { REQUEST_DEFAULTS_FALLBACK, type RequestDefaults } from "@rothern/shared";
 import { DEFAULT_FORM_VALUES } from "../form-schema";
-import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, deliveryTermsFor, fallbackVisibilityFor, initialRequestFormValues, normalizeRequestDefaults, paymentCategoriesFor } from "../request-defaults";
+import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, deliveryTermsFor, fallbackVisibilityFor, initialRequestFormValues, normalizeRequestDefaults, paymentCategoriesFor, withVisibleCategories } from "../request-defaults";
 
 const SAVED: RequestDefaults = {
   targetCountries: ["DE", "NL"],
@@ -144,6 +144,32 @@ describe("hızlı kart açılış değerleri (initialRequestFormValues)", () => 
     const f = initialRequestFormValues("blank", { title: "AI taslağı" }, PROFILE, now);
     expect(f).toEqual(applyRequestDefaults({ ...DEFAULT_FORM_VALUES, title: "AI taslağı" }, PROFILE, now));
     expect(f.visibility).toBe("PUBLIC");
+  });
+});
+
+/**
+ * 2026-10-09 (W-11): tohum nereden gelirse gelsin (düzenleme, kopya, ŞABLON,
+ * ürün, oturum taslağı) gizli segment kodu forma girmez. Şablon yükü hiçbir
+ * eşleyiciden geçmediği için tek geçiş noktası açılış değerleridir.
+ */
+describe("hızlı kart açılış değerleri — gizli segment kodu forma girmez", () => {
+  const now = new Date("2026-09-29T10:00:00+03:00");
+  const seed = { ...DEFAULT_FORM_VALUES, title: "Eski şablon", categoryIds: ["46181500", "39121600", "10151500"] };
+
+  it.each(["edit", "seed", "blank"] as const)("%s: yalnız görünür kategoriler kalır", (kind) => {
+    expect(initialRequestFormValues(kind, seed, SAVED, now).categoryIds).toEqual(["39121600"]);
+  });
+
+  it("yalnız gizli kategorili şablon kategorisiz açılır (form güncel kategori ister)", () => {
+    expect(initialRequestFormValues("seed", { ...seed, categoryIds: ["46181500"] }, SAVED, now).categoryIds).toEqual([]);
+  });
+
+  it("withVisibleCategories: gizli kod yoksa AYNI nesne (gereksiz kopya yok); eksik alan dokunulmaz", () => {
+    const clean = { categoryIds: ["39121600"], title: "x" };
+    expect(withVisibleCategories(clean)).toBe(clean);
+    const none = { title: "x" } as { title: string; categoryIds?: string[] };
+    expect(withVisibleCategories(none)).toBe(none);
+    expect(withVisibleCategories({ categoryIds: ["46000000", "31161500"] })).toEqual({ categoryIds: ["31161500"] });
   });
 });
 

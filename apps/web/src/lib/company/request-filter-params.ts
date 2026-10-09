@@ -19,6 +19,8 @@
  * Kategori SEGMENT düzeyinde: satır en çok 2 kod taşır ve sayaçlar segmentte
  * anlamlı; öneri/çipten gelen tam kod (L3+) segmentine indirgenir.
  */
+import { isVisibleCategoryCode } from "@/lib/public/filter-param-utils";
+
 export type RequestStatusFilter = "aktif" | "gecmis" | "tumu";
 export type RequestFit = "davet" | "baglanti" | "urun" | "kategori" | "teklif";
 export type RequestFormat = "teklif" | "pazarlik";
@@ -104,7 +106,8 @@ export function parseRequestFilters(sp: SearchParamsLike): RequestFilterState {
     status: oneOf(get(sp, "durum"), ["aktif", "gecmis", "tumu"] as const) ?? "aktif",
     fit: [...new Set(fits)],
     categories: [
-      ...new Set(list(get(sp, "kategori")).filter((c) => /^\d{8}$/.test(c)).map(segmentOf)),
+      // Gizli segment kodu süzgeç yokmuş gibi okunur (`isVisibleCategoryCode`).
+      ...new Set(list(get(sp, "kategori")).filter(isVisibleCategoryCode).map(segmentOf)),
     ],
     closing: oneOfNum(get(sp, "kapanis"), CLOSING_WINDOWS),
     buyers: list(get(sp, "alici")),

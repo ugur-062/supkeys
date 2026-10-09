@@ -372,6 +372,21 @@ describe("OnboardingClient — adımlar ve içerikleri", () => {
     expect(screen.queryByTestId("kategori-secici")).toBeNull();
   });
 
+  // Sahip kararı 2026-10-08: AI firma sitesini okumaz (tanıtımı ürünlerden ve
+  // firma bilgilerinden Profilim'de yazar) → kayıt adımı "sitenizden AI ile
+  // dolduruyoruz" demez. Alan isteğe bağlı kalır; adres yalnız profilde gösterilir.
+  it("web sitesi ipucu: isteğe bağlı ve profilde gösterilir der; AI ile doldurma vaadi YOK", () => {
+    render(<OnboardingClient />);
+    const field = screen.getByLabelText("Web siteniz").closest("[data-field=website]") as HTMLElement;
+    expect(
+      within(field).getByText(
+        "İsteğe bağlı — firma profilinizde gösterilir. Sonradan Profilim'den de ekleyebilirsiniz.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(field).queryByText(/AI|sitenizden|dolduruyoruz/)).toBeNull();
+    expect(screen.getByLabelText("Web siteniz")).not.toBeRequired();
+  });
+
   it("2. adım (Faaliyet alanı): ne alıp sattığı + faaliyet tipi; kişisel hiçbir alan yok", async () => {
     const user = userEvent.setup();
     await goStep2(user);
@@ -2113,6 +2128,33 @@ describe("OnboardingClient — özet kaydedilecek şirket ve faaliyet bilgilerin
         { sector: "14000000", picks: ["14111501"] },
       ]);
       expect(categoryDeclarationGroups([], [])).toEqual([]);
+    });
+
+    // 2026-10-09 (sahip kararı; arayüz denetimi W-10): gizli sektör seçicide
+    // çizilmediği gibi özete de girmez.
+    it("categoryDeclarationGroups: gizli sektör kodu ve altındaki seçimler özete GİRMEZ", () => {
+      expect(
+        categoryDeclarationGroups(
+          ["46000000", "31000000", "77000000"],
+          ["46180000", "46181500", "31160000", "10151500"],
+        ),
+      ).toEqual([{ sector: "31000000", picks: ["31160000"] }]);
+      expect(categoryDeclarationGroups(["46000000"], ["46181500"])).toEqual([]);
+    });
+
+    it("eski taslaktaki gizli sektör kodu forma geri gelmez: seçici yalnız görünür beyanı alır", () => {
+      // Sektör gizlenmeden ÖNCE saklanmış taslak (adım 2 = faaliyet alanı).
+      open(1, {
+        mainCategoryIds: ["46000000", "31000000"],
+        subCategoryIds: ["46180000", "46181500", "31160000"],
+      });
+      const props = h.pickerProps.mock.calls.at(-1)![0];
+      expect(props.value).toEqual({ mainIds: ["31000000"], subIds: ["31160000"] });
+    });
+
+    it("yalnız gizli sektör taşıyan taslak kategorisiz açılır (kayıt 'kategori zorunlu' ile güncel seçim ister)", () => {
+      open(1, { mainCategoryIds: ["46000000"], subCategoryIds: ["46180000", "46181500"] });
+      expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: [], subIds: [] });
     });
   });
 

@@ -12,6 +12,8 @@ const h = vi.hoisted(() => ({
   user: { firstName: "Ada", permissions: ["sell:product:manage", "sell:bid:submit"] } as Record<string, unknown>,
   company: { name: "Örnek Ltd." } as Record<string, unknown>,
   push: vi.fn(),
+  /** Varsayılan açık talep satırlarına eklenen satırlar (sektör önerisi sınamaları). */
+  extraTenders: [] as unknown[],
 }));
 
 vi.mock("@/hooks/use-company-auth", () => ({
@@ -93,6 +95,7 @@ vi.mock("@/hooks/use-seller-tenders", () => ({
       { id: "t3", number: "ROT-000003", title: "Eski", status: "AWARDED", owner: { id: "c2", name: "Alıcı B" }, ownerCountry: null, categories: [] },
       // Ücretsiz üyenin alıcı gizli satırı (2026-10-03): ad yok, iç kimlik yok.
       { id: "masked:ROT-000004", masked: true, number: "ROT-000004", title: "Kablo makarası alımı", status: "OPEN", owner: null, ownerCountry: "TR", categories: [] },
+      ...h.extraTenders,
     ],
     isLoading: false,
   }),
@@ -126,6 +129,7 @@ beforeEach(() => {
   h.search = "";
   h.user = { firstName: "Ada", permissions: ["sell:product:manage", "sell:bid:submit"] };
   h.company = { name: "Örnek Ltd." };
+  h.extraTenders = [];
   try {
     sessionStorage.clear();
   } catch {
@@ -163,10 +167,10 @@ describe("SatisDashboardView", () => {
   it("arama kutusu ilk ekranda açık talepleri arar; sektör çipleri ve fotoğraflı sektör kartları YOK (2026-09-05)", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
-    // Başlık iki satır (2026-09-08): "Hangi talebe" + portal renginde
-    // "teklif vereceksiniz?"; erişilebilir ad ikisini birleştirir.
+    // Başlık 2026-10-08'de değişti (kullanıcı kararı): soru kipi kalktı →
+    // "Yeni siparişler bulun"; tek renk (2026-09-17), sayfanın tek h1'i.
     expect(
-      screen.getByRole("heading", { name: /Hangi talebe/ }),
+      screen.getByRole("heading", { level: 1, name: "Yeni siparişler bulun" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("search")).toHaveAttribute("action", "/company/satis");
     expect(screen.queryByRole("navigation", { name: "Talep olan sektörler" })).toBeNull();
@@ -186,7 +190,10 @@ describe("SatisDashboardView", () => {
     const at = (s: string) => html.indexOf(s);
     expect(at("portal-discovery")).toBe(-1);
     expect(at("action-strip")).toBe(-1);
-    expect(at("Hangi talebe teklif")).toBeLessThan(at("seller-tenders"));
+    // Başlık metni HTML'de VAR olmalı: bulunamayan dize -1 döner ve aşağıdaki
+    // sıra karşılaştırmasını yanlış sebeple yeşil bırakırdı.
+    expect(at("Yeni siparişler bulun")).toBeGreaterThanOrEqual(0);
+    expect(at("Yeni siparişler bulun")).toBeLessThan(at("seller-tenders"));
     expect(at("seller-tenders")).toBeLessThan(at("Ürün ekle"));
     // Profil/Ürünler sağlık kartları kaldırıldı (2026-09-09).
     expect(screen.queryByText(/Profili tamamla/)).toBeNull();
@@ -251,6 +258,26 @@ describe("SatisDashboardView", () => {
     const opt = screen.getByRole("option", { name: /Kablo makarası alımı/ });
     expect(opt).toHaveAttribute("href", "/company/satis/acik-talep/ROT-000004");
     expect(opt).toHaveTextContent("Alıcı gizli");
+  });
+
+  // 2026-10-09 (sahip kararı; arayüz denetimi W-13): gizli sektör (46 =
+  // kolluk/emniyet) sektör listesinde yok → adı bulunamayıp HAM KODLA
+  // ("46000000 · 1 açık talep") öneriliyor, bağlantısı da listeyi gizli sektöre
+  // süzüyordu. "46" yazmak (ör. 46 numaralı talebi aramak) bunu tetikliyordu.
+  it("öneride 'Sektörler': gizli sektör ne adıyla ne ham koduyla önerilir; görünür sektör önerilir", () => {
+    h.extraTenders = [
+      { id: "t46", number: "ROT-000046", title: "Eldiven alımı", status: "OPEN", owner: { id: "c3", name: "Alıcı C" }, ownerCountry: "TR", categories: [{ code: "46181500", name: "Koruyucu giysi" }] },
+      { id: "t39", number: "ROT-000039", title: "Şalter alımı", status: "OPEN", owner: { id: "c3", name: "Alıcı C" }, ownerCountry: "TR", categories: [{ code: "39121600", name: "Devre kesiciler" }] },
+    ];
+    render(<SatisDashboardView />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "46" } });
+    // Talebin kendisi (numarasıyla) bulunur; gizli sektör önerisi YOK.
+    expect(screen.getByRole("option", { name: /Eldiven alımı/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /46000000/ })).toBeNull();
+    expect(document.querySelector('a[href*="kategori=46000000"]')).toBeNull();
+    // Görünür sektör adıyla önerilir ve o sektöre süzer.
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Elektrik" } });
+    expect(screen.getByRole("option", { name: /Elektrik/ })).toHaveAttribute("href", "/company/satis?kategori=39000000#acik-talepler");
   });
 
   it("AI sonucu: açık taleplere gider, bant kategori çipinde uygulanan SEGMENT'in adını yazar (arayüz testi D-276)", async () => {

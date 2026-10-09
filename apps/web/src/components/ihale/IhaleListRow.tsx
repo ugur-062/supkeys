@@ -11,6 +11,8 @@ import { ScopeChip } from "@/components/tenders/scope-chip";
 import { Star } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
+import { visibleCategoryIds } from "@rothern/shared";
+import { visibleRowCategories } from "@/lib/visible-categories";
 
 /**
  * Yoğun SATIR görünümü — referans tasarım uyarlaması. Veri sözleşmesi:
@@ -177,13 +179,18 @@ export function IhaleListRow({
     !!t.bidsCloseAt &&
     (daysUntil(t.bidsCloseAt) ?? 99) < 3;
 
+  // Gizli segmentteki kategori (2026-10-09) talebin SAHİBİNE de gösterilmez:
+  // sütun, ipucu, "+N" ve açılır özetin "Kategori" satırı yalnız görünürleri
+  // yazar; görünür kategorisi kalmayan talep "—" gösterir.
+  const { categories, extraCount } = visibleRowCategories(t.categories, t.extraCategoryCount);
+
   const data: ListingCardData = {
     id: t.id,
     href: detailHref,
     number: t.tenderNumber,
     title: t.title,
     kind: "talep",
-    categoryIds: t.categoryIds,
+    categoryIds: visibleCategoryIds(t.categoryIds),
     status: { label: tr(`status.${st.key}`), className: st.box },
     strip: st.strip,
     timeNote: expiredNote(t.status, t.bidsCloseAt),
@@ -285,14 +292,14 @@ export function IhaleListRow({
         label: tr("kategori"),
         icon: "category",
         value:
-          t.categories.length > 0 ? (
-            <span title={t.categories.map((c) => c.name).join(", ")}>
+          categories.length > 0 ? (
+            <span title={categories.map((c) => c.name).join(", ")}>
               <span className="block truncate font-medium text-slate-700">
-                {t.categories[0]!.name}
+                {categories[0]!.name}
               </span>
-              {t.categories.length + t.extraCategoryCount > 1 ? (
+              {categories.length + extraCount > 1 ? (
                 <span className="block text-[11px] leading-tight text-slate-600">
-                  {tr("artiNKategori", { n: t.categories.length + t.extraCategoryCount - 1 })}
+                  {tr("artiNKategori", { n: categories.length + extraCount - 1 })}
                 </span>
               ) : null}
             </span>
@@ -326,8 +333,8 @@ export function IhaleListRow({
                 [tr("gorunurluk"), scopeLabel(t.targetCountries ?? [])],
                 [
                   tr("kategori"),
-                  t.categories.length
-                    ? `${t.categories.map((c) => c.name).join(", ")}${t.extraCategoryCount > 0 ? ` +${t.extraCategoryCount}` : ""}`
+                  categories.length
+                    ? `${categories.map((c) => c.name).join(", ")}${extraCount > 0 ? ` +${extraCount}` : ""}`
                     : "—",
                 ],
               ] as const

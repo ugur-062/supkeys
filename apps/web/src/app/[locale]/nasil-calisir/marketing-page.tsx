@@ -762,14 +762,20 @@ export default function HomePage() {
               {t("hero.badge")}
             </span>
           </div>
-          <h1 className="text-5xl font-bold tracking-tight text-balance sm:text-7xl">
+          {/* 360 px altında 40 px: en uzun tek sözcük (RU "продавайте.") 320 px'lik
+              ekranda 48 px ile metin sütununu 20 px aşıyordu. */}
+          <h1 className="text-[2.5rem]/[1] font-bold tracking-tight text-balance min-[360px]:text-5xl sm:text-7xl">
+            {/* 2026-10-08, kullanıcı: "hem al hem sat siyah olsun, 'Tek platformda'
+                daha ince yazılsın" — ilk satır tek renk (mavi / yeşil vurgu kalktı),
+                ikinci satır ince ağırlıkta. Katalogdaki <buy>/<sell> etiketleri
+                durur (çeviriler bozulmasın), yalnız renksiz çizilir. */}
             <span className="block text-zinc-950">
               {t.rich("hero.title1", {
-                buy: (chunks) => <span className="text-blue-600">{chunks}</span>,
-                sell: (chunks) => <span className="text-emerald-600">{chunks}</span>,
+                buy: (chunks) => <>{chunks}</>,
+                sell: (chunks) => <>{chunks}</>,
               })}
             </span>
-            <span className="block text-zinc-950">{t("hero.title2")}</span>
+            <span className="block font-light text-zinc-950">{t("hero.title2")}</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-pretty text-zinc-600 sm:text-xl/8">
             {t("hero.lead")}

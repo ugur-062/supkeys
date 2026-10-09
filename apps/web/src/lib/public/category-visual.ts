@@ -80,6 +80,7 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import { visibleCategoryIds } from "@rothern/shared";
 
 export type CategoryTone =
   | "amber"
@@ -156,7 +157,7 @@ const SEGMENTS: Record<string, SegmentVisual> = {
   "73": { icon: Factory, tone: "teal" }, // Endüstriyel üretim hizmetleri
   "76": { icon: Scissors, tone: "teal" }, // Endüstriyel temizlik hizmetleri
   "77": { icon: Recycle, tone: "teal" }, // Çevre hizmetleri
-  "78": { icon: Truck, tone: "teal" }, // Taşıma, depolama, posta
+  "78": { icon: Truck, tone: "teal" }, // Lojistik (taşıma, depolama, posta)
   "80": { icon: Briefcase, tone: "teal" }, // Profesyonel ve idari hizmetler
   "81": { icon: Ruler, tone: "teal" }, // Teknoloji ve mühendislik hizmetleri
   "82": { icon: Paintbrush, tone: "teal" }, // Kreatif hizmetler
@@ -178,9 +179,15 @@ const FALLBACK: SegmentVisual = { icon: Package, tone: "zinc" };
  *
  * En SPESİFİK koda değil, ilk kodun SEGMENTİNE bakar: bir ilan birden çok
  * kategori taşıyabilir ama görseli tek; ilk kod sahibin birincil seçimidir.
+ *
+ * GİZLİ SEGMENT (2026-10-09): gizli segmentin altındaki kod YOK sayılır —
+ * görselsiz eski ürün o segmentin ikonuyla (kalkan, geri dönüşüm…) çizilirse
+ * gizlediğimiz kategoriyi resimle söylemiş oluruz. İlk GÖRÜNÜR kod kazanır;
+ * hiç yoksa nötr yedek. Eşleme tablosu 58 segmentin tamamını tutmaya devam
+ * eder (katalog birebir; gizleme `HIDDEN_SEGMENTS`ten çıkarılınca geri gelir).
  */
 export function categoryVisual(codes: string[] | undefined): SegmentVisual {
-  const first = (codes ?? []).find((c) => /^\d{8}$/.test(c));
+  const first = visibleCategoryIds(codes).find((c) => /^\d{8}$/.test(c));
   if (!first) return FALLBACK;
   return SEGMENTS[first.slice(0, 2)] ?? FALLBACK;
 }

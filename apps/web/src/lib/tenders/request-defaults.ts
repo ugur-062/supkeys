@@ -1,4 +1,4 @@
-import { PAYMENT_CATEGORIES, REQUEST_DEFAULTS_FALLBACK, type RequestDefaults } from "@rothern/shared";
+import { PAYMENT_CATEGORIES, REQUEST_DEFAULTS_FALLBACK, visibleCategoryIds, type RequestDefaults } from "@rothern/shared";
 import { toLocalInput } from "./map-detail-to-form";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "./form-schema";
 
@@ -69,6 +69,26 @@ export function applyRequestDefaults(base: TenderFormData, d: RequestDefaults | 
  */
 export type QuickSeedKind = "blank" | "edit" | "seed";
 
+/**
+ * FORMA GİRİŞTE GİZLİ KATEGORİ DÜŞER (2026-10-09, sahip kararı: "anasayfada
+ * olmayan kategori talepte de gösterilmesin"). Tohum nereden gelirse gelsin
+ * (düzenleme, kopya, şablon, ürün, AI taslağı, oturum taslağı) gizli segmentin
+ * altındaki kod çip olarak çizilmez ve yeni talebe ön-seçili gelmez; görünür
+ * kategorisi kalmayan formda şemanın "kategori zorunlu" kuralı güncel bir
+ * kategori ister. Eşleyiciler (`mapDetailToForm`, `mapProductToForm`) aynı
+ * süzgeci uygular; burası tek geçiş noktası (şablon yükü eşleyiciden geçmez).
+ *
+ * İSTİSNA — YAYINDAKİ talebin düzenlemesi: kategorisiz açılan formda kategori
+ * zorunlu DEĞİLDİR (`QuickRequest` `categoryOptional`, şema `categoryRequired:
+ * false`). Değişmeyen eski değer ilgisiz bir düzenlemeyi engellemez; taslağın
+ * yayını ve yeni talep kategori ister.
+ */
+export function withVisibleCategories<T extends { categoryIds?: string[] }>(values: T): T {
+  if (!values.categoryIds) return values;
+  const visible = visibleCategoryIds(values.categoryIds);
+  return visible.length === values.categoryIds.length ? values : { ...values, categoryIds: visible };
+}
+
 const PAYMENT_DETAIL_KEYS = ["paymentDays", "advancePercent", "lcType"] as const;
 
 export function initialRequestFormValues(
@@ -77,10 +97,10 @@ export function initialRequestFormValues(
   d: RequestDefaults | null,
   now = new Date(),
 ): TenderFormData {
-  if (kind === "edit") return { ...DEFAULT_FORM_VALUES, ...seed };
-  const withDefaults = applyRequestDefaults({ ...DEFAULT_FORM_VALUES, ...seed }, d, now);
+  if (kind === "edit") return withVisibleCategories({ ...DEFAULT_FORM_VALUES, ...seed });
+  const withDefaults = withVisibleCategories(applyRequestDefaults({ ...DEFAULT_FORM_VALUES, ...seed }, d, now));
   if (kind === "blank" || !seed) return withDefaults;
-  const out: TenderFormData = { ...withDefaults, ...seed };
+  const out: TenderFormData = withVisibleCategories({ ...withDefaults, ...seed });
   if ("paymentCategory" in seed) {
     for (const k of PAYMENT_DETAIL_KEYS) (out as Record<string, unknown>)[k] = seed[k];
   }

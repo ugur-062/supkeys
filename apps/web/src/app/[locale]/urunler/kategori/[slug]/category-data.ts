@@ -22,7 +22,7 @@ export interface SegmentLanding {
  * listesinden (gizli segmentler zaten yok), sayı ürün liste ucunun `total`ından
  * (şehir/ülke sayfasıyla aynı kural; `ProductIndex`in ilk sayfa isteğiyle aynı
  * adres → veri önbelleği paylaşılır). Ürünü olmayan segment → null (sayfa 404;
- * 29 segmentin boşu için sayfa üretmek ince içerik).
+ * 27 görünür segmentin boşu için sayfa üretmek ince içerik).
  */
 export async function resolveSegmentLanding(code: string): Promise<SegmentLanding | null> {
   if (!isSegmentCode(code) || isHiddenCategory(code)) return null;

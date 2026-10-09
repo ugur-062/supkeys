@@ -1,5 +1,5 @@
 import { LOCALE_LABELS, LOCALES, localizedCountrySlug, type Locale } from "@rothern/i18n";
-import { countryProductPath } from "@rothern/shared";
+import { countryProductPath, isHiddenCategory } from "@rothern/shared";
 import { localizePath } from "@/i18n/href";
 import { OPERATOR } from "@/lib/company-info";
 import { cityProductPath } from "@/lib/public/city";
@@ -138,7 +138,8 @@ export function buildLlmsFullTxt(locale: Locale, t: SeoT, data: LlmsFullData): s
     parts.push(`## ${k("hInventory")}`, "", ...inv, "", k("generatedAt", { date: data.today ?? new Date().toISOString().slice(0, 10) }), "");
   }
 
-  const cats = data.facets.categories.filter((c) => c.count > 0).slice(0, 30);
+  // Gizli segment kategori listesine girmez (2026-10-09; sayfası 404, adı gösterilmez).
+  const cats = data.facets.categories.filter((c) => c.count > 0 && !isHiddenCategory(c.id)).slice(0, 30);
   if (cats.length) {
     parts.push(`## ${k("hCategories")}`, "");
     for (const c of cats) parts.push(`- [${c.name}](${url(categoryHref(c), locale)}) — ${count(c.count)}`);

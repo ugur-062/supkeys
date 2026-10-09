@@ -412,6 +412,63 @@ describe("CompanyProfileSection", () => {
     });
   });
 
+  /**
+   * GİZLİ SEKTÖR (2026-10-09, sahip kararı; arayüz denetimi W-10): sektör
+   * gizlenmeden önce kaydedilmiş beyan (46 = kolluk/emniyet, 77 = çevre
+   * hizmetleri) forma HİÇ girmez. Dokunulmayan eksen gönderilmez (depoda kalır,
+   * eşleştirme kullanmayı sürdürür); dokunulan eksen yalnız görünür kodlarla
+   * yazılır → gizliler o kayıtta düşer.
+   */
+  const legacyProfile = () =>
+    baseProfile({
+      buyerCategoryIds: ["46000000", "39000000"],
+      buyerSubCategoryIds: ["46180000", "46181500", "39120000", "39121000"],
+      sellerCategoryIds: ["77000000"],
+      sellerSubCategoryIds: ["77100000", "77101500"],
+    });
+
+  it("gizli sektör kodu seçicilere verilmez; form açılışta kirli değildir", () => {
+    h.profile = legacyProfile();
+    render(<CompanyProfileSection />);
+    expect(h.pickers[BUY]!.value).toEqual({ mainIds: ["39000000"], subIds: ["39120000", "39121000"] });
+    // Yalnız gizli beyanı olan eksen boş durumla açılır.
+    expect(h.pickers[SELL]!.value).toEqual({ mainIds: [], subIds: [] });
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("başka alan kaydedilirken gizli beyan DOKUNULMAZ: kategori anahtarı gövdeye girmez (ilgisiz düzenleme engellenmez)", async () => {
+    h.profile = legacyProfile();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    await user.clear(screen.getByLabelText("İl"));
+    await user.type(screen.getByLabelText("İl"), "Ankara");
+    expect(screen.queryByTestId(`hata-${BUY}`)).not.toBeInTheDocument();
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({ city: "Ankara" });
+  });
+
+  it("dokunulan eksen yalnız görünür kodlarla yazılır (gizliler o kayıtta düşer); öteki eksen gönderilmez", async () => {
+    h.profile = legacyProfile();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    pick(BUY, { mainIds: ["39000000", "40000000"], subIds: ["39120000", "39121000"] });
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({ buyerCategoryIds: ["39000000", "40000000"] });
+  });
+
+  it("görünen son beyan da kaldırılırsa 'boş olamaz' hatası çıkar — gizli beyan firmayı kategorili saydırmaz", async () => {
+    h.profile = legacyProfile();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    pick(BUY, { mainIds: [], subIds: [] });
+    for (const label of [BUY, SELL]) expect(screen.getByTestId(`hata-${label}`)).toHaveTextContent(CATEGORY_ERROR);
+    expect(saveButton()).toBeDisabled();
+    await user.click(saveButton());
+    expect(h.update).not.toHaveBeenCalled();
+  });
+
   it("Vazgeç boş beyan hatasını da geri alır", async () => {
     h.profile = withCategories();
     const user = userEvent.setup();

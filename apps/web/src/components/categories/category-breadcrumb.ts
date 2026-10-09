@@ -2,7 +2,7 @@
  * Yol metninin ("P. Üretim Bileşenleri › Hırdavat › Somunlar") başındaki
  * segment harfini atar.
  *
- * Harfler Ariba'nın iç segment kodudur; 29 segment gizlendiği için aralıklı
+ * Harfler Ariba'nın iç segment kodudur; 31 segment gizlendiği için aralıklı
  * görünür ("B.", "C." … "AN.", "BF.") ve kullanıcıya bir şey söylemez
  * (2026-10 kayıt denetimi). Yol metni çip ipucunda ve tek seçimli başlıkta
  * gösterildiğinden burada, tek yerde temizlenir. Yalnız "1-2 BÜYÜK Latin harf

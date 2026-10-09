@@ -71,3 +71,80 @@ describe("CategorySelectorButton — seçim çipleri", () => {
     expect(screen.queryByRole("button", { name: "Yeniden dene" })).toBeNull();
   });
 });
+
+/**
+ * GİZLİ SEGMENT + ÇÖZÜLEMEYEN KİMLİK (2026-10-09, arayüz denetimi W-09/W-11).
+ * Eski kayıttaki gizli kategori (46 = kolluk/emniyet, 10 = canlı bitki) alanın
+ * değerinde durabilir; alan onu ne adıyla ne koduyla ne de "…" çipiyle çizer.
+ */
+describe("CategorySelectorButton — gizli segment kodu ve satırı olmayan kimlik", () => {
+  it("yalnız gizli kod taşıyan değer BOŞ durumla açılır; çip, kod ve '…' yok; nedeni söylenir", () => {
+    // Güncel API gizli kodu hiç döndürmez (kanca da sormaz) → cevap yok.
+    h.byIds = { data: undefined };
+    render(<CategorySelectorButton value={["46181500"]} onChange={() => {}} mode="single" placeholder="Ürün kategorisini seçin" />);
+    expect(screen.getByRole("button", { name: /Ürün kategorisini seçin/ })).toBeInTheDocument();
+    expect(screen.queryByText("…")).toBeNull();
+    expect(screen.queryByText(/46181500/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /kategorisini kaldır/ })).toBeNull();
+    // Alan neden boş: kategorinin adını anmadan.
+    expect(screen.getByText("Önceki kategori artık kullanılmıyor. Lütfen güncel bir kategori seçin.")).toBeInTheDocument();
+  });
+
+  it("eski API gizli kodun adını döndürse de çip çizilmez", () => {
+    h.byIds = {
+      data: [
+        { id: "39121300", nameTr: LONG, breadcrumb: "" },
+        { id: "10151500", nameTr: "Tohumlar ve fideler", breadcrumb: "" },
+      ],
+    };
+    render(<CategorySelectorButton value={["10151500", "39121300"]} onChange={() => {}} />);
+    expect(screen.getByText(LONG)).toBeInTheDocument();
+    expect(screen.queryByText(/Tohumlar|10151500/)).toBeNull();
+    expect(screen.getAllByRole("button", { name: /kategorisini kaldır/ })).toHaveLength(1);
+  });
+
+  it("görünür çip kaldırılınca dönen değerde gizli kod KALMAZ", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    h.byIds = {
+      data: [
+        { id: "39121300", nameTr: LONG, breadcrumb: "" },
+        { id: "39121600", nameTr: "Devre kesiciler", breadcrumb: "" },
+      ],
+    };
+    render(<CategorySelectorButton value={["46181500", "39121300", "39121600"]} onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: "Devre kesiciler kategorisini kaldır" }));
+    expect(onChange).toHaveBeenCalledWith(["39121300"]);
+  });
+
+  it("ad cevabı geldiği hâlde satırı olmayan kimlik çizilmez — '…' asılı kalmaz", () => {
+    h.byIds = { data: [{ id: "39121300", nameTr: LONG, breadcrumb: "" }] };
+    render(<CategorySelectorButton value={["39121300", "39129999"]} onChange={() => {}} />);
+    expect(screen.getByText(LONG)).toBeInTheDocument();
+    expect(screen.queryByText("…")).toBeNull();
+    expect(screen.queryByText("39129999")).toBeNull();
+  });
+
+  it("cevap önceki seçimin (placeholder) ise yeni eklenen kimlik '…' ile bekler — kaybolmaz", () => {
+    h.byIds = { data: [{ id: "39121300", nameTr: LONG, breadcrumb: "" }], isPlaceholderData: true } as typeof h.byIds;
+    render(<CategorySelectorButton value={["39121300", "39121600"]} onChange={() => {}} />);
+    expect(screen.getByText(LONG)).toBeInTheDocument();
+    expect(screen.getByText("…")).toBeInTheDocument();
+  });
+
+  it("görünür değerde 'önceki kategori' notu çizilmez", () => {
+    render(<CategorySelectorButton value={["39121300"]} onChange={() => {}} />);
+    expect(screen.queryByText(/Önceki kategori artık kullanılmıyor/)).toBeNull();
+  });
+
+  // Gözden geçirme R-WEB-01: talep formu gizli kodu değere HİÇ koymaz (tohumda
+  // düşer) → alan boş açılır ve `value`dan nedenini bilemez; çağıran söyler.
+  it("çağıran işaret verirse (retiredHint) değer boşken de not çizilir; işaret yoksa çizilmez", () => {
+    h.byIds = { data: undefined };
+    const view = render(<CategorySelectorButton value={[]} onChange={() => {}} retiredHint placeholder="Kategori seçin (en fazla 3)" />);
+    expect(screen.getByRole("button", { name: /Kategori seçin \(en fazla 3\)/ })).toBeInTheDocument();
+    expect(screen.getByText("Önceki kategori artık kullanılmıyor. Lütfen güncel bir kategori seçin.")).toBeInTheDocument();
+    view.rerender(<CategorySelectorButton value={[]} onChange={() => {}} placeholder="Kategori seçin (en fazla 3)" />);
+    expect(screen.queryByText(/Önceki kategori artık kullanılmıyor/)).toBeNull();
+  });
+});

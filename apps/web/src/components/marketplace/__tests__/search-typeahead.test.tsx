@@ -65,6 +65,26 @@ describe("SearchTypeahead", () => {
     expect(screen.getAllByText("Elektrik A.Ş.").length).toBeGreaterThan(0);
   });
 
+  // 2026-10-09 (sahip kararı): arama kutusu kataloğu SUNAN yüzeydir — gizli
+  // segmentteki kategori (API önerisinde gelse bile) öneri satırı olmaz.
+  it("gizli segmentteki kategori önerilmez; görünür kategori önerilir", async () => {
+    h.suggest.mockResolvedValue({
+      ...RESULT,
+      categories: [
+        { id: "46181500", name: "Koruyucu giysi", level: 3 },
+        { id: "39120000", name: "Panolar", level: 2 },
+        { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları", level: 1, slug: "kolluk-ve-emniyet-ekipmanlari" },
+      ],
+    });
+    const u = userEvent.setup();
+    const { container } = render(<SearchTypeahead />);
+    await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "pano");
+    expect(await screen.findByText("Panolar")).toBeTruthy();
+    expect(screen.queryByText(/Koruyucu giysi|Kolluk/)).toBeNull();
+    expect(container.querySelector('a[href*="46000000"]')).toBeNull();
+    expect(container.querySelector('a[href*="kategori=46"]')).toBeNull();
+  });
+
   it("↑↓ ile gezinir, Enter seçili öneriye gider", async () => {
     const u = userEvent.setup();
     render(<SearchTypeahead />);

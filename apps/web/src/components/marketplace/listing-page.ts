@@ -1,3 +1,4 @@
+import { visibleCategoryIds } from "@rothern/shared";
 import {
   listingHref,
   parseListingNumber,
@@ -39,4 +40,19 @@ export async function resolveListingPage(
     return { kind: "redirect", to: canonical };
   }
   return { kind: "ok", listing };
+}
+
+/**
+ * "Benzer açık talepler" bloğunun süzüleceği SEGMENT (L1) — talebin ilk
+ * GÖRÜNÜR kategori kodundan; yoksa `null` (blok hiç çizilmez).
+ *
+ * Gizli segment (2026-10-09): gizli kod liste sorgusunda "kategori süzgeci
+ * verilmemiş" sayılır (API kuralı), yani gizli segmentteki eski talebin
+ * sayfasında blok ilgisiz en yeni talepleri "benzer" diye gösterirdi — ve
+ * sorgu adresinde gizli kod dolaşırdı. Görünür kategorisi olmayan talepte
+ * benzerlik ölçütü yoktur; uydurmak yerine blok açılmaz.
+ */
+export function similarListingsSegment(categoryIds: readonly string[] | null | undefined): string | null {
+  const code = visibleCategoryIds(categoryIds).find((c) => /^\d{8}$/.test(c));
+  return code ? `${code.slice(0, 2)}000000` : null;
 }

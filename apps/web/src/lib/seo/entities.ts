@@ -17,6 +17,7 @@ import {
   ogCardPath,
   readyLocalesOf,
 } from "@/lib/seo/meta";
+import { visibleCategoryRef, visibleCategoryRefs } from "@/lib/visible-categories";
 import type { Metadata } from "next";
 
 /**
@@ -210,6 +211,12 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
   const locale = opts.locale ?? DEFAULT_LOCALE;
   const ts = opts.t;
   const { product: pr, company: co, companySlug } = input;
+  // Gizli segmentteki kategori (2026-10-09) tanım cümlesine, `Product.category`
+  // alanına ve kırıntıya YAZILMAZ: sayfada göstermediğimiz adı tarayıcıya ve
+  // yapay zekâ modeline makine-okunur biçimde vermek kuralı delerdi. Ürün
+  // sayfası durur; cümle kategorisiz kurulur (`joinParts` boşu atar).
+  const category = visibleCategoryRef(pr.category);
+  const segment = visibleCategoryRef(pr.segment);
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
   const url = absoluteUrl(localizePath(path, locale));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
@@ -221,7 +228,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
      cevabında tek başına anlamlı olmalı — "ürün sayfası" demek yetmez. */
   const summary = joinParts(
     [
-      joinParts([pr.name, pr.category?.name], " — "),
+      joinParts([pr.name, category?.name], " — "),
       where ? ts("web.seo.inShowcaseOf", { where }) : null,
       priceSentence(pr, locale, ts, unit),
       minOrder,
@@ -265,7 +272,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
     url,
     description: pr.description ?? summary,
     image: images,
-    ...(pr.category?.name ? { category: pr.category.name } : {}),
+    ...(category?.name ? { category: category.name } : {}),
     ...(pr.brand ? { brand: { "@type": "Brand", name: pr.brand } } : {}),
     ...(pr.mpn ? { mpn: pr.mpn } : {}),
     ...(pr.keywords?.length ? { keywords: pr.keywords.join(", ") } : {}),
@@ -318,7 +325,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
           { name: ts("web.marketplace.labels.products"), path: MARKETPLACE_ROUTES.products },
           // Kırıntı SEGMENT açılış sayfasına (2026-09-27): L3 kodu süzgeç
           // adresine düşüyordu (`/en/products?kategori=…`, kanoniği dizin).
-          ...(pr.segment ? [{ name: pr.segment.name, path: categoryHref(pr.segment) }] : []),
+          ...(segment ? [{ name: segment.name, path: categoryHref(segment) }] : []),
           { name: co.name, path: `/firma/${companySlug}` },
           { name: pr.name, path },
         ], locale),
@@ -437,6 +444,9 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   const image = c.coverImageUrl ? toAbs(c.coverImageUrl) : logo;
   const companyId = entityId.company(c.slug);
   const title = companyTitle(c.name, c.industry, provinceDisplayName(c.city, locale));
+  // `knowsAbout` yalnız GÖRÜNÜR segmentleri sayar (2026-10-09): gizli segmentte
+  // eski beyanı olan firmanın o sektörü profilde çizilmez, şemaya da yazılmaz.
+  const knowsAbout = visibleCategoryRefs(c.categories).map((k) => k.name);
 
   const orgNode = compact({
     "@type": "Organization",
@@ -450,7 +460,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
     /* `employeeCount` bir ARALIK ("11-50") — sayı değil. Şemaya sayı gibi
        yazmak yanlış veri olurdu; `QuantitativeValue.name` metni taşır. */
     ...(c.employeeCount ? { numberOfEmployees: { "@type": "QuantitativeValue", name: c.employeeCount } } : {}),
-    ...(c.categories.length ? { knowsAbout: c.categories.map((k) => k.name) } : {}),
+    ...(knowsAbout.length ? { knowsAbout } : {}),
     ...(c.certifications?.length ? { hasCredential: c.certifications } : {}),
     ...(httpUrls([c.website, c.linkedinUrl]).length ? { sameAs: httpUrls([c.website, c.linkedinUrl]) } : {}),
     /* Adres: ülke yalnız ISO kodu varsa (eskiden yoksa "TR" UYDURULUYORDU).
@@ -609,7 +619,9 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   const ts = opts.t;
   const path = listingHref(l);
   const url = absoluteUrl(localizePath(path, locale));
-  const cat = l.categories[0]?.name ?? null;
+  // İlk GÖRÜNÜR kategori (2026-10-09): gizli segmentteki ad açıklamaya, özete
+  // ve `Demand.seeks.category` alanına girmez; hiç yoksa üçü de kategorisiz.
+  const cat = visibleCategoryRefs(l.categories)[0]?.name ?? null;
   const unit = l.itemSummary.unit ? unitLabelWith(ts, l.itemSummary.unit) : null;
   // Çoğul kuralı + sayı biçimi (derin denetim S094): tekil etiketi yapıştırmak
   // EN/RU'da "1500 piece" basıyordu. JSON-LD `unitText` tekil etiket kalır.

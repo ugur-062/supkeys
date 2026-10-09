@@ -9,11 +9,13 @@ import {
   deepestCategoryPicks,
   expandCompanyCategorySelection,
   removeCategoryBranch,
+  visibleCategoryIds,
 } from "@rothern/shared";
 import { Layers, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useCategoriesByIds, useRoots } from "@/hooks/use-categories";
+import { resolvedCategoryIds } from "@/lib/visible-categories";
 import { plainBreadcrumb } from "./category-breadcrumb";
 import { sameIdSet } from "./category-dialog-shell";
 import { LoadError } from "./category-load-error";
@@ -129,6 +131,16 @@ function kayitliSirayla(
  * edilenler + diğer seçimlerin sektörleri) ve sektör ALTINDA en fazla
  * `MAX_COMPANY_SUB_PICKS` seçim. Pencere ikisini ayrı sayaçla gösterir ve
  * aşacak işareti reddeder; `dogrula` onay anındaki son denetimdir.
+ *
+ * GİZLİ SEKTÖR (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
+ * yerde de gösterilmesin"): sektör gizlenmeden önce kaydedilmiş beyan kodu
+ * (`HIDDEN_SEGMENTS`) bu bileşende YOK SAYILIR — kartı çizilmez, pencereye
+ * gitmez, sektör/seçim tavanına sayılmaz, adı sorulmaz. Seçici dokunulan
+ * ekseni gördüğünden yeniden kurduğu için o eksen kaydedilince gizli kodlar
+ * depodan da düşer (API aynı kuralı uygular). Dokunulmayan eksen gönderilmez;
+ * eşleştirme o zamana dek kayıtlı kodları kullanmayı sürdürür. Yalnız gizli
+ * kodu olan beyan boş durumla açılır. (2026-10-08'e dek gizli sektörün adı
+ * `by-ids` yedeğinden okunup kart olarak çiziliyordu.)
  */
 export function CompanyCategoryPicker({
   value,
@@ -148,26 +160,24 @@ export function CompanyCategoryPicker({
   // Sektör listesi düşerse ad `by-ids` yedeğinden okunur (aşağıda), pencere de
   // hatayı kendi içinde çizer → genel toast ve 429'da otomatik tekrar yok.
   const { data: segments } = useRoots({ inlineError: true });
+  /** Beyanın GÖRÜNÜR kısmı — bileşenin geri kalanı yalnız bunu okur (bkz. başlık notu). */
+  const mainIds = useMemo(() => visibleCategoryIds(value.mainIds), [value.mainIds]);
+  const subIds = useMemo(() => visibleCategoryIds(value.subIds), [value.subIds]);
   /**
    * Depoda ata zinciri de duruyor (L2+L3+L4). Ekranda yalnız KULLANICININ
    * seçtikleri çizilir — türetilmiş üst seviyeler ayrı çip olsaydı tek seçim
    * üç çipe dönüşür ve 50'lik tavan anlamsızlaşırdı. Zincir, çipin
    * breadcrumb'ında zaten okunuyor.
    */
-  const secilenler = useMemo(
-    () => deepestCategoryPicks(value.subIds),
-    [value.subIds],
-  );
+  const secilenler = useMemo(() => deepestCategoryPicks(subIds), [subIds]);
   /**
    * Adlar TEK istekle: seçimler + sektörlerin kendisi. Sektör adı önce
-   * `segments`ten okunur; ama o liste GİZLİ sektörleri (`HIDDEN_SEGMENTS`)
-   * taşımaz — sektör gizlenmeden önce kaydedilmiş bir beyanın kartı ham kodla
-   * ("56000000") başlıklanıyordu. `by-ids` gizli süzgeci uygulamaz, ad oradan
-   * gelir. Aynı istek sektör listesi yüklenirken/düşmüşken de adı verir.
+   * `segments`ten okunur; aynı istek sektör listesi yüklenirken/düşmüşken de
+   * adı verir. Gizli sektörün kodu burada yoktur (yukarıda düştü).
    */
   const adIds = useMemo(
-    () => [...new Set([...secilenler, ...value.mainIds])],
-    [secilenler, value.mainIds],
+    () => [...new Set([...secilenler, ...mainIds])],
+    [secilenler, mainIds],
   );
   const adlar = useCategoriesByIds(adIds, { inlineError: true });
   const subCats = adlar.data;
@@ -182,12 +192,18 @@ export function CompanyCategoryPicker({
     () => new Map((subCats ?? []).map((c) => [c.id, c])),
     [subCats],
   );
-  /** Adı henüz gelmemiş kod: yükleniyorsa "…", istek bittiyse/düştüyse KOD. */
-  const adYedegi = (id: string) => {
-    const bekliyor =
-      !adlarHata && (subCats === undefined || !!adlar.isPlaceholderData);
-    return bekliyor ? "…" : id;
-  };
+  /** Ad isteği yolda: cevap yok ya da eldeki cevap önceki seçimin (placeholder). */
+  const adlarBekliyor =
+    !adlarHata && (subCats === undefined || !!adlar.isPlaceholderData);
+  /** Adı henüz gelmemiş kod: yükleniyorsa "…", istek düştüyse KOD. */
+  const adYedegi = (id: string) => (adlarBekliyor ? "…" : id);
+  /**
+   * Ad cevabı GELDİYSE satırı olmayan seçim çizilmez (katalogda artık olmayan
+   * kod): "…" çipi sonsuza dek asılı kalmasın, ham kod da basılmasın. Cevap
+   * yoksa (yükleniyor / düştü) hepsi yerinde — "…" ya da kod + "Yeniden dene".
+   */
+  const cizilenSecimler = (ids: string[]) =>
+    adlarBekliyor || adlarHata ? ids : resolvedCategoryIds(ids, subCats);
 
   const segmentAdlari = useMemo(
     () => new Map((segments ?? []).map((s) => [s.id, s.nameTr])),
@@ -208,7 +224,7 @@ export function CompanyCategoryPicker({
    */
   const gruplar = useMemo(() => {
     const map = new Map<string, string[]>();
-    for (const id of value.mainIds) map.set(id, []);
+    for (const id of mainIds) map.set(id, []);
     for (const id of secilenler) {
       const seg = categorySegment(id);
       if (!seg) continue;
@@ -216,7 +232,7 @@ export function CompanyCategoryPicker({
       map.get(seg)!.push(id);
     }
     return [...map.entries()];
-  }, [value.mainIds, secilenler]);
+  }, [mainIds, secilenler]);
 
   /**
    * Pencereye giden seçim kümesi — kartlarla AYNI içerik ve sıra: sektörün
@@ -227,7 +243,8 @@ export function CompanyCategoryPicker({
     [gruplar],
   );
 
-  const bos = value.mainIds.length === 0 && value.subIds.length === 0;
+  // Yalnız gizli sektör kodu taşıyan eski beyan da BOŞ durumdur.
+  const bos = mainIds.length === 0 && subIds.length === 0;
 
   /**
    * Bir seçim/sektör kaldırılınca düğmesi DOM'dan gider ve odak <body>'ye
@@ -265,8 +282,8 @@ export function CompanyCategoryPicker({
   const genislet = (ids: readonly string[]): CompanyCategoryValue => {
     const sonraki = expandCompanyCategorySelection(ids);
     return {
-      mainIds: kayitliSirayla(value.mainIds, sonraki.mainIds),
-      subIds: kayitliSirayla(value.subIds, sonraki.subIds),
+      mainIds: kayitliSirayla(mainIds, sonraki.mainIds),
+      subIds: kayitliSirayla(subIds, sonraki.subIds),
     };
   };
 
@@ -321,8 +338,8 @@ export function CompanyCategoryPicker({
   const segmentSil = (seg: string, klavyeyle: boolean) => {
     odakGeriAl.current = klavyeyle;
     onChange({
-      mainIds: value.mainIds.filter((x) => x !== seg),
-      subIds: removeCategoryBranch(value.subIds, seg),
+      mainIds: mainIds.filter((x) => x !== seg),
+      subIds: removeCategoryBranch(subIds, seg),
     });
   };
 
@@ -378,6 +395,12 @@ export function CompanyCategoryPicker({
         <ul className="space-y-2">
           {gruplar.map(([seg, secimler]) => {
             const segAd = segmentAdiBilinen(seg);
+            const cizilen = cizilenSecimler(secimler);
+            // Çizilecek hiçbir şeyi kalmayan kart açılmaz: bütün seçimleri
+            // katalogdan düşmüş sektör ya da adı hiçbir kaynaktan çözülemeyen
+            // (katalogda olmayan) sektör kodu — başlıksız/ham kodlu kutu yok.
+            const cozuldu = !adlarBekliyor && !adlarHata;
+            if (secimler.length > 0 ? cizilen.length === 0 : cozuldu && !segAd) return null;
             return (
               <li
                 key={seg}
@@ -408,7 +431,7 @@ export function CompanyCategoryPicker({
                 </div>
                 {secimler.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {secimler.map((id) => {
+                    {cizilen.map((id) => {
                       const c = adById.get(id);
                       const ad = c?.nameTr ?? null;
                       // Breadcrumb: zincirin tamamı burada okunuyor, ayrı çipe

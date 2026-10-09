@@ -2,6 +2,7 @@ import { isCompanyActivity, isCurrencyCode, isEmployeeBucketKey, isRadiusOption 
 import type { ProductFacetParams, ProductListParams } from "./marketplace-api";
 import {
   capJoinedList,
+  categoryParam,
   cityListParam,
   getAllParams as getAll,
   getParam as get,
@@ -120,7 +121,8 @@ export function parseProductFilters(
   const moqMax = capped(num(get(sp, "moqMax")), PRICE_LIMIT);
   return {
     q: get(sp, "q")?.trim().slice(0, SEARCH_MAX_LENGTH).trim() || undefined,
-    category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
+    // Gizli segment kodu süzgeç yokmuş gibi okunur (`categoryParam`).
+    category: categoryParam(cat),
     cities: cityListParam(get(sp, "sehir") ?? get(sp, "il")),
     countries: list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
     // Tekrar düşer: `?faaliyet=` içinde on kez aynı kod birleşik değeri API'nin

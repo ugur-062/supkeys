@@ -32,6 +32,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useState, type ReactNode } from "react";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * Durum rengi Catalyst `Badge` paletinden. Marka monokrom (globals.css
@@ -459,8 +460,9 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
   const fmt = useFormatter();
   const state = publicState(listing.status);
   const href = listingHref(listing);
-  const primaryCategory =
-    listing.categories.find((c) => c.level >= 3) ?? listing.categories[0];
+  // Gizli segmentteki kategori adı karta basılmaz (2026-10-09).
+  const categories = visibleCategoryRefs(listing.categories);
+  const primaryCategory = categories.find((c) => c.level >= 3) ?? categories[0];
 
   return (
     <Link

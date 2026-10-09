@@ -10,7 +10,7 @@ import { SellerTendersView } from "@/components/company/seller-tenders-view";
 import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
 import { aiSearchAccess, intentToRequestQuery } from "@/lib/company/ai-search";
 import { segmentOf } from "@/lib/company/request-filter-params";
-import { foldSearchText, type AiSearchIntentResult } from "@rothern/shared";
+import { foldSearchText, isHiddenCategory, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "@/i18n/navigation";
 import { PackagePlus } from "lucide-react";
 import { SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
@@ -59,7 +59,14 @@ export function SatisDashboardView() {
     const m = new Map<string, number>();
     for (const row of tenders.data ?? []) {
       if (row.status !== "OPEN") continue;
-      for (const seg of rowSegments(row)) m.set(seg, (m.get(seg) ?? 0) + 1);
+      for (const seg of rowSegments(row)) {
+        // Gizli sektör ÖNERİLMEZ (2026-10-09; kenar süzgecindeki sayaçla aynı
+        // kural — `request-facets`): adı sektör listesinde olmadığından ham
+        // kodla ("46000000 · 2 açık talep") öneriliyor, bağlantısı da listeyi
+        // gizli sektöre süzüyordu. Satırlar kancadan süzülü gelir; ikinci kat.
+        if (isHiddenCategory(seg)) continue;
+        m.set(seg, (m.get(seg) ?? 0) + 1);
+      }
     }
     return [...m.entries()]
       .map(([id, count]) => ({ id, name: segments.data?.find((sg) => sg.id === id)?.nameTr ?? id, count }))

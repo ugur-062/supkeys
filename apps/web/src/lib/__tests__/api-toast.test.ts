@@ -12,6 +12,12 @@ vi.mock("sonner", () => ({ toast: { error: h.error } }));
 vi.mock("@/i18n/runtime", () => ({ runtimeLocale: () => "tr", tRuntime: (k: string) => k }));
 
 import { api } from "../api";
+import {
+  registerServiceProbe,
+  resetServiceHealthForTests,
+  subscribeServiceHealth,
+  suspectServiceOutage,
+} from "../company-auth/service-health";
 
 type Rejected = (e: AxiosError) => Promise<never>;
 const rejected = (): Rejected =>
@@ -24,7 +30,10 @@ function err(status: number, config: Record<string, unknown> = {}): AxiosError {
   } as unknown as AxiosError;
 }
 
-beforeEach(() => h.error.mockReset());
+beforeEach(() => {
+  h.error.mockReset();
+  resetServiceHealthForTests();
+});
 
 describe("public api hata toast'ı", () => {
   it("varsayılan: tek-kayıt 404 ve 5xx toast verir", async () => {
@@ -39,5 +48,24 @@ describe("public api hata toast'ı", () => {
     await expect(rejected()(err(500, { skipErrorToast: true }))).rejects.toBeDefined();
     await expect(rejected()(err(400, { skipErrorToast: true }))).rejects.toBeDefined();
     expect(h.error).not.toHaveBeenCalled();
+  });
+});
+
+describe("public api — yanıtsız istek ve panelin kesinti notu (canlı doğrulama OUT-3)", () => {
+  const noResponse = (): AxiosError =>
+    ({ config: { url: "/categories/segments", headers: {} }, message: "Network Error" }) as unknown as AxiosError;
+
+  it("not yokken (herkese açık sayfa dahil) bağlantı toast'ı çıkar", async () => {
+    await expect(rejected()(noResponse())).rejects.toBeDefined();
+    expect(h.error).toHaveBeenCalledWith("common.errors.network");
+  });
+
+  it("panel 'Sunucuya ulaşılamıyor' derken ikinci bir uyarı basılmaz", async () => {
+    const off = subscribeServiceHealth(() => {});
+    registerServiceProbe(() => Promise.reject(new Error("down")));
+    await expect(suspectServiceOutage()).resolves.toBe(true);
+    await expect(rejected()(noResponse())).rejects.toBeDefined();
+    expect(h.error).not.toHaveBeenCalled();
+    off();
   });
 });

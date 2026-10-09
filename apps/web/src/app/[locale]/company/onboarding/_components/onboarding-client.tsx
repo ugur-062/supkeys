@@ -45,6 +45,7 @@ import {
   provinceDisplayName,
   registrationCountries,
   taxIdLabelKey,
+  visibleCategoryIds,
 } from "@rothern/shared";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
@@ -331,14 +332,17 @@ export function settleTypedLegalForm<F extends LegalFormFields>(f: F): F {
  * `CompanyCategoryPicker`ın kart gruplamasının (`gruplar`) AYNASIDIR — biri
  * değişirse diğeri de. Eskiden özet sektörleri katalog sırasıyla ve işaretsiz
  * yazıyor, tamamı beyan edilen sektör "Ürün ve Hizmetler: —" olarak görünüyordu.
+ *
+ * Gizli segment kodu (2026-10-09; eski taslaktan kalmış olabilir) seçicide
+ * çizilmediği gibi özete de GİRMEZ — aynı süzgeç (`visibleCategoryIds`).
  */
 export function categoryDeclarationGroups(
   mainIds: readonly string[],
   subIds: readonly string[],
 ): { sector: string; picks: string[] }[] {
   const groups = new Map<string, string[]>();
-  for (const id of mainIds) groups.set(id, []);
-  for (const id of deepestCategoryPicks(subIds)) {
+  for (const id of visibleCategoryIds(mainIds)) groups.set(id, []);
+  for (const id of deepestCategoryPicks(visibleCategoryIds(subIds))) {
     const sector = categorySegment(id);
     if (!sector) continue;
     if (!groups.has(sector)) groups.set(sector, []);
@@ -634,6 +638,11 @@ export function OnboardingClient() {
       return sanitizeLegalForm({
         ...s,
         country,
+        // Taslak, sektör gizlenmeden ÖNCE saklanmış olabilir (2026-10-09):
+        // gizli segment kodu forma geri gelmez — seçici onu çizmez, kayıt da
+        // kabul etmez; görünür seçim kalmadıysa "kategori zorunlu" kuralı sorar.
+        mainCategoryIds: visibleCategoryIds(s.mainCategoryIds),
+        subCategoryIds: visibleCategoryIds(s.subCategoryIds),
         legalName: s.legalName || invite?.companyName || "",
         website: s.website || invite?.website || "",
         city: s.city || prefillCity,
@@ -774,7 +783,7 @@ export function OnboardingClient() {
   );
   // Kullanıcının seçtiği ürün/hizmetler (ata zinciri değil) — ad isteğinin
   // anahtarı; özetteki sıra için bkz. `categoryGroups`.
-  const pickedIds = useMemo(() => deepestCategoryPicks(f.subCategoryIds), [f.subCategoryIds]);
+  const pickedIds = useMemo(() => deepestCategoryPicks(visibleCategoryIds(f.subCategoryIds)), [f.subCategoryIds]);
   // Adlar seçiciyle (`CompanyCategoryPicker`) AYNI id listesi ve AYNI seçenekle
   // istenir: seçimler + sektörler, `inlineError`. Yalnız o zaman sorgu anahtarı
   // ortaktır ve ek istek gitmez. Eskiden yalnız seçimler soruluyordu — anahtar
@@ -782,7 +791,7 @@ export function OnboardingClient() {
   // varsayılan seçeneklerle çıkıyordu (429'da üç otomatik tekrar, 5xx'te genel
   // toast; kayıt denetimi 2026-10 webcat-5).
   const categoryNameIds = useMemo(
-    () => [...new Set([...pickedIds, ...f.mainCategoryIds])],
+    () => [...new Set([...pickedIds, ...visibleCategoryIds(f.mainCategoryIds)])],
     [pickedIds, f.mainCategoryIds],
   );
   const pickedCats = useCategoriesByIds(categoryNameIds, { inlineError: true });
@@ -1371,13 +1380,14 @@ export function OnboardingClient() {
                 <FieldError message={fieldError("taxOffice")} />
               </Field>
             ) : null}
-            {/* WEB SİTESİ — ZORUNLU DEĞİL, TEŞVİKLİ (2026-09-15, kullanıcı
-                kararı). Zorunlu tutmak, sitesi olmayan ama 20 ürün yükleyecek
-                imalatçıyı kapıda elerdi — bizim için o firma sitesi olup hiç
-                ürün eklemeyenden daha değerli. Bedel kapıda değil sonuçta:
-                giren firmanın profilini AI dolduruyor, girmeyen elle yazana
-                kadar arama eşiğini geçemiyor. Yazıldıysa bir web adresi
-                olmalı (`isAcceptableWebsite`). */}
+            {/* WEB SİTESİ — ZORUNLU DEĞİL (2026-09-15, kullanıcı kararı).
+                Zorunlu tutmak, sitesi olmayan ama 20 ürün yükleyecek imalatçıyı
+                kapıda elerdi — bizim için o firma sitesi olup hiç ürün
+                eklemeyenden daha değerli. Adres yalnız profilde gösterilir:
+                "sitenizden AI ile dolduruyoruz" vaadi 2026-10-08'de kalktı
+                (AI siteyi okumaz; tanıtımı ürünlerden ve firma bilgilerinden
+                Profilim'de yazar). Yazıldıysa bir web adresi olmalı
+                (`isAcceptableWebsite`). */}
             <Field data-field="website">
               <Label>{t("website")}</Label>
               <Input
@@ -1388,7 +1398,7 @@ export function OnboardingClient() {
                 onChange={(e) => set("website")(e.target.value)}
               />
               <FieldError message={fieldError("website")} />
-              <p className="mt-1 text-xs text-zinc-500">{t.rich("websiteHint", { b })}</p>
+              <p className="mt-1 text-xs text-zinc-500">{t("websiteHint")}</p>
             </Field>
             {isTR ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -4,7 +4,7 @@ import { MissingFields } from "@/components/ui/missing-fields";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
 import { useShowcaseItems } from "@/hooks/use-company-items";
-import { EMPLOYEE_BUCKET_LABELS, categorySegment, deepestCategoryPicks } from "@rothern/shared";
+import { EMPLOYEE_BUCKET_LABELS, categorySegment, deepestCategoryPicks, visibleCategoryIds } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { profileCompleteness, type ProfileCompletenessKey } from "@/lib/company/profile-completeness";
 import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
@@ -24,6 +24,7 @@ import {
   tierAtLeast,
 } from "@rothern/shared";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { accessiblePortals } from "@/lib/company/portals";
 import { Link } from "@/i18n/navigation";
@@ -45,12 +46,18 @@ import {
   type CompanyProfileUpdate,
 } from "@/hooks/use-company-profile";
 import { companyApi } from "@/lib/company-auth/api";
+import {
+  clearProfileAboutDraft,
+  readProfileAboutDraft,
+  saveProfileAboutDraft,
+  type ProfileAboutAiResult,
+} from "@/lib/company/profile-about-draft";
 import { PROFILE_IMAGE_LIMITS, resizeImageFile } from "@/lib/image-resize";
 import { clampLinkInput, linkInputMaxLength, safeExternalUrl } from "@/lib/safe-url";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { Camera, GripVertical, ImagePlus, Loader2, Pencil, Plus, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const IMG_MIME = ["image/jpeg", "image/png", "image/webp"];
@@ -150,15 +157,72 @@ export function ProfileEditor({
   const dirty = useMemo(() => !same(draft, saved), [draft, saved]);
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
-  // Kaydedilmemiş değişiklikle sayfadan ayrılma uyarısı.
+  /**
+   * "HAKKINDA" TASLAĞI SAYFADAN ÇIKINCA KAYBOLMAZ (canlı doğrulama PD-01).
+   *
+   * Aşağıdaki koruma bağlantı tıklamasını, yenilemeyi ve sekme kapatmayı sorar;
+   * tarayıcının Geri düğmesini, dil değişimini ve bildirim tıklamasını sormaz.
+   * O çıkışlarda AI taslağı — harcanan denemeyle birlikte — siliniyordu. Ortak
+   * kanca DEĞİŞMEDİ; taslak sürekli `sessionStorage`a yazılır (kullanıcıya bağlı
+   * anahtar, `lib/company/profile-about-draft.ts`) ve Profilim yeniden açılınca
+   * geri yüklenir: kaydet çubuğu açık, kutunun altında tek satır not.
+   *
+   * Sonuç notu (ürünsüz yazıldı, kalan hak, "Önceki metne dön") da BURADA
+   * yaşar ve taslakla birlikte saklanır: eskiden `AboutEditor`ın yerel
+   * durumuydu ve Vazgeç kutuyu boşaltınca not altında kalıyordu (PD-05).
+   *
+   * NOT TASLAKLA YAŞAR, TASLAKLA GİDER (gözden geçirme REV-1): `aboutResult`
+   * yalnız anlattığı AI taslağı kutuda KAYDEDİLMEMİŞ dururken vardır. Taslağın
+   * kutudan çıktığı HER yol notu da siler — yalnız Vazgeç değil:
+   *  - metin kayıtlı hâline döndü (elle silme / geri yazma, "Önceki metne dön",
+   *    Kaydet, başka sekmede kayıt) → aşağıdaki tek kural;
+   *  - "Önceki metne dön" kaydedilmemiş bir metne döndü → `onUndo`.
+   * Eskiden yalnız Vazgeç siliyordu: "Önceki metne dön"den ya da kutuyu elle
+   * boşalttıktan sonra "…taslak yalnız firma bilgilerinizden yazıldı…" notu
+   * kayıtlı metnin / boş kutunun altında kalıyordu. Not bir kez gidince metin
+   * yeniden değişse de geri gelmez (kutudaki artık o taslak değildir).
+   */
+  const { user } = useCompanyAuth();
+  const userId = canEdit ? (user?.id ?? "") : "";
+  const [aboutResult, setAboutResult] = useState<ProfileAboutAiResult | null>(null);
+  const [aboutRestored, setAboutRestored] = useState(false);
+  // Depo bir kez OKUNMADAN yazılmaz/silinmez (ilk çizimde taslak = kayıtlı;
+  // yazma efekti saklanan taslağı okunmadan silerdi).
+  const [aboutStoreRead, setAboutStoreRead] = useState(false);
   useEffect(() => {
-    if (!dirty) return;
-    const h = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", h);
-    return () => window.removeEventListener("beforeunload", h);
-  }, [dirty]);
+    if (!userId || aboutStoreRead) return;
+    const stored = readProfileAboutDraft(userId, profile.id);
+    // Yalnız kutu KAYITLI metni gösterirken ve taslak ondan farklıyken: bu arada
+    // yazılmış metin ezilmez, kaydedilmiş metnin aynısı "taslak" sayılmaz
+    // (öyle bir kayıt aşağıdaki efektte silinir).
+    if (
+      stored &&
+      stored.text !== savedRef.current.aboutText &&
+      draftRef.current.aboutText === savedRef.current.aboutText
+    ) {
+      setDraft((d) => ({ ...d, aboutText: stored.text }));
+      setAboutResult(stored.result);
+      setAboutRestored(true);
+    }
+    setAboutStoreRead(true);
+  }, [userId, aboutStoreRead, profile.id]);
+  const aboutDirty = draft.aboutText !== saved.aboutText;
+  // Çizim sırasında durum düzeltme (efekt değil): not tek kare bile bayat
+  // çizilmez. Taslak ve notu HER ZAMAN aynı güncellemede yazılır (AI yanıtı,
+  // geri yükleme), bu yüzden taze not burada yanlışlıkla silinmez.
+  if (!aboutDirty && aboutResult) setAboutResult(null);
+  useEffect(() => {
+    if (!userId || !aboutStoreRead) return;
+    if (aboutDirty) saveProfileAboutDraft(userId, profile.id, { text: draft.aboutText, result: aboutResult });
+    else clearProfileAboutDraft(userId);
+  }, [userId, aboutStoreRead, profile.id, aboutDirty, draft.aboutText, aboutResult]);
+
+  // Kaydedilmemiş değişiklikle sayfadan ayrılma uyarısı — sekme kapatma VE
+  // uygulama içi bağlantı (ortak kanca; sayfada tek guard). Eskiden yalnız
+  // `beforeunload` vardı: AI tanıtım taslağı kaydedilmemiş editör durumudur
+  // (sunucu kopyasını tutmaz) ve hemen altındaki "Ürünleri yönet" bağlantısı
+  // sormadan gidip taslağı — ömürlük ve günlük haktan biriyle birlikte — siliyordu.
+  useUnsavedChangesGuard(dirty);
 
   /** Alan anahtarı → etiket: istemci ve sunucu hataları alan adıyla basılır (D-054). */
   const fieldLabels: Record<string, string> = {
@@ -231,12 +295,22 @@ export function ProfileEditor({
       if (Object.keys(body).length > 0) await update.mutateAsync(body);
       // Başarıda taslak = kayıtlı (çubuk hemen kapanır; refetch gelince de aynı kalır).
       setSaved(draft);
+      // Kaydedilen metin artık taslak değil: saklanan kopya ve "geri yüklendi" notu gider.
+      setAboutRestored(false);
+      clearProfileAboutDraft(userId);
       toast.success(t("profilKaydedildi"));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("kaydedilemedi"), fieldLabels));
     }
   };
-  const discard = () => setDraft(saved);
+  const discard = () => {
+    setDraft(saved);
+    // Taslakla birlikte notu da gider (PD-05: boş kutunun altında "taslak
+    // firma bilgilerinizden yazıldı" kalıyordu) ve saklanan kopya silinir.
+    setAboutResult(null);
+    setAboutRestored(false);
+    clearProfileAboutDraft(userId);
+  };
 
   /**
    * LOGO/KAPAK ANINDA KAYDEDİLİR (2026-09-15, kullanıcı: "profil fotoğrafı
@@ -283,7 +357,6 @@ export function ProfileEditor({
 
   const completeness = completenessOf(draft, profile);
   const seoEnrich = useAiSeoEnrich();
-  const { user } = useCompanyAuth();
   // AI güçlendirme = API `assertAiAccess`in aynası: paket (Silver+) VE koltuk
   // (herhangi bir işlem izni). Yönetici hazır seti işlem izni taşımaz → düğme
   // açık görünüp 403 veriyordu (arayüz testi O-105). Rol kontrolü paket
@@ -298,8 +371,10 @@ export function ProfileEditor({
   const findability = {
     about: !!draft.aboutText.trim(),
     industry: !!draft.industry.trim(),
+    // Yalnız GÖRÜNÜR beyan sayılır (2026-10-09): gizli segmentteki eski kod
+    // özet kartında çizilmez; "en az 1 kategori" de onu tamam saymaz.
     category:
-      (profile.sellerCategoryIds?.length ?? 0) + (profile.sellerSubCategoryIds?.length ?? 0) > 0,
+      visibleCategoryIds(profile.sellerCategoryIds).length + visibleCategoryIds(profile.sellerSubCategoryIds).length > 0,
   };
 
   if (!canEdit) {
@@ -426,10 +501,34 @@ export function ProfileEditor({
     about: (
       <AboutEditor
         value={draft.aboutText}
-        website={draft.website}
-        hasLogo={!!draft.logoUrl}
+        industry={draft.industry}
+        services={draft.services}
+        verified={profile.companyVerificationStatus === "VERIFIED"}
+        canSeeSales={canSeeSales}
         onChange={(aboutText) => set({ aboutText })}
-        onEnriched={(patch) => set(patch)}
+        result={aboutResult}
+        // Not yalnız kutu hâlâ kaydedilmemiş metni gösterirken: metin kayıtlı
+        // hâline döndüyse (elle ya da "Önceki metne dön") geri yüklenen taslak kalmamıştır.
+        restored={aboutRestored && aboutDirty}
+        onAiDraft={(aboutText, result) => {
+          set({ aboutText });
+          setAboutResult(result);
+          setAboutRestored(false);
+          // Yazım birkaç saniye sürer; yanıt kullanıcı sayfadan ÇIKTIKTAN sonra
+          // gelirse yukarıdaki güncellemeler boşa düşer ve saklama efekti
+          // çalışmaz. Deneme harcandı: taslak burada doğrudan da saklanır,
+          // dönüşte geri yüklenir.
+          if (aboutText !== saved.aboutText) {
+            saveProfileAboutDraft(userId, profile.id, { text: aboutText, result });
+          }
+        }}
+        onUndo={() => {
+          if (aboutResult?.previous == null) return;
+          set({ aboutText: aboutResult.previous });
+          // Taslak kutudan çıktı: notu da gider — dönülen metin kaydedilmemiş
+          // olsa bile (kutu hâlâ "kirli", ama içindeki artık AI taslağı değil).
+          setAboutResult(null);
+        }}
       />
     ),
     services: (
@@ -492,10 +591,10 @@ export function ProfileEditor({
               services: draft.services,
               certifications: draft.certifications,
               categoryCount:
-                (profile.buyerCategoryIds?.length ?? 0) +
-                (profile.sellerCategoryIds?.length ?? 0) +
-                (profile.buyerSubCategoryIds?.length ?? 0) +
-                (profile.sellerSubCategoryIds?.length ?? 0),
+                visibleCategoryIds(profile.buyerCategoryIds).length +
+                visibleCategoryIds(profile.sellerCategoryIds).length +
+                visibleCategoryIds(profile.buyerSubCategoryIds).length +
+                visibleCategoryIds(profile.sellerSubCategoryIds).length,
             })}
             snippet={snippetFromMetadata(
               companySeo({
@@ -947,141 +1046,259 @@ function LogoControls({ value, onSave }: { value: string; onSave: (url: string) 
   );
 }
 
+/**
+ * Kutunun büyüyebileceği en büyük yükseklik: görünür alanın %70'i, en az 240 px.
+ * Üstünde metin kutunun İÇİNDE kayar (2000 karakterlik elle yazılmış bir
+ * tanıtım sayfayı kutuya boğmasın).
+ */
+const ABOUT_MAX_VIEWPORT_RATIO = 0.7;
+const ABOUT_MAX_HEIGHT_FLOOR = 240;
+
+/**
+ * Kutuyu İÇERİĞİNE göre boyutlandırır (PD-06): 390 px'te ~260 karakterlik
+ * taslağın 9 satırından 5'i görünüyor, kullanıcı "kontrol edip kaydedin"
+ * denen metnin yarısını kutu içinde kaydırarak okuyordu. Alt sınır `rows`
+ * (5 satır: `height: auto` kutuyu ona indirir), üst sınır yukarıdaki tavan.
+ * Ölçülemeyen kutuya (gizli / jsdom: scrollHeight 0) dokunulmaz.
+ */
+function fitAboutBox(el: HTMLTextAreaElement): void {
+  // Ölçüm için kutu bir an 5 satıra iner. Sarmalayıcısının yüksekliği o an
+  // sabitlenmezse sayfa kısalır ve sonuna yakın kaydırılmış görünüm zıplar.
+  const wrap = el.parentElement;
+  if (wrap) wrap.style.minHeight = `${wrap.offsetHeight}px`;
+  el.style.height = "auto";
+  const content = el.scrollHeight;
+  if (content > 0) {
+    // scrollHeight kenarlığı saymaz; kutu `border-box` olduğu için eklenir.
+    const wanted = content + (el.offsetHeight - el.clientHeight);
+    const max = Math.max(ABOUT_MAX_HEIGHT_FLOOR, Math.round(window.innerHeight * ABOUT_MAX_VIEWPORT_RATIO));
+    el.style.height = `${Math.min(wanted, max)}px`;
+    el.style.overflowY = wanted > max ? "auto" : "hidden";
+  }
+  if (wrap) wrap.style.minHeight = "";
+}
+
+/**
+ * HAKKINDA KUTUSU + AI TANITIM ÖNERİSİ (sahip kararı 2026-10-08).
+ *
+ * AI artık web sitesini OKUMAZ ve yalnız tanıtım metnini yazar: firmanın
+ * platformdaki verisinden (vitrindeki ürünler, sektör, hizmetler, faaliyet
+ * tipi, kategoriler). Hizmet/yıl/sosyal bağlantı/logo alanlarına DOKUNMAZ,
+ * site adresi sormaz. Kutu BOŞKEN öneri açıkça teklif edilir (başlıklı kart +
+ * dolu düğme); doluyken aynı eylem sakin bir satırdır. Sonuç kutuya TASLAK
+ * olarak yazılır — kullanıcı düzenler ve Kaydet'e basar; yerine yazılan önceki
+ * metin "Önceki metne dön" ile geri gelir.
+ *
+ * Sektör ve hizmetler aynı taslakta düzenlendiği için GÖVDEDE gider: kullanıcı
+ * onları kaydetmeden "yaz" derse sunucu DB'deki eski değeri okurdu.
+ *
+ * Sonuç notunun durumu ÜST bileşende (`ProfileEditor`): taslakla birlikte
+ * saklanır / geri yüklenir (PD-01) ve taslak kutudan çıkınca — Vazgeç, Kaydet,
+ * "Önceki metne dön", metnin kayıtlı hâline dönmesi — onunla birlikte silinir
+ * (PD-05, REV-1).
+ */
 function AboutEditor({
   value,
-  website,
-  hasLogo,
+  industry,
+  services,
+  verified,
+  canSeeSales,
   onChange,
-  onEnriched,
+  result,
+  restored,
+  onAiDraft,
+  onUndo,
 }: {
   value: string;
-  website: string;
-  hasLogo: boolean;
+  industry: string;
+  services: string[];
+  verified: boolean;
+  canSeeSales: boolean;
   onChange: (v: string) => void;
-  onEnriched: (patch: Partial<Draft>) => void;
+  /** Son önerinin yan bilgisi: ürünsüz yazıldı mı, kalan hak, yerine yazılan metin. */
+  result: ProfileAboutAiResult | null;
+  /** Kutudaki metin önceki ziyaretten geri yüklenen kaydedilmemiş taslak mı. */
+  restored: boolean;
+  /** AI taslağı geldi: metin + sonuç notu birlikte. */
+  onAiDraft: (text: string, result: ProfileAboutAiResult) => void;
+  /** "Önceki metne dön". */
+  onUndo: () => void;
 }) {
   const t = useTranslations("web.panel.company.profileEditor");
-  const [enriching, setEnriching] = useState(false);
-  const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
-  /**
-   * SİTE SORMA KUTUSU — düğme artık kendi kendine yeter (2026-09-14, kullanıcı:
-   * "web sitesi girme yeri en aşağıda, o tuşu yukarı alalım; tıklandığında
-   * girilmediyse sorsun").
-   *
-   * Eskiden düğme site boşken PASİFTİ ve ipucu "önce künyeye girin" diyordu —
-   * künye ise sayfanın en altındaydı. Kullanıcı düğmeyi görüyor, neden
-   * çalışmadığını anlamıyor, alanı aramaya gidiyordu. Artık düğme her zaman
-   * basılabilir: site varsa ANINDA başlar, yoksa buradan ister.
-   */
-  const [siteSoruluyor, setSiteSoruluyor] = useState(false);
-  const [siteTaslak, setSiteTaslak] = useState("");
-  const enrich = async (siteOverride?: string) => {
-    if (enriching) return;
-    const site = (siteOverride ?? website).trim();
-    if (!site) {
-      setSiteSoruluyor(true);
-      return;
-    }
-    setSiteSoruluyor(false);
-    setEnriching(true);
+  const [writing, setWriting] = useState(false);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  // Yanıt sayfadan çıkıldıktan sonra gelirse "taslak hazır" bildirimi başka
+  // sayfada çıkmasın (taslak yine saklanır ve dönüşte geri yüklenir).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  // Kutu içeriğiyle büyür (PD-06): metin her değiştiğinde (AI taslağı, geri
+  // yükleme, yazım, Vazgeç) ve satır kırılımını değiştiren genişlik / görünür
+  // alan değişiminde yeniden ölçülür.
+  useLayoutEffect(() => {
+    if (boxRef.current) fitAboutBox(boxRef.current);
+  }, [value]);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const refit = () => fitAboutBox(el);
+    window.addEventListener("resize", refit);
+    // Kutu genişliği pencere değişmeden de değişir (kenar çubuğu açılır/kapanır).
+    // Yalnız GENİŞLİK değişimi yeniden ölçtürür: yüksekliği biz değiştiriyoruz.
+    let width = el.clientWidth;
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            if (el.clientWidth === width) return;
+            width = el.clientWidth;
+            refit();
+          });
+    observer?.observe(el);
+    // Yazı tipi ilk ölçümden SONRA yüklenirse satır kırılımı değişir; kutu eski
+    // yükseklikte kalıp son satırı kırpmasın.
+    let active = true;
+    void document.fonts?.ready.then(() => {
+      if (active) refit();
+    });
+    return () => {
+      active = false;
+      window.removeEventListener("resize", refit);
+      observer?.disconnect();
+    };
+  }, []);
+  const empty = !value.trim();
+  const write = async () => {
+    if (writing) return;
+    setWriting(true);
     try {
       const { data } = await companyApi.post<{
         aboutText: string;
-        services: string[];
-        foundedYear: number | null;
-        linkedinUrl: string | null;
-        instagramUrl: string | null;
-        logoCandidateUrl: string | null;
+        productCount: number;
+        remainingSuggestions: number | null;
       }>(
         "/company/ai/profile-enrich",
-        // Adres GÖVDEDE gidiyor: kullanıcı buraya yeni yazdıysa henüz
-        // kaydedilmemiş olur ve sunucu DB'deki (boş) değeri okurdu.
-        { website: site },
-        { timeout: 90_000 },
+        {
+          industry: industry.trim().slice(0, LIMITS.industry),
+          services: services.map((x) => x.slice(0, COMPANY_SERVICE_MAX_LENGTH)).slice(0, COMPANY_SERVICES_MAX),
+        },
+        // Hata TEK toast'ta ve sunucunun metniyle (hak doldu / günlük sınır / AI
+        // şu an yanıt veremedi): interceptor ayrıca basarsa 5xx'te iki farklı
+        // metin çıkıyordu (arayüz testi D-255).
+        { timeout: 90_000, skipErrorToast: true },
       );
-      onEnriched({
-        aboutText: data.aboutText,
-        ...(data.services.length > 0 ? { services: data.services } : {}),
-        ...(data.foundedYear ? { foundedYear: String(data.foundedYear) } : {}),
-        ...(data.linkedinUrl ? { linkedinUrl: data.linkedinUrl } : {}),
-        ...(data.instagramUrl ? { instagramUrl: data.instagramUrl } : {}),
+      onAiDraft(data.aboutText, {
+        productCount: data.productCount,
+        remaining: data.remainingSuggestions,
+        previous: value.trim() ? value : null,
       });
-      // Buradan girilen adres künyeye de işlenir — iki yerde ayrı kalmasın.
-      if (siteOverride?.trim()) onEnriched({ website: siteOverride.trim() });
-      setLogoCandidate(data.logoCandidateUrl);
-      toast.success(t("taslakHazirKontrolEdipKaydet"));
+      if (mountedRef.current) toast.success(t("taslakHazirKontrolEdipKaydet"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, t("aiProfilOlusturamadiWebSitenizi")));
+      toast.error(extractErrorMessage(err, t("aboutAi.failed")));
     } finally {
-      setEnriching(false);
+      setWriting(false);
     }
   };
+  const label = (
+    <>
+      {writing ? <Loader2 data-slot="icon" className="animate-spin" /> : <Sparkles data-slot="icon" />}
+      {writing ? t("aboutAi.writing") : empty ? t("aboutAi.write") : t("aboutAi.rewrite")}
+    </>
+  );
+  // Boş kutuda dolu (birincil) düğme, dolu kutuda çerçeveli (ikincil) düğme.
+  const button = empty ? (
+    <Button onClick={() => void write()} disabled={writing}>
+      {label}
+    </Button>
+  ) : (
+    <Button outline onClick={() => void write()} disabled={writing}>
+      {label}
+    </Button>
+  );
+  // Not satırları. Hiçbiri yoksa kap da çizilmez: ürünlü, tam erişimli firmada
+  // boş kutuya yazılan taslak BOŞ bir `role="status"` bırakıyordu (PD-05).
+  const undoable = result?.previous != null;
+  const noProducts = result?.productCount === 0;
+  const remaining = result?.remaining ?? null;
+  const hasNotes = restored || undoable || noProducts || remaining != null;
   return (
     <div className="space-y-2">
-      {/* AI BANDI METİN KUTUSUNUN ÜSTÜNDE: boş bir kutuya bakarken ilk görülmesi
-          gereken şey "elle yazın" değil "siteden doldurayım mı". */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
-        <p className="text-xs text-zinc-600">
-          {t.rich("webSiteniziOkuyupTaslakHazirlayalim", { strong: (chunks) => <strong>{chunks}</strong> })}
-        </p>
-        <Button outline onClick={() => void enrich()} disabled={enriching}>
-          {enriching ? <Loader2 data-slot="icon" className="animate-spin" /> : <Sparkles data-slot="icon" />}
-          {enriching ? t("sitenizOkunuyor") : t("webSitemdenAiIleDoldur")}
-        </Button>
-      </div>
-      {siteSoruluyor ? (
-        <div className="space-y-2 rounded-xl border border-zinc-300 bg-white px-3 py-3">
-          <label htmlFor="ai-site" className="block text-xs font-medium text-zinc-700">
-            {t("webSitenizinAdresi")}
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              id="ai-site"
-              autoFocus
-              value={siteTaslak}
-              placeholder={t("ornekfirmaCom")}
-              onChange={(e) => setSiteTaslak(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void enrich(siteTaslak);
-                }
-              }}
-            />
-            <Button onClick={() => void enrich(siteTaslak)} disabled={!siteTaslak.trim()}>
-              {t("devam")}
-            </Button>
-            <Button plain onClick={() => setSiteSoruluyor(false)}>
-              {t("vazgec")}
-            </Button>
+      {/* ÖNERİ METİN KUTUSUNUN ÜSTÜNDE: boş bir kutuya bakarken ilk görülmesi
+          gereken şey "elle yazın" değil "sizin için yazalım mı". */}
+      {empty ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3">
+          <div className="min-w-0 flex-1 basis-64">
+            <p className="text-sm font-semibold text-zinc-950">{t("aboutAi.offerTitle")}</p>
+            <p className="mt-0.5 text-xs text-zinc-600">{t("aboutAi.offerBody")}</p>
           </div>
-          <p className="text-xs text-zinc-500">
-            {t("adresKunyenizeDeKaydedilirSiteniz")}
-          </p>
+          {button}
         </div>
-      ) : null}
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+          <p className="min-w-0 flex-1 basis-64 text-xs text-zinc-600">{t("aboutAi.rewriteHint")}</p>
+          {button}
+        </div>
+      )}
       <Textarea
+        ref={boxRef}
         aria-label={t("hakkinda")}
         rows={5}
+        // Yükseklik içerikten gelir; elle boyutlandırma tutamağı onunla çekişirdi.
+        resizable={false}
         value={value}
         placeholder={t("firmaniziKisacaTanitinNeUretir")}
         maxLength={LIMITS.aboutText}
+        // Taslak yazılırken kutu kilitli: araya yazılan metin taslakla ezilip
+        // "Önceki metne dön"de de bulunmazdı.
+        disabled={writing}
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {/* Tavan DTO'yla aynı sabit (D-054). AI taslağı tavanı aşabilir (maxLength
-            yalnız yazmayı keser) → sayaç kırmızıya döner, Kaydet alan adıyla uyarır. */}
+        {/* Tavan DTO'yla aynı sabit (D-054); sayaç tavanı aşan metinde kırmızıya döner. */}
         <span
           className={cn("text-xs tabular-nums", value.length > LIMITS.aboutText ? "text-rose-700" : "text-zinc-500")}
         >
           {t("karakterSayaci", { n: value.length, max: LIMITS.aboutText })}
         </span>
       </div>
-      {logoCandidate && !hasLogo ? (
-        <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoCandidate} alt={t("sitenizdeBulunanGorsel")} className="h-9 w-9 rounded bg-white object-contain ring-1 ring-zinc-200" />
-          {t("sitenizdeBirLogoBuldukIndirip")}
+      {hasNotes ? (
+        <div role="status" className="space-y-1 text-xs text-zinc-600">
+          {restored ? <p className="font-medium text-zinc-800">{t("aboutAi.restored")}</p> : null}
+          {undoable ? (
+            <p>
+              {t("aboutAi.undoHint")}{" "}
+              <button
+                type="button"
+                className="font-semibold text-zinc-900 underline underline-offset-2"
+                onClick={onUndo}
+              >
+                {t("aboutAi.undo")}
+              </button>
+            </p>
+          ) : null}
+          {noProducts ? (
+            <p>
+              {t("aboutAi.noProducts")}{" "}
+              {canSeeSales ? (
+                <Link
+                  href="/company/satis/urunlerim"
+                  className="font-semibold text-zinc-900 underline underline-offset-2"
+                >
+                  {t("urunleriYonet")}
+                </Link>
+              ) : null}
+            </p>
+          ) : null}
+          {remaining != null ? (
+            <p>
+              {t("aboutAi.remaining", { n: remaining })}
+              {verified ? null : <> {t("aboutAi.remainingVerify")}</>}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -1301,8 +1518,8 @@ function completenessOf(d: Draft, p: CompanyProfile) {
   return profileCompleteness({
     ...d,
     city: p.city,
-    buyerCategoryIds: p.buyerCategoryIds,
-    sellerCategoryIds: p.sellerCategoryIds,
+    buyerCategoryIds: visibleCategoryIds(p.buyerCategoryIds),
+    sellerCategoryIds: visibleCategoryIds(p.sellerCategoryIds),
   });
 }
 
@@ -1318,7 +1535,12 @@ function MyProductsCard() {
   // sorgu): katalog ucunun varsayılanı kullanım sıralı ilk 50 satırdı; talep
   // kalemi çok olan firmada vitrin ürünleri o 50'ye girmiyor, başlık "(5)"
   // derken gövde "Yayında ürün yok" diyordu.
-  const { data, isLoading } = useShowcaseItems("", "published");
+  // YANIT GELMEDEN "YOK" DENMEZ (gözden geçirme REV-2 ile aynı kural): sayı ve
+  // "Yayında ürün yok" yalnız BAŞARILI yanıtta. İskelet `isPending`e bağlı —
+  // çevrimdışı cihazda sorgu duraklar (`isLoading` false, veri yok); liste
+  // okunamadıysa (kesinti) kart yalnız başlık + yönetim bağlantısıyla kalır.
+  // Eskiden iki durumda da "Ürünlerim (0)" + "Yayında ürün yok" çiziliyordu.
+  const { data, isPending } = useShowcaseItems("", "published");
   const first = data?.pages[0];
   const published = (first?.items ?? []).filter((i) => i.isPublic).slice(0, 3);
   const n = first?.counts?.published ?? published.length;
@@ -1326,7 +1548,7 @@ function MyProductsCard() {
     <section className="card p-6" aria-label={t("urunlerim")}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-zinc-900">
-          {isLoading ? t("urunlerim") : t("urunlerimSayili", { n })}
+          {first ? t("urunlerimSayili", { n }) : t("urunlerim")}
         </h2>
         <Link
           href="/company/satis/urunlerim"
@@ -1335,9 +1557,9 @@ function MyProductsCard() {
           {t("urunleriYonet")}
         </Link>
       </div>
-      {isLoading ? (
+      {isPending ? (
         <div className="mt-3 h-16 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
-      ) : published.length === 0 ? (
+      ) : !first ? null : published.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500">
           {t("yayindaUrunYokVitrineCikan")}
         </p>
@@ -1367,10 +1589,13 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
   // depoda ata zinciri de duruyor (segment + L2/L3); hepsi çip olsaydı tek
   // yaprak "(4)" ve dört çip görünürdü. Altında yaprağı olmayan ("Sektör
   // geneli") segmentler ayrıca eklenir.
+  // Gizli segmentteki eski beyan (2026-10-09) ne çip ne de "(n)" sayısına
+  // girer — sahibine de gösterilmez; yalnız gizli kodu olan firma "seçilmedi"
+  // görür ve Firma Bilgileri'nden güncel bir kategori seçer.
   const ids = useMemo(() => {
-    const leaves = deepestCategoryPicks(profile.sellerSubCategoryIds ?? []);
+    const leaves = deepestCategoryPicks(visibleCategoryIds(profile.sellerSubCategoryIds));
     const covered = new Set(leaves.map((id) => categorySegment(id)));
-    const bareSegments = (profile.sellerCategoryIds ?? []).filter((id) => !covered.has(id));
+    const bareSegments = visibleCategoryIds(profile.sellerCategoryIds).filter((id) => !covered.has(id));
     return [...bareSegments, ...leaves];
   }, [profile.sellerCategoryIds, profile.sellerSubCategoryIds]);
   const cats = useCategoriesByIds(ids);

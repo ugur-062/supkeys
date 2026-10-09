@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { CategoryCatalog } from "@rothern/shared";
+import { isHiddenCategory, visibleCategoryIds, type CategoryCatalog } from "@rothern/shared";
 import { api } from "@/lib/api";
 
 /**
@@ -295,27 +295,44 @@ export function useCategorySearchTree(
  * ve uzun süreli "yükleniyor" hissini önlemek için:
  *   - placeholderData: önceki cevap korunur, yeni fetch arka planda
  *   - gcTime: HOUR_MS — cache entry'leri çabuk düşmesin
+ *
+ * GİZLİ SEGMENT (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
+ * yerde de gösterilmesin"): gizli segmentin altındaki kod bu kancadan AD
+ * ALAMAZ — istek ona hiç sorulmaz (`visibleCategoryIds`) ve cevapta gelse de
+ * düşer (`select`; eski API ya da önbellekteki cevap). Yani eski bir kayıttaki
+ * gizli kod için DÖNEN SATIR YOKTUR; satırı olmayan kimliği çizen tüketici
+ * (çip, kırıntı, sayaç) onu hiç çizmemelidir — ham kod ya da bitmeyen
+ * "yükleniyor" çipi göstermek aynı kuralın ihlalidir. Yardımcı:
+ * `resolvedCategoryIds` (`@/lib/visible-categories`).
  */
 export function useCategoriesByIds(
   ids: string[],
   options: CategoryQueryOptions = {},
 ) {
-  const key = [...ids].sort().join(",");
+  const visible = visibleCategoryIds(ids);
+  const key = [...visible].sort().join(",");
   return useQuery<CategoryWithBreadcrumb[]>({
     queryKey: ["category-by-ids", key],
     queryFn: () => {
-      if (ids.length === 0) return Promise.resolve([]);
+      if (visible.length === 0) return Promise.resolve([]);
       return api
         .get("/categories/by-ids", {
-          params: { ids: ids.join(",") },
+          params: { ids: visible.join(",") },
           ...inlineErrorRequest(options.inlineError),
         })
         .then((r) => r.data);
     },
-    enabled: ids.length > 0,
+    enabled: visible.length > 0,
     staleTime: FIVE_MIN_MS,
     gcTime: HOUR_MS,
     placeholderData: (prev) => prev,
+    select: dropHiddenRows,
     ...inlineErrorQuery(options.inlineError),
   });
 }
+
+/** `select` kimliği sabit kalsın diye modül düzeyinde (her çizimde yeni işlev = her çizimde yeniden seçim). */
+function dropHiddenRows(rows: CategoryWithBreadcrumb[]): CategoryWithBreadcrumb[] {
+  return rows.some((r) => isHiddenCategory(r.id)) ? rows.filter((r) => !isHiddenCategory(r.id)) : rows;
+}
+

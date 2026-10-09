@@ -3,6 +3,16 @@ import { mapProductToForm } from "../map-product-to-form";
 
 const seed = { productName: "Bakır kablo", unit: "metre", categoryId: null, keywords: [], companyName: "Acme" };
 
+/** 2026-10-09 (W-11): gizli segmentteki eski ürünün kategorisi talebe ön-seçim olarak TAŞINMAZ. */
+describe("mapProductToForm — kategori ön-seçimi", () => {
+  it("görünür kategori ön-seçilir; gizli segmentteki kod taşınmaz (talep kategorisiz açılır)", () => {
+    expect(mapProductToForm({ ...seed, categoryId: "39121600" }).categoryIds).toEqual(["39121600"]);
+    expect(mapProductToForm({ ...seed, categoryId: "46181500" }).categoryIds).toEqual([]);
+    expect(mapProductToForm({ ...seed, categoryId: "10151500" }).categoryIds).toEqual([]);
+    expect(mapProductToForm(seed).categoryIds).toEqual([]);
+  });
+});
+
 /** Arayüz testi O-085: ürünün birimi ad + KOD olarak taşınır; çelişkili kayıt yok. */
 describe("mapProductToForm — birim", () => {
   it("birim metninden kanonik kod türetilir (metre → M), varsayılan PCE kalmaz", () => {

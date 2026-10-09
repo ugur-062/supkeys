@@ -20,6 +20,7 @@ import { VerificationButton } from "@/components/company/verification-gate";
 import { useMaskedTender, type MaskedTenderResponse } from "@/hooks/use-seller-tenders";
 import { cn } from "@/lib/utils";
 import { BuyerCountryScope, TargetScope } from "@/components/tenders/target-scope";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /** Satış anasayfasındaki Açık Talepler bölümü (geri bağlantı). */
 const BACK_HREF = "/company/satis#acik-talepler";
@@ -105,6 +106,8 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
   const urgency = closingUrgency(listing.status, listing.closesAt);
   // Alıcının ŞEHRİ değil, talebin açıldığı ÜLKE (2026-10-04, kullanıcı kararı).
   const buyerCountry = listing.company.country;
+  // Gizli segmentteki kategori çipi çizilmez (2026-10-09); hiç kalmadıysa satır açılmaz.
+  const categories = visibleCategoryRefs(listing.categories);
 
   const facts: { label: string; value: ReactNode }[] = [
     { label: t("talepNo"), value: listing.number },
@@ -132,9 +135,9 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
             {listing.title}
           </h1>
           <AutoTranslatedNote from={listing.translatedFrom} className="mt-2" />
-          {listing.categories.length > 0 ? (
+          {categories.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-2" aria-label={t("kategori")}>
-              {listing.categories.map((c) => (
+              {categories.map((c) => (
                 <li key={c.id} className="rounded-full bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
                   {c.name}
                 </li>

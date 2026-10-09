@@ -6,7 +6,23 @@ import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 import { readCsrfToken } from "../csrf";
 import { resolveApiBaseUrl } from "../resolve-api-url";
+import {
+  SERVICE_PROBE_TIMEOUT_MS,
+  isServiceFailure,
+  registerServiceProbe,
+  reportServiceReachable,
+  settleServiceRequest,
+  suspectServiceOutage,
+  trackServiceRequest,
+} from "./service-health";
 import { useCompanyAuthStore } from "./store";
+
+declare module "axios" {
+  interface AxiosRequestConfig {
+    /** Sağlık yoklaması (`service-health.ts`): kendi sonucu sinyal üretmez. */
+    serviceProbe?: boolean;
+  }
+}
 
 /**
  * Birleşik sistem — Company paneline ait axios instance. Oturum httpOnly
@@ -24,8 +40,25 @@ export const companyApi = axios.create({
 
 const MUTATING = new Set(["post", "put", "patch", "delete"]);
 
+/**
+ * SAĞLIK YOKLAMASI (canlı doğrulama OUT-1): panelin bir isteği kesinti belirtisi
+ * gösterince `service-health.ts` bunu TEK kez çağırır. Tek deneme, kısa zaman
+ * aşımı (genel 45 sn değil), toast yok; sonucu "ulaşılamıyor" notunu açar ya da
+ * açmaz. Oturum düşmüşse (401) aşağıdaki genel kural girişe yönlendirir.
+ */
+registerServiceProbe(() =>
+  companyApi.get("/company-auth/me", {
+    skipErrorToast: true,
+    serviceProbe: true,
+    timeout: SERVICE_PROBE_TIMEOUT_MS,
+  }),
+);
+
 companyApi.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
+    // Yanıtsızlık sayacı: istek ~6 sn yanıtsız kalırsa (uyuyan API bağlantıyı
+    // asılı tutar, hata saniyelerce gelmez) sağlık yoklaması tetiklenir.
+    if (!config.serviceProbe) trackServiceRequest(config);
     // İstek dili (i18n Faz 0): API hata/doğrulama metinlerini bu dilde döner.
     config.headers["Accept-Language"] = runtimeLocale();
     const method = (config.method ?? "get").toLowerCase();
@@ -52,13 +85,55 @@ function pickMessage(
   return fallback;
 }
 
+/**
+ * KESİNTİ BELİRTİSİ TOAST'I (canlı doğrulama OUT-3). Okuma (GET) hatasında toast
+ * sağlık kararını BEKLER: panelde "Sunucuya şu anda ulaşılamıyor" notu
+ * çıkacaksa (ya da zaten duruyorsa) aynı şeyi ikinci kez, notun üstünde
+ * söylemez. Mutasyonda hemen basılır — kullanıcının eylemi sessiz kalmasın
+ * (not sayfanın üstünde, uzun formda görüş alanının dışında olabilir).
+ */
+function toastUnlessOutage(
+  error: AxiosError<ApiErrorPayload>,
+  outage: Promise<boolean> | null,
+  message: () => string,
+): void {
+  const method = (error.config?.method ?? "get").toLowerCase();
+  if (!outage || MUTATING.has(method)) {
+    toast.error(message());
+    return;
+  }
+  void outage.then((down) => {
+    if (!down) toast.error(message());
+  });
+}
+
 companyApi.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (typeof window !== "undefined") {
+      settleServiceRequest(response.config);
+      // API yanıt verdi → ulaşılıyor ("ulaşılamıyor" notu açıksa kapanır).
+      reportServiceReachable();
+    }
+    return response;
+  },
   (error: AxiosError<ApiErrorPayload>) => {
     if (typeof window === "undefined") return Promise.reject(error);
+    settleServiceRequest(error.config);
+    // İptal edilen istek (sorgu `signal`i: panel kapandı, sayfa değişti) hata
+    // DEĞİL — eskiden "Bağlantı hatası" toast'ı atıyordu.
+    if (axios.isCancel(error)) return Promise.reject(error);
 
     const status = error.response?.status;
     const data = error.response?.data;
+
+    // SAĞLIK SİNYALİ: yanıtsız biten istek ya da 502 · 503 · 504 şüphe doğurur
+    // (tek `/me` yoklaması — sonucu `outage`); API'den gelen her başka yanıt
+    // (4xx, 500) "ulaşılıyor" demektir. Yoklamanın kendi hatası sinyal üretmez.
+    let outage: Promise<boolean> | null = null;
+    if (!error.config?.serviceProbe) {
+      if (isServiceFailure(error)) outage = suspectServiceOutage();
+      else reportServiceReachable();
+    }
 
     if (status === 401) {
       // Oturum sinyali artık `user` (cookie geçersizse /me 401 verir).
@@ -132,12 +207,13 @@ companyApi.interceptors.response.use(
     }
 
     if (status && status >= 500) {
-      toast.error(tRuntime("common.errors.server"));
+      // 502 · 503 · 504 kesinti belirtisidir (`outage` dolu); 500 hemen basılır.
+      toastUnlessOutage(error, outage, () => tRuntime("common.errors.server"));
       return Promise.reject(error);
     }
 
     if (!error.response) {
-      toast.error(tRuntime("common.errors.network"));
+      toastUnlessOutage(error, outage, () => tRuntime("common.errors.network"));
       return Promise.reject(error);
     }
 

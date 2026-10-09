@@ -35,7 +35,22 @@ describe("kategori görseli", () => {
   });
 
   it("ilk GEÇERLİ kodu kullanır, bozuk kodları atlar", () => {
-    expect(categoryVisual(["abc", "", "50000000"]).tone).toBe("rose");
+    expect(categoryVisual(["abc", "", "47000000"]).tone).toBe("rose");
+  });
+
+  // 2026-10-09: görselsiz eski ürün gizli segmentin ikonuyla (kalkan, fide…)
+  // çizilirse gizlediğimiz kategoriyi resimle söylemiş oluruz.
+  it("gizli segment kodu YOK sayılır: nötr yedek; listede görünür kod varsa o kazanır", () => {
+    const neutral = categoryVisual([]);
+    for (const hidden of ["46181500", "46000000", "10151500", "77101500", "50000000"]) {
+      expect(categoryVisual([hidden]), hidden).toEqual(neutral);
+    }
+    expect(categoryVisual(["46181500", "39122200"])).toEqual(categoryVisual(["39122200"]));
+  });
+
+  it("tablo 58 segmentin tamamını tutmaya devam eder (gizleme tabloyu küçültmez)", () => {
+    expect(MAPPED_SEGMENTS).toHaveLength(58);
+    expect(MAPPED_SEGMENTS).toEqual(expect.arrayContaining(["46", "77", "10"]));
   });
 
   it("kod yoksa/tanınmıyorsa nötr yedeğe düşer — gri kutu DEĞİL", () => {

@@ -15,7 +15,7 @@ import { buildProductFilterQuery, parseProductFilters } from "@/lib/public/produ
  * şehir listesiyle (33,7 bin şehir) tek ürünlük binlerce "ince" sayfa doğuyordu
  * — alan otoritesini aşındırır. Altında sayfa DURUR (ziyaretçiye dürüst liste)
  * ama `noindex` alır ve sitemap'e girmez. Kategori sayfası bu kurala tabi değil
- * (yalnız ~29 görünür segment; boş segment zaten 404).
+ * (yalnız 27 görünür segment; boş segment zaten 404).
  */
 export const MIN_LANDING_PRODUCTS = 3;
 

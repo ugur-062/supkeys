@@ -25,7 +25,8 @@ interface Preview {
   inviterName: string;
   tenderTitle: string;
   tenderNumber: string | null;
-  categories: string[];
+  /** Yalnız GÖRÜNÜR kategorilerin adları; hiç yoksa boş dizi (eski/başka yanıtta alan olmayabilir). */
+  categories?: string[] | null;
   closesAt: string | null;
   items: Array<{ name: string; quantity: number; unitCode: string | null; unit: string }>;
   itemCount: number;
@@ -105,6 +106,10 @@ function PreviewInner() {
     ? t(d.closed ? "loginClosedCta" : "loginCta")
     : t(d.closed ? "signupClosedCta" : "signupCta");
   const more = Math.max(0, d.itemCount - d.items.length);
+  // Kategori adları API'den hazır gelir (gizli segmenttekiler orada düşer —
+  // web kodu görmez). Görünür kategorisi kalmayan talepte alan boş/eksik
+  // gelebilir: "Kategoriler:" satırı o zaman HİÇ çizilmez (2026-10-09).
+  const categories = (d.categories ?? []).map((name) => name?.trim()).filter((name): name is string => !!name);
 
   return (
     <Shell>
@@ -140,10 +145,10 @@ function PreviewInner() {
               <dd className="inline text-zinc-800">{d.deliveryPlace}</dd>
             </div>
           ) : null}
-          {d.categories.length > 0 ? (
+          {categories.length > 0 ? (
             <div className="sm:col-span-2">
               <dt className="inline text-zinc-600">{t("categories")}: </dt>
-              <dd className="inline text-zinc-800">{d.categories.join(", ")}</dd>
+              <dd className="inline text-zinc-800">{categories.join(", ")}</dd>
             </div>
           ) : null}
           {d.supplierTypes.length > 0 ? (

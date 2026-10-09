@@ -5,6 +5,15 @@ import { unstable_cache } from "next/cache";
 import { SEO_TAGS } from "@/lib/seo/tags";
 import type { PublicListingType } from "./marketplace";
 import { SSR_CLIENT_IP_HEADER, ssrVisitorIp } from "./ssr-visitor";
+import { PUBLIC_API_UNAVAILABLE_DIGEST } from "./unavailable";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
+import {
+  CRITICAL_UPSTREAM_POLICY,
+  SECONDARY_UPSTREAM_POLICY,
+  UpstreamTimeoutError,
+  withUpstreamRetry,
+  type UpstreamPolicy,
+} from "./upstream-retry";
 
 /**
  * Pazar yeri veri katmanı — SUNUCU tarafında çalışır.
@@ -162,6 +171,11 @@ export interface PublicSitemapRow extends SitemapLastmods {
 
 /** Liste/facet için kısa; ilan detayında biraz daha uzun (aşağıda geçilir). */
 const DEFAULT_REVALIDATE = 60;
+/**
+ * `getJson` varsayılan önbellek etiketi. Sabit: ana listenin ikincil sayımı
+ * (`countOf`) aynı önbellek girdisini AYNI etiketle yazmalı.
+ */
+const DEFAULT_TAGS: string[] = [SEO_TAGS.facets];
 
 /**
  * İSTEK DİLİ (i18n Faz 1e): herkese açık API ürün/talep/firma metnini
@@ -209,8 +223,17 @@ export async function publicHeaders(explicit?: string): Promise<Record<string, s
  * parametreye 400 döner, canlı öncesi); tekil kayıtta (`getDetail`) diğer 4xx
  * `null` kalır — yolu kullanıcı yazar, sorgu parametresi taşımaz. İkincil bloklar (facet, öne çıkan,
  * ilişkili, sayaç) yedekle kalır — tek uçtaki arıza sayfayı düşürmesin.
+ *
+ * ATILMADAN ÖNCE KISA SÜRE YENİDEN DENENİR (2026-10-08, staging kesintisi):
+ * ana veri ağ hatası / zaman aşımı / 5xx'te bütçe içinde yeniden sorar
+ * (`upstream-retry.ts`); ancak bütçe bitince bu hata atılır. Hata `digest`
+ * olarak sabit bir işaret taşır (`unavailable.ts`): Next üretimde mesajı
+ * istemciye göndermez ama hazır `digest`i korur → hata sınırı genel "bir
+ * şeyler ters gitti" yerine "geçici olarak yüklenemiyor, yeniden denenecek"
+ * ekranını çizer ve kendiliğinden yeniden dener.
  */
 export class PublicApiUnavailableError extends Error {
+  readonly digest = PUBLIC_API_UNAVAILABLE_DIGEST;
   constructor(path: string, detail: string) {
     super(`[pazar-yeri] ${path} → ${detail}`);
     this.name = "PublicApiUnavailableError";
@@ -219,6 +242,20 @@ export class PublicApiUnavailableError extends Error {
 
 const isBuildPhase = () => process.env.NEXT_PHASE === "phase-production-build";
 const upstreamDown = (status: number) => status >= 500 || status === 429;
+
+/**
+ * Yeniden denemeye değer mi? Ağ hatası, zaman aşımı ve 5xx geçicidir. 429
+ * DEĞİL (API'nin SSR kovası 60 sn bloklar — birkaç saniyede yeniden sormak
+ * yalnız yük bindirir) ve diğer 4xx değil (kesin yanıt).
+ */
+const transientUpstreamError = (err: unknown) => !(err instanceof UpstreamHttpError) || err.status >= 500;
+
+/** Derlemede yeniden deneme yok: API kapalıyken derleme uzamasın (zaman aşımı kalır). */
+const upstreamPolicy = (critical: boolean): UpstreamPolicy =>
+  critical && !isBuildPhase() ? CRITICAL_UPSTREAM_POLICY : critical ? { ...CRITICAL_UPSTREAM_POLICY, pausesMs: [] } : SECONDARY_UPSTREAM_POLICY;
+
+/** Günlük ayrıntısı: ağ hatası mı, zaman aşımı mı (ASCII — iç tanı metni). */
+const failureDetail = (err: unknown) => (err instanceof UpstreamTimeoutError ? `timeout ${err.timeoutMs} ms` : "ağ hatası");
 
 /** Kesinti: çalışma anında at (son iyi sürüm kalsın), derlemede yedeğe düş. */
 function unavailable(path: string, detail: string, err?: unknown): void {
@@ -250,16 +287,45 @@ const isNotFoundMark = (v: unknown): v is NotFoundMark =>
 /**
  * Tek API okuması (her zaman no-store): 404 → `NotFoundMark` (değer), diğer 2xx
  * dışı → `UpstreamHttpError`, ağ hatası aynen.
+ *
+ * Her denemenin zaman aşımı vardır; ANA veri (`critical`) geçici hatada bütçe
+ * içinde yeniden denenir, ikincil blok tek deneme yapar (`upstream-retry.ts`).
+ * Yeniden deneme veri önbelleği geri çağrısının İÇİNDE: önbellek yalnız SON
+ * sonucu görür — başarı yazılır, vazgeçiş atılır (önbelleğe girmez).
  */
 async function fetchPublicJson<T>(
   url: string,
   headers: Record<string, string>,
   notFoundAsValue = true,
+  critical = false,
 ): Promise<T | NotFoundMark> {
-  const res = await fetch(url, { cache: "no-store", headers });
-  if (res.status === 404 && notFoundAsValue) return { [NOT_FOUND_KEY]: true };
-  if (!res.ok) throw new UpstreamHttpError(res.status);
-  return (await res.json()) as T;
+  return withUpstreamRetry<T | NotFoundMark>(
+    async (signal) => {
+      const res = await fetch(url, { cache: "no-store", headers, signal });
+      if (res.status === 404 && notFoundAsValue) return { [NOT_FOUND_KEY]: true };
+      if (!res.ok) throw new UpstreamHttpError(res.status);
+      return (await res.json()) as T;
+    },
+    {
+      policy: upstreamPolicy(critical),
+      retryable: transientUpstreamError,
+      trackCooldown: critical,
+      // Aynı okuma (adres + dil + politika + ziyaretçi) aynı anda iki yerden
+      // istenirse (sayfa + `generateMetadata`) API'ye TEK istek gider.
+      //
+      // ZİYARETÇİ IP'Sİ ANAHTARDA (gözden geçirme C2-3): API ilişkilendirilmiş
+      // SSR isteğini ziyaretçi başına kovaya sayar (`ssr-bucket:default:ip:<ip>`),
+      // yani 429 ziyaretçiye ÖZELDİR. Anahtarda olmasaydı kovasını dolduran
+      // ziyaretçinin 429'u, aynı adresi isteyen BAŞKA ziyaretçiye de verilirdi —
+      // süren uçuşa katılarak ya da bir saniyelik "aynı hata" penceresinden;
+      // API ona 200 dönecekken kesinti ekranı görürdü. Tek isteğin sayfası ve
+      // `generateMetadata`sı aynı IP'yi taşır → yine tek uçuş. İlişkilendirilmemiş
+      // okumada (ISR, rota işleyicisi, sır yok) bölüm boştur: onlar zaten tek
+      // ortak kovaya sayılır. Bu, VERİ ÖNBELLEĞİ anahtarı DEĞİLDİR — o
+      // `loadPublicJson`da (URL, dil) olarak kalır, IP'ye bölünmez (RM-12).
+      key: `${critical ? "c" : "s"}${notFoundAsValue ? "v" : "t"}|${headers["accept-language"]}|${headers[SSR_CLIENT_IP_HEADER] ?? ""}|${url}`,
+    },
+  );
 }
 
 /**
@@ -297,14 +363,15 @@ async function fetchPublicJson<T>(
  */
 async function loadPublicJson<T>(
   path: string,
-  opts: { revalidate?: number; tags?: string[]; fresh?: boolean; locale?: string; notFoundAsValue?: boolean },
+  opts: { revalidate?: number; tags?: string[]; fresh?: boolean; locale?: string; notFoundAsValue?: boolean; critical?: boolean },
 ): Promise<T> {
   const url = `${resolveApiBaseUrl()}${path}`;
   const headers = await publicHeaders(opts.locale);
   const notFoundAsValue = opts.notFoundAsValue ?? true;
+  const critical = opts.critical ?? false;
   const value = opts.fresh
-    ? await fetchPublicJson<T>(url, headers, notFoundAsValue)
-    : await unstable_cache(() => fetchPublicJson<T>(url, headers, notFoundAsValue), ["pazar-yeri", url, headers["accept-language"]], {
+    ? await fetchPublicJson<T>(url, headers, notFoundAsValue, critical)
+    : await unstable_cache(() => fetchPublicJson<T>(url, headers, notFoundAsValue, critical), ["pazar-yeri", url, headers["accept-language"]], {
         revalidate: opts.revalidate,
         tags: opts.tags,
       })();
@@ -321,7 +388,7 @@ async function getJson<T>(
    * bu etiketi vurur; sayfa ISR süresini beklemeden yenilenir. Etiket adları
    * API `SEO_TAGS` ile AYNI dize — `lib/seo/tags.ts`.
    */
-  tags: string[] = [SEO_TAGS.facets],
+  tags: string[] = DEFAULT_TAGS,
   /** Sahibin önizlemesi: veri önbelleğini atla (bkz. `fetchCompanyProfile`). */
   fresh = false,
   /**
@@ -334,7 +401,7 @@ async function getJson<T>(
 ): Promise<T> {
   if (!resolveApiBaseUrl()) return fallback;
   try {
-    return await loadPublicJson<T>(path, { revalidate, tags, fresh, locale });
+    return await loadPublicJson<T>(path, { revalidate, tags, fresh, locale, critical });
   } catch (err) {
     if (err instanceof UpstreamHttpError) {
       // ANA veride 404 DIŞINDAKİ her 2xx dışı yanıt kesintidir — 400/409/422
@@ -349,7 +416,7 @@ async function getJson<T>(
       else if (err.status !== 404) console.error(`[pazar-yeri] ${path} → HTTP ${err.status}`);
       return fallback;
     }
-    if (critical) unavailable(path, "ağ hatası", err);
+    if (critical) unavailable(path, failureDetail(err), err);
     else console.error(`[pazar-yeri] ${path} çağrısı başarısız`, err);
     return fallback;
   }
@@ -365,13 +432,67 @@ async function getDetail<T>(
 ): Promise<T | null> {
   if (!resolveApiBaseUrl()) return null;
   try {
-    return await loadPublicJson<T>(path, opts);
+    return await loadPublicJson<T>(path, { ...opts, critical: true });
   } catch (err) {
     if (err instanceof UpstreamHttpError) {
       if (upstreamDown(err.status)) unavailable(path, `HTTP ${err.status}`);
       return null;
     }
-    unavailable(path, "ağ hatası", err);
+    unavailable(path, failureDetail(err), err);
+    return null;
+  }
+}
+
+/**
+ * İKİNCİL SAYIM (gözden geçirme C2-2): bir listenin YALNIZ `total`ı — arama
+ * sekmesi rozeti (`cross-counts.ts`) ve boş dizin denetimi
+ * (`lib/seo/empty-index-guard.ts`, `generateMetadata` + sitemap) için.
+ *
+ * Bu okumalar süsleyicidir: hata zaten yutulur. Ana liste çağrısını
+ * (`fetchProducts` / `fetchListings` / `fetchPublicDirectory`) kullandıklarında
+ * ANA verinin yeniden deneme politikasını da devralıyorlardı — karşı uç 500
+ * dönerken sayfa, sonunda atılacak bir rozet için dört istek atıp ~4 sn (asılı
+ * API'de 8 sn) bekliyor, vazgeçişleri de süreç genelindeki tek deneme kipini
+ * açıp sıradaki GERÇEK ana okumanın yeniden deneme hakkını alıyordu.
+ *
+ * Burada okuma İKİNCİLDİR (`critical` yok): tek deneme, kısa zaman aşımı, tek
+ * deneme kipine dokunmaz. KESİNTİDE (ağ hatası, zaman aşımı, 5xx, 429, 404
+ * dışındaki 4xx) sonuç `null` = "BİLİNMİYOR" — asla 0: sayılamayan dizin boş
+ * sayılmaz (`noindex` basılmaz), sayılamayan yüzeye "0" rozeti çizilmez.
+ *
+ * Kesinti OLMAYAN iki durumda sayım, ana listenin aynı sayfada çizeceği BOŞ
+ * yedekle aynı kalır (0) — eskiden de böyleydi: 404 gerçek "yok"tur (API'de
+ * pazar yeri anahtarı kapalıyken liste uçları 404 döner; boş çizilen dizin
+ * `noindex` kalmalı — fail-closed) ve API adresi tanımlı değilse hiç sorulmaz.
+ *
+ * ÖNBELLEK GİRDİSİ — NE ZAMAN ORTAK (canlı doğrulama OUT-6): veri önbelleği
+ * anahtarı `loadPublicJson`da (URL, dil). Yol üreticisi, süre ve etiketler ana
+ * listeyle aynı olduğundan sayım, ana liste çağrısıyla AYNI PARAMETRELERLE
+ * çağrıldığında onun girdisini paylaşır (çoğu kez API'ye hiç gidilmez).
+ * Parametre farkı = ayrı adres = ayrı girdi; yardımcı varsayılan EKLEMEZ.
+ * Dizin sayfaları ana listeye varsayılan ekler: talep dizini `type=ALIM`
+ * (`toListingListParams`), ürün dizini dilin para birimini (`currency`,
+ * `ProductIndex`). Buna göre bugünkü çağıranlar:
+ *  - `cross-counts.ts` parametreleri sayfaların kendi üreticilerinden alır →
+ *    karşı sekmenin ana listesiyle ORTAK girdi;
+ *  - `empty-index-guard.ts` süzgeçsiz (`{}`) sorar → firma dizininde ana
+ *    listeyle ORTAK (`/public/companies/directory`); ürün ve talep dizininde
+ *    DEĞİL (`/public/products` ≠ `…?currency=TRY`, `/public/listings` ≠
+ *    `…?type=ALIM`) — o iki sayım kendi girdisini önbellekler (ürün 300 sn,
+ *    talep 60 sn), ana listenin girdisini ısıtmaz, ondan da yararlanmaz.
+ */
+async function countOf(path: string, revalidate = DEFAULT_REVALIDATE): Promise<number | null> {
+  if (!resolveApiBaseUrl()) return 0;
+  try {
+    const page = await loadPublicJson<{ total?: unknown } | null>(path, { revalidate, tags: DEFAULT_TAGS });
+    return typeof page?.total === "number" ? page.total : null;
+  } catch (err) {
+    if (err instanceof UpstreamHttpError) {
+      if (err.status === 404) return 0;
+      console.error(`[pazar-yeri] ${path} → HTTP ${err.status}`);
+    } else {
+      console.error(`[pazar-yeri] ${path} count failed`, err);
+    }
     return null;
   }
 }
@@ -416,6 +537,16 @@ function toQuery(params: ListParams): string {
 
 export function fetchListings(params: ListParams = {}): Promise<PublicListPage> {
   return getJson(`/public/listings${toQuery(params)}`, EMPTY_PAGE, undefined, undefined, false, undefined, /* critical */ true);
+}
+
+/**
+ * İKİNCİL: talep listesinin yalnız toplamı (`null` = bilinmiyor; bkz.
+ * `countOf`). AYNI parametrelerle çağrılan `fetchListings` ile adres ve
+ * önbellek girdisi aynı; talep dizini sayfası `type=ALIM` ekler — o sayfanın
+ * listesini sayan çağıran da eklemeli (`toListingListParams`).
+ */
+export function fetchListingCount(params: ListParams = {}): Promise<number | null> {
+  return countOf(`/public/listings${toQuery(params)}`);
 }
 
 /**
@@ -703,12 +834,16 @@ export interface PublicStats {
   popularCategories: { id: string; name: string; count: number }[];
 }
 
-export function fetchStats(): Promise<PublicStats> {
-  return getJson<PublicStats>(
+export async function fetchStats(): Promise<PublicStats> {
+  const stats = await getJson<PublicStats>(
     "/public/stats",
     { products: 0, companies: 0, categories: 0, openDemands: 0, productsThisWeek: 0, bidsLast24h: 0, verifiedCompanies: 0, popularCategories: [] },
     600,
   );
+  // "Popüler kategoriler" gizli segmentin alt kategorisini TAŞIMAZ (2026-10-09):
+  // liste bugün hiçbir sayfada çizilmiyor, ama çizen bileşenler (`PopularChips`,
+  // eski hero) yeniden bağlanırsa gizli kategori adı + sayısı çip olurdu.
+  return { ...stats, popularCategories: visibleCategoryRefs(stats.popularCategories) };
 }
 
 export interface SuggestResult {
@@ -823,7 +958,11 @@ export interface PublicDirectoryParams {
   page?: number;
 }
 
-export function fetchPublicDirectory(params: PublicDirectoryParams = {}): Promise<PublicDirectoryResult> {
+/** Firma dizini önbellek süresi (sn) — ana liste ve ikincil sayım AYNI girdiyi paylaşır. */
+const DIRECTORY_REVALIDATE = 300;
+
+/** Firma dizini adresi — ana liste ve ikincil sayım AYNI adresi kullanır (tek kaynak). */
+function directoryPath(params: PublicDirectoryParams): string {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.city) sp.set("city", params.city);
@@ -836,15 +975,28 @@ export function fetchPublicDirectory(params: PublicDirectoryParams = {}): Promis
   if (params.sort) sp.set("sort", params.sort);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const qs = sp.toString();
+  return `/public/companies/directory${qs ? `?${qs}` : ""}`;
+}
+
+export function fetchPublicDirectory(params: PublicDirectoryParams = {}): Promise<PublicDirectoryResult> {
   return getJson<PublicDirectoryResult>(
-    `/public/companies/directory${qs ? `?${qs}` : ""}`,
+    directoryPath(params),
     { items: [], total: 0, page: 1, pageSize: 20 },
-    300,
+    DIRECTORY_REVALIDATE,
     undefined,
     false,
     undefined,
     /* critical */ true,
   );
+}
+
+/**
+ * İKİNCİL: firma dizininin yalnız toplamı (`null` = bilinmiyor; bkz.
+ * `countOf`). AYNI parametrelerle çağrılan `fetchPublicDirectory` ile adres ve
+ * önbellek girdisi aynı (firma dizini sayfası varsayılan eklemez).
+ */
+export function fetchPublicDirectoryCount(params: PublicDirectoryParams = {}): Promise<number | null> {
+  return countOf(directoryPath(params), DIRECTORY_REVALIDATE);
 }
 
 /** Facet sayaçları BAĞLAMSAL (PROMPT 4): seçili süzgeçler de gönderilir. */
@@ -993,9 +1145,14 @@ const EMPTY_PRODUCT_FACETS: ProductFacets = {
   truncated: false,
 };
 
-export function fetchProducts(
-  params: ProductListParams = {},
-): Promise<ProductIndexPage> {
+/**
+ * Ürün kalıcı içerik — ilandan uzun önbellek (uçtaki `s-maxage` ile aynı).
+ * Ana liste ve ikincil sayım AYNI girdiyi paylaşır.
+ */
+const PRODUCT_LIST_REVALIDATE = 300;
+
+/** Ürün dizini adresi — ana liste ve ikincil sayım AYNI adresi kullanır (tek kaynak). */
+function productListPath(params: ProductListParams): string {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
@@ -1022,8 +1179,23 @@ export function fetchProducts(
   for (const a of params.attr ?? []) sp.append("attr", a);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const qs = sp.toString();
-  // Ürün kalıcı içerik — ilandan uzun önbellek (uçtaki `s-maxage` ile aynı).
-  return getJson(`/public/products${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_INDEX, 300, undefined, false, undefined, /* critical */ true);
+  return `/public/products${qs ? `?${qs}` : ""}`;
+}
+
+export function fetchProducts(
+  params: ProductListParams = {},
+): Promise<ProductIndexPage> {
+  return getJson(productListPath(params), EMPTY_PRODUCT_INDEX, PRODUCT_LIST_REVALIDATE, undefined, false, undefined, /* critical */ true);
+}
+
+/**
+ * İKİNCİL: ürün dizininin yalnız toplamı (`null` = bilinmiyor; bkz. `countOf`).
+ * AYNI parametrelerle çağrılan `fetchProducts` ile adres ve önbellek girdisi
+ * aynı; ürün dizini sayfası dilin para birimini (`currency`) ekler — o sayfanın
+ * listesini sayan çağıran da eklemeli (`toProductListParams` + `currencyForLocale`).
+ */
+export function fetchProductCount(params: ProductListParams = {}): Promise<number | null> {
+  return countOf(productListPath(params), PRODUCT_LIST_REVALIDATE);
 }
 
 /**
@@ -1108,12 +1280,14 @@ export interface DirectorySummary {
   topCategories: { id: string; name: string; count: number }[];
 }
 
-export function fetchDirectorySummary(): Promise<DirectorySummary> {
-  return getJson<DirectorySummary>(
+export async function fetchDirectorySummary(): Promise<DirectorySummary> {
+  const summary = await getJson<DirectorySummary>(
     "/public/companies/summary",
     { verifiedCompanies: 0, topCategories: [] },
     600,
   );
+  // Gizli segment "en çok firma olan kategoriler"e girmez (2026-10-09; bugün çağıranı yok).
+  return { ...summary, topCategories: visibleCategoryRefs(summary.topCategories) };
 }
 
 /**

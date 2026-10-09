@@ -21,6 +21,7 @@ import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { localizePath } from "@/i18n/href";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * ARAMA + ÖNERİ — TEK bileşen (PROMPT 6), iki boyut.
@@ -60,7 +61,10 @@ type GroupLabels = { categories: string; products: string; companies: string; li
 
 function rowsFrom(s: SuggestResult, g: GroupLabels, cityLabel: (city: string | null | undefined) => string): Row[] {
   const rows: Row[] = [];
-  for (const c of s.categories) {
+  // Gizli segmentteki kategori ÖNERİLMEZ (2026-10-09): arama kutusu kataloğu
+  // sunan yüzeydir; API önerisi süzülü gelir, burası ikinci kat (öneri
+  // bağlantısı 404 veren kategori sayfasına ya da gizli süzgece giderdi).
+  for (const c of visibleCategoryRefs(s.categories)) {
     rows.push({ key: `c-${c.id}`, href: categoryHref(c), label: c.name, group: g.categories });
   }
   for (const p of s.products) {

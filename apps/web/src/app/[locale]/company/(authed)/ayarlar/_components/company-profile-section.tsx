@@ -34,6 +34,7 @@ import {
   isTurkey,
   maskNationalId,
   taxIdLabelKey,
+  visibleCategoryIds,
 } from "@rothern/shared";
 import { Lock, UserRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -144,11 +145,19 @@ function toForm(p: CompanyProfile): FormState {
     kepAddress: p.kepAddress ?? "",
     // Ana kategori yalnız segment (XX000000); eski hatalı UI alt seviye
     // yazabiliyordu, backend exactLevel:1 doğruladığından temizle.
-    buyerCategoryIds: (p.buyerCategoryIds ?? []).filter((id) => SEGMENT_RE.test(id)),
-    sellerCategoryIds: (p.sellerCategoryIds ?? []).filter((id) => SEGMENT_RE.test(id)),
+    //
+    // GİZLİ SEKTÖR (2026-10-09): gizli segmentteki eski beyan forma HİÇ girmez
+    // (`visibleCategoryIds`). Form yalnız değişen ekseni gönderdiği için
+    // dokunulmayan eksen depoda aynen kalır (eşleştirme kayıtlı kodları
+    // kullanmayı sürdürür); dokunulan eksen görünür kodlarla yazılır, gizliler
+    // o kayıtta düşer. Taban da süzülü olduğundan gizli kod "kaydedilmemiş
+    // değişiklik" üretmez ve "iki liste birlikte boş olamaz" kuralı yalnız
+    // GÖRÜNEN beyanı sayar.
+    buyerCategoryIds: visibleCategoryIds(p.buyerCategoryIds).filter((id) => SEGMENT_RE.test(id)),
+    sellerCategoryIds: visibleCategoryIds(p.sellerCategoryIds).filter((id) => SEGMENT_RE.test(id)),
     // Alt kategori: segment DIŞI her seviye — ana kategorinin tam tersi eksen.
-    buyerSubCategoryIds: (p.buyerSubCategoryIds ?? []).filter((id) => !SEGMENT_RE.test(id)),
-    sellerSubCategoryIds: (p.sellerSubCategoryIds ?? []).filter((id) => !SEGMENT_RE.test(id)),
+    buyerSubCategoryIds: visibleCategoryIds(p.buyerSubCategoryIds).filter((id) => !SEGMENT_RE.test(id)),
+    sellerSubCategoryIds: visibleCategoryIds(p.sellerSubCategoryIds).filter((id) => !SEGMENT_RE.test(id)),
     activities: p.activities ?? [],
   };
 }

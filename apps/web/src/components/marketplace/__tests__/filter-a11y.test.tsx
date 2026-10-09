@@ -123,13 +123,27 @@ describe("ListingFilters — facet'in saymadığı seçili kategori (D-336, göz
   });
 
   it("sonuçsuz kalan seçili SEGMENT 0 sayıyla kalır", () => {
-    nav.search = "kategori=42000000";
+    nav.search = "kategori=41000000";
     render(
       <ListingFilterShell total={0} drawer={null}>
-        <ListingFilters facets={{ ...listingFacets, selectedCategory: { id: "42000000", name: "Tıbbi ekipman", level: 1 } }} idPrefix="t" />
+        <ListingFilters facets={{ ...listingFacets, selectedCategory: { id: "41000000", name: "Laboratuvar ekipmanı", level: 1 } }} idPrefix="t" />
       </ListingFilterShell>,
     );
-    expect(screen.getByRole("checkbox", { name: /Tıbbi ekipman/ }).closest("label")!.textContent).toBe("Tıbbi ekipman0");
+    expect(screen.getByRole("checkbox", { name: /Laboratuvar ekipmanı/ }).closest("label")!.textContent).toBe("Laboratuvar ekipmanı0");
+  });
+
+  // 2026-10-09 (sahip kararı; arayüz denetimi W-12): gizli segment kodu süzgeç
+  // değildir — eski API adını `selectedCategory` ile döndürse de işaretli
+  // seçenek / ad çizilmez (kod hiç verilmemiş gibi).
+  it("?kategori=<gizli segment> işaretli seçenek ve ad çizmez", () => {
+    nav.search = "kategori=46000000";
+    const { container } = render(
+      <ListingFilterShell total={3} drawer={null}>
+        <ListingFilters facets={{ ...listingFacets, selectedCategory: { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları", level: 1 } }} idPrefix="t" />
+      </ListingFilterShell>,
+    );
+    expect(screen.queryByRole("checkbox", { name: /Kolluk/ })).toBeNull();
+    expect(container.textContent).not.toMatch(/Kolluk|46000000/);
   });
 });
 

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { usePublicBidAction } from "./listing-bid-cta";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
   open: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -57,7 +58,10 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   const days = daysUntil(l.closesAt) ?? 99;
   const activity = l.company.activities[0];
   const activityText = activity ? activityLabel(activity) : null;
-  const primary = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
+  // Gizli segmentteki kategori satırda ad, ipucu ya da "+N" sayısı olarak
+  // GÖRÜNMEZ (2026-10-09); görünür kategorisi kalmayan talep "—" gösterir.
+  const categories = visibleCategoryRefs(l.categories);
+  const primary = categories.find((c) => c.level >= 3) ?? categories[0];
 
   const data: ListingCardData = {
     id: l.number,
@@ -65,7 +69,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
     number: l.number,
     title: l.title,
     kind: "talep",
-    categoryIds: l.categories.map((c) => c.id),
+    categoryIds: categories.map((c) => c.id),
     status: { label: ts(state), className: STATE_CLASS[state] },
     strip: state === "open" ? "border-l-emerald-500" : "border-l-slate-400",
     facts: [
@@ -168,10 +172,10 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         label: t("category"),
         icon: "category",
         value: primary ? (
-          <span title={l.categories.map((c) => c.name).join(", ")}>
+          <span title={categories.map((c) => c.name).join(", ")}>
             <span className="block truncate font-medium text-slate-700">{primary.name}</span>
-            {l.categories.length > 1 ? (
-              <span className="block text-[11px] leading-tight text-slate-500">{t("moreCategories", { n: l.categories.length - 1 })}</span>
+            {categories.length > 1 ? (
+              <span className="block text-[11px] leading-tight text-slate-500">{t("moreCategories", { n: categories.length - 1 })}</span>
             ) : null}
           </span>
         ) : (

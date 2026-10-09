@@ -18,6 +18,7 @@ import { Link } from "@/i18n/navigation";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
 import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import { DaysLeftChip, InfoChip, useExpiredNote } from "./IhaleListRow";
+import { visibleRowCategories } from "@/lib/visible-categories";
 
 /**
  * Başkalarının talepleri için yoğun SATIR görünümü (Açık Talepler) —
@@ -231,23 +232,27 @@ export function BrowseTenderRow({
       </span>
     ),
   };
+  // Gizli segmentteki kategori (2026-10-09) sütunda, ipucunda, "+N" sayısında
+  // ve genişletilmiş çiplerde ÇİZİLMEZ; görünür kategorisi kalmayan talep "—"
+  // gösterir. Satır kancadan süzülü gelir; burası ikinci kat.
+  const { categories, extraCount } = visibleRowCategories(t.categories, t.extraCategoryCount);
   const kategori = {
     label: tr("kategori"),
     icon: "category" as const,
     value:
-      t.categories.length > 0 ? (
-        <span title={t.categories.map((c) => c.name).join(", ")}>
+      categories.length > 0 ? (
+        <span title={categories.map((c) => c.name).join(", ")}>
           <span
             className={cn(
               "block truncate font-medium",
               t.categoryMatch ? "text-blue-700" : "text-slate-700",
             )}
           >
-            {t.categories[0]!.name}
+            {categories[0]!.name}
           </span>
-          {t.categories.length + t.extraCategoryCount > 1 ? (
+          {categories.length + extraCount > 1 ? (
             <span className="block text-[11px] leading-tight text-slate-400">
-              {tr("artiNKategori", { n: t.categories.length + t.extraCategoryCount - 1 })}
+              {tr("artiNKategori", { n: categories.length + extraCount - 1 })}
             </span>
           ) : null}
         </span>
@@ -276,7 +281,7 @@ export function BrowseTenderRow({
     title: t.title,
     kind: "talep",
     coverImageUrl: t.coverImageUrl,
-    categoryIds: t.categories.map((c) => c.code),
+    categoryIds: categories.map((c) => c.code),
     status: { label: sellerStateLabel(state.key), className: state.className },
     strip,
     timeNote: expiredNote(t.status, t.closesAt),
@@ -367,7 +372,7 @@ export function BrowseTenderRow({
                     {t.matchReason}
                   </span>
                 ) : null}
-                {t.categories.map((c) => (
+                {categories.map((c) => (
                   <span
                     key={c.code}
                     className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-slate-600"
@@ -375,8 +380,8 @@ export function BrowseTenderRow({
                     {c.name}
                   </span>
                 ))}
-                {t.extraCategoryCount > 0 ? (
-                  <span className="text-slate-400">+{t.extraCategoryCount}</span>
+                {extraCount > 0 ? (
+                  <span className="text-slate-400">+{extraCount}</span>
                 ) : null}
               </div>
               <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-4">

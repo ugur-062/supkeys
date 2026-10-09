@@ -1,4 +1,4 @@
-import { cityListParam, getParam as get, listParam as list, pageParam, type SearchParamsLike } from "./filter-param-utils";
+import { cityListParam, getParam as get, isVisibleCategoryCode, listParam as list, pageParam, type SearchParamsLike } from "./filter-param-utils";
 import type { PublicDirectoryParams } from "./marketplace-api";
 import { isCompanyActivity } from "@rothern/shared";
 
@@ -49,7 +49,8 @@ export function parseCompanyFilters(sp: SearchParamsLike): CompanyFilterState {
     cities: cityListParam(get(sp, "sehir") ?? get(sp, "il")),
     countries: list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
     activities: list(get(sp, "faaliyet")).filter(isCompanyActivity),
-    categories: list(get(sp, "kategori")).filter((c) => /^\d{8}$/.test(c)),
+    // Gizli segment kodu listeden düşer (`isVisibleCategoryCode`).
+    categories: list(get(sp, "kategori")).filter(isVisibleCategoryCode),
     verified: get(sp, "dogrulanmis") === "1",
     hasProducts: get(sp, "urunlu") === "1",
     connection: conn === "bagli" || conn === "yeni" ? conn : undefined,

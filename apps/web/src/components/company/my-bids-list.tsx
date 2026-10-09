@@ -348,7 +348,11 @@ export function MyBidsList() {
 
   // Süzme/sıralama/sayfalama SUNUCUDA (arayüz testi O-005): eskiden uç en yeni
   // 200 teklifi döndürüyor, istemci o kesik listede süzüp sayıyordu.
-  const { data, isLoading, isError, refetch } = useMyBids({
+  // İskelet `isPending`e bağlı, `isLoading`e değil (gözden geçirme REV-2):
+  // çevrimdışı cihazda sorgu DURAKLAR (istek yok, hata yok, veri yok) ve
+  // `isLoading` false kalır — "0 teklif" + "Henüz teklif vermediniz" çiziliyordu.
+  // Süzgeç değişiminde önceki sayfa yer tutucudur (`keepPreviousData`): pending değil.
+  const { data, isPending, isError, refetch } = useMyBids({
     status: state.status,
     pending: state.pending,
     q: state.q || undefined,
@@ -452,13 +456,19 @@ export function MyBidsList() {
             ariaLabel={t("tarihAraligi")}
             active={state.range !== "all"}
           />
-          <ResultCount
-            total={total}
-            isFiltered={isFiltered}
-            kind="teklif"
-            isLoading={isLoading}
-            className="ml-auto"
-          />
+          {isError && !data ? (
+            // Okunamayan toplam "0 teklif" diye basılmaz (canlı doğrulama OUT-2;
+            // Siparişlerim'deki D-259 ile aynı kural) — hata kartı aşağıda.
+            <span className="ml-auto" />
+          ) : (
+            <ResultCount
+              total={total}
+              isFiltered={isFiltered}
+              kind="teklif"
+              isLoading={isPending}
+              className="ml-auto"
+            />
+          )}
         </div>
         <ActiveFilterChips
           filters={[
@@ -502,7 +512,7 @@ export function MyBidsList() {
         />
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         <ListSkeleton rows={5} />
       ) : isError && !data ? (
         <ErrorState onRetry={() => void refetch()} />

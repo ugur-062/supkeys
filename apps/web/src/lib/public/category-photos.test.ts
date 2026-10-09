@@ -28,4 +28,15 @@ describe("kategori fotoğrafları", () => {
     expect(segmentPhotoSrc(["abc", ""])).toBeNull();
     expect(segmentPhotoSrc(undefined)).toBeNull();
   });
+
+  // 2026-10-09: gizli segmentin fotoğrafı hiçbir yüzeyde verilmez — görselsiz
+  // eski ürünün kartı o fotoğrafla kategoriyi adını yazmadan gösterirdi.
+  it("gizli segmentin fotoğrafı verilmez (dosya ve manifest durur); sıradaki görünür kod kazanır", () => {
+    expect(CATEGORY_PHOTOS.has("46000000")).toBe(true);
+    expect(categoryPhotoSrc("46000000")).toBeNull();
+    expect(categoryPhotoSrc("10000000")).toBeNull();
+    expect(segmentPhotoSrc(["46181500"])).toBeNull();
+    expect(segmentPhotoSrc(["77101500", "10151500"])).toBeNull();
+    expect(segmentPhotoSrc(["46181500", "40171501"])).toBe("/categories/40000000.webp");
+  });
 });

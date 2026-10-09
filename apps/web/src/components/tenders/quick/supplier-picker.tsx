@@ -13,7 +13,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   MagnifyingGlassIcon,
-  PaperAirplaneIcon,
   PlusCircleIcon,
   SparklesIcon,
   TrashIcon,
@@ -28,8 +27,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
  *
  * ÜST: firma listesi — arama, Sektör/Şehir süzgeci, "Tümünü seç", tablo
  * (Firma · Şehir · Sektör · Firma türü), 7'şer "Daha fazla yükle".
- * ALT: "Seçilen firmalar N" — kaldırılabilir kompakt ızgara, "N firmayı
- * davet et" (yayın düğmesine götürür), "Seçimi temizle".
+ * ALT: "Seçilen firmalar N" — kaldırılabilir kompakt ızgara, "Seçimi temizle".
+ * "N firmayı davet et" düğmesi KALDIRILDI (2026-10-08, sahip: "saçma, zaten
+ * yayınlayınca gidecek") — seçim talep yayınlanınca uygulanır; düğme yalnız
+ * yayın düğmesine kaydırıyordu.
  *
  * İKİ KİP:
  *  - `private` (Özel): boş başlar, seçilenler davet alır ve yalnız onlar görür.
@@ -59,7 +60,6 @@ export function SupplierPicker({
   onChange,
   itemNames = [],
   categoryIds = [],
-  onInvite,
   mode = "private",
 }: {
   value: string[];
@@ -68,8 +68,6 @@ export function SupplierPicker({
   itemNames?: string[];
   /** Talep kategorisi (discovery kodu) — satış beyanıyla dal eşleşmesi. */
   categoryIds?: string[];
-  /** "N firmayı davet et" — çağıran yayın adımına götürür; verilmezse düğme çizilmez. */
-  onInvite?: (count: number) => void;
   /** `connections`: görünürlük listesi (işaretsiz = görmez); `private`: davet listesi. */
   mode?: "private" | "connections";
 }) {
@@ -357,17 +355,6 @@ export function SupplierPicker({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {onInvite ? (
-              <button
-                type="button"
-                disabled={selected.length === 0}
-                onClick={() => onInvite(selected.length)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
-              >
-                <PaperAirplaneIcon aria-hidden className="size-4" />
-                {t("firmayiDavetEt", { length: selected.length })}
-              </button>
-            ) : null}
             <button
               type="button"
               disabled={selected.length === 0}

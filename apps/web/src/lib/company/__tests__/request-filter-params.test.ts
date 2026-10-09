@@ -66,6 +66,18 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
     expect(parseRequestFilters(new URLSearchParams("ulke=de,DE,xyz,1a,tr")).countries).toEqual(["DE", "TR"]);
   });
 
+  // 2026-10-09 (W-12): gizli segment kodu süzgeç yokmuş gibi okunur — Açık
+  // Talepler ham kodu ("46000000") aktif çip olarak basıyor, listeyi gizli
+  // sektöre süzüyordu.
+  it("gizli segment kodu süzgeç olarak YOK sayılır (tam kod da segment kodu da)", () => {
+    const s = parseRequestFilters(new URLSearchParams("kategori=46000000,39121501,46181500,77000000"));
+    expect(s.categories).toEqual(["39000000"]);
+    const only = parseRequestFilters(new URLSearchParams("kategori=46000000"));
+    expect(only).toEqual(parseRequestFilters(new URLSearchParams()));
+    expect(activeRequestFilterCount(only)).toBe(0);
+    expect(buildRequestFilterQuery(only)).toBe("");
+  });
+
   it("temizle: arama DAHİL sıfırlar, sıralama kalır", () => {
     const s = parseRequestFilters(new URLSearchParams("q=x&durum=tumu&alici=c1&sirala=yakin&sayfa=2"));
     expect(clearRequestFilters(s)).toEqual({ ...EMPTY_REQUEST_FILTERS, sort: "yakin" });

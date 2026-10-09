@@ -95,20 +95,31 @@ describe("SupplierPicker", () => {
     expect(region.compareDocumentPosition(selectedPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("Tümünü seç görünenleri seçer; süzgeç sırayı bozmadan daraltır; davet düğmesi sayıyı taşır", async () => {
+  it("Tümünü seç görünenleri seçer; süzgeç sırayı bozmadan daraltır", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    const onInvite = vi.fn();
-    render(<SupplierPicker value={["EGEM-0001"]} onChange={onChange} onInvite={onInvite} />);
+    render(<SupplierPicker value={["EGEM-0001"]} onChange={onChange} />);
     await user.selectOptions(screen.getByRole("combobox", { name: "Şehir" }), "Manisa");
     const region = screen.getByRole("region", { name: "Davet edilecek firmalar" });
     expect(within(region).getAllByRole("row")).toHaveLength(2);
     expect(region).toHaveTextContent("1–1 / 1 firma");
     await user.click(screen.getByRole("checkbox", { name: "Görünenlerin tümünü seç" }));
     expect(onChange).toHaveBeenLastCalledWith([]); // görünen tek firma zaten seçiliydi → kaldırır
-    await user.click(screen.getByRole("button", { name: "1 firmayı davet et" }));
-    expect(onInvite).toHaveBeenCalledWith(1);
   });
+
+  it.each(["private", "connections"] as const)(
+    "Seçilen firmalar panelinde 'N firmayı davet et' düğmesi YOK (%s) — seçim yayında uygulanır; 'Seçimi temizle' durur",
+    async (mode) => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(<SupplierPicker mode={mode} value={["EGEM-0001", "BETA-0001"]} onChange={onChange} />);
+      const panel = screen.getByRole("region", { name: "Seçilen firmalar" });
+      expect(within(panel).queryByRole("button", { name: /davet et/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /firmayı davet et/i })).not.toBeInTheDocument();
+      await user.click(within(panel).getByRole("button", { name: "Seçimi temizle" }));
+      expect(onChange).toHaveBeenLastCalledWith([]);
+    },
+  );
 
   describe("Gruptan ekle (T-19)", () => {
     const GROUP = { id: "g1", name: "Makine tedarikçileri", memberCount: 3, isPublic: true, isOwnedByMe: true, createdAt: "", updatedAt: "" };

@@ -1,4 +1,4 @@
-import { getUnit, normalizeUnit } from "@rothern/shared";
+import { getUnit, normalizeUnit, visibleCategoryIds } from "@rothern/shared";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "./form-schema";
 
 /**
@@ -47,7 +47,9 @@ export function mapProductToForm(seed: ProductSeed): TenderFormData {
     // Kategori ÖN-SEÇİM: talep/ilan kategorisi en az L3 ve discovery
     // kataloğundan olmak zorunda (backend kapısı). Ürünün kodu bu kapıdan
     // geçmeyebilir — o yüzden kullanıcı 2. adımda onaylar/değiştirir.
-    categoryIds: seed.categoryId ? [seed.categoryId] : [],
+    // Gizli segmentteki (eski) ürünün kodu HİÇ taşınmaz (2026-10-09): talep
+    // kategorisiz açılır, alıcı güncel bir kategori seçer.
+    categoryIds: visibleCategoryIds([seed.categoryId]),
     items: [
       {
         ...base.items[0]!,

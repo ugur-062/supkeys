@@ -48,6 +48,7 @@ import {
   categorySegment,
   foldSearchText,
   tokenizeQuery,
+  visibleCategoryIds,
 } from "@rothern/shared";
 import {
   type CategoryNode,
@@ -155,7 +156,7 @@ function sectorsOf(ids: readonly string[]): Set<string> {
 export function CategorySelectorModal({
   isOpen,
   onClose,
-  value,
+  value: rawValue,
   onConfirm,
   mode = "multi",
   maxSelection = 20,
@@ -169,6 +170,11 @@ export function CategorySelectorModal({
   maxSectors,
 }: Props) {
   const tr = useTranslations("web.shared.categorySelectorModal");
+  // Pencere kataloğu SUNAN yüzeydir: gizli segmentteki eski kod (2026-10-09)
+  // taslağa hiç girmez — seçim şeridinde çip, sayaçta sayı olmaz. Çağıranlar
+  // değeri zaten süzer; burası ikinci kat. `useMemo`: taslağı sıfırlayan efekt
+  // `value` kimliğine bağlı, her çizimde yeni dizi taslağı sürekli sıfırlardı.
+  const value = useMemo(() => visibleCategoryIds(rawValue), [rawValue]);
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);

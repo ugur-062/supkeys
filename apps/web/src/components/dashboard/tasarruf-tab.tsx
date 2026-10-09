@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
 import { useFormatPercent } from "@/i18n/domain";
+import { visibleBreakdownRows } from "@/lib/visible-categories";
 import {
   Bar,
   BarChart,
@@ -37,6 +38,8 @@ export interface TopSavingTender {
 }
 
 export interface CategoryBreakdownRow {
+  /** Segment kodu — API gönderirse gizli segment satırı web'de de düşer (`visibleBreakdownRows`). */
+  id?: string | null;
   label: string;
   /** Yüzde 0..100 */
   percent: number;
@@ -98,8 +101,10 @@ export function TasarrufTab({ data, period, analytics }: Props) {
   ).filter((r) => r.amount > 0);
   // Eksen tek gösterim ("9.000 ₺" ile "18 B ₺" yan yana çıkmaz): ölçek en büyük tutardan.
   const topScaleMax = axisScaleMax(topRows.map((r) => r.amount));
-  const categoryRows =
-    costPeriod === "month" ? data.categoryMonth : data.categoryYear;
+  // Gizli segment satırı çizilmez (2026-10-09); kovalama ("diğer") API'de.
+  const categoryRows = visibleBreakdownRows(
+    costPeriod === "month" ? data.categoryMonth : data.categoryYear,
+  );
   const currencyRows =
     costPeriod === "month" ? data.currencyMonth : data.currencyYear;
 

@@ -53,6 +53,41 @@ describe("CompanyProfileView — dış bağlantı XSS koruması", () => {
   });
 });
 
+// 2026-10-09 (sahip kararı; W-06, W-10): gizli segmentteki eski beyan profilde
+// çip olarak çizilmez — ziyaretçiye, üyeye ve firmanın KENDİ Profilim ekranına.
+describe("CompanyProfileView — gizli segmentteki kategori beyanı", () => {
+  const bare: ProfileViewData = { ...base, industry: null, city: null, country: null, foundedYear: null, employeeCount: null };
+
+  it("gizli segment çipi çizilmez; görünür segment çizilir", () => {
+    const { container } = render(
+      <CompanyProfileView
+        profile={{
+          ...base,
+          categories: [
+            { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları" },
+            { id: "31000000", name: "Üretim Bileşenleri" },
+            { id: "10000000", name: "Canlı Bitki ve Hayvanlar" },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText("Üretim Bileşenleri")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Kolluk|Canlı Bitki/);
+  });
+
+  it("yalnız gizli segment beyanı olan firmada 'Şirket Bilgileri' kartı boş açılmaz", () => {
+    const hiddenOnly = render(
+      <CompanyProfileView profile={{ ...bare, categories: [{ id: "46000000", name: "Kolluk ve Emniyet Ekipmanları" }] }} />,
+    );
+    expect(hiddenOnly.container.textContent).not.toMatch(/Kolluk/);
+    expect(screen.queryByRole("heading", { name: "Şirket Bilgileri" })).toBeNull();
+    hiddenOnly.unmount();
+    // Karşılaştırma: görünür beyan aynı kartı açar.
+    render(<CompanyProfileView profile={{ ...bare, categories: [{ id: "31000000", name: "Üretim Bileşenleri" }] }} />);
+    expect(screen.getByRole("heading", { name: "Şirket Bilgileri" })).toBeInTheDocument();
+  });
+});
+
 describe("CompanyProfileView — doğrulama rozeti", () => {
   it("verified=false → profilde 'Doğrulanmamış' yazar (2026-09-06, ücretsiz vitrin)", () => {
     render(<CompanyProfileView profile={{ ...base, verified: false }} />);

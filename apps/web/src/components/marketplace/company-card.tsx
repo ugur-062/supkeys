@@ -11,6 +11,7 @@ import { affixCurrency } from "@/lib/tenders/labels";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { CountryFlag } from "@/components/ui/country-flag";
+import { visibleCategoryRef, visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * FİRMA DİZİNİ KARTI — herkese açık (görünürlük v2; kart sistemi PROMPT 5).
@@ -78,6 +79,11 @@ export function CompanyCard({
   const fmt = useFormatter();
   const activities = c.activities.slice(0, 3);
   const more = c.activities.length - activities.length;
+  // "Ana kategoriler" ve tek satırlık ana kategori yalnız GÖRÜNÜR segmentlerden
+  // (2026-10-09): gizli segmentteki eski ürünün kategorisi adı ve ürün sayısıyla
+  // listelenmez; hiç kalmadıysa sütun açılmaz. API de süzer; burası ikinci kat.
+  const topCategories = visibleCategoryRefs(c.topCategories);
+  const mainCategory = visibleCategoryRef(c.mainCategory);
   const certs = (c.certifications ?? []).slice(0, 2);
   const facts = [
     c.productCount > 0 ? t("products", { n: c.productCount }) : null,
@@ -190,12 +196,12 @@ export function CompanyCard({
           </div>
         </div>
 
-        <div className={cn("mt-4 grid gap-4", (c.topCategories ?? []).length > 0 && "lg:grid-cols-[14rem_minmax(0,1fr)]")}>
+        <div className={cn("mt-4 grid gap-4", topCategories.length > 0 && "lg:grid-cols-[14rem_minmax(0,1fr)]")}>
           {/* SOL — ne yaptığı: ana kategoriler (gerçek kırılım); yoksa sütun
               hiç açılmaz (boş gri alan kalmasın). */}
-          {(c.topCategories ?? []).length > 0 ? (
+          {topCategories.length > 0 ? (
           <div className="min-w-0">
-            {(c.topCategories ?? []).length > 0 ? (
+            {topCategories.length > 0 ? (
               <div className="rounded-lg bg-zinc-100/70 px-3 py-2.5">
                 <p className="text-[11px] font-semibold tracking-[0.06em] text-zinc-500 uppercase">
                   {t("mainCategories")}
@@ -206,7 +212,7 @@ export function CompanyCard({
                       kartı kaplayan firma bağlantısına düşüyordu. Sayı firmanın
                       o kategorideki ürünü; genel kategori sayfası bu sayıyla
                       çelişirdi. */}
-                  {(c.topCategories ?? []).map((t) => (
+                  {topCategories.map((t) => (
                     <li key={t.id} className="flex items-center justify-between gap-2 py-1.5 text-sm text-zinc-800">
                       <span className="line-clamp-1">{t.name}</span>
                       <span className="tnum shrink-0 text-xs text-zinc-500">({t.count})</span>
@@ -344,7 +350,7 @@ export function CompanyCard({
                 {[c.country ? countryDisplayName(c.country, locale) : null, cityDisplayName(c.city, locale)].filter(Boolean).join(", ")}
               </span>
             ) : null}
-            {c.mainCategory ? <span className="line-clamp-1">{c.mainCategory.name}</span> : null}
+            {mainCategory ? <span className="line-clamp-1">{mainCategory.name}</span> : null}
           </p>
         </div>
       </div>

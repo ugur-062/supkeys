@@ -392,14 +392,18 @@ export default function OnaylarPage() {
   const canOpenListing = userHasPermission(user, "buy:view");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
 
-  const { data: pending, isLoading: pendingLoading, isError: pendingError, refetch: refetchPending } = usePendingApprovals({ enabled: canAct });
+  // İskelet `isPending`e bağlı, `isLoading`e değil (gözden geçirme REV-2):
+  // çevrimdışı cihazda sorgu DURAKLAR (istek yok, hata yok, veri yok) ve
+  // `isLoading` false kalır — "Sıra sizde bekleyen onay yok" çiziliyordu.
+  // (Sorgu kapalıyken de pending'dir; "Sıra sizde" görünümü yalnız `canAct` ile açılır.)
+  const { data: pending, isPending: pendingLoading, isError: pendingError, refetch: refetchPending } = usePendingApprovals({ enabled: canAct });
 
   const [chip, setChip] = useState<Chip>("all");
   // Arama debounce'u SearchInput'un içinde.
   const [search, setSearch] = useState("");
   // Portal rengi — erken dönüşlerin ÜSTÜNDE (rules-of-hooks).
   const accent = useButtonAccent();
-  const { data: all, isLoading: allLoading, isError: allError, refetch: refetchAll } = useAllApprovals({
+  const { data: all, isPending: allLoading, isError: allError, refetch: refetchAll } = useAllApprovals({
     search: search.trim() || undefined,
   });
   const filtered = useMemo(() => {
@@ -496,11 +500,14 @@ export default function OnaylarPage() {
     );
   }
 
+  // Sekme sayısı yalnız OKUNABİLDİYSE çizilir (canlı doğrulama OUT-2): kesintide
+  // "Sıra sizde 0 · Tüm istekler 0" hata kartının yanında duruyordu — okunamayan
+  // sayı 0 değildir. Hata (ve ilk yükleme) rozetsiz kalır.
   const tabs: { key: "pending" | "all"; label: string; count?: number }[] = [
     ...(canAct
-      ? [{ key: "pending" as const, label: tr("siraSizde"), count: pending?.length ?? 0 }]
+      ? [{ key: "pending" as const, label: tr("siraSizde"), count: pendingError ? undefined : pending?.length }]
       : []),
-    { key: "all", label: tr("tumIstekler"), count: all?.length ?? 0 },
+    { key: "all", label: tr("tumIstekler"), count: allError ? undefined : all?.length },
   ];
   // Sekme vurgusu portal renginde (2026-09-19 mockup): satınalma mavi, satış emerald.
   const tabTone =

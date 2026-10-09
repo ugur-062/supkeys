@@ -11,6 +11,7 @@ import { useActivityLabel, useQuantityLabel } from "@/i18n/domain";
 import { CountryLabel } from "@/components/ui/country-flag";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * ALIM TALEBİ TEASER KARTI (görünürlük v2) — "gizli ama cezbedici".
@@ -47,7 +48,9 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
   // Alıcı: faaliyet tipi · talebin açıldığı ÜLKE (2026-10-04, şehir yerine).
   const activityText = activity ? activityLabel(activity) : null;
   const buyerCountry = l.company.country;
-  const primaryCategory = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
+  // Gizli segmentteki kategori rozet olarak basılmaz (2026-10-09).
+  const categories = visibleCategoryRefs(l.categories);
+  const primaryCategory = categories.find((c) => c.level >= 3) ?? categories[0];
   const qty = l.itemSummary.totalQuantity && l.itemSummary.unit ? Number(l.itemSummary.totalQuantity) : null;
   // Büyük sayı + küçük birim ayrı çizilir; birim DİLİN ÇOĞUL KURALIYLA
   // ("1,200 pieces", "1 200 коробок") — etiket sayıdan sonra bölünür.

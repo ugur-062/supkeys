@@ -4,7 +4,7 @@
  * "virgüllü liste", "sayı", "tekil/çoklu okuma" tek yerde: ayrışsalardı bir
  * listede `İstanbul, İzmir` çalışıp ötekinde çalışmazdı.
  */
-import { citySlug, knownCityName } from "@rothern/shared";
+import { citySlug, isHiddenCategory, knownCityName } from "@rothern/shared";
 
 export type SearchParamsLike = Record<string, string | string[] | undefined> | URLSearchParams;
 
@@ -77,6 +77,27 @@ export function cityListParam(v?: string): string[] {
       }),
     ),
   ]);
+}
+
+/**
+ * `?kategori=` KODU — DÖRT şemanın (ürün, talep, firma dizini, Açık Talepler)
+ * ortak sınaması: 8 haneli kod VE görünür segment.
+ *
+ * GİZLİ segmentin kodu (2026-10-09, sahip kararı: "anasayfada olmayan kategori
+ * başka yerde de gösterilmesin") HİÇ VERİLMEMİŞ sayılır: liste süzülmez, aktif
+ * çip / işaretli seçenek çizilmez, kod API'ye gitmez. Aksi hâlde elle yazılan
+ * ya da eski bir bağlantıdan gelen `?kategori=46000000` listeyi gizli
+ * segmente daraltıp adını (ya da ham kodunu) aktif süzgeç olarak basıyordu.
+ * Herkese açık ve panel yüzeyleri aynı ayrıştırıcıları okuduğu için tek geçiş
+ * noktası burasıdır; API de aynı kodu süzgeç yokmuş gibi yanıtlar.
+ */
+export function isVisibleCategoryCode(code: string | null | undefined): code is string {
+  return !!code && /^\d{8}$/.test(code) && !isHiddenCategory(code);
+}
+
+/** Tek değerli `?kategori=`: geçerli ve görünürse kod, değilse `undefined`. */
+export function categoryParam(v?: string): string | undefined {
+  return isVisibleCategoryCode(v) ? v : undefined;
 }
 
 /** `sayfa` → 1 tabanlı sayfa (1'den küçük/geçersiz → 1). */

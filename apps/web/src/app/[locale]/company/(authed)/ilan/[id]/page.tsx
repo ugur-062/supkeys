@@ -108,6 +108,7 @@ import { usePendingListingInvites } from "@/hooks/use-pending-listing-invites";
 import { isBidExpired } from "@/lib/tenders/bid-expiry";
 import { lostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
 import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
+import { ListingEmailInvites } from "@/components/tenders/listing-email-invites";
 import { ShareListing } from "@/components/tenders/share-listing";
 import { toast } from "sonner";
 import { useImportListingToCatalog } from "@/hooks/use-company-items";
@@ -246,8 +247,17 @@ export default function ListingDetailPage() {
       ? rawFrom
       : null;
   const fromLabel = searchParams.get("fromLabel");
-  // Bildirim/e-posta bağlantısı (`?ai-davet=1`): AI öneri listesi açık gelir.
+  // Bildirim/e-posta bağlantısı (`?ai-davet=1`): AI keşfinin durum listesi açık gelir.
   const aiInviteParam = searchParams.get("ai-davet") === "1";
+  // Bant "Gizle" ile kapatılınca parametre tüketilmiştir, adresten silinir
+  // (gözden geçirme R1): kalsaydı aynı bildirime yeniden tıklamak adresi
+  // değiştirmez (bant geri gelmez), yenileme de gizlenen bandı geri getirirdi.
+  const clearAiInviteParam = () => {
+    const u = new URL(window.location.href);
+    if (!u.searchParams.has("ai-davet")) return;
+    u.searchParams.delete("ai-davet");
+    window.history.replaceState(null, "", u.toString());
+  };
   const tn = useNavLabel();
   const td = useTranslations("web.domain");
   const locale = useLocale();
@@ -2394,16 +2404,11 @@ export default function ListingDetailPage() {
 
         {orderStrip}
 
-        {/* YAYIN SONRASI AI ÖNERİLERİ (2026-09-27, Faz 1): sahibin görünümünde
-            bant — bulunan tedarikçiler SEÇİLİ, tek tıkla davet; "Gizle" kapatır. */}
+        {/* YAYIN SONRASI AI KEŞFİ (2026-09-27, Faz 1; 2026-10-08: tur bulduğunu
+            kendisi davet eder): sahibin görünümünde DURUM bandı — aranıyor →
+            kaç tedarikçi bulundu, kaçı davet edildi; liste açılır; "Gizle" kapatır. */}
         {canDiscover && discoverTierOk && l.status === "OPEN" ? (
-          <ListingSuggestions
-            listingId={l.id}
-            itemNames={(l.items ?? []).map((i) => i.name)}
-            buyerCountry={company?.country}
-            variant="band"
-            defaultOpen={aiInviteParam}
-          />
+          <ListingSuggestions listingId={l.id} variant="band" defaultOpen={aiInviteParam} onDismiss={clearAiInviteParam} />
         ) : null}
 
         <div className="card p-5">
@@ -2565,6 +2570,11 @@ export default function ListingDetailPage() {
               {itemsSection}
               <GeneralInfoTab l={l} />
               {invitationsSection}
+              {/* E-POSTAYLA DAVET EDİLENLER (canlı doğrulama D3 / AI-UI-1): kayıtsız
+                  adrese giden talep davetleri — elle pencereden ve otomatik turdan —
+                  durumlarıyla KALICI görünür (tur bandı "Gizle" ile kapansa da, talep
+                  kapansa da). Hiç yoksa bölüm çizilmez. Uç `buy:view` ister. */}
+              <ListingEmailInvites listingId={l.id} enabled={hasBuyView} inviteWindowOpen={discoveryOpen} />
             </TabPanel>
             <TabPanel className="outline-none">
               <FilesTab

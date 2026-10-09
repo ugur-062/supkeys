@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FILTER_LIST_MAX_LENGTH, capJoinedList, cityListParam, pastEndLastPage } from "./filter-param-utils";
+import { FILTER_LIST_MAX_LENGTH, capJoinedList, categoryParam, cityListParam, isVisibleCategoryCode, pastEndLastPage } from "./filter-param-utils";
 import { parseProductFilters, toProductListParams } from "./product-filter-params";
 import {
   activeCompanyFilterCount,
@@ -122,5 +122,56 @@ describe("virgüllü liste süzgeçleri API tavanını aşmaz", () => {
   it("?faaliyet= içinde tekrarlanan kod düşer (API activity ≤ 200)", () => {
     const faaliyet = Array.from({ length: 10 }, () => "CONTRACT_MANUFACTURER").join(",");
     expect(toProductListParams(parseProductFilters({ faaliyet })).activity).toBe("CONTRACT_MANUFACTURER");
+  });
+});
+
+/**
+ * GİZLİ SEGMENT KODU SÜZGEÇ DEĞİLDİR (2026-10-09, arayüz denetimi W-12).
+ * `?kategori=46000000` (elle yazılmış ya da eski bağlantı) listeyi gizli
+ * segmente daraltıp adını/ham kodunu aktif süzgeç çipi olarak basıyordu.
+ * Herkese açık ve panel dizinleri AYNI ayrıştırıcıları okur — dört şema da
+ * kodu hiç verilmemiş sayar: süzülmez, çip çizilmez, API'ye gitmez.
+ */
+describe("gizli segment kodu ?kategori= süzgeci olarak YOK sayılır", () => {
+  const HIDDEN = ["46000000", "46181500", "77101500", "10000000", "50202300"];
+
+  it("ortak sınama: 8 hane VE görünür segment", () => {
+    expect(isVisibleCategoryCode("39121600")).toBe(true);
+    expect(categoryParam("39121600")).toBe("39121600");
+    for (const code of HIDDEN) {
+      expect(isVisibleCategoryCode(code), code).toBe(false);
+      expect(categoryParam(code), code).toBeUndefined();
+    }
+    for (const bad of [undefined, "", "3912", "abc", "391216000"]) expect(categoryParam(bad)).toBeUndefined();
+  });
+
+  it.each(HIDDEN)("ürün dizini: ?kategori=%s süzgeçsiz listeyle AYNI", (code) => {
+    const f = parseProductFilters({ kategori: code, q: "eldiven" });
+    expect(f).toEqual(parseProductFilters({ q: "eldiven" }));
+    expect(toProductListParams(f)).not.toHaveProperty("category", code);
+    expect(toProductListParams(f).category).toBeUndefined();
+  });
+
+  it("ürün dizini: yoldan gelen sabit kategori gizliyse o da düşer", () => {
+    expect(parseProductFilters({}, "46000000").category).toBeUndefined();
+    expect(parseProductFilters({ kategori: "46000000" }, "39000000").category).toBe("39000000");
+  });
+
+  it.each(HIDDEN)("alım talebi dizini: ?kategori=%s süzgeçsiz listeyle AYNI, adrese geri yazılmaz", (code) => {
+    const f = parseListingFilters({ kategori: code });
+    expect(f).toEqual(parseListingFilters({}));
+    expect(toListingListParams(f).category).toBeUndefined();
+    expect(buildListingFilterQuery(f)).toBe("");
+    expect(activeListingFilterCount(f)).toBe(0);
+  });
+
+  it("firma dizini: listedeki gizli kodlar düşer, görünürler kalır", () => {
+    const f = parseCompanyFilters({ kategori: "46000000,39000000,77000000,23000000" });
+    expect(f.categories).toEqual(["39000000", "23000000"]);
+    expect(toDirectoryParams(f).category).toBe("39000000,23000000");
+    const only = parseCompanyFilters({ kategori: "46000000" });
+    expect(only).toEqual(parseCompanyFilters({}));
+    expect(activeCompanyFilterCount(only)).toBe(0);
+    expect(buildCompanyFilterQuery(only)).toBe("");
   });
 });

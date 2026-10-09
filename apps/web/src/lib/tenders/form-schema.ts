@@ -187,14 +187,30 @@ export function makeTenderItemSchema(t: RequestsTranslate) {
   });
 }
 
-function makeBaseTenderSchema(t: RequestsTranslate) {
+/** Talep formu şemasının seçenekleri — bkz. `makeTenderFormSchema`. */
+export interface TenderFormSchemaOptions {
+  /**
+   * Kategori zorunlu mu (varsayılan: evet — yeni talep ve taslağın yayını).
+   *
+   * `false` YALNIZ şu durumda: YAYINDAKİ bir talep düzenleniyor ve form
+   * açıldığında talebin gösterilebilir kategorisi yoktu (tek kategorisi
+   * 2026-10-09'da gizlenen bir segmentteydi; ya da hiç yoktu). Kural (sahip):
+   * değişmeyen eski değer ilgisiz bir düzenlemeyi engellemez — kapanış tarihini
+   * uzatmak için yeni kategori seçmek gerekmez. Kararı çağıran verir
+   * (`QuickRequest`); üst sınır (3) her durumda geçerlidir.
+   */
+  categoryRequired?: boolean;
+}
+
+function makeBaseTenderSchema(t: RequestsTranslate, opts: TenderFormSchemaOptions = {}) {
   const maxChars = (n: number) => t("formSchema.maxChars", { n });
+  const categoryIds = z.array(z.string().min(1));
   return z.object({
     // Adım 1
-    categoryIds: z
-      .array(z.string().min(1))
-      .min(1, t("formSchema.categoryMin"))
-      .max(3, t("formSchema.categoryMax")),
+    categoryIds: (opts.categoryRequired === false ? categoryIds : categoryIds.min(1, t("formSchema.categoryMin"))).max(
+      3,
+      t("formSchema.categoryMax"),
+    ),
     /**
      * ARANAN TEDARİKÇİ TİPİ — isteğe bağlı. Boş dizi "fark etmez" demektir ve
      * sıralamayı hiç etkilemez; dolu olduğunda uyan firmalar duyuruda ve açık
@@ -314,9 +330,9 @@ function makeBaseTenderSchema(t: RequestsTranslate) {
 }
 
 /** Talep formu şeması — kullanıcının diliyle kurulur (bkz. `RequestsTranslate`). */
-export function makeTenderFormSchema(t: RequestsTranslate) {
+export function makeTenderFormSchema(t: RequestsTranslate, opts: TenderFormSchemaOptions = {}) {
   return (
-    makeBaseTenderSchema(t)
+    makeBaseTenderSchema(t, opts)
       // Teslim şekli zorunlu (tip opsiyonel — form boş başlar, yayında bu kural).
       .refine((d) => !!d.deliveryTerm, {
         message: t("formSchema.deliveryTermRequired"),

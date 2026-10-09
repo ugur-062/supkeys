@@ -28,6 +28,7 @@ import {
   viewablePortals,
 } from "./sidebar";
 import { CompanyTopbar } from "./topbar";
+import { ServiceNotice } from "./service-notice";
 import { useCompanyDocumentTitle } from "./document-title";
 import { ButtonAccentProvider, accentForPortal } from "@/components/ui/button-accent";
 
@@ -39,7 +40,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations("web.panel.shell.shell");
   const tn = useNavLabel();
   // Login sonrası /me ile firma + roller tazelenir.
-  useCompanyMe();
+  const me = useCompanyMe();
   const pathname = usePathname();
   // Sekme başlığı "<sayfa adı> · Rothern" — rota etiketinden, arayüz dilinde.
   useCompanyDocumentTitle(pathname);
@@ -155,6 +156,9 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           id="icerik"
           className="mx-auto w-full max-w-[1320px] grow px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 xl:px-10"
         >
+          {/* API yanıt vermiyorsa iskelet/içerik MESAJSIZ kalmaz: "ulaşılamıyor,
+              yeniden deneniyor" notu + "Tekrar dene" (`service-notice.tsx`). */}
+          <ServiceNotice me={me} pending={!permissionsSynced} />
           {permissionsSynced ? (
             children
           ) : (

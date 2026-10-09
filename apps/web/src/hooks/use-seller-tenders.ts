@@ -5,6 +5,7 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
 import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 import { useQuery } from "@tanstack/react-query";
+import { visibleCategoryRefs, visibleRowCategories } from "@/lib/visible-categories";
 
 /** GET /company/listings/seller-tenders satırı. */
 export interface SellerTenderRow {
@@ -96,6 +97,9 @@ export function maskedRequestHref(number: string): string {
  * boş, eylem bayrakları kapalı (teklif Silver ile).
  */
 export function maskedRowToSellerRow(m: MaskedTenderApiRow): SellerTenderRow {
+  // Gizli segmentteki kategori satıra hiç girmez (2026-10-09) — "+N" de yalnız
+  // görünürleri sayar (bu satırda sayaç web'de üretilir, liste eksiksizdir).
+  const categories = visibleCategoryRefs(m.categories);
   return {
     id: `masked:${m.number}`,
     masked: true,
@@ -123,11 +127,26 @@ export function maskedRowToSellerRow(m: MaskedTenderApiRow): SellerTenderRow {
     categoryMatch: m.categoryMatch,
     productMatch: m.productMatch,
     matchedProduct: m.matchedProduct,
-    categories: m.categories.slice(0, 2).map((c) => ({ code: c.id, name: c.name })),
-    extraCategoryCount: Math.max(0, m.categories.length - 2),
+    categories: categories.slice(0, 2).map((c) => ({ code: c.id, name: c.name })),
+    extraCategoryCount: Math.max(0, categories.length - 2),
     itemNames: m.itemNames,
     translatedFrom: m.translatedFrom ?? null,
   };
+}
+
+/**
+ * API satırı → liste satırı: gizli segmentteki kategori DÜŞER (2026-10-09).
+ * Tek geçiş noktası burası olduğu için satırı okuyan her şey aynı listeyi
+ * görür: Kategori sütunu ve "+N", genişletilmiş çipler, sektör sayacı, arama
+ * metni (gizli kategori adıyla arayan talebi bulamaz), `?kategori=` süzgeci ve
+ * satış anasayfasının "Sektörler" önerisi. Eşleşme bayrakları (`categoryMatch`
+ * …) sunucuda saklanan kodların TAMAMINDAN hesaplanır; dokunulmaz.
+ */
+export function withVisibleRowCategories<T extends Pick<SellerTenderRow, "categories" | "extraCategoryCount">>(row: T): T {
+  const { categories, extraCount } = visibleRowCategories(row.categories, row.extraCategoryCount);
+  return categories.length === (row.categories?.length ?? 0) && extraCount === row.extraCategoryCount
+    ? row
+    : { ...row, categories, extraCategoryCount: extraCount };
 }
 
 /**
@@ -143,7 +162,9 @@ export function useSellerTenders() {
     queryKey: ["company-listings", "seller-tenders", "ALIM", withMasked ? "masked" : "full"],
     queryFn: async () => {
       const [full, masked] = await Promise.all([
-        companyApi.get<SellerTenderRow[]>("/company/listings/seller-tenders?type=ALIM").then((r) => r.data),
+        companyApi
+          .get<SellerTenderRow[]>("/company/listings/seller-tenders?type=ALIM")
+          .then((r) => r.data.map(withVisibleRowCategories)),
         withMasked
           ? companyApi
               .get<MaskedTenderApiRow[]>("/company/listings/seller-tenders/masked")

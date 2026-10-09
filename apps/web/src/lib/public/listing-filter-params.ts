@@ -1,4 +1,4 @@
-import { getParam as get, listParam, pageParam, type SearchParamsLike } from "./filter-param-utils";
+import { categoryParam, getParam as get, listParam, pageParam, type SearchParamsLike } from "./filter-param-utils";
 import type { ListParams } from "./marketplace-api";
 
 /**
@@ -52,7 +52,8 @@ export function parseListingFilters(sp: SearchParamsLike): ListingFilterState {
   const sort = get(sp, "sirala");
   return {
     q: get(sp, "q")?.trim().slice(0, LISTING_SEARCH_MAX_LENGTH).trim() || undefined,
-    category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
+    // Gizli segment kodu süzgeç yokmuş gibi okunur (`categoryParam`).
+    category: categoryParam(cat),
     buyerCountries: buyerCountryParam(get(sp, "aliciUlke")),
     country: country && /^[A-Z]{2}$/.test(country) ? country : undefined,
     within: within === "3" || within === "7" || within === "30" ? within : undefined,

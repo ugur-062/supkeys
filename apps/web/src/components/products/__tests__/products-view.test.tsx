@@ -6,10 +6,10 @@
  * taşır; sekme sayaçları SUNUCUNUN firma-geneli `counts`undan gelir (arama
  * daraltınca değişmez); sekme yalnız istemcide süzer.
  */
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   get: vi.fn(),
@@ -194,6 +194,11 @@ beforeEach(() => {
       data: { items, total: items.length, truncated: false, counts: { published: 1, draft: 1, pending: 1, rejected: 1, publishedInReview: 0 } },
     });
   });
+});
+
+afterEach(() => {
+  // Çevrimdışı testi ağı kapatır; sonraki testler çevrimiçi başlasın.
+  onlineManager.setOnline(true);
 });
 
 describe("ProductsView", () => {
@@ -488,5 +493,67 @@ describe("ProductsView", () => {
     await vi.waitFor(() => expect(withQ().length).toBeGreaterThan(0));
     expect(withQ()).toHaveLength(1);
     expect((withQ()[0]![1] as { params: { q: string } }).params.q).toBe("Çelik");
+  });
+
+  /**
+   * Canlı doğrulama OUT-2 (API kesintisi): 93 ürünü olan firmaya "Henüz ürün
+   * yok." + "Yeni ürün ekle" çiziliyordu, hata kartı yoktu. Boş durum yalnız
+   * BAŞARILI ve boş yanıtta; okunamayan liste hata kartı alır, sekme sayaçları
+   * "0" değil "—" kalır.
+   */
+  it("liste okunamadı (kesinti): 'Henüz ürün yok' DEĞİL hata kartı; sayaç 0 basılmaz; Tekrar dene listeyi getirir", async () => {
+    const user = userEvent.setup();
+    const healthy = h.get.getMockImplementation()!;
+    h.get.mockImplementation((url: string) =>
+      url === "/company/items" ? Promise.reject(Object.assign(new Error("Network Error"), { code: "ERR_NETWORK" })) : healthy(url),
+    );
+    wrap(<ProductsView />);
+    const card = await screen.findByRole("alert");
+    expect(card).toHaveTextContent("Bir şeyler ters gitti");
+    expect(screen.queryByText("Henüz ürün yok.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Yeni ürün ekle" })).toBeNull();
+    const tabs = within(screen.getByRole("tablist"));
+    expect(tabs.getByRole("tab", { name: /Tümü/ })).toHaveTextContent("Tümü—");
+    expect(tabs.getByRole("tab", { name: /Yayında/ })).toHaveTextContent("Yayında—");
+
+    h.get.mockImplementation(healthy);
+    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(await screen.findByText("Dağıtım panosu")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  /**
+   * Gözden geçirme REV-2: cihaz çevrimdışıyken TanStack sorguyu DURAKLATIR —
+   * istek gitmez, hata da olmaz (`isLoading` false, `isError` false, veri yok).
+   * "Yükleniyor" `isLoading`e bağlıyken liste boş durum dalına düşüyor, yanıt
+   * hiç gelmediği hâlde "Henüz ürün yok." + "Yeni ürün ekle" çiziliyordu.
+   */
+  it("cihaz çevrimdışı (sorgu duraklatıldı): 'Henüz ürün yok' DEĞİL 'Yükleniyor'; sayaç 0 basılmaz; bağlantı dönünce liste gelir", async () => {
+    onlineManager.setOnline(false);
+    wrap(<ProductsView />);
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+    expect(screen.queryByText("Henüz ürün yok.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Yeni ürün ekle" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    const tabs = within(screen.getByRole("tablist"));
+    expect(tabs.getByRole("tab", { name: /Tümü/ })).toHaveTextContent("Tümü—");
+    // Duraklatılan sorgu istek ATMAZ: ne hata ne yanıt var.
+    expect(h.get.mock.calls.filter(([url]) => url === "/company/items")).toHaveLength(0);
+
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByText("Dağıtım panosu")).toBeInTheDocument();
+    expect(screen.queryByText("Yükleniyor…")).toBeNull();
+  });
+
+  it("BAŞARILI ve boş yanıt: boş durum + 'Yeni ürün ekle' (hata kartı değil)", async () => {
+    h.get.mockImplementation(() =>
+      Promise.resolve({
+        data: { items: [], total: 0, truncated: false, counts: { published: 0, draft: 0, pending: 0, rejected: 0, publishedInReview: 0 } },
+      }),
+    );
+    wrap(<ProductsView />);
+    expect(await screen.findByText("Henüz ürün yok.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Yeni ürün ekle" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

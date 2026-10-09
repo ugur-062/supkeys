@@ -2,6 +2,7 @@ import type { Locale } from "@rothern/i18n";
 import type { ProfileViewData } from "@/components/company/company-profile-view";
 import type { PublicProfile } from "@/lib/public/marketplace-api";
 import { contentLangOf } from "@/lib/seo/meta";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * Herkese açık `/firma/<slug>` → `CompanyProfileView` verisi (beyaz liste).
@@ -19,7 +20,9 @@ export function publicProfileViewData(p: PublicProfile, locale: Locale): Profile
     verified: p.verified,
     industry: p.industry,
     activities: p.activities,
-    categories: p.categories,
+    // Gizli segmentteki eski beyan herkese açık profile İNMEZ (2026-10-09):
+    // çip çizilmez, ad RSC yüküne de düşmez. API de süzer; burası ikinci kat.
+    categories: visibleCategoryRefs(p.categories),
     city: p.city,
     country: p.country,
     logoUrl: p.logoUrl,

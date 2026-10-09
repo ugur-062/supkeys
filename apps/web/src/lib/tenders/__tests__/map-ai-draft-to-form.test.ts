@@ -33,6 +33,15 @@ function draft(over: Partial<AiTenderDraft> = {}): AiTenderDraft {
   };
 }
 
+describe("mapAiDraftToForm — gizli segment önerisi (2026-10-09, W-11)", () => {
+  it("gizli segment kodu ön-seçime girmez; tavan (3) görünürlerden sayılır", () => {
+    const form = mapAiDraftToForm(
+      draft({ suggestedCategoryIds: ["46181500", "39121600", "31161500", "77101500", "40141700", "23151800"] }),
+    );
+    expect(form.categoryIds).toEqual(["39121600", "31161500", "40141700"]);
+  });
+});
+
 describe("mapAiDraftToForm", () => {
   it("AI kalemleri muadil varsayılanı AÇIK gelir (derin denetim Y-16)", () => {
     const form = mapAiDraftToForm(draft());

@@ -47,9 +47,11 @@ const hero = () => render(<AudienceProvider><HomeHero /></AudienceProvider>);
 beforeEach(() => window.localStorage.clear());
 
 describe("Anasayfa — panel ekranlarının anonim hâli", () => {
-  it("sunucu varsayılanı TEDARİKÇİ yüzü (2026-09-21): talep sorusu, yeşil 'Ara', kapsam pili YOK", () => {
+  it("sunucu varsayılanı TEDARİKÇİ yüzü (2026-09-21): sipariş başlığı, yeşil 'Ara', kapsam pili YOK", () => {
     hero();
-    expect(screen.getByRole("heading", { level: 1, name: /Hangi talebe/ })).toBeInTheDocument();
+    // Başlık 2026-10-08'de değişti (kullanıcı kararı): soru kipi kalktı,
+    // tedarikçi yüzü "Yeni siparişler bulun", alıcı yüzü "Yeni tedarikçiler bulun".
+    expect(screen.getByRole("heading", { level: 1, name: "Yeni siparişler bulun" })).toBeInTheDocument();
     const ara = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
@@ -67,11 +69,12 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(radios.map((r) => r.textContent)).toEqual(["Tedarikçiyim", "Alıcıyım"]);
   });
 
-  it("anahtar ALICI yüzüne geçirir: ürün sorusu, mavi 'Ara', firma pili yine YOK", async () => {
+  it("anahtar ALICI yüzüne geçirir: tedarikçi başlığı, mavi 'Ara', firma pili yine YOK", async () => {
     const user = userEvent.setup();
     hero();
     await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Hangi ürünü arıyorsunuz?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Yeni tedarikçiler bulun" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Yeni siparişler bulun" })).toBeNull();
     const ara = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
@@ -245,7 +248,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
         newest={[] as any}
         showcase={[
           { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
-          { id: "10000000", name: "Canlı Bitki", count: 0, imageSrc: null },
+          { id: "41000000", name: "Laboratuvar", count: 0, imageSrc: null },
         ] as any}
       />,
     );
@@ -253,10 +256,42 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "href",
       "/urunler/kategori/39000000-elektrik",
     );
-    expect(screen.getAllByRole("link", { name: /Canlı Bitki/ })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Laboratuvar/ })[0]).toHaveAttribute(
       "href",
-      "/urunler?kategori=10000000",
+      "/urunler?kategori=41000000",
     );
+  });
+
+  it("kategori vitrini: tek segment kalsa da çizilir (tanıtım kartı), boş ızgara listesi yok", () => {
+    const { container } = render(
+      <HomeBuyer newest={[] as any} showcase={[{ id: "39000000", name: "Elektrik", count: 5, imageSrc: null }] as any} />,
+    );
+    const block = screen.getByRole("region", { name: "Elektrik" });
+    expect(block.querySelector('a[href="/urunler/kategori/39000000-elektrik"]')).not.toBeNull();
+    expect(block.querySelector("ul")).toBeNull();
+    expect(container.textContent).toContain("Elektrik");
+  });
+
+  // 2026-10-09 (sahip kararı): 46 ve 77 anasayfadan kalktı. Vitrin verisi
+  // süzülü gelir (`buildShowcase`); kart çizimi son kattır — gizli segment
+  // girdide olsa bile anasayfada kartı, adı ve bağlantısı çıkmaz.
+  it("kategori vitrini: gizli segment (46, 77, 10) kart olarak çizilmez", () => {
+    const { container } = render(
+      <HomeBuyer
+        newest={[] as any}
+        showcase={[
+          { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
+          { id: "46000000", name: "Kolluk ve Emniyet", count: 9, imageSrc: null },
+          { id: "23000000", name: "Makine", count: 2, imageSrc: null },
+          { id: "77000000", name: "Çevre Hizmetleri", count: 0, imageSrc: null },
+          { id: "10000000", name: "Canlı Bitki", count: 0, imageSrc: null },
+        ] as any}
+      />,
+    );
+    expect(screen.getAllByRole("link", { name: /Elektrik/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Makine/ }).length).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/Kolluk|Çevre Hizmetleri|Canlı Bitki/);
+    expect(container.querySelector('a[href*="46000000"], a[href*="77000000"], a[href*="10000000"]')).toBeNull();
   });
 
   it("kategori vitrini FOTOĞRAFSIZ — çizgisel segment ikonu (2026-09-21, kullanıcı kararı)", () => {

@@ -48,6 +48,7 @@ import {
 } from "@/hooks/use-company-auth";
 import { useFileComplaint } from "@/hooks/use-company-complaints";
 import { ListSkeleton } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { COMPLAINT_DETAIL_MAX, complaintPayload } from "@/lib/company/complaint-payload";
@@ -147,8 +148,13 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   const outgoingRows = outgoing.data ?? [];
   const referralRows = referralInvites.data ?? [];
   const blockedRows = blocks.data ?? [];
-  const connCount = connections.data?.length ?? 0;
-  const pendingCount = outgoingRows.length + referralRows.length;
+  /* OKUNAMAYAN SAYI 0 DEĞİLDİR (canlı doğrulama OUT-2): API kesintisinde çipler
+     "Bağlantılarım 0 · Bekleyenler 0" yazıyor, liste de "Henüz bağlantınız yok"
+     diyordu — oysa firmanın bağlantıları vardı. Sayı yalnız yanıt geldiyse
+     bilinir (`null` = bilinmiyor → rozet çizilmez); boş durum yalnız BAŞARILI
+     ve boş yanıtta, hata ayrı dalda (`ErrorState` + yeniden dene). */
+  const connCount = connections.data ? connections.data.length : null;
+  const pendingCount = outgoing.data && referralInvites.data ? outgoingRows.length + referralRows.length : null;
 
   // Bağlantılarım içi arama — ad / Rothern ID / sektör / şehir (istemci).
   const filteredConnections = useMemo(() => {
@@ -209,20 +215,34 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
     }
     return filteredConnections.map((c) => ({ kind: "mine" as const, id: c.connectionId, company: c.company }));
   }, [view, incomingRows, outgoingRows, referralRows, blockedRows, filteredConnections]);
-  const loading =
+  // Etkin görünümü besleyen sorgular ("Bekleyenler" iki uçtan okur).
+  const viewQueries =
     view === "incoming"
-      ? incoming.isLoading
+      ? [incoming]
       : view === "pending"
-        ? outgoing.isLoading
+        ? [outgoing, referralInvites]
         : view === "blocked"
-          ? blocks.isLoading
-          : connections.isLoading;
+          ? [blocks]
+          : [connections];
+  /* YANIT GELMEDEN "YOK" DENMEZ (gözden geçirme REV-2): iskelet `isLoading`e
+     değil `isPending`e bağlı. Cihaz çevrimdışıyken TanStack sorguyu DURAKLATIR
+     (durum pending, istek yok): `isLoading` false, `isError` false, veri yok —
+     liste boş durum dalına düşüyor, okunamayan sayı (`connCount === null`)
+     yüzünden "“” ile eşleşen bağlantınız bulunamadı" yazıyordu. `isPending` =
+     henüz veri yok (istek sürüyor ya da bekliyor); bağlantı dönünce sorgu
+     kendiliğinden sürer. */
+  const loading = viewQueries.some((query) => query.isPending);
+  // Verisi olan sorgunun arka plan yenilemesi düştüyse eldeki liste kalır.
+  const failed = viewQueries.some((query) => query.isError && query.data === undefined);
+  const retryView = () => {
+    for (const query of viewQueries) if (query.isError) void query.refetch();
+  };
 
-  const VIEWS: { key: View; label: string; count: number; attention?: boolean; icon: typeof Users }[] = [
+  const VIEWS: { key: View; label: string; count: number | null; attention?: boolean; icon: typeof Users }[] = [
     { key: "mine", label: t("baglantilarim"), count: connCount, icon: Users },
-    { key: "incoming", label: t("gelenIstekler"), count: incomingRows.length, attention: true, icon: Inbox },
+    { key: "incoming", label: t("gelenIstekler"), count: incoming.data ? incomingRows.length : null, attention: true, icon: Inbox },
     { key: "pending", label: t("bekleyenler"), count: pendingCount, icon: Clock },
-    { key: "blocked", label: t("engellenenler"), count: blockedRows.length, icon: Ban },
+    { key: "blocked", label: t("engellenenler"), count: blocks.data ? blockedRows.length : null, icon: Ban },
   ];
   /* PORTAL RENGİ (2026-09-18, kullanıcı: "hangi paneldeyse o renge uyumlu"):
      başlık ikonu, seçili görünüm çipi ve "Bağlı" pili portal tonunda —
@@ -334,18 +354,21 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
               >
                 <v.icon aria-hidden className="size-4" strokeWidth={1.75} />
                 {v.label}
-                <span
-                  className={cn(
-                    "min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums",
-                    on
-                      ? tone.countOn
-                      : v.attention && v.count > 0
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-zinc-100 text-zinc-600",
-                  )}
-                >
-                  {v.count}
-                </span>
+                {/* Sayı okunamadıysa (yükleniyor / hata) rozet YOK — "0" değil. */}
+                {v.count == null ? null : (
+                  <span
+                    className={cn(
+                      "min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums",
+                      on
+                        ? tone.countOn
+                        : v.attention && v.count > 0
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-zinc-100 text-zinc-600",
+                    )}
+                  >
+                    {v.count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -355,6 +378,8 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
             <ListSkeleton rows={4} />
           </div>
+        ) : failed ? (
+          <ErrorState onRetry={retryView} />
         ) : rows.length === 0 ? (
           view === "mine" && connCount === 0 ? (
             <EmptyBox

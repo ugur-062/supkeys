@@ -15,7 +15,7 @@ import { useConnections } from "@/hooks/use-company-connections";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
 import { useAiRequestDraftSuggest } from "@/hooks/use-ai-tender-import";
-import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, isHiddenCategory, tierAtLeast, visibleCategoryIds } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
@@ -27,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
-import { clearFormSupplierPanel, FormSupplierPanel } from "@/components/tenders/ai-suppliers/form-supplier-panel";
 import { TermsPanel } from "./terms-panel";
 import { RequestDefaultsForm, useVisibilityLabels } from "@/components/tenders/request-defaults-form";
 import { useAiMissingFieldLabel, useCityLabel, useFormatPaymentPlan, usePaymentCategoryLabel } from "@/i18n/domain";
@@ -69,7 +68,7 @@ import {
 import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
-import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, fallbackVisibilityFor, initialRequestFormValues, type QuickSeedKind } from "@/lib/tenders/request-defaults";
+import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, fallbackVisibilityFor, initialRequestFormValues, withVisibleCategories, type QuickSeedKind } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, requestDefaultsFallbackFor, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
@@ -117,7 +116,9 @@ export function QuickRequest({
   mode = "new",
   listingId,
   listingStatus,
+  invitationsAsOf,
   seedTerms = false,
+  retiredCategory = false,
 }: {
   initialValues?: Partial<TenderFormData>;
   /** `edit`: mevcut talebi günceller (2026-09-19: detaylı sihirbaz kaldırıldı, düzenleme de bu kart). */
@@ -129,8 +130,24 @@ export function QuickRequest({
    * Y-20: `publish` yalnız taslağı kabul eder, 400 dönüyordu).
    */
   listingStatus?: string;
+  /**
+   * Düzenleme: `initialValues`in geldiği talep detayının `invitationsAsOf`
+   * alanı (davetli listesinin sunucuda okunduğu an). Kayıtta aynen geri
+   * gönderilir: form listesini bir kez okur; açıkken otomatik tedarikçi
+   * aramasının davet ettiği üyeyi bilemez ve kaydederken sildirmemelidir.
+   */
+  invitationsAsOf?: string;
   /** Tohum (kopya/şablon) kendi ticari şartlarını taşır — profil varsayılanı onları EZMEZ. */
   seedTerms?: boolean;
+  /**
+   * Tohumun geldiği kayıt artık sunulmayan (gizli segment) bir kategori
+   * taşıyordu. Detay eşleyicisi gizli kodu forma hiç vermez (`mapDetailToForm`)
+   * → form bunu `initialValues`ten göremez, sayfa söyler. Ham kod taşıyan
+   * tohumu (şablon, oturum taslağı) form kendisi tanır. Etkisi yalnız NOT:
+   * kategori alanı boşken "önceki kategori artık kullanılmıyor" çizilir —
+   * kategorinin adı anılmaz.
+   */
+  retiredCategory?: boolean;
 }) {
   const tr = useTranslations("web.panel.requests.quickRequest");
   // Şema mesajları (`formSchema.*`, `closesAt.*`) ve üretilen başlık sözcükleri
@@ -144,12 +161,36 @@ export function QuickRequest({
   const cityLabel = useCityLabel();
   // Görünürlük kartı etiketleri Talep Şartları formuyla AYNI kaynaktan (`requestDefaultsForm.visibility.*`).
   const visibilityLabels = useVisibilityLabels();
-  const schema = useMemo(() => makeTenderFormSchema((key, values) => tReq(key as never, values as never)), [tReq]);
   const titleT: TitleTranslate = (key, values) => tReq(`quickParse.${key}` as never, values as never);
   const makeTitle = (items: { name: string }[]) => titleFromItems(items, titleT, locale);
   const isEdit = mode === "edit" && !!listingId;
   // Yayındaki (teklifsiz) talebi düzenleme: kaydet = PATCH + bekleyen davetler.
   const isLiveEdit = isEdit && !!listingStatus && listingStatus !== "DRAFT";
+  /**
+   * KATEGORİSİZ AÇILAN YAYINDAKİ TALEP (2026-10-09, gözden geçirme R-WEB-01).
+   * Sahip kuralı: değişmeyen eski değer ilgisiz bir düzenlemeyi ENGELLEMEZ.
+   * Yayındaki talebin tek kategorisi gizli segmentteyse form kategorisiz açılır
+   * (gizli kod forma girmez — `withVisibleCategories`); "Değişiklikleri kaydet"
+   * yeni talebin "en az 1 kategori" kuralına takılır, kapanış tarihi kategori
+   * seçmeden uzatılamazdı. Bu formda kategori ZORUNLU DEĞİL: boş kalırsa boş
+   * gider, seçilirse o gider. Karar formun AÇILDIĞI andaki tohumdan (bir kez):
+   * görünür kategoriyle açılan talepte hepsini kaldırmak değişikliktir, kural
+   * durur. Taslak ve yeni talep hiç etkilenmez (yayın kapısı kategori ister).
+   */
+  const [seededWithoutCategory] = useState(() => visibleCategoryIds(initialValues?.categoryIds).length === 0);
+  const categoryOptional = isLiveEdit && seededWithoutCategory;
+  const schema = useMemo(
+    () => makeTenderFormSchema((key, values) => tReq(key as never, values as never), { categoryRequired: !categoryOptional }),
+    [tReq, categoryOptional],
+  );
+  /**
+   * Tohum kullanımdan kalkmış bir kategori taşıyordu: sayfa söyledi
+   * (`retiredCategory`), ham tohumda gizli kod vardı (şablon) ya da geri
+   * yüklenen oturum taslağında vardı (aşağıdaki efekt). Kod forma girmez;
+   * alan boşken nedenini `CategorySelectorButton` notu söyler.
+   */
+  const [retiredSeed, setRetiredSeed] = useState(() => (initialValues?.categoryIds ?? []).some((id) => isHiddenCategory(id)));
+  const hadRetiredCategory = retiredCategory || retiredSeed;
   // Düzenleme/kopya/şablon talebin KENDİ şartlarıyla açılır (derin denetim Y-19).
   const seedKind: QuickSeedKind = isEdit ? "edit" : seedTerms && initialValues ? "seed" : "blank";
   const router = useRouter();
@@ -193,11 +234,14 @@ export function QuickRequest({
     inviteResults: ExternalInviteResult[] | "error" | null;
     memberResults: NamedMemberResult[] | "error" | null;
   } | null>(null);
-  // AI keşfinden eklenen dış davet alıcıları (adres + dil + ülke) — YAYINDA
-  // talebe özel davet (`external-tender-invite`) gider; yayından önce e-posta
-  // GİTMEZ (2026-09-27). Dil satırda değiştirilebilir.
+  // ESKİ TASLAKTAN KALAN AI SEÇİMLERİ (2026-10-08): form artık kendisi tedarikçi
+  // aramıyor (kalemlerin altındaki AI paneli kaldırıldı; yayın sonrası tur
+  // bulduğunu kendisi davet eder). Bu iki liste yalnız daha önce saklanmış
+  // taslaktan (`QuickDraft.externalInvites`/`memberInvites`, kayıtlı taslakta
+  // `pendingInvitesKey`/`pendingMemberInvitesKey`) dolar; alıcının o zaman
+  // seçtiği firmalar YAYINDA eskisi gibi davet edilir (dış adres: talebe özel
+  // e-posta daveti, dil satırda değiştirilebilir; üye: doğrudan talebe).
   const [externalInvites, setExternalInvites] = useState<ExternalInviteTarget[]>([]);
-  // AI'ın bulduğu Rothern üyeleri (2026-09-28) — YAYINDA talebe doğrudan davet.
   const [memberInvites, setMemberInvites] = useState<MemberInviteTarget[]>([]);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
@@ -213,7 +257,8 @@ export function QuickRequest({
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { ...DEFAULT_FORM_VALUES, ...initialValues },
+    // Gizli segmentteki kod forma hiç girmez (2026-10-09) — bkz. `withVisibleCategories`.
+    defaultValues: withVisibleCategories({ ...DEFAULT_FORM_VALUES, ...initialValues }),
     mode: "onTouched",
   });
   const { watch, setValue, getValues, reset } = form;
@@ -240,9 +285,13 @@ export function QuickRequest({
 
   /* Profil yüklenince şartları forma uygula (bir kez); taslak varsa geri getir. */
   const appliedRef = useRef(false);
+  // Formun tohumlandığı ANDAKİ detayın okuma zamanı — sayfa detayı sonradan
+  // yeniden çekse de form eski listeyle kalır; damga da onunla kalmalı.
+  const seededInvitationsAsOf = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!defaultsQ.data || appliedRef.current) return;
     appliedRef.current = true;
+    seededInvitationsAsOf.current = invitationsAsOf;
     const d = defaultsQ.data.defaults ?? requestDefaultsFallbackFor(companyCountry);
     const draft = initialValues ? null : readSession<QuickDraft>(QUICK_DRAFT_KEY);
     const base = initialRequestFormValues(seedKind, initialValues, d);
@@ -250,8 +299,11 @@ export function QuickRequest({
     // talebin kendisi, boş kartta profil.
     setTerms(seedKind === "blank" ? d : defaultsFromForm(base, d.closeDays));
     const { externalInvites: draftInvites, memberInvites: draftMembers, ...draftFields } = draft ?? {};
-    reset(draft ? { ...base, ...draftFields, bidsCloseAt: base.bidsCloseAt } : base);
+    // Oturum taslağı eşleyiciden geçmez → gizli kod burada düşer (2026-10-09).
+    reset(draft ? withVisibleCategories({ ...base, ...draftFields, bidsCloseAt: base.bidsCloseAt }) : base);
     if (draft) setRestoredDraft(true);
+    // Düşen kodun yerinde boş alan kalır — nedenini alan notu söyler (R-WEB-01).
+    if ((draft?.categoryIds ?? []).some((id) => isHiddenCategory(id))) setRetiredSeed(true);
     // Bekleyen dış davetler: yeni kartta taslaktan, düzenlemede taslak
     // kaydında bırakılan listeden.
     // Eski taslak düz adres dizisi taşıyabilir — dil kuralla türetilir.
@@ -264,7 +316,7 @@ export function QuickRequest({
       isEdit && listingId ? readSession<unknown>(pendingMemberInvitesKey(listingId)) : draftMembers,
     );
     if (pendingMembers.length) setMemberInvites(pendingMembers.slice(0, MAX_PENDING_EXTERNAL_INVITES));
-  }, [defaultsQ.data, initialValues, reset, isEdit, listingId, companyCountry, locale, seedKind]);
+  }, [defaultsQ.data, initialValues, invitationsAsOf, reset, isEdit, listingId, companyCountry, locale, seedKind]);
 
   /* Bağlantısız firma (D-246): platform varsayılanı "Bağlantılarım" talebi
      kimseye göstermez → bağlantılar yüklenince bir kez "Herkese açık"a çekilir.
@@ -390,6 +442,11 @@ export function QuickRequest({
    * sayıp yeniden e-posta attırıyordu (derin denetim MU-26 gözden geçirme).
    */
   const buildInput = (values: TenderFormData) => mapToInput(applyConnectionsScope(values, connectionIds));
+  /** Düzenleme gövdesi: formun davetli listesini okuduğu an da gider (yoksa alan hiç yazılmaz). */
+  const buildEditInput = (values: TenderFormData) => ({
+    ...buildInput(values),
+    ...(seededInvitationsAsOf.current ? { invitationsAsOf: seededInvitationsAsOf.current } : {}),
+  });
   const submitLock = useRef(false);
   // Geçersiz "Özel gün" kutusu kaydı/yayını durdurur, kutuya odaklanır
   // (arayüz testi kalanlar NUM:NEW-7 — kutu kırmızıyken taslak öneki kaydediyordu).
@@ -420,7 +477,7 @@ export function QuickRequest({
       if (isEdit && listingId) {
         // Düzenleme: önce içerik güncellenir; TASLAK ise sonra yayına alınır.
         // Yayındaki talep zaten açık — yayın ucu yalnız taslağı kabul eder.
-        const input = buildInput(values);
+        const input = buildEditInput(values);
         await update.mutateAsync(input);
         await uploadStaged(listingId);
         if (isLiveEdit) {
@@ -453,7 +510,6 @@ export function QuickRequest({
       const memberResults = await sendPendingMembers(listing.id);
       const inviteResults = await sendPendingInvites(listing.id);
       clearSession(QUICK_DRAFT_KEY);
-      clearFormSupplierPanel();
       setPublished({
         id: listing.id,
         title: values.title,
@@ -537,7 +593,7 @@ export function QuickRequest({
       if (isEdit && listingId) {
         // Taslak kaydı taslak kurallarıyla (kapanış/davetli yayında denetlenir;
         // yeni taslak yoluyla aynı). Yayındaki talepte bu düğme çizilmez.
-        const input = buildInput(values);
+        const input = buildEditInput(values);
         await update.mutateAsync({ ...input, asDraft: true });
         await uploadStaged(listingId);
         // Bekleyen dış davetler taslakla birlikte saklanır; yayında gider.
@@ -556,7 +612,6 @@ export function QuickRequest({
       if (memberInvites.length) writeSession(pendingMemberInvitesKey(listing.id), memberInvites);
       leavingRef.current = true;
       clearSession(QUICK_DRAFT_KEY);
-      clearFormSupplierPanel();
       toast.success(tr("taslakKaydedildi"));
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
@@ -596,11 +651,13 @@ export function QuickRequest({
         return;
       }
       if (r.title) setValue("title", r.title, { shouldDirty: true, shouldValidate: true });
-      if (r.categoryIds.length > 0) setValue("categoryIds", r.categoryIds.slice(0, 3), { shouldDirty: true, shouldValidate: true });
+      // AI önerisi de aynı süzgeçten (2026-10-09): gizli segment kodu forma yazılmaz.
+      const suggested = visibleCategoryIds(r.categoryIds);
+      if (suggested.length > 0) setValue("categoryIds", suggested.slice(0, 3), { shouldDirty: true, shouldValidate: true });
       if (r.keywords.length > 0 && (getValues("keywords") ?? []).length === 0) {
         setValue("keywords", r.keywords.map((k) => k.trim().slice(0, 50)).filter(Boolean).slice(0, 10));
       }
-      if (!r.title && r.categoryIds.length === 0) toast.info(tr("aiUygunBirOneriBulamadi"));
+      if (!r.title && suggested.length === 0) toast.info(tr("aiUygunBirOneriBulamadi"));
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("aiOnerisiAlinamadi")));
     }
@@ -682,6 +739,7 @@ export function QuickRequest({
     setMemberInvites([]);
     setStagedDocs([]);
     setRestoredDraft(false);
+    setRetiredSeed(false);
     reset({
       ...base,
       visibility,
@@ -719,11 +777,18 @@ export function QuickRequest({
   const verificationPending = company?.companyVerificationStatus === "PENDING";
   const visibility = watched.visibility;
   const invited = watched.invitedSupplierIds ?? [];
+  // "Bağlantılarım"da en az bir bağlantı çıkarıldıysa talep ÖZEL olarak yayınlanır
+  // (`applyConnectionsScope`) → otomatik AI araması + daveti de gitmez
+  // (`mapToInput`). Kutu bunu AÇIKÇA gösterir: işaretli görünüp sessizce
+  // kapanmaz (kutu artık "bulsun ve davet etsin" diyor).
+  const scopedPrivate = applyConnectionsScope({ visibility, invitedSupplierIds: invited }, connectionIds).visibility !== visibility;
+  const aiInviteOff = visibility === "PRIVATE" || scopedPrivate;
   // Form değeri ürün saat diliminin duvar saati → önce ana çevrilir.
   const closeLabel = watched.bidsCloseAt ? formatDate(parseAppWallClockInput(watched.bidsCloseAt), "datetime", locale) : null;
-  const ready = hasItems && (watched.categoryIds?.length ?? 0) > 0 && (watched.title?.trim().length ?? 0) >= 3;
+  const hasCategory = (watched.categoryIds?.length ?? 0) > 0;
+  const ready = hasItems && (hasCategory || categoryOptional) && (watched.title?.trim().length ?? 0) >= 3;
 
-  // AI panelinden seçilen üye + dış davetler de YAYINDA gider (D-092) —
+  // Eski taslaktan kalan AI seçimleri (üye + dış davet) de YAYINDA gider (D-092) —
   // "Kime" özeti ve rozet onları da sayar.
   const aiInviteCount = memberInvites.length + externalInvites.length;
   const pickerAudience =
@@ -804,7 +869,6 @@ export function QuickRequest({
                     type="button"
                     onClick={() => {
                       clearSession(QUICK_DRAFT_KEY);
-                      clearFormSupplierPanel();
                       resetToBlank();
                     }}
                     className="font-semibold underline-offset-2 hover:underline"
@@ -852,19 +916,10 @@ export function QuickRequest({
               {/* Kalem satırları — sihirbazın Kalemler adımıyla BİREBİR aynı bileşen. */}
               <Step2Items />
 
-              {/* AI TEDARİKÇİ PANELİ (2026-09-27, Faz 1): kalemlerin hemen altında,
-                  pencere açmadan; bulunanlar seçili gelir, davet YAYINDA gider. */}
-              <FormSupplierPanel
-                itemNames={discoveryItemNames}
-                categoryIds={watched.categoryIds ?? []}
-                targetCountries={watched.targetCountries ?? []}
-                buyerCountry={companyCountry}
-                available={discoveryAvailable}
-                value={externalInvites}
-                onChange={(next) => setExternalInvites(next.slice(0, MAX_PENDING_EXTERNAL_INVITES))}
-                members={memberInvites}
-                onMembersChange={(next) => setMemberInvites(next.slice(0, MAX_PENDING_EXTERNAL_INVITES))}
-              />
+              {/* Kalemlerin altındaki AI tedarikçi paneli KALDIRILDI (2026-10-08,
+                  sahip: "bir daha soru sormasın, kutu gelmesine gerek yok") —
+                  form kendisi aramaz; 3. bölümdeki kutu açıksa yayın sonrası
+                  tur arka planda arar ve bulduğunu kendisi davet eder. */}
 
               {/* BAŞLIK → AI → KATEGORİ tek sütun (2026-09-17, kullanıcı kararı:
                   "kategori seçimi talep başlığının altında olmalı; AI ile
@@ -902,17 +957,32 @@ export function QuickRequest({
                     </div>
                     <div>
                       <p className="mb-1.5 text-sm font-medium text-zinc-950">
-                        {tr("kategori")} <span className="text-red-600">*</span>
+                        {tr("kategori")}
+                        {/* Kategorisiz açılan yayındaki talepte zorunlu değil (R-WEB-01). */}
+                        {categoryOptional ? null : <span className="text-red-600"> *</span>}
                       </p>
                       <Controller
                         control={form.control}
                         name="categoryIds"
                         render={({ field }) => (
-                          <CategorySelectorButton value={field.value} onChange={(ids) => field.onChange(ids.slice(0, 3))} mode="multi" maxSelection={3} catalog="discovery" placeholder={tr("kategoriSecinEnFazla3")} modalTitle={tr("talepKategorisi")} modalDescription={tr("talepKategorisiAciklama")} />
+                          <CategorySelectorButton
+                            value={field.value}
+                            onChange={(ids) => field.onChange(ids.slice(0, 3))}
+                            mode="multi"
+                            maxSelection={3}
+                            catalog="discovery"
+                            placeholder={tr("kategoriSecinEnFazla3")}
+                            modalTitle={tr("talepKategorisi")}
+                            modalDescription={tr("talepKategorisiAciklama")}
+                            // Gizli kod değere hiç girmedi → alan kendi başına bilemez.
+                            retiredHint={hadRetiredCategory && (field.value?.length ?? 0) === 0}
+                          />
                         )}
                       />
                       {form.formState.errors.categoryIds ? (
                         <p className="mt-1 text-xs text-red-700">{form.formState.errors.categoryIds.message as string}</p>
+                      ) : categoryOptional && !hasCategory ? (
+                        <p className="mt-1 text-xs text-zinc-500">{tr("buTalebinGuncelKategorisiYok")}</p>
                       ) : (
                         <p className="mt-1 text-xs text-zinc-500">{tr("eslestirmeVeTedarikciBildirimiKategoriden")}</p>
                       )}
@@ -1059,9 +1129,9 @@ export function QuickRequest({
             lead={tr("kapaliZarfHerDurumdaGecerli")}
             status={<Done>{summary.who}</Done>}
           >
-            {/* AI AYARLARI (2026-09-27, Faz 1): tedarikçi arama 1. bölümdeki
-                panelde (kalemlerin altında). Burada yalnız yayın sonrası otomatik
-                arama ve davette firma adı — iki anahtar. */}
+            {/* AI AYARLARI: yayın sonrası otomatik arama + DAVET (2026-10-08: tur
+                bulduğunu arka planda kendisi davet eder, onay istemez; özel
+                talepte kapalı) ve davette firma adı — iki anahtar. */}
             <div className="mb-4 space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
               <Controller
                 control={form.control}
@@ -1071,21 +1141,27 @@ export function QuickRequest({
                     <input
                       type="checkbox"
                       className="mt-0.5 h-4 w-4 rounded border-zinc-300"
-                      checked={visibility !== "PRIVATE" && !!field.value}
-                      disabled={visibility === "PRIVATE" || !discoveryAvailable}
+                      checked={!aiInviteOff && !!field.value}
+                      disabled={aiInviteOff || !discoveryAvailable}
                       onChange={(e) => field.onChange(e.target.checked)}
                     />
                     <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-900">
-                        <Sparkles className="h-4 w-4 text-blue-600" aria-hidden />
-                        {tAi("aiDiscoveryToggle")}
+                      {/* Dar ekranda başlık üç satıra sarar: simge küçülmez (shrink-0),
+                          ilk satırla hizalı kalır (canlı doğrulama AI-UI-4). */}
+                      <span className="flex items-start gap-1.5 text-sm font-medium text-zinc-900">
+                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden />
+                        <span className="min-w-0">{tAi("aiDiscoveryToggle")}</span>
                       </span>
                       <span className="mt-0.5 block text-xs text-zinc-600">
                         {!discoveryAvailable
                           ? tAi("verifiedOnly")
                           : visibility === "PRIVATE"
-                            ? tAi("aiDiscoveryPrivateOff")
-                            : tAi("aiDiscoveryHint")}
+                            ? // Neden, kullanıcının az önce tıkladığı seçeneğin KENDİ adını
+                              // söyler ("Seçtiklerim"; form bu seçeneğe "Özel" demez — AI-UI-3).
+                              tAi("aiDiscoveryPrivateOff", { option: visibilityLabels.PRIVATE.label })
+                            : scopedPrivate
+                              ? tAi("aiDiscoveryScopedOff")
+                              : tAi("aiDiscoveryHint")}
                       </span>
                     </span>
                   </label>
@@ -1109,20 +1185,8 @@ export function QuickRequest({
                   </label>
                 )}
               />
-              {externalInvites.length > 0 || memberInvites.length > 0 ? (
-                <p className="text-xs text-zinc-700">
-                  {tAi("summaryInSection1")}{" "}
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById("ai-tedarikci")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                    className="font-medium text-blue-700 hover:underline"
-                  >
-                    {tAi("goToList")}
-                  </button>
-                </p>
-              ) : null}
             </div>
-            {/* Yayında talebe DOĞRUDAN davet edilecek Rothern üyeleri (AI keşfinden). */}
+            {/* Eski taslaktan kalan seçimler — yayında talebe DOĞRUDAN davet edilecek Rothern üyeleri. */}
             {memberInvites.length > 0 ? (
               <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/40 p-3">
                 <p className="text-sm font-medium text-zinc-900">{tr("bekleyenUyeDavetleri", { n: memberInvites.length })}</p>
@@ -1144,7 +1208,7 @@ export function QuickRequest({
                 </ul>
               </div>
             ) : null}
-            {/* Yayında talebe özel davet gidecek adresler (AI keşfinden). */}
+            {/* Eski taslaktan kalan seçimler — yayında talebe özel davet gidecek adresler. */}
             {externalInvites.length > 0 ? (
               <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/40 p-3">
                 <p className="text-sm font-medium text-zinc-900">{tr("bekleyenDisDavetler", { n: externalInvites.length })}</p>
@@ -1214,8 +1278,6 @@ export function QuickRequest({
                       onChange={field.onChange}
                       itemNames={discoveryItemNames}
                       categoryIds={watched.categoryIds ?? []}
-                      // "N firmayı davet et" → davet yayınla anında gider; düğme yayın adımına götürür.
-                      onInvite={() => document.getElementById("talep-yayinla")?.scrollIntoView({ behavior: "smooth", block: "center" })}
                     />
                   )}
                 />

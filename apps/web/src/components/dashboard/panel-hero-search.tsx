@@ -14,7 +14,7 @@ import { VERIFY_HREF } from "@/components/company/verification-gate";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { localizePath } from "@/i18n/href";
-import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useId, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { rememberSearch } from "@/lib/company/recent-searches";
 import { cn } from "@/lib/utils";
@@ -203,13 +203,48 @@ export function HeroDecor({
   );
 }
 
+/* Başlık ve alt cümlenin tipografisi — hero, ölçü kopyası ve herkese açık
+   anasayfanın hidrasyon öncesi kabuğu (`home-hero.tsx` `HeroShell`) AYNI
+   sınıfları kullanır; ayrışırlarsa ölçü yanlış yükseklik ayırır. Renk ayrı. */
+export const HERO_TITLE_CLASS = "text-4xl font-bold tracking-tight text-balance sm:text-5xl";
+export const HERO_LEAD_CLASS = "mx-auto mt-3 max-w-xl text-base/7 text-pretty";
+
+/**
+ * İki metinden uzun olanın yüksekliğini ayıran yuva: `sizer` (öteki yüzün
+ * metni) görünmez ve `aria-hidden` olarak çocukla AYNI ızgara hücresine
+ * çizilir, kısa olan alta yaslanır. `sizer` yoksa hiçbir sarmalayıcı çizilmez.
+ * Çocuk `[grid-area:1/1]` taşımalıdır. Ölçü `<h1>`in DIŞINDADIR (başlığın
+ * metni tek kalır).
+ */
+export function SizedSlot({
+  sizer,
+  sizerClassName,
+  children,
+}: {
+  sizer?: string;
+  sizerClassName: string;
+  children: ReactNode;
+}) {
+  if (!sizer) return <>{children}</>;
+  return (
+    <div className="grid items-end">
+      {children}
+      <div aria-hidden className={cn("invisible [grid-area:1/1]", sizerClassName)}>
+        {sizer}
+      </div>
+    </div>
+  );
+}
+
 export function PanelHeroSearch({
   eyebrow,
   title,
   titleAccent,
   splitTitle = false,
   plainTitle = false,
+  titleSizer,
   lead,
+  leadSizer,
   placeholder,
   action,
   chips = [],
@@ -244,7 +279,17 @@ export function PanelHeroSearch({
   splitTitle?: boolean;
   /** Başlık TEK RENK (zinc-950), vurgu sözcüğü yok (2026-09-17, kullanıcı kararı). */
   plainTitle?: boolean;
+  /**
+   * İKİ YÜZLÜ SAYFADA YÜKSEKLİK SABİT KALSIN (2026-10-09; kural 2026-09-18:
+   * "geçişte yazılar yer değiştirmesin"): öteki yüzün başlığı / alt cümlesi.
+   * Görünmez ölçü olarak aynı ızgara hücresine çizilir; blok iki metinden uzun
+   * olanın yüksekliğini alır (dil ve genişlikten bağımsız), kısa olan alta
+   * yaslanır — arama kutusu geçişte yerinden oynamaz. Verilmezse (panel
+   * anasayfaları) işaretleme eskisiyle birebir aynıdır.
+   */
+  titleSizer?: string;
   lead: string;
+  leadSizer?: string;
   placeholder: string;
   /** Sonuç sayfası — `?q=` okuyan liste. */
   action: string;
@@ -529,7 +574,8 @@ export function PanelHeroSearch({
             atlar). Hero yalnız bu iki sayfada kullanılıyor. */}
         {/* İKİ TONLU BAŞLIK: ilk sözcük koyu, kalanı portal renginde. Tek
             `<h1>` — ekran okuyucu için metin bölünmemiş olur. */}
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
+        <SizedSlot sizer={titleSizer} sizerClassName={`mt-3 ${HERO_TITLE_CLASS}`}>
+        <h1 className={`${titleSizer ? "[grid-area:1/1] " : ""}mt-3 ${HERO_TITLE_CLASS} text-zinc-950`}>
           {plainTitle ? (
             title
           ) : titleAccent ? (
@@ -561,7 +607,10 @@ export function PanelHeroSearch({
             })()
           )}
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{lead}</p>
+        </SizedSlot>
+        <SizedSlot sizer={leadSizer} sizerClassName={HERO_LEAD_CLASS}>
+          <p className={`${leadSizer ? "[grid-area:1/1] " : ""}${HERO_LEAD_CLASS} text-zinc-500`}>{lead}</p>
+        </SizedSlot>
 
         {ai ? (
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">

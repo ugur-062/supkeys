@@ -1,6 +1,6 @@
 // jest-dom DOM matcher'larını vitest expect'ine ekler (toBeInTheDocument vb.).
 import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 
 // jsdom'da ResizeObserver yok — Headless UI Listbox (FilterSelect) kapanırken
 // çağırıyor ve "3 unhandled errors" üretiyordu; no-op stub yeter.
@@ -135,3 +135,26 @@ vi.mock("next/cache", async (orig) => ({
     (...args: A) =>
       fn(...args),
 }));
+
+// API okumasındaki "kısa bekle–yeniden dene" (`lib/public/upstream-retry.ts`)
+// testlerde GERÇEK bekleme yapmaz ve süreç düzeyindeki durum (tek deneme kipi,
+// paylaşılan uçuşlar, "aynı okumanın az önceki hatası" penceresi) testler
+// arasında ve aynı testin art arda okumaları arasında taşınmaz — yoksa kesinti
+// senaryoları (5xx / ağ hatası) her çağrıda saniyelerce bekler, önce 5xx sonra
+// 404 deneyen test ikinci okumada ilk hatayı geri alırdı. İki katman: modül
+// fabrikası (`vi.resetModules` sonrası TAZE örnek de böyle doğar) + her testten
+// önce yeniden kurulum (dosyanın `vi.restoreAllMocks()`u gerçek beklemeyi geri
+// getirir). Bekleme, bütçe ve pencere mantığının kendi testi
+// (`upstream-retry.test.ts`) gerçek değerleri sahte zamanlayıcıyla sınar.
+vi.mock("@/lib/public/upstream-retry", async (orig) => {
+  const actual = await orig<typeof import("@/lib/public/upstream-retry")>();
+  vi.spyOn(actual.upstreamClock, "sleep").mockResolvedValue(undefined);
+  actual.upstreamTuning.sameFailureWindowMs = 0;
+  return actual;
+});
+beforeEach(async () => {
+  const { resetUpstreamCooldown, upstreamClock, upstreamTuning } = await import("@/lib/public/upstream-retry");
+  resetUpstreamCooldown();
+  upstreamTuning.sameFailureWindowMs = 0;
+  vi.spyOn(upstreamClock, "sleep").mockResolvedValue(undefined);
+});

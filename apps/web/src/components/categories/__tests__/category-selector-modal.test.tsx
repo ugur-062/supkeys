@@ -104,7 +104,7 @@ describe("CategorySelectorModal — seçim bilgisi yüklenirken", () => {
   it("multi: placeholder listede olmayan yeni seçim '…' gösterir, 'silinmiş' değil", () => {
     h.byIds = { data: [A], isPlaceholderData: true };
     render(
-      <CategorySelectorModal isOpen onClose={() => {}} value={[A.id, "43211500"]} onConfirm={() => {}} />,
+      <CategorySelectorModal isOpen onClose={() => {}} value={[A.id, "23211500"]} onConfirm={() => {}} />,
     );
     expect(screen.getByText("Kablo")).toBeInTheDocument();
     expect(screen.getByText("…")).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe("CategorySelectorModal — seçim bilgisi yüklenirken", () => {
   it("multi: gerçek cevapta bulunmayan id 'silinmiş kategori' olarak kalır", () => {
     h.byIds = { data: [A], isPlaceholderData: false };
     render(
-      <CategorySelectorModal isOpen onClose={() => {}} value={[A.id, "43211500"]} onConfirm={() => {}} />,
+      <CategorySelectorModal isOpen onClose={() => {}} value={[A.id, "23211500"]} onConfirm={() => {}} />,
     );
     expect(screen.getByText("(silinmiş kategori)")).toBeInTheDocument();
   });
@@ -122,10 +122,43 @@ describe("CategorySelectorModal — seçim bilgisi yüklenirken", () => {
   it("single: placeholder önceki seçimi taşırken eski adı 'Seçili' diye göstermez", () => {
     h.byIds = { data: [A], isPlaceholderData: true };
     render(
-      <CategorySelectorModal isOpen mode="single" onClose={() => {}} value={["43211500"]} onConfirm={() => {}} />,
+      <CategorySelectorModal isOpen mode="single" onClose={() => {}} value={["23211500"]} onConfirm={() => {}} />,
     );
     expect(screen.getByText("✓ Seçili: …")).toBeInTheDocument();
     expect(screen.queryByText(/Kablo/)).toBeNull();
+  });
+});
+
+/**
+ * GİZLİ SEGMENT (2026-10-09): pencere kataloğu SUNAN yüzeydir — eski kayıttaki
+ * gizli kod seçim şeridine çip, sayaca sayı, onaya değer olarak GİRMEZ.
+ */
+describe("CategorySelectorModal — gizli segment kodu taslağa girmez", () => {
+  it("değerdeki gizli kod çip olmaz ('silinmiş' de değil), adı sorulmaz, onayda dönmez", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    h.byIds = { data: [A], isPlaceholderData: false };
+    render(
+      <CategorySelectorModal isOpen onClose={() => {}} value={["46181500", A.id]} onConfirm={onConfirm} />,
+    );
+    expect(screen.getByText("Kablo")).toBeInTheDocument();
+    expect(screen.queryByText("(silinmiş kategori)")).toBeNull();
+    expect(screen.queryByText(/46181500/)).toBeNull();
+    // Ad isteği yalnız görünür kimlikle çıkar.
+    expect(h.byIdsArgs.at(-1)?.[0]).toEqual([A.id]);
+    // Sayaç ve onay yalnız görünür seçimi sayar/döndürür.
+    await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
+    expect(onConfirm).toHaveBeenCalledWith([A.id]);
+  });
+
+  it("yalnız gizli kod taşıyan değer boş seçimle açılır", () => {
+    h.byIds = { data: undefined, isPlaceholderData: false };
+    render(
+      <CategorySelectorModal isOpen mode="single" onClose={() => {}} value={["10151500"]} onConfirm={() => {}} />,
+    );
+    expect(screen.queryByText(/Seçili/)).toBeNull();
+    expect(screen.queryByText(/10151500/)).toBeNull();
+    expect(h.byIdsArgs.at(-1)?.[0]).toEqual([]);
   });
 });
 
@@ -390,7 +423,7 @@ describe("CategorySelectorModal — seçim şeridi kaydığını söyler, çok u
 
   it("gizli çip varken alt kenarda '+N' ipucu durur; görsel ipucudur (aria-hidden, sekme sırasının dışında)", () => {
     stubStripLayout(96, [65, 25, 25]);
-    renderCompany(three(["Kolluk ve Emniyet Ekipmanları", "Rulmanlar", "Temizlik Malzemeleri"]));
+    renderCompany(three(["Malzeme Elleçleme ve Depolama Makineleri", "Rulmanlar", "Temizlik Malzemeleri"]));
     const pill = more();
     expect(pill).not.toBeNull();
     expect(pill).toHaveTextContent("+1");
@@ -418,7 +451,7 @@ describe("CategorySelectorModal — seçim şeridi kaydığını söyler, çok u
 
   it("ipucuna basınca şerit aşağı kayar; sona gelince ipucu kalkar, üst kenar solar; odak taşınmaz", async () => {
     stubStripLayout(96, [65, 25, 25]);
-    renderCompany(three(["Kolluk ve Emniyet Ekipmanları", "Rulmanlar", "Temizlik Malzemeleri"]));
+    renderCompany(three(["Malzeme Elleçleme ve Depolama Makineleri", "Rulmanlar", "Temizlik Malzemeleri"]));
     const strip = screen.getByRole("list", { name: STRIP });
     await waitFor(() => expect(searchBox()).toHaveFocus());
 

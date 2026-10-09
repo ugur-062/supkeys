@@ -84,6 +84,39 @@ describe("Satış grafik sekmeleri — birim ve tooltip katalogdan", () => {
   });
 });
 
+// 2026-10-09 (W-14): "Kategori bazlı kazanma oranı" gizli segment satırını çizmez.
+describe("Satış müşteri sekmesi — kategori kazanma oranında gizli segment", () => {
+  it("segment kodu gizli olan / ham gizli kod etiketli satır çizilmez; görünür satır kalır", () => {
+    render(
+      <SatisMusteriTab
+        analytics={{
+          ...analytics,
+          categoryWinRate: [
+            { id: "46000000", label: "Kolluk ve Emniyet Ekipmanları", winPct: 80, decided: 5 },
+            { label: "46000000", winPct: 10, decided: 2 },
+            { id: "39000000", label: "Elektrik Sistemleri", winPct: 50, decided: 4 },
+          ],
+        } as SatisAnalytics}
+        loading={false}
+      />,
+    );
+    expect(screen.getByText("Elektrik Sistemleri")).toBeInTheDocument();
+    expect(screen.queryByText(/Kolluk/)).toBeNull();
+    expect(screen.queryByText("46000000")).toBeNull();
+  });
+
+  it("yalnız gizli segment satırı varsa grafik boş durumunu gösterir (boş liste değil)", () => {
+    render(
+      <SatisMusteriTab
+        analytics={{ ...analytics, categoryWinRate: [{ id: "46000000", label: "Kolluk", winPct: 80, decided: 5 }] } as SatisAnalytics}
+        loading={false}
+      />,
+    );
+    expect(screen.queryByText(/Kolluk/)).toBeNull();
+    expect(screen.getByText("Henüz karar verisi yok")).toBeInTheDocument();
+  });
+});
+
 describe("DaysLeftBadge — takvim günü", () => {
   it("aynı gün kapanan talep 'Bugün', ertesi gün '1 gün kaldı'", () => {
     vi.useFakeTimers({ toFake: ["Date"] });

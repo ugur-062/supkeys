@@ -216,3 +216,56 @@ describe("useCategorySearchTree / useCategoriesByIds — inlineError seçeneği"
     expect(h.get).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * GİZLİ SEGMENT (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
+ * yerde de gösterilmesin"; arayüz denetimi W-09). `by-ids` her kodu çözerdi;
+ * kanca artık gizli segmentin altındaki kodu SORMAZ ve cevapta gelse de
+ * DÖNDÜRMEZ. Tüketicilerin hepsi (Ürünlerim tablosu, ürün formu parçacığı ve
+ * AI isteği, ürün önizlemesi, talep "Genel Bilgi" sekmesi, talep formu AI
+ * açıklaması, firma dizini süzgeç çipi) aynı kuralı buradan alır.
+ */
+describe("useCategoriesByIds — gizli segment kodu ad alamaz", () => {
+  it("gizli kod isteğe girmez; görünür kodlar sırasıyla sorulur", async () => {
+    h.get.mockResolvedValue({ data: [{ id: "39121600", code: "39121600", nameTr: "Devre kesiciler", level: 3, breadcrumb: "" }] });
+    const { result } = renderHook(() => useCategoriesByIds(["46181500", "39121600", "10151500"]), {
+      wrapper: wrapperWithAppRetry(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(h.get).toHaveBeenCalledTimes(1);
+    expect(h.get).toHaveBeenCalledWith("/categories/by-ids", { params: { ids: "39121600" } });
+    expect(result.current.data?.map((c) => c.id)).toEqual(["39121600"]);
+  });
+
+  it("yalnız gizli kod: istek HİÇ atılmaz, veri yok, 'yükleniyor' da değil (asılı çip olmaz)", async () => {
+    const { result } = renderHook(() => useCategoriesByIds(["46181500", "77101500"]), { wrapper: wrapperWithAppRetry() });
+    // Bir tur bekle: etkin olmayan sorgu istek atmaz.
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.get).not.toHaveBeenCalled();
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isFetching).toBe(false);
+  });
+
+  it("eski API gizli kodun satırını döndürse de kanca onu düşürür", async () => {
+    h.get.mockResolvedValue({
+      data: [
+        { id: "39121600", code: "39121600", nameTr: "Devre kesiciler", level: 3, breadcrumb: "" },
+        { id: "46181500", code: "46181500", nameTr: "Koruyucu giysi", level: 3, breadcrumb: "" },
+      ],
+    });
+    const { result } = renderHook(() => useCategoriesByIds(["39121600"]), { wrapper: wrapperWithAppRetry() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.map((c) => c.nameTr)).toEqual(["Devre kesiciler"]);
+  });
+
+  it("gizli kod sorgu anahtarını değiştirmez: görünür küme aynıysa aynı önbellek girdisi (ek istek yok)", async () => {
+    h.get.mockResolvedValue({ data: [{ id: "39121600", code: "39121600", nameTr: "Devre kesiciler", level: 3, breadcrumb: "" }] });
+    const wrapper = wrapperWithAppRetry();
+    const first = renderHook(() => useCategoriesByIds(["39121600"]), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    const second = renderHook(() => useCategoriesByIds(["46181500", "39121600"]), { wrapper });
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+    expect(callsTo("/categories/by-ids")).toBe(1);
+  });
+});

@@ -3,7 +3,7 @@ import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { seoT } from "@/i18n/server";
 import { ListingDetail } from "@/components/marketplace/listing-detail";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
-import { resolveListingPage } from "@/components/marketplace/listing-page";
+import { resolveListingPage, similarListingsSegment } from "@/components/marketplace/listing-page";
 import { parseListingNumber } from "@/lib/public/marketplace";
 import { fetchListing, fetchSimilarListings } from "@/lib/public/marketplace-api";
 import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
@@ -46,9 +46,10 @@ export default async function Page({
   if (res.kind === "redirect") permanentRedirect({ href: res.to, locale });
   // Benzer açık talepler: aynı L1 segment, kendisi hariç. İkincil blok —
   // kesintide boş kalır, talep sayfasını düşürmez (B1-1).
-  const seg = res.listing.categoryIds.find((c) => /^\d{8}$/.test(c));
+  // Segment ilk GÖRÜNÜR kategoriden; yoksa blok çizilmez (`similarListingsSegment`).
+  const seg = similarListingsSegment(res.listing.categoryIds);
   const similar = seg
-    ? (await fetchSimilarListings({ type: "ALIM", category: `${seg.slice(0, 2)}000000`, page: 1 })).items.filter(
+    ? (await fetchSimilarListings({ type: "ALIM", category: seg, page: 1 })).items.filter(
         (l) => l.number !== res.listing.number,
       )
     : [];

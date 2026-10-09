@@ -12,7 +12,7 @@ import { RfqBanner } from "@/components/marketplace/rfq-banner";
 import { useRelatedProducts, usePublicProduct } from "@/hooks/use-portal-discovery";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useScrollToHash } from "@/hooks/use-scroll-to-hash";
-import { isHiddenCategory } from "@rothern/shared";
+import { visibleCategoryRef } from "@/lib/visible-categories";
 import { safeExternalUrl } from "@/lib/safe-url";
 import { ArrowTopRightOnSquareIcon, DocumentTextIcon } from "@heroicons/react/20/solid";
 import { ArrowLeft } from "lucide-react";
@@ -92,6 +92,10 @@ export default function PanelProductPage() {
   // "www.firma.com" href'te göreli bağlantı olur. Render sınırında normalize
   // edilir; güvensiz/geçersizse bağlantı hiç basılmaz (derin denetim LU-22).
   const sellerWebsite = safeExternalUrl(company.website);
+  // Gizli segmentteki (eski veri) kategori: sayfası 404 verir → kırıntı adımı
+  // çizilmez (arayüz testi D-023) ve "… kategorisinde yeni" başlığına adı
+  // girmez (2026-10-09). Gövdedeki hap aynı kuralı `ProductDetailBody`de uygular.
+  const category = visibleCategoryRef(product.category);
 
   return (
     <PageContainer>
@@ -103,10 +107,8 @@ export default function PanelProductPage() {
           /* Kategori adımı KENDİ SAYFASINA gider (`/kategori/<kod>-<ad>`),
              süzgeçli listeye değil: her kategorinin bir adresi var ve
              paylaşılabilir olan o. */
-          /* Gizli segmentteki (eski veri) kategorinin sayfası 404 verir →
-             adım hiç çizilmez (arayüz testi D-023). */
-          ...(product.category && !isHiddenCategory(product.category.id)
-            ? [{ label: product.category.name, href: panelCategoryPath(product.category.id, product.category.name) }]
+          ...(category
+            ? [{ label: category.name, href: panelCategoryPath(category.id, category.name) }]
             : []),
           { label: company.name, href: companyHref },
         ]}
@@ -178,7 +180,7 @@ export default function PanelProductPage() {
       {related.data ? (
         <RelatedRows
           related={related.data}
-          categoryName={product.category?.name ?? null}
+          categoryName={category?.name ?? null}
           hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
         />
       ) : null}

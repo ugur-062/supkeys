@@ -62,12 +62,21 @@ export function reportClientError(error: unknown, context: ClientErrorContext = 
 
   // `keepalive`: sayfa değişirken de gitsin. Çerez GÖNDERİLMEZ (credentials:
   // omit) — bildirimin kimliğe ihtiyacı yok, PII yüzeyini açmayalım.
+  //
+  // `redirect: "manual"` (2026-10-08, staging'de ölçüldü): bu uç hiçbir zaman
+  // yönlendirme dönmez; dönen yönlendirme araya giren bir katmandandır ve
+  // çerezsiz istek onu ASLA aşamaz. Vercel dağıtım koruması arkasındaki
+  // staging'de `x-vercel-set-bypass-cookie` taşıyan istek (e2e/sonda) 307 +
+  // Set-Cookie ile KENDİ adresine yönlenir; çerez yazılmadığı için tarayıcı
+  // aynı 307'yi 20 kez izleyip konsola `net::ERR_TOO_MANY_REDIRECTS` basıyordu
+  // (her hata sınırı çiziminde). Elle kipte tek istek atılır, yanıt izlenmez.
   void fetch("/api/client-error", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     keepalive: true,
     credentials: "omit",
+    redirect: "manual",
   }).catch(() => undefined);
 }
 

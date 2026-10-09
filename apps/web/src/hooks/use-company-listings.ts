@@ -119,6 +119,12 @@ export interface CreateListingInput {
   // Talep zenginleştirme
   items?: ListingItemInput[];
   invitations?: string[]; // davet edilen rothernId'ler
+  /**
+   * Düzenleme: formun davetli listesini okuduğu an (sahip detayının
+   * `invitationsAsOf` alanı AYNEN). Sunucu o andan sonra keşif turunun
+   * yazdığı AI davetini — formun bilemeyeceği satırı — silmez.
+   */
+  invitationsAsOf?: string;
   categoryIds?: string[]; // UNGM UNSPSC TR kategori kodları
   /** Aranan tedarikçi tipi — boş = fark etmez. Eleme değil sıralama sinyali. */
   preferredActivities?: string[];
@@ -379,6 +385,10 @@ export interface ListingDetail {
   /** Sunucu parmak izi — bir sonraki istekte If-None-Match olarak gider
    *  (sahip dalı; başkası için tanımsız). Perf turu, denetim P10. */
   etag?: string;
+  /** Sahip dalı: talep artık sunulmayan (gizli segment) bir kategori SAKLIYOR.
+   *  Kod ve ad gelmez (`categoryIds` yalnız görünür kodlar); düzenleme formu
+   *  bu işaretle "önceki kategori artık kullanılmıyor" der. */
+  hasRetiredCategory?: boolean;
   id: string;
   number: string | null;
   type: ListingType;
@@ -456,6 +466,8 @@ export interface ListingDetail {
   bids?: ListingBidRow[];
   internalNotes?: string | null;
   invitations?: ListingInvitationRow[];
+  /** Davetli listesinin sunucuda okunduğu an (ISO) — düzenleme formu geri gönderir. */
+  invitationsAsOf?: string;
   // sahip değil:
   canBid?: boolean;
   /** Rol kapısı: teklif SATISCI rolü ister. */

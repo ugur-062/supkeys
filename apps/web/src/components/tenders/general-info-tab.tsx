@@ -105,6 +105,9 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
   // Görünürlük / tedarikçi görünürlüğü kodları → katalog (bilinmeyen kod ham).
   const visibilityLabel = (v: string) => (t.has(`visibility.${v}` as never) ? t(`visibility.${v}` as never) : v);
   const bidVisibilityLabel = (v: string) => (t.has(`bidVisibility.${v}` as never) ? t(`bidVisibility.${v}` as never) : "—");
+  // Kanca gizli segmentteki kodu sormaz ve döndürmez (2026-10-09): eski talebin
+  // gizli kategorisi sahibine de teklif verene de yazılmaz; görünür kategori
+  // kalmadıysa "Kategori" satırı hiç çizilmez (aşağıdaki uzunluk koşulu).
   const categories = useCategoriesByIds(l.categoryIds ?? []);
   const cur = (l.primaryCurrency as Currency) ?? "TRY";
   // İzinli TÜM birimler gösterilir (ana birim önde) — yalnız ana birimi

@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format-date";
 import { priceLabelsFor, seoT, webTranslator } from "@/i18n/server";
 import { quantityWith, unitLabelWith } from "@/lib/seo/entities";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
+import { visibleCategoryRef, visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * OG KARTI İÇERİĞİ — saf veri, JSX yok (SEO Parça 6).
@@ -51,8 +52,11 @@ export function productOgContent(product: PublicProduct, company: PublicProductC
   // Birim okuyucunun dilinde (EN kartta "… / adet" basılıyordu, 2026-09-27).
   const unit = unitLabelWith(seoT(locale), product.unit, product.unitCode);
   const price = productPrice({ ...product, unit }, labels);
+  // Gizli segmentteki kategori paylaşım kartına BASILMAZ (2026-10-09): kart
+  // kategorisiz "ÜRÜN" etiketine düşer.
+  const category = visibleCategoryRef(product.category);
   return {
-    eyebrow: product.category?.name ? t("web.seo.og.productWith", { category: product.category.name.toLocaleUpperCase(locale) }) : t("web.seo.og.product"),
+    eyebrow: category?.name ? t("web.seo.og.productWith", { category: category.name.toLocaleUpperCase(locale) }) : t("web.seo.og.product"),
     title: clampTitle(product.name),
     subtitle: joinParts([company.name, provinceDisplayName(company.city, locale)], " · ") || null,
     facts: [
@@ -99,7 +103,8 @@ export function listingOgContent(l: PublicListingDetail, locale: Locale = DEFAUL
     eyebrow: t("web.seo.og.demand", { number: l.number }),
     title: clampTitle(l.title),
     // Talebin açıldığı ÜLKE (2026-10-04, şehir yerine) — sayfayla aynı olgu.
-    subtitle: joinParts([l.categories[0]?.name, l.company.country ? countryDisplayName(l.company.country, locale) : null], " · ") || null,
+    // İlk GÖRÜNÜR kategori (2026-10-09); hiç yoksa alt satır yalnız ülke.
+    subtitle: joinParts([visibleCategoryRefs(l.categories)[0]?.name, l.company.country ? countryDisplayName(l.company.country, locale) : null], " · ") || null,
     facts: [
       qty ? t("web.seo.qty", { qty }) : null,
       l.itemSummary.count > 1 ? t("web.seo.items", { n: l.itemSummary.count }) : null,

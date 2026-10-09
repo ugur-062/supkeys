@@ -140,13 +140,12 @@ export default function SatinalmaDashboardPage() {
     <div className="space-y-10">
       <PanelHeroSearch
         eyebrow={t("kureselTedarikAginiz")}
-        /* Soru kipi (2026-09-08, kullanıcı: "alım içinde de bu tarz bir soru
-           ifadesi bul"): satışın "Hangi talebe / teklif vereceksiniz?"
-           kalıbının alım tarafındaki karşılığı. Kutu hem ürün hem tedarikçi
-           arıyor (kapsam anahtarı) — soru ikisini de kapsayacak biçimde
-           kuruldu: aranan ÜRÜN, bulunacak olan TEDARİKÇİ. */
-        /* 2026-09-17, kullanıcı kararı: "Hangi ürünü arıyorsunuz?" — tek
-           renk (siyah), vurgu yok. */
+        /* BAŞLIK (2026-10-08, kullanıcı kararı): soru kipi kalktı — satış
+           "Yeni siparişler bulun", alım tarafı karşılığı "Yeni tedarikçiler
+           bulun" (herkese açık anasayfanın iki yüzüyle AYNI metin; anahtar adı
+           eski Türkçe metinden kaldı, anahtarlar kararlı). Eski soru kipi:
+           2026-09-08 kararı.
+           Tek renk (siyah), vurgu yok — 2026-09-17 kararı geçerli. */
         title={t("hangiUrunuAriyorsunuz")}
         plainTitle
         lead={t("dogrulanmisTedarikcilerleTanisinIhtiyaclarin")}

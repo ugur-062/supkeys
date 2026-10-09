@@ -4,6 +4,7 @@ import { hasAnySeatPermission, type PermissionSubject } from "@/lib/company/perm
 import { formatNumber } from "@/i18n/format";
 import { buildProductFilterQuery, EMPTY_FILTERS } from "@/lib/public/product-filter-params";
 import { buildRequestFilterQuery, EMPTY_REQUEST_FILTERS, segmentOf } from "@/lib/company/request-filter-params";
+import { visibleCategoryRef } from "@/lib/visible-categories";
 
 /**
  * AI ARAMA — yorum → URL süzgeci (2026-09-05). Model süzgeç önerir, sayfa
@@ -58,12 +59,22 @@ export function takeAiIntent(): AiSearchIntentResult | null {
   }
 }
 
+/**
+ * Yorumun kategorisi — gizli segmentteyse YOK sayılır (2026-10-09): süzgeç
+ * adresine yazılmaz (`?kategori=46…` ayrıştırıcıda zaten yok sayılır, ama
+ * adreste durduğu için bantta adı çip olurdu) ve çip çizilmez. API kategoriyi
+ * süzülü çözücüden verir; burası ikinci kat.
+ */
+function intentCategory(r: AiSearchIntentResult): AiSearchIntentResult["category"] {
+  return visibleCategoryRef(r.category);
+}
+
 /** Satınalma: ürün dizini süzgeci. Adet → "min. sipariş en fazla" (MOQ tavanı). */
 export function intentToProductQuery(r: AiSearchIntentResult): string {
   return buildProductFilterQuery({
     ...EMPTY_FILTERS,
     q: r.query ?? undefined,
-    category: r.category?.id,
+    category: intentCategory(r)?.id,
     cities: r.city ? [r.city] : [],
     countries: r.country ? [r.country] : [],
     activities: r.activity ? [r.activity] : [],
@@ -86,7 +97,7 @@ export function intentToRequestQuery(r: AiSearchIntentResult): string {
   return buildRequestFilterQuery({
     ...EMPTY_REQUEST_FILTERS,
     q: r.query ?? undefined,
-    categories: r.category ? [segmentOf(r.category.id)] : [],
+    categories: intentCategory(r) ? [segmentOf(intentCategory(r)!.id)] : [],
     countries: r.country ? [r.country] : [],
     page: 1,
   });
@@ -133,10 +144,11 @@ export function intentChips(r: AiSearchIntentResult, sp: URLSearchParams, f: Int
   const out: IntentChip[] = [];
   const has = (k: string) => sp.has(k) && sp.get(k) !== "";
   if (r.query && has("q")) out.push({ param: "q", label: t("chipArama", { query: r.query }) });
-  if (r.category && has("kategori"))
+  const category = intentCategory(r);
+  if (category && has("kategori"))
     out.push({
       param: "kategori",
-      label: t("chipKategori", { name: f.categoryLabel?.(r.category.id) ?? r.category.name }),
+      label: t("chipKategori", { name: f.categoryLabel?.(category.id) ?? category.name }),
     });
   if (r.city && has("sehir"))
     out.push({ param: "sehir", label: t("chipSehir", { city: r.cityName ?? f.cityLabel(r.city) }) });

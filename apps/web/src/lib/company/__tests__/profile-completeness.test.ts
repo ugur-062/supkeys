@@ -49,3 +49,12 @@ describe("profileCompleteness", () => {
     expect(profileCompleteness({ aboutText: "   " }).missing).toContain("Hakkında");
   });
 });
+
+describe("profileCompleteness — gizli segment beyanı (2026-10-09)", () => {
+  it("tek beyanı gizli segmentte olan firma 'Faaliyet kategorileri' maddesini tamamlamış sayılmaz", () => {
+    const hiddenOnly = profileCompleteness({ sellerCategoryIds: ["46000000"], buyerCategoryIds: ["77000000"] });
+    expect(hiddenOnly.missingKeys).toContain("categories");
+    const mixed = profileCompleteness({ sellerCategoryIds: ["46000000", "39000000"] });
+    expect(mixed.missingKeys).not.toContain("categories");
+  });
+});
