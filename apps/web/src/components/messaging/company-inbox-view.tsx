@@ -292,7 +292,9 @@ export function CompanyInboxView() {
                 message={t("konusmalarYuklenemedi")}
                 onRetry={() => void threads.refetch()}
               />
-            ) : connections.isLoading || threads.isLoading ? (
+            ) : connections.isPending || threads.isPending ? (
+              // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır
+              // ve "önce bağlantı kurun" çizilirdi (LİSTE DURUMLARI).
               <div className="space-y-2 p-3" aria-hidden>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div
@@ -301,6 +303,14 @@ export function CompanyInboxView() {
                   />
                 ))}
               </div>
+            ) : rows.length === 0 && connections.isError && !connections.data ? (
+              // Konuşma yok ve bağlantı listesi OKUNAMADI: "önce bir firmayla
+              // bağlantı kurun" demek yalan olur — bağlantılar bilinmiyor.
+              <ErrorState
+                className="m-3"
+                message={t("konusmalarYuklenemedi")}
+                onRetry={() => void connections.refetch()}
+              />
             ) : rows.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                 <MessageSquare className="mb-2 h-8 w-8 text-zinc-300" />

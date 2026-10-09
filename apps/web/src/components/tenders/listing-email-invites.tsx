@@ -27,6 +27,26 @@ import { useEffect, useId, useRef } from "react";
  * bölüm çizilmez; yükleme ve hata ayrı durumdur (hata "davet yok" gibi görünmez).
  */
 
+/**
+ * SAYFA SONU PAYI (canlı yeniden doğrulama N6, gözden geçirme R6-04).
+ *
+ * Bölüm talep sayfasının SON öğesidir. Sayfanın en altında son satırın durum
+ * rozeti sabit AI Asistan düğmesinin altında kalıyordu (1440 px'te 16×7 px):
+ * panel kabuğunun içerik alt boşluğu 1024 px'ten itibaren 32 px'tir
+ * (`shell.tsx`: `pb-24`, ama `lg:py-8` onu ezer), düğmenin tepesi ise ekranın
+ * altından 88 px yukarıdadır (`assistant-launcher.tsx`: `bottom-8` + `h-14`).
+ * Daha dar ekranda kabuğun 96 px'lik boşluğu yerindedir, örtüşme olmaz.
+ *
+ * İlk düzeltme YALNIZ son satırın rozetini sağdan içeri çekiyordu (`pr-16
+ * sm:pr-14`): örtüşmenin hiç olmadığı telefonda da son rozet öteki satırların
+ * rozet sütunundan 64 px solda duruyor, satırın metin sütunu o kadar
+ * daralıyordu. Artık hiçbir rozet kaydırılmaz — bütün satırlarda aynı sütunda,
+ * sona yaslı kalır; bölüm geniş ekranda kabuğun eksik boşluğunu (64 px) kendisi
+ * ekler, böylece son satır sayfanın sonunda düğmenin ÜSTÜNE kadar kayar
+ * (32 + 64 = 96 px, dar ekrandaki boşlukla aynı).
+ */
+const PAGE_END_CLEARANCE_CLASS = "lg:pb-16";
+
 /** Elle pencereden yapılan davet (`AI_FORM`: alıcı seçti) de alıcının davetidir; yalnız tur `AI_AUTO` yazar. */
 function sourceKind(source: ListingEmailInviteSource | string): "manual" | "ai" | null {
   if (source === "AI_AUTO") return "ai";
@@ -95,7 +115,7 @@ export function ListingEmailInvites({
   if (items.length === 0) return null;
 
   return (
-    <section className={cn("space-y-2", className)} aria-labelledby={headingId}>
+    <section className={cn("space-y-2", PAGE_END_CLEARANCE_CLASS, className)} aria-labelledby={headingId}>
       <Subheading id={headingId}>{t("headingCount", { n: items.length })}</Subheading>
       <p className="text-xs text-zinc-600">{t("lead")}</p>
       <ul className="divide-y divide-zinc-950/5 rounded-xl bg-white ring-1 ring-zinc-950/5">
@@ -128,6 +148,7 @@ export function ListingEmailInvites({
                   </p>
                 ) : null}
               </div>
+              {/* Rozet her satırda AYNI sütunda, sona yaslı (R6-04: satıra özel sağ pay yok). */}
               <InviteOutcome invite={i.invite} reason={i.reason} sendAfter={i.sendAfter} className="ml-auto" />
             </li>
           );

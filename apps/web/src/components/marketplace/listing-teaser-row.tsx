@@ -27,7 +27,8 @@ const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
  * kararı: "fotoğraf/ikon olmasın, alt alta, giriş yaptıktan sonraki satış
  * anasayfası gibi"). Satış panelindeki `BrowseTenderRow` ile AYNI kart
  * (`ListingCard variant="row"`, kind "talep" → asla görsel) ve aynı sütun
- * kümesi: Alıcı · Kalem · Kapsam · Kapanış · Kategori; sağda "Teklif ver".
+ * kümesi: Alıcı · Kalem · Kapsam · Kapanış · Kategori (görünür kategori
+ * varsa); sağda "Teklif ver".
  *
  * Kapalı zarf kuralı KORUNUR: alıcı adı, kalem adları, hedef fiyat YOK —
  * Alıcı sütunu yalnız faaliyet tipi · talebin açıldığı ÜLKE (bayrak + ad;
@@ -59,7 +60,10 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   const activity = l.company.activities[0];
   const activityText = activity ? activityLabel(activity) : null;
   // Gizli segmentteki kategori satırda ad, ipucu ya da "+N" sayısı olarak
-  // GÖRÜNMEZ (2026-10-09); görünür kategorisi kalmayan talep "—" gösterir.
+  // GÖRÜNMEZ (2026-10-09). Görünür kategorisi kalmayan (ya da hiç kategorisi
+  // olmayan) talepte Kategori hücresi HİÇ çizilmez — etiket + "—" boş bir satır
+  // bırakıyordu (canlı doğrulama PUB-02; 390 px'te kartın tam bir satırı).
+  // Talep sayfasının çip satırıyla aynı kural.
   const categories = visibleCategoryRefs(l.categories);
   const primary = categories.find((c) => c.level >= 3) ?? categories[0];
 
@@ -168,20 +172,22 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
           </span>
         ),
       },
-      {
-        label: t("category"),
-        icon: "category",
-        value: primary ? (
-          <span title={categories.map((c) => c.name).join(", ")}>
-            <span className="block truncate font-medium text-slate-700">{primary.name}</span>
-            {categories.length > 1 ? (
-              <span className="block text-[11px] leading-tight text-slate-500">{t("moreCategories", { n: categories.length - 1 })}</span>
-            ) : null}
-          </span>
-        ) : (
-          <span className="text-slate-500">—</span>
-        ),
-      },
+      ...(primary
+        ? [
+            {
+              label: t("category"),
+              icon: "category" as const,
+              value: (
+                <span title={categories.map((c) => c.name).join(", ")}>
+                  <span className="block truncate font-medium text-slate-700">{primary.name}</span>
+                  {categories.length > 1 ? (
+                    <span className="block text-[11px] leading-tight text-slate-500">{t("moreCategories", { n: categories.length - 1 })}</span>
+                  ) : null}
+                </span>
+              ),
+            },
+          ]
+        : []),
     ],
     // Dönüş PANEL karşılığına (arayüz testi O-113): herkese açık talep sayfası
     // aynı kayıt düğmesini yeniden gösteriyordu; girişli kullanıcıyı kayıt

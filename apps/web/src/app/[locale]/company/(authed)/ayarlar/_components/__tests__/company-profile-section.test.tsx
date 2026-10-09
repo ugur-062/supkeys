@@ -21,6 +21,8 @@ const h = vi.hoisted(() => ({
   confirm: vi.fn(),
   push: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
+  /** Sorgu hata durumunda (veri varsa arka plan yenilemesi düşmüş demektir). */
+  isError: false,
   /** Sahte kategori seçicilerinin son prop'ları (etiket → value/onChange). */
   pickers: {} as Record<
     string,
@@ -39,7 +41,7 @@ vi.mock("@/components/providers/confirm-dialog", () => ({
   useConfirm: () => h.confirm,
 }));
 vi.mock("@/hooks/use-company-profile", () => ({
-  useCompanyProfile: () => ({ data: h.profile, isLoading: false, isError: false, refetch: vi.fn() }),
+  useCompanyProfile: () => ({ data: h.profile, isLoading: false, isError: h.isError, refetch: vi.fn() }),
   useUpdateCompanyProfile: () => ({ mutateAsync: h.update, isPending: false }),
 }));
 // Kategori seçicisi katalog uçlarına gider (useRoots / useCategoriesByIds) —
@@ -108,6 +110,25 @@ describe("CompanyProfileSection", () => {
     h.toast.error.mockReset();
     h.pickers = {};
     h.profile = baseProfile();
+    h.isError = false;
+  });
+
+  it("arka plan yenilemesi düşünce eldeki form kalır (hata kutusuna dönmez)", () => {
+    // Eskiden `isError` tek başına formu "Firma bilgileri yüklenemedi"ye
+    // çeviriyor, yazılmakta olan değişiklik de kayboluyordu (LİSTE DURUMLARI).
+    h.isError = true;
+    render(<CompanyProfileSection />);
+    expect(screen.queryByText(/Firma bilgileri yüklenemedi/)).toBeNull();
+    expect(saveButton()).toBeInTheDocument();
+    expect(screen.getByText("Türkiye")).toBeInTheDocument();
+  });
+
+  it("profil hiç okunamadıysa hata + Yeniden dene", () => {
+    h.isError = true;
+    h.profile = undefined as never;
+    render(<CompanyProfileSection />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/Firma bilgileri yüklenemedi/);
+    expect(screen.getByRole("button", { name: "Yeniden dene" })).toBeInTheDocument();
   });
 
   it("kimlik salt-okunur: ülke görünür, TCKN maskeli, tam numara HTML'de yok", () => {

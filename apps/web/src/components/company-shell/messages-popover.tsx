@@ -25,10 +25,12 @@ function RecentThreads({ close }: { close: () => void }) {
   const tr = useTranslations("web.panel.shell.messagesPopover");
   const ago = useRelativeTime("short");
   // Birleşik kutu (2026-08-02): iki tarafın konuşmaları birlikte.
-  const { data: threads, isLoading, isError, refetch } = useThreads("all");
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "Henüz mesajınız yok" çizilirdi (LİSTE DURUMLARI).
+  const { data: threads, isPending, isError, refetch } = useThreads("all");
   const recent = (threads ?? []).slice(0, 6);
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="space-y-2 p-3" aria-hidden>
         {Array.from({ length: 3 }).map((_, i) => (

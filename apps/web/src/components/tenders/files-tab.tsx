@@ -135,9 +135,11 @@ export function FilesTab({
         ) : null}
       </div>
 
-      {docs.isLoading ? (
+      {/* LİSTE DURUMLARI: `isPending` bekleme (çevrimdışı duraklamada "dosya
+          eklenmemiş" çizilmesin); hata dalı yalnız hiç veri yokken. */}
+      {docs.isPending ? (
         <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>
-      ) : docs.isError ? (
+      ) : docs.isError && docs.data === undefined ? (
         <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
           <Text className="text-sm text-red-600">{t("dosyalarYuklenemedi")}</Text>
           <Button outline onClick={() => docs.refetch()}>

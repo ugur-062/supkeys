@@ -99,8 +99,12 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
   const st = useActionCenter("satis", hasSt);
   const saUnread = useUnreadMessages("satinalma", hasSa);
   const stUnread = useUnreadMessages("satis", hasSt);
-  const loading = (hasSa && sa.isLoading) || (hasSt && st.isLoading);
-  const error = (hasSa && sa.isError) || (hasSt && st.isError);
+  // LİSTE DURUMLARI: `isPending` bekleme — çevrimdışı duraklayan sorguda
+  // `isLoading` false kalır ve "bekleyen iş yok" çizilirdi (bu listenin boş
+  // görünmesi kullanıcıya süre kaçırtır). Hata kartı yalnız bir tarafın verisi
+  // HİÇ yokken: 5 dk'lık yoklama düşerse eldeki satırlar kalır.
+  const loading = (hasSa && sa.isPending) || (hasSt && st.isPending);
+  const error = (hasSa && sa.isError && !sa.data) || (hasSt && st.isError && !st.data);
 
   if (loading) return <div className="h-40 animate-pulse rounded-2xl bg-zinc-100" aria-hidden />;
   if (error) {

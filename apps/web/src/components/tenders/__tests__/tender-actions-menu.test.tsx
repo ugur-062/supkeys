@@ -15,8 +15,14 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { mutation } = vi.hoisted(() => ({
+const { mutation, conn } = vi.hoisted(() => ({
   mutation: () => ({ mutateAsync: () => Promise.resolve(), isPending: false }),
+  /** Bağlantı sorgusu (gerçek sözleşme: yanıt yokken `data` undefined). */
+  conn: {
+    query: undefined as
+      | { data: unknown[] | undefined; isLoading: boolean; isPending: boolean; isError: boolean; refetch: () => void }
+      | undefined,
+  },
 }));
 vi.mock("@/hooks/use-company-listings", () => ({
   useAddInvitations: mutation,
@@ -29,13 +35,16 @@ vi.mock("@/hooks/use-company-listings", () => ({
   useUpdateInternalNotes: mutation,
 }));
 vi.mock("@/hooks/use-company-connections", () => ({
-  useConnections: () => ({
-    isLoading: false,
-    data: [
-      { company: { id: "c1", name: "Alfa Metal", rothernId: "RTH-1" } },
-      { company: { id: "c2", name: "Beta Boru", rothernId: "RTH-2" } },
-    ],
-  }),
+  useConnections: () =>
+    conn.query ?? {
+      isLoading: false,
+      isPending: false,
+      isError: false,
+      data: [
+        { company: { id: "c1", name: "Alfa Metal", rothernId: "RTH-1" } },
+        { company: { id: "c2", name: "Beta Boru", rothernId: "RTH-2" } },
+      ],
+    },
 }));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, href }: { children: ReactNode; href: string }) => <a href={href}>{children}</a>,
@@ -68,7 +77,10 @@ import { TenderActionsMenu } from "../tender-actions-menu";
 function setVerification(companyVerificationStatus: string) {
   useCompanyAuthStore.setState({ company: { companyVerificationStatus } as never } as never);
 }
-afterEach(() => useCompanyAuthStore.setState({ company: null } as never));
+afterEach(() => {
+  useCompanyAuthStore.setState({ company: null } as never);
+  conn.query = undefined;
+});
 
 const VERIFY = "/company/ayarlar/dogrulama";
 const LOCK_NOTE = /Firmanız henüz doğrulanmadı.*firma doğrulaması gerektirir/;
@@ -202,5 +214,37 @@ describe("TenderActionsMenu — davet diyaloğu (D-254)", () => {
     fireEvent.change(within(dialog).getByPlaceholderText("Firma ara…"), { target: { value: "zzzz" } });
     expect(within(dialog).getByText("Eşleşen firma yok.")).toBeInTheDocument();
     expect(within(dialog).queryByText("Bağlı firma yok.")).toBeNull();
+  });
+});
+
+describe("TenderActionsMenu — davet diyaloğu liste durumları (canlı doğrulama 2026-10-09 taraması)", () => {
+  const openInvite = async () => {
+    render(<TenderActionsMenu {...base} status="OPEN" invitedCodes={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tedarikçi Davet Et" }));
+    return screen.findByRole("dialog");
+  };
+
+  it("bağlantılar okunamadıysa 'Bağlı firma yok' değil hata + Tekrar dene", async () => {
+    const refetch = vi.fn();
+    conn.query = { data: undefined, isLoading: false, isPending: false, isError: true, refetch };
+    const dialog = await openInvite();
+    expect(within(dialog).queryByText("Bağlı firma yok.")).toBeNull();
+    expect(within(dialog).getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Tekrar dene" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'yükleniyor'", async () => {
+    conn.query = { data: undefined, isLoading: false, isPending: true, isError: false, refetch: vi.fn() };
+    const dialog = await openInvite();
+    expect(within(dialog).queryByText("Bağlı firma yok.")).toBeNull();
+    expect(within(dialog).queryByRole("alert")).toBeNull();
+    expect(within(dialog).getByText("Yükleniyor…")).toBeInTheDocument();
+  });
+
+  it("BAŞARILI ve boş yanıt 'Bağlı firma yok' der", async () => {
+    conn.query = { data: [], isLoading: false, isPending: false, isError: false, refetch: vi.fn() };
+    const dialog = await openInvite();
+    expect(within(dialog).getByText("Bağlı firma yok.")).toBeInTheDocument();
   });
 });

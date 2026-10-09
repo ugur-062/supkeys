@@ -6,7 +6,7 @@ import {
   type CandidateInviteState,
   type RunCandidate,
 } from "@/hooks/use-supplier-discovery";
-import { InviteOutcome } from "@/components/tenders/ai-suppliers/invite-outcome";
+import { AUTO_INVITE_OFF_REASON, InviteOutcome, WEAK_MATCH_REASON } from "@/components/tenders/ai-suppliers/invite-outcome";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { listingEmailInvitesKey } from "@/hooks/use-listing-email-invites";
 import { countryDisplayName } from "@/i18n/domain";
@@ -66,14 +66,34 @@ export function candidateOutcome(
  * e-posta henüz çıkmamışken "23 davet edildi" diyordu (satırlarla ve sonuç
  * bildirimiyle çelişiyordu). Zaten davetli / bekleyen satır hiçbir parçaya girmez.
  */
-export function inviteCounts(rows: ReadonlyArray<{ invite: CandidateInviteState }>): {
+export function inviteCounts(rows: ReadonlyArray<{ invite: CandidateInviteState; reason?: string | null }>): {
   found: number;
   invited: number;
   queued: number;
   notSent: number;
 } {
   const count = (state: CandidateInviteState) => rows.filter((r) => r.invite === state).length;
-  return { found: rows.length, invited: count("INVITED"), queued: count("QUEUED"), notSent: count("NOT_SENT") };
+  // Zayıf eşleşme (yalnız genel sektör) bilinçli olarak davet edilmez; bir
+  // gönderim hatası değildir → "gönderilmedi" sayısına ve açıklama cümlesinin
+  // "hiçbiri gönderilmedi" dalına girmez. Satırında nedeni yazar.
+  const notSent = rows.filter((r) => r.invite === "NOT_SENT" && r.reason !== WEAK_MATCH_REASON).length;
+  return { found: rows.length, invited: count("INVITED"), queued: count("QUEUED"), notSent };
+}
+
+/**
+ * Liste üstündeki açıklama SAYILARLA UYUŞUR (canlı doğrulama AUTO-UI-7). Tek
+ * cümle "bulunan tedarikçiler sizin adınıza davet edildi" diyordu; alıcı
+ * otomatik aramayı kapatınca yedi satırın yedisi "Gönderilmedi" iken de aynı
+ * cümle duruyordu. Gönderilmeyen yoksa eski cümle; hepsi gönderilmediyse
+ * "davet gönderilmedi"; arası "bir kısmı davet edildi, gönderilmeyenin nedeni
+ * satırında".
+ */
+export function statusLeadKey(counts: {
+  found: number;
+  notSent: number;
+}): "statusLead" | "statusLeadPartial" | "statusLeadNoneSent" {
+  if (counts.notSent === 0) return "statusLead";
+  return counts.notSent >= counts.found ? "statusLeadNoneSent" : "statusLeadPartial";
 }
 
 export function ListingSuggestions({
@@ -162,6 +182,9 @@ export function ListingSuggestions({
     counts.notSent > 0 ? t("bandNotSent", { n: counts.notSent }) : null,
   ].filter((p): p is string => p !== null);
   const secondRound = runs.some((r) => r.trigger === "SECOND_ROUND" && r.candidates.length > 0);
+  // Alıcının kendi ayarı yüzünden düşen davet var: neyin kapattığı ve nasıl geri
+  // geleceği (ayar geri alınınca dağıtıcı satırları yeniden sıraya alır) söylenir.
+  const autoInviteOff = rows.some((r) => r.invite === "NOT_SENT" && r.reason === AUTO_INVITE_OFF_REASON);
 
   if (!q.data) return null;
   if (runs.length === 0 && !(q.data.aiDiscovery && q.data.listingStatus === "OPEN")) return null;
@@ -245,7 +268,8 @@ export function ListingSuggestions({
 
       {open && rows.length > 0 ? (
         <div className="mt-4 space-y-3">
-          <p className="text-xs text-zinc-700">{t("statusLead")}</p>
+          <p className="text-xs text-zinc-700">{t(statusLeadKey(counts))}</p>
+          {autoInviteOff ? <p className="text-xs text-zinc-700">{t("statusLeadAutoOff")}</p> : null}
           <ul className="divide-y divide-zinc-950/5 rounded-xl bg-white ring-1 ring-zinc-950/5">
             {rows.map((r) => (
               <li key={r.key} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-3 py-2.5">

@@ -10,6 +10,13 @@ const h = vi.hoisted(() => ({
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
+  } as {
+    data: CompanyOrder[] | undefined;
+    isLoading: boolean;
+    /** Yanıt henüz yok (yükleme ya da çevrimdışı duraklama) — bileşen bunu okur. */
+    isPending?: boolean;
+    isError: boolean;
+    refetch: () => unknown;
   },
   sp: new URLSearchParams(),
 }));
@@ -63,6 +70,7 @@ describe("OrdersList — durum katmanları", () => {
     h.orders = {
       data: undefined,
       isLoading: true,
+      isPending: true,
       isError: false,
       refetch: vi.fn(),
     };

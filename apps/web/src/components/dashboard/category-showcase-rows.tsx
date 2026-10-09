@@ -9,14 +9,17 @@ import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { isHiddenCategory } from "@rothern/shared";
+import { cn } from "@/lib/utils";
 
 /**
- * KATEGORİ VİTRİNİ — promo kart + 5×2 ızgara, ÜÇ SATIR (2026-09-07).
+ * KATEGORİ VİTRİNİ — promo kart + iki satırlık ızgara, blok blok (2026-09-07).
  *
  * Europages'in ana keşif bloğunun Rothern karşılığı (kullanıcı ekran
- * görüntüsü): solda sabit genişlikte tanıtım kartı, sağında iki satır beşer
+ * görüntüsü): solda sabit genişlikte tanıtım kartı, sağında iki satır
  * kategori. Blok TÜM ana kategoriler bitene dek tekrarlanır (2026-09-08,
- * kullanıcı: "tüm ana kategoriler var mı?") — 58 segmentin hepsi anasayfada.
+ * kullanıcı: "tüm ana kategoriler var mı?") — görünür segmentlerin hepsi
+ * anasayfada; bloklar dengelidir (`toShowcaseRows`), sütun sayısı bloğun kart
+ * sayısından gelir (`showcaseGridShape`).
  *
  * RENK: promo kart MAVİ (2026-09-07, kullanıcı kararı). Kaynakta koyu yeşil
  * gradyan; burada satınalma portalının KENDİ vurgu rengi kullanılıyor —
@@ -37,48 +40,85 @@ export interface ShowcaseRow {
 }
 
 /**
- * Düz listeyi satırlara böler: her satır 1 promo + `perRow` kategori.
+ * Düz listeyi bloklara böler: her blok 1 promo + en çok `perRow` kategori.
  *
- * ARTAN KATEGORİLER DÜŞMEZ (2026-09-08, kullanıcı sorusu "tüm ana
- * kategoriler var mı?"): eskiden son blok tam dolmuyorsa BÜTÜNÜYLE
- * atılıyordu ve 58 segmentin sonundakiler anasayfada hiç görünmüyordu.
- * Artık artanlar SON bloğun ızgarasına eklenir — promo kartı `h-full`
- * olduğu için ızgara bir satır uzadığında düzen bozulmaz. Hiç tam blok
- * oluşmadıysa (çok küçük katalog) kısa blok yine de çizilir: boş bırakmak
- * yerine az kategoriyle göstermek doğru.
+ * BLOKLAR DENGELİ (canlı doğrulama 2026-10-09, PUB-01). Eskiden bloklar sırayla
+ * tam doldurulur, artan son bloğa kalırdı: liste kısalınca vitrin 11 + 11 + 5
+ * bölündü — son blokta beş sütunlu ızgarada dört kart, bir boş yuva ve tanıtım
+ * kartının yüksekliğine gerilmiş kartlar. Artık blok SAYISI aynı kurala göre
+ * seçilir (gereken en az blok, `rows` tavanıyla), kartlar ise bloklara EŞİT
+ * dağıtılır: iki blok arasındaki fark en çok bir karttır, fazlalık baştaki
+ * bloklara gider. Örnek: aynı liste üç blok × (1 promo + 8 kart) olur.
  *
- * VİTRİN = GÖRÜNÜR SEGMENTLERİN TAMAMI (2026-10-09, sahip kararı: "anasayfada
- * olmayan kategori başka yerde de gösterilmesin"). Kural bu listeye dayanır,
- * o yüzden iki şey burada da kilitli:
- *  - gizli segment (`HIDDEN_SEGMENTS`) girdide gelse bile blok olmaz
- *    (`buildShowcase` de süzer; burası çizimden önceki son kat);
- *  - TEK KALAN segment kaybolmaz: sayı 11'in katından bir fazlaysa (12, 23,
- *    34…) son segment promo olarak alınıp ızgarası boş kaldığı için blok
- *    atılıyor, o segment anasayfada hiç görünmüyordu. Artık önceki bloğun
- *    ızgarasına eklenir (ilk bloksa tek başına çizilir).
+ * HİÇBİR SEGMENT DÜŞMEZ (2026-09-08, kullanıcı sorusu "tüm ana kategoriler var
+ * mı?"; 2026-10-09 sahip kararı "anasayfada olmayan kategori başka yerde de
+ * gösterilmesin" bu listeye dayanır):
+ *  - blok tavanı (`rows`) dolduysa kartlar yine eşit dağıtılır, blok başına
+ *    kart sayısı `perRow`u aşar — kategori atılmaz;
+ *  - tek segmentli vitrin promo kartı olarak tek başına çizilir;
+ *  - gizli segment (`HIDDEN_SEGMENTS`) girdide gelse bile blok ya da kart olmaz
+ *    (`buildShowcase` de süzer; burası çizimden önceki son kat).
  */
 export function toShowcaseRows(input: ShowcaseCategory[], rows = 3, perRow = 10): ShowcaseRow[] {
   const all = input.filter((c) => !isHiddenCategory(c.id));
+  if (all.length === 0 || rows < 1) return [];
+  const blockCount = Math.min(rows, Math.ceil(all.length / (Math.max(1, perRow) + 1)));
+  const base = Math.floor(all.length / blockCount);
+  const extra = all.length % blockCount;
   const out: ShowcaseRow[] = [];
   let i = 0;
-  for (let r = 0; r < rows; r++) {
-    const promo = all[i];
-    if (!promo) break;
-    i += 1;
-    const items = all.slice(i, i + perRow);
-    i += items.length;
-    if (items.length === 0) {
-      const previous = out[out.length - 1];
-      if (previous) previous.items = [...previous.items, promo];
-      else out.push({ promo, items });
-      break;
-    }
-    out.push({ promo, items });
+  for (let b = 0; b < blockCount; b++) {
+    const size = base + (b < extra ? 1 : 0);
+    const [promo, ...items] = all.slice(i, i + size);
+    i += size;
+    if (promo) out.push({ promo, items });
   }
-  // Satır tavanı dolduysa kalanları son ızgaraya ekle — kategori kaybolmasın.
-  const last = out[out.length - 1];
-  if (last && i < all.length) last.items = [...last.items, ...all.slice(i)];
   return out;
+}
+
+/* Tailwind sınıfları kaynak metinden taranır → sütun sınıfı birleştirilerek
+   üretilmez, tablodan seçilir. */
+const SM_COLUMNS = { 3: "sm:grid-cols-3", 4: "sm:grid-cols-4", 5: "sm:grid-cols-5" } as const;
+const LG_COLUMNS = { 3: "lg:grid-cols-3", 4: "lg:grid-cols-4", 5: "lg:grid-cols-5" } as const;
+/** Görsel `sizes` ipucu: sütun sayısı → kartın yaklaşık görünüm genişliği payı. */
+const SM_TILE_VW = { 3: 30, 4: 23, 5: 18 } as const;
+const LG_TILE_VW = { 3: 22, 4: 17, 5: 14 } as const;
+
+/** `cols` sütunlu ızgarada son satırda boş kalan yuva sayısı. */
+function emptySlots(tiles: number, cols: number): number {
+  return (cols - (tiles % cols)) % cols;
+}
+
+/**
+ * BİR BLOĞUN IZGARA BİÇİMİ — kart sayısından (PUB-01).
+ *
+ *  - `lg` (tanıtım kartı solda, ızgara sağında): kartlar İKİ satıra bölünür —
+ *    sütun = kart sayısının yarısı (yukarı yuvarlanır), 3 ile 5 arasında:
+ *    5–6 kart 3 sütun, 7–8 kart 4 sütun (4 × 2), 9–10 kart 5 sütun (5 × 2);
+ *    son satırda en çok bir yuva boş kalır. Sabit 5 sütun, 8 kartlı blokta
+ *    5 + 3 bölünüyordu. Tek satıra sığan (4 karta kadar) blok 4 sütunda durur.
+ *  - `sm` (640–1023 px, ızgara kartın altında): son satırda EN AZ boş yuva
+ *    bırakan sütun sayısı (8 kart 4 + 4, 9 kart 3 × 3, 10 kart 5 + 5); eşitlikte
+ *    az sütun (kart daha geniş). 5 sütun yalnız kartları iki satıra bölüyorsa
+ *    adaydır (6+ kart): beş kart tek sırada beş dar kart değil, `lg`deki gibi
+ *    3 + 2 durur. Gözden geçirme R6-03: seçim yalnız 3 ile 4 arasındaydı ve 10
+ *    kartlı blok eşitlikte 3 sütuna düşüp 3 + 3 + 3 + 1 bölünüyordu (iki boş
+ *    yuva, tek başına kalan kart). Birden çok satırlı blokta artık son satırda
+ *    en çok bir yuva boş kalır; tek satıra sığan 1–2 kartlı blok (toplam 2–3
+ *    sektör; `lg`de 1–3 kart) sola yaslı kısa satırdır — kart büyütülmez.
+ *  - Dar ekranda her zaman 2 sütun.
+ *  - `stretch`: geniş ekranda ızgara tanıtım kartı kadar yüksektir ve satırları
+ *    o yüksekliği paylaşır. İki satırlık blokta kart yarım yükseklik alır (dolu
+ *    bloktaki görünüm). Kartları TEK satıra sığan blokta aynı kural tek satırı
+ *    kartın bütün yüksekliğine geriyordu (176 px yerine 344 px, etiketin altı
+ *    boş) → orada satır kendi yüksekliğinde kalır.
+ */
+export function showcaseGridShape(tiles: number): { sm: 3 | 4 | 5; lg: 3 | 4 | 5; stretch: boolean } {
+  const lg = tiles <= 4 ? 4 : (Math.min(5, Math.max(3, Math.ceil(tiles / 2))) as 3 | 4 | 5);
+  // Az sütundan çoğa: eşitlikte ilk (en geniş kartlı) aday kalır.
+  const smCandidates: readonly (3 | 4 | 5)[] = tiles > 5 ? [3, 4, 5] : [3, 4];
+  const sm = smCandidates.reduce((best, cols) => (emptySlots(tiles, cols) < emptySlots(tiles, best) ? cols : best));
+  return { sm, lg, stretch: tiles > lg };
 }
 
 export function CategoryShowcaseRows({
@@ -111,24 +151,45 @@ export function CategoryShowcaseRows({
         >
           <PromoCard category={row.promo} href={hrefFor(row.promo)} ctaLabel={ctaLabel} visual={visual} />
           {/* Tek segmentli vitrinde ızgara boştur — boş liste çizilmez. */}
-          {row.items.length > 0 ? (
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {row.items.map((c) => (
-              <li key={c.id}>
-                <CategoryTile
-                  category={c}
-                  href={hrefFor(c)}
-                  variant="square"
-                  visual={visual}
-                  sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 14vw"
-                />
-              </li>
-            ))}
-          </ul>
-          ) : null}
+          {row.items.length > 0 ? <ShowcaseGrid items={row.items} hrefFor={hrefFor} visual={visual} /> : null}
         </section>
       ))}
     </div>
+  );
+}
+
+/** Bloğun kart ızgarası — sütun sayısı ve satır yüksekliği kart sayısından (`showcaseGridShape`). */
+function ShowcaseGrid({
+  items,
+  hrefFor,
+  visual,
+}: {
+  items: ShowcaseCategory[];
+  hrefFor: (c: ShowcaseCategory) => string;
+  visual: "photo" | "icon";
+}) {
+  const shape = showcaseGridShape(items.length);
+  return (
+    <ul
+      className={cn(
+        "grid grid-cols-2 gap-4",
+        SM_COLUMNS[shape.sm],
+        LG_COLUMNS[shape.lg],
+        !shape.stretch && "lg:content-start",
+      )}
+    >
+      {items.map((c) => (
+        <li key={c.id}>
+          <CategoryTile
+            category={c}
+            href={hrefFor(c)}
+            variant="square"
+            visual={visual}
+            sizes={`(max-width: 640px) 45vw, (max-width: 1024px) ${SM_TILE_VW[shape.sm]}vw, ${LG_TILE_VW[shape.lg]}vw`}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }
 

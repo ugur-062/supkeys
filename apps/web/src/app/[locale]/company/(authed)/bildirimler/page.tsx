@@ -43,7 +43,10 @@ export default function BildirimlerPage() {
   // Derin denetim S057: tüm geçmiş imleçle sayfa sayfa ("Daha fazla yükle");
   // eskiden yalnız son 30 satır görünüyordu, öncesine ulaşılamıyordu.
   const feed = useNotificationFeed();
-  const { isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = feed;
+  // İskelet `isPending`e bağlı, `isLoading`e değil (LİSTE DURUMLARI): çevrimdışı
+  // cihazda sorgu DURAKLAR (istek yok, hata yok, veri yok) ve `isLoading` false
+  // kalır — "Henüz bildiriminiz yok" + tercihler bağlantısı çiziliyordu.
+  const { isPending, hasNextPage, fetchNextPage, isFetchingNextPage } = feed;
   const allItems = useMemo(
     () => feed.data?.pages.flat() ?? [],
     [feed.data],
@@ -123,7 +126,7 @@ export default function BildirimlerPage() {
         ))}
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         <div className="overflow-hidden card">
           <ListSkeleton rows={6} />
         </div>
@@ -202,7 +205,7 @@ export default function BildirimlerPage() {
         </ul>
       )}
 
-      {!isLoading && hasNextPage ? (
+      {!isPending && hasNextPage ? (
         <div className="mt-4 flex justify-center">
           <button
             type="button"

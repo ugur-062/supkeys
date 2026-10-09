@@ -5,6 +5,7 @@ import { useConnections, type Connection } from "@/hooks/use-company-connections
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { fetchSupplierTemplate, useSupplierTemplates } from "@/hooks/use-supplier-templates";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/ui/error-state";
 import { BUYING_TIER, companyActivityLabel, foldSearchText, stemPrefix, tierAtLeast, tokenizeQuery } from "@rothern/shared";
 import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { upperForText } from "@/i18n/format";
@@ -74,7 +75,12 @@ export function SupplierPicker({
   const t = useTranslations("web.panel.requests.supplierPicker");
   const activityLabel = useActivityLabel();
   const cityLabel = useCityLabel();
-  const { data: connections = [], isLoading } = useConnections();
+  // LİSTE DURUMLARI: `isPending` bekleme (çevrimdışı duraklama dahil); bağlantılar
+  // HİÇ okunamadıysa hata + "Tekrar dene" — eskiden hata dalı yoktu, kesintide
+  // "Henüz bağlantınız yok…" çiziliyor, kullanıcı talebi herkese açmaya
+  // yönleniyordu.
+  const { data: connectionData, isPending, refetch } = useConnections();
+  const connections = useMemo(() => connectionData ?? [], [connectionData]);
   const [q, setQ] = useState("");
   const [sector, setSector] = useState("");
   const [city, setCity] = useState("");
@@ -155,13 +161,16 @@ export function SupplierPicker({
     }
   };
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="space-y-4" aria-busy>
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-24 animate-pulse rounded-2xl bg-zinc-100" />
       </div>
     );
+  }
+  if (connectionData === undefined) {
+    return <ErrorState onRetry={() => void refetch()} />;
   }
   if (connections.length === 0) {
     return (

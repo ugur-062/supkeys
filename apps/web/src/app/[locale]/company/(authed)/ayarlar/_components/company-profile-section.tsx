@@ -257,7 +257,9 @@ export function CompanyProfileSection() {
     }
   };
 
-  if (isError) {
+  // Hata dalı yalnız hiç veri yokken: arka plan yenilemesi düşerse eldeki
+  // form (ve yazılmakta olan değişiklik) ekranda kalır (LİSTE DURUMLARI).
+  if (isError && !profile) {
     return (
       <div
         role="alert"

@@ -42,7 +42,9 @@ function BellPanelContent({
   const ago = useRelativeTime("ago");
   // TEK kutu (kullanıcı isteği): portal filtresi yok — iki panelin
   // bildirimleri birlikte, satır başına panel rozetiyle.
-  const { data, isLoading, isError, refetch } = useNotifications();
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "Henüz bildiriminiz yok" çizilirdi (LİSTE DURUMLARI).
+  const { data, isPending, isError, refetch } = useNotifications();
   const items = data ?? [];
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
@@ -75,7 +77,7 @@ function BellPanelContent({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {isLoading ? (
+        {isPending ? (
           <p className="px-4 py-6 text-center text-sm text-zinc-400">
             {t("yukleniyor")}
           </p>

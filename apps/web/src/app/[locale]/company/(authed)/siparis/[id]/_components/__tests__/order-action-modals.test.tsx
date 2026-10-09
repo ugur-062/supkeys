@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
   bankAccounts: {
     data: undefined as CompanyBankAccount[] | undefined,
     isLoading: false as boolean | undefined,
-  } as { data: CompanyBankAccount[] | undefined; isLoading?: boolean },
+  } as { data: CompanyBankAccount[] | undefined; isLoading?: boolean; isError?: boolean; refetch?: () => void },
 }));
 
 vi.mock("@/hooks/use-company-bank-accounts", () => ({
@@ -128,6 +128,28 @@ describe("AcceptOrderModal — arayüz testi webB-07", () => {
     render(<AcceptOrderModal open onClose={vi.fn()} onSubmit={vi.fn()} pending={false} />);
     expect(screen.getByRole("option").textContent).toMatch(/1326 \(varsayılan\)$/);
   });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) da 'banka hesabı gerekli' çıkmaz", () => {
+    // Bekleme `isLoading`e bağlıyken (duraklamada false) uyarı çiziliyordu.
+    h.bankAccounts = { data: undefined, isLoading: false };
+    render(<AcceptOrderModal open onClose={vi.fn()} onSubmit={vi.fn()} pending={false} />);
+    expect(screen.queryByText(/banka hesabı gerekli/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
+  });
+
+  it.each([{ bankOptional: false }, { bankOptional: true }])(
+    "hesaplar OKUNAMADIYSA 'hesabınız yok' değil hata + Tekrar dene ($bankOptional)",
+    async ({ bankOptional }) => {
+      const refetch = vi.fn();
+      h.bankAccounts = { data: undefined, isLoading: false, isError: true, refetch };
+      render(<AcceptOrderModal open onClose={vi.fn()} onSubmit={vi.fn()} pending={false} bankOptional={bankOptional} />);
+      expect(screen.queryByText(/banka hesabı gerekli/i)).not.toBeInTheDocument();
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+      expect(refetch).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("D-282: hesaplar yüklenirken 'banka hesabı gerekli' uyarısı çıkmaz", () => {
     h.bankAccounts = { data: undefined, isLoading: true };

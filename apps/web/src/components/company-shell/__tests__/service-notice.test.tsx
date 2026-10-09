@@ -2,6 +2,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isServiceUnreachable,
@@ -11,6 +13,7 @@ import {
   suspectServiceOutage,
 } from "@/lib/company-auth/service-health";
 import {
+  SERVICE_NOTICE_GAP_CLASS,
   SERVICE_RECHECK_DELAYS_MS,
   SERVICE_SLOW_AFTER_MS,
   ServiceNotice,
@@ -334,5 +337,34 @@ describe("ServiceNotice — açık oturum (panelin istekleri kesinti yaşıyor)"
     expect(isServiceUnreachable()).toBe(true);
     screenView.unmount();
     expect(isServiceUnreachable()).toBe(false);
+  });
+});
+
+describe("ServiceNotice — yerleşim (canlı doğrulama OUTR-7)", () => {
+  // İki panel anasayfasının hero bandı kabuğun üst boşluğunu negatif marjla
+  // iptal eder; not `mb-4` iken bant notun alt 14 px'ini (telefonda 6 px)
+  // örtüyordu. jsdom yerleşim ölçmez → sözleşme sınıflar üzerinden kilitlenir:
+  // notun alt boşluğu = kabuğun üst boşluğu = bandın geri çektiği miktar.
+  const source = (file: string) => readFileSync(join(__dirname, "..", file), "utf8");
+  /** `mb-6 lg:mb-8` → `{ base: "6", lg: "8" }` (öneki `prefix` olan sınıflar). */
+  const steps = (classes: string, prefix: string) => ({
+    base: new RegExp(`(?:^|[\\s"'\`])${prefix}(\\d+)(?=[\\s"'\`]|$)`).exec(classes)?.[1],
+    lg: new RegExp(`(?:^|[\\s"'\`])lg:${prefix}(\\d+)(?=[\\s"'\`]|$)`).exec(classes)?.[1],
+  });
+
+  it("notun alt boşluğu kabuğun üst boşluğuyla ve hero bandının negatif marjıyla aynı", () => {
+    render(view({ failureCount: 1, failureReason: networkError }, true));
+    const gap = steps(screen.getByTestId("service-notice").className, "mb-");
+    expect(gap.base).toBeDefined();
+    expect(gap.lg).toBeDefined();
+    expect(gap).toEqual(steps(SERVICE_NOTICE_GAP_CLASS, "mb-"));
+
+    const shell = source("shell.tsx");
+    const content = /id="icerik"\s+className="([^"]+)"/.exec(shell)?.[1] ?? "";
+    expect(steps(content, "py-")).toEqual(gap);
+
+    const hero = source("../dashboard/panel-hero-search.tsx");
+    const band = hero.split("\n").find((line) => line.includes("w-[100cqw]")) ?? "";
+    expect(steps(band, "-mt-")).toEqual(gap);
   });
 });

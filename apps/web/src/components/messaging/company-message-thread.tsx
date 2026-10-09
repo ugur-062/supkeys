@@ -8,6 +8,7 @@ import { buyingGate } from "@/lib/public/member-gate";
 import { VerificationLink } from "@/components/company/verification-gate";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   useSendMessage,
   useThreadMessages,
@@ -65,7 +66,11 @@ export function CompanyMessageThread({
 }: Props) {
   const t = useTranslations("web.panel.inbox.companyMessageThread");
   const roleLabel = useRoleLabel();
-  const { data, isLoading } = useThreadMessages(portal, otherPartyId);
+  // LİSTE DURUMLARI: `isPending` bekleme (çevrimdışı duraklama dahil); konuşma
+  // HİÇ okunamadıysa hata kartı — eskiden hata dalı yoktu, kesintide "Henüz
+  // mesaj yok · İlk mesajı sen gönder" çiziliyordu. 5 sn'lik yoklama düşerse
+  // eldeki mesajlar kalır.
+  const { data, isPending, isError, refetch } = useThreadMessages(portal, otherPartyId);
   const sendMutation = useSendMessage(portal, otherPartyId);
   // F7: gönderme portal-yönlü işlem rolü ister (backend send() birebir:
   // satinalma→Satın Almacı, satis→Satışçı) — rolsüz okur, composer gizli.
@@ -123,7 +128,7 @@ export function CompanyMessageThread({
     ? "flex flex-col h-full min-h-0 bg-white overflow-hidden"
     : "flex flex-col h-[calc(100vh-200px)] max-h-[700px] min-h-[400px] bg-white ring-1 ring-zinc-950/5 rounded-2xl overflow-hidden";
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className={`${wrapperCls} items-center justify-center`}>
         <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
@@ -145,7 +150,9 @@ export function CompanyMessageThread({
 
       {/* Mesaj listesi */}
       <div className="flex-1 overflow-y-auto bg-zinc-50 px-4 py-4">
-        {messages.length === 0 ? (
+        {data === undefined && isError ? (
+          <ErrorState onRetry={() => void refetch()} />
+        ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200">
               <Send className="h-5 w-5 text-zinc-400" />

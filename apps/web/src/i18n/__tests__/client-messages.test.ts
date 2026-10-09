@@ -1,7 +1,19 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { PANEL_NAMESPACES, SERVER_ONLY_NAMESPACES, clientMessages, omitPaths, panelMessages } from "../client-messages";
+import { LOCALES } from "@rothern/i18n";
+import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
+import { HIDDEN_SEGMENTS } from "@rothern/shared";
+import type { AbstractIntlMessages } from "next-intl";
+import { segmentTaglineKey, TAGLINE_SEGMENTS } from "@/lib/public/segment-taglines";
+import {
+  HIDDEN_TAGLINE_PATHS,
+  PANEL_NAMESPACES,
+  SERVER_ONLY_NAMESPACES,
+  clientMessages,
+  omitPaths,
+  panelMessages,
+} from "../client-messages";
 
 describe("clientMessages", () => {
   it("sunucuya özel ad alanlarını ayıklar, kalanına dokunmaz", () => {
@@ -98,5 +110,58 @@ describe("web.panel yalnız panelde (i18n Faz 2)", () => {
       if (statSync(full).isDirectory()) walk(full);
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * GİZLİ SEGMENTİN SLOGANI SAYFA KAYNAĞINA YAZILMAZ (canlı doğrulama 2026-10-09,
+ * PUB-03): kataloglar her segmentin cümlesini tutar, istemciye giden sözlük
+ * yalnız görünür segmentlerinkini taşır. Gerçek kataloglarla, üç dilde.
+ */
+describe("gizli segment sloganları istemci mesajlarına girmez", () => {
+  type Taglines = Record<string, string>;
+  const taglinesOf = (m: AbstractIntlMessages) =>
+    ((m.web as Record<string, unknown>).marketing as Record<string, unknown>).taglines as Taglines;
+  const hiddenKeys = HIDDEN_SEGMENTS.map((s) => `s${s}`);
+  const visibleKeys = TAGLINE_SEGMENTS.filter((s) => !HIDDEN_SEGMENTS.includes(s)).map((s) => `s${s}`);
+
+  it("yol listesi HIDDEN_SEGMENTS'ten türer (elle ikinci liste yok)", () => {
+    expect(HIDDEN_TAGLINE_PATHS).toEqual(HIDDEN_SEGMENTS.map((s) => `web.marketing.taglines.s${s}`));
+    expect(hiddenKeys.length).toBeGreaterThan(0);
+    expect(visibleKeys.length).toBeGreaterThan(0);
+  });
+
+  it.each(LOCALES)("%s: katalog cümleleri tutar; clientMessages gizlileri düşürür, görünürlere ve yedeğe dokunmaz", (locale) => {
+    const all = messagesFor(locale, WEB_NAMESPACES) as unknown as AbstractIntlMessages;
+    const source = taglinesOf(all);
+    // Girdi koşulu: katalogda gizli segmentlerin cümlesi VAR (yoksa sınama boş geçerdi).
+    for (const key of hiddenKeys) expect(source[key], key).toEqual(expect.any(String));
+
+    const client = taglinesOf(clientMessages(all));
+    for (const key of hiddenKeys) expect(client[key], key).toBeUndefined();
+    for (const key of [...visibleKeys, "fallback"]) expect(client[key], key).toBe(source[key]);
+    expect(Object.keys(client).sort()).toEqual([...visibleKeys, "fallback"].sort());
+
+    // Sayfa yüküne yazılan metinde gizli cümlelerin hiçbiri geçmez.
+    const payload = JSON.stringify(clientMessages(all));
+    for (const key of hiddenKeys) expect(payload.includes(JSON.stringify(source[key])), key).toBe(false);
+    // Girdi değişmedi (katalog nesnesi paylaşılır).
+    expect(taglinesOf(all)[hiddenKeys[0]!]).toBe(source[hiddenKeys[0]!]);
+  });
+
+  it("panel sağlayıcısı da gizli cümleleri taşımaz", () => {
+    const all = messagesFor("tr", WEB_NAMESPACES) as unknown as AbstractIntlMessages;
+    const panel = taglinesOf(panelMessages(all));
+    for (const key of hiddenKeys) expect(panel[key], key).toBeUndefined();
+    expect(panel.fallback).toEqual(expect.any(String));
+  });
+
+  it("istemcinin okuyabildiği her anahtar sözlükte durur: gizli kod yedeğe düşer, görünür kod kendi anahtarına", () => {
+    const client = taglinesOf(clientMessages(messagesFor("tr", WEB_NAMESPACES) as unknown as AbstractIntlMessages));
+    for (const segment of TAGLINE_SEGMENTS) {
+      const key = segmentTaglineKey(`${segment}000000`);
+      expect(client[key], segment).toEqual(expect.any(String));
+      if (HIDDEN_SEGMENTS.includes(segment)) expect(key).toBe("fallback");
+    }
   });
 });

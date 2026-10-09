@@ -6,6 +6,7 @@ import { Text } from "@/components/catalyst/text";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import { QuickRequest } from "@/components/tenders/quick/quick-request";
+import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
@@ -16,11 +17,22 @@ export default function EditTenderPage() {
   const t = useTranslations("web.panel.requests.page");
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const { data: l, isLoading } = useListingDetail(id);
+  const { data: l, isPending, isError, error, refetch } = useListingDetail(id);
   const { user } = useCompanyAuth();
 
-  if (isLoading) {
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "bulunamadı" çizilirdi (LİSTE DURUMLARI).
+  if (isPending) {
     return <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>;
+  }
+  // KESİNTİ ≠ YOK (canlı doğrulama 2026-10-09 taraması): talep OKUNAMADIYSA
+  // (yanıt yok / 5xx / 429) "Satın alma talebi bulunamadı" demek yalan olur —
+  // eskiden hata dalı yoktu. "Bulunamadı" yalnız API'nin 4xx yanıtında.
+  if (!l && isError) {
+    const status = (error as { response?: { status?: number } } | null)?.response?.status;
+    if (!status || status >= 500 || status === 429) {
+      return <ErrorState className="mx-auto max-w-2xl" onRetry={() => void refetch()} />;
+    }
   }
   // Olmayan / görülemeyen kayıt "bulunamadı" der; "yetkiniz yok" yalnız
   // görülen ama düzenlenemeyen talepte (arayüz testi D-244).

@@ -124,7 +124,10 @@ export function ApprovalFlowsSection({
   onConsumeOpenNew?: () => void;
 }) {
   const t = useTranslations("web.panel.approvals.approvalFlowsSection");
-  const { data: flows, isLoading, isError, refetch } = useApprovalFlows();
+  // LİSTE DURUMLARI: `isPending` bekleme (çevrimdışı duraklamada "Henüz onay
+  // akışı yok" çizilmesin); hata dalı yalnız hiç veri yokken — arka plan
+  // yenilemesi düşerse eldeki akışlar kalır.
+  const { data: flows, isPending, isError, refetch } = useApprovalFlows();
   // Onaycı adayları approvals:manage ile açık uçtan (GET company/users
   // users:manage ister; yalnız akış yetkili üyede seçici boş kalıyordu).
   const { data: candidates } = useApproverCandidates(canManage);
@@ -181,8 +184,8 @@ export function ApprovalFlowsSection({
   return (
     <FlowList
       flows={flows}
-      isLoading={isLoading}
-      isError={isError}
+      isLoading={isPending}
+      isError={isError && flows === undefined}
       onRetry={() => refetch()}
       canCreate={canCreate}
       onNew={() => setWizard("new")}

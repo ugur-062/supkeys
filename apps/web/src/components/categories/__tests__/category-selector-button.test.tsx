@@ -147,4 +147,19 @@ describe("CategorySelectorButton — gizli segment kodu ve satırı olmayan kiml
     view.rerender(<CategorySelectorButton value={[]} onChange={() => {}} placeholder="Kategori seçin (en fazla 3)" />);
     expect(screen.queryByText(/Önceki kategori artık kullanılmıyor/)).toBeNull();
   });
+
+  // Canlı doğrulama CP-04: kategorinin zorunlu olmadığı formda (yayındaki talep)
+  // not "seçin" diye isterken formun kendi notu "gerekmez" diyordu.
+  it("retiredOptional: not seçim İSTEMEZ — tek cümle, 'seçmeden de kaydedebilirsiniz'", () => {
+    h.byIds = { data: undefined };
+    const view = render(<CategorySelectorButton value={[]} onChange={() => {}} retiredHint retiredOptional />);
+    expect(
+      screen.getByText("Önceki kategori artık kullanılmıyor. Güncel bir kategori seçebilirsiniz; seçmeden de kaydedebilirsiniz."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Lütfen güncel bir kategori seçin/)).toBeNull();
+    expect(screen.getAllByText(/Önceki kategori artık kullanılmıyor/)).toHaveLength(1);
+    // İşaret yoksa (eski kategori yok) isteğe bağlı söz de çizilmez.
+    view.rerender(<CategorySelectorButton value={[]} onChange={() => {}} retiredOptional />);
+    expect(screen.queryByText(/Önceki kategori artık kullanılmıyor/)).toBeNull();
+  });
 });

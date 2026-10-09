@@ -40,7 +40,13 @@ interface Ctx<S> {
   update: (patch: Partial<S> | ((s: S) => S), opts?: { replace?: boolean }) => void;
   clear: () => void;
   isPending: boolean;
-  total: number;
+  /**
+   * Sonuç sayısı. `null` = OKUNAMADI (panel listesi yükleniyor ya da isteği
+   * düştü; canlı doğrulama 2026-10-09 OUTR-1 / OUTR-3): sayı ve "… bulunamadı"
+   * çizilmez — okunamayan sayı 0 değildir. Sunucuda çizilen herkese açık
+   * listeler hep sayı verir.
+   */
+  total: number | null;
   /** Aktif süzgeç sayısı — arama/sıralama/sayfa hariç. */
   activeCount: number;
   openMobile: () => void;
@@ -85,7 +91,8 @@ export function FilterShellCore<S extends { page: number }>({
   toUrl: (next: S) => string;
   /** "Tümünü temizle" sonrası durum. */
   clearState: (s: S) => S;
-  total: number;
+  /** `null` = sayı okunamadı (bkz. `Ctx.total`). */
+  total: number | null;
   activeCount: number;
   /** Mobil çekmecede çizilecek süzgeç ağacı (masaüstü aside ile aynı bileşen, ikinci örnek). */
   drawer?: ReactNode;
@@ -209,7 +216,8 @@ export function FilterShell({
    */
   fixedCity?: string;
   fixedCountry?: string;
-  total: number;
+  /** `null` = sayı okunamadı (bkz. `Ctx.total`). */
+  total: number | null;
   drawer?: ReactNode;
   /** Bkz. `FilterShellCore` — panel pazarında `xl`. */
   drawerHideAt?: "lg" | "xl";
@@ -360,11 +368,14 @@ export function ResultCount({
   const t = useTranslations("web.marketplace.filters");
   const { total, isPending } = useFilters();
   const busy = loading || isPending;
+  // Sayı okunamadı ve beklenen bir şey de yok (istek düştü): "… bulunamadı"
+  // demek yalan olur — canlı bölge susar, hata kartı sayfanın kendisinde.
+  if (!busy && total == null) return null;
   return (
     <p aria-live="polite" className={quiet && !busy ? "sr-only" : "text-sm text-zinc-600"}>
       {busy
         ? t("updating")
-        : total > 0
+        : total != null && total > 0
           ? t(foundKey(kind, atLeast), { total })
           : t(NOT_FOUND_KEY[kind])}
     </p>
@@ -450,7 +461,11 @@ function MobileDrawer({
             accent === "blue" ? "bg-blue-600 hover:bg-blue-700" : ctxFill
           }`}
         >
-          {isPending ? t("updating") : t("showResults", { total: fmt.number(total) })}
+          {isPending
+            ? t("updating")
+            : total == null
+              ? t("showResultsPlain")
+              : t("showResults", { total: fmt.number(total) })}
         </button>
       }
     >

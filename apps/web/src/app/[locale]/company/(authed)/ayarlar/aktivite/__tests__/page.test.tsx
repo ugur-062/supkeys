@@ -4,17 +4,26 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
-const h = vi.hoisted(() => ({ items: [] as unknown[], enabled: undefined as boolean | undefined }));
+const h = vi.hoisted(() => ({
+  items: [] as unknown[],
+  enabled: undefined as boolean | undefined,
+  /** Yanıt hiç yok (yükleme, çevrimdışı duraklama ya da veri gelmeden düşen istek). */
+  noData: false,
+  isError: false,
+}));
 
 vi.mock("@/hooks/use-activity-log", () => ({
   useActivityLog: (_page: number, _module?: string, enabled?: boolean) => (h.enabled = enabled, {
-    data: {
-      items: h.items,
-      pagination: { page: 1, pageSize: 25, total: h.items.length, totalPages: 1 },
-    },
+    data: h.noData
+      ? undefined
+      : {
+          items: h.items,
+          pagination: { page: 1, pageSize: 25, total: h.items.length, totalPages: 1 },
+        },
     isLoading: false,
-    isError: false,
-    error: null,
+    isPending: h.noData && !h.isError,
+    isError: h.isError,
+    error: h.isError ? { message: "Network Error" } : null,
     refetch: vi.fn(),
   }),
 }));
@@ -41,6 +50,41 @@ function row(action: string, metadata: Record<string, unknown>) {
 
 beforeEach(() => {
   useCompanyAuthStore.setState({ company: { country: "TR", tier: "SILVER" } } as never);
+  h.items = [];
+  h.noData = false;
+  h.isError = false;
+});
+
+describe("AktivitePage — liste durumları (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("yanıt yokken (çevrimdışı duraklama: `isLoading` false) tablo ve 'Henüz kayıt yok' çizilmez", () => {
+    h.noData = true;
+    render(<AktivitePage />);
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+    expect(screen.queryByText("Henüz kayıt yok")).toBeNull();
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("hiç okunamadıysa hata + Yeniden dene", () => {
+    h.noData = true;
+    h.isError = true;
+    render(<AktivitePage />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Aktivite logu yüklenemedi.");
+    expect(screen.queryByText("Henüz kayıt yok")).toBeNull();
+  });
+
+  it("arka plan yenilemesi düşünce eldeki satırlar kalır (hata satırına dönmez)", () => {
+    h.items = [row("company.user.invited", { email: "yeni@example.com", roles: ["SATISCI"] })];
+    h.isError = true;
+    render(<AktivitePage />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getAllByText("ada@example.com").length).toBeGreaterThan(0);
+  });
+
+  it("başarılı ve BOŞ yanıt 'Henüz kayıt yok' der", () => {
+    render(<AktivitePage />);
+    expect(screen.getByText("Henüz kayıt yok")).toBeInTheDocument();
+  });
 });
 
 describe("AktivitePage — erişim kilidi (arayüz testi O-044)", () => {

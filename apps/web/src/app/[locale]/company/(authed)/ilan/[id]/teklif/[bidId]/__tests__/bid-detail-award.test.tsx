@@ -20,6 +20,9 @@ const h = vi.hoisted(() => ({
   company: null as Record<string, unknown> | null,
   search: "",
   error: null as unknown,
+  keepData: false,
+  /** Çevrimdışı duraklama: istek yok, hata yok, veri yok. */
+  paused: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -40,8 +43,10 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   return {
     ...mod,
     useListingDetail: () => ({
-      data: h.error ? undefined : h.detail,
+      // `keepData`: verisi olan sorgunun arka plan yoklaması düştü.
+      data: h.paused || (h.error && !h.keepData) ? undefined : h.detail,
       isLoading: false,
+      isPending: h.paused,
       isError: !!h.error,
       error: h.error,
       refetch: vi.fn(),
@@ -93,6 +98,8 @@ beforeEach(() => {
   h.company = null;
   h.search = "";
   h.error = null;
+  h.keepData = false;
+  h.paused = false;
   h.award.mockResolvedValue({ pendingApproval: false, number: "ORD-2026-0001" });
   h.preview.mockResolvedValue({ requiresApproval: false });
   h.confirm.mockResolvedValue(true);
@@ -270,5 +277,34 @@ describe("Teklif detayı — sonuç etiketi ve erişim (arayüz testi D-102 / D-
     h.error = { response: { status: 500 } };
     render(<BidDetailPage />);
     expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+  });
+});
+
+describe("Teklif detayı — arka plan yoklaması ve bekleme (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("yoklama kesintide düşünce (yanıt yok / 5xx) ekrandaki teklif kalır", () => {
+    h.keepData = true;
+    for (const error of [{ message: "Network Error" }, { response: { status: 503 } }]) {
+      h.error = error;
+      const { unmount } = render(<BidDetailPage />);
+      expect(screen.queryByText("Teklif yüklenemedi.")).toBeNull();
+      expect(screen.queryByText("Teklife ulaşılamıyor.")).toBeNull();
+      // Sayfa gövdesi duruyor: talebe dönüş bağlantısı çizili.
+      expect(document.querySelector('a[href^="/company/ilan/l1"]')).not.toBeNull();
+      unmount();
+    }
+  });
+
+  it("API'nin 404 yanıtı eldeki veriyi de geçersiz kılar: nötr 'ulaşılamıyor' kartı", () => {
+    h.keepData = true;
+    h.error = { response: { status: 404 } };
+    render(<BidDetailPage />);
+    expect(screen.getByText("Teklife ulaşılamıyor.")).toBeInTheDocument();
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'bulunamadı' değil 'Yükleniyor…'", () => {
+    h.paused = true;
+    render(<BidDetailPage />);
+    expect(screen.queryByText(/bulunamadı/)).toBeNull();
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
   });
 });

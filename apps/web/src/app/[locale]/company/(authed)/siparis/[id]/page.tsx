@@ -102,7 +102,7 @@ export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { user, company } = useCompanyAuth();
-  const { data: o, isLoading, isError, error, refetch } = useOrder(id);
+  const { data: o, isPending, isError, error, refetch } = useOrder(id);
   const ship = useShipOrder(id);
   const receive = useReceiveOrder(id);
   const complete = useCompleteOrder(id);
@@ -126,7 +126,9 @@ export default function OrderDetailPage() {
   // WS: bu siparişin odasına abone ol — karşı tarafın adımı anında düşer.
   useEffect(() => subscribeRealtime("order", id), [id]);
 
-  if (isLoading)
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "Sipariş bulunamadı" çizilirdi (LİSTE DURUMLARI).
+  if (isPending)
     return (
       <div className="space-y-4" aria-hidden>
         <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />

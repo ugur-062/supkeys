@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -12,6 +13,10 @@ const h = vi.hoisted(() => ({
   rfq: 0,
   /** İlişkili ürünler geldi mi (`RelatedRows` yalnız veriyle çizilir). */
   related: false,
+  /** Ürün sorgusunun yerine geçer (yanıt yok / hata / 404 = `data: null`). */
+  query: undefined as
+    | { data: unknown; isLoading: boolean; isPending: boolean; isError: boolean; refetch?: () => void }
+    | undefined,
   /** `RelatedRows`e geçen son kategori adı ("… içinde yeni" başlığı). */
   relatedCategoryName: undefined as string | null | undefined,
 }));
@@ -24,8 +29,9 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({ user: { id: "u" }, company: { slug: h.ownSlug } }),
 }));
 vi.mock("@/hooks/use-portal-discovery", () => ({
-  usePublicProduct: () => ({
+  usePublicProduct: () => h.query ?? ({
     isLoading: false,
+    isPending: false,
     isError: false,
     data: {
       product: { name: "Urun X", category: h.category, unit: "adet", categoryId: null, keywords: [] },
@@ -73,6 +79,7 @@ beforeEach(() => {
   h.rfq = 0;
   h.related = false;
   h.relatedCategoryName = undefined;
+  h.query = undefined;
 });
 
 describe("Panel ürün sayfası (derin denetim LU-22)", () => {
@@ -144,5 +151,33 @@ describe("Panel ürün sayfası (derin denetim LU-22)", () => {
     h.perms = ["buy:view", "buy:listing:manage"];
     render(<PanelProductPage />);
     expect(h.rfq).toBeGreaterThan(0);
+  });
+});
+
+describe("Panel ürün sayfası — kesinti ≠ bulunamadı (canlı doğrulama 2026-10-09 taraması)", () => {
+  // Kanca 404'ü `data: null` (başarılı "yok") olarak döndürür; `isError` = ürün
+  // OKUNAMADI. Eskiden ikisi de "Ürün bulunamadı — vitrinden çekilmiş" diyordu.
+  it("ürün okunamadıysa 'Ürün bulunamadı' değil hata + Tekrar dene", () => {
+    const refetch = vi.fn();
+    h.query = { data: undefined, isLoading: false, isPending: false, isError: true, refetch };
+    render(<PanelProductPage />);
+    expect(screen.queryByText("Ürün bulunamadı.")).toBeNull();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'Yükleniyor…'", () => {
+    h.query = { data: undefined, isLoading: false, isPending: true, isError: false };
+    render(<PanelProductPage />);
+    expect(screen.queryByText("Ürün bulunamadı.")).toBeNull();
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+  });
+
+  it("API'nin 404 yanıtı (kanca `null` döner) gerçek 'Ürün bulunamadı'dır", () => {
+    h.query = { data: null, isLoading: false, isPending: false, isError: false };
+    render(<PanelProductPage />);
+    expect(screen.getByText("Ürün bulunamadı.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

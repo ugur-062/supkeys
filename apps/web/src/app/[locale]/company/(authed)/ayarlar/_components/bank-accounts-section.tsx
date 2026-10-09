@@ -45,7 +45,10 @@ const BANK_COUNTRY_CODES = registrationCountries().map((c) => c.code);
 
 export function BankAccountsSection({ canManage }: { canManage: boolean }) {
   const t = useTranslations("web.panel.settings.bankAccountsSection");
-  const { data: accounts, isLoading, isError, refetch } = useBankAccounts();
+  // LİSTE DURUMLARI: `isPending` yükleme (çevrimdışı duraklamada "Henüz kayıtlı
+  // banka hesabı yok" çizilmesin); hata dalı yalnız hiç veri yokken — arka plan
+  // yenilemesi düşerse eldeki hesaplar kalır.
+  const { data: accounts, isPending, isError, refetch } = useBankAccounts();
   const del = useDeleteBankAccount();
   const confirm = useConfirm();
   const [editing, setEditing] = useState<CompanyBankAccount | "new" | null>(
@@ -84,9 +87,9 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
         )}
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         <Text className="mt-3 text-sm text-zinc-500">{t("yukleniyor")}</Text>
-      ) : isError ? (
+      ) : isError && accounts === undefined ? (
         <p role="alert" className="mt-3 text-sm text-rose-800">
           {t("bankaHesaplariYuklenemedi")}{" "}
           <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">

@@ -27,9 +27,12 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/use-seller-tenders", async (orig) => ({
   // `maskedRequestHref`/`maskedRowToSellerRow` gerçek — yalnız sorgu sahte.
   ...(await orig<typeof import("@/hooks/use-seller-tenders")>()),
+  // Gerçek sorgu sözleşmesi: hiç okunamayan listede `data` undefined'dır
+  // (durum geçişleri gerçek kancayla `seller-tenders-view-states.test.tsx`te).
   useSellerTenders: () => ({
-    data: h.rows,
+    data: h.isLoading || h.isError ? undefined : h.rows,
     isLoading: h.isLoading,
+    isPending: h.isLoading,
     isError: h.isError,
     refetch: vi.fn(),
   }),

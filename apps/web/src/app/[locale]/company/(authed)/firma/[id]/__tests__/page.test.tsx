@@ -9,6 +9,8 @@ import { markNavEntry, noteNavigation, resetNavHistoryForTest } from "@/lib/nav-
 const h = vi.hoisted(() => ({
   profile: null as unknown,
   profileError: null as unknown,
+  /** Çevrimdışı duraklama: istek yok, hata yok, veri yok (`isLoading` false). */
+  paused: false,
   refetch: vi.fn(),
   portal: "satinalma" as "satinalma" | "satis",
   replace: vi.fn(),
@@ -25,8 +27,9 @@ vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-active-portal", () => ({ useActivePortal: () => h.portal }));
 vi.mock("@/hooks/use-company-directory", () => ({
   useCompanyProfile: () => ({
-    data: h.profile,
+    data: h.paused ? undefined : h.profile,
     isLoading: false,
+    isPending: h.paused,
     isError: h.profileError != null,
     error: h.profileError,
     refetch: h.refetch,
@@ -131,6 +134,7 @@ beforeEach(() => {
   h.portal = "satinalma";
   h.profile = profile();
   h.profileError = null;
+  h.paused = false;
   resetNavHistoryForTest();
   window.history.replaceState(null, "", "/company/firma/RTH-OTHER");
 });
@@ -331,3 +335,12 @@ describe("Panel firma profili — kesinti ≠ yok (arayüz testi D-070)", () => 
   });
 });
 
+describe("Panel firma profili — yanıt beklenirken (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'Firma profili bulunamadı' değil iskelet", () => {
+    // İskelet `isLoading`e bağlıyken (duraklamada false) "bulunamadı" çiziliyordu.
+    h.paused = true;
+    const { container } = render(<CompanyProfilePage />);
+    expect(screen.queryByText(/Firma profili bulunamadı/)).toBeNull();
+    expect(container.querySelector(".animate-pulse")).not.toBeNull();
+  });
+});

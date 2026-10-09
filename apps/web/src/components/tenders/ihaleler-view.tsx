@@ -225,6 +225,14 @@ export function IhalelerView() {
   const canSeeBuyReports = useHasCompanyPermission("buy:reports:view");
   const list = useTenders();
   const all = useMemo(() => list.data ?? [], [list.data]);
+  // LİSTE DURUMLARI (canlı doğrulama 2026-10-09, OUTR-2 / OUTR-5): sayı ve "yok"
+  // yalnız OKUNMUŞ listeden türer. Yanıt yokken (yükleme, çevrimdışı duraklama
+  // ya da kesinti) "Tüm Durumlar (0)" ve "0 satın alma talebi" basılmaz —
+  // 500'den fazla talebi olan hesapta kesinti sıfır gibi okunuyordu. Arka plan
+  // yoklaması (15 sn) düşerse eldeki satırlar ve sayılar ekranda KALIR: hata
+  // dalı yalnız hiç veri yokken (`isError` ∧ `data === undefined`).
+  const unread = list.data === undefined;
+  const failed = unread && list.isError;
 
   // Başlangıç durumu ADRESTEN (O-052) — Faz 4.2 KPI drill-down `?status=OPEN`
   // (virgüllü çoklu) dahil. `useSearchParams` sunucu-öncesi render ve testte
@@ -438,11 +446,13 @@ export function IhalelerView() {
             onChange={reset(setStatuses)}
             // C43: sayaç HER seçenekte — "(0)" yazmayan seçenek tıklanıp boş
             // sonuç veriyordu, sayı bilgisi tutarsızdı.
+            // Okunmuş listede o durumda satır yoksa sayı gerçekten 0'dır;
+            // liste okunmadıysa sayaç hiç yazılmaz.
             options={STATUS_VALUES.map((v) => ({
               value: v,
-              label: `${statusLabel(v)} (${stats[v] ?? 0})`,
+              label: unread ? statusLabel(v) : `${statusLabel(v)} (${stats[v] ?? 0})`,
             }))}
-            allLabel={tr("tumDurumlar", { length: facetRows.length })}
+            allLabel={unread ? tr("tumDurumlarSayisiz") : tr("tumDurumlar", { length: facetRows.length })}
             ariaLabel={tr("durumFiltresi")}
           />
           <FilterSelect
@@ -482,13 +492,19 @@ export function IhalelerView() {
             ariaLabel={tr("sorumluFiltresi")}
             active={!!createdById}
           />
-          <ResultCount
-            total={filtered.length}
-            isFiltered={isFiltered}
-            kind="satinAlmaTalebi"
-            isLoading={list.isLoading}
-            className="ml-auto"
-          />
+          {failed ? (
+            // Okunamayan toplam "0 satın alma talebi" diye basılmaz (Siparişlerim
+            // D-259 ve Tekliflerim OUT-2 ile aynı kural) — hata kartı aşağıda.
+            <span className="ml-auto" />
+          ) : (
+            <ResultCount
+              total={filtered.length}
+              isFiltered={isFiltered}
+              kind="satinAlmaTalebi"
+              isLoading={list.isPending}
+              className="ml-auto"
+            />
+          )}
         </div>
         {/* Şirketim satır/KPI kümeleri (O-035): menüde seçeneği olmayan
             türetilmiş süzgeçler görünür ve tek tıkla kaldırılabilir. */}
@@ -535,8 +551,8 @@ export function IhalelerView() {
           kullanıcı isteğiyle kaldırıldı, 2026-08-03). */}
       <IhaleListView
         items={pageRows}
-        isLoading={list.isLoading}
-        isError={list.isError}
+        isLoading={list.isPending}
+        isError={failed}
         onRetry={() => list.refetch()}
         emptyCtaLabel={tr("satinAlmaTalebiAc")}
         /* Hiç talep yokken (KPI/aksiyon merkezinden `?status=OPEN` ile

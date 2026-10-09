@@ -66,7 +66,7 @@ export default function AiKullanimPage() {
   // Erişim kilitliyse (VerifiedOnly doğrulama kapısı çizer) istek hiç atılmaz (O-044).
   const { company } = useCompanyAuth();
   const tierOk = !!company && tierAtLeast(company.tier, "SILVER");
-  const { data, isLoading, isError, error, refetch } = useAiUsage(tierOk);
+  const { data, isError, error, refetch } = useAiUsage(tierOk);
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
 
   return (
@@ -75,7 +75,9 @@ export default function AiKullanimPage() {
       description={t("firmanizinAylikAiButcesininNe")}
     >
       <VerifiedOnly minTier="SILVER">
-        {isError ? (
+        {/* LİSTE DURUMLARI: hata dalı yalnız hiç veri yokken (arka plan
+            yenilemesi düşerse eldeki döküm kalır); veri yokken "yükleniyor". */}
+        {isError && !data ? (
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {forbidden
               ? t("aiKullaniminiYonetimYetkisiTasiyanlar")
@@ -86,9 +88,9 @@ export default function AiKullanimPage() {
               </button>
             ) : null}
           </p>
-        ) : isLoading && !data ? (
+        ) : !data ? (
           <p className="text-sm text-zinc-500">{t("yukleniyor")}</p>
-        ) : data ? (
+        ) : (
           <div className="space-y-8">
             {!data.enabled ? (
               <p className="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-700">
@@ -215,7 +217,7 @@ export default function AiKullanimPage() {
               </>
             ) : null}
           </div>
-        ) : null}
+        )}
       </VerifiedOnly>
     </SettingsShell>
   );

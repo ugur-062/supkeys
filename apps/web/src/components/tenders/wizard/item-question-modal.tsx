@@ -12,6 +12,7 @@ import {
 } from "@/components/catalyst/dialog";
 import { Select } from "@/components/catalyst/select";
 import { Button as UiButton } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -196,9 +197,14 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           </button>
           {pickerOpen ? (
             <div className="px-3 py-3 border-t border-zinc-950/5 space-y-2.5 bg-zinc-50/40">
-              {templates.isLoading ? (
+              {/* LİSTE DURUMLARI: "kayıtlı soru şablonunuz yok" yalnız BAŞARILI
+                  ve boş yanıtta — eskiden hata dalı yoktu, kesintide ve
+                  çevrimdışı duraklamada şablonlar silinmiş gibi görünüyordu. */}
+              {templates.isPending ? (
                 <p className="text-xs text-zinc-500">{tr("yukleniyor")}</p>
-              ) : (templates.data?.length ?? 0) === 0 ? (
+              ) : templates.data === undefined ? (
+                <ErrorState compact className="text-xs" onRetry={() => void templates.refetch()} />
+              ) : templates.data.length === 0 ? (
                 <p className="text-xs text-zinc-500">
                   {tr("kayitliSoruSablonunuzYok")}
                 </p>

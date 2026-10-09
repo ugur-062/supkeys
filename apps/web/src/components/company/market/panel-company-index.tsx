@@ -26,7 +26,8 @@ import type { PortalKey } from "@/lib/company/portals";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { MarketHeader, MarketTabs } from "./market-band";
-import { MarketEmpty, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
+import { MarketEmpty, MarketFiltersPlaceholder, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
+import { ErrorState } from "@/components/ui/error-state";
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
 
 /**
@@ -62,13 +63,18 @@ const STATUS_BADGE: Record<string, { label: "baglisiniz" | "istekGonderildi" | "
  * süzgeçler yerel `useState`teydi: URL'ye yazılmıyor, sayfalama yok,
  * şehir/kategori/sıralama yok. Aynı dizin iki yerde iki farklı yetenekle
  * yaşıyordu. Liste artık burada; Bağlantılar YALNIZ ilişki yönetimi.
+ *
+ * LİSTE DURUMLARI (canlı doğrulama 2026-10-09, OUTR-3): "Firma bulunamadı" ve
+ * "Bu kriterlerle firma yok" yalnız BAŞARILI ve boş yanıtta; yanıt yokken
+ * iskelet (`isPending`), istek düştü ve eldeki veri de yoksa hata kartı +
+ * "Tekrar dene". Okunamayan toplam kabuğa `null` gider.
  */
 export function PanelCompanyIndex({ portal = "satinalma" }: { portal?: PortalKey }) {
   const sp = useSearchParams();
   const state = parseCompanyFilters(sp ?? new URLSearchParams());
   const params = toPanelDirectoryParams(state);
   const result = useCompanySearch(params);
-  const total = result.data?.total ?? 0;
+  const total = result.data ? result.data.total : null;
   const base = marketCompaniesPath(portal);
   return (
     <FilterShellCore
@@ -92,7 +98,15 @@ function PanelCompanyFilters({ idPrefix }: { idPrefix: string }) {
   const t = useTranslations("web.panel.market.panelCompanyIndex");
   const { state } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
-  if (!facets.data) return <p className="text-sm text-zinc-500">{t("suzgeclerYukleniyor")}</p>;
+  if (!facets.data) {
+    return (
+      <MarketFiltersPlaceholder
+        failed={facets.isError}
+        onRetry={() => void facets.refetch()}
+        loadingLabel={t("suzgeclerYukleniyor")}
+      />
+    );
+  }
   return <CompanyFilters facets={facets.data} idPrefix={idPrefix} showConnection />;
 }
 
@@ -110,6 +124,9 @@ function Inner({
   const { update } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
   const data = result.data;
+  // İstek düştü ve gösterilecek veri yok (arka plan yenilemesi düşerse satırlar kalır).
+  const failed = data === undefined && result.isError;
+  // Yalnız sayfalama hesabı ve `data` varken çizilen başlık / rozet için.
   const total = data?.total ?? 0;
   const pageSize = data?.pageSize ?? 20;
   const isSatis = portal === "satis";
@@ -160,15 +177,17 @@ function Inner({
 
       <MarketListLayout
         rail={<PanelCompanyFilters idPrefix="d" />}
-        toolbarStart={<ResultCount kind="company" loading={result.isLoading} />}
+        toolbarStart={<ResultCount kind="company" loading={result.isPending} />}
         toolbarEnd={<CompanySortBar />}
         page={state.page}
         total={total}
         pageSize={pageSize}
         onPage={(page) => update({ page })}
       >
-        {result.isLoading ? (
+        {result.isPending ? (
           <MarketGridSkeleton count={6} variant="company" />
+        ) : failed ? (
+          <ErrorState onRetry={() => void result.refetch()} />
         ) : !data || data.items.length === 0 ? (
           <MarketEmpty title={t("buKriterlerleFirmaYok")} />
         ) : (

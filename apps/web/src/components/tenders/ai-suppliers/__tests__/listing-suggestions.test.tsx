@@ -4,7 +4,8 @@ import { fireEvent, render as rtlRender, screen, within } from "@testing-library
 import { createTranslator } from "use-intl/core";
 import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { candidateOutcome, inviteCounts, ListingSuggestions } from "../listing-suggestions";
+import { candidateOutcome, inviteCounts, ListingSuggestions, statusLeadKey } from "../listing-suggestions";
+import { INVITE_REASON_KEYS } from "../invite-outcome";
 
 /**
  * YAYIN SONRASI AI KEŞFİ — YALNIZ DURUM (2026-10-08, sahip: "kutu seçiliyse AI
@@ -179,6 +180,82 @@ describe("ListingSuggestions — yalnız durum", () => {
     expect(screen.queryByText(/YENI_BIR_KOD/)).not.toBeInTheDocument();
     // Kimse davet edilmediyse başlık yalnız bulunanı ve gönderilmeyeni söyler ("0 davet edildi" yazmaz).
     expect(screen.getByText("5 tedarikçi bulundu").textContent).toBe("5 tedarikçi bulundu · 5 gönderilmedi");
+  });
+
+  // Canlı doğrulama AUTO-UI-6: uzun adlı satırda alt satıra inen rozet sola
+  // düşüyor, 390 px'te rozet sütunu satırdan satıra sağ / sol gidip geliyordu.
+  it("AUTO-UI-6: sonuç rozeti her satırda sağa yaslanır (kısa ad, uzun ad, nedenli satır — aynı hiza)", () => {
+    h.data = done([
+      cand("a", "Kısa AŞ", { invite: "INVITED" }),
+      cand("b", "Uzun Adlı Bağlantı Elemanları ve Endüstriyel Tedarik Sanayi Ticaret Anonim Şirketi", { invite: "QUEUED" }),
+      cand("c", "Nedenli Ltd", { invite: "NOT_SENT", inviteReason: "OPTED_OUT" }),
+      cand("d", "Eski Ltd", { invite: "ALREADY_INVITED" }),
+    ]);
+    render(<ListingSuggestions listingId="l1" variant="band" defaultOpen />);
+    const chips = ["Davet edildi", "Davet sırada", "Gönderilmedi", "Zaten davetliydi"].map((label) => screen.getByText(label));
+    for (const chip of chips) {
+      const outcome = chip.parentElement as HTMLElement;
+      expect(outcome.parentElement?.tagName, chip.textContent ?? "").toBe("LI");
+      expect(outcome.classList.contains("ml-auto"), chip.textContent ?? "").toBe(true);
+      expect(outcome.classList.contains("text-right"), chip.textContent ?? "").toBe(true);
+    }
+  });
+
+  /**
+   * Canlı doğrulama AUTO-UI-7: alıcı otomatik aramayı kapatınca yedi satır
+   * "Gönderilmedi — Davet iptal edildi" diyor, üstündeki cümle hâlâ "bulunan
+   * tedarikçiler sizin adınıza davet edildi" diyordu.
+   */
+  describe("AUTO-UI-7: açıklama sayılarla uyuşur; kapatılan otomatik aramanın nedeni adıyla yazılır", () => {
+    const INVITED_LEAD = /Bulunan tedarikçiler sizin adınıza davet edildi/;
+    const NONE_SENT_LEAD = "Bulunan tedarikçilere davet gönderilmedi; nedenleri aşağıdaki satırlarda yazar.";
+    const AUTO_OFF_REASON = "AI tedarikçi araması kapatıldı ya da talep yalnız davet edilen firmalara açıldı";
+    const AUTO_OFF_LEAD = /AI tedarikçi araması kapatıldığı ya da talep yalnız davet ettiğiniz firmalara açıldığı için gönderilmedi\. Talebi düzenleyip bu ayarı geri alırsanız davetler yeniden sıraya girer\./;
+    const off = (n: number, reason: string) =>
+      Array.from({ length: n }, (_, i) => cand(`x${i}`, `Firma ${i + 1}`, { invite: "NOT_SENT", inviteReason: reason }));
+
+    it("otomatik arama kapatıldı: satırlar nedeni söyler; açıklama 'davet edildi' DEMEZ ve ayarın nasıl geri alınacağını söyler", () => {
+      h.data = { ...done(off(7, "AUTO_INVITE_OFF")), aiDiscovery: false };
+      render(<ListingSuggestions listingId="l1" variant="band" defaultOpen />);
+      expect(screen.getByText("7 tedarikçi bulundu").textContent).toBe("7 tedarikçi bulundu · 7 gönderilmedi");
+      expect(screen.getAllByText(AUTO_OFF_REASON)).toHaveLength(7);
+      expect(screen.queryByText("Davet iptal edildi")).toBeNull();
+      expect(screen.getByText(NONE_SENT_LEAD)).toBeInTheDocument();
+      expect(screen.queryByText(INVITED_LEAD)).toBeNull();
+      expect(screen.getByText(AUTO_OFF_LEAD)).toBeInTheDocument();
+    });
+
+    it("bir kısmı gönderilmedi: 'bir kısmı davet edildi' der; onay gerekmediği sözü durur", () => {
+      h.data = done(MIXED);
+      render(<ListingSuggestions listingId="l1" variant="band" defaultOpen />);
+      expect(screen.getByText(/Bulunan tedarikçilerin bir kısmı sizin adınıza davet edildi; onaylamanız gereken bir şey yok\. Gönderilmeyen davetlerin nedeni satırında yazar\./)).toBeInTheDocument();
+      expect(screen.queryByText(INVITED_LEAD)).toBeNull();
+      expect(screen.queryByText(NONE_SENT_LEAD)).toBeNull();
+      expect(screen.queryByText(AUTO_OFF_LEAD)).toBeNull();
+    });
+
+    it("gönderilmeyen yok: eski cümle aynen", () => {
+      h.data = done([cand("a", "Cıvata AŞ"), cand("b", "Viti Srl", { invite: "INVITED" }), cand("e", "Eski Ltd", { invite: "ALREADY_INVITED" })]);
+      render(<ListingSuggestions listingId="l1" variant="band" defaultOpen />);
+      expect(screen.getByText(INVITED_LEAD)).toBeInTheDocument();
+      expect(screen.queryByText(NONE_SENT_LEAD)).toBeNull();
+    });
+
+    it("neden kodunu taşımayan API yanıtında (CANCELLED) da açıklama satırlarla çelişmez", () => {
+      h.data = { ...done(off(3, "CANCELLED")), aiDiscovery: false };
+      render(<ListingSuggestions listingId="l1" variant="band" defaultOpen />);
+      expect(screen.getAllByText("Davet iptal edildi")).toHaveLength(3);
+      expect(screen.getByText(NONE_SENT_LEAD)).toBeInTheDocument();
+      expect(screen.queryByText(INVITED_LEAD)).toBeNull();
+      // Kod gelmedikçe neden tahmin edilmez.
+      expect(screen.queryByText(AUTO_OFF_LEAD)).toBeNull();
+    });
+
+    it("statusLeadKey: gönderilmeyen yok / bir kısmı / hepsi", () => {
+      expect(statusLeadKey({ found: 5, notSent: 0 })).toBe("statusLead");
+      expect(statusLeadKey({ found: 5, notSent: 2 })).toBe("statusLeadPartial");
+      expect(statusLeadKey({ found: 5, notSent: 5 })).toBe("statusLeadNoneSent");
+    });
   });
 
   it("?ai-davet=1 (sonuç bildirimi bağlantısı) ile liste açık gelir", () => {
@@ -385,6 +462,24 @@ describe("inviteCounts — bant başlığının sayıları (AI-UI-2)", () => {
     expect(inviteCounts(rows)).toEqual({ found: 6, invited: 2, queued: 1, notSent: 1 });
     expect(inviteCounts([])).toEqual({ found: 0, invited: 0, queued: 0, notSent: 0 });
   });
+
+  // AUTO-MEMBER-1: otomatik tur yalnız genel sektörü tutan üyeyi bilinçli olarak
+  // davet etmez. Bu bir gönderim hatası değildir: "gönderilmedi" sayısına girmez,
+  // açıklama cümlesini "hiçbiri gönderilmedi"ye çevirmez.
+  it("zayıf eşleşme (WEAK_MATCH) bulunanlara sayılır ama gönderilmeyenlere SAYILMAZ", () => {
+    const rows = [
+      { invite: "INVITED" as const },
+      { invite: "QUEUED" as const },
+      { invite: "NOT_SENT" as const, reason: "WEAK_MATCH" },
+      { invite: "NOT_SENT" as const, reason: "WEAK_MATCH" },
+      { invite: "NOT_SENT" as const, reason: "DAILY_LIMIT" },
+    ];
+    const counts = inviteCounts(rows);
+    expect(counts).toEqual({ found: 5, invited: 1, queued: 1, notSent: 1 });
+    // Yalnız zayıf eşleşme kaldıysa "gönderilmeyen yok" cümlesi kalır.
+    const onlyWeak = inviteCounts([{ invite: "INVITED" }, { invite: "NOT_SENT", reason: "WEAK_MATCH" }]);
+    expect(statusLeadKey(onlyWeak)).toBe("statusLead");
+  });
 });
 
 describe("bant başlığı metinleri — sayı + ad TEK ICU çoğul mesajında, üç dilde (AI-UI-2)", () => {
@@ -433,5 +528,26 @@ describe("bant başlığı metinleri — sayı + ad TEK ICU çoğul mesajında, 
     expect(t("bandQueued", { n: 2 })).toBe("2 приглашения в очереди");
     expect(t("bandQueued", { n: 20 })).toBe("20 приглашений в очереди");
     expect(t("bandNotSent", { n: 14 })).toBe("14 не отправлено");
+  });
+});
+
+/**
+ * Neden kodu = `INVITE_REASON_KEYS`e satır + ÜÇ dilde katalog metni; açıklama
+ * cümleleri de üç dilde (AUTO-UI-7). Eksik anahtar ekranda ham anahtar yolu olur.
+ */
+describe("davet nedeni ve açıklama metinleri üç dilde tam", () => {
+  const LEADS = ["statusLead", "statusLeadPartial", "statusLeadNoneSent", "statusLeadAutoOff"] as const;
+
+  it.each(["tr", "en", "ru"] as const)("%s: her neden kodunun ve her açıklamanın metni var", (locale) => {
+    const raw = messagesFor(locale, WEB_NAMESPACES).web.panel.requests.aiSuppliers as unknown as Record<string, unknown>;
+    const reasons = raw.reason as Record<string, string>;
+    for (const code of INVITE_REASON_KEYS) expect(reasons[code], `${locale}.reason.${code}`).toEqual(expect.any(String));
+    expect(INVITE_REASON_KEYS.has("AUTO_INVITE_OFF")).toBe(true);
+    // Katalogda olup ekranın tanımadığı neden kalmasın (iki liste ayrışmasın).
+    expect(Object.keys(reasons).sort()).toEqual([...INVITE_REASON_KEYS].sort());
+    for (const key of LEADS) expect(raw[key], `${locale}.${key}`).toEqual(expect.any(String));
+    expect(new Set(LEADS.map((key) => raw[key])).size).toBe(LEADS.length);
+    // Kapatılan aramanın nedeni çıplak "iptal edildi" ile aynı cümle değil.
+    expect(reasons.AUTO_INVITE_OFF).not.toBe(reasons.CANCELLED);
   });
 });

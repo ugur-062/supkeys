@@ -35,7 +35,15 @@ import { useSearchParams } from "next/navigation";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import type { ReactNode } from "react";
 import { MarketHeader, MarketTabs } from "./market-band";
-import { MarketEmpty, MarketGrid, MarketGridSkeleton, MarketList, MarketListLayout } from "./market-list-layout";
+import {
+  MarketEmpty,
+  MarketFiltersPlaceholder,
+  MarketGrid,
+  MarketGridSkeleton,
+  MarketList,
+  MarketListLayout,
+} from "./market-list-layout";
+import { ErrorState } from "@/components/ui/error-state";
 import { MarketDiscoveryFooter } from "./market-discovery-footer";
 
 /**
@@ -98,6 +106,12 @@ const DEFAULT_PER_PAGE: PerPage = 24;
  * Herkese açık `/urunler` ile AYNI süzgeç bileşeni, AYNI URL şeması ve AYNI
  * sunucu kuralı; fark üyeye özel olanlar: kendi ürünler hariç, alıcıya göre
  * uygunluk sırası (kartta rozet) ve fiyat/MOQ görünür.
+ *
+ * LİSTE DURUMLARI (canlı doğrulama 2026-10-09, OUTR-3): "Bu kriterlerle ürün
+ * yok" yalnız BAŞARILI ve boş yanıtta. Yanıt yokken (`isPending` — çevrimdışı
+ * duraklama dahil) iskelet; istek düştü ve eldeki veri de yoksa hata kartı +
+ * "Tekrar dene" (eskiden kesintide "ürün yok" + "Talep aç" düğmesi çıkıyordu).
+ * Okunamayan toplam kabuğa `null` gider: "Ürün bulunamadı" ve "(0)" çizilmez.
  */
 export function PanelProductIndex({
   fixedCategory,
@@ -122,7 +136,7 @@ export function PanelProductIndex({
   const state = parseProductFilters(sp ?? new URLSearchParams(), fixedCategory);
   const params = toProductListParams(state);
   const result = useDiscoverSearch({ ...params, pageSize: state.perPage ?? DEFAULT_PER_PAGE });
-  const total = result.data?.total ?? 0;
+  const total = result.data ? result.data.total : null;
   return (
     <FilterShell
       basePath={PANEL_MARKET.products}
@@ -148,7 +162,15 @@ export function PanelProductFilters({ idPrefix }: { idPrefix: string }) {
   // Sayaçlar listeyle AYNI süzgeçleri görür (arayüz testi O-080); histogram
   // birimi seçilmediyse sunucu firma ülkesinden çözer.
   const facets = useDiscoverProductFacets(toProductFacetParams(p));
-  if (!facets.data) return <p className="text-sm text-zinc-500">{t("suzgeclerYukleniyor")}</p>;
+  if (!facets.data) {
+    return (
+      <MarketFiltersPlaceholder
+        failed={facets.isError}
+        onRetry={() => void facets.refetch()}
+        loadingLabel={t("suzgeclerYukleniyor")}
+      />
+    );
+  }
   return <ProductFilters facets={facets.data} idPrefix={idPrefix} />;
 }
 
@@ -172,6 +194,11 @@ function Inner({
   const p = toProductListParams(state);
   const facets = useDiscoverProductFacets(toProductFacetParams(p));
   const data = result.data;
+  // İstek düştü ve gösterilecek veri yok. Verisi olan listenin arka plan
+  // yenilemesi düşerse satırlar kalır (`data` dolu).
+  const failed = data === undefined && result.isError;
+  // Yalnız sayfalama hesabı ve `data` varken çizilen başlık / rozet için;
+  // okunamayan toplam hiçbir yerde sayı olarak görünmez.
   const total = data?.total ?? 0;
   /* SEKME ROZETİ: aynı arama/kategori VE firma süzgeçleriyle (şehir, ülke,
      faaliyet, doğrulanmış) KAÇ TEDARİKÇİ var — sekmenin götürdüğü listeyle
@@ -236,7 +263,7 @@ function Inner({
         toolbarStart={
           /* Sayı BAŞLIKTA yazılı (MarketHeader `count`); burada yalnız canlı
              bölge ve "Güncelleniyor…" kalır (`quiet`). */
-          <ResultCount kind="product" loading={result.isLoading} quiet />
+          <ResultCount kind="product" loading={result.isPending} quiet />
         }
         toolbarEnd={
           <span className="flex items-center gap-2">
@@ -251,8 +278,10 @@ function Inner({
         onPage={(page) => update({ page })}
         onPerPage={(perPage) => update({ perPage })}
       >
-        {result.isLoading ? (
+        {result.isPending ? (
           <MarketGridSkeleton />
+        ) : failed ? (
+          <ErrorState onRetry={() => void result.refetch()} />
         ) : lastPage != null ? (
           <MarketEmpty
             title={te("pageEmpty")}

@@ -81,7 +81,11 @@ export function CompanyUsersSection({
 }) {
   const t = useTranslations("web.panel.settings.companyUsersSection");
   const locale = useLocale() as Locale;
-  const { data: users, isLoading, isError, refetch } = useCompanyUsers();
+  // LİSTE DURUMLARI (canlı doğrulama 2026-10-09, OUTR-4): `isPending` (çevrimdışı
+  // duraklama dahil) yükleme; hata dalı yalnız hiç veri yokken; okunamayan
+  // liste başlıkta "(0)" diye sayılmaz (6 kullanıcılı firmada "Kullanıcılar (0)"
+  // + "yüklenemedi" yan yana duruyordu).
+  const { data: users, isPending, isError, refetch } = useCompanyUsers();
   const { data: seats } = useSeats();
   const seatSelection = useSeatSelection();
   const setActive = useSetUserActive();
@@ -136,7 +140,7 @@ export function CompanyUsersSection({
         <div className="flex items-center gap-2">
           <Users2 className="h-4 w-4 text-zinc-500" />
           <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-900">
-            {t("kullanicilar", { length: (users ?? []).length })}
+            {users ? t("kullanicilar", { length: users.length }) : t("kullanicilarSayisiz")}
           </h3>
         </div>
         {canManage ? (
@@ -189,9 +193,9 @@ export function CompanyUsersSection({
         </div>
       ) : null}
 
-      {isLoading ? (
+      {isPending ? (
         <p className="px-5 py-6 text-sm text-zinc-500">{t("yukleniyor")}</p>
-      ) : isError ? (
+      ) : isError && users === undefined ? (
         <p role="alert" className="px-5 py-6 text-sm text-rose-800">
           {t("kullanicilarYuklenemedi")}{" "}
           <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">

@@ -26,6 +26,7 @@ import {
   usePublishProduct,
   useUpdateShowcase,
   useUploadProductDocument,
+  type AttributeDef,
   type PriceTier,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
@@ -36,12 +37,14 @@ import {
   PRODUCT_MEDIA_TIER,
   UNITS,
   getUnit,
+  isHiddenCategory,
   productCompletion,
   productPublishBlockerCodes,
   productSeoReadiness,
   generateSlug,
   slugifyText,
   tierAtLeast,
+  visibleCategoryId,
   type ProductLike,
 } from "@rothern/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -59,6 +62,9 @@ const MAX_KEYWORD_LENGTH = 50;
 const MAX_DOCUMENTS = 3;
 /** API `public-image-upload.ts` `MAX_DOCUMENT_BYTES` / `DOCUMENT_MIME` aynası. */
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+/** Sorgu yanıtı gelmeden / kategori yokken AYNI boş dizi: her çizimde yeni `[]` efektleri yeniden tetiklerdi. */
+const NO_ATTRIBUTE_DEFS: AttributeDef[] = [];
 
 const INPUT =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
@@ -205,7 +211,24 @@ export function ProductShowcaseForm({
   );
   const docInput = useRef<HTMLInputElement>(null);
 
-  const { data: attributeDefs = [] } = useCategoryAttributes(categoryId);
+  /**
+   * ESKİ ÜRÜNÜN GİZLİ SEGMENTTEKİ KATEGORİSİ (canlı doğrulama 2026-10-09,
+   * CP-01 / CP-03). Kayıtlı kod formda DURUR ve değişmeden geri gider (değişmeyen
+   * eski değer ilgisiz kaydı engellemez; kategori kutusu onu çizmez, altında
+   * "önceki kategori artık kullanılmıyor" der). Ama o koddan hiçbir şey
+   * TÜRETİLMEZ:
+   *  - nitelik alanları yalnız GÖRÜNÜR kategoriden istenir — çelik borunun
+   *    formunda gizli segmentin "Ürün grubu*" alanları çıkıyordu; görünür
+   *    kategori yokken 3. bölüm "önce kategori seçin" der, ray yıldızlı nitelik
+   *    istemez;
+   *  - henüz yayında OLMAYAN üründe kategori ray / puan / yayın kapısında EKSİK
+   *    sayılır — API `publishGateLike` ile aynı görünüm. Eskiden ray "%90, eksik
+   *    yok" diyor, ret ancak "Onaya gönder"den sonra geliyordu. Yayındaki eski
+   *    ürün etkilenmez (API de orada kayıtlı kodu sayar).
+   */
+  const attributeCategoryId = visibleCategoryId(categoryId);
+  const outdatedCategory = !product.isPublic && isHiddenCategory(categoryId);
+  const { data: attributeDefs = NO_ATTRIBUTE_DEFS } = useCategoryAttributes(attributeCategoryId);
   const save = useUpdateShowcase();
   const create = useCreateProduct();
   const publish = usePublishProduct();
@@ -282,7 +305,8 @@ export function ProductShowcaseForm({
   const live = useMemo(() => {
     const like: ProductLike = {
       name: patch.name,
-      categoryId: patch.categoryId,
+      // Yayın kapısı görünümü: yayında olmayan ürünün gizli segmentteki kodu kategori sayılmaz.
+      categoryId: outdatedCategory ? null : patch.categoryId,
       description: patch.description,
       images,
       keywords,
@@ -300,7 +324,7 @@ export function ProductShowcaseForm({
       }),
       blockers: productPublishBlockerCodes(like),
     };
-  }, [patch, images, keywords, priceMode, priceTiers, attributes, attributeDefs]);
+  }, [patch, images, keywords, priceMode, priceTiers, attributes, attributeDefs, outdatedCategory]);
 
   /* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8): puan + Google parçacığı + AI taslağı.
      Parçacık sayfanın GERÇEK şablonundan (`productSeo`) — ayrı metin yok. */
@@ -312,7 +336,12 @@ export function ProductShowcaseForm({
   const locale = useLocale();
   const seoT = useSeoT();
   const seo = useMemo(() => {
-    const attributeEntries = Object.entries(attributes).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : !!v));
+    // Görünür kategori yokken kayıtlı nitelikler (gizli segmentin alanları) ne
+    // puana ne AI istemine girer: tanımları istenmediği için etiketsiz ham
+    // anahtar olarak giderlerdi.
+    const attributeEntries = attributeCategoryId
+      ? Object.entries(attributes).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : !!v))
+      : [];
     const readiness = productSeoReadiness({
       name: patch.name,
       description: patch.description,
@@ -361,7 +390,7 @@ export function ProductShowcaseForm({
       return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.map(show).join(", ") : show(v)}`;
     });
     return { readiness, snippet, facts };
-  }, [patch, images, keywords, attributes, attributeDefs, priceMode, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
+  }, [patch, images, keywords, attributes, attributeDefs, attributeCategoryId, priceMode, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
 
   /** Anahtar kelime ÖNERİLERİ: kategori adı + ürün adındaki anlamlı sözcükler. */
@@ -743,7 +772,7 @@ export function ProductShowcaseForm({
 
               <div>
                 <h4 className="text-sm font-medium text-zinc-950">{t("kategoriyeOzelOzellikler")}</h4>
-                {!categoryId ? (
+                {!attributeCategoryId ? (
                   <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
                     {t("once1BolumdeKategoriSecin")}
                   </p>
@@ -890,6 +919,7 @@ export function ProductShowcaseForm({
           <EditorRail
             completion={live.completion}
             blockers={live.blockers}
+            outdatedCategory={outdatedCategory}
             onJump={jump}
             recommendations={
               <SearchVisibilityCard

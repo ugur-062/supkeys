@@ -2,12 +2,15 @@
 import enCommon from "@rothern/i18n/catalog/en/common.json";
 import ruCommon from "@rothern/i18n/catalog/ru/common.json";
 import trCommon from "@rothern/i18n/catalog/tr/common.json";
+import { MutationObserver, QueryClient } from "@tanstack/react-query";
 import axios, { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from "axios";
+import { toast } from "sonner";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ toastError: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: h.toastError, success: vi.fn(), warning: vi.fn() } }));
 
+import { extractErrorMessage } from "@/lib/tenders/error";
 import { companyApi } from "../api";
 import {
   SERVICE_PROBE_TIMEOUT_MS,
@@ -69,6 +72,8 @@ const mountNotice = () => subscribeServiceHealth(() => {});
 const settle = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
 };
+/** Görev sınırı: sıfır gecikmeli zamanlayıcılar (emicinin kalkışı) koşar. */
+const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const get = (url: string) => companyApi.get(url).then(
   () => "ok" as const,
   () => "failed" as const,
@@ -80,8 +85,11 @@ beforeEach(() => {
   route = () => ({ status: 200 });
   h.toastError.mockClear();
 });
-afterEach(() => {
+afterEach(async () => {
   vi.useRealTimers();
+  // Düşen mutasyonun "tek mesaj" emicisi (OUTR-6) sıfır gecikmeli zamanlayıcıyla
+  // kalkar; sonraki test onu devralmasın.
+  await nextTask();
 });
 
 describe("OUT-1 — panel açıkken API gidince tek `/me` yoklaması", () => {
@@ -282,5 +290,102 @@ describe("OUT-3 — kesinti toast'ı", () => {
     await settle();
     expect(h.toastError).not.toHaveBeenCalled();
     expect(isServiceUnreachable()).toBe(true);
+  });
+});
+
+describe("OUTR-6 — kesintide düşen kayıtta TEK hata mesajı, nedeni söyleyen", () => {
+  // Hesap Bilgileri › Kaydet ve Üye Davet Et › Davet Gönder: çağıranın catch'i
+  // `toast.error(extractErrorMessage(err, "Güncellenemedi"))` basar. Yanıtsız
+  // hatada o metin interceptor'ınkinden farklıdır → iki toast üst üste biniyor,
+  // nedeni söyleyen altta kalıyordu.
+  it("mutateAsync + try/catch (Hesap Bilgileri): yalnız 'Sunucuya ulaşılamadı…' basılır", async () => {
+    mountNotice();
+    route = () => "network";
+    const save = async () => {
+      try {
+        await companyApi.patch("/company/users/me", { firstName: "Ada" });
+      } catch (err) {
+        toast.error(extractErrorMessage(err, "Güncellenemedi"));
+      }
+    };
+    await save();
+    expect(h.toastError).toHaveBeenCalledTimes(1);
+    expect(h.toastError).toHaveBeenCalledWith(NEUTRAL);
+  });
+
+  it("gerçek useMutation yolu (`onError` + çağrı başına `onError`): yine tek toast", async () => {
+    mountNotice();
+    route = () => "network";
+    const observer = new MutationObserver(new QueryClient(), {
+      mutationFn: () => companyApi.post("/company/users/invitations", { email: "uye@example.com" }),
+      onError: (err) => {
+        toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
+      },
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    await observer
+      .mutate(undefined, { onError: (err) => void toast.error(extractErrorMessage(err, "İşlem başarısız")) })
+      .catch(() => {});
+    unsubscribe();
+    expect(h.toastError).toHaveBeenCalledTimes(1);
+    expect(h.toastError).toHaveBeenCalledWith(NEUTRAL);
+  });
+
+  it("geçidin gövdesiz 502'si de aynı: çağıranın genel metni basılmaz", async () => {
+    route = () => ({ status: 502, data: "<html>Bad Gateway</html>" });
+    await companyApi.post("/company/orders/1/approve").catch((err) => {
+      toast.error(extractErrorMessage(err, "Onaylanamadı"));
+    });
+    expect(h.toastError).toHaveBeenCalledTimes(1);
+    expect(h.toastError).toHaveBeenCalledWith(SERVER);
+  });
+
+  it("aynı görevde düşen iki kayıt tek toast üretir", async () => {
+    route = () => "network";
+    const fail = (url: string, fallback: string) =>
+      companyApi.post(url).catch((err) => {
+        toast.error(extractErrorMessage(err, fallback));
+      });
+    await Promise.all([fail("/company/addresses", "Adres eklenemedi"), fail("/company/bank-accounts", "Hesap eklenemedi")]);
+    expect(h.toastError.mock.calls.map((call) => call[0])).toEqual([NEUTRAL]);
+  });
+
+  it("emici görev bitince kalkar: sonraki hata toast'ı basılır", async () => {
+    route = () => "network";
+    await companyApi.post("/company/addresses").catch((err) => {
+      toast.error(extractErrorMessage(err, "Adres eklenemedi"));
+    });
+    await nextTask();
+    toast.error("Dosya çok büyük");
+    expect(h.toastError.mock.calls.map((call) => call[0])).toEqual([NEUTRAL, "Dosya çok büyük"]);
+    // Emici kalktı: `toast.error` yine testin casusu.
+    expect(toast.error).toBe(h.toastError);
+  });
+
+  it("API'nin kendi metni varsa (gövdeli 503) çağıranın toast'ı YUTULMAZ — daha özgül olan odur", async () => {
+    route = () => ({ status: 503, data: { message: "AI servisi şu anda kullanılamıyor" } });
+    await companyApi.post("/company/ai/search").catch((err) => {
+      toast.error(extractErrorMessage(err, "Arama başarısız"));
+    });
+    expect(h.toastError.mock.calls.map((call) => call[0])).toEqual([SERVER, "AI servisi şu anda kullanılamıyor"]);
+  });
+
+  it("okuma (GET) hatası emici kurmaz", async () => {
+    route = () => "network";
+    await companyApi.get("/company/items/1/showcase").catch(() => {
+      toast.error("Vitrin okunamadı");
+    });
+    await settle();
+    expect(h.toastError.mock.calls.map((call) => call[0])).toEqual([NEUTRAL, "Vitrin okunamadı"]);
+  });
+
+  it("metin olmayan (JSX) hata toast'ı emiciden geçer", async () => {
+    route = () => "network";
+    const node = { type: "span", props: {}, key: null } as unknown as React.ReactNode;
+    await companyApi.post("/company/addresses").catch(() => {
+      toast.error(node);
+    });
+    expect(h.toastError).toHaveBeenCalledTimes(2);
+    expect(h.toastError).toHaveBeenLastCalledWith(node, undefined);
   });
 });

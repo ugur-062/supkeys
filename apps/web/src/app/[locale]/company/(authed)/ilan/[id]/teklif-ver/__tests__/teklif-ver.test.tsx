@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   /** Detay isteği hatası (ör. 403 TIER_REQUIRED) — kilit kartı testi. */
   error: null as unknown,
   isLoading: false,
+  /** Çevrimdışı duraklama: istek yok, hata yok, veri yok. */
+  paused: false,
   mutateAsync: vi.fn(),
   /** Belge yükleme (useUploadBidDoc.mutateAsync). */
   uploadAsync: vi.fn(),
@@ -33,7 +35,14 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   const React = await import("react");
   return {
     ...mod,
-    useListingDetail: () => ({ data: h.detail, isLoading: h.isLoading, error: h.error, refetch: h.refetch }),
+    useListingDetail: () => ({
+      data: h.detail,
+      isLoading: h.isLoading,
+      // Yanıt yok: yükleme ya da çevrimdışı duraklama (`isLoading` false).
+      isPending: h.isLoading || h.paused,
+      error: h.error,
+      refetch: h.refetch,
+    }),
     // Gerçek useMutation gibi durumlu: mutateAsync başarıyla dönünce
     // isSuccess true KALIR (reset yok) — Y-15 takılma senaryosu için şart.
     usePlaceBid: function usePlaceBidMock() {
@@ -129,6 +138,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.detail = baseDetail();
   h.isLoading = false;
+  h.paused = false;
   h.docs = [];
 });
 
@@ -1001,5 +1011,17 @@ describe("TeklifVerPage — arayüz testi son tur S-SELL", () => {
     } finally {
       now.mockRestore();
     }
+  });
+});
+
+describe("TeklifVerPage — yanıt beklenirken (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'Talebe ulaşılamıyor' değil 'Yükleniyor…'", () => {
+    // Bekleme `isLoading`e bağlıyken (duraklamada false) "ulaşılamıyor —
+    // kaldırılmış olabilir" kartı çiziliyordu.
+    h.detail = undefined;
+    h.paused = true;
+    render(<TeklifVerPage />);
+    expect(screen.queryByRole("heading", { name: "Talebe ulaşılamıyor." })).toBeNull();
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
   });
 });

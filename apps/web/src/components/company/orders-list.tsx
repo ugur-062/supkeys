@@ -437,7 +437,12 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const filterLabel = (o: (typeof STATUS_FILTERS)[number] | undefined, fallback: string) =>
     o ? (o.filterKey ? t(o.filterKey as never) : statusLabel(o.value, true)) : fallback;
   const accent = useButtonAccent();
-  const { data, isLoading, isError, refetch } = useOrders();
+  // İskelet `isPending`e bağlı, `isLoading`e değil (LİSTE DURUMLARI): çevrimdışı
+  // cihazda sorgu DURAKLAR ve `isLoading` false kalır — "0 sipariş" + "Henüz
+  // sipariş yok" çiziliyordu. Hata dalı yalnız hiç veri yokken (`!data`):
+  // 30 sn'lik yoklama düşerse eldeki satırlar kalır; bu role ait siparişi
+  // olmayan firmada da boş durum hata kartına dönmez.
+  const { data, isPending, isError, refetch } = useOrders();
   const isSeller = role === "seller";
 
   // D-011: başlangıç durumu adresten (Faz 4.2 KPI drill-down `?status=` dahil);
@@ -624,7 +629,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
               total={filtered.length}
               isFiltered={isFiltered}
               kind="siparis"
-              isLoading={isLoading}
+              isLoading={isPending}
               className="ml-auto"
             />
           )}
@@ -696,13 +701,13 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       </div>
 
       {/* Liste — satır başına tek sipariş (İhalelerim deseni) */}
-      {isLoading && all.length === 0 ? (
+      {isPending ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
-      ) : isError && all.length === 0 ? (
+      ) : isError && !data ? (
         <ErrorState
           message={t("siparislerYuklenemediLutfenTekrarDeneyin")}
           onRetry={() => refetch()}

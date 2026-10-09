@@ -62,12 +62,15 @@ export function MaskedRequestView({ number }: { number: string }) {
         {t("geriAcikTalepler")}
       </Link>
 
-      {q.isLoading || unmaskedId ? (
+      {/* LİSTE DURUMLARI: `isPending` bekleme (çevrimdışı duraklamada boş sayfa
+          değil iskelet); hata dalı yalnız hiç veri yokken — arka plan
+          yenilemesi düşerse eldeki talep ekranda kalır. */}
+      {q.isPending || unmaskedId ? (
         <div>
           {unmaskedId ? <p className="mb-3 text-sm text-zinc-500">{t("yonlendiriliyor")}</p> : null}
           <ListSkeleton rows={4} />
         </div>
-      ) : q.isError ? (
+      ) : q.isError && !q.data ? (
         <div className="space-y-3">
           <EmptyState
             icon={Lock}

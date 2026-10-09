@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
+import { ErrorState } from "@/components/ui/error-state";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
 import { requestDefaultsFallbackFor, type RequestDefaults } from "@rothern/shared";
@@ -64,7 +65,12 @@ export default function TalepSartlariPage() {
         title={t("talepSartlari")}
         description={t("teslimSekliOdemeKosuluPara")}
       />
-      {q.isLoading || !draft ? (
+      {/* Hata dalı YOKTU (canlı doğrulama 2026-10-09 taraması): kesintide sayfa
+          sonsuza dek "Yükleniyor…"da kalıyordu. Taslak bir kez tohumlandıysa
+          arka plan yenilemesi düşse de form (ve yazılan değişiklik) kalır. */}
+      {!draft && q.isError ? (
+        <ErrorState className="mt-8" onRetry={() => void q.refetch()} />
+      ) : !draft ? (
         <p className="mt-8 text-sm text-zinc-500">{t("yukleniyor")}</p>
       ) : (
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">

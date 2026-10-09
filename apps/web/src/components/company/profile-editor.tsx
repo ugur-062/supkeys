@@ -211,6 +211,12 @@ export function ProfileEditor({
   // çizilmez. Taslak ve notu HER ZAMAN aynı güncellemede yazılır (AI yanıtı,
   // geri yükleme), bu yüzden taze not burada yanlışlıkla silinmez.
   if (!aboutDirty && aboutResult) setAboutResult(null);
+  // "Geri yüklendi" işareti de taslakla gider (canlı doğrulama PD-R1): metin
+  // kayıtlı hâline döndüyse geri yüklenen taslak kutuda DEĞİLDİR. Eskiden
+  // yalnız Kaydet / Vazgeç / yeni AI taslağı siliyordu; kutu elle boşaltılıp
+  // yeni metin yazılınca "taslağınız geri yüklendi" notu taze metnin altında
+  // yeniden çıkıyordu.
+  if (!aboutDirty && aboutRestored) setAboutRestored(false);
   useEffect(() => {
     if (!userId || !aboutStoreRead) return;
     if (aboutDirty) saveProfileAboutDraft(userId, profile.id, { text: draft.aboutText, result: aboutResult });
@@ -222,7 +228,13 @@ export function ProfileEditor({
   // `beforeunload` vardı: AI tanıtım taslağı kaydedilmemiş editör durumudur
   // (sunucu kopyasını tutmaz) ve hemen altındaki "Ürünleri yönet" bağlantısı
   // sormadan gidip taslağı — ömürlük ve günlük haktan biriyle birlikte — siliyordu.
-  useUnsavedChangesGuard(dirty);
+  //
+  // DİYALOGDA "AYRIL" = SAKLANAN TASLAK DA GİDER (canlı doğrulama PD-R3).
+  // Diyalog "ayrılırsanız kaybolur" der; kullanıcı bunu onayladıysa Hakkında
+  // metni dönüşte geri gelmemeli (geliyor, ikinci kez Vazgeç'e bastırıyordu).
+  // Saklanan kopya yalnız diyaloğun SORULMADIĞI çıkışlar içindir (Geri düğmesi,
+  // dil değişimi, bildirim tıklaması) — orada kullanıcı hiçbir şeyi onaylamadı.
+  useUnsavedChangesGuard(dirty, { onDiscard: () => clearProfileAboutDraft(userId) });
 
   /** Alan anahtarı → etiket: istemci ve sunucu hataları alan adıyla basılır (D-054). */
   const fieldLabels: Record<string, string> = {
@@ -659,7 +671,20 @@ export function ProfileEditor({
           className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 px-4 py-3 shadow-2xl backdrop-blur sm:pl-72"
         >
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 pr-16">
-            <span className="text-sm text-zinc-700">{t("kaydedilmemisDegisikliklerVar")}</span>
+            {/* GERİ YÜKLENEN TASLAK ÇUBUKTA DA SÖYLENİR (canlı doğrulama PD-R4).
+                Sayfa en üstten açılır; ayrıntılı not Hakkında kutusunun altında,
+                görünür alanın dışındadır (1440×900'de y = 999 px; telefonda
+                birkaç ekran aşağıda). Çubuk her zaman görünür: kullanıcı neden
+                kaydedilmemiş değişiklik olduğunu indiği yerde okur. */}
+            <p className="min-w-0 text-sm text-zinc-700">
+              <span>{t("kaydedilmemisDegisikliklerVar")}</span>
+              {aboutRestored && aboutDirty ? (
+                <>
+                  {" "}
+                  <span className="font-medium text-zinc-900">{t("aboutAi.restoredBar")}</span>
+                </>
+              ) : null}
+            </p>
             <div className="flex items-center gap-2">
               <Button plain onClick={discard} disabled={update.isPending}>
                 {t("vazgec")}

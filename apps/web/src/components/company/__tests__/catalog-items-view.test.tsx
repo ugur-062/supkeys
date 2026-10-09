@@ -13,7 +13,7 @@ import type { CatalogItem } from "@/hooks/use-company-items";
 const h = vi.hoisted(() => ({
   perms: [] as string[],
   items: [] as unknown[],
-  status: "success" as "success" | "loading" | "error",
+  status: "success" as "success" | "loading" | "paused" | "error",
   refetch: vi.fn(),
 }));
 
@@ -30,8 +30,15 @@ vi.mock("@/hooks/use-company-items", async (orig) => {
     ...real,
     useCatalogItems: () =>
       h.status === "success"
-        ? { data: { items: h.items, total: h.items.length }, isLoading: false, isError: false, refetch: h.refetch }
-        : { data: undefined, isLoading: h.status === "loading", isError: h.status === "error", refetch: h.refetch },
+        ? { data: { items: h.items, total: h.items.length }, isLoading: false, isPending: false, isError: false, refetch: h.refetch }
+        : {
+            data: undefined,
+            // Çevrimdışı duraklama: istek yok (`isLoading` false) ama yanıt da yok (`isPending`).
+            isLoading: h.status === "loading",
+            isPending: h.status === "loading" || h.status === "paused",
+            isError: h.status === "error",
+            refetch: h.refetch,
+          },
   };
 });
 
@@ -106,6 +113,15 @@ describe("CatalogItemsView — yükleme/hata boş katalog sanılmaz (derin denet
     h.status = "loading";
     renderView();
     expect(screen.queryByText(/Katalog henüz boş/)).toBeNull();
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) da boş katalog çizilmez", () => {
+    // `isLoading` false kalır; eskiden iskelet ona bağlıydı ve "Katalog henüz
+    // boş" çiziliyordu (LİSTE DURUMLARI — iskelet `isPending`e bağlı).
+    h.status = "paused";
+    renderView();
+    expect(screen.queryByText(/Katalog henüz boş/)).toBeNull();
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   it("hata verince yeniden dene seçeneği çizilir, boş durum çizilmez", () => {

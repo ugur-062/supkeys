@@ -154,11 +154,18 @@ export function ProductPreview({
   if (variant === "published") {
     return (
       <div>
+        {/* DAR EKRANDA EYLEMLER KARTIN İÇİNDE SARILIR (canlı doğrulama CP-02).
+            Eylem grubu `shrink-0` idi: kendi satırına inse de içerik genişliğini
+            (~466 px) koruyor, 390 px'te karttan ve ekrandan taşıyordu — "Düzenle"
+            görünür alanın dışında kalıyor, sayfa yatay kayıyordu (510 px). Grup
+            artık daralabilir ve düğmeleri alt alta sarar. Metin sütununun tabanı
+            15rem: taban 0 iken (`flex-1`) grup metnin yanında kalıp onu birkaç
+            piksellik sütuna sıkıştırabiliyordu; sığmayınca grup alt satıra iner. */}
         <div
           role="status"
           className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-zinc-950/5"
         >
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-[1_1_15rem]">
             <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-950">
               {t("alicininGorduguHal")}
               <Badge color={status.color}>{status.label}</Badge>
@@ -169,7 +176,7 @@ export function ProductPreview({
               {canManage ? t("urunVitrindeDuzenlemekIcinDuzenle") : t("urunVitrindeSaltOkunur")}
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             {publicHref ? (
               // Dil farkında Link (ham <a> EN/RU'da Türkçe sayfayı açıyordu;
               // derin denetim LU-22).

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
@@ -31,7 +32,18 @@ export function IhaleListView({
   fromHref,
 }: {
   items: TenderListItem[];
+  /**
+   * Henüz yanıt yok — çağıran sorgunun `isPending`ini verir (`isLoading` DEĞİL:
+   * çevrimdışıyken sorgu duraklar, `isLoading` false kalır ve "henüz talep yok"
+   * yanlışlıkla çizilirdi).
+   */
   isLoading: boolean;
+  /**
+   * Liste HİÇ okunamadı — çağıran `isError && data === undefined` verir. Verisi
+   * olan listenin arka plan yoklaması düştüğünde `false` kalmalı: satırlar
+   * ekranda kalır (canlı doğrulama 2026-10-09, OUTR-5 — eskiden 15 sn'lik
+   * yoklama düşünce satırlar "Veri alınamadı."ya dönüyordu).
+   */
   isError: boolean;
   onRetry: () => void;
   emptyCtaLabel?: string;
@@ -77,23 +89,11 @@ export function IhaleListView({
 
   if (isError) {
     return (
-      <EmptyState
-        icon={ClipboardList}
+      <ErrorState
         title={tr("veriAlinamadi")}
-        description={tr("birHataOlustuTekrarDeneyin")}
-        variant="no-results"
-        action={
-          <button
-            type="button"
-            onClick={onRetry}
-            className={cn(
-              "inline-flex items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50",
-              IHALE_VIEW_FOCUS,
-            )}
-          >
-            {tr("tekrarDene")}
-          </button>
-        }
+        message={tr("birHataOlustuTekrarDeneyin")}
+        onRetry={onRetry}
+        retryLabel={tr("tekrarDene")}
       />
     );
   }

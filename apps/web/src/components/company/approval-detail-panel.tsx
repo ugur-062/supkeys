@@ -46,9 +46,11 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
   // Miktar + birim okuyucunun dilinde, çoğul kuralıyla (`useQuantityLabel`).
   const quantity = useQuantityLabel();
   const qty = (amount: number, unit: string) => quantity(amount, unit);
-  const { data, isLoading, isError, refetch } = useApprovalDetail(id, true);
-  if (isLoading) return <ListSkeleton rows={3} />;
-  if (isError || !data) {
+  // LİSTE DURUMLARI: `isPending` bekleme; hata yalnız hiç veri yokken (arka plan
+  // yenilemesi düşerse eldeki karar özeti kalır — onaylayan onu okuyor).
+  const { data, isPending, refetch } = useApprovalDetail(id, true);
+  if (isPending) return <ListSkeleton rows={3} />;
+  if (!data) {
     return (
       <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600">
         <span>{t("onayDetayiYuklenemedi")}</span>

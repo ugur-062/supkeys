@@ -21,6 +21,7 @@ import {
 } from "@/components/catalyst/dropdown";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { DateTimeInput } from "@/components/ui/date-time-input";
+import { ErrorState } from "@/components/ui/error-state";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { Lock } from "lucide-react";
 import { VerificationLink } from "@/components/company/verification-gate";
@@ -759,9 +760,15 @@ export function TenderActionsMenu({
             placeholder={t("firmaAra")}
           />
           <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-200">
-            {inviteCompanies.length === 0 ? (
+            {/* LİSTE DURUMLARI: "bağlı firma yok" yalnız BAŞARILI ve boş yanıtta.
+                Yanıt yokken (`isPending` — çevrimdışı duraklama dahil)
+                "yükleniyor"; bağlantılar okunamadıysa hata + "Tekrar dene"
+                (eskiden kesintide "bağlı firma yok" yazıyordu). */}
+            {connections.data === undefined && !connections.isPending ? (
+              <ErrorState compact className="p-4 text-center" onRetry={() => void connections.refetch()} />
+            ) : inviteCompanies.length === 0 ? (
               <p className="p-4 text-center text-sm text-zinc-500">
-                {connections.isLoading
+                {connections.isPending
                   ? t("yukleniyor")
                   : connectedCompanies.length > 0
                     ? t("eslesenFirmaYok")

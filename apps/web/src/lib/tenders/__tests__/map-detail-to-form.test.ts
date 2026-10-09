@@ -4,6 +4,7 @@ import {
   copyTitle,
   hasRetiredCategory,
   mapDetailToForm,
+  seedHasRetiredCategory,
   toDateInput,
   toLocalInput,
 } from "../map-detail-to-form";
@@ -145,5 +146,38 @@ describe("mapDetailToForm", () => {
     expect(copyTitle("X (kopya)")).toBe("X (2)");
     expect(copyTitle("X (kopya) (kopya)")).toBe("X (2)");
     expect(copyTitle("X (kopya) (kopya) (kopya)")).toBe("X (2)");
+  });
+});
+
+/**
+ * Canlı doğrulama CP-05: kopya yolları (`?from=`, "Son taleplerden başla")
+ * kategori alanını nedensiz boş açıyordu — gizli kod forma girmez, form da
+ * nedenini değerlerden bilemez. Eşleyici tohumu işaretler, form sorar.
+ */
+describe("seedHasRetiredCategory — tohum eski kategorili talepten mi", () => {
+  it("API işaretiyle (hasRetiredCategory) gelen talep: düzenleme ve kopya tohumu işaretlidir, gizli kod forma girmez", () => {
+    const legacy = { ...detail, categoryIds: [], hasRetiredCategory: true } as unknown as ListingDetail;
+    for (const seed of [mapDetailToForm(legacy), mapDetailToForm(legacy, { forCopy: true })]) {
+      expect(seedHasRetiredCategory(seed)).toBe(true);
+      expect(seed.categoryIds).toEqual([]);
+    }
+  });
+
+  it("saklanan kodları taşıyan yanıt (eski API): gizli kod düşer, tohum işaretlenir; görünür kod kalır", () => {
+    const seed = mapDetailToForm({ ...detail, categoryIds: ["46181500", "31161500"] } as unknown as ListingDetail, { forCopy: true });
+    expect(seed.categoryIds).toEqual(["31161500"]);
+    expect(seedHasRetiredCategory(seed)).toBe(true);
+  });
+
+  it("eski kategorisi olmayan talebin tohumu işaretsizdir (kategorisiz talep dahil)", () => {
+    expect(seedHasRetiredCategory(mapDetailToForm({ ...detail, categoryIds: ["31161500"] } as unknown as ListingDetail))).toBe(false);
+    expect(seedHasRetiredCategory(mapDetailToForm({ ...detail, categoryIds: [] } as unknown as ListingDetail, { forCopy: true }))).toBe(false);
+  });
+
+  it("işaret nesneye bağlıdır: eşleyiciden gelmeyen tohum (şablon, boş form) ve boş değer işaretsizdir", () => {
+    const legacy = { ...detail, categoryIds: [], hasRetiredCategory: true } as unknown as ListingDetail;
+    expect(seedHasRetiredCategory({ ...mapDetailToForm(legacy) })).toBe(false);
+    expect(seedHasRetiredCategory(undefined)).toBe(false);
+    expect(seedHasRetiredCategory(null)).toBe(false);
   });
 });

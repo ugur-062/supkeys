@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
+import { act, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -175,5 +175,42 @@ describe("MaskedRequestView (doğrulanmamış firmanın alıcı gizli talep gör
     expect(await screen.findByText("Bu talep teklife kapalı.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Firmanızı doğrulayın" })).toBeNull();
     expect(document.querySelector('a[href="/company/ayarlar/dogrulama"]')).toBeNull();
+  });
+});
+
+describe("MaskedRequestView — liste durumları (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("arka plan yenilemesi düşünce ekrandaki talep kalır (hata kartına dönmez)", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    h.get.mockResolvedValue({ data: DETAIL });
+    rtlRender(
+      <QueryClientProvider client={client}>
+        <MaskedRequestView number="ROT-000042" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("heading", { level: 1, name: "Dikişsiz çelik boru alımı" })).toBeInTheDocument();
+
+    h.get.mockRejectedValue(Object.assign(new Error("Network Error"), { isAxiosError: true }));
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ["company-listings", "seller-tenders", "masked-detail"] });
+    });
+    await waitFor(() =>
+      expect(
+        client.getQueryCache().find({ queryKey: ["company-listings", "seller-tenders", "masked-detail"], exact: false })?.state.status,
+      ).toBe("error"),
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "Dikişsiz çelik boru alımı" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) boş sayfa değil iskelet", async () => {
+    onlineManager.setOnline(false);
+    try {
+      const { container } = render(<MaskedRequestView number="ROT-000042" />);
+      await act(async () => {});
+      expect(h.get).not.toHaveBeenCalled();
+      expect(container.querySelector(".animate-pulse")).not.toBeNull();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 });

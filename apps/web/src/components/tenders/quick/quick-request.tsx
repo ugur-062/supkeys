@@ -43,6 +43,7 @@ import { DEFAULT_FORM_VALUES, makeTenderFormSchema, type TenderFormData } from "
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { parseAppWallClockInput, toAppWallClockInput } from "@/lib/time-zone";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
+import { seedHasRetiredCategory } from "@/lib/tenders/map-detail-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
 import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
 import {
@@ -185,11 +186,15 @@ export function QuickRequest({
   );
   /**
    * Tohum kullanımdan kalkmış bir kategori taşıyordu: sayfa söyledi
-   * (`retiredCategory`), ham tohumda gizli kod vardı (şablon) ya da geri
-   * yüklenen oturum taslağında vardı (aşağıdaki efekt). Kod forma girmez;
-   * alan boşken nedenini `CategorySelectorButton` notu söyler.
+   * (`retiredCategory`), tohum öyle bir talepten üretildi (kopya — eşleyici
+   * işaretler, `seedHasRetiredCategory`; canlı doğrulama CP-05), ham tohumda
+   * gizli kod vardı (şablon) ya da geri yüklenen oturum taslağında vardı
+   * (aşağıdaki efekt). Kod forma girmez; alan boşken nedenini
+   * `CategorySelectorButton` notu söyler.
    */
-  const [retiredSeed, setRetiredSeed] = useState(() => (initialValues?.categoryIds ?? []).some((id) => isHiddenCategory(id)));
+  const [retiredSeed, setRetiredSeed] = useState(
+    () => seedHasRetiredCategory(initialValues) || (initialValues?.categoryIds ?? []).some((id) => isHiddenCategory(id)),
+  );
   const hadRetiredCategory = retiredCategory || retiredSeed;
   // Düzenleme/kopya/şablon talebin KENDİ şartlarıyla açılır (derin denetim Y-19).
   const seedKind: QuickSeedKind = isEdit ? "edit" : seedTerms && initialValues ? "seed" : "blank";
@@ -907,7 +912,11 @@ export function QuickRequest({
                     setValue("items", f.items, { shouldDirty: true, shouldValidate: true });
                     setValue("title", f.title, { shouldDirty: true });
                     setValue("description", f.description ?? "", { shouldDirty: true });
-                    setValue("categoryIds", f.categoryIds, { shouldDirty: true, shouldValidate: true });
+                    // Kopyalanan talebin görünür kategorisi kalmadıysa alan BOŞ gelir:
+                    // kullanıcı hiçbir şeye dokunmadan kırmızı "en az 1 kategori"
+                    // çıkmaz (doğrulama yayında koşar), nedenini alan notu söyler (CP-05).
+                    setValue("categoryIds", f.categoryIds, { shouldDirty: true, shouldValidate: f.categoryIds.length > 0 });
+                    if (seedHasRetiredCategory(f)) setRetiredSeed(true);
                     setValue("keywords", f.keywords);
                   }}
                 />
@@ -976,12 +985,19 @@ export function QuickRequest({
                             modalDescription={tr("talepKategorisiAciklama")}
                             // Gizli kod değere hiç girmedi → alan kendi başına bilemez.
                             retiredHint={hadRetiredCategory && (field.value?.length ?? 0) === 0}
+                            // Yayındaki talepte kategori zorunlu değil: not seçim İSTEMEZ.
+                            retiredOptional={categoryOptional}
                           />
                         )}
                       />
+                      {/* ALANIN ALTINDA TEK NOT (canlı doğrulama CP-04): eski kategori
+                          notu çizilirken formun kendi yardım satırı çizilmez — "güncel
+                          bir kategori seçin" ile "seçmeden de kaydedebilirsiniz" alt
+                          alta duruyordu. Durumu alan notu tek cümlede anlatır (yayındaki
+                          talepte isteğe bağlı, taslak / kopya / yeni talepte zorunlu). */}
                       {form.formState.errors.categoryIds ? (
                         <p className="mt-1 text-xs text-red-700">{form.formState.errors.categoryIds.message as string}</p>
-                      ) : categoryOptional && !hasCategory ? (
+                      ) : hadRetiredCategory && !hasCategory ? null : categoryOptional && !hasCategory ? (
                         <p className="mt-1 text-xs text-zinc-500">{tr("buTalebinGuncelKategorisiYok")}</p>
                       ) : (
                         <p className="mt-1 text-xs text-zinc-500">{tr("eslestirmeVeTedarikciBildirimiKategoriden")}</p>

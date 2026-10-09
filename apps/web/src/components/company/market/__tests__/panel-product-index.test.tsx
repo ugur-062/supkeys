@@ -7,7 +7,13 @@ const h = vi.hoisted(() => ({
   search: "",
   replace: vi.fn(),
   push: vi.fn(),
-  result: { data: undefined as unknown, isLoading: false },
+  result: { data: undefined as unknown, isLoading: false } as {
+    data: unknown;
+    isLoading: boolean;
+    isPending?: boolean;
+    isError?: boolean;
+    refetch?: () => void;
+  },
   lastParams: undefined as unknown,
   companyTotal: 20,
   companyParams: undefined as unknown,
@@ -234,7 +240,7 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
   });
 
   it("İLK YÜKLEMEDE 'bulunamadı' yazmaz — iskelet dönerken sayfa boş ilan edilmez", () => {
-    h.result = { data: undefined, isLoading: true };
+    h.result = { data: undefined, isLoading: true, isPending: true };
     render(<PanelProductIndex />);
     expect(screen.getByText("Güncelleniyor…")).toBeInTheDocument();
     expect(screen.queryByText(/bulunamadı/)).toBeNull();

@@ -11,12 +11,20 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 const h = vi.hoisted(() => ({
   data: undefined as unknown,
   enabled: undefined as boolean | undefined,
+  isError: false,
 }));
 
 vi.mock("@/hooks/use-ai-usage", () => ({
   useAiUsage: (enabled?: boolean) => {
     h.enabled = enabled;
-    return { data: h.data, isLoading: false, isError: false, error: null, refetch: vi.fn() };
+    return {
+      data: h.data,
+      isLoading: false,
+      isPending: h.data === undefined && !h.isError,
+      isError: h.isError,
+      error: h.isError ? { message: "Network Error" } : null,
+      refetch: vi.fn(),
+    };
   },
 }));
 vi.mock("@/components/company-shell/premium-only", () => ({
@@ -44,6 +52,31 @@ const company = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   useCompanyAuthStore.setState({ company: { country: "TR", tier: "SILVER" } } as never);
   h.data = company();
+  h.isError = false;
+});
+
+describe("AiKullanimPage — liste durumları (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("arka plan yenilemesi düşünce eldeki döküm kalır (hata satırına dönmez)", () => {
+    h.data = company({ percentUsed: 85, warning: true });
+    h.isError = true;
+    render(<AiKullanimPage />);
+    expect(screen.queryByText(/AI kullanımı yüklenemedi/)).toBeNull();
+    expect(document.body.textContent).toMatch(/85/);
+  });
+
+  it("hiç okunamadıysa hata + Yeniden dene; yanıt yokken (duraklama) 'Yükleniyor…'", () => {
+    h.data = undefined;
+    h.isError = true;
+    const { unmount } = render(<AiKullanimPage />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/AI kullanımı yüklenemedi/);
+    expect(screen.getByRole("button", { name: "Yeniden dene" })).toBeInTheDocument();
+    unmount();
+
+    h.isError = false;
+    render(<AiKullanimPage />);
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
 
 describe("AiKullanimPage", () => {

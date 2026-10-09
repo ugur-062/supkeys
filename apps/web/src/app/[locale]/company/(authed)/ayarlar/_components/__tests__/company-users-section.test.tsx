@@ -44,7 +44,13 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-company-users", () => ({
-  useCompanyUsers: () => ({ data: h.users, isLoading: h.usersLoading }),
+  // Gerçek sorgu sözleşmesi: yanıt yokken `data` undefined ve `isPending` true.
+  useCompanyUsers: () => ({
+    data: h.usersLoading ? undefined : h.users,
+    isLoading: h.usersLoading,
+    isPending: h.usersLoading,
+    isError: false,
+  }),
   useCompanyInvitations: () => ({ data: h.invitations }),
   useInviteUser: () => ({ mutateAsync: h.invite, isPending: false }),
   useCancelInvitation: () => ({ mutateAsync: h.cancel, isPending: false }),

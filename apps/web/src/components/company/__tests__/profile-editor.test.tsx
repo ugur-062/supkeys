@@ -1050,6 +1050,108 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       expect(screen.queryByText(CUBUK)).toBeNull();
     });
 
+    /**
+     * İKİNCİ CANLI DOĞRULAMA (2026-10-09) — PD-R1 / PD-R3 / PD-R4.
+     */
+    const CUBUK_GERI = "“Hakkında” taslağınız geri yüklendi.";
+    const cubuk = () => screen.getByText(CUBUK).closest('[role="status"]') as HTMLElement;
+
+    it("PD-R1: geri yüklenen taslak kayıtlı metne döndükten sonra yazılan TAZE metnin altında 'geri yüklendi' notu yeniden çıkmaz", async () => {
+      sakla({ text: "Yarım kalan taslak." });
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      await waitFor(() => expect(kutu().value).toBe("Yarım kalan taslak."));
+      expect(screen.getByText(GERI_YUKLENDI)).toBeInTheDocument();
+
+      // Kutu elle kayıtlı metne döndü: geri yüklenen taslak artık kutuda değil.
+      fireEvent.change(kutu(), { target: { value: "Biz demo firmayız." } });
+      expect(screen.queryByText(GERI_YUKLENDI)).toBeNull();
+      expect(screen.queryByText(CUBUK)).toBeNull();
+
+      // Yeni metin YAZILDI, geri yüklenmedi.
+      fireEvent.change(kutu(), { target: { value: "Yepyeni bir tanıtım cümlesi." } });
+      expect(screen.getByText(CUBUK)).toBeInTheDocument();
+      expect(screen.queryByText(GERI_YUKLENDI)).toBeNull();
+      expect(screen.queryByText(CUBUK_GERI)).toBeNull();
+    });
+
+    it("PD-R1: geri yüklenen AI taslağından 'Önceki metne dön' ile kayıtlı metne dönüp yazınca da not çıkmaz", async () => {
+      sakla({ text: TASLAK, result: { productCount: 3, remaining: null, previous: "Biz demo firmayız." } });
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      await waitFor(() => expect(kutu().value).toBe(TASLAK));
+      fireEvent.click(screen.getByRole("button", { name: "Önceki metne dön" }));
+      expect(kutu().value).toBe("Biz demo firmayız.");
+
+      fireEvent.change(kutu(), { target: { value: "Biz demo firmayız. Yeni cümle." } });
+      expect(screen.getByText(CUBUK)).toBeInTheDocument();
+      expect(screen.queryByText(GERI_YUKLENDI)).toBeNull();
+      expect(screen.queryByText(CUBUK_GERI)).toBeNull();
+    });
+
+    it("PD-R3: ayrılma diyaloğunda 'Ayrıl' denince saklanan taslak da silinir — dönüşte metin geri gelmez", async () => {
+      const ilk = render(<ProfileEditor profile={PROFILE} canEdit />);
+      fireEvent.change(kutu(), { target: { value: "Vazgeçeceğim metin." } });
+      await waitFor(() => expect(saklanan()).toMatchObject({ text: "Vazgeçeceğim metin." }));
+
+      h.confirm.mockResolvedValueOnce(true);
+      const link = await screen.findByRole("link", { name: "Ürünleri yönet" });
+      expect(fireEvent.click(link)).toBe(false);
+      expect(h.confirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: "Ayrıl" }));
+      await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/satis/urunlerim"));
+      // Diyalog "ayrılırsanız kaybolur" dedi ve kullanıcı onayladı.
+      expect(sessionStorage.getItem(ANAHTAR)).toBeNull();
+
+      ilk.unmount();
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      // Depo okunsun diye bir tur bekle; kutu kayıtlı metinde kalır.
+      await waitFor(() => expect(screen.getByRole("link", { name: "Ürünleri yönet" })).toBeInTheDocument());
+      expect(kutu().value).toBe("Biz demo firmayız.");
+      expect(screen.queryByText(CUBUK)).toBeNull();
+      expect(screen.queryByText(GERI_YUKLENDI)).toBeNull();
+    });
+
+    it("PD-R3: diyalogda 'Formda kal' denirse saklanan taslak durur; diyaloğun sorulmadığı çıkışta (sayfa sökülür) taslak geri gelir", async () => {
+      const ilk = render(<ProfileEditor profile={PROFILE} canEdit />);
+      fireEvent.change(kutu(), { target: { value: "Saklanacak metin." } });
+      await waitFor(() => expect(saklanan()).toMatchObject({ text: "Saklanacak metin." }));
+
+      // Varsayılan onay: "Formda kal".
+      const link = await screen.findByRole("link", { name: "Ürünleri yönet" });
+      expect(fireEvent.click(link)).toBe(false);
+      await h.confirm.mock.results[0]!.value;
+      await waitFor(() => expect(h.push).not.toHaveBeenCalled());
+      expect(saklanan()).toMatchObject({ text: "Saklanacak metin." });
+
+      // Geri düğmesi / dil değişimi / bildirim tıklaması: diyalog yok, taslak korunur.
+      ilk.unmount();
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      await waitFor(() => expect(kutu().value).toBe("Saklanacak metin."));
+      expect(screen.getByText(GERI_YUKLENDI)).toBeInTheDocument();
+    });
+
+    it("PD-R4: geri yüklenen taslak kaydet çubuğunda da söylenir (sayfa üstten açılır, not kutunun altında kalır)", async () => {
+      sakla({ text: TASLAK });
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      await waitFor(() => expect(kutu().value).toBe(TASLAK));
+      // Çubuk sabit (her zaman görünür): genel cümle + geri yükleme cümlesi + Kaydet / Vazgeç.
+      const bar = cubuk();
+      expect(bar.className).toMatch(/\bfixed\b/);
+      expect(within(bar).getByText(CUBUK_GERI)).toBeInTheDocument();
+      expect(within(bar).getByRole("button", { name: "Kaydet" })).toBeInTheDocument();
+      expect(within(bar).getByRole("button", { name: "Vazgeç" })).toBeInTheDocument();
+      // Ayrıntılı not kutunun altında durmaya devam eder.
+      expect(screen.getByText(GERI_YUKLENDI)).toBeInTheDocument();
+
+      fireEvent.click(within(bar).getByRole("button", { name: "Vazgeç" }));
+      expect(screen.queryByText(CUBUK_GERI)).toBeNull();
+    });
+
+    it("PD-R4: taze yazılan metinde ve başka alan değişikliğinde çubuk 'geri yüklendi' demez", () => {
+      render(<ProfileEditor profile={PROFILE} canEdit />);
+      fireEvent.change(kutu(), { target: { value: "Şimdi yazdığım metin." } });
+      expect(screen.getByText(CUBUK)).toBeInTheDocument();
+      expect(screen.queryByText(CUBUK_GERI)).toBeNull();
+    });
+
     it("yeni AI taslağı geri yüklenenin yerine geçince 'geri yüklendi' notu kalkar; depodaki kopya yenisidir", async () => {
       sakla({ text: "Yarım kalan eski taslak." });
       h.post.mockResolvedValue(yanit());

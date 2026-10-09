@@ -119,13 +119,29 @@ describe("talep satırı (ListingTeaserRow) — anasayfa tedarikçi yüzü, dizi
     expect(screen.queryByText("+3 kategori")).toBeNull();
   });
 
-  it("görünür kategorisi kalmayan talep: sütun '—' gösterir, ad ve sayı yok", () => {
+  // Canlı doğrulama PUB-02: hücre etiket + "—" ile çiziliyordu ("KATEGORİ —");
+  // 390 px'te kartın tam bir satırını boş bir bilgi tutuyordu.
+  it("görünür kategorisi kalmayan talep: Kategori hücresi HİÇ çizilmez (etiket, ikon, '—' yok); diğer sütunlar durur", () => {
     const { container } = render(<ListingTeaserRow listing={card([HIDDEN, HIDDEN_SEG])} />);
     expect(container.textContent).not.toMatch(HIDDEN_TEXT);
     expect(container.textContent).not.toMatch(/\+\d+ kategori/);
-    const label = screen.getByText("Kategori");
-    const cell = label.closest("div") as HTMLElement;
-    expect(cell.querySelector("dd")?.textContent).toBe("—");
+    expect(screen.queryByText("Kategori")).toBeNull();
+    const labels = [...container.querySelectorAll("dl dt")].map((dt) => dt.textContent);
+    expect(labels).toEqual(["Alıcı", "Kalem", "Görünürlük", "Kapanış"]);
+    // Kalan hücrelerin hiçbiri yalnız bir tire değil.
+    expect([...container.querySelectorAll("dl dd")].some((dd) => dd.textContent?.trim() === "—")).toBe(false);
+  });
+
+  it("hiç kategorisi olmayan talep de aynı: boş Kategori hücresi yok", () => {
+    const { container } = render(<ListingTeaserRow listing={card([])} />);
+    expect(screen.queryByText("Kategori")).toBeNull();
+    expect(container.querySelectorAll("dl dt")).toHaveLength(4);
+  });
+
+  it("görünür kategorili talepte hücre beşinci sütun olarak çizilir", () => {
+    const { container } = render(<ListingTeaserRow listing={card([VISIBLE])} />);
+    const labels = [...container.querySelectorAll("dl dt")].map((dt) => dt.textContent);
+    expect(labels).toEqual(["Alıcı", "Kalem", "Görünürlük", "Kapanış", "Kategori"]);
   });
 });
 

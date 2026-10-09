@@ -99,12 +99,65 @@ function toastUnlessOutage(
 ): void {
   const method = (error.config?.method ?? "get").toLowerCase();
   if (!outage || MUTATING.has(method)) {
-    toast.error(message());
+    if (MUTATING.has(method) && !carriesApiMessage(error)) toastCauseOnly(message());
+    else toast.error(message());
     return;
   }
   void outage.then((down) => {
     if (!down) toast.error(message());
   });
+}
+
+/**
+ * Hata API'nin KENDİ metnini taşıyor mu (gövdede `message` / alan hataları).
+ * Taşıyorsa çağıranın `extractErrorMessage` toast'ı daha özgül olabilir;
+ * taşımıyorsa (yanıt yok, geçidin HTML gövdeli 502 · 503 · 504'ü) çağıranın
+ * elinde yalnız kendi genel yedeği vardır ("Güncellenemedi").
+ */
+function carriesApiMessage(error: AxiosError<ApiErrorPayload>): boolean {
+  const data = error.response?.data as ApiErrorPayload | string | null | undefined;
+  if (!data || typeof data !== "object") return false;
+  if (typeof data.message === "string") return data.message.trim().length > 0;
+  if (Array.isArray(data.message)) return data.message.length > 0;
+  return !!data.errors && Object.keys(data.errors).length > 0;
+}
+
+/**
+ * KESİNTİDE TEK HATA MESAJI (canlı doğrulama 2026-10-09, OUTR-6). API kapalıyken
+ * "Kaydet"e basan kullanıcı aynı anda İKİ toast görüyordu: buradaki "Sunucuya
+ * ulaşılamadı…" ve çağıranın catch'indeki `extractErrorMessage(err, "Güncellenemedi")`.
+ * Yanıtsız hatada o yardımcı yalnız çağıranın genel yedeğini döndürebilir; metin
+ * buradakinden farklı olduğu için `toast-dedupe` yakalamaz, toast'lar üst üste
+ * biner ve NEDENİ söyleyen altta kalır (çağrı yerlerinin çoğu
+ * `errorToastedGlobally` sormuyor).
+ *
+ * Nedeni söyleyen toast basılır ve AYNI GÖREVİN sonuna dek gelen düz metinli
+ * hata toast'ları onun kimliğine katlanır (`toast-dedupe` ile aynı yöntem:
+ * ikinci toast yutulur, ilkinin kimliği döner). Çağıranın catch'i reddedilen
+ * sözün mikro görev zincirinde koşar — `mutateAsync` + try/catch, `useMutation`
+ * `onError` ve `mutate(…, { onError })` üçü de sıfır gecikmeli zamanlayıcıdan
+ * ÖNCE biter; zamanlayıcı `toast.error`ı geri verir. Yalnız API'nin kendi metni
+ * OLMAYAN mutasyon hatasında işler (bkz. `carriesApiMessage`); başarı / uyarı
+ * toast'larına ve metin olmayan (JSX) hata toast'larına dokunmaz.
+ */
+let causeToastAbsorbing = false;
+
+function toastCauseOnly(message: string): void {
+  const id = toast.error(message);
+  // Aynı görevde düşen ikinci mutasyon: neden zaten ekranda, emici zaten kurulu.
+  if (causeToastAbsorbing) return;
+  causeToastAbsorbing = true;
+  const shown = toast.error;
+  const absorb = ((next: unknown, data?: unknown) =>
+    typeof next === "string"
+      ? id
+      : (shown as (m: unknown, d?: unknown) => string | number)(next, data)) as typeof toast.error;
+  toast.error = absorb;
+  setTimeout(() => {
+    causeToastAbsorbing = false;
+    // Arada başkası değiştirdiyse (test casusu) onunkine dokunulmaz.
+    if (toast.error === absorb) toast.error = shown;
+  }, 0);
 }
 
 companyApi.interceptors.response.use(

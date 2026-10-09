@@ -58,11 +58,13 @@ export function InsightsView() {
         <PeriodSelect value={days} onChange={setDays} />
       </div>
 
-      {q.isLoading ? (
+      {/* LİSTE DURUMLARI: iskelet `isPending`e bağlı; hata kartı yalnız hiç veri
+          yokken — arka plan yenilemesi düşerse eldeki rakamlar kalır. */}
+      {q.isPending ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
           {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-zinc-100" />)}
         </div>
-      ) : q.isError || !d ? (
+      ) : !d ? (
         <ErrorState message={t("isAnaliziVerisiAlinamadiTekrar")} onRetry={() => void q.refetch()} />
       ) : (
         <>

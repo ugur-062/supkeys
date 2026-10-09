@@ -18,25 +18,35 @@ import { useConfirm } from "@/components/providers/confirm-dialog";
  * Bağlantı olmayan geri düğmeleri (ör. "Ürünlere dön") `confirmLeave()` ile
  * aynı diyaloğu sorar. Yeni sekmede açılan, indirme ve sayfa içi (#) bağlantılar
  * ile değiştirici tuşlu tıklamalar dokunulmadan geçer.
+ *
+ * `onDiscard` (canlı doğrulama 2026-10-09, PD-R3): kullanıcı bu diyalogda
+ * "Ayrıl" dediği AN çağrılır (gezinmeden önce). Diyalog "ayrılırsanız kaybolur"
+ * der; kaydedilmemiş metni başka bir yerde saklayan form (Profilim "Hakkında"
+ * taslağı) o kopyayı burada siler — yoksa metin dönüşte geri geliyordu.
+ * Diyaloğun SORULMADIĞI çıkışlarda (tarayıcının Geri düğmesi, dil değişimi,
+ * programla gezinme) çağrılmaz.
  */
-export function useUnsavedChangesGuard(dirty: boolean) {
+export function useUnsavedChangesGuard(dirty: boolean, options: { onDiscard?: () => void } = {}) {
   const t = useTranslations("web.panel.shell.unsavedChanges");
   const confirm = useConfirm();
   const router = useRouter();
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
+  // En güncel geri çağrı: çağıran her çizimde yeni işlev verse de dinleyici yeniden kurulmaz.
+  const onDiscardRef = useRef(options.onDiscard);
+  onDiscardRef.current = options.onDiscard;
 
-  const ask = useCallback(
-    () =>
-      confirm({
-        title: t("baslik"),
-        description: t("aciklama"),
-        confirmLabel: t("ayril"),
-        cancelLabel: t("kal"),
-        destructive: true,
-      }),
-    [confirm, t],
-  );
+  const ask = useCallback(async () => {
+    const leave = await confirm({
+      title: t("baslik"),
+      description: t("aciklama"),
+      confirmLabel: t("ayril"),
+      cancelLabel: t("kal"),
+      destructive: true,
+    });
+    if (leave) onDiscardRef.current?.();
+    return leave;
+  }, [confirm, t]);
 
   /** Bağlantı dışı çıkışlar için: kirli değilse hemen true. */
   const confirmLeave = useCallback(async () => (dirtyRef.current ? ask() : true), [ask]);

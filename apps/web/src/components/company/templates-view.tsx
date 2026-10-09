@@ -39,6 +39,7 @@ import {
 } from "@/hooks/use-templates";
 import type { AnswerTypeValue } from "@/lib/tenders/form-schema";
 import { ListSkeleton } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import {
@@ -93,6 +94,20 @@ function Section({
       {children}
     </section>
   );
+}
+
+/**
+ * LİSTE DURUMLARI (canlı doğrulama 2026-10-09 taraması): bu dosyadaki dört liste
+ * (gruplar, soru setleri, talep şablonları, grup penceresindeki bağlantılar)
+ * `isLoading ? iskelet : boş ? "henüz yok"` diye dallanıyordu — HATA DALI YOKTU.
+ * Kesintide ve çevrimdışı duraklamada (`isLoading` false, veri yok) "Henüz grup
+ * yok…" çiziliyor, kullanıcı kayıtlarının silindiğini sanıyordu. Sıra artık:
+ * `isPending` → iskelet; `isError` ∧ veri yok → hata kartı + "Tekrar dene";
+ * boş durum yalnız başarılı ve boş yanıtta. Arka plan yenilemesi düşerse
+ * eldeki satırlar kalır.
+ */
+function listFailed(query: { isError: boolean; data: unknown }): boolean {
+  return query.isError && query.data === undefined;
 }
 
 function EmptyHint({ children }: { children: React.ReactNode }) {
@@ -217,8 +232,10 @@ function GroupTemplateDialog({
           )}
           {/* Üyeler tohumlanana kadar liste yerine iskelet (arayüz testi webB-10
               yeniden doğrulama): erken işaretlenen kutu tohumlamada eziliyordu. */}
-          {connections.isLoading || seeding ? (
+          {connections.isPending || seeding ? (
             <ListSkeleton rows={3} />
+          ) : listFailed(connections) ? (
+            <ErrorState onRetry={() => void connections.refetch()} />
           ) : rows.length === 0 ? (
             <EmptyHint>
               {t("henuzBaglantinizYokOnceBaglantilar")}
@@ -527,8 +544,10 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
           ) : undefined
         }
       >
-        {groups.isLoading ? (
+        {groups.isPending ? (
           <ListSkeleton rows={3} />
+        ) : listFailed(groups) ? (
+          <ErrorState onRetry={() => void groups.refetch()} />
         ) : (groups.data ?? []).length === 0 ? (
           <EmptyHint>
             {t("henuzGrupYokBaglantilarinizdanBir", { partyWord: partyWord.toLowerCase() })}
@@ -617,8 +636,10 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
           ) : undefined
         }
       >
-        {questionTpls.isLoading ? (
+        {questionTpls.isPending ? (
           <ListSkeleton rows={3} />
+        ) : listFailed(questionTpls) ? (
+          <ErrorState onRetry={() => void questionTpls.refetch()} />
         ) : (questionTpls.data ?? []).length === 0 ? (
           <EmptyHint>
             {tr("henuzSoruSetiYokMensei")}
@@ -738,8 +759,10 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
         title={tr("satinAlmaTalebiSablonlari")}
         description={tr("sihirbazdaSablonOlarakKaydetIle")}
       >
-        {listingTpls.isLoading ? (
+        {listingTpls.isPending ? (
           <ListSkeleton rows={3} />
+        ) : listFailed(listingTpls) ? (
+          <ErrorState onRetry={() => void listingTpls.refetch()} />
         ) : myListingTpls.length === 0 ? (
           <EmptyHint>
             {tr("henuzSablonYokSihirbazinUst")}

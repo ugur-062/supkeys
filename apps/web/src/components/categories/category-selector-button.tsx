@@ -40,6 +40,14 @@ interface Props {
    * bilemez — kaydın eski kategori taşıdığını bilen çağıran söyler.
    */
   retiredHint?: boolean;
+  /**
+   * Not "güncel bir kategori seçin" diye İSTEMEZ, "seçebilirsiniz; seçmeden de
+   * kaydedebilirsiniz" der. Kategorinin zorunlu OLMADIĞI formda (yayındaki
+   * talebin düzenlemesi) çağıran verir: eski not seçim isterken formun kendi
+   * notu "gerekmez" diyordu — aynı durum için çelişen iki cümle (canlı
+   * doğrulama CP-04). Durumu tek cümle anlatır, o cümle de burada yazılır.
+   */
+  retiredOptional?: boolean;
 }
 
 /**
@@ -66,6 +74,7 @@ export function CategorySelectorButton({
   disabled,
   catalog = "full",
   retiredHint = false,
+  retiredOptional = false,
 }: Props) {
   const t = useTranslations("web.shared.categorySelectorButton");
   // Ad hatası metni pencereyle ortak (aynı durum, aynı cümle).
@@ -189,7 +198,9 @@ export function CategorySelectorButton({
         )}
 
         {retired ? (
-          <p className="mt-1.5 text-xs text-amber-700">{t("oncekiKategoriKullanilmiyor")}</p>
+          <p className="mt-1.5 text-xs text-amber-700">
+            {retiredOptional ? t("oncekiKategoriKullanilmiyorIstegeBagli") : t("oncekiKategoriKullanilmiyor")}
+          </p>
         ) : null}
         {error ? (
           <p className="mt-1.5 text-xs text-rose-600">{error}</p>

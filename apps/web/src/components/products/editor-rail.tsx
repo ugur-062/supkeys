@@ -23,12 +23,20 @@ export type EditorRailBlocker = string | PublishBlocker;
 export function EditorRail({
   completion,
   blockers,
+  outdatedCategory = false,
   onJump,
   recommendations,
   className,
 }: {
   completion: { score: number; missing: { key: string; label: string; points: number }[] };
   blockers: EditorRailBlocker[];
+  /**
+   * Kategori eksiği "seçilmedi" değil "artık kullanılmıyor": ürünün kayıtlı
+   * kategorisi gizli segmentte (henüz yayında olmayan eski ürün). Çip güncel bir
+   * kategori ister — API'nin aynı durumdaki ret metniyle aynı cümle
+   * (`api.companyItems.publishBlocker.categoryNotCurrent`).
+   */
+  outdatedCategory?: boolean;
   onJump?: (sectionId: string) => void;
   recommendations?: ReactNode;
   className?: string;
@@ -50,9 +58,11 @@ export function EditorRail({
   const blockerLabel = (b: EditorRailBlocker) =>
     typeof b === "string"
       ? b
-      : tb.has(b.code as never)
-        ? tb(b.code as never, (b.params ?? {}) as never)
-        : publishBlockerLabelTr(b);
+      : b.code === "category" && outdatedCategory
+        ? tb("categoryNotCurrent")
+        : tb.has(b.code as never)
+          ? tb(b.code as never, (b.params ?? {}) as never)
+          : publishBlockerLabelTr(b);
   return (
     <div className={cn("space-y-4", className)}>
       <section aria-label={t("tamamlanma")} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5">

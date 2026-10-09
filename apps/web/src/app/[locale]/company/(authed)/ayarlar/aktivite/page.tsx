@@ -71,7 +71,7 @@ export default function AktivitePage() {
   const [module, setModule] = useState("");
   // Erişim kilitliyse (VerifiedOnly doğrulama kapısı çizer) istek hiç atılmaz (O-044).
   const tierOk = !!company && tierAtLeast(company.tier, "SILVER");
-  const { data, isLoading, isError, error, refetch } = useActivityLog(page, module || undefined, tierOk);
+  const { data, isError, error, refetch } = useActivityLog(page, module || undefined, tierOk);
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
   const totalPages = data?.pagination.totalPages ?? 1;
 
@@ -226,7 +226,11 @@ export default function AktivitePage() {
             />
           </div>
 
-          {isError ? (
+          {/* LİSTE DURUMLARI: hata dalı yalnız hiç veri yokken (arka plan
+              yenilemesi düşerse eldeki satırlar kalır); veri yokken tablo
+              çizilmez — çevrimdışı duraklamada ve firma bilgisi gelmeden
+              "Henüz kayıt yok" satırı çıkıyordu. */}
+          {isError && !data ? (
             <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {forbidden
                 ? t("aktiviteLogunuYalnizKullaniciYonetimi")
@@ -237,7 +241,7 @@ export default function AktivitePage() {
                 </button>
               ) : null}
             </p>
-          ) : isLoading && !data ? (
+          ) : !data ? (
             <p className="text-sm text-zinc-500">{t("yukleniyor")}</p>
           ) : (
             <>
@@ -253,14 +257,14 @@ export default function AktivitePage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {(data?.items ?? []).length === 0 ? (
+                  {data.items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-sm text-zinc-500">
                         {module ? t("buModuldeHenuzKayitYok") : t("henuzKayitYok")}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (data?.items ?? []).map((r) => {
+                    data.items.map((r) => {
                       const detail = summarize(r);
                       const actor = r.actorEmail ?? t("sistem");
                       return (
@@ -300,9 +304,9 @@ export default function AktivitePage() {
                 <div className="flex items-center justify-between text-xs text-zinc-500">
                   <span>
                     {t("sayfaKayit", {
-                      page: data?.pagination.page ?? 1,
+                      page: data.pagination.page,
                       totalPages,
-                      total: data?.pagination.total ?? 0,
+                      total: data.pagination.total,
                     })}
                   </span>
                   <div className="flex gap-2">

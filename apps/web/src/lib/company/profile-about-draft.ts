@@ -17,7 +17,9 @@
  *  · anahtar kullanıcı kimliğine bağlı — aynı sekmede başka hesabın taslağı
  *    okunmaz; önek `TENANT_SESSION_PREFIXES`te, çıkışta silinir;
  *  · okumak SİLMEZ (ikinci yenileme de aynı taslağı bulur); silindiği yerler
- *    Kaydet, Vazgeç ve metnin kayıtlı hâline dönmesi;
+ *    Kaydet, Vazgeç, metnin kayıtlı hâline dönmesi ve ayrılma diyaloğunda
+ *    "Ayrıl" (PD-R3: diyalog "ayrılırsanız kaybolur" der — kullanıcı onayladıysa
+ *    metin dönüşte geri gelmez; diyaloğun SORULMADIĞI çıkışlarda taslak durur);
  *  · depo kapalıysa (gizli sekme) sessizce yok sayılır — taslak korunmaz, akış çalışır.
  *
  * Yalnız "Hakkında" metni saklanır; sektör, hizmetler ve diğer alanlar değil.

@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { PageContainer } from "@/components/list/page-container";
+import { ErrorState } from "@/components/ui/error-state";
 import { ProductBreadcrumb, ProductDetailBody } from "@/components/marketplace/product-detail";
 import { BuyingGateNotice } from "@/components/marketplace/member-cta";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -57,7 +58,7 @@ export default function MemberProductPage() {
   }, [goldBuyer, firmaSlug, urunSlug, router]);
 
   const showProduct = canView && !goldBuyer;
-  const { data, isLoading, isError } = usePublicProduct(showProduct ? firmaSlug : "", urunSlug);
+  const { data, isPending, isError, refetch } = usePublicProduct(showProduct ? firmaSlug : "", urunSlug);
   useScrollToHash(showProduct && !!data);
 
   const publicHref = `/firma/${firmaSlug}/urun/${urunSlug}`;
@@ -75,7 +76,9 @@ export default function MemberProductPage() {
     router.replace(`${publicHref}#belgeler`);
   }, [noViewDocs, publicHref, router]);
 
-  if (!user || goldBuyer || (showProduct && isLoading)) {
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "bulunamadı" çizilirdi. Sorgu yalnız `showProduct` iken açık.
+  if (!user || goldBuyer || (showProduct && isPending)) {
     return (
       <PageContainer>
         <p className="text-sm text-zinc-500">{t("loading")}</p>
@@ -97,7 +100,18 @@ export default function MemberProductPage() {
     );
   }
 
-  if (isError || !data) {
+  // KESİNTİ ≠ YOK (canlı doğrulama 2026-10-09 taraması): kanca 404'ü `null`
+  // döndürür; `isError` = ürün OKUNAMADI — "bulunamadı" denmez. Arka plan
+  // yenilemesi düşerse eldeki ürün ekranda kalır.
+  if (isError && !data) {
+    return (
+      <PageContainer>
+        <ErrorState onRetry={() => void refetch()} />
+      </PageContainer>
+    );
+  }
+
+  if (!data) {
     return (
       <PageContainer>
         <div className="rounded-2xl bg-white px-6 py-10 text-center ring-1 ring-zinc-950/5">

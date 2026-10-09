@@ -3,6 +3,7 @@
 import { companyApi } from "@/lib/company-auth/api";
 import type { Locale } from "@rothern/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 
 export interface DiscoveryCandidate {
   companyId: string;
@@ -115,51 +116,371 @@ const INCOMPLETE_REASONS: readonly DiscoveryIncompleteReason[] = ["TIMEOUT", "PR
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
+const EXTERNAL_SEARCH_PATH = "/company/ai/supplier-discovery/external";
+
+/** Süren arama bu aralıkla yoklanır. */
+export const EXTERNAL_SEARCH_POLL_MS = 3_000;
+/**
+ * İstemcinin bekleme TAVANI (aramanın başladığı andan). Arama genellikle bir-iki
+ * dakika sürer; tavan dolunca yoklama bırakılır ve pencere "yeniden arayın" der.
+ */
+export const EXTERNAL_SEARCH_MAX_MS = 8 * 60_000;
+
+/**
+ * BAŞLAMIŞ bir aramanın sonuçsuz bitişi (HTTP hata yanıtı DEĞİL — o olduğu gibi
+ * axios hatası olarak gider):
+ *  - FAILED       arama sunucuda düştü; `statusCode` / `code` / `serverMessage`
+ *                 eş zamanlı ucun hata gövdesindeki alanlarla aynı anlamdadır
+ *                 (metin, aramayı BAŞLATAN isteğin dilinde)
+ *  - INTERRUPTED  arama kimliği artık bilinmiyor (404): API yeniden başladı ya
+ *                 da kayıt süresini doldurdu
+ *  - TIMED_OUT    `EXTERNAL_SEARCH_MAX_MS` doldu
+ *  - ABANDONED    çağıran `shouldStop` ile bıraktı (oturum silindi) — kullanıcıya
+ *                 gösterilecek bir şey yok
+ */
+export type ExternalSearchFailureKind = "FAILED" | "INTERRUPTED" | "TIMED_OUT" | "ABANDONED";
+
+export class ExternalSearchError extends Error {
+  readonly kind: ExternalSearchFailureKind;
+  readonly statusCode: number | null;
+  readonly code: string | null;
+  /** Sunucunun kullanıcı metni; yoksa null (pencere kendi metnini yazar). */
+  readonly serverMessage: string | null;
+
+  constructor(
+    kind: ExternalSearchFailureKind,
+    detail: { statusCode?: number | null; code?: string | null; serverMessage?: string | null } = {},
+  ) {
+    super(`supplier web search ${kind.toLowerCase()}`);
+    this.name = "ExternalSearchError";
+    this.kind = kind;
+    this.statusCode = detail.statusCode ?? null;
+    this.code = detail.code ?? null;
+    this.serverMessage = detail.serverMessage ?? null;
+  }
+}
+
+export interface ExternalSearchOptions {
+  /** Aramanın başladığı an (ms) — bekleme tavanı buradan sayılır; verilmezse çağrı anı. */
+  since?: number;
+  /** `true` dönerse yoklama sessizce bırakılır (oturum silindi / hesap değişti). */
+  shouldStop?: () => boolean;
+  /**
+   * Sunucu aramayı kabul etti ve kimliğini verdi. Çağıran kimliği saklar:
+   * yeniden bağlanan pencere / sayfa AYNI aramayı `resumeExternalSupplierSearch`
+   * ile izler (ikinci ücretli arama başlamaz).
+   */
+  onStarted?: (searchId: string) => void;
+  /** Başlatma ucu yok (eski API, 404): arama eş zamanlı uca düştü — çağıran bunu hatırlar. */
+  onSyncFallback?: () => void;
+  /** Başlatma ucunu DENEME, doğrudan eş zamanlı uç (eski API olduğu bu oturumda öğrenildi). */
+  sync?: boolean;
+}
+
+type ExternalSearchBody = Omit<ExternalDiscoveryInput, "scopes"> & { scopes?: DiscoveryScope[] };
+
+/**
+ * İstek gövdesi — iki uç da aynı DTO'yu okur. `scopes` yalnız geçerli ve dolu
+ * ise girer (boş dizi sunucuda "bütün geçişler" demektir; eski API ise alanın
+ * kendisini reddeder).
+ */
+function externalSearchBody(input: ExternalDiscoveryInput): ExternalSearchBody {
+  const { scopes, ...rest } = input;
+  const wanted = DISCOVERY_SCOPES.filter((s) => scopes?.includes(s));
+  return wanted.length > 0 ? { ...rest, scopes: wanted } : rest;
+}
+
+/** Arama yanıtının gövdesi (eş zamanlı ucun yanıtı = biten aramanın `result` alanı). */
+function readExternalResult(raw: unknown): ExternalDiscoveryResult {
+  const data = asRecord(raw) ?? {};
+  const incomplete: unknown[] = Array.isArray(data.incompleteScopes) ? data.incompleteScopes : [];
+  const incompleteScopes = DISCOVERY_SCOPES.filter((s) => incomplete.includes(s));
+  const reasons = asRecord(data.incompleteReasons);
+  const messages = asRecord(data.incompleteMessages);
+  const incompleteReasons: ExternalDiscoveryResult["incompleteReasons"] = {};
+  const incompleteMessages: ExternalDiscoveryResult["incompleteMessages"] = {};
+  for (const scope of incompleteScopes) {
+    const reason = INCOMPLETE_REASONS.find((r) => r === reasons?.[scope]);
+    if (reason) incompleteReasons[scope] = reason;
+    const message = messages?.[scope];
+    if (typeof message === "string" && message.trim()) incompleteMessages[scope] = message.trim();
+  }
+  return {
+    companies: Array.isArray(data.companies) ? (data.companies as ExternalCandidate[]) : [],
+    incompleteScopes,
+    incompleteReasons,
+    incompleteMessages,
+    supportsScopes: reasons !== null,
+  };
+}
+
+/**
+ * Eş zamanlı uç (eski istemciler ve eski API için durur): yanıt arama bitince
+ * gelir. Zaman aşımı sunucunun en uzun aramasından bilerek UZUN — ücretli bir
+ * aramayı yanıt yoldayken istemcinin kesmesi sonucu boşa harcatır.
+ */
+async function searchSynchronously(body: ExternalSearchBody): Promise<ExternalDiscoveryResult> {
+  const { data } = await companyApi.post<unknown>(EXTERNAL_SEARCH_PATH, body, {
+    timeout: 150_000,
+    skipErrorToast: true,
+  });
+  return readExternalResult(data);
+}
+
+/**
+ * Başlatma ucu bu API'de YOK mu? Bilinmeyen rota Nest'in ham 404'üdür (katalog
+ * anahtarı / kod taşımaz); API'nin kendi yazdığı bir 404 "uç yok" sayılmaz.
+ */
+function isStartRouteMissing(err: unknown): boolean {
+  if (!axios.isAxiosError(err) || err.response?.status !== 404) return false;
+  const body = asRecord(err.response.data);
+  return typeof body?.i18nKey !== "string" && typeof body?.code !== "string";
+}
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Başlamış aramayı SONUCA KADAR yoklar (`EXTERNAL_SEARCH_POLL_MS`).
+ *  - DONE → sonuç; FAILED / 404 / tavan → `ExternalSearchError`.
+ *  - Tek bir yoklamanın düşmesi (ağ, 5xx, 429) aramayı DÜŞÜRMEZ: arama sunucuda
+ *    sürüyor, ücretli sonucu bir bağlantı kesintisi yüzünden atılmaz — tavana
+ *    kadar yoklanır. Diğer 4xx (yetki kalktı…) olduğu gibi çağırana gider.
+ *  - Genel hata toast'ı kapalı (`skipErrorToast`): durumu pencere söyler.
+ */
+async function pollExternalSearch(
+  searchId: string,
+  since: number,
+  shouldStop: (() => boolean) | undefined,
+): Promise<ExternalDiscoveryResult> {
+  const url = `${EXTERNAL_SEARCH_PATH}/searches/${encodeURIComponent(searchId)}`;
+  for (;;) {
+    await wait(EXTERNAL_SEARCH_POLL_MS);
+    if (shouldStop?.()) throw new ExternalSearchError("ABANDONED");
+    let state: Record<string, unknown> | null = null;
+    try {
+      const { data } = await companyApi.get<unknown>(url, { skipErrorToast: true, timeout: 20_000 });
+      state = asRecord(data);
+    } catch (err) {
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      if (status === 404) throw new ExternalSearchError("INTERRUPTED", { statusCode: 404 });
+      if (status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429) throw err;
+    }
+    if (state?.status === "DONE") {
+      // Sonuç gövdesi olmayan "bitti" yanıtı boş arama DEĞİLDİR ("bulunamadı" yazdırmaz).
+      if (asRecord(state.result) === null) throw new ExternalSearchError("FAILED");
+      return readExternalResult(state.result);
+    }
+    if (state?.status === "FAILED") {
+      const error = asRecord(state.error);
+      throw new ExternalSearchError("FAILED", {
+        statusCode: typeof error?.statusCode === "number" ? error.statusCode : null,
+        code: typeof error?.code === "string" && error.code ? error.code : null,
+        serverMessage: typeof error?.message === "string" && error.message.trim() ? error.message.trim() : null,
+      });
+    }
+    if (Date.now() - since >= EXTERNAL_SEARCH_MAX_MS) throw new ExternalSearchError("TIMED_OUT");
+  }
+}
+
 /**
  * Faz B — AI web araması (Google Search grounding; AI bütçesinden).
  *
- * - `skipErrorToast`: hatayı pencere kendi gövdesinde, tek mesajla gösterir;
- *   genel istemcinin 5xx / ağ hatası toast'ı ikinci mesaj olurdu.
- * - Zaman aşımı sunucunun en uzun aramasından bilerek UZUN: ücretli bir
- *   aramayı yanıt yoldayken istemcinin kesmesi sonucu boşa harcatır.
- * - `scopes` gövdeye yalnız geçerli ve dolu ise girer (boş dizi sunucuda
- *   "bütün geçişler" demektir; eski API ise alanın kendisini reddeder).
+ * ZAMAN UYUMSUZ (2026-10-09, canlı yeniden doğrulama N1): arama gündüz 70-90 sn
+ * sürüyor ve tek HTTP isteğine sığmıyordu (vekilin 100 sn sınırı) — bitmiş
+ * ücretli araştırma 503 ile atılıyordu. Artık `POST …/external/start` aramayı
+ * sunucuda başlatıp hemen `{ searchId }` döner, sonuç `GET …/external/searches/:id`
+ * ile yoklanır (`RUNNING` → `DONE` + sonuç | `FAILED` + hata).
+ *
+ *  - Arama başlamadan bilinen retler (doğrulama 400, yetki / firma doğrulaması
+ *    403, bütçe reddi) başlatma isteğinin KENDİ hatasıdır: axios hatası olarak
+ *    gider, çağıran eskisi gibi okur.
+ *  - Başlatma ucu yoksa (eski API, 404) arama bir kez eş zamanlı uca düşer ve
+ *    `onSyncFallback` çağrılır; çağıran sonraki aramalarda `sync: true` verir.
+ *  - Genel hata toast'ı kapalı (`skipErrorToast`): hatayı pencere kendi
+ *    gövdesinde, tek mesajla gösterir.
  */
-export function useExternalSupplierDiscovery() {
-  return useMutation({
-    mutationFn: async (input: ExternalDiscoveryInput): Promise<ExternalDiscoveryResult> => {
-      const { scopes, ...rest } = input;
-      const wanted = DISCOVERY_SCOPES.filter((s) => scopes?.includes(s));
-      const { data } = await companyApi.post<{
-        companies?: ExternalCandidate[];
-        incompleteScopes?: DiscoveryScope[];
-        incompleteReasons?: unknown;
-        incompleteMessages?: unknown;
-      }>("/company/ai/supplier-discovery/external", wanted.length > 0 ? { ...rest, scopes: wanted } : rest, {
-        timeout: 150_000,
-        skipErrorToast: true,
-      });
-      const incomplete = Array.isArray(data.incompleteScopes) ? data.incompleteScopes : [];
-      const incompleteScopes = DISCOVERY_SCOPES.filter((s) => incomplete.includes(s));
-      const reasons = asRecord(data.incompleteReasons);
-      const messages = asRecord(data.incompleteMessages);
-      const incompleteReasons: ExternalDiscoveryResult["incompleteReasons"] = {};
-      const incompleteMessages: ExternalDiscoveryResult["incompleteMessages"] = {};
-      for (const scope of incompleteScopes) {
-        const reason = INCOMPLETE_REASONS.find((r) => r === reasons?.[scope]);
-        if (reason) incompleteReasons[scope] = reason;
-        const message = messages?.[scope];
-        if (typeof message === "string" && message.trim()) incompleteMessages[scope] = message.trim();
-      }
-      return {
-        companies: Array.isArray(data.companies) ? data.companies : [],
-        incompleteScopes,
-        incompleteReasons,
-        incompleteMessages,
-        supportsScopes: reasons !== null,
-      };
-    },
-  });
+export async function searchExternalSuppliers(
+  input: ExternalDiscoveryInput,
+  options: ExternalSearchOptions = {},
+): Promise<ExternalDiscoveryResult> {
+  const body = externalSearchBody(input);
+  if (options.sync) return searchSynchronously(body);
+  const since = options.since ?? Date.now();
+  let searchId: string;
+  try {
+    // Yanıt hemen gelir; zaman aşımı yine de cömert (uyuyan API ~30 sn'de kalkar):
+    // sunucu aramayı başlatmışken istemcinin isteği kesmesi, "Yeniden ara" ile
+    // İKİNCİ ücretli aramayı başlatırdı.
+    const { data } = await companyApi.post<unknown>(`${EXTERNAL_SEARCH_PATH}/start`, body, {
+      timeout: 60_000,
+      skipErrorToast: true,
+    });
+    const id = asRecord(data)?.searchId;
+    // Kimliksiz "başladı" yanıtı izlenemez: genel arama hatası.
+    if (typeof id !== "string" || !id) throw new ExternalSearchError("FAILED");
+    searchId = id;
+  } catch (err) {
+    if (!isStartRouteMissing(err)) throw err;
+    options.onSyncFallback?.();
+    return searchSynchronously(body);
+  }
+  options.onStarted?.(searchId);
+  return pollExternalSearch(searchId, since, options.shouldStop);
+}
+
+/**
+ * Daha önce başlatılmış aramayı izlemeyi sürdürür (kimlik pencerenin oturumunda
+ * saklıdır). Yeni arama BAŞLATMAZ; sonuç / hata `searchExternalSuppliers` ile aynı.
+ */
+export function resumeExternalSupplierSearch(
+  searchId: string,
+  options: Pick<ExternalSearchOptions, "since" | "shouldStop"> = {},
+): Promise<ExternalDiscoveryResult> {
+  return pollExternalSearch(searchId, options.since ?? Date.now(), options.shouldStop);
+}
+
+/**
+ * SÜREN ARAMANIN SAYFA YENİLEMEYİ AŞAN KAYDI (gözden geçirme R6-02).
+ *
+ * Aramanın sunucudaki kimliği yalnız bellekteydi (pencerenin React Query
+ * oturumu): sayfa yenilenince / sekme kapatılıp geri açılınca kimlik de onu
+ * izleyen döngü de birlikte ölüyor, arama sunucuda sürdüğü ve sonucu 15 dakika
+ * saklandığı hâlde istemcinin onu soracak kimliği kalmıyordu — pencere "aranıyor"
+ * demiyor, "Web'de Ara" açık duruyor, ikinci tıklama ikinci ücretli aramayı
+ * başlatıp ilkinin sonucunu atıyordu.
+ *
+ * Kimlik sunucudan geldiği AN bağlam başına buraya yazılır; pencere bağlanırken
+ * önbellekte süren arama yoksa buradan okur ve aynı aramayı
+ * `resumeExternalSupplierSearch` ile izlemeyi sürdürür. Arama BİTİNCE silinir
+ * (sonuç, sunucuda düştü, kimlik bilinmiyor, süre doldu).
+ *  · depo `sessionStorage` — sekmeyle birlikte biter;
+ *  · anahtar `quick-request…` ailesindendir (`quick-request-member-invites:<talep>`
+ *    gibi): önek `lib/company-auth/tenant-storage.ts` `TENANT_SESSION_PREFIXES`te
+ *    KAYITLI → çıkışta ve aynı sekmede başka kullanıcı girince silinir. Anahtar
+ *    bu önekle başlamayacak biçimde değiştirilirse önek oraya eklenmelidir
+ *    (kayıt kalem adlarını ve bölgeyi taşır — firma verisi);
+ *  · okumak SİLMEZ (ikinci yenileme de aynı aramayı bulur); bozuk kayıt,
+ *    tanınmayan sürüm ve süresi geçmiş kayıt okunmaz ve silinir;
+ *  · depo kapalıysa (gizli sekme) sessizce yok sayılır — arama yenilemeyi aşmaz,
+ *    akış çalışır.
+ */
+export const PENDING_EXTERNAL_SEARCH_KEY = "quick-request-supplier-search";
+
+/** Saklanan biçim değişince ARTIRILIR; tanınmayan sürümün kaydı okunmaz ve silinir. */
+export const PENDING_EXTERNAL_SEARCH_VERSION = 1;
+
+/**
+ * Kayıt aramanın BAŞLADIĞI andan bu kadar sonra okunmaz: sunucu biten aramanın
+ * sonucunu 15 dakika saklar (`ASYNC_SEARCH_LIMITS.keepFinishedMs`) — başlangıçtan
+ * saymak güvenli taraftır. Daha eski kimlik sorulmaz (sonuç ya unutulmuştur ya
+ * unutulmak üzeredir; kullanıcıya dakikalar sonra "yarıda kesildi" denmez).
+ */
+export const PENDING_EXTERNAL_SEARCH_KEEP_MS = 15 * 60_000;
+
+/** Süren bir aramayı yeniden bağlanan sayfanın izleyebilmesi için gerekenler. */
+export interface PendingExternalSearch {
+  /** Aramanın sunucudaki kimliği. */
+  searchId: string;
+  /** Aramanın başladığı an (ms) — sayaç ve bekleme tavanı buradan sürer. */
+  since: number;
+  /** `merge`: kısmi sonucun üstüne ekleyen arama. */
+  mode: "replace" | "merge";
+  /** Yalnız bu geçişler arandı (null = hepsi). */
+  scopes: DiscoveryScope[] | null;
+  /** Aramaya giden kalem adları — "karşıladığı kalemler" sonuç gelince buna göre çözülür. */
+  items: string[];
+  /** Aramaya giden bölge metni (alan yeniden açılışta neyin arandığını göstersin). */
+  region: string;
+}
+
+function parsePendingSearch(raw: unknown, now: number): PendingExternalSearch | null {
+  const p = asRecord(raw);
+  if (!p) return null;
+  const { searchId, since, mode, scopes, items, region } = p;
+  if (typeof searchId !== "string" || !searchId) return null;
+  if (typeof since !== "number" || !Number.isFinite(since) || now - since >= PENDING_EXTERNAL_SEARCH_KEEP_MS) return null;
+  if (mode !== "replace" && mode !== "merge") return null;
+  if (scopes !== null && !(Array.isArray(scopes) && scopes.every((s) => DISCOVERY_SCOPES.includes(s as DiscoveryScope)))) {
+    return null;
+  }
+  if (!Array.isArray(items) || !items.every((i) => typeof i === "string")) return null;
+  if (typeof region !== "string") return null;
+  return {
+    searchId,
+    since,
+    mode,
+    scopes: scopes === null ? null : (scopes as DiscoveryScope[]),
+    items: items as string[],
+    region,
+  };
+}
+
+/** Depodaki GEÇERLİ kayıtlar (bağlam → arama); bozuk / süresi geçmiş olan düşer. */
+function readPendingSearches(now: number): Record<string, PendingExternalSearch> {
+  const raw = sessionStorage.getItem(PENDING_EXTERNAL_SEARCH_KEY);
+  if (!raw) return {};
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = null;
+  }
+  const root = asRecord(parsed);
+  const searches = root?.v === PENDING_EXTERNAL_SEARCH_VERSION ? asRecord(root.searches) : null;
+  const out: Record<string, PendingExternalSearch> = {};
+  for (const [context, value] of Object.entries(searches ?? {})) {
+    const search = parsePendingSearch(value, now);
+    if (search) out[context] = search;
+  }
+  return out;
+}
+
+/** Depoyu verilen kayıtlara eşitler; `current` (depodaki metin) zaten aynıysa yazmaz. */
+function writePendingSearches(searches: Record<string, PendingExternalSearch>, current?: string | null): void {
+  if (Object.keys(searches).length === 0) {
+    sessionStorage.removeItem(PENDING_EXTERNAL_SEARCH_KEY);
+    return;
+  }
+  const next = JSON.stringify({ v: PENDING_EXTERNAL_SEARCH_VERSION, searches });
+  if (next !== current) sessionStorage.setItem(PENDING_EXTERNAL_SEARCH_KEY, next);
+}
+
+/** Bağlamın süren aramasını yazar (bağlam başına TEK kayıt; süresi geçmiş kayıtlar bu arada atılır). */
+export function savePendingExternalSearch(context: string, search: PendingExternalSearch): void {
+  if (!context || !search.searchId) return;
+  try {
+    writePendingSearches({ ...readPendingSearches(Date.now()), [context]: search });
+  } catch {
+    // depo kapalı / dolu — arama sayfa yenilemeyi aşmaz, akış çalışır
+  }
+}
+
+/** Bağlamın süren aramasını okur (silmez). Kayıt yoksa, bozuksa ya da süresi geçtiyse `null`. */
+export function readPendingExternalSearch(context: string): PendingExternalSearch | null {
+  if (!context) return null;
+  try {
+    const raw = sessionStorage.getItem(PENDING_EXTERNAL_SEARCH_KEY);
+    if (!raw) return null;
+    const searches = readPendingSearches(Date.now());
+    // Okunamayan / süresi geçen kayıt depoda da kalmaz (bir daha okunmasın).
+    writePendingSearches(searches, raw);
+    return searches[context] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Bağlamın araması BİTTİ (sonuç / hata / süre doldu): kaydı silinir. */
+export function clearPendingExternalSearch(context: string): void {
+  if (!context) return;
+  try {
+    if (!sessionStorage.getItem(PENDING_EXTERNAL_SEARCH_KEY)) return;
+    const searches = readPendingSearches(Date.now());
+    delete searches[context];
+    writePendingSearches(searches);
+  } catch {
+    // yok say
+  }
 }
 
 /**

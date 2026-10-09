@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { PageContainer } from "@/components/list/page-container";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   ProductBreadcrumb,
   ProductDetailBody,
@@ -47,13 +48,15 @@ export default function PanelProductPage() {
   const { company: own } = useCompanyAuth();
   const firmaSlug = params?.firmaSlug ?? "";
   const urunSlug = params?.urunSlug ?? "";
-  const { data, isLoading, isError } = usePublicProduct(firmaSlug, urunSlug);
+  const { data, isPending, isError, refetch } = usePublicProduct(firmaSlug, urunSlug);
   const related = useRelatedProducts(firmaSlug, urunSlug);
   // Veri istemcide gelir; kart/e-posta "Bilgi iste"si `#bilgi-iste` çapasıyla
   // açılır ama tarayıcı öğeyi ilk boyamada bulamıyordu (arayüz testi D-022).
   useScrollToHash(!!data);
 
-  if (isLoading) {
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "Ürün bulunamadı" çizilirdi (LİSTE DURUMLARI).
+  if (isPending) {
     return (
       <PageContainer>
         <p className="text-sm text-zinc-500">{t("yukleniyor")}</p>
@@ -61,7 +64,19 @@ export default function PanelProductPage() {
     );
   }
 
-  if (isError || !data) {
+  // KESİNTİ ≠ YOK (canlı doğrulama 2026-10-09 taraması): kanca 404'ü `null`
+  // (başarılı "yok") olarak döndürür; `isError` = ürün OKUNAMADI. Eskiden o da
+  // "Ürün bulunamadı — vitrinden çekilmiş" diyordu. Arka plan yenilemesi
+  // düşerse eldeki ürün ekranda kalır.
+  if (isError && !data) {
+    return (
+      <PageContainer>
+        <ErrorState onRetry={() => void refetch()} />
+      </PageContainer>
+    );
+  }
+
+  if (!data) {
     return (
       <PageContainer>
         <div className="rounded-2xl bg-zinc-50 px-6 py-10 text-center ring-1 ring-zinc-950/5">

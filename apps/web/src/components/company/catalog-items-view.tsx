@@ -83,7 +83,9 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
   const items = list?.items ?? [];
   // Yükleme/hata "boş katalog" sanılmasın (derin denetim S066): boş durum
   // yalnız BAŞARILI ve boş yanıtta çizilir.
-  const listLoading = current.isLoading && !list;
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve boş
+  // katalog çizilirdi (LİSTE DURUMLARI).
+  const listLoading = current.isPending;
   const listError = current.isError && !list;
 
   return (

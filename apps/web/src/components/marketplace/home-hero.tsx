@@ -158,6 +158,7 @@ export function HomeHero() {
           widgets={SELLER_WIDGETS}
           objects={SELLER_OBJECTS}
           ctaNote={supplierCtaNote}
+          ctaNoteSizer={buyerCtaNote}
         />
       ) : (
         <PanelHeroSearch
@@ -174,6 +175,7 @@ export function HomeHero() {
           widgets={BUYER_WIDGETS}
           objects={BUYER_OBJECTS}
           ctaNote={buyerCtaNote}
+          ctaNoteSizer={supplierCtaNote}
         />
       )}
       </Suspense>

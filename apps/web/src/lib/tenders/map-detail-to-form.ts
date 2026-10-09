@@ -67,6 +67,26 @@ export function hasRetiredCategory(l: Pick<ListingDetail, "categoryIds" | "hasRe
 }
 
 /**
+ * "BU TOHUM KULLANIMDAN KALKAN KATEGORİLİ BİR TALEPTEN GELDİ" İŞARETİ (canlı
+ * doğrulama 2026-10-09, CP-05).
+ *
+ * `mapDetailToForm` gizli kodu forma vermez ve form değerleri şemayla sınırlıdır
+ * — "kaynakta eski kategori vardı" bilgisi değerlerin İÇİNDE taşınamaz. Düzenleme
+ * sayfası bunu ayrı bir prop'la söylüyordu; kopya yolları (`?from=` ile yeni
+ * talep, "Son taleplerden başla") söylemiyordu: kategori alanı nedensiz boş
+ * açılıyordu. İşaret artık tohumun KENDİSİNE bağlı: eşleyicinin döndürdüğü nesne
+ * burada kayıtlıdır, tohumu alan form `seedHasRetiredCategory` ile sorar — araya
+ * giren her çağıranın bilgiyi elden ele taşıması gerekmez. Nesne kimliğiyle
+ * çalışır: tohum kopyalanırsa işaret taşınmaz (çağıranlar tohumu aynen geçirir).
+ */
+const RETIRED_CATEGORY_SEEDS = new WeakSet<object>();
+
+/** Tohum (`mapDetailToForm` çıktısı) kullanımdan kalkan kategori taşıyan bir talepten mi üretildi? */
+export function seedHasRetiredCategory(seed: object | null | undefined): boolean {
+  return !!seed && RETIRED_CATEGORY_SEEDS.has(seed);
+}
+
+/**
  * ListingDetail → wizard form (mapToInput'un tersi). Düzenle ve Kopyala
  * akışları paylaşır. `forCopy=true` ise tarih/davet gibi kopyaya taşınmaması
  * gereken alanlar boşaltılır.
@@ -78,7 +98,7 @@ export function mapDetailToForm(
   const forCopy = opts?.forCopy ?? false;
   const allowed = (l.allowedCurrencies ?? []).filter(Boolean) as Currency[];
   const primary = (l.primaryCurrency as Currency) ?? "TRY";
-  return {
+  const form: TenderFormData = {
     ...DEFAULT_FORM_VALUES,
     // Gizli segmentteki kod forma TAŞINMAZ (2026-10-09): düzenlemede ve kopyada
     // çip olarak görünmez, yeni talebe ön-seçili gelmez. Görünür kategorisi
@@ -179,4 +199,6 @@ export function mapDetailToForm(
       .map((iv) => iv.rothernId)
       .filter((s): s is string => !!s),
   };
+  if (hasRetiredCategory(l)) RETIRED_CATEGORY_SEEDS.add(form);
+  return form;
 }

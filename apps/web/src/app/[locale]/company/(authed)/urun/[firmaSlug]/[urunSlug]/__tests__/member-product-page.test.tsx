@@ -8,6 +8,10 @@ const h = vi.hoisted(() => ({
   company: null as null | { tier: string; companyVerificationStatus: string; slug: string },
   replace: vi.fn(),
   fetchedFor: "" as string,
+  /** Ürün sorgusunun yerine geçer (yanıt yok / hata / 404 = `data: null`). */
+  query: undefined as
+    | { data: unknown; isLoading: boolean; isPending: boolean; isError: boolean; refetch?: () => void }
+    | undefined,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -21,16 +25,18 @@ vi.mock("@/hooks/use-company-auth", () => ({
 vi.mock("@/hooks/use-portal-discovery", () => ({
   usePublicProduct: (companySlug: string) => {
     h.fetchedFor = companySlug;
+    if (companySlug && h.query) return h.query;
     return companySlug
       ? {
           isLoading: false,
+          isPending: false,
           isError: false,
           data: {
             product: { name: "Urun X", category: null, unit: "adet", categoryId: null, keywords: [] },
             company: { name: "ABC", slug: "abc" },
           },
         }
-      : { isLoading: false, isError: false, data: undefined };
+      : { isLoading: false, isPending: true, isError: false, data: undefined };
   },
 }));
 vi.mock("@/components/marketplace/product-detail", () => ({
@@ -55,6 +61,7 @@ beforeEach(() => {
   h.company = null;
   h.replace.mockClear();
   h.fetchedFor = "";
+  h.query = undefined;
   setStoreCompany(null);
 });
 
@@ -156,5 +163,40 @@ describe("Üyenin ürün sayfası", () => {
     h.company = { tier: "SILVER", companyVerificationStatus: "VERIFIED", slug: "abc" };
     render(<MemberProductPage />);
     expect(screen.getByText(/Bu ürün sizin firmanıza ait/)).toBeInTheDocument();
+  });
+});
+
+describe("Üyenin ürün sayfası — kesinti ≠ bulunamadı (canlı doğrulama 2026-10-09 taraması)", () => {
+  const NOT_FOUND = "Ürün bulunamadı";
+  const unverified = () => {
+    h.user = perms("buy:view", "sell:view");
+    h.company = { tier: "STANDART", companyVerificationStatus: "UNVERIFIED", slug: "me" };
+    setStoreCompany(h.company);
+  };
+
+  it("ürün okunamadıysa 'bulunamadı' değil hata + Tekrar dene", () => {
+    unverified();
+    const refetch = vi.fn();
+    h.query = { data: undefined, isLoading: false, isPending: false, isError: true, refetch };
+    render(<MemberProductPage />);
+    expect(screen.queryByText(NOT_FOUND)).toBeNull();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    screen.getByRole("button", { name: "Tekrar dene" }).click();
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'bulunamadı' çizilmez", () => {
+    unverified();
+    h.query = { data: undefined, isLoading: false, isPending: true, isError: false };
+    render(<MemberProductPage />);
+    expect(screen.queryByText(NOT_FOUND)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("API'nin 404 yanıtı (kanca `null` döner) gerçek 'bulunamadı'dır", () => {
+    unverified();
+    h.query = { data: null, isLoading: false, isPending: false, isError: false };
+    render(<MemberProductPage />);
+    expect(screen.getByText(NOT_FOUND)).toBeInTheDocument();
   });
 });

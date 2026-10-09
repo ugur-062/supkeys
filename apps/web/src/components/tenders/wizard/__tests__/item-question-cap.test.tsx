@@ -8,14 +8,19 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FormProvider, useForm } from "react-hook-form";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_FORM_VALUES, MAX_ITEM_QUESTIONS, type TenderFormData } from "@/lib/tenders/form-schema";
+
+const h = vi.hoisted(() => ({
+  /** Şablon listesi sorgusu (gerçek sözleşme: yanıt yokken `data` undefined). */
+  templates: { data: [] as unknown[] | undefined, isLoading: false, isPending: false, isError: false, refetch: vi.fn() },
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 vi.mock("@/hooks/use-templates", () => ({
-  useQuestionTemplates: () => ({ data: [], isLoading: false }),
+  useQuestionTemplates: () => h.templates,
   useQuestionTemplate: () => ({ data: undefined, isLoading: false }),
   useSaveQuestionTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -42,6 +47,38 @@ function Harness({ count }: { count: number }) {
     </FormProvider>
   );
 }
+
+beforeEach(() => {
+  h.templates = { data: [], isLoading: false, isPending: false, isError: false, refetch: vi.fn() };
+});
+
+describe("ItemQuestionModal — şablon seçici liste durumları (canlı doğrulama 2026-10-09 taraması)", () => {
+  const openPicker = async () => {
+    render(<Harness count={1} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /Şablondan Soru Ekle/ }));
+  };
+
+  it("şablonlar okunamadıysa 'Kayıtlı soru şablonunuz yok' değil hata + Tekrar dene", async () => {
+    h.templates = { data: undefined, isLoading: false, isPending: false, isError: true, refetch: vi.fn() };
+    await openPicker();
+    expect(screen.queryByText("Kayıtlı soru şablonunuz yok.")).toBeNull();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.templates.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'yükleniyor'", async () => {
+    h.templates = { data: undefined, isLoading: false, isPending: true, isError: false, refetch: vi.fn() };
+    await openPicker();
+    expect(screen.queryByText("Kayıtlı soru şablonunuz yok.")).toBeNull();
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+  });
+
+  it("BAŞARILI ve boş yanıt boş durumu çizer", async () => {
+    await openPicker();
+    expect(screen.getByText("Kayıtlı soru şablonunuz yok.")).toBeInTheDocument();
+  });
+});
 
 describe("ItemQuestionModal — soru tavanı (S085)", () => {
   it("tavanın altında 'Soru Ekle' açık; tavana ulaşınca kapanır ve neden yazılır", async () => {

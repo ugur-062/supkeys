@@ -8,6 +8,8 @@
  * bandındaydı, "Gizle" denince kayboluyordu. Bölüm talebin TÜM e-posta
  * davetlerini durumlarıyla listeler; etiketler durum bandıyla tek kaynaktan.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
@@ -220,6 +222,71 @@ describe("ListingEmailInvites — E-postayla davet edilenler", () => {
     const status = within(li).getByText("Gönderilmedi").parentElement!;
     expect(status.className).toMatch(/\bmax-w-full\b/);
     expect(li.querySelector(".whitespace-nowrap")).toBeNull();
+  });
+
+  // N6: sayfanın en altında son satırın rozeti AI Asistan düğmesinin altında
+  // kalıyordu (1440 px). R6-04: ilk düzeltme yalnız SON satırın rozetini içeri
+  // çekiyordu (`pr-16 sm:pr-14`) — örtüşme olmayan telefonda da o rozet öteki
+  // satırların sütunundan 64 px solda duruyordu.
+  it("N6 / R6-04: hiçbir satırın durum rozeti içeri çekilmez (rozet sütunu her genişlikte hizalı); pay bölümün geniş ekrandaki alt boşluğudur", async () => {
+    const outcomeOf = (text: string) => {
+      const li = screen.getByText(text).closest("li")!;
+      // Durum bloğu = rozet + neden / planlanan gönderim (`InviteOutcome` kökü).
+      return li.lastElementChild as HTMLElement;
+    };
+    const classes = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+    const padsRight = (c: string) => /^(?:[a-z0-9]+:)*(?:pr|pe|px|p)-/.test(c);
+    const NAMES = ["Tubacex SA", "Schrauben GmbH", "satinalma@uzun-alan-adli-tedarikci-firma.com.tr", "Viti Srl"];
+
+    h.get.mockResolvedValue({ data: { items: ITEMS } });
+    const view = setup(<ListingEmailInvites listingId="l1" className="mt-2" />);
+    await screen.findByText("Tubacex SA");
+    expect(within(outcomeOf("Viti Srl")).getByText("Davet iptal edildi")).toBeInTheDocument();
+    for (const name of NAMES) {
+      const own = classes(outcomeOf(name));
+      // Sona yaslı, sağ pay yok — son satır dahil.
+      expect(own, name).toContain("ml-auto");
+      expect(own.filter(padsRight), name).toEqual([]);
+      // Satırın kendisi de her satırda aynı kenar payını taşır.
+      expect(classes(outcomeOf(name).closest("li")!), name).toEqual(classes(outcomeOf(NAMES[0]!).closest("li")!));
+    }
+
+    // Pay: bölüm (sayfanın son öğesi) YALNIZ geniş ekranda alt boşluk ekler;
+    // telefonda / tablette kabuğun kendi boşluğu yeter, bölüm bir şey eklemez.
+    const section = screen.getByRole("region", { name: "E-postayla davet edilenler (4)" });
+    const bottom = classes(section).filter((c) => /(?:^|:)(?:pb|py|p)-/.test(c));
+    expect(bottom).toEqual(["lg:pb-16"]);
+    // Çağıranın sınıfı yerinde.
+    expect(classes(section)).toContain("mt-2");
+    view.unmount();
+
+    // Tek satırlık liste: o satır sondur — yine içeri çekilmez.
+    h.get.mockResolvedValue({ data: { items: [ITEMS[0]] } });
+    setup(<ListingEmailInvites listingId="l1" />);
+    await screen.findByText("Tubacex SA");
+    expect(classes(outcomeOf("Tubacex SA")).filter(padsRight)).toEqual([]);
+  });
+
+  // Payın dayandığı ölçüler başka dosyalarda: biri değişirse pay yeniden hesaplanmalı.
+  it("N6 geometrisi (kaynaktan): geniş ekranda kabuğun alt boşluğu + bölümün payı düğmenin tepesini aşar; dar ekranda kabuğun boşluğu tek başına yeter", () => {
+    const read = (file: string) => readFileSync(path.resolve(__dirname, "../../..", file), "utf-8");
+    const px = (token: string | undefined) => Number(token) * 4;
+    const shell = /id="icerik"\s+className="([^"]+)"/.exec(read("components/company-shell/shell.tsx"))?.[1].split(/\s+/) ?? [];
+    const launcher = read("components/company-shell/assistant/assistant-launcher.tsx");
+    const section = read("components/tenders/listing-email-invites.tsx");
+
+    // Kabuk: taban `pb-24`; 1024 px'ten itibaren `lg:py-8` onu ezer.
+    const shellBase = px(shell.find((c) => /^pb-\d+$/.test(c))?.slice(3));
+    const shellWide = px(shell.find((c) => /^lg:p[by]-\d+$/.test(c))?.replace(/^lg:p[by]-/, ""));
+    expect(shellBase).toBe(96);
+    expect(shellWide).toBe(32);
+    // Düğmenin (tam boy) tepesi: `bottom-8` + `h-14`; üzerine gelince 2 px kalkar.
+    const full = /"bottom-(\d+) right-\d+ h-(\d+) w-\d+"/.exec(launcher);
+    const fabTop = px(full?.[1]) + px(full?.[2]) + 2;
+    expect(fabTop).toBe(90);
+    const added = px(/PAGE_END_CLEARANCE_CLASS = "lg:pb-(\d+)"/.exec(section)?.[1]);
+    expect(shellWide + added).toBeGreaterThanOrEqual(fabTop);
+    expect(shellBase).toBeGreaterThanOrEqual(fabTop);
   });
 });
 

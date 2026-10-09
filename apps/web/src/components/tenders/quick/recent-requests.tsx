@@ -26,8 +26,15 @@ export function RecentRequests({ onSeed }: { onSeed: (form: TenderFormData) => v
     setBusy(id);
     try {
       const { data: detail } = await companyApi.get<ListingDetail>(`/company/listings/${id}`);
-      onSeed(mapDetailToForm(detail, { forCopy: true }));
-      toast.success(tr("kalemlerVeKategoriKopyalandiMiktarlari"));
+      const form = mapDetailToForm(detail, { forCopy: true });
+      onSeed(form);
+      // Gözden geçirme R6-06: kopyalanan talebin görünür kategorisi kalmadıysa
+      // (kullanımdan kalkan kategori forma taşınmaz) kategori alanı BOŞ gelir ve
+      // altındaki not "önceki kategori artık kullanılmıyor" der — toast aynı anda
+      // "kategori kopyalandı" demez, yalnız gerçekten kopyalananı söyler.
+      toast.success(
+        form.categoryIds.length > 0 ? tr("kalemlerVeKategoriKopyalandiMiktarlari") : tr("kalemlerKopyalandiMiktarlari"),
+      );
     } catch {
       toast.error(tr("talepKopyalanamadi"));
     } finally {

@@ -63,11 +63,15 @@ export function VisitorsView() {
           görünür" ayarı, başkalarının ziyaretini gördüğünüz sayfada. */}
       <VisitsVisibilityCard />
 
-      {q.isLoading ? (
+      {/* LİSTE DURUMLARI: iskelet `isPending`e bağlı (çevrimdışı duraklamada
+          hata kartı değil bekleme); hata kartı yalnız hiç veri yokken — eldeki
+          sayılar ve ziyaretçi satırları arka plan yenilemesi düşünce KALIR
+          (eskiden `isError` tek başına bütün sayfayı hata kartına çeviriyordu). */}
+      {q.isPending ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-hidden>
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-2xl bg-zinc-100" />)}
         </div>
-      ) : q.isError || !d ? (
+      ) : !d ? (
         <ErrorState title={t("ziyaretciVerisiAlinamadi")} message={t("birHataOlustuTekrarDeneyin")} onRetry={() => void q.refetch()} />
       ) : (
         <>

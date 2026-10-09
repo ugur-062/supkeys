@@ -56,7 +56,10 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
   const listLocale = useLocale() as Locale;
   const typeLabel = (type: CompanyAddressType) =>
     type === "FATURA" ? t("fatura") : type === "ILETISIM" ? t("iletisim") : t("teslimat");
-  const { data: addresses, isLoading, isError, refetch } = useAddresses();
+  // LİSTE DURUMLARI: `isPending` yükleme (çevrimdışı duraklamada "Henüz kayıtlı
+  // adres yok" çizilmesin); hata dalı yalnız hiç veri yokken — arka plan
+  // yenilemesi düşerse eldeki adresler kalır.
+  const { data: addresses, isPending, isError, refetch } = useAddresses();
   const del = useDeleteAddress();
   const confirm = useConfirm();
   const [editing, setEditing] = useState<CompanyAddress | "new" | null>(null);
@@ -126,9 +129,9 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
         </Text>
       ) : null}
 
-      {isLoading ? (
+      {isPending ? (
         <Text className="mt-3 text-sm text-zinc-500">{t("yukleniyor")}</Text>
-      ) : isError ? (
+      ) : isError && addresses === undefined ? (
         <p role="alert" className="mt-3 text-sm text-rose-800">
           {t("adreslerYuklenemedi")}{" "}
           <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">

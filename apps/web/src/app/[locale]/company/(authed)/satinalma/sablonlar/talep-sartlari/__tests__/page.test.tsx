@@ -9,7 +9,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REQUEST_DEFAULTS_FALLBACK } from "@rothern/shared";
 
-const h = vi.hoisted(() => ({ perms: [] as string[], mutateAsync: vi.fn(), toastError: vi.fn() }));
+const h = vi.hoisted(() => ({
+  perms: [] as string[],
+  mutateAsync: vi.fn(),
+  toastError: vi.fn(),
+  /** Şart sorgusunun yerine geçer (yanıt yok / hata). */
+  query: undefined as { data: undefined; isLoading: boolean; isError: boolean; refetch: () => void } | undefined,
+}));
 
 vi.mock("@/hooks/use-company-auth", () => ({
   useHasCompanyPermission: (p: string) => h.perms.includes(p),
@@ -20,10 +26,12 @@ vi.mock("@/lib/company-auth/store", () => ({
 }));
 vi.mock("@/hooks/use-company-addresses", () => ({ useAddresses: () => ({ data: [], isLoading: false }) }));
 vi.mock("@/hooks/use-request-defaults", () => ({
-  useRequestDefaults: () => ({
-    data: { defaults: { ...REQUEST_DEFAULTS_FALLBACK, paymentCategory: "DEFERRED", paymentDays: 30 }, source: "saved" },
-    isLoading: false,
-  }),
+  useRequestDefaults: () =>
+    h.query ?? {
+      data: { defaults: { ...REQUEST_DEFAULTS_FALLBACK, paymentCategory: "DEFERRED", paymentDays: 30 }, source: "saved" },
+      isLoading: false,
+      isError: false,
+    },
   useSaveRequestDefaults: () => ({ mutateAsync: h.mutateAsync, isPending: false }),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: h.toastError, info: vi.fn(), warning: vi.fn() } }));
@@ -34,6 +42,27 @@ beforeEach(() => {
   h.perms = [];
   h.mutateAsync.mockReset().mockResolvedValue({});
   h.toastError.mockReset();
+  h.query = undefined;
+});
+
+describe("Talep Şartları sayfası — kesinti (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("şartlar okunamadıysa sonsuz 'Yükleniyor…' değil hata + Tekrar dene", () => {
+    // Eskiden hata dalı yoktu: `isLoading || !draft` kesintide hep "Yükleniyor…".
+    const refetch = vi.fn();
+    h.query = { data: undefined, isLoading: false, isError: true, refetch };
+    render(<TalepSartlariPage />);
+    expect(screen.queryByText("Yükleniyor…")).toBeNull();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("yanıt beklenirken 'Yükleniyor…'", () => {
+    h.query = { data: undefined, isLoading: false, isError: false, refetch: vi.fn() };
+    render(<TalepSartlariPage />);
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
 
 describe("Talep Şartları sayfası", () => {

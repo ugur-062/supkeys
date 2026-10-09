@@ -591,7 +591,9 @@ export default function TeklifVerPage() {
     };
   }, [effectiveTarget, ownLastTotal, exactTotalStr, comparableTotalStr]);
 
-  if (detail.isLoading) {
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "Satın alma talebine ulaşılamıyor — kaldırılmış olabilir" çizilirdi.
+  if (detail.isPending) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center text-sm text-zinc-500">
         {tr("yukleniyor")}

@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActionCenterApiRow } from "@/hooks/use-company-dashboard";
 
 const h = vi.hoisted(() => ({
-  sa: { data: { rows: [] as ActionCenterApiRow[] }, isLoading: false, isError: false, refetch: vi.fn() },
-  st: { data: { rows: [] as ActionCenterApiRow[] }, isLoading: false, isError: false, refetch: vi.fn() },
+  sa: { data: { rows: [] as ActionCenterApiRow[] } as { rows: ActionCenterApiRow[] } | undefined, isLoading: false, isPending: false, isError: false, refetch: vi.fn() },
+  st: { data: { rows: [] as ActionCenterApiRow[] } as { rows: ActionCenterApiRow[] } | undefined, isLoading: false, isPending: false, isError: false, refetch: vi.fn() },
   unread: { satinalma: 0, satis: 0 },
   enabled: [] as string[],
 }));
@@ -28,6 +28,7 @@ const row = (over: Partial<ActionCenterApiRow>): ActionCenterApiRow => ({
 
 beforeEach(() => {
   h.sa.data = { rows: [] }; h.st.data = { rows: [] }; h.sa.isLoading = false; h.st.isLoading = false; h.sa.isError = false; h.st.isError = false;
+  h.sa.isPending = false; h.st.isPending = false;
   h.unread = { satinalma: 0, satis: 0 }; h.enabled = [];
 });
 
@@ -94,7 +95,29 @@ describe("CompanyActionCenter", () => {
 
   it("hata dalı boş liste sanılmaz", () => {
     h.st.isError = true;
+    h.st.data = undefined;
     render(<CompanyActionCenter portals={["satis"]} />);
     expect(screen.getByText("Bekleyen işler yüklenemedi")).toBeInTheDocument();
+    expect(screen.queryByText("Bekleyen iş yok.")).toBeNull();
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'Bekleyen iş yok' çizilmez", () => {
+    // `isLoading` false kalır; eskiden iskelet ona bağlıydı (LİSTE DURUMLARI).
+    h.st.data = undefined;
+    h.st.isPending = true;
+    const { container } = render(<CompanyActionCenter portals={["satis"]} />);
+    expect(screen.queryByText("Bekleyen iş yok.")).toBeNull();
+    expect(screen.queryByText("Bekleyen işler yüklenemedi")).toBeNull();
+    expect(container.querySelector(".animate-pulse")).not.toBeNull();
+  });
+
+  it("arka plan yoklaması düşünce eldeki satırlar kalır (hata kartına dönmez)", () => {
+    h.st.data = { rows: [row({ key: "unansweredInvites", severity: "warning", count: 2, dueAt: day(1) })] };
+    h.st.isError = true;
+    render(<CompanyActionCenter portals={["satis"]} />);
+    expect(screen.queryByText("Bekleyen işler yüklenemedi")).toBeNull();
+    expect(screen.queryByText("Bekleyen iş yok.")).toBeNull();
+    // Satır hâlâ çizili: bölümde en az bir bağlantı var.
+    expect(within(screen.getByRole("region", { name: /Bekleyen işler/i })).getAllByRole("link").length).toBeGreaterThan(0);
   });
 });

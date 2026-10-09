@@ -36,6 +36,12 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 /** İlk `/me` yanıtı (ya da açık oturumda bir istek) bu kadar gecikirse şüphe doğar (ms). */
 export { SERVICE_SLOW_AFTER_MS };
 
+/**
+ * Notun alt boşluğu — kabuğun içerik sarmalayıcısının üst boşluğuyla
+ * (`shell.tsx` `py-6 lg:py-8`) AYNI olmalı; bkz. `ServiceNotice`.
+ */
+export const SERVICE_NOTICE_GAP_CLASS = "mb-6 lg:mb-8";
+
 /** `/me` kesin hataya düştükten sonraki otomatik yoklama aralıkları (ms). */
 export const SERVICE_RECHECK_DELAYS_MS: readonly number[] = [10_000, 20_000, 40_000, 60_000];
 
@@ -191,7 +197,16 @@ export function ServiceNotice({ me, pending }: { me: MeQueryState; pending: bool
       role="status"
       data-testid="service-notice"
       data-service-notice={phase}
-      className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+      /* ALT BOŞLUK = KABUĞUN ÜST BOŞLUĞU (`py-6 lg:py-8`; canlı doğrulama
+         2026-10-09, OUTR-7). İki panel anasayfasının hero bandı kabuğun üst
+         boşluğunu negatif marjla iptal eder (`-mt-6 lg:-mt-8`, fotoğraf üst
+         çubuğun hemen altında başlasın diye) ve içerik alanının İLK çocuğu
+         olduğunu varsayar. Not onun üstüne oturunca `mb-4` yetmiyordu: bant
+         notun alt 14 px'ini (telefonda 6 px) örtüyor, alt kenarlık ve ikinci
+         satırın boşluğu kayboluyordu. Boşluk kabuğunkiyle aynı olunca bant
+         notun tam altında başlar; öbür sayfalarda not ile içerik arası
+         kabuğun kendi boşluğu kadar olur. */
+      className={`${SERVICE_NOTICE_GAP_CLASS} flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3`}
     >
       <CloudOff className="size-5 shrink-0 text-amber-700" aria-hidden="true" />
       <div className="min-w-0 flex-[1_1_16rem] space-y-0.5">

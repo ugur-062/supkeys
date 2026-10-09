@@ -104,9 +104,10 @@ vi.mock("@/hooks/use-categories", () => ({
 vi.mock("@/components/categories/category-selector-button", () => ({
   // `retiredHint`: form, gizli kodu değerden ÇIKARDIĞI için alanın kendi
   // "önceki kategori kullanılmıyor" notunu ayrıca ister (gözden geçirme R-WEB-01).
-  CategorySelectorButton: ({ value, onChange, modalDescription, retiredHint }: { value: string[]; onChange: (ids: string[]) => void; modalDescription?: string; retiredHint?: boolean }) => (
+  // `retiredOptional`: notun sözü — yayındaki talepte seçim istenmez (CP-04).
+  CategorySelectorButton: ({ value, onChange, modalDescription, retiredHint, retiredOptional }: { value: string[]; onChange: (ids: string[]) => void; modalDescription?: string; retiredHint?: boolean; retiredOptional?: boolean }) => (
     <>
-      <button type="button" data-description={modalDescription} data-retired-hint={String(!!retiredHint)} onClick={() => onChange(["39121600"])}>{value.length ? `Kategori: ${value[0]}` : "Kategori seç"}</button>
+      <button type="button" data-description={modalDescription} data-retired-hint={String(!!retiredHint)} data-retired-optional={String(!!retiredOptional)} onClick={() => onChange(["39121600"])}>{value.length ? `Kategori: ${value[0]}` : "Kategori seç"}</button>
       {value.length ? <button type="button" onClick={() => onChange([])}>Kategorileri boşalt</button> : null}
     </>
   ),
@@ -115,6 +116,8 @@ vi.mock("@/components/categories/category-selector-button", () => ({
 import { toast } from "sonner";
 import { QuickRequest } from "../quick-request";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "@/lib/tenders/form-schema";
+import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
+import { companyApi } from "@/lib/company-auth/api";
 import { closesAtFromDays } from "@/lib/tenders/request-defaults";
 import { parseAppWallClockInput } from "@/lib/time-zone";
 
@@ -913,9 +916,13 @@ describe("QuickRequest", () => {
       );
       const field = await screen.findByRole("button", { name: "Kategori seç" });
       expect(screen.queryByRole("button", { name: /Kategori: 46/ })).toBeNull();
-      // Alan neden boş (kategorinin adı anılmadan) ve kayıt neden engellenmiyor.
+      // Alan neden boş (kategorinin adı anılmadan) ve kayıt neden engellenmiyor:
+      // TEK not — alanın notu, seçim istemeyen sözle (canlı doğrulama CP-04:
+      // "güncel bir kategori seçin" ile "seçmeden de kaydedebilirsiniz" alt alta duruyordu).
       expect(field).toHaveAttribute("data-retired-hint", "true");
-      expect(screen.getByText("Bu talebin güncel bir kategorisi yok. Kategori seçmeden de kaydedebilirsiniz.")).toBeInTheDocument();
+      expect(field).toHaveAttribute("data-retired-optional", "true");
+      expect(screen.queryByText(/Bu talebin güncel bir kategorisi yok/)).toBeNull();
+      expect(screen.queryByText("Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.")).toBeNull();
       expect(screen.queryByText("Yayın için başlık ve kategori gerekli.")).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Değişiklikleri kaydet" }));
       await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
@@ -938,9 +945,14 @@ describe("QuickRequest", () => {
       expect(h.update.mock.calls[0][0].categoryIds).toEqual([]);
     }, 30_000);
 
-    it("yayındaki talep: sayfa 'kullanımdan kalkan kategori' bilgisini verirse (retiredCategory) alan notu çizilir", async () => {
+    it("yayındaki talep: sayfa 'kullanımdan kalkan kategori' bilgisini verirse (retiredCategory) alan notu çizilir — tek not, isteğe bağlı sözle", async () => {
       wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="OPEN" retiredCategory initialValues={{ ...listing(), categoryIds: [] }} />);
-      expect(await screen.findByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "true");
+      const field = await screen.findByRole("button", { name: "Kategori seç" });
+      expect(field).toHaveAttribute("data-retired-hint", "true");
+      expect(field).toHaveAttribute("data-retired-optional", "true");
+      // Formun kendi "kategorisiz kaydedebilirsiniz" notu aynı durumu ikinci kez anlatmaz (CP-04).
+      expect(screen.queryByText(/Bu talebin güncel bir kategorisi yok/)).toBeNull();
+      expect(screen.queryByText("Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.")).toBeNull();
     }, 30_000);
 
     it("yayındaki talep: kategorisiz açılan formda güncel kategori seçilirse o gönderilir; notlar kalkar", async () => {
@@ -983,11 +995,136 @@ describe("QuickRequest", () => {
           initialValues={{ ...listing(), categoryIds: ["46181500"] }}
         />,
       );
-      expect(await screen.findByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "true");
+      const field = await screen.findByRole("button", { name: "Kategori seç" });
+      expect(field).toHaveAttribute("data-retired-hint", "true");
       // Taslakta "kategorisiz kaydedebilirsiniz" denmez: yayın için kategori gerekir.
+      expect(field).toHaveAttribute("data-retired-optional", "false");
       expect(screen.queryByText(/Bu talebin güncel bir kategorisi yok/)).toBeNull();
+      // Alanın altında tek not: genel yardım satırı da çizilmez.
+      expect(screen.queryByText("Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.")).toBeNull();
       expect(screen.getByText("Yayın için başlık ve kategori gerekli.")).toBeInTheDocument();
     }, 30_000);
+
+    /**
+     * KOPYA (canlı doğrulama CP-05). `?from=` ile açılan yeni talep ve "Son
+     * taleplerden başla" kategori alanını nedensiz boş açıyordu; ikincisi
+     * kullanıcı hiçbir şeye dokunmadan kırmızı "En az 1 kategori seçmelisiniz"
+     * de basıyordu. Eşleyici tohumu işaretler (`seedHasRetiredCategory`); form
+     * düzenlemedeki notun aynısını çizer — yeni talepte kategori ZORUNLU sözle.
+     */
+    const legacyDetail = (over: Record<string, unknown> = {}) =>
+      ({
+        id: "t9",
+        title: "Endüstriyel iş eldiveni alımı",
+        description: null,
+        type: "ALIM",
+        format: "RFQ",
+        status: "OPEN",
+        visibility: "PUBLIC",
+        targetCountries: [],
+        primaryCurrency: "TRY",
+        allowedCurrencies: ["TRY"],
+        categoryIds: [],
+        hasRetiredCategory: true,
+        items: [{ id: "i1", name: "İş eldiveni", quantity: "100", unit: "çift", questions: [] }],
+        invitations: [],
+        ...over,
+      }) as never;
+
+    it("kopya (?from=): eski kategorili talebin tohumu — alan notu çizilir, zorunlu sözle; kırmızı hata ve ikinci not yok", async () => {
+      wrap(<QuickRequest seedTerms initialValues={mapDetailToForm(legacyDetail(), { forCopy: true })} />);
+      const field = await screen.findByRole("button", { name: "Kategori seç" });
+      expect(field).toHaveAttribute("data-retired-hint", "true");
+      expect(field).toHaveAttribute("data-retired-optional", "false");
+      expect(screen.queryByText("En az 1 kategori seçmelisiniz")).toBeNull();
+      expect(screen.queryByText("Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.")).toBeNull();
+      expect(screen.queryByText(/Bu talebin güncel bir kategorisi yok/)).toBeNull();
+      // Yeni talepte kategori zorunlu kalır.
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      expect((await screen.findAllByText("En az 1 kategori seçmelisiniz")).length).toBeGreaterThan(0);
+      expect(h.create).not.toHaveBeenCalled();
+    }, 30_000);
+
+    it("kopya: eski kategorisi OLMAYAN kategorisiz talebin tohumu not çizmez (genel yardım satırı durur)", async () => {
+      wrap(<QuickRequest seedTerms initialValues={mapDetailToForm(legacyDetail({ hasRetiredCategory: false }), { forCopy: true })} />);
+      expect(await screen.findByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "false");
+      expect(screen.getByText("Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.")).toBeInTheDocument();
+    }, 30_000);
+
+    it("'Son taleplerden başla': eski kategorili talep — alan notu çizilir; dokunmadan kırmızı 'en az 1 kategori' ÇIKMAZ; toast 'kategori kopyalandı' DEMEZ", async () => {
+      const get = vi.spyOn(companyApi, "get").mockResolvedValue({ data: legacyDetail() });
+      const toastSuccess = vi.spyOn(toast, "success");
+      try {
+        wrap(<QuickRequest />);
+        const field = await screen.findByRole("button", { name: "Kategori seç" });
+        expect(field).toHaveAttribute("data-retired-hint", "false");
+        fireEvent.click(await screen.findByRole("button", { name: "Geçen ayki kablo alımı" }));
+        await waitFor(() => expect(screen.getByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-hint", "true"));
+        expect(get).toHaveBeenCalledWith("/company/listings/t9");
+        expect(screen.getByRole("button", { name: "Kategori seç" })).toHaveAttribute("data-retired-optional", "false");
+        expect((screen.getByLabelText(/Talep başlığı/) as HTMLInputElement).value).toBe("Endüstriyel iş eldiveni alımı (2)");
+        expect(screen.queryByText("En az 1 kategori seçmelisiniz")).toBeNull();
+        expect(screen.queryByText("Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.")).toBeNull();
+        // Gözden geçirme R6-06: alan boş ve notu "önceki kategori artık
+        // kullanılmıyor" derken toast "Kalemler ve kategori kopyalandı" diyordu —
+        // iki mesaj çelişiyordu. Toast yalnız gerçekten kopyalananı söyler.
+        expect(toastSuccess.mock.calls.map((c) => c[0])).toEqual(["Kalemler kopyalandı — miktarları kontrol edin"]);
+      } finally {
+        get.mockRestore();
+        toastSuccess.mockRestore();
+      }
+    }, 30_000);
+
+    it("'Son taleplerden başla': görünür kategorili talep kategorisiyle gelir, not yok; toast kategoriyi de söyler", async () => {
+      const get = vi.spyOn(companyApi, "get").mockResolvedValue({ data: legacyDetail({ categoryIds: ["39121600"], hasRetiredCategory: false }) });
+      const toastSuccess = vi.spyOn(toast, "success");
+      try {
+        wrap(<QuickRequest />);
+        fireEvent.click(await screen.findByRole("button", { name: "Geçen ayki kablo alımı" }));
+        const field = await screen.findByRole("button", { name: "Kategori: 39121600" });
+        expect(field).toHaveAttribute("data-retired-hint", "false");
+        expect(screen.queryByText("En az 1 kategori seçmelisiniz")).toBeNull();
+        expect(toastSuccess.mock.calls.map((c) => c[0])).toEqual(["Kalemler ve kategori kopyalandı — miktarları kontrol edin"]);
+      } finally {
+        get.mockRestore();
+        toastSuccess.mockRestore();
+      }
+    }, 30_000);
+
+    it("'Son taleplerden başla': bir kategorisi kullanımdan kalkmış, öteki görünür talep — görünür olan kopyalanır, toast kategoriyi söyler", async () => {
+      const get = vi.spyOn(companyApi, "get").mockResolvedValue({ data: legacyDetail({ categoryIds: ["39121600"], hasRetiredCategory: true }) });
+      const toastSuccess = vi.spyOn(toast, "success");
+      try {
+        wrap(<QuickRequest />);
+        fireEvent.click(await screen.findByRole("button", { name: "Geçen ayki kablo alımı" }));
+        expect(await screen.findByRole("button", { name: "Kategori: 39121600" })).toHaveAttribute("data-retired-hint", "false");
+        expect(toastSuccess.mock.calls.map((c) => c[0])).toEqual(["Kalemler ve kategori kopyalandı — miktarları kontrol edin"]);
+      } finally {
+        get.mockRestore();
+        toastSuccess.mockRestore();
+      }
+    }, 30_000);
+
+    it("kopya toast'ı üç dilde: kategorisiz kopyada kategori anılmaz", async () => {
+      const { createTranslator } = await import("use-intl/core");
+      const { messagesFor, WEB_NAMESPACES } = await import("@rothern/i18n/messages");
+      const texts = (["tr", "en", "ru"] as const).map((locale) => {
+        const t = createTranslator({
+          locale,
+          messages: messagesFor(locale, WEB_NAMESPACES),
+          namespace: "web.panel.requests.recentRequests" as never,
+          onError: (e) => {
+            throw e;
+          },
+        }) as unknown as (key: string) => string;
+        return [t("kalemlerKopyalandiMiktarlari"), t("kalemlerVeKategoriKopyalandiMiktarlari")];
+      });
+      expect(texts).toEqual([
+        ["Kalemler kopyalandı — miktarları kontrol edin", "Kalemler ve kategori kopyalandı — miktarları kontrol edin"],
+        ["Line items copied — check the quantities", "Line items and category copied — check the quantities"],
+        ["Позиции скопированы — проверьте количества", "Позиции и категория скопированы — проверьте количества"],
+      ]);
+    });
 
     it("şablon tohumundaki gizli kategori forma girmez; alan nedenini söyler, yeni talepte kategori zorunlu kalır", async () => {
       // Şablon yükü eşleyiciden geçmez: ham kod buraya kadar gelir.

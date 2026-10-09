@@ -1,4 +1,5 @@
 import type { AbstractIntlMessages } from "next-intl";
+import { HIDDEN_SEGMENTS } from "@rothern/shared";
 
 /**
  * İSTEMCİYE GİTMEYEN ad alanları (i18n Faz 1): yalnız sunucu bileşenleri ve
@@ -46,8 +47,23 @@ export function omitPaths(messages: AbstractIntlMessages, paths: readonly string
  */
 export const PANEL_NAMESPACES = ["web.panel"] as const;
 
+/**
+ * GİZLİ SEGMENTİN SLOGANI İSTEMCİYE GİTMEZ (canlı doğrulama 2026-10-09, PUB-03).
+ *
+ * `web.marketing.taglines` her segment için bir cümle taşır (kataloglar üç
+ * dilde tam kalır — testleri kilitli). Sağlayıcı ad alanının tamamını HTML/RSC
+ * yüküne yazdığı için gizli segmentlerin cümleleri ("Finans ve sigorta
+ * hizmetleri." …) her herkese açık sayfanın kaynağında duruyordu. Ekranda hiç
+ * görünmezler: `segmentTaglineKey` gizli kod için `fallback` döner, yani bu
+ * anahtarları istemcide OKUYAN yok. Liste `HIDDEN_SEGMENTS`ten türer; bir
+ * segment geri açılınca cümlesi kendiliğinden yeniden gider.
+ */
+export const HIDDEN_TAGLINE_PATHS: readonly string[] = HIDDEN_SEGMENTS.map(
+  (segment) => `web.marketing.taglines.s${segment}`,
+);
+
 export function clientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
-  return omitPaths(messages, [...SERVER_ONLY_NAMESPACES, ...PANEL_NAMESPACES]);
+  return omitPaths(messages, [...SERVER_ONLY_NAMESPACES, ...PANEL_NAMESPACES, ...HIDDEN_TAGLINE_PATHS]);
 }
 
 /** Panel sağlayıcısının mesajları: kök istemci mesajları + `web.panel`. */

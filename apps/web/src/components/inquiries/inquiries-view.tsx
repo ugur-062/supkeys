@@ -121,7 +121,11 @@ export function InquiriesView({
   }, [visible, selectedId]);
   const selected = visible.find((t) => t.id === selectedId) ?? null;
 
-  const loading = paged.isLoading;
+  // Yanıt yok ve hata da yok = sorgu hâlâ bekliyor (`isPending` karşılığı; kanca
+  // onu dışa vermiyor). `isLoading`e bakılmaz: çevrimdışı duraklayan sorguda
+  // false kalır ve "Henüz bilgi talebi yok" çizilirdi (LİSTE DURUMLARI). `paged`
+  // her zaman açık olan yönün sorgusudur (karşı yön `enabled: false`).
+  const loading = paged.data === undefined && !paged.isError;
   const locked = isSeller && !!received.data?.locked;
 
   return (

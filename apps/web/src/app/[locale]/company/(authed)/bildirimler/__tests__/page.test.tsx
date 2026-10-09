@@ -15,6 +15,8 @@ const h = vi.hoisted(() => ({
   unread: 0 as number | undefined,
   markAll: vi.fn(),
   isError: false,
+  /** Çevrimdışı duraklama: istek yok, hata yok, veri yok (`isLoading` false). */
+  paused: false,
   refetch: vi.fn(),
 }));
 
@@ -27,8 +29,9 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 vi.mock("@/hooks/use-notifications", () => ({
   useNotificationFeed: () => ({
-    data: h.isError ? undefined : { pages: h.pages },
+    data: h.isError || h.paused ? undefined : { pages: h.pages },
     isLoading: false,
+    isPending: h.paused,
     isError: h.isError,
     refetch: h.refetch,
     hasNextPage: h.hasNextPage,
@@ -63,6 +66,7 @@ beforeEach(() => {
   h.hasNextPage = false;
   h.unread = 0;
   h.isError = false;
+  h.paused = false;
 });
 
 describe("BildirimlerPage", () => {
@@ -118,6 +122,23 @@ describe("BildirimlerPage", () => {
     h.pages = [[n("a")]];
     render(<BildirimlerPage />);
     expect(screen.queryByRole("button", { name: "Daha fazla yükle" })).toBeNull();
+  });
+});
+
+describe("Bildirimler — yanıt beklenirken (canlı doğrulama 2026-10-09 taraması)", () => {
+  it("çevrimdışı duraklayan sorguda 'Henüz bildiriminiz yok' + tercihler bağlantısı çizilmez", () => {
+    // İskelet `isLoading`e bağlıyken (duraklamada false) boş durum çiziliyordu.
+    h.paused = true;
+    const { container } = render(<BildirimlerPage />);
+    expect(screen.queryByText(/Henüz bildiriminiz yok/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "Bildirim Tercihlerine Git" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(container.querySelector(".animate-pulse")).not.toBeNull();
+  });
+
+  it("başarılı ve BOŞ yanıt boş durumu çizer", () => {
+    render(<BildirimlerPage />);
+    expect(screen.getByText(/Henüz bildiriminiz yok/)).toBeInTheDocument();
   });
 });
 

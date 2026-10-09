@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -79,8 +80,17 @@ export function AcceptOrderModal({
   const effectiveAccountId = isLetterOfCredit ? "" : (accountId ?? defaultId);
 
   // Liste yüklenirken "hesap yok" uyarısı ve pasif Onayla yanıp sönmesin
-  // (arayüz testi D-282) — yükleme ayrı dal.
-  const accountsLoading = !!accounts.isLoading && !accounts.data;
+  // (arayüz testi D-282) — yükleme ayrı dal. LİSTE DURUMLARI (canlı doğrulama
+  // 2026-10-09 taraması): "kayıtlı banka hesabı gerekli" yalnız BAŞARILI ve boş
+  // yanıtta. Yanıt yokken (yükleme ya da çevrimdışı duraklama — `isLoading`e
+  // bakılmaz) iskelet; hesaplar OKUNAMADIYSA hata + "Tekrar dene" (eskiden
+  // kesintide satıcıya "hesabınız yok, Ayarlar'a gidin" deniyordu).
+  const accountsUnread = accounts.data === undefined;
+  const accountsFailed = accountsUnread && !!accounts.isError;
+  const accountsLoading = accountsUnread && !accountsFailed;
+  const accountsError = (
+    <ErrorState compact className="mt-1 text-xs" onRetry={() => void accounts.refetch()} />
+  );
   const hasAccounts = !!accounts.data && accounts.data.length > 0;
   const bankReady = bankOptional || !!effectiveAccountId;
   const lock = useDialogSubmitLock(open);
@@ -128,6 +138,8 @@ export function AcceptOrderModal({
             <Label>{t("odemeHesabi")}</Label>
             {accountsLoading ? (
               <div className="mt-1 h-9 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
+            ) : accountsFailed ? (
+              accountsError
             ) : hasAccounts ? (
               <Select
                 value={effectiveAccountId}
@@ -147,6 +159,8 @@ export function AcceptOrderModal({
             <Label>{t("odemeHesabi2")}</Label>
             {accountsLoading ? (
               <div className="mt-1 h-9 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
+            ) : accountsFailed ? (
+              accountsError
             ) : hasAccounts ? (
               <>
                 <Select

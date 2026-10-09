@@ -60,7 +60,7 @@ export default function CompanyProfilePage() {
   const closingUrgency = useClosingUrgency();
   const params = useParams<{ id: string }>();
   const rothernId = params.id;
-  const { data, isLoading, isError, error, refetch } = useCompanyProfile(rothernId);
+  const { data, isPending, isError, error, refetch } = useCompanyProfile(rothernId);
   const invite = useInviteConnection();
   const block = useBlockCompany();
   const complaint = useFileComplaint();
@@ -87,7 +87,9 @@ export default function CompanyProfilePage() {
   const canSubmitBid = userHasPermission(me, "sell:bid:submit");
   const router = useRouter();
 
-  if (isLoading) {
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "Firma profili bulunamadı" çizilirdi (LİSTE DURUMLARI).
+  if (isPending) {
     return (
       <div className="space-y-4" aria-hidden>
         <div className="h-5 w-28 animate-pulse rounded bg-zinc-100" />

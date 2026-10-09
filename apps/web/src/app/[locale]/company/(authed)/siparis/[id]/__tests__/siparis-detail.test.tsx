@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   order: undefined as CompanyOrderDetail | undefined,
   isLoading: false,
+  /** Çevrimdışı duraklama: istek yok, hata yok, veri yok (`isLoading` false). */
+  paused: false,
   isError: false,
   error: null as unknown,
   refetch: vi.fn(),
@@ -60,6 +62,7 @@ vi.mock("@/hooks/use-company-orders", () => {
     useOrder: () => ({
       data: h.order,
       isLoading: h.isLoading,
+      isPending: h.isLoading || h.paused,
       isError: h.isError,
       error: h.error,
       refetch: h.refetch,
@@ -144,6 +147,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.order = undefined;
   h.isLoading = false;
+  h.paused = false;
   h.isError = false;
   h.error = null;
   h.confirm.mockResolvedValue(true);
@@ -158,6 +162,14 @@ describe("OrderDetailPage — yükleme/bulunamadı", () => {
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(
       0,
     );
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'Sipariş bulunamadı' değil iskelet", () => {
+    // İskelet `isLoading`e bağlıyken (duraklamada false) "bulunamadı" çiziliyordu.
+    h.paused = true;
+    const { container } = render(<OrderDetailPage />);
+    expect(screen.queryByText(/Sipariş bulunamadı/)).toBeNull();
+    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 
   it("veri yoksa nötr 'bulunamadı ya da yetkiniz yok' (D-162)", () => {

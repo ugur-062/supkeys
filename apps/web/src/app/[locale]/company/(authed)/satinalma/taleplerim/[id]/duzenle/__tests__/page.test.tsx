@@ -4,11 +4,18 @@
  * "bulunamadı"; firmanın başka kullanıcısının talebi formu AÇMAZ (API 403'üyle
  * aynı kural); düzenlenebilir talepte sayfa başlığı ve Vazgeç görünür.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  detail: { data: undefined as unknown, isLoading: false },
+  detail: { data: undefined as unknown, isLoading: false } as {
+    data: unknown;
+    isLoading: boolean;
+    isPending?: boolean;
+    isError?: boolean;
+    error?: unknown;
+    refetch?: () => void;
+  },
   user: { id: "u1" } as { id: string } | null,
 }));
 
@@ -97,5 +104,47 @@ describe("EditTenderPage", () => {
     h.detail = { data: listing({ status: "OPEN", categoryIds: [] }), isLoading: false };
     render(<EditTenderPage />);
     expect(screen.getByTestId("quick-request")).toHaveAttribute("data-retired-category", "false");
+  });
+});
+
+describe("EditTenderPage — kesinti ≠ bulunamadı (canlı doğrulama 2026-10-09 taraması)", () => {
+  const NOT_FOUND = { name: "Satın Alma Talebi bulunamadı" };
+
+  it("talep okunamadıysa (yanıt yok) 'bulunamadı' değil hata + Tekrar dene", () => {
+    const refetch = vi.fn();
+    h.detail = { data: undefined, isLoading: false, isPending: false, isError: true, error: { message: "Network Error" }, refetch };
+    render(<EditTenderPage />);
+    expect(screen.queryByRole("heading", NOT_FOUND)).toBeNull();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([502, 503, 429])("HTTP %i de okunamadı sayılır", (status) => {
+    h.detail = { data: undefined, isLoading: false, isPending: false, isError: true, error: { response: { status } }, refetch: vi.fn() };
+    render(<EditTenderPage />);
+    expect(screen.queryByRole("heading", NOT_FOUND)).toBeNull();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("API'nin 404 yanıtı gerçek 'bulunamadı'dır", () => {
+    h.detail = { data: undefined, isLoading: false, isPending: false, isError: true, error: { response: { status: 404 } }, refetch: vi.fn() };
+    render(<EditTenderPage />);
+    expect(screen.getByRole("heading", NOT_FOUND)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'bulunamadı' değil 'Yükleniyor…'", () => {
+    h.detail = { data: undefined, isLoading: false, isPending: true };
+    render(<EditTenderPage />);
+    expect(screen.queryByRole("heading", NOT_FOUND)).toBeNull();
+    expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+  });
+
+  it("arka plan yoklaması düşünce açık form kalır (yazılan değişiklik kaybolmaz)", () => {
+    h.detail = { data: listing(), isLoading: false, isPending: false, isError: true, error: { message: "Network Error" }, refetch: vi.fn() };
+    render(<EditTenderPage />);
+    expect(screen.getByTestId("quick-request")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

@@ -208,6 +208,7 @@ export function HeroDecor({
    sınıfları kullanır; ayrışırlarsa ölçü yanlış yükseklik ayırır. Renk ayrı. */
 export const HERO_TITLE_CLASS = "text-4xl font-bold tracking-tight text-balance sm:text-5xl";
 export const HERO_LEAD_CLASS = "mx-auto mt-3 max-w-xl text-base/7 text-pretty";
+export const HERO_NOTE_CLASS = "mt-5 flex flex-wrap items-center justify-center gap-2 text-sm";
 
 /**
  * İki metinden uzun olanın yüksekliğini ayıran yuva: `sizer` (öteki yüzün
@@ -218,10 +219,13 @@ export const HERO_LEAD_CLASS = "mx-auto mt-3 max-w-xl text-base/7 text-pretty";
  */
 export function SizedSlot({
   sizer,
+  sizerNode,
   sizerClassName,
   children,
 }: {
   sizer?: string;
+  /** Ölçü düz metin değilse (not + düğme) çizilecek içerik; `sizer` yine anahtar. */
+  sizerNode?: ReactNode;
   sizerClassName: string;
   children: ReactNode;
 }) {
@@ -230,7 +234,7 @@ export function SizedSlot({
     <div className="grid items-end">
       {children}
       <div aria-hidden className={cn("invisible [grid-area:1/1]", sizerClassName)}>
-        {sizer}
+        {sizerNode ?? sizer}
       </div>
     </div>
   );
@@ -250,6 +254,7 @@ export function PanelHeroSearch({
   chips = [],
   chipsLabel: chipsLabelProp,
   ctaNote,
+  ctaNoteSizer,
   backdrop = false,
   widgets,
   objects,
@@ -301,6 +306,8 @@ export function PanelHeroSearch({
    * geçti: sayılar bilgi veriyordu ama bir sonraki adımı söylemiyordu.
    */
   ctaNote?: { text: string; label: string; href: string };
+  /** Öteki yüzün notu — yalnız ÖLÇÜ (görünmez); bkz. `titleSizer`. */
+  ctaNoteSizer?: { text: string; label: string };
   /**
    * DEKORATİF ARKA PLAN KATMANLARI (2026-09-08, kullanıcı varlıkları):
    * dünya haritası + depo + gemi + uçak. Yalnız görsel; içerik ve yapı
@@ -850,7 +857,27 @@ export function PanelHeroSearch({
         {/* KÜÇÜK ÇIKIŞ — "bulamadıysan talep aç". Sayfanın birincil CTA'sı
             sol menüde; bu ikincil ve cümle içinde, hero'yu şişirmiyor. */}
         {ctaNote ? (
-          <p className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm text-zinc-600">
+          /* ÖLÇÜ (canlı doğrulama 2026-10-09, HEAD-01-R): iki yüzün notu
+             telefonda farklı satır sayısına sarıyor; bant içeriğini dikeyde
+             ortaladığı için 20 px'lik fark arama kutusunu 10 px oynatıyordu.
+             Öteki yüzün notu görünmez ölçü olarak aynı hücrede — başlık ve
+             alt cümleyle aynı yuva. */
+          <SizedSlot
+            sizer={ctaNoteSizer ? `${ctaNoteSizer.text} ${ctaNoteSizer.label}` : undefined}
+            sizerNode={
+              ctaNoteSizer ? (
+                <>
+                  {ctaNoteSizer.text}
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold">
+                    {ctaNoteSizer.label}
+                    <ArrowRightIcon aria-hidden className="size-4" />
+                  </span>
+                </>
+              ) : undefined
+            }
+            sizerClassName={HERO_NOTE_CLASS}
+          >
+          <p className={`${ctaNoteSizer ? "[grid-area:1/1] " : ""}${HERO_NOTE_CLASS} text-zinc-600`}>
             {ctaNote.text}
             <Link
               href={ctaNote.href}
@@ -860,6 +887,7 @@ export function PanelHeroSearch({
               <ArrowRightIcon aria-hidden className="size-4" />
             </Link>
           </p>
+          </SizedSlot>
         ) : null}
 
         {chips.length > 0 ? (

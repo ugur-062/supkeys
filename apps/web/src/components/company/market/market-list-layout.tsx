@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { FilterResults, MobileFilterButton, useFilters } from "@/components/marketplace/filter-shell";
+import { ErrorState } from "@/components/ui/error-state";
 import { Pagination } from "@/components/ui/pagination";
 import { PER_PAGE_OPTIONS, type PerPage } from "@/lib/public/product-filter-params";
 import type { ReactNode } from "react";
@@ -85,6 +86,26 @@ export function MarketListLayout({
       </div>
     </div>
   );
+}
+
+/**
+ * SÜZGEÇ RAYININ VERİSİZ HÂLİ — sayaç isteği henüz yanıtlanmadıysa "yükleniyor",
+ * düştüyse nedenini söyler ve yeniden denetir. Eskiden kesintide ray sonsuza
+ * dek "Süzgeçler yükleniyor…"da kalıyordu (canlı doğrulama 2026-10-09, OUTR-3).
+ */
+export function MarketFiltersPlaceholder({
+  failed,
+  onRetry,
+  loadingLabel,
+}: {
+  /** Sayaç isteği düştü ve gösterilecek eski veri de yok. */
+  failed: boolean;
+  onRetry: () => void;
+  loadingLabel: string;
+}) {
+  const t = useTranslations("web.panel.market.marketListLayout");
+  if (!failed) return <p className="text-sm text-zinc-500">{loadingLabel}</p>;
+  return <ErrorState compact message={t("suzgeclerYuklenemedi")} onRetry={onRetry} />;
 }
 
 /** "Sayfa başına" — URL'de `adet`; nötr kontrol (birincil eylem rengi DEĞİL). */

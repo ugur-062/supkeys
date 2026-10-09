@@ -5,6 +5,7 @@ import type { Locale } from "@rothern/i18n";
 import { SECTOR_EDIT_HREF } from "@/lib/company/portals";
 import { countryDisplayName, useListingTerms } from "@/i18n/domain";
 import { EmptyState, ListSkeleton, Pagination } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
 import {
   FilterResults,
@@ -71,6 +72,13 @@ const BASE = "/company/satis";
  *    gizli herkese açık talepler (`row.masked`), araya ince bir bölüm etiketi.
  *    Büyük kilit kartı KALDIRILDI. Süzgeç/sayaç/sıralama iki grubu birlikte
  *    sayar; sıralama grup İÇİNDE uygulanır (maskeli satır üste çıkmaz).
+ *  · LİSTE DURUMLARI (canlı doğrulama 2026-10-09, OUTR-1 / OUTR-5): sayaçlar,
+ *    "… bulunamadı" ve boş durum yalnız BAŞARILI yanıttan türer. Yanıt henüz
+ *    yokken (`isPending` — çevrimdışı duraklama dahil) iskelet + "Güncelleniyor…";
+ *    hiç okunamadıysa (`isError` ∧ veri yok) tek hata kartı — süzgeç grupları,
+ *    sonuç satırı ve sıralama çizilmez (eskiden hepsi 0 sayaçla, "Açık talep
+ *    bulunamadı" ve "Seçenek yok" ile duruyordu). 15 sn'lik arka plan yoklaması
+ *    düşerse eldeki satırlar ve sayılar ekranda KALIR.
  */
 export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   const tenders = useSellerTenders();
@@ -130,15 +138,18 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   // Süzgeç daraltmadıysa sayı tavandaki kümenin TAMAMI → alt sınır ("200+");
   // durum facet'iyle aynı karar (iki sayı aynı ekranda ayrışmasın).
   const countAtLeast = facets.statusAtLeast[state.status];
+  // Yanıt okundu mu: sayı ve "yok" yalnız okunmuş listeden çıkar. Arka plan
+  // yenilemesi düşse de (`isError` ∧ veri var) liste okunmuş sayılır.
+  const unread = tenders.data === undefined;
 
   return (
     <FilterShellCore
       state={state}
       toUrl={(next) => `${BASE}${buildRequestFilterQuery(next)}`}
       clearState={clearRequestFilters}
-      total={filtered.length}
+      total={unread ? null : filtered.length}
       activeCount={activeRequestFilterCount(state)}
-      drawer={tenders.isLoading ? null : <RequestFilters facets={facets} idPrefix="m" />}
+      drawer={unread ? null : <RequestFilters facets={facets} idPrefix="m" />}
     >
       <RequestList
         state={state}
@@ -149,8 +160,8 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
         atCap={openAtCap}
         pastAtCap={pastAtCap}
         countAtLeast={countAtLeast}
-        isLoading={tenders.isLoading}
-        isError={tenders.isError}
+        isPending={tenders.isPending}
+        failed={unread && tenders.isError}
         refetch={() => void tenders.refetch()}
       />
     </FilterShellCore>
@@ -166,8 +177,8 @@ function RequestList({
   atCap,
   pastAtCap,
   countAtLeast,
-  isLoading,
-  isError,
+  isPending,
+  failed,
   refetch,
 }: {
   state: RequestFilterState;
@@ -182,8 +193,10 @@ function RequestList({
   pastAtCap: boolean;
   /** Sayaç tavandaki kümenin tamamı → "N+". */
   countAtLeast: boolean;
-  isLoading: boolean;
-  isError: boolean;
+  /** Henüz yanıt yok (istek sürüyor ya da çevrimdışı bekliyor) — iskelet. */
+  isPending: boolean;
+  /** Liste hiç okunamadı (`isError` ∧ veri yok) — tek hata kartı. */
+  failed: boolean;
   refetch: () => void;
 }) {
   const tr = useTranslations("web.panel.trade.sellerTendersView");
@@ -220,6 +233,17 @@ function RequestList({
       {/* AI arama bandı — "AI şöyle anladı" + çipler (sayfa verir). */}
       {banner}
 
+      {failed ? (
+        /* Okunamayan liste: sayaçlı süzgeç grupları ve "… bulunamadı" satırı
+           yerine tek hata kartı (çipler de facet adlarından çizilir — gizli). */
+        <ErrorState
+          title={tr("acikTaleplerYuklenemedi")}
+          message={tr("birHataOlustuTekrarDeneyin")}
+          onRetry={refetch}
+          retryLabel={tr("tekrarDene")}
+        />
+      ) : (
+      <>
       <RequestActiveChips facets={facets} />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[15rem_1fr]">
@@ -227,7 +251,7 @@ function RequestList({
           aria-label={tr("suzgecler")}
           className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]"
         >
-          {isLoading ? (
+          {isPending ? (
             <p className="text-sm text-zinc-500">{tr("suzgeclerYukleniyor")}</p>
           ) : (
             <RequestFilters facets={facets} idPrefix="d" />
@@ -243,32 +267,15 @@ function RequestList({
               <ResultCount
                 kind={state.status === "gecmis" ? "pastRequest" : state.status === "tumu" ? "request" : "openRequest"}
                 atLeast={countAtLeast}
+                loading={isPending}
               />
             </span>
             <RequestSortControl />
           </div>
 
           <FilterResults>
-            {isLoading ? (
+            {isPending ? (
               <ListSkeleton rows={5} />
-            ) : isError ? (
-              <div className="space-y-3">
-                <EmptyState
-                  icon={ClipboardList}
-                  title={tr("acikTaleplerYuklenemedi")}
-                  description={tr("birHataOlustuTekrarDeneyin")}
-                  variant="no-results"
-                />
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={refetch}
-                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    {tr("tekrarDene")}
-                  </button>
-                </div>
-              </div>
             ) : rows.length === 0 ? (
               <EmptyState
                 icon={ClipboardList}
@@ -343,6 +350,8 @@ function RequestList({
           </FilterResults>
         </div>
       </div>
+      </>
+      )}
     </section>
   );
 }

@@ -144,6 +144,36 @@ describe("ProductPreview published", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
+  // Canlı doğrulama CP-02: eylem grubu `shrink-0` idi — kendi satırına inse de
+  // içerik genişliğini (~466 px) koruyup 390 px'te karttan taşıyordu; "Düzenle"
+  // ekranın dışında kalıyor, sayfa yatay kayıyordu (510 px). jsdom yerleşim
+  // hesaplamaz; kilitlenen şey taşmayı doğuran sınıflardır.
+  it("dar ekran: üç eylem tek grupta, grup daralabilir ve sarar (shrink-0 yok); metin sütununun tabanı var", () => {
+    wrap(
+      <ProductPreview
+        variant="published"
+        product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }}
+        onClose={() => {}}
+        onEdit={() => {}}
+      />,
+    );
+    const edit = screen.getByRole("button", { name: /Düzenle/ });
+    const group = edit.parentElement as HTMLElement;
+    expect(group).toContainElement(screen.getByRole("link", { name: /Herkese açık sayfayı aç/ }));
+    expect(group).toContainElement(screen.getByRole("button", { name: "Vitrinden çek" }));
+    expect(group.classList.contains("flex-wrap")).toBe(true);
+    expect(group.classList.contains("shrink-0")).toBe(false);
+    expect(group.classList.contains("max-w-full")).toBe(true);
+    // Kart da sarar; metin sütunu tabansız (`flex-1`) değil — grup onu ezip yanında kalmaz.
+    const card = screen.getByRole("status");
+    expect(group.parentElement).toBe(card);
+    expect(card.classList.contains("flex-wrap")).toBe(true);
+    const text = card.firstElementChild as HTMLElement;
+    expect(text.classList.contains("flex-1")).toBe(false);
+    expect(text.classList.contains("flex-[1_1_15rem]")).toBe(true);
+    expect(text.classList.contains("min-w-0")).toBe(true);
+  });
+
   it("ürün yönetimi izni yoksa band 'Düzenle'ye basın demez; yetkinin adını söyler (arayüz testi T3)", () => {
     h.canManage = false;
     try {
@@ -185,5 +215,29 @@ describe("EditorRail", () => {
     expect(onJump).toHaveBeenCalledWith("urun-gorsel");
     expect(screen.getByText("öneri-kartı")).toBeInTheDocument();
     expect(screen.queryByText("Alıcının gördüğü hâl")).toBeNull();
+  });
+
+  // Canlı doğrulama CP-03: kayıtlı kategorisi gizli segmentte olan taslakta
+  // eksik "seçilmedi" değil "artık kullanılmıyor" — API'nin ret metniyle aynı.
+  it("outdatedCategory: kategori çipi güncel bir kategori ister ve 1. bölüme atlar; diğer çipler değişmez", async () => {
+    const user = userEvent.setup();
+    const onJump = vi.fn();
+    const view = wrap(
+      <EditorRail
+        completion={{ score: 85, missing: [{ key: "category", label: "Kategori seçimi", points: 15 }] }}
+        blockers={[{ code: "category" }, { code: "images" }]}
+        outdatedCategory
+        onJump={onJump}
+      />,
+    );
+    expect(screen.getByText("Onaya göndermek için gerekli")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kategori seçilmeli" })).toBeNull();
+    expect(screen.getByRole("button", { name: "En az 1 görsel eklenmeli" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kategori artık kullanılmıyor, güncel bir kategori seçilmeli" }));
+    expect(onJump).toHaveBeenCalledWith("urun-temel");
+    view.unmount();
+    // İşaret yokken kategorisiz ürünün olağan metni.
+    wrap(<EditorRail completion={{ score: 85, missing: [] }} blockers={[{ code: "category" }]} />);
+    expect(screen.getByRole("button", { name: "Kategori seçilmeli" })).toBeInTheDocument();
   });
 });

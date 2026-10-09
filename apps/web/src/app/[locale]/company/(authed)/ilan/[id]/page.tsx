@@ -273,7 +273,7 @@ export default function ListingDetailPage() {
   const saveToCatalog = useImportListingToCatalog();
   // Çift tık kalemleri kataloğa iki kez yazmasın (arayüz testi FX-00 O-061).
   const catalogLock = useSubmitLock();
-  const { data: l, isLoading, isFetching, isError, error, refetch } =
+  const { data: l, isPending, isFetching, isError, error, refetch } =
     useListingDetail(id);
   // Onay penceresi açıkken gelen tazeleme (4 sn poll + WS) — kazandırmadan
   // hemen önce pencerede gösterilen tutar GÜNCEL veriyle karşılaştırılır.
@@ -738,7 +738,9 @@ export default function ListingDetailPage() {
     }
   };
 
-  if (isLoading) {
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // aşağıdaki "İlan bulunamadı" çizilirdi (LİSTE DURUMLARI).
+  if (isPending) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
@@ -747,7 +749,16 @@ export default function ListingDetailPage() {
       </div>
     );
   }
-  if (isError) {
+  // ARKA PLAN YOKLAMASI DÜŞTÜYSE EKRANDAKİ TALEP KALIR (canlı doğrulama
+  // 2026-10-09 taraması): açık talep 10 sn'de (açık eksiltmede 1,5–4 sn'de) bir
+  // yoklanır; kesintide (yanıt yok / 5xx / 429) eldeki veri duruyorken sayfanın
+  // tamamı "İlan yüklenemedi"ye dönüyordu — kullanıcı okuduğu teklifleri ve
+  // yazdığı notu kaybediyordu. API'nin 4xx yanıtı (erişim kalktı, talep
+  // kaldırıldı, paket / ülke kapısı) eldeki veriyi de geçersiz kılar: o dallar
+  // aynen işler.
+  const errorStatus = (error as { response?: { status?: number } } | null)?.response?.status;
+  const staleKept = !!l && isError && (!errorStatus || errorStatus >= 500 || errorStatus === 429);
+  if (isError && !staleKept) {
     if (countryGate) {
       return <CountryNotEligibleCard targetCountries={countryGate.targetCountries} />;
     }

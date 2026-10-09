@@ -42,9 +42,11 @@ export function RoundHistoryDialog({
     <Dialog open={open} onClose={onClose} size="2xl">
       <DialogTitle>{t("turGecmisi")}</DialogTitle>
       <DialogBody className="space-y-5">
-        {history.isLoading ? (
+        {/* LİSTE DURUMLARI: `isPending` bekleme (çevrimdışı duraklamada "henüz
+            tamamlanmış tur yok" çizilmesin); hata dalı yalnız hiç veri yokken. */}
+        {history.isPending ? (
           <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>
-        ) : history.isError ? (
+        ) : history.isError && history.data === undefined ? (
           <div className="flex flex-col items-center gap-3 py-4">
             <Text className="text-sm text-red-600">
               {t("turGecmisiYuklenemedi")}

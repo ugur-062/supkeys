@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
 interface ErrorStateProps {
@@ -10,6 +11,11 @@ interface ErrorStateProps {
   onRetry?: () => void;
   retryLabel?: string;
   className?: string;
+  /**
+   * Dar yer (süzgeç rayı, pencere içi seçici, açılır liste): kart yerine tek
+   * satır — mesaj + "Tekrar dene" bağlantısı. Başlık çizilmez.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -23,12 +29,32 @@ export function ErrorState({
   onRetry,
   retryLabel,
   className,
+  compact = false,
 }: ErrorStateProps) {
   // Varsayılan metinler GÖVDEDE çözülür: parametre varsayılanı `t`yi göremez.
   const t = useTranslations("web.shared.errorState");
   const heading = title ?? t("birSeylerTersGitti");
   const body = message ?? t("icerikYuklenirkenHata");
   const retry = retryLabel ?? t("tekrarDene");
+  if (compact) {
+    return (
+      <p role="alert" className={cn("text-sm text-zinc-600", className)}>
+        {body}
+        {onRetry ? (
+          <>
+            {" "}
+            <button
+              type="button"
+              onClick={onRetry}
+              className="font-semibold text-zinc-900 underline underline-offset-2"
+            >
+              {retry}
+            </button>
+          </>
+        ) : null}
+      </p>
+    );
+  }
   return (
     <div
       role="alert"

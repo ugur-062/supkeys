@@ -16,6 +16,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   detail: undefined as unknown,
   error: null as unknown,
+  /** Verisi olan sorgunun arka plan yoklaması düştü (`data` dolu, `isError` true). */
+  keepData: false,
+  /** Çevrimdışı duraklama: istek yok, hata yok, veri yok. */
+  paused: false,
   perms: [] as string[],
 }));
 
@@ -54,8 +58,9 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   return {
     ...mod,
     useListingDetail: () => ({
-      data: h.error ? undefined : h.detail,
+      data: h.paused || (h.error && !h.keepData) ? undefined : h.detail,
       isLoading: false,
+      isPending: h.paused,
       isFetching: false,
       isError: !!h.error,
       error: h.error,
@@ -120,6 +125,8 @@ function renderPage() {
 beforeEach(() => {
   h.detail = detail();
   h.error = null;
+  h.keepData = false;
+  h.paused = false;
   h.perms = ["sell:view", "sell:bid:submit"];
 });
 
@@ -218,5 +225,42 @@ describe("talebe ulaşılamıyor (D-024)", () => {
     h.perms = ["buy:view", "sell:view"];
     renderPage();
     expect(screen.queryByText(/kendi firmanıza aitse/)).toBeNull();
+  });
+});
+
+describe("arka plan yoklaması ve bekleme (canlı doğrulama 2026-10-09 taraması)", () => {
+  // Açık talep 10 sn'de bir yoklanır; kesintide sayfanın tamamı "Talep
+  // yüklenemedi"ye dönüyor, kullanıcı okuduğu talebi kaybediyordu.
+  it.each([{ message: "Network Error" }, { response: { status: 503 } }, { response: { status: 429 } }])(
+    "yoklama kesintide düşünce (%o) ekrandaki talep kalır",
+    (error) => {
+      h.keepData = true;
+      h.error = error;
+      renderPage();
+      expect(screen.queryByText("Talep yüklenemedi.")).toBeNull();
+      expect(screen.queryByText("Talebe ulaşılamıyor.")).toBeNull();
+      expect(screen.getAllByText((h.detail as ListingDetail).title).length).toBeGreaterThan(0);
+    },
+  );
+
+  it("API'nin 404 yanıtı eldeki veriyi de geçersiz kılar: 'Talebe ulaşılamıyor' kartı", () => {
+    h.keepData = true;
+    h.error = { response: { status: 404 } };
+    renderPage();
+    expect(screen.getByText("Talebe ulaşılamıyor.")).toBeInTheDocument();
+  });
+
+  it("veri yokken kesinti: 'Talep yüklenemedi' + Tekrar dene", () => {
+    h.error = { message: "Network Error" };
+    renderPage();
+    expect(screen.getByText("Talep yüklenemedi.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'bulunamadı' değil iskelet", () => {
+    h.paused = true;
+    const { container } = renderPage();
+    expect(screen.queryByText(/bulunamadı/)).toBeNull();
+    expect(container.querySelector(".animate-pulse")).not.toBeNull();
   });
 });

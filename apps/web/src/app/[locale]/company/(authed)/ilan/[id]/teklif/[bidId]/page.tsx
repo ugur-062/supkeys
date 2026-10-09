@@ -63,7 +63,7 @@ export default function BidDetailPage() {
   // taşınır — uygulama içi geri ok da seçimi korur (arayüz testi D-109).
   const searchParams = useSearchParams();
   const backHref = `/company/ilan/${id}${bidViewQuery(parseBidView(searchParams.get("teklifler")))}`;
-  const { data: l, isLoading, isError, error, refetch } = useListingDetail(id);
+  const { data: l, isPending, isError, error, refetch } = useListingDetail(id);
   // Onay penceresi açıkken gelen tazeleme — kazandırmadan hemen önce pencerede
   // gösterilen tutar güncel veriyle karşılaştırılır (talep detayıyla aynı).
   const latestListing = useRef(l);
@@ -101,13 +101,23 @@ export default function BidDetailPage() {
     userId: user?.id,
   });
 
-  if (isLoading)
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "bulunamadı" çizilirdi (LİSTE DURUMLARI).
+  if (isPending)
     return <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>;
+  // ARKA PLAN YOKLAMASI DÜŞTÜYSE EKRANDAKİ TEKLİF KALIR (canlı doğrulama
+  // 2026-10-09 taraması): açık talep 10 sn'de bir yoklanır; kesintide (yanıt
+  // yok / 5xx / 429) eldeki veri duruyorken sayfa "Teklif yüklenemedi"ye
+  // dönmez. API'nin 4xx yanıtı (erişim kalktı, talep kaldırıldı) eldeki veriyi
+  // de geçersiz kılar — o dallar aynen işler.
+  const errorStatus = (error as { response?: { status?: number } } | null)?.response?.status;
+  const staleKept = !!l && isError && (!errorStatus || errorStatus >= 500 || errorStatus === 429);
+  const failed = isError && !staleKept;
   // 404 = talep/teklif görülemiyor (kaldırılmış ya da bu üyenin satınalma
   // görüntüleme yetkisi yok — sunucu sebep söylemez). "Tekrar dene" aynı 404'ü
   // döndürür; nötr kart + panele dönüş (arayüz testi D-024).
   if (
-    isError &&
+    failed &&
     (error as { response?: { status?: number } } | null)?.response?.status === 404
   )
     return (
@@ -121,7 +131,7 @@ export default function BidDetailPage() {
         </Button>
       </div>
     );
-  if (isError)
+  if (failed)
     return (
       <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
         <Text className="text-sm text-red-700">{t("teklifYuklenemedi")}</Text>
