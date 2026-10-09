@@ -94,6 +94,32 @@ describe("audit action dictionary", () => {
     expect([...missing]).toEqual([]);
   });
 
+  /**
+   * Canlı doğrulama 2026-10-09, PD-08: AI yalnız tanıtım metninin TASLAĞINI
+   * önerir ve hiçbir şeyi kaydetmez; satır "Profil zenginleştirildi" diyerek
+   * profilin değiştirildiğini düşündürüyordu. Etiketler davranışı söyler
+   * (deneme / alındı) ve firma tarafındaki etiketlerle aynı dildedir.
+   */
+  it("AI description suggestion actions are labelled as suggestions, not as profile changes (PD-08)", () => {
+    expect(ACTION_LABELS["company.profile_enrich_attempt"]).toBe("AI tanıtım önerisi denemesi");
+    expect(ACTION_LABELS["company.profile_enrich_settled"]).toBe("AI tanıtım önerisi denemesi sonuçlandı");
+    expect(ACTION_LABELS["company.profile_enriched"]).toBe("AI tanıtım önerisi alındı");
+    const enrich = Object.entries(ACTION_LABELS).filter(([a]) => a.startsWith("company.profile_enrich"));
+    expect(enrich).toHaveLength(3);
+    for (const [action, label] of enrich) {
+      expect(label, action).toMatch(/^AI tanıtım önerisi/);
+      // "zenginleştir…" / "güncellendi" / "dolduruldu": profil değişmiş gibi okunur.
+      expect(label, action).not.toMatch(/zenginle|güncellen|doldur|değişti/i);
+    }
+    // Gerçek profil kaydı kendi etiketinde kalır ve aynı süzgeç önekiyle bulunur.
+    expect(ACTION_LABELS["company.profile.updated"]).toBe("Firma profili güncellendi");
+    const filter = ACTION_FILTERS.find((f) => f.value === "company.profile");
+    expect(filter).toBeDefined();
+    for (const [action] of enrich) expect(action.startsWith(filter!.value), action).toBe(true);
+    // Üç eylemi de API hâlâ yazıyor (anahtarlar değişmedi).
+    for (const [action] of enrich) expect(actions.has(action), action).toBe(true);
+  });
+
   it("filter values and labels are unique", () => {
     const values = ACTION_FILTERS.map((f) => f.value);
     const labels = ACTION_FILTERS.map((f) => f.label);

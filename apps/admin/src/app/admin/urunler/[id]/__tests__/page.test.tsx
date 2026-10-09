@@ -90,6 +90,19 @@ describe("/admin/urunler/[id] — ürün incelemesi", () => {
     expect(screen.queryByText(/VERIFIED/)).not.toBeInTheDocument();
   });
 
+  // 2026-10-09 (W-16): gizli segmentteki kategori ayrıntıda da adıyla basılmaz.
+  it("Kategori satırı: gizli segmentte sabit not, görünür kategoride ad", () => {
+    h.product = product({ categoryId: "46181500", categoryName: "Koruyucu giysi" });
+    const { unmount } = render(<AdminUrunDetayPage />);
+    expect(screen.getByText("— (gizli segment)")).toBeInTheDocument();
+    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
+    unmount();
+    h.product = product();
+    render(<AdminUrunDetayPage />);
+    expect(screen.getByText("Elektrik")).toBeInTheDocument();
+    expect(screen.queryByText("— (gizli segment)")).toBeNull();
+  });
+
   it("kademe fiyatı ve miktar biçimli", () => {
     render(<AdminUrunDetayPage />);
     const tiers = screen.getByText(/1\.000\+ adet →/);

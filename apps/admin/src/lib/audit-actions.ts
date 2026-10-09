@@ -28,9 +28,15 @@ export const ACTION_LABELS: Record<string, string> = {
   "company.signup_expired": "Doğrulanmayan kayıt silindi (7 gün, otomatik)",
   "company.vies_checked": "VIES vergi no sorgusu",
   "company.profile.updated": "Firma profili güncellendi",
-  "company.profile_enrich_attempt": "Profil zenginleştirme denemesi",
-  "company.profile_enrich_settled": "Profil zenginleştirme denemesi sonuçlandı",
-  "company.profile_enriched": "Profil zenginleştirildi",
+  // AI TANITIM ÖNERİSİ (2026-10-08'den beri): AI yalnız tanıtım metninin
+  // TASLAĞINI yazar ve hiçbir şeyi kaydetmez; profil bu eylemlerle DEĞİŞMEZ.
+  // Eski etiketler ("Profil zenginleştirildi") profilin değiştirildiğini
+  // düşündürüyordu. Eylem ANAHTARLARI aynı kaldı (ömürlük sayaçlar eski
+  // kayıtlarla birlikte sayılır); firma tarafındaki etiketlerle aynı dil
+  // (`web.domain.auditAction.company_profile_enrich*`).
+  "company.profile_enrich_attempt": "AI tanıtım önerisi denemesi",
+  "company.profile_enrich_settled": "AI tanıtım önerisi denemesi sonuçlandı",
+  "company.profile_enriched": "AI tanıtım önerisi alındı",
   "company.request_defaults.updated": "Talep varsayılanları güncellendi",
   "company.address.created": "Adres eklendi",
   "company.address.updated": "Adres güncellendi",
@@ -217,7 +223,7 @@ export const ACTION_LABELS: Record<string, string> = {
  * süzer). Noktasız önekler bilinçli: `company.listing` ilan belgelerini
  * (`company.listing_document.*`), `company.bid` teklif belgelerini,
  * `company.approval` onay akışlarını (`company.approval_flow.*`),
- * `company.profile` zenginleştirme kayıtlarını da kapsar.
+ * `company.profile` AI tanıtım önerisi kayıtlarını (`company.profile_enrich*`) da kapsar.
  */
 export const ACTION_FILTERS: { value: string; label: string }[] = [
   { value: "auth.", label: "Giriş olayları" },

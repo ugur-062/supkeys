@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import { isNotFoundError, NotFoundState } from "@/components/ui/not-found-state";
 import { useAdminProductDetail, useProductReview } from "@/hooks/use-admin-products";
+import { productCategoryLabel } from "@/lib/category-label";
 import { safeFormat } from "@/lib/date";
 import { PRODUCT_REVIEW_STATUS } from "@/lib/status-labels";
 import { ArrowLeft, Check, ExternalLink, Loader2, X } from "lucide-react";
@@ -192,7 +193,8 @@ function ProductReview({ id }: { id: string }) {
           <section className="admin-card p-5 text-sm">
             <h2 className="text-admin-text mb-3 font-semibold">Ticari</h2>
             <dl className="space-y-2">
-              <Row k="Kategori" v={p.categoryName ?? "—"} />
+              {/* Gizli segmentteki kategori adıyla basılmaz — sabit not (bkz. `productCategoryLabel`). */}
+              <Row k="Kategori" v={productCategoryLabel(p)} />
               <Row k="Fiyat" v={`${PRICE_MODE[p.priceMode] ?? p.priceMode}${p.priceMode === "FIXED" && p.priceAmount ? ` · ${fmtPrice(p.priceAmount, p.priceCurrency)}/${p.unit}` : ""}`} />
               {p.priceMode === "TIERED" && p.priceTiers?.length ? (
                 // Her kademe kendi satırında ve bölünmeden — tek dizeye "·" ile

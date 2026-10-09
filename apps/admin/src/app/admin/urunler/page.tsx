@@ -11,6 +11,7 @@ import {
   useBulkApproveProducts,
   type ProductReviewStatus,
 } from "@/hooks/use-admin-products";
+import { productCategoryLabel } from "@/lib/category-label";
 import { safeFormat } from "@/lib/date";
 import { PRODUCT_REVIEW_STATUS } from "@/lib/status-labels";
 import { webAssetUrl } from "@/lib/safe-url";
@@ -307,7 +308,8 @@ function UrunlerView() {
                     </TableCell>
                     {/* Uzun kategori adı satırı genişletmesin — sarılır, 2 satırda kesilir (D-035). */}
                     <TableCell className="text-admin-text-muted min-w-[8rem] max-w-[14rem] text-xs whitespace-normal">
-                      <span className="line-clamp-2" title={p.categoryName ?? undefined}>{p.categoryName ?? "—"}</span>
+                      {/* Gizli segmentteki kategori adıyla basılmaz — sabit not (bkz. `productCategoryLabel`). */}
+                      <span className="line-clamp-2" title={productCategoryLabel(p)}>{productCategoryLabel(p)}</span>
                     </TableCell>
                     <TableCell>
                       <Badge color={meta.color}>{meta.label}</Badge>

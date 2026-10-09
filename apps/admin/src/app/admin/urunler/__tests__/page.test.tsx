@@ -85,6 +85,29 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     expect(screen.getByRole("tab", { name: /Düzeltme istenen/ })).toHaveTextContent("3");
   });
 
+  // 2026-10-09 (W-16): gizli segmentteki kategori yönetimde de adıyla basılmaz.
+  it("Kategori sütunu: gizli segmentteki ürün adı yerine sabit not; görünür ürün adıyla", () => {
+    h.products = {
+      data: {
+        items: [
+          row("1"),
+          row("2", { categoryId: "46181500", categoryName: "Koruyucu giysi" }),
+          row("3", { categoryId: "77101500", categoryName: null }),
+        ],
+        total: 3,
+        page: 1,
+        pageSize: 25,
+      },
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminUrunlerPage />);
+    expect(screen.getByText("Elektrik Malzemeleri")).toBeInTheDocument();
+    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
+    expect(screen.getAllByText("— (gizli segment)")).toHaveLength(2);
+    expect(document.querySelector('[title="Koruyucu giysi"]')).toBeNull();
+  });
+
   it("sekme değişince sorgu parametresi değişir; boş kuyruk metni", () => {
     render(<AdminUrunlerPage />);
     fireEvent.click(screen.getByRole("tab", { name: /Düzeltme istenen/ }));

@@ -192,6 +192,9 @@ const KEY_LABEL: Record<string, string> = {
   newFormat: "yeni biçim",
   needed: "gerekli yetki",
   invited: "davet edilen",
+  // `company.listing.ai_member_invited` → `{ invited, auto }`: daveti alıcı
+  // elle değil, yayın sonrası keşif turu talebi yayınlayan kişi adına yaptı.
+  auto: "otomatik (yayın sonrası tur)",
   autoCompleted: "otomatik tamamlandı",
   unavailable: "servis yanıt vermedi",
   address: "adres",
@@ -214,8 +217,12 @@ const KEY_LABEL: Record<string, string> = {
   // anonimleştirme `retainedBecause`) ve zaman tasarrufu ayarları.
   users: "kullanıcı",
   listings: "ilan",
-  // Çeviri doldurma (`admin.system.translation_backfill` → `enqueued`).
+  // Çeviri doldurma (`admin.system.translation_backfill` → `enqueued`) ve
+  // profil tanıtımı önerisi (`company.profile_enrich_attempt` → `{ products }`).
   products: "ürün",
+  // Profil tanıtımı önerisi başarı izi (`company.profile_enriched` →
+  // `{ products, chars }`): taslağın uzunluğu.
+  chars: "karakter",
   companies: "firma",
   bidsPlaced: "verilen teklif",
   ordersAsBuyer: "alım siparişi",

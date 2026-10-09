@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/list";
 import { StatCard } from "@/components/ui/stat-card";
 import { useGrowthReport } from "@/hooks/use-admin-growth";
 import { countryName } from "@/lib/country";
+import { inviteCancelLabel } from "@/lib/invite-cancel-labels";
 import { CountryFlag } from "@/components/country-flag";
 import { useState } from "react";
 
@@ -17,17 +18,6 @@ import { useState } from "react";
  * ülke/dil; soğuk davet alan adı sağlığı (tavan, şikâyet, geri dönme); AI keşif
  * maliyeti; günlük program e-postaları. Yalnız sayılar.
  */
-const CANCEL_LABEL: Record<string, string> = {
-  OPTED_OUT: "Davet almak istemiyor",
-  REGISTERED: "Arada kayıt oldu",
-  LISTING_CLOSED: "Talep kapandı",
-  PAUSED: "3 yanıtsız e-posta (durduruldu)",
-  FREQUENCY: "7 gün kuralı — kapanıştan önce sıra gelmedi",
-  SUPPRESSED: "Adres e-posta almıyor",
-  REFERRAL_CANCELLED: "Davet eden iptal etti",
-  COUNTRY_BLOCKED: "Kayda kapalı ülke",
-  OTHER: "Diğer",
-};
 const SOURCE_LABEL: Record<string, string> = { MANUAL: "Elle yazılan", AI_FORM: "AI (talep formu)", AI_AUTO: "AI (yayın sonrası)" };
 const PROGRAM_LABEL: Record<string, string> = {
   listing_category_digest: "Akşam özeti (kategori)",
@@ -131,7 +121,7 @@ function GrowthView() {
                 <TableBody>
                   {Object.entries(r.cancelled).map(([k, v]) => (
                     <TableRow key={k}>
-                      <TableCell>{CANCEL_LABEL[k] ?? k}</TableCell>
+                      <TableCell>{inviteCancelLabel(k)}</TableCell>
                       <TableCell className="text-right tabular-nums">{v}</TableCell>
                     </TableRow>
                   ))}

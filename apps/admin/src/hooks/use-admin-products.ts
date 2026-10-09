@@ -13,7 +13,14 @@ export interface AdminProductRow {
   cover: string | null;
   imageCount: number;
   categoryId: string | null;
+  /** Gizli segmentteki kategorinin adı gelmez (`null`) — bkz. `hiddenCategory`. */
   categoryName: string | null;
+  /**
+   * Kayıtlı kategori gizli bir segmentte: sitede hiçbir yerde gösterilmez, adı
+   * burada da çözülmez. Ekran "— (gizli segment)" yazar (`productCategoryLabel`).
+   * Eski API yanıtında alan yoktur.
+   */
+  hiddenCategory?: boolean;
   reviewStatus: ProductReviewStatus;
   isPublic: boolean;
   submittedAt: string | null;

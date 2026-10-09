@@ -206,7 +206,7 @@ api.interceptors.response.use(
     }
 
     if (!error.response) {
-      toastOnce(error, "Bağlantı hatası, internet bağlantınızı kontrol edin");
+      toastOnce(error, "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.");
       return Promise.reject(error);
     }
 

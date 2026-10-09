@@ -148,6 +148,34 @@ describe("audit-format", () => {
       );
     });
 
+    it("otomatik üye daveti izi Türkçe: 'auto' ham anahtar olarak basılmaz", () => {
+      // Yayın sonrası keşif turu `{ invited, auto: true }` yazar; `auto`
+      // etiketsizken Detay hücresi "davet edilen: 1 · auto: evet" basıyordu.
+      expect(formatAuditMetadata("company.listing.ai_member_invited", { invited: 1, auto: true })).toBe(
+        "davet edilen: 1 · otomatik (yayın sonrası tur): evet",
+      );
+    });
+
+    it("üye daveti izinin yazdığı HER metadata anahtarı etiketli (API kaynağı taranır)", () => {
+      const src = readFileSync(
+        path.resolve(
+          __dirname,
+          "../../../../../apps/api/src/modules/company-listings/services/company-listings.service.ts",
+        ),
+        "utf8",
+      );
+      const at = src.indexOf('action: "company.listing.ai_member_invited"');
+      expect(at).toBeGreaterThan(0);
+      const block = src.slice(at, at + 600).match(/\bmetadata:\s*\{([^;]*?)\},?\s*\}\);/)?.[1] ?? "";
+      const keys = [...block.matchAll(/(?:^|[,{(])\s*([A-Za-z_]\w*)\s*:/g)].map((m) => m[1]!);
+      // Tarama gerçekten bir şey buluyor (iz yeniden yazılırsa sessizce boş geçmesin).
+      expect([...new Set(keys)].sort()).toEqual(expect.arrayContaining(["auto", "invited"]));
+      const raw = [...new Set(keys)].filter((k) =>
+        formatAuditMetadata("company.listing.ai_member_invited", { [k]: 1 }).startsWith(`${k}:`),
+      );
+      expect(raw).toEqual([]);
+    });
+
     it("kaynak kodları, belge türü ve talep varsayılanı alanları etiketli", () => {
       expect(
         formatAuditMetadata("connection.external_tender_invite", { queued: 1, skipped: 0, source: "AI_AUTO" }),
@@ -357,6 +385,36 @@ describe("audit-format", () => {
       expect(
         formatAuditMetadata("company.user.roles_changed", { droppedGroups: ["buy", "sell"] }),
       ).toBe("kapanan alanlar: satınalma, satış");
+    });
+
+    it("profil tanıtımı önerisi satırı Türkçe: 'chars' ham anahtar olarak basılmaz", () => {
+      // Başarı izi `{ products, chars }` yazar; `chars` etiketsizken Detay
+      // hücresi "ürün: 3 · chars: 412" basıyordu (Türkçe etiketin yanında ham anahtar).
+      expect(formatAuditMetadata("company.profile_enriched", { products: 3, chars: 412 })).toBe(
+        "ürün: 3 · karakter: 412",
+      );
+      expect(formatAuditMetadata("company.profile_enrich_attempt", { products: 0 })).toBe("ürün: 0");
+    });
+
+    it("profil tanıtımı servisinin yazdığı HER metadata anahtarı etiketli (API kaynağı taranır)", () => {
+      const src = readFileSync(
+        path.resolve(
+          __dirname,
+          "../../../../../apps/api/src/modules/ai/profile-enrich/profile-enrich.service.ts",
+        ),
+        "utf8",
+      );
+      const keys = new Set<string>();
+      for (const m of src.matchAll(/\bmetadata:\s*\{([^{}]*)\}/g)) {
+        for (const part of m[1]!.split(",")) {
+          const key = part.trim().match(/^([A-Za-z_]\w*)/)?.[1];
+          if (key) keys.add(key);
+        }
+      }
+      // Tarama gerçekten bir şey buluyor (servis taşınırsa/yeniden yazılırsa sessizce boş geçmesin).
+      expect([...keys].sort()).toEqual(expect.arrayContaining(["chars", "products"]));
+      const raw = [...keys].filter((k) => formatAuditMetadata("company.profile_enriched", { [k]: 1 }).startsWith(`${k}:`));
+      expect(raw).toEqual([]);
     });
 
     it("izin etiket aynası @rothern/shared kataloğuyla birebir", () => {
