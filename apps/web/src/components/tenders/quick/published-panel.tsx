@@ -8,8 +8,9 @@ import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import type { ExternalInviteResult, MemberInviteResult } from "@/hooks/use-supplier-discovery";
-import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
+import { inviteWillLeave, isInviteAccepted, queuedNotSentReason } from "@/lib/tenders/external-invite-status";
 import { cn } from "@/lib/utils";
+import { useInviteReasonLabel } from "@/components/tenders/ai-suppliers/invite-outcome";
 import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
 import { ShareListing } from "@/components/tenders/share-listing";
 import { useListingDetail } from "@/hooks/use-company-listings";
@@ -43,6 +44,10 @@ export function PublishedPanel({
   const t = useTranslations("web.panel.requests.publishedPanel");
   const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
   const tMember = useTranslations("web.panel.requests.memberInviteStatus");
+  // Kuyrukta ama talep kapanmadan gidemeyecek davet "Sıraya alındı" diye
+  // yazılmaz ve sayılmaz: talep sayfasındaki bölümle aynı durum + neden.
+  const tOutcome = useTranslations("web.panel.requests.aiSuppliers");
+  const reasonLabel = useInviteReasonLabel();
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const { company } = useCompanyAuth();
   // API `company/ai/supplier-discovery` @RequireTier("GOLD") — ekran aynı kapı.
@@ -123,24 +128,30 @@ export function PublishedPanel({
           ) : (
             <>
               <p className="mt-1 text-sm text-zinc-700">
-                {t("davetSirayaAlindiSayisi", { n: inviteResults.filter((r) => isInviteAccepted(r.status)).length })}
+                {t("davetSirayaAlindiSayisi", { n: inviteResults.filter((r) => inviteWillLeave(r)).length })}
               </p>
               <ul className="mt-2 space-y-1">
                 {inviteResults.map((r) => (
                   <li key={r.email} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="min-w-0 truncate text-zinc-800">{r.email}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 font-semibold",
-                        isInviteAccepted(r.status)
-                          ? "text-emerald-700"
-                          : r.status === "FAILED" || r.status === "SUPPRESSED"
-                            ? "text-red-700"
-                            : "text-zinc-600",
-                      )}
-                    >
-                      {tStatus(r.status)}
-                    </span>
+                    {queuedNotSentReason(r) ? (
+                      <span className="min-w-0 font-semibold text-amber-800">
+                        {[tOutcome("outcome.NOT_SENT"), reasonLabel(queuedNotSentReason(r))].filter(Boolean).join(" · ")}
+                      </span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "shrink-0 font-semibold",
+                          isInviteAccepted(r.status)
+                            ? "text-emerald-700"
+                            : r.status === "FAILED" || r.status === "SUPPRESSED"
+                              ? "text-red-700"
+                              : "text-zinc-600",
+                        )}
+                      >
+                        {tStatus(r.status)}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

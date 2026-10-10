@@ -10,7 +10,7 @@ import {
   type ExternalInviteTarget,
   type MemberInviteTarget,
 } from "@/hooks/use-supplier-discovery";
-import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
+import { inviteWillLeave } from "@/lib/tenders/external-invite-status";
 import {
   MAX_PENDING_EXTERNAL_INVITES,
   clearSession,
@@ -81,7 +81,7 @@ export function usePendingListingInvites(listingId: string) {
           source: "AI_FORM",
         });
         clearSession(pendingInvitesKey(listingId));
-        const sent = results.filter((r) => isInviteAccepted(r.status)).length;
+        const sent = results.filter((r) => inviteWillLeave(r)).length;
         if (sent > 0) toast.success(tr("disDavetSirayaAlindi", { n: sent }));
         if (sent < results.length)
           toast.warning(tr("disDavetGonderilmedi", { n: results.length - sent }));

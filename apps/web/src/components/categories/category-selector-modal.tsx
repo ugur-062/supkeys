@@ -616,7 +616,7 @@ export function CategorySelectorModal({
             </div>
           ) : rootsError && roots === undefined ? (
             <LoadError
-              message={tr("kategorilerYuklenemedi")}
+              message={tr("kategorilerYuklenemediYenidenDeneyin")}
               retryLabel={retryLabel}
               onRetry={() => void refetchRoots?.()}
             />

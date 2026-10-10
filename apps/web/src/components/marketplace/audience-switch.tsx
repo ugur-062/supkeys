@@ -250,7 +250,17 @@ export function AudienceSwitch({ className }: { className?: string }) {
             onClick={() => setAudience(o.key)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition",
+              /* TEK SATIR (son canlı kontrol 2026-10-10, NEW-01): anasayfada
+                 anahtar akışın dışında, başlığın hemen üstünde durur ve
+                 yüksekliği için yer ayrılmaz. 320 px'te İngilizce / Rusça
+                 etiketler ("Я поставщик" · "Я покупатель") iki satıra sarıyor,
+                 hazne 36 yerine 56 px oluyor ve başlığın üst 12 px'ini
+                 örtüyordu. Etiket sarmaz (`whitespace-nowrap`); 360 px'in
+                 altında iç boşluk, ikon aralığı ve punto küçülür ki iki seçenek
+                 yan yana sığsın (satır yüksekliği aynı kalır: 20 px). 360 px ve
+                 üstü eskisiyle birebir aynı. */
+              "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold whitespace-nowrap transition",
+              "max-[360px]:gap-1.5 max-[360px]:px-2.5 max-[360px]:text-[13px]/5",
               on ? o.on : "text-zinc-600 hover:text-zinc-950",
             )}
           >

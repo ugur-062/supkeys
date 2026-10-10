@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/catalyst/dialog";
+import { useButtonAccent, type ButtonAccent } from "@/components/ui/button-accent";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
 type ConfirmOptions = {
@@ -20,7 +21,19 @@ type ConfirmOptions = {
 
 type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
 
-const ConfirmContext = createContext<ConfirmFn | null>(null);
+/**
+ * Sağlayıcıya giden istek: seçenekler + onayı İSTEYEN yerin düğme rengi.
+ *
+ * Sağlayıcı firma kabuğunun DIŞINDA bağlıdır (`authed-layout-client.tsx`),
+ * portal rengi ise kabuğun içinde sağlanır (`ButtonAccentProvider`): pencere
+ * kendi konumundan okusaydı Satış portalında da varsayılan MAVİ düğme çizerdi
+ * (son canlı kontrol NEW-PF-6 — "Vitrinden çek" onayı maviydi, aynı sayfadaki
+ * "Düzenle" yeşil). Rengi `useConfirm` çağıranın bağlamından okur ve istekle
+ * taşır: pencere nereye bağlı olursa olsun, soran sayfanın rengini giyer.
+ */
+type ConfirmRequest = ConfirmOptions & { accent: ButtonAccent };
+
+const ConfirmContext = createContext<((req: ConfirmRequest) => Promise<boolean>) | null>(null);
 
 /**
  * İmperatif onay diyaloğu — native window.confirm() yerine Catalyst UI.
@@ -29,10 +42,10 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const t = useTranslations("web.panel.shell.confirmDialog");
   const [open, setOpen] = useState(false);
-  const [opts, setOpts] = useState<ConfirmOptions | null>(null);
+  const [opts, setOpts] = useState<ConfirmRequest | null>(null);
   const resolver = useRef<((v: boolean) => void) | null>(null);
 
-  const confirm = useCallback<ConfirmFn>((o) => {
+  const confirm = useCallback((o: ConfirmRequest) => {
     setOpts(o);
     setOpen(true);
     return new Promise<boolean>((resolve) => {
@@ -69,7 +82,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             {opts?.cancelLabel ?? t("vazgec")}
           </Button>
           <Button
-            color={opts?.destructive ? "red" : undefined}
+            color={opts?.destructive ? "red" : opts?.accent}
             onClick={() => settle(true)}
             autoFocus={opts?.destructive !== true}
           >
@@ -83,9 +96,15 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);
+  // Çağıranın portal rengi (kabuk dışında varsayılan) — bkz. `ConfirmRequest`.
+  const accent = useButtonAccent();
+  const confirm = useCallback<ConfirmFn>(
+    (opts) => (ctx ? ctx({ ...opts, accent }) : Promise.resolve(false)),
+    [ctx, accent],
+  );
   if (!ctx) {
     // Geliştirici hatası — kullanıcıya görünmez, kataloğa girmez.
     throw new Error("useConfirm, ConfirmProvider içinde kullanılmalı");
   }
-  return ctx;
+  return confirm;
 }

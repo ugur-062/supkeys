@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { ErrorState } from "@/components/ui/error-state";
+import { useReadFailed } from "@/hooks/use-read-failed";
 import {
   useOrders,
   type CompanyOrder,
@@ -442,7 +443,11 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   // sipariş yok" çiziliyordu. Hata dalı yalnız hiç veri yokken (`!data`):
   // 30 sn'lik yoklama düşerse eldeki satırlar kalır; bu role ait siparişi
   // olmayan firmada da boş durum hata kartına dönmez.
-  const { data, isPending, isError, refetch } = useOrders();
+  const orders = useOrders();
+  const { data, isPending } = orders;
+  // Okunamayan liste: hata kartı 30 sn'lik yoklamayla iskelete DÖNMEZ, veri
+  // gelene dek durur (`useReadFailed`, son canlı kontrol OUTF-1).
+  const { failed, retry } = useReadFailed(orders);
   const isSeller = role === "seller";
 
   // D-011: başlangıç durumu adresten (Faz 4.2 KPI drill-down `?status=` dahil);
@@ -621,7 +626,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             ariaLabel={t("karsiTarafFiltresi")}
             active={counterparty !== ""}
           />
-          {isError && !data ? (
+          {failed ? (
             // D-259: hata ekranının üstünde "0 sipariş" yazmasın.
             <span className="ml-auto" />
           ) : (
@@ -701,17 +706,17 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       </div>
 
       {/* Liste — satır başına tek sipariş (İhalelerim deseni) */}
-      {isPending ? (
+      {failed ? (
+        <ErrorState
+          message={t("siparislerYuklenemediLutfenTekrarDeneyin")}
+          onRetry={retry}
+        />
+      ) : isPending ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
-      ) : isError && !data ? (
-        <ErrorState
-          message={t("siparislerYuklenemediLutfenTekrarDeneyin")}
-          onRetry={() => refetch()}
-        />
       ) : filtered.length === 0 ? (
         <div className="overflow-hidden card">
           <EmptyState

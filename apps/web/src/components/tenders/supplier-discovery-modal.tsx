@@ -17,12 +17,15 @@ import {
   isInviteAccepted,
   isInviteQueued,
   isInviteSent,
+  queuedNotSentReason,
   queuedSendTime,
 } from "@/lib/tenders/external-invite-status";
 import { MAX_PENDING_EXTERNAL_INVITES } from "@/lib/tenders/quick-draft";
 import {
+  EXTERNAL_SEARCH_MAX_MS,
   ExternalSearchError,
   clearPendingExternalSearch,
+  readFinishedExternalSearch,
   readPendingExternalSearch,
   resumeExternalSupplierSearch,
   savePendingExternalSearch,
@@ -40,12 +43,14 @@ import {
   type ExternalSearchFailureKind,
   type ExternalSearchOptions,
   type MemberInviteStatus,
+  type PendingExternalSearch,
 } from "@/hooks/use-supplier-discovery";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
+import { useInviteReasonLabel } from "@/components/tenders/ai-suppliers/invite-outcome";
 import { useFormatDate } from "@/i18n/domain";
 import { CountryLabel } from "@/components/ui/country-flag";
 import { useListingDetail } from "@/hooks/use-company-listings";
-import { extractErrorMessage } from "@/lib/tenders/error";
+import { errorToastedGlobally, extractErrorMessage } from "@/lib/tenders/error";
 import { safeExternalUrl } from "@/lib/safe-url";
 import { useVerificationGateCopy } from "@/components/company/verification-gate";
 import { cn } from "@/lib/utils";
@@ -181,10 +186,47 @@ import { toast } from "sonner";
  *  `sessionStorage`a yazılır (`savePendingExternalSearch`: kimlik, başlangıç anı,
  *  kip, geçişler, kalem adları, bölge); pencere bağlanırken önbellekte süren
  *  arama yoksa kayıttan oturumu kurar ve N1'in devralması aynı aramayı yoklar —
- *  sayaç gerçek geçen süreden sürer, "Web'de Ara" pasiftir. Kayıt arama BİTİNCE
- *  silinir (sonuç / sunucuda düştü / kimlik bilinmiyor / süre doldu); BIRAKILAN
- *  yoklamada silinmez (oturum silindi: çıkış depoyu zaten temizler, aynı
- *  kullanıcı geri girerse arama yine bulunur).
+ *  sayaç gerçek geçen süreden sürer, "Web'de Ara" pasiftir. Kayıt arama SONUÇSUZ
+ *  bitince silinir (sunucuda düştü / kimlik bilinmiyor / süre doldu; sonuçla
+ *  biten aramanın kaydı için AS-1, aşağıda); BIRAKILAN yoklamada silinmez
+ *  (oturum silindi: çıkış depoyu zaten temizler, aynı kullanıcı geri girerse
+ *  arama yine bulunur).
+ *
+ * SON CANLI KONTROL (2026-10-10, AS-1 … AS-4):
+ *  - AS-1 BİTEN ARAMANIN SONUCU DA SAYFA YENİLEMEYİ AŞAR. Kayıt sonuç gelince
+ *        silinmez, `finished` diye işaretlenir (sunucu sonucu 15 dk saklar);
+ *        pencere bağlanırken oturumda sonuç yoksa sunucuya TEK istek atılır ve
+ *        liste geri gelir — ikinci ücretli arama gerekmez. Kimlik artık
+ *        bilinmiyorsa kayıt silinir ve web sekmesi boş durumdadır (hata kutusu
+ *        YOK: kullanıcı bir şey başlatmadı). Geri okuma sürerken "Web'de Ara"
+ *        pasiftir. Kayıt TEK aramayı tutar: kısmi sonucun üstüne EKLEYEN arama
+ *        bitince liste iki aramanın birleşimidir, tek kimlikten kurulamaz → o
+ *        durumda kayıt eskisi gibi silinir.
+ *  - AS-2 Davet gönderimi düşerse TEK toast: pencerenin metni. İki davet
+ *        mutasyonu `skipErrorToast` ile çağrılır (genel "Sunucu hatası…" toast'ı
+ *        basılmaz); bağlantı daveti kancası başkasının olduğu için orada genel
+ *        toast'ın bastığı hata pencerede yinelenmez (`errorToastedGlobally`).
+ *  - AS-3 Pencere kapalıyken biten / düşen aramanın toast'ı hangi TALEBİN
+ *        araması olduğunu söyler (numara, yoksa başlık — toast'ın açıklama
+ *        satırında; toast yine tektir). Alıcı o sırada başka sayfada olabilir,
+ *        aynı anda üç arama sürebilir.
+ *  - F3   (AUTO-COUNT-1 gözden geçirmesi) SATIR, TALEP SAYFASININ DEDİĞİNİ DER.
+ *        Davet yanıtı sıradaki mektubu dağıtıcının öngörüsüyle taşır: gidecekse
+ *        GERÇEK saatiyle (`sendAfter`), talep kapanmadan gidemeyecekse nedeniyle
+ *        (`notSentReason`). Öyle satır "Sıraya alındı" değil "Gönderilmedi" +
+ *        neden yazar (etiket kaynağı `ai-suppliers/invite-outcome.tsx`) ve özet
+ *        satırında "sıraya alındı"ya değil "gönderilemedi"ye sayılır. Eskiden
+ *        pencere "Sıraya alındı · planlanan gönderim: …" derken aynı sayfadaki
+ *        "E-postayla davet edilenler" bölümü aynı adres için "Gönderilmedi" diyordu.
+ *        Satır yine kilitlidir (kuyruk satırı duruyor; yeniden gönderilemez).
+ *  - AS-4 Süren aramaya SONRADAN katılan sekmenin sayacı sıfırdan başlamaz:
+ *        yoklama yanıtı aramanın başlangıcını GERİYE çeker (ileriye asla — sayaç
+ *        geri saymasın). Başlangıç, sunucunun kendi saatiyle ölçtüğü geçen
+ *        SÜREDEN (`elapsedMs`) bu tarayıcının saatine çevrilir (kanca yapar);
+ *        sunucu saatindeki `startedAt` tarayıcı saatiyle karşılaştırılmaz (saati
+ *        ileri / geri tarayıcıda sayaç yanlış çıkıyordu). Bekleme bloğunda dönen
+ *        simge ortalanmış metnin ÜSTÜNDE durur (sarmalanan metnin sol kenarında
+ *        kalıyordu).
  */
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /** Yeniden denemenin sonucu değiştirmeyeceği sonuçlar — satır kilitlenir (adres düzeltilirse açılır). */
@@ -511,6 +553,12 @@ interface DiscoverySession {
   searchItems: string[];
   /** Başlatma ucu bu API'de yok (404 görüldü): bağlamın sonraki aramaları doğrudan eş zamanlı uca gider. */
   syncOnly: boolean;
+  /**
+   * AS-1 — sayfa yenilendi: BİTMİŞ aramanın sonucu sunucudan geri okunuyor (tek
+   * istek). Bu sürerken yeni arama başlatılamaz (sonuç eldeyken ikinci ücretli
+   * arama başlamasın).
+   */
+  restoring: boolean;
   searchError: string | null;
   region: string;
   /** Satır kimliği → yazılan adres. */
@@ -523,8 +571,11 @@ interface DiscoverySession {
   langDrafts: Record<number, Locale>;
   /** Seçili satır kimlikleri. */
   selected: number[];
-  /** Adres başına GERÇEK gönderim sonucu (QUEUED + planlanan an / SENT / FAILED / …). */
-  sendStatus: Record<string, { status: ExternalInviteStatus; sendAfter: string | null }>;
+  /**
+   * Adres başına GERÇEK gönderim sonucu (QUEUED + planlanan an / SENT / FAILED / …).
+   * `notSentReason`: sırada ama talep kapanmadan gidemeyecek mektubun nedeni (F3).
+   */
+  sendStatus: Record<string, { status: ExternalInviteStatus; sendAfter: string | null; notSentReason?: string | null }>;
   /**
    * N5 — SON gönderimin özeti (gönder şeridinde tek satır): kaç davet sıraya
    * alındı / gitti / gönderilemedi. Yeni gönderim üstüne yazar, yeni arama siler.
@@ -552,6 +603,7 @@ const EMPTY_SESSION: DiscoverySession = {
   searchId: null,
   searchItems: [],
   syncOnly: false,
+  restoring: false,
   searchError: null,
   region: "",
   emailDrafts: {},
@@ -647,6 +699,7 @@ export function SupplierDiscoveryModal({
   const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
   const tAi = useTranslations("web.panel.requests.aiSuppliers");
   const tMember = useTranslations("web.panel.requests.memberInviteStatus");
+  const inviteReasonLabel = useInviteReasonLabel();
   const uiLocale = useLocale() as Locale;
   const formatDate = useFormatDate();
   const uid = useId();
@@ -729,6 +782,8 @@ export function SupplierDiscoveryModal({
   const selectedExt = new Set(session.selected);
   const invited = new Set(session.invited);
   const searching = searchSince !== null;
+  /** AS-1 — bitmiş aramanın sonucu geri okunuyor (eski oturum nesnesinde alan yoktur → false). */
+  const restoring = session.restoring === true;
   const setTab = (next: DiscoverySession["tab"]) => patch((s) => ({ ...s, tab: next }));
   const setRegion = (next: string) => patch((s) => ({ ...s, region: next }));
   const setEmailDrafts = (fn: (d: Record<number, string>) => Record<number, string>) =>
@@ -740,7 +795,8 @@ export function SupplierDiscoveryModal({
 
   const discovery = useSupplierDiscovery();
   const invite = useInviteConnection();
-  const inviteMembers = useInviteDiscoveredMembers();
+  // AS-2 — hata TEK mesajdır ve pencerenin metnidir: genel hata toast'ı istekte kapalı.
+  const inviteMembers = useInviteDiscoveredMembers({ skipErrorToast: true });
   // Platform önerileri pencere örneğine özgüdür: her açılışta yeniden çekilir.
   const [candidates, setCandidates] = useState<DiscoveryCandidate[]>([]);
   // İlk yanıt gelene dek "öneri yok" boş durumu çizilmez (istek efektle başlar).
@@ -758,7 +814,7 @@ export function SupplierDiscoveryModal({
   // Faz B/C durumları. Web aramasının bulduğu ROTHERN ÜYELERİ (adresi/sitesi
   // kayıtlı firmayla eşleşti) `web.members`ta: e-posta daveti gitmez, talebe
   // doğrudan davet edilir. Eskiden bu adaylar listeden sessizce düşüyordu.
-  const sendExternal = useExternalTenderInvite();
+  const sendExternal = useExternalTenderInvite({ skipErrorToast: true });
   const sendLock = useSubmitLock();
   const collectMode = !listingId && !!onCollect;
   const collectedSet = new Set(collected);
@@ -860,6 +916,24 @@ export function SupplierDiscoveryModal({
   }, [searchSince, isOpen]);
 
   /**
+   * AS-3 — talebin toast'ta söylenen adı: numarası ("ROT-000831"), yoksa başlığı
+   * (uzunsa kısaltılır). Pencere açıkken talep detayı elde; kapalıyken (devralınan
+   * arama) talep sayfasının yüklediği detay önbellekten okunur. Talepsiz açılışta
+   * ve detay hiç okunmadıysa `null`.
+   */
+  const requestName = (): string | null => {
+    if (!listingId) return null;
+    const known =
+      detail.data ??
+      qc.getQueryData<{ number?: string | null; title?: string | null }>(["company-listings", "detail", listingId]);
+    const number = (known?.number ?? "").trim();
+    if (number) return number;
+    const title = (known?.title ?? "").trim();
+    if (!title) return null;
+    return title.length > 60 ? `${title.slice(0, 59).trimEnd()}…` : title;
+  };
+
+  /**
    * Bir web aramasını SONUCA BAĞLAR (N1): `wait` aramanın sözüdür — yeni
    * başlatılan arama (başlat + yokla) ya da devralınan aramanın yoklaması.
    * Sonuç / hata aramanın BAŞLADIĞI bağlamın oturumuna yazılır; pencere kapansa,
@@ -887,10 +961,39 @@ export function SupplierDiscoveryModal({
     // gösterir; ikisi de sonuç GELDİĞİ anda okunur.
     const windowOpen = () => (openWindows.get(context) ?? 0) > 0;
     const onWebTab = () => qc.getQueryData<DiscoverySession>(key)?.tab === "external";
+    // AS-3 — pencere KAPALIYKEN verilen toast hangi talebin araması olduğunu
+    // söyler: alıcı o sırada başka sayfada olabilir ("pencereyi yeniden açın"
+    // orada bir şey ifade etmiyordu), aynı anda üç arama sürebilir. Ad toast'ın
+    // açıklama satırındadır (toast yine TEK). Ad arama başlarken okunur ve toast
+    // anında önbellekten tazelenir (yenilenen sayfada talep sonradan yüklenir);
+    // bilinmiyorsa (talepsiz açılış) toast eskisi gibi adsızdır.
+    const nameAtStart = requestName();
+    const closedToast = (kind: "success" | "error", message: string) => {
+      const name = requestName() ?? nameAtStart;
+      if (name) toast[kind](message, { description: tr("aramaninTalebi", { request: name }) });
+      else toast[kind](message);
+    };
     try {
       const res = await wait({
         since: run.since,
         shouldStop: () => !isCurrent(),
+        // AS-4 — süren aramaya SONRADAN katılan sekme (başlatma, süren aramanın
+        // kimliğini döner) sayacı kendi tıklama anından sayıyordu: 14. saniyede
+        // "Geçen süre: 2 sn". Aramanın gerçek başlangıcı sayacı ve kaydı GERİYE
+        // çeker. Değer BU tarayıcının saatindedir (kanca sunucunun ölçtüğü süreden
+        // çevirir), `searchSince` ile aynı saat. İleriye asla: aramayı başlatan
+        // sekmenin bildiği an isteğin yolda geçen süresi kadar ERKENDİR, sayaç
+        // geri saymaz; bir saniyeden küçük fark sayacı değiştirmez; süren bir
+        // aramanın olamayacağı kadar eski değer yok sayılır.
+        onStartedAt: (startedAt) => {
+          if (!isCurrent()) return;
+          const s = qc.getQueryData<DiscoverySession>(key);
+          const known = s?.searchSince ?? null;
+          if (known === null || startedAt > known - 1_000 || Date.now() - startedAt >= EXTERNAL_SEARCH_MAX_MS) return;
+          patchSession(key, (cur) => ({ ...cur, searchSince: startedAt }));
+          const record = readPendingExternalSearch(context);
+          if (record && record.searchId === s?.searchId) savePendingExternalSearch(context, { ...record, since: startedAt });
+        },
         onStarted: (searchId) => {
           if (!isCurrent()) return;
           patchSession(key, (s) => ({ ...s, searchId }));
@@ -909,8 +1012,28 @@ export function SupplierDiscoveryModal({
         },
       });
       if (!isCurrent()) return;
-      // R6-02 — arama bitti: kaydı önce silinir (boşta oturum + duran kayıt hiç görülmesin).
-      clearPendingExternalSearch(context);
+      // AS-1 — arama SONUÇLA bitti: kaydı silinmez, `finished` diye işaretlenir
+      // (sunucu sonucu 15 dk saklar; yenilenen sayfa TEK istekle geri okur).
+      // Eskiden burada siliniyordu: F5 sonrası pencere boş açılıyor, alıcının
+      // önünde yalnız ikinci ücretli arama kalıyordu. Kayıt TEK aramayı tutar:
+      // eldeki listenin ÜSTÜNE ekleyen aramada ekrandaki liste iki aramanın
+      // birleşimidir, tek kimlikten kurulamaz → kayıt eskisi gibi silinir (kimliği
+      // olmayan — eş zamanlı uca düşen — aramanın kaydı da yoktur).
+      const ended = qc.getQueryData<DiscoverySession>(key);
+      const endedId = ended?.searchId ?? null;
+      if (endedId && !(mode === "merge" && ended?.web)) {
+        savePendingExternalSearch(context, {
+          searchId: endedId,
+          since: ended?.searchSince ?? run.since,
+          mode,
+          scopes: scoped,
+          items,
+          region: run.region,
+          finished: true,
+        });
+      } else {
+        clearPendingExternalSearch(context);
+      }
       const next = readWebResults(res, items, !!listingId, () => ++rowIdSeq);
       const drafts = Object.fromEntries(next.rows.map((r) => [r.id, r.c.email ?? ""]));
       patchSession(key, (s) =>
@@ -933,15 +1056,18 @@ export function SupplierDiscoveryModal({
               sendNote: null,
             },
       );
-      if (!windowOpen()) toast.success(tr("aramaTamamlandi"));
+      if (!windowOpen()) closedToast("success", tr("aramaTamamlandi"));
       else if (!onWebTab()) toast.success(tr("aramaTamamlandiSekmede", { tab: tr("webDeAraAi") }));
     } catch (err) {
       if (!isCurrent()) return;
       const failure = readSearchFailure(err);
       // BIRAKILAN yoklama aramanın bitişi DEĞİLDİR (oturum silindi): kayıt durur.
       if (failure.kind === "ABANDONED") return;
-      // R6-02 — arama sonuçsuz bitti (sunucuda düştü / kimlik bilinmiyor / süre doldu / ret).
-      clearPendingExternalSearch(context);
+      // R6-02 — arama sonuçsuz bitti (sunucuda düştü / kimlik bilinmiyor / süre doldu / ret):
+      // kaydı silinir. AS-1 — `finished` kayıt DÜŞEN aramanın değildir (yeni arama
+      // kimlik alamadan düştü: bütçe, doğrulama, ağ): önceki aramanın sonucu
+      // ekranda duruyor, kaydı da durur.
+      if (!readPendingExternalSearch(context)?.finished) clearPendingExternalSearch(context);
       // Yalnız eksiği arayan istek TEK geçiş koşar; o da düşerse arama hatayla
       // biter. BÜTÇE REDDİ hata kutusuna DEĞİL nota yazılır: kutu "Yeniden ara"
       // sunar, oysa yeniden aramak sonucu değiştirmez. Eldeki sonuç ve not durur;
@@ -956,9 +1082,9 @@ export function SupplierDiscoveryModal({
         }));
         // Not görünmüyorsa (pencere kapalı / öteki sekmede) ret bir kez toast olur;
         // gidilecek bir "Yeniden ara" olmadığı için sekme ipucu eklenmez.
-        if (!windowOpen() || !onWebTab()) {
-          toast.error(refusal ?? tr("kismiSonucButce", { scope: scoped.length === 1 ? scoped[0]! : "ALL" }));
-        }
+        const refusalText = refusal ?? tr("kismiSonucButce", { scope: scoped.length === 1 ? scoped[0]! : "ALL" });
+        if (!windowOpen()) closedToast("error", refusalText);
+        else if (!onWebTab()) toast.error(refusalText);
         return;
       }
       // Arama kimliği artık bilinmiyor (API yeniden başladı) ve bekleme tavanı
@@ -986,7 +1112,7 @@ export function SupplierDiscoveryModal({
         searchError: message,
         web: scopesRejected && s.web ? { ...s.web, scopedRetry: false } : s.web,
       }));
-      if (!windowOpen()) toast.error(message);
+      if (!windowOpen()) closedToast("error", message);
       else if (!onWebTab()) toast.error(message, { description: tr("aramaHatasiSekmede", { tab: tr("webDeAraAi") }) });
     } finally {
       followedSearches.delete(id);
@@ -1008,7 +1134,8 @@ export function SupplierDiscoveryModal({
     // Oturumdan okunur (bileşen durumu değil): çift tıklama ve aynı talebin
     // öteki penceresi aynı anda ikinci ücretli aramayı başlatamaz.
     const stored = qc.getQueryData<DiscoverySession>(key);
-    if (!canSearch || (stored?.searchSince ?? null) !== null) return;
+    // AS-1 — bitmiş aramanın sonucu geri okunurken de başlatılmaz.
+    if (!canSearch || (stored?.searchSince ?? null) !== null || stored?.restoring) return;
     const run: SearchRun = {
       key,
       context: contextKey,
@@ -1044,18 +1171,72 @@ export function SupplierDiscoveryModal({
     void followSearch(run, (options) => searchExternalSuppliers(input, sync ? { ...options, sync } : options));
   };
 
+  /**
+   * AS-1 — BİTMİŞ aramanın sonucunu sunucudan geri okur (sayfa yenilendi: oturum
+   * gitti, kayıt ve sunucudaki sonuç duruyor). TEK istek; yoklama ve yeni arama
+   * yok, toast yok (sonuç pencere açılınca gövdededir).
+   *  - sonuç geldi → oturuma yazılır (arama bitince yazılanla aynı biçimde);
+   *  - kimlik artık bilinmiyor → kayıt silinir, web sekmesi BOŞ durumdadır (hata
+   *    kutusu yok: kullanıcı bir şey başlatmadı);
+   *  - geçici hata (ağ, 5xx) → kayıt durur, sonraki bağlanış yeniden sorar.
+   * `restoring` oturumdadır: sayfadaki iki pencere örneği tek istek atar, okuma
+   * sürerken "Web'de Ara" pasiftir. Oturum bu arada silindiyse (çıkış) hiçbir
+   * şey yazılmaz.
+   */
+  const restoreFinishedSearch = async (key: QueryKey, context: string, stored: PendingExternalSearch, fresh: boolean) => {
+    patchSession(key, (s) => ({
+      ...s,
+      restoring: true,
+      tab: fresh ? "external" : s.tab,
+      region: s.region || stored.region,
+    }));
+    let res: ExternalDiscoveryResult | null = null;
+    let forgotten = false;
+    try {
+      res = await readFinishedExternalSearch(stored.searchId);
+      forgotten = res === null;
+    } catch {
+      // Geçici hata: kayıt durur.
+    }
+    const now = qc.getQueryData<DiscoverySession>(key);
+    if (!now) return;
+    if (forgotten && readPendingExternalSearch(context)?.searchId === stored.searchId) clearPendingExternalSearch(context);
+    // Sonuç yalnız oturum hâlâ boşsa yazılır (bu arada sonuç gelmiş ya da arama başlamış olamaz — yine de korunur).
+    const next = res && now.web === null && now.searchSince === null ? readWebResults(res, stored.items, !!listingId, () => ++rowIdSeq) : null;
+    patchSession(key, (s) =>
+      next
+        ? {
+            ...s,
+            restoring: false,
+            web: next,
+            selected: [],
+            emailDrafts: Object.fromEntries(next.rows.map((r) => [r.id, r.c.email ?? ""])),
+            langDrafts: {},
+            sendNote: null,
+          }
+        : { ...s, restoring: false },
+    );
+  };
+
   // R6-02 — SAYFA YENİLENDİ: önbellek (oturum) ve arama döngüsü birlikte gitti,
   // arama sunucuda sürüyor. Bağlamın bağlanan ilk penceresi (kapalı olsa da)
   // depodaki kayıttan oturumu kurar; aşağıdaki devralma aynı aramayı yoklar.
   // Oturumda arama SÜRÜYORSA dokunulmaz (döngüsü bu sayfada yaşıyor ya da öteki
   // pencere örneği az önce kurdu). Web sekmesi yalnız oturum hiç yokken seçilir
   // (alıcı aramayı orada başlatmıştı; açık pencerenin sekmesi değiştirilmez).
+  // AS-1 — kayıt BİTMİŞ aramanınsa "aranıyor" kurulmaz: oturumda sonuç yoksa
+  // (yenilenen sayfa) sonuç sunucudan geri okunur; sonuç eldeyse (sayfa içi
+  // gezinme) hiçbir şey yapılmaz.
   useEffect(() => {
     const key: QueryKey = [SESSION_QUERY_ROOT, contextKey];
     const current = qc.getQueryData<DiscoverySession>(key);
     if (current && current.searchSince !== null) return;
     const stored = readPendingExternalSearch(contextKey);
     if (!stored) return;
+    if (stored.finished) {
+      if (!current?.web && !current?.restoring) void restoreFinishedSearch(key, contextKey, stored, !current);
+      return;
+    }
     patchSession(key, (s) => ({
       ...s,
       tab: current ? s.tab : "external",
@@ -1203,10 +1384,12 @@ export function SupplierDiscoveryModal({
       // "gönderildi" ayrı sayılır (D2), gönderilemeyenlerin nedeni kendi
       // satırında yazar. Eskiden iki başarı + üç adres toast'ı üst üste biniyor,
       // telefonda pencerenin başlığını ve kapat düğmesini örtüyordu.
+      // F3 — sırada ama talep kapanmadan gidemeyecek mektup "sıraya alındı"ya
+      // DEĞİL "gönderilemedi"ye sayılır (nedeni satırında yazar).
       const note: SendNote = {
-        queued: results.filter((r) => isInviteQueued(r.status)).length,
+        queued: results.filter((r) => isInviteQueued(r.status) && !queuedNotSentReason(r)).length,
         sent: results.filter((r) => isInviteSent(r.status)).length,
-        notSent: results.filter((r) => !isInviteAccepted(r.status)).length,
+        notSent: results.filter((r) => !isInviteAccepted(r.status) || !!queuedNotSentReason(r)).length,
       };
       // Seçim yalnız davet edilenlerden ve sonucu kesinleşenlerden temizlenir:
       // adresi geçersiz (hiç gönderilmedi) ya da yeniden denenebilir (günlük
@@ -1217,7 +1400,12 @@ export function SupplierDiscoveryModal({
         ...s,
         sendStatus: {
           ...s.sendStatus,
-          ...Object.fromEntries(results.map((r) => [keyOf(r.email), { status: r.status, sendAfter: queuedSendTime(r) }])),
+          ...Object.fromEntries(
+            results.map((r) => [
+              keyOf(r.email),
+              { status: r.status, sendAfter: queuedSendTime(r), notSentReason: queuedNotSentReason(r) },
+            ]),
+          ),
         },
         selected: s.selected.filter((id) => {
           const email = emailOf.get(id) ?? "";
@@ -1236,6 +1424,7 @@ export function SupplierDiscoveryModal({
         else toast.warning(sendNoteText(note));
       }
     } catch (err) {
+      // AS-2 — TEK toast: istek `skipErrorToast` taşır, mesaj pencerenin metnidir.
       toast.error(windowErrorMessage(err, tr("davetlerGonderilemedi")));
     }
   };
@@ -1274,6 +1463,7 @@ export function SupplierDiscoveryModal({
         if (results.some((r) => r.status === status)) toast.warning(tMember(status));
       }
     } catch (err) {
+      // AS-2 — TEK toast (istek `skipErrorToast` taşır).
       toast.error(windowErrorMessage(err, tr("davetGonderilemedi")));
     } finally {
       setInviting(null);
@@ -1290,7 +1480,9 @@ export function SupplierDiscoveryModal({
       patchSession(key, (s) => ({ ...s, invited: [...new Set([...s.invited, c.companyId])] }));
       toast.success(tr("firmasinaBaglantiDavetiGonderildi", { name: c.name }));
     } catch (err) {
-      toast.error(windowErrorMessage(err, tr("davetGonderilemedi")));
+      // AS-2 — bağlantı daveti kancası genel hata toast'ını kapatmaz: 5xx / yanıtsız
+      // hatayı `companyApi` zaten söyledi, pencere ikinci bir toast basmaz.
+      if (!errorToastedGlobally(err)) toast.error(windowErrorMessage(err, tr("davetGonderilemedi")));
     } finally {
       setInviting(null);
     }
@@ -1522,9 +1714,9 @@ export function SupplierDiscoveryModal({
                   <Button
                     type="button"
                     onClick={() => void runExternalSearch("replace")}
-                    disabled={searching || !canSearch}
+                    disabled={searching || restoring || !canSearch}
                   >
-                    {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    {searching || restoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                     {tr("webDeAra")}
                   </Button>
                 </div>
@@ -1547,9 +1739,11 @@ export function SupplierDiscoveryModal({
                   {searching ? (
                     // D12 — durum duyurulur; sayaç `timer` (ekran okuyucu her
                     // saniye okumaz, gezinince güncel değeri okur).
+                    // AS-4 — dönen simge metnin ÜSTÜNDE, ortada: metinle aynı satırdayken
+                    // iki-üç satıra saran ortalanmış metnin sol kenarında kalıyordu.
                     <>
-                      <p role="status" className="flex items-center justify-center gap-2 text-sm text-zinc-600">
-                        <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin text-zinc-600" aria-hidden />
+                      <p role="status" className="text-sm text-zinc-600">
                         {tr("webDeAraniyorSure")}
                       </p>
                       <p role="timer" className="text-sm font-medium tabular-nums text-zinc-700">
@@ -1829,6 +2023,15 @@ export function SupplierDiscoveryModal({
                                                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
                                                   <Check className="h-3.5 w-3.5" />
                                                   {tr("gonderildi")}
+                                                </span>
+                                              ) : v.result && queuedNotSentReason(v.result) ? (
+                                                // F3 — kuyrukta, ama mektup talep kapanmadan gidemeyecek:
+                                                // "Sıraya alındı" DENMEZ. Talep sayfasındaki bölümün aynı
+                                                // satır için yazdığı durum + neden (tek etiket kaynağı).
+                                                <span className={cn("text-xs font-semibold text-amber-800", ROW_STATUS_FIT)}>
+                                                  {[tAi("outcome.NOT_SENT"), inviteReasonLabel(queuedNotSentReason(v.result))]
+                                                    .filter(Boolean)
+                                                    .join(" · ")}
                                                 </span>
                                               ) : status && isInviteQueued(status) ? (
                                                 // D2 — sırada: e-posta henüz gitmedi; planlanan an ürün saat dilimiyle.

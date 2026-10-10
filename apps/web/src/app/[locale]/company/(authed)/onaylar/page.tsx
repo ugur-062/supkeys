@@ -160,7 +160,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
     <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50/60 p-8 text-center">
       <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" aria-hidden />
       <p className="mt-3 text-sm font-medium text-rose-900">{t("kayitlarYuklenemedi")}</p>
-      <p className="mt-1 text-sm text-rose-700/80">{t("baglantiSorunuOlabilirLutfenYeniden")}</p>
+      <p className="mt-1 text-sm text-rose-700/80">{t("lutfenYenidenDeneyin")}</p>
       <Button className="mt-4" outline onClick={onRetry}>
         {t("yenidenDene")}
       </Button>

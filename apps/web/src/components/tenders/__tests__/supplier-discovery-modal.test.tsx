@@ -19,15 +19,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   external: vi.fn(),
   resume: vi.fn(),
+  /** Bitmiş aramanın sonucunu tek istekle geri okuyan çağrı (AS-1). */
+  finished: vi.fn(),
   sendExternal: vi.fn(),
   discovery: vi.fn(),
   inviteMembers: vi.fn(),
+  inviteConnection: vi.fn(),
+  /** Pencerenin davet kancalarına verdiği seçenekler (AS-2: `skipErrorToast`). */
+  hookOptions: { sendExternal: undefined as unknown, inviteMembers: undefined as unknown },
   detail: { data: undefined as unknown, isLoading: false },
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-company-connections", () => ({
-  useInviteConnection: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useInviteConnection: () => ({ mutateAsync: h.inviteConnection, isPending: false }),
 }));
 vi.mock("@/hooks/use-company-listings", () => ({
   useListingDetail: () => h.detail,
@@ -41,8 +46,15 @@ vi.mock("@/hooks/use-supplier-discovery", async (importOriginal) => ({
   useSupplierDiscovery: () => ({ mutateAsync: h.discovery, isPending: false }),
   searchExternalSuppliers: h.external,
   resumeExternalSupplierSearch: h.resume,
-  useExternalTenderInvite: () => ({ mutateAsync: h.sendExternal, isPending: false }),
-  useInviteDiscoveredMembers: () => ({ mutateAsync: h.inviteMembers, isPending: false }),
+  readFinishedExternalSearch: h.finished,
+  useExternalTenderInvite: (options?: unknown) => {
+    h.hookOptions.sendExternal = options;
+    return { mutateAsync: h.sendExternal, isPending: false };
+  },
+  useInviteDiscoveredMembers: (options?: unknown) => {
+    h.hookOptions.inviteMembers = options;
+    return { mutateAsync: h.inviteMembers, isPending: false };
+  },
 }));
 
 import {
@@ -112,8 +124,11 @@ beforeEach(() => {
     ]),
   );
   h.resume.mockReset().mockReturnValue(new Promise(() => {}));
+  // Varsayılan: sunucu kimliği artık bilmiyor (gösterilecek sonuç yok).
+  h.finished.mockReset().mockResolvedValue(null);
   h.sendExternal.mockReset();
   h.inviteMembers.mockReset();
+  h.inviteConnection.mockReset();
   h.detail = { data: undefined, isLoading: false };
   Object.values(h.toast).forEach((f) => f.mockReset());
 });
@@ -476,6 +491,61 @@ describe("SupplierDiscoveryModal — canlı doğrulama turu (2026-10-09)", () =>
       fireEvent.click(screen.getByRole("button", { name: "Davet E-postası Gönder (1)" }));
       expect(await screen.findByText("Sıraya alındı")).toBeInTheDocument();
       expect(screen.queryByText("Gönderildi")).toBeNull();
+    });
+
+    /**
+     * AUTO-COUNT-1 gözden geçirmesi (F3): pencere davet yanıtını kuyruk satırından
+     * tek başına okuyordu — bu hafta başka bir davet almış adres için "Sıraya
+     * alındı · planlanan gönderim: 12 Eki 09:13" diyor, aynı sayfadaki "E-postayla
+     * davet edilenler" bölümü aynı adres için "Gönderilmedi" diyordu. Yanıt artık
+     * bölümle aynı öngörüyü taşır (`sendAfter` gerçek saat / `notSentReason`).
+     */
+    it("F3: sırada ama talep kapanmadan GİDEMEYECEK davet 'Sıraya alındı' demez — 'Gönderilmedi' + nedeni; özet onu gönderilemeyene sayar; satır kilitli kalır", async () => {
+      h.sendExternal.mockResolvedValue([
+        { email: "info@baret.com", status: "QUEUED", notSentReason: "FREQUENCY" },
+        // Frendeki ama zamanında çıkabilecek adres: yanıttaki saat frenin bittiği pencere (06:00 UTC = İstanbul 09:00).
+        { email: "satis@kask.com", status: "QUEUED", sendAfter: "2026-10-19T06:00:00.000Z" },
+      ]);
+      render(listingModal());
+      await searchWeb();
+      fireEvent.click(screen.getByLabelText("Baret A.Ş. seç"));
+      fireEvent.click(screen.getByLabelText("Kask Ltd. seç"));
+      fireEvent.click(screen.getByRole("button", { name: "Davet E-postası Gönder (2)" }));
+      // Bölümün aynı satır için yazdığı durum ve neden (tek etiket kaynağı).
+      const baret = (
+        await screen.findByText("Gönderilmedi · Adres bu hafta başka bir davet aldı; talep kapanmadan sıra gelmedi")
+      ).closest("li") as HTMLElement;
+      expect(within(baret).getByText("Baret A.Ş.")).toBeInTheDocument();
+      expect(within(baret).queryByText(/Sıraya alındı/)).toBeNull();
+      const kask = screen.getByText("Kask Ltd.").closest("li") as HTMLElement;
+      expect(within(kask).getByText("Sıraya alındı · planlanan gönderim: 19 Eki 2026 09:00")).toBeInTheDocument();
+      // Özet: bir davet sırada, biri gönderilemedi — "2 davet sıraya alındı" DEĞİL.
+      expect(screen.getByText("1 davet sıraya alındı · 1 adrese gönderilemedi (nedeni satırında)")).toBeInTheDocument();
+      expect(screen.queryByText(/2 davet sıraya alındı/)).toBeNull();
+      // Kuyruk satırı duruyor: adres yeniden gönderilemez (sunucu "zaten davetli" derdi).
+      expect(screen.getByLabelText("Baret A.Ş. seç")).toBeDisabled();
+      expect(screen.getByLabelText("Baret A.Ş. seç")).not.toBeChecked();
+    });
+
+    it("F3: sırası talep kapandıktan sonra gelen davet kendi nedenini yazar; tanınmayan neden kodu yalnız 'Gönderilmedi' der (ham kod basılmaz)", async () => {
+      h.sendExternal.mockResolvedValue([
+        { email: "info@baret.com", status: "QUEUED", notSentReason: "CLOSES_FIRST" },
+        { email: "satis@kask.com", status: "QUEUED", notSentReason: "YENI_BIR_KOD" },
+      ]);
+      render(listingModal());
+      await searchWeb();
+      fireEvent.click(screen.getByLabelText("Baret A.Ş. seç"));
+      fireEvent.click(screen.getByLabelText("Kask Ltd. seç"));
+      fireEvent.click(screen.getByRole("button", { name: "Davet E-postası Gönder (2)" }));
+      expect(
+        await screen.findByText("Gönderilmedi · Talep, e-postanın gönderilebileceği mesai saatinden önce kapanıyor"),
+      ).toBeInTheDocument();
+      const kask = screen.getByText("Kask Ltd.").closest("li") as HTMLElement;
+      expect(within(kask).getByText("Gönderilmedi")).toBeInTheDocument();
+      expect(screen.queryByText(/YENI_BIR_KOD/)).toBeNull();
+      // Hiçbiri gitmeyecek: özet yalnız onu söyler.
+      expect(screen.getByText("2 adrese gönderilemedi (nedeni satırında)")).toBeInTheDocument();
+      expect(screen.queryByText(/sıraya alındı/i)).toBeNull();
     });
   });
 
@@ -1860,7 +1930,7 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
       ...over,
     });
 
-    it("kimlik gelince kayıt yazılır; YENİ sayfa (boş önbellek) aynı aramayı kimliğiyle sürdürür: 'aranıyor', 'Web'de Ara' pasif, ikinci arama yok; sonuç gelince kayıt silinir", async () => {
+    it("kimlik gelince kayıt yazılır; YENİ sayfa (boş önbellek) aynı aramayı kimliğiyle sürdürür: 'aranıyor', 'Web'de Ara' pasif, ikinci arama yok; sonuç gelince kayıt BİTTİ diye işaretlenir (AS-1)", async () => {
       h.detail = { data: { categoryIds: ["39121600"], items: [{ name: "Rulman 6204" }, { name: "Keçe" }] }, isLoading: false };
       deferredSearch();
       const first = render(listingModal());
@@ -1909,10 +1979,20 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
       expect(within(row).getByText("Karşıladığı kalemler (1/2): Keçe")).toBeInTheDocument();
       expect(screen.queryByRole("timer")).toBeNull();
       expect(screen.getByRole("button", { name: "Web'de Ara" })).toBeEnabled();
-      // Arama bitti: kayıt silindi, sonraki sayfa açılışı hiçbir şey devralmaz.
-      expect(sessionStorage.getItem(PENDING_EXTERNAL_SEARCH_KEY)).toBeNull();
+      // Arama SONUÇLA bitti: kayıt silinmez (AS-1) — aynı arama, `finished` işaretiyle;
+      // sonraki sayfa açılışı onu yoklamaz, sonucunu tek istekle geri okur.
+      expect(readPendingExternalSearch("l:l1")).toEqual({
+        searchId: "s-1",
+        since,
+        mode: "replace",
+        scopes: null,
+        items: ["Rulman 6204", "Keçe"],
+        region: "Ege",
+        finished: true,
+      });
       expect(h.resume).toHaveBeenCalledTimes(1);
       expect(h.external).toHaveBeenCalledTimes(1);
+      expect(h.finished).not.toHaveBeenCalled();
     });
 
     it("depoda kimlik + BOŞ önbellek: pencere kapalıyken biten aramanın sonucu yeniden açılışta oradadır; sayfadaki iki pencere örneği tek kez izler", async () => {
@@ -1934,7 +2014,8 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
       expect(screen.getByText("Kapalıyken Gelen A.Ş.")).toBeInTheDocument();
       expect(h.resume).toHaveBeenCalledTimes(1);
       expect(h.external).not.toHaveBeenCalled();
-      expect(sessionStorage.getItem(PENDING_EXTERNAL_SEARCH_KEY)).toBeNull();
+      // Kayıt durur, bitti diye işaretlidir (AS-1).
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-9", finished: true });
     });
 
     it.each([
@@ -2353,6 +2434,488 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
         "5 приглашений отправлено",
         "На 5 адресов приглашения не отправлены (причина указана в строке)",
       ]);
+    });
+  });
+});
+
+/**
+ * SON CANLI KONTROL (2026-10-10) — AS-1 … AS-4:
+ *  - AS-1 biten (ücretli) aramanın sonucu F5'te kayboluyordu: kayıt sonuç gelince
+ *    siliniyordu, oysa sunucu sonucu 15 dakika saklıyor.
+ *  - AS-2 davet gönderimi 5xx alınca iki hata toast'ı.
+ *  - AS-3 başka sayfada çıkan "arama tamamlandı / düştü" toast'ı hangi talebin
+ *    araması olduğunu söylemiyordu.
+ *  - AS-4 süren aramaya sonradan katılan sekmenin sayacı sıfırdan başlıyordu;
+ *    dönen simge sarmalanan durum metninin sol kenarında kalıyordu.
+ */
+describe("SupplierDiscoveryModal — son canlı kontrol (2026-10-10)", () => {
+  const SESSION_ROOT = "supplier-discovery-session";
+  const sessionOf = (listingId: string) =>
+    queryClient.getQueryData([SESSION_ROOT, `l:${listingId}`]) as Record<string, unknown> | undefined;
+  const optionsOf = (call: number) => h.external.mock.calls[call][1] as ExternalSearchOptions;
+  const raw500 = { isAxiosError: true, response: { status: 500, data: { statusCode: 500, message: "Internal server error" } } };
+  const own = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/);
+  const searchButton = () => screen.getByRole("button", { name: "Web'de Ara" });
+  /** F5: sayfanın belleği (önbellek + arama döngüsü) gider, sekme deposu kalır. */
+  const reloadPage = (view: { unmount: () => void }) => {
+    view.unmount();
+    queryClient.clear();
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  };
+  /** Önceki sayfadan kalan kayıt: arama SONUÇLA bitti, sonucu sunucuda duruyor. */
+  const ended = (over: Record<string, unknown> = {}) => ({
+    searchId: "s-9",
+    since: Date.now() - 120_000,
+    mode: "replace" as const,
+    scopes: null,
+    items: ["Rulman 6204", "Keçe"],
+    region: "Ege",
+    finished: true,
+    ...over,
+  });
+  /** Bitmiş aramanın sonucunu geri okuyan çağrı — elle çözülür. */
+  const deferredRead = () => {
+    let resolve: (v: unknown) => void = () => {};
+    h.finished.mockReset().mockReturnValueOnce(new Promise((res) => (resolve = res)));
+    return { resolve: (v: unknown) => act(async () => resolve(v)) };
+  };
+
+  describe("AS-1 — biten aramanın sonucu sayfa yenilemeyi aşar", () => {
+    it("sonuç gelince kayıt SİLİNMEZ; F5 sonrası sunucuya TEK istek atılır ve liste geri gelir — yeni arama da yoklama da yok", async () => {
+      h.detail = { data: { categoryIds: ["39121600"], items: [{ name: "Rulman 6204" }, { name: "Keçe" }] }, isLoading: false };
+      const companies = [cand("Baret A.Ş.", "info@baret.com", { matchedItems: [2] }), cand("Kask Ltd.", "satis@kask.com")];
+      const search = deferredSearch();
+      const first = render(listingModal());
+      openWebTab();
+      clickSearch();
+      act(() => optionsOf(0).onStarted?.("s-1"));
+      await search.resolve(found(companies));
+      expect(screen.getByText("Baret A.Ş.")).toBeInTheDocument();
+      // Eskiden burada `null`dı: yenilenen sayfanın soracak kimliği kalmıyordu.
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-1", finished: true, items: ["Rulman 6204", "Keçe"] });
+
+      reloadPage(first);
+      const read = deferredRead();
+      // Sayfa açılır, pencere KAPALI: sonuç yine de geri okunur.
+      const second = render(listingModal({ isOpen: false }));
+      await waitFor(() => expect(h.finished).toHaveBeenCalledTimes(1));
+      expect(h.finished).toHaveBeenCalledWith("s-1");
+      expect(h.resume).not.toHaveBeenCalled();
+      expect(h.external).toHaveBeenCalledTimes(1);
+
+      // Yanıt gelmeden pencere açılırsa: web sekmesi, "aranıyor" DEMEZ, yeni arama başlatılamaz.
+      second.rerender(listingModal());
+      expect(screen.getByRole("tab", { name: /Web'de Ara/ })).toHaveAttribute("aria-selected", "true");
+      expect(screen.queryByRole("timer")).toBeNull();
+      expect(screen.queryByText(/Web'de aranıyor/)).toBeNull();
+      expect(searchButton()).toBeDisabled();
+      fireEvent.click(searchButton());
+      expect(h.external).toHaveBeenCalledTimes(1);
+
+      await read.resolve(found(companies));
+      const row = screen.getByText("Baret A.Ş.").closest("li") as HTMLElement;
+      // Karşılanan kalem, aramaya GİDEN kalem listesinden (kayıtta saklı) çözülür.
+      expect(within(row).getByText("Karşıladığı kalemler (1/2): Keçe")).toBeInTheDocument();
+      expect(screen.getByText("Kask Ltd.")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("info@baret.com")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Bölge (ops. — örn. İstanbul, Ege)" })).toHaveValue("");
+      expect(searchButton()).toBeEnabled();
+      expect(screen.queryByRole("alert")).toBeNull();
+      for (const kind of ["success", "error", "info", "warning"] as const) expect(h.toast[kind]).not.toHaveBeenCalled();
+      // İkinci yenileme de aynı sonucu bulur.
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-1", finished: true });
+      expect(h.finished).toHaveBeenCalledTimes(1);
+      expect(h.external).toHaveBeenCalledTimes(1);
+      expect(h.resume).not.toHaveBeenCalled();
+    });
+
+    it("sayfadaki iki pencere örneği (görünür düğme + ⋮ menüsü) TEK istek atar; aranan bölge alana geri gelir", async () => {
+      savePendingExternalSearch("l:l1", ended());
+      h.finished.mockReset().mockResolvedValue(found([cand("Geri Gelen A.Ş.", "info@gerigelen.com")]));
+      const view = (open: boolean) => (
+        <>
+          <SupplierDiscoveryModal isOpen={false} onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />
+          <SupplierDiscoveryModal isOpen={open} onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />
+        </>
+      );
+      const { rerender } = render(view(false));
+      await waitFor(() => expect(sessionOf("l1")?.web).toBeTruthy());
+      expect(h.finished).toHaveBeenCalledTimes(1);
+      expect(h.finished).toHaveBeenCalledWith("s-9");
+      rerender(view(true));
+      expect(screen.getByText("Geri Gelen A.Ş.")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Bölge (ops. — örn. İstanbul, Ege)" })).toHaveValue("Ege");
+      expect(h.toast.success).not.toHaveBeenCalled();
+      expect(h.finished).toHaveBeenCalledTimes(1);
+    });
+
+    it("sunucu kimliği artık bilmiyorsa kayıt silinir ve web sekmesi BOŞ durumdadır: hata kutusu, 'bulunamadı' ve toast yok; 'Web'de Ara' açık", async () => {
+      savePendingExternalSearch("l:l1", ended());
+      // Varsayılan: `readFinishedExternalSearch` → null (404 / süresi doldu).
+      render(listingModal());
+      await waitFor(() => expect(sessionStorage.getItem(PENDING_EXTERNAL_SEARCH_KEY)).toBeNull());
+      await waitFor(() => expect(searchButton()).toBeEnabled());
+      expect(h.finished).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.queryByText(/yarıda kesildi/)).toBeNull();
+      expect(screen.queryByText("Web aramasında uygun firma bulunamadı")).toBeNull();
+      expect(screen.queryByRole("timer")).toBeNull();
+      expect(h.toast.error).not.toHaveBeenCalled();
+      expect(h.resume).not.toHaveBeenCalled();
+      // Boş durumdan yeni arama başlatılabilir.
+      clickSearch();
+      expect(await screen.findByText("Baret A.Ş.")).toBeInTheDocument();
+      expect(h.external).toHaveBeenCalledTimes(1);
+    });
+
+    it("geçici hata (yanıt yok): kayıt DURUR, hata kutusu yok; sonraki bağlanış yeniden sorar ve liste gelir", async () => {
+      savePendingExternalSearch("l:l1", ended());
+      h.finished
+        .mockReset()
+        .mockRejectedValueOnce({ isAxiosError: true, response: undefined })
+        .mockResolvedValueOnce(found([cand("İkinci Denemede A.Ş.", "info@ikinci.com")]));
+      const first = render(listingModal());
+      await waitFor(() => expect(searchButton()).toBeEnabled());
+      expect(h.finished).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(h.toast.error).not.toHaveBeenCalled();
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-9", finished: true });
+      // Sayfa içi gezinme (önbellek aynı, oturumda sonuç yok): pencere yeniden bağlanır.
+      first.unmount();
+      render(listingModal());
+      expect(await screen.findByText("İkinci Denemede A.Ş.")).toBeInTheDocument();
+      expect(h.finished).toHaveBeenCalledTimes(2);
+    });
+
+    it("sayfa içi gezinme (oturumda sonuç duruyor): bitmiş kayıt 'aranıyor' KURMAZ, sunucuya sorulmaz", async () => {
+      h.external.mockImplementationOnce(async (_input: unknown, options: ExternalSearchOptions) => {
+        options.onStarted?.("s-1");
+        return found([cand("Baret A.Ş.", "info@baret.com")]);
+      });
+      const first = render(listingModal());
+      await searchWeb();
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-1", finished: true });
+      first.unmount();
+      render(listingModal());
+      expect(screen.getByText("Baret A.Ş.")).toBeInTheDocument();
+      expect(screen.queryByRole("timer")).toBeNull();
+      expect(searchButton()).toBeEnabled();
+      expect(sessionOf("l1")).toMatchObject({ searchSince: null, restoring: false });
+      expect(h.finished).not.toHaveBeenCalled();
+      expect(h.resume).not.toHaveBeenCalled();
+    });
+
+    it("kayıt TEK aramayı tutar: kimlik alamadan düşen yeni arama bitmiş kaydı silmez; yeni arama kimlik alınca yerine geçer; üstüne EKLEYEN arama bitince kayıt silinir", async () => {
+      h.external
+        .mockReset()
+        // 1) Kısmi sonuç (yurt dışı yanıt vermedi).
+        .mockImplementationOnce(async (_input: unknown, options: ExternalSearchOptions) => {
+          options.onStarted?.("s-1");
+          return partial([cand("Yerli Rulman A.Ş.", "satis@yerlirulman.com")], { ABROAD: "TIMEOUT" });
+        })
+        // 2) Ana düğmenin yeni araması kimlik ALAMADAN düşer (bütçe reddi başlatma isteğinin kendi hatasıdır).
+        .mockRejectedValueOnce(budgetRefusal("Firmanızın günlük AI kullanım sınırı doldu."))
+        // 3) "Yeniden ara": eldekinin üstüne ekleyen arama kimlik alır ve biter.
+        .mockImplementationOnce(async (_input: unknown, options: ExternalSearchOptions) => {
+          options.onStarted?.("s-2");
+          const running = readPendingExternalSearch("l:l1");
+          expect(running).toMatchObject({ searchId: "s-2", mode: "merge" });
+          expect(running?.finished).toBeUndefined();
+          return partial([cand("Yabancı Rulman GmbH", "sales@yabanci.de", { country: "DE" })]);
+        });
+      render(listingModal());
+      await searchWeb("Yerli Rulman A.Ş.");
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-1", finished: true });
+
+      clickSearch();
+      expect(await screen.findByRole("alert")).toHaveTextContent("Firmanızın günlük AI kullanım sınırı doldu.");
+      // Önceki aramanın sonucu ekranda duruyor → kaydı da durur (F5 onu geri getirir).
+      expect(screen.getByText("Yerli Rulman A.Ş.")).toBeInTheDocument();
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-1", finished: true });
+
+      fireEvent.click(screen.getByRole("button", { name: "Yeniden ara" }));
+      expect(await screen.findByText("Yabancı Rulman GmbH")).toBeInTheDocument();
+      expect(screen.getByText("Yerli Rulman A.Ş.")).toBeInTheDocument();
+      expect(h.external).toHaveBeenCalledTimes(3);
+      // Liste artık iki aramanın birleşimi: tek kimlikten kurulamaz → kayıt yok.
+      expect(sessionStorage.getItem(PENDING_EXTERNAL_SEARCH_KEY)).toBeNull();
+    });
+  });
+
+  describe("AS-2 — davet gönderimi düşerse TEK hata mesajı", () => {
+    it("pencere iki davet kancasını genel hata toast'ı KAPALI çağırır (mesaj pencerenin kendi toast'ıdır)", () => {
+      render(listingModal());
+      expect(h.hookOptions.sendExternal).toEqual({ skipErrorToast: true });
+      expect(h.hookOptions.inviteMembers).toEqual({ skipErrorToast: true });
+    });
+
+    it("e-posta daveti ve üye daveti 500: her biri için TEK toast, pencerenin metniyle", async () => {
+      h.discovery.mockResolvedValue([
+        { companyId: "co1", name: "Bağlantı AŞ", city: null, rothernId: "R1", matchedCategories: [], strongMatch: true, matchedItems: [], connectionStatus: "NONE", alreadyInvited: false },
+      ]);
+      render(listingModal());
+      h.inviteMembers.mockRejectedValueOnce(raw500);
+      fireEvent.click(await screen.findByRole("button", { name: "Talebe davet et" }));
+      await waitFor(() => expect(h.toast.error).toHaveBeenCalledTimes(1));
+      expect(h.toast.error).toHaveBeenLastCalledWith("Davet gönderilemedi");
+
+      await searchWeb();
+      h.sendExternal.mockRejectedValueOnce(raw500);
+      fireEvent.click(screen.getByLabelText("Baret A.Ş. seç"));
+      fireEvent.click(screen.getByRole("button", { name: "Davet E-postası Gönder (1)" }));
+      await waitFor(() => expect(h.toast.error).toHaveBeenCalledTimes(2));
+      expect(h.toast.error).toHaveBeenLastCalledWith("Davetler gönderilemedi");
+      // Seçim durur: kullanıcı yeniden deneyebilir.
+      expect(screen.getByLabelText("Baret A.Ş. seç")).toBeChecked();
+    });
+
+    it("bağlantı daveti (talepsiz açılış; kancası genel toast'ı kapatmaz): 5xx / yanıtsız hatada pencere İKİNCİ toast'ı basmaz; 4xx'te sunucunun metni tek toast", async () => {
+      h.discovery.mockResolvedValue([
+        { companyId: "co1", name: "Bağlantı AŞ", city: null, rothernId: "R1", matchedCategories: [], strongMatch: true, matchedItems: [], connectionStatus: "NONE" },
+      ]);
+      render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} />);
+      const button = await screen.findByRole("button", { name: "Bağlantı daveti gönder" });
+      let calls = 0;
+      for (const error of [raw500, { isAxiosError: true, response: undefined }]) {
+        h.inviteConnection.mockRejectedValueOnce(error);
+        fireEvent.click(button);
+        calls += 1;
+        await waitFor(() => expect(h.inviteConnection).toHaveBeenCalledTimes(calls));
+        await waitFor(() => expect(button).toBeEnabled());
+      }
+      expect(h.inviteConnection).toHaveBeenCalledWith("R1");
+      // Genel istemci bu hatayı zaten söyledi ("Sunucu hatası…" / "Sunucuya ulaşılamadı").
+      expect(h.toast.error).not.toHaveBeenCalled();
+
+      h.inviteConnection.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 422, data: { message: "Bu firmaya bağlantı daveti gönderilemiyor" } },
+      });
+      // 422'yi genel istemci de basar; aynı metin tekilleşir (`toast-dedupe`).
+      fireEvent.click(button);
+      await waitFor(() => expect(h.toast.error).toHaveBeenCalledTimes(1));
+      expect(h.toast.error).toHaveBeenCalledWith("Bu firmaya bağlantı daveti gönderilemiyor");
+    });
+  });
+
+  describe("AS-3 — pencere kapalıyken gelen toast hangi talebin araması olduğunu söyler", () => {
+    const DONE_TEXT = "Web araması tamamlandı — sonuçları görmek için pencereyi yeniden açın";
+    const listing = (over: Record<string, unknown> = {}) => ({
+      data: { number: "ROT-000831", title: "Rulman alımı", categoryIds: ["39121600"], items: [{ name: "Rulman 6204" }], ...over },
+      isLoading: false,
+    });
+    /** Arama başlar, pencere kapanır (alıcı başka sayfaya geçer; arama sürer). */
+    const searchThenClose = () => {
+      const search = deferredSearch();
+      const view = render(listingModal());
+      openWebTab();
+      clickSearch();
+      view.rerender(listingModal({ isOpen: false }));
+      return search;
+    };
+
+    it("tamamlandı: TEK toast, açıklama satırında talep numarası", async () => {
+      h.detail = listing();
+      const search = searchThenClose();
+      await search.resolve(found([cand("Geç Gelen A.Ş.", "info@gecgelen.com")]));
+      expect(h.toast.success).toHaveBeenCalledTimes(1);
+      expect(h.toast.success).toHaveBeenCalledWith(DONE_TEXT, { description: "Talep: ROT-000831" });
+      expect(h.toast.error).not.toHaveBeenCalled();
+    });
+
+    it("düştü: TEK toast — hata mesajı + talep numarası", async () => {
+      h.detail = listing();
+      const search = searchThenClose();
+      await search.reject({
+        isAxiosError: true,
+        response: { status: 503, data: { message: "AI isteği zaman aşımına uğradı — lütfen tekrar deneyin." } },
+      });
+      expect(h.toast.error).toHaveBeenCalledTimes(1);
+      expect(h.toast.error).toHaveBeenCalledWith("AI isteği zaman aşımına uğradı — lütfen tekrar deneyin.", {
+        description: "Talep: ROT-000831",
+      });
+      expect(h.toast.success).not.toHaveBeenCalled();
+    });
+
+    it("bütçe reddi (yalnız eksiği arayan arama) pencere kapalıyken: TEK toast — sunucunun metni + talep", async () => {
+      const POOL_FULL = "Firmanızın aylık AI bütçesi doldu — AI özellikleri gelecek ay yeniden açılır.";
+      h.detail = listing();
+      h.external.mockReset().mockResolvedValueOnce(partial([cand("Yerli Rulman A.Ş.", "satis@yerlirulman.com")], { ABROAD: "TIMEOUT" }));
+      const view = render(listingModal());
+      await searchWeb("Yerli Rulman A.Ş.");
+      const retry = deferredSearch();
+      fireEvent.click(screen.getByRole("button", { name: "Yeniden ara" }));
+      view.rerender(listingModal({ isOpen: false }));
+      await retry.reject(budgetRefusal(POOL_FULL));
+      expect(h.toast.error).toHaveBeenCalledTimes(1);
+      expect(h.toast.error).toHaveBeenCalledWith(POOL_FULL, { description: "Talep: ROT-000831" });
+    });
+
+    it("numarası olmayan talepte başlık yazılır; uzun başlık kısaltılır", async () => {
+      h.detail = listing({ number: null, title: "  Rulman alımı  " });
+      const short = searchThenClose();
+      await short.resolve(found([]));
+      expect(h.toast.success).toHaveBeenLastCalledWith(DONE_TEXT, { description: "Talep: Rulman alımı" });
+
+      queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const title = "Fabrika genişleme projesi için rulman, keçe ve yağlama ekipmanı tedariki — 2026 ikinci yarı";
+      h.detail = listing({ number: "", title });
+      const long = searchThenClose();
+      await long.resolve(found([]));
+      const [, options] = h.toast.success.mock.calls.at(-1) as [string, { description: string }];
+      // En çok 60 karakter: 59 + "…".
+      expect(options.description).toBe("Talep: Fabrika genişleme projesi için rulman, keçe ve yağlama ekip…");
+      expect(options.description.length).toBe("Talep: ".length + 60);
+    });
+
+    it("devralınan arama (sayfa yenilendi; pencere kapalı, talep detayı pencerenin elinde değil): ad önbellekteki talep detayından", async () => {
+      savePendingExternalSearch("l:l1", ended({ finished: undefined, since: Date.now() - 40_000 }));
+      let resolve: (v: unknown) => void = () => {};
+      h.resume.mockReset().mockReturnValueOnce(new Promise((res) => (resolve = res)));
+      render(listingModal({ isOpen: false }));
+      await waitFor(() => expect(h.resume).toHaveBeenCalledTimes(1));
+      // Talep sayfası detayı SONRADAN yükler (arama devralındığında önbellek boştu).
+      queryClient.setQueryData(["company-listings", "detail", "l1"], { id: "l1", number: "ROT-000846", title: "Kablo alımı" });
+      await act(async () => {
+        resolve(found([cand("Devralınan A.Ş.", "info@devralinan.com")]));
+      });
+      expect(h.toast.success).toHaveBeenCalledTimes(1);
+      expect(h.toast.success).toHaveBeenCalledWith(DONE_TEXT, { description: "Talep: ROT-000846" });
+    });
+
+    it("pencere AÇIKKEN (öteki sekmede) talep adı eklenmez: kullanıcı zaten o talebin penceresinde; ad bilinmiyorsa toast adsızdır", async () => {
+      h.detail = listing();
+      const search = deferredSearch();
+      render(listingModal());
+      openWebTab();
+      clickSearch();
+      fireEvent.click(screen.getByRole("tab", { name: "Platformda" }));
+      await search.resolve(found([cand("Geç Gelen A.Ş.", "info@gecgelen.com")]));
+      expect(h.toast.success).toHaveBeenCalledTimes(1);
+      expect(h.toast.success).toHaveBeenCalledWith("Web araması tamamlandı — sonuçlar “Web'de Ara (AI)” sekmesinde");
+
+      // Talepsiz açılış (yayın öncesi form): söylenecek talep yok.
+      queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      h.toast.success.mockReset();
+      h.detail = { data: undefined, isLoading: false };
+      const formSearch = deferredSearch();
+      const form = (isOpen: boolean) => (
+        <SupplierDiscoveryModal isOpen={isOpen} onClose={() => {}} categoryIds={["31161500"]} itemNames={["Cıvata"]} onCollect={() => {}} />
+      );
+      const view = render(form(true));
+      fireEvent.click(screen.getAllByRole("tab", { name: /Web'de Ara/ }).at(-1) as HTMLElement);
+      fireEvent.click(screen.getAllByRole("button", { name: "Web'de Ara" }).at(-1) as HTMLElement);
+      view.rerender(form(false));
+      await formSearch.resolve(found([]));
+      expect(h.toast.success).toHaveBeenCalledTimes(1);
+      expect(h.toast.success).toHaveBeenCalledWith(DONE_TEXT);
+    });
+
+    it("talep satırı üç dilde", async () => {
+      const { createTranslator } = await import("use-intl/core");
+      const { messagesFor, WEB_NAMESPACES } = await import("@rothern/i18n/messages");
+      const lines = (["tr", "en", "ru"] as const).map((locale) => {
+        const t = createTranslator({
+          locale,
+          messages: messagesFor(locale, WEB_NAMESPACES),
+          namespace: "web.panel.requests.supplierDiscoveryModal" as never,
+          onError: (e) => {
+            throw e;
+          },
+        }) as unknown as (key: string, values?: Record<string, string>) => string;
+        return t("aramaninTalebi", { request: "ROT-000831" });
+      });
+      expect(lines).toEqual(["Talep: ROT-000831", "Request: ROT-000831", "Запрос: ROT-000831"]);
+    });
+  });
+
+  describe("AS-4 — sonradan katılan sekmenin sayacı; bekleme bloğunun düzeni", () => {
+    const timer = () => screen.getByRole("timer");
+
+    it("yoklama yanıtındaki başlangıç anı sayacı GERİYE çeker: katılan sekme sıfırdan saymaz; kayıt da aynı anı taşır", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+      const search = deferredSearch();
+      render(listingModal());
+      openWebTab();
+      clickSearch();
+      act(() => optionsOf(0).onStarted?.("s-1"));
+      const clicked = sessionOf("l1")?.searchSince as number;
+      act(() => {
+        vi.advanceTimersByTime(2_000);
+      });
+      // Bu sekme 2 saniyedir bekliyor…
+      expect(timer()).toHaveTextContent("Geçen süre: 2 sn");
+      // …ama arama sunucuda 12 saniye ÖNCE başlamıştı (öteki sekme başlattı; başlatma aynı kimliği döndü).
+      act(() => optionsOf(0).onStartedAt?.(clicked - 12_000));
+      expect(timer()).toHaveTextContent("Geçen süre: 14 sn");
+      expect(sessionOf("l1")?.searchSince).toBe(clicked - 12_000);
+      // Yenilenen sayfa da gerçek süreden sürer.
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-1", since: clicked - 12_000 });
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(timer()).toHaveTextContent("Geçen süre: 15 sn");
+      await search.resolve(found([]));
+      expect(screen.queryByRole("timer")).toBeNull();
+    });
+
+    it("başlangıç İLERİYE çekilmez (aramayı başlatan sekmede sayaç geri saymaz); saniyenin altındaki fark ve olamayacak kadar eski değer yok sayılır", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+      const search = deferredSearch();
+      render(listingModal());
+      openWebTab();
+      clickSearch();
+      act(() => optionsOf(0).onStarted?.("s-1"));
+      const clicked = sessionOf("l1")?.searchSince as number;
+      act(() => {
+        vi.advanceTimersByTime(5_000);
+      });
+      for (const startedAt of [clicked + 4_000, clicked, clicked - 400, clicked - 8 * 60_000]) {
+        act(() => optionsOf(0).onStartedAt?.(startedAt));
+        expect(sessionOf("l1")?.searchSince).toBe(clicked);
+        expect(timer()).toHaveTextContent("Geçen süre: 5 sn");
+      }
+      expect(readPendingExternalSearch("l:l1")?.since).toBe(clicked);
+      await search.resolve(found([cand("Baret A.Ş.", "info@baret.com")]));
+      // Biten aramadan sonra gelen bildirim hiçbir şeyi değiştirmez (arama yeniden "sürüyor" olmaz).
+      act(() => optionsOf(0).onStartedAt?.(clicked - 12_000));
+      expect(sessionOf("l1")?.searchSince).toBeNull();
+      expect(screen.queryByRole("timer")).toBeNull();
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ since: clicked, finished: true });
+    });
+
+    it("devralınan aramada da bildirim dinlenir (yenilenen sayfa / öteki sekme)", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+      const since = Date.now() - 6_000;
+      savePendingExternalSearch("l:l1", ended({ finished: undefined, since }));
+      render(listingModal());
+      expect(h.resume).toHaveBeenCalledTimes(1);
+      expect(timer()).toHaveTextContent("Geçen süre: 6 sn");
+      const options = h.resume.mock.calls[0][1] as ExternalSearchOptions;
+      act(() => options.onStartedAt?.(since - 30_000));
+      expect(timer()).toHaveTextContent("Geçen süre: 36 sn");
+      expect(readPendingExternalSearch("l:l1")?.since).toBe(since - 30_000);
+    });
+
+    it("dönen simge ortalanmış durum metninin ÜSTÜNDE durur: metinle aynı satırda değil (sarmalanan metnin sol kenarında kalıyordu)", () => {
+      deferredSearch();
+      render(listingModal());
+      openWebTab();
+      clickSearch();
+      const status = screen.getByRole("status");
+      // Simge durum paragrafının içinde değil; paragraf esnek satır değil.
+      expect(status.querySelector("svg")).toBeNull();
+      expect(own(status)).not.toContain("flex");
+      // Hemen üstünde, kardeş öğe; dekoratif.
+      const spinner = status.previousElementSibling as Element;
+      expect(spinner.tagName.toLowerCase()).toBe("svg");
+      expect(own(spinner)).toContain("animate-spin");
+      expect(spinner).toHaveAttribute("aria-hidden", "true");
+      // Kap dikey ve ortalı: simge → durum → sayaç → kapatma notu.
+      const block = status.parentElement as HTMLElement;
+      expect(own(block)).toEqual(expect.arrayContaining(["flex", "flex-col", "items-center", "text-center"]));
+      expect(block.firstElementChild).toBe(spinner);
+      expect(timer().previousElementSibling).toBe(status);
     });
   });
 });

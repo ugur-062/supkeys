@@ -180,6 +180,64 @@ describe("ürün formu — eski taslağın yayın kapısı (CP-03)", () => {
 });
 
 /**
+ * İKİ KART AYNI DEĞERİ OKUR (son canlı kontrol 2026-10-10, NEW-PF-4): eski
+ * taslakta "Tamamlanma" kategoriyi eksik sayarken "Arama görünürlüğü" kayıtlı
+ * (gizli) kodu "Kategori seçili" diye sayıyor, 10 puanı veriyordu.
+ */
+describe("ürün formu — arama görünürlüğü kartı eski kategoriyi rayla aynı sayar (NEW-PF-4)", () => {
+  /** Kartın açık maddeleri — "+N madde daha" açılmış hâliyle. */
+  const openSeoItems = () => {
+    const card = within(screen.getByRole("region", { name: "Arama görünürlüğü" }));
+    const more = card.queryByRole("button", { name: /madde daha/ });
+    if (more) fireEvent.click(more);
+    return card;
+  };
+
+  it("yayında OLMAYAN eski ürün: 'Kategori seçili' bu kartta da açık madde", async () => {
+    renderForm(COMPLETE);
+    await screen.findByText(ATTRIBUTE_HINT);
+    expect(within(rail()).getByRole("button", { name: NOT_CURRENT })).toBeInTheDocument();
+    expect(openSeoItems().getByText("Kategori seçili")).toBeInTheDocument();
+  });
+
+  it("YAYINDAKİ eski ürün: kayıtlı kategori iki kartta da sayılır", async () => {
+    renderForm({ ...COMPLETE, isPublic: true, reviewStatus: "APPROVED", publishedAt: "2026-09-01T00:00:00.000Z" } as ProductShowcase);
+    await screen.findByText(ATTRIBUTE_HINT);
+    expect(within(rail()).queryByRole("button", { name: NOT_CURRENT })).toBeNull();
+    expect(openSeoItems().queryByText("Kategori seçili")).toBeNull();
+  });
+
+  it("görünür kategorili taslakta madde kapalıdır (kural yalnız gizli koda)", async () => {
+    renderForm({ ...COMPLETE, categoryId: VISIBLE, attributes: { urun_grubu: "Tohum" } } as ProductShowcase);
+    await screen.findByText("Ürün grubu");
+    expect(openSeoItems().queryByText("Kategori seçili")).toBeNull();
+  });
+});
+
+/**
+ * KATEGORİ NOTUNUN SÖZÜ (son canlı kontrol 2026-10-10, NEW-PF-5): yayındaki
+ * eski üründe kayıt güncel kategori seçmeden de geçer (ray istemez, PATCH 200),
+ * ama yıldızlı alanın altındaki not "Lütfen güncel bir kategori seçin" diyordu.
+ */
+describe("ürün formu — eski kategori notu (NEW-PF-5)", () => {
+  const OPTIONAL = "Önceki kategori artık kullanılmıyor. Güncel bir kategori seçebilirsiniz; seçmeden de kaydedebilirsiniz.";
+  const REQUIRED = "Önceki kategori artık kullanılmıyor. Lütfen güncel bir kategori seçin.";
+
+  it("YAYINDAKİ eski ürün: not seçim İSTEMEZ", async () => {
+    renderForm({ ...COMPLETE, isPublic: true, reviewStatus: "APPROVED", publishedAt: "2026-09-01T00:00:00.000Z" } as ProductShowcase);
+    expect(await screen.findByText(OPTIONAL)).toBeInTheDocument();
+    expect(screen.queryByText(REQUIRED)).toBeNull();
+  });
+
+  it("yayında OLMAYAN eski ürün: kategori gerçekten eksik — not ister (ray da ister)", async () => {
+    renderForm(COMPLETE);
+    expect(await screen.findByText(REQUIRED)).toBeInTheDocument();
+    expect(screen.queryByText(OPTIONAL)).toBeNull();
+    expect(within(rail()).getByRole("button", { name: NOT_CURRENT })).toBeInTheDocument();
+  });
+});
+
+/**
  * Kayıtlı nitelik DEĞERLERİ de (gizli segmentin alanları) hiçbir yere taşınmaz:
  * tanımları istenmediği için AI istemine etiketsiz ham anahtarla
  * ("urun_grubu: Tohum") giderlerdi.

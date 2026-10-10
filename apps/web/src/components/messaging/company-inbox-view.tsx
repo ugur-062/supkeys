@@ -20,6 +20,7 @@ import {
   PORTAL_ORDER,
 } from "@/lib/company/portals";
 import { ErrorState } from "@/components/ui/error-state";
+import { useReadFailed } from "@/hooks/use-read-failed";
 import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
 import { Lock, MessageSquare, Search } from "lucide-react";
@@ -93,6 +94,9 @@ export function CompanyInboxView() {
   const allowed = myPortals.length > 0;
   const connections = useConnections();
   const threads = useThreads("all", allowed);
+  // Okunamayan konuşma listesi: hata satırı 5 sn'lik yoklamayla iskelete DÖNMEZ,
+  // veri gelene dek durur (`useReadFailed`, son canlı kontrol OUTF-1).
+  const threadsRead = useReadFailed(threads);
   const searchParams = useSearchParams();
   const paramPortal = searchParams.get("portal");
   const [selected, setSelected] = useState<{
@@ -284,13 +288,13 @@ export function CompanyInboxView() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {threads.isError && !threads.data ? (
+            {threadsRead.failed ? (
               // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "önce bağlantı
               // kur" boş durumu yanıltıyordu.
               <ErrorState
                 className="m-3"
-                message={t("konusmalarYuklenemedi")}
-                onRetry={() => void threads.refetch()}
+                message={t("konusmalarYuklenemediTekrarDeneyin")}
+                onRetry={threadsRead.retry}
               />
             ) : connections.isPending || threads.isPending ? (
               // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır
@@ -308,7 +312,7 @@ export function CompanyInboxView() {
               // bağlantı kurun" demek yalan olur — bağlantılar bilinmiyor.
               <ErrorState
                 className="m-3"
-                message={t("konusmalarYuklenemedi")}
+                message={t("konusmalarYuklenemediTekrarDeneyin")}
                 onRetry={() => void connections.refetch()}
               />
             ) : rows.length === 0 ? (

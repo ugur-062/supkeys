@@ -301,7 +301,7 @@ function FlowList({
             {t("onayAkislariYuklenemedi")}
           </p>
           <p className="mt-1 text-sm text-rose-700/80">
-            {t("baglantiSorunuOlabilirLutfenYeniden")}
+            {t("lutfenYenidenDeneyin")}
           </p>
           <Button className="mt-4" outline onClick={onRetry}>
             {t("yenidenDene")}

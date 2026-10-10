@@ -62,6 +62,28 @@ describe("AudienceSwitch", () => {
   });
 });
 
+/* Son canlı kontrol 2026-10-10, NEW-01. Anasayfada anahtar akışın dışında,
+   başlığın hemen üstünde durur ve yüksekliği için yer ayrılmaz: 320 px'te
+   İngilizce / Rusça etiketler iki satıra sarınca hazne 36 yerine 56 px oluyor,
+   başlığın üst 12 px'ini örtüyordu (Chromium'da ölçüldü; düzeltmeden sonra
+   280–390 px'te üç dilde 36 px ve başlığa en az 8 px). jsdom yerleşim
+   hesaplamaz; kilitlenen şey bunu sağlayan sınıflardır. */
+describe("AudienceSwitch — dar ekranda tek satır (NEW-01)", () => {
+  it("etiket sarmaz; 360 px'in altında iç boşluk, ikon aralığı ve punto küçülür, satır yüksekliği aynı kalır", () => {
+    render(<Page />);
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(2);
+    for (const radio of radios) {
+      const cls = radio.className.split(/\s+/);
+      // Seçili ve seçili olmayan seçenek aynı kuralı taşır.
+      expect(cls).toContain("whitespace-nowrap");
+      expect(cls).toEqual(expect.arrayContaining(["max-[360px]:px-2.5", "max-[360px]:gap-1.5", "max-[360px]:text-[13px]/5"]));
+      // 360 px ve üstü eskisiyle aynı: taban sınıflar yerinde.
+      expect(cls).toEqual(expect.arrayContaining(["px-4", "py-1.5", "gap-2", "text-sm"]));
+    }
+  });
+});
+
 describe("AudienceSwitch — klavye (arayüz testi D-313)", () => {
   it("grup tek sekme durağı; ok tuşları seçimi ve odağı taşır", async () => {
     const u = userEvent.setup();

@@ -11,6 +11,7 @@ import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/
 import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
 import { PanelRecommendations } from "@/components/dashboard/panel-recommendations";
 import { HomeCompanyList } from "@/components/dashboard/home-company-list";
+import { ErrorState } from "@/components/ui/error-state";
 import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
 import {
   useCategorySegments,
@@ -99,6 +100,14 @@ export default function SatinalmaDashboardPage() {
   // 6 blok × (1 promo + 10 kategori) = 66 yuva; artan segmentler son bloğun
   // ızgarasına eklenir (`toShowcaseRows`), hiçbiri düşmez.
   const rows = useMemo(() => toShowcaseRows(showcase, 6), [showcase]);
+  // Vitrin SEKTÖR listesinden kurulur; sayaçlar (facet) yalnız sırayı etkiler.
+  // Liste okunamadıysa (kesinti) boş satırlarla "hiçbir şey" çizmek yerine tek
+  // satır hata + "Tekrar dene" (son canlı kontrol 2026-10-10, OUTF-3).
+  const showcaseFailed = segments.data === undefined && segments.isError;
+  const retryShowcase = () => {
+    void segments.refetch();
+    if (facets.isError) void facets.refetch();
+  };
 
   // Yazarken öneri: ürünler panel keşif ucundan (5), FİRMALAR dizinden (3),
   // kategoriler facet'ten (3) — tek kutu "ürün ya da firma" (Europages).
@@ -195,11 +204,15 @@ export default function SatinalmaDashboardPage() {
               kategorilerine göre). */}
           <PanelRecommendations mode="match" />
 
-          <CategoryShowcaseRows
-            rows={rows}
-            hrefFor={(c) => panelCategoryPath(c.id, c.name)}
-            ctaLabel={t("simdiTedarikciBulun")}
-          />
+          {showcaseFailed ? (
+            <ErrorState compact message={t("kategoriVitriniYuklenemedi")} onRetry={retryShowcase} />
+          ) : (
+            <CategoryShowcaseRows
+              rows={rows}
+              hrefFor={(c) => panelCategoryPath(c.id, c.name)}
+              ctaLabel={t("simdiTedarikciBulun")}
+            />
+          )}
 
           {/* Vitrinin altında İKİNCİ şerit — üsttekiyle aynı listeyi basmasın
               diye farklı kesit: yeni eklenenler. */}

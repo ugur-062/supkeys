@@ -97,6 +97,32 @@ describe("OrdersList — durum katmanları", () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
+  // Son canlı kontrol 2026-10-10, OUTF-1: verisi olmayan sorgu 30 sn'lik
+  // yoklamada "pending"e döner (hata silinir) — kart iskelete dönüp "Tekrar
+  // dene" kayboluyordu. Kart, veri gelene dek durur.
+  it("okunamayan liste yoklamayla yeniden çekilirken hata kartı KALIR; veri gelince liste çizilir", () => {
+    h.orders = { data: undefined, isLoading: false, isPending: false, isError: true, refetch: vi.fn() };
+    const { container, rerender } = render(<OrdersList role="buyer" />);
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+
+    h.orders = { data: undefined, isLoading: true, isPending: true, isError: false, refetch: vi.fn() };
+    rerender(<OrdersList role="buyer" />);
+    expect(screen.getByText("Siparişler yüklenemedi. Lütfen tekrar deneyin.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+
+    h.orders = {
+      data: [order({ listingTitle: "Geri gelen sipariş" })],
+      isLoading: false,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    rerender(<OrdersList role="buyer" />);
+    expect(screen.getByText("Geri gelen sipariş")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
+  });
+
   it("boş liste (alıcı) → 'Henüz sipariş yok' + Taleplerime Git aksiyonu", () => {
     h.orders = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
     render(<OrdersList role="buyer" />);

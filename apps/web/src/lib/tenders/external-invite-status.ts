@@ -34,6 +34,27 @@ export function queuedSendTime(result: { status: ExternalInviteStatus; sendAfter
   return Number.isFinite(new Date(result.sendAfter).getTime()) ? result.sendAfter : null;
 }
 
+/**
+ * Sıradaki davetin talep kapanmadan GİDEMEYECEĞİ biliniyorsa nedeni (API yanıtı
+ * `notSentReason`: `FREQUENCY`, `PAUSED`, `CLOSES_FIRST`); gidecekse ya da
+ * sırada değilse `null`. Satır kuyrukta kalır (`status` QUEUED) ama ekranda
+ * "Sıraya alındı" DENMEZ — talep sayfasındaki bölümle aynı durum + neden.
+ */
+export function queuedNotSentReason(result: {
+  status: ExternalInviteStatus;
+  notSentReason?: string | null;
+}): string | null {
+  return isInviteQueued(result.status) && result.notSentReason ? result.notSentReason : null;
+}
+
+/**
+ * Davet GİDECEK mi: kabul edildi ve "gidemeyecek" notu yok. "N davet sıraya
+ * alındı" sayıları bunu sayar (`isInviteAccepted` satır kilidi içindir).
+ */
+export function inviteWillLeave(result: { status: ExternalInviteStatus; notSentReason?: string | null }): boolean {
+  return isInviteAccepted(result.status) && !queuedNotSentReason(result);
+}
+
 /** Adresin alan adı ("satis@firma.com.tr" → "firma.com.tr"); biçim bozuksa `null`. */
 function emailDomain(email: string): string | null {
   const at = email.lastIndexOf("@");

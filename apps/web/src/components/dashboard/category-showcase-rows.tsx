@@ -193,6 +193,15 @@ function ShowcaseGrid({
   );
 }
 
+/* UZUN SÖZCÜK KARTIN İÇ BOŞLUĞUNA TAŞMAZ (son canlı kontrol 2026-10-10,
+   NEW-02). 1024–1295 px'te tanıtım sütunu 272 px, başlık kutusu 224 px; Rusça
+   "Производственные" 237 px tutuyor, bölünemediği için sağ iç boşluğa giriyordu
+   (24 yerine 11 px). Kural kare kartın etiketiyle aynı (`category-tile.tsx`
+   `TILE_LABEL_WRAP`): sığmayan sözcük bölünür; Rusçada yalnız uzun sözcük (13+
+   harf) hece sınırından tire ile — kısa sözcüklü başlıkların satırları
+   değişmez, kartın yüksekliği de (ölçüldü: 388 px, önce ve sonra). */
+const PROMO_TITLE_WRAP = "break-words [hyphenate-limit-chars:13] [&:lang(ru)]:hyphens-auto";
+
 /** Sol tanıtım kartı: büyük fotoğraf (ya da çizgisel ikon) üstte, altta koyu blokta sayı + ad + eylem. */
 function PromoCard({
   category: c,
@@ -233,7 +242,7 @@ function PromoCard({
               {tt("productCount", { n: c.count })}
             </span>
           ) : null}
-          <span className="mt-1 block text-2xl/8 font-bold text-balance">{c.name}</span>
+          <span className={`mt-1 block text-2xl/8 font-bold text-balance ${PROMO_TITLE_WRAP}`}>{c.name}</span>
           <span className="mt-2 block text-sm/6 text-blue-100">{tagline(c.id)}</span>
           <span className="mt-5 flex items-center justify-between rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-blue-800 transition group-hover:bg-blue-50">
             {ctaLabel}
@@ -267,7 +276,7 @@ function PromoCard({
             {tt("productCount", { n: c.count })}
           </span>
         ) : null}
-        <span className="mt-0.5 block text-lg font-semibold text-white">{c.name}</span>
+        <span className={`mt-0.5 block text-lg font-semibold text-white ${PROMO_TITLE_WRAP}`}>{c.name}</span>
         {/* Koyu zeminde eylem TERSİNE döner: beyaz dolgu, mavi metin. */}
         <span className="mt-3 inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-blue-800 transition group-hover:bg-blue-50">
           {ctaLabel}

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ProductCard } from "@/components/marketplace/product-card";
+import { ErrorState } from "@/components/ui/error-state";
 import { useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { PANEL_MARKET, panelProductPath } from "@/lib/company/panel-market";
 import { recentSearches } from "@/lib/company/recent-searches";
@@ -31,7 +32,10 @@ const LIMIT = 16;
  * `localStorage` yok, koşulu render'a taşımak hydration uyuşmazlığı olurdu
  * (aynı ders: 2026-09-05 React #418).
  *
- * Şerit boşsa bölüm HİÇ çizilmez — boş kutu basmayız.
+ * Şerit boşsa bölüm HİÇ çizilmez — boş kutu basmayız. "Boş" yalnız OKUNMUŞ ve
+ * boş yanıttır: okuma düştüyse (kesinti) başlık durur, şeridin yerinde tek
+ * satır hata + "Tekrar dene" çizilir (son canlı kontrol 2026-10-10, OUTF-3 —
+ * eskiden hata da "boş" sayılıyor, anasayfa hero'nun altında bomboş kalıyordu).
  */
 export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
   const t = useTranslations("web.panel.shell.panelRecommendations");
@@ -43,7 +47,7 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
     setReady(true);
   }, [mode]);
 
-  const { data, isLoading } = useDiscoverSearch(
+  const { data, isLoading, isError, refetch } = useDiscoverSearch(
     mode === "fresh"
       ? { pageSize: LIMIT, sort: "newest" }
       : { pageSize: LIMIT, ...(term ? { q: term } : {}) },
@@ -55,7 +59,9 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
   // Geçmiş okunmadan istek atılmasın: `q`siz sonuç gelip sonra `q`li sonuçla
   // değişince şerit gözle görülür biçimde zıplıyordu.
   if (!ready) return null;
-  if (!isLoading && items.length === 0) return null;
+  // Okunamadı: gösterilecek veri yok ve istek düştü.
+  const failed = data === undefined && isError;
+  if (!failed && !isLoading && items.length === 0) return null;
 
   const copy =
     mode === "fresh"
@@ -91,7 +97,9 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
         </Link>
       </div>
 
-      {isLoading ? (
+      {failed ? (
+        <ErrorState compact message={t("urunlerYuklenemedi")} onRetry={() => void refetch()} />
+      ) : isLoading ? (
         <div className="flex gap-3 overflow-hidden" aria-hidden>
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-64 w-40 shrink-0 animate-pulse rounded-lg bg-zinc-100 sm:w-44" />

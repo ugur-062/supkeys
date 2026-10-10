@@ -171,6 +171,20 @@ export interface ExternalSearchOptions {
    * ile izler (ikinci ücretli arama başlamaz).
    */
   onStarted?: (searchId: string) => void;
+  /**
+   * Aramanın sunucuda BAŞLADIĞI an, BU TARAYICININ saatiyle (ms) — arama sürerken,
+   * arama başına en çok bir kez. Aynı aramaya SONRADAN katılan sekme (başlatma
+   * süren aramanın kimliğini döner) sayacını kendi tıklama anından değil buradan
+   * sürdürür (canlı doğrulama AS-4).
+   *
+   * Değer yoklama yanıtının `elapsedMs` alanından türer (sunucunun KENDİ saatiyle
+   * ölçtüğü geçen süre): `şimdi − elapsedMs`. Yanıttaki `startedAt` KULLANILMAZ
+   * (gözden geçirme): o sunucu saatinde bir andır; tarayıcı saati 30 sn ileriyse
+   * aramayı başlatan sekmenin sayacı 3. saniyede "33 sn" diyor, gerideyse katılan
+   * sekme yine sıfırdan sayıyordu. Süre ortak saat gerektirmez. Çağıran değeri
+   * kendi bildiği başlangıçla (aynı saat) karşılaştırıp kullanır.
+   */
+  onStartedAt?: (startedAt: number) => void;
   /** Başlatma ucu yok (eski API, 404): arama eş zamanlı uca düştü — çağıran bunu hatırlar. */
   onSyncFallback?: () => void;
   /** Başlatma ucunu DENEME, doğrudan eş zamanlı uç (eski API olduğu bu oturumda öğrenildi). */
@@ -239,6 +253,8 @@ function isStartRouteMissing(err: unknown): boolean {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+const externalSearchUrl = (searchId: string) => `${EXTERNAL_SEARCH_PATH}/searches/${encodeURIComponent(searchId)}`;
+
 /**
  * Başlamış aramayı SONUCA KADAR yoklar (`EXTERNAL_SEARCH_POLL_MS`).
  *  - DONE → sonuç; FAILED / 404 / tavan → `ExternalSearchError`.
@@ -251,8 +267,10 @@ async function pollExternalSearch(
   searchId: string,
   since: number,
   shouldStop: (() => boolean) | undefined,
+  onStartedAt?: (startedAt: number) => void,
 ): Promise<ExternalDiscoveryResult> {
-  const url = `${EXTERNAL_SEARCH_PATH}/searches/${encodeURIComponent(searchId)}`;
+  const url = externalSearchUrl(searchId);
+  let startToldOnce = false;
   for (;;) {
     await wait(EXTERNAL_SEARCH_POLL_MS);
     if (shouldStop?.()) throw new ExternalSearchError("ABANDONED");
@@ -264,6 +282,16 @@ async function pollExternalSearch(
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
       if (status === 404) throw new ExternalSearchError("INTERRUPTED", { statusCode: 404 });
       if (status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429) throw err;
+    }
+    if (state?.status === "RUNNING" && !startToldOnce && onStartedAt) {
+      // Sunucunun ölçtüğü SÜRE, bu tarayıcının saatine çevrilir (yanıtın geldiği an
+      // eksi süre). Alanı taşımayan (eski) API'de bildirim yoktur: sayaç eskisi
+      // gibi bu sekmenin bildiği andan sürer.
+      const elapsedMs = state.elapsedMs;
+      if (typeof elapsedMs === "number" && Number.isFinite(elapsedMs) && elapsedMs >= 0) {
+        startToldOnce = true;
+        onStartedAt(Date.now() - elapsedMs);
+      }
     }
     if (state?.status === "DONE") {
       // Sonuç gövdesi olmayan "bitti" yanıtı boş arama DEĞİLDİR ("bulunamadı" yazdırmaz).
@@ -325,7 +353,7 @@ export async function searchExternalSuppliers(
     return searchSynchronously(body);
   }
   options.onStarted?.(searchId);
-  return pollExternalSearch(searchId, since, options.shouldStop);
+  return pollExternalSearch(searchId, since, options.shouldStop, options.onStartedAt);
 }
 
 /**
@@ -334,9 +362,35 @@ export async function searchExternalSuppliers(
  */
 export function resumeExternalSupplierSearch(
   searchId: string,
-  options: Pick<ExternalSearchOptions, "since" | "shouldStop"> = {},
+  options: Pick<ExternalSearchOptions, "since" | "shouldStop" | "onStartedAt"> = {},
 ): Promise<ExternalDiscoveryResult> {
-  return pollExternalSearch(searchId, options.since ?? Date.now(), options.shouldStop);
+  return pollExternalSearch(searchId, options.since ?? Date.now(), options.shouldStop, options.onStartedAt);
+}
+
+/**
+ * BİTMİŞ aramanın sonucunu TEK istekle geri okur (canlı doğrulama AS-1): sunucu
+ * biten aramanın sonucunu 15 dakika saklar; sayfa yenilenince pencerenin elinde
+ * yalnız kimlik kalır. Yoklama DEĞİLDİR — beklemez, yinelemez, yeni arama başlatmaz.
+ *  - DONE + sonuç gövdesi → sonuç;
+ *  - kimlik artık bilinmiyor (404), yetki kalktı (diğer 4xx), arama DONE değil ya
+ *    da gövdesi yok → `null`: gösterilecek sonuç yok (çağıran boş durumu çizer,
+ *    hata kutusu DEĞİL — kullanıcı bir şey başlatmadı);
+ *  - yanıt yok / 5xx / 408 / 429 → hata olduğu gibi gider: geçicidir, çağıran
+ *    kimliği SAKLAR (sonraki açılış yeniden sorar).
+ * Genel hata toast'ı kapalı (`skipErrorToast`).
+ */
+export async function readFinishedExternalSearch(searchId: string): Promise<ExternalDiscoveryResult | null> {
+  let state: Record<string, unknown> | null = null;
+  try {
+    const { data } = await companyApi.get<unknown>(externalSearchUrl(searchId), { skipErrorToast: true, timeout: 20_000 });
+    state = asRecord(data);
+  } catch (err) {
+    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+    if (status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429) return null;
+    throw err;
+  }
+  if (state?.status !== "DONE" || asRecord(state.result) === null) return null;
+  return readExternalResult(state.result);
 }
 
 /**
@@ -351,8 +405,15 @@ export function resumeExternalSupplierSearch(
  *
  * Kimlik sunucudan geldiği AN bağlam başına buraya yazılır; pencere bağlanırken
  * önbellekte süren arama yoksa buradan okur ve aynı aramayı
- * `resumeExternalSupplierSearch` ile izlemeyi sürdürür. Arama BİTİNCE silinir
- * (sonuç, sunucuda düştü, kimlik bilinmiyor, süre doldu).
+ * `resumeExternalSupplierSearch` ile izlemeyi sürdürür. Arama SONUÇSUZ bitince
+ * silinir (sunucuda düştü, kimlik bilinmiyor, süre doldu).
+ *
+ * SONUÇLA BİTEN ARAMANIN KAYDI DURUR (canlı doğrulama AS-1): `finished: true`
+ * olarak işaretlenir ve süresi dolana, aynı bağlamda yeni arama başlayana ya da
+ * sekme / oturum kapanana dek kalır. Eskiden sonuç gelince siliniyordu: sunucu
+ * sonucu 15 dakika sakladığı hâlde F5 sonrası pencere boş açılıyor, alıcının
+ * önünde yalnız İKİNCİ ücretli arama kalıyordu. Yeniden bağlanan sayfa bitmiş
+ * kaydın sonucunu `readFinishedExternalSearch` ile TEK istekle geri okur.
  *  · depo `sessionStorage` — sekmeyle birlikte biter;
  *  · anahtar `quick-request…` ailesindendir (`quick-request-member-invites:<talep>`
  *    gibi): önek `lib/company-auth/tenant-storage.ts` `TENANT_SESSION_PREFIXES`te
@@ -391,12 +452,17 @@ export interface PendingExternalSearch {
   items: string[];
   /** Aramaya giden bölge metni (alan yeniden açılışta neyin arandığını göstersin). */
   region: string;
+  /**
+   * Arama SONUÇLA bitti; sonucu sunucuda duruyor (AS-1). Yoksa arama sürüyordur.
+   * Yalnız `true` yazılır (alan yoksa kayıt eski biçimle aynıdır — sürüm artmaz).
+   */
+  finished?: boolean;
 }
 
 function parsePendingSearch(raw: unknown, now: number): PendingExternalSearch | null {
   const p = asRecord(raw);
   if (!p) return null;
-  const { searchId, since, mode, scopes, items, region } = p;
+  const { searchId, since, mode, scopes, items, region, finished } = p;
   if (typeof searchId !== "string" || !searchId) return null;
   if (typeof since !== "number" || !Number.isFinite(since) || now - since >= PENDING_EXTERNAL_SEARCH_KEEP_MS) return null;
   if (mode !== "replace" && mode !== "merge") return null;
@@ -412,6 +478,7 @@ function parsePendingSearch(raw: unknown, now: number): PendingExternalSearch | 
     scopes: scopes === null ? null : (scopes as DiscoveryScope[]),
     items: items as string[],
     region,
+    ...(finished === true ? { finished: true } : {}),
   };
 }
 
@@ -445,7 +512,7 @@ function writePendingSearches(searches: Record<string, PendingExternalSearch>, c
   if (next !== current) sessionStorage.setItem(PENDING_EXTERNAL_SEARCH_KEY, next);
 }
 
-/** Bağlamın süren aramasını yazar (bağlam başına TEK kayıt; süresi geçmiş kayıtlar bu arada atılır). */
+/** Bağlamın aramasını (süren ya da `finished`) yazar — bağlam başına TEK kayıt; süresi geçmiş kayıtlar bu arada atılır. */
 export function savePendingExternalSearch(context: string, search: PendingExternalSearch): void {
   if (!context || !search.searchId) return;
   try {
@@ -455,7 +522,7 @@ export function savePendingExternalSearch(context: string, search: PendingExtern
   }
 }
 
-/** Bağlamın süren aramasını okur (silmez). Kayıt yoksa, bozuksa ya da süresi geçtiyse `null`. */
+/** Bağlamın aramasını (süren ya da `finished`) okur (silmez). Kayıt yoksa, bozuksa ya da süresi geçtiyse `null`. */
 export function readPendingExternalSearch(context: string): PendingExternalSearch | null {
   if (!context) return null;
   try {
@@ -470,7 +537,7 @@ export function readPendingExternalSearch(context: string): PendingExternalSearc
   }
 }
 
-/** Bağlamın araması BİTTİ (sonuç / hata / süre doldu): kaydı silinir. */
+/** Bağlamın kaydı silinir: arama sonuçsuz bitti ya da saklanan sonuç artık geri okunamıyor. */
 export function clearPendingExternalSearch(context: string): void {
   if (!context) return;
   try {
@@ -504,8 +571,20 @@ export interface ExternalInviteResult {
   email: string;
   status: ExternalInviteStatus;
   reason?: string;
-  /** QUEUED: e-postanın en erken gideceği an (alıcının mesai saati). */
+  /**
+   * QUEUED: e-postanın GERÇEKTEN çıkabileceği an (alıcının mesai saati; adres 7
+   * günlük frendeyse frenin bittiği pencere) — talep sayfasındaki "E-postayla
+   * davet edilenler" bölümünün gösterdiği saatle aynı. Mektup gidemeyecekse yok
+   * (`notSentReason`).
+   */
   sendAfter?: string;
+  /**
+   * QUEUED ama mektup talep kapanmadan GİDEMEYECEK: bölümün aynı satır için
+   * yazdığı neden kodu (`FREQUENCY`, `PAUSED`, `CLOSES_FIRST` — etiketleri
+   * `ai-suppliers/invite-outcome.tsx`). Satır kuyrukta kalır (adres davetlidir,
+   * yeniden gönderilemez); ekranda "sıraya alındı" DENMEZ.
+   */
+  notSentReason?: string;
 }
 
 
@@ -528,8 +607,20 @@ export interface ExternalInviteTarget {
  */
 export const LISTING_EMAIL_INVITES_KEY = ["company", "listing-email-invites"] as const;
 
+/**
+ * Davet gönderen mutasyonların çağıran başına seçeneği (canlı doğrulama AS-2).
+ * `skipErrorToast`: hatayı çağıran KENDİ metniyle tek toast olarak söyler —
+ * `companyApi`nin genel hata toast'ı ("Sunucu hatası…") basılmaz. Vermeyen
+ * çağıran (hızlı talep yayını, bekleyen davetler) eskisi gibi genel toast'a
+ * güvenir.
+ */
+export interface InviteMutationOptions {
+  skipErrorToast?: boolean;
+}
+
 /** Faz C — dış davet e-postası (limitli; frenler backend'de). */
-export function useExternalTenderInvite() {
+export function useExternalTenderInvite(options: InviteMutationOptions = {}) {
+  const skipErrorToast = options.skipErrorToast === true;
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
@@ -551,7 +642,7 @@ export function useExternalTenderInvite() {
           })),
           ...(input.source ? { source: input.source } : {}),
         },
-        { timeout: 60_000 },
+        { timeout: 60_000, ...(skipErrorToast ? { skipErrorToast } : {}) },
       );
       return data.results;
     },
@@ -689,14 +780,17 @@ export interface MemberInviteTarget {
  * şartı yok, günlük tavan e-posta davetleriyle ortak). "AI ile tedarikçi bul"
  * penceresi ve (eski taslaktan kalan seçimler için) form yayını kullanır.
  */
-export function useInviteDiscoveredMembers() {
+export function useInviteDiscoveredMembers(options: InviteMutationOptions = {}) {
+  const skipErrorToast = options.skipErrorToast === true;
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { listingId: string; companyIds: string[] }) => {
-      const { data } = await companyApi.post<{ results: MemberInviteResult[] }>(
-        `/company/ai/supplier-discovery/listings/${input.listingId}/invite-members`,
-        { companyIds: input.companyIds.slice(0, 60) },
-      );
+      const url = `/company/ai/supplier-discovery/listings/${input.listingId}/invite-members`;
+      const body = { companyIds: input.companyIds.slice(0, 60) };
+      // Seçenek verilmediyse istek ayarı HİÇ geçmez (öteki çağıranların isteği aynen kalır).
+      const { data } = skipErrorToast
+        ? await companyApi.post<{ results: MemberInviteResult[] }>(url, body, { skipErrorToast })
+        : await companyApi.post<{ results: MemberInviteResult[] }>(url, body);
       return data.results;
     },
     onSuccess: (_d, input) => {

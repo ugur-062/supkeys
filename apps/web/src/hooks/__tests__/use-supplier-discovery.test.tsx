@@ -18,6 +18,10 @@
  *    sorguları düşürülür (pencerede gönderilen davet sayfada hemen görünsün).
  *  - Süren aramanın kaydı (gözden geçirme R6-02): kimlik bağlam başına sekme
  *    deposunda — sayfa yenilemeyi aşar, arama bitince silinir, çıkışta silinir.
+ *  - Son canlı kontrol (2026-10-10): yoklama yanıtındaki geçen süre (`elapsedMs`)
+ *    başlangıç anı olarak çağırana bildirilir (AS-4); BİTMİŞ aramanın sonucu tek istekle geri okunur ve kaydı
+ *    `finished` işaretiyle durur (AS-1); davet mutasyonları çağıran isterse genel
+ *    hata toast'ını kapatır (AS-2).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
@@ -39,10 +43,12 @@ import {
   PENDING_EXTERNAL_SEARCH_VERSION,
   clearPendingExternalSearch,
   readPendingExternalSearch,
+  readFinishedExternalSearch,
   resumeExternalSupplierSearch,
   savePendingExternalSearch,
   searchExternalSuppliers,
   useExternalTenderInvite,
+  useInviteDiscoveredMembers,
   type PendingExternalSearch,
 } from "../use-supplier-discovery";
 
@@ -326,6 +332,175 @@ describe("searchExternalSuppliers — zaman uyumsuz web araması (N1)", () => {
   });
 });
 
+/**
+ * Son canlı kontrol AS-4: aynı aramaya SONRADAN katılan sekme (başlatma, süren
+ * aramanın kimliğini döner) sayacını sıfırdan başlatıyordu. Yoklama yanıtı
+ * aramanın ne kadardır sürdüğünü taşır (`elapsedMs`, sunucunun KENDİ saatiyle);
+ * kanca onu bu tarayıcının saatinde bir başlangıç anına çevirip çağırana bildirir.
+ *
+ * Gözden geçirme: ilk düzeltme yanıttaki `startedAt`i (sunucu saatinde bir AN)
+ * bildiriyordu ve pencere onu tarayıcının saatiyle karşılaştırıyordu — iki saat
+ * aynı değilse sayaç yanlıştı.
+ */
+describe("yoklama yanıtındaki geçen süre (`elapsedMs`) başlangıç anı olarak çağırana bildirilir (AS-4)", () => {
+  /** Sunucunun saati. */
+  const SERVER_NOW = Date.parse("2026-10-09T14:01:15.000Z");
+  const emptyResult = { companies: [], incompleteScopes: [] };
+  /** Sunucunun yanıtı: aramayı kendi saatiyle `elapsedMs` önce kaydetmiş. */
+  const runningFor = (elapsedMs: unknown, serverNow = SERVER_NOW) => ({
+    data: {
+      status: "RUNNING",
+      startedAt: new Date(serverNow - (typeof elapsedMs === "number" ? elapsedMs : 0)).toISOString(),
+      elapsedMs,
+    },
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it("arama sürerken, arama başına BİR kez; değer yanıtın geldiği an eksi sunucunun ölçtüğü süredir", async () => {
+    vi.setSystemTime(SERVER_NOW - 3_000);
+    h.post.mockResolvedValue({ data: { searchId: "s-1" } });
+    h.get.mockResolvedValueOnce(runningFor(14_700)).mockResolvedValueOnce(runningFor(17_700)).mockResolvedValueOnce(done(emptyResult));
+    const onStartedAt = vi.fn();
+    const outcome = settle(searchExternalSuppliers({ type: "ALIM" }, { onStartedAt }));
+    await tick(2_999);
+    // İlk yoklamadan önce bilinecek bir şey yok.
+    expect(onStartedAt).not.toHaveBeenCalled();
+    await tick(1);
+    expect(onStartedAt).toHaveBeenCalledTimes(1);
+    expect(onStartedAt).toHaveBeenCalledWith(SERVER_NOW - 14_700);
+    await tick(6_000);
+    expect(outcome.state).toBe("resolved");
+    expect(onStartedAt).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["30 sn İLERİDE", 30_000],
+    ["5 dk GERİDE", -5 * 60_000],
+  ])("tarayıcı saati sunucudan %s: bildirilen an TARAYICI saatindedir — sunucu saatindeki `startedAt` okunmaz", async (_label, skew) => {
+    // Bu sekme aramayı 3 sn önce başlattı; sunucu da 3 sn'dir sürdüğünü söylüyor.
+    const clicked = SERVER_NOW + skew - 3_000;
+    vi.setSystemTime(clicked);
+    h.post.mockResolvedValue({ data: { searchId: "s-1" } });
+    h.get.mockResolvedValueOnce(runningFor(3_000)).mockResolvedValueOnce(done(emptyResult));
+    const onStartedAt = vi.fn();
+    const outcome = settle(searchExternalSuppliers({ type: "ALIM" }, { onStartedAt }));
+    await tick(3_000);
+    // Başlangıç bu sekmenin tıklama anıdır: sayaç 3 sn der (ne 33 sn ne de eksi beş dakika).
+    expect(onStartedAt).toHaveBeenCalledWith(clicked);
+    expect(onStartedAt).not.toHaveBeenCalledWith(SERVER_NOW - 3_000);
+    await tick(3_000);
+    expect(outcome.state).toBe("resolved");
+  });
+
+  it("devralınan aramada da bildirilir (yeni sekme / yenilenen sayfa): katılan sekme aramanın gerçek süresini öğrenir", async () => {
+    // Tarayıcı saati sunucudan 5 dk geride; arama sunucuda 14,7 sn'dir sürüyor.
+    const joined = SERVER_NOW - 5 * 60_000 - 3_000;
+    vi.setSystemTime(joined);
+    h.get.mockResolvedValueOnce(runningFor(14_700)).mockResolvedValueOnce(done(emptyResult));
+    const onStartedAt = vi.fn();
+    const outcome = settle(resumeExternalSupplierSearch("s-1", { onStartedAt }));
+    await tick(6_000);
+    expect(outcome.state).toBe("resolved");
+    expect(onStartedAt).toHaveBeenCalledTimes(1);
+    // Katıldığı andan 11,7 sn önce (tarayıcı saatiyle).
+    expect(onStartedAt).toHaveBeenCalledWith(joined - 11_700);
+  });
+
+  it("alanı taşımayan (eski API: yalnız `startedAt`) / okunamayan yanıt bildirilmez; sonraki geçerli yanıt bildirilir; biten arama için bildirilmez", async () => {
+    h.get
+      .mockResolvedValueOnce({ data: { status: "RUNNING" } })
+      .mockResolvedValueOnce(running)
+      .mockResolvedValueOnce(runningFor("3000"))
+      .mockResolvedValueOnce(runningFor(-1))
+      .mockResolvedValueOnce(runningFor(0))
+      .mockResolvedValueOnce(done(emptyResult));
+    const onStartedAt = vi.fn();
+    const outcome = settle(resumeExternalSupplierSearch("s-1", { onStartedAt }));
+    await tick(12_000);
+    expect(onStartedAt).not.toHaveBeenCalled();
+    await tick(3_000);
+    expect(onStartedAt).toHaveBeenCalledTimes(1);
+    await tick(3_000);
+    expect(outcome.state).toBe("resolved");
+
+    // İlk yanıtı DONE olan aramada sayaç yoktur: bildirim de yok.
+    h.get.mockReset().mockResolvedValueOnce({ data: { ...done(emptyResult).data, elapsedMs: 90_000 } });
+    const late = vi.fn();
+    const finished = settle(resumeExternalSupplierSearch("s-2", { onStartedAt: late }));
+    await tick(3_000);
+    expect(finished.state).toBe("resolved");
+    expect(late).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Son canlı kontrol AS-1: biten (ücretli) aramanın sonucu sunucuda 15 dakika
+ * durur; sayfa yenilenince pencerenin elinde yalnız kimlik kalır. Sonuç TEK
+ * istekle geri okunur — yoklama değil: beklemez, yinelemez, arama başlatmaz.
+ */
+describe("readFinishedExternalSearch — bitmiş aramanın sonucu tek istekle geri okunur (AS-1)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it("DONE + sonuç: sonuç yoklamayla AYNI biçimde döner; istek hemen atılır (3 sn beklemez), genel hata toast'ı kapalı", async () => {
+    const companies = [{ name: "Yerli A.Ş.", city: null, website: null, email: "a@yerli.com", reason: "r", scope: "LOCAL" }];
+    h.get.mockResolvedValueOnce(
+      done({ companies, incompleteScopes: ["ABROAD"], incompleteReasons: { ABROAD: "TIMEOUT" }, incompleteMessages: {} }),
+    );
+    const outcome = settle(readFinishedExternalSearch("s 7/9"));
+    await tick(0);
+    expect(outcome.state).toBe("resolved");
+    expect(outcome.value).toEqual({
+      companies,
+      incompleteScopes: ["ABROAD"],
+      incompleteReasons: { ABROAD: "TIMEOUT" },
+      incompleteMessages: {},
+      supportsScopes: true,
+    });
+    expect(h.get).toHaveBeenCalledTimes(1);
+    expect(h.get.mock.calls[0][0]).toBe(searchUrl("s%207%2F9"));
+    expect(h.get.mock.calls[0][1]).toMatchObject({ skipErrorToast: true });
+    // Tek istek: ne yineleme ne yeni arama.
+    await tick(60_000);
+    expect(h.get).toHaveBeenCalledTimes(1);
+    expect(h.post).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["kimlik bilinmiyor (404: süresi doldu / API yeniden başladı)", () => h.get.mockRejectedValueOnce(httpError(404, { statusCode: 404, message: "Not Found" }))],
+    ["yetki kalktı (403)", () => h.get.mockRejectedValueOnce(httpError(403, { message: "Bu işlem için yetkiniz yok" }))],
+    ["arama sürüyor", () => h.get.mockResolvedValueOnce(running)],
+    ["arama düşmüş", () => h.get.mockResolvedValueOnce(failed({ statusCode: 503, message: "AI isteği zaman aşımına uğradı" }))],
+    ["sonuç gövdesi yok", () => h.get.mockResolvedValueOnce({ data: { status: "DONE", startedAt: "2026-10-09T14:01:00.000Z" } })],
+    ["gövde okunamıyor", () => h.get.mockResolvedValueOnce({ data: "<html>" })],
+  ])("gösterilecek sonuç yoksa null döner, HATA FIRLATMAZ — %s", async (_name, arrange) => {
+    arrange();
+    const outcome = settle(readFinishedExternalSearch("s-1"));
+    await tick(0);
+    expect(outcome.state).toBe("resolved");
+    expect(outcome.value).toBeNull();
+    await tick(60_000);
+    expect(h.get).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["yanıt yok (ağ)", networkError],
+    ["5xx", httpError(503, { message: "Service Unavailable" })],
+    ["429", httpError(429, { message: "Çok fazla istek" })],
+  ])("geçici hata olduğu gibi gider (çağıran kimliği saklar, sonra yeniden sorar) — %s", async (_name, error) => {
+    h.get.mockRejectedValueOnce(error);
+    const outcome = settle(readFinishedExternalSearch("s-1"));
+    await tick(0);
+    expect(outcome.state).toBe("rejected");
+    expect(outcome.error).toBe(error);
+    expect(h.get).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("resumeExternalSupplierSearch — başlamış aramayı izlemeyi sürdürür (N1)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -439,6 +614,31 @@ describe("süren aramanın kaydı — sayfa yenilemeyi aşar (R6-02)", () => {
     }
     expect(readPendingExternalSearch("l:good")).toEqual(good);
     expect(stored()).toEqual({ v: PENDING_EXTERNAL_SEARCH_VERSION, searches: { "l:good": good } });
+  });
+
+  // Son canlı kontrol AS-1: sonuçla biten aramanın kaydı SİLİNMEZ, işaretlenir.
+  it("`finished` işareti kayıtla birlikte saklanır ve okunur; yalnız `true` geçerlidir; işaretsiz (eski biçim) kayıt süren aramadır", () => {
+    const ended = search({ finished: true });
+    savePendingExternalSearch("l:l1", ended);
+    expect(readPendingExternalSearch("l:l1")).toEqual(ended);
+    expect(readPendingExternalSearch("l:l1")?.finished).toBe(true);
+    expect(stored()).toEqual({ v: PENDING_EXTERNAL_SEARCH_VERSION, searches: { "l:l1": ended } });
+    // Sürüm ARTMADI: işaretsiz kayıt (eski sayfanın yazdığı) okunur ve süren aramadır.
+    expect(PENDING_EXTERNAL_SEARCH_VERSION).toBe(1);
+    // (Kayıtlar değişkende tutulur: `search()` her çağrıda `since`i saatten okur.)
+    const unmarked = search({ searchId: "s-2" });
+    write({ "l:l2": unmarked, "l:l3": { ...search({ searchId: "s-3" }), finished: "evet" } });
+    expect(readPendingExternalSearch("l:l2")).toEqual(unmarked);
+    expect("finished" in (readPendingExternalSearch("l:l2") ?? {})).toBe(false);
+    expect(readPendingExternalSearch("l:l3")?.searchId).toBe("s-3");
+    expect("finished" in (readPendingExternalSearch("l:l3") ?? {})).toBe(false);
+    // Bitmiş kayıt da aynı süre kuralına uyar (başlangıçtan 15 dk) ve aynı bağlamın yeni aramasıyla değişir.
+    savePendingExternalSearch("l:old", search({ finished: true, since: Date.now() - PENDING_EXTERNAL_SEARCH_KEEP_MS }));
+    expect(readPendingExternalSearch("l:old")).toBeNull();
+    const restarted = search({ searchId: "s-9" });
+    savePendingExternalSearch("l:l1", restarted);
+    expect(readPendingExternalSearch("l:l1")).toEqual(restarted);
+    expect("finished" in (readPendingExternalSearch("l:l1") ?? {})).toBe(false);
   });
 
   it("kimliksiz arama ve bağlamsız çağrı yazılmaz", () => {
@@ -631,5 +831,63 @@ describe("useExternalTenderInvite — davet gönderimi", () => {
       await result.current.mutateAsync(input).catch(() => {});
     });
     expect(qc.getQueryState(listKey)?.isInvalidated).toBe(false);
+  });
+});
+
+/**
+ * Son canlı kontrol AS-2: pencerede davet gönderimi 5xx alınca İKİ hata toast'ı
+ * çıkıyordu (genel "Sunucu hatası…" + pencerenin "Davetler gönderilemedi").
+ * Pencere iki mutasyonu `skipErrorToast` ile çağırır; seçeneği vermeyen çağıran
+ * (hızlı talep yayını, bekleyen davetler) için istek AYNEN eskisi gibidir.
+ */
+describe("davet mutasyonları — çağıran isterse genel hata toast'ı kapanır (AS-2)", () => {
+  const external = { listingId: "l1", invites: [{ email: "a@firma.com", locale: "tr" as const, country: "TR" }], source: "AI_FORM" as const };
+  const members = { listingId: "l1", companyIds: ["co1"] };
+  const MEMBERS_URL = "/company/ai/supplier-discovery/listings/l1/invite-members";
+
+  it("e-posta daveti: `skipErrorToast` istekle gider; seçenek yoksa gitmez", async () => {
+    h.post.mockRejectedValue(httpError(500, { statusCode: 500, message: "Internal server error" }));
+    const { wrapper } = setup();
+    const quiet = renderHook(() => useExternalTenderInvite({ skipErrorToast: true }), { wrapper });
+    await act(async () => {
+      await quiet.result.current.mutateAsync(external).catch(() => {});
+    });
+    expect(h.post.mock.calls[0][0]).toBe("/company/connections/external-tender-invite");
+    expect(h.post.mock.calls[0][2]).toEqual({ timeout: 60_000, skipErrorToast: true });
+
+    const plain = renderHook(() => useExternalTenderInvite(), { wrapper });
+    await act(async () => {
+      await plain.result.current.mutateAsync(external).catch(() => {});
+    });
+    expect(h.post.mock.calls[1][2]).toEqual({ timeout: 60_000 });
+  });
+
+  it("üye daveti: `skipErrorToast` istekle gider; seçenek yoksa istek ayarı HİÇ geçmez", async () => {
+    h.post.mockRejectedValue(httpError(500, { statusCode: 500, message: "Internal server error" }));
+    const { wrapper } = setup();
+    const quiet = renderHook(() => useInviteDiscoveredMembers({ skipErrorToast: true }), { wrapper });
+    await act(async () => {
+      await quiet.result.current.mutateAsync(members).catch(() => {});
+    });
+    expect(h.post.mock.calls[0]).toEqual([MEMBERS_URL, { companyIds: ["co1"] }, { skipErrorToast: true }]);
+
+    const plain = renderHook(() => useInviteDiscoveredMembers(), { wrapper });
+    await act(async () => {
+      await plain.result.current.mutateAsync(members).catch(() => {});
+    });
+    expect(h.post.mock.calls[1]).toEqual([MEMBERS_URL, { companyIds: ["co1"] }]);
+  });
+
+  it("başarı yolu seçenekle de aynıdır: sonuç döner, sorgular düşer", async () => {
+    h.post.mockResolvedValue({ data: { results: [{ companyId: "co1", status: "INVITED" }] } });
+    const { qc, wrapper } = setup();
+    qc.setQueryData(["listing-discovery", "l1"], { runs: [] });
+    const { result } = renderHook(() => useInviteDiscoveredMembers({ skipErrorToast: true }), { wrapper });
+    let res: unknown;
+    await act(async () => {
+      res = await result.current.mutateAsync(members);
+    });
+    expect(res).toEqual([{ companyId: "co1", status: "INVITED" }]);
+    expect(qc.getQueryState(["listing-discovery", "l1"])?.isInvalidated).toBe(true);
   });
 });

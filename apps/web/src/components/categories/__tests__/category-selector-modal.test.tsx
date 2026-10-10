@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import enWeb from "@rothern/i18n/catalog/en/web.json";
+import ruWeb from "@rothern/i18n/catalog/ru/web.json";
+import trWeb from "@rothern/i18n/catalog/tr/web.json";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
@@ -619,10 +622,26 @@ describe("CategorySelectorModal — yükleme hatası ayrı durumdur", () => {
     const refetch = vi.fn();
     h.roots = { data: undefined, isLoading: false, isError: true, refetch };
     render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
-    expect(screen.getByText(/Kategoriler yüklenemedi/)).toBeInTheDocument();
+    // Gözden geçirme REV-OUTF-4: kart, panelin "Sunucuya şu anda ulaşılamıyor"
+    // notuyla çelişmez — nedeni tahmin etmez, kullanıcının bağlantısını suçlamaz.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Kategoriler yüklenemedi. Lütfen yeniden deneyin.");
+    expect(alert).not.toHaveTextContent(/bağlantı/i);
     expect(screen.queryByText(/Sistem yöneticisiyle/)).toBeNull();
     await user.click(screen.getByRole("button", { name: "Yeniden dene" }));
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("kök liste hata metni üç dilde nötr: kullanıcının bağlantısını suçlamaz (REV-OUTF-4)", () => {
+    const texts = [trWeb, enWeb, ruWeb].map(
+      (web) => web.shared.categorySelectorModal.kategorilerYuklenemediYenidenDeneyin,
+    );
+    expect(texts).toEqual([
+      "Kategoriler yüklenemedi. Lütfen yeniden deneyin.",
+      "Categories could not be loaded. Please try again.",
+      "Не удалось загрузить категории. Пожалуйста, повторите попытку.",
+    ]);
+    for (const text of texts) expect(text).not.toMatch(/bağlantı|connection|соединени|подключени|internet|интернет/i);
   });
 
   it("hatayı satır içinde gösterdiği için sorguları 'inlineError' ile açar (çift toast yok)", () => {

@@ -29,7 +29,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
  *    getirir (canlı doğrulama AI-UI-1: bağlantı boş sayfa açıyordu).
  * Gösterilen: aranıyor → kaç tedarikçi bulundu · kaçı davet edildi (üye talebe
  * davetli / e-posta gitti) · kaç davet sırada · kaçı gönderilmedi; açılır
- * listede ad, ülke ve sonuç (+ neden). `?ai-davet=1` listeyi açık getirir.
+ * listede ad, ülke ve sonuç (+ neden; sıradaki davette planlanan gönderim
+ * anı). `?ai-davet=1` listeyi açık getirir.
  * Elle seçip davet etmek isteyen talep sayfasındaki "AI ile tedarikçi bul"
  * penceresini kullanır. E-postayla davet edilenlerin KALICI listesi talep
  * sayfasında ayrı bölümdür (`listing-email-invites.tsx`); tur bitince o liste
@@ -42,6 +43,8 @@ interface Row {
   member: boolean;
   invite: CandidateInviteState;
   reason: string | null;
+  /** QUEUED: e-postanın planlanan gönderim anı (ISO); yoksa null. */
+  sendAfter: string | null;
 }
 
 /**
@@ -84,16 +87,47 @@ export function inviteCounts(rows: ReadonlyArray<{ invite: CandidateInviteState;
  * Liste üstündeki açıklama SAYILARLA UYUŞUR (canlı doğrulama AUTO-UI-7). Tek
  * cümle "bulunan tedarikçiler sizin adınıza davet edildi" diyordu; alıcı
  * otomatik aramayı kapatınca yedi satırın yedisi "Gönderilmedi" iken de aynı
- * cümle duruyordu. Gönderilmeyen yoksa eski cümle; hepsi gönderilmediyse
- * "davet gönderilmedi"; arası "bir kısmı davet edildi, gönderilmeyenin nedeni
- * satırında".
+ * cümle duruyordu. Gönderilmeyen yoksa "davet edildi"; gönderilmeyen var ve
+ * kimse davet edilmedi / sırada değilse "davet gönderilmedi"; arası "bir kısmı
+ * davet edildi, gönderilmeyenin nedeni satırında".
+ *
+ * Başlığın üç sayısına bakar — davet edildi · sırada · gönderilmedi (son canlı
+ * kontrol AUTO-UI-9). Eskiden "gönderilmedi ≥ bulunan" kuralıydı: davet edilen
+ * hiç yokken (kalanlar zaten davetli / zayıf eşleşme) "bir kısmı davet edildi"
+ * diyebiliyordu. E-postanın mesai saatinde gideceği sözü bu cümlelerde DEĞİLDİR:
+ * yalnız sırada bekleyen davet varken ayrı cümleyle eklenir
+ * (`statusLeadQueuedMail`, bkz. `statusLeadText`).
+ *
+ * ÜÇ SAYI DA SIFIRSA nötr cümle (gözden geçirme): "gönderilmeyen yok" tek başına
+ * "davet edildi" demek değildir. Tur yalnız zayıf eşleşen üye bulduysa (bilinçli
+ * "davet edilmedi" — "gönderilmedi" sayılmaz), hepsi zaten davetliyse ya da
+ * liste satırlar henüz "Sırada" iken açıldıysa kimse davet edilmemiştir; cümle
+ * "sizin adınıza davet edildi" diyor, her satır aksini söylüyordu. Zayıf
+ * eşleşme yine "hiçbiri gönderilmedi" dalına düşmez.
  */
 export function statusLeadKey(counts: {
-  found: number;
+  invited: number;
+  queued: number;
   notSent: number;
-}): "statusLead" | "statusLeadPartial" | "statusLeadNoneSent" {
-  if (counts.notSent === 0) return "statusLead";
-  return counts.notSent >= counts.found ? "statusLeadNoneSent" : "statusLeadPartial";
+}): "statusLeadInvited" | "statusLeadPartlyInvited" | "statusLeadNoneSent" | "statusLeadSeeRows" {
+  const reached = counts.invited + counts.queued > 0;
+  if (counts.notSent === 0) return reached ? "statusLeadInvited" : "statusLeadSeeRows";
+  return reached ? "statusLeadPartlyInvited" : "statusLeadNoneSent";
+}
+
+/**
+ * Açıklamanın cümleleri (katalog anahtarları, sırayla). "Diğerlerine davet
+ * e-postası … mesai saatinde gider" sözü YALNIZ sırada davet varken eklenir
+ * (AUTO-UI-9): alıcı AI kutusunu kapatıp sıradaki davetler düşünce başlık
+ * "2 davet edildi · 15 gönderilmedi" derken ilk cümle hâlâ e-posta gideceğini
+ * söylüyor, bir alttaki cümleyle ("sıradaki davetler gönderilmedi") çelişiyordu.
+ */
+export function statusLeadText(counts: {
+  invited: number;
+  queued: number;
+  notSent: number;
+}): Array<ReturnType<typeof statusLeadKey> | "statusLeadQueuedMail"> {
+  return counts.queued > 0 ? [statusLeadKey(counts), "statusLeadQueuedMail"] : [statusLeadKey(counts)];
 }
 
 export function ListingSuggestions({
@@ -169,6 +203,7 @@ export function ListingSuggestions({
           member: !!c.memberCompanyId,
           invite: out.invite,
           reason: out.reason,
+          sendAfter: c.sendAfter ?? null,
         });
       }
     }
@@ -268,7 +303,11 @@ export function ListingSuggestions({
 
       {open && rows.length > 0 ? (
         <div className="mt-4 space-y-3">
-          <p className="text-xs text-zinc-700">{t(statusLeadKey(counts))}</p>
+          <p className="text-xs text-zinc-700">
+            {statusLeadText(counts)
+              .map((key) => t(key))
+              .join(" ")}
+          </p>
           {autoInviteOff ? <p className="text-xs text-zinc-700">{t("statusLeadAutoOff")}</p> : null}
           <ul className="divide-y divide-zinc-950/5 rounded-xl bg-white ring-1 ring-zinc-950/5">
             {rows.map((r) => (
@@ -289,7 +328,10 @@ export function ListingSuggestions({
                     </p>
                   ) : null}
                 </div>
-                <InviteOutcome invite={r.invite} reason={r.reason} />
+                {/* Planlanan gönderim anı burada da yazar (AUTO-UI-8): API her sıradaki
+                    aday için `sendAfter` döner; eskiden yalnız kalıcı "E-postayla davet
+                    edilenler" bölümü gösteriyordu. Sırada olmayan satırda çizilmez. */}
+                <InviteOutcome invite={r.invite} reason={r.reason} sendAfter={r.sendAfter} />
               </li>
             ))}
           </ul>

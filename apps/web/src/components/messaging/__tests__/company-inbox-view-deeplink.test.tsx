@@ -337,8 +337,35 @@ describe("CompanyInboxView — seçim adreste, erişilebilirlik, kesinti (arayü
     render(<CompanyInboxView />);
     expect(screen.queryByText(/önce bir firmayla bağlantı kur/)).not.toBeInTheDocument();
     expect(screen.getByText(/Konuşmalar yüklenemedi/)).toBeInTheDocument();
+    // Son canlı kontrol OUTF-4: kart, hemen üstündeki "Sunucuya şu anda
+    // ulaşılamıyor" notuyla çelişmez — kullanıcının kendi bağlantısı suçlanmaz.
+    expect(screen.getByRole("alert")).toHaveTextContent("Konuşmalar yüklenemedi. Lütfen tekrar deneyin.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent(/bağlantınızı/i);
     fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Son canlı kontrol OUTF-1: konuşma listesi 5 sn'de bir yoklanır; TanStack
+   * verisi olmayan sorguyu her yeniden çekişte "pending"e döndürür (hata silinir)
+   * → kesinti boyunca hata satırı ile iskelet dönüşümlü çiziliyordu.
+   */
+  it("okunamayan liste yoklamayla iskelete DÖNMEZ: hata satırı yanıt gelene dek durur", () => {
+    h.threads = { isLoading: false, isPending: false, data: undefined, isError: true, refetch: vi.fn() } as never;
+    const view = render(<CompanyInboxView />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Konuşmalar yüklenemedi");
+
+    // Yoklama yeniden deniyor: veri yok, hata silindi, durum "pending".
+    h.threads = { isLoading: true, isPending: true, data: undefined, isError: false, refetch: vi.fn() } as never;
+    view.rerender(<CompanyInboxView />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Konuşmalar yüklenemedi");
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+    expect(view.container.querySelector(".animate-pulse")).toBeNull();
+
+    // Yanıt geldi: hata satırı kalkar.
+    h.threads = { isLoading: false, isPending: false, data: [], isError: false, refetch: vi.fn() } as never;
+    view.rerender(<CompanyInboxView />);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 

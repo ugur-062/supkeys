@@ -10,7 +10,12 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  defaults: { data: undefined as unknown, isLoading: false },
+  defaults: { data: undefined as unknown, isLoading: false } as {
+    data: unknown;
+    isLoading: boolean;
+    isError?: boolean;
+    refetch?: () => void;
+  },
   create: vi.fn(),
   saveDefaults: vi.fn(),
   push: vi.fn(),
@@ -157,6 +162,31 @@ beforeEach(() => {
   h.denied = [];
   h.existingDocs = [];
   h.verification = "VERIFIED";
+});
+
+/**
+ * Son canlı kontrol 2026-10-10, OUTF-2: talep şartları okunamayınca form kesinti
+ * boyunca iskelette kalıyordu (15 sn, 26 sn, 160 sn sonra da) — hata durumu ve
+ * yeniden deneme yoktu.
+ */
+describe("QuickRequest — talep şartları okunamadı (OUTF-2)", () => {
+  it("kesintide iskelette KALMAZ: hata durumu + 'Tekrar dene' şartları yeniden ister", () => {
+    const refetch = vi.fn();
+    h.defaults = { data: undefined, isLoading: false, isError: true, refetch };
+    const { container } = wrap(<QuickRequest />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Talep formu yüklenemedi");
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    expect(container.querySelector("[aria-busy]")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("yanıt beklenirken (yeniden deneme dahil) iskelet: hata kartı çizilmez", () => {
+    h.defaults = { data: undefined, isLoading: true, isError: false };
+    const { container } = wrap(<QuickRequest />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(container.querySelector("[aria-busy]")).not.toBeNull();
+  });
 });
 
 describe("QuickRequest", () => {

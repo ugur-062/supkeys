@@ -6,6 +6,26 @@ import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 
 /**
+ * UZUN SÖZCÜK KARTTAN TAŞMAZ (son canlı kontrol 2026-10-10, NEW-02). Kare
+ * kartın etiketi 112 px'e kadar daralır (320 ve 640 px); Rusça tek sözcük
+ * ("Сельскохозяйственное", 160 px) bölünemediği için kartın çerçevesini iki
+ * yandan 12 px aşıyordu.
+ *  - `break-words`: satıra sığmayan sözcük kutunun içinde bölünür. Sığan
+ *    sözcüğe dokunmaz — Türkçe ve İngilizce etiketlerin sarması değişmez.
+ *  - Rusçada (`<html lang="ru">`) tarayıcı sözcüğü hece sınırından tire ile
+ *    böler; sözlüğü olmayan tarayıcıda üstteki kural devrededir. Yalnız Rusça:
+ *    `hyphens: auto` satıra sığan sözcükleri de satır sonunda böler, öteki
+ *    dillerin görünümü bu tur için değiştirilmedi.
+ *  - `hyphenate-limit-chars: 13`: yalnız UZUN sözcük (13+ harf) hecelenir;
+ *    kısa sözcük eskisi gibi bütün olarak alt satıra iner ("строи-тельная",
+ *    "кани-фоль" gibi gereksiz bölmeler olmaz). Chromium ve Firefox 137+ tanır;
+ *    tanımayan tarayıcı (Safari) Rusçada her sözcüğü heceleyebilir.
+ * Tanıtım kartı başlığı (`category-showcase-rows.tsx`) ve altbilgi bağlantıları
+ * (`marketplace-footer.tsx`) aynı üç kuralı kullanır.
+ */
+const TILE_LABEL_WRAP = "break-words [hyphenate-limit-chars:13] [&:lang(ru)]:hyphens-auto";
+
+/**
  * KATEGORİ KARTI — TEK bileşen (kart sistemi PROMPT 5, 2026-09-06).
  *
  * Anasayfadaki `CategoryGrid` ile panel vitrini aynı anatomiyi iki dosyada
@@ -66,7 +86,11 @@ export function CategoryTile({
             className={`size-7 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
           />
         </span>
-        <span className="mt-4 line-clamp-2 text-[13px]/5 font-semibold text-zinc-900">{c.name}</span>
+        {/* `max-w-full`: sütun düzeninde ortalanan etiket içeriği kadar genişler;
+            tek sözcük kutudan uzunsa kartın dışına taşardı (bkz. `TILE_LABEL_WRAP`). */}
+        <span className={`mt-4 line-clamp-2 max-w-full text-[13px]/5 font-semibold text-zinc-900 ${TILE_LABEL_WRAP}`}>
+          {c.name}
+        </span>
         {c.count > 0 ? (
           <span className="tnum mt-1 text-xs text-zinc-500">({fmt.number(c.count)})</span>
         ) : null}
@@ -96,7 +120,9 @@ export function CategoryTile({
           </span>
         )}
         <span className="flex flex-1 flex-col justify-start px-1 pt-3 pb-2 text-center">
-          <span className="line-clamp-2 text-[13px]/5 font-semibold text-zinc-900 group-hover:text-zinc-600">
+          <span
+            className={`line-clamp-2 text-[13px]/5 font-semibold text-zinc-900 group-hover:text-zinc-600 ${TILE_LABEL_WRAP}`}
+          >
             {c.name}
           </span>
           {/* Sayı YALNIZ > 0 ise: "(0)" envanterin azlığını duyurur

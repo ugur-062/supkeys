@@ -82,6 +82,12 @@ export interface PanelBandContext {
   total: number;
   loaded: boolean;
   facets?: ProductFacets;
+  /**
+   * Facet yanıtı OKUNAMADI (veri yok ∧ istek düştü). Bant, facet'ten okuduğu
+   * şeyi (kategori adı) bekleyerek iskelette KALMAZ — yedeğini çizer (son
+   * canlı kontrol 2026-10-10, OUTF-6).
+   */
+  facetsFailed: boolean;
   /** Aynı arama/kategorideki tedarikçi sayısı (yüklenene dek `undefined`). */
   companyCount?: number;
   /** Etkin süzgeçlerle firma dizini adresi (arama, kategori ve firma süzgeçleri — `companyFiltersOf`). */
@@ -232,6 +238,7 @@ function Inner({
           total,
           loaded: !!data,
           facets: facets.data,
+          facetsFailed: facets.data === undefined && facets.isError,
           companyCount: companies.data?.total,
           companiesHref: companiesHref(state),
           state,

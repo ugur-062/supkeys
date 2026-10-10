@@ -17,6 +17,7 @@ import {
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { useMyBids, type MyBid, type MyBidSort } from "@/hooks/use-company-listings";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useReadFailed } from "@/hooks/use-read-failed";
 import { ErrorState } from "@/components/ui/error-state";
 import { closingUrgency } from "@/lib/tenders/seller-state";
 import { lostBidOutcome, type LostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
@@ -352,7 +353,7 @@ export function MyBidsList() {
   // çevrimdışı cihazda sorgu DURAKLAR (istek yok, hata yok, veri yok) ve
   // `isLoading` false kalır — "0 teklif" + "Henüz teklif vermediniz" çiziliyordu.
   // Süzgeç değişiminde önceki sayfa yer tutucudur (`keepPreviousData`): pending değil.
-  const { data, isPending, isError, refetch } = useMyBids({
+  const bids = useMyBids({
     status: state.status,
     pending: state.pending,
     q: state.q || undefined,
@@ -361,6 +362,12 @@ export function MyBidsList() {
     page: state.page,
     pageSize: PAGE_SIZE,
   });
+  const { data, isPending } = bids;
+  // Okunamayan liste: hata kartı 15 sn'lik yoklamayla iskelete DÖNMEZ, veri
+  // gelene dek durur (`useReadFailed`, son canlı kontrol OUTF-1). Yer tutucu
+  // (önceki süzgecin sayfası) "veri" sayılmaz: kesintide süzgeç değiştirenin
+  // kartı yoklamada başka süzgecin satırlarına dönmez (gözden geçirme REV-OUTF-1).
+  const { failed, retry } = useReadFailed(bids);
 
   /** Durumu güncelle + adres çubuğuna yaz (geçmiş girdisi açmadan). */
   const update = (patch: Partial<MyBidsUrlState>, resetPage = true) => {
@@ -408,8 +415,10 @@ export function MyBidsList() {
         description={description}
       />
       {/* Sayaçlar SUNUCUDAN (süzgeçten bağımsız) — Şirketim KPI'ları ile aynı
-          sayım; eskiden en yeni 200 teklifte sayılıyordu. */}
-      {counts && counts.all > 0 ? (
+          sayım; eskiden en yeni 200 teklifte sayılıyordu. Liste okunamadıysa
+          çizilmez: yoklama sırasında yer tutucunun sayaçları kartın üstünde
+          belirip kaybolurdu (REV-OUTF-1). */}
+      {!failed && counts && counts.all > 0 ? (
         <p className="text-sm text-zinc-500" aria-label={t("teklifOzeti")}>
           {t.rich("ozet", {
             active: counts.active,
@@ -456,7 +465,7 @@ export function MyBidsList() {
             ariaLabel={t("tarihAraligi")}
             active={state.range !== "all"}
           />
-          {isError && !data ? (
+          {failed ? (
             // Okunamayan toplam "0 teklif" diye basılmaz (canlı doğrulama OUT-2;
             // Siparişlerim'deki D-259 ile aynı kural) — hata kartı aşağıda.
             <span className="ml-auto" />
@@ -512,10 +521,10 @@ export function MyBidsList() {
         />
       </div>
 
-      {isPending ? (
+      {failed ? (
+        <ErrorState onRetry={retry} />
+      ) : isPending ? (
         <ListSkeleton rows={5} />
-      ) : isError && !data ? (
-        <ErrorState onRetry={() => void refetch()} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={isFiltered ? CircleSlash : Gavel}

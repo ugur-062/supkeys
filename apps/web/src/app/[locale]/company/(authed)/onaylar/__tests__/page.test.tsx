@@ -230,6 +230,10 @@ describe("OnaylarPage", () => {
     const tabs = within(screen.getByRole("tablist"));
     expect(tabs.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Sıra sizde", "Tüm istekler"]);
     expect(screen.getByRole("alert")).toHaveTextContent("Kayıtlar yüklenemedi");
+    // Son canlı kontrol OUTF-4: kart, hemen üstündeki "Sunucuya şu anda
+    // ulaşılamıyor" notuyla çelişmez — kullanıcının kendi bağlantısı suçlanmaz.
+    expect(screen.getByRole("alert")).toHaveTextContent("Lütfen yeniden deneyin.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent(/bağlantı/i);
     expect(screen.queryByText("Sıra sizde bekleyen onay yok")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Yeniden Dene" }));
     expect(h.refetchPending).toHaveBeenCalledTimes(1);

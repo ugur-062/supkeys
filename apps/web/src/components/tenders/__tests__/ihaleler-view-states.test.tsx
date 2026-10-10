@@ -124,6 +124,62 @@ describe("IhalelerView — kesinti (OUTR-2)", () => {
   });
 });
 
+/**
+ * Son canlı kontrol 2026-10-10, OUTF-1: TanStack verisi olmayan sorguyu her
+ * yeniden çekişte "pending"e döndürür (hata silinir) → 15 sn'lik yoklama hata
+ * kartını her turda 5–7 sn iskelete çeviriyor, "Tekrar dene" kayboluyordu.
+ */
+describe("IhalelerView — kesinti sürerken yoklama (OUTF-1)", () => {
+  const LIST_KEY = ["company-tenders", "ALIM"];
+  const listStatus = () => client.getQueryCache().find({ queryKey: LIST_KEY })?.state.status;
+  /** Liste isteği testin elinde bekler. */
+  function holdList() {
+    let settle!: { resolve: (rows: TenderListItem[]) => void; reject: (err: unknown) => void };
+    h.get.mockImplementation(
+      () =>
+        new Promise((resolve, reject) => {
+          settle = { resolve: (rows) => resolve({ data: rows }), reject };
+        }),
+    );
+    return { resolve: (rows: TenderListItem[]) => settle.resolve(rows), reject: () => settle.reject(networkError) };
+  }
+
+  it("yoklama yeniden denerken hata kartı ve 'Tekrar dene' ekranda KALIR; API dönünce liste gelir", async () => {
+    apiDown();
+    const { container } = view();
+    await screen.findByRole("alert");
+
+    // 15 sn'lik yoklamanın yerine: sorgu arka planda yeniden çekilir ve asılı kalır.
+    const pending = holdList();
+    act(() => void client.refetchQueries({ queryKey: LIST_KEY }));
+    await waitFor(() => expect(listStatus()).toBe("pending"));
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Veri alınamadı.");
+    expect(within(alert).getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    expectNoFalseZero();
+
+    await act(async () => pending.resolve([row("1", "Çelik boru alımı", "AWARDED"), row("2", "Kablo alımı", "OPEN")]));
+    await waitFor(() => expect(statusButton()).toHaveTextContent("Tüm Durumlar (2)"));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("kullanıcının bastığı 'Tekrar dene' görünür: istek sürerken iskelet, yine düşerse hata kartı", async () => {
+    apiDown();
+    const { container } = view();
+    await screen.findByRole("alert");
+
+    const pending = holdList();
+    await userEvent.setup().click(within(screen.getByRole("alert")).getByRole("button", { name: "Tekrar dene" }));
+    await waitFor(() => expect(container.querySelector(".animate-pulse")).not.toBeNull());
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await act(async () => pending.reject());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Veri alınamadı.");
+  });
+});
+
 describe("IhalelerView — yanıt beklenirken", () => {
   it("çevrimdışı duraklayan sorgu (istek yok, hata yok, veri yok): sayaç yok, 'henüz talep yok' yok", async () => {
     onlineManager.setOnline(false);

@@ -24,6 +24,7 @@ import { CloseDaysInput, useCloseDaysGuard } from "@/components/tenders/close-da
 import { hasInvalidNumber } from "@/components/ui/money-input";
 import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
@@ -66,7 +67,7 @@ import {
   type MemberInviteResult,
   type MemberInviteTarget,
 } from "@/hooks/use-supplier-discovery";
-import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
+import { inviteWillLeave } from "@/lib/tenders/external-invite-status";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, fallbackVisibilityFor, initialRequestFormValues, withVisibleCategories, type QuickSeedKind } from "@/lib/tenders/request-defaults";
@@ -502,7 +503,7 @@ export function QuickRequest({
         }
         if (inviteResults === "error") toast.warning(tr("disDavetlerGonderilemedi"));
         else if (inviteResults) {
-          const sent = inviteResults.filter((r) => isInviteAccepted(r.status)).length;
+          const sent = inviteResults.filter((r) => inviteWillLeave(r)).length;
           if (sent > 0) toast.success(tr("disDavetSirayaAlindi", { n: sent }));
           if (sent < inviteResults.length) toast.warning(tr("disDavetGonderilmedi", { n: inviteResults.length - sent }));
         }
@@ -773,6 +774,13 @@ export function QuickRequest({
     );
   }
 
+  // Talep şartları OKUNAMADI (son canlı kontrol OUTF-2): `terms` yalnız o yanıtla
+  // dolar → form kesinti boyunca iskelette kalıyordu, ne hata ne yeniden deneme
+  // vardı. Öteki sayfalarla aynı durum: hata + "Tekrar dene" (yeniden deneme
+  // sürerken yine iskelet).
+  if (!terms && defaultsQ.data === undefined && defaultsQ.isError) {
+    return <ErrorState title={tr("talepFormuYuklenemedi")} onRetry={() => void defaultsQ.refetch()} />;
+  }
   if (defaultsQ.isLoading || !terms) return <Skeleton />;
 
   // Kurulum kartı yalnız boş kartta — düzenleme/kopya/şablon kendi şartlarını taşır.

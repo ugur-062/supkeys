@@ -8,10 +8,15 @@ const h = vi.hoisted(() => ({
   me: { id: "me", roles: ["YONETICI"] } as Record<string, unknown>,
   companyUsersCalled: false,
   tier: "GOLD",
+  /** Akış listesi okunamadı (kesinti): veri yok, `isError`. */
+  flowsFailed: false,
 }));
 
 vi.mock("@/hooks/use-company-approvals", () => ({
-  useApprovalFlows: () => ({ data: h.flows, isLoading: false }),
+  useApprovalFlows: () =>
+    h.flowsFailed
+      ? { data: undefined, isLoading: false, isPending: false, isError: true, refetch: vi.fn() }
+      : { data: h.flows, isLoading: false },
   // Sunucu (GET company/approvals/approver-candidates) yalnız aktif +
   // approval:act taşıyanları döner — mock da süzülmüş listeyi verir.
   useApproverCandidates: () => ({ data: h.users, isLoading: false }),
@@ -62,6 +67,23 @@ beforeEach(() => {
   h.me = { id: "me", roles: ["YONETICI"] };
   h.companyUsersCalled = false;
   h.tier = "GOLD";
+  h.flowsFailed = false;
+});
+
+/**
+ * Son canlı kontrol OUTF-4: hata kartı "Bağlantı sorunu olabilir" diyordu —
+ * hemen üstündeki "Sunucuya şu anda ulaşılamıyor" notuyla çelişen, kullanıcının
+ * kendi bağlantısını işaret eden bir cümle. Kart nedeni tahmin etmez.
+ */
+describe("ApprovalFlowsSection — liste okunamadı (OUTF-4)", () => {
+  it("hata kartı nötr: kullanıcının bağlantısı suçlanmaz", () => {
+    h.flowsFailed = true;
+    render(<ApprovalFlowsSection canManage />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Onay akışları yüklenemedi");
+    expect(alert).toHaveTextContent("Lütfen yeniden deneyin.");
+    expect(alert).not.toHaveTextContent(/bağlantı/i);
+  });
 });
 
 describe("ApprovalFlowsSection — onaycı seçici keşfedilebilirlik", () => {

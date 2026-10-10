@@ -140,6 +140,62 @@ describe("SellerTendersView — kesinti (OUTR-1)", () => {
   });
 });
 
+/**
+ * Son canlı kontrol 2026-10-10, OUTF-1: TanStack verisi olmayan sorguyu her
+ * yeniden çekişte "pending"e döndürür (hata silinir) → 15 sn'lik yoklama hata
+ * kartını her turda 5–7 sn iskelete çeviriyor, "Tekrar dene" kayboluyordu.
+ */
+describe("SellerTendersView — kesinti sürerken yoklama (OUTF-1)", () => {
+  const LIST_KEY = ["company-listings", "seller-tenders"];
+  const listStatus = () => client.getQueryCache().find({ queryKey: LIST_KEY, exact: false })?.state.status;
+  /** Liste isteği testin elinde bekler; öteki uçlar (segment adları) yanıt verir. */
+  function holdList() {
+    let settle!: { resolve: (rows: SellerTenderRow[]) => void; reject: (err: unknown) => void };
+    h.get.mockImplementation((url: string) => {
+      if (!url.startsWith("/company/listings/seller-tenders")) return Promise.resolve({ data: [] });
+      return new Promise((resolve, reject) => {
+        settle = { resolve: (rows) => resolve({ data: rows }), reject };
+      });
+    });
+    return { resolve: (rows: SellerTenderRow[]) => settle.resolve(rows), reject: () => settle.reject(networkError) };
+  }
+
+  it("yoklama yeniden denerken hata kartı ve 'Tekrar dene' ekranda KALIR; API dönünce liste gelir", async () => {
+    apiDown();
+    const { container } = view();
+    await screen.findByRole("alert");
+
+    // 15 sn'lik yoklamanın yerine: sorgu arka planda yeniden çekilir ve asılı kalır.
+    const pending = holdList();
+    act(() => void client.refetchQueries({ queryKey: LIST_KEY }));
+    await waitFor(() => expect(listStatus()).toBe("pending"));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Açık talepler yüklenemedi.");
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    expect(screen.queryByText("Güncelleniyor…")).toBeNull();
+    expectNoFalseEmpty();
+
+    await act(async () => pending.resolve([row(), row()]));
+    expect(await screen.findByText("2 açık talep bulundu")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("kullanıcının bastığı 'Tekrar dene' görünür: istek sürerken iskelet, yine düşerse hata kartı", async () => {
+    apiDown();
+    const { container } = view();
+    await screen.findByRole("alert");
+
+    const pending = holdList();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Tekrar dene" }));
+    await waitFor(() => expect(container.querySelector(".animate-pulse")).not.toBeNull());
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await act(async () => pending.reject());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Açık talepler yüklenemedi.");
+  });
+});
+
 describe("SellerTendersView — yanıt beklenirken", () => {
   it("çevrimdışı duraklayan sorgu (istek yok, hata yok, veri yok) boş liste sanılmaz", async () => {
     // TanStack çevrimdışıyken sorguyu DURAKLATIR: `isLoading` false, `isError`

@@ -74,9 +74,16 @@ export function MarketplaceFooter() {
               <ul className="mt-4 space-y-2">
                 {col.links.map((l) => (
                   <li key={l.href}>
+                    {/* Uzun sözcük sütundan taşmaz (son canlı kontrol 2026-10-10,
+                        NEW-03): 640 px'te dört sütun 124 px; Rusça
+                        "Конфиденциальность" 151 px tutuyor, son sütundan taşıp
+                        sayfayı 3 px yatay kaydırıyordu (640–648 px, her herkese
+                        açık sayfada). Sığmayan sözcük bölünür; Rusçada yalnız
+                        uzun sözcük (13+ harf) hece sınırından tire ile — kural
+                        kategori kartıyla aynı (`category-tile.tsx`). */}
                     <Link
                       href={l.href}
-                      className="text-sm/6 text-zinc-600 hover:text-zinc-950"
+                      className="text-sm/6 break-words text-zinc-600 hover:text-zinc-950 [hyphenate-limit-chars:13] [&:lang(ru)]:hyphens-auto"
                     >
                       {l.label}
                     </Link>

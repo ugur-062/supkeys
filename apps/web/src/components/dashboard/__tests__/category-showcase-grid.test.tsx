@@ -81,6 +81,27 @@ describe("CategoryShowcaseRows — blok ızgarası", () => {
     }
   });
 
+  /* Son canlı kontrol 2026-10-10, NEW-02: 1024–1295 px'te tanıtım kartının
+     başlık kutusu 224 px; Rusça "Производственные" (237 px) bölünemediği için
+     sağ iç boşluğa giriyordu (24 yerine 11 px). Chromium'da ölçüldü (TR / EN /
+     RU, 320–1920 px): düzeltmeden sonra sağ boşluk en az 24 px, kartın
+     yüksekliği ve kısa sözcüklü başlıkların satırları aynı. jsdom yerleşim
+     hesaplamaz; kilitlenen şey sınıflardır. */
+  it.each(["icon", "photo"] as const)("tanıtım kartı başlığı (%s): sığmayan sözcük bölünür, Rusçada uzun sözcük hece sınırından", (visual) => {
+    const { container } = draw(5, visual);
+    const promo = container.querySelector("section > a")!;
+    const title = [...promo.querySelectorAll("span")].find((el) => el.textContent === "Sektör 11" && el.children.length === 0)!;
+    expect(title).toBeTruthy();
+    const cls = title.className.split(/\s+/);
+    expect(cls).toContain("break-words");
+    expect(cls).toContain("[&:lang(ru)]:hyphens-auto");
+    // Yalnız uzun sözcük (13+ harf): "строительные" gibi sözcükler bölünmez,
+    // başlık dört satıra çıkıp kartı uzatmaz.
+    expect(cls).toContain("[hyphenate-limit-chars:13]");
+    // Öteki dillerde heceleme açılmaz (sığan sözcüklerin sarması değişmesin).
+    expect(cls).not.toContain("hyphens-auto");
+  });
+
   it("tek sektör: tanıtım kartı tek başına, boş ızgara çizilmez", () => {
     const { container, grids } = draw(1, "icon");
     expect(container.querySelectorAll("section")).toHaveLength(1);

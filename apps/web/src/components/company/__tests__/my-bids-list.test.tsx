@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MyBid, MyBidsPage, MyBidsQuery } from "@/hooks/use-company-listings";
@@ -159,6 +159,127 @@ describe("MyBidsList — liste durumları (OUT-2)", () => {
     expect(await screen.findByRole("link", { name: "Çelik boru alımı" })).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledWith("/company/listings/my-bids", expect.anything());
     qc.clear();
+  });
+});
+
+/**
+ * Son canlı kontrol 2026-10-10, OUTF-1: TanStack verisi olmayan sorguyu her
+ * yeniden çekişte "pending"e döndürür (hata silinir) → 15 sn'lik yoklama hata
+ * kartını her turda 5–7 sn iskelete çeviriyor, "Tekrar dene" kayboluyordu.
+ * Gerçek kanca + gerçek sorgu istemcisi.
+ */
+describe("MyBidsList — kesinti sürerken yoklama (OUTF-1)", () => {
+  const networkError = Object.assign(new Error("Network Error"), { isAxiosError: true });
+  let qc: QueryClient;
+  const listStatus = () => qc.getQueryCache().find({ queryKey: ["company-my-bids"], exact: false })?.state.status;
+  const view = () =>
+    render(
+      <QueryClientProvider client={qc}>
+        <MyBidsList />
+      </QueryClientProvider>,
+    );
+  /** Liste isteği testin elinde bekler. */
+  function holdList() {
+    let settle!: { resolve: (page: MyBidsPage) => void; reject: (err: unknown) => void };
+    h.get.mockImplementation(
+      () =>
+        new Promise((resolve, reject) => {
+          settle = { resolve: (page) => resolve({ data: page }), reject };
+        }),
+    );
+    return { resolve: (page: MyBidsPage) => settle.resolve(page), reject: () => settle.reject(networkError) };
+  }
+
+  beforeEach(() => {
+    h.real = true;
+    h.get.mockRejectedValue(networkError);
+    qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
+  afterEach(() => qc.clear());
+
+  it("yoklama yeniden denerken hata kartı ve 'Tekrar dene' ekranda KALIR; API dönünce liste gelir", async () => {
+    const { container } = view();
+    await screen.findByRole("alert");
+
+    // 15 sn'lik yoklamanın yerine: sorgu arka planda yeniden çekilir ve asılı kalır.
+    const pending = holdList();
+    act(() => void qc.refetchQueries({ queryKey: ["company-my-bids"] }));
+    await waitFor(() => expect(listStatus()).toBe("pending"));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    expect(container.textContent).not.toMatch(/\d+\s*teklif/);
+    expect(screen.queryByText("Henüz teklif vermediniz")).toBeNull();
+
+    await act(async () => pending.resolve(pageOf([bid()])));
+    expect(await screen.findByRole("link", { name: "Çelik boru alımı" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  /**
+   * Gözden geçirme REV-OUTF-1: `useMyBids` süzgeç değişiminde önceki sayfayı yer
+   * tutucu tutar (`keepPreviousData`). Verisi olmayan (düşmüş) sorgu yoklamayla
+   * yeniden çekilirken `data` yine ÖNCEKİ süzgecin sayfası olur — yalnız `data`ya
+   * bakan kanca bunu "okundu" sayıyor, kart ve "Tekrar dene" kayboluyor, yeni
+   * süzgecin altında eski süzgecin satırları çiziliyordu (her 15 sn'de bir).
+   */
+  it("süzgeç değişip okuma düşünce: yoklama kartı ÖNCEKİ süzgecin satırlarına çevirmez; bu süzgecin verisi gelince liste gelir", async () => {
+    const activeList = () =>
+      qc.getQueryCache().findAll({ queryKey: ["company-my-bids"], type: "active" })[0]?.state;
+    const lastParams = () => (h.get.mock.calls.at(-1)?.[1] as { params?: Record<string, string> } | undefined)?.params;
+
+    // 1) Süzgeçsiz liste okundu.
+    h.get.mockResolvedValue({ data: pageOf([bid()]) });
+    const { container } = view();
+    expect(await screen.findByRole("link", { name: "Çelik boru alımı" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Teklif özeti")).toBeInTheDocument();
+
+    // 2) API düştü; kullanıcı arama yazdı. İstek sürerken önceki sayfa yer
+    //    tutucudur (hata bilinmiyor: sıradan süzgeç değişimi eskisi gibi).
+    const filtered = holdList();
+    fireEvent.change(screen.getByPlaceholderText("Talep adı, numarası veya alıcı ara…"), {
+      target: { value: "vana" },
+    });
+    await waitFor(() => expect(lastParams()).toMatchObject({ q: "vana" }), { timeout: 4000 });
+    expect(screen.getByRole("link", { name: "Çelik boru alımı" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    await act(async () => filtered.reject());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
+    expect(screen.queryByRole("link", { name: "Çelik boru alımı" })).toBeNull();
+
+    // 3) 15 sn'lik yoklamanın yerine: süzgeçli sorgu yeniden çekilir ve asılı kalır.
+    const poll = holdList();
+    act(() => void qc.refetchQueries({ queryKey: ["company-my-bids"], type: "active" }));
+    await waitFor(() => expect(activeList()).toMatchObject({ status: "pending", fetchStatus: "fetching" }));
+
+    // Eskiden bu anda: kart yok, "Çelik boru alımı" (süzgeçsiz sayfa) "vana" aramasının altında.
+    expect(screen.getByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Çelik boru alımı" })).toBeNull();
+    // Yer tutucunun sayaçları da kartın üstünde belirmez.
+    expect(screen.queryByLabelText("Teklif özeti")).toBeNull();
+    expect(container.textContent).not.toMatch(/\d+\s*teklif/);
+
+    // 4) API döndü: kart yalnız BU süzgecin kendi verisiyle kalkar.
+    const vana = bid({ id: "b2", listing: { ...bid().listing, id: "l2", title: "Küresel vana alımı" } });
+    await act(async () => poll.resolve(pageOf([vana])));
+    expect(await screen.findByRole("link", { name: "Küresel vana alımı" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByLabelText("Teklif özeti")).toBeInTheDocument();
+  });
+
+  it("kullanıcının bastığı 'Tekrar dene' görünür: istek sürerken iskelet, yine düşerse hata kartı", async () => {
+    const { container } = view();
+    await screen.findByRole("alert");
+
+    const pending = holdList();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Tekrar dene" }));
+    await waitFor(() => expect(container.querySelector(".animate-pulse")).not.toBeNull());
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await act(async () => pending.reject());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
   });
 });
 

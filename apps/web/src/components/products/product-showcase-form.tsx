@@ -17,6 +17,7 @@ import { ProductActionBar } from "./product-action-bar";
 import { EditorRail, sectionFor } from "./editor-rail";
 import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { isInvalidNumber, MoneyInput } from "@/components/ui/money-input";
@@ -111,6 +112,37 @@ function contentKey(p: {
     [...new Set(list(p.keywords))],
     attrs,
   ]);
+}
+
+/**
+ * KATEGORİ DEĞİŞİMİNDE TAŞINAN NİTELİK DEĞERİ (gözden geçirme REV-PF-1). Aynı
+ * anahtar matriste birden çok düğümde, farklı seçenek listesi ya da farklı türle
+ * tanımlı ("malzeme": bir ailede Çelik / Alüminyum, kardeşinde Pamuk /
+ * Polyester). Yalnız anahtara bakılırsa yeni kategoride seçenek OLMAYAN değer
+ * form durumunda kalır: hiçbir kontrol onu çizmez (basılı çip yok, seçim kutusu
+ * "Seçiniz"), sahibi göremez ve kaldıramaz, yine de kayda gider ve yıldızlı
+ * nitelik "dolu" sayılır.
+ *
+ * Dönen: yeni tanıma uyan değer; uymuyorsa `undefined` (anahtar düşer).
+ *  · tek seçim  — yalnız seçeneklerden biri olan metin;
+ *  · çoklu seçim — seçeneklerle kesişim (boşsa düşer);
+ *  · dizi ↔ metin tür uyuşmazlığı — düşer;
+ *  · metin / sayı — yazılan değer aynen (alanında görünür, düzeltilebilir).
+ * Değişmeyen değer AYNI referansla döner ("değişti" izi olmasın).
+ */
+function carriedAttributeValue(
+  def: AttributeDef,
+  value: string | string[],
+): string | string[] | undefined {
+  if (def.type === "MULTI_SELECT") {
+    if (!Array.isArray(value)) return undefined;
+    const kept = value.filter((v) => def.options.includes(v));
+    if (kept.length === 0) return undefined;
+    return kept.length === value.length ? value : kept;
+  }
+  if (Array.isArray(value)) return undefined;
+  if (def.type === "SINGLE_SELECT") return def.options.includes(value) ? value : undefined;
+  return value;
 }
 
 /**
@@ -228,7 +260,11 @@ export function ProductShowcaseForm({
    */
   const attributeCategoryId = visibleCategoryId(categoryId);
   const outdatedCategory = !product.isPublic && isHiddenCategory(categoryId);
-  const { data: attributeDefs = NO_ATTRIBUTE_DEFS } = useCategoryAttributes(attributeCategoryId);
+  // `undefined` = seçili kategorinin tanımları OKUNMADI (kategori yok, yanıt
+  // bekleniyor ya da okuma düştü) — "bu kategoride nitelik yok" (`[]`) DEĞİL.
+  const attributeDefsQuery = useCategoryAttributes(attributeCategoryId);
+  const loadedAttributeDefs = attributeDefsQuery.data;
+  const attributeDefs = loadedAttributeDefs ?? NO_ATTRIBUTE_DEFS;
   const save = useUpdateShowcase();
   const create = useCreateProduct();
   const publish = usePublishProduct();
@@ -243,19 +279,37 @@ export function ProductShowcaseForm({
   const unitLabel = unitLabelOf(unitName, unitCode);
 
   /**
-   * Kategori DEĞİŞİNCE eski nitelikler taşınmaz: yeni kategoride tanımsız
-   * anahtarlar zaten serviste düşüyor, ama formda da göstermemek gerek —
-   * kullanıcı doldurduğu bir alanın sessizce kaybolduğunu görmemeli.
+   * Kategori DEĞİŞİNCE yeni kategoride TANIMSIZ nitelikler formdan düşer (servis
+   * de düşürür; kullanıcı kaydettikten sonra kaybolan alan görmesin). Yeni
+   * kategorinin de tanımladığı niteliklerin değeri KALIR — ama yalnız YENİ tanıma
+   * uyan değer (`carriedAttributeValue`): aynı anahtar başka kategoride başka
+   * seçenek listesi ya da başka türle tanımlıdır.
+   *
+   * Ayıklama yalnız yeni kategorinin tanımları OKUNDUKTAN sonra yapılır (son
+   * canlı kontrol NEW-PF-2): eskiden efekt `categoryId` değişir değişmez, tanımlar
+   * henüz gelmemişken (boş varsayılan) koşuyor ve HER değeri siliyordu — kardeş
+   * kategoriye geçen ya da "güncel bir kategori seçin" notuna uyan sahip kayıtlı
+   * niteliklerini kaydederken kaybediyordu. Bekleyen ya da düşen okumada
+   * (`undefined`) hiçbir şey silinmez; kategori kaldırıldığında da (tanım yok,
+   * sunucu kayıtlı kategoride kalır) değerler durur.
    */
   useEffect(() => {
     if (categoryId === (product.categoryId ?? "")) return;
+    if (!loadedAttributeDefs) return;
+    const defs = new Map(loadedAttributeDefs.map((d) => [d.key, d]));
     setAttributes((prev) => {
-      const allowed = new Set(attributeDefs.map((d) => d.key));
+      let changed = false;
       const next: Record<string, string | string[]> = {};
-      for (const [k, v] of Object.entries(prev)) if (allowed.has(k)) next[k] = v;
-      return next;
+      for (const [key, value] of Object.entries(prev)) {
+        const def = defs.get(key);
+        const kept = def ? carriedAttributeValue(def, value) : undefined;
+        if (kept !== value) changed = true;
+        if (kept !== undefined) next[key] = kept;
+      }
+      // Düşen / daralan yoksa AYNI nesne: boşuna yeniden çizim ve "değişti" izi olmasın.
+      return changed ? next : prev;
     });
-  }, [categoryId, attributeDefs, product.categoryId]);
+  }, [categoryId, loadedAttributeDefs, product.categoryId]);
 
   const patch = useMemo(
     () => ({
@@ -347,7 +401,10 @@ export function ProductShowcaseForm({
       description: patch.description,
       images,
       keywords,
-      categoryId: patch.categoryId,
+      // Tamamlanma kartıyla AYNI görünüm (son canlı kontrol NEW-PF-4): yayında
+      // olmayan ürünün gizli segmentteki kodu "kategori seçili" sayılmaz —
+      // eskiden ray "güncel kategori seçilmeli" derken bu kart 10 puanı veriyordu.
+      categoryId: outdatedCategory ? null : patch.categoryId,
       attributeCount: attributeEntries.length,
       brand: null,
       mpn: null,
@@ -390,7 +447,7 @@ export function ProductShowcaseForm({
       return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.map(show).join(", ") : show(v)}`;
     });
     return { readiness, snippet, facts };
-  }, [patch, images, keywords, attributes, attributeDefs, attributeCategoryId, priceMode, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
+  }, [patch, images, keywords, attributes, attributeDefs, attributeCategoryId, outdatedCategory, priceMode, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
 
   /** Anahtar kelime ÖNERİLERİ: kategori adı + ürün adındaki anlamlı sözcükler. */
@@ -679,6 +736,11 @@ export function ProductShowcaseForm({
                   modalTitle={t("urunKategorisi")}
                   modalDescription={t("urunKategorisiAciklama")}
                   placeholder={t("urunKategorisiniSecin")}
+                  // YAYINDAKİ eski üründe kayıtlı (gizli) kategori sayılır, kayıt
+                  // güncel kategori seçmeden de geçer → not seçim İSTEMEZ (son
+                  // canlı kontrol NEW-PF-5). Yayında olmayan üründe kategori
+                  // gerçekten eksiktir: not ister, ray da ister.
+                  retiredOptional={product.isPublic}
                 />
               </Field>
 
@@ -776,6 +838,14 @@ export function ProductShowcaseForm({
                   <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
                     {t("once1BolumdeKategoriSecin")}
                   </p>
+                ) : loadedAttributeDefs === undefined ? (
+                  // Tanımlar okunmadan "bu kategoride nitelik yok" DENMEZ (LİSTE
+                  // DURUMLARI): bekleme yer tutucu, düşen okuma hata + yeniden dene.
+                  attributeDefsQuery.isError ? (
+                    <ErrorState compact className="mt-2" onRetry={() => void attributeDefsQuery.refetch()} />
+                  ) : (
+                    <div aria-hidden className="mt-2 h-9 animate-pulse rounded-lg bg-zinc-100" />
+                  )
                 ) : attributeDefs.length === 0 ? (
                   <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
                     {t("buKategorideTanimliNitelikYok")}

@@ -38,7 +38,7 @@ function CategoryView({ code }: { code: string }) {
   return (
     <PanelProductIndex
       fixedCategory={code}
-      band={({ total, loaded, facets, companyCount, companiesHref, state }) => {
+      band={({ total, loaded, facets, facetsFailed, companyCount, companiesHref, state }) => {
         // VAR OLMAYAN KOD → 404 (arayüz testi D-237): sunucu seçili kategoriyi
         // her zaman çözer; `null` = böyle bir kategori yok. Eskiden başlık
         // kalıcı iskelette, kırıntıda ham kod kalıyordu. (`undefined` = alanı
@@ -93,10 +93,18 @@ function CategoryView({ code }: { code: string }) {
                 companyCount={companyCount}
               />
             }
+            /* Ad facet yanıtından gelir. Yanıt BEKLENİRKEN iskelet; yanıt
+               OKUNAMADIYSA (kesinti) iskelet sonsuza dek kalmaz, sayfa genel
+               başlıkla durur — h1 boş kalmasın (son canlı kontrol 2026-10-10,
+               OUTF-6). Liste ve süzgeçler kendi hata durumlarını zaten çizer;
+               yanıt gelince ad yerine oturur. */
             title={
-              name ?? (
+              name ??
+              (facetsFailed ? (
+                t("kategori")
+              ) : (
                 <span aria-hidden className="inline-block h-7 w-64 animate-pulse rounded bg-zinc-100 align-middle" />
-              )
+              ))
             }
           />
         );

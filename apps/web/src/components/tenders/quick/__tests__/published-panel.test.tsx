@@ -103,3 +103,33 @@ describe("PublishedPanel — elle davet düğmesi (AI-UI-5)", () => {
     expect(screen.queryByTestId("ai-status")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Son canlı kontrol 2026-10-10 (AUTO-COUNT-1 / F3): eski taslaktan kalan dış
+ * davetlerin sonucu. Kuyrukta olup talep kapanmadan gidemeyecek adres "sıraya
+ * alındı" sayısına girmez ve satırında durum + neden yazar (talep sayfasındaki
+ * "E-postayla davet edilenler" bölümüyle aynı).
+ */
+describe("PublishedPanel — dış davet sonuçları", () => {
+  it("gidemeyecek davet sayılmaz; satırında 'Gönderilmedi' ve nedeni yazar", () => {
+    h.detail = { data: { id: "l1", aiDiscovery: false, visibility: "PUBLIC" }, isError: false };
+    render(
+      <PublishedPanel
+        listingId="l1"
+        title="Hidrolik keçe takımı"
+        categoryIds={["39121600"]}
+        itemNames={["Keçe"]}
+        inviteResults={[
+          { email: "satis@gidecek.com.tr", status: "QUEUED", sendAfter: "2026-10-12T06:00:00.000Z" },
+          { email: "satis@bekleyen.com.tr", status: "QUEUED", notSentReason: "FREQUENCY" },
+        ]}
+        onNew={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/^1 davet sıraya alındı/)).toBeInTheDocument();
+    const held = screen.getByText("satis@bekleyen.com.tr").closest("li")!;
+    expect(held).toHaveTextContent("Gönderilmedi · Adres bu hafta başka bir davet aldı; talep kapanmadan sıra gelmedi");
+    expect(held).not.toHaveTextContent("Sıraya alındı");
+    expect(screen.getByText("satis@gidecek.com.tr").closest("li")!).toHaveTextContent("Sıraya alındı");
+  });
+});

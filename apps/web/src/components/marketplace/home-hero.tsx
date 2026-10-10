@@ -4,11 +4,15 @@ import { useTranslations } from "next-intl";
 
 import { AudienceSwitch, useAudience } from "./audience-switch";
 import {
+  HERO_COLUMN_CLASS,
   HERO_LEAD_CLASS,
   HERO_TITLE_CLASS,
   HeroDecor,
+  HeroNotePlaceholder,
+  HeroSearchPlaceholder,
   PanelHeroSearch,
   SizedSlot,
+  heroBandClass,
 } from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
@@ -133,7 +137,9 @@ export function HomeHero() {
         <AudienceSwitch className="pointer-events-auto bg-white/70 shadow-md shadow-zinc-950/5 ring-zinc-950/10 backdrop-blur" />
       </div>
 
-      <Suspense fallback={<HeroShell />}>
+      {/* Kabuk hero ile AYNI yüksekliği ayırır (NEW-04): notlar da ona gider —
+          sunucuda ikisi de misafir hâlidir. */}
+      <Suspense fallback={<HeroShell note={supplierCtaNote} noteSizer={buyerCtaNote} />}>
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
@@ -183,34 +189,45 @@ export function HomeHero() {
   );
 }
 
-/* Bandın sınıfları ve arka plan maskesi `PanelHeroSearch` ile AYNI olmak
-   ZORUNDA — kabuk hidrasyondan önce onun yerinde duruyor, ayrışırsa sayfa
-   gözle görülür biçimde zıplar. Panel dosyası değiştirilemediği (kullanıcı
-   sınırı) ve sınıflar prop olarak dışa verilmediği için burada tekrarlanıyor;
-   hero'nun bandı elden geçerse burası da elden geçmeli. */
-const BAND =
-  "relative isolate -mt-6 flex min-h-[30rem] 2xl:min-h-[34rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-x-clip bg-white bg-gradient-to-b from-emerald-50/80 via-white to-white " +
-  "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
-
 /**
- * Hidrasyondan önceki sessiz hero: beyaz bant, BAŞLIK ve alt cümle (fotoğraf
- * 2026-09-17'de kalktı). Arama
- * çubuğu YOK — o etkileşimli parça sınırın içinde kalıyor. Üst etiket de
- * YOK: hero'nun kendisi de basmıyor (yuva anahtarın), ikisi ayrışırsa
- * hidrasyonda başlık zıplar.
+ * Hidrasyondan önceki sessiz hero — sunucu HTML'inde hero'nun YERİNİ tutar
+ * (hero `useSearchParams` okuduğu için statik sayfada istemciye ertelenir).
+ *
+ * YERİ BİREBİR TUTAR (son canlı kontrol 2026-10-10, NEW-04). Bant içeriğini
+ * dikeyde ortalar; kabuk eskiden yalnız başlık ve alt cümleyi taşıyordu, arama
+ * formu ile not hidrasyonda belirince başlık 68–92 px yukarı zıplıyordu (her
+ * ziyaretçide, üç dilde; yerleşim kayması puanını da bozar). Kabuk artık
+ * hero'nun dört yuvasını aynı sırada ve aynı sınıflarla taşır:
+ *   başlık yuvası · alt cümle yuvası · arama formunun yer tutucusu · not yuvası.
+ * Bandın, sütunun ve yuvaların sınıfları `panel-hero-search.tsx`ten gelir
+ * (`heroBandClass`, `HERO_*`, `HeroSearchPlaceholder`, `HeroNotePlaceholder`);
+ * burada elle sınıf yazılmaz. Sözleşme testi `home-hero-shell.test.tsx` —
+ * hero'ya yükseklik katan bir parça eklenirse kabuğa da eklenir.
+ *
+ * ETKİLEŞİMLİ PARÇA YOK: arama alanı, düğme ve nottaki bağlantı kabukta
+ * çizilmez (yalnız görünmez yerleri durur) — hidrasyonda atılan bir alan
+ * yazılanı götürürdü. İstemci kancası da yok (statik üretim): notlar
+ * `HomeHero`dan prop olarak gelir. Üst etiket YOK: hero da basmıyor (yuva
+ * anahtarın).
  *
  * Sunucu her zaman TEDARİKÇİ yüzünü basar (2026-09-21), dolayısıyla kabuk da
  * tedarikçi metnini taşır (alıcı yüzü ancak istemci tercihi okunduktan sonra
  * çizilir). Metinler yukarıdaki `PanelHeroSearch key="supplier"` ile AYNI olmalı.
  */
-function HeroShell() {
+function HeroShell({
+  note,
+  noteSizer,
+}: {
+  /** Tedarikçi yüzünün notu (görünmez yer) ve öteki yüzün notu (ölçü). */
+  note?: { text: string; label: string };
+  noteSizer?: { text: string; label: string };
+}) {
   const t = useTranslations("web.marketing.home");
   return (
-    <section aria-label={t("supplierTitle")} className={BAND}>
+    <section aria-label={t("supplierTitle")} className={heroBandClass("emerald", SELLER_WIDGETS.length > 0)}>
       {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
       <HeroDecor widgets={SELLER_WIDGETS} objects={SELLER_OBJECTS} accent="emerald" />
-      <div className="mx-auto w-full max-w-4xl text-center">
+      <div className={HERO_COLUMN_CLASS}>
         {/* Ölçü yuvaları hero ile AYNI (`SizedSlot`): kabuk öteki yüzün
             metnine de yer ayırır, hidrasyonda başlık zıplamaz. */}
         <SizedSlot sizer={t("buyerTitle")} sizerClassName={HERO_TITLE_CLASS}>
@@ -219,6 +236,8 @@ function HeroShell() {
         <SizedSlot sizer={t("buyerLead")} sizerClassName={HERO_LEAD_CLASS}>
           <p className={`[grid-area:1/1] ${HERO_LEAD_CLASS} text-zinc-500`}>{t("supplierLead")}</p>
         </SizedSlot>
+        <HeroSearchPlaceholder />
+        <HeroNotePlaceholder note={note} sizer={noteSizer} />
       </div>
     </section>
   );

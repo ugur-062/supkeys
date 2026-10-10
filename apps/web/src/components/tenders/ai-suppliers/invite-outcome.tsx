@@ -49,6 +49,8 @@ export const INVITE_REASON_KEYS: ReadonlySet<string> = new Set([
   "INVALID",
   "PAUSED",
   "FREQUENCY",
+  // Sırada, ama sırası talep kapandıktan SONRA geliyor (API `queuedInviteForecast`).
+  "CLOSES_FIRST",
   "SUPPRESSED",
   "ALLOWLIST",
   "LISTING_CLOSED",
@@ -57,6 +59,16 @@ export const INVITE_REASON_KEYS: ReadonlySet<string> = new Set([
   WEAK_MATCH_REASON,
   "FAILED",
 ]);
+
+/**
+ * Neden kodunun etiketi — sonucu KENDİ satır düzeninde yazan yüzey için ("AI ile
+ * tedarikçi bul" penceresinin adres satırı). Anahtar kümesi ve katalog aynıdır
+ * (ikinci bir neden sözlüğü yazılmaz); tanınmayan kod `null`.
+ */
+export function useInviteReasonLabel(): (reason: string | null | undefined) => string | null {
+  const t = useTranslations("web.panel.requests.aiSuppliers");
+  return (reason) => (reason && INVITE_REASON_KEYS.has(reason) ? t(`reason.${reason}` as never) : null);
+}
 
 const TONE: Record<CandidateInviteState, string> = {
   INVITED: "bg-emerald-50 text-emerald-800 ring-emerald-600/20",

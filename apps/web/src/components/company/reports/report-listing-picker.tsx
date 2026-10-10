@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input, InputGroup } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
+import { ErrorState } from "@/components/ui/error-state";
 import { useReportListingOptions } from "@/hooks/use-company-reports";
 
 /** Arama kutusu yazımı bitince sunucuya gider (her tuşta istek yok). */
@@ -20,7 +21,10 @@ const SEARCH_DEBOUNCE_MS = 250;
  *  - numara/başlık araması sunucuda yapılır → her talep seçilebilir;
  *  - liste kesildiğinde bu açıkça yazılır ("en yeni N / toplam M");
  *  - seçili talep (URL'den geri yüklenen ya da aramadan önce seçilen)
- *    pencere dışında kalsa da listede tutulur (sunucu `selected`).
+ *    pencere dışında kalsa da listede tutulur (sunucu `selected`);
+ *  - seçenekler OKUNAMADIYSA bu söylenir ve yeniden deneme sunulur (son canlı
+ *    kontrol 2026-10-10, OUTF-5): eskiden kesintide kutu yalnız "— Seçin —"
+ *    ile sessizce boş kalıyor, firmanın hiç talebi yokmuş gibi okunuyordu.
  */
 export function ReportListingPicker({
   value,
@@ -48,6 +52,8 @@ export function ReportListingPicker({
   const options = useReportListingOptions({ q, selected: value, excludeDrafts });
   const page = options.data;
   const items = page?.items ?? [];
+  // Okunamadı: gösterilecek seçenek yok ve istek düştü (boş liste DEĞİL).
+  const failed = page === undefined && options.isError;
 
   let hint: string | null = null;
   if (page) {
@@ -85,7 +91,14 @@ export function ReportListingPicker({
           placeholder={t("aramaYerTutucu")}
         />
       </InputGroup>
-      {hint ? (
+      {failed ? (
+        <ErrorState
+          compact
+          className="sm:col-span-2"
+          message={t("taleplerYuklenemedi")}
+          onRetry={() => void options.refetch()}
+        />
+      ) : hint ? (
         <p role="status" className="text-xs text-zinc-500 sm:col-span-2">
           {hint}
         </p>

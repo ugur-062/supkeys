@@ -17,6 +17,7 @@ import {
 import { RequestActiveChips, RequestFilters, RequestSortControl } from "@/components/company/request-filters";
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
 import { useSellerTenders, type SellerTenderRow } from "@/hooks/use-seller-tenders";
+import { useReadFailed } from "@/hooks/use-read-failed";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 import { MaskedSectionLabel } from "@/components/company/masked-section-label";
@@ -78,10 +79,12 @@ const BASE = "/company/satis";
  *    hiç okunamadıysa (`isError` ∧ veri yok) tek hata kartı — süzgeç grupları,
  *    sonuç satırı ve sıralama çizilmez (eskiden hepsi 0 sayaçla, "Açık talep
  *    bulunamadı" ve "Seçenek yok" ile duruyordu). 15 sn'lik arka plan yoklaması
- *    düşerse eldeki satırlar ve sayılar ekranda KALIR.
+ *    düşerse eldeki satırlar ve sayılar ekranda KALIR. Hata kartı da yoklamayla
+ *    iskelete DÖNMEZ (`useReadFailed`, OUTF-1): veri gelene dek durur.
  */
 export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   const tenders = useSellerTenders();
+  const read = useReadFailed(tenders);
   // Ücretsiz üye: herkese açık talepler alıcı adı gizli satır olarak listenin altında.
   const tier = useCompanyAuthStore((s) => s.company?.tier);
   const isFree = !tierAtLeast(tier ?? "STANDART", PAID_TIER);
@@ -161,8 +164,8 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
         pastAtCap={pastAtCap}
         countAtLeast={countAtLeast}
         isPending={tenders.isPending}
-        failed={unread && tenders.isError}
-        refetch={() => void tenders.refetch()}
+        failed={read.failed}
+        refetch={read.retry}
       />
     </FilterShellCore>
   );
@@ -195,7 +198,7 @@ function RequestList({
   countAtLeast: boolean;
   /** Henüz yanıt yok (istek sürüyor ya da çevrimdışı bekliyor) — iskelet. */
   isPending: boolean;
-  /** Liste hiç okunamadı (`isError` ∧ veri yok) — tek hata kartı. */
+  /** Liste hiç okunamadı (veri yok ∧ son okuma düştü; yoklama sürerken de) — tek hata kartı. */
   failed: boolean;
   refetch: () => void;
 }) {

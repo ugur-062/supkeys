@@ -17,6 +17,7 @@ import { IhaleListView } from "@/components/ihale/IhaleListView";
 import { TALEPLERIM_HREF } from "@/components/ihale/IhaleListRow";
 import { Button } from "@/components/ui/button";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useReadFailed } from "@/hooks/use-read-failed";
 import {
   useTenders,
   type TenderListItem,
@@ -230,9 +231,10 @@ export function IhalelerView() {
   // ya da kesinti) "Tüm Durumlar (0)" ve "0 satın alma talebi" basılmaz —
   // 500'den fazla talebi olan hesapta kesinti sıfır gibi okunuyordu. Arka plan
   // yoklaması (15 sn) düşerse eldeki satırlar ve sayılar ekranda KALIR: hata
-  // dalı yalnız hiç veri yokken (`isError` ∧ `data === undefined`).
+  // dalı yalnız hiç veri yokken (`isError` ∧ `data === undefined`). Hata kartı
+  // yoklamayla iskelete DÖNMEZ (`useReadFailed`, OUTF-1): veri gelene dek durur.
   const unread = list.data === undefined;
-  const failed = unread && list.isError;
+  const { failed, retry } = useReadFailed(list);
 
   // Başlangıç durumu ADRESTEN (O-052) — Faz 4.2 KPI drill-down `?status=OPEN`
   // (virgüllü çoklu) dahil. `useSearchParams` sunucu-öncesi render ve testte
@@ -553,7 +555,7 @@ export function IhalelerView() {
         items={pageRows}
         isLoading={list.isPending}
         isError={failed}
-        onRetry={() => list.refetch()}
+        onRetry={retry}
         emptyCtaLabel={tr("satinAlmaTalebiAc")}
         /* Hiç talep yokken (KPI/aksiyon merkezinden `?status=OPEN` ile
            gelen yeni firma) boşluğun sebebi süzgeç değil: "henüz yok +

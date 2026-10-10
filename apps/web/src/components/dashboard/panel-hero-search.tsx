@@ -205,10 +205,105 @@ export function HeroDecor({
 
 /* Başlık ve alt cümlenin tipografisi — hero, ölçü kopyası ve herkese açık
    anasayfanın hidrasyon öncesi kabuğu (`home-hero.tsx` `HeroShell`) AYNI
-   sınıfları kullanır; ayrışırlarsa ölçü yanlış yükseklik ayırır. Renk ayrı. */
-export const HERO_TITLE_CLASS = "text-4xl font-bold tracking-tight text-balance sm:text-5xl";
+   sınıfları kullanır; ayrışırlarsa ölçü yanlış yükseklik ayırır. Renk ayrı.
+   Başlığın üst boşluğu (`mt-3`) da burada: kabuk onu taşımadığı için başlık
+   hidrasyonda 12 px kayıyordu (son canlı kontrol 2026-10-10, NEW-04). */
+export const HERO_TITLE_CLASS = "mt-3 text-4xl font-bold tracking-tight text-balance sm:text-5xl";
 export const HERO_LEAD_CLASS = "mx-auto mt-3 max-w-xl text-base/7 text-pretty";
 export const HERO_NOTE_CLASS = "mt-5 flex flex-wrap items-center justify-center gap-2 text-sm";
+
+/* KABUK ↔ HERO KUTU SÖZLEŞMESİ (NEW-04). Herkese açık anasayfanın sunucu
+   HTML'i (`HeroShell`) hidrasyonda bu hero ile yer değiştirir; dikeyde ortalı
+   bantta içerik yüksekliği farklıysa başlık zıplar (ölçüldü: 68–92 px). Bandın,
+   sütunun, arama formunun ve notun KUTU ölçüsünü veren sınıflar bu yüzden tek
+   yerde durur ve iki taraf da buradan okur. Sözleşme testi:
+   `marketplace/__tests__/home-hero-shell.test.tsx`. */
+export const HERO_COLUMN_CLASS = "mx-auto w-full max-w-4xl text-center";
+/** Arama formunun üst boşluğu (AI anahtarı olmayan hero). */
+const HERO_FORM_CLASS = "relative mt-7";
+/** Arama çubuğunun kutusu: iç boşluk + hizalama (zemin, gölge, çerçeve ayrı). */
+const HERO_SEARCH_BAR_BOX_CLASS = "relative mx-auto flex p-2";
+/** Çubuğun içindeki alanın ve "Ara" düğmesinin yüksekliği. */
+const HERO_SEARCH_CONTROL_HEIGHT_CLASS = "h-12";
+/** Nottaki hap düğmenin kutusu ve yazısı (renk ayrı). */
+const HERO_NOTE_PILL_CLASS = "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold";
+
+/**
+ * `backdrop` bandının sınıfları — hero ve kabuk AYNI fonksiyonu çağırır.
+ *
+ * Bant panel kenar boşluğunu negatif marjla iptal eder (tam genişlik), kendi
+ * boşluğunu geri verir ve gerçek bir yükseklik alır. `-mt-6 lg:-mt-8`: kabuğun
+ * içerik sarmalayıcısı `py-6 lg:py-8` taşıyor; bant onu da iptal eder ki zemin
+ * üst çubuğun HEMEN ALTINDA başlasın (kullanıcı: "arada boşluk olmasın").
+ * `min-h` + dikey ortalama (2026-09-08, kullanıcı: "iki portalın bandı aynı
+ * uzunlukta olsun"): sabit taban yükseklik iki portalı eşitler, kısa içerik
+ * ortalanır. Köşe kartları varken bant 2xl'de biraz daha yüksek (kartlar arama
+ * kutusunun satırına inmez) ve zemin portal tonunda çok hafif gradyan.
+ */
+export function heroBandClass(accent: "blue" | "emerald", hasWidgets: boolean): string {
+  return cn(
+    "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-x-clip bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
+    hasWidgets
+      ? cn(
+          "min-h-[30rem] 2xl:min-h-[34rem]",
+          accent === "emerald"
+            ? "bg-gradient-to-b from-emerald-50/80 via-white to-white"
+            : "bg-gradient-to-b from-blue-50/80 via-white to-white",
+        )
+      : "min-h-[30rem]",
+  );
+}
+
+type HeroNoteText = { text: string; label: string };
+
+/** Notun içeriğinin ETKİLEŞİMSİZ kopyası (metin + hap): ölçü hücresi ve kabuk çizer. */
+function HeroNoteGhost({ note }: { note: HeroNoteText }) {
+  return (
+    <>
+      {note.text}
+      <span className={HERO_NOTE_PILL_CLASS}>
+        {note.label}
+        <ArrowRightIcon aria-hidden className="size-4" />
+      </span>
+    </>
+  );
+}
+
+/**
+ * KABUK İÇİN: arama formunun yerini tutan, formla aynı yükseklikte (üst boşluk
+ * + çubuğun iç boşluğu + alan yüksekliği) GÖRÜNMEZ kutu. Etkileşimli hiçbir şey
+ * taşımaz — form, alan ve düğme hidrasyonla gelir; kabuktaki bir alan hidrasyonda
+ * atılır ve yazılanı götürürdü.
+ */
+export function HeroSearchPlaceholder() {
+  return (
+    <div aria-hidden data-hero-search-placeholder className={cn(HERO_FORM_CLASS, "invisible")}>
+      <div className={cn(HERO_SEARCH_BAR_BOX_CLASS, "items-center")}>
+        <span className={cn(HERO_SEARCH_CONTROL_HEIGHT_CLASS, "flex-1")} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * KABUK İÇİN: arama çubuğunun altındaki notun (`ctaNote`) yerini tutan görünmez
+ * yuva. Hero ile AYNI ızgara: `note` görünen notun, `sizer` öteki yüzün notunun
+ * kopyası; yükseklik ikisinden uzun olanınki. Bağlantı YOK (yalnız yer).
+ */
+export function HeroNotePlaceholder({ note, sizer }: { note?: HeroNoteText; sizer?: HeroNoteText }) {
+  if (!note) return null;
+  return (
+    <SizedSlot
+      sizer={sizer ? `${sizer.text} ${sizer.label}` : undefined}
+      sizerNode={sizer ? <HeroNoteGhost note={sizer} /> : undefined}
+      sizerClassName={HERO_NOTE_CLASS}
+    >
+      <div aria-hidden className={cn("invisible", sizer && "[grid-area:1/1]", HERO_NOTE_CLASS)}>
+        <HeroNoteGhost note={note} />
+      </div>
+    </SizedSlot>
+  );
+}
 
 /**
  * İki metinden uzun olanın yüksekliğini ayıran yuva: `sizer` (öteki yüzün
@@ -530,30 +625,8 @@ export function PanelHeroSearch({
          (satış) eski kompakt hero. */
       className={cn(
         listOpen && "z-10",
-        backdrop
-          /* `-mt-6 lg:-mt-8`: kabuğun içerik sarmalayıcısı `py-6 lg:py-8`
-             taşıyor; bant onu da iptal eder ki fotoğraf üst çubuğun HEMEN
-             ALTINDA başlasın (kullanıcı: "arada boşluk olmasın"). */
-          /* `min-h` + dikey ortalama (2026-09-08, kullanıcı: "iki portalın
-             arka plan fotoğrafı aynı uzunlukta olsun"): bant yüksekliği
-             İÇERİĞE bağlıydı — satınalmada kapsam pilleri ve "talep aç"
-             satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
-             Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
-          ? cn(
-              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-x-clip bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
-              /* Köşe kartları varken bant biraz daha yüksek — kartlar arama
-                 kutusunun satırına inmez (2xl'de ölçüldü). */
-              widgets?.length
-                ? cn(
-                    "min-h-[30rem] 2xl:min-h-[34rem]",
-                    /* Zemin portal tonunda çok hafif gradyan (mockup) — beyaza iner. */
-                    accent === "emerald"
-                      ? "bg-gradient-to-b from-emerald-50/80 via-white to-white"
-                      : "bg-gradient-to-b from-blue-50/80 via-white to-white",
-                  )
-                : "min-h-[30rem]",
-            )
-          : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6",
+        /* Bandın sınıfları `heroBandClass`ta (kabukla ortak, NEW-04). */
+        backdrop ? heroBandClass(accent, !!widgets?.length) : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6",
       )}
     >
       {/* ARKA PLAN YOK (2026-09-17, kullanıcı kararı: "arama kısmının
@@ -565,7 +638,7 @@ export function PanelHeroSearch({
           için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
           eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —
           arama kutusu 896 px yerine 557 px'e inip yer tutucuyu kırpıyordu. */}
-      <div className={backdrop ? "mx-auto w-full max-w-4xl text-center" : "mx-auto max-w-2xl text-center"}>
+      <div className={backdrop ? HERO_COLUMN_CLASS : "mx-auto max-w-2xl text-center"}>
         {eyebrow ? (
           /* Üst etiket: BÜYÜK HARF + geniş harf aralığı, iki yanında ince
              çizgi (kullanıcı tasarımı). */
@@ -581,8 +654,8 @@ export function PanelHeroSearch({
             atlar). Hero yalnız bu iki sayfada kullanılıyor. */}
         {/* İKİ TONLU BAŞLIK: ilk sözcük koyu, kalanı portal renginde. Tek
             `<h1>` — ekran okuyucu için metin bölünmemiş olur. */}
-        <SizedSlot sizer={titleSizer} sizerClassName={`mt-3 ${HERO_TITLE_CLASS}`}>
-        <h1 className={`${titleSizer ? "[grid-area:1/1] " : ""}mt-3 ${HERO_TITLE_CLASS} text-zinc-950`}>
+        <SizedSlot sizer={titleSizer} sizerClassName={HERO_TITLE_CLASS}>
+        <h1 className={`${titleSizer ? "[grid-area:1/1] " : ""}${HERO_TITLE_CLASS} text-zinc-950`}>
           {plainTitle ? (
             title
           ) : titleAccent ? (
@@ -646,7 +719,7 @@ export function PanelHeroSearch({
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
           }}
-          className={ai ? "relative mt-4" : "relative mt-7"}
+          className={ai ? "relative mt-4" : HERO_FORM_CLASS}
         >
           {/* KAPSAM PİLLERİ — çubuğun ÜSTÜNDE (kullanıcı tasarımı,
               2026-09-08 ikinci tur): seçili taraf mavi dolgu, diğeri sessiz
@@ -691,7 +764,7 @@ export function PanelHeroSearch({
               "AI ile ara" (açık mavi) ve "Ara →" (dolu mavi). İkisi de
               ÇUBUĞUN İÇİNDE (kullanıcı tasarımı). */}
           <div
-            className={`relative mx-auto flex bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
+            className={`${HERO_SEARCH_BAR_BOX_CLASS} bg-white shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
               aiActive
                 ? `items-end rounded-3xl ${accent === "blue" ? "ring-blue-200 focus-within:ring-blue-500" : "ring-emerald-200 focus-within:ring-emerald-500"}`
                 : `items-center rounded-full ring-zinc-950/10 ${accent === "blue" ? "focus-within:ring-blue-500" : "focus-within:ring-emerald-500"}`
@@ -745,7 +818,7 @@ export function PanelHeroSearch({
                   placeholder={targetPlaceholder}
                   aria-label={title}
                   autoComplete="off"
-                  className="h-12 w-full bg-transparent pr-2 pl-10 text-base text-ellipsis text-zinc-950 outline-none placeholder:text-sm placeholder:text-zinc-400 sm:pr-3 sm:pl-12 sm:placeholder:text-base"
+                  className={`${HERO_SEARCH_CONTROL_HEIGHT_CLASS} w-full bg-transparent pr-2 pl-10 text-base text-ellipsis text-zinc-950 outline-none placeholder:text-sm placeholder:text-zinc-400 sm:pr-3 sm:pl-12 sm:placeholder:text-base`}
                 />
               </span>
             )}
@@ -782,7 +855,7 @@ export function PanelHeroSearch({
             <button
               type="submit"
               disabled={aiActive && intent.isPending}
-              className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${aiActive ? "px-5 sm:px-7" : "px-4 sm:px-7"} ${tone.btn}`}
+              className={`inline-flex ${HERO_SEARCH_CONTROL_HEIGHT_CLASS} shrink-0 items-center justify-center gap-2 rounded-full text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${aiActive ? "px-5 sm:px-7" : "px-4 sm:px-7"} ${tone.btn}`}
             >
               {aiActive ? (
                 intent.isPending ? t("yorumlaniyor") : t("aiIleBul")
@@ -864,24 +937,14 @@ export function PanelHeroSearch({
              alt cümleyle aynı yuva. */
           <SizedSlot
             sizer={ctaNoteSizer ? `${ctaNoteSizer.text} ${ctaNoteSizer.label}` : undefined}
-            sizerNode={
-              ctaNoteSizer ? (
-                <>
-                  {ctaNoteSizer.text}
-                  <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold">
-                    {ctaNoteSizer.label}
-                    <ArrowRightIcon aria-hidden className="size-4" />
-                  </span>
-                </>
-              ) : undefined
-            }
+            sizerNode={ctaNoteSizer ? <HeroNoteGhost note={ctaNoteSizer} /> : undefined}
             sizerClassName={HERO_NOTE_CLASS}
           >
           <p className={`${ctaNoteSizer ? "[grid-area:1/1] " : ""}${HERO_NOTE_CLASS} text-zinc-600`}>
             {ctaNote.text}
             <Link
               href={ctaNote.href}
-              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition ${tone.btn}`}
+              className={`${HERO_NOTE_PILL_CLASS} text-white transition ${tone.btn}`}
             >
               {ctaNote.label}
               <ArrowRightIcon aria-hidden className="size-4" />
