@@ -22,8 +22,21 @@ import {
  *  - `lifecycle_*` (karşılama serisi, özetler) → LIFECYCLE
  *  - geri kalan her şey (kod, şifre, sipariş, kazandırma…) → TRANSACTIONAL
  *
- * NOTIFICATION / INVITE / LIFECYCLE tek tık çıkış başlığı (RFC 8058) ve alt
- * bilgi çıkış bağlantısı taşır; kapsamı `unsubscribeScopeFor` verir.
+ * ÇIKIŞ İKİ AYRI SORUDUR (ikisinin de tek tanımı bu dosyada):
+ *  - alt bilgide çıkış bağlantısı (jetonlu sayfa) → `carriesUnsubscribeLink`:
+ *    NOTIFICATION / INVITE / LIFECYCLE; kapsamı `unsubscribeScopeFor` verir.
+ *  - tek tık çıkış BAŞLIKLARI (RFC 8058 `List-Unsubscribe` + `-Post`) →
+ *    `carriesOneClickUnsubscribe`: NOTIFICATION / LIFECYCLE; INVITE yalnız
+ *    operatör anahtarı açıksa.
+ *
+ * INVITE (sahip kararı 2026-10-10: "davetler reklama düşmemeli"): kayıtsız
+ * adrese giden davet düz mektuptur (görsel / düğme / tablo yok); bizim
+ * tarafımızda kalan toplu posta işareti bu iki başlıktı → varsayılan olarak
+ * BASILMAZ. Mektubun alt bilgisindeki çıkış bağlantısı, `invite` kapsamı ve
+ * gönderim kapısı aynen kalır. Günde 5.000+ iletiyi Gmail'e gönderen toplu
+ * göndericide (`GMAIL_BULK_SENDER_DAILY_MESSAGES`) Google tek tık çıkışı
+ * ZORUNLU tutar: o eşiğe YAKLAŞILINCA `COLD_INVITE_LIST_UNSUBSCRIBE_HEADER=true`
+ * başlıkları geri getirir (açılışta okunur → API yeniden başlatılır).
  *
  * ACTIVITY (sahip kararı 2026-10-05): bildirim e-postaları Gmail'de
  * Promosyonlar sekmesine düşüyordu. Alıcının kendi işlemine dair e-posta
@@ -165,18 +178,53 @@ export function streamForContext(type: string | undefined | null): EmailStream {
 }
 
 /**
- * Akış tek tık çıkış başlıklarını (`List-Unsubscribe` + `-Post`) ve alt bilgi
- * çıkış bağlantısını taşır mı? İşlem ve ACTIVITY e-postaları taşımaz.
+ * Akış alt bilgide ÇIKIŞ BAĞLANTISI (jetonlu `/e-posta-tercihleri` sayfası;
+ * çıkış düğmeyle) taşır mı? İşlem ve ACTIVITY e-postaları taşımaz. Başlıklar
+ * ayrı sorudur — bkz. `carriesOneClickUnsubscribe`.
  */
-export function carriesOneClickUnsubscribe(stream: EmailStream): boolean {
+export function carriesUnsubscribeLink(stream: EmailStream): boolean {
   return stream === "NOTIFICATION" || stream === "INVITE" || stream === "LIFECYCLE";
+}
+
+/**
+ * Operatör anahtarı: değeri TAM OLARAK `true` ise INVITE akışı da tek tık
+ * çıkış başlıklarını taşır (Gmail'e günde 5.000+ ileti → Google toplu
+ * göndericiden tek tık çıkış ister). Tanımsız / başka her değer = başlık yok.
+ */
+export const COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV = "COLD_INVITE_LIST_UNSUBSCRIBE_HEADER";
+
+/**
+ * Anahtarın NE ZAMAN açılacağı: Google, kişisel Gmail adreslerine günde bu
+ * kadar (ve üstü) ileti gönderen alan adını toplu gönderici sayar ve tek tık
+ * çıkış başlığını zorunlu tutar. Sayı alan adının TÜM akışlarının toplamıdır
+ * (yalnız davetler değil). Operatöre giden açılış satırı bu sabiti basar.
+ */
+export const GMAIL_BULK_SENDER_DAILY_MESSAGES = 5000;
+
+/** Ham env değerinden anahtar — saf (EmailService kurucuda bir kez okur). */
+export function coldInviteListUnsubscribeHeaderEnabled(raw: unknown): boolean {
+  return raw === "true";
+}
+
+/**
+ * Akış tek tık çıkış BAŞLIKLARINI (`List-Unsubscribe` + `List-Unsubscribe-Post`)
+ * taşır mı? Başlık yalnız çıkış bağlantısı taşıyan akışta olabilir; INVITE
+ * (kayıtsız adrese düz mektup) yalnız operatör anahtarı açıkken taşır — bu
+ * başlıklar iletiyi liste postası olarak işaretler (Gmail Promosyonlar).
+ */
+export function carriesOneClickUnsubscribe(
+  stream: EmailStream,
+  switches: { coldInviteListHeader?: boolean } = {},
+): boolean {
+  if (!carriesUnsubscribeLink(stream)) return false;
+  return stream !== "INVITE" || switches.coldInviteListHeader === true;
 }
 
 /**
  * Çıkış (opt-out) kapsamı — gönderim kapısı bu kapsama ve "all"a bakar:
  *  - bildirim tercih anahtarı (`categoryMatch`…) — yalnız o tür kapanır.
  *    ACTIVITY tipinde de dolu: başlık/bağlantı basılmaz (bkz.
- *    `carriesOneClickUnsubscribe`) ama daha önce çıkmış adres yine atlanır.
+ *    `carriesUnsubscribeLink`) ama daha önce çıkmış adres yine atlanır.
  *  - `invite` — kayıtsız adrese davetler (ReferralOptOut'a yazılır)
  *  - `lifecycle` — karşılama serisi/özetler
  *  - `all` — işlem dışı her şey (çıkış sayfasındaki geniş seçenek)

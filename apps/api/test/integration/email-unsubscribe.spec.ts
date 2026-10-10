@@ -7,8 +7,12 @@ jest.mock("@rothern/email", () => ({
 import { renderEmail } from "@rothern/email";
 import { EmailService } from "../../src/modules/email/email.service";
 import { EmailUnsubscribeService } from "../../src/modules/email/email-unsubscribe.service";
-import { signUnsubscribeToken } from "../../src/modules/email/unsubscribe-token";
-import { resolveStreamSenders } from "../../src/modules/email/email-streams";
+import { signUnsubscribeToken, verifyUnsubscribeToken } from "../../src/modules/email/unsubscribe-token";
+import {
+  COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV,
+  INVITE_CONTEXT_TYPES,
+  resolveStreamSenders,
+} from "../../src/modules/email/email-streams";
 import { AdminEmailLogsService } from "../../src/modules/email/admin-email-logs.service";
 import { NOTIFICATION_PREF_KEYS } from "../../src/common/notifications/notification-prefs";
 import { prisma, truncateAll } from "./test-db";
@@ -18,21 +22,29 @@ import { makeCompanyWithUser } from "./factories";
  * TEK TIK ÇIKIŞ sözleşmesi (2026-09-27, teslim edilebilirlik Faz 0):
  *  - işlem dışı e-posta RFC 8058 başlıkları + alt bilgi bağlantısı taşır,
  *    işlem e-postası taşımaz
+ *  - kayıtsız adrese davet (INVITE) alt bilgi bağlantısını ve `invite`
+ *    kapsamını korur ama `List-Unsubscribe*` başlıklarını TAŞIMAZ (2026-10-10,
+ *    sahip: "davetler reklama düşmemeli"); operatör anahtarı
+ *    `COLD_INVITE_LIST_UNSUBSCRIBE_HEADER=true` başlıkları geri getirir
  *  - çıkış kullanıcıda tercih anahtarına, kullanıcı olmayan adreste
  *    email_opt_outs'a, davet kapsamında referral_opt_outs'a yazılır
  *  - çıkmış adrese o tür GİTMEZ; Ayarlar'da yeniden açmak kaydı kaldırır
  *  - GET hiçbir şey değiştirmez
  */
 const SECRET = "integration-secret";
-const config = {
-  get: jest.fn((k: string) => (k === "JWT_SECRET" ? SECRET : k === "WEB_URL" ? "https://www.rothern.com" : undefined)),
+const configWith = (extra: Record<string, string> = {}) => ({
+  get: jest.fn(
+    (k: string) => extra[k] ?? (k === "JWT_SECRET" ? SECRET : k === "WEB_URL" ? "https://www.rothern.com" : undefined),
+  ),
   getOrThrow: jest.fn(),
-};
+});
+const config = configWith();
 
-function makeEmail() {
+/** `extra`: ek ortam değişkenleri (ör. operatör anahtarı) — servis kurucuda okur. */
+function makeEmail(extra?: Record<string, string>) {
   let seq = 0;
   const send = jest.fn().mockImplementation(async () => ({ providerMessageId: `m${++seq}` }));
-  const svc = new EmailService(config as never, prisma as never);
+  const svc = new EmailService((extra ? configWith(extra) : config) as never, prisma as never);
   (svc as unknown as { client: unknown }).client = { send };
   (svc as unknown as { providerName: string }).providerName = "resend";
   return { svc, send };
@@ -214,6 +226,63 @@ describe("EmailService — çıkış başlıkları", () => {
     expect(env.unsubscribeUrl).toBeDefined();
     expect(env.preferencesUrl).toBeUndefined();
   });
+
+  it.each([...INVITE_CONTEXT_TYPES])(
+    "INVITE (%s): toplu posta başlığı YOK, alt bilgi çıkış bağlantısı + aydınlatma aynen (2026-10-10)",
+    async (type) => {
+      const { svc, send } = makeEmail();
+      const res = await svc.send(mail("dis@firma.com", type));
+      expect(res.sent).toBe(true);
+      expectNoUnsubscribeHeaders(send.mock.calls[0][0].headers);
+      // Şikâyet geri bildirim başlıkları yerinde.
+      expect(Object.keys(send.mock.calls[0][0].headers).sort()).toEqual(["Feedback-ID", "X-Mailru-Msgtype"]);
+      const env = (renderEmail as jest.Mock).mock.calls[0][2];
+      // Mektubun alt bilgisine giden bağlantı: jetonlu çıkış SAYFASI (tek tık POST adresi değil).
+      expect(env.unsubscribeUrl).toMatch(/^https:\/\/www\.rothern\.com\/en\/email-preferences\?t=[A-Za-z0-9_-]+$/);
+      const token = new URL(env.unsubscribeUrl).searchParams.get("t")!;
+      expect(verifyUnsubscribeToken(token, SECRET)).toEqual({ email: "dis@firma.com", scope: "invite", locale: "en" });
+      expect(env.privacyNotice).toBe(true);
+      expect(env.preferencesUrl).toBeUndefined();
+    },
+  );
+
+  it("INVITE + operatör anahtarı 'true': iki başlık geri gelir, tek tık adresi alt bilgideki jetonu taşır", async () => {
+    const { svc, send } = makeEmail({ [COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV]: "true" });
+    for (const type of INVITE_CONTEXT_TYPES) {
+      send.mockClear();
+      (renderEmail as jest.Mock).mockClear();
+      await svc.send(mail(`anahtar-${type}@firma.com`, type));
+      const headers = send.mock.calls[0][0].headers as Record<string, string>;
+      const token = new URL((renderEmail as jest.Mock).mock.calls[0][2].unsubscribeUrl).searchParams.get("t")!;
+      expect(headers["List-Unsubscribe"]).toBe(`<https://www.rothern.com/api/email/unsubscribe?t=${token}>`);
+      expect(headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+    }
+    // Anahtar ACTIVITY / işlem e-postasına başlık EKLEMEZ.
+    send.mockClear();
+    await svc.send(mail("tedarik@firma.com", "bid_eliminated"));
+    await svc.send(mail("u@firma.com", "email_verify"));
+    expectNoUnsubscribeHeaders(send.mock.calls[0][0].headers);
+    expectNoUnsubscribeHeaders(send.mock.calls[1][0].headers);
+  });
+
+  it("NOTIFICATION ve LIFECYCLE başlıkları aynen taşır (davet kararı onları değiştirmez)", async () => {
+    const { svc, send } = makeEmail();
+    await svc.send(mail("tedarik@firma.com", "listing_category_match"));
+    await svc.send(mail("tedarik@firma.com", "lifecycle_welcome"));
+    expect(send).toHaveBeenCalledTimes(2);
+    const scopes = ["categoryMatch", "lifecycle"];
+    send.mock.calls.forEach((call, i) => {
+      const headers = call[0].headers as Record<string, string>;
+      expect(headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+      const oneClick = headers["List-Unsubscribe"]!.match(/^<https:\/\/www\.rothern\.com\/api\/email\/unsubscribe\?t=([A-Za-z0-9_-]+)>$/);
+      expect(oneClick).not.toBeNull();
+      expect(verifyUnsubscribeToken(oneClick![1], SECRET)).toMatchObject({ email: "tedarik@firma.com", scope: scopes[i] });
+      // Alt bilgi bağlantısı aynı jetonun sayfası.
+      expect((renderEmail as jest.Mock).mock.calls[i][2].unsubscribeUrl).toBe(
+        `https://www.rothern.com/en/email-preferences?t=${oneClick![1]}`,
+      );
+    });
+  });
 });
 
 describe("EmailUnsubscribeService", () => {
@@ -283,6 +352,25 @@ describe("EmailUnsubscribeService", () => {
     expect(await prisma.referralOptOut.findUnique({ where: { email: "dis@firma.com" } })).not.toBeNull();
     const { svc } = makeEmail();
     expect((await svc.send(mail("dis@firma.com", "tender_external_invite"))).sent).toBe(false);
+  });
+
+  it("davetten ya da 'tümü'nden çıkmış adres başlıksız davette de ATLANIR (kapı başlıktan bağımsız; anahtar açıkken de)", async () => {
+    await prisma.referralOptOut.create({ data: { email: "cikan@firma.com" } });
+    await prisma.emailOptOut.create({ data: { email: "hepsi@firma.com", scope: "all" } });
+    for (const extra of [undefined, { [COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV]: "true" }]) {
+      const { svc, send } = makeEmail(extra);
+      for (const type of INVITE_CONTEXT_TYPES) {
+        for (const to of ["cikan@firma.com", "Cikan@Firma.com", "hepsi@firma.com"]) {
+          expect(await svc.send(mail(to, type))).toMatchObject({ sent: false, skipReason: "opted_out" });
+        }
+      }
+      expect(send).not.toHaveBeenCalled();
+    }
+    expect(await prisma.emailLog.count({ where: { errorMessage: "opted_out: invite" } })).toBe(12);
+    // Çıkmamış adrese gider.
+    const { svc, send } = makeEmail();
+    expect((await svc.send(mail("yeni@firma.com", "referral_invite"))).sent).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("geçersiz jeton → 400", async () => {

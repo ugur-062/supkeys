@@ -1,7 +1,11 @@
 import { renderEmail } from "@rothern/email";
 import {
+  COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV,
+  EMAIL_STREAMS,
   NOTIFICATION_EMAIL_CLASS,
   carriesOneClickUnsubscribe,
+  carriesUnsubscribeLink,
+  coldInviteListUnsubscribeHeaderEnabled,
   notificationEmailClass,
   privacyNoticeFor,
   resolveStreamSenders,
@@ -117,6 +121,7 @@ describe("bildirim e-posta sınıfı (ACTIVITY / DISCOVERY)", () => {
       expect(notificationEmailClass(t)).toBe("ACTIVITY");
       expect(streamForContext(t)).toBe("ACTIVITY");
       expect(carriesOneClickUnsubscribe(streamForContext(t))).toBe(false);
+      expect(carriesUnsubscribeLink(streamForContext(t))).toBe(false);
       expect(unsubscribeScopeFor(t)).toBe(prefKeyForType(t));
     }
   });
@@ -137,12 +142,61 @@ describe("bildirim e-posta sınıfı (ACTIVITY / DISCOVERY)", () => {
     expect(streamForContext("constructor")).toBe("TRANSACTIONAL");
   });
 
-  it("akış başına çıkış başlığı kuralı", () => {
+  /**
+   * İKİ AYRI SORU (2026-10-10, sahip: "davetler reklama düşmemeli"): alt bilgi
+   * çıkış bağlantısı ≠ `List-Unsubscribe` başlıkları. Kayıtsız adrese giden
+   * davet (INVITE, düz mektup) bağlantıyı ve `invite` kapsamını korur ama
+   * toplu posta başlıklarını varsayılan olarak TAŞIMAZ.
+   */
+  it("akış başına alt bilgi çıkış bağlantısı kuralı (INVITE dahil)", () => {
+    expect(carriesUnsubscribeLink("TRANSACTIONAL")).toBe(false);
+    expect(carriesUnsubscribeLink("ACTIVITY")).toBe(false);
+    expect(carriesUnsubscribeLink("NOTIFICATION")).toBe(true);
+    expect(carriesUnsubscribeLink("INVITE")).toBe(true);
+    expect(carriesUnsubscribeLink("LIFECYCLE")).toBe(true);
+  });
+
+  it("akış başına çıkış başlığı kuralı: INVITE varsayılan olarak başlıksız", () => {
     expect(carriesOneClickUnsubscribe("TRANSACTIONAL")).toBe(false);
     expect(carriesOneClickUnsubscribe("ACTIVITY")).toBe(false);
     expect(carriesOneClickUnsubscribe("NOTIFICATION")).toBe(true);
-    expect(carriesOneClickUnsubscribe("INVITE")).toBe(true);
+    expect(carriesOneClickUnsubscribe("INVITE")).toBe(false);
+    expect(carriesOneClickUnsubscribe("INVITE", { coldInviteListHeader: false })).toBe(false);
     expect(carriesOneClickUnsubscribe("LIFECYCLE")).toBe(true);
+  });
+
+  it("operatör anahtarı YALNIZ INVITE'ı değiştirir; başlık taşıyan her akış bağlantı da taşır", () => {
+    const on = { coldInviteListHeader: true };
+    expect(carriesOneClickUnsubscribe("INVITE", on)).toBe(true);
+    for (const stream of EMAIL_STREAMS) {
+      if (stream !== "INVITE") {
+        expect(carriesOneClickUnsubscribe(stream, on)).toBe(carriesOneClickUnsubscribe(stream));
+      }
+      // Bağlantısız akışta başlık olamaz (anahtar açıkken de).
+      if (carriesOneClickUnsubscribe(stream, on)) expect(carriesUnsubscribeLink(stream)).toBe(true);
+    }
+    // ACTIVITY / işlem anahtarla da başlıksız.
+    expect(carriesOneClickUnsubscribe("ACTIVITY", on)).toBe(false);
+    expect(carriesOneClickUnsubscribe("TRANSACTIONAL", on)).toBe(false);
+  });
+
+  it("COLD_INVITE_LIST_UNSUBSCRIBE_HEADER: yalnız tam olarak 'true' açar", () => {
+    expect(COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV).toBe("COLD_INVITE_LIST_UNSUBSCRIBE_HEADER");
+    expect(coldInviteListUnsubscribeHeaderEnabled("true")).toBe(true);
+    for (const raw of [undefined, null, "", "false", "TRUE", "True", " true", "true ", "1", "yes", "on", true, 1]) {
+      expect(coldInviteListUnsubscribeHeaderEnabled(raw)).toBe(false);
+    }
+  });
+
+  it("INVITE bağlam tipleri: kapsam 'invite' ve aydınlatma satırı başlık kararından etkilenmez", () => {
+    for (const t of ["tender_external_invite", "referral_invite"]) {
+      expect(streamForContext(t)).toBe("INVITE");
+      expect(unsubscribeScopeFor(t)).toBe("invite");
+      expect(carriesUnsubscribeLink(streamForContext(t))).toBe(true);
+      expect(carriesOneClickUnsubscribe(streamForContext(t))).toBe(false);
+      expect(privacyNoticeFor(t)).toBe(true);
+    }
+    expect(carriesOneClickUnsubscribe(streamForContext("lifecycle_welcome"))).toBe(true);
   });
 
   it("kullanıcı tercihi ACTIVITY tipinde de aynen uygulanır (kapalıysa gönderilmez)", () => {

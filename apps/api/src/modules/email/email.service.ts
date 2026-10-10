@@ -17,7 +17,11 @@ import { localizeAppPath } from "../../common/company/app-routes";
 import { isCriticalEmailContext } from "./critical-contexts";
 import { gatingPrefKeysForType } from "../../common/notifications/notification-prefs";
 import {
+  COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV,
+  GMAIL_BULK_SENDER_DAILY_MESSAGES,
   carriesOneClickUnsubscribe,
+  carriesUnsubscribeLink,
+  coldInviteListUnsubscribeHeaderEnabled,
   privacyNoticeFor,
   resolveStreamSenders,
   streamForContext,
@@ -198,6 +202,11 @@ export class EmailService implements OnModuleInit {
   private throttle: EmailSendThrottle;
   /** Staging alıcı izin listesi; `null` = kapı yok (canlı). Açılışta bir kez okunur. */
   private readonly allowlist: EmailAllowlist | null;
+  /**
+   * INVITE akışı `List-Unsubscribe` başlıklarını taşısın mı (operatör anahtarı,
+   * varsayılan kapalı — bkz. email-streams). Açılışta bir kez okunur.
+   */
+  private readonly coldInviteListHeader: boolean;
 
   constructor(
     private readonly config: ConfigService,
@@ -228,6 +237,22 @@ export class EmailService implements OnModuleInit {
           `${EMAIL_ALLOWLIST_ENV}: ${this.allowlist.invalid} invalid entries ignored (each entry needs exactly one "@")`,
         );
       }
+    }
+    const listHeaderRaw = this.config.get<string>(COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV);
+    this.coldInviteListHeader = coldInviteListUnsubscribeHeaderEnabled(listHeaderRaw);
+    if (this.coldInviteListHeader) {
+      // Satır bedeli ve eşiği de söyler: anahtarı "başlık yok, dağıtım bozuk"
+      // sanıp açan operatör sahip kararını (2026-10-10) sessizce geri almasın.
+      // Operatör belgesi satırın başını alıntılar (email-feedback-headers.spec kilitler).
+      this.logger.log(
+        `Invite stream List-Unsubscribe headers ON (${COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV}=true): cold invites carry List-Unsubscribe + List-Unsubscribe-Post and are marked as list mail (Gmail Promotions tab); needed only at ${GMAIL_BULK_SENDER_DAILY_MESSAGES}+ messages a day to Gmail, unset it otherwise`,
+      );
+    } else if (typeof listHeaderRaw === "string" && !["", "false"].includes(listHeaderRaw.trim())) {
+      // Yazım hatası ("True", "1") sessizce kapalı kalmasın: operatör bu
+      // anahtarı Google'ın toplu gönderici kuralı için açar.
+      this.logger.warn(
+        `${COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV} is set but not exactly "true": cold invites are sent without List-Unsubscribe headers`,
+      );
     }
   }
 
@@ -409,10 +434,18 @@ export class EmailService implements OnModuleInit {
     // (kayıtlıda tercihine, diğerinde email_opt_outs'a yazar; sayfa açılışı
     // hiçbir şey değiştirmez, oradan Ayarlar › Bildirimler'e bağlantı var).
     // Tek tık POST adresi başlığa konmaz.
+    // Bağlantı ve başlık İKİ ayrı sorudur (tek tanım email-streams): INVITE
+    // (kayıtsız adrese düz mektup) alt bilgi çıkış bağlantısını taşır ama
+    // `List-Unsubscribe` başlıklarını yalnız operatör anahtarı açıkken
+    // (sahip kararı 2026-10-10: davet Promosyonlar'a düşmemeli).
     const unsubscribe =
-      scope && carriesOneClickUnsubscribe(stream)
+      scope && carriesUnsubscribeLink(stream)
         ? this.unsubscribeLinks(input.to.email, scope, input.locale ?? "tr", stream)
         : null;
+    const oneClickHeaders =
+      unsubscribe && carriesOneClickUnsubscribe(stream, { coldInviteListHeader: this.coldInviteListHeader })
+        ? unsubscribe.headers
+        : {};
     const footerEnv: { unsubscribeUrl?: string; preferencesUrl?: string } =
       unsubscribe?.env ??
       (stream === "ACTIVITY" && scope
@@ -495,7 +528,8 @@ export class EmailService implements OnModuleInit {
           ...(sender ? { from: { email: sender.email, name: input.fromName ?? sender.name } } : {}),
           // Şikâyet geri bildirim başlıkları HER e-postada (Gmail/Yandex
           // `Feedback-ID`, Mail.ru `X-Mailru-Msgtype`); çıkış başlıkları yalnız
-          // taşıyan akışlarda eklenir (ACTIVITY / işlem: `List-Unsubscribe` YOK).
+          // taşıyan akışlarda eklenir (ACTIVITY / işlem: `List-Unsubscribe` YOK;
+          // INVITE: varsayılan olarak YOK).
           headers: {
             ...feedbackHeaders({
               contextType: input.context?.type,
@@ -503,7 +537,7 @@ export class EmailService implements OnModuleInit {
               stream,
               environment: feedbackEnvironment((k) => this.config.get<string>(k)),
             }),
-            ...(unsubscribe ? unsubscribe.headers : {}),
+            ...oneClickHeaders,
           },
         },
         log.id,
@@ -627,6 +661,8 @@ export class EmailService implements OnModuleInit {
   /**
    * Alt bilgi bağlantıları + RFC 8058 başlıkları. `JWT_SECRET` yoksa (yalnız
    * yerel test) jeton imzalanamaz → çıkış bağlantısı basılmaz, e-posta yine gider.
+   * Başlıkların GÖNDERİLİP gönderilmeyeceğine çağıran karar verir
+   * (`carriesOneClickUnsubscribe`); burada yalnız aynı jetonla üretilir.
    */
   private unsubscribeLinks(
     email: string,

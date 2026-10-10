@@ -106,6 +106,9 @@ services:
       #   EMAIL_FROM_ADDRESS_NOTIFICATION=bildirim@rothern.com (keşif bildirimleri, tek tık çıkış)
       #   EMAIL_FROM_ADDRESS_INVITE=davet@rothern.com        (kayıtsız adrese davet)
       #   EMAIL_FROM_ADDRESS_LIFECYCLE=haber@rothern.com     (karşılama serisi / özet)
+      # COLD_INVITE_LIST_UNSUBSCRIBE_HEADER burada TANIMLANMAZ (davet mektubu
+      # List-Unsubscribe başlığı taşımaz); yalnız Gmail'e günlük toplam hacim
+      # 5.000'e yaklaşırken Render panelinden tam olarak "true".
       # Bkz. .env.production.example ve apps/api/src/modules/email/email-streams.ts.
       # EMAIL_ALLOWLIST bu (canlı) serviste TANIMLANMAZ / BOŞ kalır: yalnız
       # api-staging'de dolu (listede olmayan alıcıya e-posta gönderilmez — bkz.

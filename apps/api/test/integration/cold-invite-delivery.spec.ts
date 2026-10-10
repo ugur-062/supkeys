@@ -8,10 +8,17 @@
  * özeti) ve `inviteByEmail` ("katıl" daveti) → gerçek `EmailService` → gerçek
  * `renderEmail` → gerçek `EmailClient` + `ResendProvider`. Yalnız Resend
  * SDK'sının ağ çağrısı sahtedir; test onun aldığı isteği okur:
- *   gönderen adı + adresi (INVITE akışı), Reply-To, List-Unsubscribe +
- *   List-Unsubscribe-Post, Feedback-ID, ek/görsel/izleme pikseli yokluğu,
+ *   gönderen adı + adresi (INVITE akışı), Reply-To, Feedback-ID,
+ *   List-Unsubscribe* başlıklarının YOKLUĞU, ek/görsel/izleme pikseli yokluğu,
  *   bağlantı sayısı (≤ 4) ve alan adı, HTML boyutu, düz metin parçası.
  * Biçim kuralları (üç dil, en kötü veri) `test/unit/cold-invite-plain-letter.spec.ts`.
+ *
+ * TOPLU POSTA BAŞLIKLARI (2026-10-10, sahip: "davetler reklama düşmemeli"):
+ * `List-Unsubscribe` + `List-Unsubscribe-Post` iletiyi liste postası olarak
+ * işaretler → INVITE akışında varsayılan olarak GİTMEZ. Mektubun alt
+ * bilgisindeki jetonlu çıkış bağlantısı, `invite` kapsamı ve gönderim kapısı
+ * aynen kalır. Operatör anahtarı `COLD_INVITE_LIST_UNSUBSCRIBE_HEADER=true`
+ * başlıkları geri getirir (Gmail'e günde 5.000+ ileti: Google tek tık çıkış ister).
  */
 import { PLAIN_LETTER_MAX_LINKS } from "@rothern/email";
 import { Prisma } from "@rothern/db";
@@ -19,7 +26,11 @@ import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
 import { ExternalInviteDispatcher } from "../../src/modules/company-connections/services/external-invite-dispatcher.service";
 import { EmailService } from "../../src/modules/email/email.service";
-import { INVITE_CONTEXT_TYPES } from "../../src/modules/email/email-streams";
+import {
+  COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV,
+  INVITE_CONTEXT_TYPES,
+} from "../../src/modules/email/email-streams";
+import { EmailUnsubscribeService } from "../../src/modules/email/email-unsubscribe.service";
 import { verifyUnsubscribeToken } from "../../src/modules/email/unsubscribe-token";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
@@ -67,7 +78,10 @@ type ProviderPayload = {
 function makeEmail() {
   const svc = new EmailService(config as never, prisma as never);
   svc.onModuleInit();
-  const sdkSend = jest.fn().mockResolvedValue({ data: { id: "msg_1" }, error: null });
+  // A distinct id per call: `email_logs.providerMessageId` is unique, so a constant id
+  // turns the second send of a scenario into a FAILED row although the request went out.
+  let seq = 0;
+  const sdkSend = jest.fn().mockImplementation(async () => ({ data: { id: `msg_${++seq}` }, error: null }));
   const client = (svc as unknown as { client: { provider: { client: unknown } } }).client;
   client.provider.client = { emails: { send: sdkSend } };
   const payloads = () => sdkSend.mock.calls.map((c) => c[0] as ProviderPayload);
@@ -159,7 +173,8 @@ const checkedContextTypes = new Set<string>();
 
 function expectColdInvitePayload(
   p: ProviderPayload,
-  o: { to: string; from: string; contextType: string; contentLinks: number },
+  // `listHeaders`: only the operator-switch scenario expects the two bulk-mail headers.
+  o: { to: string; from: string; contextType: string; contentLinks: number; listHeaders?: boolean },
 ) {
   checkedContextTypes.add(o.contextType);
   // Sağlayıcıya giden alanlar: ek YOK, izleme / etiket / zamanlama alanı YOK.
@@ -171,15 +186,16 @@ function expectColdInvitePayload(
   expect(p.from).toBe(o.from);
   expect(p.replyTo).toBe("destek@rothern.com");
 
-  // Başlıklar: tek tık çıkış (RFC 8058) + şikâyet geri bildirimi — başkası yok.
+  // Başlıklar: şikâyet geri bildirimi her zaman; toplu posta başlıkları
+  // (`List-Unsubscribe*`) varsayılan olarak YOK — başkası da yok.
   const h = p.headers!;
-  expect(Object.keys(h).sort()).toEqual(["Feedback-ID", "List-Unsubscribe", "List-Unsubscribe-Post", "X-Mailru-Msgtype"]);
-  expect(h["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-  const oneClick = h["List-Unsubscribe"]!.match(/^<(https:\/\/www\.rothern\.com\/api\/email\/unsubscribe\?t=([A-Za-z0-9_-]+))>$/);
-  expect(oneClick).not.toBeNull();
-  expect(verifyUnsubscribeToken(oneClick![2]!, ENV.JWT_SECRET!)).toMatchObject({ email: o.to, scope: "invite" });
   expect(h["Feedback-ID"]).toBe(`${o.contextType}:INVITE:prod:rothern`);
   expect(h["X-Mailru-Msgtype"]).toBe(o.contextType);
+  const listHeaderKeys = Object.keys(h).filter((k) => /^list-/i.test(k));
+  if (!o.listHeaders) {
+    expect(listHeaderKeys).toEqual([]);
+    expect(Object.keys(h).sort()).toEqual(["Feedback-ID", "X-Mailru-Msgtype"]);
+  }
   // Başlıklarda alıcı adresi yok (jeton şifreli).
   expect(JSON.stringify(h)).not.toContain(o.to);
 
@@ -197,14 +213,23 @@ function expectColdInvitePayload(
     expect(url.host).toBe(WEB_HOST);
     expect(link).not.toMatch(SHORTENERS);
   }
-  // Gövdedeki çıkış bağlantısı başlıktaki jetonun sayfasıdır (aynı adres + kapsam).
+  // Alt bilgideki çıkış bağlantısı başlıklardan BAĞIMSIZ durur: jetonlu sayfa
+  // (çıkış düğmeyle), jeton bu adres + `invite` kapsamı.
   const unsubscribePage = new URL(links.at(-2)!);
   expect(unsubscribePage.pathname).toBe("/e-posta-tercihleri");
-  expect(unsubscribePage.searchParams.get("t")).toBe(oneClick![2]);
+  const token = unsubscribePage.searchParams.get("t")!;
+  expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
+  expect(verifyUnsubscribeToken(token, ENV.JWT_SECRET!)).toMatchObject({ email: o.to, scope: "invite" });
   expect(links.at(-1)).toBe(`${WEB}/sozlesmeler/kvkk`);
+  if (o.listHeaders) {
+    // Operatör anahtarı açık: iki başlık geri gelir, tek tık adresi alt bilgideki jetonu taşır.
+    expect(Object.keys(h).sort()).toEqual(["Feedback-ID", "List-Unsubscribe", "List-Unsubscribe-Post", "X-Mailru-Msgtype"]);
+    expect(h["List-Unsubscribe"]).toBe(`<${WEB}/api/email/unsubscribe?t=${token}>`);
+    expect(h["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+  }
   expect(p.html).not.toContain("davet-kapat");
 
-  // Düz metin parçası her zaman var ve aynı bağlantıları taşır.
+  // Düz metin parçası her zaman var ve aynı bağlantıları (çıkış dahil) taşır.
   expect(typeof p.text).toBe("string");
   expect(p.text.trim().length).toBeGreaterThan(200);
   expect(textUrls(p.text)).toEqual(links);
@@ -385,6 +410,98 @@ describe("soğuk davet — sağlayıcıya giden istek", () => {
 
   it("INVITE akışının HER bağlam tipi yukarıda sınandı (yeni soğuk davet tipi buraya senaryo ister)", () => {
     expect([...checkedContextTypes].sort()).toEqual([...INVITE_CONTEXT_TYPES].sort());
+  });
+
+  it("operatör anahtarı COLD_INVITE_LIST_UNSUBSCRIBE_HEADER=true: iki INVITE bağlam tipi de başlıkları geri taşır (tek tık adresi)", async () => {
+    ENV[COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV] = "true";
+    try {
+      const { service, dispatcher, payloads } = makeHarness();
+      const owner = await buyer("ABC İnşaat");
+      const listing = await richListing(owner);
+      await service.inviteExternalForListing(owner.auth, listing.id, ["anahtar@tedarikci.com.tr"]);
+      expect((await dispatcher.dispatch()).sent).toBe(1);
+      expect(await service.inviteByEmail(owner.auth, "anahtar-katil@tedarikci.com.tr")).toMatchObject({
+        kind: "invited",
+        delivery: "SENT",
+      });
+      // İki gönderim de teslim sayıldı (başlık, başarısız bir gönderimin isteğinde sınanmıyor).
+      expect(await prisma.emailLog.count({ where: { status: "SENT" } })).toBe(2);
+      expect(await prisma.emailLog.count({ where: { status: "FAILED" } })).toBe(0);
+
+      const [invite, join] = payloads();
+      expectColdInvitePayload(invite!, {
+        to: "anahtar@tedarikci.com.tr",
+        from: '"ABC İnşaat (Rothern üzerinden)" <davet@rothern.com>',
+        contextType: "tender_external_invite",
+        contentLinks: 2,
+        listHeaders: true,
+      });
+      expectColdInvitePayload(join!, {
+        to: "anahtar-katil@tedarikci.com.tr",
+        from: "Rothern <davet@rothern.com>",
+        contextType: "referral_invite",
+        contentLinks: 1,
+        listHeaders: true,
+      });
+    } finally {
+      delete ENV[COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV];
+    }
+  });
+
+  it.each(["TRUE", "1", " true", "yes", "false", ""])(
+    "anahtar tam olarak 'true' değilse (%j) davet başlıksız gider",
+    async (raw) => {
+      ENV[COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV] = raw;
+      try {
+        const { service, payloads } = makeHarness();
+        const owner = await buyer("ABC İnşaat");
+        await service.inviteByEmail(owner.auth, "yakin@tedarikci.com.tr");
+        expectColdInvitePayload(payloads()[0]!, {
+          to: "yakin@tedarikci.com.tr",
+          from: "Rothern <davet@rothern.com>",
+          contextType: "referral_invite",
+          contentLinks: 1,
+        });
+      } finally {
+        delete ENV[COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV];
+      }
+    },
+  );
+
+  it("başlıksız mektubun alt bilgi bağlantısı çıkışı yazar; çıkan adrese sonraki davet GİTMEZ (iki kapı da)", async () => {
+    const { service, svc, sdkSend, payloads } = makeHarness();
+    const owner = await buyer("ABC İnşaat");
+    const to = "cikan@tedarikci.com.tr";
+    await service.inviteByEmail(owner.auth, to);
+    const first = payloads()[0]!;
+    expect(Object.keys(first.headers!).filter((k) => /^list-/i.test(k))).toEqual([]);
+
+    // Mektuptaki bağlantının jetonu: sayfa açılışı (GET) yazmaz, düğme (POST) yazar.
+    const token = new URL(hrefs(first.html).at(-2)!).searchParams.get("t")!;
+    expect(textUrls(first.text)).toContain(`${WEB}/e-posta-tercihleri?t=${token}`);
+    const unsubscribe = new EmailUnsubscribeService(config as never, prisma as never, prisma as never);
+    expect(await unsubscribe.describe(token)).toMatchObject({ scope: "invite", unsubscribed: false });
+    expect(await prisma.referralOptOut.count()).toBe(0);
+    await unsubscribe.unsubscribe(token);
+    expect(await prisma.referralOptOut.findUnique({ where: { email: to } })).not.toBeNull();
+
+    // Gönderim kapısı (EmailService): INVITE akışının her bağlam tipi atlanır.
+    for (const type of INVITE_CONTEXT_TYPES) {
+      const res = await svc.send({
+        to: { email: to },
+        templateData: {
+          template: "referral_invite",
+          data: { inviterName: "XYZ Metal", email: to, registerUrl: `${WEB}/company/kayit?ref=x`, optOutUrl: `${WEB}/davet-kapat?token=x` },
+        },
+        context: { type, id: "ctx1" },
+      });
+      expect(res).toMatchObject({ sent: false, skipReason: "opted_out" });
+    }
+    // Davet yolunun kendi kapısı da aynı tabloyu okur.
+    const other = await buyer("XYZ Metal");
+    await expect(service.inviteByEmail(other.auth, to)).rejects.toMatchObject({ status: 409 });
+    expect(sdkSend).toHaveBeenCalledTimes(1);
+    expect(await prisma.emailLog.count({ where: { toEmail: to, errorMessage: "opted_out: invite" } })).toBe(INVITE_CONTEXT_TYPES.size);
   });
 
   it("akış göndericisi tanımlı değilse davet varsayılan adresten çıkar (EMAIL_FROM_ADDRESS)", async () => {

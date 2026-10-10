@@ -4,6 +4,7 @@ jest.mock("@rothern/email", () => ({
   renderEmail: jest.fn().mockResolvedValue({ subject: "S", html: "<p>p</p>", text: "p" }),
 }));
 
+import { Logger } from "@nestjs/common";
 import { EmailService } from "../../src/modules/email/email.service";
 import {
   FEEDBACK_FALLBACK_TYPE,
@@ -16,7 +17,9 @@ import {
   sanitizeFeedbackToken,
 } from "../../src/modules/email/email-feedback-headers";
 import {
+  COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV,
   EMAIL_STREAMS,
+  GMAIL_BULK_SENDER_DAILY_MESSAGES,
   INVITE_CONTEXT_TYPES,
   NOTIFICATION_EMAIL_CLASS,
   PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES,
@@ -29,7 +32,8 @@ import { CRITICAL_EMAIL_CONTEXTS } from "../../src/modules/email/critical-contex
  *  - her e-posta `Feedback-ID: <tip>:<akış>:<ortam>:rothern` (Gmail FBL / Yandex)
  *    ve `X-Mailru-Msgtype: <tip>` (Mail.ru) taşır
  *  - değerler yalnız [A-Za-z0-9_-], sınırlı uzunluk, KİŞİSEL VERİ YOK
- *  - çıkış başlığı kuralı değişmez (ACTIVITY / işlem: `List-Unsubscribe` YOK)
+ *  - çıkış başlığı kuralı değişmez (ACTIVITY / işlem: `List-Unsubscribe` YOK;
+ *    INVITE: varsayılan olarak YOK, operatör anahtarıyla geri gelir — 2026-10-10)
  */
 const TOKEN = /^[A-Za-z0-9_-]+$/;
 const FEEDBACK_ID = /^[A-Za-z0-9_-]+:[A-Z]+:(prod|staging|dev):rothern$/;
@@ -168,7 +172,7 @@ describe("EmailService — geri bildirim başlıkları gönderimde", () => {
     const svc = new EmailService(config as never, prisma as never);
     (svc as unknown as { client: unknown }).client = { send };
     (svc as unknown as { providerName: string }).providerName = "resend";
-    return { svc, send };
+    return { svc, send, config };
   }
 
   const mail = (to: string, type: string | undefined, id = "ctx_cuid_12345") =>
@@ -189,7 +193,9 @@ describe("EmailService — geri bildirim başlıkları gönderimde", () => {
     ["bid_eliminated", "ACTIVITY", false],
     ["listing_invitation", "ACTIVITY", false],
     ["listing_category_match", "NOTIFICATION", true],
-    ["tender_external_invite", "INVITE", true],
+    // Kayıtsız adrese davet: toplu posta başlıkları varsayılan olarak YOK (2026-10-10).
+    ["tender_external_invite", "INVITE", false],
+    ["referral_invite", "INVITE", false],
     ["lifecycle_welcome", "LIFECYCLE", true],
   ];
 
@@ -208,10 +214,143 @@ describe("EmailService — geri bildirim başlıkları gönderimde", () => {
         [FEEDBACK_ID_HEADER, MAILRU_MSGTYPE_HEADER, "List-Unsubscribe", "List-Unsubscribe-Post"].sort(),
       );
     } else {
-      // ACTIVITY ve işlem akışı: `List-Unsubscribe` YOK (Gmail Promosyonlar kararı).
+      // ACTIVITY, işlem ve INVITE akışı: `List-Unsubscribe` YOK (Gmail Promosyonlar kararı).
       expect(unsubKeys).toEqual([]);
       expect(Object.keys(h).sort()).toEqual([FEEDBACK_ID_HEADER, MAILRU_MSGTYPE_HEADER].sort());
     }
+  });
+
+  describe("operatör anahtarı COLD_INVITE_LIST_UNSUBSCRIBE_HEADER", () => {
+    const ON = { NODE_ENV: "production", [COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV]: "true" };
+    const unsubKeysOf = (h: Record<string, string>) =>
+      Object.keys(h).filter((k) => k.toLowerCase().startsWith("list-unsubscribe"));
+
+    it.each([...INVITE_CONTEXT_TYPES])("'true' → %s iki başlığı geri taşır (tek tık adresi)", async (type) => {
+      const { svc, send } = makeService(ON);
+      expect((await svc.send(mail("tedarik@firma.com", type))).sent).toBe(true);
+      const h = headersOf(send);
+      expect(h["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+      expect(h["List-Unsubscribe"]).toMatch(/^<https:\/\/www\.rothern\.com\/api\/email\/unsubscribe\?t=[A-Za-z0-9_-]+>$/);
+      expect(Object.keys(h).sort()).toEqual(
+        [FEEDBACK_ID_HEADER, MAILRU_MSGTYPE_HEADER, "List-Unsubscribe", "List-Unsubscribe-Post"].sort(),
+      );
+      expect(h[FEEDBACK_ID_HEADER]).toBe(`${type}:INVITE:prod:rothern`);
+    });
+
+    it("anahtar yalnız INVITE'ı değiştirir: ACTIVITY / işlem yine başlıksız, NOTIFICATION / LIFECYCLE yine başlıklı", async () => {
+      const expected: Array<[string, number]> = [
+        ["email_verify", 0],
+        ["bid_eliminated", 0],
+        ["listing_invitation", 0],
+        ["listing_category_match", 2],
+        ["lifecycle_welcome", 2],
+      ];
+      for (const [type, count] of expected) {
+        const { svc, send } = makeService(ON);
+        await svc.send(mail("tedarik@firma.com", type));
+        expect([type, unsubKeysOf(headersOf(send)).length]).toEqual([type, count]);
+      }
+    });
+
+    it.each([undefined, "", "false", "TRUE", "True", " true", "1", "yes"])(
+      "tam olarak 'true' değilse (%j) davet başlıksız gider",
+      async (raw) => {
+        const { svc, send } = makeService({ [COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV]: raw });
+        await svc.send(mail("tedarik@firma.com", "tender_external_invite"));
+        expect(unsubKeysOf(headersOf(send))).toEqual([]);
+      },
+    );
+
+    it("değer süreç açılışında BİR KEZ okunur (gönderim başına değil)", async () => {
+      const { svc, send, config } = makeService(ON);
+      const reads = () => config.get.mock.calls.filter(([k]) => k === COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV).length;
+      expect(reads()).toBe(1);
+      await svc.send(mail("a@firma.com", "tender_external_invite"));
+      await svc.send(mail("b@firma.com", "referral_invite"));
+      expect(reads()).toBe(1);
+      expect(send).toHaveBeenCalledTimes(2);
+    });
+
+    it("açılış günlüğü: açıkken tek bilgi satırı, yanlış yazımda uyarı, tanımsız / false iken sessiz", () => {
+      const log = jest.spyOn(Logger.prototype, "log").mockImplementation(() => undefined);
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      const mentions = (spy: jest.SpyInstance) =>
+        spy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes(COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV));
+      try {
+        makeService(ON);
+        expect(mentions(log)).toHaveLength(1);
+        expect(mentions(log)[0]).toMatch(/^[\x20-\x7e]+$/);
+        expect(mentions(warn)).toEqual([]);
+
+        log.mockClear();
+        for (const raw of ["TRUE", "1", " true"]) makeService({ [COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV]: raw });
+        expect(mentions(log)).toEqual([]);
+        expect(mentions(warn)).toHaveLength(3);
+        for (const line of mentions(warn)) expect(line).toMatch(/^[\x20-\x7e]+$/);
+
+        warn.mockClear();
+        for (const raw of [undefined, "", "false"]) makeService({ [COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV]: raw });
+        expect(mentions(log)).toEqual([]);
+        expect(mentions(warn)).toEqual([]);
+      } finally {
+        log.mockRestore();
+        warn.mockRestore();
+      }
+    });
+
+    /**
+     * OPERATÖR SÖZLEŞMESİ (gözden geçirme R1 / R2, 2026-10-10). Operatör belgesi
+     * (`docs/release-process.md` "Operatör: soğuk davet…") ve kural dosyası bu
+     * olguları ALINTILAR; metin ya da davranış değişirse belge de değişmelidir:
+     *  - açılış satırı `Invite stream List-Unsubscribe headers ON` ile başlar,
+     *  - satır anahtarın bedelini (liste postası → Promosyonlar) ve ne zaman
+     *    gerektiğini (Gmail'e günde 5.000+ ileti) söyler — "başlık yok, dağıtım
+     *    bozuk" sanıp anahtarı açan operatör sahip kararını sessizce geri almasın,
+     *  - yanlış yazım uyarısı anahtarın adını ve sonucu söyler.
+     */
+    it("operatörün gördüğü açılış satırları: belgenin alıntıladığı başlangıç, bedel ve eşik; gizli veri yok", () => {
+      const log = jest.spyOn(Logger.prototype, "log").mockImplementation(() => undefined);
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      const lines = (spy: jest.SpyInstance) =>
+        spy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes(COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV));
+      try {
+        makeService(ON);
+        const [on] = lines(log);
+        expect(on!.startsWith("Invite stream List-Unsubscribe headers ON (COLD_INVITE_LIST_UNSUBSCRIBE_HEADER=true): ")).toBe(true);
+        expect(on).toContain("List-Unsubscribe + List-Unsubscribe-Post");
+        expect(on).toContain("Gmail Promotions");
+        expect(GMAIL_BULK_SENDER_DAILY_MESSAGES).toBe(5000);
+        expect(on).toContain(`${GMAIL_BULK_SENDER_DAILY_MESSAGES}+ messages a day to Gmail`);
+
+        makeService({ [COLD_INVITE_LIST_UNSUBSCRIBE_HEADER_ENV]: "True" });
+        const [typo] = lines(warn);
+        expect(typo).toBe(
+          'COLD_INVITE_LIST_UNSUBSCRIBE_HEADER is set but not exactly "true": cold invites are sent without List-Unsubscribe headers',
+        );
+
+        // Tek satır, ASCII; gizli anahtar / adres / ham değer günlüğe girmez.
+        for (const line of [on!, typo!]) {
+          expect(line).toMatch(/^[\x20-\x7e]+$/);
+          expect(line).not.toContain(SECRET);
+          expect(line).not.toContain("@");
+        }
+      } finally {
+        log.mockRestore();
+        warn.mockRestore();
+      }
+    });
+
+    it("operatör kanıt adımı: aynı süreçte davet `List-Unsubscribe*` TAŞIMAZ, keşif bildirimi taşır; ikisi de Feedback-ID taşır", async () => {
+      // Varsayılan ortam (anahtar tanımsız) — belgenin "Orijinali göster" adımı bunu bekler.
+      const { svc, send } = makeService({ NODE_ENV: "production" });
+      await svc.send(mail("davetli@firma.com", "tender_external_invite"));
+      await svc.send(mail("uye@firma.com", "listing_category_match"));
+      const [invite, notification] = send.mock.calls.map((c) => c[0].headers as Record<string, string>);
+      expect(unsubKeysOf(invite!)).toEqual([]);
+      expect(invite![FEEDBACK_ID_HEADER]).toBe("tender_external_invite:INVITE:prod:rothern");
+      expect(unsubKeysOf(notification!).sort()).toEqual(["List-Unsubscribe", "List-Unsubscribe-Post"]);
+      expect(notification![FEEDBACK_ID_HEADER]).toBe("listing_category_match:NOTIFICATION:prod:rothern");
+    });
   });
 
   it("bağlamsız gönderim: tür şablon adından, akış TRANSACTIONAL", async () => {
