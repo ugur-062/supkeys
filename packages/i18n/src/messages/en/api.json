@@ -23,6 +23,7 @@
     "numberMax": "Must be {n} or less",
     "arrayMin": "{n, plural, one {Select at least # item} other {Select at least # items}}",
     "arrayMax": "{n, plural, one {Select at most # item} other {Select at most # items}}",
+    "arrayUnique": "The same item cannot be selected more than once",
     "inValues": "Invalid selection",
     "passwordMin": "Password must be at least 8 characters",
     "localeUnsupported": "Unsupported language",

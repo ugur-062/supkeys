@@ -7944,6 +7944,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "api.validation.arrayUnique": {
+    "hash": "7320cdac7a",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "api.validation.dateFuture": {
     "hash": "45f33cb104",
     "status": "reviewed",
@@ -17704,11 +17709,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.approvals.approvalFlowsSection.baglantiSorunuOlabilirLutfenYeniden": {
-    "hash": "f984bf3602",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.approvals.approvalFlowsSection.baslatan": {
     "hash": "a9fd939dbb",
     "status": "reviewed",
@@ -17949,6 +17949,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.approvals.approvalFlowsSection.lutfenYenidenDeneyin": {
+    "hash": "5d2f2d025c",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.approvals.approvalFlowsSection.onayAdimi": {
     "hash": "526ccae8a1",
     "status": "reviewed",
@@ -18179,11 +18184,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.approvals.onaylarPage.baglantiSorunuOlabilirLutfenYeniden": {
-    "hash": "f984bf3602",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.approvals.onaylarPage.baslatanNotu": {
     "hash": "5edfeba08b",
     "status": "reviewed",
@@ -18313,6 +18313,11 @@
     "hash": "109bd0e6e9",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.approvals.onaylarPage.lutfenYenidenDeneyin": {
+    "hash": "5d2f2d025c",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.approvals.onaylarPage.not": {
     "hash": "225d3fac50",
@@ -20144,10 +20149,10 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.inbox.companyInboxView.konusmalarYuklenemedi": {
-    "hash": "40e4566ec6",
+  "web.panel.inbox.companyInboxView.konusmalarYuklenemediTekrarDeneyin": {
+    "hash": "f04d66733a",
     "status": "reviewed",
-    "at": "2026-10-01"
+    "at": "2026-10-09"
   },
   "web.panel.inbox.companyInboxView.mesajlar": {
     "hash": "1eaab9c510",
@@ -20313,6 +20318,11 @@
     "hash": "3a5e96d474",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.market.kategoriSlugPage.kategori": {
+    "hash": "b7964404a7",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.market.kategoriSlugPage.kategorisindekiTedarikciUrunleriSuzunKarsila": {
     "hash": "bd3ab2f49d",
@@ -20508,6 +20518,11 @@
     "hash": "5df5fd5714",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.market.satinalmaPage.kategoriVitriniYuklenemedi": {
+    "hash": "0433468e15",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.market.satinalmaPage.kureselTedarikAginiz": {
     "hash": "904958bda5",
@@ -21148,6 +21163,11 @@
     "hash": "4b6a266656",
     "status": "reviewed",
     "at": "2026-10-03"
+  },
+  "web.panel.reports.listingPicker.taleplerYuklenemedi": {
+    "hash": "05c8f9372e",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.reports.raporlarIsAnaliziLayout.buSayfaZiyaretEdenlerVe": {
     "hash": "f87d4f5fdf",
@@ -21984,6 +22004,11 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
+  "web.panel.requests.aiSuppliers.reason.CLOSES_FIRST": {
+    "hash": "842540d20a",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.aiSuppliers.reason.CONSENT_REQUIRED": {
     "hash": "6e1fd8e9a8",
     "status": "reviewed",
@@ -22079,13 +22104,13 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.requests.aiSuppliers.statusLead": {
-    "hash": "1a491b5607",
+  "web.panel.requests.aiSuppliers.statusLeadAutoOff": {
+    "hash": "2511b70006",
     "status": "reviewed",
     "at": "2026-10-09"
   },
-  "web.panel.requests.aiSuppliers.statusLeadAutoOff": {
-    "hash": "2511b70006",
+  "web.panel.requests.aiSuppliers.statusLeadInvited": {
+    "hash": "9d3d3d42a6",
     "status": "reviewed",
     "at": "2026-10-09"
   },
@@ -22094,8 +22119,18 @@
     "status": "reviewed",
     "at": "2026-10-09"
   },
-  "web.panel.requests.aiSuppliers.statusLeadPartial": {
-    "hash": "c1e3a26a85",
+  "web.panel.requests.aiSuppliers.statusLeadPartlyInvited": {
+    "hash": "a06a2a7202",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.aiSuppliers.statusLeadQueuedMail": {
+    "hash": "ff7598beb8",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.aiSuppliers.statusLeadSeeRows": {
+    "hash": "7582e210fa",
     "status": "reviewed",
     "at": "2026-10-09"
   },
@@ -27304,6 +27339,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.quickRequest.talepFormuYuklenemedi": {
+    "hash": "f854e321ca",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
   "web.panel.requests.quickRequest.talepKategorisi": {
     "hash": "9e52556a61",
     "status": "reviewed",
@@ -28216,6 +28256,11 @@
   },
   "web.panel.requests.supplierDiscoveryModal.aramaHatasiSekmede": {
     "hash": "3c6d6a5fc3",
+    "status": "reviewed",
+    "at": "2026-10-09"
+  },
+  "web.panel.requests.supplierDiscoveryModal.aramaninTalebi": {
+    "hash": "838f2b84d1",
     "status": "reviewed",
     "at": "2026-10-09"
   },
@@ -33873,6 +33918,11 @@
     "hash": "50b9542fa6",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.urunlerYuklenemedi": {
+    "hash": "0e7acdab48",
+    "status": "reviewed",
+    "at": "2026-10-09"
   },
   "web.panel.shell.panelRecommendations.urunSeridi": {
     "hash": "4b44f6e9e2",
@@ -41249,10 +41299,10 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.shared.categorySelectorModal.kategorilerYuklenemedi": {
-    "hash": "b90a986c9a",
+  "web.shared.categorySelectorModal.kategorilerYuklenemediYenidenDeneyin": {
+    "hash": "f9282ec7bf",
     "status": "reviewed",
-    "at": "2026-10-08"
+    "at": "2026-10-09"
   },
   "web.shared.categorySelectorModal.kategoriSec": {
     "hash": "0f3d86b3cb",

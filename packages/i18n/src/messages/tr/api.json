@@ -23,6 +23,7 @@
     "numberMax": "{n} veya daha küçük olmalı",
     "arrayMin": "En az {n} öğe seçilmeli",
     "arrayMax": "En fazla {n} öğe seçilebilir",
+    "arrayUnique": "Aynı öğe birden fazla kez seçilemez",
     "inValues": "Geçersiz seçim",
     "passwordMin": "Şifre en az 8 karakter olmalı",
     "localeUnsupported": "Desteklenmeyen dil",

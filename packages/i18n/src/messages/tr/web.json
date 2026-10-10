@@ -2422,7 +2422,8 @@
         "tumunuGor": "Tümünü gör",
         "urunSeridi": "Ürün şeridi",
         "geriKaydir": "Geri kaydır",
-        "ileriKaydir": "İleri kaydır"
+        "ileriKaydir": "İleri kaydır",
+        "urunlerYuklenemedi": "Ürünler yüklenemedi."
       },
       "periodControls": {
         "donem": "Dönem",
@@ -3180,6 +3181,7 @@
         "aramaTamamlandi": "Web araması tamamlandı — sonuçları görmek için pencereyi yeniden açın",
         "aramaTamamlandiSekmede": "Web araması tamamlandı — sonuçlar “{tab}” sekmesinde",
         "aramaHatasiSekmede": "Yeniden aramak için “{tab}” sekmesine geçin",
+        "aramaninTalebi": "Talep: {request}",
         "yenidenAra": "Yeniden ara",
         "bulunamadiIpucu": "Bölge yazarak ya da bölgeyi değiştirerek yeniden arayabilirsiniz.",
         "oncekiSonuclarDuruyor": "Önceki aramanın sonuçları aşağıda duruyor.",
@@ -3774,6 +3776,7 @@
         "eksikAlanlarVarIlgiliBolume": "Eksik alanlar var — ilgili bölüme kaydırıldı",
         "talepYayimlandi": "Talep yayımlandı",
         "talepYayimlanamadi": "Talep yayımlanamadı",
+        "talepFormuYuklenemedi": "Talep formu yüklenemedi",
         "taslakIcinEnAzBir": "Taslak için en az bir başlık gerekli",
         "taslakGuncellendi": "Taslak güncellendi",
         "taslakKaydedildi": "Taslak kaydedildi",
@@ -4441,9 +4444,11 @@
         "bandQueued": "{n, plural, other {# davet sırada}}",
         "bandNotSent": "{n, plural, other {# gönderilmedi}}",
         "bandNone": "Bu talep için uygun tedarikçi bulunamadı.",
-        "statusLead": "Bulunan tedarikçiler sizin adınıza davet edildi; onaylamanız gereken bir şey yok. Rothern üyeleri talebi hemen görür; diğerlerine davet e-postası kendi dillerinde ve kendi ülkelerinde mesai saatinde gider.",
-        "statusLeadPartial": "Bulunan tedarikçilerin bir kısmı sizin adınıza davet edildi; onaylamanız gereken bir şey yok. Gönderilmeyen davetlerin nedeni satırında yazar. Rothern üyeleri talebi hemen görür; diğerlerine davet e-postası kendi dillerinde ve kendi ülkelerinde mesai saatinde gider.",
+        "statusLeadInvited": "Bulunan tedarikçiler sizin adınıza davet edildi; onaylamanız gereken bir şey yok.",
+        "statusLeadPartlyInvited": "Bulunan tedarikçilerin bir kısmı sizin adınıza davet edildi; onaylamanız gereken bir şey yok. Gönderilmeyen davetlerin nedeni satırında yazar.",
+        "statusLeadQueuedMail": "Rothern üyeleri talebi hemen görür; sıradaki davet e-postaları alıcıların kendi dilinde ve kendi ülkelerinde mesai saatinde gider.",
         "statusLeadNoneSent": "Bulunan tedarikçilere davet gönderilmedi; nedenleri aşağıdaki satırlarda yazar.",
+        "statusLeadSeeRows": "Bulunan tedarikçilerin durumu kendi satırında yazar.",
         "statusLeadAutoOff": "Sıradaki davetler, AI tedarikçi araması kapatıldığı ya da talep yalnız davet ettiğiniz firmalara açıldığı için gönderilmedi. Talebi düzenleyip bu ayarı geri alırsanız davetler yeniden sıraya girer.",
         "dismiss": "Gizle",
         "showList": "Listeyi göster",
@@ -4479,6 +4484,7 @@
           "INVALID": "E-posta adresi geçersiz",
           "PAUSED": "Adres önceki davetlere yanıt vermedi",
           "FREQUENCY": "Adres bu hafta başka bir davet aldı; talep kapanmadan sıra gelmedi",
+          "CLOSES_FIRST": "Talep, e-postanın gönderilebileceği mesai saatinden önce kapanıyor",
           "SUPPRESSED": "Adres e-posta kabul etmiyor",
           "ALLOWLIST": "Bu ortamda gönderilmedi (test alıcı listesi)",
           "LISTING_CLOSED": "Talep kapandı",
@@ -6942,7 +6948,8 @@
     "market": {
       "kategoriSlugPage": {
         "urun": "{n, number} ürün",
-        "kategorisindekiTedarikciUrunleriSuzunKarsila": "{name} kategorisindeki tedarikçi ürünleri — süzün, karşılaştırın, doğrudan bilgi isteyin."
+        "kategorisindekiTedarikciUrunleriSuzunKarsila": "{name} kategorisindeki tedarikçi ürünleri — süzün, karşılaştırın, doğrudan bilgi isteyin.",
+        "kategori": "Kategori"
       },
       "satinalmaPage": {
         "urun": "{count} ürün",
@@ -6958,7 +6965,8 @@
         "firma": "Firma",
         "aradiginizUrunuBulamadinizMi": "Aradığınız ürünü bulamadınız mı?",
         "talepAc": "Talep aç",
-        "simdiTedarikciBulun": "Şimdi tedarikçi bulun"
+        "simdiTedarikciBulun": "Şimdi tedarikçi bulun",
+        "kategoriVitriniYuklenemedi": "Kategoriler yüklenemedi."
       },
       "firmaslugUrunSlugPage": {
         "yukleniyor": "Yükleniyor…",
@@ -7182,7 +7190,8 @@
         "aramaYerTutucu": "Numara veya başlıkla ara",
         "enYeniListeleniyor": "Toplam {total, number} talebin en yeni {shown, number} tanesi listeleniyor. Daha eskisi için numara veya başlıkla arayın.",
         "aramaKesildi": "Eşleşen {total, number} talebin ilk {shown, number} tanesi listeleniyor. Aramayı daraltın.",
-        "eslesenYok": "Aramayla eşleşen satın alma talebi yok."
+        "eslesenYok": "Aramayla eşleşen satın alma talebi yok.",
+        "taleplerYuklenemedi": "Satın alma talepleri yüklenemedi."
       }
     },
     "approvals": {
@@ -7203,7 +7212,7 @@
         "tanimliAkislar": "Tanımlı Akışlar",
         "yeniOnayAkisi": "Yeni Onay Akışı",
         "onayAkislariYuklenemedi": "Onay akışları yüklenemedi",
-        "baglantiSorunuOlabilirLutfenYeniden": "Bağlantı sorunu olabilir. Lütfen yeniden deneyin.",
+        "lutfenYenidenDeneyin": "Lütfen yeniden deneyin.",
         "yenidenDene": "Yeniden Dene",
         "henuzOnayAkisiYok": "Henüz onay akışı yok",
         "akisTanimlanmadigiIcinTumKazandirmalar": "Akış tanımlanmadığı için tüm kazandırmalar anında uygulanıyor.",
@@ -7307,7 +7316,7 @@
         "sirada": "sırada",
         "not": "Not: {note}",
         "kayitlarYuklenemedi": "Kayıtlar yüklenemedi",
-        "baglantiSorunuOlabilirLutfenYeniden": "Bağlantı sorunu olabilir. Lütfen yeniden deneyin.",
+        "lutfenYenidenDeneyin": "Lütfen yeniden deneyin.",
         "yenidenDene": "Yeniden Dene",
         "baslatanNotu": "Başlatan notu:",
         "adim": "Adım {currentStepOrder}/{totalSteps}",
@@ -7415,7 +7424,7 @@
         "sohbetAcilamadi": "Sohbet açılamadı",
         "sohbetAcilamadiAciklama": "Firma bulunamadı ya da bu konuşmayı görüntüleme yetkiniz yok. Soldan başka bir firma seçebilirsiniz.",
         "kisiAraEtiketi": "Kişi ara",
-        "konusmalarYuklenemedi": "Konuşmalar yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin."
+        "konusmalarYuklenemediTekrarDeneyin": "Konuşmalar yüklenemedi. Lütfen tekrar deneyin."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Mesaj gönderilemedi",
@@ -7485,7 +7494,7 @@
       "dahaGenelBirTerimDeneyin": "Daha genel bir terim deneyin (örn. marka yerine ürün adı) veya aramayı temizleyip listeye göz atın.",
       "cokFazlaSonucVarTumu": "Çok fazla sonuç var — tümü gösterilemiyor. Aramanızı daraltın.",
       "yenidenDene": "Yeniden dene",
-      "kategorilerYuklenemedi": "Kategoriler yüklenemedi. Bağlantınızı kontrol edip yeniden deneyin.",
+      "kategorilerYuklenemediYenidenDeneyin": "Kategoriler yüklenemedi. Lütfen yeniden deneyin.",
       "buBolumYuklenemedi": "Bu bölüm yüklenemedi.",
       "aramaTamamlanamadi": "Arama tamamlanamadı. Bu, sonuç olmadığı anlamına gelmez; lütfen yeniden deneyin.",
       "secimAdlariYuklenemedi": "Seçimlerinizin adları yüklenemedi.",

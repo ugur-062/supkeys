@@ -2422,7 +2422,8 @@
         "tumunuGor": "View all",
         "urunSeridi": "Product strip",
         "geriKaydir": "Scroll back",
-        "ileriKaydir": "Scroll forward"
+        "ileriKaydir": "Scroll forward",
+        "urunlerYuklenemedi": "Products could not be loaded."
       },
       "periodControls": {
         "donem": "Period",
@@ -3180,6 +3181,7 @@
         "aramaTamamlandi": "The web search has finished — reopen the window to see the results",
         "aramaTamamlandiSekmede": "The web search has finished — the results are on the “{tab}” tab",
         "aramaHatasiSekmede": "Switch to the “{tab}” tab to search again",
+        "aramaninTalebi": "Request: {request}",
         "yenidenAra": "Search again",
         "bulunamadiIpucu": "You can search again with a region, or with a different one.",
         "oncekiSonuclarDuruyor": "The results of the previous search are still listed below.",
@@ -3774,6 +3776,7 @@
         "eksikAlanlarVarIlgiliBolume": "Some fields are missing — scrolled to the relevant section",
         "talepYayimlandi": "Request published",
         "talepYayimlanamadi": "Could not publish the request",
+        "talepFormuYuklenemedi": "Could not load the request form",
         "taslakIcinEnAzBir": "A title is required to save a draft",
         "taslakGuncellendi": "Draft updated",
         "taslakKaydedildi": "Draft saved",
@@ -4441,9 +4444,11 @@
         "bandQueued": "{n, plural, one {# invitation queued} other {# invitations queued}}",
         "bandNotSent": "{n, plural, other {# not sent}}",
         "bandNone": "No suitable suppliers were found for this request.",
-        "statusLead": "The suppliers found were invited on your behalf; there is nothing for you to confirm. Rothern members see the request right away; the others receive an invitation email in their own language, during business hours in their country.",
-        "statusLeadPartial": "Some of the suppliers found were invited on your behalf; there is nothing for you to confirm. Where an invitation was not sent, the reason is shown on its row. Rothern members see the request right away; the others receive an invitation email in their own language, during business hours in their country.",
+        "statusLeadInvited": "The suppliers found were invited on your behalf; there is nothing for you to confirm.",
+        "statusLeadPartlyInvited": "Some of the suppliers found were invited on your behalf; there is nothing for you to confirm. Where an invitation was not sent, the reason is shown on its row.",
+        "statusLeadQueuedMail": "Rothern members see the request right away; the queued invitation emails are sent in each recipient's own language, during business hours in their country.",
         "statusLeadNoneSent": "No invitations were sent to the suppliers found; the rows below show why.",
+        "statusLeadSeeRows": "The status of each supplier found is shown on its row.",
         "statusLeadAutoOff": "The queued invitations were not sent because the AI supplier search was switched off or the request was limited to the companies you invite. If you edit the request and undo that setting, the invitations are queued again.",
         "dismiss": "Hide",
         "showList": "Show list",
@@ -4479,6 +4484,7 @@
           "INVALID": "The email address is invalid",
           "PAUSED": "The address didn't respond to earlier invitations",
           "FREQUENCY": "The address received another invitation this week; its turn didn't come before the request closes",
+          "CLOSES_FIRST": "The request closes before the email can be sent during the recipient's business hours",
           "SUPPRESSED": "The address doesn't accept email",
           "ALLOWLIST": "Not sent in this environment (test recipient list)",
           "LISTING_CLOSED": "The request is closed",
@@ -6942,7 +6948,8 @@
     "market": {
       "kategoriSlugPage": {
         "urun": "{n, plural, one {# product} other {# products}}",
-        "kategorisindekiTedarikciUrunleriSuzunKarsila": "Supplier products in the {name} category — filter, compare and request information directly."
+        "kategorisindekiTedarikciUrunleriSuzunKarsila": "Supplier products in the {name} category — filter, compare and request information directly.",
+        "kategori": "Category"
       },
       "satinalmaPage": {
         "urun": "{count, plural, one {# product} other {# products}}",
@@ -6958,7 +6965,8 @@
         "firma": "Company",
         "aradiginizUrunuBulamadinizMi": "Can't find the product you need?",
         "talepAc": "Post a request",
-        "simdiTedarikciBulun": "Find suppliers now"
+        "simdiTedarikciBulun": "Find suppliers now",
+        "kategoriVitriniYuklenemedi": "Categories could not be loaded."
       },
       "firmaslugUrunSlugPage": {
         "yukleniyor": "Loading…",
@@ -7182,7 +7190,8 @@
         "aramaYerTutucu": "Search by number or title",
         "enYeniListeleniyor": "Showing the newest {shown, number} of {total, plural, one {# buying request} other {# buying requests}}. Search by number or title to find older ones.",
         "aramaKesildi": "Showing the first {shown, number} of {total, plural, one {# matching buying request} other {# matching buying requests}}. Narrow your search.",
-        "eslesenYok": "No buying requests match your search."
+        "eslesenYok": "No buying requests match your search.",
+        "taleplerYuklenemedi": "Buying requests could not be loaded."
       }
     },
     "approvals": {
@@ -7203,7 +7212,7 @@
         "tanimliAkislar": "Defined flows",
         "yeniOnayAkisi": "New approval flow",
         "onayAkislariYuklenemedi": "Could not load the approval flows",
-        "baglantiSorunuOlabilirLutfenYeniden": "There may be a connection problem. Please try again.",
+        "lutfenYenidenDeneyin": "Please try again.",
         "yenidenDene": "Try again",
         "henuzOnayAkisiYok": "No approval flow yet",
         "akisTanimlanmadigiIcinTumKazandirmalar": "No flow is defined, so every award is applied immediately.",
@@ -7307,7 +7316,7 @@
         "sirada": "in queue",
         "not": "Note: {note}",
         "kayitlarYuklenemedi": "Could not load the records",
-        "baglantiSorunuOlabilirLutfenYeniden": "There may be a connection problem. Please try again.",
+        "lutfenYenidenDeneyin": "Please try again.",
         "yenidenDene": "Try again",
         "baslatanNotu": "Initiator note:",
         "adim": "Step {currentStepOrder}/{totalSteps}",
@@ -7415,7 +7424,7 @@
         "sohbetAcilamadi": "Could not open the conversation",
         "sohbetAcilamadiAciklama": "The company was not found or you do not have permission to view this conversation. You can pick another company on the left.",
         "kisiAraEtiketi": "Search contacts",
-        "konusmalarYuklenemedi": "Conversations could not be loaded. Check your connection and try again."
+        "konusmalarYuklenemediTekrarDeneyin": "Conversations could not be loaded. Please try again."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Message could not be sent",
@@ -7485,7 +7494,7 @@
       "dahaGenelBirTerimDeneyin": "Try a more general term (for example the product name instead of the brand), or clear the search and browse the list.",
       "cokFazlaSonucVarTumu": "Too many results — not all of them can be shown. Narrow your search.",
       "yenidenDene": "Try again",
-      "kategorilerYuklenemedi": "Categories could not be loaded. Check your connection and try again.",
+      "kategorilerYuklenemediYenidenDeneyin": "Categories could not be loaded. Please try again.",
       "buBolumYuklenemedi": "This section could not be loaded.",
       "aramaTamamlanamadi": "The search could not be completed. This does not mean there are no results; please try again.",
       "secimAdlariYuklenemedi": "The names of your selections could not be loaded.",
