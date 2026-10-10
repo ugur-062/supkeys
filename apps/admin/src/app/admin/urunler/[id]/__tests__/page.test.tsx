@@ -90,17 +90,31 @@ describe("/admin/urunler/[id] — ürün incelemesi", () => {
     expect(screen.queryByText(/VERIFIED/)).not.toBeInTheDocument();
   });
 
-  // 2026-10-09 (W-16): gizli segmentteki kategori ayrıntıda da adıyla basılmaz.
-  it("Kategori satırı: gizli segmentte sabit not, görünür kategoride ad", () => {
-    h.product = product({ categoryId: "46181500", categoryName: "Koruyucu giysi" });
-    const { unmount } = render(<AdminUrunDetayPage />);
+  // 2026-10-09 (W-16): gizli daldaki kategori ayrıntıda da adıyla basılmaz.
+  // 2026-10-10: not gizlemenin düzeyine göre — segmenti gizli kodda "gizli
+  // segment", görünür 46'nın gizli ailesinde (4610) "gizli kategori".
+  it("Kategori satırı: gizli dalda sabit not, görünür kategoride ad", () => {
+    h.product = product({ categoryId: "77101500", categoryName: "Çevre yönetimi" });
+    const first = render(<AdminUrunDetayPage />);
     expect(screen.getByText("— (gizli segment)")).toBeInTheDocument();
-    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
-    unmount();
+    expect(screen.queryByText("Çevre yönetimi")).toBeNull();
+    first.unmount();
+    h.product = product({ categoryId: "46101500", categoryName: "Ateşli silahlar" });
+    const second = render(<AdminUrunDetayPage />);
+    expect(screen.getByText("— (gizli kategori)")).toBeInTheDocument();
+    expect(screen.queryByText("— (gizli segment)")).toBeNull();
+    expect(screen.queryByText("Ateşli silahlar")).toBeNull();
+    second.unmount();
+    // 46 geri açıldı: kişisel koruyucu donanım adıyla basılır.
+    h.product = product({ categoryId: "46181500", categoryName: "Koruyucu giysiler" });
+    const third = render(<AdminUrunDetayPage />);
+    expect(screen.getByText("Koruyucu giysiler")).toBeInTheDocument();
+    expect(screen.queryByText(/gizli (segment|kategori)/)).toBeNull();
+    third.unmount();
     h.product = product();
     render(<AdminUrunDetayPage />);
     expect(screen.getByText("Elektrik")).toBeInTheDocument();
-    expect(screen.queryByText("— (gizli segment)")).toBeNull();
+    expect(screen.queryByText(/gizli (segment|kategori)/)).toBeNull();
   });
 
   it("kademe fiyatı ve miktar biçimli", () => {

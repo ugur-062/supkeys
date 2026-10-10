@@ -5,6 +5,7 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader, SearchInput } from "@/components/list";
 import { api, toastApiError } from "@/lib/api";
 import { canAdminDo } from "@/lib/admin-permissions";
+import { hiddenSearchReason } from "@/lib/category-label";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, FolderTree, SearchX } from "lucide-react";
@@ -205,7 +206,10 @@ function KategorilerView() {
     queryFn: async () => {
       const { data } = await api.get<{
         segments: SegmentNode[];
+        /** Eski biçim: gizli kodun ilk iki hanesi. */
         hiddenSegment?: string;
+        /** Kodu kapsayan gizli önek (2 segment · 4 aile · 6 sınıf). */
+        hiddenPrefix?: string;
       }>(
         "/categories/search-tree",
         { params: { q: debounced } },
@@ -216,7 +220,9 @@ function KategorilerView() {
   });
 
   const segments = query.data?.segments ?? [];
-  const hiddenSegment = query.data?.hiddenSegment;
+  // Gizli bir daldaki kod araması: neden, gizlemenin DÜZEYİYLE yazılır (segment /
+  // aile / sınıf) — 46 görünür, altındaki silah ve kolluk aileleri gizli.
+  const hiddenReason = hiddenSearchReason(query.data, debounced);
 
   return (
     <div className="max-w-[900px] space-y-6">
@@ -256,9 +262,7 @@ function KategorilerView() {
         </div>
       ) : segments.length === 0 ? (
         <div className="admin-card text-admin-text-muted px-6 py-10 text-center text-sm">
-          {hiddenSegment
-            ? `Sonuç yok — ${hiddenSegment} segmenti katalog sadeleştirmesiyle gizli; bu koddaki kategoriler seçicilerde ve aramada görünmez.`
-            : "Sonuç yok"}
+          {hiddenReason ?? "Sonuç yok"}
         </div>
       ) : (
         <div className="space-y-3">

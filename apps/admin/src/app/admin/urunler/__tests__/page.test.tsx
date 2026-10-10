@@ -85,16 +85,20 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     expect(screen.getByRole("tab", { name: /Düzeltme istenen/ })).toHaveTextContent("3");
   });
 
-  // 2026-10-09 (W-16): gizli segmentteki kategori yönetimde de adıyla basılmaz.
-  it("Kategori sütunu: gizli segmentteki ürün adı yerine sabit not; görünür ürün adıyla", () => {
+  // 2026-10-09 (W-16): gizli daldaki kategori yönetimde de adıyla basılmaz.
+  // 2026-10-10: 46 geri açıldı — KKD adıyla basılır; silah ailesi (4610) gizli
+  // ama SEGMENTİ görünür, o yüzden notu "gizli segment" değil "gizli kategori".
+  it("Kategori sütunu: gizli daldaki ürün adı yerine sabit not; görünür ürün adıyla", () => {
     h.products = {
       data: {
         items: [
           row("1"),
-          row("2", { categoryId: "46181500", categoryName: "Koruyucu giysi" }),
+          row("2", { categoryId: "46101500", categoryName: "Ateşli silahlar" }),
           row("3", { categoryId: "77101500", categoryName: null }),
+          row("4", { categoryId: "46181500", categoryName: "Koruyucu giysiler" }),
+          row("5", { categoryId: "46182501", categoryName: null, hiddenCategory: true }),
         ],
-        total: 3,
+        total: 5,
         page: 1,
         pageSize: 25,
       },
@@ -103,9 +107,11 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     };
     render(<AdminUrunlerPage />);
     expect(screen.getByText("Elektrik Malzemeleri")).toBeInTheDocument();
-    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
-    expect(screen.getAllByText("— (gizli segment)")).toHaveLength(2);
-    expect(document.querySelector('[title="Koruyucu giysi"]')).toBeNull();
+    expect(screen.getByText("Koruyucu giysiler")).toBeInTheDocument();
+    expect(screen.queryByText("Ateşli silahlar")).toBeNull();
+    expect(screen.getAllByText("— (gizli segment)")).toHaveLength(1);
+    expect(screen.getAllByText("— (gizli kategori)")).toHaveLength(2);
+    expect(document.querySelector('[title="Ateşli silahlar"]')).toBeNull();
   });
 
   it("sekme değişince sorgu parametresi değişir; boş kuyruk metni", () => {

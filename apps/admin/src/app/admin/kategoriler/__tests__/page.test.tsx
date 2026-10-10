@@ -3,8 +3,9 @@
  * Admin › Kategoriler — kodla arama (arayüz testi O-048, yeniden doğrulama).
  *  - Boş durum örnekleri GÖRÜNÜR segmentlerden (eski "yazılım"/"43230000"
  *    gizli segment 43'teydi; sayfanın kendi örneği "Sonuç yok" veriyordu).
- *  - Gizli segmentteki kod araması "Sonuç yok"un nedenini söyler
- *    (API `hiddenSegment`).
+ *  - Gizli daldaki kod araması "Sonuç yok"un nedenini söyler (API
+ *    `hiddenSegment` / `hiddenPrefix`). 2026-10-10: gizleme aile / sınıf
+ *    düzeyinde de var (46 görünür, 4610 gizli) — neden DÜZEYİYLE yazılır.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -57,6 +58,26 @@ describe("Admin Kategoriler — kodla arama (O-048)", () => {
       target: { value: "43230000" },
     });
     expect(await screen.findByText(/43 segmenti katalog sadeleştirmesiyle gizli/, {}, { timeout: 2000 })).toBeTruthy();
+  });
+
+  it("görünür segmentin gizli ailesi: 'NNNN ailesi gizli' — '46 segmenti gizli' YAZILMAZ", async () => {
+    h.search = { segments: [], truncated: false, hiddenSegment: "46", hiddenPrefix: "4610" };
+    renderPage();
+    fireEvent.change(screen.getByPlaceholderText(/Kategori adı veya kodu ara/), {
+      target: { value: "46101500" },
+    });
+    expect(await screen.findByText(/4610 ailesi katalog sadeleştirmesiyle gizli/, {}, { timeout: 2000 })).toBeTruthy();
+    expect(screen.queryByText(/46 segmenti/)).toBeNull();
+  });
+
+  it("eski biçimli yanıt (yalnız hiddenSegment): düzey yazılan koddan bulunur", async () => {
+    h.search = { segments: [], truncated: false, hiddenSegment: "46" };
+    renderPage();
+    fireEvent.change(screen.getByPlaceholderText(/Kategori adı veya kodu ara/), {
+      target: { value: "46182501" },
+    });
+    expect(await screen.findByText(/461825 sınıfı katalog sadeleştirmesiyle gizli/, {}, { timeout: 2000 })).toBeTruthy();
+    expect(screen.queryByText(/46 segmenti/)).toBeNull();
   });
 
   it("gizli segment bilgisi yoksa düz 'Sonuç yok'", async () => {

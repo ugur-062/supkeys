@@ -13,12 +13,13 @@ export interface AdminProductRow {
   cover: string | null;
   imageCount: number;
   categoryId: string | null;
-  /** Gizli segmentteki kategorinin adı gelmez (`null`) — bkz. `hiddenCategory`. */
+  /** Gizli daldaki kategorinin adı gelmez (`null`) — bkz. `hiddenCategory`. */
   categoryName: string | null;
   /**
-   * Kayıtlı kategori gizli bir segmentte: sitede hiçbir yerde gösterilmez, adı
-   * burada da çözülmez. Ekran "— (gizli segment)" yazar (`productCategoryLabel`).
-   * Eski API yanıtında alan yoktur.
+   * Kayıtlı kategori gizli bir dalda (gizli segment ya da görünür segmentin
+   * gizli ailesi / sınıfı): sitede hiçbir yerde gösterilmez, adı burada da
+   * çözülmez. Ekran düzeye göre "— (gizli segment)" ya da "— (gizli kategori)"
+   * yazar (`productCategoryLabel`). Eski API yanıtında alan yoktur.
    */
   hiddenCategory?: boolean;
   reviewStatus: ProductReviewStatus;

@@ -193,7 +193,7 @@ function ProductReview({ id }: { id: string }) {
           <section className="admin-card p-5 text-sm">
             <h2 className="text-admin-text mb-3 font-semibold">Ticari</h2>
             <dl className="space-y-2">
-              {/* Gizli segmentteki kategori adıyla basılmaz — sabit not (bkz. `productCategoryLabel`). */}
+              {/* Gizli daldaki kategori adıyla basılmaz — sabit not (bkz. `productCategoryLabel`). */}
               <Row k="Kategori" v={productCategoryLabel(p)} />
               <Row k="Fiyat" v={`${PRICE_MODE[p.priceMode] ?? p.priceMode}${p.priceMode === "FIXED" && p.priceAmount ? ` · ${fmtPrice(p.priceAmount, p.priceCurrency)}/${p.unit}` : ""}`} />
               {p.priceMode === "TIERED" && p.priceTiers?.length ? (
