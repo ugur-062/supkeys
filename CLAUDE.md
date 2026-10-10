@@ -369,14 +369,17 @@ davette kalemler olsun ki cazip gelsin, dil kusursuz, filtreler dahil tüm
 - **DIŞ DAVET E-POSTASI = BEYAZ LİSTE** (`TenderExternalInviteData`, içerik tek
   kaynak `common/company/external-invite-content.ts` `InviteContentBuilder`):
   DAVET EDEN FİRMANIN ADI, numara, ilk 10 kalem "ad — miktar birim" (+N), şehir
-  + ülke, son tarih (GMT+3), kategori (çoğul), aranan tedarikçi tipi, vitrindeyse
-  herkese açık sayfa, "kapalı zarf" + "ücretsiz" cümleleri; kayıt bağlantısı
+  + ülke, son tarih (GMT+3), kategori (çoğul), aranan tedarikçi tipi, kayıtsız
+  önizleme bağlantısı (yoksa vitrindeki herkese açık sayfa), "kapalı zarf" +
+  "ücret alınmaz" cümleleri ("ücretsiz"/"free" sözcüğü YOK); kayıt bağlantısı
   `redirect=/company/ilan/<id>`. Hedef fiyat, şartname, marka, belge, ticari
   şart, tam adres ASLA. Konu "ABC İnşaat sizden teklif istiyor: M6 cıvata,
-  Rulman +1 kalem", gönderen "ABC İnşaat (Rothern üzerinden)" (`inviteFromName`;
+  Rulman +1 kalem" (konu ≤ 110 karakter, konudaki kalem adı ≤ 40: `fitSubject`,
+2026-10-09), gönderen "ABC İnşaat (Rothern üzerinden)" (`inviteFromName`;
   görünen ad RFC 5322 tırnaklı). Çeviri gelmediyse gönderim 10 dk'ya dek
   ertelenir, sonra özgün metin. Soğuk davet konusunda emoji yok; alt bilgideki
-  alan adı gönderen ortamdan (`renderEmail(…, { siteUrl })`), yıl dinamik.
+  alan adı gönderen ortamdan (`renderEmail(…, { siteUrl })`). Biçim DÜZ MEKTUP
+  (2026-10-09; bkz. "E-POSTA TESLİM EDİLEBİLİRLİĞİ" › SOĞUK DAVET = DÜZ MEKTUP).
   `/company` kökü `?redirect=` niyetini onboarding durumu bilinmeden tüketmez.
 - **BİLDİRİM PARAMETRELERİ TİPLİ** (`common/notifications/notification-params.
   ts`): `dateParam`/`moneyParam`/`numberParam`/`listingTitleParam` alıcı başına
@@ -1108,7 +1111,11 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   “…”, EN ’, RU «…»; TR kesme işareti düz kalır); RU cinsiyet nötr ('(а)'
   kalıbı yok); CTA kısa, 375 px'te tek satıra sığsın diye ~22 karakteri
   geçmez. Gövde bir arayüz düğmesinin adını anıyorsa o dilde `web.json`'daki
-  etiketin AYNISI yazılır.
+  etiketin AYNISI yazılır. Bu kabuk (logo + kart + düğme) ÜYEYE giden ve
+  kod/güvenlik e-postalarınındır; kayıtsız adrese giden soğuk davetler onu
+  KULLANMAZ — düz mektup `_components/plain-letter.tsx` (bkz. "E-POSTA TESLİM
+  EDİLEBİLİRLİĞİ" › SOĞUK DAVET = DÜZ MEKTUP). Logo eki yalnız HTML'i `cid:` ile
+  referanslıyorsa gider (`client.ts` `referencedLogos`).
 - **"parola" DEĞİL "şifre" (2026-09-10 kararının kalanı 2026-09-11'de kapandı):**
   giriş, kayıt, davet ve şifre sıfırlama ekranları dahil kullanıcı metinlerinin
   hepsi "şifre"; kod içi değişken adları (`password`) değişmez.
@@ -1250,6 +1257,9 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Kazandırılmış kalemin kazananı · tasarruf/hacim | `common/company/report-currency.ts` `awardedBidForItem` · `awardedSavingsVolumeTry` — MU-18 |
 | AI model çıktısında sayı · AI kapanış tarihi | `modules/ai/ai-text.ts` `parseSeparatedNumber` · `ai/tender-extract/ai-draft-sanitizer.ts` `parseClosingInstant` — MU-07/08 |
 | Kayda kapalı ülke ipucu (keşif/davet) | `common/company/external-invite-policy.ts` `registrationBlockedCountry` — MU-09 |
+| Otomatik (`AI_AUTO`) davetin geçerliliği (özel talep / kutu kapalı) | `common/company/external-invite-policy.ts` `AUTO_INVITE_OFF_WHERE` · `AUTO_INVITE_OFF_REASON` |
+| "Talebin otomatik turu var" (aramadan düşen tur sayılmaz) | `common/company/ai-suggestions.ts` `COUNTED_AUTO_RUN_WHERE` · `isCountedAutoRun` · `SWITCHED_OFF_RUN_ERRORS` |
+| Davet iptal nedeni etiketleri (admin Büyüme) | admin `lib/invite-cancel-labels.ts` ⇔ `invite-cancel-labels.test` (API kaynağını tarar) |
 | API erişim günlüğü başlıkları | `common/logging/request-log-serializer.ts` `LOGGED_REQUEST_HEADERS` — MU-12 |
 | Talep davet tavanı · firma hizmet çipi uzunluğu | `@rothern/shared` `constants/limits.ts` `MAX_LISTING_INVITATIONS` · `COMPANY_SERVICE_MAX_LENGTH` — MU-26/24 |
 | Web hazır set / davet varsayılanı | `components/company/permission-presets.ts` (`gatePreset`, `defaultInvitePermissions`) — MU-13 |
@@ -1302,6 +1312,21 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Ülkeye göre hukuki yapı listesi + enum eşlemesi | `@rothern/shared` `data/legal-forms.ts` (`resolveLegalForm`) |
 | Şifre politikası · web sitesi biçimi · LIKE kaçışı | `common/auth/password-policy.ts` · `common/company/website-address.ts` · `common/prisma/like-literal.ts` |
 | Hız sınırı deposu | `common/http/throttler-storage.ts` (`PerKeyThrottlerStorage`) |
+| Saklanmış kategori kodunun GÖSTERİMİ (gizli segment düşer) | `@rothern/shared` `constants/category-catalog.ts` `visibleCategoryIds` / `visibleCategoryId` · web `lib/visible-categories.ts` · admin aynası `apps/admin/src/lib/category-label.ts` |
+| `?kategori=` süzgeç parametresi (gizli kod = süzgeç yok) | web `lib/public/filter-param-utils.ts` `categoryParam` · API `productIndexWhere` / `visibleCategoryId` |
+| Talep düzenlemede yazılan kategori listesi · ürün kategori kapısı | `company-listings.service.ts` `categoryIdsAfterEdit` · `CompanyItemsService.assertCategoryAllowed` |
+| Seed / demo betiklerinde kategori (ve kategori görseli) kapısı | `packages/db/prisma/scripts/lib/seed-category-guard.ts` · demo verisi `lib/marketplace-demo-data.ts`, `lib/staging-demo-data.ts` |
+| AI tedarikçi araması zaman bütçeleri | `supplier-discovery.service.ts` `DiscoverySearchTiming` (`INTERACTIVE_…`, `BACKGROUND_SEARCH_TIMING`) |
+| Talep kalemi ↔ vitrin ürünü eşleşmesi (keşif + davet gerekçesi) | `common/company/item-product-match.ts` |
+| Ücretsiz e-posta sağlayıcıları · adayın firma anahtarı | `common/net/free-mail-domains.ts` · `candidateCompanyKeys` |
+| Talebin e-posta davetleri (okuma) · davet sonucu etiketleri (web) | `ListingEmailInvitesService` (`candidateInvite()` sonucu) · `components/tenders/ai-suppliers/invite-outcome.tsx` |
+| Sıradaki davet e-postası gidecek mi, ne zaman (mesaj, bant, bölüm, davet yanıtı) | `external-invite-dispatcher.service.ts` `queuedInviteForecasts` (saf kural `external-invite-policy.ts` `queuedInviteForecast`; ekranlar `withQueueForecast`) · web `lib/tenders/external-invite-status.ts` `inviteWillLeave` / `queuedNotSentReason` |
+| Yeni AI davet satırının planlanan anı (aynı adrese bekleyen mektuba katılır) | `external-invite-policy.ts` `inviteQueueSendAt` ← `external-invite-dispatcher.service.ts` `waitingLetterTimes` |
+| Yoklanan listede "okunamadı" durumu (kart veri gelene dek kalır) | `apps/web/src/hooks/use-read-failed.ts` `useReadFailed` |
+| Asistan aracında talep / sipariş başvurusu (numara ya da kimlik) | `modules/ai/assistant/record-ref.ts` |
+| E-posta konusunda serbest ad uzunluğu | `packages/email` `tender-external-invite.tsx` `fitSubject` / `subjectName` |
+| Panelin API'ye ulaşıp ulaşamadığı (kesinti notu, toast kararı) | `apps/web/src/lib/company-auth/service-health.ts` |
+| Profilim "Hakkında" kaydedilmemiş taslağı | `apps/web/src/lib/company/profile-about-draft.ts` |
 | `THROTTLE_*` env okuma · gövde ayrıştırıcı / ham gövde | `common/http/throttle-limit.ts` (`resolveThrottleLimit`) · `common/http/body-parser.ts` |
 | E-posta geri bildirim başlıkları | `modules/email/email-feedback-headers.ts` |
 | AI çıktı dili kuralı | `common/i18n/ai-language.ts` |
@@ -1454,8 +1479,9 @@ Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan karar�
 **Nitelik zorunluluğu (derin denetim 2026-09-30 LU-09):** segment (L1) düzeyinde yalnız TÜM
 ailelere uyan alan zorunlu olabilir; aileye özgü zorunluluk L2 bindirmesiyle verilir ve her
 yeni (kategori, anahtar) için `category-attribute-names.i18n.tsv`'ye EN/RU satırı eklenir.
-`CATEGORY_ATTRIBUTES`'ta seçenek ya da zorunluluk değişince `seed-marketplace-demo.ts`
-PRODUCTS attrs'ı da güncellenir (`assertAttrs` fail-loud, tüm demo seed'i durdurur).
+`CATEGORY_ATTRIBUTES`'ta seçenek ya da zorunluluk değişince demo ürünlerinin attrs'ı da
+güncellenir — veri `packages/db/prisma/scripts/lib/marketplace-demo-data.ts`'te (2026-10-09'dan
+beri; `demoAttrProblems`, `assertAttrs` fail-loud sarmalayıcı, tüm demo seed'i durdurur).
 
 > ⚠️ `cleanup-categories` bu akışın **PARÇASI DEĞİL** (segment gizler, ad
 > değiştirir → birebir garantisini bozar). `gen-category-leaves` **SİLİNDİ**.
@@ -1470,7 +1496,9 @@ Tek kaynak `src/seeds/category-names.i18n.tsv` (`kod ⇥ EN ⇥ RU`): staging'de
 Gemini Pro TOPLU işi üretir (`POST admin/content-translations/categories/
 backfill`, 120'lik partiler, kod kümesi + Kiril/Türkçe-harf kapıları, hatalı
 parti ikiye bölünür; `GET …/categories/status`), sonra
-`pnpm --filter @rothern/db export-category-names-i18n` dosyayı depoya yazar;
+`pnpm --filter @rothern/db export-category-names-i18n` dosyayı depoya yazar (2026-10-09: her
+koşuda dosya ⇔ veritabanı farkını basar, var olan satırı değiştirmek / düşürmek `-- --overwrite`
+ister; ÖNCE `apply-category-names-i18n` — uygulanmamış veritabanı eski adları dosyaya geri yazar);
 `seed-categories` ve `apply-category-names-i18n` oradan okur — CANLIDA MODEL
 ÇAĞRISI YOK. Kapsam: görünür 29 segmentin tüm satırları (19.132), gizli
 segmentler çevrilmez. **Okuma kuralı:** kategori satırı seçilirken
@@ -1530,10 +1558,11 @@ facet'i (`company-directory`), AI kategori ipucu/önerisi ve web'de
 `SHOWCASE_ORDER` sanayi odaklı), `/urunler/kategori/<kod>` ve panel kategori
 sayfası (gizliyse 404) hepsi buradan okur. Gizlenenler: 10 42 43 44 45 48
 49 50 51 52 53 54 55 56 57 60 64 70 80 82 83 84 85 86 90 91 92 93 94
-(≈137 bin yaprak, kataloğun %86'sı). Kalan 29: malzeme 11 12 13 14 15 30 31
-32 · makine/ekipman 20 21 22 23 24 25 26 27 39 40 41 46 47 · hizmet 71 72 73
-76 77 78 81 · 95. Canlıda o tarihte sıfır firma/ürün/talep vardı → veri
-taşıma gerekmedi. Geri almak = listeden çıkarmak. Eşleştirme/bildirim eski
+(≈137 bin yaprak, kataloğun %86'sı). **2026-10-09 (kullanıcı kararı): 46 ve 77 de
+gizlendi → 31 gizli, 27 görünür:** malzeme 11 12 13 14 15 30 31 32 · makine/ekipman
+20 21 22 23 24 25 26 27 39 40 41 47 · hizmet 71 72 73 76 78 81 · 95 (bkz. "CANLI
+DOĞRULAMA TURU + KATEGORİ TUTARLILIĞI 2026-10-09"). Canlıda 2026-09-19'da sıfır
+firma/ürün/talep vardı → veri taşıma gerekmedi. Geri almak = listeden çıkarmak. Eşleştirme/bildirim eski
 beyanlara dokunmaz. Admin kategori tarayıcısı da herkese açık `search-tree`yi kullanır, gizli
 segmentleri ARAMAZ; gizli segmentteki sonuçsuz kod aramasında API `hiddenSegment` döner, admin
 nedeni yazar (arayüz testi 2026-10-01 api1-03).
@@ -1719,8 +1748,8 @@ Sözleşme: `profile-indexable.spec.ts` + `onboarding.spec.ts`.
 **Web sitesi onboarding'de SORULUR ama ZORUNLU DEĞİL** (doğrulamada zorunlu —
 bkz. Kayıt Ülkeleri). Zorunlu tutmak, sitesi olmayan ama ürün yükleyecek
 imalatçıyı kapıda elerdi; o firma bizim için sitesi olup ürün eklemeyenden daha
-değerli. Bedel kapıda değil sonuçta: giren firmanın profilini AI doldurur,
-girmeyen elle yazana kadar indeks eşiğini geçemez.
+değerli. Adres yalnız profilde gösterilir; AI siteyi OKUMAZ (2026-10-08) —
+tanıtım metni elle ya da platform verisinden AI önerisiyle yazılır.
 
 **Ücretsiz vitrin ilkesi: görünmek ücretsiz, öne çıkmak paketli.**
 `hasPublicProfile`/`publicProductWhere` PAKET ŞARTI TAŞIMAZ; paketin karşılığı
@@ -2199,9 +2228,10 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   adrese giden işlem e-postaları (`email-streams.ts` `PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES`:
   `company_user_invitation`, `public_inquiry_verify` — güvenli taraf, avukat teyidi
   bekliyor, derin denetim kararı 73). Kayıtsız adrese yeni bir işlem e-postası eklenirse
-  bu kümeye girer. Dış davet/özet DÜZ METNİ HTML alt notunun etiketsiz karşılığını
-  (`email.tenderExternalInvite.textFootnote`, `email.tenderInviteDigest.textFootnote`) ve
-  `email.layout.textSignature` imzasını taşır (derin denetim 2026-09-30 boşluk taraması GA2). Sözleşmeler:
+  bu kümeye girer. Soğuk davetler (dış davet/özet/"katıl") alt bilgisini KENDİ taşır
+  (düz mektup, aşağıda): kim-neden (`email.*.footerReason`), TEK çıkış bağlantısı
+  (`unsubscribeUrl`; imzalanamadıysa şablonun `optOutUrl`'ü), aydınlatma HER ZAMAN, üstünde
+  `email.layout.textSignature` imzası; `renderEmail` bu şablonlara satır eklemez. Sözleşmeler:
   `tender-external-invite-email.spec`, `email-streams.spec`, `email-unsubscribe.spec`.
   Uçlar: API `GET/POST public/email/unsubscribe` (GET yalnız okur), web
   `/api/email/unsubscribe` (başlıktaki adres; POST'u iletir, GET onay sayfasına
@@ -2219,6 +2249,28 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   locale + `{contextType, contextId}`i geri geçirir, `sent:false` başarı sayılmaz. Yeni
   gönderim yolu locale ve context'i MUTLAKA geçirir (yoksa TRANSACTIONAL sayılır, çıkış
   başlığı düşer).
+- **SOĞUK DAVET = DÜZ MEKTUP (2026-10-09, sahip kararı: "AI'ın bulduğu, hiç kayıt olmamış
+  firmalara giden davet Promosyonlar'a/spam'e düşmemeli; bizim tarafımızdaki her nedeni
+  kaldırın").** Talep daveti, hatırlatması, özeti ve "katıl" daveti (`render.ts`
+  `PLAIN_LETTER_TEMPLATES`) marka kabuğunu KULLANMAZ: logo/görsel/ek YOK, kart/tablo/renk/
+  düğme YOK, gizli önizleme metni YOK (önizleme = selamdan sonraki ilk olgu cümlesi,
+  `email.*.opening`), HTML yorumu YOK; yalnız `<p>`, `<br>`, başka özniteliksiz `<a href>`. Tek
+  kapsayıcı sütun (`max-width: 600px`) `overflow-wrap` + `word-break: break-word` taşır — "katıl"
+  mektubu alıcının adresini, davet kullanıcının başlığını/kalem adını basar; bölünemeyen uzun sözcük
+  320/375 px'te mektubu taşırıyordu (marka kabuğunun kartıyla aynı iki özellik; renk/kutu değil). Şablon
+  TEK `Letter` modeli kurar (`build…Letter`), HTML (`PlainLetter`) ve düz metin
+  (`renderLetterText`) ondan çizilir — bağlantı HTML'de etiket, metinde `etiket: adres`.
+  **En fazla 4 bağlantı** (`PLAIN_LETTER_MAX_LINKS`; çıkış + aydınlatma dahil), hepsi `WEB_URL`
+  konağında: davet = kayıt + önizleme (yoksa herkese açık sayfa); özet = YALNIZ ilk talebin
+  önizlemesi (talep başına bağlantı basılmaz; adres doğrulanınca hepsi hesaba bağlanır, mektup
+  bunu söyler); "katıl" = kayıt. Metin olgusal: ünlem, emoji, TAMAMI BÜYÜK sözcük,
+  "ücretsiz/free/бесплатно", "hemen/right away/сразу" YOK; RU selam "Здравствуйте." Konu
+  kalıbı değişmedi. Üyeye giden ve kod/güvenlik e-postaları DEĞİŞMEDİ. Yeni soğuk şablon
+  `PLAIN_LETTER_TEMPLATES`e girer + koruma testine örnek veri. Sözleşmeler:
+  `test/unit/cold-invite-plain-letter.spec` (biçim; görsel/ek/5. bağlantıda kırılır),
+  `test/integration/cold-invite-delivery.spec` (sağlayıcıya giden istek: gönderen, Reply-To,
+  başlıklar), i18n `cold-invite-copy.test`. Operatör payı (SPF/DKIM/DMARC, izleme KAPALI,
+  alt alan adı, Postmaster) `docs/release-process.md` "Operatör: soğuk davet…".
 - **Suppression ve tekillik (derin denetim 2026-09-30 LU-04/14/18):** suppression eşleşmesi
   (türetme + gönderim kapısı) `toEmail` üzerinde BİREBİR ve indeksli; aklama yalnız
   `EmailSuppressionService.clear` (kayıtlardaki tüm harf yazımlarına marker). Gönderim yoluna
@@ -2268,21 +2320,42 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   dakikalık `ExternalInviteDispatcher` gönderir. Kurallar tek kaynak
   `common/company/external-invite-policy.ts`: firma günde 60 talep daveti ·
   platform günlük tavanı ölçüme bağlı (ilk hafta `COLD_INVITE_BASE_DAILY`=150,
-  sorunsuz her hafta ×2, `COLD_INVITE_MAX_DAILY`=5000; 7 günde şikâyet >%0,1 ya
-  da kalıcı geri dönme >%2 → dünün yarısı) · AI kaynaklı davet alıcının
+  sorunsuz her hafta ×2, `COLD_INVITE_MAX_DAILY`=5000 — tabandan KÜÇÜK verilen azami
+  değer tabanı da indirir, 0 = durdur (2026-10-09; eskiden 1–149 sessizce yok
+  sayılıyordu); 7 günde şikâyet >%0,1 ya da kalıcı geri dönme >%2 → dünün yarısı) · AI kaynaklı davet alıcının
   ülkesinde hafta içi 09-16 (`common/time/country-time-zone.ts`; ülke yoksa
-  e-posta uzantısı, o da yoksa İstanbul) · adres başına 7 günde bir e-posta
+  e-posta uzantısı, o da yoksa İstanbul) — pencere GÖNDERİM ANINDA da denetlenir (2026-10-09,
+  `coldInviteSendAt`; bkz. "CANLI DOĞRULAMA TURU" › DAVET SAATİ) · adres başına 7 günde bir e-posta
   (tüm alıcılar toplamı), bekleyenler TEK özet e-postada (`tender_invite_digest`,
-  ≤5 talep, her kart kendi jetonu) · davet bağlantısını açan adres
+  ≤5 talep; yük her talebin kendi jetonlu `ctaUrl`'ünü taşır, mektup yalnız
+  İLKİNİ basar — bkz. SOĞUK DAVET = DÜZ MEKTUP) · davet bağlantısını açan adres
   (`lastClickedAt`, kayıt sayfası `POST public/referral-visit`) ve elle yazılan
   adres (MANUAL) freni beklemez · ilgi göstermeyen adrese 90 günde 3 e-postadan
-  sonra durur · talep yayında değilse bekler, kapanınca düşer · kapanışa 6-48
+  sonra durur · talep yayında değilse bekler, kapanınca düşer · turun kuyruğa
+  aldığı (`AI_AUTO`) davet talep özele çevrilince / otomatik arama kutusu
+  kapatılınca geçersiz (aşağıda OTOMATİK DAVETİN GEÇERLİLİĞİ) · kapanışa 6-48
   saat kala TEK hatırlatma · B2B'de önceden onay isteyen ülkelere (Almanya,
   Kanada — `COLD_INVITE_CONSENT_COUNTRIES`, hukuk görüşü gelene dek) AI'ın
   bulduğu adrese davet GİTMEZ (`CONSENT_REQUIRED`), elle yazılan gider. E-posta adresi KANITLANINCA (kod doğrulaması; 2026-10-08'e dek kayıt anında) adrese gelmiş TÜM açık talep davetleri
   (başka alıcılarınki dahil) `ListingInvitation` olur (`attachExternalListingInvites`); kayıtta yalnız kullanılan
   `ref` jetonunun daveti bağlanır (bkz. "KAYIT · GİRİŞ · KATEGORİ SEÇİCİ TURU").
   Web QUEUED'u başarı sayar (`isInviteAccepted`).
+  **OTOMATİK DAVETİN GEÇERLİLİĞİ TALEBİN O ANKİ HÂLİNDEN (2026-10-09, gözden geçirme AI-1 / A-1 / A-3).**
+  Tek tanım `external-invite-policy.ts` `AUTO_INVITE_OFF_WHERE`: kaynak `AI_AUTO` ∧ (talep PRIVATE ∨
+  `aiDiscovery` kapalı). `MANUAL` / `AI_FORM` alıcının bilinçli seçimidir, dokunulmaz (özel talebe adres
+  davet edilebilir). Üç okuyucu aynı tanımı kullanır: (1) dağıtıcı her turun başında böyle QUEUED satırı
+  CANCELLED + `cancelReason = AUTO_INVITE_OFF` yapar, sırası gelmişi okumaz, gitmiş davetin hatırlatmasını
+  göndermez; (2) alıcı kararından dönünce (talep OPEN ∧ özel değil ∧ kutu açık) aynı satırları geri alır
+  (`resumeAutoInvites`: yalnız bu nedenle düşen, `sentAt` boş, bağlantısı iptal edilmemiş; sırası geçmişse
+  alıcının ülkesindeki ilk mesai penceresine; `DispatchReport.resumed`) — kapat-aç davet kaybettirmez
+  (SAHİP KARARI BEKLİYOR: varsayılan olarak uygulandı; istenmezse `dispatch()` içindeki tek çağrı kalkar);
+  (3) kayıt: e-postası HİÇ gitmemiş (`sentAt` boş) böyle bir satır kuyruk durumu ne olursa olsun (QUEUED,
+  FREQUENCY / PAUSED / ALLOWLIST ile düşmüş) adres kanıtlanınca BAĞLANMAZ; e-postası gerçekten gitmiş davet
+  bağlanır. Alıcı düşen adresi KENDİSİ davet ederse satır onun daveti olarak yeniden kuyruğa girer (kaynak
+  değişir); otomatik tur aynı adrese `ALREADY_INVITED` alır. Ekran `AUTO_INVITE_OFF`'u KENDİ cümlesiyle
+  gösterir ("AI tedarikçi araması kapatıldı ya da talep yalnız davet edilen firmalara açıldı"; `queueCancelReason`
+  kodu aynen döner, `CANCELLED` yalnız elle iptaldir — 2026-10-09). Sözleşme `ai-auto-invite.spec` "AI-1" + "A-3",
+  `referral-signup.spec` "AI-1" + "A-1".
   Dış talep daveti BUYING_TIER (GOLD) ister; admin GOLD→SILVER'da kuyruktaki satırlar
   `cancelQueuedListingInvites` ile iptal edilir. Talep daveti e-postası `ExternalListingInvite`
   id'siyle loglanır → referral 7 gün freni talep davetini satırın `sentAt`/`reminderSentAt`'inden
@@ -2290,7 +2363,10 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
 - **AI TEDARİKÇİ KEŞFİ (Faz 1, 2026-09-27; kullanıcı: "kalemler kısmında AI ile
   tedarikçi bul'u çok daha iyi yap; talep açıldıktan sonra da bulunanlara tek
   tıkla davet; uluslararası ise yurt dışı dahil; adaylar seçili gelsin; davetli
-  olana bir daha gitmesin").** Servis `modules/ai/supplier-discovery/`:
+  olana bir daha gitmesin").** **2026-10-08 (sahip kararı): yayın sonrası tur
+  bulduğunu KENDİSİ davet eder — "tek tık davet"/onay ve formdaki AI paneli
+  KALDIRILDI; seçerek davet yalnız elle açılan pencerede.** Servis
+  `modules/ai/supplier-discovery/`:
   - **Arama geçişleri** (`discoveryPasses`): talep belirli ülkelere açıksa tek
     geçiş (yalnız o ülkeler); tüm ülkelere açıksa İKİ PARALEL geçiş — yurt içi
     (LOCAL) + yurt dışı (ABROAD: model en güçlü 5 üretici/ihracatçı ülkeyi seçer,
@@ -2302,7 +2378,9 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     ALREADY_INVITED (bu talebe; eşleşen ÜYE bu talebe davetliyse de) · MEMBER
     (adres ya da SİTE alan adı kayıtlı firmayla eşleşti) · CONSENT_REQUIRED;
     `recentlyInvited` (7 günde başka alıcıdan davet aldı → özetle gider).
-    SUGGESTED (e-postalı) ve MEMBER seçilebilir ve SEÇİLİ gelir.
+    Yayın sonrası tur SUGGESTED (e-postalı) ve MEMBER adayı KENDİSİ davet
+    eder — üyede yalnız GÜÇLÜ eşleşmeyi (2026-10-09: yalnız genel sektörü tutan üye
+    `WEAK_MATCH` yazılır, davet edilmez); elle pencerede (`SupplierDiscoveryModal`) alıcı seçer.
   - **Platform keşfi** (`discoverRegistered`) yayın bildirimiyle AYNI eşleştirici
     (satış ana segment + `sellerSubCategoryIds`; eskiden alt kodu ana alanda
     arıyordu) + vitrinde kalemi SATAN firma (`productSearchClauses`, kalem başına)
@@ -2311,11 +2389,10 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     (yayın sonrası tur da çağırır; `country` + `alreadyInvited` döner).
   - **ÜYEYE DOĞRUDAN TALEP DAVETİ (2026-09-28, kullanıcı: "sistemimize
     kayıtlıysa ayrıca gösterelim, kategori veya kalem eşleşmesi var diye;
-    davet ederken en üstte seçili olur").** AI'ın önerdiği Rothern üyesi (platform
-    keşfi ya da web'de adresi/sitesi üyeyle eşleşen aday) listenin EN ÜSTÜNDE
-    "Rothern'de kayıtlı" grubunda, gerekçe çipleriyle ("Kalem eşleşmesi: …",
-    "Kategori eşleşmesi: …", "Web'de de bulundu") ve SEÇİLİ gelir; e-posta
-    davetine DEĞİL doğrudan talebe davet edilir — **BAĞLANTI ŞARTI YOK** (eski
+    davet ederken en üstte seçili olur").** AI'ın bulduğu Rothern üyesi (platform
+    keşfi ya da web'de adresi/sitesi üyeyle eşleşen aday) e-posta davetine
+    DEĞİL doğrudan talebe davet edilir (yayın sonrası turda kendiliğinden;
+    elle pencerede "Rothern'de kayıtlı" grubundan) — **BAĞLANTI ŞARTI YOK** (eski
     "yalnız bağlantılıya doğrudan davet" kuralının tek istisnası; `addInvitations`
     elle davet yolu bağlantı şartını korur). Tek kaynak `CompanyListingsService.
     inviteDiscoveredMembers`: sahip + `buy:listing:manage`, DRAFT/OPEN; engelli
@@ -2323,9 +2400,12 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     NOT_ELIGIBLE; zaten davetli ALREADY_INVITED; **günlük tavan e-posta
     davetleriyle ORTAK** (`COMPANY_DAILY_INVITE_CAP` 60 − bugünkü dış davet −
     bugünkü AI üye daveti) → DAILY_LIMIT. `ListingInvitation.origin = "AI"` +
-    `aiReason` (vitrinde kalemi satan ürünün adı, yoksa `{category:true}`).
+    `aiReason` (vitrinde kalemi satan ürünün adı, yoksa `{category:true}`);
+    yayın sonrası turun KENDİ yazdığı satır ayrıca `auto: true` taşır
+    (`opts.auto`) — pencereden yapılan davet de `origin: "AI"`dir, sürdürülen
+    tur kendi davetini yalnız bu işaretten tanır; `parseAiReason` işareti okumaz.
     Bildirim (OPEN ∧ embargosuz; embargoluda açılış duyurusu davetlilere gider):
-    e-posta `listing_invitation_ai` (tercih `invitation`; konu firma adı
+    e-posta `listing_invitation_ai` (tercih `aiInvitation`, üstü `invitation`; konu firma adı
     `inviteShowName`e bağlı; gövde gerekçeli; kalem önizlemesi) — alıcının YEREL
     gününde 3'ü geçmez, fazlası akşam özetine (`EmailDigestItem.kind =
     INVITATION`, bağlam `listing_invitation_digest`, kategori özetinden AYRI
@@ -2348,10 +2428,14 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   - **GÖSTERİLMEYEN ÜCRETSİZ FİRMAYA SILVER/DOĞRULAMA ÇAĞRISI (2026-09-28,
     kullanıcı: "ücretsiz firma alıcı talep açarken görünmesin; AI ile
     bulunduğunda oradan Silver'a veya doğrulamaya yönlendirelim").** Yayın
-    sonrası tur (`DiscoveryRunsService.process`) aynı eşleştiriciyi
-    `pool: "hidden"` ile de koşar (Silver+ ∧ doğrulanmış OLMAYAN, aktif,
-    bağlantısız) ve GÜÇLÜ eşleşmeleri (alt kategori ya da vitrinde kalem)
-    `CompanyListingsService.notifyHiddenAiMatches`e verir: YALNIZ herkese açık
+    sonrası tur aynı eşleştiriciyi `pool: "hidden"` ile de koşar (Silver+ ∧
+    doğrulanmış OLMAYAN, aktif, bağlantısız) ve GÜÇLÜ eşleşmeleri (alt kategori
+    ya da vitrinde kalem) `CompanyListingsService.notifyHiddenAiMatches`e
+    verir. **Turun SONUNDA (2026-10-09, `DiscoveryRunsService.closingNotices`):**
+    bekletilen kategori duyurusu salındıktan SONRA ve duyurunun ulaştığı
+    firmalar hariç (bir talep aynı firmaya iki e-posta üretmez); sürdürülen ve
+    düşen turda da çalışır, kutu kapalı / özel talep yüzünden aramadan düşen
+    turda çalışmaz. Kurallar: YALNIZ herkese açık
     ∧ açık ∧ embargosuz talepte (özelde Silver alsa da göremezdi); davetli,
     bağlantılı, engelli ve bu talep için e-posta almış/özette bekleyen adres
     atlanır. E-posta `listing_ai_match_locked` (tercih `categoryMatch`,
@@ -2367,53 +2451,159 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     YOK, AI kapalıyken/bütçe dolmuşken de (web yolu düşüp üye bulunduysa tur DONE
     + `error`); aday `status = MEMBER`, `memberCompanyId`, `matchedCategories`,
     `source` PLATFORM/WEB/BOTH (`mergeCandidates`); önceki turda önerilen üye
-    yeniden önerilmez. Tek tık davet (`invite`) adayları ayırır: üye →
-    `inviteDiscoveredMembers`, diğerleri → e-posta kuyruğu; yanıt `{results,
-    memberResults}`. Formda seçilen üyeler `memberInvites` (taslakta
-    `QuickDraft.memberInvites`, kayıtlı taslakta `pendingMemberInvitesKey`)
-    yayında `POST …/listings/:id/invite-members` ile gider; yayın paneli sonucu
-    ad ad gösterir. Keşif penceresinin "Platformda" sekmesi talepten açılınca
+    yeniden önerilmez. Tur adayları ayırıp KENDİSİ davet eder (`autoInvite`):
+    üye → `inviteDiscoveredMembers`, diğerleri → e-posta kuyruğu. ESKİ
+    taslaktan kalan seçimler (`QuickDraft.memberInvites`/`externalInvites`,
+    kayıtlı taslakta `pendingMemberInvitesKey`/`pendingInvitesKey`) hâlâ
+    okunur ve yayında gider (`POST …/listings/:id/invite-members`, dış adres
+    `AI_FORM`); yeni yazanı yok. Keşif penceresinin "Platformda" sekmesi talepten açılınca
     "Talebe davet et" / "Hepsini talebe davet et" (talepsiz açılışta bağlantı
     daveti). Migration `20260928090000_ai_member_invites` (eklemeli). Sözleşmeler:
     `ai-member-invite.spec`, `email-programs.spec` "davet özeti", web
-    `quick-request.test` "ROTHERN ÜYELERİ", `listing-suggestions.test`,
+    `quick-request.test` "ESKİ TASLAK — ROTHERN ÜYELERİ", `listing-suggestions.test`,
     `supplier-discovery-modal.test` "Platformda".
-  - **Formda** (`components/tenders/ai-suppliers/form-supplier-panel.tsx`):
-    kalemlerin ALTINDA, pencere açmadan; kalemler girilip 5 sn değişmeyince
-    oturumda bir kez KENDİLİĞİNDEN arar (kullanıcı bütçesi, `callAi`); sonuç
-    formun dış davet listesine seçili yazılır, davet YAYINDA (`AI_FORM`) gider;
-    kapsanmayan kalem için "daha fazla bul". 3. bölümde iki anahtar: yayında
-    otomatik arama (`Listing.aiDiscovery`, özel talepte kapalı) ve davette firma
-    adı (`Listing.inviteShowName`; kapalıysa "Bir alıcı firma", gönderen "Rothern").
-  - **Yayın sonrası** (`DiscoveryRunsService`, dakikalık `discovery.runs`):
-    `announceListingOpen` tur satırı yazar (AI modülüne bağımlılık yok); tur
-    PLATFORM bütçesiyle (`AiService.callAiSystem`, firma bütçesine yazılmaz; günlük
-    tavan `AI_DISCOVERY_DAILY_USD`=15) koşar, adaylar `supplier_discovery_candidates`e.
-    Yayın paneli ve talep sayfası bandı (`listing-suggestions.tsx`) hepsi seçili
-    liste + tek tık davet (`AI_AUTO`, kuyruk); "Gizle" kapatır. Alıcı 10 dk içinde
-    işlem yapmadıysa talebi AÇANA bildirim + e-posta (`ai_supplier_suggestions`,
-    tercih `aiSuggestions`; bağlantı `?ai-davet=1` listeyi açık getirir, gönderim
-    uygulama içinde). **Davet durumunun tek kaynağı aday `status`'u DEĞİL**
-    (derin denetim 2026-09-30 boşluk taraması GA3): pencereden firma kimliğiyle davet (`inviteMembers`) ve formdan adresle
-    davet aday satırını güncellemez → davetli mi sorusu her zaman `listing_invitations`
-    (memberCompanyId) ve `external_listing_invites` (email) tablolarından. Ekran
-    (`forListing`) ve hazır bildirimi (`notifyReady` → `stillOpenCandidates`) aynı süzgeç;
-    hepsi davetliyse bildirim GİTMEZ. Metin "AI buldu" ya da koşulsuz "yurt içi ve yurt
-    dışı" demez (tur AI kapalıyken de platform üyeleriyle sonuç üretir; yurt dışı sayısı
-    koşullu; karar 74). Süre yarılandı + teklif < 3 → İKİNCİ TUR (önceki adaylar
-    hariç; talep başına en fazla 2 otomatik tur). Eylem merkezi satırı `aiSuggestions`.
+  - **Formda (2026-10-08, sahip: "kutu seçiliyse AI arasın ve göndersin, bir
+    daha sormasın; kutu gelmesine gerek yok"):** form KENDİSİ ARAMAZ — kalemlerin
+    altındaki AI paneli (`form-supplier-panel.tsx`, `candidate-list.tsx`)
+    SİLİNDİ. 3. bölümde iki anahtar: "Yayınlayınca AI … tedarikçi bulsun ve
+    davet etsin" (`Listing.aiDiscovery`, varsayılan AÇIK; özel talepte ve
+    "Bağlantılarım"dan firma çıkarılınca — yayın PRIVATE olur — kapalı ve
+    nedenini söyler) ve davette firma adı (`Listing.inviteShowName`; kapalıysa
+    "Bir alıcı firma", gönderen "Rothern").
+  - **Yayın sonrası TUR BULDUĞUNU KENDİSİ DAVET EDER** (`DiscoveryRunsService`,
+    dakikalık `discovery.runs`): `announceListingOpen` tur satırı yazar (AI
+    modülüne bağımlılık yok; ÖZEL talepte yazılmaz). Tur kuyruğa yazıldığı
+    andaki değil İŞLENDİĞİ andaki talebi okur (2026-10-09, AI-2): talep özele
+    çevrildiyse `private_listing`, kutu kapatıldıysa `discovery_off` ile
+    ARAMADAN düşer (model çağrılmaz); arama talebin GÜNCEL `targetCountries`i
+    ile; davet aşaması (sürdürülen tur dahil) kutu kapalı / özel talepte
+    adaylara `NOT_ALLOWED`, arama sürerken daraltılan ülkenin dışındaki adrese
+    `NOT_ELIGIBLE` yazar. Tur PLATFORM bütçesiyle (`AiService.
+    callAiSystem`, firma bütçesine yazılmaz; günlük tavan
+    `AI_DISCOVERY_DAILY_USD`=15) koşar, adaylar `supplier_discovery_candidates`e.
+    Alıcının ONAYI YOK: `autoInvite` talebi YAYINLAYAN kişi adına (`createdById`
+    — talebi yalnız açan yayınlayabilir; `toAuthenticatedCompanyUser`, kiracı +
+    dil bağlamı) MEVCUT yollardan davet eder: üye → `inviteDiscoveredMembers`
+    (`{auto:true}` iz kaydına), diğerleri → `inviteExternalForListing(…,
+    "AI_AUTO")`. HİÇBİR FREN ATLANMAZ (kapılar o metotlarda + dağıtıcıda);
+    yayınlayan/firma artık davet edemiyorsa (pasif, askıda, doğrulama düştü,
+    izin alındı) adaylara `NOT_ALLOWED` yazılır, kimse davet edilmez. Aday
+    satırına sonuç yazılır (INVITED · ALREADY_INVITED · DAILY_LIMIT ·
+    NOT_ELIGIBLE · NOT_ALLOWED · OPTED_OUT · SKIPPED_REGISTERED ·
+    COUNTRY_BLOCKED · CONSENT_REQUIRED · INVALID); SUGGESTED/MEMBER = sıra
+    gelmedi. **Çökmeye dayanıklı:** adaylar + maliyet davetten ÖNCE yazılır, tur
+    RUNNING kalır; `recoverStuckRuns` 15 dk sonra kirayı devralıp davet
+    aşamasını kaldığı yerden sürdürür (arama yeniden koşmaz; 6 saatten eski ya
+    da adaysız takılı tur FAILED `stuck`); aynı adaya ikinci davet olmaz
+    (durum + talep × firma / talep × adres benzersizliği). Eski akıştan kalan
+    bitmiş turun SUGGESTED/MEMBER adayı kendiliğinden davet EDİLMEZ; öyle
+    adayı kalmış talebe ikinci tur da AÇILMAZ (`scheduleSecondRounds`).
+    **Ekran yalnız DURUM** (`listing-suggestions.tsx`, yayın paneli + talep
+    sayfası bandı; seçim/onay/gönder düğmesi YOK): aranıyor → "N tedarikçi
+    bulundu · M davet edildi · K gönderilmedi", açılır listede ad, ülke, sonuç
+    + neden; "Gizle" bandı kapatır. `forListing` her adaya `invite` (INVITED ·
+    QUEUED · ALREADY_INVITED · NOT_SENT · WAITING) + `inviteReason` + `sendAfter`
+    verir (`candidateInvite`, saf). **Davet durumunun tek kaynağı aday
+    `status`'u DEĞİL** (GA3): `listing_invitations` (memberCompanyId) ve
+    `external_listing_invites` (email; `state` + `cancelReason` — dağıtıcının
+    düşürdüğü davet nedeniyle görünür; staging izin listesi artık ayrı neden
+    `ALLOWLIST`; `AUTO_INVITE_OFF` kendi nedeniyle) okunur. **Sonuç
+    mesajı:** tur bitince (beklemeden) talebi AÇANA bildirim + e-posta
+    (`ai_supplier_suggestions`, tercih `aiSuggestions`) İKİ sayıyı AYRI söyler
+    (2026-10-09, AI-6): talebe davet edilen Rothern üyesi (`members`) ve sıraya
+    alınıp talep kapanmadan GİDEBİLECEK davet e-postası (`emails` — dağıtıcıyla
+    AYNI kural `queuedInviteForecasts` / `inviteMissesClosing` (2026-10-10; ekranlar da aynı fonksiyonu okur): 7 gün freni
+    kapanış − 12 saatten sonra biten, duraklatılmış ya da sırası kapanıştan
+    sonra gelen adres sayılmaz). İkisi de sıfırsa hiçbir şey gitmez. Üç metin
+    (ikisi / yalnız üye / yalnız e-posta: `discovery.invitedBody{Both,Members,
+    Emails}` + `invitedEmailSubject…`), başlık nötr; bildirim parametreleri
+    `{title, members, emails}` (`n` yok). Eski `discovery.{title,body,cta}`
+    yalnız geçmiş bildirim satırları için durur; bağlantı `?ai-davet=1` durum
+    listesini açık getirir. Metin "AI buldu" ya da koşulsuz "yurt içi
+    ve yurt dışı" demez (tur AI kapalıyken de platform üyeleriyle sonuç üretir;
+    karar 74). Süre yarılandı + teklif < 3 → İKİNCİ TUR (önceki adaylar hariç,
+    o da kendisi davet eder; talep başına en fazla 2 SAYILAN otomatik tur). Eylem
+    merkezi satırı `aiSuggestions` yalnız eski akıştan kalan onay bekleyen
+    turu sayar (yeni tur SUGGESTED aday bırakmaz).
     PUBLISH turu `announceListingOpen` claim'ine bağlı KALMAZ (derin denetim 2026-09-29
     MU-09): düzenlemede sonradan açılan keşif (`enqueueDiscoveryAfterEdit`) ve
     `DiscoveryRunsService.tick` `catchUpPublishRuns` (duyurulmuş ≥2 dk, embargosuz,
-    aiDiscovery açık, PUBLISH/SECOND_ROUND turu olmayan OPEN talep) turu yazar. Web boş
+    aiDiscovery açık, özel olmayan, SAYILAN PUBLISH/SECOND_ROUND turu olmayan OPEN talep) turu yazar. Web boş
     tur yoklaması `EMPTY_RUN_POLL_MAX` ile sınırlı, embargoda (`startsAt`) yoklamaz.
+  - **AÇILIŞ DUYURUSU İKİ ADIM — anonim kategori duyurusu otomatik daveti BEKLER (2026-10-09, AI-4;
+    sahip: davet edilen üyenin e-postası HANGİ firmanın davet ettiğini söylesin, bir talep aynı üyeye iki
+    e-posta üretmesin).** Kapsam: PUBLIC ∧ `aiDiscovery` ∧ kategorili ∧ açılış tarihsiz ∧ ilk tur
+    (`holdForDiscovery`). (1) İLK çağrı = yayın turu satırını yazan çağrı (talep satırı `FOR UPDATE`
+    kilidinde tek): bağlantılar otomatik davetli olur, davetliler bildirilir, tur kuyruğa girer; kategori
+    duyurusu GİTMEZ ve `openNotifiedAt` DAMGALANMAZ, dönüş `held`. (2) SALIVERME: tur DONE / FAILED, tur
+    satırı `DISCOVERY_HOLD_MS` (10 dk) eskidi, ya da kutu kapandı / talep artık herkese açık değil →
+    her zamanki `openNotifiedAt` koşullu claim'i alınır, duyuru TAM BİR KEZ gider. Turun davet ettiği üye o
+    an davetlidir: duyuruya girmez, firma adlı daveti (`listing_invitation_ai`) alır. **Bekleme sırasında
+    `openNotifiedAt = null` ∧ OPEN ∧ yayın turu satırı var = "duyuru tamamlanmadı"** demektir (yeni kolon
+    yok; bellekte durum yok): tur biterken `closingNotices` → `releaseHeldAnnouncement` ve her dakika
+    `listing.announceOpened` (ikinci sorgu dalı) aynı durumu yeniden okur. Damgayı "talep duyuruldu" diye
+    okuyan yeni kod bu ≤10 dakikayı hesaba katar (bugünkü okuyucular: `updateListing` → `announceListingOpen`
+    beklerken eklenen davetliyi bildirir; `catchUpPublishRuns` damga ister, tur zaten var). Bağlantıların
+    otomatik daveti yalnız ilk adımda: beklerken çıkarılan bağlantı salıvermede geri eklenmez.
+    `announceListingOpen` `{ status: announced | held | skipped, categoryCompanyIds }` döner. ESKİSİ GİBİ
+    (tek adım): kutusu kapalı, CONNECTIONS / PRIVATE, kategorisiz, yeni tur ve EMBARGOLU talep (açılışta
+    duyuru hemen, tur bir dakika sonra — orada üye yalnız anonim e-postayı alabilir). Sınırlar: claim sonra
+    gönderim en fazla bir kez; tam 10. dakikada salıverme ile aynı anda davet eden tur iki e-posta üretebilir.
+    **AI davet e-postasını KAPATMIŞ üye (A-2):** kategori duyurusu AI davetlisini (`origin: "AI"`) aday
+    kümesinde tutar; `listing_invitation_ai` KAPALIYSA (AI davet ya da bütün davet e-postaları — kullanıcının
+    tercihi YA DA adresin çıkış kaydı `email_opt_outs`; fatura adresi alıcısında tercih yoktur, yalnız çıkış
+    kaydı vardır, ikisi de okunur) duyuruyu AÇIK metinle alır, açıksa almaz (tek talep, tek e-posta); zili
+    davet bildirimidir, `onTargets`
+    ve dönüş değeri AI davetlisini içermez (SAHİP KARARI BEKLİYOR: duyuru beklemeden giderkenki davranış
+    geri getirildi).
+  - **KAPAT-AÇ GERİ ALINABİLİR (2026-10-09, A-3).** "Talebin otomatik turu var" tek tanım
+    `common/company/ai-suggestions.ts` `COUNTED_AUTO_RUN_WHERE` / `isCountedAutoRun`: PUBLISH /
+    SECOND_ROUND satırı; alıcının ayarı yüzünden ARAMADAN düşen tur (FAILED ∧ `error` ∈
+    `SWITCHED_OFF_RUN_ERRORS` = `discovery_off`, `private_listing`) SAYILMAZ. Dört okuyucu:
+    `enqueueDiscoveryRun` (dönüş `created` · `requeued` · `exists` · `off`), `holdForDiscovery`in beklediği
+    tur, `catchUpPublishRuns`, `scheduleSecondRounds` (iki turluk hak). Alıcı kutuyu yeniden açınca (ya da
+    talebi özelden geri alınca) düzenleme kaydı — yazamadıysa dakikalık telafi — yeni yayın turu yazar;
+    koşmuş tur (DONE, başka nedenle FAILED) sayılır, ikinci arama açılmaz. `requeued`de bağlantılar yeniden
+    otomatik davet EDİLMEZ. `DiscoveryRunsService.enqueue` de aynı talep satırı kilidini alır (telafi ile
+    düzenleme iki tur yazamaz). `error` nullable → tanım NOT ile değil açık OR ile.
+  - **SÜRDÜRÜLEN TUR YALNIZ KENDİ DAVETİNİ SAYAR (2026-10-09, AI-5 / A-4).** Davet edilip durumu yazılamadan
+    süreç ölen aday yeniden denemede `ALREADY_INVITED` döner; tur onu INVITED sayar ancak satır TURUN
+    izini taşıyorsa ve tur satırından sonra yazıldıysa: adreste kaynak `AI_AUTO` (pencere `AI_FORM` yazar),
+    üyede `aiReason.auto = true` (pencere daveti de `origin: "AI"`dir — yalnız kaynağa bakılmaz). Tur
+    başlamadan önce davetli olan ve alıcının tur takılıyken pencereden davet ettiği aday `ALREADY_INVITED`
+    kalır, sonuç mesajına sayılmaz.
+  - **DÜZENLEME FORMU BİLEMEYECEĞİ AI DAVETİNİ SİLMEZ — `invitationsAsOf` (2026-10-09, AI-3).** Sahip
+    detayı (`getOne`) davetli listesini okumadan hemen önceki SUNUCU saatini `invitationsAsOf` olarak
+    verir (tarayıcı saati değil); düzenleme sayfası forma geçirir, form TOHUMLANDIĞI detayın değerini tutar
+    (sonraki refetch değiştirmez) ve iki PATCH yolunda da (kaydet, taslak kaydet) geri yollar
+    (`CreateListingDto.invitationsAsOf`, isteğe bağlı ISO; create'te yok sayılır). `updateListing` gövdede
+    olmayan daveti siler, ama `origin: "AI"` ∧ `createdAt > invitationsAsOf` satır KALIR (form açıkken
+    turun davet ettiği üye); formun gösterdiği AI davetlisini çıkarmak yine siler (MU-20), elle davet
+    kuraldan yararlanmaz. Alan gelmezse eski davranış (eski istemci); web alanı yalnız API verdiyse yollar →
+    dağıtım sırası fark etmez. `origin` nullable → koşul açık OR ile.
+  - **Elle yol** ("AI ile tedarikçi bul", `SupplierDiscoveryModal`) aynen durur:
+    alıcının seçip davet ettiği tek yer. 2026-10-08 gözden geçirmesi: talep
+    bağlamı yüklenirken yanlış "önce kategori seçin" yok; web aramasının
+    bulduğu Rothern üyesi düşmez ("Rothern'de kayıtlı" grubu, doğrudan talebe
+    davet); gönderimden sonra seçim yalnız davet edilenden ve sonucu kesinleşen
+    satırdan (zaten davetli, kayıtlı, çıkmış, izinsiz/kapalı ülke — kilitlenir)
+    temizlenir, adresi geçersiz/günlük sınıra takılan seçili kalır; NOT_ELIGIBLE
+    üyede düğme yerine neden.
+  - **Davet içeriği:** kayıtsız firmaya `tender_external_invite` (beyaz liste,
+    bkz. "DIŞ DAVET E-POSTASI"); üyeye `listing_invitation_ai` — konu firma
+    adıyla, gövdede "Davet eden firma" satırı (`aiInvitation.inviterRow`; ad
+    gizliyse satır ve `{inviter}` parametresi YOK) + kalem önizlemesi.
   - Uçlar: `POST company/ai/supplier-discovery` (+`/external`; DTO kategori
     isteğe bağlı, `itemNames`/`listingId`/`targetCountries`), `GET/POST company/
-    ai/supplier-discovery/listings/:id{,/invite,/invite-members,/dismiss}` (GOLD +
-    buy:listing:manage).
+    ai/supplier-discovery/listings/:id{,/invite-members,/dismiss}` (GOLD +
+    buy:listing:manage; aday onaylayan `POST …/invite` 2026-10-08'de KALDIRILDI).
   - Migration `20260927230000_supplier_discovery_runs` (eklemeli). Sözleşmeler:
     `supplier-discovery-external.spec`, `supplier-discovery.spec`, `discovery-
-    runs.spec`, web `quick-request.test` "KALEMLER PANELİ", `listing-suggestions.test`.
+    runs.spec`, `ai-auto-invite.spec` (kendiliğinden davet + tüm frenler + çökme),
+    `discovery-candidate-invite.spec`, web `quick-request.test` "AI KUTUSU",
+    `listing-suggestions.test`, `supplier-discovery-modal.test` "elle yol".
+    `ai-auto-invite.spec` blokları gözden geçirme kimlikleriyle: "AI-1"…"AI-6"
+    (2026-10-09 ilk gözden geçirme), "A-2"…"A-5" (ikinci); A-1 `referral-signup.spec`te.
 - **GÜNLÜK E-POSTA PROGRAMI (Faz 2, 2026-09-27; kullanıcı: "haftada 1 az, her
   gün gönderelim; kategorisi uyuşan kayıtlıya sık").** Kurallar tek kaynak
   `common/email/email-program-policy.ts`, uygulama `modules/email-programs/`
@@ -2465,7 +2655,8 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     sahiplenir (tek ifade `UPDATE … WHERE id = ANY($ids) AND state='QUEUED' AND sendAfter<=now
     RETURNING id` + 10 dk kira; adres grubu yalnız dönen satırlardan — LU-33); hatırlatma yalnız
     `referralInvite.status=PENDING`; kayıtta iptal edilmiş referral ve REFERRAL_CANCELLED/
-    INVITER_DOWNGRADED satırı bağlanmaz (MU-16).
+    INVITER_DOWNGRADED/AUTO_INVITE_OFF satırı bağlanmaz (MU-16), e-postası hiç gitmemiş geçersiz
+    otomatik davet de (bkz. DAVET KUYRUĞU › OTOMATİK DAVETİN GEÇERLİLİĞİ).
   - Migration `20260927235000_email_digest_items` (eklemeli). Sözleşmeler:
     `email-program-policy.spec`, `email-programs.spec`, `category-match.spec`
     "GÜNDE 3 ANINDA".
@@ -2491,7 +2682,13 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   nedenleri, kaynak/ülke/dil, soğuk davet sağlığı (bugünkü tavan + fren, 7 gün
   şikâyet/geri dönme oranı — `ExternalInviteDispatcher.capStatus`), AI keşif
   turları + platform maliyeti, günlük program e-postaları, abonelikten çıkanlar.
-  Yalnız sayılar (kişisel veri yok). Sözleşme `admin-growth.spec`.
+  Yalnız sayılar (kişisel veri yok). Sözleşme `admin-growth.spec`. İptal nedeni
+  (`external_listing_invites.cancelReason`, serbest metin kolon) etiketleri tek
+  kaynak admin `lib/invite-cancel-labels.ts`; API'nin yazabildiği nedenler:
+  OPTED_OUT · REGISTERED · LISTING_CLOSED · PAUSED · FREQUENCY · SUPPRESSED ·
+  ALLOWLIST · COUNTRY_BLOCKED (dağıtıcı) · AUTO_INVITE_OFF (dağıtıcı, sabit) ·
+  REFERRAL_CANCELLED (bağlantı iptali) · INVITER_DOWNGRADED (yetki düşüşü). Yeni
+  neden = o dosyaya etiket (`invite-cancel-labels.test` API kaynağını tarar).
 - **GÖNDERİM KISICISI (derin denetim 2026-09-29 Y-08):** her `EmailService.send`
   süreç içi `email-send-throttle.ts`ten geçer — `EMAIL_SEND_CONCURRENCY` (4 hat),
   öncelik high (TRANSACTIONAL + kod/şifre/2FA) > normal > bulk, jeton kovası
@@ -2850,9 +3047,9 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
 - **DAVET SEÇİCİSİ İKİ PANEL + KALEM SIRALAMASI (2026-09-19, kullanıcı
   mockup'ı):** `quick/supplier-picker.tsx` — SOL "Davet edilecek firmalar"
   (arama, Sektör/Şehir süzgeci, Tümünü seç, tablo Firma·Şehir·Sektör·Firma
-  türü, 7'şer "Daha fazla yükle"), SAĞ "Seçilen firmalar N" (kaldır, "N
-  firmayı davet et" → yayın düğmesine kaydırır `#talep-yayinla`, Seçimi
-  temizle). Sıra **uygunluk puanına** göre (`relevance`): talep kategorisiyle
+  türü, 7'şer "Daha fazla yükle"), SAĞ "Seçilen firmalar N" (kaldır, Seçimi
+  temizle; "N firmayı davet et" düğmesi 2026-10-08'de KALDIRILDI — seçim
+  yayında uygulanır, düğme yalnız yayın düğmesine kaydırıyordu). Sıra **uygunluk puanına** göre (`relevance`): talep kategorisiyle
   satış beyanı aynı aile 4 / segment 2 + kalem adı kökleri firmanın
   sektör/ad/faaliyet metninde (≤5); puanlılar "Kalemlere uygun" çipiyle önde.
   Bunun için bağlantı kartı `categoryIds` (satış ana+alt beyanı) taşır
@@ -2881,7 +3078,11 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   kategoriden bağımsız davetli yapar (`invitedById` = talebi açan; engelli/
   askıdaki/pasif ve görünürlük ülkesi DIŞINDAKİ bağlantı hariç — elle davet
   ülkeyi aşar, otomatik davet aşmaz; yalnız PUBLIC + ilk açılış). Kategori
-  duyurusu davetlileri DIŞLAR (tek e-posta). Kategorisi uyan bağlantısız firma:
+  duyurusu davetlileri DIŞLAR (tek e-posta) — AI davetlisi hariç: firma adlı
+  davet e-postasını tercihle kapatmışsa duyuruyu alır (A-2). Otomatik araması
+  açık herkese açık talepte duyuru İKİ ADIMDIR: bağlantıların otomatik daveti
+  ilk adımda, kategori duyurusu keşif turu bitince (bkz. "AI TEDARİKÇİ KEŞFİ" ›
+  AÇILIŞ DUYURUSU İKİ ADIM). Kategorisi uyan bağlantısız firma:
   ücretli → e-posta doğrudan talebe (`/company/ilan/<id>`); ücretsiz → Silver
   teşviki, CTA panelin Paketler sayfası (`/company/premium`), talep bağlantısı
   YOK; kategori uyanlar DAVETLİ YAPILMAZ (ücretsiz firma Silver'sız teklif
@@ -2933,7 +3134,8 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   (görsel URL'i tenant önekini taşır). API'deki `items[].images`/`coverImageUrl`/`deriveCover` ölü yol.
 - **Talep yaşam döngüsü (derin denetim 2026-09-29 MU-20):** `updateListing` davetleri
   FARK olarak uygular — formda kalan satır yeniden yazılmaz (origin/aiReason korunur),
-  formda olmayan (AI dahil) silinir, bağlantı şartı yalnız yeni davetliye; duyurusu
+  formda olmayan (AI dahil) silinir — İSTİSNA: formun listeyi okuduğu andan (`invitationsAsOf`) SONRA
+  yazılmış AI daveti kalır (bkz. "AI TEDARİKÇİ KEŞFİ" › `invitationsAsOf`) —, bağlantı şartı yalnız yeni davetliye; duyurusu
   yapılmış OPEN talepte yenilere `notifyAddedInvitees`. `create(asDraft:false)` de
   `company.listing.published` yazar. Talep yönetimi yalnız açana açık (SAHİP istisnası
   yok; `docs/invariants.md` INV-AZ-1'deki "VEYA user.isOwner" bayat); açan çıkarılınca/
@@ -3161,8 +3363,9 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   `item-import.ts` ve teklif şablonu `bid-import.ts` AYRI özellikler, duruyor.)
 - **⛔ WEB SİTESİNDEN ÜRÜN ÇEKME — bilinçli olarak YAPILMAYACAK** (kullanıcı
   kararı): sahiplik doğrulanamaz (rakip URL'i → biz yayıncı oluruz), uydurulan
-  fiyat/MOQ ticari beyandır, canlı site prompt-injection yüzeyidir. (`common/website-import.ts` bundan
-  ETKİLENMEZ — o, firmanın KENDİ sitesinden profil zenginleştirmesidir.)
+  fiyat/MOQ ticari beyandır, canlı site prompt-injection yüzeyidir. (Firmanın KENDİ sitesinden
+  profil zenginleştirmesi de 2026-10-08'de kapandı; `common/website-import.ts` söküldü —
+  API hiçbir özellikte kullanıcının verdiği siteyi çekmez.)
 
 **Ürün yayın kapısı ve Ürünlerim (arayüz testi 2026-10-01 webC-03/webC-16):** `productPublishBlockerCodes` üç yerde: publish,
 yayındaki ürünün her kaydı (içerik değiştiyse tam kapı, içerik dışı kayıtta yalnız yeni eksik; web `contentKey` ⇔
@@ -3324,7 +3527,7 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 - **Katalog/profil (MU-24):** Kalem Kataloğu arşivle ucu any-of [templates:manage,
   sell:product:manage]; vitrine girmiş ürün (isPublic ∨ reviewStatus≠DRAFT) yalnız
   sell:product:manage ile. Hizmet çipi uzunluğu `COMPANY_SERVICE_MAX_LENGTH` (60) — DTO,
-  `aiDraftServices`, ChipEditor aynı sabit.
+  profil tanıtımı ucunun gövdesi (`ProfileDescriptionDto`), ChipEditor aynı sabit.
 - **Sürekli mounted diyalog (MU-13):** veriye bağlı varsayılan tek seferlik ref ile
   kilitlenmez; `open` + sorgu verisine bağlı efektle, kullanıcı elle düzenlemediyse yeniden
   hesaplanır — ve içerik değişmedikçe state yeniden YAZILMAZ (9aee3158: davet diyaloğu
@@ -3470,10 +3673,10 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **331 suite / 4.642 test** (4.640 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 34 parti) · web
-  **356 / 3.010** · admin **66 / 393** · i18n **13 / 96** (vitest toplamı 3.499) — son kapı YEŞİL
+- API **354 suite / 5.395 test** (5.393 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 36 parti) · web
+  **400 / 3.949** · admin **68 / 410** · i18n **15 / 142** (vitest toplamı 4.501) — son kapı YEŞİL
   (kurulum, typecheck 7/7, lint 3/3, i18n:check, prisma validate, üç build, kategori çakışması 0,
-  `pnpm audit --prod --audit-level high` rc=0), 8.139 test geçti (2 LIVE atlandı), kayıtta telefon kaldırma turu 2026-10-08.
+  `pnpm audit --prod --audit-level high` rc=0), 9.894 test geçti (2 LIVE atlandı), canlı doğrulama turunun kapanış düzeltmeleri 2026-10-10.
   `ayarlar-security.spec` "legacy DÜZ METİN secret" TOTP testi ARA SIRA kırmızı (zaman adımı sınırı) — tek
   başına yeniden koşuda yeşil, gerileme sayılmaz.
   Kapı ajan yerine betikle koşulur: `/home/noah/rothern-qa-2026-10/gate-final.sh` + `gate-apijest/run.sh`.
@@ -3499,8 +3702,11 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
   dalına düşürür, test yanlış dalı sınayıp yine yeşil kalır (derin denetim Y-15).
 - **Yarış testi ayrı istemci ister (derin denetim 2026-09-30 LU-02):** `test-db.ts` istemcisi
   `connection_limit=1` ile transaction'ları zaten seri koşturur → eşzamanlılık testi ayrı, çok
-  bağlantılı bir PrismaClient ve bariyer kullanır (örnek `admin-staff.spec.ts`); kilitsiz
-  sürümde kırmızı olduğu görülür.
+  bağlantılı bir PrismaClient ve bariyer kullanır (örnek `admin-staff.spec.ts`,
+  `ai-auto-invite.spec.ts` `racyClient`; talep servisi rig'i `makeService(istemci)` alır); kilitsiz
+  sürümde kırmızı olduğu görülür. Çok bağlantılı istemci testin sonunda kapatılır (TRUNCATE ile
+  yarışmasın). Saniyenin altında arayla yazılan satırların `createdAt` sırasına güvenilmez (WSL saati
+  geri adım atıyor).
 - **Web ve admin vitest `@rothern/shared`'i dist'ten okur** (API jest src'yi okur): shared
   değişince vitest'ten önce `pnpm --filter @rothern/shared build` (LU-10).
 - **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 87 test
@@ -3845,12 +4051,47 @@ kapanış 2026-10-02/03) `docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın d
   Kritik listeye giden kullanıcı girdisi API sınırlarına kırpılır (süzgeç ayrıştırıcıları,
   `fetchCompanyProducts`), yoksa elle uzatılmış URL hata sayfasına düşer. Yayında önce API, sonra
   web (runbook §15.2 adım 6). İkincil bloklar yedekle kalır.
+  **KISA BEKLE–YENİDEN DENE (2026-10-08, staging kesintisi; tek kaynak `lib/public/upstream-retry.ts`,
+  `fetchPublicJson`a bağlı):** her denemenin zaman aşımı var (eskiden yoktu: asılı API'de sayfa hiç
+  yanıtlamıyordu). ANA veri (`getDetail`, `getJson` critical) ağ hatası / zaman aşımı / 5xx'te yeniden
+  denenir — 0 · 0,4 · 1,6 · 4,0 sn; asılı bağlantıda toplam en çok 8 sn (`CRITICAL_UPSTREAM_POLICY`);
+  429 ve diğer 4xx denenmez. İKİNCİL blok tek deneme, 4 sn (`SECONDARY_UPSTREAM_POLICY`). Ana okuma
+  vazgeçtiyse sonraki ana okumalar SON vazgeçişten 15 sn sonrasına dek tek deneme yapar
+  (`UPSTREAM_COOLDOWN_MS`; başarılı okuma kipi KAPATMAZ — tek ucu arızalı API'de her çizim yine dört
+  istek atardı). Aynı okuma aynı anda iki yerden istenirse (sayfa + `generateMetadata`) tek uçuş
+  paylaşılır, başarısız uçuşun hatası aynı anahtara 1 sn yeniden verilir. Bütçe monoton saatle; `next
+  build`de yeniden deneme yok. Denemeler `unstable_cache` geri çağrısının İÇİNDE: önbellek yalnız son
+  sonucu görür, vazgeçiş yazılmaz, bayat girdi kalır. Web vitest `vitest.setup.ts` beklemeleri ve 1 sn
+  penceresini kapatır; gerçek değerleri `upstream-retry.test` sahte zamanlayıcıyla sınar.
+  **DEKORATİF SAYIM İKİNCİL OKUMADIR (gözden geçirme C2-2):** yalnız sayı isteyen yer (arama sekmesi
+  rozetleri `crossCounts`, boş dizin `noindex` kararı `empty-index-guard` `dizinBos` — `generateMetadata`
+  + sitemap) ana liste çağrısını (`fetchProducts` / `fetchListings` / `fetchPublicDirectory`) KULLANMAZ;
+  `fetchProductCount` / `fetchListingCount` / `fetchPublicDirectoryCount` (`countOf`): tek deneme, tek
+  deneme kipine dokunmaz, kesintide `null` = BİLİNMİYOR — asla 0 (sayılamayan dizin `noindex` almaz,
+  "0" rozeti çizilmez); 404 ve tanımsız API adresi 0 (fail-closed). Adres, dil, süre ve etiketler ana
+  listeyle aynı → aynı önbellek girdisi.
+  **KESİNTİ EKRANI:** `PublicApiUnavailableError` sabit `digest` taşır (`lib/public/unavailable.ts`
+  `PUBLIC_API_UNAVAILABLE_DIGEST`, `isPublicApiUnavailable` — Next üretimde mesajı siler, hazır digest'i
+  korur). `[locale]/error.tsx` kesintide genel "Bir şeyler ters gitti" yerine `components/ui/
+  unavailable-state.tsx` çizer ("Sayfa şu anda yüklenemiyor", `web.shared.unavailable.*`): 5 · 10 · 20 ·
+  40 sn sonra kendiliğinden yeniden dener (`AUTO_RETRY_DELAYS_MS`), sonra durur; otomatik ve elle deneme
+  `startTransition(router.refresh + reset)`; sayaç modül düzeyinde (React her başarısız denemede yedeği
+  yeniden bağlar); gizli sekme yoklamaz; başlığı kendisi koyar, toparlanınca kaldırır; `noindex` kalır;
+  kesinti `/api/client-error`e bildirilmez (sunucu zaten yazdı), diğer hatalar eskisi gibi. Yanıt kodu
+  500 kalır (Next 15.5 sayfa çiziminde 503 / Retry-After veremez), `private, no-cache, no-store`;
+  `loading.tsx` altındaki rota ekranı 200 ile verir. **Panel:** `company-shell/service-notice.tsx`
+  (kabukta, iskeletin / içeriğin üstünde) `/me` ilk kez ağ hatası / 5xx aldığında ya da 6 sn yanıtsız
+  kaldığında "Sunucuya şu anda ulaşılamıyor" + Tekrar dene; `/me`yi 10 · 20 · 40 · 60 sn sonra yeniden
+  sorar, sonra durur; gizli sekmede yoklamaz, 4xx'i yok sayar; başarıya dek yapışkan, API dönünce hatadaki
+  etkin sorguları yeniden çeker. İstemci hata bildirimi (`lib/client-error.ts`) `redirect: "manual"`
+  (Vercel Deployment Protection aynı adrese 307 döndürüp 20 kez yönlendiriyordu).
   Süzgeçte şehir etiketi (`labelFor` ve çip) tek kaynaktan: `use-geo-city-name.ts`
   `useCityFilterLabel` (facet → TR ili → önbellek → API; ham `de-munich` yazılmaz).
   Sunucudan `/public/*` çağıran sayfa düz `fetch` değil `publicHeaders(locale)` kullanır (dil,
   SSR sırrı, ziyaretçi IP'si; dinamik sayfada önce `attributeSsrToVisitor()`); ikincil bloklar
   kritik olmayan yardımcıyla (`fetchSimilarListings`/`fetchRelatedProducts`), `crossCounts`
-  gibi ikincil blok ana fetch'in hatasını kendisi yutar (derin denetim 2026-09-30 LU-23/24).
+  gibi ikincil blok hatayı kendisi yutar ve ana liste çağrısını değil ikincil sayımı kullanır
+  (derin denetim 2026-09-30 LU-23/24; yukarıda DEKORATİF SAYIM).
   Hata sınırları `robots noindex` taşır.
 - **SSR kovaları (derin denetim 2026-09-29 MU-12; eski "muafiyet" KALKTI):** web
   sunucusu `SEO_REVALIDATE_SECRET`i `x-rothern-ssr`de yollar; API yalnız GET ∧
@@ -4224,6 +4465,286 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   `signup-client.test`, `accept-invite-client.test`, `account-info-section.test`, `signup-draft.test`,
   `onboarding-client.test`; i18n `auth-form-copy.test`.
 
+## CANLI DOĞRULAMA TURU + KATEGORİ TUTARLILIĞI 2026-10-09 — kalıcı kurallar
+
+Ayrıntı, ölçümler ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Canlı doğrulama turu (2026-10-09).
+
+**GİZLİ SEGMENT KURALI SAKLANMIŞ KODU DA KAPSAR (kullanıcı: "Çevre Hizmetleri ve Kolluk… kategorilerini
+anasayfadan kaldır; anasayfada olmayan kategoriyi talepte, üründe ya da başka yerde gösterme").**
+- 46 ve 77 gizlendi (31 gizli / 27 görünür). Anasayfa görünür segmentlerin TAMAMINI çizer → "anasayfada olan" =
+  `HIDDEN_SEGMENTS` dışı. 46'nın altında silah / kolluk ailelerinin yanında kişisel koruyucu donanım, yangından
+  korunma ve iş güvenliği aileleri de var; SAHİP KARARI BEKLİYOR (aile düzeyinde geri açma — bugün yalnız segment
+  düzeyinde gizleme var).
+- Kural yalnız kataloğu GEZDİREN yüzeyleri değil, saklanmış bir kodu ada / etikete / kırıntıya / bağlantıya /
+  süzgeç seçeneğine / sayıya / ikon-fotoğrafa çeviren HER okumayı kapsar ve herkes için geçerlidir (ziyaretçi,
+  tarayıcı, üye, kaydın sahibi, e-posta alıcısı, AI istemi). Eski kayıt (ürün, talep, firma beyanı) durur, yalnız
+  gizli kategorisi görünmez. API `visibleCategoryIds` / `visibleCategoryId`; web `lib/visible-categories.ts`
+  (`useCategoriesByIds` gizli kodu ne ister ne döndürür; dönmeyen id için hiçbir şey çizilmez — ham kod, "…"
+  çipi, boş "Kategori" satırı, 404'e giden bağlantı yok). Top-N sayımında gizli kod saymadan / kesmeden ÖNCE düşer.
+- **Eşleştirme ve bildirim saklanan kodların TAMAMINI kullanır.** Kayıtlı talep adına eşleştiren sunucu yolu
+  kodları veritabanından okur (`savedRequestCategoryIds`), okuma ucunun döndürdüğü listeden değil (okumalar yalnız
+  görünür kodu döner).
+- **Kapılar:** yeni ya da DEĞİŞEN değer katalogda ve görünür olmalı; değişmeyen eski değer ilgisiz kaydı
+  engellemez. Ürün `assertCategoryAllowed` (yalnız değer değişince; create'te kayıt açılmadan önce). Talep
+  `validateListingBusinessRules` yalnız kaydın EKLEDİĞİ kodu denetler; yazılan liste `categoryIdsAfterEdit`
+  (OPEN: saklanan gizli kod taşınır, görünür kısım değişmediyse liste aynen; DRAFT: gönderilen liste yazılır →
+  gizli kod düşer) — update yolunda `dto.categoryIds` doğrudan YAZILMAZ. `publishListing` en az bir görünür
+  kategori kalıyorsa gizli kodları düşürüp yayınlar; görünür kategori kalmıyorsa reddeder
+  (`LISTING_CATEGORY_NOT_CURRENT`, `api.companyListings.taslakKategorisiGuncelDegil`). İstek şablonu yükü
+  kayıtta ve okumada gizli koddan arındırılır (`templatePayloadWithoutHiddenCategories`). Nitelik FORMU
+  (`CompanyItemsService.resolveAttributes`) gizli kategoride boş döner; saklanan nitelik değerleri silinmez. Henüz yayında
+  olmayan gizli kategorili ürün yayın kapısında ve admin onayında kategorisiz sayılır; yayındaki eski ürün
+  etkilenmez. Firma beyanı: kategori alanına dokunan kayıt dört diziden gizli kodları düşürür.
+- Sahip talep detayı görünür kodları + `hasRetiredCategory` döner (kod / ad yok) → düzenleme formu "önceki
+  kategori artık kullanılmıyor" der. CANLI talebin düzenlemesi görünür kategorisiz açıldıysa kategori isteğe
+  bağlıdır (`categoryOptional`); görünür kategoriyle açılan talepten hepsini kaldırmak yine engelli.
+- Sorguda gizli kod (`?category=` / `?kategori=`) = süzgeç YOK: API `productIndexWhere`, `subCategoryCounts`,
+  talep listesi / facet, dizinler (eski `GET company/directory` kopyası dahil); web `filter-param-utils.ts`
+  `categoryParam`. `productCategoryWhere` bilinçli HAM kalır (ilişkili ürün blokları eski ürünün kendi kodundan
+  yukarı çıkar).
+- E-posta ve AI: davet içeriği / önizleme, keşif istemi, asistan araç sonuçları (`redactHiddenCategories` —
+  yalnız `categor|segment` anahtarlarına bakar), `sanitizeAiDraft`, seo-enrich (istemcinin gönderdiği ad yalnız
+  görünür bir kategorinin adıysa isteme girer). Ad DONDURAN kolon okuma anında beyaz listeden geçer
+  (`supplier_discovery_candidates.matchedCategories` → `visibleBadgeNames`).
+- Pano kırılımları `breakdownSegmentOf` (ilk GÖRÜNÜR kategorinin segmenti): tasarruf sekmesinde hepsi gizli olan
+  "Kategorisiz"e, top-6 grafiklerde dışarıda. Segment görsel tabloları 58 satır kalır; `categoryVisual`,
+  `categoryPhotoSrc`, `segmentTaglineKey` gizli kodda nötr yedeği döner. Admin `@rothern/shared`e bağlı değildir:
+  `apps/admin/src/lib/category-label.ts` listeyi aynalar (drift testi paylaşılan kaynağı okur), ekranda "— (gizli
+  segment)".
+- Seed / demo betikleri Prisma ile yazar, doğrulama kapılarından geçmez → kategori yazan her betik
+  `lib/seed-category-guard.ts` `assertVisibleSeedCategories`'i ilk yazmadan önce çağırır (`/categories/<segment>.webp`
+  görsel yolları dahil). `cleanup-categories` tarihseldir, salt okunur. `apply-category-keywords` `-- --dry` tanır.
+- Kullanıcı metninde katalog büyüklüğü ("58 üst kategori", "158 bin kod") YAZILMAZ; kod yorumlarına da segment
+  sayısı yazılmaz (sayı `hidden-segments.spec`te kilitli).
+- Test fikstürü: sıradan kategori olarak gizli segment kodu (10, 42–46, 48–57, 60, 64, 70, 77, 80, 82–86, 90–94)
+  KULLANILMAZ — artık "süzgeç yok" gibi davranır. Görünür örnek `31161500`; eski kayıt fikstürü `46xxxxxx` /
+  `10xxxxxx`; "bilinmeyen kod" `99990000`.
+- **78 segmentinin adı "Lojistik"** (EN Logistics · RU Логистика; Ariba adı "Taşıma, Depolama ve Posta
+  Hizmetleri" aramada kalır); aynı adı taşıyan yaprak 81141601 "Lojistik yönetimi". Adres
+  `/urunler/kategori/78000000-lojistik`, eskisi 308. Veritabanına O-74 adımıyla yansır.
+- Sözleşmeler: `hidden-segments.spec`, `hidden-category-public-surfaces.spec`, `hidden-category-panel.spec`,
+  `hidden-category-email-ai.spec`, `hidden-category-projections.spec`, `seed-category-guard.spec`,
+  `seed-scripts-hidden-category.spec`; web `visible-categories` testleri, admin `category-label.test`.
+
+**AI TEDARİKÇİ ARAMASI — süre, kısmi sonuç, eşleşme (kullanıcı: "emin ol düzgün ve efektif çalıştığından").**
+- Arama geçişleri bağımsızdır (`Promise.allSettled`): bir geçiş düşerse öteki geçişin adayları döner; 5xx yalnız
+  bütün geçişler düşünce. `POST company/ai/supplier-discovery/external` yanıtı `incompleteScopes` +
+  `incompleteReasons` (TIMEOUT · PROVIDER · BUDGET) + `incompleteMessages` (bütçe reddi metni) taşır; istek
+  `scopes` ile yalnız eksik geçişi arar (API web'den ÖNCE). **PENCERE ARAMASI ZAMAN UYUMSUZDUR
+  (2026-10-09, N1):** gündüz araştırma 70–80 sn, dönüştürme 15–18 sn sürüyor ve tek istek vekil sunucunun 100 sn
+  sınırını aşamıyor (tek geçişli talepte arama iki kez tümüyle düştü). `POST …/external/start` → 201
+  `{ searchId }`, `GET …/external/searches/:id` → `{ status: RUNNING | DONE | FAILED, startedAt, elapsedMs, result?, error? }`
+  (`result` eş zamanlı ucun gövdesi; başkasının / süresi dolmuş arama 404). Web 3 sn'de bir yoklar
+  (`searchExternalSuppliers`, 8 dk'da durur), `searchId` oturumda ve sessionStorage'da tutulur (pencere
+  kapanınca ve sayfa yenilenince arama sürer). Kayıt BELLEKTE ve TEK süreçtedir
+  (`external-search-registry.ts`: kullanıcı başına 3 süren arama, toplam 200, sonuç 15 dk; yeniden başlatma
+  süren aramayı kaybettirir → 404 "arama yarıda kesildi") — **ikinci API örneği açılmadan önce paylaşılan depo
+  gerekir.** Geçiş içinde araştırması yanıt vermiş aramanın yalnız DÖNÜŞTÜRMESİ yeniden denenir (ödenmiş
+  araştırma ikinci kez ödenmez). Başlatma arama sürerken idempotenttir (aynı kullanıcı + aynı gövde aynı
+  kimliği alır). İstekten uzun yaşayan iş firma bağlamını ve dili AÇIKÇA taşır (`runWithTenantContext` +
+  `runWithLocale`); yoklamayla okunan hata `ServerErrorSentryFilter`a hiç ulaşmaz → `reportAsyncSearchFailure`.
+  Eş zamanlı `POST …/external` eski istemciler için durur. Süreler tek kaynak `DiscoverySearchTiming`:
+  eş zamanlı araştırma 82 sn / geçiş 91 sn, zaman uyumsuz 120 / 170 sn (`ASYNC_SEARCH_TIMING`), arka plan
+  tur 120 / 150 sn + bir yeniden deneme; `TICK_SEARCH_BUDGET_MS` ve `STUCK_AFTER_MS` aynı kümenin parçası, biri
+  tek başına değişmez. Çağrı başına süre `AiCallOptions.timeoutMs` + `deadlineAt` ile verilir, `AI_TIMEOUT_MS`
+  yükseltilmez. Geçişi düşen tur aday varsa DONE + `web_pass_failed <SCOPE>` notu.
+- Kalem ↔ vitrin ürünü tek kaynak `common/company/item-product-match.ts`: önce tam ad (`productSearchClauses`,
+  GEVŞETİLMEZ); bulamazsa anlamlı sözcüklerle gevşek eşleşme — `weak` (herhangi iki sözcük) yalnız talebin
+  kategorisini beyan eden firmada, `strict` (2–3 sözcükte hepsi, 4+'da yarıdan fazlası) herkes için; gevşek
+  eşleşme yalnız kategori eşleşmesiyle birlikte `strongMatch` — kategori doğrulaması firmanın beyanı YA DA
+  eşleşen ürünün kendi `categoryId`sinin talebin kategorisiyle aynı ailede olmasıdır
+  (`productInRequestCategoryWhere`). Sıra: tam ad > alt kategori > gevşek > yalnız segment. Davet gerekçesi
+  (`inviteDiscoveredMembers` `aiReason`) aynı dosyayı kullanır. **Otomatik tur yalnız `strongMatch` üyeyi davet
+  eder (SAHİP KARARI BEKLİYOR: varsayılan olarak uygulandı):** yalnız genel sektörü tutan üye aday satırına
+  `WEAK_MATCH` yazılır (aday YAZILIRKEN; `strongMatch` saklanmaz), ekranda nötr tonda "Davet edilmedi" + nedeni,
+  "gönderilmedi" sayısına girmez; kategori duyurusunu yine alır, pencereden elle davet edilebilir. Pencerenin
+  "Platformda" sekmesinde toplu davet yalnız güçlü eşleşenler içindir; "Aynı sektörde" grubu tek tek.
+- "Zaten davetli" FİRMA düzeyindedir: aynı adres ya da adayın firma anahtarı (`candidateCompanyKeys`: site alan
+  adı + firmanın sahip olduğu e-posta alan adı) bu talebe GİTMİŞ ya da SIRADAKİ bir davetin alan adına eşitse
+  (`inviteReachesAddress`; düşmüş davet yalnız kendi adresini kilitler). Ücretsiz sağlayıcılar tek liste
+  `common/net/free-mail-domains.ts`. Aynı yanıtta aynı firma anahtarı tek adaydır. Gerekçe metni `clipReason`.
+- Prisma `findMany` + `distinct` + `take` ikisini de bellekte uygular → "en çok N ayrı üst kayıt" için `groupBy`.
+- **Pencere** (`SupplierDiscoveryModal`): durum React Query önbelleğinde bağlam başına oturumdur
+  (`["supplier-discovery-session", bağlam]`; sayfadaki iki örnek aynı ücretli sonucu görür, pencere kapanınca
+  sonuç kaybolmaz). Canlı form durumu `useQuery` gözlemcisiyle okunmaz (`useSyncExternalStore`). Sıradaki davet
+  "Sıraya alındı" + planlanan saat; "Gönderildi" yalnız gerçekten gidince. Sonuç pencere gövdesinde kalır (boş /
+  davet edilemeyenler nedenleriyle / hata + "Yeniden ara"); toast yalnız sonuç görülmüyorsa. Kısmi sonuçta
+  "Yeniden ara" yalnız eksik geçişi arar ve listeye EKLER; BUDGET'ta yeniden arama sunulmaz.
+- **Talep sayfasında kalıcı "E-postayla davet edilenler"**: `GET company/connections/external-tender-invites?listingId=`
+  (buy:view, kademesiz; başka firmanın talebi 404; sonuç `candidateInvite()` — ikinci eşleme yazılmaz), web
+  `listing-email-invites.tsx`, sorgu anahtarı `["company","listing-email-invites",id]` — e-posta daveti gönderen /
+  değiştiren her web yolu bu öneki tazeler. `listing-email-invites.service` `discovery-runs.service`i içe aktarır;
+  onun içe aktarma kapanışındaki hiçbir dosya geri içe aktaramaz (döngü Nest'i açılışta düşürür). Durum / neden
+  etiketleri tek kaynak `ai-suppliers/invite-outcome.tsx`. Durum bandı sayıları `inviteCounts()` (davet edildi =
+  INVITED; sıradaki ayrı); `?ai-davet=1` gizlenmiş bandı geri getirir, "Gizle" parametreyi adresten siler. Yayın
+  panelinde elle "tedarikçi öner" düğmesi yalnız otomatik arama KAPALIYKEN çizilir.
+- AI üye davetinin uygulama içi metni davet eden firmayı söyler (`aiInvitation.inAppBodyInviter`; ad gizliyken
+  parametreye de yazılmaz).
+
+**DAVET SAATİ GÖNDERİM ANINDA DA DENETLENİR (AUTO-HOURS-1).** Tek tanım `external-invite-policy.ts`
+`coldInviteSendAt`: satırın ülkesinde (yoksa İstanbul) hafta içi 09:00–16:00; elle yazılan (`MANUAL`) ve davet
+bağlantısını açmış adres muaf. Dağıtıcı (1) göndermeden önce, (2) bekleyen satıra yazdığı her `sendAfter` için
+(çeviri beklemesi, yeniden deneme), (3) günlük tavana takılan satırlar için (`replanOutsideWindow`), (4)
+hatırlatmada sorar; pencere dışındaki satır gönderilmez, `sendAfter` bir sonraki pencere başına taşınır (ekrandaki
+planlanan saat doğru kalır). Eskiden pencere yalnız kuyruğa alınırken uygulanıyordu: çeviri bekleyen ya da yığın
+kapalıyken sırası geçen davetler 16:07 / 16:44'te, tavan sıfırlanınca 03:00'te çıkabiliyordu. Hatırlatma tek
+kural `reminderLeavesNow` (6–48 saatlik dönem içinde pencere dakikası; dönemde pencere yoksa önceki son pencere).
+Gerçek saatle AI kaynaklı satır dağıtan test dosyanın başında `holdInviteSendWindowOpen()` çağırır; pencerenin
+kendisi yalnız sabit saatle sınanır (`invite-send-window.spec`).
+
+**PANEL KESİNTİ NOTU AÇIK OTURUMDA DA ÇIKAR.** Tek kaynak `lib/company-auth/service-health.ts`; `companyApi`
+interceptor'ları besler. İstek yanıtsız biter / 502·503·504 alır / 6 sn yanıtsız kalırsa TEK `/company-auth/me`
+yoklaması atılır (paylaşılır, 4 sn); o da düşerse not çıkar. API'den gelen her yanıt (2xx, 4xx, 500) durumu
+temizler ve hatadaki etkin sorgular yeniden çekilir. 4xx şüphe doğurmaz; not bağlı değilken ve gizli sekmede
+yoklama yok. Okuma (GET) hatasının toast'ı yoklama sonucunu bekler ve not çıkıyorsa basılmaz
+(`toastUnlessOutage`); mutasyon toast'ı hemen basılır. Panel verisini `companyApi` dışında çeken kod sinyali
+beslemez (`lib/api.ts` yalnız toast'ı bastırır). Metin nötr: "Sunucuya ulaşılamadı" (kullanıcının internetini
+suçlamaz; admin dahil). Herkese açık kesinti ekranı anasayfa bağlantısı taşır.
+
+**LİSTE DURUMLARI EKİ.** Üç durum VERİDEN okunur: `data === undefined && !isError` = bekleme (`isPending`;
+çevrimdışı duraklama dahil — `isLoading` görüntü dalında kullanılmaz), `data === undefined && isError` =
+okunamadı (`ErrorState` + yeniden dene; dar yerde `compact`), `data !== undefined` = okundu (boş durum, sayı ve
+satırlar yalnız buradan; arka plan yenilemesi düşse de satırlar kalır). Okunamayan sayı ÇİZİLMEZ (`?? 0`,
+`data?.length ?? 0` yasak); sayaç taşıyan etiketin sayısız eşi katalogda ayrı anahtardır (`tumDurumlar` /
+`tumDurumlarSayisiz`); `FilterShell` `total: null` = okunamadı. Detay sayfasında "bulunamadı" yalnız 4xx'te;
+yanıt yok / 5xx / 429 = okunamadı. Kesintide mutasyon hatası TEK toast verir (`companyApi` interceptor'ı nedeni
+söyler, aynı görevdeki düz `toast.error` yutulur). Liste durumu gerçek kancayla sınanır (`companyApi.get` sahte,
+`retry: false`; duraklama `onlineManager.setOnline(false)`). 2026-10-09 taramasında 84 panel dosyası bu kurala
+çekildi.
+
+**PROFİL TANITIMI EKİ.** Kaydedilmemiş "Hakkında" taslağı (AI ya da elle) `lib/company/profile-about-draft.ts`
+ile kullanıcıya bağlı sessionStorage'da tutulur (önek `TENANT_SESSION_PREFIXES`te); Profilim açılınca kayıtlı
+metinden farklıysa geri yüklenir, Kaydet / Vazgeç / kayıtlı metne dönüşte silinir — geri tuşu, dil değişimi ve
+bildirim tıklaması deneme hakkını yakmaz. İstem: 1–5 cümle, alt sınır yok, olgu taşımayan cümle yazılmaz; kategori
+adı faaliyet alanıdır, ürün listesi değil. AI sonuç notu yalnız taslak kutudayken durur. Kutu içeriğiyle büyür.
+Admin denetim etiketleri "AI tanıtım önerisi …" (eylem anahtarları DEĞİŞMEZ — sayaçlar eski satırları sayar).
+
+**İKİ YÜZLÜ ANASAYFA HERO'SU.** `PanelHeroSearch` `titleSizer` / `leadSizer` / `ctaNoteSizer`: öteki yüzün
+metni görünmez ölçü olarak aynı ızgara hücresinde (`SizedSlot`, `<h1>`in DIŞINDA) → Tedarikçiyim / Alıcıyım
+geçişinde arama kutusu yerinden oynamaz; kabuk (`HeroShell`) aynı yuvayı kullanır.
+
+**ANASAYFA KATEGORİ VİTRİNİ DENGELİ BÖLÜNÜR.** `toShowcaseRows` blokları dengeler (en az blok, boyutlar en çok
+bir kutu farklı; 27 sektör = 3 × (1 tanıtım + 8 kutu)), sütun sayısı bloktaki kutu sayısından
+(`showcaseGridShape`; çok satırlı blokta en çok bir boş yer); sabit `lg:grid-cols-5` geri gelmez. Görünür her
+sektör çizilir. Gizli segmentlerin slogan metinleri istemciye gönderilmez (`clientMessages`
+`HIDDEN_TAGLINE_PATHS`; kataloglar 58 satır kalır).
+
+**SON DÜZELTME TURU 2026-10-10 — ekler.**
+- **Sıradaki davet tek kuraldan okunur.** "Bu mektup talep kapanmadan gidecek mi, ne zaman" sorusunun tek yanıtı
+  `queuedInviteForecasts` (dağıtıcı dosyası; saf kural `queuedInviteForecast`): talebi açana giden mesajın sayısı
+  (`invitedCounts`), durum bandı ve "E-postayla davet edilenler" bölümü (`withQueueForecast` — adres geçmişi tüm satırlar
+  için bir kez, bypass istemcisiyle) ve `POST company/connections/external-tender-invite` yanıtı. Hiçbir yüzey "sırada"yı
+  kuyruk satırından tek başına söylemez; `candidateInvite`'in `queue.forecast` alanı ZORUNLU. Gidemeyecek satır ekranda
+  NOT_SENT + neden (`FREQUENCY` 7 gün freni · `PAUSED` yanıtsız üç mektup · `CLOSES_FIRST` talep ilk mesai saatinden önce
+  kapanıyor), `sendAfter` yok; frenden sonra gidebilecek satır GERÇEK çıkış saatini taşır. Davet yanıtında `status` QUEUED
+  kalır (satır kuyrukta), `notSentReason` eklenir → web "sıraya alındı" sayısını `inviteWillLeave` ile sayar, satır kilidi
+  `isInviteAccepted`. Fren satırın sırası geldiği anda ölçülür; aynı adrese başka talepten ÖNCE çıkacak sıradaki mektup da
+  freni başlatır (yalnız ilk mektup izlenir; aynı ana planlananlar tek e-postadır). "Dağıtıcının okuduğu kuyruk satırı"
+  tek tanım `readableQueueWhere`. API'nin döndürebildiği yeni neden kodu = `INVITE_REASON_KEYS` satırı + üç dilde metin;
+  kendi satır düzeni olan yüzey etiketi `useInviteReasonLabel`'dan alır.
+- **Aynı adrese bekleyen mektuplar BİRLİKTE çıkar — sıraya girerken hizalanır (kapanış turu DISC-N1).** Dağıtıcı bir
+  adresin AYNI turda sırası gelen satırlarını tek e-postada (özet, en çok `INVITE_DIGEST_MAX` = 5 talep) gönderir; her AI
+  satırı kendi rastgele dakikasını (0–45 dk) alırken iki talebin aynı adrese 09:32 / 09:33 planlanan mektupları iki tur
+  oluyor, ikincisi 7 gün freniyle düşüyordu (test verisinde 14 mektubun 3'ü). Yeni AI satırının planlanan anı tek tanım
+  `external-invite-policy.ts` `inviteQueueSendAt`: adresin o gönderim penceresinde bekleyen mektubu varsa
+  (`waitingLetterTimes` — dağıtıcının okuyacağı ve talebi kapanmadan çıkabilecek satırlar, her alıcı, çağrı başına tek
+  okuma, bypass) TAM o anı alır; katıldığı an satırın kendi penceresinin bir dakikası olmalıdır (aralık 16:00'dan sonraya
+  taşabilir); yoksa eskisi gibi dağıtılır; `MANUAL` hiçbir şeye katılmaz. Okuyanlar: `inviteExternalForListing` (canlandırma
+  dalı dahil) ve `resumeAutoInvites`; hiçbir çağrı yeri kuyruk satırına `nextBusinessWindow(now, tz, rastgele)` YAZMAZ.
+  Mektuplar gönderim yolunda birleştirilmez: yalnız `sendAfter`i eşit satırlar birlikte çıkar; birden çok satırın
+  `sendAfter`ini yazan yeni yol bir adrese TEK an yazar. Dağıtıcının sırası tam (`dueInvites`: sendAfter, createdAt, id);
+  aynı ana altıncı ve sonraki satır o turdan frenlenir ve tahmin bunu aynı sırayla sayar (`QueuePlace` / `readBefore` —
+  `orderBy` değişirse o da değişir). Açık kalanlar: aynı anda iki sıraya alma çağrısı, pencere kapanışı ile dağıtıcının
+  yeniden planlaması arasındaki < 60 sn, satır başına çeviri beklemesi; kural yalnız BUNDAN SONRA sıraya giren satırları
+  etkiler.
+- **Arama yanıtları:** `POST …/external/start` → `{ searchId, elapsedMs }` (yeni arama 0, katılınan aramanın yaşı);
+  `GET …/external/searches/:id` `SupplierDiscoveryService.externalSearchAnswer`'dan geçer: kayıtlı talebin DONE sonucu her
+  okumada talebin GÜNCEL davetleriyle yeniden işaretlenir (pencereden az önce davet edilen aday `ALREADY_INVITED` döner;
+  saklanan sonuç değişmez, aday düşmez). "Zaten davetli" arama anı ve yeniden okuma için tek tanım: `invitedByEmail` +
+  `invitedMembers`. Sonuç ↔ talep bağı süreç belleğinde (WeakMap) — paylaşılan depoya geçilirse talep kimliği açıkça taşınır.
+- **Durum bandı cümlesi sayılardan:** `statusLeadInvited` · `statusLeadPartlyInvited` · `statusLeadNoneSent` ·
+  `statusLeadSeeRows` (üçü de sıfır); mesai saati cümlesi (`statusLeadQueuedMail`) yalnız sırada davet varken.
+- **Asistan araçları numarayı da kabul eder** (`assistant/record-ref.ts`: ROT-000834, #834, rot000834; sipariş numarası
+  dahil). Numara yalnız kimliğe çevrilir; erişim `getOne` / firma kapsamlı sorgudan, bekleyen eylem her zaman iç kimliği
+  saklar. Detay araçlarında 403 ve 404 `not_found`, kesinti / izinsiz araç `unavailable` (sistem istemi kural 7). Asistan
+  dosyalarına modelin okuduğu yeni metin İngilizce yazılır (cırcır tabanı yükseltilmez).
+- **Okuma yolunda türetilmiş kolon** (`company_items.completionScore`): koşulu ifadenin içinde olan ham SQL
+  (`… AND "completionScore" <> $yeni`) — değer aynıysa satır yazılmaz, `@updatedAt` ilerlemez. Ham `$executeRaw` /
+  `$queryRaw` RLS eklentisinden geçmez: istek bağlamında bypass istemcisi (sahibin kapsamında zaten okunmuş satır) ya da
+  `runTenantTx`.
+- **Yoklanan liste (`refetchInterval`) hata kartını `useReadFailed` ile okur.** TanStack verisi OLMAYAN sorguyu her
+  yeniden çekişte `pending`e döndürür ve hatayı siler → kart her yoklamada iskeletle yer değiştirir. Dal sırası `failed`
+  → `isPending` → veri; düğme `retry` (kullanıcının kendi denemesi iskelet gösterir). Yer tutucu veri
+  (`keepPreviousData`, `isPlaceholderData`) "okundu" sayılmaz; `failed` iken yer tutucudan türeyen sayaç / satır
+  çizilmez. Bağlı: Açık Talepler, Taleplerim, Tekliflerim, Mesajlar, Siparişlerim.
+- **"Boşsa çizme" VERİDEN okunur:** kendini boşken gizleyen bölüm (ürün şeritleri, kategori vitrini, seçici seçenekleri)
+  okuması düştüyse `ErrorState compact` + yeniden dene çizer. Durumunu sorgudan tohumlayan form iskelet dalının yanında
+  hata dalı taşır; başlığını sorgudan alan sayfa yedek başlık. Hata kartı nedeni tahmin etmez ve kullanıcının bağlantısını
+  suçlamaz: "<şey> yüklenemedi. Lütfen tekrar deneyin." (kalan tek benzer metin `common.errors.network` toast'ı).
+- **Ürün formu, kategori değişimi:** nitelik değerleri yalnız yeni kategorinin tanımları OKUNDUKTAN sonra ayıklanır
+  (`useCategoryAttributes().data !== undefined`; `undefined` = kategori yok / bekliyor / okunamadı → hiçbir şey silinmez,
+  "nitelik yok" denmez; `[]` = kategori nitelik tanımlamıyor). Kalan değer YENİ tanıma göre süzülür
+  (`carriedAttributeValue`: tek seçimde seçeneklerden biri, çoklu seçimde kesişim, tür uyuşmazlığında düşer) — aynı anahtar
+  matriste farklı düğümlerde farklı seçenek listesiyle tanımlıdır. Sorgu verisine verilen boş varsayılan (`?? []`) yıkıcı
+  bir efekti BESLEMEZ. API de DEĞERİ doğrular: `company-items.service.ts` `attributeValueForDefinition` web'in
+  `carriedAttributeValue`'sinin aynasıdır (ikisi birlikte değişir); yalnız istek `attributes` gönderdiğinde ya da kategori
+  değiştiğinde çalışır, uymayan değer tanımsız anahtar gibi sessizce düşer (400 değil; geriye dönük temizlik yok).
+  Fikstürde `updateShowcase` / `createProduct`'a verilen nitelik değeri tanımın türüne ve seçeneklerine uymalıdır.
+  **Ürünün kategorisi değiştirilir, kaldırılmaz:** API `categoryId: null`'ı bilinçli olarak "dokunma" sayar (gizli
+  kategorili eski ürün null gönderir ve saklı kodunu korur) → ürün formu `CategorySelectorButton clearable={false}`
+  (çipte × yok, boş onay reddedilir). Sunucunun saklamayacağı sonucu üreten kontrol forma konmaz.
+- **Onay penceresi rengi çağrı yerinden:** `ConfirmProvider` firma kabuğunun (ve `ButtonAccentProvider`ın) DIŞINDA bağlı;
+  `useConfirm` `useButtonAccent()`ı çağıran bileşende okuyup istekle gönderir. `ButtonAccentProvider`ın üstündeki bir
+  sağlayıcıdan çizilen her pencere aynı yolu izler.
+- **Arama penceresi kaydı:** sonuçla biten arama kaydını SİLMEZ (`finished: true`); pencere açılışta oturumda sonuç
+  yoksa `readFinishedExternalSearch` ile bir kez okur (yoklama, yeni arama, toast yok; bilinmeyen kimlik = boş durum).
+  Kayıt TEK aramayı tutar: eksik geçişin "Yeniden ara"sıyla birleşen listenin kaydı silinir. Davet mutasyonları çağıran
+  başına `{ skipErrorToast }` alır (pencere kendi tek toast'ını basar; öteki çağıranlar global toast'a dayanır). Başka
+  sayfada görünebilen toast konusunu söyler (`aramaninTalebi`). **İstemci ↔ sunucu arasında an değil SÜRE taşınır:**
+  yoklama yanıtı `elapsedMs` verir, web başlangıcı "şimdi − elapsedMs" hesaplar; sunucu zaman damgası tarayıcının
+  `Date.now()`ıyla karşılaştırılmaz (API web'den ÖNCE; eski API'de sayaç sıfırdan başlar).
+- **Anasayfa hero kabuğu = hero'nun yuvaları.** Sunucu HTML'i Suspense yedeğidir (`HeroShell`; hero `useSearchParams`
+  okur). Kabuk aynı sırada, aynı kutu sınıflarıyla aynı yuvaları tutar (başlık, alt cümle, `HeroSearchPlaceholder`,
+  `HeroNotePlaceholder`); sınıflar `panel-hero-search.tsx` sabitlerinden gelir, `home-hero.tsx`e elle sınıf dizesi
+  yazılmaz; hero'ya yükseklik ekleyen her şey kabuğa da eklenir. Kabukta etkileşimli öğe ve `useTranslations` dışında
+  kanca yok. Sözleşme `marketplace/__tests__/home-hero-shell.test.tsx` (Suspense yedeğini sınamak için sahte
+  `useSearchParams` hiç çözülmeyen söz fırlatır). Yüz seçici akış dışında ve yüksekliği ayrılmamış durur: etiketleri tek
+  satır kalır (`whitespace-nowrap`, 360 px altında sıkı dolgu); yeni / uzun etiket 320 px'te denenir. **Kabuğun
+  ayırdığı not yuvasını hero hiçbir rolde DÜŞÜRMEZ:** sunucu oturumu bilmez ve iki MİSAFİR notuyla yuva ayırır;
+  `PanelHeroSearch.ctaNoteSizer` liste alır (öteki yüzün gerçek notu + iki misafir notu), kendi notu olmayan rolde
+  (görüntüleyici, tek portallı üye) yuva görünmez ölçülerle çizilir; iki yüz aynı not kümesini ölçer. Gizli notun
+  "yokluğunu" sınayan test metnin DOM'da olmamasına değil görünmez / erişilemez olmasına bakar (ölçü hücreleri metni taşır).
+  Kırpılan ortalı etikette (`line-clamp` + `text-center`) Chromium "…"yi kutunun 6 px dışına çizer: ikon kutusunda
+  `-mx-2 px-2 max-w-[calc(100%+1rem)]` (üçü birlikte; fotoğraflı kutuda uygulanmadı — metni 1 px kaydırıyor).
+- **Dar kutuda uzun sözcük** (sektör kutusu, tanıtım başlığı, altbilgi bağlantısı): `break-words` +
+  `[&:lang(ru)]:hyphens-auto` + `[hyphenate-limit-chars:14_4_4]` (sözcük en az 14 harf, tireden önce ve sonra en az 4;
+  ölçüldü: 13 sığan sözcüğü de bölüp 2–3 harflik parça bırakıyor, 15 14 harfli sözcükte tireyi kaybediyor; değer üç dosyada
+  aynı); ortalı flex sütununda ayrıca `max-w-full`. Düz
+  `hyphens-auto` kullanılmaz (sığan sözcüğü de heceler, TR / EN satır kırılımını değiştirir). Tailwind v4
+  `max-[360px]:` = genişlik < 360 (kesin küçük).
+
+**TEST TUZAKLARI (bu turdan).** TR katalog değerini yerinde değiştirmek (yalnız harf büyüklüğü bile) EN / RU durum
+kaydını bayatlatır ve `pnpm i18n:check`i kırar: aynı değişiklikte anahtar `--mark-reviewed` + durum sadeleştirme. Sabit
+saatle sıraya alma kuralı sınamak: `jest.useFakeTimers({ now, doNotFake: [Date dışındaki her şey] })` +
+`jest.spyOn(Math, "random")`; öyle bir dosya `holdInviteSendWindowOpen()` çağırmaz. Talebin dağıtıcı turundan önce
+kapanmasını canlandırmak için talebin DURUMU değiştirilir (dağıtıcı kuyruk satırını `closesAt`e göre değil duruma göre
+düşürür). Kuyruk satırı fikstürü: kaynağı `AI_AUTO` olan satır `aiDiscovery` kapalı ya da özel
+talepte `AUTO_INVITE_OFF_WHERE`e uyar ve dağıtıcının ilk adımında düşer (`makeListing` varsayılanı kapalı) → `AI_FORM`
+kullan ya da talebi açık + herkese açık kur. `nextBusinessWindow(now)` alıcının mesai saatinde `now` döner: yeni sıraya
+alınan AI satırı o saatlerde hemen sırası gelmiş sayılır. Bir okumanın satıra yazmadığını kanıtlamak için satırın
+`xmin`'i önce / sonra karşılaştırılır. Yoklama dönüşünü sınamak: gerçek kanca, API kapalı, uyarıyı bekle, sahteyi testin
+elindeki bir sözle değiştir, `act(() => void client.refetchQueries(...))`, sorgu `pending` olunca uyarının ve "Tekrar
+dene"nin durduğunu, `.animate-pulse` olmadığını doğrula (`keepPreviousData`lı listede `type: "active"`). Her çağrıda
+`Date.now()` okuyan fikstür yardımcısı "yazılan" ve "beklenen" için iki kez çağrılmaz. Zamanlayıcılı web testinde `vi.useFakeTimers({ toFake: ["setInterval",
+"clearInterval", "Date"] })` (`waitFor` setTimeout kullanır). Headless UI kapanan Dialog'u geçiş süresince bağlı
+tutar → "yok" demeden önce `waitFor`. Catalyst `Button` sınıfında `shrink-0` regex'le aranmaz (taban
+`*:data-[slot=icon]:shrink-0` içerir). Milisaniye arayla yazılan denetim satırlarının `createdAt` sırası
+doğrulanmaz. `@rothern/email` API jest ve typecheck tarafından dist'ten okunur → şablon değişince
+`pnpm --filter @rothern/email build`. URL'den türeyen prop `useState(default)` ile bir kez okunmaz (Next yalnız
+sorgu değişince sayfayı yeniden bağlamaz). Geniş `i18n:sync --mark-reviewed` durum dosyalarının tamamının tarihini
+değiştirir → ardından `rothern-qa-2026-10/i18n-status-minimize.mjs`; işaretlemeden önce
+`i18n-changed-keys-check.mjs` (TR değişen her anahtarın EN / RU'su da değişmiş mi).
+
 ## Bekleyen / Yapılacaklar
 
 > Sürüm/faz kademesi YOK — tek backlog, gruplar yalnızca konuya göre.
@@ -4281,27 +4802,58 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
 - Akıllı şartname motoru, manipülasyon tespiti ("Tercihlerimi Getir" →
   Talep Şartları ile KAPANDI 2026-09-09)
 
-**PROFİL AI'ı ÜCRETSİZDE DE AÇIK — FİRMA BAŞINA BİR KEZ (2026-09-14, kullanıcı
-kararı).** `profile-enrich` tek AI özelliği olarak `minTier: "STANDART"` geçer;
-merkezi kapı (`assertAiAccess`) varsayılanı SILVER ve öyle KALIR. Adet kapısı
-ömürlük ve BAŞARIYA bağlı (derin denetim 2026-09-29 MU-06): başarılı dönüşün
-`company.profile_enriched` audit kaydı sayılır (başarısız/boş deneme hak yakmaz; kayıt
-await'li + critical) + ömürlük ücretli çağrı tavanı (costUsd>0 `profile_enrich` satırı
-≤ 6); ikisi firma satırının FOR UPDATE kilidi altında, günlük deneme sayacıyla aynı tx'te
-(aylık bütçe değil — bir kerelik kurulum adımı). STANDART paylarını
-`caps.requestShareByTier` 0,2 ve `caps.dailyShareByTier` 0,5 ezer (genel %5'e grounded
-çağrı ~0,056 USD sığmıyordu); bağlı iki aşamalı akışta ilk çağrı `followUpInputChars`
-verir (takip çağrısına havuz/kullanıcı/gün tavanında yer yoksa ücretli ilk çağrı başlamaz).
-Profil ucu `callAi`'nin HttpException'larını 503'e çevirmez. STANDART'a
-0,5 USD aylık havuz açıldı; diğer AI özelliklerine ULAŞMAZ çünkü hepsi merkezi
-SILVER kapısının arkasında. Gerekçe: dolu profil = indekslenen sayfa = organik
-büyüme; tek çağrılık maliyet bilinen en ucuz müşteri edinme. Sözleşme:
-`profile-enrich-tier.spec.ts` (para harcayan kapı).
+**PROFİL AI'ı = YALNIZ TANITIM ÖNERİSİ, WEB'E ÇIKMAZ (2026-10-08, kullanıcı kararı:
+"web sitesinden AI ile profil doldurmayı kapat; sadece profil açıklamasını ürünlerden
+falan dolduralım, onu teklif edelim").** `POST company/ai/profile-enrich` site ÇEKMEZ,
+web araması YAPMAZ; tek `callAi` çağrısıyla firmanın platformdaki kaydından (ad, hukuki
+yapı, ülke/şehir, sektör, hizmetler, faaliyet tipi, beyan edilen kategori adları, vitrindeki
+en yeni ≤20 ürün: ad + ≤4 etiket — ürünün platform kategorisi SEÇİLMEZ ve GÖNDERİLMEZ,
+2026-10-09: model kategori etiketini ürün ailesi gibi yazıyordu; beyan edilen kategoriler
+gizli segmentlerden arındırılır) YALNIZ `aboutText` taslağı yazar; hizmet/şehir/
+yıl/sosyal bağlantı/logo üretmez, KAYDETMEZ. Yanıt `{ aboutText, productCount,
+remainingSuggestions }`; gövde isteğe bağlı `{ industry?, services? }` (Profilim taslağındaki
+kaydedilmemiş değerler — sunucu DB'deki eskiyi okumasın), `website` kabul edilmez. İstem
+(`profile-enrich.service.ts`): `<firma_verisi>` JSON'u VERİDİR, UYDURMA YASAK (veride
+yazmayan sayı/yıl/sertifika/müşteri/iddia yok). **Dil FİRMANIN KENDİ içerik dili**
+(`aiContentLanguageRule`; arayüz dili yalnız yedek — girdiler firmanın yazdığı sektör/hizmet/
+ürün adıdır, tanıtım arayüz diline zorlanırsa kayıt karışık dilli olur ve içerik çevirisi
+FAILED'e düşer); dil yalnız name/sector/services/showcaseProducts'tan okunur, hukuki yapı/
+ülke/faaliyet tipi/kategori adları platform etiketidir (istek dilinde ya da Türkçe gelir) ve
+istemin "DİL KAYNAĞI" paragrafı bunları dil kararının dışında tutar. **Kategori yönü
+uydurulmaz:** kayıt tek soru sorup dört kolona yazdığı için satış ve satın alma seçimleri
+AYNI kümeyse tek yönsüz `categories` alanı gider ("alış / satış ayrımı yapılmamış");
+`sellingCategories`/`buyingCategories` yalnız kümeler farklıyken (`declaredCategoryAxes`).
+Yazacak olgu yoksa (yalnız ad + konum) AI çağrılmadan 400. `common/website-import.ts` ve
+`callAi`'nin `followUpInputChars` seçeneği tek çağıranlarıyla SÖKÜLDÜ (git geçmişinde).
+Sınırlar: `minTier: "STANDART"` (merkezi kapı `assertAiAccess` varsayılanı SILVER ve öyle
+KALIR); günlük 3 DENEME herkes için (gün = uygulama takvim günü, Europe/Istanbul:
+`profileEnrichDayStart`; UTC günü DEĞİL); tam erişimi olmayan firma (efektif kademe SILVER
+altı) ömür boyu **6 BAŞARILI** öneri (eski "firma başına bir kez" kalktı), tam erişimli
+firma yalnız günlük sınır + AI bütçesi. Sayaç BAŞARIYA bağlı (derin denetim 2026-09-29
+MU-06): `company.profile_enriched` audit kaydı sayılır (başarısız/boş deneme hak yakmaz;
+kayıt await'li + critical) + ömürlük ücretli çağrı tavanı (costUsd>0 `profile_enrich`
+satırı ≤ 18); ikisi firma satırının FOR UPDATE kilidi altında, günlük deneme sayacıyla
+aynı tx'te. `remainingSuggestions` iki tavanın KÜÇÜĞÜ (`remainingAfterSuccess`); tavanların
+metni ayrı: başarı hakkı `api.ai.profilTanitimHakkiDoldu`, ücretli çağrı tavanı
+`api.ai.profilTanitimDenemeSiniriDoldu` ("N öneri aldınız" demez). STANDART paylarını `caps.requestShareByTier` 0,2 ve `caps.dailyShareByTier`
+0,5 ezer (tek çağrının tahmini ~0,021 USD genel %5'e ancak sığıyor). Profil ucu
+`callAi`'nin HttpException'larını 503'e çevirmez. STANDART'ın 0,5 USD aylık havuzu diğer
+AI özelliklerine ULAŞMAZ (hepsi merkezi SILVER kapısının arkasında). Gerekçe: dolu profil =
+indekslenen sayfa = organik büyüme. Sözleşme: `profile-enrich-tier.spec.ts` (para harcayan
+kapı), `profile-enrich-facts.spec.ts`, `profile-enrich-language.spec.ts`,
+`profile-enrich-description.spec.ts`; metinler i18n `profile-ai-copy.test`.
 
-**Profilde "AI ile doldur" düğmesi kendi kendine yeter:** metin kutusunun
-ÜSTÜNDE durur ve site girilmemişse YERİNDE sorar (eskiden pasifti ve ipucu
-"künyeye girin" diyordu — künye sayfanın en altındaydı). Adres istek GÖVDESİNDE
-gider; boş gövde yollanınca sunucu DB'deki kaydedilmemiş/boş değeri okuyordu.
+**Profilim'de tanıtım önerisi (`AboutEditor`):** Hakkında kutusunun ÜSTÜNDE durur; kutu
+BOŞKEN başlıklı teklif kartı + dolu düğme ("Tanıtımı AI ile yaz"), doluyken sakin satır
+("AI ile yeniden yaz"). Site SORMAZ, başka alana DOKUNMAZ; sonuç kutuya TASLAK yazılır
+(otomatik kayıt yok), yerine yazılan metin "Önceki metne dön" ile geri gelir; ürünsüz
+firmaya "ürün ekledikçe zenginleşir", sınırlı firmaya kalan hak söylenir. Taslak
+kaydedilmemiş editör durumudur (sunucu kopyasını tutmaz) → `ProfileEditor`
+`useUnsavedChangesGuard(dirty)` kullanır: taslağın altındaki "Ürünleri yönet" dahil uygulama
+içi bağlantılar sormadan gitmez. Başarı izinin metadata'sı `{ products, chars }` — admin
+`KEY_LABEL`'da ikisi de etiketli. Kayıt adımındaki
+web sitesi alanı isteğe bağlı kalır, yalnız profilde gösterilir ("sitenizden AI ile
+dolduruyoruz" vaadi hiçbir metinde YOK).
 
 **AI çerçevesinin değişmez kuralları:** model ASLA doğrudan yazamaz —
 `request_*` araçları yalnız doğrulanmış `pendingAction` üretir (tek kullanımlık,

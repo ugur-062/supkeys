@@ -162,6 +162,70 @@ Google isteği doğrudan reddediyor. Render `api-staging`de sırayla
 `GEMINI_SERVICE_ACCOUNT_JSON`, `GEMINI_API_KEY`, `GEMINI_VERTEX_PROJECT` /
 `GEMINI_VERTEX_LOCATION` ve `AI_MODEL_*` kontrol edilmeli.
 
+## Operatör: soğuk davet e-postalarının gelen kutusuna düşmesi (2026-10-09)
+
+Sahip kararı: AI'ın bulduğu, hiç kayıt olmamış firmalara giden davet
+Promosyonlar'a ya da spam'e düşmemeli. Gelen kutusu yerleşimini kimse garanti
+edemez; amaç bizim tarafımızdaki her nedeni kaldırmak. **Kodun yaptığı:** talep
+daveti, hatırlatması, özeti ve "katıl" daveti düz mektup olarak gider (görsel,
+ek, kart, düğme, gizli önizleme metni yok; en fazla dört bağlantı, hepsi
+`WEB_URL` alan adında; HTML 2-4 KB, beş talepli özette en çok ~6 KB; düz metin
+parçası aynı içerik),
+`List-Unsubscribe` + `List-Unsubscribe-Post` ve `Feedback-ID` taşır
+(sözleşme: `cold-invite-plain-letter.spec`, `cold-invite-delivery.spec`).
+**Aşağıdakileri yalnız operatör yapabilir** ve kodun yaptığından daha çok
+belirleyicidir; önem sırasıyla:
+
+1. **SPF + DKIM (gönderen alan adı).** Resend → Domains → alan adı "Verified"
+   olmalı: `resend._domainkey.<alan adı>` (DKIM, TXT) ve `send.<alan adı>`
+   (dönüş yolu: MX + SPF TXT) Cloudflare'de girili. Kanıt: Gmail'de gelen bir
+   davette "Orijinali göster" → `SPF: PASS`, `DKIM: PASS` (`d=` bizim alan
+   adımız), `DMARC: PASS`. Biri eksikse başka hiçbir önlem işe yaramaz.
+2. **DMARC.** `_dmarc.rothern.com` TXT en az
+   `v=DMARC1; p=none; rua=mailto:<rapor kutusu>` (Gmail/Yahoo toplu gönderici
+   kuralı DMARC kaydı ister). `rua` raporlarında meşru kaynakların (Resend,
+   Google Workspace) hepsi hizalı geçince `p=quarantine`, sonra `p=reject`
+   (qa-launch-audit O-83). Erken sıkılaştırma meşru postayı karantinaya düşürür.
+3. **Açılma ve tıklama izleme KAPALI.** Resend → Domains → alan adı →
+   "Open Tracking" ve "Click Tracking" ikisi de kapalı (O-82). Açılma izleme
+   görselsiz mektuba 1×1 izleme görseli ekler; tıklama izleme her bağlantıyı
+   sağlayıcının yönlendirme adresine çevirir (bağlantı artık kendi alan adımızda
+   değildir). İkisi de sağlayıcıda, bizim isteğimizden SONRA uygulanır: testler
+   göremez. Ayar ALAN ADI başınadır — yeni bir gönderen alt alan adı eklenince
+   orada da kapatılır. Kanıt: "Orijinali göster"de `<img` yok, bağlantılar
+   doğrudan `https://www.rothern.com/…`.
+4. **Yanıt adresi gerçek bir kutu.** `EMAIL_REPLY_TO=destek@rothern.com` dolu
+   ve okunan bir kutu olmalı (O-67). Davet "Firma (Rothern üzerinden)" adıyla
+   gider; alıcının yanıtı geri dönerse (kutu yoksa) itibar düşer, yanıt alan
+   gönderen ise yükselir.
+5. **İsteğe bağlı: INVITE akışı için ayrı gönderen alt alan adı.** Bugün bütün
+   akışlar doğrulanmış `rothern.com`dan çıkar (`davet@rothern.com`); adresin
+   yerel kısmını değiştirmek itibarı AYIRMAZ (itibar DKIM alan adına bağlı).
+   Soğuk davetin şikâyetleri kod / şifre e-postalarını etkilemesin isteniyorsa:
+   Resend'e alt alan adı eklenir (ör. `davet.rothern.com`) → DKIM + `send.`
+   kayıtları Cloudflare'e girilir → "Verified" beklenir → o alan adında da
+   izleme kapatılır (madde 3) → ANCAK ondan sonra Render `api` ortamında
+   `EMAIL_FROM_ADDRESS_INVITE=davet@davet.rothern.com` tanımlanır (açılış kapısı
+   `WEB_URL` alan adının alt alan adlarını kabul eder; ters sırada o akışın
+   bütün gönderimleri reddedilir). Bedeli: yeni alt alan adının itibarı sıfırdan
+   başlar — platform günlük tavanı (`COLD_INVITE_BASE_DAILY`=150, sorunsuz her
+   hafta ×2) ısınma görevi görür, ilk haftalarda elle toplu davet yapılmaz.
+   Değişken boşsa davet `EMAIL_FROM_ADDRESS`ten çıkar.
+6. **Google Postmaster Tools.** postmaster.google.com'da `rothern.com` (ve
+   varsa davet alt alan adı) DNS TXT ile doğrulanır (O-81; Yandex ve Mail.ru
+   panelleri aynı madde). Haftalık bakılır: spam oranı %0,1'in altında kalmalı
+   (%0,3 ve üstü yerleşimi bozar), alan adı itibarı, SPF/DKIM/DMARC geçiş
+   oranı. Şikâyetler `Feedback-ID` tanımlayıcısına göre kırılır
+   (`tender_external_invite:INVITE:prod:rothern`, `referral_invite:INVITE:…`):
+   hangi e-posta türünün şikâyet aldığı buradan okunur. Veri yalnız yeterli
+   Gmail hacminde görünür.
+
+Her dağıtımdan ya da DNS / sağlayıcı ayarı değişikliğinden sonra tek kanıt
+adımı: kendi Gmail adresinize bir talep daveti gönderin, "Orijinali göster"de
+1 ve 3'teki satırları, `Reply-To`, `List-Unsubscribe` ve `Feedback-ID`
+başlıklarını ve iletinin hangi sekmeye düştüğünü not edin. Staging'de
+`EMAIL_ALLOWLIST` dolu olduğundan (yukarıda) deneme adresi listede olmalı.
+
 ## Gecelik e2e için GitHub sırları (2026-09-12)
 
 `.github/workflows/e2e-staging.yml` her gece 04:00'te staging'e karşı koşar ve
