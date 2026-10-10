@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@rothern/db";
 import { CATEGORY_NAME_SELECT, categoryName } from "./category-name";
-import { isHiddenCategory, visibleCategoryIds } from "@rothern/shared";
+import { isHiddenCategory, visibleCategoryIds, visibleCompanyCategorySelection } from "@rothern/shared";
 import { categorySegment, foldSearchText, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, stemPrefix, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier, isFreePeriod } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
@@ -60,21 +60,41 @@ export const DIRECTORY_PAGE_SIZE = 20;
 const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
 
 /**
- * `?category=` süzgeç kodları. GİZLİ SEGMENT kodu süzgeç değildir (2026-10-09,
+ * `?category=` süzgeç kodları. GİZLİ bir dalın kodu süzgeç değildir (2026-10-09,
  * sahip kuralı: "anasayfada olmayan kategori hiçbir yerde gösterilmez /
- * sunulmaz"): elle yazılmış `46000000` düşer; geriye kod kalmazsa kategori
+ * sunulmaz"): elle yazılmış `10000000` düşer; geriye kod kalmazsa kategori
  * seçilmemiş gibi davranır. Liste (`directoryRows`) ile sayaç (`directoryFacets`)
  * AYNI fonksiyonu okur — ayrışırlarsa sayı ile liste tutmaz.
  */
 const filterCategories = (v?: string) => visibleCategoryIds(multi(v).filter(isCategoryCode));
 
+/** Firma satırının dört beyan dizisi (satış / alım × ana / alt eksen). */
+export interface CompanyDeclarationArrays {
+  sellerCategoryIds: string[];
+  sellerSubCategoryIds: string[];
+  buyerCategoryIds: string[];
+  buyerSubCategoryIds: string[];
+}
+
 /**
- * Kartın "ana kategorisi" adayları: beyan sırasıyla (önce satış, sonra alım)
- * GÖRÜNÜR kodlar. İlk beyanı gizli segmentte olan firma kartta o kategoriyle
- * değil, ilk görünür beyanıyla (yoksa kategorisiz) listelenir.
+ * FİRMA BEYANININ GÖSTERİLEN HÂLİ — dizinin süzgeci, sayacı ve kartı AYNI
+ * fonksiyonu okur. Beyan seçimi ata zinciriyle saklar; gizleme aile / sınıf
+ * düzeyinde de olduğu için (2026-10-10) yalnız gizli kodları düşürmek yetmez:
+ * `46101500` (gizli aile) seçmiş firmanın kaydında görünür `46000000` da durur
+ * ve firma o sektörün süzgecinde / sayısında / kartında çıkardı. Kural tek
+ * kaynakta: `visibleCompanyCategorySelection` (eksen bazında — gizli kod düşer,
+ * yalnız gizli bir seçimin atası olan görünür kod da düşer).
+ *
+ * `main`: segmentler, beyan sırasıyla (önce satış, sonra alım) — kartın "ana
+ * kategorisi" adayları. `all`: dört dizinin tamamı — süzgeç ve sayaç.
+ * Eşleştirme ve bildirim saklanan kodları okur; buraya girmez.
  */
-const declaredVisible = (r: { sellerCategoryIds: string[]; buyerCategoryIds: string[] }) =>
-  visibleCategoryIds([...r.sellerCategoryIds, ...r.buyerCategoryIds]);
+export function shownCompanyDeclaration(r: CompanyDeclarationArrays): { main: string[]; all: string[] } {
+  const selling = visibleCompanyCategorySelection(r.sellerCategoryIds, r.sellerSubCategoryIds);
+  const buying = visibleCompanyCategorySelection(r.buyerCategoryIds, r.buyerSubCategoryIds);
+  const main = [...selling.mainIds, ...buying.mainIds];
+  return { main, all: [...main, ...selling.subIds, ...buying.subIds] };
+}
 
 /** Efektif GOLD — süzgeç (`gold=1`), sıra ve kart rozeti aynı hesabı okur. */
 const isGold = (r: { tier: string; membershipEndAt: Date | null; companyVerificationStatus: string }) =>
@@ -218,6 +238,11 @@ export async function directoryRows(
   const paidRank = (r: { tier: string; membershipEndAt: Date | null; companyVerificationStatus: string }) =>
     tierAtLeast(effectiveTier(r.tier as TierName, r.membershipEndAt, r.companyVerificationStatus), PAID_TIER) ? 0 : 1;
   const eligible = rows.filter((r) => {
+    // Sorgudaki `hasSome` saklanan kodlara bakar (üst küme); asıl karar
+    // GÖSTERİLEN beyandadır: `46000000`'ı yalnız gizli bir seçimin atası
+    // olarak saklayan firma o sektörün süzgecinde listelenmez. Sayaç
+    // (`directoryFacets`) aynı fonksiyonu okur.
+    if (categories.length > 0 && !shownCompanyDeclaration(r).all.some((c) => categories.includes(c))) return false;
     const productCount = r._count.items;
     if (q.hasProducts && productCount === 0) return false;
     if (q.gold && !isGold(r)) return false;
@@ -244,7 +269,11 @@ export async function buildDirectory(
   const eligible = await directoryRows(prisma, q, opts);
   const total = eligible.length;
   const slice = eligible.slice((page - 1) * pageSize, page * pageSize);
-  const ids = [...new Set(slice.flatMap((r) => declaredVisible(r).slice(0, 1)))].filter(isCategoryCode);
+  // Kartın "ana kategorisi" adayları: GÖSTERİLEN beyanın segmentleri. İlk beyanı
+  // gizli bir dalda olan firma kartta o kategoriyle (ya da onun görünür atasıyla)
+  // değil, ilk görünür beyanıyla (yoksa kategorisiz) listelenir.
+  const shownMain = new Map(slice.map((r) => [r.id, shownCompanyDeclaration(r).main] as const));
+  const ids = [...new Set(slice.flatMap((r) => (shownMain.get(r.id) ?? []).slice(0, 1)))].filter(isCategoryCode);
   const cats = ids.length
     ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
     : [];
@@ -362,7 +391,7 @@ export async function buildDirectory(
       : [];
     const catName = new Map(catRows.map((c) => [c.id, categoryName(c)]));
     for (const g of grouped) {
-      // Gizli segment (katalog sadeleştirme) "Ana kategoriler"e girmez.
+      // Gizli dal (katalog sadeleştirme) "Ana kategoriler"e girmez.
       if (!g.categoryId || !catName.has(g.categoryId) || isHiddenCategory(g.categoryId)) continue;
       const list = topCategories.get(g.companyId) ?? [];
       list.push({ id: g.categoryId, name: catName.get(g.categoryId) as string, count: g._count._all });
@@ -374,7 +403,7 @@ export async function buildDirectory(
   }
   return {
     items: slice.map((r) => {
-      const main = declaredVisible(r).find((id) => nameById.has(id));
+      const main = (shownMain.get(r.id) ?? []).find((id) => nameById.has(id));
       return {
         id: r.id,
         rothernId: r.rothernId,
@@ -428,22 +457,16 @@ export async function directoryFacets(
   const countries = new Set(countriesOf(params.country));
   const activities = multi(params.activity).filter(isCompanyActivity);
   const categories = filterCategories(params.category);
-  // SÜZGEÇ eşleşmesi: DB tarafıyla birebir — dört dizi de ham hâliyle.
-  const cats = (r: Row) => [
-    ...r.sellerCategoryIds,
-    ...r.buyerCategoryIds,
-    ...r.sellerSubCategoryIds,
-    ...r.buyerSubCategoryIds,
-  ];
+  // SÜZGEÇ eşleşmesi: liste (`directoryRows`) ile birebir — dört dizinin
+  // GÖSTERİLEN hâli (`shownCompanyDeclaration`). Satır başına bir kez hesaplanır.
+  const shownOf = new Map(rows.map((r) => [r.id, shownCompanyDeclaration(r).all] as const));
+  const cats = (r: Row) => shownOf.get(r.id) ?? [];
   // FACET sayımı: alt kodlar SEGMENTİNE yuvarlanır. Ham hâlde sayılsaydı
-  // 158 bin kodluk katalogdan yüzlerce satırlık bir süzgeç listesi çıkardı;
-  // facet bir gezinme aracı, kod sayımı değil.
-  const facetCats = (r: Row) =>
-    cats(r)
-      .map((c) => categorySegment(c) ?? c)
-      .filter(isCategoryCode)
-      // Gizli segment facet'te de yok (eski beyanlar süzgeç listesini kirletmesin).
-      .filter((c) => !isHiddenCategory(c));
+  // katalogdan yüzlerce satırlık bir süzgeç listesi çıkardı; facet bir gezinme
+  // aracı, kod sayımı değil. Gizli dal facet'te de yok: yuvarlanan kodlar
+  // gösterilen beyandandır, yani gizli kod (ve yalnız onun atası olan görünür
+  // segment) yuvarlamadan ÖNCE düşmüştür.
+  const facetCats = (r: Row) => cats(r).map((c) => categorySegment(c) ?? c).filter(isCategoryCode);
   const inCity = (r: Row) => !hasCity || (r.cityId != null && cityIds.has(r.cityId));
   const inCountry = (r: Row) => countries.size === 0 || countries.has(r.country);
   const inAct = (r: Row) => activities.length === 0 || r.activities.some((a) => activities.includes(a));

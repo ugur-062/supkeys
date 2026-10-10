@@ -160,7 +160,11 @@ export class PublicSitemapService {
     const pCities = new Map<string, { count: number; lastmod: Date }>();
     const pCountries = new Map<string, { count: number; lastmod: Date }>();
     for (const r of productRows) {
-      const seg = segmentCodeOf(r.categoryId);
+      // Gizli dallar sitemap'e girmez (herkese açık kategori sayfası da 404).
+      // Süzme segmente yuvarlamadan ÖNCE, ürünün KENDİ koduyla (2026-10-10):
+      // görünür segmentin gizli dalındaki ürün (`4610…`) o segmentin sayısına
+      // da `lastmod`una da girmez — sayfada listelenmediği için.
+      const seg = isHiddenCategory(r.categoryId) ? null : segmentCodeOf(r.categoryId);
       if (seg) bump(segments, seg, r.updatedAt);
       if (r.company.cityId != null) bump(pCities, String(r.company.cityId), r.updatedAt);
       if (r.company.country) bump(pCountries, r.company.country, r.updatedAt);
@@ -170,8 +174,6 @@ export class PublicSitemapService {
       if (r.cityId != null) bump(cCities, String(r.cityId), r.updatedAt);
     }
 
-    // Gizli segmentler sitemap'e girmez (herkese açık kategori sayfası da 404).
-    for (const id of [...segments.keys()]) if (isHiddenCategory(id)) segments.delete(id);
     const cats = segments.size
       ? await this.prisma.category.findMany({
           where: { id: { in: [...segments.keys()] } },

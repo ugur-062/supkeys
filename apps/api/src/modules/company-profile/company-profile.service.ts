@@ -17,7 +17,7 @@ import {
   categoryAncestors,
   deepestCategoryPicks,
   isHiddenCategory,
-  visibleCategoryIds,
+  visibleCompanyCategorySelection,
   generateSlug,
   countryUsesIban,
   isValidAccountNumber,
@@ -107,11 +107,17 @@ const SELECT = {
 
 /**
  * The four declaration arrays AS SHOWN to the company itself: without the
- * codes under a hidden segment (owner rule 2026-10-09 - a hidden category is
+ * codes under a hidden prefix (owner rule 2026-10-09 - a hidden category is
  * shown to nobody, the declaring company included). A legacy code stays in
  * the record, and matching keeps reading it there, until the category
  * declaration is saved the next time (`update` drops it then). The settings
  * form is seeded from this answer, so it never sends a hidden code back.
+ *
+ * PER AXIS, through `visibleCompanyCategorySelection` (2026-10-10, hiding now
+ * also works on a family or a class): a declaration stores the ancestor chain
+ * of every pick, so dropping the hidden codes alone would leave the VISIBLE
+ * ancestors of a hidden pick behind (`46000000` for a company that picked
+ * `46101500`) and the form would show - and save - "the whole sector".
  */
 function withVisibleCategories<
   T extends {
@@ -121,12 +127,14 @@ function withVisibleCategories<
     sellerSubCategoryIds: string[];
   },
 >(c: T): T {
+  const buying = visibleCompanyCategorySelection(c.buyerCategoryIds, c.buyerSubCategoryIds);
+  const selling = visibleCompanyCategorySelection(c.sellerCategoryIds, c.sellerSubCategoryIds);
   return {
     ...c,
-    buyerCategoryIds: visibleCategoryIds(c.buyerCategoryIds),
-    buyerSubCategoryIds: visibleCategoryIds(c.buyerSubCategoryIds),
-    sellerCategoryIds: visibleCategoryIds(c.sellerCategoryIds),
-    sellerSubCategoryIds: visibleCategoryIds(c.sellerSubCategoryIds),
+    buyerCategoryIds: buying.mainIds,
+    buyerSubCategoryIds: buying.subIds,
+    sellerCategoryIds: selling.mainIds,
+    sellerSubCategoryIds: selling.subIds,
   };
 }
 
@@ -386,6 +394,16 @@ export class CompanyProfileService {
       // (they are shown nowhere, so nobody could remove them by hand). A NEW
       // hidden code is still rejected by `validateIds`.
       //
+      // HIDDEN FAMILY / CLASS UNDER A VISIBLE SEGMENT (2026-10-10). The stored
+      // side of an axis is read through `visibleCompanyCategorySelection`: with
+      // the hidden pick, the visible ancestors that were stored ONLY because
+      // of it leave too. Dropping the hidden codes alone would keep the bare
+      // segment, which means "the whole sector" - the company would start to
+      // receive every notification of a sector it never chose. A list the
+      // REQUEST sends is written as sent (minus stored hidden codes): the
+      // form is seeded from the shown declaration, so a visible code in it is
+      // the user's own choice.
+      //
       // The exemption is PER AXIS (audit F25): a hidden code stored only on
       // the buying side is "new" on the selling side and is rejected there.
       // Until this change one set covered both axes, so such a code (and its
@@ -400,13 +418,14 @@ export class CompanyProfileService {
         const gelenSub = dto[subKey];
         const oncekiMain = kayitli?.[mainKey] ?? [];
         const oncekiSub = kayitli?.[subKey] ?? [];
+        // Stored side as it is SHOWN: hidden codes and the ancestors kept only
+        // for them are gone. Equal to the stored lists when nothing is hidden.
+        const gorunen = visibleCompanyCategorySelection(oncekiMain, oncekiSub);
         if (gelenMain === undefined && gelenSub === undefined) {
           // The request does not touch this axis: nothing is re-derived or
           // re-validated here; only its hidden legacy codes are dropped.
-          const main = visibleCategoryIds(oncekiMain);
-          const sub = visibleCategoryIds(oncekiSub);
-          if (main.length !== oncekiMain.length) data[mainKey] = main;
-          if (sub.length !== oncekiSub.length) data[subKey] = sub;
+          if (gorunen.mainIds.length !== oncekiMain.length) data[mainKey] = gorunen.mainIds;
+          if (gorunen.subIds.length !== oncekiSub.length) data[subKey] = gorunen.subIds;
           return;
         }
         const buEksendeKayitli = new Set(
@@ -415,8 +434,8 @@ export class CompanyProfileService {
         const eskiGizlileriAt = (ids: readonly string[]) =>
           ids.filter((code) => !(isHiddenCategory(code) && buEksendeKayitli.has(code)));
         const { mainIds, subIds } = normalizeCategorySelection(
-          eskiGizlileriAt(gelenMain ?? oncekiMain),
-          eskiGizlileriAt(gelenSub ?? oncekiSub),
+          gelenMain !== undefined ? eskiGizlileriAt(gelenMain) : gorunen.mainIds,
+          gelenSub !== undefined ? eskiGizlileriAt(gelenSub) : gorunen.subIds,
         );
         const mainYazilir = gelenMain !== undefined || !ayniListe(mainIds, oncekiMain);
         const subYazilir = gelenSub !== undefined || !ayniListe(subIds, oncekiSub);

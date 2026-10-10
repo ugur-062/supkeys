@@ -2,7 +2,9 @@ import { i18nMessage } from "../i18n/http-i18n";
 import type { PrismaClient } from "@rothern/db";
 import { NotFoundException } from "@nestjs/common";
 import { publicProductWhere } from "./public-profile-gate";
-import { productCategoryWhere } from "./product-index";
+import { isHiddenCategory } from "@rothern/shared";
+import type { Prisma } from "@rothern/db";
+import { productCategoryWhere, productSubtreeClauses } from "./product-index";
 import {
   PRODUCT_INDEX_SELECT,
   toProductIndexCard,
@@ -23,6 +25,17 @@ type Db = Pick<PrismaClient, "companyItem">;
  * bir firmanın sayfasında "kategoride yeni" satırı aynı firmanın öbür iki
  * ürününü basıyordu — alıcı karşılaştıracak başka tedarikçi göremiyordu ve
  * pazar yeri hissi tam orada kırılıyordu (kullanıcı bulgusu).
+ *
+ * KATEGORİ BLOKLARI ürünün KENDİ saklanmış kodundan yukarı çıkar (L3 → L2 →
+ * L1). İki durum (`categoryScope`):
+ *  · GÖRÜNÜR kategorideki ürün: her düzeyin alt ağacı gizli torunlar OLMADAN
+ *    okunur (`productSubtreeClauses`, 2026-10-10) — `4618…` ürününün "benzer" /
+ *    "kategoride yeni" satırına segment 46 üzerinden `4610…` (gizli aile)
+ *    ürünü girmez.
+ *  · GİZLİ daldaki eski ürün: HAM kod (`productCategoryWhere`), eskisi gibi —
+ *    burada süzülseydi eski ürünün blokları boşalır ya da kendi dalındaki
+ *    benzerlerini kaybederdi. Gizli daldaki ürün yalnız böyle bir ürünün
+ *    sayfasında ilişkili blokta çıkar; kartta kategori kodu yine yoktur.
  */
 export interface RelatedViewerScope {
   /**
@@ -67,10 +80,13 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
   ]);
   let similar: typeof fromCompany = [];
   const code = base.categoryId;
+  const legacy = isHiddenCategory(code);
+  const categoryScope = (root: string): Prisma.CompanyItemWhereInput[] =>
+    legacy ? [productCategoryWhere(root)] : productSubtreeClauses(root);
   if (code && /^\d{8}$/.test(code)) {
     for (const level of [`${code.slice(0, 6)}00`, `${code.slice(0, 4)}0000`, `${code.slice(0, 2)}000000`]) {
       similar = await prisma.companyItem.findMany({
-        where: { ...publicProductWhere(), ...productCategoryWhere(level), companyId: otherCompanies },
+        where: { ...publicProductWhere(), AND: categoryScope(level), companyId: otherCompanies },
         select: PRODUCT_INDEX_SELECT,
         orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
         take: 8,
@@ -82,7 +98,7 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
     ? await prisma.companyItem.findMany({
         where: {
           ...publicProductWhere(),
-          ...productCategoryWhere(`${code.slice(0, 2)}000000`),
+          AND: categoryScope(`${code.slice(0, 2)}000000`),
           id: { not: base.id },
           companyId: otherCompanies,
         },

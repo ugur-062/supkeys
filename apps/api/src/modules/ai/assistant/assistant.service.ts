@@ -49,6 +49,7 @@ import {
   canListMyBids,
   canListMyTenders,
   canSearchOpen,
+  connectionsForModel,
   localizeToolCodes,
   redactHiddenCategories,
   toolDefsForUser,
@@ -646,7 +647,9 @@ export class AssistantService {
           return this.capObject(labeled(await this.orders.getOne(user, id), "order"));
         }
         case TOOL_NAMES.listMyConnections:
-          return trimList(shown(await this.connections.list(user.companyId)));
+          // The partner's declaration goes to the model as it is SHOWN, not as
+          // it is stored (`connectionsForModel`), then through the same filter.
+          return trimList(shown(connectionsForModel(await this.connections.list(user.companyId))));
         default:
           return { ...NEUTRAL_ERROR };
       }

@@ -250,8 +250,13 @@ describe("AdminProductsService", () => {
    * a product goes public); the re-review of an ALREADY public legacy product
    * still works.
    */
-  describe("gizli segmentteki kategori (2026-10-09)", () => {
-    const LEGACY = { ...BASE, categoryId: "46181500" };
+  describe.each([
+    ["gizli segment", "10101500"],
+    // 2026-10-10: gizlemenin birimi kod önekidir — görünür segment 46'nın gizli dalları.
+    ["görünür segmentin gizli ailesi", "46101500"],
+    ["görünür ailenin gizli sınıfı", "46182501"],
+  ])("gizli daldaki kategori (2026-10-09) — %s", (_level, HIDDEN_CODE) => {
+    const LEGACY = { ...BASE, categoryId: HIDDEN_CODE };
     /** Catalogue mock that would name ANY code it is asked for. */
     function named(row: Record<string, unknown>) {
       const r = rig(row);
@@ -267,10 +272,10 @@ describe("AdminProductsService", () => {
       expect(list.items[0]).toMatchObject({ categoryName: null, hiddenCategory: true });
       const detail = await hidden.svc.detail("i1");
       expect(detail).toMatchObject({ categoryName: null, hiddenCategory: true });
-      expect(JSON.stringify([list, detail])).not.toContain("Ad 46181500");
+      expect(JSON.stringify([list, detail])).not.toContain(`Ad ${HIDDEN_CODE}`);
       // The hidden code is never sent to the name query.
       for (const call of (hidden.prisma.category.findMany as jest.Mock).mock.calls) {
-        expect(call[0].where.id.in).not.toContain("46181500");
+        expect(call[0].where.id.in).not.toContain(HIDDEN_CODE);
       }
 
       const visible = named(BASE);
@@ -307,6 +312,18 @@ describe("AdminProductsService", () => {
         publishedAt: pub,
       });
     });
+  });
+
+  it("46 altındaki GÖRÜNÜR kategori sıradan kategoridir: adı çözülür, `hiddenCategory` false, vitrinde olmayan ürün onaylanır", async () => {
+    const SAFETY = { ...BASE, categoryId: "46181500" };
+    const r = rig(SAFETY);
+    r.prisma.category.findMany = jest.fn(({ where }: { where: { id: { in: string[] } } }) =>
+      Promise.resolve(where.id.in.map((id) => ({ id, nameTr: `Ad ${id}` }))),
+    ) as never;
+    const row = (await r.svc.list({ status: "PENDING" })).items[0];
+    expect(row).toMatchObject({ categoryName: "Ad 46181500", hiddenCategory: false });
+    await r.svc.approve("i1", "admin1");
+    expect(r.prisma.companyItem.updateMany.mock.calls[0][0].data).toMatchObject({ reviewStatus: "APPROVED", isPublic: true });
   });
 
   /**

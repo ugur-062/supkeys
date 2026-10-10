@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { visibleCategoryIds } from "@rothern/shared";
+import { visibleCompanyCategorySelection } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { tApi } from "../../common/i18n/i18n.service";
 
@@ -263,12 +263,20 @@ export class CompanyAffinityService {
     //    budget for a category nobody can pick). The BEHAVIOUR signals above
     //    are untouched: they follow the stored codes of real requests and
     //    products, as matching does.
+    //
+    //    HIDDEN FAMILY / CLASS (2026-10-10): the same goes for a visible code
+    //    stored only as the ANCESTOR of a hidden pick (`46000000` for a
+    //    company that picked `46101500`). It leaves the record at the same
+    //    save and is not a declaration the company sees, so it is not copied
+    //    as "declared" either (`visibleCompanyCategorySelection`, per axis).
     for (const c of companies) {
       const m = bucketOf(c.id);
-      for (const code of visibleCategoryIds([...c.buyerCategoryIds, ...c.buyerSubCategoryIds])) {
+      const buying = visibleCompanyCategorySelection(c.buyerCategoryIds, c.buyerSubCategoryIds);
+      for (const code of [...buying.mainIds, ...buying.subIds]) {
         this.addWithLeak(m, code, "buy", W.declared, "declared");
       }
-      for (const code of visibleCategoryIds([...c.sellerCategoryIds, ...c.sellerSubCategoryIds])) {
+      const selling = visibleCompanyCategorySelection(c.sellerCategoryIds, c.sellerSubCategoryIds);
+      for (const code of [...selling.mainIds, ...selling.subIds]) {
         this.addWithLeak(m, code, "sell", W.declared, "declared");
       }
     }

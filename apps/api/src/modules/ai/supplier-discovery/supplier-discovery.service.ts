@@ -51,6 +51,7 @@ import {
   isValidCountryCode,
   REGISTRATION_BLOCKED,
   visibleCategoryIds,
+  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 import type { Prisma } from "@rothern/db";
@@ -1752,17 +1753,31 @@ export class SupplierDiscoveryService {
     }
 
     const subSet = new Set(subCandidates);
-    const segSet = new Set(segmentIds);
+    // ROZET kümeleri talebin GÖRÜNÜR kodlarından türer (2026-10-10): gizli bir
+    // kodun görünür atası (`46101500` → `46000000`) talebin gösterilen bir
+    // kategorisi değildir; yuvarlamadan ÖNCE düşer, yoksa kategorisi hiçbir
+    // yerde görünmeyen talep adaylarda "İş Güvenliği ve Yangın Ekipmanları"
+    // rozetiyle çıkardı. Okuma tarafındaki beyaz liste (`visibleBadgeNames`)
+    // aynı türetmeyi kullanır. Eşleşmenin kendisi (`subSet`, `categoryMatch`)
+    // saklanan kodların tamamıyla çalışır.
+    const shownRequest = deriveCategoryMatchCandidates(visibleCategoryIds(codes));
+    const badgeSubSet = new Set(shownRequest.subCandidates);
+    const badgeSegSet = new Set(shownRequest.segmentIds);
     const scored = rows.map((r) => {
       const subMatch = r.sellerSubCategoryIds.some((c) => subSet.has(c));
-      // ROZET: yalnız görünür segmentteki eşleşmeler ADLANDIRILIR (2026-10-09).
+      // ROZET: yalnız görünür daldaki eşleşmeler ADLANDIRILIR (2026-10-09).
       // Eşleşmenin kendisi (`subMatch`, `inCategory`, puan, katmanlar) saklanan
       // kodların tamamıyla çalışır; gizli kod yalnız etiketten düşer. Süzme
       // kırpmadan ÖNCE — gizli kod görünür eşleşmenin yerini kapmasın.
-      const matched = visibleCategoryIds([
-        ...r.sellerSubCategoryIds.filter((c) => subSet.has(c)),
-        ...r.sellerCategoryIds.filter((c) => segSet.has(c)),
-      ]).slice(0, 3);
+      // Rozet firmanın GÖSTERİLEN beyanından okunur (2026-10-10,
+      // `visibleCompanyCategorySelection`): yalnız gizli bir seçimin atası
+      // olarak saklanmış görünür kod (`46101500` seçmiş firmada `46000000`)
+      // firmanın görünen bir beyanı değildir, rozet olarak da adlandırılmaz.
+      const shownDeclared = visibleCompanyCategorySelection(r.sellerCategoryIds, r.sellerSubCategoryIds);
+      const matched = [
+        ...shownDeclared.subIds.filter((c) => badgeSubSet.has(c)),
+        ...shownDeclared.mainIds.filter((c) => badgeSegSet.has(c)),
+      ].slice(0, 3);
       const inCategory = declaresRequestCategory(r, categoryMatch);
       // Bir kalem ya tam adıyla ya gevşek eşleşir (gevşek arama yalnız tam adı
       // hiçbir ürün bulmayan kalemde koşar) — iki küme kalem bazında ayrıktır.

@@ -5,6 +5,7 @@ import {
   SELL_SEAT_PERMISSIONS,
   isHiddenCategory,
   tierAtLeast,
+  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 import {
@@ -423,6 +424,33 @@ export function redactHiddenCategories(value: unknown, categoryField = false): u
     out[key] = redactHiddenCategories(v, CATEGORY_KEY_RE.test(key));
   }
   return out;
+}
+
+/**
+ * `list_my_connections` rows as the MODEL gets them (2026-10-10).
+ *
+ * `CompanyConnectionsService.list` returns each partner's STORED selling
+ * declaration in `company.categoryIds`: main and sub axis merged, raw - the
+ * web invite picker scores with it. A declaration stores every pick with its
+ * ancestor chain (`46101500` -> `46000000` + `46100000` + `46101500`), and a
+ * hidden branch can now sit under a VISIBLE sector. `redactHiddenCategories`
+ * only drops the codes that are hidden themselves, so the visible ancestors
+ * stayed and the model presented a company whose only pick is a hidden one as
+ * a supplier of that whole visible sector.
+ *
+ * The model input is the SHOWN declaration - the same rule the profile, the
+ * directory and the discovery badge read (`visibleCompanyCategorySelection`;
+ * it takes the merged list as one axis). A deliberate "whole sector" pick and
+ * the chain of a visible pick stay. The service answer itself is not changed.
+ * Rows without such a list pass through as they are.
+ */
+export function connectionsForModel<T>(rows: readonly T[]): T[] {
+  return rows.map((row) => {
+    const company = isPlainObject(row) ? row.company : null;
+    if (!isPlainObject(company) || !Array.isArray(company.categoryIds)) return row;
+    const stored = company.categoryIds.filter((c): c is string => typeof c === "string");
+    return { ...row, company: { ...company, categoryIds: visibleCompanyCategorySelection(stored, []).mainIds } };
+  });
 }
 
 /** Field of the owner's request detail (`CompanyListingsService.getOne`) that the web edit form reads. */

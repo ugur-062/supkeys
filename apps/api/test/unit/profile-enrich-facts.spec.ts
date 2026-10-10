@@ -510,6 +510,38 @@ describe("ProfileEnrichService — gizli katalog segmentleri modele gitmez (PD-0
     ).toEqual({ neutral: [], selling: [], buying: [] });
   });
 
+  it("declaredCategoryAxes (2026-10-10): görünür segment 46'nın gizli ailesi / sınıfı — yalnız gizli seçimin atası olan görünür kod beyan SAYILMAZ", () => {
+    // 46101500 (gizli aile 4610) seçmiş firma: kayıtta 46000000 + 46100000 + 46101500 durur.
+    // Gizli kodları düşürmek yetmez — geride kalan 46000000 "sektörün tamamı" diye modele giderdi.
+    expect(
+      declaredCategoryAxes({
+        sellerCategoryIds: ["46000000"],
+        sellerSubCategoryIds: ["46100000", "46101500"],
+        buyerCategoryIds: [],
+        buyerSubCategoryIds: [],
+      }),
+    ).toEqual({ neutral: [], selling: [], buying: [] });
+    // 46182501 (görünür 4618 ailesinin gizli 461825 sınıfı): ailesi ve segmenti de yalnız onun atası.
+    expect(
+      declaredCategoryAxes({
+        sellerCategoryIds: ["46000000", "31000000"],
+        sellerSubCategoryIds: ["46180000", "46182500", "46182501"],
+        buyerCategoryIds: [],
+        buyerSubCategoryIds: [],
+      }),
+    ).toEqual({ neutral: [], selling: ["31000000"], buying: [] });
+    // Görünür seçim (46181500) gizli seçimlerin yanında: sıradan beyandır; altında seçim
+    // olmayan 46000000 da bilinçli "sektörün tamamı"dır.
+    expect(
+      declaredCategoryAxes({
+        sellerCategoryIds: ["46000000"],
+        sellerSubCategoryIds: ["46180000", "46181500", "46182500", "46182501", "46100000", "46101500"],
+        buyerCategoryIds: ["46000000"],
+        buyerSubCategoryIds: [],
+      }),
+    ).toEqual({ neutral: [], selling: ["46181500"], buying: ["46000000"] });
+  });
+
   it("tek verisi gizli segment beyanı olan firma: yazacak olgu yok → AI çağrılmaz, hak yanmaz", async () => {
     const r = rig({
       company: {

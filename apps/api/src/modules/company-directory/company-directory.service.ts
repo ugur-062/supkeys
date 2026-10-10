@@ -1,10 +1,11 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { CompanyActivity, Prisma } from "@rothern/db";
-import { foldSearchText, stemPrefix, tokenizeQuery, visibleCategoryId } from "@rothern/shared";
+import { foldSearchText, hiddenPrefixesUnder, stemPrefix, tokenizeQuery, visibleCategoryId } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
+import { shownCompanyDeclaration } from "../../common/company/company-directory";
 import { likeLiteral } from "../../common/prisma/like-literal";
 
 /**
@@ -55,22 +56,49 @@ export class CompanyDirectoryService {
     // filter still worked and listed exactly the companies that had declared
     // the hidden segment.
     const category = visibleCategoryId(q.category);
+    const declaresCategory: Prisma.CompanyWhereInput | null = category
+      ? {
+          OR: [
+            { buyerCategoryIds: { has: category } },
+            { buyerSubCategoryIds: { has: category } },
+            { sellerCategoryIds: { has: category } },
+            { sellerSubCategoryIds: { has: category } },
+          ],
+        }
+      : null;
+    // HIDDEN BRANCH UNDER A VISIBLE CATEGORY (2026-10-10). A declaration
+    // stores the ancestor chain of every pick, so a company whose only pick
+    // under this category is a hidden one still holds the visible ancestor.
+    // It is not listed under it: the SHOWN declaration decides (single rule,
+    // `shownCompanyDeclaration`). Only a category that has a hidden branch
+    // below it needs this second pass; the page and the total then come from
+    // the narrowed id set.
+    const shownIds =
+      category && declaresCategory && hiddenPrefixesUnder(category).length > 0
+        ? (
+            await this.prisma.company.findMany({
+              where: { ...PUBLIC_PROFILE_WHERE, ...declaresCategory },
+              select: {
+                id: true,
+                buyerCategoryIds: true,
+                buyerSubCategoryIds: true,
+                sellerCategoryIds: true,
+                sellerSubCategoryIds: true,
+              },
+              take: 5000,
+            })
+          )
+            .filter((c) => shownCompanyDeclaration(c).all.includes(category))
+            .map((c) => c.id)
+        : null;
     const where: Prisma.CompanyWhereInput = {
       ...PUBLIC_PROFILE_WHERE,
+      ...(shownIds ? { id: { in: shownIds } } : {}),
       ...(q.city ? { city: q.city } : {}),
       ...(q.activity
         ? { activities: { has: q.activity as CompanyActivity } }
         : {}),
-      ...(category
-        ? {
-            OR: [
-              { buyerCategoryIds: { has: category } },
-              { buyerSubCategoryIds: { has: category } },
-              { sellerCategoryIds: { has: category } },
-              { sellerSubCategoryIds: { has: category } },
-            ],
-          }
-        : {}),
+      ...(declaresCategory ?? {}),
       ...(tokens.length
         ? {
             // `likeLiteral`: `%` / `_` joker değil düz karakter (ortak dizin

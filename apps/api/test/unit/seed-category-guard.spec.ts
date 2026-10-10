@@ -1,7 +1,15 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { HIDDEN_SEGMENTS, categoryAncestors, isHiddenCategory } from "@rothern/shared";
+import {
+  HIDDEN_BRANCH_PREFIXES,
+  HIDDEN_CATEGORY_PREFIXES,
+  categoryAncestors,
+  foldSearchText,
+  isHiddenCategory,
+  tokenizeQuery,
+} from "@rothern/shared";
 import { CATEGORY_ATTRIBUTES } from "../../../../packages/db/src/seeds/category-attributes";
+import { buildKeywordsByCode, readI18nNames, readTranslations } from "../../../../packages/db/prisma/scripts/lib/category-keywords";
 import {
   cleanI18nCell,
   diffI18nNameExport,
@@ -28,6 +36,7 @@ import {
   assertVisibleSeedCategory,
   hiddenSeedCategoryRefs,
   seedPhotoCategoryRefs,
+  visiblePromptNodes,
 } from "../../../../packages/db/prisma/scripts/lib/seed-category-guard";
 import {
   COMPANIES as STAGING_COMPANIES,
@@ -37,8 +46,11 @@ import {
 } from "../../../../packages/db/prisma/scripts/lib/staging-demo-data";
 
 /**
- * SEED BETİKLERİ GİZLİ SEGMENTE YAZMAZ (2026-10-09, kullanıcı: "anasayfada
+ * SEED BETİKLERİ GİZLİ KATEGORİYE YAZMAZ (2026-10-09, kullanıcı: "anasayfada
  * olmayan kategori talepte, üründe ya da başka yerde de gösterilmesin").
+ * 2026-10-10: gizliliğin birimi kod ÖNEKİ — tümüyle gizli segment ya da görünür
+ * bir segmentin gizli ailesi / sınıfı (46 açık; 4610 … 4615, 4620, 4622 ve
+ * 461825 gizli). Kapı ikisini de aynı tanımdan okur.
  *
  * Uygulama yolu gizli kategoriyi doğrulama kapılarıyla reddeder; seed betikleri
  * Prisma ile DOĞRUDAN yazar. Denetimde gizli segmentteki QA dışı kayıtların
@@ -53,22 +65,30 @@ const WEB_PUBLIC = resolve(__dirname, "../../../web/public");
 const read = (file: string) => readFileSync(join(SCRIPTS, file), "utf8");
 
 describe("seed kategori kapısı", () => {
-  // Eski (legacy) kayıt kodları: 46 ve 77 2026-10-09'da, 10 2026-09-19'da gizlendi.
+  // Eski (legacy) kayıt kodları: gizli AİLE (4610, 2026-10-10), gizli SINIF
+  // (461825), tümüyle gizli segmentler (10: 2026-09-19, 77: 2026-10-09).
   const LEGACY = [
-    { source: "legacy listing ROT-000834", code: "46181500" },
+    { source: "legacy listing ROT-000834", code: "46101500" },
+    { source: "legacy product in a hidden class", code: "46182501" },
     { source: "legacy product", code: "10101500" },
     { source: "legacy company declaration", code: "77000000" },
   ];
   const VISIBLE = [
     { source: "product", code: "31161500" },
     { source: "company sell", code: "78000000" },
+    // 46 geri açıldı (2026-10-10): segmentin kendisi, KKD, yangın ve iş güvenliği.
+    { source: "company sell (whole sector)", code: "46000000" },
+    { source: "product hard hat", code: "46181700" },
+    { source: "listing fire fighting", code: "46191600" },
+    { source: "product work area safety", code: "46211700" },
   ];
 
-  it("gizli segmentteki kodları ayıklar; görünür kod ve boş liste geçer", () => {
+  it("gizli önekin altındaki kodları ayıklar; görünür kod ve boş liste geçer", () => {
     expect(hiddenSeedCategoryRefs([...VISIBLE, ...LEGACY])).toEqual(LEGACY);
     expect(() => assertVisibleSeedCategories("seed-x", VISIBLE)).not.toThrow();
     expect(() => assertVisibleSeedCategories("seed-x", [])).not.toThrow();
     expect(assertVisibleSeedCategory("seed-x", "product", "31161500")).toBe("31161500");
+    expect(assertVisibleSeedCategory("seed-x", "product", "46181500")).toBe("46181500");
   });
 
   it("tek bir gizli kodda DURUR; ileti betiği, kodu ve yerini söyler (ASCII)", () => {
@@ -78,40 +98,53 @@ describe("seed kategori kapısı", () => {
     } catch (e) {
       message = (e as Error).message;
     }
-    expect(message).toContain("[seed-x] 3 seed category code(s) sit under a hidden segment (HIDDEN_SEGMENTS)");
-    expect(message).toContain("46181500  legacy listing ROT-000834");
+    expect(message).toContain(
+      "[seed-x] 4 seed category code(s) sit under a hidden category prefix (HIDDEN_CATEGORY_PREFIXES: segment, family or class).",
+    );
+    expect(message).toContain("A seed must never write a hidden category; move them to a visible one:");
+    expect(message).toContain("46101500  legacy listing ROT-000834");
+    expect(message).toContain("46182501  legacy product in a hidden class");
     expect(message).toContain("10101500  legacy product");
     expect(message).toContain("77000000  legacy company declaration");
-    expect(message).not.toContain("31161500");
+    for (const visible of VISIBLE) expect(message).not.toContain(visible.code);
     expect(message).toMatch(/^[\x20-\x7E\n]+$/);
-    expect(() => assertVisibleSeedCategory("seed-x", "listing category", "46181700")).toThrow(/46181700 {2}listing category/);
+    expect(() => assertVisibleSeedCategory("seed-x", "listing category", "46151500")).toThrow(/46151500 {2}listing category/);
   });
 
-  it("gizli segment listesinin HER öneki için çalışır (tek kaynak HIDDEN_SEGMENTS)", () => {
-    for (const prefix of HIDDEN_SEGMENTS) {
-      expect(() => assertVisibleSeedCategory("seed-x", "any", `${prefix}101500`)).toThrow(/hidden segment/);
+  it("gizli listenin HER öneki için çalışır — segment, aile, sınıf (tek kaynak HIDDEN_CATEGORY_PREFIXES)", () => {
+    expect(HIDDEN_CATEGORY_PREFIXES.length).toBeGreaterThan(HIDDEN_BRANCH_PREFIXES.length);
+    for (const prefix of HIDDEN_CATEGORY_PREFIXES) {
+      const code = `${prefix}101500`.slice(0, 8); // "10" → 10101500 · "4610" → 46101015 · "461825" → 46182510
+      expect(() => assertVisibleSeedCategory("seed-x", "any", code)).toThrow(/hidden category prefix/);
+    }
+    // Gizli dalın ÜST düğümü (aile / sınıf satırının kendisi) de reddedilir.
+    for (const prefix of HIDDEN_BRANCH_PREFIXES) {
+      expect(() => assertVisibleSeedCategory("seed-x", "any", prefix.padEnd(8, "0"))).toThrow(/hidden category prefix/);
     }
   });
 
   /**
    * GÖRSEL DE KAPIDAN GEÇER (gözden geçirme R-SEED-01). Demo görseli kategori
-   * fotoğrafıdır; gizli segmentin fotoğrafı (46 = kolluk/emniyet, 10 = canlı
-   * bitki) o kategoriyi adını yazmadan gösterir.
+   * fotoğrafıdır; gizli segmentin fotoğrafı (53 = giyim, 10 = canlı bitki) o
+   * kategoriyi adını yazmadan gösterir. Fotoğraf yalnız SEGMENT düzeyinde
+   * vardır: 46 geri açıldığı için (2026-10-10) onun fotoğrafı geçer.
    */
   it("görsel yolu segment koduna çevrilir; gizli segmentin fotoğrafı kodla AYNI kapıda durur", () => {
     const refs = seedPhotoCategoryRefs([
-      { source: 'product "Baret" (demir)', src: "/categories/46000000.webp" },
+      { source: 'product "Tişört" (ege)', src: "/categories/53000000.webp" },
       { source: "company antalya-tarim cover", src: "/categories/10000000.webp" },
       { source: 'product "Cıvata" (demir)', src: "/categories/31000000.webp" },
+      { source: 'product "Baret" (demir)', src: "/categories/46000000.webp" },
     ]);
     expect(refs).toEqual([
-      { source: 'product "Baret" (demir) image /categories/46000000.webp', code: "46000000" },
+      { source: 'product "Tişört" (ege) image /categories/53000000.webp', code: "53000000" },
       { source: "company antalya-tarim cover image /categories/10000000.webp", code: "10000000" },
       { source: 'product "Cıvata" (demir) image /categories/31000000.webp', code: "31000000" },
+      { source: 'product "Baret" (demir) image /categories/46000000.webp', code: "46000000" },
     ]);
-    expect(hiddenSeedCategoryRefs(refs).map((r) => r.code)).toEqual(["46000000", "10000000"]);
+    expect(hiddenSeedCategoryRefs(refs).map((r) => r.code)).toEqual(["53000000", "10000000"]);
     expect(() => assertVisibleSeedCategories("seed-x", refs)).toThrow(
-      /46000000 {2}product "Baret" \(demir\) image \/categories\/46000000\.webp\n {2}10000000 {2}company antalya-tarim cover image/,
+      /53000000 {2}product "Tişört" \(ege\) image \/categories\/53000000\.webp\n {2}10000000 {2}company antalya-tarim cover image/,
     );
     expect(() => assertVisibleSeedCategories("seed-x", refs.slice(2))).not.toThrow();
   });
@@ -120,8 +153,8 @@ describe("seed kategori kapısı", () => {
     expect(
       seedPhotoCategoryRefs([
         { source: "uploaded", src: "https://cdn.example.com/tenant-profile/c1/urun.webp" },
-        { source: "not a segment file", src: "/categories/46.webp" },
-        { source: "other folder", src: "/hero/46000000.webp" },
+        { source: "not a segment file", src: "/categories/53.webp" },
+        { source: "other folder", src: "/hero/53000000.webp" },
       ]),
     ).toEqual([]);
   });
@@ -140,7 +173,7 @@ describe("pazar yeri demo verisi (seed-marketplace-demo)", () => {
     );
   });
 
-  it("hiçbir firma beyanı, ürün ya da talep gizli segmentte değil", () => {
+  it("hiçbir firma beyanı, ürün ya da talep gizli bir önekin (segment, aile, sınıf) altında değil", () => {
     expect(hiddenSeedCategoryRefs(marketplaceDemoCategoryRefs())).toEqual([]);
     expect(() => assertVisibleSeedCategories("seed-marketplace-demo", marketplaceDemoCategoryRefs())).not.toThrow();
     // Gizli beyanı düşen firma satıcı beyansız kalmadı (dizinde ve eşleştirmede görünür).
@@ -154,12 +187,24 @@ describe("pazar yeri demo verisi (seed-marketplace-demo)", () => {
   it("eski gizli kodlu bir satır eklenirse kapı onu ADIYLA yakalar", () => {
     const withLegacy = [
       ...marketplaceDemoCategoryRefs(),
-      { source: 'product "Baret" (demir)', code: "46181700" },
+      { source: 'product "Av Tüfeği Kılıfı" (demir)', code: "46101800" },
       { source: "company antalya-tarim sell", code: "10000000" },
     ];
     expect(() => assertVisibleSeedCategories("seed-marketplace-demo", withLegacy)).toThrow(
-      /46181700 {2}product "Baret" \(demir\)\n {2}10000000 {2}company antalya-tarim sell/,
+      /46101800 {2}product "Av Tüfeği Kılıfı" \(demir\)\n {2}10000000 {2}company antalya-tarim sell/,
     );
+  });
+
+  // 46 geri açıldı (2026-10-10): baret / yangın ürünü demo verisine eklenebilir.
+  it("görünür 46 kodlu bir satır (baret, yangın söndürücü) kapıdan geçer", () => {
+    const withSafety = [
+      ...marketplaceDemoCategoryRefs(),
+      { source: 'product "Baret" (demir)', code: "46181700" },
+      { source: 'product "Yangın Söndürücü" (demir)', code: "46191600" },
+      { source: "company demir sell", code: "46000000" },
+    ];
+    expect(hiddenSeedCategoryRefs(withSafety)).toEqual([]);
+    expect(() => assertVisibleSeedCategories("seed-marketplace-demo", withSafety)).not.toThrow();
   });
 
   it("nitelikler kategori matrisiyle uyuşuyor (assertAttrs yeşil)", () => {
@@ -263,7 +308,7 @@ describe("pazar yeri demo verisi (seed-marketplace-demo)", () => {
 });
 
 describe("staging demo verisi (seed-staging-demo)", () => {
-  it("üç firma; seçimler ve ürünler gizli segmentte değil", () => {
+  it("üç firma; seçimler ve ürünler gizli bir önekin altında değil", () => {
     expect(STAGING_COMPANIES.map((c) => c.key)).toEqual(["gold", "silver", "ucretsiz"]);
     const refs = stagingDemoCategoryRefs();
     expect(refs).toHaveLength(
@@ -361,7 +406,7 @@ describe("kategori yazan betikler kapıya bağlı", () => {
     }
   });
 
-  it("betiklerde ve veri dosyalarında gizli segmente ait sabit kod kalmadı", () => {
+  it("betiklerde ve veri dosyalarında gizli bir önekin altında sabit kod kalmadı", () => {
     const sources = [...writers.map(read), read("lib/marketplace-demo-data.ts"), read("lib/staging-demo-data.ts")];
     const literals = sources.flatMap((src) => [...src.matchAll(/"(\d{8})"/g)].map((m) => m[1]!));
     expect(literals.length).toBeGreaterThan(100);
@@ -374,12 +419,368 @@ describe("kategori yazan betikler kapıya bağlı", () => {
   });
 });
 
+/**
+ * MODEL İSTEMİ (2026-10-10 gözden geçirmesi). Çevrimdışı üreticiler her düğümü ADIYLA ve
+ * üst yoluyla modele yollar. Gizli bir dalın adı hiçbir model istemine yazılmaz:
+ * süzgeçsiz hâliyle `gen-category-keywords -- --segments 46` yeniden açılan
+ * sektörün silah ve kolluk dallarını isteme koyuyordu.
+ */
+describe("model çağıran üretici betikler: gizli dalın düğümü isteme girmez", () => {
+  /** `gen-category-keywords -- --segments 46` adayları: segment 46'nın L2-L4 düğümlerinden örnek. */
+  const SEGMENT_46 = [
+    { code: "46100000", nameTr: "Hafif silahlar ve mühimmat" },
+    { code: "46101500", nameTr: "Ateşli silahlar" },
+    { code: "46101501", nameTr: "Makineli tüfekler" },
+    { code: "46150000", nameTr: "Kolluk ekipmanları" },
+    { code: "46160000", nameTr: "Kamu güvenliği ve kontrolü" },
+    { code: "46180000", nameTr: "Kişisel güvenlik ve koruma" },
+    { code: "46181700", nameTr: "Yüz ve baş koruması" },
+    { code: "46182500", nameTr: "Kişisel güvenlik cihazları veya silahları" },
+    { code: "46182501", nameTr: "Biber gazı spreyleri" },
+    { code: "46191600", nameTr: "Yangın söndürme ekipmanları" },
+    { code: "46200000", nameTr: "Savunma ve kolluk eğitim ekipmanları" },
+    { code: "46211700", nameTr: "Çalışma alanı güvenliği" },
+    { code: "46220000", nameTr: "Askeri silah ve mühimmat imha" },
+  ];
+
+  it("visiblePromptNodes gizli aile ve sınıf düğümlerini düşürür; görünür düğüm sırasıyla ve aynı satırla kalır", () => {
+    const kept = visiblePromptNodes(SEGMENT_46);
+    expect(kept.map((n) => n.code)).toEqual(["46160000", "46180000", "46181700", "46191600", "46211700"]);
+    expect(kept[0]).toBe(SEGMENT_46[4]);
+    // İsteme girecek metinde gizli dalın ne kodu ne adı var.
+    const prompt = kept.map((n) => `${n.code}\t${n.nameTr}`).join("\n");
+    expect(prompt).not.toMatch(/46(1[0-5]|20|22)\d{4}|461825\d{2}/);
+    for (const name of ["silah", "Kolluk", "Biber gazı", "eğitim ekipmanları"]) expect(prompt).not.toContain(name);
+  });
+
+  it("tümüyle gizli segmentin düğümü de düşer; gizli listenin HER öneki için çalışır", () => {
+    const mixed = [{ code: "10101500" }, { code: "31161500" }, { code: "77101500" }, { code: "46000000" }];
+    expect(visiblePromptNodes(mixed)).toEqual([{ code: "31161500" }, { code: "46000000" }]);
+    expect(visiblePromptNodes([])).toEqual([]);
+    const underEveryPrefix = HIDDEN_CATEGORY_PREFIXES.map((prefix) => ({ code: `${prefix}101500`.slice(0, 8) }));
+    expect(underEveryPrefix.length).toBeGreaterThan(30);
+    expect(visiblePromptNodes(underEveryPrefix)).toEqual([]);
+  });
+
+  /** Model çağıran HER betik (`lib/gemini` içe aktaran) kapıya bağlı; yeni bir üretici kapıyı atlarsa burası kırmızı. */
+  const callers = readdirSync(SCRIPTS).filter((f) => f.endsWith(".ts") && read(f).includes('from "./lib/gemini"'));
+
+  it("tarama iki üretici betiği buluyor", () => {
+    expect([...callers].sort()).toEqual(["gen-category-keywords.ts", "gen-category-translations.ts"]);
+  });
+
+  it.each(callers)("%s: kapıyı içe aktarır; kapı tek gruplama noktasından ve model çağrısından önce", (file) => {
+    const src = read(file);
+    expect(src).toContain('import { visiblePromptNodes } from "./lib/seed-category-guard";');
+    const gate = src.indexOf("visiblePromptNodes(");
+    const batching = src.indexOf("batches.push(nodes.slice(");
+    const call = src.indexOf("prompt: buildPrompt(batch),");
+    expect(gate).toBeGreaterThan(-1);
+    expect(batching).toBeGreaterThan(gate);
+    expect(call).toBeGreaterThan(batching);
+    // İsteme düğüm koyan tek yol bu: tek gruplama, tek istem kurma çağrısı.
+    expect(src.match(/batches\.push\(/g)).toHaveLength(1);
+    expect(src.match(/buildPrompt\(/g)).toHaveLength(2); // tanım + tek çağrı
+  });
+
+  it("gen-category-keywords: adaylar kapıdan geçer; gruplar ve yanıt eşlemesi yalnız adaylardan kurulur", () => {
+    const src = read("gen-category-keywords.ts");
+    expect(src).toContain("const candidates = visiblePromptNodes(rows);");
+    expect(src).toContain("const nodes: Node[] = candidates");
+    // Ad haritası süzülmüş listeden: model gizli bir kod uydursa da satırı yazılmaz.
+    expect(src).toContain("const nameByCode = new Map(candidates.map((r) => [r.code, r.nameTr]));");
+    expect(src).not.toMatch(/=\s*rows\s*\.(filter|map)\(|new Map\(rows\.map\(/);
+  });
+
+  it("gen-category-translations: düğüm listesi betikten kapıdan geçerek çıkar", () => {
+    const src = read("gen-category-translations.ts");
+    expect(src).toContain("return { nodes: visiblePromptNodes(nodes), limit };");
+    expect(src.match(/return \{ nodes/g)).toHaveLength(1);
+  });
+});
+
+/**
+ * SAHİP KARARIYLA YENİDEN ADLANDIRILAN SEGMENT — tohum dosyaları (2026-10-10
+ * gözden geçirmesi). 46, görünür olduğu anda "İş Güvenliği ve Yangın Ekipmanları"
+ * adını taşımalıdır; eski adı ("Kolluk, …") sahibin anasayfadan kaldırttığı
+ * addır. API adı `categories` tablosundan okur; ad tabloya bu dosyalardan gider
+ * (`apply-category-translations`, `apply-category-names-i18n`,
+ * `apply-category-keywords`, dağıtımdan sonra) ve görünürlükle aynı anda yerine
+ * otursun diye ayrıca `20261010120000` veri migration'ıyla. Burası kaynağı, betiklerin okuduğu
+ * işlevlerle kilitler: dosyalardan biri eski ada dönerse (ör. uygulanmamış bir
+ * veritabanından `export-category-names-i18n -- --overwrite`) operatör adımı
+ * eski adı görünür segmente geri yazardı.
+ */
+describe("46 yeniden adlandırıldı: tohum dosyaları yeni adı taşır (apply betiklerinin okuduğu hâliyle)", () => {
+  const SEEDS = resolve(__dirname, "../../../../packages/db/src/seeds");
+  const CODE = "46000000";
+  const TR = "İş Güvenliği ve Yangın Ekipmanları";
+  const OLD_TR = "Kolluk, Ulusal Güvenlik ve Emniyet Ekipmanları";
+  /** Dosyada bu kodla başlayan satırlar (yorum satırları hariç). */
+  const linesOf = (file: string) =>
+    readFileSync(join(SEEDS, file), "utf8").split("\n").filter((line) => line.startsWith(`${CODE}\t`));
+
+  it("TR ad (apply-category-translations); Ariba kaynağı aramaya KATILMAZ; yeni ad tekil, eski ad hiçbir kodun adı değil", () => {
+    const translations = readTranslations(SEEDS);
+    // 3. sütun bilinçli boş: Ariba'daki ad ("Law Enforcement and National Security …")
+    // gizli dalların konusu; kaynak sütunu anahtar kelimelere katıldığı için yazılmaz.
+    expect(translations.get(CODE)).toEqual({ tr: TR, source: "" });
+    const names = [...translations.values()].map((t) => t.tr);
+    expect(names.length).toBeGreaterThan(10_000); // tarama boş değil
+    expect(names.filter((name) => name === TR)).toHaveLength(1);
+    expect(names).not.toContain(OLD_TR);
+  });
+
+  it("EN / RU ad (apply-category-names-i18n)", () => {
+    expect(readI18nNames(SEEDS).get(CODE)).toEqual({
+      en: "Workplace Safety and Fire Equipment",
+      ru: "Средства охраны труда и противопожарное оборудование",
+    });
+  });
+
+  it("görünür aileleri EN / RU adsız değil (sektör açıldığında /en ve /ru boş kalmaz)", () => {
+    const names = readI18nNames(SEEDS);
+    for (const family of ["46160000", "46170000", "46180000", "46190000", "46210000"]) {
+      expect(isHiddenCategory(family)).toBe(false);
+      expect({ family, en: !!names.get(family)?.en, ru: !!names.get(family)?.ru }).toEqual({ family, en: true, ru: true });
+    }
+  });
+
+  it("her dosyada kodun TEK satırı var (sonraki satır kazanır; eski adlı satır geride kalmaz)", () => {
+    for (const file of ["category-translations.curated.tsv", "category-names.i18n.tsv", "category-keywords.tsv"]) {
+      expect({ file, lines: linesOf(file).length }).toEqual({ file, lines: 1 });
+    }
+    // Elle yazılan çeviri dosyasının tamamında yinelenen kod yok (yeniden adlandırma eski satırı SİLEREK yapılır).
+    const codes = readFileSync(join(SEEDS, "category-translations.curated.tsv"), "utf8")
+      .split("\n")
+      .filter((line) => /^\d{8}\t/.test(line))
+      .map((line) => line.slice(0, 8));
+    expect(codes.length).toBeGreaterThan(10_000);
+    const seen = new Set<string>();
+    expect(codes.filter((code) => seen.size === seen.add(code).size)).toEqual([]);
+  });
+
+  it("arama metni yeni adın terimlerini üç dilde taşır (apply-category-keywords)", () => {
+    const keywords = buildKeywordsByCode(SEEDS).byCode.get(CODE) ?? "";
+    for (const term of ["iş güvenliği", "yangın", "workplace safety", "fire protection", "охрана труда"]) {
+      expect(keywords).toContain(term);
+    }
+  });
+
+  it("eski kolluk / silah adı görünür sektörün anahtar kelimelerinde YOK ('law enforcement' sektörü bulmaz)", () => {
+    const keywords = (buildKeywordsByCode(SEEDS).byCode.get(CODE) ?? "").toLocaleLowerCase("en");
+    for (const term of ["law enforcement", "national security", "kolluk", "silah", "weapon", "defense", "defence"]) {
+      expect({ term, present: keywords.includes(term) }).toEqual({ term, present: false });
+    }
+  });
+});
+
+/**
+ * 46'NIN GÖRÜNÜR DALLARI — EŞ ANLAMLI SATIRLARI (2026-10-10).
+ *
+ * Sektör, eş anlamlılar üretilirken gizliydi: üretilen dosyada 46 satırı yok ve
+ * aileleri / sınıfları gündelik sözcükle bulunamıyordu ("kkd", "isg", "ppe",
+ * "çelik burunlu", "yangın tüpü" → sonuç yok). Sektör satırı seçicilerde yalnız
+ * ADIYLA eşleşir (`categoryNameMatchesAll`): 46000000 satırındaki sözcükler
+ * aileleri buldurmaz, aile ve sınıf KENDİ satırından bulunur. Satırlar elle
+ * yazıldı (`category-keywords.tsv`).
+ *
+ * Kilitlenenler: (1) görünür her aile ve sınıfın satırı var; (2) gizli bir
+ * önekin altındaki koda satır YOK — iki dosyada da; (3) 46 altındaki hiçbir
+ * satırda silah / askeri / kolluk sözcüğü yok (yukarıda 46000000 için duran
+ * kilidin bütün satırlara ve betiklerin tabloya yazdığı bileşik değere
+ * genişletilmiş hâli); (4) gündelik sözcükler doğru dalın satırında.
+ * Gerçek arama (servis + Postgres): integration `seed-scripts-hidden-category.spec`.
+ */
+describe("46 görünür dalları: eş anlamlı satırları (elle yazılan + üretilen)", () => {
+  const SEEDS = resolve(__dirname, "../../../../packages/db/src/seeds");
+  const SECTOR = "46000000";
+  const FAMILIES = ["46160000", "46170000", "46180000", "46190000", "46210000"];
+  const CLASSES = [
+    ...["46161500", "46161600", "46161700"], // trafik kontrol, su güvenliği, kurtarma
+    ...["46171500", "46171600", "46171700"], // kilitler, gözetleme ve tespit, araç geçişi
+    ...["46181500", "46181600", "46181700", "46181800", "46181900", "46182000", "46182100", "46182200", "46182300", "46182400"],
+    ...["46191500", "46191600"], // yangın önleme, yangınla mücadele
+    ...["46211500", "46211600", "46211700"], // iş güvenliği eğitimi, alan işaretleme, alan güvenliği
+  ];
+  /** KKD sınıfları: giysi, ayak, baş / yüz, göz, kulak, solunum, düşmeye karşı koruma. */
+  const PPE_CLASSES = ["46181500", "46181600", "46181700", "46181800", "46181900", "46182000", "46182300"];
+
+  type KeywordRow = { file: string; code: string; keywords: string };
+  /** Sözlük dosyasının 46 satırları, betiklerin okuduğu biçimde (yorum ve boş satır atılır: `readTwoColumnTsv`). */
+  const rowsOf = (file: string): KeywordRow[] =>
+    readFileSync(join(SEEDS, file), "utf8")
+      .split("\n")
+      .filter((line) => line.trim() && !line.startsWith("#"))
+      .map((line) => line.split("\t"))
+      .filter(([code]) => (code ?? "").trim().startsWith("46"))
+      .map(([code, keywords]) => ({ file, code: (code ?? "").trim(), keywords: (keywords ?? "").trim() }));
+  const handWritten = rowsOf("category-keywords.tsv");
+  const generated = rowsOf("category-keywords.generated.tsv");
+  const allRows = [...generated, ...handWritten];
+  /** Kaynak katalogdaki 46 satırları: kod → düzey. */
+  const catalog46 = new Map(
+    readFileSync(join(SEEDS, "ariba-categories.tsv"), "utf8")
+      .split("\n")
+      .filter((line) => line.startsWith("46"))
+      .map((line) => line.split("\t"))
+      .map(([code, level]) => [code ?? "", Number(level)] as const),
+  );
+  /** Betiklerin tabloya yazdığı değer: sözlük satırı + düşen adlar + çevrilen adın Ariba kaynağı. */
+  const composed = buildKeywordsByCode(SEEDS).byCode;
+
+  /** Sözcük başı / sonu, harf ve rakama göre (`\b` Türkçe ve Kiril harfte çalışmaz). */
+  const START = "(?<![\\p{L}\\p{N}])";
+  const END = "(?![\\p{L}\\p{N}])";
+  /**
+   * Sözcük BAŞINDA aranır; çekim eki sonda kalır (silahlar, tüfeği, оружия). Başka anlamı gündelik
+   * olan sözcükler bilinçli YOK: "kelepçe" (hortum / kablo kelepçesi), "fişek" (işaret fişeği).
+   */
+  const STEMS = [
+    // tr: silah ve mühimmat
+    ...["silah", "tabanca", "tüfek", "tüfeğ", "mühimmat", "mermi", "bomba", "patlayıcı", "füze", "roket", "mayın"],
+    // tr: askeri ve kolluk (gizli dalların konusu: kalabalık kontrol, adli ekipman, kişisel savunma)
+    ...["asker", "savaş", "savunma", "kolluk", "jandarma", "zabıta", "çevik kuvvet", "zırh", "kurşun geçirmez"],
+    ...["balistik", "taktik", "biber gazı", "adli"],
+    // en
+    ...["weapon", "firearm", "rifle", "pistol", "ammunition", "explosive", "missile", "grenade", "military", "police"],
+    ...["law enforcement", "national security", "defense", "defence", "handcuff", "armor", "armour", "ballistic", "tactical"],
+    ...["bulletproof", "bullet proof", "pepper spray", "forensic", "crowd control"],
+    // ru
+    ...["оруж", "боеприпас", "пистолет", "винтовк", "военн", "армейск", "полиц", "правоохран", "оборон", "бронежилет"],
+    ...["взрывчат", "ракет", "гранат", "наручник", "дубинк"],
+  ];
+  /**
+   * Yalnız TAM sözcük (yazılı çekimleriyle): kısa ya da masum bir sözcüğün başı olan terimler —
+   * "çöp" katlanınca "cop", "gün" katlanınca "gun" olur; "polisaj", "polistiren" ve "bombeli" bu
+   * sözcüklerle başlar ama silah / kolluk sözcüğü değildir.
+   */
+  const WORDS = [
+    ...["cop", "copu", "copun", "coplar", "copları", "polis", "polisi", "polisin", "polise", "polisler", "polisleri"],
+    ...["gun", "guns", "bomb", "bombs", "ammo", "army", "riot", "baton", "batons", "taser", "stun"],
+    ...["армия", "армии", "армию", "армией"],
+  ];
+  const WEAPON_PATTERNS: Array<[string, RegExp]> = [
+    ...STEMS.map((term): [string, RegExp] => [term, new RegExp(START + term, "u")]),
+    ...WORDS.map((term): [string, RegExp] => [term, new RegExp(START + term + END, "u")]),
+  ];
+  /** Metinde geçen silah / askeri / kolluk terimleri. Büyük harf iki kuralla da küçültülür (I → ı ve I → i). */
+  const weaponTerms = (text: string): string[] => {
+    const haystack = `${text.toLocaleLowerCase("tr")}\n${text.toLocaleLowerCase("en")}`;
+    return WEAPON_PATTERNS.filter(([, pattern]) => pattern.test(haystack)).map(([term]) => term);
+  };
+
+  /**
+   * Sorgunun HER kelimesi satırın bileşik değerinde geçiyor mu: aramanın "yazılan biçim" süzgecinin
+   * sözlük payı (servisle aynı iki işlev, `tokenizeQuery` + `foldSearchText`; kategori ADI burada sayılmaz).
+   */
+  const rowsFinding = (query: string): string[] => {
+    const tokens = tokenizeQuery(query).map((token) => foldSearchText(token));
+    return [...FAMILIES, ...CLASSES]
+      .filter((code) => {
+        const text = foldSearchText(composed.get(code) ?? "");
+        return tokens.length > 0 && tokens.every((token) => text.includes(token));
+      })
+      .sort();
+  };
+
+  it("katalog: 46'nın görünür 5 ailesi ve 21 sınıfı kaynaktan türetilir (gizli dallar düşer)", () => {
+    const upper = [...catalog46].filter(([, level]) => level === 2 || level === 3).map(([code]) => code);
+    const visible = upper.filter((code) => !isHiddenCategory(code));
+    expect(visible.sort()).toEqual([...FAMILIES, ...CLASSES].sort());
+    expect(FAMILIES).toHaveLength(5);
+    expect(CLASSES).toHaveLength(21);
+    // Tarama gizli dalları da görüyor (8 aile + sınıfları): süzen `isHiddenCategory`, boş bir liste değil.
+    expect(upper.length - visible.length).toBeGreaterThan(20);
+  });
+
+  it("görünür her aile ve sınıfın ELLE yazılmış satırı var; kod yinelenmez, satır boş değil", () => {
+    const codes = handWritten.map((row) => row.code);
+    expect([SECTOR, ...FAMILIES, ...CLASSES].filter((code) => !codes.includes(code))).toEqual([]);
+    // Aynı kodun ikinci satırı ilkini sessizce ezer (sonraki satır kazanır).
+    expect(codes.filter((code, index) => codes.indexOf(code) !== index)).toEqual([]);
+    // Sözcüksüz satırı betik sessizce atlar; kod "sözlüklü" görünür ama tabloya bir şey yazılmaz.
+    expect(handWritten.filter((row) => !row.keywords).map((row) => row.code)).toEqual([]);
+  });
+
+  it("gizli bir önekin altındaki koda satır YOK (elle + üretilen); her satırın kodu katalogda", () => {
+    expect(allRows.length).toBeGreaterThan(20); // tarama boş değil
+    expect(allRows.filter((row) => isHiddenCategory(row.code)).map((row) => `${row.file}: ${row.code}`)).toEqual([]);
+    // Katalogda olmayan kod (yazım hatası) betikte sessizce atlanır ("kod DB'de yok"); burada görünür.
+    expect(allRows.filter((row) => !catalog46.has(row.code)).map((row) => `${row.file}: ${row.code}`)).toEqual([]);
+    // Süzgeç gerçekten ayırır: gizli aile, gizli sınıf ve yaprağı yakalanır; görünür komşuları geçer.
+    expect(["46101500", "46150000", "46182500", "46182501", "46180000", "46181500"].filter((code) => isHiddenCategory(code))).toEqual([
+      "46101500",
+      "46150000",
+      "46182500",
+      "46182501",
+    ]);
+  });
+
+  it("silah / askeri / kolluk sözcüğü 46 altındaki HİÇBİR satırda yok (elle + üretilen + tabloya yazılan değer)", () => {
+    expect(allRows.flatMap((row) => weaponTerms(row.keywords).map((term) => `${row.file}: ${row.code}: ${term}`))).toEqual([]);
+    // Tabloya yazılan bileşik değer: sektör, görünür aileler ve sınıflar (düşen adlar + Ariba kaynağı dahil).
+    const written = [SECTOR, ...FAMILIES, ...CLASSES];
+    for (const code of written) expect(composed.get(code)).toBeTruthy();
+    expect(written.flatMap((code) => weaponTerms(composed.get(code) ?? "").map((term) => `${code}: ${term}`))).toEqual([]);
+    // "kolluk" alt dizgi olarak da yok: arama alt dizgiyle eşleşir ve bu sözcük 46 altında yalnız ADI
+    // "Güvenlik kollukları" olan yaprağı (46181516) bulmalıdır.
+    expect(allRows.filter((row) => foldSearchText(row.keywords).includes("kolluk")).map((row) => row.code)).toEqual([]);
+  });
+
+  it("kilit gerçekten yakalar: üç dilde silah / askeri / kolluk sözcüğü işaretlenir, benzeyen masum sözcük geçer", () => {
+    const flagged = [
+      ...["silahlar", "av tüfeği", "tabanca kılıfı", "mühimmat", "kolluk ekipmanları", "güvenlik kollukları", "polis copu"],
+      ...["askeri bot", "kurşun geçirmez yelek", "SILAH", "weapons", "Law Enforcement", "national security", "military boots"],
+      ...["gun", "police", "defense", "оружие", "военная форма", "полицейский"],
+    ];
+    expect(flagged.filter((text) => weaponTerms(text).length === 0)).toEqual([]);
+    const innocent = [
+      ...["kollu bariyer", "çöp kovası", "günlük bakım", "emniyet kemeri", "alarm sistemi", "bombeli sac", "mermer"],
+      ...["polisaj", "polistiren", "copper pipe", "burgundy", "armature", "охрана труда", "оборудование"],
+    ];
+    expect(innocent.filter((text) => weaponTerms(text).length > 0)).toEqual([]);
+  });
+
+  it.each<[string, string[]]>([
+    ["kkd", ["46180000", ...PPE_CLASSES]],
+    ["ppe", ["46180000", ...PPE_CLASSES]],
+    ["сиз", ["46180000", ...PPE_CLASSES]],
+    ["kişisel koruyucu donanım", ["46180000"]],
+    ["isg", ["46180000", "46210000", "46211500", "46211600", "46211700"]],
+    ["iş sağlığı ve güvenliği", ["46180000", "46210000", "46211500"]],
+    ["iş ayakkabısı", ["46181600"]],
+    ["çelik burunlu", ["46181600"]],
+    ["iş eldiveni", ["46181500"]],
+    ["reflektörlü yelek", ["46181500"]],
+    ["toz maskesi", ["46182000"]],
+    ["emniyet kemeri", ["46182300"]],
+    ["yangın tüpü", ["46191600"]],
+    ["yangın dolabı", ["46191600"]],
+  ])("gündelik sözcük doğru dalın satırında: %s", (query, codes) => {
+    expect(rowsFinding(query)).toEqual([...codes].sort());
+  });
+
+  it("elle yazılan 46 satırları sözlük biçiminde: küçük harf, yalnız harf / rakam, tek boşluk", () => {
+    expect(handWritten.length).toBeGreaterThan(20);
+    for (const row of handWritten) {
+      expect({ code: row.code, lowerCase: row.keywords === row.keywords.toLocaleLowerCase("tr") }).toEqual({ code: row.code, lowerCase: true });
+      expect({ code: row.code, plain: /^[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*$/u.test(row.keywords) }).toEqual({ code: row.code, plain: true });
+    }
+  });
+});
+
 describe("cleanup-categories tarihsel: ikinci gizleme/adlandırma kaynağı değil", () => {
   const src = read("cleanup-categories.ts");
 
-  it("kendi segment listesi yok; gizli segmentleri HIDDEN_SEGMENTS'ten okur", () => {
-    expect(src).toMatch(/import \{ HIDDEN_SEGMENTS, isHiddenCategory \} from "@rothern\/shared"/);
+  it("kendi gizli listesi yok; segmentleri ve gizli dalları paylaşılan kaynaktan okur", () => {
+    expect(src).toMatch(
+      /import \{ HIDDEN_BRANCH_PREFIXES, HIDDEN_SEGMENTS, hiddenPrefixesUnder, isHiddenCategory \} from "@rothern\/shared"/,
+    );
     expect(src).not.toMatch(/HIDE_SEGMENT_CODES|HIDE_FAMILY_CODES|RENAME_MAP/);
+    // Görünür segmentin gizli dalları rapora paylaşılan yardımcıdan gelir (elle önek listesi yok).
+    expect(src).toContain("hiddenPrefixesUnder(seg.code)");
+    expect(src.match(/"\d{4}"|"\d{6}"/g)).toBeNull();
     // Betikte tırnaklı 8 haneli kod (gizleme ya da yeniden adlandırma listesi) kalmadı.
     expect(src.match(/"\d{8}"/g)).toBeNull();
   });

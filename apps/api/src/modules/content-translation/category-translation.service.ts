@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { Locale } from "@rothern/i18n";
-import { HIDDEN_SEGMENTS, hiddenCategoryWhere } from "@rothern/shared";
+import { hiddenCategoryWhere, type HiddenCategoryWhere } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "./content-translation.service";
 import {
@@ -19,23 +19,25 @@ import {
 /**
  * Kategori adı EN/RU toplu çevirisi (i18n Faz 4) — TEK SEFERLİK iş: staging'de
  * koşar, sonuç `export-category-names-i18n` ile depoya (TSV) yazılır; canlı ve
- * yeniden seed TSV'den okur, model çağrısı yapmaz. Görünür segmentlerdeki
- * (gizli segmentler hariç — `HIDDEN_SEGMENTS`) tüm satırlar; `nameEn`/`nameRu`
- * NULL olanlar. Nitelik çevirisi de aynı kapsamda (`visibleAttributeWhere`).
+ * yeniden seed TSV'den okur, model çağrısı yapmaz. Görünür dallardaki (gizli
+ * önekler hariç — segment, aile ya da sınıf; `hiddenCategoryWhere`) tüm
+ * satırlar; `nameEn`/`nameRu` NULL olanlar. Nitelik çevirisi de aynı kapsamda
+ * (`visibleAttributeWhere`).
  */
 const CATEGORY_WORKERS = 4;
 
 /**
- * Prisma `where` parçası — gizli bir segmentin düğümünde tanımlı nitelik
- * satırlarını dışarıda bırakır (`categoryId` = 8 haneli kod;
- * `hiddenCategoryWhere`in nitelik tablosundaki karşılığı, aynı kaynaktan).
+ * Prisma `where` parçası — gizli bir dalın (segment, aile ya da sınıf)
+ * düğümünde tanımlı nitelik satırlarını dışarıda bırakır (`categoryId` = 8
+ * haneli kod; `hiddenCategoryWhere`in nitelik tablosundaki karşılığı — aynı
+ * önek listesi, tek kaynak).
  * Gizli dalın nitelikleri toplu çeviriye GİRMEZ (2026-10-09):
  * her parti niteliğin KATEGORİ ADINI bağlam olarak modele yollar ve gizli
  * kategorinin adı hiçbir model istemine yazılmaz; o dallar arayüzde zaten
  * seçilemez. Depodaki TSV'den gelen hazır çeviriler yerinde kalır.
  */
-export function visibleAttributeWhere(): { NOT: { categoryId: { startsWith: string } }[] } {
-  return { NOT: HIDDEN_SEGMENTS.map((p) => ({ categoryId: { startsWith: p } })) };
+export function visibleAttributeWhere(): HiddenCategoryWhere<"categoryId"> {
+  return hiddenCategoryWhere("categoryId");
 }
 
 /**

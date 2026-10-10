@@ -3,9 +3,12 @@ import {
   categoryAtLevel,
   categoryLevel,
   categoryPrefix,
+  categorySubtreeMatcher,
+  categorySubtreeWhere,
   EMPLOYEE_BUCKET_KEYS,
   employeeBucket,
   foldSearchText,
+  isCategoryCode,
   isCompanyActivity,
   isRadiusOption,
   isValidCountryCode,
@@ -260,16 +263,40 @@ export function attributeClauses(raw?: string[]): Prisma.CompanyItemWhereInput[]
 /**
  * Kategori süzgeci ALT AĞACI kapsar (`categoryPrefix`, seviye × 2 hane).
  *
- * HAM KOD, bilinçli: gizli segment süzgeci BURAYA KONMAZ. İlişkili ürün
- * blokları (`related-products.ts`) ürünün KENDİ saklanmış kodundan yukarı
- * çıkarak bu fonksiyonu çağırır; gizli segmentteki eski ürünün "benzer
- * ürünler"i burada süzülseydi boşalırdı. Kullanıcıdan gelen süzgeç değeri
- * (`?category=`) `productIndexWhere` içinde `visibleCategoryId`den geçer.
+ * HAM KOD, bilinçli: gizli dal süzgeci BURAYA KONMAZ. İki çağıranı var:
+ *  · EŞLEŞTİRME (`item-product-match.ts` `productInRequestCategoryWhere`) —
+ *    saklanan kodların tamamını kullanır;
+ *  · gizli daldaki ESKİ ürünün ilişkili blokları (`related-products.ts`) —
+ *    ürünün kendi saklanmış kodundan yukarı çıkar.
+ * Görünür bir kategorinin alt ağacını LİSTELEYEN / SAYAN her yer (`?category=`
+ * süzgeci, görünür ürünün ilişkili blokları, firma altı ürünler)
+ * `productSubtreeClauses` okur.
  */
 export function productCategoryWhere(code?: string): Prisma.CompanyItemWhereInput {
   const prefix = code ? categoryPrefix(code) : null;
   if (!prefix) return {};
   return { categoryId: { startsWith: prefix } };
+}
+
+/**
+ * Bir kategorinin alt ağacındaki ürünler, LİSTELENDİĞİ hâliyle — `AND` dizisine
+ * yayılacak koşul (kod geçersizse / yoksa boş dizi = süzgeç yok).
+ *
+ * GİZLİ TORUN DIŞARIDA (2026-10-10, gizleme artık aile / sınıf düzeyinde de
+ * var): görünür bir kategorinin altında gizli dal olabilir (`46000000` altında
+ * `4610…`). O dalda saklanmış eski ürün görünür atasının altında listelenmez,
+ * sayılmaz; kendi sayfası kategorisiz çalışmaya devam eder. Tek kaynak
+ * `categorySubtreeWhere` (`@rothern/shared`). Gizli torunu olmayan kodda koşul
+ * eskisiyle birebir aynıdır (`{ categoryId: { startsWith } }`).
+ *
+ * Girdinin KENDİSİ gizliyse sonuç HAM alt ağaçtır: "gizli kod süzgeç değildir"
+ * kararı çağıranındır ve bu çağrıdan ÖNCE verilir (`visibleCategoryId`).
+ *
+ * Koşul `NOT` taşıyabilir → `where`e spread EDİLMEZ, `AND` öğesi olur.
+ */
+export function productSubtreeClauses(code: string | null | undefined): Prisma.CompanyItemWhereInput[] {
+  const subtree = code && isCategoryCode(code) ? categorySubtreeWhere(code, "categoryId") : null;
+  return subtree ? [subtree] : [];
 }
 
 export function productIndexWhere(
@@ -291,6 +318,13 @@ export function productIndexWhere(
       ? [q.priceMax, q.priceMin]
       : [q.priceMin, q.priceMax];
   const and: Prisma.CompanyItemWhereInput[] = [
+    // Gizli bir dalın kodu süzgeç DEĞİLDİR (2026-10-09, sahip kuralı:
+    // "anasayfada olmayan kategori hiçbir yerde gösterilmez / sunulmaz"):
+    // elle yazılmış ya da eski yer iminden gelen `?kategori=10000000` kategori
+    // seçilmemiş gibi davranır. Görünür kodun alt ağacından gizli torunlar
+    // düşer (`productSubtreeClauses`). Tek yer: herkese açık `/urunler`,
+    // panelin "Ürün Ara"sı ve AI arama sayımı aynı fonksiyonu okur.
+    ...productSubtreeClauses(visibleCategoryId(q.category)),
     ...productSearchClauses(q.q),
     // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
     // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz. Çoklu seçim
@@ -346,12 +380,6 @@ export function productIndexWhere(
   ];
   return {
     ...publicProductWhere(),
-    // Gizli segmentin kodu süzgeç DEĞİLDİR (2026-10-09, sahip kuralı:
-    // "anasayfada olmayan kategori hiçbir yerde gösterilmez / sunulmaz"):
-    // elle yazılmış ya da eski yer iminden gelen `?kategori=46000000` kategori
-    // seçilmemiş gibi davranır. Tek yer: herkese açık `/urunler`, panelin
-    // "Ürün Ara"sı ve AI arama sayımı aynı fonksiyonu okur.
-    ...productCategoryWhere(visibleCategoryId(q.category) ?? undefined),
     ...(and.length ? { AND: and } : {}),
   };
 }
@@ -489,6 +517,9 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
   return {
     // Gizli segment (katalog sadeleştirme 2026-09-19) facet'e girmez — adı
     // çözülemediği için süzgeçte çıplak kod ("10000000") görünüyordu.
+    // Süzme segmente yuvarlamadan ÖNCE, ürünün KENDİ koduyla (2026-10-10):
+    // görünür segmentin gizli dalındaki ürün (`4610…`) o segmentin sayısına
+    // girmez — sayı, segment süzgecinin getirdiği listeyle aynı kalır.
     categories: [...count(forAll, (r) => (r.categoryId && r.categoryId.length === 8 && !isHiddenCategory(r.categoryId) ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
     cities: cityFacet(count(forCity, (r) => (r.company.cityId != null ? [String(r.company.cityId)] : []))),
     countries: [...count(forCountry, (r) => (r.company.country ? [r.company.country] : [])).entries()]
@@ -689,10 +720,12 @@ export async function attributeFacets(
  * hep L1'e yuvarlar; bu, seçili kodun seviyesi + 1'e yuvarlar. Yaprak (L4)
  * seçiliyse alt dal yoktur → boş döner.
  *
- * GİZLİ SEGMENT kodu verilirse de boş döner (2026-10-09): `?kategori=46000000`
+ * GİZLİ bir dalın kodu verilirse de boş döner (2026-10-09): `?kategori=10000000`
  * gizli segmentin ailelerini ürün sayılarıyla listeliyordu — gizli dalın alt
- * kırılımı sunulmaz. Görünür bir kodun alt dalları aynı segmenttedir, ayrıca
- * süzmeye gerek yok.
+ * kırılımı sunulmaz. Görünür bir kodun GİZLİ alt dalı da sunulmaz, sayılmaz
+ * (2026-10-10: `46000000` altında `4610…` aileleri, `46180000` altında
+ * `461825` sınıfı) — satırlar `categorySubtreeMatcher`den geçer, yani çağıran
+ * süzülmemiş satır verse de gizli dal çıkmaz.
  */
 /** Yalnız `categoryId` okur — ham Prisma satırı da geçsin diye dar tip
  *  (`ProductFacetRow` istemek çağıranı gereksizce `toFacetRow`a zorlardı). */
@@ -701,12 +734,12 @@ export function subCategoryCounts(rows: { categoryId: string | null }[], categor
   const level = categoryLevel(category);
   if (level === 0 || level >= 4) return [];
   const child = (level + 1) as 2 | 3 | 4;
-  const prefix = categoryPrefix(category);
-  if (!prefix) return [];
+  const inSubtree = categorySubtreeMatcher(category);
+  if (!inSubtree) return [];
   const m = new Map<string, number>();
   for (const r of rows) {
     const id = r.categoryId;
-    if (!id || !id.startsWith(prefix)) continue;
+    if (!id || !inSubtree(id)) continue;
     const key = categoryAtLevel(id, child);
     if (!key) continue;
     m.set(key, (m.get(key) ?? 0) + 1);

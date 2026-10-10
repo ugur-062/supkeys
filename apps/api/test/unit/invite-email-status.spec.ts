@@ -36,8 +36,8 @@ function rig(opts: {
         number: "ROT-000042",
         status: "OPEN",
         closesAt: new Date("2026-10-04T22:30:00Z"),
-        // GÖRÜNÜR kategori (e2e/test kuralı 31161500): 46 gizli segment (`HIDDEN_SEGMENTS`),
-        // gizli kodun davete yazılmaması `external-invite-content.spec`te kilitli.
+        // GÖRÜNÜR kategori (e2e/test kuralı 31161500); gizli kodun davete
+        // yazılmaması `external-invite-content.spec`te kilitli.
         categoryIds: ["31161500"],
         type: "ALIM",
         createdById: "u1",

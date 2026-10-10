@@ -373,15 +373,21 @@ describe("proposePublishTender", () => {
   });
 
   /**
-   * GİZLİ SEGMENT (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
-   * üründe ya da başka yerde de gösterilmesin"). Segment gizlenmeden önce
+   * GİZLİ DAL (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
+   * üründe ya da başka yerde de gösterilmesin"). Dal gizlenmeden önce
    * önerilmiş kod eski oturumun taslağında durur: onay kartı gizli kategorinin
    * adını yazıyor, onay da yayın kapısında 400 alıyordu.
+   * 2026-10-10: gizlemenin birimi kod önekidir — gizli AİLE (4610) ve görünür
+   * ailenin gizli SINIFI (461825) gizli segmentle aynı davranır.
    */
-  describe("eski oturumun taslağındaki gizli kategori önerisi", () => {
+  describe.each([
+    ["gizli segment", "10101500", 3, "Çiftlik hayvanları", "Livestock"],
+    ["görünür segmentin gizli ailesi", "46101500", 3, "Ateşli silahlar", "Firearms"],
+    ["görünür ailenin gizli sınıfı", "46182501", 4, "Biber gazı spreyleri", "Pepper sprays"],
+  ] as const)("eski oturumun taslağındaki gizli kategori önerisi — %s", (_level, HIDDEN_CODE, hiddenLevel, HIDDEN_TR, HIDDEN_EN) => {
     async function seedHidden() {
       await prisma.category.create({
-        data: { id: "46181700", code: "46181700", nameTr: "Baş koruma", nameEn: "Head protection", level: 3, isActive: true, sortOrder: 0 },
+        data: { id: HIDDEN_CODE, code: HIDDEN_CODE, nameTr: HIDDEN_TR, nameEn: HIDDEN_EN, level: hiddenLevel, isActive: true, sortOrder: 0 },
       });
     }
     async function ownerWithAddress() {
@@ -397,19 +403,19 @@ describe("proposePublishTender", () => {
       await seedHidden();
       const owner = await ownerWithAddress();
       const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
-      const session = await makeSession(owner.user.id, owner.company.id, fullDraft({ suggestedCategoryIds: ["46181700"] }));
+      const session = await makeSession(owner.user.id, owner.company.id, fullDraft({ suggestedCategoryIds: [HIDDEN_CODE] }));
 
       const out = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
       expect(out.ok).toBe(false);
       // Taslak zorunlu alanı eksik sayılır: "category" (model kategoriyi yeniden önerir).
       expect(out.problem).toMatch(/eksik/i);
       expect(out.problem).toMatch(/kategori/i);
-      expect(out.problem).not.toContain("Baş koruma");
+      expect(out.problem).not.toContain(HIDDEN_TR);
       expect(out.pending).toBeUndefined();
       expect((await prisma.aiChatSession.findUniqueOrThrow({ where: { id: session.id } })).pendingAction).toBeNull();
     });
 
-    it("karışık öneri (46 + görünür): kart yalnız görünür kategoriyi yazar; onay talebi görünür kategoriyle açar", async () => {
+    it("karışık öneri (gizli + görünür): kart yalnız görünür kategoriyi yazar; onay talebi görünür kategoriyle açar", async () => {
       const actions = makeActions();
       await seedCategory();
       await seedHidden();
@@ -418,7 +424,7 @@ describe("proposePublishTender", () => {
       const session = await makeSession(
         owner.user.id,
         owner.company.id,
-        fullDraft({ suggestedCategoryIds: ["46181700", "30991900"] }),
+        fullDraft({ suggestedCategoryIds: [HIDDEN_CODE, "30991900"] }),
       );
 
       for (const locale of ["tr", "en"] as const) {
@@ -428,9 +434,9 @@ describe("proposePublishTender", () => {
         expect(out.ok).toBe(true);
         const text = out.pending!.summary.join(" ");
         expect(text).toContain("Kişisel koruyucu donanım (KKD)");
-        expect(text).not.toContain("Baş koruma");
-        expect(text).not.toContain("Head protection");
-        expect(JSON.stringify(out.pending)).not.toContain("46181700");
+        expect(text).not.toContain(HIDDEN_TR);
+        expect(text).not.toContain(HIDDEN_EN);
+        expect(JSON.stringify(out.pending)).not.toContain(HIDDEN_CODE);
       }
 
       const pending = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
@@ -439,6 +445,34 @@ describe("proposePublishTender", () => {
       const listing = await prisma.listing.findFirstOrThrow({ where: { companyId: owner.company.id } });
       expect(listing.status).toBe("OPEN");
       expect(listing.categoryIds).toEqual(["30991900"]);
+    });
+  
+
+    it("46 altındaki GÖRÜNÜR sınıf sıradan öneridir: kart adını yazar, onay talebi o kategoriyle açar", async () => {
+      const actions = makeActions();
+      await prisma.category.create({
+        data: { id: "46181700", code: "46181700", nameTr: "Yüz ve baş koruması", nameEn: "Face and head protection", level: 3, isActive: true, sortOrder: 0, inDiscovery: true },
+      });
+      await seedHidden();
+      const owner = await ownerWithAddress();
+      const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+      const session = await makeSession(
+        owner.user.id,
+        owner.company.id,
+        fullDraft({ suggestedCategoryIds: [HIDDEN_CODE, "46181700"] }),
+      );
+
+      const out = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
+      expect(out.ok).toBe(true);
+      const text = out.pending!.summary.join(" ");
+      expect(text).toContain("Yüz ve baş koruması");
+      expect(text).not.toContain(HIDDEN_TR);
+      expect(JSON.stringify(out.pending)).not.toContain(HIDDEN_CODE);
+
+      const res = await actions.confirm(owner.auth, session.id, out.pending!.id);
+      expect(res.status).toBe("executed");
+      const listing = await prisma.listing.findFirstOrThrow({ where: { companyId: owner.company.id } });
+      expect(listing.categoryIds).toEqual(["46181700"]);
     });
   });
 

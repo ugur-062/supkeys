@@ -18,6 +18,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { BUYING_TIER, EMAIL_MAX_LENGTH, isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER, visibleCategoryIds } from "@rothern/shared";
+import { shownCompanyDeclaration } from "../../../common/company/company-directory";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { buildDirectory, directoryFacets, type DirectoryParams, type DirectoryScope } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
@@ -1844,6 +1845,9 @@ export class CompanyConnectionsService {
       activities: true,
       sellerCategoryIds: true,
       buyerCategoryIds: true,
+      // Read only for the display rule (`shownCompanyDeclaration`); never returned.
+      sellerSubCategoryIds: true,
+      buyerSubCategoryIds: true,
       companyVerificationStatus: true,
       membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
       // Ticari sicil bilgileri. Tüzel kişide kamuya açık; ŞAHIS firmasında
@@ -1976,9 +1980,10 @@ export class CompanyConnectionsService {
     // declaration under a hidden segment stays in the record (matching still
     // reads it) but is never drawn as a chip. Filtered BEFORE the cap of 12,
     // so hidden codes do not use up the visible slots.
-    const shownCategoryIds = [
-      ...new Set(visibleCategoryIds([...c.sellerCategoryIds, ...c.buyerCategoryIds]).filter(isCategoryCode)),
-    ].slice(0, 12);
+    // HIDDEN FAMILY / CLASS (2026-10-10): a sector stored only as the ancestor
+    // of a hidden pick is not a chip either (`shownCompanyDeclaration`, the
+    // rule the directory filter, counter and card read).
+    const shownCategoryIds = [...new Set(shownCompanyDeclaration(c).main.filter(isCategoryCode))].slice(0, 12);
     const [listings, reviewRows, products, productCount, catRows, lockedListingCount] = await Promise.all([
       this.prisma.listing.findMany({
         where: {

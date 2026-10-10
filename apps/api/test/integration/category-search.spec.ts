@@ -1229,15 +1229,18 @@ describe("CategoryService.searchTree — kodla arama (O-048)", () => {
     }
   });
 
-  it("gizli segmentteki kod: sonuç yok + hiddenSegment (admin nedenini söyler)", async () => {
+  it("gizli segmentteki kod: sonuç yok + hiddenPrefix / hiddenSegment (admin nedenini söyler)", async () => {
     await makeCategory({ code: "43000000", nameTr: "Bilişim", level: 1 });
     await makeCategory({ code: "43230000", nameTr: "Yazılım", level: 2, parentId: "43000000" });
     await makeCategory({ code: "43231500", nameTr: "İş yazılımları", level: 3, parentId: "43230000" });
     const res = await service().searchHierarchical("43230000");
-    expect(res).toEqual({ segments: [], truncated: false, hiddenSegment: "43" });
+    // `hiddenPrefix` kodu kapsayan gizli önek; `hiddenSegment` eski biçim (yalnız segmentin tamamı gizliyse).
+    expect(res).toEqual({ segments: [], truncated: false, hiddenPrefix: "43", hiddenSegment: "43" });
     expect(await prisma.categorySearchMiss.count()).toBe(0);
-    // Görünür segmentte sonuçsuz kod: hiddenSegment YOK.
-    expect((await service().searchHierarchical("99990000")).hiddenSegment).toBeUndefined();
+    // Görünür segmentte sonuçsuz kod: ikisi de YOK.
+    const miss = await service().searchHierarchical("99990000");
+    expect(miss.hiddenSegment).toBeUndefined();
+    expect(miss.hiddenPrefix).toBeUndefined();
   });
 
   it("ondalık ölçü ('2.5') kod öneki sayılmaz — segment 25 dönmez (NEW-1)", async () => {
@@ -1538,5 +1541,138 @@ describe("CategoryService.searchTree — sektör adı ölçütü (sector-name-cr
       const res = await service().searchHierarchical(q);
       expect({ q, hit: res.segments.map((s) => [s.code, s.isMatch]) }).toEqual({ q, hit: [["39000000", true]] });
     }
+  });
+});
+
+/**
+ * 2026-10-10 (sahip kararı): 46 segmenti "İş Güvenliği ve Yangın Ekipmanları"
+ * adıyla GÖRÜNÜR; altında yalnız silah / kolluk dalları gizli (aileler 4610,
+ * 4612, 4615 … ve 4618 ailesinin 461825 sınıfı). Gizlemenin birimi artık kod
+ * ÖNEKİ olduğundan görünür bir atanın gizli torunu olabilir: eşleşen sektör
+ * "bütün aileleriyle", eşleşen aile "bütün sınıflarıyla" açılırken gizli
+ * dallar o bütünün parçası değildir.
+ */
+describe("CategoryService.searchTree — 46: görünür segment, gizli aile ve sınıflar (2026-10-10)", () => {
+  async function seed46() {
+    await makeCategory({
+      code: "46000000",
+      nameTr: "İş Güvenliği ve Yangın Ekipmanları",
+      nameEn: "Workplace Safety and Fire Equipment",
+      nameRu: "Средства охраны труда и противопожарное оборудование",
+      level: 1,
+      // Ariba'daki eski ad eş anlamlıda kalır (aranabilir), sektör ADI değildir.
+      keywords: "Law Enforcement and National Security and Security and Safety Equipment and Supplies iş güvenliği isg kkd",
+    });
+    // Gizli aileler.
+    await makeCategory({ code: "46100000", nameTr: "Hafif silahlar ve mühimmat", level: 2, parentId: "46000000", sortOrder: 1 });
+    await makeCategory({ code: "46101500", nameTr: "Ateşli silahlar", level: 3, parentId: "46100000" });
+    await makeCategory({ code: "46101501", nameTr: "Makineli tüfekler", level: 4, parentId: "46101500" });
+    await makeCategory({ code: "46120000", nameTr: "Füzeler", level: 2, parentId: "46000000", sortOrder: 2 });
+    await makeCategory({ code: "46121500", nameTr: "Güdümlü füzeler", level: 3, parentId: "46120000" });
+    await makeCategory({ code: "46150000", nameTr: "Kolluk ekipmanları", level: 2, parentId: "46000000", sortOrder: 3 });
+    await makeCategory({ code: "46151500", nameTr: "Kalabalık kontrol ekipmanları", level: 3, parentId: "46150000" });
+    // Görünür aile 4618 — gizli sınıfı 461825.
+    await makeCategory({ code: "46180000", nameTr: "Kişisel güvenlik ve koruma", level: 2, parentId: "46000000", sortOrder: 4 });
+    await makeCategory({ code: "46181500", nameTr: "Koruyucu giysiler", level: 3, parentId: "46180000", sortOrder: 1 });
+    await makeCategory({ code: "46181700", nameTr: "Yüz ve baş koruması", level: 3, parentId: "46180000", sortOrder: 2 });
+    await makeCategory({ code: "46181701", nameTr: "Baretler", level: 4, parentId: "46181700" });
+    await makeCategory({ code: "46182500", nameTr: "Kişisel güvenlik cihazları veya silahları", level: 3, parentId: "46180000", sortOrder: 3 });
+    await makeCategory({ code: "46182501", nameTr: "Koruyucu biber gazı spreyleri", level: 4, parentId: "46182500" });
+    // Görünür aile 4619.
+    await makeCategory({ code: "46190000", nameTr: "Yangından korunma", level: 2, parentId: "46000000", sortOrder: 5 });
+    await makeCategory({ code: "46191600", nameTr: "Yangın söndürme ekipmanları", level: 3, parentId: "46190000" });
+    await makeCategory({ code: "46191601", nameTr: "Yangın söndürücüler", level: 4, parentId: "46191600" });
+  }
+
+  /** Yanıttaki bütün kodlar (sektör, aile, sınıf, emtia). */
+  const codesOf = (res: Awaited<ReturnType<CategoryService["searchHierarchical"]>>) =>
+    res.segments.flatMap((s) => [
+      s.code,
+      ...s.families.flatMap((f) => [f.code, ...f.classes.flatMap((c) => [c.code, ...c.commodities.map((m) => m.code)])]),
+    ]);
+  const HIDDEN_CODE = /^46(1[0-5]|20|22)|^461825/;
+
+  it.each(["silah", "silahlar", "füze", "kolluk", "mühimmat", "tüfek", "biber gazı", "law enforcement"])(
+    "'%s' hiçbir şey döndürmez (gizli dal aranamaz; eski ad sektörü de getirmez)",
+    async (q) => {
+      await seed46();
+      for (const catalog of ["full", "discovery"] as const) {
+        expect((await service().searchHierarchical(q, catalog)).segments).toEqual([]);
+      }
+    },
+  );
+
+  it("'koruyucu' 46 altındaki görünür satırları bulur; adı eşleşen gizli sınıfın yaprağı gelmez", async () => {
+    await seed46();
+    const res = await service().searchHierarchical("koruyucu");
+    const codes = codesOf(res);
+    expect(codes).toEqual(expect.arrayContaining(["46000000", "46180000", "46181500"]));
+    expect(codes.some((c) => HIDDEN_CODE.test(c))).toBe(false);
+  });
+
+  it("'baret' ve 'yangın' 46 altında bulunur", async () => {
+    await seed46();
+    expect(codesOf(await service().searchHierarchical("baret"))).toEqual(["46000000", "46180000", "46181700", "46181701"]);
+    const fire = codesOf(await service().searchHierarchical("yangın"));
+    expect(fire).toEqual(expect.arrayContaining(["46000000", "46190000", "46191600", "46191601"]));
+    expect(fire.some((c) => HIDDEN_CODE.test(c))).toBe(false);
+  });
+
+  it("adı eşleşen AİLE bütün sınıflarıyla açılır — gizli sınıfı (461825) hariç", async () => {
+    await seed46();
+    const res = await service().searchHierarchical("kişisel güvenlik");
+    const fam = res.segments.flatMap((s) => s.families).find((f) => f.code === "46180000");
+    expect(fam?.isMatch).toBe(true);
+    expect(fam?.classes.map((c) => c.code).sort()).toEqual(["46181500", "46181700"]);
+    expect(codesOf(res).some((c) => HIDDEN_CODE.test(c))).toBe(false);
+  });
+
+  it.each([
+    ["tr", "iş güvenliği"],
+    ["tr", "İş Güvenliği ve Yangın Ekipmanları"],
+    ["en", "Workplace Safety"],
+  ] as const)("sektör yeni adıyla bulunur (%s: '%s') ve yalnız görünür aileleriyle açılır", async (locale, q) => {
+    await seed46();
+    const res = await runWithLocale(locale, () => service().searchHierarchical(q));
+    const sector = res.segments.find((s) => s.code === "46000000");
+    expect(sector?.isMatch).toBe(true);
+    expect(sector?.families.map((f) => f.code).sort()).toEqual(["46180000", "46190000"]);
+    expect(sector?.families.find((f) => f.code === "46180000")?.classes.map((c) => c.code).sort()).toEqual([
+      "46181500",
+      "46181700",
+    ]);
+    expect(codesOf(res).some((c) => HIDDEN_CODE.test(c))).toBe(false);
+  });
+
+  it("kodla arama: gizli aile / sınıf sonuçsuz + hiddenPrefix (düzeyiyle); hiddenSegment YOK (46 gizli değil)", async () => {
+    await seed46();
+    for (const [q, prefix] of [
+      ["4610", "4610"],
+      ["46100000", "4610"],
+      ["46101501", "4610"],
+      ["46 15", "4615"],
+      ["461825", "461825"],
+      ["46182501", "461825"],
+    ] as const) {
+      expect(await service().searchHierarchical(q)).toEqual({ segments: [], truncated: false, hiddenPrefix: prefix });
+    }
+    // Kod araması kürasyon kuyruğuna yazılmaz.
+    expect(await prisma.categorySearchMiss.count()).toBe(0);
+  });
+
+  it("kodla arama: görünür önekler yalnız görünür satırları getirir", async () => {
+    await seed46();
+    const segment = codesOf(await service().searchHierarchical("46"));
+    expect(segment).toEqual(expect.arrayContaining(["46000000", "46180000", "46181500", "46181701", "46190000", "46191601"]));
+    expect(segment.some((c) => HIDDEN_CODE.test(c))).toBe(false);
+
+    const family = await service().searchHierarchical("4618");
+    expect(family.hiddenPrefix).toBeUndefined();
+    const fam = family.segments.flatMap((s) => s.families).find((f) => f.code === "46180000");
+    expect(fam?.classes.map((c) => c.code).sort()).toEqual(["46181500", "46181700"]);
+    expect(codesOf(family).some((c) => HIDDEN_CODE.test(c))).toBe(false);
+
+    const leaf = await service().searchHierarchical("46181500");
+    expect(codesOf(leaf)).toEqual(["46000000", "46180000", "46181500"]);
   });
 });

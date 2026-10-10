@@ -1,11 +1,12 @@
 /**
- * HIDDEN SEGMENTS in the panel API (owner rule 2026-10-09).
+ * HIDDEN CATEGORIES in the panel API (owner rule 2026-10-09).
  *
  * "A category that is not on the home page must not be shown in requests,
  * products or anywhere else." The home page draws every VISIBLE segment, so a
- * category under a hidden segment (`HIDDEN_SEGMENTS`, 31 today, 46 and 77 the
- * newest) is never shown or offered - not to the record's own owner either.
- * LEGACY records (saved before the segment was hidden) stay; only their hidden
+ * category under a hidden prefix (`HIDDEN_CATEGORY_PREFIXES`: a whole segment,
+ * or since 2026-10-10 a family / class under a visible segment) is never shown
+ * or offered - not to the record's own owner either.
+ * LEGACY records (saved before the branch was hidden) stay; only their hidden
  * category disappears from every read.
  *
  * This spec is the contract of the panel side (audit round 5):
@@ -23,10 +24,20 @@
  *  - CP-06      (live re-check) a draft with a hidden AND a visible category is published
  *  - CP-07      (live re-check) request templates never carry a hidden code
  *
- * Fixtures are legacy rows written straight to the database with a 46xxxxxx
- * or 10xxxxxx code, exactly what the records of that time look like.
+ * Fixtures are legacy rows written straight to the database with a 53xxxxxx
+ * or 10xxxxxx code (fully hidden segments), exactly what the records of that
+ * time look like.
  * Matching (who is notified, category match, relevance) keeps reading the full
  * stored codes - asserted where a display change could have dragged it along.
+ *
+ * LAST SECTION (2026-10-10): segment 46 is VISIBLE again ("İş Güvenliği ve
+ * Yangın Ekipmanları"); only its weapon / law-enforcement families (4610 ...)
+ * and the class 461825 stay hidden. A hidden family and a hidden class behave
+ * like a hidden segment on every surface above, 46181500 is an ordinary
+ * category, and a record stored under 4610xxxx is neither listed nor counted
+ * under 46000000 - nor put first as "matches your buying category" for a buyer
+ * of that sector (panel product search). The request-side `categoryMatch` is
+ * the notification matcher's contract and still reads the stored codes.
  */
 import { BadRequestException } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
@@ -58,26 +69,59 @@ const SEG = "31000000";
 const FAM = "31160000";
 const CLS = "31161500";
 const CLS2 = "31161600";
-/** Hidden on 2026-10-09 (segment 46). */
-const HID_SEG = "46000000";
-const HID_FAM = "46180000";
-const HID_CLS = "46181500";
-const HID_CLS2 = "46181700";
+/** A fully hidden segment (53). */
+const HID_SEG = "53000000";
+const HID_FAM = "53100000";
+const HID_CLS = "53101500";
+const HID_CLS2 = "53101600";
 /** Hidden since 2026-09-19 (segment 10). */
 const OLD_SEG = "10000000";
 const OLD_CLS = "10101500";
 
-const HID_SEG_NAME = "Kolluk, Ulusal Güvenlik ve Emniyet Ekipmanları";
-const HID_CLS_NAME = "Koruyucu giysiler";
+const HID_SEG_NAME = "Giyim, Bavul ve Kişisel Bakım Ürünleri";
+const HID_FAM_NAME = "Giyim eşyaları";
+const HID_CLS_NAME = "Eski iş kıyafetleri";
+
+/**
+ * Segment 46 - VISIBLE, with hidden branches below it (2026-10-10):
+ *   4610 hidden FAMILY (weapons)        -> class 461015
+ *   4618 visible family (personal protection)
+ *        -> visible classes 461815 / 461817, hidden CLASS 461825 -> leaf 46182501
+ */
+const SAFETY_SEG = "46000000";
+const SAFETY_SEG_NAME = "İş Güvenliği ve Yangın Ekipmanları";
+const WEAPON_FAM = "46100000";
+const WEAPON_FAM_NAME = "Hafif silahlar ve mühimmat";
+const WEAPON_CLS = "46101500";
+const WEAPON_CLS_NAME = "Ateşli silahlar";
+const PPE_FAM = "46180000";
+const PPE_FAM_NAME = "Kişisel güvenlik ve koruma";
+const PPE_CLS = "46181500";
+const PPE_CLS_NAME = "Koruyucu giysiler";
+const PPE_CLS2 = "46181700";
+const SPRAY_CLS = "46182500";
+const SPRAY_CLS_NAME = "Kişisel güvenlik cihazları veya silahları";
+const SPRAY_LEAF = "46182501";
+const SPRAY_LEAF_NAME = "Biber gazı spreyleri";
 
 /** No hidden code and no hidden name anywhere in a response. */
 function expectNoHiddenCategory(payload: unknown) {
   const json = JSON.stringify(payload);
-  expect(json).not.toMatch(/"(46|10)\d{6}"/);
-  expect(json).not.toContain(HID_SEG_NAME);
-  expect(json).not.toContain(HID_CLS_NAME);
-  expect(json).not.toContain("Güvenlik ve koruma");
-  expect(json).not.toContain("Çiftlik hayvanları");
+  expect(json).not.toMatch(/"(53|10)\d{6}"/);
+  // Hidden branches of the visible segment 46: families 4610-4615, 4620, 4622 and class 461825.
+  expect(json).not.toMatch(/"46(1[0-5]|20|22)\d{4}"|"461825\d{2}"/);
+  for (const name of [
+    HID_SEG_NAME,
+    HID_FAM_NAME,
+    HID_CLS_NAME,
+    "Çiftlik hayvanları",
+    WEAPON_FAM_NAME,
+    WEAPON_CLS_NAME,
+    SPRAY_CLS_NAME,
+    SPRAY_LEAF_NAME,
+  ]) {
+    expect(json).not.toContain(name);
+  }
 }
 
 async function seedCatalogue() {
@@ -87,12 +131,20 @@ async function seedCatalogue() {
     [CLS, "Vidalar", 3, FAM],
     [CLS2, "Cıvatalar", 3, FAM],
     [HID_SEG, HID_SEG_NAME, 1, null],
-    [HID_FAM, "Güvenlik ve koruma", 2, HID_SEG],
+    [HID_FAM, HID_FAM_NAME, 2, HID_SEG],
     [HID_CLS, HID_CLS_NAME, 3, HID_FAM],
-    [HID_CLS2, "Koruyucu ayakkabılar", 3, HID_FAM],
+    [HID_CLS2, "Eski iş ayakkabıları", 3, HID_FAM],
     [OLD_SEG, "Canlı Bitki ve Hayvan Malzemeleri", 1, null],
     ["10100000", "Canlı hayvanlar", 2, OLD_SEG],
     [OLD_CLS, "Çiftlik hayvanları", 3, "10100000"],
+    [SAFETY_SEG, SAFETY_SEG_NAME, 1, null],
+    [WEAPON_FAM, WEAPON_FAM_NAME, 2, SAFETY_SEG],
+    [WEAPON_CLS, WEAPON_CLS_NAME, 3, WEAPON_FAM],
+    [PPE_FAM, PPE_FAM_NAME, 2, SAFETY_SEG],
+    [PPE_CLS, PPE_CLS_NAME, 3, PPE_FAM],
+    [PPE_CLS2, "Yüz ve baş koruması", 3, PPE_FAM],
+    [SPRAY_CLS, SPRAY_CLS_NAME, 3, PPE_FAM],
+    [SPRAY_LEAF, SPRAY_LEAF_NAME, 4, SPRAY_CLS],
   ];
   for (const [code, nameTr, level, parentId] of rows) {
     await prisma.category.create({
@@ -108,7 +160,8 @@ beforeAll(() => {
   // The fixture codes ARE hidden - if the single source ever drops them, this
   // spec would silently test nothing.
   expect([HID_SEG, HID_CLS, HID_CLS2, OLD_SEG, OLD_CLS].every((c) => isHiddenCategory(c))).toBe(true);
-  expect([SEG, FAM, CLS, CLS2].some((c) => isHiddenCategory(c))).toBe(false);
+  expect([WEAPON_FAM, WEAPON_CLS, SPRAY_CLS, SPRAY_LEAF].every((c) => isHiddenCategory(c))).toBe(true);
+  expect([SEG, FAM, CLS, CLS2, SAFETY_SEG, PPE_FAM, PPE_CLS, PPE_CLS2].some((c) => isHiddenCategory(c))).toBe(false);
 });
 afterAll(async () => {
   await truncateAll();
@@ -202,7 +255,7 @@ describe("request lists and detail - a hidden category is not shown, the request
     expect(row.categories).toEqual([{ code: CLS, name: "Vidalar" }]);
     expect(row.extraCategoryCount).toBe(0);
     expectNoHiddenCategory(rows);
-    // MATCHING IS UNCHANGED: the seller declared segment 46 -> still a category
+    // MATCHING IS UNCHANGED: the seller declared the hidden segment -> still a category
     // match; the affinity score of the stored hidden code still ranks the row.
     expect(row.categoryMatch).toBe(true);
     expect(row.matchScore).toBe(42);
@@ -754,7 +807,7 @@ describe("CP-01 the attribute form of a hidden category is not offered - also to
       reviewStatus: "APPROVED",
       slug: "celik-boru",
     });
-    // A draft under segment 46 with none of that segment's required fields filled.
+    // A draft under the hidden segment with none of that segment's required fields filled.
     const draft = await legacyProduct(owner, { name: "Koruyucu gözlük", categoryId: HID_CLS, attributes: Prisma.DbNull });
 
     const a = await items().getShowcase(owner.auth, published.id);
@@ -829,7 +882,7 @@ describe("CP-07 request templates never carry a category under a hidden segment"
     const owner = await makeCompanyWithUser(prisma, {});
     const payload = {
       title: "Baret ve vida alımı",
-      description: "Eski şartname no 46181500",
+      description: "Eski şartname no 53101500",
       categoryIds: [HID_CLS, CLS, OLD_CLS, CLS2],
       keywords: ["baret", "vida"],
       items: [
@@ -837,7 +890,7 @@ describe("CP-07 request templates never carry a category under a hidden segment"
         { name: "Vida M8", quantity: 100, unit: "adet", categoryId: CLS },
       ],
       // Free text in a category-named field is not a code and is left alone.
-      categoryHint: "46 numaralı şartnameye göre",
+      categoryHint: "53 numaralı şartnameye göre",
       visibility: "PUBLIC",
     };
 
@@ -1158,5 +1211,495 @@ describe("DATA-09 affinity builder", () => {
     // ... while the bid on the legacy request still counts (matching unchanged).
     expect(reasonsOf(HID_CLS2)?.bids).toBe(1);
     expect(rows.find((r) => r.categoryId === HID_CLS2)!.sellScore).toBeGreaterThan(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 2026-10-10 - HIDDEN FAMILY / CLASS UNDER THE VISIBLE SEGMENT 46      */
+/* ------------------------------------------------------------------ */
+
+describe("segment 46 is visible - its hidden family (4610) and hidden class (461825) behave like a hidden segment", () => {
+  const requestBody = (over: Record<string, unknown> = {}) =>
+    ({
+      type: "ALIM",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      title: "İş güvenliği talebi",
+      closesAt: FUTURE.toISOString(),
+      primaryCurrency: "TRY",
+      allowedCurrencies: ["TRY"],
+      items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
+      ...over,
+    }) as never;
+  const storedCodes = async (id: string) => (await prisma.listing.findUniqueOrThrow({ where: { id } })).categoryIds;
+
+  it("request lists and detail: hidden family / class codes are never shown, 46181500 is an ordinary category", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const bidder = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const mixed = await legacyListing(owner, [WEAPON_CLS, PPE_CLS, SPRAY_LEAF, CLS], { title: "Karışık" });
+    const onlyHidden = await legacyListing(owner, [WEAPON_CLS, SPRAY_LEAF], { title: "Yalnız gizli" });
+    const plain = await legacyListing(owner, [PPE_CLS], { title: "Yalnız görünür" });
+    for (const l of [mixed, onlyHidden, plain]) await makeItem(prisma, l.id);
+
+    const mine = (await service.listTenders(owner.company.id, "ALIM")) as Array<{
+      id: string;
+      categories: { code: string; name: string }[];
+      extraCategoryCount: number;
+      categoryIds: string[];
+    }>;
+    expect(mine).toHaveLength(3); // legacy requests are still listed
+    const a = mine.find((r) => r.id === mixed.id)!;
+    expect(a.categories).toEqual([
+      { code: PPE_CLS, name: PPE_CLS_NAME },
+      { code: CLS, name: "Vidalar" },
+    ]);
+    // 4 stored codes, 2 visible -> nothing "extra".
+    expect(a.extraCategoryCount).toBe(0);
+    expect(a.categoryIds).toEqual([PPE_CLS, CLS]);
+    const b = mine.find((r) => r.id === onlyHidden.id)!;
+    expect(b.categories).toEqual([]);
+    expect(b.categoryIds).toEqual([]);
+    expectNoHiddenCategory(mine);
+
+    const open = (await service.sellerTenders(bidder.auth, "ALIM")) as unknown as Array<{
+      id: string;
+      categories: { code: string; name: string }[];
+    }>;
+    expect(open.find((r) => r.id === mixed.id)!.categories.map((c) => c.code)).toEqual([PPE_CLS, CLS]);
+    expect(open.find((r) => r.id === onlyHidden.id)!.categories).toEqual([]);
+    expect(open.find((r) => r.id === plain.id)!.categories).toEqual([{ code: PPE_CLS, name: PPE_CLS_NAME }]);
+    expectNoHiddenCategory(open);
+
+    const asOwner = (await service.getOne(owner.auth, mixed.id)) as { categoryIds: string[]; hasRetiredCategory?: boolean };
+    const asBidder = (await service.getOne(bidder.auth, mixed.id)) as { categoryIds: string[] };
+    expect(asOwner.categoryIds).toEqual([PPE_CLS, CLS]);
+    expect(asOwner.hasRetiredCategory).toBe(true);
+    expect(asBidder.categoryIds).toEqual([PPE_CLS, CLS]);
+    expect(asBidder).not.toHaveProperty("hasRetiredCategory");
+    expectNoHiddenCategory(asOwner);
+    expectNoHiddenCategory(asBidder);
+    // A request with visible codes under 46 only carries no "retired category" note.
+    expect(((await service.getOne(owner.auth, plain.id)) as { hasRetiredCategory?: boolean }).hasRetiredCategory).toBe(false);
+    // Nothing was rewritten.
+    expect(await storedCodes(mixed.id)).toEqual([WEAPON_CLS, PPE_CLS, SPRAY_LEAF, CLS]);
+  });
+
+  it("supplier sector counters: a request stored only under a hidden branch is not counted under segment 46", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await legacyListing(owner, [WEAPON_CLS]);
+    await legacyListing(owner, [SPRAY_LEAF]);
+    await legacyListing(owner, [PPE_CLS]);
+    await legacyListing(owner, [WEAPON_CLS, PPE_CLS2]);
+    await legacyListing(owner, [CLS]);
+
+    const res = await service.discoverFacets(seller.auth, "ALIM");
+
+    expect(res.total).toBe(5); // the requests themselves stay visible
+    expect(res.segments.map((s) => [s.id, s.count]).sort()).toEqual(
+      [
+        [SAFETY_SEG, 2],
+        [SEG, 1],
+      ].sort(),
+    );
+    expect(res.segments.find((s) => s.id === SAFETY_SEG)?.name).toBe(SAFETY_SEG_NAME);
+    expectNoHiddenCategory(res);
+  });
+
+  it("request write gates: a NEW hidden family / class code is rejected, 46181500 is accepted, a stored one never blocks", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {});
+
+    for (const code of [WEAPON_CLS, SPRAY_CLS, SPRAY_LEAF]) {
+      const err = await service
+        .create(owner.auth, requestBody({ asDraft: true, categoryIds: [code] }))
+        .then(() => null, (e: unknown) => e);
+      expect(err).toBeInstanceOf(BadRequestException);
+      expect((err as BadRequestException).getResponse()).toMatchObject({
+        i18nKey: "api.companyListings.gecersizKategoriSecimi",
+      });
+    }
+    expect(await prisma.listing.count()).toBe(0);
+    // A visible class of segment 46 is an ordinary request category.
+    await service.create(owner.auth, requestBody({ asDraft: true, categoryIds: [PPE_CLS] }));
+    expect((await prisma.listing.findFirstOrThrow({ where: { companyId: owner.company.id } })).categoryIds).toEqual([PPE_CLS]);
+
+    // PUBLISHED legacy request: the stored hidden-family code is carried over by an unrelated edit ...
+    const legacy = await legacyListing(owner, [WEAPON_CLS, PPE_CLS]);
+    await service.updateListing(owner.auth, legacy.id, requestBody({ categoryIds: [PPE_CLS] }));
+    expect(await storedCodes(legacy.id)).toEqual([WEAPON_CLS, PPE_CLS]);
+    // ... while ADDING a hidden class code is refused and nothing is written.
+    await expect(
+      service.updateListing(owner.auth, legacy.id, requestBody({ categoryIds: [PPE_CLS, SPRAY_LEAF] })),
+    ).rejects.toThrow(BadRequestException);
+    expect(await storedCodes(legacy.id)).toEqual([WEAPON_CLS, PPE_CLS]);
+  });
+
+  it("publish of a draft: hidden family / class codes leave the list when a visible one remains; with none left it is refused", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const mixed = await legacyListing(owner, [WEAPON_CLS, PPE_CLS, SPRAY_LEAF], { status: "DRAFT" });
+    const onlyHidden = await legacyListing(owner, [WEAPON_CLS, SPRAY_LEAF], { status: "DRAFT" });
+    await makeItem(prisma, mixed.id);
+    await makeItem(prisma, onlyHidden.id);
+
+    expect((await service.publishListing(owner.auth, mixed.id)).status).toBe("OPEN");
+    expect(await storedCodes(mixed.id)).toEqual([PPE_CLS]);
+
+    const err = await service.publishListing(owner.auth, onlyHidden.id).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(BadRequestException);
+    expect((err as BadRequestException).getResponse()).toMatchObject({ code: "LISTING_CATEGORY_NOT_CURRENT" });
+    expect(await storedCodes(onlyHidden.id)).toEqual([WEAPON_CLS, SPRAY_LEAF]);
+  });
+
+  it("product gate: no new product under a hidden family / class; 46181500 is accepted; a legacy product stays editable", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+
+    for (const categoryId of [WEAPON_FAM, WEAPON_CLS, SPRAY_CLS, SPRAY_LEAF]) {
+      const err = await items()
+        .createProduct(owner.auth, { name: `Ürün ${categoryId}`, categoryId })
+        .then(() => null, (e: unknown) => e);
+      expect(err).toBeInstanceOf(BadRequestException);
+      expect((err as BadRequestException).getResponse()).toMatchObject({
+        i18nKey: "api.companyItems.kategoriGecersizYaDaGuncelDegil",
+      });
+    }
+    await expect(
+      items().create(owner.auth, { name: "Kalem", unit: "adet", categoryId: SPRAY_LEAF }),
+    ).rejects.toThrow(BadRequestException);
+    expect(await prisma.companyItem.count()).toBe(0);
+    expect((await items().createProduct(owner.auth, { name: "Baret", categoryId: PPE_CLS2 })).categoryId).toBe(PPE_CLS2);
+
+    // Legacy product under the hidden family: unchanged value passes, an empty one keeps it.
+    const legacy = await legacyProduct(owner, { name: "Eski tüfek kılıfı", categoryId: WEAPON_CLS });
+    await items().updateShowcase(owner.auth, legacy.id, { categoryId: WEAPON_CLS, description: "y".repeat(130) });
+    await items().updateShowcase(owner.auth, legacy.id, { categoryId: null, description: "z".repeat(130) });
+    expect(await categoryOf(legacy.id)).toBe(WEAPON_CLS);
+    // A CHANGE to another hidden branch is a new value -> rejected.
+    await expect(items().updateShowcase(owner.auth, legacy.id, { categoryId: SPRAY_LEAF })).rejects.toThrow(
+      /Seçilen kategori geçersiz ya da artık kullanılmıyor/,
+    );
+    expect(await categoryOf(legacy.id)).toBe(WEAPON_CLS);
+
+    // Not public yet + hidden branch = no category for the review queue.
+    const showcase = await items().getShowcase(owner.auth, legacy.id);
+    expect(showcase.publishBlockers).toEqual(["Kategori artık kullanılmıyor, güncel bir kategori seçilmeli"]);
+    await expect(items().publish(owner.auth, legacy.id)).rejects.toThrow(BadRequestException);
+    // Moved to the visible class of the same segment it goes to review.
+    await items().updateShowcase(owner.auth, legacy.id, { categoryId: PPE_CLS, ...COMPLETE });
+    expect((await items().publish(owner.auth, legacy.id)).reviewStatus).toBe("PENDING");
+  });
+
+  it("attribute form: not offered for a hidden family / class; a visible code under 46 inherits the segment's fields", async () => {
+    await prisma.categoryAttribute.create({
+      data: { categoryId: SAFETY_SEG, groupKey: "urun_grubu", nameTr: "Ürün grubu", type: "SINGLE_SELECT", options: ["Kişisel koruyucu donanım", "Yangın güvenliği"], isRequired: true, sortOrder: 0 },
+    });
+    const controller = new CompanyItemsController(items());
+
+    for (const code of [WEAPON_FAM, WEAPON_CLS, SPRAY_CLS, SPRAY_LEAF]) {
+      expect(await controller.attributes(code)).toEqual([]);
+    }
+    for (const code of [SAFETY_SEG, PPE_FAM, PPE_CLS]) {
+      expect((await controller.attributes(code)).map((d) => [d.key, d.definedAt])).toEqual([["urun_grubu", SAFETY_SEG]]);
+    }
+  });
+
+  it("request templates: hidden family / class codes are stripped on save and on read; visible 46 codes stay", async () => {
+    const templates = new CompanyListingTemplatesService(prisma as unknown as PrismaService);
+    const owner = await makeCompanyWithUser(prisma, {});
+    const payload = {
+      title: "Baret alımı",
+      categoryIds: [WEAPON_CLS, PPE_CLS, SPRAY_LEAF, CLS, WEAPON_FAM],
+      items: [
+        { name: "Sprey", quantity: 5, unit: "adet", categoryId: SPRAY_CLS },
+        { name: "Baret", quantity: 5, unit: "adet", categoryId: PPE_CLS2 },
+      ],
+    };
+
+    const saved = await templates.save(owner.auth, { name: "Baret şablonu", payload });
+    const row = (await prisma.listingTemplate.findUniqueOrThrow({ where: { id: saved.id } })).payload;
+    expect(row).toEqual({
+      title: "Baret alımı",
+      categoryIds: [PPE_CLS, CLS],
+      items: [
+        { name: "Sprey", quantity: 5, unit: "adet", categoryId: null },
+        { name: "Baret", quantity: 5, unit: "adet", categoryId: PPE_CLS2 },
+      ],
+    });
+
+    // A template stored before the branch was hidden: read without the hidden code, row untouched.
+    const legacy = await prisma.listingTemplate.create({
+      data: {
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        name: "Eski şablon",
+        payload: { title: "Eski", categoryIds: [WEAPON_CLS, PPE_CLS] },
+      },
+    });
+    const listed = (await templates.list(owner.company.id)).find((t) => t.id === legacy.id)!;
+    expect(listed.payload).toEqual({ title: "Eski", categoryIds: [PPE_CLS] });
+    expectNoHiddenCategory(await templates.list(owner.company.id));
+    expect(((await prisma.listingTemplate.findUniqueOrThrow({ where: { id: legacy.id } })).payload as { categoryIds: string[] }).categoryIds)
+      .toEqual([WEAPON_CLS, PPE_CLS]);
+  });
+
+  it("panel product discovery: `category=46000000` lists and counts the visible branches only; a hidden code is no filter", async () => {
+    const weapon = await seedSeller({ categoryId: WEAPON_CLS });
+    await seedSeller({ categoryId: SPRAY_LEAF });
+    const ppe = await seedSeller({ categoryId: PPE_CLS });
+    await seedSeller({ categoryId: CLS });
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const viewer = { companyId: buyer.company.id, userId: buyer.user.id } as never;
+
+    // Search: the product stored under 4610 / 461825 is not listed under 46 or under 4618.
+    const all = await items().discoverSearch(viewer, {});
+    expect(all.total).toBe(4);
+    expectNoHiddenCategory(all);
+    const underSegment = await items().discoverSearch(viewer, { category: SAFETY_SEG });
+    expect(underSegment.items.map((i) => i.name)).toEqual([ppe.item.name]);
+    expect(underSegment.total).toBe(1);
+    expect((await items().discoverSearch(viewer, { category: PPE_FAM })).total).toBe(1);
+    expect((await items().discoverSearch(viewer, { category: PPE_CLS })).total).toBe(1);
+    for (const hidden of [WEAPON_FAM, WEAPON_CLS, SPRAY_CLS, SPRAY_LEAF]) {
+      expect((await items().discoverSearch(viewer, { category: hidden })).total).toBe(4);
+      expect(await items().discoverProducts(viewer, { category: hidden })).toHaveLength(4);
+    }
+    // Strip.
+    expect((await items().discoverProducts(viewer, { category: SAFETY_SEG })).map((p) => p.name)).toEqual([ppe.item.name]);
+    expect(await items().discoverProducts(viewer, { category: PPE_FAM })).toHaveLength(1);
+
+    // Facets: sector counter, selected category, one level down.
+    const none = await items().discoverFacets(viewer, {});
+    expect(none.categories.map((c) => [c.id, c.count]).sort()).toEqual(
+      [
+        [SAFETY_SEG, 1],
+        [SEG, 1],
+      ].sort(),
+    );
+    const seg = await items().discoverFacets(viewer, { category: SAFETY_SEG });
+    expect(seg.selectedCategory).toEqual({ id: SAFETY_SEG, name: SAFETY_SEG_NAME, level: 1 });
+    expect(seg.subCategories).toEqual([{ id: PPE_FAM, name: PPE_FAM_NAME, level: 2, count: 1 }]);
+    expect(seg.price.has + seg.price.request).toBe(1);
+    const fam = await items().discoverFacets(viewer, { category: PPE_FAM });
+    expect(fam.subCategories).toEqual([{ id: PPE_CLS, name: PPE_CLS_NAME, level: 3, count: 1 }]);
+    for (const hidden of [WEAPON_FAM, SPRAY_CLS, SPRAY_LEAF]) {
+      const facets = await items().discoverFacets(viewer, { category: hidden });
+      expect(facets.selectedCategory).toBeNull();
+      expect(facets.subCategories).toEqual([]);
+      expect(facets.categories).toEqual(none.categories);
+    }
+    for (const payload of [none, seg, fam]) expectNoHiddenCategory(payload);
+
+    // Product page: the legacy product opens without a category, the visible one with it.
+    const a = await items().discoverProduct(viewer, weapon.company.slug as string, weapon.item.slug as string);
+    expect(a.product.name).toBe(weapon.item.name);
+    expect(a.product.category).toBeNull();
+    expect(a.product.categoryId).toBeNull();
+    expectNoHiddenCategory(a);
+    const b = await items().discoverProduct(viewer, ppe.company.slug as string, ppe.item.slug as string);
+    expect(b.product.category).toEqual({ id: PPE_CLS, name: PPE_CLS_NAME });
+  });
+
+  /**
+   * BUYER RELEVANCE (review of 2026-10-10). With no sort chosen the panel
+   * search lists the products that match the company's BUYING declaration first
+   * and their card says "Alım kategorinizle eşleşiyor" (`matchesProfile`). The match walks the
+   * subtree of each declared category, so a visible sector must not pull in
+   * the records of its hidden branches, and a sector stored only as the
+   * ancestor of a hidden pick is not a declared category. A stored pick that
+   * is itself hidden keeps matching the products under it (stored codes).
+   */
+  it("panel product search relevance: a product under a hidden branch does not match the buyer's visible sector", async () => {
+    const weapon = await seedSeller({ categoryId: WEAPON_CLS });
+    const spray = await seedSeller({ categoryId: SPRAY_LEAF });
+    const ppe = await seedSeller({ categoryId: PPE_CLS });
+    const screw = await seedSeller({ categoryId: CLS });
+    const clothes = await seedSeller({ categoryId: HID_CLS });
+    const sellers = [weapon, spray, ppe, screw, clothes];
+    /** Names of the products the buyer sees first with the "matches your buying category" badge. */
+    const matched = async (declaration: Record<string, string[]>) => {
+      const buyer = await makeCompanyWithUser(prisma, {});
+      await prisma.company.update({ where: { id: buyer.company.id }, data: declaration });
+      const res = await items().discoverSearch({ companyId: buyer.company.id, userId: buyer.user.id } as never, {});
+      // The products themselves stay in the list, without their hidden category.
+      expect(res.total).toBe(sellers.length);
+      expect(res.items).toHaveLength(sellers.length);
+      expectNoHiddenCategory(res);
+      const flags = res.items.map((i) => (i as { matchesProfile?: boolean }).matchesProfile);
+      // The matching products are the HEAD of the list.
+      expect(flags).toEqual([...flags].sort((a, b) => Number(b) - Number(a)));
+      return res.items.filter((_, n) => flags[n]).map((i) => i.name).sort();
+    };
+    const names = (...list: Array<{ item: { name: string } }>) => list.map((s) => s.item.name).sort();
+
+    // "İş Güvenliği ve Yangın Ekipmanları" as a whole sector: only its visible branches match.
+    expect(await matched({ buyerCategoryIds: [SAFETY_SEG] })).toEqual(names(ppe));
+    // A visible family with a hidden class below it (4618 -> 461825).
+    expect(await matched({ buyerCategoryIds: [SAFETY_SEG], buyerSubCategoryIds: [PPE_FAM] })).toEqual(names(ppe));
+    // Next to another sector: the hidden branch is still not pulled in.
+    expect(await matched({ buyerCategoryIds: [SAFETY_SEG, SEG] })).toEqual(names(ppe, screw));
+
+    // The buyer's only pick under 46 is a hidden one: the sector is stored as its
+    // ancestor, not as a declared category -> the visible 46 products do not match.
+    // The stored hidden pick itself keeps matching (matching reads the stored codes).
+    expect(
+      await matched({ buyerCategoryIds: [SAFETY_SEG], buyerSubCategoryIds: [WEAPON_FAM, WEAPON_CLS] }),
+    ).toEqual(names(weapon));
+    expect(
+      await matched({ buyerCategoryIds: [SAFETY_SEG], buyerSubCategoryIds: [PPE_FAM, SPRAY_CLS, SPRAY_LEAF] }),
+    ).toEqual(names(spray));
+    // A visible pick and a hidden one in the same family: both chains match, the other hidden family does not.
+    expect(
+      await matched({ buyerCategoryIds: [SAFETY_SEG], buyerSubCategoryIds: [PPE_FAM, PPE_CLS, SPRAY_CLS, SPRAY_LEAF] }),
+    ).toEqual(names(ppe, spray));
+
+    // A fully hidden segment behaves as before the family / class rule.
+    expect(await matched({ buyerCategoryIds: [HID_SEG], buyerSubCategoryIds: [HID_FAM, HID_CLS] })).toEqual(names(clothes));
+    // No declaration at all: plain order, no card carries the flag.
+    expect(await matched({})).toEqual([]);
+
+    // Paging walks the two groups (matching first, then the rest) without losing or repeating a product.
+    const pager = await makeCompanyWithUser(prisma, {});
+    await prisma.company.update({ where: { id: pager.company.id }, data: { buyerCategoryIds: [SAFETY_SEG] } });
+    const paged: string[] = [];
+    for (const page of [1, 2, 3]) {
+      const res = await items().discoverSearch({ companyId: pager.company.id, userId: pager.user.id } as never, { page, pageSize: 2 });
+      paged.push(...res.items.map((i) => i.name));
+    }
+    expect(paged[0]).toBe(ppe.item.name);
+    expect([...paged].sort()).toEqual(names(...sellers));
+  });
+
+  /**
+   * REQUEST-SIDE TWIN of the relevance above - KNOWINGLY KEPT (review of
+   * 2026-10-10; owner decision pending). `categoryMatch` ("Profilinizle
+   * eşleşti") follows the contract of the notification matcher: the request's
+   * STORED codes go up to their ancestors and meet the seller's stored codes
+   * (`deriveCategoryMatchCandidates`, which also decides who is notified and
+   * invited). A seller of the whole sector 46 therefore still matches a legacy
+   * request stored only under 4610; the row shows no category.
+   */
+  it("supplier 'Open requests': categoryMatch keeps reading the stored codes of a legacy request under a hidden branch", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.company.update({ where: { id: seller.company.id }, data: { sellerCategoryIds: [SAFETY_SEG] } });
+    const legacy = await legacyListing(owner, [WEAPON_CLS], { title: "Yalnız gizli" });
+    const other = await legacyListing(owner, [CLS], { title: "Vida" });
+
+    const rows = (await service.sellerTenders(seller.auth, "ALIM")) as unknown as Array<{
+      id: string;
+      categoryMatch: boolean;
+      categories: unknown[];
+    }>;
+
+    expect(rows.find((r) => r.id === legacy.id)).toMatchObject({ categoryMatch: true, categories: [] });
+    expect(rows.find((r) => r.id === other.id)).toMatchObject({ categoryMatch: false });
+    expectNoHiddenCategory(rows);
+  });
+
+  /** Declarations as they are stored: every pick with its ancestor chain. */
+  const DECLARED = {
+    weaponOnly: { sellerCategoryIds: [SAFETY_SEG], sellerSubCategoryIds: [WEAPON_FAM, WEAPON_CLS] },
+    sprayOnly: { buyerCategoryIds: [SAFETY_SEG], buyerSubCategoryIds: [PPE_FAM, SPRAY_CLS, SPRAY_LEAF] },
+    ppe: { sellerCategoryIds: [SAFETY_SEG], sellerSubCategoryIds: [PPE_FAM, PPE_CLS, WEAPON_FAM, WEAPON_CLS] },
+    whole: { sellerCategoryIds: [SAFETY_SEG] },
+  };
+
+  it("legacy member directory: a company whose only pick under 46 is hidden is not listed under 46000000 / 46180000", async () => {
+    const make = async (name: string, slug: string, data: Record<string, unknown>) => {
+      const c = await makeCompanyWithUser(prisma, { name });
+      await prisma.company.update({ where: { id: c.company.id }, data: { publicEnabled: true, slug, ...data } });
+    };
+    await make("Silah Beyan", "silah-beyan", DECLARED.weaponOnly);
+    await make("Sprey Beyan", "sprey-beyan", DECLARED.sprayOnly);
+    await make("Koruyucu Beyan", "koruyucu-beyan", DECLARED.ppe);
+    await make("Sektor Geneli", "sektor-geneli", DECLARED.whole);
+    const directory = new CompanyDirectoryService(prisma as never);
+    const names = async (q: Parameters<CompanyDirectoryService["listPublic"]>[0]) =>
+      (await directory.listPublic(q)).items.map((c) => c.name).sort();
+    const everyone = ["Koruyucu Beyan", "Sektor Geneli", "Silah Beyan", "Sprey Beyan"];
+
+    expect(await names({})).toEqual(everyone);
+    expect(await names({ category: SAFETY_SEG })).toEqual(["Koruyucu Beyan", "Sektor Geneli"]);
+    // The total is that of the list (the page is cut from the same set).
+    expect((await directory.listPublic({ category: SAFETY_SEG })).total).toBe(2);
+    expect(await names({ category: PPE_FAM })).toEqual(["Koruyucu Beyan"]);
+    expect(await names({ category: PPE_CLS })).toEqual(["Koruyucu Beyan"]);
+    // A hidden family / class code is no filter at all.
+    for (const hidden of [WEAPON_FAM, WEAPON_CLS, SPRAY_CLS, SPRAY_LEAF]) {
+      expect(await names({ category: hidden })).toEqual(everyone);
+    }
+    // Other filters keep working next to the category.
+    expect(await names({ category: SAFETY_SEG, q: "sektor" })).toEqual(["Sektor Geneli"]);
+  });
+
+  it("panel company profile: a sector stored only as the ancestor of a hidden pick is not a declared category", async () => {
+    const audit = new AuditService(prisma as never);
+    const service = new CompanyConnectionsService(
+      prisma as never,
+      prisma as never,
+      new CompanyBlocksService(prisma as never, audit),
+      { send: jest.fn() } as never,
+      { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+      { pushToCompany: jest.fn(), pushToUser: jest.fn() } as never,
+      audit,
+    );
+    const viewer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const target = async (rothernId: string, slug: string, data: Record<string, unknown>) => {
+      const c = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      await prisma.company.update({ where: { id: c.company.id }, data: { rothernId, publicEnabled: true, slug, ...data } });
+      return (await service.getProfile(viewer.auth, rothernId)).profile;
+    };
+
+    const weaponOnly = await target("TEST-4610", "silah-beyanli", {
+      sellerCategoryIds: [SAFETY_SEG, SEG],
+      sellerSubCategoryIds: [WEAPON_FAM, WEAPON_CLS, FAM, CLS],
+    });
+    expect(weaponOnly.categories).toEqual([{ id: SEG, name: "İmalat Bileşenleri" }]);
+    expectNoHiddenCategory(weaponOnly);
+    expect(JSON.stringify(weaponOnly)).not.toContain(SAFETY_SEG_NAME);
+
+    const sprayOnly = await target("TEST-4618", "sprey-beyanli", DECLARED.sprayOnly);
+    expect(sprayOnly.categories).toEqual([]);
+
+    const ppe = await target("TEST-4619", "koruyucu-beyanli", DECLARED.ppe);
+    expect(ppe.categories).toEqual([{ id: SAFETY_SEG, name: SAFETY_SEG_NAME }]);
+    expectNoHiddenCategory(ppe);
+    // The sub arrays are read for the rule only; they are not part of the answer.
+    expect(JSON.stringify(ppe)).not.toContain(PPE_CLS);
+  });
+
+  it("dashboard breakdown: a hidden branch is never rounded up to its visible segment", () => {
+    expect(breakdownSegmentOf([WEAPON_CLS])).toBeNull();
+    expect(breakdownSegmentOf([SPRAY_LEAF, WEAPON_CLS])).toBeNull();
+    expect(breakdownSegmentOf([WEAPON_CLS, PPE_CLS])).toBe(SAFETY_SEG);
+    expect(breakdownSegmentOf([SPRAY_LEAF, CLS, PPE_CLS])).toBe(SEG);
+    expect(breakdownSegmentOf([PPE_CLS])).toBe(SAFETY_SEG);
+  });
+
+  it("affinity builder: the visible ancestors of a hidden pick are not copied as a declaration", async () => {
+    const company = await makeCompanyWithUser(prisma, {});
+    await prisma.company.update({
+      where: { id: company.company.id },
+      // Selling: only a hidden pick. Buying: a visible pick and a hidden one in the same family.
+      data: {
+        ...DECLARED.weaponOnly,
+        buyerCategoryIds: [SAFETY_SEG],
+        buyerSubCategoryIds: [PPE_FAM, PPE_CLS, SPRAY_CLS, SPRAY_LEAF],
+      },
+    });
+
+    await new CompanyAffinityService(prisma as never).recomputeAll();
+
+    const rows = await prisma.companyAffinity.findMany({ where: { companyId: company.company.id } });
+    const declared = rows.filter((r) => (r.reasons as { declared?: boolean } | null)?.declared).map((r) => r.categoryId);
+    expect(declared.sort()).toEqual([SAFETY_SEG, PPE_FAM, PPE_CLS].sort());
+    // Nothing was declared on the selling side (its only pick is hidden) ...
+    expect(rows.every((r) => r.sellScore === 0)).toBe(true);
+    // ... and no row exists for a hidden code.
+    expect(rows.some((r) => isHiddenCategory(r.categoryId))).toBe(false);
   });
 });

@@ -1,23 +1,33 @@
 /**
- * GİZLİ SEGMENT — e-posta ve yapay zekâ yüzeyleri (2026-10-09).
+ * GİZLİ DAL — e-posta ve yapay zekâ yüzeyleri (2026-10-09).
  *
  * Kullanıcı kuralı: "anasayfada olmayan kategori talepte, üründe ya da başka
  * yerde de gösterilmesin". Anasayfa görünür segmentlerin TAMAMINI çizer, yani
- * gizli segmentin (`HIDDEN_SEGMENTS`) altındaki kategori hiç kimseye, hiçbir
- * biçimde gösterilmez: e-posta alıcısına, kayıtsız önizleme sayfasına, modele
- * giden isteme, keşif penceresinin rozetine. ESKİ kayıtlar (segment gizlenmeden
- * önce açılmış talep, o segmenti beyan etmiş firma) durur; yalnız gizli
+ * gizli bir önekin (`HIDDEN_CATEGORY_PREFIXES`) altındaki kategori hiç kimseye,
+ * hiçbir biçimde gösterilmez: e-posta alıcısına, kayıtsız önizleme sayfasına,
+ * modele giden isteme, keşif penceresinin rozetine. ESKİ kayıtlar (dal
+ * gizlenmeden önce açılmış talep, o dalı beyan etmiş firma) durur; yalnız gizli
  * kategorileri okumalardan düşer.
  *
  * EŞLEŞTİRME DEĞİŞMEZ: kim bulunur / kim davet edilir, saklanan kodların
  * tamamıyla hesaplanır — yalnız GÖSTERİM ve modele yazılan AD süzülür.
  *
- * Örnek kodlar: 46xxxxxx ve 10xxxxxx gizli, 31xxxxxx görünür.
+ * 2026-10-10 (sahip kararı): gizlemenin birimi KOD ÖNEKİ. 46 "İş Güvenliği ve
+ * Yangın Ekipmanları" adıyla GÖRÜNÜR; altında 4610 ailesi (silah) ve 4618
+ * ailesinin 461825 sınıfı gizli. Örnek kodlar:
+ *   46101500 — gizli AİLE altında (dosyanın "eski kayıt" kodu),
+ *   46182501 — görünür ailenin gizli SINIFI altında,
+ *   10xxxxxx — tümüyle gizli SEGMENT,
+ *   46181700 / 46180000 / 46000000 — 46'nın GÖRÜNÜR kodları (sıradan kategori),
+ *   31xxxxxx — görünür segment.
  */
 import { Prisma } from "@rothern/db";
+import { foldSearchText, isHiddenCategory } from "@rothern/shared";
 import { SupplierDiscoveryService, type DiscoveryAiRunner } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 import { DiscoveryRunsService } from "../../src/modules/ai/supplier-discovery/discovery-runs.service";
 import { SeoEnrichService } from "../../src/modules/ai/seo-enrich/seo-enrich.service";
+import { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
+import { resolveCategoryHints } from "../../src/modules/ai/category-hint-resolver";
 import { CategoryTranslationService } from "../../src/modules/content-translation/category-translation.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
 import { ExternalInviteDispatcher } from "../../src/modules/company-connections/services/external-invite-dispatcher.service";
@@ -29,11 +39,18 @@ import { makeService } from "./make-service";
 
 const DAY = 24 * 3_600_000;
 
-/** [kod, seviye, TR, EN, RU] — gizli iki dal (46, 10) ve görünür bir dal (31). */
+/**
+ * [kod, seviye, TR, EN, RU] — 46: görünür segment + gizli aile (4610) + görünür
+ * aile (4618) ve onun gizli sınıfı (461825); 10: gizli segment; 31: görünür dal.
+ */
 const CATALOG: Array<[string, number, string, string, string]> = [
-  ["46000000", 1, "Kolluk ve emniyet ekipmanları", "Law enforcement and safety equipment", "Оборудование для охраны правопорядка"],
+  ["46000000", 1, "İş Güvenliği ve Yangın Ekipmanları", "Workplace Safety and Fire Equipment", "Средства охраны труда и противопожарное оборудование"],
+  ["46100000", 2, "Hafif silahlar ve mühimmat", "Light weapons and ammunition", "Стрелковое оружие и боеприпасы"],
+  ["46101500", 3, "Ateşli silahlar", "Firearms", "Огнестрельное оружие"],
   ["46180000", 2, "Kişisel güvenlik ve koruma", "Personal safety and protection", "Личная безопасность и защита"],
   ["46181700", 3, "Baş koruma", "Head protection", "Защита головы"],
+  ["46182500", 3, "Kişisel savunma cihazları", "Personal defense devices", "Средства самообороны"],
+  ["46182501", 4, "Biber gazı spreyleri", "Pepper sprays", "Перцовые баллончики"],
   ["10000000", 1, "Canlı bitki ve hayvanlar", "Live plant and animal material", "Живые растения и животные"],
   ["10100000", 2, "Canlı hayvanlar", "Live animals", "Живые животные"],
   ["10101500", 3, "Çiftlik hayvanları", "Livestock", "Домашний скот"],
@@ -41,10 +58,9 @@ const CATALOG: Array<[string, number, string, string, string]> = [
   ["31160000", 2, "Bağlantı elemanları", "Hardware", "Крепёж"],
   ["31161500", 3, "Vidalar", "Screws", "Винты"],
 ];
-const HIDDEN_NAMES = CATALOG.filter(([code]) => code.startsWith("46") || code.startsWith("10")).flatMap(
-  ([, , tr, en, ru]) => [tr, en, ru],
-);
-const HIDDEN_CODES = CATALOG.map(([code]) => code).filter((c) => c.startsWith("46") || c.startsWith("10"));
+/** Tek kaynak `isHiddenCategory`: fikstür listesi kuralla birlikte değişir. */
+const HIDDEN_NAMES = CATALOG.filter(([code]) => isHiddenCategory(code)).flatMap(([, , tr, en, ru]) => [tr, en, ru]);
+const HIDDEN_CODES = CATALOG.map(([code]) => code).filter((c) => isHiddenCategory(c));
 
 async function seedCatalog() {
   await prisma.category.createMany({
@@ -61,7 +77,7 @@ async function seedCatalog() {
   });
 }
 
-/** Metinde gizli segmentten hiçbir ad ve kod geçmiyor. */
+/** Metinde gizli dallardan hiçbir ad ve kod geçmiyor. */
 function expectNoHiddenCategory(text: string) {
   for (const name of HIDDEN_NAMES) expect(text).not.toContain(name);
   for (const code of HIDDEN_CODES) expect(text).not.toContain(code);
@@ -79,6 +95,10 @@ async function settle(check: () => Promise<boolean> | boolean, ms = 10_000) {
 afterAll(async () => {
   await truncateAll();
   await prisma.$disconnect();
+});
+beforeAll(() => {
+  // Fikstür kodları gerçekten bekleneni söylüyor mu (kural değişirse bu dosya sessizce boş sınamasın).
+  expect(HIDDEN_CODES.sort()).toEqual(["10000000", "10100000", "10101500", "46100000", "46101500", "46182500", "46182501"]);
 });
 beforeEach(async () => {
   await truncateAll();
@@ -143,13 +163,13 @@ async function legacyListing(companyId: string, userId: string, categoryIds: str
   return listing;
 }
 
-describe("dış talep daveti — gizli segmentteki kategori e-postaya ve önizleme sayfasına yazılmaz", () => {
-  it("eski talep (46 + 10 + 31): e-posta ve önizleme yalnız görünür kategoriyi taşır; talep yine davet edilir", async () => {
+describe("dış talep daveti — gizli daldaki kategori e-postaya ve önizleme sayfasına yazılmaz", () => {
+  it("eski talep (gizli aile + gizli segment + 31): e-posta ve önizleme yalnız görünür kategoriyi taşır; talep yine davet edilir", async () => {
     const service = makeConnections();
     const email = makeEmail();
     const dispatcher = new ExternalInviteDispatcher(prisma as never, email as never, makeConfig() as never, undefined as never);
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-    const listing = await legacyListing(owner.company.id, owner.user.id, ["46181700", "10101500", "31161500"]);
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46101500", "10101500", "31161500"]);
 
     await service.inviteExternalForListing(owner.auth, listing.id, ["dis@firma.com"]);
     await prisma.externalListingInvite.updateMany({ data: { sendAfter: new Date(Date.now() - 60_000) } });
@@ -180,7 +200,7 @@ describe("dış talep daveti — gizli segmentteki kategori e-postaya ve önizle
     const email = makeEmail();
     const dispatcher = new ExternalInviteDispatcher(prisma as never, email as never, makeConfig() as never, undefined as never);
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-    const listing = await legacyListing(owner.company.id, owner.user.id, ["46181700"]);
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46101500"]);
 
     await service.inviteExternalForListing(owner.auth, listing.id, ["dis@firma.com"]);
     await prisma.externalListingInvite.updateMany({ data: { sendAfter: new Date(Date.now() - 60_000) } });
@@ -216,7 +236,7 @@ describe("AI tedarikçi keşfi — web araştırması istemi", () => {
 
   it("eski talebin gizli kategorisi isteme yazılmaz; görünür kategori İngilizce adıyla yazılır", async () => {
     const { runner, calls } = recordingRunner();
-    await discovery().searchWeb({ ...base, categoryIds: ["46181700", "10101500", "31161500"], itemNames: ["Baret"] }, runner);
+    await discovery().searchWeb({ ...base, categoryIds: ["46101500", "10101500", "31161500"], itemNames: ["Baret"] }, runner);
     const research = calls.find((c) => c.stage === "research")!;
     expect(research.prompt).toContain("Kategoriler: Screws");
     expect(research.prompt).toContain("1. Baret");
@@ -225,20 +245,20 @@ describe("AI tedarikçi keşfi — web araştırması istemi", () => {
 
   it("yalnız gizli kategori: kategori satırı yok, arama kalem adlarıyla sürer; kalem de yoksa model hiç çağrılmaz", async () => {
     const withItems = recordingRunner();
-    await discovery().searchWeb({ ...base, categoryIds: ["46181700"], itemNames: ["Baret"] }, withItems.runner);
+    await discovery().searchWeb({ ...base, categoryIds: ["46101500"], itemNames: ["Baret"] }, withItems.runner);
     const research = withItems.calls.find((c) => c.stage === "research")!;
     expect(research.prompt).not.toContain("Kategoriler:");
     expect(research.prompt).toContain("1. Baret");
     expectNoHiddenCategory(research.prompt);
 
     const bare = recordingRunner();
-    const out = await discovery().searchWeb({ ...base, categoryIds: ["46181700"], itemNames: [] }, bare.runner);
+    const out = await discovery().searchWeb({ ...base, categoryIds: ["46101500"], itemNames: [] }, bare.runner);
     expect(out.companies).toEqual([]);
     expect(bare.calls).toHaveLength(0);
   });
 
   it("gizli kod on kategori tavanında görünür kategorinin yerini kapmaz", async () => {
-    const hidden = Array.from({ length: 10 }, (_, i) => `4618${1000 + i}`);
+    const hidden = Array.from({ length: 10 }, (_, i) => `4610${1000 + i}`);
     const { runner, calls } = recordingRunner();
     await discovery().searchWeb({ ...base, categoryIds: [...hidden, "31161500"], itemNames: [] }, runner);
     expect(calls.find((c) => c.stage === "research")!.prompt).toContain("Kategoriler: Screws");
@@ -254,12 +274,12 @@ describe("AI tedarikçi keşfi — platform üyesinin eşleşme rozeti (matchedC
     return s;
   }
 
-  it("gizli segmentteki eşleşme SAYILIR (firma bulunur, güçlü eşleşme) ama adlandırılmaz", async () => {
+  it("gizli daldaki eşleşme SAYILIR (firma bulunur, güçlü eşleşme) ama adlandırılmaz — görünür atası (46) da rozet olmaz", async () => {
     const buyer = await makeCompanyWithUser(prisma);
-    await seller("Emniyet Ekipman AŞ", { sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46180000", "46181700"] });
+    await seller("Emniyet Ekipman AŞ", { sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46100000", "46101500"] });
 
     for (const locale of ["tr", "en", "ru"] as const) {
-      const res = await discovery().discoverRegisteredFor(buyer.company.id, { categoryIds: ["46181700"], locale });
+      const res = await discovery().discoverRegisteredFor(buyer.company.id, { categoryIds: ["46101500"], locale });
       expect(res.candidates.map((c) => c.name)).toEqual(["Emniyet Ekipman AŞ"]);
       expect(res.candidates[0]!.strongMatch).toBe(true);
       expect(res.candidates[0]!.matchedCategories).toEqual([]);
@@ -267,16 +287,16 @@ describe("AI tedarikçi keşfi — platform üyesinin eşleşme rozeti (matchedC
     }
   });
 
-  it("karışık talep (46 + 31): rozet yalnız görünür kategorileri taşır; gizli kod üç rozet tavanında yer kapmaz", async () => {
+  it("karışık talep (gizli aile + 31): rozet yalnız görünür kategorileri taşır; gizli kod üç rozet tavanında yer kapmaz", async () => {
     const buyer = await makeCompanyWithUser(prisma);
     // Beyan sırası gizli kodlarla başlıyor: eski kırpma (ilk 3) görünür adları düşürürdü.
     await seller("Karma Tedarik AŞ", {
       sellerCategoryIds: ["46000000", "31000000"],
-      sellerSubCategoryIds: ["46180000", "46181700", "31160000", "31161500"],
+      sellerSubCategoryIds: ["46100000", "46101500", "31160000", "31161500"],
     });
 
     const res = await discovery().discoverRegisteredFor(buyer.company.id, {
-      categoryIds: ["46181700", "31161500"],
+      categoryIds: ["46101500", "31161500"],
       locale: "en",
     });
     expect(res.candidates).toHaveLength(1);
@@ -303,7 +323,7 @@ describe("AI tedarikçi keşfi — kayıtlı talepten elle açılış: eşleşti
     return s;
   }
   const hiddenSeller = () =>
-    seller("Emniyet Ekipman AŞ", { sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46180000", "46181700"] });
+    seller("Emniyet Ekipman AŞ", { sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46100000", "46101500"] });
   const visibleSeller = () =>
     seller("Vida Sanayi AŞ", { sellerCategoryIds: ["31000000"], sellerSubCategoryIds: ["31160000", "31161500"] });
 
@@ -324,7 +344,7 @@ describe("AI tedarikçi keşfi — kayıtlı talepten elle açılış: eşleşti
   it("yalnız gizli kategorili eski talep: pencere boş kategori listesi yollar, üye yine bulunur; rozet boş", async () => {
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await hiddenSeller();
-    const listing = await legacyListing(owner.company.id, owner.user.id, ["46181700"]);
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46101500"]);
 
     const body = await windowBody(owner, listing.id);
     expect(body).toMatchObject({ categoryIds: [], itemNames: ["Baret"] });
@@ -337,18 +357,18 @@ describe("AI tedarikçi keşfi — kayıtlı talepten elle açılış: eşleşti
 
     // Otomatik tur (saklanan kodları kendisi verir) ile AYNI sonuç.
     const auto = await discovery().discoverRegisteredFor(owner.company.id, {
-      categoryIds: ["46181700"],
+      categoryIds: ["46101500"],
       itemNames: ["Baret"],
       listingId: listing.id,
     });
     expect(res.candidates.map((c) => c.companyId)).toEqual(auto.candidates.map((c) => c.companyId));
   });
 
-  it("karışık talep (46 + 31): eşleşmenin gizli yarısı düşmez; rozet yalnız görünür adları taşır", async () => {
+  it("karışık talep (gizli aile + 31): eşleşmenin gizli yarısı düşmez; rozet yalnız görünür adları taşır", async () => {
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await hiddenSeller();
     await visibleSeller();
-    const listing = await legacyListing(owner.company.id, owner.user.id, ["46181700", "31161500"]);
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46101500", "31161500"]);
 
     const body = await windowBody(owner, listing.id);
     expect(body.categoryIds).toEqual(["31161500"]);
@@ -366,9 +386,9 @@ describe("AI tedarikçi keşfi — kayıtlı talepten elle açılış: eşleşti
     const other = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await hiddenSeller();
     await visibleSeller();
-    const listing = await legacyListing(owner.company.id, owner.user.id, ["46181700"]);
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46101500"]);
 
-    // Kendi talebi: saklanan kod (46) eşleşir, istemcinin yolladığı 31 eşleştirmeye girmez.
+    // Kendi talebi: saklanan kod (4610…) eşleşir, istemcinin yolladığı 31 eşleştirmeye girmez.
     const own = await discovery().discoverRegistered(owner.auth, {
       type: "ALIM",
       listingId: listing.id,
@@ -411,7 +431,7 @@ describe("AI tedarikçi keşfi — kayıtlı talepten elle açılış: eşleşti
       }),
     };
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-    const listing = await legacyListing(owner.company.id, owner.user.id, ["46181700", "31161500"]);
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46101500", "31161500"]);
 
     // Kategori ve kalem yollamayan istemci: arama yine talebin görünür kategorisiyle koşar.
     const out = await discovery(ai).discoverExternal(owner.auth, { type: "ALIM", listingId: listing.id, categoryIds: [], itemNames: [] });
@@ -424,7 +444,7 @@ describe("AI tedarikçi keşfi — kayıtlı talepten elle açılış: eşleşti
 
     // Yalnız gizli kategorili talep + kalemsiz istek: modele yazılacak bir şey yok, çağrı yapılmaz.
     calls.length = 0;
-    const hiddenOnly = await legacyListing(owner.company.id, owner.user.id, ["46181700"]);
+    const hiddenOnly = await legacyListing(owner.company.id, owner.user.id, ["46101500"]);
     const none = await discovery(ai).discoverExternal(owner.auth, { type: "ALIM", listingId: hiddenOnly.id, categoryIds: [], itemNames: [] });
     expect(none.companies).toEqual([]);
     expect(calls).toHaveLength(0);
@@ -434,21 +454,24 @@ describe("AI tedarikçi keşfi — kayıtlı talepten elle açılış: eşleşti
 describe("AI tedarikçi keşfi — eski turun dondurulmuş rozet adları (forListing)", () => {
   const runs = () => new DiscoveryRunsService(prisma as never, prisma as never, {} as never, {} as never, {} as never, {} as never);
 
-  it("segment gizlenmeden önce yazılmış aday satırı gizli kategorinin adını döndürmez; görünür ad kalır", async () => {
+  it("dal gizlenmeden önce yazılmış aday satırı gizli kategorinin adını döndürmez; görünür ad kalır", async () => {
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const member = await makeCompanyWithUser(prisma, { tier: "SILVER", name: "Üye AŞ" });
-    const listing = await legacyListing(owner.company.id, owner.user.id, ["46181700", "31161500"], { visibility: "PUBLIC", aiDiscovery: true });
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46101500", "31161500"], { visibility: "PUBLIC", aiDiscovery: true });
     const run = await prisma.supplierDiscoveryRun.create({
       data: { companyId: owner.company.id, listingId: listing.id, trigger: "PUBLISH", state: "DONE", finishedAt: new Date() },
     });
     await prisma.supplierDiscoveryCandidate.createMany({
       data: [
-        // Tur Türkçe arayüzle koşmuş: gizli sınıf + gizli segment + görünür sınıf.
-        { runId: run.id, name: "Üye AŞ", status: "MEMBER", source: "PLATFORM", memberCompanyId: member.company.id, matchedCategories: ["Baş koruma", "Vidalar", "Kolluk ve emniyet ekipmanları"] },
+        // Tur Türkçe arayüzle koşmuş: gizli sınıf + görünür sınıf + gizli aile.
+        { runId: run.id, name: "Üye AŞ", status: "MEMBER", source: "PLATFORM", memberCompanyId: member.company.id, matchedCategories: ["Ateşli silahlar", "Vidalar", "Hafif silahlar ve mühimmat"] },
         // Tur İngilizce arayüzle koşmuş.
-        { runId: run.id, name: "Member Ltd", status: "MEMBER", source: "PLATFORM", matchedCategories: ["Head protection", "Screws", "Manufacturing components"] },
+        { runId: run.id, name: "Member Ltd", status: "MEMBER", source: "PLATFORM", matchedCategories: ["Firearms", "Screws", "Manufacturing components"] },
         // Yalnız gizli eşleşme.
-        { runId: run.id, name: "Emniyet AŞ", status: "MEMBER", source: "PLATFORM", matchedCategories: ["Защита головы", "Kişisel güvenlik ve koruma"] },
+        { runId: run.id, name: "Emniyet AŞ", status: "MEMBER", source: "PLATFORM", matchedCategories: ["Огнестрельное оружие", "Стрелковое оружие и боеприпасы"] },
+        // Eski tur 46 segmentinin (o gün gizli segmentin) adını dondurmuş: talebin
+        // bugünkü GÖRÜNÜR zincirinde 46 yok (tek 46 kodu gizli ailede) → ad dönmez.
+        { runId: run.id, name: "Sektör AŞ", status: "MEMBER", source: "PLATFORM", matchedCategories: ["İş Güvenliği ve Yangın Ekipmanları", "Vidalar"] },
         // Web adayı: rozet yok.
         { runId: run.id, name: "Web GmbH", status: "SUGGESTED", source: "WEB", email: "info@web.example", matchedCategories: [] },
       ],
@@ -459,13 +482,14 @@ describe("AI tedarikçi keşfi — eski turun dondurulmuş rozet adları (forLis
     expect(byName.get("Üye AŞ")).toEqual(["Vidalar"]);
     expect(byName.get("Member Ltd")).toEqual(["Screws", "Manufacturing components"]);
     expect(byName.get("Emniyet AŞ")).toEqual([]);
+    expect(byName.get("Sektör AŞ")).toEqual(["Vidalar"]);
     expect(byName.get("Web GmbH")).toEqual([]);
-    expect(view.runs[0]!.candidates).toHaveLength(4); // aday satırı düşmez, yalnız gizli adı
+    expect(view.runs[0]!.candidates).toHaveLength(5); // aday satırı düşmez, yalnız gizli adı
     expectNoHiddenCategory(JSON.stringify(view));
     // Saklanan satır değişmedi (okuma süzer, veri taşınmaz).
     expect(
       (await prisma.supplierDiscoveryCandidate.findFirstOrThrow({ where: { name: "Üye AŞ" } })).matchedCategories,
-    ).toEqual(["Baş koruma", "Vidalar", "Kolluk ve emniyet ekipmanları"]);
+    ).toEqual(["Ateşli silahlar", "Vidalar", "Hafif silahlar ve mühimmat"]);
   });
 });
 
@@ -486,14 +510,35 @@ describe("AI açıklama güçlendirme — istemcinin yolladığı kategori adı"
     return ai.callAi.mock.calls[0][1].prompt as string;
   }
 
-  it("gizli segmentteki kategorinin adı isteme yazılmaz (üç dilde); görünür kategorinin adı yazılır", async () => {
-    for (const hidden of ["Baş koruma", "Head protection", "Защита головы", "Kolluk ve emniyet ekipmanları", "Livestock"]) {
+  it("gizli daldaki kategorinin adı isteme yazılmaz (üç dilde); görünür kategorinin adı yazılır", async () => {
+    for (const hidden of [
+      // gizli aile (4610) ve sınıfı
+      "Hafif silahlar ve mühimmat",
+      "Ateşli silahlar",
+      "Firearms",
+      "Огнестрельное оружие",
+      // görünür ailenin gizli sınıfı (461825) ve yaprağı
+      "Kişisel savunma cihazları",
+      "Pepper sprays",
+      // gizli segment (10)
+      "Livestock",
+    ]) {
       const prompt = await promptFor(hidden);
       expect(prompt).not.toContain("Kategori:");
       expectNoHiddenCategory(prompt);
       expect(prompt).toContain("Ad/Başlık: Baret");
     }
-    for (const visible of ["Vidalar", "Screws", "Винты", "İmalat bileşenleri"]) {
+    for (const visible of [
+      "Vidalar",
+      "Screws",
+      "Винты",
+      "İmalat bileşenleri",
+      // 46'nın görünür kodları sıradan kategoridir (2026-10-10).
+      "İş Güvenliği ve Yangın Ekipmanları",
+      "Kişisel güvenlik ve koruma",
+      "Baş koruma",
+      "Head protection",
+    ]) {
       expect(await promptFor(visible)).toContain(`Kategori: ${visible}`);
     }
   });
@@ -507,8 +552,12 @@ describe("nitelik toplu çevirisi — gizli dalın nitelikleri modele gitmez", (
   it("yalnız görünür dalın satırı çevrilir; gizli kategorinin adı istemde yok; durum sayacı aynı kapsamı sayar", async () => {
     await prisma.categoryAttribute.createMany({
       data: [
-        { categoryId: "46000000", groupKey: "koruma_sinifi", nameTr: "Koruma sınıfı", type: "SINGLE_SELECT", options: ["Sınıf 1", "Sınıf 2"] },
+        // Gizli dallar: gizli AİLE (4610), görünür ailenin gizli SINIFI (461825), gizli SEGMENT (10).
+        { categoryId: "46100000", groupKey: "kalibre", nameTr: "Kalibre", type: "SINGLE_SELECT", options: ["Sınıf 1", "Sınıf 2"] },
+        { categoryId: "46182500", groupKey: "menzil", nameTr: "Menzil", type: "TEXT", options: [] },
         { categoryId: "10100000", groupKey: "irk", nameTr: "Irk", type: "TEXT", options: [] },
+        // 46 segmentinin KENDİ niteliği görünür dalda: çevrilir (2026-10-10).
+        { categoryId: "46000000", groupKey: "koruma_sinifi", nameTr: "Koruma sınıfı", type: "SINGLE_SELECT", options: ["Sınıf 1", "Sınıf 2"] },
         { categoryId: "31000000", groupKey: "malzeme", nameTr: "Malzeme", type: "SINGLE_SELECT", options: ["Çelik", "Pirinç"] },
         // Görünür dalda, çevirisi hazır (TSV'den) — koşuma girmez ama sayaçta sayılır.
         { categoryId: "31160000", groupKey: "dis_tipi", nameTr: "Diş tipi", type: "TEXT", options: [], nameEn: "Thread type", nameRu: "Тип резьбы" },
@@ -537,24 +586,247 @@ describe("nitelik toplu çevirisi — gizli dalın nitelikleri modele gitmez", (
     };
     const svc = new CategoryTranslationService(prisma as never, translations as never);
 
-    // Kapsam = görünür dallar: 2 satır (biri çevrili).
-    expect(await svc.attributeStatus()).toMatchObject({ total: 2, translated: { en: 1, ru: 1 } });
+    // Kapsam = görünür dallar: 3 satır (biri çevrili).
+    expect(await svc.attributeStatus()).toMatchObject({ total: 3, translated: { en: 1, ru: 1 } });
 
     expect(svc.startAttributes()).toEqual({ started: true });
     await settle(async () => !(await svc.attributeStatus()).running);
 
-    expect(prompts).toHaveLength(1);
-    expect(prompts[0]).toContain('"category":"İmalat bileşenleri"');
-    expect(prompts[0]).toContain('"tr":"Malzeme"');
-    expect(prompts[0]).not.toContain("Koruma sınıfı");
-    expect(prompts[0]).not.toContain("Irk");
-    expectNoHiddenCategory(prompts[0]!);
+    const sent = prompts.join("\n");
+    expect(sent).toContain('"category":"İmalat bileşenleri"');
+    expect(sent).toContain('"tr":"Malzeme"');
+    expect(sent).toContain('"category":"İş Güvenliği ve Yangın Ekipmanları"');
+    expect(sent).toContain('"tr":"Koruma sınıfı"');
+    for (const hidden of ["Kalibre", "Menzil", "Irk"]) expect(sent).not.toContain(hidden);
+    expectNoHiddenCategory(sent);
 
     const rows = await prisma.categoryAttribute.findMany({ select: { groupKey: true, nameEn: true, nameRu: true, optionsEn: true } });
     const byKey = new Map(rows.map((r) => [r.groupKey, r]));
     expect(byKey.get("malzeme")).toMatchObject({ nameEn: "Material", nameRu: "Материал", optionsEn: ["Option 1", "Option 2"] });
-    expect(byKey.get("koruma_sinifi")).toMatchObject({ nameEn: null, nameRu: null, optionsEn: [] });
-    expect(byKey.get("irk")).toMatchObject({ nameEn: null, nameRu: null });
-    expect(await svc.attributeStatus()).toMatchObject({ total: 2, translated: { en: 2, ru: 2 }, running: false });
+    expect(byKey.get("koruma_sinifi")).toMatchObject({ nameEn: "Material", nameRu: "Материал", optionsEn: ["Option 1", "Option 2"] });
+    for (const key of ["kalibre", "menzil", "irk"]) {
+      expect(byKey.get(key)).toMatchObject({ nameEn: null, nameRu: null, optionsEn: [] });
+    }
+    expect(await svc.attributeStatus()).toMatchObject({ total: 3, translated: { en: 3, ru: 3 }, running: false });
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* AI kategori önerisi (kalemlerden) + AI arama ipucu çözümü           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * İki yüzey de kataloğu GEZDİRİR ve modelin gördüğü / döndürdüğü şeyi koda
+ * çevirir: öneri modele bir aile listesi, sonra seçilen ailelerin sınıflarını
+ * yazar; ipucu çözücü modelin yazdığı ifadeyi katalogda arar. Gizli aile ve
+ * görünür ailenin gizli sınıfı ikisinde de YOKTUR (2026-10-10: gizlemenin
+ * birimi kod öneki) — modele adı yazılmaz, model kodu kendi yazsa da öneriye
+ * dönüşmez, ifade o koda çözülmez.
+ */
+describe("AI kategori önerisi ve ipucu çözümü — gizli aile / sınıf sunulmaz, koda çözülmez", () => {
+  beforeEach(async () => {
+    // Öneri ağacı `parentId` ile, ipucu araması `searchText` ile çalışır.
+    for (const [id, level, nameTr] of CATALOG) {
+      const parentId =
+        level === 1 ? null : level === 2 ? `${id.slice(0, 2)}000000` : level === 3 ? `${id.slice(0, 4)}0000` : `${id.slice(0, 6)}00`;
+      await prisma.category.update({ where: { id }, data: { parentId, searchText: foldSearchText(nameTr) } });
+    }
+  });
+
+  function suggestRig(responses: string[]) {
+    const prompts: string[] = [];
+    const ai = {
+      assertAiAccess: jest.fn(),
+      callAi: jest.fn(async (_user: unknown, opts: { prompt: string }) => {
+        prompts.push(opts.prompt);
+        return { text: responses[prompts.length - 1] ?? JSON.stringify({ codes: [] }) };
+      }),
+    };
+    return { svc: new CategorySuggestService(ai as never, prisma as never), prompts };
+  }
+
+  it("öneri: aile listesinde gizli aile yok, sınıf listesinde görünür ailenin gizli sınıfı yok; modelin yazdığı gizli kod öneri olmaz", async () => {
+    const { svc, prompts } = suggestRig([
+      // Model gizli aileleri de "seçiyor": listede olmadıkları için düşerler.
+      JSON.stringify({ codes: ["46100000", "10100000", "46180000"] }),
+      JSON.stringify({ codes: ["46182500", "46101500", "46181700"], keywords: ["baret"] }),
+    ]);
+
+    const res = await svc.suggestForItems({ userId: "u1", companyId: "c1" } as never, [{ name: "Baret" }]);
+
+    expect(prompts).toHaveLength(2);
+    // Aşama 1 — aileler: 46'nın görünür ailesi ve 31 var; 4610 ve 10'un ailesi yok.
+    expect(prompts[0]).toContain("46180000 Kişisel güvenlik ve koruma");
+    expect(prompts[0]).toContain("31160000 Bağlantı elemanları");
+    // Aşama 2 — yalnız seçilen GÖRÜNÜR ailenin görünür sınıfı.
+    expect(prompts[1]).toContain("46181700 Baş koruma");
+    expect(prompts[1]).not.toContain("31161500");
+    for (const prompt of prompts) expectNoHiddenCategory(prompt);
+    expect(res).toEqual({ categoryIds: ["46181700"], keywords: ["baret"] });
+  });
+
+  it("öneri: model yalnız gizli aileyi seçerse ikinci aşama hiç koşmaz, öneri boş döner", async () => {
+    const { svc, prompts } = suggestRig([JSON.stringify({ codes: ["46100000"] })]);
+
+    expect(await svc.suggest({ userId: "u1", companyId: "c1" } as never, [{ name: "Tabanca" }])).toEqual([]);
+    expect(prompts).toHaveLength(1);
+  });
+
+  it.each([false, true])("ipucu çözümü (discoveryOnly=%s): gizli dalın adı koda çözülmez; 46'nın görünür sınıfı çözülür", async (discoveryOnly) => {
+    const hints = ["ateşli silahlar", "biber gazı spreyleri", "kişisel savunma cihazları", "çiftlik hayvanları", "baş koruma", "vidalar"];
+
+    const resolved = await resolveCategoryHints(prisma as never, hints, { discoveryOnly });
+
+    expect([...resolved.keys()].sort()).toEqual(["baş koruma", "vidalar"]);
+    expect(resolved.get("baş koruma")).toMatchObject({ id: "46181700", nameTr: "Baş koruma" });
+    expect(resolved.get("vidalar")).toMatchObject({ id: "31161500" });
+    expectNoHiddenCategory(JSON.stringify([...resolved.values()]));
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 2026-10-10 — 46 görünür; gizli SINIF (461825) ve 46'nın görünür kodları */
+/* ------------------------------------------------------------------ */
+
+describe("46 görünür segment — gizli sınıf gizli aile gibi davranır, görünür kodlar sıradan kategoridir", () => {
+  const discovery = () => new SupplierDiscoveryService(prisma as never, {} as never, prisma as never);
+
+  async function seller(name: string, data: { sellerCategoryIds: string[]; sellerSubCategoryIds: string[] }) {
+    const s = await makeCompanyWithUser(prisma, { name, tier: "SILVER" });
+    await prisma.company.update({ where: { id: s.company.id }, data });
+    return s;
+  }
+
+  it("dış davet ve önizleme: gizli sınıfın yaprağı yazılmaz; 46181700 adıyla gider (üç dilde)", async () => {
+    const service = makeConnections();
+    const email = makeEmail();
+    const dispatcher = new ExternalInviteDispatcher(prisma as never, email as never, makeConfig() as never, undefined as never);
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46182501", "46101500", "46181700"]);
+
+    await service.inviteExternalForListing(owner.auth, listing.id, ["dis@firma.com"]);
+    await prisma.externalListingInvite.updateMany({ data: { sendAfter: new Date(Date.now() - 60_000) } });
+    expect((await dispatcher.dispatch()).sent).toBe(1);
+
+    const data = (email.send.mock.calls.at(-1)![0] as SendArg).templateData.data;
+    const categories = data.categories as string[];
+    expect(categories).toHaveLength(1);
+    expect(["Baş koruma", "Head protection", "Защита головы"]).toContain(categories[0]);
+    expectNoHiddenCategory(JSON.stringify(data));
+
+    const token = (await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "dis@firma.com" } })).token;
+    for (const [locale, name] of [["tr", "Baş koruma"], ["en", "Head protection"], ["ru", "Защита головы"]] as const) {
+      const preview = await runWithLocale(locale, () => service.invitePreview(token));
+      expect(preview.categories).toEqual([name]);
+      expectNoHiddenCategory(JSON.stringify(preview));
+    }
+  });
+
+  it("web araştırması istemi: gizli sınıf yazılmaz, 46'nın görünür sınıfı İngilizce adıyla yazılır", async () => {
+    const { runner, calls } = recordingRunner();
+    await discovery().searchWeb(
+      { buyerCountry: "TR", targetCountries: ["TR"], locale: "tr", categoryIds: ["46182501", "46182500", "46181700"], itemNames: ["Baret"] },
+      runner,
+    );
+    const research = calls.find((c) => c.stage === "research")!;
+    expect(research.prompt).toContain("Kategoriler: Head protection");
+    for (const c of calls) expectNoHiddenCategory(`${c.system}\n${c.prompt}`);
+
+    // Yalnız gizli sınıf + kalemsiz istek: modele yazılacak bir şey yok.
+    const bare = recordingRunner();
+    const out = await discovery().searchWeb(
+      { buyerCountry: "TR", targetCountries: ["TR"], locale: "tr", categoryIds: ["46182501"], itemNames: [] },
+      bare.runner,
+    );
+    expect(out.companies).toEqual([]);
+    expect(bare.calls).toHaveLength(0);
+  });
+
+  it("eşleşme rozeti: yalnız gizli sınıf seçimi olan üye bulunur ama görünür ataları (4618, 46) rozet OLMAZ", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    await seller("Sprey Ticaret AŞ", { sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46180000", "46182500", "46182501"] });
+
+    const res = await discovery().discoverRegisteredFor(buyer.company.id, { categoryIds: ["46182501"], locale: "tr" });
+
+    expect(res.candidates.map((c) => c.name)).toEqual(["Sprey Ticaret AŞ"]);
+    expect(res.candidates[0]!.strongMatch).toBe(true); // eşleştirme saklanan kodlarla
+    expect(res.candidates[0]!.matchedCategories).toEqual([]);
+    expectNoHiddenCategory(JSON.stringify(res));
+    expect(JSON.stringify(res)).not.toContain("İş Güvenliği ve Yangın Ekipmanları");
+  });
+
+  it("eşleşme rozeti: 46'nın görünür sınıfını beyan eden üye, aile ve segment adıyla birlikte rozet alır", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    await seller("Baret Sanayi AŞ", {
+      sellerCategoryIds: ["46000000"],
+      // Yanında gizli bir seçim de var: rozetleri etkilemez, görünür zincir durur.
+      sellerSubCategoryIds: ["46100000", "46101500", "46180000", "46181700"],
+    });
+
+    const res = await discovery().discoverRegisteredFor(buyer.company.id, { categoryIds: ["46181700"], locale: "en" });
+
+    expect(res.candidates.map((c) => c.name)).toEqual(["Baret Sanayi AŞ"]);
+    expect(res.candidates[0]!.matchedCategories).toEqual([
+      "Personal safety and protection",
+      "Head protection",
+      "Workplace Safety and Fire Equipment",
+    ]);
+    expectNoHiddenCategory(JSON.stringify(res));
+  });
+
+  it("eşleşme rozeti: talebin kodu yalnız gizli daldaysa görünür atası (46) rozet OLMAZ — 46'yı görünür beyan eden üyede de", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    // Üyenin beyanı tümüyle görünür (46 › 4618 › baş koruma): gösterilen beyanında 46 VAR.
+    await seller("Baret Sanayi AŞ", { sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46180000", "46181700"] });
+
+    // Talep gizli ailede (4610): kategorisi hiçbir yüzeyde görünmez. Üye sektör
+    // eşleşmesiyle yine bulunur (eşleştirme saklanan kodlarla), ama rozet talebin
+    // GÖRÜNÜR kodlarından türediği için gizli kodun görünür atası adlandırılmaz.
+    for (const hiddenRequest of [["46101500"], ["46182501"]]) {
+      const res = await discovery().discoverRegisteredFor(buyer.company.id, { categoryIds: hiddenRequest, locale: "tr" });
+      expect(res.candidates.map((c) => c.name)).toEqual(["Baret Sanayi AŞ"]);
+      expect(res.candidates[0]!.matchedCategories).toEqual([]);
+      expect(JSON.stringify(res)).not.toContain("İş Güvenliği ve Yangın Ekipmanları");
+      expectNoHiddenCategory(JSON.stringify(res));
+    }
+
+    // Karışık talep (gizli aile + 46'nın görünür sınıfı): rozet görünür zincirden gelir.
+    const mixed = await discovery().discoverRegisteredFor(buyer.company.id, {
+      categoryIds: ["46101500", "46181700"],
+      locale: "tr",
+    });
+    expect(mixed.candidates[0]!.matchedCategories).toEqual([
+      "Kişisel güvenlik ve koruma",
+      "Baş koruma",
+      "İş Güvenliği ve Yangın Ekipmanları",
+    ]);
+    expectNoHiddenCategory(JSON.stringify(mixed));
+  });
+
+  it("eski turun dondurulmuş rozeti: talebin görünür 46 zinciri beyaz listededir, gizli sınıfın adı değildir", async () => {
+    const runs = new DiscoveryRunsService(prisma as never, prisma as never, {} as never, {} as never, {} as never, {} as never);
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await legacyListing(owner.company.id, owner.user.id, ["46182501", "46181700"], { visibility: "PUBLIC", aiDiscovery: true });
+    const run = await prisma.supplierDiscoveryRun.create({
+      data: { companyId: owner.company.id, listingId: listing.id, trigger: "PUBLISH", state: "DONE", finishedAt: new Date() },
+    });
+    await prisma.supplierDiscoveryCandidate.create({
+      data: {
+        runId: run.id,
+        name: "Üye AŞ",
+        status: "MEMBER",
+        source: "PLATFORM",
+        matchedCategories: ["Biber gazı spreyleri", "Kişisel savunma cihazları", "Baş koruma", "Kişisel güvenlik ve koruma", "İş Güvenliği ve Yangın Ekipmanları"],
+      },
+    });
+
+    const view = await runs.forListing(owner.auth, listing.id);
+
+    expect(view.runs[0]!.candidates[0]!.matchedCategories).toEqual([
+      "Baş koruma",
+      "Kişisel güvenlik ve koruma",
+      "İş Güvenliği ve Yangın Ekipmanları",
+    ]);
+    expectNoHiddenCategory(JSON.stringify(view));
   });
 });

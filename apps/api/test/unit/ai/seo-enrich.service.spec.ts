@@ -14,20 +14,26 @@ function makeAi(texts: string[]) {
 }
 const user = { companyId: "c1", userId: "u1", tier: "SILVER" } as never;
 
-/** Katalog (test): 31 görünür; 46 ve 10 gizli segment (`HIDDEN_SEGMENTS`). */
+/**
+ * Katalog (test): 31 görünür; 10 gizli SEGMENT; 46 görünür segment ama 4610 /
+ * 4611 aileleri ve 461825 sınıfı gizli (`HIDDEN_CATEGORY_PREFIXES`); 46181700
+ * (4618 ailesinin görünür sınıfı) sıradan kategoridir.
+ */
 const CATALOG = [
   { id: "31161500", nameTr: "Vidalar", nameEn: "Screws", nameRu: "Винты" },
   { id: "46181700", nameTr: "Baş koruma", nameEn: "Head protection", nameRu: "Защита головы" },
+  { id: "46101500", nameTr: "Ateşli silahlar", nameEn: "Firearms", nameRu: "Огнестрельное оружие" },
+  { id: "46182500", nameTr: "Kişisel savunma cihazları", nameEn: "Personal defense devices", nameRu: "Средства самообороны" },
   { id: "10101500", nameTr: "Çiftlik hayvanları", nameEn: "Livestock", nameRu: "Домашний скот" },
   // Aynı ad hem gizli hem görünür dalda: görünür kategori adı olarak geçerlidir.
-  { id: "46171600", nameTr: "Sensörler", nameEn: "Sensors", nameRu: "Датчики" },
+  { id: "46111700", nameTr: "Sensörler", nameEn: "Sensors", nameRu: "Датчики" },
   { id: "41111900", nameTr: "Sensörler", nameEn: "Sensors", nameRu: "Датчики" },
 ];
 type NameIn = { in: string[] };
 type NameWhere = {
   AND: [{ NOT: { id: { startsWith: string } }[] }, { OR: [{ nameTr: NameIn }, { nameEn: NameIn }, { nameRu: NameIn }] }];
 };
-/** Sahte Prisma `where`i GERÇEKTEN uygular: NOT startsWith (gizli segment) ∧ ad üç dilden biri. */
+/** Sahte Prisma `where`i GERÇEKTEN uygular: NOT startsWith (gizli önek: segment / aile / sınıf) ∧ ad üç dilden biri. */
 function makePrisma() {
   const findFirst = jest.fn(async ({ where }: { where: NameWhere }) => {
     const [hidden, names] = where.AND;
@@ -120,10 +126,11 @@ describe("SeoEnrichService", () => {
   });
 
   /**
-   * GİZLİ SEGMENT (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
+   * GİZLİ DAL (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
    * üründe ya da başka yerde de gösterilmesin" — model istemi dahil). İstemci
-   * kategori ADINI saklanan koddan çözüp yollar; gizli segmentte kalmış eski
-   * ürünün / talebin kategorisi isteme yazılmaz, taslak kategorisiz üretilir.
+   * kategori ADINI saklanan koddan çözüp yollar; gizli dalda (segment, aile ya
+   * da sınıf) kalmış eski ürünün / talebin kategorisi isteme yazılmaz, taslak
+   * kategorisiz üretilir.
    */
   describe("kategori adı isteme yalnız GÖRÜNÜR katalog kategorisiyse girer", () => {
     const promptOf = async (categoryName: string | null | undefined, prisma: unknown = makePrisma()) => {
@@ -133,7 +140,18 @@ describe("SeoEnrichService", () => {
       return ai.callAi.mock.calls[0][1].prompt as string;
     };
 
-    it.each(["Baş koruma", "Head protection", "Защита головы", "Çiftlik hayvanları", "Livestock"])(
+    it.each([
+      // gizli AİLE (4610)
+      "Ateşli silahlar",
+      "Firearms",
+      "Огнестрельное оружие",
+      // görünür ailenin gizli SINIFI (461825)
+      "Kişisel savunma cihazları",
+      "Personal defense devices",
+      // gizli SEGMENT (10)
+      "Çiftlik hayvanları",
+      "Livestock",
+    ])(
       "eski kaydın gizli kategorisi (%s) isteme yazılmaz",
       async (hiddenName) => {
         const prompt = await promptOf(hiddenName);
@@ -143,7 +161,15 @@ describe("SeoEnrichService", () => {
       },
     );
 
-    it.each(["Vidalar", "Screws", "Винты"])("görünür kategori adı (%s) üç dilde de yazılır", async (name) => {
+    it.each([
+      "Vidalar",
+      "Screws",
+      "Винты",
+      // 46 altındaki görünür sınıf sıradan kategoridir (2026-10-10).
+      "Baş koruma",
+      "Head protection",
+      "Защита головы",
+    ])("görünür kategori adı (%s) üç dilde de yazılır", async (name) => {
       expect(await promptOf(name)).toContain(`Kategori: ${name}`);
       expect(await promptOf(`  ${name} `)).toContain(`Kategori: ${name}\n`);
     });

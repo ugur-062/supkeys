@@ -1,6 +1,6 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
-import { hiddenCategoryWhere, isHiddenCategory, listingSlug, visibleCategoryId, visibleCategoryIds } from "@rothern/shared";
+import { categorySubtreeMatcher, hiddenCategoryWhere, hiddenPrefixesUnder, isHiddenCategory, listingSlug, visibleCategoryId, visibleCategoryIds } from "@rothern/shared";
 import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemPrefix } from "@rothern/shared";
@@ -220,9 +220,15 @@ export class PublicMarketplaceService {
    * sorgu `id IN (...)` ile daralır. Tavan 5000 — facet tarama tavanıyla
    * aynı ölçek. Yaprak kod verilirse doğrudan `has`.
    *
-   * GİZLİ SEGMENT kodu süzgeç DEĞİLDİR (2026-10-09): elle yazılmış ya da eski
-   * bir yer iminden gelen `?category=46000000` kategori seçilmemiş gibi
+   * GİZLİ bir dalın kodu süzgeç DEĞİLDİR (2026-10-09): elle yazılmış ya da eski
+   * bir yer iminden gelen `?category=10000000` kategori seçilmemiş gibi
    * davranır — gizli dal süzülerek gezilemez (`facets` de aynı kuralı okur).
+   *
+   * GÖRÜNÜR KODUN GİZLİ TORUNU EŞLEŞME SAYILMAZ (2026-10-10): `46000000`
+   * süzgeci, kategorisi yalnız `4610…` (gizli aile) olan talebi getirmez —
+   * eşleşen kod alt ağaçta VE gizli bir torun önekinin dışında olmalı
+   * (`hiddenPrefixesUnder`; `facets` aynı kuralı `categorySubtreeMatcher` ile
+   * bellekte uygular). Görünür bir kodu da taşıyan talep o koduyla gelir.
    */
   private async listingCategoryWhere(
     code?: string,
@@ -231,10 +237,13 @@ export class PublicMarketplaceService {
     const prefix = categoryPrefix(code);
     if (!prefix) return {};
     if (prefix.length === 8) return { categoryIds: { has: code } };
+    const hiddenBelow = hiddenPrefixesUnder(code).map((p) => `${p}%`);
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT l.id FROM listings l
       WHERE EXISTS (
-        SELECT 1 FROM unnest(l."categoryIds") AS c WHERE c LIKE ${`${prefix}%`}
+        SELECT 1 FROM unnest(l."categoryIds") AS c
+        WHERE c LIKE ${`${prefix}%`}
+          AND NOT (c LIKE ANY(${hiddenBelow}::text[]))
       )
       LIMIT 5000`;
     return { id: { in: rows.map((r) => r.id) } };
@@ -345,14 +354,15 @@ export class PublicMarketplaceService {
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
     type Row = (typeof scanned)[number];
 
-    // Gizli segmentin kodu süzgeç değildir (liste ucuyla aynı kural, bkz.
+    // Gizli bir dalın kodu süzgeç değildir (liste ucuyla aynı kural, bkz.
     // `listingCategoryWhere`): sayaçlar süzülmez, `selectedCategory` null.
+    // Görünür kodun gizli torunu eşleşme sayılmaz (`categorySubtreeMatcher`).
     const category = visibleCategoryId(q.category) ?? undefined;
-    const prefix = category ? categoryPrefix(category) : null;
+    const inSubtree = category ? categorySubtreeMatcher(category) : null;
     const buyerCountries = buyerCountryList(q.buyerCountry);
     const buyerSet = new Set(buyerCountries);
     const dayMs = 86_400_000;
-    const inCat = (r: Row) => !prefix || r.categoryIds.some((c) => c.startsWith(prefix));
+    const inCat = (r: Row) => !inSubtree || r.categoryIds.some((c) => inSubtree(c));
     const inBuyer = (r: Row) => buyerSet.size === 0 || (r.company.country != null && buyerSet.has(r.company.country));
     const country = q.country?.toUpperCase();
     const inScope = (r: Row) => !country || r.targetCountries.length === 0 || r.targetCountries.includes(country);
@@ -368,6 +378,8 @@ export class PublicMarketplaceService {
     const catCount = new Map<string, number>();
     for (const r of forCat) {
       // 8 haneli kodun ilk iki hanesi segmenttir (hiyerarşi koddan türer).
+      // Gizli kod yuvarlamadan ÖNCE düşer: kategorisi yalnız gizli bir dalda
+      // (`4610…`) olan talep görünür segmentinin sayısına girmez.
       for (const seg of new Set(r.categoryIds.filter((c) => c.length === 8 && !isHiddenCategory(c)).map((c) => `${c.slice(0, 2)}000000`))) {
         catCount.set(seg, (catCount.get(seg) ?? 0) + 1);
       }
@@ -681,7 +693,10 @@ export class PublicMarketplaceService {
     const famCount = new Map<string, number>();
     for (const r of rows) {
       const id = r.categoryId ?? "";
-      if (id.length !== 8) continue;
+      // Gizli daldaki ürün (segment, aile ya da sınıf düzeyinde gizli) görünür
+      // atasının sayısına girmez — menüdeki sayı, o kategoriye tıklayınca
+      // açılan listeyle aynı kalır (liste `productSubtreeClauses` okur).
+      if (id.length !== 8 || isHiddenCategory(id)) continue;
       const seg = `${id.slice(0, 2)}000000`;
       const fam = `${id.slice(0, 4)}0000`;
       segCount.set(seg, (segCount.get(seg) ?? 0) + 1);
@@ -844,12 +859,13 @@ export class PublicMarketplaceService {
     });
     const truncated = rows.length > FACET_SCAN_CAP;
     const scanned = truncated ? rows.slice(0, FACET_SCAN_CAP) : rows;
-    // Gizli segmentin kodu süzgeç değildir (2026-10-09; liste ucunda
+    // Gizli bir dalın kodu süzgeç değildir (2026-10-09; liste ucunda
     // `productIndexWhere` aynı kuralı uygular): sayaçlar süzülmez, seçili
-    // kategori / alt dal / nitelik facet'i dönmez.
+    // kategori / alt dal / nitelik facet'i dönmez. Görünür kodun alt ağacı
+    // gizli torunlar olmadan sayılır (`categorySubtreeMatcher` — listeyle aynı küme).
     const category = visibleCategoryId(q.category) ?? undefined;
-    const prefix = category ? categoryPrefix(category) : null;
-    const inCategory = prefix ? scanned.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : scanned;
+    const inSubtree = category ? categorySubtreeMatcher(category) : null;
+    const inCategory = inSubtree ? scanned.filter((r) => inSubtree(r.categoryId)) : scanned;
     const sel = {
       city: q.city,
       country: q.country,

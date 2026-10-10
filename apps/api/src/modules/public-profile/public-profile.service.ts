@@ -2,10 +2,7 @@ import { i18nMessage } from "../../common/i18n/http-i18n";
 import { Prisma } from "@rothern/db";
 import { CATEGORY_NAME_SELECT, categoryName, categorySlug } from "../../common/company/category-name";
 import {
-  categoryPrefix,
   foldSearchText,
-  isCategoryCode,
-  isHiddenCategory,
   PAID_TIER,
   segmentCodeOf,
   stemPrefix,
@@ -13,6 +10,7 @@ import {
   tokenizeQuery,
   visibleCategoryId,
   visibleCategoryIds,
+  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
 import {
@@ -32,6 +30,7 @@ import {
 } from "../../common/company/category-attributes";
 import { looksLikeProse } from "../../common/company/public-text-quality";
 import { buildDirectory, directoryFacets, type DirectoryParams } from "../../common/company/company-directory";
+import { productSubtreeClauses } from "../../common/company/product-index";
 import { relatedProducts, type RelatedViewerScope } from "../../common/company/related-products";
 import {
   REVIEW_SUMMARY_SELECT,
@@ -44,6 +43,26 @@ import { likeLiteral } from "../../common/prisma/like-literal";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
+
+/**
+ * Firmanın GÖSTERİLEN ana kategorileri (segment), beyan sırasıyla: önce satış,
+ * sonra alım. Gizli dal kuralının ata zinciri saklayan kayıttaki hâli
+ * (`visibleCompanyCategorySelection`): gizli kod düşer, yalnız gizli bir
+ * seçimin atası olarak saklanmış görünür segment de düşer — `46101500`
+ * (gizli aile) seçmiş firma "İş Güvenliği ve Yangın Ekipmanları" beyan etmiş
+ * gibi görünmez. Alt eksen dizileri yalnız bu karar için okunur.
+ */
+function shownMainCategoryIds(c: {
+  sellerCategoryIds: string[];
+  sellerSubCategoryIds: string[];
+  buyerCategoryIds: string[];
+  buyerSubCategoryIds: string[];
+}): string[] {
+  return [
+    ...visibleCompanyCategorySelection(c.sellerCategoryIds, c.sellerSubCategoryIds).mainIds,
+    ...visibleCompanyCategorySelection(c.buyerCategoryIds, c.buyerSubCategoryIds).mainIds,
+  ];
+}
 
 /**
  * Herkese açık (auth gerektirmeyen) firma profili. SEO sayfası bunu kullanır.
@@ -97,6 +116,9 @@ export class PublicProfileService {
         linkedinUrl: true,
         buyerCategoryIds: true,
         sellerCategoryIds: true,
+        // Yalnız gösterim kuralı için okunur (`shownMainCategoryIds`); yanıta yazılmaz.
+        buyerSubCategoryIds: true,
+        sellerSubCategoryIds: true,
         publicEnabled: true,
         isActive: true,
         isBlocked: true,
@@ -112,7 +134,7 @@ export class PublicProfileService {
       throw new NotFoundException(i18nMessage("api.publicProfile.profilBulunamadi"));
     }
     const [categories, reviewRows, productCount] = await Promise.all([
-      this.resolveCategoryNames([...c.sellerCategoryIds, ...c.buyerCategoryIds]),
+      this.resolveCategoryNames(shownMainCategoryIds(c)),
       this.prisma.companyReview.findMany({
         where: { targetCompanyId: c.id },
         select: REVIEW_SUMMARY_SELECT,
@@ -311,7 +333,12 @@ export class PublicProfileService {
       }),
       this.prisma.company.findMany({
         where: { isActive: true, isBlocked: false },
-        select: { sellerCategoryIds: true, buyerCategoryIds: true },
+        select: {
+          sellerCategoryIds: true,
+          buyerCategoryIds: true,
+          sellerSubCategoryIds: true,
+          buyerSubCategoryIds: true,
+        },
         take: 5000,
         orderBy: { updatedAt: "desc" },
       }),
@@ -319,8 +346,10 @@ export class PublicProfileService {
     const counts = new Map<string, number>();
     for (const r of rows) {
       const seen = new Set<string>();
-      // Gizli segment SAYILMAZ: ad da sayı da dönmez, ilk 8'den yer de tüketmez.
-      for (const id of visibleCategoryIds([...r.sellerCategoryIds, ...r.buyerCategoryIds])) {
+      // Gizli dal SAYILMAZ: ad da sayı da dönmez, ilk 8'den yer de tüketmez.
+      // Yalnız gizli bir seçimin atası olarak saklanmış görünür segment de
+      // sayılmaz (`shownMainCategoryIds`).
+      for (const id of shownMainCategoryIds(r)) {
         if (!/^\d{8}$/.test(id)) continue;
         const seg = `${id.slice(0, 2)}000000`;
         if (seen.has(seg)) continue;
@@ -366,28 +395,25 @@ export class PublicProfileService {
     const page = Math.max(1, q?.page ?? 1);
     const tokens = q?.q ? tokenizeQuery(q.q) : [];
 
-    // Gizli segmentin kodu süzgeç değildir (2026-10-09; ürün dizini ve talep
-    // listesiyle aynı kural): `?categoryId=46000000` kategori seçilmemiş gibi.
+    // Gizli bir dalın kodu süzgeç değildir (2026-10-09; ürün dizini ve talep
+    // listesiyle aynı kural): `?categoryId=10000000` kategori seçilmemiş gibi.
     const categoryId = visibleCategoryId(q?.categoryId);
     const where: Prisma.CompanyItemWhereInput = {
       ...publicProductWhere(),
       companyId: company.id,
-      ...(categoryId && isCategoryCode(categoryId)
-        ? // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik"
-          // seçen ziyaretçi altındaki yaprakları da görür.
-          { categoryId: { startsWith: categoryPrefix(categoryId) as string } }
-        : {}),
-      ...(tokens.length
-        ? // Token KATLANIR (ham "Çelik" katlanmış sütunda hiç eşleşmiyordu) +
-          // çok dilli sütun (ürün dizini `productSearchClauses` ile aynı kural;
-          // `likeLiteral` dahil — `%` / `_` joker değil düz karakter).
-          {
-            AND: tokens.map((t) => {
-              const needle = likeLiteral(stemPrefix(foldSearchText(t)));
-              return { OR: [{ searchText: { contains: needle } }, { searchTextI18n: { contains: needle } }] };
-            }),
-          }
-        : {}),
+      AND: [
+        // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik" seçen
+        // ziyaretçi altındaki yaprakları da görür. Görünür kodun gizli torunu
+        // listelenmez (`productSubtreeClauses`, ürün diziniyle aynı kural).
+        ...productSubtreeClauses(categoryId),
+        // Token KATLANIR (ham "Çelik" katlanmış sütunda hiç eşleşmiyordu) +
+        // çok dilli sütun (ürün dizini `productSearchClauses` ile aynı kural;
+        // `likeLiteral` dahil — `%` / `_` joker değil düz karakter).
+        ...tokens.map((t) => {
+          const needle = likeLiteral(stemPrefix(foldSearchText(t)));
+          return { OR: [{ searchText: { contains: needle } }, { searchTextI18n: { contains: needle } }] };
+        }),
+      ],
     };
 
     const [total, rows] = await Promise.all([
@@ -430,11 +456,14 @@ export class PublicProfileService {
     // sayfasına bağlanır (2026-09-27 SEO denetimi): L3/L4 kodun sayfası yok,
     // süzgeçli dizin adresi (`/urunler?kategori=`) kanoniği `/urunler` olan
     // bir varyanttı. Gizli segmentin sayfası 404 → halka yazılmaz.
-    // Gizli segmentteki eski ürünün KENDİ kategorisi de çözülmez (2026-10-09):
+    // Gizli daldaki eski ürünün KENDİ kategorisi de çözülmez (2026-10-09):
     // ad kırıntıda / hapta / JSON-LD'de çıkmaz; ürün yayında kalır. Nitelik
     // tanımları ham koddan okunur (etiketler kategori adı taşımaz).
-    const segmentId = segmentCodeOf(row.categoryId);
+    // Segment halkası ürünün GÖRÜNEN kodundan türer (2026-10-10): görünür
+    // segmentin gizli dalındaki ürün (`4610…`) o segmentin sayfasında
+    // listelenmez, kırıntısı da oraya bağlanmaz — kategorisiz ürün gibi çizilir.
     const shownCategoryId = visibleCategoryId(row.categoryId);
+    const segmentId = segmentCodeOf(shownCategoryId);
     const [attributeDefs, category, segment] = await Promise.all([
       resolveCategoryAttributes(this.prisma, row.categoryId),
       shownCategoryId
@@ -443,7 +472,7 @@ export class PublicProfileService {
             select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
-      segmentId && !isHiddenCategory(segmentId)
+      segmentId
         ? this.prisma.category.findUnique({
             where: { id: segmentId },
             select: { id: true, ...CATEGORY_NAME_SELECT },

@@ -282,9 +282,12 @@ export class SeoIndexService {
   ): Promise<SeoChange> {
     // Gizli segmentin kategori sayfası YOK (web 404): gizli segmentteki eski
     // ürün yayımlanınca / güncellenince o adres ne tazelenir ne de IndexNow'a
-    // gider (2026-10-09 — eskiden `/urunler/kategori/46000000-…` üç dilde
-    // Bing/Yandex'e bildiriliyordu). Ürünün ve firmanın kendi sayfası gider.
-    const segment = visibleCategoryId(segmentCodeOf(categoryId));
+    // gider (2026-10-09 — eskiden gizli segmentin `/urunler/kategori/…` adresi
+    // üç dilde Bing/Yandex'e bildiriliyordu). Ürünün ve firmanın kendi sayfası
+    // gider. Süzme segmente yuvarlamadan ÖNCE, ürünün KENDİ koduyla
+    // (2026-10-10): görünür segmentin gizli dalındaki ürün (`4610…`) o
+    // segmentin sayfasında listelenmez → o sayfa da tazelenmez / bildirilmez.
+    const segment = segmentCodeOf(visibleCategoryId(categoryId));
     const cat = segment
       ? await this.prisma.category.findUnique({ where: { id: segment }, select: { nameTr: true } })
       : null;

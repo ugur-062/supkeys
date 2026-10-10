@@ -22,9 +22,11 @@ import {
   type AiCompletionResult,
   type AiToolCall,
 } from "../../src/modules/ai/providers/ai-provider.interface";
+import { AuditService } from "../../src/modules/audit/audit.service";
+import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeService } from "./make-service";
-import { makeCompanyWithUser, makeUser, makeListing } from "./factories";
+import { connect, makeCompanyWithUser, makeUser, makeListing } from "./factories";
 
 const FLASH = "gemini-2.5-flash";
 const PRO = "gemini-3.1-pro";
@@ -79,10 +81,23 @@ class FakeConnections {
   list = jest.fn(async () => [] as unknown[]);
 }
 
+/** Gerçek bağlantı servisi (test şeması) — bağlantı listesinin GERÇEK biçimi modele nasıl gidiyor, onu sınar. */
+function realConnections() {
+  return new CompanyConnectionsService(
+    prisma as never,
+    prisma as never,
+    { blockedCompanyIds: jest.fn().mockResolvedValue([]) } as never,
+    { send: jest.fn() } as never,
+    { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+    { pushToCompany: jest.fn(), pushToUser: jest.fn() } as never,
+    new AuditService(prisma as never),
+  );
+}
+
 function build(
   cfg: AiConfig,
   provider: FakeProvider,
-  over: { actions?: object; suggest?: () => Promise<string[]> } = {},
+  over: { actions?: object; suggest?: () => Promise<string[]>; connections?: CompanyConnectionsService } = {},
 ) {
   const listings = makeService().service;
   const orders = new FakeOrders();
@@ -108,7 +123,7 @@ function build(
     prisma as never,
     listings,
     orders as never,
-    connections as never,
+    (over.connections ?? connections) as never,
     tenderExtract,
     categorySuggest,
     // AI-4 aksiyon servisi — bu spec'ler propose akışını KULLANMAZ; stub yeterli.
@@ -534,16 +549,21 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
   });
 
   /**
-   * GİZLİ SEGMENT (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
+   * GİZLİ DAL (2026-10-09, kullanıcı: "anasayfada olmayan kategori talepte,
    * üründe ya da başka yerde de gösterilmesin"). Araç sonucu model girdisidir:
    * eski talebin / eski firma beyanının gizli kategorisi (kod, ad, referans)
    * modele gitmez; kayıt ve görünür kategorisi aynen gider.
+   * 2026-10-10: 46 görünür segmenttir; altındaki gizli AİLE (4610) ve gizli
+   * SINIF (461825) gizli segment (10) gibi davranır, 46181700 sıradan kategoridir.
    */
-  it("gizli segment: araç sonuçlarında eski kaydın gizli kategorisi modele gitmez (liste, detay, bağlantılar)", async () => {
+  it("gizli dal: araç sonuçlarında eski kaydın gizli kategorisi modele gitmez (liste, detay, bağlantılar)", async () => {
     const provider = new FakeProvider();
     const a = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
     await prisma.category.createMany({
       data: [
+        { id: "46101500", code: "46101500", nameTr: "Ateşli silahlar", nameEn: "Firearms", level: 3, isActive: true, sortOrder: 0 },
+        { id: "46182501", code: "46182501", nameTr: "Biber gazı spreyleri", nameEn: "Pepper sprays", level: 4, isActive: true, sortOrder: 0 },
+        { id: "10101500", code: "10101500", nameTr: "Çiftlik hayvanları", nameEn: "Livestock", level: 3, isActive: true, sortOrder: 0 },
         { id: "46181700", code: "46181700", nameTr: "Baş koruma", nameEn: "Head protection", level: 3, isActive: true, sortOrder: 0 },
         { id: "30191500", code: "30191500", nameTr: "İskeleler", level: 3, isActive: true, sortOrder: 0 },
       ],
@@ -554,7 +574,7 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
       type: "ALIM",
       status: "OPEN",
       title: "ESKI-TALEP",
-      categoryIds: ["46181700", "30191500"],
+      categoryIds: ["46101500", "46181700", "46182501", "10101500", "30191500"],
     });
     provider.steps = [
       {
@@ -572,11 +592,12 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
         rothernId: "RTH-9",
         name: "Bağlantı AŞ",
         categories: [
-          { id: "46000000", name: "Kolluk ve emniyet ekipmanları" },
+          { id: "10000000", name: "Canlı hayvan malzemeleri" },
+          { id: "46100000", name: "Hafif silahlar ve mühimmat" },
           { id: "30000000", name: "Yapı malzemeleri" },
         ],
-        sellerCategoryIds: ["46000000", "30000000"],
-        sellerSubCategoryIds: ["46181700"],
+        sellerCategoryIds: ["10000000", "30000000"],
+        sellerSubCategoryIds: ["46100000", "46101500", "46182500", "46181700"],
       },
     ]);
 
@@ -590,7 +611,23 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     expect(json).toContain("30191500");
     expect(json).toContain("Bağlantı AŞ");
     expect(json).toContain("Yapı malzemeleri");
-    for (const hidden of ["46181700", "46000000", "Baş koruma", "Head protection", "Kolluk"]) {
+    // 46 altındaki GÖRÜNÜR sınıf sıradan kategoridir: kodu ve adı modele gider.
+    expect(json).toContain("46181700");
+    expect(json).toContain("Baş koruma");
+    for (const hidden of [
+      "46101500",
+      "46100000",
+      "46182501",
+      "46182500",
+      "10101500",
+      "10000000",
+      "Ateşli silahlar",
+      "Firearms",
+      "Hafif silahlar",
+      "Biber gazı",
+      "Çiftlik hayvanları",
+      "Canlı hayvan",
+    ]) {
       expect(json).not.toContain(hidden);
     }
     // CP-08: the detail's raw flag for the edit form is not model input - the
@@ -602,7 +639,57 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     });
   });
 
-  it("gizli segment: eski oturum taslağındaki gizli kategori önerisi taslak bağlamına ve yanıta girmez", async () => {
+  /**
+   * BAĞLANTI KARTININ BEYANI — GERÇEK servis (2026-10-10 gözden geçirmesi).
+   * `CompanyConnectionsService.list` karşı firmanın SAKLANAN satış beyanını
+   * verir (ana + alt eksen birleşik; her seçim ata zinciriyle). Yalnız gizli
+   * kodları düşüren süzgeç, tek seçimi gizli bir dalda olan firmayı modele
+   * `46000000` ("İş Güvenliği ve Yangın Ekipmanları") beyanıyla gönderiyordu:
+   * asistan o firmayı iş güvenliği tedarikçisi diye sunardı. Modele firmanın
+   * GÖSTERİLEN beyanı gider (profil, dizin ve keşif rozetiyle aynı kural).
+   */
+  it("gizli dal: bağlantı listesinde yalnız gizli bir seçimin atası olan sektör modele gitmez (gerçek bağlantı servisi)", async () => {
+    const provider = new FakeProvider();
+    const me = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const partner = async (name: string, sellerCategoryIds: string[], sellerSubCategoryIds: string[]) => {
+      const other = await makeCompanyWithUser(prisma, { name });
+      await prisma.company.update({ where: { id: other.company.id }, data: { sellerCategoryIds, sellerSubCategoryIds } });
+      await connect(prisma, me.company.id, other.company.id, me.user.id);
+    };
+    // Kayıtlar saklandıkları gibi: segment ana eksende, zincirin gerisi alt eksende.
+    await partner("Silah Beyan", ["46000000"], ["46100000", "46101500"]); // tek seçimi gizli AİLEDE
+    await partner("Sprey Beyan", ["46000000"], ["46180000", "46182500", "46182501"]); // tek seçimi gizli SINIFTA
+    await partner("Baret Beyan", ["46000000"], ["46180000", "46181700", "46100000", "46101500"]);
+    await partner("Sektor Geneli", ["46000000"], []); // bilinçli "sektörün tamamı"
+    provider.steps = [{ toolCalls: [{ name: "list_my_connections", args: {} }] }, { text: "tamam" }];
+    const { svc } = build(makeCfg(), provider, { connections: realConnections() });
+
+    await svc.message(authFor(me.user, me.company.id, [CompanyRole.SATIN_ALMACI]), {
+      message: "bağlantılarım hangi kategorilerde satış yapıyor?",
+    });
+
+    const [result] = toolResponses(provider.calls[1]!) as Array<{
+      items: Array<{ company: { name: string; categoryIds: string[] } }>;
+      total: number;
+    }>;
+    expect(result!.total).toBe(4); // firmalar listede kalır, yalnız beyanları süzülür
+    expect(Object.fromEntries(result!.items.map((r) => [r.company.name, r.company.categoryIds]))).toEqual({
+      "Silah Beyan": [],
+      "Sprey Beyan": [],
+      "Baret Beyan": ["46000000", "46180000", "46181700"],
+      "Sektor Geneli": ["46000000"],
+    });
+    expect(JSON.stringify(result)).not.toMatch(/4610\d{4}|461825\d{2}/);
+    // Kayıt değişmedi: eşleştirme ve web davet seçicisi saklanan kodları okumaya devam eder.
+    const stored = await prisma.company.findFirstOrThrow({ where: { name: "Silah Beyan" } });
+    expect([stored.sellerCategoryIds, stored.sellerSubCategoryIds]).toEqual([["46000000"], ["46100000", "46101500"]]);
+  });
+
+  it.each([
+    ["gizli segment", "10101500"],
+    ["görünür segmentin gizli ailesi", "46101500"],
+    ["görünür ailenin gizli sınıfı", "46182501"],
+  ])("%s: eski oturum taslağındaki gizli kategori önerisi taslak bağlamına ve yanıta girmez", async (_level, hiddenCode) => {
     const provider = new FakeProvider();
     provider.steps = [{ text: "Taslağınız duruyor." }];
     const { svc } = build(makeCfg(), provider);
@@ -617,7 +704,7 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
           deliveryTerm: "DOMESTIC_DELIVERED",
           bidsCloseAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
           items: [{ name: "Baret", quantity: 500, unit: "adet" }],
-          suggestedCategoryIds: ["46181700"],
+          suggestedCategoryIds: [hiddenCode],
         } as Prisma.InputJsonValue,
       },
     });
@@ -629,7 +716,7 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
 
     // Modele giden sistem istemi taslağı taşır ama gizli kodu taşımaz.
     expect(provider.calls[0]!.system).toContain("500 adet baret alımı");
-    expect(provider.calls[0]!.system).not.toContain("46181700");
+    expect(provider.calls[0]!.system).not.toContain(hiddenCode);
     // İstemciye dönen taslak: öneri boş, kategori eksik (form gizli kategoriyle açılmaz).
     expect(reply.tenderDraft!.draft.suggestedCategoryIds).toEqual([]);
     expect(reply.tenderDraft!.missingRequired).toContain("category");

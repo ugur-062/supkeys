@@ -22,16 +22,18 @@ import {
   PRODUCT_MEDIA_TIER,
   slugifyText,
   tierAtLeast,
-  tokenizeQuery, categoryPrefix, type TierName,
+  tokenizeQuery, type TierName,
   defaultCurrencyForCountry,
   isCurrencyCode,
   productPriceBase,
   isHttpsUrl,
   productVideoEmbedUrl,
+  categorySubtreeMatcher,
   hiddenCategoryWhere,
   isHiddenCategory,
   visibleCategoryId,
-  visibleCategoryIds } from "@rothern/shared";
+  visibleCategoryIds,
+  visibleCompanyCategorySelection } from "@rothern/shared";
 import { fxRate, resolveCompanyCurrency } from "../../common/currency/fx-rates";
 import {
   ATTRIBUTE_LIST_MAX_ITEMS,
@@ -61,6 +63,7 @@ import {
   productIndexOrderBy,
   productIndexWhere,
   productSearchClauses,
+  productSubtreeClauses,
   subCategoryCounts,
   toFacetRow,
   type ProductIndexParams,
@@ -755,8 +758,8 @@ export class CompanyItemsService {
     // "size uygun ürünler" ayrı bir blok değil, listenin varsayılan düzeni.
     // Açık sıralamada (en yeni / fiyat) karışmaz. Sayfalama iki kümenin
     // birleşimi üzerinden: önce eşleşenler tükenir, sonra kalanlar.
-    const prefixes = q.sort ? [] : await this.buyerCategoryPrefixes(user.companyId);
-    if (prefixes.length === 0) {
+    const profileClauses = q.sort ? [] : await this.buyerCategoryClauses(user.companyId);
+    if (profileClauses.length === 0) {
       const [total, rows] = await Promise.all([
         this.crossTenant.companyItem.count({ where }),
         this.crossTenant.companyItem.findMany({ where, select: PRODUCT_INDEX_SELECT, orderBy, skip, take: size }),
@@ -764,9 +767,7 @@ export class CompanyItemsService {
       const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
       return { items: await this.localizeCards(items, rows), total, page, pageSize: size };
     }
-    const matchClause: Prisma.CompanyItemWhereInput = {
-      OR: prefixes.map((p) => ({ categoryId: { startsWith: p } })),
-    };
+    const matchClause: Prisma.CompanyItemWhereInput = { OR: profileClauses };
     const matchWhere: Prisma.CompanyItemWhereInput = { AND: [where, matchClause] };
     const restWhere: Prisma.CompanyItemWhereInput = { AND: [where, { NOT: matchClause }] };
     const [total, matched] = await Promise.all([
@@ -802,14 +803,36 @@ export class CompanyItemsService {
     return { items: await this.localizeCards(await attachProductFeatures(this.prisma, rows, cards), rows), total, page, pageSize: size };
   }
 
-  /** Firmanın ALIM kategorileri (L1 ana + L2-4 alt) → kod ön ekleri. */
-  private async buyerCategoryPrefixes(companyId: string): Promise<string[]> {
+  /**
+   * Firmanın ALIM kategorileri (L1 ana + L2-4 alt) → her kodun ürün alt ağacı
+   * koşulu (en çok 60); `discoverSearch` bunlarla eşleşen ürünü öne alır ve
+   * kartına "Alım kategorinizle eşleşiyor" yazar (`matchesProfile`).
+   *
+   * GÖRÜNÜR KATEGORİNİN GİZLİ DALI (2026-10-10). Koşul, kategorinin
+   * LİSTELENDİĞİ alt ağaçtır (`productSubtreeClauses`): "İş Güvenliği ve Yangın
+   * Ekipmanları"nı (`46000000`) beyan eden alıcıya `4610…` / `461825…` altında
+   * saklanmış eski ürün "kategorinizle eşleşiyor" diye öne çıkarılmaz — gizli
+   * daldaki kayıt görünür atasının altında listelenmez, sayılmaz. Aynı
+   * gerekçeyle yalnız gizli bir seçimin ATASI olarak saklanmış görünür kod
+   * (`46101500` seçmiş firmadaki `46000000`) burada beyan sayılmaz
+   * (`visibleCompanyCategorySelection`; profil, dizin ve ilgi profiliyle aynı kural).
+   *
+   * DEĞİŞMEYEN: kendisi gizli olan saklanmış seçim, altındaki ürünlerle eskisi
+   * gibi eşleşir (ham alt ağaç; `productSubtreeClauses` gizli kodda ham döner) —
+   * eşleştirme saklanan kodları kullanır, talep tarafındaki `categoryMatch`
+   * ile aynı sözleşme. Gizli daldaki kaydın "eşleşti" rozeti taşıyıp
+   * taşımayacağı SAHİP KARARI BEKLİYOR (ürün kartı ve talep çipi birlikte).
+   */
+  private async buyerCategoryClauses(companyId: string): Promise<Prisma.CompanyItemWhereInput[]> {
     const c = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { buyerCategoryIds: true, buyerSubCategoryIds: true },
     });
-    const codes = [...(c?.buyerCategoryIds ?? []), ...(c?.buyerSubCategoryIds ?? [])];
-    return [...new Set(codes.map((k) => categoryPrefix(k)).filter((p): p is string => !!p))].slice(0, 60);
+    const shown = visibleCompanyCategorySelection(c?.buyerCategoryIds, c?.buyerSubCategoryIds);
+    const declared = new Set([...shown.mainIds, ...shown.subIds]);
+    const stored = [...(c?.buyerCategoryIds ?? []), ...(c?.buyerSubCategoryIds ?? [])].filter(isCategoryCode);
+    const codes = [...new Set(stored.filter((k) => declared.has(k) || isHiddenCategory(k)))].slice(0, 60);
+    return codes.flatMap((k) => productSubtreeClauses(k));
   }
 
   /**
@@ -864,8 +887,11 @@ export class CompanyItemsService {
     // tam 5000'de sessizce eksik sayıyordu (public uç dürüst davranıyordu).
     const truncated = raw.length > PRODUCT_FACET_SCAN_CAP;
     const rows = truncated ? raw.slice(0, PRODUCT_FACET_SCAN_CAP) : raw;
-    const prefix = q.category ? categoryPrefix(q.category) : null;
-    const inCategory = prefix ? rows.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : rows;
+    // Subtree of the selected category WITHOUT its hidden branches
+    // (`categorySubtreeMatcher`): the counts describe the same set the list
+    // endpoint returns (`productIndexWhere` -> `productSubtreeClauses`).
+    const inSubtree = q.category ? categorySubtreeMatcher(q.category) : null;
+    const inCategory = inSubtree ? rows.filter((r) => inSubtree(r.categoryId)) : rows;
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), q);
     const catCounts = contextualFacetCounts(rows.map(toFacetRow), q).categories;
     const subCounts = subCategoryCounts(inCategory, q.category);
@@ -1078,19 +1104,19 @@ export class CompanyItemsService {
   ): Promise<DiscoverProductRow[]> {
     const take = Math.min(Math.max(opts.limit ?? 12, 1), 48);
     const tokens = opts.q ? tokenizeQuery(opts.q) : [];
-    // A code under a hidden segment is not a filter (owner rule 2026-10-09).
+    // A code under a hidden prefix is not a filter (owner rule 2026-10-09).
+    // A visible code lists its subtree without the hidden branches below it
+    // (`productSubtreeClauses`, the same rule as the product index).
     const category = visibleCategoryId(opts.category);
     const rows = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
         companyId: { notIn: await this.hiddenCompanyIds(user.companyId) },
-        ...(category && isCategoryCode(category)
-          ? { categoryId: { startsWith: categoryPrefix(category) as string } }
-          : {}),
-        ...(tokens.length
-          ? // Joker yok (`likeLiteral`) — ürün dizini `productSearchClauses` ile aynı kural.
-            { AND: tokens.map((t) => ({ searchText: { contains: likeLiteral(foldSearchText(t)) } })) }
-          : {}),
+        AND: [
+          ...productSubtreeClauses(category),
+          // Joker yok (`likeLiteral`) — ürün dizini `productSearchClauses` ile aynı kural.
+          ...tokens.map((t) => ({ searchText: { contains: likeLiteral(foldSearchText(t)) } })),
+        ],
       },
       select: {
         id: true,

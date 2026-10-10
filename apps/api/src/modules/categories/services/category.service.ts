@@ -8,6 +8,7 @@ import {
 import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows } from "../../../common/company/category-name";
 import {
   categoryCatalogWhere,
+  hiddenCategoryPrefixOf,
   hiddenCategoryWhere,
   isHiddenCategory,
   foldSearchText,
@@ -252,9 +253,16 @@ export class CategoryService {
     /** 200 sonuç tavanına takıldı — kullanıcıya "aramayı daraltın" gösterilir. */
     truncated: boolean;
     /**
-     * Sonuçsuz KOD aramasında kod gizli bir segmentin altındaysa o segmentin
-     * iki hanesi (O-048, yeniden doğrulama) — admin kategori tarayıcısı "Sonuç
-     * yok" yerine nedenini söyler. Diğer durumlarda yok.
+     * Sonuçsuz KOD aramasında kod gizli bir dalın altındaysa o dalın öneki
+     * (O-048, yeniden doğrulama): segment 2 hane ("10"), aile 4 ("4610"),
+     * sınıf 6 ("461825") — admin kategori tarayıcısı "Sonuç yok" yerine
+     * nedenini ve düzeyini söyler. Diğer durumlarda yok.
+     */
+    hiddenPrefix?: string;
+    /**
+     * Eski biçim: gizli SEGMENTİN iki hanesi. Yalnız segmentin tamamı
+     * gizliyse döner — görünür segmentin gizli ailesinde / sınıfında
+     * ("46 gizli" yanlış olurdu) yalnız `hiddenPrefix` vardır.
      */
     hiddenSegment?: string;
   }> {
@@ -547,6 +555,9 @@ export class CategoryService {
             isActive: true,
             level: 3,
             parentId: { in: famMatches.map((x) => x.row.id) },
+            // Görünür ailenin GİZLİ sınıfı listelenmez (2026-10-10: gizleme
+            // sınıf düzeyinde de var — 4618 ailesinin 461825 sınıfı).
+            ...hiddenCategoryWhere(),
           },
           select: classSelect,
           orderBy: { sortOrder: "asc" },
@@ -585,10 +596,14 @@ export class CategoryService {
             isActive: true,
             level: 2,
             parentId: { in: sectorMatches.map((x) => x.row.id) },
+            // Görünür sektörün GİZLİ aileleri ve sınıfları açılmaz
+            // (2026-10-10): adı eşleşen sektör "bütün aileleriyle" döner ama
+            // gizli dallar o bütünün parçası değildir (46 → 4610 … 4622).
+            ...hiddenCategoryWhere(),
           },
           include: {
             children: {
-              where: { isActive: true, level: 3 },
+              where: { isActive: true, level: 3, ...hiddenCategoryWhere() },
               orderBy: { sortOrder: "asc" },
             },
           },
@@ -602,9 +617,14 @@ export class CategoryService {
       // Kod araması kürasyon kuyruğuna YAZILMAZ: eş anlamlı ekleyerek
       // çözülecek bir terim değil (O-048 — sahte kayıt düşüyordu).
       if (codePrefix) {
-        return isHiddenCategory(codePrefix)
-          ? { segments: [], truncated: false, hiddenSegment: codePrefix.slice(0, 2) }
-          : { segments: [], truncated: false };
+        const hiddenPrefix = hiddenCategoryPrefixOf(codePrefix);
+        if (!hiddenPrefix) return { segments: [], truncated: false };
+        return {
+          segments: [],
+          truncated: false,
+          hiddenPrefix,
+          ...(hiddenPrefix.length === 2 ? { hiddenSegment: hiddenPrefix } : {}),
+        };
       }
       this.logger.log(`Kategori araması sonuçsuz: "${q.slice(0, 80)}"`);
       await this.recordSearchMiss(q, folded);

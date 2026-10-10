@@ -119,15 +119,21 @@ describe("SeoIndexService", () => {
     ]);
   });
 
-  it("gizli segmentteki eski ürün: kategori sayfası ne tazelenir ne bildirilir; ürün ve firma gider", async () => {
-    // 46 (2026-10-09'da gizlendi) — `/urunler/kategori/46000000-…` web'de 404.
-    const categoryFind = jest.fn().mockResolvedValue({ nameTr: "Kolluk ve Emniyet Ekipmanları" });
+  it.each([
+    // Tümüyle gizli segment: kategori sayfası web'de 404.
+    ["gizli segment", "10101500"],
+    // GÖRÜNÜR segmentin (46) gizli ailesi / sınıfı (2026-10-10): segmentin sayfası
+    // var ama ürün orada listelenmez → o sayfa da tazelenmez / bildirilmez.
+    ["görünür segmentin gizli ailesi", "46101500"],
+    ["görünür ailenin gizli sınıfı", "46182501"],
+  ])("%s altındaki eski ürün: kategori sayfası ne tazelenir ne bildirilir; ürün ve firma gider", async (_level, categoryId) => {
+    const categoryFind = jest.fn().mockResolvedValue({ nameTr: "İş Güvenliği ve Yangın Ekipmanları" });
     const prisma = makePrisma({ category: { findUnique: categoryFind } });
     (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({
       slug: "balistik-yelek",
       isPublic: true,
       isActive: true,
-      categoryId: "46181500",
+      categoryId,
       company: { slug: "acme-metal", cityId: null, country: null, publicEnabled: true },
     });
     const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
@@ -148,8 +154,30 @@ describe("SeoIndexService", () => {
       "https://www.rothern.com/en/companies/acme-metal",
       "https://www.rothern.com/ru/kompanii/acme-metal",
     ]);
-    // Gizli segmentin adı için kategori tablosuna hiç gidilmez.
+    // Gizli dalın (ve onun görünür segmentinin) adı için kategori tablosuna hiç gidilmez.
     expect(categoryFind).not.toHaveBeenCalled();
+  });
+
+  it("46 altındaki GÖRÜNÜR kategorideki ürün: 46 segmentinin sayfası tazelenir ve bildirilir (sıradan kategori)", async () => {
+    const categoryFind = jest.fn().mockResolvedValue({ nameTr: "Elektrik Malzemeleri" });
+    const prisma = makePrisma({ category: { findUnique: categoryFind } });
+    (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({
+      slug: "is-elbisesi",
+      isPublic: true,
+      isActive: true,
+      categoryId: "46181500",
+      company: { slug: "acme-metal", cityId: null, country: null, publicEnabled: true },
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.productChanged("item1");
+    await flushSoon(svc);
+
+    expect(categoryFind).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "46000000" } }));
+    const [revalidateCall, indexNowCall] = fetchMock.mock.calls;
+    expect(JSON.parse(revalidateCall[1].body).paths).toContain("/urunler/kategori/46000000-elektrik-malzemeleri");
+    expect(JSON.parse(indexNowCall[1].body).urlList).toContain(
+      "https://www.rothern.com/urunler/kategori/46000000-elektrik-malzemeleri",
+    );
   });
 
   it("vitrinden çekilen ürün: IndexNow'a GİTMEZ, web yine tazelenir", async () => {

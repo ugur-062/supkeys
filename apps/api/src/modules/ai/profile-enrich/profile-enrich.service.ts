@@ -17,7 +17,7 @@ import {
   countryName,
   deepestCategoryPicks,
   hiddenCategoryWhere,
-  isHiddenCategory,
+  visibleCompanyCategorySelection,
   tierAtLeast,
 } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
@@ -246,16 +246,18 @@ const squash = (value: string, max: number): string => value.replace(/\s+/g, " "
  * segmentler (Profilim özetiyle aynı). TAM liste döner — isteme giren tavan
  * (`CATEGORY_NAMES_MAX`) çağıranda, iki eksen karşılaştırıldıktan SONRA uygulanır.
  *
- * GİZLİ SEGMENT SÜZÜLÜR (PD-04; tek kaynak `isHiddenCategory`): kataloğun artık
- * sunmadığı segmentteki eski beyan (2026-09-19 öncesi) modele firma olgusu diye
- * gitmez. Süzme en başta: gizli bir yaprak, görünür seçimleri "kapsanmış"
- * saydırmasın ve iki eksenin karşılaştırmasına girmesin.
+ * GİZLİ DAL SÜZÜLÜR (PD-04; tek kaynak `visibleCompanyCategorySelection`):
+ * kataloğun artık sunmadığı daldaki eski beyan modele firma olgusu diye gitmez.
+ * Süzme en başta: gizli bir yaprak, görünür seçimleri "kapsanmış" saydırmasın
+ * ve iki eksenin karşılaştırmasına girmesin. Yalnız gizli bir seçimin atası
+ * olarak saklanmış görünür kod da düşer (2026-10-10: `46101500` seçmiş firma
+ * isteme "İş Güvenliği ve Yangın Ekipmanları — sektörün tamamı" diye girmez).
  */
 function declaredPicks(mainIds: readonly string[], subIds: readonly string[]): string[] {
-  const visible = (ids: readonly string[]) => ids.filter((id) => !isHiddenCategory(id));
-  const leaves = deepestCategoryPicks(visible(subIds));
+  const shown = visibleCompanyCategorySelection(mainIds, subIds);
+  const leaves = deepestCategoryPicks(shown.subIds);
   const covered = new Set(leaves.map((id) => categorySegment(id)));
-  return [...new Set([...visible(mainIds).filter((id) => !covered.has(id)), ...leaves])];
+  return [...new Set([...shown.mainIds.filter((id) => !covered.has(id)), ...leaves])];
 }
 
 /**
