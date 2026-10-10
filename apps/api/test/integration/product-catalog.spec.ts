@@ -246,8 +246,152 @@ describe("yayımlama akışı", () => {
     for (const bad of ["x".repeat(201), Array.from({ length: 51 }, () => "AG"), { nested: "AG" }, ["AG", { x: 1 }]]) {
       await expect(service().updateShowcase(auth, item.id, { attributes: { gerilim: bad } })).rejects.toThrow(/Nitelik değeri geçersiz/);
     }
-    const ok = await service().updateShowcase(auth, item.id, { attributes: { gerilim: "AG", ip: ["IP54", "IP65"], dolap: 3 } });
-    expect(ok.attributes).toEqual({ gerilim: "AG", ip: ["IP54", "IP65"], dolap: 3 });
+    // Each value in a field of its own kind (CL-PF-1: a list in a single-choice field is not stored any more).
+    await prisma.categoryAttribute.createMany({
+      data: [
+        { categoryId: SEG, groupKey: "standart", nameTr: "Standart", type: "MULTI_SELECT", options: ["IEC", "TSE", "EN"], sortOrder: 3 },
+        { categoryId: SEG, groupKey: "akim", nameTr: "Akım", type: "NUMBER", unit: "A", sortOrder: 4 },
+      ],
+    });
+    const ok = await service().updateShowcase(auth, item.id, { attributes: { gerilim: "AG", standart: ["IEC", "TSE"], akim: 400 } });
+    expect(ok.attributes).toEqual({ gerilim: "AG", standart: ["IEC", "TSE"], akim: 400 });
+  });
+
+  /**
+   * Closing check 2026-10-10, CL-PF-1. The save path kept every value whose KEY
+   * the category defines. The same key is defined at other nodes with other
+   * options or another type: a product moved from one category to another kept
+   * a single choice that is no option there. The form shows "Seçiniz" for it,
+   * the owner cannot see or remove the value, every save sends it back and the
+   * starred attribute counts as filled.
+   */
+  describe("CL-PF-1: a stored attribute value fits the category's definition", () => {
+    const MIKA = "11101501";
+    const LATEKS = "13101501";
+    /** Two leaves whose segments define the SAME keys with other options / another type. */
+    async function seedTwoMaterials() {
+      const mk = (id: string, nameTr: string, level: number, parentId?: string) =>
+        prisma.category.create({
+          data: { id, code: id, nameTr, keywords: "", searchText: nameTr.toLowerCase(), level, parentId: parentId ?? null, isActive: true, sortOrder: 0, inDiscovery: true },
+        });
+      await mk("11000000", "Mineraller", 1);
+      await mk("11100000", "Mineraller ve cevherler", 2, "11000000");
+      await mk("11101500", "Mineraller", 3, "11100000");
+      await mk(MIKA, "Mika", 4, "11101500");
+      await mk("13000000", "Reçine ve kauçuk", 1);
+      await mk("13100000", "Kauçuk ve elastomerler", 2, "13000000");
+      await mk("13101500", "Doğal kauçuk", 3, "13100000");
+      await mk(LATEKS, "Lateks kauçuk", 4, "13101500");
+      const def = (categoryId: string, groupKey: string, type: "SINGLE_SELECT" | "MULTI_SELECT" | "NUMBER" | "TEXT", options: string[] = [], isRequired = false) => ({
+        categoryId,
+        groupKey,
+        nameTr: groupKey,
+        type,
+        options,
+        isRequired,
+        sortOrder: 0,
+      });
+      await prisma.categoryAttribute.createMany({
+        data: [
+          def("11000000", "form", "SINGLE_SELECT", ["Külçe", "Levha", "Toz"], true),
+          def("11000000", "malzeme", "MULTI_SELECT", ["Çelik", "Bakır"]),
+          def("11000000", "kalinlik", "NUMBER"),
+          def("11000000", "standart", "MULTI_SELECT", ["DIN", "ISO", "EN"]),
+          def("11000000", "yuzey", "MULTI_SELECT", ["Galvaniz", "Boyalı"]),
+          def("11000000", "not", "TEXT"),
+          // The other segment: `form` with other options, `standart` narrower, `yuzey` single choice,
+          // `malzeme` and `kalinlik` not defined at all.
+          def("13000000", "form", "SINGLE_SELECT", ["Granül", "Toz", "Levha", "Profil", "Film", "Sıvı", "Masterbatch"], true),
+          def("13000000", "standart", "MULTI_SELECT", ["ISO", "ASTM"]),
+          def("13000000", "yuzey", "SINGLE_SELECT", ["Mat", "Parlak"]),
+          def("13000000", "polimer", "MULTI_SELECT", ["PE", "PP"]),
+          def("13000000", "not", "TEXT"),
+        ],
+      });
+    }
+    const MIKA_VALUES = { form: "Külçe", malzeme: ["Çelik", "Bakır"], kalinlik: 2.5, standart: ["DIN", "ISO"], yuzey: ["Galvaniz"], not: "Elle yazılan not" };
+    const stored = async (id: string) => (await prisma.companyItem.findUniqueOrThrow({ where: { id } })).attributes;
+
+    it("the live case: the form saves the new category with the old values - a single choice that is no option there is NOT stored; a multiple choice keeps what both lists share", async () => {
+      await seedTwoMaterials();
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await makeProduct(company.id, user.id, { name: "Mika levha", categoryId: MIKA, attributes: MIKA_VALUES });
+
+      const saved = await service().updateShowcase(auth, item.id, { categoryId: LATEKS, attributes: MIKA_VALUES });
+
+      // form "Külçe": no option under 13 - dropped. malzeme / kalinlik: not defined there - dropped (as before).
+      // standart: [DIN, ISO] ∩ [ISO, ASTM]. yuzey: a list for a single choice - dropped. Free text: as sent.
+      expect(saved.attributes).toEqual({ standart: ["ISO"], not: "Elle yazılan not" });
+      expect(await stored(item.id)).toEqual({ standart: ["ISO"], not: "Elle yazılan not" });
+      // The starred attribute is open again: the rail asks for it instead of counting an invisible value.
+      expect(saved.completion.missing.map((m) => m.key)).toContain("attributes");
+      // The next save of the form (it sends what the product holds) changes nothing more.
+      const next = await service().updateShowcase(auth, item.id, { attributes: saved.attributes as Record<string, unknown>, moq: 5 });
+      expect(next.attributes).toEqual({ standart: ["ISO"], not: "Elle yazılan not" });
+    });
+
+    it("values that fit are stored as sent: an option, a subset of the options, a number, a free text", async () => {
+      await seedTwoMaterials();
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await makeProduct(company.id, user.id, { categoryId: LATEKS });
+      const values = { form: "Levha", standart: ["ASTM", "ISO"], yuzey: "Mat", polimer: ["PE"], not: "200 karaktere kadar serbest metin" };
+      expect((await service().updateShowcase(auth, item.id, { attributes: values })).attributes).toEqual(values);
+      expect((await service().getShowcase(auth, item.id)).completion.missing.map((m) => m.key)).not.toContain("attributes");
+    });
+
+    it("every shape the form cannot show is dropped, key by key: wrong option, option of another language, list in a single choice, text in a multiple choice, empty intersection", async () => {
+      await seedTwoMaterials();
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await makeProduct(company.id, user.id, { categoryId: LATEKS });
+      await prisma.categoryAttribute.updateMany({
+        where: { categoryId: "13000000", groupKey: "form" },
+        data: { optionsEn: ["Granule", "Powder", "Sheet", "Profile", "Film", "Liquid", "Masterbatch"] },
+      });
+      const one = (attributes: Record<string, unknown>) =>
+        service()
+          .updateShowcase(auth, item.id, { attributes })
+          .then((r) => r.attributes);
+
+      expect(await one({ form: "Külçe" })).toBeNull();
+      // The stored value is the canonical (Turkish) option; the displayed translation is not a value.
+      expect(await one({ form: "Sheet" })).toBeNull();
+      expect(await one({ form: ["Levha"] })).toBeNull();
+      expect(await one({ form: 3 })).toBeNull();
+      expect(await one({ polimer: "PE" })).toBeNull();
+      expect(await one({ polimer: ["PVC", "ABS"] })).toBeNull();
+      expect(await one({ not: ["bir", "iki"] })).toBeNull();
+      // One bad value does not take the good ones with it.
+      expect(await one({ form: "Külçe", polimer: ["PVC", "PE"], yuzey: "Parlak" })).toEqual({ polimer: ["PE"], yuzey: "Parlak" });
+    });
+
+    it("partial PATCH: a request that neither sends attributes nor changes the category does not touch the stored values", async () => {
+      await seedTwoMaterials();
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      // Stored before the rule (or written by a script): a choice that is no option here.
+      const legacy = { form: "Külçe", polimer: ["PE"] };
+      const item = await makeProduct(company.id, user.id, { categoryId: LATEKS, attributes: legacy });
+
+      await service().updateShowcase(auth, item.id, { moq: 10 });
+      expect(await stored(item.id)).toEqual(legacy);
+      // The same category sent again is no change either.
+      await service().updateShowcase(auth, item.id, { categoryId: LATEKS, description: "y".repeat(120) });
+      expect(await stored(item.id)).toEqual(legacy);
+
+      // The form's save sends the attributes: the value it cannot show goes.
+      await service().updateShowcase(auth, item.id, { attributes: legacy });
+      expect(await stored(item.id)).toEqual({ polimer: ["PE"] });
+    });
+
+    it("a category change WITHOUT attributes in the request checks the stored values against the new category", async () => {
+      await seedTwoMaterials();
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await makeProduct(company.id, user.id, { categoryId: MIKA, attributes: { ...MIKA_VALUES, form: "Toz" } });
+
+      const moved = await service().updateShowcase(auth, item.id, { categoryId: LATEKS });
+
+      // "Toz" is an option in both categories and stays.
+      expect(moved.attributes).toEqual({ form: "Toz", standart: ["ISO"], not: "Elle yazılan not" });
+    });
   });
 
   it("başka firmanın ürününe dokunamaz", async () => {

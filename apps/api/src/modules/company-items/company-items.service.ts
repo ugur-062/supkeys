@@ -179,6 +179,39 @@ export interface ShowcaseInput {
   moq?: number | null;
 }
 
+/**
+ * AN ATTRIBUTE VALUE AS THE CATEGORY'S DEFINITION CAN HOLD IT (closing check
+ * 2026-10-10, CL-PF-1). The save path kept every value whose KEY the category
+ * defines. The same key is defined at several nodes of the matrix with other
+ * option lists or another type, so a product moved from "Mika" to "Lateks
+ * kauçuk" kept `form: "Külçe"` - not an option there. The form has no control
+ * that shows such a value (the select reads "Seçiniz"): the owner cannot see or
+ * remove it, every save sends it back, and the starred attribute counts as
+ * filled.
+ *
+ * Same rule as the product form (`carriedAttributeValue`,
+ * `apps/web/src/components/products/product-showcase-form.tsx`) - change them
+ * together:
+ *  - single choice: only a text that is one of the options;
+ *  - multiple choice: the values that are options; none left = no value;
+ *  - a list for a single-value field, or a single value for a multiple choice:
+ *    no value;
+ *  - free text / number: as sent (shown in its field, the owner can correct it).
+ * Options are the canonical (Turkish) values, whatever the reader's language.
+ * `undefined` = nothing of the value fits: the key is not stored. A value that
+ * fits comes back unchanged (same reference).
+ */
+function attributeValueForDefinition(def: { type: string; options: readonly string[] }, value: unknown): unknown {
+  if (def.type === "MULTI_SELECT") {
+    if (!Array.isArray(value)) return undefined;
+    const kept = value.filter((v) => typeof v === "string" && def.options.includes(v));
+    if (kept.length === 0) return undefined;
+    return kept.length === value.length ? value : kept;
+  }
+  if (Array.isArray(value)) return undefined;
+  if (def.type === "SINGLE_SELECT") return typeof value === "string" && def.options.includes(value) ? value : undefined;
+  return value;
+}
 
 export interface CatalogItemInput {
   code?: string | null;
@@ -1253,6 +1286,12 @@ export class CompanyItemsService {
     // siliyordu. Tek kaynak `showcase-merge.ts`.
     const merged = mergeShowcaseInput(before, input);
     this.assertShowcaseLinks(before, merged, mediaAllowed);
+    // Attribute VALUES are checked against the category's definitions only
+    // when this request writes them: it sends attributes, or it moves the
+    // product to another category (the stored values then meet new
+    // definitions). A request that does neither (price only...) leaves the
+    // stored values as they are - `undefined` = do not touch (CL-PF-1).
+    const categoryChanged = (input.categoryId?.trim() || before.categoryId) !== before.categoryId;
     const patch = await this.normalizeShowcase(
       before,
       mediaAllowed
@@ -1262,6 +1301,7 @@ export class CompanyItemsService {
             videoUrl: before.videoUrl,
             documents: (before.documents as unknown as { url: string; title: string }[] | null) ?? null,
           },
+      { checkAttributeValues: input.attributes !== undefined || categoryChanged },
     );
     // MODERASYON (2026-09-09): yayındaki ürünün İÇERİK alanları değişince
     // yeniden inceleme kuyruğuna girer ama vitrinde KALIR (yazım hatası
@@ -1553,6 +1593,8 @@ export class CompanyItemsService {
   private async normalizeShowcase(
     before: { categoryId: string | null; name?: string; brand?: string | null; mpn?: string | null; priceCurrency?: string | null },
     input: ShowcaseInput,
+    /** `checkAttributeValues`: the request writes the attribute values (see `updateShowcase`). */
+    opts: { checkAttributeValues: boolean },
   ) {
     const images = (input.images ?? []).map((u) => u.trim()).filter(Boolean);
     const keywords = [
@@ -1569,11 +1611,15 @@ export class CompanyItemsService {
 
     // Nitelikler: yalnız o kategoride TANIMLI anahtarlar geçer. Tanımsız
     // anahtar sessizce düşer — istemcinin uydurduğu alan veriyi kirletmesin.
+    // The VALUE must fit that definition too (`attributeValueForDefinition`,
+    // CL-PF-1): a choice that is not an option there, or a value of the wrong
+    // shape, is dropped like an undefined key - the form could not show it.
     const defs = await this.resolveAttributes(categoryId);
-    const allowed = new Set(defs.map((d) => d.key));
+    const defByKey = new Map(defs.map((d) => [d.key, d]));
     const attributes: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(input.attributes ?? {})) {
-      if (!allowed.has(k) || v == null || v === "") continue;
+      const def = defByKey.get(k);
+      if (!def || v == null || v === "") continue;
       if (!isValidAttributeValue(v)) {
         throw new BadRequestException(
           i18nMessage("api.companyItems.nitelikDegeriGecersiz", {
@@ -1582,7 +1628,9 @@ export class CompanyItemsService {
           }),
         );
       }
-      attributes[k] = v;
+      const fitting = opts.checkAttributeValues ? attributeValueForDefinition(def, v) : v;
+      if (fitting === undefined) continue;
+      attributes[k] = fitting;
     }
 
     // AD ve AÇIKLAMA da bu yoldan yazılır (2026-09-03). Eskiden ürün formunda

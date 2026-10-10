@@ -254,6 +254,69 @@ export function coldInviteSendAt(p: {
 }
 
 /**
+ * PLANNED TIME OF A LETTER THAT ENTERS THE QUEUE - single definition (closing
+ * check 2026-10-10, DISC-N1). Rule 2 of this file: waiting invitations to one
+ * address are not lost, they go out TOGETHER in the next e-mail. The dispatcher
+ * builds that e-mail from the rows of an address that are due in the same run
+ * - and every AI-sourced row used to get its own minute of the 0-45 minute
+ * spread. Two requests that queued one address for Monday 09:32 and 09:33 were
+ * two runs: the first letter left, the second was held 7 days and dropped
+ * (`FREQUENCY`) because its request closed first - 3 of 14 letters in the live
+ * data.
+ *
+ * A row planned for a send window JOINS the letter the address already has
+ * there: it takes EXACTLY that letter's time, so both come due in one run and
+ * leave as one e-mail. "There" = from the earliest moment this row may leave
+ * (`at` itself inside the recipient's window, otherwise the next window start)
+ * to the end of the spread (`INVITE_WINDOW_JITTER_MINUTES`) - the only range
+ * the spread can put this row into, so the joined time is never earlier than
+ * this row's own window and never later than its own spread could have been.
+ * With several letters in that range the earliest is joined (the one certain
+ * to leave on time). No letter there: the row is spread as before.
+ *
+ * THE JOINED TIME IS ITSELF INSIDE THIS ROW'S SEND WINDOW (review R8-1). The
+ * range is 45 minutes long, so for a row queued in the last 45 minutes of its
+ * window it ends after 16:00 local - and the address can have a letter there:
+ * a typed letter on its retry (exempt from the window), a letter planned for
+ * another country's window, a row under the dispatcher's claim lease. Joined
+ * to it, the row was answered "queued, 16:20", found outside its window at
+ * that minute, moved to the next window and dropped there by the 7-day hold
+ * the other letter had just started. Such a time is not joined: the row is
+ * due now, as it was before the rule.
+ *
+ * `waiting` = planned times of the address's queued letters the dispatcher
+ * will read and that can still leave, on any request of any buyer
+ * (`waitingLetterTimes`).
+ *
+ * An address the buyer typed (`MANUAL`) does not wait and joins nothing.
+ * Readers: the queueing call (`inviteExternalForListing`, its revive branch
+ * included) and the dispatcher's resume of a dropped automatic invitation -
+ * every place that plans a NEW time with a spread. What the dispatcher does
+ * with rows that are already apart is not changed.
+ */
+export function inviteQueueSendAt(p: {
+  source: InviteSourceKind;
+  country: string | null | undefined;
+  at: Date;
+  /** Spread of this row when the address has no letter to join (minutes). */
+  jitterMinutes: number;
+  waiting?: ReadonlyArray<Date>;
+}): Date {
+  if (p.source === "MANUAL") return p.at;
+  const timeZone = timeZoneForCountry(p.country);
+  const from = nextBusinessWindow(p.at, timeZone).getTime();
+  const until = from + INVITE_WINDOW_JITTER_MINUTES * 60_000;
+  let joined: number | null = null;
+  for (const letter of p.waiting ?? []) {
+    const t = letter.getTime();
+    if (t < from || t > until || (joined !== null && t >= joined)) continue;
+    // Only a minute this row may leave in: the range can end after the window does.
+    if (nextBusinessWindow(letter, timeZone).getTime() === t) joined = t;
+  }
+  return joined === null ? nextBusinessWindow(p.at, timeZone, p.jitterMinutes) : new Date(joined);
+}
+
+/**
  * Davet e-postası talebin kapanışından en az bu kadar önce çıkabilmeli; 7 gün
  * freni daha geç bitiyorsa e-posta HİÇ gitmez (kuyruk satırı `FREQUENCY` ile
  * düşer). Dağıtıcı ve "kaç davet e-postası sıraya alındı" sonuç mesajı
@@ -281,6 +344,21 @@ export type QueuedInviteForecast =
 /** What the forecast reads of a queued letter. */
 export type QueuedLetter = { source: InviteSourceKind; country: string | null; sendAfter: Date };
 
+/**
+ * A row's place among the letters of its address that come due in ONE run:
+ * the dispatcher reads them by planned time, then age, then id (`dueInvites`)
+ * and puts the first `INVITE_DIGEST_MAX` into the e-mail. Optional on every
+ * letter the forecast reads: without it nothing is said about the order.
+ */
+export type QueuePlace = { createdAt: Date; id: string };
+
+/** Does `a` come before `b` in the dispatcher's order? `false` when either place is unknown. */
+function readBefore(a: Partial<QueuePlace> & { leavesAt: Date }, b: Partial<QueuePlace> & { leavesAt: Date }): boolean {
+  if (!a.createdAt || !a.id || !b.createdAt || !b.id) return false;
+  const byTime = a.leavesAt.getTime() - b.leavesAt.getTime() || a.createdAt.getTime() - b.createdAt.getTime();
+  return byTime !== 0 ? byTime < 0 : a.id < b.id;
+}
+
 /** The address's letters of the last 90 days + its interest signal (`inviteAddressHistories`). */
 type InviteHistory = { lastInviteEmailAt: Date | null; sends90d: number; engaged: boolean };
 
@@ -307,8 +385,11 @@ type InviteHistory = { lastInviteEmailAt: Date | null; sends90d: number; engaged
  * that ends before the row's turn changes nothing.
  *
  * A LETTER AHEAD IN THE QUEUE COUNTS TOO (`ahead`; review of AUTO-COUNT-1).
- * The 7-day hold is per ADDRESS, across requests and buyers, and every queued
- * row has its own planned minute (0-45 min spread). Two requests that queue
+ * The 7-day hold is per ADDRESS, across requests and buyers, and two queued
+ * rows of one address can have different planned minutes (a row now joins the
+ * letter that waits in its window, `inviteQueueSendAt`; rows queued before
+ * that rule, two calls in the same instant and a typed letter next to a found
+ * one are still apart). Two requests that queue
  * the same address for Monday 09:10 and 09:22 are two turns: the dispatcher
  * sends the first and holds the second for 7 days. The history alone does not
  * show this - the first letter has not left yet - so all four surfaces said
@@ -318,30 +399,45 @@ type InviteHistory = { lastInviteEmailAt: Date | null; sends90d: number; engaged
  * (and one more of its 90-day sends). Letters planned for the same moment go
  * out as one e-mail, so an equal time holds nobody.
  *
+ * ...UP TO `INVITE_DIGEST_MAX` LETTERS (review R8-3). Now that rows join each
+ * other, more than five rows of one address can share one planned time. The
+ * e-mail takes the first five in the dispatcher's order (`QueuePlace`); the
+ * rest are read again a minute later and meet the hold of the letter that has
+ * just left. A row with five letters of its own turn before it is forecast
+ * exactly like that: held from that turn. The order is only known for rows
+ * that carry their place; without it an equal time holds nobody, as before.
+ *
  * Only that first letter is followed (it is the one certain to leave on time);
  * what the letters behind it then do to each other is not simulated. Reasons
  * that only show up later (opt-out, registered address, platform cap, a letter
  * queued after this read) are not forecast here.
  */
 export function queuedInviteForecast(
-  row: QueuedLetter,
+  row: QueuedLetter & Partial<QueuePlace>,
   history: InviteHistory | undefined,
   closesAt: Date | null,
   now: Date,
-  ahead: ReadonlyArray<QueuedLetter & { closesAt: Date | null }> = [],
+  ahead: ReadonlyArray<QueuedLetter & Partial<QueuePlace> & { closesAt: Date | null }> = [],
 ): QueuedInviteForecast {
   const h = history ?? { lastInviteEmailAt: null, sends90d: 0, engaged: false };
   const own = forecastFromHistory(row, h, closesAt, now);
   if (!own.leavesAt || ahead.length === 0) return own;
   // A row that is already due leaves at the dispatcher's next run, not in the past.
   const turn = (leavesAt: Date) => Math.max(leavesAt.getTime(), now.getTime());
+  const ownTurn = turn(own.leavesAt);
   let first: number | null = null;
+  /** Letters of this row's own turn that the dispatcher puts into the e-mail before it. */
+  let before = 0;
   for (const other of ahead) {
     const leavesAt = forecastFromHistory(other, h, other.closesAt, now).leavesAt;
-    if (leavesAt && (first === null || turn(leavesAt) < first)) first = turn(leavesAt);
+    if (!leavesAt) continue;
+    if (first === null || turn(leavesAt) < first) first = turn(leavesAt);
+    if (turn(leavesAt) === ownTurn && readBefore({ ...other, leavesAt }, { ...row, leavesAt: own.leavesAt })) before++;
   }
-  if (first === null || first >= turn(own.leavesAt)) return own;
-  return forecastFromHistory(row, { ...h, lastInviteEmailAt: new Date(first), sends90d: h.sends90d + 1 }, closesAt, now);
+  // The letter that starts this row's hold: one that leaves earlier, or - the e-mail of its own turn is full - that e-mail.
+  const heldFrom = first !== null && first < ownTurn ? first : before >= INVITE_DIGEST_MAX ? ownTurn : null;
+  if (heldFrom === null) return own;
+  return forecastFromHistory(row, { ...h, lastInviteEmailAt: new Date(heldFrom), sends90d: h.sends90d + 1 }, closesAt, now);
 }
 
 /** The forecast of one letter from the address's history alone (`queuedInviteForecast` adds the queue). */

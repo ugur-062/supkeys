@@ -686,7 +686,7 @@ describe("N1 — registry bounds at the endpoint", () => {
     gate.resolve("LOCAL research");
     for (const id of ids) await finished(service, id);
     await finished(service, theirs.searchId, colleague);
-    await expect(service.startExternalSearch(user, other(3))).resolves.toEqual({ searchId: expect.any(String) });
+    await expect(service.startExternalSearch(user, other(3))).resolves.toEqual({ searchId: expect.any(String), elapsedMs: 0 });
   });
 
   it("a registry holding only running searches refuses the next one with 503 (busy), not with a search that can never be read", async () => {
@@ -793,20 +793,21 @@ describe("N1 — routes (shared contract with the web)", () => {
 
   it("the controller hands the user and the body / id to the service", async () => {
     const service = {
-      startExternalSearch: jest.fn().mockResolvedValue({ searchId: "s1" }),
-      externalSearchStatus: jest.fn().mockReturnValue({ status: "RUNNING", startedAt: "2026-10-09T14:00:00.000Z" }),
+      startExternalSearch: jest.fn().mockResolvedValue({ searchId: "s1", elapsedMs: 12_000 }),
+      externalSearchAnswer: jest.fn().mockResolvedValue({ status: "RUNNING", startedAt: "2026-10-09T14:00:00.000Z" }),
     };
     const controller = new SupplierDiscoveryController(service as never);
     const dto = { type: "ALIM" as const, listingId: "l1", scopes: ["LOCAL" as const] };
-    await expect(controller.startExternal(user, dto)).resolves.toEqual({ searchId: "s1" });
+    // The start answer is the service's, `elapsedMs` included (DISC-N2).
+    await expect(controller.startExternal(user, dto)).resolves.toEqual({ searchId: "s1", elapsedMs: 12_000 });
     expect(service.startExternalSearch).toHaveBeenCalledWith(user, dto);
     // The status answer is the service's view + `elapsedMs` (contract: supplier-discovery-external.spec.ts, "AS-4").
-    expect(controller.externalSearch(user, "s1")).toEqual({
+    await expect(controller.externalSearch(user, "s1")).resolves.toEqual({
       status: "RUNNING",
       startedAt: "2026-10-09T14:00:00.000Z",
       elapsedMs: expect.any(Number),
     });
-    expect(service.externalSearchStatus).toHaveBeenCalledWith(user, "s1");
+    expect(service.externalSearchAnswer).toHaveBeenCalledWith(user, "s1");
   });
 
   it("the status poll has its own rate limit: 20 polls a minute per search must not hit the default 100 per address", () => {
@@ -816,5 +817,198 @@ describe("N1 — routes (shared contract with the web)", () => {
     expect(limit("TTL")).toBe(60_000);
     // Three running searches of ten users behind one office address.
     expect(SEARCH_STATUS_POLLS_PER_MINUTE).toBeGreaterThanOrEqual(3 * 10 * 20);
+  });
+});
+
+/**
+ * Closing check 2026-10-10, DISC-N2. A tab that joined a running search (the
+ * start call hands it the id of that search) knew nothing about its age until
+ * its first poll, three seconds later: "Elapsed: 0 s" next to the other tab's
+ * "12 s". The start answer now carries the age.
+ */
+describe("DISC-N2 — the start answer says how long the search has been running", () => {
+  it("0 for the call that starts a search, the search's age for a call that joins it - on the clock `startedAt` of the status answer comes from", async () => {
+    const clock = { now: Date.parse("2026-10-10T09:00:00.000Z") };
+    const gate = deferred<string>();
+    const { service, calls } = rig({ targetCountries: ["TR"], research: () => gate.promise, now: () => clock.now });
+
+    const first = await service.startExternalSearch(user, TURKEY_ONLY);
+    expect(first).toEqual({ searchId: expect.any(String), elapsedMs: 0 });
+    // Twelve seconds later the same request is searched from a second tab.
+    clock.now += 12_000;
+    const joined = await service.startExternalSearch(user, { ...TURKEY_ONLY });
+    expect(joined).toEqual({ searchId: first.searchId, elapsedMs: 12_000 });
+    expect(clock.now - Date.parse(service.externalSearchStatus(user, first.searchId).startedAt)).toBe(joined.elapsedMs);
+    // Another question is a new search: it starts at zero.
+    const other = await service.startExternalSearch(user, { ...TURKEY_ONLY, itemNames: ["Vana"] });
+    expect(other).toEqual({ searchId: expect.any(String), elapsedMs: 0 });
+    expect(other.searchId).not.toBe(first.searchId);
+    // A clock that was set back never gives a negative duration.
+    clock.now = Date.parse(service.externalSearchStatus(user, first.searchId).startedAt) - 5;
+    expect(await service.startExternalSearch(user, TURKEY_ONLY)).toEqual({ searchId: first.searchId, elapsedMs: 0 });
+
+    expect(calls("research")).toHaveLength(2);
+    gate.resolve("LOCAL research");
+    await finished(service, first.searchId);
+    await finished(service, other.searchId);
+  });
+});
+
+/**
+ * Closing check 2026-10-10, DISC-N3. The window reads a finished search again
+ * after a reload (the result is kept 15 minutes). The result was answered as
+ * stored at search time: an address the buyer had invited from the window a
+ * minute earlier came back as a fresh, selectable candidate.
+ */
+describe("DISC-N3 — a stored result is answered with the request's current invitations", () => {
+  const CANDIDATES = json(
+    co("Unlu Teknik Rulman", "info@unluteknik.com"),
+    co("Hes Kablo", "satis@heskablo.com.tr"),
+    co("Federal Elektrik", "export@federal.com.tr"),
+    co("Sigma Rulman", "info@sigma.com.tr"),
+    co("Uye Rulman", "satis@uyerulman.com.tr"),
+    co("Diger Uye", "info@digeruye.com.tr"),
+  );
+  /** The real service, two of the six candidates being verified members the AI may recommend. */
+  function searchRig(research?: () => Outcome) {
+    const r = rig({ targetCountries: ["TR"], parse: () => CANDIDATES, ...(research ? { research } : {}) });
+    r.prisma.companyUser.findMany.mockResolvedValue([
+      { email: "satis@uyerulman.com.tr", companyId: "m1" },
+      { email: "info@digeruye.com.tr", companyId: "m2" },
+    ]);
+    r.prisma.company.findMany.mockImplementation(async (args: { where?: { id?: { in?: string[] } } }) =>
+      (args?.where?.id?.in ?? []).map((id) => ({
+        id,
+        tier: "SILVER",
+        membershipEndAt: null,
+        companyVerificationStatus: "VERIFIED",
+        isActive: true,
+        isBlocked: false,
+      })),
+    );
+    r.service.startRefusalWaitMs = 0;
+    return r;
+  }
+  const statuses = (view: { result?: { companies: Array<{ name: string; status: string }> } }) =>
+    Object.fromEntries((view.result?.companies ?? []).map((c) => [c.name, c.status]));
+  const AT_SEARCH_TIME = {
+    "Unlu Teknik Rulman": "SUGGESTED",
+    "Hes Kablo": "SUGGESTED",
+    "Federal Elektrik": "SUGGESTED",
+    "Sigma Rulman": "SUGGESTED",
+    "Uye Rulman": "MEMBER",
+    "Diger Uye": "MEMBER",
+  };
+
+  it("invited from the window since the search: the address, another mailbox of the invited company and an invited member read ALREADY_INVITED; the rest is as stored", async () => {
+    const { service, prisma } = searchRig();
+    const { searchId } = await service.startExternalSearch(user, TURKEY_ONLY);
+    await finished(service, searchId);
+    expect(statuses(await service.externalSearchAnswer(user, searchId))).toEqual(AT_SEARCH_TIME);
+
+    // The buyer sends invitations from the window, then reloads the page.
+    prisma.externalListingInvite.findMany.mockClear();
+    prisma.listingInvitation.findMany.mockClear();
+    prisma.externalListingInvite.findMany.mockResolvedValue([
+      { email: "info@unluteknik.com", state: "QUEUED", sentAt: null },
+      // Another mailbox of Federal got the letter: the company is invited.
+      { email: "uk@federal.com.tr", state: "SENT", sentAt: new Date("2026-10-10T09:05:00.000Z") },
+      // Dropped before it left: it reached nobody, so Sigma's other mailbox stays free.
+      { email: "satis@sigma.com.tr", state: "CANCELLED", sentAt: null },
+    ]);
+    prisma.listingInvitation.findMany.mockResolvedValue([{ invitedCompanyId: "m1" }]);
+
+    const again = await service.externalSearchAnswer(user, searchId);
+
+    expect(statuses(again)).toEqual({
+      ...AT_SEARCH_TIME,
+      "Unlu Teknik Rulman": "ALREADY_INVITED",
+      "Federal Elektrik": "ALREADY_INVITED",
+      "Uye Rulman": "ALREADY_INVITED",
+    });
+    // Nothing else of a candidate changes, and none is dropped.
+    const stored = service.externalSearchStatus(user, searchId);
+    const withoutStatus = (companies: Array<{ status: string }>) => companies.map((c) => ({ ...c, status: null }));
+    expect(withoutStatus(again.result!.companies)).toEqual(withoutStatus(stored.result!.companies));
+    expect([again.status, again.startedAt]).toEqual([stored.status, stored.startedAt]);
+    // The stored result itself stays what the search found.
+    expect(statuses(stored)).toEqual(AT_SEARCH_TIME);
+
+    // ONE read per table for the six candidates, asked for THIS request with the search's own rule:
+    // the exact addresses of the candidates without an account, or a mailbox on one of their domains.
+    expect(prisma.externalListingInvite.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.listingInvitation.findMany).toHaveBeenCalledTimes(1);
+    const mail = prisma.externalListingInvite.findMany.mock.calls[0]![0] as {
+      where: { listingId: string; OR: Array<{ email: { in?: string[]; endsWith?: string } }> };
+    };
+    expect(mail.where.listingId).toBe("l1");
+    expect(mail.where.OR[0]).toEqual({
+      email: { in: ["info@unluteknik.com", "satis@heskablo.com.tr", "export@federal.com.tr", "info@sigma.com.tr"] },
+    });
+    expect(mail.where.OR.slice(1).map((o) => o.email.endsWith).sort()).toEqual(
+      ["@federal.com.tr", "@heskablo.com.tr", "@sigma.com.tr", "@unluteknik.com"].sort(),
+    );
+    expect(prisma.listingInvitation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { listingId: "l1", invitedCompanyId: { in: ["m1", "m2"] } } }),
+    );
+  });
+
+  it("no database read while the search runs, for a failed search, or for a search started from the unsaved form", async () => {
+    const gate = deferred<string>();
+    const { service, prisma } = searchRig(() => gate.promise);
+    const reads = () => [prisma.externalListingInvite.findMany.mock.calls.length, prisma.listingInvitation.findMany.mock.calls.length];
+
+    const running = await service.startExternalSearch(user, TURKEY_ONLY);
+    expect((await service.externalSearchAnswer(user, running.searchId)).status).toBe("RUNNING");
+    expect(reads()).toEqual([0, 0]);
+    gate.resolve("LOCAL research");
+    await finished(service, running.searchId);
+
+    // From the request form (no saved request): the search marked nothing, the read marks nothing.
+    const form = await service.startExternalSearch(user, { type: "ALIM", itemNames: ["Rulman 6204"] });
+    await finished(service, form.searchId);
+    const before = reads();
+    prisma.externalListingInvite.findMany.mockResolvedValue([{ email: "info@unluteknik.com", state: "QUEUED", sentAt: null }]);
+    const answer = await service.externalSearchAnswer(user, form.searchId);
+    expect(answer.status).toBe("DONE");
+    expect(statuses(answer)["Unlu Teknik Rulman"]).toBe("SUGGESTED");
+    expect(reads()).toEqual(before);
+
+    const failing = rig({ targetCountries: ["TR"], research: () => timeout() });
+    failing.service.startRefusalWaitMs = 0;
+    const failed = await failing.service.startExternalSearch(user, TURKEY_ONLY);
+    await finished(failing.service, failed.searchId);
+    expect((await failing.service.externalSearchAnswer(user, failed.searchId)).status).toBe("FAILED");
+    expect(failing.prisma.externalListingInvite.findMany).not.toHaveBeenCalled();
+  });
+
+  it("every candidate already marked: no read; a read that fails answers the stored result; somebody else's search stays 404", async () => {
+    const { service, prisma } = searchRig();
+    // Everything the search found is invited before the search ends.
+    prisma.externalListingInvite.findMany.mockResolvedValue(
+      ["info@unluteknik.com", "satis@heskablo.com.tr", "export@federal.com.tr", "info@sigma.com.tr"].map((email) => ({
+        email,
+        state: "QUEUED",
+        sentAt: null,
+      })),
+    );
+    prisma.listingInvitation.findMany.mockResolvedValue([{ invitedCompanyId: "m1" }, { invitedCompanyId: "m2" }]);
+    const all = await service.startExternalSearch(user, TURKEY_ONLY);
+    await finished(service, all.searchId);
+    prisma.externalListingInvite.findMany.mockClear();
+    prisma.listingInvitation.findMany.mockClear();
+    const marked = await service.externalSearchAnswer(user, all.searchId);
+    expect(new Set(Object.values(statuses(marked)))).toEqual(new Set(["ALREADY_INVITED"]));
+    expect(prisma.externalListingInvite.findMany).not.toHaveBeenCalled();
+    expect(prisma.listingInvitation.findMany).not.toHaveBeenCalled();
+
+    const other = searchRig();
+    const open = await other.service.startExternalSearch(user, TURKEY_ONLY);
+    await finished(other.service, open.searchId);
+    other.prisma.externalListingInvite.findMany.mockRejectedValue(new Error("read failed"));
+    const answer = await other.service.externalSearchAnswer(user, open.searchId);
+    expect(answer.status).toBe("DONE");
+    expect(statuses(answer)).toEqual(AT_SEARCH_TIME);
+    await expect(other.service.externalSearchAnswer(colleague, open.searchId)).rejects.toMatchObject({ status: 404 });
   });
 });

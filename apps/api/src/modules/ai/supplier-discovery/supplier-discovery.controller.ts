@@ -121,11 +121,17 @@ export class SupplierDiscoveryController {
 
   /**
    * ASYNCHRONOUS WEB SEARCH (N1) - start. Same body as `external`. Answers
-   * 201 `{ searchId }` at once; the search runs in the background of the API
-   * process. What is known before the provider is called is answered here as
-   * `external` does (400 validation, 403 permission / verification / budget,
-   * 429 three searches of this user already running, 503 AI not configured /
-   * registry full).
+   * 201 `{ searchId, elapsedMs }` at once; the search runs in the background
+   * of the API process. What is known before the provider is called is
+   * answered here as `external` does (400 validation, 403 permission /
+   * verification / budget, 429 three searches of this user already running,
+   * 503 AI not configured / registry full).
+   *
+   * `elapsedMs` (DISC-N2): 0 for a new search, the age of the running search
+   * for a call that joined it - the same clock and the same meaning as in the
+   * status answer below, so a second tab counts from the search's real start
+   * without waiting for its first poll. `searchId` is unchanged; a client that
+   * does not know the field ignores it.
    */
   @Post("external/start")
   @RequireCompanyPermission("buy:listing:manage")
@@ -152,12 +158,17 @@ export class SupplierDiscoveryController {
    * Own rate limit: an in-memory read, polled by every open window - the
    * default 100/min per address is reached by a few users behind one office
    * address (each search polls 20 times a minute).
+   *
+   * The answer that carries a `result` of a saved request's search marks the
+   * candidates the buyer has invited since as ALREADY_INVITED
+   * (`externalSearchAnswer`, DISC-N3) - one database batch for that answer;
+   * RUNNING stays an in-memory read.
    */
   @Get("external/searches/:searchId")
   @Throttle({ default: { limit: SEARCH_STATUS_POLLS_PER_MINUTE, ttl: 60_000 } })
   @RequireCompanyPermission("buy:listing:manage")
-  externalSearch(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Param("searchId") searchId: string) {
-    const view = this.service.externalSearchStatus(user, searchId);
+  async externalSearch(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Param("searchId") searchId: string) {
+    const view = await this.service.externalSearchAnswer(user, searchId);
     return { ...view, elapsedMs: Math.max(0, Date.now() - Date.parse(view.startedAt)) };
   }
 }

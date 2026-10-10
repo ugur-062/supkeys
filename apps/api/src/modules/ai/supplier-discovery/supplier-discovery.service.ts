@@ -694,6 +694,13 @@ export class SupplierDiscoveryService {
   /** See `START_REFUSAL_WAIT_MS`; replaceable in tests (no real waiting). */
   startRefusalWaitMs = START_REFUSAL_WAIT_MS;
 
+  /**
+   * The saved request a search result was marked for (`externalSearchAnswer`
+   * re-reads that request's invitations). Keyed by the result object the
+   * registry holds: the entry goes when the registry forgets the result.
+   */
+  private readonly resultListing = new WeakMap<ExternalDiscoveryResult, string>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
@@ -755,8 +762,19 @@ export class SupplierDiscoveryService {
    * IDEMPOTENT while the search runs: the same body from the same user gets
    * the id of the running search - nothing is searched or paid twice when the
    * first answer was lost, the page was reloaded or a second tab asks.
+   *
+   * `elapsedMs` (closing check 2026-10-10, DISC-N2): how long the search had
+   * been running when this call reached it - 0 for the call that started it,
+   * its age for a call that JOINED it. Measured on the registry's clock, the
+   * one `startedAt` of the status answer comes from. A tab that joined a
+   * running search knew nothing until its first poll, three seconds later, and
+   * counted from zero until then. A duration, not a moment: the browser's
+   * clock is not compared with the server's.
    */
-  async startExternalSearch(user: AuthenticatedCompanyUser, input: ExternalDiscoveryInput): Promise<{ searchId: string }> {
+  async startExternalSearch(
+    user: AuthenticatedCompanyUser,
+    input: ExternalDiscoveryInput,
+  ): Promise<{ searchId: string; elapsedMs: number }> {
     this.ai.assertAiAccess(user);
     const owner = { userId: user.userId, companyId: user.companyId };
     const locale = currentLocale();
@@ -809,7 +827,7 @@ export class SupplierDiscoveryService {
       this.searches.drop(search.id);
       throw failure;
     }
-    return { searchId: search.id };
+    return { searchId: search.id, elapsedMs: Math.max(0, search.ageMs) };
   }
 
   /**
@@ -824,6 +842,40 @@ export class SupplierDiscoveryService {
       throw new NotFoundException(i18nMessage("api.ai.webSearch.notFound", undefined, "DISCOVERY_SEARCH_NOT_FOUND"));
     }
     return view;
+  }
+
+  /**
+   * ASYNCHRONOUS WEB SEARCH - THE STATUS AS IT IS ANSWERED (closing check
+   * 2026-10-10, DISC-N3). The registry keeps the result as it was at search
+   * time, for 15 minutes; the window reads it again after a reload. An address
+   * the buyer had invited from the window in between came back as a fresh
+   * candidate: selectable, sendable a second time (answered ALREADY_INVITED
+   * only then). A DONE answer of a search that ran for a saved request is
+   * therefore marked with the request's CURRENT invitations
+   * (`withCurrentInvites`) - the stored result itself is not changed.
+   *
+   * Cost: one batch per answer that carries a result (the poll that ends a
+   * search, and the one read of a reopened window); nothing for RUNNING /
+   * FAILED and nothing for a search started from the unsaved form. A read that
+   * fails changes nothing: the stored result is answered (the invitation call
+   * still refuses a second invitation).
+   */
+  async externalSearchAnswer(
+    user: AuthenticatedCompanyUser,
+    searchId: string,
+  ): Promise<ExternalSearchView<ExternalDiscoveryResult>> {
+    const view = this.externalSearchStatus(user, searchId);
+    const result = view.status === "DONE" ? view.result : undefined;
+    const listingId = result ? this.resultListing.get(result) : undefined;
+    if (!result || !listingId) return view;
+    try {
+      return { ...view, result: { ...result, companies: await this.withCurrentInvites(listingId, result.companies) } };
+    } catch (err) {
+      this.logger.warn(
+        `current invitations of a stored search result not read (${listingId}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return view;
+    }
   }
 
   /** The web search itself - one implementation for the synchronous and the asynchronous endpoint. */
@@ -865,7 +917,9 @@ export class SupplierDiscoveryService {
       runner,
       timing,
     );
-    const annotated = await this.annotate(user.companyId, input.listingId && listing ? input.listingId : null, companies);
+    // The request the candidates are marked for - the caller's own, read above.
+    const markedFor = input.listingId && listing ? input.listingId : null;
+    const annotated = await this.annotate(user.companyId, markedFor, companies);
     // A pass fails alone only next to another pass, and those are LOCAL / ABROAD.
     const incomplete = failedPasses.filter(
       (f): f is FailedSearchPass & { scope: "LOCAL" | "ABROAD" } => f.scope !== null,
@@ -876,13 +930,15 @@ export class SupplierDiscoveryService {
       const message = f.reason === "BUDGET" ? refusalMessage(f.error) : null;
       if (message) incompleteMessages[f.scope] = message;
     }
-    return {
+    const result: ExternalDiscoveryResult = {
       companies: annotated,
       searchedScopes: passes.map((p) => p.scope),
       incompleteScopes: incomplete.map((f) => f.scope),
       incompleteReasons: Object.fromEntries(incomplete.map((f) => [f.scope, f.reason])),
       incompleteMessages,
     };
+    if (markedFor) this.resultListing.set(result, markedFor);
+    return result;
   }
 
   /**
@@ -1191,7 +1247,7 @@ export class SupplierDiscoveryService {
     // Mail domains / site hosts that identify the candidates' companies (D6).
     const companyKeys = [...new Set(withEmail.flatMap((c) => candidateCompanyKeys(c)))];
     const db = this.reader;
-    const [optOuts, users, invited, recent, hostCompanies, mx] = await Promise.all([
+    const [optOuts, users, emailInvited, recent, hostCompanies, mx] = await Promise.all([
       db.referralOptOut.findMany({ where: { email: { in: emails } }, select: { email: true } }),
       // MEMBER = an account whose e-mail is VERIFIED (arayuz testi 2026-10
       // authsec-4; same rule as the dispatcher's `addressState` and
@@ -1206,18 +1262,7 @@ export class SupplierDiscoveryService {
       }),
       // This request's invitations to the same address OR to another mailbox of
       // the same company (an address on one of the candidates' domains).
-      listingId
-        ? db.externalListingInvite.findMany({
-            where: {
-              listingId,
-              OR: [
-                { email: { in: emails } },
-                ...companyKeys.map((k) => ({ email: { endsWith: `@${likeLiteral(k)}` } })),
-              ],
-            },
-            select: { email: true, state: true, sentAt: true },
-          })
-        : Promise.resolve([] as Array<{ email: string; state: string; sentAt: Date | null }>),
+      this.invitedByEmail(listingId, emails, companyKeys),
       db.emailLog.findMany({
         where: {
           toEmail: { in: emails },
@@ -1238,16 +1283,6 @@ export class SupplierDiscoveryService {
     ]);
     const optOut = new Set(optOuts.map((o) => o.email));
     const memberByEmail = new Map(users.map((u) => [u.email.toLowerCase(), u.companyId]));
-    const invitedSet = new Set(invited.map((i) => i.email));
-    // Company domains already invited to this request (free-mail providers are
-    // no company) - only from an invitation that reached the address or still
-    // can (R5-04): a failed / dropped one reached nobody.
-    const invitedDomains = new Set(
-      invited
-        .filter((i) => inviteReachesAddress(i))
-        .map((i) => companyMailDomain(i.email))
-        .filter((d): d is string => !!d),
-    );
     const recentSet = new Set(recent.map((r) => r.toEmail));
     // Site eşleşmesi ALAN ADI SAHİPLİĞİ ister (yayın denetimi 2026-09-28 Bölüm 5
     // B5-11): `website` üyenin serbestçe düzenlediği alan — doğrulanmış bir üye
@@ -1283,15 +1318,10 @@ export class SupplierDiscoveryService {
     const memberIds = [...new Set([...memberByEmail.values(), ...memberByHost.values()])].filter(
       (id) => id !== companyId,
     );
-    const [invitedRows, memberRows, memberConns] =
+    const [invitedMembers, memberRows, memberConns] =
       memberIds.length > 0
         ? await Promise.all([
-            listingId
-              ? db.listingInvitation.findMany({
-                  where: { listingId, invitedCompanyId: { in: memberIds } },
-                  select: { invitedCompanyId: true },
-                })
-              : Promise.resolve([] as Array<{ invitedCompanyId: string }>),
+            this.invitedMembers(listingId, memberIds),
             db.company.findMany({
               where: { id: { in: memberIds } },
               select: { id: true, ...AI_RECOMMENDABLE_SELECT },
@@ -1312,8 +1342,7 @@ export class SupplierDiscoveryService {
               },
             }),
           ])
-        : [[], [], []];
-    const invitedMembers = new Set(invitedRows.map((i) => i.invitedCompanyId));
+        : [new Set<string>(), [], []];
     // AI önerisine girebilen üye: bağlantılı ya da SILVER+ ∧ doğrulanmış
     // (`ai-recommendable.ts`). Ücretsiz/doğrulanmamış bağlantısız üye listeden
     // DÜŞER — kayıtlı olduğu için ona e-posta daveti de gitmez.
@@ -1357,7 +1386,7 @@ export class SupplierDiscoveryService {
         ? invitedMembers.has(member)
           ? "ALREADY_INVITED"
           : "MEMBER"
-        : invitedSet.has(c.email) || ownKeys.some((k) => invitedDomains.has(k))
+        : emailInvited(c.email, ownKeys)
           ? "ALREADY_INVITED"
           : isConsentCountry(c.country, countryFromEmailDomain(c.email), countryFromHost(host))
             ? "CONSENT_REQUIRED"
@@ -1365,6 +1394,83 @@ export class SupplierDiscoveryService {
       out.push({ ...c, status, recentlyInvited: recentSet.has(c.email), memberCompanyId: member });
     }
     return out;
+  }
+
+  /**
+   * IS A CANDIDATE ALREADY INVITED TO THE REQUEST BY E-MAIL - one definition
+   * for the search itself (`annotate`) and for a stored result that is read
+   * again later (`externalSearchAnswer`, DISC-N3): the request has an
+   * invitation row for the candidate's address (whatever became of it), or an
+   * invitation that reached / can still reach another mailbox of the same
+   * company (`inviteReachesAddress`; free-mail providers are no company).
+   * One read for all candidates; none without a request.
+   */
+  private async invitedByEmail(
+    listingId: string | null,
+    emails: string[],
+    companyKeys: string[],
+  ): Promise<(email: string, ownKeys: readonly string[]) => boolean> {
+    if (!listingId || (emails.length === 0 && companyKeys.length === 0)) return () => false;
+    const invited = await this.reader.externalListingInvite.findMany({
+      where: {
+        listingId,
+        OR: [{ email: { in: emails } }, ...companyKeys.map((k) => ({ email: { endsWith: `@${likeLiteral(k)}` } }))],
+      },
+      select: { email: true, state: true, sentAt: true },
+    });
+    const addresses = new Set(invited.map((i) => i.email));
+    // Company domains already invited to this request (free-mail providers are
+    // no company) - only from an invitation that reached the address or still
+    // can (R5-04): a failed / dropped one reached nobody.
+    const domains = new Set(
+      invited
+        .filter((i) => inviteReachesAddress(i))
+        .map((i) => companyMailDomain(i.email))
+        .filter((d): d is string => !!d),
+    );
+    return (email, ownKeys) => addresses.has(email) || ownKeys.some((k) => domains.has(k));
+  }
+
+  /** The members among `memberIds` this request has already invited (connection or AI path) - same two readers. */
+  private async invitedMembers(listingId: string | null, memberIds: string[]): Promise<Set<string>> {
+    if (!listingId || memberIds.length === 0) return new Set();
+    const rows = await this.reader.listingInvitation.findMany({
+      where: { listingId, invitedCompanyId: { in: memberIds } },
+      select: { invitedCompanyId: true },
+    });
+    return new Set(rows.map((i) => i.invitedCompanyId));
+  }
+
+  /**
+   * A STORED RESULT WITH THE REQUEST'S CURRENT INVITATIONS (closing check
+   * 2026-10-10, DISC-N3). The candidates were marked at search time; a
+   * candidate the buyer has invited since is ALREADY_INVITED now - by the same
+   * two rules the search marks with (`invitedByEmail`, `invitedMembers`).
+   * Nothing else is looked at again (opt-out, member, country: the search's
+   * answer stands), no candidate is dropped, and a candidate never goes back
+   * to "not invited". One batch for all candidates; no read when every
+   * candidate is already marked.
+   */
+  private async withCurrentInvites(listingId: string, companies: AnnotatedCandidate[]): Promise<AnnotatedCandidate[]> {
+    const open = companies.filter((c) => c.status !== "ALREADY_INVITED");
+    if (open.length === 0) return companies;
+    const byMail = open.filter((c): c is AnnotatedCandidate & { email: string } => !c.memberCompanyId && !!c.email);
+    const memberIds = [...new Set(open.map((c) => c.memberCompanyId).filter((id): id is string => !!id))];
+    const [emailInvited, invitedMembers] = await Promise.all([
+      this.invitedByEmail(
+        listingId,
+        [...new Set(byMail.map((c) => c.email))],
+        [...new Set(byMail.flatMap((c) => candidateCompanyKeys(c)))],
+      ),
+      this.invitedMembers(listingId, memberIds),
+    ]);
+    return companies.map((c) => {
+      if (c.status === "ALREADY_INVITED") return c;
+      const invited = c.memberCompanyId
+        ? invitedMembers.has(c.memberCompanyId)
+        : !!c.email && emailInvited(c.email, candidateCompanyKeys(c));
+      return invited ? { ...c, status: "ALREADY_INVITED" as const } : c;
+    });
   }
 
   /**

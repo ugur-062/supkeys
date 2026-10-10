@@ -3,6 +3,7 @@ import {
   coldInviteSendAt,
   inviteHoldUntil,
   invitePaused,
+  inviteQueueSendAt,
   inviteReachesAddress,
   queuedInviteForecast,
   registrationBlockedCountry,
@@ -364,6 +365,73 @@ describe("queuedInviteForecast", () => {
       expect(read(row, history(null, { engaged: true }), closesAt, now, [ahead])).toBe("2026-10-12T06:32:00.000Z");
       expect(read({ ...row, source: "MANUAL" }, undefined, closesAt, now, [ahead])).toBe("2026-10-12T06:32:00.000Z");
     });
+
+    /**
+     * Review R8-3: rows now JOIN the letter that waits in their window, so more
+     * rows of one address than the e-mail lists (5 requests) can share one
+     * planned time. The dispatcher sends the first five in its order (planned
+     * time, age, id) and reads the rest a minute later - under the hold of the
+     * e-mail that has just left. "An equal time holds nobody" said "queued,
+     * Monday 09:32" for the sixth row too.
+     */
+    describe("more letters of one planned time than one e-mail lists", () => {
+      const SAME = "2026-10-12T06:32:00Z";
+      /** Queued on Friday evening, `minute` minutes after 21:00 in Istanbul. */
+      const queuedAt = (minute: number) => new Date(Date.UTC(2026, 9, 9, 18, 0) + minute * 60_000);
+      /** `n` letters of other requests planned for this row's minute, queued one minute apart. */
+      const sameTime = (n: number, extra: Parameters<typeof other>[1] = {}) =>
+        Array.from({ length: n }, (_, i) => ({ ...other(SAME, extra), createdAt: queuedAt(i), id: `row-${i}` }));
+      const own = (minute: number, id = "row-own") => ({ ...row, createdAt: queuedAt(minute), id });
+
+      it("the sixth row is held by the e-mail of its own turn: FREQUENCY when its request closes inside that hold, else the window after it", () => {
+        expect(queuedInviteForecast(own(9), undefined, closesAt, now, sameTime(5))).toEqual({ leavesAt: null, dropReason: "FREQUENCY" });
+        expect(read(own(9), undefined, later, now, sameTime(5))).toBe("2026-10-19T06:32:00.000Z");
+        expect(read(own(9), undefined, null, now, sameTime(8))).toBe("2026-10-19T06:32:00.000Z");
+        // Five rows fit: the fifth leaves with the other four.
+        expect(read(own(9), undefined, closesAt, now, sameTime(4))).toBe("2026-10-12T06:32:00.000Z");
+      });
+
+      it("the order is the dispatcher's - planned time, then age, then id: the five OLDEST rows leave, whichever request asks", () => {
+        // Six rows in all; this one is older than three of the others.
+        expect(read(own(1.5), undefined, closesAt, now, sameTime(5))).toBe("2026-10-12T06:32:00.000Z");
+        // Eight others, this row is the fifth oldest / the sixth oldest.
+        expect(read(own(3.5), undefined, closesAt, now, sameTime(8))).toBe("2026-10-12T06:32:00.000Z");
+        expect(read(own(4.5), undefined, closesAt, now, sameTime(8))).toBe("FREQUENCY");
+        // Queued in the same millisecond as the fifth: the id decides.
+        expect(read(own(4, "row-3z"), undefined, closesAt, now, sameTime(5))).toBe("2026-10-12T06:32:00.000Z");
+        expect(read(own(4, "row-4z"), undefined, closesAt, now, sameTime(5))).toBe("FREQUENCY");
+        // Rows that are already due are read by their STORED time first: five with an earlier time fill the e-mail.
+        const due = (stored: string, minute: number) => ({ ...own(minute), sendAfter: new Date(stored) });
+        const dueOthers = (stored: string) => sameTime(5).map((o) => ({ ...o, sendAfter: new Date(stored) }));
+        expect(read(due("2026-10-09T10:00:00Z", 0), undefined, later, now, dueOthers("2026-10-09T09:00:00Z"))).toBe("2026-10-19T06:00:00.000Z");
+        expect(read(due("2026-10-09T10:00:00Z", 9), undefined, later, now, dueOthers("2026-10-09T10:30:00Z"))).toBe("2026-10-09T10:00:00.000Z");
+      });
+
+      it("only letters of the SAME turn that will leave fill the e-mail; without a known place nothing is said about the order", () => {
+        // Later letters are another e-mail; letters whose request closes first are dropped before the turn.
+        expect(read(own(9), undefined, closesAt, now, sameTime(5).map((o) => ({ ...o, sendAfter: new Date("2026-10-12T06:40:00Z") })))).toBe(
+          "2026-10-12T06:32:00.000Z",
+        );
+        expect(read(own(9), undefined, closesAt, now, sameTime(5, { closesAt: "2026-10-12T06:00:00Z" }))).toBe("2026-10-12T06:32:00.000Z");
+        expect(read(own(9), undefined, closesAt, now, [...sameTime(4), ...sameTime(1, { closesAt: "2026-10-12T06:00:00Z" })])).toBe(
+          "2026-10-12T06:32:00.000Z",
+        );
+        // The row's place, or the others', is not known: an equal time holds nobody (as before).
+        expect(read(row, undefined, closesAt, now, sameTime(5))).toBe("2026-10-12T06:32:00.000Z");
+        expect(read(own(9), undefined, closesAt, now, sameTime(5).map(() => other(SAME)))).toBe("2026-10-12T06:32:00.000Z");
+        // A letter that leaves EARLIER still decides first: the hold starts with it, not with the full e-mail.
+        expect(read(own(9), undefined, later, now, [...sameTime(5), other("2026-10-12T06:05:00Z")])).toBe("2026-10-19T06:05:00.000Z");
+      });
+
+      it("the full e-mail is one more unanswered letter (the third pauses the row); a typed row and an interested address are read again a minute later and leave", () => {
+        expect(read(own(9), history("2026-09-01T08:00:00Z", { sends90d: 2 }), later, now, sameTime(5))).toBe("PAUSED");
+        expect(read(own(9), history("2026-09-01T08:00:00Z", { sends90d: 1 }), later, now, sameTime(5))).toBe("2026-10-19T06:32:00.000Z");
+        expect(read({ ...own(9), source: "MANUAL" }, undefined, closesAt, now, sameTime(5))).toBe("2026-10-12T06:32:00.000Z");
+        expect(read(own(9), history(null, { engaged: true }), closesAt, now, sameTime(5))).toBe("2026-10-12T06:32:00.000Z");
+        // Typed letters of other requests take their places in the e-mail like any other.
+        expect(read(own(9), undefined, closesAt, now, sameTime(5, { source: "MANUAL" }))).toBe("FREQUENCY");
+      });
+    });
   });
 });
 
@@ -424,6 +492,139 @@ describe("coldInviteSendAt", () => {
     expect(coldInviteSendAt({ source: "MANUAL", engaged: false, country: "TR", at })).toBe(at);
     expect(coldInviteSendAt({ source: "AI_FORM", engaged: true, country: "TR", at })).toBe(at);
     expect(iso(coldInviteSendAt({ source: "AI_FORM", engaged: false, country: "TR", at }))).toBe("2026-10-12T06:00:00.000Z");
+  });
+});
+
+/**
+ * Closing check 2026-10-10, DISC-N1: every AI-sourced row got its own minute of
+ * the 0-45 minute spread, so two requests that queued one address for Monday
+ * 09:32 and 09:33 were two dispatcher runs - the second letter was held 7 days
+ * and dropped instead of leaving in the same e-mail. A new row now takes
+ * exactly the time of the letter its address already has in that window.
+ */
+describe("inviteQueueSendAt", () => {
+  const iso = (d: Date) => d.toISOString();
+  const SATURDAY = "2026-10-10T10:00:00.000Z"; // 13:00 in Istanbul: the next window opens Monday 06:00 UTC
+  const plan = (
+    waiting: string[] | undefined,
+    over: { source?: "MANUAL" | "AI_FORM" | "AI_AUTO"; country?: string | null; at?: string; jitterMinutes?: number } = {},
+  ) =>
+    iso(
+      inviteQueueSendAt({
+        source: over.source ?? "AI_AUTO",
+        country: over.country === undefined ? "TR" : over.country,
+        at: new Date(over.at ?? SATURDAY),
+        jitterMinutes: over.jitterMinutes ?? 33,
+        waiting: waiting?.map((w) => new Date(w)),
+      }),
+    );
+
+  it("no letter waits for the address: the next window start plus the row's own spread, as before", () => {
+    expect(plan(undefined)).toBe("2026-10-12T06:33:00.000Z");
+    expect(plan([])).toBe("2026-10-12T06:33:00.000Z");
+    expect(plan([], { jitterMinutes: 0 })).toBe("2026-10-12T06:00:00.000Z");
+    // Inside the window the row is due at once (the spread only applies to a window start).
+    expect(plan([], { at: "2026-10-07T10:00:00.000Z" })).toBe("2026-10-07T10:00:00.000Z");
+  });
+
+  it("a letter waits in the row's window: the row takes EXACTLY its time, whatever its own spread would have been", () => {
+    for (const jitterMinutes of [0, 33, 44]) {
+      expect(plan(["2026-10-12T06:32:00.000Z"], { jitterMinutes })).toBe("2026-10-12T06:32:00.000Z");
+    }
+    // Milliseconds included: both rows must come due in the same dispatcher run.
+    expect(plan(["2026-10-12T06:32:17.123Z"])).toBe("2026-10-12T06:32:17.123Z");
+    // Both sources the AI found; the edges of the range (window start, end of the spread) are in.
+    expect(plan(["2026-10-12T06:00:00.000Z"], { source: "AI_FORM" })).toBe("2026-10-12T06:00:00.000Z");
+    expect(plan(["2026-10-12T06:45:00.000Z"])).toBe("2026-10-12T06:45:00.000Z");
+  });
+
+  it("several letters in the range: the first one to leave is joined", () => {
+    expect(plan(["2026-10-12T06:40:00.000Z", "2026-10-12T06:25:00.000Z", "2026-10-12T06:34:00.000Z"])).toBe(
+      "2026-10-12T06:25:00.000Z",
+    );
+  });
+
+  it("a letter outside the range is not joined: never a time before the row's own window, never one its spread could not give", () => {
+    // Earlier than the window start: already due, the weekend, another country's earlier window (Tokyo opens Monday 00:00 UTC).
+    expect(plan(["2026-10-10T09:59:00.000Z"])).toBe("2026-10-12T06:33:00.000Z");
+    expect(plan(["2026-10-11T12:00:00.000Z"])).toBe("2026-10-12T06:33:00.000Z");
+    expect(plan(["2026-10-12T00:20:00.000Z"])).toBe("2026-10-12T06:33:00.000Z");
+    expect(plan(["2026-10-12T05:59:59.999Z"])).toBe("2026-10-12T06:33:00.000Z");
+    // Later than the spread: a letter on its 7-day hold, Tuesday's window.
+    expect(plan(["2026-10-12T06:45:00.001Z"])).toBe("2026-10-12T06:33:00.000Z");
+    expect(plan(["2026-10-13T06:10:00.000Z"])).toBe("2026-10-12T06:33:00.000Z");
+    // The window is the ROW's country's: the same waiting letter is in Istanbul's range and before Madrid's (07:00 UTC).
+    expect(plan(["2026-10-12T06:32:00.000Z"], { country: "ES" })).toBe("2026-10-12T07:33:00.000Z");
+    expect(plan(["2026-10-12T06:32:00.000Z"], { country: null })).toBe("2026-10-12T06:32:00.000Z");
+  });
+
+  it("inside the window the row is due now - unless a letter of the address comes due within the spread (translation wait, retry): then both leave together", () => {
+    const at = "2026-10-07T10:00:00.000Z"; // Wednesday 13:00 in Istanbul
+    expect(plan(["2026-10-07T10:02:00.000Z"], { at })).toBe("2026-10-07T10:02:00.000Z");
+    expect(plan(["2026-10-07T10:30:00.000Z"], { at })).toBe("2026-10-07T10:30:00.000Z");
+    // Already due (the dispatcher reads both in its next run) or further away than the spread: now.
+    expect(plan(["2026-10-07T09:59:30.000Z"], { at })).toBe(at);
+    expect(plan(["2026-10-07T10:46:00.000Z"], { at })).toBe(at);
+  });
+
+  /**
+   * Review R8-1: the range is 45 minutes long, so in the last 45 minutes of
+   * the window it ends after 16:00 local. A letter of the address that waits
+   * THERE (a typed letter's retry, another country's window, a claim lease) was
+   * joined: the row was answered "queued, 16:20", found outside its window at
+   * that minute, moved to Monday and dropped by the hold of the other letter.
+   */
+  it("never a time outside the row's own send window: in the window's last 45 minutes a letter that waits after 16:00 local is not joined", () => {
+    const at = "2026-10-09T12:50:00.000Z"; // Friday 15:50 in Istanbul
+    const inWindow = (time: string, country: string | null = "TR") =>
+      nextBusinessWindow(new Date(time), timeZoneForCountry(country)).toISOString() === time;
+    // The typed letter's retry at 16:20: the row is due now, as before the rule.
+    expect(plan(["2026-10-09T13:20:00.000Z"], { source: "AI_FORM", at })).toBe(at);
+    expect(inWindow(plan(["2026-10-09T13:20:00.000Z"], { source: "AI_FORM", at }))).toBe(true);
+    // A letter planned for Warsaw's afternoon (15:10 there, 16:10 in Istanbul), queued at 15:40 in Istanbul.
+    expect(plan(["2026-10-09T13:10:00.000Z"], { at: "2026-10-09T12:40:00.000Z" })).toBe("2026-10-09T12:40:00.000Z");
+    // ...the same letter is joined by a row of ITS country: 15:10 is inside Warsaw's window.
+    expect(plan(["2026-10-09T13:10:00.000Z"], { at: "2026-10-09T12:40:00.000Z", country: "PL" })).toBe("2026-10-09T13:10:00.000Z");
+    // The window's edges: 15:59:59 is joined, 16:00:00 is not - and a later letter does not hide an earlier one inside the window.
+    expect(plan(["2026-10-09T12:59:59.999Z"], { at })).toBe("2026-10-09T12:59:59.999Z");
+    expect(plan(["2026-10-09T13:00:00.000Z"], { at })).toBe(at);
+    expect(plan(["2026-10-09T13:20:00.000Z", "2026-10-09T12:56:00.000Z", "2026-10-09T13:00:00.000Z"], { at })).toBe(
+      "2026-10-09T12:56:00.000Z",
+    );
+    // Whatever waits for the address, the planned time is a minute of the row's own window.
+    for (const minute of [0, 5, 9, 10, 20, 35]) {
+      const waiting = [new Date(Date.UTC(2026, 9, 9, 13, minute)).toISOString()];
+      for (const queuedAt of ["2026-10-09T12:16:00.000Z", "2026-10-09T12:40:00.000Z", at, "2026-10-09T12:59:00.000Z"]) {
+        expect(inWindow(plan(waiting, { at: queuedAt }))).toBe(true);
+      }
+    }
+  });
+
+  it("an address the buyer typed does not wait and joins nothing", () => {
+    expect(plan(["2026-10-12T06:32:00.000Z"], { source: "MANUAL" })).toBe(SATURDAY);
+    expect(plan(["2026-10-07T10:02:00.000Z"], { source: "MANUAL", at: "2026-10-07T10:00:00.000Z" })).toBe("2026-10-07T10:00:00.000Z");
+  });
+
+  it("two rows that joined read 'queued' with one time in the forecast: an equal time holds nobody", () => {
+    const now = new Date(SATURDAY);
+    const first = new Date(plan([]));
+    const second = new Date(plan([iso(first)], { jitterMinutes: 5 }));
+    const closesAt = new Date("2026-10-17T10:00:00.000Z");
+    const letter = (sendAfter: Date) => ({ source: "AI_AUTO" as const, country: "TR", sendAfter });
+    expect(queuedInviteForecast(letter(second), undefined, closesAt, now, [{ ...letter(first), closesAt }])).toEqual({
+      leavesAt: first,
+      dropReason: null,
+    });
+    expect(queuedInviteForecast(letter(first), undefined, closesAt, now, [{ ...letter(second), closesAt }])).toEqual({
+      leavesAt: first,
+      dropReason: null,
+    });
+    // The rows as they used to be planned (own spread, five minutes behind): held 7 days, the request closes first.
+    const apart = new Date(plan([], { jitterMinutes: 38 }));
+    expect(queuedInviteForecast(letter(apart), undefined, closesAt, now, [{ ...letter(first), closesAt }])).toEqual({
+      leavesAt: null,
+      dropReason: "FREQUENCY",
+    });
   });
 });
 

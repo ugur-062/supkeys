@@ -24,6 +24,7 @@ import {
   inviteHoldUntil,
   inviteMissesClosing,
   invitePaused,
+  inviteQueueSendAt,
   queuedInviteForecast,
   REMINDER_EARLY_HOURS,
   REMINDER_MIN_LEFT_HOURS,
@@ -34,6 +35,7 @@ import {
   type InviteSourceKind,
   type QueuedInviteForecast,
   type QueuedLetter,
+  type QueuePlace,
 } from "../../../common/company/external-invite-policy";
 import {
   countryFromEmailDomain,
@@ -223,11 +225,15 @@ export async function inviteAddressHistories(
  *  - the address's queued letters on OTHER requests of any buyer (review of
  *    AUTO-COUNT-1): the 7-day hold is per address, so a letter that leaves a
  *    few minutes earlier for another request holds this one - although nothing
- *    has been sent yet and the history is still empty.
+ *    has been sent yet and the history is still empty;
+ *  - for an address with enough of those letters to fill an e-mail
+ *    (`INVITE_DIGEST_MAX`), this request's place in the dispatcher's order
+ *    (review R8-3): the sixth letter of one planned time does not fit the
+ *    e-mail and is held by it.
  *
  * Three queries for the whole request, none when `rows` is empty - never one
- * per row. Bypass client: both reads span every buyer. `rows` = the QUEUED
- * rows of `listing`.
+ * per row; a fourth only when an address is that crowded. Bypass client: the
+ * reads span every buyer. `rows` = the QUEUED rows of `listing`.
  */
 export async function queuedInviteForecasts(
   prisma: Pick<PrismaBypassService, "emailLog" | "companyReferralInvite" | "externalListingInvite">,
@@ -242,17 +248,90 @@ export async function queuedInviteForecasts(
     inviteAddressHistories(prisma, emails, now),
     prisma.externalListingInvite.findMany({
       where: { ...readableQueueWhere(now), email: { in: emails }, listingId: { not: listing.id } },
-      select: { email: true, source: true, country: true, sendAfter: true, listing: { select: { closesAt: true } } },
+      select: {
+        id: true,
+        createdAt: true,
+        email: true,
+        source: true,
+        country: true,
+        sendAfter: true,
+        listing: { select: { closesAt: true } },
+      },
     }),
   ]);
-  const ahead = new Map<string, Array<QueuedLetter & { closesAt: Date | null }>>();
+  const ahead = new Map<string, Array<QueuedLetter & QueuePlace & { closesAt: Date | null }>>();
   for (const o of others) {
     const list = ahead.get(o.email) ?? [];
-    list.push({ source: o.source, country: o.country, sendAfter: o.sendAfter, closesAt: o.listing.closesAt });
+    list.push({
+      id: o.id,
+      createdAt: o.createdAt,
+      source: o.source,
+      country: o.country,
+      sendAfter: o.sendAfter,
+      closesAt: o.listing.closesAt,
+    });
     ahead.set(o.email, list);
   }
+  // The row's own place matters only where the e-mail can be full.
+  const crowded = emails.filter((email) => (ahead.get(email)?.length ?? 0) >= INVITE_DIGEST_MAX);
+  const places = new Map<string, QueuePlace>();
+  if (crowded.length > 0) {
+    const own = await prisma.externalListingInvite.findMany({
+      where: { listingId: listing.id, email: { in: crowded } },
+      select: { id: true, createdAt: true, email: true },
+    });
+    for (const o of own) places.set(o.email, { id: o.id, createdAt: o.createdAt });
+  }
   for (const r of rows) {
-    out.set(r.email, queuedInviteForecast(r, histories.get(r.email), listing.closesAt, now, ahead.get(r.email)));
+    out.set(
+      r.email,
+      queuedInviteForecast(
+        { source: r.source, country: r.country, sendAfter: r.sendAfter, ...places.get(r.email) },
+        histories.get(r.email),
+        listing.closesAt,
+        now,
+        ahead.get(r.email),
+      ),
+    );
+  }
+  return out;
+}
+
+/**
+ * PLANNED TIMES OF THE LETTERS THAT WAIT FOR AN ADDRESS, by address (closing
+ * check 2026-10-10, DISC-N1): the queued rows the dispatcher will read
+ * (`readableQueueWhere` - any request, any buyer) whose turn has not come yet.
+ * What `inviteQueueSendAt` needs to let a new row join the letter the address
+ * already has in its send window, so both leave as one e-mail.
+ *
+ * ONLY A LETTER THAT CAN STILL LEAVE (review R8-4): a letter whose request
+ * closes before its planned time is dropped when that request closes
+ * (`LISTING_CLOSED`) - the forecast calls it `CLOSES_FIRST` and ignores it.
+ * Offered here, it was the earliest letter and so the one joined: the new row
+ * then left alone at that time and held the later letter it should have
+ * joined for 7 days. Same test as in `forecastFromHistory`.
+ *
+ * ONE query for all addresses of a call, none when `emails` is empty - never
+ * one per row. Bypass client: the read spans every buyer.
+ */
+export async function waitingLetterTimes(
+  prisma: Pick<PrismaBypassService, "externalListingInvite">,
+  emails: readonly string[],
+  now: Date,
+): Promise<Map<string, Date[]>> {
+  const out = new Map<string, Date[]>();
+  if (emails.length === 0) return out;
+  const rows = await prisma.externalListingInvite.findMany({
+    // A window start is never in the past: a row that is already due is in no range a new row can join.
+    where: { ...readableQueueWhere(now), email: { in: [...new Set(emails)] }, sendAfter: { gte: now } },
+    select: { email: true, sendAfter: true, listing: { select: { closesAt: true } } },
+  });
+  for (const r of rows) {
+    const closesAt = r.listing.closesAt;
+    if (closesAt && r.sendAfter.getTime() >= closesAt.getTime()) continue;
+    const list = out.get(r.email) ?? [];
+    list.push(r.sendAfter);
+    out.set(r.email, list);
   }
   return out;
 }
@@ -354,11 +433,18 @@ export class ExternalInviteDispatcher {
     return report;
   }
 
-  /** Rows whose turn has come and whose request can be sent for (one run's batch). */
+  /**
+   * Rows whose turn has come and whose request can be sent for (one run's
+   * batch). The order is the order inside an address's e-mail, and it is
+   * COMPLETE (review R8-3): rows that joined each other share one planned
+   * time, and when more than `INVITE_DIGEST_MAX` of them come due together the
+   * first five in this order leave - the forecast counts in the same order
+   * (`QueuePlace`), so which row is told "not sent" is not left to chance.
+   */
   private async dueInvites(now: Date): Promise<DueInvite[]> {
     return (await this.prisma.externalListingInvite.findMany({
       where: { ...readableQueueWhere(now), sendAfter: { lte: now } },
-      orderBy: { sendAfter: "asc" },
+      orderBy: [{ sendAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
       take: DUE_BATCH,
       select: DUE_SELECT,
     })) as unknown as DueInvite[];
@@ -431,14 +517,34 @@ export class ExternalInviteDispatcher {
       },
       orderBy: { id: "asc" },
       take: RESUME_BATCH,
-      select: { id: true, country: true, sendAfter: true },
+      select: { id: true, email: true, country: true, sendAfter: true },
     });
+    // A row whose turn has passed gets a NEW time, planned like a new row's
+    // (`inviteQueueSendAt`, DISC-N1): it joins the letter its address already
+    // has in that window - queued by another request, or resumed in this run -
+    // instead of a minute of its own (two rows of one address that had ONE
+    // planned time came back with two, and the second was then held 7 days).
+    // One read for the batch, none when every row keeps its time.
+    const overdue = (row: { sendAfter: Date }) => row.sendAfter.getTime() <= now.getTime();
+    const waiting = await waitingLetterTimes(this.prisma, rows.filter(overdue).map((row) => row.email), now);
+    const lettersOf = (email: string) => {
+      const list = waiting.get(email) ?? [];
+      waiting.set(email, list);
+      return list;
+    };
+    for (const row of rows) if (!overdue(row)) lettersOf(row.email).push(row.sendAfter);
     let resumed = 0;
     for (const row of rows) {
-      const sendAfter =
-        row.sendAfter.getTime() > now.getTime()
-          ? row.sendAfter
-          : nextBusinessWindow(now, timeZoneForCountry(row.country), windowJitter());
+      const sendAfter = overdue(row)
+        ? inviteQueueSendAt({
+            source: "AI_AUTO",
+            country: row.country,
+            at: now,
+            jitterMinutes: windowJitter(),
+            waiting: lettersOf(row.email),
+          })
+        : row.sendAfter;
+      if (overdue(row)) lettersOf(row.email).push(sendAfter);
       // Koşullu: alıcı aynı adresi o an elle davet ettiyse (satır onun daveti
       // olarak canlandı) ya da ikinci bir örnek geri aldıysa dokunulmaz.
       const r = await this.prisma.externalListingInvite.updateMany({

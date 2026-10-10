@@ -628,7 +628,10 @@ describe("R5-03 — eksik kapsamın nedeni ve yalnız o kapsamı arama", () => {
 describe("AS-4 — yoklama yanıtı `elapsedMs` taşır (sunucu saatiyle geçen süre)", () => {
   const NOW = Date.parse("2026-10-09T14:00:14.700Z");
   const controllerFor = (view: Record<string, unknown>) => {
-    const service = { externalSearchStatus: jest.fn().mockReturnValue(view) };
+    // The controller answers the service's view of the search as it is told to
+    // the client (`externalSearchAnswer`: the stored result with the request's
+    // current invitations, DISC-N3) - an asynchronous read.
+    const service = { externalSearchAnswer: jest.fn().mockResolvedValue(view) };
     return { service, controller: new SupplierDiscoveryController(service as never) };
   };
 
@@ -640,18 +643,18 @@ describe("AS-4 — yoklama yanıtı `elapsedMs` taşır (sunucu saatiyle geçen 
     clock.mockRestore();
   });
 
-  it("süren arama: kayıt anından bu yana geçen süre; servisin görünümü aynen durur", () => {
+  it("süren arama: kayıt anından bu yana geçen süre; servisin görünümü aynen durur", async () => {
     const view = { status: "RUNNING", startedAt: "2026-10-09T14:00:00.000Z" };
     const { service, controller } = controllerFor(view);
-    expect(controller.externalSearch(user, "s1")).toEqual({ ...view, elapsedMs: 14_700 });
-    expect(service.externalSearchStatus).toHaveBeenCalledWith(user, "s1");
+    expect(await controller.externalSearch(user, "s1")).toEqual({ ...view, elapsedMs: 14_700 });
+    expect(service.externalSearchAnswer).toHaveBeenCalledWith(user, "s1");
   });
 
-  it("biten aramada sonuç gövdesine dokunulmaz; süre negatif olamaz", () => {
+  it("biten aramada sonuç gövdesine dokunulmaz; süre negatif olamaz", async () => {
     const result = { companies: [], incompleteScopes: [] };
-    const done = controllerFor({ status: "DONE", startedAt: "2026-10-09T13:58:00.000Z", result }).controller.externalSearch(user, "s1");
+    const done = await controllerFor({ status: "DONE", startedAt: "2026-10-09T13:58:00.000Z", result }).controller.externalSearch(user, "s1");
     expect(done).toEqual({ status: "DONE", startedAt: "2026-10-09T13:58:00.000Z", result, elapsedMs: 134_700 });
-    const ahead = controllerFor({ status: "RUNNING", startedAt: "2026-10-09T14:00:15.000Z" }).controller.externalSearch(user, "s1");
+    const ahead = await controllerFor({ status: "RUNNING", startedAt: "2026-10-09T14:00:15.000Z" }).controller.externalSearch(user, "s1");
     expect(ahead.elapsedMs).toBe(0);
   });
 });

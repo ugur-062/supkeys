@@ -64,24 +64,22 @@ import { isLocale, recipientLocale, type Locale } from "@rothern/i18n";
 import {
   AUTO_INVITE_OFF_REASON,
   COMPANY_DAILY_INVITE_CAP,
+  INVITE_WINDOW_JITTER_MINUTES,
   coldInviteBlockedByCountry,
+  inviteQueueSendAt,
   registrationBlockedCountry,
   utcDayStart,
   type InviteSourceKind,
   type QueuedInviteDropReason,
   type QueuedLetter,
 } from "../../../common/company/external-invite-policy";
-import { queuedInviteForecasts } from "./external-invite-dispatcher.service";
+import { queuedInviteForecasts, waitingLetterTimes } from "./external-invite-dispatcher.service";
 import {
   INVITE_LISTING_SELECT,
   InviteContentBuilder,
   type InviteListing,
 } from "../../../common/company/external-invite-content";
-import {
-  countryFromEmailDomain,
-  nextBusinessWindow,
-  timeZoneForCountry,
-} from "../../../common/time/country-time-zone";
+import { countryFromEmailDomain } from "../../../common/time/country-time-zone";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -627,7 +625,7 @@ export class CompanyConnectionsService {
     }
 
     const now = new Date();
-    const [externalToday, memberToday, optOuts, registered, alreadyForListing, referrals] = await Promise.all([
+    const [externalToday, memberToday, optOuts, registered, alreadyForListing, referrals, waiting] = await Promise.all([
       this.prisma.externalListingInvite.count({
         where: { inviterCompanyId: user.companyId, createdAt: { gte: utcDayStart(now) } },
       }),
@@ -656,6 +654,16 @@ export class CompanyConnectionsService {
         where: { inviterCompanyId: user.companyId, email: { in: emails } },
         select: { email: true, status: true, locale: true },
       }),
+      // LETTERS ALREADY WAITING FOR THESE ADDRESSES (DISC-N1) - on any request
+      // of any buyer, so bypass; one read for the whole call. An address the
+      // buyer typed does not wait and joins nothing: not read. A read that
+      // fails changes nothing: the rows are spread as before.
+      source === "MANUAL"
+        ? new Map<string, Date[]>()
+        : waitingLetterTimes(this.bypass, emails, now).catch((err: unknown) => {
+            this.logger.warn(`waiting invite read failed (${listing.id}): ${err instanceof Error ? err.message : String(err)}`);
+            return new Map<string, Date[]>();
+          }),
     ]);
     const optOutSet = new Set(optOuts.map((o) => o.email));
     const registeredSet = new Set(registered.map((r) => r.email.toLowerCase()));
@@ -773,11 +781,17 @@ export class CompanyConnectionsService {
         await this.prisma.companyReferralInvite.update({ where: { id: referral.id }, data: { status: "PENDING" } });
       }
       // Elle yazılan adres hemen; AI'ın bulduğu adres alıcının mesai saatinde
-      // (aynı ana yığılmasın diye 0-45 dk dağıtılır).
-      const sendAfter =
-        source === "MANUAL"
-          ? now
-          : nextBusinessWindow(now, timeZoneForCountry(country), Math.floor(Math.random() * 45));
+      // (aynı ana yığılmasın diye 0-45 dk dağıtılır). The address already has a
+      // letter waiting in that window (another request, any buyer): this row
+      // takes exactly its time, so both leave as ONE e-mail instead of the
+      // second being held 7 days (DISC-N1; single rule `inviteQueueSendAt`).
+      const sendAfter = inviteQueueSendAt({
+        source,
+        country,
+        at: now,
+        jitterMinutes: Math.floor(Math.random() * INVITE_WINDOW_JITTER_MINUTES),
+        waiting: waiting.get(email),
+      });
       try {
         const revived = revivable.get(email);
         if (revived) {
